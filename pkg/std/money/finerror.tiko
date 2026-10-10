@@ -1,4 +1,6 @@
 #module "money"
+#import "std/numeric"
+using numeric
 '' std/money: finerror -- how a finance call fails
 ''
 ''     #import "std/money"
@@ -51,7 +53,6 @@
 #endif
 
 #include once "fb/result.bi"
-#include once "fb/math.bi"
 #include once "fblimits.bi"
 #include once "fb/optional.bi"
 #include once "fblimits.bi"

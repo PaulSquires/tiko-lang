@@ -46,12 +46,8 @@ FACADES = {
     "tasks": (["fb/scheduler.bi", "fb/channel.bi", "fb/sync.bi"],
               ["scheduler.bi", "channel.bi", "sync.bi"], True),
     "outcome": (["fb/optional.bi", "fb/result.bi"], ["optional.bi", "result.bi"], False),
-    "numeric": (["fb/math.bi", "fb/mathint.bi", "fb/complex.bi", "fb/mathtext.bi",
-                 "fb/random.bi", "fb/stats.bi", "fb/fenv.bi", "fb/vector.bi"],
-                ["math.bi", "mathint.bi", "complex.bi", "mathtext.bi", "random.bi", "stats.bi",
-                 "fenv.bi", "vector.bi"], False),
 }
-# Real modules now (build/stdport.py, 2026-10-10), no longer written here: strings, tui, money, logs, fs.
+# Real modules now (build/stdport.py, 2026-10-10), no longer written here: strings, tui, money, logs, fs, numeric.
 
 # std/path's names, kept in std/fs when std/path was folded into it (RFC-0009 M30). Each is
 # the header's function, with the header's behaviour -- see pkg/std/README.md.

@@ -64,7 +64,7 @@ norm( ) {
 # A FAILING ASSERT'S SITE, compared without its directory or line: the port lives in
 # tests/std rather than tests/vendor/fbc-tests, and its rewritten imports move its lines.
 site( ) {
-    sed -E 's|tests/(vendor/fbc-tests\|std)/[A-Za-z0-9_]+/([A-Za-z0-9_.-]+\.bas)\([0-9]+\)|\2(L)|g'
+    sed -E 's|tests/(vendor/fbc-tests\|std)/[A-Za-z0-9_]+/([A-Za-z0-9_.-]+\.bas)\([0-9]+(,[0-9]+)?\)|\2(L)|g'
 }
 
 n=0; nbad=0

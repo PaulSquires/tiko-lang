@@ -1,0 +1,12 @@
+#module "gen"
+#include once "../../tkiusing/g.bi"
+using ns
+#macro MAKE_( T )
+    public function Make##T( byval x as T ) as G( of T )
+        dim r as G( of T )
+        r.v = x
+        return r
+    end function
+#endmacro
+MAKE_( long )
+MAKE_( double )

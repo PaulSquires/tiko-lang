@@ -1,0 +1,11 @@
+'' A NAME A 'using' REACHED, IN EVERY EXPANSION OF A MACRO. Each expansion of MAKE_ declares
+'' a public function returning 'G( of T )' after 'using ns', and all of their tokens share
+'' the macro body's location: the interface qualified the first expansion's G only, and the
+'' importer reported TKO0808 at the second (fb/mathint.bi's checked arithmetic, std/numeric,
+'' 2026-10-10).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/modules/src/tkimacro/main.bas -o tests/modules/tkimacro.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/tkimacro.exe
+'' EXPECT-RUN-OUT: 4 2.5

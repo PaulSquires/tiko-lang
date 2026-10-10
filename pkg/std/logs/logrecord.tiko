@@ -1,4 +1,6 @@
 #module "logs"
+#import "std/numeric"
+using numeric
 '' std/logs: logrecord -- the value layer of FB.Logging
 ''
 ''     #import "std/logs"
@@ -33,7 +35,6 @@
 
 #include once "fb/chrono.bi"
 #include once "fb/array.bi"
-#include once "fb/mathtext.bi"
 
 using FB
 

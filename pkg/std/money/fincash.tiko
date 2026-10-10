@@ -1,4 +1,6 @@
 #module "money"
+#import "std/numeric"
+using numeric
 '' std/money: fincash -- cash flows and investment appraisal
 ''
 ''     #import "std/money"
@@ -58,14 +60,11 @@
 #endif
 
 #include once "fb/result.bi"
-#include once "fb/math.bi"
 #include once "fblimits.bi"
 #include once "fb/optional.bi"
 #include once "fblimits.bi"
 #include once "fb/optional.bi"
-#include once "fb/math.bi"
 #include once "fb/chrono.bi"
-#include once "fb/math.bi"
 #include once "fb/array.bi"
 
 using FB

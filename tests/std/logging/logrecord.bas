@@ -7,6 +7,7 @@
 '' layer is TOTAL, and the point of the file is to hold that claim.
 
 #import "std/logs"
+#import "std/numeric"
 #import "std/fs"
 #include "fbcunit.bi"
 
@@ -14,11 +15,13 @@
 
 #include once "fb/array.bi"
 
-#include once "fb/mathtext.bi"
+#include once "fb/optional.bi"
+
+#include once "fblimits.bi"
 
 #include once "fb/result.bi"
 
-using logs, fs
+using logs, numeric, fs
 
 using FB
 SUITE( fbc_tests.logging.logrecord_ )

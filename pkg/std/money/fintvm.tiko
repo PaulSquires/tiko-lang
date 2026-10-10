@@ -1,4 +1,6 @@
 #module "money"
+#import "std/numeric"
+using numeric
 '' std/money: fintvm -- the time value of money
 ''
 ''     #import "std/money"
@@ -63,14 +65,11 @@
 #endif
 
 #include once "fb/result.bi"
-#include once "fb/math.bi"
 #include once "fblimits.bi"
 #include once "fb/optional.bi"
 #include once "fblimits.bi"
 #include once "fb/optional.bi"
-#include once "fb/math.bi"
 #include once "fb/chrono.bi"
-#include once "fb/math.bi"
 
 using FB
 

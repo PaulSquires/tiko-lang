@@ -1,0 +1,196 @@
+#module "numeric"
+'' std/numeric: fenv -- the floating-point rounding mode and exception flags
+''
+''     #import "std/numeric"
+''     using numeric
+''
+''     scope
+''         dim r as ScopedRounding = ScopedRounding( ROUND_TOWARD_NEGATIVE )
+''         '' ... directed-rounding computation ...
+''     end scope                      ' restored on EVERY exit path
+''
+''     ClearFpExceptions( )
+''     '' ... computation ...
+''     if( TestFpException( FP_OVERFLOW ) ) then ...
+''
+'' Specified by C:\dev\docs\math\RFC-0008-precision.md section 4.  Phase 9,
+'' last of the scheduled items, because very few FB programs need directed
+'' rounding.
+''
+'' THE HAZARD, STATED RATHER THAN HIDDEN.  The optimiser is entitled to move
+'' floating-point operations across a call, and moving one across a
+'' rounding-mode change silently produces the wrong answer.  C solves this with
+'' '#pragma STDC FENV_ACCESS'; fbc has no equivalent, and this header cannot
+'' invent one.  In practice the calls below are opaque to fbc -- it does not
+'' reorder floating-point work across an external call it cannot see into --
+'' but that is an OBSERVATION ABOUT TODAY'S COMPILER, not a guarantee.  Keep
+'' the computation between the calls simple, and do not build a correctness
+'' argument on top of a directed mode surviving an optimiser change.
+
+
+
+extern "c"
+    declare function c_fegetround   alias "fegetround"   ( ) as long
+    declare function c_fesetround   alias "fesetround"   ( byval as long ) as long
+    declare function c_feclearexcept alias "feclearexcept" ( byval as long ) as long
+    declare function c_fetestexcept alias "fetestexcept"  ( byval as long ) as long
+    declare function c_feraiseexcept alias "feraiseexcept" ( byval as long ) as long
+end extern
+
+'' THESE ARE FB'S OWN VALUES, AND THEY ARE DELIBERATELY NOT PASSED STRAIGHT TO
+'' THE CRT.  The numbers below are the x87 control- and status-word encodings,
+'' which is what glibc, the BSDs and djgpp spell their FE_* macros as -- so on
+'' those platforms the translation below is the identity.
+''
+'' It cannot be the identity everywhere, because THE C LIBRARY'S NUMBERS ARE NOT
+'' A PROPERTY OF THE PLATFORM.  MSVC, and mingw-w64 since v8, define FE_* in
+'' terms of the CRT's abstract _RC_* / _SW_* codes and translate inside
+'' fesetround; mingw-w64 v7 and earlier used the x87 encoding directly.  Both
+'' are still in the wild, and on this machine BOTH ARE IN USE AT ONCE -- the
+'' win64 toolchain (mingw-w64 13.x) wants the _RC_* family, the bundled win32
+'' one (mingw-w64 v7) wants x87.  A '#if defined(__FB_WIN32__)' would therefore
+'' be wrong for one of them, and fbc cannot know at compile time which runtime
+'' the user will finally link against.
+''
+'' The two families overlap numerically WITHOUT agreeing, which is why getting
+'' it wrong is silent rather than loud: x87 FE_DIVBYZERO is &h04, which in the
+'' _SW_* family is FE_OVERFLOW.  fesetround merely returns failure; fetestexcept
+'' cheerfully answers about a different flag.  Hence: detect at startup, and
+'' translate.
+public enum RoundingMode
+    ROUND_TO_NEAREST       = 0        '' FE_TONEAREST  -- the default
+    ROUND_TOWARD_NEGATIVE  = &h400    '' FE_DOWNWARD
+    ROUND_TOWARD_POSITIVE  = &h800    '' FE_UPWARD
+    ROUND_TOWARD_ZERO      = &hC00    '' FE_TOWARDZERO
+end enum
+
+public enum FpException
+    FP_INVALID    = &h01
+    FP_DIVBYZERO  = &h04
+    FP_OVERFLOW   = &h08
+    FP_UNDERFLOW  = &h10
+    FP_INEXACT    = &h20
+    FP_ALL_EXCEPT = &h3D
+end enum
+
+'' ===========================================================================
+'' Which family did we link against?
+''
+'' Asked by EXPERIMENT rather than by #ifdef: offer the CRT the x87 spelling of
+'' FE_DOWNWARD and see whether it takes it.  A CRT in the _RC_* family rejects
+'' &h400 (it is not a valid _RC_ code) and returns non-zero without touching the
+'' mode; a CRT in the x87 family accepts it, so the probe puts the mode back.
+''
+'' A MODULE CONSTRUCTOR, so this runs before main and therefore before any other
+'' thread exists.  Doing it lazily on first use would mean perturbing the
+'' rounding mode underneath whatever else is running.
+'' ===========================================================================
+
+dim shared as boolean fenv_crt_is_rc_ = false
+
+sub fenv_detect_ constructor
+    dim as long saved = c_fegetround( )
+    fenv_crt_is_rc_ = ( c_fesetround( &h400 ) <> 0 )
+    c_fesetround( saved )
+end sub
+
+'' _RC_NEAR / _RC_DOWN / _RC_UP / _RC_CHOP
+function fenv_round_out_( byval m as long ) as long
+    if( fenv_crt_is_rc_ = false ) then return m
+    select case m
+    case ROUND_TOWARD_NEGATIVE : return &h100
+    case ROUND_TOWARD_POSITIVE : return &h200
+    case ROUND_TOWARD_ZERO     : return &h300
+    case else                  : return &h000
+    end select
+end function
+
+function fenv_round_in_( byval m as long ) as long
+    if( fenv_crt_is_rc_ = false ) then return m
+    select case m
+    case &h100 : return ROUND_TOWARD_NEGATIVE
+    case &h200 : return ROUND_TOWARD_POSITIVE
+    case &h300 : return ROUND_TOWARD_ZERO
+    case else  : return ROUND_TO_NEAREST
+    end select
+end function
+
+'' _SW_INEXACT / _SW_UNDERFLOW / _SW_OVERFLOW / _SW_ZERODIVIDE / _SW_INVALID.
+'' Only the outbound direction is needed: every use is a mask handed to
+'' feclearexcept / fetestexcept / feraiseexcept, and the answer is tested for
+'' non-zero rather than decoded.
+function fenv_exc_out_( byval flags as long ) as long
+    if( fenv_crt_is_rc_ = false ) then return flags
+    dim as long r = 0
+    if( (flags and FP_INVALID  ) <> 0 ) then r or= &h10
+    if( (flags and FP_DIVBYZERO) <> 0 ) then r or= &h08
+    if( (flags and FP_OVERFLOW ) <> 0 ) then r or= &h04
+    if( (flags and FP_UNDERFLOW) <> 0 ) then r or= &h02
+    if( (flags and FP_INEXACT  ) <> 0 ) then r or= &h01
+    return r
+end function
+
+public function GetRoundingMode overload ( ) as long
+    function = fenv_round_in_( c_fegetround( ) )
+end function
+
+public function SetRoundingMode overload ( byval m as long ) as boolean
+    function = ( c_fesetround( fenv_round_out_( m ) ) = 0 )
+end function
+
+public sub ClearFpExceptions overload ( )
+    c_feclearexcept( fenv_exc_out_( FP_ALL_EXCEPT ) )
+end sub
+
+public sub ClearFpException overload ( byval flags as long )
+    c_feclearexcept( fenv_exc_out_( flags ) )
+end sub
+
+public function TestFpException overload ( byval flags as long ) as boolean
+    function = ( c_fetestexcept( fenv_exc_out_( flags ) ) <> 0 )
+end function
+
+public function RaiseFpException overload ( byval flags as long ) as boolean
+    function = ( c_feraiseexcept( fenv_exc_out_( flags ) ) = 0 )
+end function
+
+'' ===========================================================================
+'' ScopedRounding -- the form callers should actually use
+''
+'' A destructor, so the mode is restored on EVERY path: fallthrough, EXIT,
+'' RETURN, GOTO out of a nested scope, and an ERROR.  That is the guarantee
+'' 'defer' gives, expressed as a type because the previous mode has to be
+'' captured on the way in.
+''
+'' THE ROUNDING MODE IS PER-THREAD on every supported platform, so a
+'' ScopedRounding in one thread does not disturb another.  That is asserted by
+'' the test suite rather than assumed -- and it is the opposite of what the
+'' exception FLAGS do on some platforms.
+'' ===========================================================================
+
+'' A CONSTRUCTOR, not a factory returning by value.  A factory builds a
+'' temporary, copies it into the caller's variable, and then DESTROYS THE
+'' TEMPORARY -- which restores the rounding mode immediately, before the guarded
+'' region has run.  Measured: every 'inside the scope' assertion failed.
+public type ScopedRounding
+    as long saved_
+    as boolean active_
+    declare constructor( byval m as long )
+    declare destructor( )
+end type
+
+'' PRIVATE, like every other type body in fb/*.bi.  Without it the ctor and dtor
+'' get external linkage, and a second module including this header fails to link
+'' with 'multiple definition of FB::SCOPEDROUNDING::SCOPEDROUNDING(int)'.
+
+'' saved_ holds the CRT'S OWN spelling, not FB's -- it is only ever handed back
+'' to fesetround, so translating it twice would be a way to get it wrong.
+constructor ScopedRounding( byval m as long )
+    this.saved_ = c_fegetround( )
+    this.active_ = ( c_fesetround( fenv_round_out_( m ) ) = 0 )
+end constructor
+
+destructor ScopedRounding( )
+    if( this.active_ ) then c_fesetround( this.saved_ )
+end destructor
+

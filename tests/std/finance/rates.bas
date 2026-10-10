@@ -22,23 +22,20 @@
 '' RFC-0002 section 6.3 bounds, rather than eliminates, the resulting error.
 
 #import "std/money"
+#import "std/numeric"
 #include once "fbcunit.bi"
 
 #include once "fb/result.bi"
-
-#include once "fb/math.bi"
 
 #include once "fb/chrono.bi"
 
 #include once "fb/array.bi"
 
-#include once "fb/stats.bi"
+#include once "fblimits.bi"
 
 #include once "fb/optional.bi"
 
-#include once "fblimits.bi"
-
-using money
+using money, numeric
 
 using FB
 private function D( byref s as string ) as Decimal

@@ -1,0 +1,666 @@
+#module "numeric"
+'' std/numeric: mathint -- integer arithmetic and bits
+''
+''     #import "std/numeric"
+''     using numeric
+''
+''     print FloorMod( -7, 3 )              '' 2   -- '-7 MOD 3' is -1
+''     print IPow( 3LL, 38LL )              '' 1350851717672992089 exactly
+''     var (q, r) = DivMod( 17LL, 5LL )     '' 3, 2
+''
+''     dim o as Optional( of longint ) = MulChecked( big, big )
+''     if( o.HasValue( ) = false ) then print "overflow"
+''
+''     print PopCount( &b1011ul )           '' 3
+''
+'' Specified by C:\dev\docs\math\RFC-0002-integer.md.  Phases 2 and 4.
+''
+'' THIS IS THE HEADER THAT CLOSES DEFECTS rather than adding conveniences.  Two
+'' FreeBASIC operators are silently wrong and neither of them changes:
+''
+''   'MOD' TRUNCATES.  -7 MOD 3 is -1, matching C.  Every wrapping index, hash
+''   bucket and day-of-week computation wants 2.  FloorMod gives it.
+''
+''   '^' ALWAYS YIELDS DOUBLE.  There is no integer exponentiation in
+''   FreeBASIC: a ^ b converts to floating point, calls pow, and converts back.
+''   Above 2^53 the result is wrong even when operands and true result all fit
+''   in a LONGINT --
+''
+''       dim as longint b = 3, ex = 38
+''       print b ^ ex            '' 1350851717672992000
+''       print IPow( b, ex )     '' 1350851717672992089   <- exact
+''
+''   -- and constant folding CONCEALS it, because a literal '2 ^ 62' is exact.
+''   The defect appears only once the operands become variables.
+''
+'' Nothing here changes '^', 'MOD', '\' or any other operator.
+
+
+#include once "fblimits.bi"
+#include once "fb/optional.bi"
+
+using FB
+
+'' NO 'INTEGER' / 'UINTEGER' OVERLOADS, DELIBERATELY.
+''
+'' INTEGER is the same width as LONGINT on win64 and as LONG on win32, so an
+'' INTEGER overload adds no reachable behaviour -- and it adds a real problem.
+'' fbc's constant folder RETYPES a negated literal:
+''
+''     typeof(  17LL ) = LONGINT
+''     typeof( -17LL ) = INTEGER          <- the LL is lost to the unary minus
+''
+'' so 'IPow( -2LL, 3LL )' passes (INTEGER, LONGINT).  With both overloads
+'' present neither is an exact match, each needs exactly one conversion, and
+'' the call is error 98: Ambiguous call to overloaded function.  With only the
+'' LONGINT overload it resolves, losslessly, to the obvious thing.
+''
+'' An INTEGER argument therefore binds to the LONGINT (or LONG) overload by
+'' ordinary widening.  Nothing is lost; only the ambiguity is.
+'' (fb/hash.bi can afford both because its functions take ONE argument, so an
+'' exact match always exists and mixing cannot arise.)
+
+'' ===========================================================================
+'' RFC-0002 s2 -- division and modulo
+''
+'' Three conventions exist and languages disagree about which is the default,
+'' so all three are named explicitly and none of them is spelled 'Mod'.
+'' ===========================================================================
+
+#macro __FB_MI_DIVMOD_SIGNED( T )
+'' sign follows the DIVISOR:  FloorMod( -7, 3 ) = 2,  FloorMod( 7, -3 ) = -2
+public function FloorDiv overload ( byval a as T, byval b as T ) as T
+    dim as T q = a \ b
+    dim as T r = a mod b
+    dim as boolean nonzero = r <> 0
+    dim as boolean opposite = ( ( r < 0 ) <> ( b < 0 ) )
+    if( nonzero andalso opposite ) then return q - 1
+    function = q
+end function
+
+public function FloorMod overload ( byval a as T, byval b as T ) as T
+    dim as T r = a mod b
+    dim as boolean nonzero = r <> 0
+    dim as boolean opposite = ( ( r < 0 ) <> ( b < 0 ) )
+    if( nonzero andalso opposite ) then return r + b
+    function = r
+end function
+
+'' always non-negative, whatever the sign of the divisor
+public function EuclidDiv overload ( byval a as T, byval b as T ) as T
+    dim as T q = a \ b
+    dim as T r = a mod b
+    if( r < 0 ) then
+        if( b > 0 ) then return q - 1
+        return q + 1
+    end if
+    function = q
+end function
+
+public function EuclidMod overload ( byval a as T, byval b as T ) as T
+    dim as T r = a mod b
+    if( r < 0 ) then
+        if( b > 0 ) then return r + b
+        return r - b
+    end if
+    function = r
+end function
+#endmacro
+
+#macro __FB_MI_DIVMOD_UNSIGNED( T )
+'' For an unsigned type all three conventions coincide with the operators.
+'' They exist so that generic code can name the convention it wants without
+'' branching on signedness.
+public function FloorDiv overload ( byval a as T, byval b as T ) as T : function = a \ b   : end function
+public function FloorMod overload ( byval a as T, byval b as T ) as T : function = a mod b : end function
+public function EuclidDiv overload ( byval a as T, byval b as T ) as T : function = a \ b   : end function
+public function EuclidMod overload ( byval a as T, byval b as T ) as T : function = a mod b : end function
+#endmacro
+
+
+__FB_MI_DIVMOD_SIGNED( byte )
+__FB_MI_DIVMOD_SIGNED( short )
+__FB_MI_DIVMOD_SIGNED( long )
+__FB_MI_DIVMOD_SIGNED( longint )
+__FB_MI_DIVMOD_UNSIGNED( ubyte )
+__FB_MI_DIVMOD_UNSIGNED( ushort )
+__FB_MI_DIVMOD_UNSIGNED( ulong )
+__FB_MI_DIVMOD_UNSIGNED( ulongint )
+
+'' DivMod returns a TUPLE, and this is the first place the tuple feature earns
+'' its keep in the numeric library:
+''
+''     var (q, r) = DivMod( total, perPage )
+''
+'' One idiv produces both on every target this compiler supports; asking for
+'' 'a \ b' and 'a MOD b' separately invites two divisions, and on the backends
+'' that emit assembly by hand it gets them.
+''
+'' Tuple identity is STRUCTURAL, so DivMod on LONG and DivMod on LONGINT return
+'' different types and neither converts to the other.  That follows from the
+'' tuple feature and is not fixable here.
+
+#macro __FB_MI_DIVMOD_TUPLE( T )
+public function DivMod overload ( byval a as T, byval b as T ) as (quotient as T, remainder as T)
+    function = ( a \ b, a mod b )
+end function
+#endmacro
+
+
+__FB_MI_DIVMOD_TUPLE( byte )
+__FB_MI_DIVMOD_TUPLE( ubyte )
+__FB_MI_DIVMOD_TUPLE( short )
+__FB_MI_DIVMOD_TUPLE( ushort )
+__FB_MI_DIVMOD_TUPLE( long )
+__FB_MI_DIVMOD_TUPLE( ulong )
+__FB_MI_DIVMOD_TUPLE( longint )
+__FB_MI_DIVMOD_TUPLE( ulongint )
+
+'' ===========================================================================
+'' RFC-0002 s3 -- exponentiation, roots and number theory
+'' ===========================================================================
+
+'' Exponentiation by squaring ON THE INTEGER TYPE.  A negative exponent is a
+'' caller error and returns 0 for |base| <> 1 -- there is no integer answer to
+'' 3 ^ -1.  Overflow WRAPS, consistent with every other integer operator in the
+'' language; IPowChecked is the version that reports it.
+
+#macro __FB_MI_IPOW( T )
+public function IPow overload ( byval base_ as T, byval expo as T ) as T
+    if( expo < 0 ) then
+        if( base_ = 1 ) then return 1
+        if( base_ = -1 ) then
+            if( ( expo mod 2 ) = 0 ) then return 1
+            return -1
+        end if
+        return 0
+    end if
+    dim as T result = 1
+    dim as T b = base_
+    dim as T ex = expo
+    while( ex > 0 )
+        if( ( ex and 1 ) <> 0 ) then result *= b
+        ex = ex shr 1
+        if( ex > 0 ) then b *= b
+    wend
+    function = result
+end function
+#endmacro
+
+#macro __FB_MI_IPOW_UNSIGNED( T )
+public function IPow overload ( byval base_ as T, byval expo as T ) as T
+    dim as T result = 1
+    dim as T b = base_
+    dim as T ex = expo
+    while( ex > 0 )
+        if( ( ex and 1 ) <> 0 ) then result *= b
+        ex = ex shr 1
+        if( ex > 0 ) then b *= b
+    wend
+    function = result
+end function
+#endmacro
+
+
+__FB_MI_IPOW( byte )
+__FB_MI_IPOW( short )
+__FB_MI_IPOW( long )
+__FB_MI_IPOW( longint )
+__FB_MI_IPOW_UNSIGNED( ubyte )
+__FB_MI_IPOW_UNSIGNED( ushort )
+__FB_MI_IPOW_UNSIGNED( ulong )
+__FB_MI_IPOW_UNSIGNED( ulongint )
+
+'' ISqrt is EXACT over the whole domain, which 'int( sqr( n ) )' is not: the
+'' DOUBLE conversion loses bits above 2^53 and the result can land one below
+'' the true floor.  Newton iteration on the integer type, with a correction.
+
+public function ISqrt overload ( byval n as ulongint ) as ulongint
+if( n = 0 ) then return 0
+if( n < 4 ) then return 1
+
+dim as ulongint x = n
+'' ( x + 1 ) here would WRAP TO ZERO at n = 2^64-1, and the next
+'' iteration would divide by it.  This form cannot overflow.
+dim as ulongint y = ( x shr 1 ) + 1
+while( y < x )
+    x = y
+    y = ( x + n \ x ) shr 1
+wend
+
+'' correct in both directions -- the iteration can stop one out
+while( x > 0 andalso x > n \ x )
+    x -= 1
+wend
+while( ( x + 1 ) <= n \ ( x + 1 ) )
+    x += 1
+wend
+function = x
+end function
+
+public function ISqrt overload ( byval n as longint ) as longint
+if( n < 0 ) then return -1
+function = clngint( ISqrt( culngint( n ) ) )
+end function
+
+public function ISqrt overload ( byval n as ulong ) as ulong
+function = culng( ISqrt( culngint( n ) ) )
+end function
+
+public function ISqrt overload ( byval n as long ) as long
+if( n < 0 ) then return -1
+function = clng( ISqrt( culngint( n ) ) )
+end function
+
+'' GCD is non-negative always.  GCD( 0, 0 ) is 0.
+public function GCD overload ( byval a as ulongint, byval b as ulongint ) as ulongint
+dim as ulongint x = a, y = b
+while( y <> 0 )
+    dim as ulongint t = y
+    y = x mod y
+    x = t
+wend
+function = x
+end function
+
+public function GCD overload ( byval a as longint, byval b as longint ) as longint
+dim as ulongint x, y
+if( a < 0 ) then x = culngint( -a ) else x = culngint( a )
+if( b < 0 ) then y = culngint( -b ) else y = culngint( b )
+function = clngint( GCD( x, y ) )
+end function
+
+public function GCD overload ( byval a as long, byval b as long ) as long
+function = clng( GCD( clngint( a ), clngint( b ) ) )
+end function
+
+public function GCD overload ( byval a as ulong, byval b as ulong ) as ulong
+function = culng( GCD( culngint( a ), culngint( b ) ) )
+end function
+
+'' LCM( a, 0 ) is 0.  Divide before multiplying so that a representable result
+'' is not lost to an intermediate overflow.
+public function LCM overload ( byval a as ulongint, byval b as ulongint ) as ulongint
+if( a = 0 orelse b = 0 ) then return 0
+function = ( a \ GCD( a, b ) ) * b
+end function
+
+public function LCM overload ( byval a as longint, byval b as longint ) as longint
+if( a = 0 orelse b = 0 ) then return 0
+dim as longint g = GCD( a, b )
+dim as longint r = ( a \ g ) * b
+if( r < 0 ) then return -r
+function = r
+end function
+
+public function LCM overload ( byval a as long, byval b as long ) as long
+function = clng( LCM( clngint( a ), clngint( b ) ) )
+end function
+
+public function LCM overload ( byval a as ulong, byval b as ulong ) as ulong
+function = culng( LCM( culngint( a ), culngint( b ) ) )
+end function
+
+'' ===========================================================================
+'' RFC-0002 s4 -- checked, saturating and wrapping arithmetic
+''
+'' 'Optional', not 'Result': there is exactly one reason an operation here
+'' fails and its name is in the function name, so an error value would carry no
+'' information.  Optional already default-constructs EMPTY, so a forgotten
+'' assignment reads as overflow rather than as success -- the same property
+'' that made Result default to failure in fb/result.bi.
+''
+'' THE LIMITATION, STATED PLAINLY.  These protect the call sites you thought
+'' about.  Overflow bugs live at the call sites nobody thought about, which is
+'' why Rust traps by default in debug builds and Swift traps always.  The
+'' global '-checked' mode that would actually catch them is declined on cost in
+'' C:\dev\docs\math\rationale.md s6.  This does not pretend to be that.
+'' ===========================================================================
+
+#macro __FB_MI_CHECKED_SIGNED( T, MINV, MAXV )
+public function AddChecked overload ( byval a as T, byval b as T ) as Optional( of T )
+    if( b > 0 andalso a > cast( T, MAXV ) - b ) then return None( of T )( )
+    if( b < 0 andalso a < cast( T, MINV ) - b ) then return None( of T )( )
+    function = Some( cast( T, a + b ) )
+end function
+
+public function SubChecked overload ( byval a as T, byval b as T ) as Optional( of T )
+    if( b < 0 andalso a > cast( T, MAXV ) + b ) then return None( of T )( )
+    if( b > 0 andalso a < cast( T, MINV ) + b ) then return None( of T )( )
+    function = Some( cast( T, a - b ) )
+end function
+
+'' The -1 cases are handled BEFORE the division test, because 'MINV \ -1'
+'' traps on x86 rather than wrapping.
+public function MulChecked overload ( byval a as T, byval b as T ) as Optional( of T )
+    if( a = 0 orelse b = 0 ) then return Some( cast( T, 0 ) )
+    if( b = -1 ) then
+        if( a = cast( T, MINV ) ) then return None( of T )( )
+        return Some( cast( T, -a ) )
+    end if
+    if( a = -1 ) then
+        if( b = cast( T, MINV ) ) then return None( of T )( )
+        return Some( cast( T, -b ) )
+    end if
+    dim as T r = a * b
+    if( ( r \ b ) <> a ) then return None( of T )( )
+    function = Some( r )
+end function
+
+public function DivChecked overload ( byval a as T, byval b as T ) as Optional( of T )
+    if( b = 0 ) then return None( of T )( )
+    if( a = cast( T, MINV ) andalso b = -1 ) then return None( of T )( )
+    function = Some( cast( T, a \ b ) )
+end function
+
+public function NegChecked overload ( byval a as T ) as Optional( of T )
+    if( a = cast( T, MINV ) ) then return None( of T )( )
+    function = Some( cast( T, -a ) )
+end function
+
+'' NOT redundant: abs( MIN_VALUE_LONGINT ) has no representable result and
+'' currently returns MIN_VALUE_LONGINT itself, negative.  Silent today.
+public function AbsChecked overload ( byval a as T ) as Optional( of T )
+    if( a = cast( T, MINV ) ) then return None( of T )( )
+    if( a < 0 ) then return Some( cast( T, -a ) )
+    function = Some( a )
+end function
+
+public function IPowChecked overload ( byval base_ as T, byval expo as T ) as Optional( of T )
+    if( expo < 0 ) then return Some( IPow( base_, expo ) )
+    dim as T result = 1
+    dim as T b = base_
+    dim as T ex = expo
+    while( ex > 0 )
+        if( ( ex and 1 ) <> 0 ) then
+            dim as Optional( of T ) tm = MulChecked( result, b )
+            if( tm.HasValue( ) = false ) then return None( of T )( )
+            result = tm.Value( )
+        end if
+        ex = ex shr 1
+        if( ex > 0 ) then
+            dim as Optional( of T ) sq = MulChecked( b, b )
+            if( sq.HasValue( ) = false ) then
+                '' squaring overflowed but we may already be done
+                if( ex > 0 ) then return None( of T )( )
+            else
+                b = sq.Value( )
+            end if
+        end if
+    wend
+    function = Some( result )
+end function
+
+public function AddSaturating overload ( byval a as T, byval b as T ) as T
+    if( b > 0 andalso a > cast( T, MAXV ) - b ) then return cast( T, MAXV )
+    if( b < 0 andalso a < cast( T, MINV ) - b ) then return cast( T, MINV )
+    function = a + b
+end function
+
+public function SubSaturating overload ( byval a as T, byval b as T ) as T
+    if( b < 0 andalso a > cast( T, MAXV ) + b ) then return cast( T, MAXV )
+    if( b > 0 andalso a < cast( T, MINV ) + b ) then return cast( T, MINV )
+    function = a - b
+end function
+
+public function MulSaturating overload ( byval a as T, byval b as T ) as T
+    dim as Optional( of T ) r = MulChecked( a, b )
+    if( r.HasValue( ) ) then return r.Value( )
+    dim as boolean neg = ( ( a < 0 ) <> ( b < 0 ) )
+    if( neg ) then return cast( T, MINV )
+    function = cast( T, MAXV )
+end function
+
+public function NegSaturating overload ( byval a as T ) as T
+    if( a = cast( T, MINV ) ) then return cast( T, MAXV )
+    function = -a
+end function
+
+public function AbsSaturating overload ( byval a as T ) as T
+    if( a = cast( T, MINV ) ) then return cast( T, MAXV )
+    if( a < 0 ) then return -a
+    function = a
+end function
+
+'' Exactly what 'a + b' already does.  These exist so that DELIBERATE
+'' wrapping -- a hash mix, a checksum, a ring index -- can be spelled as
+'' deliberate, and so a reader does not have to guess whether the author
+'' knew.
+public function AddWrapping overload ( byval a as T, byval b as T ) as T : function = a + b : end function
+public function SubWrapping overload ( byval a as T, byval b as T ) as T : function = a - b : end function
+public function MulWrapping overload ( byval a as T, byval b as T ) as T : function = a * b : end function
+public function NegWrapping overload ( byval a as T ) as T               : function = -a    : end function
+#endmacro
+
+#macro __FB_MI_CHECKED_UNSIGNED( T, MAXV )
+public function AddChecked overload ( byval a as T, byval b as T ) as Optional( of T )
+    dim as T r = a + b
+    if( r < a ) then return None( of T )( )
+    function = Some( r )
+end function
+
+public function SubChecked overload ( byval a as T, byval b as T ) as Optional( of T )
+    if( b > a ) then return None( of T )( )
+    function = Some( cast( T, a - b ) )
+end function
+
+public function MulChecked overload ( byval a as T, byval b as T ) as Optional( of T )
+    if( a = 0 orelse b = 0 ) then return Some( cast( T, 0 ) )
+    dim as T r = a * b
+    if( ( r \ a ) <> b ) then return None( of T )( )
+    function = Some( r )
+end function
+
+public function DivChecked overload ( byval a as T, byval b as T ) as Optional( of T )
+    if( b = 0 ) then return None( of T )( )
+    function = Some( cast( T, a \ b ) )
+end function
+
+public function NegChecked overload ( byval a as T ) as Optional( of T )
+    if( a <> 0 ) then return None( of T )( )
+    function = Some( cast( T, 0 ) )
+end function
+
+public function AbsChecked overload ( byval a as T ) as Optional( of T )
+    function = Some( a )
+end function
+
+public function IPowChecked overload ( byval base_ as T, byval expo as T ) as Optional( of T )
+    dim as T result = 1
+    dim as T b = base_
+    dim as T ex = expo
+    while( ex > 0 )
+        if( ( ex and 1 ) <> 0 ) then
+            dim as Optional( of T ) tm = MulChecked( result, b )
+            if( tm.HasValue( ) = false ) then return None( of T )( )
+            result = tm.Value( )
+        end if
+        ex = ex shr 1
+        if( ex > 0 ) then
+            dim as Optional( of T ) sq = MulChecked( b, b )
+            if( sq.HasValue( ) = false ) then
+                if( ex > 0 ) then return None( of T )( )
+            else
+                b = sq.Value( )
+            end if
+        end if
+    wend
+    function = Some( result )
+end function
+
+public function AddSaturating overload ( byval a as T, byval b as T ) as T
+    dim as T r = a + b
+    if( r < a ) then return cast( T, MAXV )
+    function = r
+end function
+
+public function SubSaturating overload ( byval a as T, byval b as T ) as T
+    if( b > a ) then return cast( T, 0 )
+    function = a - b
+end function
+
+public function MulSaturating overload ( byval a as T, byval b as T ) as T
+    dim as Optional( of T ) r = MulChecked( a, b )
+    if( r.HasValue( ) ) then return r.Value( )
+    function = cast( T, MAXV )
+end function
+
+public function NegSaturating overload ( byval a as T ) as T : function = cast( T, 0 ) : end function
+public function AbsSaturating overload ( byval a as T ) as T : function = a            : end function
+
+public function AddWrapping overload ( byval a as T, byval b as T ) as T : function = a + b : end function
+public function SubWrapping overload ( byval a as T, byval b as T ) as T : function = a - b : end function
+public function MulWrapping overload ( byval a as T, byval b as T ) as T : function = a * b : end function
+public function NegWrapping overload ( byval a as T ) as T               : function = -a    : end function
+#endmacro
+
+
+__FB_MI_CHECKED_SIGNED( byte,    MIN_VALUE_BYTE,    MAX_VALUE_BYTE )
+__FB_MI_CHECKED_SIGNED( short,   MIN_VALUE_SHORT,   MAX_VALUE_SHORT )
+__FB_MI_CHECKED_SIGNED( long,    MIN_VALUE_LONG,    MAX_VALUE_LONG )
+__FB_MI_CHECKED_SIGNED( longint, MIN_VALUE_LONGINT, MAX_VALUE_LONGINT )
+__FB_MI_CHECKED_UNSIGNED( ubyte,    MAX_VALUE_UBYTE )
+__FB_MI_CHECKED_UNSIGNED( ushort,   MAX_VALUE_USHORT )
+__FB_MI_CHECKED_UNSIGNED( ulong,    MAX_VALUE_ULONG )
+__FB_MI_CHECKED_UNSIGNED( ulongint, MAX_VALUE_ULONGINT )
+
+'' ===========================================================================
+'' RFC-0002 s5 -- the bit family
+''
+'' THE PORTABLE IMPLEMENTATION IS THE CONTRACT.  Per-backend intrinsics are an
+'' optimisation underneath a defined result, not the definition.  Two reasons:
+'' the x86 instructions need CPU feature levels this project does not otherwise
+'' require, so the fallback has to exist anyway; and a feature whose semantics
+'' depend on which backend compiled it is a feature that cannot be tested once.
+''
+'' LeadingZeros( 0 ) and TrailingZeros( 0 ) return the operand's FULL WIDTH.
+'' The hardware instructions are undefined at zero on x86 without BMI, so this
+'' is a decision rather than a description.
+''
+'' RotateLeft( x, n ) MASKS n by the width, so RotateLeft( x, 64 ) on a
+'' ULONGINT is x.  The C idiom '(x << n) | (x >> (64-n))' is undefined at n = 0
+'' and produces garbage in exactly the case nobody tests.
+'' ===========================================================================
+
+function hPopCount64( byval v as ulongint ) as long
+'' the standard SWAR popcount -- no table, no loop, no intrinsic
+v = v - ( ( v shr 1 ) and &h5555555555555555ull )
+v = ( v and &h3333333333333333ull ) + ( ( v shr 2 ) and &h3333333333333333ull )
+v = ( v + ( v shr 4 ) ) and &h0F0F0F0F0F0F0F0Full
+function = clng( ( v * &h0101010101010101ull ) shr 56 )
+end function
+
+#macro __FB_MI_BITS( T, WIDTH, MASKALL )
+public function PopCount overload ( byval x as T ) as long
+    function = hPopCount64( culngint( x ) and MASKALL )
+end function
+
+public function Parity overload ( byval x as T ) as long
+    function = hPopCount64( culngint( x ) and MASKALL ) and 1
+end function
+
+public function LeadingZeros overload ( byval x as T ) as long
+    dim as ulongint v = culngint( x ) and MASKALL
+    if( v = 0 ) then return WIDTH
+    dim as long n = 0
+    dim as ulongint top = 1ull shl ( WIDTH - 1 )
+    while( ( v and top ) = 0 )
+        n += 1
+        v shl= 1
+        v and= MASKALL
+    wend
+    function = n
+end function
+
+public function TrailingZeros overload ( byval x as T ) as long
+    dim as ulongint v = culngint( x ) and MASKALL
+    if( v = 0 ) then return WIDTH
+    dim as long n = 0
+    while( ( v and 1ull ) = 0 )
+        n += 1
+        v shr= 1
+    wend
+    function = n
+end function
+
+public function BitWidth overload ( byval x as T ) as long
+    function = WIDTH - LeadingZeros( x )
+end function
+
+public function RotateLeft overload ( byval x as T, byval n as long ) as T
+    dim as long s = n mod WIDTH
+    if( s < 0 ) then s += WIDTH
+    if( s = 0 ) then return x
+    dim as ulongint v = culngint( x ) and MASKALL
+    function = cast( T, ( ( v shl s ) or ( v shr ( WIDTH - s ) ) ) and MASKALL )
+end function
+
+public function RotateRight overload ( byval x as T, byval n as long ) as T
+    dim as long s = n mod WIDTH
+    if( s < 0 ) then s += WIDTH
+    if( s = 0 ) then return x
+    dim as ulongint v = culngint( x ) and MASKALL
+    function = cast( T, ( ( v shr s ) or ( v shl ( WIDTH - s ) ) ) and MASKALL )
+end function
+
+public function ByteSwap overload ( byval x as T ) as T
+    dim as ulongint v = culngint( x ) and MASKALL
+    dim as ulongint r = 0
+    for i as long = 0 to ( WIDTH \ 8 ) - 1
+        r = ( r shl 8 ) or ( v and &hFFull )
+        v shr= 8
+    next
+    function = cast( T, r and MASKALL )
+end function
+
+public function BitReverse overload ( byval x as T ) as T
+    dim as ulongint v = culngint( x ) and MASKALL
+    dim as ulongint r = 0
+    for i as long = 1 to WIDTH
+        r = ( r shl 1 ) or ( v and 1ull )
+        v shr= 1
+    next
+    function = cast( T, r and MASKALL )
+end function
+
+public function IsPow2 overload ( byval x as T ) as boolean
+    dim as ulongint v = culngint( x ) and MASKALL
+    if( v = 0 ) then return false
+    function = ( v and ( v - 1 ) ) = 0
+end function
+
+public function NextPow2 overload ( byval x as T ) as T
+    dim as ulongint v = culngint( x ) and MASKALL
+    if( v <= 1 ) then return cast( T, 1 )
+    function = cast( T, ( 1ull shl ( WIDTH - LeadingZeros( cast( T, v - 1 ) ) ) ) and MASKALL )
+end function
+#endmacro
+
+
+__FB_MI_BITS( ubyte,    8,  &hFFull )
+__FB_MI_BITS( ushort,   16, &hFFFFull )
+__FB_MI_BITS( ulong,    32, &hFFFFFFFFull )
+__FB_MI_BITS( ulongint, 64, &hFFFFFFFFFFFFFFFFull )
+
+'' The signed overloads REINTERPRET rather than convert.  LeadingZeros( -1L )
+'' is 0, because the bit pattern is all ones -- the useful answer, and not the
+'' one a caller reasoning about the VALUE -1 would predict.
+#macro __FB_MI_BITS_SIGNED( T, U )
+public function PopCount overload ( byval x as T ) as long : function = PopCount( cast( U, x ) )      : end function
+public function Parity overload ( byval x as T ) as long : function = Parity( cast( U, x ) )        : end function
+public function LeadingZeros overload ( byval x as T ) as long : function = LeadingZeros( cast( U, x ) )  : end function
+public function TrailingZeros overload ( byval x as T ) as long : function = TrailingZeros( cast( U, x ) ) : end function
+public function BitWidth overload ( byval x as T ) as long : function = BitWidth( cast( U, x ) )      : end function
+public function RotateLeft overload ( byval x as T, byval n as long ) as T : function = cast( T, RotateLeft( cast( U, x ), n ) )  : end function
+public function RotateRight overload ( byval x as T, byval n as long ) as T : function = cast( T, RotateRight( cast( U, x ), n ) ) : end function
+public function ByteSwap overload ( byval x as T ) as T    : function = cast( T, ByteSwap( cast( U, x ) ) )   : end function
+public function BitReverse overload ( byval x as T ) as T    : function = cast( T, BitReverse( cast( U, x ) ) ) : end function
+public function IsPow2 overload ( byval x as T ) as boolean : function = IsPow2( cast( U, x ) )     : end function
+public function NextPow2 overload ( byval x as T ) as T    : function = cast( T, NextPow2( cast( U, x ) ) )   : end function
+#endmacro
+
+__FB_MI_BITS_SIGNED( byte,    ubyte )
+__FB_MI_BITS_SIGNED( short,   ushort )
+__FB_MI_BITS_SIGNED( long,    ulong )
+__FB_MI_BITS_SIGNED( longint, ulongint )
+

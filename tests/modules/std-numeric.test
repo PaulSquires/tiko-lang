@@ -1,7 +1,7 @@
-'' std/numeric (RFC-0009): Complex into an FB.Complex parameter; CAbs, Clamp, GCD; vector.bi's macro-made Vec2f and its public factory Vec2f_; a const; NaN.
-'' It is a facade -- exported macros over the header, found through -i as a user's toolchain
-'' finds it in its inc/ -- and the program includes that header too, so the facade's names
-'' and the header's FB names are shown to be one and the same.
+'' std/numeric, a real module since 2026-10-10 (it was a facade over fb/math.bi and the rest):
+'' Complex, CAbs, Clamp, GCD; vector.bi's macro-made Vec2f and its public factory Vec2f_; a
+'' const; NaN -- and under 'using numeric' Vec3d and mathint's macro-made AddChecked, whose
+'' Optional result the interface had to qualify in every expansion of the macro.
 '' TEST: cli
 '' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/numeric.bas -o tests/modules/stdnumeric.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
@@ -9,3 +9,4 @@
 '' RUN: tests/modules/stdnumeric.exe
 '' EXPECT-RUN-OUT: 5 5 106
 '' EXPECT-RUN-OUT: 5 -1 true
+'' EXPECT-RUN-OUT: 3  5

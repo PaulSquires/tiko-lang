@@ -1,0 +1,341 @@
+#module "numeric"
+'' std/numeric: stats -- compensated summation and descriptive statistics
+''
+''     #import "std/numeric"
+''     using numeric
+''
+''     dim as Array( of double ) v
+''     v.Push( ... )
+''     print Sum( v ), Mean( v ), StdDev( v ), Median( v )
+''
+'' EVERY ARRAY PARAMETER IS FB.Array( of T ), NOT a plain 'v( ) as double'.
+'' FB.Array is ZERO-BASED, so a caller that used to pass a 1-based array gets
+'' the same values with different indices -- see fb/array.bi.
+''
+''     dim acc as RunningStats
+''     acc.Add( x )                             ' one pass, constant space
+''     print acc.Mean( ), acc.StdDev( )
+''
+'' Specified by C:\dev\docs\math\RFC-0006-statistics.md.  Phase 7.
+''
+'' WHY SUMMATION IS THE INTERESTING PART.
+''
+''     dim as single total = 0
+''     for each v in samples
+''         total += v          ' loses accuracy, silently, proportional to n
+''     next
+''
+'' Naive summation accumulates rounding error at each step.  Over a million
+'' values of similar magnitude the result can be wrong in the fourth
+'' significant digit -- and the failure is invisible, because the answer is
+'' plausible and monotone.  The fix costs three extra operations per element
+'' and is a solved problem.
+
+
+#include once "fblimits.bi"
+#include once "fb/array.bi"
+
+using FB
+
+'' ===========================================================================
+'' Summation
+''
+'' Neumaier's variant of Kahan, which -- unlike plain Kahan -- is also correct
+'' when the running total is SMALLER in magnitude than the value being added.
+'' That is the case plain Kahan silently misses.
+''
+'' Sum accumulates in DOUBLE regardless of the element type: the sum of a
+'' million SINGLEs is not a single-precision quantity, and returning one would
+'' throw away the accuracy just paid for.
+'' ===========================================================================
+
+#macro __FB_STATS_SUM( T )
+public function Sum overload ( byref a as Array( of T ) ) as double
+    dim as double s = 0.0, c = 0.0
+    for each elem in a
+        dim as double x = cdbl( elem )
+        dim as double tt = s + x
+        dim as double as_ = s : if( as_ < 0.0 ) then as_ = -as_
+        dim as double ax  = x : if( ax  < 0.0 ) then ax  = -ax
+        '' The term is NAMED before it is added.  This was originally a
+        '' workaround: fbc reassociated 'c + ( (s-tt) + x )' into
+        '' '( c + (s-tt) ) + x', which is precisely the cancellation this
+        '' algorithm exists to avoid, so written the obvious way Sum
+        '' silently degraded to NaiveSum.
+        ''
+        '' THAT COMPILER BUG IS NOW FIXED (ast-optimize.bas, hOptAssocADD
+        '' and hOptAssocMUL now exclude floating point -- see
+        '' docs/fp-reassociation-bug.md), so the parenthesised form would
+        '' work today.  The named form is kept anyway: it is clearer about
+        '' what the compensation term is, it costs nothing, and it does not
+        '' depend on an optimiser decision to stay correct.
+        dim as double term
+        if( as_ >= ax ) then
+            term = ( s - tt ) + x
+        else
+            term = ( x - tt ) + s
+        end if
+        c += term
+        s = tt
+    next
+    function = s + c
+end function
+
+'' The fast one, named so that reaching for it is a decision.
+public function NaiveSum overload ( byref a as Array( of T ) ) as double
+    dim as double s = 0.0
+    for each elem in a
+        s += cdbl( elem )
+    next
+    function = s
+end function
+
+public function Count overload ( byref a as Array( of T ) ) as ulongint
+    function = culngint( a.Count( ) )
+end function
+
+public function Mean overload ( byref a as Array( of T ) ) as double
+    dim as long n = a.Count( )
+    if( n <= 0 ) then return 0.0 / 0.0                  '' NaN, not zero
+    function = Sum( a ) / cdbl( n )
+end function
+
+'' Welford, NOT 'E[x^2] - E[x]^2'.  The textbook form subtracts two large
+'' nearly-equal numbers and can return a NEGATIVE variance for data with a
+'' large mean and a small spread.  Welford is one pass and no slower.
+public function VariancePopulation overload ( byref a as Array( of T ) ) as double
+    dim as long n = 0
+    dim as double mean_ = 0.0, m2 = 0.0
+    for each elem in a
+        n += 1
+        dim as double x = cdbl( elem )
+        dim as double d = x - mean_
+        mean_ += d / cdbl( n )
+        m2 += d * ( x - mean_ )
+    next
+    if( n < 1 ) then return 0.0 / 0.0
+    function = m2 / cdbl( n )
+end function
+
+'' The SAMPLE form, dividing by n-1, is the default: almost every array is
+'' a sample rather than a population.  Getting this wrong silently is a
+'' classic statistics bug and the naming is the whole defence.
+public function Variance overload ( byref a as Array( of T ) ) as double
+    dim as long n = 0
+    dim as double mean_ = 0.0, m2 = 0.0
+    for each elem in a
+        n += 1
+        dim as double x = cdbl( elem )
+        dim as double d = x - mean_
+        mean_ += d / cdbl( n )
+        m2 += d * ( x - mean_ )
+    next
+    if( n < 2 ) then return 0.0 / 0.0
+    function = m2 / cdbl( n - 1 )
+end function
+
+public function StdDev overload ( byref a as Array( of T ) ) as double
+    dim as double v = Variance( a )
+    if( v <> v ) then return v
+    function = sqr( v )
+end function
+
+public function StdDevPopulation overload ( byref a as Array( of T ) ) as double
+    dim as double v = VariancePopulation( a )
+    if( v <> v ) then return v
+    function = sqr( v )
+end function
+
+public function MinOf overload ( byref a as Array( of T ) ) as double
+    if( a.IsEmpty( ) ) then return 0.0 / 0.0
+    dim as double m = cdbl( a[ 0 ] )
+    for each elem in a
+        if( cdbl( elem ) < m ) then m = cdbl( elem )
+    next
+    function = m
+end function
+
+public function MaxOf overload ( byref a as Array( of T ) ) as double
+    if( a.IsEmpty( ) ) then return 0.0 / 0.0
+    dim as double m = cdbl( a[ 0 ] )
+    for each elem in a
+        if( cdbl( elem ) > m ) then m = cdbl( elem )
+    next
+    function = m
+end function
+
+public function Range overload ( byref a as Array( of T ) ) as double
+    function = MaxOf( a ) - MinOf( a )
+end function
+
+'' Median and Percentile DO NOT SORT IN PLACE.  They copy.  An input array
+'' is not modified by asking a question about it; the alternative is a
+'' function that silently reorders the caller's data.
+public function Percentile overload ( byref a as Array( of T ), byval p as double ) as double
+    dim as long n = a.Count( )
+    if( n <= 0 ) then return 0.0 / 0.0
+    if( n = 1 ) then return cdbl( a[ 0 ] )
+
+    redim as double c( 0 to n - 1 )
+    for i as long = 0 to n - 1
+        c( i ) = cdbl( a[ i ] )
+    next
+    '' insertion sort on the copy: n is small in every caller this has, and
+    '' fb/sort.bi is a separate dependency this header does not need
+    for i as long = 1 to n - 1
+        dim as double key = c( i )
+        dim as long j = i - 1
+        while( j >= 0 andalso c( j ) > key )
+            c( j + 1 ) = c( j )
+            j -= 1
+        wend
+        c( j + 1 ) = key
+    next
+
+    dim as double q = p
+    if( q < 0.0 ) then q = 0.0
+    if( q > 100.0 ) then q = 100.0
+
+    '' linear interpolation between order statistics -- the R type-7 /
+    '' NumPy default.  Nine definitions exist and disagree; this names the
+    '' one it uses so a caller comparing tools knows which.
+    dim as double h = ( q / 100.0 ) * cdbl( n - 1 )
+    dim as long k = clng( int( h ) )
+    dim as double fr = h - cdbl( k )
+    if( k >= n - 1 ) then return c( n - 1 )
+    function = c( k ) + fr * ( c( k + 1 ) - c( k ) )
+end function
+
+public function Median overload ( byref a as Array( of T ) ) as double
+    function = Percentile( a, 50.0 )
+end function
+
+public function Covariance overload ( byref x as Array( of T ), byref y as Array( of T ) ) as double
+    dim as long nx = x.Count( )
+    dim as long ny = y.Count( )
+    if( nx <> ny orelse nx < 2 ) then return 0.0 / 0.0
+    dim as double mx = Mean( x ), my = Mean( y )
+    dim as double s = 0.0
+    for i as long = 0 to nx - 1
+        s += ( cdbl( x[ i ] ) - mx ) * ( cdbl( y[ i ] ) - my )
+    next
+    function = s / cdbl( nx - 1 )
+end function
+
+'' Pearson only.  Spearman needs ranking and is a later addition.
+public function Correlation overload ( byref x as Array( of T ), byref y as Array( of T ) ) as double
+    dim as double sx = StdDev( x ), sy = StdDev( y )
+    if( sx = 0.0 orelse sy = 0.0 ) then return 0.0 / 0.0
+    function = Covariance( x, y ) / ( sx * sy )
+end function
+#endmacro
+
+__FB_STATS_SUM( double )
+__FB_STATS_SUM( single )
+__FB_STATS_SUM( long )
+__FB_STATS_SUM( longint )
+
+'' ===========================================================================
+'' Streaming
+''
+'' Constant space, one pass, Welford internally.  For data that does not fit in
+'' memory, arrives over time, or is produced by a loop that already exists -- a
+'' profiler's timings, a sensor stream, a chart's live series.
+'' ===========================================================================
+
+public type RunningStats
+as ulongint n_
+as double   mean_
+as double   m2_
+as double   min_
+as double   max_
+
+declare sub Add( byval x as double )
+declare sub Reset( )
+declare sub Merge( byref other as RunningStats )
+declare function Count( ) as ulongint
+declare function Mean( ) as double
+declare function Variance( ) as double
+declare function VariancePopulation( ) as double
+declare function StdDev( ) as double
+declare function MinValue( ) as double
+declare function MaxValue( ) as double
+end type
+
+sub RunningStats.Reset( )
+this.n_ = 0
+this.mean_ = 0.0
+this.m2_ = 0.0
+this.min_ = 0.0
+this.max_ = 0.0
+end sub
+
+sub RunningStats.Add( byval x as double )
+this.n_ += 1
+if( this.n_ = 1 ) then
+    this.min_ = x
+    this.max_ = x
+else
+    if( x < this.min_ ) then this.min_ = x
+    if( x > this.max_ ) then this.max_ = x
+end if
+dim as double d = x - this.mean_
+this.mean_ += d / cdbl( this.n_ )
+this.m2_ += d * ( x - this.mean_ )
+end sub
+
+function RunningStats.Count( ) as ulongint : function = this.n_ : end function
+
+function RunningStats.Mean( ) as double
+if( this.n_ = 0 ) then return 0.0 / 0.0
+function = this.mean_
+end function
+
+function RunningStats.Variance( ) as double
+if( this.n_ < 2 ) then return 0.0 / 0.0
+function = this.m2_ / cdbl( this.n_ - 1 )
+end function
+
+function RunningStats.VariancePopulation( ) as double
+if( this.n_ < 1 ) then return 0.0 / 0.0
+function = this.m2_ / cdbl( this.n_ )
+end function
+
+function RunningStats.StdDev( ) as double
+dim as double v = this.Variance( )
+if( v <> v ) then return v
+function = sqr( v )
+end function
+
+function RunningStats.MinValue( ) as double
+if( this.n_ = 0 ) then return 0.0 / 0.0
+function = this.min_
+end function
+
+function RunningStats.MaxValue( ) as double
+if( this.n_ = 0 ) then return 0.0 / 0.0
+function = this.max_
+end function
+
+'' Chan's parallel formula: combines two accumulators exactly, so a fan-out
+'' across threads can be reduced without re-reading the data.
+sub RunningStats.Merge( byref other as RunningStats )
+if( other.n_ = 0 ) then exit sub
+if( this.n_ = 0 ) then
+    this.n_ = other.n_
+    this.mean_ = other.mean_
+    this.m2_ = other.m2_
+    this.min_ = other.min_
+    this.max_ = other.max_
+    exit sub
+end if
+dim as double na = cdbl( this.n_ ), nb = cdbl( other.n_ )
+dim as double delta = other.mean_ - this.mean_
+dim as double total = na + nb
+this.m2_ = this.m2_ + other.m2_ + delta * delta * na * nb / total
+this.mean_ = ( na * this.mean_ + nb * other.mean_ ) / total
+this.n_ += other.n_
+if( other.min_ < this.min_ ) then this.min_ = other.min_
+if( other.max_ > this.max_ ) then this.max_ = other.max_
+end sub
+

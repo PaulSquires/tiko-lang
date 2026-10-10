@@ -1,4 +1,6 @@
 #module "logs"
+#import "std/numeric"
+using numeric
 '' std/logs: logsink -- FB.Logging sinks
 ''
 '' RFC-0004 -- C:\dev\docs\logging\RFC-0004-sinks.md.
@@ -19,7 +21,6 @@
 
 #include once "fb/chrono.bi"
 #include once "fb/array.bi"
-#include once "fb/mathtext.bi"
 
 using FB
 

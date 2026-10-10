@@ -29,6 +29,7 @@ import argparse
 import io
 import os
 import re
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -65,14 +66,28 @@ def converted():
 
 
 def public_names(mod):
-    """A real module's public names, lower-cased -> spelling."""
+    """A real module's public names, lower-cased -> spelling: from its INTERFACE, as the
+    compiler writes it (--emit-tki), where a macro has been expanded -- numeric's vector
+    types are pasted together by '##' and are nowhere whole in the source. The source
+    is read instead when there is no compiler to ask."""
     names = {}
-    d = os.path.join(ROOT, "pkg", "std", mod)
-    for f in sorted(os.listdir(d)):
-        if not f.endswith(".tiko"):
-            continue
+    exe = os.path.join(ROOT, "bin", "tiko.exe" if os.name == "nt" else "tiko")
+    texts = []
+    if os.path.isfile(exe):
+        r = subprocess.run([exe, "-i", os.path.join(ROOT, "inc"), "--emit-tki", mod],
+                           cwd=os.path.join(ROOT, "pkg", "std"), capture_output=True,
+                           text=True, encoding="utf-8", errors="replace")
+        if r.returncode == 0 and "tiko-interface" in r.stdout:
+            texts = [r.stdout]
+            for m in re.finditer(r"(?m)^#define __tko_mac_\w+?__(\w+) ", r.stdout):
+                names.setdefault(m.group(1).lower(), m.group(1))
+    if not texts:
+        d = os.path.join(ROOT, "pkg", "std", mod)
+        texts = [io.open(os.path.join(d, f), encoding="utf-8").read()
+                 for f in sorted(os.listdir(d)) if f.endswith(".tiko")]
+    for text in texts:
         inenum = False
-        for ln in io.open(os.path.join(d, f), encoding="utf-8"):
+        for ln in text.split("\n"):
             code = ln.split("''")[0]
             if inenum:
                 if re.match(r"\s*end\s+enum\b", code, re.I):

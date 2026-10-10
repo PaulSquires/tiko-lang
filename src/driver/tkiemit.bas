@@ -58,6 +58,12 @@ type TkiWriter_
     as FB.Array( of ulong )    hkey
     as FB.Array( of long )     hval
     as long                    hmask
+    '' ...and EVERY token at a location, chained: one '#macro' expanded four times gives four
+    '' tokens one location, and a qualifier set on the first alone left the others bare --
+    '' fb/mathint.bi's 'as Optional( of short )', declared for each integer width (std/numeric,
+    '' 2026-10-10). Per token: the next with its location, or -1; per slot, the last so far.
+    as FB.Array( of long )     locNext
+    as FB.Array( of long )     hlast
 end type
 
 function InterfaceNamespace( byref chain as string ) as string
@@ -674,9 +680,18 @@ private sub Qualify_( byref w as TkiWriter_ )
     for i as long = 0 to sz - 1
         w.hkey.Push( 0 )
         w.hval.Push( 0 )
+        w.hlast.Push( -1 )
+    next
+    '' A token in two declarations' ranges is chained once: twice would close a cycle.
+    dim as FB.Array( of ubyte ) chained
+    for i as long = 0 to w.toks->Count - 1
+        w.locNext.Push( -1 )
+        chained.Push( 0 )
     next
     for a as long = 0 to w.toks->Count - 1
         for i as long = a to w.endAt[a] - 1
+            if chained[i] <> 0 then continue for
+            chained[i] = 1
             dim as ulong loc = cast( ulong, (*w.toks)[i].loc )
             dim as ulong h = (loc * 2654435761UL) and cast( ulong, w.hmask )
             while (w.hkey[h] <> 0) andalso (w.hkey[h] <> loc + 1)
@@ -685,6 +700,10 @@ private sub Qualify_( byref w as TkiWriter_ )
             if w.hkey[h] = 0 then
                 w.hkey[h] = loc + 1
                 w.hval[h] = i
+                w.hlast[h] = i
+            else
+                w.locNext[w.hlast[h]] = i
+                w.hlast[h] = i
             end if
         next
     next
@@ -729,7 +748,11 @@ private sub Qualify_( byref w as TkiWriter_ )
             if Kind_( w, j ) <> Tko.TK_IDENT then continue for
             dim as string sp = Tko.PpSpell( w.ctx->sources, w.ctx->names, w.ctx->ppLits, (*w.toks)[j] )
             if Tko.Text.LowerAscii( sp ) = want then
-                w.qual[j] = q
+                dim as long k = j
+                while k >= 0
+                    w.qual[k] = q
+                    k = w.locNext[k]
+                wend
                 exit for
             end if
         next
