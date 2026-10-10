@@ -203,7 +203,7 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintString(0, %8, 0)
     %9 = field.addr @a, 0
     %10 = const i64 0
-    %11 = const i64 2
+    %11 = const i64 4
     %12 = mul %10, %11
     %13 = ptr.add %9, %12
     %14 = load %13
@@ -224,7 +224,7 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintString(0, %22, 0)
     %23 = field.addr @b, 0
     %24 = const i64 0
-    %25 = const i64 2
+    %25 = const i64 4
     %26 = mul %24, %25
     %27 = ptr.add %23, %26
     %28 = load %27

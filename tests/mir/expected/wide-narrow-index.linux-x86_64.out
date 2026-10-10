@@ -60,7 +60,7 @@ func i32 main(i32 $0, ptr $1) {
   sel.join1:
     %29 = load @pw
     %30 = const i64 0
-    %31 = const i64 2
+    %31 = const i64 4
     %32 = mul %30, %31
     %33 = ptr.add %29, %32
     %34 = load %33

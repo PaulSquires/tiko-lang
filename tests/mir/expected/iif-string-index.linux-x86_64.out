@@ -153,7 +153,7 @@ func i32 main(i32 $0, ptr $1) {
   wiif.join15:
     %78 = load @$tmp11
     %79 = const i64 0
-    %80 = const i64 2
+    %80 = const i64 4
     %81 = mul %79, %80
     %82 = ptr.add %78, %81
     %83 = load %82
@@ -179,7 +179,7 @@ func i32 main(i32 $0, ptr $1) {
   wiif.join18:
     %95 = load @$tmp12
     %96 = const i64 2
-    %97 = const i64 2
+    %97 = const i64 4
     %98 = mul %96, %97
     %99 = ptr.add %95, %98
     %100 = load %99

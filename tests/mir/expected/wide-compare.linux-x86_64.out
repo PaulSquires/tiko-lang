@@ -74,7 +74,7 @@ func void P() {
     br if.join7
   if.join10:
     %34 = const i64 1
-    %35 = const i64 2
+    %35 = const i64 4
     %36 = mul %34, %35
     %37 = ptr.add @a, %36
     %38 = load %37
@@ -119,12 +119,12 @@ func void P() {
     condbr %63, for.body14, for.exit16
   for.body14:
     %64 = load @i
-    %65 = const i64 2
+    %65 = const i64 4
     %66 = mul %64, %65
     %67 = ptr.add @a, %66
     %68 = load %67
     %69 = load @i
-    %70 = const i64 2
+    %70 = const i64 4
     %71 = mul %69, %70
     %72 = ptr.add @b, %71
     %73 = load %72

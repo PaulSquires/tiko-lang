@@ -94,7 +94,7 @@ func i32 main(i32 $0, ptr $1) {
     %66 = trunc %65
     store %64, %66
     %67 = const i64 0
-    %68 = const i64 2
+    %68 = const i64 4
     %69 = mul %67, %68
     %70 = ptr.add @w, %69
     %71 = const i64 66
@@ -115,7 +115,7 @@ func i32 main(i32 $0, ptr $1) {
     store @zc, %83
     %84 = alloca ptr wc
     %85 = const i64 1
-    %86 = const i64 2
+    %86 = const i64 4
     %87 = mul %85, %86
     %88 = ptr.add @w, %87
     %89 = load %88
