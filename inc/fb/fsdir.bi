@@ -1,0 +1,583 @@
+'' fb/fsdir.bi -- FB.DirEntry, FB.DirIterator, FB.ReadDir
+''
+'' Specified in C:\dev\docs\filesystem\RFC-0004-iteration.md.
+''
+'' THE DEFECT THIS FIXES. Dir/DirNext keeps ONE CURSOR PER THREAD -- the TLS
+'' FB_DIRCTX in rtlib/win32/file_dir.c and rtlib/unix/file_dir.c -- so a second
+'' Dir( ) on the same thread silently resets the first. The obvious recursive
+'' scan is therefore broken, and every FB program works around it by buffering a
+'' whole level into an array before descending. A DirIterator owns its own
+'' handle: nesting, recursion, two concurrent scans on one thread, and scans on
+'' many threads are all simply correct.
+''
+'' CONFORMS TO THE ITERATOR PROTOCOL in docs/for_each/iterator-protocol.txt, so
+'' `for each` walks a directory. The protocol is STRUCTURAL -- a type is
+'' iterable because name lookup finds GetIterator, IsValid, Value and MoveNext.
+'' A typo in any of those reads as "not iterable" rather than as a diagnostic,
+'' which is why fbc_tests.filesystem.fsdir asserts `for each` compiles at all.
+''
+'' THE ELEMENT IS A Result. The protocol has three members and none of them is
+'' an error channel, but a directory scan can fail partway -- permission denied,
+'' a device that went away. Making the failure an ELEMENT puts it where the loop
+'' already looks:
+''
+''     for each r in FB.ReadDir( "C:\dev" )
+''         if( r.IsOk( ) ) then print r.Value( ).Name( ) else print "skipped"
+''     next
+''
+'' The alternatives lose information: a sticky LastError read after the loop is
+'' the global-status-code idiom result.bi exists to replace, and silent skipping
+'' turns "I listed the directory" into a claim the program cannot support.
+'' Rust's ReadDir yields io::Result<DirEntry> for exactly this reason.
+''
+'' Value( ) RETURNS BYREF because a DirEntryResult holds a DirEntry plus an
+'' FsError, and FsError owns three strings -- copying that per entry, in the
+'' hottest loop in the module, would be the module's worst allocation. The
+'' reference is INVALIDATED BY THE NEXT MoveNext; a caller keeping an entry
+'' must copy it.
+
+#pragma once
+
+#include once "fb/fserror.bi"
+#include once "fb/fspath.bi"
+#include once "fb/fsinfo.bi"
+#include once "fb/array.bi"
+
+#if __FB_LANG__ <> "fb"
+	#error "fb/fsdir.bi requires -lang fb (it uses namespaces)"
+#endif
+
+#if defined( __FB_WIN32__ ) and ( not defined( __FB_64BIT__ ) )
+	#define FBFSDIR_EXTERN extern "Windows"
+#else
+	#define FBFSDIR_EXTERN extern "C"
+#endif
+
+#define FB_FS_MAXNAME   260
+#define FB_FS_EXHAUSTED (-1)
+
+namespace FB
+
+'' Mirror of FB_FSDIRENT. Layout is ABI -- see the note on FileInfo.
+type FsDirEntRaw
+	as ushort   name( 0 to FB_FS_MAXNAME - 1 )
+	as long     namelen
+	as long     kind
+	as long     has_info
+	as FileInfo info
+end type
+
+FBFSDIR_EXTERN
+	declare function FsDirOpenRaw alias "fb_UStrFsDirOpen" _
+		( byref p as const ustring, byval out as any ptr ptr ) as long
+
+	declare function FsDirReadRaw alias "fb_FsDirRead" _
+		( byval d as any ptr, byval out as FsDirEntRaw ptr ) as long
+
+	declare sub FsDirCloseRaw alias "fb_FsDirClose" ( byval d as any ptr )
+
+	declare function FsDirEntName alias "fb_UStrFsDirEntName" _
+		( byval e as FsDirEntRaw ptr ) as ustring
+
+	'' ABI cross-check hooks. The C kernel writes the mirrors above
+	'' directly, so a layout drift would scramble every field rather than
+	'' fail loudly -- the tests assert these against sizeof( ).
+	declare function FsSizeofInfo alias "fb_FsSizeofInfo" ( ) as long
+	declare function FsSizeofDirEnt alias "fb_FsSizeofDirEnt" ( ) as long
+end extern
+
+'' ------------------------------------------------------------------ DirEntry
+''
+'' Name is the leaf; Path is the directory the scan started from joined with it,
+'' so it is directly usable. An enumeration returning only leaves makes every
+'' caller re-join by hand and half of them get it wrong.
+''
+'' The kind predicates are FREE -- WIN32_FIND_DATAW carries the attributes and
+'' the reparse tag, and dirent carries d_type -- and the answer is LSTAT-SHAPED:
+'' a symlink reports IsSymlink, not the kind of its target. That is what makes
+'' the walk's symlink rule expressible in phase 3.
+type DirEntry
+	declare const function Name       ( ) as ustring
+	declare const function Path       ( ) as ustring
+	declare const function Depth      ( ) as long
+
+	declare const function IsFile     ( ) as boolean
+	declare const function IsDirectory( ) as boolean
+	declare const function IsSymlink  ( ) as boolean
+	declare const function IsOther    ( ) as boolean
+
+	'' May cost a stat. FREE on Windows -- the find record already carries
+	'' size, times and attributes -- but dirent carries neither, so on POSIX
+	'' this issues an lstat. Returns a Result because the entry may have been
+	'' deleted between enumeration and stat.
+	declare const function Info       ( ) as FsResultInfo
+
+	as ustring  m_name, m_path
+	as long     m_kind, m_depth
+	as long     m_hasinfo
+	as FileInfo m_info
+end type
+
+type DirEntryResult as Result( of DirEntry, FsError )
+
+private const function DirEntry.Name( ) as ustring
+	return this.m_name
+end function
+
+private const function DirEntry.Path( ) as ustring
+	return this.m_path
+end function
+
+private const function DirEntry.Depth( ) as long
+	return this.m_depth
+end function
+
+private const function DirEntry.IsFile( ) as boolean
+	return ( this.m_kind = FB_FSKIND_FILE )
+end function
+
+private const function DirEntry.IsDirectory( ) as boolean
+	return ( this.m_kind = FB_FSKIND_DIR )
+end function
+
+private const function DirEntry.IsSymlink( ) as boolean
+	return ( this.m_kind = FB_FSKIND_LINK )
+end function
+
+private const function DirEntry.IsOther( ) as boolean
+	return ( this.m_kind = FB_FSKIND_OTHER )
+end function
+
+private const function DirEntry.Info( ) as FsResultInfo
+	if( this.m_hasinfo ) then
+		'' Copied to a local first: Ok( ) takes its value BYREF and
+		'' non-const, so it cannot bind a field reached through a const
+		'' method. The copy is the price of Info( ) being const.
+		dim as FileInfo fi = this.m_info
+		return Ok( of FileInfo, FsError )( fi )
+	end if
+
+	return LStat( this.m_path )
+end function
+
+'' ---------------------------------------------------------------- DirIterator
+''
+'' LAZY OPEN, and that is what makes this safe to copy. GetIterator returns BY
+'' VALUE (the protocol requires it) and iterators are ordinary copyable values,
+'' but this one owns an OS handle -- and copying an owning handle is either a
+'' double close or a shared cursor.
+''
+'' So GetIterator returns a DESCRIPTOR carrying the root path and no handle, and
+'' the handle opens on first use. The copy `for each` makes at loop entry
+'' therefore happens BEFORE any handle exists and is completely harmless, which
+'' is the case that actually occurs. A copy taken MID-WALK shares one cursor and
+'' is a bug -- the same caveat the protocol already gives for a collection that
+'' is its own iterator.
+''
+'' IsValid PERFORMS THE OPEN, because the protocol has no before-the-first
+'' state: a fresh iterator is already ON the first element. It stays pure and
+'' repeatable as the protocol requires, since the open happens at most once and
+'' is memoised.
+''
+'' A FAILED OPEN YIELDS EXACTLY ONE ELEMENT -- the failure -- rather than
+'' looking like an empty directory. Losing that distinction would defeat the
+'' whole reason the element is a Result.
+type DirIterator
+	declare function IsValid ( ) as boolean
+	declare function Value   ( ) byref as DirEntryResult
+	declare sub      MoveNext( )
+	declare destructor( )
+
+	declare sub hOpen( )
+	declare sub hFetch( )
+
+	as ustring        m_root
+	as any ptr        m_h
+	as boolean        m_opened, m_live
+	as DirEntryResult m_cur
+end type
+
+private sub DirIterator.hOpen( )
+	if( this.m_opened ) then exit sub
+	this.m_opened = TRUE
+
+	dim as long r = FsDirOpenRaw( this.m_root, @this.m_h )
+
+	if( r <> FS_OK ) then
+		this.m_h = 0
+		this.m_live = TRUE          '' one element, and it is the failure
+		this.m_cur = FsFail( of DirEntry )( cast( FsErrorCode, r ), "ReadDir", this.m_root )
+		exit sub
+	end if
+
+	this.hFetch( )
+end sub
+
+private sub DirIterator.hFetch( )
+	dim as FsDirEntRaw raw
+	dim as long r = FsDirReadRaw( this.m_h, @raw )
+
+	if( r = FB_FS_EXHAUSTED ) then
+		this.m_live = FALSE
+		exit sub
+	end if
+
+	if( r <> FS_OK ) then
+		this.m_live = TRUE
+		this.m_cur = FsFail( of DirEntry )( cast( FsErrorCode, r ), "ReadDir", this.m_root )
+		exit sub
+	end if
+
+	dim as DirEntry e
+	'' Built in C, BY LENGTH rather than by NUL scan, and without passing
+	'' through WSTRING -- which is UTF-32 on Linux and would not round-trip
+	'' an unpaired surrogate. Preserving those names is the reason the
+	'' kernel is USTRING at all.
+	dim as ustring nm = FsDirEntName( @raw )
+
+	e.m_name    = nm
+	e.m_path    = PathJoin( this.m_root, nm )
+	e.m_kind    = raw.kind
+	e.m_depth   = 0
+	e.m_hasinfo = raw.has_info
+	e.m_info    = raw.info
+
+	this.m_live = TRUE
+	this.m_cur = Ok( of DirEntry, FsError )( e )
+end sub
+
+private function DirIterator.IsValid( ) as boolean
+	this.hOpen( )
+	return this.m_live
+end function
+
+private function DirIterator.Value( ) byref as DirEntryResult
+	this.hOpen( )
+	return this.m_cur
+end function
+
+private sub DirIterator.MoveNext( )
+	this.hOpen( )
+
+	'' A failed open produced one element and no handle; advancing past it
+	'' exhausts the iterator.
+	if( this.m_h = 0 ) then
+		this.m_live = FALSE
+		exit sub
+	end if
+
+	this.hFetch( )
+end sub
+
+'' Closes the handle IF one was ever opened. Because iterators have ordinary
+'' FreeBASIC lifetime, this runs on EXIT FOR, on GOTO out of the loop, and while
+'' an error unwinds the scope -- so an abandoned scan leaks nothing.
+private destructor DirIterator( )
+	if( this.m_h <> 0 ) then
+		FsDirCloseRaw( this.m_h )
+		this.m_h = 0
+	end if
+end destructor
+
+'' ------------------------------------------------------------------ DirRange
+''
+'' GetIterator is CONST and returns by value. It must be const because
+'' FreeBASIC cannot overload on constness alone, and a single const GetIterator
+'' serves const and non-const collections alike.
+type DirRange
+	declare const function GetIterator( ) as DirIterator
+	as ustring m_root
+end type
+
+private const function DirRange.GetIterator( ) as DirIterator
+	dim as DirIterator it
+	it.m_root = this.m_root
+	return it
+end function
+
+declare function ReadDir overload ( byref p as const ustring ) as DirRange
+
+private function ReadDir( byref p as const ustring ) as DirRange
+	dim as DirRange r
+	r.m_root = p
+	return r
+end function
+
+'' -------------------------------------------------------------------- ListDir
+''
+'' Eager: reads the whole level into an array and CLOSES THE HANDLE before
+'' returning. It exists for the two things the iterator genuinely cannot do --
+'' produce a sorted listing, and let the caller delete or rename entries while
+'' working through them. Mutating a directory's structure during iteration
+'' invalidates the iterator, and on Windows the underlying behaviour is
+'' explicitly undefined. RemoveDirAll in phase 3 will use this, not the
+'' iterator, for exactly that reason.
+declare function ListDir overload ( byref p as const ustring, entries as Array( of DirEntry ) ) as FsResultLong
+
+private function ListDir( byref p as const ustring, entries as Array( of DirEntry ) ) as FsResultLong
+	dim as long n = 0
+
+	entries.Clear( )
+
+	for each r in ReadDir( p )
+		if( r.IsOk( ) = FALSE ) then
+			return Fail( of long, FsError )( r.Failure( ) )
+		end if
+		entries.Push( r.Value( ) )
+		n += 1
+	next
+
+	return Ok( of long, FsError )( n )
+end function
+
+'' ================================================================== WalkDir
+''
+'' Recursive, pre-order, and specified in RFC-0004 section 5.
+''
+'' IT DOES NOT HOLD A STACK OF DirIterators, and that is forced rather than
+'' chosen. FB.Array reallocates on growth and COPIES its elements, and a
+'' DirIterator owns an OS handle whose destructor closes it -- so an
+'' Array( of DirIterator ) would close live handles on every reallocation and
+'' again on every pop. Instead the walk keeps a flat stack of ENTRIES and lists
+'' each directory with ListDir, which closes its handle before returning.
+''
+'' The trade is real and worth naming: this buffers one directory's entries per
+'' level of the current path instead of holding one handle per level. It cannot
+'' exhaust a handle limit and cannot be broken by a container reallocation.
+'' RFC-0004 section 5 rule 8 is amended to match.
+''
+'' PRE-ORDER falls out of the stack discipline: pop an entry, yield it, and
+'' push its children in REVERSE so the first child is popped next.
+
+type WalkOptions
+	'' Constructed, not zero-initialised, because two of these default TRUE
+	'' and a dim'd UDT would come out FALSE.
+	declare constructor( )
+
+	as boolean FollowSymlinks     '' default FALSE
+	as boolean YieldDirectories   '' default TRUE
+	as boolean IncludeHidden      '' default TRUE
+	as boolean StopOnError        '' default FALSE
+	as long    MaxDepth           '' default 0 = unbounded
+end type
+
+private constructor WalkOptions( )
+	'' NOT following links makes the traversal a tree BY CONSTRUCTION: no
+	'' cycle is possible and no visited set is needed. Following is the
+	'' dangerous default -- a link to an ancestor makes the walk infinite,
+	'' and a link out of the tree makes "delete everything under here"
+	'' delete something else.
+	this.FollowSymlinks   = FALSE
+
+	'' Hidden entries ARE included. Excluding them would silently omit .git
+	'' and every hidden system directory, which is another way for a walk to
+	'' lie about its coverage. Go, Rust and Python all include them.
+	this.YieldDirectories = TRUE
+	this.IncludeHidden    = TRUE
+	this.StopOnError      = FALSE
+	this.MaxDepth         = 0
+end constructor
+
+FBFSDIR_EXTERN
+	'' Identity, for the FollowSymlinks visited check.
+	declare function FsIdentityRaw alias "fb_UStrFsIdentity" _
+		( byref p as const ustring, byref vol as ulongint, byref id as ulongint ) as long
+end extern
+
+type WalkIterator
+	declare function IsValid ( ) as boolean
+	declare function Value   ( ) byref as DirEntryResult
+	declare sub      MoveNext( )
+
+	declare sub hOpen( )
+	declare sub hAdvance( )
+	declare sub hPushChildren( byref dir as const ustring, byval depth as long )
+	declare function hDescendable( byref e as DirEntry ) as boolean
+	declare function hHidden( byref e as DirEntry ) as boolean
+
+	as ustring              m_root
+	as WalkOptions          m_opts
+	as Array( of DirEntry ) m_stack
+	as boolean              m_opened, m_live
+	as boolean              m_haserr
+	as FsError              m_err
+	as DirEntryResult       m_cur
+end type
+
+private function WalkIterator.hHidden( byref e as DirEntry ) as boolean
+	#if defined( __FB_WIN32__ )
+		return e.m_info.IsHidden( )
+	#else
+		return ( len( e.Name( ) ) > 0 ) andalso ( left( e.Name( ), 1 ) = "." )
+	#endif
+end function
+
+'' A link is yielded as an entry and NOT descended into, unless FollowSymlinks
+'' is set. Windows junctions and mount points are reparse points and are covered
+'' by the same rule.
+private function WalkIterator.hDescendable( byref e as DirEntry ) as boolean
+	if( e.IsDirectory( ) = FALSE ) then return FALSE
+	if( e.IsSymlink( ) andalso ( this.m_opts.FollowSymlinks = FALSE ) ) then return FALSE
+
+	'' MaxDepth = 0 is unbounded. Children of an entry at depth d are at
+	'' d + 1, so MaxDepth = 1 yields only the immediate children.
+	if( this.m_opts.MaxDepth > 0 ) then
+		if( ( e.Depth( ) + 1 ) >= this.m_opts.MaxDepth ) then return FALSE
+	end if
+
+	'' With FollowSymlinks set a visited set becomes MANDATORY. It is scoped
+	'' to the CURRENT PATH, not to the whole walk, so a directory legitimately
+	'' reachable twice by different routes is visited twice and only a genuine
+	'' cycle is cut. The current path is recoverable from the entry's own
+	'' logical path, so the check is a walk up its ancestors -- and it costs
+	'' nothing at all unless FollowSymlinks was asked for.
+	if( this.m_opts.FollowSymlinks ) then
+		dim as ulongint cvol, cid, avol, aid
+
+		if( FsIdentityRaw( e.Path( ), cvol, cid ) = FS_OK ) then
+			dim as ustring anc = PathParent( e.Path( ) )
+
+			do while( len( anc ) > 0 )
+				if( FsIdentityRaw( anc, avol, aid ) = FS_OK ) then
+					if( ( avol = cvol ) andalso ( aid = cid ) ) then
+						return FALSE
+					end if
+				end if
+
+				dim as ustring up = PathParent( anc )
+				if( up = anc ) then exit do
+				anc = up
+			loop
+		end if
+	end if
+
+	return TRUE
+end function
+
+private sub WalkIterator.hPushChildren( byref dir as const ustring, byval depth as long )
+	dim as Array( of DirEntry ) kids
+	dim as FsResultLong listed = ListDir( dir, kids )
+
+	if( listed.IsOk( ) = FALSE ) then
+		'' The failing subtree is not descended into; everything else still
+		'' is. The error is YIELDED, never swallowed.
+		this.m_haserr = TRUE
+		this.m_err = listed.Failure( )
+		exit sub
+	end if
+
+	'' reversed, so the first child pops first and the order is stable
+	for i as long = kids.Count( ) - 1 to 0 step -1
+		dim as DirEntry e = kids[i]
+		e.m_depth = depth
+		this.m_stack.Push( e )
+	next
+end sub
+
+private sub WalkIterator.hAdvance( )
+	do
+		'' a pending failure is yielded before anything else
+		if( this.m_haserr ) then
+			this.m_haserr = FALSE
+			this.m_live = TRUE
+			this.m_cur = Fail( of DirEntry, FsError )( this.m_err )
+			exit sub
+		end if
+
+		if( this.m_stack.IsEmpty( ) ) then
+			this.m_live = FALSE
+			exit sub
+		end if
+
+		dim as DirEntry e = this.m_stack.Pop( )
+		dim as boolean descend = this.hDescendable( e )
+		dim as boolean yieldit = TRUE
+
+		if( e.IsDirectory( ) andalso ( this.m_opts.YieldDirectories = FALSE ) ) then
+			yieldit = FALSE
+		end if
+
+		if( ( this.m_opts.IncludeHidden = FALSE ) andalso this.hHidden( e ) ) then
+			yieldit = FALSE
+		end if
+
+		'' children pushed BEFORE yielding, so they are on top for the next
+		'' pop -- that is what makes the order pre-order
+		if( descend ) then
+			this.hPushChildren( e.Path( ), e.Depth( ) + 1 )
+		end if
+
+		if( yieldit ) then
+			this.m_live = TRUE
+			this.m_cur = Ok( of DirEntry, FsError )( e )
+			exit sub
+		end if
+	loop
+end sub
+
+private sub WalkIterator.hOpen( )
+	if( this.m_opened ) then exit sub
+	this.m_opened = TRUE
+
+	'' THE ROOT ITSELF IS NOT YIELDED -- WalkDir( p ) yields the contents of
+	'' p, and its immediate children are at depth 0.
+	this.hPushChildren( this.m_root, 0 )
+	this.hAdvance( )
+end sub
+
+private function WalkIterator.IsValid( ) as boolean
+	this.hOpen( )
+	return this.m_live
+end function
+
+private function WalkIterator.Value( ) byref as DirEntryResult
+	this.hOpen( )
+	return this.m_cur
+end function
+
+private sub WalkIterator.MoveNext( )
+	this.hOpen( )
+
+	'' With StopOnError the failure is still YIELDED, it is just the last
+	'' thing yielded. There is no mode in which an error is neither yielded
+	'' nor stopped on.
+	if( this.m_opts.StopOnError andalso ( this.m_cur.IsOk( ) = FALSE ) ) then
+		this.m_live = FALSE
+		exit sub
+	end if
+
+	this.hAdvance( )
+end sub
+
+type WalkRange
+	declare const function GetIterator( ) as WalkIterator
+	as ustring     m_root
+	as WalkOptions m_opts
+end type
+
+private const function WalkRange.GetIterator( ) as WalkIterator
+	dim as WalkIterator it
+	it.m_root = this.m_root
+	it.m_opts = this.m_opts
+	return it
+end function
+
+declare function WalkDir overload ( byref p as const ustring ) as WalkRange
+declare function WalkDir overload ( byref p as const ustring, byref opts as const WalkOptions ) as WalkRange
+
+private function WalkDir( byref p as const ustring ) as WalkRange
+	dim as WalkRange r
+	dim as WalkOptions o
+	r.m_root = p
+	r.m_opts = o
+	return r
+end function
+
+private function WalkDir( byref p as const ustring, byref opts as const WalkOptions ) as WalkRange
+	dim as WalkRange r
+	r.m_root = p
+	r.m_opts = opts
+	return r
+end function
+
+end namespace

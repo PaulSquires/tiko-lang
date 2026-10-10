@@ -1,0 +1,615 @@
+''  LOCAL NAMES HERE MUST NOT COLLIDE WITH ANYTHING DECLARED AT NAMESPACE
+''  SCOPE IN FB.  This file lives inside `namespace FB`, so a local called
+''  `count`, `e` or `norm` is a duplicate of FB.Count (fb/stats.bi), FB.e
+''  (fb/math.bi, Euler's number) or FB.Norm (fb/vector.bi) the moment any of
+''  those headers has been included FIRST.
+''
+''  It compiled for as long as it did only because filesystem.bi happened to be
+''  included before them.  Reverse the order -- which any program using both
+''  finance and the filesystem will do -- and this file fails to parse with
+''  errors that all point HERE and none of which mention the other header.
+''  Hence nParts, failure_ and normalized.
+
+'' fb/fsops.bi -- whole-file IO, bulk directory operations, temp, atomic replace
+''
+'' Specified in C:\dev\docs\filesystem\RFC-0005-operations.md.
+''
+'' THE RITUAL THIS REPLACES appears in every FB program ever written:
+''
+''     dim as integer f = freefile
+''     open p for binary access read as #f
+''     dim as string s = space( lof( f ) )      '' and now the error paths
+''     get #f, , s
+''     close #f
+''
+'' Six lines, no error handling, `lof` is a longint being assigned into a
+'' `space` that may not take one, and the result is a byte buffer whose encoding
+'' nobody decided. ReadAllText is one line and decides the encoding.
+''
+'' THE BULK OPERATIONS ARE FREEBASIC, NOT C. CreateDirAll, RemoveDirAll and
+'' CopyDir need Array, need FsResult, and need ListDir's ownership semantics;
+'' writing them in C would duplicate the container library for nothing. Only
+'' what is genuinely per-platform or genuinely hot lives in the kernel.
+
+#pragma once
+
+#include once "fb/fserror.bi"
+#include once "fb/fspath.bi"
+#include once "fb/fsinfo.bi"
+#include once "fb/fsdir.bi"
+#include once "fb/array.bi"
+
+#if __FB_LANG__ <> "fb"
+	#error "fb/fsops.bi requires -lang fb (it uses namespaces)"
+#endif
+
+#if defined( __FB_WIN32__ ) and ( not defined( __FB_64BIT__ ) )
+	#define FBFSOPS_EXTERN extern "Windows"
+#else
+	#define FBFSOPS_EXTERN extern "C"
+#endif
+
+namespace FB
+
+FBFSOPS_EXTERN
+	declare function FsReadWholeRaw alias "fb_UStrFsReadWhole" _
+		( byref p as const ustring, byval outbuf as ubyte ptr ptr, byref outlen as longint ) as long
+
+	declare function FsWriteWholeRaw alias "fb_UStrFsWriteWhole" _
+		( byref p as const ustring, byval data as const ubyte ptr, byval len as longint, byval append as long ) as long
+
+	declare sub FsFreeBuf alias "fb_FsFreeBuf" ( byval b as any ptr )
+
+	declare function FsReadAllTextRaw alias "fb_UStrFsReadAllText" _
+		( byref p as const ustring, byref status as long ) as ustring
+
+	declare function FsWriteAllTextRaw alias "fb_UStrFsWriteAllText" _
+		( byref p as const ustring, byref s as const ustring, byval append as long ) as long
+
+	declare function FsCreateDirRaw   alias "fb_UStrFsCreateDir"   ( byref p as const ustring ) as long
+	declare function FsRemoveDirRaw   alias "fb_UStrFsRemoveDir"   ( byref p as const ustring ) as long
+	declare function FsRemoveFileRaw  alias "fb_UStrFsRemoveFile"  ( byref p as const ustring ) as long
+
+	declare function FsCopyFileRaw alias "fb_UStrFsCopyFile" _
+		( byref s as const ustring, byref d as const ustring, byval overwrite as long ) as long
+
+	declare function FsMoveFileRaw alias "fb_UStrFsMoveFile" _
+		( byref s as const ustring, byref d as const ustring, byval overwrite as long ) as long
+
+	declare function FsReplaceFileRaw alias "fb_UStrFsReplaceFile" _
+		( byref target as const ustring, byref replacement as const ustring ) as long
+
+	declare function FsTempDirRaw alias "fb_UStrFsTempDir" ( byref status as long ) as ustring
+
+	declare function FsCreateTempFileRaw alias "fb_UStrFsCreateTempFile" _
+		( byref prefix as const ustring, byref status as long ) as ustring
+
+	declare function FsCreateTempDirRaw alias "fb_UStrFsCreateTempDir" _
+		( byref prefix as const ustring, byref status as long ) as ustring
+
+	'' The minimum slice of RFC-0007 that RemoveDirAll needs; phase 5
+	'' replaces it with the full SetReadOnly.
+	declare function FsSetReadOnlyRaw alias "fb_UStrFsSetReadOnly" _
+		( byref p as const ustring, byval v as long ) as long
+end extern
+
+extern "C"
+	declare function fb_fsops_memcpy alias "memcpy" _
+		( byval d as any ptr, byval s as const any ptr, byval n as uinteger ) as any ptr
+end extern
+
+'' ------------------------------------------------------------- whole file
+
+declare function ReadAllText overload ( byref p as const ustring ) as FsResultUStr
+declare function ReadAllBytes overload ( byref p as const ustring, buf as Array( of ubyte ) ) as FsResultI64
+declare function ReadAllLines overload ( byref p as const ustring, lines as Array( of ustring ) ) as FsResultLong
+declare function WriteAllText overload ( byref p as const ustring, byref s as const ustring ) as FsResultBool
+declare function WriteAllBytes overload ( byref p as const ustring, buf as Array( of ubyte ) ) as FsResultBool
+declare function AppendAllText overload ( byref p as const ustring, byref s as const ustring ) as FsResultBool
+
+private function ReadAllText( byref p as const ustring ) as FsResultUStr
+	dim as long status = FS_OK
+	dim as ustring s = FsReadAllTextRaw( p, status )
+
+	if( status <> FS_OK ) then
+		return FsFail( of ustring )( cast( FsErrorCode, status ), "ReadAllText", p )
+	end if
+
+	return Ok( of ustring, FsError )( s )
+end function
+
+'' Fills a caller-supplied Array and returns the count, rather than returning
+'' FsResult( of Array( of ubyte ) ): a Result holds BOTH slots always
+'' (result.bi:30-33), so returning an array that way would cost a spare
+'' default-constructed array on every call -- and the caller usually has one to
+'' reuse across a loop of files.
+private function ReadAllBytes( byref p as const ustring, buf as Array( of ubyte ) ) as FsResultI64
+	dim as ubyte ptr raw = 0
+	dim as longint n = 0
+
+	buf.Clear( )
+
+	dim as long r = FsReadWholeRaw( p, @raw, n )
+	if( r <> FS_OK ) then
+		return FsFail( of longint )( cast( FsErrorCode, r ), "ReadAllBytes", p )
+	end if
+
+	if( n > 0 ) then
+		buf.Reserve( cast( long, n ) )
+		for i as longint = 0 to n - 1
+			buf.Push( raw[i] )
+		next
+	end if
+
+	FsFreeBuf( raw )
+	return Ok( of longint, FsError )( n )
+end function
+
+'' Splits on \n and strips a preceding \r, so CRLF, LF and a mixed file all give
+'' the SAME lines. A final newline does not produce a trailing empty line, and a
+'' file that is exactly "" gives zero lines.
+''
+'' A LONE \r IS NOT A LINE TERMINATOR. Classic Mac line endings are not
+'' supported, deliberately -- it is 2026, and treating a bare \r as a break
+'' would corrupt any file that legitimately contains one.
+private function ReadAllLines( byref p as const ustring, lines as Array( of ustring ) ) as FsResultLong
+	dim as FsResultUStr t = ReadAllText( p )
+
+	lines.Clear( )
+
+	if( t.IsOk( ) = FALSE ) then
+		return Fail( of long, FsError )( t.Failure( ) )
+	end if
+
+	dim as ustring s = t.Value( )
+	dim as long n = len( s ), start = 0, nParts = 0
+
+	if( n = 0 ) then
+		return Ok( of long, FsError )( 0 )
+	end if
+
+	for i as long = 0 to n - 1
+		if( s[i] = 10 ) then
+			dim as long stop_ = i
+			if( ( stop_ > start ) andalso ( s[ stop_ - 1 ] = 13 ) ) then
+				stop_ -= 1
+			end if
+			lines.Push( mid( s, start + 1, stop_ - start ) )
+			nParts += 1
+			start = i + 1
+		end if
+	next
+
+	'' trailing text with no final newline is still a line; a trailing
+	'' newline is NOT followed by an empty one
+	if( start < n ) then
+		dim as long stop_ = n
+		if( ( stop_ > start ) andalso ( s[ stop_ - 1 ] = 13 ) ) then
+			stop_ -= 1
+		end if
+		lines.Push( mid( s, start + 1, stop_ - start ) )
+		nParts += 1
+	end if
+
+	return Ok( of long, FsError )( nParts )
+end function
+
+private function WriteAllText( byref p as const ustring, byref s as const ustring ) as FsResultBool
+	dim as long r = FsWriteAllTextRaw( p, s, 0 )
+
+	if( r <> FS_OK ) then
+		return FsFail( of boolean )( cast( FsErrorCode, r ), "WriteAllText", p )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+private function AppendAllText( byref p as const ustring, byref s as const ustring ) as FsResultBool
+	dim as long r = FsWriteAllTextRaw( p, s, 1 )
+
+	if( r <> FS_OK ) then
+		return FsFail( of boolean )( cast( FsErrorCode, r ), "AppendAllText", p )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+private function WriteAllBytes( byref p as const ustring, buf as Array( of ubyte ) ) as FsResultBool
+	dim as long n = buf.Count( )
+	dim as ubyte ptr tmp = 0
+	dim as long r
+
+	if( n > 0 ) then
+		tmp = callocate( n, sizeof( ubyte ) )
+		if( tmp = 0 ) then
+			return FsFail( of boolean )( FS_NO_SPACE, "WriteAllBytes", p )
+		end if
+		for i as long = 0 to n - 1
+			tmp[i] = buf[i]
+		next
+	end if
+
+	r = FsWriteWholeRaw( p, tmp, n, 0 )
+
+	if( tmp <> 0 ) then deallocate( tmp )
+
+	if( r <> FS_OK ) then
+		return FsFail( of boolean )( cast( FsErrorCode, r ), "WriteAllBytes", p )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' -------------------------------------------------------------- directories
+
+declare function CreateDir overload ( byref p as const ustring ) as FsResultBool
+declare function CreateDirAll overload ( byref p as const ustring ) as FsResultBool
+declare function RemoveDir overload ( byref p as const ustring ) as FsResultBool
+declare function RemoveDirAll overload ( byref p as const ustring ) as FsResultI64
+declare function RemoveFile overload ( byref p as const ustring ) as FsResultBool
+declare function CopyFile overload ( byref src as const ustring, byref dst as const ustring, byval overwrite as boolean = FALSE ) as FsResultBool
+declare function MoveFile overload ( byref src as const ustring, byref dst as const ustring, byval overwrite as boolean = FALSE ) as FsResultBool
+declare function CopyDir overload ( byref src as const ustring, byref dst as const ustring ) as FsResultI64
+
+'' Fails with FS_ALREADY_EXISTS if the target is there, even as a directory.
+'' That is the difference from CreateDirAll, and it is the whole point of
+'' having both.
+private function CreateDir( byref p as const ustring ) as FsResultBool
+	dim as long r = FsCreateDirRaw( p )
+
+	if( r <> FS_OK ) then
+		return FsFail( of boolean )( cast( FsErrorCode, r ), "CreateDir", p )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' mkdir -p. Succeeds when the target already exists as a directory.
+''
+'' AN FS_ALREADY_EXISTS ON AN INTERMEDIATE COMPONENT IS NOT AN ERROR -- it is
+'' re-checked with a stat and accepted if what is there is a directory. Another
+'' process creating the same tree concurrently is not a failure, and on any
+'' machine with a build running it is not even rare.
+private function CreateDirAll( byref p as const ustring ) as FsResultBool
+	dim as ustring normalized = PathNormalize( p )
+
+	if( len( normalized ) = 0 ) then
+		return FsFail( of boolean )( FS_INVALID_PATH, "CreateDirAll", p )
+	end if
+
+	dim as Array( of ustring ) comps
+	dim as long n = PathSplit( normalized, comps )
+	dim as ustring at = PathRoot( normalized )
+
+	'' a purely relative path has no root to start from
+	if( len( at ) = 0 ) then at = "."
+
+	for i as long = 0 to n - 1
+		at = PathJoin( at, comps[i] )
+
+		dim as long r = FsCreateDirRaw( at )
+		if( r = FS_OK ) then continue for
+
+		if( r = FS_ALREADY_EXISTS ) then
+			'' fine if it is a directory; a FILE in the way is not
+			if( IsDir( at ) ) then continue for
+			return FsFail( of boolean )( FS_NOT_A_DIRECTORY, "CreateDirAll", at )
+		end if
+
+		return FsFail( of boolean )( cast( FsErrorCode, r ), "CreateDirAll", at )
+	next
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+private function RemoveDir( byref p as const ustring ) as FsResultBool
+	dim as long r = FsRemoveDirRaw( p )
+
+	if( r <> FS_OK ) then
+		return FsFail( of boolean )( cast( FsErrorCode, r ), "RemoveDir", p )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+private function RemoveFile( byref p as const ustring ) as FsResultBool
+	dim as long r = FsRemoveFileRaw( p )
+
+	if( r <> FS_OK ) then
+		return FsFail( of boolean )( cast( FsErrorCode, r ), "RemoveFile", p )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' rm -rf. Returns the number of objects removed.
+''
+'' THREE NORMATIVE RULES, and the second is the most important destructive
+'' behaviour in the module:
+''
+''   1. It uses ListDir, NOT the iterator. Deleting entries while enumerating
+''      invalidates the iterator and is explicitly undefined on Windows.
+''   2. A SYMLINK TO A DIRECTORY IS UNLINKED, NEVER DESCENDED. This is what
+''      stops rm -rf on a tree containing a link to C:\ from doing what it
+''      sounds like. It relies on DirEntry.IsSymlink being LSTAT-shaped.
+''   3. The Windows read-only attribute is cleared before deleting, matching
+''      rm -rf and del /f. Without it this fails partway through a checked-out
+''      repository, which is the worst outcome for a destructive operation.
+''
+'' On failure it reports the FIRST error and STOPS. It does not continue
+'' destructively past something it did not understand.
+private function RemoveDirAll( byref p as const ustring ) as FsResultI64
+	dim as Array( of DirEntry ) entries
+	dim as longint removed = 0
+
+	dim as FsResultLong listed = ListDir( p, entries )
+	if( listed.IsOk( ) = FALSE ) then
+		return Fail( of longint, FsError )( listed.Failure( ) )
+	end if
+
+	for i as long = 0 to entries.Count( ) - 1
+		dim as ustring child = entries[i].Path( )
+
+		'' rule 2: a link is removed as a link, never followed
+		if( entries[i].IsDirectory( ) andalso ( entries[i].IsSymlink( ) = FALSE ) ) then
+			dim as FsResultI64 sub_ = RemoveDirAll( child )
+			if( sub_.IsOk( ) = FALSE ) then
+				return sub_
+			end if
+			removed += sub_.Value( )
+		else
+			dim as long r = FsRemoveFileRaw( child )
+
+			'' rule 3: clear read-only and retry once, which is what
+			'' rm -rf does. RFC-0007 replaces this with SetReadOnly.
+			if( r = FS_READ_ONLY ) then
+				FsSetReadOnlyRaw( child, 0 )
+				r = FsRemoveFileRaw( child )
+			end if
+
+			'' a directory symlink unlinks with RemoveDirectory, not
+			'' DeleteFile, on Windows
+			if( ( r <> FS_OK ) andalso entries[i].IsSymlink( ) ) then
+				r = FsRemoveDirRaw( child )
+			end if
+
+			if( r <> FS_OK ) then
+				return FsFail( of longint )( cast( FsErrorCode, r ), "RemoveDirAll", child )
+			end if
+
+			removed += 1
+		end if
+	next
+
+	dim as long rd = FsRemoveDirRaw( p )
+	if( rd <> FS_OK ) then
+		return FsFail( of longint )( cast( FsErrorCode, rd ), "RemoveDirAll", p )
+	end if
+
+	return Ok( of longint, FsError )( removed + 1 )
+end function
+
+'' Defaults to NOT overwriting. The legacy FileCopy overwrites unconditionally
+'' and reports a bare code; that default has cost people data and is not
+'' carried forward.
+private function CopyFile( byref src as const ustring, byref dst as const ustring, byval overwrite as boolean ) as FsResultBool
+	dim as long r = FsCopyFileRaw( src, dst, iif( overwrite, 1, 0 ) )
+
+	if( r <> FS_OK ) then
+		dim as FsError failure_ = FsError( cast( FsErrorCode, r ), FsOsError( ), "CopyFile", src )
+		failure_.SetPath2( dst )
+		return Fail( of boolean, FsError )( failure_ )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' HANDLES FS_CROSS_DEVICE, which the legacy Name does not: MoveFileExW and
+'' rename(2) both fail across volumes with no recourse. The fallback is
+'' normative:
+''
+''   1. attempt the native rename
+''   2. only on FS_CROSS_DEVICE, copy src to dst
+''   3. only if the copy fully succeeded, delete src
+''   4. if the delete then fails, THE COPY IS NOT ROLLED BACK -- the call
+''      reports the delete's error and dst exists. Losing the destination to
+''      tidy up after a partial failure is worse than leaving both.
+''
+'' The fallback is NOT atomic. A caller needing atomicity within one volume has
+'' the native path; across volumes no API on either platform can offer it.
+private function MoveFile( byref src as const ustring, byref dst as const ustring, byval overwrite as boolean ) as FsResultBool
+	dim as long r = FsMoveFileRaw( src, dst, iif( overwrite, 1, 0 ) )
+
+	if( r = FS_OK ) then
+		return Ok( of boolean, FsError )( TRUE )
+	end if
+
+	if( r <> FS_CROSS_DEVICE ) then
+		dim as FsError failure_ = FsError( cast( FsErrorCode, r ), FsOsError( ), "MoveFile", src )
+		failure_.SetPath2( dst )
+		return Fail( of boolean, FsError )( failure_ )
+	end if
+
+	dim as FsResultBool copied = CopyFile( src, dst, overwrite )
+	if( copied.IsOk( ) = FALSE ) then
+		return copied
+	end if
+
+	dim as long d = FsRemoveFileRaw( src )
+	if( d <> FS_OK ) then
+		return FsFail( of boolean )( cast( FsErrorCode, d ), "MoveFile", src )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' Returns the number of objects created.
+''
+'' REFUSES WHEN THE DESTINATION IS INSIDE THE SOURCE, with FS_INVALID_PATH.
+'' That check is not optional: without it CopyDir( "a", "a\b" ) never
+'' terminates. It is LEXICAL -- canonical paths would be better but the
+'' destination usually does not exist yet, and CanonicalPath requires every
+'' component to exist. Documented rather than silently approximate.
+''
+'' Does NOT preserve timestamps or permissions in phase 3. RFC-0007 adds an
+'' options record; until then this is stated, not silently true.
+private function CopyDir( byref src as const ustring, byref dst as const ustring ) as FsResultI64
+	dim as ustring asrc, adst
+
+	dim as FsResultUStr ra = AbsolutePath( src )
+	dim as FsResultUStr rb = AbsolutePath( dst )
+	if( ra.IsOk( ) = FALSE ) then return Fail( of longint, FsError )( ra.Failure( ) )
+	if( rb.IsOk( ) = FALSE ) then return Fail( of longint, FsError )( rb.Failure( ) )
+
+	asrc = PathNormalize( ra.Value( ) )
+	adst = PathNormalize( rb.Value( ) )
+
+	if( PathStartsWith( adst, asrc ) ) then
+		return FsFail( of longint )( FS_INVALID_PATH, "CopyDir", dst )
+	end if
+
+	dim as FsResultBool made = CreateDirAll( dst )
+	if( made.IsOk( ) = FALSE ) then
+		return Fail( of longint, FsError )( made.Failure( ) )
+	end if
+
+	dim as Array( of DirEntry ) entries
+	dim as FsResultLong listed = ListDir( src, entries )
+	if( listed.IsOk( ) = FALSE ) then
+		return Fail( of longint, FsError )( listed.Failure( ) )
+	end if
+
+	dim as longint created = 1
+
+	for i as long = 0 to entries.Count( ) - 1
+		dim as ustring target = PathJoin( dst, entries[i].Name( ) )
+
+		if( entries[i].IsDirectory( ) andalso ( entries[i].IsSymlink( ) = FALSE ) ) then
+			dim as FsResultI64 sub_ = CopyDir( entries[i].Path( ), target )
+			if( sub_.IsOk( ) = FALSE ) then return sub_
+			created += sub_.Value( )
+		else
+			dim as FsResultBool c = CopyFile( entries[i].Path( ), target, FALSE )
+			if( c.IsOk( ) = FALSE ) then
+				return Fail( of longint, FsError )( c.Failure( ) )
+			end if
+			created += 1
+		end if
+	next
+
+	return Ok( of longint, FsError )( created )
+end function
+
+'' ------------------------------------------------------------ atomic write
+
+declare function ReplaceFile overload ( byref target as const ustring, byref replacement as const ustring ) as FsResultBool
+declare function WriteAtomic overload ( byref p as const ustring, byref s as const ustring ) as FsResultBool
+
+private function ReplaceFile( byref target as const ustring, byref replacement as const ustring ) as FsResultBool
+	dim as long r = FsReplaceFileRaw( target, replacement )
+
+	if( r <> FS_OK ) then
+		return FsFail( of boolean )( cast( FsErrorCode, r ), "ReplaceFile", target )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' Writes to a uniquely-named temporary IN THE SAME DIRECTORY AS p -- not in
+'' the system temp directory, which is frequently on another volume and would
+'' turn the final step into a cross-volume copy and destroy the atomicity --
+'' then replaces.
+''
+'' WHAT "ATOMIC" ACTUALLY BUYS, because the word is routinely oversold: a
+'' reader sees the old file or the new one, never a partial, and that survives
+'' a crash mid-call. It does NOT survive power loss without an explicit
+'' directory sync, which this deliberately does not do: it costs a synchronous
+'' IO on every call, and this function's contract is "readers never see a
+'' partial file", not "the write survives a power cut".
+''
+'' The temporary is cleaned up on every failure path.
+private function WriteAtomic( byref p as const ustring, byref s as const ustring ) as FsResultBool
+	dim as ustring dir = PathParent( p )
+	if( len( dir ) = 0 ) then dir = "."
+
+	'' Unique within the destination directory. CreateTempFile cannot be used
+	'' here: it creates in the SYSTEM temp directory, which is the volume
+	'' this function must avoid.
+	dim as ustring tmp
+	dim as long attempt = 0
+
+	do
+		tmp = PathJoin( dir, ".fbtmp" & hex( cast( ulongint, rnd( ) * 4294967295 ) ) & hex( attempt ) )
+		if( Exists( tmp ) = FALSE ) then exit do
+		attempt += 1
+	loop while( attempt < 64 )
+
+	if( attempt >= 64 ) then
+		return FsFail( of boolean )( FS_ALREADY_EXISTS, "WriteAtomic", p )
+	end if
+
+	dim as FsResultBool w = WriteAllText( tmp, s )
+	if( w.IsOk( ) = FALSE ) then
+		FsRemoveFileRaw( tmp )
+		return w
+	end if
+
+	dim as long r = FsReplaceFileRaw( p, tmp )
+	if( r <> FS_OK ) then
+		FsRemoveFileRaw( tmp )
+		return FsFail( of boolean )( cast( FsErrorCode, r ), "WriteAtomic", p )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' ------------------------------------------------------------------- temp
+
+declare function TempDir overload ( ) as FsResultUStr
+declare function CreateTempFile overload ( byref prefix as const ustring = "fb" ) as FsResultUStr
+declare function CreateTempDir overload ( byref prefix as const ustring = "fb" ) as FsResultUStr
+
+private function TempDir( ) as FsResultUStr
+	dim as long status = FS_OK
+	dim as ustring r = FsTempDirRaw( status )
+
+	if( status <> FS_OK ) then
+		return FsFail( of ustring )( cast( FsErrorCode, status ), "TempDir", "" )
+	end if
+
+	return Ok( of ustring, FsError )( r )
+end function
+
+'' CREATES the object and returns its path. It does NOT return a name for the
+'' caller to create -- that is the classic tmpnam race, where the window
+'' between choosing the name and creating the object is an attacker's
+'' opportunity. Creation is atomic (CREATE_NEW / O_EXCL) and the name comes
+'' from the platform CSPRNG, never from Rnd.
+''
+'' NEITHER IS DELETED AUTOMATICALLY. FreeBASIC has no scope guard that would
+'' make that reliable, and a temp file that vanished when a variable went out
+'' of scope would be a surprise in a language with no defer. RemoveDirAll is
+'' there for the directory case.
+private function CreateTempFile( byref prefix as const ustring ) as FsResultUStr
+	dim as long status = FS_OK
+	dim as ustring r = FsCreateTempFileRaw( prefix, status )
+
+	if( status <> FS_OK ) then
+		return FsFail( of ustring )( cast( FsErrorCode, status ), "CreateTempFile", prefix )
+	end if
+
+	return Ok( of ustring, FsError )( r )
+end function
+
+private function CreateTempDir( byref prefix as const ustring ) as FsResultUStr
+	dim as long status = FS_OK
+	dim as ustring r = FsCreateTempDirRaw( prefix, status )
+
+	if( status <> FS_OK ) then
+		return FsFail( of ustring )( cast( FsErrorCode, status ), "CreateTempDir", prefix )
+	end if
+
+	return Ok( of ustring, FsError )( r )
+end function
+
+end namespace

@@ -1,0 +1,331 @@
+'' fb/fsinfo.bi -- FB.FileInfo and the metadata calls
+''
+'' Specified in C:\dev\docs\filesystem\RFC-0003-metadata.md.
+''
+'' ONE STAT, ALL THE FACTS. Learning whether p is a directory, how big it is and
+'' when it changed costs FileExists + FileAttr + FileLen + FileDateTime today:
+'' four traversals of one path, four race windows, and FileLen opens the file so
+'' it fails outright on a directory. Stat is one syscall filling one record.
+''
+'' ABSENCE IS AN ERROR, NOT AN EMPTY SUCCESS. Stat and LStat fail with
+'' FS_NOT_FOUND when nothing is there, so FS_NOT_FOUND and FS_ACCESS_DENIED stay
+'' distinguishable. That is the entire argument for Result over Optional in this
+'' module, and it is why the three cheap predicates exist separately.
+
+#pragma once
+
+#include once "fb/fserror.bi"
+#include once "fb/fspath.bi"
+
+#if __FB_LANG__ <> "fb"
+	#error "fb/fsinfo.bi requires -lang fb (it uses namespaces)"
+#endif
+
+#if defined( __FB_WIN32__ ) and ( not defined( __FB_64BIT__ ) )
+	#define FBFSINFO_EXTERN extern "Windows"
+#else
+	#define FBFSINFO_EXTERN extern "C"
+#endif
+
+'' Must match FB_FSKIND_* / FB_FSFLAG_* in src/rtlib/fb_filesystem.h.
+#define FB_FSKIND_NONE  0
+#define FB_FSKIND_FILE  1
+#define FB_FSKIND_DIR   2
+#define FB_FSKIND_LINK  3
+#define FB_FSKIND_OTHER 4
+
+#define FB_FSFLAG_READONLY  1
+#define FB_FSFLAG_HIDDEN    2
+#define FB_FSFLAG_HAS_CTIME 4
+#define FB_FSFLAG_HAS_ATIME 8
+
+namespace FB
+
+'' The FB mirror of FB_FSINFO. FIELD ORDER AND WIDTHS ARE PART OF THE ABI --
+'' the C kernel writes this struct directly. fbc_tests.filesystem.fsinfo asserts
+'' sizeof( ) against the C side, because a silent layout drift here would
+'' scramble every field rather than fail loudly.
+type FileInfo
+	'' -- kind ---------------------------------------------------------
+	declare const function Exists      ( ) as boolean
+	declare const function IsFile      ( ) as boolean
+	declare const function IsDirectory ( ) as boolean
+	declare const function IsSymlink   ( ) as boolean
+	declare const function IsOther     ( ) as boolean
+
+	'' -- size ---------------------------------------------------------
+	declare const function Size        ( ) as ulongint
+
+	'' -- times: ticks of 100 ns since 0001-01-01 UTC ------------------
+	declare const function ModifiedUtc ( ) as longint
+	declare const function CreatedUtc  ( ) as longint
+	declare const function AccessedUtc ( ) as longint
+	declare const function HasCreated  ( ) as boolean
+	declare const function HasAccessed ( ) as boolean
+
+	'' -- attributes, the portable two ---------------------------------
+	declare const function IsReadOnly  ( ) as boolean
+	declare const function IsHidden    ( ) as boolean
+
+	'' Raw dwFileAttributes on Windows, st_mode on POSIX. The escape hatch
+	'' for everything RFC-0007 has not portably abstracted; code using it is
+	'' by definition platform-specific.
+	declare const function NativeAttributes( ) as ulong
+
+	declare sub hSetHidden( byval v as boolean )
+
+	'' Public because the C kernel fills them. Treat as read-only.
+	as ulongint m_size
+	as longint  m_mtime, m_ctime, m_atime
+	as ulong    m_attrs
+	as long     m_kind
+	as long     m_flags
+end type
+
+type FsResultInfo as Result( of FileInfo, FsError )
+
+FBFSINFO_EXTERN
+	declare function FsStatRaw alias "fb_UStrFsStat" _
+		( byref p as const ustring, byval follow as long, byval out as FileInfo ptr ) as long
+
+	declare function FsAbsolutePathRaw alias "fb_UStrFsAbsolutePath" _
+		( byref p as const ustring, byref status as long ) as ustring
+
+	declare function FsCanonicalPathRaw alias "fb_UStrFsCanonicalPath" _
+		( byref p as const ustring, byref status as long ) as ustring
+
+	declare function FsCurrentDirRaw alias "fb_UStrFsCurrentDir" _
+		( byref status as long ) as ustring
+
+	declare function FsSetCurrentDirRaw alias "fb_UStrFsSetCurrentDir" _
+		( byref p as const ustring ) as long
+end extern
+
+'' ------------------------------------------------------------ FileInfo body
+''
+'' EXACTLY ONE of the four kind predicates is true whenever Exists is true, and
+'' none is true when it is false. Asserted as a COUNT in the tests, so a future
+'' fifth kind cannot slip through as "two things at once".
+
+private const function FileInfo.Exists( ) as boolean
+	return ( this.m_kind <> FB_FSKIND_NONE )
+end function
+
+private const function FileInfo.IsFile( ) as boolean
+	return ( this.m_kind = FB_FSKIND_FILE )
+end function
+
+private const function FileInfo.IsDirectory( ) as boolean
+	return ( this.m_kind = FB_FSKIND_DIR )
+end function
+
+'' Only ever true from LStat. Stat follows links, so it reports what the link
+'' points AT -- a Stat result with IsSymlink true would be a contradiction.
+private const function FileInfo.IsSymlink( ) as boolean
+	return ( this.m_kind = FB_FSKIND_LINK )
+end function
+
+private const function FileInfo.IsOther( ) as boolean
+	return ( this.m_kind = FB_FSKIND_OTHER )
+end function
+
+private const function FileInfo.Size( ) as ulongint
+	return this.m_size
+end function
+
+private const function FileInfo.ModifiedUtc( ) as longint
+	return this.m_mtime
+end function
+
+'' Absent on many POSIX kernel/filesystem combinations. When HasCreated( ) is
+'' false this is exactly 0 and the caller must not read meaning into it --
+'' st_ctime is the inode CHANGE time, not a birth time, and reporting it here
+'' would be a plausible-looking lie.
+private const function FileInfo.CreatedUtc( ) as longint
+	return this.m_ctime
+end function
+
+'' Both platforms routinely disable or coarsen access-time updates -- NTFS
+'' LastAccess is often off, Linux mounts default to relatime -- so a program
+'' that BRANCHES on this is building on sand. Documented, not enforced.
+private const function FileInfo.AccessedUtc( ) as longint
+	return this.m_atime
+end function
+
+private const function FileInfo.HasCreated( ) as boolean
+	return ( ( this.m_flags and FB_FSFLAG_HAS_CTIME ) <> 0 )
+end function
+
+private const function FileInfo.HasAccessed( ) as boolean
+	return ( ( this.m_flags and FB_FSFLAG_HAS_ATIME ) <> 0 )
+end function
+
+'' FILE_ATTRIBUTE_READONLY on Windows; "no write bit for the calling user" on
+'' POSIX. The portable subset the two models can honestly agree on.
+private const function FileInfo.IsReadOnly( ) as boolean
+	return ( ( this.m_flags and FB_FSFLAG_READONLY ) <> 0 )
+end function
+
+private const function FileInfo.IsHidden( ) as boolean
+	return ( ( this.m_flags and FB_FSFLAG_HIDDEN ) <> 0 )
+end function
+
+private const function FileInfo.NativeAttributes( ) as ulong
+	return this.m_attrs
+end function
+
+private sub FileInfo.hSetHidden( byval v as boolean )
+	if( v ) then
+		this.m_flags or= FB_FSFLAG_HIDDEN
+	else
+		this.m_flags and= not FB_FSFLAG_HIDDEN
+	end if
+end sub
+
+'' ---------------------------------------------------------------- Stat/LStat
+
+declare function Stat overload ( byref p as const ustring ) as FsResultInfo
+declare function LStat overload ( byref p as const ustring ) as FsResultInfo
+
+'' On POSIX, hiddenness is a NAMING CONVENTION, not a filesystem attribute, and
+'' FileInfo does not carry the name -- so the flag cannot come from the stat and
+'' is derived here from the path's leaf. This is the one field that is not
+'' purely a property of the object, and RFC-0003 section 2.2 calls it out
+'' because it would otherwise look like a bug.
+private sub hApplyHidden( byref p as const ustring, byref fi as FileInfo )
+	#if not defined( __FB_WIN32__ )
+		dim as ustring leaf = PathFileName( p )
+		fi.hSetHidden( ( len( leaf ) > 0 ) andalso ( left( leaf, 1 ) = "." ) )
+	#endif
+end sub
+
+private function Stat( byref p as const ustring ) as FsResultInfo
+	dim as FileInfo fi
+	dim as long r = FsStatRaw( p, 1, @fi )
+
+	if( r <> FS_OK ) then
+		return FsFail( of FileInfo )( cast( FsErrorCode, r ), "Stat", p )
+	end if
+
+	hApplyHidden( p, fi )
+	return Ok( of FileInfo, FsError )( fi )
+end function
+
+private function LStat( byref p as const ustring ) as FsResultInfo
+	dim as FileInfo fi
+	dim as long r = FsStatRaw( p, 0, @fi )
+
+	if( r <> FS_OK ) then
+		return FsFail( of FileInfo )( cast( FsErrorCode, r ), "LStat", p )
+	end if
+
+	hApplyHidden( p, fi )
+	return Ok( of FileInfo, FsError )( fi )
+end function
+
+'' ------------------------------------------------------------- predicates
+''
+'' These COLLAPSE EVERY FAILURE TO FALSE. Exists( p ) is false when p is absent
+'' and also when the directory above it denies access. That is a real loss of
+'' information and it is deliberate: it is what makes the predicate usable in an
+'' IF. A caller who needs the distinction calls Stat.
+''
+'' IsFile and IsDir FOLLOW LINKS, matching Stat, so IsDir( linkToDir ) is true.
+''
+'' There is deliberately no IsSymlink( p ) free predicate: the answer depends on
+'' whether you followed, a two-valued result cannot say which it did, and
+'' LStat( p ) is one line away.
+
+declare function Exists overload ( byref p as const ustring ) as boolean
+declare function IsFile overload ( byref p as const ustring ) as boolean
+declare function IsDir  overload ( byref p as const ustring ) as boolean
+
+private function Exists( byref p as const ustring ) as boolean
+	dim as FileInfo fi
+	return ( FsStatRaw( p, 1, @fi ) = FS_OK )
+end function
+
+private function IsFile( byref p as const ustring ) as boolean
+	dim as FileInfo fi
+	if( FsStatRaw( p, 1, @fi ) <> FS_OK ) then return FALSE
+	return fi.IsFile( )
+end function
+
+private function IsDir( byref p as const ustring ) as boolean
+	dim as FileInfo fi
+	if( FsStatRaw( p, 1, @fi ) <> FS_OK ) then return FALSE
+	return fi.IsDirectory( )
+end function
+
+'' ------------------------------------------------------------------ resolvers
+''
+''                     AbsolutePath          CanonicalPath
+''   must exist        no                    yes
+''   resolves links    no                    yes
+''   '..' semantics    lexical               filesystem
+''   use it to         build a path          compare identity
+
+declare function AbsolutePath overload ( byref p as const ustring ) as FsResultUStr
+declare function CanonicalPath overload ( byref p as const ustring ) as FsResultUStr
+declare function CurrentDir overload ( ) as FsResultUStr
+declare function SetCurrentDir overload ( byref p as const ustring ) as FsResultBool
+
+private function AbsolutePath( byref p as const ustring ) as FsResultUStr
+	dim as long status = FS_OK
+	dim as ustring r = FsAbsolutePathRaw( p, status )
+
+	if( status <> FS_OK ) then
+		return FsFail( of ustring )( cast( FsErrorCode, status ), "AbsolutePath", p )
+	end if
+
+	'' On POSIX the kernel returns only the current directory for a relative
+	'' path; the join and the lexical normalisation belong to fs_path.c and
+	'' are done here rather than duplicated in C.
+	#if not defined( __FB_WIN32__ )
+		if( PathIsAbsolute( p ) = FALSE ) then
+			r = PathNormalize( PathJoin( r, p ) )
+		else
+			r = PathNormalize( r )
+		end if
+	#endif
+
+	return Ok( of ustring, FsError )( r )
+end function
+
+private function CanonicalPath( byref p as const ustring ) as FsResultUStr
+	dim as long status = FS_OK
+	dim as ustring r = FsCanonicalPathRaw( p, status )
+
+	if( status <> FS_OK ) then
+		return FsFail( of ustring )( cast( FsErrorCode, status ), "CanonicalPath", p )
+	end if
+
+	return Ok( of ustring, FsError )( r )
+end function
+
+private function CurrentDir( ) as FsResultUStr
+	dim as long status = FS_OK
+	dim as ustring r = FsCurrentDirRaw( status )
+
+	if( status <> FS_OK ) then
+		return FsFail( of ustring )( cast( FsErrorCode, status ), "CurrentDir", "" )
+	end if
+
+	return Ok( of ustring, FsError )( r )
+end function
+
+'' THE CURRENT DIRECTORY IS PROCESS-GLOBAL, so changing it from one thread
+'' races every other thread's relative paths. This module never calls it and
+'' never depends on it beyond AbsolutePath. It exists because ChDir exists and
+'' a caller who needs it should at least get a real error back.
+private function SetCurrentDir( byref p as const ustring ) as FsResultBool
+	dim as long r = FsSetCurrentDirRaw( p )
+
+	if( r <> FS_OK ) then
+		return FsFail( of boolean )( cast( FsErrorCode, r ), "SetCurrentDir", p )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+end namespace

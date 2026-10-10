@@ -1,0 +1,566 @@
+'' fb/sort.bi -- sorting for the standard containers
+''
+''     #include once "fb/sort.bi"
+''     using FB
+''
+''     dim v as Array( of long )
+''     ...
+''     Sort( v )                                        '' ascending, by '<'
+''     SortBy( v, function( byref x as long, byref y as long ) as boolean
+''         return x > y                                 '' descending
+''     end function )
+''     StableSort( v )                                  '' equal elements keep order
+''
+''     dim q as LinkedList( of string )
+''     SortList( q )
+''
+'' TWO SORTS, and the difference is the one C++ draws between std::sort and
+'' std::stable_sort:
+''
+''   Sort / SortBy               INTROSORT.  O(n log n) worst case, in place,
+''                               NOT stable.  This is the default.
+''   StableSort / StableSortBy   MERGE SORT.  O(n log n) worst case, stable,
+''                               needs an n-element scratch buffer.
+''
+'' Stability only means something when T carries more than the key -- sorting
+'' records by surname and expecting the previous order within a surname to
+'' survive.  For scalars the two produce identical output and Sort is the one to
+'' use.
+''
+'' INTROSORT, following Musser 1997 and what libstdc++ ships.  Three algorithms,
+'' because no one of them is enough:
+''
+''   1. QUICKSORT is the fast average case and the reason the whole thing is
+''      fast.  Its worst case is O(n^2), and the input that triggers it is not
+''      exotic -- already-sorted data against a naive pivot does it.
+''   2. HEAPSORT is the guarantee.  Recursion depth is tracked, and at
+''      2*floor(log2 n) the range in hand is finished by heapsort instead.  That
+''      converts quicksort's O(n^2) worst case into an O(n log n) one at no cost
+''      to the average case, because the limit is essentially never reached.
+''   3. INSERTION SORT is what actually finishes the job.  Below sixteen
+''      elements quicksort's partitioning overhead exceeds the cost of just
+''      shifting, so ranges that small are insertion-sorted and not recursed
+''      into.
+''
+'' Quicksort recurses on the SMALLER side and loops on the larger, so the stack
+'' is O(log n) deep -- 64 frames at the very worst on a 64-bit index -- rather
+'' than O(n).
+''
+'' EVERY MOVE IS A 'SWAP'.  Measured: SWAP on a UDT exchanges the storage and
+'' calls no constructor, copy constructor or destructor at all, and it does that
+'' through a generic type parameter.  So a sort of Array( of string ) performs
+'' zero string copies, where the shift-with-a-temporary idiom would perform one
+'' deep copy per shifted element.  This is also why insertion sort here bubbles
+'' an element down by adjacent swaps rather than holding it in a temporary.
+''
+'' THE COMPARER IS A STRICT '<'.  'less( x, y )' must be true when x must come
+'' BEFORE y, and false when they are equivalent.  A comparer that returns true
+'' for equal elements is the classic way to make a sort walk off the end of its
+'' array; the partition here is bounds-checked so that it cannot, but the
+'' resulting order is still garbage.  Return BOOLEAN.
+''
+'' THE COMPARER GOES THROUGH A GENERIC PARAMETER, 'of TCmp', not a procedure
+'' pointer -- the same reason FB.ForEach does.  A CAPTURING lambda is a closure
+'' object and cannot convert to a procptr, so a procptr parameter would reject
+'' the most useful kind of comparer:
+''
+''     dim as long comparisons = 0
+''     SortBy( v, function[ byref comparisons ]( byref x as long, byref y as long ) as boolean
+''         comparisons += 1
+''         return x < y
+''     end function )
+''
+'' A non-capturing lambda and a plain '@myproc' still work, because calling
+'' through a generic parameter is 'less( x, y )' either way.
+''
+'' WHY THESE ARE FREE PROCEDURES AND NOT MEMBERS.  Every member body of a
+'' generic is replayed for every instantiation whether or not it is ever called.
+'' A member needing '<' on T would therefore make Array( of T ) fail to
+'' instantiate for every T without one.  A generic PROCEDURE is instantiated
+'' only where it is called, so the requirement lands on the call site that
+'' actually sorts.  See docs/generics/generics.txt, KNOWN LIMITS.
+''
+'' WHY THE NAMES ARE ALL DIFFERENT.  There is no overloading of generic
+'' procedures -- a second 'Sort' of any signature is error 4, Duplicated
+'' definition.  So the comparer form is SortBy rather than another Sort, and the
+'' list form is SortList rather than a Sort taking a LinkedList.  Measured, not
+'' assumed.
+''
+'' MAP AND SET ARE NOT SORTABLE and never will be: both are open-addressed hash
+'' tables whose element order is a function of the hash, and permuting their
+'' storage would destroy the lookup.  Sort a snapshot instead --
+'' 'dim ks as Array( of string ) = m.Keys( ) : Sort( ks )' -- and walk the map
+'' through that.
+
+#pragma once
+
+#include once "fb/array.bi"
+#include once "fb/linkedlist.bi"
+
+namespace FB
+
+'' Ranges of this size or smaller are insertion-sorted rather than partitioned.
+'' Sixteen is libstdc++'s number and the measurements behind it are theirs; it
+'' is a broad optimum, not a knife edge.
+const SORT_INSERTION_CUTOFF as long = 16
+
+'' -------------------------------------------------------------- internal
+''
+'' The six below are the pieces of the algorithms, not the interface.  They are
+'' in namespace FB because a generic procedure cannot be PRIVATE and still be
+'' instantiable from another one's body, and they carry the 'Sort' prefix so
+'' that 'using FB' does not put anything surprising in scope.
+
+'' Insertion sort over a.items( lo .. hi ), inclusive.  An empty or one-element
+'' range is a no-op, which is what lets the introsort loop hand it anything.
+''
+'' Stable, and the stability is load-bearing: StableSort builds its initial runs
+'' with this.  Ties do not swap, because the test is a strict '<'.
+sub SortInsertionBy( of T, TCmp )( byref a as Array( of T ), byval lo as long, byval hi as long, byref less as TCmp )
+	for i as long = lo+1 to hi
+		dim as long j = i
+		do
+			if( j <= lo ) then
+				exit do
+			end if
+			'' Hoisted into a BOOLEAN local so that a comparer returning
+			'' LONG rather than BOOLEAN still tests correctly, and so that
+			'' no ANDALSO ever mixes a boolean with a non-boolean.
+			dim as boolean lt = less( a.items( j ), a.items( j-1 ) )
+			if( lt = false ) then
+				exit do
+			end if
+			swap a.items( j ), a.items( j-1 )
+			j -= 1
+		loop
+	next
+end sub
+
+'' Restore the max-heap property at 'root', for a heap of 'n' elements based at
+'' a.items( lo ).  'root' and the child indices are heap-relative; only the
+'' element accesses add lo.
+sub SortSiftDownBy( of T, TCmp )( byref a as Array( of T ), byval lo as long, byval n as long, byval root as long, byref less as TCmp )
+	do
+		dim as long child = 2*root + 1
+		if( child >= n ) then
+			exit do
+		end if
+
+		if( child+1 < n ) then
+			dim as boolean rightIsBigger = less( a.items( lo+child ), a.items( lo+child+1 ) )
+			if( rightIsBigger ) then
+				child += 1
+			end if
+		end if
+
+		dim as boolean childIsBigger = less( a.items( lo+root ), a.items( lo+child ) )
+		if( childIsBigger = false ) then
+			exit do
+		end if
+
+		swap a.items( lo+root ), a.items( lo+child )
+		root = child
+	loop
+end sub
+
+'' Heapsort over a.items( lo .. hi ).  O(n log n) unconditionally, in place, and
+'' the only reason it is here: it is what the introsort loop falls back to when
+'' quicksort has recursed too far.  Slower than quicksort on ordinary input --
+'' its access pattern defeats the cache -- so it is never the first choice.
+sub SortHeapBy( of T, TCmp )( byref a as Array( of T ), byval lo as long, byval hi as long, byref less as TCmp )
+	dim as long n = hi - lo + 1
+	if( n < 2 ) then
+		exit sub
+	end if
+
+	for i as long = n\2 - 1 to 0 step -1
+		SortSiftDownBy( a, lo, n, i, less )
+	next
+
+	for i as long = n-1 to 1 step -1
+		swap a.items( lo ), a.items( lo+i )
+		SortSiftDownBy( a, lo, i, 0, less )
+	next
+end sub
+
+'' Partition a.items( lo .. hi ) about a median-of-three pivot and return the
+'' pivot's final index.  On return everything left of it compares not-greater
+'' and everything right of it compares not-less.
+''
+'' MEDIAN OF THREE, of the first, middle and last element, is what stops
+'' already-sorted input -- the common case, and the one a first-element pivot
+'' turns into O(n^2).  It also pays for itself twice: after the three are
+'' ordered, a.items( hi ) is known to be >= the pivot, which is what bounds the
+'' left-to-right scan.
+''
+'' The pivot is left sitting at a.items( lo ) and compared against IN PLACE.  It
+'' is outside the scanned range so it cannot move, and this is what keeps the
+'' partition free of any T copy at all.
+function SortPartitionBy( of T, TCmp )( byref a as Array( of T ), byval lo as long, byval hi as long, byref less as TCmp ) as long
+	dim as long mid_ = lo + (hi - lo) \ 2
+
+	dim as boolean sw = less( a.items( mid_ ), a.items( lo ) )
+	if( sw ) then
+		swap a.items( mid_ ), a.items( lo )
+	end if
+	sw = less( a.items( hi ), a.items( lo ) )
+	if( sw ) then
+		swap a.items( hi ), a.items( lo )
+	end if
+	sw = less( a.items( hi ), a.items( mid_ ) )
+	if( sw ) then
+		swap a.items( hi ), a.items( mid_ )
+	end if
+
+	'' a.items( lo ) <= a.items( mid_ ) <= a.items( hi ).  Move the median to
+	'' lo, where it stays put for the duration of the scan.
+	swap a.items( lo ), a.items( mid_ )
+
+	dim as long i = lo
+	dim as long j = hi + 1
+
+	do
+		'' Scan right past everything strictly less than the pivot.  The
+		'' 'i > hi' test is redundant given the median-of-three -- a.items( hi )
+		'' cannot be less than the pivot -- and is kept anyway, because an
+		'' INCONSISTENT comparer would otherwise walk off the end of the array
+		'' and corrupt memory.  A bad comparer should give a bad order, not a
+		'' crash.
+		do
+			i += 1
+			if( i > hi ) then
+				exit do
+			end if
+			dim as boolean lt = less( a.items( i ), a.items( lo ) )
+			if( lt = false ) then
+				exit do
+			end if
+		loop
+
+		'' Scan left past everything the pivot is strictly less than.  Bounded
+		'' by the pivot itself at lo for the same reason.
+		do
+			j -= 1
+			if( j <= lo ) then
+				exit do
+			end if
+			dim as boolean gt = less( a.items( lo ), a.items( j ) )
+			if( gt = false ) then
+				exit do
+			end if
+		loop
+
+		if( i >= j ) then
+			exit do
+		end if
+
+		swap a.items( i ), a.items( j )
+	loop
+
+	'' j is the last index holding something not-greater than the pivot, so the
+	'' pivot belongs there.
+	swap a.items( lo ), a.items( j )
+	return j
+end function
+
+'' The introsort loop over a.items( lo .. hi ).  'depth' is what is left of the
+'' recursion budget; at zero the range is finished by heapsort.
+sub SortIntroBy( of T, TCmp )( byref a as Array( of T ), byval lo as long, byval hi as long, byval depth as long, byref less as TCmp )
+	while( hi - lo + 1 > SORT_INSERTION_CUTOFF )
+		if( depth = 0 ) then
+			'' Quicksort has gone as deep as it is allowed to.  Everything
+			'' outside [lo,hi] is already partitioned, so finishing this range
+			'' finishes the sub-problem.
+			SortHeapBy( a, lo, hi, less )
+			exit sub
+		end if
+		depth -= 1
+
+		dim as long p = SortPartitionBy( a, lo, hi, less )
+
+		'' Recurse into the SMALLER side and iterate on the larger.  Recursing
+		'' into both would be O(n) stack in the worst case; this is O(log n)
+		'' unconditionally, because the recursed side is at most half.
+		if( p - lo < hi - p ) then
+			SortIntroBy( a, lo, p-1, depth, less )
+			lo = p + 1
+		else
+			SortIntroBy( a, p+1, hi, depth, less )
+			hi = p - 1
+		end if
+	wend
+
+	SortInsertionBy( a, lo, hi, less )
+end sub
+
+'' Merge the two sorted runs a.items( lo..mid_ ) and a.items( mid_+1..hi ) using
+'' buf( ) as scratch, leaving the result in a.items( lo..hi ).
+''
+'' Only the LEFT run is moved out.  The right run is already sitting where the
+'' output will end, and the write cursor k provably never catches up with the
+'' read cursor j while any left element remains -- j - k equals the number of
+'' left elements still to place -- so the merge can write straight over the
+'' right run in place.  That halves the scratch traffic.
+''
+'' Every move is a SWAP, so a T with a heap allocation is never copied; buf( )
+'' just accumulates whatever the array slots used to hold.
+sub SortMergeBy( of T, TCmp )( byref a as Array( of T ), buf( ) as T, byval lo as long, byval mid_ as long, byval hi as long, byref less as TCmp )
+	for x as long = lo to mid_
+		swap buf( x ), a.items( x )
+	next
+
+	dim as long i = lo
+	dim as long j = mid_ + 1
+	dim as long k = lo
+
+	while( (i <= mid_) andalso (j <= hi) )
+		'' STRICT '<' on the RIGHT element is the whole of the stability
+		'' guarantee: on a tie this is false, the left element goes first, and
+		'' the original relative order survives.
+		dim as boolean takeRight = less( a.items( j ), buf( i ) )
+		if( takeRight ) then
+			swap a.items( k ), a.items( j )
+			j += 1
+		else
+			swap a.items( k ), buf( i )
+			i += 1
+		end if
+		k += 1
+	wend
+
+	while( i <= mid_ )
+		swap a.items( k ), buf( i )
+		i += 1
+		k += 1
+	wend
+
+	'' No tail loop for the right run: if it is what is left, k has caught up
+	'' with j and those elements are already in place.
+end sub
+
+'' ---------------------------------------------------------------- Array
+
+'' Introsort, ascending, using a caller-supplied strict '<'.
+''
+'' O(n log n) worst case, O(n log n) average, O(log n) stack, no allocation.
+'' NOT stable -- use StableSortBy when equal elements must keep their order.
+sub SortBy( of T, TCmp )( byref a as Array( of T ), byref less as TCmp )
+	dim as long n = a.num
+	if( n < 2 ) then
+		exit sub
+	end if
+
+	'' 2 * floor( log2 n ), computed by shifting rather than through LOG( ) --
+	'' this must not depend on floating point rounding at a power of two.
+	dim as long depth = 0
+	dim as long m = n
+	while( m > 1 )
+		m \= 2
+		depth += 1
+	wend
+	depth *= 2
+
+	SortIntroBy( a, 0, n-1, depth, less )
+end sub
+
+'' Introsort, ascending, by T's own '<'.  Requires '<' on T; that requirement
+'' lands here, at the call site, and not on Array itself.
+sub Sort( of T )( byref a as Array( of T ) )
+	dim as function( byref as T, byref as T ) as boolean less = _
+		function( byref x as T, byref y as T ) as boolean
+			return x < y
+		end function
+	SortBy( a, less )
+end sub
+
+'' Bottom-up merge sort, ascending, using a caller-supplied strict '<'.
+''
+'' STABLE.  O(n log n) worst case AND best case, and O(n) extra memory -- the
+'' scratch buffer is the price of the guarantee, and is why this is not the
+'' default.  C++ draws exactly this line between std::sort and std::stable_sort.
+''
+'' Bottom-up rather than recursive: the run width doubles on each pass, so there
+'' is no recursion, no stack, and no midpoint arithmetic to get wrong.  The
+'' initial runs are built by insertion sort at the same sixteen-element cutoff
+'' the introsort uses, which skips the first four merge passes outright.
+sub StableSortBy( of T, TCmp )( byref a as Array( of T ), byref less as TCmp )
+	dim as long n = a.num
+	if( n < 2 ) then
+		exit sub
+	end if
+
+	dim as long runw = SORT_INSERTION_CUTOFF
+	dim as long s = 0
+	while( s < n )
+		dim as long e = s + runw - 1
+		if( e > n-1 ) then
+			e = n-1
+		end if
+		SortInsertionBy( a, s, e, less )
+		s += runw
+	wend
+
+	'' One run covers everything: insertion sort already finished it, and no
+	'' scratch buffer needs to exist.
+	if( runw >= n ) then
+		exit sub
+	end if
+
+	dim as T buf( any )
+	redim buf( 0 to n-1 )
+
+	while( runw < n )
+		dim as long lo = 0
+		while( lo < n - runw )
+			dim as long mid_ = lo + runw - 1
+			dim as long hi = lo + 2*runw - 1
+			if( hi > n-1 ) then
+				hi = n-1
+			end if
+			SortMergeBy( a, buf( ), lo, mid_, hi, less )
+			lo += 2*runw
+		wend
+		runw *= 2
+	wend
+end sub
+
+'' Stable merge sort, ascending, by T's own '<'.
+sub StableSort( of T )( byref a as Array( of T ) )
+	dim as function( byref as T, byref as T ) as boolean less = _
+		function( byref x as T, byref y as T ) as boolean
+			return x < y
+		end function
+	StableSortBy( a, less )
+end sub
+
+'' True when no element compares less than the one before it.  An empty array
+'' and a one-element array are sorted.
+''
+'' Here because it is the assertion every test of the above wants to make, and
+'' writing it once beats writing the loop in every caller.
+function IsSortedBy( of T, TCmp )( byref a as Array( of T ), byref less as TCmp ) as boolean
+	for i as long = 1 to a.num-1
+		dim as boolean outOfOrder = less( a.items( i ), a.items( i-1 ) )
+		if( outOfOrder ) then
+			return false
+		end if
+	next
+	return true
+end function
+
+function IsSorted( of T )( byref a as Array( of T ) ) as boolean
+	dim as function( byref as T, byref as T ) as boolean less = _
+		function( byref x as T, byref y as T ) as boolean
+			return x < y
+		end function
+	return IsSortedBy( a, less )
+end function
+
+'' ----------------------------------------------------------- LinkedList
+
+'' Bottom-up merge sort over the node chain, ascending, using a caller-supplied
+'' strict '<'.
+''
+'' STABLE, O(n log n) worst case, O(1) extra memory, and NO ELEMENT IS MOVED AT
+'' ALL -- the nodes are relinked, so sorting a LinkedList( of string ) touches
+'' no string.  This is the algorithm std::list::sort uses and the reason a list
+'' sort is not simply "copy to an array, sort, copy back".
+''
+'' Introsort is not an option here and the reason is structural: quicksort needs
+'' random access to reach its pivot and to scan inward from both ends, and a
+'' linked list gives neither.  So there is one list sort, not two, and it is the
+'' stable one.
+''
+'' Bottom-up, doubling the run width each pass: each pass walks the whole chain
+'' merging adjacent runs of that width, and the pass that performs a single
+'' merge is the last one.  The 'prv' pointers are rewritten as the chain is
+'' relinked, which is the only difference from the singly-linked version.
+sub SortListBy( of T, TCmp )( byref l as LinkedList( of T ), byref less as TCmp )
+	if( l.num < 2 ) then
+		exit sub
+	end if
+
+	dim as LinkedNode( of T ) ptr head = l.head
+	dim as LinkedNode( of T ) ptr tail = 0
+	dim as long runw = 1
+
+	do
+		dim as LinkedNode( of T ) ptr p = head
+		dim as LinkedNode( of T ) ptr newHead = 0
+		dim as long merges = 0
+
+		tail = 0
+
+		while( p <> 0 )
+			merges += 1
+
+			'' q starts runw nodes along from p, so p's run is p..q-1 and
+			'' q's run is the next runw nodes.  Either may be short at the
+			'' end of the chain, which is what qsize's q<>0 test handles.
+			dim as LinkedNode( of T ) ptr q = p
+			dim as long psize = 0
+			while( (psize < runw) andalso (q <> 0) )
+				psize += 1
+				q = q->nxt
+			wend
+			dim as long qsize = runw
+
+			do
+				dim as boolean pLeft = (psize > 0)
+				dim as boolean qLeft = (qsize > 0) andalso (q <> 0)
+				if( (pLeft orelse qLeft) = false ) then
+					exit do
+				end if
+
+				dim as LinkedNode( of T ) ptr e
+				if( pLeft = false ) then
+					e = q : q = q->nxt : qsize -= 1
+				elseif( qLeft = false ) then
+					e = p : p = p->nxt : psize -= 1
+				else
+					'' Strict '<' on q's element: on a tie p wins, which is
+					'' the stability guarantee.
+					dim as boolean takeQ = less( q->value, p->value )
+					if( takeQ ) then
+						e = q : q = q->nxt : qsize -= 1
+					else
+						e = p : p = p->nxt : psize -= 1
+					end if
+				end if
+
+				if( tail <> 0 ) then
+					tail->nxt = e
+				else
+					newHead = e
+				end if
+				e->prv = tail
+				tail = e
+			loop
+
+			p = q
+		wend
+
+		tail->nxt = 0
+		head = newHead
+
+		'' One merge for the whole pass means one run for the whole chain.
+		if( merges <= 1 ) then
+			exit do
+		end if
+		runw *= 2
+	loop
+
+	l.head = head
+	l.tail = tail
+end sub
+
+'' Stable merge sort of a LinkedList, ascending, by T's own '<'.
+sub SortList( of T )( byref l as LinkedList( of T ) )
+	dim as function( byref as T, byref as T ) as boolean less = _
+		function( byref x as T, byref y as T ) as boolean
+			return x < y
+		end function
+	SortListBy( l, less )
+end sub
+
+end namespace

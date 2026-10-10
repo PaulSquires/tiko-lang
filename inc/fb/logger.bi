@@ -1,0 +1,368 @@
+'' fb/logger.bi -- FB.Logging front end
+''
+'' RFC-0002 -- C:\dev\docs\logging\RFC-0002-logger.md.
+''
+'' What a call site touches. Everything here is either a level test or a field
+'' append; no I/O happens in this file. Logger.Emit hands a finished LogRecord
+'' to the sinks.
+''
+''     dim con as ConsoleSink
+''     dim lg as Logger
+''     lg.MinLevel = LOG_DEBUG
+''     lg.AddSink( @con )
+''
+''     lg.Info( "server started" )
+''     lg.Warn( ).Str( "user", u ).Int_( "attempts", n ).Msg( "login failed" )
+''
+'' ---------------------------------------------------------------------------
+'' THE EVENT LIVES ON THE CALLER'S STACK
+''
+'' Logger.Info( ) returns a LogEvent BY VALUE; every field method returns
+'' `byref as LogEvent` to that same temporary; .Msg( ) is the only method that
+'' commits. That is what makes this thread-safe with no thread-local storage --
+'' and FreeBASIC has no user-reachable TLS to fall back on.
+''
+'' An earlier sketch returned byref to a `static as LogEvent`. It worked, and it
+'' was thrown away: one static event shared by every thread is a data race that
+'' only shows up under load.
+''
+'' AN EVENT THAT IS NEVER COMMITTED EMITS NOTHING. The destructor does NOT
+'' auto-send. Auto-send-on-destruct (zerolog) makes a forgotten .Msg( )
+'' invisible; here it means a missing line, which is noticed immediately.
+''
+'' ---------------------------------------------------------------------------
+'' THE DEFAULT LOGGER IS NOT HERE
+''
+'' FB.DefaultLogger( ), LogInit and LogShutdown of RFC-0002 section 6 are in
+'' fb/logdefault.bi (phase 4): a `dim shared` in a .bi included by two modules
+'' gives two of them, so the program defines the one object itself with
+'' FB_LOG_IMPLEMENT( ).
+
+#pragma once
+
+#include once "fb/logsink.bi"
+#include once "fb/fserror.bi"
+
+namespace FB
+
+'' The forward alias exists so LogEvent can hold a `Logger ptr` before Logger
+'' is defined. NOTE the consequence, measured: `Logger` is an INCOMPLETE type
+'' here, so a member that returns a logger BY VALUE must be declared as
+'' `Logger_` -- spelling it `Logger` is `error 71: Incomplete type`. Callers are
+'' unaffected: the alias is complete by the time they see it.
+type Logger as Logger_
+
+'' ============================================================== LogEvent
+type LogEvent
+	declare constructor( )
+	declare destructor( )
+
+	declare function Str  ( byref k as ustring, byref v as ustring  ) byref as LogEvent
+	declare function Int_ ( byref k as ustring, byval v as longint  ) byref as LogEvent
+	declare function UInt ( byref k as ustring, byval v as ulongint ) byref as LogEvent
+	declare function Dbl  ( byref k as ustring, byval v as double   ) byref as LogEvent
+	declare function Bool ( byref k as ustring, byval v as boolean  ) byref as LogEvent
+	declare function Ptr_ ( byref k as ustring, byval v as any ptr  ) byref as LogEvent
+	declare function Time ( byref k as ustring, byref v as Instant  ) byref as LogEvent
+	declare function Span ( byref k as ustring, byref v as TimeSpan ) byref as LogEvent
+	declare function Val ( byref k as ustring, byref v as LogValue ) byref as LogEvent
+
+	declare function Err  ( byref v as FsError ) byref as LogEvent
+	declare function Site ( byref f as ustring, byval l as long, byref fn as ustring ) byref as LogEvent
+
+	declare sub Msg( byref m as ustring )
+	declare sub Send( )
+
+	'' public because Logger constructs one; not part of the call-site surface
+	m_owner   as Logger ptr
+	m_enabled as boolean
+	m_rec     as LogRecord
+end type
+
+'' ============================================================== Logger
+type Logger_
+	declare constructor( )
+	declare destructor( )
+
+	declare property MinLevel( ) as LogLevel
+	declare property MinLevel( byval lv as LogLevel )
+	declare property Name( ) as ustring
+	declare property Name( byref n as ustring )
+
+	declare function Enabled( byval lv as LogLevel ) as boolean
+
+	declare sub AddSink   ( byval s as Sink ptr )
+	declare sub RemoveSink( byval s as Sink ptr )
+	declare sub ClearSinks( )
+	declare function SinkCount( ) as long
+
+	declare function WithField( byref k as ustring, byref v as LogValue ) as Logger_
+	declare function WithName( byref n as ustring ) as Logger_
+
+	declare function Log   ( byval lv as LogLevel ) as LogEvent
+	declare function Trace ( ) as LogEvent
+	declare function Debug ( ) as LogEvent
+	declare function Info  ( ) as LogEvent
+	declare function Warn  ( ) as LogEvent
+	declare function Error( ) as LogEvent
+	declare function Fatal ( ) as LogEvent
+
+	declare sub Log   ( byval lv as LogLevel, byref m as ustring )
+	declare sub Trace ( byref m as ustring )
+	declare sub Debug ( byref m as ustring )
+	declare sub Info  ( byref m as ustring )
+	declare sub Warn  ( byref m as ustring )
+	declare sub Error( byref m as ustring )
+	declare sub Fatal ( byref m as ustring )
+
+	declare sub Emit( byref r as LogRecord )
+	declare sub Flush( )
+
+	m_minlevel as LogLevel
+	m_name     as ustring
+	m_fields   as LogFieldArray      '' inherited, from With( )
+	m_sinks    as SinkPtrArray
+end type
+
+private constructor Logger_( )
+	this.m_minlevel = LOG_INFO
+end constructor
+
+private destructor Logger_( )
+end destructor
+
+private property Logger_.MinLevel( ) as LogLevel
+	return this.m_minlevel
+end property
+
+private property Logger_.MinLevel( byval lv as LogLevel )
+	this.m_minlevel = lv
+end property
+
+private property Logger_.Name( ) as ustring
+	return this.m_name
+end property
+
+private property Logger_.Name( byref n as ustring )
+	this.m_name = n
+end property
+
+'' ONE COMPARISON. No lock, no allocation. This is the whole performance story:
+'' every LogEvent returned by a disabled level has m_enabled = FALSE, and every
+'' one of its field methods is an immediate return, so nothing is formatted and
+'' no LogField is ever constructed.
+''
+'' What it does NOT avoid is evaluating the ARGUMENTS at the call site. That is
+'' irreducible at runtime in a language without lazy arguments, and it is what
+'' fb/logmacros.bi (phase 5) exists to remove.
+private function Logger_.Enabled( byval lv as LogLevel ) as boolean
+	return ( lv >= this.m_minlevel )
+end function
+
+'' THE LOGGER DOES NOT OWN ITS SINKS. Lifetime is the program's: a sink must
+'' outlive every logger holding it. That is what makes copying a Logger -- which
+'' With( ) requires -- cheap and obviously not a duplicated file handle.
+private sub Logger_.AddSink( byval s as Sink ptr )
+	if( s <> 0 ) then this.m_sinks.Push( s )
+end sub
+
+private sub Logger_.RemoveSink( byval s as Sink ptr )
+	for i as long = this.m_sinks.Count( ) - 1 to 0 step -1
+		if( this.m_sinks[i] = s ) then this.m_sinks.Remove( i )
+	next
+end sub
+
+private sub Logger_.ClearSinks( )
+	this.m_sinks.Clear( )
+end sub
+
+private function Logger_.SinkCount( ) as long
+	return this.m_sinks.Count( )
+end function
+
+'' NOT `With`: WITH is a FreeBASIC STATEMENT and the name is rejected outright
+'' (error 4). NOT `Int` either, and not `Ptr` -- same error. RFC-0002 sections 3
+'' and 5 amended.
+''
+'' MEASURED, because it is not obvious and phase 0 guessed wrong twice: as a
+'' member of a UDT inside a namespace, `Str`, `Val`, `Error`, `Time`, `Log`,
+'' `Bool`, `Dbl`, `Span`, `Msg` and `Send` ALL WORK. Being an intrinsic function
+'' is not enough to block a member name; being a keyword or a statement is. So
+'' `Error_` and `Val_` were renamed back to `Error` and `Val`, and RFC-0002
+'' section 1's claim that ERROR had to be spelled `Error_` was simply wrong.
+''
+'' RFC-0002 section 5. Returns a NEW Logger by value carrying the parent's
+'' level, sinks and inherited fields PLUS the new one. The parent is untouched
+'' and the child does not alias it -- the generic member deep-copies.
+''
+'' A CHILD IS A SNAPSHOT: changing the parent's MinLevel afterwards does not
+'' change the child's. That is the right default for what With( ) is for -- a
+'' subsystem that captures its logger once at startup.
+private function Logger_.WithField( byref k as ustring, byref v as LogValue ) as Logger_
+	dim child as Logger_ = this
+	child.m_fields.Push( LogField( k, v ) )
+	return child
+end function
+
+private function Logger_.WithName( byref n as ustring ) as Logger_
+	dim child as Logger_ = this
+	child.m_name = n
+	return child
+end function
+
+private sub Logger_.Emit( byref r as LogRecord )
+	for i as long = 0 to this.m_sinks.Count( ) - 1
+		this.m_sinks[i]->Write( r )
+	next
+end sub
+
+private sub Logger_.Flush( )
+	for i as long = 0 to this.m_sinks.Count( ) - 1
+		this.m_sinks[i]->Flush( )
+	next
+end sub
+
+private function Logger_.Log( byval lv as LogLevel ) as LogEvent
+	dim e as LogEvent
+	e.m_owner   = @this
+	e.m_enabled = this.Enabled( lv )
+	if( e.m_enabled = FALSE ) then return e
+
+	e.m_rec.level   = lv
+	e.m_rec.stamp   = WallClock.UtcNow( )
+	'' Raw monotonic ticks rather than a process Stopwatch: a Stopwatch would
+	'' be a process-wide singleton, which a header cannot make. Absolute and
+	'' comparable within the process, which is all ordering needs.
+	e.m_rec.mono    = fb_DtTicksFromCounts( fb_DtMonoTimestamp( ), fb_DtMonoFrequency( ) )
+	e.m_rec.logname = this.m_name
+
+	'' Inherited fields first, call-site fields after -- so "most specific
+	'' last" is available to any renderer that wants last-wins. Reserved in
+	'' one go because every LogValue is 40 bytes (RFC-0001 section 1).
+	dim as long n = this.m_fields.Count( )
+	if( n > 0 ) then
+		e.m_rec.fields.Reserve( n + 4 )
+		for i as long = 0 to n - 1
+			e.m_rec.fields.Push( this.m_fields[i] )
+		next
+	end if
+
+	return e
+end function
+
+private function Logger_.Trace ( ) as LogEvent : return this.Log( LOG_TRACE ) : end function
+private function Logger_.Debug ( ) as LogEvent : return this.Log( LOG_DEBUG ) : end function
+private function Logger_.Info  ( ) as LogEvent : return this.Log( LOG_INFO  ) : end function
+private function Logger_.Warn  ( ) as LogEvent : return this.Log( LOG_WARN  ) : end function
+private function Logger_.Error( ) as LogEvent : return this.Log( LOG_ERROR ) : end function
+private function Logger_.Fatal ( ) as LogEvent : return this.Log( LOG_FATAL ) : end function
+
+'' The one-line form, expected to be the majority of call sites. It exists so
+'' that structured logging does not tax the case with nothing to capture. The
+'' overload pair resolves on ARITY, which is the one thing fbc overload
+'' resolution is reliable at.
+private sub Logger_.Log( byval lv as LogLevel, byref m as ustring )
+	if( this.Enabled( lv ) = FALSE ) then exit sub
+	dim e as LogEvent = this.Log( lv )
+	e.Msg( m )
+end sub
+
+private sub Logger_.Trace ( byref m as ustring ) : this.Log( LOG_TRACE, m ) : end sub
+private sub Logger_.Debug ( byref m as ustring ) : this.Log( LOG_DEBUG, m ) : end sub
+private sub Logger_.Info  ( byref m as ustring ) : this.Log( LOG_INFO , m ) : end sub
+private sub Logger_.Warn  ( byref m as ustring ) : this.Log( LOG_WARN , m ) : end sub
+private sub Logger_.Error( byref m as ustring ) : this.Log( LOG_ERROR, m ) : end sub
+private sub Logger_.Fatal ( byref m as ustring ) : this.Log( LOG_FATAL, m ) : end sub
+
+'' ============================================================== LogEvent impl
+private constructor LogEvent( )
+	this.m_owner   = 0
+	this.m_enabled = FALSE
+end constructor
+
+private destructor LogEvent( )
+end destructor
+
+private function LogEvent.Val( byref k as ustring, byref v as LogValue ) byref as LogEvent
+	if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, v ) )
+	return this
+end function
+
+private function LogEvent.Str( byref k as ustring, byref v as ustring ) byref as LogEvent
+	if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
+	return this
+end function
+
+private function LogEvent.Int_( byref k as ustring, byval v as longint ) byref as LogEvent
+	if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
+	return this
+end function
+
+private function LogEvent.UInt( byref k as ustring, byval v as ulongint ) byref as LogEvent
+	if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
+	return this
+end function
+
+private function LogEvent.Dbl( byref k as ustring, byval v as double ) byref as LogEvent
+	if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
+	return this
+end function
+
+private function LogEvent.Bool( byref k as ustring, byval v as boolean ) byref as LogEvent
+	if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
+	return this
+end function
+
+private function LogEvent.Ptr_( byref k as ustring, byval v as any ptr ) byref as LogEvent
+	if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
+	return this
+end function
+
+private function LogEvent.Time( byref k as ustring, byref v as Instant ) byref as LogEvent
+	if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
+	return this
+end function
+
+private function LogEvent.Span( byref k as ustring, byref v as TimeSpan ) byref as LogEvent
+	if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
+	return this
+end function
+
+'' Two fields from one call, so that a failed file operation logs consistently
+'' everywhere instead of each call site inventing its own key names.
+private function LogEvent.Err( byref v as FsError ) byref as LogEvent
+	if( this.m_enabled ) then
+		this.m_rec.fields.Push( LogField( "error", LogValue( v.Message( ) ) ) )
+		this.m_rec.fields.Push( LogField( "error.code", LogValue( clngint( v.Code( ) ) ) ) )
+		if( v.OsCode( ) <> 0 ) then
+			this.m_rec.fields.Push( LogField( "error.os", LogValue( clngint( v.OsCode( ) ) ) ) )
+		end if
+	end if
+	return this
+end function
+
+private function LogEvent.Site( byref f as ustring, byval l as long, byref fn as ustring ) byref as LogEvent
+	if( this.m_enabled ) then
+		this.m_rec.srcfile = f
+		this.m_rec.srcline = l
+		this.m_rec.srcfunc = fn
+	end if
+	return this
+end function
+
+private sub LogEvent.Msg( byref m as ustring )
+	if( this.m_enabled = FALSE ) then exit sub
+	this.m_rec.message = m
+	this.Send( )
+end sub
+
+'' Send( ) commits with the message already set or empty. Two names because a
+'' message-less structured record is legitimate and .Msg( "" ) reads like an
+'' accident.
+private sub LogEvent.Send( )
+	if( this.m_enabled = FALSE ) then exit sub
+	if( this.m_owner <> 0 ) then this.m_owner->Emit( this.m_rec )
+	this.m_enabled = FALSE          '' committing twice would emit twice
+end sub
+
+end namespace

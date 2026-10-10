@@ -1,0 +1,364 @@
+'' fb/tuiwidget.bi -- the widget protocol, focus, containers and buttons
+''
+''     type MyPanel extends TuiWidget
+''         as long n
+''         declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+''         declare function Kind( ) as ustring override
+''     end type
+''
+'' RFC-0007 -- C:\dev\docs\tui\RFC-0007-widget-protocol.md.
+''
+'' ---------------------------------------------------------------------------
+'' A TYPE WITH ONLY METHODS DOES NOT COMPILE
+''
+'' `error 256: An ENUM, TYPE or UNION cannot be empty` -- and it points at
+'' `end type` and says the type is empty when the real complaint is that no DATA
+'' member was declared. TuiWidget is legal because `extends Object` supplies a
+'' base; a derived widget with no state of its own needs a field or it will not
+'' compile, and the error will not say why.
+''
+'' ---------------------------------------------------------------------------
+'' CALLBACKS: THE PART WITH NO PRECEDENT
+''
+'' A capturing lambda CANNOT become a procedure pointer (error 355), and a
+'' closure stored in a TYPE field CANNOT be called through field access --
+'' `b.handler( id )` is `error 10: Expected '=', found '('`, because the parser
+'' reads it as an index or an assignment target. There is no syntax for it.
+''
+'' So the closure reaches the type as a GENERIC PARAMETER, which would make
+'' every closure-carrying widget a distinct type -- exactly what a heterogeneous
+'' container cannot hold. The resolution is that a generic type may still extend
+'' a non-generic abstract base: TuiButtonOf( of F ) extends TuiWidget, and two
+'' DIFFERENT instantiations go in one Array( of TuiWidget ptr ) and dispatch
+'' correctly. The generic parameter is erased at the container boundary and the
+'' vtable does the rest.
+''
+'' Inside the member body the closure still cannot be called through the field,
+'' so every such call is `var fn = handler` and then `fn( ... )`. A byref
+'' capture still resolves to the caller's variable through the copy.
+
+#pragma once
+
+#include once "fb/tuicore.bi"
+#include once "fb/tuiwidth.bi"
+#include once "fb/tuibuffer.bi"
+#include once "fb/tuilayout.bi"
+#include once "fb/tuiinput.bi"
+#include once "fb/optional.bi"
+#include once "fb/array.bi"
+
+namespace FB
+
+'' ============================================================== the base
+
+type TuiWidget extends Object
+	declare abstract sub Render( byref f as TuiFrame, byval area as TuiRect )
+	declare abstract function Kind( ) as ustring
+
+	'' TRUE if the event was consumed. That single boolean is the entire
+	'' event-propagation model -- there is no bubbling, because in immediate
+	'' mode there is no parent chain to bubble up.
+	declare virtual function HandleEvent( byref e as TuiEvent ) as boolean
+
+	'' ADVISORY. Nothing is obliged to honour it; TuiSplitH/V never consult it.
+	'' It exists so a caller can measure and then decide.
+	declare virtual function SizeHint( byval avail as TuiRect ) as TuiSize
+
+	declare virtual function CanFocus( ) as boolean
+	declare virtual sub SetFocused( byval on_ as boolean )
+	declare virtual destructor( )
+end type
+
+private function TuiWidget.HandleEvent( byref e as TuiEvent ) as boolean
+	return FALSE
+end function
+
+private function TuiWidget.SizeHint( byval avail as TuiRect ) as TuiSize
+	return TuiSizeOf( avail.w, avail.h )
+end function
+
+private function TuiWidget.CanFocus( ) as boolean
+	return FALSE
+end function
+
+private sub TuiWidget.SetFocused( byval on_ as boolean )
+end sub
+
+private destructor TuiWidget( )
+end destructor
+
+'' The alias is REQUIRED -- a generic does not instantiate directly in a TYPE
+'' field. docs/logging hit the same rule with LogFieldArray.
+type TuiWidgetPtrArray as Array( of TuiWidget ptr )
+
+'' ============================================================== focus
+
+'' Next_ carries an underscore because Next is one of the twelve blocked member
+'' names -- error 4: Duplicated definition (probe #45).
+type TuiFocusRing
+	as long cur
+
+	declare sub Add( byval w as TuiWidget ptr )
+	declare sub Clear( )
+	declare function Count( ) as long
+	declare function Current( ) as Optional( of TuiWidget ptr )
+	declare sub Next_( )
+	declare sub Prev( )
+	declare function Focus( byval w as TuiWidget ptr ) as boolean
+
+	private:
+		as TuiWidgetPtrArray items
+		declare sub hApply( )
+end type
+
+'' The ring does NOT own its widgets -- it holds borrowed pointers to widgets
+'' some container owns. Adding the same widget to a ring and to an owning
+'' container is the normal case.
+private sub TuiFocusRing.Add( byval w as TuiWidget ptr )
+	if( w = 0 ) then exit sub
+	if( w->CanFocus( ) = FALSE ) then exit sub
+	items.Push( w )
+	if( items.Count( ) = 1 ) then
+		cur = 0
+		hApply( )
+	end if
+end sub
+
+private sub TuiFocusRing.Clear( )
+	items.Clear( )
+	cur = 0
+end sub
+
+private function TuiFocusRing.Count( ) as long
+	return items.Count( )
+end function
+
+private sub TuiFocusRing.hApply( )
+	for i as long = 0 to items.Count( ) - 1
+		items[i]->SetFocused( i = cur )
+	next
+end sub
+
+private function TuiFocusRing.Current( ) as Optional( of TuiWidget ptr )
+	if( items.Count( ) = 0 ) then return None( of TuiWidget ptr )( )
+	if( cur < 0 ) then cur = 0
+	if( cur >= items.Count( ) ) then cur = items.Count( ) - 1
+	return Some( items[cur] )
+end function
+
+'' The ring WRAPS. An empty ring is a no-op rather than a division by zero.
+private sub TuiFocusRing.Next_( )
+	if( items.Count( ) = 0 ) then exit sub
+	cur = ( cur + 1 ) mod items.Count( )
+	hApply( )
+end sub
+
+private sub TuiFocusRing.Prev( )
+	if( items.Count( ) = 0 ) then exit sub
+	cur = ( cur - 1 + items.Count( ) ) mod items.Count( )
+	hApply( )
+end sub
+
+private function TuiFocusRing.Focus( byval w as TuiWidget ptr ) as boolean
+	for i as long = 0 to items.Count( ) - 1
+		if( items[i] = w ) then
+			cur = i
+			hApply( )
+			return TRUE
+		end if
+	next
+	return FALSE
+end function
+
+'' ============================================================== buttons
+
+'' 32 rather than asc( " " ), and that is not style. An intrinsic call with a
+'' string literal inside a GENERIC member body breaks at instantiation:
+'' `error 9: Expected expression, found ')'` -- reported against the line in
+'' this header but quoting an unrelated line from the file that triggered the
+'' instantiation, which makes it thoroughly misleading. The identical
+'' expression in the NON-generic TuiButton.HandleEvent compiles fine.
+const TUI_SPACE = 32
+
+'' The NON-CAPTURING form: a plain procedure pointer in an ordinary field. This
+'' is the cheap common case and needs none of the generic machinery below.
+type TuiOnClick as sub( byval id as long )
+
+type TuiButton extends TuiWidget
+	as ustring label
+	as long id
+	as TuiOnClick onclick
+	as boolean focused
+	as TuiStyle normal, active
+
+	declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+	declare function Kind( ) as ustring override
+	declare function HandleEvent( byref e as TuiEvent ) as boolean override
+	declare function CanFocus( ) as boolean override
+	declare sub SetFocused( byval on_ as boolean ) override
+	declare function SizeHint( byval avail as TuiRect ) as TuiSize override
+end type
+
+private function TuiButton.Kind( ) as ustring : return "Button" : end function
+private function TuiButton.CanFocus( ) as boolean : return TRUE : end function
+private sub TuiButton.SetFocused( byval on_ as boolean ) : focused = on_ : end sub
+
+private function TuiButton.SizeHint( byval avail as TuiRect ) as TuiSize
+	return TuiSizeOf( TuiStringWidth( label ), 1 )
+end function
+
+private sub TuiButton.Render( byref f as TuiFrame, byval area as TuiRect )
+	if( area.IsEmpty( ) ) then exit sub
+	dim as TuiStyle st = iif( focused, active, normal )
+	f.FillRect( TuiRectOf( area.x, area.y, area.w, 1 ), " ", st )
+	f.DrawText( area.x, area.y, TuiTruncate( label, area.w ), st )
+end sub
+
+private function TuiButton.HandleEvent( byref e as TuiEvent ) as boolean
+	if( focused = FALSE ) then return FALSE
+	if( e.kind <> TUIEVENT_KEY ) then return FALSE
+	if( ( e.key.code <> TUIKEY_ENTER ) andalso ( e.key.ch <> TUI_SPACE ) ) then return FALSE
+	if( onclick <> 0 ) then onclick( id )
+	return TRUE
+end function
+
+'' The CAPTURING form. Generic over the closure type, and STILL a TuiWidget, so
+'' it lives in the same Array( of TuiWidget ptr ) as everything else.
+''
+'' Give the instantiation a name before using it:
+''     var h = sub[ byref n ]( byval id as long ) : n += 1 : end sub
+''     type SaveButton as TuiButtonOf( of typeof( h ) )
+type TuiButtonOf( of F ) extends TuiWidget
+	as ustring label
+	as long id
+	as F handler
+	as boolean focused
+	as TuiStyle normal, active
+
+	declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+	declare function Kind( ) as ustring override
+	declare function HandleEvent( byref e as TuiEvent ) as boolean override
+	declare function CanFocus( ) as boolean override
+	declare sub SetFocused( byval on_ as boolean ) override
+end type
+
+'' The member body must REPEAT the parameter list. Writing
+'' `sub TuiButtonOf.Render( )` is error 3.
+private sub TuiButtonOf( of F ).Render( byref f as TuiFrame, byval area as TuiRect )
+	if( area.IsEmpty( ) ) then exit sub
+	dim as TuiStyle st = iif( focused, active, normal )
+	f.FillRect( TuiRectOf( area.x, area.y, area.w, 1 ), " ", st )
+	f.DrawText( area.x, area.y, TuiTruncate( label, area.w ), st )
+end sub
+
+private function TuiButtonOf( of F ).Kind( ) as ustring
+	return "ButtonOf"
+end function
+
+private function TuiButtonOf( of F ).CanFocus( ) as boolean
+	return TRUE
+end function
+
+private sub TuiButtonOf( of F ).SetFocused( byval on_ as boolean )
+	focused = on_
+end sub
+
+private function TuiButtonOf( of F ).HandleEvent( byref e as TuiEvent ) as boolean
+	if( focused = FALSE ) then return FALSE
+	if( e.kind <> TUIEVENT_KEY ) then return FALSE
+	if( ( e.key.code <> TUIKEY_ENTER ) andalso ( e.key.ch <> TUI_SPACE ) ) then return FALSE
+
+	'' REQUIRED: the closure cannot be called through the field. Copy it to a
+	'' local first. A byref capture still resolves to the caller's variable.
+	var fn = handler
+	fn( id )
+	return TRUE
+end function
+
+'' ============================================================== container
+
+'' TuiStack splits its area with RFC-0006 and renders each child into its part.
+''
+'' IT OWNS ITS CHILDREN and deletes them. Pushing the address of a stack
+'' variable into it hands it a pointer it will `delete` -- that is the one
+'' ownership mistake this design cannot catch for you.
+type TuiStack extends TuiWidget
+	as TuiWidgetPtrArray children
+	as TuiConstraintArray constraints
+	as boolean vertical
+
+	declare destructor( ) override
+	declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+	declare function Kind( ) as ustring override
+	declare function HandleEvent( byref e as TuiEvent ) as boolean override
+
+	declare sub Add( byval w as TuiWidget ptr, byval c as TuiConstraint )
+	declare function ChildRect( byval i as long ) as TuiRect
+
+	private:
+		'' The ONE piece of frame-to-frame state a container carries: the
+		'' rectangles from the last Render, so a mouse event can be hit-tested.
+		'' This is the single place immediate mode leaks.
+		as TuiRectArray lastRects
+end type
+
+private destructor TuiStack( )
+	for i as long = 0 to children.Count( ) - 1
+		if( children[i] <> 0 ) then delete children[i]
+	next
+end destructor
+
+private function TuiStack.Kind( ) as ustring : return "Stack" : end function
+
+private sub TuiStack.Add( byval w as TuiWidget ptr, byval c as TuiConstraint )
+	if( w = 0 ) then exit sub
+	children.Push( w )
+	constraints.Push( c )
+end sub
+
+private function TuiStack.ChildRect( byval i as long ) as TuiRect
+	if( i < 0 ) then return TuiRectOf( 0, 0, 0, 0 )
+	if( i >= lastRects.Count( ) ) then return TuiRectOf( 0, 0, 0, 0 )
+	return lastRects[i]
+end function
+
+private sub TuiStack.Render( byref f as TuiFrame, byval area as TuiRect )
+	lastRects.Clear( )
+	if( children.Count( ) = 0 ) then exit sub
+
+	dim as TuiRectArray parts
+	if( vertical ) then
+		parts = TuiSplitV( area, constraints )
+	else
+		parts = TuiSplitH( area, constraints )
+	end if
+
+	for i as long = 0 to children.Count( ) - 1
+		if( i >= parts.Count( ) ) then exit for
+		lastRects.Push( parts[i] )
+		'' A zero-size part is legal and is still offered to the child, which
+		'' must tolerate it -- phase 4 showed a 40x12 terminal collapsing a
+		'' panel to height 0.
+		children[i]->Render( f, parts[i] )
+	next
+end sub
+
+'' Keys go to children in order until one consumes. MOUSE events are routed by
+'' HIT-TESTING against the rectangles from the last Render, not by focus.
+private function TuiStack.HandleEvent( byref e as TuiEvent ) as boolean
+	if( e.kind = TUIEVENT_MOUSE ) then
+		for i as long = 0 to children.Count( ) - 1
+			if( i >= lastRects.Count( ) ) then exit for
+			if( lastRects[i].Contains( e.mouse.x, e.mouse.y ) = FALSE ) then continue for
+			if( children[i]->HandleEvent( e ) ) then return TRUE
+		next
+		return FALSE
+	end if
+
+	for i as long = 0 to children.Count( ) - 1
+		if( children[i]->HandleEvent( e ) ) then return TRUE
+	next
+	return FALSE
+end function
+
+end namespace

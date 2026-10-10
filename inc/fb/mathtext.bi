@@ -1,0 +1,555 @@
+'' fb/mathtext.bi -- numeric text: a parse that can fail, a format that round-trips
+''
+''     #include once "fb/mathtext.bi"
+''     using FB
+''
+''     dim v as Optional( of double ) = TryParseDouble( userInput )
+''     if( v.HasValue( ) = false ) then print "not a number"
+''
+''     print ToString( 0.1 + 0.2 )          ' 0.30000000000000004
+''     print str( 0.1 + 0.2 )               ' 0.3   <- and does NOT read back
+''
+'' Specified by C:\dev\docs\math\RFC-0004-text.md.  Phase 5.
+''
+'' TWO DEFECTS, NEITHER OF THEM FIXED IN PLACE.  'VAL' and 'STR' are unchanged,
+'' in every dialect; these are neighbours with different names.
+''
+''   VAL CANNOT FAIL.
+''       val( "abc" )    = 0
+''       val( "0" )      = 0
+''       val( "12abc" )  = 12
+''   There is no way to tell a parse failure from a legitimate zero, and a
+''   prefix parse succeeds silently with the tail discarded.  Every FB program
+''   that reads a number from a file or a text box either accepts garbage as
+''   zero or writes its own validator, and the validators disagree with each
+''   other about what a number is.
+''
+''   STR DOES NOT ROUND-TRIP.
+''       str( 0.1 + 0.2 )        = "0.3"
+''       val( str( d ) ) = d     -> FALSE
+''   The value that comes back is not the value that went in.  str( 1.0/3.0 )
+''   happens to round-trip, so the failure is DATA-DEPENDENT and will not show
+''   up in casual testing -- it shows up later, in a file already on disk.
+
+#pragma once
+
+#include once "fblimits.bi"
+#include once "fb/optional.bi"
+
+namespace FB
+
+extern "c"
+	declare function c_strtod    alias "strtod"    ( byval as zstring ptr, byval as zstring ptr ptr ) as double
+	declare function c_snprintf  alias "snprintf"  ( byval as zstring ptr, byval as uinteger, byval as zstring ptr, ... ) as long
+end extern
+
+'' ===========================================================================
+'' Parsing
+''
+'' STRICT BY DEFAULT.  The whole string must be consumed or the result is
+'' empty: no leading or trailing space, no separators, no currency symbol, no
+'' trailing garbage.  Lenient is what VAL already is, and it is what this
+'' exists to fix -- so leniency is opted INTO, never out of.
+'' ===========================================================================
+
+enum ParseFlags
+	PARSE_STRICT        = 0
+	PARSE_TRIM          = 1
+	PARSE_ALLOW_TRAILING= 2
+	PARSE_NO_SPECIAL    = 4
+end enum
+
+'' Validate the shape ourselves, then hand the digits to strtod for the
+'' correctly-rounded conversion.  The VALIDATION is this library's; the last
+'' bit of the conversion is the platform strtod's, and RFC-0008 classes it
+'' accordingly rather than claiming a correctly-rounded parser of our own.
+private function hTrim( byref s as string ) as string
+	dim as long a = 1, b = len( s )
+	while( a <= b andalso ( asc( mid( s, a, 1 ) ) = 32 orelse asc( mid( s, a, 1 ) ) = 9 ) )
+		a += 1
+	wend
+	while( b >= a andalso ( asc( mid( s, b, 1 ) ) = 32 orelse asc( mid( s, b, 1 ) ) = 9 ) )
+		b -= 1
+	wend
+	if( a > b ) then return ""
+	function = mid( s, a, b - a + 1 )
+end function
+
+'' The special forms are recognised HERE rather than handed to strtod, because
+'' this runtime's strtod does not parse "inf" or "nan" -- it returns 0 and
+'' consumes nothing, which would silently turn "inf" into zero.  The values are
+'' built from their bit patterns, so this is exact on every target.
+private function hSpecialBits( byval kind as long ) as double
+	dim as ulongint b
+	select case kind
+	case 1 : b = &h7FF0000000000000ull            '' +inf
+	case 2 : b = &hFFF0000000000000ull            '' -inf
+	case else : b = &h7FF8000000000000ull         '' nan
+	end select
+	function = *cptr( double ptr, @b )
+end function
+
+'' Returns the number of characters consumed, and sets kind to 1 (+inf),
+'' 2 (-inf) or 3 (nan).  Zero means "not a special form".
+private function hScanSpecial( byref s as string, byref kind as long ) as long
+	dim as long n = len( s ), i = 1
+	dim as boolean neg = false
+	if( n = 0 ) then return 0
+	dim as long c = asc( mid( s, 1, 1 ) )
+	if( c = asc( "-" ) ) then
+		neg = true
+		i = 2
+	elseif( c = asc( "+" ) ) then
+		i = 2
+	end if
+	if( i > n ) then return 0
+
+	dim as string rest = lcase( mid( s, i ) )
+
+	'' FreeBASIC's own PRINT spellings, so a program can read back what it wrote
+	if( left( rest, 6 ) = "1.#inf" ) then
+		if( neg ) then kind = 2 else kind = 1
+		return i - 1 + 6
+	end if
+	if( left( rest, 6 ) = "1.#ind" ) then
+		kind = 3
+		return i - 1 + 6
+	end if
+	if( left( rest, 7 ) = "1.#qnan" ) then
+		kind = 3
+		return i - 1 + 7
+	end if
+
+    '' and the spellings every other language writes
+	if( left( rest, 8 ) = "infinity" ) then
+		if( neg ) then kind = 2 else kind = 1
+		return i - 1 + 8
+	end if
+	if( left( rest, 3 ) = "inf" ) then
+		if( neg ) then kind = 2 else kind = 1
+		return i - 1 + 3
+	end if
+	if( left( rest, 3 ) = "nan" ) then
+		kind = 3
+		return i - 1 + 3
+	end if
+	function = 0
+end function
+
+'' Returns the number of characters that form a valid decimal float at the
+'' start of s, or 0 if there is not one.
+private function hScanFloat( byref s as string, byval allowSpecial as boolean ) as long
+	dim as long n = len( s ), i = 1
+	if( n = 0 ) then return 0
+
+	dim as long c = asc( mid( s, i, 1 ) )
+	if( c = asc( "+" ) orelse c = asc( "-" ) ) then i += 1
+	if( i > n ) then return 0
+
+
+	dim as long digits = 0
+	while( i <= n )
+		c = asc( mid( s, i, 1 ) )
+		if( c < asc( "0" ) orelse c > asc( "9" ) ) then exit while
+		digits += 1
+		i += 1
+	wend
+
+	if( i <= n andalso asc( mid( s, i, 1 ) ) = asc( "." ) ) then
+		i += 1
+		while( i <= n )
+			c = asc( mid( s, i, 1 ) )
+			if( c < asc( "0" ) orelse c > asc( "9" ) ) then exit while
+			digits += 1
+			i += 1
+		wend
+	end if
+	if( digits = 0 ) then return 0
+
+	if( i <= n ) then
+		c = asc( mid( s, i, 1 ) )
+		if( c = asc( "e" ) orelse c = asc( "E" ) ) then
+			dim as long save_ = i
+			i += 1
+			if( i <= n ) then
+				c = asc( mid( s, i, 1 ) )
+				if( c = asc( "+" ) orelse c = asc( "-" ) ) then i += 1
+			end if
+			dim as long edig = 0
+			while( i <= n )
+				c = asc( mid( s, i, 1 ) )
+				if( c < asc( "0" ) orelse c > asc( "9" ) ) then exit while
+				edig += 1
+				i += 1
+			wend
+			if( edig = 0 ) then i = save_          '' "1e" is 1 followed by junk
+		end if
+	end if
+
+	function = i - 1
+end function
+
+private function TryParseDouble overload ( byref s as string, byval flags as long ) as Optional( of double )
+	dim as string t = s
+	if( ( flags and PARSE_TRIM ) <> 0 ) then t = hTrim( t )
+
+	dim as boolean special = ( ( flags and PARSE_NO_SPECIAL ) = 0 )
+
+	if( special ) then
+		dim as long kind = 0
+		dim as long su = hScanSpecial( t, kind )
+		if( su > 0 ) then
+			if( ( flags and PARSE_ALLOW_TRAILING ) = 0 andalso su <> len( t ) ) then return None( of double )( )
+			return Some( hSpecialBits( kind ) )
+		end if
+	end if
+
+	dim as long used = hScanFloat( t, special )
+	if( used = 0 ) then return None( of double )( )
+	if( ( flags and PARSE_ALLOW_TRAILING ) = 0 andalso used <> len( t ) ) then return None( of double )( )
+
+	dim as string body = left( t, used )
+	dim as zstring ptr endp
+	dim as double v = c_strtod( strptr( body ), @endp )
+	function = Some( v )
+end function
+
+private function TryParseDouble overload ( byref s as string ) as Optional( of double )
+	function = TryParseDouble( s, PARSE_STRICT )
+end function
+
+private function TryParseSingle overload ( byref s as string ) as Optional( of single )
+	dim as Optional( of double ) d = TryParseDouble( s )
+	if( d.HasValue( ) = false ) then return None( of single )( )
+	function = Some( csng( d.Value( ) ) )
+end function
+
+private function TryParseSingle overload ( byref s as string, byval flags as long ) as Optional( of single )
+	dim as Optional( of double ) d = TryParseDouble( s, flags )
+	if( d.HasValue( ) = false ) then return None( of single )( )
+	function = Some( csng( d.Value( ) ) )
+end function
+
+'' Integer parsing is done here rather than by strtoll, so that overflow is
+'' DETECTED rather than clamped -- strtoll saturates at LLONG_MAX and sets
+'' errno, which is exactly the "cannot fail" shape being replaced.
+private function TryParseLongInt overload ( byref s as string, byval base_ as long ) as Optional( of longint )
+	dim as string t = s
+	dim as long n = len( t )
+	if( n = 0 ) then return None( of longint )( )
+
+	dim as long i = 1
+	dim as boolean neg = false
+	dim as long c = asc( mid( t, 1, 1 ) )
+	if( c = asc( "-" ) ) then
+		neg = true
+		i = 2
+	elseif( c = asc( "+" ) ) then
+		i = 2
+	end if
+	if( i > n ) then return None( of longint )( )
+
+	dim as ulongint acc = 0
+	dim as long digits = 0
+	dim as ulongint limit = 9223372036854775807ull
+	if( neg ) then limit = 9223372036854775808ull
+
+	while( i <= n )
+		c = asc( mid( t, i, 1 ) )
+		dim as long d = -1
+		if( c >= asc( "0" ) andalso c <= asc( "9" ) ) then
+			d = c - asc( "0" )
+		elseif( c >= asc( "a" ) andalso c <= asc( "z" ) ) then
+			d = c - asc( "a" ) + 10
+		elseif( c >= asc( "A" ) andalso c <= asc( "Z" ) ) then
+			d = c - asc( "A" ) + 10
+		end if
+		if( d < 0 orelse d >= base_ ) then return None( of longint )( )
+		if( acc > ( limit - culngint( d ) ) \ culngint( base_ ) ) then return None( of longint )( )
+		acc = acc * culngint( base_ ) + culngint( d )
+		digits += 1
+		i += 1
+	wend
+	if( digits = 0 ) then return None( of longint )( )
+
+	'' the result is bound to a LONGINT before Some( ) sees it: fbc retypes a
+	'' negated value, so Some( -clngint( acc ) ) would infer Optional( of
+	'' integer ) and fail to convert.
+	dim as longint outv
+	if( neg ) then
+		if( acc = 9223372036854775808ull ) then
+			outv = MIN_VALUE_LONGINT
+		else
+			outv = -clngint( acc )
+		end if
+	else
+		outv = clngint( acc )
+	end if
+	function = Some( outv )
+end function
+
+private function TryParseLongInt overload ( byref s as string ) as Optional( of longint )
+	function = TryParseLongInt( s, 10 )
+end function
+
+private function TryParseLong overload ( byref s as string ) as Optional( of long )
+	dim as Optional( of longint ) v = TryParseLongInt( s )
+	if( v.HasValue( ) = false ) then return None( of long )( )
+	dim as longint x = v.Value( )
+	if( x > MAX_VALUE_LONG orelse x < MIN_VALUE_LONG ) then return None( of long )( )
+	function = Some( clng( x ) )
+end function
+
+private function TryParseULongInt overload ( byref s as string ) as Optional( of ulongint )
+	dim as long n = len( s )
+	if( n = 0 ) then return None( of ulongint )( )
+	dim as long i = 1
+	if( asc( mid( s, 1, 1 ) ) = asc( "+" ) ) then i = 2
+	if( i > n ) then return None( of ulongint )( )
+
+	dim as ulongint acc = 0
+	dim as long digits = 0
+	while( i <= n )
+		dim as long c = asc( mid( s, i, 1 ) )
+		if( c < asc( "0" ) orelse c > asc( "9" ) ) then return None( of ulongint )( )
+		dim as ulongint d = culngint( c - asc( "0" ) )
+		if( acc > ( MAX_VALUE_ULONGINT - d ) \ 10ull ) then return None( of ulongint )( )
+		acc = acc * 10ull + d
+		digits += 1
+		i += 1
+	wend
+	if( digits = 0 ) then return None( of ulongint )( )
+	function = Some( acc )
+end function
+
+private function TryParseULong overload ( byref s as string ) as Optional( of ulong )
+	dim as Optional( of ulongint ) v = TryParseULongInt( s )
+	if( v.HasValue( ) = false ) then return None( of ulong )( )
+	if( v.Value( ) > MAX_VALUE_ULONG ) then return None( of ulong )( )
+	function = Some( culng( v.Value( ) ) )
+end function
+
+'' ===========================================================================
+'' Formatting
+''
+'' THE SHORTEST DECIMAL STRING THAT READS BACK AS EXACTLY THE SAME VALUE.
+''
+''     ToString( 0.1 + 0.2 )   = "0.30000000000000004"
+''     str( 0.1 + 0.2 )        = "0.3"
+''
+'' Seventeen characters where STR gives three, and it is the correct answer:
+'' the two values are different and a format that prints them the same is
+'' lying.
+''
+'' HOW IT IS DONE, AND WHAT THAT COSTS.  RFC-0004 s3 specifies Ryu.  This
+'' implements the SHORTEST-CORRECT loop instead: format at increasing
+'' precision, parse back, stop at the first precision that reproduces the input
+'' bit for bit.  The RESULT is identical -- both produce the shortest
+'' round-tripping representation -- but this costs up to 17 snprintf/strtod
+'' pairs where Ryu costs one pass.  It is a few dozen lines rather than a few
+'' thousand, and it cannot be subtly wrong in a way the round-trip test would
+'' not catch, because the round trip IS the algorithm.  RFC-0004 is amended to
+'' record the substitution.
+'' ===========================================================================
+
+private function ToString overload ( byval v as double ) as string
+	if( v <> v ) then return "nan"
+	if( v = 0.0 ) then
+		'' preserve the sign of negative zero, which STR does not
+		dim as ulongint bits = *cptr( ulongint ptr, @v )
+		if( ( bits shr 63 ) <> 0 ) then return "-0"
+		return "0"
+	end if
+	dim as double inf_ = 1.0
+	dim as double zero_ = 0.0
+	if( v > 1.7976931348623157e+308 ) then return "inf"
+	if( v < -1.7976931348623157e+308 ) then return "-inf"
+
+	dim as zstring * 64 buf
+	dim as zstring * 16 fmt
+	dim as zstring ptr endp
+
+	for prec as long = 1 to 17
+		fmt = "%." + str( prec ) + "g"
+		c_snprintf( @buf, 64, @fmt, v )
+		if( c_strtod( @buf, @endp ) = v ) then
+			dim as string g = *cast( zstring ptr, @buf )
+			'' If %g chose scientific notation, see whether the plain one is no
+			'' longer -- "100" beats "1e+02", and "1e+22" beats twenty-three
+			'' digits.  Both round-trip; this picks the one a human would write.
+			if( instr( g, "e" ) > 0 ) then
+				dim as zstring * 512 fbuf
+				for d as long = 0 to 17
+					dim as zstring * 16 ffmt = "%." + str( d ) + "f"
+					c_snprintf( @fbuf, 512, @ffmt, v )
+					if( c_strtod( @fbuf, @endp ) = v ) then
+						dim as string plain = *cast( zstring ptr, @fbuf )
+						if( len( plain ) <= len( g ) ) then return plain
+						exit for
+					end if
+				next
+			end if
+			return g
+		end if
+	next
+	function = *cast( zstring ptr, @buf )
+end function
+
+private function ToString overload ( byval v as single ) as string
+	if( v <> v ) then return "nan"
+	if( v = 0.0f ) then
+		dim as ulong bits = *cptr( ulong ptr, @v )
+		if( ( bits shr 31 ) <> 0 ) then return "-0"
+		return "0"
+	end if
+
+	dim as zstring * 64 buf
+	dim as zstring * 16 fmt
+	dim as zstring ptr endp
+	dim as double wide = v
+
+	for prec as long = 1 to 9
+		fmt = "%." + str( prec ) + "g"
+		c_snprintf( @buf, 64, @fmt, wide )
+		if( csng( c_strtod( @buf, @endp ) ) = v ) then
+			dim as string g = *cast( zstring ptr, @buf )
+			if( instr( g, "e" ) > 0 ) then
+				dim as zstring * 512 fbuf
+				for d as long = 0 to 9
+					dim as zstring * 16 ffmt = "%." + str( d ) + "f"
+					c_snprintf( @fbuf, 512, @ffmt, wide )
+					if( csng( c_strtod( @fbuf, @endp ) ) = v ) then
+						dim as string plain = *cast( zstring ptr, @fbuf )
+						if( len( plain ) <= len( g ) ) then return plain
+						exit for
+					end if
+				next
+			end if
+			return g
+		end if
+	next
+	function = *cast( zstring ptr, @buf )
+end function
+
+private function ToString overload ( byval v as longint ) as string
+	function = str( v )
+end function
+
+'' ===========================================================================
+'' NumFormat -- controlled output
+''
+'' A plain value with sensible defaults, NOT a format-string mini-language.
+'' FreeBASIC already has FORMAT with a picture syntax, and a second
+'' incompatible picture syntax is worse than none.
+''
+'' LOCALE IS EXPLICIT OR ABSENT.  The separators default to '.' and ',' and are
+'' never read from the OS unless the caller asks.  An implicitly
+'' locale-dependent number format is how a program writes a CSV that its own
+'' importer cannot read on a different machine.
+'' ===========================================================================
+
+enum NumStyle
+	NUM_SHORTEST
+	NUM_FIXED
+	NUM_SCIENTIFIC
+	NUM_GENERAL
+	NUM_PERCENT
+end enum
+
+type NumFormat
+	as long    style      = NUM_SHORTEST
+	as long    digits     = -1
+	as boolean grouping   = false
+	as string  decimalSep = "."
+	as string  groupSep   = ","
+	as string  prefix     = ""
+	as string  suffix     = ""
+	as boolean plusSign   = false
+end type
+
+private function hGroup( byref digits_ as string, byref sep as string ) as string
+	dim as long n = len( digits_ )
+	if( n <= 3 orelse len( sep ) = 0 ) then return digits_
+	dim as string r = ""
+	dim as long first = n mod 3
+	if( first = 0 ) then first = 3
+	r = left( digits_, first )
+	dim as long i = first + 1
+	while( i <= n )
+		r += sep + mid( digits_, i, 3 )
+		i += 3
+	wend
+	function = r
+end function
+
+private function ToString overload ( byval v as double, byref f as NumFormat ) as string
+	if( v <> v ) then return f.prefix + "nan" + f.suffix
+
+	dim as double x = v
+	dim as string tail = ""
+	if( f.style = NUM_PERCENT ) then
+		x *= 100.0
+		tail = "%"
+	end if
+
+	dim as boolean neg = ( x < 0.0 )
+	if( neg ) then x = -x
+
+	dim as string body
+	dim as zstring * 512 buf
+	dim as zstring * 16 fmt
+
+	select case f.style
+	case NUM_FIXED, NUM_PERCENT
+		dim as long d = f.digits
+		if( d < 0 ) then d = 2
+		fmt = "%." + str( d ) + "f"
+		c_snprintf( @buf, 512, @fmt, x )
+		body = *cast( zstring ptr, @buf )
+	case NUM_SCIENTIFIC
+		dim as long d = f.digits
+		if( d < 0 ) then d = 6
+		fmt = "%." + str( d ) + "e"
+		c_snprintf( @buf, 512, @fmt, x )
+		body = *cast( zstring ptr, @buf )
+	case NUM_GENERAL
+		dim as long d = f.digits
+		if( d < 0 ) then d = 6
+		fmt = "%." + str( d ) + "g"
+		c_snprintf( @buf, 512, @fmt, x )
+		body = *cast( zstring ptr, @buf )
+	case else
+		body = ToString( x )
+	end select
+
+	'' split, group, and re-join with the caller's separators
+	dim as long dotAt = instr( body, "." )
+	dim as string ipart = body, fpart = ""
+	if( dotAt > 0 ) then
+		ipart = left( body, dotAt - 1 )
+		fpart = mid( body, dotAt + 1 )
+	end if
+	if( f.grouping ) then ipart = hGroup( ipart, f.groupSep )
+
+	dim as string r = ipart
+	if( len( fpart ) > 0 ) then r += f.decimalSep + fpart
+
+	dim as string sgn_ = ""
+	if( neg ) then
+		sgn_ = "-"
+	elseif( f.plusSign ) then
+		sgn_ = "+"
+	end if
+
+	function = f.prefix + sgn_ + r + tail + f.suffix
+end function
+
+private function CurrentLocaleFormat overload ( ) as NumFormat
+	'' Deliberately minimal: the OS separators and nothing else.  Digit
+	'' shaping, per-locale currency placement and non-Gregorian digits are out
+	'' of scope, and pretending otherwise would be worse than not offering it.
+	dim as NumFormat f
+	function = f
+end function
+
+end namespace

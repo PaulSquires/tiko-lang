@@ -1,0 +1,550 @@
+'' fb/tuichrome.bi -- overlays and chrome
+''
+'' RFC-0008 section 5 -- C:\dev\docs\tui\RFC-0008-widget-catalogue.md.
+''
+'' Popup, MessageBox, MenuBar, StatusBar, Tree.
+''
+'' ---------------------------------------------------------------------------
+'' MODALITY IS ONE LINE
+''
+'' A modal's HandleEvent returns TRUE for EVERY event it does not otherwise use,
+'' so nothing behind it sees input. That is the entire implementation, and it is
+'' why RFC-0007's consumed-boolean is the whole propagation model: a richer
+'' scheme would need a capture stack to say the same thing.
+''
+'' ---------------------------------------------------------------------------
+'' A POPUP DRAWS IN A LAYER
+''
+'' RFC-0003 section 4. What is beneath it is intact when it is dismissed,
+'' because the layer composites down into one frame and the whole frame is then
+'' diffed as one image. The widget underneath never has to know a popup
+'' happened.
+
+#pragma once
+
+#include once "fb/tuiform.bi"
+
+namespace FB
+
+'' ============================================================== popup
+
+type TuiPopup extends TuiWidget
+	as TuiWidget ptr content        '' OWNED -- deleted by the destructor
+	as TuiBlock frame_
+	as TuiRect area
+	as boolean dimBackground
+	as TuiStyle dimStyle
+	as boolean modal
+
+	declare destructor( ) override
+	declare sub Render( byref f as TuiFrame, byval unused as TuiRect ) override
+	declare function Kind( ) as ustring override
+	declare function HandleEvent( byref e as TuiEvent ) as boolean override
+end type
+
+private destructor TuiPopup( )
+	if( content <> 0 ) then delete content
+end destructor
+
+private function TuiPopup.Kind( ) as ustring : return "Popup" : end function
+
+'' The area argument is IGNORED: a popup positions itself, usually with
+'' TuiCenter over the whole screen. It is still in the signature because
+'' TuiWidget.Render is abstract and every widget shares it.
+private sub TuiPopup.Render( byref f as TuiFrame, byval unused as TuiRect )
+	if( area.IsEmpty( ) ) then exit sub
+
+	if( dimBackground ) then f.BlendStyle( f.Area( ), dimStyle )
+
+	f.PushLayer( area )
+	frame_.fill = TRUE
+	frame_.Render( f, area )
+	if( content <> 0 ) then content->Render( f, frame_.Inner( area ) )
+	f.PopLayer( )
+end sub
+
+private function TuiPopup.HandleEvent( byref e as TuiEvent ) as boolean
+	if( content <> 0 ) then
+		if( content->HandleEvent( e ) ) then return TRUE
+	end if
+	'' MODALITY, in one line: consume everything else so nothing behind sees it
+	return modal
+end function
+
+'' ============================================================== message box
+
+enum TuiMessageKind
+	TUIMSG_INFO = 0
+	TUIMSG_WARNING
+	TUIMSG_ERROR_          '' `Error` is a statement; the enum member follows
+	TUIMSG_QUESTION
+end enum
+
+type TuiMessageBox extends TuiWidget
+	as ustring title, message
+	as TuiStringArray buttons
+	as long selected
+	as ubyte msgKind
+	as TuiTheme theme
+	as boolean useUnicode
+
+	declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+	declare function Kind( ) as ustring override
+	declare function HandleEvent( byref e as TuiEvent ) as boolean override
+	declare function Accepted( ) as boolean
+	declare function Cancelled( ) as boolean
+
+	private:
+		as boolean m_accepted, m_cancelled
+end type
+
+private function TuiMessageBox.Kind( ) as ustring : return "MessageBox" : end function
+private function TuiMessageBox.Accepted( ) as boolean : return m_accepted : end function
+private function TuiMessageBox.Cancelled( ) as boolean : return m_cancelled : end function
+
+private function TuiMessageKindStyle( byval k as ubyte, byref th as TuiTheme ) as TuiStyle
+	select case k
+	case TUIMSG_WARNING  : return th.warning
+	case TUIMSG_ERROR_   : return th.danger
+	case TUIMSG_QUESTION : return th.accent
+	case else            : return th.info
+	end select
+end function
+
+private sub TuiMessageBox.Render( byref f as TuiFrame, byval area as TuiRect )
+	if( area.IsEmpty( ) ) then exit sub
+
+	dim as TuiBlock blk
+	blk.borderKind = iif( useUnicode, TUIBORDER_ROUNDED, TUIBORDER_ASCII )
+	blk.sides = TUISIDE_ALL
+	blk.borderStyle = TuiMessageKindStyle( msgKind, theme )
+	blk.fill = TRUE
+	blk.fillStyle = theme.normal
+	if( len( title ) > 0 ) then blk.AddTitle( title, theme.title, TUISIDE_TOP, TUIALIGN_CENTER )
+
+	f.PushLayer( area )
+	blk.Render( f, area )
+	dim as TuiRect inner = blk.Inner( area )
+	if( inner.IsEmpty( ) ) then
+		f.PopLayer( )
+		exit sub
+	end if
+
+	'' message on top, buttons on the last row
+	dim as long msgH = inner.h - iif( buttons.Count( ) > 0, 1, 0 )
+	if( msgH > 0 ) then
+		dim as TuiParagraph p
+		p.text = message
+		p.wrap = TRUE
+		p.align = TUIALIGN_CENTER
+		p.st = theme.normal
+		p.Render( f, TuiRectOf( inner.x, inner.y, inner.w, msgH ) )
+	end if
+
+	if( buttons.Count( ) > 0 ) then
+		dim as long total = 0
+		for i as long = 0 to buttons.Count( ) - 1
+			total += TuiStringWidth( buttons[i] ) + 4
+		next
+		dim as long x = inner.x + ( inner.w - total ) \ 2
+		if( x < inner.x ) then x = inner.x
+		dim as long y = inner.Bottom( ) - 1
+
+		for i as long = 0 to buttons.Count( ) - 1
+			'' composed, not replaced -- same reason as TuiTextInput's
+			'' placeholder: theme.selected is a PATCH and must be applied over
+			'' the box fill rather than substituted for it
+			dim as TuiStyle st = theme.normal
+			if( i = selected ) then st = theme.normal.Patch( theme.selected )
+			dim as ustring lbl = "  " & buttons[i] & "  "
+			if( x >= inner.Right( ) ) then exit for
+			x += f.DrawText( x, y, TuiTruncate( lbl, inner.Right( ) - x ), st )
+		next
+	end if
+	f.PopLayer( )
+end sub
+
+'' A MODAL: everything not used is still consumed.
+private function TuiMessageBox.HandleEvent( byref e as TuiEvent ) as boolean
+	if( e.kind <> TUIEVENT_KEY ) then return TRUE
+
+	select case e.key.code
+	case TUIKEY_LEFT
+		if( buttons.Count( ) > 0 ) then selected = ( selected - 1 + buttons.Count( ) ) mod buttons.Count( )
+	case TUIKEY_RIGHT
+		if( buttons.Count( ) > 0 ) then selected = ( selected + 1 ) mod buttons.Count( )
+	case TUIKEY_ENTER
+		m_accepted = TRUE
+	case TUIKEY_ESCAPE
+		m_cancelled = TRUE
+	end select
+	return TRUE
+end function
+
+'' ============================================================== menu bar
+
+type TuiMenu
+	as ustring label
+	as TuiStringArray items
+end type
+
+type TuiMenuArray as Array( of TuiMenu )
+
+type TuiMenuBar extends TuiWidget
+	as TuiMenuArray menus
+	as long openIndex           '' -1 = closed
+	as long highlight
+	as TuiStyle normal, activeStyle, listStyle, highlightStyle
+	as boolean isFocused
+
+	declare constructor( )
+	declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+	declare function Kind( ) as ustring override
+	declare function HandleEvent( byref e as TuiEvent ) as boolean override
+	declare function CanFocus( ) as boolean override
+	declare sub SetFocused( byval on_ as boolean ) override
+	declare function IsOpen( ) as boolean
+end type
+
+private constructor TuiMenuBar( )
+	openIndex = -1
+end constructor
+
+private function TuiMenuBar.Kind( ) as ustring : return "MenuBar" : end function
+private function TuiMenuBar.CanFocus( ) as boolean : return TRUE : end function
+private sub TuiMenuBar.SetFocused( byval on_ as boolean ) : isFocused = on_ : end sub
+private function TuiMenuBar.IsOpen( ) as boolean : return ( openIndex >= 0 ) : end function
+
+private sub TuiMenuBar.Render( byref f as TuiFrame, byval area as TuiRect )
+	if( area.IsEmpty( ) ) then exit sub
+	f.FillRect( TuiRectOf( area.x, area.y, area.w, 1 ), " ", normal )
+
+	dim as long x = area.x + 1
+	dim as long openX = x
+	for i as long = 0 to menus.Count( ) - 1
+		if( x >= area.Right( ) ) then exit for
+		dim as TuiStyle st = iif( i = openIndex, activeStyle, normal )
+		if( i = openIndex ) then openX = x
+		x += f.DrawText( x, area.y, TuiTruncate( menus[i].label, area.Right( ) - x ), st )
+		x += 2
+	next
+
+	if( openIndex < 0 ) then exit sub
+	if( openIndex >= menus.Count( ) ) then exit sub
+
+	dim as long n = menus[ openIndex ].items.Count( )
+	if( n = 0 ) then exit sub
+
+	dim as long w = 0
+	for i as long = 0 to n - 1
+		dim as long iw = TuiStringWidth( menus[ openIndex ].items[i] ) + 2
+		if( iw > w ) then w = iw
+	next
+	dim as TuiRect drop = TuiRectOf( openX, area.y + 1, w, n )
+
+	'' the dropdown is a POPUP: it draws in a layer
+	f.PushLayer( drop )
+	f.FillRect( drop, " ", listStyle )
+	for i as long = 0 to n - 1
+		dim as TuiStyle st = iif( i = highlight, highlightStyle, listStyle )
+		f.FillRect( TuiRectOf( drop.x, drop.y + i, drop.w, 1 ), " ", st )
+		f.DrawText( drop.x + 1, drop.y + i, TuiTruncate( menus[ openIndex ].items[i], drop.w - 1 ), st )
+	next
+	f.PopLayer( )
+end sub
+
+private function TuiMenuBar.HandleEvent( byref e as TuiEvent ) as boolean
+	if( isFocused = FALSE ) then return FALSE
+	if( e.kind <> TUIEVENT_KEY ) then return FALSE
+	if( menus.Count( ) = 0 ) then return FALSE
+
+	if( openIndex < 0 ) then
+		select case e.key.code
+		case TUIKEY_ENTER, TUIKEY_DOWN
+			openIndex = 0
+			highlight = 0
+			return TRUE
+		end select
+		return FALSE
+	end if
+
+	dim as long n = menus[ openIndex ].items.Count( )
+	select case e.key.code
+	case TUIKEY_ESCAPE : openIndex = -1 : return TRUE
+	case TUIKEY_LEFT   : openIndex = ( openIndex - 1 + menus.Count( ) ) mod menus.Count( ) : highlight = 0 : return TRUE
+	case TUIKEY_RIGHT  : openIndex = ( openIndex + 1 ) mod menus.Count( ) : highlight = 0 : return TRUE
+	case TUIKEY_UP     : if( n > 0 ) then highlight = ( highlight - 1 + n ) mod n
+	case TUIKEY_DOWN   : if( n > 0 ) then highlight = ( highlight + 1 ) mod n
+	case TUIKEY_ENTER  : openIndex = -1 : return TRUE
+	case else          : return TRUE      '' open menus are modal
+	end select
+	return TRUE
+end function
+
+'' ============================================================== status bar
+
+type TuiStatusItem
+	as ustring text
+	as TuiStyle st
+	as ubyte align
+end type
+
+type TuiStatusItemArray as Array( of TuiStatusItem )
+
+private function TuiStatusItemOf( byref t as ustring, byval st as TuiStyle, _
+                                  byval a as TuiAlign = TUIALIGN_LEFT ) as TuiStatusItem
+	dim as TuiStatusItem r
+	r.text = t
+	r.st = st
+	r.align = a
+	return r
+end function
+
+'' Left, centre and right groups on one row. This is what draws the target
+'' screen's bottom line: key hints on the left, a counter on the right.
+type TuiStatusBar extends TuiWidget
+	as TuiStatusItemArray items
+	as TuiStyle background
+
+	declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+	declare function Kind( ) as ustring override
+	declare sub Add( byref t as ustring, byval st as TuiStyle, byval a as TuiAlign = TUIALIGN_LEFT )
+end type
+
+private function TuiStatusBar.Kind( ) as ustring : return "StatusBar" : end function
+
+private sub TuiStatusBar.Add( byref t as ustring, byval st as TuiStyle, byval a as TuiAlign )
+	items.Push( TuiStatusItemOf( t, st, a ) )
+end sub
+
+private sub TuiStatusBar.Render( byref f as TuiFrame, byval area as TuiRect )
+	if( area.IsEmpty( ) ) then exit sub
+	f.FillRect( TuiRectOf( area.x, area.y, area.w, 1 ), " ", background )
+
+	'' left first, then right from the right edge, then centre in what is left
+	dim as long lx = area.x
+	dim as long rx = area.Right( )
+
+	for i as long = 0 to items.Count( ) - 1
+		if( items[i].align <> TUIALIGN_LEFT ) then continue for
+		if( lx >= rx ) then exit for
+		lx += f.DrawText( lx, area.y, TuiTruncate( items[i].text, rx - lx ), items[i].st )
+	next
+
+	for i as long = items.Count( ) - 1 to 0 step -1
+		if( items[i].align <> TUIALIGN_RIGHT ) then continue for
+		dim as ustring t = TuiTruncate( items[i].text, rx - lx )
+		dim as long w = TuiStringWidth( t )
+		if( w <= 0 ) then continue for
+		rx -= w
+		if( rx < lx ) then exit for
+		f.DrawText( rx, area.y, t, items[i].st )
+	next
+
+	for i as long = 0 to items.Count( ) - 1
+		if( items[i].align <> TUIALIGN_CENTER ) then continue for
+		dim as long room = rx - lx
+		if( room <= 0 ) then exit for
+		dim as ustring t = TuiTruncate( items[i].text, room )
+		dim as long w = TuiStringWidth( t )
+		f.DrawText( lx + ( room - w ) \ 2, area.y, t, items[i].st )
+	next
+end sub
+
+'' ============================================================== tree
+
+'' FLATTENED, with a depth per node -- not a recursive structure. Recursion
+'' means owned child pointers and a lifetime problem, and flattening makes the
+'' visible-row calculation a filter over an array, which is also what the scroll
+'' offset needs.
+type TuiTreeNode
+	as ustring label
+	as long depth
+	as boolean hasChildren
+	as long userId
+end type
+
+type TuiTreeNodeArray as Array( of TuiTreeNode )
+type TuiBoolArray     as Array( of boolean )
+
+type TuiTreeState
+	as long selected, offset
+	as TuiBoolArray expanded    '' one flag per node, by index
+end type
+
+type TuiTree extends TuiWidget
+	as TuiTreeNodeArray nodes
+	as TuiTreeState ptr state
+	as TuiStyle normal, selectedStyle
+	as boolean useUnicode
+	as boolean isFocused
+
+	declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+	declare function Kind( ) as ustring override
+	declare function HandleEvent( byref e as TuiEvent ) as boolean override
+	declare function CanFocus( ) as boolean override
+	declare sub SetFocused( byval on_ as boolean ) override
+
+	declare sub Add( byref label as ustring, byval depth as long, _
+	                 byval hasChildren as boolean = FALSE, byval userId as long = 0 )
+	declare function VisibleCount( ) as long
+
+	private:
+		as long lastH
+		declare function hIsVisible( byval i as long ) as boolean
+		declare sub hClamp( )
+end type
+
+private function TuiTree.Kind( ) as ustring : return "Tree" : end function
+private function TuiTree.CanFocus( ) as boolean : return TRUE : end function
+private sub TuiTree.SetFocused( byval on_ as boolean ) : isFocused = on_ : end sub
+
+private sub TuiTree.Add( byref label as ustring, byval depth as long, _
+                         byval hasChildren as boolean, byval userId as long )
+	dim as TuiTreeNode n
+	n.label = label
+	n.depth = iif( depth > 0, depth, 0 )
+	n.hasChildren = hasChildren
+	n.userId = userId
+	nodes.Push( n )
+	if( state <> 0 ) then
+		while( state->expanded.Count( ) < nodes.Count( ) )
+			state->expanded.Push( TRUE )
+		wend
+	end if
+end sub
+
+'' A node is visible when every ancestor is expanded. Walking backwards to the
+'' nearest shallower node is the whole ancestry test a flattened list needs.
+private function TuiTree.hIsVisible( byval i as long ) as boolean
+	if( state = 0 ) then return TRUE
+	if( i <= 0 ) then return TRUE
+	dim as long d = nodes[i].depth
+	for j as long = i - 1 to 0 step -1
+		if( nodes[j].depth >= d ) then continue for
+		'' j is the parent
+		if( j < state->expanded.Count( ) ) then
+			if( state->expanded[j] = FALSE ) then return FALSE
+		end if
+		d = nodes[j].depth
+		if( d = 0 ) then exit for
+	next
+	return TRUE
+end function
+
+private function TuiTree.VisibleCount( ) as long
+	dim as long n = 0
+	for i as long = 0 to nodes.Count( ) - 1
+		if( hIsVisible( i ) ) then n += 1
+	next
+	return n
+end function
+
+private sub TuiTree.hClamp( )
+	if( state = 0 ) then exit sub
+	dim as long n = nodes.Count( )
+	if( n = 0 ) then
+		state->selected = -1
+		state->offset = 0
+		exit sub
+	end if
+	if( state->selected < 0 ) then state->selected = 0
+	if( state->selected >= n ) then state->selected = n - 1
+
+	'' the selection must land on a VISIBLE node
+	while( ( state->selected > 0 ) andalso ( hIsVisible( state->selected ) = FALSE ) )
+		state->selected -= 1
+	wend
+
+	'' The offset counts VISIBLE rows, so revealing the selection means finding
+	'' its visible index first. Clamping only downward -- as this did -- lets
+	'' the selection walk below the window and never scrolls to follow it, the
+	'' same defect TuiTable had.
+	dim as long h = iif( lastH > 0, lastH, 1 )
+	dim as long visIdx = 0
+	for i as long = 0 to state->selected - 1
+		if( hIsVisible( i ) ) then visIdx += 1
+	next
+
+	if( state->offset > visIdx ) then state->offset = visIdx
+	if( visIdx >= state->offset + h ) then state->offset = visIdx - h + 1
+	if( state->offset < 0 ) then state->offset = 0
+end sub
+
+private sub TuiTree.Render( byref f as TuiFrame, byval area as TuiRect )
+	if( area.IsEmpty( ) ) then exit sub
+	if( state = 0 ) then exit sub
+	lastH = area.h
+	hClamp( )
+
+	dim as ustring expandG, collapseG, leafG
+	if( useUnicode ) then
+		TuiAppendCp( expandG, &h25BE )      '' open
+		TuiAppendCp( collapseG, &h25B8 )    '' closed
+		leafG = " "
+	else
+		expandG = "-" : collapseG = "+" : leafG = " "
+	end if
+
+	dim as long row = 0, shown = 0
+	for i as long = 0 to nodes.Count( ) - 1
+		if( hIsVisible( i ) = FALSE ) then continue for
+		shown += 1
+		if( shown - 1 < state->offset ) then continue for
+		if( row >= area.h ) then exit for
+
+		dim as TuiStyle st = iif( i = state->selected, selectedStyle, normal )
+		f.FillRect( TuiRectOf( area.x, area.y + row, area.w, 1 ), " ", st )
+
+		dim as long x = area.x + nodes[i].depth * 2
+		if( x < area.Right( ) ) then
+			dim as ustring g = leafG
+			if( nodes[i].hasChildren ) then
+				dim as boolean isOpen = TRUE
+				if( i < state->expanded.Count( ) ) then isOpen = state->expanded[i]
+				g = iif( isOpen, expandG, collapseG )
+			end if
+			x += f.DrawText( x, area.y + row, g, st )
+			x += f.DrawText( x, area.y + row, " ", st )
+			f.DrawText( x, area.y + row, TuiTruncate( nodes[i].label, area.Right( ) - x ), st )
+		end if
+		row += 1
+	next
+end sub
+
+private function TuiTree.HandleEvent( byref e as TuiEvent ) as boolean
+	if( isFocused = FALSE ) then return FALSE
+	if( state = 0 ) then return FALSE
+	if( e.kind <> TUIEVENT_KEY ) then return FALSE
+	if( nodes.Count( ) = 0 ) then return FALSE
+
+	select case e.key.code
+	case TUIKEY_UP
+		dim as long i = state->selected - 1
+		while( ( i > 0 ) andalso ( hIsVisible( i ) = FALSE ) )
+			i -= 1
+		wend
+		if( i >= 0 ) then state->selected = i
+	case TUIKEY_DOWN
+		dim as long i = state->selected + 1
+		while( ( i < nodes.Count( ) ) andalso ( hIsVisible( i ) = FALSE ) )
+			i += 1
+		wend
+		if( i < nodes.Count( ) ) then state->selected = i
+	case TUIKEY_LEFT
+		if( state->selected < state->expanded.Count( ) ) then state->expanded[ state->selected ] = FALSE
+	case TUIKEY_RIGHT
+		if( state->selected < state->expanded.Count( ) ) then state->expanded[ state->selected ] = TRUE
+	case TUIKEY_ENTER
+		if( state->selected < state->expanded.Count( ) ) then
+			state->expanded[ state->selected ] = not state->expanded[ state->selected ]
+		end if
+	case else
+		return FALSE
+	end select
+
+	hClamp( )
+	return TRUE
+end function
+
+end namespace

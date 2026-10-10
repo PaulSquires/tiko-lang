@@ -1,0 +1,1047 @@
+'' fb/orderedmap.bi -- FB.OrderedMap( of TK, TV ), a red-black tree map
+''
+'' The always-sorted sibling of FB.Map.  Same operations, plus the ones only an
+'' ordered container can offer, and FOR EACH walks it in ASCENDING KEY ORDER --
+'' which is the entire reason to reach for it.
+''
+''     dim ages as FB.OrderedMap( of string, long )
+''     ages.Put( "ada", 36 )
+''     ages.Put( "bob", 41 )
+''
+''     for each kv in ages
+''         print kv.key, kv.value          '' "ada" then "bob", always
+''     next
+''
+'' WHICH ONE TO USE.  FB.Map unless you need the order.  A hash map is O(1) per
+'' operation against this one's O(log n), it touches one allocation instead of
+'' one per entry, and its lookups do not chase pointers.  This is the right
+'' choice when you need keys in order, a range of keys, or the smallest or
+'' largest -- not as a general-purpose map.
+''
+''     FB.Map            avg O(1)      unspecified, unstable order
+''     FB.OrderedMap     O(log n)      ascending key order, always
+''
+'' THE ORDERING CONTRACT is '<' on TK, and nothing else.  Unlike FB.Map this
+'' needs no HashOf and no '=': two keys are the same key when neither is less
+'' than the other, which is what std::map means by an equivalence.  A TK with a
+'' '<' that is not a strict weak ordering -- one where 'a < a' is true, or where
+'' a < b and b < c does not give a < c -- produces a tree that is merely wrong,
+'' not one that crashes.
+''
+'' READING vs WRITING is exactly as in FB.Map, and for the same reasons:
+''
+''     m[ k ]        INSERTS a default-constructed TV if k is absent.
+''     m.TryGet      does not.
+''     m.Contains    does not.
+''
+'' IMPLEMENTATION.  A red-black tree: a binary search tree in which every node
+'' is red or black, the root and every null child count as black, a red node has
+'' no red child, and every path from a node to its descendant nulls holds the
+'' same number of black nodes.  Those invariants bound the longest root-to-leaf
+'' path at twice the shortest, which is what makes the height O(log n) and every
+'' operation with it.
+''
+'' Chosen over an AVL tree because the rebalancing is cheaper on write -- at most
+'' two rotations for an insert and three for a removal, against AVL's O(log n)
+'' -- for a tree that is at most 2x rather than 1.44x the ideal height.  Read-
+'' heavy workloads that would prefer the AVL trade are better served by FB.Map
+'' anyway.
+''
+'' NODES CARRY PARENT POINTERS.  That is what makes the iterator a plain
+'' successor walk with no stack of its own, so an iterator is two pointers and
+'' FOR EACH allocates nothing.  It also keeps the removal rebalance readable.
+''
+'' OWNERSHIP.  Like FB.LinkedList and unlike the other three containers, this
+'' holds RAW NODE POINTERS, so the destructor, the copy constructor and
+'' 'operator let' are all written out.  Copy and assignment are DEEP and rebuild
+'' the whole tree; pass it BYREF where that matters.
+''
+'' ITERATOR INVALIDATION.  An iterator is a pointer to a node, so unlike FB.Map
+'' -- where any rehash invalidates every iterator -- inserting does not disturb
+'' iterators over other nodes even though it may rotate them into new positions.
+'' REMOVING a key invalidates any iterator standing on that key, and nothing
+'' else.
+
+#pragma once
+
+#include once "fb/array.bi"
+
+namespace FB
+
+'' One node.  'red' rather than a colour enum: there are two colours, and every
+'' use of them is a boolean test.
+type RBMapNode( of TK, TV )
+	as TK key
+	as TV value
+	as RBMapNode( of TK, TV ) ptr left
+	as RBMapNode( of TK, TV ) ptr right
+	as RBMapNode( of TK, TV ) ptr parent
+	as boolean red
+end type
+
+'' What iteration yields -- the same shape FB.Map yields, so code that walks one
+'' walks the other unchanged.
+type OrderedPair( of TK, TV )
+	as TK key
+	as TV value
+end type
+
+'' RFC-0002: IsValid / Value / MoveNext.
+''
+'' Holds the node, not an index, so it survives insertions elsewhere in the
+'' tree.  Value( ) is BY VALUE, matching MapIterator: the pair is assembled here
+'' and assigning to it would change nothing.  Use m[ k ] to write.
+type OrderedMapIterator( of TK, TV )
+	as any ptr node
+	declare function IsValid( ) as boolean
+	declare function Value( ) as OrderedPair( of TK, TV )
+	declare sub MoveNext( )
+end type
+
+type OrderedMapPairIter( of TK, TV )
+	as OrderedMapIterator( of TK, TV ) it
+	declare function IsValid( ) as boolean
+	declare function Value( ) as (TK, TV)
+	declare sub MoveNext( )
+end type
+
+type OrderedMapPairView( of TK, TV )
+	as any ptr src
+	declare function GetIterator( ) as OrderedMapPairIter( of TK, TV )
+end type
+
+type OrderedMap( of TK, TV )
+	as RBMapNode( of TK, TV ) ptr root
+	as long num
+
+	declare constructor( )
+	declare constructor( byref rhs as OrderedMap( of TK, TV ) )
+	declare destructor( )
+	declare operator let( byref rhs as OrderedMap( of TK, TV ) )
+
+	declare function Count( ) as long
+	declare function IsEmpty( ) as boolean
+
+	declare function Put( byref k as TK, byref v as TV ) as boolean
+	declare function Add( byref k as TK, byref v as TV ) as boolean
+	declare function Contains( byref k as TK ) as boolean
+	declare function TryGet( byref k as TK, byref outv as TV ) as boolean
+	declare function Remove( byref k as TK ) as boolean
+	declare operator [] ( byref k as TK ) byref as TV
+	declare sub Clear( )
+
+	'' ordered-only
+	declare function TryFirst( byref outk as TK, byref outv as TV ) as boolean
+	declare function TryLast( byref outk as TK, byref outv as TV ) as boolean
+	declare function TryFloor( byref k as TK, byref outk as TK ) as boolean
+	declare function TryCeiling( byref k as TK, byref outk as TK ) as boolean
+
+	declare function Keys( ) as Array( of TK )
+	declare function Values( ) as Array( of TV )
+	declare function GetIterator( ) as OrderedMapIterator( of TK, TV )
+	declare function Pairs( ) as OrderedMapPairView( of TK, TV )
+
+	'' internal
+	declare function FindNode( byref k as TK ) as RBMapNode( of TK, TV ) ptr
+	declare sub RotateLeft( byval x as RBMapNode( of TK, TV ) ptr )
+	declare sub RotateRight( byval x as RBMapNode( of TK, TV ) ptr )
+	declare sub InsertFixup( byval z as RBMapNode( of TK, TV ) ptr )
+	declare sub Transplant( byval u as RBMapNode( of TK, TV ) ptr, byval v as RBMapNode( of TK, TV ) ptr )
+	declare sub RemoveFixup( byval x as RBMapNode( of TK, TV ) ptr, byval xparent as RBMapNode( of TK, TV ) ptr )
+	declare sub RemoveNode( byval z as RBMapNode( of TK, TV ) ptr )
+	declare sub FreeSubtree( byval n as RBMapNode( of TK, TV ) ptr )
+	declare function CloneSubtree( byval n as RBMapNode( of TK, TV ) ptr, byval par as RBMapNode( of TK, TV ) ptr ) as RBMapNode( of TK, TV ) ptr
+	declare sub CopyFrom( byref rhs as OrderedMap( of TK, TV ) )
+	declare function BlackHeight( ) as long
+end type
+
+constructor OrderedMap( of TK, TV )( )
+	this.root = 0
+	this.num = 0
+end constructor
+
+constructor OrderedMap( of TK, TV )( byref rhs as OrderedMap( of TK, TV ) )
+	this.root = 0
+	this.num = 0
+	this.CopyFrom( rhs )
+end constructor
+
+destructor OrderedMap( of TK, TV )( )
+	this.FreeSubtree( this.root )
+	this.root = 0
+	this.num = 0
+end destructor
+
+operator OrderedMap( of TK, TV ).let( byref rhs as OrderedMap( of TK, TV ) )
+	'' Self-assignment would otherwise free the tree and then walk it.
+	if( @rhs = @this ) then
+		exit operator
+	end if
+	this.FreeSubtree( this.root )
+	this.root = 0
+	this.num = 0
+	this.CopyFrom( rhs )
+end operator
+
+'' Rebuild rhs's tree node for node, colours and all.
+''
+'' Not "walk rhs in order and Put( ) each key", which would be O(n log n) and
+'' would rebuild a DIFFERENT tree -- inserting an already-sorted sequence gives
+'' a legal red-black tree, but not the same one, and the copy would then not be
+'' structurally identical to what it copied.
+sub OrderedMap( of TK, TV ).CopyFrom( byref rhs as OrderedMap( of TK, TV ) )
+	this.root = this.CloneSubtree( rhs.root, 0 )
+	this.num = rhs.num
+end sub
+
+function OrderedMap( of TK, TV ).CloneSubtree _
+	( _
+		byval n as RBMapNode( of TK, TV ) ptr, _
+		byval par as RBMapNode( of TK, TV ) ptr _
+	) as RBMapNode( of TK, TV ) ptr
+
+	if( n = 0 ) then
+		return 0
+	end if
+
+	dim as RBMapNode( of TK, TV ) ptr c = new RBMapNode( of TK, TV )
+	c->key = n->key
+	c->value = n->value
+	c->red = n->red
+	c->parent = par
+	c->left = this.CloneSubtree( n->left, c )
+	c->right = this.CloneSubtree( n->right, c )
+
+	return c
+end function
+
+'' Post-order, because a node's children must go before the node itself.
+'' Recursion depth is the tree HEIGHT, which the red-black invariants bound at
+'' 2*log2(n+1) -- 64 frames at a trillion entries, not n frames.
+sub OrderedMap( of TK, TV ).FreeSubtree( byval n as RBMapNode( of TK, TV ) ptr )
+	if( n = 0 ) then
+		exit sub
+	end if
+	this.FreeSubtree( n->left )
+	this.FreeSubtree( n->right )
+	delete n
+end sub
+
+function OrderedMap( of TK, TV ).Count( ) as long
+	return this.num
+end function
+
+function OrderedMap( of TK, TV ).IsEmpty( ) as boolean
+	return this.num = 0
+end function
+
+sub OrderedMap( of TK, TV ).Clear( )
+	this.FreeSubtree( this.root )
+	this.root = 0
+	this.num = 0
+end sub
+
+'' ------------------------------------------------------------- rotations
+''
+'' A rotation moves one node up and its child down while preserving the search
+'' order.  Both directions update three parent links, and the case where x was
+'' the root has to move this.root -- forgetting that is the classic way to lose
+'' half a tree.
+
+sub OrderedMap( of TK, TV ).RotateLeft( byval x as RBMapNode( of TK, TV ) ptr )
+	dim as RBMapNode( of TK, TV ) ptr y = x->right
+
+	x->right = y->left
+	if( y->left <> 0 ) then
+		y->left->parent = x
+	end if
+
+	y->parent = x->parent
+	if( x->parent = 0 ) then
+		this.root = y
+	elseif( x = x->parent->left ) then
+		x->parent->left = y
+	else
+		x->parent->right = y
+	end if
+
+	y->left = x
+	x->parent = y
+end sub
+
+sub OrderedMap( of TK, TV ).RotateRight( byval x as RBMapNode( of TK, TV ) ptr )
+	dim as RBMapNode( of TK, TV ) ptr y = x->left
+
+	x->left = y->right
+	if( y->right <> 0 ) then
+		y->right->parent = x
+	end if
+
+	y->parent = x->parent
+	if( x->parent = 0 ) then
+		this.root = y
+	elseif( x = x->parent->right ) then
+		x->parent->right = y
+	else
+		x->parent->left = y
+	end if
+
+	y->right = x
+	x->parent = y
+end sub
+
+'' ---------------------------------------------------------------- lookup
+
+'' The node holding k, or null.
+''
+'' Two keys are EQUIVALENT when neither is less than the other.  That is the
+'' whole reason this container needs no '=' on TK.
+function OrderedMap( of TK, TV ).FindNode( byref k as TK ) as RBMapNode( of TK, TV ) ptr
+	dim as RBMapNode( of TK, TV ) ptr n = this.root
+
+	while( n <> 0 )
+		dim as boolean lt = k < n->key
+		if( lt ) then
+			n = n->left
+		else
+			dim as boolean gt = n->key < k
+			if( gt ) then
+				n = n->right
+			else
+				return n
+			end if
+		end if
+	wend
+
+	return 0
+end function
+
+function OrderedMap( of TK, TV ).Contains( byref k as TK ) as boolean
+	return this.FindNode( k ) <> 0
+end function
+
+'' Read without inserting.  Leaves outv alone on a miss.
+function OrderedMap( of TK, TV ).TryGet( byref k as TK, byref outv as TV ) as boolean
+	dim as RBMapNode( of TK, TV ) ptr n = this.FindNode( k )
+	if( n = 0 ) then
+		return false
+	end if
+	outv = n->value
+	return true
+end function
+
+'' ---------------------------------------------------------------- insert
+
+'' Insert or overwrite.  Returns TRUE if the key was new.
+function OrderedMap( of TK, TV ).Put( byref k as TK, byref v as TV ) as boolean
+	'' Copy both before touching the tree: k or v may point INTO this map --
+	'' 'm.Put( m.Keys( )[ 0 ], m[ other ] )' is legal -- and the node holding
+	'' them can be freed or moved by what follows.
+	dim as TK kk = k
+	dim as TV vv = v
+
+	dim as RBMapNode( of TK, TV ) ptr par = 0
+	dim as RBMapNode( of TK, TV ) ptr n = this.root
+	dim as boolean goleft = false
+
+	while( n <> 0 )
+		par = n
+		dim as boolean lt = kk < n->key
+		if( lt ) then
+			n = n->left
+			goleft = true
+		else
+			dim as boolean gt = n->key < kk
+			if( gt ) then
+				n = n->right
+				goleft = false
+			else
+				'' equivalent key -- overwrite, and leave the tree alone
+				n->value = vv
+				return false
+			end if
+		end if
+	wend
+
+	dim as RBMapNode( of TK, TV ) ptr z = new RBMapNode( of TK, TV )
+	z->key = kk
+	z->value = vv
+	z->left = 0
+	z->right = 0
+	z->parent = par
+	'' A new node is RED, so it cannot break the equal-black-count invariant.
+	'' It may break "no red node has a red child", which is what the fixup
+	'' repairs and why that is the only case the fixup has to consider.
+	z->red = true
+
+	if( par = 0 ) then
+		this.root = z
+	elseif( goleft ) then
+		par->left = z
+	else
+		par->right = z
+	end if
+
+	this.num += 1
+	this.InsertFixup( z )
+
+	return true
+end function
+
+'' Restore the invariants after inserting the red node z.
+''
+'' Only one can be broken: z and its parent are both red. Three cases per side,
+'' and the mirror image of each:
+''
+''   1. The UNCLE IS RED.  Recolour parent and uncle black and the grandparent
+''      red, which fixes this level and moves the same problem two levels up.
+''   2. The uncle is black and z is the INNER grandchild.  One rotation turns it
+''      into case 3.
+''   3. The uncle is black and z is the OUTER grandchild.  One rotation and a
+''      recolour, and the tree is done -- this case terminates.
+sub OrderedMap( of TK, TV ).InsertFixup( byval z as RBMapNode( of TK, TV ) ptr )
+	do
+		dim as RBMapNode( of TK, TV ) ptr par = z->parent
+		if( par = 0 ) then
+			exit do
+		end if
+		if( par->red = false ) then
+			exit do
+		end if
+
+		'' par is red, so par is not the root, so a grandparent exists
+		dim as RBMapNode( of TK, TV ) ptr gp = par->parent
+
+		if( par = gp->left ) then
+			dim as RBMapNode( of TK, TV ) ptr unc = gp->right
+			dim as boolean uncred = false
+			if( unc <> 0 ) then
+				uncred = unc->red
+			end if
+
+			if( uncred ) then
+				par->red = false
+				unc->red = false
+				gp->red = true
+				z = gp
+			else
+				if( z = par->right ) then
+					z = par
+					this.RotateLeft( z )
+					par = z->parent
+					gp = par->parent
+				end if
+				par->red = false
+				gp->red = true
+				this.RotateRight( gp )
+			end if
+		else
+			dim as RBMapNode( of TK, TV ) ptr unc = gp->left
+			dim as boolean uncred = false
+			if( unc <> 0 ) then
+				uncred = unc->red
+			end if
+
+			if( uncred ) then
+				par->red = false
+				unc->red = false
+				gp->red = true
+				z = gp
+			else
+				if( z = par->left ) then
+					z = par
+					this.RotateRight( z )
+					par = z->parent
+					gp = par->parent
+				end if
+				par->red = false
+				gp->red = true
+				this.RotateLeft( gp )
+			end if
+		end if
+	loop
+
+	'' The root is always black.  Case 1 can colour it red on the way up, and
+	'' this is where that is undone -- it is also the only place the tree's
+	'' black height increases.
+	this.root->red = false
+end sub
+
+function OrderedMap( of TK, TV ).Add( byref k as TK, byref v as TV ) as boolean
+	if( this.FindNode( k ) <> 0 ) then
+		return false
+	end if
+	return this.Put( k, v )
+end function
+
+'' INSERTS a default-constructed TV when k is absent.  See the header.
+operator OrderedMap( of TK, TV ).[] ( byref k as TK ) byref as TV
+	dim as RBMapNode( of TK, TV ) ptr n = this.FindNode( k )
+
+	if( n = 0 ) then
+		dim as TV blank
+		this.Put( k, blank )
+		n = this.FindNode( k )
+	end if
+
+	return n->value
+end operator
+
+'' ---------------------------------------------------------------- removal
+
+'' Replace the subtree rooted at u with the one rooted at v.  v may be null,
+'' which is why the parent link is set only when it is not.
+sub OrderedMap( of TK, TV ).Transplant _
+	( _
+		byval u as RBMapNode( of TK, TV ) ptr, _
+		byval v as RBMapNode( of TK, TV ) ptr _
+	)
+
+	if( u->parent = 0 ) then
+		this.root = v
+	elseif( u = u->parent->left ) then
+		u->parent->left = v
+	else
+		u->parent->right = v
+	end if
+
+	if( v <> 0 ) then
+		v->parent = u->parent
+	end if
+end sub
+
+function OrderedMap( of TK, TV ).Remove( byref k as TK ) as boolean
+	dim as RBMapNode( of TK, TV ) ptr n = this.FindNode( k )
+	if( n = 0 ) then
+		return false
+	end if
+	this.RemoveNode( n )
+	return true
+end function
+
+'' Unlink z and rebalance.
+''
+'' A node with two children cannot simply be unlinked, so its IN-ORDER SUCCESSOR
+'' -- the smallest key in its right subtree, which by construction has no left
+'' child -- is moved into its place and the successor is what actually leaves
+'' the tree. That is why 'y' below is not always 'z'.
+''
+'' The rebalance is needed only when the node that left was BLACK, because that
+'' is what changes a black count.
+sub OrderedMap( of TK, TV ).RemoveNode( byval z as RBMapNode( of TK, TV ) ptr )
+	dim as RBMapNode( of TK, TV ) ptr y = z
+	dim as boolean yred = y->red
+
+	'' x is the node that moves into y's place, and may be null; xparent is
+	'' where it lands, which is the piece a null x cannot supply itself.
+	dim as RBMapNode( of TK, TV ) ptr x = 0
+	dim as RBMapNode( of TK, TV ) ptr xparent = 0
+
+	if( z->left = 0 ) then
+		x = z->right
+		xparent = z->parent
+		this.Transplant( z, z->right )
+	elseif( z->right = 0 ) then
+		x = z->left
+		xparent = z->parent
+		this.Transplant( z, z->left )
+	else
+		'' leftmost of the right subtree
+		y = z->right
+		while( y->left <> 0 )
+			y = y->left
+		wend
+
+		yred = y->red
+		x = y->right
+
+		if( y->parent = z ) then
+			'' x is already where it belongs, under y
+			xparent = y
+		else
+			xparent = y->parent
+			this.Transplant( y, y->right )
+			y->right = z->right
+			y->right->parent = y
+		end if
+
+		this.Transplant( z, y )
+		y->left = z->left
+		y->left->parent = y
+		'' y takes over z's position ENTIRELY, colour included: the colour
+		'' belongs to the position in the tree, not to the key sitting in it.
+		y->red = z->red
+	end if
+
+	delete z
+	this.num -= 1
+
+	if( yred = false ) then
+		this.RemoveFixup( x, xparent )
+	end if
+end sub
+
+'' Restore the invariants after a black node left the tree.
+''
+'' x carries one extra unit of blackness that has to be pushed away before the
+'' tree is legal again; xparent is passed alongside because x may be null and a
+'' null cannot name its own parent. Four cases per side:
+''
+''   1. The SIBLING IS RED.  Rotate it up and recolour, turning this into one of
+''      the cases below with a black sibling.
+''   2. The sibling is black with TWO BLACK CHILDREN.  Colour the sibling red,
+''      which moves the extra blackness up to the parent, and loop.
+''   3. The sibling is black, its INNER child red.  One rotation makes it case 4.
+''   4. The sibling is black, its OUTER child red.  One rotation and a recolour
+''      absorb the extra blackness, and the tree is done.
+sub OrderedMap( of TK, TV ).RemoveFixup _
+	( _
+		byval x as RBMapNode( of TK, TV ) ptr, _
+		byval xparent as RBMapNode( of TK, TV ) ptr _
+	)
+
+	do
+		if( x = this.root ) then
+			exit do
+		end if
+		dim as boolean xred = false
+		if( x <> 0 ) then
+			xred = x->red
+		end if
+		if( xred ) then
+			exit do
+		end if
+		if( xparent = 0 ) then
+			exit do
+		end if
+
+		if( x = xparent->left ) then
+			dim as RBMapNode( of TK, TV ) ptr w = xparent->right
+
+			'' A null sibling here would mean the black counts were already
+			'' unequal before the removal, i.e. the tree was corrupt.
+			if( w = 0 ) then
+				exit do
+			end if
+
+			if( w->red ) then
+				w->red = false
+				xparent->red = true
+				this.RotateLeft( xparent )
+				w = xparent->right
+				if( w = 0 ) then
+					exit do
+				end if
+			end if
+
+			dim as boolean lblack = true
+			if( w->left <> 0 ) then
+				lblack = (w->left->red = false)
+			end if
+			dim as boolean rblack = true
+			if( w->right <> 0 ) then
+				rblack = (w->right->red = false)
+			end if
+
+			if( lblack andalso rblack ) then
+				w->red = true
+				x = xparent
+				xparent = x->parent
+			else
+				if( rblack ) then
+					if( w->left <> 0 ) then
+						w->left->red = false
+					end if
+					w->red = true
+					this.RotateRight( w )
+					w = xparent->right
+				end if
+
+				w->red = xparent->red
+				xparent->red = false
+				if( w->right <> 0 ) then
+					w->right->red = false
+				end if
+				this.RotateLeft( xparent )
+				x = this.root
+				xparent = 0
+			end if
+		else
+			dim as RBMapNode( of TK, TV ) ptr w = xparent->left
+
+			if( w = 0 ) then
+				exit do
+			end if
+
+			if( w->red ) then
+				w->red = false
+				xparent->red = true
+				this.RotateRight( xparent )
+				w = xparent->left
+				if( w = 0 ) then
+					exit do
+				end if
+			end if
+
+			dim as boolean lblack = true
+			if( w->left <> 0 ) then
+				lblack = (w->left->red = false)
+			end if
+			dim as boolean rblack = true
+			if( w->right <> 0 ) then
+				rblack = (w->right->red = false)
+			end if
+
+			if( lblack andalso rblack ) then
+				w->red = true
+				x = xparent
+				xparent = x->parent
+			else
+				if( lblack ) then
+					if( w->right <> 0 ) then
+						w->right->red = false
+					end if
+					w->red = true
+					this.RotateLeft( w )
+					w = xparent->left
+				end if
+
+				w->red = xparent->red
+				xparent->red = false
+				if( w->left <> 0 ) then
+					w->left->red = false
+				end if
+				this.RotateRight( xparent )
+				x = this.root
+				xparent = 0
+			end if
+		end if
+	loop
+
+	if( x <> 0 ) then
+		x->red = false
+	end if
+end sub
+
+'' ---------------------------------------------------------- ordered-only
+''
+'' The four below are what an ordered map is FOR, and none of them can be
+'' answered by a hash map at all -- FB.Map would have to walk every slot.
+
+'' The smallest key and its value.  FALSE and both outputs untouched when empty.
+function OrderedMap( of TK, TV ).TryFirst( byref outk as TK, byref outv as TV ) as boolean
+	dim as RBMapNode( of TK, TV ) ptr n = this.root
+	if( n = 0 ) then
+		return false
+	end if
+	while( n->left <> 0 )
+		n = n->left
+	wend
+	outk = n->key
+	outv = n->value
+	return true
+end function
+
+function OrderedMap( of TK, TV ).TryLast( byref outk as TK, byref outv as TV ) as boolean
+	dim as RBMapNode( of TK, TV ) ptr n = this.root
+	if( n = 0 ) then
+		return false
+	end if
+	while( n->right <> 0 )
+		n = n->right
+	wend
+	outk = n->key
+	outv = n->value
+	return true
+end function
+
+'' The largest key that is NOT GREATER than k -- k itself when present.
+'' FALSE when every key is greater.
+function OrderedMap( of TK, TV ).TryFloor( byref k as TK, byref outk as TK ) as boolean
+	dim as RBMapNode( of TK, TV ) ptr n = this.root
+	dim as RBMapNode( of TK, TV ) ptr best = 0
+
+	while( n <> 0 )
+		dim as boolean ngt = k < n->key
+		if( ngt ) then
+			n = n->left
+		else
+			'' n->key <= k, so it is a candidate; look right for a bigger one
+			best = n
+			n = n->right
+		end if
+	wend
+
+	if( best = 0 ) then
+		return false
+	end if
+	outk = best->key
+	return true
+end function
+
+'' The smallest key that is NOT LESS than k -- k itself when present.
+'' FALSE when every key is smaller.
+function OrderedMap( of TK, TV ).TryCeiling( byref k as TK, byref outk as TK ) as boolean
+	dim as RBMapNode( of TK, TV ) ptr n = this.root
+	dim as RBMapNode( of TK, TV ) ptr best = 0
+
+	while( n <> 0 )
+		dim as boolean nlt = n->key < k
+		if( nlt ) then
+			n = n->right
+		else
+			best = n
+			n = n->left
+		end if
+	wend
+
+	if( best = 0 ) then
+		return false
+	end if
+	outk = best->key
+	return true
+end function
+
+'' ------------------------------------------------------------- iteration
+
+function OrderedMap( of TK, TV ).Keys( ) as Array( of TK )
+	dim r as Array( of TK )
+	r.Reserve( this.num )
+
+	dim as RBMapNode( of TK, TV ) ptr n = this.root
+	if( n <> 0 ) then
+		while( n->left <> 0 )
+			n = n->left
+		wend
+	end if
+
+	while( n <> 0 )
+		r.Push( n->key )
+		'' in-order successor
+		if( n->right <> 0 ) then
+			n = n->right
+			while( n->left <> 0 )
+				n = n->left
+			wend
+		else
+			dim as RBMapNode( of TK, TV ) ptr p = n->parent
+			while( p <> 0 )
+				if( n <> p->right ) then
+					exit while
+				end if
+				n = p
+				p = p->parent
+			wend
+			n = p
+		end if
+	wend
+
+	return r
+end function
+
+function OrderedMap( of TK, TV ).Values( ) as Array( of TV )
+	dim r as Array( of TV )
+	r.Reserve( this.num )
+
+	dim as RBMapNode( of TK, TV ) ptr n = this.root
+	if( n <> 0 ) then
+		while( n->left <> 0 )
+			n = n->left
+		wend
+	end if
+
+	while( n <> 0 )
+		r.Push( n->value )
+		if( n->right <> 0 ) then
+			n = n->right
+			while( n->left <> 0 )
+				n = n->left
+			wend
+		else
+			dim as RBMapNode( of TK, TV ) ptr p = n->parent
+			while( p <> 0 )
+				if( n <> p->right ) then
+					exit while
+				end if
+				n = p
+				p = p->parent
+			wend
+			n = p
+		end if
+	wend
+
+	return r
+end function
+
+function OrderedMap( of TK, TV ).GetIterator( ) as OrderedMapIterator( of TK, TV )
+	dim it as OrderedMapIterator( of TK, TV )
+
+	dim as RBMapNode( of TK, TV ) ptr n = this.root
+	if( n <> 0 ) then
+		while( n->left <> 0 )
+			n = n->left
+		wend
+	end if
+
+	it.node = n
+	return it
+end function
+
+function OrderedMapIterator( of TK, TV ).IsValid( ) as boolean
+	return this.node <> 0
+end function
+
+function OrderedMapIterator( of TK, TV ).Value( ) as OrderedPair( of TK, TV )
+	dim as RBMapNode( of TK, TV ) ptr n = cptr( RBMapNode( of TK, TV ) ptr, this.node )
+	dim r as OrderedPair( of TK, TV )
+	r.key = n->key
+	r.value = n->value
+	return r
+end function
+
+'' The in-order successor: the leftmost node of the right subtree if there is
+'' one, otherwise the nearest ancestor this node is in the LEFT subtree of.
+'' Running off the top yields null, which ends the walk.
+'' EXHAUSTED STAYS EXHAUSTED -- see the note on LinkedListIterator.MoveNext.
+sub OrderedMapIterator( of TK, TV ).MoveNext( )
+	if( this.node = 0 ) then exit sub
+	dim as RBMapNode( of TK, TV ) ptr n = cptr( RBMapNode( of TK, TV ) ptr, this.node )
+
+	if( n->right <> 0 ) then
+		n = n->right
+		while( n->left <> 0 )
+			n = n->left
+		wend
+		this.node = n
+		exit sub
+	end if
+
+	dim as RBMapNode( of TK, TV ) ptr p = n->parent
+	while( p <> 0 )
+		if( n <> p->right ) then
+			exit while
+		end if
+		n = p
+		p = p->parent
+	wend
+
+	this.node = p
+end sub
+
+'' The tuple view, so 'for each (k, v) in m.Pairs( )' destructures -- exactly as
+'' FB.Map.Pairs( ) does, and for the same reason: FreeBASIC cannot overload on
+'' the return type alone, so Value( ) has to pick one shape and a second view
+'' supplies the other.
+function OrderedMap( of TK, TV ).Pairs( ) as OrderedMapPairView( of TK, TV )
+	dim v as OrderedMapPairView( of TK, TV )
+	v.src = @this
+	return v
+end function
+
+function OrderedMapPairView( of TK, TV ).GetIterator( ) as OrderedMapPairIter( of TK, TV )
+	dim r as OrderedMapPairIter( of TK, TV )
+	r.it = cptr( OrderedMap( of TK, TV ) ptr, this.src )->GetIterator( )
+	return r
+end function
+
+function OrderedMapPairIter( of TK, TV ).IsValid( ) as boolean
+	return this.it.IsValid( )
+end function
+
+function OrderedMapPairIter( of TK, TV ).Value( ) as (TK, TV)
+	var kv = this.it.Value( )
+	return (kv.key, kv.value)
+end function
+
+sub OrderedMapPairIter( of TK, TV ).MoveNext( )
+	this.it.MoveNext( )
+end sub
+
+'' The number of black nodes on any root-to-null path, or -1 if the paths
+'' disagree -- which is the invariant that a broken rebalance breaks.
+''
+'' Here rather than in the test suite because it needs the node layout, and
+'' because a container whose correctness rests on an invariant should be able to
+'' state whether it holds. It is O(n) and nothing in normal use calls it.
+function OrderedMap( of TK, TV ).BlackHeight( ) as long
+	dim as RBMapNode( of TK, TV ) ptr n = this.root
+	dim as long h = 1
+
+	'' the leftmost path's count, taken as the reference
+	while( n <> 0 )
+		if( n->red = false ) then
+			h += 1
+		end if
+		n = n->left
+	wend
+
+	'' every other root-to-null path must match, checked by walking every node
+	'' and counting the blacks above it when it has a null child
+	n = this.root
+	if( n <> 0 ) then
+		while( n->left <> 0 )
+			n = n->left
+		wend
+	end if
+
+	while( n <> 0 )
+		dim as boolean isleaf = (n->left = 0) orelse (n->right = 0)
+		if( isleaf ) then
+			dim as long c = 1
+			dim as RBMapNode( of TK, TV ) ptr p = n
+			while( p <> 0 )
+				if( p->red = false ) then
+					c += 1
+				end if
+				p = p->parent
+			wend
+			if( c <> h ) then
+				return -1
+			end if
+		end if
+
+		'' a red node with a red child is the other invariant
+		if( n->red ) then
+			dim as boolean badleft = false
+			if( n->left <> 0 ) then
+				badleft = n->left->red
+			end if
+			dim as boolean badright = false
+			if( n->right <> 0 ) then
+				badright = n->right->red
+			end if
+			if( badleft orelse badright ) then
+				return -1
+			end if
+		end if
+
+		if( n->right <> 0 ) then
+			n = n->right
+			while( n->left <> 0 )
+				n = n->left
+			wend
+		else
+			dim as RBMapNode( of TK, TV ) ptr p = n->parent
+			while( p <> 0 )
+				if( n <> p->right ) then
+					exit while
+				end if
+				n = p
+				p = p->parent
+			wend
+			n = p
+		end if
+	wend
+
+	dim as boolean rootred = false
+	if( this.root <> 0 ) then
+		rootred = this.root->red
+	end if
+	if( rootred ) then
+		return -1
+	end if
+
+	return h
+end function
+
+end namespace

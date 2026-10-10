@@ -1,0 +1,326 @@
+'' fb/random.bi -- seeded streams, unbiased ranges, distributions
+''
+''     #include once "fb/random.bi"
+''     using FB
+''
+''     dim rng as Rng = RngSeeded( 12345 )      ' reproducible
+''     print rng.NextInt( 1, 6 )                ' inclusive both ends, UNBIASED
+''     print rng.NextDouble( )                  ' [0, 1)
+''     print rng.NextNormal( 0.0, 1.0 )
+''
+'' Specified by C:\dev\docs\math\RFC-0005-random.md.  Phase 6.
+''
+'' RND AND RANDOMIZE ARE UNTOUCHED, in every dialect.  This is a separate
+'' surface, deliberately unconnected to them.
+''
+'' WHAT IS WRONG WITH RND TODAY, and FreeBASIC starts from a better place than
+'' most: fbprng.bi already offers five real algorithms behind
+'' 'RANDOMIZE seed, algorithm', which is more than C offers.  Three things are
+'' missing, and the first is structural.
+''
+''   RND IS ONE GLOBAL STREAM.  Two subsystems that both want reproducible
+''   randomness cannot have it.  A test cannot seed its own generator without
+''   disturbing the program's.  A worker thread and the main thread share
+''   state.  There is no way to say "this simulation's randomness".
+''
+''   THERE IS NO UNBIASED INTEGER RANGE.  The universal FB idiom is
+''
+''       dim as long i = int( rnd * n )
+''
+''   which is biased whenever n does not divide the generator's period evenly.
+''   For small n the bias is immeasurable; for large n it is not.  Nobody
+''   notices either way, which is what makes it worth fixing rather than
+''   documenting.
+''
+''   THERE ARE NO DISTRIBUTIONS AND NO SHUFFLE.  Fisher-Yates is rewritten per
+''   program, usually with the off-by-one that makes some permutations
+''   impossible.
+''
+'' NAMED 'Rng', NOT 'Random'.  RANDOM is in the keyword table
+'' (symb-keyword.bas:244, FB_TKCLASS_QUIRKWD, for 'OPEN .. FOR RANDOM').  A type
+'' named Random does compile and work -- measured -- but relying on a
+'' quirk-keyword classification for the public name of a library type is a bet
+'' with no upside.
+
+#pragma once
+
+#include once "fblimits.bi"
+
+namespace FB
+
+'' ===========================================================================
+'' The engine
+''
+'' xoshiro256** -- four 64-bit words of state, statistically strong, fast, and
+'' small enough that an Rng lives in a UDT without a pointer.  The Mersenne
+'' Twister already in fbprng.bi is deliberately NOT the default: 2.5 KB of
+'' state per stream makes per-object generators impractical, which is the whole
+'' point of this rank.
+''
+'' THE STREAM IS STABLE.  A given seed produces the same sequence on every
+'' target under every backend and across versions of this library.
+'' Reproducibility that only holds within one build is not reproducibility.
+'' ===========================================================================
+
+type Rng
+	as ulongint s0, s1, s2, s3
+
+	declare function NextULongInt( ) as ulongint
+	declare function NextULong( ) as ulong
+	declare function NextInt( byval lo as longint, byval hi as longint ) as longint
+	declare function NextDouble( ) as double
+	declare function NextDoubleRange( byval lo as double, byval hi as double ) as double
+	declare function NextSingle( ) as single
+	declare function NextBoolean( ) as boolean
+	declare function NextBooleanP( byval p as double ) as boolean
+	declare function NextNormal( ) as double
+	declare function NextNormalP( byval mean_ as double, byval sd as double ) as double
+	declare function NextExponential( byval lambda as double ) as double
+	declare function NextPoisson( byval lambda as double ) as longint
+end type
+
+'' SplitMix64: the standard seeding mixer.  Using the raw seed for all four
+'' words would make nearby seeds produce correlated streams.
+private function hSplitMix64( byref x as ulongint ) as ulongint
+	x += &h9E3779B97F4A7C15ull
+	dim as ulongint z = x
+	z = ( z xor ( z shr 30 ) ) * &hBF58476D1CE4E5B9ull
+	z = ( z xor ( z shr 27 ) ) * &h94D049BB133111EBull
+	function = z xor ( z shr 31 )
+end function
+
+private function hRotl64( byval x as ulongint, byval k as long ) as ulongint
+	function = ( x shl k ) or ( x shr ( 64 - k ) )
+end function
+
+private function RngSeeded overload ( byval seed as ulongint ) as Rng
+	dim as Rng r
+	dim as ulongint x = seed
+	r.s0 = hSplitMix64( x )
+	r.s1 = hSplitMix64( x )
+	r.s2 = hSplitMix64( x )
+	r.s3 = hSplitMix64( x )
+	'' an all-zero state is the one state xoshiro cannot leave
+	if( ( r.s0 or r.s1 or r.s2 or r.s3 ) = 0 ) then r.s0 = 1
+	function = r
+end function
+
+private function Rng.NextULongInt( ) as ulongint
+	dim as ulongint result = hRotl64( this.s1 * 5ull, 7 ) * 9ull
+	dim as ulongint t = this.s1 shl 17
+	this.s2 xor= this.s0
+	this.s3 xor= this.s1
+	this.s1 xor= this.s2
+	this.s0 xor= this.s3
+	this.s2 xor= t
+	this.s3 = hRotl64( this.s3, 45 )
+	function = result
+end function
+
+private function Rng.NextULong( ) as ulong
+	function = culng( this.NextULongInt( ) shr 32 )
+end function
+
+'' ===========================================================================
+'' Uniform
+''
+'' NextInt IS INCLUSIVE AT BOTH ENDS, matching FB's TO everywhere else in the
+'' language: 'for i = 1 to 6' and 'NextInt( 1, 6 )' cover the same six values.
+'' Half-open would match C++ and Rust and mismatch the host language; the host
+'' language wins.
+''
+'' IT IS UNBIASED.  Lemire's multiply-and-reject: multiply a 64-bit draw by the
+'' range, take the high half, and reject only in the rare interval where the
+'' low half could bias the result.  One multiply and no division in the common
+'' case.
+'' ===========================================================================
+
+'' 64x64 -> 128 high half, from 32-bit limbs.  FreeBASIC has no 128-bit type.
+private function hMulHigh64( byval a as ulongint, byval b as ulongint, byref lo as ulongint ) as ulongint
+	dim as ulongint a0 = a and &hFFFFFFFFull, a1 = a shr 32
+	dim as ulongint b0 = b and &hFFFFFFFFull, b1 = b shr 32
+
+	dim as ulongint p00 = a0 * b0
+	dim as ulongint p01 = a0 * b1
+	dim as ulongint p10 = a1 * b0
+	dim as ulongint p11 = a1 * b1
+
+	dim as ulongint mid_ = ( p00 shr 32 ) + ( p01 and &hFFFFFFFFull ) + ( p10 and &hFFFFFFFFull )
+	lo = ( p00 and &hFFFFFFFFull ) or ( mid_ shl 32 )
+	function = p11 + ( p01 shr 32 ) + ( p10 shr 32 ) + ( mid_ shr 32 )
+end function
+
+private function Rng.NextInt( byval lo as longint, byval hi as longint ) as longint
+	if( lo > hi ) then return lo
+	dim as ulongint span = culngint( hi ) - culngint( lo )
+	if( span = MAX_VALUE_ULONGINT ) then return clngint( this.NextULongInt( ) )
+
+	dim as ulongint range_ = span + 1ull
+	dim as ulongint low
+	dim as ulongint hiprod = hMulHigh64( this.NextULongInt( ), range_, low )
+
+	'' Lemire's rejection window: only entered with probability < range/2^64
+	if( low < range_ ) then
+		dim as ulongint threshold = ( MAX_VALUE_ULONGINT - range_ + 1ull ) mod range_
+		while( low < threshold )
+			hiprod = hMulHigh64( this.NextULongInt( ), range_, low )
+		wend
+	end if
+	function = clngint( culngint( lo ) + hiprod )
+end function
+
+'' [0, 1) with 53 bits of entropy -- built from a 53-bit integer divided by
+'' 2^53, not from 'NextULongInt / 2^64', which produces a value whose low bit is
+'' not uniform.  1.0 is never returned; 0.0 is.
+private function Rng.NextDouble( ) as double
+	function = cdbl( this.NextULongInt( ) shr 11 ) * ( 1.0 / 9007199254740992.0 )
+end function
+
+private function Rng.NextDoubleRange( byval lo as double, byval hi as double ) as double
+	function = lo + this.NextDouble( ) * ( hi - lo )
+end function
+
+private function Rng.NextSingle( ) as single
+	function = csng( cdbl( this.NextULongInt( ) shr 40 ) * ( 1.0 / 16777216.0 ) )
+end function
+
+private function Rng.NextBoolean( ) as boolean
+	function = ( ( this.NextULongInt( ) shr 63 ) <> 0 )
+end function
+
+private function Rng.NextBooleanP( byval p as double ) as boolean
+	function = ( this.NextDouble( ) < p )
+end function
+
+'' ===========================================================================
+'' Distributions
+''
+'' The set stops where a simulation, a test-data generator or a game stops.
+'' Beta, Student's t and chi-squared are a statistics package.
+'' ===========================================================================
+
+'' Marsaglia's polar method: two uniforms, one sqrt and one log per PAIR, and
+'' no trigonometry.  The ziggurat is faster still and needs a 256-entry table
+'' that has to be generated and verified; this is the honest middle.
+private function Rng.NextNormal( ) as double
+	dim as double u, v, s
+	do
+		u = this.NextDouble( ) * 2.0 - 1.0
+		v = this.NextDouble( ) * 2.0 - 1.0
+		s = u * u + v * v
+	loop while( s >= 1.0 orelse s = 0.0 )
+	function = u * sqr( -2.0 * log( s ) / s )
+end function
+
+private function Rng.NextNormalP( byval mean_ as double, byval sd as double ) as double
+	function = mean_ + sd * this.NextNormal( )
+end function
+
+private function Rng.NextExponential( byval lambda as double ) as double
+	if( lambda <= 0.0 ) then return 0.0
+	dim as double u = this.NextDouble( )
+	if( u = 0.0 ) then u = 1.0 / 9007199254740992.0
+	function = -log( u ) / lambda
+end function
+
+'' Knuth below lambda = 30, where it is cheap; above it the O(lambda) loop
+'' becomes slower than the sampling it replaces, so a normal approximation with
+'' a correction is used instead.
+private function Rng.NextPoisson( byval lambda as double ) as longint
+	if( lambda <= 0.0 ) then return 0
+	if( lambda < 30.0 ) then
+		dim as double l = exp( -lambda )
+		dim as double p = 1.0
+		dim as longint k = 0
+		do
+			k += 1
+			p *= this.NextDouble( )
+		loop while( p > l )
+		return k - 1
+	end if
+	dim as double g = lambda + sqr( lambda ) * this.NextNormal( )
+	if( g < 0.0 ) then return 0
+	function = clngint( int( g + 0.5 ) )
+end function
+
+'' ===========================================================================
+'' Sequences
+''
+'' Fisher-Yates, DESCENDING, with an inclusive NextInt( 0, i ) -- the form that
+'' produces every permutation with equal probability.  The ascending variant
+'' and the exclusive-bound variant are both subtly wrong, and both are what a
+'' hand-rolled FB shuffle usually is.
+'' ===========================================================================
+
+#macro __FB_RNG_SHUFFLE( T )
+	private sub Shuffle overload ( byref r as Rng, a( ) as T )
+		dim as long lo = lbound( a ), hi = ubound( a )
+		for i as long = hi to lo + 1 step -1
+			dim as long j = clng( r.NextInt( lo, i ) )
+			swap a( i ), a( j )
+		next
+	end sub
+#endmacro
+
+__FB_RNG_SHUFFLE( byte )
+__FB_RNG_SHUFFLE( short )
+__FB_RNG_SHUFFLE( long )
+__FB_RNG_SHUFFLE( longint )
+__FB_RNG_SHUFFLE( ulong )
+__FB_RNG_SHUFFLE( ulongint )
+__FB_RNG_SHUFFLE( single )
+__FB_RNG_SHUFFLE( double )
+__FB_RNG_SHUFFLE( string )
+
+#macro __FB_RNG_CHOICE( T )
+	private function Choice overload ( byref r as Rng, a( ) as T ) byref as T
+		dim as long lo = lbound( a ), hi = ubound( a )
+		function = a( clng( r.NextInt( lo, hi ) ) )
+	end function
+#endmacro
+
+__FB_RNG_CHOICE( long )
+__FB_RNG_CHOICE( longint )
+__FB_RNG_CHOICE( double )
+__FB_RNG_CHOICE( string )
+
+'' ===========================================================================
+'' Cryptographic randomness
+''
+'' A SEPARATE SURFACE, AND NOT AN Rng.  It has no seed, no reproducibility and
+'' no state to copy.  Making Rng capable of being cryptographic would mean one
+'' type with two contradictory contracts, and the mistake it invites -- using a
+'' seeded generator for a token -- is exactly what this separation prevents.
+'' ===========================================================================
+
+#ifdef __FB_WIN32__
+	extern "windows" lib "advapi32"
+		declare function SystemFunction036 alias "SystemFunction036" ( byval as any ptr, byval as ulong ) as byte
+	end extern
+#else
+	extern "c"
+		declare function c_getrandom alias "getrandom" ( byval as any ptr, byval as uinteger, byval as ulong ) as integer
+	end extern
+#endif
+
+private function CryptoBytes overload ( byval dst as any ptr, byval nbytes as ulong ) as boolean
+	if( dst = 0 orelse nbytes = 0 ) then return false
+	#ifdef __FB_WIN32__
+		function = ( SystemFunction036( dst, nbytes ) <> 0 )
+	#else
+		function = ( c_getrandom( dst, nbytes, 0 ) = cast( integer, nbytes ) )
+	#endif
+end function
+
+private function CryptoULongInt overload ( ) as ulongint
+	dim as ulongint v = 0
+	CryptoBytes( @v, 8 )
+	function = v
+end function
+
+'' The intended bridge: use the OS once, to seed.
+private function RngFromEntropy overload ( ) as Rng
+	function = RngSeeded( CryptoULongInt( ) )
+end function
+
+end namespace

@@ -1,0 +1,325 @@
+'' fb/fsadvanced.bi -- file watching, memory mapping, advisory locking
+''
+'' Specified in C:\dev\docs\filesystem\RFC-0009-advanced.md.
+''
+'' THREE SUBSYSTEMS THAT SHARE NOTHING BUT A PHASE. They are collected in one
+'' header because collecting them is cheaper than three near-empty ones, not
+'' because they belong together -- each has its own threading model and its own
+'' lifetime rules, and nothing here calls anything else here.
+
+#pragma once
+
+#include once "fb/fserror.bi"
+#include once "fb/fspath.bi"
+#include once "fb/array.bi"
+
+#if __FB_LANG__ <> "fb"
+	#error "fb/fsadvanced.bi requires -lang fb (it uses namespaces)"
+#endif
+
+#if defined( __FB_WIN32__ ) and ( not defined( __FB_64BIT__ ) )
+	#define FBFSADV_EXTERN extern "Windows"
+#else
+	#define FBFSADV_EXTERN extern "C"
+#endif
+
+namespace FB
+
+'' Must match FB_FSCHANGE_* in src/rtlib/fb_filesystem.h.
+enum FsChangeKind
+	FS_CHANGE_CREATED = 0
+	FS_CHANGE_DELETED
+	FS_CHANGE_MODIFIED
+	FS_CHANGE_RENAMED_FROM
+	FS_CHANGE_RENAMED_TO
+
+	'' NOT AN ERROR, AND THAT IS DELIBERATE. Both platforms drop events under
+	'' load -- ReadDirectoryChangesW overflows its buffer, inotify overflows
+	'' its queue -- and every correct consumer must respond by RESCANNING.
+	'' Modelling it as an error would let callers ignore it; modelling it as
+	'' an event they must match on makes it visible.
+	FS_CHANGE_OVERFLOW
+end enum
+
+'' Mirror of FB_FSCHANGE. Layout is ABI; the suite asserts sizeof.
+type FsChangeRaw
+	as ushort pathbuf( 0 to FB_FS_MAXPATH - 1 )
+	as long   pathlen
+	as long   kind
+end type
+
+FBFSADV_EXTERN
+	declare function FsLockAcquireRaw alias "fb_UStrFsLockAcquire" _
+		( byref p as const ustring, byval exclusive as long, byval timeoutms as long, byval out as any ptr ptr ) as long
+	declare sub FsLockReleaseRaw alias "fb_FsLockRelease" ( byval l as any ptr )
+
+	declare function FsMmapOpenRaw alias "fb_UStrFsMmapOpen" _
+		( byref p as const ustring, byval writable as long, byval out as any ptr ptr ) as long
+	declare sub FsMmapCloseRaw alias "fb_FsMmapClose" ( byval m as any ptr )
+	declare function FsMmapDataRaw alias "fb_FsMmapData" ( byval m as any ptr ) as ubyte ptr
+	declare function FsMmapSizeRaw alias "fb_FsMmapSize" ( byval m as any ptr ) as ulongint
+	declare function FsMmapFlushRaw alias "fb_FsMmapFlush" ( byval m as any ptr ) as long
+
+	declare function FsWatchStartRaw alias "fb_UStrFsWatchStart" _
+		( byref p as const ustring, byval recursive as long, byval out as any ptr ptr ) as long
+	declare sub FsWatchStopRaw alias "fb_FsWatchStop" ( byval w as any ptr )
+	declare function FsWatchPollRaw alias "fb_FsWatchPoll" ( byval w as any ptr, byval timeoutms as long ) as long
+	declare function FsWatchNextRaw alias "fb_FsWatchNext" ( byval w as any ptr, byval out as FsChangeRaw ptr ) as long
+	declare function FsChangePathRaw alias "fb_UStrFsChangePath" ( byval c as FsChangeRaw ptr ) as ustring
+	declare function FsSizeofChange alias "fb_FsSizeofChange" ( ) as long
+end extern
+
+'' ========================================================== advisory locking
+''
+'' NOT the legacy Lock/Unlock, which lock byte ranges of a file already open on
+'' an FB file number and cannot express "hold this file against another
+'' process" -- which is what a lockfile guarding a build directory or a
+'' single-instance check actually needs.
+''
+'' ADVISORY EVERYWHERE, AND THAT IS THE CONTRACT. Windows LockFileEx is
+'' MANDATORY: the kernel enforces it against every process whether or not that
+'' process asked. POSIX flock is ADVISORY: it binds only processes that also
+'' call it. The only promise both platforms can keep is the weaker one, so
+'' **ALL PARTICIPANTS MUST USE THIS API**. Code written against the Windows
+'' behaviour silently protects nothing on Linux, and that is exactly the kind of
+'' portability bug that ships.
+type FileLock
+	declare constructor( )
+	declare destructor( )
+
+	'' timeoutMs < 0 waits indefinitely, 0 tries once, > 0 gives up with
+	'' FS_IN_USE when it expires.
+	declare function Acquire( byref p as const ustring, byval exclusive as boolean = TRUE, byval timeoutMs as long = -1 ) as FsResultBool
+	declare sub Release( )
+	declare const function IsHeld( ) as boolean
+
+	as any ptr m_h
+end type
+
+private constructor FileLock( )
+	this.m_h = 0
+end constructor
+
+'' Releases on scope exit, including EXIT FOR, GOTO out of a block, and while an
+'' error unwinds -- ordinary FreeBASIC lifetime, so an abandoned lock is not a
+'' deadlock waiting to happen.
+private destructor FileLock( )
+	this.Release( )
+end destructor
+
+private function FileLock.Acquire( byref p as const ustring, byval exclusive as boolean, byval timeoutMs as long ) as FsResultBool
+	this.Release( )
+
+	dim as long r = FsLockAcquireRaw( p, iif( exclusive, 1, 0 ), timeoutMs, @this.m_h )
+
+	if( r <> FS_OK ) then
+		this.m_h = 0
+		return FsFail( of boolean )( cast( FsErrorCode, r ), "FileLock.Acquire", p )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+private sub FileLock.Release( )
+	if( this.m_h <> 0 ) then
+		FsLockReleaseRaw( this.m_h )
+		this.m_h = 0
+	end if
+end sub
+
+private const function FileLock.IsHeld( ) as boolean
+	return ( this.m_h <> 0 )
+end function
+
+'' ====================================================== memory-mapped files
+''
+'' Data( ) returns a RAW POINTER, which is the point -- the alternative is a
+'' copy, and a copy is ReadAllBytes.
+''
+'' THREE THINGS NO LIBRARY CAN PROTECT YOU FROM, documented rather than
+'' defended against:
+''
+''   - The pointer is INVALID after Close or destruction.
+''   - Another process TRUNCATING the file turns reads into a FAULT -- SIGBUS
+''     on POSIX, a structured exception on Windows -- not an error return. This
+''     is why mapping is not a drop-in replacement for reading.
+''   - Mapping a file on a network share is permitted by the OS and is a good
+''     way to hang.
+''
+'' A ZERO-LENGTH FILE CANNOT BE MAPPED and reports FS_INVALID_PATH on both
+'' platforms, rather than handing back a pointer that cannot be dereferenced.
+type MemoryMappedFile
+	declare constructor( )
+	declare destructor( )
+
+	declare function Open( byref p as const ustring, byval writable as boolean = FALSE ) as FsResultBool
+	declare sub Close( )
+
+	declare const function Data( ) as ubyte ptr
+	declare const function Size( ) as ulongint
+	declare const function IsOpen( ) as boolean
+	declare function Flush( ) as FsResultBool
+
+	as any ptr m_h
+end type
+
+private constructor MemoryMappedFile( )
+	this.m_h = 0
+end constructor
+
+private destructor MemoryMappedFile( )
+	this.Close( )
+end destructor
+
+private function MemoryMappedFile.Open( byref p as const ustring, byval writable as boolean ) as FsResultBool
+	this.Close( )
+
+	dim as long r = FsMmapOpenRaw( p, iif( writable, 1, 0 ), @this.m_h )
+
+	if( r <> FS_OK ) then
+		this.m_h = 0
+		return FsFail( of boolean )( cast( FsErrorCode, r ), "MemoryMappedFile.Open", p )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+private sub MemoryMappedFile.Close( )
+	if( this.m_h <> 0 ) then
+		FsMmapCloseRaw( this.m_h )
+		this.m_h = 0
+	end if
+end sub
+
+private const function MemoryMappedFile.Data( ) as ubyte ptr
+	return FsMmapDataRaw( this.m_h )
+end function
+
+private const function MemoryMappedFile.Size( ) as ulongint
+	return FsMmapSizeRaw( this.m_h )
+end function
+
+private const function MemoryMappedFile.IsOpen( ) as boolean
+	return ( this.m_h <> 0 )
+end function
+
+private function MemoryMappedFile.Flush( ) as FsResultBool
+	dim as long r = FsMmapFlushRaw( this.m_h )
+
+	if( r <> FS_OK ) then
+		return FsFail( of boolean )( cast( FsErrorCode, r ), "MemoryMappedFile.Flush", "" )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' ========================================================== change watching
+''
+'' POLLING, NOT CALLBACKS. A callback fires on the watcher's own thread, so
+'' every user of the API immediately needs a queue and a lock -- and most get
+'' the threading wrong. Poll puts the events on the CALLER's thread and lets
+'' them decide. FreeBASIC has no async model to deliver into anyway, so a
+'' callback API would be delivering into whatever thread the OS chose.
+''
+'' RENAMES ARE TWO EVENTS, never one. RENAMED_FROM and RENAMED_TO arrive as a
+'' pair, and a rename OUT of the watched tree produces only the first -- a
+'' single RENAMED event carrying both paths could not represent that.
+type FsChange
+	declare const function Kind( ) as FsChangeKind
+	declare const function Path( ) as ustring
+
+	as FsChangeKind m_kind
+	as ustring      m_path
+end type
+
+private const function FsChange.Kind( ) as FsChangeKind
+	return this.m_kind
+end function
+
+private const function FsChange.Path( ) as ustring
+	return this.m_path
+end function
+
+type FileWatcher
+	declare constructor( )
+	declare destructor( )
+
+	declare function Start( byref p as const ustring, byval recursive as boolean = FALSE ) as FsResultBool
+	declare sub Stop( )
+	declare const function IsWatching( ) as boolean
+
+	'' Blocks up to timeoutMs. Returns the number of changes drained, which
+	'' is 0 on timeout -- a timeout is NOT an error, it is the normal answer
+	'' when nothing happened.
+	declare function Poll( changes as Array( of FsChange ), byval timeoutMs as long = -1 ) as FsResultLong
+
+	as any ptr m_h
+end type
+
+private constructor FileWatcher( )
+	this.m_h = 0
+end constructor
+
+private destructor FileWatcher( )
+	this.Stop( )
+end destructor
+
+private function FileWatcher.Start( byref p as const ustring, byval recursive as boolean ) as FsResultBool
+	this.Stop( )
+
+	dim as long r = FsWatchStartRaw( p, iif( recursive, 1, 0 ), @this.m_h )
+
+	if( r <> FS_OK ) then
+		this.m_h = 0
+		return FsFail( of boolean )( cast( FsErrorCode, r ), "FileWatcher.Start", p )
+	end if
+
+	return Ok( of boolean, FsError )( TRUE )
+end function
+
+private sub FileWatcher.Stop( )
+	if( this.m_h <> 0 ) then
+		FsWatchStopRaw( this.m_h )
+		this.m_h = 0
+	end if
+end sub
+
+private const function FileWatcher.IsWatching( ) as boolean
+	return ( this.m_h <> 0 )
+end function
+
+private function FileWatcher.Poll( changes as Array( of FsChange ), byval timeoutMs as long ) as FsResultLong
+	changes.Clear( )
+
+	if( this.m_h = 0 ) then
+		return FsFail( of long )( FS_INVALID_PATH, "FileWatcher.Poll", "" )
+	end if
+
+	dim as long pr = FsWatchPollRaw( this.m_h, timeoutMs )
+
+	'' A TIMEOUT IS AN EMPTY SUCCESS, not a failure. "Nothing happened" and
+	'' "the watch broke" are different answers and a caller must be able to
+	'' tell them apart.
+	if( pr = FB_FS_EXHAUSTED ) then
+		return Ok( of long, FsError )( 0 )
+	end if
+
+	if( pr <> FS_OK ) then
+		return FsFail( of long )( cast( FsErrorCode, pr ), "FileWatcher.Poll", "" )
+	end if
+
+	dim as FsChangeRaw raw
+	dim as long n = 0
+
+	do while( FsWatchNextRaw( this.m_h, @raw ) = FS_OK )
+		dim as FsChange c
+		c.m_kind = cast( FsChangeKind, raw.kind )
+		c.m_path = FsChangePathRaw( @raw )
+		changes.Push( c )
+		n += 1
+	loop
+
+	return Ok( of long, FsError )( n )
+end function
+
+end namespace

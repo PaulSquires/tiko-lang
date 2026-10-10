@@ -1,0 +1,253 @@
+'' fb/logasync.bi -- FB.Logging's asynchronous sink
+''
+''     #include once "fb/logging.bi"
+''     using FB
+''
+''     dim fs as FileSink = FileSink( "logs/app.log" )
+''     dim aq as AsyncSink = AsyncSink( @fs, 4096 )
+''     aq.policy = OP_DROP_OLDEST
+''     lg.AddSink( @aq )
+''     ...
+''     aq.Close( )          '' drains, stops the worker, closes the file -- CALL IT
+''
+'' RFC-0005 sections 4-7 -- C:\dev\docs\logging\RFC-0005-errors-async.md. Phase 6.
+''
+'' A Sink that wraps a Sink. The calling thread copies the RECORD into a bounded
+'' queue and returns; ONE worker thread takes records off in order and calls the
+'' inner sink's Write. That is why Sink.Write takes a record and not text: the
+'' rendering happens on the worker, and the caller pays for a copy and a lock.
+''
+'' ---------------------------------------------------------------------------
+'' NOT fb/channel.bi, WHICH THE RFC NAMED
+''
+'' FB.Channel runs on the goroutine scheduler (fb/scheduler.bi), which needs -mt
+'' and a scheduler started; this module promised a logger that needs neither. The
+'' queue here is a ring of LogRecord copies under one mutex, with three condition
+'' variables -- room, a record, and empty-and-idle -- and the worker is a plain
+'' threadcreate. FIFO, one worker, three policies: everything section 4 asks of the
+'' channel.
+''
+'' ---------------------------------------------------------------------------
+'' WHAT IS GUARANTEED (RFC-0005 section 7)
+''
+'' A CLEAN SHUTDOWN LOSES NOTHING: Close( ) stops accepting, lets the worker drain
+'' the queue, joins it, then flushes and closes the inner sink. Flush( ) waits for
+'' the queue to drain without stopping. An UNCLEAN exit loses what was queued --
+'' that is what asynchronous means, and why this sink is opt-in.
+''
+'' The record keeps the stamps taken on the CALLING thread (LogRecord.stamp and
+'' .mono), so the log says when the event happened, not when the worker wrote it.
+
+#pragma once
+
+#include once "fb/logsink.bi"
+
+namespace FB
+
+enum OverflowPolicy
+	OP_BLOCK = 0          '' default: the caller waits for room -- nothing is lost
+	OP_DROP_NEWEST        '' the incoming record is dropped and counted
+	OP_DROP_OLDEST        '' the oldest queued record is dropped and counted
+end enum
+
+'' The alias is required: a generic does not instantiate directly in a TYPE field.
+type LogRecordArray as Array( of LogRecord )
+
+type AsyncSink extends Sink
+	declare constructor( byval inner as Sink ptr, byval capacity as long = 4096 )
+	declare destructor( ) override
+
+	declare sub Write( byref r as LogRecord ) override
+	declare sub Flush( ) override             '' waits until the queue is drained
+	declare sub Close( ) override             '' drain, stop the worker, close inner
+	declare function DroppedCount( ) as ulongint override
+
+	'' Records queued and not yet taken by the worker.
+	declare function QueueDepth( ) as long
+
+	policy as OverflowPolicy                  '' default OP_BLOCK
+
+	'' The worker's loop. Public only because threadcreate needs a free sub to
+	'' call it; not for a program to call.
+	declare sub hWork( )
+
+private:
+	m_inner    as Sink ptr
+	m_cap      as long
+	m_slots    as LogRecordArray
+	m_head     as long               '' the oldest queued record
+	m_count    as long
+	m_busy     as boolean            '' the worker is inside inner->Write
+	m_stop     as boolean            '' Close( ) asked the worker to finish
+	m_closed   as boolean
+	m_lock     as any ptr
+	m_notEmpty as any ptr
+	m_notFull  as any ptr
+	m_drained  as any ptr
+	m_thread   as any ptr
+	m_dropped  as ulongint
+	m_thr      as hLogThrottle
+end type
+
+private sub hLogAsyncWorker( byval p as any ptr )
+	cast( AsyncSink ptr, p )->hWork( )
+end sub
+
+private constructor AsyncSink( byval inner as Sink ptr, byval capacity as long )
+	this.m_inner = inner
+	this.m_cap = iif( capacity < 1, 1, capacity )
+	this.policy = OP_BLOCK
+	for i as long = 1 to this.m_cap
+		dim r as LogRecord
+		this.m_slots.Push( r )
+	next
+	this.m_lock     = mutexcreate( )
+	this.m_notEmpty = condcreate( )
+	this.m_notFull  = condcreate( )
+	this.m_drained  = condcreate( )
+	this.m_thread   = threadcreate( @hLogAsyncWorker, @this )
+end constructor
+
+private destructor AsyncSink( )
+	this.Close( )
+	if this.m_drained  <> 0 then conddestroy( this.m_drained )
+	if this.m_notFull  <> 0 then conddestroy( this.m_notFull )
+	if this.m_notEmpty <> 0 then conddestroy( this.m_notEmpty )
+	if this.m_lock     <> 0 then mutexdestroy( this.m_lock )
+	this.m_drained = 0 : this.m_notFull = 0 : this.m_notEmpty = 0 : this.m_lock = 0
+end destructor
+
+'' ONE WORKER, so delivery is FIFO (RFC-0005 section 6). It leaves only when it has
+'' been told to stop AND the queue is empty: that is the drain Close( ) promises.
+private sub AsyncSink.hWork( )
+	mutexlock( this.m_lock )
+	do
+		while (this.m_count = 0) andalso (this.m_stop = FALSE)
+			condwait( this.m_notEmpty, this.m_lock )
+		wend
+		if this.m_count = 0 then exit do                 '' stopped, and drained
+
+		dim r as LogRecord = this.m_slots[this.m_head]
+		dim empty_ as LogRecord
+		this.m_slots[this.m_head] = empty_               '' release its strings now
+		this.m_head = ( this.m_head + 1 ) mod this.m_cap
+		this.m_count -= 1
+		this.m_busy = TRUE
+		condbroadcast( this.m_notFull )
+		mutexunlock( this.m_lock )
+
+		'' OUTSIDE THE LOCK: a slow sink must not stop callers from queueing.
+		if this.m_inner <> 0 then this.m_inner->Write( r )
+
+		mutexlock( this.m_lock )
+		this.m_busy = FALSE
+		if this.m_count = 0 then condbroadcast( this.m_drained )
+	loop
+	condbroadcast( this.m_drained )
+	mutexunlock( this.m_lock )
+end sub
+
+'' THE CALLER'S SIDE: copy, queue, return. When the queue is full the policy
+'' decides (RFC-0005 section 5), and there is no default that loses a record
+'' silently: both dropping policies count and report.
+private sub AsyncSink.Write( byref r as LogRecord )
+	dim as ustring why
+	dim as boolean queueIt = FALSE
+
+	mutexlock( this.m_lock )
+	if this.m_closed orelse this.m_stop then
+		this.m_dropped += 1
+		why = "closed, record dropped"
+	else
+		queueIt = TRUE
+		if this.m_count >= this.m_cap then
+			select case this.policy
+			case OP_DROP_NEWEST
+				this.m_dropped += 1
+				why = "queue full, newest record dropped"
+				queueIt = FALSE
+			case OP_DROP_OLDEST
+				dim empty_ as LogRecord
+				this.m_slots[this.m_head] = empty_
+				this.m_head = ( this.m_head + 1 ) mod this.m_cap
+				this.m_count -= 1
+				this.m_dropped += 1
+				why = "queue full, oldest record dropped"
+			case else
+				while (this.m_count >= this.m_cap) andalso (this.m_stop = FALSE)
+					condwait( this.m_notFull, this.m_lock )
+				wend
+				if this.m_stop then
+					this.m_dropped += 1
+					why = "closed while waiting, record dropped"
+					queueIt = FALSE
+				end if
+			end select
+		end if
+		if queueIt then
+			this.m_slots[( this.m_head + this.m_count ) mod this.m_cap] = r
+			this.m_count += 1
+			condsignal( this.m_notEmpty )
+		end if
+	end if
+	dim as boolean report = FALSE
+	if len( why ) > 0 then report = this.m_thr.Admit( why )
+	mutexunlock( this.m_lock )
+
+	if report then hLogReport( "AsyncSink", why, 0 )
+end sub
+
+'' Waits until every record queued so far has been WRITTEN by the inner sink, then
+'' flushes it. Safe after Close( ).
+private sub AsyncSink.Flush( )
+	if this.m_lock = 0 then return
+	mutexlock( this.m_lock )
+	condsignal( this.m_notEmpty )
+	do
+		dim as boolean pending = (this.m_count > 0) orelse this.m_busy
+		dim as boolean running = (this.m_thread <> 0) andalso (this.m_stop = FALSE)
+		if (pending = FALSE) orelse (running = FALSE) then exit do
+		condwait( this.m_drained, this.m_lock )
+	loop
+	mutexunlock( this.m_lock )
+	if (this.m_inner <> 0) andalso (this.m_closed = FALSE) then this.m_inner->Flush( )
+end sub
+
+'' Stop accepting, drain, join the worker, flush and close the inner sink.
+'' Idempotent.
+private sub AsyncSink.Close( )
+	if this.m_lock = 0 then return
+	mutexlock( this.m_lock )
+	if this.m_closed then
+		mutexunlock( this.m_lock )
+		return
+	end if
+	this.m_closed = TRUE
+	this.m_stop = TRUE
+	condbroadcast( this.m_notEmpty )
+	condbroadcast( this.m_notFull )
+	mutexunlock( this.m_lock )
+
+	if this.m_thread <> 0 then
+		threadwait( this.m_thread )
+		this.m_thread = 0
+	end if
+	if this.m_inner <> 0 then
+		this.m_inner->Flush( )
+		this.m_inner->Close( )
+	end if
+end sub
+
+private function AsyncSink.DroppedCount( ) as ulongint
+	return this.m_dropped
+end function
+
+private function AsyncSink.QueueDepth( ) as long
+	if this.m_lock = 0 then return 0
+	mutexlock( this.m_lock )
+	dim as long n = this.m_count
+	mutexunlock( this.m_lock )
+	return n
+end function
+
+end namespace

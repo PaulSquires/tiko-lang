@@ -1,0 +1,291 @@
+'' fb/finerror.bi -- how a finance call fails
+''
+''     #include once "fb/finance.bi"
+''     using FB
+''
+''     var pmt = LoanPayment( terms )
+''     if( pmt.IsOk( ) = false ) then
+''         print "cannot amortize: "; pmt.Failure( ).Message( )
+''     end if
+''
+'' Specified by C:\dev\docs\finance\RFC-0001-errors.md.  Phase 1.
+''
+'' A SMALL VALUE TYPE, NOT fb/fserror.bi's SHAPE.  FsError carries an OS error
+'' number, an operation name and up to two paths, because a filesystem failure
+'' is ABOUT a file.  A finance failure is about a COMPUTATION: there is no path
+'' to name and no errno to translate.  What a caller actually needs when a
+'' solver gives up is different -- how many iterations it ran, how close it got,
+'' and what its last iterate was, so a user interface can show the near-answer
+'' greyed out instead of an empty box.
+''
+'' So this is one enum, one long and two doubles: no string field, no
+'' allocation, trivially copyable, returned by value everywhere.
+''
+'' WHY NOT A BARE CODE.  A FinanceErrorCode on its own cannot carry the best
+'' iterate, and the difference between "no root exists" and "we ran out of
+'' iterations at 7.31%" is the whole of the diagnostic value.
+''
+'' NON-CONVERGENCE RETURNS Fail, AND CARRIES THE BEST ITERATE.  It is never
+'' returned as a value, however close it got.  The distinction between "the
+'' answer is 7.31%" and "we got to 7.31% and stopped" belongs in the type
+'' system, not in a comment.
+''
+'' THERE IS NO GENERIC TYPEDEF IN THE LANGUAGE, so the result aliases at the
+'' bottom are concrete, one per T this docset returns.  fb/fserror.bi:17-33
+'' measured it: `type X( of T ) as Result( of T, E )` is read as the opening of
+'' a generic TYPE BODY and swallows the next statement, giving
+''
+''     error 338: Unbalanced block in generic body
+''
+'' and a `#define` macro works but ignores NAMESPACE entirely, which is exactly
+'' what the container headers promise the library will not do.
+''
+'' IGNORING A RESULT STAYS A CONVENTION.  No '?' operator, no must-use
+'' diagnostic (result.bi:17-22).  What the type buys is that the failure has a
+'' name and a shape, not that anyone is forced to look at it.
+
+#pragma once
+
+#if __FB_LANG__ <> "fb"
+	#error "fb/finerror.bi requires -lang fb (it uses namespaces)"
+#endif
+
+#include once "fb/result.bi"
+#include once "fb/math.bi"
+#include once "fb/decimal.bi"
+#include once "fb/currency.bi"
+
+namespace FB
+
+'' ===========================================================================
+'' The codes
+''
+'' Thirteen, and no more.  Each one exists because some caller can act
+'' differently on it -- a code nobody can branch on is a comment with extra
+'' steps.  Four pairs are worth keeping apart and the reasons are recorded
+'' beside them.
+'' ===========================================================================
+
+enum FinanceErrorCode
+	FIN_OK = 0
+	FIN_INVALID_RATE          '' rate <= -1 per period, or an Invalid Decimal
+	FIN_INVALID_PERIODS       '' n <= 0, or non-integer where an integer is needed
+	FIN_INVALID_TERM          '' term shorter than one payment, or zero principal
+	FIN_INVALID_BASIS         '' day count or compounding enum out of range
+
+	FIN_EMPTY_SERIES          '' no cash flows, no returns, no observations
+
+	'' NOT the same as FIN_NO_BRACKET.  It is not that the solver failed -- it
+	'' is that NO ROOT EXISTS, provably, and retrying with a different guess
+	'' cannot help.  This is by far the most common real IRR failure, and
+	'' reporting it as "did not converge" sends the caller hunting for a better
+	'' seed.
+	FIN_NO_SIGN_CHANGE
+
+	'' The range was wrong; widening the bounds may fix it.
+	FIN_NO_BRACKET
+	'' The range was right and the tolerance was not reached; raising the
+	'' iteration cap or relaxing the tolerance may fix it.  Two different
+	'' remedies, so two codes.
+	FIN_NO_CONVERGENCE
+
+	FIN_OVERFLOW              '' a Decimal step produced Invalid -- rescale and retry
+	FIN_DOMAIN                '' log or root of a non-positive; division by zero
+	FIN_UNORDERED_DATES       '' a dated series is not ascending, or has a duplicate
+	FIN_LENGTH_MISMATCH       '' paired arrays of different length
+	FIN_UNKNOWN
+end enum
+
+'' Fixed English, and deliberately not localized: this names the failure for a
+'' programmer, it is not user-facing prose.  A program showing this to a person
+'' localizes from Code( ) instead.
+''
+'' Returns STRING, not USTRING -- fb/fserror.bi returns ustring because a path
+'' can be non-ASCII, and nothing here can.
+private function FinanceErrorMessage overload ( byval c as FinanceErrorCode ) as string
+	select case as const c
+	case FIN_OK                : return "ok"
+	case FIN_INVALID_RATE      : return "invalid rate"
+	case FIN_INVALID_PERIODS   : return "invalid number of periods"
+	case FIN_INVALID_TERM      : return "invalid term"
+	case FIN_INVALID_BASIS     : return "invalid day count or compounding basis"
+	case FIN_EMPTY_SERIES      : return "empty series"
+	case FIN_NO_SIGN_CHANGE    : return "no sign change, so no root exists"
+	case FIN_NO_BRACKET        : return "could not bracket a root"
+	case FIN_NO_CONVERGENCE    : return "did not converge"
+	case FIN_OVERFLOW          : return "decimal overflow"
+	case FIN_DOMAIN            : return "argument outside the domain"
+	case FIN_UNORDERED_DATES   : return "dates are not in ascending order"
+	case FIN_LENGTH_MISMATCH   : return "paired series have different lengths"
+	end select
+	return "unknown finance error"
+end function
+
+'' ===========================================================================
+'' The error
+'' ===========================================================================
+
+type FinanceError
+	'' Default-constructible because Result default-constructs BOTH slots
+	'' (result.bi:33).  A default FinanceError is not meaningful; it is
+	'' FIN_UNKNOWN, and a default-constructed Result is a failure carrying it.
+	declare constructor( )
+	declare constructor( byval c as FinanceErrorCode )
+	'' 'resid' and 'guess', NOT 'residual' and 'bestGuess'.  FreeBASIC
+	'' identifiers are case-insensitive, so a parameter named 'residual' IS the
+	'' member Residual( ) once the body puts members in scope, and the
+	'' constructor fails with a misleading
+	''     error 4: Duplicated definition, at parameter 3 (residual)
+	'' Measured, not guessed.
+	declare constructor( byval c as FinanceErrorCode, byval iters as long, _
+	                     byval resid as double, byval guess as double )
+
+	declare const function Code      ( ) as FinanceErrorCode
+	declare const function Message   ( ) as string
+
+	'' Filled by the solver only; zero elsewhere.  BestGuess( ) is NaN when no
+	'' iterate was ever produced -- which is the honest answer for a failure
+	'' that happened before any iteration, such as FIN_NO_SIGN_CHANGE.
+	declare const function Iterations( ) as long
+	declare const function Residual  ( ) as double
+	declare const function BestGuess ( ) as double
+
+private:
+	as FinanceErrorCode m_code
+	as long             m_iters
+	as double           m_residual
+	as double           m_best
+end type
+
+private constructor FinanceError( )
+	this.m_code     = FIN_UNKNOWN
+	this.m_iters    = 0
+	this.m_residual = 0.0
+	this.m_best     = NaN( )        '' fb/math.bi
+end constructor
+
+private constructor FinanceError( byval c as FinanceErrorCode )
+	this.m_code     = c
+	this.m_iters    = 0
+	this.m_residual = 0.0
+	this.m_best     = NaN( )
+end constructor
+
+'' A CONSTRUCTOR RATHER THAN A SETTER, because the fields are private and a free
+'' function in the same namespace still cannot reach them -- fb/fserror.bi hit
+'' the same wall and answered it with a public SetPath2( ).  A constructor is
+'' the better answer here: the solver payload is set once, at construction, and
+'' there is no reason for it ever to be mutated afterwards.
+private constructor FinanceError _
+	( _
+		byval c as FinanceErrorCode, byval iters as long, _
+		byval resid as double, byval guess as double _
+	)
+
+	this.m_code     = c
+	this.m_iters    = iters
+	this.m_residual = resid
+	this.m_best     = guess
+end constructor
+
+private const function FinanceError.Code( ) as FinanceErrorCode
+	return this.m_code
+end function
+
+private const function FinanceError.Message( ) as string
+	return FinanceErrorMessage( this.m_code )
+end function
+
+private const function FinanceError.Iterations( ) as long
+	return this.m_iters
+end function
+
+private const function FinanceError.Residual( ) as double
+	return this.m_residual
+end function
+
+private const function FinanceError.BestGuess( ) as double
+	return this.m_best
+end function
+
+'' ===========================================================================
+'' Construction
+''
+'' By named free function, never by an implicit conversion -- the same rule
+'' fb/decimal.bi and fb/currency.bi follow, and for the same reason: a
+'' one-argument constructor that silently accepts the wrong thing is a defect
+'' that compiles.
+'' ===========================================================================
+
+'' 'fe', NOT the obvious 'e'.  fb/math.bi declares `const as double E` (Euler's
+'' number) and FreeBASIC identifiers are case-insensitive, so `dim as
+'' FinanceError e` collides with it:
+''     error 4: Duplicated definition, e
+'' Measured while building this header.  Any local named 'e' in a translation
+'' unit that includes fb/math.bi has the same problem.
+private function FinanceErrorMake overload ( byval c as FinanceErrorCode ) as FinanceError
+	dim as FinanceError fe = FinanceError( c )
+	return fe
+end function
+
+'' The solver form.  'best' is the last iterate, which a caller may show as an
+'' approximation PROVIDED it says so -- it is reachable only through Failure( ),
+'' so it can never be mistaken for a returned value.
+private function FinanceErrorSolver overload _
+	( _
+		byval c as FinanceErrorCode, byval iters as long, _
+		byval resid as double, byval guess as double _
+	) as FinanceError
+
+	dim as FinanceError fe = FinanceError( c, iters, resid, guess )
+	return fe
+end function
+
+'' ===========================================================================
+'' The result aliases
+''
+'' One per T this module returns.  See the header comment for why this cannot
+'' be a single generic alias.  Aliases whose T is defined in a later header --
+'' AmortizationSchedule, ReturnSummary and the rest -- are declared in the
+'' header that owns the payload type, because an alias needs its T complete.
+'' ===========================================================================
+
+type FinResultDec  as Result( of Decimal,  FinanceError )
+type FinResultCur  as Result( of Currency, FinanceError )
+type FinResultDbl  as Result( of double,   FinanceError )
+type FinResultLong as Result( of long,     FinanceError )
+
+'' ===========================================================================
+'' Shared failure constructors
+''
+'' Spelled once because `Fail( of Decimal, FinanceError )( ... )` is four words
+'' of ceremony at every one of the several dozen call sites, and because
+'' BOTH type arguments have to be written out -- inference reads parameter
+'' positions only, and Fail mentions just E (result.bi:139-149).
+'' ===========================================================================
+
+private function FinFailDec overload ( byval c as FinanceErrorCode ) as FinResultDec
+	return Fail( of Decimal, FinanceError )( FinanceErrorMake( c ) )
+end function
+
+private function FinFailDbl overload ( byval c as FinanceErrorCode ) as FinResultDbl
+	return Fail( of double, FinanceError )( FinanceErrorMake( c ) )
+end function
+
+private function FinFailLong overload ( byval c as FinanceErrorCode ) as FinResultLong
+	return Fail( of long, FinanceError )( FinanceErrorMake( c ) )
+end function
+
+private function FinOkDec overload ( byref v as Decimal ) as FinResultDec
+	return Ok( of Decimal, FinanceError )( v )
+end function
+
+private function FinOkDbl overload ( byval v as double ) as FinResultDbl
+	return Ok( of double, FinanceError )( v )
+end function
+
+private function FinOkLong overload ( byval v as long ) as FinResultLong
+	return Ok( of long, FinanceError )( v )
+end function
+
+end namespace

@@ -1,0 +1,505 @@
+'' fb/vector.bi -- vectors, matrices and quaternions
+''
+''     #include once "fb/vector.bi"
+''     using FB
+''
+''     dim as Vec3 a = type<Vec3>( 1, 2, 3 ), b = type<Vec3>( 4, 5, 6 )
+''     print Dot( a, b ), Length( a )
+''     dim as Vec3 n = Normalize( Cross( a, b ) )
+''
+''     dim as Mat4 mvp = proj * view * model
+''     dim as Vec3 p = TransformPoint( mvp, v )
+''
+'' Specified by C:\dev\docs\math\RFC-0007-vectors.md.  Phase 8.
+''
+'' COMPLEX NUMBERS ARE NOT HERE any more, and this header does NOT include the
+'' one they moved to.  They used to be generated from the same macro text as
+'' Vec/Mat/Quat on the grounds that they are the same kind of object; that was
+'' true of the arithmetic and false of everything else, and a program that
+'' wants Dot should not pay for twelve inverse hyperbolic functions.
+''
+''     #include once "fb/complex.bi"     ' Complex, CAbs, CExp, CSqrt, ...
+''
+'' See C:\dev\docs\math\RFC-0009-complex.md, which supersedes RFC-0007 s5.
+''
+'' WHY THE TYPES ARE CONCRETE.  'Vec( of T, N )' is not expressible: FB
+'' generics take TYPE parameters only, and there is no mechanism for binding a
+'' parameter to the value 3.  The half-measure 'Vec3( of T )' is expressible and
+'' was rejected -- the operator surface is large, global generic operators
+'' infer through nested positions combinatorially, and with no constraints on
+'' type parameters 'Vec3( of string )' instantiates happily and fails somewhere
+'' unhelpful inside the header.  So: concrete types, generated from one text.
+''
+'' CONVENTIONS, STATED BECAUSE HALF OF ALL MATRIX BUGS ARE THESE TWO:
+''
+''   COLUMN-MAJOR STORAGE, COLUMN-VECTOR CONVENTION.  'm * v' transforms v, and
+''   'proj * view * model' applies model FIRST -- matching OpenGL, GLSL and the
+''   mathematical convention.  Row-major with 'v * m' is equally valid and is
+''   what Direct3D's fixed-function documentation used; choosing it would mean
+''   every graphics tutorial a reader finds is transposed from their code.
+''
+''   TransformPoint AND TransformVector ARE SEPARATE.  A point has a position
+''   and translates; a direction does not.  Conflating them is the other half.
+
+#pragma once
+
+#include once "fblimits.bi"
+
+namespace FB
+
+'' ===========================================================================
+'' Vectors
+'' ===========================================================================
+
+#macro __FB_VEC_DEF( E, V2, V3, V4 )
+
+	type V2
+		as E x, y
+	end type
+
+	type V3
+		as E x, y, z
+	end type
+
+	type V4
+		as E x, y, z, w
+	end type
+
+	private function V2##_ overload ( byval x as E, byval y as E ) as V2
+		dim as V2 r : r.x = x : r.y = y : function = r
+	end function
+
+	private function V3##_ overload ( byval x as E, byval y as E, byval z as E ) as V3
+		dim as V3 r : r.x = x : r.y = y : r.z = z : function = r
+	end function
+
+	private function V4##_ overload ( byval x as E, byval y as E, byval z as E, byval w as E ) as V4
+		dim as V4 r : r.x = x : r.y = y : r.z = z : r.w = w : function = r
+	end function
+
+	private operator + ( byref a as V2, byref b as V2 ) as V2 : operator = V2##_( a.x + b.x, a.y + b.y ) : end operator
+	private operator - ( byref a as V2, byref b as V2 ) as V2 : operator = V2##_( a.x - b.x, a.y - b.y ) : end operator
+	private operator - ( byref a as V2 ) as V2                : operator = V2##_( -a.x, -a.y )           : end operator
+	private operator * ( byref a as V2, byval s as E ) as V2  : operator = V2##_( a.x * s, a.y * s )     : end operator
+	private operator * ( byval s as E, byref a as V2 ) as V2  : operator = V2##_( a.x * s, a.y * s )     : end operator
+	private operator / ( byref a as V2, byval s as E ) as V2  : operator = V2##_( a.x / s, a.y / s )     : end operator
+	private operator = ( byref a as V2, byref b as V2 ) as boolean  : operator = ( a.x = b.x andalso a.y = b.y ) : end operator
+	private operator <> ( byref a as V2, byref b as V2 ) as boolean : operator = ( ( a.x = b.x andalso a.y = b.y ) = false ) : end operator
+
+	private operator + ( byref a as V3, byref b as V3 ) as V3 : operator = V3##_( a.x + b.x, a.y + b.y, a.z + b.z ) : end operator
+	private operator - ( byref a as V3, byref b as V3 ) as V3 : operator = V3##_( a.x - b.x, a.y - b.y, a.z - b.z ) : end operator
+	private operator - ( byref a as V3 ) as V3                : operator = V3##_( -a.x, -a.y, -a.z )                : end operator
+	private operator * ( byref a as V3, byval s as E ) as V3  : operator = V3##_( a.x * s, a.y * s, a.z * s )       : end operator
+	private operator * ( byval s as E, byref a as V3 ) as V3  : operator = V3##_( a.x * s, a.y * s, a.z * s )       : end operator
+	private operator / ( byref a as V3, byval s as E ) as V3  : operator = V3##_( a.x / s, a.y / s, a.z / s )       : end operator
+	private operator = ( byref a as V3, byref b as V3 ) as boolean  : operator = ( a.x = b.x andalso a.y = b.y andalso a.z = b.z ) : end operator
+	private operator <> ( byref a as V3, byref b as V3 ) as boolean : operator = ( ( a.x = b.x andalso a.y = b.y andalso a.z = b.z ) = false ) : end operator
+
+	private operator + ( byref a as V4, byref b as V4 ) as V4 : operator = V4##_( a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w ) : end operator
+	private operator - ( byref a as V4, byref b as V4 ) as V4 : operator = V4##_( a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w ) : end operator
+	private operator * ( byref a as V4, byval s as E ) as V4  : operator = V4##_( a.x * s, a.y * s, a.z * s, a.w * s )         : end operator
+	private operator = ( byref a as V4, byref b as V4 ) as boolean : operator = ( a.x = b.x andalso a.y = b.y andalso a.z = b.z andalso a.w = b.w ) : end operator
+
+	'' NO '*' BETWEEN TWO VECTORS.  It would have to mean either the dot
+	'' product or the component-wise product, both are wanted, and neither is
+	'' obviously the default.  Dot( a, b ) and Mul( a, b ) say which.  GLSL
+	'' chose component-wise and confuses people about it permanently.
+	private function Dot overload ( byref a as V2, byref b as V2 ) as E : function = a.x*b.x + a.y*b.y : end function
+	private function Dot overload ( byref a as V3, byref b as V3 ) as E : function = a.x*b.x + a.y*b.y + a.z*b.z : end function
+	private function Dot overload ( byref a as V4, byref b as V4 ) as E : function = a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w : end function
+
+	private function Mul overload ( byref a as V3, byref b as V3 ) as V3
+		function = V3##_( a.x*b.x, a.y*b.y, a.z*b.z )
+	end function
+
+	private function Cross overload ( byref a as V3, byref b as V3 ) as V3
+		function = V3##_( a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x )
+	end function
+
+	'' LengthSquared is the one to use for comparisons: 'Length(a) < Length(b)'
+	'' costs two square roots for a question that needs none.
+	private function LengthSquared overload ( byref a as V2 ) as E : function = Dot( a, a ) : end function
+	private function LengthSquared overload ( byref a as V3 ) as E : function = Dot( a, a ) : end function
+	private function LengthSquared overload ( byref a as V4 ) as E : function = Dot( a, a ) : end function
+
+	private function Length overload ( byref a as V2 ) as E : function = cast( E, sqr( cdbl( Dot( a, a ) ) ) ) : end function
+	private function Length overload ( byref a as V3 ) as E : function = cast( E, sqr( cdbl( Dot( a, a ) ) ) ) : end function
+	private function Length overload ( byref a as V4 ) as E : function = cast( E, sqr( cdbl( Dot( a, a ) ) ) ) : end function
+
+	private function DistanceSquared overload ( byref a as V3, byref b as V3 ) as E
+		dim as V3 d = a - b
+		function = Dot( d, d )
+	end function
+
+	private function Distance overload ( byref a as V3, byref b as V3 ) as E
+		function = cast( E, sqr( cdbl( DistanceSquared( a, b ) ) ) )
+	end function
+
+	'' NORMALIZE OF A ZERO VECTOR RETURNS THE ZERO VECTOR, not NaN.  This is
+	'' the case that actually occurs -- a zero-length normal from a degenerate
+	'' triangle -- and propagating NaN through a render loop turns one bad
+	'' triangle into a blank frame.
+	private function Normalize overload ( byref a as V2 ) as V2
+		dim as E l2 = Dot( a, a )
+		if( cdbl( l2 ) <= 1e-30 ) then return V2##_( 0, 0 )
+		dim as E inv = cast( E, 1.0 / sqr( cdbl( l2 ) ) )
+		function = V2##_( a.x * inv, a.y * inv )
+	end function
+
+	private function Normalize overload ( byref a as V3 ) as V3
+		dim as E l2 = Dot( a, a )
+		if( cdbl( l2 ) <= 1e-30 ) then return V3##_( 0, 0, 0 )
+		dim as E inv = cast( E, 1.0 / sqr( cdbl( l2 ) ) )
+		function = V3##_( a.x * inv, a.y * inv, a.z * inv )
+	end function
+
+	private function Lerp overload ( byref a as V3, byref b as V3, byval t as E ) as V3
+		function = V3##_( a.x + t*(b.x-a.x), a.y + t*(b.y-a.y), a.z + t*(b.z-a.z) )
+	end function
+
+	private function Reflect overload ( byref v as V3, byref n as V3 ) as V3
+		dim as E d = Dot( v, n ) * cast( E, 2 )
+		function = V3##_( v.x - d*n.x, v.y - d*n.y, v.z - d*n.z )
+	end function
+
+	private function Angle overload ( byref a as V3, byref b as V3 ) as E
+		dim as double la = sqr( cdbl( Dot( a, a ) ) ), lb = sqr( cdbl( Dot( b, b ) ) )
+		if( la = 0.0 orelse lb = 0.0 ) then return cast( E, 0 )
+		dim as double c = cdbl( Dot( a, b ) ) / ( la * lb )
+		if( c > 1.0 ) then c = 1.0
+		if( c < -1.0 ) then c = -1.0
+		function = cast( E, acos( c ) )
+	end function
+
+#endmacro
+
+__FB_VEC_DEF( single, Vec2f, Vec3f, Vec4f )
+__FB_VEC_DEF( double, Vec2d, Vec3d, Vec4d )
+
+'' The unsuffixed names are the SINGLE forms, because that is what graphics
+'' code wants and typing 'f' on every declaration is friction with no benefit.
+type Vec2 as Vec2f
+type Vec3 as Vec3f
+type Vec4 as Vec4f
+
+'' ===========================================================================
+'' Matrices -- column-major, column-vector
+'' ===========================================================================
+
+#macro __FB_MAT_DEF( E, V3, V4, M4 )
+
+	'' m( column * 4 + row ), so m( 12..14 ) is the translation column
+	type M4
+		as E m( 0 to 15 )
+	end type
+
+	private function M4##Identity overload ( ) as M4
+		dim as M4 r
+		for i as long = 0 to 15
+			r.m( i ) = 0
+		next
+		r.m( 0 ) = 1 : r.m( 5 ) = 1 : r.m( 10 ) = 1 : r.m( 15 ) = 1
+		function = r
+	end function
+
+	private function M4##Translation overload ( byval x as E, byval y as E, byval z as E ) as M4
+		dim as M4 r = M4##Identity( )
+		r.m( 12 ) = x : r.m( 13 ) = y : r.m( 14 ) = z
+		function = r
+	end function
+
+	private function M4##Scaling overload ( byval x as E, byval y as E, byval z as E ) as M4
+		dim as M4 r = M4##Identity( )
+		r.m( 0 ) = x : r.m( 5 ) = y : r.m( 10 ) = z
+		function = r
+	end function
+
+	private function M4##RotationX overload ( byval a as E ) as M4
+		dim as M4 r = M4##Identity( )
+		dim as E c = cast( E, cos( cdbl( a ) ) ), s = cast( E, sin( cdbl( a ) ) )
+		r.m( 5 ) = c : r.m( 6 ) = s : r.m( 9 ) = -s : r.m( 10 ) = c
+		function = r
+	end function
+
+	private function M4##RotationY overload ( byval a as E ) as M4
+		dim as M4 r = M4##Identity( )
+		dim as E c = cast( E, cos( cdbl( a ) ) ), s = cast( E, sin( cdbl( a ) ) )
+		r.m( 0 ) = c : r.m( 2 ) = -s : r.m( 8 ) = s : r.m( 10 ) = c
+		function = r
+	end function
+
+	private function M4##RotationZ overload ( byval a as E ) as M4
+		dim as M4 r = M4##Identity( )
+		dim as E c = cast( E, cos( cdbl( a ) ) ), s = cast( E, sin( cdbl( a ) ) )
+		r.m( 0 ) = c : r.m( 1 ) = s : r.m( 4 ) = -s : r.m( 5 ) = c
+		function = r
+	end function
+
+	private operator * ( byref a as M4, byref b as M4 ) as M4
+		dim as M4 r
+		for col as long = 0 to 3
+			for row as long = 0 to 3
+				dim as E s = 0
+				for k as long = 0 to 3
+					s += a.m( k*4 + row ) * b.m( col*4 + k )
+				next
+				r.m( col*4 + row ) = s
+			next
+		next
+		operator = r
+	end operator
+
+	private operator + ( byref a as M4, byref b as M4 ) as M4
+		dim as M4 r
+		for i as long = 0 to 15
+			r.m( i ) = a.m( i ) + b.m( i )
+		next
+		operator = r
+	end operator
+
+	private operator = ( byref a as M4, byref b as M4 ) as boolean
+		for i as long = 0 to 15
+			if( a.m( i ) <> b.m( i ) ) then return false
+		next
+		operator = true
+	end operator
+
+	'' A POINT: w = 1, so the translation column applies, and the result is
+	'' divided by w.
+	private function TransformPoint overload ( byref a as M4, byref v as V3 ) as V3
+		dim as E x = a.m(0)*v.x + a.m(4)*v.y + a.m(8)*v.z  + a.m(12)
+		dim as E y = a.m(1)*v.x + a.m(5)*v.y + a.m(9)*v.z  + a.m(13)
+		dim as E z = a.m(2)*v.x + a.m(6)*v.y + a.m(10)*v.z + a.m(14)
+		dim as E w = a.m(3)*v.x + a.m(7)*v.y + a.m(11)*v.z + a.m(15)
+		if( w <> 0 andalso w <> 1 ) then
+			x /= w : y /= w : z /= w
+		end if
+		function = V3##_( x, y, z )
+	end function
+
+	'' A DIRECTION: w = 0, so translation is ignored.
+	private function TransformVector overload ( byref a as M4, byref v as V3 ) as V3
+		function = V3##_( a.m(0)*v.x + a.m(4)*v.y + a.m(8)*v.z, _
+		                  a.m(1)*v.x + a.m(5)*v.y + a.m(9)*v.z, _
+		                  a.m(2)*v.x + a.m(6)*v.y + a.m(10)*v.z )
+	end function
+
+	private function Transpose overload ( byref a as M4 ) as M4
+		dim as M4 r
+		for col as long = 0 to 3
+			for row as long = 0 to 3
+				r.m( row*4 + col ) = a.m( col*4 + row )
+			next
+		next
+		function = r
+	end function
+
+	private function Determinant overload ( byref a as M4 ) as E
+		dim as E s0 = a.m(0)*a.m(5) - a.m(1)*a.m(4)
+		dim as E s1 = a.m(0)*a.m(6) - a.m(2)*a.m(4)
+		dim as E s2 = a.m(0)*a.m(7) - a.m(3)*a.m(4)
+		dim as E s3 = a.m(1)*a.m(6) - a.m(2)*a.m(5)
+		dim as E s4 = a.m(1)*a.m(7) - a.m(3)*a.m(5)
+		dim as E s5 = a.m(2)*a.m(7) - a.m(3)*a.m(6)
+		dim as E c5 = a.m(10)*a.m(15) - a.m(11)*a.m(14)
+		dim as E c4 = a.m(9)*a.m(15)  - a.m(11)*a.m(13)
+		dim as E c3 = a.m(9)*a.m(14)  - a.m(10)*a.m(13)
+		dim as E c2 = a.m(8)*a.m(15)  - a.m(11)*a.m(12)
+		dim as E c1 = a.m(8)*a.m(14)  - a.m(10)*a.m(12)
+		dim as E c0 = a.m(8)*a.m(13)  - a.m(9)*a.m(12)
+		function = s0*c5 - s1*c4 + s2*c3 + s3*c2 - s4*c1 + s5*c0
+	end function
+
+	'' A singular matrix has no inverse; that is DATA rather than a programming
+	'' error, so the caller is told through the boolean rather than handed
+	'' garbage or the identity.
+	private function TryInverse overload ( byref a as M4, byref outm as M4 ) as boolean
+		dim as E s0 = a.m(0)*a.m(5) - a.m(1)*a.m(4)
+		dim as E s1 = a.m(0)*a.m(6) - a.m(2)*a.m(4)
+		dim as E s2 = a.m(0)*a.m(7) - a.m(3)*a.m(4)
+		dim as E s3 = a.m(1)*a.m(6) - a.m(2)*a.m(5)
+		dim as E s4 = a.m(1)*a.m(7) - a.m(3)*a.m(5)
+		dim as E s5 = a.m(2)*a.m(7) - a.m(3)*a.m(6)
+		dim as E c5 = a.m(10)*a.m(15) - a.m(11)*a.m(14)
+		dim as E c4 = a.m(9)*a.m(15)  - a.m(11)*a.m(13)
+		dim as E c3 = a.m(9)*a.m(14)  - a.m(10)*a.m(13)
+		dim as E c2 = a.m(8)*a.m(15)  - a.m(11)*a.m(12)
+		dim as E c1 = a.m(8)*a.m(14)  - a.m(10)*a.m(12)
+		dim as E c0 = a.m(8)*a.m(13)  - a.m(9)*a.m(12)
+
+		dim as E det = s0*c5 - s1*c4 + s2*c3 + s3*c2 - s4*c1 + s5*c0
+		dim as double ad = cdbl( det ) : if( ad < 0.0 ) then ad = -ad
+		if( ad <= 1e-30 ) then return false
+		dim as E id = cast( E, 1.0 / cdbl( det ) )
+
+		outm.m(0)  = ( a.m(5)*c5 - a.m(6)*c4 + a.m(7)*c3 ) * id
+		outm.m(1)  = ( -a.m(1)*c5 + a.m(2)*c4 - a.m(3)*c3 ) * id
+		outm.m(2)  = ( a.m(13)*s5 - a.m(14)*s4 + a.m(15)*s3 ) * id
+		outm.m(3)  = ( -a.m(9)*s5 + a.m(10)*s4 - a.m(11)*s3 ) * id
+		outm.m(4)  = ( -a.m(4)*c5 + a.m(6)*c2 - a.m(7)*c1 ) * id
+		outm.m(5)  = ( a.m(0)*c5 - a.m(2)*c2 + a.m(3)*c1 ) * id
+		outm.m(6)  = ( -a.m(12)*s5 + a.m(14)*s2 - a.m(15)*s1 ) * id
+		outm.m(7)  = ( a.m(8)*s5 - a.m(10)*s2 + a.m(11)*s1 ) * id
+		outm.m(8)  = ( a.m(4)*c4 - a.m(5)*c2 + a.m(7)*c0 ) * id
+		outm.m(9)  = ( -a.m(0)*c4 + a.m(1)*c2 - a.m(3)*c0 ) * id
+		outm.m(10) = ( a.m(12)*s4 - a.m(13)*s2 + a.m(15)*s0 ) * id
+		outm.m(11) = ( -a.m(8)*s4 + a.m(9)*s2 - a.m(11)*s0 ) * id
+		outm.m(12) = ( -a.m(4)*c3 + a.m(5)*c1 - a.m(6)*c0 ) * id
+		outm.m(13) = ( a.m(0)*c3 - a.m(1)*c1 + a.m(2)*c0 ) * id
+		outm.m(14) = ( -a.m(12)*s3 + a.m(13)*s1 - a.m(14)*s0 ) * id
+		outm.m(15) = ( a.m(8)*s3 - a.m(9)*s1 + a.m(10)*s0 ) * id
+		function = true
+	end function
+
+	private function M4##Perspective overload ( byval fovy as E, byval aspect as E, byval zn as E, byval zf as E ) as M4
+		dim as M4 r
+		for i as long = 0 to 15
+			r.m( i ) = 0
+		next
+		dim as double f = 1.0 / tan( cdbl( fovy ) / 2.0 )
+		r.m(0)  = cast( E, f / cdbl( aspect ) )
+		r.m(5)  = cast( E, f )
+		r.m(10) = cast( E, ( cdbl( zf ) + cdbl( zn ) ) / ( cdbl( zn ) - cdbl( zf ) ) )
+		r.m(11) = cast( E, -1 )
+		r.m(14) = cast( E, ( 2.0 * cdbl( zf ) * cdbl( zn ) ) / ( cdbl( zn ) - cdbl( zf ) ) )
+		function = r
+	end function
+
+	private function M4##Orthographic overload ( byval l as E, byval r_ as E, byval b as E, byval t as E, byval zn as E, byval zf as E ) as M4
+		dim as M4 r = M4##Identity( )
+		r.m(0)  = cast( E, 2.0 / ( cdbl( r_ ) - cdbl( l ) ) )
+		r.m(5)  = cast( E, 2.0 / ( cdbl( t ) - cdbl( b ) ) )
+		r.m(10) = cast( E, -2.0 / ( cdbl( zf ) - cdbl( zn ) ) )
+		r.m(12) = cast( E, -( cdbl( r_ ) + cdbl( l ) ) / ( cdbl( r_ ) - cdbl( l ) ) )
+		r.m(13) = cast( E, -( cdbl( t ) + cdbl( b ) ) / ( cdbl( t ) - cdbl( b ) ) )
+		r.m(14) = cast( E, -( cdbl( zf ) + cdbl( zn ) ) / ( cdbl( zf ) - cdbl( zn ) ) )
+		function = r
+	end function
+
+#endmacro
+
+__FB_MAT_DEF( single, Vec3f, Vec4f, Mat4f )
+__FB_MAT_DEF( double, Vec3d, Vec4d, Mat4d )
+
+type Mat4 as Mat4f
+
+'' ===========================================================================
+'' Quaternions -- stored (x, y, z, w) with w LAST, matching GLM and the
+'' graphics convention.  w first is the physics convention and is equally
+'' common, which is why the order is stated rather than assumed.
+'' ===========================================================================
+
+#macro __FB_QUAT_DEF( E, Q, V3, M4 )
+
+	type Q
+		as E x, y, z, w
+	end type
+
+	private function Q##_ overload ( byval x as E, byval y as E, byval z as E, byval w as E ) as Q
+		dim as Q r : r.x = x : r.y = y : r.z = z : r.w = w : function = r
+	end function
+
+	private function Q##Identity overload ( ) as Q
+		function = Q##_( 0, 0, 0, 1 )
+	end function
+
+	private function Q##FromAxisAngle overload ( byref axis as V3, byval ang as E ) as Q
+		dim as V3 n = Normalize( axis )
+		dim as double h = cdbl( ang ) / 2.0
+		dim as double s = sin( h )
+		function = Q##_( cast( E, n.x * s ), cast( E, n.y * s ), cast( E, n.z * s ), cast( E, cos( h ) ) )
+	end function
+
+	private operator * ( byref a as Q, byref b as Q ) as Q
+		operator = Q##_( a.w*b.x + a.x*b.w + a.y*b.z - a.z*b.y, _
+		                 a.w*b.y - a.x*b.z + a.y*b.w + a.z*b.x, _
+		                 a.w*b.z + a.x*b.y - a.y*b.x + a.z*b.w, _
+		                 a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z )
+	end operator
+
+	private function Conjugate overload ( byref a as Q ) as Q
+		function = Q##_( -a.x, -a.y, -a.z, a.w )
+	end function
+
+	private function Dot overload ( byref a as Q, byref b as Q ) as E
+		function = a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w
+	end function
+
+	private function Length overload ( byref a as Q ) as E
+		function = cast( E, sqr( cdbl( Dot( a, a ) ) ) )
+	end function
+
+	private function Normalize overload ( byref a as Q ) as Q
+		dim as double l2 = cdbl( Dot( a, a ) )
+		if( l2 <= 1e-30 ) then return Q##Identity( )
+		dim as E inv = cast( E, 1.0 / sqr( l2 ) )
+		function = Q##_( a.x*inv, a.y*inv, a.z*inv, a.w*inv )
+	end function
+
+	private function Rotate overload ( byref q as Q, byref v as V3 ) as V3
+		'' v + 2 * cross( q.xyz, cross( q.xyz, v ) + q.w * v )
+		dim as V3 u = V3##_( q.x, q.y, q.z )
+		dim as V3 t = Cross( u, v )
+		t = V3##_( t.x + q.w*v.x, t.y + q.w*v.y, t.z + q.w*v.z )
+		dim as V3 c = Cross( u, t )
+		function = V3##_( v.x + cast( E, 2 )*c.x, v.y + cast( E, 2 )*c.y, v.z + cast( E, 2 )*c.z )
+	end function
+
+	'' Built in place rather than from M4##Identity( ): initialising a local
+	'' from another by-value UDT return SEGFAULTS under -gen gas64 here, while
+	'' -gen gcc is fine.  Not reduced to a minimal repro -- the obvious
+	'' reduction does not reproduce -- so this is a workaround, not a fix.
+	private function ToMatrix overload ( byref q as Q ) as M4
+		dim as M4 r
+		for i as long = 0 to 15
+			r.m( i ) = 0
+		next
+		r.m( 15 ) = 1
+		dim as E qx = q.x
+		dim as E qy = q.y
+		dim as E qz = q.z
+		dim as E qw = q.w
+		r.m(0)  = 1 - 2*(qy*qy + qz*qz)
+		r.m(1)  = 2*(qx*qy + qz*qw)
+		r.m(2)  = 2*(qx*qz - qy*qw)
+		r.m(4)  = 2*(qx*qy - qz*qw)
+		r.m(5)  = 1 - 2*(qx*qx + qz*qz)
+		r.m(6)  = 2*(qy*qz + qx*qw)
+		r.m(8)  = 2*(qx*qz + qy*qw)
+		r.m(9)  = 2*(qy*qz - qx*qw)
+		r.m(10) = 1 - 2*(qx*qx + qy*qy)
+		function = r
+	end function
+
+	'' SLERP TAKES THE SHORT PATH.  q and -q are the same rotation, and without
+	'' negating one operand when the dot product is negative it takes the long
+	'' way round three-quarters of the time.  Falls back to normalised lerp
+	'' below a small angle, where the sin division loses precision.
+	private function Slerp overload ( byref a as Q, byref b as Q, byval t as E ) as Q
+		dim as double d = cdbl( Dot( a, b ) )
+		dim as Q q2 = b
+		if( d < 0.0 ) then
+			q2 = Q##_( -b.x, -b.y, -b.z, -b.w )
+			d = -d
+		end if
+		if( d > 0.9995 ) then
+			dim as Q r = Q##_( a.x + t*(q2.x-a.x), a.y + t*(q2.y-a.y), _
+			                   a.z + t*(q2.z-a.z), a.w + t*(q2.w-a.w) )
+			return Normalize( r )
+		end if
+		dim as double theta = acos( d )
+		dim as double st = sin( theta )
+		dim as double wa = sin( ( 1.0 - cdbl( t ) ) * theta ) / st
+		dim as double wb = sin( cdbl( t ) * theta ) / st
+		function = Q##_( cast( E, wa*a.x + wb*q2.x ), cast( E, wa*a.y + wb*q2.y ), _
+		                 cast( E, wa*a.z + wb*q2.z ), cast( E, wa*a.w + wb*q2.w ) )
+	end function
+
+#endmacro
+
+__FB_QUAT_DEF( single, Quatf, Vec3f, Mat4f )
+__FB_QUAT_DEF( double, Quatd, Vec3d, Mat4d )
+
+type Quat as Quatf
+
+end namespace

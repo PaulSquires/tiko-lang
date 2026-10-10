@@ -1,0 +1,591 @@
+'' fb/tuidraw.bi -- braille canvas, graphs, sparklines, bar charts and meters
+''
+''     dim as TuiCanvas c = TuiCanvas( 60, 10 )   '' 120 x 40 DOTS
+''     c.Dot( 12, 30, TuiRgb( 90, 160, 255 ) )
+''     c.Blit( *f, area )
+''
+'' RFC-0008 section 3 -- C:\dev\docs\tui\RFC-0008-widget-catalogue.md.
+''
+'' ---------------------------------------------------------------------------
+'' WHY THIS IS PHASE 6 AND NOT AFTER PHASE 8
+''
+'' It was scheduled as "deferred" in the first draft of ranked-gaps.md, on the
+'' reasoning that charts are self-contained and easy to add later. That was
+'' right about the coupling and wrong about the requirement: the agreed success
+'' criterion for this module is a btop-style dashboard, and that screen is
+'' roughly half chart. A module that shipped everything else would render the
+'' frames, tables and labels of that screen and leave five holes in it.
+''
+'' ---------------------------------------------------------------------------
+'' THE BRAILLE BIT ORDER IS NOT RASTER ORDER
+''
+'' One cell packs a 2x4 sub-cell bitmap into one codepoint, U+2800 plus a bit
+'' per dot. The bit order is the historical Braille order, and assuming raster
+'' order is the single most common mistake in a braille canvas:
+''
+''     dot (0,0) = bit 0      dot (1,0) = bit 3
+''     dot (0,1) = bit 1      dot (1,1) = bit 4
+''     dot (0,2) = bit 2      dot (1,2) = bit 5
+''     dot (0,3) = bit 6      dot (1,3) = bit 7
+''
+'' Bits 6 and 7 are the BOTTOM row, not the right column.
+
+#pragma once
+
+#include once "fb/tuiwidgets.bi"
+
+namespace FB
+
+'' ============================================================== colour lerp
+
+'' Linear interpolation in RGB. Used by every gradient here.
+private function TuiLerpColor( byval a as TuiColor, byval b as TuiColor, byval t as double ) as TuiColor
+	if( t < 0.0 ) then t = 0.0
+	if( t > 1.0 ) then t = 1.0
+	if( a.IsDefault( ) ) then return b
+	if( b.IsDefault( ) ) then return a
+
+	'' Only RGB interpolates meaningfully; anything else snaps at the midpoint
+	'' rather than inventing a palette walk.
+	if( ( a.kind <> TUICOLOR_RGB ) orelse ( b.kind <> TUICOLOR_RGB ) ) then
+		return iif( t < 0.5, a, b )
+	end if
+
+	dim as long r = a.r + clng( ( cast( long, b.r ) - a.r ) * t )
+	dim as long g = a.g + clng( ( cast( long, b.g ) - a.g ) * t )
+	dim as long bl = a.b + clng( ( cast( long, b.b ) - a.b ) * t )
+	return TuiRgb( cast( ubyte, r ), cast( ubyte, g ), cast( ubyte, bl ) )
+end function
+
+'' ============================================================== the canvas
+
+'' The dot -> bit map, in Braille order. Indexed [ sx ][ sy ] where sx is 0..1
+'' and sy is 0..3.
+private function TuiBrailleBit( byval sx as long, byval sy as long ) as long
+	static as long m( 0 to 1, 0 to 3 ) = { { 0, 1, 2, 6 }, { 3, 4, 5, 7 } }
+	if( sx < 0 ) then return 0
+	if( sx > 1 ) then return 0
+	if( sy < 0 ) then return 0
+	if( sy > 3 ) then return 0
+	return m( sx, sy )
+end function
+
+type TuiByteArray  as Array( of ubyte )
+type TuiColorArray as Array( of TuiColor )
+type TuiDoubleArray as Array( of double )
+
+'' cols x rows CELLS, which is (cols*2) x (rows*4) DOTS.
+type TuiCanvas
+	declare constructor( )
+	declare constructor( byval cols as long, byval rows as long )
+
+	declare sub Resize( byval cols as long, byval rows as long )
+	declare sub Clear( )
+	declare sub Dot( byval x as long, byval y as long, byval c as TuiColor )
+	declare sub Line_( byval x0 as long, byval y0 as long, _
+	                   byval x1 as long, byval y1 as long, byval c as TuiColor )
+	declare sub Blit( byref f as TuiFrame, byval area as TuiRect )
+
+	declare function DotWidth( ) as long
+	declare function DotHeight( ) as long
+	declare function CellCols( ) as long
+	declare function CellRows( ) as long
+	declare function Pattern( byval cx as long, byval cy as long ) as ubyte
+
+	private:
+		as TuiByteArray bits
+		as TuiColorArray tint
+		as long m_cols, m_rows
+end type
+
+private constructor TuiCanvas( )
+	m_cols = 0
+	m_rows = 0
+end constructor
+
+private constructor TuiCanvas( byval cols as long, byval rows as long )
+	Resize( cols, rows )
+end constructor
+
+private sub TuiCanvas.Resize( byval cols as long, byval rows as long )
+	m_cols = iif( cols > 0, cols, 0 )
+	m_rows = iif( rows > 0, rows, 0 )
+	dim as long n = m_cols * m_rows
+
+	bits.Clear( )
+	tint.Clear( )
+	if( n <= 0 ) then exit sub
+	bits.Reserve( n )
+	tint.Reserve( n )
+	dim as TuiColor def_
+	for i as long = 0 to n - 1
+		bits.Push( 0 )
+		tint.Push( def_ )
+	next
+end sub
+
+private sub TuiCanvas.Clear( )
+	dim as TuiColor def_
+	for i as long = 0 to bits.Count( ) - 1
+		bits[i] = 0
+		tint[i] = def_
+	next
+end sub
+
+private function TuiCanvas.DotWidth( ) as long  : return m_cols * 2 : end function
+private function TuiCanvas.DotHeight( ) as long : return m_rows * 4 : end function
+private function TuiCanvas.CellCols( ) as long  : return m_cols : end function
+private function TuiCanvas.CellRows( ) as long  : return m_rows : end function
+
+private function TuiCanvas.Pattern( byval cx as long, byval cy as long ) as ubyte
+	if( cx < 0 ) then return 0
+	if( cy < 0 ) then return 0
+	if( cx >= m_cols ) then return 0
+	if( cy >= m_rows ) then return 0
+	return bits[ cy * m_cols + cx ]
+end function
+
+'' COLOUR IS PER CELL, not per dot -- a terminal cell has one foreground. When
+'' dots of different colours land in the same cell the LAST ONE WRITTEN WINS.
+'' Documented rather than blended, because blending would produce a colour
+'' neither series has.
+private sub TuiCanvas.Dot( byval x as long, byval y as long, byval c as TuiColor )
+	if( x < 0 ) then exit sub
+	if( y < 0 ) then exit sub
+	if( x >= DotWidth( ) ) then exit sub
+	if( y >= DotHeight( ) ) then exit sub
+
+	dim as long cx = x \ 2, cy = y \ 4
+	dim as long idx = cy * m_cols + cx
+	bits[idx] or= cast( ubyte, 1 shl TuiBrailleBit( x mod 2, y mod 4 ) )
+	tint[idx] = c
+end sub
+
+'' Bresenham, so a steep line has no gaps.
+private sub TuiCanvas.Line_( byval x0 as long, byval y0 as long, _
+                             byval x1 as long, byval y1 as long, byval c as TuiColor )
+	dim as long dx = abs( x1 - x0 )
+	dim as long dy = -abs( y1 - y0 )
+	dim as long sx = iif( x0 < x1, 1, -1 )
+	dim as long sy = iif( y0 < y1, 1, -1 )
+	'' `acc` and not the conventional `err`: ERR is a FreeBASIC intrinsic and
+	'' is `error 4: Duplicated definition` as a local name.
+	dim as long acc = dx + dy
+
+	do
+		Dot( x0, y0, c )
+		if( ( x0 = x1 ) andalso ( y0 = y1 ) ) then exit do
+		dim as long e2 = 2 * acc
+		if( e2 >= dy ) then
+			acc += dy
+			x0 += sx
+		end if
+		if( e2 <= dx ) then
+			acc += dx
+			y0 += sy
+		end if
+	loop
+end sub
+
+'' An EMPTY cell is left alone rather than painted with U+2800, so a canvas
+'' blitted over existing content does not erase it.
+private sub TuiCanvas.Blit( byref f as TuiFrame, byval area as TuiRect )
+	if( area.IsEmpty( ) ) then exit sub
+
+	for cy as long = 0 to m_rows - 1
+		if( cy >= area.h ) then exit for
+		for cx as long = 0 to m_cols - 1
+			if( cx >= area.w ) then exit for
+			dim as long idx = cy * m_cols + cx
+			dim as ubyte p = bits[idx]
+			if( p = 0 ) then continue for
+
+			dim as ustring g
+			TuiAppendCp( g, &h2800 + p )
+			dim as TuiStyle st
+			st.fg = tint[idx]
+			st.mask = TUIATTR_ALL
+			f.SetCell( area.x + cx, area.y + cy, g, st )
+		next
+	next
+end sub
+
+'' ============================================================== graph
+
+enum TuiGraphKind
+	TUIGRAPH_BRAILLE = 0
+	TUIGRAPH_BLOCK          '' the eight vertical partial blocks, for fonts
+	                        '' with no braille coverage
+	TUIGRAPH_BAR
+end enum
+
+type TuiSeries
+	as TuiDoubleArray data
+	as TuiColor color
+	as ustring name
+end type
+
+type TuiSeriesArray as Array( of TuiSeries )
+
+'' The eight vertical partial blocks, U+2581 .. U+2588. n is 1..8.
+private function TuiVerticalBlock( byval n as long ) as ustring
+	dim as ustring s
+	if( n <= 0 ) then return " "
+	if( n > 8 ) then n = 8
+	TuiAppendCp( s, &h2580 + n )
+	return s
+end function
+
+type TuiGraph extends TuiWidget
+	as TuiSeriesArray series
+	as double minY, maxY
+	as boolean autoScale
+	as ubyte graphKind          '' `kind` collides with the abstract Kind( )
+	as boolean showAxes
+
+	declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+	declare function Kind( ) as ustring override
+
+	private:
+		declare sub hBounds( byref lo as double, byref hi as double )
+end type
+
+private function TuiGraph.Kind( ) as ustring : return "Graph" : end function
+
+private sub TuiGraph.hBounds( byref lo as double, byref hi as double )
+	lo = minY
+	hi = maxY
+	if( autoScale = FALSE ) then
+		if( hi <= lo ) then hi = lo + 1.0
+		exit sub
+	end if
+
+	dim as boolean first = TRUE
+	for s as long = 0 to series.Count( ) - 1
+		for i as long = 0 to series[s].data.Count( ) - 1
+			dim as double v = series[s].data[i]
+			if( first ) then
+				lo = v : hi = v : first = FALSE
+			else
+				if( v < lo ) then lo = v
+				if( v > hi ) then hi = v
+			end if
+		next
+	next
+	if( first ) then
+		lo = 0.0 : hi = 1.0
+	end if
+	'' a flat series must not divide by zero
+	if( hi <= lo ) then hi = lo + 1.0
+end sub
+
+private sub TuiGraph.Render( byref f as TuiFrame, byval area as TuiRect )
+	if( area.IsEmpty( ) ) then exit sub
+
+	dim as double lo, hi
+	hBounds( lo, hi )
+	dim as double span = hi - lo
+
+	if( graphKind = TUIGRAPH_BRAILLE ) then
+		dim as TuiCanvas c = TuiCanvas( area.w, area.h )
+		dim as long dw = c.DotWidth( ), dh = c.DotHeight( )
+		if( ( dw <= 0 ) orelse ( dh <= 0 ) ) then exit sub
+
+		for s as long = 0 to series.Count( ) - 1
+			dim as long n = series[s].data.Count( )
+			if( n = 0 ) then continue for
+
+			dim as long prevX = -1, prevY = -1
+			for px as long = 0 to dw - 1
+				'' the RIGHTMOST sample is the newest, which is what a history
+				'' plot means
+				dim as long i = n - 1 - ( ( dw - 1 - px ) * n ) \ dw
+				if( i < 0 ) then continue for
+				if( i >= n ) then i = n - 1
+
+				dim as double t = ( series[s].data[i] - lo ) / span
+				if( t < 0.0 ) then t = 0.0
+				if( t > 1.0 ) then t = 1.0
+				dim as long py = dh - 1 - clng( t * ( dh - 1 ) )
+
+				if( prevX >= 0 ) then
+					c.Line_( prevX, prevY, px, py, series[s].color )
+				else
+					c.Dot( px, py, series[s].color )
+				end if
+				prevX = px
+				prevY = py
+			next
+		next
+		c.Blit( f, area )
+		exit sub
+	end if
+
+	'' BLOCK / BAR: one column per sample, eight sub-rows per cell
+	for s as long = 0 to series.Count( ) - 1
+		dim as long n = series[s].data.Count( )
+		if( n = 0 ) then continue for
+		dim as TuiStyle st
+		st.fg = series[s].color
+		st.mask = TUIATTR_ALL
+
+		for px as long = 0 to area.w - 1
+			dim as long i = n - 1 - ( ( area.w - 1 - px ) * n ) \ area.w
+			if( i < 0 ) then continue for
+			if( i >= n ) then i = n - 1
+
+			dim as double t = ( series[s].data[i] - lo ) / span
+			if( t < 0.0 ) then t = 0.0
+			if( t > 1.0 ) then t = 1.0
+
+			dim as long eighths = clng( t * area.h * 8 )
+			dim as long full_ = eighths \ 8
+			dim as long rem_ = eighths mod 8
+
+			for r as long = 0 to full_ - 1
+				dim as long y = area.Bottom( ) - 1 - r
+				if( y < area.y ) then exit for
+				f.SetCell( area.x + px, y, TuiVerticalBlock( 8 ), st )
+			next
+			if( rem_ > 0 ) then
+				dim as long y = area.Bottom( ) - 1 - full_
+				if( y >= area.y ) then f.SetCell( area.x + px, y, TuiVerticalBlock( rem_ ), st )
+			end if
+		next
+	next
+end sub
+
+'' ============================================================== sparkline
+
+type TuiSparkline extends TuiWidget
+	as TuiDoubleArray data
+	as double maxValue          '' 0 = auto
+	as TuiColor color
+	as TuiColor gradientTo      '' optional, interpolated by height
+
+	declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+	declare function Kind( ) as ustring override
+end type
+
+private function TuiSparkline.Kind( ) as ustring : return "Sparkline" : end function
+
+private sub TuiSparkline.Render( byref f as TuiFrame, byval area as TuiRect )
+	if( area.IsEmpty( ) ) then exit sub
+	dim as long n = data.Count( )
+	if( n = 0 ) then exit sub
+
+	dim as double hi = maxValue
+	if( hi <= 0.0 ) then
+		for i as long = 0 to n - 1
+			if( data[i] > hi ) then hi = data[i]
+		next
+	end if
+	if( hi <= 0.0 ) then hi = 1.0
+
+	for px as long = 0 to area.w - 1
+		dim as long i = n - 1 - ( ( area.w - 1 - px ) * n ) \ area.w
+		if( i < 0 ) then continue for
+		if( i >= n ) then i = n - 1
+
+		dim as double t = data[i] / hi
+		if( t < 0.0 ) then t = 0.0
+		if( t > 1.0 ) then t = 1.0
+
+		dim as long lvl = clng( t * 8 )
+		if( ( lvl = 0 ) andalso ( t > 0.0 ) ) then lvl = 1
+
+		dim as TuiStyle st
+		st.fg = iif( gradientTo.IsDefault( ), color, TuiLerpColor( color, gradientTo, t ) )
+		st.mask = TUIATTR_ALL
+		f.SetCell( area.x + px, area.Bottom( ) - 1, TuiVerticalBlock( lvl ), st )
+	next
+end sub
+
+'' ============================================================== bar chart
+
+type TuiBar
+	as ustring label
+	as double value
+	as TuiColor color
+end type
+
+type TuiBarArray as Array( of TuiBar )
+
+type TuiBarChart extends TuiWidget
+	as TuiBarArray bars
+	as long barWidth, barGap
+	as double maxValue          '' 0 = auto
+	as boolean horizontal
+	as boolean showLabels
+	as TuiStyle labelStyle
+
+	declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+	declare function Kind( ) as ustring override
+end type
+
+private function TuiBarChart.Kind( ) as ustring : return "BarChart" : end function
+
+private sub TuiBarChart.Render( byref f as TuiFrame, byval area as TuiRect )
+	if( area.IsEmpty( ) ) then exit sub
+	dim as long n = bars.Count( )
+	if( n = 0 ) then exit sub
+
+	dim as double hi = maxValue
+	if( hi <= 0.0 ) then
+		for i as long = 0 to n - 1
+			if( bars[i].value > hi ) then hi = bars[i].value
+		next
+	end if
+	if( hi <= 0.0 ) then hi = 1.0
+
+	dim as long bw = iif( barWidth > 0, barWidth, 1 )
+	dim as long gap = iif( barGap > 0, barGap, 0 )
+
+	if( horizontal ) then
+		dim as long labelW = 0
+		if( showLabels ) then
+			for i as long = 0 to n - 1
+				dim as long w = TuiStringWidth( bars[i].label )
+				if( w > labelW ) then labelW = w
+			next
+			if( labelW > area.w \ 2 ) then labelW = area.w \ 2
+		end if
+
+		for i as long = 0 to n - 1
+			dim as long y = area.y + i
+			if( y >= area.Bottom( ) ) then exit for
+			if( showLabels andalso ( labelW > 0 ) ) then
+				f.DrawText( area.x, y, TuiTruncate( bars[i].label, labelW ), labelStyle )
+			end if
+			dim as long bx = area.x + labelW + iif( labelW > 0, 1, 0 )
+			dim as long room = area.Right( ) - bx
+			if( room <= 0 ) then continue for
+
+			dim as TuiGauge g
+			g.ratio = bars[i].value / hi
+			g.useUnicode = TRUE
+			g.bar.fg = bars[i].color
+			g.bar.mask = TUIATTR_ALL
+			g.Render( f, TuiRectOf( bx, y, room, 1 ) )
+		next
+		exit sub
+	end if
+
+	dim as long x = area.x
+	for i as long = 0 to n - 1
+		if( x >= area.Right( ) ) then exit for
+		dim as double t = bars[i].value / hi
+		if( t < 0.0 ) then t = 0.0
+		if( t > 1.0 ) then t = 1.0
+
+		dim as long h = area.h
+		if( showLabels andalso ( h > 1 ) ) then h -= 1
+		dim as long eighths = clng( t * h * 8 )
+		dim as long full_ = eighths \ 8
+		dim as long rem_ = eighths mod 8
+
+		dim as TuiStyle st
+		st.fg = bars[i].color
+		st.mask = TUIATTR_ALL
+
+		for c as long = 0 to bw - 1
+			if( x + c >= area.Right( ) ) then exit for
+			for r as long = 0 to full_ - 1
+				dim as long y = area.y + h - 1 - r
+				if( y < area.y ) then exit for
+				f.SetCell( x + c, y, TuiVerticalBlock( 8 ), st )
+			next
+			if( rem_ > 0 ) then
+				dim as long y = area.y + h - 1 - full_
+				if( y >= area.y ) then f.SetCell( x + c, y, TuiVerticalBlock( rem_ ), st )
+			end if
+		next
+
+		if( showLabels andalso ( area.h > 1 ) ) then
+			f.DrawText( x, area.Bottom( ) - 1, TuiTruncate( bars[i].label, bw ), labelStyle )
+		end if
+		x += bw + gap
+	next
+end sub
+
+'' ============================================================== meter
+
+enum TuiMeterStyle
+	TUIMETER_SOLID = 0
+	TUIMETER_HATCHED        '' the textured fill the memory panel uses
+	TUIMETER_SEGMENTED      '' a gap every n cells, for per-core rows
+end enum
+
+type TuiMeter extends TuiWidget
+	as double ratio
+	as TuiColor from_, to_      '' interpolated along the bar
+	as TuiColor trackColor
+	as boolean partialCells
+	as ubyte meterStyle
+	as long segmentEvery        '' SEGMENTED: draw n, skip 1
+
+	declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+	declare function Kind( ) as ustring override
+end type
+
+private function TuiMeter.Kind( ) as ustring : return "Meter" : end function
+
+'' THE GRADIENT INTERPOLATES ALONG THE BAR'S FULL LENGTH, not its filled
+'' length. A meter at 40% therefore shows the same colours in its first 40% as a
+'' meter at 90% does. Interpolating along the filled part instead makes the
+'' colour of a given position change as the value moves, and the eye reads that
+'' as noise rather than as a reading.
+private sub TuiMeter.Render( byref f as TuiFrame, byval area as TuiRect )
+	if( area.IsEmpty( ) ) then exit sub
+
+	dim as double r = ratio
+	if( r < 0.0 ) then r = 0.0
+	if( r > 1.0 ) then r = 1.0
+
+	dim as ustring full_, hatch
+	TuiAppendCp( full_, &h2588 )        '' FULL BLOCK
+	TuiAppendCp( hatch, &h2592 )        '' MEDIUM SHADE
+
+	dim as long eighths = clng( r * area.w * 8 )
+	dim as long whole = eighths \ 8
+	dim as long part = eighths mod 8
+	dim as long seg = iif( segmentEvery > 0, segmentEvery, 3 )
+
+	for i as long = 0 to area.w - 1
+		dim as long x = area.x + i
+		if( x >= area.Right( ) ) then exit for
+
+		'' SEGMENTED leaves a gap, and the gap is part of the TRACK
+		dim as boolean isGap = ( meterStyle = TUIMETER_SEGMENTED ) andalso _
+		                       ( ( ( i + 1 ) mod ( seg + 1 ) ) = 0 )
+
+		dim as TuiStyle st
+		st.mask = TUIATTR_ALL
+
+		'' Hoisted to explicit boolean locals: mixing the bare boolean
+		'' `partialCells` with comparison results in one andalso chain is
+		'' warning 38. RFC-0001 section 3.
+		dim as boolean isFilled = ( i < whole ) andalso ( isGap = FALSE )
+		dim as boolean atWhole = ( i = whole )
+		dim as boolean hasPart = ( part > 0 )
+		dim as boolean wantPart = partialCells
+		dim as boolean isTip = atWhole andalso wantPart andalso hasPart andalso ( isGap = FALSE )
+
+		if( isFilled ) then
+			dim as double t = iif( area.w > 1, i / cast( double, area.w - 1 ), 0.0 )
+			st.fg = TuiLerpColor( from_, to_, t )
+			dim as ustring g = full_
+			if( meterStyle = TUIMETER_HATCHED ) then g = hatch
+			f.SetCell( x, area.y, g, st )
+		elseif( isTip ) then
+			dim as double t = iif( area.w > 1, i / cast( double, area.w - 1 ), 0.0 )
+			st.fg = TuiLerpColor( from_, to_, t )
+			f.SetCell( x, area.y, TuiEighthBlock( part ), st )
+		else
+			st.fg = trackColor
+			f.SetCell( x, area.y, " ", st )
+		end if
+	next
+end sub
+
+end namespace

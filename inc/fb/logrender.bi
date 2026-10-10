@@ -1,0 +1,489 @@
+'' fb/logrender.bi -- FB.Logging renderers
+''
+'' RFC-0003 -- C:\dev\docs\logging\RFC-0003-renderers.md.
+''
+'' A renderer turns a LogRecord into text. It does NO I/O, holds no lock, opens
+'' nothing, and can fail at nothing. Sinks own destinations; renderers own
+'' formats. The split is what makes "write to a file" and "write JSON"
+'' independent choices.
+''
+'' Render APPENDS to its output buffer and does not clear it, so a sink can
+'' reuse one buffer across records. The rendered form carries its own trailing
+'' newline: a sink writes exactly what it is given.
+''
+'' ustring in, ustring out. ENCODING TO BYTES IS THE SINK'S JOB (RFC-0004
+'' section 3), which is what keeps the console's code-page problem and the
+'' file's UTF-8 rule out of the format definition.
+''
+'' TextRenderer is for a human (phase 1); JsonRenderer is for everything else
+'' (phase 2).
+
+#pragma once
+
+#include once "fb/logrecord.bi"
+
+namespace FB
+
+'' ============================================================== Renderer
+type Renderer extends object
+	declare abstract sub Render( byref r as LogRecord, byref outbuf as ustring )
+	declare virtual destructor( )
+end type
+
+private virtual destructor Renderer( )
+end destructor
+
+'' ============================================================== TextRenderer
+''
+''     2026-08-12T23:06:34.361Z  INFO   db  query complete  rows=42
+enum TextStamp
+	TS_NONE = 0
+	TS_ISO_UTC              '' 2026-08-12T23:06:34.361Z    (default)
+	TS_ISO_LOCAL            '' 2026-08-12T18:06:34.361-05:00
+	TS_TIME_ONLY            '' 23:06:34.361
+	TS_MONO                 '' +0.013s since this renderer's FIRST record
+end enum
+
+type TextRenderer extends Renderer
+	stamp     as TextStamp    '' default TS_ISO_UTC
+	colour    as boolean      '' default FALSE -- the SINK decides, section 5
+	showsite  as boolean      '' default FALSE
+	levelwide as boolean      '' default TRUE: pad the level for column alignment
+
+	'' TS_MONO's baseline: the first record THIS renderer saw. Not a
+	'' process-wide zero -- a header cannot own one.
+	m_monobase as longint
+
+	declare constructor( )
+	declare destructor( ) override
+	declare sub Render( byref r as LogRecord, byref outbuf as ustring ) override
+end type
+
+private constructor TextRenderer( )
+	this.stamp     = TS_ISO_UTC
+	this.colour    = FALSE
+	this.showsite  = FALSE
+	this.levelwide = TRUE
+	this.m_monobase = 0
+end constructor
+
+private destructor TextRenderer( )
+end destructor
+
+'' RFC-0003 section 5. The renderer emits the sequences; it never decides
+'' WHETHER to. It cannot: it does not know where the bytes are going, and a file
+'' full of ESC[32m is the standard way this is got wrong.
+private function hLevelSgr( byval lv as LogLevel ) as ustring
+	select case as const lv
+	case LOG_TRACE : return "90"
+	case LOG_DEBUG : return "36"
+	case LOG_INFO  : return "32"
+	case LOG_WARN  : return "33"
+	case LOG_ERROR : return "31"
+	case LOG_FATAL : return "1;97;41"
+	end select
+	return "0"
+end function
+
+'' chrono emits seven fractional digits. Three is what a human reads, and
+'' truncating is deliberate: the full precision is still in the JSON renderer,
+'' which is the one a machine consumes.
+private function hIsoMillis( byref iso as ustring ) as ustring
+	dim as long dotAt = instr( str( iso ), "." )
+	if( dotAt = 0 ) then return iso
+
+	'' keep 3 digits after the dot, then whatever suffix follows the digits
+	dim as string s = str( iso )
+	dim as long i = dotAt + 1
+	while( i <= len( s ) andalso s[i-1] >= asc( "0" ) andalso s[i-1] <= asc( "9" ) )
+		i += 1
+	wend
+	dim as long lastdigit = i - 1                     '' 1-based, inclusive
+	dim as long keep = dotAt + 3
+	if( keep > lastdigit ) then keep = lastdigit
+	return left( s, keep ) + mid( s, lastdigit + 1 )
+end function
+
+private function hStampText( byref r as LogRecord, byval mode as TextStamp, byref monobase as longint ) as ustring
+	select case as const mode
+	case TS_NONE
+		return ""
+	case TS_MONO
+		'' RELATIVE TO THE FIRST RECORD THIS RENDERER SAW, not to process
+		'' start. LogRecord.mono is a RAW monotonic reading -- an absolute
+		'' counter with an arbitrary epoch -- because a process-start
+		'' baseline would need a process-wide singleton, which a FreeBASIC
+		'' header cannot make (see fb/logger.bi). A renderer is one object,
+		'' so it can hold the baseline that the module cannot.
+		''
+		'' Rendering r.mono directly would print a number in the millions of
+		'' seconds and call it an elapsed time.
+		if( monobase = 0 ) then monobase = r.mono
+		dim as double secs = ( r.mono - monobase ) / cdbl( DT_TICKS_PER_SECOND )
+		return "+" + trim( str( secs ) ) + "s"
+	case TS_ISO_UTC
+		return hIsoMillis( r.stamp.ToIsoUString( ) )
+	case TS_ISO_LOCAL
+		'' Still ISO layout with an explicit offset -- never a locale date
+		'' string. A log that changes shape per machine cannot be merged.
+		dim as short offMin = cshort( fb_DtClockLocalOffsetNow( ) )
+		return hIsoMillis( DateTime.FromInstant( r.stamp, offMin ).ToIsoUString( ) )
+	case TS_TIME_ONLY
+		dim as ustring iso = hIsoMillis( r.stamp.ToIsoUString( ) )
+		dim as long t = instr( str( iso ), "T" )
+		if( t = 0 ) then return iso
+		dim as string s = mid( str( iso ), t + 1 )
+		if( right( s, 1 ) = "Z" ) then s = left( s, len( s ) - 1 )
+		return s
+	end select
+	return ""
+end function
+
+'' RFC-0003 section 2: quoted only if the value would otherwise be ambiguous.
+private function hNeedsQuote( byref v as ustring ) as boolean
+	if( len( v ) = 0 ) then return TRUE
+	for i as integer = 0 to len( v ) - 1
+		dim as ulong c = v[i]
+		if( c = asc( " " ) orelse c = asc( "=" ) orelse c = asc( """" ) orelse c < 32 ) then
+			return TRUE
+		end if
+	next
+	return FALSE
+end function
+
+private sub TextRenderer.Render( byref r as LogRecord, byref outbuf as ustring )
+	dim as ustring st = hStampText( r, this.stamp, this.m_monobase )
+	if( len( st ) > 0 ) then outbuf += st + "  "
+
+	dim as ustring lvl = LevelName( r.level )
+	if( this.levelwide ) then
+		while( len( lvl ) < 5 )
+			lvl += " "
+		wend
+	end if
+	if( this.colour ) then
+		outbuf += !"\27[" + hLevelSgr( r.level ) + "m" + lvl + !"\27[0m"
+	else
+		outbuf += lvl
+	end if
+	outbuf += "  "
+
+	'' EMPTY PARTS ARE OMITTED, NOT BLANKED -- no logger name means no name
+	'' column, not a double space where one would have been.
+	if( len( r.logname ) > 0 ) then outbuf += r.logname + "  "
+
+	outbuf += r.message
+
+	'' FIELD ORDER IS RECORD ORDER: inherited first, call-site last. No
+	'' sorting -- a child logger's fields would otherwise move around as the
+	'' parent changed, and the value of a human format is that the same call
+	'' site produces the same shape every time.
+	''
+	'' Duplicate keys are printed twice. Hiding one would hide the
+	'' parent/child collision that produced it.
+	if( r.fields.Count( ) > 0 ) then
+		outbuf += "  "
+		for i as long = 0 to r.fields.Count( ) - 1
+			if( i > 0 ) then outbuf += " "
+			dim as ustring v = LogValueToText( r.fields[i].value )
+			outbuf += r.fields[i].name + "="
+			if( r.fields[i].value.kind = LK_STR andalso hNeedsQuote( v ) ) then
+				outbuf += """" + v + """"
+			else
+				outbuf += v
+			end if
+		next
+	end if
+
+	if( this.showsite andalso len( r.srcfile ) > 0 ) then
+		outbuf += "  (" + r.srcfile + ":" + trim( str( r.srcline ) )
+		if( len( r.srcfunc ) > 0 ) then outbuf += " " + r.srcfunc
+		outbuf += ")"
+	end if
+
+	outbuf += !"\n"
+end sub
+
+'' ============================================================== JsonRenderer
+''
+''     {"time":"2026-08-12T23:06:34.3614985Z","level":"INFO","logger":"db","msg":"query complete","rows":42}
+''
+'' ONE OBJECT PER LINE, newline-terminated, never pretty-printed. JSON lines is
+'' a LINE format: a record that spans lines is unparseable by every tool that
+'' consumes one.
+''
+'' The eleven rules of RFC-0003 section 4 are numbered in the comments below
+'' and asserted one block each in tests/logging/render_json.bas.
+type JsonRenderer extends Renderer
+	timekey  as ustring       '' default "time"
+	levelkey as ustring       '' default "level"
+	namekey  as ustring       '' default "logger"
+	msgkey   as ustring       '' default "msg"
+	monokey  as ustring       '' default "mono"
+	sitekey  as ustring       '' default "src"
+	levelnum as boolean       '' default FALSE: "INFO" rather than 30
+	showmono as boolean       '' default FALSE
+	showsite as boolean       '' default FALSE
+
+	declare constructor( )
+	declare destructor( ) override
+	declare sub Render( byref r as LogRecord, byref outbuf as ustring ) override
+end type
+
+private constructor JsonRenderer( )
+	this.timekey  = "time"
+	this.levelkey = "level"
+	this.namekey  = "logger"
+	this.msgkey   = "msg"
+	this.monokey  = "mono"
+	this.sitekey  = "src"
+	this.levelnum = FALSE
+	this.showmono = FALSE
+	this.showsite = FALSE
+end constructor
+
+private destructor JsonRenderer( )
+end destructor
+
+'' Rules 1 and 2. A JSON string, quotes included, appended to outbuf.
+''
+'' A ustring is UTF-16 on every target, so this walks code units. Clean runs
+'' are appended as one slice rather than one character at a time: the common
+'' string has nothing to escape and costs one append.
+''
+''   rule 1  '"' and '\' escaped; U+0000-U+001F as \b \f \n \r \t where those
+''           exist and \u00xx where they do not; '/' NOT escaped; U+2028 and
+''           U+2029 escaped, because they are legal JSON that breaks a
+''           JavaScript consumer that evals a line.
+''   rule 2  a surrogate PAIR passes through, and the sink encodes it as one
+''           4-byte UTF-8 sequence. An UNPAIRED surrogate -- which a ustring
+''           can hold and UTF-8 cannot -- is written as \udxxx, so the sink is
+''           never handed one.
+''
+'' Hex digits are lower case throughout. JSON accepts either; one is chosen so
+'' that a line can be compared byte for byte.
+private sub hJsonString( byref s as ustring, byref outbuf as ustring )
+	outbuf += """"
+	dim as long n = len( s )
+	dim as long run0 = 0                         '' start of the pending clean run
+	dim as long i = 0
+	while( i < n )
+		dim as ulong c = s[i]
+		if( c < 32 orelse c = 34 orelse c = 92 orelse c = &h2028 orelse c = &h2029 ) then
+			'' escaped below
+		elseif( c >= &hD800 andalso c <= &hDFFF ) then
+			'' a high surrogate followed by a low one is a pair: clean, both
+			'' units. Anything else here is unpaired, and escaped below.
+			if( c <= &hDBFF andalso i + 1 < n ) then
+				dim as ulong c2 = s[i+1]
+				if( c2 >= &hDC00 andalso c2 <= &hDFFF ) then
+					i += 2
+					continue while
+				end if
+			end if
+		else
+			i += 1
+			continue while
+		end if
+
+		if( i > run0 ) then outbuf += mid( s, run0 + 1, i - run0 )
+		select case as const c
+		case 34 : outbuf += "\"""
+		case 92 : outbuf += "\\"
+		case 8  : outbuf += "\b"
+		case 9  : outbuf += "\t"
+		case 10 : outbuf += "\n"
+		case 12 : outbuf += "\f"
+		case 13 : outbuf += "\r"
+		case else
+			outbuf += "\u" + lcase( hex( c, 4 ) )
+		end select
+		i += 1
+		run0 = i
+	wend
+	if( n > run0 ) then outbuf += mid( s, run0 + 1, n - run0 )
+	outbuf += """"
+end sub
+
+'' Rule 3. JSON's number is a double, so an integer beyond 2^53 cannot be read
+'' back exactly by most consumers. Silently losing the low bits of a 64-bit id
+'' is worse than a type change a consumer can see, so such a value is a STRING.
+'' The threshold is fixed, not adaptive: 2^53 itself is exact and stays a
+'' number; 2^53 + 1 does not.
+''
+'' The RFC said this of LK_UINT; it is applied to LK_INT as well, in both
+'' directions, because -2^53 - 1 loses its low bit exactly as 2^53 + 1 does.
+const hJsonMaxSafe = 9007199254740992ll
+
+private sub hJsonInt( byval v as longint, byref outbuf as ustring )
+	if( v > hJsonMaxSafe orelse v < -hJsonMaxSafe ) then
+		outbuf += """" + str( v ) + """"
+	else
+		outbuf += str( v )
+	end if
+end sub
+
+private sub hJsonUInt( byval v as ulongint, byref outbuf as ustring )
+	if( v > culngint( hJsonMaxSafe ) ) then
+		outbuf += """" + str( v ) + """"
+	else
+		outbuf += str( v )
+	end if
+end sub
+
+private sub hJsonValue( byref v as LogValue, byref outbuf as ustring )
+	select case as const v.kind
+	case LK_NULL                                 '' rule 8
+		outbuf += "null"
+	case LK_BOOL
+		if( v.b ) then outbuf += "true" else outbuf += "false"
+	case LK_INT                                  '' rule 3
+		hJsonInt( v.i, outbuf )
+	case LK_UINT                                 '' rule 3
+		hJsonUInt( v.u, outbuf )
+	case LK_DBL
+		'' Rule 4. JSON has no NaN and no Infinity. Bare NaN is a line no
+		'' strict parser accepts; null would erase "not a number" versus
+		'' "no value". So they are strings.
+		if( v.d <> v.d ) then
+			outbuf += """NaN"""
+		elseif( v.d = 1.0 / 0.0 ) then
+			outbuf += """Infinity"""
+		elseif( v.d = -1.0 / 0.0 ) then
+			outbuf += """-Infinity"""
+		else
+			'' Rule 5. Shortest round-trip, '.' always, no locale, exponent
+			'' form only where it is the shorter -- the same digits the text
+			'' renderer prints.
+			outbuf += LogDoubleText( v.d )
+		end if
+	case LK_STR
+		hJsonString( v.s, outbuf )
+	case LK_PTR, LK_INSTANT, LK_TIMESPAN
+		'' Rule 6: an instant is an RFC-3339 string and a span an ISO-8601
+		'' duration -- a bare number has no unit. Rule 7: a pointer is a
+		'' string, never a number, because pointers pass 2^53 routinely and
+		'' rule 3 would stringify them inconsistently.
+		hJsonString( LogValueToText( v ), outbuf )
+	case else
+		outbuf += "null"
+	end select
+end sub
+
+'' Rules 9 and 10. A key already on this line -- a reserved key, or an earlier
+'' field -- is RENAMED, never dropped and never overwritten: the second "user"
+'' becomes "user#2", the third "user#3". Last-wins would discard the parent's
+'' value invisibly, and a repeated key is resolved differently by every
+'' consumer. Renaming is the one choice where nothing is lost and the line
+'' stays strictly parseable.
+''
+'' The rename is itself checked, so a field literally named "user#2" that
+'' arrives after a renamed one becomes "user#2#2" rather than a duplicate.
+''
+'' A linear scan. A record has a handful of fields, and the common case --
+'' no collision -- costs a comparison per earlier key.
+private function hJsonKeyTaken( byref k as ustring, byref used as Array( of ustring ) ) as boolean
+	for i as long = 0 to used.Count( ) - 1
+		if( used[i] = k ) then return TRUE
+	next
+	return FALSE
+end function
+
+private function hJsonUniqueKey( byref k as ustring, byref used as Array( of ustring ) ) as ustring
+	if( hJsonKeyTaken( k, used ) = FALSE ) then return k
+	dim as long n = 2
+	do
+		dim as ustring cand = k + "#" + str( n )
+		if( hJsonKeyTaken( cand, used ) = FALSE ) then return cand
+		n += 1
+	loop
+end function
+
+private sub JsonRenderer.Render( byref r as LogRecord, byref outbuf as ustring )
+	'' Reserved keys first, in a fixed order, so a consumer finds them without
+	'' a full parse. EVERY reserved key the renderer is configured to emit is
+	'' reserved whether or not this record emits it: a field named "logger" on
+	'' an unnamed logger is still renamed, so a consumer's lookup of "logger"
+	'' never returns a user field (rule 10).
+	dim used as Array( of ustring )
+	used.Push( this.timekey )
+	used.Push( this.levelkey )
+	used.Push( this.namekey )
+	used.Push( this.msgkey )
+	if( this.showmono ) then used.Push( this.monokey )
+	if( this.showsite ) then used.Push( this.sitekey )
+
+	'' Full precision -- seven fractional digits. The text renderer cuts to
+	'' milliseconds for a human; this is the format a machine reads.
+	outbuf += "{"
+	hJsonString( this.timekey, outbuf )
+	outbuf += ":"
+	hJsonString( r.stamp.ToIsoUString( ), outbuf )
+
+	outbuf += ","
+	hJsonString( this.levelkey, outbuf )
+	outbuf += ":"
+	if( this.levelnum ) then
+		outbuf += str( clng( r.level ) )
+	else
+		hJsonString( LevelName( r.level ), outbuf )
+	end if
+
+	'' An unnamed logger emits no "logger" key -- the same "empty parts are
+	'' omitted" rule as the text renderer. The message is always present, even
+	'' when empty, so every line has the same four reserved keys bar this one.
+	if( len( r.logname ) > 0 ) then
+		outbuf += ","
+		hJsonString( this.namekey, outbuf )
+		outbuf += ":"
+		hJsonString( r.logname, outbuf )
+	end if
+
+	outbuf += ","
+	hJsonString( this.msgkey, outbuf )
+	outbuf += ":"
+	hJsonString( r.message, outbuf )
+
+	'' The RAW monotonic reading, in ticks, with an arbitrary epoch. It is for
+	'' ORDERING records whose wall stamps went backwards, not for reading as a
+	'' time. A machine can subtract two; no baseline is needed here, unlike
+	'' the text renderer's TS_MONO.
+	if( this.showmono ) then
+		outbuf += ","
+		hJsonString( this.monokey, outbuf )
+		outbuf += ":"
+		hJsonInt( r.mono, outbuf )
+	end if
+
+	'' One nested object rather than three top-level keys, so the call site
+	'' takes ONE reserved name and "file", "line" and "func" stay free for
+	'' fields.
+	if( this.showsite andalso len( r.srcfile ) > 0 ) then
+		outbuf += ","
+		hJsonString( this.sitekey, outbuf )
+		outbuf += ":{""file"":"
+		hJsonString( r.srcfile, outbuf )
+		outbuf += ",""line"":" + str( r.srcline )
+		if( len( r.srcfunc ) > 0 ) then
+			outbuf += ",""func"":"
+			hJsonString( r.srcfunc, outbuf )
+		end if
+		outbuf += "}"
+	end if
+
+	'' Fields in record order: inherited first, call-site last. Rule 11: an
+	'' empty name is emitted as "" -- legal JSON, and refusing it would make a
+	'' log call fail.
+	for i as long = 0 to r.fields.Count( ) - 1
+		dim as ustring k = hJsonUniqueKey( r.fields[i].name, used )
+		used.Push( k )
+		outbuf += ","
+		hJsonString( k, outbuf )
+		outbuf += ":"
+		hJsonValue( r.fields[i].value, outbuf )
+	next
+
+	outbuf += !"}\n"
+end sub
+
+end namespace

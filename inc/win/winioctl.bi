@@ -1,0 +1,10339 @@
+'' FreeBASIC binding for mingw-w64-v4.0.4
+''
+'' based on the C header files:
+''   DISCLAIMER
+''   This file has no copyright assigned and is placed in the Public Domain.
+''   This file is part of the mingw-w64 runtime package.
+''
+''   The mingw-w64 runtime package and its code is distributed in the hope that it 
+''   will be useful but WITHOUT ANY WARRANTY.  ALL WARRANTIES, EXPRESSED OR 
+''   IMPLIED ARE HEREBY DISCLAIMED.  This includes but is not limited to 
+''   warranties of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+''
+'' translated to FreeBASIC by:
+''   FreeBASIC development team
+'' Updated by José Roca, Aug 2926
+
+#pragma once
+
+extern "C"
+
+extern GUID_DEVINTERFACE_DISK as const GUID
+extern GUID_DEVINTERFACE_CDROM as const GUID
+extern GUID_DEVINTERFACE_PARTITION as const GUID
+extern GUID_DEVINTERFACE_TAPE as const GUID
+extern GUID_DEVINTERFACE_WRITEONCEDISK as const GUID
+extern GUID_DEVINTERFACE_VOLUME as const GUID
+extern GUID_DEVINTERFACE_MEDIUMCHANGER as const GUID
+extern GUID_DEVINTERFACE_FLOPPY as const GUID
+extern GUID_DEVINTERFACE_CDCHANGER as const GUID
+extern GUID_DEVINTERFACE_STORAGEPORT as const GUID
+extern GUID_DEVINTERFACE_COMPORT as const GUID
+extern GUID_DEVINTERFACE_SERENUM_BUS_ENUMERATOR as const GUID
+
+DIM SHARED GUID_DEVINTERFACE_VMLUN AS GUID = TYPE<GUID>(&h6f416619, &h9f29, &h42a5, {&hb2, &h0b, &h37, &he2, &h19, &hca, &h02, &hb0})
+DIM SHARED GUID_DEVINTERFACE_SES AS GUID = TYPE<GUID>(&h1790c9ec, &h47d5, &h4df3, {&hb5, &haf, &h9a, &hdf, &h3c, &hf2, &h3e, &h48})
+DIM SHARED GUID_DEVINTERFACE_ZNSDISK AS GUID = TYPE<GUID>(&hb87941c5, &hffdb, &h43c7, {&hb6, &hb1, &h20, &hb6, &h32, &hf0, &hb1, &h09})
+#define WDI_STORAGE_PREDICT_FAILURE_DPS_GUID  "{&he9f2d03aL, &h747c, &h41c2, {&hbb, &h9a, &h02, &hc6, &h2b, &h6d, &h5f, &hcb}}"
+' // Interfaces to discover devices that are
+' // not reported  through conventional APIs
+DIM SHARED GUID_DEVINTERFACE_HIDDEN_DISK AS GUID = TYPE<GUID>(&h7fccc86c, &h228a, &h40ad, {&h8a, &h58, &hf5, &h90, &haf, &h7b, &hfd, &hce})
+DIM SHARED GUID_DEVINTERFACE_SERVICE_VOLUME AS GUID = TYPE<GUID>(&h6ead3d82, &h25ec, &h46bc, {&hb7, &hfd, &hc1, &hf0, &hdf, &h8f, &h50, &h37})
+DIM SHARED GUID_DEVINTERFACE_HIDDEN_VOLUME AS GUID = TYPE<GUID>(&h7f108a28, &h9833, &h4b3b, {&hb7, &h80, &h2c, &h6b, &h5f, &ha5, &hc0, &h62})
+' // Interface to register for RPMB commands
+DIM SHARED GUID_DEVINTERFACE_UNIFIED_ACCESS_RPMB AS GUID = TYPE<GUID>(&h27447c21, &hbcc3, &h4d07, {&ha0, &h5b, &ha3, &h39, &h5b, &hb4, &hee, &he7})
+' // This interface represents a physical persistent memory device, such as an NVDIMM.
+' // {4283609D-4DC2-43BE-BBB4-4F15DFCE2C61}
+DIM SHARED GUID_DEVINTERFACE_SCM_PHYSICAL_DEVICE AS GUID = TYPE<GUID>(&h4283609d, &h4dc2, &h43be, {&hbb, &hb4, &h4f, &h15, &hdf, &hce, &h2c, &h61})
+' // When a physical device driver detects a change in the health status of a physical device,
+' // it triggers a PNP custom event (through TARGET_DEVICE_CUSTOM_NOTIFICATION) to alert any
+' // registered components. The custom event's GUID is GUID_SCM_PD_HEALTH_NOTIFICATION
+' // and its payload is SCM_PD_HEALTH_NOTIFICATION_DATA
+' // {9DA2D386-72F5-4EE3-8155-ECA0678E3B06}
+DIM SHARED GUID_SCM_PD_HEALTH_NOTIFICATION AS GUID = TYPE<GUID>(&h9da2d386, &h72f5, &h4ee3, {&h81, &h55, &hec, &ha0, &h67, &h8e, &h3b, &h06})
+' // The passthrough protocol GUID for INVDIMM devices. The application and the driver use this value
+' // for the "ProtocolGuid" field of the SCM_PD_PASSTHROUGH_INPUT and SCM_PD_PASSTHROUGH_OUTPUT structures.
+' // {4309AC30-0D11-11E4-9191-0800200C9A66}
+DIM SHARED GUID_SCM_PD_PASSTHROUGH_INVDIMM AS GUID = TYPE<GUID>(&h4309AC30, &h0D11, &h11E4, {&h91, &h91, &h08, &h00, &h20, &h0C, &h9A, &h66})
+
+' // Obsolete device interface class GUID names.
+' // (use of above GUID_DEVINTERFACE_* names is recommended).
+
+extern DiskClassGuid alias "GUID_DEVINTERFACE_DISK" as const GUID
+extern CdRomClassGuid alias "GUID_DEVINTERFACE_CDROM" as const GUID
+extern PartitionClassGuid alias "GUID_DEVINTERFACE_PARTITION" as const GUID
+extern TapeClassGuid alias "GUID_DEVINTERFACE_TAPE" as const GUID
+extern WriteOnceDiskClassGuid alias "GUID_DEVINTERFACE_WRITEONCEDISK" as const GUID
+extern VolumeClassGuid alias "GUID_DEVINTERFACE_VOLUME" as const GUID
+extern MediumChangerClassGuid alias "GUID_DEVINTERFACE_MEDIUMCHANGER" as const GUID
+extern FloppyClassGuid alias "GUID_DEVINTERFACE_FLOPPY" as const GUID
+extern CdChangerClassGuid alias "GUID_DEVINTERFACE_CDCHANGER" as const GUID
+extern StoragePortClassGuid alias "GUID_DEVINTERFACE_STORAGEPORT" as const GUID
+extern GUID_CLASS_COMPORT alias "GUID_DEVINTERFACE_COMPORT" as const GUID
+extern GUID_SERENUM_BUS_ENUMERATOR alias "GUID_DEVINTERFACE_SERENUM_BUS_ENUMERATOR" as const GUID
+
+#define HiddenVolumeClassGuid GUID_DEVINTERFACE_HIDDEN_VOLUME
+
+#define _WINIOCTL_
+#define _DEVIOCTL_
+
+' // Define the various device type values.  Note that values used by Microsoft
+' // Corporation are in the range 0-32767, and 32768-65535 are reserved for use
+' // by customers.
+
+type DEVICE_TYPE as DWORD
+const FILE_DEVICE_BEEP = &00000001   ' // added by José Roca, 24 Aug 2026
+const FILE_DEVICE_CD_ROM = &h00000002
+const FILE_DEVICE_CD_ROM_FILE_SYSTEM = &h00000003
+const FILE_DEVICE_CONTROLLER = &h00000004
+const FILE_DEVICE_DATALINK = &h00000005
+const FILE_DEVICE_DFS = &h00000006
+const FILE_DEVICE_DISK = &h00000007
+const FILE_DEVICE_DISK_FILE_SYSTEM = &h00000008
+const FILE_DEVICE_FILE_SYSTEM = &h00000009
+const FILE_DEVICE_INPORT_PORT = &h0000000a
+const FILE_DEVICE_KEYBOARD = &h0000000b
+const FILE_DEVICE_MAILSLOT = &h0000000c
+const FILE_DEVICE_MIDI_IN = &h0000000d
+const FILE_DEVICE_MIDI_OUT = &h0000000e
+const FILE_DEVICE_MOUSE = &h0000000f
+const FILE_DEVICE_MULTI_UNC_PROVIDER = &h00000010
+const FILE_DEVICE_NAMED_PIPE = &h00000011
+const FILE_DEVICE_NETWORK = &h00000012
+const FILE_DEVICE_NETWORK_BROWSER = &h00000013
+const FILE_DEVICE_NETWORK_FILE_SYSTEM = &h00000014
+const FILE_DEVICE_NULL = &h00000015
+const FILE_DEVICE_PARALLEL_PORT = &h00000016
+const FILE_DEVICE_PHYSICAL_NETCARD = &h00000017
+const FILE_DEVICE_PRINTER = &h00000018
+const FILE_DEVICE_SCANNER = &h00000019
+const FILE_DEVICE_SERIAL_MOUSE_PORT = &h0000001a
+const FILE_DEVICE_SERIAL_PORT = &h0000001b
+const FILE_DEVICE_SCREEN = &h0000001c
+const FILE_DEVICE_SOUND = &h0000001d
+const FILE_DEVICE_STREAMS = &h0000001e
+const FILE_DEVICE_TAPE = &h0000001f
+const FILE_DEVICE_TAPE_FILE_SYSTEM = &h00000020
+const FILE_DEVICE_TRANSPORT = &h00000021
+const FILE_DEVICE_UNKNOWN = &h00000022
+const FILE_DEVICE_VIDEO = &h00000023
+const FILE_DEVICE_VIRTUAL_DISK = &h00000024
+const FILE_DEVICE_WAVE_IN = &h00000025
+const FILE_DEVICE_WAVE_OUT = &h00000026
+const FILE_DEVICE_8042_PORT = &h00000027
+const FILE_DEVICE_NETWORK_REDIRECTOR = &h00000028
+const FILE_DEVICE_BATTERY = &h00000029
+const FILE_DEVICE_BUS_EXTENDER = &h0000002a
+const FILE_DEVICE_MODEM = &h0000002b
+const FILE_DEVICE_VDM = &h0000002c
+const FILE_DEVICE_MASS_STORAGE = &h0000002d
+const FILE_DEVICE_SMB = &h0000002e
+const FILE_DEVICE_KS = &h0000002f
+const FILE_DEVICE_CHANGER = &h00000030
+const FILE_DEVICE_SMARTCARD = &h00000031
+const FILE_DEVICE_ACPI = &h00000032
+const FILE_DEVICE_DVD = &h00000033
+const FILE_DEVICE_FULLSCREEN_VIDEO = &h00000034
+const FILE_DEVICE_DFS_FILE_SYSTEM = &h00000035
+const FILE_DEVICE_DFS_VOLUME = &h00000036
+const FILE_DEVICE_SERENUM = &h00000037
+const FILE_DEVICE_TERMSRV = &h00000038
+const FILE_DEVICE_KSEC = &h00000039
+const FILE_DEVICE_FIPS = &h0000003A
+const FILE_DEVICE_INFINIBAND = &h0000003B
+
+const FILE_DEVICE_VMBUS               = &h0000003E
+const FILE_DEVICE_CRYPT_PROVIDER      = &h0000003F
+const FILE_DEVICE_WPD                 = &h00000040
+const FILE_DEVICE_BLUETOOTH           = &h00000041
+const FILE_DEVICE_MT_COMPOSITE        = &h00000042
+const FILE_DEVICE_MT_TRANSPORT        = &h00000043
+const FILE_DEVICE_BIOMETRIC           = &h00000044
+const FILE_DEVICE_PMI                 = &h00000045
+const FILE_DEVICE_EHSTOR              = &h00000046
+const FILE_DEVICE_DEVAPI              = &h00000047
+const FILE_DEVICE_GPIO                = &h00000048
+const FILE_DEVICE_USBEX               = &h00000049
+const FILE_DEVICE_CONSOLE             = &h00000050
+const FILE_DEVICE_NFP                 = &h00000051
+const FILE_DEVICE_SYSENV              = &h00000052
+const FILE_DEVICE_VIRTUAL_BLOCK       = &h00000053
+const FILE_DEVICE_POINT_OF_SERVICE    = &h00000054
+const FILE_DEVICE_STORAGE_REPLICATION = &h00000055
+const FILE_DEVICE_TRUST_ENV           = &h00000056
+const FILE_DEVICE_UCM                 = &h00000057
+const FILE_DEVICE_UCMTCPCI            = &h00000058
+const FILE_DEVICE_PERSISTENT_MEMORY   = &h00000059
+const FILE_DEVICE_NVDIMM              = &h0000005a
+const FILE_DEVICE_HOLOGRAPHIC         = &h0000005b
+const FILE_DEVICE_SDFXHCI             = &h0000005c
+const FILE_DEVICE_UCMUCSI             = &h0000005d
+const FILE_DEVICE_PRM                 = &h0000005e
+const FILE_DEVICE_EVENT_COLLECTOR     = &h0000005f
+const FILE_DEVICE_USB4                = &h00000060
+const FILE_DEVICE_SOUNDWIRE           = &h00000061
+const FILE_DEVICE_FABRIC_NVME         = &h00000062
+const FILE_DEVICE_SVM                 = &h00000063
+const FILE_DEVICE_HARDWARE_ACCELERATOR = &h00000064
+const FILE_DEVICE_I3C                 = &h00000065
+
+' // Macro definition for defining IOCTL and FSCTL function control codes.  Note
+' // that function codes 0-2047 are reserved for Microsoft Corporation, and
+' // 2048-4095 are reserved for customers.
+
+#define CTL_CODE(DeviceType, Function, Method, Access) (((((DeviceType) shl 16) or ((Access) shl 14)) or ((Function) shl 2)) or (Method))
+
+' // Macro to extract device type out of the device io control code
+
+#define DEVICE_TYPE_FROM_CTL_CODE(ctrlCode) (cast(DWORD, ctrlCode and &hffff0000) shr 16)
+
+' // Macro to extract buffering method out of the device io control code
+
+#define METHOD_FROM_CTL_CODE(ctrlCode) (cast(DWORD, ctrlCode and 3))
+
+' // Define the method codes for how buffers are passed for I/O and FS controls
+
+const METHOD_BUFFERED = 0
+const METHOD_IN_DIRECT = 1
+const METHOD_OUT_DIRECT = 2
+const METHOD_NEITHER = 3
+
+' // Define some easier to comprehend aliases:
+' //   METHOD_DIRECT_TO_HARDWARE (writes, aka METHOD_IN_DIRECT)
+' //   METHOD_DIRECT_FROM_HARDWARE (reads, aka METHOD_OUT_DIRECT)
+
+const METHOD_DIRECT_TO_HARDWARE = METHOD_IN_DIRECT
+const METHOD_DIRECT_FROM_HARDWARE = METHOD_OUT_DIRECT
+
+' // Define the access check value for any access
+' // The FILE_READ_ACCESS and FILE_WRITE_ACCESS constants are also defined in
+' // ntioapi.h as FILE_READ_DATA and FILE_WRITE_DATA. The values for these
+' // constants *MUST* always be in sync.
+' // FILE_SPECIAL_ACCESS is checked by the NT I/O system the same as FILE_ANY_ACCESS.
+' // The file systems, however, may add additional access checks for I/O and FS controls
+' // that use this value.
+
+const FILE_ANY_ACCESS = 0
+const FILE_SPECIAL_ACCESS = FILE_ANY_ACCESS
+const FILE_READ_ACCESS = &h0001
+const FILE_WRITE_ACCESS = &h0002
+
+#define _NTDDSTOR_H_
+
+' // IoControlCode values for storage devices
+
+const IOCTL_STORAGE_BASE = FILE_DEVICE_MASS_STORAGE
+
+' // The following device control codes are common for all class drivers.  They
+' // should be used in place of the older IOCTL_DISK, IOCTL_CDROM and IOCTL_TAPE
+' // common codes
+
+#define IOCTL_STORAGE_CHECK_VERIFY CTL_CODE(IOCTL_STORAGE_BASE, &h0200, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_STORAGE_CHECK_VERIFY2 CTL_CODE(IOCTL_STORAGE_BASE, &h0200, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_STORAGE_MEDIA_REMOVAL CTL_CODE(IOCTL_STORAGE_BASE, &h0201, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_STORAGE_EJECT_MEDIA CTL_CODE(IOCTL_STORAGE_BASE, &h0202, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_STORAGE_LOAD_MEDIA CTL_CODE(IOCTL_STORAGE_BASE, &h0203, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_STORAGE_LOAD_MEDIA2 CTL_CODE(IOCTL_STORAGE_BASE, &h0203, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_STORAGE_RESERVE CTL_CODE(IOCTL_STORAGE_BASE, &h0204, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_STORAGE_RELEASE CTL_CODE(IOCTL_STORAGE_BASE, &h0205, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_STORAGE_FIND_NEW_DEVICES CTL_CODE(IOCTL_STORAGE_BASE, &h0206, METHOD_BUFFERED, FILE_READ_ACCESS)
+
+#define IOCTL_STORAGE_EJECTION_CONTROL CTL_CODE(IOCTL_STORAGE_BASE, &h0250, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_STORAGE_MCN_CONTROL CTL_CODE(IOCTL_STORAGE_BASE, &h0251, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+#define IOCTL_STORAGE_GET_MEDIA_TYPES CTL_CODE(IOCTL_STORAGE_BASE, &h0300, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_STORAGE_GET_MEDIA_TYPES_EX CTL_CODE(IOCTL_STORAGE_BASE, &h0301, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_STORAGE_GET_MEDIA_SERIAL_NUMBER CTL_CODE(IOCTL_STORAGE_BASE, &h0304, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_STORAGE_GET_HOTPLUG_INFO CTL_CODE(IOCTL_STORAGE_BASE, &h0305, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_STORAGE_SET_HOTPLUG_INFO CTL_CODE(IOCTL_STORAGE_BASE, &h0306, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+
+#define IOCTL_STORAGE_RESET_BUS CTL_CODE(IOCTL_STORAGE_BASE, &h0400, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_STORAGE_RESET_DEVICE CTL_CODE(IOCTL_STORAGE_BASE, &h0401, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_STORAGE_BREAK_RESERVATION CTL_CODE(IOCTL_STORAGE_BASE, &h0405, METHOD_BUFFERED, FILE_READ_ACCESS)
+
+#define IOCTL_STORAGE_PERSISTENT_RESERVE_IN   CTL_CODE(IOCTL_STORAGE_BASE, &h0406, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_STORAGE_PERSISTENT_RESERVE_OUT  CTL_CODE(IOCTL_STORAGE_BASE, &h0407, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS)
+
+#define IOCTL_STORAGE_GET_DEVICE_NUMBER CTL_CODE(IOCTL_STORAGE_BASE, &h0420, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+' // This IOCTL includes the same information as IOCTL_STORAGE_GET_DEVICE_NUMBER, plus the device GUID.
+#define IOCTL_STORAGE_GET_DEVICE_NUMBER_EX    CTL_CODE(IOCTL_STORAGE_BASE, &h0421, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+#define IOCTL_STORAGE_PREDICT_FAILURE CTL_CODE(IOCTL_STORAGE_BASE, &h0440, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_STORAGE_FAILURE_PREDICTION_CONFIG CTL_CODE(IOCTL_STORAGE_BASE, &h0441, METHOD_BUFFERED, FILE_ANY_ACCESS)
+' // This IOCTL retrieves reliability counters for a device.
+#define IOCTL_STORAGE_GET_COUNTERS CTL_CODE(IOCTL_STORAGE_BASE, &h442, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+#define IOCTL_STORAGE_READ_CAPACITY CTL_CODE(IOCTL_STORAGE_BASE, &h0450, METHOD_BUFFERED, FILE_READ_ACCESS)
+
+' // IOCTLs 0x0463 to 0x0468 reserved for dependent disk support.
+' // IOCTLs 0x0470 to 0x047f reserved for device and stack telemetry interfaces
+
+#define IOCTL_STORAGE_GET_DEVICE_TELEMETRY      CTL_CODE(IOCTL_STORAGE_BASE, &h0470, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS)
+#define IOCTL_STORAGE_DEVICE_TELEMETRY_NOTIFY   CTL_CODE(IOCTL_STORAGE_BASE, &h0471, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS)
+#define IOCTL_STORAGE_DEVICE_TELEMETRY_QUERY_CAPS CTL_CODE(IOCTL_STORAGE_BASE, &h0472, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS)
+#define IOCTL_STORAGE_GET_DEVICE_TELEMETRY_RAW  CTL_CODE(IOCTL_STORAGE_BASE, &h0473, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS)
+
+#define IOCTL_STORAGE_SET_TEMPERATURE_THRESHOLD     CTL_CODE(IOCTL_STORAGE_BASE, &h0480, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS)
+
+#define IOCTL_STORAGE_PROTOCOL_COMMAND              CTL_CODE(IOCTL_STORAGE_BASE, &h04F0, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS)
+
+#define IOCTL_STORAGE_SET_PROPERTY                  CTL_CODE(IOCTL_STORAGE_BASE, &h04FF, METHOD_BUFFERED, FILE_WRITE_ACCESS)
+#define IOCTL_STORAGE_QUERY_PROPERTY                CTL_CODE(IOCTL_STORAGE_BASE, &h0500, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_STORAGE_GET_LB_PROVISIONING_MAP_RESOURCES  CTL_CODE(IOCTL_STORAGE_BASE, &h0502, METHOD_BUFFERED, FILE_READ_ACCESS)
+
+' // IOCTLs 0x0503 to 0x0580 reserved for Enhanced Storage devices.
+
+' // This IOCTL offloads the erasure process to the storage device. There is no guarantee as to the successful
+' // deletion or recoverability of the data on the storage device after command completion. This IOCTL is limited
+' // to data disks in regular Windows. In WinPE, this IOCTL is supported for both boot and data disks.
+' //
+' // This IOCTL has an optional input and returns no output other than status. Callers should first call
+' // FSCTL_LOCK_VOLUME before calling this ioctl to flush out cached data in upper layers. No waiting of outstanding
+' // request completion is done before issuing the command to the device.
+#define IOCTL_STORAGE_REINITIALIZE_MEDIA    CTL_CODE(IOCTL_STORAGE_BASE, &h0590, METHOD_BUFFERED, FILE_WRITE_ACCESS)
+
+' // IOCTLs for bandwidth contracts on storage devices
+' // (Move this to ntddsfio if we decide to use a new base)
+
+#define IOCTL_STORAGE_GET_BC_PROPERTIES         CTL_CODE(IOCTL_STORAGE_BASE, &h0600, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_STORAGE_ALLOCATE_BC_STREAM        CTL_CODE(IOCTL_STORAGE_BASE, &h0601, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS)
+#define IOCTL_STORAGE_FREE_BC_STREAM            CTL_CODE(IOCTL_STORAGE_BASE, &h0602, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS)
+
+' // IOCTL to check for priority support
+#define IOCTL_STORAGE_CHECK_PRIORITY_HINT_SUPPORT    CTL_CODE(IOCTL_STORAGE_BASE, &h0620, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+' // IOCTL for data integrity check support
+#define IOCTL_STORAGE_START_DATA_INTEGRITY_CHECK     CTL_CODE(IOCTL_STORAGE_BASE, &h0621, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS)
+#define IOCTL_STORAGE_STOP_DATA_INTEGRITY_CHECK      CTL_CODE(IOCTL_STORAGE_BASE, &h0622, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS)
+
+' // These ioctl codes are obsolete.  They are defined here to avoid resuing them
+' // and to allow class drivers to respond to them more easily.
+
+#define OBSOLETE_IOCTL_STORAGE_RESET_BUS CTL_CODE(IOCTL_STORAGE_BASE, &h0400, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define OBSOLETE_IOCTL_STORAGE_RESET_DEVICE CTL_CODE(IOCTL_STORAGE_BASE, &h0401, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+
+' // IOCTLs 0x0643 to 0x0655 reserved for VHD disk support.
+
+' // IOCTLs for firmware upgrade on storage devices
+
+#define IOCTL_STORAGE_FIRMWARE_GET_INFO         CTL_CODE(IOCTL_STORAGE_BASE, &h0700, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_STORAGE_FIRMWARE_DOWNLOAD         CTL_CODE(IOCTL_STORAGE_BASE, &h0701, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS)
+#define IOCTL_STORAGE_FIRMWARE_ACTIVATE         CTL_CODE(IOCTL_STORAGE_BASE, &h0702, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS)
+
+' // IOCTL to support Idle Power Management, including Device Wake
+#define IOCTL_STORAGE_ENABLE_IDLE_POWER         CTL_CODE(IOCTL_STORAGE_BASE, &h0720, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_STORAGE_GET_IDLE_POWERUP_REASON   CTL_CODE(IOCTL_STORAGE_BASE, &h0721, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+' // IOCTLs to allow class drivers to acquire and release active references on
+' // a unit.  These should only be used if the class driver previously sent a
+' // successful IOCTL_STORAGE_ENABLE_IDLE_POWER request to the port driver.
+#define IOCTL_STORAGE_POWER_ACTIVE  CTL_CODE(IOCTL_STORAGE_BASE, &h0722, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_STORAGE_POWER_IDLE    CTL_CODE(IOCTL_STORAGE_BASE, &h0723, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+' // This IOCTL indicates that the physical device has triggered some sort of event.
+#define IOCTL_STORAGE_EVENT_NOTIFICATION CTL_CODE(IOCTL_STORAGE_BASE, &h0724, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+' // IOCTL to specify a power cap for a storage device.
+#define IOCTL_STORAGE_DEVICE_POWER_CAP CTL_CODE(IOCTL_STORAGE_BASE, &h0725, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+' // IOCTL to send commands to the RPMB for a storage device.
+#define IOCTL_STORAGE_RPMB_COMMAND     CTL_CODE(IOCTL_STORAGE_BASE, &h0726, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+' // IOCTL to manage attributes for storage devices
+#define IOCTL_STORAGE_ATTRIBUTE_MANAGEMENT CTL_CODE(IOCTL_STORAGE_BASE, &h0727, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS)
+
+' // IOCTL_STORAGE_DIAGNOSTIC IOCTL to query diagnostic data from the storage driver stack
+#define IOCTL_STORAGE_DIAGNOSTIC    CTL_CODE(IOCTL_STORAGE_BASE, &h0728, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+' // IOCTLs for storage device depopulation support.
+
+' // IOCTL_STORAGE_GET_PHYSICAL_ELEMENT_STATUS IOCTL to query physical element status from device.
+#define IOCTL_STORAGE_GET_PHYSICAL_ELEMENT_STATUS    CTL_CODE(IOCTL_STORAGE_BASE, &h0729, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+' // IOCTL_STORAGE_REMOVE_ELEMENT_AND_TRUNCATE IOCTL to remove and truncate element from device.
+#define IOCTL_STORAGE_REMOVE_ELEMENT_AND_TRUNCATE    CTL_CODE(IOCTL_STORAGE_BASE, &h0730, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+' // IOCTL_STORAGE_GET_DEVICE_INTERNAL_LOG IOCTL to get device internal status data.
+#define IOCTL_STORAGE_GET_DEVICE_INTERNAL_LOG    CTL_CODE(IOCTL_STORAGE_BASE, &h0731, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+' // Note: Function code values of less than 0x800 are reserved for Microsoft. Values of 0x800 and higher can be used by vendors.
+' //       So do not use function code of 0x800 and higher to define new IOCTLs in this file.
+
+
+type _STORAGE_READ_CAPACITY
+	Version as ULONG
+	Size as ULONG
+	BlockLength as ULONG
+	NumberOfBlocks as LARGE_INTEGER
+	DiskLength as LARGE_INTEGER
+end type
+
+type STORAGE_READ_CAPACITY as _STORAGE_READ_CAPACITY
+type PSTORAGE_READ_CAPACITY as _STORAGE_READ_CAPACITY ptr
+
+#if _WIN32_WINNT >= &h0601
+
+	#define IOCTL_STORAGE_MANAGE_DATA_SET_ATTRIBUTES CTL_CODE(IOCTL_STORAGE_BASE, &h0501, METHOD_BUFFERED, FILE_WRITE_ACCESS)
+
+	const DeviceDsmActionFlag_NonDestructive = &h80000000
+	const DeviceDsmAction_None = 0
+	const DeviceDsmAction_Trim = 1
+	const DeviceDsmAction_Notification = 2 or DeviceDsmActionFlag_NonDestructive
+
+   const DeviceDsmAction_OffloadRead             = (&h00000003u OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_OffloadWrite            = (&h00000004u)
+   const DeviceDsmAction_Allocation              = (&h00000005u OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_Repair                  = (&h00000006u OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_Scrub                   = (&h00000007u OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_DrtQuery                = (&h00000008u OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_DrtClear                = (&h00000009u OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_DrtDisable              = (&h0000000Au OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_TieringQuery            = (&h0000000Bu OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_Map                     = (&h0000000Cu OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_RegenerateParity        = (&h0000000Du OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_NvCache_Change_Priority = (&h0000000Eu OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_NvCache_Evict           = (&h0000000Fu OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_TopologyIdQuery         = (&h00000010u OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_GetPhysicalAddresses    = (&h00000011u OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_ScopeRegen              = (&h00000012u OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_ReportZones             = (&h00000013u OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_OpenZone                = (&h00000014u OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_FinishZone              = (&h00000015u OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_CloseZone               = (&h00000016u OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_ResetWritePointer       = (&h00000017u)
+   const DeviceDsmAction_GetRangeErrorInfo       = (&h00000018u OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_WriteZeroes             = (&h00000019u)
+   const DeviceDsmAction_LostQuery               = (&h0000001Au OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_GetFreeSpace            = (&h0000001Bu OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_ConversionQuery         = (&h0000001Cu OR DeviceDsmActionFlag_NonDestructive)
+   const DeviceDsmAction_VdtSet                  = (&h0000001Du)
+   const DeviceDsmAction_QueryPreferLocalRepair  = (&h0000001Eu OR DeviceDsmActionFlag_NonDestructive)
+
+	#define IsDsmActionNonDestructive(x) cast(WINBOOLEAN, -((((x) and DeviceDsmActionFlag_NonDestructive) = 0) = 0))
+
+	const DEVICE_DSM_FLAG_ENTIRE_DATA_SET_RANGE = &h00000001
+
+	type DEVICE_DATA_MANAGEMENT_SET_ACTION as DWORD
+   type DEVICE_DSM_ACTION AS DWORD
+
+	type _DEVICE_MANAGE_DATA_SET_ATTRIBUTES
+		Size as DWORD
+		Action as DEVICE_DATA_MANAGEMENT_SET_ACTION
+		Flags as DWORD
+		ParameterBlockOffset as DWORD
+		ParameterBlockLength as DWORD
+		DataSetRangesOffset as DWORD
+		DataSetRangesLength as DWORD
+	end type
+
+	type DEVICE_MANAGE_DATA_SET_ATTRIBUTES as _DEVICE_MANAGE_DATA_SET_ATTRIBUTES
+	type PDEVICE_MANAGE_DATA_SET_ATTRIBUTES as _DEVICE_MANAGE_DATA_SET_ATTRIBUTES ptr
+   type DEVICE_DSM_INPUT as _DEVICE_MANAGE_DATA_SET_ATTRIBUTES
+   type PDEVICE_DSM_INPUT AS _DEVICE_MANAGE_DATA_SET_ATTRIBUTES ptr
+
+	type _DEVICE_DATA_SET_RANGE
+		StartingOffset as LONGLONG
+		LengthInBytes as DWORDLONG
+	end type
+
+	type DEVICE_DATA_SET_RANGE as _DEVICE_DATA_SET_RANGE
+	type PDEVICE_DATA_SET_RANGE as _DEVICE_DATA_SET_RANGE ptr
+   type DEVICE_DSM_RANGE as _DEVICE_DATA_SET_RANGE
+   type PDEVICE_DSM_RANGE as _DEVICE_DATA_SET_RANGE ptr
+
+#endif
+
+type _STORAGE_HOTPLUG_INFO
+	Size as DWORD
+	MediaRemovable as WINBOOLEAN
+	MediaHotplug as WINBOOLEAN
+	DeviceHotplug as WINBOOLEAN
+	WriteCacheEnableOverride as WINBOOLEAN
+end type
+
+type STORAGE_HOTPLUG_INFO as _STORAGE_HOTPLUG_INFO
+type PSTORAGE_HOTPLUG_INFO as _STORAGE_HOTPLUG_INFO ptr
+
+type _STORAGE_DEVICE_NUMBER
+	DeviceType as DWORD
+	DeviceNumber as DWORD
+	PartitionNumber as DWORD
+end type
+
+type STORAGE_DEVICE_NUMBER as _STORAGE_DEVICE_NUMBER
+type PSTORAGE_DEVICE_NUMBER as _STORAGE_DEVICE_NUMBER ptr
+
+type _STORAGE_BUS_RESET_REQUEST
+	PathId as UBYTE
+end type
+
+type STORAGE_BUS_RESET_REQUEST as _STORAGE_BUS_RESET_REQUEST
+type PSTORAGE_BUS_RESET_REQUEST as _STORAGE_BUS_RESET_REQUEST ptr
+
+type STORAGE_BREAK_RESERVATION_REQUEST
+	Length as DWORD
+	_unused as UBYTE
+	PathId as UBYTE
+	TargetId as UBYTE
+	Lun as UBYTE
+end type
+
+type PSTORAGE_BREAK_RESERVATION_REQUEST as STORAGE_BREAK_RESERVATION_REQUEST ptr
+
+type _PREVENT_MEDIA_REMOVAL
+	PreventMediaRemoval as WINBOOLEAN
+end type
+
+type PREVENT_MEDIA_REMOVAL as _PREVENT_MEDIA_REMOVAL
+type PPREVENT_MEDIA_REMOVAL as _PREVENT_MEDIA_REMOVAL ptr
+
+type _CLASS_MEDIA_CHANGE_CONTEXT
+	MediaChangeCount as DWORD
+	NewState as DWORD
+end type
+
+type CLASS_MEDIA_CHANGE_CONTEXT as _CLASS_MEDIA_CHANGE_CONTEXT
+type PCLASS_MEDIA_CHANGE_CONTEXT as _CLASS_MEDIA_CHANGE_CONTEXT ptr
+
+type _TAPE_STATISTICS
+	Version as DWORD
+	Flags as DWORD
+	RecoveredWrites as LARGE_INTEGER
+	UnrecoveredWrites as LARGE_INTEGER
+	RecoveredReads as LARGE_INTEGER
+	UnrecoveredReads as LARGE_INTEGER
+	CompressionRatioReads as UBYTE
+	CompressionRatioWrites as UBYTE
+end type
+
+type TAPE_STATISTICS as _TAPE_STATISTICS
+type PTAPE_STATISTICS as _TAPE_STATISTICS ptr
+
+const RECOVERED_WRITES_VALID = &h00000001
+const UNRECOVERED_WRITES_VALID = &h00000002
+const RECOVERED_READS_VALID = &h00000004
+const UNRECOVERED_READS_VALID = &h00000008
+const WRITE_COMPRESSION_INFO_VALID = &h00000010
+const READ_COMPRESSION_INFO_VALID = &h00000020
+
+type _TAPE_GET_STATISTICS
+	Operation as DWORD
+end type
+
+type TAPE_GET_STATISTICS as _TAPE_GET_STATISTICS
+type PTAPE_GET_STATISTICS as _TAPE_GET_STATISTICS ptr
+
+const TAPE_RETURN_STATISTICS = 0
+const TAPE_RETURN_ENV_INFO = 1
+const TAPE_RESET_STATISTICS = 2
+
+type _STORAGE_MEDIA_TYPE as long
+enum
+	DDS_4mm = &h20
+	MiniQic
+	Travan
+	QIC
+	MP_8mm
+	AME_8mm
+	AIT1_8mm
+	DLT
+	NCTP
+	IBM_3480
+	IBM_3490E
+	IBM_Magstar_3590
+	IBM_Magstar_MP
+	STK_DATA_D3
+	SONY_DTF
+	DV_6mm
+	DMI
+	SONY_D2
+	CLEANER_CARTRIDGE
+	CD_ROM
+	CD_R
+	CD_RW
+	DVD_ROM
+	DVD_R
+	DVD_RW
+	MO_3_RW
+	MO_5_WO
+	MO_5_RW
+	MO_5_LIMDOW
+	PC_5_WO
+	PC_5_RW
+	PD_5_RW
+	ABL_5_WO
+	PINNACLE_APEX_5_RW
+	SONY_12_WO
+	PHILIPS_12_WO
+	HITACHI_12_WO
+	CYGNET_12_WO
+	KODAK_14_WO
+	MO_NFR_525
+	NIKON_12_RW
+	IOMEGA_ZIP
+	IOMEGA_JAZ
+	SYQUEST_EZ135
+	SYQUEST_EZFLYER
+	SYQUEST_SYJET
+	AVATAR_F2
+	MP2_8mm
+	DST_S
+	DST_M
+	DST_L
+	VXATape_1
+	VXATape_2
+	STK_9840
+	LTO_Ultrium
+	LTO_Accelis
+	DVD_RAM
+	AIT_8mm
+	ADR_1
+	ADR_2
+	STK_9940
+	SAIT
+	VXATape
+end enum
+
+type STORAGE_MEDIA_TYPE as _STORAGE_MEDIA_TYPE
+type PSTORAGE_MEDIA_TYPE as _STORAGE_MEDIA_TYPE ptr
+
+const MEDIA_ERASEABLE = &h00000001
+const MEDIA_WRITE_ONCE = &h00000002
+const MEDIA_READ_ONLY = &h00000004
+const MEDIA_READ_WRITE = &h00000008
+
+const MEDIA_WRITE_PROTECTED = &h00000100
+const MEDIA_CURRENTLY_MOUNTED = &h80000000
+
+type _STORAGE_BUS_TYPE as long
+enum
+	BusTypeUnknown = &h00
+	BusTypeScsi = &h1
+	BusTypeAtapi = &h2
+	BusTypeAta = &h3
+	BusType1394 = &h4
+	BusTypeSsa = &h5
+	BusTypeFibre = &h6
+	BusTypeUsb = &h7
+	BusTypeRAID = &h8
+   BusTypeiScsi = &h9
+	BusTypeSas = &hA
+	BusTypeSata = &hB
+	BusTypeSd = &hC
+	BusTypeMmc = &hD
+	BusTypeVirtual = &hE
+	BusTypeFileBackedVirtual = &hF
+   BusTypeSpaces
+   BusTypeNvme
+   BusTypeSCM
+   BusTypeUfs
+   BusTypeNvmeof
+	BusTypeMax
+	BusTypeMaxReserved = &h7F
+end enum
+
+type STORAGE_BUS_TYPE as _STORAGE_BUS_TYPE
+type PSTORAGE_BUS_TYPE as _STORAGE_BUS_TYPE ptr
+
+type _DEVICE_MEDIA_INFO_DeviceSpecific_DiskInfo
+	Cylinders as LARGE_INTEGER
+	MediaType as STORAGE_MEDIA_TYPE
+	TracksPerCylinder as DWORD
+	SectorsPerTrack as DWORD
+	BytesPerSector as DWORD
+	NumberMediaSides as DWORD
+	MediaCharacteristics as DWORD
+end type
+
+type _DEVICE_MEDIA_INFO_DeviceSpecific_RemovableDiskInfo
+	Cylinders as LARGE_INTEGER
+	MediaType as STORAGE_MEDIA_TYPE
+	TracksPerCylinder as DWORD
+	SectorsPerTrack as DWORD
+	BytesPerSector as DWORD
+	NumberMediaSides as DWORD
+	MediaCharacteristics as DWORD
+end type
+
+type _DEVICE_MEDIA_INFO_DeviceSpecific_TapeInfo_BusSpecificData_ScsiInformation
+	MediumType as UBYTE
+	DensityCode as UBYTE
+end type
+
+union _DEVICE_MEDIA_INFO_DeviceSpecific_TapeInfo_BusSpecificData
+	ScsiInformation as _DEVICE_MEDIA_INFO_DeviceSpecific_TapeInfo_BusSpecificData_ScsiInformation
+end union
+
+type _DEVICE_MEDIA_INFO_DeviceSpecific_TapeInfo
+	MediaType as STORAGE_MEDIA_TYPE
+	MediaCharacteristics as DWORD
+	CurrentBlockSize as DWORD
+	BusType as STORAGE_BUS_TYPE
+	BusSpecificData as _DEVICE_MEDIA_INFO_DeviceSpecific_TapeInfo_BusSpecificData
+end type
+
+union _DEVICE_MEDIA_INFO_DeviceSpecific
+	DiskInfo as _DEVICE_MEDIA_INFO_DeviceSpecific_DiskInfo
+	RemovableDiskInfo as _DEVICE_MEDIA_INFO_DeviceSpecific_RemovableDiskInfo
+	TapeInfo as _DEVICE_MEDIA_INFO_DeviceSpecific_TapeInfo
+end union
+
+type _DEVICE_MEDIA_INFO
+	DeviceSpecific as _DEVICE_MEDIA_INFO_DeviceSpecific
+end type
+
+type DEVICE_MEDIA_INFO as _DEVICE_MEDIA_INFO
+type PDEVICE_MEDIA_INFO as _DEVICE_MEDIA_INFO ptr
+
+type _GET_MEDIA_TYPES
+	DeviceType as DWORD
+	MediaInfoCount as DWORD
+	MediaInfo(0 to 0) as DEVICE_MEDIA_INFO
+end type
+
+type GET_MEDIA_TYPES as _GET_MEDIA_TYPES
+type PGET_MEDIA_TYPES as _GET_MEDIA_TYPES ptr
+
+type _STORAGE_PREDICT_FAILURE
+	PredictFailure as DWORD
+	VendorSpecific(0 to 511) as UBYTE
+end type
+
+type STORAGE_PREDICT_FAILURE as _STORAGE_PREDICT_FAILURE
+type PSTORAGE_PREDICT_FAILURE as _STORAGE_PREDICT_FAILURE ptr
+
+#define _NTDDDISK_H_
+
+const IOCTL_DISK_BASE = FILE_DEVICE_DISK
+#define IOCTL_DISK_GET_DRIVE_GEOMETRY CTL_CODE(IOCTL_DISK_BASE, &h0000, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_DISK_GET_PARTITION_INFO CTL_CODE(IOCTL_DISK_BASE, &h0001, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_DISK_SET_PARTITION_INFO CTL_CODE(IOCTL_DISK_BASE, &h0002, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define IOCTL_DISK_GET_DRIVE_LAYOUT CTL_CODE(IOCTL_DISK_BASE, &h0003, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_DISK_SET_DRIVE_LAYOUT CTL_CODE(IOCTL_DISK_BASE, &h0004, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define IOCTL_DISK_VERIFY CTL_CODE(IOCTL_DISK_BASE, &h0005, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_DISK_FORMAT_TRACKS CTL_CODE(IOCTL_DISK_BASE, &h0006, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define IOCTL_DISK_REASSIGN_BLOCKS CTL_CODE(IOCTL_DISK_BASE, &h0007, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define IOCTL_DISK_PERFORMANCE CTL_CODE(IOCTL_DISK_BASE, &h0008, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_DISK_IS_WRITABLE CTL_CODE(IOCTL_DISK_BASE, &h0009, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_DISK_LOGGING CTL_CODE(IOCTL_DISK_BASE, &h000a, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_DISK_FORMAT_TRACKS_EX CTL_CODE(IOCTL_DISK_BASE, &h000b, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define IOCTL_DISK_HISTOGRAM_STRUCTURE CTL_CODE(IOCTL_DISK_BASE, &h000c, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_DISK_HISTOGRAM_DATA CTL_CODE(IOCTL_DISK_BASE, &h000d, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_DISK_HISTOGRAM_RESET CTL_CODE(IOCTL_DISK_BASE, &h000e, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_DISK_REQUEST_STRUCTURE CTL_CODE(IOCTL_DISK_BASE, &h000f, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_DISK_REQUEST_DATA CTL_CODE(IOCTL_DISK_BASE, &h0010, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_DISK_PERFORMANCE_OFF CTL_CODE(IOCTL_DISK_BASE, &h0018, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_DISK_CONTROLLER_NUMBER CTL_CODE(IOCTL_DISK_BASE, &h0011, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define SMART_GET_VERSION CTL_CODE(IOCTL_DISK_BASE, &h0020, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define SMART_SEND_DRIVE_COMMAND CTL_CODE(IOCTL_DISK_BASE, &h0021, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define SMART_RCV_DRIVE_DATA CTL_CODE(IOCTL_DISK_BASE, &h0022, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+
+#define SMART_RCV_DRIVE_DATA_EX CTL_CODE(IOCTL_DISK_BASE, &h0023, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+#define IOCTL_DISK_GET_PARTITION_INFO_EX CTL_CODE(IOCTL_DISK_BASE, &h0012, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_DISK_SET_PARTITION_INFO_EX CTL_CODE(IOCTL_DISK_BASE, &h0013, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define IOCTL_DISK_GET_DRIVE_LAYOUT_EX CTL_CODE(IOCTL_DISK_BASE, &h0014, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_DISK_SET_DRIVE_LAYOUT_EX CTL_CODE(IOCTL_DISK_BASE, &h0015, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define IOCTL_DISK_CREATE_DISK CTL_CODE(IOCTL_DISK_BASE, &h0016, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define IOCTL_DISK_GET_LENGTH_INFO CTL_CODE(IOCTL_DISK_BASE, &h0017, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_DISK_GET_DRIVE_GEOMETRY_EX CTL_CODE(IOCTL_DISK_BASE, &h0028, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+#define IOCTL_DISK_REASSIGN_BLOCKS_EX CTL_CODE(IOCTL_DISK_BASE, &h0029, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+
+#define IOCTL_DISK_UPDATE_DRIVE_SIZE CTL_CODE(IOCTL_DISK_BASE, &h0032, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define IOCTL_DISK_GROW_PARTITION CTL_CODE(IOCTL_DISK_BASE, &h0034, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+
+#define IOCTL_DISK_GET_CACHE_INFORMATION CTL_CODE(IOCTL_DISK_BASE, &h0035, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_DISK_SET_CACHE_INFORMATION CTL_CODE(IOCTL_DISK_BASE, &h0036, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define OBSOLETE_DISK_GET_WRITE_CACHE_STATE CTL_CODE(IOCTL_DISK_BASE, &h0037, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_DISK_DELETE_DRIVE_LAYOUT CTL_CODE(IOCTL_DISK_BASE, &h0040, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+
+#define IOCTL_DISK_UPDATE_PROPERTIES CTL_CODE(IOCTL_DISK_BASE, &h0050, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+#define IOCTL_DISK_RESET_SNAPSHOT_INFO CTL_CODE(IOCTL_DISK_BASE, &h0084, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+
+#define IOCTL_DISK_FORMAT_DRIVE CTL_CODE(IOCTL_DISK_BASE, &h00f3, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define IOCTL_DISK_SENSE_DEVICE CTL_CODE(IOCTL_DISK_BASE, &h00f8, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+#define IOCTL_DISK_CHECK_VERIFY CTL_CODE(IOCTL_DISK_BASE, &h0200, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_DISK_MEDIA_REMOVAL CTL_CODE(IOCTL_DISK_BASE, &h0201, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_DISK_EJECT_MEDIA CTL_CODE(IOCTL_DISK_BASE, &h0202, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_DISK_LOAD_MEDIA CTL_CODE(IOCTL_DISK_BASE, &h0203, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_DISK_RESERVE CTL_CODE(IOCTL_DISK_BASE, &h0204, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_DISK_RELEASE CTL_CODE(IOCTL_DISK_BASE, &h0205, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_DISK_FIND_NEW_DEVICES CTL_CODE(IOCTL_DISK_BASE, &h0206, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_DISK_GET_MEDIA_TYPES CTL_CODE(IOCTL_DISK_BASE, &h0300, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+#define IOCTL_STORAGE_QUERY_PROPERTY CTL_CODE(IOCTL_STORAGE_BASE, &h0500, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+const PARTITION_ENTRY_UNUSED = &h00
+const PARTITION_FAT_12 = &h01
+const PARTITION_XENIX_1 = &h02
+const PARTITION_XENIX_2 = &h03
+const PARTITION_FAT_16 = &h04
+const PARTITION_EXTENDED = &h05
+const PARTITION_HUGE = &h06
+const PARTITION_IFS = &h07
+const PARTITION_OS2BOOTMGR = &h0A
+const PARTITION_FAT32 = &h0B
+const PARTITION_FAT32_XINT13 = &h0C
+const PARTITION_XINT13 = &h0E
+const PARTITION_XINT13_EXTENDED = &h0F
+const PARTITION_PREP = &h41
+const PARTITION_LDM = &h42
+const PARTITION_UNIX = &h63
+const VALID_NTFT = &hC0
+const PARTITION_NTFT = &h80
+
+#define IsRecognizedPartition(PartitionType) ((((((((((((((PartitionType and PARTITION_NTFT) andalso ((PartitionType and (not &hC0)) = PARTITION_FAT_12)) orelse ((PartitionType and PARTITION_NTFT) andalso ((PartitionType and (not &hC0)) = PARTITION_IFS))) orelse ((PartitionType and PARTITION_NTFT) andalso ((PartitionType and (not &hC0)) = PARTITION_HUGE))) orelse ((PartitionType and PARTITION_NTFT) andalso ((PartitionType and (not &hC0)) = PARTITION_FAT32))) orelse ((PartitionType and PARTITION_NTFT) andalso ((PartitionType and (not &hC0)) = PARTITION_FAT32_XINT13))) orelse ((PartitionType and PARTITION_NTFT) andalso ((PartitionType and (not &hC0)) = PARTITION_XINT13))) orelse ((PartitionType) = PARTITION_FAT_12)) orelse ((PartitionType) = PARTITION_FAT_16)) orelse ((PartitionType) = PARTITION_IFS)) orelse ((PartitionType) = PARTITION_HUGE)) orelse ((PartitionType) = PARTITION_FAT32)) orelse ((PartitionType) = PARTITION_FAT32_XINT13)) orelse ((PartitionType) = PARTITION_XINT13))
+#define IsContainerPartition(PartitionType) ((PartitionType = PARTITION_EXTENDED) orelse (PartitionType = PARTITION_XINT13_EXTENDED))
+#define IsFTPartition(PartitionType) (((PartitionType) and PARTITION_NTFT) andalso IsRecognizedPartition(PartitionType))
+
+type _MEDIA_TYPE as long
+enum
+	Unknown
+	F5_1Pt2_512
+	F3_1Pt44_512
+	F3_2Pt88_512
+	F3_20Pt8_512
+	F3_720_512
+	F5_360_512
+	F5_320_512
+	F5_320_1024
+	F5_180_512
+	F5_160_512
+	RemovableMedia
+	FixedMedia
+	F3_120M_512
+	F3_640_512
+	F5_640_512
+	F5_720_512
+	F3_1Pt2_512
+	F3_1Pt23_1024
+	F5_1Pt23_1024
+	F3_128Mb_512
+	F3_230Mb_512
+	F8_256_128
+	F3_200Mb_512
+	F3_240M_512
+	F3_32M_512
+end enum
+
+type MEDIA_TYPE as _MEDIA_TYPE
+type PMEDIA_TYPE as _MEDIA_TYPE ptr
+
+type _FORMAT_PARAMETERS
+	MediaType as MEDIA_TYPE
+	StartCylinderNumber as DWORD
+	EndCylinderNumber as DWORD
+	StartHeadNumber as DWORD
+	EndHeadNumber as DWORD
+end type
+
+type FORMAT_PARAMETERS as _FORMAT_PARAMETERS
+type PFORMAT_PARAMETERS as _FORMAT_PARAMETERS ptr
+
+type BAD_TRACK_NUMBER as WORD
+type PBAD_TRACK_NUMBER as WORD ptr
+
+type _FORMAT_EX_PARAMETERS
+	MediaType as MEDIA_TYPE
+	StartCylinderNumber as DWORD
+	EndCylinderNumber as DWORD
+	StartHeadNumber as DWORD
+	EndHeadNumber as DWORD
+	FormatGapLength as WORD
+	SectorsPerTrack as WORD
+	SectorNumber(0 to 0) as WORD
+end type
+
+type FORMAT_EX_PARAMETERS as _FORMAT_EX_PARAMETERS
+type PFORMAT_EX_PARAMETERS as _FORMAT_EX_PARAMETERS ptr
+
+type _DISK_GEOMETRY
+	Cylinders as LARGE_INTEGER
+	MediaType as MEDIA_TYPE
+	TracksPerCylinder as DWORD
+	SectorsPerTrack as DWORD
+	BytesPerSector as DWORD
+end type
+
+type DISK_GEOMETRY as _DISK_GEOMETRY
+type PDISK_GEOMETRY as _DISK_GEOMETRY ptr
+
+#define WMI_DISK_GEOMETRY_GUID (&h25007f51, &h57c2, &h11d1, (&ha5, &h28, &h0, &ha0, &hc9, &h6, &h29, &h10))
+
+type _PARTITION_INFORMATION
+	StartingOffset as LARGE_INTEGER
+	PartitionLength as LARGE_INTEGER
+	HiddenSectors as DWORD
+	PartitionNumber as DWORD
+	PartitionType as UBYTE
+	BootIndicator as WINBOOLEAN
+	RecognizedPartition as WINBOOLEAN
+	RewritePartition as WINBOOLEAN
+end type
+
+type PARTITION_INFORMATION as _PARTITION_INFORMATION
+type PPARTITION_INFORMATION as _PARTITION_INFORMATION ptr
+
+type _SET_PARTITION_INFORMATION
+	PartitionType as UBYTE
+end type
+
+type SET_PARTITION_INFORMATION as _SET_PARTITION_INFORMATION
+type PSET_PARTITION_INFORMATION as _SET_PARTITION_INFORMATION ptr
+
+type _DRIVE_LAYOUT_INFORMATION
+	PartitionCount as DWORD
+	Signature as DWORD
+	PartitionEntry(0 to 0) as PARTITION_INFORMATION
+end type
+
+type DRIVE_LAYOUT_INFORMATION as _DRIVE_LAYOUT_INFORMATION
+type PDRIVE_LAYOUT_INFORMATION as _DRIVE_LAYOUT_INFORMATION ptr
+
+type _VERIFY_INFORMATION
+	StartingOffset as LARGE_INTEGER
+	Length as DWORD
+end type
+
+type VERIFY_INFORMATION as _VERIFY_INFORMATION
+type PVERIFY_INFORMATION as _VERIFY_INFORMATION ptr
+
+type _REASSIGN_BLOCKS
+	Reserved as WORD
+	Count as WORD
+	BlockNumber(0 to 0) as DWORD
+end type
+
+type REASSIGN_BLOCKS as _REASSIGN_BLOCKS
+type PREASSIGN_BLOCKS as _REASSIGN_BLOCKS ptr
+
+type _REASSIGN_BLOCKS_EX field = 1
+	Reserved as WORD
+	Count as WORD
+	BlockNumber(0 to 0) as LARGE_INTEGER
+end type
+
+type REASSIGN_BLOCKS_EX as _REASSIGN_BLOCKS_EX
+type PREASSIGN_BLOCKS_EX as _REASSIGN_BLOCKS_EX ptr
+
+type _PARTITION_STYLE as long
+enum
+	PARTITION_STYLE_MBR
+	PARTITION_STYLE_GPT
+	PARTITION_STYLE_RAW
+end enum
+type PARTITION_STYLE as _PARTITION_STYLE
+
+' Contains GUID partition table (GPT) partition information.
+type _PARTITION_INFORMATION_GPT
+	PartitionType as GUID
+	PartitionId as GUID
+	Attributes as DWORD64
+	Name as wstring * 36
+end type
+type PARTITION_INFORMATION_GPT as _PARTITION_INFORMATION_GPT
+type PPARTITION_INFORMATION_GPT as _PARTITION_INFORMATION_GPT ptr
+
+#define GPT_ATTRIBUTE_PLATFORM_REQUIRED             (&h0000000000000001)
+#define GPT_ATTRIBUTE_NO_BLOCK_IO_PROTOCOL          (&h0000000000000002)
+#define GPT_ATTRIBUTE_LEGACY_BIOS_BOOTABLE          (&h0000000000000004)
+
+#define GPT_BASIC_DATA_ATTRIBUTE_NO_DRIVE_LETTER    (&h8000000000000000)
+#define GPT_BASIC_DATA_ATTRIBUTE_HIDDEN             (&h4000000000000000)
+#define GPT_BASIC_DATA_ATTRIBUTE_SHADOW_COPY        (&h2000000000000000)
+#define GPT_BASIC_DATA_ATTRIBUTE_READ_ONLY          (&h1000000000000000)
+#define GPT_BASIC_DATA_ATTRIBUTE_OFFLINE            (&h0800000000000000)
+#define GPT_BASIC_DATA_ATTRIBUTE_DAX                (&h0400000000000000)
+#define GPT_BASIC_DATA_ATTRIBUTE_SERVICE            (&h0200000000000000)
+
+type _PARTITION_INFORMATION_MBR
+   AS BYTE  PartitionType
+   AS WINBOOLEAN BootIndicator
+   AS WINBOOLEAN RecognizedPartition
+   AS DWORD HiddenSectors
+'#if (NTDDI_VERSION >= NTDDI_WINBLUE)    /* ABRACADABRA_THRESHOLD */
+   AS GUID PartitionId
+'#endif
+end type
+type PARTITION_INFORMATION_MBR AS _PARTITION_INFORMATION_MBR
+type PPARTITION_INFORMATION_MBR AS _PARTITION_INFORMATION_MBR PTR
+
+type PARTITION_INFORMATION_MBR as _PARTITION_INFORMATION_MBR
+type PPARTITION_INFORMATION_MBR as _PARTITION_INFORMATION_MBR ptr
+type SET_PARTITION_INFORMATION_MBR as SET_PARTITION_INFORMATION
+type SET_PARTITION_INFORMATION_GPT as PARTITION_INFORMATION_GPT
+
+type _SET_PARTITION_INFORMATION_EX
+	PartitionStyle as PARTITION_STYLE
+	union
+		Mbr as SET_PARTITION_INFORMATION_MBR
+		Gpt as SET_PARTITION_INFORMATION_GPT
+	end union
+end type
+
+type SET_PARTITION_INFORMATION_EX as _SET_PARTITION_INFORMATION_EX
+type PSET_PARTITION_INFORMATION_EX as _SET_PARTITION_INFORMATION_EX ptr
+
+type _CREATE_DISK_GPT
+	DiskId as GUID
+	MaxPartitionCount as DWORD
+end type
+
+type CREATE_DISK_GPT as _CREATE_DISK_GPT
+type PCREATE_DISK_GPT as _CREATE_DISK_GPT ptr
+
+type _CREATE_DISK_MBR
+	Signature as DWORD
+end type
+
+type CREATE_DISK_MBR as _CREATE_DISK_MBR
+type PCREATE_DISK_MBR as _CREATE_DISK_MBR ptr
+
+type _CREATE_DISK
+	PartitionStyle as PARTITION_STYLE
+	union
+		Mbr as CREATE_DISK_MBR
+		Gpt as CREATE_DISK_GPT
+	end union
+end type
+
+type CREATE_DISK as _CREATE_DISK
+type PCREATE_DISK as _CREATE_DISK ptr
+
+type _GET_LENGTH_INFORMATION
+	Length as LARGE_INTEGER
+end type
+
+type GET_LENGTH_INFORMATION as _GET_LENGTH_INFORMATION
+type PGET_LENGTH_INFORMATION as _GET_LENGTH_INFORMATION ptr
+
+type _PARTITION_INFORMATION_EX
+	PartitionStyle as PARTITION_STYLE
+	StartingOffset as LARGE_INTEGER
+	PartitionLength as LARGE_INTEGER
+	PartitionNumber as DWORD
+	RewritePartition as WINBOOLEAN
+	union
+		Mbr as PARTITION_INFORMATION_MBR
+		Gpt as PARTITION_INFORMATION_GPT
+	end union
+end type
+
+type PARTITION_INFORMATION_EX as _PARTITION_INFORMATION_EX
+type PPARTITION_INFORMATION_EX as _PARTITION_INFORMATION_EX ptr
+
+type _DRIVE_LAYOUT_INFORMATION_GPT
+	DiskId as GUID
+	StartingUsableOffset as LARGE_INTEGER
+	UsableLength as LARGE_INTEGER
+	MaxPartitionCount as DWORD
+end type
+
+type DRIVE_LAYOUT_INFORMATION_GPT as _DRIVE_LAYOUT_INFORMATION_GPT
+type PDRIVE_LAYOUT_INFORMATION_GPT as _DRIVE_LAYOUT_INFORMATION_GPT ptr
+
+type _DRIVE_LAYOUT_INFORMATION_MBR
+	Signature as DWORD
+end type
+
+type DRIVE_LAYOUT_INFORMATION_MBR as _DRIVE_LAYOUT_INFORMATION_MBR
+type PDRIVE_LAYOUT_INFORMATION_MBR as _DRIVE_LAYOUT_INFORMATION_MBR ptr
+
+type _DRIVE_LAYOUT_INFORMATION_EX
+	PartitionStyle as DWORD
+	PartitionCount as DWORD
+
+	union
+		Mbr as DRIVE_LAYOUT_INFORMATION_MBR
+		Gpt as DRIVE_LAYOUT_INFORMATION_GPT
+	end union
+
+	PartitionEntry(0 to 0) as PARTITION_INFORMATION_EX
+end type
+
+type DRIVE_LAYOUT_INFORMATION_EX as _DRIVE_LAYOUT_INFORMATION_EX
+type PDRIVE_LAYOUT_INFORMATION_EX as _DRIVE_LAYOUT_INFORMATION_EX ptr
+
+type _DETECTION_TYPE as long
+enum
+	DetectNone
+	DetectInt13
+	DetectExInt13
+end enum
+
+type DETECTION_TYPE as _DETECTION_TYPE
+
+type _DISK_INT13_INFO
+	DriveSelect as WORD
+	MaxCylinders as DWORD
+	SectorsPerTrack as WORD
+	MaxHeads as WORD
+	NumberDrives as WORD
+end type
+
+type DISK_INT13_INFO as _DISK_INT13_INFO
+type PDISK_INT13_INFO as _DISK_INT13_INFO ptr
+
+type _DISK_EX_INT13_INFO
+	ExBufferSize as WORD
+	ExFlags as WORD
+	ExCylinders as DWORD
+	ExHeads as DWORD
+	ExSectorsPerTrack as DWORD
+	ExSectorsPerDrive as DWORD64
+	ExSectorSize as WORD
+	ExReserved as WORD
+end type
+type DISK_EX_INT13_INFO as _DISK_EX_INT13_INFO
+type PDISK_EX_INT13_INFO as _DISK_EX_INT13_INFO ptr
+
+type _DISK_DETECTION_INFO
+	SizeOfDetectInfo as DWORD
+	DetectionType as DETECTION_TYPE
+
+	union
+		type
+			Int13 as DISK_INT13_INFO
+			ExInt13 as DISK_EX_INT13_INFO
+		end type
+	end union
+end type
+type DISK_DETECTION_INFO as _DISK_DETECTION_INFO
+type PDISK_DETECTION_INFO as _DISK_DETECTION_INFO ptr
+
+type _DISK_PARTITION_INFO_Mbr
+	Signature as DWORD
+	CheckSum as DWORD
+end type
+
+type _DISK_PARTITION_INFO_Gpt
+	DiskId as GUID
+end type
+
+type _DISK_PARTITION_INFO
+	SizeOfPartitionInfo as DWORD
+	PartitionStyle as PARTITION_STYLE
+	union
+		Mbr as _DISK_PARTITION_INFO_Mbr
+		Gpt as _DISK_PARTITION_INFO_Gpt
+	end union
+end type
+type DISK_PARTITION_INFO as _DISK_PARTITION_INFO
+type PDISK_PARTITION_INFO as _DISK_PARTITION_INFO ptr
+
+#define DiskGeometryGetPartition(Geometry) cast(PDISK_PARTITION_INFO, (Geometry)->Data)
+#define DiskGeometryGetDetect(Geometry) cast(PDISK_DETECTION_INFO, cast(DWORD_PTR, DiskGeometryGetPartition(Geometry)) + DiskGeometryGetPartition(Geometry)->SizeOfPartitionInfo)
+
+type _DISK_GEOMETRY_EX
+	Geometry as DISK_GEOMETRY
+	DiskSize as LARGE_INTEGER
+	Data(0 to 0) as UBYTE
+end type
+type DISK_GEOMETRY_EX as _DISK_GEOMETRY_EX
+type PDISK_GEOMETRY_EX as _DISK_GEOMETRY_EX ptr
+
+type _DISK_CONTROLLER_NUMBER
+	ControllerNumber as DWORD
+	DiskNumber as DWORD
+end type
+type DISK_CONTROLLER_NUMBER as _DISK_CONTROLLER_NUMBER
+type PDISK_CONTROLLER_NUMBER as _DISK_CONTROLLER_NUMBER ptr
+
+type DISK_CACHE_RETENTION_PRIORITY as long
+enum
+	EqualPriority
+	KeepPrefetchedData
+	KeepReadData
+end enum
+
+' // Obsolete enumeration from early Windows NT/XP SDK headers.
+'#if (OSVER(NTDDI_VERSION) == NTDDI_WINXP)
+'enum DISK_WRITE_CACHE_STATE
+'   DiskWriteCacheNormal
+'   DiskWriteCacheForceDisable
+'   DiskWriteCacheDisableNotSupported
+'end enum
+'#endif
+
+type _DISK_CACHE_INFORMATION_ScalarPrefetch
+	Minimum as WORD
+	Maximum as WORD
+	MaximumBlocks as WORD
+end type
+
+type _DISK_CACHE_INFORMATION_BlockPrefetch
+	Minimum as WORD
+	Maximum as WORD
+end type
+
+type _DISK_CACHE_INFORMATION
+	ParametersSavable as WINBOOLEAN
+	ReadCacheEnabled as WINBOOLEAN
+	WriteCacheEnabled as WINBOOLEAN
+	ReadRetentionPriority as DISK_CACHE_RETENTION_PRIORITY
+	WriteRetentionPriority as DISK_CACHE_RETENTION_PRIORITY
+	DisablePrefetchTransferLength as WORD
+	PrefetchScalar as WINBOOLEAN
+	union
+		ScalarPrefetch as _DISK_CACHE_INFORMATION_ScalarPrefetch
+		BlockPrefetch as _DISK_CACHE_INFORMATION_BlockPrefetch
+	end union
+end type
+type DISK_CACHE_INFORMATION as _DISK_CACHE_INFORMATION
+type PDISK_CACHE_INFORMATION as _DISK_CACHE_INFORMATION ptr
+
+type _DISK_GROW_PARTITION
+	PartitionNumber as DWORD
+	BytesToGrow as LARGE_INTEGER
+end type
+
+type DISK_GROW_PARTITION as _DISK_GROW_PARTITION
+type PDISK_GROW_PARTITION as _DISK_GROW_PARTITION ptr
+
+const HIST_NO_OF_BUCKETS = 24
+
+type _HISTOGRAM_BUCKET
+	Reads as DWORD
+	Writes as DWORD
+end type
+
+type HISTOGRAM_BUCKET as _HISTOGRAM_BUCKET
+type PHISTOGRAM_BUCKET as _HISTOGRAM_BUCKET ptr
+
+#define HISTOGRAM_BUCKET_SIZE sizeof(HISTOGRAM_BUCKET)
+
+type _DISK_HISTOGRAM
+	DiskSize as LARGE_INTEGER
+	Start as LARGE_INTEGER
+	as LARGE_INTEGER End
+	Average as LARGE_INTEGER
+	AverageRead as LARGE_INTEGER
+	AverageWrite as LARGE_INTEGER
+	Granularity as DWORD
+	Size as DWORD
+	ReadCount as DWORD
+	WriteCount as DWORD
+	Histogram as PHISTOGRAM_BUCKET
+end type
+
+type DISK_HISTOGRAM as _DISK_HISTOGRAM
+type PDISK_HISTOGRAM as _DISK_HISTOGRAM ptr
+
+#define DISK_HISTOGRAM_SIZE sizeof(DISK_HISTOGRAM)
+
+type _DISK_PERFORMANCE
+   BytesRead as LARGE_INTEGER
+   BytesWritten as LARGE_INTEGER
+   ReadTime as LARGE_INTEGER
+   WriteTime as LARGE_INTEGER
+   IdleTime as LARGE_INTEGER
+   ReadCount as DWORD
+   WriteCount as DWORD
+   QueueDepth as DWORD
+   SplitCount as DWORD
+   QueryTime as LARGE_INTEGER
+   StorageDeviceNumber as DWORD
+   StorageManagerName as wstring * 8
+end type
+
+type DISK_PERFORMANCE as _DISK_PERFORMANCE
+type PDISK_PERFORMANCE as _DISK_PERFORMANCE ptr
+
+type _DISK_RECORD
+	ByteOffset as LARGE_INTEGER
+	StartTime as LARGE_INTEGER
+	EndTime as LARGE_INTEGER
+	VirtualAddress as PVOID
+	NumberOfBytes as DWORD
+	DeviceNumber as UBYTE
+	ReadRequest as WINBOOLEAN
+end type
+
+type DISK_RECORD as _DISK_RECORD
+type PDISK_RECORD as _DISK_RECORD ptr
+
+type _DISK_LOGGING
+	Function as UBYTE
+	BufferAddress as PVOID
+	BufferSize as DWORD
+end type
+
+type DISK_LOGGING as _DISK_LOGGING
+type PDISK_LOGGING as _DISK_LOGGING ptr
+
+const DISK_LOGGING_START = 0
+const DISK_LOGGING_STOP = 1
+const DISK_LOGGING_DUMP = 2
+const DISK_BINNING = 3
+
+type _BIN_TYPES as long
+enum
+	RequestSize
+	RequestLocation
+end enum
+
+type BIN_TYPES as _BIN_TYPES
+
+type _BIN_RANGE
+	StartValue as LARGE_INTEGER
+	Length as LARGE_INTEGER
+end type
+
+type BIN_RANGE as _BIN_RANGE
+type PBIN_RANGE as _BIN_RANGE ptr
+
+type _PERF_BIN
+	NumberOfBins as DWORD
+	TypeOfBin as DWORD
+	BinsRanges(0 to 0) as BIN_RANGE
+end type
+
+type PERF_BIN as _PERF_BIN
+type PPERF_BIN as _PERF_BIN ptr
+
+type _BIN_COUNT
+	BinRange as BIN_RANGE
+	BinCount as DWORD
+end type
+
+type BIN_COUNT as _BIN_COUNT
+type PBIN_COUNT as _BIN_COUNT ptr
+
+type _BIN_RESULTS
+	NumberOfBins as DWORD
+	BinCounts(0 to 0) as BIN_COUNT
+end type
+
+type BIN_RESULTS as _BIN_RESULTS
+type PBIN_RESULTS as _BIN_RESULTS ptr
+
+type _GETVERSIONINPARAMS field = 1
+	bVersion as UBYTE
+	bRevision as UBYTE
+	bReserved as UBYTE
+	bIDEDeviceMap as UBYTE
+	fCapabilities as DWORD
+	dwReserved(0 to 3) as DWORD
+end type
+
+type GETVERSIONINPARAMS as _GETVERSIONINPARAMS
+type PGETVERSIONINPARAMS as _GETVERSIONINPARAMS ptr
+type LPGETVERSIONINPARAMS as _GETVERSIONINPARAMS ptr
+
+const CAP_ATA_ID_CMD = 1
+const CAP_ATAPI_ID_CMD = 2
+const CAP_SMART_CMD = 4
+
+type _IDEREGS field = 1
+	bFeaturesReg as UBYTE
+	bSectorCountReg as UBYTE
+	bSectorNumberReg as UBYTE
+	bCylLowReg as UBYTE
+	bCylHighReg as UBYTE
+	bDriveHeadReg as UBYTE
+	bCommandReg as UBYTE
+	bReserved as UBYTE
+end type
+
+type IDEREGS as _IDEREGS
+type PIDEREGS as _IDEREGS ptr
+type LPIDEREGS as _IDEREGS ptr
+
+const ATAPI_ID_CMD = &hA1
+const ID_CMD = &hEC
+const SMART_CMD = &hB0
+const SMART_CYL_LOW = &h4F
+const SMART_CYL_HI = &hC2
+
+type _SENDCMDINPARAMS field = 1
+	cBufferSize as DWORD
+	irDriveRegs as IDEREGS
+	bDriveNumber as UBYTE
+	bReserved(0 to 2) as UBYTE
+	dwReserved(0 to 3) as DWORD
+	bBuffer(0 to 0) as UBYTE
+end type
+
+type SENDCMDINPARAMS as _SENDCMDINPARAMS
+type PSENDCMDINPARAMS as _SENDCMDINPARAMS ptr
+type LPSENDCMDINPARAMS as _SENDCMDINPARAMS ptr
+
+type _DRIVERSTATUS field = 1
+	bDriverError as UBYTE
+	bIDEError as UBYTE
+	bReserved(0 to 1) as UBYTE
+	dwReserved(0 to 1) as DWORD
+end type
+
+type DRIVERSTATUS as _DRIVERSTATUS
+type PDRIVERSTATUS as _DRIVERSTATUS ptr
+type LPDRIVERSTATUS as _DRIVERSTATUS ptr
+
+const SMART_NO_ERROR = 0
+const SMART_IDE_ERROR = 1
+const SMART_INVALID_FLAG = 2
+const SMART_INVALID_COMMAND = 3
+const SMART_INVALID_BUFFER = 4
+const SMART_INVALID_DRIVE = 5
+const SMART_INVALID_IOCTL = 6
+const SMART_ERROR_NO_MEM = 7
+const SMART_INVALID_REGISTER = 8
+const SMART_NOT_SUPPORTED = 9
+const SMART_NO_IDE_DEVICE = 10
+
+const SMART_OFFLINE_ROUTINE_OFFLINE = 0
+const SMART_SHORT_SELFTEST_OFFLINE = 1
+const SMART_EXTENDED_SELFTEST_OFFLINE = 2
+const SMART_ABORT_OFFLINE_SELFTEST = 127
+const SMART_SHORT_SELFTEST_CAPTIVE = 129
+const SMART_EXTENDED_SELFTEST_CAPTIVE = 130
+
+type _SENDCMDOUTPARAMS field = 1
+	cBufferSize as DWORD
+	DriverStatus as DRIVERSTATUS
+	bBuffer(0 to 0) as UBYTE
+end type
+
+type SENDCMDOUTPARAMS as _SENDCMDOUTPARAMS
+type PSENDCMDOUTPARAMS as _SENDCMDOUTPARAMS ptr
+type LPSENDCMDOUTPARAMS as _SENDCMDOUTPARAMS ptr
+
+const READ_ATTRIBUTE_BUFFER_SIZE = 512
+const IDENTIFY_BUFFER_SIZE = 512
+const READ_THRESHOLD_BUFFER_SIZE = 512
+const SMART_LOG_SECTOR_SIZE = 512
+
+const READ_ATTRIBUTES = &hD0
+const READ_THRESHOLDS = &hD1
+const ENABLE_DISABLE_AUTOSAVE = &hD2
+const SAVE_ATTRIBUTE_VALUES = &hD3
+const EXECUTE_OFFLINE_DIAGS = &hD4
+const SMART_READ_LOG = &hD5
+const SMART_WRITE_LOG = &hd6
+const ENABLE_SMART = &hD8
+const DISABLE_SMART = &hD9
+const RETURN_SMART_STATUS = &hDA
+const ENABLE_DISABLE_AUTO_OFFLINE = &hDB
+
+const IOCTL_CHANGER_BASE = FILE_DEVICE_CHANGER
+#define IOCTL_CHANGER_GET_PARAMETERS CTL_CODE(IOCTL_CHANGER_BASE, &h0000, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_CHANGER_GET_STATUS CTL_CODE(IOCTL_CHANGER_BASE, &h0001, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_CHANGER_GET_PRODUCT_DATA CTL_CODE(IOCTL_CHANGER_BASE, &h0002, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_CHANGER_SET_ACCESS CTL_CODE(IOCTL_CHANGER_BASE, &h0004, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define IOCTL_CHANGER_GET_ELEMENT_STATUS CTL_CODE(IOCTL_CHANGER_BASE, &h0005, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define IOCTL_CHANGER_INITIALIZE_ELEMENT_STATUS CTL_CODE(IOCTL_CHANGER_BASE, &h0006, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_CHANGER_SET_POSITION CTL_CODE(IOCTL_CHANGER_BASE, &h0007, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_CHANGER_EXCHANGE_MEDIUM CTL_CODE(IOCTL_CHANGER_BASE, &h0008, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_CHANGER_MOVE_MEDIUM CTL_CODE(IOCTL_CHANGER_BASE, &h0009, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_CHANGER_REINITIALIZE_TRANSPORT CTL_CODE(IOCTL_CHANGER_BASE, &h000A, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define IOCTL_CHANGER_QUERY_VOLUME_TAGS CTL_CODE(IOCTL_CHANGER_BASE, &h000B, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+
+const MAX_VOLUME_ID_SIZE = 36
+const MAX_VOLUME_TEMPLATE_SIZE = 40
+
+const VENDOR_ID_LENGTH = 8
+const PRODUCT_ID_LENGTH = 16
+const REVISION_LENGTH = 4
+const SERIAL_NUMBER_LENGTH = 32
+
+type _ELEMENT_TYPE as long
+enum
+	AllElements
+	ChangerTransport
+	ChangerSlot
+	ChangerIEPort
+	ChangerDrive
+	ChangerDoor
+	ChangerKeypad
+	ChangerMaxElement
+end enum
+
+type ELEMENT_TYPE as _ELEMENT_TYPE
+type PELEMENT_TYPE as _ELEMENT_TYPE ptr
+
+type _CHANGER_ELEMENT
+	ElementType as ELEMENT_TYPE
+	ElementAddress as DWORD
+end type
+
+type CHANGER_ELEMENT as _CHANGER_ELEMENT
+type PCHANGER_ELEMENT as _CHANGER_ELEMENT ptr
+
+type _CHANGER_ELEMENT_LIST
+	Element as CHANGER_ELEMENT
+	NumberOfElements as DWORD
+end type
+
+type CHANGER_ELEMENT_LIST as _CHANGER_ELEMENT_LIST
+type PCHANGER_ELEMENT_LIST as _CHANGER_ELEMENT_LIST ptr
+
+const CHANGER_BAR_CODE_SCANNER_INSTALLED = &h00000001
+const CHANGER_INIT_ELEM_STAT_WITH_RANGE = &h00000002
+const CHANGER_CLOSE_IEPORT = &h00000004
+const CHANGER_OPEN_IEPORT = &h00000008
+const CHANGER_STATUS_NON_VOLATILE = &h00000010
+const CHANGER_EXCHANGE_MEDIA = &h00000020
+const CHANGER_CLEANER_SLOT = &h00000040
+const CHANGER_LOCK_UNLOCK = &h00000080
+const CHANGER_CARTRIDGE_MAGAZINE = &h00000100
+const CHANGER_MEDIUM_FLIP = &h00000200
+const CHANGER_POSITION_TO_ELEMENT = &h00000400
+const CHANGER_REPORT_IEPORT_STATE = &h00000800
+const CHANGER_STORAGE_DRIVE = &h00001000
+const CHANGER_STORAGE_IEPORT = &h00002000
+const CHANGER_STORAGE_SLOT = &h00004000
+const CHANGER_STORAGE_TRANSPORT = &h00008000
+const CHANGER_DRIVE_CLEANING_REQUIRED = &h00010000
+const CHANGER_PREDISMOUNT_EJECT_REQUIRED = &h00020000
+const CHANGER_CLEANER_ACCESS_NOT_VALID = &h00040000
+const CHANGER_PREMOUNT_EJECT_REQUIRED = &h00080000
+const CHANGER_VOLUME_IDENTIFICATION = &h00100000
+const CHANGER_VOLUME_SEARCH = &h00200000
+const CHANGER_VOLUME_ASSERT = &h00400000
+const CHANGER_VOLUME_REPLACE = &h00800000
+const CHANGER_VOLUME_UNDEFINE = &h01000000
+const CHANGER_SERIAL_NUMBER_VALID = &h04000000
+const CHANGER_DEVICE_REINITIALIZE_CAPABLE = &h08000000
+const CHANGER_KEYPAD_ENABLE_DISABLE = &h10000000
+const CHANGER_DRIVE_EMPTY_ON_DOOR_ACCESS = &h20000000
+const CHANGER_RESERVED_BIT = &h80000000
+const CHANGER_PREDISMOUNT_ALIGN_TO_SLOT = &h80000001
+const CHANGER_PREDISMOUNT_ALIGN_TO_DRIVE = &h80000002
+const CHANGER_CLEANER_AUTODISMOUNT = &h80000004
+const CHANGER_TRUE_EXCHANGE_CAPABLE = &h80000008
+const CHANGER_SLOTS_USE_TRAYS = &h80000010
+const CHANGER_RTN_MEDIA_TO_ORIGINAL_ADDR = &h80000020
+const CHANGER_CLEANER_OPS_NOT_SUPPORTED = &h80000040
+const CHANGER_IEPORT_USER_CONTROL_OPEN = &h80000080
+const CHANGER_IEPORT_USER_CONTROL_CLOSE = &h80000100
+const CHANGER_MOVE_EXTENDS_IEPORT = &h80000200
+const CHANGER_MOVE_RETRACTS_IEPORT = &h80000400
+const CHANGER_TO_TRANSPORT = &h01
+const CHANGER_TO_SLOT = &h02
+const CHANGER_TO_IEPORT = &h04
+const CHANGER_TO_DRIVE = &h08
+const LOCK_UNLOCK_IEPORT = &h01
+const LOCK_UNLOCK_DOOR = &h02
+const LOCK_UNLOCK_KEYPAD = &h04
+
+type _GET_CHANGER_PARAMETERS
+	Size as DWORD
+	NumberTransportElements as WORD
+	NumberStorageElements as WORD
+	NumberCleanerSlots as WORD
+	NumberIEElements as WORD
+	NumberDataTransferElements as WORD
+	NumberOfDoors as WORD
+	FirstSlotNumber as WORD
+	FirstDriveNumber as WORD
+	FirstTransportNumber as WORD
+	FirstIEPortNumber as WORD
+	FirstCleanerSlotAddress as WORD
+	MagazineSize as WORD
+	DriveCleanTimeout as DWORD
+	Features0 as DWORD
+	Features1 as DWORD
+	MoveFromTransport as UBYTE
+	MoveFromSlot as UBYTE
+	MoveFromIePort as UBYTE
+	MoveFromDrive as UBYTE
+	ExchangeFromTransport as UBYTE
+	ExchangeFromSlot as UBYTE
+	ExchangeFromIePort as UBYTE
+	ExchangeFromDrive as UBYTE
+	LockUnlockCapabilities as UBYTE
+	PositionCapabilities as UBYTE
+	Reserved1(0 to 1) as UBYTE
+	Reserved2(0 to 1) as DWORD
+end type
+
+type GET_CHANGER_PARAMETERS as _GET_CHANGER_PARAMETERS
+type PGET_CHANGER_PARAMETERS as _GET_CHANGER_PARAMETERS ptr
+
+type _CHANGER_PRODUCT_DATA
+	VendorId(0 to 7) as UBYTE
+	ProductId(0 to 15) as UBYTE
+	Revision(0 to 3) as UBYTE
+	SerialNumber(0 to 31) as UBYTE
+	DeviceType as UBYTE
+end type
+
+type CHANGER_PRODUCT_DATA as _CHANGER_PRODUCT_DATA
+type PCHANGER_PRODUCT_DATA as _CHANGER_PRODUCT_DATA ptr
+
+const LOCK_ELEMENT = 0
+const UNLOCK_ELEMENT = 1
+const EXTEND_IEPORT = 2
+const RETRACT_IEPORT = 3
+
+type _CHANGER_SET_ACCESS
+	Element as CHANGER_ELEMENT
+	Control as DWORD
+end type
+
+type CHANGER_SET_ACCESS as _CHANGER_SET_ACCESS
+type PCHANGER_SET_ACCESS as _CHANGER_SET_ACCESS ptr
+
+type _CHANGER_READ_ELEMENT_STATUS
+	ElementList as CHANGER_ELEMENT_LIST
+	VolumeTagInfo as WINBOOLEAN
+end type
+
+type CHANGER_READ_ELEMENT_STATUS as _CHANGER_READ_ELEMENT_STATUS
+type PCHANGER_READ_ELEMENT_STATUS as _CHANGER_READ_ELEMENT_STATUS ptr
+
+type _CHANGER_ELEMENT_STATUS
+	Element as CHANGER_ELEMENT
+	SrcElementAddress as CHANGER_ELEMENT
+	Flags as DWORD
+	ExceptionCode as DWORD
+	TargetId as UBYTE
+	Lun as UBYTE
+	Reserved as WORD
+	PrimaryVolumeID(0 to 35) as UBYTE
+	AlternateVolumeID(0 to 35) as UBYTE
+end type
+
+type CHANGER_ELEMENT_STATUS as _CHANGER_ELEMENT_STATUS
+type PCHANGER_ELEMENT_STATUS as _CHANGER_ELEMENT_STATUS ptr
+
+type _CHANGER_ELEMENT_STATUS_EX
+	Element as CHANGER_ELEMENT
+	SrcElementAddress as CHANGER_ELEMENT
+	Flags as DWORD
+	ExceptionCode as DWORD
+	TargetId as UBYTE
+	Lun as UBYTE
+	Reserved as WORD
+	PrimaryVolumeID(0 to 35) as UBYTE
+	AlternateVolumeID(0 to 35) as UBYTE
+	VendorIdentification(0 to 7) as UBYTE
+	ProductIdentification(0 to 15) as UBYTE
+	SerialNumber(0 to 31) as UBYTE
+end type
+
+type CHANGER_ELEMENT_STATUS_EX as _CHANGER_ELEMENT_STATUS_EX
+type PCHANGER_ELEMENT_STATUS_EX as _CHANGER_ELEMENT_STATUS_EX ptr
+
+const ELEMENT_STATUS_FULL = &h00000001
+const ELEMENT_STATUS_IMPEXP = &h00000002
+const ELEMENT_STATUS_EXCEPT = &h00000004
+const ELEMENT_STATUS_ACCESS = &h00000008
+const ELEMENT_STATUS_EXENAB = &h00000010
+const ELEMENT_STATUS_INENAB = &h00000020
+const ELEMENT_STATUS_PRODUCT_DATA = &h00000040
+const ELEMENT_STATUS_LUN_VALID = &h00001000
+const ELEMENT_STATUS_ID_VALID = &h00002000
+const ELEMENT_STATUS_NOT_BUS = &h00008000
+const ELEMENT_STATUS_INVERT = &h00400000
+const ELEMENT_STATUS_SVALID = &h00800000
+const ELEMENT_STATUS_PVOLTAG = &h10000000
+const ELEMENT_STATUS_AVOLTAG = &h20000000
+const ERROR_LABEL_UNREADABLE = &h00000001
+const ERROR_LABEL_QUESTIONABLE = &h00000002
+const ERROR_SLOT_NOT_PRESENT = &h00000004
+const ERROR_DRIVE_NOT_INSTALLED = &h00000008
+const ERROR_TRAY_MALFUNCTION = &h00000010
+const ERROR_INIT_STATUS_NEEDED = &h00000011
+const ERROR_UNHANDLED_ERROR = &hFFFFFFFF
+
+type _CHANGER_INITIALIZE_ELEMENT_STATUS
+	ElementList as CHANGER_ELEMENT_LIST
+	BarCodeScan as WINBOOLEAN
+end type
+
+type CHANGER_INITIALIZE_ELEMENT_STATUS as _CHANGER_INITIALIZE_ELEMENT_STATUS
+type PCHANGER_INITIALIZE_ELEMENT_STATUS as _CHANGER_INITIALIZE_ELEMENT_STATUS ptr
+
+type _CHANGER_SET_POSITION
+	Transport as CHANGER_ELEMENT
+	Destination as CHANGER_ELEMENT
+	Flip as WINBOOLEAN
+end type
+
+type CHANGER_SET_POSITION as _CHANGER_SET_POSITION
+type PCHANGER_SET_POSITION as _CHANGER_SET_POSITION ptr
+
+type _CHANGER_EXCHANGE_MEDIUM
+	Transport as CHANGER_ELEMENT
+	Source as CHANGER_ELEMENT
+	Destination1 as CHANGER_ELEMENT
+	Destination2 as CHANGER_ELEMENT
+	Flip1 as WINBOOLEAN
+	Flip2 as WINBOOLEAN
+end type
+
+type CHANGER_EXCHANGE_MEDIUM as _CHANGER_EXCHANGE_MEDIUM
+type PCHANGER_EXCHANGE_MEDIUM as _CHANGER_EXCHANGE_MEDIUM ptr
+
+type _CHANGER_MOVE_MEDIUM
+	Transport as CHANGER_ELEMENT
+	Source as CHANGER_ELEMENT
+	Destination as CHANGER_ELEMENT
+	Flip as WINBOOLEAN
+end type
+
+type CHANGER_MOVE_MEDIUM as _CHANGER_MOVE_MEDIUM
+type PCHANGER_MOVE_MEDIUM as _CHANGER_MOVE_MEDIUM ptr
+
+type _CHANGER_SEND_VOLUME_TAG_INFORMATION
+	StartingElement as CHANGER_ELEMENT
+	ActionCode as DWORD
+	VolumeIDTemplate(0 to 39) as UBYTE
+end type
+
+type CHANGER_SEND_VOLUME_TAG_INFORMATION as _CHANGER_SEND_VOLUME_TAG_INFORMATION
+type PCHANGER_SEND_VOLUME_TAG_INFORMATION as _CHANGER_SEND_VOLUME_TAG_INFORMATION ptr
+
+type _READ_ELEMENT_ADDRESS_INFO
+	NumberOfElements as DWORD
+	ElementStatus(0 to 0) as CHANGER_ELEMENT_STATUS
+end type
+
+type READ_ELEMENT_ADDRESS_INFO as _READ_ELEMENT_ADDRESS_INFO
+type PREAD_ELEMENT_ADDRESS_INFO as _READ_ELEMENT_ADDRESS_INFO ptr
+
+const SEARCH_ALL = &h0
+const SEARCH_PRIMARY = &h1
+const SEARCH_ALTERNATE = &h2
+const SEARCH_ALL_NO_SEQ = &h4
+const SEARCH_PRI_NO_SEQ = &h5
+const SEARCH_ALT_NO_SEQ = &h6
+const ASSERT_PRIMARY = &h8
+const ASSERT_ALTERNATE = &h9
+const REPLACE_PRIMARY = &hA
+const REPLACE_ALTERNATE = &hB
+const UNDEFINE_PRIMARY = &hC
+const UNDEFINE_ALTERNATE = &hD
+
+type _CHANGER_DEVICE_PROBLEM_TYPE as long
+enum
+	DeviceProblemNone
+	DeviceProblemHardware
+	DeviceProblemCHMError
+	DeviceProblemDoorOpen
+	DeviceProblemCalibrationError
+	DeviceProblemTargetFailure
+	DeviceProblemCHMMoveError
+	DeviceProblemCHMZeroError
+	DeviceProblemCartridgeInsertError
+	DeviceProblemPositionError
+	DeviceProblemSensorError
+	DeviceProblemCartridgeEjectError
+	DeviceProblemGripperError
+	DeviceProblemDriveError
+end enum
+
+type CHANGER_DEVICE_PROBLEM_TYPE as _CHANGER_DEVICE_PROBLEM_TYPE
+type PCHANGER_DEVICE_PROBLEM_TYPE as _CHANGER_DEVICE_PROBLEM_TYPE ptr
+
+#define IOCTL_SERIAL_LSRMST_INSERT CTL_CODE(FILE_DEVICE_SERIAL_PORT, 31, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_SERENUM_EXPOSE_HARDWARE CTL_CODE(FILE_DEVICE_SERENUM, 128, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_SERENUM_REMOVE_HARDWARE CTL_CODE(FILE_DEVICE_SERENUM, 129, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_SERENUM_PORT_DESC CTL_CODE(FILE_DEVICE_SERENUM, 130, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_SERENUM_GET_PORT_NAME CTL_CODE(FILE_DEVICE_SERENUM, 131, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+const SERIAL_LSRMST_ESCAPE = cast(UBYTE, &h00)
+const SERIAL_LSRMST_LSR_DATA = cast(UBYTE, &h01)
+const SERIAL_LSRMST_LSR_NODATA = cast(UBYTE, &h02)
+const SERIAL_LSRMST_MST = cast(UBYTE, &h03)
+const SERIAL_IOC_FCR_FIFO_ENABLE = cast(DWORD, &h00000001)
+const SERIAL_IOC_FCR_RCVR_RESET = cast(DWORD, &h00000002)
+const SERIAL_IOC_FCR_XMIT_RESET = cast(DWORD, &h00000004)
+const SERIAL_IOC_FCR_DMA_MODE = cast(DWORD, &h00000008)
+const SERIAL_IOC_FCR_RES1 = cast(DWORD, &h00000010)
+const SERIAL_IOC_FCR_RES2 = cast(DWORD, &h00000020)
+const SERIAL_IOC_FCR_RCVR_TRIGGER_LSB = cast(DWORD, &h00000040)
+const SERIAL_IOC_FCR_RCVR_TRIGGER_MSB = cast(DWORD, &h00000080)
+const SERIAL_IOC_MCR_DTR = cast(DWORD, &h00000001)
+const SERIAL_IOC_MCR_RTS = cast(DWORD, &h00000002)
+const SERIAL_IOC_MCR_OUT1 = cast(DWORD, &h00000004)
+const SERIAL_IOC_MCR_OUT2 = cast(DWORD, &h00000008)
+const SERIAL_IOC_MCR_LOOP = cast(DWORD, &h00000010)
+
+#define _FILESYSTEMFSCTL_
+#define FSCTL_REQUEST_OPLOCK_LEVEL_1 CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 0, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_REQUEST_OPLOCK_LEVEL_2 CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 1, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_REQUEST_BATCH_OPLOCK CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 2, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_OPLOCK_BREAK_ACKNOWLEDGE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 3, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_OPBATCH_ACK_CLOSE_PENDING CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 4, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_OPLOCK_BREAK_NOTIFY CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 5, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_LOCK_VOLUME CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 6, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_UNLOCK_VOLUME CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 7, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_DISMOUNT_VOLUME CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 8, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_IS_VOLUME_MOUNTED CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 10, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_IS_PATHNAME_VALID CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 11, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_MARK_VOLUME_DIRTY CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 12, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_QUERY_RETRIEVAL_POINTERS CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 14, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_GET_COMPRESSION CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 15, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_SET_COMPRESSION CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 16, METHOD_BUFFERED, FILE_READ_DATA or FILE_WRITE_DATA)
+#define FSCTL_MARK_AS_SYSTEM_HIVE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 19, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_OPLOCK_BREAK_ACK_NO_2 CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 20, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_INVALIDATE_VOLUMES CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 21, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_QUERY_FAT_BPB CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 22, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_REQUEST_FILTER_OPLOCK CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 23, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_FILESYSTEM_GET_STATISTICS CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 24, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_GET_NTFS_VOLUME_DATA CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 25, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_GET_NTFS_FILE_RECORD CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 26, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_GET_VOLUME_BITMAP CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 27, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_GET_RETRIEVAL_POINTERS CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 28, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_MOVE_FILE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 29, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define FSCTL_IS_VOLUME_DIRTY CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 30, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_ALLOW_EXTENDED_DASD_IO CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 32, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_FIND_FILES_BY_SID CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 35, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_SET_OBJECT_ID CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 38, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define FSCTL_GET_OBJECT_ID CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 39, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_DELETE_OBJECT_ID CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 40, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define FSCTL_SET_REPARSE_POINT CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 41, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define FSCTL_GET_REPARSE_POINT CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 42, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_DELETE_REPARSE_POINT CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 43, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define FSCTL_ENUM_USN_DATA CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 44, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_SECURITY_ID_CHECK CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 45, METHOD_NEITHER, FILE_READ_DATA)
+#define FSCTL_READ_USN_JOURNAL CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 46, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_SET_OBJECT_ID_EXTENDED CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 47, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define FSCTL_CREATE_OR_GET_OBJECT_ID CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 48, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_SET_SPARSE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 49, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define FSCTL_SET_ZERO_DATA CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 50, METHOD_BUFFERED, FILE_WRITE_DATA)
+#define FSCTL_QUERY_ALLOCATED_RANGES CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 51, METHOD_NEITHER, FILE_READ_DATA)
+#define FSCTL_SET_ENCRYPTION CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 53, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_ENCRYPTION_FSCTL_IO CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 54, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_WRITE_RAW_ENCRYPTED CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 55, METHOD_NEITHER, FILE_SPECIAL_ACCESS)
+#define FSCTL_READ_RAW_ENCRYPTED CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 56, METHOD_NEITHER, FILE_SPECIAL_ACCESS)
+#define FSCTL_CREATE_USN_JOURNAL CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 57, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_READ_FILE_USN_DATA CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 58, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_WRITE_USN_CLOSE_RECORD CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 59, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_EXTEND_VOLUME CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 60, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_QUERY_USN_JOURNAL CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 61, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_DELETE_USN_JOURNAL CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 62, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_MARK_HANDLE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 63, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_SIS_COPYFILE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 64, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_SIS_LINK_FILES CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 65, METHOD_BUFFERED, FILE_READ_DATA or FILE_WRITE_DATA)
+#define FSCTL_HSM_MSG CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 66, METHOD_BUFFERED, FILE_READ_DATA or FILE_WRITE_DATA)
+#define FSCTL_HSM_DATA CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 68, METHOD_NEITHER, FILE_READ_DATA or FILE_WRITE_DATA)
+#define FSCTL_RECALL_FILE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 69, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_READ_FROM_PLEX CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 71, METHOD_OUT_DIRECT, FILE_READ_DATA)
+#define FSCTL_FILE_PREFETCH CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 72, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+
+type _PATHNAME_BUFFER
+   PathNameLength as DWORD
+   Name as wstring * 1
+end type
+
+type PATHNAME_BUFFER as _PATHNAME_BUFFER
+type PPATHNAME_BUFFER as _PATHNAME_BUFFER ptr
+
+type _FSCTL_QUERY_FAT_BPB_BUFFER
+	First0x24BytesOfBootSector(0 to 35) as UBYTE
+end type
+
+type FSCTL_QUERY_FAT_BPB_BUFFER as _FSCTL_QUERY_FAT_BPB_BUFFER
+type PFSCTL_QUERY_FAT_BPB_BUFFER as _FSCTL_QUERY_FAT_BPB_BUFFER ptr
+
+type NTFS_VOLUME_DATA_BUFFER
+	VolumeSerialNumber as LARGE_INTEGER
+	NumberSectors as LARGE_INTEGER
+	TotalClusters as LARGE_INTEGER
+	FreeClusters as LARGE_INTEGER
+	TotalReserved as LARGE_INTEGER
+	BytesPerSector as DWORD
+	BytesPerCluster as DWORD
+	BytesPerFileRecordSegment as DWORD
+	ClustersPerFileRecordSegment as DWORD
+	MftValidDataLength as LARGE_INTEGER
+	MftStartLcn as LARGE_INTEGER
+	Mft2StartLcn as LARGE_INTEGER
+	MftZoneStart as LARGE_INTEGER
+	MftZoneEnd as LARGE_INTEGER
+end type
+
+type PNTFS_VOLUME_DATA_BUFFER as NTFS_VOLUME_DATA_BUFFER ptr
+
+'type NTFS_EXTENDED_VOLUME_DATA
+'	ByteCount as DWORD
+'	MajorVersion as WORD
+'	MinorVersion as WORD
+'end type
+
+type _NTFS_EXTENDED_VOLUME_DATA
+   AS DWORD ByteCount
+   AS WORD   MajorVersion
+   AS WORD   MinorVersion
+   AS DWORD BytesPerPhysicalSector
+   AS WORD   LfsMajorVersion
+   AS WORD   LfsMinorVersion
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD)
+    AS DWORD MaxDeviceTrimExtentCount
+    AS DWORD MaxDeviceTrimByteCount
+    AS DWORD MaxVolumeTrimExtentCount
+    AS DWORD MaxVolumeTrimByteCount
+'#endif
+end type
+type NTFS_EXTENDED_VOLUME_DATA AS _NTFS_EXTENDED_VOLUME_DATA
+type PNTFS_EXTENDED_VOLUME_DATA AS _NTFS_EXTENDED_VOLUME_DATA PTR
+
+type MOVE_FILE_DATA
+	FileHandle as HANDLE
+	StartingVcn as LARGE_INTEGER
+	StartingLcn as LARGE_INTEGER
+	ClusterCount as DWORD
+end type
+
+type PMOVE_FILE_DATA as MOVE_FILE_DATA ptr
+
+#ifdef __FB_64BIT__
+	type _MOVE_FILE_DATA32
+		FileHandle as UINT32
+		StartingVcn as LARGE_INTEGER
+		StartingLcn as LARGE_INTEGER
+		ClusterCount as DWORD
+	end type
+
+	type MOVE_FILE_DATA32 as _MOVE_FILE_DATA32
+	type PMOVE_FILE_DATA32 as _MOVE_FILE_DATA32 ptr
+#endif
+
+type FIND_BY_SID_DATA
+	Restart as DWORD
+	Sid as SID
+end type
+
+type PFIND_BY_SID_DATA as FIND_BY_SID_DATA ptr
+
+type FIND_BY_SID_OUTPUT
+   NextEntryOffset as DWORD
+   FileIndex as DWORD
+   FileNameLength as DWORD
+   FileName as wstring * 1
+end type
+
+type PFIND_BY_SID_OUTPUT as FIND_BY_SID_OUTPUT ptr
+
+type MFT_ENUM_DATA
+	StartFileReferenceNumber as DWORDLONG
+	LowUsn as USN
+	HighUsn as USN
+end type
+
+type PMFT_ENUM_DATA as MFT_ENUM_DATA ptr
+
+type CREATE_USN_JOURNAL_DATA
+	MaximumSize as DWORDLONG
+	AllocationDelta as DWORDLONG
+end type
+
+type PCREATE_USN_JOURNAL_DATA as CREATE_USN_JOURNAL_DATA ptr
+
+type READ_USN_JOURNAL_DATA
+	StartUsn as USN
+	ReasonMask as DWORD
+	ReturnOnlyOnClose as DWORD
+	Timeout as DWORDLONG
+	BytesToWaitFor as DWORDLONG
+	UsnJournalID as DWORDLONG
+end type
+
+type PREAD_USN_JOURNAL_DATA as READ_USN_JOURNAL_DATA ptr
+
+type USN_RECORD
+	RecordLength as DWORD
+	MajorVersion as WORD
+	MinorVersion as WORD
+	FileReferenceNumber as DWORDLONG
+	ParentFileReferenceNumber as DWORDLONG
+	Usn as USN
+	TimeStamp as LARGE_INTEGER
+	Reason as DWORD
+	SourceInfo as DWORD
+	SecurityId as DWORD
+	FileAttributes as DWORD
+	FileNameLength as WORD
+	FileNameOffset as WORD
+   FileName as wstring * 1
+end type
+type PUSN_RECORD as USN_RECORD ptr
+
+const USN_PAGE_SIZE = &h1000
+const USN_REASON_DATA_OVERWRITE = &h00000001
+const USN_REASON_DATA_EXTEND = &h00000002
+const USN_REASON_DATA_TRUNCATION = &h00000004
+const USN_REASON_NAMED_DATA_OVERWRITE = &h00000010
+const USN_REASON_NAMED_DATA_EXTEND = &h00000020
+const USN_REASON_NAMED_DATA_TRUNCATION = &h00000040
+const USN_REASON_FILE_CREATE = &h00000100
+const USN_REASON_FILE_DELETE = &h00000200
+const USN_REASON_EA_CHANGE = &h00000400
+const USN_REASON_SECURITY_CHANGE = &h00000800
+const USN_REASON_RENAME_OLD_NAME = &h00001000
+const USN_REASON_RENAME_NEW_NAME = &h00002000
+const USN_REASON_INDEXABLE_CHANGE = &h00004000
+const USN_REASON_BASIC_INFO_CHANGE = &h00008000
+const USN_REASON_HARD_LINK_CHANGE = &h00010000
+const USN_REASON_COMPRESSION_CHANGE = &h00020000
+const USN_REASON_ENCRYPTION_CHANGE = &h00040000
+const USN_REASON_OBJECT_ID_CHANGE = &h00080000
+const USN_REASON_REPARSE_POINT_CHANGE = &h00100000
+const USN_REASON_STREAM_CHANGE = &h00200000
+const USN_REASON_CLOSE = &h80000000
+
+type USN_JOURNAL_DATA
+	UsnJournalID as DWORDLONG
+	FirstUsn as USN
+	NextUsn as USN
+	LowestValidUsn as USN
+	MaxUsn as USN
+	MaximumSize as DWORDLONG
+	AllocationDelta as DWORDLONG
+end type
+
+type PUSN_JOURNAL_DATA as USN_JOURNAL_DATA ptr
+
+type DELETE_USN_JOURNAL_DATA
+	UsnJournalID as DWORDLONG
+	DeleteFlags as DWORD
+end type
+
+type PDELETE_USN_JOURNAL_DATA as DELETE_USN_JOURNAL_DATA ptr
+const USN_DELETE_FLAG_DELETE = &h00000001
+const USN_DELETE_FLAG_NOTIFY = &h00000002
+const USN_DELETE_VALID_FLAGS = &h00000003
+
+'//==================== FSCTL_MARK_HANDLE ======================
+'//
+'//  Structure for FSCTL_MARK_HANDLE
+'//
+
+'#if (NTDDI_VERSION >= NTDDI_WIN2K)
+
+type _MARK_HANDLE_INFO
+
+'#if (NTDDI_VERSION >= NTDDI_WIN8)
+   union
+      AS DWORD UsnSourceInfo
+      AS DWORD CopyNumber
+   end union
+'#else
+'    DWORD UsnSourceInfo;
+'#endif /*NTDDI_VERSION >= NTDDI_WIN8 */
+
+   AS HANDLE VolumeHandle
+   AS DWORD HandleInfo           ' // Flags
+end type
+type MARK_HANDLE_INFO AS _MARK_HANDLE_INFO
+type PMARK_HANDLE_INFO AS _MARK_HANDLE_INFO PTR
+
+#ifdef __FB_64BIT__
+'//  32/64 Bit thunking support structure
+type _MARK_HANDLE_INFO32
+
+'#if (NTDDI_VERSION >= NTDDI_WIN8)
+   union
+      AS DWORD UsnSourceInfo
+      AS DWORD CopyNumber
+   end union
+'#else
+'    DWORD UsnSourceInfo;
+'#endif /*NTDDI_VERSION >= NTDDI_WIN8 */
+   AS UINT32 VolumeHandle
+   AS DWORD HandleInfo           ' // Flags
+end type
+type MARK_HANDLE_INFO32 AS _MARK_HANDLE_INFO32
+type PMARK_HANDLE_INFO32 AS _MARK_HANDLE_INFO32 PTR
+#endif
+
+const USN_SOURCE_DATA_MANAGEMENT = &h00000001
+const USN_SOURCE_AUXILIARY_DATA = &h00000002
+const USN_SOURCE_REPLICATION_MANAGEMENT = &h00000004
+const USN_SOURCE_CLIENT_REPLICATION_MANAGEMENT = &h00000008
+
+const MARK_HANDLE_PROTECT_CLUSTERS = &h00000001
+const MARK_HANDLE_TXF_SYSTEM_LOG = &h00000004
+const MARK_HANDLE_NOT_TXF_SYSTEM_LOG = &h00000008
+
+const MARK_HANDLE_REALTIME = &h00000020
+const MARK_HANDLE_NOT_REALTIME = &h00000040
+const MARK_HANDLE_CLOUD_SYNC = &H00000800    ' // deprecated flag - do not use
+
+const MARK_HANDLE_READ_COPY = &h00000080
+const MARK_HANDLE_NOT_READ_COPY = &h00000100
+
+const MARK_HANDLE_FILTER_METADATA = &h00000200            ' // 8.1 and newer
+const MARK_HANDLE_RETURN_PURGE_FAILURE = &h00000400       ' // 8.1 and newer
+
+const MARK_HANDLE_DISABLE_FILE_METADATA_OPTIMIZATION  = &h00001000
+const MARK_HANDLE_ENABLE_USN_SOURCE_ON_PAGING_IO      = &h00002000
+const MARK_HANDLE_SKIP_COHERENCY_SYNC_DISALLOW_WRITES = &h00004000
+
+const MARK_HANDLE_SUPPRESS_VOLUME_OPEN_FLUSH          = &h00008000
+
+const MARK_HANDLE_ENABLE_CPU_CACHE                    = &h10000000
+
+#define USN_SOURCE_VALID_FLAGS  (USN_SOURCE_DATA_MANAGEMENT OR _
+                                 USN_SOURCE_AUXILIARY_DATA OR _
+                                 USN_SOURCE_REPLICATION_MANAGEMENT OR _
+                                 USN_SOURCE_CLIENT_REPLICATION_MANAGEMENT)
+
+type _BULK_SECURITY_TEST_DATA
+	AS ACCESS_MASK DesiredAccess
+	AS DWORD SecurityIds(0)
+end type
+type BULK_SECURITY_TEST_DATA AS _BULK_SECURITY_TEST_DATA
+type PBULK_SECURITY_TEST_DATA AS BULK_SECURITY_TEST_DATA PTR
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN2K)
+const VOLUME_IS_DIRTY                  = &h00000001
+const VOLUME_UPGRADE_SCHEDULED         = &h00000002
+const VOLUME_SESSION_OPEN              = &h00000004
+'#endif /* _WIN32_WINNT >= _WIN32_WINNT_WIN2K */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN2K)
+type _FILE_PREFETCH
+   AS DWORD Type
+   AS DWORD Count
+   AS DWORDLONG Prefetch(0)
+end type
+type FILE_PREFETCH AS _FILE_PREFETCH
+type PFILE_PREFETCH AS _FILE_PREFETCH PTR
+
+type _FILE_PREFETCH_EX
+   AS DWORD Type
+   AS DWORD Count
+   As PVOID Context
+   AS DWORDLONG Prefetch(0)
+end type
+type FILE_PREFETCH_EX AS _FILE_PREFETCH_EX
+type PFILE_PREFETCH_EX AS _FILE_PREFETCH_EX PTR
+
+#define FILE_PREFETCH_TYPE_FOR_CREATE       &h1
+#define FILE_PREFETCH_TYPE_FOR_DIRENUM      &h2
+#define FILE_PREFETCH_TYPE_FOR_CREATE_EX    &h3
+#define FILE_PREFETCH_TYPE_FOR_DIRENUM_EX   &h4
+#define FILE_PREFETCH_TYPE_MAX              &h4
+
+'#endif /* _WIN32_WINNT >= _WIN32_WINNT_WIN2K */
+
+type _FILESYSTEM_STATISTICS
+	FileSystemType as WORD
+	Version as WORD
+	SizeOfCompleteStructure as DWORD
+	UserFileReads as DWORD
+	UserFileReadBytes as DWORD
+	UserDiskReads as DWORD
+	UserFileWrites as DWORD
+	UserFileWriteBytes as DWORD
+	UserDiskWrites as DWORD
+	MetaDataReads as DWORD
+	MetaDataReadBytes as DWORD
+	MetaDataDiskReads as DWORD
+	MetaDataWrites as DWORD
+	MetaDataWriteBytes as DWORD
+	MetaDataDiskWrites as DWORD
+end type
+
+type FILESYSTEM_STATISTICS as _FILESYSTEM_STATISTICS
+type PFILESYSTEM_STATISTICS as _FILESYSTEM_STATISTICS ptr
+const FILESYSTEM_STATISTICS_TYPE_NTFS = 1
+const FILESYSTEM_STATISTICS_TYPE_FAT = 2
+const FILESYSTEM_STATISTICS_TYPE_EXFAT = 3
+const FILESYSTEM_STATISTICS_TYPE_REFS = 4
+
+type _FAT_STATISTICS
+	CreateHits as DWORD
+	SuccessfulCreates as DWORD
+	FailedCreates as DWORD
+	NonCachedReads as DWORD
+	NonCachedReadBytes as DWORD
+	NonCachedWrites as DWORD
+	NonCachedWriteBytes as DWORD
+	NonCachedDiskReads as DWORD
+	NonCachedDiskWrites as DWORD
+end type
+
+type FAT_STATISTICS as _FAT_STATISTICS
+type PFAT_STATISTICS as _FAT_STATISTICS ptr
+
+type _EXFAT_STATISTICS
+	CreateHits as DWORD
+	SuccessfulCreates as DWORD
+	FailedCreates as DWORD
+	NonCachedReads as DWORD
+	NonCachedReadBytes as DWORD
+	NonCachedWrites as DWORD
+	NonCachedWriteBytes as DWORD
+	NonCachedDiskReads as DWORD
+	NonCachedDiskWrites as DWORD
+end type
+
+type EXFAT_STATISTICS as _EXFAT_STATISTICS
+type PEXFAT_STATISTICS as _EXFAT_STATISTICS ptr
+
+type _NTFS_STATISTICS
+   AS DWORD LogFileFullExceptions
+   AS DWORD OtherExceptions
+   AS DWORD MftReads
+   AS DWORD MftReadBytes
+   AS DWORD MftWrites
+   AS DWORD MftWriteBytes
+   type MftWritesUserLevel
+      AS WORD   Write
+      AS WORD   Create
+      AS WORD   SetInfo
+      AS WORD   Flush
+   end type
+   AS WORD   MftWritesFlushForLogFileFull
+   AS WORD   MftWritesLazyWriter
+   AS WORD   MftWritesUserRequest
+   AS DWORD Mft2Writes
+   AS DWORD Mft2WriteBytes
+   type Mft2WritesUserLevel
+      AS WORD   Write
+      AS WORD   Create
+      AS WORD   SetInfo
+      AS WORD   Flush
+   end type
+   AS WORD   Mft2WritesFlushForLogFileFull
+   AS WORD   Mft2WritesLazyWriter
+   AS WORD   Mft2WritesUserRequest
+   AS DWORD RootIndexReads
+   AS DWORD RootIndexReadBytes
+   AS DWORD RootIndexWrites
+   AS DWORD RootIndexWriteBytes
+   AS DWORD BitmapReads
+   AS DWORD BitmapReadBytes
+   AS DWORD BitmapWrites
+   AS DWORD BitmapWriteBytes
+   AS WORD   BitmapWritesFlushForLogFileFull
+   AS WORD   BitmapWritesLazyWriter
+   AS WORD   BitmapWritesUserRequest
+   type BitmapWritesUserLevel
+      AS WORD   Write
+      AS WORD   Create
+      AS WORD   SetInfo
+   end type
+   AS DWORD MftBitmapReads
+   AS DWORD MftBitmapReadBytes
+   AS DWORD MftBitmapWrites
+   AS DWORD MftBitmapWriteBytes
+   AS WORD   MftBitmapWritesFlushForLogFileFull
+   AS WORD   MftBitmapWritesLazyWriter
+   AS WORD   MftBitmapWritesUserRequest
+   type MftBitmapWritesUserLevel
+      AS WORD   Write
+      AS WORD   Create
+      AS WORD   SetInfo
+      AS WORD   Flush
+   end type
+   AS DWORD UserIndexReads
+   AS DWORD UserIndexReadBytes
+   AS DWORD UserIndexWrites
+   AS DWORD UserIndexWriteBytes
+   AS DWORD LogFileReads
+   AS DWORD LogFileReadBytes
+   AS DWORD LogFileWrites
+   AS DWORD LogFileWriteBytes
+   type Allocate
+      AS DWORD Calls               ' // number of individual calls to allocate clusters
+      AS DWORD Clusters            ' // number of clusters allocated
+      AS DWORD Hints               ' // number of times a hint was specified
+      AS DWORD RunsReturned        ' // number of runs used to satisfy all the requests
+      AS DWORD HintsHonored        ' // number of times the hint was useful
+      AS DWORD HintsClusters       ' // number of clusters allocated via the hint
+      AS DWORD Cache               ' // number of times the cache was useful other than the hint
+      AS DWORD CacheClusters       ' // number of clusters allocated via the cache other than the hint
+      AS DWORD CacheMiss           ' // number of times the cache wasn't useful
+      AS DWORD CacheMissClusters   ' // number of clusters allocated without the cache
+    end type
+   AS DWORD DiskResourcesExhausted
+'    //  All future expansion of this structure needs to be in NTFS_STATISTICS_EX starting Windows 10
+end type
+type NTFS_STATISTICS AS _NTFS_STATISTICS
+type PNTFS_STATISTICS AS _NTFS_STATISTICS PTR
+
+type _FILE_OBJECTID_BUFFER
+	ObjectId(0 to 15) as UBYTE
+
+	union
+		type
+			BirthVolumeId(0 to 15) as BYTE
+			BirthObjectId(0 to 15) as BYTE
+			DomainId(0 to 15) as BYTE
+		end type
+
+		ExtendedInfo(0 to 47) as BYTE
+	end union
+end type
+
+type FILE_OBJECTID_BUFFER as _FILE_OBJECTID_BUFFER
+type PFILE_OBJECTID_BUFFER as _FILE_OBJECTID_BUFFER ptr
+
+type _FILE_SET_SPARSE_BUFFER
+	SetSparse as WINBOOLEAN
+end type
+
+type FILE_SET_SPARSE_BUFFER as _FILE_SET_SPARSE_BUFFER
+type PFILE_SET_SPARSE_BUFFER as _FILE_SET_SPARSE_BUFFER ptr
+
+type _FILE_ZERO_DATA_INFORMATION
+	FileOffset as LARGE_INTEGER
+	BeyondFinalZero as LARGE_INTEGER
+end type
+
+type FILE_ZERO_DATA_INFORMATION as _FILE_ZERO_DATA_INFORMATION
+type PFILE_ZERO_DATA_INFORMATION as _FILE_ZERO_DATA_INFORMATION ptr
+
+type _FILE_ALLOCATED_RANGE_BUFFER
+	FileOffset as LARGE_INTEGER
+	Length as LARGE_INTEGER
+end type
+
+type FILE_ALLOCATED_RANGE_BUFFER as _FILE_ALLOCATED_RANGE_BUFFER
+type PFILE_ALLOCATED_RANGE_BUFFER as _FILE_ALLOCATED_RANGE_BUFFER ptr
+
+type _ENCRYPTION_BUFFER
+	EncryptionOperation as DWORD
+	as UBYTE Private(0 to 0)
+end type
+
+type ENCRYPTION_BUFFER as _ENCRYPTION_BUFFER
+type PENCRYPTION_BUFFER as _ENCRYPTION_BUFFER ptr
+const FILE_SET_ENCRYPTION = &h00000001
+const FILE_CLEAR_ENCRYPTION = &h00000002
+const STREAM_SET_ENCRYPTION = &h00000003
+const STREAM_CLEAR_ENCRYPTION = &h00000004
+const MAXIMUM_ENCRYPTION_VALUE = &h00000004
+
+type _DECRYPTION_STATUS_BUFFER
+	NoEncryptedStreams as WINBOOLEAN
+end type
+
+type DECRYPTION_STATUS_BUFFER as _DECRYPTION_STATUS_BUFFER
+type PDECRYPTION_STATUS_BUFFER as _DECRYPTION_STATUS_BUFFER ptr
+const ENCRYPTION_FORMAT_DEFAULT = &h01
+const COMPRESSION_FORMAT_SPARSE = &h4000
+
+type _REQUEST_RAW_ENCRYPTED_DATA
+	FileOffset as LONGLONG
+	Length as DWORD
+end type
+
+type REQUEST_RAW_ENCRYPTED_DATA as _REQUEST_RAW_ENCRYPTED_DATA
+type PREQUEST_RAW_ENCRYPTED_DATA as _REQUEST_RAW_ENCRYPTED_DATA ptr
+
+type _ENCRYPTED_DATA_INFO
+	StartingFileOffset as DWORDLONG
+	OutputBufferOffset as DWORD
+	BytesWithinFileSize as DWORD
+	BytesWithinValidDataLength as DWORD
+	CompressionFormat as WORD
+	DataUnitShift as UBYTE
+	ChunkShift as UBYTE
+	ClusterShift as UBYTE
+	EncryptionFormat as UBYTE
+	NumberOfDataBlocks as WORD
+	DataBlockSize(0 to 0) as DWORD
+end type
+
+type ENCRYPTED_DATA_INFO as _ENCRYPTED_DATA_INFO
+type PENCRYPTED_DATA_INFO as ENCRYPTED_DATA_INFO ptr
+
+type _PLEX_READ_DATA_REQUEST
+	ByteOffset as LARGE_INTEGER
+	ByteLength as DWORD
+	PlexNumber as DWORD
+end type
+
+type PLEX_READ_DATA_REQUEST as _PLEX_READ_DATA_REQUEST
+type PPLEX_READ_DATA_REQUEST as _PLEX_READ_DATA_REQUEST ptr
+
+type _SI_COPYFILE
+	SourceFileNameLength as DWORD
+	DestinationFileNameLength as DWORD
+	Flags as DWORD
+	FileNameBuffer as wstring * 1
+end type
+
+type SI_COPYFILE as _SI_COPYFILE
+type PSI_COPYFILE as _SI_COPYFILE ptr
+const COPYFILE_SIS_LINK = &h0001
+const COPYFILE_SIS_REPLACE = &h0002
+const COPYFILE_SIS_FLAGS = &h0003
+
+type _STORAGE_DESCRIPTOR_HEADER
+	Version as DWORD
+	Size as DWORD
+end type
+
+type STORAGE_DESCRIPTOR_HEADER as _STORAGE_DESCRIPTOR_HEADER
+type PSTORAGE_DESCRIPTOR_HEADER as _STORAGE_DESCRIPTOR_HEADER ptr
+
+type _STORAGE_PROPERTY_ID as long
+enum
+	StorageDeviceProperty = 0
+	StorageAdapterProperty = 1
+	StorageDeviceIdProperty = 2
+	StorageDeviceUniqueIdProperty = 3
+	StorageDeviceWriteCacheProperty = 4
+	StorageMiniportProperty = 5
+	StorageAccessAlignmentProperty = 6
+	StorageDeviceSeekPenaltyProperty = 7
+	StorageDeviceTrimProperty = 8
+    StorageDeviceWriteAggregationProperty
+    StorageDeviceDeviceTelemetryProperty
+    StorageDeviceLBProvisioningProperty
+    StorageDevicePowerProperty
+    StorageDeviceCopyOffloadProperty
+    StorageDeviceResiliencyProperty
+    StorageDeviceMediumProductType
+    StorageAdapterRpmbProperty
+    StorageAdapterCryptoProperty
+    StorageDeviceIoCapabilityProperty = 48
+    StorageAdapterProtocolSpecificProperty
+    StorageDeviceProtocolSpecificProperty
+    StorageAdapterTemperatureProperty
+    StorageDeviceTemperatureProperty
+    StorageAdapterPhysicalTopologyProperty
+    StorageDevicePhysicalTopologyProperty
+    StorageDeviceAttributesProperty
+    StorageDeviceManagementStatus
+    StorageAdapterSerialNumberProperty
+    StorageDeviceLocationProperty
+    StorageDeviceNumaProperty
+    StorageDeviceZonedDeviceProperty
+    StorageDeviceUnsafeShutdownCount
+    StorageDeviceEnduranceProperty
+    StorageDeviceLedStateProperty
+    StorageDeviceSelfEncryptionProperty = 64
+    StorageFruIdProperty
+    StorageStackProperty
+    StorageAdapterProtocolSpecificPropertyEx,
+    StorageDeviceProtocolSpecificPropertyEx
+end enum
+
+type STORAGE_PROPERTY_ID as _STORAGE_PROPERTY_ID
+type PSTORAGE_PROPERTY_ID as _STORAGE_PROPERTY_ID ptr
+
+type _STORAGE_QUERY_TYPE as long
+enum
+	PropertyStandardQuery = 0
+	PropertyExistsQuery = 1
+	PropertyMaskQuery = 2
+	PropertyQueryMaxDefined = 3
+end enum
+
+type STORAGE_QUERY_TYPE as _STORAGE_QUERY_TYPE
+type PSTORAGE_QUERY_TYPE as _STORAGE_QUERY_TYPE ptr
+
+type _STORAGE_PROPERTY_QUERY
+	PropertyId as STORAGE_PROPERTY_ID
+	QueryType as STORAGE_QUERY_TYPE
+	AdditionalParameters(0 to 0) as UBYTE
+end type
+
+type STORAGE_PROPERTY_QUERY as _STORAGE_PROPERTY_QUERY
+type PSTORAGE_PROPERTY_QUERY as _STORAGE_PROPERTY_QUERY ptr
+
+type _STORAGE_DEVICE_DESCRIPTOR
+	Version as DWORD
+	Size as DWORD
+	DeviceType as UBYTE
+	DeviceTypeModifier as UBYTE
+	RemovableMedia as WINBOOLEAN
+	CommandQueueing as WINBOOLEAN
+	VendorIdOffset as DWORD
+	ProductIdOffset as DWORD
+	ProductRevisionOffset as DWORD
+	SerialNumberOffset as DWORD
+	BusType as STORAGE_BUS_TYPE
+	RawPropertiesLength as DWORD
+	RawDeviceProperties(0 to 0) as UBYTE
+end type
+
+type STORAGE_DEVICE_DESCRIPTOR as _STORAGE_DEVICE_DESCRIPTOR
+type PSTORAGE_DEVICE_DESCRIPTOR as _STORAGE_DEVICE_DESCRIPTOR ptr
+
+type _STORAGE_ADAPTER_DESCRIPTOR
+	Version as DWORD
+	Size as DWORD
+	MaximumTransferLength as DWORD
+	MaximumPhysicalPages as DWORD
+	AlignmentMask as DWORD
+	AdapterUsesPio as WINBOOLEAN
+	AdapterScansDown as WINBOOLEAN
+	CommandQueueing as WINBOOLEAN
+	AcceleratedTransfer as WINBOOLEAN
+	BusType as UBYTE
+	BusMajorVersion as WORD
+	BusMinorVersion as WORD
+'#if (NTDDI_VERSION >= NTDDI_WIN8)
+   AS BYTE  SrbType
+   AS BYTE  AddressType
+'#endif
+end type
+type STORAGE_ADAPTER_DESCRIPTOR as _STORAGE_ADAPTER_DESCRIPTOR
+type PSTORAGE_ADAPTER_DESCRIPTOR as _STORAGE_ADAPTER_DESCRIPTOR ptr
+
+type _STORAGE_DEVICE_ID_DESCRIPTOR
+	Version as DWORD
+	Size as DWORD
+	NumberOfIdentifiers as DWORD
+	Identifiers(0 to 0) as UBYTE
+end type
+
+type STORAGE_DEVICE_ID_DESCRIPTOR as _STORAGE_DEVICE_ID_DESCRIPTOR
+type PSTORAGE_DEVICE_ID_DESCRIPTOR as _STORAGE_DEVICE_ID_DESCRIPTOR ptr
+
+type _VOLUME_GET_GPT_ATTRIBUTES_INFORMATION
+	GptAttributes as ULONGLONG
+end type
+
+type VOLUME_GET_GPT_ATTRIBUTES_INFORMATION as _VOLUME_GET_GPT_ATTRIBUTES_INFORMATION
+type PVOLUME_GET_GPT_ATTRIBUTES_INFORMATION as _VOLUME_GET_GPT_ATTRIBUTES_INFORMATION ptr
+
+#if _WIN32_WINNT >= &h0600
+	#define FSCTL_MAKE_MEDIA_COMPATIBLE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 76, METHOD_BUFFERED, FILE_WRITE_DATA)
+	#define FSCTL_SET_DEFECT_MANAGEMENT CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 77, METHOD_BUFFERED, FILE_WRITE_DATA)
+	#define FSCTL_QUERY_SPARING_INFO CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 78, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_QUERY_ON_DISK_VOLUME_INFO CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 79, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_SET_VOLUME_COMPRESSION_STATE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 80, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+	#define FSCTL_TXFS_MODIFY_RM CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 81, METHOD_BUFFERED, FILE_WRITE_DATA)
+	#define FSCTL_TXFS_QUERY_RM_INFORMATION CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 82, METHOD_BUFFERED, FILE_READ_DATA)
+	#define FSCTL_TXFS_ROLLFORWARD_REDO CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 84, METHOD_BUFFERED, FILE_WRITE_DATA)
+	#define FSCTL_TXFS_ROLLFORWARD_UNDO CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 85, METHOD_BUFFERED, FILE_WRITE_DATA)
+	#define FSCTL_TXFS_START_RM CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 86, METHOD_BUFFERED, FILE_WRITE_DATA)
+	#define FSCTL_TXFS_SHUTDOWN_RM CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 87, METHOD_BUFFERED, FILE_WRITE_DATA)
+	#define FSCTL_TXFS_READ_BACKUP_INFORMATION CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 88, METHOD_BUFFERED, FILE_READ_DATA)
+	#define FSCTL_TXFS_WRITE_BACKUP_INFORMATION CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 89, METHOD_BUFFERED, FILE_WRITE_DATA)
+	#define FSCTL_TXFS_CREATE_SECONDARY_RM CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 90, METHOD_BUFFERED, FILE_WRITE_DATA)
+	#define FSCTL_TXFS_GET_METADATA_INFO CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 91, METHOD_BUFFERED, FILE_READ_DATA)
+	#define FSCTL_TXFS_GET_TRANSACTED_VERSION CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 92, METHOD_BUFFERED, FILE_READ_DATA)
+	#define FSCTL_TXFS_SAVEPOINT_INFORMATION CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 94, METHOD_BUFFERED, FILE_WRITE_DATA)
+	#define FSCTL_TXFS_CREATE_MINIVERSION CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 95, METHOD_BUFFERED, FILE_WRITE_DATA)
+	#define FSCTL_TXFS_TRANSACTION_ACTIVE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 99, METHOD_BUFFERED, FILE_READ_DATA)
+	#define FSCTL_SET_ZERO_ON_DEALLOCATION CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 101, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+	#define FSCTL_SET_REPAIR CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 102, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_GET_REPAIR CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 103, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_WAIT_FOR_REPAIR CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 104, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_INITIATE_REPAIR CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 106, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_CSC_INTERNAL CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 107, METHOD_NEITHER, FILE_ANY_ACCESS)
+	#define FSCTL_SHRINK_VOLUME CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 108, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+	#define FSCTL_SET_SHORT_NAME_BEHAVIOR CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 109, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_DFSR_SET_GHOST_HANDLE_STATE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 110, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_TXFS_LIST_TRANSACTION_LOCKED_FILES CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 120, METHOD_BUFFERED, FILE_READ_DATA)
+	#define FSCTL_TXFS_LIST_TRANSACTIONS CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 121, METHOD_BUFFERED, FILE_READ_DATA)
+	#define FSCTL_QUERY_PAGEFILE_ENCRYPTION CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 122, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_RESET_VOLUME_ALLOCATION_HINTS CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 123, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_TXFS_READ_BACKUP_INFORMATION2 CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 126, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+	const SET_REPAIR_ENABLED = &h00000001
+	const SET_REPAIR_VOLUME_BITMAP_SCAN = &h00000002
+	const SET_REPAIR_DELETE_CROSSLINK = &h00000004
+	const SET_REPAIR_WARN_ABOUT_DATA_LOSS = &h00000008
+	const SET_REPAIR_DISABLED_AND_BUGCHECK_ON_CORRUPT = &h00000010
+
+	type _FILE_MAKE_COMPATIBLE_BUFFER
+		CloseDisc as WINBOOLEAN
+	end type
+
+	type FILE_MAKE_COMPATIBLE_BUFFER as _FILE_MAKE_COMPATIBLE_BUFFER
+	type PFILE_MAKE_COMPATIBLE_BUFFER as _FILE_MAKE_COMPATIBLE_BUFFER ptr
+
+	type _FILE_SET_DEFECT_MGMT_BUFFER
+		Disable as WINBOOLEAN
+	end type
+
+	type FILE_SET_DEFECT_MGMT_BUFFER as _FILE_SET_DEFECT_MGMT_BUFFER
+	type PFILE_SET_DEFECT_MGMT_BUFFER as _FILE_SET_DEFECT_MGMT_BUFFER ptr
+
+	type _FILE_QUERY_SPARING_BUFFER
+		SparingUnitBytes as DWORD
+		SoftwareSparing as WINBOOLEAN
+		TotalSpareBlocks as DWORD
+		FreeSpareBlocks as DWORD
+	end type
+
+	type FILE_QUERY_SPARING_BUFFER as _FILE_QUERY_SPARING_BUFFER
+	type PFILE_QUERY_SPARING_BUFFER as _FILE_QUERY_SPARING_BUFFER ptr
+
+	type _FILE_QUERY_ON_DISK_VOL_INFO_BUFFER
+		DirectoryCount as LARGE_INTEGER
+		FileCount as LARGE_INTEGER
+		FsFormatMajVersion as WORD
+		FsFormatMinVersion as WORD
+		FsFormatName as wstring * 12
+		FormatTime as LARGE_INTEGER
+		LastUpdateTime as LARGE_INTEGER
+		CopyrightInfo as wstring * 34
+		AbstractInfo as wstring * 34
+		FormattingImplementationInfo as wstring * 34
+		LastModifyingImplementationInfo as wstring * 34
+	end type
+
+	type FILE_QUERY_ON_DISK_VOL_INFO_BUFFER as _FILE_QUERY_ON_DISK_VOL_INFO_BUFFER
+	type PFILE_QUERY_ON_DISK_VOL_INFO_BUFFER as _FILE_QUERY_ON_DISK_VOL_INFO_BUFFER ptr
+	const SET_REPAIR_ENABLED = &h00000001
+	const SET_REPAIR_VOLUME_BITMAP_SCAN = &h00000002
+	const SET_REPAIR_DELETE_CROSSLINK = &h00000004
+	const SET_REPAIR_WARN_ABOUT_DATA_LOSS = &h00000008
+	const SET_REPAIR_DISABLED_AND_BUGCHECK_ON_CORRUPT = &h00000010
+	const SET_REPAIR_VALID_MASK = &h0000001F
+
+	type _SHRINK_VOLUME_REQUEST_TYPES as long
+	enum
+		ShrinkPrepare
+		ShrinkCommit
+		ShrinkAbort
+	end enum
+
+	type SHRINK_VOLUME_REQUEST_TYPES as _SHRINK_VOLUME_REQUEST_TYPES
+
+	type _SHRINK_VOLUME_INFORMATION
+		ShrinkRequestType as SHRINK_VOLUME_REQUEST_TYPES
+		Flags as DWORDLONG
+		NewNumberOfSectors as LONGLONG
+	end type
+
+	type SHRINK_VOLUME_INFORMATION as _SHRINK_VOLUME_INFORMATION
+	type PSHRINK_VOLUME_INFORMATION as _SHRINK_VOLUME_INFORMATION ptr
+	const TXFS_RM_FLAG_LOGGING_MODE = &h00000001
+	const TXFS_RM_FLAG_RENAME_RM = &h00000002
+	const TXFS_RM_FLAG_LOG_CONTAINER_COUNT_MAX = &h00000004
+	const TXFS_RM_FLAG_LOG_CONTAINER_COUNT_MIN = &h00000008
+	const TXFS_RM_FLAG_LOG_GROWTH_INCREMENT_NUM_CONTAINERS = &h00000010
+	const TXFS_RM_FLAG_LOG_GROWTH_INCREMENT_PERCENT = &h00000020
+	const TXFS_RM_FLAG_LOG_AUTO_SHRINK_PERCENTAGE = &h00000040
+	const TXFS_RM_FLAG_LOG_NO_CONTAINER_COUNT_MAX = &h00000080
+	const TXFS_RM_FLAG_LOG_NO_CONTAINER_COUNT_MIN = &h00000100
+	const TXFS_RM_FLAG_GROW_LOG = &h00000400
+	const TXFS_RM_FLAG_SHRINK_LOG = &h00000800
+	const TXFS_RM_FLAG_ENFORCE_MINIMUM_SIZE = &h00001000
+	const TXFS_RM_FLAG_PRESERVE_CHANGES = &h00002000
+	const TXFS_RM_FLAG_RESET_RM_AT_NEXT_START = &h00004000
+	const TXFS_RM_FLAG_DO_NOT_RESET_RM_AT_NEXT_START = &h00008000
+	const TXFS_RM_FLAG_PREFER_CONSISTENCY = &h00010000
+	const TXFS_RM_FLAG_PREFER_AVAILABILITY = &h00020000
+	const TXFS_LOGGING_MODE_SIMPLE = 1
+	const TXFS_LOGGING_MODE_FULL = 2
+	const TXFS_TRANSACTION_STATE_NONE = 0
+	const TXFS_TRANSACTION_STATE_ACTIVE = 1
+	const TXFS_TRANSACTION_STATE_PREPARED = 2
+	const TXFS_TRANSACTION_STATE_NOTACTIVE = 3
+	const TXFS_MODIFY_RM_VALID_FLAGS = (((((((((((((((TXFS_RM_FLAG_LOGGING_MODE or TXFS_RM_FLAG_RENAME_RM) or TXFS_RM_FLAG_LOG_CONTAINER_COUNT_MAX) or TXFS_RM_FLAG_LOG_CONTAINER_COUNT_MIN) or TXFS_RM_FLAG_LOG_GROWTH_INCREMENT_NUM_CONTAINERS) or TXFS_RM_FLAG_LOG_GROWTH_INCREMENT_PERCENT) or TXFS_RM_FLAG_LOG_AUTO_SHRINK_PERCENTAGE) or TXFS_RM_FLAG_LOG_NO_CONTAINER_COUNT_MAX) or TXFS_RM_FLAG_LOG_NO_CONTAINER_COUNT_MIN) or TXFS_RM_FLAG_SHRINK_LOG) or TXFS_RM_FLAG_GROW_LOG) or TXFS_RM_FLAG_ENFORCE_MINIMUM_SIZE) or TXFS_RM_FLAG_PRESERVE_CHANGES) or TXFS_RM_FLAG_RESET_RM_AT_NEXT_START) or TXFS_RM_FLAG_DO_NOT_RESET_RM_AT_NEXT_START) or TXFS_RM_FLAG_PREFER_CONSISTENCY) or TXFS_RM_FLAG_PREFER_AVAILABILITY
+
+	type _TXFS_MODIFY_RM
+		Flags as ULONG
+		LogContainerCountMax as ULONG
+		LogContainerCountMin as ULONG
+		LogContainerCount as ULONG
+		LogGrowthIncrement as ULONG
+		LogAutoShrinkPercentage as ULONG
+		Reserved as ULONGLONG
+		LoggingMode as USHORT
+	end type
+
+	type TXFS_MODIFY_RM as _TXFS_MODIFY_RM
+	type PTXFS_MODIFY_RM as _TXFS_MODIFY_RM ptr
+
+	const TXFS_RM_STATE_NOT_STARTED = 0
+	const TXFS_RM_STATE_STARTING = 1
+'	const TXFS_RM_STATE_ACTIVE = 3
+'	const TXFS_RM_STATE_SHUTTING_DOWN = 4
+	const TXFS_RM_STATE_ACTIVE = 2
+	const TXFS_RM_STATE_SHUTTING_DOWN = 3
+	const TXFS_QUERY_RM_INFORMATION_VALID_FLAGS = ((((((TXFS_RM_FLAG_LOG_GROWTH_INCREMENT_NUM_CONTAINERS or TXFS_RM_FLAG_LOG_GROWTH_INCREMENT_PERCENT) or TXFS_RM_FLAG_LOG_NO_CONTAINER_COUNT_MAX) or TXFS_RM_FLAG_LOG_NO_CONTAINER_COUNT_MIN) or TXFS_RM_FLAG_RESET_RM_AT_NEXT_START) or TXFS_RM_FLAG_DO_NOT_RESET_RM_AT_NEXT_START) or TXFS_RM_FLAG_PREFER_CONSISTENCY) or TXFS_RM_FLAG_PREFER_AVAILABILITY
+
+	type _TXFS_QUERY_RM_INFORMATION
+		BytesRequired as ULONG
+		TailLsn as ULONGLONG
+		CurrentLsn as ULONGLONG
+		ArchiveTailLsn as ULONGLONG
+		LogContainerSize as ULONGLONG
+		HighestVirtualClock as LARGE_INTEGER
+		LogContainerCount as ULONG
+		LogContainerCountMax as ULONG
+		LogContainerCountMin as ULONG
+		LogGrowthIncrement as ULONG
+		LogAutoShrinkPercentage as ULONG
+		Flags as ULONG
+		LoggingMode as USHORT
+		Reserved as USHORT
+		RmState as ULONG
+		LogCapacity as ULONGLONG
+		LogFree as ULONGLONG
+		TopsSize as ULONGLONG
+		TopsUsed as ULONGLONG
+		TransactionCount as ULONGLONG
+		OnePCCount as ULONGLONG
+		TwoPCCount as ULONGLONG
+		NumberLogFileFull as ULONGLONG
+		OldestTransactionAge as ULONGLONG
+		RMName as GUID
+		TmLogPathOffset as ULONG
+	end type
+
+	type TXFS_QUERY_RM_INFORMATION as _TXFS_QUERY_RM_INFORMATION
+	type PTXFS_QUERY_RM_INFORMATION as _TXFS_QUERY_RM_INFORMATION ptr
+	const TXFS_ROLLFORWARD_REDO_FLAG_USE_LAST_REDO_LSN = &h01
+	const TXFS_ROLLFORWARD_REDO_FLAG_USE_LAST_VIRTUAL_CLOCK = &h02
+	const TXFS_ROLLFORWARD_REDO_VALID_FLAGS = TXFS_ROLLFORWARD_REDO_FLAG_USE_LAST_REDO_LSN or TXFS_ROLLFORWARD_REDO_FLAG_USE_LAST_VIRTUAL_CLOCK
+
+	type _TXFS_ROLLFORWARD_REDO_INFORMATION
+		LastVirtualClock as LARGE_INTEGER
+		LastRedoLsn as ULONGLONG
+		HighestRecoveryLsn as ULONGLONG
+		Flags as ULONG
+	end type
+
+	type TXFS_ROLLFORWARD_REDO_INFORMATION as _TXFS_ROLLFORWARD_REDO_INFORMATION
+	type PTXFS_ROLLFORWARD_REDO_INFORMATION as _TXFS_ROLLFORWARD_REDO_INFORMATION ptr
+	const TXFS_START_RM_FLAG_LOG_CONTAINER_COUNT_MAX = &h00000001
+	const TXFS_START_RM_FLAG_LOG_CONTAINER_COUNT_MIN = &h00000002
+	const TXFS_START_RM_FLAG_LOG_CONTAINER_SIZE = &h00000004
+	const TXFS_START_RM_FLAG_LOG_GROWTH_INCREMENT_NUM_CONTAINERS = &h00000008
+	const TXFS_START_RM_FLAG_LOG_GROWTH_INCREMENT_PERCENT = &h00000010
+	const TXFS_START_RM_FLAG_LOG_AUTO_SHRINK_PERCENTAGE = &h00000020
+	const TXFS_START_RM_FLAG_LOG_NO_CONTAINER_COUNT_MAX = &h00000040
+	const TXFS_START_RM_FLAG_LOG_NO_CONTAINER_COUNT_MIN = &h00000080
+	const TXFS_START_RM_FLAG_RECOVER_BEST_EFFORT = &h00000200
+	const TXFS_START_RM_FLAG_LOGGING_MODE = &h00000400
+	const TXFS_START_RM_FLAG_PRESERVE_CHANGES = &h00000800
+	const TXFS_START_RM_FLAG_PREFER_CONSISTENCY = &h00001000
+	const TXFS_START_RM_FLAG_PREFER_AVAILABILITY = &h00002000
+	const TXFS_START_RM_VALID_FLAGS = ((((((((((TXFS_START_RM_FLAG_LOG_CONTAINER_COUNT_MAX or TXFS_START_RM_FLAG_LOG_CONTAINER_COUNT_MIN) or TXFS_START_RM_FLAG_LOG_CONTAINER_SIZE) or TXFS_START_RM_FLAG_LOG_GROWTH_INCREMENT_NUM_CONTAINERS) or TXFS_START_RM_FLAG_LOG_GROWTH_INCREMENT_PERCENT) or TXFS_START_RM_FLAG_LOG_AUTO_SHRINK_PERCENTAGE) or TXFS_START_RM_FLAG_RECOVER_BEST_EFFORT) or TXFS_START_RM_FLAG_LOG_NO_CONTAINER_COUNT_MAX) or TXFS_START_RM_FLAG_LOGGING_MODE) or TXFS_START_RM_FLAG_PRESERVE_CHANGES) or TXFS_START_RM_FLAG_PREFER_CONSISTENCY) or TXFS_START_RM_FLAG_PREFER_AVAILABILITY
+
+	type _TXFS_START_RM_INFORMATION
+		Flags as ULONG
+		LogContainerSize as ULONGLONG
+		LogContainerCountMin as ULONG
+		LogContainerCountMax as ULONG
+		LogGrowthIncrement as ULONG
+		LogAutoShrinkPercentage as ULONG
+		TmLogPathOffset as ULONG
+		TmLogPathLength as USHORT
+		LoggingMode as USHORT
+		LogPathLength as USHORT
+		Reserved as USHORT
+		LogPath as wstring * 1
+	end type
+
+	type TXFS_START_RM_INFORMATION as _TXFS_START_RM_INFORMATION
+	type PTXFS_START_RM_INFORMATION as _TXFS_START_RM_INFORMATION ptr
+
+   type _TXFS_GET_METADATA_INFO_OUT
+      type TxfFileId
+         AS LONGLONG LowPart
+         AS LONGLONG HighPart
+      end type
+      AS GUID LockingTransaction
+      AS DWORDLONG LastLsn
+      AS DWORD TransactionState
+   end type
+
+	type TXFS_GET_METADATA_INFO_OUT as _TXFS_GET_METADATA_INFO_OUT
+	type PTXFS_GET_METADATA_INFO_OUT as _TXFS_GET_METADATA_INFO_OUT ptr
+	const TXFS_LIST_TRANSACTION_LOCKED_FILES_ENTRY_FLAG_CREATED = &h00000001
+	const TXFS_LIST_TRANSACTION_LOCKED_FILES_ENTRY_FLAG_DELETED = &h000000012
+
+	type _TXFS_LIST_TRANSACTION_LOCKED_FILES_ENTRY
+		Offset as ULONGLONG
+		NameFlags as ULONG
+		FileId as LONGLONG
+		Reserved1 as ULONG
+		Reserved2 as ULONG
+		Reserved3 as LONGLONG
+		FileName as wstring * 1
+	end type
+
+	type TXFS_LIST_TRANSACTION_LOCKED_FILES_ENTRY as _TXFS_LIST_TRANSACTION_LOCKED_FILES_ENTRY
+	type PTXFS_LIST_TRANSACTION_LOCKED_FILES_ENTRY as _TXFS_LIST_TRANSACTION_LOCKED_FILES_ENTRY ptr
+
+	type _TXFS_LIST_TRANSACTION_LOCKED_FILES
+		KtmTransaction as GUID
+		NumberOfFiles as ULONGLONG
+		BufferSizeRequired as ULONGLONG
+		Offset as ULONGLONG
+	end type
+
+	type TXFS_LIST_TRANSACTION_LOCKED_FILES as _TXFS_LIST_TRANSACTION_LOCKED_FILES
+	type PTXFS_LIST_TRANSACTION_LOCKED_FILES as _TXFS_LIST_TRANSACTION_LOCKED_FILES ptr
+
+	type _TXFS_LIST_TRANSACTIONS_ENTRY
+		TransactionId as GUID
+		TransactionState as ULONG
+		Reserved1 as ULONG
+		Reserved2 as ULONG
+		Reserved3 as LONGLONG
+	end type
+
+	type TXFS_LIST_TRANSACTIONS_ENTRY as _TXFS_LIST_TRANSACTIONS_ENTRY
+	type PTXFS_LIST_TRANSACTIONS_ENTRY as _TXFS_LIST_TRANSACTIONS_ENTRY ptr
+
+	type _TXFS_LIST_TRANSACTIONS
+		NumberOfTransactions as ULONGLONG
+		BufferSizeRequired as ULONGLONG
+	end type
+
+	type TXFS_LIST_TRANSACTIONS as _TXFS_LIST_TRANSACTIONS
+	type PTXFS_LIST_TRANSACTIONS as _TXFS_LIST_TRANSACTIONS ptr
+
+	type _TXFS_READ_BACKUP_INFORMATION_OUT
+		union
+			BufferLength as ULONG
+			Buffer as UCHAR
+		end union
+	end type
+
+	type TXFS_READ_BACKUP_INFORMATION_OUT as _TXFS_READ_BACKUP_INFORMATION_OUT
+	type PTXFS_READ_BACKUP_INFORMATION_OUT as _TXFS_READ_BACKUP_INFORMATION_OUT ptr
+
+'	type _TXFS_WRITE_BACKUP_INFORMATION
+'		Buffer as UCHAR
+'	end type
+	type _TXFS_WRITE_BACKUP_INFORMATION
+		Buffer(0) as BYTE
+	end type
+
+	type TXFS_WRITE_BACKUP_INFORMATION as _TXFS_WRITE_BACKUP_INFORMATION
+	type PTXFS_WRITE_BACKUP_INFORMATION as _TXFS_WRITE_BACKUP_INFORMATION ptr
+
+	const TXFS_TRANSACTED_VERSION_NONTRANSACTED = &hFFFFFFFE
+	const TXFS_TRANSACTED_VERSION_UNCOMMITTED = &hFFFFFFFF
+
+	type _TXFS_GET_TRANSACTED_VERSION
+		ThisBaseVersion as ULONG
+		LatestVersion as ULONG
+		ThisMiniVersion as USHORT
+		FirstMiniVersion as USHORT
+		LatestMiniVersion as USHORT
+	end type
+
+	type TXFS_GET_TRANSACTED_VERSION as _TXFS_GET_TRANSACTED_VERSION
+	type PTXFS_GET_TRANSACTED_VERSION as _TXFS_GET_TRANSACTED_VERSION ptr
+
+	const TXFS_SAVEPOINT_SET = 1
+	const TXFS_SAVEPOINT_ROLLBACK = 2
+	const TXFS_SAVEPOINT_CLEAR = 4
+	const TXFS_SAVEPOINT_CLEAR_ALL = 16
+
+	type _TXFS_SAVEPOINT_INFORMATION
+		KtmTransaction as HANDLE
+		ActionCode as ULONG
+		SavepointId as ULONG
+	end type
+
+	type TXFS_SAVEPOINT_INFORMATION as _TXFS_SAVEPOINT_INFORMATION
+	type PTXFS_SAVEPOINT_INFORMATION as _TXFS_SAVEPOINT_INFORMATION ptr
+
+	type _TXFS_CREATE_MINIVERSION_INFO
+		StructureVersion as USHORT
+		StructureLength as USHORT
+		BaseVersion as ULONG
+		MiniVersion as USHORT
+	end type
+
+	type TXFS_CREATE_MINIVERSION_INFO as _TXFS_CREATE_MINIVERSION_INFO
+	type PTXFS_CREATE_MINIVERSION_INFO as _TXFS_CREATE_MINIVERSION_INFO ptr
+
+	type _TXFS_TRANSACTION_ACTIVE_INFO
+		TransactionsActiveAtSnapshot as WINBOOL
+	end type
+
+	type TXFS_TRANSACTION_ACTIVE_INFO as _TXFS_TRANSACTION_ACTIVE_INFO
+	type PTXFS_TRANSACTION_ACTIVE_INFO as _TXFS_TRANSACTION_ACTIVE_INFO ptr
+
+	type _WRITE_CACHE_TYPE as long
+	enum
+		WriteCacheTypeUnknown = 0
+		WriteCacheTypeNone = 1
+		WriteCacheTypeWriteBack = 2
+		WriteCacheTypeWriteThrough = 3
+	end enum
+
+	type WRITE_CACHE_TYPE as _WRITE_CACHE_TYPE
+
+	type _WRITE_CACHE_ENABLE as long
+	enum
+		WriteCacheEnableUnknown = 0
+		WriteCacheDisabled = 1
+		WriteCacheEnabled = 2
+	end enum
+
+	type WRITE_CACHE_ENABLE as _WRITE_CACHE_ENABLE
+
+	type _WRITE_CACHE_CHANGE as long
+	enum
+		WriteCacheChangeUnknown = 0
+		WriteCacheNotChangeable = 1
+		WriteCacheChangeable = 2
+	end enum
+
+	type WRITE_CACHE_CHANGE as _WRITE_CACHE_CHANGE
+
+	type _WRITE_THROUGH as long
+	enum
+		WriteThroughUnknown = 0
+		WriteThroughNotSupported = 1
+		WriteThroughSupported = 2
+	end enum
+
+	type WRITE_THROUGH as _WRITE_THROUGH
+
+	type _STORAGE_WRITE_CACHE_PROPERTY
+		Version as DWORD
+		Size as DWORD
+		WriteCacheType as WRITE_CACHE_TYPE
+		WriteCacheEnabled as WRITE_CACHE_ENABLE
+		WriteCacheChangeable as WRITE_CACHE_CHANGE
+		WriteThroughSupported as WRITE_THROUGH
+		FlushCacheSupported as WINBOOLEAN
+		UserDefinedPowerProtection as WINBOOLEAN
+		NVCacheEnabled as WINBOOLEAN
+	end type
+
+	type STORAGE_WRITE_CACHE_PROPERTY as _STORAGE_WRITE_CACHE_PROPERTY
+	type PSTORAGE_WRITE_CACHE_PROPERTY as _STORAGE_WRITE_CACHE_PROPERTY ptr
+
+	type _STORAGE_PORT_CODE_SET as long
+	enum
+		StoragePortCodeSetReserved = 0
+		StoragePortCodeSetStorport = 1
+		StoragePortCodeSetSCSIport = 2
+      StoragePortCodeSetSpaceport = 3
+      StoragePortCodeSetATAport   = 4
+      StoragePortCodeSetUSBport   = 5
+      StoragePortCodeSetSBP2port  = 6
+      StoragePortCodeSetSDport    = 7
+	end enum
+
+	type STORAGE_PORT_CODE_SET as _STORAGE_PORT_CODE_SET
+	type PSTORAGE_PORT_CODE_SET as _STORAGE_PORT_CODE_SET ptr
+
+	type _STORAGE_MINIPORT_DESCRIPTOR
+		Version as DWORD
+		Size as DWORD
+		Portdriver as STORAGE_PORT_CODE_SET
+		LUNResetSupported as WINBOOLEAN
+		TargetResetSupported as WINBOOLEAN
+	end type
+
+'typedef struct _STORAGE_MINIPORT_DESCRIPTOR {
+'    DWORD Version;
+'    DWORD Size;
+'    STORAGE_PORT_CODE_SET Portdriver;
+'    BOOLEAN LUNResetSupported;
+'    BOOLEAN TargetResetSupported;
+'#if (NTDDI_VERSION >= NTDDI_WIN8)
+'    WORD    IoTimeoutValue;
+'#endif
+'#if (NTDDI_VERSION >= NTDDI_WINBLUE)
+'    BOOLEAN ExtraIoInfoSupported;
+'#if (NTDDI_VERSION >= NTDDI_WIN10_FE)
+'    union {
+'        struct {
+'            BYTE  LogicalPoFxForDisk : 1;
+'            BYTE  ForwardIo : 1;
+'            BYTE  Reserved : 6;
+'        } DUMMYSTRUCTNAME;
+'        BYTE  AsBYTE ;
+'    } Flags;
+'    BYTE    Reserved0[2];
+'#else
+'    BYTE    Reserved0[3];
+'#endif
+'    DWORD   Reserved1;
+'#endif
+
+'} STORAGE_MINIPORT_DESCRIPTOR, *PSTORAGE_MINIPORT_DESCRIPTOR;
+
+	type STORAGE_MINIPORT_DESCRIPTOR as _STORAGE_MINIPORT_DESCRIPTOR
+	type PSTORAGE_MINIPORT_DESCRIPTOR as _STORAGE_MINIPORT_DESCRIPTOR ptr
+
+	type _STORAGE_ACCESS_ALIGNMENT_DESCRIPTOR
+		Version as DWORD
+		Size as DWORD
+		BytesPerCacheLine as DWORD
+		BytesOffsetForCacheAlignment as DWORD
+		BytesPerLogicalSector as DWORD
+		BytesPerPhysicalSector as DWORD
+		BytesOffsetForSectorAlignment as DWORD
+	end type
+
+	type STORAGE_ACCESS_ALIGNMENT_DESCRIPTOR as _STORAGE_ACCESS_ALIGNMENT_DESCRIPTOR
+	type PSTORAGE_ACCESS_ALIGNMENT_DESCRIPTOR as _STORAGE_ACCESS_ALIGNMENT_DESCRIPTOR ptr
+#endif
+
+#if _WIN32_WINNT >= &h0601
+	type _DEVICE_SEEK_PENALTY_DESCRIPTOR
+		Version as DWORD
+		Size as DWORD
+		IncursSeekPenalty as WINBOOLEAN
+	end type
+
+	type DEVICE_SEEK_PENALTY_DESCRIPTOR as _DEVICE_SEEK_PENALTY_DESCRIPTOR
+	type PDEVICE_SEEK_PENALTY_DESCRIPTOR as _DEVICE_SEEK_PENALTY_DESCRIPTOR ptr
+
+	type _DEVICE_TRIM_DESCRIPTOR
+		Version as DWORD
+		Size as DWORD
+		TrimEnabled as WINBOOLEAN
+	end type
+
+	type DEVICE_TRIM_DESCRIPTOR as _DEVICE_TRIM_DESCRIPTOR
+	type PDEVICE_TRIM_DESCRIPTOR as _DEVICE_TRIM_DESCRIPTOR ptr
+
+	type _REQUEST_OPLOCK_INPUT_BUFFER
+		StructureVersion as WORD
+		StructureLength as WORD
+		RequestedOplockLevel as DWORD
+		Flags as DWORD
+	end type
+
+	type REQUEST_OPLOCK_INPUT_BUFFER as _REQUEST_OPLOCK_INPUT_BUFFER
+	type PREQUEST_OPLOCK_INPUT_BUFFER as _REQUEST_OPLOCK_INPUT_BUFFER ptr
+
+	type _REQUEST_OPLOCK_OUTPUT_BUFFER
+		StructureVersion as WORD
+		StructureLength as WORD
+		OriginalOplockLevel as DWORD
+		NewOplockLevel as DWORD
+		Flags as DWORD
+		AccessMode as ACCESS_MASK
+		ShareMode as WORD
+	end type
+
+	type REQUEST_OPLOCK_OUTPUT_BUFFER as _REQUEST_OPLOCK_OUTPUT_BUFFER
+	type PREQUEST_OPLOCK_OUTPUT_BUFFER as _REQUEST_OPLOCK_OUTPUT_BUFFER ptr
+
+	type _BOOT_AREA_INFO_BootSectors
+		Offset as LARGE_INTEGER
+	end type
+
+	type _BOOT_AREA_INFO
+		BootSectorCount as ULONG
+		BootSectors(0 to 1) as _BOOT_AREA_INFO_BootSectors
+	end type
+
+	type BOOT_AREA_INFO as _BOOT_AREA_INFO
+	type PBOOT_AREA_INFO as _BOOT_AREA_INFO ptr
+
+	type _RETRIEVAL_POINTER_BASE
+		FileAreaOffset as LARGE_INTEGER
+	end type
+
+	type RETRIEVAL_POINTER_BASE as _RETRIEVAL_POINTER_BASE
+	type PRETRIEVAL_POINTER_BASE as _RETRIEVAL_POINTER_BASE ptr
+
+'	type _FILE_SYSTEM_RECOGNITION_INFORMATION
+'		FileSystem as zstring * 9
+'	end type
+	type _FILE_SYSTEM_RECOGNITION_INFORMATION
+		FileSystem (0 TO 8) as BYTE
+	end type
+
+	type FILE_SYSTEM_RECOGNITION_INFORMATION as _FILE_SYSTEM_RECOGNITION_INFORMATION
+	type PFILE_SYSTEM_RECOGNITION_INFORMATION as _FILE_SYSTEM_RECOGNITION_INFORMATION ptr
+
+	type _FILE_SYSTEM_RECOGNITION_STRUCTURE
+		Jmp(0 to 2) as UCHAR
+		FsName(0 to 7) as UCHAR
+		MustBeZero(0 to 4) as UCHAR
+		Identifier as ULONG
+		Length as USHORT
+		Checksum as USHORT
+	end type
+
+	type FILE_SYSTEM_RECOGNITION_STRUCTURE as _FILE_SYSTEM_RECOGNITION_STRUCTURE
+
+	type _LOOKUP_STREAM_FROM_CLUSTER_INPUT
+		Flags as DWORD
+		NumberOfClusters as DWORD
+		Cluster(0 to 0) as LARGE_INTEGER
+	end type
+
+	type LOOKUP_STREAM_FROM_CLUSTER_INPUT as _LOOKUP_STREAM_FROM_CLUSTER_INPUT
+	type PLOOKUP_STREAM_FROM_CLUSTER_INPUT as _LOOKUP_STREAM_FROM_CLUSTER_INPUT ptr
+
+	type _LOOKUP_STREAM_FROM_CLUSTER_OUTPUT
+		Offset as DWORD
+		NumberOfMatches as DWORD
+		BufferSizeRequired as DWORD
+	end type
+
+	type LOOKUP_STREAM_FROM_CLUSTER_OUTPUT as _LOOKUP_STREAM_FROM_CLUSTER_OUTPUT
+	type PLOOKUP_STREAM_FROM_CLUSTER_OUTPUT as _LOOKUP_STREAM_FROM_CLUSTER_OUTPUT ptr
+
+	type _LOOKUP_STREAM_FROM_CLUSTER_ENTRY
+		OffsetToNext as DWORD
+		Flags as DWORD
+		Reserved as LARGE_INTEGER
+		Cluster as LARGE_INTEGER
+		FileName as wstring * 1
+	end type
+
+	type LOOKUP_STREAM_FROM_CLUSTER_ENTRY as _LOOKUP_STREAM_FROM_CLUSTER_ENTRY
+	type PLOOKUP_STREAM_FROM_CLUSTER_ENTRY as _LOOKUP_STREAM_FROM_CLUSTER_ENTRY ptr
+	const LOOKUP_STREAM_FROM_CLUSTER_ENTRY_ATTRIBUTE_MASK = &hff000000
+	const LOOKUP_STREAM_FROM_CLUSTER_ENTRY_FLAG_PAGE_FILE = &h00000001
+	const LOOKUP_STREAM_FROM_CLUSTER_ENTRY_FLAG_DENY_DEFRAG_SET = &h00000002
+	const LOOKUP_STREAM_FROM_CLUSTER_ENTRY_FLAG_FS_SYSTEM_FILE = &h00000004
+	const LOOKUP_STREAM_FROM_CLUSTER_ENTRY_FLAG_TXF_SYSTEM_FILE = &h00000008
+	const LOOKUP_STREAM_FROM_CLUSTER_ENTRY_ATTRIBUTE_DATA = &h01000000
+	const LOOKUP_STREAM_FROM_CLUSTER_ENTRY_ATTRIBUTE_INDEX = &h02000000
+	const LOOKUP_STREAM_FROM_CLUSTER_ENTRY_ATTRIBUTE_SYSTEM = &h03000000
+
+	#define FSCTL_QUERY_DEPENDENT_VOLUME CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 124, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_SD_GLOBAL_CHANGE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 125, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_LOOKUP_STREAM_FROM_CLUSTER CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 127, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_TXFS_WRITE_BACKUP_INFORMATION2 CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 128, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_FILE_TYPE_NOTIFICATION CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 129, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_GET_BOOT_AREA_INFO CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 140, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_GET_RETRIEVAL_POINTER_BASE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 141, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_SET_PERSISTENT_VOLUME_STATE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 142, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_QUERY_PERSISTENT_VOLUME_STATE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 143, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_REQUEST_OPLOCK CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 144, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_CSV_TUNNEL_REQUEST CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 145, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_IS_CSV_FILE CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 146, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_QUERY_FILE_SYSTEM_RECOGNITION CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 147, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_CSV_GET_VOLUME_PATH_NAME CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 148, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_CSV_GET_VOLUME_NAME_FOR_VOLUME_MOUNT_POINT CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 149, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_CSV_GET_VOLUME_PATH_NAMES_FOR_VOLUME_NAME CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 150, METHOD_BUFFERED, FILE_ANY_ACCESS)
+	#define FSCTL_IS_FILE_ON_CSV_VOLUME CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 151, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#endif
+
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+#define FSCTL_CSV_INTERNAL                  CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 155,  METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif /* _WIN32_WINNT >= _WIN32_WINNT_WIN7 */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+#define FSCTL_FILE_LEVEL_TRIM CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 130, METHOD_BUFFERED, FILE_WRITE_DATA)
+#define FSCTL_CORRUPTION_HANDLING           CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 152, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_OFFLOAD_READ                  CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 153, METHOD_BUFFERED, FILE_READ_ACCESS)
+#define FSCTL_OFFLOAD_WRITE                 CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 154, METHOD_BUFFERED, FILE_WRITE_ACCESS)
+#define FSCTL_SET_PURGE_FAILURE_MODE        CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 156, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_QUERY_FILE_LAYOUT             CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 157, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_IS_VOLUME_OWNED_BYCSVFS       CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 158,  METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_GET_INTEGRITY_INFORMATION     CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 159, METHOD_BUFFERED, FILE_ANY_ACCESS)                  ' // FSCTL_GET_INTEGRITY_INFORMATION_BUFFER
+#define FSCTL_SET_INTEGRITY_INFORMATION     CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 160, METHOD_BUFFERED, FILE_READ_DATA OR FILE_WRITE_DATA) ' // FSCTL_SET_INTEGRITY_INFORMATION_BUFFER
+#define FSCTL_QUERY_FILE_REGIONS            CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 161, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_RKF_INTERNAL                  CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 171, METHOD_NEITHER, FILE_ANY_ACCESS) ' // Resume Key Filter
+#define FSCTL_SCRUB_DATA                    CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 172, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_REPAIR_COPIES                 CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 173, METHOD_BUFFERED, FILE_READ_DATA OR FILE_WRITE_DATA)
+#define FSCTL_DISABLE_LOCAL_BUFFERING       CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 174, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_CSV_MGMT_LOCK                 CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 175, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_CSV_QUERY_DOWN_LEVEL_FILE_SYSTEM_CHARACTERISTICS CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 176, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_ADVANCE_FILE_ID               CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 177, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_CSV_SYNC_TUNNEL_REQUEST       CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 178, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_CSV_QUERY_VETO_FILE_DIRECT_IO CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 179, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_WRITE_USN_REASON              CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 180, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_CSV_CONTROL                   CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 181, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_GET_REFS_VOLUME_DATA          CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 182, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_CSV_H_BREAKING_SYNC_TUNNEL_REQUEST CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 185, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif /*_WIN32_WINNT >= _WIN32_WINNT_WIN8 */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINBLUE)
+#define FSCTL_QUERY_STORAGE_CLASSES         CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 187, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_QUERY_REGION_INFO             CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 188, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_USN_TRACK_MODIFIED_RANGES     CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 189, METHOD_BUFFERED, FILE_ANY_ACCESS) // USN_TRACK_MODIFIED_RANGES
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WINBLUE) */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINBLUE)
+#define FSCTL_QUERY_SHARED_VIRTUAL_DISK_SUPPORT CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 192, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_SVHDX_SYNC_TUNNEL_REQUEST         CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 193, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_SVHDX_SET_INITIATOR_INFORMATION   CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 194, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WINBLUE) */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+#define FSCTL_SET_EXTERNAL_BACKING              CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 195, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define FSCTL_GET_EXTERNAL_BACKING              CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 196, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_DELETE_EXTERNAL_BACKING           CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 197, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define FSCTL_ENUM_EXTERNAL_BACKING             CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 198, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_ENUM_OVERLAY                      CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 199, METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSCTL_ADD_OVERLAY                       CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 204, METHOD_BUFFERED, FILE_WRITE_DATA)
+#define FSCTL_REMOVE_OVERLAY                    CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 205, METHOD_BUFFERED, FILE_WRITE_DATA)
+#define FSCTL_UPDATE_OVERLAY                    CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 206, METHOD_BUFFERED, FILE_WRITE_DATA)
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WIN7) */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+#define FSCTL_SHUFFLE_FILE                      CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 208, METHOD_BUFFERED, FILE_READ_ACCESS OR FILE_WRITE_ACCESS) '// SHUFFLE_FILE_DATA
+'#endif /*_WIN32_WINNT >= _WIN32_WINNT_WIN8 */
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINBLUE)
+#define FSCTL_DUPLICATE_EXTENTS_TO_FILE         CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 209, METHOD_BUFFERED, FILE_WRITE_DATA )
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WINBLUE) */
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINBLUE)
+#define FSCTL_SPARSE_OVERALLOCATE               CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 211, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define FSCTL_STORAGE_QOS_CONTROL               CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 212, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WINBLUE) */
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD)
+#define FSCTL_INITIATE_FILE_METADATA_OPTIMIZATION       CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 215, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define FSCTL_QUERY_FILE_METADATA_OPTIMIZATION          CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 216, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD) */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINBLUE)
+#define FSCTL_SVHDX_ASYNC_TUNNEL_REQUEST         CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 217, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WINBLUE) */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+#define FSCTL_GET_WOF_VERSION                    CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 218, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD)
+#define FSCTL_HCS_SYNC_TUNNEL_REQUEST            CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 219, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_HCS_ASYNC_TUNNEL_REQUEST           CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 220, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_QUERY_EXTENT_READ_CACHE_INFO       CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 221, METHOD_NEITHER, FILE_ANY_ACCESS)  ' // VCN_RANGE_INPUT_BUFFER, EXTENT_READ_CACHE_INFO_BUFFER
+#define FSCTL_QUERY_REFS_VOLUME_COUNTER_INFO     CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 222, METHOD_NEITHER, FILE_ANY_ACCESS)  ' // REFS_VOLUME_COUNTER_INFO_INPUT_BUFFER, VOLUME_REFS_INFO_BUFFER
+#define FSCTL_CLEAN_VOLUME_METADATA              CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 223, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_SET_INTEGRITY_INFORMATION_EX       CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 224, METHOD_BUFFERED, FILE_ANY_ACCESS) ' // FSCTL_SET_INTEGRITY_INFORMATION_BUFFER_EX
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD) */
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+#define FSCTL_SUSPEND_OVERLAY                    CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 225, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD)
+#define FSCTL_VIRTUAL_STORAGE_QUERY_PROPERTY     CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 226, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_FILESYSTEM_GET_STATISTICS_EX       CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 227, METHOD_BUFFERED, FILE_ANY_ACCESS) ' // FILESYSTEM_STATISTICS_EX
+#define FSCTL_QUERY_VOLUME_CONTAINER_STATE       CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 228, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_SET_LAYER_ROOT                     CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 229, METHOD_BUFFERED, FILE_ANY_ACCESS) ' // CONTAINER_ROOT_INFO_INPUT CONTAINER_ROOT_INFO_OUTPUT
+'#endif
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_TH2)
+#define FSCTL_QUERY_DIRECT_ACCESS_EXTENTS        CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 230, METHOD_NEITHER, FILE_ANY_ACCESS) ' // QUERY_DIRECT_ACCESS_EXTENTS
+#define FSCTL_NOTIFY_STORAGE_SPACE_ALLOCATION    CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 231, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_SSDI_STORAGE_REQUEST               CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 232, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS1)
+#define FSCTL_QUERY_DIRECT_IMAGE_ORIGINAL_BASE   CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 233, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_READ_UNPRIVILEGED_USN_JOURNAL      CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 234,  METHOD_NEITHER, FILE_ANY_ACCESS) ' // READ_USN_JOURNAL_DATA, USN
+'#endif
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_TH2)
+#define FSCTL_GHOST_FILE_EXTENTS                 CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 235, METHOD_BUFFERED, FILE_WRITE_ACCESS) ' // FSCTL_GHOST_FILE_EXTENTS_INPUT_BUFFER
+#define FSCTL_QUERY_GHOSTED_FILE_EXTENTS         CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 236, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_TH2)
+#define FSCTL_UNMAP_SPACE                        CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 237, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD)
+#define FSCTL_HCS_SYNC_NO_WRITE_TUNNEL_REQUEST   CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 238, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS1)
+#define FSCTL_START_VIRTUALIZATION_INSTANCE     CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 240, METHOD_BUFFERED, FILE_ANY_ACCESS) ' // VIRTUALIZATION_INSTANCE_INFO_INPUT, VIRTUALIZATION_INSTANCE_INFO_OUTPUT
+#define FSCTL_GET_FILTER_FILE_IDENTIFIER        CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 241, METHOD_BUFFERED, FILE_ANY_ACCESS) ' // GET_FILTER_FILE_IDENTIFIER_INPUT, GET_FILTER_FILE_IDENTIFIER_OUTPUT
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS1) */
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS2)
+#define FSCTL_STREAMS_QUERY_PARAMETERS          CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 241, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_STREAMS_ASSOCIATE_ID              CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 242, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_STREAMS_QUERY_ID                  CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 243, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_GET_RETRIEVAL_POINTERS_AND_REFCOUNT CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 244, METHOD_NEITHER,  FILE_ANY_ACCESS) ' // STARTING_VCN_INPUT_BUFFER, RETRIEVAL_POINTERS_AND_REFCOUNT_BUFFER
+#define FSCTL_QUERY_VOLUME_NUMA_INFO            CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 245, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS2)
+#define FSCTL_REFS_DEALLOCATE_RANGES            CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 246, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_TH2)
+#define FSCTL_QUERY_REFS_SMR_VOLUME_INFO         CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 247, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_SET_REFS_SMR_VOLUME_GC_PARAMETERS  CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 248, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_SET_REFS_FILE_STRICTLY_SEQUENTIAL  CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 249, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS3)
+#define FSCTL_DUPLICATE_EXTENTS_TO_FILE_EX      CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 250, METHOD_BUFFERED, FILE_WRITE_DATA)
+#define FSCTL_QUERY_BAD_RANGES                  CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 251, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_SET_DAX_ALLOC_ALIGNMENT_HINT      CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 252, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_DELETE_CORRUPTED_REFS_CONTAINER   CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 253, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_SCRUB_UNDISCOVERABLE_ID           CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 254, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS3) */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS4)
+#define FSCTL_NOTIFY_DATA_CHANGE                CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 255, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS4) */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS1)
+#define FSCTL_START_VIRTUALIZATION_INSTANCE_EX  CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 256, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS1) */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS4)
+#define FSCTL_ENCRYPTION_KEY_CONTROL            CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 257, METHOD_BUFFERED, FILE_ANY_ACCESS) ' // protect/unprotect under DPL
+#define FSCTL_VIRTUAL_STORAGE_SET_BEHAVIOR      CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 258, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS4) */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS1)
+#define FSCTL_SET_REPARSE_POINT_EX              CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 259, METHOD_BUFFERED, FILE_SPECIAL_ACCESS) // REPARSE_DATA_BUFFER_EX
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS1) */
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS5) || (NTDDI_VERSION >= NTDDI_WIN8) //Win8 check is for backward compatibility.
+#define FSCTL_REARRANGE_FILE                    CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 264, METHOD_BUFFERED, FILE_READ_ACCESS OE FILE_WRITE_ACCESS) // REARRANGE_FILE_DATA
+#define FSCTL_VIRTUAL_STORAGE_PASSTHROUGH       CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 265, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_GET_RETRIEVAL_POINTER_COUNT       CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 266, METHOD_NEITHER,  FILE_ANY_ACCESS) ' // STARTING_VCN_INPUT_BUFFER, RETRIEVAL_POINTER_COUNT
+'#if defined(_WIN64)
+#ifdef __FB_64BIT__
+#define FSCTL_ENABLE_PER_IO_FLAGS               CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 267, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#endif ' /* _WIN64 */
+'#endif /* (NTDDI_VERSION >= NTDDI_WIN10_RS5) */
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS5)
+#define FSCTL_QUERY_ASYNC_DUPLICATE_EXTENTS_STATUS  CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 268, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+'#if (NTDDI_VERSION >= NTDDI_WIN10_MN)
+#define FSCTL_SMB_SHARE_FLUSH_AND_PURGE         CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 271, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_FE)
+#define FSCTL_REFS_STREAM_SNAPSHOT_MANAGEMENT   CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 272, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+'#if (NTDDI_VERSION >= NTDDI_WIN10_CO)
+#define FSCTL_MANAGE_BYPASS_IO                  CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 274, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_FE)
+#define FSCTL_REFS_DEALLOCATE_RANGES_EX         CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 275, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_FE)
+#define FSCTL_SET_CACHED_RUNS_STATE             CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 276, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+'#if (NTDDI_VERSION >= NTDDI_WIN10_NI)
+#define FSCTL_REFS_SET_VOLUME_COMPRESSION_INFO    CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 277, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_REFS_QUERY_VOLUME_COMPRESSION_INFO  CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 278, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_NI)
+#define FSCTL_DUPLICATE_CLUSTER                     CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 279, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_CREATE_LCN_WEAK_REFERENCE             CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 280, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_CLEAR_LCN_WEAK_REFERENCE              CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 281, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_QUERY_LCN_WEAK_REFERENCE              CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 282, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_CLEAR_ALL_LCN_WEAK_REFERENCES         CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 283, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_REFS_SET_VOLUME_DEDUP_INFO            CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 284, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_REFS_QUERY_VOLUME_DEDUP_INFO          CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 285, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS5)
+#define FSCTL_LMR_QUERY_INFO                        CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 286, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+'#if (NTDDI_VERSION >= NTDDI_WIN10_NI)
+#define FSCTL_REFS_CHECKPOINT_VOLUME                CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 287, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_REFS_QUERY_VOLUME_TOTAL_SHARED_LCNS   CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 288, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+'#if (NTDDI_VERSION >= NTDDI_WIN10_CU)
+#define FSCTL_UPGRADE_VOLUME                    CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 289, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+'#if (NTDDI_VERSION >= NTDDI_WIN11_ZN)
+#define FSCTL_REFS_SET_VOLUME_IO_METRICS_INFO       CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 290, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSCTL_REFS_QUERY_VOLUME_IO_METRICS_INFO     CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 291, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif // #if (NTDDI_VERSION >= NTDDI_WIN11_ZN)
+'#if (NTDDI_VERSION >= NTDDI_WIN11_GE)
+#define FSCTL_REFS_SET_ROLLBACK_PROTECTION_INFO     CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 292, METHOD_BUFFERED, FILE_ANY_ACCESS) ' // REFS_SET_ROLLBACK_PROTECTION_INFO_INPUT_BUFFER
+#define FSCTL_REFS_QUERY_ROLLBACK_PROTECTION_INFO   CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 293, METHOD_BUFFERED, FILE_ANY_ACCESS) ' // REFS_QUERY_ROLLBACK_PROTECTION_INFO_OUTPUT_BUFFER
+'#endif // #if (NTDDI_VERSION >= NTDDI_WIN11_GE)
+'#if (NTDDI_VERSION >= NTDDI_WIN11_GE)
+#define FSCTL_FILE_SOV_CHECK_RANGE                  CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 294, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+'#if (NTDDI_VERSION >= NTDDI_WIN11_GE)
+#define FSCTL_CASCADES_REFS_SET_FILE_REMOTE         CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 295, METHOD_BUFFERED, FILE_ANY_ACCESS)
+'#endif
+
+' // AVIO IOCTLS.
+#define IOCTL_AVIO_ALLOCATE_STREAM      CTL_CODE(FILE_DEVICE_AVIO, 1, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define IOCTL_AVIO_FREE_STREAM          CTL_CODE(FILE_DEVICE_AVIO, 2, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define IOCTL_AVIO_MODIFY_STREAM        CTL_CODE(FILE_DEVICE_AVIO, 3, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+
+#define IOCTL_VOLUME_BASE cast(DWORD, asc("V"))
+#define IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS CTL_CODE(IOCTL_VOLUME_BASE, 0, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_VOLUME_SUPPORTS_ONLINE_OFFLINE CTL_CODE(IOCTL_VOLUME_BASE, 1, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_VOLUME_ONLINE CTL_CODE(IOCTL_VOLUME_BASE, 2, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define IOCTL_VOLUME_OFFLINE CTL_CODE(IOCTL_VOLUME_BASE, 3, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+#define IOCTL_VOLUME_IS_OFFLINE CTL_CODE(IOCTL_VOLUME_BASE, 4, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_VOLUME_IS_IO_CAPABLE CTL_CODE(IOCTL_VOLUME_BASE, 5, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_VOLUME_QUERY_FAILOVER_SET CTL_CODE(IOCTL_VOLUME_BASE, 6, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_VOLUME_QUERY_VOLUME_NUMBER CTL_CODE(IOCTL_VOLUME_BASE, 7, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_VOLUME_LOGICAL_TO_PHYSICAL CTL_CODE(IOCTL_VOLUME_BASE, 8, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_VOLUME_PHYSICAL_TO_LOGICAL CTL_CODE(IOCTL_VOLUME_BASE, 9, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_VOLUME_IS_CLUSTERED CTL_CODE(IOCTL_VOLUME_BASE, 12, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_VOLUME_GET_GPT_ATTRIBUTES CTL_CODE(IOCTL_VOLUME_BASE, 14, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+type _DISK_EXTENT
+	DiskNumber as DWORD
+	StartingOffset as LARGE_INTEGER
+	ExtentLength as LARGE_INTEGER
+end type
+
+type DISK_EXTENT as _DISK_EXTENT
+type PDISK_EXTENT as _DISK_EXTENT ptr
+
+type _VOLUME_DISK_EXTENTS
+	NumberOfDiskExtents as DWORD
+	Extents(0 to 0) as DISK_EXTENT
+end type
+
+type VOLUME_DISK_EXTENTS as _VOLUME_DISK_EXTENTS
+type PVOLUME_DISK_EXTENTS as _VOLUME_DISK_EXTENTS ptr
+
+
+' ########################################################################################
+'                                    *** UPDATES ***
+' ########################################################################################
+' Updated by José Roca, 2026
+
+type _STORAGE_DEVICE_NUMBERS
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD NumberOfDevices
+   AS STORAGE_DEVICE_NUMBER Devices(0)
+end type
+
+type STORAGE_DEVICE_NUMBERS as _STORAGE_DEVICE_NUMBERS
+type PSTORAGE_DEVICE_NUMBERS as _STORAGE_DEVICE_NUMBERS ptr
+
+' // This flag indicates that deviceguid is randomly created because a deviceguid conflict was observed
+const STORAGE_DEVICE_FLAGS_RANDOM_DEVICEGUID_REASON_CONFLICT = &h1
+
+' // This flag indicates that deviceguid is randomly created because the HW ID was not available
+const STORAGE_DEVICE_FLAGS_RANDOM_DEVICEGUID_REASON_NOHWID = &h2
+
+' // This flag indicates that deviceguid is created from the scsi page83 data.
+' // If this flag is not set this implies it's created from serial number or is randomly generated.
+const STORAGE_DEVICE_FLAGS_PAGE_83_DEVICEGUID = &h4
+
+type _STORAGE_DEVICE_NUMBER_EX
+   AS DWORD       Version
+   AS DWORD       Size
+   AS DWORD       Flags
+   AS DEVICE_TYPE DeviceType
+   AS DWORD       DeviceNumber
+   AS GUID        DeviceGuid
+   AS DWORD       PartitionNumber
+end type
+type STORAGE_DEVICE_NUMBER_EX as _STORAGE_DEVICE_NUMBER_EX
+type PSTORAGE_DEVICE_NUMBER_EX as _STORAGE_DEVICE_NUMBER_EX ptr
+
+#define SupportsDeviceSharing(BusType) ( _
+        (BusType = BusTypeScsi)  OR _
+        (BusType = BusTypeFibre) OR _
+        (BusType = BusTypeiScsi) OR _
+        (BusType = BusTypeSas)   OR _
+        (BusType = BusTypeSpaces) )
+
+'// IOCTL_STORAGE_FAILURE_PREDICTION_CONFIG
+'//
+'// Input - STORAGE_FAILURE_PREDICTION_CONFIG structure.
+'//         If the sender wants to enable or disable failure prediction then
+'//         the sender should set the "Set" field to TRUE.
+'// Output - STORAGE_FAILURE_PREDICTION_CONFIG structure.
+'//          If successful, the "Enabled" field will indicate if failure
+'//          prediction is currently enabled or not.
+'//
+type _STORAGE_FAILURE_PREDICTION_CONFIG
+   AS DWORD Version      ' // Set to 1 for Blue.
+   AS DWORD Size
+   AS WINBOOLEAN Set       ' // TRUE if the sender wants to enable/disable failure prediction.
+   AS WINBOOLEAN Enabled
+   AS WORD   Reserved
+end type
+
+type STORAGE_FAILURE_PREDICTION_CONFIG as _STORAGE_FAILURE_PREDICTION_CONFIG
+type PSTORAGE_FAILURE_PREDICTION_CONFIG as _STORAGE_FAILURE_PREDICTION_CONFIG ptr
+
+const STORAGE_FAILURE_PREDICTION_CONFIG_V1 = 1
+
+enum _STORAGE_SET_TYPE
+   PropertyStandardSet = 0,          ' // Sets the descriptor
+   PropertyExistsSet,                ' // Used to test whether the descriptor is supported
+   PropertySetMaxDefined             ' // use to validate the value
+end enum
+type STORAGE_SET_TYPE AS _STORAGE_SET_TYPE
+type PSTORAGE_SET_TYPE AS _STORAGE_SET_TYPE PTR
+
+type _STORAGE_PROPERTY_SET
+   AS STORAGE_PROPERTY_ID PropertyId
+   AS STORAGE_SET_TYPE SetType
+   AS BYTE  AdditionalParameters(0)
+end type
+type STORAGE_PROPERTY_SET AS _STORAGE_PROPERTY_SET
+type PSTORAGE_PROPERTY_SET AS _STORAGE_PROPERTY_SET PTR
+
+'#if (NTDDI_VERSION >= NTDDI_WIN8)
+
+#define NO_SRBTYPE_ADAPTER_DESCRIPTOR_SIZE  UFIELD_OFFSET(STORAGE_ADAPTER_DESCRIPTOR, SrbType)
+
+'#if !defined(SRB_TYPE_SCSI_REQUEST_BLOCK)
+const SRB_TYPE_SCSI_REQUEST_BLOCK = 0
+'#endif
+
+'#if !defined(SRB_TYPE_STORAGE_REQUEST_BLOCK)
+const SRB_TYPE_STORAGE_REQUEST_BLOCK = 1
+'#endif
+
+'#if !defined(STORAGE_ADDRESS_TYPE_BTL8)
+const STORAGE_ADDRESS_TYPE_BTL8 = 0
+'#endif
+
+'#endif // (NTDDI_VERSION >= NTDDI_WIN8)
+
+type _STORAGE_MEDIUM_PRODUCT_TYPE_DESCRIPTOR
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD MediumProductType
+end type
+type STORAGE_MEDIUM_PRODUCT_TYPE_DESCRIPTOR AS _STORAGE_MEDIUM_PRODUCT_TYPE_DESCRIPTOR
+type PSTORAGE_MEDIUM_PRODUCT_TYPE_DESCRIPTOR AS _STORAGE_MEDIUM_PRODUCT_TYPE_DESCRIPTOR PTR
+
+'#if (NTDDI_VERSION >= NTDDI_WIN8)
+#define STORAGE_MINIPORT_DESCRIPTOR_V1_SIZE     RTL_SIZEOF_THROUGH_FIELD(STORAGE_MINIPORT_DESCRIPTOR, IoTimeoutValue)
+'#endif
+
+'#if (NTDDI_VERSION >= NTDDI_WIN8)
+#define STORAGE_MINIPORT_DESCRIPTOR_V1_SIZE     RTL_SIZEOF_THROUGH_FIELD(STORAGE_MINIPORT_DESCRIPTOR, IoTimeoutValue)
+'#endif
+
+enum _STORAGE_IDENTIFIER_CODE_SET
+   StorageIdCodeSetReserved = 0
+   StorageIdCodeSetBinary = 1
+   StorageIdCodeSetAscii = 2
+   StorageIdCodeSetUtf8 = 3
+end enum
+type STORAGE_IDENTIFIER_CODE_SET AS _STORAGE_IDENTIFIER_CODE_SET
+type PSTORAGE_IDENTIFIER_CODE_SET AS _STORAGE_IDENTIFIER_CODE_SET PTR
+
+enum _STORAGE_IDENTIFIER_TYPE
+   StorageIdTypeVendorSpecific = 0
+   StorageIdTypeVendorId = 1
+   StorageIdTypeEUI64 = 2
+   StorageIdTypeFCPHName = 3
+   StorageIdTypePortRelative = 4
+   StorageIdTypeTargetPortGroup = 5
+   StorageIdTypeLogicalUnitGroup = 6
+   StorageIdTypeMD5LogicalUnitIdentifier = 7
+   StorageIdTypeScsiNameString = 8
+end enum
+type STORAGE_IDENTIFIER_TYPE AS _STORAGE_IDENTIFIER_TYPE
+type PSTORAGE_IDENTIFIER_TYPE AS _STORAGE_IDENTIFIER_TYPE PTR
+
+' // Mislabeled above but need to keep it for backwards compatibility
+#define StorageIdTypeNAA StorageIdTypeFCPHName
+
+' // NAA formats (Used with StorageIdTypeNAA)
+enum _STORAGE_ID_NAA_FORMAT
+   StorageIdNAAFormatIEEEExtended = 2
+   StorageIdNAAFormatIEEERegistered = 3
+   StorageIdNAAFormatIEEEERegisteredExtended = 5
+end enum
+type STORAGE_ID_NAA_FORMAT AS _STORAGE_ID_NAA_FORMAT
+type PSTORAGE_ID_NAA_FORMAT AS _STORAGE_ID_NAA_FORMAT PTR
+
+enum _STORAGE_ASSOCIATION_TYPE
+   StorageIdAssocDevice = 0
+   StorageIdAssocPort = 1
+   StorageIdAssocTarget = 2
+end enum
+type STORAGE_ASSOCIATION_TYPE AS _STORAGE_ASSOCIATION_TYPE
+type PSTORAGE_ASSOCIATION_TYPE AS _STORAGE_ASSOCIATION_TYPE PTR
+
+type _STORAGE_IDENTIFIER
+   AS STORAGE_IDENTIFIER_CODE_SET CodeSet
+   AS STORAGE_IDENTIFIER_TYPE Type
+   AS WORD   IdentifierSize
+   AS WORD   NextOffset
+   AS STORAGE_ASSOCIATION_TYPE Association
+   AS BYTE  Identifier(0)
+end type
+type STORAGE_IDENTIFIER AS _STORAGE_IDENTIFIER
+type PSTORAGE_IDENTIFIER AS _STORAGE_IDENTIFIER PTR
+
+' // output buffer for   StorageDeviceWriteAggregationProperty & PropertyStandardQuery
+type _DEVICE_WRITE_AGGREGATION_DESCRIPTOR
+   AS DWORD       Version          ' // keep compatible with STORAGE_DESCRIPTOR_HEADER
+   AS DWORD       Size             ' // keep compatible with STORAGE_DESCRIPTOR_HEADER
+   AS WINBOOLEAN  BenefitsFromWriteAggregation
+end type
+type DEVICE_WRITE_AGGREGATION_DESCRIPTOR AS _DEVICE_WRITE_AGGREGATION_DESCRIPTOR
+type PDEVICE_WRITE_AGGREGATION_DESCRIPTOR AS _DEVICE_WRITE_AGGREGATION_DESCRIPTOR PTR
+
+' // Output buffer for StorageDeviceLBProvisioningProperty & PropertyStandardQuery
+type _DEVICE_LB_PROVISIONING_DESCRIPTOR
+   AS DWORD       Version          ' // keep compatible with STORAGE_DESCRIPTOR_HEADER
+   AS DWORD       Size             ' // keep compatible with STORAGE_DESCRIPTOR_HEADER
+   AS BYTE  ThinProvisioningEnabled : 1
+   AS BYTE  ThinProvisioningReadZeros : 1
+   AS BYTE  AnchorSupported : 3
+   AS BYTE  UnmapGranularityAlignmentValid : 1
+   AS BYTE  GetFreeSpaceSupported : 1        ' // Supports DeviceDsmAction_GetFreeSpace
+   AS BYTE  MapSupported : 1                 ' // Supports DeviceDsmAction_Map
+   AS BYTE  Reserved1(6)
+   AS DWORDLONG OptimalUnmapGranularity      ' // Granularity in bytes.
+   AS DWORDLONG UnmapGranularityAlignment    ' // Granularity alignment in bytes.
+'#if (NTDDI_VERSION >= NTDDI_WINBLUE)
+   AS DWORD MaxUnmapLbaCount                 ' // Max LBAs that can be unmapped in a single UNMAP command, in logical blocks.
+   AS DWORD MaxUnmapBlockDescriptorCount     ' // Max number of descriptors allowed in a single UNMAP command.
+'#endif
+end type
+type DEVICE_LB_PROVISIONING_DESCRIPTOR AS _DEVICE_LB_PROVISIONING_DESCRIPTOR
+type PDEVICE_LB_PROVISIONING_DESCRIPTOR AS _DEVICE_LB_PROVISIONING_DESCRIPTOR PTR
+
+#define DEVICE_LB_PROVISIONING_DESCRIPTOR_V1_SIZE     RTL_SIZEOF_THROUGH_FIELD(DEVICE_LB_PROVISIONING_DESCRIPTOR, UnmapGranularityAlignment)
+
+type _STORAGE_LB_PROVISIONING_MAP_RESOURCES
+   AS DWORD       Size
+   AS DWORD       Version
+   AS BYTE        AvailableMappingResourcesValid : 1
+   AS BYTE        UsedMappingResourcesValid : 1
+   AS BYTE        Reserved0 : 6
+   AS BYTE        Reserved1(2)
+   AS BYTE        AvailableMappingResourcesScope : 2 ' // See LOG_PAGE_LBP_RESOURCE_SCOPE_* definitions in scsi.h for scope values.
+   AS BYTE        UsedMappingResourcesScope : 2
+   AS BYTE        Reserved2 : 4
+   AS BYTE        Reserved3(2)
+   AS DWORDLONG   AvailableMappingResources  ' // Available LBA mapping resources, in bytes.
+   AS DWORDLONG   UsedMappingResources       ' // Used LBA mapping resources, in bytes.
+end type
+type STORAGE_LB_PROVISIONING_MAP_RESOURCES AS _STORAGE_LB_PROVISIONING_MAP_RESOURCES
+type PSTORAGE_LB_PROVISIONING_MAP_RESOURCES AS _STORAGE_LB_PROVISIONING_MAP_RESOURCES PTR
+
+
+' // output buffer for   StorageDevicePowerProperty & PropertyStandardQuery
+type _DEVICE_POWER_DESCRIPTOR
+   AS DWORD       Version          ' // keep compatible with STORAGE_DESCRIPTOR_HEADER
+   AS DWORD       Size             ' // keep compatible with STORAGE_DESCRIPTOR_HEADER
+   AS WINBOOLEAN     DeviceAttentionSupported   ' // The device supports "device attention".
+   AS WINBOOLEAN     AsynchronousNotificationSupported  ' // The device supports asynchronous notifications, delivered via IOCTL_STORAGE_EVENT_NOTIFICATION.
+   AS WINBOOLEAN     IdlePowerManagementEnabled ' // The device has been registered for runtime idle power management.
+   AS WINBOOLEAN     D3ColdEnabled              ' // The device will be powered off when put into D3.
+   AS WINBOOLEAN     D3ColdSupported            ' // The platform supports D3Cold for this device.
+   AS WINBOOLEAN     NoVerifyDuringIdlePower    ' // Device require no verification during idle power transitions.
+   AS BYTE        Reserved(1)
+   AS DWORD       IdleTimeoutInMS            ' // The idle timeout value in milliseconds. Only valid if IdlePowerManagementEnabled == TRUE.
+end type
+type DEVICE_POWER_DESCRIPTOR AS _DEVICE_POWER_DESCRIPTOR
+type PDEVICE_POWER_DESCRIPTOR AS _DEVICE_POWER_DESCRIPTOR PTR
+
+' // Output buffer for StorageDeviceCopyOffloadProperty & PropertyStandardQuery
+type _DEVICE_COPY_OFFLOAD_DESCRIPTOR
+   AS DWORD       Version          ' // keep compatible with STORAGE_DESCRIPTOR_HEADER
+   AS DWORD       Size             ' // keep compatible with STORAGE_DESCRIPTOR_HEADER
+   AS DWORD       MaximumTokenLifetime
+   AS DWORD       DefaultTokenLifetime
+   AS DWORDLONG   MaximumTransferSize
+   AS DWORDLONG   OptimalTransferCount
+   AS DWORD       MaximumDataDescriptors
+   AS DWORD       MaximumTransferLengthPerDescriptor
+   AS DWORD       OptimalTransferLengthPerDescriptor
+   AS WORD        OptimalTransferLengthGranularity
+   AS BYTE        Reserved(1)
+end type
+type DEVICE_COPY_OFFLOAD_DESCRIPTOR AS _DEVICE_COPY_OFFLOAD_DESCRIPTOR
+type PDEVICE_COPY_OFFLOAD_DESCRIPTOR AS _DEVICE_COPY_OFFLOAD_DESCRIPTOR PTR
+
+type _STORAGE_DEVICE_RESILIENCY_DESCRIPTOR
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD NameOffset
+   AS DWORD NumberOfLogicalCopies
+   AS DWORD NumberOfPhysicalCopies
+   AS DWORD PhysicalDiskRedundancy
+   AS DWORD NumberOfColumns
+   AS DWORD Interleave
+end type
+type STORAGE_DEVICE_RESILIENCY_DESCRIPTOR AS _STORAGE_DEVICE_RESILIENCY_DESCRIPTOR
+type PSTORAGE_DEVICE_RESILIENCY_DESCRIPTOR AS _STORAGE_DEVICE_RESILIENCY_DESCRIPTOR PTR
+
+enum _STORAGE_RPMB_FRAME_TYPE
+   StorageRpmbFrameTypeUnknown = 0
+   StorageRpmbFrameTypeStandard
+   StorageRpmbFrameTypeMax
+end enum
+type STORAGE_RPMB_FRAME_TYPE AS _STORAGE_RPMB_FRAME_TYPE
+type PSTORAGE_RPMB_FRAME_TYPE AS _STORAGE_RPMB_FRAME_TYPE PTR
+
+#define STORAGE_RPMB_DESCRIPTOR_VERSION_1             1
+#define STORAGE_RPMB_MINIMUM_RELIABLE_WRITE_SIZE      512
+
+type _STORAGE_RPMB_DESCRIPTOR
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD SizeInBytes
+   AS DWORD MaxReliableWriteSizeInBytes
+   AS STORAGE_RPMB_FRAME_TYPE FrameFormat
+end type
+type STORAGE_RPMB_DESCRIPTOR AS _STORAGE_RPMB_DESCRIPTOR
+type PSTORAGE_RPMB_DESCRIPTOR AS _STORAGE_RPMB_DESCRIPTOR PTR
+
+enum _STORAGE_CRYPTO_ALGORITHM_ID
+   StorageCryptoAlgorithmUnknown = 0
+   StorageCryptoAlgorithmXTSAES = 1
+   StorageCryptoAlgorithmBitlockerAESCBC
+   StorageCryptoAlgorithmAESECB
+   StorageCryptoAlgorithmESSIVAESCBC
+   StorageCryptoAlgorithmMax
+end enum
+type STORAGE_CRYPTO_ALGORITHM_ID AS _STORAGE_CRYPTO_ALGORITHM_ID
+type PSTORAGE_CRYPTO_ALGORITHM_ID AS _STORAGE_CRYPTO_ALGORITHM_ID PTR
+
+enum _STORAGE_CRYPTO_KEY_SIZE
+   StorageCryptoKeySizeUnknown = 0
+   StorageCryptoKeySize128Bits = 1
+   StorageCryptoKeySize192Bits
+   StorageCryptoKeySize256Bits
+   StorageCryptoKeySize512Bits
+end enum
+type STORAGE_CRYPTO_KEY_SIZE AS _STORAGE_CRYPTO_KEY_SIZE
+type PSTORAGE_CRYPTO_KEY_SIZE AS _STORAGE_CRYPTO_KEY_SIZE PTR
+
+#define STORAGE_CRYPTO_CAPABILITY_VERSION_1           1
+
+type _STORAGE_CRYPTO_CAPABILITY
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD CryptoCapabilityIndex
+   AS STORAGE_CRYPTO_ALGORITHM_ID AlgorithmId
+   AS STORAGE_CRYPTO_KEY_SIZE KeySize
+   AS DWORD DataUnitSizeBitmask
+end type
+type STORAGE_CRYPTO_CAPABILITY AS _STORAGE_CRYPTO_CAPABILITY
+type PSTORAGE_CRYPTO_CAPABILITY AS _STORAGE_CRYPTO_CAPABILITY PTR
+
+#define STORAGE_CRYPTO_CAPABILITY_VERSION_2           2
+
+type _STORAGE_CRYPTO_CAPABILITY_V2
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD CryptoCapabilityIndex
+   AS STORAGE_CRYPTO_ALGORITHM_ID AlgorithmId
+   AS STORAGE_CRYPTO_KEY_SIZE KeySize
+   AS DWORD DataUnitSizeBitmask
+   AS WORD MaxIVBitSize
+   AS WORD Reserved
+   union SecurityComplianceBitmask
+      type
+         AS BYTE FIPS     : 1
+         AS BYTE Reserved : 7
+      end type
+      AS BYTE AsUchar
+   end union
+end type
+type STORAGE_CRYPTO_CAPABILITY_V2 AS _STORAGE_CRYPTO_CAPABILITY_V2
+type PSTORAGE_CRYPTO_CAPABILITY_V2 AS _STORAGE_CRYPTO_CAPABILITY_V2 PTR
+
+#define STORAGE_CRYPTO_DESCRIPTOR_VERSION_1           1
+
+type _STORAGE_CRYPTO_DESCRIPTOR
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD NumKeysSupported
+   AS DWORD NumCryptoCapabilities
+   AS STORAGE_CRYPTO_CAPABILITY CryptoCapabilities(0)
+end type
+type STORAGE_CRYPTO_DESCRIPTOR AS _STORAGE_CRYPTO_DESCRIPTOR
+type PSTORAGE_CRYPTO_DESCRIPTOR AS _STORAGE_CRYPTO_DESCRIPTOR PTR
+
+#define STORAGE_CRYPTO_DESCRIPTOR_VERSION_2           2
+
+enum _STORAGE_ICE_TYPE
+   StorageIceTypeUnknown = 0
+   StorageIceTypeUfs
+   StorageIceTypeNvme
+end enum
+type STORAGE_ICE_TYPE AS _STORAGE_ICE_TYPE
+type PSTORAGE_ICE_TYPE AS _STORAGE_ICE_TYPE PTR
+
+type _STORAGE_CRYPTO_DESCRIPTOR_V2
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD NumKeysSupported
+   AS DWORD NumCryptoCapabilities
+   AS STORAGE_ICE_TYPE IceType
+   union SecurityComplianceBitmask
+      type
+         AS BYTE  FIPS : 1
+         AS BYTE  Reserved : 7
+      end type
+      AS BYTE  AsUchar
+   end union
+   AS STORAGE_CRYPTO_CAPABILITY_V2 CryptoCapabilities(0)
+end type
+type STORAGE_CRYPTO_DESCRIPTOR_V2 AS _STORAGE_CRYPTO_DESCRIPTOR_V2
+type PSTORAGE_CRYPTO_DESCRIPTOR_V2 AS _STORAGE_CRYPTO_DESCRIPTOR_V2 PTR
+
+#define STORAGE_TIER_NAME_LENGTH           (256)
+#define STORAGE_TIER_DESCRIPTION_LENGTH    (512)
+
+#define STORAGE_TIER_FLAG_NO_SEEK_PENALTY  (&h00020000)
+#define STORAGE_TIER_FLAG_WRITE_BACK_CACHE (&h00200000)
+#define STORAGE_TIER_FLAG_READ_CACHE       (&h00400000)
+#define STORAGE_TIER_FLAG_PARITY           (&h00800000)
+#define STORAGE_TIER_FLAG_SMR              (&h01000000)
+
+enum _STORAGE_TIER_MEDIA_TYPE
+   StorageTierMediaTypeUnspecified = 0
+   StorageTierMediaTypeDisk        = 1
+   StorageTierMediaTypeSsd         = 2
+   StorageTierMediaTypeScm         = 4
+   StorageTierMediaTypeMax
+end enum
+type STORAGE_TIER_MEDIA_TYPE AS _STORAGE_TIER_MEDIA_TYPE
+type PSTORAGE_TIER_MEDIA_TYPE AS _STORAGE_TIER_MEDIA_TYPE PTR
+
+enum _STORAGE_TIER_CLASS
+   StorageTierClassUnspecified = 0
+   StorageTierClassCapacity,
+   StorageTierClassPerformance,
+   StorageTierClassMax
+end enum
+type STORAGE_TIER_CLASS AS _STORAGE_TIER_CLASS
+type PSTORAGE_TIER_CLASS AS _STORAGE_TIER_CLASS PTR
+
+type _STORAGE_TIER
+   AS GUID Id
+   AS WSTRING * STORAGE_TIER_NAME_LENGTH Name
+   AS WSTRING * STORAGE_TIER_NAME_LENGTH Description
+   AS DWORDLONG Flags
+   AS DWORDLONG ProvisionedCapacity
+   AS STORAGE_TIER_MEDIA_TYPE MediaType
+   AS STORAGE_TIER_CLASS Class
+end type
+type STORAGE_TIER AS _STORAGE_TIER
+type PSTORAGE_TIER AS _STORAGE_TIER PTR
+
+type _STORAGE_DEVICE_TIERING_DESCRIPTOR
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD Flags
+   AS DWORD TotalNumberOfTiers
+   AS DWORD NumberOfTiersReturned
+   AS STORAGE_TIER Tiers(0)
+end type
+type STORAGE_DEVICE_TIERING_DESCRIPTOR AS _STORAGE_DEVICE_TIERING_DESCRIPTOR
+type PSTORAGE_DEVICE_TIERING_DESCRIPTOR AS _STORAGE_DEVICE_TIERING_DESCRIPTOR PTR
+
+type _STORAGE_DEVICE_FAULT_DOMAIN_DESCRIPTOR
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD NumberOfFaultDomains
+   AS GUID FaultDomainIds(0)
+end type
+type STORAGE_DEVICE_FAULT_DOMAIN_DESCRIPTOR AS _STORAGE_DEVICE_FAULT_DOMAIN_DESCRIPTOR
+type PSTORAGE_DEVICE_FAULT_DOMAIN_DESCRIPTOR AS _STORAGE_DEVICE_FAULT_DOMAIN_DESCRIPTOR PTR
+
+enum _STORAGE_PROTOCOL_TYPE
+   ProtocolTypeUnknown = &h00
+   ProtocolTypeScsi
+   ProtocolTypeAta
+   ProtocolTypeNvme
+   ProtocolTypeSd
+   ProtocolTypeUfs
+   ProtocolTypeProprietary = &h7E
+   ProtocolTypeMaxReserved = &h7F
+end enum
+type STORAGE_PROTOCOL_TYPE AS _STORAGE_PROTOCOL_TYPE
+type PSTORAGE_PROTOCOL_TYPE AS _STORAGE_PROTOCOL_TYPE PTR
+
+enum _STORAGE_PROTOCOL_NVME_DATA_TYPE
+   NVMeDataTypeUnknown = 0
+   NVMeDataTypeIdentify
+   NVMeDataTypeLogPage
+   NVMeDataTypeFeature
+   NVMeDataTypeLogPageEx
+   NVMeDataTypeFeatureEx
+end enum
+type STORAGE_PROTOCOL_NVME_DATA_TYPE AS _STORAGE_PROTOCOL_NVME_DATA_TYPE
+type PSTORAGE_PROTOCOL_NVME_DATA_TYPE AS _STORAGE_PROTOCOL_NVME_DATA_TYPE PTR
+
+enum _STORAGE_PROTOCOL_ATA_DATA_TYPE
+   AtaDataTypeUnknown = 0
+   AtaDataTypeIdentify
+   AtaDataTypeLogPage
+end enum
+type STORAGE_PROTOCOL_ATA_DATA_TYPE AS _STORAGE_PROTOCOL_ATA_DATA_TYPE
+type PSTORAGE_PROTOCOL_ATA_DATA_TYPE AS _STORAGE_PROTOCOL_ATA_DATA_TYPE PTR
+
+enum _STORAGE_PROTOCOL_UFS_DATA_TYPE
+   UfsDataTypeUnknown = 0
+   UfsDataTypeQueryDescriptor
+   UfsDataTypeQueryAttribute
+   UfsDataTypeQueryFlag
+   UfsDataTypeQueryDmeAttribute
+   UfsDataTypeQueryDmePeerAttribute
+   UfsDataTypeMax
+end enum
+type STORAGE_PROTOCOL_UFS_DATA_TYPE AS _STORAGE_PROTOCOL_UFS_DATA_TYPE
+type PSTORAGE_PROTOCOL_UFS_DATA_TYPE AS _STORAGE_PROTOCOL_UFS_DATA_TYPE PTR
+
+union _STORAGE_PROTOCOL_DATA_SUBVALUE_GET_LOG_PAGE
+    type
+      AS DWORD RetainAsynEvent   :  1
+      AS DWORD LogSpecificField  :  4
+      AS DWORD Reserved0         :  3
+      AS DWORD UUIDIndex         :  7
+      AS DWORD Reserved          : 17
+   end type
+   AS DWORD AsUlong
+end union
+type STORAGE_PROTOCOL_DATA_SUBVALUE_GET_LOG_PAGE AS _STORAGE_PROTOCOL_DATA_SUBVALUE_GET_LOG_PAGE
+type PSTORAGE_PROTOCOL_DATA_SUBVALUE_GET_LOG_PAGE AS _STORAGE_PROTOCOL_DATA_SUBVALUE_GET_LOG_PAGE PTR
+
+type _STORAGE_PROTOCOL_SPECIFIC_DATA
+   AS STORAGE_PROTOCOL_TYPE ProtocolType
+   AS DWORD   DataType
+   AS DWORD   ProtocolDataRequestValue
+   AS DWORD   ProtocolDataRequestSubValue
+   AS DWORD   ProtocolDataOffset
+   AS DWORD   ProtocolDataLength
+   AS DWORD   FixedProtocolReturnData
+   AS DWORD   ProtocolDataRequestSubValue2
+   AS DWORD   ProtocolDataRequestSubValue3
+   AS DWORD   ProtocolDataRequestSubValue4
+end type
+type STORAGE_PROTOCOL_SPECIFIC_DATA AS _STORAGE_PROTOCOL_SPECIFIC_DATA
+type PSTORAGE_PROTOCOL_SPECIFIC_DATA aS _STORAGE_PROTOCOL_SPECIFIC_DATA PTR
+
+type _STORAGE_PROTOCOL_SPECIFIC_DATA_EXT
+   AS STORAGE_PROTOCOL_TYPE ProtocolType
+   AS DWORD   DataType
+   AS DWORD   ProtocolDataValue
+   AS DWORD   ProtocolDataSubValue
+   AS DWORD   ProtocolDataOffset
+   AS DWORD   ProtocolDataLength
+   AS DWORD   FixedProtocolReturnData
+   AS DWORD   ProtocolDataSubValue2
+   AS DWORD   ProtocolDataSubValue3
+   AS DWORD   ProtocolDataSubValue4
+   AS DWORD   ProtocolDataSubValue5
+   AS DWORD   ProtocolDataSubValue6
+   AS DWORD   Reserved(3)
+end type
+type STORAGE_PROTOCOL_SPECIFIC_DATA_EXT AS _STORAGE_PROTOCOL_SPECIFIC_DATA_EXT
+type PSTORAGE_PROTOCOL_SPECIFIC_DATA_EXT AS _STORAGE_PROTOCOL_SPECIFIC_DATA_EXT PTR
+
+type _STORAGE_PROTOCOL_DATA_DESCRIPTOR
+   AS DWORD   Version
+   AS DWORD   Size
+   AS STORAGE_PROTOCOL_SPECIFIC_DATA ProtocolSpecificData
+end type
+type STORAGE_PROTOCOL_DATA_DESCRIPTOR AS _STORAGE_PROTOCOL_DATA_DESCRIPTOR
+type PSTORAGE_PROTOCOL_DATA_DESCRIPTOR AS _STORAGE_PROTOCOL_DATA_DESCRIPTOR PTR
+
+type _STORAGE_PROTOCOL_DATA_DESCRIPTOR_EXT
+   AS DWORD   Version
+   AS DWORD   Size
+   AS STORAGE_PROTOCOL_SPECIFIC_DATA_EXT ProtocolSpecificData
+end type
+type STORAGE_PROTOCOL_DATA_DESCRIPTOR_EXT AS _STORAGE_PROTOCOL_DATA_DESCRIPTOR_EXT
+type PSTORAGE_PROTOCOL_DATA_DESCRIPTOR_EXT AS _STORAGE_PROTOCOL_DATA_DESCRIPTOR_EXT PTR
+
+#define STORAGE_PROTOCOL_DATA_DESCRIPTOR_EXT_VERSION 1
+
+#define STORAGE_TEMPERATURE_VALUE_NOT_REPORTED           &h8000
+
+type _STORAGE_TEMPERATURE_INFO
+   AS WORD    Index
+   AS SHORT   Temperature
+   AS SHORT   OverThreshold
+   AS SHORT   UnderThreshold
+   AS WINBOOLEAN OverThresholdChangable
+   AS WINBOOLEAN UnderThresholdChangable
+   AS WINBOOLEAN EventGenerated
+   AS BYTE    Reserved0
+   AS DWORD   Reserved1
+end type
+type STORAGE_TEMPERATURE_INFO AS _STORAGE_TEMPERATURE_INFO
+type PSTORAGE_TEMPERATURE_INFO AS _STORAGE_TEMPERATURE_INFO PTR
+
+type _STORAGE_TEMPERATURE_DATA_DESCRIPTOR
+   AS DWORD   Version
+   As DWORD   Size
+   AS SHORT   CriticalTemperature
+   AS SHORT   WarningTemperature
+   AS WORD    InfoCount
+   AS BYTE    Reserved0(1)
+   AS DWORD   Reserved1(1)
+   AS STORAGE_TEMPERATURE_INFO TemperatureInfo(0)
+end type
+type STORAGE_TEMPERATURE_DATA_DESCRIPTOR AS _STORAGE_TEMPERATURE_DATA_DESCRIPTOR
+type PSTORAGE_TEMPERATURE_DATA_DESCRIPTOR AS _STORAGE_TEMPERATURE_DATA_DESCRIPTOR PTR
+
+#define STORAGE_TEMPERATURE_THRESHOLD_FLAG_ADAPTER_REQUEST       &h0001
+
+type _STORAGE_TEMPERATURE_THRESHOLD
+   AS DWORD   Version
+   AS DWORD   Size
+   AS WORD    Flags
+   AS WORD    Index
+   AS SHORT   Threshold
+   AS WINBOOLEAN OverThreshold
+   AS BYTE    Reserved
+end type
+type STORAGE_TEMPERATURE_THRESHOLD AS _STORAGE_TEMPERATURE_THRESHOLD
+type PSTORAGE_TEMPERATURE_THRESHOLD AS _STORAGE_TEMPERATURE_THRESHOLD PTR
+
+' // Multiple roles are allowed for a single device.
+#define STORAGE_COMPONENT_ROLE_CACHE        &h00000001
+#define STORAGE_COMPONENT_ROLE_TIERING      &h00000002
+#define STORAGE_COMPONENT_ROLE_DATA         &h00000004
+
+enum _STORAGE_DEVICE_FORM_FACTOR
+   FormFactorUnknown = 0
+   FormFactor3_5
+   FormFactor2_5
+   FormFactor1_8
+   FormFactor1_8Less
+   FormFactorEmbedded
+   FormFactorMemoryCard
+   FormFactormSata
+   FormFactorM_2
+   FormFactorPCIeBoard
+   FormFactorDimm
+end enum
+type STORAGE_DEVICE_FORM_FACTOR AS _STORAGE_DEVICE_FORM_FACTOR
+type PSTORAGE_DEVICE_FORM_FACTOR AS _STORAGE_DEVICE_FORM_FACTOR PTR
+
+enum _STORAGE_COMPONENT_HEALTH_STATUS
+   HealthStatusUnknown = 0
+   HealthStatusNormal
+   HealthStatusThrottled
+   HealthStatusWarning
+   HealthStatusDisabled
+   HealthStatusFailed
+end enum
+type STORAGE_COMPONENT_HEALTH_STATUS AS _STORAGE_COMPONENT_HEALTH_STATUS
+type PSTORAGE_COMPONENT_HEALTH_STATUS AS _STORAGE_COMPONENT_HEALTH_STATUS PTR
+
+union _STORAGE_SPEC_VERSION
+   type
+      union ' MinorVersion
+         type
+            AS BYTE    SubMinor
+            AS BYTE    Minor
+         end type
+         AS WORD    AsUshort
+      end union
+      AS WORD    MajorVersion
+   end type
+   AS DWORD   AsUlong
+end union
+type STORAGE_SPEC_VERSION AS _STORAGE_SPEC_VERSION
+type PSTORAGE_SPEC_VERSION AS _STORAGE_SPEC_VERSION PTR
+
+type _STORAGE_PHYSICAL_DEVICE_DATA
+   AS DWORD       DeviceId
+   AS DWORD       Role
+   AS STORAGE_COMPONENT_HEALTH_STATUS HealthStatus
+   AS STORAGE_PROTOCOL_TYPE           CommandProtocol
+   AS STORAGE_SPEC_VERSION            SpecVersion
+   AS STORAGE_DEVICE_FORM_FACTOR      FormFactor
+   AS BYTE        Vendor(0 TO 7)
+   AS BYTE        Model(0 TO 39)
+   AS BYTE        FirmwareRevision(0 TO 15)
+   AS DWORDLONG   Capacity
+   AS BYTE        PhysicalLocation(0 TO 31)
+   AS DWORD       Reserved(1)
+end type
+type STORAGE_PHYSICAL_DEVICE_DATA AS _STORAGE_PHYSICAL_DEVICE_DATA
+type PSTORAGE_PHYSICAL_DEVICE_DATA AS _STORAGE_PHYSICAL_DEVICE_DATA PTR
+
+type _STORAGE_PHYSICAL_ADAPTER_DATA
+   AS DWORD       AdapterId
+   AS STORAGE_COMPONENT_HEALTH_STATUS HealthStatus
+   AS STORAGE_PROTOCOL_TYPE           CommandProtocol
+   AS STORAGE_SPEC_VERSION            SpecVersion
+   AS BYTE        Vendor(0 TO 7)
+   AS BYTE        Model(0 TO 39)
+   AS BYTE        FirmwareRevision(0 TO 15)
+   AS BYTE        PhysicalLocation(0 TO 31)
+   AS WINBOOLEAN     ExpanderConnected
+   AS BYTE        Reserved0(2)
+   AS DWORD       Reserved1(2)
+end type
+type STORAGE_PHYSICAL_ADAPTER_DATA AS _STORAGE_PHYSICAL_ADAPTER_DATA
+type PSTORAGE_PHYSICAL_ADAPTER_DATA AS _STORAGE_PHYSICAL_ADAPTER_DATA PTR
+
+type _STORAGE_PHYSICAL_NODE_DATA
+   AS DWORD       NodeId
+   AS DWORD       AdapterCount
+   AS DWORD       AdapterDataLength
+   AS DWORD       AdapterDataOffset
+   AS DWORD       DeviceCount
+   AS DWORD       DeviceDataLength
+   AS DWORD       DeviceDataOffset
+   AS DWORD       Reserved(2)
+end type
+type STORAGE_PHYSICAL_NODE_DATA AS _STORAGE_PHYSICAL_NODE_DATA
+type PSTORAGE_PHYSICAL_NODE_DATA AS _STORAGE_PHYSICAL_NODE_DATA  PTR
+
+type _STORAGE_PHYSICAL_TOPOLOGY_DESCRIPTOR
+   AS DWORD       Version
+   AS DWORD       Size
+   AS DWORD       NodeCount
+   AS DWORD       Reserved
+   AS STORAGE_PHYSICAL_NODE_DATA Node(0)
+end type
+type STORAGE_PHYSICAL_TOPOLOGY_DESCRIPTOR AS _STORAGE_PHYSICAL_TOPOLOGY_DESCRIPTOR
+type PSTORAGE_PHYSICAL_TOPOLOGY_DESCRIPTOR AS _STORAGE_PHYSICAL_TOPOLOGY_DESCRIPTOR PTR
+
+type _STORAGE_DEVICE_IO_CAPABILITY_DESCRIPTOR
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD LunMaxIoCount
+   AS DWORD AdapterMaxIoCount
+end type
+type STORAGE_DEVICE_IO_CAPABILITY_DESCRIPTOR AS _STORAGE_DEVICE_IO_CAPABILITY_DESCRIPTOR
+type PSTORAGE_DEVICE_IO_CAPABILITY_DESCRIPTOR AS _STORAGE_DEVICE_IO_CAPABILITY_DESCRIPTOR PTR
+
+type _STORAGE_DEVICE_ATTRIBUTES_DESCRIPTOR
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD64 Attributes
+end type
+type STORAGE_DEVICE_ATTRIBUTES_DESCRIPTOR AS _STORAGE_DEVICE_ATTRIBUTES_DESCRIPTOR
+type PSTORAGE_DEVICE_ATTRIBUTES_DESCRIPTOR AS _STORAGE_DEVICE_ATTRIBUTES_DESCRIPTOR PTR
+
+' // Storage Device Attributes Flags
+#define STORAGE_ATTRIBUTE_BYTE_ADDRESSABLE_IO       &h01
+#define STORAGE_ATTRIBUTE_BLOCK_IO                  &h02
+#define STORAGE_ATTRIBUTE_DYNAMIC_PERSISTENCE       &h04
+#define STORAGE_ATTRIBUTE_VOLATILE                  &h08
+#define STORAGE_ATTRIBUTE_ASYNC_EVENT_NOTIFICATION  &h10
+#define STORAGE_ATTRIBUTE_PERF_SIZE_INDEPENDENT     &h20
+
+' // Constants for StorageDeviceManagementStatus
+enum _STORAGE_DISK_HEALTH_STATUS
+   DiskHealthUnknown = 0
+   DiskHealthUnhealthy
+   DiskHealthWarning
+   DiskHealthHealthy
+   DiskHealthMax
+end enum
+type STORAGE_DISK_HEALTH_STATUS AS _STORAGE_DISK_HEALTH_STATUS
+type PSTORAGE_DISK_HEALTH_STATUS AS _STORAGE_DISK_HEALTH_STATUS PTR
+
+' // Operational States
+enum _STORAGE_DISK_OPERATIONAL_STATUS
+   DiskOpStatusNone = 0
+   DiskOpStatusUnknown
+   DiskOpStatusOk
+   DiskOpStatusPredictingFailure
+   DiskOpStatusInService
+   DiskOpStatusHardwareError
+   DiskOpStatusNotUsable
+   DiskOpStatusTransientError
+   DiskOpStatusMissing
+end enum
+type STORAGE_DISK_OPERATIONAL_STATUS AS _STORAGE_DISK_OPERATIONAL_STATUS
+type PSTORAGE_DISK_OPERATIONAL_STATUS AS _STORAGE_DISK_OPERATIONAL_STATUS PTR
+
+' // Operational Reasons
+enum _STORAGE_OPERATIONAL_STATUS_REASON
+   DiskOpReasonUnknown = 0
+   DiskOpReasonScsiSenseCode
+   DiskOpReasonMedia
+   DiskOpReasonIo
+   DiskOpReasonThresholdExceeded
+   DiskOpReasonLostData
+   DiskOpReasonEnergySource
+   DiskOpReasonConfiguration
+   DiskOpReasonDeviceController
+   DiskOpReasonMediaController
+   DiskOpReasonComponent
+   DiskOpReasonNVDIMM_N
+   DiskOpReasonBackgroundOperation
+   DiskOpReasonInvalidFirmware
+   DiskOpReasonHealthCheck
+   DiskOpReasonLostDataPersistence
+   DiskOpReasonDisabledByPlatform
+   DiskOpReasonLostWritePersistence
+   DiskOpReasonDataPersistenceLossImminent
+   DiskOpReasonWritePersistenceLossImminent
+   DiskOpReasonMax
+end enum
+type STORAGE_OPERATIONAL_STATUS_REASON AS _STORAGE_OPERATIONAL_STATUS_REASON
+type PSTORAGE_OPERATIONAL_STATUS_REASON AS _STORAGE_OPERATIONAL_STATUS_REASON PTR
+
+type _STORAGE_OPERATIONAL_REASON
+   AS DWORD Version
+   AS DWORD Size
+   AS STORAGE_OPERATIONAL_STATUS_REASON Reason
+   union RawBytes
+      type ScsiSenseKey
+         AS BYTE  SenseKey
+         AS BYTE  ASC
+         AS BYTE  ASCQ
+         AS BYTE  Reserved
+      end type
+      type NVDIMM_N
+         AS BYTE  CriticalHealth
+         AS BYTE  ModuleHealth(0 TO 1)
+         AS BYTE  ErrorThresholdStatus
+      end type
+      AS DWORD AsUlong
+   end union
+end type
+type STORAGE_OPERATIONAL_REASON AS _STORAGE_OPERATIONAL_REASON
+type PSTORAGE_OPERATIONAL_REASON AS _STORAGE_OPERATIONAL_REASON PTR
+
+' // Output buffer for StorageDeviceManagementStatus & PropertyStandardQuery
+#define STORAGE_DEVICE_MAX_OPERATIONAL_STATUS    16
+
+type _STORAGE_DEVICE_MANAGEMENT_STATUS
+   AS DWORD Version
+   AS DWORD Size
+   AS STORAGE_DISK_HEALTH_STATUS Health
+   AS DWORD NumberOfOperationalStatus
+   AS DWORD NumberOfAdditionalReasons
+   AS STORAGE_DISK_OPERATIONAL_STATUS OperationalStatus(STORAGE_DEVICE_MAX_OPERATIONAL_STATUS-1)
+   AS STORAGE_OPERATIONAL_REASON AdditionalReasons(0)
+end type
+type STORAGE_DEVICE_MANAGEMENT_STATUS AS _STORAGE_DEVICE_MANAGEMENT_STATUS
+type PSTORAGE_DEVICE_MANAGEMENT_STATUS AS _STORAGE_DEVICE_MANAGEMENT_STATUS PTR
+
+#define STORAGE_ADAPTER_SERIAL_NUMBER_V1_MAX_LENGTH (128)
+
+type _STORAGE_ADAPTER_SERIAL_NUMBER
+   AS DWORD Version
+   AS DWORD Size
+   AS WSTRING * STORAGE_ADAPTER_SERIAL_NUMBER_V1_MAX_LENGTH SerialNumber
+end type
+type STORAGE_ADAPTER_SERIAL_NUMBER AS _STORAGE_ADAPTER_SERIAL_NUMBER
+type PSTORAGE_ADAPTER_SERIAL_NUMBER AS _STORAGE_ADAPTER_SERIAL_NUMBER PTR
+
+#define STORAGE_ADAPTER_SERIAL_NUMBER_V1_VERSION (sizeof(STORAGE_ADAPTER_SERIAL_NUMBER))
+#define STORAGE_ADAPTER_SERIAL_NUMBER_V1_SIZE (sizeof(STORAGE_ADAPTER_SERIAL_NUMBER))
+
+enum _STORAGE_ZONED_DEVICE_TYPES
+   ZonedDeviceTypeUnknown = 0
+   ZonedDeviceTypeHostManaged
+   ZonedDeviceTypeHostAware
+   ZonedDeviceTypeDeviceManaged
+end enum
+type STORAGE_ZONED_DEVICE_TYPES AS _STORAGE_ZONED_DEVICE_TYPES
+type PSTORAGE_ZONED_DEVICE_TYPES AS _STORAGE_ZONED_DEVICE_TYPES PTR
+
+enum _STORAGE_ZONE_TYPES
+   ZoneTypeUnknown = 0
+   ZoneTypeConventional = 1
+   ZoneTypeSequentialWriteRequired = 2
+   ZoneTypeSequentialWritePreferred = 3
+   ZoneTypeMax
+end enum
+type STORAGE_ZONE_TYPES AS _STORAGE_ZONE_TYPES
+type PSTORAGE_ZONE_TYPES AS _STORAGE_ZONE_TYPES PTR
+
+type _STORAGE_ZONE_GROUP
+   AS DWORD ZoneCount
+   AS STORAGE_ZONE_TYPES ZoneType
+   AS DWORDLONG ZoneSize
+end type
+type STORAGE_ZONE_GROUP AS _STORAGE_ZONE_GROUP
+type PSTORAGE_ZONE_GROUP AS _STORAGE_ZONE_GROUP PTR
+
+type _STORAGE_ZONED_DEVICE_DESCRIPTOR
+   AS DWORD Version
+   AS DWORD Size
+   AS STORAGE_ZONED_DEVICE_TYPES DeviceType
+   AS DWORD ZoneCount
+   union   ' ZoneAttributes
+      type ' SequentialRequiredZone
+         AS DWORD   MaxOpenZoneCount
+         AS WINBOOLEAN UnrestrictedRead
+         AS BYTE    Reserved(2)
+      end type
+      type ' SequentialPreferredZone
+         AS DWORD   OptimalOpenZoneCount
+         AS DWORD   Reserved2
+      end type
+   end union
+   AS DWORD ZoneGroupCount
+   AS STORAGE_ZONE_GROUP ZoneGroup(0)
+end type
+type STORAGE_ZONED_DEVICE_DESCRIPTOR AS _STORAGE_ZONED_DEVICE_DESCRIPTOR
+type PSTORAGE_ZONED_DEVICE_DESCRIPTOR AS _STORAGE_ZONED_DEVICE_DESCRIPTOR PTR
+
+type _DEVICE_LOCATION
+   AS DWORD Socket
+   AS DWORD Slot
+   AS DWORD Adapter
+   AS DWORD Port
+   union
+      type
+         AS DWORD Channel
+         AS DWORD Device
+      end type
+      type
+         AS DWORD Target
+         AS DWORD Lun
+      end type
+   end union
+end type
+type DEVICE_LOCATION AS _DEVICE_LOCATION
+type PDEVICE_LOCATION AS _DEVICE_LOCATION PTR
+
+type _STORAGE_DEVICE_LOCATION_DESCRIPTOR
+   AS DWORD Version
+   AS DWORD Size
+   AS DEVICE_LOCATION Location
+   AS DWORD StringOffset
+end type
+type STORAGE_DEVICE_LOCATION_DESCRIPTOR AS _STORAGE_DEVICE_LOCATION_DESCRIPTOR
+type PSTORAGE_DEVICE_LOCATION_DESCRIPTOR AS _STORAGE_DEVICE_LOCATION_DESCRIPTOR PTR
+
+type _STORAGE_DEVICE_NUMA_PROPERTY
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD NumaNode
+end type
+type STORAGE_DEVICE_NUMA_PROPERTY AS _STORAGE_DEVICE_NUMA_PROPERTY 
+type PSTORAGE_DEVICE_NUMA_PROPERTY AS _STORAGE_DEVICE_NUMA_PROPERTY PTR
+
+#define STORAGE_DEVICE_NUMA_NODE_UNKNOWN MAXDWORD
+
+type _STORAGE_DEVICE_UNSAFE_SHUTDOWN_COUNT
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD UnsafeShutdownCount
+end type
+type STORAGE_DEVICE_UNSAFE_SHUTDOWN_COUNT AS _STORAGE_DEVICE_UNSAFE_SHUTDOWN_COUNT
+type PSTORAGE_DEVICE_UNSAFE_SHUTDOWN_COUNT AS _STORAGE_DEVICE_UNSAFE_SHUTDOWN_COUNT PTR
+
+type _STORAGE_HW_ENDURANCE_INFO
+   AS DWORD       ValidFields
+   AS DWORD       GroupId
+   type Flags
+      AS DWORD   Shared:1
+      AS DWORD   Reserved:31
+   end type
+   AS DWORD       LifePercentage
+   AS BYTE        BytesReadCount(0 TO 15)
+   AS BYTE        ByteWriteCount(0 TO 15)
+end type
+type STORAGE_HW_ENDURANCE_INFO AS _STORAGE_HW_ENDURANCE_INFO
+type PSTORAGE_HW_ENDURANCE_INFO AS _STORAGE_HW_ENDURANCE_INFO PTR
+
+type _STORAGE_HW_ENDURANCE_DATA_DESCRIPTOR
+   AS DWORD                           Version
+   AS DWORD                           Size
+   AS STORAGE_HW_ENDURANCE_INFO       EnduranceInfo
+end type
+type STORAGE_HW_ENDURANCE_DATA_DESCRIPTOR AS _STORAGE_HW_ENDURANCE_DATA_DESCRIPTOR
+type PSTORAGE_HW_ENDURANCE_DATA_DESCRIPTOR AS _STORAGE_HW_ENDURANCE_DATA_DESCRIPTOR PTR
+
+enum _STORAGE_STACK_TYPE
+   StorageStackTypeUnknown = 0
+   StorageStackTypeScsi,
+   StorageStackTypeNVMe,
+end enum
+type STORAGE_STACK_TYPE AS _STORAGE_STACK_TYPE
+type PSTORAGE_STACK_TYPE AS _STORAGE_STACK_TYPE PTR
+
+type _STORAGE_STACK_DESCRIPTOR
+   AS DWORD Version
+   AS DWORD Size
+   AS STORAGE_STACK_TYPE StorageStackType
+end type
+type STORAGE_STACK_DESCRIPTOR AS _STORAGE_STACK_DESCRIPTOR
+type PSTORAGE_STACK_DESCRIPTOR AS _STORAGE_STACK_DESCRIPTOR PTR
+
+type _STORAGE_DEVICE_LED_STATE_DESCRIPTOR
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORDLONG State
+end type
+type STORAGE_DEVICE_LED_STATE_DESCRIPTOR AS _STORAGE_DEVICE_LED_STATE_DESCRIPTOR
+type PSTORAGE_DEVICE_LED_STATE_DESCRIPTOR AS _STORAGE_DEVICE_LED_STATE_DESCRIPTOR PTR
+
+type _STORAGE_DEVICE_SELF_ENCRYPTION_PROPERTY
+   AS DWORD Version ' // Sizeof(STORAGE_DEVICE_SELF_ENCRYPTION_PROPERTY)
+   AS DWORD Size
+   AS WINBOOLEAN SupportsSelfEncryption
+end type
+type STORAGE_DEVICE_SELF_ENCRYPTION_PROPERTY AS _STORAGE_DEVICE_SELF_ENCRYPTION_PROPERTY
+type PSTORAGE_DEVICE_SELF_ENCRYPTION_PROPERTY AS _STORAGE_DEVICE_SELF_ENCRYPTION_PROPERTY PTR
+
+enum _STORAGE_ENCRYPTION_TYPE
+   StorageEncryptionTypeUnknown  = &h00
+   StorageEncryptionTypeEDrive   = &h01
+   StorageEncryptionTypeTcgOpal  = &h02
+end enum
+type STORAGE_ENCRYPTION_TYPE AS _STORAGE_ENCRYPTION_TYPE
+type PSTORAGE_ENCRYPTION_TYPE AS _STORAGE_ENCRYPTION_TYPE PTR
+
+type _STORAGE_DEVICE_SELF_ENCRYPTION_PROPERTY_V2
+   AS DWORD Version ' // Sizeof(STORAGE_DEVICE_SELF_ENCRYPTION_PROPERTY_V2)
+   AS DWORD Size
+   AS WINBOOLEAN SupportsSelfEncryption
+   AS STORAGE_ENCRYPTION_TYPE EncryptionType
+end type
+type STORAGE_DEVICE_SELF_ENCRYPTION_PROPERTY_V2 AS _STORAGE_DEVICE_SELF_ENCRYPTION_PROPERTY_V2
+type PSTORAGE_DEVICE_SELF_ENCRYPTION_PROPERTY_V2 AS _STORAGE_DEVICE_SELF_ENCRYPTION_PROPERTY_V2 PTR
+
+type _STORAGE_FRU_ID_DESCRIPTOR
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD IdentifierSize
+   AS BYTE  Identifier(0)
+end type
+type STORAGE_FRU_ID_DESCRIPTOR AS _STORAGE_FRU_ID_DESCRIPTOR
+type PSTORAGE_FRU_ID_DESCRIPTOR AS _STORAGE_FRU_ID_DESCRIPTOR PTR
+
+type _DEVICE_MANAGE_DATA_SET_ATTRIBUTES_OUTPUT
+   AS DWORD Size
+   AS DEVICE_DSM_ACTION Action
+   AS DWORD Flags
+   AS DWORD OperationStatus
+   AS DWORD ExtendedError
+   AS DWORD TargetDetailedError
+   AS DWORD ReservedStatus
+   AS DWORD OutputBlockOffset
+   AS DWORD OutputBlockLength
+end type
+type DEVICE_MANAGE_DATA_SET_ATTRIBUTES_OUTPUT AS _DEVICE_MANAGE_DATA_SET_ATTRIBUTES_OUTPUT
+type PDEVICE_MANAGE_DATA_SET_ATTRIBUTES_OUTPUT AS _DEVICE_MANAGE_DATA_SET_ATTRIBUTES_OUTPUT PTR
+type DEVICE_DSM_OUTPUT AS _DEVICE_MANAGE_DATA_SET_ATTRIBUTES_OUTPUT
+type PDEVICE_DSM_OUTPUT AS _DEVICE_MANAGE_DATA_SET_ATTRIBUTES_OUTPUT PTR
+
+type _DEVICE_DSM_DEFINITION
+   AS DEVICE_DSM_ACTION Action
+   AS WINBOOLEAN SingleRange
+   AS DWORD ParameterBlockAlignment
+   AS DWORD ParameterBlockLength
+   AS WINBOOLEAN HasOutput
+   AS DWORD OutputBlockAlignment
+   AS DWORD OutputBlockLength
+end type
+type DEVICE_DSM_DEFINITION AS _DEVICE_DSM_DEFINITION
+type PDEVICE_DSM_DEFINITION AS _DEVICE_DSM_DEFINITION PTR
+
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - No
+'// OutputBlock    - No
+#define DeviceDsmDefinition_None {DeviceDsmAction_None, FALSE, 0, 0, FALSE, 0, 0)
+
+#define DEVICE_DSM_FLAG_TRIM_NOT_FS_ALLOCATED   &h80000000
+
+#define DEVICE_DSM_FLAG_TRIM_BYPASS_RZAT        &h40000000
+
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - No
+'// OutputBlock    - No
+#define DeviceDsmDefinition_Trim {DeviceDsmAction_Trim, FALSE, 0, 0, FALSE, 0, 0)
+
+#define DEVICE_DSM_NOTIFY_FLAG_BEGIN    &h00000001
+#define DEVICE_DSM_NOTIFY_FLAG_END      &h00000002
+
+type _DEVICE_DSM_NOTIFICATION_PARAMETERS
+   AS DWORD Size
+   AS DWORD Flags
+   AS DWORD NumFileTypeIDs
+   AS GUID  FileTypeID(0)
+end type
+type DEVICE_DSM_NOTIFICATION_PARAMETERS AS _DEVICE_DSM_NOTIFICATION_PARAMETERS
+type PDEVICE_DSM_NOTIFICATION_PARAMETERS AS _DEVICE_DSM_NOTIFICATION_PARAMETERS PTR
+
+'// SingleRange    - No
+'// ParameterBlock - Yes
+'// Output         - No
+'// OutputBlock    - No
+'#define DeviceDsmDefinition_Notification {DeviceDsmAction_Notification,                  \
+'                                          FALSE,                                         \
+'                                          __alignof(DEVICE_DSM_NOTIFICATION_PARAMETERS), \
+'                                          sizeof(DEVICE_DSM_NOTIFICATION_PARAMETERS),    \
+'                                          FALSE,                                         \
+'                                          0,                                             \
+'                                          0}
+
+#define STORAGE_OFFLOAD_MAX_TOKEN_LENGTH        512        ' // Keep as DWORD multiple
+#define STORAGE_OFFLOAD_TOKEN_ID_LENGTH         &h1F8
+#define STORAGE_OFFLOAD_TOKEN_TYPE_ZERO_DATA    &hFFFF0001
+
+type _STORAGE_OFFLOAD_TOKEN
+   AS BYTE  TokenType(0 TO 3)
+   AS BYTE  Reserved(0 TO 1)
+   AS BYTE  TokenIdLength(0 TO 1)
+   union
+      type ' StorageOffloadZeroDataToken
+         AS BYTE Reserved2(0 TO STORAGE_OFFLOAD_TOKEN_ID_LENGTH-1)
+      end type
+      AS BYTE Token(0 TO STORAGE_OFFLOAD_TOKEN_ID_LENGTH-1)
+   end union
+end type
+type STORAGE_OFFLOAD_TOKEN AS _STORAGE_OFFLOAD_TOKEN
+type PSTORAGE_OFFLOAD_TOKEN AS _STORAGE_OFFLOAD_TOKEN PTR
+
+Private Sub MakeZeroToken (BYREF t As PSTORAGE_OFFLOAD_TOKEN)
+   t->TokenType(0) = &hFF
+   t->TokenType(1) = &hFF
+   t->TokenType(2) = &h00
+   t->TokenType(3) = &h01
+   t->TokenIdLength(0) = &h01
+   t->TokenIdLength(1) = &hF8
+End Sub
+
+Private Function IsZeroToken(BYREF t As PSTORAGE_OFFLOAD_TOKEN) As Boolean
+   Return (t->TokenType(0) = &hFF And _
+           t->TokenType(1) = &hFF And _
+           t->TokenType(2) = &h00 And _
+           t->TokenType(3) = &h01 And _
+           t->TokenIdLength(0) = &h01 And _
+           t->TokenIdLength(1) = &hF8)
+End Function
+
+type _DEVICE_DSM_OFFLOAD_READ_PARAMETERS
+   AS DWORD Flags
+   AS DWORD TimeToLive
+   AS DWORD Reserved(0 TO 1)
+end type
+type DEVICE_DSM_OFFLOAD_READ_PARAMETERS AS _DEVICE_DSM_OFFLOAD_READ_PARAMETERS
+type PDEVICE_DSM_OFFLOAD_READ_PARAMETERS AS _DEVICE_DSM_OFFLOAD_READ_PARAMETERS PTR
+
+#define STORAGE_OFFLOAD_READ_RANGE_TRUNCATED    &h00000001
+
+type _STORAGE_OFFLOAD_READ_OUTPUT
+   AS DWORD OffloadReadFlags
+   AS DWORD Reserved
+   AS DWORDLONG LengthProtected
+   AS DWORD TokenLength
+   AS STORAGE_OFFLOAD_TOKEN Token
+end type
+type STORAGE_OFFLOAD_READ_OUTPUT AS _STORAGE_OFFLOAD_READ_OUTPUT
+type PSTORAGE_OFFLOAD_READ_OUTPUT AS _STORAGE_OFFLOAD_READ_OUTPUT PTR
+
+'// SingleRange    - No
+'// ParameterBlock - Yes
+'// Output         - No
+'// OutputBlock    - Yes
+'//
+
+'#define DeviceDsmDefinition_OffloadRead {DeviceDsmAction_OffloadRead,                   \
+'                                         FALSE,                                         \
+'                                         __alignof(DEVICE_DSM_OFFLOAD_READ_PARAMETERS), \
+'                                         sizeof(DEVICE_DSM_OFFLOAD_READ_PARAMETERS),    \
+'                                         FALSE,                                         \
+'                                         __alignof(STORAGE_OFFLOAD_READ_OUTPUT),        \
+'                                         sizeof(STORAGE_OFFLOAD_READ_OUTPUT)}
+
+type _DEVICE_DSM_OFFLOAD_WRITE_PARAMETERS
+   AS DWORD Flags
+   AS DWORD Reserved
+   AS DWORDLONG TokenOffset
+   AS STORAGE_OFFLOAD_TOKEN Token
+end type
+type DEVICE_DSM_OFFLOAD_WRITE_PARAMETERS AS _DEVICE_DSM_OFFLOAD_WRITE_PARAMETERS
+type PDEVICE_DSM_OFFLOAD_WRITE_PARAMETERS AS _DEVICE_DSM_OFFLOAD_WRITE_PARAMETERS PTR
+
+#define STORAGE_OFFLOAD_WRITE_RANGE_TRUNCATED   &h0001
+#define STORAGE_OFFLOAD_TOKEN_INVALID           &h0002
+
+type _STORAGE_OFFLOAD_WRITE_OUTPUT
+   AS DWORD OffloadWriteFlags
+   AS DWORD Reserved
+   AS DWORDLONG LengthCopied
+end type
+type STORAGE_OFFLOAD_WRITE_OUTPUT AS _STORAGE_OFFLOAD_WRITE_OUTPUT
+type PSTORAGE_OFFLOAD_WRITE_OUTPUT AS _STORAGE_OFFLOAD_WRITE_OUTPUT PTR
+
+'// SingleRange    - No
+'// ParameterBlock - Yes
+'// Output         - No
+'// OutputBlock    - Yes
+
+'#define DeviceDsmDefinition_OffloadWrite {DeviceDsmAction_OffloadWrite,                   \
+'                                          FALSE,                                          \
+'                                          __alignof(DEVICE_DSM_OFFLOAD_WRITE_PARAMETERS), \
+'                                          sizeof(DEVICE_DSM_OFFLOAD_WRITE_PARAMETERS),    \
+'                                          FALSE,                                          \
+'                                          __alignof(STORAGE_OFFLOAD_WRITE_OUTPUT),        \
+'                                          sizeof(STORAGE_OFFLOAD_WRITE_OUTPUT)}
+
+#define DEVICE_DSM_FLAG_ALLOCATION_CONSOLIDATEABLE_ONLY &h40000000
+
+type _DEVICE_DATA_SET_LBP_STATE_PARAMETERS
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD Flags
+   AS DWORD OutputVersion
+end type
+type DEVICE_DATA_SET_LBP_STATE_PARAMETERS AS _DEVICE_DATA_SET_LBP_STATE_PARAMETERS
+type PDEVICE_DATA_SET_LBP_STATE_PARAMETERS AS _DEVICE_DATA_SET_LBP_STATE_PARAMETERS PTR
+type DEVICE_DSM_ALLOCATION_PARAMETERS AS _DEVICE_DATA_SET_LBP_STATE_PARAMETERS
+type PDEVICE_DSM_ALLOCATION_PARAMETERS AS _DEVICE_DATA_SET_LBP_STATE_PARAMETERS PTR
+
+#define DEVICE_DSM_PARAMETERS_V1                        1
+#define DEVICE_DATA_SET_LBP_STATE_PARAMETERS_VERSION_V1 DEVICE_DSM_PARAMETERS_V1
+
+type _DEVICE_DATA_SET_LB_PROVISIONING_STATE
+   AS DWORD Size
+   AS DWORD Version
+   AS DWORDLONG SlabSizeInBytes
+   AS DWORD SlabOffsetDeltaInBytes
+   AS DWORD SlabAllocationBitMapBitCount
+   AS DWORD SlabAllocationBitMapLength
+   AS DWORD SlabAllocationBitMap(0)
+end type
+type DEVICE_DATA_SET_LB_PROVISIONING_STATE AS _DEVICE_DATA_SET_LB_PROVISIONING_STATE
+type PDEVICE_DATA_SET_LB_PROVISIONING_STATE AS _DEVICE_DATA_SET_LB_PROVISIONING_STATE PTR
+type DEVICE_DSM_ALLOCATION_OUTPUT AS _DEVICE_DATA_SET_LB_PROVISIONING_STATE
+type PDEVICE_DSM_ALLOCATION_OUTPUT AS _DEVICE_DATA_SET_LB_PROVISIONING_STATE PTR
+
+#define DEVICE_DSM_ALLOCATION_OUTPUT_V1                  (sizeof(DEVICE_DSM_ALLOCATION_OUTPUT))
+#define DEVICE_DATA_SET_LB_PROVISIONING_STATE_VERSION_V1 DEVICE_DSM_ALLOCATION_OUTPUT_V1
+
+type _DEVICE_DATA_SET_LB_PROVISIONING_STATE_V2
+   AS DWORD Size
+   AS DWORD Version
+   AS DWORDLONG SlabSizeInBytes
+   AS DWORDLONG SlabOffsetDeltaInBytes
+   AS DWORD SlabAllocationBitMapBitCount
+   AS DWORD SlabAllocationBitMapLength
+   AS DWORD SlabAllocationBitMap(0)
+end type
+type DEVICE_DATA_SET_LB_PROVISIONING_STATE_V2 AS _DEVICE_DATA_SET_LB_PROVISIONING_STATE_V2
+type PDEVICE_DATA_SET_LB_PROVISIONING_STATE_V2 AS _DEVICE_DATA_SET_LB_PROVISIONING_STATE_V2 PTR
+type DEVICE_DSM_ALLOCATION_OUTPUT2 AS _DEVICE_DATA_SET_LB_PROVISIONING_STATE_V2
+type PDEVICE_DSM_ALLOCATION_OUTPUT2 AS _DEVICE_DATA_SET_LB_PROVISIONING_STATE_V2 PTR
+
+#define DEVICE_DSM_ALLOCATION_OUTPUT_V2                  (sizeof(DEVICE_DSM_ALLOCATION_OUTPUT2))
+#define DEVICE_DATA_SET_LB_PROVISIONING_STATE_VERSION_V2 DEVICE_DSM_ALLOCATION_OUTPUT_V2
+
+'// SingleRange    - Yes
+'// ParameterBlock - Yes
+'// Output         - Yes
+'// OutputBlock    - Yes
+
+'#define DeviceDsmDefinition_Allocation {DeviceDsmAction_Allocation,                  \
+'                                        TRUE,                                        \
+'                                        __alignof(DEVICE_DSM_ALLOCATION_PARAMETERS), \
+'                                        sizeof(DEVICE_DSM_ALLOCATION_PARAMETERS),    \
+'                                        TRUE,                                        \
+'                                        __alignof(DEVICE_DSM_ALLOCATION_OUTPUT2),    \
+'                                        sizeof(DEVICE_DSM_ALLOCATION_OUTPUT2)}
+
+#define DEVICE_DSM_FLAG_REPAIR_INPUT_TOPOLOGY_ID_PRESENT    &h40000000
+
+type _DEVICE_DATA_SET_REPAIR_PARAMETERS
+   AS DWORD NumberOfRepairCopies
+   AS DWORD SourceCopy
+   AS DWORD RepairCopies(0)
+'    // Valid iff DEVICE_DSM_FLAG_REPAIR_INPUT_TOPOLOGY_ID_PRESENT is set
+'    // To access this field, use the
+'    // below macro
+'    // BYTE  TopologyId[16];
+end type
+type DEVICE_DATA_SET_REPAIR_PARAMETERS AS _DEVICE_DATA_SET_REPAIR_PARAMETERS
+type PDEVICE_DATA_SET_REPAIR_PARAMETERS AS _DEVICE_DATA_SET_REPAIR_PARAMETERS PTR
+type DEVICE_DSM_REPAIR_PARAMETERS AS _DEVICE_DATA_SET_REPAIR_PARAMETERS
+type PDEVICE_DSM_REPAIR_PARAMETERS AS _DEVICE_DATA_SET_REPAIR_PARAMETERS PTR
+
+'#define GET_REPAIR_TOPOLOGY_ID(R)                                                                  \
+'    RtlOffsetToPointer(R,                                                                          \
+'                       ALIGN_UP_BY(FIELD_OFFSET(DEVICE_DATA_SET_REPAIR_PARAMETERS, RepairCopies) + \
+'                       sizeof(DWORD) * R->NumberOfRepairCopies,                                    \
+'                       8))
+
+#define DEVICE_DSM_FLAG_REPAIR_OUTPUT_PARITY_EXTENT         &h20000000
+
+type _DEVICE_DATA_SET_REPAIR_OUTPUT
+    AS DEVICE_DSM_RANGE ParityExtent
+end type
+type DEVICE_DATA_SET_REPAIR_OUTPUT AS _DEVICE_DATA_SET_REPAIR_OUTPUT
+type PDEVICE_DATA_SET_REPAIR_OUTPUT AS _DEVICE_DATA_SET_REPAIR_OUTPUT PTR
+type DEVICE_DSM_REPAIR_OUTPUT AS _DEVICE_DATA_SET_REPAIR_OUTPUT
+type PDEVICE_DATA_SET_REPAIR_OUTPUT AS _DEVICE_DATA_SET_REPAIR_OUTPUT PTR
+
+'// SingleRange    - Yes
+'// ParameterBlock - Yes
+'// Output         - Yes
+'// OutputBlock    - Yes
+
+'#define DeviceDsmDefinition_Repair {DeviceDsmAction_Repair,                  \
+'                                    TRUE,                                    \
+'                                    __alignof(DEVICE_DSM_REPAIR_PARAMETERS), \
+'                                    sizeof(DEVICE_DSM_REPAIR_PARAMETERS),    \
+'                                    TRUE,                                    \
+'                                    __alignof(DEVICE_DSM_REPAIR_OUTPUT),     \
+'                                    sizeof(DEVICE_DSM_REPAIR_OUTPUT)}
+
+type _DEVICE_DSM_QUERY_PREFER_LOCAL_REPAIR_OUTPUT
+   AS DWORD Version
+   AS WINBOOLEAN PreferLocalRepair
+end type
+type DEVICE_DSM_QUERY_PREFER_LOCAL_REPAIR_OUTPUT AS _DEVICE_DSM_QUERY_PREFER_LOCAL_REPAIR_OUTPUT
+type PDEVICE_DSM_QUERY_PREFER_LOCAL_REPAIR_OUTPUT AS _DEVICE_DSM_QUERY_PREFER_LOCAL_REPAIR_OUTPUT PTR
+
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - Yes
+'// OutputBlock    - Yes
+
+'#define DeviceDsmDefinition_QueryPreferLocalRepair {DeviceDsmAction_QueryPreferLocalRepair, \
+'                                                    FALSE,                                  \
+'                                                    0,                                      \
+'                                                    0,                                      \
+'                                                    TRUE,                                   \
+'                                                    __alignof(DEVICE_DSM_QUERY_PREFER_LOCAL_REPAIR_OUTPUT), \
+'                                                    sizeof(DEVICE_DSM_QUERY_PREFER_LOCAL_REPAIR_OUTPUT)}
+
+
+#define DEVICE_DSM_FLAG_SCRUB_SKIP_IN_SYNC           &h10000000
+
+type _DEVICE_DATA_SET_SCRUB_OUTPUT
+   AS DWORDLONG BytesProcessed
+   AS DWORDLONG BytesRepaired
+   AS DWORDLONG BytesFailed
+end type
+type DEVICE_DATA_SET_SCRUB_OUTPUT AS _DEVICE_DATA_SET_SCRUB_OUTPUT
+type PDEVICE_DATA_SET_SCRUB_OUTPUT AS _DEVICE_DATA_SET_SCRUB_OUTPUT PTR
+type DEVICE_DSM_SCRUB_OUTPUT AS _DEVICE_DATA_SET_SCRUB_OUTPUT
+type PDEVICE_DSM_SCRUB_OUTPUT AS _DEVICE_DATA_SET_SCRUB_OUTPUT PTR
+
+'// DEVICE_DSM_OUTPUT.Flags
+
+#define DEVICE_DSM_FLAG_SCRUB_OUTPUT_PARITY_EXTENT   &h20000000
+
+type _DEVICE_DATA_SET_SCRUB_EX_OUTPUT
+   AS DWORDLONG BytesProcessed
+   AS DWORDLONG BytesRepaired
+   AS DWORDLONG BytesFailed
+   ' // Valid iff DEVICE_DSM_FLAG_SCRUB_OUTPUT_PARITY_EXTENT is set
+   AS DEVICE_DSM_RANGE ParityExtent
+   AS DWORDLONG BytesScrubbed
+end type
+type DEVICE_DATA_SET_SCRUB_EX_OUTPUT AS _DEVICE_DATA_SET_SCRUB_EX_OUTPUT
+type PDEVICE_DATA_SET_SCRUB_EX_OUTPUT AS _DEVICE_DATA_SET_SCRUB_EX_OUTPUT PTR
+type DEVICE_DSM_SCRUB_OUTPUT2 AS _DEVICE_DATA_SET_SCRUB_EX_OUTPUT
+type PDEVICE_DSM_SCRUB_OUTPUT2 AS _DEVICE_DATA_SET_SCRUB_EX_OUTPUT PTR
+
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - Yes
+'// OutputBlock    - Yes
+
+'#define DeviceDsmDefinition_Scrub {DeviceDsmAction_Scrub,               \
+'                                   FALSE,                               \
+'                                   0,                                   \
+'                                   0,                                   \
+'                                   TRUE,                                \
+'                                   __alignof(DEVICE_DSM_SCRUB_OUTPUT2), \
+'                                   sizeof(DEVICE_DSM_SCRUB_OUTPUT2)}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_DrtQuery
+'//
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - Yes
+'// OutputBlock    - No
+'//
+
+'#define DeviceDsmDefinition_DrtQuery {DeviceDsmAction_DrtQuery, \
+'                                      FALSE,                    \
+'                                      0,                        \
+'                                      0,                        \
+'                                      TRUE,                     \
+'                                      0,                        \
+'                                      0}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_DrtClear
+'//
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - No
+'// OutputBlock    - No
+'//
+
+'#define DeviceDsmDefinition_DrtClear {DeviceDsmAction_DrtClear, \
+'                                      FALSE,                    \
+'                                      0,                        \
+'                                      0,                        \
+'                                      FALSE,                    \
+'                                      0,                        \
+'                                      0}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_DrtDisable
+'//
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - No
+'// OutputBlock    - No
+'//
+
+'#define DeviceDsmDefinition_DrtDisable {DeviceDsmAction_DrtDisable, \
+'                                        FALSE,                      \
+'                                        0,                          \
+'                                        0,                          \
+'                                        FALSE,                      \
+'                                        0,                          \
+'                                        0}
+
+
+' This structure is reserved for system use only.
+type _DEVICE_DSM_TIERING_QUERY_INPUT
+   AS DWORD Version
+   AS DWORD Size
+   ' // Reserved for future use
+   AS DWORD Flags
+   AS DWORD NumberOfTierIds
+   AS GUID  TierIds(0)
+end type
+type DEVICE_DSM_TIERING_QUERY_INPUT AS _DEVICE_DSM_TIERING_QUERY_INPUT
+type PDEVICE_DSM_TIERING_QUERY_INPUT AS _DEVICE_DSM_TIERING_QUERY_INPUT PTR
+type DEVICE_DSM_TIERING_QUERY_PARAMETERS AS _DEVICE_DSM_TIERING_QUERY_INPUT
+type PDEVICE_DSM_TIERING_QUERY_PARAMETERS AS _DEVICE_DSM_TIERING_QUERY_INPUT PTR
+
+type _STORAGE_TIER_REGION
+   AS GUID TierId
+   AS DWORDLONG Offset
+   AS DWORDLONG Length
+end type
+type STORAGE_TIER_REGION AS _STORAGE_TIER_REGION
+type PSTORAGE_TIER_REGION AS _STORAGE_TIER_REGION PTR
+
+' This structure is reserved for system use only.
+type _DEVICE_DSM_TIERING_QUERY_OUTPUT
+   AS DWORD Version
+   AS DWORD Size
+   ' // Reserved for future use
+   AS DWORD Flags
+   AS DWORD Reserved
+'    // Delta  from the  start offset
+'    // if the requested range is not
+'    // aligned to a  region boundary
+   AS DWORDLONG Alignment
+'    // Total  number of regions that
+'    // are in the specified range
+   AS DWORD TotalNumberOfRegions
+   AS DWORD NumberOfRegionsReturned
+   AS STORAGE_TIER_REGION Regions(0)
+end type
+type DEVICE_DSM_TIERING_QUERY_OUTPUT AS _DEVICE_DSM_TIERING_QUERY_OUTPUT
+type PDEVICE_DSM_TIERING_QUERY_OUTPUT AS _DEVICE_DSM_TIERING_QUERY_OUTPUT PTR
+
+'// SingleRange    - Yes
+'// ParameterBlock - Yes
+'// Output         - Yes
+'// OutputBlock    - Yes
+
+'#define DeviceDsmDefinition_TieringQuery {DeviceDsmAction_TieringQuery,                   \
+'                                          TRUE,                                           \
+'                                          __alignof(DEVICE_DSM_TIERING_QUERY_PARAMETERS), \
+'                                          sizeof(DEVICE_DSM_TIERING_QUERY_PARAMETERS),    \
+'                                          TRUE,                                           \
+'                                          __alignof(DEVICE_DSM_TIERING_QUERY_OUTPUT),     \
+'                                          sizeof(DEVICE_DSM_TIERING_QUERY_OUTPUT)}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_Map
+'//
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - No
+'// OutputBlock    - No
+'//
+
+'#define DeviceDsmDefinition_Map {DeviceDsmAction_Map, \
+'                                 FALSE,               \
+'                                 0,                   \
+'                                 0,                   \
+'                                 FALSE,               \
+'                                 0,                   \
+'                                 0}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_RegenerateParity
+'//
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - No
+'// OutputBlock    - No
+'//
+
+'#define DeviceDsmDefinition_RegenerateParity {DeviceDsmAction_RegenerateParity, \
+'                                              FALSE,                            \
+'                                              0,                                \
+'                                              0,                                \
+'                                              FALSE,                            \
+'                                              0,                                \
+'                                              0}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_NvCache_Change_Priority
+'//
+
+'typedef struct _DEVICE_DSM_NVCACHE_CHANGE_PRIORITY_PARAMETERS {
+
+'    DWORD Size;
+
+'    BYTE  TargetPriority;
+'    BYTE  Reserved[3];
+
+'} DEVICE_DSM_NVCACHE_CHANGE_PRIORITY_PARAMETERS, *PDEVICE_DSM_NVCACHE_CHANGE_PRIORITY_PARAMETERS;
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - Yes
+'// Output         - No
+'// OutputBlock    - No
+'//
+
+'#define DeviceDsmDefinition_NvCache_Change_Priority {DeviceDsmAction_NvCache_Change_Priority,                  \
+'                                                     FALSE,                                                    \
+'                                                     __alignof(DEVICE_DSM_NVCACHE_CHANGE_PRIORITY_PARAMETERS), \
+'                                                     sizeof(DEVICE_DSM_NVCACHE_CHANGE_PRIORITY_PARAMETERS),    \
+'                                                     FALSE,                                                    \
+'                                                     0,                                                        \
+'                                                     0}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_NvCache_Evict
+'//
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - No
+'// OutputBlock    - No
+'//
+
+'#define DeviceDsmDefinition_NvCache_Evict {DeviceDsmAction_NvCache_Evict, \
+'                                           FALSE,                         \
+'                                           0,                             \
+'                                           0,                             \
+'                                           FALSE,                         \
+'                                           0,                             \
+'                                           0}
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_TopologyIdQuery
+'//
+
+'typedef struct _DEVICE_DATA_SET_TOPOLOGY_ID_QUERY_OUTPUT {
+
+'    //
+'    // Number of bytes that topology
+'    // id describes  relative to the
+'    // start of an input range
+'    //
+
+'    DWORDLONG TopologyRangeBytes;
+
+'    //
+'    // The corresponding topology id
+'    //
+
+'    BYTE  TopologyId[16];
+
+'} DEVICE_DATA_SET_TOPOLOGY_ID_QUERY_OUTPUT, *PDEVICE_DATA_SET_TOPOLOGY_ID_QUERY_OUTPUT,
+'  DEVICE_DSM_TOPOLOGY_ID_QUERY_OUTPUT, *PDEVICE_DSM_TOPOLOGY_ID_QUERY_OUTPUT;
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - Yes
+'// OutputBlock    - Yes
+'//
+
+'#define DeviceDsmDefinition_TopologyIdQuery {DeviceDsmAction_TopologyIdQuery,                \
+'                                             FALSE,                                          \
+'                                             0,                                              \
+'                                             0,                                              \
+'                                             TRUE,                                           \
+'                                             __alignof(DEVICE_DSM_TOPOLOGY_ID_QUERY_OUTPUT), \
+'                                             sizeof(DEVICE_DSM_TOPOLOGY_ID_QUERY_OUTPUT)}
+
+
+#define DEVICE_DSM_FLAG_PHYSICAL_ADDRESSES_OMIT_TOTAL_RANGES &h10000000
+
+#define DEVICE_DSM_PHYSICAL_ADDRESS_HAS_MEMORY_ERROR ((LONGLONG)-1)
+
+type _DEVICE_STORAGE_ADDRESS_RANGE
+   AS LONGLONG    StartAddress
+   aS DWORDLONG   LengthInBytes
+end type
+type DEVICE_STORAGE_ADDRESS_RANGE AS _DEVICE_STORAGE_ADDRESS_RANGE
+type PDEVICE_STORAGE_ADDRESS_RANGE AS _DEVICE_STORAGE_ADDRESS_RANGE PTR
+
+type _DEVICE_DSM_PHYSICAL_ADDRESSES_OUTPUT
+   AS DWORD Version
+   ' // Reserved for future use
+   AS DWORD Flags
+   AS DWORD TotalNumberOfRanges
+   AS DWORD NumberOfRangesReturned
+   AS DEVICE_STORAGE_ADDRESS_RANGE Ranges(0)
+end type
+type DEVICE_DSM_PHYSICAL_ADDRESSES_OUTPUT AS _DEVICE_DSM_PHYSICAL_ADDRESSES_OUTPUT
+type PDEVICE_DSM_PHYSICAL_ADDRESSES_OUTPUT AS _DEVICE_DSM_PHYSICAL_ADDRESSES_OUTPUT PTR
+
+#define DEVICE_DSM_PHYSICAL_ADDRESSES_OUTPUT_V1         1
+#define DEVICE_DSM_PHYSICAL_ADDRESSES_OUTPUT_VERSION_V1 DEVICE_DSM_PHYSICAL_ADDRESSES_OUTPUT_V1
+
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - Yes
+'// OutputBlock    - Yes
+
+'#define DeviceDsmDefinition_GetPhysicalAddresses {DeviceDsmAction_GetPhysicalAddresses,            \
+'                                                  FALSE,                                           \
+'                                                  0,                                               \
+'                                                  0,                                               \
+'                                                  TRUE,                                            \
+'                                                  __alignof(DEVICE_DSM_PHYSICAL_ADDRESSES_OUTPUT), \
+'                                                  sizeof(DEVICE_DSM_PHYSICAL_ADDRESSES_OUTPUT)}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_ScopeRegen
+'//
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - No
+'// OutputBlock    - No
+'//
+
+'#define DeviceDsmDefinition_ScopeRegen {DeviceDsmAction_ScopeRegen, \
+'                                        FALSE,                      \
+'                                        0,                          \
+'                                        0,                          \
+'                                        FALSE,                      \
+'                                        0,                          \
+'                                        0}
+
+
+type _DEVICE_DSM_REPORT_ZONES_PARAMETERS
+   AS DWORD Size
+   AS BYTE  ReportOption
+   ' // This  bit affects calculation
+   ' // of the zone list length
+   AS BYTE  Partial
+   AS BYTE  Reserved(1)
+end type
+type DEVICE_DSM_REPORT_ZONES_PARAMETERS AS _DEVICE_DSM_REPORT_ZONES_PARAMETERS
+type PDEVICE_DSM_REPORT_ZONES_PARAMETERS AS _DEVICE_DSM_REPORT_ZONES_PARAMETERS PTR
+
+enum _STORAGE_ZONES_ATTRIBUTES
+   ZonesAttributeTypeAndLengthMayDifferent       = 0
+   ZonesAttributeTypeSameLengthSame              = 1
+   ZonesAttributeTypeSameLastZoneLengthDifferent = 2
+   ZonesAttributeTypeMayDifferentLengthSame      = 3
+end enum
+type STORAGE_ZONES_ATTRIBUTES AS _STORAGE_ZONES_ATTRIBUTES
+type PSTORAGE_ZONES_ATTRIBUTES AS _STORAGE_ZONES_ATTRIBUTES PTR
+
+enum _STORAGE_ZONE_CONDITION
+   ZoneConditionConventional     = &h00
+   ZoneConditionEmpty            = &h01
+   ZoneConditionImplicitlyOpened = &h02
+   ZoneConditionExplicitlyOpened = &h03
+   ZoneConditionClosed           = &h04
+   ZoneConditionReadOnly         = &h0D
+   ZoneConditionFull             = &h0E
+   ZoneConditionOffline          = &h0F
+end enum
+type STORAGE_ZONE_CONDITION AS _STORAGE_ZONE_CONDITION
+type PSTORAGE_ZONE_CONDITION AS _STORAGE_ZONE_CONDITION PTR
+
+type _STORAGE_ZONE_DESCRIPTOR
+   AS DWORD Size
+   AS STORAGE_ZONE_TYPES ZoneType
+   AS STORAGE_ZONE_CONDITION ZoneCondition
+   AS WINBOOLEAN ResetWritePointerRecommend
+   AS BYTE  Reserved0(0 TO 2)
+   ' // In bytes
+   AS DWORDLONG ZoneSize
+   AS DWORDLONG WritePointerOffset
+end type
+type STORAGE_ZONE_DESCRIPTOR AS _STORAGE_ZONE_DESCRIPTOR
+type PSTORAGE_ZONE_DESCRIPTOR AS _STORAGE_ZONE_DESCRIPTOR PTR
+
+type _DEVICE_DSM_REPORT_ZONES_DATA
+   AS DWORD Size
+   ' // Represents the number of ZoneDescriptors.
+   AS DWORD ZoneCount
+   AS STORAGE_ZONES_ATTRIBUTES Attributes
+   AS DWORD Reserved0
+   AS STORAGE_ZONE_DESCRIPTOR ZoneDescriptors(0)
+end type
+type DEVICE_DSM_REPORT_ZONES_DATA AS _DEVICE_DSM_REPORT_ZONES_DATA
+type PDEVICE_DSM_REPORT_ZONES_DATA AS _DEVICE_DSM_REPORT_ZONES_DATA PTR
+type DEVICE_DSM_REPORT_ZONES_OUTPUT AS _DEVICE_DSM_REPORT_ZONES_DATA
+type PDEVICE_DSM_REPORT_ZONES_OUTPUT AS _DEVICE_DSM_REPORT_ZONES_DATA PTR
+
+'// SingleRange    - No
+'// ParameterBlock - Yes
+'// Output         - Yes
+'// OutputBlock    - Yes
+
+'#define DeviceDsmDefinition_ReportZones  {DeviceDsmAction_ReportZones,                   \
+'                                          FALSE,                                         \
+'                                          __alignof(DEVICE_DSM_REPORT_ZONES_PARAMETERS), \
+'                                          sizeof(DEVICE_DSM_REPORT_ZONES_PARAMETERS),    \
+'                                          TRUE,                                          \
+'                                          __alignof(DEVICE_DSM_REPORT_ZONES_OUTPUT),     \
+'                                          sizeof(DEVICE_DSM_REPORT_ZONES_OUTPUT)}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_OpenZone
+'//
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - No
+'// OutputBlock    - No
+'//
+
+'#define DeviceDsmDefinition_OpenZone {DeviceDsmAction_OpenZone, \
+'                                      FALSE,                    \
+'                                      0,                        \
+'                                      0,                        \
+'                                      FALSE,                    \
+'                                      0,                        \
+'                                      0}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_FinishZone
+'//
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - No
+'// OutputBlock    - No
+'//
+
+'#define DeviceDsmDefinition_FinishZone {DeviceDsmAction_FinishZone, \
+'                                        FALSE,                      \
+'                                        0,                          \
+'                                        0,                          \
+'                                        FALSE,                      \
+'                                        0,                          \
+'                                        0}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_CloseZone
+'//
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - No
+'// OutputBlock    - No
+'//
+
+'#define DeviceDsmDefinition_CloseZone {DeviceDsmAction_CloseZone, \
+'                                       FALSE,                     \
+'                                       0,                         \
+'                                       0,                         \
+'                                       FALSE,                     \
+'                                       0,                         \
+'                                       0}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_ResetWritePointer
+'//
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - No
+'// OutputBlock    - No
+'//
+
+'#define DeviceDsmDefinition_ResetWritePointer {DeviceDsmAction_ResetWritePointer, \
+'                                               FALSE,                             \
+'                                               0,                                 \
+'                                               0,                                 \
+'                                               FALSE,                             \
+'                                               0,                                 \
+'                                               0}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_GetRangeErrorInfo
+'//
+
+type _DEVICE_STORAGE_RANGE_ATTRIBUTES
+'    // Must be a  multiple of sector size, in bytes
+   AS DWORDLONG LengthInBytes
+   union
+      AS DWORD AllFlags
+      type
+         ' // 1 = bad, 0 = good
+         AS DWORD IsRangeBad : 1
+      end type
+   end union
+   AS DWORD Reserved
+end type
+type DEVICE_STORAGE_RANGE_ATTRIBUTES AS _DEVICE_STORAGE_RANGE_ATTRIBUTES
+type PDEVICE_STORAGE_RANGE_ATTRIBUTES AS _DEVICE_STORAGE_RANGE_ATTRIBUTES PTR
+
+'// DEVICE_DSM_RANGE_ERROR_OUTPUT.Flags
+#define DEVICE_STORAGE_NO_ERRORS                &h1
+
+type _DEVICE_DSM_RANGE_ERROR_INFO
+   AS DWORD Version
+   AS DWORD Flags
+   AS DWORD TotalNumberOfRanges
+   AS DWORD NumberOfRangesReturned
+   AS DEVICE_STORAGE_RANGE_ATTRIBUTES Ranges(0)
+end type
+type DEVICE_DSM_RANGE_ERROR_INFO AS _DEVICE_DSM_RANGE_ERROR_INFO
+type PDEVICE_DSM_RANGE_ERROR_INFO AS _DEVICE_DSM_RANGE_ERROR_INFO PTR
+type DEVICE_DSM_RANGE_ERROR_OUTPUT AS _DEVICE_DSM_RANGE_ERROR_INFO
+type PDEVICE_DSM_RANGE_ERROR_OUTPUT AS _DEVICE_DSM_RANGE_ERROR_INFO PTR
+
+#define DEVICE_DSM_RANGE_ERROR_OUTPUT_V1        1
+#define DEVICE_DSM_RANGE_ERROR_INFO_VERSION_V1  DEVICE_DSM_RANGE_ERROR_OUTPUT_V1
+
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - Yes
+'// OutputBlock    - Yes
+
+'#define DeviceDsmDefinition_GetRangeErrorInfo {DeviceDsmAction_GetRangeErrorInfo,        \
+'                                               FALSE,                                    \
+'                                               0,                                        \
+'                                               0,                                        \
+'                                               TRUE,                                     \
+'                                               __alignof(DEVICE_DSM_RANGE_ERROR_OUTPUT), \
+'                                               sizeof(DEVICE_DSM_RANGE_ERROR_OUTPUT)}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_WriteZeroes
+'//
+'// ParameterBlock - No
+'// Output         - No
+'//
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - No
+'// OutputBlock    - No
+'//
+
+'#define DeviceDsmDefinition_WriteZeroes {DeviceDsmAction_WriteZeroes, \
+'                                         FALSE,                       \
+'                                         0,                           \
+'                                         0,                           \
+'                                         FALSE,                       \
+'                                         0,                           \
+'                                         0}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_LostQuery
+'//
+
+'typedef struct _DEVICE_DSM_LOST_QUERY_PARAMETERS {
+
+'    //
+'    // Size of this structure serves
+'    // as the version
+'    //
+
+'    DWORD Version;
+
+'    DWORDLONG Granularity;
+
+'} DEVICE_DSM_LOST_QUERY_PARAMETERS, *PDEVICE_DSM_LOST_QUERY_PARAMETERS;
+
+'typedef struct _DEVICE_DSM_LOST_QUERY_OUTPUT {
+
+'    //
+'    // Size of this structure serves
+'    // as the version
+'    //
+
+'    DWORD Version;
+
+'    //
+'    // Size of  this structure  plus
+'    // all the variable sized fields
+'    // needed for  the  entire range
+'    //
+
+'    DWORD Size;
+
+'    //
+'    // Delta  from the  start offset
+'    // if the requested range is not
+'    // granularity aligned
+'    //
+
+'    DWORDLONG Alignment;
+
+'    //
+'    // 1 = lost, 0 = readable
+'    //
+
+'    DWORD NumberOfBits;
+'    DWORD BitMap[ANYSIZE_ARRAY];
+
+'} DEVICE_DSM_LOST_QUERY_OUTPUT, *PDEVICE_DSM_LOST_QUERY_OUTPUT;
+
+'//
+'// SingleRange    - Yes
+'// ParameterBlock - Yes
+'// Output         - Yes
+'// OutputBlock    - Yes
+'//
+
+'#define DeviceDsmDefinition_LostQuery {DeviceDsmAction_LostQuery,                   \
+'                                       TRUE,                                        \
+'                                       __alignof(DEVICE_DSM_LOST_QUERY_PARAMETERS), \
+'                                       sizeof(DEVICE_DSM_LOST_QUERY_PARAMETERS),    \
+'                                       TRUE,                                        \
+'                                       __alignof(DEVICE_DSM_LOST_QUERY_OUTPUT),     \
+'                                       sizeof(DEVICE_DSM_LOST_QUERY_OUTPUT)}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_GetFreeSpace
+'//
+
+'typedef struct _DEVICE_DSM_FREE_SPACE_OUTPUT {
+
+'    //
+'    // Size of this structure serves
+'    // as the version
+'    //
+
+'    DWORD Version;
+
+'    //
+'    // Shared free space available
+'    //
+
+'    DWORDLONG FreeSpace;
+
+'} DEVICE_DSM_FREE_SPACE_OUTPUT, *PDEVICE_DSM_FREE_SPACE_OUTPUT;
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - Yes
+'// OutputBlock    - Yes
+'//
+
+'#define DeviceDsmDefinition_GetFreeSpace {DeviceDsmAction_GetFreeSpace,            \
+'                                          FALSE,                                   \
+'                                          0,                                       \
+'                                          0,                                       \
+'                                          TRUE,                                    \
+'                                          __alignof(DEVICE_DSM_FREE_SPACE_OUTPUT), \
+'                                          sizeof(DEVICE_DSM_FREE_SPACE_OUTPUT)}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_ConversionQuery
+'//
+
+'typedef struct _DEVICE_DSM_CONVERSION_OUTPUT {
+
+'    //
+'    // Size of this structure serves
+'    // as the version
+'    //
+
+'    DWORD Version;
+
+'    //
+'    // Stable  identifier associated
+'    // with the source
+'    //
+
+'    GUID Source;
+
+'} DEVICE_DSM_CONVERSION_OUTPUT, *PDEVICE_DSM_CONVERSION_OUTPUT;
+
+'//
+'// SingleRange    - Yes
+'// ParameterBlock - No
+'// Output         - Yes
+'// OutputBlock    - Yes
+'//
+
+'#define DeviceDsmDefinition_ConversionQuery {DeviceDsmAction_ConversionQuery,         \
+'                                             TRUE,                                    \
+'                                             0,                                       \
+'                                             0,                                       \
+'                                             TRUE,                                    \
+'                                             __alignof(DEVICE_DSM_CONVERSION_OUTPUT), \
+'                                             sizeof(DEVICE_DSM_CONVERSION_OUTPUT)}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// DeviceDsmAction_VdtSet
+'//
+
+'//
+'// SingleRange    - No
+'// ParameterBlock - No
+'// Output         - No
+'// OutputBlock    - No
+'//
+
+'#define DeviceDsmDefinition_VdtSet {DeviceDsmAction_VdtSet, \
+'                                    FALSE,                  \
+'                                    0,                      \
+'                                    0,                      \
+'                                    FALSE,                  \
+'                                    0,                      \
+'                                    0}
+
+
+'////////////////////////////////////////////////////////////////////////////////
+'//
+'// Dsm helper routines
+'//
+
+'#define DEVICE_DSM_ROUND_UP(_a, _b)             (((_a) + ((_b) - 1)) / (_b) * (_b))
+'#define DEVICE_DSM_ROUND_DN(_a, _b)             (((_a)             ) / (_b) * (_b))
+
+'FORCEINLINE
+'PVOID
+'DeviceDsmParameterBlock (
+'    _In_ PDEVICE_DSM_INPUT Input
+'    )
+'{
+'    return (PVOID)
+'           ((DWORD_PTR)Input +
+'                       Input->ParameterBlockOffset);
+'}
+
+
+'FORCEINLINE
+'PDEVICE_DSM_RANGE
+'DeviceDsmDataSetRanges (
+'    _In_ PDEVICE_DSM_INPUT Input
+'    )
+'{
+'    return (PDEVICE_DSM_RANGE)
+'           ((DWORD_PTR)Input +
+'                       Input->DataSetRangesOffset);
+'}
+
+
+'FORCEINLINE
+'DWORD
+'DeviceDsmNumberOfDataSetRanges (
+'    _In_ PDEVICE_DSM_INPUT Input
+'    )
+'{
+'    return Input->DataSetRangesLength /
+'           sizeof(DEVICE_DSM_RANGE);
+'}
+
+
+'FORCEINLINE
+'DWORD
+'DeviceDsmGetInputLength (
+'    _In_ PDEVICE_DSM_DEFINITION Definition,
+'    _In_ DWORD ParameterBlockLength,
+'    _In_ DWORD NumberOfDataSetRanges
+'    )
+'{
+'    DWORD Bytes = sizeof(DEVICE_DSM_INPUT);
+
+'    if (ParameterBlockLength != 0) {
+
+'        Bytes  = DEVICE_DSM_ROUND_UP(Bytes, Definition->ParameterBlockAlignment);
+'        Bytes += ParameterBlockLength;
+'    }
+
+'    if (NumberOfDataSetRanges != 0) {
+
+'        Bytes  = DEVICE_DSM_ROUND_UP(Bytes, __alignof(DEVICE_DSM_RANGE));
+'        Bytes += sizeof(DEVICE_DSM_RANGE) * NumberOfDataSetRanges;
+'    }
+
+'    return Bytes;
+'}
+
+
+'FORCEINLINE
+'DWORD
+'DeviceDsmGetNumberOfDataSetRanges (
+'    _In_ PDEVICE_DSM_DEFINITION Definition,
+'    _In_ DWORD InputLength,
+'    _In_ DWORD ParameterBlockLength
+'    )
+'{
+'    DWORD Bytes = sizeof(DEVICE_DSM_INPUT);
+
+'    if (ParameterBlockLength != 0) {
+
+'        Bytes  = DEVICE_DSM_ROUND_UP(Bytes, Definition->ParameterBlockAlignment);
+'        Bytes += ParameterBlockLength;
+'    }
+
+'    Bytes = DEVICE_DSM_ROUND_UP(Bytes, __alignof(DEVICE_DSM_RANGE));
+'    Bytes = InputLength - Bytes;
+
+'    return Bytes / sizeof(DEVICE_DSM_RANGE);
+'}
+
+
+'FORCEINLINE
+'VOID
+'DeviceDsmInitializeInput (
+'    _In_ PDEVICE_DSM_DEFINITION Definition,
+'    _Out_writes_bytes_(InputLength) PDEVICE_DSM_INPUT Input,
+'    _In_ _In_range_(>=, sizeof(DEVICE_DSM_INPUT)) DWORD InputLength,
+'    _In_ DWORD Flags,
+'    _In_reads_bytes_opt_(ParameterBlockLength) PVOID Parameters,
+'    _In_ DWORD ParameterBlockLength
+'    )
+'{
+'    DWORD Bytes = sizeof(DEVICE_DSM_INPUT);
+
+'    RtlZeroMemory(Input, InputLength);
+
+'    Input->Size   = Bytes;
+'    Input->Action = Definition->Action;
+'    Input->Flags  = Flags;
+
+'    if (ParameterBlockLength == 0) {
+'        goto Cleanup;
+'    }
+
+'    Bytes = DEVICE_DSM_ROUND_UP(Bytes, Definition->ParameterBlockAlignment);
+
+'    Input->ParameterBlockOffset = Bytes;
+'    Input->ParameterBlockLength = ParameterBlockLength;
+
+'    if (!Parameters) {
+'        goto Cleanup;
+'    }
+
+'    RtlCopyMemory(DeviceDsmParameterBlock(Input),
+'                  Parameters,
+'                  Input->ParameterBlockLength);
+
+'Cleanup:
+
+'    return;
+'}
+
+
+'FORCEINLINE
+'BOOLEAN
+'DeviceDsmAddDataSetRange (
+'    _Inout_updates_bytes_(InputLength) PDEVICE_DSM_INPUT Input,
+'    _In_ _In_range_(>=, sizeof(DEVICE_DSM_INPUT)) DWORD InputLength,
+'    _In_ LONGLONG Offset,
+'    _In_ DWORDLONG Length
+'    )
+'{
+'    DWORD             Bytes  = 0;
+'    DWORD             Index  = 0;
+'    PDEVICE_DSM_RANGE Ranges = NULL;
+'    BOOLEAN           Return = FALSE;
+
+'    if (Input->Flags & DEVICE_DSM_FLAG_ENTIRE_DATA_SET_RANGE) {
+'        goto Cleanup;
+'    }
+
+'    if (Input->DataSetRangesLength == 0) {
+
+'        if (Input->ParameterBlockLength == 0) {
+
+'            Bytes = sizeof(DEVICE_DSM_INPUT);
+
+'        } else {
+
+'            Bytes = Input->ParameterBlockOffset +
+'                    Input->ParameterBlockLength;
+'        }
+
+'        Bytes = DEVICE_DSM_ROUND_UP(Bytes, __alignof(DEVICE_DSM_RANGE));
+
+'    } else {
+
+'        Bytes = Input->DataSetRangesOffset +
+'                Input->DataSetRangesLength;
+'    }
+
+'    if ((InputLength - Bytes) < sizeof(DEVICE_DSM_RANGE)) {
+'        goto Cleanup;
+'    }
+
+'    if (Input->DataSetRangesOffset == 0) {
+'        Input->DataSetRangesOffset  = Bytes;
+'    }
+
+'    Ranges = DeviceDsmDataSetRanges(Input);
+'    Index  = DeviceDsmNumberOfDataSetRanges(Input);
+
+'    Ranges[Index].StartingOffset = Offset;
+'    Ranges[Index].LengthInBytes  = Length;
+
+'    Input->DataSetRangesLength += sizeof(DEVICE_DSM_RANGE);
+
+'    Return = TRUE;
+
+'Cleanup:
+
+'    return Return;
+'}
+
+
+'FORCEINLINE
+'BOOLEAN
+'DeviceDsmValidateInput (
+'    _In_ PDEVICE_DSM_DEFINITION Definition,
+'    _In_reads_bytes_(InputLength) PDEVICE_DSM_INPUT Input,
+'    _In_  _In_range_(>=, sizeof(DEVICE_DSM_INPUT)) DWORD InputLength
+'    )
+'{
+'    DWORD   Max   = 0;
+'    DWORD   Min   = 0;
+'    BOOLEAN Valid = FALSE;
+
+'    if (Definition->Action != Input->Action) {
+'        goto Cleanup;
+'    }
+
+'    if (Definition->ParameterBlockLength != 0) {
+
+'        Min = sizeof(*Input);
+'        Max = InputLength;
+
+'        if (Input->ParameterBlockOffset < Min ||
+'            Input->ParameterBlockOffset > Max ||
+'            Input->ParameterBlockOffset % Definition->ParameterBlockAlignment) {
+'            goto Cleanup;
+'        }
+
+'        Min = Definition->ParameterBlockLength;
+'        Max = InputLength - Input->ParameterBlockOffset;
+
+'        if (Input->ParameterBlockLength < Min ||
+'            Input->ParameterBlockLength > Max) {
+'            goto Cleanup;
+'        }
+'    }
+
+'    if (!(Input->Flags & DEVICE_DSM_FLAG_ENTIRE_DATA_SET_RANGE)) {
+
+'        Min = sizeof(*Input);
+'        Max = InputLength;
+
+'        if (Input->DataSetRangesOffset < Min ||
+'            Input->DataSetRangesOffset > Max ||
+'            Input->DataSetRangesOffset % __alignof(DEVICE_DSM_RANGE)) {
+'            goto Cleanup;
+'        }
+
+'        Min = sizeof(DEVICE_DSM_RANGE);
+'        Max = InputLength - Input->DataSetRangesOffset;
+
+'        if (Input->DataSetRangesLength < Min ||
+'            Input->DataSetRangesLength > Max ||
+'            Input->DataSetRangesLength % Min) {
+'            goto Cleanup;
+'        }
+
+'        if (Definition->SingleRange &&
+'            Input->DataSetRangesLength != Min) {
+'            goto Cleanup;
+'        }
+
+'    } else {
+
+'        if (Input->DataSetRangesOffset != 0 ||
+'            Input->DataSetRangesLength != 0) {
+'            goto Cleanup;
+'        }
+'    }
+
+'    if (Input->ParameterBlockOffset < Input->DataSetRangesOffset &&
+'        Input->ParameterBlockOffset +
+'        Input->ParameterBlockLength > Input->DataSetRangesOffset) {
+'        goto Cleanup;
+'    }
+
+'    if (Input->DataSetRangesOffset < Input->ParameterBlockOffset &&
+'        Input->DataSetRangesOffset +
+'        Input->DataSetRangesLength > Input->ParameterBlockOffset) {
+'        goto Cleanup;
+'    }
+
+'    Valid = TRUE;
+
+'Cleanup:
+
+'    return Valid;
+'}
+
+
+'FORCEINLINE
+'PVOID
+'DeviceDsmOutputBlock (
+'    _In_ PDEVICE_DSM_OUTPUT Output
+'    )
+'{
+'    return (PVOID)
+'           ((DWORD_PTR)Output + Output->OutputBlockOffset);
+'}
+
+
+'FORCEINLINE
+'DWORD
+'DeviceDsmGetOutputLength (
+'    _In_ PDEVICE_DSM_DEFINITION Definition,
+'    _In_ DWORD OutputBlockLength
+'    )
+'{
+'    DWORD Bytes = 0;
+
+'    if (!Definition->HasOutput) {
+'        goto Cleanup;
+'    }
+
+'    Bytes  = sizeof(DEVICE_DSM_OUTPUT);
+
+'    if (Definition->OutputBlockLength == 0) {
+'        goto Cleanup;
+'    }
+
+'    if (Definition->OutputBlockLength > OutputBlockLength) {
+'        OutputBlockLength = Definition->OutputBlockLength;
+'    }
+
+'    Bytes  = DEVICE_DSM_ROUND_UP(Bytes, Definition->OutputBlockAlignment);
+'    Bytes += OutputBlockLength;
+
+'Cleanup:
+
+'    return Bytes;
+'}
+
+
+'FORCEINLINE
+'BOOLEAN
+'DeviceDsmValidateOutputLength (
+'    _In_ PDEVICE_DSM_DEFINITION Definition,
+'    _In_ DWORD OutputLength
+'    )
+'{
+'    DWORD Bytes = DeviceDsmGetOutputLength(Definition,
+'                                           0);
+
+'    return (OutputLength >= Bytes);
+'}
+
+
+'FORCEINLINE
+'DWORD
+'DeviceDsmGetOutputBlockLength (
+'    _In_ PDEVICE_DSM_DEFINITION Definition,
+'    _In_ DWORD OutputLength
+'    )
+'{
+'    DWORD Bytes = 0;
+
+'    if (Definition->OutputBlockLength == 0) {
+'        goto Cleanup;
+'    }
+
+'    Bytes = sizeof(DEVICE_DSM_OUTPUT);
+'    Bytes = DEVICE_DSM_ROUND_UP(Bytes, Definition->OutputBlockAlignment);
+'    Bytes = OutputLength - Bytes;
+
+'Cleanup:
+
+'    return Bytes;
+'}
+
+
+'FORCEINLINE
+'VOID
+'DeviceDsmInitializeOutput (
+'    _In_ PDEVICE_DSM_DEFINITION Definition,
+'    _Out_writes_bytes_(OutputLength) PDEVICE_DSM_OUTPUT Output,
+'    _In_  _In_range_(>=, sizeof(DEVICE_DSM_OUTPUT)) DWORD OutputLength,
+'    _In_ DWORD Flags
+'    )
+'{
+'    DWORD Bytes = sizeof(DEVICE_DSM_OUTPUT);
+
+'    RtlZeroMemory(Output, OutputLength);
+
+'    Output->Size   = Bytes;
+'    Output->Action = Definition->Action;
+'    Output->Flags  = Flags;
+
+'    if (Definition->OutputBlockLength != 0) {
+
+'        Bytes = DEVICE_DSM_ROUND_UP(Bytes, Definition->OutputBlockAlignment);
+
+'        Output->OutputBlockOffset = Bytes;
+'        Output->OutputBlockLength = OutputLength - Bytes;
+'    }
+
+'    return;
+'}
+
+
+'FORCEINLINE
+'BOOLEAN
+'DeviceDsmValidateOutput (
+'    _In_ PDEVICE_DSM_DEFINITION Definition,
+'    _In_reads_bytes_(OutputLength) PDEVICE_DSM_OUTPUT Output,
+'    _In_ _In_range_(>=, sizeof(DEVICE_DSM_OUTPUT)) DWORD OutputLength
+'    )
+'{
+'    DWORD   Max   = 0;
+'    DWORD   Min   = 0;
+'    BOOLEAN Valid = FALSE;
+
+'    if (Definition->Action != Output->Action) {
+'        goto Cleanup;
+'    }
+
+'    if (!Definition->HasOutput) {
+'        goto Cleanup;
+'    }
+
+'    if (Definition->OutputBlockLength != 0) {
+
+'        Min = sizeof(*Output);
+'        Max = OutputLength;
+
+'        if (Output->OutputBlockOffset < Min ||
+'            Output->OutputBlockOffset > Max ||
+'            Output->OutputBlockOffset % Definition->OutputBlockAlignment) {
+'            goto Cleanup;
+'        }
+
+'        Min = Definition->OutputBlockLength;
+'        Max = OutputLength - Output->OutputBlockOffset;
+
+'        if (Output->OutputBlockLength < Min ||
+'            Output->OutputBlockLength > Max) {
+'            goto Cleanup;
+'        }
+
+'    } else {
+
+'        if (Output->OutputBlockOffset != 0 ||
+'            Output->OutputBlockLength != 0) {
+'            goto Cleanup;
+'        }
+'    }
+
+'    Valid = TRUE;
+
+'Cleanup:
+
+'    return Valid;
+'}
+
+'//
+'// end IOCTL_STORAGE_MANAGE_DATA_SET_ATTRIBUTES
+'//
+'////////////////////////////////////////////////////////////////////////////////
+
+
+'//
+'//  There are some well known GUIDS for certain types of files.  They are
+'//  defined in NTIFS.H
+'//
+
+'//
+'// IOCTL_STORAGE_GET_BC_PROPERTIES
+'//
+'// Input Buffer:
+'//     None
+'//
+'// Output Buffer:
+'//     Structure of type STORAGE_GET_BC_PROPERTIES_OUTPUT
+'//
+
+'typedef struct _STORAGE_GET_BC_PROPERTIES_OUTPUT {
+
+'    //
+'    // Specifies the maximum number of requests
+'    // that can be scheduled per period of time
+'    //
+'    DWORD MaximumRequestsPerPeriod;
+
+'    //
+'    // Specifies the minimum period that the
+'    // device uses  when scheduling requests
+'    //
+'    DWORD MinimumPeriod;
+
+'    //
+'    // Specifies the maximum transfer size supported
+'    // for  bandwidth contracts  on this  device. To
+'    // achieve the highest level of performance, all
+'    // requests should be of this size
+'    //
+'    DWORDLONG MaximumRequestSize;
+
+'    //
+'    // Specifies the estimated time taken to
+'    // perform an  Io operstion. This  field
+'    // is  for  informational purposes  only
+'    //
+'    DWORD EstimatedTimePerRequest;
+
+'    //
+'    // Specifies the number of requests that should be
+'    // kept outstanding.  This helps  keep the  device
+'    // device busy and thus obtain maximum throughput.
+'    // This will only be filled in if the target  file
+'    // has an outstanding contract.
+'    //
+'    DWORD NumOutStandingRequests;
+
+'    //
+'    // Specifies the required size of requests in this
+'    // stream.  This  will  only  be filled in  if the
+'    // target file has an outstanding contract.
+'    //
+'    DWORDLONG RequestSize;
+
+'} STORAGE_GET_BC_PROPERTIES_OUTPUT, *PSTORAGE_GET_BC_PROPERTIES_OUTPUT;
+
+
+'//
+'// IOCTL_STORAGE_ALLOCATE_BC_STREAM
+'//
+'// Input Buffer:
+'//     Structure of type STORAGE_ALLOCATE_BC_STREAM_INPUT
+'//
+'// Output Buffer:
+'//     Structure of type STORAGE_ALLOCATE_BC_STREAM_OUTPUT
+'//
+
+
+'//
+'// Current version
+'//
+'#define IOCTL_STORAGE_BC_VERSION                1
+
+'typedef struct _STORAGE_ALLOCATE_BC_STREAM_INPUT {
+
+'    //
+'    // Specifies the corresponding structure version
+'    //
+'    DWORD Version;
+
+'    //
+'    // Specifies the number of requests that
+'    // need to  complete  per period of time
+'    //
+'    DWORD RequestsPerPeriod;
+
+'    //
+'    // Specifies the period of time wherein the
+'    // above  number of requests  must complete
+'    //
+'    DWORD Period;
+
+'    //
+'    // Indicates whether failures
+'    // should  be retried  or not
+'    //
+'    BOOLEAN RetryFailures;
+
+'    //
+'    // Indicates whether reqests that  will miss
+'    // their deadline should be discarded or not
+'    //
+'    BOOLEAN Discardable;
+
+'    //
+'    // Helps align the following field
+'    //
+'    BOOLEAN Reserved1[2];
+
+'    //
+'    // Indicates whether the  Io  will be
+'    // comprised of reads, writes or both
+'    //
+'    DWORD AccessType;
+
+'    //
+'    // Indicates whether the  Io  to the
+'    // file will be sequential or random
+'    //
+'    DWORD AccessMode;
+
+'} STORAGE_ALLOCATE_BC_STREAM_INPUT, *PSTORAGE_ALLOCATE_BC_STREAM_INPUT;
+
+'typedef struct _STORAGE_ALLOCATE_BC_STREAM_OUTPUT {
+
+'    //
+'    // Specifies the required size
+'    // of  requests in this stream
+'    //
+'    DWORDLONG RequestSize;
+
+'    //
+'    // Specifies the number of requests that should be
+'    // kept outstanding.  This helps  keep the  device
+'    // device busy and thus obtain maximum  throughput
+'    //
+'    DWORD NumOutStandingRequests;
+
+'} STORAGE_ALLOCATE_BC_STREAM_OUTPUT, *PSTORAGE_ALLOCATE_BC_STREAM_OUTPUT;
+
+
+'//
+'// IOCTL_STORAGE_FREE_BC_STREAM
+'//
+'// Input Buffer:
+'//     None
+'//
+'// Output Buffer:
+'//     None
+'//
+
+'// IOCTL_STORAGE_CHECK_PRIORITY_HINT_SUPPORT
+'// Input Buffer :
+'//      None
+'// Output Buffer :
+'//      Structure of type STORAGE_PRIORITY_HINT_SUPPORT
+
+#define STORAGE_PRIORITY_HINT_SUPPORTED     &h0001
+
+type _STORAGE_PRIORITY_HINT_SUPPORT
+   AS DWORD SupportFlags
+end type
+type STORAGE_PRIORITY_HINT_SUPPORT AS _STORAGE_PRIORITY_HINT_SUPPORT
+type PSTORAGE_PRIORITY_HINT_SUPPORT AS _STORAGE_PRIORITY_HINT_SUPPORT PTR
+
+'// IOCTL_STORAGE_DIAGNOSTIC
+'// Input Buffer :
+'//      STORAGE_DIAGNOSTIC_REQUEST
+'// Output Buffer :
+'//      STORAGE_DIAGNOSTIC_DATA
+
+enum _STORAGE_DIAGNOSTIC_LEVEL
+   StorageDiagnosticLevelDefault = 0
+   StorageDiagnosticLevelMax
+end enum
+type STORAGE_DIAGNOSTIC_LEVEL AS _STORAGE_DIAGNOSTIC_LEVEL
+type PSTORAGE_DIAGNOSTIC_LEVEL AS _STORAGE_DIAGNOSTIC_LEVEL PTR
+
+enum _STORAGE_DIAGNOSTIC_TARGET_TYPE
+   StorageDiagnosticTargetTypeUndefined = 0
+   StorageDiagnosticTargetTypePort
+   StorageDiagnosticTargetTypeMiniport
+   StorageDiagnosticTargetTypeHbaFirmware
+   StorageDiagnosticTargetTypeMax
+end enum
+type STORAGE_DIAGNOSTIC_TARGET_TYPE AS _STORAGE_DIAGNOSTIC_TARGET_TYPE
+type PSTORAGE_DIAGNOSTIC_TARGET_TYPE AS _STORAGE_DIAGNOSTIC_TARGET_TYPE PTR
+
+'// Indicate the target of the request other than the device handle/object itself.
+'// This is used in "Flags" field of data structures.
+#define STORAGE_DIAGNOSTIC_FLAG_ADAPTER_REQUEST     &h00000001
+
+'// STORAGE_DIAGNOSTIC_REQUEST
+type _STORAGE_DIAGNOSTIC_REQUEST
+'  // Size of this structure.
+   AS DWORD Version
+'  // Whole size of the structure and the associated data buffer.
+'  // (In case adding variable-sized buffer in future.)
+   AS DWORD Size
+'  // Request flag.
+   AS DWORD Flags
+'   // Request target type. See definitions for STORAGE_DIAGNOSTIC_TARGET_TYPE.
+   AS STORAGE_DIAGNOSTIC_TARGET_TYPE TargetType
+'   // Diagnostic level. See definitions for STORAGE_DIAGNOSTIC_LEVEL.
+   AS STORAGE_DIAGNOSTIC_LEVEL Level
+end type
+type STORAGE_DIAGNOSTIC_REQUEST AS _STORAGE_DIAGNOSTIC_REQUEST
+type PSTORAGE_DIAGNOSTIC_REQUEST AS _STORAGE_DIAGNOSTIC_REQUEST PTR
+
+'// STORAGE_DIAGNOSTIC_DATA
+type _STORAGE_DIAGNOSTIC_DATA
+'  // Size of this structure.
+   AS DWORD Version
+'  // Whole size of the structure and the associated data buffer.
+   AS  DWORD Size
+'  // GUID of diagnostic data provider.
+'  AS GUID ProviderId
+   AS DWORD BufferSize
+   AS DWORD Reserved
+   AS BYTE  DiagnosticDataBuffer(0)
+end type
+type STORAGE_DIAGNOSTIC_DATA AS _STORAGE_DIAGNOSTIC_DATA
+type PSTORAGE_DIAGNOSTIC_DATA AS _STORAGE_DIAGNOSTIC_DATA PTR
+
+'// IOCTL_STORAGE_GET_PHYSICAL_ELEMENT_STATUS
+'// Input:
+'//       PHYSICAL_ELEMENT_STATUS_REQUEST
+'// Output:
+'//       PHYSICAL_ELEMENT_STATUS
+
+type _PHYSICAL_ELEMENT_STATUS_REQUEST
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD StartingElement
+   AS BYTE  Filter
+   AS BYTE  ReportType
+   AS BYTE  Reserved(0 TO 1)
+end type
+type PHYSICAL_ELEMENT_STATUS_REQUEST AS _PHYSICAL_ELEMENT_STATUS_REQUEST
+type PPHYSICAL_ELEMENT_STATUS_REQUEST AS _PHYSICAL_ELEMENT_STATUS_REQUEST PTR
+
+type _PHYSICAL_ELEMENT_STATUS_DESCRIPTOR
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD ElementIdentifier
+   AS BYTE  PhysicalElementType
+   AS BYTE  PhysicalElementHealth
+   AS BYTE  Reserved1(0 TO 1)
+   ' // In unit of LBA.
+   AS DWORDLONG AssociatedCapacity
+   AS DWORD Reserved2(0 TO 3)
+end type
+type PHYSICAL_ELEMENT_STATUS_DESCRIPTOR AS _PHYSICAL_ELEMENT_STATUS_DESCRIPTOR
+type PPHYSICAL_ELEMENT_STATUS_DESCRIPTOR AS _PHYSICAL_ELEMENT_STATUS_DESCRIPTOR PTR
+
+type _PHYSICAL_ELEMENT_STATUS
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD DescriptorCount
+   AS DWORD ReturnedDescriptorCount
+   AS DWORD ElementIdentifierBeingDepoped
+   AS DWORD Reserved
+   AS PHYSICAL_ELEMENT_STATUS_DESCRIPTOR Descriptors(0)
+end type
+type PHYSICAL_ELEMENT_STATUS AS _PHYSICAL_ELEMENT_STATUS
+type PPHYSICAL_ELEMENT_STATUS AS _PHYSICAL_ELEMENT_STATUS PTR
+
+'// IOCTL_STORAGE_REMOVE_ELEMENT_AND_TRUNCATE
+'// Input:
+'//       REMOVE_ELEMENT_AND_TRUNCATE_REQUEST
+'//
+
+type _REMOVE_ELEMENT_AND_TRUNCATE_REQUEST
+   AS DWORD Version
+   AS DWORD Size
+   ' // In unit of LBA.
+   AS DWORDLONG RequestCapacity
+   AS DWORD ElementIdentifier
+   AS DWORD Reserved
+end type
+type REMOVE_ELEMENT_AND_TRUNCATE_REQUEST AS _REMOVE_ELEMENT_AND_TRUNCATE_REQUEST
+type PREMOVE_ELEMENT_AND_TRUNCATE_REQUEST AS _REMOVE_ELEMENT_AND_TRUNCATE_REQUEST PTR
+
+'// IOCTL_STORAGE_GET_DEVICE_INTERNAL_LOG
+'// Input:
+'//       GET_DEVICE_INTERNAL_STATUS_DATA_REQUEST
+'// Output:
+'//       DEVICE_INTERNAL_STATUS_DATA
+
+#define ERROR_HISTORY_DIRECTORY_ENTRY_DEFAULT_COUNT    8
+
+enum _DEVICE_INTERNAL_STATUS_DATA_REQUEST_TYPE
+   DeviceInternalStatusDataRequestTypeUndefined = 0
+   DeviceCurrentInternalStatusDataHeader
+   DeviceCurrentInternalStatusData
+   DeviceSavedInternalStatusDataHeader
+   DeviceSavedInternalStatusData
+end enum
+type DEVICE_INTERNAL_STATUS_DATA_REQUEST_TYPE AS _DEVICE_INTERNAL_STATUS_DATA_REQUEST_TYPE
+type PDEVICE_INTERNAL_STATUS_DATA_REQUEST_TYPE AS _DEVICE_INTERNAL_STATUS_DATA_REQUEST_TYPE PTR
+
+enum _DEVICE_INTERNAL_STATUS_DATA_SET
+   DeviceStatusDataSetUndefined = 0
+   DeviceStatusDataSet1,
+   DeviceStatusDataSet2,
+   DeviceStatusDataSet3,
+   DeviceStatusDataSet4,
+   DeviceStatusDataSetMax
+end enum
+type DEVICE_INTERNAL_STATUS_DATA_SET AS _DEVICE_INTERNAL_STATUS_DATA_SET
+type PDEVICE_INTERNAL_STATUS_DATA_SET AS _DEVICE_INTERNAL_STATUS_DATA_SET PTR
+
+type _GET_DEVICE_INTERNAL_STATUS_DATA_REQUEST
+   AS DWORD Version
+   AS DWORD Size
+   AS DEVICE_INTERNAL_STATUS_DATA_REQUEST_TYPE RequestDataType
+   AS DEVICE_INTERNAL_STATUS_DATA_SET RequestDataSet
+end type
+type GET_DEVICE_INTERNAL_STATUS_DATA_REQUEST AS _GET_DEVICE_INTERNAL_STATUS_DATA_REQUEST
+type PGET_DEVICE_INTERNAL_STATUS_DATA_REQUEST AS _GET_DEVICE_INTERNAL_STATUS_DATA_REQUEST PTR
+
+type _DEVICE_INTERNAL_STATUS_DATA
+   ' // Size of this structure.
+   AS DWORD Version
+   ' // Whole size of the structure and the associated data buffer.
+   AS DWORD Size
+   AS DWORDLONG T10VendorId
+   AS DWORD DataSet1Length
+   AS DWORD DataSet2Length
+   AS DWORD DataSet3Length
+   AS DWORD DataSet4Length
+   AS BYTE  StatusDataVersion
+   AS BYTE  Reserved(0 TO 2)
+   AS BYTE  ReasonIdentifier(0 TO 127)
+   AS DWORD StatusDataLength
+   AS BYTE  StatusData(0)
+end type
+type DEVICE_INTERNAL_STATUS_DATA AS _DEVICE_INTERNAL_STATUS_DATA
+type PDEVICE_INTERNAL_STATUS_DATA AS _DEVICE_INTERNAL_STATUS_DATA PTR
+
+'// IOCTL_STORAGE_REINITIALIZE_MEDIA
+'// Input Buffer :
+'//      STORAGE_REINITIALIZE_MEDIA - Optional
+'// Output Buffer :
+'//      None
+
+enum _STORAGE_SANITIZE_METHOD
+   StorageSanitizeMethodDefault = 0
+   StorageSanitizeMethodBlockErase
+   StorageSanitizeMethodCryptoErase
+end enum
+type STORAGE_SANITIZE_METHOD AS _STORAGE_SANITIZE_METHOD
+type PSTORAGE_SANITIZE_METHOD AS _STORAGE_SANITIZE_METHOD PTR
+
+type _STORAGE_REINITIALIZE_MEDIA
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD TimeoutInSeconds
+   ' // The SanitizeOption field is only applicable to NVMe devices.
+   type SanitizeOption
+      ' // This field specifies the sanitize method defined in STORAGE_SANITIZE_METHOD enum.
+      AS  DWORD SanitizeMethod : 4
+      ' // This field specifies if unrestricted sanitize exit is allowed or not.
+      ' // By default unrestricted sanitize exit is allowed.
+      AS DWORD DisallowUnrestrictedSanitizeExit : 1
+      AS  DWORD Reserved : 27
+   end type
+end type
+type STORAGE_REINITIALIZE_MEDIA AS _STORAGE_REINITIALIZE_MEDIA
+type PSTORAGE_REINITIALIZE_MEDIA AS _STORAGE_REINITIALIZE_MEDIA PTR
+
+type _STORAGE_MEDIA_SERIAL_NUMBER_DATA
+   AS WORD   Reserved
+   AS WORD   SerialNumberLength
+'#if !defined(__midl)
+   aS BYTE  SerialNumber(0)
+'#endif
+end type
+type STORAGE_MEDIA_SERIAL_NUMBER_DATA AS _STORAGE_MEDIA_SERIAL_NUMBER_DATA
+type PSTORAGE_MEDIA_SERIAL_NUMBER_DATA AS _STORAGE_MEDIA_SERIAL_NUMBER_DATA PTR
+'} STORAGE_MEDIA_SERIAL_NUMBER_DATA, *PSTORAGE_MEDIA_SERIAL_NUMBER_DATA;
+
+'#if defined(_MSC_EXTENSIONS)
+type _PERSISTENT_RESERVE_COMMAND
+   AS DWORD Version
+   AS DWORD Size
+   union
+      type ' PR_IN
+         ' // Persistent Reserve service action.
+         AS BYTE  PR_IN_ServiceActionn : 5
+         AS BYTE  PR_IN_Reserved1 : 3
+         ' // Number of bytes allocated for returned parameter list.
+         AS WORD   AllocationLength
+      end type
+      type' PR_OUT
+         ' // Persistent Reserve service action.
+         AS BYTE  PR_OUT_ServiceAction : 5
+         AS BYTE  PR_OUT_Reserved1 : 3
+         ' // Persistent Reserve type and scope.
+         AS BYTE  Type : 4
+         AS BYTE  Scope : 4
+         ' // Space for additional PR Out parameters.
+''#if !defined(__midl)
+        AS BYTE  ParameterList(0)
+''#endif
+      end type
+   end union
+end type
+type PERSISTENT_RESERVE_COMMAND AS _PERSISTENT_RESERVE_COMMAND
+type PPERSISTENT_RESERVE_COMMAND AS _PERSISTENT_RESERVE_COMMAND PTR
+
+'#endif /* _MSC_EXTENSIONS */
+
+'// Persistent data structures are versioned and "sized" by adding structure version field and structure size field
+#define DEVICEDUMP_STRUCTURE_VERSION_V1         1
+
+'// Max size of the identification string
+#define DEVICEDUMP_MAX_IDSTRING 32      ' // Keep proportional to sizeof (DWORD)
+#define MAX_FW_BUCKET_ID_LENGTH 132     ' // 128 (ACS specification + 1 for zero termination + 3 to align on DWORD)
+
+'// Global telemetry collection parameters in the registry
+#define STORAGE_CRASH_TELEMETRY_REGKEY  "\Registry\Machine\System\CurrentControlSet\Control\CrashControl\StorageTelemetry"
+#define STORAGE_DEVICE_TELEMETRY_REGKEY "\Registry\Machine\System\CurrentControlSet\Control\Storage\StorageTelemetry"
+
+'// Reasons for telemetry collection
+enum _DEVICEDUMP_COLLECTION_TYPE
+   TCCollectionBugCheck = 1                  ' // 1
+   TCCollectionApplicationRequested          ' // 2 (Host Initiated - HITC)
+   TCCollectionDeviceRequested                ' // 3 (Device initiated - DITC)
+end enum
+type DEVICEDUMP_COLLECTION_TYPEIDE_NOTIFICATION_TYPE AS _DEVICEDUMP_COLLECTION_TYPE
+type PDEVICEDUMP_COLLECTION_TYPE AS _DEVICEDUMP_COLLECTION_TYPE PTR
+
+'// Flags for the device dump section
+#define DDUMP_FLAG_DATA_READ_FROM_DEVICE        &h0001
+
+'// Firmware issue IDs (similar to bug check reasons)
+#define FW_ISSUEID_NO_ISSUE     &h00000000
+#define FW_ISSUEID_UNKNOWN      &hFFFFFFFF
+
+'#include <pshpack1.h>   // Structures are packed on a byte boundary , because parsers may run on separate machines and different OS flavors
+
+'//  Device dump section contains common device dump header, followed by set of relative pointers to sub sections
+'//  Each relative pointer contain size in bytes of the subsection and starting offset from the beginning of the section
+'// Layout of the device dump section is as
+'//   HEADER         - common descriptor
+'//   PUBLIC DATA    - publicly accessible data (eg SMART structures)
+'//   RESRICTED DATA - restricted access data (eg encrypted with Microsoft and IHV public keys)
+'//   PRIVATE DATA   - private device data
+'// All fields in the section definition are used cross platform => types used are platform neutral
+'// Relative descript    or of a subsection, contains size of the subsection and relative offset (0 is the start of the section)
+'//
+type _DEVICEDUMP_SUBSECTION_POINTER
+   AS DWORD    dwSize       ' // Size (in bytes) of the subsection
+   AS DWORD    dwFlags      ' // Parameter flags for the subsection
+   AS DWORD    dwOffset     ' // Offset (in bytes) of the subsection block from the start of the buffer
+end type
+type DEVICEDUMP_SUBSECTION_POINTER AS _DEVICEDUMP_SUBSECTION_POINTER
+type PDEVICEDUMP_SUBSECTION_POINTER AS _DEVICEDUMP_SUBSECTION_POINTER PTR
+
+'// Data structure tagging fields (version and size)
+type _DEVICEDUMP_STRUCTURE_VERSION
+   ' // Header signature, useful for identifying the structure when reading the dump
+   AS DWORD   dwSignature
+   ' // Version of the template
+   AS DWORD   dwVersion
+   ' // Size of the parent structure in bytes
+   AS DWORD   dwSize
+end type
+type DEVICEDUMP_STRUCTURE_VERSION AS _DEVICEDUMP_STRUCTURE_VERSION
+type PDEVICEDUMP_STRUCTURE_VERSION AS _DEVICEDUMP_STRUCTURE_VERSION PTR
+
+'//  Device data header for the secondary data (in crashdump) section , holding device dump information.
+type _DEVICEDUMP_SECTION_HEADER
+   ' // GUID, identifying device dump section. Same GUID as used in registering for SecondaryData callback, stored here for live telemetry interface consistency
+   AS GUID    guidDeviceDataId
+   ' // Device identification fields.
+   ' // These fields together should uniquely identify the device firmware image.
+   ' //  ID value, common for storage device vendors. This ID will be used by !analyze to create a vendor ID for WinQual.
+   ' // Unique identifier assigned to the organization responsible for device quality (firmware quality). In most cases this is OUID (IEEE) or WorldWideName of the device vendor
+   AS BYTE     sOrganizationID(0 TO 15)
+   ' // Firmware revision as indicated in IDENITFY or INQUIRY structures
+   AS DWORD    dwFirmwareRevision
+   ' // Device model number (keep the length of the field proportional to sizeof (DWORD))
+   AS BYTE    sModelNumber(0 TO DEVICEDUMP_MAX_IDSTRING-1)
+   ' // Vendor specific device cookie, identifying process and manufacturing parameters. Opaque to the OS and applications.
+   AS BYTE    szDeviceManufacturingID(0 TO DEVICEDUMP_MAX_IDSTRING-1)      ' // Keep the length of the field proportional to sizeof (DWORD)
+   ' // Sourcing indicator flag - used to detect if data was emulated from other structures or obtained directly from the firmware using log command
+   ' //      Set to 1 if public data was filled in using data from the device telemetry log
+   ' //      Set to 0 if the device doesn't support the command and the driver filled in as best it could
+   AS DWORD  dwFlags
+   ' // Version of private data as indicated by the firmware.Initially always 0 to specify Private only unspecified data
+   AS DWORD bRestrictedPrivateDataVersion
+   ' // Issue identifier (hash value) generated by the firmware. Reflects state of the device firmware and used for cross device type/vendor queries.
+   ' // We will rely on standardized namespace of issue IDs and good will of firmware developers to taxonomize
+   AS DWORD dwFirmwareIssueId               ' // currently unused
+   ' // Firmware bucket ID - long string, opague to Windows , but useful to create unique bucket in concatenation with device identification data
+   AS BYTE     szIssueDescriptionString(0 TO MAX_FW_BUCKET_ID_LENGTH-1)     ' // zero terminated
+end type
+type DEVICEDUMP_SECTION_HEADER AS _DEVICEDUMP_SECTION_HEADER
+type PDEVICEDUMP_SECTION_HEADER AS _DEVICEDUMP_SECTION_HEADER PTR
+
+'//  Public subsection header - subsection is holding data, describing device state and accessible to everybody.
+#define TC_PUBLIC_DEVICEDUMP_CONTENT_SMART      &h01
+#define TC_PUBLIC_DEVICEDUMP_CONTENT_GPLOG      &h02
+
+'// Maximum number of log pages collected into the public section
+#define TC_PUBLIC_DEVICEDUMP_CONTENT_GPLOG_MAX  16
+
+'// Maximum length of the description of the collected pages (filled by the miniport)
+#define TC_DEVICEDUMP_SUBSECTION_DESC_LENGTH    16
+
+'// Standard types of collected pages
+#define TC_PUBLIC_DATA_TYPE_ATAGP "ATAGPLogPages"
+#define TC_PUBLIC_DATA_TYPE_ATASMART "ATASMARTPages"
+
+'// Public data is tagged with the table of "log descriptors". Each descriptor has LogAddress and number of pages.
+'// Specific meaning, assigned to the descriptor, is relative to the command set used.
+
+type _GP_LOG_PAGE_DESCRIPTOR
+   AS WORD    LogAddress
+   AS WORD    LogSectors
+end type
+type GP_LOG_PAGE_DESCRIPTOR AS _GP_LOG_PAGE_DESCRIPTOR
+type PGP_LOG_PAGE_DESCRIPTOR AS _GP_LOG_PAGE_DESCRIPTOR PTR
+
+type _DEVICEDUMP_PUBLIC_SUBSECTION
+   AS DWORD   dwFlags
+   AS GP_LOG_PAGE_DESCRIPTOR  GPLogTable(0 TO TC_PUBLIC_DEVICEDUMP_CONTENT_GPLOG_MAX-1)
+   AS BYTE  szDescription(0 TO TC_DEVICEDUMP_SUBSECTION_DESC_LENGTH-1) ' // Zero terminated
+   AS BYTE  bData(0)      ' // Data byte array ANYSIZE_ARRAY
+end type
+type DEVICEDUMP_PUBLIC_SUBSECTION AS _DEVICEDUMP_PUBLIC_SUBSECTION
+type PDEVICEDUMP_PUBLIC_SUBSECTION AS _DEVICEDUMP_PUBLIC_SUBSECTION PTR
+
+'//  Restricted subsection header - subsection is holding data, describing device state and accessible only to Microsoft and a device vendor
+type _DEVICEDUMP_RESTRICTED_SUBSECTION
+   AS BYTE    bData(0)          ' // Data byte array (ANYSIZE_ARRAY)
+end type
+type DEVICEDUMP_RESTRICTED_SUBSECTION AS _DEVICEDUMP_RESTRICTED_SUBSECTION
+TYPE PDEVICEDUMP_RESTRICTED_SUBSECTION AS _DEVICEDUMP_RESTRICTED_SUBSECTION PTR
+
+'//  Private subsection header - subsection is holding data, describing device state and accessible only to a device vendor
+type _DEVICEDUMP_PRIVATE_SUBSECTION
+   AS DWORD   dwFlags
+   AS GP_LOG_PAGE_DESCRIPTOR GPLogId
+   AS BYTE    bData(0)  ' // Data byte array (ANYSIZE_ARRAY)
+end type
+type DEVICEDUMP_PRIVATE_SUBSECTION AS _DEVICEDUMP_PRIVATE_SUBSECTION
+type PDEVICEDUMP_PRIVATE_SUBSECTION AS _DEVICEDUMP_PRIVATE_SUBSECTION PTR
+
+'// Descriptor of the storage device dump section
+type _DEVICEDUMP_STORAGEDEVICE_DATA
+   ' // Common descriptor (signature,version of the structure)
+   AS DEVICEDUMP_STRUCTURE_VERSION    Descriptor
+   ' // Header - set of fields, describing dump section and device (not requiring protocol communication)
+   AS DEVICEDUMP_SECTION_HEADER SectionHeader
+   ' // Size of the whole section buffer, in bytes , including header and sum total of all the variable sized sub sections
+   AS DWORD   dwBufferSize
+   ' // Reason for collecting telemetry
+   AS DWORD   dwReasonForCollection
+   ' // "Pointers" to individual sub-sections. Sub sections are filled with the information, obtained from the device
+   AS DEVICEDUMP_SUBSECTION_POINTER PublicData
+   AS DEVICEDUMP_SUBSECTION_POINTER RestrictedData
+   AS DEVICEDUMP_SUBSECTION_POINTER PrivateData
+end type
+type DEVICEDUMP_STORAGEDEVICE_DATA AS _DEVICEDUMP_STORAGEDEVICE_DATA
+type PDEVICEDUMP_STORAGEDEVICE_DATA AS _DEVICEDUMP_STORAGEDEVICE_DATA PTR
+
+'// Format of the single record for publicly accessible driver state table
+#define         CDB_SIZE                  16
+#define         TELEMETRY_COMMAND_SIZE    16
+
+#define         TCRecordStorportSrbFunction       Command[0]
+
+'typedef struct _DEVICEDUMP_STORAGESTACK_PUBLIC_STATE_RECORD {
+'        // The CDB for this request. variable sized CDBs are truncated.
+'        BYTE      Cdb[CDB_SIZE];
+
+'        // The actual command for this request.
+'        BYTE      Command[TELEMETRY_COMMAND_SIZE];
+
+'        // the time when driver received the request
+'        DWORDLONG StartTime;
+
+'        // the system time when the request was completed
+'        DWORDLONG EndTime;
+
+'        // Status value ()
+'        DWORD  OperationStatus;
+
+'        // Error value (eg error reg for ATAPort, SCSI error for storport)
+'        DWORD   OperationError;
+
+'        // Stack specific information
+'        union {
+'         struct {
+'                DWORD dwReserved;
+'                } ExternalStack;
+
+'         struct {
+'                DWORD   dwAtaPortSpecific;
+'         }  AtaPort;
+
+'         struct {
+'                DWORD   SrbTag  ;
+'         }  StorPort;
+
+'        } StackSpecific;
+
+'} DEVICEDUMP_STORAGESTACK_PUBLIC_STATE_RECORD,*PDEVICEDUMP_STORAGESTACK_PUBLIC_STATE_RECORD;
+
+
+'typedef _Struct_size_bytes_(Descriptor.dwSize) struct _DEVICEDUMP_STORAGESTACK_PUBLIC_DUMP {
+
+'        //
+'        // Common descriptor (signature,version of the structure)
+'        //
+'        DEVICEDUMP_STRUCTURE_VERSION    Descriptor;
+
+'        //
+'        // Reason for collecting telemetry
+'        //
+'        DWORD   dwReasonForCollection;
+
+'        //
+'        // Driver stack and instance
+'        //
+'        BYTE    cDriverName[16];
+
+'        //
+'        // Standardized log of IO requests issued to the target, starting with number of records.
+'        // Log is circular, order is not guaranteed
+'        //
+'        DWORD   uiNumRecords;
+
+'        DEVICEDUMP_STORAGESTACK_PUBLIC_STATE_RECORD RecordArray[ANYSIZE_ARRAY]; //ANYSIZE_ARRAY
+
+'} DEVICEDUMP_STORAGESTACK_PUBLIC_DUMP,*PDEVICEDUMP_STORAGESTACK_PUBLIC_DUMP;
+
+'// End of the packed structure group
+'#include <poppack.h>
+
+
+'// Telemetry information block descriptor - bit flags in DumpCapabilities field
+
+#define DEVICEDUMP_CAP_PRIVATE_SECTION          &h00000001      ' // Target supports private data
+#define DEVICEDUMP_CAP_RESTRICTED_SECTION       &h00000002      ' // Target supports restricted data
+
+'// IOCTL_STORAGE_ENABLE_IDLE_POWER
+'// Input Buffer:
+'//      A STORAGE_IDLE_POWER structure specifying the idle power management
+'//      properties of the device.
+'//
+'// Output Buffer:
+'//      None.
+
+type _STORAGE_IDLE_POWER
+   AS DWORD Version              ' // Structure version, should be set to 1 for Win8.
+   AS DWORD Size                 ' // Size of this structure in bytes.
+   AS DWORD WakeCapableHint : 1  ' // Storage device supports wake from low power states.
+   AS DWORD D3ColdSupported : 1  ' // Storage device supports D3Cold
+   AS DWORD Reserved : 30
+   AS DWORD D3IdleTimeout        ' // Idle time in msec before storage device is transitioned to D3 (max of ~49.7 days).
+end type
+type STORAGE_IDLE_POWER AS _STORAGE_IDLE_POWER
+type PSTORAGE_IDLE_POWER AS _STORAGE_IDLE_POWER PTR
+
+'// IOCTL_STORAGE_GET_IDLE_POWERUP_REASON
+'// Input Buffer:
+'//      None.
+'// Output Buffer:
+'//      A STORAGE_IDLE_POWERUP_REASON structure specifying what caused the power up.
+
+enum _STORAGE_POWERUP_REASON_TYPE
+   StoragePowerupUnknown = 0
+   StoragePowerupIO,
+   StoragePowerupDeviceAttention
+end enum
+type STORAGE_POWERUP_REASON_TYPE AS _STORAGE_POWERUP_REASON_TYPE
+type PSTORAGE_POWERUP_REASON_TYPE AS _STORAGE_POWERUP_REASON_TYPE PTR
+
+type _STORAGE_IDLE_POWERUP_REASON
+   AS DWORD Version                               ' // Structure version, should be set to 1 for Win8.
+   AS DWORD Size                                  ' // Size of this structure in bytes.
+   AS STORAGE_POWERUP_REASON_TYPE PowerupReason   ' // The reason for the power up (see above).
+end type
+type STORAGE_IDLE_POWERUP_REASON AS _STORAGE_IDLE_POWERUP_REASON
+type PSTORAGE_IDLE_POWERUP_REASON AS _STORAGE_IDLE_POWERUP_REASON  PTR
+
+#define STORAGE_IDLE_POWERUP_REASON_VERSION_V1 1
+
+'// IOCTL_STORAGE_DEVICE_POWER_CAP
+'// This IOCTL specifies a maximum *operational* power consumption level for a
+'// storage device.
+'// The storage stack will do its best to transition the device to a power state
+'// that will not exceed the given maximum.  However, this depends on what the
+'// device supports.  The actual maximum may be less than or greater than the
+'// desired maximum.
+'// Input buffer:
+'//  A STORAGE_DEVICE_POWER_CAP structure.
+'//  * The Units field specifies the units of the MaxPower field.  It can be
+'//    either a percentage (0-100%) or an absolute value in milliwatts.
+'//  * The MaxPower field is used to set the desired maximum power consumption
+'//    value for the storage device.
+'// Output buffer:
+'//  On success, the output buffer will contain a STORAGE_DEVICE_POWER_CAP
+'//  structure.
+'//  * The Units field will continue to specify the units of the MaxPower field
+'//    and will match the value from the input buffer.
+'//  * The MaxPower field will contain the value of the actual maximum
+'//    power consumption level of the device.  This may be equal to, less than,
+'//    or greater than the desired cap, depending on what the device supports.
+'//
+enum _STORAGE_DEVICE_POWER_CAP_UNITS
+   StorageDevicePowerCapUnitsPercent
+   StorageDevicePowerCapUnitsMilliwatts
+end enum
+type STORAGE_DEVICE_POWER_CAP_UNITS AS _STORAGE_DEVICE_POWER_CAP_UNITS
+type PSTORAGE_DEVICE_POWER_CAP_UNITS AS _STORAGE_DEVICE_POWER_CAP_UNITS PTR
+
+type _STORAGE_DEVICE_POWER_CAP
+   AS DWORD Version
+   AS DWORD Size
+   AS STORAGE_DEVICE_POWER_CAP_UNITS Units
+   AS DWORDLONG MaxPower
+end type
+type STORAGE_DEVICE_POWER_CAP AS _STORAGE_DEVICE_POWER_CAP
+type PSTORAGE_DEVICE_POWER_CAP AS _STORAGE_DEVICE_POWER_CAP PTR
+
+#define STORAGE_DEVICE_POWER_CAP_VERSION_V1 1
+
+'// IOCTL_STORAGE_RPMB_COMMAND
+'// This IOCTL sends an RPMB command to the underlying storage device.
+'// Input buffer:
+'//  An array of STORAGE_RPMB_DATA_FRAME structures
+'//  * The number of frames included can be calculated by InputBufferLength / sizeof(STORAGE_RPMB_DATA_FRAME)
+'// Output buffer:
+'//  An array of STORAGE_RPMB_DATA_FRAME structures
+'//  * The number of frames included can be calculated by OutputBufferLength / sizeof(STORAGE_RPMB_DATA_FRAME)
+
+'// Ensure we are byte aligned
+'// This is the RPMB data frame used to compose all RPMB requests and responses.
+'// This corresponds to StorageRpmbFrameTypeStandard
+
+type _STORAGE_RPMB_DATA_FRAME Field = 1
+   AS BYTE  Stuff(0 TO 195)
+   AS BYTE  KeyOrMAC(0 TO 31)
+   AS BYTE  Data(0 TO 255)
+   AS BYTE  Nonce(0 TO 15)
+   AS BYTE  WriteCounter(0 TO 3)
+   AS BYTE  Address(0 TO 1)
+   AS BYTE  BlockCount(0 TO 1)
+   AS BYTE  OperationResult (0 TO 1)
+   AS BYTE  RequestOrResponseType(0 TO 1)
+end type
+type STORAGE_RPMB_DATA_FRAME AS _STORAGE_RPMB_DATA_FRAME
+type PSTORAGE_RPMB_DATA_FRAME AS _STORAGE_RPMB_DATA_FRAME PTR
+
+'// RPMB RequestOrResponseType Values
+enum _STORAGE_RPMB_COMMAND_TYPE
+   StorRpmbProgramAuthKey                 = &h00000001
+   StorRpmbQueryWriteCounter              = &h00000002
+   StorRpmbAuthenticatedWrite             = &h00000003
+   StorRpmbAuthenticatedRead              = &h00000004
+   StorRpmbReadResultRequest              = &h00000005
+   StorRpmbAuthenticatedDeviceConfigWrite = &h00000006
+   StorRpmbAuthenticatedDeviceConfigRead  = &h00000007
+end enum
+type STORAGE_RPMB_COMMAND_TYPE AS _STORAGE_RPMB_COMMAND_TYPE
+type PSTORAGE_RPMB_COMMAND_TYPE AS _STORAGE_RPMB_COMMAND_TYPE PTR
+
+'// IOCTL_STORAGE_EVENT_NOTIFICATION
+'// Input Buffer:
+'//      A STORAGE_EVENT_NOTIFICATION structure specifying the event(s) that occurred.
+'// Output Buffer:
+'//      None
+type _STORAGE_EVENT_NOTIFICATION
+   AS DWORD Version                         ' // Structure version, should be set to 1 for Win8.
+   AS DWORD Size                            ' // Size of this structure in bytes.
+   AS DWORDLONG Events                      ' // Bitmask of event(s) that occurred.
+end type
+type STORAGE_EVENT_NOTIFICATION AS _STORAGE_EVENT_NOTIFICATION
+type PSTORAGE_EVENT_NOTIFICATION AS _STORAGE_EVENT_NOTIFICATION PTR
+
+#define STORAGE_EVENT_NOTIFICATION_VERSION_V1 1
+
+#define STORAGE_EVENT_MEDIA_STATUS        &h0000000000000001
+#define STORAGE_EVENT_DEVICE_STATUS       &h0000000000000002
+#define STORAGE_EVENT_DEVICE_OPERATION    &h0000000000000004
+
+#define STORAGE_EVENT_ALL (STORAGE_EVENT_MEDIA_STATUS OR STORAGE_EVENT_DEVICE_STATUS OR STORAGE_EVENT_DEVICE_OPERATION)
+
+#define READ_COPY_NUMBER_KEY                    &h52434e00  ' // 'RCN'
+#define READ_COPY_NUMBER_BYPASS_CACHE_FLAG      &h00000100
+
+#define IsKeyReadCopyNumber(_k)                 CBOOL((((_k) AND &hFFFFFE00) = READ_COPY_NUMBER_KEY))
+
+#define IsKeyReadCopyNumberBypassCache(_k)      CBOOL(((_k) AND READ_COPY_NUMBER_BYPASS_CACHE_FLAG))
+#define SetReadCopyNumberBypassCacheToKey(_k)   CBOOL((_k) <> READ_COPY_NUMBER_BYPASS_CACHE_FLAG)
+
+#define ReadCopyNumberToKey(_c)                 (READ_COPY_NUMBER_KEY OR cast(BYTE, _c))
+#define ReadCopyNumberFromKey(_k)               cast(BYTE, ((_k) AND &h000000FF))
+
+
+'// IOCTL_STORAGE_GET_COUNTERS
+'// This IOCTL retrieves reliability counters for a storage device.
+'// The caller can find out the required output buffer size by simply sending
+'// down a single STORAGE_COUNTERS structure. STATUS_BUFFER_OVERFLOW will be
+'// returned and the Size field in the STORAGE_COUNTERS structure will contain
+'// the total size of the required output buffer.
+'// When the output buffer is sufficiently large, STATUS_SUCCESS will be
+'// returned and the output buffer will contain a STORAGE_COUNTERS structure
+'// followed by an array of STORAGE_COUNTER structures.
+'// Input Buffer:
+'//      STORAGE_COUNTERS with the Version field set appropriately.
+'// Output Buffer:
+'//      When successful, a STORAGE_COUNTERS structure with the Counters array
+'//      filled out.  NumberOfCounters will indicate the number of elements in
+'//      the Counters array.
+'//      See above for more details.
+'//
+enum _STORAGE_COUNTER_TYPE
+   StorageCounterTypeUnknown = 0
+   StorageCounterTypeTemperatureCelsius
+   StorageCounterTypeTemperatureCelsiusMax
+   StorageCounterTypeReadErrorsTotal
+   StorageCounterTypeReadErrorsCorrected
+   StorageCounterTypeReadErrorsUncorrected
+   StorageCounterTypeWriteErrorsTotal
+   StorageCounterTypeWriteErrorsCorrected
+   StorageCounterTypeWriteErrorsUncorrected
+   StorageCounterTypeManufactureDate
+   StorageCounterTypeStartStopCycleCount
+   StorageCounterTypeStartStopCycleCountMax
+   StorageCounterTypeLoadUnloadCycleCount
+   StorageCounterTypeLoadUnloadCycleCountMax
+   StorageCounterTypeWearPercentage
+   StorageCounterTypeWearPercentageWarning
+   StorageCounterTypeWearPercentageMax
+   StorageCounterTypePowerOnHours
+   StorageCounterTypeReadLatency100NSMax
+   StorageCounterTypeWriteLatency100NSMax
+   StorageCounterTypeFlushLatency100NSMax
+   StorageCounterTypeMax
+end enum
+type STORAGE_COUNTER_TYPE AS _STORAGE_COUNTER_TYPE
+type PSTORAGE_COUNTER_TYPE AS _STORAGE_COUNTER_TYPE PTR
+
+type _STORAGE_COUNTER
+   AS STORAGE_COUNTER_TYPE Type
+   union ' Value
+      type ' ManufactureDate
+         AS DWORD Week
+         AS DWORD Year
+      end type
+      AS DWORDLONG AsUlonglong
+   end union
+end type
+type STORAGE_COUNTER AS _STORAGE_COUNTER
+type PSTORAGE_COUNTER AS _STORAGE_COUNTER PTR
+
+type _STORAGE_COUNTERS
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD NumberOfCounters
+   As STORAGE_COUNTER Counters(0)
+end type
+type STORAGE_COUNTERS AS _STORAGE_COUNTERS
+type PSTORAGE_COUNTERS AS _STORAGE_COUNTERS PTR
+
+#define STORAGE_COUNTERS_VERSION_V1 sizeof(STORAGE_COUNTERS)
+
+'// Parameter and data structure for firmware upgrade IOCTLs
+'// IOCTL_STORAGE_FIRMWARE_GET_INFO, IOCTL_STORAGE_FIRMWARE_DOWNLOAD, IOCTL_STORAGE_FIRMWARE_ACTIVATE
+'// Indicate the target of the request other than the device handle/object itself.
+'// This is used in "Flags" field of data structures for firmware upgrade request.
+#define STORAGE_HW_FIRMWARE_REQUEST_FLAG_CONTROLLER                     &h00000001
+
+'// Indicate that current FW image segment is the last one.
+#define STORAGE_HW_FIRMWARE_REQUEST_FLAG_LAST_SEGMENT                   &h00000002
+
+'// Indicate that current FW image segment is the first one.
+#define STORAGE_HW_FIRMWARE_REQUEST_FLAG_FIRST_SEGMENT                  &h00000004
+
+'// Indicate that the existing firmware in slot should be activated immediately without 
+'// controller reset. Only valid for IOCTL_STORAGE_FIRMWARE_ACTIVATE.
+#define STORAGE_HW_FIRMWARE_REQUEST_FLAG_SWITCH_TO_FIRMWARE_WITHOUT_RESET   &h10000000
+
+'// Indicate that any existing firmware in slot should be replaced with the downloaded image,
+'// and activated with controller reset. Only valid for IOCTL_STORAGE_FIRMWARE_ACTIVATE.
+#define STORAGE_HW_FIRMWARE_REQUEST_FLAG_REPLACE_AND_SWITCH_UPON_RESET      &h20000000
+
+'// Indicate that any existing firmware in slot should be replaced with the downloaded image.
+'// Only valid for IOCTL_STORAGE_FIRMWARE_ACTIVATE.
+#define STORAGE_HW_FIRMWARE_REQUEST_FLAG_REPLACE_EXISTING_IMAGE             &h40000000
+
+'// Indicate that the existing firmware in slot should be activated with a controller reset.
+'// Only valid for IOCTL_STORAGE_FIRMWARE_ACTIVATE.
+#define STORAGE_HW_FIRMWARE_REQUEST_FLAG_SWITCH_TO_EXISTING_FIRMWARE        &h80000000
+
+'// Input parameter for IOCTL_STORAGE_FIRMWARE_GET_INFO
+type _STORAGE_HW_FIRMWARE_INFO_QUERY
+   AS DWORD   Version           ' // sizeof(STORAGE_FIRMWARE_INFO_QUERY)
+   AS DWORD   Size              ' // Whole size of the buffer (in case this data structure being extended to be variable length)
+   AS DWORD   Flags
+   As DWORD   Reserved
+end type
+type STORAGE_HW_FIRMWARE_INFO_QUERY AS _STORAGE_HW_FIRMWARE_INFO_QUERY
+type PSTORAGE_HW_FIRMWARE_INFO_QUERY AS _STORAGE_HW_FIRMWARE_INFO_QUERY PTR
+
+'// Output parameter for IOCTL_STORAGE_FIRMWARE_GET_INFO
+'// The total size of returned data is for Firmware Info is:
+'//   sizeof(STORAGE_HW_FIRMWARE_INFO) + sizeof(STORAGE_HW_FIRMWARE_SLOT_INFO) * (SlotCount - 1).
+'// If the buffer is not big enough, callee should set the required length in "Size" field of STORAGE_HW_FIRMWARE_INFO,
+'// Following value maybe used in "PendingActiveSlot" field indicating there is no firmware pending to activate.
+#define STORAGE_HW_FIRMWARE_INVALID_SLOT              &hFF
+
+#define STORAGE_HW_FIRMWARE_REVISION_LENGTH             16
+
+type _STORAGE_HW_FIRMWARE_SLOT_INFO
+   AS DWORD   Version           ' // sizeof(STORAGE_HW_FIRMWARE_SLOT_INFO)
+   AS DWORD   Size              ' // size the data contained in STORAGE_HW_FIRMWARE_SLOT_INFO.
+   AS BYTE    SlotNumber
+   AS BYTE    ReadOnly : 1
+   AS BYTE    Reserved0 : 7
+   AS BYTE    Reserved1(0 TO 5)
+   AS BYTE    Revision(0 TO STORAGE_HW_FIRMWARE_REVISION_LENGTH-1)
+end type
+type STORAGE_HW_FIRMWARE_SLOT_INFO AS _STORAGE_HW_FIRMWARE_SLOT_INFO
+type PSTORAGE_HW_FIRMWARE_SLOT_INFO AS _STORAGE_HW_FIRMWARE_SLOT_INFO PTR
+
+type _STORAGE_HW_FIRMWARE_INFO
+   AS DWORD   Version           ' // sizeof(STORAGE_HW_FIRMWARE_INFO)
+   AS DWORD   Size              ' // size of the whole buffer including slot[]
+   AS BYTE    SupportUpgrade : 1
+   AS BYTE    Reserved0 : 7
+   AS BYTE    SlotCount
+   AS BYTE    ActiveSlot
+   AS BYTE    PendingActivateSlot
+   AS WINBOOLEAN FirmwareShared    ' // The firmware applies to both device and adapter. For example: PCIe SSD.
+   AS BYTE    Reserved(0 TO 2)
+   AS DWORD   ImagePayloadAlignment ' // Number of bytes. Max: PAGE_SIZE. The transfer size should be multiple of this unit size. Some protocol requires at least sector size. 0 means the value is not valid.
+   AS DWORD   ImagePayloadMaxSize   ' // for a single command.
+   AS STORAGE_HW_FIRMWARE_SLOT_INFO Slot(0)
+end type
+type STORAGE_HW_FIRMWARE_INFO AS _STORAGE_HW_FIRMWARE_INFO
+type PSTORAGE_HW_FIRMWARE_INFO AS _STORAGE_HW_FIRMWARE_INFO PTR
+
+'// Input parameter for IOCTL_STORAGE_FIRMWARE_DOWNLOAD
+type _STORAGE_HW_FIRMWARE_DOWNLOAD
+   AS DWORD       Version           ' // sizeof(STORAGE_HW_FIRMWARE_DOWNLOAD)
+   AS DWORD       Size              ' // size of the whole buffer include "ImageBuffer"
+   AS DWORD       Flags
+   AS BYTE        Slot              ' // Slot number that firmware image will be downloaded into.
+   AS BYTE        Reserved(0 TO 2)
+   AS DWORDLONG   Offset            ' // Image file offset, should be aligned to "ImagePayloadAlignment" value from STORAGE_FIRMWARE_INFO.
+   AS DWORDLONG   BufferSize        ' // should be multiple of "ImagePayloadAlignment" value from STORAGE_FIRMWARE_INFO.
+   AS BYTE        ImageBuffer(0)    ' // firmware image file.
+end type
+type STORAGE_HW_FIRMWARE_DOWNLOAD AS _STORAGE_HW_FIRMWARE_DOWNLOAD
+type PSTORAGE_HW_FIRMWARE_DOWNLOAD AS _STORAGE_HW_FIRMWARE_DOWNLOAD PTR
+
+type _STORAGE_HW_FIRMWARE_DOWNLOAD_V2
+   AS DWORD       Version           ' // sizeof(STORAGE_HW_FIRMWARE_DOWNLOAD_V2)
+   AS DWORD       Size              ' // size of the whole buffer include "ImageBuffer"
+   AS DWORD       Flags
+   AS BYTE        Slot              ' // Slot number that firmware image will be downloaded into.
+   AS BYTE        Reserved(0 TO 2)
+   AS DWORDLONG   Offset            ' // Image file offset, should be aligned to "ImagePayloadAlignment" value from STORAGE_FIRMWARE_INFO.
+   AS DWORDLONG   BufferSize        ' // should be multiple of "ImagePayloadAlignment" value from STORAGE_FIRMWARE_INFO.
+   AS DWORD       ImageSize         ' // Firmware Image size.
+   AS DWORD       Reserved2
+   AS BYTE        ImageBuffer(0)    ' // firmware image file.
+end type
+type STORAGE_HW_FIRMWARE_DOWNLOAD_V2 AS _STORAGE_HW_FIRMWARE_DOWNLOAD_V2
+type PSTORAGE_HW_FIRMWARE_DOWNLOAD_V2 AS _STORAGE_HW_FIRMWARE_DOWNLOAD_V2 PTR
+
+'// Input parameter for IOCTL_STORAGE_FIRMWARE_ACTIVATE
+type _STORAGE_HW_FIRMWARE_ACTIVATE
+   AS DWORD   Version
+   AS DWORD   Size
+   aS DWORD   Flags
+   AS BYTE    Slot                  ' // Slot with firmware image to be activated.
+   AS BYTE    Reserved0(0 TO 2)
+end type
+type STORAGE_HW_FIRMWARE_ACTIVATE AS _STORAGE_HW_FIRMWARE_ACTIVATE
+type PSTORAGE_HW_FIRMWARE_ACTIVATE AS _STORAGE_HW_FIRMWARE_ACTIVATE PTR
+
+'// Parameter for IOCTL_STORAGE_PROTOCOL_COMMAND
+'// Buffer layout: <STORAGE_PROTOCOL_COMMAND> <Command> [Error Info Buffer] [Data-to-Device Buffer] [Data-from-Device Buffer]
+#define STORAGE_PROTOCOL_STRUCTURE_VERSION              &h1
+
+type _STORAGE_PROTOCOL_COMMAND
+   AS DWORD   Version                       ' // STORAGE_PROTOCOL_STRUCTURE_VERSION
+   AS DWORD   Length                        ' // sizeof(STORAGE_PROTOCOL_COMMAND)
+   AS STORAGE_PROTOCOL_TYPE  ProtocolType
+   AS DWORD   Flags                         ' // Flags for the request
+   AS DWORD   ReturnStatus                  ' // return value
+   AS DWORD   ErrorCode                     ' // return value, optional
+   AS DWORD   CommandLength                 ' // non-zero value should be set by caller
+   AS DWORD   ErrorInfoLength               ' // optional, can be zero
+   AS DWORD   DataToDeviceTransferLength    ' // optional, can be zero. Used by WRITE type of request.
+   AS DWORD   DataFromDeviceTransferLength  ' // optional, can be zero. Used by READ type of request.
+   AS DWORD   TimeOutValue                  ' // in unit of seconds
+   AS DWORD   ErrorInfoOffset               ' // offsets need to be pointer aligned
+   AS DWORD   DataToDeviceBufferOffset      ' // offsets need to be pointer aligned
+   AS DWORD   DataFromDeviceBufferOffset    ' // offsets need to be pointer aligned
+   AS DWORD   CommandSpecific               ' // optional information passed along with Command.
+   AS DWORD   Reserved0
+   AS DWORD   FixedProtocolReturnData       ' // return data, optional. Some protocol, such as NVMe, may return a small amount data (DWORD0 from completion queue entry) without the need of separate device data transfer.
+   AS DWORD   FixedProtocolReturnData2      ' // return data2, optional. Some protocol, such as NVMe, may return a small amount data (DWORD1 from completion queue entry) without the need of separate device data transfer.
+   AS DWORD   Reserved1(0 TO 1)
+   AS BYTE  Command(0)
+end type
+type STORAGE_PROTOCOL_COMMAND AS _STORAGE_PROTOCOL_COMMAND
+type PSTORAGE_PROTOCOL_COMMAND AS _STORAGE_PROTOCOL_COMMAND PTR
+
+'// Bit-mask values for STORAGE_PROTOCOL_COMMAND - "Flags" field.
+#define STORAGE_PROTOCOL_COMMAND_FLAG_ADAPTER_REQUEST    &h80000000    ' // Flag indicates the request targeting to adapter instead of device.
+
+'// Status values for STORAGE_PROTOCOL_COMMAND - "ReturnStatus" field.
+#define STORAGE_PROTOCOL_STATUS_PENDING                 &h0
+#define STORAGE_PROTOCOL_STATUS_SUCCESS                 &h1
+#define STORAGE_PROTOCOL_STATUS_ERROR                   &h2
+#define STORAGE_PROTOCOL_STATUS_INVALID_REQUEST         &h3
+#define STORAGE_PROTOCOL_STATUS_NO_DEVICE               &h4
+#define STORAGE_PROTOCOL_STATUS_BUSY                    &h5
+#define STORAGE_PROTOCOL_STATUS_DATA_OVERRUN            &h6
+#define STORAGE_PROTOCOL_STATUS_INSUFFICIENT_RESOURCES  &h7
+#define STORAGE_PROTOCOL_STATUS_THROTTLED_REQUEST       &h8
+
+#define STORAGE_PROTOCOL_STATUS_NOT_SUPPORTED           &hFF
+
+'// Command Length for Storage Protocols.
+#define STORAGE_PROTOCOL_COMMAND_LENGTH_NVME            &h40           ' // NVMe commands are always 64 bytes.
+
+'// Command Specific Information for Storage Protocols - "CommandSpecific" field.
+#define STORAGE_PROTOCOL_SPECIFIC_NVME_ADMIN_COMMAND    &h01
+#define STORAGE_PROTOCOL_SPECIFIC_NVME_NVM_COMMAND      &h02
+
+'//
+'// Additional notes when STORAGE_PROTOCOL_TYPE is ProtocolTypeNvme:
+'//  1.  When flag STORAGE_PROTOCOL_COMMAND_FLAG_ADAPTER_REQUEST is set, or the request is sent through adapter, namespace Id from "Command" field is used;
+'//      otherwise, the underneath driver should determine namespace Id from the device that receives the command.
+'//  2.  When a command fails, the "ErrorCode" field contains value from NVMe Completion Queue Entry - DW3 - Status Field.
+'//  3.  "CommandLength" field must have value of 64. i.e. STORAGE_PROTOCOL_COMMAND_LENGTH_NVME.
+'//  4.  "CommandSpecific" field must have value of either STORAGE_PROTOCOL_SPECIFIC_NVME_ADMIN_COMMAND, or STORAGE_PROTOCOL_SPECIFIC_NVME_NVM_COMMAND.
+'//  5.  When a command succeeds, field "FixedProtocolReturnData" may contain value from NVMe Completion Queue Entry - DW0.
+'//
+
+'// IOCTL_STORAGE_ATTRIBUTE_MANAGEMENT
+'// This IOCTL manages an attribute
+'// for a storage device.
+'// When a driver receives this IOCTL it should first
+'// let any lower drivers process the IOCTL.
+'// The driver can override the completion status
+'// from the lower driver layers, if needed.
+'// For example when driver can provide
+'// the required functionality after
+'// doing "Action" on "Attribute", without any support
+'// from lower drivers, it can choose to ignore failure
+'// from lower driver layers, complete the "Action"
+'// and return success.
+'// Input Buffer:
+'//      STORAGE_ATTRIBUTE_MGMT
+'// Output Buffer:
+'//      None.
+
+'// Valid Management Actions allowed on the Attribute
+enum _STORAGE_ATTRIBUTE_MGMT_ACTION
+   StorAttributeMgmt_ClearAttribute = 0
+   StorAttributeMgmt_SetAttribute   = 1
+   StorAttributeMgmt_ResetAttribute = 2
+end enum
+type STORAGE_ATTRIBUTE_MGMT_ACTION AS _STORAGE_ATTRIBUTE_MGMT_ACTION
+type PSTORAGE_ATTRIBUTE_MGMT_ACTION AS _STORAGE_ATTRIBUTE_MGMT_ACTION PTR
+
+'// Valid Storage Device Attributes
+
+'// Reserved for future usage.
+#define STORATTRIBUTE_NONE    0
+
+'// When this attribute is reset, a driver reverts to its
+'// default state. The definition of default state is specific
+'// to each individual driver.
+'// Supported actions: Reset.
+#define STORATTRIBUTE_MANAGEMENT_STATE 1
+
+type _STORAGE_ATTRIBUTE_MGMT
+   AS DWORD Version
+   AS DWORD Size
+   AS STORAGE_ATTRIBUTE_MGMT_ACTION Action
+   AS DWORD Attribute
+end type
+type STORAGE_ATTRIBUTE_MGMT AS _STORAGE_ATTRIBUTE_MGMT
+type PSTORAGE_ATTRIBUTE_MGMT AS _STORAGE_ATTRIBUTE_MGMT PTR
+
+'#endif // _NTDDSTOR_H_
+
+'#ifndef _NTDDSCM_H_
+'#define _NTDDSCM_H_
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS5)
+
+'// Functions 0 to 0x2FF are reserved for the bus device.
+'// Functions 0x300 to 0x5FF are reserved for the logical persistent memory device.
+'// Functions 0x600 to 0x7FF are reserved for the physical persistent memory device.
+'// Functions 0x800 and above are reserved for non-Microsoft users.
+#define IOCTL_SCMBUS_BASE FILE_DEVICE_PERSISTENT_MEMORY
+
+#define IOCTL_SCMBUS_DEVICE_FUNCTION_BASE           &h0
+#define IOCTL_SCM_LOGICAL_DEVICE_FUNCTION_BASE      &h300
+#define IOCTL_SCM_PHYSICAL_DEVICE_FUNCTION_BASE     &h600
+
+#define SCMBUS_FUNCTION(x)              (IOCTL_SCMBUS_DEVICE_FUNCTION_BASE + x)
+#define SCM_LOGICAL_DEVICE_FUNCTION(x)  (IOCTL_SCM_LOGICAL_DEVICE_FUNCTION_BASE + x)
+#define SCM_PHYSICAL_DEVICE_FUNCTION(x) (IOCTL_SCM_PHYSICAL_DEVICE_FUNCTION_BASE + x)
+
+'// Persistent memory (SCM) bus device IOCTLs.
+#define IOCTL_SCM_BUS_GET_LOGICAL_DEVICES  CTL_CODE(IOCTL_SCMBUS_BASE, SCMBUS_FUNCTION(&h00), METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_SCM_BUS_GET_PHYSICAL_DEVICES CTL_CODE(IOCTL_SCMBUS_BASE, SCMBUS_FUNCTION(&h01), METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_SCM_BUS_GET_REGIONS          CTL_CODE(IOCTL_SCMBUS_BASE, SCMBUS_FUNCTION(&h02), METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_SCM_BUS_QUERY_PROPERTY       CTL_CODE(IOCTL_SCMBUS_BASE, SCMBUS_FUNCTION(&h03), METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_SCM_BUS_SET_PROPERTY         CTL_CODE(IOCTL_SCMBUS_BASE, SCMBUS_FUNCTION(&h05), METHOD_BUFFERED, FILE_WRITE_ACCESS)
+
+'// This IOCTL does not require any input nor produce any output data.
+#define IOCTL_SCM_BUS_RUNTIME_FW_ACTIVATE CTL_CODE(IOCTL_SCMBUS_BASE, SCMBUS_FUNCTION(&h04), METHOD_BUFFERED, FILE_WRITE_ACCESS)
+#define IOCTL_SCM_BUS_REFRESH_NAMESPACE   CTL_CODE(IOCTL_SCMBUS_BASE, SCMBUS_FUNCTION(&h06), METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+'// Logical persistent memory device IOCTLs.
+#define IOCTL_SCM_LD_GET_INTERLEAVE_SET  CTL_CODE(IOCTL_SCMBUS_BASE, SCM_LOGICAL_DEVICE_FUNCTION(&h00), METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+'// IOCTLs exposed by physical persistent memory device objects.
+#define IOCTL_SCM_PD_QUERY_PROPERTY           CTL_CODE(IOCTL_SCMBUS_BASE, SCM_PHYSICAL_DEVICE_FUNCTION(&h00), METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_SCM_PD_FIRMWARE_DOWNLOAD        CTL_CODE(IOCTL_SCMBUS_BASE, SCM_PHYSICAL_DEVICE_FUNCTION(&h01), METHOD_BUFFERED, FILE_WRITE_ACCESS)
+#define IOCTL_SCM_PD_FIRMWARE_ACTIVATE        CTL_CODE(IOCTL_SCMBUS_BASE, SCM_PHYSICAL_DEVICE_FUNCTION(&h02), METHOD_BUFFERED, FILE_WRITE_ACCESS)
+#define IOCTL_SCM_PD_PASSTHROUGH              CTL_CODE(IOCTL_SCMBUS_BASE, SCM_PHYSICAL_DEVICE_FUNCTION(&h03), METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS)
+#define IOCTL_SCM_PD_UPDATE_MANAGEMENT_STATUS CTL_CODE(IOCTL_SCMBUS_BASE, SCM_PHYSICAL_DEVICE_FUNCTION(&h04), METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_SCM_PD_REINITIALIZE_MEDIA       CTL_CODE(IOCTL_SCMBUS_BASE, SCM_PHYSICAL_DEVICE_FUNCTION(&h05), METHOD_BUFFERED, FILE_WRITE_ACCESS)
+#define IOCTL_SCM_PD_SET_PROPERTY             CTL_CODE(IOCTL_SCMBUS_BASE, SCM_PHYSICAL_DEVICE_FUNCTION(&h06), METHOD_BUFFERED, FILE_WRITE_ACCESS)
+
+'// The payload for a physical device health notification.
+type _SCM_PD_HEALTH_NOTIFICATION_DATA
+   AS GUID  DeviceGuid
+end type
+type SCM_PD_HEALTH_NOTIFICATION_DATA AS _SCM_PD_HEALTH_NOTIFICATION_DATA
+type PSCM_PD_HEALTH_NOTIFICATION_DATA AS _SCM_PD_HEALTH_NOTIFICATION_DATA PTR
+
+'// IOCTL_SCM_BUS_GET_LOGICAL_DEVICES
+'// Send this IOCTL to the ScmBus adapter to get a list of all the logical persistent memory
+'// devices on the system.
+'// Input Buffer:
+'//      None
+'// Output Buffer:
+'//      SCM_LOGICAL_DEVICES
+
+#define SCM_MAX_SYMLINK_LEN_IN_CHARS 256
+
+type _SCM_LOGICAL_DEVICE_INSTANCE
+   AS DWORD Version
+   AS DWORD Size
+   AS GUID DeviceGuid
+   AS WSTRING * SCM_MAX_SYMLINK_LEN_IN_CHARS SymbolicLink
+end type
+type SCM_LOGICAL_DEVICE_INSTANCE AS _SCM_LOGICAL_DEVICE_INSTANCE
+type PSCM_LOGICAL_DEVICE_INSTANCE AS _SCM_LOGICAL_DEVICE_INSTANCE PTR
+
+type _SCM_LOGICAL_DEVICES
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD DeviceCount
+   AS SCM_LOGICAL_DEVICE_INSTANCE Devices(0)
+end type
+type SCM_LOGICAL_DEVICES AS _SCM_LOGICAL_DEVICES
+type PSCM_LOGICAL_DEVICES AS _SCM_LOGICAL_DEVICES PTR
+
+'// IOCTL_SCM_BUS_GET_PHYSICAL_DEVICES
+'// Send this IOCTL to the ScmBus adapter to get a list of all the physical persistent memory
+'// devices on the system.
+'// Input Buffer:
+'//      None
+'// Output Buffer:
+'//      SCM_PHYSICAL_DEVICES
+
+type _SCM_PHYSICAL_DEVICE_INSTANCE
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD NfitHandle
+   AS WSTRING * SCM_MAX_SYMLINK_LEN_IN_CHARS SymbolicLink
+end type
+type SCM_PHYSICAL_DEVICE_INSTANCE AS _SCM_PHYSICAL_DEVICE_INSTANCE
+type PSCM_PHYSICAL_DEVICE_INSTANCE AS _SCM_PHYSICAL_DEVICE_INSTANCE PTR
+
+type _SCM_PHYSICAL_DEVICES
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD DeviceCount
+   AS SCM_PHYSICAL_DEVICE_INSTANCE Devices(0)
+end type
+type SCM_PHYSICAL_DEVICES AS _SCM_PHYSICAL_DEVICES
+type PSCM_PHYSICAL_DEVICES AS _SCM_PHYSICAL_DEVICES PTR
+
+'// IOCTL_SCM_BUS_GET_REGIONS
+'// Send to a logical persistent memory device stack to get a list of all regions that make up
+'// the logical device.
+'// Send to a physical persistent memory device stack to get a list of all the regions that
+'// reside on that physical device.
+'// Input Buffer:
+'//      None
+'// Output Buffer:
+'//      SCM_REGIONS
+
+enum _SCM_REGION_FLAG
+   ScmRegionFlagNone = &h0
+   ScmRegionFlagLabel = &h1
+end enum
+type SCM_REGION_FLAG AS _SCM_REGION_FLAG
+type PSCM_REGION_FLAG AS _SCM_REGION_FLAG PTR
+
+#define SCM_REGION_SPA_UNKNOWN MAXDWORD64
+
+type _SCM_REGION
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD Flags
+   AS DWORD NfitHandle
+   AS GUID LogicalDeviceGuid
+   AS GUID AddressRangeType
+   AS DWORD AssociatedId
+   AS DWORD64 Length
+   AS DWORD64 StartingDPA
+   AS DWORD64 BaseSPA
+   AS DWORD64 SPAOffset
+   AS DWORD64 RegionOffset
+end type
+type SCM_REGION AS _SCM_REGION
+TYPE PSCM_REGION AS _SCM_REGION PTR
+
+type _SCM_REGIONS
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD RegionCount
+   AS SCM_REGION Regions(0)
+end type
+type SCM_REGIONS AS _SCM_REGIONS
+type PSCM_REGIONS AS _SCM_REGIONS PTR
+
+'// IOCTL_SCM_BUS_QUERY_PROPERTY
+'// Input Buffer:
+'//      An SCM_BUS_PROPERTY_QUERY structure that describes the type of query
+'//      being done, the property being queried, and any additional parameters
+'//      the query requires.
+'//  Output Buffer:
+'//      Contains a buffer to place the results of the query into. Since all
+'//      property descriptors can be cast into an SCM_BUS_DESCRIPTOR_HEADER,
+'//      the IOCTL can be called once with a small buffer then again using
+'//      a buffer as large as the header reports is necessary.
+
+'// Types of queries
+
+enum _SCM_BUS_QUERY_TYPE
+   ScmBusQuery_Descriptor = 0  ' // Retrieves the descriptor
+   ScmBusQuery_IsSupported     ' // Used to test whether the descriptor is supported
+   ScmBusQuery_Max
+end enum
+type SCM_BUS_QUERY_TYPE AS _SCM_BUS_QUERY_TYPE
+type PSCM_BUS_QUERY_TYPE AS _SCM_BUS_QUERY_TYPE PTR
+
+'// IOCTL_SCM_BUS_SET_PROPERTY
+'// Input Buffer:
+'//      An SCM_BUS_PROPERTY_SET structure that describes the type of set
+'//      being done, the property being set, and any additional parameters
+'//      the set requires.
+'//  Output Buffer:
+'//      Contains a buffer to place the results of the set into. Since all
+'//      property descriptors can be cast into an SCM_BUS_DESCRIPTOR_HEADER,
+'//      the IOCTL can be called once with a small buffer then again using
+'//      a buffer as large as the header reports is necessary.
+
+'// Types of sets
+
+enum _SCM_BUS_SET_TYPE
+    ScmBusSet_Descriptor = 0 ' // Retrieves the descriptor
+    ScmBusSet_IsSupported    ' // Used to test whether the descriptor is supported
+    ScmBusSet_Max
+end enum
+type SCM_BUS_SET_TYPE AS _SCM_BUS_SET_TYPE
+type PSCM_BUS_SET_TYPE AS _SCM_BUS_SET_TYPE PTR
+
+enum _SCM_BUS_PROPERTY_ID
+   ScmBusProperty_RuntimeFwActivationInfo = 0
+   ScmBusProperty_DedicatedMemoryInfo = 1
+   ScmBusProperty_DedicatedMemoryState = 2
+   ScmBusProperty_Max
+end enum
+type SCM_BUS_PROPERTY_ID AS _SCM_BUS_PROPERTY_ID
+type PSCM_BUS_PROPERTY_ID AS _SCM_BUS_PROPERTY_ID PTR
+
+'// Query structure - additional parameters for specific queries can follow the header
+type _SCM_BUS_PROPERTY_QUERY
+   AS DWORD Version
+   AS DWORD Size
+   AS SCM_BUS_PROPERTY_ID PropertyId
+   AS SCM_BUS_QUERY_TYPE QueryType
+   AS BYTE  AdditionalParameters(0)
+end type
+type SCM_BUS_PROPERTY_QUERY AS _SCM_BUS_PROPERTY_QUERY
+type PSCM_BUS_PROPERTY_QUERY AS _SCM_BUS_PROPERTY_QUERY PTR
+
+'// Output buffer for ScmBusProperty_RuntimeFwActivationInfo
+
+'// ScmBus Firmware Activation State
+enum _SCM_BUS_FIRMWARE_ACTIVATION_STATE
+   ScmBusFirmwareActivationState_Idle = 0    ' // NVDIMM is Idle for firmware update
+   ScmBusFirmwareActivationState_Armed = 1   ' // NVDIMM is armed to activate the staging firmware
+   ScmBusFirmwareActivationState_Busy = 2    ' // NVDIMM firmware activation is underway
+end enum
+type SCM_BUS_FIRMWARE_ACTIVATION_STATE AS _SCM_BUS_FIRMWARE_ACTIVATION_STATE
+type PSCM_BUS_FIRMWARE_ACTIVATION_STATE AS _SCM_BUS_FIRMWARE_ACTIVATION_STATE PTR
+
+type _SCM_BUS_RUNTIME_FW_ACTIVATION_INFO
+   AS DWORD Version
+   AS DWORD Size
+   AS WINBOOLEAN RuntimeFwActivationSupported
+   AS SCM_BUS_FIRMWARE_ACTIVATION_STATE FirmwareActivationState
+   type FirmwareActivationCapability
+      AS DWORD FwManagedIoQuiesceFwActivationSupported : 1
+      AS DWORD OsManagedIoQuiesceFwActivationSupported : 1
+      AS DWORD WarmResetBasedFwActivationSupported : 1
+      AS DWORD Reserved : 29
+   end type
+   AS DWORDLONG EstimatedFirmwareActivationTimeInUSecs
+   AS DWORDLONG EstimatedProcessorAccessQuiesceTimeInUSecs
+   AS DWORDLONG EstimatedIOAccessQuiesceTimeInUSecs
+   AS DWORDLONG PlatformSupportedMaxIOAccessQuiesceTimeInUSecs
+end type
+type SCM_BUS_RUNTIME_FW_ACTIVATION_INFO AS _SCM_BUS_RUNTIME_FW_ACTIVATION_INFO
+type PSCM_BUS_RUNTIME_FW_ACTIVATION_INFO AS _SCM_BUS_RUNTIME_FW_ACTIVATION_INFO PTR
+
+'// Output buffer for ScmBusProperty_DedicatedMemoryInfo
+type _SCM_BUS_DEDICATED_MEMORY_DEVICE_INFO
+   AS GUID DeviceGuid
+   AS DWORD DeviceNumber
+   type Flags
+      AS DWORD ForcedByRegistry : 1
+      AS DWORD Initialized : 1
+      AS DWORD Reserved : 30
+   end type
+   AS DWORDLONG DeviceSize
+end type
+type SCM_BUS_DEDICATED_MEMORY_DEVICE_INFO AS _SCM_BUS_DEDICATED_MEMORY_DEVICE_INFO
+type PSCM_BUS_DEDICATED_MEMORY_DEVICE_INFO AS _SCM_BUS_DEDICATED_MEMORY_DEVICE_INFO PTR
+
+type _SCM_BUS_DEDICATED_MEMORY_DEVICES_INFO
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD DeviceCount
+   AS SCM_BUS_DEDICATED_MEMORY_DEVICE_INFO Devices(0)
+end type
+type SCM_BUS_DEDICATED_MEMORY_DEVICES_INFO AS _SCM_BUS_DEDICATED_MEMORY_DEVICES_INFO
+type PSCM_BUS_DEDICATED_MEMORY_DEVICES_INFO AS _SCM_BUS_DEDICATED_MEMORY_DEVICES_INFO PTR
+
+'// Set structure - additional parameters for specific sets can follow the header
+type _SCM_BUS_PROPERTY_SET
+   AS DWORD Version
+   AS DWORD Size
+   AS SCM_BUS_PROPERTY_ID PropertyId
+   AS SCM_BUS_SET_TYPE SetType
+   AS BYTE  AdditionalParameters(0)
+end type
+type SCM_BUS_PROPERTY_SET AS _SCM_BUS_PROPERTY_SET
+type PSCM_BUS_PROPERTY_SET AS _SCM_BUS_PROPERTY_SET PTR
+
+'// Input AdditionalParameters for ScmBusProperty_DedicatedMemoryState
+type _SCM_BUS_DEDICATED_MEMORY_STATE
+   AS WINBOOLEAN ActivateState
+end type
+type SCM_BUS_DEDICATED_MEMORY_STATE AS _SCM_BUS_DEDICATED_MEMORY_STATE
+type PSCM_BUS_DEDICATED_MEMORY_STATE AS _SCM_BUS_DEDICATED_MEMORY_STATE PTR
+
+'// Definitions for interfaces related to logical persistent memory devices (LDs).
+
+'// IOCTL_SCM_LD_GET_INTERLEAVE_SET
+'// This IOCTL retrieves the interleave set of a logical persistent memory disk. The interleave set
+'// is comprised of one or more physical persistent memory devices.
+'// Input Buffer:
+'//      None.
+'// Output Buffer:
+'//      SCM_LD_INTERLEAVE_SET_INFO
+
+type _SCM_INTERLEAVED_PD_INFO
+   AS DWORD DeviceHandle
+   AS GUID DeviceGuid
+end type
+type SCM_INTERLEAVED_PD_INFO AS _SCM_INTERLEAVED_PD_INFO
+type PSCM_INTERLEAVED_PD_INFO AS _SCM_INTERLEAVED_PD_INFO PTR
+
+type _SCM_LD_INTERLEAVE_SET_INFO
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD InterleaveSetSize
+   AS SCM_INTERLEAVED_PD_INFO InterleaveSet(0)
+end type
+type SCM_LD_INTERLEAVE_SET_INFO AS _SCM_LD_INTERLEAVE_SET_INFO
+type PSCM_LD_INTERLEAVE_SET_INFO AS _SCM_LD_INTERLEAVE_SET_INFO PTR
+
+'// Definitions for interfaces related to physical persistent memory devices (PDs).
+
+'// IOCTL_SCM_PD_QUERY_PROPERTY
+'// Input Buffer:
+'//      An SCM_PD_PROPERTY_QUERY structure that describes the type of query
+'//      being done, the property being queried, and any additional parameters
+'//      the query requires.
+'//  Output Buffer:
+'//      Contains a buffer to place the results of the query into. Since all
+'//      property descriptors can be cast into an SCM_PD_DESCRIPTOR_HEADER,
+'//      the IOCTL can be called once with a small buffer then again using
+'//      a buffer as large as the header reports is necessary.
+
+'// Types of queries
+
+enum _SCM_PD_QUERY_TYPE
+   ScmPhysicalDeviceQuery_Descriptor = 0   ' // Retrieves the descriptor
+   ScmPhysicalDeviceQuery_IsSupported      '  // Used to test whether the descriptor is supported
+   ScmPhysicalDeviceQuery_Max
+end enum
+type SCM_PD_QUERY_TYPE AS _SCM_PD_QUERY_TYPE
+type PSCM_PD_QUERY_TYPE AS _SCM_PD_QUERY_TYPE PTR
+
+'// IOCTL_SCM_PD_SET_PROPERTY
+'// Input Buffer:
+'//      An SCM_PD_PROPERTY_SET structure that describes the type of set
+'//      being done, the property being set, and any additional parameters
+'//      the set requires.
+'//  Output Buffer:
+'//      Contains a buffer to place the results of the set into. Since all
+'//      property descriptors can be cast into an SCM_PD_DESCRIPTOR_HEADER,
+'//      the IOCTL can be called once with a small buffer then again using
+'//      a buffer as large as the header reports is necessary.
+
+'// Types of sets
+
+enum _SCM_PD_SET_TYPE
+   ScmPhysicalDeviceSet_Descriptor = 0   ' // Retrieves the descriptor
+   ScmPhysicalDeviceSet_IsSupported   ' // Used to test whether the descriptor is supported
+   ScmPhysicalDeviceSet_Max
+end enum
+type SCM_PD_SET_TYPE AS _SCM_PD_SET_TYPE
+TYPE PSCM_PD_SET_TYPE AS _SCM_PD_SET_TYPE PTR
+
+enum _SCM_PD_PROPERTY_ID
+   ScmPhysicalDeviceProperty_DeviceInfo = 0
+   ScmPhysicalDeviceProperty_ManagementStatus
+   ScmPhysicalDeviceProperty_FirmwareInfo
+   ScmPhysicalDeviceProperty_LocationString
+   ScmPhysicalDeviceProperty_DeviceSpecificInfo
+   ScmPhysicalDeviceProperty_DeviceHandle
+   ScmPhysicalDeviceProperty_FruIdString
+   ScmPhysicalDeviceProperty_RuntimeFwActivationInfo
+   ScmPhysicalDeviceProperty_RuntimeFwActivationArmState
+   ScmPhysicalDeviceProperty_Max
+end enum
+type SCM_PD_PROPERTY_ID AS _SCM_PD_PROPERTY_ID
+type PSCM_PD_PROPERTY_ID AS _SCM_PD_PROPERTY_ID PTR
+
+type _SCM_PD_PROPERTY_QUERY
+   AS DWORD Version
+   AS DWORD Size
+   AS SCM_PD_PROPERTY_ID PropertyId
+   AS SCM_PD_QUERY_TYPE QueryType
+   AS BYTE  AdditionalParameters(0)
+end type
+type SCM_PD_PROPERTY_QUERY AS _SCM_PD_PROPERTY_QUERY
+type PSCM_PD_PROPERTY_QUERY AS _SCM_PD_PROPERTY_QUERY PTR
+
+'// Set structure - additional parameters for specific sets can follow the header
+type _SCM_PD_PROPERTY_SET
+   AS DWORD Version
+   AS DWORD Size
+   AS SCM_PD_PROPERTY_ID PropertyId
+   AS SCM_PD_SET_TYPE SetType
+   AS BYTE  AdditionalParameters(0)
+end type
+type SCM_PD_PROPERTY_SET AS _SCM_PD_PROPERTY_SET
+type PSCM_PD_PROPERTY_SET AS _SCM_PD_PROPERTY_SET PTR
+
+'// Input AdditionalParameters for ScmPhysicalDeviceProperty_RuntimeFwActivationArmState
+type _SCM_PD_RUNTIME_FW_ACTIVATION_ARM_STATE
+   AS WINBOOLEAN ArmState
+end type
+type SCM_PD_RUNTIME_FW_ACTIVATION_ARM_STATE AS _SCM_PD_RUNTIME_FW_ACTIVATION_ARM_STATE
+type PSCM_PD_RUNTIME_FW_ACTIVATION_ARM_STATE AS _SCM_PD_RUNTIME_FW_ACTIVATION_ARM_STATE PTR
+
+'// Standard property descriptor header. All property pages should use this
+'// as their first element or should contain these two elements
+type _SCM_PD_DESCRIPTOR_HEADER
+   AS DWORD Version
+   AS DWORD Size
+end type
+type SCM_PD_DESCRIPTOR_HEADER AS _SCM_PD_DESCRIPTOR_HEADER
+type PSCM_PD_DESCRIPTOR_HEADER AS _SCM_PD_DESCRIPTOR_HEADER PTR
+
+'// Output buffer for ScmPhysicalDeviceProperty_DeviceHandle & ScmPhysicalDeviceQuery_Descriptor
+'// The ScmPhysicalDeviceProperty_DeviceHandle property gets identifying information about
+'// a physical device.
+type _SCM_PD_DEVICE_HANDLE
+   AS DWORD Version
+   AS DWORD Size
+   AS GUID DeviceGuid
+   AS DWORD DeviceHandle
+end type
+type SCM_PD_DEVICE_HANDLE AS _SCM_PD_DEVICE_HANDLE
+type PSCM_PD_DEVICE_HANDLE AS _SCM_PD_DEVICE_HANDLE PTR
+
+'// Output buffer for ScmPhysicalDeviceProperty_DeviceInfo & ScmPhysicalDeviceQuery_Descriptor
+
+#define MAX_INTERFACE_CODES 8
+#define SCM_PD_FIRMWARE_REVISION_LENGTH_BYTES 32
+
+#define SCM_PD_MEMORY_SIZE_UNKNOWN MAXDWORD64
+
+type _SCM_PD_DEVICE_INFO
+   AS DWORD Version
+   AS DWORD Size
+   AS GUID DeviceGuid
+   AS DWORD UnsafeShutdownCount
+   AS DWORD64 PersistentMemorySizeInBytes
+   AS DWORD64 VolatileMemorySizeInBytes
+   AS DWORD64 TotalMemorySizeInBytes
+   AS DWORD SlotNumber
+   AS DWORD DeviceHandle
+   AS WORD   PhysicalId
+   AS BYTE   NumberOfFormatInterfaceCodes
+   AS WORD   FormatInterfaceCodes(0 TO MAX_INTERFACE_CODES-1)
+   AS DWORD VendorId
+   AS DWORD ProductId
+   AS DWORD SubsystemDeviceId
+   AS DWORD SubsystemVendorId
+   AS BYTE  ManufacturingLocation
+   AS BYTE  ManufacturingWeek   ' // *Not* in BCD format.
+   AS BYTE  ManufacturingYear   ' // *Not* in BCD format.
+   AS DWORD SerialNumber4Byte   ' // 4-byte serial number as defined in the JEDEC SPD spec and reported in the NFIT.
+   AS DWORD SerialNumberLengthInChars
+   AS BYTE SerialNumber(0)
+end type
+type SCM_PD_DEVICE_INFO AS _SCM_PD_DEVICE_INFO
+type PSCM_PD_DEVICE_INFO AS _SCM_PD_DEVICE_INFO PTR
+
+'// Output buffer for ScmPhysicalDeviceProperty_DeviceSpecificInfo & ScmPhysicalDeviceQuery_Descriptor
+'// A device specific property is a key-value pair where the key is a string
+'// and the value is a number.
+#define SCM_PD_PROPERTY_NAME_LENGTH_IN_CHARS 128
+
+type _SCM_PD_DEVICE_SPECIFIC_PROPERTY
+'    // NULL-terminated string.
+   AS WSTRING * SCM_PD_PROPERTY_NAME_LENGTH_IN_CHARS  Name
+   AS LONGLONG Value
+end type
+type SCM_PD_DEVICE_SPECIFIC_PROPERTY AS _SCM_PD_DEVICE_SPECIFIC_PROPERTY
+type PSCM_PD_DEVICE_SPECIFIC_PROPERTY AS _SCM_PD_DEVICE_SPECIFIC_PROPERTY PTR
+
+'// The physical device driver fills in this structure with arbitrary numeric information.
+type _SCM_PD_DEVICE_SPECIFIC_INFO
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD NumberOfProperties
+   As SCM_PD_DEVICE_SPECIFIC_PROPERTY DeviceSpecificProperties(0)
+end type
+type SCM_PD_DEVICE_SPECIFIC_INFO AS _SCM_PD_DEVICE_SPECIFIC_INFO
+type PSCM_PD_DEVICE_SPECIFIC_INFO AS _SCM_PD_DEVICE_SPECIFIC_INFO PTR
+
+type _SCM_PD_FIRMWARE_SLOT_INFO
+   AS DWORD   Version
+   AS DWORD   Size
+   AS BYTE    SlotNumber
+   AS BYTE    ReadOnly : 1
+   AS BYTE    Reserved0 : 7
+   AS BYTE    Reserved1(0 TO 5)
+   AS BYTE    Revision(0 TO SCM_PD_FIRMWARE_REVISION_LENGTH_BYTES-1)
+end type
+type SCM_PD_FIRMWARE_SLOT_INFO AS _SCM_PD_FIRMWARE_SLOT_INFO
+type PSCM_PD_FIRMWARE_SLOT_INFO AS _SCM_PD_FIRMWARE_SLOT_INFO PTR
+
+'// Output buffer for ScmPhysicalDeviceQuery_Descriptor & ScmPhysicalDeviceProperty_FirmwareInfo
+type _SCM_PD_FIRMWARE_INFO
+   AS DWORD Version
+   AS DWORD Size
+   AS BYTE  ActiveSlot
+   AS BYTE  NextActiveSlot
+   AS BYTE  SlotCount
+   AS SCM_PD_FIRMWARE_SLOT_INFO Slots(0)
+end type
+type SCM_PD_FIRMWARE_INFO AS _SCM_PD_FIRMWARE_INFO
+type PSCM_PD_FIRMWARE_INFO AS _SCM_PD_FIRMWARE_INFO ptr
+
+'// Constants for ScmPhysicalDeviceProperty_ManagementStatus, which can be queried via
+'// ScmPhysicalDeviceQuery_Descriptor.
+
+'// Health states.
+enum _SCM_PD_HEALTH_STATUS
+   ScmPhysicalDeviceHealth_Unknown = 0
+   ScmPhysicalDeviceHealth_Unhealthy
+   ScmPhysicalDeviceHealth_Warning
+   ScmPhysicalDeviceHealth_Healthy
+   ScmPhysicalDeviceHealth_Max
+end enum
+type SCM_PD_HEALTH_STATUS AS _SCM_PD_HEALTH_STATUS
+type PSCM_PD_HEALTH_STATUS AS _SCM_PD_HEALTH_STATUS PTR
+
+'// Operational states.
+enum _SCM_PD_OPERATIONAL_STATUS
+   ScmPhysicalDeviceOpStatus_Unknown = 0
+   ScmPhysicalDeviceOpStatus_Ok
+   ScmPhysicalDeviceOpStatus_PredictingFailure
+   ScmPhysicalDeviceOpStatus_InService
+   ScmPhysicalDeviceOpStatus_HardwareError
+   ScmPhysicalDeviceOpStatus_NotUsable
+   ScmPhysicalDeviceOpStatus_TransientError
+   ScmPhysicalDeviceOpStatus_Missing
+   ScmPhysicalDeviceOpStatus_Max
+end enum
+type SCM_PD_OPERATIONAL_STATUS AS _SCM_PD_OPERATIONAL_STATUS
+type PSCM_PD_OPERATIONAL_STATUS AS _SCM_PD_OPERATIONAL_STATUS PTR
+
+'// Operational reasons.
+enum _SCM_PD_OPERATIONAL_STATUS_REASON
+   ScmPhysicalDeviceOpReason_Unknown = 0
+   ScmPhysicalDeviceOpReason_Media
+   ScmPhysicalDeviceOpReason_ThresholdExceeded
+   ScmPhysicalDeviceOpReason_LostData
+   ScmPhysicalDeviceOpReason_EnergySource
+   ScmPhysicalDeviceOpReason_Configuration
+   ScmPhysicalDeviceOpReason_DeviceController
+   ScmPhysicalDeviceOpReason_MediaController
+   ScmPhysicalDeviceOpReason_Component
+   ScmPhysicalDeviceOpReason_BackgroundOperation
+   ScmPhysicalDeviceOpReason_InvalidFirmware
+   ScmPhysicalDeviceOpReason_HealthCheck
+   ScmPhysicalDeviceOpReason_LostDataPersistence
+   ScmPhysicalDeviceOpReason_DisabledByPlatform
+   ScmPhysicalDeviceOpReason_PermanentError
+   ScmPhysicalDeviceOpReason_LostWritePersistence
+   ScmPhysicalDeviceOpReason_FatalError
+   ScmPhysicalDeviceOpReason_DataPersistenceLossImminent
+   ScmPhysicalDeviceOpReason_WritePersistenceLossImminent
+   ScmPhysicalDeviceOpReason_MediaRemainingSpareBlock
+   ScmPhysicalDeviceOpReason_PerformanceDegradation
+   ScmPhysicalDeviceOpReason_ExcessiveTemperature
+   ScmPhysicalDeviceOpReason_InternalFailure
+   ScmPhysicalDeviceOpReason_Max
+end enum
+type SCM_PD_OPERATIONAL_STATUS_REASON AS _SCM_PD_OPERATIONAL_STATUS_REASON
+type PSCM_PD_OPERATIONAL_STATUS_REASON AS _SCM_PD_OPERATIONAL_STATUS_REASON PTR
+
+'// Output buffer for ScmPhysicalDeviceProperty_ManagementStatus & ScmPhysicalDeviceQuery_Descriptor
+#define SCM_PD_MAX_OPERATIONAL_STATUS    16
+
+type _SCM_PD_MANAGEMENT_STATUS
+   AS DWORD Version
+   AS DWORD Size
+   AS SCM_PD_HEALTH_STATUS Health
+   AS DWORD NumberOfOperationalStatus
+   AS DWORD NumberOfAdditionalReasons
+   AS SCM_PD_OPERATIONAL_STATUS OperationalStatus(0 TO SCM_PD_MAX_OPERATIONAL_STATUS-1)
+   AS SCM_PD_OPERATIONAL_STATUS_REASON AdditionalReasons(0)
+end type
+type SCM_PD_MANAGEMENT_STATUS AS _SCM_PD_MANAGEMENT_STATUS
+type PSCM_PD_MANAGEMENT_STATUS AS _SCM_PD_MANAGEMENT_STATUS PTR
+
+'// Output buffer for ScmPhysicalDeviceQuery_Descriptor & ScmPhysicalDeviceProperty_LocationString
+type _SCM_PD_LOCATION_STRING
+   AS DWORD Version
+   AS DWORD Size
+   AS WSTRING * 1 Location
+end type
+type SCM_PD_LOCATION_STRING AS _SCM_PD_LOCATION_STRING
+type PSCM_PD_LOCATION_STRING AS _SCM_PD_LOCATION_STRING PTR
+
+'// Output buffer for ScmPhysicalDeviceQuery_Descriptor & ScmPhysicalDeviceProperty_FruIdString
+type _SCM_PD_FRU_ID_STRING
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD IdentifierSize
+   AS BYTE  Identifier(0)
+end type
+type SCM_PD_FRU_ID_STRING AS _SCM_PD_FRU_ID_STRING
+type PSCM_PD_FRU_ID_STRING AS _SCM_PD_FRU_ID_STRING PTR
+
+'// Firmware update IOCTLs.
+
+'//
+'// Signals that the firmware image regions contained in the SCM_PD_FIRMWARE_DOWNLOAD
+'// structure are the last ones of the image. The physical device driver finishes the firmware update
+'// operation when this flag is set.
+'//
+#define SCM_PD_FIRMWARE_LAST_DOWNLOAD &h1
+
+'// Input buffer for IOCTL_SCM_PD_FIRMWARE_DOWNLOAD.
+type _SCM_PD_FIRMWARE_DOWNLOAD
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD Flags
+   AS BYTE  Slot
+   AS BYTE  Reserved(0 TO 2)
+   AS DWORD64 Offset
+   AS DWORD FirmwareImageSizeInBytes
+   AS BYTE  FirmwareImage(0)
+end type
+type SCM_PD_FIRMWARE_DOWNLOAD AS _SCM_PD_FIRMWARE_DOWNLOAD
+type PSCM_PD_FIRMWARE_DOWNLOAD AS _SCM_PD_FIRMWARE_DOWNLOAD PTR
+
+'// Input buffer for IOCTL_SCM_PD_FIRMWARE_ACTIVATE.
+type _SCM_PD_FIRMWARE_ACTIVATE
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD Flags
+   AS BYTE  Slot
+end type
+type SCM_PD_FIRMWARE_ACTIVATE AS _SCM_PD_FIRMWARE_ACTIVATE
+type PSCM_PD_FIRMWARE_ACTIVATE AS _SCM_PD_FIRMWARE_ACTIVATE PTR
+
+'// Output buffer for ScmPhysicalDeviceProperty_RuntimeFwActivationInfo
+
+' // ScmBus Physical Device Last Firmware Activation Status
+enum _SCM_PD_LAST_FW_ACTIVATION_STATUS
+   ScmPdLastFwActivationStatus_None = 0                  ' // No Firmware Activation performed. Reset to None on boot
+   ScmPdLastFwActivationStatus_Success = 1               ' // Success
+   ScmPdLastFwActivationStatus_FwNotFound = 2            ' // No new staged firmware to activate
+   ScmPdLastFwActivationStatus_ColdRebootRequired = 3    ' // NVDIMM Reset required to activate staged firmware
+   ScmPdLastFwActivaitonStatus_ActivationInProgress = 4  ' // Media disabled during firmware activation
+   ScmPdLastFwActivaitonStatus_Retry = 5                 ' // Activation aborted due to throttling. Retry recommended
+   ScmPdLastFwActivaitonStatus_FwUnsupported = 6         ' // Staged firmware version does not meet activation requirements
+   ScmPdLastFwActivaitonStatus_UnknownError = 7           ' // Unclassified firmware activation error
+end enum
+type SCM_PD_LAST_FW_ACTIVATION_STATUS AS _SCM_PD_LAST_FW_ACTIVATION_STATUS
+type PSCM_PD_LAST_FW_ACTIVATION_STATUS AS _SCM_PD_LAST_FW_ACTIVATION_STATUS PTR
+
+'// ScmBus Physical Device Firmware Activation State
+enum _SCM_PD_FIRMWARE_ACTIVATION_STATE
+   ScmPdFirmwareActivationState_Idle = 0    ' // NVDIMM is Idle for firmware update
+   ScmPdFirmwareActivationState_Armed = 1   ' // NVDIMM is armed to activate the staging firmware
+   ScmPdFirmwareActivationState_Busy = 2    ' // NVDIMM firmware activation is underway
+end enum
+type SCM_PD_FIRMWARE_ACTIVATION_STATE AS _SCM_PD_FIRMWARE_ACTIVATION_STATE
+type PSCM_PD_FIRMWARE_ACTIVATION_STATE AS _SCM_PD_FIRMWARE_ACTIVATION_STATE PTR
+
+type _SCM_PD_RUNTIME_FW_ACTIVATION_INFO
+   AS DWORD Version
+   AS DWORD Size
+   AS SCM_PD_LAST_FW_ACTIVATION_STATUS LastFirmwareActivationStatus
+   AS SCM_PD_FIRMWARE_ACTIVATION_STATE FirmwareActivationState
+end type
+type SCM_PD_RUNTIME_FW_ACTIVATION_INFO AS _SCM_PD_RUNTIME_FW_ACTIVATION_INFO
+type PSCM_PD_RUNTIME_FW_ACTIVATION_INFO AS _SCM_PD_RUNTIME_FW_ACTIVATION_INFO PTR
+
+'// IOCTL_SCM_PD_PASSTHROUGH
+'// This IOCTL sends a vendor-specific command to a physical device and returns its
+'// output.
+'// Input buffer:
+'//      SCM_PD_PASSTHROUGH_INPUT
+'//      The input structure contains another, physical device-type specific structure.
+'// Output buffer:
+'//      SCM_PD_PASSTHROUGH_OUTPUT
+'//      The output structure contains another, physical device-type specific structure.
+
+type _SCM_PD_PASSTHROUGH_INPUT
+   AS DWORD Version
+   AS DWORD Size
+   AS GUID ProtocolGuid
+   AS DWORD DataSize
+   AS BYTE  Data(0)
+end type
+type SCM_PD_PASSTHROUGH_INPUT AS _SCM_PD_PASSTHROUGH_INPUT
+type PSCM_PD_PASSTHROUGH_INPUT AS _SCM_PD_PASSTHROUGH_INPUT PTR
+
+type _SCM_PD_PASSTHROUGH_OUTPUT
+   AS DWORD Version
+   AS DWORD Size
+   AS GUID ProtocolGuid
+   AS DWORD DataSize
+   AS BYTE  Data(0)
+end type
+type SCM_PD_PASSTHROUGH_OUTPUT AS _SCM_PD_PASSTHROUGH_OUTPUT
+type PSCM_PD_PASSTHROUGH_OUTPUT AS _SCM_PD_PASSTHROUGH_OUTPUT PTR
+
+'// Passthrough structures and definitions for INVDIMM devices.
+
+'// This structure defines the input of an INVDIMM command. The application sending a passthrough
+'// command uses this structure as the "Data" field of the SCM_PD_PASSTHROUGH_INPUT structure.
+type _SCM_PD_PASSTHROUGH_INVDIMM_INPUT
+   AS DWORD Opcode
+   AS DWORD OpcodeParametersLength
+   AS BYTE  OpcodeParameters(0)
+end type
+type SCM_PD_PASSTHROUGH_INVDIMM_INPUT AS _SCM_PD_PASSTHROUGH_INVDIMM_INPUT
+type PSCM_PD_PASSTHROUGH_INVDIMM_INPUT AS _SCM_PD_PASSTHROUGH_INVDIMM_INPUT PTR
+
+'// This structure defines the output of an INVDIMM command. The driver will respond to
+'// a passthrough request by bundling this structure in the "Data" field of the
+'// SCM_PD_PASSTHROUGH_OUTPUT structure.
+type _SCM_PD_PASSTHROUGH_INVDIMM_OUTPUT
+   AS WORD   GeneralStatus
+   AS WORD   ExtendedStatus
+   AS DWORD OutputDataLength
+   AS BYTE  OutputData(0)
+end type
+type SCM_PD_PASSTHROUGH_INVDIMM_OUTPUT AS _SCM_PD_PASSTHROUGH_INVDIMM_OUTPUT
+type PSCM_PD_PASSTHROUGH_INVDIMM_OUTPUT AS _SCM_PD_PASSTHROUGH_INVDIMM_OUTPUT PTR
+
+'// IOCTL_SCM_PD_REINITIALIZE_MEDIA
+'// This IOCTL reinitializes the media of a physical persistent memory device, which erases
+'// all the data on it.
+'// Input buffer:
+'//      SCM_PD_REINITIALIZE_MEDIA_INPUT
+'// Output buffer:
+'//      SCM_PD_REINITIALIZE_MEDIA_OUTPUT
+
+type _SCM_PD_REINITIALIZE_MEDIA_INPUT
+   AS DWORD Version
+   AS DWORD Size
+   type Options
+      AS DWORD Overwrite : 1
+   end type
+end type
+type SCM_PD_REINITIALIZE_MEDIA_INPUT AS _SCM_PD_REINITIALIZE_MEDIA_INPUT
+type PSCM_PD_REINITIALIZE_MEDIA_INPUT AS _SCM_PD_REINITIALIZE_MEDIA_INPUT PTR
+
+enum _SCM_PD_MEDIA_REINITIALIZATION_STATUS
+   ScmPhysicalDeviceReinit_Success = 0
+   ScmPhysicalDeviceReinit_RebootNeeded
+   ScmPhysicalDeviceReinit_ColdBootNeeded
+   ScmPhysicalDeviceReinit_Max
+end enum
+type SCM_PD_MEDIA_REINITIALIZATION_STATUS AS _SCM_PD_MEDIA_REINITIALIZATION_STATUS
+type PSCM_PD_MEDIA_REINITIALIZATION_STATUS AS _SCM_PD_MEDIA_REINITIALIZATION_STATUS PTR
+
+type _SCM_PD_REINITIALIZE_MEDIA_OUTPUT
+   AS DWORD Version
+   AS DWORD Size
+   AS SCM_PD_MEDIA_REINITIALIZATION_STATUS Status
+end type
+type SCM_PD_REINITIALIZE_MEDIA_OUTPUT AS _SCM_PD_REINITIALIZE_MEDIA_OUTPUT
+type PSCM_PD_REINITIALIZE_MEDIA_OUTPUT AS _SCM_PD_REINITIALIZE_MEDIA_OUTPUT PTR
+
+'#if(_WIN32_WINNT >= 0x500)
+
+'// The following are GPT partition attributes applicable when the
+'// PartitionType is PARTITION_SPACES_GUID.
+
+#define GPT_SPACES_ATTRIBUTE_NO_METADATA            (&h8000000000000000)
+
+'// IOCTLs to query and modify attributes
+'// associated with the given disk. These
+'// are persisted within the registry.
+
+#define IOCTL_DISK_GET_DISK_ATTRIBUTES      CTL_CODE(IOCTL_DISK_BASE, &H003c, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define IOCTL_DISK_SET_DISK_ATTRIBUTES      CTL_CODE(IOCTL_DISK_BASE, &H003d, METHOD_BUFFERED, FILE_READ_ACCESS or FILE_WRITE_ACCESS)
+
+#define DISK_ATTRIBUTE_OFFLINE              &H0000000000000001
+#define DISK_ATTRIBUTE_READ_ONLY            &H0000000000000002
+
+'// IOCTL_DISK_GET_DISK_ATTRIBUTES
+'// Input Buffer:
+'//     None
+'// Output Buffer:
+'//     Structure of type GET_DISK_ATTRIBUTES
+
+type _GET_DISK_ATTRIBUTES
+   AS DWORD Version
+   AS DWORD Reserved1
+   AS DWORDLONG Attributes
+end type
+type GET_DISK_ATTRIBUTES AS _GET_DISK_ATTRIBUTES
+type PGET_DISK_ATTRIBUTES AS _GET_DISK_ATTRIBUTES PTR
+
+'// IOCTL_DISK_SET_DISK_ATTRIBUTES
+'// Input Buffer:
+'//     Structure of type SET_DISK_ATTRIBUTES
+'// Output Buffer:
+'//     None
+
+type _SET_DISK_ATTRIBUTES
+   AS DWORD Version
+   AS WINBOOLEAN Persist
+   AS BYTE  Reserved1(0 TO 2)
+   AS DWORDLONG Attributes
+   AS DWORDLONG AttributesMask
+   AS DWORD Reserved2(0 TO 3)
+end type
+type SET_DISK_ATTRIBUTES AS _SET_DISK_ATTRIBUTES
+type PSET_DISK_ATTRIBUTES AS _SET_DISK_ATTRIBUTES PTR
+
+'//==================== FSCTL_GET_REFS_VOLUME_DATA ======================
+'// Structures for FSCTL_GET_REFS_VOLUME_DATA.
+type _REFS_VOLUME_DATA_BUFFER
+   AS DWORD ByteCount
+   AS DWORD MajorVersion
+   AS DWORD MinorVersion
+   AS DWORD BytesPerPhysicalSector
+   AS LARGE_INTEGER VolumeSerialNumber
+   AS LARGE_INTEGER NumberSectors
+   AS LARGE_INTEGER TotalClusters
+   AS LARGE_INTEGER FreeClusters
+   AS LARGE_INTEGER TotalReserved
+   AS DWORD BytesPerSector
+   AS DWORD BytesPerCluster
+   AS LARGE_INTEGER MaximumSizeOfResidentFile
+   AS WORD  FastTierDataFillRatio               ' // between 0 and 10000
+   AS WORD  SlowTierDataFillRatio               ' // between 0 and 10000
+   AS DWORD DestagesFastTierToSlowTierRate       ' // in clusters per second
+   AS WORD  MetadataChecksumType
+   AS BYTE  Reserved0(0 TO 5)
+   AS DWORD DriverMajorVersion
+   AS DWORD DriverMinorVersion
+   AS LARGE_INTEGER Reserved(0 TO 6)
+end type
+type REFS_VOLUME_DATA_BUFFER AS _REFS_VOLUME_DATA_BUFFER
+type PREFS_VOLUME_DATA_BUFFER AS _REFS_VOLUME_DATA_BUFFER PTR
+
+'#define REFS_VOLUME_DATA_BUFFER_CONTAINS_DRIVER_VERSION(VOLUME_DATA_BUFFER) \
+'    ((VOLUME_DATA_BUFFER)->ByteCount >= RTL_SIZEOF_THROUGH_FIELD( REFS_VOLUME_DATA_BUFFER, DriverMinorVersion ))
+Private Function REFS_VOLUME_DATA_BUFFER_CONTAINS_DRIVER_VERSION(byval buf As REFS_VOLUME_DATA_BUFFER Ptr) As Boolean
+   Dim requiredSize As ULong = offsetof(REFS_VOLUME_DATA_BUFFER, DriverMinorVersion) + SizeOf(UShort)
+   Return buf->ByteCount >= requiredSize
+End Function
+
+'#endif /* _WIN32_WINNT >= _WIN32_WINNT_WIN8 */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_NT4)
+'//
+'//==================== FSCTL_GET_VOLUME_BITMAP ======================
+'//
+'// Structure for FSCTL_GET_VOLUME_BITMAP
+'//
+
+type _STARTING_LCN_INPUT_BUFFER
+   AS LARGE_INTEGER StartingLcn
+end type
+type STARTING_LCN_INPUT_BUFFER AS _STARTING_LCN_INPUT_BUFFER
+type PSTARTING_LCN_INPUT_BUFFER AS _STARTING_LCN_INPUT_BUFFER PTR
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD)
+
+#define GET_VOLUME_BITMAP_FLAG_MASK_METADATA         &h00000001
+
+type _STARTING_LCN_INPUT_BUFFER_EX
+   AS LARGE_INTEGER StartingLcn
+   AS DWORD Flags
+end type
+type STARTING_LCN_INPUT_BUFFER_EX AS _STARTING_LCN_INPUT_BUFFER_EX
+type PSTARTING_LCN_INPUT_BUFFER_EX AS _STARTING_LCN_INPUT_BUFFER_EX
+
+'#endif /* _WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD */
+
+type _VOLUME_BITMAP_BUFFER
+   AS LARGE_INTEGER StartingLcn
+   AS LARGE_INTEGER BitmapSize
+   AS BYTE  Buffer(0)
+end type
+type VOLUME_BITMAP_BUFFER AS _VOLUME_BITMAP_BUFFER
+type PVOLUME_BITMAP_BUFFER AS _VOLUME_BITMAP_BUFFER PTR
+
+'#endif /* _WIN32_WINNT >= _WIN32_WINNT_NT4 */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_NT4)
+'//
+'//==================== FSCTL_GET_RETRIEVAL_POINTERS ======================
+'//
+'// Structure for FSCTL_GET_RETRIEVAL_POINTERS
+'//
+
+type _STARTING_VCN_INPUT_BUFFER
+   AS LARGE_INTEGER StartingVcn
+end type
+type STARTING_VCN_INPUT_BUFFER AS _STARTING_VCN_INPUT_BUFFER
+type PSTARTING_VCN_INPUT_BUFFER AS _STARTING_VCN_INPUT_BUFFER PTR
+
+type RETRIEVAL_POINTERS_BUFFER_Extents
+	NextVcn as LARGE_INTEGER
+	Lcn as LARGE_INTEGER
+end type
+
+type RETRIEVAL_POINTERS_BUFFER
+	ExtentCount as DWORD
+	StartingVcn as LARGE_INTEGER
+	Extents(0 to 0) as RETRIEVAL_POINTERS_BUFFER_Extents
+end type
+
+type PRETRIEVAL_POINTERS_BUFFER as RETRIEVAL_POINTERS_BUFFER ptr
+
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS2)
+'//
+'//==================== FSCTL_GET_RETRIEVAL_POINTERS_AND_REFCOUNT ======================
+'// Structure for FSCTL_GET_RETRIEVAL_POINTERS_AND_REFCOUNT
+'// Input structure is STARTING_VCN_INPUT_BUFFER
+
+type RETRIEVAL_POINTERS_AND_REFCOUNT_BUFFER_Extents
+   AS LARGE_INTEGER NextVcn
+   AS LARGE_INTEGER Lcn
+   AS DWORD ReferenceCount
+end type
+
+type RETRIEVAL_POINTERS_AND_REFCOUNT_BUFFER
+   AS DWORD ExtentCount
+   AS LARGE_INTEGER StartingVcn
+	Extents(0 to 0) as RETRIEVAL_POINTERS_AND_REFCOUNT_BUFFER_Extents
+end type
+type PRETRIEVAL_POINTERS_AND_REFCOUNT_BUFFER AS RETRIEVAL_POINTERS_AND_REFCOUNT_BUFFER PTR
+
+'#endif /* (NTDDI_VERSION >= NTDDI_WIN10_RS2) */
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS5) || (NTDDI_VERSION >= NTDDI_WIN8) //Win8 check is for backward compatibility.
+
+'//==================== FSCTL_GET_RETRIEVAL_POINTER_COUNT ======================
+'// Structure for FSCTL_GET_RETRIEVAL_POINTER_COUNT
+'// Input structure is STARTING_VCN_INPUT_BUFFER
+type RETRIEVAL_POINTER_COUNT
+   AS DWORD ExtentCount
+end type
+type PRETRIEVAL_POINTER_COUNT AS RETRIEVAL_POINTER_COUNT PTR
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_NT4)
+'//==================== FSCTL_GET_NTFS_FILE_RECORD ======================
+'// Structures for FSCTL_GET_NTFS_FILE_RECORD
+
+type NTFS_FILE_RECORD_INPUT_BUFFER
+	FileReferenceNumber as LARGE_INTEGER
+end type
+type PNTFS_FILE_RECORD_INPUT_BUFFER as NTFS_FILE_RECORD_INPUT_BUFFER ptr
+
+type NTFS_FILE_RECORD_OUTPUT_BUFFER
+	FileReferenceNumber as LARGE_INTEGER
+	FileRecordLength as DWORD
+	FileRecordBuffer(0 to 0) as UBYTE
+end type
+
+type PNTFS_FILE_RECORD_OUTPUT_BUFFER as NTFS_FILE_RECORD_OUTPUT_BUFFER ptr
+
+'#endif /* _WIN32_WINNT >= _WIN32_WINNT_NT4 */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_NT4)
+
+'//==================== FSCTL_MOVE_FILE ======================
+'// Structure for FSCTL_MOVE_FILE
+
+type MOVE_FILE_RECORD_DATA
+   AS HANDLE FileHandle
+   AS LARGE_INTEGER SourceFileRecord
+   AS LARGE_INTEGER TargetFileRecord
+end type
+type PMOVE_FILE_RECORD_DATA AS MOVE_FILE_RECORD_DATA PTR
+
+'#endif
+'#endif /* _WIN32_WINNT >= _WIN32_WINNT_NT4 */
+
+'//==================== FSCTL_ENUM_USN_DATA ======================
+'// Structure for FSCTL_ENUM_USN_DATA
+
+type MFT_ENUM_DATA_V0
+   AS DWORDLONG StartFileReferenceNumber
+   AS USN LowUsn
+   AS USN HighUsn
+end type
+type PMFT_ENUM_DATA_V0 AS MFT_ENUM_DATA_V0 PTR
+
+type MFT_ENUM_DATA_V1
+   AS DWORDLONG StartFileReferenceNumber
+   AS USN LowUsn
+   AS USN HighUsn
+   AS WORD   MinMajorVersion
+   AS WORD   MaxMajorVersion
+end type
+type PMFT_ENUM_DATA_V1 AS MFT_ENUM_DATA_V1 PTR
+
+'#if (NTDDI_VERSION >= NTDDI_WIN8)
+'typedef MFT_ENUM_DATA_V1 MFT_ENUM_DATA, *PMFT_ENUM_DATA;
+'#else
+'typedef MFT_ENUM_DATA_V0 MFT_ENUM_DATA, *PMFT_ENUM_DATA;
+'#endif
+
+'//==================== FSCTL_READ_FILE_USN_DATA ====================
+'// Structure for FSCTL_READ_FILE_USN_DATA
+
+'//  Windows 7 and earlier releases did not use an input buffer
+'//  for this FSCTL.  It is valid to omit this, and doing so
+'//  will default to MinMajorVersion == 2, MaxMajorVersion == 2.
+
+type READ_FILE_USN_DATA
+   AS WORD   MinMajorVersion
+   AS WORD   MaxMajorVersion
+end type
+type PREAD_FILE_USN_DATA AS READ_FILE_USN_DATA PTR
+
+'//==================== FSCTL_READ_USN_JOURNAL ======================
+'// Structure for FSCTL_READ_USN_JOURNAL
+
+type READ_USN_JOURNAL_DATA_V0
+   AS USN StartUsn
+   AS DWORD ReasonMask
+   AS DWORD ReturnOnlyOnClose
+   AS DWORDLONG Timeout
+   As DWORDLONG BytesToWaitFor
+   AS DWORDLONG UsnJournalID
+end type
+type PREAD_USN_JOURNAL_DATA_V0 AS READ_USN_JOURNAL_DATA_V0 PTR
+
+type READ_USN_JOURNAL_DATA_V1
+   AS USN StartUsn
+   AS DWORD ReasonMask
+   AS DWORD ReturnOnlyOnClose
+   AS DWORDLONG Timeout
+   AS DWORDLONG BytesToWaitFor
+   AS DWORDLONG UsnJournalID
+   AS WORD   MinMajorVersion
+   AS WORD   MaxMajorVersion
+end type
+type PREAD_USN_JOURNAL_DATA_V1 AS READ_USN_JOURNAL_DATA_V1 PTR
+
+'#if (NTDDI_VERSION >= NTDDI_WIN8)
+'typedef READ_USN_JOURNAL_DATA_V1 READ_USN_JOURNAL_DATA, *PREAD_USN_JOURNAL_DATA;
+'#else
+'typedef READ_USN_JOURNAL_DATA_V0 READ_USN_JOURNAL_DATA, *PREAD_USN_JOURNAL_DATA;
+'#endif
+
+'//==================== FSCTL_USN_TRACK_MODIFIED_RANGES ======================
+'// Structure for FSCTL_USN_TRACK_MODIFIED_RANGES
+
+type USN_TRACK_MODIFIED_RANGES
+   AS DWORD Flags
+   AS DWORD Unused
+   AS DWORDLONG ChunkSize
+   AS LONGLONG FileSizeThreshold
+end type
+type PUSN_TRACK_MODIFIED_RANGES AS USN_TRACK_MODIFIED_RANGES
+
+type USN_RANGE_TRACK_OUTPUT
+   AS USN Usn
+end type
+type PUSN_RANGE_TRACK_OUTPUT AS USN_RANGE_TRACK_OUTPUT PTR
+
+#define FLAG_USN_TRACK_MODIFIED_RANGES_ENABLE &h0000000
+
+'//  The initial Major.Minor version of the Usn record will be 2.0.
+'//  In general, the MinorVersion may be changed if fields are added
+'//  to this structure in such a way that the previous version of the
+'//  software can still correctly the fields it knows about.  The
+'//  MajorVersion should only be changed if the previous version of
+'//  any software using this structure would incorrectly handle new
+'//  records due to structure changes.
+'//  The first update to this will force the structure to version 2.0.
+'//  This will add the extended information about the source as
+'//  well as indicate the file name offset within the structure.
+'//  The following structure is returned with these fsctls.
+'//      FSCTL_READ_USN_JOURNAL
+'//      FSCTL_READ_FILE_USN_DATA
+'//      FSCTL_ENUM_USN_DATA
+
+type USN_RECORD_V2
+   AS DWORD RecordLength
+   AS WORD   MajorVersion
+   AS WORD   MinorVersion
+   AS DWORDLONG FileReferenceNumber
+   AS DWORDLONG ParentFileReferenceNumber
+   AS USN Usn
+   AS LARGE_INTEGER TimeStamp
+   AS DWORD Reason
+   AS DWORD SourceInfo
+   AS DWORD SecurityId
+   AS DWORD FileAttributes
+   AS WORD   FileNameLength
+   AS WORD   FileNameOffset
+   AS WSTRING * 1 FileName
+end type
+type PUSN_RECORD_V2 AS USN_RECORD_V2 PTR
+
+type USN_RECORD_V3
+   AS DWORD RecordLength
+   AS WORD   MajorVersion
+   AS WORD   MinorVersion
+   AS FILE_ID_128 FileReferenceNumber
+   AS FILE_ID_128 ParentFileReferenceNumber
+   AS USN Usn
+   AS LARGE_INTEGER TimeStamp
+   AS DWORD Reason
+   AS DWORD SourceInfo
+   AS DWORD SecurityId
+   AS DWORD FileAttributes
+   AS WORD   FileNameLength
+   AS WORD   FileNameOffset
+   AS WSTRING * 1 FileName
+end type
+type PUSN_RECORD_V3 AS USN_RECORD_V3 PTR
+
+type USN_RECORD_COMMON_HEADER
+   AS DWORD RecordLength
+   AS WORD   MajorVersion
+   AS WORD   MinorVersion
+end type
+type PUSN_RECORD_COMMON_HEADER AS USN_RECORD_COMMON_HEADER PTR
+
+type USN_RECORD_EXTENT
+   AS LONGLONG Offset
+   AS LONGLONG Length
+end type
+type PUSN_RECORD_EXTENT AS USN_RECORD_EXTENT
+
+type USN_RECORD_V4
+   AS USN_RECORD_COMMON_HEADER Header
+   AS FILE_ID_128 FileReferenceNumber
+   AS FILE_ID_128 ParentFileReferenceNumber
+   AS USN Usn
+   AS DWORD Reason
+   AS DWORD SourceInfo
+   AS DWORD RemainingExtents
+   AS WORD   NumberOfExtents
+   AS WORD   ExtentSize
+   AS USN_RECORD_EXTENT Extents(0 TO 1)
+end type
+type PUSN_RECORD_V4 AS USN_RECORD_V4
+
+union USN_RECORD_UNION
+   AS USN_RECORD_COMMON_HEADER Header
+   AS USN_RECORD_V2 V2
+   AS USN_RECORD_V3 V3
+   AS USN_RECORD_V4 V4
+end union
+type PUSN_RECORD_UNION AS USN_RECORD_UNION PTR
+
+
+'//
+'//==================== FSCTL_QUERY_USN_JOURNAL ======================
+'//
+'//  Structure for FSCTL_QUERY_USN_JOURNAL
+'//
+
+'typedef struct {
+
+'    DWORDLONG UsnJournalID;
+'    USN FirstUsn;
+'    USN NextUsn;
+'    USN LowestValidUsn;
+'    USN MaxUsn;
+'    DWORDLONG MaximumSize;
+'    DWORDLONG AllocationDelta;
+
+'} USN_JOURNAL_DATA_V0, *PUSN_JOURNAL_DATA_V0;
+
+'typedef struct {
+
+'    DWORDLONG UsnJournalID;
+'    USN FirstUsn;
+'    USN NextUsn;
+'    USN LowestValidUsn;
+'    USN MaxUsn;
+'    DWORDLONG MaximumSize;
+'    DWORDLONG AllocationDelta;
+'    WORD   MinSupportedMajorVersion;
+'    WORD   MaxSupportedMajorVersion;
+
+'} USN_JOURNAL_DATA_V1, *PUSN_JOURNAL_DATA_V1;
+
+'typedef struct {
+
+'    DWORDLONG UsnJournalID;
+'    USN FirstUsn;
+'    USN NextUsn;
+'    USN LowestValidUsn;
+'    USN MaxUsn;
+'    DWORDLONG MaximumSize;
+'    DWORDLONG AllocationDelta;
+'    WORD   MinSupportedMajorVersion;
+'    WORD   MaxSupportedMajorVersion;
+'    DWORD Flags;
+'    DWORDLONG RangeTrackChunkSize;
+'    LONGLONG RangeTrackFileSizeThreshold;
+
+'} USN_JOURNAL_DATA_V2, *PUSN_JOURNAL_DATA_V2;
+
+'#if (NTDDI_VERSION >= NTDDI_WIN8)
+'typedef USN_JOURNAL_DATA_V1 USN_JOURNAL_DATA, *PUSN_JOURNAL_DATA;
+'#else
+'typedef USN_JOURNAL_DATA_V0 USN_JOURNAL_DATA, *PUSN_JOURNAL_DATA;
+'#endif
+
+'//
+'//==================== FSCTL_DELETE_USN_JOURNAL ======================
+'//
+'//  Structure for FSCTL_DELETE_USN_JOURNAL
+'//
+
+'typedef struct {
+
+'    DWORDLONG UsnJournalID;
+'    DWORD DeleteFlags;
+
+'} DELETE_USN_JOURNAL_DATA, *PDELETE_USN_JOURNAL_DATA;
+
+'#define USN_DELETE_FLAG_DELETE              (0x00000001)
+'#define USN_DELETE_FLAG_NOTIFY              (0x00000002)
+
+'#define USN_DELETE_VALID_FLAGS              (0x00000003)
+
+'#endif /* _WIN32_WINNT >= _WIN32_WINNT_WIN2K */
+
+
+' *******************
+
+type _FILESYSTEM_STATISTICS_EX
+
+   AS WORD   FileSystemType
+   AS WORD   Version                     ' // currently version 1
+   AS DWORD SizeOfCompleteStructure      ' // must by a multiple of 64 bytes
+   AS DWORDLONG UserFileReads
+   AS DWORDLONG UserFileReadBytes
+   AS DWORDLONG UserDiskReads
+   AS DWORDLONG UserFileWrites
+   AS DWORDLONG UserFileWriteBytes
+   AS DWORDLONG UserDiskWrites
+   AS DWORDLONG MetaDataReads
+   AS DWORDLONG MetaDataReadBytes
+   AS DWORDLONG MetaDataDiskReads
+   AS DWORDLONG MetaDataWrites
+   AS DWORDLONG MetaDataWriteBytes
+   AS DWORDLONG MetaDataDiskWrites
+   ' //  The file system's private structure is appended here.
+end type
+type FILESYSTEM_STATISTICS_EX AS _FILESYSTEM_STATISTICS_EX
+type PFILESYSTEM_STATISTICS_EX AS _FILESYSTEM_STATISTICS_EX PTR
+
+type _NTFS_STATISTICS_EX
+   AS DWORD LogFileFullExceptions
+   AS DWORD OtherExceptions
+   ' // Other meta data io's
+   AS DWORDLONG MftReads
+   AS DWORDLONG MftReadBytes
+   AS DWORDLONG MftWrites
+   AS DWORDLONG MftWriteBytes
+   type MftWritesUserLevel
+      AS DWORD Write
+      AS DWORD Create
+      AS DWORD SetInfo
+      AS DWORD Flush
+   end type
+   AS DWORD MftWritesFlushForLogFileFull
+   AS DWORD MftWritesLazyWriter
+   AS DWORD MftWritesUserRequest
+   AS DWORDLONG Mft2Writes
+   AS DWORDLONG Mft2WriteBytes
+   type Mft2WritesUserLevel
+      AS DWORD Write
+      AS DWORD Create
+      AS DWORD SetInfo
+      AS DWORD Flush
+   end type
+   AS DWORD Mft2WritesFlushForLogFileFull
+   AS DWORD Mft2WritesLazyWriter
+   AS DWORD Mft2WritesUserRequest
+   AS DWORDLONG RootIndexReads
+   AS DWORDLONG RootIndexReadBytes
+   AS DWORDLONG RootIndexWrites
+   AS DWORDLONG RootIndexWriteBytes
+   AS DWORDLONG BitmapReads
+   AS DWORDLONG BitmapReadBytes
+   AS DWORDLONG BitmapWrites
+   AS DWORDLONG BitmapWriteBytes
+   AS DWORD BitmapWritesFlushForLogFileFull
+   AS DWORD BitmapWritesLazyWriter
+   AS DWORD BitmapWritesUserRequest
+   type BitmapWritesUserLevel
+      AS DWORD Write
+      AS DWORD Create
+      AS DWORD SetInfo
+      AS DWORD Flush
+   end type
+   AS DWORDLONG MftBitmapReads
+   AS DWORDLONG MftBitmapReadBytes
+   AS DWORDLONG MftBitmapWrites
+   AS DWORDLONG MftBitmapWriteBytes
+   AS DWORD MftBitmapWritesFlushForLogFileFull
+   AS DWORD MftBitmapWritesLazyWriter
+   AS DWORD MftBitmapWritesUserRequest
+   type MftBitmapWritesUserLevel
+      AS DWORD Write
+      AS DWORD Create
+      AS DWORD SetInfo
+      AS DWORD Flush
+   end type
+   AS DWORDLONG UserIndexReads
+   AS DWORDLONG UserIndexReadBytes
+   AS DWORDLONG UserIndexWrites
+   AS DWORDLONG UserIndexWriteBytes
+   ' // Additions for NT 5.0
+   AS DWORDLONG LogFileReads
+   AS DWORDLONG LogFileReadBytes
+   AS DWORDLONG LogFileWrites
+   AS DWORDLONG LogFileWriteBytes
+   type Allocate
+      AS DWORD Calls                    ' // number of individual calls to allocate clusters
+      AS DWORD RunsReturned             ' // number of runs used to satisfy all the requests
+      AS DWORD Hints                    ' // number of times a hint was specified
+      AS DWORD HintsHonored             ' // number of times the hint was useful
+      AS DWORD Cache                    ' // number of times the cache was useful other than the hint
+      AS DWORD CacheMiss                ' // number of times the cache wasn't useful
+      AS DWORDLONG Clusters             ' // number of clusters allocated
+      AS DWORDLONG HintsClusters        ' // number of clusters allocated via the hint
+      AS DWORDLONG CacheClusters        ' // number of clusters allocated via the cache other than the hint
+      AS DWORDLONG CacheMissClusters    ' // number of clusters allocated without the cache
+   end type
+   ' //  Additions for Windows 8.1
+   AS DWORD DiskResourcesExhausted
+   ' //  Additions for Windows 10
+   AS DWORDLONG VolumeTrimCount
+   AS DWORDLONG VolumeTrimTime
+   AS DWORDLONG VolumeTrimByteCount
+   AS DWORDLONG FileLevelTrimCount
+   AS DWORDLONG FileLevelTrimTime
+   AS DWORDLONG FileLevelTrimByteCount
+   AS DWORDLONG VolumeTrimSkippedCount
+   AS DWORDLONG VolumeTrimSkippedByteCount
+   ' //  Additions for NtfsFillStatInfoFromMftRecord
+   AS DWORDLONG NtfsFillStatInfoFromMftRecordCalledCount
+   AS DWORDLONG NtfsFillStatInfoFromMftRecordBailedBecauseOfAttributeListCount
+   AS DWORDLONG NtfsFillStatInfoFromMftRecordBailedBecauseOfNonResReparsePointCount
+end type
+type NTFS_STATISTICS_EX AS _NTFS_STATISTICS_EX
+type PNTFS_STATISTICS_EX AS _NTFS_STATISTICS_EX PTR
+
+type _FILE_ZERO_DATA_INFORMATION_EX
+   AS LARGE_INTEGER FileOffset
+   AS LARGE_INTEGER BeyondFinalZero
+   AS DWORD Flags
+end type
+type PFILE_ZERO_DATA_INFORMATION_EX AS _FILE_ZERO_DATA_INFORMATION_EX PTR
+
+'//  When set tells the file system to not purge the cache for the given range  being zeroed
+#define FILE_ZERO_DATA_INFORMATION_FLAG_PRESERVE_CACHED_DATA       (&h00000001)
+
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+
+'//  Extended encryption structure for read/write raw encrypted operations.
+
+#define ENCRYPTED_DATA_INFO_SPARSE_FILE        &h00000001
+#define ENCRYPTED_DATA_INFO_SPARSE_DATA        &h00000002
+#define ENCRYPTED_DATA_INFO_4K_SPARSE_UNIT     &h00000004
+
+type _EXTENDED_ENCRYPTED_DATA_INFO
+   AS DWORD ExtendedCode
+   AS DWORD Length
+   AS DWORD Flags
+   AS DWORD Reserved
+end type
+
+'#endif /*(_WIN32_WINNT >= _WIN32_WINNT_WIN7)*/
+
+'//===================== FSCTL_INITIATE_REPAIR ========================
+'//  Optional output structure for FSCTL_INITIATE_REPAIR
+
+#define FILE_INITIATE_REPAIR_HINT1_FILE_RECORD_NOT_IN_USE                               (&h0000000000000001)
+#define FILE_INITIATE_REPAIR_HINT1_FILE_RECORD_REUSED                                   (&h0000000000000002)
+#define FILE_INITIATE_REPAIR_HINT1_FILE_RECORD_NOT_EXIST                                (&h0000000000000004)
+#define FILE_INITIATE_REPAIR_HINT1_FILE_RECORD_NOT_BASE_RECORD                          (&h0000000000000008)
+#define FILE_INITIATE_REPAIR_HINT1_SYSTEM_FILE                                          (&h0000000000000010)
+#define FILE_INITIATE_REPAIR_HINT1_NOT_IMPLEMENTED                                      (&h0000000000000020)
+#define FILE_INITIATE_REPAIR_HINT1_UNABLE_TO_REPAIR                                     (&h0000000000000040)
+#define FILE_INITIATE_REPAIR_HINT1_REPAIR_DISABLED                                      (&h0000000000000080)
+#define FILE_INITIATE_REPAIR_HINT1_RECURSIVELY_CORRUPTED                                (&h0000000000000100)
+#define FILE_INITIATE_REPAIR_HINT1_ORPHAN_GENERATED                                     (&h0000000000000200)
+#define FILE_INITIATE_REPAIR_HINT1_REPAIRED                                             (&h0000000000000400)
+#define FILE_INITIATE_REPAIR_HINT1_NOTHING_WRONG                                        (&h0000000000000800)
+#define FILE_INITIATE_REPAIR_HINT1_ATTRIBUTE_NOT_FOUND                                  (&h0000000000001000)
+#define FILE_INITIATE_REPAIR_HINT1_POTENTIAL_CROSSLINK                                  (&h0000000000002000)
+#define FILE_INITIATE_REPAIR_HINT1_STALE_INFORMATION                                    (&h0000000000004000)
+#define FILE_INITIATE_REPAIR_HINT1_CLUSTERS_ALREADY_IN_USE                              (&h0000000000008000)
+#define FILE_INITIATE_REPAIR_HINT1_LCN_NOT_EXIST                                        (&h0000000000010000)
+#define FILE_INITIATE_REPAIR_HINT1_INVALID_RUN_LENGTH                                   (&h0000000000020000)
+#define FILE_INITIATE_REPAIR_HINT1_FILE_RECORD_NOT_ORPHAN                               (&h0000000000040000)
+#define FILE_INITIATE_REPAIR_HINT1_FILE_RECORD_IS_BASE_RECORD                           (&h0000000000080000)
+#define FILE_INITIATE_REPAIR_HINT1_INVALID_ARRAY_LENGTH_COUNT                           (&h0000000000100000)
+#define FILE_INITIATE_REPAIR_HINT1_SID_VALID                                            (&h0000000000200000)
+#define FILE_INITIATE_REPAIR_HINT1_SID_MISMATCH                                         (&h0000000000400000)
+#define FILE_INITIATE_REPAIR_HINT1_INVALID_PARENT                                       (&h0000000000800000)
+#define FILE_INITIATE_REPAIR_HINT1_PARENT_FILE_RECORD_NOT_IN_USE                        (&h0000000001000000)
+#define FILE_INITIATE_REPAIR_HINT1_PARENT_FILE_RECORD_REUSED                            (&h0000000002000000)
+#define FILE_INITIATE_REPAIR_HINT1_PARENT_FILE_RECORD_NOT_EXIST                         (&h0000000004000000)
+#define FILE_INITIATE_REPAIR_HINT1_PARENT_FILE_RECORD_NOT_BASE_RECORD                   (&h0000000008000000)
+#define FILE_INITIATE_REPAIR_HINT1_PARENT_FILE_RECORD_NOT_INDEX                         (&h0000000010000000)
+#define FILE_INITIATE_REPAIR_HINT1_VALID_INDEX_ENTRY                                    (&h0000000020000000)
+#define FILE_INITIATE_REPAIR_HINT1_OUT_OF_GENERIC_NAMES                                 (&h0000000040000000)
+#define FILE_INITIATE_REPAIR_HINT1_OUT_OF_RESOURCE                                      (&h0000000080000000)
+#define FILE_INITIATE_REPAIR_HINT1_INVALID_LCN                                          (&h0000000100000000)
+#define FILE_INITIATE_REPAIR_HINT1_INVALID_VCN                                          (&h0000000200000000)
+#define FILE_INITIATE_REPAIR_HINT1_NAME_CONFLICT                                        (&h0000000400000000)
+#define FILE_INITIATE_REPAIR_HINT1_ORPHAN                                               (&h0000000800000000)
+#define FILE_INITIATE_REPAIR_HINT1_ATTRIBUTE_TOO_SMALL                                  (&h0000001000000000)
+#define FILE_INITIATE_REPAIR_HINT1_ATTRIBUTE_NON_RESIDENT                               (&h0000002000000000)
+#define FILE_INITIATE_REPAIR_HINT1_DENY_DEFRAG                                          (&h0000004000000000)
+#define FILE_INITIATE_REPAIR_HINT1_PREVIOUS_PARENT_STILL_VALID                          (&h0000008000000000)
+#define FILE_INITIATE_REPAIR_HINT1_INDEX_ENTRY_MISMATCH                                 (&h0000010000000000)
+#define FILE_INITIATE_REPAIR_HINT1_INVALID_ORPHAN_RECOVERY_NAME                         (&h0000020000000000)
+#define FILE_INITIATE_REPAIR_HINT1_MULTIPLE_FILE_NAME_ATTRIBUTES                        (&h0000040000000000)
+
+'//  We need to expose CLSN definition???????????????
+type CLSN AS DWORDLONG
+
+type _FILE_INITIATE_REPAIR_OUTPUT_BUFFER
+   AS DWORDLONG Hint1
+   AS DWORDLONG Hint2
+   AS CLSN Clsn
+   AS DWORD    Status
+end type
+type PFILE_INITIATE_REPAIR_OUTPUT_BUFFER AS _FILE_INITIATE_REPAIR_OUTPUT_BUFFER PTR
+
+'//==================== FSCTL_QUERY_PERSISTENT_VOLUME_STATE ====================
+'//==================== FSCTL_SET_PERSISTENT_VOLUME_STATE ======================
+'// Structure for FSCTL_SET_PERSISTENT_VOLUME_STATE and
+'//  FSCTL_GET_PERSISTENT_VOLUME_STATE.  The initial version will be 1.0
+
+type _FILE_FS_PERSISTENT_VOLUME_INFORMATION
+   AS DWORD VolumeFlags
+   AS DWORD FlagMask
+   AS DWORD Version
+   AS DWORD Reserved
+end type
+type PFILE_FS_PERSISTENT_VOLUME_INFORMATION AS _FILE_FS_PERSISTENT_VOLUME_INFORMATION
+
+
+'//  VolumeFlags values
+
+#define PERSISTENT_VOLUME_STATE_SHORT_NAME_CREATION_DISABLED        (&h00000001)
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+
+#define PERSISTENT_VOLUME_STATE_VOLUME_SCRUB_DISABLED               (&h00000002)
+
+'#endif  /* (_WIN32_WINNT >= _WIN32_WINNT_WIN8) */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINBLUE)
+'//  Persistent volume flags to control the file system's storage tiering
+'//  awareness.
+
+#define PERSISTENT_VOLUME_STATE_GLOBAL_METADATA_NO_SEEK_PENALTY     (&h00000004)
+#define PERSISTENT_VOLUME_STATE_LOCAL_METADATA_NO_SEEK_PENALTY      (&h00000008)
+#define PERSISTENT_VOLUME_STATE_NO_HEAT_GATHERING                   (&h00000010)
+
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WINBLUE) */
+
+
+'//  These are flags that define a volume's dependency on WimBoot file.
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+
+#define PERSISTENT_VOLUME_STATE_CONTAINS_BACKING_WIM                (&h00000020)
+#define PERSISTENT_VOLUME_STATE_BACKED_BY_WIM                       (&h00000040)
+
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WIN7) */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD)
+
+'//  Writes dynamic redirection on tiered volumes will be disabled
+
+#define PERSISTENT_VOLUME_STATE_NO_WRITE_AUTO_TIERING               (&h00000080)
+
+'#endif // #if (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD)
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD)
+
+'//  Disable txf on volume
+
+#define PERSISTENT_VOLUME_STATE_TXF_DISABLED                        (&h00000100)
+
+'#endif // #if (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD)
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS5)
+
+'//  Always reallocate data writes
+
+#define PERSISTENT_VOLUME_STATE_REALLOCATE_ALL_DATA_WRITES          (&h00000200)
+
+'#endif // #if (NTDDI_VERSION >= NTDDI_WIN10_RS5)
+
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_MN)
+
+#define PERSISTENT_VOLUME_STATE_CHKDSK_RAN_ONCE                     (&h00000400)
+#define PERSISTENT_VOLUME_STATE_MODIFIED_BY_CHKDSK                  (&h00000800)
+#define PERSISTENT_VOLUME_STATE_DAX_FORMATTED                       (&h00001000)
+
+'#endif // #if (NTDDI_VERSION >= NTDDI_WIN10_MN)
+
+'#if (NTDDI_VERSION >= NTDDI_WIN11_ZN)
+
+#define PERSISTENT_VOLUME_STATE_DEV_VOLUME                          (&h00002000)
+#define PERSISTENT_VOLUME_STATE_TRUSTED_VOLUME                      (&h00004000)
+
+'#endif // #if (NTDDI_VERSION >= NTDDI_WIN11_ZN)
+
+
+'//=========================== FSCTL_REQUEST_OPLOCK ===========================
+'//  Structures for FSCTL_REQUEST_OPLOCK
+
+#define OPLOCK_LEVEL_CACHE_READ         (&h00000001)
+#define OPLOCK_LEVEL_CACHE_HANDLE       (&h00000002)
+#define OPLOCK_LEVEL_CACHE_WRITE        (&h00000004)
+
+#define REQUEST_OPLOCK_INPUT_FLAG_REQUEST               (&h00000001)
+#define REQUEST_OPLOCK_INPUT_FLAG_ACK                   (&h00000002)
+#define REQUEST_OPLOCK_INPUT_FLAG_COMPLETE_ACK_ON_CLOSE (&h00000004)
+
+#define REQUEST_OPLOCK_CURRENT_VERSION          1
+
+#define REQUEST_OPLOCK_OUTPUT_FLAG_ACK_REQUIRED                 (&h00000001)
+#define REQUEST_OPLOCK_OUTPUT_FLAG_MODES_PROVIDED               (&h00000002)
+
+#if (NTDDI_VERSION >= NTDDI_WIN10_CU)
+'// If the oplock request fails with STATUS_OPLOCK_NOT_GRANTED, this flag indicates that the oplock
+'// could not be granted due to the presence of a writable user-mapped section.
+#define REQUEST_OPLOCK_OUTPUT_FLAG_WRITABLE_SECTION_PRESENT     (&h00000004)
+#endif
+
+'//======================= FSCTL_QUERY_DEPENDENT_VOLUME =======================
+
+#ifndef _VIRTUAL_STORAGE_TYPE
+type _VIRTUAL_STORAGE_TYPE
+   AS DWORD DeviceId
+   AS GUID  VendorId
+end type
+type PVIRTUAL_STORAGE_TYPE AS VIRTUAL_STORAGE_TYPE PTR
+#endif
+
+'//  These structures are used by the FSCTL_QUERY_DEPENDENT_VOLUME
+
+type _STORAGE_QUERY_DEPENDENT_VOLUME_REQUEST
+   AS DWORD   RequestLevel
+   AS DWORD   RequestFlags
+end type
+type PSTORAGE_QUERY_DEPENDENT_VOLUME_REQUEST AS STORAGE_QUERY_DEPENDENT_VOLUME_REQUEST
+
+#define QUERY_DEPENDENT_VOLUME_REQUEST_FLAG_HOST_VOLUMES    &h1
+#define QUERY_DEPENDENT_VOLUME_REQUEST_FLAG_GUEST_VOLUMES   &h2
+
+type _STORAGE_QUERY_DEPENDENT_VOLUME_LEV1_ENTRY
+   AS DWORD   EntryLength
+   AS DWORD   DependencyTypeFlags
+   AS DWORD   ProviderSpecificFlags
+   AS VIRTUAL_STORAGE_TYPE VirtualStorageType
+end type
+type STORAGE_QUERY_DEPENDENT_VOLUME_LEV1_ENTRY AS _STORAGE_QUERY_DEPENDENT_VOLUME_LEV1_ENTRY
+type PSTORAGE_QUERY_DEPENDENT_VOLUME_LEV1_ENTRY AS _STORAGE_QUERY_DEPENDENT_VOLUME_LEV1_ENTRY
+
+type _STORAGE_QUERY_DEPENDENT_VOLUME_LEV2_ENTRY
+   AS DWORD   EntryLength
+   AS DWORD   DependencyTypeFlags
+   AS DWORD   ProviderSpecificFlags
+   AS VIRTUAL_STORAGE_TYPE VirtualStorageType
+   AS DWORD   AncestorLevel      ' // Root parent is 0, every child level after that is incremented
+   AS DWORD   HostVolumeNameOffset
+   AS DWORD   HostVolumeNameSize
+   AS DWORD   DependentVolumeNameOffset
+   AS DWORD   DependentVolumeNameSize
+   AS DWORD   RelativePathOffset
+   AS DWORD   RelativePathSize
+   AS DWORD   DependentDeviceNameOffset
+   AS DWORD   DependentDeviceNameSize
+end type
+type STORAGE_QUERY_DEPENDENT_VOLUME_LEV2_ENTRY AS _STORAGE_QUERY_DEPENDENT_VOLUME_LEV2_ENTRY
+type PSTORAGE_QUERY_DEPENDENT_VOLUME_LEV2_ENTRY AS _STORAGE_QUERY_DEPENDENT_VOLUME_LEV2_ENTRY PTR
+
+type _STORAGE_QUERY_DEPENDENT_VOLUME_RESPONSE
+   AS DWORD   ResponseLevel
+   AS DWORD   NumberEntries
+   union
+      AS STORAGE_QUERY_DEPENDENT_VOLUME_LEV1_ENTRY Lev1Depends(0)
+      AS STORAGE_QUERY_DEPENDENT_VOLUME_LEV2_ENTRY Lev2Depends(0)
+   end union
+end type
+type PSTORAGE_QUERY_DEPENDENT_VOLUME_RESPONSE AS STORAGE_QUERY_DEPENDENT_VOLUME_RESPONSE
+
+'#endif
+
+'//========================== FSCTL_SD_GLOBAL_CHANGE ==========================
+'//  Structures for FSCTL_SD_GLOBAL_CHANGE
+
+'//  list of operations supported
+
+#define SD_GLOBAL_CHANGE_TYPE_MACHINE_SID   1
+#define SD_GLOBAL_CHANGE_TYPE_QUERY_STATS   (1 shl 16)
+#define SD_GLOBAL_CHANGE_TYPE_ENUM_SDS      (2 shl16)
+
+'//  Operation specific structures for SD_GLOBAL_CHANGE_TYPE_MACHINE_SID
+type _SD_CHANGE_MACHINE_SID_INPUT
+   AS WORD   CurrentMachineSIDOffset
+   AS WORD   CurrentMachineSIDLength
+   AS WORD   NewMachineSIDOffset
+   AS WORD   NewMachineSIDLength
+end type
+type SD_CHANGE_MACHINE_SID_INPUT AS _SD_CHANGE_MACHINE_SID_INPUT
+type PSD_CHANGE_MACHINE_SID_INPUT AS _SD_CHANGE_MACHINE_SID_INPUT PTR
+
+type _SD_CHANGE_MACHINE_SID_OUTPUT
+   AS DWORDLONG NumSDChangedSuccess
+   AS DWORDLONG NumSDChangedFail
+   AS DWORDLONG NumSDUnused
+   AS DWORDLONG NumSDTotal
+   AS DWORDLONG NumMftSDChangedSuccess
+   AS DWORDLONG NumMftSDChangedFail
+   AS DWORDLONG NumMftSDTotal
+end type
+type SD_CHANGE_MACHINE_SID_OUTPUT AS _SD_CHANGE_MACHINE_SID_OUTPUT
+type PSD_CHANGE_MACHINE_SID_OUTPUT AS _SD_CHANGE_MACHINE_SID_OUTPUT PTR
+
+'//  Operation specific structures for SD_GLOBAL_CHANGE_TYPE_QUERY_STATS
+type _SD_QUERY_STATS_INPUT
+   AS DWORD Reserved
+end type
+type SD_QUERY_STATS_INPUT AS _SD_QUERY_STATS_INPUT
+type PSD_QUERY_STATS_INPUT AS _SD_QUERY_STATS_INPUT PTR
+
+
+type _SD_QUERY_STATS_OUTPUT
+   AS DWORDLONG SdsStreamSize
+   AS DWORDLONG SdsAllocationSize
+   AS DWORDLONG SiiStreamSize
+   AS DWORDLONG SiiAllocationSize
+   AS DWORDLONG SdhStreamSize
+   AS DWORDLONG SdhAllocationSize
+   AS DWORDLONG NumSDTotal
+   AS DWORDLONG NumSDUnused
+end type
+type SD_QUERY_STATS_OUTPUT AS _SD_QUERY_STATS_OUTPUT
+type PSD_QUERY_STATS_OUTPUT AS _SD_QUERY_STATS_OUTPUT PTR
+
+'//  Operation specific structures for SD_GLOBAL_CHANGE_TYPE_ENUM_SDS
+type _SD_ENUM_SDS_INPUT
+   AS DWORDLONG StartingOffset
+   AS DWORDLONG MaxSDEntriesToReturn
+end type
+type SD_ENUM_SDS_INPUT AS _SD_ENUM_SDS_INPUT
+type PSD_ENUM_SDS_INPUT AS _SD_ENUM_SDS_INPUT PTR
+
+type _SD_ENUM_SDS_ENTRY
+   AS DWORD Hash
+   AS DWORD SecurityId
+   AS DWORDLONG Offset
+   AS DWORD Length
+   AS BYTE  Descriptor(0)
+end type
+type SD_ENUM_SDS_ENTRY AS _SD_ENUM_SDS_ENTRY
+type PSD_ENUM_SDS_ENTRY AS _SD_ENUM_SDS_ENTRY PTR
+
+type _SD_ENUM_SDS_OUTPUT
+   AS DWORDLONG NextOffset
+   AS DWORDLONG NumSDEntriesReturned
+   AS DWORDLONG NumSDBytesReturned
+   AS SD_ENUM_SDS_ENTRY SDEntry(0)
+end type
+type SD_ENUM_SDS_OUTPUT AS _SD_ENUM_SDS_OUTPUT
+type PSD_ENUM_SDS_OUTPUT AS _SD_ENUM_SDS_OUTPUT PTR
+
+'//  Generic INPUT & OUTPUT structures for FSCTL_SD_GLOBAL_CHANGE
+type _SD_GLOBAL_CHANGE_INPUT
+   AS DWORD Flags
+   AS DWORD ChangeType
+   union
+      AS SD_CHANGE_MACHINE_SID_INPUT SdChange
+      AS SD_QUERY_STATS_INPUT SdQueryStats
+      AS SD_ENUM_SDS_INPUT SdEnumSds
+   end union
+end type
+type SD_GLOBAL_CHANGE_INPUT AS _SD_GLOBAL_CHANGE_INPUT
+type PSD_GLOBAL_CHANGE_INPUT AS _SD_GLOBAL_CHANGE_INPUT PTR
+
+type _SD_GLOBAL_CHANGE_OUTPUT
+   AS DWORD Flags
+   AS DWORD ChangeType
+   union
+      AS SD_CHANGE_MACHINE_SID_OUTPUT SdChange
+      AS SD_QUERY_STATS_OUTPUT SdQueryStats
+      AS SD_ENUM_SDS_OUTPUT SdEnumSds
+   end union
+end type
+type SD_GLOBAL_CHANGE_OUTPUT AS _SD_GLOBAL_CHANGE_OUTPUT
+type PSD_GLOBAL_CHANGE_OUTPUT AS _SD_GLOBAL_CHANGE_OUTPUT PTR
+
+'//==================== FSCTL_FILE_TYPE_NOTIFICATION =======================
+'//  This is the structure for the FSCTL_FILE_TYPE_NOTIFICATION operation.
+'//  Its purpose is to notify the storage stack about the extents of certain
+'//  types of files.  This is only callable from kernel mode
+
+type _FILE_TYPE_NOTIFICATION_INPUT
+   AS DWORD Flags
+   AS DWORD NumFileTypeIDs
+   AS GUID FileTypeID(0)
+end type
+type FILE_TYPE_NOTIFICATION_INPUT AS _FILE_TYPE_NOTIFICATION_INPUT
+type PFILE_TYPE_NOTIFICATION_INPUT AS _FILE_TYPE_NOTIFICATION_INPUT PTR
+
+'//  Flags for the given operation
+#define FILE_TYPE_NOTIFICATION_FLAG_USAGE_BEGIN     &h00000001      ' // Set when adding the specified usage on the given file
+#define FILE_TYPE_NOTIFICATION_FLAG_USAGE_END       &h00000002      ' // Set when removing the specified usage on the given file
+
+'//  These are the globally defined file types
+'DEFINE_GUID( FILE_TYPE_NOTIFICATION_GUID_PAGE_FILE, &h0d0a64a1, &h38fc, &h4db8, &h9f, &he7, &h3f, &h43, &h52, &hcd, &h7c, &h5c )
+'DEFINE_GUID( FILE_TYPE_NOTIFICATION_GUID_HIBERNATION_FILE, &hb7624d64, &hb9a3, &h4cf8, &h80, &h11, &h5b, &h86, &hc9, &h40, &he7, &hb7 )
+'DEFINE_GUID( FILE_TYPE_NOTIFICATION_GUID_CRASHDUMP_FILE, &h9d453eb7, &hd2a6, &h4dbd, &ha2, &he3, &hfb, &hd0, &hed, &h91, &h09, &ha9 )
+DIM SHARED FILE_TYPE_NOTIFICATION_GUID_PAGE_FILE AS GUID        = TYPE<GUID>(&h0d0a64a1, &h38fc, &h4db8, {&h9f, &he7, &h3f, &h43, &h52, &hcd, &h7c, &h5c})
+DIM SHARED FILE_TYPE_NOTIFICATION_GUID_HIBERNATION_FILE AS GUID = TYPE<GUID>(&hb7624d64, &hb9a3, &h4cf8, {&h80, &h11, &h5b, &h86, &hc9, &h40, &he7, &hb7})
+DIM SHARED FILE_TYPE_NOTIFICATION_GUID_CRASHDUMP_FILE AS GUID   = TYPE<GUID>(&h9d453eb7, &hd2a6, &h4dbd, {&ha2, &he3, &hfb, &hd0, &hed, &h91, &h09, &ha9})
+
+'//=========================FSCTL_CSV_MGMT_LOCK===========================
+#define CSV_MGMTLOCK_CHECK_VOLUME_REDIRECTED &h00000001
+type _CSV_MGMT_LOCK
+   AS DWORD      Flags
+end type
+type CSV_MGMT_LOCK AS _CSV_MGMT_LOCK
+type PCSV_MGMT_LOCK AS _CSV_MGMT_LOCK PTR
+
+'//========================= FSCTL_IS_CSV_FILE ============================
+'// Structure for FSCTL_IS_CSV_FILE
+type _CSV_NAMESPACE_INFO
+   AS DWORD         Version
+   AS DWORD         DeviceNumber
+   AS LARGE_INTEGER StartingOffset
+   AS DWORD         SectorSize
+end type
+type CSV_NAMESPACE_INFO AS _CSV_NAMESPACE_INFO
+type PCSV_NAMESPACE_INFO AS _CSV_NAMESPACE_INFO PTR
+
+#define CSV_NAMESPACE_INFO_V1 (sizeof(CSV_NAMESPACE_INFO))
+#define CSV_INVALID_DEVICE_NUMBER &hFFFFFFFF
+
+'//========================= FSCTL_CSV_CONTROL =============================
+
+enum _CSV_CONTROL_OP 
+   CsvControlStartRedirectFile                  = &h02
+   CsvControlStopRedirectFile                   = &h03
+   CsvControlQueryRedirectState                 = &h04
+   CsvControlQueryFileRevision                  = &h06
+   CsvControlQueryMdsPath                       = &h08
+   CsvControlQueryFileRevisionFileId128         = &h09
+   CsvControlQueryVolumeRedirectState           = &h0a
+   CsvControlEnableUSNRangeModificationTracking = &h0d
+   CsvControlMarkHandleLocalVolumeMount         = &h0e
+   CsvControlUnmarkHandleLocalVolumeMount       = &h0f
+   CsvControlGetCsvFsMdsPathV2                  = &h12
+   CsvControlDisableCaching                     = &h13
+   CsvControlEnableCaching                      = &h14
+   CsvControlStartForceDFO                      = &h15
+   CsvControlStopForceDFO                       = &h16
+   CsvControlQueryMdsPathNoPause                = &h17
+   CsvControlSetVolumeId                        = &h18
+   CsvControlQueryVolumeId                      = &h19
+end enum
+type CSV_CONTROL_OP AS _CSV_CONTROL_OP
+type PCSV_CONTROL_OP AS _CSV_CONTROL_OP PTR
+
+type _CSV_CONTROL_PARAM
+   AS CSV_CONTROL_OP Operation
+   AS LONGLONG Unused
+end type
+type CSV_CONTROL_PARAM AS _CSV_CONTROL_PARAM
+type PCSV_CONTROL_PARAM AS _CSV_CONTROL_PARAM PTR
+
+'// Output for the CsvControlQueryRedirectState
+type _CSV_QUERY_REDIRECT_STATE
+   AS DWORD MdsNodeId
+   AS DWORD DsNodeId
+   AS WINBOOLEAN FileRedirected
+end type
+type CSV_QUERY_REDIRECT_STATE AS _CSV_QUERY_REDIRECT_STATE
+type PCSV_QUERY_REDIRECT_STATE AS _CSV_QUERY_REDIRECT_STATE PTR
+
+'// Output for the CsvControlQueryFileRevision
+'// Note that revision tracking is per file, and not per
+'// stream so it changes every time one of the stream
+'// changes.
+type _CSV_QUERY_FILE_REVISION
+   AS LONGLONG FileId
+   AS LONGLONG FileRevision(0 TO 2)
+end type
+type CSV_QUERY_FILE_REVISION AS _CSV_QUERY_FILE_REVISION
+type PCSV_QUERY_FILE_REVISION AS _CSV_QUERY_FILE_REVISION PTR
+
+'// Output for the CsvControlQueryFileRevisionFileId128
+'// Note that revision tracking is per file, and not per
+'// stream so it changes every time one of the stream
+'// changes.
+type _CSV_QUERY_FILE_REVISION_FILE_ID_128
+   AS FILE_ID_128 FileId
+   AS LONGLONG FileRevision(0 TO 2)
+end type
+type CSV_QUERY_FILE_REVISION_FILE_ID_128 AS _CSV_QUERY_FILE_REVISION_FILE_ID_128
+type PCSV_QUERY_FILE_REVISION_FILE_ID_128 AS _CSV_QUERY_FILE_REVISION_FILE_ID_128 PTR
+
+'// Output for the CsvControlQueryMdsPath
+'// This control returns the path that is used by CSV to
+'// communicate to the MDS
+type _CSV_QUERY_MDS_PATH
+   AS DWORD MdsNodeId
+   AS DWORD DsNodeId
+   AS DWORD PathLength
+   AS WSTRING * 1 Path
+end type
+type CSV_QUERY_MDS_PATH AS _CSV_QUERY_MDS_PATH
+type PCSV_QUERY_MDS_PATH AS _CSV_QUERY_MDS_PATH PTR
+
+enum _CSVFS_DISK_CONNECTIVITY
+   CsvFsDiskConnectivityNone          = 0
+   CsvFsDiskConnectivityMdsNodeOnly   = 1
+   CsvFsDiskConnectivitySubsetOfNodes = 2
+   CsvFsDiskConnectivityAllNodes      = 3
+end enum
+type CSVFS_DISK_CONNECTIVITY AS _CSVFS_DISK_CONNECTIVITY
+type PCSVFS_DISK_CONNECTIVITY AS _CSVFS_DISK_CONNECTIVITY PTR
+
+'// Output for the CsvControlQueryVolumeRedirectState
+type _CSV_QUERY_VOLUME_REDIRECT_STATE
+   AS DWORD MdsNodeId
+   AS DWORD DsNodeId
+   AS WINBOOLEAN IsDiskConnected
+   AS WINBOOLEAN ClusterEnableDirectIo
+   AS CSVFS_DISK_CONNECTIVITY DiskConnectivity
+end type
+type CSV_QUERY_VOLUME_REDIRECT_STATE AS _CSV_QUERY_VOLUME_REDIRECT_STATE
+type PCSV_QUERY_VOLUME_REDIRECT_STATE AS _CSV_QUERY_VOLUME_REDIRECT_STATE PTR
+
+'// Structure is defined up to and including field PathLength
+#define CSV_QUERY_MDS_PATH_V2_VERSION_1 1
+
+#define CSV_QUERY_MDS_PATH_FLAG_STORAGE_ON_THIS_NODE_IS_CONNECTED &h1
+#define CSV_QUERY_MDS_PATH_FLAG_CSV_DIRECT_IO_ENABLED             &h2
+#define CSV_QUERY_MDS_PATH_FLAG_SMB_BYPASS_CSV_ENABLED            &h4
+
+'// Output for the CsvControlGetCsvFsMdsPathV2
+type _CSV_QUERY_MDS_PATH_V2
+   AS LONGLONG Version
+   AS DWORD RequiredSize
+   AS DWORD MdsNodeId
+   AS DWORD DsNodeId
+   AS DWORD Flags
+   AS CSVFS_DISK_CONNECTIVITY DiskConnectivity
+   AS GUID VolumeId
+   AS DWORD IpAddressOffset
+   AS DWORD IpAddressLength
+   AS DWORD PathOffset
+   AS DWORD PathLength
+end type
+type CSV_QUERY_MDS_PATH_V2 AS _CSV_QUERY_MDS_PATH_V2
+type PCSV_QUERY_MDS_PATH_V2 AS _CSV_QUERY_MDS_PATH_V2 PTR
+
+'// Input for the CsvControlSetVolumeId
+type _CSV_SET_VOLUME_ID
+   AS GUID VolumeId
+end type
+type CSV_SET_VOLUME_ID AS _CSV_SET_VOLUME_ID
+type PCSV_SET_VOLUME_ID AS _CSV_SET_VOLUME_ID PTR
+
+'// Output for the CsvControlQueryVolumeId
+type _CSV_QUERY_VOLUME_ID
+   AS GUID VolumeId
+end type
+type CSV_QUERY_VOLUME_ID AS _CSV_QUERY_VOLUME_ID
+type PCSV_QUERY_VOLUME_ID AS _CSV_QUERY_VOLUME_ID PTR
+
+'//========================= FSCTL_LMR_QUERY_INFO =============================
+
+enum _LMR_QUERY_INFO_CLASS
+   LMRQuerySessionInfo = 1
+end enum
+type LMR_QUERY_INFO_CLASS AS _LMR_QUERY_INFO_CLASS
+type PLMR_QUERY_INFO_CLASS AS _LMR_QUERY_INFO_CLASS PTR
+
+type _LMR_QUERY_INFO_PARAM
+   AS LMR_QUERY_INFO_CLASS Operation
+end type
+type LMR_QUERY_INFO_PARAM AS _LMR_QUERY_INFO_PARAM
+type PLMR_QUERY_INFO_PARAM AS _LMR_QUERY_INFO_PARAM PTR
+
+'// Output for the LMRQuerySessionInfo
+type _LMR_QUERY_SESSION_INFO
+   AS UINT64 SessionId
+end type
+type LMR_QUERY_SESSION_INFO AS _LMR_QUERY_SESSION_INFO
+type PLMR_QUERY_SESSION_INFO AS _LMR_QUERY_SESSION_INFO PTR
+
+'//====================== FSCTL_CSV_QUERY_VETO_FILE_DIRECT_IO =========================
+'// In output buffer set Veto to TRUE to prevent CsvFs from
+'// performing DirectIO on the stream.
+'// VetoedFromAltitude and Reason are optional fields that
+'// are used to help with troubleshooting. CSV writes these
+'// strings to the diagnostic log. Filter can set it to a
+'// string that would hint why volume is in a redirected mode.
+
+type _CSV_QUERY_VETO_FILE_DIRECT_IO_OUTPUT
+   AS DWORDLONG VetoedFromAltitudeIntegral
+   AS DWORDLONG VetoedFromAltitudeDecimal
+   AS WSTRING * 256 Reason
+end type
+type CSV_QUERY_VETO_FILE_DIRECT_IO_OUTPUT AS _CSV_QUERY_VETO_FILE_DIRECT_IO_OUTPUT
+type PCSV_QUERY_VETO_FILE_DIRECT_IO_OUTPUT AS _CSV_QUERY_VETO_FILE_DIRECT_IO_OUTPUT PTR
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS5) || (NTDDI_VERSION >= NTDDI_WIN8) //Win8 check is for backward compatibility.
+'// Storage Reserve common definitions
+enum _STORAGE_RESERVE_ID
+   StorageReserveIdNone = 0
+   StorageReserveIdHard
+   StorageReserveIdSoft
+   StorageReserveIdUpdateScratch
+   StorageReserveIdMax
+end enum
+type STORAGE_RESERVE_ID AS _STORAGE_RESERVE_ID
+type PSTORAGE_RESERVE_ID AS _STORAGE_RESERVE_ID PTR
+'#endif /* (NTDDI_VERSION >= NTDDI_WIN10_RS5) */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+
+'//========================= FSCTL_IS_VOLUME_OWNED_BYCSVFS ============================
+
+type _CSV_IS_OWNED_BY_CSVFS
+   AS WINBOOLEAN OwnedByCSVFS
+end type
+type CSV_IS_OWNED_BY_CSVFS AS _CSV_IS_OWNED_BY_CSVFS
+type PCSV_IS_OWNED_BY_CSVFS AS _CSV_IS_OWNED_BY_CSVFS PTR
+'}CSV_IS_OWNED_BY_CSVFS, *PCSV_IS_OWNED_BY_CSVFS;
+
+'//======================== FSCTL_FILE_LEVEL_TRIM ===========================
+'//  Structure definitions for supporting file level trim
+
+type _FILE_LEVEL_TRIM_RANGE
+   AS DWORDLONG Offset
+   AS DWORDLONG Length
+end type
+type FILE_LEVEL_TRIM_RANGE AS _FILE_LEVEL_TRIM_RANGE
+type PFILE_LEVEL_TRIM_RANGE AS _FILE_LEVEL_TRIM_RANGE PTR
+
+'//  Input buffer defining what ranges to trim
+
+type _FILE_LEVEL_TRIM
+   AS DWORD Key
+   AS DWORD NumRanges
+   AS FILE_LEVEL_TRIM_RANGE Ranges(0)
+end type
+type FILE_LEVEL_TRIM AS _FILE_LEVEL_TRIM
+type PFILE_LEVEL_TRIM AS _FILE_LEVEL_TRIM PTR
+
+'//  This is an optional output buffer
+type _FILE_LEVEL_TRIM_OUTPUT
+   AS DWORD NumRangesProcessed
+end type
+type FILE_LEVEL_TRIM_OUTPUT AS _FILE_LEVEL_TRIM_OUTPUT
+type PFILE_LEVEL_TRIM_OUTPUT AS _FILE_LEVEL_TRIM_OUTPUT PTR
+
+'//==================== FSCTL_QUERY_FILE_LAYOUT ===========================
+'// Clear the state of the internal cursor.
+#define QUERY_FILE_LAYOUT_RESTART                                       (&h00000001)
+'//  Request that the API call retrieve name information for the
+'//  objects on the volume.
+#define QUERY_FILE_LAYOUT_INCLUDE_NAMES                                 (&h00000002)
+'//  Request that the API call include streams of the file.
+#define QUERY_FILE_LAYOUT_INCLUDE_STREAMS                               (&h00000004)
+'//  Include extent information with the attribute entries, where applicable.
+'//  Use of this flag requires the _INCLUDE_STREAMS flag.
+#define QUERY_FILE_LAYOUT_INCLUDE_EXTENTS                               (&h00000008)
+
+'//  Include extra information, such as modification times and security
+'//  IDs, with each returned file layout entry.
+#define QUERY_FILE_LAYOUT_INCLUDE_EXTRA_INFO                            (&h00000010)
+#define QUERY_FILE_LAYOUT_INCLUDE_STREAMS_WITH_NO_CLUSTERS_ALLOCATED    (&h00000020)
+#define QUERY_FILE_LAYOUT_INCLUDE_FULL_PATH_IN_NAMES                    (&h00000040)
+#define QUERY_FILE_LAYOUT_INCLUDE_STREAM_INFORMATION                    (&h00000080)
+#define QUERY_FILE_LAYOUT_INCLUDE_STREAM_INFORMATION_FOR_DSC_ATTRIBUTE  (&h00000100)
+#define QUERY_FILE_LAYOUT_INCLUDE_STREAM_INFORMATION_FOR_TXF_ATTRIBUTE  (&h00000200)
+#define QUERY_FILE_LAYOUT_INCLUDE_STREAM_INFORMATION_FOR_EFS_ATTRIBUTE  (&h00000400)
+#define QUERY_FILE_LAYOUT_INCLUDE_ONLY_FILES_WITH_SPECIFIC_ATTRIBUTES   (&h00000800)
+#define QUERY_FILE_LAYOUT_INCLUDE_FILES_WITH_DSC_ATTRIBUTE              (&h00001000)
+#define QUERY_FILE_LAYOUT_INCLUDE_STREAM_INFORMATION_FOR_DATA_ATTRIBUTE (&h00002000)
+#define QUERY_FILE_LAYOUT_INCLUDE_STREAM_INFORMATION_FOR_REPARSE_ATTRIBUTE  (&h00004000)
+#define QUERY_FILE_LAYOUT_INCLUDE_STREAM_INFORMATION_FOR_EA_ATTRIBUTE   (&h00008000)
+
+enum _QUERY_FILE_LAYOUT_FILTER_TYPE
+   QUERY_FILE_LAYOUT_FILTER_TYPE_NONE = 0,
+   QUERY_FILE_LAYOUT_FILTER_TYPE_CLUSTERS = 1,
+   QUERY_FILE_LAYOUT_FILTER_TYPE_FILEID = 2,
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS5)
+   QUERY_FILE_LAYOUT_FILTER_TYPE_STORAGE_RESERVE_ID = 3,
+'#endif /* (NTDDI_VERSION >= NTDDI_WIN10_RS5) */
+   QUERY_FILE_LAYOUT_NUM_FILTER_TYPES
+end enum
+type QUERY_FILE_LAYOUT_FILTER_TYPE AS _QUERY_FILE_LAYOUT_FILTER_TYPE
+
+type _CLUSTER_RANGE
+   AS LARGE_INTEGER       StartingCluster
+   AS LARGE_INTEGER       ClusterCount
+end type
+type CLUSTER_RANGE AS _CLUSTER_RANGE
+type PCLUSTER_RANGE AS _CLUSTER_RANGE PTR
+
+type _FILE_REFERENCE_RANGE
+   AS DWORDLONG           StartingFileReferenceNumber
+   AS DWORDLONG           EndingFileReferenceNumber
+end type
+type FILE_REFERENCE_RANGE AS _FILE_REFERENCE_RANGE
+type PFILE_REFERENCE_RANGE AS _FILE_REFERENCE_RANGE PTR
+
+type _QUERY_FILE_LAYOUT_INPUT
+   union
+      AS DWORD           FilterEntryCount
+      AS DWORD           NumberOfPairs
+   end union
+   AS DWORD               Flags
+   AS QUERY_FILE_LAYOUT_FILTER_TYPE   FilterType
+   AS DWORD               Reserved
+   union
+      AS CLUSTER_RANGE ClusterRanges(0)
+      AS FILE_REFERENCE_RANGE FileReferenceRanges(0)
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS5)
+      AS STORAGE_RESERVE_ID StorageReserveIds(0)
+'#endif /* (NTDDI_VERSION >= NTDDI_WIN10_RS5) */
+   end union
+end type
+'} QUERY_FILE_LAYOUT_INPUT, *PQUERY_FILE_LAYOUT_INPUT;
+
+'// Indicates that the filesystem is returning stream extents in a
+'// single-instanced fashion.
+#define QUERY_FILE_LAYOUT_SINGLE_INSTANCED                              (&h00000001)
+
+type _QUERY_FILE_LAYOUT_OUTPUT
+   AS DWORD               FileEntryCount
+   AS DWORD               FirstFileOffset
+   AS DWORD               Flags
+   AS DWORD               Reserved
+end type
+type QUERY_FILE_LAYOUT_OUTPUT AS _QUERY_FILE_LAYOUT_OUTPUT
+type PQUERY_FILE_LAYOUT_OUTPUT AS _QUERY_FILE_LAYOUT_OUTPUT PTR
+
+type _FILE_LAYOUT_ENTRY
+   AS DWORD         Version
+   AS DWORD         NextFileOffset
+   AS DWORD         Flags
+   AS DWORD         FileAttributes
+   AS DWORDLONG     FileReferenceNumber
+   AS DWORD         FirstNameOffset
+   AS DWORD         FirstStreamOffset
+   AS DWORD         ExtraInfoOffset
+'#if (NTDDI_VERSION < NTDDI_WIN10_RS5) && (NTDDI_VERSION < NTDDI_WIN10_RS1) //RS1  check is for backward compatibility.
+   AS DWORD         Reserved
+'#else
+   AS DWORD         ExtraInfoLength
+'#endif /* (NTDDI_VERSION < NTDDI_WIN10_RS5) */
+end type
+type FILE_LAYOUT_ENTRY AS _FILE_LAYOUT_ENTRY
+type PFILE_LAYOUT_ENTRY AS _FILE_LAYOUT_ENTRY PTR
+
+'// Each file name entry may be one, both, or neither of these.
+#define FILE_LAYOUT_NAME_ENTRY_PRIMARY                                  (&h00000001)
+#define FILE_LAYOUT_NAME_ENTRY_DOS                                      (&h00000002)
+
+type _FILE_LAYOUT_NAME_ENTRY
+   AS DWORD         NextNameOffset
+   AS DWORD         Flags
+   AS DWORDLONG     ParentFileReferenceNumber
+   AS DWORD         FileNameLength
+   AS DWORD         Reserved
+   AS WSTRING * 1 FileName
+end type
+type FILE_LAYOUT_NAME_ENTRY AS _FILE_LAYOUT_NAME_ENTRY
+type PFILE_LAYOUT_NAME_ENTRY AS _FILE_LAYOUT_NAME_ENTRY PTR
+
+type _FILE_LAYOUT_INFO_ENTRY
+   type BasicInformation
+      AS LARGE_INTEGER CreationTime
+      AS LARGE_INTEGER LastAccessTime
+      AS LARGE_INTEGER LastWriteTime
+      AS LARGE_INTEGER ChangeTime
+      AS DWORD FileAttributes
+   end type
+   AS DWORD OwnerId
+   AS DWORD SecurityId
+   AS USN   Usn
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS5) || (NTDDI_VERSION >= NTDDI_WIN10_RS1) //RS1 check is for backward compatibility.
+   AS STORAGE_RESERVE_ID  StorageReserveId
+'#endif /* (NTDDI_VERSION >= NTDDI_WIN10_RS5) */
+end type
+type FILE_LAYOUT_INFO_ENTRY AS _FILE_LAYOUT_INFO_ENTRY
+type PFILE_LAYOUT_INFO_ENTRY AS _FILE_LAYOUT_INFO_ENTRY PTR
+
+'// This attribute/stream is known to the filesystem to be immovable.
+#define STREAM_LAYOUT_ENTRY_IMMOVABLE                                   (&h00000001)
+'// This attribute/stream is currently pinned by another application.
+'// It is unmovable for the duration of the pin.
+#define STREAM_LAYOUT_ENTRY_PINNED                                      (&h00000002)
+'// This attribute is resident.
+#define STREAM_LAYOUT_ENTRY_RESIDENT                                    (&h00000004)
+'// This attribute has no clusters allocated to it.
+#define STREAM_LAYOUT_ENTRY_NO_CLUSTERS_ALLOCATED                       (&h00000008)
+'// This layout entry contains the information (data) for the attribute
+#define STREAM_LAYOUT_ENTRY_HAS_INFORMATION                             (&h00000010)
+
+type _STREAM_LAYOUT_ENTRY
+   AS DWORD         Version
+   AS DWORD         NextStreamOffset
+   AS DWORD         Flags
+   AS DWORD         ExtentInformationOffset
+   AS LARGE_INTEGER AllocationSize
+   AS LARGE_INTEGER EndOfFile
+   AS DWORD         StreamInformationOffset
+   AS DWORD         AttributeTypeCode
+   AS DWORD         AttributeFlags
+   AS DWORD         StreamIdentifierLength
+   AS WSTRING * 1 StreamIdentifier
+end type
+type STREAM_LAYOUT_ENTRY AS _STREAM_LAYOUT_ENTRY
+type PSTREAM_LAYOUT_ENTRY AS _STREAM_LAYOUT_ENTRY PTR
+
+'// Flag noting that the extent information may be interpreted as
+'// a RETRIEVAL_POINTERS_BUFFER structure
+#define STREAM_EXTENT_ENTRY_AS_RETRIEVAL_POINTERS                       (&h00000001)
+
+'// Flag noting that all of the stream's extents are returned in
+'// this structure, even if only some of them fall within the caller's
+'// specified interest region(s).
+#define STREAM_EXTENT_ENTRY_ALL_EXTENTS                                 (&h00000002)
+
+type _STREAM_EXTENT_ENTRY
+   AS DWORD Flags
+   union
+      AS RETRIEVAL_POINTERS_BUFFER RetrievalPointers
+   end union
+end type
+type STREAM_EXTENT_ENTRY AS STREAM_EXTENT_ENTRY
+type PSTREAM_EXTENT_ENTRY AS STREAM_EXTENT_ENTRY PTR
+
+'//==================== FSCTL_GET_INTEGRITY_INFORMATION / FSCTL_SET_INTEGRITY_INFORMATION ===========================
+
+const AS WORD CHECKSUM_TYPE_UNCHANGED = &hFFFF
+
+#define CHECKSUM_TYPE_NONE              (0)
+#define CHECKSUM_TYPE_CRC32             (1)
+#define CHECKSUM_TYPE_CRC64             (2)
+#define CHECKSUM_TYPE_ECC               (3)
+#define CHECKSUM_TYPE_SHA256            (4)
+#define CHECKSUM_TYPE_XXH64             (5)
+#define CHECKSUM_TYPE_FIRST_UNUSED_TYPE (6)
+
+#define FSCTL_INTEGRITY_FLAG_CHECKSUM_ENFORCEMENT_OFF        (1)
+
+type _FSCTL_GET_INTEGRITY_INFORMATION_BUFFER
+   AS WORD   ChecksumAlgorithm   ' // Checksum algorithm. e.g. CHECKSUM_TYPE_UNCHANGED, CHECKSUM_TYPE_NONE, CHECKSUM_TYPE_CRC32
+   AS WORD   Reserved            ' // Must be 0
+   AS DWORD Flags                ' // FSCTL_INTEGRITY_FLAG_xxx
+   AS DWORD ChecksumChunkSizeInBytes
+   AS DWORD ClusterSizeInBytes
+end type
+type FSCTL_GET_INTEGRITY_INFORMATION_BUFFER AS _FSCTL_GET_INTEGRITY_INFORMATION_BUFFER
+type PFSCTL_GET_INTEGRITY_INFORMATION_BUFFER AS _FSCTL_GET_INTEGRITY_INFORMATION_BUFFER PTR
+
+type _FSCTL_SET_INTEGRITY_INFORMATION_BUFFER
+   AS WORD   ChecksumAlgorithm  ' // Checksum algorithm. e.g. CHECKSUM_TYPE_UNCHANGED, CHECKSUM_TYPE_NONE, CHECKSUM_TYPE_CRC32
+   AS WORD   Reserved           ' // Must be 0
+   AS DWORD Flags               ' // FSCTL_INTEGRITY_FLAG_xxx
+end type
+type FSCTL_SET_INTEGRITY_INFORMATION_BUFFER AS _FSCTL_SET_INTEGRITY_INFORMATION_BUFFER
+type PFSCTL_SET_INTEGRITY_INFORMATION_BUFFER AS _FSCTL_SET_INTEGRITY_INFORMATION_BUFFER PTR
+
+'//==================== FSCTL_SET_INTEGRITY_INFORMATION_EX ===========================
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD)
+type _FSCTL_SET_INTEGRITY_INFORMATION_BUFFER_EX
+   AS BYTE  EnableIntegrity             ' // 0 to disable integrity, 1 to enable integrity
+   AS BYTE  KeepIntegrityStateUnchanged ' // 1 to keep the current integrity state and ignore the value in EnableIntegrity, 0 to use EnableIntegrity value
+   AS WORD   Reserved                   ' // Must be 0
+   AS DWORD Flags                       ' // FSCTL_INTEGRITY_FLAG_xxx
+   AS BYTE  Version                     ' // Structure version info, must be 1
+   AS BYTE  Reserved2(0 TO 6)           ' // Must be 0
+end type
+type FSCTL_SET_INTEGRITY_INFORMATION_BUFFER_EX AS _FSCTL_SET_INTEGRITY_INFORMATION_BUFFER_EX
+type PFSCTL_SET_INTEGRITY_INFORMATION_BUFFER_EX AS _FSCTL_SET_INTEGRITY_INFORMATION_BUFFER_EX PTR
+'#endif // #if (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD)
+
+'//======================== FSCTL_OFFLOAD_READ ==============================
+'//  Structures used by FSCTL_OFFLOAD_READ operation
+
+type _FSCTL_OFFLOAD_READ_INPUT
+   AS DWORD Size
+   AS DWORD Flags
+   AS DWORD TokenTimeToLive   ' // In milliseconds
+   AS DWORD Reserved
+   AS DWORDLONG FileOffset
+   AS DWORDLONG CopyLength
+end type
+type FSCTL_OFFLOAD_READ_INPUT AS _FSCTL_OFFLOAD_READ_INPUT
+type PFSCTL_OFFLOAD_READ_INPUT AS _FSCTL_OFFLOAD_READ_INPUT PTR
+
+type _FSCTL_OFFLOAD_READ_OUTPUT
+   AS DWORD Size
+   AS DWORD Flags
+   AS DWORDLONG TransferLength
+   AS BYTE  Token(0 TO 511)
+end type
+type FSCTL_OFFLOAD_READ_OUTPUT AS _FSCTL_OFFLOAD_READ_OUTPUT
+type PFSCTL_OFFLOAD_READ_OUTPUT AS _FSCTL_OFFLOAD_READ_OUTPUT PTR
+
+#define OFFLOAD_READ_FLAG_ALL_ZERO_BEYOND_CURRENT_RANGE       (1)
+
+'//======================== FSCTL_OFFLOAD_WRITE =============================
+'//  Structures used by FSCTL_OFFLOAD_WRITE operation
+'//
+type _FSCTL_OFFLOAD_WRITE_INPUT
+   AS DWORD Size
+   AS DWORD Flags
+   AS DWORDLONG FileOffset
+   AS DWORDLONG CopyLength
+   AS DWORDLONG TransferOffset
+   AS BYTE Token(0 TO 511)
+end type
+type FSCTL_OFFLOAD_WRITE_INPUT AS _FSCTL_OFFLOAD_WRITE_INPUT
+type PFSCTL_OFFLOAD_WRITE_INPUT AS _FSCTL_OFFLOAD_WRITE_INPUT PTR
+
+type _FSCTL_OFFLOAD_WRITE_OUTPUT
+   AS DWORD Size
+   AS DWORD Flags
+   AS DWORDLONG LengthWritten
+end type
+type FSCTL_OFFLOAD_WRITE_OUTPUT AS _FSCTL_OFFLOAD_WRITE_OUTPUT
+type PFSCTL_OFFLOAD_WRITE_OUTPUT AS _FSCTL_OFFLOAD_WRITE_OUTPUT PTR
+
+'//======================== FSCTL_SET_PURGE_FAILURE_MODE ===========================
+'//  Structure definitions for supporting purge failure mode
+
+type _SET_PURGE_FAILURE_MODE_INPUT
+   AS DWORD Flags
+end type
+type SET_PURGE_FAILURE_MODE_INPUT AS _SET_PURGE_FAILURE_MODE_INPUT
+TYPE PSET_PURGE_FAILURE_MODE_INPUT AS _SET_PURGE_FAILURE_MODE_INPUT PTR
+
+#define SET_PURGE_FAILURE_MODE_ENABLED   &h00000001    ' // Enable purge failure mode
+#define SET_PURGE_FAILURE_MODE_DISABLED  &h00000002    ' // Disable purge failure mode
+
+
+'//======================= FSCTL_REPAIR_COPIES =============================
+
+type _REPAIR_COPIES_INPUT
+   AS DWORD Size                                ' // sizeof(REPAIR_COPIES_INPUT)
+   AS DWORD Flags                               ' // Reserved (must be zero)
+   AS LARGE_INTEGER FileOffset
+   AS DWORD Length
+   AS DWORD SourceCopy                          ' // The copy number of the source copy.
+   AS DWORD NumberOfRepairCopies                ' // The number of copies that will be repaired.
+   AS DWORD RepairCopies(0)                     ' // The copy numbers of all the copies that will be repaired.
+end type
+type REPAIR_COPIES_INPUT AS _REPAIR_COPIES_INPUT
+type PREPAIR_COPIES_INPUT AS _REPAIR_COPIES_INPUT PTR
+
+type _REPAIR_COPIES_OUTPUT
+   AS DWORD Size                                 ' // sizeof(REPAIR_COPIES_OUTPUT)
+   AS DWORD Status                               ' // Operational status
+   AS LARGE_INTEGER ResumeFileOffset             ' // File Offset hint to use to resume repair operation skipping
+                                                 ' // the range where errors were found (operational Status is non-success).
+end type
+type REPAIR_COPIES_OUTPUT AS _REPAIR_COPIES_OUTPUT
+type PREPAIR_COPIES_OUTPUT AS _REPAIR_COPIES_OUTPUT PTR
+
+'//======================= FSCTL_QUERY_FILE_REGIONS =============================
+
+'//  Structures used for querying for Various file region definitions
+'//  The initial values if for query VDL
+'//  Bit flags which may be OR'd together to define the usage of the given range
+'//      If the given bit is SET, then the specified region has that attribute
+'//      if the bit is NOT set, then the specified region does NOT have that attribute
+
+#define FILE_REGION_USAGE_VALID_CACHED_DATA     &h00000001
+#define FILE_REGION_USAGE_VALID_NONCACHED_DATA  &h00000002
+#define FILE_REGION_USAGE_OTHER_PAGE_ALIGNMENT  &h00000004
+#define FILE_REGION_USAGE_LARGE_PAGE_ALIGNMENT  &h00000008
+
+#ifdef __FB_64BIT__
+#define FILE_REGION_USAGE_HUGE_PAGE_ALIGNMENT   &h00000010
+#define FILE_REGION_USAGE_QUERY_ALIGNMENT       (FILE_REGION_USAGE_LARGE_PAGE_ALIGNMENT OR FILE_REGION_USAGE_HUGE_PAGE_ALIGNMENT)
+#else
+#define FILE_REGION_USAGE_QUERY_ALIGNMENT       (FILE_REGION_USAGE_LARGE_PAGE_ALIGNMENT)
+#endif  ' // _WIN64
+
+type _FILE_REGION_INFO
+   AS LONGLONG FileOffset
+   AS LONGLONG Length
+   AS DWORD Usage
+   AS DWORD Reserved
+end type
+type FILE_REGION_INFO AS _FILE_REGION_INFO
+type PFILE_REGION_INFO AS _FILE_REGION_INFO PTR
+
+type _FILE_REGION_OUTPUT
+   AS DWORD Flags                           ' // none currently defined
+   AS DWORD TotalRegionEntryCount           ' // count of total regions that could be returned
+   AS DWORD RegionEntryCount                ' // count of regions that were returned
+   AS DWORD Reserved                        ' // for longlong alignment
+   AS FILE_REGION_INFO Region(0)
+end type
+type FILE_REGION_OUTPUT AS _FILE_REGION_OUTPUT
+type PFILE_REGION_OUTPUT AS _FILE_REGION_OUTPUT PTR
+
+'//  This is an optional buffer given on input to specify a region of the
+'//  file the caller is interested in
+
+type _FILE_REGION_INPUT
+   AS LONGLONG FileOffset
+   AS LONGLONG Length
+   AS DWORD DesiredUsage
+end type
+type FILE_REGION_INPUT AS _FILE_REGION_INPUT
+type PFILE_REGION_INPUT AS _FILE_REGION_INPUT PTR
+
+'#endif /*_WIN32_WINNT >= _WIN32_WINNT_WIN8 */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
+
+'//======================= FSCTL_WRITE_USN_REASON =============================
+
+'//  The list of valid USN reasons that can be set with this FSCTL.  Any bits
+'//  which are specified which are not defined by this mask are silently
+'//  stripped.  This operation will not be failed for sending undefined reasons
+'//  This operation is only supported from kernel mode.
+'//  The output of this operation is a USN structure.
+
+#define VALID_WRITE_USN_REASON_MASK  (USN_REASON_DATA_OVERWRITE OR USN_REASON_CLOSE)
+
+type _WRITE_USN_REASON_INPUT
+   AS DWORD Flags                       ' // Flags for this operation (none defined)
+   AS DWORD UsnReasonToWrite            ' // A list of USN reasons to set
+end type
+type WRITE_USN_REASON_INPUT AS _WRITE_USN_REASON_INPUT
+type PWRITE_USN_REASON_INPUT AS _WRITE_USN_REASON_INPUT PTR
+
+' // No Flags currently defined
+
+'#endif /*_WIN32_WINNT >= _WIN32_WINNT_WIN8 */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINBLUE)
+
+'// ****************** FSCTL_QUERY_STORAGE_CLASSES ***************************
+
+'//  The FILE_STORAGE_TIER is an identifier for the storage tier relative to the volume.
+'//  The storage tier ID for a particular volume has no relationship to the storage tier
+'//  ID with the same value on a different volume.
+
+'//  Note! The MediaType is used to indicate an uninitialized in-memory DSC structure.
+'//  Do not use values 0xfe or 0xff as media types.
+
+#define FILE_STORAGE_TIER_NAME_LENGTH           (256)
+#define FILE_STORAGE_TIER_DESCRIPTION_LENGTH    (512)
+
+'//  These flags *must* match those for _STORAGE_TIER as the file system does a  pass through.
+#define FILE_STORAGE_TIER_FLAG_NO_SEEK_PENALTY    (&h00020000)
+#define FILE_STORAGE_TIER_FLAG_WRITE_BACK_CACHE   (&h00200000)
+#define FILE_STORAGE_TIER_FLAG_READ_CACHE         (&h00400000)
+#define FILE_STORAGE_TIER_FLAG_PARITY             (&h00800000)
+#define FILE_STORAGE_TIER_FLAG_SMR                (&h01000000)
+
+enum _FILE_STORAGE_TIER_MEDIA_TYPE
+   FileStorageTierMediaTypeUnspecified = 0
+   FileStorageTierMediaTypeDisk        = 1
+   FileStorageTierMediaTypeSsd         = 2
+   FileStorageTierMediaTypeScm         = 4
+   FileStorageTierMediaTypeMax
+end enum
+type FILE_STORAGE_TIER_MEDIA_TYPE AS _FILE_STORAGE_TIER_MEDIA_TYPE
+type PFILE_STORAGE_TIER_MEDIA_TYPE AS _FILE_STORAGE_TIER_MEDIA_TYPE PTR
+
+enum _FILE_STORAGE_TIER_CLASS
+   FileStorageTierClassUnspecified = 0,
+   FileStorageTierClassCapacity,
+   FileStorageTierClassPerformance,
+   FileStorageTierClassMax
+end enum
+type FILE_STORAGE_TIER_CLASS AS _FILE_STORAGE_TIER_CLASS
+type PFILE_STORAGE_TIER_CLASS AS _FILE_STORAGE_TIER_CLASS PTR
+
+type _FILE_STORAGE_TIER
+   AS GUID Id
+   AS WSTRING * FILE_STORAGE_TIER_NAME_LENGTH Name
+   AS WSTRING * FILE_STORAGE_TIER_NAME_LENGTH Description
+   AS DWORDLONG Flags
+   AS DWORDLONG ProvisionedCapacity
+   AS FILE_STORAGE_TIER_MEDIA_TYPE MediaType
+   AS FILE_STORAGE_TIER_CLASS Class
+end type
+type FILE_STORAGE_TIER AS _FILE_STORAGE_TIER
+type PFILE_STORAGE_TIER AS _FILE_STORAGE_TIER PTR
+
+'//  This structure has the same fields as STORAGE_DEVICE_TIERING_DESCRIPTOR and
+'//  that structure reserves the upper WORD   of the Flags field for file system use.
+'//  We define the following possible values for the Flags field.
+
+#define QUERY_STORAGE_CLASSES_FLAGS_MEASURE_WRITE   &h80000000
+#define QUERY_STORAGE_CLASSES_FLAGS_MEASURE_READ    &h40000000
+#define QUERY_STORAGE_CLASSES_FLAGS_NO_DEFRAG_VOLUME   &h20000000
+
+'//  The response returns a single structure of FSCTL_QUERY_STORAGE_CLASSES_OUTPUT
+'//  that has all the tiers for this volume.
+type _FSCTL_QUERY_STORAGE_CLASSES_OUTPUT
+   AS DWORD Version
+   AS DWORD Size
+   AS DWORD Flags
+   AS DWORD TotalNumberOfTiers
+   AS DWORD NumberOfTiersReturned
+   AS FILE_STORAGE_TIER Tiers(0)
+end type
+type FSCTL_QUERY_STORAGE_CLASSES_OUTPUT AS _FSCTL_QUERY_STORAGE_CLASSES_OUTPUT
+type PFSCTL_QUERY_STORAGE_CLASSES_OUTPUT aS _FSCTL_QUERY_STORAGE_CLASSES_OUTPUT PTR
+
+#define FSCTL_QUERY_STORAGE_CLASSES_OUTPUT_VERSION          sizeof(FSCTL_QUERY_STORAGE_CLASSES_OUTPUT)
+
+'//  Below are flags used by the Reparse union type within STREAM_INFORMATION_ENTRY.
+#define QUERY_FILE_LAYOUT_REPARSE_DATA_INVALID              (&h0001)  ' // invalid reparse data, corresponds to ERROR_INVALID_REPARSE_DATA
+#define QUERY_FILE_LAYOUT_REPARSE_TAG_INVALID               (&h0002)  ' // invalid reparse tag, corresponds to ERROR_REPARSE_TAG_INVALID
+
+'//  This structure lists information on the stream.
+
+'typedef struct _STREAM_INFORMATION_ENTRY {
+
+'    //
+'    // Version of this struct. Current version is 1.
+'    //
+'    DWORD         Version;
+
+'    //
+'    // Flags
+'    //
+'    DWORD         Flags;
+
+'    //
+'    // The stream information varies by type of stream. We enclose
+'    // the various types in a union.
+'    //
+'    union _StreamInformation {
+
+'        //
+'        //  Desired Storage Class
+'        //
+
+'        struct _DesiredStorageClass {
+
+'            //
+'            //  Class
+'            //
+
+'            FILE_STORAGE_TIER_CLASS          Class;
+
+'            //
+'            //  Flags
+'            //
+
+'            DWORD                            Flags;
+
+'        } DesiredStorageClass;
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_VB)
+'        struct _DataStream {
+
+'            //
+'            //  Total Length of STREAM_INFORMATION_ENTRY structure.
+'            //
+
+'            WORD        Length;
+
+'            //
+'            //  Flags (Reserved for future use)
+'            //
+
+'            WORD        Flags;
+
+'            //
+'            //  Reserved.
+'            //
+
+'            DWORD       Reserved;
+
+'            //
+'            //  The Vdl (Valid Data Length) of data stream.
+'            //
+
+'            DWORDLONG   Vdl;
+
+'        } DataStream;
+
+'        struct _Reparse {
+
+'            //
+'            //  Total Length of STREAM_INFORMATION_ENTRY structure.
+'            //
+
+'            WORD   Length;
+
+'            //
+'            //  Flags
+'            //
+
+'            WORD   Flags;
+
+'            //
+'            //  The size of Reparse data buffer.
+'            //
+
+'            DWORD ReparseDataSize;
+
+'            //
+'            //  Offset to reparse point data buffer (REPARSE_DATA_BUFFER or REPARSE_GUID_DATA_BUFFER).
+'            //
+
+'            DWORD ReparseDataOffset;
+
+'        } Reparse;
+
+'        struct _Ea {
+
+'            //
+'            //  Total Length of STREAM_INFORMATION_ENTRY structure.
+'            //
+
+'            WORD   Length;
+
+'            //
+'            //  Flags (Reserved for future use)
+'            //
+
+'            WORD   Flags;
+
+'            //
+'            //  The size of Ea.
+'            //
+
+'            DWORD EaSize;
+
+'            //
+'            //  Offset to EA (Extended Attributes) information buffer (FILE_FULL_EA_INFORMATION).
+'            //
+
+'            DWORD EaInformationOffset;
+
+'        } Ea;
+'#endif // (NTDDI_VERSION >= NTDDI_WIN10_VB)
+
+'    } StreamInformation;
+
+'} STREAM_INFORMATION_ENTRY, *PSTREAM_INFORMATION_ENTRY;
+
+'// ****************** FSCTL_QUERY_REGION_INFO *******************************
+'//  Input structure for FSCTL_QUERY_REGION_INFO.
+'//  This FSCTL returns the storage tier regions from the storage
+'//  stack for a particular volume.
+
+type _FSCTL_QUERY_REGION_INFO_INPUT
+   AS DWORD     Version                     ' // The version of this structure.
+   AS DWORD     Size                        ' // The size of this structure in bytes.
+   AS DWORD     Flags                       ' // Reserved for future use.
+   AS DWORD     NumberOfTierIds             ' // Number of entries in TierIds, 0 for all for volume
+   AS GUID      TierIds(0)                  ' // Storage tiers to return information for
+end type
+type FSCTL_QUERY_REGION_INFO_INPUT AS _FSCTL_QUERY_REGION_INFO_INPUT
+type PFSCTL_QUERY_REGION_INFO_INPUT AS _FSCTL_QUERY_REGION_INFO_INPUT PTR
+
+#define FSCTL_QUERY_REGION_INFO_INPUT_VERSION               sizeof(FSCTL_QUERY_REGION_INFO_INPUT)
+
+'//  Structure that describes a single storage tier region.
+type _FILE_STORAGE_TIER_REGION
+   AS GUID        TierId    ' // Tier ID
+   AS DWORDLONG   Offset    ' // offset of region in bytes
+   AS DWORDLONG   Length    ' // length of region in bytes
+end type
+type FILE_STORAGE_TIER_REGION AS _FILE_STORAGE_TIER_REGION
+type PFILE_STORAGE_TIER_REGION AS _FILE_STORAGE_TIER_REGION PTR
+
+'//  Output structure for FSCTL_QUERY_REGION_INFO.
+'//  The FSCTL_QUERY_REGION_INFO response returns a single one of these that include
+'//  multiple FILE_STORAGE_TIER_REGION records, one for each region.
+type _FSCTL_QUERY_REGION_INFO_OUTPUT
+   AS DWORD     Version                     ' // The version of this structure.
+   AS DWORD     Size                        ' // The size of this structure in bytes.
+   AS DWORD     Flags                       ' // Reserved for future use.
+   AS DWORD     Reserved                    ' // Reserved for future use.
+   AS DWORDLONG Alignment                   ' // in bytes, must align to slab boundary
+   AS DWORD     TotalNumberOfRegions        ' // Total number of available regions.
+   AS DWORD     NumberOfRegionsReturned     ' // Number of regions that fit in the output.
+   AS FILE_STORAGE_TIER_REGION Regions(0)   ' // Detailed info on the regions.
+end type
+type FSCTL_QUERY_REGION_INFO_OUTPUT AS _FSCTL_QUERY_REGION_INFO_OUTPUT
+type PFSCTL_QUERY_REGION_INFO_OUTPUT AS _FSCTL_QUERY_REGION_INFO_OUTPUT PTR
+
+#define FSCTL_QUERY_REGION_INFO_OUTPUT_VERSION              sizeof(FSCTL_QUERY_REGION_INFO_OUTPUT)
+
+'//  This structure contains the information for the Desired Storage Class attribute.
+type _FILE_DESIRED_STORAGE_CLASS_INFORMATION
+   AS FILE_STORAGE_TIER_CLASS Class
+   AS DWORD Flags
+end type
+type FILE_DESIRED_STORAGE_CLASS_INFORMATION AS _FILE_DESIRED_STORAGE_CLASS_INFORMATION
+type PFILE_DESIRED_STORAGE_CLASS_INFORMATION AS _FILE_DESIRED_STORAGE_CLASS_INFORMATION PTR
+
+'//  This structure has the same fields as STORAGE_DEVICE_TIERING_DESCRIPTOR and
+'//  that structure reserves the upper WORD   of the Flags field for file system use.
+'//  We define the following possible values for the Flags field.
+#define QUERY_STORAGE_CLASSES_FLAGS_MEASURE_WRITE   &h80000000
+#define QUERY_STORAGE_CLASSES_FLAGS_MEASURE_READ    &h40000000
+
+'//=============== FSCTL_DUPLICATE_EXTENTS_TO_FILE ====================
+
+type _DUPLICATE_EXTENTS_DATA
+   AS HANDLE FileHandle
+   AS LARGE_INTEGER SourceFileOffset
+   AS LARGE_INTEGER TargetFileOffset
+   AS LARGE_INTEGER ByteCount
+end type
+type DUPLICATE_EXTENTS_DATA AS _DUPLICATE_EXTENTS_DATA
+type PDUPLICATE_EXTENTS_DATA AS _DUPLICATE_EXTENTS_DATA PTR
+
+'#if ((NTDDI_VERSION >= NTDDI_WIN10_RS2) && defined(_WIN64))
+
+'//  32/64 Bit thunking support structure
+
+type _DUPLICATE_EXTENTS_DATA32
+   AS UINT32 FileHandle
+   AS LARGE_INTEGER SourceFileOffset
+   AS LARGE_INTEGER TargetFileOffset
+   AS LARGE_INTEGER ByteCount
+end type
+type DUPLICATE_EXTENTS_DATA32 AS _DUPLICATE_EXTENTS_DATA32
+type PDUPLICATE_EXTENTS_DATA32 AS _DUPLICATE_EXTENTS_DATA32 PTR
+
+'#endif /* ((NTDDI_VERSION >= NTDDI_WIN10_RS2) && defined(_WIN64)) */
+
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WINBLUE) */
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS3)
+
+'//
+'//=============== FSCTL_DUPLICATE_EXTENTS_TO_FILE_EX ==================
+'//
+
+#define DUPLICATE_EXTENTS_DATA_EX_SOURCE_ATOMIC     &h00000001
+'#if (NTDDI_VERSION >= NTDDI_WIN10_VB)
+#define DUPLICATE_EXTENTS_DATA_EX_ASYNC             &h00000002
+'#endif // (NTDDI_VERSION >= NTDDI_WIN10_VB)
+
+type _DUPLICATE_EXTENTS_DATA_EX
+   AS SIZE_T Size
+   AS HANDLE FileHandle
+   AS LARGE_INTEGER SourceFileOffset
+   AS LARGE_INTEGER TargetFileOffset
+   AS LARGE_INTEGER ByteCount
+   AS DWORD Flags
+end type
+type DUPLICATE_EXTENTS_DATA_EX AS _DUPLICATE_EXTENTS_DATA_EX
+type PDUPLICATE_EXTENTS_DATA_EX AS _DUPLICATE_EXTENTS_DATA_EX PTR
+
+'#if ((NTDDI_VERSION >= NTDDI_WIN10_RS3) && defined(_WIN64))
+
+'//  32/64 Bit thunking support structure
+type _DUPLICATE_EXTENTS_DATA_EX32
+   AS DWORD32 Size
+   AS DWORD32 FileHandle
+   AS LARGE_INTEGER SourceFileOffset
+   AS LARGE_INTEGER TargetFileOffset
+   AS LARGE_INTEGER ByteCount
+   AS DWORD Flags
+end type
+type DUPLICATE_EXTENTS_DATA_EX32 AS _DUPLICATE_EXTENTS_DATA_EX32
+type PDUPLICATE_EXTENTS_DATA_EX32 AS _DUPLICATE_EXTENTS_DATA_EX32 PTR
+
+'#endif /* ((NTDDI_VERSION >= NTDDI_WIN10_RS3) && defined(_WIN64)) */
+
+'#endif /* (NTDDI_VERSION >= NTDDI_WIN10_RS3) */
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS5)
+
+'//=============== FSCTL_QUERY_ASYNC_DUPLICATE_EXTENTS_STATUS ==================
+
+enum _DUPLICATE_EXTENTS_STATE
+   FileSnapStateInactive = 0
+   FileSnapStateSource,
+   FileSnapStateTarget,
+end enum
+type DUPLICATE_EXTENTS_STATE AS _DUPLICATE_EXTENTS_STATE
+type PDUPLICATE_EXTENTS_STATE AS _DUPLICATE_EXTENTS_STATE PTR
+
+type _ASYNC_DUPLICATE_EXTENTS_STATUS
+   AS DWORD Version
+   AS DUPLICATE_EXTENTS_STATE State
+   AS DWORDLONG SourceFileOffset
+   AS DWORDLONG TargetFileOffset
+   AS DWORDLONG ByteCount
+   AS DWORDLONG BytesDuplicated
+end type
+type ASYNC_DUPLICATE_EXTENTS_STATUS AS _ASYNC_DUPLICATE_EXTENTS_STATUS
+type PASYNC_DUPLICATE_EXTENTS_STATUS AS _ASYNC_DUPLICATE_EXTENTS_STATUS PTR
+
+#define ASYNC_DUPLICATE_EXTENTS_STATUS_V1   sizeof(ASYNC_DUPLICATE_EXTENTS_STATUS)
+
+'#endif
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_RS2)
+
+'//==================== FSCTL_QUERY_REFS_SMR_VOLUME_INFO =======================
+
+#define REFS_SMR_VOLUME_INFO_OUTPUT_VERSION_V0      0
+#define REFS_SMR_VOLUME_INFO_OUTPUT_VERSION_V1      1
+
+enum _REFS_SMR_VOLUME_GC_STATE
+   SmrGcStateInactive = 0
+   SmrGcStatePaused = 1
+   SmrGcStateActive = 2
+   SmrGcStateActiveFullSpeed = 3
+end enum
+type REFS_SMR_VOLUME_GC_STATE AS _REFS_SMR_VOLUME_GC_STATE
+type PREFS_SMR_VOLUME_GC_STATE AS _REFS_SMR_VOLUME_GC_STATE PTR
+
+type _REFS_SMR_VOLUME_INFO_OUTPUT
+   AS DWORD Version
+   AS DWORD Flags
+   AS LARGE_INTEGER SizeOfRandomlyWritableTier
+   AS LARGE_INTEGER FreeSpaceInRandomlyWritableTier
+   AS LARGE_INTEGER SizeofSMRTier
+   AS LARGE_INTEGER FreeSpaceInSMRTier
+   AS LARGE_INTEGER UsableFreeSpaceInSMRTier
+   AS REFS_SMR_VOLUME_GC_STATE VolumeGcState
+   aS DWORD    VolumeGcLastStatus
+   AS DWORD CurrentGcBandFillPercentage
+   AS DWORDLONG Unused(0 TO 5)
+end type
+type REFS_SMR_VOLUME_INFO_OUTPUT AS _REFS_SMR_VOLUME_INFO_OUTPUT
+type PREFS_SMR_VOLUME_INFO_OUTPUT AS _REFS_SMR_VOLUME_INFO_OUTPUT PTR
+
+'//==================== FSCTL_SET_REFS_SMR_VOLUME_GC_PARAMETERS =======================
+
+#define REFS_SMR_VOLUME_GC_PARAMETERS_VERSION_V1    1
+
+ enum _REFS_SMR_VOLUME_GC_ACTION
+   SmrGcActionStart = 1
+   SmrGcActionStartFullSpeed = 2
+   SmrGcActionPause = 3
+   SmrGcActionStop = 4
+end enum
+type REFS_SMR_VOLUME_GC_ACTION AS _REFS_SMR_VOLUME_GC_ACTION
+type PREFS_SMR_VOLUME_GC_ACTION AS _REFS_SMR_VOLUME_GC_ACTION PTR
+
+enum _REFS_SMR_VOLUME_GC_METHOD
+   SmrGcMethodCompaction = 1
+   SmrGcMethodCompression = 2
+   SmrGcMethodRotation = 3
+end enum
+type REFS_SMR_VOLUME_GC_METHOD AS _REFS_SMR_VOLUME_GC_METHOD
+type PREFS_SMR_VOLUME_GC_METHOD AS _REFS_SMR_VOLUME_GC_METHOD PTR
+
+type _REFS_SMR_VOLUME_GC_PARAMETERS
+   AS DWORD Version
+   AS DWORD Flags
+   AS REFS_SMR_VOLUME_GC_ACTION Action
+   AS REFS_SMR_VOLUME_GC_METHOD Method
+   AS DWORD IoGranularity
+   AS DWORD CompressionFormat
+   AS DWORDLONG Unused(0 TO 7)
+end type
+type REFS_SMR_VOLUME_GC_PARAMETERS AS _REFS_SMR_VOLUME_GC_PARAMETERS
+type PREFS_SMR_VOLUME_GC_PARAMETERS AS _REFS_SMR_VOLUME_GC_PARAMETERS PTR
+
+'//==================== STREAMS CONSTANTS =======================
+
+#define STREAMS_INVALID_ID                      (0)
+#define STREAMS_MAX_ID                          (MAXWORD  )
+
+'//==================== FSCTL_STREAMS_QUERY_PARAMETERS =======================
+
+type _STREAMS_QUERY_PARAMETERS_OUTPUT_BUFFER
+   AS DWORD OptimalWriteSize
+   AS DWORD StreamGranularitySize
+   AS DWORD StreamIdMin
+   AS DWORD StreamIdMax
+end type
+type STREAMS_QUERY_PARAMETERS_OUTPUT_BUFFER AS _STREAMS_QUERY_PARAMETERS_OUTPUT_BUFFER
+type PSTREAMS_QUERY_PARAMETERS_OUTPUT_BUFFER AS _STREAMS_QUERY_PARAMETERS_OUTPUT_BUFFER PTR
+
+'//==================== FSCTL_STREAMS_ASSOCIATE_ID =======================
+
+#define STREAMS_ASSOCIATE_ID_CLEAR              (&h1)
+#define STREAMS_ASSOCIATE_ID_SET                (&h2)
+
+type _STREAMS_ASSOCIATE_ID_INPUT_BUFFER
+   AS DWORD Flags
+   AS DWORD StreamId
+end type
+type STREAMS_ASSOCIATE_ID_INPUT_BUFFER AS _STREAMS_ASSOCIATE_ID_INPUT_BUFFER
+type PSTREAMS_ASSOCIATE_ID_INPUT_BUFFER AS _STREAMS_ASSOCIATE_ID_INPUT_BUFFER PTR
+
+'//==================== FSCTL_STREAMS_QUERY_ID =======================
+
+type _STREAMS_QUERY_ID_OUTPUT_BUFFER
+   AS DWORD StreamId
+end type
+type STREAMS_QUERY_ID_OUTPUT_BUFFER AS _STREAMS_QUERY_ID_OUTPUT_BUFFER
+type PSTREAMS_QUERY_ID_OUTPUT_BUFFER AS _STREAMS_QUERY_ID_OUTPUT_BUFFER PTR
+
+'#endif // #if (NTDDI_VERSION >= NTDDI_WIN10_RS2)
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS3)
+
+'//=============== FSCTL_QUERY_BAD_RANGES ==================
+
+type _QUERY_BAD_RANGES_INPUT_RANGE
+   AS DWORDLONG StartOffset
+   AS DWORDLONG LengthInBytes
+end type
+type QUERY_BAD_RANGES_INPUT_RANGE AS _QUERY_BAD_RANGES_INPUT_RANGE
+type PQUERY_BAD_RANGES_INPUT_RANGE AS _QUERY_BAD_RANGES_INPUT_RANGE PTR
+
+'//  Input buffer defining the ranges in the file to look for
+'//  bad ranges.  A NULL input buffer would lookup the entire  file.
+
+type _QUERY_BAD_RANGES_INPUT
+   AS DWORD Flags
+   AS DWORD NumRanges
+   AS QUERY_BAD_RANGES_INPUT_RANGE Ranges(0)
+end type
+type QUERY_BAD_RANGES_INPUT AS _QUERY_BAD_RANGES_INPUT
+type PQUERY_BAD_RANGES_INPUT AS _QUERY_BAD_RANGES_INPUT PTR
+
+type _QUERY_BAD_RANGES_OUTPUT_RANGE
+   AS DWORD Flags
+   AS DWORD Reserved
+   AS DWORDLONG StartOffset
+   AS DWORDLONG LengthInBytes
+end type
+type QUERY_BAD_RANGES_OUTPUT_RANGE AS _QUERY_BAD_RANGES_OUTPUT_RANGE
+type PQUERY_BAD_RANGES_OUTPUT_RANGE AS _QUERY_BAD_RANGES_OUTPUT_RANGE PTR
+
+'//
+'//  Output buffer defining the bad ranges.
+'//
+
+type _QUERY_BAD_RANGES_OUTPUT
+   AS DWORD Flags
+   AS DWORD NumBadRanges
+   AS DWORDLONG NextOffsetToLookUp
+   AS QUERY_BAD_RANGES_OUTPUT_RANGE BadRanges(0)
+end type
+type QUERY_BAD_RANGES_OUTPUT AS _QUERY_BAD_RANGES_OUTPUT
+type PQUERY_BAD_RANGES_OUTPUT AS _QUERY_BAD_RANGES_OUTPUT PTR
+
+'//========= FSCTL_SET_DAX_ALLOC_ALIGNMENT_HINT =========
+'//
+'//  Once this FSCTL is issued for a file, the following
+'//  allocations to the file will be examined to see if
+'//  the given offset is being allocated and if so the
+'//  allocation will be placed such that the physical
+'//  address corresponding to that allocation is aligned
+'//  to the given AlignmentValue, if we have free space
+'//  available at aligned regions.
+'//
+'//  To reset the alignment constraint you can issue this
+'//  FSCTL with AlignmentValue of 1 i.e. AlignmentShift
+'//  as 0.
+'//
+
+type _SET_DAX_ALLOC_ALIGNMENT_HINT_INPUT
+   AS DWORD Flags
+   AS DWORD AlignmentShift
+   AS DWORDLONG FileOffsetToAlign
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS4)
+   AS DWORD FallbackAlignmentShift
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS4) */
+end type
+type SET_DAX_ALLOC_ALIGNMENT_HINT_INPUT AS _SET_DAX_ALLOC_ALIGNMENT_HINT_INPUT
+type PSET_DAX_ALLOC_ALIGNMENT_HINT_INPUT AS _SET_DAX_ALLOC_ALIGNMENT_HINT_INPUT PTR
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS4)
+
+'//  MANDATORY - If allocation satisfying AlignmentShift (or at least
+'//     FallbackAlignmentShift if specified) cannot be found, then fail
+'//     the file system operation (e.g. extending the file).
+
+#define DAX_ALLOC_ALIGNMENT_FLAG_MANDATORY             (&h00000001)
+
+'//  FALLBACK_SPECIFIED - Indicates that the FallbackAlignmentShift field
+'//      is present in the input structure and indicates a fallback
+'//      alignment if the optimal alignment isn't available.
+
+#define DAX_ALLOC_ALIGNMENT_FLAG_FALLBACK_SPECIFIED    (&h00000002)
+
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS4) */
+
+'//========= FSCTL_VIRTUAL_STORAGE_SET_BEHAVIOR =========
+'//
+'//  Configures file system-specific behaviors for files
+'//  used as backing stored for virtual storage devices.
+
+enum _VIRTUAL_STORAGE_BEHAVIOR_CODE
+   VirtualStorageBehaviorUndefined = 0
+   VirtualStorageBehaviorCacheWriteThrough = 1
+   VirtualStorageBehaviorCacheWriteBack = 2
+   VirtualStorageBehaviorStopIoProcessing = 3
+   VirtualStorageBehaviorRestartIoProcessing = 4
+end enum
+type VIRTUAL_STORAGE_BEHAVIOR_CODE AS _VIRTUAL_STORAGE_BEHAVIOR_CODE
+type PVIRTUAL_STORAGE_BEHAVIOR_CODE AS _VIRTUAL_STORAGE_BEHAVIOR_CODE PTR
+
+type _VIRTUAL_STORAGE_SET_BEHAVIOR_INPUT
+   AS DWORD Size
+   AS VIRTUAL_STORAGE_BEHAVIOR_CODE BehaviorCode
+end type
+type VIRTUAL_STORAGE_SET_BEHAVIOR_INPUT AS _VIRTUAL_STORAGE_SET_BEHAVIOR_INPUT
+type PVIRTUAL_STORAGE_SET_BEHAVIOR_INPUT AS _VIRTUAL_STORAGE_SET_BEHAVIOR_INPUT PTR
+
+'// EFS DPL key availability data structure for FSCTL_ENCRYPTION_KEY_CONTROL
+type _ENCRYPTION_KEY_CTRL_INPUT
+   AS DWORD HeaderSize          ' // Structure header size, usable for structure versioning.
+   AS DWORD StructureSize       ' // Full structure size.
+   AS WORD   KeyOffset          ' // Byte offset of the key blob relative to the start of this structure.
+                                ' // Could be 0 if key blob is not passed.
+   AS WORD   KeySize            ' // Size of the key blob.
+                                ' // Could be 0 if key blob is not passed.
+   AS DWORD DplLock             ' // DPL lock/unlock indicator: 1 means lock, 0 means unlock.
+   AS DWORDLONG DplUserId       ' // DPL user runtime ID for who this control is issued.
+   AS DWORDLONG DplCredentialId ' // DPL credential runtime ID which is being impacted.
+end type
+type ENCRYPTION_KEY_CTRL_INPUT AS _ENCRYPTION_KEY_CTRL_INPUT
+type PENCRYPTION_KEY_CTRL_INPUT AS _ENCRYPTION_KEY_CTRL_INPUT PTR
+
+'#endif /* (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS3) */
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+
+'// Generic fsctl headers which can be sent to the driver.
+
+#define WOF_CURRENT_VERSION (&h00000001)
+
+#define WOF_PROVIDER_WIM            (&h00000001)
+#define WOF_PROVIDER_FILE           (&h00000002)
+#define WOF_PROVIDER_CLOUD          (&h00000003)
+
+type _WOF_EXTERNAL_INFO
+   AS DWORD Version
+   AS DWORD Provider
+end type
+type WOF_EXTERNAL_INFO AS _WOF_EXTERNAL_INFO
+type PWOF_EXTERNAL_INFO AS _WOF_EXTERNAL_INFO PTR
+
+type _WOF_EXTERNAL_FILE_ID
+   AS FILE_ID_128 FileId
+end type
+type WOF_EXTERNAL_FILE_ID AS _WOF_EXTERNAL_FILE_ID
+type PWOF_EXTERNAL_FILE_ID AS _WOF_EXTERNAL_FILE_ID PTR
+
+type _WOF_VERSION_INFO
+   AS DWORD WofVersion
+end type
+type WOF_VERSION_INFO AS _WOF_VERSION_INFO
+type PWOF_VERSION_INFO AS _WOF_VERSION_INFO PTR
+
+'// Structures for WIM provider specific fsctl's.
+
+#ifndef WIM_PROVIDER_HASH_SIZE
+#define WIM_PROVIDER_HASH_SIZE 20
+#endif
+
+#define WIM_PROVIDER_CURRENT_VERSION  (&h00000001)
+
+#define WIM_PROVIDER_EXTERNAL_FLAG_NOT_ACTIVE    (&h00000001)
+#define WIM_PROVIDER_EXTERNAL_FLAG_SUSPENDED     (&h00000002)
+
+type _WIM_PROVIDER_EXTERNAL_INFO
+   AS DWORD Version
+   AS DWORD Flags
+   AS LARGE_INTEGER DataSourceId
+   AS BYTE  ResourceHash(0 TO WIM_PROVIDER_HASH_SIZE-1)
+end type
+type WIM_PROVIDER_EXTERNAL_INFO AS _WIM_PROVIDER_EXTERNAL_INFO
+type PWIM_PROVIDER_EXTERNAL_INFO AS _WIM_PROVIDER_EXTERNAL_INFO PTR
+
+'//  WimType specifies a set of flags corresponding to the type of WIM.
+'//  WIM_BOOT_OS_WIM means the wim contains Windows system files.
+'//  WIM_BOOT_NOT_OS_WIM means the wim contains 3rd party files or data files.
+'//  Do not use WIM_BOOT_OS_WIM for data that should be preserved on
+'//  system upgrade.
+
+#define WIM_BOOT_OS_WIM       (&h00000001)
+#define WIM_BOOT_NOT_OS_WIM   (&h00000000)
+
+type _WIM_PROVIDER_ADD_OVERLAY_INPUT
+   AS DWORD WimType
+   AS DWORD WimIndex
+   AS DWORD WimFileNameOffset
+   AS DWORD WimFileNameLength
+end type
+type WIM_PROVIDER_ADD_OVERLAY_INPUT AS _WIM_PROVIDER_ADD_OVERLAY_INPUT
+type PWIM_PROVIDER_ADD_OVERLAY_INPUT AS _WIM_PROVIDER_ADD_OVERLAY_INPUT PTR
+
+type _WIM_PROVIDER_UPDATE_OVERLAY_INPUT
+   AS LARGE_INTEGER DataSourceId
+   AS DWORD WimFileNameOffset
+   AS DWORD WimFileNameLength
+end type
+type WIM_PROVIDER_UPDATE_OVERLAY_INPUT AS _WIM_PROVIDER_UPDATE_OVERLAY_INPUT
+type PWIM_PROVIDER_UPDATE_OVERLAY_INPUT AS _WIM_PROVIDER_UPDATE_OVERLAY_INPUT PTR
+
+type _WIM_PROVIDER_REMOVE_OVERLAY_INPUT
+   AS LARGE_INTEGER DataSourceId
+end type
+type WIM_PROVIDER_REMOVE_OVERLAY_INPUT AS _WIM_PROVIDER_REMOVE_OVERLAY_INPUT
+type PWIM_PROVIDER_REMOVE_OVERLAY_INPUT AS _WIM_PROVIDER_REMOVE_OVERLAY_INPUT PTR
+
+type _WIM_PROVIDER_SUSPEND_OVERLAY_INPUT
+   AS LARGE_INTEGER DataSourceId
+end type
+type WIM_PROVIDER_SUSPEND_OVERLAY_INPUT AS _WIM_PROVIDER_SUSPEND_OVERLAY_INPUT
+type PWIM_PROVIDER_SUSPEND_OVERLAY_INPUT AS _WIM_PROVIDER_SUSPEND_OVERLAY_INPUT PTR
+
+type _WIM_PROVIDER_OVERLAY_ENTRY
+   AS DWORD NextEntryOffset
+   AS LARGE_INTEGER DataSourceId
+   AS GUID WimGuid
+   AS DWORD WimFileNameOffset
+   AS DWORD WimType
+   AS DWORD WimIndex
+   AS DWORD Flags
+end type
+type WIM_PROVIDER_OVERLAY_ENTRY AS _WIM_PROVIDER_OVERLAY_ENTRY
+type PWIM_PROVIDER_OVERLAY_ENTRY AS _WIM_PROVIDER_OVERLAY_ENTRY PTR
+
+'#endif
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+
+'// Structures for WOF File provider specific fsctl's.
+#define FILE_PROVIDER_CURRENT_VERSION        (&h00000001)
+#define FILE_PROVIDER_SINGLE_FILE            (&h00000001)
+#define FILE_PROVIDER_COMPRESSION_XPRESS4K   (&h00000000)
+#define FILE_PROVIDER_COMPRESSION_LZX        (&h00000001)
+#define FILE_PROVIDER_COMPRESSION_XPRESS8K   (&h00000002)
+#define FILE_PROVIDER_COMPRESSION_XPRESS16K  (&h00000003)
+#define FILE_PROVIDER_COMPRESSION_MAXIMUM    (&h00000004)
+#define FILE_PROVIDER_FLAG_COMPRESS_ON_WRITE (&h00000001)
+
+type _FILE_PROVIDER_EXTERNAL_INFO_V0
+   AS DWORD Version
+   AS DWORD Algorithm
+end type
+type FILE_PROVIDER_EXTERNAL_INFO_V0 AS _FILE_PROVIDER_EXTERNAL_INFO_V0
+type PFILE_PROVIDER_EXTERNAL_INFO_V0 AS _FILE_PROVIDER_EXTERNAL_INFO_V0 PTR
+
+type _FILE_PROVIDER_EXTERNAL_INFO_V1
+   AS DWORD Version
+   AS DWORD Algorithm
+   AS DWORD Flags
+end type
+type FILE_PROVIDER_EXTERNAL_INFO_V1 AS _FILE_PROVIDER_EXTERNAL_INFO_V1
+type PFILE_PROVIDER_EXTERNAL_INFO_V1 AS _FILE_PROVIDER_EXTERNAL_INFO_V1 PTR
+
+type FILE_PROVIDER_EXTERNAL_INFO AS FILE_PROVIDER_EXTERNAL_INFO_V1
+type PFILE_PROVIDER_EXTERNAL_INFO AS PFILE_PROVIDER_EXTERNAL_INFO_V1
+
+'#endif  //  (_WIN32_WINNT >= _WIN32_WINNT_WIN7)
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WINTHRESHOLD)
+
+type _CONTAINER_VOLUME_STATE
+   AS DWORD Flags
+end type
+type CONTAINER_VOLUME_STATE AS _CONTAINER_VOLUME_STATE
+type PCONTAINER_VOLUME_STATE AS _CONTAINER_VOLUME_STATE PTR
+
+#define CONTAINER_VOLUME_STATE_HOSTING_CONTAINER    (&h00000001)
+
+type _CONTAINER_ROOT_INFO_INPUT
+   AS DWORD Flags
+end type
+type CONTAINER_ROOT_INFO_INPUT AS _CONTAINER_ROOT_INFO_INPUT
+type PCONTAINER_ROOT_INFO_INPUT AS _CONTAINER_ROOT_INFO_INPUT PTR
+
+type _CONTAINER_ROOT_INFO_OUTPUT
+   AS WORD   ContainerRootIdLength
+   AS BYTE  ContainerRootId(0)
+end type
+type CONTAINER_ROOT_INFO_OUTPUT AS _CONTAINER_ROOT_INFO_OUTPUT
+type PCONTAINER_ROOT_INFO_OUTPUT AS _CONTAINER_ROOT_INFO_OUTPUT PTR
+
+#define CONTAINER_ROOT_INFO_FLAG_SCRATCH_ROOT                   (&h00000001)
+#define CONTAINER_ROOT_INFO_FLAG_LAYER_ROOT                     (&h00000002)
+#define CONTAINER_ROOT_INFO_FLAG_VIRTUALIZATION_ROOT            (&h00000004)
+#define CONTAINER_ROOT_INFO_FLAG_VIRTUALIZATION_TARGET_ROOT     (&h00000008)
+#define CONTAINER_ROOT_INFO_FLAG_VIRTUALIZATION_EXCEPTION_ROOT  (&h00000010)
+#define CONTAINER_ROOT_INFO_FLAG_BIND_ROOT                      (&h00000020)
+#define CONTAINER_ROOT_INFO_FLAG_BIND_TARGET_ROOT               (&h00000040)
+#define CONTAINER_ROOT_INFO_FLAG_BIND_EXCEPTION_ROOT            (&h00000080)
+#define CONTAINER_ROOT_INFO_FLAG_BIND_DO_NOT_MAP_NAME           (&h00000100)
+#define CONTAINER_ROOT_INFO_FLAG_UNION_LAYER_ROOT               (&h00000200)
+
+#define CONTAINER_ROOT_INFO_VALID_FLAGS                         (&h000003ff)
+
+'#endif
+
+
+'#if (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS1)
+
+type _VIRTUALIZATION_INSTANCE_INFO_INPUT
+   AS DWORD NumberOfWorkerThreads
+   AS DWORD Flags
+end type
+type VIRTUALIZATION_INSTANCE_INFO_INPUT AS _VIRTUALIZATION_INSTANCE_INFO_INPUT
+type PVIRTUALIZATION_INSTANCE_INFO_INPUT AS _VIRTUALIZATION_INSTANCE_INFO_INPUT PTR
+
+#define PROJFS_PROTOCOL_VERSION     3
+
+type _VIRTUALIZATION_INSTANCE_INFO_INPUT_EX
+   AS WORD   HeaderSize               ' // sizeof(VIRTUALIZATION_INSTANCE_INFO_INPUT_EX)
+   AS DWORD Flags
+   AS DWORD NotificationInfoSize      ' // Total Size of the NotificationInfo Buffer.
+   AS WORD   NotificationInfoOffset   ' // Offset from beginning of this struct to the NotificationInfo Buffer.
+   AS WORD   ProviderMajorVersion     ' // This should be set to PROJFS_PROTOCOL_VERSION.
+end type
+type VIRTUALIZATION_INSTANCE_INFO_INPUT_EX AS _VIRTUALIZATION_INSTANCE_INFO_INPUT_EX
+type PVIRTUALIZATION_INSTANCE_INFO_INPUT_EX AS _VIRTUALIZATION_INSTANCE_INFO_INPUT_EX PTR
+
+type _VIRTUALIZATION_INSTANCE_INFO_OUTPUT
+   AS GUID VirtualizationInstanceID
+end type
+type VIRTUALIZATION_INSTANCE_INFO_OUTPUT AS _VIRTUALIZATION_INSTANCE_INFO_OUTPUT
+type PVIRTUALIZATION_INSTANCE_INFO_OUTPUT AS _VIRTUALIZATION_INSTANCE_INFO_OUTPUT PTR
+
+'//  Structures for FSCTL_GET_FILTER_FILE_IDENTIFIER.
+
+type _GET_FILTER_FILE_IDENTIFIER_INPUT
+   AS WORD  AltitudeLength
+   AS WSTRING * 1 Altitude
+end type
+type GET_FILTER_FILE_IDENTIFIER_INPUT AS _GET_FILTER_FILE_IDENTIFIER_INPUT
+type PGET_FILTER_FILE_IDENTIFIER_INPUT AS _GET_FILTER_FILE_IDENTIFIER_INPUT PTR
+
+type _GET_FILTER_FILE_IDENTIFIER_OUTPUT
+   AS WORD  FilterFileIdentifierLength
+   as BYTE  FilterFileIdentifier(0)
+end type
+type GET_FILTER_FILE_IDENTIFIER_OUTPUT AS _GET_FILTER_FILE_IDENTIFIER_OUTPUT
+type PGET_FILTER_FILE_IDENTIFIER_OUTPUT AS _GET_FILTER_FILE_IDENTIFIER_OUTPUT PTR
+
+'#endif  //  (_WIN32_WINNT >= _WIN32_WINNT_WIN10_RS1)
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_CO)
+
+'//============== FSCTL_MANAGE_BYPASS_IO ================
+'//  This FSCTL is used to control BypassIO operations on a given file in the  filter and file system stacks
+'//  Defines the various operations supported by the BypassIO FSCTL
+
+enum _FS_BPIO_OPERATIONS
+   FS_BPIO_OP_ENABLE = 1
+   FS_BPIO_OP_DISABLE = 2
+   FS_BPIO_OP_QUERY = 3
+   FS_BPIO_OP_VOLUME_STACK_PAUSE = 4
+   FS_BPIO_OP_VOLUME_STACK_RESUME = 5
+   FS_BPIO_OP_STREAM_PAUSE = 6
+   FS_BPIO_OP_STREAM_RESUME = 7
+   FS_BPIO_OP_GET_INFO = 8
+   FS_BPIO_OP_MAX_OPERATION
+end enum
+type FS_BPIO_OPERATIONS AS _FS_BPIO_OPERATIONS
+
+'//  Defines the BypassIO INPUT flags
+enum _FS_BPIO_INFLAGS
+   FSBPIO_INFL_None = 0
+   FSBPIO_INFL_SKIP_STORAGE_STACK_QUERY = 1
+end enum
+type FS_BPIO_INFLAGS AS _FS_BPIO_INFLAGS
+'DEFINE_ENUM_FLAG_OPERATORS( FS_BPIO_INFLAGS )
+
+'//  Defines the INPUT structure for FSCTL_MANAGE_BYPASS_IO
+type _FS_BPIO_INPUT
+   AS FS_BPIO_OPERATIONS Operation
+   AS FS_BPIO_INFLAGS InFlags
+   AS DWORDLONG Reserved1
+   AS DWORDLONG Reserved2
+end type
+type FS_BPIO_INPUT AS _FS_BPIO_INPUT
+type PFS_BPIO_INPUT AS _FS_BPIO_INPUT PTR
+
+enum _FS_BPIO_OUTFLAGS
+   FSBPIO_OUTFL_None = 0
+   FSBPIO_OUTFL_VOLUME_STACK_BYPASS_PAUSED =   &h00000001
+   FSBPIO_OUTFL_STREAM_BYPASS_PAUSED =         &h00000002
+   FSBPIO_OUTFL_FILTER_ATTACH_BLOCKED =        &h00000004
+   FSBPIO_OUTFL_COMPATIBLE_STORAGE_DRIVER =    &h00000008
+end enum
+type FS_BPIO_OUTFLAGS AS _FS_BPIO_OUTFLAGS
+'DEFINE_ENUM_FLAG_OPERATORS( FS_BPIO_OUTFLAGS )
+
+'//  This structure defines operation specific outputs for both the ENABLE  and QUERY operations
+type _FS_BPIO_RESULTS
+   AS DWORD OpStatus
+   AS WORD  FailingDriverNameLen
+   AS WSTRING * 32 FailingDriverName
+   AS WORD  FailureReasonLen
+   AS WSTRING * 128 FailureReason
+end type
+type FS_BPIO_RESULTS AS _FS_BPIO_RESULTS
+type PFS_BPIO_RESULTS AS _FS_BPIO_RESULTS PTR
+
+' // This structure defines operation specific outputs for both the ENABLE  and QUERY operations
+type _FS_BPIO_INFO
+   AS DWORD ActiveBypassIoCount
+   AS WORD   StorageDriverNameLen
+   AS WSTRING * 32 StorageDriverName
+end type
+type FS_BPIO_INFO AS _FS_BPIO_INFO
+type PFS_BPIO_INFO AS _FS_BPIO_INFO PTR
+
+'// Defines the variable sized OUTPUT structure for FSCTL_MANAGE_BYPASS_IO
+type _FS_BPIO_OUTPUT
+   AS FS_BPIO_OPERATIONS Operation
+   AS FS_BPIO_OUTFLAGS OutFlags
+   AS DWORDLONG Reserved1
+   AS DWORDLONG Reserved2
+   union
+      AS FS_BPIO_RESULTS Enable
+      AS FS_BPIO_RESULTS Query
+      AS FS_BPIO_RESULTS VolumeStackResume
+      AS FS_BPIO_RESULTS StreamResume
+      AS FS_BPIO_INFO GetInfo
+   end union
+end type
+type FS_BPIO_OUTPUT AS _FS_BPIO_OUTPUT
+type PFS_BPIO_OUTPUT AS _FS_BPIO_OUTPUT PTR
+
+' // Structure size based on operations type
+
+#define FS_BPIO_OUTPUT_ENABLE_SIZE                  (RTL_SIZEOF_THROUGH_FIELD(FS_BPIO_OUTPUT,Enable))
+#define FS_BPIO_OUTPUT_QUERY_SIZE                   (RTL_SIZEOF_THROUGH_FIELD(FS_BPIO_OUTPUT,Query))
+#define FS_BPIO_OUTPUT_DISABLE_SIZE                 ((size_t)FIELD_OFFSET(FS_BPIO_OUTPUT, Enable))
+#define FS_BPIO_OUTPUT_VOLUME_STACK_PAUSE_SIZE      ((size_t)FIELD_OFFSET(FS_BPIO_OUTPUT, Enable))
+#define FS_BPIO_OUTPUT_VOLUME_STACK_RESUME_SIZE     (RTL_SIZEOF_THROUGH_FIELD(FS_BPIO_OUTPUT,VolumeStackResume))
+#define FS_BPIO_OUTPUT_STREAM_PAUSE_SIZE            ((size_t)FIELD_OFFSET(FS_BPIO_OUTPUT, Enable))
+#define FS_BPIO_OUTPUT_STREAM_RESUME_SIZE           (RTL_SIZEOF_THROUGH_FIELD(FS_BPIO_OUTPUT,StreamResume))
+#define FS_BPIO_OUTPUT_GET_INFO_SIZE                (RTL_SIZEOF_THROUGH_FIELD(FS_BPIO_OUTPUT,GetInfo))
+
+'#endif // (NTDDI_VERSION >= NTDDI_WIN10_CO)
+
+'//
+'// ****************** Insert New FSCTLs above Here ****************************
+'//
+
+'#endif // _FILESYSTEMFSCTL_
+
+
+'//
+'//=============== END FileSystem FSCTL Structure Definitions ==================
+'//
+
+    
+
+' // Some applications include both ntioapi_x.h and winioctl.h
+#ifndef SMB_CCF_APP_INSTANCE_EA_NAME
+#define SMB_CCF_APP_INSTANCE_EA_NAME   "ClusteredApplicationInstance"
+#endif ' //SMB_CCF_APP_INSTANCE_EA_NAME
+
+#ifndef _NETWORK_APP_INSTANCE_EA_DEFINED
+#define _NETWORK_APP_INSTANCE_EA_DEFINED
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10)
+
+'//
+'// Define the SMB Cluster Client Failover AppInstance Extended Attribute name
+'// newer version of input payload assumes that EA is not just a GUID,
+'// but instead is a structure that contains additional information
+'//
+
+'// Is used only when file is opened directly on CSVFS. This flag is ignored when file
+'// is opened over SMB.
+'// Tells CSVFS that this file open should be valid only on coordinating node.
+'// If open comes to CSVFS, and this node is not a coordinating then open would fail.
+'// If file is opened, and coordinating node is moved then file open will be invalidated
+#ifndef NETWORK_APP_INSTANCE_CSV_FLAGS_VALID_ONLY_IF_CSV_COORDINATOR
+#define NETWORK_APP_INSTANCE_CSV_FLAGS_VALID_ONLY_IF_CSV_COORDINATOR 0x00000001
+#endif ' //NETWORK_APP_INSTANCE_CSV_FLAGS_VALID_ONLY_IF_CSV_COORDINATOR
+
+type _NETWORK_APP_INSTANCE_EA
+   AS GUID AppInstanceID
+   AS DWORD CsvFlags
+end type
+type NETWORK_APP_INSTANCE_EA AS _NETWORK_APP_INSTANCE_EA
+type PNETWORK_APP_INSTANCE_EA AS _NETWORK_APP_INSTANCE_EA PTR
+
+'#endif // (NTDDI_VERSION >= NTDDI_WIN10)
+
+#endif ' //_NETWORK_APP_INSTANCE_EA_DEFINED
+
+
+'#if (NTDDI_VERSION >= NTDDI_WIN10_MN)
+
+' //=============== FSCTL_SMB_SHARE_FLUSH_AND_PURGE =================
+
+#ifndef SMB_SHARE_FLUSH_AND_PURGE_INPUT_DESCRIPTORS_DEFINED
+#define SMB_SHARE_FLUSH_AND_PURGE_INPUT_DESCRIPTORS_DEFINED
+
+type _SMB_SHARE_FLUSH_AND_PURGE_INPUT
+   AS WORD   Version            ' // sizeof(SMB_SHARE_FLUSH_AND_PURGE)
+end type
+type SMB_SHARE_FLUSH_AND_PURGE_INPUT AS _SMB_SHARE_FLUSH_AND_PURGE_INPUT
+type PSMB_SHARE_FLUSH_AND_PURGE_INPUT AS _SMB_SHARE_FLUSH_AND_PURGE_INPUT PTR
+
+type _SMB_SHARE_FLUSH_AND_PURGE_OUTPUT
+   AS DWORD cEntriesPurged
+end type
+type SMB_SHARE_FLUSH_AND_PURGE_OUTPUT AS _SMB_SHARE_FLUSH_AND_PURGE_OUTPUT
+type PSMB_SHARE_FLUSH_AND_PURGE_OUTPUT AS _SMB_SHARE_FLUSH_AND_PURGE_OUTPUT PTR
+
+#endif ' // defined(SMB_SHARE_FLUSH_AND_PURGE_INPUT_DESCRIPTORS_DEFINED)
+'#endif // (NTDDI_VERSION >= NTDDI_WIN10_MN)
+
+''// IOCTL to determine  whether  the specified
+''// volume resides on a disk that is an online
+''// cluster resource or not.
+
+'#if (NTDDI_VERSION >= NTDDI_WINTHRESHOLD)
+
+#ifndef _IO_IRP_EXT_TRACK_OFFSET_HEADER_
+#define _IO_IRP_EXT_TRACK_OFFSET_HEADER_
+
+'struct _IO_IRP_EXT_TRACK_OFFSET_HEADER
+
+''typedef VOID
+''(*PIO_IRP_EXT_PROCESS_TRACKED_OFFSET_CALLBACK)(
+''    _In_ struct _IO_IRP_EXT_TRACK_OFFSET_HEADER *SourceContext,
+''    _Inout_ struct _IO_IRP_EXT_TRACK_OFFSET_HEADER *TargetContext,
+''    _In_ LONGLONG RelativeOffset
+''    );
+
+#define IRP_EXT_TRACK_OFFSET_HEADER_VALIDATION_VALUE "TO"    ' //Track Offset
+
+'type _IO_IRP_EXT_TRACK_OFFSET_HEADER
+'   AS WORD   Validation
+'   AS WORD   Flags
+'   AS PIO_IRP_EXT_PROCESS_TRACKED_OFFSET_CALLBACK TrackedOffsetCallback
+'end type
+'type IO_IRP_EXT_TRACK_OFFSET_HEADER AS _IO_IRP_EXT_TRACK_OFFSET_HEADER
+'type PIO_IRP_EXT_TRACK_OFFSET_HEADER AS _IO_IRP_EXT_TRACK_OFFSET_HEADER PTR
+
+#define EFS_TRACKED_OFFSET_HEADER_FLAG &h0001      '//EFS Flag
+#define SPACES_TRACKED_OFFSET_HEADER_FLAG &h0002   '//SPACES Flag
+
+#endif ' // _IO_IRP_EXT_TRACK_OFFSET_HEADER_
+'#endif // (NTDDI_VERSION >= NTDDI_WINTHRESHOLD)
+
+end extern
