@@ -2,7 +2,6 @@
 '' generics infer their type argument from the channel, and a 'var' had no type yet.
 #import "std/tasks"
 #cmdline "-mt"
-#include once "fb/select.bi"
 var a = tasks.Channel( of long )( 1 )
 a.Send( 3 )
 dim as long v

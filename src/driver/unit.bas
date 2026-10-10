@@ -166,6 +166,7 @@ function CompileUnit _
     p.diags = @ctx.diags
     p.pos = 0
     p.recordDecls = (ctx.modFileCount > 0)
+    p.ifaceChains = @ctx.ifaceChains
     '' The target's default convention, which the '...' rule needs. See
     '' ParserState.fbcallConv.
     p.fbcallConv = iif( Tko.TargetIsWindows( ctx.options.target ), _

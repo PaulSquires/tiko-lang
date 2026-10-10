@@ -259,10 +259,10 @@ function MakeSpawn_ _
     next
 
     '' 'FB.Spawn( @thunk, frame )' -- the runtime call, named through the namespace
-    '' the program has already included.
+    '' the program has already included: TasksNs.
     dim as Tko.BinaryPayload qb
     qb.op = cast( ushort, Tko.TK_DOT )
-    qb.lhs = SpIdent_( p, p.names->Fold( p.names->GetString( "fb" ) ), t.loc )
+    qb.lhs = SpIdent_( p, p.names->Fold( p.names->GetString( TasksNs( p ) ) ), t.loc )
     qb.rhs = SpIdent_( p, p.names->Fold( p.names->GetString( "spawn" ) ), t.loc )
     p.ast->binaries.Push( qb )
     dim as Tko.NodeId qn = _
@@ -303,6 +303,20 @@ function MakeSpawn_ _
     '' 'spawn' names no procedure (T76) and stop the thunk reporting it as undeclared.
     ssp.c = calleeN
     return MakeStmt( p, Tko.N_SPAWN, t.loc, ssp )
+end function
+
+'' WHERE 'spawn' AND 'select' NAME THEIR RUNTIME: FB.Spawn, FB.SelectCtx and the rest are
+'' std/tasks' since 2026-10-10, reached through its interface namespace,
+'' '__tko_mod_std_tasks', once the unit has read that interface -- asked at the statement,
+'' because the token stream is lazy and the '#import' above it was read only just now.
+'' Otherwise FB: fb/scheduler.bi and fb/select.bi included as headers.
+function TasksNs( byref p as Tko.ParserState ) as string
+    if p.ifaceChains <> 0 then
+        for k as long = 0 to p.ifaceChains->Count - 1
+            if (*p.ifaceChains)[k] = "std.tasks" then return "__tko_mod_std_tasks"
+        next
+    end if
+    return "FB"
 end function
 
 end namespace

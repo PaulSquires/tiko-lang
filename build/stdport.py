@@ -61,9 +61,17 @@ MODULES = {
 UMBRELLAS = {"tui.bi", "finance.bi", "logging.bi", "filesystem.bi", "../containers.bi"}
 # The names a module exports beyond its facade's list.
 EXTRA_PUBLIC = {
-    "memory": {"sharedptr", "weakptr", "makeshared"},
+    # a new module: fb/sharedptr.bi was in no facade. SpCtl is the field type behind both.
+    "memory": {"sharedptr", "weakptr", "makeshared", "makesharedfrom", "spcast", "spctl"},
     # the type behind the public alias Logger (TKO0868 otherwise)
     "logs": {"logger_"},
+    # what a SELECT statement lowers to (src/parser/selchan.bas): the parser writes these
+    # names into the importer's own code, so they must be public, though no one writes them
+    "tasks": {"selectcase", "selectctx", "selectaddrecv", "selectaddsend", "selectaddrecvdiscard",
+              "selectrun", "selectcommitrecv", "selectcommitsend", "selectreleaserecv",
+              "selectreleasesend",
+              # ...and the channel types those and Channel's own members name
+              "chanwaiter", "chancore", "chanwaitercore"},
 }
 
 HDR_MODULE = {}

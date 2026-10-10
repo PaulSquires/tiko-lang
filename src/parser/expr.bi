@@ -82,6 +82,9 @@ namespace Tko
         '' Above zero while a procedure BODY's parameters are read: those enter the
         '' procedure's table, so BareMacroDecl_ refuses one; a DECLARE's do not.
         as long                 bodyParams
+        '' THE CHAINS OF THE INTERFACES THE UNIT HAS READ (CompilerContext.ifaceChains), or 0:
+        '' where 'spawn' and 'select' name their runtime -- see Parse.TasksNs.
+        as StrVec ptr           ifaceChains
         '' THE CONVENTION A PROCEDURE GETS WHEN IT WRITES NONE -- fbc's 'fbcall', stdcall
         '' on Windows and cdecl on Linux. Only the '...' rule reads it (CheckVarargConv_),
         '' and CC_NONE, the default, turns that rule off: the prelude and a generic
@@ -173,6 +176,9 @@ namespace Tko
 end namespace
 
 namespace Tko.Parse
+
+'' Defined in spawn.bas: the namespace 'spawn' and 'select' name their runtime through.
+declare function TasksNs( byref p as Tko.ParserState ) as string
 
 '' Defined in intrinsics.bas: 'open( ... )' used as an EXPRESSION. Declared here
 '' because Primary needs it and expr.bas is compiled before that file.

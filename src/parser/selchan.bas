@@ -87,10 +87,10 @@ private function SelDot_ _
     return NewNodeAt( p, Tko.N_MEMBER, lc, p.ast->binaries.Count - 1 )
 end function
 
-'' 'FB.<name>' as an expression.
+'' 'FB.<name>' as an expression -- or '__tko_mod_std_tasks.<name>': TasksNs.
 private function SelFb_ _
     ( byref p as Tko.ParserState, byval lc as Tko.SourceLoc, byref nm as string ) as Tko.NodeId
-    return SelDot_( p, lc, SelIdent_( p, lc, "FB" ), nm )
+    return SelDot_( p, lc, SelIdent_( p, lc, TasksNs( p ) ), nm )
 end function
 
 '' A call, as a STATEMENT: the call-or-assign node, over a PARENTHESISED call -- the
@@ -313,7 +313,7 @@ function ParseSelectChannel_ _
     '' 'dim as FB.SelectCtx __sc'
     dim as Tko.StmtPayload ctxTy
     ctxTy.name = SelName_( p, "SelectCtx" )
-    ctxTy.ownerName = SelName_( p, "FB" )
+    ctxTy.ownerName = SelName_( p, TasksNs( p ) )
     body.Push( cast( ulong, SelDim_( p, lc, "__tkosel_sc", _
         MakeStmt( p, Tko.N_TYPEREF, lc, ctxTy ), Tko.NODE_NONE, false ) ) )
 

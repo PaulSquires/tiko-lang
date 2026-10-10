@@ -1,9 +1,8 @@
-'' std/tasks (RFC-0009): a generic Channel, a WaitGroup and a procedure through the facade,
-'' beside fb/channel.bi included directly -- a tasks.Channel IS an FB.Channel. Built -mt:
-'' the goroutine headers refuse the single-threaded runtime.
+'' std/tasks, a real module: a generic Channel, a WaitGroup, a procedure -- and 'spawn' and
+'' 'select channel', which lower to std/tasks' own Spawn and Select* procedures: no header.
+'' Built -mt: the goroutine runtime refuses the single-threaded one.
 #import "std/tasks"
-#include once "fb/channel.bi"
-private sub Producer( byval ch as FB.Channel( of long ) )
+private sub Producer( byval ch as tasks.Channel( of long ) )
     ch.Send( 42 )
     ch.Close( )
 end sub
@@ -16,3 +15,9 @@ wend
 dim as tasks.WaitGroup wg
 wg.Add( 1 ) : wg.Done( ) : wg.Wait( )
 print got; wg.Count( ); " "; tasks.GoroutineCount( ) >= 0
+dim as tasks.Channel( of long ) c2 = tasks.Channel( of long )( 1 )
+c2.Send( 7 )
+select channel
+    case receive v from c2 : print "got"; v
+    case timeout 1000      : print "timeout"
+end select
