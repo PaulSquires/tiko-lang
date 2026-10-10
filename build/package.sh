@@ -293,6 +293,16 @@ if [ "$DO_INC" = "1" ]; then
     # package named fbx that a '-i <inc>' root offers '#import "fbx/..."'.
     rm -rf "$OUT/inc/fbx" "$OUT/include/freebasic/fbx"
     if [ -e "$OUT/inc/fbx" ]; then die "packaged inc/ still has fbx/ -- it was replaced by pkg/tkl"; fi
+    # ...AND tiko-lang's OWN HEADERS OVER THEM (phase H, 2026-10-10): fb/, containers.bi,
+    # crt/, win/, windows.bi and the rest of FreeBASIC's set are the tree's inc/, the one
+    # copy -- inc/PROVENANCE.md says where each came from. What is copied from the stage0
+    # toolchain above is then only what tiko-lang does not carry: the third-party
+    # bindings (SDL, GTK, AfxNova, ...), until the author decides where those live.
+    if [ -d "$ROOT/inc" ]; then
+        note "headers -> inc/  tiko-lang's own over them: $(find "$ROOT/inc" -name '*.bi' | wc -l | tr -d ' ') files from inc/"
+        cp -r "$ROOT/inc/." "$OUT/inc/"
+        rm -f "$OUT/inc/.import-manifest.tsv"
+    fi
 else
     note "--no-inc: headers not packaged"
 fi
