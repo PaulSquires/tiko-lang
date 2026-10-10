@@ -1,2 +1,0 @@
-mode=COMPILE_AND_RUN_OK build=0 run=0
-comptr-error-path: ok (destructors and defers do NOT run on the error path)

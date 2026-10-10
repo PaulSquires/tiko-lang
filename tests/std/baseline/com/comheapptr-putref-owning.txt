@@ -1,4 +1,0 @@
-mode=COMPILE_AND_RUN_FAIL build=0 run=1
-before
-
-Aborting due to runtime error 1 (illegal function call) at line 750 of comptr.bi()

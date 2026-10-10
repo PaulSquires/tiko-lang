@@ -49,7 +49,8 @@ export TKO_MODCACHE="$WK/cache"
 if [ "$MODE" = baseline ]; then
     SRCROOT=tests/vendor/fbc-tests
     INC=$ROOT/inc
-    LIST=$(grep -rlE '^[^'"'"']*#include( once)? "(fb/|containers\.bi)' $SRCROOT --include='*.bas' | sort)
+    # Not com/: fb/comptr.bi is gone, ComPtr no longer a supported feature (2026-10-10).
+    LIST=$(grep -rlE '^[^'"'"']*#include( once)? "(fb/|containers\.bi)' $SRCROOT --include='*.bas' | grep -v '/com/' | sort)
 else
     SRCROOT=tests/std
     INC=$TC/inc

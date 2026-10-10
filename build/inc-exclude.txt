@@ -143,3 +143,6 @@ crt/dos      unreachable
 crt/freebsd  unreachable
 CUnit
 libart_lgpl
+# ComPtr is no longer a supported feature (the author's order, 2026-10-10): fb/comptr.bi
+# left the tree, and is kept out of a toolchain whose inc/ is assembled from another.
+fb/comptr.bi
