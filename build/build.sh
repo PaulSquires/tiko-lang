@@ -42,22 +42,28 @@ esac
 
 # stage0: overridable, because the pinned commit moves at phase boundaries only.
 #
-# A TIKO SEED INSTEAD OF fbc: TKO_SEED=<path to a tiko executable> -- a packaged
-# toolchain's, e.g. toolchains/tiko-windows/tiko.exe; seed/seed.lock pins the one
-# releases are built from. Opt-in while the runner, the DLL and the suite are
-# measured under it; fbc stays the default until then. The seed compiles only what
-# IT understands, so its flags are its own (below) -- the seed-compatibility rule:
-# tiko-lang's source may use a feature only once the pinned seed compiles it.
+# THE SEED IS THE DEFAULT: a tiko -- seed/seed.lock pins the one releases are built
+# from -- and FBC-Modern only when asked for. In this order:
+#   TKO_SEED=<path to a tiko executable>   that tiko;
+#   TKO_STAGE0=<path to an fbc>            FBC-Modern, as before the seed (MinSizeRel's
+#                                          only compiler);
+#   neither                                build/defaultseed.sh's default_seed: the
+#                                          fetched pinned seed, else a packaged toolchain.
+# The seed compiles only what IT understands, so its flags are its own (below) -- the
+# seed-compatibility rule: tiko-lang's source may use a feature only once the pinned seed
+# compiles it.
+. "$ROOT/build/defaultseed.sh"
 SEEDED=0
+if [ -z "${TKO_SEED:-}" ] && [ -z "${TKO_STAGE0:-}" ]; then
+    if ! TKO_SEED=$(default_seed "$ROOT" "$HOSTWIN"); then
+        echo "build: no seed compiler. Fetch the pinned one (seed/fetch-seed.sh), package a" >&2
+        echo "build: toolchain (build/package.sh), or set TKO_SEED to a tiko or TKO_STAGE0 to an fbc" >&2
+        exit 3
+    fi
+fi
 if [ -n "${TKO_SEED:-}" ]; then
     SEEDED=1
     TKO_STAGE0=$TKO_SEED
-elif [ -z "$TKO_STAGE0" ]; then
-    if [ "$HOSTWIN" = "1" ]; then
-        TKO_STAGE0="/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe"
-    else
-        TKO_STAGE0="/c/dev/fbc-modern/toolchains/fbc-modern-linux/bin/fbc"
-    fi
 fi
 
 if [ ! -x "$TKO_STAGE0" ]; then

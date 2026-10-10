@@ -75,6 +75,13 @@ while [ $# -gt 0 ]; do
     shift
 done
 
+# THE SEED IS THE DEFAULT here as in build.sh: TKO_SEED or --seed, else an fbc named by
+# TKO_STAGE0, else build/defaultseed.sh's pick.
+. "$ROOT/build/defaultseed.sh"
+if [ -z "${TKO_SEED:-}" ] && [ -z "${TKO_STAGE0:-}" ]; then
+    TKO_SEED=$(default_seed "$ROOT" "$HOSTWIN") || {
+        echo "bootstrap: no seed compiler (seed/fetch-seed.sh), and no TKO_STAGE0 fbc" >&2; exit 3; }
+fi
 SEEDED=0
 if [ -n "${TKO_SEED:-}" ]; then
     SEEDED=1

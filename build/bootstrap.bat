@@ -46,6 +46,14 @@ echo bootstrap: unknown argument '%~1' 1>&2
 popd & exit /b 2
 :argsdone
 
+rem THE SEED IS THE DEFAULT, as in build.bat: TKO_SEED or --seed, else TKO_STAGE0, else
+rem defaultseed.bat's pick.
+if "%TKO_SEED%"=="" if "%TKO_STAGE0%"=="" call "%ROOT%\build\defaultseed.bat" "%ROOT%"
+if "%TKO_SEED%"=="" if "%TKO_STAGE0%"=="" set "TKO_SEED=%DEFAULT_SEED%"
+if "%TKO_SEED%"=="" if "%TKO_STAGE0%"=="" (
+    echo bootstrap: no seed compiler ^(seed/fetch-seed.sh^), and no TKO_STAGE0 fbc 1>&2
+    popd & exit /b 3
+)
 set "SEEDED=0"
 if not "%TKO_SEED%"=="" set "SEEDED=1"
 if "%SEEDED%"=="1" if not exist "%TKO_SEED%" (

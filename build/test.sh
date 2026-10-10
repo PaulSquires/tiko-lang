@@ -73,6 +73,13 @@ newer_than( ) {
     return 1
 }
 
+# The stage0 build.sh would use now: TKO_SEED, else TKO_STAGE0, else the default seed.
+. "$ROOT/build/defaultseed.sh"
+WANTCC=${TKO_SEED:-${TKO_STAGE0:-}}
+if [ -z "$WANTCC" ]; then
+    case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) _hw=1 ;; *) _hw=0 ;; esac
+    WANTCC=$(default_seed "$ROOT" "$_hw" || true)
+fi
 STALE=0
 if [ "${TKO_TEST_REBUILD:-0}" = "1" ]; then
     STALE=1
@@ -84,9 +91,9 @@ else
     STAMPCC=${STAMPED#*|}
     if [ "$STAMPCFG" != "$CFG" ]; then
         STALE=1
-    elif [ -n "${TKO_SEED:-${TKO_STAGE0:-}}" ] && [ "$STAMPCC" != "${TKO_SEED:-$TKO_STAGE0}" ]; then
-        # A DIFFERENT STAGE0 than the one bin/ was built with -- TKO_SEED first, as
-        # build.sh reads it.
+    elif [ -n "$WANTCC" ] && [ "$STAMPCC" != "$WANTCC" ]; then
+        # A DIFFERENT STAGE0 than the one bin/ was built with, chosen as build.sh chooses
+        # it -- so a bin/ an fbc built is rebuilt once the seed is the default.
         STALE=1
     elif newer_than "$TIKO" "$ROOT/src" "$ROOT/build/sources.txt" \
                     "$ROOT/build/build.sh" "$STAMPCC"; then

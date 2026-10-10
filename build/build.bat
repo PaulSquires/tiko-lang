@@ -28,12 +28,21 @@ for %%a in (%*) do (
 )
 if "%CFG%"=="--dll" set "CFG=Release"
 
-rem A TIKO SEED INSTEAD OF fbc: TKO_SEED=<path to a tiko executable>. Opt-in -- see the
-rem peer note in build.sh, which also says why the seed's flags are its own.
+rem THE SEED IS THE DEFAULT: TKO_SEED, else TKO_STAGE0 (an fbc), else defaultseed.bat's
+rem pick -- see the peer note in build.sh, which also says why the seed's flags are its own.
 set "SEEDED=0"
+if not "%TKO_SEED%"=="" goto seedset
+if not "%TKO_STAGE0%"=="" goto seedset
+call "%ROOT%\build\defaultseed.bat" "%ROOT%"
+if not defined DEFAULT_SEED (
+    echo build: no seed compiler. Fetch the pinned one ^(seed/fetch-seed.sh^), package a 1>&2
+    echo build: toolchain ^(build/package.sh^), or set TKO_SEED to a tiko or TKO_STAGE0 to an fbc 1>&2
+    exit /b 3
+)
+set "TKO_SEED=%DEFAULT_SEED%"
+:seedset
 if not "%TKO_SEED%"=="" set "SEEDED=1"
 if "%SEEDED%"=="1" set "TKO_STAGE0=%TKO_SEED%"
-if "%TKO_STAGE0%"=="" set "TKO_STAGE0=C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe"
 
 if not exist "%TKO_STAGE0%" (
     echo build: stage0 compiler not found at %TKO_STAGE0% 1>&2
