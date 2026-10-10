@@ -1,0 +1,9 @@
+mode=SUITE build=0 run=0
+
+SUMMARY
+
+ Asserts    Passed    Failed  Suite                                      Tests
+--------  --------  --------  --------------------------------------  --------
+      93        93         0  fbc_tests.logging.logrecord_                  11
+--------  --------  --------  --------------------------------------  --------
+      93        93         0  Total                                         11

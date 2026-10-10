@@ -1,5 +1,4 @@
-'' A facade's names are exported macros, reached only as 'alias.NAME' (RFC-0009 §4):
-'' 'using strings' does not make 'Replace' a name.
+'' std/strings is a real module: 'using strings' makes its public 'Replace' a bare name.
 #import "std/strings"
 using strings
 print Replace( "ab", "a", "z" )

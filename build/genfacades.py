@@ -64,8 +64,8 @@ FACADES = {
             ["tui.bi", "tuiapp.bi", "tuibuffer.bi", "tuichrome.bi", "tuicore.bi", "tuidraw.bi",
              "tuiform.bi", "tuiinput.bi", "tuilayout.bi", "tuiterm.bi", "tuiwidget.bi",
              "tuiwidgets.bi", "tuiwidth.bi", "tuiwidthtab.bi"], False),
-    "strings": (["fb/string.bi"], ["string.bi"], False),
 }
+# Real modules now (build/stdport.py, 2026-10-10), no longer written here: strings.
 
 # std/path's names, kept in std/fs when std/path was folded into it (RFC-0009 M30). Each is
 # the header's function, with the header's behaviour -- see pkg/std/README.md.

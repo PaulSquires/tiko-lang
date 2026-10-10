@@ -1,0 +1,6 @@
+mode=SUITE build=1
+tests/vendor/fbc-tests/math/vector.bas(221,37): error TKO0743: 'complexd_' is not declared
+tests/vendor/fbc-tests/math/vector.bas(222,28): error TKO0743: 'absvalue' is not declared
+tests/vendor/fbc-tests/math/vector.bas(223,28): error TKO0743: 'norm' is not declared
+tests/vendor/fbc-tests/math/vector.bas(224,28): error TKO0743: 'real' is not declared
+tests/vendor/fbc-tests/math/vector.bas(225,28): error TKO0743: 'imag' is not declared

@@ -1,0 +1,9 @@
+mode=SUITE build=0 run=0
+
+SUMMARY
+
+ Asserts    Passed    Failed  Suite                                      Tests
+--------  --------  --------  --------------------------------------  --------
+     151       151         0  fbc_tests.string_.fbstr_split                 14
+--------  --------  --------  --------------------------------------  --------
+     151       151         0  Total                                         14

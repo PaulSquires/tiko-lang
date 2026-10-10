@@ -1,0 +1,8 @@
+#module "box"
+#include once "../g.bi"
+using ns
+public function Make( byval x as long ) as G( of long )
+    dim r as G( of long )
+    r.v = x * 2
+    return r
+end function

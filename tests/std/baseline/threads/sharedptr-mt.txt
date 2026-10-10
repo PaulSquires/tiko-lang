@@ -1,0 +1,9 @@
+mode=SUITE build=0 run=0
+
+SUMMARY
+
+ Asserts    Passed    Failed  Suite                                      Tests
+--------  --------  --------  --------------------------------------  --------
+      14        14         0  fbc_tests.threads.sharedptr_mt                 2
+--------  --------  --------  --------------------------------------  --------
+      14        14         0  Total                                          2

@@ -71,10 +71,11 @@ fi
 # DLL are copied out first: only TKP_OPTIONS.pkgDir (--pkg-dir) can find std/ from there.
 HOST=$(mktemp -d)
 cp "$H" "$DLL" "$HOST/"
-# std/strings is a facade over fb/string.bi (RFC-0009), so the header is found through
-# TKP_INCDIR. Its names are exported macros, listed as DEFINE (k12) members of the alias
-# (the k13 record), each with a ref to the header's declaration. The alias record exists
-# only when the package was found, which is what the pkgDir checks test.
+# std/strings is a real module (2026-10-10; it was a facade over fb/string.bi until then),
+# and its public procedures are listed as FUNCTION (k2) members of the alias (the k13
+# record), one per overload, at their declarations in the module's file. Its interface
+# still includes fb/array.bi, found through TKP_INCDIR. The alias record exists only when
+# the package was found, which is what the pkgDir checks test.
 STDINC=$(cygpath -w "$ROOT/toolchains/tiko-windows/inc")
 printf '#import "std/strings"
 print strings.Reverse( "tiko" )
@@ -86,8 +87,8 @@ else
     echo "FAIL  #import std/strings through pkgDir"; echo "$out" | sed 's/^/      /'; FAIL=1
 fi
 ALIAS=$( echo "$out" | sed -n 's/^  \[\([0-9]*\)\] k13 strings .*/\1/p' | head -1 )
-if [ -n "$ALIAS" ] && echo "$out" | grep -qE "k12 Replace as FB.Replace  @[0-9]+:[0-9]+:[0-9]+  parent=$ALIAS .* ref=[0-9]+:[0-9]+"; then
-    echo "ok    strings.Replace is an exported-macro member, ref'd to fb/string.bi"
+if [ -n "$ALIAS" ] && [ "$( echo "$out" | grep -cE "k2 Replace as u?string  @[0-9]+:[0-9]+:[0-9]+  parent=$ALIAS " )" = 3 ]; then
+    echo "ok    strings.Replace is a member of strings: its three overloads"
 else
     echo "FAIL  strings.Replace as a member of strings (alias record '$ALIAS')"; echo "$out" | grep -E "k13 strings|Replace" | sed 's/^/      /'; FAIL=1
 fi

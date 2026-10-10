@@ -1,0 +1,9 @@
+mode=SUITE build=0 run=0
+
+SUMMARY
+
+ Asserts    Passed    Failed  Suite                                      Tests
+--------  --------  --------  --------------------------------------  --------
+      45        45         0  fbc_tests.filesystem.fsvolume                 13
+--------  --------  --------  --------------------------------------  --------
+      45        45         0  Total                                         13

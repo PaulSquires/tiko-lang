@@ -1,0 +1,9 @@
+mode=SUITE build=0 run=0
+
+SUMMARY
+
+ Asserts    Passed    Failed  Suite                                      Tests
+--------  --------  --------  --------------------------------------  --------
+     557       557         0  fbc_tests.filesystem.fsops_walk               35
+--------  --------  --------  --------------------------------------  --------
+     557       557         0  Total                                         35

@@ -349,7 +349,7 @@ fi
 rm -rf "$OUT/pkg"
 cp -r "$ROOT/pkg" "$OUT/pkg"
 [ -f "$OUT/pkg/std/tiko.toml" ] || die "packaged pkg/ has no std/tiko.toml -- '#import \"std/...\"' would find nothing"
-[ -f "$OUT/pkg/std/strings/strings.bas" ] || die "packaged pkg/ has no std/strings"
+[ -f "$OUT/pkg/std/strings/string.tiko" ] || die "packaged pkg/ has no std/strings"
 [ -f "$OUT/pkg/sys/windows/windows.bas" ] || die "packaged pkg/ has no sys/windows"
 [ -f "$OUT/pkg/tkl/tkGui/CWindow.tiko" ] || die "packaged pkg/ has no tkl/tkGui"
 note "packages -> pkg/ ($( ls "$OUT/pkg" | tr '\n' ' '))"

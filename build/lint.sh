@@ -55,6 +55,10 @@ note( ) {
 # can differ.
 SRC=$(find src -name '*.bas' -o -name '*.bi' | sort)
 ALL=$(find src tools lib -path 'lib/rt' -prune -o \( -name '*.bas' -o -name '*.bi' \) -print | sort)
+# THE STANDARD LIBRARY'S MODULES (pkg/std, real modules since 2026-10-10) are held to the
+# size, whitespace and tab rules too. Not to layering or the 'dim shared' allowlist: those
+# are the compiler's own architecture, and a module's state is its own.
+STD=$(find pkg/std -name '*.tiko' -o -name '*.ti' | sort)
 
 # THE FILES OF $2.. THAT grep $1 SELECTS, one per line; nothing -- not stdin -- for none.
 grep_files( ) {
@@ -122,7 +126,7 @@ for f in $(grep_files '^[[:space:]]*dim shared' $SRC); do
 done
 
 # ------------------------------------------------------------- 3. file size
-wc -l $ALL | awk '$2 != "total" && $1 > 1500 { print "SIZE " $2 " is " $1 " lines (limit 1500)" }' > build/.lint.size
+wc -l $ALL $STD | awk '$2 != "total" && $1 > 1500 { print "SIZE " $2 " is " $1 " lines (limit 1500)" }' > build/.lint.size
 while read -r l; do note "$l"; done < build/.lint.size
 rm -f build/.lint.size
 
@@ -183,14 +187,14 @@ done
 # the line terminator and never saw it; the WSL grep does not, so every CRLF source in the
 # tree read as a violation the moment this script became runnable on Linux -- 160 of them.
 # awk strips the CR and tests what the line actually ends in.
-for f in $(awk '{ gsub( /\r/, "" ) } /[[:space:]]$/ { print FILENAME; nextfile }' $ALL); do
+for f in $(awk '{ gsub( /\r/, "" ) } /[[:space:]]$/ { print FILENAME; nextfile }' $ALL $STD); do
     note "WHITESPACE $f has trailing whitespace"
 done
 # NOT 'grep -P'. Git Bash refuses it outright -- 'grep: -P supports only unibyte and UTF-8
 # locales' -- and the 2>/dev/null that hid the message hid the fact that this check had
 # never once run on Windows. It found two real violations the first time it did. A literal
 # tab is portable.
-for f in $(grep_files "$(printf '\t')" $ALL); do
+for f in $(grep_files "$(printf '\t')" $ALL $STD); do
     note "TABS $f contains hard tabs"
 done
 

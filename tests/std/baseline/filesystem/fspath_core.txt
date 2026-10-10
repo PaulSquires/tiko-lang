@@ -1,0 +1,9 @@
+mode=SUITE build=0 run=0
+
+SUMMARY
+
+ Asserts    Passed    Failed  Suite                                      Tests
+--------  --------  --------  --------------------------------------  --------
+     177       177         0  fbc_tests.filesystem.fspath_core              26
+--------  --------  --------  --------------------------------------  --------
+     177       177         0  Total                                         26

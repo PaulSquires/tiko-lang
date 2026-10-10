@@ -1,0 +1,12 @@
+mode=SUITE build=0 run=1
+fb.logging: ConsoleSink(stderr): closed, record dropped
+      tests/vendor/fbc-tests/logging/logger_sinks.bas(421) : error : TESTS.FBC_TESTS.LOGGING.LOGGER_SINKS.RANK5_COLOUR_ON_AND_OFF CU_ASSERT_EQUAL(buf,!"/e[31mERROR/e[0m  boom/n")
+      tests/vendor/fbc-tests/logging/logger_sinks.bas(427) : error : TESTS.FBC_TESTS.LOGGING.LOGGER_SINKS.RANK5_COLOUR_ON_AND_OFF CU_ASSERT_EQUAL(buf,!"/e[90mTRACE/e[0m  boom/n")
+
+SUMMARY
+
+ Asserts    Passed    Failed  Suite                                      Tests
+--------  --------  --------  --------------------------------------  --------
+      76        74         2  fbc_tests.logging.logger_sinks                13
+--------  --------  --------  --------------------------------------  --------
+      76        74         2  Total                                         13

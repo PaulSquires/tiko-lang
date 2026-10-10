@@ -1,0 +1,9 @@
+mode=SUITE build=0 run=0
+
+SUMMARY
+
+ Asserts    Passed    Failed  Suite                                      Tests
+--------  --------  --------  --------------------------------------  --------
+     117       117         0  fbc_tests.filesystem.fsglob                   22
+--------  --------  --------  --------------------------------------  --------
+     117       117         0  Total                                         22

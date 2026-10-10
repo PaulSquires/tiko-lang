@@ -1,0 +1,6 @@
+Fail Fail
+None None
+Ok Ok
+Optional Optional
+Result Result
+Some Some

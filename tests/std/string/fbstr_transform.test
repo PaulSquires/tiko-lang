@@ -1,0 +1,8 @@
+'' tests/vendor/fbc-tests/string/fbstr_transform.bas ported to the std modules (build/stdtests.py, generated).
+'' Expected: what tests/std/baseline/string/fbstr_transform.txt recorded for the original.
+'' TEST: cli
+'' ARGS: -target win64-msvc -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/string/fbstr_transform.bas -o tests/std/string/fbstr_transform.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/std/string/fbstr_transform.exe
+'' EXPECT-RUN-OUT: 205       205         0  fbc_tests.string_.fbstr_transform             16

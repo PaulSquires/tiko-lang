@@ -1,0 +1,2 @@
+mode=COMPILE_ONLY_FAIL build=1
+error TKO0746

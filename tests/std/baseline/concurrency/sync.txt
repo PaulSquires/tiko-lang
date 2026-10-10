@@ -1,0 +1,9 @@
+mode=SUITE build=0 run=0
+
+SUMMARY
+
+ Asserts    Passed    Failed  Suite                                      Tests
+--------  --------  --------  --------------------------------------  --------
+      51        51         0  fbc_tests.concurrency.sync                     9
+--------  --------  --------  --------------------------------------  --------
+      51        51         0  Total                                          9

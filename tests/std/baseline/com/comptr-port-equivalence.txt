@@ -1,0 +1,3 @@
+mode=COMPILE_AND_RUN_OK build=0 run=0
+  IPersistFile is a different pointer from IShellLink: true
+comptr-port-equivalence: ok

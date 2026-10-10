@@ -1,0 +1,9 @@
+CpuClock CpuClock
+DateTime DateTime
+Instant Instant
+LocalDate LocalDate
+LocalTime LocalTime
+Stopwatch Stopwatch
+TimeSpan TimeSpan
+TimeZoneInfo TimeZoneInfo
+WallClock WallClock

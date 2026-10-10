@@ -1,0 +1,11 @@
+'' AN INSTANTIATION REACHED THROUGH A MODULE'S 'using' IS WRITTEN QUALIFIED IN ITS INTERFACE.
+'' box writes 'using ns' and 'as G( of long )'; the interface does not repeat the using, and
+'' an instantiation is typed with its instance but bound to no symbol, so it was written bare
+'' and the importer reported TKO0808 "the type 'g' is not declared" (std/strings, 2026-10-10:
+'' 'as Array( of string )' after 'using FB').
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/modules/src/tkiusing/main.bas -o tests/modules/tkiusing.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/tkiusing.exe
+'' EXPECT-RUN-OUT: 42

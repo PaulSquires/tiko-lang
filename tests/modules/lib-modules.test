@@ -3,7 +3,7 @@
 '' the module's chain -- std.strings.o -- and written beside the archive, never beside std's
 '' source in the toolchain's pkg/. Built twice, so the second build takes the module from
 '' the cache and must still name it by its chain, not by the entry's obj.o. std/strings is a
-'' facade over fb/string.bi (RFC-0009), so its object's code is the header's -- FB.CsvRow's
+'' real module, so its object holds its own code, spelled from its chain -- strings.CsvRow's
 '' constructor among it.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-lib/cache
@@ -16,6 +16,6 @@
 '' EXPECT-OUT: module std.strings: hit
 '' EXPECT-FILE-HAS: tests/modules/libmodules.a :: std.strings.o
 '' EXPECT-FILE-HAS: tests/modules/libmodules.a :: api.o
-'' EXPECT-FILE-HAS: tests/modules/libmodules.a :: _ZN2FB6CSVROWC1Ev
+'' EXPECT-FILE-HAS: tests/modules/libmodules.a :: _ZN3STD7STRINGS6CSVROWC1Ev
 '' EXPECT-FILE-NOT-HAS: tests/modules/libmodules.a :: obj.o
 '' EXPECT-NO-FILE: pkg/std/strings/strings.o

@@ -1,0 +1,9 @@
+mode=SUITE build=0 run=0
+
+SUMMARY
+
+ Asserts    Passed    Failed  Suite                                      Tests
+--------  --------  --------  --------------------------------------  --------
+     205       205         0  fbc_tests.string_.fbstr_transform             16
+--------  --------  --------  --------------------------------------  --------
+     205       205         0  Total                                         16

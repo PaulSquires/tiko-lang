@@ -1,0 +1,9 @@
+mode=SUITE build=0 run=0
+
+SUMMARY
+
+ Asserts    Passed    Failed  Suite                                      Tests
+--------  --------  --------  --------------------------------------  --------
+     124       124         0  fbc_tests.finance.portfolio                   10
+--------  --------  --------  --------------------------------------  --------
+     124       124         0  Total                                         10

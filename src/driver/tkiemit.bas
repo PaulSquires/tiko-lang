@@ -706,10 +706,17 @@ private sub Qualify_( byref w as TkiWriter_ )
         dim as Tko.ScopeId from_ = w.info->ScopeOf( nd )
         '' A PARAMETER'S DEFAULT is bound at each call, not where it is written, so its names
         '' carry no binding here: looked up from the declaration's scope, usings and all.
+        '' ...AND AN INSTANTIATION, 'Array( of string )', is typed with its instance and bound
+        '' to nothing (ResolveTypeRefAt_ returns before SetRef), so after 'using FB' the
+        '' generic it names is looked up the same way: the importer has no 'using'.
         if sid = Tko.SYMBOL_NONE then
             dim as Tko.ScopeId look = from_
             if look = Tko.SCOPE_NONE then look = Tko.ModSym.ModuleScope( *w.syms )
-            if w.ast->Kind( nd ) = Tko.N_IDENT then sid = w.syms->Lookup( look, w.ctx->names.Fold( nm ) )
+            if w.ast->Kind( nd ) = Tko.N_IDENT then
+                sid = w.syms->Lookup( look, w.ctx->names.Fold( nm ) )
+            elseif w.ast->stmts[cast( long, w.ast->nodes[id].data )].count > 0 then
+                sid = w.syms->LookupTyped( look, w.ctx->names.Fold( nm ), true )
+            end if
         end if
         if sid = Tko.SYMBOL_NONE then continue for
         dim as string q = Qualifier_( w, sid, from_ )
