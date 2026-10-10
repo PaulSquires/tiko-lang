@@ -8,8 +8,9 @@ that name (RFC-0007 §3, §5).
 
 Each module is a **facade** over a header library in the toolchain's `inc/` (RFC-0009). It
 includes the header and re-exports the header's `FB.*` names under the module's alias:
-`fs.PathJoin` is `FB.PathJoin`. The headers remain the one copy of the code, and fbc-modern
-builds tiko-lang from them.
+`fs.PathJoin` is `FB.PathJoin`. The headers remain the one copy of the code -- and since
+2026-10-10 that copy is tiko-lang's own `inc/` (see `inc/PROVENANCE.md`), which the compiler
+is built from and `build/package.sh` ships, not fbc-modern's.
 
 | Module | Fronts | Needs |
 |---|---|---|

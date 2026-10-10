@@ -477,7 +477,10 @@ def main():
     ap = argparse.ArgumentParser()
     exe = "tiko.exe" if os.name == "nt" else "tiko"
     ap.add_argument("--tiko", default=os.path.join(ROOT, "bin", exe))
-    ap.add_argument("--inc", default=os.path.join(ROOT, "toolchains", "tiko-windows", "inc"))
+    # THE TREE'S OWN HEADERS (phase H) when it has them; a packaged toolchain's otherwise.
+    _treeinc = os.path.join(ROOT, "inc")
+    ap.add_argument("--inc", default=_treeinc if os.path.isdir(_treeinc)
+                    else os.path.join(ROOT, "toolchains", "tiko-windows", "inc"))
     ap.add_argument("--out", default=OUT)
     ap.add_argument("--check", action="store_true")
     a = ap.parse_args()
