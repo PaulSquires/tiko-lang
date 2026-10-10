@@ -1,0 +1,9 @@
+'' An integer operand reaches a compound operator taking the UDT through its converting
+'' constructor. See the source.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/selfop-userconv.bas -o tests/codegen/selfopuconv.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/selfopuconv.exe
+'' EXPECT-RUN-OUT:  14
+'' EXPECT-RUN-OUT:  28

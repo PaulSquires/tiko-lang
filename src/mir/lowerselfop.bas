@@ -93,6 +93,21 @@ declare function LowerCompoundViaCast_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
       byval op as Tko.TokenKind, byval ut as Tko.TypeId ) as boolean
 
+'' Does the operand reach the chosen member's parameter only by a USER conversion -- the
+'' parameter a UDT the operand is not, nor derived from?
+private function SelfOpNeedsUserConv_ _
+    ( byref c as Ctx, byval want as Tko.SymbolId, byval vt as Tko.TypeId ) as boolean
+    if vt = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId pu = ParamTypeAt( c, want, 0 )
+    if pu = Tko.TYPE_NONE then return false
+    pu = c.types->Unqualify( pu )
+    if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
+    if c.types->Kind( pu ) <> Tko.TK_UDT then return false
+    if vt = pu then return false
+    if c.types->BaseDistance( vt, pu ) >= 0 then return false
+    return true
+end function
+
 function SelfOpMemberCall_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
       byval op as Tko.TokenKind, byval tt as Tko.TypeId ) as boolean
@@ -179,6 +194,14 @@ function SelfOpMemberCall_ _
                         dim as Tko.TypeId fse = Tko.Check.FixedStringElem( vt, *c.types )
                         if fse <> Tko.TYPE_NONE then cost = Tko.Check.ConversionCost( fse, pu, *c.types )
                     end if
+                    '' ...AND A UDT PARAMETER THE OPERAND CONVERTS TO BY A USER CONVERSION -- its
+                    '' constructor, or the operand's cast. 'n += 123' over CInt96's only
+                    '' '+=( byref as CInt96 )' found no candidate at all: the built-in cost has
+                    '' no route from an integer to a UDT. Measured, fbc builds a temporary with
+                    '' the converting constructor and passes it.
+                    if (cost >= Tko.Check.CONV_NONE) andalso (c.types->Kind( pu ) = Tko.TK_UDT) then
+                        cost = Tko.Check.StructorUserConvCost( *c.ast, *c.syms, *c.types, *c.names, *c.info, vt, pu )
+                    end if
                 end if
                 if cost < best then
                     best = cost
@@ -217,6 +240,18 @@ function SelfOpMemberCall_ _
     '' A BYDESC ARRAY ARGUMENT travels as a DESCRIPTOR POINTER, whichever way the
     '' parameter was spelled -- the same answer an ordinary call's arguments get.
     elseif ArrayDescArg_( c, value, ParamIsArray( c, want, 0 ), av ) then
+    elseif SelfOpNeedsUserConv_( c, want, vt ) then
+        '' THE TEMPORARY THE COST ABOVE PROMISED, built as a binary operator's operand is
+        '' (UserConvOperand_), and destroyed at the end of the statement.
+        dim as long ucSlot = -1
+        dim as Tko.TypeId ucType = Tko.TYPE_NONE
+        if UserConvOperand_( c, value, ParamTypeAt( c, want, 0 ), av, ucSlot, ucType ) = false then return false
+        if ucSlot >= 0 then
+            c.udtTemps.Push( cast( ulong, ucSlot ) )
+            c.udtTempTypes.Push( cast( ulong, ucType ) )
+        end if
+        '' A BYVAL parameter takes the object, not its address.
+        if ParamIsByref( c, want, 0 ) = false then av = LowerExprLoad( c, av, MT_AGG )
     elseif ParamIsByref( c, want, 0 ) then
         '' A STRING RVALUE HAS NO ADDRESS. 'dws += "- Missing Ticker Symbol." & vbcrlf' over
         '' DWSTRING's '+=( byref ansiStr as string )' asked a literal and a concatenation for
