@@ -59,7 +59,10 @@ def one_target() -> int:
     probe = WORK / "ovl-tiko.bas"
     probe.write_text("\n".join(src) + "\n", encoding="utf-8", newline="\n")
 
-    proc = subprocess.run([str(tiko), "--check"] + TGT + [str(probe)],
+    # EVERY REJECT IS AN ERROR, and the probe has 78 of them: under tiko's default limit
+    # of 20 (-fmax-errors, bc4dbc6b) the check stopped at the 20th and the rest of the
+    # probe -- 900 choices -- read as "tiko=?".
+    proc = subprocess.run([str(tiko), "--check", "-fmax-errors", "100000"] + TGT + [str(probe)],
                           capture_output=True, text=True)
     got = {}
     for line in (proc.stdout or "").splitlines():

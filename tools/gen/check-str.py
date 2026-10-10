@@ -43,8 +43,11 @@ def stage0():
     pick -- the order build/build.sh chooses in, so the probe and the compiler agree."""
     if os.environ.get("TKO_SEED"):
         return Path(os.environ["TKO_SEED"]), True
-    r = subprocess.run(["sh", "-c", '. build/defaultseed.sh && default_seed "$PWD" %s'
-                        % ("1" if os.name == "nt" else "0")],
+    # ON WINDOWS THE ANSWER IS AN MSYS PATH, '/c/dev/...', which Python reads as '\c\dev\...'
+    # on the current drive: cygpath -m turns it into one Windows can open.
+    conv = ' | cygpath -m -f -' if os.name == "nt" else ''
+    r = subprocess.run(["sh", "-c", '. build/defaultseed.sh && default_seed "$PWD" %s%s'
+                        % ("1" if os.name == "nt" else "0", conv)],
                        cwd=ROOT, capture_output=True, text=True)
     if r.returncode != 0 or not r.stdout.strip():
         return None, True
