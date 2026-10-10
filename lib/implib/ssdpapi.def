@@ -1,0 +1,18 @@
+LIBRARY ssdpapi.dll
+EXPORTS
+  CleanupCache
+  DHSetICSInterfaces
+  DHSetICSOff
+  DeregisterNotification
+  DeregisterService
+  FindServices
+  FindServicesCallback
+  FindServicesCancel
+  FindServicesClose
+  FreeSsdpMessage
+  GetFirstService
+  GetNextService
+  RegisterNotification
+  RegisterService
+  SsdpCleanup
+  SsdpStartup

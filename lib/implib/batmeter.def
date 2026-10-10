@@ -1,0 +1,3 @@
+LIBRARY batmeter.dll
+EXPORTS
+  PowerCapabilities

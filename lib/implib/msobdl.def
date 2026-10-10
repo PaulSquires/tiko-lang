@@ -1,0 +1,8 @@
+LIBRARY msobdl.dll
+EXPORTS
+  DownLoadCancel
+  DownLoadClose
+  DownLoadExecute
+  DownLoadInit
+  DownLoadProcess
+  DownLoadSetStatusCallback

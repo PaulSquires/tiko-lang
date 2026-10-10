@@ -1,0 +1,3 @@
+LIBRARY vmx_mode.dll
+EXPORTS
+  VMX_ModeChange

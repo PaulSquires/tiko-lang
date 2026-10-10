@@ -1,0 +1,4 @@
+LIBRARY msobmain.dll
+EXPORTS
+  IsOemVer
+  LaunchMSOOBE

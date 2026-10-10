@@ -1,0 +1,21 @@
+LIBRARY rdpwsx.dll
+EXPORTS
+  WsxBrokenConnection
+  WsxCanLogonProceed
+  WsxClearContext
+  WsxConnect
+  WsxConvertPublishedApp
+  WsxCopyContext
+  WsxDisconnect
+  WsxDuplicateContext
+  WsxEscape
+  WsxIcaStackIoControl
+  WsxInitialize
+  WsxInitializeClientData
+  WsxLogonNotify
+  WsxSendAutoReconnectStatus
+  WsxSetErrorInfo
+  WsxVirtualChannelSecurity
+  WsxWinStationInitialize
+  WsxWinStationReInitialize
+  WsxWinStationRundown

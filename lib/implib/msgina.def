@@ -1,0 +1,24 @@
+LIBRARY msgina.dll
+EXPORTS
+  ShellShutdownDialog
+  WlxActivateUserShell
+  WlxDisconnectNotify
+  WlxDisplayLockedNotice
+  WlxDisplaySASNotice
+  WlxDisplayStatusMessage
+  WlxGetConsoleSwitchCredentials
+  WlxGetStatusMessage
+  WlxInitialize
+  WlxIsLockOk
+  WlxIsLogoffOk
+  WlxLoggedOnSAS
+  WlxLoggedOutSAS
+  WlxLogoff
+  WlxNegotiate
+  WlxNetworkProviderLoad
+  WlxReconnectNotify
+  WlxRemoveStatusMessage
+  WlxScreenSaverNotify
+  WlxShutdown
+  WlxStartApplication
+  WlxWkstaLockedSAS

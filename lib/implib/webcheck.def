@@ -1,0 +1,4 @@
+LIBRARY webcheck.dll
+EXPORTS
+  DllCanUnloadNow
+  DllGetClassObject

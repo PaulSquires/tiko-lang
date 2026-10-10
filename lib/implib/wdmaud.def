@@ -1,0 +1,9 @@
+LIBRARY wdmaud.dll
+EXPORTS
+  DriverProc
+  auxMessage
+  midMessage
+  modMessage
+  mxdMessage
+  widMessage
+  wodMessage

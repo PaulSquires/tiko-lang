@@ -1,0 +1,4 @@
+LIBRARY x3daudio1_6.dll
+EXPORTS
+  X3DAudioCalculate
+  X3DAudioInitialize

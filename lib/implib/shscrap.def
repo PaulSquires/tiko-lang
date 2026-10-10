@@ -1,0 +1,8 @@
+LIBRARY shscrap.dll
+EXPORTS
+  DllCanUnloadNow
+  DllGetClassObject
+  OpenScrap_RunDLL
+  OpenScrap_RunDLLA
+  OpenScrap_RunDLLW
+  Scrap_CreateFromDataObject

@@ -1,0 +1,10 @@
+LIBRARY htrn_jis.dll
+EXPORTS
+  transCharIn
+  transCharOut
+  transCreateHandle
+  transDestroyHandle
+  transDoDialog
+  transInitHandle
+  transLoadHandle
+  transSaveHandle

@@ -1,0 +1,10 @@
+LIBRARY iis.dll
+EXPORTS
+  ApplyIISAcl
+  IIS5Log
+  IIS5LogParmDword
+  IIS5LogParmString
+  OcEntry
+  ProcessInfSection
+  SysPrepBackup
+  SysPrepRestore

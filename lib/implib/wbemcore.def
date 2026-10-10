@@ -1,0 +1,8 @@
+LIBRARY wbemcore.dll
+EXPORTS
+  DllCanUnloadNow
+  DllGetClassObject
+  DllRegisterServer
+  DllUnregisterServer
+  Reinitialize
+  Shutdown

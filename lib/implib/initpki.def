@@ -1,0 +1,6 @@
+LIBRARY initpki.dll
+EXPORTS
+  DllInstall
+  DllRegisterServer
+  DllUnregisterServer
+  InitializePKI

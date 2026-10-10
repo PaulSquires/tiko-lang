@@ -1,0 +1,4 @@
+LIBRARY senscfg.dll
+EXPORTS
+  SensRegister
+  SensUnregister

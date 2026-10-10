@@ -1,0 +1,11 @@
+LIBRARY ieencode.dll
+EXPORTS
+  CceDetectInputCode
+  CceGetAvailableEncodings
+  CceIsAvailableEncoding
+  CceStreamMultiByteToUnicode
+  CceStreamUnicodeToMultiByte
+  CceStringMultiByteToUnicode
+  CceStringUnicodeToMultiByte
+  DllMain
+  FetchMsEncodeDllVersion

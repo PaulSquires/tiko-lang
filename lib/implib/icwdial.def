@@ -1,0 +1,8 @@
+LIBRARY icwdial.dll
+EXPORTS
+  AutoDialHandler
+  AutoDialInit
+  DialingDownloadDialog
+  DialingErrorDialog
+  ICWGetRasEntry
+  RasSetEntryPropertiesScriptPatch

@@ -1,0 +1,6 @@
+LIBRARY eapphost.dll
+EXPORTS
+  InitializeEapHost
+  OnSessionChange
+  StopServiceOnLowPower
+  UninitializeEapHost

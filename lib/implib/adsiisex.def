@@ -1,0 +1,4 @@
+LIBRARY adsiisex.dll
+EXPORTS
+  CreateExtensionClass
+  IsExtensionClass

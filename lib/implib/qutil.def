@@ -1,0 +1,22 @@
+LIBRARY qutil.dll
+EXPORTS
+  AllocConnections
+  AllocCountedString
+  AllocFixupInfo
+  DllCanUnloadNow
+  DllGetClassObject
+  DllRegisterServer
+  DllUnregisterServer
+  FreeConnections
+  FreeCountedString
+  FreeFixupInfo
+  FreeIsolationInfo
+  FreeIsolationInfoEx
+  FreeNapComponentRegistrationInfoArray
+  FreeNetworkSoH
+  FreePrivateData
+  FreeSoH
+  FreeSoHAttributeValue
+  FreeSystemHealthAgentState
+  InitializeNapAgentNotifier
+  UninitializeNapAgentNotifier

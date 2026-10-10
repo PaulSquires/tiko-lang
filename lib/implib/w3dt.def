@@ -1,0 +1,21 @@
+LIBRARY w3dt.dll
+EXPORTS
+  ??4IPM_MESSAGE_PIPE@@QEAAAEAV0@AEBV0@@Z
+  UlAtqAddFragmentToCache
+  UlAtqAllocateMemory
+  UlAtqFlushUlCache
+  UlAtqFreeContext
+  UlAtqGetContextProperty
+  UlAtqInduceShutdown
+  UlAtqInitialize
+  UlAtqReadFragmentFromCache
+  UlAtqReceiveClientCertificate
+  UlAtqReceiveEntityBody
+  UlAtqRemoveFragmentFromCache
+  UlAtqSendEntityBody
+  UlAtqSendHttpResponse
+  UlAtqSetContextProperty
+  UlAtqSetUnhealthy
+  UlAtqStartListen
+  UlAtqTerminate
+  UlAtqWaitForDisconnect

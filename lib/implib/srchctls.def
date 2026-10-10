@@ -1,0 +1,5 @@
+LIBRARY srchctls.dll
+EXPORTS
+  CreateSpellEdit
+  InitializeSearchControls
+  UninitializeSearchControls

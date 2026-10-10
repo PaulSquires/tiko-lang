@@ -1,0 +1,3 @@
+LIBRARY zoneoc.dll
+EXPORTS
+  ZoneSetupProc

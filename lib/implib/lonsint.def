@@ -1,0 +1,9 @@
+LIBRARY lonsint.dll
+EXPORTS
+  IISGetDefaultDomainName
+  IISLogon32Initialize
+  IISLogonDigestUserA
+  IISLogonNetUserA
+  IISLogonNetUserW
+  IISLogonPassportUserW
+  IISNetUserCookieA

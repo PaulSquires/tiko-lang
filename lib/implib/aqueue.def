@@ -1,0 +1,10 @@
+LIBRARY aqueue.dll
+EXPORTS
+  DllCanUnloadNow
+  DllGetClassObject
+  DllRegisterServer
+  DllUnregisterServer
+  HrAdvQueueDeinitialize
+  HrAdvQueueDeinitializeEx
+  HrAdvQueueInitialize
+  HrAdvQueueInitializeEx

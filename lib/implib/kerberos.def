@@ -1,0 +1,10 @@
+LIBRARY kerberos.dll
+EXPORTS
+  KerbDomainChangeCallback
+  KerbIsInitialized
+  KerbKdcCallBack
+  KerbMakeKdcCall
+  SpInitialize
+  SpInstanceInit
+  SpLsaModeInitialize
+  SpUserModeInitialize

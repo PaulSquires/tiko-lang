@@ -1,0 +1,4 @@
+LIBRARY fxswzrd.dll
+EXPORTS
+  FaxFreeSendWizardData
+  FaxSendWizard

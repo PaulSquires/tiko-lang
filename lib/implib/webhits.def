@@ -1,0 +1,5 @@
+LIBRARY webhits.dll
+EXPORTS
+  GetExtensionVersion
+  HttpExtensionProc
+  TerminateExtension

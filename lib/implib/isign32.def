@@ -1,0 +1,12 @@
+LIBRARY isign32.dll
+EXPORTS
+  AutoDialLogon
+  AutoDialLogonA
+  AutoDialLogonW
+  AutoDialSignup
+  AutoDialSignupA
+  AutoDialSignupW
+  IEAKProcessISP
+  IEAKProcessISPA
+  IEAKProcessISPW
+  Signup

@@ -1,0 +1,21 @@
+LIBRARY seo.dll
+EXPORTS
+  DllCanUnloadNow
+  DllGetClassObject
+  DllRegisterServer
+  DllUnregisterServer
+  MCISGetBindingInMetabaseA
+  MCISGetBindingInMetabaseW
+  MCISInitSEOA
+  MCISInitSEOW
+  SEOCancelListenForEvent
+  SEOCopyDictionary
+  SEOCreateDictionaryFromIStream
+  SEOCreateDictionaryFromMultiSzA
+  SEOCreateDictionaryFromMultiSzW
+  SEOCreateIStreamFromFileA
+  SEOCreateIStreamFromFileW
+  SEOCreateMultiSzFromDictionaryA
+  SEOCreateMultiSzFromDictionaryW
+  SEOListenForEvent
+  SEOWriteDictionaryToIStream

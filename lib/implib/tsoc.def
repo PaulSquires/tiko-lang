@@ -1,0 +1,5 @@
+LIBRARY tsoc.dll
+EXPORTS
+  HydraOc
+  SysPrepBackup
+  SysPrepRestore

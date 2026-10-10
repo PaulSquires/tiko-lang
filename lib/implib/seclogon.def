@@ -1,0 +1,4 @@
+LIBRARY seclogon.dll
+EXPORTS
+  SvcEntry_Seclogon
+  SvchostPushServiceGlobals

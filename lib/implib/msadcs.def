@@ -1,0 +1,5 @@
+LIBRARY msadcs.dll
+EXPORTS
+  GetExtensionVersion
+  HttpExtensionProc
+  TerminateExtension

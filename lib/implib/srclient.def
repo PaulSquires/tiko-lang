@@ -1,0 +1,8 @@
+LIBRARY srclient.dll
+EXPORTS
+  DisableSR
+  EnableSR
+  EnableSREx
+  SRRemoveRestorePoint
+  SRSetRestorePointA
+  SRSetRestorePointW

@@ -1,0 +1,3 @@
+LIBRARY xapofxd1_5.dll
+EXPORTS
+  CreateFX

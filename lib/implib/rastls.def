@@ -1,0 +1,11 @@
+LIBRARY rastls.dll
+EXPORTS
+  RasEapCreateConnectionProperties
+  RasEapCreateUserProperties
+  RasEapFreeMemory
+  RasEapGetCredentials
+  RasEapGetIdentity
+  RasEapGetInfo
+  RasEapInvokeConfigUI
+  RasEapInvokeInteractiveUI
+  RasEapUpdateServerConfig

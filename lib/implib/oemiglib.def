@@ -1,0 +1,7 @@
+LIBRARY oemiglib.dll
+EXPORTS
+  DllCanUnloadNow
+  DllGetClassObject
+  DllRegisterServer
+  DllUnregisterServer
+  OE5SimpleCreate

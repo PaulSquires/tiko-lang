@@ -1,0 +1,6 @@
+LIBRARY diskcopy.dll
+EXPORTS
+  DiskCopyRunDll
+  DiskCopyRunDllW
+  DllCanUnloadNow
+  DllGetClassObject

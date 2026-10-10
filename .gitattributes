@@ -58,3 +58,8 @@ lib/gfx/**/*.sh text eol=lf
 # them to CRLF and 43 tests failed on a fresh clone (audit F-66). -text stores and
 # checks out exactly what was committed.
 tests/** -text
+
+# lib/implib: the win64-msvc import-library sources (build/implibs.sh). The .def files are
+# text and LF like the rest of the tree; the static GUID archives are binary.
+lib/implib/*.def text eol=lf
+lib/implib/static/*.lib binary

@@ -1,0 +1,6 @@
+LIBRARY snmpmib.dll
+EXPORTS
+  SnmpExtensionInit
+  SnmpExtensionMonitor
+  SnmpExtensionQuery
+  SnmpExtensionTrap

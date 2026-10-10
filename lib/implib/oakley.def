@@ -1,0 +1,18 @@
+LIBRARY oakley.dll
+EXPORTS
+  IKEAddSAs
+  IKECloseIKENegotiationHandle
+  IKECloseIKENotifyHandle
+  IKEDeleteAssociation
+  IKEEnumMMs
+  IKEGetConfigurationVariables
+  IKEInit
+  IKEInitiateIKENegotiation
+  IKEInterfaceChange
+  IKENotifyPolicyChange
+  IKEQueryIKENegotiationStatus
+  IKEQuerySpiChange
+  IKEQueryStatistics
+  IKERegisterNotifyClient
+  IKESetConfigurationVariables
+  IKEShutdown

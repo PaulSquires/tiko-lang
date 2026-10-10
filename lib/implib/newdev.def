@@ -1,0 +1,7 @@
+LIBRARY newdev.dll
+EXPORTS
+  InstallNewDevice
+  InstallSelectedDriver
+  InstallWindowsUpdateDriver
+  UpdateDriverForPlugAndPlayDevicesA
+  UpdateDriverForPlugAndPlayDevicesW

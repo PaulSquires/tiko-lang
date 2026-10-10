@@ -1,0 +1,6 @@
+LIBRARY fldrclnr.dll
+EXPORTS
+  DllInstall
+  DllMain
+  DllRegisterServer
+  Wizard_RunDLL

@@ -1,0 +1,4 @@
+LIBRARY rpcdiag.dll
+EXPORTS
+  I_RpcSetupDiagCallback
+  RpcDiagnoseError

@@ -1,0 +1,10 @@
+LIBRARY hypertrm.dll
+EXPORTS
+  DllCanUnloadNow
+  DllGetClassObject
+  InitInstance
+  MessageLoop
+  sessQuerySysFileHdl
+  sessQueryTranslateHdl
+  sfGetSessionItem
+  sfPutSessionItem

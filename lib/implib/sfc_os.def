@@ -1,0 +1,4 @@
+LIBRARY sfc_os.dll
+EXPORTS
+  SfcGetNextProtectedFile
+  SfcIsFileProtected

@@ -1,0 +1,13 @@
+LIBRARY iedkcs32.dll
+EXPORTS
+  BrandCleanInstallStubs
+  BrandICW
+  BrandICW2
+  BrandIE4
+  BrandInternetExplorer
+  BrandIntra
+  BrandMe
+  Clear
+  CloseRASConnections
+  InternetInitializeAutoProxyDll
+  ProcessGroupPolicyForZoneMap

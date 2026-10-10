@@ -1,0 +1,6 @@
+LIBRARY msdtclog.dll
+EXPORTS
+  DllGetClassObject
+  DllGetDTCLOG2
+  DllRegisterServer
+  DllUnregisterServer

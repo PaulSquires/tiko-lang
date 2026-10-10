@@ -1,0 +1,4 @@
+LIBRARY fxscfgwz.dll
+EXPORTS
+  FaxCfgWzrdDllW
+  FaxConfigWizard

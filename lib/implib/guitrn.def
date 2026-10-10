@@ -1,0 +1,6 @@
+LIBRARY guitrn.dll
+EXPORTS
+  DllMain
+  ModuleInitialize
+  ModuleTerminate
+  TransportModule

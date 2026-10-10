@@ -1,0 +1,7 @@
+LIBRARY feclient.dll
+EXPORTS
+  EfsClientEncryptFileEx
+  EfsClientFreeProtectorList
+  EfsClientQueryProtectors
+  EfsUtilGetCurrentKey
+  FeClientInitialize

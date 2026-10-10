@@ -1,0 +1,6 @@
+LIBRARY httpmib.dll
+EXPORTS
+  DllLibMain
+  SnmpExtensionInit
+  SnmpExtensionQuery
+  SnmpExtensionTrap

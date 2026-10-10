@@ -1,0 +1,4 @@
+LIBRARY filemgmt.dll
+EXPORTS
+  CacheSettingsDlg
+  CacheSettingsDlg2

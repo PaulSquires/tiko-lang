@@ -1,0 +1,8 @@
+LIBRARY jsproxy.dll
+EXPORTS
+  InternetDeInitializeAutoProxyDll
+  InternetDeInitializeAutoProxyDllEx
+  InternetGetProxyInfo
+  InternetGetProxyInfoEx
+  InternetInitializeAutoProxyDll
+  InternetInitializeAutoProxyDllEx

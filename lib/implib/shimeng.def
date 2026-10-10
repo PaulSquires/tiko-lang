@@ -1,0 +1,9 @@
+LIBRARY shimeng.dll
+EXPORTS
+  SE_DllLoaded
+  SE_DllUnloaded
+  SE_DynamicShim
+  SE_InstallAfterInit
+  SE_InstallBeforeInit
+  SE_IsShimDll
+  SE_ProcessDying

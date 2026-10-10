@@ -1,0 +1,5 @@
+LIBRARY smtpctrs.dll
+EXPORTS
+  CloseSmtpPerformanceData
+  CollectSmtpPerformanceData
+  OpenSmtpPerformanceData

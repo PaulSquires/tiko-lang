@@ -1,0 +1,10 @@
+LIBRARY cdfview.dll
+EXPORTS
+  DllCanUnloadNow
+  DllGetClassObject
+  DllRegisterServer
+  DllUnregisterServer
+  OpenChannel
+  ParseDesktopComponent
+  Subscribe
+  SubscribeToCDF

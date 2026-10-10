@@ -1,0 +1,23 @@
+LIBRARY tcpmib.dll
+EXPORTS
+  ??0CTcpMib@@QEAA@AEBV0@@Z
+  ??0CTcpMib@@QEAA@XZ
+  ??0CTcpMibABC@@QEAA@AEBV0@@Z
+  ??0CTcpMibABC@@QEAA@XZ
+  ??1CTcpMib@@UEAA@XZ
+  ??1CTcpMibABC@@UEAA@XZ
+  ??4CTcpMib@@QEAAAEAV0@AEBV0@@Z
+  ??4CTcpMibABC@@QEAAAEAV0@AEBV0@@Z
+  ??_7CTcpMib@@6B@
+  ??_7CTcpMibABC@@6B@
+  ?GetDeviceDescription@CTcpMib@@UEAAKPEBD0KPEAGK@Z
+  ?GetNextRequestId@CTcpMib@@UEAAKPEAK@Z
+  ?GetStatusFromVBL@CTcpMib@@CAKPEAXPEAUsmiVALUE@@11@Z
+  ?InitSnmp@CTcpMib@@UEAAKXZ
+  ?IsValid@CTcpMib@@QEBAHXZ
+  ?MapAsynchToPortStatus@CTcpMib@@CAHKPEAU_PORT_INFO_3W@@@Z
+  ?RegisterDeviceStatusCallback@CTcpMib@@UEAAKP6AKHPEBD0KKK@ZPEAPEAX@Z
+  ?RequestDeviceStatus@CTcpMib@@UEAAKPEAXKPEBG1K@Z
+  ?SupportsPrinterMib@CTcpMib@@UEAAHPEBD0KPEAH@Z
+  ?UnInitSnmp@CTcpMib@@UEAAXXZ
+  GetTcpMibPtr

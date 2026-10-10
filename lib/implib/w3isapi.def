@@ -1,0 +1,6 @@
+LIBRARY w3isapi.dll
+EXPORTS
+  InitModule
+  ProcessIsapiCompletion
+  ProcessIsapiRequest
+  TerminateModule

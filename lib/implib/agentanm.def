@@ -1,0 +1,6 @@
+LIBRARY agentanm.dll
+EXPORTS
+  CreateAgentAnimA
+  CreateAgentAnimW
+  CreateAgentRenderA
+  CreateAgentRenderW

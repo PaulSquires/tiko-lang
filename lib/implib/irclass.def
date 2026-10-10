@@ -1,0 +1,4 @@
+LIBRARY irclass.dll
+EXPORTS
+  IrSIRClassCoInstaller
+  IrSIRPortPropPageProvider

@@ -1,0 +1,10 @@
+LIBRARY acledit.dll
+EXPORTS
+  DllMain
+  EditAuditInfo
+  EditOwnerInfo
+  EditPermissionInfo
+  FMExtensionProcW
+  SedDiscretionaryAclEditor
+  SedSystemAclEditor
+  SedTakeOwnership

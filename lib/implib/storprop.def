@@ -1,0 +1,10 @@
+LIBRARY storprop.dll
+EXPORTS
+  CdromDisableDigitalPlayback
+  CdromEnableDigitalPlayback
+  CdromIsDigitalPlaybackEnabled
+  CdromKnownGoodDigitalPlayback
+  DiskClassInstaller
+  DvdClassInstaller
+  DvdLauncher
+  DvdPropPageProvider

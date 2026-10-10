@@ -1,0 +1,7 @@
+LIBRARY clb.dll
+EXPORTS
+  ClbAddData
+  ClbSetColumnWidths
+  ClbStyleW
+  ClbWndProc
+  CustomControlInfoW

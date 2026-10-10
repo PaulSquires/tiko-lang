@@ -1,0 +1,7 @@
+LIBRARY wab32.dll
+EXPORTS
+  DllRegisterServer
+  DllUnregisterServer
+  WABCreateIProp
+  WABOpen
+  WABOpenEx

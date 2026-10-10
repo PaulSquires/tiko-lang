@@ -1,0 +1,7 @@
+LIBRARY wpd_ci.dll
+EXPORTS
+  CoDeviceInstall
+  DoCmd
+  MigrateMTPDevicesInstalledAsMSC
+  RescanBus
+  WpdClassInstaller

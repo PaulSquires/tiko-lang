@@ -1,0 +1,7 @@
+LIBRARY sens.dll
+EXPORTS
+  SensNotifyNetconEvent
+  SensNotifyRasEvent
+  SensNotifyWinlogonEvent
+  ServiceMain
+  SvchostPushServiceGlobals

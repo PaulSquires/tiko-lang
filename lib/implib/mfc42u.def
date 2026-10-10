@@ -1,0 +1,6 @@
+LIBRARY mfc42u.dll
+EXPORTS
+  DllCanUnloadNow
+  DllGetClassObject
+  DllRegisterServer
+  DllUnregisterServer

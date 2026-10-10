@@ -1,0 +1,3 @@
+LIBRARY winsrv.dll
+EXPORTS
+  UserServerDllInitialization

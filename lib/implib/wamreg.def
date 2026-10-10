@@ -1,0 +1,13 @@
+LIBRARY wamreg.dll
+EXPORTS
+  CreateCOMPlusApplication
+  CreateIISPackage
+  DeleteIISPackage
+  DllCanUnloadNow
+  DllGetClassObject
+  DllRegisterServer
+  DllUnregisterServer
+  InstallWam
+  UnInstallWam
+  WamReg_RegisterSinkNotify
+  WamReg_UnRegisterSinkNotify

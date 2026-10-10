@@ -1,0 +1,4 @@
+LIBRARY pautoenr.dll
+EXPORTS
+  CertAutoEnrollment
+  CertAutoRemove

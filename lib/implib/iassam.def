@@ -1,0 +1,7 @@
+LIBRARY iassam.dll
+EXPORTS
+  DllCanUnloadNow
+  DllGetClassObject
+  DllRegisterServer
+  DllUnregisterServer
+  IASParmsQueryUserProperty

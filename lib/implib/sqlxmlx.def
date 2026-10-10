@@ -1,0 +1,8 @@
+LIBRARY sqlxmlx.dll
+EXPORTS
+  DllCanUnloadNow
+  DllGetClassObject
+  DllMain
+  DllRegisterServer
+  DllUnregisterServer
+  ExecuteToStream

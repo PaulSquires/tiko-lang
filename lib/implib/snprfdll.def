@@ -1,0 +1,5 @@
+LIBRARY snprfdll.dll
+EXPORTS
+  NTFSDrvClose
+  NTFSDrvCollect
+  NTFSDrvOpen

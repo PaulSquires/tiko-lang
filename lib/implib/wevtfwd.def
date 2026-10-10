@@ -1,0 +1,5 @@
+LIBRARY wevtfwd.dll
+EXPORTS
+  WSManProvPullEvents
+  WSManProvSubscribe
+  WSManProvUnsubscribe

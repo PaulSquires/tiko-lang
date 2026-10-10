@@ -1,0 +1,9 @@
+LIBRARY autodisc.dll
+EXPORTS
+  AddEmailToAutoComplete
+  AutoDiscoverAndOpenEmail
+  DllCanUnloadNow
+  DllGetClassObject
+  DllInstall
+  DllRegisterServer
+  DllUnregisterServer

@@ -1,0 +1,5 @@
+LIBRARY dskquota.dll
+EXPORTS
+  DllCanUnloadNow
+  DllGetClassObject
+  ProcessGroupPolicy

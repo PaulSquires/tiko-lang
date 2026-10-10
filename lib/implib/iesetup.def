@@ -1,0 +1,6 @@
+LIBRARY iesetup.dll
+EXPORTS
+  IEHardenAdmin
+  IEHardenAdminNow
+  IEHardenMachineNow
+  IEHardenUser

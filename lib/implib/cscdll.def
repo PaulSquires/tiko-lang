@@ -1,0 +1,17 @@
+LIBRARY cscdll.dll
+EXPORTS
+  CSCDeleteW
+  CSCDoEnableDisable
+  CSCEnumForStatsExW
+  CSCEnumForStatsW
+  CSCFindClose
+  CSCFindFirstFileForSidW
+  CSCFindFirstFileW
+  CSCFindNextFileW
+  CSCIsCSCEnabled
+  CSCIsServerOfflineW
+  CSCPinFileW
+  CSCQueryFileStatusW
+  CSCSetMaxSpace
+  CSCTransitionServerOnlineW
+  CSCUnpinFileW

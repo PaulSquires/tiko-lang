@@ -1,0 +1,15 @@
+LIBRARY mtxclu.dll
+EXPORTS
+  MtxCluBringOnlineDTCW
+  MtxCluGetComputerNameW
+  MtxCluGetDTCStatusW
+  MtxCluGetDTCVirtualServerNameW
+  MtxCluGetSecurityRegValue
+  MtxCluIsClusterPresent
+  MtxCluIsClusterPresentExW
+  MtxCluIsNetworkNameInLocalClusterW
+  MtxCluIsSameClusterW
+  MtxCluIsSameNodeW
+  MtxCluSetSecurityRegValue
+  MtxCluTakeOfflineDTCW
+  Startup

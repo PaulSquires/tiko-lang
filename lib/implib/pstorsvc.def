@@ -1,0 +1,5 @@
+LIBRARY pstorsvc.dll
+EXPORTS
+  PSTOREServiceMain
+  ServiceEntry
+  Start

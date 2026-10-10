@@ -1,0 +1,4 @@
+LIBRARY ntvdm64.dll
+EXPORTS
+  DllInstall
+  NtVdm64RaiseInvalid16BitError

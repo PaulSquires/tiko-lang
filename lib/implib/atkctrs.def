@@ -1,0 +1,5 @@
+LIBRARY atkctrs.dll
+EXPORTS
+  CloseAtkPerformanceData
+  CollectAtkPerformanceData
+  OpenAtkPerformanceData

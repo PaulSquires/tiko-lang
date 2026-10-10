@@ -1,0 +1,4 @@
+LIBRARY rpcref.dll
+EXPORTS
+  InetinfoStartRpcServerListen
+  InetinfoStopRpcServerListen

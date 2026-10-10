@@ -1,0 +1,9 @@
+LIBRARY dinput.dll
+EXPORTS
+  DirectInputCreateA
+  DirectInputCreateEx
+  DirectInputCreateW
+  DllCanUnloadNow
+  DllGetClassObject
+  DllRegisterServer
+  DllUnregisterServer

@@ -1,0 +1,8 @@
+LIBRARY netplwiz.dll
+EXPORTS
+  ClearAutoLogon
+  DllCanUnloadNow
+  DllGetClassObject
+  NetAccessWizard
+  NetPlacesWizardDoModal
+  SHDisconnectNetDrives

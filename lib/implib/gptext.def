@@ -1,0 +1,5 @@
+LIBRARY gptext.dll
+EXPORTS
+  DllRegisterServer
+  DllUnregisterServer
+  ProcessPSCHEDPolicy

@@ -1,0 +1,13 @@
+LIBRARY mshtml.dll
+EXPORTS
+  CreateHTMLPropertyPage
+  DllCanUnloadNow
+  DllEnumClassObjects
+  DllGetClassObject
+  MatchExactGetIDsOfNames
+  PrintHTML
+  RunHTMLApplication
+  ShowHTMLDialog
+  ShowHTMLDialogEx
+  ShowModalDialog
+  ShowModelessHTMLDialog

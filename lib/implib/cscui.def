@@ -1,0 +1,13 @@
+LIBRARY cscui.dll
+EXPORTS
+  CSCOptions_RunDLL
+  CSCOptions_RunDLLA
+  CSCOptions_RunDLLW
+  CSCUIInitialize
+  CSCUIOptionsPropertySheet
+  CSCUIRemoveFolderFromCache
+  CSCUISetState
+  DllCanUnloadNow
+  DllGetClassObject
+  DllRegisterServer
+  DllUnregisterServer

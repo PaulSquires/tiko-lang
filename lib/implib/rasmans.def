@@ -1,0 +1,4 @@
+LIBRARY rasmans.dll
+EXPORTS
+  ServiceMain
+  ServiceRequestInProcess

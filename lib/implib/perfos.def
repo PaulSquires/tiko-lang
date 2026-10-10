@@ -1,0 +1,5 @@
+LIBRARY perfos.dll
+EXPORTS
+  CloseOSObject
+  CollectOSObjectData
+  OpenOSObject

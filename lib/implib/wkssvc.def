@@ -1,0 +1,4 @@
+LIBRARY wkssvc.dll
+EXPORTS
+  ServiceMain
+  SvchostPushServiceGlobals

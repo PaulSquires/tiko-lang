@@ -1,0 +1,6 @@
+LIBRARY lmmib2.dll
+EXPORTS
+  SnmpExtensionClose
+  SnmpExtensionInit
+  SnmpExtensionQuery
+  SnmpExtensionTrap

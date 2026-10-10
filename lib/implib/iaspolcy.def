@@ -1,0 +1,6 @@
+LIBRARY iaspolcy.dll
+EXPORTS
+  DllCanUnloadNow
+  DllGetClassObject
+  DllRegisterServer
+  DllUnregisterServer

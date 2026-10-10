@@ -1,0 +1,4 @@
+LIBRARY wow64cpu.dll
+EXPORTS
+  TurboDispatchJumpAddressEnd
+  TurboDispatchJumpAddressStart

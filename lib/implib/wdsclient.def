@@ -1,0 +1,14 @@
+LIBRARY wdsclient.dll
+EXPORTS
+  CallBack_WdsClient_ConnectToImageStore
+  CallBack_WdsClient_DetectWdsMode
+  CallBack_WdsClient_GetImageList
+  CallBack_WdsClient_ImageSelectionDone
+  CallBack_WdsClient_ProcessCmdLine
+  GetServerParamsFromBootPacket
+  Module_Init_WdsClient
+  g_Kernel32  DATA
+  g_Mpr  DATA
+  g_Wdscore  DATA
+  g_Wdslib  DATA
+  g_hSession  DATA

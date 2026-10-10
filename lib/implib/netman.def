@@ -1,0 +1,6 @@
+LIBRARY netman.dll
+EXPORTS
+  DllRegisterServer
+  DllUnregisterServer
+  HrGetPnpDeviceStatus
+  ServiceMain

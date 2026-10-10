@@ -1,0 +1,9 @@
+LIBRARY sysmod.dll
+EXPORTS
+  DestinationModule
+  DllMain
+  ModuleInitialize
+  ModuleTerminate
+  SourceModule
+  TypeModule
+  VirtualComputerModule

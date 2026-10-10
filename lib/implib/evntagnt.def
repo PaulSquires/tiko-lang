@@ -1,0 +1,6 @@
+LIBRARY evntagnt.dll
+EXPORTS
+  SnmpExtensionClose
+  SnmpExtensionInit
+  SnmpExtensionQuery
+  SnmpExtensionTrap

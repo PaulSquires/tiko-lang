@@ -1,0 +1,4 @@
+LIBRARY iisadmin.dll
+EXPORTS
+  RetrieveTracingHandle
+  ServiceEntry

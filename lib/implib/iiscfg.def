@@ -1,0 +1,5 @@
+LIBRARY iiscfg.dll
+EXPORTS
+  DllGetSimpleObject
+  DllGetSimpleObjectByID
+  DllGetSimpleObjectByIDEx

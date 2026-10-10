@@ -1,0 +1,4 @@
+LIBRARY mll_mtf.dll
+EXPORTS
+  ClaimMediaLabel
+  MaxMediaLabel

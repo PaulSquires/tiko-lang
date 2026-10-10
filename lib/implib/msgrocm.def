@@ -1,0 +1,3 @@
+LIBRARY msgrocm.dll
+EXPORTS
+  OcEntry

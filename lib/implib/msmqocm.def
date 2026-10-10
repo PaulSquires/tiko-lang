@@ -1,0 +1,5 @@
+LIBRARY msmqocm.dll
+EXPORTS
+  MsmqOcm
+  SysprepDeleteQmId
+  WelcomeEntryProc

@@ -1,0 +1,15 @@
+LIBRARY netshell.dll
+EXPORTS
+  DllCanUnloadNow
+  DllGetClassObject
+  DllRegisterServer
+  DllUnregisterServer
+  HrCreateDesktopIcon
+  HrGetIconFromMediaType
+  HrGetIconFromMediaTypeEx
+  HrLaunchConnection
+  HrLaunchConnectionEx
+  HrRenameConnection
+  NcFreeNetconProperties
+  NcIsValidConnectionName
+  StartNCW

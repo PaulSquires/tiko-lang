@@ -1,0 +1,10 @@
+LIBRARY sti_ci.dll
+EXPORTS
+  AddDevice
+  ClassInstall
+  CoinstallerEntry
+  InstallWiaService
+  WiaAddDevice
+  WiaCreatePortList
+  WiaDestroyPortList
+  WiaRemoveDevice

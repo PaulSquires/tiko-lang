@@ -1,0 +1,4 @@
+LIBRARY cryptsvc.dll
+EXPORTS
+  CryptServiceMain
+  SvchostPushServiceGlobals

@@ -1,0 +1,5 @@
+LIBRARY kdcom.dll
+EXPORTS
+  KdReceivePacket
+  KdSendPacket
+  KdSetHiberRange

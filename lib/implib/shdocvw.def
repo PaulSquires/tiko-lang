@@ -1,0 +1,26 @@
+LIBRARY shdocvw.dll
+EXPORTS
+  AddUrlToFavorites
+  DllCanUnloadNow
+  DllGetClassObject
+  DllGetVersion
+  DllRegisterWindowClasses
+  DoAddToFavDlg
+  DoAddToFavDlgW
+  DoFileDownload
+  DoFileDownloadEx
+  DoOrganizeFavDlg
+  DoOrganizeFavDlgW
+  DoPrivacyDlg
+  HlinkFindFrame
+  HlinkFrameNavigate
+  HlinkFrameNavigateNHL
+  ImportPrivacySettings
+  OpenURL
+  SHAddSubscribeFavorite
+  SHGetIDispatchForFolder
+  SetQueryNetSessionCount
+  SetShellOfflineState
+  SoftwareUpdateMessageBox
+  URLQualifyA
+  URLQualifyW

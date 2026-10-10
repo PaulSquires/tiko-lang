@@ -1,0 +1,4 @@
+LIBRARY shsvcs.dll
+EXPORTS
+  CreateHardwareEventMoniker
+  HardwareDetectionServiceMain

@@ -1,0 +1,12 @@
+LIBRARY fxsroute.dll
+EXPORTS
+  FaxExtInitializeConfig
+  FaxRouteConfigure
+  FaxRouteDeviceChangeNotification
+  FaxRouteDeviceEnable
+  FaxRouteEmail
+  FaxRouteGetRoutingInfo
+  FaxRouteInitialize
+  FaxRoutePrint
+  FaxRouteSetRoutingInfo
+  FaxRouteStore

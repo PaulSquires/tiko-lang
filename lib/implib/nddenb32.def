@@ -1,0 +1,17 @@
+LIBRARY nddenb32.dll
+EXPORTS
+  Configure
+  ConfigureDlgProc
+  LogDebugInfo
+  NDDEAddConnection
+  NDDEDeleteConnection
+  NDDEGetCAPS
+  NDDEGetConnectionConfig
+  NDDEGetConnectionStatus
+  NDDEGetNewConnection
+  NDDEInit
+  NDDERcvPacket
+  NDDESetConnectionConfig
+  NDDEShutdown
+  NDDETimeSlice
+  NDDEXmtPacket

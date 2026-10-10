@@ -1,0 +1,11 @@
+LIBRARY msdtctm.dll
+EXPORTS
+  ASCDefer
+  ASCDeliverDeferred
+  ASCGetSafeReference
+  ASCWrapClassFactory
+  ASCWrapObject
+  DllGetClassObject
+  DtcMainExt
+  GetTipFunctionalityWorking
+  SetTipFunctionalityWorking

@@ -1,0 +1,4 @@
+LIBRARY imjpcus.dll
+EXPORTS
+  DllMain
+  OpenDetailDialog

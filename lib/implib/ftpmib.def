@@ -1,0 +1,5 @@
+LIBRARY ftpmib.dll
+EXPORTS
+  SnmpExtensionInit
+  SnmpExtensionQuery
+  SnmpExtensionTrap

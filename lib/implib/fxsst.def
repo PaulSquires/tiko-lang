@@ -1,0 +1,5 @@
+LIBRARY fxsst.dll
+EXPORTS
+  DllMain
+  FaxMonitorShutdown
+  IsFaxMessage

@@ -1,0 +1,3 @@
+LIBRARY pintlcsd.dll
+EXPORTS
+  CreateIImeSkdicInstance
