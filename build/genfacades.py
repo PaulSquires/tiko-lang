@@ -9,7 +9,7 @@ A facade is a module that includes one header library and re-exports its names:
     #export PathJoin, ...
 
 so an importer writes 'fs.PathJoin( ... )'. The header stays the one source of the code --
-fbc-modern builds tiko-lang from it -- and the facade adds nothing but names (M28).
+the seed builds tiko-lang from it -- and the facade adds nothing but names (M28).
 
 THE NAMES ARE THE COMPILER'S, not a header parser's: each facade's headers are scanned by
 'tiko --dump-scan', which sees what their own generator macros declare (vector.bi's Vec2f).

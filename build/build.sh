@@ -1,5 +1,5 @@
 #!/bin/sh
-# build.sh -- build tiko-lang with the stage0 compiler (FBC-Modern, or a tiko seed).
+# build.sh -- build tiko-lang with the stage0 compiler: a tiko seed.
 #
 #   build/build.sh [Debug|Release|RelWithDebInfo|MinSizeRel] [--test-runner] [--no-dll]
 #   build/build.sh [Release|MinSizeRel] --dll
@@ -42,36 +42,46 @@ esac
 
 # stage0: overridable, because the pinned commit moves at phase boundaries only.
 #
-# THE SEED IS THE DEFAULT: a tiko -- seed/seed.lock pins the one releases are built
-# from -- and FBC-Modern only when asked for. In this order:
+# THE SEED IS STAGE0: a tiko -- seed/seed.lock pins the one releases are built from. In
+# this order:
 #   TKO_SEED=<path to a tiko executable>   that tiko;
-#   TKO_STAGE0=<path to an fbc>            FBC-Modern, as before the seed (MinSizeRel's
-#                                          only compiler);
+#   TKO_ORACLE_FBC=<path to an fbc>        fbc, as the ORACLE and nothing else: diverse
+#                                          double-compiling (the bootstrap plan's V5)
+#                                          builds the tree with it and compares, and
+#                                          MinSizeRel is fbc's gcc backend. No default;
+#                                          nothing a package ships is built this way.
 #   neither                                build/defaultseed.sh's default_seed: the
 #                                          fetched pinned seed, else a packaged toolchain.
+# TKO_STAGE0 WAS fbc's name until 2026-10-10, when fbc left the build path. It is ignored,
+# and said so: an old environment builds with the seed, which is what it should do.
 # The seed compiles only what IT understands, so its flags are its own (below) -- the
 # seed-compatibility rule: tiko-lang's source may use a feature only once the pinned seed
 # compiles it.
 . "$ROOT/build/defaultseed.sh"
+if [ -n "${TKO_STAGE0:-}" ]; then
+    echo "build: TKO_STAGE0 is retired and ignored -- the seed is stage0; an fbc for the oracle is TKO_ORACLE_FBC" >&2
+fi
 SEEDED=0
-if [ -z "${TKO_SEED:-}" ] && [ -z "${TKO_STAGE0:-}" ]; then
+if [ -z "${TKO_SEED:-}" ] && [ -z "${TKO_ORACLE_FBC:-}" ]; then
     if ! TKO_SEED=$(default_seed "$ROOT" "$HOSTWIN"); then
         echo "build: no seed compiler. Fetch the pinned one (seed/fetch-seed.sh), package a" >&2
-        echo "build: toolchain (build/package.sh), or set TKO_SEED to a tiko or TKO_STAGE0 to an fbc" >&2
+        echo "build: toolchain (build/package.sh), or set TKO_SEED to a tiko" >&2
         exit 3
     fi
 fi
 if [ -n "${TKO_SEED:-}" ]; then
     SEEDED=1
-    TKO_STAGE0=$TKO_SEED
+    STAGE0=$TKO_SEED
+else
+    STAGE0=$TKO_ORACLE_FBC
 fi
 
-if [ ! -x "$TKO_STAGE0" ]; then
-    echo "build: stage0 compiler not found at $TKO_STAGE0" >&2
+if [ ! -x "$STAGE0" ]; then
+    echo "build: stage0 compiler not found at $STAGE0" >&2
     if [ "$SEEDED" = "1" ]; then
         echo "build: TKO_SEED must name a tiko executable" >&2
     else
-        echo "build: set TKO_STAGE0 to an FBC-Modern fbc, or TKO_SEED to a tiko" >&2
+        echo "build: TKO_ORACLE_FBC must name an fbc executable" >&2
     fi
     exit 3
 fi
@@ -134,7 +144,7 @@ if [ "$SEEDED" = "1" ]; then
         Release)        FLAGS="-O2" ;;
         MinSizeRel)
             echo "build: MinSizeRel is fbc's gcc backend (-gen gcc), which a tiko seed has not got;" >&2
-            echo "build: unset TKO_SEED to build it with fbc" >&2
+            echo "build: it is built only with TKO_ORACLE_FBC, and never shipped" >&2
             exit 2 ;;
     esac
 fi
@@ -165,11 +175,11 @@ compile_units( ) {
     cu_dir=$1; cu_main=$2; cu_flags=$3; shift 3
     rm -rf "$cu_dir"; mkdir -p "$cu_dir"
     printf '%s\n' "$@" > "$cu_dir/units.txt"
-    export TKO_STAGE0 cu_dir cu_main cu_flags INCOPT
+    export STAGE0 cu_dir cu_main cu_flags INCOPT
     ( cd "$ROOT" && xargs -P "$JOBS" -I{} sh -c '
         f="{}"; n=$(echo "$f" | tr "/." "__")
         m=""; [ "$(basename "$f" .bas)" = "$cu_main" ] && m="-m $cu_main"
-        "$TKO_STAGE0" -c "$f" $m -i src $INCOPT $cu_flags -o "$cu_dir/$n.o" > "$cu_dir/$n.log" 2>&1
+        "$STAGE0" -c "$f" $m -i src $INCOPT $cu_flags -o "$cu_dir/$n.o" > "$cu_dir/$n.log" 2>&1
         exit 0' < "$cu_dir/units.txt" )
     OBJS=""
     cu_fail=0
@@ -203,13 +213,13 @@ build_dll( ) {
     # mixed multithreading). Saying it gives the same link and no warning.
     DLLFLAGS="$DLLFLAGS -mt"
     LIBSRC=$(echo "$SOURCES" | tail -n +2)
-    echo "build: tikoParser.dll [$CFG] with $TKO_STAGE0"
+    echo "build: tikoParser.dll [$CFG] with $STAGE0"
     if [ "$SEEDED" = "1" ]; then
-        ( cd "$ROOT" && "$TKO_STAGE0" -dll $LIBSRC src/api/tikoparser.bas -i src $DLLFLAGS \
+        ( cd "$ROOT" && "$STAGE0" -dll $LIBSRC src/api/tikoparser.bas -i src $DLLFLAGS \
             -o "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
     else
         compile_units "$ROOT/build/obj/$CFG-dll" "" "$DLLFLAGS" $LIBSRC src/api/tikoparser.bas
-        ( cd "$ROOT" && "$TKO_STAGE0" -dll $OBJS $DLLFLAGS -x "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
+        ( cd "$ROOT" && "$STAGE0" -dll $OBJS $DLLFLAGS -x "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
     fi
     [ "$HOSTWIN" = "1" ] || return 0
     EDITOR=${TKO_EDITOR_DIR:-/c/dev/tiko-editor-tiko}
@@ -233,7 +243,7 @@ if [ "$DLL" = "1" ]; then
     exit 0
 fi
 
-echo "build: tiko-lang [$CFG] with $TKO_STAGE0"
+echo "build: tiko-lang [$CFG] with $STAGE0"
 # ...and the same for the compiler OFF WINDOWS, where driver/main.bas starts its big-stack
 # thread with threadcreate (Windows uses CreateThread, which fbc does not see).
 CFLAGS_="$FLAGS"
@@ -242,15 +252,15 @@ CFLAGS_="$FLAGS"
 # runs clang over the modules several at a time already, and measured 17-33 s for all of
 # them where fbc's per-unit build below takes ~42.
 if [ "$SEEDED" = "1" ]; then
-    ( cd "$ROOT" && "$TKO_STAGE0" $SOURCES -m "$MAINMOD" -i src $CFLAGS_ -o "bin/tiko$EXT" )
+    ( cd "$ROOT" && "$STAGE0" $SOURCES -m "$MAINMOD" -i src $CFLAGS_ -o "bin/tiko$EXT" )
 else
     compile_units "$ROOT/build/obj/$CFG" "$MAINMOD" "$CFLAGS_" $SOURCES
-    ( cd "$ROOT" && "$TKO_STAGE0" $OBJS $CFLAGS_ -x "bin/tiko$EXT" )
+    ( cd "$ROOT" && "$STAGE0" $OBJS $CFLAGS_ -x "bin/tiko$EXT" )
 fi
 
 if [ "$TESTRUNNER" = "1" ]; then
     echo "build: tiko-test [$CFG]"
-    ( cd "$ROOT" && "$TKO_STAGE0" tools/tiko-test/tikotest.bas -i src $INCOPT $FLAGS -mt $OUTOPT "bin/tiko-test$EXT" )
+    ( cd "$ROOT" && "$STAGE0" tools/tiko-test/tikotest.bas -i src $INCOPT $FLAGS -mt $OUTOPT "bin/tiko-test$EXT" )
 fi
 
 # WHAT bin/ NOW HOLDS, for anything that needs to know whether it is the right thing.
@@ -258,7 +268,7 @@ fi
 # a Debug binary from a Release one: 'build.sh Release' leaves bin/tiko newer than every
 # source, so the Debug suite would have run the Release binary and said nothing about it.
 mkdir -p "$ROOT/build/obj"
-printf '%s' "$CFG|$TKO_STAGE0" > "$ROOT/build/obj/.build-stamp"
+printf '%s' "$CFG|$STAGE0" > "$ROOT/build/obj/.build-stamp"
 
 [ "$NODLL" = "1" ] || build_dll
 

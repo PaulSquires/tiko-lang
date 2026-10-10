@@ -1,6 +1,6 @@
 @echo off
 rem defaultseed.bat ^<root^> -- sets DEFAULT_SEED to the seed stage0 builds with when neither
-rem TKO_SEED nor TKO_STAGE0 says otherwise, or to nothing when there is none.
+rem TKO_SEED nor TKO_ORACLE_FBC says otherwise, or to nothing when there is none.
 rem
 rem   call "%ROOT%\build\defaultseed.bat" "%ROOT%"
 rem

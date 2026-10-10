@@ -6,21 +6,22 @@ rem
 rem The Linux peer is build/bootstrap.sh and is kept line-for-line analogous; its header
 rem says what each of the four assertions is for and what each has already caught.
 rem
-rem   stage0  FBC-Modern builds tiko-lang (build.bat Debug)      -> stage1
+rem   stage0  the seed builds tiko-lang                          -> stage1
 rem   stage1  compiles tiko-lang's own sources                   -> stage2
 rem   stage2  compiles them again                                -> stage3
 rem
 rem   1. stage1 lowers every statement of every module, and every module verifies.
 rem   2. stage2 and stage3 are byte-identical files.
-rem   3. stage3 compiles a program and it prints what stage0's build of it prints.
+rem   3. stage3 compiles a program and it prints what the seed's build of it prints.
 rem   4. with --gate, the suite against stage2 fails exactly what it fails against stage1.
 rem
-rem Headers: TKO_BOOT_INC, else the tree's inc\, else <stage0 dir>\inc. Libraries: TKO_BOOT_LIBDIRS (separated
+rem Headers: TKO_BOOT_INC, else the tree's inc\, else the seed's. Libraries: TKO_BOOT_LIBDIRS (separated
 rem by spaces), else per target below. The caller's TKO_LIBPATH and TKO_INCLUDE are not
 rem inherited. Everything lands in build\.bootstrap\, cleared first.
 rem
-rem FROM A SEED: --seed ^<tiko.exe^> (or TKO_SEED) puts a packaged tiko where FBC-Modern was,
-rem and nothing here runs or reads fbc. The seed builds stage1 with stage2's own command, so
+rem STAGE0 IS A SEED: --seed ^<tiko.exe^> (or TKO_SEED), else defaultseed.bat's pick -- a
+rem packaged tiko, where FBC-Modern was until 2026-10-10; nothing here runs or reads fbc.
+rem The seed builds stage1 with stage2's own command, so
 rem stage1 == stage2 is checked too; headers, libraries and hello's reference are the seed's.
 rem build/bootstrap.sh's header has the reasoning.
 
@@ -46,40 +47,37 @@ echo bootstrap: unknown argument '%~1' 1>&2
 popd & exit /b 2
 :argsdone
 
-rem THE SEED IS THE DEFAULT, as in build.bat: TKO_SEED or --seed, else TKO_STAGE0, else
-rem defaultseed.bat's pick.
-if "%TKO_SEED%"=="" if "%TKO_STAGE0%"=="" call "%ROOT%\build\defaultseed.bat" "%ROOT%"
-if "%TKO_SEED%"=="" if "%TKO_STAGE0%"=="" set "TKO_SEED=%DEFAULT_SEED%"
-if "%TKO_SEED%"=="" if "%TKO_STAGE0%"=="" (
-    echo bootstrap: no seed compiler ^(seed/fetch-seed.sh^), and no TKO_STAGE0 fbc 1>&2
+rem THE SEED IS STAGE0, as in build.bat: TKO_SEED or --seed, else defaultseed.bat's pick.
+rem TKO_STAGE0 -- fbc, until 2026-10-10 -- is ignored, and said so.
+if not "%TKO_STAGE0%"=="" echo bootstrap: TKO_STAGE0 is retired and ignored -- the seed is stage0 1>&2
+if "%TKO_SEED%"=="" call "%ROOT%\build\defaultseed.bat" "%ROOT%"
+if "%TKO_SEED%"=="" set "TKO_SEED=%DEFAULT_SEED%"
+if "%TKO_SEED%"=="" (
+    echo bootstrap: no seed compiler -- seed/fetch-seed.sh, or --seed ^<tiko.exe^> 1>&2
     popd & exit /b 3
 )
-set "SEEDED=0"
-if not "%TKO_SEED%"=="" set "SEEDED=1"
-if "%SEEDED%"=="1" if not exist "%TKO_SEED%" (
+if not exist "%TKO_SEED%" (
     echo bootstrap: no seed compiler at %TKO_SEED% ^(a tiko executable^) 1>&2
     popd & exit /b 3
 )
 set "SEEDDIR="
-if "%SEEDED%"=="1" for %%d in ("%TKO_SEED%") do set "SEEDDIR=%%~dpd"
-if "%SEEDED%"=="0" if "%TKO_STAGE0%"=="" set "TKO_STAGE0=C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe"
+for %%d in ("%TKO_SEED%") do set "SEEDDIR=%%~dpd"
 rem The tree's own headers first (phase H), as build.bat uses them.
 if "%TKO_BOOT_INC%"=="" if exist "%ROOT%\inc\" set "TKO_BOOT_INC=%ROOT%\inc"
-if "%TKO_BOOT_INC%"=="" if "%SEEDED%"=="1" set "TKO_BOOT_INC=%SEEDDIR%inc"
-if "%TKO_BOOT_INC%"=="" for %%d in ("%TKO_STAGE0%") do set "TKO_BOOT_INC=%%~dpdinc"
+if "%TKO_BOOT_INC%"=="" set "TKO_BOOT_INC=%SEEDDIR%inc"
 if not exist "%TKO_BOOT_INC%\" (
     echo bootstrap: no header directory %TKO_BOOT_INC% ^(set TKO_BOOT_INC^) 1>&2
     popd & exit /b 3
 )
 
-rem The seed's runtime and import libraries, and fbc's CRT objects where its toolchain has them.
-if "%TKO_BOOT_LIBDIRS%"=="" if "%SEEDED%"=="1" (
+rem The seed's runtime and import libraries, and for win64 the MinGW runtime where it has one.
+if "%TKO_BOOT_LIBDIRS%"=="" (
     set "TKO_BOOT_LIBDIRS=%SEEDDIR%lib\%TARGET%"
     if exist "%SEEDDIR%lib\%TARGET%-fb\" set "TKO_BOOT_LIBDIRS=%SEEDDIR%lib\%TARGET% %SEEDDIR%lib\%TARGET%-fb"
 )
 if "%TKO_BOOT_LIBDIRS%"=="" (
     if /i "%TARGET%"=="win64-msvc" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64-msvc"
-    rem MinGW needs fbc's CRT objects beside the runtime; see cmdline.bas.
+    rem MinGW needs its CRT objects beside the runtime; see cmdline.bas.
     if /i "%TARGET%"=="win64" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64 %ROOT%\toolchains\tiko-windows\lib\win64-fb"
 )
 if "%TKO_BOOT_LIBDIRS%"=="" (
@@ -125,17 +123,7 @@ if not "%STAGE1%"=="" (
     echo bootstrap: stage1  %STAGE1%
     goto stage1done
 )
-if "%SEEDED%"=="1" goto seedstage1
-set "RUNNERARG="
-if "%GATE%"=="1" set "RUNNERARG=--test-runner"
-call "%ROOT%\build\build.bat" Debug %RUNNERARG% --no-dll > "%OUT%\stage1.log" 2>&1
-if errorlevel 1 ( type "%OUT%\stage1.log" 1>&2 & set "WHY=stage0 could not build stage1" & goto fail )
-copy /y "%ROOT%\bin\tiko.exe" "%OUT%\stage1\tiko.exe" >nul
-echo bootstrap: stage1  built by stage0
-goto stage1done
-
 rem stage1 BY THE SEED, with stage2's own command; --gate's runner is the seed's too.
-:seedstage1
 call :buildstage "%TKO_SEED%" stage1
 if errorlevel 1 goto fail
 if not "%GATE%"=="1" goto stage1done
@@ -166,7 +154,6 @@ if errorlevel 1 ( set "WHY=stage2 and stage3 differ" & goto fail )
 set "HASH="
 for /f "skip=1 delims=" %%h in ('certutil -hashfile "%OUT%\stage3\tiko.exe" SHA256') do if not defined HASH set "HASH=%%h"
 echo bootstrap: fixpoint  stage2 == stage3, sha256 !HASH:~0,16!...
-if not "%SEEDED%"=="1" goto fixdone
 if not "%STAGE1%"=="" goto fixdone
 fc /b "%OUT%\stage1\tiko.exe" "%OUT%\stage2\tiko.exe" >nul
 if errorlevel 1 ( set "WHY=stage1 (the seed's build) and stage2 differ" & goto fail )
@@ -189,20 +176,14 @@ if errorlevel 1 ( type "%OUT%\hello\build3.log" 1>&2 & set "WHY=stage3 could not
 "%OUT%\hello\hello3.exe" > "%OUT%\hello\out3.txt" 2>&1
 if errorlevel 1 ( set "WHY=stage3's hello did not run" & goto fail )
 pushd "%OUT%\hello"
-if "%SEEDED%"=="1" (
-    "%TKO_SEED%" hello.bas -target %TARGET% %LIBP% -o hello0.exe > build0.log 2>&1
-) else (
-    "%TKO_STAGE0%" hello.bas -x hello0.exe > build0.log 2>&1
-)
+"%TKO_SEED%" hello.bas -target %TARGET% %LIBP% -o hello0.exe > build0.log 2>&1
 set "RC=%ERRORLEVEL%"
 popd
 if not "%RC%"=="0" ( set "WHY=the reference compiler could not build hello.bas" & goto fail )
 "%OUT%\hello\hello0.exe" > "%OUT%\hello\out0.txt" 2>&1
 fc /b "%OUT%\hello\out0.txt" "%OUT%\hello\out3.txt" >nul
-if errorlevel 1 ( set "WHY=stage3's hello prints differently from stage0's" & goto fail )
-set "REFBY=stage0's"
-if "%SEEDED%"=="1" set "REFBY=the seed's"
-echo bootstrap: stage3  builds hello.bas, and it prints what %REFBY% build prints
+if errorlevel 1 ( set "WHY=stage3's hello prints differently from the seed's" & goto fail )
+echo bootstrap: stage3  builds hello.bas, and it prints what the seed's build prints
 
 rem ------------------------------------------------- 4. the suite, both ways
 if not "%GATE%"=="1" goto done

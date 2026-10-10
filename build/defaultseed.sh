@@ -1,5 +1,5 @@
 # defaultseed.sh -- sourced, not run: default_seed prints the seed stage0 builds with when
-# neither TKO_SEED nor TKO_STAGE0 says otherwise, or returns 1 when there is none.
+# neither TKO_SEED nor TKO_ORACLE_FBC says otherwise, or returns 1 when there is none.
 #
 #   . "$ROOT/build/defaultseed.sh"; SEED=$(default_seed "$ROOT" "$HOSTWIN")
 #

@@ -1,5 +1,5 @@
 @echo off
-rem build.bat -- build tiko-lang with the stage0 compiler (FBC-Modern, or a tiko seed).
+rem build.bat -- build tiko-lang with the stage0 compiler: a tiko seed.
 rem
 rem   build\build.bat [Debug^|Release^|RelWithDebInfo^|MinSizeRel] [--test-runner] [--no-dll]
 rem   build\build.bat [Release^|MinSizeRel] --dll
@@ -28,25 +28,28 @@ for %%a in (%*) do (
 )
 if "%CFG%"=="--dll" set "CFG=Release"
 
-rem THE SEED IS THE DEFAULT: TKO_SEED, else TKO_STAGE0 (an fbc), else defaultseed.bat's
-rem pick -- see the peer note in build.sh, which also says why the seed's flags are its own.
+rem THE SEED IS STAGE0: TKO_SEED, else TKO_ORACLE_FBC (an fbc, for the oracle only), else
+rem defaultseed.bat's pick -- see the peer note in build.sh, which also says why the seed's
+rem flags are its own and why TKO_STAGE0, fbc's old name, is ignored.
+if not "%TKO_STAGE0%"=="" echo build: TKO_STAGE0 is retired and ignored -- the seed is stage0; an fbc for the oracle is TKO_ORACLE_FBC 1>&2
 set "SEEDED=0"
+set "STAGE0="
 if not "%TKO_SEED%"=="" goto seedset
-if not "%TKO_STAGE0%"=="" goto seedset
+if not "%TKO_ORACLE_FBC%"=="" goto seedset
 call "%ROOT%\build\defaultseed.bat" "%ROOT%"
 if not defined DEFAULT_SEED (
     echo build: no seed compiler. Fetch the pinned one ^(seed/fetch-seed.sh^), package a 1>&2
-    echo build: toolchain ^(build/package.sh^), or set TKO_SEED to a tiko or TKO_STAGE0 to an fbc 1>&2
+    echo build: toolchain ^(build/package.sh^), or set TKO_SEED to a tiko 1>&2
     exit /b 3
 )
 set "TKO_SEED=%DEFAULT_SEED%"
 :seedset
 if not "%TKO_SEED%"=="" set "SEEDED=1"
-if "%SEEDED%"=="1" set "TKO_STAGE0=%TKO_SEED%"
+if "%SEEDED%"=="1" ( set "STAGE0=%TKO_SEED%" ) else ( set "STAGE0=%TKO_ORACLE_FBC%" )
 
-if not exist "%TKO_STAGE0%" (
-    echo build: stage0 compiler not found at %TKO_STAGE0% 1>&2
-    echo build: set TKO_STAGE0 to an FBC-Modern fbc, or TKO_SEED to a tiko 1>&2
+if not exist "%STAGE0%" (
+    echo build: stage0 compiler not found at %STAGE0% 1>&2
+    echo build: TKO_SEED must name a tiko, TKO_ORACLE_FBC an fbc 1>&2
     exit /b 3
 )
 rem The output flag: fbc's is -x, tiko's -o.
@@ -77,7 +80,7 @@ if "%SEEDED%"=="1" (
     if /i "%CFG%"=="Release"        set "FLAGS=-O2"
     if /i "%CFG%"=="MinSizeRel" (
         echo build: MinSizeRel is fbc's gcc backend ^(-gen gcc^), which a tiko seed has not got; 1>&2
-        echo build: unset TKO_SEED to build it with fbc 1>&2
+        echo build: it is built only with TKO_ORACLE_FBC, and never shipped 1>&2
         exit /b 2
     )
 )
@@ -111,9 +114,9 @@ goto :compiler
     set "LIBSRC="
     for %%f in (!SOURCES!) do if /i not "%%~nf"=="!MAINMOD!" set "LIBSRC=!LIBSRC! %%f"
     set "DLLFLAGS=!FLAGS:-exx=!"
-    echo build: tikoParser.dll [%CFG%] with %TKO_STAGE0%
+    echo build: tikoParser.dll [%CFG%] with %STAGE0%
     pushd "%ROOT%"
-    "%TKO_STAGE0%" -dll !LIBSRC! src\api\tikoparser.bas -i src !INCOPT! !DLLFLAGS! !OUTOPT! "bin\tikoParser.dll"
+    "%STAGE0%" -dll !LIBSRC! src\api\tikoparser.bas -i src !INCOPT! !DLLFLAGS! !OUTOPT! "bin\tikoParser.dll"
     if errorlevel 1 ( popd & exit /b 1 )
     popd
     rem Beside tiko-editor.exe, which loads it from there. A failed copy (a running editor
@@ -133,9 +136,9 @@ goto :compiler
     exit /b 0
 
 :compiler
-echo build: tiko-lang [%CFG%] with %TKO_STAGE0%
+echo build: tiko-lang [%CFG%] with %STAGE0%
 pushd "%ROOT%"
-"%TKO_STAGE0%" !SOURCES! -m !MAINMOD! -i src %INCOPT% %FLAGS% %OUTOPT% "bin\tiko.exe"
+"%STAGE0%" !SOURCES! -m !MAINMOD! -i src %INCOPT% %FLAGS% %OUTOPT% "bin\tiko.exe"
 if errorlevel 1 ( popd & exit /b 1 )
 
 if "%TESTRUNNER%"=="1" goto :buildrunner
@@ -143,13 +146,13 @@ goto :done
 
 :buildrunner
 echo build: tiko-test [%CFG%]
-"%TKO_STAGE0%" tools\tiko-test\tikotest.bas -i src %INCOPT% %FLAGS% -mt %OUTOPT% "bin\tiko-test.exe"
+"%STAGE0%" tools\tiko-test\tikotest.bas -i src %INCOPT% %FLAGS% -mt %OUTOPT% "bin\tiko-test.exe"
 if errorlevel 1 ( popd & exit /b 1 )
 
 :done
 rem What bin\ now holds -- see the peer note in build.sh.
 if not exist "%ROOT%\build\obj" mkdir "%ROOT%\build\obj"
-<nul set /p "=%CFG%|%TKO_STAGE0%">"%ROOT%\build\obj\.build-stamp"
+<nul set /p "=%CFG%|%STAGE0%">"%ROOT%\build\obj\.build-stamp"
 popd
 if not "%NODLL%"=="1" (
     call :builddll
