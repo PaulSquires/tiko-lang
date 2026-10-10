@@ -1,4 +1,6 @@
 #module "logs"
+#import "std/fs"
+using fs
 '' std/logs: logfile -- FB.Logging's file sink, with rotation
 ''
 ''     #import "std/logs"
@@ -55,7 +57,6 @@
 #include once "fb/chrono.bi"
 #include once "fb/array.bi"
 #include once "fb/mathtext.bi"
-#include once "fb/fsops.bi"
 
 using FB
 

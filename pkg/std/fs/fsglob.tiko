@@ -1,0 +1,196 @@
+#module "fs"
+'' std/fs: fsglob -- FB.MatchPattern and FB.Glob
+''
+'' Specified in C:\dev\docs\filesystem\RFC-0006-glob.md.
+''
+'' TWO FUNCTIONS, and only one of them touches the disk. MatchPattern is pure
+'' and belongs with fspath.bi in spirit; it lives here because the grammar it
+'' implements is this file's subject. Glob is MatchPattern plus WalkDir plus a
+'' filter, which is why this ranks below the walk it is built on.
+''
+'' THE GRAMMAR
+''
+''   ?          exactly one character, NOT a separator
+''   *          zero or more characters, NOT crossing a separator
+''   **         zero or more WHOLE COMPONENTS, including none
+''   [abc]      one character from the set
+''   [a-z]      one character from the range
+''   [!abc]     one character NOT in the set ( [^abc] also works )
+''   \x         a literal x -- POSIX ONLY; '\' is the separator on Windows,
+''              so a literal '[' is written as the class "[[]" there
+''
+'' The rules that surprise people, each asserted individually in the suite:
+''
+''   - '*' DOES NOT CROSS A SEPARATOR. "a*c" does not match "a/b/c".
+''   - '**' MATCHES ZERO COMPONENTS, so a/doublestar/c matches a/c. This is the
+''     most-missed glob behaviour.
+''   - '**' is only special as a WHOLE COMPONENT; "a**b" is a single '*'.
+''   - A MALFORMED CLASS IS A LITERAL: "[abc" matches those four characters.
+''     Raising on a typo in a user-supplied pattern would be worse.
+''   - Matching is WHOLE-STRING. There is no implicit '*' at either end.
+''   - HIDDEN ENTRIES ARE MATCHED. Unlike a shell, '*' here matches a leading
+''     dot -- the same library-wide rule as WalkDir, because omitting things
+''     silently is how a search lies about its coverage. This WILL surprise
+''     someone coming from bash, which is why it is written down.
+
+
+#include once "fb/result.bi"
+#include once "fb/array.bi"
+#include once "fb/array.bi"
+#include once "fb/array.bi"
+
+#if __FB_LANG__ <> "fb"
+    #error "fb/fsglob.bi requires -lang fb (it uses namespaces)"
+#endif
+
+#if defined( __FB_WIN32__ ) and ( not defined( __FB_64BIT__ ) )
+    #define FBFSGLOB_EXTERN extern "Windows"
+#else
+    #define FBFSGLOB_EXTERN extern "C"
+#endif
+
+using FB
+
+FBFSGLOB_EXTERN
+    '' Pure. No syscalls. Case-insensitive under the Windows grammar and
+    '' separator-agnostic there, so a pattern written with '/' matches a path
+    '' written with '\'.
+    public declare function MatchPattern overload alias "fb_UStrFsMatchPattern" _
+        ( byref s as const ustring, byref pattern as const ustring, byval gram as long = FB_PATH_NATIVE ) as boolean
+
+    public declare function PatternWildcardAt overload alias "fb_UStrFsPatternWildcardAt" _
+        ( byref pattern as const ustring, byval gram as long = FB_PATH_NATIVE ) as integer
+
+    public declare function PatternIsRecursive overload alias "fb_UStrFsPatternIsRecursive" _
+        ( byref pattern as const ustring, byval gram as long = FB_PATH_NATIVE ) as boolean
+end extern
+
+'' ---------------------------------------------------------------- GlobRoot
+''
+'' The pattern is split at the LAST COMPONENT CONTAINING NO WILDCARD; that
+'' prefix is the walk root and everything after it is the pattern to match
+'' against. So "C:\dev\tiko\src\*.bas" walks src, not the whole volume -- which
+'' is the difference between a glob and a full-disk scan.
+public declare function GlobRoot overload ( byref pattern as const ustring, byval gram as long = FB_PATH_NATIVE ) as ustring
+
+public function GlobRoot( byref pattern as const ustring, byval gram as long ) as ustring
+    dim as integer w = PatternWildcardAt( pattern, gram )
+
+    '' no wildcard at all: the "pattern" names one path, so its parent is
+    '' the root and its leaf is the thing to match
+    if( w < 0 ) then
+        dim as ustring par = PathParent( pattern, gram )
+        if( len( par ) = 0 ) then return "."
+        return par
+    end if
+
+    '' the last separator BEFORE the first wildcard
+    dim as ustring sep = PathSeparator( gram )
+    for i as integer = w - 1 to 0 step -1
+        dim as ustring c = mid( pattern, i + 1, 1 )
+        if( ( c = "\" andalso gram = FB_PATH_WIN32 ) orelse ( c = "/" ) ) then
+            if( i = 0 ) then return sep
+            return left( pattern, i )
+        end if
+    next
+
+    return "."
+end function
+
+'' -------------------------------------------------------------------- Glob
+''
+'' Returns the count and fills the array. Results are NOT SORTED -- directory
+'' order is whatever the filesystem gives, and a library that always sorted
+'' would impose the cost on every caller. Sort if you need order.
+''
+'' ERRORS DURING THE WALK ARE SKIPPED, and this is the ONE place in the module
+'' that swallows one. Glob returns an array, not an iterator, so it has nowhere
+'' to put a per-entry failure -- and a glob that failed wholesale because one
+'' subdirectory was unreadable would be useless. It fails as a whole only when
+'' the WALK ROOT cannot be opened.
+''
+'' A caller who needs per-entry errors uses WalkDir with MatchPattern directly,
+'' which is what this function itself does and is two lines:
+''
+''     for each r in FB.WalkDir( root )
+''         if( r.IsOk( ) andalso FB.MatchPattern( rel, pat ) ) then ...
+''     next
+public declare function Glob overload ( byref pattern as const ustring, results as Array( of ustring ), byval gram as long = FB_PATH_NATIVE ) as FsResultLong
+
+'' The path of `entry` relative to `root`, for matching against the sub-pattern.
+''
+'' Computed by stripping the root prefix rather than with PathRelativeTo,
+'' because every entry path was BUILT by PathJoin( root, ... ) and so is known
+'' to carry it verbatim -- and because PathRelativeTo normalises, which would
+'' discard the very separators the pattern is matched against.
+function hGlobRelative( byref p as const ustring, byref root as const ustring ) as ustring
+    dim as ustring rel = mid( p, len( root ) + 1 )
+
+    '' the root may or may not have ended in a separator ("C:\" does, "a\b"
+    '' does not), so strip whatever leads
+    do while( len( rel ) > 0 )
+        dim as ustring c = left( rel, 1 )
+        if( ( c <> "\" ) andalso ( c <> "/" ) ) then exit do
+        rel = mid( rel, 2 )
+    loop
+
+    return rel
+end function
+
+public function Glob( byref pattern as const ustring, results as Array( of ustring ), byval gram as long ) as FsResultLong
+    dim as ustring root = GlobRoot( pattern, gram )
+    dim as ustring sub_ = hGlobRelative( pattern, root )
+    dim as long n = 0
+
+    results.Clear( )
+
+    '' Rule 5: the only whole-call failure is an unopenable walk root.
+    dim as FsResultInfo ri = Stat( root )
+    if( ri.IsOk( ) = FALSE ) then
+        return Fail( of long, FsError )( ri.Failure( ) )
+    end if
+    if( ri.Value( ).IsDirectory( ) = FALSE ) then
+        return FsFail( of long )( FS_NOT_A_DIRECTORY, "Glob", root )
+    end if
+
+    '' Rule 3.2: a pattern without '**' never engages the walk machinery.
+    if( PatternIsRecursive( pattern, gram ) ) then
+        for each r in WalkDir( root )
+            if( r.IsOk( ) ) then          '' rule 4: failures are skipped
+                if( MatchPattern( hGlobRelative( r.Value( ).Path( ), root ), sub_, gram ) ) then
+                    results.Push( r.Value( ).Path( ) )
+                    n += 1
+                end if
+            end if
+        next
+    else
+        for each r in ReadDir( root )
+            if( r.IsOk( ) ) then
+                if( MatchPattern( r.Value( ).Name( ), sub_, gram ) ) then
+                    results.Push( r.Value( ).Path( ) )
+                    n += 1
+                end if
+            end if
+        next
+    end if
+
+    return Ok( of long, FsError )( n )
+end function
+
+'' ------------------------------------------------- the STRING/WSTRING family
+''
+'' Same three-overload rule as fspath.bi: resolved on the FIRST argument, every
+'' later parameter a ustring in all three.
+public declare function MatchPattern overload ( byref s as const string, byref pattern as const ustring, byval gram as long = FB_PATH_NATIVE ) as boolean
+public declare function MatchPattern overload ( byref s as const wstring, byref pattern as const ustring, byval gram as long = FB_PATH_NATIVE ) as boolean
+
+public function MatchPattern( byref s as const string, byref pattern as const ustring, byval gram as long ) as boolean
+    dim as ustring u = s
+    return MatchPattern( u, pattern, gram )
+end function
+
+public function MatchPattern( byref s as const wstring, byref pattern as const ustring, byval gram as long ) as boolean
+    dim as ustring u = s
+    return MatchPattern( u, pattern, gram )
+end function
+

@@ -1,0 +1,8 @@
+'' tests/vendor/fbc-tests/filesystem/fserror_codes.bas ported to the std modules (build/stdtests.py, generated).
+'' Expected: what tests/std/baseline/filesystem/fserror_codes.txt recorded for the original.
+'' TEST: cli
+'' ARGS: -target win64-msvc -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/filesystem/fserror_codes.bas -o tests/std/filesystem/fserror_codes.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/std/filesystem/fserror_codes.exe
+'' EXPECT-RUN-OUT: 41        41         0  fbc_tests.filesystem.fserror_codes             8

@@ -37,9 +37,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # module -> (headers to include, every header whose names are the facade's, needs -mt)
 FACADES = {
-    "fs": (["fb/filesystem.bi"],
-           ["filesystem.bi", "fserror.bi", "fspath.bi", "fsinfo.bi", "fsdir.bi", "fsops.bi",
-            "fsglob.bi", "fslink.bi", "fsvolume.bi", "fsadvanced.bi"], False),
     "containers": (["containers.bi"],
                    ["containers.bi", "hash.bi", "array.bi", "map.bi", "set.bi", "linkedlist.bi",
                     "orderedmap.bi", "orderedset.bi", "sort.bi"], False),
@@ -54,14 +51,11 @@ FACADES = {
                 ["math.bi", "mathint.bi", "complex.bi", "mathtext.bi", "random.bi", "stats.bi",
                  "fenv.bi", "vector.bi"], False),
 }
-# Real modules now (build/stdport.py, 2026-10-10), no longer written here: strings, tui, money, logs.
+# Real modules now (build/stdport.py, 2026-10-10), no longer written here: strings, tui, money, logs, fs.
 
 # std/path's names, kept in std/fs when std/path was folded into it (RFC-0009 M30). Each is
 # the header's function, with the header's behaviour -- see pkg/std/README.md.
 EXTRA_ALIASES = {
-    "fs": [("Separator", "PathSeparator"), ("JoinPath", "PathJoin"), ("DirName", "PathParent"),
-           ("BaseName", "PathFileName"), ("Extension", "PathExtension"),
-           ("IsAbsolute", "PathIsAbsolute")],
 }
 
 # Internal by the headers' own conventions: 'h' helpers, C kernels and their prefixes. A

@@ -1,0 +1,46 @@
+#module "fs"
+'' std/fs: filesystem -- the modern filesystem module, in one include
+''
+'' Specified in C:\dev\docs\filesystem\. Mirrors inc/containers.bi: this file is an
+'' umbrella and contains no declarations of its own.
+''
+'' Everything lives in NAMESPACE FB and nothing is added to the global
+'' namespace, so a program that already defines its own PathJoin, FsError or
+'' Stat is unaffected. Write `using FB` to drop the qualification.
+''
+'' NOTHING HERE REPLACES ANYTHING. inc/file.bi, inc/dir.bi and the legacy Dir,
+'' FileExists, FileLen, FileCopy, Kill, Name, MkDir and RmDir are untouched and
+'' undeprecated; a program using them compiles and behaves exactly as before.
+'' The only new consequence is that a better option now sits next to them.
+''
+'' ALL SEVEN PHASES EXIST TODAY, RFC-0001 through RFC-0009.
+
+
+#if __FB_LANG__ <> "fb"
+    #error "fb/filesystem.bi requires -lang fb (it uses namespaces)"
+#endif
+
+'' Phase 1 -- RFC-0001, RFC-0002
+
+'' Phase 2 -- RFC-0003, RFC-0004
+
+'' Phase 3 -- RFC-0005
+
+'' Phase 4 -- RFC-0006
+
+'' Phase 5 -- RFC-0007
+
+'' Phase 6 -- RFC-0008
+
+'' Phase 7 -- RFC-0009
+
+'' std/path's names, kept when std/path was folded into std/fs (RFC-0009 M30): each is the
+'' function it names, as an exported macro -- 'fs.JoinPath( a, b )' is 'fs.PathJoin( a, b )'.
+'' Exported macros are used qualified only: 'using fs' brings PathJoin, not JoinPath.
+#define Separator PathSeparator
+#define JoinPath PathJoin
+#define DirName PathParent
+#define BaseName PathFileName
+#define Extension PathExtension
+#define IsAbsolute PathIsAbsolute
+#export Separator, JoinPath, DirName, BaseName, Extension, IsAbsolute

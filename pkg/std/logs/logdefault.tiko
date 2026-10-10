@@ -1,4 +1,6 @@
 #module "logs"
+#import "std/fs"
+using fs
 '' std/logs: logdefault -- the process-wide default logger, logs.DefaultLogger( )
 ''
 ''     #import "std/logs"
@@ -38,7 +40,6 @@
 #include once "fb/chrono.bi"
 #include once "fb/array.bi"
 #include once "fb/mathtext.bi"
-#include once "fb/fserror.bi"
 
 using FB
 

@@ -239,7 +239,10 @@ def port(mod, hdr, api, converted, notes):
         # alone, so FB_FSKIND_FILE defined in fsinfo was nothing in fsdir. A '_EXTERN'
         # calling-convention macro stays a macro, and nothing inside a '#macro' moves.
         md = re.match(r'^(\s*)#define\s+([A-Z][A-Z0-9_]*)\s+(\(-?[0-9]+\)|-?[0-9]+|&[hH][0-9A-Fa-f]+|"[^"]*"|[A-Z][A-Z0-9_]*)\s*$', code)
-        if md and not inmacro and not md.group(2).endswith("_EXTERN"):
+        # ...not one under '#ifndef NAME', a fallback for a system header's own macro.
+        guarded = md is not None and any(
+            re.match(r"\s*#ifndef\s+%s\s*$" % md.group(2), code_of(o)) for o in out[-3:])
+        if md and not inmacro and not guarded and not md.group(2).endswith("_EXTERN"):
             out.append("%spublic const %s = %s" % (md.group(1), md.group(2), md.group(3)))
             continue
         mn = RX_NS.match(code)
@@ -286,7 +289,10 @@ def port(mod, hdr, api, converted, notes):
                 elif top and RX_DECLOP.match(ln):
                     ln = RX_DECLOP.sub(lambda g: g.group(1) + "public declare operator", ln, count=1)
                 elif top:
-                    m = RX_DECL.match(ln) or RX_TYPE.match(ln) or RX_CONST.match(ln)
+                    # ...and a free procedure the header left without 'private' -- every
+                    # GENERIC one, 'function FsFail( of T )( ... )', which is never private.
+                    m = RX_DECL.match(ln) or RX_TYPE.match(ln) or RX_CONST.match(ln) \
+                        or re.match(r"^(\s*)(?:function|sub)\s+(\w+)(?!\s*(?:\(\s*of\b[^)]*\))?\s*\.)", ln, re.I)
                     if m:
                         name = m.group(m.lastindex).lower()
                         if (name in api or inmacro) and not re.match(r"\s*public\b", ln, re.I):
@@ -344,16 +350,78 @@ def fix_comments(text, mod):
     return "\n".join(out)
 
 
+def promote(dep, root):
+    """WHEN <dep> BECOMES REAL, every module already converted stops including its headers:
+    '#include once "fb/fserror.bi"' becomes '#import "std/fs"' and 'using fs' at the top of
+    the file, and 'FB.Name' of a name <dep> exports becomes 'fs.Name'. A file left with no
+    namespace-FB header at all loses its 'using FB', which would name nothing."""
+    from stdtests import public_names
+    pub = public_names(dep)
+    changed = []
+    for mod in sorted(os.listdir(root)):
+        d = os.path.join(root, mod)
+        if mod == dep or not os.path.isdir(d):
+            continue
+        for f in sorted(os.listdir(d)):
+            if not f.endswith(".tiko"):
+                continue
+            p = os.path.join(d, f)
+            text = io.open(p, encoding="utf-8", newline="").read()
+            lines = text.split("\n")
+            hit = False
+            out = []
+            for ln in lines:
+                m = RX_INC.match(code_of(ln))
+                if m and (m.group(2).startswith("fb/") or m.group(2) == "containers.bi") \
+                        and HDR_MODULE.get(os.path.basename(m.group(2))) == dep:
+                    hit = True
+                    continue
+                out.append(ln)
+            if not hit:
+                continue
+            # The import and its using go after '#module' and any imports already there.
+            at = 1
+            while at < len(out) and re.match(r'\s*#import\b', out[at]):
+                at += 1
+            out[at:at] = ['#import "std/%s"' % dep]
+            at += 1
+            while at < len(out) and re.match(r'\s*using\s+\w+\s*$', out[at]) and "FB" not in out[at]:
+                at += 1
+            out[at:at] = ["using %s" % dep]
+            text = "\n".join(out)
+            text = re.sub(r"\bFB\.(\w+)", lambda g: (dep + "." + g.group(1)) if g.group(1).lower() in pub
+                          else g.group(0), text)
+            # No namespace-FB header left: no 'using FB'.
+            still = False
+            for ln in text.split("\n"):
+                m = RX_INC.match(code_of(ln))
+                if m:
+                    b = os.path.basename(m.group(2))
+                    if (m.group(2).startswith("fb/") or m.group(2) == "containers.bi" or b in RX_FBNS_INC):
+                        still = True
+            if not still:
+                text = re.sub(r"(?m)^using FB\n", "", text)
+            io.open(p, "w", encoding="utf-8", newline="").write(text)
+            changed.append(mod + "/" + f)
+    for c in changed:
+        print("stdport: promoted %s to std/%s" % (c, dep))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("module")
     ap.add_argument("--converted", default="", help="modules already real, comma separated")
     ap.add_argument("--out", default=os.path.join(ROOT, "pkg", "std"))
     ap.add_argument("--check", action="store_true", help="print notes, write nothing")
+    ap.add_argument("--promote", action="store_true",
+                    help="the module is now real: rewrite the other modules' includes of its headers")
     ap.add_argument("--comments", action="store_true",
                     help="only normalise the comments of the module's existing files, in place")
     a = ap.parse_args()
     mod = a.module
+    if a.promote:
+        promote(mod, a.out)
+        return
     if a.comments:
         d = os.path.join(a.out, mod)
         for f in sorted(os.listdir(d)):

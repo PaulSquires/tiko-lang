@@ -1,0 +1,8 @@
+'' tests/vendor/fbc-tests/filesystem/fsglob.bas ported to the std modules (build/stdtests.py, generated).
+'' Expected: what tests/std/baseline/filesystem/fsglob.txt recorded for the original.
+'' TEST: cli
+'' ARGS: -target win64-msvc -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/filesystem/fsglob.bas -o tests/std/filesystem/fsglob.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/std/filesystem/fsglob.exe
+'' EXPECT-RUN-OUT: 117       117         0  fbc_tests.filesystem.fsglob                   22

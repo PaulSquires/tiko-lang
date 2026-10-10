@@ -17,6 +17,7 @@
 '' shipped console sink is therefore argued and pattern-matched, not measured.
 
 #import "std/logs"
+#import "std/fs"
 #include "fbcunit.bi"
 
 #include once "fb/chrono.bi"
@@ -25,11 +26,9 @@
 
 #include once "fb/mathtext.bi"
 
-#include once "fb/fsops.bi"
+#include once "fb/result.bi"
 
-#include once "fb/fserror.bi"
-
-using logs
+using logs, fs
 
 using FB
 '' The alias is required: a generic does not instantiate directly in a TYPE
