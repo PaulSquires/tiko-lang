@@ -24,5 +24,5 @@
 # build/defaultseed.sh prefers seed/cache/<host> -- where fetch-seed.sh unpacks this -- over
 # any locally packaged toolchain.
 
-windows  seed-2  tiko-seed-windows-x86_64-8941332c.zip  8777c5e159c9dd353637b6d880d522a71566f6c58e33f4d3e0af0e51d0b0d19d  8941332ce2a4c19c0e73cdf3ecbb0a17fb67c293
-linux    seed-2  tiko-seed-linux-x86_64-8941332c.tar.gz  643017c31199bbfa31f4f03db5cbbc24ec457a948f7717b76419c4f3be76f885  8941332ce2a4c19c0e73cdf3ecbb0a17fb67c293
+windows  seed-3  tiko-seed-windows-x86_64-a04bae1f.zip  85ecab00d024f648924dee923bafee01e74f67d11e9f8624097aea9bfeb53605  a04bae1f0d7f69d0a8ec017fef794e4d12a6200a
+linux    seed-3  tiko-seed-linux-x86_64-a04bae1f.tar.gz  4b2c4f66a8254fb42381537c4790a3bdfa83d55bd5bf2a5a228be86dcc42d5b4  a04bae1f0d7f69d0a8ec017fef794e4d12a6200a

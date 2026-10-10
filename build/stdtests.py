@@ -162,22 +162,83 @@ def public_names(mod):
     return names
 
 
-_INCS = {}
 FBNS_HEADERS = {"fberror.bi", "fbpark.bi", "fbclaim.bi", "fblimits.bi", "fbatomic.bi"}
 
 
+# WHAT EACH HEADER INCLUDED, frozen from inc/ on 2026-10-10 before inc/fb was deleted: the
+# fb/ library headers and the namespace-FB ones that stay. port() re-adds what a removed
+# header brought with it ('fb/string.bi' gave its includer 'fb/array.bi', hence Array).
+HEADER_INCLUDES = {
+    'containers.bi': ['fb/hash.bi', 'fb/array.bi', 'fb/map.bi', 'fb/set.bi', 'fb/linkedlist.bi', 'fb/orderedmap.bi', 'fb/orderedset.bi', 'fb/sort.bi'],
+    'fb/channel.bi': ['fberror.bi', 'fbpark.bi', 'fbclaim.bi'],
+    'fb/complex.bi': ['fb/math.bi', 'fb/mathtext.bi'],
+    'fb/currency.bi': ['fb/optional.bi', 'fblimits.bi'],
+    'fb/decimal.bi': ['fb/optional.bi', 'fb/currency.bi', 'fblimits.bi'],
+    'fb/filesystem.bi': ['fb/fserror.bi', 'fb/fspath.bi', 'fb/fsinfo.bi', 'fb/fsdir.bi', 'fb/fsops.bi', 'fb/fsglob.bi', 'fb/fslink.bi', 'fb/fsvolume.bi', 'fb/fsadvanced.bi'],
+    'fb/finance.bi': ['fb/finerror.bi', 'fb/fincore.bi', 'fb/finsolve.bi', 'fb/fintvm.bi', 'fb/finloan.bi', 'fb/fincash.bi', 'fb/findeprec.bi', 'fb/finport.bi'],
+    'fb/fincash.bi': ['fb/fincore.bi', 'fb/finsolve.bi', 'fb/array.bi'],
+    'fb/fincore.bi': ['fb/finerror.bi', 'fb/math.bi', 'fb/decimal.bi', 'fb/currency.bi', 'fb/chrono.bi'],
+    'fb/findeprec.bi': ['fb/fincore.bi', 'fb/array.bi'],
+    'fb/finerror.bi': ['fb/result.bi', 'fb/math.bi', 'fb/decimal.bi', 'fb/currency.bi'],
+    'fb/finloan.bi': ['fb/fincore.bi', 'fb/fintvm.bi', 'fb/finsolve.bi', 'fb/array.bi'],
+    'fb/finport.bi': ['fb/fincore.bi', 'fb/fincash.bi', 'fb/stats.bi', 'fb/array.bi'],
+    'fb/finsolve.bi': ['fb/finerror.bi', 'fb/math.bi'],
+    'fb/fintvm.bi': ['fb/fincore.bi', 'fb/finsolve.bi'],
+    'fb/fsadvanced.bi': ['fb/fserror.bi', 'fb/fspath.bi', 'fb/array.bi'],
+    'fb/fsdir.bi': ['fb/fserror.bi', 'fb/fspath.bi', 'fb/fsinfo.bi', 'fb/array.bi'],
+    'fb/fserror.bi': ['fb/result.bi'],
+    'fb/fsglob.bi': ['fb/fserror.bi', 'fb/fspath.bi', 'fb/fsinfo.bi', 'fb/fsdir.bi', 'fb/array.bi'],
+    'fb/fsinfo.bi': ['fb/fserror.bi', 'fb/fspath.bi'],
+    'fb/fslink.bi': ['fb/fserror.bi', 'fb/fspath.bi', 'fb/fsinfo.bi', 'fb/fsdir.bi', 'fb/fsops.bi'],
+    'fb/fsops.bi': ['fb/fserror.bi', 'fb/fspath.bi', 'fb/fsinfo.bi', 'fb/fsdir.bi', 'fb/array.bi'],
+    'fb/fspath.bi': ['fb/fserror.bi', 'fb/array.bi'],
+    'fb/fsvolume.bi': ['fb/fserror.bi', 'fb/fspath.bi', 'fb/array.bi'],
+    'fb/logasync.bi': ['fb/logsink.bi'],
+    'fb/logdefault.bi': ['fb/logger.bi'],
+    'fb/logerror.bi': ['fb/logrecord.bi'],
+    'fb/logfile.bi': ['fb/logsink.bi', 'fb/fsops.bi'],
+    'fb/logger.bi': ['fb/logsink.bi', 'fb/fserror.bi'],
+    'fb/logging.bi': ['fb/logrecord.bi', 'fb/logrender.bi', 'fb/logsink.bi', 'fb/logfile.bi', 'fb/logasync.bi', 'fb/logger.bi', 'fb/logdefault.bi'],
+    'fb/logmacros.bi': ['fb/logging.bi'],
+    'fb/logrecord.bi': ['fb/chrono.bi', 'fb/array.bi', 'fb/mathtext.bi'],
+    'fb/logrender.bi': ['fb/logrecord.bi'],
+    'fb/logsink.bi': ['fb/logrender.bi', 'fb/logerror.bi'],
+    'fb/map.bi': ['fb/hash.bi', 'fb/array.bi'],
+    'fb/math.bi': ['fblimits.bi'],
+    'fb/mathint.bi': ['fb/optional.bi', 'fblimits.bi'],
+    'fb/mathtext.bi': ['fb/optional.bi', 'fblimits.bi'],
+    'fb/moneyformat.bi': ['fb/decimal.bi'],
+    'fb/optional.bi': ['fberror.bi'],
+    'fb/orderedmap.bi': ['fb/array.bi'],
+    'fb/orderedset.bi': ['fb/array.bi'],
+    'fb/random.bi': ['fblimits.bi'],
+    'fb/result.bi': ['fberror.bi'],
+    'fb/select.bi': ['fb/channel.bi'],
+    'fb/set.bi': ['fb/hash.bi', 'fb/array.bi'],
+    'fb/sharedptr.bi': ['fberror.bi', 'fbatomic.bi'],
+    'fb/sort.bi': ['fb/array.bi', 'fb/linkedlist.bi'],
+    'fb/stats.bi': ['fb/array.bi', 'fblimits.bi'],
+    'fb/string.bi': ['fb/array.bi'],
+    'fb/sync.bi': ['fb/channel.bi', 'fb/scheduler.bi'],
+    'fb/tui.bi': ['fb/tuicore.bi', 'fb/tuiwidth.bi', 'fb/tuiterm.bi', 'fb/tuibuffer.bi', 'fb/tuilayout.bi', 'fb/tuiinput.bi', 'fb/tuiwidget.bi', 'fb/tuiwidgets.bi', 'fb/tuidraw.bi', 'fb/tuiform.bi', 'fb/tuichrome.bi', 'fb/tuiapp.bi'],
+    'fb/tuiapp.bi': ['fb/tuichrome.bi', 'fb/chrono.bi'],
+    'fb/tuibuffer.bi': ['fb/tuicore.bi', 'fb/tuiwidth.bi', 'fb/array.bi'],
+    'fb/tuichrome.bi': ['fb/tuiform.bi'],
+    'fb/tuidraw.bi': ['fb/tuiwidgets.bi'],
+    'fb/tuiform.bi': ['fb/tuidraw.bi'],
+    'fb/tuiinput.bi': ['fb/tuicore.bi', 'fb/tuiterm.bi', 'fb/optional.bi', 'fb/array.bi'],
+    'fb/tuilayout.bi': ['fb/tuicore.bi', 'fb/array.bi'],
+    'fb/tuiterm.bi': ['fb/tuicore.bi', 'fb/result.bi', 'fb/optional.bi'],
+    'fb/tuiwidget.bi': ['fb/tuicore.bi', 'fb/tuiwidth.bi', 'fb/tuibuffer.bi', 'fb/tuilayout.bi', 'fb/tuiinput.bi', 'fb/optional.bi', 'fb/array.bi'],
+    'fb/tuiwidgets.bi': ['fb/tuiwidget.bi'],
+    'fb/tuiwidth.bi': ['fb/tuiwidthtab.bi', 'fb/array.bi'],
+    'fb/vector.bi': ['fblimits.bi'],
+}
+
+
 def includes_of(hdr):
-    """The fb/ headers (and containers.bi) one header includes, as 'fb/x.bi' paths."""
-    if hdr not in _INCS:
-        p = os.path.join(ROOT, "inc", hdr)
-        text = io.open(p, encoding="utf-8").read() if os.path.isfile(p) else ""
-        _INCS[hdr] = [m.group(1) for m in RX_INC.finditer(text)
-                      if not m.group(0).lstrip().startswith("'")]
-        # ...and the namespace-FB headers that stay in inc/ (fblimits.bi): a test reached
-        # MAX_VALUE_LONGINT through fb/currency.bi and 'using FB'.
-        _INCS[hdr] += [m.group(1) for m in re.finditer(r'(?im)^\s*#include(?:\s+once)?\s+"(fb\w+\.bi)"', text)
-                       if m.group(1) in FBNS_HEADERS]
-    return _INCS[hdr]
+    """The fb/ headers (and containers.bi, fblimits.bi and the rest) one header included."""
+    return HEADER_INCLUDES.get(hdr, [])
 
 
 def port(text, conv, pub):
