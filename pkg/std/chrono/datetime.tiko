@@ -1,0 +1,810 @@
+#module "chrono"
+'' std/chrono: DateTime, ISO 8601 / RFC 3339 and custom patterns (split from chrono.tiko,
+'' which was fb/chrono.bi, at the 1500-line cap).
+
+'' ================================================================= DateTime
+''
+'' A civil date-time plus a UTC offset.  m_ticks holds the LOCAL wall-clock
+'' reading, not the UTC instant -- that is what survives a round trip through
+'' ISO 8601 text without losing what the writer meant, and it is what
+'' DateTimeOffset (C#) and OffsetDateTime (java.time) both do.
+''
+'' Three offset states, per RFC-0001 section 2.1:
+''     0                        explicitly UTC          renders as Z
+''     -1080 .. 1080            a known fixed offset    renders as +05:30
+''     DT_OFFSET_UNSPECIFIED    naive; nobody said      renders bare
+public type DateTime
+    m_ticks  as longint
+    m_offset as short
+
+    declare constructor( )
+    declare constructor( byval y as long, byval mo as long, byval d as long )
+    declare constructor( byval y as long, byval mo as long, byval d as long, _
+                         byval h as long, byval mi as long, byval s as long, _
+                         byval ms as long )
+
+    declare static function FromTicks( byval t as longint, _
+                                       byval offMin as short ) as DateTime
+    declare static function FromDate    ( byref d as LocalDate ) as DateTime
+    declare static function FromDateTime( byref d as LocalDate, byref t as LocalTime ) as DateTime
+    declare static function FromInstant ( byref i as Instant, byval offMin as short ) as DateTime
+    declare static function MinValue( ) as DateTime
+    declare static function MaxValue( ) as DateTime
+    declare static function Invalid ( ) as DateTime
+
+    declare property IsValid      ( ) as boolean
+    declare property Ticks        ( ) as longint
+    declare property OffsetMinutes( ) as short
+    declare property HasOffset    ( ) as boolean
+    declare property IsUtc        ( ) as boolean
+
+    declare property Year       ( ) as long
+    declare property Month      ( ) as long
+    declare property Day        ( ) as long
+    declare property Hour       ( ) as long
+    declare property Minute     ( ) as long
+    declare property Second     ( ) as long
+    declare property Millisecond( ) as long
+    declare property Microsecond( ) as long
+    declare property TickOfDay  ( ) as longint
+    declare property DayOfWeek  ( ) as long
+    declare property DayOfYear  ( ) as long
+
+    declare function GetDate     ( ) as LocalDate
+    declare function GetTimeOfDay( ) as LocalTime
+
+    '' WithOffset REINTERPRETS: keeps the wall reading, changes the instant.
+    '' ToOffset CONVERTS: keeps the instant, changes the wall reading.
+    '' Neither is a safe default, which is why neither is implicit.
+    declare function WithOffset( byval offMin as short ) as DateTime
+    declare function ToOffset  ( byval offMin as short ) as DateTime
+    declare function AssumeUtc ( ) as Instant
+    declare function ToInstant ( ) as Instant
+
+    '' Exact tick arithmetic.  AddDays( 1 ) adds exactly 86400 seconds and so
+    '' does NOT preserve the wall-clock time across a DST boundary; that is
+    '' AddCalendarDays, in RFC-0007.  AddMonths / AddYears are RFC-0004.
+    declare function Add            ( byref s as TimeSpan ) as DateTime
+    declare function Subtract       ( byref s as TimeSpan ) as DateTime
+    declare function AddTicks       ( byval n as longint ) as DateTime
+    declare function AddDays        ( byval n as double  ) as DateTime
+    declare function AddHours       ( byval n as double  ) as DateTime
+    declare function AddMinutes     ( byval n as double  ) as DateTime
+    declare function AddSeconds     ( byval n as double  ) as DateTime
+    declare function AddMilliseconds( byval n as double  ) as DateTime
+
+    '' Calendar arithmetic (RFC-0004).  Takes a plain LONG, not a TimeSpan,
+    '' because months and years are not fixed-length units -- keeping the two
+    '' kinds of arithmetic visibly separate is the whole point.
+    declare function AddMonths( byval n as long ) as DateTime
+    declare function AddYears ( byval n as long ) as DateTime
+
+    '' Calendar utilities (RFC-0004 section 3)
+    declare static function IsLeapYear ( byval y as long ) as boolean
+    declare static function DaysInMonth( byval y as long, byval mo as long ) as long
+    declare static function DaysInYear ( byval y as long ) as long
+    declare static function WeeksInYear( byval y as long ) as long
+
+    declare property IsoWeek    ( ) as long
+    declare property IsoWeekYear( ) as long
+    declare property Quarter    ( ) as long
+    declare property IsFirstDayOfMonth( ) as boolean
+    declare property IsLastDayOfMonth ( ) as boolean
+
+    declare function StartOfDay  ( ) as DateTime
+    declare function EndOfDay    ( ) as DateTime
+    declare function StartOfMonth( ) as DateTime
+    declare function EndOfMonth  ( ) as DateTime
+    declare function StartOfYear ( ) as DateTime
+    declare function EndOfYear   ( ) as DateTime
+    declare function StartOfWeek ( byval firstDay as long = DT_MONDAY ) as DateTime
+    declare function NextWeekday ( byval dow as long ) as DateTime
+    declare function PrevWeekday ( byval dow as long ) as DateTime
+
+    declare property JulianDay      ( ) as double
+    declare property JulianDayNumber( ) as longint
+    declare static function FromJulianDay( byval jd as double ) as DateTime
+
+    declare function CompareTo      ( byref o as DateTime ) as long
+
+    declare function ToIsoString( ) as string
+    declare function ToString   ( ) as string
+    declare static function TryParseIso( byref s as string, byref result as DateTime ) as boolean
+    declare static function TryParse   ( byref s as string, byref result as DateTime ) as boolean
+    declare static function ParseIso   ( byref s as string ) as DateTime
+
+    '' Custom patterns (RFC-0006).  Output depends only on the value and the
+    '' pattern -- names are invariant English, never the OS locale, so this is
+    '' safe to write to a file.  Locale formatting is RFC-0007.
+    declare function ToString ( byref pattern as string ) as string
+    declare function TryFormat( byref pattern as string, byref result as string ) as boolean
+    declare static function TryParseExact( byref s as string, byref pattern as string, _
+                                           byref result as DateTime ) as boolean
+    declare static function ParseExact   ( byref s as string, byref pattern as string ) as DateTime
+
+    '' Calendar-preserving arithmetic (RFC-0007 section 2).  "Same time
+    '' tomorrow" -- unlike AddDays( 1 ), which is exactly 86400 seconds.
+    '' They differ twice a year and the names say which is which.
+    declare function AddCalendarDays  ( byval n as long ) as DateTime
+    declare function AddCalendarMonths( byval n as long ) as DateTime
+    declare function AddCalendarYears ( byval n as long ) as DateTime
+
+    declare function ToLocal( ) as DateTime
+
+    '' Locale formatting (RFC-0007 section 3).  Output is whatever the
+    '' machine says; use RFC-0006 patterns for anything written to a file.
+    declare function ToLocaleDateString( byval style as long = lsShort ) as string
+    declare function ToLocaleTimeString( byval style as long = lsShort ) as string
+    declare function ToLocaleString    ( byval style as long = lsShort ) as string
+
+    declare static function MonthName  ( byval mo as long, byval abbreviated as boolean = false ) as string
+    declare static function WeekdayName( byval dow as long, byval abbreviated as boolean = false ) as string
+
+    '' Interop (RFC-0007 section 4)
+    declare static function FromUnixSeconds     ( byval v as longint ) as DateTime
+    declare static function FromUnixMilliseconds( byval v as longint ) as DateTime
+    declare static function FromSerial          ( byval d as double  ) as DateTime
+    declare property UnixSeconds     ( ) as longint
+    declare property UnixMilliseconds( ) as longint
+    declare property UnixMicroseconds( ) as longint
+    declare property Serial          ( ) as double
+    declare property FileTime        ( ) as longint
+    declare static function FromFileTime( byval ft as longint ) as DateTime
+    declare property OleDate         ( ) as double
+    declare static function FromOleDate  ( byval d as double ) as DateTime
+
+    '' ------------------------------------------------ USTRING (phase 8)
+    '' The tree's rule (fb/string.bi) is that the INPUT type decides the
+    '' output type, and that a function cannot return the type it was
+    '' handed.  So anything taking text overloads and returns USTRING;
+    '' anything taking none cannot overload on return type alone and so
+    '' carries a U in its name.
+    declare function ToIsoUString( ) as ustring
+    declare function ToString  overload ( byref pattern as ustring ) as ustring
+    declare function TryFormat overload ( byref pattern as ustring, byref result as ustring ) as boolean
+
+    declare static function TryParseIso   overload ( byref s as ustring, byref result as DateTime ) as boolean
+    declare static function TryParse      overload ( byref s as ustring, byref result as DateTime ) as boolean
+    declare static function ParseIso      overload ( byref s as ustring ) as DateTime
+    declare static function TryParseExact overload ( byref s as ustring, byref pattern as ustring, byref result as DateTime ) as boolean
+    declare static function ParseExact    overload ( byref s as ustring, byref pattern as ustring ) as DateTime
+
+    '' Locale output is the ONLY part of this library that is routinely
+    '' non-ASCII, and so the only part where USTRING genuinely earns it.
+    declare function ToLocaleDateUString( byval style as long = lsShort ) as ustring
+    declare function ToLocaleTimeUString( byval style as long = lsShort ) as ustring
+    declare function ToLocaleUString    ( byval style as long = lsShort ) as ustring
+    declare static function MonthUName  ( byval mo as long, byval abbreviated as boolean = false ) as ustring
+    declare static function WeekdayUName( byval dow as long, byval abbreviated as boolean = false ) as ustring
+end type
+
+public declare operator + ( byref a as DateTime, byref s as TimeSpan ) as DateTime
+public declare operator - ( byref a as DateTime, byref s as TimeSpan ) as DateTime
+public declare operator - ( byref a as DateTime, byref b as DateTime ) as TimeSpan
+public declare operator =  ( byref a as DateTime, byref b as DateTime ) as boolean
+public declare operator <> ( byref a as DateTime, byref b as DateTime ) as boolean
+public declare operator <  ( byref a as DateTime, byref b as DateTime ) as boolean
+public declare operator >  ( byref a as DateTime, byref b as DateTime ) as boolean
+public declare operator <= ( byref a as DateTime, byref b as DateTime ) as boolean
+public declare operator >= ( byref a as DateTime, byref b as DateTime ) as boolean
+
+function dtOffsetIsValid( byval m as short ) as boolean
+    if m = DT_OFFSET_UNSPECIFIED then return true
+    dim as boolean lo = ( m >= DT_OFFSET_MIN )
+    dim as boolean hi = ( m <= DT_OFFSET_MAX )
+    return lo andalso hi
+end function
+
+constructor DateTime( )
+    this.m_ticks = DT_INVALID_TICKS
+    this.m_offset = DT_OFFSET_UNSPECIFIED
+end constructor
+
+constructor DateTime( byval y as long, byval mo as long, byval d as long )
+    this.m_offset = DT_OFFSET_UNSPECIFIED
+    if fb_DtFromCivil( y, mo, d, 0, 0, 0, 0, @this.m_ticks ) <> 0 then
+        this.m_ticks = DT_INVALID_TICKS
+    end if
+end constructor
+
+constructor DateTime( byval y as long, byval mo as long, byval d as long, _
+                              byval h as long, byval mi as long, byval s as long, _
+                              byval ms as long )
+    this.m_offset = DT_OFFSET_UNSPECIFIED
+    if fb_DtFromCivil( y, mo, d, h, mi, s, clngint( ms ) * DT_TICKS_PER_MILLISECOND, _
+                       @this.m_ticks ) <> 0 then
+        this.m_ticks = DT_INVALID_TICKS
+    end if
+end constructor
+
+function DateTime.FromTicks( byval t as longint, byval offMin as short ) as DateTime
+    dim as DateTime r
+    dim as boolean okTicks = ( fb_DtIsValidTicks( t ) <> 0 )
+    dim as boolean okOff = dtOffsetIsValid( offMin )
+    if okTicks andalso okOff then
+        r.m_ticks = t
+        r.m_offset = offMin
+    end if
+    return r
+end function
+
+function DateTime.FromDate( byref d as LocalDate ) as DateTime
+    if d.IsValid = false then return DateTime.Invalid( )
+    return DateTime.FromTicks( clngint( d.DayNumber ) * DT_TICKS_PER_DAY, _
+                               DT_OFFSET_UNSPECIFIED )
+end function
+
+function DateTime.FromDateTime( byref d as LocalDate, byref t as LocalTime ) as DateTime
+    dim as boolean bad = ( d.IsValid = false )
+    dim as boolean badT = ( t.IsValid = false )
+    if bad orelse badT then return DateTime.Invalid( )
+    return DateTime.FromTicks( clngint( d.DayNumber ) * DT_TICKS_PER_DAY + t.Ticks, _
+                               DT_OFFSET_UNSPECIFIED )
+end function
+
+'' The Instant -> DateTime direction.  It is a static here rather than a member
+'' on Instant only because FreeBASIC cannot forward-declare a UDT return type.
+function DateTime.FromInstant( byref i as Instant, byval offMin as short ) as DateTime
+    if i.IsValid = false then return DateTime.Invalid( )
+    if dtOffsetIsValid( offMin ) = false then return DateTime.Invalid( )
+    if offMin = DT_OFFSET_UNSPECIFIED then return DateTime.Invalid( )
+    dim as longint shift = clngint( offMin ) * DT_TICKS_PER_MINUTE
+    if dtAddOverflows( i.Ticks, shift ) then return DateTime.Invalid( )
+    return DateTime.FromTicks( i.Ticks + shift, offMin )
+end function
+
+function DateTime.MinValue( ) as DateTime
+    return DateTime.FromTicks( DT_MIN_TICKS, DT_OFFSET_UNSPECIFIED )
+end function
+function DateTime.MaxValue( ) as DateTime
+    return DateTime.FromTicks( DT_MAX_TICKS, DT_OFFSET_UNSPECIFIED )
+end function
+function DateTime.Invalid( ) as DateTime
+    dim as DateTime r
+    return r
+end function
+
+property DateTime.IsValid( ) as boolean
+    return fb_DtIsValidTicks( this.m_ticks ) <> 0
+end property
+property DateTime.Ticks( ) as longint
+    return this.m_ticks
+end property
+property DateTime.OffsetMinutes( ) as short
+    return this.m_offset
+end property
+property DateTime.HasOffset( ) as boolean
+    return this.m_offset <> DT_OFFSET_UNSPECIFIED
+end property
+property DateTime.IsUtc( ) as boolean
+    return this.m_offset = 0
+end property
+
+property DateTime.Year( ) as long
+    if this.IsValid = false then return 0
+    dim as long y, mo, d
+    fb_DtCivilFromDays( clng( this.m_ticks \ DT_TICKS_PER_DAY ), @y, @mo, @d )
+    return y
+end property
+property DateTime.Month( ) as long
+    if this.IsValid = false then return 0
+    dim as long y, mo, d
+    fb_DtCivilFromDays( clng( this.m_ticks \ DT_TICKS_PER_DAY ), @y, @mo, @d )
+    return mo
+end property
+property DateTime.Day( ) as long
+    if this.IsValid = false then return 0
+    dim as long y, mo, d
+    fb_DtCivilFromDays( clng( this.m_ticks \ DT_TICKS_PER_DAY ), @y, @mo, @d )
+    return d
+end property
+property DateTime.TickOfDay( ) as longint
+    if this.IsValid = false then return 0
+    return this.m_ticks mod DT_TICKS_PER_DAY
+end property
+property DateTime.Hour( ) as long
+    if this.IsValid = false then return 0
+    return clng( ( this.m_ticks mod DT_TICKS_PER_DAY ) \ DT_TICKS_PER_HOUR )
+end property
+property DateTime.Minute( ) as long
+    if this.IsValid = false then return 0
+    return clng( ( this.m_ticks \ DT_TICKS_PER_MINUTE ) mod 60 )
+end property
+property DateTime.Second( ) as long
+    if this.IsValid = false then return 0
+    return clng( ( this.m_ticks \ DT_TICKS_PER_SECOND ) mod 60 )
+end property
+property DateTime.Millisecond( ) as long
+    if this.IsValid = false then return 0
+    return clng( ( this.m_ticks \ DT_TICKS_PER_MILLISECOND ) mod 1000 )
+end property
+property DateTime.Microsecond( ) as long
+    if this.IsValid = false then return 0
+    return clng( ( this.m_ticks \ DT_TICKS_PER_MICROSECOND ) mod 1000000 )
+end property
+property DateTime.DayOfWeek( ) as long
+    if this.IsValid = false then return 0
+    return fb_DtDayOfWeek( clng( this.m_ticks \ DT_TICKS_PER_DAY ) )
+end property
+property DateTime.DayOfYear( ) as long
+    if this.IsValid = false then return 0
+    dim as long y, mo, d
+    fb_DtCivilFromDays( clng( this.m_ticks \ DT_TICKS_PER_DAY ), @y, @mo, @d )
+    return fb_DtDayOfYear( y, mo, d )
+end property
+
+function DateTime.GetDate( ) as LocalDate
+    if this.IsValid = false then return LocalDate.Invalid( )
+    return LocalDate.FromDayNumber( clng( this.m_ticks \ DT_TICKS_PER_DAY ) )
+end function
+
+function DateTime.GetTimeOfDay( ) as LocalTime
+    if this.IsValid = false then return LocalTime.Invalid( )
+    return LocalTime.FromTicks( this.m_ticks mod DT_TICKS_PER_DAY )
+end function
+
+function DateTime.WithOffset( byval offMin as short ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    return DateTime.FromTicks( this.m_ticks, offMin )
+end function
+
+function DateTime.ToOffset( byval offMin as short ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    if this.HasOffset = false then return DateTime.Invalid( )
+    if dtOffsetIsValid( offMin ) = false then return DateTime.Invalid( )
+    if offMin = DT_OFFSET_UNSPECIFIED then return DateTime.Invalid( )
+    dim as longint delta = ( clngint( offMin ) - clngint( this.m_offset ) ) * DT_TICKS_PER_MINUTE
+    if dtAddOverflows( this.m_ticks, delta ) then return DateTime.Invalid( )
+    return DateTime.FromTicks( this.m_ticks + delta, offMin )
+end function
+
+'' Reads the wall-clock value AS IF it were UTC, whatever the offset says.
+function DateTime.AssumeUtc( ) as Instant
+    if this.IsValid = false then return Instant.Invalid( )
+    return Instant( this.m_ticks )
+end function
+
+'' Uses the carried offset.  Invalid when nobody said what the offset was --
+'' there is no defensible way to place a naive reading on the UTC timeline.
+function DateTime.ToInstant( ) as Instant
+    if this.IsValid = false then return Instant.Invalid( )
+    if this.HasOffset = false then return Instant.Invalid( )
+    dim as longint shift = clngint( this.m_offset ) * DT_TICKS_PER_MINUTE
+    if dtAddOverflows( this.m_ticks, -shift ) then return Instant.Invalid( )
+    return Instant( this.m_ticks - shift )
+end function
+
+function DateTime.AddTicks( byval n as longint ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    '' Belt and braces: FromTicks already rejects anything outside the range,
+    '' and because m_ticks is in [0, MAX] the sum can only overflow POSITIVELY
+    '' (wrapping negative, which FromTicks rejects) -- underflow is impossible
+    '' since m_ticks >= 0 means the sum is never below LLONG_MIN.  So this guard
+    '' cannot change a result today; it is here so the code never relies on
+    '' wraparound, and mutation testing correctly reports it as unkillable.
+    if dtAddOverflows( this.m_ticks, n ) then return DateTime.Invalid( )
+    return DateTime.FromTicks( this.m_ticks + n, this.m_offset )
+end function
+
+function DateTime.Add( byref s as TimeSpan ) as DateTime
+    if s.IsValid = false then return DateTime.Invalid( )
+    return this.AddTicks( s.Ticks )
+end function
+
+function DateTime.Subtract( byref s as TimeSpan ) as DateTime
+    if s.IsValid = false then return DateTime.Invalid( )
+    return this.AddTicks( -s.Ticks )
+end function
+
+function DateTime.AddDays( byval n as double ) as DateTime
+    dim as longint t = dtTicksFromDouble( n * DT_TICKS_PER_DAY )
+    if t = DT_INVALID_TICKS then return DateTime.Invalid( )
+    return this.AddTicks( t )
+end function
+function DateTime.AddHours( byval n as double ) as DateTime
+    dim as longint t = dtTicksFromDouble( n * DT_TICKS_PER_HOUR )
+    if t = DT_INVALID_TICKS then return DateTime.Invalid( )
+    return this.AddTicks( t )
+end function
+function DateTime.AddMinutes( byval n as double ) as DateTime
+    dim as longint t = dtTicksFromDouble( n * DT_TICKS_PER_MINUTE )
+    if t = DT_INVALID_TICKS then return DateTime.Invalid( )
+    return this.AddTicks( t )
+end function
+function DateTime.AddSeconds( byval n as double ) as DateTime
+    dim as longint t = dtTicksFromDouble( n * DT_TICKS_PER_SECOND )
+    if t = DT_INVALID_TICKS then return DateTime.Invalid( )
+    return this.AddTicks( t )
+end function
+function DateTime.AddMilliseconds( byval n as double ) as DateTime
+    dim as longint t = dtTicksFromDouble( n * DT_TICKS_PER_MILLISECOND )
+    if t = DT_INVALID_TICKS then return DateTime.Invalid( )
+    return this.AddTicks( t )
+end function
+
+'' Calendar arithmetic.  Delegates to LocalDate so the end-of-month clamping
+'' rule is implemented exactly once; the time of day and the offset ride through
+'' untouched.
+function DateTime.AddMonths( byval n as long ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    dim as LocalDate d = this.GetDate( ).AddMonths( n )
+    if d.IsValid = false then return DateTime.Invalid( )
+    return DateTime.FromTicks( clngint( d.DayNumber ) * DT_TICKS_PER_DAY _
+                               + ( this.m_ticks mod DT_TICKS_PER_DAY ), this.m_offset )
+end function
+
+function DateTime.AddYears( byval n as long ) as DateTime
+    if n > 178956970 then return DateTime.Invalid( )
+    if n < -178956970 then return DateTime.Invalid( )
+    return this.AddMonths( n * 12 )
+end function
+
+function DateTime.IsLeapYear( byval y as long ) as boolean
+    return fb_DtIsLeapYear( y ) <> 0
+end function
+function DateTime.DaysInMonth( byval y as long, byval mo as long ) as long
+    return fb_DtDaysInMonth( y, mo )
+end function
+function DateTime.DaysInYear( byval y as long ) as long
+    return fb_DtDaysInYear( y )
+end function
+function DateTime.WeeksInYear( byval y as long ) as long
+    return fb_DtIsoWeeksInYear( y )
+end function
+
+property DateTime.IsoWeek( ) as long
+    if this.IsValid = false then return 0
+    return this.GetDate( ).IsoWeek
+end property
+'' NOT always the same as Year: 2025-12-29 is week 1 of ISO year 2026.  Using
+'' Year here instead is the canonical bug in ISO week rendering.
+property DateTime.IsoWeekYear( ) as long
+    if this.IsValid = false then return 0
+    return this.GetDate( ).IsoWeekYear
+end property
+property DateTime.Quarter( ) as long
+    if this.IsValid = false then return 0
+    return ( ( this.Month - 1 ) \ 3 ) + 1
+end property
+property DateTime.IsFirstDayOfMonth( ) as boolean
+    if this.IsValid = false then return false
+    return this.Day = 1
+end property
+property DateTime.IsLastDayOfMonth( ) as boolean
+    if this.IsValid = false then return false
+    return this.Day = fb_DtDaysInMonth( this.Year, this.Month )
+end property
+
+function DateTime.StartOfDay( ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    return DateTime.FromTicks( ( this.m_ticks \ DT_TICKS_PER_DAY ) * DT_TICKS_PER_DAY, _
+                               this.m_offset )
+end function
+function DateTime.EndOfDay( ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    return DateTime.FromTicks( ( this.m_ticks \ DT_TICKS_PER_DAY ) * DT_TICKS_PER_DAY _
+                               + DT_TICKS_PER_DAY - 1, this.m_offset )
+end function
+function DateTime.StartOfMonth( ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    return DateTime.FromTicks( clngint( this.GetDate( ).StartOfMonth( ).DayNumber ) _
+                               * DT_TICKS_PER_DAY, this.m_offset )
+end function
+function DateTime.EndOfMonth( ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    return DateTime.FromTicks( clngint( this.GetDate( ).EndOfMonth( ).DayNumber ) _
+                               * DT_TICKS_PER_DAY + DT_TICKS_PER_DAY - 1, this.m_offset )
+end function
+function DateTime.StartOfYear( ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    return DateTime.FromTicks( clngint( fb_DtDaysFromCivil( this.Year, 1, 1 ) ) _
+                               * DT_TICKS_PER_DAY, this.m_offset )
+end function
+function DateTime.EndOfYear( ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    return DateTime.FromTicks( clngint( fb_DtDaysFromCivil( this.Year, 12, 31 ) ) _
+                               * DT_TICKS_PER_DAY + DT_TICKS_PER_DAY - 1, this.m_offset )
+end function
+
+function DateTime.StartOfWeek( byval firstDay as long ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    dim as boolean lo = ( firstDay < DT_MONDAY )
+    dim as boolean hi = ( firstDay > DT_SUNDAY )
+    if lo orelse hi then return DateTime.Invalid( )
+    dim as long back = this.DayOfWeek - firstDay
+    if back < 0 then back += 7
+    return this.StartOfDay( ).AddTicks( -clngint( back ) * DT_TICKS_PER_DAY )
+end function
+
+'' Strictly later: already on that weekday means a week forward, not a no-op.
+function DateTime.NextWeekday( byval dow as long ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    dim as boolean lo = ( dow < DT_MONDAY )
+    dim as boolean hi = ( dow > DT_SUNDAY )
+    if lo orelse hi then return DateTime.Invalid( )
+    dim as long fwd = dow - this.DayOfWeek
+    if fwd <= 0 then fwd += 7
+    return this.AddTicks( clngint( fwd ) * DT_TICKS_PER_DAY )
+end function
+
+function DateTime.PrevWeekday( byval dow as long ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    dim as boolean lo = ( dow < DT_MONDAY )
+    dim as boolean hi = ( dow > DT_SUNDAY )
+    if lo orelse hi then return DateTime.Invalid( )
+    dim as long back = this.DayOfWeek - dow
+    if back <= 0 then back += 7
+    return this.AddTicks( -clngint( back ) * DT_TICKS_PER_DAY )
+end function
+
+'' Julian day: fractional and NOON-based, which is why the half-day appears.
+'' JD 2451545.0 is 2000-01-01T12:00 UTC.
+property DateTime.JulianDay( ) as double
+    if this.IsValid = false then return 0
+    return ( this.m_ticks / DT_TICKS_PER_DAY ) + DT_JULIAN_DAY_AT_EPOCH - 0.5
+end property
+property DateTime.JulianDayNumber( ) as longint
+    if this.IsValid = false then return 0
+    return ( this.m_ticks \ DT_TICKS_PER_DAY ) + DT_JULIAN_DAY_AT_EPOCH
+end property
+function DateTime.FromJulianDay( byval jd as double ) as DateTime
+    dim as double days = jd - DT_JULIAN_DAY_AT_EPOCH + 0.5
+    dim as longint t = dtTicksFromDouble( days * DT_TICKS_PER_DAY )
+    if t = DT_INVALID_TICKS then return DateTime.Invalid( )
+    return DateTime.FromTicks( t, DT_OFFSET_UNSPECIFIED )
+end function
+
+'' RFC-0004 section 1: two offset-bearing values compare as INSTANTS; two naive
+'' values compare as civil readings; one of each is not comparable, because
+'' there is no defensible answer.
+function DateTime.CompareTo( byref o as DateTime ) as long
+    dim as boolean bad = ( this.IsValid = false )
+    dim as boolean badO = ( o.IsValid = false )
+    if bad orelse badO then return -2
+
+    dim as boolean hasA = this.HasOffset
+    dim as boolean hasB = o.HasOffset
+    if hasA <> hasB then return -2
+
+    dim as longint ta = this.m_ticks
+    dim as longint tb = o.m_ticks
+    if hasA then
+        ta -= clngint( this.m_offset ) * DT_TICKS_PER_MINUTE
+        tb -= clngint( o.m_offset ) * DT_TICKS_PER_MINUTE
+    end if
+
+    if ta < tb then return -1
+    if ta > tb then return 1
+    return 0
+end function
+
+public operator + ( byref a as DateTime, byref s as TimeSpan ) as DateTime
+    return a.Add( s )
+end operator
+public operator - ( byref a as DateTime, byref s as TimeSpan ) as DateTime
+    return a.Subtract( s )
+end operator
+public operator - ( byref a as DateTime, byref b as DateTime ) as TimeSpan
+    dim as boolean bad = ( a.IsValid = false )
+    dim as boolean badO = ( b.IsValid = false )
+    if bad orelse badO then return TimeSpan( DT_INVALID_TICKS )
+    dim as boolean hasA = a.HasOffset
+    dim as boolean hasB = b.HasOffset
+    if hasA <> hasB then return TimeSpan( DT_INVALID_TICKS )
+
+    dim as longint ta = a.Ticks
+    dim as longint tb = b.Ticks
+    if hasA then
+        ta -= clngint( a.OffsetMinutes ) * DT_TICKS_PER_MINUTE
+        tb -= clngint( b.OffsetMinutes ) * DT_TICKS_PER_MINUTE
+    end if
+    return TimeSpan( ta - tb )
+end operator
+public operator = ( byref a as DateTime, byref b as DateTime ) as boolean
+    return a.CompareTo( b ) = 0
+end operator
+public operator <> ( byref a as DateTime, byref b as DateTime ) as boolean
+    dim as long c = a.CompareTo( b )
+    dim as boolean cmp = ( c <> 0 )
+    dim as boolean known = ( c <> -2 )
+    return cmp andalso known
+end operator
+public operator < ( byref a as DateTime, byref b as DateTime ) as boolean
+    return a.CompareTo( b ) = -1
+end operator
+public operator > ( byref a as DateTime, byref b as DateTime ) as boolean
+    return a.CompareTo( b ) = 1
+end operator
+public operator <= ( byref a as DateTime, byref b as DateTime ) as boolean
+    dim as long c = a.CompareTo( b )
+    dim as boolean le = ( c <= 0 )
+    dim as boolean known = ( c <> -2 )
+    return le andalso known
+end operator
+public operator >= ( byref a as DateTime, byref b as DateTime ) as boolean
+    return a.CompareTo( b ) >= 0
+end operator
+
+'' ============================================== ISO 8601 / RFC 3339 (0005)
+''
+'' Emission is CANONICAL: one value produces exactly one string.  All the
+'' variety ISO 8601 permits is accepted on input only.
+''
+'' Parsing is STRICT.  There is no locale and no guessing -- 03/04/2025 is
+'' March 4th or April 3rd depending on where the machine is, and a parser that
+'' resolves that silently is a data-corruption engine.  The lenient parser
+'' behind datetime.bi's IsDate / DateValue keeps working and is not built upon.
+''
+'' TryParse ALWAYS writes its result, so a caller who ignores the return value
+'' still cannot read a stale value -- it gets Invalid.
+
+function DateTime.ToIsoString( ) as string
+    dim as zstring * 40 buf
+    dim as long n = fb_DtIsoFormat( this.m_ticks, this.m_offset, @buf, 40 )
+    if n <= 0 then return ""
+    return left( buf, n )
+end function
+function DateTime.ToString( ) as string
+    return this.ToIsoString( )
+end function
+
+function DateTime.TryParseIso( byref s as string, byref result as DateTime ) as boolean
+    dim as longint t
+    dim as long off
+    result = DateTime.Invalid( )
+    if fb_DtIsoParse( strptr( s ), len( s ), @t, @off ) <> 0 then return false
+    result = DateTime.FromTicks( t, cshort( off ) )
+    return result.IsValid
+end function
+function DateTime.TryParse( byref s as string, byref result as DateTime ) as boolean
+    return DateTime.TryParseIso( s, result )
+end function
+function DateTime.ParseIso( byref s as string ) as DateTime
+    dim as DateTime r
+    DateTime.TryParseIso( s, r )
+    return r
+end function
+
+function Instant.ToIsoString( ) as string
+    dim as zstring * 40 buf
+    dim as long n = fb_DtIsoFormat( this.m_ticks, 0, @buf, 40 )
+    if n <= 0 then return ""
+    return left( buf, n )
+end function
+function Instant.ToString( ) as string
+    return this.ToIsoString( )
+end function
+
+'' An Instant REQUIRES an offset in the input.  A naive reading cannot be
+'' placed on the UTC timeline without guessing, and this is the type system
+'' doing its job rather than a limitation.
+function Instant.TryParseIso( byref s as string, byref result as Instant ) as boolean
+    dim as longint t
+    dim as long off
+    result = Instant.Invalid( )
+    if fb_DtIsoParse( strptr( s ), len( s ), @t, @off ) <> 0 then return false
+    if off = DT_OFFSET_UNSPECIFIED then return false
+    dim as longint shift = clngint( off ) * DT_TICKS_PER_MINUTE
+    if dtAddOverflows( t, -shift ) then return false
+    result = Instant( t - shift )
+    return result.IsValid
+end function
+function Instant.ParseIso( byref s as string ) as Instant
+    dim as Instant r
+    Instant.TryParseIso( s, r )
+    return r
+end function
+
+function LocalDate.ToIsoString( ) as string
+    dim as zstring * 16 buf
+    dim as long n = fb_DtIsoFormatDate( this.m_days, @buf, 16 )
+    if n <= 0 then return ""
+    return left( buf, n )
+end function
+function LocalDate.ToString( ) as string
+    return this.ToIsoString( )
+end function
+function LocalDate.TryParseIso( byref s as string, byref result as LocalDate ) as boolean
+    dim as long d
+    result = LocalDate.Invalid( )
+    if fb_DtIsoParseDate( strptr( s ), len( s ), @d ) <> 0 then return false
+    result = LocalDate.FromDayNumber( d )
+    return result.IsValid
+end function
+function LocalDate.ParseIso( byref s as string ) as LocalDate
+    dim as LocalDate r
+    LocalDate.TryParseIso( s, r )
+    return r
+end function
+
+function LocalTime.ToIsoString( ) as string
+    dim as zstring * 24 buf
+    dim as long n = fb_DtIsoFormatTime( this.m_ticks, @buf, 24 )
+    if n <= 0 then return ""
+    return left( buf, n )
+end function
+function LocalTime.ToString( ) as string
+    return this.ToIsoString( )
+end function
+function LocalTime.TryParseIso( byref s as string, byref result as LocalTime ) as boolean
+    dim as longint t
+    result = LocalTime.Invalid( )
+    if fb_DtIsoParseTime( strptr( s ), len( s ), @t ) <> 0 then return false
+    result = LocalTime.FromTicks( t )
+    return result.IsValid
+end function
+function LocalTime.ParseIso( byref s as string ) as LocalTime
+    dim as LocalTime r
+    LocalTime.TryParseIso( s, r )
+    return r
+end function
+
+'' ------------------------------------------- custom patterns (RFC-0006)
+''
+'' A ONE-CHARACTER pattern is a named constant format, not a field:
+''     "o"/"O"  round-trip ISO 8601, byte-identical to ToIsoString
+''     "s"      sortable, second resolution, no offset
+''     "u"      universal sortable, converted to UTC
+''     "R"      RFC 1123 for HTTP headers -- always GMT, always English
+''     "d"      invariant short date       "T"  invariant time
+''
+'' To format a single pattern letter as a field, give it a companion:
+'' "dd" or "d " rather than "d".  This is the wart C# has too; the shorthands
+'' earn it.
+function DateTime.ToString( byref pattern as string ) as string
+    dim as string r
+    if this.TryFormat( pattern, r ) = false then return ""
+    return r
+end function
+
+'' Distinguishes "the pattern is broken" (false) from "the value formatted to
+'' nothing" (true, empty) -- which a valid pattern can legitimately produce,
+'' e.g. "K" on a value with no offset.
+function DateTime.TryFormat( byref pattern as string, byref result as string ) as boolean
+    dim as zstring * 256 buf
+    result = ""
+    dim as long n = fb_DtPatFormat( this.m_ticks, this.m_offset, _
+                                    strptr( pattern ), len( pattern ), @buf, 256 )
+    if n < 0 then return false
+    result = left( buf, n )
+    return true
+end function
+
+function DateTime.TryParseExact( byref s as string, byref pattern as string, _
+                                         byref result as DateTime ) as boolean
+    dim as longint t
+    dim as long off
+    result = DateTime.Invalid( )
+    if fb_DtPatParse( strptr( s ), len( s ), strptr( pattern ), len( pattern ), _
+                      @t, @off ) <> 0 then return false
+    result = DateTime.FromTicks( t, cshort( off ) )
+    return result.IsValid
+end function
+
+function DateTime.ParseExact( byref s as string, byref pattern as string ) as DateTime
+    dim as DateTime r
+    DateTime.TryParseExact( s, pattern, r )
+    return r
+end function
+
+function TimeSpan.ToIsoString( ) as string
+    dim as zstring * 48 buf
+    dim as long n = fb_DtIsoFormatDuration( this.m_ticks, @buf, 48 )
+    if n <= 0 then return ""
+    return left( buf, n )
+end function
+function TimeSpan.ToString( ) as string
+    return this.ToIsoString( )
+end function
+function TimeSpan.TryParseIso( byref s as string, byref result as TimeSpan ) as boolean
+    dim as longint t
+    result = TimeSpan.Invalid( )
+    if fb_DtIsoParseDuration( strptr( s ), len( s ), @t ) <> 0 then return false
+    result = TimeSpan( t )
+    return result.IsValid
+end function
+function TimeSpan.ParseIso( byref s as string ) as TimeSpan
+    dim as TimeSpan r
+    TimeSpan.TryParseIso( s, r )
+    return r
+end function

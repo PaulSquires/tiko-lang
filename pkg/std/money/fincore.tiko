@@ -1,6 +1,15 @@
 #module "money"
 #import "std/numeric"
+#import "std/chrono"
 using numeric
+using chrono
+
+'' std/chrono's C kernel, which is the runtime's (src/rtlib/dt_core.c) and not chrono's API:
+'' the few this module calls, declared here for every file of it.
+extern "C"
+declare function fb_DtIsLeapYear alias "fb_DtIsLeapYear" ( byval year as long ) as long
+end extern
+
 '' std/money: fincore -- interest, rates and the conventions they are quoted in
 ''
 ''     #import "std/money"
@@ -92,7 +101,6 @@ using numeric
 #include once "fb/optional.bi"
 #include once "fblimits.bi"
 #include once "fb/optional.bi"
-#include once "fb/chrono.bi"
 
 using FB
 

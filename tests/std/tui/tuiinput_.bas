@@ -15,6 +15,7 @@
 '' real terminal other than conhost and WSL's pty has ever fed this parser.
 
 #import "std/tui"
+#import "std/chrono"
 #include "fbcunit.bi"
 
 #include once "fb/array.bi"
@@ -23,9 +24,7 @@
 
 #include once "fb/optional.bi"
 
-#include once "fb/chrono.bi"
-
-using tui
+using tui, chrono
 
 using FB
 '' ---------------------------------------------------------------------------

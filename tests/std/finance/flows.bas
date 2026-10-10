@@ -33,12 +33,11 @@
 
 #import "std/money"
 #import "std/numeric"
+#import "std/chrono"
 #include once "fbcunit.bi"
 #include once "fb/array.bi"
 
 #include once "fb/result.bi"
-
-#include once "fb/chrono.bi"
 
 #include once "fb/array.bi"
 
@@ -46,7 +45,7 @@
 
 #include once "fb/optional.bi"
 
-using money, numeric
+using money, numeric, chrono
 
 using FB
 private function D( byref s as string ) as Decimal

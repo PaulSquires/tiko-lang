@@ -1,4 +1,6 @@
 #module "tui"
+#import "std/chrono"
+using chrono
 '' std/tui: tuiapp -- the application loop
 ''
 ''     type MyApp extends TuiApp
@@ -37,7 +39,6 @@
 #include once "fb/array.bi"
 #include once "fb/optional.bi"
 #include once "fb/array.bi"
-#include once "fb/chrono.bi"
 
 using FB
 

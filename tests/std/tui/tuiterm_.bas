@@ -15,6 +15,7 @@
 '' here. Those are verified by hand; see the phase-1 notes in README.md.
 
 #import "std/tui"
+#import "std/chrono"
 #include "fbcunit.bi"
 
 '' Deliberately included AFTER fb/tui.bi. This is the collision that broke the
@@ -28,9 +29,7 @@
 
 #include once "fb/optional.bi"
 
-#include once "fb/chrono.bi"
-
-using tui
+using tui, chrono
 
 using FB
 SUITE( fbc_tests.tui.tuiterm_ )

@@ -1,8 +1,10 @@
 #module "logs"
 #import "std/fs"
 #import "std/numeric"
+#import "std/chrono"
 using fs
 using numeric
+using chrono
 '' std/logs: logfile -- FB.Logging's file sink, with rotation
 ''
 ''     #import "std/logs"
@@ -56,7 +58,6 @@ using numeric
 '' is reported through OnLogError (fb/logerror.bi), throttled.
 
 
-#include once "fb/chrono.bi"
 #include once "fb/array.bi"
 
 using FB

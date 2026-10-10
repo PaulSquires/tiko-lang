@@ -1,6 +1,8 @@
 #module "money"
 #import "std/numeric"
+#import "std/chrono"
 using numeric
+using chrono
 '' std/money: finloan -- loans, mortgages and amortization schedules
 ''
 ''     #import "std/money"
@@ -58,7 +60,6 @@ using numeric
 #include once "fb/optional.bi"
 #include once "fblimits.bi"
 #include once "fb/optional.bi"
-#include once "fb/chrono.bi"
 #include once "fb/array.bi"
 
 using FB

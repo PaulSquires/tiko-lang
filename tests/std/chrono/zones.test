@@ -1,0 +1,8 @@
+'' tests/vendor/fbc-tests/chrono/zones.bas ported to the std modules (build/stdtests.py, generated).
+'' Expected: what tests/std/baseline/chrono/zones.txt recorded for the original.
+'' TEST: cli
+'' ARGS: -target win64-msvc -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/chrono/zones.bas -o tests/std/chrono/zones.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/std/chrono/zones.exe
+'' EXPECT-RUN-OUT: 15133     15133         0  fbc_tests.chrono.zones                         9

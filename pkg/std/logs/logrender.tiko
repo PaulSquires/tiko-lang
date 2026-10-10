@@ -1,6 +1,8 @@
 #module "logs"
 #import "std/numeric"
+#import "std/chrono"
 using numeric
+using chrono
 '' std/logs: logrender -- FB.Logging renderers
 ''
 '' RFC-0003 -- C:\dev\docs\logging\RFC-0003-renderers.md.
@@ -22,7 +24,6 @@ using numeric
 '' (phase 2).
 
 
-#include once "fb/chrono.bi"
 #include once "fb/array.bi"
 
 using FB

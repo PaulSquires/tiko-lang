@@ -14,6 +14,7 @@
 '' checked a few patterns would pass with the two orders swapped.
 
 #import "std/tui"
+#import "std/chrono"
 #include "fbcunit.bi"
 
 #include once "fb/array.bi"
@@ -22,9 +23,7 @@
 
 #include once "fb/optional.bi"
 
-#include once "fb/chrono.bi"
-
-using tui
+using tui, chrono
 
 using FB
 SUITE( fbc_tests.tui.tuidraw_ )

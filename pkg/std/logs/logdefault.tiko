@@ -1,8 +1,10 @@
 #module "logs"
 #import "std/fs"
 #import "std/numeric"
+#import "std/chrono"
 using fs
 using numeric
+using chrono
 '' std/logs: logdefault -- the process-wide default logger, logs.DefaultLogger( )
 ''
 ''     #import "std/logs"
@@ -39,7 +41,6 @@ using numeric
 '' A library that sits in namespace FB cannot take the name of an intrinsic.
 
 
-#include once "fb/chrono.bi"
 #include once "fb/array.bi"
 
 using FB

@@ -1,0 +1,1097 @@
+#module "chrono"
+'' std/chrono: chrono -- a modern date/time library
+''
+''     #import "std/chrono"
+''
+'' Specified by C:\dev\docs\datetime\RFC-0001-core-representation.md (core types) and
+'' RFC-0002-timespan.md (durations).  This header is phase 2: the types, their
+'' component accessors, exact arithmetic and operators.  Formatting and parsing
+'' (RFC-0005/0006), calendar arithmetic (RFC-0004), clocks (RFC-0003) and zones
+'' (RFC-0007) arrive in later phases.
+''
+'' This is a SEPARATE surface from datetime.bi.  Nothing here touches, replaces
+'' or depends on DateSerial / DateAdd / Now / FORMAT, which keep working exactly
+'' as they always have.  RFC-0007 will add converters so a program can migrate
+'' one function at a time.
+''
+'' THE TICK.  Everything measures in ticks of 100 ns.  A DateTime is a count of
+'' ticks since 0001-01-01T00:00:00 in the proleptic Gregorian calendar; the
+'' range is year 1 to 9999.  A single LONGINT, so these types pass in a register
+'' and copy trivially.
+''
+'' IMMUTABLE.  AddDays returns a NEW value; it does not modify the receiver.
+''
+''     dt = dt.AddDays( 3 )                      '' do
+''     dt.AddDays( 3 )                           '' does nothing -- result dropped
+''
+'' This is what java.time, NodaTime, Temporal, Rust and Go all converged on, and
+'' it is what makes it safe to pass one of these BYREF.
+''
+'' INVALID.  There is no exception and no ERR( ).  Out-of-range construction and
+'' overflowing arithmetic both yield an Invalid value, which is absorbing --
+'' anything touching it becomes Invalid.  Arithmetic NEVER wraps.
+''
+''     dim as FB.DateTime d = FB.DateTime( 2025, 2, 30 )   '' no such date
+''     if d.IsValid then ...
+''
+'' BEWARE: comparing an Invalid value with ANYTHING is false, including
+'' comparing it with itself.  Invalid = Invalid is FALSE, deliberately, for the
+'' same reason IEEE NaN works that way -- an equality that succeeded would let
+'' invalid values slip silently through validation.  IsValid is the only correct
+'' test, and CompareTo returns -2 rather than an ordering.
+
+
+'' ---------------------------------------------------------------- constants
+
+public const DT_TICKS_PER_MICROSECOND as longint = 10ll
+public const DT_TICKS_PER_MILLISECOND as longint = 10000ll
+public const DT_TICKS_PER_SECOND      as longint = 10000000ll
+public const DT_TICKS_PER_MINUTE      as longint = 600000000ll
+public const DT_TICKS_PER_HOUR        as longint = 36000000000ll
+public const DT_TICKS_PER_DAY         as longint = 864000000000ll
+
+public const DT_MIN_YEAR              as long    = 1
+public const DT_MAX_YEAR              as long    = 9999
+public const DT_MIN_DAYS              as long    = 0
+public const DT_MAX_DAYS              as long    = 3652058
+
+public const DT_MIN_TICKS             as longint = 0ll
+public const DT_MAX_TICKS             as longint = 3155378975999999999ll
+
+'' The sentinel is LLONG_MIN, so it lies outside every valid range and a wrapped
+'' result can never collide with it.  It therefore also costs TimeSpan one value
+'' at the bottom of its range: TimeSpan.MinValue is LLONG_MIN + 1.
+public const DT_INVALID_TICKS         as longint = -9223372036854775807ll - 1ll
+public const DT_INVALID_DAYS          as long    = -2147483647 - 1
+
+public const DT_TICKS_LLONG_MAX       as longint = 9223372036854775807ll
+public const DT_TICKS_LLONG_MIN       as longint = -9223372036854775807ll
+
+'' Interop epochs, as tick counts measured from 0001-01-01, so each conversion
+'' is an addition.  This is why the epoch and tick size were chosen at all --
+'' see C:\dev\docs\datetime\rationale.md.  The converters themselves are RFC-0007.
+'' Julian day number of 0001-01-01.  JD 2451545.0 is 2000-01-01T12:00 UTC.
+public const DT_JULIAN_DAY_AT_EPOCH   as longint = 1721426ll
+
+public const DT_DAYS_TO_UNIX_EPOCH    as longint = 719162ll
+public const DT_TICKS_TO_UNIX_EPOCH   as longint = 621355968000000000ll   '' 1970-01-01
+public const DT_TICKS_TO_FILETIME     as longint = 504911232000000000ll   '' 1601-01-01
+public const DT_TICKS_TO_OLE_EPOCH    as longint = 599264352000000000ll   '' 1899-12-30
+
+'' Offset states.  0 means UTC.  DT_OFFSET_UNSPECIFIED means "the caller never
+'' said", which is a DISTINCT state from UTC -- conflating the two is the
+'' DateTimeKind.Unspecified mistake that C# is stuck with.  Anything else is a
+'' fixed offset in minutes east of UTC.
+public const DT_OFFSET_UNSPECIFIED    as short   = 32767
+public const DT_OFFSET_MIN            as short   = -1080   '' -18:00, the ISO 8601 limit
+public const DT_OFFSET_MAX            as short   =  1080   '' +18:00
+
+'' Locale formatting styles (RFC-0007 section 3).
+public const lsShort as long = 0
+public const lsLong  as long = 1
+public const lsFull  as long = 2
+
+'' ISO 8601 day of week.  NOTE this is 1 = Monday, which differs from
+'' datetime.bi's Weekday( ) (1 = Sunday) on purpose: the ISO week-number
+'' algorithm needs it, and two neighbouring conventions is one too many.
+public const DT_MONDAY    as long = 1
+public const DT_TUESDAY   as long = 2
+public const DT_WEDNESDAY as long = 3
+public const DT_THURSDAY  as long = 4
+public const DT_FRIDAY    as long = 5
+public const DT_SATURDAY  as long = 6
+public const DT_SUNDAY    as long = 7
+
+'' ------------------------------------------------------------- the C kernel
+''
+'' C:\dev\docs\datetime\RFC-0001 section 5.  Pure functions in src/rtlib/dt_core.c:
+'' no OS calls, no allocation, no locale.  Declared here rather than in a
+'' separate header so the whole library is one #include.
+
+'' extern "C": at a module's scope an alias alone is spelled through the module's chain
+'' (MAIN::CHRONO::fb_DtIsValidDate), and in the header these were global.
+extern "C"
+declare function fb_DtFromCivil       alias "fb_DtFromCivil" _
+          ( byval year as long, byval month as long, byval day as long, _
+            byval hour as long, byval minute as long, byval second as long, _
+            byval subsecond_ticks as longint, byval out_ticks as longint ptr ) as long
+
+declare sub      fb_DtToCivil         alias "fb_DtToCivil" _
+          ( byval ticks as longint, _
+            byval year as long ptr, byval month as long ptr, byval day as long ptr, _
+            byval hour as long ptr, byval minute as long ptr, byval second as long ptr, _
+            byval subsecond_ticks as longint ptr )
+
+declare function fb_DtDaysFromCivil   alias "fb_DtDaysFromCivil" _
+          ( byval year as long, byval month as long, byval day as long ) as long
+declare sub      fb_DtCivilFromDays   alias "fb_DtCivilFromDays" _
+          ( byval days as long, _
+            byval year as long ptr, byval month as long ptr, byval day as long ptr )
+
+declare function fb_DtIsLeapYear      alias "fb_DtIsLeapYear"    ( byval year as long ) as long
+declare function fb_DtDaysInMonth     alias "fb_DtDaysInMonth"   ( byval year as long, byval month as long ) as long
+declare function fb_DtDaysInYear      alias "fb_DtDaysInYear"    ( byval year as long ) as long
+declare function fb_DtDayOfWeek       alias "fb_DtDayOfWeek"     ( byval days as long ) as long
+declare function fb_DtDayOfYear       alias "fb_DtDayOfYear"     ( byval year as long, byval month as long, byval day as long ) as long
+declare function fb_DtIsoWeek         alias "fb_DtIsoWeek"       ( byval year as long, byval month as long, byval day as long, byval out_iso_year as long ptr ) as long
+declare function fb_DtIsoWeeksInYear  alias "fb_DtIsoWeeksInYear"( byval year as long ) as long
+declare function fb_DtIsValidDate     alias "fb_DtIsValidDate"   ( byval year as long, byval month as long, byval day as long ) as long
+declare function fb_DtIsValidTime     alias "fb_DtIsValidTime"   ( byval hour as long, byval minute as long, byval second as long, byval subsecond_ticks as longint ) as long
+declare function fb_DtIsValidTicks    alias "fb_DtIsValidTicks"  ( byval ticks as longint ) as long
+
+'' Clocks (RFC-0003).  The only part of the library that touches the OS.
+declare function fb_DtClockUtcNow         alias "fb_DtClockUtcNow"        ( ) as longint
+declare function fb_DtClockResolution     alias "fb_DtClockResolution"    ( ) as longint
+declare function fb_DtClockLocalOffsetNow alias "fb_DtClockLocalOffsetNow"( ) as long
+declare function fb_DtMonoTimestamp       alias "fb_DtMonoTimestamp"      ( ) as longint
+declare function fb_DtMonoFrequency       alias "fb_DtMonoFrequency"      ( ) as longint
+declare function fb_DtMonoIsHighRes       alias "fb_DtMonoIsHighRes"      ( ) as long
+declare function fb_DtTicksFromCounts     alias "fb_DtTicksFromCounts"    ( byval counts as longint, byval freq as longint ) as longint
+declare function fb_DtCpuProcessTime      alias "fb_DtCpuProcessTime"     ( byval user as longint ptr, byval kernel as longint ptr ) as long
+declare function fb_DtCpuThreadTime       alias "fb_DtCpuThreadTime"      ( byval user as longint ptr, byval kernel as longint ptr ) as long
+declare function fb_DtCpuIsSupported      alias "fb_DtCpuIsSupported"     ( ) as long
+
+'' ISO 8601 / RFC 3339 (RFC-0005).  Pure, ASCII-only, locale-independent.
+declare function fb_DtIsoFormat         alias "fb_DtIsoFormat"        ( byval ticks as longint, byval offMin as long, byval buf as zstring ptr, byval buflen as long ) as long
+declare function fb_DtIsoFormatDate     alias "fb_DtIsoFormatDate"    ( byval days as long, byval buf as zstring ptr, byval buflen as long ) as long
+declare function fb_DtIsoFormatTime     alias "fb_DtIsoFormatTime"    ( byval tod as longint, byval buf as zstring ptr, byval buflen as long ) as long
+declare function fb_DtIsoFormatDuration alias "fb_DtIsoFormatDuration"( byval ticks as longint, byval buf as zstring ptr, byval buflen as long ) as long
+declare function fb_DtIsoParse          alias "fb_DtIsoParse"         ( byval s as const zstring ptr, byval slen as long, byval outTicks as longint ptr, byval outOff as long ptr ) as long
+declare function fb_DtIsoParseDate      alias "fb_DtIsoParseDate"     ( byval s as const zstring ptr, byval slen as long, byval outDays as long ptr ) as long
+declare function fb_DtIsoParseTime      alias "fb_DtIsoParseTime"     ( byval s as const zstring ptr, byval slen as long, byval outTod as longint ptr ) as long
+declare function fb_DtIsoParseDuration  alias "fb_DtIsoParseDuration" ( byval s as const zstring ptr, byval slen as long, byval outTicks as longint ptr ) as long
+
+'' Custom patterns (RFC-0006).  Invariant English, no locale.
+declare function fb_DtPatFormat alias "fb_DtPatFormat" ( byval ticks as longint, byval offMin as long, byval pat as const zstring ptr, byval patlen as long, byval buf as zstring ptr, byval buflen as long ) as long
+declare function fb_DtPatParse  alias "fb_DtPatParse"  ( byval s as const zstring ptr, byval slen as long, byval pat as const zstring ptr, byval patlen as long, byval outTicks as longint ptr, byval outOff as long ptr ) as long
+
+'' Zones and locale (RFC-0007).  Per-OS: win32/dt_zone.c, unix/dt_zone.c.
+declare function fb_DtZoneOffsetAt      alias "fb_DtZoneOffsetAt"     ( byval utcTicks as longint ) as long
+declare function fb_DtZoneIsDst         alias "fb_DtZoneIsDst"        ( byval utcTicks as longint ) as long
+declare function fb_DtZoneSupportsDst   alias "fb_DtZoneSupportsDst"  ( ) as long
+declare function fb_DtZoneStandardName  alias "fb_DtZoneStandardName" ( byval buf as zstring ptr, byval buflen as long ) as long
+declare function fb_DtZoneDaylightName  alias "fb_DtZoneDaylightName" ( byval buf as zstring ptr, byval buflen as long ) as long
+declare function fb_DtLocaleDateString  alias "fb_DtLocaleDateString" ( byval ticks as longint, byval style as long, byval buf as zstring ptr, byval buflen as long ) as long
+declare function fb_DtLocaleTimeString  alias "fb_DtLocaleTimeString" ( byval ticks as longint, byval style as long, byval buf as zstring ptr, byval buflen as long ) as long
+declare function fb_DtLocaleMonthName   alias "fb_DtLocaleMonthName"  ( byval mo as long, byval abbreviated as long, byval buf as zstring ptr, byval buflen as long ) as long
+declare function fb_DtLocaleWeekdayName alias "fb_DtLocaleWeekdayName"( byval dow as long, byval abbreviated as long, byval buf as zstring ptr, byval buflen as long ) as long
+declare function fb_DtLocaleIsSupported alias "fb_DtLocaleIsSupported"( ) as long
+end extern
+
+
+'' ------------------------------------------------------------------ helpers
+''
+'' TYPE ORDER IS LOAD-BEARING.  FreeBASIC cannot forward-declare a UDT well
+'' enough to return one BY VALUE, so a type may only return types defined
+'' ABOVE it.  Hence: TimeSpan, LocalDate, LocalTime, Instant, DateTime.
+'' That is also why the Instant -> DateTime conversion is spelled
+'' DateTime.FromInstant rather than Instant.ToUtc; the reverse direction,
+'' DateTime.ToInstant, is a member because Instant is already complete by then.
+
+'' A quiet NaN, for the one operation (TimeSpan.DivideBy zero) whose specified
+'' result is NaN.  Built from the bit pattern so no arithmetic trap is risked.
+function dtNaN( ) as double
+    dim as ulongint u = &hFFF8000000000000ull
+    return *cptr( double ptr, @u )
+end function
+
+'' True when a + b would overflow a signed 64-bit integer.  Checked BEFORE the
+'' addition, never by inspecting the result for a sign flip.
+function dtAddOverflows( byval a as longint, byval b as longint ) as boolean
+    if b > 0 then
+        return a > DT_TICKS_LLONG_MAX - b
+    elseif b < 0 then
+        return a < DT_TICKS_LLONG_MIN - b
+    end if
+    return false
+end function
+
+'' Round half away from zero, matching the RFC-0002 rule for the From* family.
+function dtRoundHalfAway( byval v as double ) as double
+    if v >= 0 then
+        return int( v + 0.5 )
+    end if
+    return -int( -v + 0.5 )
+end function
+
+'' Convert a double tick count to a longint, or the sentinel if it is NaN,
+'' infinite, or beyond the representable span.  The bound is deliberately a
+'' little conservative -- 9.2e18 ticks is 29,000 years, so nothing real is lost.
+function dtTicksFromDouble( byval v as double ) as longint
+    '' NaN is the only value not equal to itself
+    if v <> v then return DT_INVALID_TICKS
+    dim as boolean tooBig = ( v >= 9.2e18 )
+    dim as boolean tooSmall = ( v <= -9.2e18 )
+    if tooBig orelse tooSmall then return DT_INVALID_TICKS
+    return clngint( dtRoundHalfAway( v ) )
+end function
+
+'' ================================================================= TimeSpan
+''
+'' RFC-0002.  A FIXED duration -- an exact count of ticks.  Signed, so
+'' 'earlier - later' is meaningful rather than an error.
+''
+'' This is NOT a calendar period.  "One month" is not a TimeSpan, because a
+'' month has no fixed length; that is AddMonths, in RFC-0004.  There is
+'' deliberately no FromMonths.
+''
+'' TOTALS vs COMPONENTS.  Total* gives the whole span in that unit,
+'' fractionally.  The component properties give the broken-down pieces.  For a
+'' span of 1 day 2 hours 3 minutes: TotalHours is 26.05, Hours is 2.
+''
+'' Components of a NEGATIVE span are ALL negative, matching C#.  -1h30m has
+'' Hours = -1 and Minutes = -30, not -1 and +30, so that the pieces always
+'' reconstruct the whole.
+public type TimeSpan
+    m_ticks as longint
+
+    declare constructor( )
+    declare constructor( byval t as longint )
+    declare constructor( byval h as long, byval mi as long, byval s as long )
+    declare constructor( byval d as long, byval h as long, byval mi as long, _
+                         byval s as long, byval ms as long )
+
+    declare static function FromDays        ( byval v as double  ) as TimeSpan
+    declare static function FromHours       ( byval v as double  ) as TimeSpan
+    declare static function FromMinutes     ( byval v as double  ) as TimeSpan
+    declare static function FromSeconds     ( byval v as double  ) as TimeSpan
+    declare static function FromMilliseconds( byval v as double  ) as TimeSpan
+    declare static function FromMicroseconds( byval v as longint ) as TimeSpan
+    declare static function FromTicks       ( byval v as longint ) as TimeSpan
+
+    declare static function Zero    ( ) as TimeSpan
+    declare static function MinValue( ) as TimeSpan
+    declare static function MaxValue( ) as TimeSpan
+    declare static function Invalid ( ) as TimeSpan
+
+    declare property Ticks( ) as longint
+
+    declare property TotalDays        ( ) as double
+    declare property TotalHours       ( ) as double
+    declare property TotalMinutes     ( ) as double
+    declare property TotalSeconds     ( ) as double
+    declare property TotalMilliseconds( ) as double
+    declare property TotalMicroseconds( ) as longint
+
+    declare property Days        ( ) as long
+    declare property Hours       ( ) as long
+    declare property Minutes     ( ) as long
+    declare property Seconds     ( ) as long
+    declare property Milliseconds( ) as long
+    declare property Microseconds( ) as long
+
+    declare property IsValid   ( ) as boolean
+    declare property IsZero    ( ) as boolean
+    declare property IsNegative( ) as boolean
+
+    declare function Negate   ( ) as TimeSpan
+    declare function Duration ( ) as TimeSpan
+    declare function Add      ( byref o as TimeSpan ) as TimeSpan
+    declare function Subtract ( byref o as TimeSpan ) as TimeSpan
+    declare function Multiply ( byval f as double   ) as TimeSpan
+    declare function Divide   ( byval f as double   ) as TimeSpan
+    declare function DivideBy ( byref o as TimeSpan ) as double
+    declare function CompareTo( byref o as TimeSpan ) as long
+
+    declare function ToIsoString( ) as string
+    declare function ToString   ( ) as string
+    declare static function TryParseIso( byref s as string, byref result as TimeSpan ) as boolean
+    declare static function ParseIso   ( byref s as string ) as TimeSpan
+
+    declare function ToIsoUString( ) as ustring
+    declare static function TryParseIso overload ( byref s as ustring, byref result as TimeSpan ) as boolean
+    declare static function ParseIso    overload ( byref s as ustring ) as TimeSpan
+end type
+
+public declare operator + ( byref a as TimeSpan, byref b as TimeSpan ) as TimeSpan
+public declare operator - ( byref a as TimeSpan, byref b as TimeSpan ) as TimeSpan
+public declare operator - ( byref a as TimeSpan ) as TimeSpan
+public declare operator * ( byref a as TimeSpan, byval f as double ) as TimeSpan
+public declare operator * ( byval f as double, byref a as TimeSpan ) as TimeSpan
+public declare operator / ( byref a as TimeSpan, byval f as double ) as TimeSpan
+public declare operator =  ( byref a as TimeSpan, byref b as TimeSpan ) as boolean
+public declare operator <> ( byref a as TimeSpan, byref b as TimeSpan ) as boolean
+public declare operator <  ( byref a as TimeSpan, byref b as TimeSpan ) as boolean
+public declare operator >  ( byref a as TimeSpan, byref b as TimeSpan ) as boolean
+public declare operator <= ( byref a as TimeSpan, byref b as TimeSpan ) as boolean
+public declare operator >= ( byref a as TimeSpan, byref b as TimeSpan ) as boolean
+
+constructor TimeSpan( )
+    this.m_ticks = 0
+end constructor
+
+constructor TimeSpan( byval t as longint )
+    this.m_ticks = t
+end constructor
+
+constructor TimeSpan( byval h as long, byval mi as long, byval s as long )
+    this.m_ticks = clngint( h ) * DT_TICKS_PER_HOUR _
+                 + clngint( mi ) * DT_TICKS_PER_MINUTE _
+                 + clngint( s ) * DT_TICKS_PER_SECOND
+end constructor
+
+constructor TimeSpan( byval d as long, byval h as long, byval mi as long, _
+                              byval s as long, byval ms as long )
+    this.m_ticks = clngint( d ) * DT_TICKS_PER_DAY _
+                 + clngint( h ) * DT_TICKS_PER_HOUR _
+                 + clngint( mi ) * DT_TICKS_PER_MINUTE _
+                 + clngint( s ) * DT_TICKS_PER_SECOND _
+                 + clngint( ms ) * DT_TICKS_PER_MILLISECOND
+end constructor
+
+function TimeSpan.FromDays( byval v as double ) as TimeSpan
+    return TimeSpan( dtTicksFromDouble( v * DT_TICKS_PER_DAY ) )
+end function
+function TimeSpan.FromHours( byval v as double ) as TimeSpan
+    return TimeSpan( dtTicksFromDouble( v * DT_TICKS_PER_HOUR ) )
+end function
+function TimeSpan.FromMinutes( byval v as double ) as TimeSpan
+    return TimeSpan( dtTicksFromDouble( v * DT_TICKS_PER_MINUTE ) )
+end function
+function TimeSpan.FromSeconds( byval v as double ) as TimeSpan
+    return TimeSpan( dtTicksFromDouble( v * DT_TICKS_PER_SECOND ) )
+end function
+function TimeSpan.FromMilliseconds( byval v as double ) as TimeSpan
+    return TimeSpan( dtTicksFromDouble( v * DT_TICKS_PER_MILLISECOND ) )
+end function
+function TimeSpan.FromMicroseconds( byval v as longint ) as TimeSpan
+    '' longint, not double: at this magnitude a double has already lost bits
+    if v > DT_TICKS_LLONG_MAX \ DT_TICKS_PER_MICROSECOND then return TimeSpan( DT_INVALID_TICKS )
+    if v < DT_TICKS_LLONG_MIN \ DT_TICKS_PER_MICROSECOND then return TimeSpan( DT_INVALID_TICKS )
+    return TimeSpan( v * DT_TICKS_PER_MICROSECOND )
+end function
+function TimeSpan.FromTicks( byval v as longint ) as TimeSpan
+    return TimeSpan( v )
+end function
+
+function TimeSpan.Zero( ) as TimeSpan
+    return TimeSpan( 0ll )
+end function
+function TimeSpan.MinValue( ) as TimeSpan
+    return TimeSpan( DT_TICKS_LLONG_MIN )
+end function
+function TimeSpan.MaxValue( ) as TimeSpan
+    return TimeSpan( DT_TICKS_LLONG_MAX )
+end function
+function TimeSpan.Invalid( ) as TimeSpan
+    return TimeSpan( DT_INVALID_TICKS )
+end function
+
+property TimeSpan.Ticks( ) as longint
+    return this.m_ticks
+end property
+
+property TimeSpan.IsValid( ) as boolean
+    return this.m_ticks <> DT_INVALID_TICKS
+end property
+property TimeSpan.IsZero( ) as boolean
+    return this.m_ticks = 0
+end property
+property TimeSpan.IsNegative( ) as boolean
+    dim as boolean valid = ( this.m_ticks <> DT_INVALID_TICKS )
+    dim as boolean neg = ( this.m_ticks < 0 )
+    return valid andalso neg
+end property
+
+property TimeSpan.TotalDays( ) as double
+    return this.m_ticks / DT_TICKS_PER_DAY
+end property
+property TimeSpan.TotalHours( ) as double
+    return this.m_ticks / DT_TICKS_PER_HOUR
+end property
+property TimeSpan.TotalMinutes( ) as double
+    return this.m_ticks / DT_TICKS_PER_MINUTE
+end property
+property TimeSpan.TotalSeconds( ) as double
+    return this.m_ticks / DT_TICKS_PER_SECOND
+end property
+property TimeSpan.TotalMilliseconds( ) as double
+    return this.m_ticks / DT_TICKS_PER_MILLISECOND
+end property
+property TimeSpan.TotalMicroseconds( ) as longint
+    return this.m_ticks \ DT_TICKS_PER_MICROSECOND
+end property
+
+'' Components. FreeBASIC's \ truncates toward zero and MOD takes the sign of the
+'' dividend, which is exactly the all-negative-for-a-negative-span rule.
+property TimeSpan.Days( ) as long
+    return clng( this.m_ticks \ DT_TICKS_PER_DAY )
+end property
+property TimeSpan.Hours( ) as long
+    return clng( ( this.m_ticks \ DT_TICKS_PER_HOUR ) mod 24 )
+end property
+property TimeSpan.Minutes( ) as long
+    return clng( ( this.m_ticks \ DT_TICKS_PER_MINUTE ) mod 60 )
+end property
+property TimeSpan.Seconds( ) as long
+    return clng( ( this.m_ticks \ DT_TICKS_PER_SECOND ) mod 60 )
+end property
+property TimeSpan.Milliseconds( ) as long
+    return clng( ( this.m_ticks \ DT_TICKS_PER_MILLISECOND ) mod 1000 )
+end property
+property TimeSpan.Microseconds( ) as long
+    return clng( ( this.m_ticks \ DT_TICKS_PER_MICROSECOND ) mod 1000000 )
+end property
+
+function TimeSpan.Negate( ) as TimeSpan
+    if this.m_ticks = DT_INVALID_TICKS then return TimeSpan( DT_INVALID_TICKS )
+    return TimeSpan( -this.m_ticks )
+end function
+
+function TimeSpan.Duration( ) as TimeSpan
+    if this.m_ticks = DT_INVALID_TICKS then return TimeSpan( DT_INVALID_TICKS )
+    if this.m_ticks < 0 then return TimeSpan( -this.m_ticks )
+    return TimeSpan( this.m_ticks )
+end function
+
+function TimeSpan.Add( byref o as TimeSpan ) as TimeSpan
+    dim as boolean bad = ( this.m_ticks = DT_INVALID_TICKS )
+    dim as boolean badO = ( o.m_ticks = DT_INVALID_TICKS )
+    if bad orelse badO then return TimeSpan( DT_INVALID_TICKS )
+    if dtAddOverflows( this.m_ticks, o.m_ticks ) then return TimeSpan( DT_INVALID_TICKS )
+    return TimeSpan( this.m_ticks + o.m_ticks )
+end function
+
+function TimeSpan.Subtract( byref o as TimeSpan ) as TimeSpan
+    dim as boolean bad = ( this.m_ticks = DT_INVALID_TICKS )
+    dim as boolean badO = ( o.m_ticks = DT_INVALID_TICKS )
+    if bad orelse badO then return TimeSpan( DT_INVALID_TICKS )
+    '' -o.m_ticks is safe: MinValue is LLONG_MIN + 1, so it negates cleanly
+    if dtAddOverflows( this.m_ticks, -o.m_ticks ) then return TimeSpan( DT_INVALID_TICKS )
+    return TimeSpan( this.m_ticks - o.m_ticks )
+end function
+
+function TimeSpan.Multiply( byval f as double ) as TimeSpan
+    if this.m_ticks = DT_INVALID_TICKS then return TimeSpan( DT_INVALID_TICKS )
+    return TimeSpan( dtTicksFromDouble( this.m_ticks * f ) )
+end function
+
+function TimeSpan.Divide( byval f as double ) as TimeSpan
+    if this.m_ticks = DT_INVALID_TICKS then return TimeSpan( DT_INVALID_TICKS )
+    if f = 0 then return TimeSpan( DT_INVALID_TICKS )
+    return TimeSpan( dtTicksFromDouble( this.m_ticks / f ) )
+end function
+
+function TimeSpan.DivideBy( byref o as TimeSpan ) as double
+    dim as boolean bad = ( this.m_ticks = DT_INVALID_TICKS )
+    dim as boolean badO = ( o.m_ticks = DT_INVALID_TICKS )
+    if bad orelse badO then return dtNaN( )
+    if o.m_ticks = 0 then return dtNaN( )
+    return this.m_ticks / o.m_ticks
+end function
+
+'' -2 means "not comparable" -- at least one operand is Invalid.  It is not an
+'' ordering, and it is deliberately not 0.
+function TimeSpan.CompareTo( byref o as TimeSpan ) as long
+    dim as boolean bad = ( this.m_ticks = DT_INVALID_TICKS )
+    dim as boolean badO = ( o.m_ticks = DT_INVALID_TICKS )
+    if bad orelse badO then return -2
+    if this.m_ticks < o.m_ticks then return -1
+    if this.m_ticks > o.m_ticks then return 1
+    return 0
+end function
+
+public operator + ( byref a as TimeSpan, byref b as TimeSpan ) as TimeSpan
+    return a.Add( b )
+end operator
+public operator - ( byref a as TimeSpan, byref b as TimeSpan ) as TimeSpan
+    return a.Subtract( b )
+end operator
+public operator - ( byref a as TimeSpan ) as TimeSpan
+    return a.Negate( )
+end operator
+public operator * ( byref a as TimeSpan, byval f as double ) as TimeSpan
+    return a.Multiply( f )
+end operator
+public operator * ( byval f as double, byref a as TimeSpan ) as TimeSpan
+    return a.Multiply( f )
+end operator
+public operator / ( byref a as TimeSpan, byval f as double ) as TimeSpan
+    return a.Divide( f )
+end operator
+public operator = ( byref a as TimeSpan, byref b as TimeSpan ) as boolean
+    return a.CompareTo( b ) = 0
+end operator
+public operator <> ( byref a as TimeSpan, byref b as TimeSpan ) as boolean
+    dim as long c = a.CompareTo( b )
+    dim as boolean cmp = ( c <> 0 )
+    dim as boolean known = ( c <> -2 )
+    return cmp andalso known
+end operator
+public operator < ( byref a as TimeSpan, byref b as TimeSpan ) as boolean
+    return a.CompareTo( b ) = -1
+end operator
+public operator > ( byref a as TimeSpan, byref b as TimeSpan ) as boolean
+    return a.CompareTo( b ) = 1
+end operator
+public operator <= ( byref a as TimeSpan, byref b as TimeSpan ) as boolean
+    dim as long c = a.CompareTo( b )
+    dim as boolean le = ( c <= 0 )
+    dim as boolean known = ( c <> -2 )
+    return le andalso known
+end operator
+public operator >= ( byref a as TimeSpan, byref b as TimeSpan ) as boolean
+    return a.CompareTo( b ) >= 0
+end operator
+
+'' ================================================================ LocalDate
+''
+'' A date with no time and no offset.  A separate type so that "2025-03-04" and
+'' "14:30" cannot be compared, subtracted or passed to each other's functions --
+'' and so that a date-shaped value cannot carry a hidden midnight-vs-noon.
+public type LocalDate
+    m_days as long
+
+    declare constructor( )
+    declare constructor( byval y as long, byval mo as long, byval d as long )
+
+    declare static function FromDayNumber( byval days as long ) as LocalDate
+    declare static function MinValue( ) as LocalDate
+    declare static function MaxValue( ) as LocalDate
+    declare static function Invalid ( ) as LocalDate
+
+    declare property IsValid  ( ) as boolean
+    declare property DayNumber( ) as long
+    declare property Year     ( ) as long
+    declare property Month    ( ) as long
+    declare property Day      ( ) as long
+    declare property DayOfWeek( ) as long
+    declare property DayOfYear( ) as long
+
+    declare property IsoWeek    ( ) as long
+    declare property IsoWeekYear( ) as long
+    declare property Quarter    ( ) as long
+    declare property IsFirstDayOfMonth( ) as boolean
+    declare property IsLastDayOfMonth ( ) as boolean
+
+    declare function AddDays  ( byval n as long ) as LocalDate
+    declare function AddMonths( byval n as long ) as LocalDate
+    declare function AddYears ( byval n as long ) as LocalDate
+    declare function StartOfMonth( ) as LocalDate
+    declare function EndOfMonth  ( ) as LocalDate
+    declare function CompareTo( byref o as LocalDate ) as long
+
+    declare function ToIsoString( ) as string
+    declare function ToString   ( ) as string
+    declare static function TryParseIso( byref s as string, byref result as LocalDate ) as boolean
+    declare static function ParseIso   ( byref s as string ) as LocalDate
+
+    declare function ToIsoUString( ) as ustring
+    declare static function TryParseIso overload ( byref s as ustring, byref result as LocalDate ) as boolean
+    declare static function ParseIso    overload ( byref s as ustring ) as LocalDate
+end type
+
+public declare operator - ( byref a as LocalDate, byref b as LocalDate ) as long
+public declare operator =  ( byref a as LocalDate, byref b as LocalDate ) as boolean
+public declare operator <> ( byref a as LocalDate, byref b as LocalDate ) as boolean
+public declare operator <  ( byref a as LocalDate, byref b as LocalDate ) as boolean
+public declare operator >  ( byref a as LocalDate, byref b as LocalDate ) as boolean
+public declare operator <= ( byref a as LocalDate, byref b as LocalDate ) as boolean
+public declare operator >= ( byref a as LocalDate, byref b as LocalDate ) as boolean
+
+constructor LocalDate( )
+    this.m_days = DT_INVALID_DAYS
+end constructor
+
+constructor LocalDate( byval y as long, byval mo as long, byval d as long )
+    if fb_DtIsValidDate( y, mo, d ) = 0 then
+        this.m_days = DT_INVALID_DAYS
+    else
+        this.m_days = fb_DtDaysFromCivil( y, mo, d )
+    end if
+end constructor
+
+function LocalDate.FromDayNumber( byval days as long ) as LocalDate
+    dim as LocalDate r
+    dim as boolean lo = ( days < DT_MIN_DAYS )
+    dim as boolean hi = ( days > DT_MAX_DAYS )
+    if lo orelse hi then
+        r.m_days = DT_INVALID_DAYS
+    else
+        r.m_days = days
+    end if
+    return r
+end function
+
+function LocalDate.MinValue( ) as LocalDate
+    return LocalDate.FromDayNumber( DT_MIN_DAYS )
+end function
+function LocalDate.MaxValue( ) as LocalDate
+    return LocalDate.FromDayNumber( DT_MAX_DAYS )
+end function
+function LocalDate.Invalid( ) as LocalDate
+    dim as LocalDate r
+    r.m_days = DT_INVALID_DAYS
+    return r
+end function
+
+property LocalDate.IsValid( ) as boolean
+    return this.m_days <> DT_INVALID_DAYS
+end property
+property LocalDate.DayNumber( ) as long
+    return this.m_days
+end property
+property LocalDate.Year( ) as long
+    if this.m_days = DT_INVALID_DAYS then return 0
+    dim as long y, mo, d
+    fb_DtCivilFromDays( this.m_days, @y, @mo, @d )
+    return y
+end property
+property LocalDate.Month( ) as long
+    if this.m_days = DT_INVALID_DAYS then return 0
+    dim as long y, mo, d
+    fb_DtCivilFromDays( this.m_days, @y, @mo, @d )
+    return mo
+end property
+property LocalDate.Day( ) as long
+    if this.m_days = DT_INVALID_DAYS then return 0
+    dim as long y, mo, d
+    fb_DtCivilFromDays( this.m_days, @y, @mo, @d )
+    return d
+end property
+property LocalDate.DayOfWeek( ) as long
+    if this.m_days = DT_INVALID_DAYS then return 0
+    return fb_DtDayOfWeek( this.m_days )
+end property
+property LocalDate.DayOfYear( ) as long
+    if this.m_days = DT_INVALID_DAYS then return 0
+    dim as long y, mo, d
+    fb_DtCivilFromDays( this.m_days, @y, @mo, @d )
+    return fb_DtDayOfYear( y, mo, d )
+end property
+
+function LocalDate.AddDays( byval n as long ) as LocalDate
+    if this.m_days = DT_INVALID_DAYS then return LocalDate.Invalid( )
+    '' widen so the range test happens before any 32-bit wrap
+    dim as longint r = clngint( this.m_days ) + clngint( n )
+    dim as boolean lo = ( r < DT_MIN_DAYS )
+    dim as boolean hi = ( r > DT_MAX_DAYS )
+    if lo orelse hi then return LocalDate.Invalid( )
+    return LocalDate.FromDayNumber( clng( r ) )
+end function
+
+property LocalDate.IsoWeek( ) as long
+    if this.m_days = DT_INVALID_DAYS then return 0
+    dim as long y, mo, d
+    fb_DtCivilFromDays( this.m_days, @y, @mo, @d )
+    return fb_DtIsoWeek( y, mo, d, 0 )
+end property
+property LocalDate.IsoWeekYear( ) as long
+    if this.m_days = DT_INVALID_DAYS then return 0
+    dim as long y, mo, d, iy
+    fb_DtCivilFromDays( this.m_days, @y, @mo, @d )
+    fb_DtIsoWeek( y, mo, d, @iy )
+    return iy
+end property
+property LocalDate.Quarter( ) as long
+    if this.m_days = DT_INVALID_DAYS then return 0
+    return ( ( this.Month - 1 ) \ 3 ) + 1
+end property
+property LocalDate.IsFirstDayOfMonth( ) as boolean
+    if this.m_days = DT_INVALID_DAYS then return false
+    return this.Day = 1
+end property
+property LocalDate.IsLastDayOfMonth( ) as boolean
+    if this.m_days = DT_INVALID_DAYS then return false
+    return this.Day = fb_DtDaysInMonth( this.Year, this.Month )
+end property
+
+'' RFC-0004 section 2, the end-of-month rule.  Add n to the month field, then
+'' CLAMP the day to the last day of the target month if it does not exist there.
+''
+''     2025-01-31 AddMonths( 1 )  ->  2025-02-28
+''     2024-01-31 AddMonths( 1 )  ->  2024-02-29
+''
+'' Clamping makes this LOSSY and not reversible: +1mo then -1mo on 31 Jan gives
+'' the 28th, not the 31st.  Every language that implements calendar months does
+'' exactly this; the alternative (overflowing into 3 March) is what nobody chose.
+'' AddMonths( n ) is ONE operation on the original day-of-month, never n
+'' repetitions -- +2 and +1+1 differ for 31 December.
+function LocalDate.AddMonths( byval n as long ) as LocalDate
+    if this.m_days = DT_INVALID_DAYS then return LocalDate.Invalid( )
+
+    dim as long y, mo, d
+    fb_DtCivilFromDays( this.m_days, @y, @mo, @d )
+
+    '' floor division, because FreeBASIC's \ truncates toward zero
+    dim as longint total = clngint( y ) * 12ll + clngint( mo - 1 ) + clngint( n )
+    dim as longint ny = total \ 12ll
+    dim as longint rm = total mod 12ll
+    if rm < 0 then
+        rm += 12
+        ny -= 1
+    end if
+
+    dim as boolean lo = ( ny < DT_MIN_YEAR )
+    dim as boolean hi = ( ny > DT_MAX_YEAR )
+    if lo orelse hi then return LocalDate.Invalid( )
+
+    dim as long nm = clng( rm ) + 1
+    dim as long last = fb_DtDaysInMonth( clng( ny ), nm )
+    if d > last then d = last                          '' the clamp
+
+    return LocalDate.FromDayNumber( fb_DtDaysFromCivil( clng( ny ), nm, d ) )
+end function
+
+'' Exactly AddMonths( n * 12 ), so the clamping lives in one place.
+function LocalDate.AddYears( byval n as long ) as LocalDate
+    if n > 178956970 then return LocalDate.Invalid( )
+    if n < -178956970 then return LocalDate.Invalid( )
+    return this.AddMonths( n * 12 )
+end function
+
+function LocalDate.StartOfMonth( ) as LocalDate
+    if this.m_days = DT_INVALID_DAYS then return LocalDate.Invalid( )
+    return LocalDate( this.Year, this.Month, 1 )
+end function
+function LocalDate.EndOfMonth( ) as LocalDate
+    if this.m_days = DT_INVALID_DAYS then return LocalDate.Invalid( )
+    return LocalDate( this.Year, this.Month, fb_DtDaysInMonth( this.Year, this.Month ) )
+end function
+
+function LocalDate.CompareTo( byref o as LocalDate ) as long
+    dim as boolean bad = ( this.m_days = DT_INVALID_DAYS )
+    dim as boolean badO = ( o.m_days = DT_INVALID_DAYS )
+    if bad orelse badO then return -2
+    if this.m_days < o.m_days then return -1
+    if this.m_days > o.m_days then return 1
+    return 0
+end function
+
+public operator - ( byref a as LocalDate, byref b as LocalDate ) as long
+    dim as boolean bad = ( a.m_days = DT_INVALID_DAYS )
+    dim as boolean badO = ( b.m_days = DT_INVALID_DAYS )
+    if bad orelse badO then return DT_INVALID_DAYS
+    return a.m_days - b.m_days
+end operator
+public operator = ( byref a as LocalDate, byref b as LocalDate ) as boolean
+    return a.CompareTo( b ) = 0
+end operator
+public operator <> ( byref a as LocalDate, byref b as LocalDate ) as boolean
+    dim as long c = a.CompareTo( b )
+    dim as boolean cmp = ( c <> 0 )
+    dim as boolean known = ( c <> -2 )
+    return cmp andalso known
+end operator
+public operator < ( byref a as LocalDate, byref b as LocalDate ) as boolean
+    return a.CompareTo( b ) = -1
+end operator
+public operator > ( byref a as LocalDate, byref b as LocalDate ) as boolean
+    return a.CompareTo( b ) = 1
+end operator
+public operator <= ( byref a as LocalDate, byref b as LocalDate ) as boolean
+    dim as long c = a.CompareTo( b )
+    dim as boolean le = ( c <= 0 )
+    dim as boolean known = ( c <> -2 )
+    return le andalso known
+end operator
+public operator >= ( byref a as LocalDate, byref b as LocalDate ) as boolean
+    return a.CompareTo( b ) >= 0
+end operator
+
+'' ================================================================ LocalTime
+''
+'' A time of day with no date and no offset: 0 .. one tick short of a day.
+public type LocalTime
+    m_ticks as longint
+
+    declare constructor( )
+    declare constructor( byval h as long, byval mi as long, byval s as long, _
+                         byval ms as long )
+
+    declare static function FromTicks( byval t as longint ) as LocalTime
+    declare static function Midnight ( ) as LocalTime
+    declare static function Noon     ( ) as LocalTime
+    declare static function MaxValue ( ) as LocalTime
+    declare static function Invalid  ( ) as LocalTime
+
+    declare property IsValid    ( ) as boolean
+    declare property Ticks      ( ) as longint
+    declare property Hour       ( ) as long
+    declare property Minute     ( ) as long
+    declare property Second     ( ) as long
+    declare property Millisecond( ) as long
+    declare property Microsecond( ) as long
+
+    declare function CompareTo( byref o as LocalTime ) as long
+
+    declare function ToIsoString( ) as string
+    declare function ToString   ( ) as string
+    declare static function TryParseIso( byref s as string, byref result as LocalTime ) as boolean
+    declare static function ParseIso   ( byref s as string ) as LocalTime
+
+    declare function ToIsoUString( ) as ustring
+    declare static function TryParseIso overload ( byref s as ustring, byref result as LocalTime ) as boolean
+    declare static function ParseIso    overload ( byref s as ustring ) as LocalTime
+end type
+
+public declare operator - ( byref a as LocalTime, byref b as LocalTime ) as TimeSpan
+public declare operator =  ( byref a as LocalTime, byref b as LocalTime ) as boolean
+public declare operator <> ( byref a as LocalTime, byref b as LocalTime ) as boolean
+public declare operator <  ( byref a as LocalTime, byref b as LocalTime ) as boolean
+public declare operator >  ( byref a as LocalTime, byref b as LocalTime ) as boolean
+public declare operator <= ( byref a as LocalTime, byref b as LocalTime ) as boolean
+public declare operator >= ( byref a as LocalTime, byref b as LocalTime ) as boolean
+
+constructor LocalTime( )
+    this.m_ticks = 0
+end constructor
+
+constructor LocalTime( byval h as long, byval mi as long, byval s as long, _
+                               byval ms as long )
+    if fb_DtIsValidTime( h, mi, s, clngint( ms ) * DT_TICKS_PER_MILLISECOND ) = 0 then
+        this.m_ticks = DT_INVALID_TICKS
+    else
+        this.m_ticks = clngint( h ) * DT_TICKS_PER_HOUR _
+                     + clngint( mi ) * DT_TICKS_PER_MINUTE _
+                     + clngint( s ) * DT_TICKS_PER_SECOND _
+                     + clngint( ms ) * DT_TICKS_PER_MILLISECOND
+    end if
+end constructor
+
+function LocalTime.FromTicks( byval t as longint ) as LocalTime
+    dim as LocalTime r
+    dim as boolean lo = ( t < 0 )
+    dim as boolean hi = ( t >= DT_TICKS_PER_DAY )
+    if lo orelse hi then
+        r.m_ticks = DT_INVALID_TICKS
+    else
+        r.m_ticks = t
+    end if
+    return r
+end function
+
+function LocalTime.Midnight( ) as LocalTime
+    return LocalTime.FromTicks( 0 )
+end function
+function LocalTime.Noon( ) as LocalTime
+    return LocalTime.FromTicks( 12 * DT_TICKS_PER_HOUR )
+end function
+function LocalTime.MaxValue( ) as LocalTime
+    return LocalTime.FromTicks( DT_TICKS_PER_DAY - 1 )
+end function
+function LocalTime.Invalid( ) as LocalTime
+    dim as LocalTime r
+    r.m_ticks = DT_INVALID_TICKS
+    return r
+end function
+
+property LocalTime.IsValid( ) as boolean
+    dim as boolean lo = ( this.m_ticks >= 0 )
+    dim as boolean hi = ( this.m_ticks < DT_TICKS_PER_DAY )
+    return lo andalso hi
+end property
+property LocalTime.Ticks( ) as longint
+    return this.m_ticks
+end property
+property LocalTime.Hour( ) as long
+    if this.IsValid = false then return 0
+    return clng( this.m_ticks \ DT_TICKS_PER_HOUR )
+end property
+property LocalTime.Minute( ) as long
+    if this.IsValid = false then return 0
+    return clng( ( this.m_ticks \ DT_TICKS_PER_MINUTE ) mod 60 )
+end property
+property LocalTime.Second( ) as long
+    if this.IsValid = false then return 0
+    return clng( ( this.m_ticks \ DT_TICKS_PER_SECOND ) mod 60 )
+end property
+property LocalTime.Millisecond( ) as long
+    if this.IsValid = false then return 0
+    return clng( ( this.m_ticks \ DT_TICKS_PER_MILLISECOND ) mod 1000 )
+end property
+property LocalTime.Microsecond( ) as long
+    if this.IsValid = false then return 0
+    return clng( ( this.m_ticks \ DT_TICKS_PER_MICROSECOND ) mod 1000000 )
+end property
+
+function LocalTime.CompareTo( byref o as LocalTime ) as long
+    dim as boolean bad = ( this.IsValid = false )
+    dim as boolean badO = ( o.IsValid = false )
+    if bad orelse badO then return -2
+    if this.m_ticks < o.m_ticks then return -1
+    if this.m_ticks > o.m_ticks then return 1
+    return 0
+end function
+
+public operator - ( byref a as LocalTime, byref b as LocalTime ) as TimeSpan
+    dim as boolean bad = ( a.IsValid = false )
+    dim as boolean badO = ( b.IsValid = false )
+    if bad orelse badO then return TimeSpan( DT_INVALID_TICKS )
+    return TimeSpan( a.m_ticks - b.m_ticks )
+end operator
+public operator = ( byref a as LocalTime, byref b as LocalTime ) as boolean
+    return a.CompareTo( b ) = 0
+end operator
+public operator <> ( byref a as LocalTime, byref b as LocalTime ) as boolean
+    dim as long c = a.CompareTo( b )
+    dim as boolean cmp = ( c <> 0 )
+    dim as boolean known = ( c <> -2 )
+    return cmp andalso known
+end operator
+public operator < ( byref a as LocalTime, byref b as LocalTime ) as boolean
+    return a.CompareTo( b ) = -1
+end operator
+public operator > ( byref a as LocalTime, byref b as LocalTime ) as boolean
+    return a.CompareTo( b ) = 1
+end operator
+public operator <= ( byref a as LocalTime, byref b as LocalTime ) as boolean
+    dim as long c = a.CompareTo( b )
+    dim as boolean le = ( c <= 0 )
+    dim as boolean known = ( c <> -2 )
+    return le andalso known
+end operator
+public operator >= ( byref a as LocalTime, byref b as LocalTime ) as boolean
+    return a.CompareTo( b ) >= 0
+end operator
+
+'' ================================================================== Instant
+''
+'' An absolute point on the UTC timeline.  No offset field, because an absolute
+'' point does not have one.  This is the type for "when did this happen":
+'' timestamps, log lines, expiry times, anything compared across machines.
+''
+'' Converting to a DateTime always names a zone explicitly and never happens
+'' implicitly -- see DateTime.FromInstant.  ToLocal arrives in RFC-0007.
+public type Instant
+    m_ticks as longint
+
+    declare constructor( )
+    declare constructor( byval t as longint )
+
+    declare static function FromTicks( byval t as longint ) as Instant
+    declare static function MinValue ( ) as Instant
+    declare static function MaxValue ( ) as Instant
+    declare static function Invalid  ( ) as Instant
+
+    declare property IsValid( ) as boolean
+    declare property Ticks  ( ) as longint
+
+    declare function Add      ( byref s as TimeSpan ) as Instant
+    declare function Subtract ( byref s as TimeSpan ) as Instant
+    declare function CompareTo( byref o as Instant  ) as long
+
+    declare function ToIsoString( ) as string
+    declare function ToString   ( ) as string
+    '' Requires an offset in the input: there is no way to place a naive
+    '' reading on the UTC timeline without guessing.
+    declare static function TryParseIso( byref s as string, byref result as Instant ) as boolean
+    declare static function ParseIso   ( byref s as string ) as Instant
+
+    declare static function FromUnixSeconds     ( byval v as longint ) as Instant
+    declare static function FromUnixMilliseconds( byval v as longint ) as Instant
+    declare static function FromUnixMicroseconds( byval v as longint ) as Instant
+    declare property UnixSeconds     ( ) as longint
+    declare property UnixMilliseconds( ) as longint
+    declare property UnixMicroseconds( ) as longint
+
+    declare function ToIsoUString( ) as ustring
+    declare static function TryParseIso overload ( byref s as ustring, byref result as Instant ) as boolean
+    declare static function ParseIso    overload ( byref s as ustring ) as Instant
+end type
+
+public declare operator + ( byref a as Instant, byref s as TimeSpan ) as Instant
+public declare operator - ( byref a as Instant, byref s as TimeSpan ) as Instant
+public declare operator - ( byref a as Instant, byref b as Instant  ) as TimeSpan
+public declare operator =  ( byref a as Instant, byref b as Instant ) as boolean
+public declare operator <> ( byref a as Instant, byref b as Instant ) as boolean
+public declare operator <  ( byref a as Instant, byref b as Instant ) as boolean
+public declare operator >  ( byref a as Instant, byref b as Instant ) as boolean
+public declare operator <= ( byref a as Instant, byref b as Instant ) as boolean
+public declare operator >= ( byref a as Instant, byref b as Instant ) as boolean
+
+constructor Instant( )
+    this.m_ticks = DT_INVALID_TICKS
+end constructor
+
+constructor Instant( byval t as longint )
+    if fb_DtIsValidTicks( t ) = 0 then
+        this.m_ticks = DT_INVALID_TICKS
+    else
+        this.m_ticks = t
+    end if
+end constructor
+
+function Instant.FromTicks( byval t as longint ) as Instant
+    return Instant( t )
+end function
+function Instant.MinValue( ) as Instant
+    return Instant( DT_MIN_TICKS )
+end function
+function Instant.MaxValue( ) as Instant
+    return Instant( DT_MAX_TICKS )
+end function
+function Instant.Invalid( ) as Instant
+    dim as Instant r
+    r.m_ticks = DT_INVALID_TICKS
+    return r
+end function
+
+property Instant.IsValid( ) as boolean
+    return fb_DtIsValidTicks( this.m_ticks ) <> 0
+end property
+property Instant.Ticks( ) as longint
+    return this.m_ticks
+end property
+
+function Instant.Add( byref s as TimeSpan ) as Instant
+    dim as boolean bad = ( this.IsValid = false )
+    dim as boolean badS = ( s.IsValid = false )
+    if bad orelse badS then return Instant.Invalid( )
+    if dtAddOverflows( this.m_ticks, s.Ticks ) then return Instant.Invalid( )
+    return Instant( this.m_ticks + s.Ticks )
+end function
+
+function Instant.Subtract( byref s as TimeSpan ) as Instant
+    dim as boolean bad = ( this.IsValid = false )
+    dim as boolean badS = ( s.IsValid = false )
+    if bad orelse badS then return Instant.Invalid( )
+    if dtAddOverflows( this.m_ticks, -s.Ticks ) then return Instant.Invalid( )
+    return Instant( this.m_ticks - s.Ticks )
+end function
+
+function Instant.CompareTo( byref o as Instant ) as long
+    dim as boolean bad = ( this.IsValid = false )
+    dim as boolean badO = ( o.IsValid = false )
+    if bad orelse badO then return -2
+    if this.m_ticks < o.m_ticks then return -1
+    if this.m_ticks > o.m_ticks then return 1
+    return 0
+end function
+
+public operator + ( byref a as Instant, byref s as TimeSpan ) as Instant
+    return a.Add( s )
+end operator
+public operator - ( byref a as Instant, byref s as TimeSpan ) as Instant
+    return a.Subtract( s )
+end operator
+public operator - ( byref a as Instant, byref b as Instant ) as TimeSpan
+    dim as boolean bad = ( a.IsValid = false )
+    dim as boolean badO = ( b.IsValid = false )
+    if bad orelse badO then return TimeSpan( DT_INVALID_TICKS )
+    return TimeSpan( a.Ticks - b.Ticks )
+end operator
+public operator = ( byref a as Instant, byref b as Instant ) as boolean
+    return a.CompareTo( b ) = 0
+end operator
+public operator <> ( byref a as Instant, byref b as Instant ) as boolean
+    dim as long c = a.CompareTo( b )
+    dim as boolean cmp = ( c <> 0 )
+    dim as boolean known = ( c <> -2 )
+    return cmp andalso known
+end operator
+public operator < ( byref a as Instant, byref b as Instant ) as boolean
+    return a.CompareTo( b ) = -1
+end operator
+public operator > ( byref a as Instant, byref b as Instant ) as boolean
+    return a.CompareTo( b ) = 1
+end operator
+public operator <= ( byref a as Instant, byref b as Instant ) as boolean
+    dim as long c = a.CompareTo( b )
+    dim as boolean le = ( c <= 0 )
+    dim as boolean known = ( c <> -2 )
+    return le andalso known
+end operator
+public operator >= ( byref a as Instant, byref b as Instant ) as boolean
+    return a.CompareTo( b ) >= 0
+end operator

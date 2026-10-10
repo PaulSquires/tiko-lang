@@ -10,6 +10,7 @@
 '' flaking on a loaded build machine.
 
 #import "std/tui"
+#import "std/chrono"
 #include "fbcunit.bi"
 
 #include once "fb/array.bi"
@@ -18,9 +19,7 @@
 
 #include once "fb/optional.bi"
 
-#include once "fb/chrono.bi"
-
-using tui
+using tui, chrono
 
 using FB
 '' A small app used by several tests below.

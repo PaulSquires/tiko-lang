@@ -41,7 +41,18 @@ OUT = os.path.join(ROOT, "tests", "std")
 DRIVER = "tests/vendor/fbc-tests/fbcunit/tests/tests.bas"
 
 # file (area/name.bas) -> [(old, new)], applied after the rewrite, each exactly once.
+#
+# STD/CHRONO'S C KERNEL IS THE RUNTIME'S, not chrono's API: under 'using FB' the header's
+# global declarations of it were visible, and a module's are its own. A test that calls the
+# kernel declares the functions it calls.
+_DT_KERNEL = '''#include once "fbcunit.bi"
+extern "C"
+declare function fb_DtTicksFromCounts alias "fb_DtTicksFromCounts" ( byval counts as longint, byval freq as longint ) as longint
+declare function fb_DtIsValidTicks alias "fb_DtIsValidTicks" ( byval ticks as longint ) as long
+end extern'''
 PATCHES = {
+    "chrono/clocks.bas": [('#include once "fbcunit.bi"', _DT_KERNEL)],
+    "chrono/zones.bas": [('#include once "fbcunit.bi"', _DT_KERNEL)],
 }
 # file -> [(regex, replacement)], applied after PATCHES; each must match at least once.
 #
@@ -106,6 +117,11 @@ def public_names(mod):
             if m:
                 for n in re.findall(r"\w+", m.group(1)):
                     names.setdefault(n.lower(), n)
+            # A NESTED NAMESPACE the interface carries -- chrono's WallClock -- is reachable
+            # through the module when its members are public, which the interface says.
+            m = re.match(r"\s*namespace\s+(\w+)\s*$", code, re.I)
+            if m and not m.group(1).lower().startswith("__tko_mod_") and "public " in text:
+                names.setdefault(m.group(1).lower(), m.group(1))
     return names
 
 

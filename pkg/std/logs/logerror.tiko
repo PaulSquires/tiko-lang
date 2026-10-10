@@ -1,6 +1,18 @@
 #module "logs"
 #import "std/numeric"
+#import "std/chrono"
 using numeric
+using chrono
+
+'' std/chrono's C kernel, which is the runtime's (src/rtlib/dt_core.c) and not chrono's API:
+'' the few this module calls, declared here for every file of it.
+extern "C"
+declare function fb_DtMonoTimestamp alias "fb_DtMonoTimestamp" ( ) as longint
+declare function fb_DtMonoFrequency alias "fb_DtMonoFrequency" ( ) as longint
+declare function fb_DtTicksFromCounts alias "fb_DtTicksFromCounts" ( byval counts as longint, byval freq as longint ) as longint
+declare function fb_DtClockLocalOffsetNow alias "fb_DtClockLocalOffsetNow" ( ) as long
+end extern
+
 '' std/logs: logerror -- FB.Logging's OS plumbing and its error channel
 ''
 ''     #import "std/logs"
@@ -50,7 +62,6 @@ using numeric
 ''
 
 
-#include once "fb/chrono.bi"
 #include once "fb/array.bi"
 
 using FB

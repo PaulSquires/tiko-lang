@@ -1,0 +1,530 @@
+#module "chrono"
+'' std/chrono: zones, locale and interop, the USTRING overloads, and the clocks (split from
+'' chrono.tiko, which was fb/chrono.bi, at the 1500-line cap).
+
+'' ================================== zones, locale, interop (RFC-0007)
+''
+'' In scope: UTC, the OS local zone, explicit fixed offsets.
+'' OUT of scope: the IANA tz database, named zones, DST-ambiguity policies.
+'' The OS already knows the user's zone and keeps its rules current; shipping
+'' and maintaining a copy of the tzdb is a project of its own.  Nothing here
+'' forecloses a future ZonedDateTime -- DateTime already carries an offset.
+namespace TimeZoneInfo
+
+    '' The offset AT A GIVEN INSTANT, not "right now".  Converting a July
+    '' timestamp with January's offset is the commonest timezone bug there is,
+    '' and an API offering only "the current offset" makes it the default.
+    public function LocalOffsetAt( byref i as Instant ) as short
+        if i.IsValid = false then return 0
+        return cshort( fb_DtZoneOffsetAt( i.Ticks ) )
+    end function
+
+    public function LocalOffset( ) as short
+        return cshort( fb_DtZoneOffsetAt( fb_DtClockUtcNow( ) ) )
+    end function
+
+    public function IsDaylightSavingTime( byref i as Instant ) as boolean
+        if i.IsValid = false then return false
+        return fb_DtZoneIsDst( i.Ticks ) <> 0
+    end function
+
+    public function SupportsDaylightSavingTime( ) as boolean
+        return fb_DtZoneSupportsDst( ) <> 0
+    end function
+
+    public function StandardName( ) as string
+        dim as zstring * 160 buf
+        dim as long n = fb_DtZoneStandardName( @buf, 160 )
+        if n <= 0 then return ""
+        return left( buf, n )
+    end function
+
+    public function DaylightName( ) as string
+        dim as zstring * 160 buf
+        dim as long n = fb_DtZoneDaylightName( @buf, 160 )
+        if n <= 0 then return ""
+        return left( buf, n )
+    end function
+
+end namespace
+
+'' -- local conversion -------------------------------------------------
+
+function DateTime.ToLocal( ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    dim as Instant i = this.ToInstant( )
+    if i.IsValid = false then i = this.AssumeUtc( )
+    if i.IsValid = false then return DateTime.Invalid( )
+    return DateTime.FromInstant( i, cshort( fb_DtZoneOffsetAt( i.Ticks ) ) )
+end function
+
+'' -- calendar-preserving arithmetic (RFC-0007 section 2) ---------------
+''
+'' AddDays( 1 ) is exact tick arithmetic: 86400 seconds, which does NOT keep
+'' the wall-clock time across a DST boundary.  These operate on the civil
+'' fields and then re-resolve the offset, so they DO.
+''     "24 hours from now"  -> AddDays( 1 )
+''     "same time tomorrow" -> AddCalendarDays( 1 )
+function DateTime.AddCalendarDays( byval n as long ) as DateTime
+    if this.IsValid = false then return DateTime.Invalid( )
+    dim as LocalDate d = this.GetDate( ).AddDays( n )
+    if d.IsValid = false then return DateTime.Invalid( )
+    dim as DateTime r = DateTime.FromTicks( _
+        clngint( d.DayNumber ) * DT_TICKS_PER_DAY + ( this.m_ticks mod DT_TICKS_PER_DAY ), _
+        this.m_offset )
+    if r.IsValid = false then return DateTime.Invalid( )
+    if this.HasOffset = false then return r
+    '' re-resolve the offset for the new local time
+    return r.WithOffset( cshort( fb_DtZoneOffsetAt( r.AssumeUtc( ).Ticks ) ) )
+end function
+
+function DateTime.AddCalendarMonths( byval n as long ) as DateTime
+    dim as DateTime r = this.AddMonths( n )
+    if r.IsValid = false then return DateTime.Invalid( )
+    if this.HasOffset = false then return r
+    return r.WithOffset( cshort( fb_DtZoneOffsetAt( r.AssumeUtc( ).Ticks ) ) )
+end function
+
+function DateTime.AddCalendarYears( byval n as long ) as DateTime
+    if n > 178956970 then return DateTime.Invalid( )
+    if n < -178956970 then return DateTime.Invalid( )
+    return this.AddCalendarMonths( n * 12 )
+end function
+
+'' -- locale formatting (RFC-0007 section 3) ----------------------------
+''
+'' HONEST LIMITATION: this output is whatever the machine's locale says and
+'' CANNOT be asserted by exact string.  Its tests check non-emptiness, valid
+'' UTF-8, ordering and distinctness -- and nothing more.  Anything written to
+'' a file should use the RFC-0006 pattern formatter, which is invariant.
+function DateTime.ToLocaleDateString( byval style as long ) as string
+    dim as zstring * 256 buf
+    if this.IsValid = false then return ""
+    dim as long n = fb_DtLocaleDateString( this.m_ticks, style, @buf, 256 )
+    if n <= 0 then return ""
+    return left( buf, n )
+end function
+
+function DateTime.ToLocaleTimeString( byval style as long ) as string
+    dim as zstring * 256 buf
+    if this.IsValid = false then return ""
+    dim as long n = fb_DtLocaleTimeString( this.m_ticks, style, @buf, 256 )
+    if n <= 0 then return ""
+    return left( buf, n )
+end function
+
+function DateTime.ToLocaleString( byval style as long ) as string
+    dim as string d = this.ToLocaleDateString( style )
+    dim as string t = this.ToLocaleTimeString( style )
+    if len( d ) = 0 then return t
+    if len( t ) = 0 then return d
+    return d + " " + t
+end function
+
+function DateTime.MonthName( byval mo as long, byval abbreviated as boolean ) as string
+    dim as zstring * 128 buf
+    dim as long n = fb_DtLocaleMonthName( mo, iif( abbreviated, 1, 0 ), @buf, 128 )
+    if n <= 0 then return ""
+    return left( buf, n )
+end function
+
+function DateTime.WeekdayName( byval dow as long, byval abbreviated as boolean ) as string
+    dim as zstring * 128 buf
+    dim as long n = fb_DtLocaleWeekdayName( dow, iif( abbreviated, 1, 0 ), @buf, 128 )
+    if n <= 0 then return ""
+    return left( buf, n )
+end function
+
+'' -- interop converters (RFC-0007 section 4) ---------------------------
+''
+'' The bridge that lets existing code migrate one function at a time.  Every
+'' one of these is a single addition (and at most one division), which is the
+'' whole reason RFC-0001 chose this epoch and tick size.
+
+function Instant.FromUnixSeconds( byval v as longint ) as Instant
+    if v > 2147483647000ll then return Instant.Invalid( )
+    if v < -2147483647000ll then return Instant.Invalid( )
+    return Instant( v * DT_TICKS_PER_SECOND + DT_TICKS_TO_UNIX_EPOCH )
+end function
+function Instant.FromUnixMilliseconds( byval v as longint ) as Instant
+    if v > 2147483647000000ll then return Instant.Invalid( )
+    if v < -2147483647000000ll then return Instant.Invalid( )
+    return Instant( v * DT_TICKS_PER_MILLISECOND + DT_TICKS_TO_UNIX_EPOCH )
+end function
+function Instant.FromUnixMicroseconds( byval v as longint ) as Instant
+    if v > 922337203685477ll then return Instant.Invalid( )
+    if v < -922337203685477ll then return Instant.Invalid( )
+    return Instant( v * DT_TICKS_PER_MICROSECOND + DT_TICKS_TO_UNIX_EPOCH )
+end function
+
+'' Floor toward minus infinity, NOT toward zero: pre-1970 instants must not
+'' round the wrong way across the epoch.
+function dtFloorDiv( byval a as longint, byval b as longint ) as longint
+    dim as longint q = a \ b
+    if ( a mod b ) <> 0 then
+        dim as boolean negA = ( a < 0 )
+        dim as boolean negB = ( b < 0 )
+        if negA <> negB then q -= 1
+    end if
+    return q
+end function
+
+property Instant.UnixSeconds( ) as longint
+    if this.IsValid = false then return DT_INVALID_TICKS
+    return dtFloorDiv( this.m_ticks - DT_TICKS_TO_UNIX_EPOCH, DT_TICKS_PER_SECOND )
+end property
+property Instant.UnixMilliseconds( ) as longint
+    if this.IsValid = false then return DT_INVALID_TICKS
+    return dtFloorDiv( this.m_ticks - DT_TICKS_TO_UNIX_EPOCH, DT_TICKS_PER_MILLISECOND )
+end property
+property Instant.UnixMicroseconds( ) as longint
+    if this.IsValid = false then return DT_INVALID_TICKS
+    return dtFloorDiv( this.m_ticks - DT_TICKS_TO_UNIX_EPOCH, DT_TICKS_PER_MICROSECOND )
+end property
+
+function DateTime.FromUnixSeconds( byval v as longint ) as DateTime
+    dim as Instant i = Instant.FromUnixSeconds( v )
+    if i.IsValid = false then return DateTime.Invalid( )
+    return DateTime.FromInstant( i, 0 )
+end function
+function DateTime.FromUnixMilliseconds( byval v as longint ) as DateTime
+    dim as Instant i = Instant.FromUnixMilliseconds( v )
+    if i.IsValid = false then return DateTime.Invalid( )
+    return DateTime.FromInstant( i, 0 )
+end function
+property DateTime.UnixSeconds( ) as longint
+    return this.AssumeUtc( ).UnixSeconds
+end property
+property DateTime.UnixMilliseconds( ) as longint
+    return this.AssumeUtc( ).UnixMilliseconds
+end property
+property DateTime.UnixMicroseconds( ) as longint
+    return this.AssumeUtc( ).UnixMicroseconds
+end property
+
+'' The migration pair.  datetime.bi's serial double shares the OLE epoch
+'' (1899-12-30), so a program can adopt this API in one function while the rest
+'' keeps using DateSerial and DateAdd.  LOSSY below about a millisecond: a
+'' double has ~15 significant digits and present-day serials use most of them.
+function DateTime.FromSerial( byval d as double ) as DateTime
+    dim as longint t = dtTicksFromDouble( d * DT_TICKS_PER_DAY )
+    if t = DT_INVALID_TICKS then return DateTime.Invalid( )
+    if dtAddOverflows( t, DT_TICKS_TO_OLE_EPOCH ) then return DateTime.Invalid( )
+    return DateTime.FromTicks( t + DT_TICKS_TO_OLE_EPOCH, DT_OFFSET_UNSPECIFIED )
+end function
+property DateTime.Serial( ) as double
+    if this.IsValid = false then return 0
+    return ( this.m_ticks - DT_TICKS_TO_OLE_EPOCH ) / DT_TICKS_PER_DAY
+end property
+
+'' Win32 FILETIME: 100 ns ticks since 1601-01-01.  Same unit as ours, so this
+'' is pure addition -- no scaling, no rounding, nothing lost.
+function DateTime.FromFileTime( byval ft as longint ) as DateTime
+    if ft < 0 then return DateTime.Invalid( )
+    if dtAddOverflows( ft, DT_TICKS_TO_FILETIME ) then return DateTime.Invalid( )
+    return DateTime.FromTicks( ft + DT_TICKS_TO_FILETIME, 0 )
+end function
+property DateTime.FileTime( ) as longint
+    if this.IsValid = false then return DT_INVALID_TICKS
+    return this.AssumeUtc( ).Ticks - DT_TICKS_TO_FILETIME
+end property
+
+function DateTime.FromOleDate( byval d as double ) as DateTime
+    return DateTime.FromSerial( d )
+end function
+property DateTime.OleDate( ) as double
+    return this.Serial
+end property
+
+
+'' ============================================ USTRING overloads (phase 8)
+''
+'' Thin by construction.  The C layer already emits UTF-8 on both platforms,
+'' and FreeBASIC decodes STRING -> USTRING as UTF-8 and encodes back the
+'' same way, so each of these is a boundary conversion and nothing more.
+''
+'' ISO 8601 and the pattern formatter are ASCII by construction, so their
+'' USTRING forms exist for uniformity rather than need.  The LOCALE family
+'' is the one that matters -- month, weekday and zone names are routinely
+'' non-ASCII -- and is why phase 8 waited for a frozen STRING surface.
+
+function DateTime.ToIsoUString( ) as ustring
+    return this.ToIsoString( )
+end function
+function Instant.ToIsoUString( ) as ustring
+    return this.ToIsoString( )
+end function
+function LocalDate.ToIsoUString( ) as ustring
+    return this.ToIsoString( )
+end function
+function LocalTime.ToIsoUString( ) as ustring
+    return this.ToIsoString( )
+end function
+function TimeSpan.ToIsoUString( ) as ustring
+    return this.ToIsoString( )
+end function
+
+function DateTime.ToString overload ( byref pattern as ustring ) as ustring
+    dim as string p = pattern
+    return this.ToString( p )
+end function
+
+function DateTime.TryFormat overload ( byref pattern as ustring, byref result as ustring ) as boolean
+    dim as string p = pattern
+    dim as string r
+    dim as boolean ok = this.TryFormat( p, r )
+    result = r
+    return ok
+end function
+
+function DateTime.TryParseIso overload ( byref s as ustring, byref result as DateTime ) as boolean
+    dim as string t = s
+    return DateTime.TryParseIso( t, result )
+end function
+function DateTime.TryParse overload ( byref s as ustring, byref result as DateTime ) as boolean
+    dim as string t = s
+    return DateTime.TryParseIso( t, result )
+end function
+function DateTime.ParseIso overload ( byref s as ustring ) as DateTime
+    dim as string t = s
+    return DateTime.ParseIso( t )
+end function
+function DateTime.TryParseExact overload ( byref s as ustring, byref pattern as ustring, byref result as DateTime ) as boolean
+    dim as string t = s
+    dim as string p = pattern
+    return DateTime.TryParseExact( t, p, result )
+end function
+function DateTime.ParseExact overload ( byref s as ustring, byref pattern as ustring ) as DateTime
+    dim as string t = s
+    dim as string p = pattern
+    return DateTime.ParseExact( t, p )
+end function
+
+function Instant.TryParseIso overload ( byref s as ustring, byref result as Instant ) as boolean
+    dim as string t = s
+    return Instant.TryParseIso( t, result )
+end function
+function Instant.ParseIso overload ( byref s as ustring ) as Instant
+    dim as string t = s
+    return Instant.ParseIso( t )
+end function
+
+function LocalDate.TryParseIso overload ( byref s as ustring, byref result as LocalDate ) as boolean
+    dim as string t = s
+    return LocalDate.TryParseIso( t, result )
+end function
+function LocalDate.ParseIso overload ( byref s as ustring ) as LocalDate
+    dim as string t = s
+    return LocalDate.ParseIso( t )
+end function
+
+function LocalTime.TryParseIso overload ( byref s as ustring, byref result as LocalTime ) as boolean
+    dim as string t = s
+    return LocalTime.TryParseIso( t, result )
+end function
+function LocalTime.ParseIso overload ( byref s as ustring ) as LocalTime
+    dim as string t = s
+    return LocalTime.ParseIso( t )
+end function
+
+function TimeSpan.TryParseIso overload ( byref s as ustring, byref result as TimeSpan ) as boolean
+    dim as string t = s
+    return TimeSpan.TryParseIso( t, result )
+end function
+function TimeSpan.ParseIso overload ( byref s as ustring ) as TimeSpan
+    dim as string t = s
+    return TimeSpan.ParseIso( t )
+end function
+
+function DateTime.ToLocaleDateUString( byval style as long ) as ustring
+    return this.ToLocaleDateString( style )
+end function
+function DateTime.ToLocaleTimeUString( byval style as long ) as ustring
+    return this.ToLocaleTimeString( style )
+end function
+function DateTime.ToLocaleUString( byval style as long ) as ustring
+    return this.ToLocaleString( style )
+end function
+function DateTime.MonthUName( byval mo as long, byval abbreviated as boolean ) as ustring
+    return DateTime.MonthName( mo, abbreviated )
+end function
+function DateTime.WeekdayUName( byval dow as long, byval abbreviated as boolean ) as ustring
+    return DateTime.WeekdayName( dow, abbreviated )
+end function
+
+'' =============================================================== WallClock
+''
+'' RFC-0003 section 2.  The wall clock: what time is it.  It CAN jump backwards
+'' -- NTP corrections, DST, a user setting the clock -- so it is the wrong tool
+'' for measuring elapsed time.  Use Stopwatch for that.
+'' A namespace rather than a TYPE: FreeBASIC will not accept a TYPE with no
+'' data members, and the call syntax WallClock.UtcNow( ) is identical either way.
+namespace WallClock
+
+public function UtcNow( ) as Instant
+    return Instant( fb_DtClockUtcNow( ) )
+end function
+
+'' The offset is the one in force AT THIS INSTANT, and it is recorded in the
+'' value -- so WallClock.Now( ).ToInstant( ) round-trips even across a DST change.
+public function Now( ) as DateTime
+    dim as longint utc = fb_DtClockUtcNow( )
+    if fb_DtIsValidTicks( utc ) = 0 then return DateTime.Invalid( )
+    dim as short offMin = cshort( fb_DtClockLocalOffsetNow( ) )
+    return DateTime.FromInstant( Instant( utc ), offMin )
+end function
+
+public function Today( ) as LocalDate
+    return Now( ).GetDate( )
+end function
+
+public function TimeOfDay( ) as LocalTime
+    return Now( ).GetTimeOfDay( )
+end function
+
+public function Resolution( ) as TimeSpan
+    return TimeSpan( fb_DtClockResolution( ) )
+end function
+
+end namespace
+
+'' =============================================================== Stopwatch
+''
+'' RFC-0003 section 3.  The monotonic clock: how long since.  Never jumps, so
+'' unlike TIMER it stays correct across an NTP correction or a DST shift.
+''
+'' ACCUMULATES rather than recomputing from two stored timestamps, so
+'' start/stop/start is correct with no special cases.  That is why Elapsed is a
+'' property over an accumulator and not a subtraction of endpoints.
+public type Stopwatch
+    m_elapsed as longint      '' ticks banked from completed segments
+    m_started as longint      '' raw counter when the current segment began
+    m_running as boolean
+
+    declare constructor( )
+    declare static function StartNew( ) as Stopwatch
+
+    declare sub Start  ( )
+    declare sub Stop_  ( )
+    declare sub Reset  ( )
+    declare sub Restart( )
+
+    declare property IsRunning( ) as boolean
+    declare property Elapsed  ( ) as TimeSpan
+    declare property ElapsedMilliseconds( ) as longint
+    declare property ElapsedTicks( ) as longint
+
+    declare static function Frequency       ( ) as longint
+    declare static function GetTimestamp    ( ) as longint
+    declare static function IsHighResolution( ) as boolean
+end type
+
+constructor Stopwatch( )
+    this.m_elapsed = 0
+    this.m_started = 0
+    this.m_running = false
+end constructor
+
+function Stopwatch.StartNew( ) as Stopwatch
+    dim as Stopwatch s
+    s.Start( )
+    return s
+end function
+
+sub Stopwatch.Start( )
+    if this.m_running then exit sub            '' no-op when already running
+    this.m_started = fb_DtMonoTimestamp( )
+    this.m_running = true
+end sub
+
+'' Named Stop_ because STOP is a FreeBASIC statement keyword.
+sub Stopwatch.Stop_( )
+    if this.m_running = false then exit sub    '' no-op when already stopped
+    dim as longint counts = fb_DtMonoTimestamp( ) - this.m_started
+    this.m_elapsed += fb_DtTicksFromCounts( counts, fb_DtMonoFrequency( ) )
+    this.m_running = false
+end sub
+
+sub Stopwatch.Reset( )
+    this.m_elapsed = 0
+    this.m_started = 0
+    this.m_running = false
+end sub
+
+sub Stopwatch.Restart( )
+    this.m_elapsed = 0
+    this.m_started = fb_DtMonoTimestamp( )
+    this.m_running = true
+end sub
+
+property Stopwatch.IsRunning( ) as boolean
+    return this.m_running
+end property
+
+property Stopwatch.ElapsedTicks( ) as longint
+    dim as longint total = this.m_elapsed
+    if this.m_running then
+        dim as longint counts = fb_DtMonoTimestamp( ) - this.m_started
+        total += fb_DtTicksFromCounts( counts, fb_DtMonoFrequency( ) )
+    end if
+    return total
+end property
+
+property Stopwatch.Elapsed( ) as TimeSpan
+    return TimeSpan( this.ElapsedTicks )
+end property
+
+property Stopwatch.ElapsedMilliseconds( ) as longint
+    return this.ElapsedTicks \ DT_TICKS_PER_MILLISECOND
+end property
+
+function Stopwatch.Frequency( ) as longint
+    return fb_DtMonoFrequency( )
+end function
+function Stopwatch.GetTimestamp( ) as longint
+    return fb_DtMonoTimestamp( )
+end function
+function Stopwatch.IsHighResolution( ) as boolean
+    return fb_DtMonoIsHighRes( ) <> 0
+end function
+
+'' ================================================================ CpuClock
+''
+'' RFC-0003 section 4.  How much CPU this process or thread has consumed --
+'' which a SLEEP does not advance, and that is the whole point.
+'' A namespace, for the same reason as WallClock above.
+namespace CpuClock
+
+public function ProcessTime( ) as TimeSpan
+    dim as longint u, k
+    if fb_DtCpuProcessTime( @u, @k ) <> 0 then return TimeSpan.Invalid( )
+    if k < 0 then return TimeSpan( u )
+    return TimeSpan( u + k )
+end function
+
+public function ProcessUserTime( ) as TimeSpan
+    dim as longint u, k
+    if fb_DtCpuProcessTime( @u, @k ) <> 0 then return TimeSpan.Invalid( )
+    return TimeSpan( u )
+end function
+
+public function ProcessKernelTime( ) as TimeSpan
+    dim as longint u, k
+    if fb_DtCpuProcessTime( @u, @k ) <> 0 then return TimeSpan.Invalid( )
+    '' -1 means the platform does not split user from kernel here
+    if k < 0 then return TimeSpan.Invalid( )
+    return TimeSpan( k )
+end function
+
+public function ThreadTime( ) as TimeSpan
+    dim as longint u, k
+    if fb_DtCpuThreadTime( @u, @k ) <> 0 then return TimeSpan.Invalid( )
+    if k < 0 then return TimeSpan( u )
+    return TimeSpan( u + k )
+end function
+
+public function IsSupported( ) as boolean
+    return fb_DtCpuIsSupported( ) <> 0
+end function
+
+end namespace

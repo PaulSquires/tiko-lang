@@ -1,7 +1,7 @@
-'' std/chrono (RFC-0009): LocalDate built and passed to an FB.LocalDate parameter; a static TimeSpan member; the nested namespace WallClock.
-'' It is a facade -- exported macros over the header, found through -i as a user's toolchain
-'' finds it in its inc/ -- and the program includes that header too, so the facade's names
-'' and the header's FB names are shown to be one and the same.
+'' std/chrono, a real module since 2026-10-10 (it was a facade over fb/chrono.bi, and is three
+'' files now, at the 1500-line cap): LocalDate and its DayNumber, TimeSpan's static FromMinutes
+'' and constructor, the nested namespace WallClock -- and, under 'using chrono', the tick
+'' constants, public now.
 '' TEST: cli
 '' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/chrono.bas -o tests/modules/stdchrono.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
@@ -9,3 +9,4 @@
 '' RUN: tests/modules/stdchrono.exe
 '' EXPECT-RUN-OUT: 2026 9 28 1
 '' EXPECT-RUN-OUT: true -1
+'' EXPECT-RUN-OUT: 10000000 2026-10-10

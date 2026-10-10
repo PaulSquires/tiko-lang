@@ -1,6 +1,8 @@
 #module "logs"
 #import "std/numeric"
+#import "std/chrono"
 using numeric
+using chrono
 '' std/logs: logasync -- FB.Logging's asynchronous sink
 ''
 ''     #import "std/logs"
@@ -42,7 +44,6 @@ using numeric
 '' .mono), so the log says when the event happened, not when the worker wrote it.
 
 
-#include once "fb/chrono.bi"
 #include once "fb/array.bi"
 
 using FB
