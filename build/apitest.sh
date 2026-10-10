@@ -15,11 +15,17 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) ;;
     *) echo "apitest: Windows only (the harness loads a .dll)"; exit 0 ;;
 esac
-FBC=${TKO_STAGE0:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
 DLL=bin/tikoParser.dll
 [ -f "$DLL" ] || { echo "apitest: $DLL not built -- build/build.sh --dll" >&2; exit 3; }
 
-"$FBC" tools/tkpdump/tkpdump.bas -i src -w all -x bin/tkpdump.exe
+# THE HARNESS IS BUILT BY THE STAGE0 build.sh USES: TKO_SEED, else build/defaultseed.sh's
+# pick -- the seed, against the tree's inc/, as the DLL it loads was built. It was fbc
+# until 2026-10-10 (bootstrap plan, phase T); seed-2 is the first seed whose runtime runs
+# a DLL's atexit handlers at DLL_PROCESS_DETACH, which the harness's unload checks need.
+. "$ROOT/build/defaultseed.sh"
+SEEDCC=${TKO_SEED:-$(default_seed "$ROOT" 1)} || {
+    echo "apitest: no seed compiler -- seed/fetch-seed.sh, or TKO_SEED" >&2; exit 3; }
+TKO_INCLUDE="$ROOT/inc" "$SEEDCC" tools/tkpdump/tkpdump.bas -i src -o bin/tkpdump.exe
 H=bin/tkpdump.exe
 FAIL=0
 check( ) {  # check <label> <expected-substring> <command...>
@@ -49,7 +55,10 @@ INC=$(cygpath -w "$ROOT/tests/driver/src/modcache/libs")
 SCANCACHE="$ROOT/build/.apitest-scancache"
 rm -rf "$SCANCACHE"
 out=$(TKO_MODCACHE="$SCANCACHE" TKP_INCDIR="$INC" $H $DLL tests/driver/src/modcache/app/main.bas dump 2>&1)
-if echo "$out" | grep -qF "k2 Twice as long  @3:3:17  parent=2  body=3..5" && \
+# parent=1, the 'middle' namespace: the scan lists the two symbols main.bas can see, as
+# 'tiko --dump-scan' does over the same files. It said parent=2 when this was written, and
+# had gone stale unrun while the harness needed an fbc (found 2026-10-10).
+if echo "$out" | grep -qF "k2 Twice as long  @3:3:17  parent=1  body=3..5" && \
    echo "$out" | grep -qF "k13 middle  @0:1:15"; then
     echo "ok    #import: middle.Twice at middle.bas:3:17"
 else
