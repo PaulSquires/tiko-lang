@@ -12,25 +12,23 @@
 '' exactly that mixture.  The test computes BOTH and asserts the header uses
 '' the correct one, so the bug cannot come back quietly.
 ''
-'' EVERY SERIES PARAMETER IS FB.Array now, not a plain 'r( ) as double'.  Test
+'' EVERY SERIES PARAMETER IS containers.Array now, not a plain 'r( ) as double'.  Test
 '' data is still written as a plain array literal -- that is the readable way to
-'' write a return series -- and copied into the FB.Array the header takes.
+'' write a return series -- and copied into the containers.Array the header takes.
 '' PushAll is that copy.
 
+#import "std/containers"
 #import "std/money"
 #import "std/outcome"
 #import "std/numeric"
 #import "std/chrono"
 #include once "fbcunit.bi"
-#include once "fb/array.bi"
-
-#include once "fb/array.bi"
 
 #include once "fberror.bi"
 
 #include once "fblimits.bi"
 
-using money, outcome, numeric, chrono
+using containers, money, outcome, numeric, chrono
 
 using FB
 private function D( byref s as string ) as Decimal
@@ -167,7 +165,7 @@ SUITE( fbc_tests.finance.portfolio )
 		CU_ASSERT_DOUBLE_EQUAL( mLast, 2000.0 / 100000.0, 1.0e-14 )
 
 		'' With NO flows it degenerates to the plain holding-period return.
-		'' AN EMPTY FB.Array IS JUST A DEFAULT-CONSTRUCTED ONE -- no 'dim ...
+		'' AN EMPTY containers.Array IS JUST A DEFAULT-CONSTRUCTED ONE -- no 'dim ...
 		'' ( any )' dance and no lbound/ubound edge case.
 		dim as Array( of Decimal ) noFlow
 		dim as Array( of long ) noOff
@@ -351,7 +349,7 @@ SUITE( fbc_tests.finance.portfolio )
 		CU_ASSERT_DOUBLE_EQUAL( md.Value( ), 0.0250000000000001, 1.0e-13 )
 
 		'' The peak and trough indices bracket the worst fall.  THEY ARE
-		'' ZERO-BASED OFFSETS into the FB.Array, which is what they were before
+		'' ZERO-BASED OFFSETS into the containers.Array, which is what they were before
 		'' too -- the header always subtracted lbound before returning.
 		CU_ASSERT( MaxDrawdownPeak( r ).HasValue( ) )
 		CU_ASSERT( MaxDrawdownTrough( r ).HasValue( ) )
@@ -440,7 +438,7 @@ SUITE( fbc_tests.finance.portfolio )
 		dim as Array( of double ) r, b
 		fillSeries( r, b )
 
-		'' EMPTY series -- a default-constructed FB.Array, with no 'dim ...
+		'' EMPTY series -- a default-constructed containers.Array, with no 'dim ...
 		'' ( any )' to explain.
 		dim as Array( of double ) empty_
 		CU_ASSERT( Volatility( empty_, RETURN_MONTHLY ).Failure( ).Code( ) = FIN_EMPTY_SERIES )

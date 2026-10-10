@@ -1,6 +1,8 @@
 #module "tui"
 #import "std/outcome"
+#import "std/containers"
 using outcome
+using containers
 '' std/tui: tuiform -- the input widgets
 ''
 '' RFC-0008 section 4 -- C:\dev\docs\tui\RFC-0008-widget-catalogue.md.
@@ -19,18 +21,12 @@ using outcome
 '' pair or between a base character and its combining mark.
 
 
-#include once "fb/array.bi"
-#include once "fb/array.bi"
-#include once "fb/array.bi"
 #ifdef __FB_WIN32__
     #include once "windows.bi"
 #else
     #include once "crt.bi"
 #endif
-#include once "fb/array.bi"
-#include once "fb/array.bi"
 
-using FB
 
 '' ============================================================== stepping
 

@@ -20,13 +20,12 @@
 
 #import "std/fs"
 #import "std/outcome"
+#import "std/containers"
 #include "fbcunit.bi"
-
-#include once "fb/array.bi"
 
 #include once "fberror.bi"
 
-using fs, outcome
+using fs, outcome, containers
 
 using FB
 '' Resolves on the ACTUAL type of whatever it is handed, so a test can assert

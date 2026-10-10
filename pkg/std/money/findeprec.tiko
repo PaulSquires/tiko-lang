@@ -2,9 +2,11 @@
 #import "std/numeric"
 #import "std/chrono"
 #import "std/outcome"
+#import "std/containers"
 using numeric
 using chrono
 using outcome
+using containers
 '' std/money: findeprec -- depreciation
 ''
 ''     #import "std/money"
@@ -69,7 +71,6 @@ using outcome
 
 #include once "fblimits.bi"
 #include once "fblimits.bi"
-#include once "fb/array.bi"
 
 using FB
 

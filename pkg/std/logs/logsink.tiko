@@ -1,8 +1,10 @@
 #module "logs"
 #import "std/numeric"
 #import "std/chrono"
+#import "std/containers"
 using numeric
 using chrono
+using containers
 '' std/logs: logsink -- FB.Logging sinks
 ''
 '' RFC-0004 -- C:\dev\docs\logging\RFC-0004-sinks.md.
@@ -21,9 +23,7 @@ using chrono
 '' get a correct logger, unlike fb/sync.bi and fb/scheduler.bi which do.
 
 
-#include once "fb/array.bi"
 
-using FB
 
 '' ============================================================== Sink
 ''

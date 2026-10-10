@@ -1,6 +1,8 @@
 #module "fs"
 #import "std/outcome"
+#import "std/containers"
 using outcome
+using containers
 '' std/fs: fsadvanced -- file watching, memory mapping, advisory locking
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0009-advanced.md.
@@ -11,8 +13,6 @@ using outcome
 '' lifetime rules, and nothing here calls anything else here.
 
 
-#include once "fb/array.bi"
-#include once "fb/array.bi"
 
 #if __FB_LANG__ <> "fb"
     #error "fb/fsadvanced.bi requires -lang fb (it uses namespaces)"
@@ -24,7 +24,6 @@ using outcome
     #define FBFSADV_EXTERN extern "C"
 #endif
 
-using FB
 
 '' Must match FB_FSCHANGE_* in src/rtlib/fb_filesystem.h.
 public enum FsChangeKind

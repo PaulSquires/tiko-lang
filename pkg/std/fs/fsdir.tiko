@@ -1,6 +1,8 @@
 #module "fs"
 #import "std/outcome"
+#import "std/containers"
 using outcome
+using containers
 '' std/fs: fsdir -- FB.DirEntry, FB.DirIterator, FB.ReadDir
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0004-iteration.md.
@@ -40,8 +42,6 @@ using outcome
 '' must copy it.
 
 
-#include once "fb/array.bi"
-#include once "fb/array.bi"
 
 #if __FB_LANG__ <> "fb"
     #error "fb/fsdir.bi requires -lang fb (it uses namespaces)"
@@ -56,7 +56,6 @@ using outcome
 public const FB_FS_MAXNAME = 260
 public const FB_FS_EXHAUSTED = (-1)
 
-using FB
 
 '' Mirror of FB_FSDIRENT. Layout is ABI -- see the note on FileInfo.
 public type FsDirEntRaw        '' public for the ABI suites (tests/std/filesystem), not API
@@ -335,7 +334,7 @@ end function
 '' Recursive, pre-order, and specified in RFC-0004 section 5.
 ''
 '' IT DOES NOT HOLD A STACK OF DirIterators, and that is forced rather than
-'' chosen. FB.Array reallocates on growth and COPIES its elements, and a
+'' chosen. containers.Array reallocates on growth and COPIES its elements, and a
 '' DirIterator owns an OS handle whose destructor closes it -- so an
 '' Array( of DirIterator ) would close live handles on every reallocation and
 '' again on every pop. Instead the walk keeps a flat stack of ENTRIES and lists

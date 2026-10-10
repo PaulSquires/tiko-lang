@@ -50,8 +50,45 @@ extern "C"
 declare function fb_DtTicksFromCounts alias "fb_DtTicksFromCounts" ( byval counts as longint, byval freq as longint ) as longint
 declare function fb_DtIsValidTicks alias "fb_DtIsValidTicks" ( byval ticks as longint ) as long
 end extern'''
+#
+# THE HASH HOOK IS A MEMBER NOW. A user key type was made hashable by re-opening namespace FB
+# and adding a HashOf overload; std/containers' namespace cannot be re-opened, so the type
+# extends containers.Hashable and overrides its HashOf( ) (hash.tiko says why).
+_MAP_KEY_OLD = """type PairKey
+\tas long a, b
+end type"""
+_MAP_KEY_NEW = """type PairKey extends containers.Hashable
+\tas long a, b
+\tdeclare function HashOf( ) as ulongint override
+end type"""
+_MAP_HASH_OLD = """namespace FB
+\tfunction HashOf overload ( byref k as PairKey ) as ulongint
+\t\t'' equal keys must hash equal -- derived only from the compared fields
+\t\treturn HashOf( k.a ) xor (HashOf( k.b ) shl 1)
+\tend function
+end namespace"""
+_MAP_HASH_NEW = """function PairKey.HashOf( ) as ulongint
+\t'' equal keys must hash equal -- derived only from the compared fields
+\treturn containers.HashOf( a ) xor (containers.HashOf( b ) shl 1)
+end function"""
+_SET_KEY_OLD = """\tdeclare destructor( )
+end type"""
+_SET_KEY_NEW = """\tdeclare destructor( )
+\tdeclare function HashOf( ) as ulongint override
+end type"""
+_SET_HASH_OLD = """namespace FB
+\tfunction HashOf overload ( byref k as Counted ) as ulongint
+\t\treturn HashOf( k.v )
+\tend function
+end namespace"""
+_SET_HASH_NEW = """function Counted.HashOf( ) as ulongint
+\treturn containers.HashOf( v )
+end function"""
 PATCHES = {
     "chrono/clocks.bas": [('#include once "fbcunit.bi"', _DT_KERNEL)],
+    "generics/container-map.bas": [(_MAP_KEY_OLD, _MAP_KEY_NEW), (_MAP_HASH_OLD, _MAP_HASH_NEW)],
+    "generics/container-set.bas": [("type Counted\n", "type Counted extends containers.Hashable\n"),
+                                   (_SET_KEY_OLD, _SET_KEY_NEW), (_SET_HASH_OLD, _SET_HASH_NEW)],
     "chrono/zones.bas": [('#include once "fbcunit.bi"', _DT_KERNEL)],
 }
 # file -> [(regex, replacement)], applied after PATCHES; each must match at least once.

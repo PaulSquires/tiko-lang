@@ -1,4 +1,6 @@
 #module "numeric"
+#import "std/containers"
+using containers
 '' std/numeric: stats -- compensated summation and descriptive statistics
 ''
 ''     #import "std/numeric"
@@ -8,8 +10,8 @@
 ''     v.Push( ... )
 ''     print Sum( v ), Mean( v ), StdDev( v ), Median( v )
 ''
-'' EVERY ARRAY PARAMETER IS FB.Array( of T ), NOT a plain 'v( ) as double'.
-'' FB.Array is ZERO-BASED, so a caller that used to pass a 1-based array gets
+'' EVERY ARRAY PARAMETER IS containers.Array( of T ), NOT a plain 'v( ) as double'.
+'' containers.Array is ZERO-BASED, so a caller that used to pass a 1-based array gets
 '' the same values with different indices -- see fb/array.bi.
 ''
 ''     dim acc as RunningStats
@@ -33,7 +35,6 @@
 
 
 #include once "fblimits.bi"
-#include once "fb/array.bi"
 
 using FB
 

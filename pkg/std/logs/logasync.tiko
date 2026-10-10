@@ -1,8 +1,10 @@
 #module "logs"
 #import "std/numeric"
 #import "std/chrono"
+#import "std/containers"
 using numeric
 using chrono
+using containers
 '' std/logs: logasync -- FB.Logging's asynchronous sink
 ''
 ''     #import "std/logs"
@@ -44,9 +46,7 @@ using chrono
 '' .mono), so the log says when the event happened, not when the worker wrote it.
 
 
-#include once "fb/array.bi"
 
-using FB
 
 public enum OverflowPolicy
     OP_BLOCK = 0          '' default: the caller waits for room -- nothing is lost

@@ -2,9 +2,11 @@
 #import "std/numeric"
 #import "std/chrono"
 #import "std/outcome"
+#import "std/containers"
 using numeric
 using chrono
 using outcome
+using containers
 '' std/money: fincash -- cash flows and investment appraisal
 ''
 ''     #import "std/money"
@@ -15,8 +17,8 @@ using outcome
 ''     var npv = NetPresentValue( flows, rate )
 ''     var irr = InternalRateOfReturn( flows )
 ''
-'' EVERY SERIES PARAMETER IS FB.Array, NOT a plain 'flows( ) as Decimal'.
-'' FB.Array is ZERO-BASED, so t = 0 is flows[ 0 ] with no lbound to think about
+'' EVERY SERIES PARAMETER IS containers.Array, NOT a plain 'flows( ) as Decimal'.
+'' containers.Array is ZERO-BASED, so t = 0 is flows[ 0 ] with no lbound to think about
 '' -- a caller that used to pass a 1-based array must re-base it.
 ''
 '' Specified by C:\dev\docs\finance\RFC-0006-cash-flows.md.  Phase 5.
@@ -65,7 +67,6 @@ using outcome
 
 #include once "fblimits.bi"
 #include once "fblimits.bi"
-#include once "fb/array.bi"
 
 using FB
 

@@ -1,8 +1,10 @@
 #module "logs"
 #import "std/numeric"
 #import "std/chrono"
+#import "std/containers"
 using numeric
 using chrono
+using containers
 '' std/logs: logrender -- FB.Logging renderers
 ''
 '' RFC-0003 -- C:\dev\docs\logging\RFC-0003-renderers.md.
@@ -24,9 +26,7 @@ using chrono
 '' (phase 2).
 
 
-#include once "fb/array.bi"
 
-using FB
 
 '' ============================================================== Renderer
 public type Renderer extends object

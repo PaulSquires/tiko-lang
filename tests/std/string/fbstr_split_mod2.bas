@@ -18,13 +18,10 @@
 '' gathers only the .bas files that include it. There are no suites here --
 '' the file exists to be compiled and linked, not to assert.
 #import "std/strings"
+#import "std/containers"
 #include "fbcunit.bi"
 
-#include once "fb/array.bi"
-
-using strings
-
-using FB
+using strings, containers
 '' Called from fbstr_split.bas.
 function SplitInOtherModule( byref s as const string ) as integer
 	dim parts as Array( of string ) = Split( s, "," )

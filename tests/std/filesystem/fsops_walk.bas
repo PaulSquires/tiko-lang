@@ -19,13 +19,12 @@
 
 #import "std/fs"
 #import "std/outcome"
+#import "std/containers"
 #include "fbcunit.bi"
-
-#include once "fb/array.bi"
 
 #include once "fberror.bi"
 
-using fs, outcome
+using fs, outcome, containers
 
 using FB
 '' A fresh temp tree per test. Returns "" if it could not be made, and every

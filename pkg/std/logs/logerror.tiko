@@ -1,8 +1,10 @@
 #module "logs"
 #import "std/numeric"
 #import "std/chrono"
+#import "std/containers"
 using numeric
 using chrono
+using containers
 
 '' std/chrono's C kernel, which is the runtime's (src/rtlib/dt_core.c) and not chrono's API:
 '' the few this module calls, declared here for every file of it.
@@ -62,9 +64,7 @@ end extern
 ''
 
 
-#include once "fb/array.bi"
 
-using FB
 
 #ifdef __FB_WIN32__
 '' KERNEL32 IS REACHED THROUGH POINTERS, NOT DECLARATIONS.

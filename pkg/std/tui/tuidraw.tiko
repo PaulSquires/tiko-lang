@@ -1,6 +1,8 @@
 #module "tui"
 #import "std/outcome"
+#import "std/containers"
 using outcome
+using containers
 '' std/tui: tuidraw -- braille canvas, graphs, sparklines, bar charts and meters
 ''
 ''     dim as TuiCanvas c = TuiCanvas( 60, 10 )   '' 120 x 40 DOTS
@@ -34,18 +36,12 @@ using outcome
 '' Bits 6 and 7 are the BOTTOM row, not the right column.
 
 
-#include once "fb/array.bi"
-#include once "fb/array.bi"
-#include once "fb/array.bi"
 #ifdef __FB_WIN32__
     #include once "windows.bi"
 #else
     #include once "crt.bi"
 #endif
-#include once "fb/array.bi"
-#include once "fb/array.bi"
 
-using FB
 
 '' ============================================================== colour lerp
 

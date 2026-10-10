@@ -1,6 +1,8 @@
 #module "fs"
 #import "std/outcome"
+#import "std/containers"
 using outcome
+using containers
 '' std/fs: fsvolume -- FB.DiskSpace, FB.VolumeInfo, FB.GetVolumes
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0008-volumes.md.
@@ -21,8 +23,6 @@ using outcome
 '' is a courtesy, and the write's FS_NO_SPACE is the real answer.
 
 
-#include once "fb/array.bi"
-#include once "fb/array.bi"
 
 #if __FB_LANG__ <> "fb"
     #error "fb/fsvolume.bi requires -lang fb (it uses namespaces)"
@@ -41,7 +41,6 @@ public const FB_FSVOL_LINKS = 4
 
 public const FB_FS_MAXPATH = 512
 
-using FB
 
 public type DiskSpace
     as ulongint TotalBytes      '' capacity of the volume

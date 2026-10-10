@@ -1,8 +1,10 @@
 #module "logs"
 #import "std/numeric"
 #import "std/chrono"
+#import "std/containers"
 using numeric
 using chrono
+using containers
 '' std/logs: logrecord -- the value layer of FB.Logging
 ''
 ''     #import "std/logs"
@@ -35,9 +37,7 @@ using chrono
 '' why the tag set below is CLOSED -- see RFC-0001 section 2.
 
 
-#include once "fb/array.bi"
 
-using FB
 
 '' ============================================================== LogLevel
 ''

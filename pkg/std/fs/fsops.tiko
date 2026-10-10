@@ -1,6 +1,8 @@
 #module "fs"
 #import "std/outcome"
+#import "std/containers"
 using outcome
+using containers
 ''  LOCAL NAMES HERE MUST NOT COLLIDE WITH ANYTHING DECLARED AT NAMESPACE
 ''  SCOPE IN FB.  This file lives inside `namespace FB`, so a local called
 ''  `count`, `e` or `norm` is a duplicate of FB.Count (fb/stats.bi), FB.e
@@ -35,9 +37,6 @@ using outcome
 '' what is genuinely per-platform or genuinely hot lives in the kernel.
 
 
-#include once "fb/array.bi"
-#include once "fb/array.bi"
-#include once "fb/array.bi"
 
 #if __FB_LANG__ <> "fb"
     #error "fb/fsops.bi requires -lang fb (it uses namespaces)"
@@ -49,7 +48,6 @@ using outcome
     #define FBFSOPS_EXTERN extern "C"
 #endif
 
-using FB
 
 FBFSOPS_EXTERN
     declare function FsReadWholeRaw alias "fb_UStrFsReadWhole" _

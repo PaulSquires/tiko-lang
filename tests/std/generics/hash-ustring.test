@@ -1,0 +1,7 @@
+'' tests/vendor/fbc-tests/generics/hash-ustring.bas ported to the std modules (build/stdtests.py, generated).
+'' Expected: what tests/std/baseline/generics/hash-ustring.txt recorded for the original.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/std/generics/hash-ustring.bas -o tests/std/generics/hash-ustring.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/std/generics/hash-ustring.exe

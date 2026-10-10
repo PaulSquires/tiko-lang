@@ -2,9 +2,11 @@
 #import "std/fs"
 #import "std/numeric"
 #import "std/chrono"
+#import "std/containers"
 using fs
 using numeric
 using chrono
+using containers
 '' std/logs: logdefault -- the process-wide default logger, logs.DefaultLogger( )
 ''
 ''     #import "std/logs"
@@ -41,9 +43,7 @@ using chrono
 '' A library that sits in namespace FB cannot take the name of an intrinsic.
 
 
-#include once "fb/array.bi"
 
-using FB
 
 '' The default logger: the module's, constructed when std/logs is initialised.
 dim shared hLogDefault as Logger

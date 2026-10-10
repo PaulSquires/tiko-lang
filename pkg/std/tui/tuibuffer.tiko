@@ -1,4 +1,6 @@
 #module "tui"
+#import "std/containers"
+using containers
 '' std/tui: tuibuffer -- the cell buffer, the frame, and the diff
 ''
 ''     dim as TuiScreen scr
@@ -23,10 +25,7 @@
 '' ignored Result is worse than an honest sub. rationale.md section 5.
 
 
-#include once "fb/array.bi"
-#include once "fb/array.bi"
 
-using FB
 
 '' ============================================================== width
 ''

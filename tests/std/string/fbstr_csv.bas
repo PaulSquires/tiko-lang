@@ -27,13 +27,10 @@
 ''      STRING set really is a set of bytes.
 
 #import "std/strings"
+#import "std/containers"
 #include "fbcunit.bi"
 
-#include once "fb/array.bi"
-
-using strings
-
-using FB
+using strings, containers
 '' defined in fbstr_csv_mod2.bas -- proves two modules can both include the
 '' header, which is the whole point of the CSV bodies being private
 declare function CsvInOtherModule( byref s as const string ) as integer

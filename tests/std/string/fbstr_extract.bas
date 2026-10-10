@@ -19,13 +19,10 @@
 ''     Remain( s, missing )       = ""
 
 #import "std/strings"
+#import "std/containers"
 #include "fbcunit.bi"
 
-#include once "fb/array.bi"
-
-using strings
-
-using FB
+using strings, containers
 SUITE( fbc_tests.string_.fbstr_extract )
 
 	'' ---------------------------------------------------------- Extract

@@ -258,6 +258,9 @@ end function
 declare function UdtMemberSym_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
 
+declare function UdtReachable_ _
+    ( byref c as Ctx, byval u as Tko.TypeId, byval p as Tko.TypeId ) as boolean
+
 private function UdtArgInert_ _
     ( byref c as Ctx, byval u as Tko.TypeId, byval callee as Tko.SymbolId ) as boolean
     if c.types->Kind( u ) <> Tko.TK_UDT then return false
@@ -289,6 +292,12 @@ private function UdtArgInert_ _
             if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
             select case c.types->Kind( pt )
             case Tko.TK_BUILTIN, Tko.TK_POINTER
+            case Tko.TK_UDT
+                '' ...OR A UDT NOTHING REACHES FROM THE ARGUMENT: not its type or one it
+                '' extends, and with no constructor to build one from it. std/containers'
+                '' 'HashOf( byref k as Hashable )' beside the builtin overloads is the case:
+                '' a key type with no hash was an internal error, not the TKO0632 it is.
+                if UdtReachable_( c, u, pt ) then return false
             case else
                 return false
             end select
@@ -296,6 +305,23 @@ private function UdtArgInert_ _
         ck = cs->nextOverload
     next
     return true
+end function
+
+'' Can an argument of UDT 'u' reach a parameter of UDT 'p' -- p is u or a base of it, or p
+'' has a constructor (which some argument might build it through)? See UdtArgInert_.
+private function UdtReachable_ _
+    ( byref c as Ctx, byval u as Tko.TypeId, byval p as Tko.TypeId ) as boolean
+    if c.types->NameOf( p ) = 0 then return true
+    dim as string psp = c.names->Spelling( c.types->NameOf( p ) )
+    if (left( psp, 1 ) = "(") orelse (left( psp, 1 ) = "$") orelse (instr( psp, "<" ) > 0) then return true
+    if UdtMemberSym_( c, p, "__ctor" ) <> Tko.SYMBOL_NONE then return true
+    dim as Tko.TypeId t = u
+    for guard as long = 0 to 31
+        if (t = Tko.TYPE_NONE) orelse (c.types->Kind( t ) <> Tko.TK_UDT) then exit for
+        if t = p then return true
+        t = c.types->BaseOf( t )
+    next
+    return false
 end function
 
 '' TWO INTEGER BUILTINS OF ONE WIDTH AND SIGNEDNESS are one type to a BYREF parameter --

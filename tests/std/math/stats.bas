@@ -1,19 +1,17 @@
 '' Statistics -- C:\dev\docs\math\RFC-0006-statistics.md.
 ''
-'' EVERY ARRAY PARAMETER IS FB.Array( of T ) now, not a plain 'v( ) as double'.
+'' EVERY ARRAY PARAMETER IS containers.Array( of T ) now, not a plain 'v( ) as double'.
 '' The test data is still written as a plain array literal -- that is the
-'' readable way to write a data set -- and copied into the FB.Array the header
+'' readable way to write a data set -- and copied into the containers.Array the header
 '' takes.  PushAll is that copy.
 
+#import "std/containers"
 #import "std/numeric"
 #include once "fbcunit.bi"
-#include once "fb/array.bi"
-
-#include once "fb/array.bi"
 
 #include once "fblimits.bi"
 
-using numeric
+using containers, numeric
 
 using FB
 private sub PushAll overload ( byref d as Array( of double ), a( ) as double )
@@ -227,7 +225,7 @@ SUITE( fbc_tests.math.stats )
 		CU_ASSERT( Mean( one ) = 5.0 )
 		CU_ASSERT( Sum( one ) = 5.0 )
 
-		'' AN EMPTY FB.Array IS NOW EXPRESSIBLE, which a plain array was not:
+		'' AN EMPTY containers.Array IS NOW EXPRESSIBLE, which a plain array was not:
 		'' Mean of nothing is NaN, and Count of nothing is zero.
 		dim as Array( of double ) nothing_
 		CU_ASSERT( Count( nothing_ ) = 0 )
@@ -256,7 +254,7 @@ SUITE( fbc_tests.math.stats )
 		CU_ASSERT( Sum( sg ) = 12.0 )
 		CU_ASSERT( Mean( sg ) = 3.0 )
 
-		'' FB.Array IS ZERO-BASED, so the non-zero-lbound case this used to
+		'' containers.Array IS ZERO-BASED, so the non-zero-lbound case this used to
 		'' cover cannot arise any more.  What replaces it is the mistake that
 		'' CAN now be made: reading Capacity( ) where Count( ) was meant, which
 		'' would average in the reserved slack.

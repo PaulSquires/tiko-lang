@@ -1,7 +1,6 @@
-'' std/strings (RFC-0009): Split's Array into an FB.Array parameter, Tally, PadLeft, Repeat with the count first, Replace, Reverse and the case-blind StartsWith.
-'' It is a facade -- exported macros over the header, found through -i as a user's toolchain
-'' finds it in its inc/ -- and the program includes that header too, so the facade's names
-'' and the header's FB names are shown to be one and the same.
+'' std/strings, a real module since 2026-10-10: Split's Array -- std/containers' own, once
+'' that module was real too -- into a containers.Array parameter, Tally, PadLeft, Repeat
+'' with the count first, Replace, Reverse and the case-blind StartsWith.
 '' TEST: cli
 '' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/strings.bas -o tests/modules/stdstrings.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc

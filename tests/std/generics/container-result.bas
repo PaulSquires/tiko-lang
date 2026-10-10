@@ -12,9 +12,9 @@
 '' on a success both abort the process, so they live in result-wrong-side-*.bas
 '' as COMPILE_AND_RUN_FAIL tests.
 #import "std/outcome"
-#include once "fb/array.bi"
+#import "std/containers"
 #include once "fberror.bi"
-using outcome
+using outcome, containers
 using FB
 #define assert_(e) if (e) = 0 then fb_Assert(__FILE__, __LINE__, __FUNCTION__, #e)
 

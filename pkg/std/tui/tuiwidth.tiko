@@ -1,4 +1,6 @@
 #module "tui"
+#import "std/containers"
+using containers
 '' std/tui: tuiwidth -- how many columns a string occupies
 ''
 ''     print TuiStringWidth( "ab" )          '' 2
@@ -33,9 +35,7 @@
 '' measured them differently. rationale.md section 6.
 
 
-#include once "fb/array.bi"
 
-using FB
 
 public type TuiStringArray as Array( of ustring )
 

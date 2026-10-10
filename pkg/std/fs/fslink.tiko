@@ -1,6 +1,8 @@
 #module "fs"
 #import "std/outcome"
+#import "std/containers"
 using outcome
+using containers
 '' std/fs: fslink -- symbolic links, hard links, permissions and attributes
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0007-links-permissions.md.
@@ -34,9 +36,6 @@ using outcome
 '' platform.
 
 
-#include once "fb/array.bi"
-#include once "fb/array.bi"
-#include once "fb/array.bi"
 
 #if __FB_LANG__ <> "fb"
     #error "fb/fslink.bi requires -lang fb (it uses namespaces)"
@@ -48,7 +47,6 @@ using outcome
     #define FBFSLINK_EXTERN extern "C"
 #endif
 
-using FB
 
 public type FsResultULong as Result( of ulong, FsError )
 

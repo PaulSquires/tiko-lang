@@ -10,15 +10,14 @@
 '' every other.
 
 #import "std/tui"
+#import "std/containers"
 #import "std/outcome"
 #import "std/chrono"
 #include "fbcunit.bi"
 
-#include once "fb/array.bi"
-
 #include once "fberror.bi"
 
-using tui, outcome, chrono
+using tui, containers, outcome, chrono
 
 using FB
 SUITE( fbc_tests.tui.tuilayout_ )

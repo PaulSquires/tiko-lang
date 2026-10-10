@@ -1,4 +1,6 @@
 #module "strings"
+#import "std/containers"
+using containers
 '' std/strings -- string algorithms (was fb/string.bi)
 ''
 ''     #import "std/strings"
@@ -67,11 +69,10 @@
 '' gives the same answer on every machine and in every locale.
 ''
 '' POSITIONS ARE 1-BASED and 0 means "not found", matching INSTR -- NOT the
-'' zero-based convention FB.Array uses. Strings and containers are different
+'' zero-based convention containers.Array uses. Strings and containers are different
 '' worlds and each follows its own tradition.
 
 
-#include once "fb/array.bi"
 
 #if __FB_LANG__ <> "fb"
     #error "std/strings requires -lang fb"
@@ -104,7 +105,6 @@
 #endif
 
 
-using FB
 
 FBSTR_EXTERN
 

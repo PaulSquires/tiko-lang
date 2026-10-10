@@ -1,6 +1,8 @@
 #module "fs"
 #import "std/outcome"
+#import "std/containers"
 using outcome
+using containers
 '' std/fs: fsinfo -- FB.FileInfo and the metadata calls
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0003-metadata.md.
@@ -16,7 +18,6 @@ using outcome
 '' module, and it is why the three cheap predicates exist separately.
 
 
-#include once "fb/array.bi"
 
 #if __FB_LANG__ <> "fb"
     #error "fb/fsinfo.bi requires -lang fb (it uses namespaces)"
@@ -40,7 +41,6 @@ public const FB_FSFLAG_HIDDEN = 2
 public const FB_FSFLAG_HAS_CTIME = 4
 public const FB_FSFLAG_HAS_ATIME = 8
 
-using FB
 
 '' The FB mirror of FB_FSINFO. FIELD ORDER AND WIDTHS ARE PART OF THE ABI --
 '' the C kernel writes this struct directly. fbc_tests.filesystem.fsinfo asserts

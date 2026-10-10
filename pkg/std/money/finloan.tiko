@@ -2,9 +2,11 @@
 #import "std/numeric"
 #import "std/chrono"
 #import "std/outcome"
+#import "std/containers"
 using numeric
 using chrono
 using outcome
+using containers
 '' std/money: finloan -- loans, mortgages and amortization schedules
 ''
 ''     #import "std/money"
@@ -59,7 +61,6 @@ using outcome
 
 #include once "fblimits.bi"
 #include once "fblimits.bi"
-#include once "fb/array.bi"
 
 using FB
 
@@ -622,7 +623,7 @@ function hLoanBuildSchedule overload _
     return Ok( of AmortizationSchedule, FinanceError )( s )
 end function
 
-'' AN EMPTY FB.Array IS THE NO-EXTRAS CASE.  The plain-array spelling could
+'' AN EMPTY containers.Array IS THE NO-EXTRAS CASE.  The plain-array spelling could
 '' not express one, so it passed a one-element dummy with a separate count of
 '' zero -- a sentinel every caller had to keep in step with the array.
 public function LoanSchedule overload ( byref t as LoanTerms ) as FinResultSchedule
@@ -634,7 +635,7 @@ public function LoanSchedule overload ( byref t as LoanTerms, byref extras as Ar
     return hLoanBuildSchedule( t, extras )
 end function
 
-'' Materialize when random access is genuinely wanted.  FB.Array from
+'' Materialize when random access is genuinely wanted.  containers.Array from
 '' fb/array.bi -- NOT fb/vector.bi, which is Vec2/Mat4/Quat.  Not a Result,
 '' because the terms were validated when the schedule was built.
 public function ScheduleToArray overload ( byref s as AmortizationSchedule ) as Array( of AmortizationRow )

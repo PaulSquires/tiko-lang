@@ -1,6 +1,8 @@
 #module "tui"
 #import "std/outcome"
+#import "std/containers"
 using outcome
+using containers
 '' std/tui: tuiwidgets -- the core widget catalogue
 ''
 '' RFC-0008 sections 1 and 2 -- C:\dev\docs\tui\RFC-0008-widget-catalogue.md.
@@ -27,18 +29,12 @@ using outcome
 '' RFC-0007's ownership rule, and the reason the rule is written down.
 
 
-#include once "fb/array.bi"
-#include once "fb/array.bi"
-#include once "fb/array.bi"
 #ifdef __FB_WIN32__
     #include once "windows.bi"
 #else
     #include once "crt.bi"
 #endif
-#include once "fb/array.bi"
-#include once "fb/array.bi"
 
-using FB
 
 '' ============================================================== block
 

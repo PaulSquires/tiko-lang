@@ -25,11 +25,10 @@
 '' Only declaration replays (a type body, a procedure header) hide the site's
 '' locals.  A member BODY replay must not, because its own locals and parameters
 '' are exactly what that lookup pass is for -- so both halves are asserted here.
-
+#import "std/containers"
 #import "std/outcome"
-#include once "fb/array.bi"
 #include once "fberror.bi"
-using outcome
+using containers, outcome
 using FB
 #define assert_(e) if (e) = 0 then fb_Assert(__FILE__, __LINE__, __FUNCTION__, #e)
 

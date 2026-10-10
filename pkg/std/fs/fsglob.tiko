@@ -1,6 +1,8 @@
 #module "fs"
 #import "std/outcome"
+#import "std/containers"
 using outcome
+using containers
 '' std/fs: fsglob -- FB.MatchPattern and FB.Glob
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0006-glob.md.
@@ -36,9 +38,6 @@ using outcome
 ''     someone coming from bash, which is why it is written down.
 
 
-#include once "fb/array.bi"
-#include once "fb/array.bi"
-#include once "fb/array.bi"
 
 #if __FB_LANG__ <> "fb"
     #error "fb/fsglob.bi requires -lang fb (it uses namespaces)"
@@ -50,7 +49,6 @@ using outcome
     #define FBFSGLOB_EXTERN extern "C"
 #endif
 
-using FB
 
 FBFSGLOB_EXTERN
     '' Pure. No syscalls. Case-insensitive under the Windows grammar and

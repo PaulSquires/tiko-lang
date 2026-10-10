@@ -8,18 +8,17 @@
 
 #import "std/logs"
 #import "std/chrono"
+#import "std/containers"
 #import "std/numeric"
 #import "std/fs"
 #import "std/outcome"
 #include "fbcunit.bi"
 
-#include once "fb/array.bi"
-
 #include once "fblimits.bi"
 
 #include once "fberror.bi"
 
-using logs, chrono, numeric, fs, outcome
+using logs, chrono, containers, numeric, fs, outcome
 
 using FB
 SUITE( fbc_tests.logging.logrecord_ )

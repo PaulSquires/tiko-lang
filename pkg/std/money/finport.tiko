@@ -2,9 +2,11 @@
 #import "std/numeric"
 #import "std/chrono"
 #import "std/outcome"
+#import "std/containers"
 using numeric
 using chrono
 using outcome
+using containers
 '' std/money: finport -- portfolio returns and risk
 ''
 ''     #import "std/money"
@@ -17,8 +19,8 @@ using outcome
 ''         print s.Value( ).Annualized_, s.Value( ).Volatility_, s.Value( ).Sharpe_
 ''     end if
 ''
-'' EVERY SERIES PARAMETER IS FB.Array, NOT a plain 'periodReturns( ) as double'.
-'' FB.Array is ZERO-BASED, so the indices MaxDrawdownPeak and MaxDrawdownTrough
+'' EVERY SERIES PARAMETER IS containers.Array, NOT a plain 'periodReturns( ) as double'.
+'' containers.Array is ZERO-BASED, so the indices MaxDrawdownPeak and MaxDrawdownTrough
 '' return are offsets from element 0 with no lbound to subtract -- a caller that
 '' used to pass a 1-based array must re-base it.
 ''
@@ -75,8 +77,6 @@ using outcome
 
 #include once "fblimits.bi"
 #include once "fblimits.bi"
-#include once "fb/array.bi"
-#include once "fb/array.bi"
 
 using FB
 

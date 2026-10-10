@@ -1,6 +1,8 @@
 #module "fs"
 #import "std/outcome"
+#import "std/containers"
 using outcome
+using containers
 '' std/fs: fspath -- FB.Path* , the pure path algebra
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0002-path.md.
@@ -46,7 +48,6 @@ using outcome
 '' Ordinary code never passes it.
 
 
-#include once "fb/array.bi"
 
 #if __FB_LANG__ <> "fb"
     #error "fb/fspath.bi requires -lang fb (it uses namespaces)"
@@ -68,7 +69,6 @@ public const FB_PATH_WIN32 = 1
     public const FB_PATH_NATIVE = FB_PATH_POSIX
 #endif
 
-using FB
 
 FBFSPATH_EXTERN
     '' ------------------------------------------------------- interrogate

@@ -1,0 +1,7 @@
+'' tests/vendor/fbc-tests/generics/fail-container-noequals.bas ported to the std modules (build/stdtests.py, generated).
+'' Expected: what tests/std/baseline/generics/fail-container-noequals.txt recorded for the original.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/std/generics/fail-container-noequals.bas -o tests/std/generics/fail-container-noequals.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0720

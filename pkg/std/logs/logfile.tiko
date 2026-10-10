@@ -2,9 +2,11 @@
 #import "std/fs"
 #import "std/numeric"
 #import "std/chrono"
+#import "std/containers"
 using fs
 using numeric
 using chrono
+using containers
 '' std/logs: logfile -- FB.Logging's file sink, with rotation
 ''
 ''     #import "std/logs"
@@ -58,9 +60,7 @@ using chrono
 '' is reported through OnLogError (fb/logerror.bi), throttled.
 
 
-#include once "fb/array.bi"
 
-using FB
 
 public enum RotatePolicy
     RP_NONE = 0

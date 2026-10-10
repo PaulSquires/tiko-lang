@@ -19,11 +19,10 @@
 '' __FB_MT__ gate.  This file therefore exercises the PLAIN counter path.  The
 '' atomic path is tests/threads/sharedptr-mt.bas.
 #import "std/memory"
-#include once "fb/array.bi"
-#include once "fb/map.bi"
+#import "std/containers"
 #include once "fberror.bi"
 #include once "fbatomic.bi"
-using memory
+using memory, containers
 using FB
 #define assert_(e) if (e) = 0 then fb_Assert(__FILE__, __LINE__, __FUNCTION__, #e)
 

@@ -1,6 +1,8 @@
 #module "tui"
 #import "std/outcome"
+#import "std/containers"
 using outcome
+using containers
 '' std/tui: tuiinput -- events, the VT input grammar, and PollEvent
 ''
 ''     dim as TuiInput keys
@@ -43,9 +45,7 @@ using outcome
 #else
     #include once "crt.bi"
 #endif
-#include once "fb/array.bi"
 
-using FB
 
 '' ============================================================== events
 

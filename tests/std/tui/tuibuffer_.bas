@@ -8,13 +8,10 @@
 '' Asserted against the returned byte string, never by looking at a screen.
 
 #import "std/tui"
+#import "std/containers"
 #include "fbcunit.bi"
 
-#include once "fb/array.bi"
-
-using tui
-
-using FB
+using tui, containers
 SUITE( fbc_tests.tui.tuibuffer_ )
 
 	'' RFC-0003 section 1. The size that decided the shape. 22 is asserted

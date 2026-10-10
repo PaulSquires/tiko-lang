@@ -14,15 +14,14 @@
 '' GENERIC widget that still extends a non-generic abstract base.
 
 #import "std/tui"
+#import "std/containers"
 #import "std/outcome"
 #import "std/chrono"
 #include "fbcunit.bi"
 
-#include once "fb/array.bi"
-
 #include once "fberror.bi"
 
-using tui, outcome, chrono
+using tui, containers, outcome, chrono
 
 using FB
 '' ---------------------------------------------------------------------------

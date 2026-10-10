@@ -19,13 +19,10 @@
 ''      assertion.
 
 #import "std/strings"
+#import "std/containers"
 #include "fbcunit.bi"
 
-#include once "fb/array.bi"
-
-using strings
-
-using FB
+using strings, containers
 '' defined in fbstr_split_mod2.bas -- proves two modules can both include the
 '' header, which is the whole point of the bodies being private
 declare function SplitInOtherModule( byref s as const string ) as integer
@@ -310,7 +307,7 @@ SUITE( fbc_tests.string_.fbstr_split )
 	'' ------------------------------------------------- for each / scale
 
 	TEST( split_result_is_a_real_array )
-		'' The result is an ordinary FB.Array, so everything that works on one
+		'' The result is an ordinary containers.Array, so everything that works on one
 		'' works here -- including FOR EACH, which is the point of returning a
 		'' container rather than a count and an accessor.
 		dim a as Array( of string ) = Split( "one,two,three" )

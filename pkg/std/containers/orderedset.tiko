@@ -1,0 +1,921 @@
+#module "containers"
+'' std/containers: orderedset -- FB.OrderedSet( of T ), a red-black tree set
+''
+'' The always-sorted sibling of FB.Set.  FOR EACH walks it in ASCENDING ORDER,
+'' which is the entire reason to reach for it.
+''
+''     dim seen as FB.OrderedSet( of long )
+''     if seen.Add( 42 ) then print "first time"
+''
+''     for each x in seen
+''         print x                         '' ascending, always
+''     next
+''
+'' An OrderedMap with the value machinery removed rather than a wrapper around
+'' one -- the same choice FB.Set makes against FB.Map, and for the same reason:
+'' a node here costs one T instead of a T and a dead value.
+''
+'' WHICH ONE TO USE.  FB.Set unless you need the order.  A hash set is O(1) per
+'' operation against this one's O(log n) and allocates once instead of per
+'' element.
+''
+''     FB.Set            avg O(1)      unspecified, unstable order
+''     FB.OrderedSet     O(log n)      ascending order, always
+''
+'' THE ORDERING CONTRACT is '<' on T, and nothing else -- no HashOf, no '='.
+'' Two elements are the same element when neither is less than the other.  See
+'' fb/orderedmap.bi for what the tree guarantees and what it costs.
+''
+'' NO Reserve AND NO Capacity, unlike FB.Set: a tree allocates exactly one node
+'' per element when that element arrives, so there is no table to size in
+'' advance and nothing for a caller to tune.
+''
+'' WRITING THROUGH THE ITERATOR CORRUPTS THE SET.  Value( ) returns BYREF, as
+'' FB.Set's does, so 'for each byref x in s' compiles -- and assigning to x
+'' changes the key the tree is sorted by without moving the node.  The same
+'' hazard exists for FB.Set, where it breaks the hash instead.  Remove and
+'' re-Add rather than assigning.
+
+
+
+
+public type RBSetNode( of T )
+    as T item
+    as RBSetNode( of T ) ptr left
+    as RBSetNode( of T ) ptr right
+    as RBSetNode( of T ) ptr parent
+    as boolean red
+end type
+
+public type OrderedSetIterator( of T )
+    as any ptr node
+    declare function IsValid( ) as boolean
+    declare function Value( ) byref as T
+    declare sub MoveNext( )
+end type
+
+public type OrderedSet( of T )
+    as RBSetNode( of T ) ptr root
+    as long num
+
+    declare constructor( )
+    declare constructor( byref rhs as OrderedSet( of T ) )
+    declare destructor( )
+    declare operator let( byref rhs as OrderedSet( of T ) )
+
+    declare function Count( ) as long
+    declare function IsEmpty( ) as boolean
+
+    declare function Add( byref v as T ) as boolean
+    declare function Contains( byref v as T ) as boolean
+    declare function Remove( byref v as T ) as boolean
+    declare sub Clear( )
+
+    declare sub UnionWith( byref other as OrderedSet( of T ) )
+    declare sub IntersectWith( byref other as OrderedSet( of T ) )
+    declare sub ExceptWith( byref other as OrderedSet( of T ) )
+
+    '' ordered-only
+    declare function TryFirst( byref outv as T ) as boolean
+    declare function TryLast( byref outv as T ) as boolean
+    declare function TryFloor( byref v as T, byref outv as T ) as boolean
+    declare function TryCeiling( byref v as T, byref outv as T ) as boolean
+
+    declare function Items( ) as Array( of T )
+    declare function GetIterator( ) as OrderedSetIterator( of T )
+
+    '' internal
+    declare function FindNode( byref v as T ) as RBSetNode( of T ) ptr
+    declare sub RotateLeft( byval x as RBSetNode( of T ) ptr )
+    declare sub RotateRight( byval x as RBSetNode( of T ) ptr )
+    declare sub InsertFixup( byval z as RBSetNode( of T ) ptr )
+    declare sub Transplant( byval u as RBSetNode( of T ) ptr, byval v as RBSetNode( of T ) ptr )
+    declare sub RemoveFixup( byval x as RBSetNode( of T ) ptr, byval xparent as RBSetNode( of T ) ptr )
+    declare sub RemoveNode( byval z as RBSetNode( of T ) ptr )
+    declare sub FreeSubtree( byval n as RBSetNode( of T ) ptr )
+    declare function CloneSubtree( byval n as RBSetNode( of T ) ptr, byval par as RBSetNode( of T ) ptr ) as RBSetNode( of T ) ptr
+    declare sub CopyFrom( byref rhs as OrderedSet( of T ) )
+    declare function BlackHeight( ) as long
+end type
+
+constructor OrderedSet( of T )( )
+    this.root = 0
+    this.num = 0
+end constructor
+
+constructor OrderedSet( of T )( byref rhs as OrderedSet( of T ) )
+    this.root = 0
+    this.num = 0
+    this.CopyFrom( rhs )
+end constructor
+
+destructor OrderedSet( of T )( )
+    this.FreeSubtree( this.root )
+    this.root = 0
+    this.num = 0
+end destructor
+
+operator OrderedSet( of T ).let( byref rhs as OrderedSet( of T ) )
+    if( @rhs = @this ) then
+        exit operator
+    end if
+    this.FreeSubtree( this.root )
+    this.root = 0
+    this.num = 0
+    this.CopyFrom( rhs )
+end operator
+
+'' Rebuilt node for node, colours included, so the copy is structurally
+'' identical rather than merely equal -- see fb/orderedmap.bi.
+sub OrderedSet( of T ).CopyFrom( byref rhs as OrderedSet( of T ) )
+    this.root = this.CloneSubtree( rhs.root, 0 )
+    this.num = rhs.num
+end sub
+
+function OrderedSet( of T ).CloneSubtree _
+    ( _
+        byval n as RBSetNode( of T ) ptr, _
+        byval par as RBSetNode( of T ) ptr _
+    ) as RBSetNode( of T ) ptr
+
+    if( n = 0 ) then
+        return 0
+    end if
+
+    dim as RBSetNode( of T ) ptr c = new RBSetNode( of T )
+    c->item = n->item
+    c->red = n->red
+    c->parent = par
+    c->left = this.CloneSubtree( n->left, c )
+    c->right = this.CloneSubtree( n->right, c )
+
+    return c
+end function
+
+sub OrderedSet( of T ).FreeSubtree( byval n as RBSetNode( of T ) ptr )
+    if( n = 0 ) then
+        exit sub
+    end if
+    this.FreeSubtree( n->left )
+    this.FreeSubtree( n->right )
+    delete n
+end sub
+
+function OrderedSet( of T ).Count( ) as long
+    return this.num
+end function
+
+function OrderedSet( of T ).IsEmpty( ) as boolean
+    return this.num = 0
+end function
+
+sub OrderedSet( of T ).Clear( )
+    this.FreeSubtree( this.root )
+    this.root = 0
+    this.num = 0
+end sub
+
+'' ------------------------------------------------------------- rotations
+
+sub OrderedSet( of T ).RotateLeft( byval x as RBSetNode( of T ) ptr )
+    dim as RBSetNode( of T ) ptr y = x->right
+
+    x->right = y->left
+    if( y->left <> 0 ) then
+        y->left->parent = x
+    end if
+
+    y->parent = x->parent
+    if( x->parent = 0 ) then
+        this.root = y
+    elseif( x = x->parent->left ) then
+        x->parent->left = y
+    else
+        x->parent->right = y
+    end if
+
+    y->left = x
+    x->parent = y
+end sub
+
+sub OrderedSet( of T ).RotateRight( byval x as RBSetNode( of T ) ptr )
+    dim as RBSetNode( of T ) ptr y = x->left
+
+    x->left = y->right
+    if( y->right <> 0 ) then
+        y->right->parent = x
+    end if
+
+    y->parent = x->parent
+    if( x->parent = 0 ) then
+        this.root = y
+    elseif( x = x->parent->right ) then
+        x->parent->right = y
+    else
+        x->parent->left = y
+    end if
+
+    y->right = x
+    x->parent = y
+end sub
+
+'' ---------------------------------------------------------------- lookup
+
+function OrderedSet( of T ).FindNode( byref v as T ) as RBSetNode( of T ) ptr
+    dim as RBSetNode( of T ) ptr n = this.root
+
+    while( n <> 0 )
+        dim as boolean lt = v < n->item
+        if( lt ) then
+            n = n->left
+        else
+            dim as boolean gt = n->item < v
+            if( gt ) then
+                n = n->right
+            else
+                return n
+            end if
+        end if
+    wend
+
+    return 0
+end function
+
+function OrderedSet( of T ).Contains( byref v as T ) as boolean
+    return this.FindNode( v ) <> 0
+end function
+
+'' ---------------------------------------------------------------- insert
+
+'' FALSE when the element was already present -- which is what makes
+'' 'if seen.Add( x ) then' the natural spelling of "process each thing once",
+'' exactly as in FB.Set.
+function OrderedSet( of T ).Add( byref v as T ) as boolean
+    '' Copy first: v may refer INTO this set, and the node holding it can move.
+    dim as T vv = v
+
+    dim as RBSetNode( of T ) ptr par = 0
+    dim as RBSetNode( of T ) ptr n = this.root
+    dim as boolean goleft = false
+
+    while( n <> 0 )
+        par = n
+        dim as boolean lt = vv < n->item
+        if( lt ) then
+            n = n->left
+            goleft = true
+        else
+            dim as boolean gt = n->item < vv
+            if( gt ) then
+                n = n->right
+                goleft = false
+            else
+                return false
+            end if
+        end if
+    wend
+
+    dim as RBSetNode( of T ) ptr z = new RBSetNode( of T )
+    z->item = vv
+    z->left = 0
+    z->right = 0
+    z->parent = par
+    z->red = true
+
+    if( par = 0 ) then
+        this.root = z
+    elseif( goleft ) then
+        par->left = z
+    else
+        par->right = z
+    end if
+
+    this.num += 1
+    this.InsertFixup( z )
+
+    return true
+end function
+
+'' See fb/orderedmap.bi for what the three cases are and why.
+sub OrderedSet( of T ).InsertFixup( byval z as RBSetNode( of T ) ptr )
+    do
+        dim as RBSetNode( of T ) ptr par = z->parent
+        if( par = 0 ) then
+            exit do
+        end if
+        if( par->red = false ) then
+            exit do
+        end if
+
+        dim as RBSetNode( of T ) ptr gp = par->parent
+
+        if( par = gp->left ) then
+            dim as RBSetNode( of T ) ptr unc = gp->right
+            dim as boolean uncred = false
+            if( unc <> 0 ) then
+                uncred = unc->red
+            end if
+
+            if( uncred ) then
+                par->red = false
+                unc->red = false
+                gp->red = true
+                z = gp
+            else
+                if( z = par->right ) then
+                    z = par
+                    this.RotateLeft( z )
+                    par = z->parent
+                    gp = par->parent
+                end if
+                par->red = false
+                gp->red = true
+                this.RotateRight( gp )
+            end if
+        else
+            dim as RBSetNode( of T ) ptr unc = gp->left
+            dim as boolean uncred = false
+            if( unc <> 0 ) then
+                uncred = unc->red
+            end if
+
+            if( uncred ) then
+                par->red = false
+                unc->red = false
+                gp->red = true
+                z = gp
+            else
+                if( z = par->left ) then
+                    z = par
+                    this.RotateRight( z )
+                    par = z->parent
+                    gp = par->parent
+                end if
+                par->red = false
+                gp->red = true
+                this.RotateLeft( gp )
+            end if
+        end if
+    loop
+
+    this.root->red = false
+end sub
+
+'' ---------------------------------------------------------------- removal
+
+sub OrderedSet( of T ).Transplant _
+    ( _
+        byval u as RBSetNode( of T ) ptr, _
+        byval v as RBSetNode( of T ) ptr _
+    )
+
+    if( u->parent = 0 ) then
+        this.root = v
+    elseif( u = u->parent->left ) then
+        u->parent->left = v
+    else
+        u->parent->right = v
+    end if
+
+    if( v <> 0 ) then
+        v->parent = u->parent
+    end if
+end sub
+
+function OrderedSet( of T ).Remove( byref v as T ) as boolean
+    dim as RBSetNode( of T ) ptr n = this.FindNode( v )
+    if( n = 0 ) then
+        return false
+    end if
+    this.RemoveNode( n )
+    return true
+end function
+
+sub OrderedSet( of T ).RemoveNode( byval z as RBSetNode( of T ) ptr )
+    dim as RBSetNode( of T ) ptr y = z
+    dim as boolean yred = y->red
+
+    dim as RBSetNode( of T ) ptr x = 0
+    dim as RBSetNode( of T ) ptr xparent = 0
+
+    if( z->left = 0 ) then
+        x = z->right
+        xparent = z->parent
+        this.Transplant( z, z->right )
+    elseif( z->right = 0 ) then
+        x = z->left
+        xparent = z->parent
+        this.Transplant( z, z->left )
+    else
+        y = z->right
+        while( y->left <> 0 )
+            y = y->left
+        wend
+
+        yred = y->red
+        x = y->right
+
+        if( y->parent = z ) then
+            xparent = y
+        else
+            xparent = y->parent
+            this.Transplant( y, y->right )
+            y->right = z->right
+            y->right->parent = y
+        end if
+
+        this.Transplant( z, y )
+        y->left = z->left
+        y->left->parent = y
+        y->red = z->red
+    end if
+
+    delete z
+    this.num -= 1
+
+    if( yred = false ) then
+        this.RemoveFixup( x, xparent )
+    end if
+end sub
+
+'' See fb/orderedmap.bi for what the four cases are and why.
+sub OrderedSet( of T ).RemoveFixup _
+    ( _
+        byval x as RBSetNode( of T ) ptr, _
+        byval xparent as RBSetNode( of T ) ptr _
+    )
+
+    do
+        if( x = this.root ) then
+            exit do
+        end if
+        dim as boolean xred = false
+        if( x <> 0 ) then
+            xred = x->red
+        end if
+        if( xred ) then
+            exit do
+        end if
+        if( xparent = 0 ) then
+            exit do
+        end if
+
+        if( x = xparent->left ) then
+            dim as RBSetNode( of T ) ptr w = xparent->right
+            if( w = 0 ) then
+                exit do
+            end if
+
+            if( w->red ) then
+                w->red = false
+                xparent->red = true
+                this.RotateLeft( xparent )
+                w = xparent->right
+                if( w = 0 ) then
+                    exit do
+                end if
+            end if
+
+            dim as boolean lblack = true
+            if( w->left <> 0 ) then
+                lblack = (w->left->red = false)
+            end if
+            dim as boolean rblack = true
+            if( w->right <> 0 ) then
+                rblack = (w->right->red = false)
+            end if
+
+            if( lblack andalso rblack ) then
+                w->red = true
+                x = xparent
+                xparent = x->parent
+            else
+                if( rblack ) then
+                    if( w->left <> 0 ) then
+                        w->left->red = false
+                    end if
+                    w->red = true
+                    this.RotateRight( w )
+                    w = xparent->right
+                end if
+
+                w->red = xparent->red
+                xparent->red = false
+                if( w->right <> 0 ) then
+                    w->right->red = false
+                end if
+                this.RotateLeft( xparent )
+                x = this.root
+                xparent = 0
+            end if
+        else
+            dim as RBSetNode( of T ) ptr w = xparent->left
+            if( w = 0 ) then
+                exit do
+            end if
+
+            if( w->red ) then
+                w->red = false
+                xparent->red = true
+                this.RotateRight( xparent )
+                w = xparent->left
+                if( w = 0 ) then
+                    exit do
+                end if
+            end if
+
+            dim as boolean lblack = true
+            if( w->left <> 0 ) then
+                lblack = (w->left->red = false)
+            end if
+            dim as boolean rblack = true
+            if( w->right <> 0 ) then
+                rblack = (w->right->red = false)
+            end if
+
+            if( lblack andalso rblack ) then
+                w->red = true
+                x = xparent
+                xparent = x->parent
+            else
+                if( lblack ) then
+                    if( w->right <> 0 ) then
+                        w->right->red = false
+                    end if
+                    w->red = true
+                    this.RotateLeft( w )
+                    w = xparent->left
+                end if
+
+                w->red = xparent->red
+                xparent->red = false
+                if( w->left <> 0 ) then
+                    w->left->red = false
+                end if
+                this.RotateRight( xparent )
+                x = this.root
+                xparent = 0
+            end if
+        end if
+    loop
+
+    if( x <> 0 ) then
+        x->red = false
+    end if
+end sub
+
+'' ------------------------------------------------------------ set algebra
+''
+'' The same three FB.Set offers, with the same meanings.  Each is O(m log n)
+'' rather than O(m); a tree has no cheaper way to do them, and doing them
+'' through Items( ) first would only add an array.
+
+sub OrderedSet( of T ).UnionWith( byref other as OrderedSet( of T ) )
+    '' Self-union is a no-op, and walking a tree while inserting into it is
+    '' not something to attempt.
+    if( @other = @this ) then
+        exit sub
+    end if
+
+    dim as RBSetNode( of T ) ptr n = other.root
+    if( n <> 0 ) then
+        while( n->left <> 0 )
+            n = n->left
+        wend
+    end if
+
+    while( n <> 0 )
+        this.Add( n->item )
+        if( n->right <> 0 ) then
+            n = n->right
+            while( n->left <> 0 )
+                n = n->left
+            wend
+        else
+            dim as RBSetNode( of T ) ptr p = n->parent
+            while( p <> 0 )
+                if( n <> p->right ) then
+                    exit while
+                end if
+                n = p
+                p = p->parent
+            wend
+            n = p
+        end if
+    wend
+end sub
+
+sub OrderedSet( of T ).IntersectWith( byref other as OrderedSet( of T ) )
+    if( @other = @this ) then
+        exit sub
+    end if
+
+    '' Collect first, then remove: removing while walking this tree would
+    '' rebalance under the walk.
+    dim as Array( of T ) doomed
+    dim as RBSetNode( of T ) ptr n = this.root
+    if( n <> 0 ) then
+        while( n->left <> 0 )
+            n = n->left
+        wend
+    end if
+
+    while( n <> 0 )
+        if( other.Contains( n->item ) = false ) then
+            doomed.Push( n->item )
+        end if
+        if( n->right <> 0 ) then
+            n = n->right
+            while( n->left <> 0 )
+                n = n->left
+            wend
+        else
+            dim as RBSetNode( of T ) ptr p = n->parent
+            while( p <> 0 )
+                if( n <> p->right ) then
+                    exit while
+                end if
+                n = p
+                p = p->parent
+            wend
+            n = p
+        end if
+    wend
+
+    for i as long = 0 to doomed.Count( )-1
+        this.Remove( doomed[ i ] )
+    next
+end sub
+
+sub OrderedSet( of T ).ExceptWith( byref other as OrderedSet( of T ) )
+    '' Subtracting a set from itself empties it, and doing that by walking
+    '' 'other' would be walking this tree while removing from it.
+    if( @other = @this ) then
+        this.Clear( )
+        exit sub
+    end if
+
+    dim as RBSetNode( of T ) ptr n = other.root
+    if( n <> 0 ) then
+        while( n->left <> 0 )
+            n = n->left
+        wend
+    end if
+
+    while( n <> 0 )
+        this.Remove( n->item )
+        if( n->right <> 0 ) then
+            n = n->right
+            while( n->left <> 0 )
+                n = n->left
+            wend
+        else
+            dim as RBSetNode( of T ) ptr p = n->parent
+            while( p <> 0 )
+                if( n <> p->right ) then
+                    exit while
+                end if
+                n = p
+                p = p->parent
+            wend
+            n = p
+        end if
+    wend
+end sub
+
+'' ---------------------------------------------------------- ordered-only
+
+function OrderedSet( of T ).TryFirst( byref outv as T ) as boolean
+    dim as RBSetNode( of T ) ptr n = this.root
+    if( n = 0 ) then
+        return false
+    end if
+    while( n->left <> 0 )
+        n = n->left
+    wend
+    outv = n->item
+    return true
+end function
+
+function OrderedSet( of T ).TryLast( byref outv as T ) as boolean
+    dim as RBSetNode( of T ) ptr n = this.root
+    if( n = 0 ) then
+        return false
+    end if
+    while( n->right <> 0 )
+        n = n->right
+    wend
+    outv = n->item
+    return true
+end function
+
+'' The largest element NOT GREATER than v -- v itself when present.
+function OrderedSet( of T ).TryFloor( byref v as T, byref outv as T ) as boolean
+    dim as RBSetNode( of T ) ptr n = this.root
+    dim as RBSetNode( of T ) ptr best = 0
+
+    while( n <> 0 )
+        dim as boolean ngt = v < n->item
+        if( ngt ) then
+            n = n->left
+        else
+            best = n
+            n = n->right
+        end if
+    wend
+
+    if( best = 0 ) then
+        return false
+    end if
+    outv = best->item
+    return true
+end function
+
+'' The smallest element NOT LESS than v -- v itself when present.
+function OrderedSet( of T ).TryCeiling( byref v as T, byref outv as T ) as boolean
+    dim as RBSetNode( of T ) ptr n = this.root
+    dim as RBSetNode( of T ) ptr best = 0
+
+    while( n <> 0 )
+        dim as boolean nlt = n->item < v
+        if( nlt ) then
+            n = n->right
+        else
+            best = n
+            n = n->left
+        end if
+    wend
+
+    if( best = 0 ) then
+        return false
+    end if
+    outv = best->item
+    return true
+end function
+
+'' ------------------------------------------------------------- iteration
+
+'' A sorted snapshot.  Unlike FB.Set.Items( ), whose order is unspecified, this
+'' one is ascending -- and it is already sorted, so nothing needs Sort( ).
+function OrderedSet( of T ).Items( ) as Array( of T )
+    dim r as Array( of T )
+    r.Reserve( this.num )
+
+    dim as RBSetNode( of T ) ptr n = this.root
+    if( n <> 0 ) then
+        while( n->left <> 0 )
+            n = n->left
+        wend
+    end if
+
+    while( n <> 0 )
+        r.Push( n->item )
+        if( n->right <> 0 ) then
+            n = n->right
+            while( n->left <> 0 )
+                n = n->left
+            wend
+        else
+            dim as RBSetNode( of T ) ptr p = n->parent
+            while( p <> 0 )
+                if( n <> p->right ) then
+                    exit while
+                end if
+                n = p
+                p = p->parent
+            wend
+            n = p
+        end if
+    wend
+
+    return r
+end function
+
+function OrderedSet( of T ).GetIterator( ) as OrderedSetIterator( of T )
+    dim it as OrderedSetIterator( of T )
+
+    dim as RBSetNode( of T ) ptr n = this.root
+    if( n <> 0 ) then
+        while( n->left <> 0 )
+            n = n->left
+        wend
+    end if
+
+    it.node = n
+    return it
+end function
+
+function OrderedSetIterator( of T ).IsValid( ) as boolean
+    return this.node <> 0
+end function
+
+function OrderedSetIterator( of T ).Value( ) byref as T
+    dim as RBSetNode( of T ) ptr n = cptr( RBSetNode( of T ) ptr, this.node )
+    return n->item
+end function
+
+'' EXHAUSTED STAYS EXHAUSTED -- see the note on LinkedListIterator.MoveNext.
+sub OrderedSetIterator( of T ).MoveNext( )
+    if( this.node = 0 ) then exit sub
+    dim as RBSetNode( of T ) ptr n = cptr( RBSetNode( of T ) ptr, this.node )
+
+    if( n->right <> 0 ) then
+        n = n->right
+        while( n->left <> 0 )
+            n = n->left
+        wend
+        this.node = n
+        exit sub
+    end if
+
+    dim as RBSetNode( of T ) ptr p = n->parent
+    while( p <> 0 )
+        if( n <> p->right ) then
+            exit while
+        end if
+        n = p
+        p = p->parent
+    wend
+
+    this.node = p
+end sub
+
+'' The black height, or -1 when any red-black invariant is broken.  See
+'' fb/orderedmap.bi -- same check, same reason for being a member.
+function OrderedSet( of T ).BlackHeight( ) as long
+    dim as RBSetNode( of T ) ptr n = this.root
+    dim as long h = 1
+
+    while( n <> 0 )
+        if( n->red = false ) then
+            h += 1
+        end if
+        n = n->left
+    wend
+
+    n = this.root
+    if( n <> 0 ) then
+        while( n->left <> 0 )
+            n = n->left
+        wend
+    end if
+
+    while( n <> 0 )
+        dim as boolean isleaf = (n->left = 0) orelse (n->right = 0)
+        if( isleaf ) then
+            dim as long c = 1
+            dim as RBSetNode( of T ) ptr p = n
+            while( p <> 0 )
+                if( p->red = false ) then
+                    c += 1
+                end if
+                p = p->parent
+            wend
+            if( c <> h ) then
+                return -1
+            end if
+        end if
+
+        if( n->red ) then
+            dim as boolean badleft = false
+            if( n->left <> 0 ) then
+                badleft = n->left->red
+            end if
+            dim as boolean badright = false
+            if( n->right <> 0 ) then
+                badright = n->right->red
+            end if
+            if( badleft orelse badright ) then
+                return -1
+            end if
+        end if
+
+        if( n->right <> 0 ) then
+            n = n->right
+            while( n->left <> 0 )
+                n = n->left
+            wend
+        else
+            dim as RBSetNode( of T ) ptr p = n->parent
+            while( p <> 0 )
+                if( n <> p->right ) then
+                    exit while
+                end if
+                n = p
+                p = p->parent
+            wend
+            n = p
+        end if
+    wend
+
+    dim as boolean rootred = false
+    if( this.root <> 0 ) then
+        rootred = this.root->red
+    end if
+    if( rootred ) then
+        return -1
+    end if
+
+    return h
+end function
+

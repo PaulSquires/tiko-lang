@@ -25,15 +25,14 @@
 #import "std/outcome"
 #import "std/numeric"
 #import "std/chrono"
+#import "std/containers"
 #include once "fbcunit.bi"
-
-#include once "fb/array.bi"
 
 #include once "fberror.bi"
 
 #include once "fblimits.bi"
 
-using money, outcome, numeric, chrono
+using money, outcome, numeric, chrono, containers
 
 using FB
 private function D( byref s as string ) as Decimal

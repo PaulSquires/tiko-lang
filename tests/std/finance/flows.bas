@@ -26,25 +26,23 @@
 '' 10u^2 - 10u + 1 = 0 for u = 1/(1+r) -- so the multiple-roots test needs no
 '' oracle at all.
 
-'' EVERY SERIES PARAMETER IS FB.Array now, not a plain 'flows( ) as Decimal'.
+'' EVERY SERIES PARAMETER IS containers.Array now, not a plain 'flows( ) as Decimal'.
 '' The test data is still written as a plain array literal -- that is the
-'' readable way to write a cash-flow series -- and copied into the FB.Array the
+'' readable way to write a cash-flow series -- and copied into the containers.Array the
 '' header takes.  PushAll is that copy.
 
+#import "std/containers"
 #import "std/money"
 #import "std/outcome"
 #import "std/numeric"
 #import "std/chrono"
 #include once "fbcunit.bi"
-#include once "fb/array.bi"
-
-#include once "fb/array.bi"
 
 #include once "fberror.bi"
 
 #include once "fblimits.bi"
 
-using money, outcome, numeric, chrono
+using containers, money, outcome, numeric, chrono
 
 using FB
 private function D( byref s as string ) as Decimal
@@ -322,7 +320,7 @@ SUITE( fbc_tests.finance.flows )
 	'' RFC-0003 section 4.0 / RFC-0006.  THE THREE SERIES PRE-CHECKS the solver
 	'' structurally could not make.  This is the gate phase 3 deferred.
 	TEST( series_pre_checks_ )
-		'' EMPTY -- there is nothing to appraise.  A DEFAULT-CONSTRUCTED FB.Array
+		'' EMPTY -- there is nothing to appraise.  A DEFAULT-CONSTRUCTED containers.Array
 		'' IS the empty series: Count( ) is zero and there is no lbound/ubound
 		'' edge case to explain, which the plain-array spelling needed a
 		'' paragraph for.

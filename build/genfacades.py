@@ -37,11 +37,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # module -> (headers to include, every header whose names are the facade's, needs -mt)
 FACADES = {
-    "containers": (["containers.bi"],
-                   ["containers.bi", "hash.bi", "array.bi", "map.bi", "set.bi", "linkedlist.bi",
-                    "orderedmap.bi", "orderedset.bi", "sort.bi"], False),
 }
-# Real modules now (build/stdport.py, 2026-10-10), no longer written here: strings, tui, money, logs, fs, numeric, tasks, chrono, outcome.
+# Real modules now (build/stdport.py, 2026-10-10), no longer written here: all ten, and memory.
 
 # std/path's names, kept in std/fs when std/path was folded into it (RFC-0009 M30). Each is
 # the header's function, with the header's behaviour -- see pkg/std/README.md.

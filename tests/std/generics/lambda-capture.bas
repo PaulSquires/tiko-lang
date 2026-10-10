@@ -13,12 +13,11 @@
 ''
 '' A capturing lambda is NOT a procedure pointer -- it has state and a procptr
 '' has nowhere to put it. It reaches an API through a GENERIC parameter, which
-'' is what FB.ForEach exists for.
-
+'' is what containers.ForEach exists for.
+#import "std/containers"
 #import "std/outcome"
-#include once "fb/array.bi"
 #include once "fberror.bi"
-using outcome
+using containers, outcome
 using FB
 #define assert_(e) if (e) = 0 then fb_Assert(__FILE__, __LINE__, __FUNCTION__, #e)
 
@@ -195,7 +194,7 @@ end function
 		assert_( got = 5 )
 	end scope
 
-	'' ==================================================== FB.ForEach
+	'' ==================================================== containers.ForEach
 
 	scope
 		dim nums as Array( of long )

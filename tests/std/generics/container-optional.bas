@@ -15,9 +15,9 @@
 '' distribution every program depends on it, and a member that was never
 '' exercised is a bug shipped to everyone.
 #import "std/outcome"
-#include once "fb/array.bi"
+#import "std/containers"
 #include once "fberror.bi"
-using outcome
+using outcome, containers
 using FB
 #define assert_(e) if (e) = 0 then fb_Assert(__FILE__, __LINE__, __FUNCTION__, #e)
 
