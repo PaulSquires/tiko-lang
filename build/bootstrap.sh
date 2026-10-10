@@ -1,7 +1,7 @@
 #!/bin/sh
 # bootstrap.sh -- the self-hosting fixpoint: tiko-lang compiles itself, twice.
 #
-#   build/bootstrap.sh [-O<n>] [--target <name>] [--stage1 <tiko>] [--gate]
+#   build/bootstrap.sh [-O<n>] [--target <name>] [--stage1 <tiko>] [--seed <tiko>] [--gate]
 #
 # docs/plan/13 section 8 and D11, as one command. The Windows peer is
 # build/bootstrap.bat and is kept line-for-line analogous.
@@ -41,6 +41,13 @@
 #
 # Everything lands in build/.bootstrap/, which is cleared first: a stage binary
 # left by an earlier run would compare equal to itself and prove nothing.
+#
+# FROM A SEED: '--seed <tiko>' (or TKO_SEED) puts a packaged tiko where FBC-Modern
+# was, and nothing here then runs or reads fbc. The seed builds stage1 with EXACTLY
+# the command stage1 builds stage2 with, so a fifth assertion holds and is checked:
+# stage1 == stage2 -- a correct tiko of commit X reproduces X's compiler on its first
+# step (measured, tiko-bootstrap VERIFICATION.md). Headers and libraries default to
+# the seed's own inc/ and lib/<target>/, and hello's reference output is the seed's.
 
 set -e
 
@@ -61,23 +68,34 @@ while [ $# -gt 0 ]; do
         -O[0-3])  OPT="$1" ;;
         --target) shift; TARGET="$1" ;;
         --stage1) shift; STAGE1="$1" ;;
+        --seed)   shift; TKO_SEED="$1" ;;
         --gate)   GATE=1 ;;
         *) echo "bootstrap: unknown argument '$1'" >&2; exit 2 ;;
     esac
     shift
 done
 
-if [ -z "$TKO_STAGE0" ]; then
+SEEDED=0
+if [ -n "${TKO_SEED:-}" ]; then
+    SEEDED=1
+    [ -x "$TKO_SEED" ] || { echo "bootstrap: no seed compiler at $TKO_SEED (a tiko executable)" >&2; exit 3; }
+    export TKO_SEED
+    # The toolchain directory: tiko.exe sits at its top on Windows, bin/tiko below it on Linux.
+    SEEDDIR=$(dirname "$TKO_SEED")
+    [ -d "$SEEDDIR/inc" ] || SEEDDIR=$(dirname "$SEEDDIR")
+elif [ -z "$TKO_STAGE0" ]; then
     if [ "$HOSTWIN" = "1" ]; then
         TKO_STAGE0="/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe"
     else
         TKO_STAGE0="/c/dev/fbc-modern/toolchains/fbc-modern-linux/bin/fbc"
     fi
 fi
-export TKO_STAGE0
+[ "$SEEDED" = "1" ] || export TKO_STAGE0
 
 if [ -z "$TKO_BOOT_INC" ]; then
-    if [ "$HOSTWIN" = "1" ]; then
+    if [ "$SEEDED" = "1" ]; then
+        TKO_BOOT_INC="$SEEDDIR/inc"
+    elif [ "$HOSTWIN" = "1" ]; then
         TKO_BOOT_INC="$(dirname "$TKO_STAGE0")/inc"
     else
         TKO_BOOT_INC="$(dirname "$(dirname "$TKO_STAGE0")")/include/freebasic"
@@ -87,6 +105,12 @@ fi
 
 if [ -z "$TARGET" ]; then
     if [ "$HOSTWIN" = "1" ]; then TARGET="win64-msvc"; else TARGET="linux-x86_64"; fi
+fi
+if [ -z "$TKO_BOOT_LIBDIRS" ] && [ "$SEEDED" = "1" ]; then
+    # The seed's runtime and import libraries, and fbc's CRT objects beside them where
+    # a gnu target's toolchain still ships some.
+    TKO_BOOT_LIBDIRS="$SEEDDIR/lib/$TARGET"
+    [ -d "$SEEDDIR/lib/$TARGET-fb" ] && TKO_BOOT_LIBDIRS="$TKO_BOOT_LIBDIRS $SEEDDIR/lib/$TARGET-fb"
 fi
 if [ -z "$TKO_BOOT_LIBDIRS" ]; then
     case "$TARGET" in
@@ -122,12 +146,35 @@ size_of( ) { wc -c < "$1" | tr -d ' '; }
 
 say "target $TARGET ${OPT:--O0}, $NMOD modules, headers $TKO_BOOT_INC"
 
+# ------------------------------------------------------------------ stages
+build_stage( ) {
+    # $1 = the compiler, $2 = the stage it builds
+    ts=$(now)
+    "$1" $SOURCES -m "$MAINMOD" -i src -target "$TARGET" $OPT $LIBP -o "$OUT/$2/tiko$EXT" \
+        > "$OUT/$2.log" 2>&1 || { cat "$OUT/$2.log" >&2; fail "$2 did not build"; }
+    [ -f "$OUT/$2/tiko$EXT" ] || fail "$2 reported success and wrote no compiler"
+    # A build that says nothing is the only acceptable one: a warning in the
+    # compiler's own source is either real or a divergence from what stage0 said.
+    if [ -s "$OUT/$2.log" ]; then
+        cat "$OUT/$2.log" >&2
+        fail "$2's build printed diagnostics"
+    fi
+    say "$2  built by $(basename "$(dirname "$1")") in $(( $(now) - ts )) s, $(size_of "$OUT/$2/tiko$EXT") bytes"
+}
+
 # ------------------------------------------------------------------ stage1
 t0=$(now)
 if [ -n "$STAGE1" ]; then
     [ -x "$STAGE1" ] || fail "no stage1 compiler at $STAGE1"
     cp "$STAGE1" "$OUT/stage1/tiko$EXT"
     say "stage1  $STAGE1"
+elif [ "$SEEDED" = "1" ]; then
+    # stage1 BY THE SEED, with stage2's own command -- see the header.
+    build_stage "$TKO_SEED" stage1
+    if [ "$GATE" = "1" ]; then
+        # --gate runs the suite, which needs a runner: the seed builds that too.
+        sh build/build.sh Debug --test-runner --no-dll > "$OUT/runner.log" 2>&1 || { cat "$OUT/runner.log" >&2; fail "the seed could not build the test runner"; }
+    fi
 else
     if [ "$GATE" = "1" ]; then
         sh build/build.sh Debug --test-runner --no-dll > "$OUT/stage1.log" 2>&1 || { cat "$OUT/stage1.log" >&2; fail "stage0 could not build stage1"; }
@@ -152,25 +199,15 @@ NDEC=$(grep '^lowered:' "$OUT/lowered.txt" | grep -vc ' 0 statements not lowered
 say "stage1  lowers every statement of all $NMOD modules; all verify"
 
 # ------------------------------------------------------------ stage2, stage3
-build_stage( ) {
-    # $1 = the compiler, $2 = the stage it builds
-    ts=$(now)
-    "$1" $SOURCES -m "$MAINMOD" -i src -target "$TARGET" $OPT $LIBP -o "$OUT/$2/tiko$EXT" \
-        > "$OUT/$2.log" 2>&1 || { cat "$OUT/$2.log" >&2; fail "$2 did not build"; }
-    [ -f "$OUT/$2/tiko$EXT" ] || fail "$2 reported success and wrote no compiler"
-    # A build that says nothing is the only acceptable one: a warning in the
-    # compiler's own source is either real or a divergence from what stage0 said.
-    if [ -s "$OUT/$2.log" ]; then
-        cat "$OUT/$2.log" >&2
-        fail "$2's build printed diagnostics"
-    fi
-    say "$2  built by $(basename "$(dirname "$1")") in $(( $(now) - ts )) s, $(size_of "$OUT/$2/tiko$EXT") bytes"
-}
 build_stage "$S1" stage2
 build_stage "$OUT/stage2/tiko$EXT" stage3
 
 # ------------------------------------------------------------- 2. fixpoint
 cmp -s "$OUT/stage2/tiko$EXT" "$OUT/stage3/tiko$EXT" || fail "stage2 and stage3 differ"
+if [ "$SEEDED" = "1" ] && [ -z "$STAGE1" ]; then
+    cmp -s "$OUT/stage1/tiko$EXT" "$OUT/stage2/tiko$EXT" || fail "stage1 (the seed's build) and stage2 differ"
+    say "fixpoint  stage1 == stage2 as well: the seed reproduces this commit's compiler"
+fi
 if command -v sha256sum > /dev/null 2>&1; then
     say "fixpoint  stage2 == stage3, sha256 $(sha256sum "$OUT/stage3/tiko$EXT" | cut -c1-16)..."
 else
@@ -191,15 +228,24 @@ EOF
 "$OUT/stage3/tiko$EXT" "$OUT/hello/hello.bas" -target "$TARGET" $LIBP -o "$OUT/hello/hello3$EXT" \
     > "$OUT/hello/build3.log" 2>&1 || { cat "$OUT/hello/build3.log" >&2; fail "stage3 could not build hello.bas"; }
 "$OUT/hello/hello3$EXT" > "$OUT/hello/out3.txt" 2>&1 || fail "stage3's hello did not run"
-( cd "$OUT/hello" && "$TKO_STAGE0" hello.bas -x "hello0$EXT" > build0.log 2>&1 ) || fail "stage0 could not build hello.bas"
+if [ "$SEEDED" = "1" ]; then
+    ( cd "$OUT/hello" && "$TKO_SEED" hello.bas -target "$TARGET" $LIBP -o "hello0$EXT" > build0.log 2>&1 ) || fail "the seed could not build hello.bas"
+else
+    ( cd "$OUT/hello" && "$TKO_STAGE0" hello.bas -x "hello0$EXT" > build0.log 2>&1 ) || fail "stage0 could not build hello.bas"
+fi
 "$OUT/hello/hello0$EXT" > "$OUT/hello/out0.txt" 2>&1 || fail "stage0's hello did not run"
 cmp -s "$OUT/hello/out0.txt" "$OUT/hello/out3.txt" || fail "stage3's hello prints '$(cat "$OUT/hello/out3.txt")', stage0's '$(cat "$OUT/hello/out0.txt")'"
-say "stage3  builds hello.bas, and it prints what stage0's build prints"
+say "stage3  builds hello.bas, and it prints what $( [ "$SEEDED" = "1" ] && echo "the seed's" || echo "stage0's" ) build prints"
 
 # ------------------------------------------------- 4. the suite, both ways
 if [ "$GATE" = "1" ]; then
     [ -x "bin/tiko-test$EXT" ] || fail "--gate needs bin/tiko-test$EXT (build.sh Debug --test-runner)"
     unset TKO_INCLUDE
+    # THE PACKAGE TREE, NAMED: a stage lives in build/.bootstrap/stageN/, where its
+    # default '<exe-dir>/../pkg' is no package tree, so every '#import "std/..."' test --
+    # 23 of them -- failed on both sides alike and the comparison could see none of them.
+    # Measured 2026-10-09: with it, stage2 passes the whole suite.
+    TKO_PKG="$ROOT/pkg"; export TKO_PKG
     sh build/test.sh --no-build --tiko-lang "$S1" > "$OUT/gate1.log" 2>&1 || true
     sh build/test.sh --no-build --tiko-lang "$OUT/stage2/tiko$EXT" > "$OUT/gate2.log" 2>&1 || true
     grep '^FAIL ' "$OUT/gate1.log" | sort > "$OUT/fail1.txt" || true

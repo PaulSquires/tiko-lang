@@ -1,7 +1,7 @@
 @echo off
 rem bootstrap.bat -- the self-hosting fixpoint: tiko-lang compiles itself, twice.
 rem
-rem   build\bootstrap.bat [-O^<n^>] [--target ^<name^>] [--stage1 ^<tiko.exe^>] [--gate]
+rem   build\bootstrap.bat [-O^<n^>] [--target ^<name^>] [--stage1 ^<tiko.exe^>] [--seed ^<tiko.exe^>] [--gate]
 rem
 rem The Linux peer is build/bootstrap.sh and is kept line-for-line analogous; its header
 rem says what each of the four assertions is for and what each has already caught.
@@ -18,6 +18,11 @@ rem
 rem Headers: TKO_BOOT_INC, else <stage0 dir>\inc. Libraries: TKO_BOOT_LIBDIRS (separated
 rem by spaces), else per target below. The caller's TKO_LIBPATH and TKO_INCLUDE are not
 rem inherited. Everything lands in build\.bootstrap\, cleared first.
+rem
+rem FROM A SEED: --seed ^<tiko.exe^> (or TKO_SEED) puts a packaged tiko where FBC-Modern was,
+rem and nothing here runs or reads fbc. The seed builds stage1 with stage2's own command, so
+rem stage1 == stage2 is checked too; headers, libraries and hello's reference are the seed's.
+rem build/bootstrap.sh's header has the reasoning.
 
 setlocal enabledelayedexpansion
 
@@ -36,17 +41,32 @@ if "!A:~0,2!"=="-O" ( set "OPT=%~1" & shift & goto argloop )
 if /i "%~1"=="--target" ( set "TARGET=%~2" & shift & shift & goto argloop )
 if /i "%~1"=="--stage1" ( set "STAGE1=%~2" & shift & shift & goto argloop )
 if /i "%~1"=="--gate" ( set "GATE=1" & shift & goto argloop )
+if /i "%~1"=="--seed" ( set "TKO_SEED=%~2" & shift & shift & goto argloop )
 echo bootstrap: unknown argument '%~1' 1>&2
 popd & exit /b 2
 :argsdone
 
-if "%TKO_STAGE0%"=="" set "TKO_STAGE0=C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe"
+set "SEEDED=0"
+if not "%TKO_SEED%"=="" set "SEEDED=1"
+if "%SEEDED%"=="1" if not exist "%TKO_SEED%" (
+    echo bootstrap: no seed compiler at %TKO_SEED% ^(a tiko executable^) 1>&2
+    popd & exit /b 3
+)
+set "SEEDDIR="
+if "%SEEDED%"=="1" for %%d in ("%TKO_SEED%") do set "SEEDDIR=%%~dpd"
+if "%SEEDED%"=="0" if "%TKO_STAGE0%"=="" set "TKO_STAGE0=C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe"
+if "%TKO_BOOT_INC%"=="" if "%SEEDED%"=="1" set "TKO_BOOT_INC=%SEEDDIR%inc"
 if "%TKO_BOOT_INC%"=="" for %%d in ("%TKO_STAGE0%") do set "TKO_BOOT_INC=%%~dpdinc"
 if not exist "%TKO_BOOT_INC%\" (
     echo bootstrap: no header directory %TKO_BOOT_INC% ^(set TKO_BOOT_INC^) 1>&2
     popd & exit /b 3
 )
 
+rem The seed's runtime and import libraries, and fbc's CRT objects where its toolchain has them.
+if "%TKO_BOOT_LIBDIRS%"=="" if "%SEEDED%"=="1" (
+    set "TKO_BOOT_LIBDIRS=%SEEDDIR%lib\%TARGET%"
+    if exist "%SEEDDIR%lib\%TARGET%-fb\" set "TKO_BOOT_LIBDIRS=%SEEDDIR%lib\%TARGET% %SEEDDIR%lib\%TARGET%-fb"
+)
 if "%TKO_BOOT_LIBDIRS%"=="" (
     if /i "%TARGET%"=="win64-msvc" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64-msvc"
     rem MinGW needs fbc's CRT objects beside the runtime; see cmdline.bas.
@@ -95,12 +115,22 @@ if not "%STAGE1%"=="" (
     echo bootstrap: stage1  %STAGE1%
     goto stage1done
 )
+if "%SEEDED%"=="1" goto seedstage1
 set "RUNNERARG="
 if "%GATE%"=="1" set "RUNNERARG=--test-runner"
 call "%ROOT%\build\build.bat" Debug %RUNNERARG% --no-dll > "%OUT%\stage1.log" 2>&1
 if errorlevel 1 ( type "%OUT%\stage1.log" 1>&2 & set "WHY=stage0 could not build stage1" & goto fail )
 copy /y "%ROOT%\bin\tiko.exe" "%OUT%\stage1\tiko.exe" >nul
 echo bootstrap: stage1  built by stage0
+goto stage1done
+
+rem stage1 BY THE SEED, with stage2's own command; --gate's runner is the seed's too.
+:seedstage1
+call :buildstage "%TKO_SEED%" stage1
+if errorlevel 1 goto fail
+if not "%GATE%"=="1" goto stage1done
+call "%ROOT%\build\build.bat" Debug --test-runner --no-dll > "%OUT%\runner.log" 2>&1
+if errorlevel 1 ( type "%OUT%\runner.log" 1>&2 & set "WHY=the seed could not build the test runner" & goto fail )
 :stage1done
 set "S1=%OUT%\stage1\tiko.exe"
 
@@ -126,6 +156,12 @@ if errorlevel 1 ( set "WHY=stage2 and stage3 differ" & goto fail )
 set "HASH="
 for /f "skip=1 delims=" %%h in ('certutil -hashfile "%OUT%\stage3\tiko.exe" SHA256') do if not defined HASH set "HASH=%%h"
 echo bootstrap: fixpoint  stage2 == stage3, sha256 !HASH:~0,16!...
+if not "%SEEDED%"=="1" goto fixdone
+if not "%STAGE1%"=="" goto fixdone
+fc /b "%OUT%\stage1\tiko.exe" "%OUT%\stage2\tiko.exe" >nul
+if errorlevel 1 ( set "WHY=stage1 (the seed's build) and stage2 differ" & goto fail )
+echo bootstrap: fixpoint  stage1 == stage2 as well: the seed reproduces this commit's compiler
+:fixdone
 
 rem ------------------------------------------ 3. stage3 builds a working program
 > "%OUT%\hello\hello.bas" (
@@ -143,19 +179,27 @@ if errorlevel 1 ( type "%OUT%\hello\build3.log" 1>&2 & set "WHY=stage3 could not
 "%OUT%\hello\hello3.exe" > "%OUT%\hello\out3.txt" 2>&1
 if errorlevel 1 ( set "WHY=stage3's hello did not run" & goto fail )
 pushd "%OUT%\hello"
-"%TKO_STAGE0%" hello.bas -x hello0.exe > build0.log 2>&1
+if "%SEEDED%"=="1" (
+    "%TKO_SEED%" hello.bas -target %TARGET% %LIBP% -o hello0.exe > build0.log 2>&1
+) else (
+    "%TKO_STAGE0%" hello.bas -x hello0.exe > build0.log 2>&1
+)
 set "RC=%ERRORLEVEL%"
 popd
-if not "%RC%"=="0" ( set "WHY=stage0 could not build hello.bas" & goto fail )
+if not "%RC%"=="0" ( set "WHY=the reference compiler could not build hello.bas" & goto fail )
 "%OUT%\hello\hello0.exe" > "%OUT%\hello\out0.txt" 2>&1
 fc /b "%OUT%\hello\out0.txt" "%OUT%\hello\out3.txt" >nul
 if errorlevel 1 ( set "WHY=stage3's hello prints differently from stage0's" & goto fail )
-echo bootstrap: stage3  builds hello.bas, and it prints what stage0's build prints
+set "REFBY=stage0's"
+if "%SEEDED%"=="1" set "REFBY=the seed's"
+echo bootstrap: stage3  builds hello.bas, and it prints what %REFBY% build prints
 
 rem ------------------------------------------------- 4. the suite, both ways
 if not "%GATE%"=="1" goto done
 if not exist "%ROOT%\bin\tiko-test.exe" ( set "WHY=--gate needs bin\tiko-test.exe (build.bat Debug --test-runner)" & goto fail )
 set "TKO_INCLUDE="
+rem The package tree, named: a stage's default ^<exe-dir^>\..\pkg is none -- see bootstrap.sh.
+set "TKO_PKG=%ROOT%\pkg"
 call "%ROOT%\build\test.bat" --no-build --tiko-lang "%S1%" > "%OUT%\gate1.log" 2>&1
 call "%ROOT%\build\test.bat" --no-build --tiko-lang "%OUT%\stage2\tiko.exe" > "%OUT%\gate2.log" 2>&1
 findstr /b /c:"FAIL " "%OUT%\gate1.log" | "%SystemRoot%\System32\sort.exe" > "%OUT%\fail1.txt"
