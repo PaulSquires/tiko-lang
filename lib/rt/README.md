@@ -3,8 +3,9 @@
 The FreeBASIC runtime library, written in FreeBASIC.
 
 API- and ABI-compatible with fbc-modern's `libfb`, for use by the
-[tiko](../tiko-lang) compiler. Built with FBC-Modern's `-gen llvm`; targets
-**win64, win32 and linux-x86_64**.
+[tiko](../tiko-lang) compiler. Built by tiko itself (the tree's `bin/tiko`) since
+2026-10-10, where it was FBC-Modern's `-gen llvm`; targets **win64-msvc, win64 and
+linux-x86_64**.
 
 > **Status: decision spike.** This exists to answer one question — *would a
 > runtime written in FreeBASIC be as efficient and performant as the C one?* —
@@ -51,9 +52,10 @@ to it.
 
 | Tool | Where |
 | --- | --- |
-| FBC-Modern | `C:\dev\fbc-modern` — override with `FBC_TREE` / `TKORT_FBC` |
-| clang 18+ | on `PATH`; `-gen llvm` hands it the emitted IR |
+| tiko | the tree's `bin/tiko` (`build/build.sh`) — override with `TKORT_TIKO` |
+| clang 18+ | on `PATH`; tiko hands it the emitted IR, and the C residue is compiled with it |
 | llvm-ar, llvm-nm | on `PATH` (D13: the toolchain is 100% LLVM) |
+| FBC-Modern | the ORACLE scripts only (`gate.sh`, `diff.sh`, ...; `build/oracle.sh`): `C:\dev\fbc-modern`, or `TKO_ORACLE_FBC` / `FBC_TREE`. Without it they skip |
 | make | for `gate.sh` only |
 
 ## Layout

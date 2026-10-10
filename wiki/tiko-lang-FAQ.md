@@ -13,7 +13,7 @@ No. It is a separate compiler with its own frontend, its own typed IR and an LLV
 If it is `#lang "fb"` code, that is the aim: the same accept/reject decision as fbc and the same behaviour. The known exceptions are listed on [Compatibility](Compatibility). They include `qb`/`fblite`/`deprecated` dialect code and inline `ASM`, each refused with a diagnostic. Code that must know it is being built by tiko tests `#ifdef __TIKO_COMPILER__`.
 
 **Do I have to build anything?**
-Yes, once. The repository holds the compiler's source, not a prebuilt toolchain. `bash build/package.sh --verify` builds one for your host. It needs FBC-Modern's `fbc` to compile tiko, and clang to run it. See [Quick Start](Quick-Start).
+Yes, once. The repository holds the compiler's source, not a prebuilt toolchain. `bash build/package.sh --verify` builds one for your host. It needs the seed -- the earlier tiko release `sh seed/fetch-seed.sh` fetches -- to compile tiko, and clang to run it. See [Quick Start](Quick-Start).
 
 **Which targets are supported?**
 - `win64-msvc`: the default on Windows, and it needs no Visual Studio.

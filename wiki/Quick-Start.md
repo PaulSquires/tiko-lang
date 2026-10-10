@@ -5,7 +5,7 @@ tiko is distributed as a **toolchain**: the compiler, its headers and its runtim
 ## What you need
 
 - **clang 18 or newer.** It is not bundled. tiko does not search `PATH`: it runs `C:\Program Files\LLVM\bin\clang.exe` on Windows and `/usr/bin/clang` on Linux, or whatever `TKO_CLANG` names.
-- **To build the toolchain:** [FBC-Modern](https://github.com/PaulSquires/fbc-modern)'s `fbc` compiles tiko, and FBC-Modern's tree supplies the headers. The default paths are under `C:\dev\fbc-modern`; `TKO_STAGE0` and `FBC_TREE` override them.
+- **To build the toolchain:** a **seed**, the earlier tiko release that `seed/seed.lock` pins. `sh seed/fetch-seed.sh` downloads it (through `gh` while the repository is private) and checks its SHA-256 before unpacking it into `seed/cache/`, where the build finds it. tiko builds tiko: no FreeBASIC compiler is involved.
 
 ## Build a toolchain
 
@@ -14,6 +14,7 @@ From Git Bash on Windows, or from Linux or WSL:
 ```bash
 git clone https://github.com/PaulSquires/tiko-lang.git
 cd tiko-lang
+sh seed/fetch-seed.sh
 bash build/package.sh --verify
 ```
 
