@@ -33,7 +33,8 @@ CORPUS=$CORPUS_ROOT
 FBCUNIT=""
 [ -d "$CORPUS_ROOT/fbcunit/inc" ] && FBCUNIT="-i $CORPUS_ROOT/fbcunit/inc"
 
-TKOINC=${TKO_INCLUDE:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/inc}
+# The packaged toolchain's headers -- the full set a user has -- not fbc-modern's.
+TKOINC=${TKO_INCLUDE:-$PWD/toolchains/tiko-windows/inc}
 if [ -d "$TKOINC" ]; then
     TKO_INCLUDE="$TKOINC"
     export TKO_INCLUDE

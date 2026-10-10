@@ -91,7 +91,8 @@ FBCUNIT=""
 # they fail at their first line and every number after that is measured against files
 # that could not open their own dependencies. TKO_INCLUDE is the driver's own override,
 # so this is the same shape as the -i above: a HARNESS fact, not a compiler one.
-TKOINC=${TKO_INCLUDE:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/inc}
+# The packaged toolchain's headers -- the full set a user has -- not fbc-modern's.
+TKOINC=${TKO_INCLUDE:-$ROOT/toolchains/tiko-windows/inc}
 if [ -d "$TKOINC" ]; then
     TKO_INCLUDE="$TKOINC"
     export TKO_INCLUDE
