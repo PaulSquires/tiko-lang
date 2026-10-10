@@ -12,18 +12,28 @@ RT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 
 # The reference tree: fbc-modern's sources, its shipped archives, and its test
 # suite. tiko-rt reads HEADERS and BINARIES from here and never a .c body
-# (PROVENANCE.md).
+# (PROVENANCE.md). OPTIONAL since 2026-10-10: the build only consults fbc's archive,
+# when it is there, for the member-collision check below; the oracle scripts
+# (gate.sh, diff.sh, ...) still need it.
 FBC_TREE=${FBC_TREE:-/c/dev/fbc-modern}
 
-# stage0 -- the compiler that builds tiko-rt. Overridable because it moves.
-if [ -z "${TKORT_FBC:-}" ]; then
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*)
-            TKORT_FBC="$FBC_TREE/toolchains/fbc-modern-windows/fbc64.exe" ;;
-        *)
-            TKORT_FBC="$FBC_TREE/toolchains/fbc-modern-linux/bin/fbc" ;;
-    esac
+# THE COMPILER THAT BUILDS tiko-rt is tiko (bootstrap plan, phase R, 2026-10-10): the
+# tree's own bin/tiko -- build/package.sh builds it first -- or TKORT_TIKO. An fbc
+# builds it only when TKORT_FBC names one: the path every archive before that date
+# took, kept for comparison. Measured when it changed: the tiko-built win64-msvc
+# archive defines exactly the global symbols the fbc-built one does.
+if [ -n "${TKORT_FBC:-}" ]; then
+    TKORT_KIND=fbc
+else
+    TKORT_KIND=tiko
+    if [ -z "${TKORT_TIKO:-}" ]; then
+        case "$(uname -s)" in
+            MINGW*|MSYS*|CYGWIN*) TKORT_TIKO="$RT_ROOT/../../bin/tiko.exe" ;;
+            *)                    TKORT_TIKO="$RT_ROOT/../../bin/tiko" ;;
+        esac
+    fi
 fi
+TKORT_CC=${TKORT_FBC:-$TKORT_TIKO}
 
 # clang. fbc's -gen llvm hands the .ll to clang -c, and looks for a
 # target-prefixed <target>-clang.exe that does not exist: one clang serves every
@@ -216,7 +226,12 @@ rt_reflib( ) {
 }
 
 rt_check_tools( ) {
-    [ -x "$TKORT_FBC" ] || rt_die "stage0 compiler not found at $TKORT_FBC (set TKORT_FBC)"
+    if [ "$TKORT_KIND" = "fbc" ]; then
+        [ -x "$TKORT_FBC" ] || rt_die "stage0 compiler not found at $TKORT_FBC (set TKORT_FBC)"
+        [ -d "$FBC_TREE" ]  || rt_die "fbc-modern tree not found at $FBC_TREE (set FBC_TREE)"
+    else
+        [ -x "$TKORT_TIKO" ] || rt_die "no tiko at $TKORT_TIKO -- build the compiler first (build/build.sh), or set TKORT_TIKO"
+    fi
     [ -x "$CLANG" ]     || rt_die "clang not found at $CLANG (set CLANG)"
     [ -x "$TKORT_AR" ]  || rt_die "llvm-ar not found at $TKORT_AR (set TKORT_AR)"
     # AND llvm-nm, WHICH HAD NO GUARD. Every use of it redirects stderr away and
@@ -229,7 +244,6 @@ rt_check_tools( ) {
     # and the fallback is a Windows path that does not exist there. A tool that did
     # not run is worth an error rather than a believable number.
     [ -x "$TKORT_NM" ]  || rt_die "llvm-nm not found at $TKORT_NM (set TKORT_NM)"
-    [ -d "$FBC_TREE" ]  || rt_die "fbc-modern tree not found at $FBC_TREE (set FBC_TREE)"
 }
 
 # Source list: one module path per line, relative to src/, '#' comments allowed.

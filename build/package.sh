@@ -159,15 +159,21 @@ note "output $OUT"
 # previous toolchain intact rather than half-replaced.
 
 if [ "$DO_BUILD" = "1" ]; then
-    # THE PARTS BUILD CONCURRENTLY. The compiler, each target's runtime and the
-    # graphics library share nothing: the runtime and lib/gfx build with fbc, not with
-    # bin/tiko, and each writes its own obj/<target>/<config> tree. Run one after
-    # another they were most of a Windows package's wall-clock time.
+    # THE COMPILER FIRST, THEN THE REST WITH IT. The runtime is built by tiko since
+    # 2026-10-10 -- by THIS compiler, bin/tiko, not by the seed that built it: a seed
+    # may predate a fix the runtime's own source needs (seed-1 does: R1-R3). So the
+    # compiler builds alone, and the runtimes and the graphics library then build
+    # concurrently, each into its own obj/<target>/<config> tree.
     mkdir -p "$ROOT/lib/rt/obj" "$ROOT/lib/gfx/obj"
     note "building the compiler [$CFG]"
     # --no-dll: the editor's tikoParser.dll ships with the editor, not in a toolchain.
-    sh "$ROOT/build/build.sh" "$CFG" --no-dll >"$ROOT/lib/rt/obj/package-tiko.log" 2>&1 &
-    _pid_tiko=$!
+    if ! sh "$ROOT/build/build.sh" "$CFG" --no-dll >"$ROOT/lib/rt/obj/package-tiko.log" 2>&1; then
+        tail -20 "$ROOT/lib/rt/obj/package-tiko.log" >&2
+        die "the compiler build failed -- lib/rt/obj/package-tiko.log"
+    fi
+    note "compiler built"
+    # ...unless the caller named an fbc for the runtime (TKORT_FBC), the old path.
+    [ -n "${TKORT_FBC:-}" ] || { TKORT_TIKO="$ROOT/bin/tiko$EXT"; export TKORT_TIKO; }
     _pids_rt=""
     for t in $TARGETS; do
         note "building the runtime [$CFG $t]"
@@ -182,11 +188,6 @@ if [ "$DO_BUILD" = "1" ]; then
         sh "$ROOT/lib/gfx/build/build.sh" "$CFG" "$t" >"$ROOT/lib/gfx/obj/package-$t.log" 2>&1 &
         _pids_gfx="$_pids_gfx $t:$!"
     done
-    if ! wait $_pid_tiko; then
-        tail -20 "$ROOT/lib/rt/obj/package-tiko.log" >&2
-        die "the compiler build failed -- lib/rt/obj/package-tiko.log"
-    fi
-    note "compiler built"
     for _tp in $_pids_rt; do
         if ! wait "${_tp#*:}"; then
             tail -20 "$ROOT/lib/rt/obj/package-${_tp%%:*}.log" >&2

@@ -1,5 +1,5 @@
 #!/bin/sh
-# build.sh -- build tiko-rt's archives with FBC-Modern.
+# build.sh -- build tiko-rt's archives with tiko (or, given TKORT_FBC, with FBC-Modern).
 #
 #   build/build.sh [Debug|Release|RelWithDebInfo] [target ...]
 #
@@ -53,6 +53,16 @@ compile_src( ) {
     # 2026-10-10): FB_FILE undefined in io/devlptopen and three more. From src/, 'inc/'
     # is tiko-rt's. The paths below are all absolute, so nothing else moves.
     cd "$RT_ROOT/src" || rtw_die "no directory $RT_ROOT/src"
+
+    # WITH TIKO, ONE STEP: tiko targets win64-msvc itself, so the '-gen llvm -r' then
+    # clang-retarget dance below -- which exists because fbc has no MSVC triple -- is
+    # not needed, and its per-function sections come from tiko's own clang line.
+    if [ "$TKORT_KIND" = "tiko" ]; then
+        "$TKORT_TIKO" -c "$RT_ROOT/src/$src" -target "$RTW_TARGET" $RTW_INC \
+            $RTW_FLAGS $RTW_PIC -o "$obj" || rtw_die "$src failed to compile"
+        [ -f "$obj" ] || rtw_die "$src produced no object"
+        return 0
+    fi
 
     # THE ASSEMBLE STEP IS OURS WHEN THE TRIPLE IS NOT fbc's.
     #
@@ -184,7 +194,8 @@ build_one( ) {
     RTW_FLAGS="$FLAGS $mtdef $(rt_abi_define "$target")"
     RTW_PIC=$picdef
     RTW_OPT=$(rt_opt_level "$CFG")
-    export TKORT_FBC CLANG RT_ROOT RTW_WHAT RTW_TRIPLE RTW_FBCTARGET RTW_INC RTW_FLAGS RTW_PIC RTW_OPT
+    RTW_TARGET=$target
+    export TKORT_FBC TKORT_TIKO TKORT_KIND CLANG RT_ROOT RTW_WHAT RTW_TRIPLE RTW_FBCTARGET RTW_TARGET RTW_INC RTW_FLAGS RTW_PIC RTW_OPT
     rt_sources | awk -v d="$objdir" '{ o = $0; gsub("/", "_", o); sub(/\.bas$/, ".o", o); print $0, d "/" o }' \
         > "$objdir/.pairs"
     if ! xargs -P "$RT_JOBS" -n 2 sh "$RT_SELF" --one < "$objdir/.pairs"; then
@@ -242,7 +253,11 @@ build_one( ) {
         FILENAME == ARGV[1] { n = split($2, p, /[/\\]/); src[p[n]] = $1; order[++no] = p[n]; next }
         /:$/                { c = $0; sub(/:$/, "", c); n = split(c, p, /[/\\]/); c = p[n]; next }
         NF == 3 {
-            tdb = ($2 == "T" || $2 == "D" || $2 == "B")
+            # C, A COMMON SYMBOL, DEFINES THE NAME TOO: the gcc and gas64 backends of fbc,
+            # and tiko, measured alike, emit an uninitialised extern+dim as one; only
+            # fbc -gen llvm wrote B. __fb_errmsg (error/errmsg.bas) read as having no
+            # global symbols without it. (No apostrophes: this is inside a quoted awk.)
+            tdb = ($2 == "T" || $2 == "D" || $2 == "B" || $2 == "C")
             if (FILENAME == ARGV[2]) { if (tdb) th[c] = th[c] " " $3 }
             else {
                 if (tdb) ou[c, $3] = 1
@@ -414,7 +429,7 @@ build_rt0( ) {
     echo "build: $_t/fbrt0.o$(case $_t in linux-*) echo ' + fbrt0pic.o' ;; esac)"
 }
 
-echo "build: tiko-rt [$CFG] with $TKORT_FBC ($RT_JOBS jobs)"
+echo "build: tiko-rt [$CFG] with $TKORT_CC ($RT_JOBS jobs)"
 for target in $TARGETS; do
     build_one "$target" st
     build_one "$target" mt
