@@ -1,0 +1,6 @@
+#module "ok"
+#import "../other"
+using other
+public function B( ) as long
+    return Foo( )
+end function

@@ -1,0 +1,7 @@
+'' The using is in a.tiko, which sorts BEFORE b.tiko.
+#module "leak"
+#import "../util"
+using util
+public function A( ) as long
+    return Foo( )
+end function

@@ -1,0 +1,7 @@
+'' a.tiko's using of util is a.tiko's alone: b.tiko's bare Foo is other's, not ambiguous.
+#module "ok"
+#import "../util"
+using util
+public function A( ) as long
+    return Foo( )
+end function

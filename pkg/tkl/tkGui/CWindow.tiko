@@ -24,6 +24,8 @@
 ' ########################################################################################
 
 #module "tkGui"
+#import "tkl/tkCore"
+using tkCore
 #include once "tkGui.ti"
 
 #include once "windows.bi"

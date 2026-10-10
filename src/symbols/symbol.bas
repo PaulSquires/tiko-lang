@@ -275,6 +275,7 @@ function SymbolTable.LookupInNamespace _
     if depth >= 8 then return SYMBOL_NONE
     for i as long = 0 to this.usingAt.Count - 1
         if this.usingAt[i] <> cast( ulong, nsScope ) then continue for
+        if this.UsingHere( i ) = false then continue for
         got = this.LookupInNamespace( cast( ScopeId, this.usingInner[i] ), nm, depth + 1 )
         if got <> SYMBOL_NONE then return got
     next
@@ -308,6 +309,7 @@ function SymbolTable.LookupInNamespaceTyped _
     if depth >= 8 then return SYMBOL_NONE
     for i as long = 0 to this.usingAt.Count - 1
         if this.usingAt[i] <> cast( ulong, nsScope ) then continue for
+        if this.UsingHere( i ) = false then continue for
         got = this.LookupInNamespaceTyped( _
             cast( ScopeId, this.usingInner[i] ), nm, wantType, depth + 1 )
         if got <> SYMBOL_NONE then return got
@@ -334,6 +336,7 @@ function SymbolTable.LookupThroughUsings _
         guard += 1
         for i as long = 0 to this.usingAt.Count - 1
             if this.usingAt[i] <> cast( ulong, s ) then continue for
+            if this.UsingHere( i ) = false then continue for
             dim as SymbolId got = _
                 this.LookupInNamespace( cast( ScopeId, this.usingInner[i] ), nm )
             if got <> SYMBOL_NONE then return got
@@ -407,6 +410,7 @@ function SymbolTable.LookupTyped _
         guard += 1
         for i as long = 0 to this.usingAt.Count - 1
             if this.usingAt[i] <> cast( ulong, sc ) then continue for
+            if this.UsingHere( i ) = false then continue for
             '' ...AND THROUGH THAT NAMESPACE'S OWN USINGS. See
             '' LookupInNamespaceTyped: a single probe missed every transitive one.
             dim as SymbolId got = this.LookupInNamespaceTyped( _
@@ -451,6 +455,7 @@ function SymbolTable.Lookup _
         if guard > 1024 then exit while
         for i as long = 0 to this.usingAt.Count - 1
             if this.usingAt[i] <> cast( ulong, s ) then continue for
+            if this.UsingHere( i ) = false then continue for
             dim as SymbolId got = this.PublicOnly( this.LookupLocal( cast( ScopeId, this.usingInner[i] ), nm ) )
             if got <> SYMBOL_NONE then return got
         next
@@ -476,15 +481,53 @@ sub SymbolTable.ShadowFrom _
     this.shadows += 1
 end sub
 
+'' A USING OF AN IMPORTED MODULE'S NAMESPACE -- the alias, or anything reached through it --
+'' BELONGS TO THE FILE THAT WRITES IT, as the '#import' does (M22). The files of a module
+'' unit are read in sorted order as one unit, so 'using util' in a.tiko made util's names
+'' usable bare in b.tiko, while 'util.Foo' there was already refused (AliasHidden). Any
+'' other using, and one written in a header (file 0), applies to the whole scope as before.
+function SymbolTable.UsingFileOf( byval node as ulong, byval nsScope as ScopeId ) as ulong
+    if (node = 0) orelse (node >= cast( ulong, this.nodeModFile.Count )) then return 0
+    dim as ScopeId sc = nsScope
+    dim as long guard = 0
+    while (sc <> SCOPE_NONE) andalso (guard < SCOPE_WALK_MAX)
+        guard += 1
+        dim as SymScope ptr s_ = this.ScopeAt( sc )
+        if s_ = 0 then exit while
+        if this.IsImportNs( s_->owner ) then return this.nodeModFile[node]
+        sc = s_->parent
+    wend
+    return 0
+end function
+
+'' Whether a lookup from node 'at' sees a using of unit file 'uf'. A node of no unit file
+'' (a header's, or one made later) sees every using.
+function SymbolTable.UsingFileSees( byval uf as ulong, byval at as ulong ) as boolean
+    if uf = 0 then return true
+    if (at = 0) orelse (at >= cast( ulong, this.nodeModFile.Count )) then return true
+    dim as ulong f = this.nodeModFile[at]
+    return (f = 0) orelse (f = uf)
+end function
+
+'' The node being looked up from is AliasHidden's: usePos, or aliasPos at USEPOS_LATEST.
+function SymbolTable.UsingHere( byval i as long ) as boolean
+    dim as ulong at = this.usePos
+    if at = USEPOS_LATEST then at = this.aliasPos
+    return this.UsingFileSees( this.usingFile[i], at )
+end function
+
 sub SymbolTable.AddUsing _
-    ( byval scope_ as ScopeId, byval nsScope as ScopeId )
+    ( byval scope_ as ScopeId, byval nsScope as ScopeId, byval node as ulong )
     if (scope_ = SCOPE_NONE) orelse (nsScope = SCOPE_NONE) then return
+    dim as ulong f = this.UsingFileOf( node, nsScope )
     for i as long = 0 to this.usingAt.Count - 1
         if (this.usingAt[i] = cast( ulong, scope_ )) andalso _
-           (this.usingInner[i] = cast( ulong, nsScope )) then return
+           (this.usingInner[i] = cast( ulong, nsScope )) andalso _
+           (this.usingFile[i] = f) then return
     next
     this.usingAt.Push( cast( ulong, scope_ ) )
     this.usingInner.Push( cast( ulong, nsScope ) )
+    this.usingFile.Push( f )
 end sub
 
 '' '#undef name' OF A DECLARED SYMBOL. fbc keeps macros and symbols in one table and

@@ -1,0 +1,2 @@
+#import "./leak"
+print leak.A( ), leak.B( )

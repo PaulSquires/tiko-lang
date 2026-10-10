@@ -341,6 +341,11 @@ namespace Tko
         '' may import several.
         as FB.Array( of ulong ) usingAt
         as FB.Array( of ulong ) usingInner
+        '' ...AND THE UNIT FILE A USING OF AN IMPORTED MODULE'S NAMESPACE IS WRITTEN IN,
+        '' 1-based, or 0 for a using every file sees. An import belongs to the file that
+        '' writes it (M22), so its 'using' does too: in a unit of several files, a sibling
+        '' that did not write it must not see the module's names bare. See UsingHere.
+        as FB.Array( of ulong ) usingFile
 
         declare constructor( )
         declare sub Attach( byval it as Interner ptr )
@@ -408,9 +413,16 @@ namespace Tko
         declare function LookupThroughUsings _
             ( byval scope_ as ScopeId, byval nm as InternId ) as SymbolId
 
-        '' Register 'using ns' in a scope. Repeats are ignored, so a header included
-        '' twice does not grow the list.
-        declare sub AddUsing( byval scope_ as ScopeId, byval nsScope as ScopeId )
+        '' Register 'using ns' in a scope, written at node 'node' (0: unknown). Repeats are
+        '' ignored, so a header included twice does not grow the list.
+        declare sub AddUsing( byval scope_ as ScopeId, byval nsScope as ScopeId, byval node as ulong = 0 )
+        '' ...and whether using i applies to the node being looked up from: a using of an
+        '' imported module's namespace belongs to the unit file that wrote it (usingFile).
+        declare function UsingHere( byval i as long ) as boolean
+        '' ...the unit file a using of nsScope written at 'node' belongs to (0: every file),
+        '' and whether a lookup from node 'at' sees a using of file 'uf'.
+        declare function UsingFileOf( byval node as ulong, byval nsScope as ScopeId ) as ulong
+        declare function UsingFileSees( byval uf as ulong, byval at as ulong ) as boolean
 
         '' '#undef name' of a DECLARED symbol, written at node 'at'. Removes the first
         '' symbol a lookup from 'scope_' finds, from 'at' on. See symbol.bas.

@@ -1,0 +1,7 @@
+'' The same as module-using-not-sibling, with the using in z.tiko, which sorts AFTER b.tiko:
+'' that order already refused b.tiko's Foo, and must go on doing so.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/modules/src/usingfile/leakz.tiko -o tests/modules/usingfile-leakz.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: leakz/b.tiko(3,12): error TKO0743: 'foo' is not declared

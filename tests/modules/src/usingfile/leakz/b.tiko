@@ -1,0 +1,4 @@
+#module "leakz"
+public function B( ) as long
+    return Foo( )
+end function

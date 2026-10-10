@@ -658,12 +658,13 @@ private sub CollectNsNamed_ ( byref c as Ctx, byval ns as ScopeId, byval nm as I
     end if
     for i as long = 0 to c.syms->usingAt.Count - 1
         if c.syms->usingAt[i] <> cast( ulong, ns ) then continue for
+        if c.syms->UsingHere( i ) = false then continue for
         CollectNsNamed_( c, cast( ScopeId, c.syms->usingInner[i] ), nm, got, depth + 1 )
     next
 end sub
 
 private sub CheckUsingAmbiguity_ ( byref c as Ctx )
-    dim as FB.Array( of ulong ) uNode, uScope, uInner
+    dim as FB.Array( of ulong ) uNode, uScope, uInner, uFile
     dim as long total = c.ast->Count( )
     for n as long = 1 to total - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_USING then continue for
@@ -672,6 +673,7 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
         uNode.Push( cast( ulong, n ) )
         uScope.Push( cast( ulong, c.info->ScopeOf( cast( NodeId, n ) ) ) )
         uInner.Push( cast( ulong, ns->inner ) )
+        uFile.Push( c.syms->UsingFileOf( cast( ulong, n ), ns->inner ) )
     next
     if uNode.Count < 1 then return
     '' The right side of a member access is qualified, and not this question.
@@ -728,6 +730,7 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
             for u as long = 0 to uNode.Count - 1
                 if uScope[u] <> cast( ulong, sc ) then continue for
                 if uNode[u] >= cast( ulong, n ) then continue for
+                if c.syms->UsingFileSees( uFile[u], cast( ulong, n ) ) = false then continue for
                 CollectNsNamed_( c, cast( ScopeId, uInner[u] ), nm, got, 0 )
             next
             dim as SymScope ptr ss = c.syms->ScopeAt( sc )

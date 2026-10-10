@@ -1,0 +1,10 @@
+'' A USING OF AN IMPORT BELONGS TO THE FILE THAT WRITES IT (M22). a.tiko writes '#import
+'' "../util"' and 'using util'; b.tiko writes '#import "../other"' and 'using other', and both
+'' modules have a public Foo. Each file's bare Foo is its own using's: 42 and 7. The files are
+'' read as one unit, so b.tiko saw a.tiko's using as well and its Foo was TKO0919.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/modules/src/usingfile/ok.tiko -o tests/modules/usingfile-ok.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/usingfile-ok.exe
+'' EXPECT-RUN-OUT:  42             7

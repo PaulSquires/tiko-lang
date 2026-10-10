@@ -1,0 +1,7 @@
+'' The using is in z.tiko, which sorts AFTER b.tiko.
+#module "leakz"
+#import "../util"
+using util
+public function A( ) as long
+    return Foo( )
+end function

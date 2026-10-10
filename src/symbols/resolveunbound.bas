@@ -242,6 +242,7 @@ private function VisibleAbove_ _
         if VisibleValue_( c, got, use, scope_ ) then return got
         for i as long = 0 to c.syms->usingAt.Count - 1
             if c.syms->usingAt[i] <> cast( ulong, sc ) then continue for
+            if c.syms->UsingHere( i ) = false then continue for
             got = c.syms->LookupInNamespaceTyped( _
                 cast( Tko.ScopeId, c.syms->usingInner[i] ), nm, false, 0 )
             if VisibleValue_( c, got, use, scope_ ) then return got

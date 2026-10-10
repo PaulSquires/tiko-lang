@@ -819,7 +819,7 @@ sub WalkStmt _
             if nsOk then nsOk = (nss->kind = cast( ubyte, Tko.SYM_NAMESPACE )) andalso (DeclaredBelow_( c, nsid, un, here ) = false)
             if nsOk = false then c.diags->Report( Tko.TKO0923, Tko.PointRange( c.ast->Loc( un ) ), c.names->Spelling( unm ) )
             if nsOk = false then continue for
-            c.syms->AddUsing( here, nss->inner )
+            c.syms->AddUsing( here, nss->inner, cast( ulong, un ) )
             c.info->SetRef( un, nsid )    '' for CheckUsingAmbiguity_ (declshape.bas)
         next
         return

@@ -1,0 +1,4 @@
+#module "util"
+public function Foo( ) as long
+    return 42
+end function

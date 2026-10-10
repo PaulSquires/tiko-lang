@@ -1,0 +1,9 @@
+'' A USING OF AN IMPORT DOES NOT REACH A SIBLING FILE (M22). a.tiko imports util and writes
+'' 'using util'; b.tiko, which sorts after it, imports nothing and calls Foo bare. The files
+'' are read as one unit, so the using was in effect for b.tiko and the program printed 42 42,
+'' while b.tiko's 'util.Foo' was already TKO0743.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/modules/src/usingfile/leak.tiko -o tests/modules/usingfile-leak.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: leak/b.tiko(3,12): error TKO0743: 'foo' is not declared

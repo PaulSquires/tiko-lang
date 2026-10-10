@@ -1,0 +1,4 @@
+#module "other"
+public function Foo( ) as long
+    return 7
+end function
