@@ -49,7 +49,7 @@
 set -u
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
-FBC=${FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
+FBC=${FBC:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}
 TKO=${TKO:-$ROOT/bin/tiko.exe}
 WK=${TMPDIR:-/tmp}/goldenrun.$$
 mkdir -p "$WK"

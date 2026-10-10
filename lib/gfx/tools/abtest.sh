@@ -36,7 +36,7 @@
 
 HERE=$( cd "$( dirname "$0" )" && pwd )
 GFX=$( cd "$HERE/.." && pwd )
-: "${FBC:=/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}"
+: "${FBC:=${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}"
 : "${CLANG:=$( command -v clang 2>/dev/null || echo "/c/Program Files/LLVM/bin/clang.exe" )}"
 
 TKOGFX_MSVC="$GFX/lib/win64-msvc/libtkogfx.a"
@@ -56,8 +56,8 @@ for a in "$@"; do
 done
 
 if [ ! -x "$FBC" ]; then
-    echo "abtest: no compiler at $FBC (set FBC)" >&2
-    exit 3
+    echo "abtest: SKIPPED -- no oracle fbc at $FBC (TKO_ORACLE_FBC, or FBC)"
+    exit 0
 fi
 
 TMP=$( mktemp -d )

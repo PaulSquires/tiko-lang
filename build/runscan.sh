@@ -46,7 +46,7 @@ FBC=${FBC:-/c/dev/tiko_editor/toolchains/FreeBASIC-1.10.1-winlibs-gcc-9.3.0/fbc6
 # written against the other compiler. So the reference is chosen PER FILE -- 1.10 first,
 # because it is the compatibility target, and fbc-modern only where 1.10 cannot see the
 # headers at all -- and every finding says which one answered.
-FBCM=${FBCM:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
+FBCM=${FBCM:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}
 
 FBCUNIT=""
 [ -d "$CORPUS_ROOT/fbcunit/inc" ] && FBCUNIT="-i $CORPUS_ROOT/fbcunit/inc"

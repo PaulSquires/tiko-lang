@@ -43,7 +43,7 @@ if [ -d "$TKOINC" ]; then TKO_INCLUDE="$TKOINC"; export TKO_INCLUDE; fi
 LIBP=""
 [ -d toolchains/tiko-windows/lib/win64-msvc ] && LIBP="-p toolchains/tiko-windows/lib/win64-msvc"
 
-FBC=${TKO_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
+FBC=${TKO_FBC:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}
 
 WORK=build/.perf
 rm -rf "$WORK" 2>/dev/null || true

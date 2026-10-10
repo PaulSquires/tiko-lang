@@ -23,7 +23,7 @@
 set -e
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-FBC=${FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
+FBC=${FBC:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}
 TIKO=${TIKO:-"$ROOT/bin/tiko.exe"}
 TC="$ROOT/toolchains/tiko-windows"
 LIBS="-p $TC/lib/win64 -p $TC/lib/win64-fb"
@@ -31,7 +31,7 @@ LIBS="-p $TC/lib/win64 -p $TC/lib/win64-fb"
 die( ) { echo "crosslink: $*" >&2; exit 1; }
 note( ) { echo "crosslink: $*"; }
 
-[ -x "$FBC" ]  || die "no fbc at $FBC (set FBC)"
+[ -x "$FBC" ]  || { echo "crosslink: SKIPPED -- no oracle fbc at $FBC (TKO_ORACLE_FBC, or FBC)"; exit 0; }
 [ -x "$TIKO" ] || die "no tiko at $TIKO (set TIKO)"
 # A MISSING PACKAGED RUNTIME IS A SKIP, NOT A FAILURE. This needs the win64 tree
 # that build/package.sh assembles, and a fresh clone has not run it. Failing the

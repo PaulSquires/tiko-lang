@@ -67,12 +67,12 @@ case "$(uname -s)" in
 esac
 if [ "$HOST" = win64 ]; then
     FBCROOT=${FBCROOT:-/c/dev/fbc-modern}
-    FBC=${FBC:-$FBCROOT/toolchains/fbc-modern-windows/fbc64.exe}
+    FBC=${FBC:-${TKO_ORACLE_FBC:-$FBCROOT/toolchains/fbc-modern-windows/fbc64.exe}}
     TKO=${TKO:-$ROOT/bin/tiko.exe}
     PY=${PYTHON:-python}
 else
     FBCROOT=${FBCROOT:-/mnt/c/dev/fbc-modern}
-    FBC=${FBC:-$FBCROOT/toolchains/fbc-modern-linux/bin/fbc}
+    FBC=${FBC:-${TKO_ORACLE_FBC:-$FBCROOT/toolchains/fbc-modern-linux/bin/fbc}}
     TKO=${TKO:-$ROOT/bin/tiko}
     PY=${PYTHON:-python3}
 fi

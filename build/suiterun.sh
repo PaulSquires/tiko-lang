@@ -21,7 +21,7 @@
 set -u
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
-FBC=${FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
+FBC=${FBC:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}
 # TKO_SUITERUN_FLAGS: extra tiko flags for every compile -- "-O2" -- for the Phase 11 runs
 # at each optimisation level. Unset is the ordinary run.
 TKO=${TKO:-$ROOT/bin/tiko.exe}

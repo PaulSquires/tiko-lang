@@ -20,8 +20,8 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
 
 # fbc-modern, the same toolchain every other gate measures against. TKO_FBC overrides.
-FBC=${TKO_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
-[ -x "$FBC" ] || { echo "parse-gap: fbc not found at $FBC" >&2; exit 3; }
+FBC=${TKO_FBC:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}
+[ -x "$FBC" ] || { echo "parse-gap: SKIPPED -- no oracle fbc at $FBC (TKO_ORACLE_FBC)"; exit 0; }
 CORPUS=tests/vendor/fbc-tests
 [ -d "$CORPUS" ] || { echo "parse-gap: corpus not vendored" >&2; exit 3; }
 

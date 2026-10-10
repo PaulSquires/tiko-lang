@@ -84,7 +84,7 @@ done
 # covers FB_RTLIB_CTX, which we deliberately do NOT mirror (it is ~20KB of
 # FB_FILE we have no business duplicating). Those lines are stripped from the
 # reference rather than faked on the FB side -- compare what both can measure.
-FBC="${FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}"
+FBC="${FBC:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}"
 
 if [ ! -x "$FBC" ]; then
     echo "gate-abi: fb -- no compiler at $FBC (set FBC); FB MIRROR NOT CHECKED" >&2
