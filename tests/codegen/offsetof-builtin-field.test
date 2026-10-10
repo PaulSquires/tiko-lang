@@ -1,0 +1,5 @@
+'' offsetof( T, len ): the field, not the builtin. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/codegen/src/offsetof-builtin-field.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO
