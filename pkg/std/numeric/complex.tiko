@@ -1,4 +1,6 @@
 #module "numeric"
+#import "std/outcome"
+using outcome
 '' std/numeric: complex -- double-precision complex numbers
 ''
 ''     #import "std/numeric"
@@ -62,7 +64,6 @@
 
 #include once "fblimits.bi"
 #include once "fblimits.bi"
-#include once "fb/optional.bi"
 
 using FB
 

@@ -1,4 +1,6 @@
 #module "fs"
+#import "std/outcome"
+using outcome
 '' std/fs: fsinfo -- FB.FileInfo and the metadata calls
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0003-metadata.md.
@@ -14,7 +16,6 @@
 '' module, and it is why the three cheap predicates exist separately.
 
 
-#include once "fb/result.bi"
 #include once "fb/array.bi"
 
 #if __FB_LANG__ <> "fb"

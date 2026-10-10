@@ -1,4 +1,6 @@
 #module "fs"
+#import "std/outcome"
+using outcome
 '' std/fs: fserror -- FB.FsError, and the Result convention for the filesystem
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0001-errors.md.
@@ -36,7 +38,6 @@
 '' not that anyone is forced to look at it (result.bi:17-22).
 
 
-#include once "fb/result.bi"
 
 #if __FB_LANG__ <> "fb"
     #error "fb/fserror.bi requires -lang fb (it uses namespaces)"
@@ -53,7 +54,6 @@
     #define FBFS_EXTERN extern "C"
 #endif
 
-using FB
 
 '' A closed, portable enum: sixteen codes a program can plausibly BRANCH on.
 '' Everything else is FS_UNKNOWN plus a preserved native code.

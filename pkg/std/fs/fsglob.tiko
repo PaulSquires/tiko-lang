@@ -1,4 +1,6 @@
 #module "fs"
+#import "std/outcome"
+using outcome
 '' std/fs: fsglob -- FB.MatchPattern and FB.Glob
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0006-glob.md.
@@ -34,7 +36,6 @@
 ''     someone coming from bash, which is why it is written down.
 
 
-#include once "fb/result.bi"
 #include once "fb/array.bi"
 #include once "fb/array.bi"
 #include once "fb/array.bi"

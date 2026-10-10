@@ -1,4 +1,6 @@
 #module "fs"
+#import "std/outcome"
+using outcome
 '' std/fs: fsvolume -- FB.DiskSpace, FB.VolumeInfo, FB.GetVolumes
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0008-volumes.md.
@@ -19,7 +21,6 @@
 '' is a courtesy, and the write's FS_NO_SPACE is the real answer.
 
 
-#include once "fb/result.bi"
 #include once "fb/array.bi"
 #include once "fb/array.bi"
 

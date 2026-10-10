@@ -15,13 +15,14 @@
 '' and its suite carries the explicit skip-with-a-logged-reason rule.
 
 #import "std/fs"
+#import "std/outcome"
 #include "fbcunit.bi"
-
-#include once "fb/result.bi"
 
 #include once "fb/array.bi"
 
-using fs
+#include once "fberror.bi"
+
+using fs, outcome
 
 using FB
 '' ---------------------------------------------------------------- fixtures

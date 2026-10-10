@@ -1,0 +1,8 @@
+'' tests/vendor/fbc-tests/generics/result-value-on-failure.bas ported to the std modules (build/stdtests.py, generated).
+'' Expected: what tests/std/baseline/generics/result-value-on-failure.txt recorded for the original.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/std/generics/result-value-on-failure.bas -o tests/std/generics/result-value-on-failure.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/std/generics/result-value-on-failure.exe
+'' EXPECT-RUN-EXIT: 1

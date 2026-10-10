@@ -1,4 +1,6 @@
 #module "fs"
+#import "std/outcome"
+using outcome
 ''  LOCAL NAMES HERE MUST NOT COLLIDE WITH ANYTHING DECLARED AT NAMESPACE
 ''  SCOPE IN FB.  This file lives inside `namespace FB`, so a local called
 ''  `count`, `e` or `norm` is a duplicate of FB.Count (fb/stats.bi), FB.e
@@ -33,7 +35,6 @@
 '' what is genuinely per-platform or genuinely hot lives in the kernel.
 
 
-#include once "fb/result.bi"
 #include once "fb/array.bi"
 #include once "fb/array.bi"
 #include once "fb/array.bi"

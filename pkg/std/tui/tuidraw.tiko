@@ -1,4 +1,6 @@
 #module "tui"
+#import "std/outcome"
+using outcome
 '' std/tui: tuidraw -- braille canvas, graphs, sparklines, bar charts and meters
 ''
 ''     dim as TuiCanvas c = TuiCanvas( 60, 10 )   '' 120 x 40 DOTS
@@ -35,16 +37,12 @@
 #include once "fb/array.bi"
 #include once "fb/array.bi"
 #include once "fb/array.bi"
-#include once "fb/result.bi"
-#include once "fb/optional.bi"
 #ifdef __FB_WIN32__
     #include once "windows.bi"
 #else
     #include once "crt.bi"
 #endif
-#include once "fb/optional.bi"
 #include once "fb/array.bi"
-#include once "fb/optional.bi"
 #include once "fb/array.bi"
 
 using FB

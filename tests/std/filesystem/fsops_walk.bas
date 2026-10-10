@@ -18,13 +18,14 @@
 '' than quietly left out.
 
 #import "std/fs"
+#import "std/outcome"
 #include "fbcunit.bi"
-
-#include once "fb/result.bi"
 
 #include once "fb/array.bi"
 
-using fs
+#include once "fberror.bi"
+
+using fs, outcome
 
 using FB
 '' A fresh temp tree per test. Returns "" if it could not be made, and every

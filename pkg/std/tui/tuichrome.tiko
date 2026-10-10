@@ -1,4 +1,6 @@
 #module "tui"
+#import "std/outcome"
+using outcome
 '' std/tui: tuichrome -- overlays and chrome
 ''
 '' RFC-0008 section 5 -- C:\dev\docs\tui\RFC-0008-widget-catalogue.md.
@@ -25,16 +27,12 @@
 #include once "fb/array.bi"
 #include once "fb/array.bi"
 #include once "fb/array.bi"
-#include once "fb/result.bi"
-#include once "fb/optional.bi"
 #ifdef __FB_WIN32__
     #include once "windows.bi"
 #else
     #include once "crt.bi"
 #endif
-#include once "fb/optional.bi"
 #include once "fb/array.bi"
-#include once "fb/optional.bi"
 #include once "fb/array.bi"
 
 using FB

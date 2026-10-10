@@ -1,4 +1,6 @@
 #module "fs"
+#import "std/outcome"
+using outcome
 '' std/fs: fsadvanced -- file watching, memory mapping, advisory locking
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0009-advanced.md.
@@ -9,7 +11,6 @@
 '' lifetime rules, and nothing here calls anything else here.
 
 
-#include once "fb/result.bi"
 #include once "fb/array.bi"
 #include once "fb/array.bi"
 

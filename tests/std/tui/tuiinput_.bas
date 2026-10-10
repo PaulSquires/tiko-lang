@@ -15,16 +15,15 @@
 '' real terminal other than conhost and WSL's pty has ever fed this parser.
 
 #import "std/tui"
+#import "std/outcome"
 #import "std/chrono"
 #include "fbcunit.bi"
 
 #include once "fb/array.bi"
 
-#include once "fb/result.bi"
+#include once "fberror.bi"
 
-#include once "fb/optional.bi"
-
-using tui, chrono
+using tui, outcome, chrono
 
 using FB
 '' ---------------------------------------------------------------------------

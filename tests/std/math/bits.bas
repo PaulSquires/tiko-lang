@@ -5,13 +5,14 @@
 '' against the header's own helpers, so a shared bug cannot agree with itself.
 
 #import "std/numeric"
+#import "std/outcome"
 #include once "fbcunit.bi"
-
-#include once "fb/optional.bi"
 
 #include once "fblimits.bi"
 
-using numeric
+#include once "fberror.bi"
+
+using numeric, outcome
 
 using FB
 '' References: the naive bit-at-a-time loops, which are obviously correct and

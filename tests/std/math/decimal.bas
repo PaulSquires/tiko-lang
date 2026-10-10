@@ -6,13 +6,14 @@
 '' C:\dev\fbc-modern\docs\decimal\decimal.txt.
 
 #import "std/money"
+#import "std/outcome"
 #include once "fbcunit.bi"
-
-#include once "fb/optional.bi"
 
 #include once "fblimits.bi"
 
-using money
+#include once "fberror.bi"
+
+using money, outcome
 
 using FB
 private function d_( byref s as string ) as Decimal

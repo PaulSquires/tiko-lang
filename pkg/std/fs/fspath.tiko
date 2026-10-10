@@ -1,4 +1,6 @@
 #module "fs"
+#import "std/outcome"
+using outcome
 '' std/fs: fspath -- FB.Path* , the pure path algebra
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0002-path.md.
@@ -44,7 +46,6 @@
 '' Ordinary code never passes it.
 
 
-#include once "fb/result.bi"
 #include once "fb/array.bi"
 
 #if __FB_LANG__ <> "fb"

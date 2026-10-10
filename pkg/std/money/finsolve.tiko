@@ -1,6 +1,8 @@
 #module "money"
 #import "std/numeric"
+#import "std/outcome"
 using numeric
+using outcome
 '' std/money: finsolve -- one root finder, for every implied rate in the module
 ''
 ''     #import "std/money"
@@ -79,11 +81,8 @@ using numeric
     #error "fb/finsolve.bi requires -lang fb (it uses namespaces)"
 #endif
 
-#include once "fb/result.bi"
 #include once "fblimits.bi"
-#include once "fb/optional.bi"
 #include once "fblimits.bi"
-#include once "fb/optional.bi"
 
 using FB
 

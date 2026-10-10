@@ -10,17 +10,16 @@
 #import "std/chrono"
 #import "std/numeric"
 #import "std/fs"
+#import "std/outcome"
 #include "fbcunit.bi"
 
 #include once "fb/array.bi"
 
-#include once "fb/optional.bi"
-
 #include once "fblimits.bi"
 
-#include once "fb/result.bi"
+#include once "fberror.bi"
 
-using logs, chrono, numeric, fs
+using logs, chrono, numeric, fs, outcome
 
 using FB
 SUITE( fbc_tests.logging.logrecord_ )

@@ -17,11 +17,12 @@
 '' whole run rather than fail one case. It is asserted in result.bi's own tests.
 
 #import "std/fs"
+#import "std/outcome"
 #include "fbcunit.bi"
 
-#include once "fb/result.bi"
+#include once "fberror.bi"
 
-using fs
+using fs, outcome
 
 using FB
 SUITE( fbc_tests.filesystem.fserror_codes )

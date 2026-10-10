@@ -1,4 +1,6 @@
 #module "money"
+#import "std/outcome"
+using outcome
 '' std/money: moneyformat -- render an amount the way the user's locale writes money.
 ''
 ''     #import "std/money"
@@ -84,9 +86,7 @@
 
 
 #include once "fblimits.bi"
-#include once "fb/optional.bi"
 #include once "fblimits.bi"
-#include once "fb/optional.bi"
 
 #ifndef __FB_WIN32__
     #include once "crt/locale.bi"

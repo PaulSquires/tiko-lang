@@ -1,8 +1,10 @@
 #module "money"
 #import "std/numeric"
 #import "std/chrono"
+#import "std/outcome"
 using numeric
 using chrono
+using outcome
 '' std/money: findeprec -- depreciation
 ''
 ''     #import "std/money"
@@ -65,11 +67,8 @@ using chrono
     #error "fb/findeprec.bi requires -lang fb (it uses namespaces)"
 #endif
 
-#include once "fb/result.bi"
 #include once "fblimits.bi"
-#include once "fb/optional.bi"
 #include once "fblimits.bi"
-#include once "fb/optional.bi"
 #include once "fb/array.bi"
 
 using FB

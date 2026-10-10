@@ -1,13 +1,14 @@
 '' money.Currency -- C:\dev\docs\math\RFC-0003-currency.md.
 
 #import "std/money"
+#import "std/outcome"
 #include once "fbcunit.bi"
-
-#include once "fb/optional.bi"
 
 #include once "fblimits.bi"
 
-using money
+#include once "fberror.bi"
+
+using money, outcome
 
 using FB
 private function cur( byref s as string ) as Currency

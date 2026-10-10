@@ -21,19 +21,18 @@
 '' bounds rather than eliminates the exact kernel's error.
 
 #import "std/money"
+#import "std/outcome"
 #import "std/numeric"
 #import "std/chrono"
 #include once "fbcunit.bi"
 
-#include once "fb/result.bi"
-
 #include once "fb/array.bi"
+
+#include once "fberror.bi"
 
 #include once "fblimits.bi"
 
-#include once "fb/optional.bi"
-
-using money, numeric, chrono
+using money, outcome, numeric, chrono
 
 using FB
 private function D( byref s as string ) as Decimal

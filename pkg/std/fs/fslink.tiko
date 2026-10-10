@@ -1,4 +1,6 @@
 #module "fs"
+#import "std/outcome"
+using outcome
 '' std/fs: fslink -- symbolic links, hard links, permissions and attributes
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0007-links-permissions.md.
@@ -32,7 +34,6 @@
 '' platform.
 
 
-#include once "fb/result.bi"
 #include once "fb/array.bi"
 #include once "fb/array.bi"
 #include once "fb/array.bi"

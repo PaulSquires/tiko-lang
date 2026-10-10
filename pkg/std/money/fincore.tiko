@@ -1,8 +1,10 @@
 #module "money"
 #import "std/numeric"
 #import "std/chrono"
+#import "std/outcome"
 using numeric
 using chrono
+using outcome
 
 '' std/chrono's C kernel, which is the runtime's (src/rtlib/dt_core.c) and not chrono's API:
 '' the few this module calls, declared here for every file of it.
@@ -96,11 +98,8 @@ end extern
     #error "fb/fincore.bi requires -lang fb (it uses namespaces)"
 #endif
 
-#include once "fb/result.bi"
 #include once "fblimits.bi"
-#include once "fb/optional.bi"
 #include once "fblimits.bi"
-#include once "fb/optional.bi"
 
 using FB
 
@@ -431,7 +430,7 @@ end function
 '' 360-period term, against 360 for the naive loop.
 ''
 '' The accumulator is named 'acc' and not the obvious 'result': a local named
-'' 'result' collides with FB.Result and breaks every instantiation in scope.
+'' 'result' collides with outcome.Result and breaks every instantiation in scope.
 public function GrowthFactor overload ( byref ratePerPeriod as Decimal, byval periods as long ) as FinResultDec
     if( hFinRateOk( ratePerPeriod ) = FALSE ) then return FinFailDec( FIN_INVALID_RATE )
     if( periods < 0 ) then return FinFailDec( FIN_INVALID_PERIODS )

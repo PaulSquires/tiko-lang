@@ -1,8 +1,10 @@
 #module "money"
 #import "std/numeric"
 #import "std/chrono"
+#import "std/outcome"
 using numeric
 using chrono
+using outcome
 '' std/money: fintvm -- the time value of money
 ''
 ''     #import "std/money"
@@ -66,11 +68,8 @@ using chrono
     #error "fb/fintvm.bi requires -lang fb (it uses namespaces)"
 #endif
 
-#include once "fb/result.bi"
 #include once "fblimits.bi"
-#include once "fb/optional.bi"
 #include once "fblimits.bi"
-#include once "fb/optional.bi"
 
 using FB
 

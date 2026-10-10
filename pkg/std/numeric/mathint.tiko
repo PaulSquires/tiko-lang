@@ -1,4 +1,6 @@
 #module "numeric"
+#import "std/outcome"
+using outcome
 '' std/numeric: mathint -- integer arithmetic and bits
 ''
 ''     #import "std/numeric"
@@ -37,7 +39,6 @@
 
 
 #include once "fblimits.bi"
-#include once "fb/optional.bi"
 
 using FB
 

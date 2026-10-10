@@ -1,13 +1,14 @@
 '' Numeric text -- C:\dev\docs\math\RFC-0004-text.md.
 
 #import "std/numeric"
+#import "std/outcome"
 #include once "fbcunit.bi"
-
-#include once "fb/optional.bi"
 
 #include once "fblimits.bi"
 
-using numeric
+#include once "fberror.bi"
+
+using numeric, outcome
 
 using FB
 SUITE( fbc_tests.math.text )

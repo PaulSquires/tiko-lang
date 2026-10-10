@@ -1,4 +1,6 @@
 #module "tui"
+#import "std/outcome"
+using outcome
 '' std/tui: tuiinput -- events, the VT input grammar, and PollEvent
 ''
 ''     dim as TuiInput keys
@@ -36,14 +38,11 @@
 '' THE BYTES ALONE when it cannot yet decide.
 
 
-#include once "fb/result.bi"
-#include once "fb/optional.bi"
 #ifdef __FB_WIN32__
     #include once "windows.bi"
 #else
     #include once "crt.bi"
 #endif
-#include once "fb/optional.bi"
 #include once "fb/array.bi"
 
 using FB

@@ -40,9 +40,8 @@ FACADES = {
     "containers": (["containers.bi"],
                    ["containers.bi", "hash.bi", "array.bi", "map.bi", "set.bi", "linkedlist.bi",
                     "orderedmap.bi", "orderedset.bi", "sort.bi"], False),
-    "outcome": (["fb/optional.bi", "fb/result.bi"], ["optional.bi", "result.bi"], False),
 }
-# Real modules now (build/stdport.py, 2026-10-10), no longer written here: strings, tui, money, logs, fs, numeric, tasks, chrono.
+# Real modules now (build/stdport.py, 2026-10-10), no longer written here: strings, tui, money, logs, fs, numeric, tasks, chrono, outcome.
 
 # std/path's names, kept in std/fs when std/path was folded into it (RFC-0009 M30). Each is
 # the header's function, with the header's behaviour -- see pkg/std/README.md.

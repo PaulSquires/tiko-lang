@@ -1,0 +1,8 @@
+'' tests/vendor/fbc-tests/generics/optional-empty-value.bas ported to the std modules (build/stdtests.py, generated).
+'' Expected: what tests/std/baseline/generics/optional-empty-value.txt recorded for the original.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/std/generics/optional-empty-value.bas -o tests/std/generics/optional-empty-value.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/std/generics/optional-empty-value.exe
+'' EXPECT-RUN-EXIT: 1

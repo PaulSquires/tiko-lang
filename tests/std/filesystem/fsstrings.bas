@@ -19,13 +19,14 @@
 '' Neither is true: it substitutes silently, everywhere.
 
 #import "std/fs"
+#import "std/outcome"
 #include "fbcunit.bi"
-
-#include once "fb/result.bi"
 
 #include once "fb/array.bi"
 
-using fs
+#include once "fberror.bi"
+
+using fs, outcome
 
 using FB
 '' Resolves on the ACTUAL type of whatever it is handed, so a test can assert

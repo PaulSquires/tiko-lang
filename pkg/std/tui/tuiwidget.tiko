@@ -1,4 +1,6 @@
 #module "tui"
+#import "std/outcome"
+using outcome
 '' std/tui: tuiwidget -- the widget protocol, focus, containers and buttons
 ''
 ''     type MyPanel extends TuiWidget
@@ -42,16 +44,12 @@
 #include once "fb/array.bi"
 #include once "fb/array.bi"
 #include once "fb/array.bi"
-#include once "fb/result.bi"
-#include once "fb/optional.bi"
 #ifdef __FB_WIN32__
     #include once "windows.bi"
 #else
     #include once "crt.bi"
 #endif
-#include once "fb/optional.bi"
 #include once "fb/array.bi"
-#include once "fb/optional.bi"
 #include once "fb/array.bi"
 
 using FB

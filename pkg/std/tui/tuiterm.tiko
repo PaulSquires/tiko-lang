@@ -1,4 +1,6 @@
 #module "tui"
+#import "std/outcome"
+using outcome
 '' std/tui: tuiterm -- the terminal backend
 ''
 ''     #import "std/tui"
@@ -37,13 +39,11 @@
 '' TWO NAMING TRAPS, BOTH SILENT
 ''
 '' FreeBASIC identifiers are case-insensitive, so a parameter named `ok` shadows
-'' FB.Ok and a variable named `some` shadows FB.Some. Both fail with
+'' outcome.Ok and a variable named `some` shadows outcome.Some. Both fail with
 '' `error 72: Array not dimensioned`, which names neither the cause nor the
 '' symbol. Nothing in this file uses either identifier.
 
 
-#include once "fb/result.bi"
-#include once "fb/optional.bi"
 
 #ifdef __FB_WIN32__
     #include once "windows.bi"
@@ -51,7 +51,6 @@
     #include once "crt.bi"
 #endif
 
-using FB
 
 '' ============================================================== errors
 
@@ -101,8 +100,8 @@ function TuiError.Message( ) as string
     return s
 end function
 
-'' Result has NO constructor -- build with FB.Ok / FB.Fail. Neither does
-'' Optional; build with FB.Some / FB.None. The typedefs exist because
+'' Result has NO constructor -- build with outcome.Ok / outcome.Fail. Neither does
+'' Optional; build with outcome.Some / outcome.None. The typedefs exist because
 '' Ok( of T, E ) cannot infer both parameters, so the type is spelled once here
 '' rather than at every return.
 public type TuiSizeResult as Result( of TuiSize, TuiError )

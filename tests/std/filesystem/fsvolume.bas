@@ -14,13 +14,14 @@
 '' the NAMESPACE) was meant.
 
 #import "std/fs"
+#import "std/outcome"
 #include "fbcunit.bi"
-
-#include once "fb/result.bi"
 
 #include once "fb/array.bi"
 
-using fs
+#include once "fberror.bi"
+
+using fs, outcome
 
 using FB
 private function hTempTree( ) as ustring

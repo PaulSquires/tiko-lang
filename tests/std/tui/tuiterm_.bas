@@ -15,6 +15,7 @@
 '' here. Those are verified by hand; see the phase-1 notes in README.md.
 
 #import "std/tui"
+#import "std/outcome"
 #import "std/chrono"
 #include "fbcunit.bi"
 
@@ -25,11 +26,9 @@
 
 #include once "fb/array.bi"
 
-#include once "fb/result.bi"
+#include once "fberror.bi"
 
-#include once "fb/optional.bi"
-
-using tui, chrono
+using tui, outcome, chrono
 
 using FB
 SUITE( fbc_tests.tui.tuiterm_ )
@@ -65,7 +64,7 @@ SUITE( fbc_tests.tui.tuiterm_ )
 	END_TEST
 
 	'' RFC-0002 section 1. Result has NO constructor: it is built with
-	'' FB.Ok / FB.Fail. A default-constructed Result is a FAILURE, which is the
+	'' outcome.Ok / outcome.Fail. A default-constructed Result is a FAILURE, which is the
 	'' only safe default -- a Result nobody has set must not read as success.
 	TEST( rfc0002_s1_result_construction )
 		dim as TuiSizeResult defaulted

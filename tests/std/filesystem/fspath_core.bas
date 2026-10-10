@@ -13,13 +13,14 @@
 '' after it, so a failure names the rule it broke.
 
 #import "std/fs"
+#import "std/outcome"
 #include "fbcunit.bi"
 
 #include once "fb/array.bi"
 
-#include once "fb/result.bi"
+#include once "fberror.bi"
 
-using fs
+using fs, outcome
 
 using FB
 #define GW FB_PATH_WIN32

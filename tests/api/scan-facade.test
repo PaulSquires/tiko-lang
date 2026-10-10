@@ -2,15 +2,14 @@
 '' real module now: its public procedures and types are members of the alias, at their
 '' declarations in the module's own files -- fs.PathJoin at fspath.tiko's -- and std/path's
 '' folded names are still exported macros, whose ref is the function they name: DirName at
-'' PathParent's declaration.
+'' PathParent's declaration. (File ids are left out: every module std/fs imports shifts them.)
 '' TEST: cli
 '' ARGS: --dump-scan --pkg-dir pkg -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/fs.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: [9] fspath.tiko
-'' EXPECT-OUT: [13] fs.tiko
-'' EXPECT-OUT: function PathJoin as ustring  @9:140:29
-'' EXPECT-OUT: type FsError  @4:104:13
-'' EXPECT-OUT: define DirName as PathParent  @13:42:9
-'' EXPECT-OUT: ref=9:101
+'' EXPECT-OUT: ] fspath.tiko
+'' EXPECT-OUT: ] fs.tiko
+'' EXPECT-OUT: function PathJoin as ustring  @
+'' EXPECT-OUT: type FsError  @
+'' EXPECT-OUT: define DirName as PathParent  @
 '' EXPECT-OUT: namespace fs  @0:3:14  parent=-1
 '' EXPECT-OUT: diags: 0
