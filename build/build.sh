@@ -1,7 +1,7 @@
 #!/bin/sh
 # build.sh -- build tiko-lang with the stage0 compiler: a tiko seed.
 #
-#   build/build.sh [Debug|Release|RelWithDebInfo|MinSizeRel] [--test-runner] [--no-dll]
+#   build/build.sh [Debug|Release|RelWithDebInfo|MinSizeRel] [--test-runner] [--no-dll] [--oracle]
 #   build/build.sh [Release|MinSizeRel] --dll
 #
 # A compiler build also builds the editor's bin/tikoParser.dll and copies it beside
@@ -21,16 +21,18 @@ CFG=${1:-Debug}
 DLL=0
 NODLL=0
 TESTRUNNER=0
+ORACLE=0
 for a in "$@"; do
     case "$a" in
         --dll)         DLL=1 ;;
         --no-dll)      NODLL=1 ;;
         --test-runner) TESTRUNNER=1 ;;
+        --oracle)      ORACLE=1 ;;
     esac
 done
 case "$CFG" in
     --dll)                CFG=Release ;;
-    --no-dll|--test-runner) CFG=Debug ;;
+    --no-dll|--test-runner|--oracle) CFG=Debug ;;
 esac
 
 # Executable suffix. Without this the script writes bin/tiko on Windows while
@@ -42,16 +44,16 @@ esac
 
 # stage0: overridable, because the pinned commit moves at phase boundaries only.
 #
-# THE SEED IS STAGE0: a tiko -- seed/seed.lock pins the one releases are built from. In
-# this order:
+# THE SEED IS STAGE0: a tiko -- seed/seed.lock pins the one releases are built from:
 #   TKO_SEED=<path to a tiko executable>   that tiko;
-#   TKO_ORACLE_FBC=<path to an fbc>        fbc, as the ORACLE and nothing else: diverse
-#                                          double-compiling (the bootstrap plan's V5)
-#                                          builds the tree with it and compares, and
-#                                          MinSizeRel is fbc's gcc backend. No default;
-#                                          nothing a package ships is built this way.
-#   neither                                build/defaultseed.sh's default_seed: the
+#   otherwise                              build/defaultseed.sh's default_seed: the
 #                                          fetched pinned seed, else a packaged toolchain.
+#
+# '--oracle' builds with the fbc TKO_ORACLE_FBC names instead, as the ORACLE and nothing
+# else: diverse double-compiling (the bootstrap plan's V5) builds the tree with it and
+# compares, and MinSizeRel is fbc's gcc backend. A FLAG, not the variable alone: the
+# oracle scripts read TKO_ORACLE_FBC too, and a fence that points it nowhere must not
+# turn every build into an fbc build. Nothing a package ships is built this way.
 # TKO_STAGE0 WAS fbc's name until 2026-10-10, when fbc left the build path. It is ignored,
 # and said so: an old environment builds with the seed, which is what it should do.
 # The seed compiles only what IT understands, so its flags are its own (below) -- the
@@ -62,18 +64,19 @@ if [ -n "${TKO_STAGE0:-}" ]; then
     echo "build: TKO_STAGE0 is retired and ignored -- the seed is stage0; an fbc for the oracle is TKO_ORACLE_FBC" >&2
 fi
 SEEDED=0
-if [ -z "${TKO_SEED:-}" ] && [ -z "${TKO_ORACLE_FBC:-}" ]; then
-    if ! TKO_SEED=$(default_seed "$ROOT" "$HOSTWIN"); then
-        echo "build: no seed compiler. Fetch the pinned one (seed/fetch-seed.sh), package a" >&2
-        echo "build: toolchain (build/package.sh), or set TKO_SEED to a tiko" >&2
-        exit 3
+if [ "$ORACLE" = "1" ]; then
+    STAGE0=${TKO_ORACLE_FBC:-}
+    [ -n "$STAGE0" ] || { echo "build: --oracle builds with the fbc TKO_ORACLE_FBC names, and it names none" >&2; exit 3; }
+else
+    if [ -z "${TKO_SEED:-}" ]; then
+        if ! TKO_SEED=$(default_seed "$ROOT" "$HOSTWIN"); then
+            echo "build: no seed compiler. Fetch the pinned one (seed/fetch-seed.sh), package a" >&2
+            echo "build: toolchain (build/package.sh), or set TKO_SEED to a tiko" >&2
+            exit 3
+        fi
     fi
-fi
-if [ -n "${TKO_SEED:-}" ]; then
     SEEDED=1
     STAGE0=$TKO_SEED
-else
-    STAGE0=$TKO_ORACLE_FBC
 fi
 
 if [ ! -x "$STAGE0" ]; then
@@ -144,7 +147,7 @@ if [ "$SEEDED" = "1" ]; then
         Release)        FLAGS="-O2" ;;
         MinSizeRel)
             echo "build: MinSizeRel is fbc's gcc backend (-gen gcc), which a tiko seed has not got;" >&2
-            echo "build: it is built only with TKO_ORACLE_FBC, and never shipped" >&2
+            echo "build: it is built only by an fbc ('--oracle', TKO_ORACLE_FBC), and never shipped" >&2
             exit 2 ;;
     esac
 fi

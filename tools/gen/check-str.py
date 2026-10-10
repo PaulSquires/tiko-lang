@@ -11,7 +11,7 @@ that returns a different number with nothing to say so.
 
 tiko-lang's side comes from tools/gen/strfmt.bas, compiled against src/support/fbstr.bas with
 the stage0 compiler -- the one build/build.sh uses, so the renderer is measured as the shipped
-compiler has it: the seed, unless TKO_ORACLE_FBC names an fbc. Rows are keyed by BIT PATTERN, so
+compiler has it: the seed. Rows are keyed by BIT PATTERN, so
 neither side's literal parser can get into the measurement.
 
 THE GATE IS EXACT AND FAILS ON A SINGLE MISMATCH.
@@ -39,12 +39,10 @@ WORK = ROOT / "build/.str"
 
 
 def stage0():
-    """(compiler, is_tiko): TKO_SEED, else an fbc in TKO_ORACLE_FBC, else build/defaultseed.sh's
+    """(compiler, is_tiko): TKO_SEED, else build/defaultseed.sh's
     pick -- the order build/build.sh chooses in, so the probe and the compiler agree."""
     if os.environ.get("TKO_SEED"):
         return Path(os.environ["TKO_SEED"]), True
-    if os.environ.get("TKO_ORACLE_FBC"):
-        return Path(os.environ["TKO_ORACLE_FBC"]), False
     r = subprocess.run(["sh", "-c", '. build/defaultseed.sh && default_seed "$PWD" %s'
                         % ("1" if os.name == "nt" else "0")],
                        cwd=ROOT, capture_output=True, text=True)
@@ -70,7 +68,7 @@ def build():
         exe.unlink()
     cc, is_tiko = stage0()
     if cc is None:
-        print("check-str: no seed compiler (seed/fetch-seed.sh), and no TKO_ORACLE_FBC fbc",
+        print("check-str: no seed compiler (seed/fetch-seed.sh, or TKO_SEED)",
               file=sys.stderr)
         return None
     args = [str(cc), str(ROOT / "tools/gen/strfmt.bas"), str(ROOT / "src/support/fbstr.bas"),

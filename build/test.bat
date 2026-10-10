@@ -64,7 +64,7 @@ for /f "tokens=1,2 delims=|" %%a in ("%STAMPED%") do (
 )
 if not "%STAMPCFG%"=="%CFG%" goto stale
 rem A different stage0 than bin\ was built with, chosen as build.bat chooses it.
-set "WANTCC=%TKO_ORACLE_FBC%"
+set "WANTCC="
 if not "%TKO_SEED%"=="" set "WANTCC=%TKO_SEED%"
 if "%WANTCC%"=="" call "%ROOT%\build\defaultseed.bat" "%ROOT%"
 if "%WANTCC%"=="" set "WANTCC=%DEFAULT_SEED%"

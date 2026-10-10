@@ -1,7 +1,7 @@
 @echo off
 rem build.bat -- build tiko-lang with the stage0 compiler: a tiko seed.
 rem
-rem   build\build.bat [Debug^|Release^|RelWithDebInfo^|MinSizeRel] [--test-runner] [--no-dll]
+rem   build\build.bat [Debug^|Release^|RelWithDebInfo^|MinSizeRel] [--test-runner] [--no-dll] [--oracle]
 rem   build\build.bat [Release^|MinSizeRel] --dll
 rem
 rem A compiler build also builds the editor's bin\tikoParser.dll and copies it beside
@@ -17,25 +17,33 @@ set "CFG=%~1"
 if "%CFG%"=="" set "CFG=Debug"
 if "%CFG%"=="--test-runner" set "CFG=Debug"
 if "%CFG%"=="--no-dll" set "CFG=Debug"
+if "%CFG%"=="--oracle" set "CFG=Debug"
 rem '--dll' anywhere: build the editor's tikoParser.dll INSTEAD of the compiler (below).
 set "DLL=0"
 set "NODLL=0"
 set "TESTRUNNER=0"
+set "ORACLE=0"
 for %%a in (%*) do (
     if /i "%%~a"=="--dll" set "DLL=1"
     if /i "%%~a"=="--no-dll" set "NODLL=1"
+    if /i "%%~a"=="--oracle" set "ORACLE=1"
     if /i "%%~a"=="--test-runner" set "TESTRUNNER=1"
 )
 if "%CFG%"=="--dll" set "CFG=Release"
 
-rem THE SEED IS STAGE0: TKO_SEED, else TKO_ORACLE_FBC (an fbc, for the oracle only), else
-rem defaultseed.bat's pick -- see the peer note in build.sh, which also says why the seed's
-rem flags are its own and why TKO_STAGE0, fbc's old name, is ignored.
+rem THE SEED IS STAGE0: TKO_SEED, else defaultseed.bat's pick; '--oracle' builds with the fbc
+rem TKO_ORACLE_FBC names instead -- see the peer note in build.sh, which also says why that is
+rem a flag, why the seed's flags are its own and why TKO_STAGE0, fbc's old name, is ignored.
 if not "%TKO_STAGE0%"=="" echo build: TKO_STAGE0 is retired and ignored -- the seed is stage0; an fbc for the oracle is TKO_ORACLE_FBC 1>&2
 set "SEEDED=0"
 set "STAGE0="
+if "%ORACLE%"=="1" if "%TKO_ORACLE_FBC%"=="" (
+    echo build: --oracle builds with the fbc TKO_ORACLE_FBC names, and it names none 1>&2
+    exit /b 3
+)
+if "%ORACLE%"=="1" set "STAGE0=%TKO_ORACLE_FBC%"
+if "%ORACLE%"=="1" goto stage0set
 if not "%TKO_SEED%"=="" goto seedset
-if not "%TKO_ORACLE_FBC%"=="" goto seedset
 call "%ROOT%\build\defaultseed.bat" "%ROOT%"
 if not defined DEFAULT_SEED (
     echo build: no seed compiler. Fetch the pinned one ^(seed/fetch-seed.sh^), package a 1>&2
@@ -44,8 +52,9 @@ if not defined DEFAULT_SEED (
 )
 set "TKO_SEED=%DEFAULT_SEED%"
 :seedset
-if not "%TKO_SEED%"=="" set "SEEDED=1"
-if "%SEEDED%"=="1" ( set "STAGE0=%TKO_SEED%" ) else ( set "STAGE0=%TKO_ORACLE_FBC%" )
+set "SEEDED=1"
+set "STAGE0=%TKO_SEED%"
+:stage0set
 
 if not exist "%STAGE0%" (
     echo build: stage0 compiler not found at %STAGE0% 1>&2
@@ -80,7 +89,7 @@ if "%SEEDED%"=="1" (
     if /i "%CFG%"=="Release"        set "FLAGS=-O2"
     if /i "%CFG%"=="MinSizeRel" (
         echo build: MinSizeRel is fbc's gcc backend ^(-gen gcc^), which a tiko seed has not got; 1>&2
-        echo build: it is built only with TKO_ORACLE_FBC, and never shipped 1>&2
+        echo build: it is built only by an fbc ^('--oracle', TKO_ORACLE_FBC^), and never shipped 1>&2
         exit /b 2
     )
 )

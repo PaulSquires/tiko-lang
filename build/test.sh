@@ -73,9 +73,9 @@ newer_than( ) {
     return 1
 }
 
-# The stage0 build.sh would use now: TKO_SEED, else TKO_ORACLE_FBC, else the default seed.
+# The stage0 build.sh would use now: TKO_SEED, else the default seed.
 . "$ROOT/build/defaultseed.sh"
-WANTCC=${TKO_SEED:-${TKO_ORACLE_FBC:-}}
+WANTCC=${TKO_SEED:-}
 if [ -z "$WANTCC" ]; then
     case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) _hw=1 ;; *) _hw=0 ;; esac
     WANTCC=$(default_seed "$ROOT" "$_hw" || true)
