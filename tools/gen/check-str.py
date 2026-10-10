@@ -10,8 +10,9 @@ protecting: `data 1.5` is stored as the TEXT "1.5", so a rendering difference is
 that returns a different number with nothing to say so.
 
 tiko-lang's side comes from tools/gen/strfmt.bas, compiled against src/support/fbstr.bas with
-the stage0 compiler. Rows are keyed by BIT PATTERN, so neither side's literal parser can
-get into the measurement.
+the stage0 compiler -- the one build/build.sh uses, so the renderer is measured as the shipped
+compiler has it: the seed, unless TKO_STAGE0 names an fbc. Rows are keyed by BIT PATTERN, so
+neither side's literal parser can get into the measurement.
 
 THE GATE IS EXACT AND FAILS ON A SINGLE MISMATCH.
 
@@ -23,6 +24,7 @@ gate bucketed that shortfall rather than fitting to it. x86-64 is now the only
 architecture (D14), so the exception, its classifier and its buckets are gone and
 every supported target is held to the exact standard.
 """
+import os
 import re
 import struct
 import subprocess
@@ -34,7 +36,21 @@ import tkotargets
 ROOT = Path(__file__).resolve().parents[2]
 TRUTH = ROOT / "tests/expected/fbc-str.txt"
 WORK = ROOT / "build/.str"
-STAGE0 = tkotargets.TC / "fbc64.exe"
+
+
+def stage0():
+    """(compiler, is_tiko): TKO_SEED, else an fbc in TKO_STAGE0, else build/defaultseed.sh's
+    pick -- the order build/build.sh chooses in, so the probe and the compiler agree."""
+    if os.environ.get("TKO_SEED"):
+        return Path(os.environ["TKO_SEED"]), True
+    if os.environ.get("TKO_STAGE0"):
+        return Path(os.environ["TKO_STAGE0"]), False
+    r = subprocess.run(["sh", "-c", '. build/defaultseed.sh && default_seed "$PWD" %s'
+                        % ("1" if os.name == "nt" else "0")],
+                       cwd=ROOT, capture_output=True, text=True)
+    if r.returncode != 0 or not r.stdout.strip():
+        return None, True
+    return Path(r.stdout.strip()), True
 
 
 def rows(path):
@@ -52,12 +68,21 @@ def build():
     if exe.exists():
         # A stale .exe yields a believable number, never an error.
         exe.unlink()
-    r = subprocess.run([str(STAGE0),
-                        str(ROOT / "tools/gen/strfmt.bas"),
-                        str(ROOT / "src/support/fbstr.bas"),
-                        "-i", str(ROOT / "src"), "-w", "all",
-                        "-x", str(exe)],
-                       capture_output=True, text=True)
+    cc, is_tiko = stage0()
+    if cc is None:
+        print("check-str: no seed compiler (seed/fetch-seed.sh), and no TKO_STAGE0 fbc",
+              file=sys.stderr)
+        return None
+    args = [str(cc), str(ROOT / "tools/gen/strfmt.bas"), str(ROOT / "src/support/fbstr.bas"),
+            "-i", str(ROOT / "src")]
+    env = dict(os.environ)
+    if is_tiko:
+        # The seed's own spelling, and the tree's headers -- as build.sh gives them.
+        args += ["-o", str(exe)]
+        env["TKO_INCLUDE"] = str(ROOT / "inc")
+    else:
+        args += ["-i", str(ROOT / "inc"), "-w", "all", "-x", str(exe)]
+    r = subprocess.run(args, capture_output=True, text=True, env=env)
     if r.returncode != 0 or not exe.exists():
         print("check-str: could not build the formatter probe\n%s%s"
               % (r.stdout, r.stderr), file=sys.stderr)
@@ -86,8 +111,9 @@ def main() -> int:
     if not TRUTH.exists():
         print("check-str: no truth file; run tools/gen/str-truth.py", file=sys.stderr)
         return 3
-    if not STAGE0.exists():
-        print("check-str: stage0 compiler not found at %s" % STAGE0, file=sys.stderr)
+    cc, _ = stage0()
+    if cc is None or not cc.exists():
+        print("check-str: stage0 compiler not found (%s)" % (cc or "no seed"), file=sys.stderr)
         return 3
     exe = build()
     if exe is None:
