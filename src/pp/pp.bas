@@ -283,8 +283,35 @@ end function
 '' DEFINED TO '#ifdef' AND 'defined( )' THOUGH THE PARSER EXPANDS THEM: '__FUNCTION__',
 '' '__FUNCTION_NQ__' and '__FB_QUERY_SYMBOL__'. Measured, fbc takes the true branch for all
 '' three; tiko took none.
+'' DECLARED, AND VISIBLE HERE -- what '#ifdef' and 'defined( )' ask, as fbc answers it. A name
+'' declared ONLY inside namespaces is defined where one of them is in scope: the current
+'' namespace or one enclosing it, or one a 'using' brought in. fb/fsinfo.bi's 'FB.Stat'
+'' made a bare '#ifdef stat' true at the top level, and crt/win32/wchar.bi's '#ifndef stat'
+'' then skipped its 'type _stat' and failed on it -- fbc says not defined, measured. A name
+'' declared at the top level anywhere, or as a local, is defined as before.
+private function IsDeclaredVisible_( byref e as PpEngine, byval id as InternId ) as boolean
+    if IsDeclared_( e, id ) = false then return false
+    dim as long ix = cast( long, e.names->Fold( id ) )
+    if (ix < e.topDeclared.Count) andalso (e.topDeclared[ix] = 1) then return true
+    if ix >= e.nsMemberOf.Count then return true
+    dim as string ofs = e.nsMemberOf[ix]
+    if len( ofs ) = 0 then return true
+    dim as string cur = Text.LowerAscii( e.curNs )
+    dim as long a = 2
+    while a <= len( ofs )
+        dim as long b = instr( a, ofs, "|" )
+        if b = 0 then exit while
+        dim as string ns = mid( ofs, a, b - a )
+        dim as string nsl = Text.LowerAscii( ns )
+        if (cur = nsl) orelse (left( cur, len( nsl ) + 1 ) = nsl & ".") then return true
+        if instr( e.usingPaths, "|" & nsl & "|" ) > 0 then return true
+        a = b + 1
+    wend
+    return false
+end function
+
 private function IsDefinedBuiltin_( byref e as PpEngine, byval id as InternId ) as boolean
-    if IsDeclared_( e, id ) then return true
+    if IsDeclaredVisible_( e, id ) then return true
     if id = INTERN_NONE then return false
     dim as string s = lcase( e.names->Spelling( id ) )
     return (s = "__function__") orelse (s = "__function_nq__") orelse (s = "__fb_query_symbol__")

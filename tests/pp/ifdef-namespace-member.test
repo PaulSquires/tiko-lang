@@ -1,0 +1,9 @@
+'' #ifdef of a namespace member answers by scope, as fbc does. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/ifdef-namespace-member.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: #print B: widget inside NS
+'' EXPECT-OUT: #print C: widget inside NS.Inner
+'' EXPECT-OUT: #print D: widget after using NS
+'' EXPECT-NOT: A: widget
+'' EXPECT-NOT: TKO0808
