@@ -11,13 +11,15 @@
 '' builds was loaded -- by programs built by fbc, tiko -target win64 and tiko -target
 '' win64-msvc, through dylibload and through the import library -- when this was
 '' fixed (HANDOFF section 7); the runner cannot run it.
+'' SINCE 2026-10-10 THE OBJECT IS TIKO-RT'S OWN (lib/rt/src/c/fbrt0.c), packaged beside
+'' libfb.a in lib/win64/, and the -fb directory no longer carries fbc's.
 '' TEST: cli
 '' ARGS: -v -target win64 -dll -p toolchains/tiko-windows/lib/win64 tests/codegen/src/export.bas -o tests/driver/tmpdllw64.dll
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-fb
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: -shared
 '' EXPECT-OUT: -Wl,--out-implib,"tests/driver/libtmpdllw64.dll.a"
-'' EXPECT-OUT: win64-fb/fbrt0.o
+'' EXPECT-OUT: win64/fbrt0.o
 '' EXPECT-NOT: -implib:
 '' EXPECT-NOT: -Xlinker -dll
 '' EXPECT-FILE: tests/driver/tmpdllw64.dll
