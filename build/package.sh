@@ -331,8 +331,17 @@ if [ "$DO_INC" = "1" ]; then
     [ -n "$( ls -A "$_newinc" 2>/dev/null )" ] || die "packaged inc/ is EMPTY -- the compiler would find no headers at all"
     # include/ was fbc-modern-linux's header tree, copied whole beside inc/. The compiler
     # never looked in it (<exe-dir>/inc, <exe-dir>/../inc); it goes.
-    rm -rf "$OUT/inc" "$OUT/include"
-    mv "$_newinc" "$OUT/inc"
+    rm -rf "$OUT/include"
+    # EMPTIED, NOT REMOVED. The directory itself is sometimes held open -- a shell whose cwd
+    # is inside it, an editor, a junction -- and 'rm -rf inc' then deleted every header and
+    # failed on the directory, leaving the toolchain with NONE (2026-09-23, 09-24, 10-10).
+    # Its contents can always go, so they do, and the new set moves in entry by entry.
+    mkdir -p "$OUT/inc"
+    find "$OUT/inc" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+    for _e in "$_newinc"/* "$_newinc"/.[!.]*; do
+        [ -e "$_e" ] && mv "$_e" "$OUT/inc/"
+    done
+    rmdir "$_newinc"
 else
     note "--no-inc: headers not packaged"
     INC_STATE="not packaged (--no-inc)"
