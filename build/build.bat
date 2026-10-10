@@ -52,6 +52,12 @@ if not exist "%TKO_STAGE0%" (
 rem The output flag: fbc's is -x, tiko's -o.
 set "OUTOPT=-x"
 if "%SEEDED%"=="1" set "OUTOPT=-o"
+rem The tree's own headers, inc\: a seed's only default directory, fbc's first -i -- see
+rem build.sh, which says why an inherited TKO_INCLUDE is overridden.
+set "INCOPT="
+if exist "%ROOT%\inc\" (
+    if "%SEEDED%"=="1" ( set "TKO_INCLUDE=%ROOT%\inc" ) else ( set "INCOPT=-i inc" )
+)
 
 if /i "%CFG%"=="Debug"          set "FLAGS=-g -exx -w all"
 if /i "%CFG%"=="RelWithDebInfo" set "FLAGS=-g -w all"
@@ -107,7 +113,7 @@ goto :compiler
     set "DLLFLAGS=!FLAGS:-exx=!"
     echo build: tikoParser.dll [%CFG%] with %TKO_STAGE0%
     pushd "%ROOT%"
-    "%TKO_STAGE0%" -dll !LIBSRC! src\api\tikoparser.bas -i src !DLLFLAGS! !OUTOPT! "bin\tikoParser.dll"
+    "%TKO_STAGE0%" -dll !LIBSRC! src\api\tikoparser.bas -i src !INCOPT! !DLLFLAGS! !OUTOPT! "bin\tikoParser.dll"
     if errorlevel 1 ( popd & exit /b 1 )
     popd
     rem Beside tiko-editor.exe, which loads it from there. A failed copy (a running editor
@@ -129,7 +135,7 @@ goto :compiler
 :compiler
 echo build: tiko-lang [%CFG%] with %TKO_STAGE0%
 pushd "%ROOT%"
-"%TKO_STAGE0%" !SOURCES! -m !MAINMOD! -i src %FLAGS% %OUTOPT% "bin\tiko.exe"
+"%TKO_STAGE0%" !SOURCES! -m !MAINMOD! -i src %INCOPT% %FLAGS% %OUTOPT% "bin\tiko.exe"
 if errorlevel 1 ( popd & exit /b 1 )
 
 if "%TESTRUNNER%"=="1" goto :buildrunner
@@ -137,7 +143,7 @@ goto :done
 
 :buildrunner
 echo build: tiko-test [%CFG%]
-"%TKO_STAGE0%" tools\tiko-test\tikotest.bas -i src %FLAGS% -mt %OUTOPT% "bin\tiko-test.exe"
+"%TKO_STAGE0%" tools\tiko-test\tikotest.bas -i src %INCOPT% %FLAGS% -mt %OUTOPT% "bin\tiko-test.exe"
 if errorlevel 1 ( popd & exit /b 1 )
 
 :done

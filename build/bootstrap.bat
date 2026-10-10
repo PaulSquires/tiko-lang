@@ -15,7 +15,7 @@ rem   2. stage2 and stage3 are byte-identical files.
 rem   3. stage3 compiles a program and it prints what stage0's build of it prints.
 rem   4. with --gate, the suite against stage2 fails exactly what it fails against stage1.
 rem
-rem Headers: TKO_BOOT_INC, else <stage0 dir>\inc. Libraries: TKO_BOOT_LIBDIRS (separated
+rem Headers: TKO_BOOT_INC, else the tree's inc\, else <stage0 dir>\inc. Libraries: TKO_BOOT_LIBDIRS (separated
 rem by spaces), else per target below. The caller's TKO_LIBPATH and TKO_INCLUDE are not
 rem inherited. Everything lands in build\.bootstrap\, cleared first.
 rem
@@ -63,6 +63,8 @@ if "%SEEDED%"=="1" if not exist "%TKO_SEED%" (
 set "SEEDDIR="
 if "%SEEDED%"=="1" for %%d in ("%TKO_SEED%") do set "SEEDDIR=%%~dpd"
 if "%SEEDED%"=="0" if "%TKO_STAGE0%"=="" set "TKO_STAGE0=C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe"
+rem The tree's own headers first (phase H), as build.bat uses them.
+if "%TKO_BOOT_INC%"=="" if exist "%ROOT%\inc\" set "TKO_BOOT_INC=%ROOT%\inc"
 if "%TKO_BOOT_INC%"=="" if "%SEEDED%"=="1" set "TKO_BOOT_INC=%SEEDDIR%inc"
 if "%TKO_BOOT_INC%"=="" for %%d in ("%TKO_STAGE0%") do set "TKO_BOOT_INC=%%~dpdinc"
 if not exist "%TKO_BOOT_INC%\" (

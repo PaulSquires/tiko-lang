@@ -33,7 +33,7 @@
 # criterion is the fixpoint at -O0 AND -O2. --stage1 skips the stage0 build and
 # uses the given compiler. --target defaults to the host's default target.
 #
-# Headers: the stage0 toolchain's own set, which is what stage0 compiled against --
+# Headers: the tree's own inc/ (phase H), else the stage0 toolchain's own set --
 # <stage0 dir>/inc on Windows, <prefix>/include/freebasic elsewhere -- or
 # TKO_BOOT_INC. Libraries: per target below, or TKO_BOOT_LIBDIRS (space-separated).
 # TKO_LIBPATH and TKO_INCLUDE from the caller are NOT inherited: a variable exported
@@ -100,7 +100,10 @@ fi
 [ "$SEEDED" = "1" ] || export TKO_STAGE0
 
 if [ -z "$TKO_BOOT_INC" ]; then
-    if [ "$SEEDED" = "1" ]; then
+    # The tree's own headers first (phase H) -- what build.sh builds stage1 against too.
+    if [ -d "$ROOT/inc" ]; then
+        TKO_BOOT_INC="$ROOT/inc"
+    elif [ "$SEEDED" = "1" ]; then
         TKO_BOOT_INC="$SEEDDIR/inc"
     elif [ "$HOSTWIN" = "1" ]; then
         TKO_BOOT_INC="$(dirname "$TKO_STAGE0")/inc"

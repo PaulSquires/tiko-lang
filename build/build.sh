@@ -79,6 +79,21 @@ fi
 OUTOPT="-x"
 [ "$SEEDED" = "1" ] && OUTOPT="-o"
 
+# THE TREE'S OWN HEADERS, inc/ (phase H of the bootstrap plan): every stage0 compile
+# reads fb/, crt/ and the rest from here, not from whatever stage0 brought. A seed gets
+# them as TKO_INCLUDE -- its ONLY default directory then, so a header missing from inc/
+# fails here instead of being found in the seed's copy -- and fbc as '-i inc', ahead of
+# its own. An inherited TKO_INCLUDE is overridden on purpose: a variable left over from
+# a probe must not decide what the compiler is built against.
+INCOPT=""
+if [ -d "$ROOT/inc" ]; then
+    if [ "$SEEDED" = "1" ]; then
+        TKO_INCLUDE="$ROOT/inc"; export TKO_INCLUDE
+    else
+        INCOPT="-i inc"
+    fi
+fi
+
 case "$CFG" in
     Debug)          FLAGS="-g -exx -w all" ;;
     RelWithDebInfo) FLAGS="-g -w all" ;;
@@ -150,11 +165,11 @@ compile_units( ) {
     cu_dir=$1; cu_main=$2; cu_flags=$3; shift 3
     rm -rf "$cu_dir"; mkdir -p "$cu_dir"
     printf '%s\n' "$@" > "$cu_dir/units.txt"
-    export TKO_STAGE0 cu_dir cu_main cu_flags
+    export TKO_STAGE0 cu_dir cu_main cu_flags INCOPT
     ( cd "$ROOT" && xargs -P "$JOBS" -I{} sh -c '
         f="{}"; n=$(echo "$f" | tr "/." "__")
         m=""; [ "$(basename "$f" .bas)" = "$cu_main" ] && m="-m $cu_main"
-        "$TKO_STAGE0" -c "$f" $m -i src $cu_flags -o "$cu_dir/$n.o" > "$cu_dir/$n.log" 2>&1
+        "$TKO_STAGE0" -c "$f" $m -i src $INCOPT $cu_flags -o "$cu_dir/$n.o" > "$cu_dir/$n.log" 2>&1
         exit 0' < "$cu_dir/units.txt" )
     OBJS=""
     cu_fail=0
@@ -235,7 +250,7 @@ fi
 
 if [ "$TESTRUNNER" = "1" ]; then
     echo "build: tiko-test [$CFG]"
-    ( cd "$ROOT" && "$TKO_STAGE0" tools/tiko-test/tikotest.bas -i src $FLAGS -mt $OUTOPT "bin/tiko-test$EXT" )
+    ( cd "$ROOT" && "$TKO_STAGE0" tools/tiko-test/tikotest.bas -i src $INCOPT $FLAGS -mt $OUTOPT "bin/tiko-test$EXT" )
 fi
 
 # WHAT bin/ NOW HOLDS, for anything that needs to know whether it is the right thing.
