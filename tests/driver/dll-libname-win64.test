@@ -1,7 +1,11 @@
 '' A '.dll' LIBRARY NAME ON THE MinGW TARGET links as its stem, as on win64-msvc:
 '' '-luser32', which finds libuser32.dll.a and libuser32.a alike. '-luser32.dll' found
 '' only the first, which fbc's MinGW tree carries and a stock MinGW-w64 does not.
-'' TEST: cli
+'' SKIPPED since 2026-10-10: -target win64 (the MinGW ABI) is no longer packaged, so the
+'' toolchain this links against has no lib/win64. The compiler still has the target; to
+'' run this, build tiko-rt for it (lib/rt/build/build.sh Release win64), point the paths
+'' below at lib/rt/lib/win64, and set TEST back to cli.
+'' TEST: skip
 '' ARGS: -v -target win64 -p toolchains/tiko-windows/lib/win64 tests/driver/src/dll-libname.bas -o tests/driver/dlllibname.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: "-luser32"

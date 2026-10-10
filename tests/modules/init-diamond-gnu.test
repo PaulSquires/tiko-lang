@@ -4,7 +4,11 @@
 '' global constructed, and a; then main. At the end the root's destructor runs first, then
 '' the modules' in reverse, d's 'destructor' sub before its global's. b's 'constructor
 '' 101' keeps its FreeBASIC meaning and runs before everything.
-'' TEST: cli
+'' SKIPPED since 2026-10-10: -target win64 (the MinGW ABI) is no longer packaged, so the
+'' toolchain this links against has no lib/win64. The compiler still has the target; to
+'' run this, build tiko-rt for it (lib/rt/build/build.sh Release win64), point the paths
+'' below at lib/rt/lib/win64, and set TEST back to cli.
+'' TEST: skip
 '' ARGS: -target win64 -i tests/modules/src/init/libs tests/modules/src/init/app/main.bas -o tests/modules/initdiamondgnu.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64
 '' EXPECT-EXIT: 0

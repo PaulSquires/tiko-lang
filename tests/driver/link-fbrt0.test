@@ -13,7 +13,11 @@
 '' the packaged compiler gives itself.
 '' SINCE 2026-10-10 THE OBJECT IS TIKO-RT'S OWN (lib/rt/src/c/fbrt0.c), packaged beside
 '' libfb.a in lib/win64/, and the -fb directory no longer carries fbc's.
-'' TEST: cli
+'' SKIPPED since 2026-10-10: -target win64 (the MinGW ABI) is no longer packaged, so the
+'' toolchain this links against has no lib/win64. The compiler still has the target; to
+'' run this, build tiko-rt for it (lib/rt/build/build.sh Release win64), point the paths
+'' below at lib/rt/lib/win64, and set TEST back to cli.
+'' TEST: skip
 '' ARGS: -v -target win64 -mt -p toolchains/tiko-windows/lib/win64 tests/driver/src/mt-startup.bas -o tests/driver/mtstartup.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-fb
 '' EXPECT-EXIT: 0
