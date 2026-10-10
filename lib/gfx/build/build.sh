@@ -18,10 +18,12 @@
 # tree builds for the Microsoft ABI; it does not yet make a graphics program
 # link. See "WHAT IS NOT HERE" below.
 #
-# THE COMPILER MUST UNDERSTAND -z msvc. The prebuilt toolchain fbc does not --
-# the switch landed in fbc-modern on 2026-09-05 -- so this refuses rather than
-# falling back, because falling back emits the gnu triple and builds the wrong
-# ABI without saying so.
+# THE COMPILER IS TIKO (bootstrap plan, phase G, 2026-10-10): the tree's bin/tiko, or
+# TKOGFX_TIKO, which targets win64-msvc itself -- one step, no clang retarget. Measured
+# when it changed: the same 368 functions and the same 83 public symbols as fbc's build.
+# An fbc builds it only when TKOGFX_FBC names one, and that fbc must understand -z msvc
+# (fbc-modern's working tree, 2026-09-05 or later): without it fbc emits the gnu triple
+# and builds the wrong ABI without saying so, so that path refuses rather than falls back.
 #
 # WHAT IS NOT HERE: the entry points. tiko's src/mir/rtl.bi names 32 of them
 # with full signatures -- fb_GfxScreen( l, l, l, l, l ) as l and the rest -- and
@@ -32,7 +34,6 @@
 set -e
 
 GFX_ROOT=$(cd "$(dirname "$0")/.." && pwd)
-FBC_TREE=${FBC_TREE:-/c/dev/fbc-modern}
 
 die( ) { echo "libtkogfx: $*" >&2; exit 2; }
 
@@ -49,20 +50,27 @@ case "$(uname -s)" in
     *) die "win64 host only -- the Microsoft ABI is not reachable from here" ;;
 esac
 
-FBC=${TKOGFX_FBC:-$FBC_TREE/src/fbc.exe}
-[ -x "$FBC" ] || die "no fbc at $FBC (set TKOGFX_FBC)"
+if [ -n "${TKOGFX_FBC:-}" ]; then
+    FBC=$TKOGFX_FBC
+    [ -x "$FBC" ] || die "no fbc at $FBC (TKOGFX_FBC)"
+else
+    TIKO=${TKOGFX_TIKO:-"$GFX_ROOT/../../bin/tiko.exe"}
+    [ -x "$TIKO" ] || die "no tiko at $TIKO -- build the compiler first (build/build.sh), or set TKOGFX_TIKO"
+fi
 CLANG=${CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}
 [ -x "$CLANG" ] || die "no clang at $CLANG (set CLANG)"
 AR=${TKOGFX_AR:-"C:/Program Files/LLVM/bin/llvm-ar.exe"}
 [ -x "$AR" ] || die "no llvm-ar at $AR (set TKOGFX_AR)"
 
-# -z msvc, or nothing. Probed rather than assumed.
+# -z msvc, or nothing -- the fbc path only. Probed rather than assumed.
 mkdir -p "$GFX_ROOT/obj"
-printf 'end 0\n' > "$GFX_ROOT/obj/.zprobe.bas"
-if "$FBC" -c -gen llvm -z msvc -m zprobe "$GFX_ROOT/obj/.zprobe.bas" -o "$GFX_ROOT/obj/.zprobe.o" 2>&1 | grep -q 'Invalid command-line option'; then
-    die "$FBC does not understand -z msvc -- build fbc-modern from source (2026-09-05 or later)"
+if [ -n "${TKOGFX_FBC:-}" ]; then
+    printf 'end 0\n' > "$GFX_ROOT/obj/.zprobe.bas"
+    if "$FBC" -c -gen llvm -z msvc -m zprobe "$GFX_ROOT/obj/.zprobe.bas" -o "$GFX_ROOT/obj/.zprobe.o" 2>&1 | grep -q 'Invalid command-line option'; then
+        die "$FBC does not understand -z msvc -- build fbc-modern from source (2026-09-05 or later)"
+    fi
+    rm -f "$GFX_ROOT/obj/.zprobe.bas" "$GFX_ROOT/obj/.zprobe.o" "$GFX_ROOT/obj/zprobe.ll"
 fi
-rm -f "$GFX_ROOT/obj/.zprobe.bas" "$GFX_ROOT/obj/.zprobe.o" "$GFX_ROOT/obj/zprobe.ll"
 
 case "$CFG" in
     Debug)          OPT=0 ;;
@@ -97,6 +105,17 @@ for target in $TARGETS; do
     # inc/, ahead of fbc's own. Without it they came from fbc-modern's src/inc.
     GFXINC=""
     [ -d "$GFX_ROOT/../../inc" ] && GFXINC="-i $(cd "$GFX_ROOT/../../inc" && pwd)"
+    if [ -z "${TKOGFX_FBC:-}" ]; then
+        # tiko: one step for the Microsoft ABI. '-O s' is not tiko's; MinSizeRel is -O2.
+        TOPT=$OPT; [ "$TOPT" = "s" ] && TOPT=2
+        # --keep-temps leaves all.o.ll, which the function count below reads, as fbc's
+        # -r left all.ll.
+        ( cd "$OBJDIR" && "$TIKO" -c "$GFX_ROOT/src/all.bas" -m __tkogfx_lib $GFXINC \
+            -target win64-msvc -mt "-O$TOPT" --keep-temps -o "$OBJDIR/all.o" ) > "$OBJDIR/tiko.log" 2>&1 \
+            || { sed 's/^/    /' "$OBJDIR/tiko.log" >&2; die "tiko failed -- see $OBJDIR/tiko.log"; }
+        [ -f "$OBJDIR/all.o" ] || die "tiko produced no object -- see $OBJDIR/tiko.log"
+        mv -f "$OBJDIR/all.o.ll" "$OBJDIR/all.ll"
+    else
     ( cd "$OBJDIR" && "$FBC" -c "$GFX_ROOT/src/all.bas" -m __tkogfx_lib $GFXINC \
         -target win64 -gen llvm -r -z msvc -mt \
         -o "$OBJDIR/all.o" ) > "$OBJDIR/fbc.log" 2>&1 \
@@ -107,6 +126,7 @@ for target in $TARGETS; do
         -Wno-override-module "$OBJDIR/all.ll" -c -o "$OBJDIR/all.o" \
         > "$OBJDIR/clang.log" 2>&1 \
         || { sed 's/^/    /' "$OBJDIR/clang.log" >&2; die "clang failed -- see $OBJDIR/clang.log"; }
+    fi
 
     "$AR" rcs "$LIBDIR/libtkogfx.a" "$OBJDIR/all.o"
 
