@@ -93,7 +93,11 @@ for target in $TARGETS; do
     # Naming a module that does not exist in this build makes every module here a
     # NON-main one, which is what a library wants -- the same device fbc's own
     # suite uses when it passes -m fbc-tests to every test module.
-    ( cd "$OBJDIR" && "$FBC" -c "$GFX_ROOT/src/all.bas" -m __tkogfx_lib \
+    # THE TREE'S OWN HEADERS (phase H): windows.bi, crt/ and the rest from tiko-lang's
+    # inc/, ahead of fbc's own. Without it they came from fbc-modern's src/inc.
+    GFXINC=""
+    [ -d "$GFX_ROOT/../../inc" ] && GFXINC="-i $(cd "$GFX_ROOT/../../inc" && pwd)"
+    ( cd "$OBJDIR" && "$FBC" -c "$GFX_ROOT/src/all.bas" -m __tkogfx_lib $GFXINC \
         -target win64 -gen llvm -r -z msvc -mt \
         -o "$OBJDIR/all.o" ) > "$OBJDIR/fbc.log" 2>&1 \
         || { sed 's/^/    /' "$OBJDIR/fbc.log" >&2; die "fbc failed -- see $OBJDIR/fbc.log"; }

@@ -46,6 +46,14 @@ compile_src( ) {
     src=$1
     obj=$2
 
+    # FROM src/, WHATEVER DIRECTORY THE CALLER IS IN. tiko-rt includes its own headers
+    # as '#include once "inc/file.bi"', and fbc tries the CURRENT DIRECTORY before any
+    # -i. Run from tiko-lang's root -- package.sh does -- that found the root's
+    # inc/file.bi, FreeBASIC's, once tiko-lang had an inc/ of its own (phase H,
+    # 2026-10-10): FB_FILE undefined in io/devlptopen and three more. From src/, 'inc/'
+    # is tiko-rt's. The paths below are all absolute, so nothing else moves.
+    cd "$RT_ROOT/src" || rtw_die "no directory $RT_ROOT/src"
+
     # THE ASSEMBLE STEP IS OURS WHEN THE TRIPLE IS NOT fbc's.
     #
     # fbc cannot be asked for the Microsoft ABI: llvmTriple( ) is a two-way

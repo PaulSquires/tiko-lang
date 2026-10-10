@@ -80,6 +80,9 @@ RT_BUILD_ONLY_TARGETS="win64-msvc"
 # of them BANNED by the freestanding subset. lint.sh is what keeps them out;
 # the include path cannot.
 RT_INC="$RT_ROOT/src $FBC_TREE/src/inc"
+# ...UNTIL tiko-lang HAS ITS OWN (phase H, 2026-10-10): then crt/long.bi -- the only
+# header lint lets through -- comes from the tree's inc/, and fbc-modern's is not read.
+[ -d "$RT_ROOT/../../inc" ] && RT_INC="$RT_ROOT/src $(cd "$RT_ROOT/../../inc" && pwd)"
 
 rt_incflags( ) {
     for d in $RT_INC; do printf -- '-i %s ' "$d"; done
