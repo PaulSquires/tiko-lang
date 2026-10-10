@@ -192,8 +192,19 @@ void __cdecl tkort_run_terminators( void )
 ** value is never read; only its presence is. */
 int _fltused = 0x9875;
 
+/* A DLL'S atexit IS ITS OWN.  _crt_atexit registers with the UCRT's table, which
+** belongs to the PROCESS: a DLL that put fb_hRtExit there (msvcinit.c does) and was
+** then unloaded left the process calling into freed code at exit -- 0xC0000005 after
+** every correct line of output, measured with build/apitest.sh's harness, which
+** FreeLibrary's tikoParser.dll before it returns.  MSVC's own CRT gives each DLL its
+** own table and runs it at DLL_PROCESS_DETACH; msvccrtdll.c does the same, and sets
+** this hook before any initialiser of the DLL runs.  An executable never links that
+** entry point, so the hook stays NULL there and nothing changes for it. */
+int ( __cdecl *tkort_dll_atexit )( tkort_pvfv fn ) = 0;
+
 int __cdecl atexit( tkort_pvfv fn )
 {
+    if( tkort_dll_atexit ) return tkort_dll_atexit( fn );
     return _crt_atexit( fn );
 }
 

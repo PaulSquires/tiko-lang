@@ -27,7 +27,35 @@ void __cdecl _initterm( tkort_pvfv *first, tkort_pvfv *last );
 /* The .CRT$X walk, in fbc's order -- msvccrt.c says what that is. */
 void tkort_run_initialisers( void );
 
+/* msvccrt.c's atexit consults this; see the note there. */
+extern int ( __cdecl *tkort_dll_atexit )( tkort_pvfv fn );
+
+void * __cdecl realloc( void *block, unsigned long long size );
+void   __cdecl free( void *block );
+
+#define TKORT_DLL_PROCESS_DETACH 0
 #define TKORT_DLL_PROCESS_ATTACH 1
+
+/* THIS DLL'S EXIT TABLE.  What the DLL registers with atexit -- fb_hRtExit first,
+** from msvcinit.c's initialiser -- runs when the DLL goes, last registered first, as
+** MSVC's CRT runs a DLL's own table.  Registration happens on DLL_PROCESS_ATTACH,
+** under the loader lock, so the table takes no lock of its own. */
+static tkort_pvfv *tkort_exit_tab = 0;
+static int tkort_exit_n = 0, tkort_exit_cap = 0;
+
+static int __cdecl tkort_dll_onexit( tkort_pvfv fn )
+{
+    if( tkort_exit_n == tkort_exit_cap ) {
+        int cap = tkort_exit_cap ? tkort_exit_cap * 2 : 16;
+        tkort_pvfv *tab = (tkort_pvfv *)realloc( tkort_exit_tab,
+                                                 (unsigned long long)cap * sizeof( tkort_pvfv ) );
+        if( !tab ) return -1;
+        tkort_exit_tab = tab;
+        tkort_exit_cap = cap;
+    }
+    tkort_exit_tab[tkort_exit_n++] = fn;
+    return 0;
+}
 
 int __stdcall _DllMainCRTStartup( void *instance, unsigned long reason,
                                   void *reserved )
@@ -36,12 +64,20 @@ int __stdcall _DllMainCRTStartup( void *instance, unsigned long reason,
     (void)reserved;
 
     if( reason == TKORT_DLL_PROCESS_ATTACH ) {
+        /* BEFORE the initialisers: msvcinit.c's registers fb_hRtExit. */
+        tkort_dll_atexit = tkort_dll_onexit;
         tkort_run_initialisers( );
+    } else if( reason == TKORT_DLL_PROCESS_DETACH ) {
+        /* The DLL's OWN table, never the UCRT's: that one belongs to the process,
+        ** and running it here would tear down state the host program still owns. */
+        while( tkort_exit_n > 0 ) {
+            tkort_pvfv fn = tkort_exit_tab[--tkort_exit_n];
+            if( fn ) fn( );
+        }
+        free( tkort_exit_tab );
+        tkort_exit_tab = 0;
+        tkort_exit_cap = 0;
     }
-
-    /* No DLL_PROCESS_DETACH work. The UCRT's own atexit table belongs to the
-    ** process, not to this module, and running it here would tear down state
-    ** the host program still owns. */
     return 1;
 }
 
