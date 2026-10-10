@@ -1076,6 +1076,10 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         esz = c.types->Layout( el ).size
         dim as long ui = c.udts->Find( el )
         if ui >= 0 then esz = c.udts->udts[ui].size
+        '' ...AND A FIXED-LENGTH STRING POINTEE STEPS BY ITS CHARACTER, as its arithmetic
+        '' does (PtrArithElem_): 'pz[ 2 ]' over '@z', a 'zstring * 64', is the string at
+        '' byte 2 -- measured, fbc prints "cdef" of "abcdef" -- not 128 bytes on.
+        if Tko.Check.FixedStringElem( el, *c.types ) <> Tko.TYPE_NONE then esz = CharElemSize_( c, el )
         '' A 'zstring ptr' POINTS AT CHARACTERS. The pointee is the unsized builtin,
         '' which has no layout size of its own, so the stride came out 0.
         if esz <= 0 then esz = CharElemSize_( c, el )

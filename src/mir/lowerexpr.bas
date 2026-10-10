@@ -16,6 +16,21 @@ function PtrArithElem_ _
     if c.types->Kind( u ) <> Tko.TK_POINTER then return 0
     dim as Tko.TypeId el = c.types->Inner( u )
     if el = Tko.TYPE_NONE then return 1
+    '' A POINTER TO A FIXED-LENGTH STRING STEPS BY ITS CHARACTER, not by the string.
+    '' '@z' over a 'zstring * 64' is a 'zstring * 64 ptr', and measured with fbc,
+    '' '@z + 3' is three BYTES on (wstring * N: three wchars), 'pz += 2' two, '(pz + 5)
+    '' - pz' 5, and 'pz[2]' the string at byte 2. Scaled by the whole 64, tiko-rt's
+    '' 'msg' buffers -- 'snprintf( @msg + pos_, ... )' -- were written 64 bytes per
+    '' character past their start, and every array bounds error ended in a
+    '' segmentation violation instead of runtime error 6.
+    dim as Tko.TypeId fse = Tko.Check.FixedStringElem( el, *c.types )
+    if fse <> Tko.TYPE_NONE then
+        select case c.types->BuiltinOf( fse )
+        case Tko.TY_WSTRING : return c.types->target.wcharBytes
+        case Tko.TY_FIXUSTR : return 2
+        case else           : return 1
+        end select
+    end if
     dim as long sz = SizeOfType( c, el )
     if sz < 1 then sz = 1
     return sz
