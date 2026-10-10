@@ -95,6 +95,7 @@ def public_names(mod):
 
 
 _INCS = {}
+FBNS_HEADERS = {"fberror.bi", "fbpark.bi", "fbclaim.bi", "fblimits.bi", "fbatomic.bi"}
 
 
 def includes_of(hdr):
@@ -104,6 +105,10 @@ def includes_of(hdr):
         text = io.open(p, encoding="utf-8").read() if os.path.isfile(p) else ""
         _INCS[hdr] = [m.group(1) for m in RX_INC.finditer(text)
                       if not m.group(0).lstrip().startswith("'")]
+        # ...and the namespace-FB headers that stay in inc/ (fblimits.bi): a test reached
+        # MAX_VALUE_LONGINT through fb/currency.bi and 'using FB'.
+        _INCS[hdr] += [m.group(1) for m in re.finditer(r'(?im)^\s*#include(?:\s+once)?\s+"(fb\w+\.bi)"', text)
+                       if m.group(1) in FBNS_HEADERS]
     return _INCS[hdr]
 
 
@@ -138,7 +143,7 @@ def port(text, conv, pub):
                 if dm not in mods:
                     mods.append(dm)
                 work.append(d)
-            elif dm is not None:
+            elif dm is not None or d in FBNS_HEADERS:
                 readd.append(d)
                 keep_fb = True
     text = RX_INC.sub(lambda m: "" if HDR_MODULE.get(os.path.basename(m.group(1))) in conv else m.group(0), text)

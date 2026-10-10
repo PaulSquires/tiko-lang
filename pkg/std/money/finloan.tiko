@@ -1,0 +1,920 @@
+#module "money"
+'' std/money: finloan -- loans, mortgages and amortization schedules
+''
+''     #import "std/money"
+''     using money
+''
+''     var t     = LoanTermsCanadianMortgage( principal, rate, 25 )
+''     var sched = LoanSchedule( t )
+''     for each row in sched.Value( )
+''         print row.Period_, row.Interest_.ToStringFixed( 2 ), _
+''                            row.ClosingBalance_.ToStringFixed( 2 )
+''     next                       ' the final ClosingBalance_ is EXACTLY zero
+''
+'' Specified by C:\dev\docs\finance\RFC-0005-loans.md.  Phase 4.
+''
+'' THE SIGN CONVENTION IS INVERTED HERE, ON PURPOSE.  fb/fintvm.bi uses
+'' cash-flow signs, where a payment is negative.  THIS HEADER DOES NOT: the
+'' principal is positive, the payment is positive, the interest is positive, and
+'' the balance is positive and decreasing.
+''
+'' The reason is that a schedule is a STATEMENT, and nobody reads a mortgage
+'' statement in cash-flow signs.  A row whose payment prints as -2,731.85 beside
+'' a balance of 479,268.15 is a row a user will file a bug against, correctly.
+''
+'' The bridge is ONE private helper, hLoanToAnnuity, which negates on the way
+'' into fb/fintvm.bi and back out.  It is named here so that a reader who diffs
+'' the two headers and notices the inconsistency finds the DECISION rather than
+'' guessing at an accident.  RFC-0005 section 2 argues it.
+''
+'' ONE CODE PATH FOR BOTH MARKETS.  LoanTermsUsMortgage and
+'' LoanTermsCanadianMortgage fill THE SAME RECORD and differ in ONE FIELD --
+'' Compounding_.  Nothing downstream branches on country; everything goes
+'' through RatePerPaymentFromNominal.  The two constructors exist because naming
+'' the convention at the call site is clearer than expecting every caller to
+'' know which enum their country uses, NOT because the arithmetic differs.
+''
+'' THE ROUNDING ALGORITHM IS NORMATIVE, and it is why this header is long.  Nine
+'' numbered steps, in hAdvance below, each carrying the RFC-0005 section 6 step
+'' it implements.  The load-bearing one is step 3: PRINCIPAL IS THE RESIDUAL,
+'' Payment - Interest, never computed independently.  That single line is the
+'' difference between "payment = interest + principal" being an IDENTITY and
+'' being a coincidence that fails on a few rows out of 360 -- which is exactly
+'' the complaint users file against amortization software.
+''
+'' AND THE LAST ROW LANDS ON EXACTLY ZERO, by assignment, not by subtraction.  A
+'' library whose final balance is 0.0000000001 has not converged, it has
+'' drifted.
+
+
+#if __FB_LANG__ <> "fb"
+    #error "fb/finloan.bi requires -lang fb (it uses namespaces)"
+#endif
+
+#include once "fb/result.bi"
+#include once "fb/math.bi"
+#include once "fblimits.bi"
+#include once "fb/optional.bi"
+#include once "fblimits.bi"
+#include once "fb/optional.bi"
+#include once "fb/math.bi"
+#include once "fb/chrono.bi"
+#include once "fb/math.bi"
+#include once "fb/array.bi"
+
+using FB
+
+'' ===========================================================================
+'' Terms
+'' ===========================================================================
+
+public type LoanTerms
+    as Decimal          Principal_          '' POSITIVE -- see the sign note
+    as Decimal          NominalAnnualRate_  '' 0.0595 for 5.95%
+    as Compounding      Compounding_        '' MONTHLY (US) or SEMIANNUAL (Canada)
+    as PaymentFrequency PaymentFrequency_
+    as long             TermMonths_         '' the amortization period, in months
+    as PaymentTiming    Timing_
+    as Decimal          BalloonAmount_      '' balance due at maturity; 0 = none
+    as MoneyRounding    Rounding_
+    as LocalDate        FirstPaymentDate_   '' Invalid = period-numbered only
+    as DayCount         Basis_              '' odd first period and per-diem payoff
+end type
+
+public function LoanTermsMake overload _
+    ( _
+        byref principal as Decimal, byref nominalAnnualRate as Decimal, _
+        byval termMonths as long, byval payF as PaymentFrequency, _
+        byval c as Compounding _
+    ) as LoanTerms
+
+    dim as LoanTerms t
+    t.Principal_         = principal
+    t.NominalAnnualRate_ = nominalAnnualRate
+    t.Compounding_       = c
+    t.PaymentFrequency_  = payF
+    t.TermMonths_        = termMonths
+    t.Timing_            = PAY_END_OF_PERIOD
+    t.BalloonAmount_     = DecimalZero( )
+    t.Rounding_          = MoneyRoundingCents( )
+    t.FirstPaymentDate_  = LocalDate.Invalid( )
+    t.Basis_             = DAYCOUNT_ACTUAL_365_FIXED
+    return t
+end function
+
+'' THE SAME RECORD AS THE CANADIAN ONE BELOW, differing in Compounding_ and
+'' nothing else.  That is the whole point of RFC-0002 section 2.
+public function LoanTermsUsMortgage overload _
+    ( byref principal as Decimal, byref nominalAnnualRate as Decimal, byval termYears as long ) as LoanTerms
+
+    return LoanTermsMake( principal, nominalAnnualRate, termYears * 12, _
+                          PAY_MONTHLY, COMPOUND_MONTHLY )
+end function
+
+'' Semi-annual, not in advance -- what the Interest Act requires a Canadian
+'' mortgage rate to be quoted at.  ONE ENUM different from the US form.
+public function LoanTermsCanadianMortgage overload _
+    ( byref principal as Decimal, byref nominalAnnualRate as Decimal, byval amortizationYears as long ) as LoanTerms
+
+    return LoanTermsMake( principal, nominalAnnualRate, amortizationYears * 12, _
+                          PAY_MONTHLY, COMPOUND_SEMIANNUAL )
+end function
+
+'' ===========================================================================
+'' Rows, extras and the summary
+'' ===========================================================================
+
+public type AmortizationRow
+    as long      Period_               '' 1-based
+    as LocalDate DueDate_              '' Invalid when FirstPaymentDate_ was
+    as Decimal   OpeningBalance_
+    as Decimal   Payment_              '' total posted, after rounding
+    as Decimal   Interest_
+    as Decimal   Principal_
+    as Decimal   ExtraPrincipal_
+    as Decimal   ClosingBalance_
+    as Decimal   CumulativeInterest_
+    as Decimal   CumulativePrincipal_
+    as boolean   IsFinal_
+end type
+
+public type ExtraPayment
+    as long    FromPeriod_    '' 1-based, inclusive
+    as long    ToPeriod_      '' inclusive; equal to FromPeriod_ for a one-off
+    as Decimal Amount_        '' extra principal per period in the range
+end type
+
+public function ExtraPaymentOnce overload ( byval period as long, byref amount as Decimal ) as ExtraPayment
+    dim as ExtraPayment x
+    x.FromPeriod_ = period
+    x.ToPeriod_   = period
+    x.Amount_     = amount
+    return x
+end function
+
+public function ExtraPaymentRecurring overload _
+    ( byval fromPeriod as long, byval toPeriod as long, byref amount as Decimal ) as ExtraPayment
+
+    dim as ExtraPayment x
+    x.FromPeriod_ = fromPeriod
+    x.ToPeriod_   = toPeriod
+    x.Amount_     = amount
+    return x
+end function
+
+public type LoanSummary
+    as Decimal   ScheduledPayment_
+    as Decimal   FinalPayment_
+    as long      PaymentCount_             '' fewer than scheduled when extras apply
+    as Decimal   TotalPaid_
+    as Decimal   TotalInterest_
+    as Decimal   TotalPrincipal_
+    as Decimal   EffectiveAnnualRate_
+    as Decimal   InterestSavedVsScheduled_ '' zero when there are no extras
+    as long      PeriodsSaved_
+    as LocalDate PayoffDate_
+end type
+
+public type FinResultRow     as Result( of AmortizationRow, FinanceError )
+public type FinResultSummary as Result( of LoanSummary,     FinanceError )
+
+'' ===========================================================================
+'' Private helpers
+'' ===========================================================================
+
+'' How many payments the nominal amortization implies.  TermMonths_ is in
+'' months even when payments are weekly, because months are how amortization
+'' periods are quoted; the count is derived and ROUNDS TO THE NEAREST period.
+function hLoanPeriodCount overload ( byref t as LoanTerms ) as long
+    dim as long p = hFinPayPeriods( t.PaymentFrequency_ )
+    if( p < 1 ) then return 0
+    if( t.TermMonths_ < 1 ) then return 0
+
+    '' months * (payments per year) / 12, rounded to nearest.
+    dim as longint num = clngint( t.TermMonths_ ) * clngint( p )
+    dim as long n = clng( ( num + 6 ) \ 12 )
+    if( n < 1 ) then n = 1
+    return n
+end function
+
+function hLoanIsAccelerated overload ( byval f as PaymentFrequency ) as boolean
+    select case as const f
+    case PAY_ACCELERATED_WEEKLY, PAY_ACCELERATED_BIWEEKLY : return TRUE
+    end select
+    return FALSE
+end function
+
+'' The TRUE periods-per-year at which an accelerated product actually posts --
+'' 26 or 52, not the 12 its rate is derived from.
+function hLoanPostPeriods overload ( byval f as PaymentFrequency ) as long
+    select case as const f
+    case PAY_ACCELERATED_WEEKLY   : return 52
+    case PAY_ACCELERATED_BIWEEKLY : return 26
+    end select
+    return clng( f )
+end function
+
+function hLoanValidate overload ( byref t as LoanTerms ) as FinanceErrorCode
+    if( t.Principal_.IsValid( ) = FALSE ) then return FIN_INVALID_TERM
+    if( t.Principal_.IsZero( ) ) then return FIN_INVALID_TERM
+    if( t.Principal_ < DecimalZero( ) ) then return FIN_INVALID_TERM
+    if( t.NominalAnnualRate_.IsValid( ) = FALSE ) then return FIN_INVALID_RATE
+    if( t.BalloonAmount_.IsValid( ) = FALSE ) then return FIN_INVALID_TERM
+    if( t.BalloonAmount_ < DecimalZero( ) ) then return FIN_INVALID_TERM
+    if( t.BalloonAmount_ > t.Principal_ ) then return FIN_INVALID_TERM
+    if( t.TermMonths_ < 1 ) then return FIN_INVALID_TERM
+    if( hFinPayPeriods( t.PaymentFrequency_ ) < 1 ) then return FIN_INVALID_BASIS
+    if( hLoanPeriodCount( t ) < 1 ) then return FIN_INVALID_TERM
+    if( t.Rounding_.Digits_ < 0 ) then return FIN_INVALID_BASIS
+    if( t.Rounding_.Digits_ > DECIMAL_MAX_SCALE ) then return FIN_INVALID_BASIS
+    return FIN_OK
+end function
+
+'' The rate actually used to ACCRUE per posted period.
+''
+'' For an ordinary frequency this is RatePerPaymentFromNominal outright.  For an
+'' ACCELERATED one that funnel returns the MONTHLY rate -- so the monthly rate
+'' is converted to the true biweekly or weekly rate here.  RFC-0005 section 4.1
+'' step 3, and the step everybody forgets: accruing at monthly rates while
+'' posting biweekly overstates the saving.
+function hLoanAccrualRate overload ( byref t as LoanTerms ) as FinResultDec
+    dim as FinResultDec r = RatePerPaymentFromNominal( t.NominalAnnualRate_, _
+                                                       t.Compounding_, t.PaymentFrequency_ )
+    if( r.IsOk( ) = FALSE ) then return r
+    if( hLoanIsAccelerated( t.PaymentFrequency_ ) = FALSE ) then return r
+
+    '' r is the monthly rate; find the rate that compounds to the same annual
+    '' growth over 26 or 52 periods instead of 12.
+    dim as FinResultDec ann = GrowthFactor( r.Value( ), 12 )
+    if( ann.IsOk( ) = FALSE ) then return ann
+
+    dim as long post = hLoanPostPeriods( t.PaymentFrequency_ )
+    dim as double g = ann.Value( ).ToDouble( )
+    if( g <= 0.0 ) then return FinFailDec( FIN_DOMAIN )
+
+    dim as double per = Expm1( Log1p( g - 1.0 ) / cdbl( post ) )
+    dim as Decimal d = hFinFromDouble( per )
+    if( d.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+    return FinOkDec( d )
+end function
+
+'' THE BRIDGE between this header's statement signs and fb/fintvm.bi's
+'' cash-flow signs.  Named in RFC-0005 section 2 so the inconsistency between
+'' the two headers reads as a decision rather than an accident.
+function hLoanToAnnuity overload _
+    ( byref t as LoanTerms, byref rate as Decimal, byval periods as long ) as AnnuityTerms
+
+    '' Principal POSITIVE here becomes a positive PV there (money received);
+    '' the payment that comes back is negative and is negated on the way out.
+    return AnnuityTermsMake( rate, periods, DecimalZero( ), _
+                             t.Principal_, -t.BalloonAmount_, t.Timing_ )
+end function
+
+'' ===========================================================================
+'' The payment
+'' ===========================================================================
+
+'' EXACT for the US convention (rate/12 is exact and the annuity is exact);
+'' the Canadian convention crosses the double boundary ONCE, in the rate
+'' conversion, after which the annuity is again exact.
+''
+'' RFC-0005 section 6 step 1: computed unrounded, then ROUNDED EXACTLY ONCE.
+'' It is deliberately NOT rounded up "to be safe" -- rounding up systematically
+'' overcharges, and over 360 periods that is real money the borrower does not
+'' owe.  The residue is absorbed by the final payment, step 5.
+public function LoanPayment overload ( byref t as LoanTerms ) as FinResultDec
+    dim as FinanceErrorCode bad = hLoanValidate( t )
+    if( bad <> FIN_OK ) then return FinFailDec( bad )
+
+    dim as FinResultDec rate = hLoanAccrualRate( t )
+    if( rate.IsOk( ) = FALSE ) then return rate
+
+    if( hLoanIsAccelerated( t.PaymentFrequency_ ) ) then
+        '' RFC-0005 section 4.1 steps 1 and 2: the ORDINARY MONTHLY payment,
+        '' divided by two or four.  Not an annuity over 26 periods -- that
+        '' would be ordinary biweekly, a different and cheaper product.
+        dim as FinResultDec monthly = RatePerPaymentFromNominal( t.NominalAnnualRate_, _
+                                                                 t.Compounding_, PAY_MONTHLY )
+        if( monthly.IsOk( ) = FALSE ) then return monthly
+
+        dim as AnnuityTerms a = hLoanToAnnuity( t, monthly.Value( ), t.TermMonths_ )
+        dim as FinResultDec pmt = PaymentAmount( a )
+        if( pmt.IsOk( ) = FALSE ) then return pmt
+
+        dim as long divisor = 2
+        if( t.PaymentFrequency_ = PAY_ACCELERATED_WEEKLY ) then divisor = 4
+
+        dim as Decimal posted = ( ( -pmt.Value( ) ) / DecimalFromInt( divisor ) )
+        return FinOkDec( MoneyRound( posted, t.Rounding_ ) )
+    end if
+
+    dim as AnnuityTerms a = hLoanToAnnuity( t, rate.Value( ), hLoanPeriodCount( t ) )
+    dim as FinResultDec pmt = PaymentAmount( a )
+    if( pmt.IsOk( ) = FALSE ) then return pmt
+
+    '' Negate on the way out of the cash-flow world.
+    dim as Decimal posted = -pmt.Value( )
+    return FinOkDec( MoneyRound( posted, t.Rounding_ ) )
+end function
+
+'' ===========================================================================
+'' The iterator
+''
+'' Follows fb/fsdir.bi's DirRange/DirIterator split -- but with NO DESTRUCTOR.
+'' DirIterator owns an OS handle; this one owns nothing, is freely copyable, and
+'' abandoning a FOR EACH early leaks nothing because there is nothing to leak.
+'' Copying a sibling and inheriting its comments is how an iterator acquires an
+'' obligation it does not have, so this is stated rather than assumed.
+'' ===========================================================================
+
+public type AmortizationIterator
+    declare function IsValid ( ) as boolean
+    declare function Value   ( ) byref as AmortizationRow
+    declare sub      MoveNext( )
+
+    declare sub hStart  ( )
+    declare sub hAdvance( )
+    declare function hExtraFor( byval period as long ) as Decimal
+
+    as LoanTerms       m_terms
+    as ExtraPayment    m_extras( any )
+    as long            m_extraCount
+    as Decimal         m_payment, m_rate, m_balance
+    as Decimal         m_cumInterest, m_cumPrincipal
+    as long            m_period, m_maxPeriods
+    as boolean         m_started, m_live
+    as AmortizationRow m_cur
+end type
+
+function AmortizationIterator.hExtraFor( byval period as long ) as Decimal
+    dim as Decimal total = DecimalZero( )
+    for k as long = 0 to this.m_extraCount - 1
+        if( period >= this.m_extras( k ).FromPeriod_ ) then
+            if( period <= this.m_extras( k ).ToPeriod_ ) then
+                total = total + this.m_extras( k ).Amount_
+            end if
+        end if
+    next
+    function = total
+end function
+
+'' RFC-0005 section 6, all nine steps.  The step numbers in the comments are
+'' the RFC's, and a later phase may not silently reorder them.
+sub AmortizationIterator.hAdvance( )
+    if( this.m_live = FALSE ) then exit sub
+    if( this.m_period > this.m_maxPeriods ) then
+        this.m_live = FALSE
+        exit sub
+    end if
+
+    dim as Decimal opening = this.m_balance
+
+    '' --- STEP 2.  Interest is opening * rate at full precision, then rounded
+    '' ONCE.  ROUNDED, NOT TRUNCATED: truncation is a lender-favouring bias and
+    '' a schedule that truncates fails to reconcile against every published
+    '' amortization table.
+    dim as Decimal interest = MoneyRound( opening * this.m_rate, this.m_terms.Rounding_ )
+
+    '' --- STEP 1's payment is already rounded once, in LoanPayment.  It is
+    '' NOT recomputed here.
+    dim as Decimal payment = this.m_payment
+
+    dim as Decimal extra = this.hExtraFor( this.m_period )
+    if( extra < DecimalZero( ) ) then extra = DecimalZero( )
+
+    dim as boolean isFinal = FALSE
+    dim as Decimal principal = DecimalZero( )
+    dim as Decimal closing = DecimalZero( )
+
+    '' --- STEP 5 / 6.  The last period is detected when this payment would
+    '' clear the balance down to the target, or when the schedule runs out of
+    '' periods.  A balloon (step 6) terminates at BalloonAmount_, not at zero.
+    dim as Decimal target = this.m_terms.BalloonAmount_
+
+    '' THE SCHEDULED PRINCIPAL MUST BE POSITIVE FOR THIS TO BE THE LAST ROW,
+    '' and that guard is load-bearing rather than defensive.  Without it an
+    '' INTEREST-ONLY loan -- BalloonAmount_ equal to Principal_, where the
+    '' payment is exactly the interest and the scheduled principal is exactly
+    '' zero -- satisfies "this payment reaches the target" on EVERY period, and
+    '' the schedule terminates after one row instead of running its term.
+    '' Found by the test, not by reading.
+    ''
+    '' It also keeps step 8 correct: a negative scheduled principal is
+    '' negative amortization, which must NOT be treated as completion.
+    dim as Decimal schedPrincipal = payment - interest
+    dim as boolean reachesTarget = ( ( opening - schedPrincipal ) <= target )
+    dim as boolean makesProgress = ( schedPrincipal > DecimalZero( ) )
+    dim as boolean lastPeriod = ( this.m_period = this.m_maxPeriods )
+
+    if( ( reachesTarget andalso makesProgress ) orelse lastPeriod ) then
+        isFinal = TRUE
+        '' Principal is whatever is left above the balloon.
+        principal = opening - target
+        if( principal < DecimalZero( ) ) then principal = DecimalZero( )
+        payment = interest + principal
+        extra = DecimalZero( )        '' nothing left to prepay
+        '' EXACTLY the target, BY ASSIGNMENT and not by subtraction.  This is
+        '' the line that makes the final balance exactly zero rather than
+        '' 0.0000000001.
+        closing = target
+    else
+        '' --- STEP 3.  PRINCIPAL IS THE RESIDUAL.  Never computed
+        '' independently: deriving both from the balance and rounding each
+        '' lets them disagree with the posted payment by a cent, and then the
+        '' row does not add up.  This makes Payment = Interest + Principal an
+        '' IDENTITY.
+        principal = payment - interest
+
+        '' --- STEP 7.  Extras apply AFTER the scheduled split, capped at what
+        '' is left, which is what makes a large extra payment terminate the
+        '' loan cleanly instead of producing a negative balance.
+        dim as Decimal room = opening - principal - target
+        if( room < DecimalZero( ) ) then room = DecimalZero( )
+        if( extra > room ) then extra = room
+
+        '' --- STEP 4.  Exact subtraction of quantities already rounded to
+        '' Digits_, so the balance is exact at Digits_ forever and NO DRIFT
+        '' ACCUMULATES.
+        closing = opening - principal - extra
+
+        '' --- STEP 8.  Negative amortization is NOT an error and is NOT
+        '' clamped: when interest exceeds the payment, principal goes negative
+        '' and the balance grows.  m_maxPeriods bounds the iteration.
+        '' Clamping would silently invent a payment the contract does not
+        '' require.
+        '' An extra may have cleared the balance early -- but "the balance is
+        '' at the target" is only ARRIVAL if this period actually moved it.
+        '' Without that guard an interest-only loan, which sits at its target
+        '' from period one and never leaves, reads as complete on the first
+        '' row.  Same defect as the step-5 terminator above, same cause.
+        dim as boolean moved = ( ( principal + extra ) > DecimalZero( ) )
+        if( ( closing <= target ) andalso moved ) then
+            isFinal = TRUE
+            closing = target
+        end if
+    end if
+
+    this.m_cumInterest = this.m_cumInterest + interest
+    this.m_cumPrincipal = this.m_cumPrincipal + principal + extra
+
+    this.m_cur.Period_              = this.m_period
+    this.m_cur.OpeningBalance_      = opening
+    this.m_cur.Payment_             = payment
+    this.m_cur.Interest_            = interest
+    this.m_cur.Principal_           = principal
+    this.m_cur.ExtraPrincipal_      = extra
+    this.m_cur.ClosingBalance_      = closing
+    this.m_cur.CumulativeInterest_  = this.m_cumInterest
+    this.m_cur.CumulativePrincipal_ = this.m_cumPrincipal
+    this.m_cur.IsFinal_             = isFinal
+
+    '' The due date, when the caller gave a first payment date.  Monthly-family
+    '' frequencies step by months; the rest step by days.
+    if( this.m_terms.FirstPaymentDate_.IsValid ) then
+        dim as long post = hLoanPostPeriods( this.m_terms.PaymentFrequency_ )
+        dim as long k = this.m_period - 1
+        select case as const post
+        case 12 : this.m_cur.DueDate_ = this.m_terms.FirstPaymentDate_.AddMonths( k )
+        case 4  : this.m_cur.DueDate_ = this.m_terms.FirstPaymentDate_.AddMonths( k * 3 )
+        case 2  : this.m_cur.DueDate_ = this.m_terms.FirstPaymentDate_.AddMonths( k * 6 )
+        case 1  : this.m_cur.DueDate_ = this.m_terms.FirstPaymentDate_.AddMonths( k * 12 )
+        case 26 : this.m_cur.DueDate_ = this.m_terms.FirstPaymentDate_.AddDays( k * 14 )
+        case 52 : this.m_cur.DueDate_ = this.m_terms.FirstPaymentDate_.AddDays( k * 7 )
+        case 24 : this.m_cur.DueDate_ = this.m_terms.FirstPaymentDate_.AddDays( k * 15 )
+        case else : this.m_cur.DueDate_ = LocalDate.Invalid( )
+        end select
+    else
+        this.m_cur.DueDate_ = LocalDate.Invalid( )
+    end if
+
+    this.m_balance = closing
+    this.m_period += 1
+    if( isFinal ) then this.m_live = FALSE
+end sub
+
+sub AmortizationIterator.hStart( )
+    this.m_started      = TRUE
+    this.m_live         = TRUE
+    this.m_period       = 1
+    this.m_balance      = this.m_terms.Principal_
+    this.m_cumInterest  = DecimalZero( )
+    this.m_cumPrincipal = DecimalZero( )
+    this.hAdvance( )
+end sub
+
+function AmortizationIterator.IsValid( ) as boolean
+    if( this.m_started = FALSE ) then this.hStart( )
+    function = ( this.m_cur.Period_ > 0 )
+end function
+
+function AmortizationIterator.Value( ) byref as AmortizationRow
+    if( this.m_started = FALSE ) then this.hStart( )
+    function = this.m_cur
+end function
+
+sub AmortizationIterator.MoveNext( )
+    if( this.m_started = FALSE ) then
+        this.hStart( )
+        exit sub
+    end if
+    if( this.m_live = FALSE ) then
+        this.m_cur.Period_ = 0        '' exhausted
+        exit sub
+    end if
+    this.hAdvance( )
+    if( this.m_live = FALSE ) then
+        if( this.m_cur.IsFinal_ = FALSE ) then this.m_cur.Period_ = 0
+    end if
+end sub
+
+'' ===========================================================================
+'' The schedule
+''
+'' HOLDS THE TERMS, NOT THE ROWS.  A 360-period mortgage costs one record, not
+'' 360, so a what-if slider that rebuilds it on every drag allocates nothing.
+'' ===========================================================================
+
+public type AmortizationSchedule
+    declare const function GetIterator( ) as AmortizationIterator
+    declare const function Count       ( ) as long
+    declare const function Payment     ( ) as Decimal
+
+    as LoanTerms    m_terms
+    as ExtraPayment m_extras( any )
+    as long         m_extraCount
+    as Decimal      m_payment, m_rate
+    as long         m_count
+end type
+
+'' CONST and BY VALUE, for the reason fb/fsdir.bi gives: FreeBASIC cannot
+'' overload on constness alone, so one const accessor serves const and
+'' non-const collections alike.
+const function AmortizationSchedule.GetIterator( ) as AmortizationIterator
+    dim as AmortizationIterator it
+    it.m_terms      = this.m_terms
+    it.m_extraCount = this.m_extraCount
+    if( this.m_extraCount > 0 ) then
+        redim it.m_extras( 0 to this.m_extraCount - 1 )
+        for k as long = 0 to this.m_extraCount - 1
+            it.m_extras( k ) = this.m_extras( k )
+        next
+    end if
+    it.m_payment    = this.m_payment
+    it.m_rate       = this.m_rate
+    it.m_maxPeriods = this.m_count
+    it.m_started    = FALSE
+    it.m_live       = FALSE
+    return it
+end function
+
+'' The SCHEDULED count.  Extras can end the loan sooner, and LoanSummary's
+'' PaymentCount_ is the number actually posted.
+const function AmortizationSchedule.Count( ) as long
+    function = this.m_count
+end function
+
+const function AmortizationSchedule.Payment( ) as Decimal
+    function = this.m_payment
+end function
+
+public type FinResultSchedule as Result( of AmortizationSchedule, FinanceError )
+
+function hLoanBuildSchedule overload _
+    ( byref t as LoanTerms, byref extras as Array( of ExtraPayment ) ) as FinResultSchedule
+
+    dim as FinanceErrorCode bad = hLoanValidate( t )
+    if( bad <> FIN_OK ) then
+        return Fail( of AmortizationSchedule, FinanceError )( FinanceErrorMake( bad ) )
+    end if
+
+    dim as FinResultDec rate = hLoanAccrualRate( t )
+    if( rate.IsOk( ) = FALSE ) then
+        return Fail( of AmortizationSchedule, FinanceError )( rate.Failure( ) )
+    end if
+
+    dim as FinResultDec pmt = LoanPayment( t )
+    if( pmt.IsOk( ) = FALSE ) then
+        return Fail( of AmortizationSchedule, FinanceError )( pmt.Failure( ) )
+    end if
+
+    dim as AmortizationSchedule s
+    s.m_terms   = t
+    s.m_payment = pmt.Value( )
+    s.m_rate    = rate.Value( )
+
+    '' An accelerated product posts more often than its rate implies, and runs
+    '' SHORTER than the nominal amortization -- which is the entire product.
+    '' The cap is generous; step 5 ends it when the balance clears.
+    if( hLoanIsAccelerated( t.PaymentFrequency_ ) ) then
+        dim as long post = hLoanPostPeriods( t.PaymentFrequency_ )
+        s.m_count = clng( ( clngint( t.TermMonths_ ) * clngint( post ) + 6 ) \ 12 )
+    else
+        s.m_count = hLoanPeriodCount( t )
+    end if
+
+    s.m_extraCount = extras.Count( )
+    if( s.m_extraCount > 0 ) then
+        redim s.m_extras( 0 to s.m_extraCount - 1 )
+        for k as long = 0 to s.m_extraCount - 1
+            s.m_extras( k ) = extras[ k ]
+        next
+    end if
+
+    return Ok( of AmortizationSchedule, FinanceError )( s )
+end function
+
+'' AN EMPTY FB.Array IS THE NO-EXTRAS CASE.  The plain-array spelling could
+'' not express one, so it passed a one-element dummy with a separate count of
+'' zero -- a sentinel every caller had to keep in step with the array.
+public function LoanSchedule overload ( byref t as LoanTerms ) as FinResultSchedule
+    dim as Array( of ExtraPayment ) none_
+    return hLoanBuildSchedule( t, none_ )
+end function
+
+public function LoanSchedule overload ( byref t as LoanTerms, byref extras as Array( of ExtraPayment ) ) as FinResultSchedule
+    return hLoanBuildSchedule( t, extras )
+end function
+
+'' Materialize when random access is genuinely wanted.  FB.Array from
+'' fb/array.bi -- NOT fb/vector.bi, which is Vec2/Mat4/Quat.  Not a Result,
+'' because the terms were validated when the schedule was built.
+public function ScheduleToArray overload ( byref s as AmortizationSchedule ) as Array( of AmortizationRow )
+    dim as Array( of AmortizationRow ) rows
+    for each row in s
+        rows.Push( row )
+    next
+    function = rows
+end function
+
+'' ===========================================================================
+'' Walking the schedule
+'' ===========================================================================
+
+'' WALKS, and is therefore AUTHORITATIVE -- it is the sum of what was actually
+'' posted, rounding and all.
+public function LoanRowAt overload ( byref t as LoanTerms, byval period as long ) as FinResultRow
+    if( period < 1 ) then
+        return Fail( of AmortizationRow, FinanceError )( FinanceErrorMake( FIN_INVALID_PERIODS ) )
+    end if
+
+    dim as FinResultSchedule s = LoanSchedule( t )
+    if( s.IsOk( ) = FALSE ) then
+        return Fail( of AmortizationRow, FinanceError )( s.Failure( ) )
+    end if
+
+    for each row in s.Value( )
+        if( row.Period_ = period ) then
+            return Ok( of AmortizationRow, FinanceError )( row )
+        end if
+    next
+
+    return Fail( of AmortizationRow, FinanceError )( FinanceErrorMake( FIN_INVALID_PERIODS ) )
+end function
+
+function hLoanBetween overload _
+    ( byref t as LoanTerms, byval fromPeriod as long, byval toPeriod as long, byval wantInterest as boolean ) as FinResultDec
+
+    if( fromPeriod < 1 ) then return FinFailDec( FIN_INVALID_PERIODS )
+    if( toPeriod < fromPeriod ) then return FinFailDec( FIN_INVALID_PERIODS )
+
+    dim as FinResultSchedule s = LoanSchedule( t )
+    if( s.IsOk( ) = FALSE ) then return FinFailDec( s.Failure( ).Code( ) )
+
+    dim as Decimal total = DecimalZero( )
+    for each row in s.Value( )
+        dim as long p = row.Period_
+        if( p >= fromPeriod ) then
+            if( p <= toPeriod ) then
+                if( wantInterest ) then
+                    total = total + row.Interest_
+                else
+                    total = total + row.Principal_ + row.ExtraPrincipal_
+                end if
+            end if
+        end if
+    next
+
+    return FinOkDec( total )
+end function
+
+public function LoanInterestBetween overload _
+    ( byref t as LoanTerms, byval fromPeriod as long, byval toPeriod as long ) as FinResultDec
+    return hLoanBetween( t, fromPeriod, toPeriod, TRUE )
+end function
+
+public function LoanPrincipalBetween overload _
+    ( byref t as LoanTerms, byval fromPeriod as long, byval toPeriod as long ) as FinResultDec
+    return hLoanBetween( t, fromPeriod, toPeriod, FALSE )
+end function
+
+'' O(1) CLOSED FORM.  Does NOT walk, and therefore does NOT include per-payment
+'' rounding drift.
+''
+'' IT CAN DISAGREE WITH LoanRowAt, and the doc says which one wins: they agree
+'' to within Rounding_ times the period number, and THE SCHEDULE IS
+'' AUTHORITATIVE for anything that will be posted to a ledger.  This exists for
+'' the case -- a chart with a thousand points, a what-if slider -- where O(1)
+'' matters more than the last cent.  Any implementation that offers both
+'' without saying which is which has a bug waiting.
+public function LoanBalanceAt overload ( byref t as LoanTerms, byval period as long ) as FinResultDec
+    dim as FinanceErrorCode bad = hLoanValidate( t )
+    if( bad <> FIN_OK ) then return FinFailDec( bad )
+    if( period < 0 ) then return FinFailDec( FIN_INVALID_PERIODS )
+    if( period = 0 ) then return FinOkDec( t.Principal_ )
+
+    dim as FinResultDec rate = hLoanAccrualRate( t )
+    if( rate.IsOk( ) = FALSE ) then return rate
+
+    dim as FinResultDec pmt = LoanPayment( t )
+    if( pmt.IsOk( ) = FALSE ) then return pmt
+
+    '' balance = P*(1+i)^k - PMT * s(i,k,timing)
+    dim as FinResultDec g = GrowthFactor( rate.Value( ), period )
+    if( g.IsOk( ) = FALSE ) then return g
+
+    dim as FinResultDec s = AnnuityFutureValueFactor( rate.Value( ), period, t.Timing_ )
+    if( s.IsOk( ) = FALSE ) then return s
+
+    dim as Decimal bal = ( ( t.Principal_ * g.Value( ) ) - ( pmt.Value( ) * s.Value( ) ) )
+    if( bal.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+    if( bal < DecimalZero( ) ) then bal = DecimalZero( )
+    return FinOkDec( bal )
+end function
+
+'' ===========================================================================
+'' Summary
+'' ===========================================================================
+
+function hLoanSummarize overload _
+    ( byref t as LoanTerms, byref extras as Array( of ExtraPayment ) ) as FinResultSummary
+
+    dim as FinResultSchedule sc = hLoanBuildSchedule( t, extras )
+    if( sc.IsOk( ) = FALSE ) then
+        return Fail( of LoanSummary, FinanceError )( sc.Failure( ) )
+    end if
+
+    dim as LoanSummary summ
+    summ.ScheduledPayment_ = sc.Value( ).Payment( )
+    summ.TotalPaid_        = DecimalZero( )
+    summ.TotalInterest_    = DecimalZero( )
+    summ.TotalPrincipal_   = DecimalZero( )
+    summ.FinalPayment_     = DecimalZero( )
+    summ.PaymentCount_     = 0
+    summ.PayoffDate_       = LocalDate.Invalid( )
+    summ.InterestSavedVsScheduled_ = DecimalZero( )
+    summ.PeriodsSaved_     = 0
+
+    for each row in sc.Value( )
+        summ.PaymentCount_   += 1
+        summ.TotalPaid_       = summ.TotalPaid_ + row.Payment_ + row.ExtraPrincipal_
+        summ.TotalInterest_   = summ.TotalInterest_ + row.Interest_
+        summ.TotalPrincipal_  = summ.TotalPrincipal_ + row.Principal_ + row.ExtraPrincipal_
+        summ.FinalPayment_    = row.Payment_ + row.ExtraPrincipal_
+        summ.PayoffDate_      = row.DueDate_
+    next
+
+    dim as FinResultDec eff = RateEffectiveFromNominal( t.NominalAnnualRate_, t.Compounding_ )
+    if( eff.IsOk( ) ) then summ.EffectiveAnnualRate_ = eff.Value( )
+
+    '' What the extras saved, measured against the same loan without them.
+    if( extras.Count( ) > 0 ) then
+        dim as Array( of ExtraPayment ) none_
+        dim as FinResultSummary plain = hLoanSummarize( t, none_ )
+        if( plain.IsOk( ) ) then
+            summ.InterestSavedVsScheduled_ = plain.Value( ).TotalInterest_ - summ.TotalInterest_
+            summ.PeriodsSaved_ = plain.Value( ).PaymentCount_ - summ.PaymentCount_
+        end if
+    end if
+
+    return Ok( of LoanSummary, FinanceError )( summ )
+end function
+
+public function LoanSummarize overload ( byref t as LoanTerms ) as FinResultSummary
+    dim as Array( of ExtraPayment ) none_
+    return hLoanSummarize( t, none_ )
+end function
+
+public function LoanSummarize overload ( byref t as LoanTerms, byref extras as Array( of ExtraPayment ) ) as FinResultSummary
+    return hLoanSummarize( t, extras )
+end function
+
+'' ===========================================================================
+'' Payoff
+'' ===========================================================================
+
+'' The closing balance after 'afterPeriod', plus per-diem interest from that
+'' period's due date to 'asOf', accrued on Basis_.
+''
+'' 'asOf' earlier than the period's due date gives FIN_UNORDERED_DATES rather
+'' than negative interest.
+public function LoanPayoffAmount overload _
+    ( byref t as LoanTerms, byval afterPeriod as long, byref asOf as LocalDate ) as FinResultDec
+
+    if( afterPeriod < 0 ) then return FinFailDec( FIN_INVALID_PERIODS )
+
+    dim as FinResultSchedule s = LoanSchedule( t )
+    if( s.IsOk( ) = FALSE ) then return FinFailDec( s.Failure( ).Code( ) )
+
+    dim as Decimal balance = t.Principal_
+    dim as LocalDate asOfBase = t.FirstPaymentDate_
+
+    if( afterPeriod > 0 ) then
+        dim as boolean found = FALSE
+        for each row in s.Value( )
+            if( row.Period_ = afterPeriod ) then
+                balance  = row.ClosingBalance_
+                asOfBase = row.DueDate_
+                found = TRUE
+                exit for
+            end if
+        next
+        if( found = FALSE ) then return FinFailDec( FIN_INVALID_PERIODS )
+    end if
+
+    '' No dates in play: the payoff is simply the balance.
+    if( asOf.IsValid = FALSE ) then return FinOkDec( balance )
+    if( asOfBase.IsValid = FALSE ) then return FinOkDec( balance )
+    if( asOf.DayNumber < asOfBase.DayNumber ) then return FinFailDec( FIN_UNORDERED_DATES )
+
+    dim as Decimal accrued = SimpleInterestBetween( balance, t.NominalAnnualRate_, _
+                                                    asOfBase, asOf, t.Basis_ )
+    if( accrued.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+
+    return FinOkDec( MoneyRound( balance + accrued, t.Rounding_ ) )
+end function
+
+'' ===========================================================================
+'' Implied rate and APR
+'' ===========================================================================
+
+'' DOUBLE KERNEL -- fb/finsolve.bi, through fb/fintvm.bi's SolveRatePerPeriod.
+'' Returns the NOMINAL ANNUAL rate at the given compounding, so it is directly
+'' comparable with the rate the loan was quoted at.
+public function LoanImpliedRate overload _
+    ( _
+        byref principal as Decimal, byref payment as Decimal, byval termMonths as long, _
+        byval payF as PaymentFrequency, byval c as Compounding _
+    ) as FinResultDec
+
+    if( principal.IsValid( ) = FALSE ) then return FinFailDec( FIN_INVALID_TERM )
+    if( principal <= DecimalZero( ) ) then return FinFailDec( FIN_INVALID_TERM )
+    if( payment.IsValid( ) = FALSE ) then return FinFailDec( FIN_INVALID_TERM )
+    if( payment <= DecimalZero( ) ) then return FinFailDec( FIN_INVALID_TERM )
+    if( termMonths < 1 ) then return FinFailDec( FIN_INVALID_TERM )
+
+    dim as long p = hFinPayPeriods( payF )
+    if( p < 1 ) then return FinFailDec( FIN_INVALID_BASIS )
+
+    dim as LoanTerms t = LoanTermsMake( principal, DecimalZero( ), termMonths, payF, c )
+    dim as long n = hLoanPeriodCount( t )
+    if( n < 1 ) then return FinFailDec( FIN_INVALID_TERM )
+
+    '' Into cash-flow signs for the solver.
+    dim as AnnuityTerms a = AnnuityTermsMake( DecimalZero( ), n, -payment, principal, _
+                                              DecimalZero( ), PAY_END_OF_PERIOD )
+    dim as FinResultDec per = SolveRatePerPeriod( a )
+    if( per.IsOk( ) = FALSE ) then return per
+
+    '' Back out to the nominal annual rate at the loan's own compounding.
+    dim as double ip = per.Value( ).ToDouble( )
+    dim as long m = clng( c )
+    if( c = COMPOUND_SIMPLE ) then return FinOkDec( hFinFromDouble( ip * cdbl( p ) ) )
+    if( c = COMPOUND_CONTINUOUS ) then
+        return FinOkDec( hFinFromDouble( Log1p( ip ) * cdbl( p ) ) )
+    end if
+    if( m < 1 ) then return FinFailDec( FIN_INVALID_BASIS )
+
+    '' ( 1 + i )^(p/m) - 1 is the rate per COMPOUNDING period; times m is nominal.
+    dim as double perComp = Expm1( Log1p( ip ) * cdbl( p ) / cdbl( m ) )
+    dim as Decimal d = hFinFromDouble( perComp * cdbl( m ) )
+    if( d.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+    return FinOkDec( d )
+end function
+
+'' The rate implied when financed fees are treated as part of the cost of
+'' borrowing: the borrower receives principal MINUS fees but repays the full
+'' scheduled payment.
+''
+'' THIS IMPLEMENTS THE ARITHMETIC, NOT ANY JURISDICTION'S DISCLOSURE RULE.
+'' Regulation Z and the Canadian Cost of Borrowing regulations each prescribe
+'' WHICH fees are included and how the result is rounded for display; this takes
+'' the fee total the caller decides on.  IT MUST NOT BE PRESENTED AS A COMPLIANT
+'' APR without that decision being made elsewhere -- stated plainly because the
+'' alternative is somebody shipping it as one.
+public function LoanAnnualPercentageRate overload _
+    ( byref t as LoanTerms, byref financedFees as Decimal ) as FinResultDec
+
+    dim as FinanceErrorCode bad = hLoanValidate( t )
+    if( bad <> FIN_OK ) then return FinFailDec( bad )
+    if( financedFees.IsValid( ) = FALSE ) then return FinFailDec( FIN_INVALID_TERM )
+    if( financedFees < DecimalZero( ) ) then return FinFailDec( FIN_INVALID_TERM )
+    if( financedFees >= t.Principal_ ) then return FinFailDec( FIN_INVALID_TERM )
+
+    dim as FinResultDec pmt = LoanPayment( t )
+    if( pmt.IsOk( ) = FALSE ) then return pmt
+
+    dim as Decimal advanced = t.Principal_ - financedFees
+    return LoanImpliedRate( advanced, pmt.Value( ), t.TermMonths_, _
+                            t.PaymentFrequency_, t.Compounding_ )
+end function
+

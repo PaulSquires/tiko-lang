@@ -1,0 +1,8 @@
+'' tests/vendor/fbc-tests/finance/loanextra.bas ported to the std modules (build/stdtests.py, generated).
+'' Expected: what tests/std/baseline/finance/loanextra.txt recorded for the original.
+'' TEST: cli
+'' ARGS: -target win64-msvc -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/finance/loanextra.bas -o tests/std/finance/loanextra.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/std/finance/loanextra.exe
+'' EXPECT-RUN-OUT: 7792      7792         0  fbc_tests.finance.loanextra                   10

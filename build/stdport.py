@@ -71,7 +71,7 @@ for _m, _hs in MODULES.items():
 
 PROC = r"(?:function|sub|operator|property|constructor|destructor)"
 RX_MEMBER = re.compile(r"^(\s*)private\s+((?:(?:static|const|virtual|abstract)\s+)*)(" + PROC + r")(\s+)([\w]+\s*(?:\(\s*of\b[^)]*\))?\s*\.)", re.I)
-RX_CTOR = re.compile(r"^(\s*)private\s+((?:constructor|destructor)\s+\w+\s*(?:\(\s*of\b[^)]*\))?\s*[(:]?)", re.I)
+RX_CTOR = re.compile(r"^(\s*)private\s+((?:(?:virtual|abstract)\s+)*(?:constructor|destructor)\s+\w+\s*(?:\(\s*of\b[^)]*\))?\s*[(:]?)", re.I)
 RX_FREEPROC = re.compile(r"^(\s*)private\s+(function|sub)(\s+)(\w+)", re.I)
 RX_FREEOP = re.compile(r"^(\s*)private\s+operator\b", re.I)
 RX_DECL = re.compile(r"^(\s*)declare\s+(function|sub)\s+(\w+)", re.I)

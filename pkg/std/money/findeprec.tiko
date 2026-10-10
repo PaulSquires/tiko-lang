@@ -1,0 +1,452 @@
+#module "money"
+'' std/money: findeprec -- depreciation
+''
+''     #import "std/money"
+''     using money
+''
+''     var t = DepreciationTermsMake( DecimalParse( "50000" ).Value( ), _
+''                                    DecimalParse( "5000"  ).Value( ), 7 )
+''     var s = DepreciationScheduleOf( t, DEPRECIATION_DOUBLE_DECLINING_WITH_SWITCH )
+''     for each row in s.Value( )
+''         print row.Period_, row.Expense_.ToStringFixed( 2 ), row.SwitchedToStraightLine_
+''     next
+''
+'' Specified by C:\dev\docs\finance\RFC-0007-depreciation.md.  Phase 6.
+''
+'' EXACT Decimal THROUGHOUT -- the one surface in this module with NO double
+'' path at all.  No method here needs a power: declining balance applies its
+'' factor ONE PERIOD AT A TIME as a Decimal multiply rather than raising it to
+'' the period number, which is both exact and what the accounting definition
+'' actually says.
+''
+'' THREE DETAILS DECIDE CORRECTNESS, and they are the three that implementations
+'' get wrong.
+''
+'' 1. THE SALVAGE FLOOR IS ABSOLUTE.  Declining balance stops when the book
+''    value would fall below Salvage_.  The last non-zero expense is
+''    OpeningBookValue_ - Salvage_ and every later period is EXACTLY zero.
+''    Never a negative expense; never a book value below salvage; not
+''    "approximately salvage" -- the floor is enforced by assignment, the same
+''    way fb/finloan.bi lands a final balance on zero.
+''
+'' 2. THE SWITCH RULE COMPARES AGAINST THE REMAINING BASE OVER THE REMAINING
+''    LIFE, recomputed every period:
+''
+''        db = bookValue * RateFactor_ / LifePeriods_
+''        sl = ( bookValue - Salvage_ ) / remainingLife
+''
+''    take the larger, and latch SwitchedToStraightLine_ from the first period
+''    straight line wins.  THE ANTI-CASE, documented so nobody reintroduces it:
+''    the naive rule -- straight line computed on the ORIGINAL base over the
+''    ORIGINAL life -- switches in the wrong period on most inputs and does not
+''    reproduce the published tables.  The suite asserts the two DIFFER.
+''
+'' 3. A PARTIAL FIRST PERIOD EXTENDS THE SCHEDULE BY ONE PERIOD.  The
+''    undepreciated remainder does not vanish.
+''
+'' PlacedInService_ IS A PROPORTION OF THE FIRST PERIOD, NOT A TAX CONVENTION --
+'' but the arithmetic that follows from it IS the half-year convention when the
+'' proportion is 0.5, and it reproduces the IRS MACRS 200%-declining-balance
+'' schedule exactly.  What is NOT shipped is the published PERCENTAGE TABLES and
+'' their display rounding: Publication 946 alternates 8.93/8.92/8.93 in the
+'' seven-year column so it sums to 100, and this header returns the unrounded
+'' 8.9249 three times.  The arithmetic agrees; the presentation is the caller's.
+''
+'' WHICH FEES, WHICH CONVENTION AND WHICH ASSET CLASS remain the caller's --
+'' they differ by jurisdiction, asset and year, and this header takes the
+'' numbers rather than the policy.  Same line fb/finloan.bi draws for APR.
+
+
+#if __FB_LANG__ <> "fb"
+    #error "fb/findeprec.bi requires -lang fb (it uses namespaces)"
+#endif
+
+#include once "fb/result.bi"
+#include once "fb/math.bi"
+#include once "fblimits.bi"
+#include once "fb/optional.bi"
+#include once "fblimits.bi"
+#include once "fb/optional.bi"
+#include once "fb/math.bi"
+#include once "fb/chrono.bi"
+#include once "fb/array.bi"
+
+using FB
+
+'' ===========================================================================
+'' Terms and rows
+'' ===========================================================================
+
+public type DepreciationTerms
+    as Decimal       Cost_
+    as Decimal       Salvage_
+    as long          LifePeriods_      '' PERIODS, not years -- see the name
+    as Decimal       RateFactor_       '' 2 = double declining, 1.5 = 150% DB
+    as Decimal       PlacedInService_  '' fraction of the first period, 0 < f <= 1
+    as MoneyRounding Rounding_
+end type
+
+'' RateFactor_ defaults to 2 and PlacedInService_ to 1 -- a whole first period.
+'' A 150%-declining-balance caller assigns RateFactor_ after construction.
+public function DepreciationTermsMake overload _
+    ( byref cost as Decimal, byref salvage as Decimal, byval lifePeriods as long ) as DepreciationTerms
+
+    dim as DepreciationTerms t
+    t.Cost_            = cost
+    t.Salvage_         = salvage
+    t.LifePeriods_     = lifePeriods
+    t.RateFactor_      = DecimalFromInt( 2 )
+    t.PlacedInService_ = DecimalOne( )
+    t.Rounding_        = MoneyRoundingCents( )
+    return t
+end function
+
+public type DepreciationRow
+    as long    Period_                  '' 1-based
+    as Decimal OpeningBookValue_
+    as Decimal Expense_
+    as Decimal AccumulatedDepreciation_
+    as Decimal ClosingBookValue_
+    as boolean SwitchedToStraightLine_
+end type
+
+public enum DepreciationMethod
+    DEPRECIATION_STRAIGHT_LINE
+    DEPRECIATION_DECLINING_BALANCE
+    DEPRECIATION_DOUBLE_DECLINING
+    DEPRECIATION_DOUBLE_DECLINING_WITH_SWITCH
+    DEPRECIATION_SUM_OF_YEARS_DIGITS
+    DEPRECIATION_UNITS_OF_PRODUCTION
+end enum
+
+public type FinResultDepRow as Result( of DepreciationRow, FinanceError )
+
+'' ===========================================================================
+'' Validation
+'' ===========================================================================
+
+function hDepValidate overload ( byref t as DepreciationTerms ) as FinanceErrorCode
+    if( t.Cost_.IsValid( ) = FALSE ) then return FIN_INVALID_TERM
+    if( t.Salvage_.IsValid( ) = FALSE ) then return FIN_INVALID_TERM
+    if( t.RateFactor_.IsValid( ) = FALSE ) then return FIN_INVALID_BASIS
+    if( t.PlacedInService_.IsValid( ) = FALSE ) then return FIN_INVALID_BASIS
+
+    if( t.LifePeriods_ < 1 ) then return FIN_INVALID_PERIODS
+    if( t.Cost_ < DecimalZero( ) ) then return FIN_INVALID_TERM
+    if( t.Salvage_ < DecimalZero( ) ) then return FIN_INVALID_TERM
+    '' Salvage above cost is not a write-down, it is a mistake.
+    if( t.Salvage_ > t.Cost_ ) then return FIN_INVALID_TERM
+    if( t.RateFactor_ <= DecimalZero( ) ) then return FIN_INVALID_BASIS
+    if( t.PlacedInService_ <= DecimalZero( ) ) then return FIN_INVALID_BASIS
+    if( t.PlacedInService_ > DecimalOne( ) ) then return FIN_INVALID_BASIS
+    return FIN_OK
+end function
+
+function hDepIsPartial overload ( byref t as DepreciationTerms ) as boolean
+    return ( t.PlacedInService_ < DecimalOne( ) )
+end function
+
+'' The number of rows a schedule produces: LifePeriods_, plus one when the first
+'' period is partial and carries a remainder into an extra period.
+function hDepRowCount overload ( byref t as DepreciationTerms ) as long
+    if( hDepIsPartial( t ) ) then return t.LifePeriods_ + 1
+    return t.LifePeriods_
+end function
+
+'' ===========================================================================
+'' The method series
+''
+'' Everything except sum-of-years-digits is a BOOK-VALUE WALK, so a partial
+'' first period is expressed directly: the asset is in service for a FRACTION of
+'' period one, and REMAINING LIFE is measured from time actually in service.
+'' That is what makes PlacedInService_ = 0.5 reproduce the half-year convention
+'' rather than approximate it.
+''
+'' Sum-of-years-digits is NOT a book-value walk -- its weights come from
+'' position in the life, not from the balance -- so a partial first period
+'' BLENDS consecutive full-period weights instead.  Both preserve the total
+'' exactly; the difference is stated rather than smoothed over, because the two
+'' models are genuinely different and a reader will otherwise assume one.
+'' ===========================================================================
+
+function hDepSydTotal overload ( byval life as long ) as Decimal
+    '' life * ( life + 1 ) / 2, exactly, in integer arithmetic.
+    return DecimalFromInt( clngint( life ) * clngint( life + 1 ) \ 2 )
+end function
+
+'' Fills rows( ) with one DepreciationRow per period.  The single-period
+'' accessors and the schedule both read this, so they cannot disagree.
+function hDepBuild overload _
+    ( byref t as DepreciationTerms, byval method as DepreciationMethod, rows( ) as DepreciationRow ) as FinanceErrorCode
+
+    dim as FinanceErrorCode bad = hDepValidate( t )
+    if( bad <> FIN_OK ) then return bad
+    if( method = DEPRECIATION_UNITS_OF_PRODUCTION ) then return FIN_INVALID_BASIS
+
+    dim as long n = hDepRowCount( t )
+    redim rows( 0 to n - 1 )
+
+    dim as Decimal base_ = t.Cost_ - t.Salvage_
+    dim as Decimal bv = t.Cost_
+    dim as Decimal accum = DecimalZero( )
+    dim as Decimal served = DecimalZero( )
+    dim as boolean latched = FALSE
+
+    '' Sum-of-years-digits weights, when needed.
+    dim as Decimal sydTotal = hDepSydTotal( t.LifePeriods_ )
+
+    dim as Decimal factor = t.RateFactor_
+    if( method = DEPRECIATION_DOUBLE_DECLINING ) then factor = DecimalFromInt( 2 )
+    if( method = DEPRECIATION_DOUBLE_DECLINING_WITH_SWITCH ) then factor = t.RateFactor_
+
+    for k as long = 1 to n
+        dim as Decimal opening = bv
+        dim as Decimal remaining = DecimalFromInt( t.LifePeriods_ ) - served
+
+        dim as Decimal expense = DecimalZero( )
+        dim as boolean switchedHere = FALSE
+
+        if( remaining > DecimalZero( ) ) then
+            '' The fraction of THIS period the asset is in service.
+            dim as Decimal share = DecimalOne( )
+            if( k = 1 ) then
+                share = t.PlacedInService_
+            elseif( remaining < DecimalOne( ) ) then
+                share = remaining
+            end if
+
+            select case as const method
+            case DEPRECIATION_STRAIGHT_LINE
+                '' Remaining base over remaining life.  For a whole first
+                '' period this is the constant ( Cost - Salvage ) / Life, and
+                '' for a partial one it carries the remainder correctly.
+                expense = ( ( opening - t.Salvage_ ) / remaining ) * share
+
+            case DEPRECIATION_DECLINING_BALANCE, DEPRECIATION_DOUBLE_DECLINING
+                expense = ( ( opening * factor ) / DecimalFromInt( t.LifePeriods_ ) ) * share
+
+            case DEPRECIATION_DOUBLE_DECLINING_WITH_SWITCH
+                dim as Decimal db = ( ( ( opening * factor ) / DecimalFromInt( t.LifePeriods_ ) ) * share )
+                '' THE SWITCH RULE: straight line on the REMAINING base over the
+                '' REMAINING life, recomputed every period.  Not the original
+                '' base over the original life -- that is the anti-case.
+                dim as Decimal sl = ( ( ( opening - t.Salvage_ ) / remaining ) * share )
+
+                '' >= AND NOT >.  At MACRS's switch period the two are EXACTLY
+                '' equal -- 28.8/2.5 and 28.8*0.4 are both 11.52 -- and that
+                '' period IS the switch.  A strict > gets the same expense and
+                '' the wrong flag, which is the sort of defect that survives
+                '' every numeric assertion.
+                if( sl >= db ) then latched = TRUE
+
+                '' ONCE SWITCHED, STAY SWITCHED.  Straight line on the
+                '' remaining base is constant from here, which is the whole
+                '' point of switching.
+                if( latched ) then expense = sl else expense = db
+                switchedHere = latched
+
+            case DEPRECIATION_SUM_OF_YEARS_DIGITS
+                '' Weight by position in the life.  A partial first period
+                '' BLENDS consecutive weights -- see the section note.
+                dim as Decimal wCur = DecimalZero( )
+                dim as Decimal wPrev = DecimalZero( )
+                if( ( k >= 1 ) andalso ( k <= t.LifePeriods_ ) ) then
+                    wCur = ( base_ * DecimalFromInt( t.LifePeriods_ - k + 1 ) ) / sydTotal
+                end if
+                if( ( k - 1 >= 1 ) andalso ( k - 1 <= t.LifePeriods_ ) ) then
+                    wPrev = ( base_ * DecimalFromInt( t.LifePeriods_ - ( k - 1 ) + 1 ) ) / sydTotal
+                end if
+                expense = ( wCur * t.PlacedInService_ ) _
+                        + ( wPrev * ( DecimalOne( ) - t.PlacedInService_ ) )
+            end select
+
+            served = served + share
+        end if
+
+        '' THE SALVAGE FLOOR, absolute and by assignment.
+        if( expense < DecimalZero( ) ) then expense = DecimalZero( )
+        dim as Decimal room = opening - t.Salvage_
+        if( room < DecimalZero( ) ) then room = DecimalZero( )
+        if( expense > room ) then expense = room
+
+        expense = MoneyRound( expense, t.Rounding_ )
+        if( expense > room ) then expense = room
+
+        dim as Decimal closing = opening - expense
+        accum = accum + expense
+
+        rows( k - 1 ).Period_                  = k
+        rows( k - 1 ).OpeningBookValue_        = opening
+        rows( k - 1 ).Expense_                 = expense
+        rows( k - 1 ).AccumulatedDepreciation_ = accum
+        rows( k - 1 ).ClosingBookValue_        = closing
+        rows( k - 1 ).SwitchedToStraightLine_  = switchedHere
+
+        bv = closing
+    next
+
+    '' THE LAST NON-ZERO PERIOD CLEARS THE REMAINDER, by assignment, so the
+    '' book value lands on EXACTLY Salvage_ rather than near it.  Rounding each
+    '' expense to cents otherwise leaves a residue, exactly as it does in an
+    '' amortization schedule.
+    dim as Decimal finalBv = rows( n - 1 ).ClosingBookValue_
+    if( finalBv <> t.Salvage_ ) then
+        dim as Decimal adjust = finalBv - t.Salvage_
+        rows( n - 1 ).Expense_ = rows( n - 1 ).Expense_ + adjust
+        if( rows( n - 1 ).Expense_ < DecimalZero( ) ) then rows( n - 1 ).Expense_ = DecimalZero( )
+        rows( n - 1 ).AccumulatedDepreciation_ = t.Cost_ - t.Salvage_
+        rows( n - 1 ).ClosingBookValue_ = t.Salvage_
+    end if
+
+    return FIN_OK
+end function
+
+'' ===========================================================================
+'' Single-period accessors
+''
+'' DEFINED TO AGREE WITH THE SCHEDULE -- they read the same series, so they
+'' cannot drift from it.  They exist because a caller who wants year 4 of a
+'' 40-year asset should not have to walk 40 rows.
+'' ===========================================================================
+
+function hDepAt overload _
+    ( byref t as DepreciationTerms, byval method as DepreciationMethod, byval period as long ) as FinResultDec
+
+    if( period < 1 ) then return FinFailDec( FIN_INVALID_PERIODS )
+
+    dim as DepreciationRow rows( any )
+    dim as FinanceErrorCode bad = hDepBuild( t, method, rows( ) )
+    if( bad <> FIN_OK ) then return FinFailDec( bad )
+
+    if( period > ( ubound( rows ) + 1 ) ) then return FinFailDec( FIN_INVALID_PERIODS )
+    return FinOkDec( rows( period - 1 ).Expense_ )
+end function
+
+public function DepreciationStraightLine overload ( byref t as DepreciationTerms, byval period as long ) as FinResultDec
+    return hDepAt( t, DEPRECIATION_STRAIGHT_LINE, period )
+end function
+
+public function DepreciationDecliningBalance overload ( byref t as DepreciationTerms, byval period as long ) as FinResultDec
+    return hDepAt( t, DEPRECIATION_DECLINING_BALANCE, period )
+end function
+
+public function DepreciationDoubleDeclining overload ( byref t as DepreciationTerms, byval period as long ) as FinResultDec
+    return hDepAt( t, DEPRECIATION_DOUBLE_DECLINING, period )
+end function
+
+public function DepreciationSumOfYearsDigits overload ( byref t as DepreciationTerms, byval period as long ) as FinResultDec
+    return hDepAt( t, DEPRECIATION_SUM_OF_YEARS_DIGITS, period )
+end function
+
+'' UNITS OF PRODUCTION has no schedule form: a schedule would need a per-period
+'' units array, which is a different signature.  The single-period function
+'' called in the caller's own loop is the whole feature -- RFC-0007 section 5.
+public function DepreciationUnitsOfProduction overload _
+    ( _
+        byref t as DepreciationTerms, byref unitsThisPeriod as Decimal, _
+        byref totalUnits as Decimal _
+    ) as FinResultDec
+
+    dim as FinanceErrorCode bad = hDepValidate( t )
+    if( bad <> FIN_OK ) then return FinFailDec( bad )
+    if( unitsThisPeriod.IsValid( ) = FALSE ) then return FinFailDec( FIN_INVALID_TERM )
+    if( totalUnits.IsValid( ) = FALSE ) then return FinFailDec( FIN_INVALID_TERM )
+    if( totalUnits <= DecimalZero( ) ) then return FinFailDec( FIN_DOMAIN )
+    if( unitsThisPeriod < DecimalZero( ) ) then return FinFailDec( FIN_INVALID_TERM )
+
+    dim as Decimal base_ = t.Cost_ - t.Salvage_
+    dim as Decimal expense = ( ( base_ * unitsThisPeriod ) / totalUnits )
+    if( expense.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+    return FinOkDec( MoneyRound( expense, t.Rounding_ ) )
+end function
+
+'' ===========================================================================
+'' The schedule
+''
+'' Same Range/Iterator shape as fb/finloan.bi's, and the same note applies: the
+'' iterator owns NO resource and needs NO destructor.
+'' ===========================================================================
+
+public type DepreciationScheduleIterator
+    declare function IsValid ( ) as boolean
+    declare function Value   ( ) byref as DepreciationRow
+    declare sub      MoveNext( )
+
+    as DepreciationRow m_rows( any )
+    as long            m_index
+    as long            m_count
+end type
+
+function DepreciationScheduleIterator.IsValid( ) as boolean
+    function = ( this.m_index < this.m_count )
+end function
+
+function DepreciationScheduleIterator.Value( ) byref as DepreciationRow
+    function = this.m_rows( this.m_index )
+end function
+
+sub DepreciationScheduleIterator.MoveNext( )
+    this.m_index += 1
+end sub
+
+'' The rows are MATERIALIZED here rather than walked lazily, unlike
+'' fb/finloan.bi's schedule.  The reason is the final-period adjustment: the
+'' last row's expense depends on the accumulated rounding of every row before
+'' it, so it cannot be produced without having built them.  A life is tens of
+'' periods rather than hundreds, so the allocation is not worth avoiding.
+public type DepreciationSchedule
+    declare const function GetIterator( ) as DepreciationScheduleIterator
+    declare const function Count       ( ) as long
+
+    as DepreciationRow m_rows( any )
+    as long            m_count
+end type
+
+const function DepreciationSchedule.GetIterator( ) as DepreciationScheduleIterator
+    dim as DepreciationScheduleIterator it
+    it.m_count = this.m_count
+    it.m_index = 0
+    if( this.m_count > 0 ) then
+        redim it.m_rows( 0 to this.m_count - 1 )
+        for k as long = 0 to this.m_count - 1
+            it.m_rows( k ) = this.m_rows( k )
+        next
+    end if
+    return it
+end function
+
+const function DepreciationSchedule.Count( ) as long
+    function = this.m_count
+end function
+
+public type FinResultDepSchedule as Result( of DepreciationSchedule, FinanceError )
+
+public function DepreciationScheduleOf overload _
+    ( byref t as DepreciationTerms, byval method as DepreciationMethod ) as FinResultDepSchedule
+
+    dim as DepreciationRow rows( any )
+    dim as FinanceErrorCode bad = hDepBuild( t, method, rows( ) )
+    if( bad <> FIN_OK ) then
+        return Fail( of DepreciationSchedule, FinanceError )( FinanceErrorMake( bad ) )
+    end if
+
+    dim as DepreciationSchedule s
+    s.m_count = ubound( rows ) + 1
+    if( s.m_count > 0 ) then
+        redim s.m_rows( 0 to s.m_count - 1 )
+        for k as long = 0 to s.m_count - 1
+            s.m_rows( k ) = rows( k )
+        next
+    end if
+    return Ok( of DepreciationSchedule, FinanceError )( s )
+end function
+
+'' The whole schedule as an array, for random access.
+public function DepreciationScheduleToArray overload ( byref s as DepreciationSchedule ) as Array( of DepreciationRow )
+    dim as Array( of DepreciationRow ) out_
+    for each row in s
+        out_.Push( row )
+    next
+    function = out_
+end function
+

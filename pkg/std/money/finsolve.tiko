@@ -1,0 +1,433 @@
+#module "money"
+'' std/money: finsolve -- one root finder, for every implied rate in the module
+''
+''     #import "std/money"
+''     using money
+''
+''     type MyCtx
+''         as double target
+''     end type
+''
+''     private function myObjective( byval x as double, byval ctx as any ptr ) as double
+''         dim as MyCtx ptr c = cptr( MyCtx ptr, ctx )
+''         return x * x - c->target
+''     end function
+''
+''     dim as MyCtx c = ( 2.0 )
+''     var opt = FinSolverOptionsWithGuess( 1.0 )
+''     var r = FinSolveRoot( @myObjective, @c, opt )
+''     if( r.IsOk( ) ) then print r.Value( ).Root_        ' 1.41421356...
+''
+'' Specified by C:\dev\docs\finance\RFC-0003-solvers.md.  Phase 3.
+''
+'' ONE MACHINE, NOT ONE PER CALL SITE.  An implied loan rate, an IRR, a dated
+'' IRR and a bond yield are the same problem: find the rate at which a
+'' discounted balance is zero.  Written four times they acquire four tolerance
+'' conventions, four iteration caps and four ways of failing -- and three of the
+'' four get the hard cases wrong, because the hard cases are rare enough that
+'' nobody notices until a user's portfolio hits one.  Written once, every caller
+'' inherits the bracketing guarantee and a fix reaches all of them.
+''
+'' NEWTON IS NEVER TRUSTED ALONE.  That is the defect in most spreadsheet-clone
+'' solvers, Excel's own RATE and IRR among them: they run Newton from a fixed
+'' seed and return an error on inputs that have a perfectly good root.  Here
+'' Newton is a FAST PATH -- at most twelve iterations, abandoned the moment an
+'' iterate leaves the bounds or fails to reduce |f| -- and the answer never
+'' depends on it.  Step 3 brackets, step 4 is Brent, and given a bracket Brent
+'' cannot fail to converge.
+''
+'' DOUBLE THROUGHOUT, per RFC-0002 section 6.  A root is an approximation by
+'' nature; carrying it in Decimal would be precision theatre.  Callers round the
+'' answer back at FIN_RATE_SCALE.
+''
+'' A FUNCTION POINTER AND A CONTEXT, NOT A CAPTURING LAMBDA.  fbc-modern has
+'' capturing lambdas and this is deliberately not one of their use sites: the
+'' objective is stored in a record, passed down two call levels and invoked from
+'' a header-only inline body, and a capture's lifetime is tied to the scope that
+'' made it.  `function ( x, ctx )` plus an `any ptr` is what every numerical
+'' library in every language uses here, and it is trivially correct.
+''
+'' THE DEFAULT BOUNDS ARE RATE BOUNDS, NOT GENERAL-PURPOSE ONES.
+'' LowerBound_ is -0.9999999 because a periodic rate at or below -100% is not a
+'' number any caller in this module can use.  A general root-finding caller --
+'' and the suite is one -- MUST widen them; a root outside [Lower, Upper] is
+'' not merely hard to find, it is excluded by construction, and the seed itself
+'' is clamped into range before the first evaluation.
+''
+'' WHICH ROOT YOU GET, WHEN THERE IS MORE THAN ONE.  Not necessarily the
+'' nearest to the seed.  The Newton fast path can and does step straight past
+'' one root to another -- on (x-3)(x+1)(x-7) from a seed of 1.0 it lands
+'' exactly on 7 in a single step -- and the bracket expansion returns the first
+'' sign change it meets, which is usually but not always the closest.  RFC-0003
+'' section 5's position stands: a series with several roots is ILL-POSED rather
+'' than hard, this returns one of them, and MIRR is the well-posed alternative.
+'' What is guaranteed is that the value returned IS a root to Tolerance_, never
+'' which one.
+''
+'' WHAT THIS HEADER CANNOT PRE-CHECK.  RFC-0003 section 4.0 lists four cheap
+'' pre-checks.  Only the LAST of them -- bad bounds -- is visible from here: the
+'' other three are about a caller's SERIES, which reaches the solver as an
+'' opaque `any ptr`.  Empty series, no sign change and unordered dates are
+'' therefore the CALLER's to detect, before calling, and fb/fincash.bi does so
+'' in phase 5.  Recorded here so the division of labour is a decision rather
+'' than an omission.
+
+
+#if __FB_LANG__ <> "fb"
+    #error "fb/finsolve.bi requires -lang fb (it uses namespaces)"
+#endif
+
+#include once "fb/result.bi"
+#include once "fb/math.bi"
+#include once "fblimits.bi"
+#include once "fb/optional.bi"
+#include once "fblimits.bi"
+#include once "fb/optional.bi"
+#include once "fb/math.bi"
+
+using FB
+
+'' ===========================================================================
+'' Options and result
+'' ===========================================================================
+
+public type FinSolverOptions
+    as double Guess_          '' initial iterate; NaN means "no caller seed"
+    as double LowerBound_     '' default -0.9999999   (a rate above -100%)
+    as double UpperBound_     '' default 1.0e6        (absurd on purpose)
+    as double Tolerance_      '' |f(x)| <= this
+    as double StepTolerance_  '' |b - a| <= this * max( 1, |b| )
+    as long   MaxIterations_
+    as long   BracketSteps_   '' geometric expansion attempts
+end type
+
+public function FinSolverOptionsDefault overload ( ) as FinSolverOptions
+    dim as FinSolverOptions o
+    o.Guess_         = NaN( )        '' fb/math.bi -- "the caller has no seed"
+    o.LowerBound_    = -0.9999999
+    o.UpperBound_    = 1.0e6
+    o.Tolerance_     = 1.0e-12
+    o.StepTolerance_ = 1.0e-14
+    o.MaxIterations_ = 128
+    o.BracketSteps_  = 64
+    return o
+end function
+
+public function FinSolverOptionsWithGuess overload ( byval g as double ) as FinSolverOptions
+    dim as FinSolverOptions o = FinSolverOptionsDefault( )
+    o.Guess_ = g
+    return o
+end function
+
+public type FinSolveResult
+    as double  Root_
+    as double  Residual_
+    as long    Iterations_
+    as boolean Converged_
+    as boolean Bracketed_   '' false when the Newton fast path alone succeeded
+end type
+
+public type FinObjective as function ( byval x as double, byval ctx as any ptr ) as double
+
+public type FinResultSolve as Result( of FinSolveResult, FinanceError )
+
+'' ===========================================================================
+'' Private helpers
+'' ===========================================================================
+
+'' A probe that the objective could not evaluate -- an overflowing discount
+'' factor at an absurd trial rate, say -- is SKIPPED rather than fatal.  This is
+'' the single test for that, used at every evaluation site.
+function hSolveUsable overload ( byval y as double ) as boolean
+    return IsFinite( y )        '' fb/math.bi
+end function
+
+function hSolveClamp overload ( byval x as double, byref o as FinSolverOptions ) as double
+    return Clamp( x, o.LowerBound_, o.UpperBound_ )    '' fb/math.bi
+end function
+
+function hSolveOk overload _
+    ( _
+        byval root as double, byval resid as double, byval iters as long, _
+        byval bracketed as boolean _
+    ) as FinResultSolve
+
+    dim as FinSolveResult r
+    r.Root_       = root
+    r.Residual_   = resid
+    r.Iterations_ = iters
+    r.Converged_  = TRUE
+    r.Bracketed_  = bracketed
+    return Ok( of FinSolveResult, FinanceError )( r )
+end function
+
+function hSolveFail overload _
+    ( _
+        byval code as FinanceErrorCode, byval iters as long, _
+        byval resid as double, byval guess as double _
+    ) as FinResultSolve
+
+    return Fail( of FinSolveResult, FinanceError )( _
+        FinanceErrorSolver( code, iters, resid, guess ) )
+end function
+
+'' ===========================================================================
+'' Brent
+''
+'' The standard formulation: inverse quadratic interpolation, secant fallback,
+'' and a bisection guard that fires whenever the interpolated step is not
+'' clearly better.  Chosen over bisection for superlinear convergence and over
+'' Newton for its guarantee -- GIVEN A BRACKET IT CANNOT FAIL.
+''
+'' Locals are xa/xb/xc, ya/yb/yc and dcur/eprev rather than the textbook
+'' a/b/c/d/e and fa/fb/fc.  TWO of those names are taken, both because
+'' FreeBASIC identifiers are case-insensitive:
+''
+''     e   IS fb/math.bi's Euler constant  -> `dim as double e` will not compile
+''     fb  IS THE NAMESPACE THIS FILE IS IN -> `yb = ...` gives
+''         "error 120: Expected period ('.')", because fb.something is expected
+''
+'' The second one is worth knowing before writing any numeric code in this
+'' library: 'fa', 'fb', 'fc' is the universal spelling in root-finding
+'' literature, and exactly one of the three is unusable here.
+'' ===========================================================================
+
+function hSolveBrent overload _
+    ( _
+        byval f as FinObjective, byval ctx as any ptr, byref o as FinSolverOptions, _
+        byval lo as double, byval hi as double, _
+        byval flo as double, byval fhi as double, byval used as long _
+    ) as FinResultSolve
+
+    dim as double xa = lo, xb = hi, xc = hi
+    dim as double ya = flo, yb = fhi, yc = fhi
+    dim as double dcur = 0.0, eprev = 0.0
+    dim as long iters = used
+
+    for k as long = 1 to o.MaxIterations_
+        iters += 1
+
+        if( ( yb > 0.0 ) = ( yc > 0.0 ) ) then
+            xc = xa : yc = ya
+            dcur = xb - xa : eprev = dcur
+        end if
+
+        if( abs( yc ) < abs( yb ) ) then
+            xa = xb : xb = xc : xc = xa
+            ya = yb : yb = yc : yc = ya
+        end if
+
+        '' EPSILON_DOUBLE is yb/math.bi's; the 2* is the standard guard against
+        '' asking for a step smaller than the representation allows.
+        dim as double tol1 = 2.0 * EPSILON_DOUBLE * abs( xb ) _
+                           + 0.5 * o.StepTolerance_ * Max( 1.0, abs( xb ) )
+        dim as double xm = 0.5 * ( xc - xb )
+
+        if( abs( yb ) <= o.Tolerance_ ) then
+            return hSolveOk( xb, yb, iters, TRUE )
+        end if
+        if( abs( xm ) <= tol1 ) then
+            return hSolveOk( xb, yb, iters, TRUE )
+        end if
+
+        if( ( abs( eprev ) >= tol1 ) andalso ( abs( ya ) > abs( yb ) ) ) then
+            dim as double ss = yb / ya
+            dim as double pnum = 0.0, qden = 0.0
+
+            if( xa = xc ) then
+                '' secant
+                pnum = 2.0 * xm * ss
+                qden = 1.0 - ss
+            else
+                '' inverse quadratic
+                dim as double qq = ya / yc
+                dim as double rr = yb / yc
+                pnum = ss * ( 2.0 * xm * qq * ( qq - rr ) - ( xb - xa ) * ( rr - 1.0 ) )
+                qden = ( qq - 1.0 ) * ( rr - 1.0 ) * ( ss - 1.0 )
+            end if
+
+            if( pnum > 0.0 ) then qden = -qden
+            pnum = abs( pnum )
+
+            dim as double lim1 = 3.0 * xm * qden - abs( tol1 * qden )
+            dim as double lim2 = abs( eprev * qden )
+
+            if( ( 2.0 * pnum ) < Min( lim1, lim2 ) ) then
+                '' the interpolation is trusted
+                eprev = dcur
+                dcur = pnum / qden
+            else
+                '' BISECTION GUARD.  This is what makes Brent safe.
+                dcur = xm : eprev = dcur
+            end if
+        else
+            dcur = xm : eprev = dcur
+        end if
+
+        xa = xb : ya = yb
+        if( abs( dcur ) > tol1 ) then
+            xb += dcur
+        else
+            xb += CopySign( tol1, xm )       '' yb/math.bi
+        end if
+
+        yb = f( xb, ctx )
+        if( hSolveUsable( yb ) = FALSE ) then
+            return hSolveFail( FIN_DOMAIN, iters, yb, xb )
+        end if
+    next
+
+    return hSolveFail( FIN_NO_CONVERGENCE, iters, yb, xb )
+end function
+
+'' ===========================================================================
+'' FinSolveRoot -- the public entry point
+'' ===========================================================================
+
+public function FinSolveRoot overload _
+    ( _
+        byval f as FinObjective, byval ctx as any ptr, byref o as FinSolverOptions _
+    ) as FinResultSolve
+
+    '' ---- step 0: the one pre-check this header can make
+    if( f = 0 ) then return hSolveFail( FIN_DOMAIN, 0, NaN( ), NaN( ) )
+    if( hSolveUsable( o.LowerBound_ ) = FALSE ) then return hSolveFail( FIN_DOMAIN, 0, NaN( ), NaN( ) )
+    if( hSolveUsable( o.UpperBound_ ) = FALSE ) then return hSolveFail( FIN_DOMAIN, 0, NaN( ), NaN( ) )
+    if( o.LowerBound_ >= o.UpperBound_ ) then return hSolveFail( FIN_DOMAIN, 0, NaN( ), NaN( ) )
+    if( o.MaxIterations_ < 1 ) then return hSolveFail( FIN_DOMAIN, 0, NaN( ), NaN( ) )
+    if( o.BracketSteps_ < 0 ) then return hSolveFail( FIN_DOMAIN, 0, NaN( ), NaN( ) )
+
+    '' ---- step 1: seed
+    dim as double seed = o.Guess_
+    if( IsNaN( seed ) ) then seed = 0.1          '' the documented fallback
+    seed = hSolveClamp( seed, o )
+
+    dim as long iters = 0
+    dim as double fseed = f( seed, ctx )
+    iters += 1
+
+    '' Track the best point seen ANYWHERE, so a failure can report how close it
+    '' got rather than only where it stopped.
+    dim as double bestX = seed, bestF = NaN( )
+    if( hSolveUsable( fseed ) ) then bestF = abs( fseed )
+
+    if( hSolveUsable( fseed ) ) then
+        if( abs( fseed ) <= o.Tolerance_ ) then
+            return hSolveOk( seed, fseed, iters, FALSE )
+        end if
+    end if
+
+    '' ---- step 2: Newton fast path, at most twelve iterations
+    if( hSolveUsable( fseed ) ) then
+        dim as double x = seed, fx = fseed
+
+        for k as long = 1 to 12
+            dim as double h = Max( 1.0e-7, 1.0e-7 * abs( x ) )
+            dim as double fp = f( x + h, ctx )
+            dim as double fm = f( x - h, ctx )
+            iters += 2
+            if( hSolveUsable( fp ) = FALSE ) then exit for
+            if( hSolveUsable( fm ) = FALSE ) then exit for
+
+            dim as double deriv = ( fp - fm ) / ( 2.0 * h )
+            if( deriv = 0.0 ) then exit for
+            if( hSolveUsable( deriv ) = FALSE ) then exit for
+
+            dim as double xn = x - fx / deriv
+            '' ACCEPTED ONLY IF it stays in bounds AND |f| strictly decreased.
+            '' The first violation abandons Newton with nothing lost.
+            if( xn <= o.LowerBound_ ) then exit for
+            if( xn >= o.UpperBound_ ) then exit for
+
+            dim as double fn = f( xn, ctx )
+            iters += 1
+            if( hSolveUsable( fn ) = FALSE ) then exit for
+            if( abs( fn ) >= abs( fx ) ) then exit for
+
+            x = xn : fx = fn
+            if( abs( fx ) < bestF orelse IsNaN( bestF ) ) then
+                bestF = abs( fx ) : bestX = x
+            end if
+
+            if( abs( fx ) <= o.Tolerance_ ) then
+                return hSolveOk( x, fx, iters, FALSE )
+            end if
+        next
+    end if
+
+    '' ---- step 3: bracket, expanding geometrically from the seed
+    dim as double lo = seed, hi = seed
+    dim as double flo = fseed, fhi = fseed
+    dim as boolean haveBracket = FALSE
+
+    dim as double anchorX = seed, anchorF = fseed
+    dim as boolean haveAnchor = hSolveUsable( fseed )
+
+    dim as double span = 0.05
+    for k as long = 0 to o.BracketSteps_
+        dim as double xlo = hSolveClamp( seed - span, o )
+        dim as double xhi = hSolveClamp( seed + span, o )
+
+        dim as double ylo = f( xlo, ctx )
+        dim as double yhi = f( xhi, ctx )
+        iters += 2
+
+        if( hSolveUsable( ylo ) ) then
+            if( IsNaN( bestF ) orelse ( abs( ylo ) < bestF ) ) then
+                bestF = abs( ylo ) : bestX = xlo
+            end if
+        end if
+        if( hSolveUsable( yhi ) ) then
+            if( IsNaN( bestF ) orelse ( abs( yhi ) < bestF ) ) then
+                bestF = abs( yhi ) : bestX = xhi
+            end if
+        end if
+
+        '' An unusable probe is SKIPPED, not fatal.
+        if( haveAnchor andalso hSolveUsable( ylo ) ) then
+            if( ( ylo > 0.0 ) <> ( anchorF > 0.0 ) ) then
+                lo = xlo : hi = anchorX : flo = ylo : fhi = anchorF
+                haveBracket = TRUE
+                exit for
+            end if
+        end if
+        if( haveAnchor andalso hSolveUsable( yhi ) ) then
+            if( ( yhi > 0.0 ) <> ( anchorF > 0.0 ) ) then
+                lo = anchorX : hi = xhi : flo = anchorF : fhi = yhi
+                haveBracket = TRUE
+                exit for
+            end if
+        end if
+        if( hSolveUsable( ylo ) andalso hSolveUsable( yhi ) ) then
+            if( ( ylo > 0.0 ) <> ( yhi > 0.0 ) ) then
+                lo = xlo : hi = xhi : flo = ylo : fhi = yhi
+                haveBracket = TRUE
+                exit for
+            end if
+        end if
+
+        '' The seed itself may have been unusable; adopt the first finite probe
+        '' as the anchor so expansion still has something to compare against.
+        if( haveAnchor = FALSE ) then
+            if( hSolveUsable( ylo ) ) then
+                anchorX = xlo : anchorF = ylo : haveAnchor = TRUE
+            elseif( hSolveUsable( yhi ) ) then
+                anchorX = xhi : anchorF = yhi : haveAnchor = TRUE
+            end if
+        end if
+
+        '' Both ends pinned to the bounds and still no sign change: expanding
+        '' further cannot reach anywhere new.
+        if( ( xlo = o.LowerBound_ ) andalso ( xhi = o.UpperBound_ ) ) then exit for
+
+        span *= 1.6
+    next
+
+    if( haveBracket = FALSE ) then
+        return hSolveFail( FIN_NO_BRACKET, iters, bestF, bestX )
+    end if
+
+    '' ---- step 4: Brent on the bracket
+    return hSolveBrent( f, ctx, o, lo, hi, flo, fhi, iters )
+end function
+

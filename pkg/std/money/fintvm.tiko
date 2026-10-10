@@ -1,0 +1,486 @@
+#module "money"
+'' std/money: fintvm -- the time value of money
+''
+''     #import "std/money"
+''     using money
+''
+''     '' $400,000 borrowed, 360 months, at the monthly rate.
+''     var terms = AnnuityTermsMake( i, 360, DecimalZero( ), _
+''                                   DecimalParse( "400000" ).Value( ), _
+''                                   DecimalZero( ), PAY_END_OF_PERIOD )
+''     var pmt = PaymentAmount( terms )      ' NEGATIVE -- see the sign note
+''
+'' Specified by C:\dev\docs\finance\RFC-0004-time-value-of-money.md.  Phase 2.
+''
+'' ONE IDENTITY, FIVE REARRANGEMENTS.  Everything here is a rearrangement of
+''
+''     PV + PMT * a( i, n, timing ) + FV * v( i, n ) = 0
+''
+'' where a is the annuity factor and v = 1/(1+i)^n the discount factor, both
+'' from fb/fincore.bi.  Writing it once is what stops the five functions
+'' drifting apart, and the suite asserts the IDENTITY on every case rather than
+'' only asserting each function against an oracle.
+''
+'' THE SIGN CONVENTION: CASH-FLOW SIGNS.  Money you RECEIVE is positive; money
+'' you PAY is negative.  This is Excel's convention, every financial
+'' calculator's convention, and the one that makes the identity balance to zero
+'' rather than needing a sign rule bolted onto each rearrangement.
+''
+'' The consequence, which surprises everyone exactly once:
+''
+''     PresentValue_ = +400000     you received the loan
+''     PaymentAmount( ) < 0        you pay it back
+''
+'' STATED HERE ONCE AND NOT RE-LITIGATED PER FUNCTION.  fb/finloan.bi
+'' deliberately uses the OPPOSITE convention -- a mortgage statement shows a
+'' positive payment against a positive balance, because that is what a
+'' statement looks like -- and bridges the two in one private helper.  If you
+'' are diffing the two headers and the signs disagree, that is the reason, and
+'' RFC-0005 section 2 argues it.
+''
+'' THE TWO LUMP-SUM FUNCTIONS ARE NOT PART OF THE IDENTITY.  PresentValueOfLump
+'' and FutureValueOfLump are a multiply by the discount or growth factor and
+'' nothing more: amount in, value out, sign unchanged.  They do not balance an
+'' equation, so there is no sign to flip, and pretending otherwise would make
+'' `PresentValueOfLump( 1000, ... )` return a negative number.  The exact
+'' relationship to the record form is pinned in the suite so the difference is
+'' asserted rather than lurking.
+''
+'' THE ZERO-RATE CASE IS HANDLED EXPLICITLY EVERYWHERE.  At i = 0 the annuity
+'' factor ( 1 - v^n )/i is 0/0, and the limit is n.  Every factor here TESTS
+'' THE RATE AGAINST ZERO rather than letting a Decimal division produce
+'' Invalid.  Zero-rate loans are real -- promotional financing, an interest-free
+'' family loan, the zero-coupon leg of a comparison -- and hitting Invalid on
+'' them is the single most common bug in time-value-of-money libraries.  It is
+'' a specification here, not a patch added after a bug report.
+''
+'' EXACT throughout, for integer 'periods', except PeriodsRequired -- a
+'' logarithm -- and SolveRatePerPeriod, which is the root finder.  Both say so.
+
+
+#if __FB_LANG__ <> "fb"
+    #error "fb/fintvm.bi requires -lang fb (it uses namespaces)"
+#endif
+
+#include once "fb/result.bi"
+#include once "fb/math.bi"
+#include once "fblimits.bi"
+#include once "fb/optional.bi"
+#include once "fblimits.bi"
+#include once "fb/optional.bi"
+#include once "fb/math.bi"
+#include once "fb/chrono.bi"
+#include once "fb/math.bi"
+
+using FB
+
+'' ===========================================================================
+'' The parameter block
+''
+'' A RECORD RATHER THAN SIX POSITIONAL ARGUMENTS.  PaymentAmount( r, n, pv, fv,
+'' timing ) is five arguments of which three are Decimal and adjacent, and
+'' transposing pv and fv compiles and returns a plausible wrong number.  A named
+'' record makes the transposition visible at the call site -- and it is the same
+'' record fb/finloan.bi builds internally, so the two surfaces share one shape.
+'' ===========================================================================
+
+public type AnnuityTerms
+    as Decimal       RatePerPeriod_
+    as long          Periods_
+    as Decimal       Payment_
+    as Decimal       PresentValue_
+    as Decimal       FutureValue_
+    as PaymentTiming Timing_
+end type
+
+'' Construction by named free function, never by a one-arg constructor -- the
+'' fb/decimal.bi and fb/currency.bi rule, for the same reason.
+public function AnnuityTermsMake overload _
+    ( _
+        byref rate as Decimal, byval periods as long, _
+        byref payment as Decimal, byref pvIn as Decimal, _
+        byref fvIn as Decimal, byval timing as PaymentTiming _
+    ) as AnnuityTerms
+
+    dim as AnnuityTerms t
+    t.RatePerPeriod_ = rate
+    t.Periods_       = periods
+    t.Payment_       = payment
+    t.PresentValue_  = pvIn
+    t.FutureValue_   = fvIn
+    t.Timing_        = timing
+    return t
+end function
+
+'' ===========================================================================
+'' Private helpers
+'' ===========================================================================
+
+'' Shared validation.  Every public entry point runs this once and everything
+'' below it assumes a valid rate and a non-negative term.
+function hTvmValidate overload ( byref t as AnnuityTerms ) as FinanceErrorCode
+    if( hFinRateOk( t.RatePerPeriod_ ) = FALSE ) then return FIN_INVALID_RATE
+    if( t.Periods_ < 0 ) then return FIN_INVALID_PERIODS
+    if( t.Payment_.IsValid( ) = FALSE ) then return FIN_INVALID_RATE
+    if( t.PresentValue_.IsValid( ) = FALSE ) then return FIN_INVALID_RATE
+    if( t.FutureValue_.IsValid( ) = FALSE ) then return FIN_INVALID_RATE
+    return FIN_OK
+end function
+
+'' ( 1 + i ) when the annuity is due, 1 when it is ordinary.  One exact
+'' multiply, and the only place PAY_BEGIN_OF_PERIOD enters the closed forms.
+function hTvmDueAdjust overload ( byref i as Decimal, byval timing as PaymentTiming ) as Decimal
+    if( timing = PAY_BEGIN_OF_PERIOD ) then return DecimalOne( ) + i
+    return DecimalOne( )
+end function
+
+'' ===========================================================================
+'' The annuity factors
+''
+'' Exposed because they are the reusable pieces, and because fb/finloan.bi
+'' needs them without re-deriving them.
+'' ===========================================================================
+
+'' EXACT.  ( 1 - v^n ) / i, times ( 1 + i ) when due.
+''
+'' AT i = 0 THE LIMIT IS n, and it is returned by an explicit test rather than
+'' reached through a division by zero.
+public function AnnuityPresentValueFactor overload _
+    ( _
+        byref rate as Decimal, byval periods as long, _
+        byval timing as PaymentTiming _
+    ) as FinResultDec
+
+    if( hFinRateOk( rate ) = FALSE ) then return FinFailDec( FIN_INVALID_RATE )
+    if( periods < 0 ) then return FinFailDec( FIN_INVALID_PERIODS )
+
+    if( rate.IsZero( ) ) then
+        '' The limit.  An annuity due at zero rate is still n payments.
+        return FinOkDec( DecimalFromInt( periods ) )
+    end if
+
+    dim as FinResultDec v = DiscountFactor( rate, periods )
+    if( v.IsOk( ) = FALSE ) then return v
+
+    '' PARENTHESISED WHOLE.  `dim as T x = ( ... ) / y` does NOT parse: fbc
+    '' reads an initialiser that opens with '(' as complete and then rejects
+    '' the operator, giving "error 3: Expected End-of-Line, found '/'".
+    '' Wrapping the entire right-hand side fixes it.  Measured.
+    dim as Decimal a = ( ( DecimalOne( ) - v.Value( ) ) / rate )
+    if( a.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+
+    a = a * hTvmDueAdjust( rate, timing )
+    if( a.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+    return FinOkDec( a )
+end function
+
+'' EXACT.  ( (1+i)^n - 1 ) / i, times ( 1 + i ) when due.  Same zero limit.
+public function AnnuityFutureValueFactor overload _
+    ( _
+        byref rate as Decimal, byval periods as long, _
+        byval timing as PaymentTiming _
+    ) as FinResultDec
+
+    if( hFinRateOk( rate ) = FALSE ) then return FinFailDec( FIN_INVALID_RATE )
+    if( periods < 0 ) then return FinFailDec( FIN_INVALID_PERIODS )
+
+    if( rate.IsZero( ) ) then
+        return FinOkDec( DecimalFromInt( periods ) )
+    end if
+
+    dim as FinResultDec g = GrowthFactor( rate, periods )
+    if( g.IsOk( ) = FALSE ) then return g
+
+    '' Wrapped for the same parse reason as AnnuityPresentValueFactor above.
+    dim as Decimal a = ( ( g.Value( ) - DecimalOne( ) ) / rate )
+    if( a.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+
+    a = a * hTvmDueAdjust( rate, timing )
+    if( a.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+    return FinOkDec( a )
+end function
+
+'' ===========================================================================
+'' The three closed forms
+'' ===========================================================================
+
+'' EXACT.  PV = -( PMT * a + FV * v ).
+public function PresentValue overload ( byref t as AnnuityTerms ) as FinResultDec
+    dim as FinanceErrorCode bad = hTvmValidate( t )
+    if( bad <> FIN_OK ) then return FinFailDec( bad )
+
+    dim as FinResultDec a = AnnuityPresentValueFactor( t.RatePerPeriod_, t.Periods_, t.Timing_ )
+    if( a.IsOk( ) = FALSE ) then return a
+
+    dim as FinResultDec v = DiscountFactor( t.RatePerPeriod_, t.Periods_ )
+    if( v.IsOk( ) = FALSE ) then return v
+
+    dim as Decimal pv = -( ( t.Payment_ * a.Value( ) ) + ( t.FutureValue_ * v.Value( ) ) )
+    if( pv.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+    return FinOkDec( pv )
+end function
+
+'' EXACT.  FV = -( PV * g + PMT * s ), where s is the future-value factor.
+public function FutureValue overload ( byref t as AnnuityTerms ) as FinResultDec
+    dim as FinanceErrorCode bad = hTvmValidate( t )
+    if( bad <> FIN_OK ) then return FinFailDec( bad )
+
+    dim as FinResultDec s = AnnuityFutureValueFactor( t.RatePerPeriod_, t.Periods_, t.Timing_ )
+    if( s.IsOk( ) = FALSE ) then return s
+
+    dim as FinResultDec g = GrowthFactor( t.RatePerPeriod_, t.Periods_ )
+    if( g.IsOk( ) = FALSE ) then return g
+
+    dim as Decimal fv = -( ( t.PresentValue_ * g.Value( ) ) + ( t.Payment_ * s.Value( ) ) )
+    if( fv.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+    return FinOkDec( fv )
+end function
+
+'' EXACT.  PMT = -( PV + FV * v ) / a.
+''
+'' Payment_ in the record is IGNORED -- it is the unknown being solved for.
+'' Said plainly because passing a record that already has a payment in it and
+'' getting a different one back is otherwise a surprise.
+public function PaymentAmount overload ( byref t as AnnuityTerms ) as FinResultDec
+    dim as FinanceErrorCode bad = hTvmValidate( t )
+    if( bad <> FIN_OK ) then return FinFailDec( bad )
+    if( t.Periods_ = 0 ) then return FinFailDec( FIN_INVALID_PERIODS )
+
+    dim as FinResultDec a = AnnuityPresentValueFactor( t.RatePerPeriod_, t.Periods_, t.Timing_ )
+    if( a.IsOk( ) = FALSE ) then return a
+    if( a.Value( ).IsZero( ) ) then return FinFailDec( FIN_DOMAIN )
+
+    dim as FinResultDec v = DiscountFactor( t.RatePerPeriod_, t.Periods_ )
+    if( v.IsOk( ) = FALSE ) then return v
+
+    dim as Decimal num = t.PresentValue_ + ( t.FutureValue_ * v.Value( ) )
+    dim as Decimal pmt = -( num / a.Value( ) )
+    if( pmt.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+    return FinOkDec( pmt )
+end function
+
+'' ===========================================================================
+'' Lump sums
+''
+'' A MULTIPLY, NOT A REARRANGEMENT.  See the header note: these take an amount
+'' and return its value at the other end of n periods, sign unchanged.  They do
+'' not participate in the identity and there is nothing to negate.
+'' ===========================================================================
+
+'' EXACT.  amount * v^n.
+public function PresentValueOfLump overload _
+    ( _
+        byref amount as Decimal, byref rate as Decimal, byval periods as long _
+    ) as FinResultDec
+
+    if( amount.IsValid( ) = FALSE ) then return FinFailDec( FIN_INVALID_RATE )
+
+    dim as FinResultDec v = DiscountFactor( rate, periods )
+    if( v.IsOk( ) = FALSE ) then return v
+
+    dim as Decimal pv = amount * v.Value( )
+    if( pv.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+    return FinOkDec( pv )
+end function
+
+'' EXACT.  amount * (1+i)^n.
+public function FutureValueOfLump overload _
+    ( _
+        byref amount as Decimal, byref rate as Decimal, byval periods as long _
+    ) as FinResultDec
+
+    if( amount.IsValid( ) = FALSE ) then return FinFailDec( FIN_INVALID_RATE )
+
+    dim as FinResultDec g = GrowthFactor( rate, periods )
+    if( g.IsOk( ) = FALSE ) then return g
+
+    dim as Decimal fv = amount * g.Value( )
+    if( fv.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+    return FinOkDec( fv )
+end function
+
+'' ===========================================================================
+'' The term
+'' ===========================================================================
+
+'' DOUBLE KERNEL -- a logarithm.  Solving
+''
+''     PV + k ( 1 - v^n ) + FV v^n = 0,   k = PMT ( 1 + i*timing ) / i
+''
+'' for n gives  n = ln( ( k - FV ) / ( PV + k ) ) / ln( 1 + i ).
+''
+'' RETURNS A double, AND DELIBERATELY NOT A long.  The term that amortizes a
+'' loan is almost never a whole number, and 359.4 periods means the last
+'' payment is smaller -- not that there are 359.  Rounding inside would hide
+'' which way it went, so THE CALLER DECIDES; PeriodsRequiredWhole is the
+'' convenience that ceils, named so that what it does is visible.
+''
+'' FIN_NO_CONVERGENCE cannot occur -- this is closed form.  FIN_DOMAIN can, and
+'' does, when the payment never amortizes the principal because it does not
+'' cover the interest.  That case means the balance grows forever, which is a
+'' real answer and gets a named code rather than an infinity.
+public function PeriodsRequired overload ( byref t as AnnuityTerms ) as FinResultDbl
+    dim as FinanceErrorCode bad = hTvmValidate( t )
+    if( bad <> FIN_OK ) then return FinFailDbl( bad )
+
+    dim as double pv = t.PresentValue_.ToDouble( )
+    dim as double fv = t.FutureValue_.ToDouble( )
+    dim as double pmt = t.Payment_.ToDouble( )
+    dim as double i = t.RatePerPeriod_.ToDouble( )
+
+    '' THE ZERO-RATE LIMIT, taken before anything can divide by i.
+    if( t.RatePerPeriod_.IsZero( ) ) then
+        if( pmt = 0.0 ) then return FinFailDbl( FIN_DOMAIN )
+        return FinOkDbl( -( pv + fv ) / pmt )
+    end if
+
+    dim as double due = 1.0
+    if( t.Timing_ = PAY_BEGIN_OF_PERIOD ) then due = 1.0 + i
+
+    '' No payment stream: the term is a pure discount, ln(-FV/PV)/ln(1+i).
+    if( pmt = 0.0 ) then
+        if( pv = 0.0 ) then return FinFailDbl( FIN_DOMAIN )
+        dim as double ratio0 = -fv / pv
+        if( ratio0 <= 0.0 ) then return FinFailDbl( FIN_DOMAIN )
+        '' log( ratio ) for the numerator, but Log1p for the denominator:
+        '' ln( 1 + i ) loses its leading digits as log( 1 + i ) when i is the
+        '' small per-period rate this is nearly always called with.
+        return FinOkDbl( log( ratio0 ) / Log1p( i ) )
+    end if
+
+    dim as double k = pmt * due / i
+    dim as double den = pv + k
+    if( den = 0.0 ) then return FinFailDbl( FIN_DOMAIN )
+
+    dim as double ratio = ( k - fv ) / den
+    '' ratio <= 0 is exactly the "never amortizes" case: no real n solves it.
+    if( ratio <= 0.0 ) then return FinFailDbl( FIN_DOMAIN )
+
+    dim as double n = log( ratio ) / Log1p( i )
+    if( IsNaN( n ) ) then return FinFailDbl( FIN_DOMAIN )
+    return FinOkDbl( n )
+end function
+
+'' The convenience that ceils.  Named for what it does, so that the rounding is
+'' visible at the call site rather than hidden inside PeriodsRequired.
+public function PeriodsRequiredWhole overload ( byref t as AnnuityTerms ) as FinResultLong
+    dim as FinResultDbl n = PeriodsRequired( t )
+    if( n.IsOk( ) = FALSE ) then return FinFailLong( n.Failure( ).Code( ) )
+
+    dim as double v = n.Value( )
+    if( v < 0.0 ) then return FinFailLong( FIN_DOMAIN )
+
+    '' Ceiling, but tolerant of a term that is a whole number to within the
+    '' double's noise: 359.9999999999997 is 360 payments, not 361.
+    dim as double c = Ceil( v - 1.0e-9 )
+    if( c < 1.0 ) then c = 1.0
+    if( c > 2147483000.0 ) then return FinFailLong( FIN_INVALID_PERIODS )
+    return FinOkLong( clng( c ) )
+end function
+
+'' ===========================================================================
+'' The rate
+''
+'' DOUBLE KERNEL -- fb/finsolve.bi.  There is no closed form for i in
+''
+''     PV + PMT * a( i, n, timing ) + FV * v( i, n ) = 0
+''
+'' so this is the one function on this surface that iterates.
+'' ===========================================================================
+
+'' The objective's context.  A plain record behind an 'any ptr', per
+'' fb/finsolve.bi's note on why this is a function pointer and not a capture.
+type hTvmRateCtx
+    as double Pv_, Fv_, Pmt_
+    as long   N_
+    as long   Due_          '' 1 for PAY_BEGIN_OF_PERIOD
+end type
+
+'' f( i ) = PV + PMT * a( i, n, timing ) + FV * v( i, n ), all in double.
+''
+'' Written with Log1p and Expm1 rather than Pow, because BOTH terms are of the
+'' catastrophic-cancellation shape fb/fincore.bi's note describes: at a monthly
+'' rate, ( 1 + i )^-n is 0.99... and 1 minus it keeps only the digits that
+'' cancellation would otherwise destroy.
+function hTvmRateObjective( byval i as double, byval ctx as any ptr ) as double
+    dim as hTvmRateCtx ptr c = cptr( hTvmRateCtx ptr, ctx )
+
+    dim as double due = 1.0
+    if( c->Due_ = 1 ) then due = 1.0 + i
+
+    dim as double apv = 0.0
+    dim as double v = 0.0
+
+    if( abs( i ) < 1.0e-14 ) then
+        '' THE ZERO-RATE LIMIT, taken before anything divides by i -- the same
+        '' case the closed forms special-case, and for the same reason.
+        apv = cdbl( c->N_ ) * due
+        v = 1.0
+    else
+        '' -Expm1( -n*log1p(i) ) is 1 - (1+i)^-n without the cancellation.
+        dim as double negNL = -cdbl( c->N_ ) * Log1p( i )
+        v = 1.0 + Expm1( negNL )
+        apv = -Expm1( negNL ) / i * due
+    end if
+
+    return c->Pv_ + c->Pmt_ * apv + c->Fv_ * v
+end function
+
+'' DOUBLE KERNEL.  The answer is rounded back at FIN_RATE_SCALE, after which
+'' everything downstream of it is exact again -- RFC-0002 section 6.4.
+''
+'' The seed is the Kellison approximation, which is close enough on any
+'' ordinary loan that the Newton fast path usually finishes in a few
+'' iterations.  A bad seed costs iterations and never correctness: the bracket
+'' expansion owns the guarantee.
+''
+'' AN ORDINARY ANNUITY HAS EXACTLY ONE ROOT, because the cash flows change sign
+'' exactly once, so fb/finsolve.bi's multiple-roots caveat does not arise here.
+'' Said explicitly so a reader does not carry that worry over from RFC-0003.
+public function SolveRatePerPeriod overload _
+    (  byref t as AnnuityTerms, byref opt as FinSolverOptions ) as FinResultDec
+
+    if( t.Periods_ < 1 ) then return FinFailDec( FIN_INVALID_PERIODS )
+    if( t.Payment_.IsValid( ) = FALSE ) then return FinFailDec( FIN_INVALID_RATE )
+    if( t.PresentValue_.IsValid( ) = FALSE ) then return FinFailDec( FIN_INVALID_RATE )
+    if( t.FutureValue_.IsValid( ) = FALSE ) then return FinFailDec( FIN_INVALID_RATE )
+
+    dim as hTvmRateCtx c
+    c.Pv_  = t.PresentValue_.ToDouble( )
+    c.Fv_  = t.FutureValue_.ToDouble( )
+    c.Pmt_ = t.Payment_.ToDouble( )
+    c.N_   = t.Periods_
+    c.Due_ = 0
+    if( t.Timing_ = PAY_BEGIN_OF_PERIOD ) then c.Due_ = 1
+
+    '' With no payment and no future value there is nothing to solve for.
+    if( ( c.Pmt_ = 0.0 ) andalso ( c.Fv_ = 0.0 ) ) then return FinFailDec( FIN_DOMAIN )
+
+    dim as FinSolverOptions use_ = opt
+    if( IsNaN( use_.Guess_ ) ) then
+        '' Kellison: 2( n*pmt + pv ) / ( pv * ( n + 1 ) ), written for this
+        '' module's cash-flow signs, where pv and pmt have opposite signs.
+        dim as double n = cdbl( t.Periods_ )
+        dim as double seed = 0.1
+        if( c.Pv_ <> 0.0 ) then
+            seed = -2.0 * ( n * c.Pmt_ + c.Pv_ ) / ( c.Pv_ * ( n + 1.0 ) )
+        end if
+        if( IsFinite( seed ) = FALSE ) then seed = 0.1
+        use_.Guess_ = Clamp( seed, -0.9, 1.0 )
+    end if
+
+    dim as FinResultSolve r = FinSolveRoot( @hTvmRateObjective, @c, use_ )
+    if( r.IsOk( ) = FALSE ) then
+        return Fail( of Decimal, FinanceError )( r.Failure( ) )
+    end if
+
+    dim as Decimal d = hFinFromDouble( r.Value( ).Root_ )
+    if( d.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
+    return FinOkDec( d )
+end function
+
+public function SolveRatePerPeriod overload ( byref t as AnnuityTerms ) as FinResultDec
+    dim as FinSolverOptions o = FinSolverOptionsDefault( )
+    return SolveRatePerPeriod( t, o )
+end function
+
