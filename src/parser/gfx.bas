@@ -73,6 +73,9 @@ const GFX_VIEWPRINT as ushort = &h2000
 '' PUT's mode occupies bits 12..15: the code itself plus a bit saying one was written,
 '' because 0 is TRANS and cannot double as "absent".
 const GFX_PUTMODE_SHIFT as long = 12
+'' DRAW STRING's method, the same m+1 code in bits 16..19: bit 12 is DRAWSTR itself.
+'' 'extra' is a ulong, so the bits above PUT's are there to be had.
+const GFX_DSMODE_SHIFT as long = 16
 
 '' One '(x, y)', with an optional STEP in front of it. Returns false when there is no
 '' coordinate here at all.
@@ -215,8 +218,10 @@ function ParseGfxStmt _
     sp.a = GfxTarget( p, wantPoint )
     if sp.a <> Tko.NODE_NONE then sp.extra or= GFX_HASTARGET
 
-    '' DRAW STRING: [target,] [STEP] (x,y), text [, colour [, font]]. Five slots,
-    '' so an omitted colour or font is an elided child rather than a short list.
+    '' DRAW STRING: [target,] [STEP] (x,y), text [, colour [, font [, method
+    '' [, alpha|blender [, parameter]]]]]. Five slots to the font, so an omitted colour
+    '' or font is an elided child rather than a short list; then PUT's method words,
+    '' and the one or two values a method takes in slots 5 and 6.
     if drawStr then
         dim as boolean ds1 = false
         if GfxPoint( p, items, ds1 ) = false then return false
@@ -235,6 +240,19 @@ function ParseGfxStmt _
             if items.Count >= 5 then exit while
         wend
         GfxPad( p, items, 5 )
+        '' THE METHOD is a word, read as PUT reads it. It was not read at all: the
+        '' gfxlib2 A/B gate's 'draw string ( 4, 16 ), "Ag~", &hFFFFFF, , PSET' was
+        '' TKO0420 at the method.
+        if Accept( p, Tko.TK_COMMA ) then
+            sp.extra or= cast( ulong, GfxPutMode( p ) ) shl GFX_DSMODE_SHIFT
+            if GfxOption( p, dsOpt ) then
+                items.Push( cast( ulong, iif( dsOpt = Tko.NODE_NONE, GfxNone( p ), dsOpt ) ) )
+            end if
+            if GfxOption( p, dsOpt ) then
+                GfxPad( p, items, 6 )
+                items.Push( cast( ulong, iif( dsOpt = Tko.NODE_NONE, GfxNone( p ), dsOpt ) ) )
+            end if
+        end if
         GfxFinish( p, sp, items )
         return true
     end if

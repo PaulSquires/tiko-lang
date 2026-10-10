@@ -406,10 +406,9 @@ function LowerGfxWindow( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 end function
 
 '' DRAW [target,] command-string
-'' DRAW STRING [target,] [STEP] (x,y), text [, colour [, font]]
+'' DRAW STRING [target,] [STEP] (x,y), text [, colour [, font [, method [, a [, p]]]]]
 ''
-'' Eleven arguments, and only the first six are ever anything but null. Measured,
-'' four probes:
+'' Eleven arguments. Measured, four probes:
 ''
 ''   draw string (1,2), "a", 7
 ''     fb_GfxDrawString( 0, 1.0f, 2.0f, 4, vr, 7u, 0, 0, 0, 0, 0 )
@@ -419,8 +418,21 @@ end function
 ''   draw string img, (0,0), "z", 3   ...the target is the image
 ''
 '' So the flag is exactly the one-point family's: base 4, bit 0 for STEP, the sign
-'' bit when the colour is omitted. The FONT is the seventh argument and the eighth
-'' says whether one was given; the last three were 0 in every probe.
+'' bit when the colour is omitted. The FONT is the seventh argument.
+''
+'' THE METHOD, measured 2026-10-10 over fourteen probes: the eighth argument is PUT's
+'' mode number -- 0, TRANS, when none is written, the opposite of PUT's XOR -- the ninth
+'' is always null, and CUSTOM's blender and parameter are the tenth and eleventh. A
+'' method's VALUE goes in the COLOUR's slot, not a slot of its own:
+''
+''   draw string (1,2), "E", 7, , alpha, 128     colour 128u, mode 9
+''   draw string (1,2), "J", , , alpha, 128      the same, still with the no-colour bit
+''   draw string (1,2), "K", 7, , add            colour 255u, mode 7 -- ADD's default
+''   draw string (1,2), "H", 7, , add, 99        colour 99u
+''   draw string (1,2), "G", 7, , custom, @cb, @k    mode 8, ..., &CB, &K
+''
+'' ALPHA with a value is mode 9, as it is for PUT.
+const PGFX_DSMODE_SHIFT as long = 16
 function LowerGfxDrawString_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
@@ -440,14 +452,50 @@ function LowerGfxDrawString_ _
     dim as MirValue col = GfxInt( c, sp, 3, 0, hasCol, ok )
     if ok = false then return false
 
-    '' THE FONT IS A POINTER, and the argument after it says whether one was
-    '' written. Both are null/0 in every probe here, and a written font declines
-    '' rather than being passed as something it is not.
+    '' THE FONT IS A POINTER. A written font declines rather than being passed as
+    '' something it is not.
     dim as Tko.NodeId fn = GfxArg( c, sp, 4 )
     if fn <> Tko.NODE_NONE then return false
 
     dim as long flags = GfxFlags1( sp->extra )
     if hasCol = false then flags or= GFXF_NOCOLOUR
+
+    '' The method: m+1 in four bits, 0 when none was written -- see the header.
+    dim as long mode = 0
+    dim as long mbits = cast( long, (sp->extra shr PGFX_DSMODE_SHIFT) and &hF )
+    if mbits <> 0 then mode = mbits - 1
+    dim as Tko.NodeId valN = GfxArg( c, sp, 5 )
+    dim as Tko.NodeId parN = GfxArg( c, sp, 6 )
+    '' Null unless CUSTOM supplies them -- pushed as literals then, as before.
+    dim as MirValue blender, cparam
+    dim as boolean hasBl = false, hasPar = false
+    if mode = 8 then
+        if valN <> Tko.NODE_NONE then
+            blender = LowerExpr( c, valN )
+            if blender.kind = cast( ubyte, MV_NONE ) then return false
+            blender = Coerce( c, blender, MT_PTR )
+            hasBl = true
+        end if
+        if parN <> Tko.NODE_NONE then
+            cparam = LowerExpr( c, parN )
+            if cparam.kind = cast( ubyte, MV_NONE ) then return false
+            cparam = Coerce( c, cparam, MT_PTR )
+            hasPar = true
+        end if
+    elseif parN <> Tko.NODE_NONE then
+        return false   '' only CUSTOM takes a parameter
+    elseif (mode = 6) orelse (mode = 7) then
+        if valN <> Tko.NODE_NONE then
+            dim as MirValue av = LowerExpr( c, valN )
+            if av.kind = cast( ubyte, MV_NONE ) then return false
+            col = Coerce( c, av, MT_I32 )
+            if mode = 6 then mode = 9
+        elseif mode = 7 then
+            col = ConstInt( c, 255, MT_I32 )
+        end if
+    elseif valN <> Tko.NODE_NONE then
+        return false   '' a value for a method that takes none
+    end if
 
     dim as FB.Array( of ulong ) args
     PushV( args, tgt )
@@ -455,9 +503,19 @@ function LowerGfxDrawString_ _
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, flags ) )
     PushV( args, sv )
     PushV( args, col )
-    for k as long = 1 to 5
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )             '' font
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, mode ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )             '' always null
+    if hasBl then
+        PushV( args, blender )
+    else
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
-    next
+    end if
+    if hasPar then
+        PushV( args, cparam )
+    else
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    end if
     EmitRtl( c, RTL_GFX_DRAW_STRING, args )
     return true
 end function

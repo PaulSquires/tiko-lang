@@ -1,0 +1,16 @@
+'' DRAW STRING with a method was TKO0420 at the method word. Every form fbc accepts, with
+'' fbc's arguments -- see the source.
+'' TEST: cli
+'' ARGS: --emit-ir -target win64-msvc tests/codegen/src/gfx-drawstring-method.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: ptr null, i32 0, ptr null, ptr null, ptr null)
+'' EXPECT-OUT: ptr null, i32 1, ptr null, ptr null, ptr null)
+'' EXPECT-OUT: ptr null, i32 6, ptr null, ptr null, ptr null)
+'' EXPECT-OUT: ptr null, i32 9, ptr null, ptr null, ptr null)
+'' EXPECT-OUT: ptr null, i32 5, ptr null, ptr null, ptr null)
+'' EXPECT-OUT: ptr null, i32 8, ptr null, ptr @"CB", ptr @"k")
+'' EXPECT-OUT: i32 255, ptr null, i32 7, ptr null, ptr null, ptr null)
+'' EXPECT-OUT: i32 0, ptr null, i32 1, ptr null, ptr null, ptr null)
+'' EXPECT-OUT: ptr null, i32 8, ptr null, ptr @"CB", ptr null)
+'' EXPECT-OUT: ptr null, i32 3, ptr null, ptr null, ptr null)
+'' EXPECT-NOT: TKO
