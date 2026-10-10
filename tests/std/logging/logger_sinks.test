@@ -1,0 +1,9 @@
+'' tests/vendor/fbc-tests/logging/logger_sinks.bas ported to the std modules (build/stdtests.py, generated).
+'' Expected: what tests/std/baseline/logging/logger_sinks.txt recorded for the original.
+'' TEST: cli
+'' ARGS: -target win64-msvc -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/logging/logger_sinks.bas -o tests/std/logging/logger_sinks.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/std/logging/logger_sinks.exe
+'' EXPECT-RUN-EXIT: 1
+'' EXPECT-RUN-OUT: 76        74         2  fbc_tests.logging.logger_sinks                13

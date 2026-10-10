@@ -1,0 +1,536 @@
+#module "logs"
+'' std/logs: logfile -- FB.Logging's file sink, with rotation
+''
+''     #import "std/logs"
+''     using logs
+''
+''     dim fs as FileSink = FileSink( "logs/app.log" )
+''     fs.policy     = RP_SIZE
+''     fs.maxbytes   = 1024 * 1024
+''     fs.maxbackups = 5
+''     lg.AddSink( @fs )
+''
+'' RFC-0004 section 5 -- C:\dev\docs\logging\RFC-0004-sinks.md. Phase 3.
+''
+'' UTF-8, ALWAYS, NO BOM (RFC-0004 section 3). A log that is UTF-8 on one
+'' machine and CP-1252 on another cannot be concatenated, and the JSON
+'' renderer's output is only JSON as UTF-8.
+''
+'' ---------------------------------------------------------------------------
+'' HOW THE FILE IS HELD, AND WHY IT DIFFERS BY PLATFORM
+''
+'' fb/fsops.bi has whole-file operations and no streaming handle, so this sink
+'' keeps its own. FreeBASIC's OPEN cannot be that handle on Windows: it passes
+'' the path to the C runtime as NARROW text, so "té.log" is created as
+'' "tÃ©.log" -- measured. So:
+''
+''   Windows  CreateFileW, reached through hLogK32 (fb/logsink.bi), with
+''            FILE_APPEND_DATA, so every write lands at the end even when
+''            another process appends to the same file.
+''   POSIX    FreeBASIC's OPEN ... FOR BINARY plus a seek to the end. A path
+''            there is bytes, and a ustring converts to UTF-8, so OPEN is
+''            exactly right. NOT `ACCESS WRITE`: that truncates -- measured.
+''
+'' ---------------------------------------------------------------------------
+'' ROTATION
+''
+'' app.log is ALWAYS the live file. Rotating renames app.1.log to app.2.log
+'' and so on, then app.log to app.1.log, and deletes anything numbered past
+'' maxbackups. Numbered-and-shifted, not timestamped, because a fixed live name
+'' is what a tail, a shortcut and a support request can all refer to.
+''
+'' It happens UNDER THE SINK'S LOCK, AT THE TOP OF Write, before the record is
+'' rendered: close, rename, reopen, write. No other thread can be mid-write
+'' during the rename, which is what makes it possible on Windows, where an open
+'' handle blocks a rename outright.
+''
+'' IF ROTATION FAILS -- a scanner or an editor holds a backup open, say -- the
+'' sink KEEPS WRITING to the live file and counts the failure in
+'' RotateFailures( ). It does not stop, it does not retry per record, and it
+'' does not queue: the next attempt waits for another maxbytes, or the next
+'' day. A too-large log is a far better outcome than a lost one. Every failure
+'' is reported through OnLogError (fb/logerror.bi), throttled.
+
+
+#include once "fb/chrono.bi"
+#include once "fb/array.bi"
+#include once "fb/mathtext.bi"
+#include once "fb/fsops.bi"
+
+using FB
+
+public enum RotatePolicy
+    RP_NONE = 0
+    RP_SIZE          '' when the live file reaches maxbytes
+    RP_DAILY         '' at local midnight
+    RP_BOTH
+end enum
+
+#ifdef __FB_WIN32__
+    const FB_LOG_FILE_APPEND_DATA = &h4
+    const FB_LOG_FILE_SHARE_ALL   = &h7    '' READ or WRITE or DELETE: a tail can read it
+    const FB_LOG_OPEN_ALWAYS      = 4
+    const FB_LOG_FILE_ATTR_NORMAL = &h80
+#endif
+
+public type FileSink extends Sink
+    declare constructor( byref fpath as ustring )
+    declare constructor( byref fpath as ustring, byval r as Renderer ptr )
+    declare destructor( ) override
+
+    declare sub Write( byref r as LogRecord ) override
+    declare sub Flush( ) override
+    declare sub Close( ) override
+    declare function DroppedCount( ) as ulongint override
+
+    '' Rotations attempted and refused. Never resets. Not a drop: the
+    '' record that triggered it was still written, to the live file.
+    declare function RotateFailures( ) as ulongint
+
+    '' FALSE when the file could not be opened -- the directory does not
+    '' exist, say. Every Write is then a counted drop.
+    declare property IsOpen( ) as boolean
+    declare property Path( ) as ustring
+
+    '' The name backup n gets: "logs/app.log" -> "logs/app.3.log".
+    declare function BackupPath( byval n as long ) as ustring
+
+    policy     as RotatePolicy   '' default RP_NONE
+    maxbytes   as longint        '' default 10 MiB
+    maxbackups as long           '' default 5; 0 = keep all
+    flushevery as boolean        '' default TRUE
+
+private:
+    declare sub hInit( byref fpath as ustring, byval r as Renderer ptr )
+    declare function hOpen( ) as boolean
+    declare sub hCloseFile( )
+    declare function hMaybeRotate( byref r as LogRecord ) as boolean
+    declare function hName( ) as ustring
+    declare function hRotate( ) as boolean
+    declare function hWriteBytes( byref u8 as string ) as boolean
+
+    m_path     as ustring
+    m_lock     as any ptr
+    m_rend     as Renderer ptr      '' either @m_text or the caller's
+    m_text     as TextRenderer      '' the one this sink owns: no colour, ever
+    m_buf      as ustring           '' reused across records; Render appends
+    m_dropped  as ulongint
+    m_rotfail  as ulongint
+    m_closed   as boolean
+    m_size     as longint           '' size at open + bytes written since
+    m_day      as longint           '' local day of the last record; 0 = none yet
+    m_thr      as hLogThrottle      '' RFC-0005 rule 3: one report a second
+    m_why      as ustring           '' the last failure, for the report
+    m_os       as long              '' its OS code, 0 when there is none
+    #ifdef __FB_WIN32__
+        m_k32 as hLogK32
+        m_h   as any ptr            '' 0 when not open
+    #else
+        m_fn  as long               '' 0 when not open
+    #endif
+end type
+
+'' The local civil day an instant falls on, as a day number. The offset is the
+'' one IN FORCE AT THAT INSTANT, not now's -- "midnight" in July is not
+'' January's midnight.
+function hLogLocalDay( byval utcticks as longint ) as longint
+    dim as Instant i = Instant( utcticks )
+    dim as longint off = TimeZoneInfo.LocalOffsetAt( i )
+    return ( utcticks + off * DT_TICKS_PER_MINUTE ) \ DT_TICKS_PER_DAY
+end function
+
+#ifndef __FB_WIN32__
+'' NOT A MEMBER, and that is the point: inside FileSink's own members CLOSE is
+'' FileSink.Close, so `close #f` there is `error 3: Expected End-of-Line`.
+sub hLogCloseFileNum( byval f as long )
+    close #f
+end sub
+#endif
+
+constructor FileSink( byref fpath as ustring )
+    this.hInit( fpath, 0 )
+end constructor
+
+constructor FileSink( byref fpath as ustring, byval r as Renderer ptr )
+    this.hInit( fpath, r )
+end constructor
+
+'' ERR IS THE CALLER'S. On POSIX this sink works through FreeBASIC's OPEN, PUT
+'' and CLOSE, and a failed OPEN sets ERR -- measured: a FileSink on a missing
+'' directory left ERR = 2 behind in the program that made it. A log call that
+'' cannot fail must not change the caller's error state either, so every
+'' public entry point puts ERR back the way it found it.
+sub FileSink.hInit( byref fpath as ustring, byval r as Renderer ptr )
+    dim as long savederr = err
+    this.policy     = RP_NONE
+    this.maxbytes   = 10ll * 1024 * 1024
+    this.maxbackups = 5
+    this.flushevery = TRUE
+
+    this.m_path    = fpath
+    this.m_lock    = mutexcreate( )
+    this.m_dropped = 0
+    this.m_rotfail = 0
+    this.m_closed  = FALSE
+
+    '' A file is not a terminal. The owned renderer never colours, and the
+    '' sink does not touch a caller's renderer -- that is the caller's call.
+    if( r <> 0 ) then
+        this.m_rend = r
+    else
+        this.m_rend = @this.m_text
+        this.m_text.colour = FALSE
+    end if
+
+    #ifdef __FB_WIN32__
+        this.m_k32.Load( )
+        this.m_h = 0
+    #else
+        this.m_fn = 0
+    #endif
+
+    '' THE DIRECTORY MUST EXIST. No CreateDirAll here: creating directories as
+    '' a side effect of logging is how a typo grows a tree of empty folders.
+    '' A failure is reported at once -- no lock is held yet -- and every Write
+    '' after it is a counted drop.
+    if( this.hOpen( ) = FALSE ) then
+        dim as ustring why = this.m_why
+        if( this.m_thr.Admit( why ) ) then hLogReport( this.hName( ), why, this.m_os )
+    end if
+    err = savederr
+end sub
+
+function FileSink.hName( ) as ustring
+    return "FileSink(" + this.m_path + ")"
+end function
+
+destructor FileSink( )
+    this.Close( )
+    if( this.m_lock <> 0 ) then
+        mutexdestroy( this.m_lock )
+        this.m_lock = 0
+    end if
+    #ifdef __FB_WIN32__
+        this.m_k32.Unload( )
+    #endif
+end destructor
+
+function FileSink.BackupPath( byval n as long ) as ustring
+    '' The extension is the part after the last '.' of the FILE NAME, and a
+    '' leading dot does not start one: ".log" has none, "app" has none.
+    dim as long sep = 0, dot = 0
+    for i as long = 0 to len( this.m_path ) - 1
+        dim as ulong c = this.m_path[i]
+        #ifdef __FB_WIN32__
+            if( c = asc( "/" ) orelse c = asc( "\" ) orelse c = asc( ":" ) ) then sep = i + 1 : dot = 0
+        #else
+            if( c = asc( "/" ) ) then sep = i + 1 : dot = 0
+        #endif
+        if( c = asc( "." ) andalso i > sep ) then dot = i + 1
+    next
+    if( dot = 0 ) then return this.m_path + "." + str( n )
+    return left( this.m_path, dot - 1 ) + "." + str( n ) + mid( this.m_path, dot )
+end function
+
+'' Opens (or creates) the live file for appending and takes its size and age.
+'' SIZE ACCOUNTING is the size at open plus the sink's own byte counter -- not
+'' a Stat per record.
+function FileSink.hOpen( ) as boolean
+    this.m_size = 0
+    this.m_day  = 0
+    if( Exists( this.m_path ) ) then
+        dim as FsResultInfo st = Stat( this.m_path )
+        if( st.IsOk( ) ) then
+            this.m_size = st.Value( ).Size( )
+            '' A file that already holds records belongs to the day it was
+            '' last written: a program restarted the next morning rotates
+            '' yesterday's log on its first record.
+            if( this.m_size > 0 ) then this.m_day = hLogLocalDay( st.Value( ).ModifiedUtc( ) )
+        end if
+    end if
+
+    #ifdef __FB_WIN32__
+        this.m_h   = 0
+        this.m_os  = 0
+        this.m_why = "open failed"
+        if( this.m_k32.pCreateFileW = 0 ) then return FALSE
+        dim as long n = len( this.m_path )
+        dim as wstring ptr wp = callocate( ( n + 1 ) * 2 )
+        if( wp = 0 ) then return FALSE
+        *wp = this.m_path
+        dim as any ptr h = this.m_k32.pCreateFileW( wp, FB_LOG_FILE_APPEND_DATA, FB_LOG_FILE_SHARE_ALL, _
+            0, FB_LOG_OPEN_ALWAYS, FB_LOG_FILE_ATTR_NORMAL, 0 )
+        if( ( h = 0 orelse h = cast( any ptr, -1 ) ) andalso this.m_k32.pGetLastError <> 0 ) then
+            this.m_os = this.m_k32.pGetLastError( )
+        end if
+        deallocate( wp )
+        if( h = 0 orelse h = cast( any ptr, -1 ) ) then return FALSE
+        this.m_h = h
+    #else
+        '' POSIX goes through FreeBASIC's OPEN, so there is no errno to hand
+        '' over: the FB runtime error number goes in the reason instead.
+        this.m_fn  = 0
+        this.m_os  = 0
+        this.m_why = "open failed"
+        dim as string p8 = this.m_path            '' ustring -> string is UTF-8
+        dim as long f = freefile
+        if( f = 0 ) then
+            this.m_why = "open failed: no free file number"
+            return FALSE
+        end if
+        dim as long e = open( p8 for binary as #f )
+        if( e <> 0 ) then
+            this.m_why = "open failed (fb error " + str( e ) + ")"
+            return FALSE
+        end if
+        seek #f, lof( f ) + 1
+        this.m_fn = f
+    #endif
+    this.m_why = ""
+    return TRUE
+end function
+
+sub FileSink.hCloseFile( )
+    #ifdef __FB_WIN32__
+        if( this.m_h <> 0 andalso this.m_k32.pCloseHandle <> 0 ) then this.m_k32.pCloseHandle( this.m_h )
+        this.m_h = 0
+    #else
+        if( this.m_fn <> 0 ) then hLogCloseFileNum( this.m_fn )
+        this.m_fn = 0
+    #endif
+end sub
+
+property FileSink.IsOpen( ) as boolean
+    #ifdef __FB_WIN32__
+        return this.m_h <> 0
+    #else
+        return this.m_fn <> 0
+    #endif
+end property
+
+property FileSink.Path( ) as ustring
+    return this.m_path
+end property
+
+function FileSink.DroppedCount( ) as ulongint
+    return this.m_dropped
+end function
+
+function FileSink.RotateFailures( ) as ulongint
+    return this.m_rotfail
+end function
+
+'' One write of the whole record. Windows: WriteFile is unbuffered in this
+'' process, so the bytes reach the OS here and survive the process dying.
+'' POSIX: OPEN is stdio-buffered, so flushevery pushes the buffer to the OS
+'' after every record -- the deliberate performance loss of RFC-0004 section 5.
+function FileSink.hWriteBytes( byref u8 as string ) as boolean
+    if( len( u8 ) = 0 ) then return TRUE
+    #ifdef __FB_WIN32__
+        this.m_why = "write failed, record dropped"
+        this.m_os  = 0
+        if( this.m_k32.pWriteFile = 0 ) then return FALSE
+        dim as ulong wrote
+        if( this.m_k32.pWriteFile( this.m_h, strptr( u8 ), len( u8 ), @wrote, 0 ) = 0 ) then
+            if( this.m_k32.pGetLastError <> 0 ) then this.m_os = this.m_k32.pGetLastError( )
+            return FALSE
+        end if
+        return wrote = len( u8 )
+    #else
+        dim as long f = this.m_fn
+        dim as long e = put( #f, , u8 )
+        if( e <> 0 ) then
+            this.m_why = "write failed (fb error " + str( e ) + "), record dropped"
+            this.m_os  = 0
+            return FALSE
+        end if
+        if( this.flushevery ) then hFileFlush( this.m_fn, 0 )
+        return TRUE
+    #endif
+end function
+
+'' Close, shift, rename, reopen. TRUE when the live file was renamed away.
+function FileSink.hRotate( ) as boolean
+    this.hCloseFile( )
+
+    dim as boolean ok = TRUE
+    dim as long top
+    if( this.maxbackups > 0 ) then
+        '' Everything numbered maxbackups or higher goes -- including any
+        '' left over from a larger maxbackups an earlier run used.
+        dim as long n = this.maxbackups
+        while( Exists( this.BackupPath( n ) ) )
+            dim as FsResultBool rr = RemoveFile( this.BackupPath( n ) )
+            if( rr.IsOk( ) = FALSE ) then
+                this.m_why = "rotation failed: " + rr.Failure( ).Message( )
+                this.m_os  = rr.Failure( ).OsCode( )
+                ok = FALSE
+                exit while
+            end if
+            n += 1
+        wend
+        top = this.maxbackups - 1
+    else
+        top = 0
+        while( Exists( this.BackupPath( top + 1 ) ) )
+            top += 1
+        wend
+    end if
+
+    if( ok ) then
+        for n as long = top to 1 step -1
+            if( Exists( this.BackupPath( n ) ) ) then
+                dim as FsResultBool rr = MoveFile( this.BackupPath( n ), this.BackupPath( n + 1 ), TRUE )
+                if( rr.IsOk( ) = FALSE ) then
+                    this.m_why = "rotation failed: " + rr.Failure( ).Message( )
+                    this.m_os  = rr.Failure( ).OsCode( )
+                    ok = FALSE
+                    exit for
+                end if
+            end if
+        next
+    end if
+
+    if( ok ) then
+        dim as FsResultBool rr = MoveFile( this.m_path, this.BackupPath( 1 ), TRUE )
+        if( rr.IsOk( ) = FALSE ) then
+            this.m_why = "rotation failed: " + rr.Failure( ).Message( )
+            this.m_os  = rr.Failure( ).OsCode( )
+            ok = FALSE
+        end if
+    end if
+
+    '' Reopen either way: a fresh live file if the rename worked, the same
+    '' one if it did not. A failed reopen is the caller's to see, via IsOpen;
+    '' a failed rotation keeps its own reason over the reopen's.
+    dim as ustring rwhy = this.m_why
+    dim as long ros = this.m_os
+    dim as boolean reopened = this.hOpen( )
+    if( ok = FALSE andalso reopened ) then
+        this.m_why = rwhy
+        this.m_os  = ros
+    end if
+    return ok
+end function
+
+'' TRUE when a rotation was due and FAILED -- the caller reports it.
+function FileSink.hMaybeRotate( byref r as LogRecord ) as boolean
+    dim as boolean due = FALSE
+    dim as boolean bysize  = ( this.policy = RP_SIZE  orelse this.policy = RP_BOTH )
+    dim as boolean bydaily = ( this.policy = RP_DAILY orelse this.policy = RP_BOTH )
+
+    '' MAXBYTES IS A THRESHOLD ONE RECORD MAY OVERSHOOT: the check is before
+    '' the record, so a record is never split across two files. An empty file
+    '' is never rotated, however small maxbytes is.
+    if( bysize andalso this.maxbytes > 0 andalso this.m_size > 0 andalso this.m_size >= this.maxbytes ) then
+        due = TRUE
+    end if
+
+    '' The day is the RECORD'S, not the wall clock's at the moment of writing,
+    '' and only a LATER day rotates: a clock stepped backwards does not.
+    dim as longint d = 0
+    if( bydaily andalso r.stamp.IsValid ) then
+        d = hLogLocalDay( r.stamp.Ticks )
+        if( this.m_day = 0 ) then
+            this.m_day = d
+        elseif( d > this.m_day ) then
+            due = TRUE
+        end if
+    end if
+
+    if( due = FALSE ) then return FALSE
+
+    dim as boolean failed = FALSE
+    if( this.hRotate( ) = FALSE ) then
+        this.m_rotfail += 1
+        '' Do not retry on every record: the next size attempt waits for
+        '' another maxbytes. hOpen re-read the size, so the counter restarts.
+        this.m_size = 0
+        failed = TRUE
+    end if
+    '' Either way this record's day is now the current one.
+    if( d <> 0 ) then this.m_day = d
+    return failed
+end function
+
+'' ONE MUTEX PER SINK, HELD ACROSS THE WHOLE WRITE -- rotation included. Two
+'' loggers on one file serialise; two files do not contend.
+'' Every failure is COUNTED -- DroppedCount or RotateFailures -- and REPORTED
+'' through OnLogError, after the lock is released (RFC-0005 rule 1) and at most
+'' once a second (rule 3).
+sub FileSink.Write( byref r as LogRecord )
+    dim as long savederr = err
+    dim as ustring why
+    dim as long os = 0
+    dim as boolean report = FALSE
+
+    mutexlock( this.m_lock )
+    if( this.m_closed ) then
+        why = "closed, record dropped"
+        this.m_dropped += 1
+    elseif( this.IsOpen = FALSE ) then
+        why = "not open, record dropped"
+        this.m_dropped += 1
+    else
+        '' A failed rotation is not a drop: the record still goes to the live
+        '' file. It is reported all the same.
+        if( this.policy <> RP_NONE ) then
+            if( this.hMaybeRotate( r ) ) then
+                why = this.m_why
+                os  = this.m_os
+            end if
+        end if
+
+        if( this.IsOpen = FALSE ) then
+            '' the reopen after a rotation failed: no file, a counted drop
+            why = this.m_why + ", record dropped"
+            os  = this.m_os
+            this.m_dropped += 1
+        else
+            this.m_buf = ""
+            this.m_rend->Render( r, this.m_buf )
+            dim as string u8 = this.m_buf            '' ustring -> string is UTF-8
+            if( this.hWriteBytes( u8 ) ) then
+                this.m_size += len( u8 )
+            else
+                why = this.m_why
+                os  = this.m_os
+                this.m_dropped += 1
+            end if
+        end if
+    end if
+    if( len( why ) > 0 ) then report = this.m_thr.Admit( why )
+    mutexunlock( this.m_lock )
+
+    if( report ) then hLogReport( this.hName( ), why, os )
+    err = savederr
+end sub
+
+'' As durable as the OS can make it: FlushFileBuffers, or fflush plus fsync.
+'' Safe on a closed sink.
+sub FileSink.Flush( )
+    dim as long savederr = err
+    mutexlock( this.m_lock )
+    #ifdef __FB_WIN32__
+        if( this.m_h <> 0 andalso this.m_k32.pFlushFileBuffers <> 0 ) then
+            this.m_k32.pFlushFileBuffers( this.m_h )
+        end if
+    #else
+        if( this.m_fn <> 0 ) then hFileFlush( this.m_fn, 1 )
+    #endif
+    mutexunlock( this.m_lock )
+    err = savederr
+end sub
+
+'' Idempotent: a destructor and LogShutdown will both reach it.
+sub FileSink.Close( )
+    dim as long savederr = err
+    mutexlock( this.m_lock )
+    if( this.m_closed = FALSE ) then
+        this.hCloseFile( )
+        this.m_closed = TRUE
+    end if
+    mutexunlock( this.m_lock )
+    err = savederr
+end sub
+

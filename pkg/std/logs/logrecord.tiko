@@ -1,0 +1,329 @@
+#module "logs"
+'' std/logs: logrecord -- the value layer of FB.Logging
+''
+''     #import "std/logs"
+''     using logs
+''
+''     dim v as LogValue = LogValue( 42ll )
+''     print LogValueToText( v )          '' 42
+''
+'' RFC-0001 -- C:\dev\docs\logging\RFC-0001-record.md.
+''
+'' Levels, values, fields and the record. NOTHING HERE DOES I/O, takes a lock,
+'' or can fail. Everything is a value type and every operation is total.
+''
+'' Header-only: there is no logging C in the runtime. Member bodies are
+'' `private` so that two modules including this file do not collide at link.
+''
+'' ---------------------------------------------------------------------------
+'' WHY LogValue LOOKS LIKE THAT
+''
+'' A field's value must be ONE type, because fields live in Array( of LogField ).
+'' The obvious spelling is a tagged union with the string inside it. It does not
+'' compile:
+''
+''     error 161: Var-len strings cannot be part of UNION's or nested TYPE's
+''
+'' So the ustring sits OUTSIDE the union and every LogValue carries a string
+'' descriptor whether or not it is a string. sizeof( LogValue ) = 40 on win64,
+'' the same for an integer field as for a string one. That is why LogEvent
+'' reserves its field array rather than growing it one push at a time, and it is
+'' why the tag set below is CLOSED -- see RFC-0001 section 2.
+
+
+#include once "fb/chrono.bi"
+#include once "fb/array.bi"
+#include once "fb/mathtext.bi"
+
+using FB
+
+'' ============================================================== LogLevel
+''
+'' RFC-0001 section 3. SPACED BY TEN so a program can define its own level
+'' between two of these and have every comparison, filter and renderer keep
+'' working. Go's log/slog is the only mainstream design that got this right.
+''
+'' LOG_FATAL DOES NOT TERMINATE ANYTHING. It is a severity. A library that calls
+'' END on behalf of its host is not a library. spdlog and logrus do terminate,
+'' so someone will expect it -- they get two statements instead.
+public enum LogLevel
+    LOG_TRACE = 10
+    LOG_DEBUG = 20
+    LOG_INFO  = 30
+    LOG_WARN  = 40
+    LOG_ERROR = 50
+    LOG_FATAL = 60
+    LOG_OFF   = 1000
+end enum
+
+'' The nine value tags. Closed: a renderer can `select case` over this with no
+'' `case else` meaning "I do not know what this is", and adding a tenth is a
+'' change to RFC-0001 and to every renderer in the same commit.
+public enum LogKind
+    LK_NULL = 0
+    LK_BOOL
+    LK_INT
+    LK_UINT
+    LK_DBL
+    LK_STR
+    LK_PTR
+    LK_INSTANT
+    LK_TIMESPAN
+end enum
+
+'' ============================================================== LogValue
+public type LogValue
+    kind as LogKind
+    union
+        b  as boolean
+        i  as longint
+        u  as ulongint
+        d  as double
+        p  as any ptr
+        tk as longint         '' LK_INSTANT and LK_TIMESPAN: raw chrono ticks
+    end union
+    s as ustring              '' LK_STR only -- outside the union, error 161
+
+    declare constructor( )
+    declare constructor( byval v as boolean )
+    declare constructor( byval v as longint )
+    declare constructor( byval v as ulongint )
+    declare constructor( byval v as double )
+    declare constructor( byref v as ustring )
+    declare constructor( byval v as any ptr )
+    declare constructor( byref v as Instant )
+    declare constructor( byref v as TimeSpan )
+end type
+
+'' LK_NULL is kind 0, so a default-constructed LogValue is a valid null and
+'' never an uninitialised read.
+constructor LogValue( )
+    this.kind = LK_NULL
+    this.i    = 0
+end constructor
+
+constructor LogValue( byval v as boolean )
+    this.kind = LK_BOOL
+    this.i    = 0
+    this.b    = v
+end constructor
+
+constructor LogValue( byval v as longint )
+    this.kind = LK_INT
+    this.i    = v
+end constructor
+
+constructor LogValue( byval v as ulongint )
+    this.kind = LK_UINT
+    this.u    = v
+end constructor
+
+constructor LogValue( byval v as double )
+    this.kind = LK_DBL
+    this.d    = v
+end constructor
+
+constructor LogValue( byref v as ustring )
+    this.kind = LK_STR
+    this.i    = 0
+    this.s    = v
+end constructor
+
+constructor LogValue( byval v as any ptr )
+    this.kind = LK_PTR
+    this.i    = 0
+    this.p    = v
+end constructor
+
+constructor LogValue( byref v as Instant )
+    this.kind = LK_INSTANT
+    this.tk   = v.Ticks
+end constructor
+
+constructor LogValue( byref v as TimeSpan )
+    this.kind = LK_TIMESPAN
+    this.tk   = v.Ticks
+end constructor
+
+'' ============================================================== LogField
+public type LogField
+    name  as ustring
+    value as LogValue
+
+    declare constructor( )
+    declare constructor( byref n as ustring, byref v as LogValue )
+end type
+
+constructor LogField( )
+end constructor
+
+constructor LogField( byref n as ustring, byref v as LogValue )
+    this.name  = n
+    this.value = v
+end constructor
+
+'' THE ALIAS IS REQUIRED, NOT STYLISTIC. A generic does not instantiate directly
+'' in a TYPE field; it has to be aliased first.
+public type LogFieldArray as Array( of LogField )
+
+'' ============================================================== LogRecord
+''
+'' RFC-0001 section 5. TWO CLOCKS, deliberately.
+''
+'' `stamp` is UTC and absolute, so it correlates with anything outside this
+'' process. `mono` is a monotonic reading, because THE WALL CLOCK CAN GO
+'' BACKWARDS -- an NTP correction or a DST shift -- and two records whose wall
+'' stamps are out of order are otherwise indistinguishable from two records that
+'' genuinely arrived out of order. Almost no other logging library carries both;
+'' it is nearly free here because chrono's Stopwatch already exists.
+''
+'' `stamp` is ALWAYS UTC. Local time is a rendering decision, made by the
+'' renderer that knows the operator's preference, not by the record.
+public type LogRecord
+    level   as LogLevel
+    stamp   as Instant
+    mono    as longint
+    message as ustring
+    logname as ustring        '' component name, may be empty
+    srcfile as ustring        '' "" unless the macro layer supplied it
+    srcline as long           '' 0  unless the macro layer supplied it
+    srcfunc as ustring        '' "" unless the macro layer supplied it
+    fields  as LogFieldArray  '' inherited first, then call-site
+end type
+
+'' ============================================================== level names
+public declare function LevelName      ( byval lv as LogLevel ) as ustring
+public declare function LevelNameShort ( byval lv as LogLevel ) as ustring
+public declare function LevelFromName  ( byref s as ustring, byref result as LogLevel ) as boolean
+public declare function LevelToSyslog  ( byval lv as LogLevel ) as long
+
+'' An unnamed intermediate level renders as its number, never as an empty string
+'' and never as a runtime error -- levels between the named ones are supported
+'' by construction and a renderer must be able to print one.
+public function LevelName( byval lv as LogLevel ) as ustring
+    select case as const lv
+    case LOG_TRACE : return "TRACE"
+    case LOG_DEBUG : return "DEBUG"
+    case LOG_INFO  : return "INFO"
+    case LOG_WARN  : return "WARN"
+    case LOG_ERROR : return "ERROR"
+    case LOG_FATAL : return "FATAL"
+    case LOG_OFF   : return "OFF"
+    end select
+    return trim( str( clng( lv ) ) )
+end function
+
+public function LevelNameShort( byval lv as LogLevel ) as ustring
+    select case as const lv
+    case LOG_TRACE : return "TRC"
+    case LOG_DEBUG : return "DBG"
+    case LOG_INFO  : return "INF"
+    case LOG_WARN  : return "WRN"
+    case LOG_ERROR : return "ERR"
+    case LOG_FATAL : return "FTL"
+    case LOG_OFF   : return "OFF"
+    end select
+    return trim( str( clng( lv ) ) )
+end function
+
+'' Case-insensitive, and it also accepts the short form and a bare number, so
+'' that FB_LOG=warn, FB_LOG=WRN and FB_LOG=40 all work (RFC-0002 section 9).
+public function LevelFromName( byref s as ustring, byref result as LogLevel ) as boolean
+    dim as string t = ucase( trim( str( s ) ) )
+    select case t
+    case "TRACE", "TRC" : result = LOG_TRACE : return TRUE
+    case "DEBUG", "DBG" : result = LOG_DEBUG : return TRUE
+    case "INFO",  "INF" : result = LOG_INFO  : return TRUE
+    case "WARN",  "WRN", "WARNING" : result = LOG_WARN : return TRUE
+    case "ERROR", "ERR" : result = LOG_ERROR : return TRUE
+    case "FATAL", "FTL", "CRITICAL" : result = LOG_FATAL : return TRUE
+    case "OFF",   "NONE" : result = LOG_OFF : return TRUE
+    end select
+
+    if( len( t ) > 0 ) then
+        dim as boolean numeric = TRUE
+        for i as integer = 0 to len( t ) - 1
+            if( t[i] < asc( "0" ) orelse t[i] > asc( "9" ) ) then
+                numeric = FALSE
+                exit for
+            end if
+        next
+        if( numeric ) then
+            result = cast( LogLevel, valint( t ) )
+            return TRUE
+        end if
+    end if
+
+    return FALSE
+end function
+
+'' RFC-0001 section 3. Notice(5), Alert(1) and Emergency(0) have no source
+'' level: that is the documented lossy direction, and it is the same choice
+'' every six-level library makes.
+public function LevelToSyslog( byval lv as LogLevel ) as long
+    if( lv >= LOG_FATAL ) then return 2      '' Critical
+    if( lv >= LOG_ERROR ) then return 3      '' Error
+    if( lv >= LOG_WARN  ) then return 4      '' Warning
+    if( lv >= LOG_INFO  ) then return 6      '' Informational
+    return 7                                 '' Debug
+end function
+
+'' ============================================================== value text
+''
+'' A FREE FUNCTION, NOT A MEMBER, and that is not a style choice. A builder
+'' method named Str shadows the intrinsic STR( ) inside its own type's member
+'' bodies:
+''
+''     error 58: Type mismatch, at parameter 1 (k) of STR()
+''
+'' LogEvent.Str is worth keeping -- it is the obvious name and callers are
+'' unaffected -- so the conversions live out here where STR( ) still resolves.
+public declare function LogValueToText( byref v as LogValue ) as ustring
+public declare function LogDoubleText( byval d as double ) as string
+
+'' A FINITE DOUBLE AS THE SHORTEST TEXT THAT READS BACK AS THE SAME VALUE.
+''
+'' Not STR. Phase 1 used STR on the claim that it round-trips, and it does not:
+'' STR is 16 significant digits, so str( 0.1 + 0.2 ) is "0.3" and two different
+'' values log as the same text. fb/mathtext.bi's ToString is the
+'' shortest-correct form, and both renderers use it, so the text line and the
+'' JSON line agree digit for digit.
+''
+'' ToString goes through snprintf, which honours LC_NUMERIC: a program that
+'' has called setlocale( LC_ALL, "de_DE" ) would get "0,5". A log's separator
+'' is always '.', so the one character a locale can change is put back.
+public function LogDoubleText( byval d as double ) as string
+    dim as string s = ToString( d )
+    dim as long c = instr( s, "," )
+    if( c > 0 ) then mid( s, c, 1 ) = "."
+    return s
+end function
+
+'' NOTHING HERE CONSULTS THE LOCALE, including the double case. A log that
+'' changes its decimal separator on a French machine is a log that breaks every
+'' tool reading it.
+public function LogValueToText( byref v as LogValue ) as ustring
+    select case as const v.kind
+    case LK_NULL     : return "null"
+    '' Not IIF: `ustring( "x" )` is not a cast in FreeBASIC -- error 7 -- and
+    '' IIF over two string literals wants one.
+    case LK_BOOL
+        if( v.b ) then return "true"
+        return "false"
+    case LK_INT      : return trim( str( v.i ) )
+    case LK_UINT     : return trim( str( v.u ) )
+    case LK_STR      : return v.s
+    case LK_PTR      : return "&h" + ucase( hex( cast( uinteger, v.p ) ) )
+    case LK_INSTANT  : return Instant( v.tk ).ToIsoUString( )
+    case LK_TIMESPAN : return TimeSpan( v.tk ).ToIsoUString( )
+    case LK_DBL
+        '' The three non-finite cases are named here, because the text
+        '' spellings differ by platform and by renderer.
+        if( v.d <> v.d ) then return "NaN"
+        if( v.d = 1.0 / 0.0 ) then return "+Inf"
+        if( v.d = -1.0 / 0.0 ) then return "-Inf"
+        return LogDoubleText( v.d )
+    end select
+    return "null"
+end function
+

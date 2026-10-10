@@ -1,0 +1,108 @@
+#module "logs"
+'' std/logs: logmacros -- the macro layer: call sites and compile-time elision
+''
+''     #import "std/logs"
+''
+''     logs.LogInfo( "server started" )
+''     logs.LogEventWarn( Str( "path", p ).Int_( "code", c ), "write failed" )
+''
+''     ...  INFO   server started  (C:\src\main.bas:12 MAIN)
+''
+'' RFC-0002 section 8 -- C:\dev\docs\logging\RFC-0002-logger.md. Phase 5.
+''
+'' Two things only a macro can do, because only a macro is expanded AT THE CALL:
+''
+''   1. CALL-SITE CAPTURE. __FILE__, __LINE__ and __FUNCTION__ inside an exported
+''      macro resolve where the macro is USED -- the importer's file and line.
+''      Every record these macros make carries its site, which
+''      TextRenderer.showsite and JsonRenderer.showsite print.
+''   2. COMPILE-TIME ELISION. Below LOG_MIN_LEVEL a macro expands to NOTHING:
+''      the call, its arguments and the message expression are gone from the
+''      program, not skipped at run time.
+''
+'' A level that is compiled in is still filtered at run time by the logger's
+'' MinLevel. Then the event builds nothing (phase 1), but the MESSAGE EXPRESSION
+'' is an argument and is evaluated: logs.LogDebug( "x=" & x ) concatenates whether
+'' or not DEBUG is on. Wrapping the call in an IF would skip that, and was
+'' rejected: a macro that expands to a single-line IF steals the ELSE of a
+'' caller's `if a then logs.LogInfo( "x" ) else ...` -- measured.
+''
+'' NAMES. As fb/logmacros.bi these were the global FB_LOG_INFO( m ) and friends:
+'' macros cannot be namespaced, and LOG_INFO was taken by the level constant. As
+'' exported macros they are the module's names, used qualified -- logs.LogInfo --
+'' and never bare, so nothing global is added. 'Log' is part of each name because
+'' 'logs.Error' could never be written: ERROR is a keyword.
+''
+'' LOG_MIN_LEVEL IS THE MODULE'S SETTING. A module never sees its importer's -d
+'' options (ADR 0017), so 'tiko -d LOG_MIN_LEVEL=30' reaches nothing here: it is
+'' set in pkg/std's tiko.toml [defines], and 10 -- everything -- when unset.
+
+
+#ifndef LOG_MIN_LEVEL
+    #define LOG_MIN_LEVEL 10
+#endif
+
+#if LOG_MIN_LEVEL <= 10
+    #define LogTrace( m ) DefaultLogger( ).Trace( ).Site( __FILE__, __LINE__, __FUNCTION__ ).Msg( m )
+#else
+    #define LogTrace( m )
+#endif
+#if LOG_MIN_LEVEL <= 20
+    #define LogDebug( m ) DefaultLogger( ).Debug( ).Site( __FILE__, __LINE__, __FUNCTION__ ).Msg( m )
+#else
+    #define LogDebug( m )
+#endif
+#if LOG_MIN_LEVEL <= 30
+    #define LogInfo( m ) DefaultLogger( ).Info( ).Site( __FILE__, __LINE__, __FUNCTION__ ).Msg( m )
+#else
+    #define LogInfo( m )
+#endif
+#if LOG_MIN_LEVEL <= 40
+    #define LogWarn( m ) DefaultLogger( ).Warn( ).Site( __FILE__, __LINE__, __FUNCTION__ ).Msg( m )
+#else
+    #define LogWarn( m )
+#endif
+#if LOG_MIN_LEVEL <= 50
+    #define LogError( m ) DefaultLogger( ).Error( ).Site( __FILE__, __LINE__, __FUNCTION__ ).Msg( m )
+#else
+    #define LogError( m )
+#endif
+#if LOG_MIN_LEVEL <= 60
+    #define LogFatal( m ) DefaultLogger( ).Fatal( ).Site( __FILE__, __LINE__, __FUNCTION__ ).Msg( m )
+#else
+    #define LogFatal( m )
+#endif
+
+#if LOG_MIN_LEVEL <= 10
+    #define LogEventTrace( fields, m ) DefaultLogger( ).Trace( ).Site( __FILE__, __LINE__, __FUNCTION__ ).fields.Msg( m )
+#else
+    #define LogEventTrace( fields, m )
+#endif
+#if LOG_MIN_LEVEL <= 20
+    #define LogEventDebug( fields, m ) DefaultLogger( ).Debug( ).Site( __FILE__, __LINE__, __FUNCTION__ ).fields.Msg( m )
+#else
+    #define LogEventDebug( fields, m )
+#endif
+#if LOG_MIN_LEVEL <= 30
+    #define LogEventInfo( fields, m ) DefaultLogger( ).Info( ).Site( __FILE__, __LINE__, __FUNCTION__ ).fields.Msg( m )
+#else
+    #define LogEventInfo( fields, m )
+#endif
+#if LOG_MIN_LEVEL <= 40
+    #define LogEventWarn( fields, m ) DefaultLogger( ).Warn( ).Site( __FILE__, __LINE__, __FUNCTION__ ).fields.Msg( m )
+#else
+    #define LogEventWarn( fields, m )
+#endif
+#if LOG_MIN_LEVEL <= 50
+    #define LogEventError( fields, m ) DefaultLogger( ).Error( ).Site( __FILE__, __LINE__, __FUNCTION__ ).fields.Msg( m )
+#else
+    #define LogEventError( fields, m )
+#endif
+#if LOG_MIN_LEVEL <= 60
+    #define LogEventFatal( fields, m ) DefaultLogger( ).Fatal( ).Site( __FILE__, __LINE__, __FUNCTION__ ).fields.Msg( m )
+#else
+    #define LogEventFatal( fields, m )
+#endif
+
+#export LogTrace, LogDebug, LogInfo, LogWarn, LogError, LogFatal
+#export LogEventTrace, LogEventDebug, LogEventInfo, LogEventWarn, LogEventError, LogEventFatal

@@ -62,6 +62,8 @@ UMBRELLAS = {"tui.bi", "finance.bi", "logging.bi", "filesystem.bi", "../containe
 # The names a module exports beyond its facade's list.
 EXTRA_PUBLIC = {
     "memory": {"sharedptr", "weakptr", "makeshared"},
+    # the type behind the public alias Logger (TKO0868 otherwise)
+    "logs": {"logger_"},
 }
 
 HDR_MODULE = {}
@@ -232,6 +234,13 @@ def port(mod, hdr, api, converted, notes):
             if dep or base in RX_FBNS_INC:
                 need_fb = True
             out.append(ln)
+            continue
+        # A VALUE '#define' becomes a public constant (D3): a module's files are preprocessed
+        # alone, so FB_FSKIND_FILE defined in fsinfo was nothing in fsdir. A '_EXTERN'
+        # calling-convention macro stays a macro, and nothing inside a '#macro' moves.
+        md = re.match(r'^(\s*)#define\s+([A-Z][A-Z0-9_]*)\s+(\(-?[0-9]+\)|-?[0-9]+|&[hH][0-9A-Fa-f]+|"[^"]*"|[A-Z][A-Z0-9_]*)\s*$', code)
+        if md and not inmacro and not md.group(2).endswith("_EXTERN"):
+            out.append("%spublic const %s = %s" % (md.group(1), md.group(2), md.group(3)))
             continue
         mn = RX_NS.match(code)
         if mn and not inproc and not intype:

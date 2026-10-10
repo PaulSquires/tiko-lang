@@ -1,8 +1,8 @@
-'' std/logs (RFC-0009): a LogLevel into an FB.LogLevel parameter, its members, LevelName, LevelNameShort, LevelFromName;
-'' and the default logger through an AsyncSink (DefaultLogger, LogInit, LogShutdown, OP_BLOCK), drained on shutdown.
-'' It is a facade -- exported macros over the header, found through -i as a user's toolchain
-'' finds it in its inc/ -- and the program includes that header too, so the facade's names
-'' and the header's FB names are shown to be one and the same.
+'' std/logs, a real module since 2026-10-10 (it was a facade over fb/logging.bi): a LogLevel
+'' and its members, LevelName, LevelNameShort, LevelFromName; the default logger -- the
+'' module's own object, so no FB_LOG_IMPLEMENT -- through an AsyncSink drained on shutdown;
+'' and the exported macros of fb/logmacros.bi, now logs.LogInfo and logs.LogEventWarn, with
+'' the call site this file's, and LogDebug filtered at run time.
 '' TEST: cli
 '' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/logs.bas -o tests/modules/stdlogs.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
@@ -10,5 +10,7 @@
 '' RUN: tests/modules/stdlogs.exe
 '' EXPECT-RUN-OUT: WARN ERR
 '' EXPECT-RUN-OUT: true -1
-'' EXPECT-RUN-OUT: INFO   via the facade  n=7
+'' EXPECT-RUN-OUT: INFO   via the module  n=7
+'' EXPECT-RUN-OUT: INFO   by the macro  (tests/modules/src/stdfacade/logs.bas:20 __FB_MAINPROC__)
+'' EXPECT-RUN-OUT: WARN   an event  code=3  (tests/modules/src/stdfacade/logs.bas:21 __FB_MAINPROC__)
 '' EXPECT-RUN-OUT: dropped0

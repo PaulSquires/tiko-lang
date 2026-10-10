@@ -53,11 +53,8 @@ FACADES = {
                  "fb/random.bi", "fb/stats.bi", "fb/fenv.bi", "fb/vector.bi"],
                 ["math.bi", "mathint.bi", "complex.bi", "mathtext.bi", "random.bi", "stats.bi",
                  "fenv.bi", "vector.bi"], False),
-    "logs": (["fb/logging.bi"],
-             ["logging.bi", "logger.bi", "logrecord.bi", "logrender.bi", "logsink.bi",
-              "logdefault.bi", "logerror.bi", "logfile.bi", "logasync.bi"], False),
 }
-# Real modules now (build/stdport.py, 2026-10-10), no longer written here: strings, tui, money.
+# Real modules now (build/stdport.py, 2026-10-10), no longer written here: strings, tui, money, logs.
 
 # std/path's names, kept in std/fs when std/path was folded into it (RFC-0009 M30). Each is
 # the header's function, with the header's behaviour -- see pkg/std/README.md.

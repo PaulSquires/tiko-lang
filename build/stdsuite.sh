@@ -61,6 +61,12 @@ norm( ) {
     tr '\\' '/' | sed -E "s|[A-Za-z]:/[^ :()]*/||g; s|$ROOT/||g; s|/tmp/[^ :()]*/||g"
 }
 
+# A FAILING ASSERT'S SITE, compared without its directory or line: the port lives in
+# tests/std rather than tests/vendor/fbc-tests, and its rewritten imports move its lines.
+site( ) {
+    sed -E 's|tests/(vendor/fbc-tests\|std)/[A-Za-z0-9_]+/([A-Za-z0-9_.-]+\.bas)\([0-9]+\)|\2(L)|g'
+}
+
 n=0; nbad=0
 for f in $LIST; do
     case "$f" in *_mod2.bas) continue ;; esac
@@ -100,9 +106,9 @@ for f in $LIST; do
         echo "stdsuite: $rec  $area/$name"
     elif [ ! -f "$want" ]; then
         nbad=$((nbad+1)); echo "stdsuite: NO BASELINE $area/$name"
-    elif ! diff -q <(printf '%s\n' "$got") "$want" >/dev/null; then
+    elif ! diff -q <(printf '%s\n' "$got" | site) <(site < "$want") >/dev/null; then
         nbad=$((nbad+1)); echo "stdsuite: DIFF $area/$name"
-        diff "$want" <(printf '%s\n' "$got") | head -8 | sed 's/^/stdsuite:     /'
+        diff <(site < "$want") <(printf '%s\n' "$got" | site) | head -8 | sed 's/^/stdsuite:     /'
     fi
 done
 echo "stdsuite: $n files ($MODE), $nbad differ"
