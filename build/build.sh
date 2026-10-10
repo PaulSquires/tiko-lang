@@ -1,5 +1,5 @@
 #!/bin/sh
-# build.sh -- build tiko-lang with the stage0 compiler (FBC-Modern).
+# build.sh -- build tiko-lang with the stage0 compiler (FBC-Modern, or a tiko seed).
 #
 #   build/build.sh [Debug|Release|RelWithDebInfo|MinSizeRel] [--test-runner] [--no-dll]
 #   build/build.sh [Release|MinSizeRel] --dll
@@ -41,7 +41,18 @@ case "$(uname -s)" in
 esac
 
 # stage0: overridable, because the pinned commit moves at phase boundaries only.
-if [ -z "$TKO_STAGE0" ]; then
+#
+# A TIKO SEED INSTEAD OF fbc: TKO_SEED=<path to a tiko executable> -- a packaged
+# toolchain's, e.g. toolchains/tiko-windows/tiko.exe; seed/seed.lock pins the one
+# releases are built from. Opt-in while the runner, the DLL and the suite are
+# measured under it; fbc stays the default until then. The seed compiles only what
+# IT understands, so its flags are its own (below) -- the seed-compatibility rule:
+# tiko-lang's source may use a feature only once the pinned seed compiles it.
+SEEDED=0
+if [ -n "${TKO_SEED:-}" ]; then
+    SEEDED=1
+    TKO_STAGE0=$TKO_SEED
+elif [ -z "$TKO_STAGE0" ]; then
     if [ "$HOSTWIN" = "1" ]; then
         TKO_STAGE0="/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe"
     else
@@ -51,9 +62,16 @@ fi
 
 if [ ! -x "$TKO_STAGE0" ]; then
     echo "build: stage0 compiler not found at $TKO_STAGE0" >&2
-    echo "build: set TKO_STAGE0 to an FBC-Modern fbc" >&2
+    if [ "$SEEDED" = "1" ]; then
+        echo "build: TKO_SEED must name a tiko executable" >&2
+    else
+        echo "build: set TKO_STAGE0 to an FBC-Modern fbc, or TKO_SEED to a tiko" >&2
+    fi
     exit 3
 fi
+# The output flag: fbc's is -x, tiko's -o.
+OUTOPT="-x"
+[ "$SEEDED" = "1" ] && OUTOPT="-o"
 
 case "$CFG" in
     Debug)          FLAGS="-g -exx -w all" ;;
@@ -83,6 +101,22 @@ case "$CFG" in
     MinSizeRel)     FLAGS="-gen gcc -Wc -Os -w all" ;;
     *) echo "build: unknown configuration '$CFG'" >&2; exit 2 ;;
 esac
+
+# ...AND A SEED'S. The same intent per configuration, in the seed's own spelling: no
+# '-w' (tiko warns by default, and the seed predates its '-w'), '-O2' joined. MinSizeRel
+# IS fbc's gcc backend and nothing else, so a seed refuses it rather than build
+# something that is not what the name says.
+if [ "$SEEDED" = "1" ]; then
+    case "$CFG" in
+        Debug)          FLAGS="-g -exx" ;;
+        RelWithDebInfo) FLAGS="-g" ;;
+        Release)        FLAGS="-O2" ;;
+        MinSizeRel)
+            echo "build: MinSizeRel is fbc's gcc backend (-gen gcc), which a tiko seed has not got;" >&2
+            echo "build: unset TKO_SEED to build it with fbc" >&2
+            exit 2 ;;
+    esac
+fi
 
 # The first entry of sources.txt is the main module; -m makes that explicit so the
 # runtime initialises the command line before any module constructor runs.
@@ -149,8 +183,13 @@ build_dll( ) {
     DLLFLAGS="$DLLFLAGS -mt"
     LIBSRC=$(echo "$SOURCES" | tail -n +2)
     echo "build: tikoParser.dll [$CFG] with $TKO_STAGE0"
-    compile_units "$ROOT/build/obj/$CFG-dll" "" "$DLLFLAGS" $LIBSRC src/api/tikoparser.bas
-    ( cd "$ROOT" && "$TKO_STAGE0" -dll $OBJS $DLLFLAGS -x "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
+    if [ "$SEEDED" = "1" ]; then
+        ( cd "$ROOT" && "$TKO_STAGE0" -dll $LIBSRC src/api/tikoparser.bas -i src $DLLFLAGS \
+            -o "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
+    else
+        compile_units "$ROOT/build/obj/$CFG-dll" "" "$DLLFLAGS" $LIBSRC src/api/tikoparser.bas
+        ( cd "$ROOT" && "$TKO_STAGE0" -dll $OBJS $DLLFLAGS -x "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
+    fi
     [ "$HOSTWIN" = "1" ] || return 0
     EDITOR=${TKO_EDITOR_DIR:-/c/dev/tiko-editor-tiko}
     # ONLY AN OPTIMISED DLL GOES INTO THE EDITOR. A Debug build is ~44 MB, runs -O 0 frames
@@ -178,12 +217,19 @@ echo "build: tiko-lang [$CFG] with $TKO_STAGE0"
 # thread with threadcreate (Windows uses CreateThread, which fbc does not see).
 CFLAGS_="$FLAGS"
 [ "$HOSTWIN" = "1" ] || CFLAGS_="$FLAGS -mt"
-compile_units "$ROOT/build/obj/$CFG" "$MAINMOD" "$CFLAGS_" $SOURCES
-( cd "$ROOT" && "$TKO_STAGE0" $OBJS $CFLAGS_ -x "bin/tiko$EXT" )
+# A SEED COMPILES THE WHOLE PROGRAM IN ONE CALL, as build/bootstrap.sh's stages do: tiko
+# runs clang over the modules several at a time already, and measured 17-33 s for all of
+# them where fbc's per-unit build below takes ~42.
+if [ "$SEEDED" = "1" ]; then
+    ( cd "$ROOT" && "$TKO_STAGE0" $SOURCES -m "$MAINMOD" -i src $CFLAGS_ -o "bin/tiko$EXT" )
+else
+    compile_units "$ROOT/build/obj/$CFG" "$MAINMOD" "$CFLAGS_" $SOURCES
+    ( cd "$ROOT" && "$TKO_STAGE0" $OBJS $CFLAGS_ -x "bin/tiko$EXT" )
+fi
 
 if [ "$TESTRUNNER" = "1" ]; then
     echo "build: tiko-test [$CFG]"
-    ( cd "$ROOT" && "$TKO_STAGE0" tools/tiko-test/tikotest.bas -i src $FLAGS -mt -x "bin/tiko-test$EXT" )
+    ( cd "$ROOT" && "$TKO_STAGE0" tools/tiko-test/tikotest.bas -i src $FLAGS -mt $OUTOPT "bin/tiko-test$EXT" )
 fi
 
 # WHAT bin/ NOW HOLDS, for anything that needs to know whether it is the right thing.

@@ -63,8 +63,11 @@ for /f "tokens=1,2 delims=|" %%a in ("%STAMPED%") do (
     set "STAMPCC=%%b"
 )
 if not "%STAMPCFG%"=="%CFG%" goto stale
-if "%TKO_STAGE0%"=="" goto ccok
-if not "%STAMPCC%"=="%TKO_STAGE0%" goto stale
+rem A different stage0 than bin\ was built with -- TKO_SEED first, as build.bat reads it.
+set "WANTCC=%TKO_STAGE0%"
+if not "%TKO_SEED%"=="" set "WANTCC=%TKO_SEED%"
+if "%WANTCC%"=="" goto ccok
+if not "%STAMPCC%"=="%WANTCC%" goto stale
 :ccok
 
 call :newer "%TIKO%" "%ROOT%\src" "%ROOT%\build\sources.txt" "%ROOT%\build\build.bat" "%STAMPCC%"

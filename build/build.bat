@@ -1,5 +1,5 @@
 @echo off
-rem build.bat -- build tiko-lang with the stage0 compiler (FBC-Modern).
+rem build.bat -- build tiko-lang with the stage0 compiler (FBC-Modern, or a tiko seed).
 rem
 rem   build\build.bat [Debug^|Release^|RelWithDebInfo^|MinSizeRel] [--test-runner] [--no-dll]
 rem   build\build.bat [Release^|MinSizeRel] --dll
@@ -28,13 +28,21 @@ for %%a in (%*) do (
 )
 if "%CFG%"=="--dll" set "CFG=Release"
 
+rem A TIKO SEED INSTEAD OF fbc: TKO_SEED=<path to a tiko executable>. Opt-in -- see the
+rem peer note in build.sh, which also says why the seed's flags are its own.
+set "SEEDED=0"
+if not "%TKO_SEED%"=="" set "SEEDED=1"
+if "%SEEDED%"=="1" set "TKO_STAGE0=%TKO_SEED%"
 if "%TKO_STAGE0%"=="" set "TKO_STAGE0=C:\dev\fbc-modern\toolchains\fbc-modern-windows\fbc64.exe"
 
 if not exist "%TKO_STAGE0%" (
     echo build: stage0 compiler not found at %TKO_STAGE0% 1>&2
-    echo build: set TKO_STAGE0 to an FBC-Modern fbc 1>&2
+    echo build: set TKO_STAGE0 to an FBC-Modern fbc, or TKO_SEED to a tiko 1>&2
     exit /b 3
 )
+rem The output flag: fbc's is -x, tiko's -o.
+set "OUTOPT=-x"
+if "%SEEDED%"=="1" set "OUTOPT=-o"
 
 if /i "%CFG%"=="Debug"          set "FLAGS=-g -exx -w all"
 if /i "%CFG%"=="RelWithDebInfo" set "FLAGS=-g -w all"
@@ -45,6 +53,18 @@ if /i "%CFG%"=="MinSizeRel"     set "FLAGS=-gen gcc -Wc -Os -w all"
 if "%FLAGS%"=="" (
     echo build: unknown configuration '%CFG%' 1>&2
     exit /b 2
+)
+rem ...and a seed's, in its own spelling -- see build.sh. MinSizeRel is fbc's gcc backend
+rem and nothing else, so a seed refuses it.
+if "%SEEDED%"=="1" (
+    if /i "%CFG%"=="Debug"          set "FLAGS=-g -exx"
+    if /i "%CFG%"=="RelWithDebInfo" set "FLAGS=-g"
+    if /i "%CFG%"=="Release"        set "FLAGS=-O2"
+    if /i "%CFG%"=="MinSizeRel" (
+        echo build: MinSizeRel is fbc's gcc backend ^(-gen gcc^), which a tiko seed has not got; 1>&2
+        echo build: unset TKO_SEED to build it with fbc 1>&2
+        exit /b 2
+    )
 )
 
 rem The first entry of sources.txt is the main module; -m makes that explicit so the
@@ -78,7 +98,7 @@ goto :compiler
     set "DLLFLAGS=!FLAGS:-exx=!"
     echo build: tikoParser.dll [%CFG%] with %TKO_STAGE0%
     pushd "%ROOT%"
-    "%TKO_STAGE0%" -dll !LIBSRC! src\api\tikoparser.bas -i src !DLLFLAGS! -x "bin\tikoParser.dll"
+    "%TKO_STAGE0%" -dll !LIBSRC! src\api\tikoparser.bas -i src !DLLFLAGS! !OUTOPT! "bin\tikoParser.dll"
     if errorlevel 1 ( popd & exit /b 1 )
     popd
     rem Beside tiko-editor.exe, which loads it from there. A failed copy (a running editor
@@ -100,7 +120,7 @@ goto :compiler
 :compiler
 echo build: tiko-lang [%CFG%] with %TKO_STAGE0%
 pushd "%ROOT%"
-"%TKO_STAGE0%" !SOURCES! -m !MAINMOD! -i src %FLAGS% -x "bin\tiko.exe"
+"%TKO_STAGE0%" !SOURCES! -m !MAINMOD! -i src %FLAGS% %OUTOPT% "bin\tiko.exe"
 if errorlevel 1 ( popd & exit /b 1 )
 
 if "%TESTRUNNER%"=="1" goto :buildrunner
@@ -108,7 +128,7 @@ goto :done
 
 :buildrunner
 echo build: tiko-test [%CFG%]
-"%TKO_STAGE0%" tools\tiko-test\tikotest.bas -i src %FLAGS% -mt -x "bin\tiko-test.exe"
+"%TKO_STAGE0%" tools\tiko-test\tikotest.bas -i src %FLAGS% -mt %OUTOPT% "bin\tiko-test.exe"
 if errorlevel 1 ( popd & exit /b 1 )
 
 :done

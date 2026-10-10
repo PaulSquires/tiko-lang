@@ -84,7 +84,9 @@ else
     STAMPCC=${STAMPED#*|}
     if [ "$STAMPCFG" != "$CFG" ]; then
         STALE=1
-    elif [ -n "${TKO_STAGE0:-}" ] && [ "$STAMPCC" != "$TKO_STAGE0" ]; then
+    elif [ -n "${TKO_SEED:-${TKO_STAGE0:-}}" ] && [ "$STAMPCC" != "${TKO_SEED:-$TKO_STAGE0}" ]; then
+        # A DIFFERENT STAGE0 than the one bin/ was built with -- TKO_SEED first, as
+        # build.sh reads it.
         STALE=1
     elif newer_than "$TIKO" "$ROOT/src" "$ROOT/build/sources.txt" \
                     "$ROOT/build/build.sh" "$STAMPCC"; then
