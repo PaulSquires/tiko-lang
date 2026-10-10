@@ -1,0 +1,9 @@
+'' A 'using' below a use is not visible above it, in a unit declaring a generic too. The
+'' discovery walk registered every using of the unit, so the real pass saw them all from
+'' its first statement and line 9 bound Foo. fbc-modern 1.20: error 42 on line 9 alone
+'' (2026-10-10); lines 11 and 13, below the using, are accepted by both.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/using-below-generic.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 1
+'' EXPECT-OUT: using-below-generic.bas(9,7): error TKO0743: 'foo' is not declared
