@@ -1,0 +1,114 @@
+LICENSE
+=======
+
+This repository is a modified copy of the FreeBASIC compiler (fbc), so it
+carries FreeBASIC's licensing unchanged. Nothing here is relicensed, and no
+licence was chosen for this work -- it is inherited.
+
+FreeBASIC is licensed in two parts, and this work (USTRING, generics, the
+iterator protocol, FOR EACH and the standard containers) touches both, so both
+apply:
+
+
+1. THE COMPILER  --  GNU GPL, version 2 or later
+------------------------------------------------
+
+Everything under src/src/compiler/, and the fbc32.exe / fbc64.exe / bin/fbc
+binaries built from it (including those shipped under toolchains/).
+
+Full text: COPYING.GPL-2.0
+
+
+2. THE RUNTIME AND GRAPHICS LIBRARIES  --  GNU LGPL, version 2.1 or later,
+   with a static-linking exception
+--------------------------------------------------------------------------
+
+Everything under src/src/rtlib/ and src/src/gfxlib2/ -- that is libfb, libfbmt,
+libfbgfx and libfbgfxmt, including the libraries shipped under
+toolchains/fbc-modern-windows/lib/ and toolchains/fbc-modern-linux/lib/.
+
+Full text: COPYING.LGPL-2.1
+
+The exception, quoted from FreeBASIC's own readme.txt, is what allows a program
+to link the runtime statically without taking on the LGPL:
+
+    As a special exception, the copyright holders of this library give
+    you permission to link this library with independent modules to
+    produce an executable, regardless of the license terms of these
+    independent modules, and to copy and distribute the resulting
+    executable under terms of your choice, provided that you also meet,
+    for each linked independent module, the terms and conditions of the
+    license of that module. An independent module is a module which is
+    not derived from or based on this library. If you modify this library,
+    you may extend this exception to your version of the library, but
+    you are not obligated to do so. If you do not wish to do so, delete
+    this exception statement from your version.
+
+
+3. DOCUMENTATION  --  GNU FDL
+------------------------------
+
+FreeBASIC's documentation, including src/doc/. The user documentation this
+project adds -- everything under docs/ -- is part of that.
+
+
+WHICH LICENCE APPLIES TO THIS WORK
+----------------------------------
+
+It follows the file, exactly as it does for the rest of fbc:
+
+  src/src/compiler/*             GPLv2+       USTRING: keyword, datatype,
+                                              backends, rtl-ustring.bas
+                                              Generics: parser-generic.bas,
+                                              parser-generic-capture.bas
+                                              FOR EACH: parser-compound-for.bas
+
+  src/src/rtlib/ustr_*.c         LGPLv2.1+    the runtime: descriptors,
+  src/src/rtlib/fb_ustring.h     with the     codecs, intrinsics, I/O
+  src/src/rtlib/ustr_wchar_conv.h  exception
+  src/src/gfxlib2/gfx_drawstring_ustr.c
+  src/src/gfxlib2/gfx_cp437.h
+
+  src/inc/containers.bi          LGPLv2.1+    the standard containers. They
+  src/inc/fb/*.bi                with the     compile into the user's program,
+                                 exception    so they are runtime rather than
+                                              compiler. Upstream's own inc/
+                                              headers carry no per-file notice,
+                                              so this is stated here rather
+                                              than inherited.
+
+  docs/*                         GNU FDL
+
+  src/tests/, docs/tests/, README.md
+                                 GPLv2+, same as the compiler they test and
+                                 describe
+
+
+THIRD-PARTY COMPONENTS SHIPPED IN THE PREBUILT TREES
+----------------------------------------------------
+
+toolchains/fbc-modern-windows/ and toolchains/fbc-modern-linux/ contain more
+than FreeBASIC. They redistribute the toolchain and support libraries fbc
+invokes and links against, each under its own licence:
+
+  fbc-modern-windows/bin/win32, fbc-modern-windows/bin/win64
+      GNU binutils (as, ld, ar, ...) and gcc -- GPLv3
+  fbc-modern-windows/lib/win32, fbc-modern-windows/lib/win64
+      MinGW-w64 runtime and import libraries, plus libgcc and libstdc++,
+      under their own terms (MinGW-w64 is largely public-domain / BSD-style;
+      libgcc and libstdc++ carry the GCC Runtime Library Exception)
+
+These are unmodified redistributions. See the licence files in those
+directories, and the "Dependencies on third-party libraries" section of
+src/readme.txt.
+
+LibFFI, used by the runtime for ThreadCall, is under the MIT/Expat licence --
+see src/doc/libffi-license.txt. Note that the Windows binaries here were built
+with -DDISABLE_FFI and do not link it; the Linux build does.
+
+
+UPSTREAM
+--------
+
+FreeBASIC:  https://www.freebasic.net/
+Copyright (C) 2004-2025 The FreeBASIC development team.

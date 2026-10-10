@@ -10,6 +10,12 @@
 # 2026-10-10 the .def files are KEPT, in lib/implib/, and package.sh builds from them:
 # the default target's import libraries no longer need fbc's tree to exist.
 #
+# Why it matters, measured 2026-09-06: without them clang's msvc driver passes
+# -libpath for an installed Visual Studio and Windows SDK, so win64-msvc linked only
+# on a machine with both. Why the format: lld-link reads a GNU import archive, but an
+# MSVC short import is a quarter the size (kernel32: 1.5 MB against 365 KB). Why the
+# DATA split is the hard part, and how it was got wrong twice: build/mkmsvcdef.py.
+#
 # export -- ONCE. Runs the same mkmsvcdef.py over the same inputs and KEEPS each
 #           <name>.def in --to; copies the GUID/data archives (no exports, R/D
 #           symbols -- uuid, dxguid, ...) to --to/static/<name>.lib. Writes

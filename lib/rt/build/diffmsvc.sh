@@ -38,7 +38,7 @@
 # and is the supported way to pull one in.
 #
 # THE LINK IS gatemsvc.sh's AND tiko-lang's OWN: '-nostdlib', ucrtbase and
-# kernel32 through the import libraries build/mkmsvcimplibs.sh generates. This
+# kernel32 through the import libraries build/implibs.sh builds. This
 # said '-llegacy_stdio_definitions IS REQUIRED' -- true until 2026-09-07, when
 # src/c/msvccrt.c began supplying sprintf and mainCRTStartup itself and the
 # target stopped reaching into Visual Studio. gatemsvc.sh moved with that change
@@ -158,7 +158,7 @@ MTLIB="$RT_ROOT/lib/win64-msvc/libfbmt.a"
 # variable and default, and refused for gatemsvc.sh's reason: without them every
 # link fails on memset and reads as an ABI difference.
 IMPLIBS=${TKORT_MSVC_IMPLIBS:-$(cd "$(dirname "$0")/../../.." && pwd)/toolchains/tiko-windows/lib/win64-msvc}
-[ -f "$IMPLIBS/ucrtbase.lib" ] || rt_die "no ucrtbase.lib in $IMPLIBS -- run build/mkmsvcimplibs.sh"
+[ -f "$IMPLIBS/ucrtbase.lib" ] || rt_die "no ucrtbase.lib in $IMPLIBS -- run build/implibs.sh build --out <dir>"
 IMPLIBS=$(cygpath -m "$IMPLIBS")
 
 # THE PROBE PROGRAMS ARE BUILT UNOPTIMISED, ON BOTH SIDES. The archive keeps the

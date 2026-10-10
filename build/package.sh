@@ -9,8 +9,8 @@
 #   build/package.sh --no-inc               skip the ~100 MB header copy
 #   build/package.sh --clean                empty the output directory first
 #   build/package.sh --verify               compile and RUN a program per target
-#   build/package.sh --implibs              regenerate the MSVC import libraries (*.lib)
-#   build/package.sh --fbc-tree DIR         the reference fbc install (or FBC_TREE)
+#   build/package.sh --mingw-lib DIR        ship -target win64 too, with this MinGW runtime
+#   build/package.sh --third-party-inc DIR  third-party bindings (default: the seed's inc/)
 #   build/package.sh --out DIR              somewhere other than toolchains/
 #
 # The output is toolchains/tiko-windows or toolchains/tiko-linux: what an end user
@@ -20,22 +20,30 @@
 # ---------------------------------------------------------------- what it is NOT
 #
 # THIS DOES NOT PRODUCE A SELF-CONTAINED TOOLCHAIN, and the manifest it writes says
-# so. Two things stay external:
+# so. One thing stays external, and one is optional:
 #
 #   clang    src/codegen/toolchain.bas runs clang for BOTH steps -- the .ll to .o
 #            compile and the link. It is found at C:\Program Files\LLVM\bin, or
 #            wherever TKO_CLANG points. Bundling LLVM is a gigabyte and a separate
 #            decision, so a packaged toolchain depends on an installed one.
 #
-#   fbc's    lib/<target>-fb/ still carries fbc's CRT objects, libfbgfx and the
-#   CRT      third-party archives (MinGW, gcc's runtime, libffi) behind ours. It no
-#            longer carries fbc's libfb: decision 0015 (D15) retired it, and
-#            tiko-rt defines every symbol a tiko-built program reaches -- see
-#            lib/rt/src/c/README.md. LinkExe names each path's libfb.a as a file
-#            only when it is there, so the directory needs nothing in its place.
+#   MinGW    -target win64 links against a MinGW runtime -- crt2.o, crtbegin.o,
+#            libmingw32, libgcc and the rest -- which tiko does not build. It ships
+#            as lib/win64-fb/, and win64 is a target, ONLY when one is given:
+#            --mingw-lib or TKO_MINGW_LIB, else the copy already in the output
+#            directory is kept (decision Q2, interim 2026-10-10). win64-msvc and
+#            linux-x86_64 need nothing of the kind.
 #
 # Neither is a packaging bug. Both are written into MANIFEST.txt so that a
 # toolchain cannot be passed on with them invisible.
+#
+# ------------------------------------------------------------------- NO fbc
+#
+# Since 2026-10-10 nothing here reads fbc or fbc-modern. The compiler is built by the
+# pinned seed (seed/seed.lock), the runtime and the graphics library by that compiler,
+# the headers are the tree's inc/, the import libraries lib/implib/, and FreeBASIC's
+# notices licences/. The third-party bindings come from the seed's inc/ -- tiko's own
+# last release -- until the author decides where they live.
 #
 # --------------------------------------------------------------- cross-packaging
 #
@@ -53,9 +61,9 @@ DO_BUILD=1
 DO_INC=1
 DO_CLEAN=0
 DO_VERIFY=0
-DO_IMPLIBS=0
 T0=$(date +%s)
-FBC_TREE=${FBC_TREE:-/c/dev/fbc-modern}
+MINGW_LIB=${TKO_MINGW_LIB:-}
+TPINC=${TKO_THIRDPARTY_INC:-}
 OUT=
 
 die( ) { echo "package: $*" >&2; exit 1; }
@@ -67,20 +75,23 @@ note( ) { echo "package: [$(( $(date +%s) - T0 ))s] $*"; }
 say( ) { printf '%s\n' "$*"; }
 
 usage( ) {
-    sed -n '2,46p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,53p' "$0" | sed 's/^# \{0,1\}//'
     exit 0
 }
 
 while [ $# -gt 0 ]; do
     case $1 in
         --config)    CFG=$2;      shift 2 ;;
-        --fbc-tree)  FBC_TREE=$2; shift 2 ;;
+        --mingw-lib) MINGW_LIB=$2; shift 2 ;;
+        --third-party-inc) TPINC=$2; shift 2 ;;
         --out)       OUT=$2;      shift 2 ;;
         --no-build)  DO_BUILD=0;  shift ;;
         --no-inc)    DO_INC=0;    shift ;;
         --clean)     DO_CLEAN=1;  shift ;;
         --verify)    DO_VERIFY=1; shift ;;
-        --implibs)   DO_IMPLIBS=1; shift ;;
+        # Both retired 2026-10-10, refused by name rather than as 'unknown'.
+        --fbc-tree)  die "--fbc-tree is gone: nothing reads fbc now (--mingw-lib for win64, --third-party-inc for bindings)" ;;
+        --implibs)   die "--implibs is gone: the import libraries are built from lib/implib/ on every run" ;;
         -h|--help)   usage ;;
         *)           die "unknown option '$1' (try --help)" ;;
     esac
@@ -110,26 +121,21 @@ esac
 # (build/abidelta.sh, and gatemsvc.sh at 3,922,073 assertions). win64 needed fbc's
 # libfb behind it until decision 0015 (D15); now it needs only fbc's CRT behind it.
 #
-# win64 is still shipped and still selected with -target win64. It is the MinGW
-# ABI, it is what fbc's own libraries are built for, and it has no graphics.
+# win64 is the MinGW ABI and has no graphics. It ships only with a MinGW runtime
+# behind it -- see --mingw-lib, and the note under 'what it is NOT' above.
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         HOST=windows; EXT=".exe"; BINSUB=""
-        TARGETS="win64-msvc win64"
+        TARGETS="win64-msvc"
         # The compiler's own default on this host -- HostTarget( ), src/types/type.bas.
         DEFTARGET=win64-msvc
-        FBTC="$FBC_TREE/toolchains/fbc-modern-windows"
-        FBLIB="$FBTC/lib"
         CLANG_DEFAULT='C:\Program Files\LLVM\bin\clang.exe'
         ;;
     Linux)
         HOST=linux; EXT=""; BINSUB="bin/"
         TARGETS="linux-x86_64"
         DEFTARGET=linux-x86_64
-        FBTC="$FBC_TREE/toolchains/fbc-modern-linux"
-        # fbc's LINUX install nests its runtime one level deeper: lib/freebasic/<target>.
-        FBLIB="$FBTC/lib/freebasic"
         # The compiler's own default on Linux -- see src/codegen/toolchain.bas.
         CLANG_DEFAULT=/usr/bin/clang
         ;;
@@ -150,7 +156,36 @@ gfx_has_target( ) {
 
 [ -n "$OUT" ] || OUT="$ROOT/toolchains/tiko-$HOST"
 
-note "host $HOST, configuration $CFG"
+# -TARGET WIN64 NEEDS A MINGW RUNTIME, and is a target only when there is one: the
+# directory given, else the one a previous package left in the output (not after
+# --clean). crt2.o is the test of the directory: it is what every win64 link starts with.
+MINGW_STATE="not packaged -- no --mingw-lib, and none in the output to keep"
+if [ "$HOST" = "windows" ]; then
+    if [ -z "$MINGW_LIB" ] && [ "$DO_CLEAN" = "0" ] && [ -f "$OUT/lib/win64-fb/crt2.o" ]; then
+        MINGW_LIB="$OUT/lib/win64-fb"
+    fi
+    if [ -n "$MINGW_LIB" ]; then
+        [ -f "$MINGW_LIB/crt2.o" ] || die "no crt2.o in $MINGW_LIB -- not a MinGW runtime directory"
+        TARGETS="$TARGETS win64"
+        MINGW_STATE="lib/win64-fb/ from $MINGW_LIB"
+    fi
+else
+    MINGW_STATE="not applicable on this host"
+fi
+
+# THE THIRD-PARTY BINDINGS' SOURCE: the one given, else the seed's inc/ -- the pinned
+# seed's (seed/cache) or, failing that, a locally packaged toolchain's, the same search
+# build/build.sh makes for its compiler. tiko-lang's own inc/ goes over them below.
+if [ -z "$TPINC" ]; then
+    . "$ROOT/build/defaultseed.sh"
+    if [ "$HOST" = "windows" ]; then _sw=1; else _sw=0; fi
+    if _seed=$( default_seed "$ROOT" "$_sw" ); then
+        _sd=$( dirname "$_seed" ); [ "$HOST" = "linux" ] && _sd=$( dirname "$_sd" )
+        [ -d "$_sd/inc" ] && TPINC="$_sd/inc"
+    fi
+fi
+
+note "host $HOST, configuration $CFG, targets $TARGETS"
 note "output $OUT"
 
 # ------------------------------------------------------------------- the parts
@@ -201,12 +236,10 @@ if [ "$DO_BUILD" = "1" ]; then
     # toolchain shipped graphics came down to whether someone had happened to
     # run lib/gfx/build/build.sh by hand first, and to which configuration.
     #
-    # A FAILURE HERE IS NOTED, NOT FATAL, and that is deliberate. lib/gfx needs a
-    # working-tree fbc ($FBC_TREE/src/fbc.exe) that understands -z msvc, which is
-    # a heavier dependency than anything else in this script -- the packaged
-    # toolchain fbc will not do. Aborting the whole package because the graphics
-    # library could not build would take the compiler and runtime down with it.
-    # The manifest records the reason instead, so the absence is never silent.
+    # A FAILURE HERE IS NOTED, NOT FATAL, and that is deliberate: aborting the whole
+    # package because the graphics library could not build would take the compiler
+    # and runtime down with it. The manifest records the reason instead, so the
+    # absence is never silent.
     # obj/ IS GITIGNORED, so a fresh clone or worktree has none -- the mkdir above makes
     # it, or the redirect failed before build.sh ran, reporting a build failure that never
     # happened and packaging whatever stale archive was lying about.
@@ -232,12 +265,7 @@ for t in $TARGETS; do
         die "no runtime for $t -- run lib/rt/build/build.sh $CFG $t"
 done
 
-[ -d "$FBTC" ] || die "no reference fbc toolchain at $FBTC -- set FBC_TREE or --fbc-tree"
-
 # ----------------------------------------------------------------- the assembly
-
-# What the last package said of its import libraries, for when they are kept below.
-_IMPLIB_PREV=$( sed -n 's/^import libraries: //p' "$OUT/MANIFEST.txt" 2>/dev/null | sed 's/ (kept.*//' | head -1 )
 
 if [ "$DO_CLEAN" = "1" ] && [ -d "$OUT" ]; then
     note "cleaning $OUT"
@@ -256,56 +284,45 @@ cp -f "$TIKO" "$OUT/${BINSUB}tiko$EXT"
 # <exe-dir>/inc and then <exe-dir>/../inc, which is exactly why the Windows binary
 # sits at the root and the Linux one under bin/ -- both resolve to ./inc.
 #
-# Taken whole from the reference fbc toolchain, because tiko ships no headers of
-# its own yet: the fb/*.bi set, the platform bindings, and the third-party ones
-# that make an include like "vbcompat.bi" resolve the way it does under fbc.
+# TWO LAYERS, assembled in a scratch directory and then swapped in, because the
+# first layer's source may be this very directory (a seed found as
+# toolchains/tiko-<host>, which is where this writes):
 #
-# WHERE THEY ARE IS PER HOST, and the Linux one is a trap: fbc-modern-windows keeps
-# its headers in inc/, while fbc-modern-linux keeps them in include/freebasic and its
-# inc/ is an EMPTY DIRECTORY. The test here was '[ -d "$FBTC/inc" ]', which that empty
-# directory passes -- so the copy ran, copied nothing, and tiko-linux shipped with an
-# empty inc/. Every '#include "containers.bi"' was TKO0301 and --verify still said
-# PASS, because its program includes no bundled header. Both halves are fixed: the
-# source is whichever of the two actually HAS headers, and the check below refuses to
-# package an empty one.
+#   1. the third-party bindings -- SDL, GTK, AfxNova and the rest tiko-lang does not
+#      carry -- from --third-party-inc, else the seed's inc/. NOT fbc's: since
+#      2026-10-10 they come from tiko's own last release.
+#   2. tiko-lang's OWN HEADERS over them (phase H): fb/, containers.bi, crt/, win/,
+#      windows.bi and the rest of FreeBASIC's set are the tree's inc/, the one copy --
+#      inc/PROVENANCE.md says where each came from.
+#
+# AN EMPTY inc/ IS REFUSED. tiko-linux once shipped one -- copied from fbc-modern-linux's
+# empty inc/ rather than its include/freebasic -- and --verify still said PASS, because
+# its program then included no bundled header. It does now.
 if [ "$DO_INC" = "1" ]; then
-    SRCINC=""
-    if [ -d "$FBTC/inc" ] && [ -n "$( ls -A "$FBTC/inc" 2>/dev/null )" ]; then
-        SRCINC="$FBTC/inc"
-    elif [ -d "$FBTC/include/freebasic" ]; then
-        SRCINC="$FBTC/include/freebasic"
-    fi
-    if [ -n "$SRCINC" ]; then
-        note "headers -> inc/  from $SRCINC  (large; --no-inc skips it)"
-        rm -rf "$OUT/inc"
-        cp -r "$SRCINC" "$OUT/inc"
-        if [ -z "$( ls -A "$OUT/inc" 2>/dev/null )" ]; then
-            die "packaged inc/ is EMPTY -- the compiler would find no headers at all"
-        fi
+    _newinc="$OUT/.inc.new"
+    rm -rf "$_newinc"; mkdir -p "$_newinc"
+    if [ -n "$TPINC" ] && [ -d "$TPINC" ]; then
+        note "headers -> inc/  third-party bindings from $TPINC"
+        cp -r "$TPINC/." "$_newinc/"
+        INC_STATE="inc/ at this commit, over the third-party bindings in $TPINC"
     else
-        note "WARNING: no headers at $FBTC/inc or $FBTC/include/freebasic -- inc/ not packaged"
+        note "WARNING: no third-party bindings -- no --third-party-inc and no seed inc/"
+        INC_STATE="inc/ at this commit ONLY -- no third-party bindings (no --third-party-inc, no seed)"
     fi
-    if [ -d "$FBTC/include" ]; then
-        rm -rf "$OUT/include"
-        cp -r "$FBTC/include" "$OUT/include"
-    fi
-    # fbx IS NOT SHIPPED (ADR 0017 §20): its successor is the package pkg/tkl, so the
-    # header library the stage-0 toolchain carries is left out. Kept, it would also be a
-    # package named fbx that a '-i <inc>' root offers '#import "fbx/..."'.
-    rm -rf "$OUT/inc/fbx" "$OUT/include/freebasic/fbx"
-    if [ -e "$OUT/inc/fbx" ]; then die "packaged inc/ still has fbx/ -- it was replaced by pkg/tkl"; fi
-    # ...AND tiko-lang's OWN HEADERS OVER THEM (phase H, 2026-10-10): fb/, containers.bi,
-    # crt/, win/, windows.bi and the rest of FreeBASIC's set are the tree's inc/, the one
-    # copy -- inc/PROVENANCE.md says where each came from. What is copied from the stage0
-    # toolchain above is then only what tiko-lang does not carry: the third-party
-    # bindings (SDL, GTK, AfxNova, ...), until the author decides where those live.
-    if [ -d "$ROOT/inc" ]; then
-        note "headers -> inc/  tiko-lang's own over them: $(find "$ROOT/inc" -name '*.bi' | wc -l | tr -d ' ') files from inc/"
-        cp -r "$ROOT/inc/." "$OUT/inc/"
-        rm -f "$OUT/inc/.import-manifest.tsv"
-    fi
+    # fbx IS NOT SHIPPED (ADR 0017 §20): its successor is the package pkg/tkl. Kept, it
+    # would also be a package named fbx that a '-i <inc>' root offers '#import "fbx/..."'.
+    rm -rf "$_newinc/fbx"
+    note "headers -> inc/  tiko-lang's own over them: $(find "$ROOT/inc" -name '*.bi' | wc -l | tr -d ' ') files from inc/"
+    cp -r "$ROOT/inc/." "$_newinc/"
+    rm -f "$_newinc/.import-manifest.tsv"
+    [ -n "$( ls -A "$_newinc" 2>/dev/null )" ] || die "packaged inc/ is EMPTY -- the compiler would find no headers at all"
+    # include/ was fbc-modern-linux's header tree, copied whole beside inc/. The compiler
+    # never looked in it (<exe-dir>/inc, <exe-dir>/../inc); it goes.
+    rm -rf "$OUT/inc" "$OUT/include"
+    mv "$_newinc" "$OUT/inc"
 else
     note "--no-inc: headers not packaged"
+    INC_STATE="not packaged (--no-inc)"
 fi
 
 # THE PACKAGE TREE (ADR 0017; RFC-0007 §5): pkg/, beside inc/, which '#import "std/..."'
@@ -320,18 +337,16 @@ cp -r "$ROOT/pkg" "$OUT/pkg"
 [ -f "$OUT/pkg/tkl/tkGui/CWindow.tiko" ] || die "packaged pkg/ has no tkl/tkGui"
 note "packages -> pkg/ ($( ls "$OUT/pkg" | tr '\n' ' '))"
 
-# The libraries. TWO directories per target, and the order they are given in
-# matters:
+# The libraries. lib/<target>/ is ours -- tiko-rt, its startup object on a gnu
+# target, libtkogfx where there is one -- and for -target win64 alone a second
+# directory follows it:
 #
-#   lib/<target>/      ours   -- tiko-rt's libfb.a and libfbmt.a
-#   lib/<target>-fb/   fbc's  -- the CRT objects, the import libraries; NOT its
-#                                libfb, which is deleted after the copy (D15)
+#   lib/win64-fb/   the MinGW runtime: crt2.o, crtbegin.o, crtend.o, libmingw32,
+#                   libgcc and the rest; NOT fbc's libfb, deleted after the copy (D15)
 #
-# A link names both, ours first, so what tiko-rt defines wins and what it does not
-# yet define still resolves. -B points at each of them too, and it is fbc's
-# directory that carries crt2.o, crtbegin.o and crtend.o -- which have to come
-# from the same toolchain as libfb, because fbc's are SJLJ and the MinGW clang
-# finds on its own is SEH.
+# A link names both, ours first. -B points at each of them too, and the CRT objects
+# have to match the libraries beside them: fbc's are SJLJ, and the MinGW clang finds
+# on its own is SEH.
 # STALE TARGET DIRECTORIES ARE REMOVED FIRST, and this is not housekeeping.
 # Packaging into an existing tree only ever replaced the directories it was about
 # to write, so lib/win32 and lib/win32-fb from an older run would sit there
@@ -346,8 +361,11 @@ if [ -d "$OUT/lib" ]; then
         [ -d "$d" ] || continue
         _keep=0
         for t in $TARGETS; do
-            case ${d##*/} in "$t"|"$t-fb") _keep=1 ;; esac
+            case ${d##*/} in "$t") _keep=1 ;; esac
         done
+        # An -fb directory only for win64: linux-x86_64-fb held fbc's fbrt0.o and
+        # libraries the driver never names, and tiko-rt has its own fbrt0 (R8).
+        case ${d##*/} in win64-fb) case " $TARGETS " in *" win64 "*) _keep=1 ;; esac ;; esac
         if [ "$_keep" = "0" ]; then
             note "removing stale lib/${d##*/} -- not a target of this toolchain"
             rm -rf "$d"
@@ -359,14 +377,7 @@ GFX_STATE=""
 
 for t in $TARGETS; do
     note "runtime -> lib/$t/  (tiko-rt)"
-    # THE MSVC IMPORT LIBRARIES STAY, unless --implibs: they are generated from fbc's
-    # MinGW libraries, which do not change between packages, so regenerating all 843 on
-    # every run bought nothing. Everything else in the directory is replaced.
-    if [ "$DO_IMPLIBS" = "0" ] && [ -d "$OUT/lib/$t" ]; then
-        find "$OUT/lib/$t" -mindepth 1 -maxdepth 1 ! -name '*.lib' -exec rm -rf {} +
-    else
-        rm -rf "$OUT/lib/$t"
-    fi
+    rm -rf "$OUT/lib/$t"
     mkdir -p "$OUT/lib/$t"
     cp -f "$ROOT/lib/rt/lib/$t/libfb.a"   "$OUT/lib/$t/"
     cp -f "$ROOT/lib/rt/lib/$t/libfbmt.a" "$OUT/lib/$t/"
@@ -419,34 +430,31 @@ for t in $TARGETS; do
   $t  none -- lib/gfx builds $GFX_TARGETS only"
     fi
 
-    # fbc's runtime behind ours. NOT NEEDED BY EVERY TARGET, and win64-msvc is the
-    # one that does without: fbc has no MSVC target, so $FBTC/lib/win64-msvc does
-    # not exist and cannot -- and measurement says it is not wanted either, since a
-    # program linked against lib/win64-msvc alone runs. Reporting that as the old
-    # "links will not resolve" warning would be crying wolf on the one target where
-    # the absence is correct.
-    if [ -d "$FBLIB/$t" ]; then
-        note "reference libraries -> lib/$t-fb/  (fbc's CRT, import libraries; not its libfb)"
-        rm -rf "$OUT/lib/$t-fb"
-        cp -r "$FBLIB/$t" "$OUT/lib/$t-fb"
+    # THE MINGW RUNTIME BEHIND OURS, for -target win64 only (decision Q2). Kept in
+    # place when the source IS the destination -- a previous package's copy.
+    if [ "$t" = "win64" ]; then
+        _dst="$OUT/lib/win64-fb"
+        if [ -d "$_dst" ] && [ "$( cd "$MINGW_LIB" && pwd -P )" = "$( cd "$_dst" && pwd -P )" ]; then
+            note "MinGW runtime -> lib/win64-fb/  kept"
+        else
+            note "MinGW runtime -> lib/win64-fb/  from $MINGW_LIB"
+            rm -rf "$_dst"
+            cp -r "$MINGW_LIB" "$_dst"
+        fi
         # fbc's RUNTIME IS NOT SHIPPED (decision 0015, D15). tiko-rt defines every
         # symbol it used to supply -- lib/rt/src/c/README.md has the list and what
         # replaced each -- and LinkExe names a path's libfb.a only when it exists,
         # so deleting these is the whole of the change. The -pic variants are the
         # same library; the compiler has never named them.
         for _rt in libfb.a libfbmt.a libfbpic.a libfbmtpic.a fbrt0.o fbrt0pic.o; do
-            rm -f "$OUT/lib/$t-fb/$_rt"
+            rm -f "$_dst/$_rt"
         done
-    elif [ "$t" = "win64-msvc" ]; then
-        note "no lib/$t-fb: fbc has no MSVC target, and this one links without it"
-    else
-        note "WARNING: no reference libraries at $FBLIB/$t -- links will not resolve"
     fi
 done
 
-# THE MSVC IMPORT LIBRARIES, generated rather than copied -- there is nothing to
-# copy. fbc's tree is MinGW and carries lib<name>.dll.a; the MSVC linker looks for
-# <name>.lib and finds none of them.
+# THE MSVC IMPORT LIBRARIES, built from the tree: lib/implib/*.def, one llvm-dlltool
+# run each, and lib/implib/static/*.lib copied through (build/implibs.sh). The MSVC
+# linker looks for <name>.lib; nothing else here supplies one.
 #
 # WITHOUT THESE THE DEFAULT TARGET DEPENDS ON VISUAL STUDIO. Measured 2026-09-06:
 # clang's msvc driver passes -libpath for VS 2022 Community and Windows SDK
@@ -454,26 +462,23 @@ done
 # would not link on a machine without them. A toolchain whose default target needs
 # an unrelated install is not one that can be handed to anyone.
 #
+# NOT FROM fbc ANY MORE (phase L, 2026-10-10). They were generated at every run from
+# fbc's MinGW lib*.dll.a, and the .def files that made were thrown away; those are
+# what lib/implib/ commits, and all 843 libraries came out byte for byte the same.
+#
 # NOT FATAL, on the same reasoning as the graphics build above: this needs
 # llvm-dlltool, and losing the compiler and runtime because the import libraries
-# could not be generated would be the wrong trade. The manifest records what
-# happened either way.
-IMPLIB_STATE="not generated"
-_IMPLIB_N=$( ls "$OUT/lib/win64-msvc/"*.lib 2>/dev/null | wc -l | tr -d ' ' )
-if [ "$HOST" = "windows" ] && [ "$DO_IMPLIBS" = "0" ] && [ "$_IMPLIB_N" -gt 0 ]; then
-    IMPLIB_STATE="${_IMPLIB_PREV:-$_IMPLIB_N libraries} (kept; --implibs regenerates them)"
-    note "msvc import libraries kept: $_IMPLIB_N in lib/win64-msvc/ (--implibs regenerates them)"
-elif [ "$HOST" = "windows" ] && [ -d "$OUT/lib/win64-fb" ] && [ -d "$OUT/lib/win64-msvc" ]; then
-    note "msvc import libraries -> lib/win64-msvc/  (generated from lib/win64-fb)"
-    if IMPLIB_OUT=$( sh "$ROOT/build/mkmsvcimplibs.sh" "$OUT/lib/win64-fb" "$OUT/lib/win64-msvc" 2>&1 ); then
-        IMPLIB_STATE=$( echo "$IMPLIB_OUT" | sed -n 's/^mkmsvcimplibs: //p' | head -1 )
+# could not be built would be the wrong trade. The manifest records what happened.
+IMPLIB_STATE="not applicable on this host"
+if [ "$HOST" = "windows" ]; then
+    note "msvc import libraries -> lib/win64-msvc/  (from lib/implib/)"
+    if IMPLIB_OUT=$( sh "$ROOT/build/implibs.sh" build --out "$OUT/lib/win64-msvc" 2>&1 ); then
+        IMPLIB_STATE=$( echo "$IMPLIB_OUT" | sed -n 's/^implibs: //p' | tail -1 | sed 's/ -> .*//' )
         note "$IMPLIB_STATE"
     else
         IMPLIB_STATE="FAILED -- $( echo "$IMPLIB_OUT" | tail -1 )"
-        note "WARNING: msvc import libraries not generated -- $IMPLIB_STATE"
+        note "WARNING: msvc import libraries not built -- $IMPLIB_STATE"
     fi
-else
-    IMPLIB_STATE="not applicable on this host"
 fi
 
 # ------------------------------------------------------------------- fbcunit
@@ -543,7 +548,7 @@ cp -f "$FBCU/readme.txt" "$FBCU/license.txt" "$FBCU/lgpl-2.1.txt" "$OUT/src/fbcu
 # fbc-modern-linux carries neither.
 #
 # THE LIBRARY IS BUILT HERE, per target, from the amalgamation fbsqlite vendors --
-# build/mksqlite.sh has the reasons for each flag. win64 keeps fbc-modern's MinGW
+# build/mksqlite.sh has the reasons for each flag. win64 keeps the MinGW runtime's
 # archive in lib/win64-fb, which already links. The headers are copied from the same
 # fbsqlite checkout, on both hosts, so they always match the library beside them.
 #
@@ -577,9 +582,9 @@ fi
 #
 # lib/rt is LGPL-2.1-or-later and a derivative of libfb; lib/gfx is
 # LGPL-2.1-or-later with the static-linking exception and a derivative of gfxlib2;
-# and this tree redistributes fbc's own binaries. docs/plan/11 records that as
-# permitted and carrying obligations rather than prohibitions -- so the notices
-# ship with the toolchain instead of being something to remember at release time.
+# inc/ carries FreeBASIC's headers. docs/plan/11 records that as permitted and
+# carrying obligations rather than prohibitions -- so the notices ship with the
+# toolchain instead of being something to remember at release time.
 mkdir -p "$OUT/licences"
 cp -f "$ROOT/LICENSE"              "$OUT/licences/LICENSE-tiko"
 cp -f "$ROOT/COPYING"              "$OUT/licences/COPYING-tiko"
@@ -589,17 +594,16 @@ cp -f "$ROOT/lib/rt/LICENSE"       "$OUT/licences/LICENSE-tiko-rt"
 cp -f "$ROOT/lib/rt/PROVENANCE.md" "$OUT/licences/PROVENANCE-tiko-rt.md"
 cp -f "$FBCU/license.txt"         "$OUT/licences/LICENSE-fbcunit"
 cp -f "$FBCU/lgpl-2.1.txt"        "$OUT/licences/COPYING.LGPL-2.1-fbcunit"
-for f in COPYING.LGPL-2.1 COPYING.GPL-2.0 LICENSE; do
-    if [ -f "$FBC_TREE/$f" ]; then
-        cp -f "$FBC_TREE/$f" "$OUT/licences/$f.freebasic"
-        FBLIC=1
-    fi
-done
-# Shipping fbc's binaries without fbc's licence text is the one failure here that
-# would matter legally, and it is exactly the kind that a silent 'for' loop over
-# names that have changed produces. Say it.
-if [ -z "${FBLIC:-}" ]; then
-    note "WARNING: no FreeBASIC licence text found in $FBC_TREE -- licences/ is incomplete"
+# FreeBASIC's own notices, FROM THE TREE (licences/), not from an fbc install: which
+# licence covers which part, and the two licence texts -- the same files as tiko's
+# own COPYING and COPYING.LGPL-2.1, so they are not committed twice. cp -f under
+# set -e: a missing one stops the package rather than shipping without it.
+cp -f "$ROOT/licences/LICENSE.freebasic" "$OUT/licences/LICENSE.freebasic"
+cp -f "$ROOT/COPYING"                    "$OUT/licences/COPYING.GPL-2.0.freebasic"
+cp -f "$ROOT/COPYING.LGPL-2.1"           "$OUT/licences/COPYING.LGPL-2.1.freebasic"
+# mingw-w64's, for the import libraries built from lib/implib/.
+if [ "$HOST" = "windows" ]; then
+    cp -f "$ROOT/lib/implib/COPYING.MinGW-w64-runtime.txt" "$OUT/licences/COPYING.MinGW-w64-runtime.txt"
 fi
 
 # --------------------------------------------------------------- verification
@@ -858,6 +862,13 @@ if [ -n "$( git_in_root status --porcelain 2>/dev/null | head -1 )" ]; then
     REV="$REV+dirty"
 fi
 
+# The seed the lock pins -- what build/build.sh builds the compiler with unless TKO_SEED
+# or TKO_STAGE0 says otherwise, in which case that is recorded instead.
+SEED_STATE=$( awk -v h="$HOST" '$1 == h { print $2 " (" $3 ", sha256 " $4 ")" }' "$ROOT/seed/seed.lock" 2>/dev/null )
+[ -n "$SEED_STATE" ] || SEED_STATE="none pinned for $HOST"
+[ -n "${TKO_SEED:-}" ] && SEED_STATE="TKO_SEED=$TKO_SEED (the lock pins $SEED_STATE)"
+[ -n "${TKO_STAGE0:-}" ] && SEED_STATE="TKO_STAGE0=$TKO_STAGE0 (the lock pins $SEED_STATE)"
+
 NFILES=$( cd "$OUT" && find . -type f ! -name MANIFEST.txt | wc -l )
 SIZE=$( du -sh "$OUT" | cut -f1 )
 
@@ -869,7 +880,9 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say "commit         $REV"
     say "configuration  $CFG"
     say "targets        $TARGETS"
-    say "reference fbc  $FBTC"
+    say "seed           $SEED_STATE"
+    say "headers        $INC_STATE"
+    say "MinGW runtime  $MINGW_STATE"
     say "contents       $NFILES files, $SIZE"
     say
     say "-- what is NOT in here -------------------------------------------------"
@@ -883,22 +896,20 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say "                  where there is one -- the compiler looks for all"
     say "                  three in the same directory."
     if [ "$HOST" = "windows" ]; then
-        say "lib/<target>-fb/  fbc's CRT objects and import libraries, behind"
-        say "                  ours -- NOT fbc's libfb, which tiko no longer needs"
-        say "                  (decision 0015). Absent for win64-msvc: fbc has no"
-        say "                  MSVC target and that one links without."
+        say "lib/win64-fb/     the MinGW runtime -target win64 links against --"
+        say "                  crt2.o, libmingw32, libgcc and the rest -- which tiko"
+        say "                  does not build. Present only when win64 is listed"
+        say "                  under targets above."
         say
         say "lib/win64-msvc/*.lib   MSVC-format import libraries for the Windows"
-        say "                  DLLs, GENERATED from fbc's MinGW lib<name>.dll.a --"
-        say "                  the MSVC linker looks for <name>.lib and would"
-        say "                  otherwise fall back on an installed Visual Studio."
-        say "                  build/mkmsvcimplibs.sh, rerunnable on its own."
+        say "                  DLLs, built from tiko-lang's lib/implib/*.def by"
+        say "                  build/implibs.sh -- the MSVC linker looks for"
+        say "                  <name>.lib and would otherwise fall back on an"
+        say "                  installed Visual Studio."
         say
         say "import libraries: $IMPLIB_STATE"
     else
-        say "lib/<target>-fb/  fbc's startup objects and support libraries, behind"
-        say "                  ours -- NOT fbc's libfb, which tiko no longer needs"
-        say "                  (decision 0015)."
+        say "Nothing behind lib/<target>/: the C runtime and libc are the system's."
     fi
     say
     say "graphics:$GFX_STATE"
@@ -914,19 +925,13 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say
     say "-- linking -------------------------------------------------------------"
     say "Nothing has to be passed. tiko appends inc/ to the include search and"
-    say "lib/<target>/ then lib/<target>-fb/ to the library search on its own,"
-    say "all relative to the executable, as fbc does with inc/ and lib/<target>."
+    say "lib/<target>/ then lib/<target>-fb/, where there is one, to the library"
+    say "search on its own, all relative to the executable."
     say
-    say "The -fb half has no fbc counterpart and is ours. It holds what a MinGW"
-    say "or glibc link needs from fbc's toolchain -- its startup objects, which"
-    say "must match that toolchain -- and no runtime: tiko-rt is complete, and"
-    say "the compiler names a directory's libfb.a only where there is one."
-    say "OURS COMES FIRST, and that order is fixed in the compiler, not left to"
-    if [ "$HOST" = "windows" ]; then
-        say "the caller. win64-msvc needs no second directory at all."
-    else
-        say "the caller."
-    fi
+    say "Only -target win64 has an -fb directory: the MinGW startup objects and"
+    say "support libraries, which must match one another. No runtime is in it --"
+    say "tiko-rt is complete. OURS COMES FIRST, and that order is fixed in the"
+    say "compiler, not left to the caller."
     say
     say "  tiko yourprogram.bas                  the default, $DEFTARGET"
     for t in $TARGETS; do
@@ -948,7 +953,8 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say "-- licences ------------------------------------------------------------"
     say "licences/ holds tiko's own notices -- the compiler under GPL-2.0+, and"
     say "tiko-rt and libtkogfx under LGPL-2.1+ with the static-linking"
-    say "exception -- with tiko-rt's provenance, and FreeBASIC's own. This tree"
+    say "exception -- with tiko-rt's provenance, FreeBASIC's own, and on Windows"
+    say "mingw-w64's for the import libraries. This tree"
     say "redistributes binaries built from LGPL sources; distributing it"
     say "carries the source-offer obligation."
 } > "$OUT/MANIFEST.txt"

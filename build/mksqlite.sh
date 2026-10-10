@@ -26,8 +26,8 @@
 # Built from the same amalgamation with the same options, both pass all 12 of
 # fbsqlite's suites, 631 of 631 assertions -- the count -target win64 gives.
 #
-# WHY NOT COPY THE MinGW ARCHIVE: it carries MinGW CRT dependencies, and
-# mkmsvcimplibs.sh explains why those must not be within reach of an MSVC -l. LinkExe
+# WHY NOT COPY THE MinGW ARCHIVE: it carries MinGW CRT dependencies, and those must
+# not be within reach of an MSVC -l -- the wrong runtime would resolve them. LinkExe
 # resolves lib<name>.a in a search path before it asks lld-link for <name>.lib, so a
 # COFF archive named libsqlite3.a in lib/win64-msvc is found -- the way libfbcunit.a is.
 #

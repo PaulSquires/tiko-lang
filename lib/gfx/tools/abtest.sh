@@ -42,7 +42,7 @@ GFX=$( cd "$HERE/.." && pwd )
 TKOGFX_MSVC="$GFX/lib/win64-msvc/libtkogfx.a"
 LIBFB_MSVC="$GFX/../rt/lib/win64-msvc/libfb.a"
 # The import libraries tiko's own win64-msvc link resolves the CRT and Win32
-# through (build/mkmsvcimplibs.sh makes them). See the win64-msvc link below.
+# through (build/implibs.sh builds them). See the win64-msvc link below.
 : "${MSVC_IMPLIBS:=$( cd "$GFX/../.." && pwd )/toolchains/tiko-windows/lib/win64-msvc}"
 
 keep=0
@@ -175,7 +175,7 @@ elif [ ! -f "$LIBFB_MSVC" ]; then
     echo "abtest: no $LIBFB_MSVC -- win64-msvc NOT RUN (build tiko-rt for win64-msvc)" >&2
     status=1
 elif [ ! -f "$MSVC_IMPLIBS/ucrtbase.lib" ]; then
-    echo "abtest: no ucrtbase.lib in $MSVC_IMPLIBS -- win64-msvc NOT RUN (run build/mkmsvcimplibs.sh)" >&2
+    echo "abtest: no ucrtbase.lib in $MSVC_IMPLIBS -- win64-msvc NOT RUN (run build/implibs.sh build --out <dir>)" >&2
     status=1
 else
     ran=0

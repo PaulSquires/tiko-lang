@@ -78,11 +78,11 @@ if ! "$FBCX" -prefix "$FBC_TREE/src" -c -gen llvm -z msvc -m __probe /dev/null -
 fi
 
 # THE MSVC IMPORT LIBRARIES, which stand in for the CRT here -- see the link step.
-# build/mkmsvcimplibs.sh generates them and this is its default output directory.
+# build/package.sh builds them there, from lib/implib/ (build/implibs.sh).
 # REFUSED rather than skipped: without them the link fails on memset, which reads as an
 # ABI difference -- exactly the misdiagnosis this script's header warns about.
 IMPLIBS=${TKORT_MSVC_IMPLIBS:-$(cd "$(dirname "$0")/../../.." && pwd)/toolchains/tiko-windows/lib/win64-msvc}
-[ -f "$IMPLIBS/ucrtbase.lib" ] || rt_die "no ucrtbase.lib in $IMPLIBS -- run build/mkmsvcimplibs.sh"
+[ -f "$IMPLIBS/ucrtbase.lib" ] || rt_die "no ucrtbase.lib in $IMPLIBS -- run build/implibs.sh build --out <dir>"
 IMPLIBS=$(cygpath -m "$IMPLIBS")
 
 CLANGX=${CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}
@@ -228,7 +228,7 @@ for o in $TOBJS "$W/t/fbc-tests.o"; do cygpath -m "$o" >> "$W/objs.rsp"; done
 # there is none on a machine that has only the toolchain -- so every module came back
 # with "unresolved external symbol memset" and the gate read as an ABI failure when it
 # was a missing library. See src/codegen/toolchain.bas: what replaces the CRT is
-# ucrtbase.dll, reached through the import library build/mkmsvcimplibs.sh generates, and
+# ucrtbase.dll, reached through the import library build/implibs.sh builds, and
 # the handful it does not export are tiko-rt's own src/c/msvccrt.c -- already inside the
 # archive being linked here, mainCRTStartup included.
 #
