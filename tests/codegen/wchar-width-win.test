@@ -1,0 +1,7 @@
+'' A wstring element on Windows is 2 bytes -- the counterpart of wchar-width-linux.
+'' TEST: cli
+'' ARGS: -target win64-msvc --emit-ir tests/codegen/src/wchar-width.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: mul i64 %t4, 2
+'' EXPECT-OUT: store i16 %t14, ptr %t12, align 2
+'' EXPECT-OUT: load i16, ptr %t9, align 2

@@ -980,8 +980,13 @@ function CharElemSize_( byref c as Ctx, byval t as Tko.TypeId ) as long
     select case c.types->BuiltinOf( el )
     case Tko.TY_ZSTRING, Tko.TY_FIXSTR : return 1
     '' A ustring's unit is TWO BYTES on every target, where a wstring's is 2 on
-    '' Windows and 4 on Linux -- so it shares the stride here and not the rule.
-    case Tko.TY_WSTRING, Tko.TY_FIXUSTR : return 2
+    '' Windows and 4 on Linux. This answered 2 for both, so on Linux 'w[ i ]' over a
+    '' wstring walked half-characters, and its loads and stores were 16 bits wide:
+    '' 'dst[n] = 0' cleared half a terminator, and tiko-rt's wide strings -- built by
+    '' tiko on Linux for the first time, 2026-10-10 -- read garbage past it once the
+    '' heap had been used. The target says how wide a wchar is.
+    case Tko.TY_WSTRING : return c.types->target.wcharBytes
+    case Tko.TY_FIXUSTR : return 2
     end select
     return 0
 end function

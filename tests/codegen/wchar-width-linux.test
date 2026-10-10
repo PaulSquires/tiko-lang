@@ -1,0 +1,10 @@
+'' A wstring element on linux-x86_64 is 4 bytes: 'p[ i ]' strides by 4 and loads and
+'' stores 32 bits. It strode by 2 and moved 16, so 'd[ n ] = 0' cleared half a
+'' terminator -- tiko-rt's wide strings, built by tiko, read garbage past it.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 --emit-ir tests/codegen/src/wchar-width.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: mul i64 %t4, 4
+'' EXPECT-OUT: store i32 %t14, ptr %t12, align 4
+'' EXPECT-OUT: load i32, ptr %t9, align 4
+'' EXPECT-NOT: i16

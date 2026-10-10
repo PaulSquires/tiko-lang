@@ -443,7 +443,9 @@ private sub LowerAssign _
                 SkipHere( c )
                 return
             end if
-            dim as MirType elemTy = iif( derefWide, MT_I16, MT_I8 )
+            '' A wide character is the target's wchar: 16 bits on Windows, 32 on Linux.
+            dim as MirType elemTy = MT_I8
+            if derefWide then elemTy = iif( c.types->target.wcharBytes = 4, MT_I32, MT_I16 )
             '' A FLOAT GOES THROUGH THE 32-BIT CONVERSION FIRST. fbc writes
             '' '(uint8)fb_D2I( D$0 )' and fb_D2I is '(int32)nearbyint( v )', so an
             '' out-of-range double lands on the x86 indefinite value at 32 bits and

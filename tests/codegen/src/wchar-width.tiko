@@ -1,0 +1,9 @@
+'' A wstring element is the target's wchar: 2 bytes on Windows, 4 on Linux. Each
+'' procedure touches exactly one element, so its IR holds exactly one load or store.
+sub put_end( byval d as wstring ptr, byval n as integer )
+    d[n] = 0
+end sub
+
+function get_at( byval p as wstring ptr, byval i as integer ) as ulong
+    return p[i]
+end function

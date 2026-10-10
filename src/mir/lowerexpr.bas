@@ -524,11 +524,14 @@ function LowerExpr _
                     end if
                 end if
 
+                '' 4 is a Linux wchar -- CharElemSize_ says why it matters.
                 dim as long cesz = CharElemSize_( c, xt )
                 if cesz = 1 then
                     imt = MT_I8
                 elseif cesz = 2 then
                     imt = MT_I16
+                elseif cesz = 4 then
+                    imt = MT_I32
                 elseif c.types->Kind( xt ) = Tko.TK_POINTER then
                     imt = LowerType( c.types->Inner( xt ), *c.types )
                     dim as long pesz = CharElemSize_( c, c.types->Inner( xt ) )
@@ -536,6 +539,8 @@ function LowerExpr _
                         imt = MT_I8
                     elseif pesz = 2 then
                         imt = MT_I16
+                    elseif pesz = 4 then
+                        imt = MT_I32
                     end if
                 end if
             end if
