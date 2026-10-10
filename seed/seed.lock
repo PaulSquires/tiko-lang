@@ -1,0 +1,25 @@
+# seed.lock -- the pinned SEED: the tiko that builds tiko-lang in fbc-modern's place.
+# Read by seed/fetch-seed.sh; used by build/build.sh and build/bootstrap.sh through
+# TKO_SEED=<path to its tiko executable>.
+#
+# A seed is a packaged toolchain (build/package.sh) published as a GitHub Release asset
+# on PaulSquires/tiko-lang. One line per host, whitespace-separated:
+#
+#   host  tag  asset  sha256-of-asset  commit-the-seed-was-built-from
+#
+# The sha256 is of the ASSET FILE and is checked before anything is extracted. TBD is
+# a placeholder: fetch-seed.sh refuses it unless --trust-on-first-use is given, and then
+# prints the hash to record here.
+#
+# THE SEED-COMPATIBILITY RULE: tiko-lang's own source may use a language feature only
+# once the pinned seed compiles it. A feature reaches the compiler's own source one seed
+# later than it reaches the language. Advance this file at release points, together with
+# seed/chain.txt.
+#
+# STATUS 2026-10-09: no seed asset is published yet (the author's call: publish later).
+# Until then the seed is a local packaged toolchain -- on Windows,
+#   TKO_SEED=toolchains/tiko-windows/tiko.exe    (MANIFEST: commit bcdd65a8, Release)
+# -- and the lines below are the names the first published seed will use.
+
+windows  seed-bcdd65a8  tiko-seed-windows-x86_64-bcdd65a8.zip  TBD  bcdd65a8974c7d7b33c52bbd6678a870d0f1921f
+linux    seed-bcdd65a8  tiko-seed-linux-x86_64-bcdd65a8.tar.gz  TBD  bcdd65a8974c7d7b33c52bbd6678a870d0f1921f

@@ -1,0 +1,7 @@
+# chain.txt -- which seed built which. One line per seed, oldest first.
+#
+#   <seed commit>  built-by <compiler>  <checks passed>  <date>  <notes>
+#
+# The first seed is the one link built by fbc; every later one is built by the seed above it.
+
+bcdd65a8974c7d7b33c52bbd6678a870d0f1921f  built-by fbc-modern's toolchain fbc64 (FreeBASIC 1.20.0; package.sh Release)  V1 V2 V3 V5 (local toolchain, win64-msvc, -O0)  2026-10-09  NOT YET PUBLISHED as a seed asset; 2026-10-09 also: the seed-built compiler + runner pass the suite 1810/0 (V4 via build.sh TKO_SEED); Linux not run

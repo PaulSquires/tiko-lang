@@ -85,6 +85,9 @@ tests/vendor/**/*.o
 # tests/modules fixtures among them.
 .tiko/
 
+# A downloaded seed (seed/fetch-seed.sh): an unpacked toolchain, never committed.
+/seed/cache/
+
 # Engineering notes and design docs stay local; they are not published.
 /docs/
 /HANDOFF.md
