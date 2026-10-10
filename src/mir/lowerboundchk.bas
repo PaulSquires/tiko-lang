@@ -294,6 +294,11 @@ sub EmitRtlErrorCheck_( byref c as Ctx, byval id as Tko.NodeId, byref rc as MirV
     dim as string fname = ""
     dim as Tko.SourceFile ptr sf = c.srcMgr->FileAt( d.file )
     if sf <> 0 then fname = c.names->Spelling( sf->displayPath )
+    '' A MODULE'S GENERIC, compiled from the module's interface, is named by the source
+    '' file its '#line' points at -- sharedptr.tiko, not std.memory.tki.
+    if sf <> 0 then
+        if sf->isVirtual andalso (d.shownName <> Tko.INTERN_NONE) then fname = c.srcMgr->ShownPathOf( d )
+    end if
     dim as FB.Array( of ulong ) args
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, d.lineNo ) )
     args.Push( cast( ulong, MV_GLOBAL ) )

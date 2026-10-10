@@ -294,6 +294,9 @@ def port(mod, hdr, api, converted, notes):
                                          + g.group(2) + g.group(3) + g.group(4), ln, count=1)
                 elif RX_FREEOP.match(ln):
                     ln = RX_FREEOP.sub(lambda g: g.group(1) + "public operator", ln, count=1)
+                elif top and re.match(r"^\s*operator\b(?!\s*\w+\s*(?:\(\s*of\b[^)]*\))?\s*\.)", ln, re.I):
+                    # A GENERIC free operator, which a header never makes private.
+                    ln = re.sub(r"^(\s*)", r"\1public ", ln, count=1)
                 elif top and RX_DECLOP.match(ln):
                     ln = RX_DECLOP.sub(lambda g: g.group(1) + "public declare operator", ln, count=1)
                 elif top:

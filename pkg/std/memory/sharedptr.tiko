@@ -1,0 +1,513 @@
+#module "memory"
+'' std/memory: sharedptr -- shared ownership by reference count
+''
+'' SharedPtr( of T ) owns a heap object jointly with every other handle to it.
+'' The object is destroyed exactly once, when the last SharedPtr to it goes
+'' away -- at scope exit, on reassignment, or when a container holding it is
+'' destroyed -- with no DELETE at the call site and no ownership convention to
+'' document.  WeakPtr( of T ) observes the same object without keeping it alive,
+'' which is the only way to break a cycle.
+''
+'' The idiom is not new here.  Channel( of T ) and Context both hand-rolled the
+'' same copy-ctor / destructor / LET triad over a refcounted state block; this
+'' is that, written once and generically.
+''
+'' --------------------------------------------------------------- the layout
+''
+'' Two allocations per object, not C++'s one: the control block and the object
+'' are separate.  make_shared fuses them by embedding the object IN the control
+'' block, which here would make the control block generic -- and because every
+'' member of a generic is instantiated whether it is called or not, embedding
+'' 'as T obj' would require T to be default-constructible for EVERY use of
+'' SharedPtr, including the ones that adopt an already-built pointer.  A
+'' non-generic control block holding 'any ptr' costs one more allocation and
+'' keeps T unconstrained.  That is the trade, and it is deliberate.
+''
+'' SpCtl is a plain record with no members for the same reason it is not
+'' generic: a control block with a virtual Dispose( ) would need a non-generic
+'' base class whose method bodies live in this header, and a method body in a
+'' header is a duplicate symbol in every module that includes it.  So the
+'' control block stores no type information at all, and DESTRUCTION IS DONE BY
+'' THE HANDLE, which knows T:  delete cptr( T ptr, ctl->obj ).
+''
+'' ---------------------------------------------------------------- the counts
+''
+'' 'strong' is the number of SharedPtr handles.  'weak' is the number of WeakPtr
+'' handles PLUS ONE while strong > 0 -- the strong handles collectively hold one
+'' weak reference between them.  So:
+''
+''   strong reaches 0  ->  the object is destroyed, and the collective weak
+''                         reference is dropped
+''   weak   reaches 0  ->  the control block itself is freed
+''
+'' which is why a WeakPtr can safely read the strong count of an object that has
+'' already been destroyed: the block outlives the object.
+''
+'' ------------------------------------------------------------ thread safety
+''
+'' Under -mt every count is touched through the rtlib atomics in fbatomic.bi;
+'' without -mt they are plain reads and writes.  The gate is __FB_MT__ and it is
+'' safe because -mt is a whole-program link option -- a program cannot mix the
+'' two, and without -mt it has no threads to race with.
+''
+'' THE GUARANTEE COVERS THE CONTROL BLOCK, NEVER THE POINTEE.  Two threads may
+'' copy and destroy handles to the same object freely; two threads calling a
+'' mutating member of the object itself still need their own lock.  This is
+'' exactly C++'s contract.
+''
+'' ------------------------------------------------------ what is NOT provided
+''
+'' NO IMPLICIT DERIVED-TO-BASE CONVERSION.  A converting constructor would have
+'' to be a member with its own type parameter -- 'declare constructor( of U )
+'' ( byref rhs as SharedPtr( of U ) )' -- and members cannot have their own type
+'' parameters.  Use SpCast( of Derived, Base )( sp ), which is explicit in both
+'' types because only parameter positions are inferred.
+''
+'' SpCast REQUIRES A VIRTUAL DESTRUCTOR ON THE BASE.  C++ gets away without one
+'' because its control block type-erases the deleter at construction; that needs
+'' the address of an instantiated generic procedure, which is not expressible.
+'' Here the surviving handle destroys through ITS OWN T, so destroying a Derived
+'' through SharedPtr( of Base ) is correct only if Base's destructor is virtual.
+'' There are no constraints on type parameters, so this cannot be enforced -- it
+'' is a contract, and breaking it is silent.
+''
+'' NO UniquePtr.  The language has no move constructor, so a non-copyable owning
+'' pointer could not be returned from a function.  DEFER covers the scope-local
+'' case that would otherwise want one.
+''
+'' NO ALIASING CONSTRUCTOR, NO CUSTOM DELETERS, NO ARRAY FORM.  All three need
+'' either type erasure of a deleter or a second stored pointer.
+''
+'' EVERY COPY IS A REAL REFCOUNT OPERATION.  There is no move constructor and no
+'' return-value optimisation, so returning a SharedPtr by value costs an
+'' increment and a decrement. Pass BYREF where it matters, as the containers do.
+''
+'' CYCLES STILL LEAK.  Two objects holding SharedPtrs to each other keep each
+'' other alive for ever.  WeakPtr is the tool; it is not automatic.
+
+
+'' For FB_RTERROR_ILLEGALFUNCTIONCALL, as optional.bi does.
+#include once "fberror.bi"
+
+#ifdef __FB_MT__
+    #include once "fbatomic.bi"
+#endif
+
+using FB
+
+'' ---------------------------------------------------------------- the block
+''
+'' Deliberately non-generic, deliberately method-free.  See the header comment.
+public type SpCtl
+    as long    strong        '' SharedPtr handles
+    as long    weak          '' WeakPtr handles, +1 while strong > 0
+    as any ptr obj           '' the owned object; typed only by the handle
+end type
+
+'' ------------------------------------------------------- refcount primitives
+''
+'' All four return or test the value held BEFORE the operation, because "was I
+'' the last one?" has to be answered by the same atomic step that does the
+'' decrement.  Testing the count afterwards is the classic double-free.
+''
+'' PRIVATE so that a header included by two modules does not define the symbol
+'' twice -- the same reason channel.bi's queue helpers are private.
+
+function hRefInc( byval p as long ptr ) as long
+#ifdef __FB_MT__
+    return AtomicFetchAddLong( p, 1 )
+#else
+    dim as long before = *p
+    *p = before + 1
+    return before
+#endif
+end function
+
+function hRefDec( byval p as long ptr ) as long
+#ifdef __FB_MT__
+    return AtomicFetchAddLong( p, -1 )
+#else
+    dim as long before = *p
+    *p = before - 1
+    return before
+#endif
+end function
+
+function hRefLoad( byval p as long ptr ) as long
+#ifdef __FB_MT__
+    return AtomicLoadLong( p )
+#else
+    return *p
+#endif
+end function
+
+'' Increment only if the count is not already zero.
+''
+'' This is WeakPtr.Lock( ) and it is the one operation that genuinely needs
+'' compare-and-swap: between reading a non-zero strong count and incrementing
+'' it, the last SharedPtr may drop it to zero and destroy the object, so the
+'' read and the increment have to be one step.  A plain increment here would
+'' resurrect a destroyed object.
+function hRefIncIfLive( byval p as long ptr ) as boolean
+#ifdef __FB_MT__
+    do
+        dim as long cur = AtomicLoadLong( p )
+        if( cur = 0 ) then
+            return FALSE
+        end if
+        if( AtomicCasLong( p, cur, cur + 1 ) = cur ) then
+            return TRUE
+        end if
+        '' another thread moved the count; re-read and try again
+    loop
+#else
+    if( *p = 0 ) then
+        return FALSE
+    end if
+    *p += 1
+    return TRUE
+#endif
+end function
+
+'' Drop one weak reference and free the block if it was the last.  The object
+'' is already gone by the time this can reach zero, so there is nothing here
+'' that needs to know T.
+sub hWeakRelease( byval c as SpCtl ptr )
+    if( c = 0 ) then
+        exit sub
+    end if
+    if( hRefDec( @c->weak ) = 1 ) then
+        delete c
+    end if
+end sub
+
+'' ------------------------------------------------------------------- handles
+
+public type SharedPtr( of T )
+    '' Internal.  Public only because SpCast and WeakPtr have to reach it;
+    '' there is no friendship in the language.  Do not touch it.
+    as SpCtl ptr ctl
+
+    declare constructor( )
+    declare constructor( byval p as T ptr )
+    declare constructor( byref rhs as SharedPtr( of T ) )
+    declare destructor( )
+    declare operator let( byref rhs as SharedPtr( of T ) )
+
+    declare function Get( ) as T ptr
+    declare function Ref( ) byref as T
+    declare function IsNull( ) as boolean
+    declare function UseCount( ) as long
+    declare sub Reset( )
+
+    '' internal: take a block that has ALREADY been counted for this handle
+    declare sub hAdopt( byval c as SpCtl ptr )
+    '' internal: drop this handle's strong reference, destroying if last
+    declare sub hRelease( )
+end type
+
+public type WeakPtr( of T )
+    as SpCtl ptr ctl
+
+    declare constructor( )
+    declare constructor( byref rhs as SharedPtr( of T ) )
+    declare constructor( byref rhs as WeakPtr( of T ) )
+    declare destructor( )
+    declare operator let( byref rhs as WeakPtr( of T ) )
+    declare operator let( byref rhs as SharedPtr( of T ) )
+
+    declare function Lock( ) as SharedPtr( of T )
+    declare function Expired( ) as boolean
+    declare function UseCount( ) as long
+    declare sub Reset( )
+end type
+
+'' -------------------------------------------------------------- SharedPtr
+
+constructor SharedPtr( of T )( )
+    this.ctl = 0
+end constructor
+
+'' Adopts a raw pointer.  The SharedPtr owns it from here and will DELETE it;
+'' handing the same raw pointer to two SharedPtrs gives two owners and a double
+'' free, exactly as in C++.  MakeShared( ) avoids the question.
+constructor SharedPtr( of T )( byval p as T ptr )
+    if( p = 0 ) then
+        this.ctl = 0
+        exit constructor
+    end if
+    dim as SpCtl ptr c = new SpCtl
+    c->strong = 1
+    c->weak   = 1
+    c->obj    = p
+    this.ctl  = c
+end constructor
+
+'' BYREF, and it has to be: a constructor taking its own type BYVAL is rejected
+'' outright (a copy constructor that copies to call itself cannot terminate).
+constructor SharedPtr( of T )( byref rhs as SharedPtr( of T ) )
+    this.ctl = rhs.ctl
+    if( this.ctl ) then
+        hRefInc( @this.ctl->strong )
+    end if
+end constructor
+
+destructor SharedPtr( of T )( )
+    this.hRelease( )
+end destructor
+
+'' Release the old target BEFORE taking the new one, and do nothing at all when
+'' they are the same block.  Both halves matter: without the early-out, 'sp = sp'
+'' releases the last reference and destroys the object it is about to re-take;
+'' without the ordering, assigning a handle into a container slot that holds the
+'' only other reference destroys the object while the right-hand side still
+'' names it.
+operator SharedPtr( of T ).let( byref rhs as SharedPtr( of T ) )
+    if( this.ctl = rhs.ctl ) then
+        exit operator
+    end if
+    this.hRelease( )
+    this.ctl = rhs.ctl
+    if( this.ctl ) then
+        hRefInc( @this.ctl->strong )
+    end if
+end operator
+
+sub SharedPtr( of T ).hAdopt( byval c as SpCtl ptr )
+    this.ctl = c
+end sub
+
+'' The only place the object is destroyed, and the only member that needs to
+'' know T at all.
+sub SharedPtr( of T ).hRelease( )
+    dim as SpCtl ptr c = this.ctl
+    this.ctl = 0
+    if( c = 0 ) then
+        exit sub
+    end if
+    if( hRefDec( @c->strong ) = 1 ) then
+        '' last strong reference: destroy the object, then drop the single
+        '' weak reference that all the strong handles shared
+        delete cptr( T ptr, c->obj )
+        c->obj = 0
+        hWeakRelease( c )
+    end if
+end sub
+
+sub SharedPtr( of T ).Reset( )
+    this.hRelease( )
+end sub
+
+function SharedPtr( of T ).Get( ) as T ptr
+    if( this.ctl = 0 ) then
+        return 0
+    end if
+    return cptr( T ptr, this.ctl->obj )
+end function
+
+'' Raises 'illegal function call' when null.
+''
+'' Unlike Optional.Value( ), there is no stored slot to fall back on: a null
+'' SharedPtr owns nothing, so there is no T anywhere to return a reference to.
+'' A function-static blank would be worse than the fault -- it would require T
+'' to be default-constructible for every use of SharedPtr, and a function-static
+'' UDT is constructed lazily and NEVER destroyed, so it would retain one T and
+'' its resources for the life of the program.  So: the error is raised, and if
+'' an 'on error' handler returns control the dereference below faults.  Reading
+'' through a null handle is a bug at the call site.
+function SharedPtr( of T ).Ref( ) byref as T
+    if( this.ctl = 0 ) then
+        '' QUALIFIED, and it has to be.  A generic body is replayed at the
+        '' INSTANTIATION site and its names resolve there, not here -- so an
+        '' unqualified FB_RTERROR_ILLEGALFUNCTIONCALL made this usable only
+        '' from a scope that had already said `using FB`, and failed with
+        '' `error 42: Variable not declared` everywhere else.  Same defect and
+        '' same fix as result.bi; they were not corrected together.
+        error( FB.FB_RTERROR_ILLEGALFUNCTIONCALL )
+    end if
+    return *cptr( T ptr, this.ctl->obj )
+end function
+
+function SharedPtr( of T ).IsNull( ) as boolean
+    return this.ctl = 0
+end function
+
+'' Advisory under -mt: another thread may add or drop a handle before you act on
+'' the answer.  UseCount( ) = 1 is the only reading that is stable, and only
+'' because no other thread can be holding one.
+function SharedPtr( of T ).UseCount( ) as long
+    if( this.ctl = 0 ) then
+        return 0
+    end if
+    return hRefLoad( @this.ctl->strong )
+end function
+
+'' --------------------------------------------------------------- WeakPtr
+
+constructor WeakPtr( of T )( )
+    this.ctl = 0
+end constructor
+
+constructor WeakPtr( of T )( byref rhs as SharedPtr( of T ) )
+    this.ctl = rhs.ctl
+    if( this.ctl ) then
+        hRefInc( @this.ctl->weak )
+    end if
+end constructor
+
+constructor WeakPtr( of T )( byref rhs as WeakPtr( of T ) )
+    this.ctl = rhs.ctl
+    if( this.ctl ) then
+        hRefInc( @this.ctl->weak )
+    end if
+end constructor
+
+destructor WeakPtr( of T )( )
+    hWeakRelease( this.ctl )
+    this.ctl = 0
+end destructor
+
+operator WeakPtr( of T ).let( byref rhs as WeakPtr( of T ) )
+    if( this.ctl = rhs.ctl ) then
+        exit operator
+    end if
+    hWeakRelease( this.ctl )
+    this.ctl = rhs.ctl
+    if( this.ctl ) then
+        hRefInc( @this.ctl->weak )
+    end if
+end operator
+
+operator WeakPtr( of T ).let( byref rhs as SharedPtr( of T ) )
+    if( this.ctl = rhs.ctl ) then
+        exit operator
+    end if
+    hWeakRelease( this.ctl )
+    this.ctl = rhs.ctl
+    if( this.ctl ) then
+        hRefInc( @this.ctl->weak )
+    end if
+end operator
+
+sub WeakPtr( of T ).Reset( )
+    hWeakRelease( this.ctl )
+    this.ctl = 0
+end sub
+
+'' Returns a null SharedPtr if the object is already gone.
+''
+'' The increment-if-live is a single atomic step; see hRefIncIfLive.  On success
+'' this handle has taken a strong reference which is handed to 'r' WITHOUT a
+'' second increment -- hAdopt exists for exactly that.
+function WeakPtr( of T ).Lock( ) as SharedPtr( of T )
+    dim as SharedPtr( of T ) r
+    if( this.ctl = 0 ) then
+        return r
+    end if
+    if( hRefIncIfLive( @this.ctl->strong ) ) then
+        r.hAdopt( this.ctl )
+    end if
+    return r
+end function
+
+function WeakPtr( of T ).Expired( ) as boolean
+    if( this.ctl = 0 ) then
+        return TRUE
+    end if
+    return hRefLoad( @this.ctl->strong ) = 0
+end function
+
+function WeakPtr( of T ).UseCount( ) as long
+    if( this.ctl = 0 ) then
+        return 0
+    end if
+    return hRefLoad( @this.ctl->strong )
+end function
+
+'' -------------------------------------------------------------- operators
+''
+'' Global, one parameter: a non-self operator cannot be a method.  T is inferred
+'' through the nested SharedPtr( of T ) position.
+''
+'' Both return BYREF, so '*sp' and 'sp->field' are lvalues and a write through
+'' them reaches the object rather than a copy of it.
+''
+'' '->' additionally requires T to be a UDT -- the compiler requires the result
+'' of operator -> to be a structure, since it chains member access through it.
+'' 'SharedPtr( of integer )' is fine; writing 'sp->' on one is a compile error,
+'' and '*sp' or sp.Ref( ) is the way to reach a scalar.
+''
+'' Neither checks for null: they compile to the same dereference the equivalent
+'' raw pointer would, and adding a branch to every field access to catch a bug
+'' the call site already has is the wrong trade.  Use Ref( ) for the checked
+'' form.
+
+public operator * ( of T )( byref p as SharedPtr( of T ) ) byref as T
+    return *cptr( T ptr, p.ctl->obj )
+end operator
+
+public operator -> ( of T )( byref p as SharedPtr( of T ) ) byref as T
+    return *cptr( T ptr, p.ctl->obj )
+end operator
+
+'' ------------------------------------------------------------- construction
+''
+'' Free procedures, and separately named rather than overloaded, because a
+'' generic procedure cannot be overloaded: one name, one generic procedure.
+
+'' Allocates a default-constructed T.  Requires T to be default-constructible --
+'' which costs nothing, because this is a free procedure and is only
+'' instantiated for the T's it is actually called with.
+public function MakeShared( of T )( ) as SharedPtr( of T )
+    dim as SpCtl ptr c = new SpCtl
+    c->strong = 1
+    c->weak   = 1
+    c->obj    = new T
+
+    dim as SharedPtr( of T ) r
+    r.hAdopt( c )
+    return r
+end function
+
+'' Allocates a copy of an existing value.
+''
+'' 'new T( v )' copy-constructs, which works for scalars, for plain records, and
+'' for any T with an explicit copy constructor.  It does NOT work for a T that
+'' declares some other constructor but no copy constructor -- the compiler
+'' resolves the initialiser against the declared constructors only.  Build that
+'' one yourself and hand the pointer to SharedPtr( of T )( p ).
+public function MakeSharedFrom( of T )( byref v as T ) as SharedPtr( of T )
+    dim as SpCtl ptr c = new SpCtl
+    c->strong = 1
+    c->weak   = 1
+    c->obj    = new T( v )
+
+    dim as SharedPtr( of T ) r
+    r.hAdopt( c )
+    return r
+end function
+
+'' Derived-to-base, explicit in both types.
+''
+''     dim as SharedPtr( of Shape ) s = SpCast( of Circle, Shape )( c )
+''
+'' Both type arguments have to be written: inference reads parameter positions
+'' only, and B appears nowhere in the parameter list.
+''
+'' Safe to reinterpret because SpCtl is not generic -- one layout for every T --
+'' and because FreeBASIC is single-inheritance, so a Derived pointer and its
+'' Base subobject share an address and there is no adjustment to apply.
+''
+'' BASE MUST HAVE A VIRTUAL DESTRUCTOR.  The returned handle destroys through
+'' 'delete cptr( B ptr, obj )'; without a virtual destructor that runs Base's
+'' destructor on a Derived object.  Nothing here can check it.
+public function SpCast( of D, B )( byref s as SharedPtr( of D ) ) as SharedPtr( of B )
+    dim as SharedPtr( of B ) r
+    if( s.ctl = 0 ) then
+        return r
+    end if
+    hRefInc( @s.ctl->strong )
+    r.hAdopt( s.ctl )
+    return r
+end function
+

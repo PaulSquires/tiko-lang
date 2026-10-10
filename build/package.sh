@@ -714,7 +714,8 @@ outcome|print str( outcome.Some( of long )( 5 ).Value( ) )|5
 numeric|print str( numeric.GCD( 12ull, 18ull ) )|6
 money|print money.DecimalFromInt( 12 ).ToString( )|12
 logs|print logs.LevelName( logs.LOG_WARN )|WARN
-tui|print str( tui.TuiStringWidth( "abc" ) )|3'
+tui|print str( tui.TuiStringWidth( "abc" ) )|3
+memory|dim as memory.SharedPtr( of long ) sp = memory.MakeSharedFrom( of long )( 9 ) : print str( *sp )|9'
 STD_TASKS='tasks|dim as tasks.WaitGroup wg : wg.Add( 1 ) : wg.Done( ) : print str( wg.Count( ) )|0'
 
 # verify_std_run <target> <tag> <checks> <extra tiko flags>

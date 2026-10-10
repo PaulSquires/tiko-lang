@@ -1,0 +1,11 @@
+'' std/memory, a module of its own since 2026-10-10 (fb/sharedptr.bi was in no facade):
+'' SharedPtr, WeakPtr, MakeShared and MakeSharedFrom, the generic '*' and '->' operators, the
+'' use count, and a weak handle that sees the object go.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/memory.bas -o tests/modules/stdmemory.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/stdmemory.exe
+'' EXPECT-RUN-OUT: 7 2 false
+'' EXPECT-RUN-OUT: true
+'' EXPECT-RUN-OUT: 5

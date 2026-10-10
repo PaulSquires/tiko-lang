@@ -1,0 +1,11 @@
+'' A RUNTIME ERROR IN A MODULE'S GENERIC NAMES THE MODULE'S FILE. SharedPtr.Ref is compiled in
+'' the importer from std/memory's interface, whose '#line' points at sharedptr.tiko; the error
+'' site named the interface itself, 'std.memory.tki', with sharedptr.tiko's line number.
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/memorynull.bas -o tests/modules/stdmemorynull.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/stdmemorynull.exe
+'' EXPECT-RUN-EXIT: 1
+'' EXPECT-RUN-OUT: runtime error 1 (illegal function call) at line
+'' EXPECT-RUN-OUT: sharedptr.tiko()
