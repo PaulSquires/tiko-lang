@@ -314,6 +314,20 @@ if [ "$DO_INC" = "1" ]; then
     note "headers -> inc/  tiko-lang's own over them: $(find "$ROOT/inc" -name '*.bi' | wc -l | tr -d ' ') files from inc/"
     cp -r "$ROOT/inc/." "$_newinc/"
     rm -f "$_newinc/.import-manifest.tsv"
+    # THE EXCLUSIONS (build/inc-exclude.txt): top-level entries the toolchain does not ship --
+    # third-party bindings tiko does not carry, by the author's list. A header that IS shipped
+    # but includes an excluded one would fail at its first '#include' in a user's build, so
+    # that is refused here rather than discovered there.
+    _excl=$( grep -v '^[[:space:]]*#' "$ROOT/build/inc-exclude.txt" | tr -d '\r' | grep -v '^[[:space:]]*$' )
+    _nex=0
+    for _e in $_excl; do
+        if [ -e "$_newinc/$_e" ]; then rm -rf "$_newinc/$_e"; _nex=$(( _nex + 1 )); fi
+    done
+    _pat=$( printf '%s\n' $_excl | sed 's/[.]/\\./g' | paste -sd'|' - )
+    _dang=$( grep -rIliE "^[[:space:]]*#[[:space:]]*include([[:space:]]+once)?[[:space:]]+\"($_pat)(\"|/)" "$_newinc" 2>/dev/null | head -5 | sed "s#^$_newinc/##" | tr '\n' ' ' )
+    [ -z "$_dang" ] || die "shipped headers include excluded ones (build/inc-exclude.txt): $_dang"
+    note "headers -> inc/  $_nex entries left out (build/inc-exclude.txt)"
+    INC_STATE="$INC_STATE; $_nex entries left out by build/inc-exclude.txt"
     [ -n "$( ls -A "$_newinc" 2>/dev/null )" ] || die "packaged inc/ is EMPTY -- the compiler would find no headers at all"
     # include/ was fbc-modern-linux's header tree, copied whole beside inc/. The compiler
     # never looked in it (<exe-dir>/inc, <exe-dir>/../inc); it goes.
