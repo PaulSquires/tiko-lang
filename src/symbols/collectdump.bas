@@ -4,6 +4,7 @@
 '' AST or touches the Walker: it reads a finished table, so it is the part of the file
 '' with no reason to sit next to the collection pass.
 
+#import "std/containers"
 #include once "symbols/collect.bi"
 #include once "support/irtext.bi"
 

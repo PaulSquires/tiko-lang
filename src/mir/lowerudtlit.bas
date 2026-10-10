@@ -7,6 +7,7 @@
 ''
 '' Split out of lowersub.bas at the 1500-line cap. Nothing moved with it changed.
 
+#import "std/containers"
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
@@ -16,7 +17,7 @@ declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 declare sub FlattenInitLeaves_ _
     ( byref c as Ctx, byval init as Tko.NodeId, _
-      byref outv as FB.Array( of ulong ) )
+      byref outv as containers.Array( of ulong ) )
 
 using Tko
 
@@ -25,7 +26,7 @@ using Tko
 '' 'type<Outer>( 1, 2, 3 )' both give stores at 0, 4 and 8 -- so a nested list is
 '' punctuation here, exactly as it is on the field side.
 private function FlattenInitValues_ _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as FB.Array( of ulong ), _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as containers.Array( of ulong ), _
       byval depth as long ) as boolean
 
     if depth > 8 then return false
@@ -47,8 +48,8 @@ end function
 '' Defined below, and used above it: FreeBASIC needs the forward declaration.
 declare function FlattenUdtFields_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval base_ as long, _
-      byref offs as FB.Array( of ulong ), byref tys as FB.Array( of ulong ), _
-      byval depth as long, byref fts as FB.Array( of ulong ) ) as boolean
+      byref offs as containers.Array( of ulong ), byref tys as containers.Array( of ulong ), _
+      byval depth as long, byref fts as containers.Array( of ulong ) ) as boolean
 
 '' Matching an initialiser's values to the fields they fill -- AlignInitValues_. Split out
 '' at the 1500-line cap, and INCLUDED here because it shares this unit's private helpers.
@@ -289,13 +290,13 @@ private function BitfieldParenInit_ _
         if (fmt = MT_VOID) orelse (fmt = MT_AGG) then return false
     next
     if anyBits = false then return false
-    dim as FB.Array( of ulong ) vNode
+    dim as containers.Array( of ulong ) vNode
     if FlattenInitValues_( c, init, vNode, 0 ) = false then return false
     if (vNode.Count <= 0) orelse (vNode.Count > n) then return false
     dim as long sz = c.udts->udts[ui].size
     if sz <= 0 then return false
 
-    dim as FB.Array( of ulong ) za
+    dim as containers.Array( of ulong ) za
     za.Push( cast( ulong, self_.kind ) ) : za.Push( cast( ulong, self_.id ) )
     za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
     za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( cast( ulong, sz ) )
@@ -386,7 +387,7 @@ function LowerUdtParenInit_ _
             dim as long dsz = SizeOfType( c, t )
             dim as MirValue lsa = LowerAddr( c, init )
             if (dsz <= 0) orelse (lsa.kind = cast( ubyte, MV_NONE )) then return false
-            dim as FB.Array( of ulong ) uca
+            dim as containers.Array( of ulong ) uca
             uca.Push( cast( ulong, self_.kind ) ) : uca.Push( cast( ulong, self_.id ) )
             uca.Push( cast( ulong, lsa.kind ) ) : uca.Push( cast( ulong, lsa.id ) )
             dim as MirValue unb = ConstInt( c, dsz, MT_I64 )
@@ -450,7 +451,7 @@ function LowerUdtParenInit_ _
                     dim as MirValue csrc = LowerAddr( c, only_ )
                     if csrc.kind = cast( ubyte, MV_NONE ) then return false
                     if lcc <> Tko.SYMBOL_NONE then
-                        dim as FB.Array( of ulong ) largs
+                        dim as containers.Array( of ulong ) largs
                         largs.Push( cast( ulong, csrc.kind ) )
                         largs.Push( cast( ulong, csrc.id ) )
                         EmitStructorCall( c, lcc, -1, @cdst, @largs )
@@ -517,7 +518,7 @@ function LowerUdtParenInit_ _
                 dim as boolean srcIsLocal = (ssrc.kind = cast( ubyte, MV_LOCAL ))
                 if srcIsLit andalso srcIsLocal then
                 end if
-                dim as FB.Array( of ulong ) mca
+                dim as containers.Array( of ulong ) mca
                 mca.Push( cast( ulong, self_.kind ) )
                 mca.Push( cast( ulong, self_.id ) )
                 mca.Push( cast( ulong, ssrc.kind ) )
@@ -570,7 +571,7 @@ function LowerUdtParenInit_ _
     '' guessing at one.
     dim as Tko.SymbolId lct = Tko.SYMBOL_NONE
     if (t <> Tko.TYPE_NONE) andalso (c.types->Kind( t ) = Tko.TK_UDT) then
-        dim as FB.Array( of ulong ) lcArgT
+        dim as containers.Array( of ulong ) lcArgT
         dim as boolean allTyped = true
         for i as long = 0 to pl0->count - 1
             dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[pl0->first + i] )
@@ -587,7 +588,7 @@ function LowerUdtParenInit_ _
     end if
     if lct = Tko.SYMBOL_NONE then lct = CtorOf_( c, t, pl0->count )
     if lct <> Tko.SYMBOL_NONE then
-        dim as FB.Array( of ulong ) lca
+        dim as containers.Array( of ulong ) lca
         if PushCtorArgs_( c, lct, pl0->first, pl0->count, lca ) then
             EmitStructorCall( c, lct, selfSlot, selfAddr, @lca )
             return true
@@ -599,11 +600,11 @@ function LowerUdtParenInit_ _
     '' stores at 0, 4 and 8 that a flat type would: nesting exists in the parser and
     '' nowhere else, so a nested UDT field contributes its OWN leaves here rather than
     '' one aggregate slot.
-    dim as FB.Array( of ulong ) fOff
-    dim as FB.Array( of ulong ) fTy
+    dim as containers.Array( of ulong ) fOff
+    dim as containers.Array( of ulong ) fTy
     '' The FRONTEND type of each leaf, beside its MIR one: a var-length STRING leaf is
     '' written by a runtime call and not by a store, and only this tells one.
-    dim as FB.Array( of ulong ) fFt
+    dim as containers.Array( of ulong ) fFt
     '' ...A TYPE WITH BITFIELDS DOES NOT FLATTEN, and takes BitfieldParenInit_.
     if FlattenUdtFields_( c, t, 0, fOff, fTy, 0, fFt ) = false then
         return BitfieldParenInit_( c, self_, t, init )
@@ -611,9 +612,9 @@ function LowerUdtParenInit_ _
     dim as long fCount = fOff.Count
     if fCount <= 0 then return false
 
-    dim as FB.Array( of ulong ) vNode
+    dim as containers.Array( of ulong ) vNode
     '' WHERE EACH VALUE STARTS -- see AlignInitValues_. Positional pairing when it declines.
-    dim as FB.Array( of ulong ) vStart
+    dim as containers.Array( of ulong ) vStart
     dim as boolean aligned = AlignInitValues_( c, t, init, vNode, vStart )
     if aligned = false then
         vNode.Clear( )
@@ -635,30 +636,30 @@ function LowerUdtParenInit_ _
     '' '__builtin_memcpy( &Y1, &X1, 4 )' for the base and scalar stores for the rest.
     '' Pairing value i with leaf i instead coerced a whole object into an i32 slot -- a
     '' SIGN-EXTENDED AGGREGATE -- and wrote every field after it one place early.
-    dim as FB.Array( of ulong ) vals
-    dim as FB.Array( of ulong ) vOff
-    dim as FB.Array( of ulong ) gOff
-    dim as FB.Array( of ulong ) gLen
+    dim as containers.Array( of ulong ) vals
+    dim as containers.Array( of ulong ) vOff
+    dim as containers.Array( of ulong ) gOff
+    dim as containers.Array( of ulong ) gLen
     dim as long segStart = -1, wroteEnd = 0
     dim as long cur = 0
     '' A STRING LEAF is recorded by its NODE and written at the store site, because it
     '' takes fb_StrInit rather than a store and there is no value to hold here.
-    dim as FB.Array( of ulong ) sNode
-    dim as FB.Array( of ulong ) sOff
+    dim as containers.Array( of ulong ) sNode
+    dim as containers.Array( of ulong ) sOff
     '' ...AND ITS FLAVOUR. The store has only a field ADDRESS to write through, which
     '' names no type, so a USTRING leaf was stored as a narrow one: 'return (kv.key,
     '' kv.value)' in fb/map.bi emitted fb_UStrAssignToA, and every key a Map's Pairs( )
     '' produced came out as UTF-16 read from narrow bytes. tracks walks five such maps.
-    dim as FB.Array( of ulong ) sFt
+    dim as containers.Array( of ulong ) sFt
     '' A WHOLE-OBJECT LEAF WHOSE TYPE OWNS A STRING is recorded the same way and copied
     '' by its assignment, not by a store, for the same reason: there is no value to hold.
-    dim as FB.Array( of ulong ) cNode
-    dim as FB.Array( of ulong ) cOff
-    dim as FB.Array( of ulong ) cTy
+    dim as containers.Array( of ulong ) cNode
+    dim as containers.Array( of ulong ) cOff
+    dim as containers.Array( of ulong ) cTy
     '' ...AND AN ELEMENT CONVERTED BY ITS 'operator let' -- see the record site.
-    dim as FB.Array( of ulong ) lNode
-    dim as FB.Array( of ulong ) lOff
-    dim as FB.Array( of ulong ) lTy
+    dim as containers.Array( of ulong ) lNode
+    dim as containers.Array( of ulong ) lOff
+    dim as containers.Array( of ulong ) lTy
     for i as long = 0 to vCount - 1
         dim as Tko.NodeId e = cast( Tko.NodeId, vNode[i] )
         '' THE BYTES WRITTEN SO FAR end at wroteEnd: the previous value's leaves, [segStart, cur).
@@ -846,7 +847,7 @@ function LowerUdtParenInit_ _
         gfa.imm = cast( long, gOff[i] )
         dim as MirValue gaddr = Emit( c, gfa )
         if gaddr.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) gma
+        dim as containers.Array( of ulong ) gma
         gma.Push( cast( ulong, gaddr.kind ) ) : gma.Push( cast( ulong, gaddr.id ) )
         gma.Push( cast( ulong, MV_CONST_INT ) ) : gma.Push( 0 )
         gma.Push( cast( ulong, MV_CONST_INT ) ) : gma.Push( gLen[i] )
@@ -920,11 +921,11 @@ function LowerUdtParenInit_ _
         '' first one declared: over a type whose only 'let' converts from a long, the
         '' object's ADDRESS was passed as that long -- '_ZN1VaSEi( dst, @$tmp )' -- and
         '' the element came out as garbage (tests/mir/src/tuple-udt-let.bas, S1).
-        dim as FB.Array( of ulong ) culT
+        dim as containers.Array( of ulong ) culT
         culT.Push( cTy[i] )
         dim as Tko.SymbolId ulet = PickCtor( c, StructorOf( c, cast( Tko.TypeId, cTy[i] ), "let" ), culT )
         if ulet <> Tko.SYMBOL_NONE then
-            dim as FB.Array( of ulong ) ulargs
+            dim as containers.Array( of ulong ) ulargs
             ulargs.Push( cast( ulong, csrcv.kind ) )
             ulargs.Push( cast( ulong, csrcv.id ) )
             EmitStructorCall( c, ulet, -1, @cdstv, @ulargs )
@@ -933,7 +934,7 @@ function LowerUdtParenInit_ _
 
         dim as Tko.SymbolId ucc = CopyCtorOf_( c, cast( Tko.TypeId, cTy[i] ) )
         if ucc <> Tko.SYMBOL_NONE then
-            dim as FB.Array( of ulong ) ccargs
+            dim as containers.Array( of ulong ) ccargs
             ccargs.Push( cast( ulong, csrcv.kind ) )
             ccargs.Push( cast( ulong, csrcv.id ) )
             EmitStructorCall( c, ucc, -1, @cdstv, @ccargs )
@@ -985,7 +986,7 @@ function LowerUdtParenInit_ _
             ta.imm = tailOff
             dim as MirValue taddr = Emit( c, ta )
             if taddr.kind <> cast( ubyte, MV_NONE ) then
-                dim as FB.Array( of ulong ) ma
+                dim as containers.Array( of ulong ) ma
                 ma.Push( cast( ulong, taddr.kind ) ) : ma.Push( cast( ulong, taddr.id ) )
                 ma.Push( cast( ulong, MV_CONST_INT ) ) : ma.Push( 0 )
                 ma.Push( cast( ulong, MV_CONST_INT ) ) : ma.Push( cast( ulong, tailLen ) )
@@ -1007,8 +1008,8 @@ end function
 '' to no MIR type at all.
 function FlattenUdtFields_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval base_ as long, _
-      byref offs as FB.Array( of ulong ), byref tys as FB.Array( of ulong ), _
-      byval depth as long, byref fts as FB.Array( of ulong ) ) as boolean
+      byref offs as containers.Array( of ulong ), byref tys as containers.Array( of ulong ), _
+      byval depth as long, byref fts as containers.Array( of ulong ) ) as boolean
 
     if depth > 8 then return false
     dim as long ui = c.udts->Find( t )
@@ -1195,10 +1196,10 @@ private function FixStrArrayImage_ _
     dim as long total = size_ \ esz
     if total <= 0 then return false
 
-    dim as FB.Array( of ulong ) leaves, lidx   '' each at its element index -- a short row pads
+    dim as containers.Array( of ulong ) leaves, lidx   '' each at its element index -- a short row pads
     ArrayInitLeaves_( c, at_, init, leaves, lidx )
     if leaves.Count = 0 then return false
-    dim as FB.Array( of long ) slotOf   '' element -> leaf, or -1
+    dim as containers.Array( of long ) slotOf   '' element -> leaf, or -1
     for i as long = 0 to total - 1 : slotOf.Push( -1 ) : next
     for i as long = 0 to leaves.Count - 1
         if cast( long, lidx[i] ) >= total then return false
@@ -1238,7 +1239,7 @@ function FoldAggInit_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
       byval size_ as long, byref outBytes as string, _
       byval vscope as Tko.ScopeId = Tko.SCOPE_NONE, _
-      byval relocs as FB.Array( of ulong ) ptr = 0 ) as boolean
+      byval relocs as containers.Array( of ulong ) ptr = 0 ) as boolean
 
     if size_ <= 0 then return false
     if init = Tko.NODE_NONE then return false
@@ -1248,11 +1249,11 @@ function FoldAggInit_ _
         return false
     end select
 
-    dim as FB.Array( of ulong ) fOff
-    dim as FB.Array( of ulong ) fTy
+    dim as containers.Array( of ulong ) fOff
+    dim as containers.Array( of ulong ) fTy
     '' The FRONTEND type of each leaf, beside its MIR one: a var-length STRING leaf is
     '' written by a runtime call and not by a store, and only this tells one.
-    dim as FB.Array( of ulong ) fFt
+    dim as containers.Array( of ulong ) fFt
     '' A FIXED ARRAY OF SCALARS IS ITS OWN LEAF LIST -- 'static as long t( 0 to 3 ) =
     '' { 1, 2, 3, 4 }' is 'static int32 T$0[4] = { 1, 2, 3, 4 }', a byte image exactly
     '' as a static UDT is. FlattenUdtFields_ answers only for a UDT, so every constant
@@ -1303,10 +1304,10 @@ function FoldAggInit_ _
     elseif FlattenUdtFields_( c, t, 0, fOff, fTy, 0, fFt ) = false then
         return false
     end if
-    dim as FB.Array( of ulong ) vNode
+    dim as containers.Array( of ulong ) vNode
     '' EACH VALUE AT ITS OWN FIELD'S LEAF -- AlignInitValues_; positional when it declines.
     '' The image starts zeroed, so a gap a nested list leaves needs nothing more.
-    dim as FB.Array( of ulong ) vStart
+    dim as containers.Array( of ulong ) vStart
     dim as boolean aligned = AlignInitValues_( c, t, init, vNode, vStart )
     if aligned = false then
         vNode.Clear( )

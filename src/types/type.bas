@@ -1,5 +1,6 @@
 '' type.bas -- see type.bi
 
+#import "std/containers"
 #include once "types/type.bi"
 #include once "support/text.bi"
 #include once "support/irtext.bi"
@@ -334,7 +335,7 @@ end function
 
 function TypeContext.ArrayOf _
     ( byval elem as TypeId, byval rank as long, byval elems as long, _
-      byval bounds as FB.Array( of longint ) ptr ) as TypeId
+      byval bounds as containers.Array( of longint ) ptr ) as TypeId
 
     '' The element COUNT is part of the identity: 'long a(0 to 3)' and
     '' 'long a(0 to 7)' are different types with different sizes, and Find( ) alone

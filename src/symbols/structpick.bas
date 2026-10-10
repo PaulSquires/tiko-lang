@@ -6,6 +6,7 @@
 '' (latechecks.bas CtorChosenBy_). Both now ask this; the cost model is the one overload
 '' resolution uses -- fitted to 1,274 measured fbc choices.
 
+#import "std/containers"
 #include once "symbols/check.bi"
 
 namespace Tko.Check
@@ -204,7 +205,7 @@ end function
 function PickStructor _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
       byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
-      byval first_ as Tko.SymbolId, byref argT as FB.Array( of ulong ) ) as Tko.SymbolId
+      byval first_ as Tko.SymbolId, byref argT as containers.Array( of ulong ) ) as Tko.SymbolId
 
     dim as Tko.SymbolId best = Tko.SYMBOL_NONE
     dim as long bestCost = CONV_NONE

@@ -106,6 +106,11 @@ if [ -d "$ROOT/inc" ]; then
         INCOPT="-i inc"
     fi
 fi
+# ...AND THE TREE'S OWN PACKAGES, pkg/: the compiler's source imports std/containers and
+# std/fs (2026-10-10), and they are the tree's, not the copy in the seed's pkg/ -- the same
+# rule as inc/. TKO_PKG is searched before the compiler's own pkg/, and its module cache is
+# keyed by the sources' content, so a change to pkg/std rebuilds what imports it.
+TKO_PKG="$ROOT/pkg"; export TKO_PKG
 
 case "$CFG" in
     Debug)          FLAGS="-g -exx -w all" ;;

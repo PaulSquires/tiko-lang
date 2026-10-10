@@ -19,7 +19,7 @@ namespace Tko.Codegen
     '' One entry per m.functions, 1 when the module names that function and 0 when
     '' nothing in it does.
     declare function ReferencedFunctions _
-        ( byref m as Tko.Mir.MirModule ) as FB.Array( of ubyte )
+        ( byref m as Tko.Mir.MirModule ) as containers.Array( of ubyte )
 
     '' The 'declare' lines a vtable slot needs when the module defines no such
     '' function; 'outSoFar' is what has been written, so nothing is declared twice.

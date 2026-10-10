@@ -3,6 +3,7 @@
 '' Split out of lowerstr.bas, which is at its size limit. PRINT proper stays there;
 '' this file is only the USING bracket and the two positioning items.
 
+#import "std/containers"
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
@@ -105,7 +106,7 @@ function LowerPrintUsing _
     dim as long ufmtSlot = -1
     if c.ast->Kind( fmtNode ) = Tko.N_STRING_LIT then
         dim as string litText = StringLitText_( c, fmtNode )
-        dim as FB.Array( of ulong ) ta
+        dim as containers.Array( of ulong ) ta
         ta.Push( cast( ulong, MV_GLOBAL ) )
         ta.Push( cast( ulong, c.m->AddStringLiteral( litText, *c.names ) ) )
         ta.Push( cast( ulong, MV_CONST_INT ) )
@@ -169,7 +170,7 @@ function LowerPrintUsing _
         '' Init what comes back: 'vr = fb_UStrToStr( &U$0, -1ll ); fb_PrintUsingInit(
         '' vr )', and the same over a 'ustring * N' with its tagged length.
         if UStrOutOperand_( c, Unparen_( c, fmtNode ), fmt, ufmtSlot ) then
-            dim as FB.Array( of ulong ) ufa
+            dim as containers.Array( of ulong ) ufa
             ufa.Push( cast( ulong, fmt.kind ) ) : ufa.Push( cast( ulong, fmt.id ) )
             PushStrLen_( c, ufa, -1 )
             fmt = EmitRtl( c, RTL_USTR_TO_STR, ufa )
@@ -198,7 +199,7 @@ function LowerPrintUsing _
     '' Every item is lowered into a scratch list FIRST, so that a type this does not
     '' handle declines BEFORE Init is emitted. Emitting Init and then giving up would
     '' leave the runtime holding a format string with no End to close it.
-    dim as FB.Array( of ulong ) itemNode
+    dim as containers.Array( of ulong ) itemNode
     for i as long = fromIdx to sp->count - 1
         dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( it ) = Tko.N_PRINT_SEP then continue for
@@ -228,7 +229,7 @@ function LowerPrintUsing _
         '' asked for the right one. Both read the terms.
         if itemOk = false then
             if c.ast->Kind( it ) = Tko.N_BINARY then
-                dim as FB.Array( of ulong ) uct
+                dim as containers.Array( of ulong ) uct
                 FlattenConcat( c, it, uct )
                 itemOk = ConcatTermsAreU_( c, uct )
             end if
@@ -237,7 +238,7 @@ function LowerPrintUsing _
         itemNode.Push( cast( ulong, it ) )
     next
 
-    dim as FB.Array( of ulong ) ia
+    dim as containers.Array( of ulong ) ia
     ia.Push( cast( ulong, fmt.kind ) ) : ia.Push( cast( ulong, fmt.id ) )
     EmitRtl( c, RTL_USING_INIT, ia )
     ReleaseUStrOut_( c, ufmtSlot )
@@ -248,7 +249,7 @@ function LowerPrintUsing _
         fd.kind = cast( ubyte, MV_LOCAL )
         fd.ty = cast( ubyte, MT_PTR )
         fd.id = fmtTmp
-        dim as FB.Array( of ulong ) da
+        dim as containers.Array( of ulong ) da
         da.Push( cast( ulong, fd.kind ) ) : da.Push( cast( ulong, fd.id ) )
         EmitRtl( c, RTL_STR_DELETE, da )
     end if
@@ -264,7 +265,7 @@ function LowerPrintUsing _
         if UsingOne_( c, cast( Tko.NodeId, itemNode[i] ), mask, chan ) = false then
             '' Init is already out. Closing the bracket is the least wrong thing
             '' available, and the statement is still counted as skipped.
-            dim as FB.Array( of ulong ) ea
+            dim as containers.Array( of ulong ) ea
             ea.Push( cast( ulong, chan.kind ) ) : ea.Push( cast( ulong, chan.id ) )
             EmitRtl( c, RTL_USING_END, ea )
             SkipHere( c )
@@ -273,7 +274,7 @@ function LowerPrintUsing _
         ReleaseUdtTemps_( c, umark )
     next
 
-    dim as FB.Array( of ulong ) ea
+    dim as containers.Array( of ulong ) ea
     ea.Push( cast( ulong, chan.kind ) ) : ea.Push( cast( ulong, chan.id ) )
     EmitRtl( c, RTL_USING_END, ea )
     return true
@@ -306,7 +307,7 @@ private function UsingOne_ _
     '' type does not say: Check types every '&' as STRING.
     dim as boolean itIsU = IsUStringType( c, t )
     if (itIsU = false) andalso (c.ast->Kind( it ) = Tko.N_BINARY) then
-        dim as FB.Array( of ulong ) uts
+        dim as containers.Array( of ulong ) uts
         FlattenConcat( c, it, uts )
         itIsU = ConcatTermsAreU_( c, uts )
     end if
@@ -314,7 +315,7 @@ private function UsingOne_ _
         dim as MirValue uov
         dim as long uoslot = -1
         if UStrOutOperand_( c, it, uov, uoslot ) = false then return false
-        dim as FB.Array( of ulong ) uoa
+        dim as containers.Array( of ulong ) uoa
         uoa.Push( cast( ulong, chan.kind ) ) : uoa.Push( cast( ulong, chan.id ) )
         uoa.Push( cast( ulong, uov.kind ) ) : uoa.Push( cast( ulong, uov.id ) )
         PushConst( uoa, mask )
@@ -350,7 +351,7 @@ private function UsingOne_ _
                         case RTL_USING_BOOLEAN : uwant = MT_I8
                         end select
                         uv = CoerceTy( c, uv, uwant, ut )
-                        dim as FB.Array( of ulong ) uargs
+                        dim as containers.Array( of ulong ) uargs
                         uargs.Push( cast( ulong, chan.kind ) )
                         uargs.Push( cast( ulong, chan.id ) )
                         uargs.Push( cast( ulong, uv.kind ) )
@@ -367,7 +368,7 @@ private function UsingOne_ _
     dim as RtlId which = UsingRtlFor( c, t, isWide )
     if which = RTL_NONE then return false
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
 
     if isWide then
@@ -399,7 +400,7 @@ private function UsingOne_ _
             if StrDescriptorOf_( c, it, desc ) = false then return false
         elseif c.ast->Kind( it ) = Tko.N_STRING_LIT then
             dim as string litText = StringLitText_( c, it )
-            dim as FB.Array( of ulong ) ta
+            dim as containers.Array( of ulong ) ta
             ta.Push( cast( ulong, MV_GLOBAL ) )
             ta.Push( cast( ulong, c.m->AddStringLiteral( litText, *c.names ) ) )
             ta.Push( cast( ulong, MV_CONST_INT ) )
@@ -556,7 +557,7 @@ function LowerPrintPos _
     dim as MirValue n = LowerNumArg_( c, a0, want )   '' a UDT through its numeric cast
     if n.kind = cast( ubyte, MV_NONE ) then return false
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
     args.Push( cast( ulong, n.kind ) ) : args.Push( cast( ulong, n.id ) )
     EmitRtl( c, r, args )

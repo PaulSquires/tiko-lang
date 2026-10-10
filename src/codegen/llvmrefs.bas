@@ -1,5 +1,6 @@
 '' llvmrefs.bas -- see the header.
 
+#import "std/containers"
 #include once "codegen/llvmrefs.bi"
 
 namespace Tko.Codegen
@@ -18,9 +19,9 @@ using Tko.Mir
 '' not marked here: the emitter treats both as roots, because the list it writes at the
 '' end of the module is what calls them.
 function ReferencedFunctions _
-    ( byref m as Tko.Mir.MirModule ) as FB.Array( of ubyte )
+    ( byref m as Tko.Mir.MirModule ) as containers.Array( of ubyte )
 
-    dim as FB.Array( of ubyte ) refd
+    dim as containers.Array( of ubyte ) refd
     for fi as long = 0 to m.functions.Count - 1
         refd.Push( 0 )
     next

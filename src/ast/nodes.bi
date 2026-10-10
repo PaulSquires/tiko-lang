@@ -436,15 +436,15 @@ namespace Tko
                                     '' EXTERN "C" emits exactly what was written.
     end type
 
-    type NodeVec    as FB.Array( of AstNode )
-    type UnaryVec   as FB.Array( of UnaryPayload )
-    type BinaryVec  as FB.Array( of BinaryPayload )
-    type LiteralVec2 as FB.Array( of LiteralPayload )
-    type IdentVec   as FB.Array( of IdentPayload )
-    type ListVec    as FB.Array( of ListPayload )
-    type StmtVec    as FB.Array( of StmtPayload )
-    type ChildPool  as FB.Array( of ulong )
-    type NodeIdVec  as FB.Array( of ulong )   '' a working list of NodeIds
+    type NodeVec    as containers.Array( of AstNode )
+    type UnaryVec   as containers.Array( of UnaryPayload )
+    type BinaryVec  as containers.Array( of BinaryPayload )
+    type LiteralVec2 as containers.Array( of LiteralPayload )
+    type IdentVec   as containers.Array( of IdentPayload )
+    type ListVec    as containers.Array( of ListPayload )
+    type StmtVec    as containers.Array( of StmtPayload )
+    type ChildPool  as containers.Array( of ulong )
+    type NodeIdVec  as containers.Array( of ulong )   '' a working list of NodeIds
 
     type AstArena
         as NodeVec     nodes        '' index 0 is a permanent N_NONE sentinel

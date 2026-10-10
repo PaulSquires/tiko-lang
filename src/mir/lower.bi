@@ -33,7 +33,7 @@ namespace Tko.Mir
         as long insts
         as long skipped        '' statements this slice does not lower yet
         '' WHERE the first of them are, as SourceLocs -- what a build reports (TKO0994).
-        as FB.Array( of ulong ) skipLocs
+        as containers.Array( of ulong ) skipLocs
         '' Non-zero means the label pre-scan disagreed with the depth actually open at
         '' the label. Always zero unless ScanLabels has drifted from the lowering.
         as long labelDepthMismatch
@@ -48,14 +48,14 @@ namespace Tko.Mir
         ''
         '' A single total invites guessing at what to do next; this makes the answer
         '' something to read off rather than argue about.
-        as FB.Array( of long ) skippedKind
-        as FB.Array( of ulong ) skippedIntrOp
-        as FB.Array( of long ) skippedIntrN
+        as containers.Array( of long ) skippedKind
+        as containers.Array( of ulong ) skippedIntrOp
+        as containers.Array( of long ) skippedIntrN
 
         '' Declines that happened INSIDE a statement rather than at the dispatch, by the
         '' kind of statement they were inside. This is where the mass is: the dispatch
         '' breakdown accounts for about 3,700 of ~98,700.
-        as FB.Array( of long ) innerKind
+        as containers.Array( of long ) innerKind
 
         '' WHY an N_AMBIGUOUS statement declined. That one bucket is 90% of the total, so
         '' a count against it says only "look here"; this says what to look at. The
@@ -69,33 +69,33 @@ namespace Tko.Mir
         '' had a type at all. A count says how much is owed and nothing about what to
         '' write, and 1,643 assignments emitting nothing was the largest single item in
         '' the corpus with no name on it.
-        as FB.Array( of ulong ) ambAssignKinds
+        as containers.Array( of ulong ) ambAssignKinds
         as long ambAssignUntyped
         '' ...and by the NODE KIND of the VALUE, which is where the failure actually
         '' is: the target being typed says the right-hand side is what would not lower.
-        as FB.Array( of ulong ) ambAssignValKinds
+        as containers.Array( of ulong ) ambAssignValKinds
         as long ambResultNoSlot     '' 'function = expr' whose result type has no slot
         '' WHICH TYPE KIND, indexed by TypeKind. A count alone says how much is owed
         '' and nothing about what to write.
-        as FB.Array( of ulong ) resultNoSlotKinds
+        as containers.Array( of ulong ) resultNoSlotKinds
         as long varByref            '' 'dim byref' -- a reference variable, not lowered
         as long ambOther            '' property-set, result-assign, unclassified
         '' ... by the SHAPE of the thing that was not a call, and by the AmbiguousOf
         '' classification when there was no expression to look at. 'other' has been the
         '' second-largest bucket for four commits without anyone knowing what is in it.
-        as FB.Array( of long ) ambOtherShape
-        as FB.Array( of long ) ambOtherClass
-        as FB.Array( of ulong ) ambUnboundNames
+        as containers.Array( of long ) ambOtherShape
+        as containers.Array( of long ) ambOtherClass
+        as containers.Array( of ulong ) ambUnboundNames
         '' The callee nodes TKO0801 was reported for, so a call lowered twice says so once.
-        as FB.Array( of ulong ) badBuiltinCalls
+        as containers.Array( of ulong ) badBuiltinCalls
         '' ... and by the SHAPE of the callee, because only a plain identifier has a
         '' name to collect and most of them are not one.
-        as FB.Array( of long ) ambUnboundShape
+        as containers.Array( of long ) ambUnboundShape
         '' For a member callee: the MEMBER's own name, and whether the BASE had a type
         '' at all. The two are different problems -- a member that could not be found on
         '' a type it was looked up in, against a base that was never typed so nothing
         '' could be looked up -- and one list cannot tell them apart.
-        as FB.Array( of ulong ) ambMemberNames
+        as containers.Array( of ulong ) ambMemberNames
         as long ambMemberBaseTyped
         as long ambMemberBaseUntyped
 
@@ -103,9 +103,9 @@ namespace Tko.Mir
         '' STATEMENT a decline was inside; this says which line of the lowering gave up,
         '' which is the thing you can actually go and implement. Roughly twenty sites, so
         '' a linear scan is cheaper than a map and keeps the order stable.
-        as FB.Array( of ulong ) skipSiteFile   '' InternId of the file name
-        as FB.Array( of long )  skipSiteLine
-        as FB.Array( of long )  skipSiteN
+        as containers.Array( of ulong ) skipSiteFile   '' InternId of the file name
+        as containers.Array( of long )  skipSiteLine
+        as containers.Array( of long )  skipSiteN
     end type
 
     '' isMainModule: does this module's top-level code become 'main', or a module

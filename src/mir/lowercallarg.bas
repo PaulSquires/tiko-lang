@@ -342,7 +342,7 @@ function CopyIntoFromRef_ _
 
     dim as Tko.SymbolId cc = CopyCtorOf_( c, pt )
     if cc <> Tko.SYMBOL_NONE then
-        dim as FB.Array( of ulong ) cargs
+        dim as containers.Array( of ulong ) cargs
         cargs.Push( cast( ulong, src.kind ) ) : cargs.Push( cast( ulong, src.id ) )
         dim as MirValue cdst = dst
         EmitStructorCall( c, cc, -1, @cdst, @cargs )
@@ -538,7 +538,7 @@ private function UdtConvTemp_ _
     dim as Tko.SymbolId cv = Tko.SYMBOL_NONE
     dim as Tko.TypeId argt0 = CtorArgTypeOf_( c, argNode )
     if argt0 <> Tko.TYPE_NONE then
-        dim as FB.Array( of ulong ) one
+        dim as containers.Array( of ulong ) one
         one.Push( cast( ulong, argt0 ) )
         cv = PickCtor( c, StructorOf( c, pt, "__ctor" ), one )
     end if
@@ -701,7 +701,7 @@ private function UdtConvTemp_ _
     dst.ty = cast( ubyte, MT_PTR )
     dst.id = slot
 
-    dim as FB.Array( of ulong ) cargs
+    dim as containers.Array( of ulong ) cargs
     cargs.Push( cast( ulong, av.kind ) )
     cargs.Push( cast( ulong, av.id ) )
     EmitStructorCall( c, cv, -1, @dst, @cargs )
@@ -1045,7 +1045,7 @@ private function ByvalUdtCopyArg_ _
 
     select case how
     case 2
-        dim as FB.Array( of ulong ) cargs
+        dim as containers.Array( of ulong ) cargs
         cargs.Push( cast( ulong, src.kind ) )
         cargs.Push( cast( ulong, src.id ) )
         EmitStructorCall( c, cc, -1, @dst, @cargs )
@@ -1120,7 +1120,7 @@ function LetViaCast_ _
                 if sda.kind = cast( ubyte, MV_NONE ) then return false
                 dim as MirValue ssd
                 if StrDescriptorOf_( c, value, ssd ) = false then return false
-                dim as FB.Array( of ulong ) sargs
+                dim as containers.Array( of ulong ) sargs
                 sargs.Push( cast( ulong, ssd.kind ) ) : sargs.Push( cast( ulong, ssd.id ) )
                 EmitStructorCall( c, cur, -1, @sda, @sargs )
                 return true
@@ -1149,7 +1149,7 @@ function LetViaCast_ _
             if lref.kind = cast( ubyte, MV_NONE ) then return false
             dim as MirValue lda = DstAddr_( c, target, dstp )
             if lda.kind = cast( ubyte, MV_NONE ) then return false
-            dim as FB.Array( of ulong ) llargs
+            dim as containers.Array( of ulong ) llargs
             llargs.Push( cast( ulong, lref.kind ) ) : llargs.Push( cast( ulong, lref.id ) )
             EmitStructorCall( c, cur, -1, @lda, @llargs )
             return true
@@ -1167,7 +1167,7 @@ function LetViaCast_ _
             StoreThrough( c, ta, cv )
             dim as MirValue da = DstAddr_( c, target, dstp )
             if da.kind = cast( ubyte, MV_NONE ) then return false
-            dim as FB.Array( of ulong ) largs
+            dim as containers.Array( of ulong ) largs
             largs.Push( cast( ulong, ta.kind ) ) : largs.Push( cast( ulong, ta.id ) )
             EmitStructorCall( c, cur, -1, @da, @largs )
             return true
@@ -1178,7 +1178,7 @@ function LetViaCast_ _
     '' that type's own 'let'. Measured, no cast and 'TU( byref as TV )': 'ctor<-TV let<-TU'
     '' (ns34). tiko passed v itself to 'let( byref as TU )'.
     if DirectUdtCtor_( c, atl, avt ) then
-        dim as FB.Array( of ulong ) tletT
+        dim as containers.Array( of ulong ) tletT
         tletT.Push( cast( ulong, atl ) )
         dim as Tko.SymbolId tlet = PickCtor( c, StructorOf( c, atl, "let" ), tletT )
         if (tlet <> Tko.SYMBOL_NONE) andalso (LetParamType_( c, tlet ) = atl) then
@@ -1188,7 +1188,7 @@ function LetViaCast_ _
             if cda.kind = cast( ubyte, MV_NONE ) then return false
             if LowerConvCtorInit_( c, cslot, atl, value, 0 ) = false then return false
             if TypeNeedsDtor_( c, atl ) then c.udtTemps.Push( cast( ulong, cslot ) ) : c.udtTempTypes.Push( cast( ulong, atl ) )
-            dim as FB.Array( of ulong ) cargs
+            dim as containers.Array( of ulong ) cargs
             cargs.Push( cast( ulong, MV_LOCAL ) ) : cargs.Push( cast( ulong, cslot ) )
             EmitStructorCall( c, tlet, -1, @cda, @cargs )
             return true

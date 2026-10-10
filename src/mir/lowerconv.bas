@@ -13,6 +13,7 @@
 '' statement counted as fully lowered. That is the third time this shape has appeared;
 '' see docs/internals/phase-6-pointers.md.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 '' Defined in lowerterm.bas and declared per unit, the way every other caller of it
@@ -272,7 +273,7 @@ function LowerConvIntrinsic _
                 if WideOperand_( c, arg, wd ) = false then return v
             end if
             if wd.kind = cast( ubyte, MV_NONE ) then return v
-            dim as FB.Array( of ulong ) wargs
+            dim as containers.Array( of ulong ) wargs
             wargs.Push( cast( ulong, wd.kind ) ) : wargs.Push( cast( ulong, wd.id ) )
             dim as long ww = RTL_WSTR_VALINT
             dim as MirType wmt = MT_I32
@@ -366,7 +367,7 @@ function LowerConvIntrinsic _
                 ''     FBSTRING* vr2 = fb_StrAllocTempDescZ( vr );
                 ''     int32     vr3 = fb_VALINT( vr2 );
                 if udtRaw then
-                    dim as FB.Array( of ulong ) tda
+                    dim as containers.Array( of ulong ) tda
                     tda.Push( cast( ulong, sd.kind ) ) : tda.Push( cast( ulong, sd.id ) )
                     sd = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, tda )
                 end if
@@ -374,7 +375,7 @@ function LowerConvIntrinsic _
                 if StrDescriptorOf_( c, arg, sd ) = false then return v
             end if
             if sd.kind = cast( ubyte, MV_NONE ) then return v
-            dim as FB.Array( of ulong ) vargs
+            dim as containers.Array( of ulong ) vargs
             vargs.Push( cast( ulong, sd.kind ) ) : vargs.Push( cast( ulong, sd.id ) )
             dim as long vw = RTL_VAL
             dim as MirType vmt = MT_F64

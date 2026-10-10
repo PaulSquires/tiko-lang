@@ -60,7 +60,7 @@ function ArrayFromBounds _
       byval count as long, _
       byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId
 
-    dim as FB.Array( of ulong ) los, his
+    dim as containers.Array( of ulong ) los, his
     dim as long i = 0
     while i + 1 < count + 1 andalso i + 1 <= count - 1
         los.Push( c.ast->children[first + i] )

@@ -62,7 +62,7 @@ namespace Tko.Codegen
 
     '' The order n IR parameters or arguments of f are WRITTEN in: reversed for pascal.
     declare sub PascalParamOrder _
-        ( byval f as Tko.Mir.MirFunction ptr, byval n as long, byref order as FB.Array( of long ) )
+        ( byval f as Tko.Mir.MirFunction ptr, byval n as long, byref order as containers.Array( of long ) )
 
 end namespace
 

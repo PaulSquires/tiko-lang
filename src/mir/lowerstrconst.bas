@@ -2,6 +2,7 @@
 ''
 '' Split out of lowerstr.bas at the 1500-line cap. Nothing about it changed in the move.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 #include once "support/fbstr.bi"
 

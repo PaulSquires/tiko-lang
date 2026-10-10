@@ -32,11 +32,11 @@
 ''   N_NAMESPACE   name, first/count = members
 ''   N_TYPEREF     name, a = element typeref, first/count = args or dims
 
+#import "std/containers"
 #include once "parser/parser.bi"
 #include once "parser/intrinsics.bi"
 #include once "support/text.bi"
 #include once "support/irtext.bi"
-
 namespace Tko.Parse
 
 declare function IsDeclarationStart( byval k as Tko.TokenKind ) as boolean

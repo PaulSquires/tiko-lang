@@ -272,7 +272,7 @@ namespace Tko.Mir
         as ulong  id            '' temp/local/param/global index, or a constant index
     end type
 
-    type MirValueVec as FB.Array( of MirValue )
+    type MirValueVec as containers.Array( of MirValue )
 
     type MirInst
         as ushort   op          '' MirOp
@@ -291,7 +291,7 @@ namespace Tko.Mir
         as long     dbgLine
     end type
 
-    type MirInstVec as FB.Array( of MirInst )
+    type MirInstVec as containers.Array( of MirInst )
 
     '' A block OWNS its instructions. They cannot live in one per-function list with
     '' (first, count) extents: lowering opens the head, body and exit blocks of a loop
@@ -307,10 +307,10 @@ namespace Tko.Mir
         as long     target2     '' the FALSE arm
         '' MTERM_INDIRECTBR only: every block 'goto *p' may reach, as block indices.
         '' LLVM requires the list; see the enum.
-        as FB.Array( of ulong ) indirectTargets
+        as containers.Array( of ulong ) indirectTargets
     end type
 
-    type MirBlockVec as FB.Array( of MirBlock )
+    type MirBlockVec as containers.Array( of MirBlock )
 
     type MirLocal
         as InternId name
@@ -327,15 +327,15 @@ namespace Tko.Mir
         as ulong    sym
     end type
 
-    type MirLocalVec as FB.Array( of MirLocal )
+    type MirLocalVec as containers.Array( of MirLocal )
 
     '' A SMALL HASH MAP, a nonzero ulong key to a long -- what a lowering lookup by symbol
     '' or by name wants. Open addressing, linear probing, grown at half full. Every
     '' local and every global was found by a LINEAR scan, so lowering was quadratic:
     '' 20,000 locals took 5 s to lower, 20,000 globals 7 s (audit F-63).
     type IdMap
-        as FB.Array( of ulong ) keys
-        as FB.Array( of long )  vals
+        as containers.Array( of ulong ) keys
+        as containers.Array( of long )  vals
         as long                 used
         declare function Find( byval k as ulong ) as long     '' -1 when absent
         declare sub Put( byval k as ulong, byval v as long )
@@ -414,7 +414,7 @@ namespace Tko.Mir
         '' recoverable downstream: a DECLARATION has no locals to read them off.
         ''
         '' paramCount is 'paramTys.Count' and is maintained only through AddParam.
-        as FB.Array( of ubyte ) paramTys        '' MirType, one per parameter
+        as containers.Array( of ubyte ) paramTys        '' MirType, one per parameter
         '' THE SIZE IN BYTES of an MT_AGG parameter, 0 otherwise.
         ''
         '' The SIZE, not the frontend TypeId it used to hold. The ABI classifier's whole
@@ -423,14 +423,14 @@ namespace Tko.Mir
         '' to ask the frontend's layout store a question, which is the coupling
         '' docs/plan/10 exists to avoid. The frontend knows the size when it records the
         '' signature; it writes it down there.
-        as FB.Array( of ulong ) paramAggs
+        as containers.Array( of ulong ) paramAggs
         '' ...and its SysV eightbyte classes, packed as above. Zero for a parameter
         '' that is not an aggregate, and unread on win64.
-        as FB.Array( of ulong ) paramClasses
+        as containers.Array( of ulong ) paramClasses
         '' ...and its attribute, TKO_PA_*. The attribute's TYPE comes from paramAggs,
         '' which is why that keeps holding the aggregate's size after the parameter
         '' itself has become a pointer.
-        as FB.Array( of ubyte ) paramAttrs
+        as containers.Array( of ubyte ) paramAttrs
         '' HOW A NARROW INTEGER PARAMETER IS WIDENED, and what it was before.
         ''
         '' fbc passes an integer argument narrower than 32 bits AS i32, signext or
@@ -454,8 +454,8 @@ namespace Tko.Mir
         '' TKO_PX_NONE / TKO_PX_SIGN / TKO_PX_ZERO, with paramNarrow holding the MirType
         '' the parameter had BEFORE widening -- the prologue store needs it to truncate
         '' back into a slot that is still the narrow width.
-        as FB.Array( of ubyte ) paramExt
-        as FB.Array( of ubyte ) paramNarrow
+        as containers.Array( of ubyte ) paramExt
+        as containers.Array( of ubyte ) paramNarrow
         '' WHERE EACH PARAMETER CAME FROM, filled by the ABI pass.
         ''
         '' SysV turns one aggregate into TWO parameters, which shifts the index of every
@@ -465,8 +465,8 @@ namespace Tko.Mir
         '' invented, such as the sret pointer) and paramPart[new] is the byte offset
         '' within that original aggregate, so a prologue store knows which half it is
         '' writing and where it goes.
-        as FB.Array( of long ) paramOrig
-        as FB.Array( of long ) paramPart
+        as containers.Array( of long ) paramOrig
+        as containers.Array( of long ) paramPart
         '' A VARIADIC TAIL. LLVM spells it '(i32, ...)' and a call to a variadic differs
         '' from a call to a fixed function at the ABI level -- on win64 a float argument in
         '' the tail goes in BOTH an XMM and a GPR -- so this is an ABI fact, not a spelling.
@@ -486,7 +486,7 @@ namespace Tko.Mir
         as ubyte    callConv
     end type
 
-    type MirFunctionVec as FB.Array( of MirFunction ptr )
+    type MirFunctionVec as containers.Array( of MirFunction ptr )
 
     '' A module-level datum: either a string literal's bytes, or a DIM SHARED variable.
     ''
@@ -595,7 +595,7 @@ namespace Tko.Mir
         as ulong    sym
     end type
 
-    type MirGlobalVec as FB.Array( of MirGlobal )
+    type MirGlobalVec as containers.Array( of MirGlobal )
 
     type MirModule
         as InternId ptr names
@@ -604,21 +604,21 @@ namespace Tko.Mir
         '' The DATA blocks' entries, pooled: FB.Array by value inside a struct that
         '' itself lives in an FB.Array is a copy hazard, and there is nothing here
         '' that a flat pool does not express.
-        as FB.Array( of long ) dataTypes
-        as FB.Array( of long ) dataRefs
+        as containers.Array( of long ) dataTypes
+        as containers.Array( of long ) dataRefs
         '' A POINTER TABLE's entries, pooled beside the data blocks and for the same
         '' reason. Kind 0 is a null word, 1 a global's address (ref is its index) and
         '' 2 a function's address (ref is the InternId of its emitted name).
-        as FB.Array( of long )  ptrKinds
-        as FB.Array( of ulong ) ptrRefs
+        as containers.Array( of long )  ptrKinds
+        as containers.Array( of ulong ) ptrRefs
         '' ...and each entry's BYTE OFFSET in its object, -1 for a table's word, which
         '' is its index times the pointer size. Read only for a ptrMixed global.
-        as FB.Array( of long )  ptrOffs
+        as containers.Array( of long )  ptrOffs
         '' Every wide literal's code units, pooled beside the data blocks and for the
         '' same reason: an FB.Array by value inside a struct that itself lives in an
         '' FB.Array is a copy hazard.
-        as FB.Array( of ulong ) wcharPool
-        as FB.Array( of ulong ) argPool     '' call arguments, as MirValue ids
+        as containers.Array( of ulong ) wcharPool
+        as containers.Array( of ulong ) argPool     '' call arguments, as MirValue ids
 
         '' A NARROW LITERAL'S TEXT -> ITS GLOBAL, so AddStringLiteral is a lookup and
         '' not a scan. Indexed by the text's InternId and holding the global's index
@@ -638,7 +638,7 @@ namespace Tko.Mir
         '' Only the NARROW literals. A wide one's key is its text AND its decoded code
         '' units -- the same two bytes are one unit in a UTF-8 file and two in a
         '' byte-preserved one -- so AddWideStringUnits still scans.
-        as FB.Array( of long ) strByText
+        as containers.Array( of long ) strByText
 
         '' NAME -> ENTRY, so a by-name lookup is a probe and not a scan. Indexed by
         '' the name's InternId, holding the entry's index PLUS ONE so that 0 reads as
@@ -650,13 +650,13 @@ namespace Tko.Mir
         '' in lowerimpl -- plus the two in codegen/llvmrefs.bas, where marking a
         '' reference had to travel BY NAME and did so with a nested loop over every
         '' function. Measured on 6,400 classes with one virtual method each.
-        as FB.Array( of long ) globalByName
-        as FB.Array( of long ) funcByName
+        as containers.Array( of long ) globalByName
+        as containers.Array( of long ) funcByName
         '' A PROCEDURE TYPE -> ITS SIGNATURE-ONLY FUNCTION, index plus one, indexed by
         '' the frontend TypeId. A call through a procedure pointer has no function to
         '' name, so one is made per procedure type; finding it again used to build
         '' '$tko.procsig.<n>', intern it and then scan, once per such call site.
-        as FB.Array( of long ) procSigByType
+        as containers.Array( of long ) procSigByType
 
         '' MODULE INITIALISATION (ADR 0017; RFC-0006). A MODULE UNIT: its chain, and its
         '' direct imports' chains in build order -- what __tko_modinit$<chain> calls first.
@@ -677,7 +677,7 @@ namespace Tko.Mir
         '' ...FROM ITS DECODED CODE UNITS, which is the only form that can carry a
         '' '\uXXXX'. 'text' is kept for the dump and never read as the value.
         declare function AddWideStringUnits _
-            ( byref text as string, byref units as FB.Array( of ulong ), _
+            ( byref text as string, byref units as containers.Array( of ulong ), _
               byref names as Interner ) as long
         declare function AddWideStringLiteral _
             ( byref text as string, byref names as Interner ) as long

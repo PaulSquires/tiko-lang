@@ -11,6 +11,7 @@
 '' object -- whatever the program that links it will be -- and __TKO_MODULE__ names the
 '' chain. What a module's compiled form depends on is its own files and the target.
 
+#import "std/containers"
 #include once "driver/modunit.bi"
 #include once "driver/modresolve.bi"
 #include once "support/text.bi"

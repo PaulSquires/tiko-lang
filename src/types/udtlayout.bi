@@ -54,8 +54,8 @@ namespace Tko
     '' Layouts live beside the type table rather than inside TypeInfo: only a few
     '' types are UDTs, and the field pool would otherwise sit unused on every one.
     type UdtLayouts
-        as FB.Array( of UdtInfo )  udts
-        as FB.Array( of UdtField ) fields
+        as containers.Array( of UdtInfo )  udts
+        as containers.Array( of UdtField ) fields
         '' The interned 'base' -- the field an 'extends' becomes. Held here rather than
         '' looked up per call: FieldOffset has no interner and is on the hot path of
         '' every member access.

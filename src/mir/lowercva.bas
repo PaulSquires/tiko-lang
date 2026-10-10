@@ -27,6 +27,7 @@
 '' them in the runtime inventory would also have broken check-rtl, which compares
 '' against what fbc DECLARES -- and a builtin is declared nowhere.
 
+#import "std/containers"
 #include once "lowerctx.bi"
 
 namespace Tko.Mir

@@ -1,5 +1,6 @@
 '' diagout.bas -- see diagout.bi
 
+#import "std/containers"
 #include once "driver/diagout.bi"
 #include once "diag/machine.bi"
 #include once "driver/modresolve.bi"

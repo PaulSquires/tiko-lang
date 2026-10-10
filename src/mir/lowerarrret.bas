@@ -20,6 +20,7 @@
 '' The caller's storage is ERASED first, which costs nothing on the empty array it starts as
 '' and is what makes a second 'function = ...' replace the first instead of leaking it.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -56,7 +57,7 @@ private function ArrResultFromLocal_ _
     '' A SLOT, and nothing else: only a local array has one to give away.
     if src.kind <> cast( ubyte, MV_LOCAL ) then return false
     EmitEraseDynAt_( c, dst, rt )
-    dim as FB.Array( of ulong ) ma
+    dim as containers.Array( of ulong ) ma
     ma.Push( cast( ulong, dst.kind ) ) : ma.Push( cast( ulong, dst.id ) )
     ma.Push( cast( ulong, src.kind ) ) : ma.Push( cast( ulong, src.id ) )
     ma.Push( cast( ulong, MV_CONST_INT ) )
@@ -83,7 +84,7 @@ private function ArrResultFromCall_ _
     dim as Tko.TypeId ct = c.types->Unqualify( c.info->TypeOf_( callE ) )
     if c.types->IsDynArray( ct ) = false then return false
     EmitEraseDynAt_( c, dst, rt )
-    dim as FB.Array( of ulong ) ma
+    dim as containers.Array( of ulong ) ma
     ma.Push( cast( ulong, dst.kind ) ) : ma.Push( cast( ulong, dst.id ) )
     ma.Push( cast( ulong, src.kind ) ) : ma.Push( cast( ulong, src.id ) )
     ma.Push( cast( ulong, MV_CONST_INT ) )
@@ -150,7 +151,7 @@ function AssignArrayResult_ _
     EmitEraseDynAt_( c, dst, tt )
     '' THE DESTINATION'S OWN SIZE: a descriptor written with one dimension is 72 bytes and
     '' the result's temporary is the 240 of an unspecified rank.
-    dim as FB.Array( of ulong ) ma
+    dim as containers.Array( of ulong ) ma
     ma.Push( cast( ulong, dst.kind ) ) : ma.Push( cast( ulong, dst.id ) )
     ma.Push( cast( ulong, src.kind ) ) : ma.Push( cast( ulong, src.id ) )
     ma.Push( cast( ulong, MV_CONST_INT ) )

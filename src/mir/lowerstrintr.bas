@@ -108,7 +108,7 @@ function LowerMidAssign _
         elseif WideOperand_( c, value, wsrc ) = false then
             return false
         end if
-        dim as FB.Array( of ulong ) wa
+        dim as containers.Array( of ulong ) wa
         wa.Push( cast( ulong, wd.kind ) ) : wa.Push( cast( ulong, wd.id ) )
         wa.Push( cast( ulong, MV_CONST_INT ) ) : wa.Push( cast( ulong, dn ) )
         wa.Push( cast( ulong, sv.kind ) ) : wa.Push( cast( ulong, sv.id ) )
@@ -141,7 +141,7 @@ function LowerMidAssign _
     '' LENGTH -- 'fb_UStrAssignMid( UF$0, <tagged 10>, 2, 2, ... )', measured -- the pair
     '' EmitStrTerm pushes for one.
     if IsUStringType( c, dt ) orelse (dk = 4) then
-        dim as FB.Array( of ulong ) ua
+        dim as containers.Array( of ulong ) ua
         if dk = 4 then
             if EmitStrTerm( c, ua, dstN, true ) = false then return false
         else
@@ -169,7 +169,7 @@ function LowerMidAssign _
         dim as MirValue bufp = castPtr
         if haveCastPtr = false then bufp = LowerAddr( c, dstN )
         if bufp.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) ta
+        dim as containers.Array( of ulong ) ta
         ta.Push( cast( ulong, bufp.kind ) ) : ta.Push( cast( ulong, bufp.id ) )
         if dk = 3 then
             '' A FIXED-LENGTH narrow string carries its TAGGED length -- already tagged by
@@ -196,7 +196,7 @@ function LowerMidAssign _
         return false
     end if
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, ddesc.kind ) ) : args.Push( cast( ulong, ddesc.id ) )
     args.Push( cast( ulong, sv.kind ) ) : args.Push( cast( ulong, sv.id ) )
     args.Push( cast( ulong, lv.kind ) ) : args.Push( cast( ulong, lv.id ) )
@@ -300,7 +300,7 @@ function LowerDir _
         if outp.kind = cast( ubyte, MV_NONE ) then return false
     end if
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     if pat = Tko.NODE_NONE then
         args.Push( cast( ulong, outp.kind ) ) : args.Push( cast( ulong, outp.id ) )
         dim as long which = RTL_DIR_NEXT

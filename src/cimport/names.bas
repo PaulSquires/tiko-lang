@@ -30,6 +30,7 @@
 '' program, or the cache key would have to include the calling source. A genuine clash with
 '' a user's own name is tiko's ordinary duplicate-definition error.
 
+#import "std/containers"
 #include once "cimport/import.bi"
 #include once "lexer/token.bi"
 

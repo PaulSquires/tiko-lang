@@ -16,6 +16,7 @@
 '' NOT YET: an alias is the whole unit's rather than its file's (M22), and a name the
 '' interface does not call 'public' is found as readily as one it does.
 
+#import "std/containers"
 #include once "driver/modiface.bi"
 #include once "driver/modresolve.bi"
 #include once "driver/tkiemit.bi"
@@ -52,7 +53,7 @@ end function
 
 '' Module n's interface, after every one it depends on.
 private sub Closure_ _
-    ( byref ctx as Tko.CompilerContext, byval n as long, byref seen as FB.Array( of ubyte ), _
+    ( byref ctx as Tko.CompilerContext, byval n as long, byref seen as containers.Array( of ubyte ), _
       byref files as Tko.FileIdVec )
     if seen[n] <> 0 then return
     seen[n] = 1
@@ -71,7 +72,7 @@ private function Hook_ _
     dim as long n = ImportIndex( *ctx, rec )
     if n < 0 then return false
     chain = ctx->ifaceChains[n]
-    dim as FB.Array( of ubyte ) seen
+    dim as containers.Array( of ubyte ) seen
     for i as long = 0 to ctx->ifaceChains.Count - 1
         seen.Push( 0 )
     next
@@ -104,7 +105,7 @@ end sub
 '' namespace -- 'http.esc.Url'.
 private sub BindReexports_ _
     ( byref ctx as Tko.CompilerContext, byref syms as Tko.SymbolTable, _
-      byref nsOf as FB.Array( of ulong ) )
+      byref nsOf as containers.Array( of ulong ) )
     for n as long = 0 to ctx.ifaceChains.Count - 1
         if nsOf[n] = 0 then continue for
         dim as string t = ctx.ifaceTexts[n]
@@ -171,7 +172,7 @@ sub BindImports _
     dim as Tko.ScopeId modScope = Tko.ModSym.ModuleScope( syms )
 
     '' Each interface this unit read: its namespace, for the mangler.
-    dim as FB.Array( of ulong ) nsOf       '' by module index: the namespace symbol, or 0
+    dim as containers.Array( of ulong ) nsOf       '' by module index: the namespace symbol, or 0
     dim as Tko.FileIdVec read_
     for i as long = 0 to ctx.ifaceChains.Count - 1
         nsOf.Push( 0 )
@@ -193,7 +194,7 @@ sub BindImports _
     BindReexports_( ctx, syms, nsOf )
 
     '' Each '#import''s alias, bound to its module's scope.
-    dim as FB.Array( of ulong ) aliasSym, aliasMod, aliasRec
+    dim as containers.Array( of ulong ) aliasSym, aliasMod, aliasRec
     '' ...and, in a unit of several files, the file each one is written in (M22).
     dim as Tko.FileIdVec lo, hi
     if ctx.modFileCount > 1 then

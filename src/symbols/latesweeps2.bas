@@ -84,7 +84,7 @@ end function
 '' lowering, finding no conversion, copied S's bytes into the T.
 private function UdtPairConverts_ ( byref c as Ctx, byval dst as TypeId, byval src as TypeId, byval byAssign as boolean ) as boolean
     if TcTuple_( c, dst ) orelse TcTuple_( c, src ) then return true   '' a tuple's elements are judged in tupleconv.bas
-    dim as FB.Array( of ulong ) one
+    dim as containers.Array( of ulong ) one
     one.Push( cast( ulong, src ) )
     '' AN ASSIGNMENT IS NOT A CONSTRUCTION: 'q = s' and 'function = s' over a T built from
     '' S's string cast are fbc's 181 (Rescued_'s table: a LET or a CAST rescues it).

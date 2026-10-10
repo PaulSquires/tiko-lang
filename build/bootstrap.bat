@@ -96,6 +96,8 @@ for %%d in (%TKO_BOOT_LIBDIRS%) do (
 
 set "TKO_LIBPATH="
 set "TKO_INCLUDE=%TKO_BOOT_INC%"
+rem The tree's std modules: the compiler's source imports std/containers and std/fs.
+set "TKO_PKG=%ROOT%\pkg"
 
 set "SOURCES="
 set "MAINMOD="
@@ -134,6 +136,7 @@ if errorlevel 1 ( type "%OUT%\runner.log" 1>&2 & set "WHY=the seed could not bui
 set "S1=%OUT%\stage1\tiko.exe"
 
 rem -------------------------------------------- 1. every statement lowers
+set "TKO_MODCACHE=%OUT%\lowered.modcache"
 "%S1%" --dump-ir -target %TARGET% -i src %SOURCES% 2>&1 | findstr /b /c:"lowered:" /c:"verify:" > "%OUT%\lowered.txt"
 for /f %%n in ('findstr /b /c:"lowered:" "%OUT%\lowered.txt" ^| "%SystemRoot%\System32\find.exe" /c /v ""') do set "NLOW=%%n"
 for /f %%n in ('findstr /b /c:"verify: ok" "%OUT%\lowered.txt" ^| "%SystemRoot%\System32\find.exe" /c /v ""') do set "NVER=%%n"
@@ -220,6 +223,8 @@ exit /b 1
 
 rem %1 = the compiler, %2 = the stage it builds
 :buildstage
+rem Each stage compiles the std modules itself, into a cache of its own (bootstrap.sh).
+set "TKO_MODCACHE=%OUT%\%~2.modcache"
 "%~1" %SOURCES% -m %MAINMOD% -i src -target %TARGET% %OPT% %LIBP% -o "%OUT%\%~2\tiko.exe" > "%OUT%\%~2.log" 2>&1
 if errorlevel 1 ( type "%OUT%\%~2.log" 1>&2 & set "WHY=%~2 did not build" & exit /b 1 )
 if not exist "%OUT%\%~2\tiko.exe" ( set "WHY=%~2 reported success and wrote no compiler" & exit /b 1 )

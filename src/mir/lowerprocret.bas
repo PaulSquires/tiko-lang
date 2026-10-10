@@ -41,7 +41,7 @@ function LowerStringReturn( byref c as Ctx, byval valueE as Tko.NodeId ) as bool
     rsa.kind = cast( ubyte, MV_LOCAL )
     rsa.ty = cast( ubyte, MT_PTR )
     rsa.id = c.resultSlot
-    dim as FB.Array( of ulong ) rr
+    dim as containers.Array( of ulong ) rr
     rr.Push( cast( ulong, rsa.kind ) ) : rr.Push( cast( ulong, rsa.id ) )
     Terminate( c, MTERM_RET, -1, -1, EmitRtl( c, ResultTempRtl_( c ), rr ) )
     c.curBlock = -1
@@ -129,7 +129,7 @@ private function SretCopyResult_ _
                 if TermIsWide_( c, valueE ) orelse ConcatHasWideTerm_( c, valueE ) then xvt = c.types->Builtin( Tko.TY_WSTRING )
             end if
             if (xvt <> Tko.TYPE_NONE) andalso (xvt <> c.types->Unqualify( rt )) then
-                dim as FB.Array( of ulong ) xT
+                dim as containers.Array( of ulong ) xT
                 xT.Push( cast( ulong, xvt ) )
                 dim as Tko.TypeId urt = c.types->Unqualify( rt )
                 '' ANOTHER UDT WITH NO CONSTRUCTOR TO TAKE IT is the DEFAULT constructor and then the
@@ -200,7 +200,7 @@ private function SretCopyResult_ _
         if inPlace then
             dim as Tko.ListPayload ptr icp = _
                 @c.ast->lists[cast( long, c.ast->nodes[cast( long, valueE )].data )]
-            dim as FB.Array( of ulong ) iT
+            dim as containers.Array( of ulong ) iT
             for i as long = 0 to icp->count - 1
                 iT.Push( cast( ulong, c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[icp->first + i] ) ) ) )
             next
@@ -244,7 +244,7 @@ private function SretCopyResult_ _
     if dst.kind = cast( ubyte, MV_NONE ) then return false
 
     if written then
-        dim as FB.Array( of ulong ) cargs
+        dim as containers.Array( of ulong ) cargs
         cargs.Push( cast( ulong, src.kind ) )
         cargs.Push( cast( ulong, src.id ) )
         EmitStructorCall( c, cc, -1, @dst, @cargs )
@@ -275,7 +275,7 @@ function UdtConvResult_ _
         '' A TYPED value only when the type has an overload that takes it; anything else
         '' stays with the ordinary copy.
         if c.types->Unqualify( vt ) = rt then return false
-        dim as FB.Array( of ulong ) argT
+        dim as containers.Array( of ulong ) argT
         argT.Push( cast( ulong, vt ) )
         dim as Tko.SymbolId over = Tko.SYMBOL_NONE
         if isReturn then
@@ -349,11 +349,11 @@ function SretAssignResult_ _
     dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
     if dst.kind = cast( ubyte, MV_NONE ) then return false
 
-    dim as FB.Array( of ulong ) letT
+    dim as containers.Array( of ulong ) letT
     letT.Push( cast( ulong, rt ) )
     dim as Tko.SymbolId ulet = PickCtor( c, StructorOf( c, rt, "let" ), letT )
     if ulet <> Tko.SYMBOL_NONE then
-        dim as FB.Array( of ulong ) largs
+        dim as containers.Array( of ulong ) largs
         largs.Push( cast( ulong, src.kind ) )
         largs.Push( cast( ulong, src.id ) )
         EmitStructorCall( c, ulet, -1, @dst, @largs )
@@ -501,7 +501,7 @@ sub InitResultAtEntry_ _
         if needsCtor then
             if BodyReturnsValue_( c, body ) then exit sub
             if rct <> Tko.SYMBOL_NONE then
-                dim as FB.Array( of ulong ) rnone
+                dim as containers.Array( of ulong ) rnone
                 EmitStructorCall( c, rct, -1, @dst, @rnone )
             else
                 CallImplicitCtor_( c, rt, dst )
@@ -512,7 +512,7 @@ sub InitResultAtEntry_ _
     if zeroTrivial = false then exit sub
     dim as long sz = SizeOfType( c, rt )
     if sz <= 0 then exit sub
-    dim as FB.Array( of ulong ) bz
+    dim as containers.Array( of ulong ) bz
     bz.Push( cast( ulong, dst.kind ) ) : bz.Push( cast( ulong, dst.id ) )
     bz.Push( cast( ulong, MV_CONST_INT ) ) : bz.Push( 0 )
     bz.Push( cast( ulong, MV_CONST_INT ) ) : bz.Push( cast( ulong, sz ) )

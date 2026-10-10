@@ -1,9 +1,9 @@
 '' expr.bas -- see expr.bi.  Also carries the AST arena and its dump.
 
+#import "std/containers"
 #include once "parser/expr.bi"
 #include once "support/text.bi"
 #include once "pp/pp.bi"
-
 namespace Tko
 
 '' ---------------------------------------------------------------- node metadata

@@ -36,7 +36,7 @@ end function
 private sub CheckSetterOnlyReads_ ( byref c as Ctx )
     dim as long total = c.ast->Count( )
     '' A STATEMENT'S TARGET IS NOT A READ: 'gx.P = 5', 'gx.Q( 1 ) = 3', and a call statement.
-    dim as FB.Array( of ubyte ) isTarget
+    dim as containers.Array( of ubyte ) isTarget
     for n as long = 0 to total
         isTarget.Push( 0 )
     next

@@ -311,7 +311,7 @@ end function
 '' the first argument that is one of the pairs above, and nothing otherwise.
 private sub ReportArgMismatch_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval callee as Tko.SymbolId, _
-      byval argFirst as long, byval argCount as long, byref argT as FB.Array( of ulong ) )
+      byval argFirst as long, byval argCount as long, byref argT as containers.Array( of ulong ) )
 
     if c.info->AmbiguousOf( id ) = Tko.AMB_PROPERTY_SET then exit sub
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( callee )

@@ -1,5 +1,6 @@
 '' machine.bas -- see machine.bi
 
+#import "std/containers"
 #include once "diag/machine.bi"
 #include once "support/text.bi"
 

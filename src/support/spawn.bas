@@ -1,5 +1,6 @@
 '' spawn.bas -- see spawn.bi.
 
+#import "std/containers"
 #include once "support/spawn.bi"
 
 #ifdef __FB_WIN32__

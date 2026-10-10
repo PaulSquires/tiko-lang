@@ -5,6 +5,7 @@
 '' they sit beside one another only because the operator path reuses the call path's
 '' argument machinery.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir

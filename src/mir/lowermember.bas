@@ -2,6 +2,7 @@
 '' one field's release, for the synthesised structors. Split out of lowerimpl.bas on
 '' 2026-09-10 for the 1500-line cap; nothing about the code changed in the move.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -71,7 +72,7 @@ sub InitMember_ _
             if c.types->BuiltinOf( inner_ ) = Tko.TY_FIXSTR then fill = 32
         end if
         if fill <> 0 then
-            dim as FB.Array( of ulong ) sargs
+            dim as containers.Array( of ulong ) sargs
             sargs.Push( cast( ulong, addr.kind ) )
             sargs.Push( cast( ulong, addr.id ) )
             sargs.Push( cast( ulong, MV_CONST_INT ) )
@@ -81,7 +82,7 @@ sub InitMember_ _
             EmitRtl( c, RTL_MEMSET, sargs )
             return
         end if
-        dim as FB.Array( of ulong ) zargs2
+        dim as containers.Array( of ulong ) zargs2
         zargs2.Push( cast( ulong, addr.kind ) )
         zargs2.Push( cast( ulong, addr.id ) )
         zargs2.Push( cast( ulong, MV_CONST_INT ) ) : zargs2.Push( 0 )
@@ -101,7 +102,7 @@ sub InitMember_ _
 
     dim as Tko.SymbolId ctor = StructorWithArity( c, StructorOf( c, ft, "__ctor" ), 0 )
     if ctor <> Tko.SYMBOL_NONE then
-        dim as FB.Array( of ulong ) none_
+        dim as containers.Array( of ulong ) none_
         EmitStructorCall( c, ctor, -1, @addr, @none_ )
         return
     end if
@@ -118,7 +119,7 @@ function UnionMemberSkip_( byref c as Ctx, byval t as Tko.TypeId, byval i as lon
     if i > 0 then return true
     dim as long usz = SizeOfType( c, t )
     if usz > 0 then
-        dim as FB.Array( of ulong ) za
+        dim as containers.Array( of ulong ) za
         za.Push( cast( ulong, thisPtr.kind ) ) : za.Push( cast( ulong, thisPtr.id ) )
         za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
         za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( cast( ulong, usz ) )

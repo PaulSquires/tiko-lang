@@ -340,7 +340,7 @@ private function UserBinaryOp_ _
 
     '' The candidates: the left operand's members, the right operand's, then the scope
     '' the expression is written in.
-    dim as FB.Array( of ulong ) heads
+    dim as containers.Array( of ulong ) heads
     dim as Tko.SymbolId h1 = UdtOperatorNamed_( c, lt, nm )
     if h1 <> Tko.SYMBOL_NONE then heads.Push( cast( ulong, h1 ) )
     dim as Tko.SymbolId h2 = UdtOperatorNamed_( c, rt, nm )
@@ -578,7 +578,7 @@ function UserUnaryOp_ _
     if len( nm ) = 0 then return Tko.SYMBOL_NONE
     dim as Tko.InternId fold = c.names->Fold( c.names->GetString( nm ) )
 
-    dim as FB.Array( of ulong ) heads
+    dim as containers.Array( of ulong ) heads
     dim as Tko.SymbolId h1 = UdtOperatorNamed_( c, ot, nm )
     if h1 <> Tko.SYMBOL_NONE then heads.Push( cast( ulong, h1 ) )
     dim as Tko.ScopeId sc = cast( Tko.ScopeId, c.types->DeclScopeOf( c.types->Unqualify( ot ) ) )
@@ -785,7 +785,7 @@ private function ResolveCall_ _
 
     '' Argument types first; an untyped argument makes the whole call undecidable
     '' rather than wrong.
-    dim as FB.Array( of ulong ) argT
+    dim as containers.Array( of ulong ) argT
     for i as long = 0 to argCount - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + i] )
         '' AN ELIDED ARGUMENT -- 'locate , 10' -- has no type and needs none: it takes

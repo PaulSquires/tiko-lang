@@ -21,7 +21,7 @@
 #   6. UNSIGNED LOOP COUNTERS.
 #   7. NARROW LOOP COUNTERS in lib/gfx hot loops (see below -- costs 4x).
 #   8. ATTRIBUTION HEADER on every lib/gfx source (LGPL obligation).
-#   9. NO MODULE DIRECTIVES in tiko's own source (#import, #module, #export).
+#   9. MODULE DIRECTIVES in tiko's own source: '#import "std/..."' only.
 #
 # TODO: port to tools/tiko-lang-lint once tiko-lang can compile itself, so the lint is
 # self-hosted like everything else.
@@ -171,15 +171,20 @@ if [ -n "$GFX" ]; then
     done
 fi
 
-# ------------------------------------ 9. no module directives in tiko's source
+# ------------------------------------ 9. module directives in tiko's source
 #
-# tiko BOOTSTRAPS FROM fbc-modern, which has no module system: a '#import' in src/ or
-# tools/ would build with tiko and fail at stage 0, so the bootstrap would break the day
-# the first one landed and not before (docs/architecture/decisions/0017-modules.md). The
-# pattern is a directive at the start of a line, so comments and the preprocessor's own
-# 'case "import"' do not match.
-for f in $(grep_files '^[[:space:]]*#[[:space:]]*(import|module|export)([^A-Za-z0-9_]|$)' $(find src tools \( -name '*.bas' -o -name '*.bi' \) -print | sort)); do
-    note "MODULES $f uses #import/#module/#export; tiko's own source may not (ADR 0017)"
+# tiko bootstrapped from fbc-modern, which has no module system, and until 2026-10-10 a
+# '#import' in src/ or tools/ was refused outright. The seed is tiko itself now (seed-3 on),
+# and the compiler's source imports std/containers and std/fs -- the std modules ARE what
+# inc/fb was. What stays refused: '#module' and '#export' (tiko's source is a program, not
+# a module) and an import of anything but std, which would make the compiler depend on a
+# package the seed does not carry. Directives at the start of a line only, so comments and
+# the preprocessor's own 'case "import"' do not match.
+for f in $(grep_files '^[[:space:]]*#[[:space:]]*(module|export)([^A-Za-z0-9_]|$)' $(find src tools \( -name '*.bas' -o -name '*.bi' \) -print | sort)); do
+    note "MODULES $f uses #module/#export; tiko's own source is not a module (ADR 0017)"
+done
+for f in $(grep_files '^[[:space:]]*#[[:space:]]*import[[:space:]]+"([^s]|s[^t]|st[^d]|std[^/])' $(find src tools \( -name '*.bas' -o -name '*.bi' \) -print | sort)); do
+    note "MODULES $f imports something other than std/ (only the std modules travel with the seed)"
 done
 
 # ------------------------------------- 4/5. trailing whitespace and hard tabs

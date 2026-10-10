@@ -17,6 +17,7 @@
 '' NOT SYMF_PRIVATE, which is module linkage and an unrelated question: a private MODULE
 '' procedure is visible to its whole file, and a private MEMBER only inside its own type.
 
+#import "std/containers"
 #include once "symbols/visibility.bi"
 #include once "diag/diagids.bi"
 '' ConversionCost, for the constructor pick in latechecks.bas -- see CtorChosenBy_.

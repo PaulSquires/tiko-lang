@@ -192,7 +192,7 @@ sub LowerVarItem_ _
             zva.kind = cast( ubyte, MV_LOCAL )
             zva.ty = cast( ubyte, MT_PTR )
             zva.id = slot
-            dim as FB.Array( of ulong ) zargs
+            dim as containers.Array( of ulong ) zargs
             zargs.Push( cast( ulong, zva.kind ) )
             zargs.Push( cast( ulong, zva.id ) )
             zargs.Push( cast( ulong, MV_CONST_INT ) ) : zargs.Push( 0 )
@@ -253,7 +253,7 @@ sub LowerVarItem_ _
             za.kind = cast( ubyte, MV_LOCAL )
             za.ty = cast( ubyte, MT_PTR )
             za.id = slot
-            dim as FB.Array( of ulong ) zma
+            dim as containers.Array( of ulong ) zma
             zma.Push( cast( ulong, za.kind ) )
             zma.Push( cast( ulong, za.id ) )
             zma.Push( cast( ulong, MV_CONST_INT ) ) : zma.Push( 0 )
@@ -420,7 +420,7 @@ sub LowerVarItem_ _
                     if (movedRes = false) andalso _
                        (ssa.kind <> cast( ubyte, MV_NONE )) then
                         if ucp <> Tko.SYMBOL_NONE then
-                            dim as FB.Array( of ulong ) cargs
+                            dim as containers.Array( of ulong ) cargs
                             cargs.Push( cast( ulong, ssa.kind ) )
                             cargs.Push( cast( ulong, ssa.id ) )
                             EmitStructorCall( c, ucp, slot, 0, @cargs )
@@ -563,7 +563,7 @@ sub LowerVarItem_ _
             fsa.kind = cast( ubyte, MV_LOCAL )
             fsa.ty = cast( ubyte, MT_PTR )
             fsa.id = slot
-            dim as FB.Array( of ulong ) fma
+            dim as containers.Array( of ulong ) fma
             fma.Push( cast( ulong, fsa.kind ) ) : fma.Push( cast( ulong, fsa.id ) )
             fma.Push( cast( ulong, MV_CONST_INT ) ) : fma.Push( 32 )
             fma.Push( cast( ulong, MV_CONST_INT ) )

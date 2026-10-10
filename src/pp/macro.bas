@@ -398,8 +398,8 @@ end sub
 '' ------------------------------------------------------------------- expansion
 
 type ArgList
-    as FB.Array( of long ) firsts    '' index into flat
-    as FB.Array( of long ) counts
+    as containers.Array( of long ) firsts    '' index into flat
+    as containers.Array( of long ) counts
     as TokenVec            flat
     as SourceLoc           closeLoc   '' the closing ')', for __LINE__ -- see PpFrame.lineLoc
 end type
@@ -839,7 +839,7 @@ end function
 
 '' A run of the re-split list, comma-joined.
 private function ListJoin_ _
-    ( byref lst as FB.Array( of string ), byval from as long, byval upto as long ) as string
+    ( byref lst as containers.Array( of string ), byval from as long, byval upto as long ) as string
 
     dim as string s = ""
     dim as long last = upto
@@ -922,7 +922,7 @@ end function
 
 private sub ExpandedArgList_ _
     ( byref e as PpEngine, byref args as ArgList, byval from as long, _
-      byref outp as FB.Array( of string ) )
+      byref outp as containers.Array( of string ) )
 
     dim as string joined = ""
     for i as long = from to args.firsts.Count - 1

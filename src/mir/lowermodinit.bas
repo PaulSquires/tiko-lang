@@ -2,6 +2,7 @@
 '' Split out of lowerimpl.bas on 2026-09-10 for the 1500-line cap; nothing about the
 '' code changed in the move.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -78,7 +79,7 @@ sub EmitModuleInit_( byref c as Ctx )
                     end if
                     dim as Tko.SymbolId ct = StructorWithArity( c, StructorOf( c, gt, "__ctor" ), 0 )
                     if ct <> Tko.SYMBOL_NONE then
-                        dim as FB.Array( of ulong ) none1
+                        dim as containers.Array( of ulong ) none1
                         EmitStructorCall( c, ct, -1, @ga, @none1 )
                     elseif TypeNeedsInit_( c, gt ) then
                         CallImplicitCtor_( c, gt, ga )
@@ -91,7 +92,7 @@ sub EmitModuleInit_( byref c as Ctx )
                 else
                     dim as Tko.SymbolId dt = StructorWithArity( c, StructorOf( c, gt, "__dtor" ), 0 )
                     if dt <> Tko.SYMBOL_NONE then
-                        dim as FB.Array( of ulong ) none2
+                        dim as containers.Array( of ulong ) none2
                         EmitStructorCall( c, dt, -1, @ga, @none2 )
                     elseif TypeNeedsDtor_( c, gt ) then
                         CallImplicitDtor_( c, gt, ga )

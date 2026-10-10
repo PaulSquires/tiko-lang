@@ -43,7 +43,7 @@ end function
 
 private sub StaticThisRange_ _
     ( byref c as Ctx, byval lo as long, byval hi as long, byval sm as Symbol ptr, _
-      byref memberRhs as FB.Array( of ubyte ) )
+      byref memberRhs as containers.Array( of ubyte ) )
     for n as long = lo to hi - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_IDENT then continue for
@@ -63,7 +63,7 @@ end sub
 '' of whatever was made just before its first member.
 private sub StaticThisList_ _
     ( byref c as Ctx, byval first_ as long, byval count_ as long, byref prev as long, _
-      byref memberRhs as FB.Array( of ubyte ) )
+      byref memberRhs as containers.Array( of ubyte ) )
     for i as long = 0 to count_ - 1
         dim as NodeId ch = cast( NodeId, c.ast->children[first_ + i] )
         if ch = NODE_NONE then continue for
@@ -83,7 +83,7 @@ private sub CheckStaticThis_ ( byref c as Ctx )
     dim as long total = c.ast->Count( )
     if c.root = NODE_NONE then return
     '' A NAME AFTER '.' OR '->' IS A MEMBER OF THAT OBJECT, not a bare field.
-    dim as FB.Array( of ubyte ) memberRhs
+    dim as containers.Array( of ubyte ) memberRhs
     for n as long = 0 to total
         memberRhs.Push( 0 )
     next

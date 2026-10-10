@@ -140,7 +140,7 @@ private sub BuildSpawnFrame_ _
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
     dim as Tko.NodeId pnode = cast( Tko.NodeId, ps->payload )
     dim as Tko.StmtPayload ptr pp2 = StmtOf( c, pnode )
-    dim as FB.Array( of ulong ) fTy
+    dim as containers.Array( of ulong ) fTy
     for i as long = 0 to pp2->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp2->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
@@ -193,7 +193,7 @@ private sub BuildClosureType_ _
     '' CompleteClosureFields_, before its walk and long before the layout pass. Without
     '' that the type was never built, the invoke procedure's receiver was 'void', and
     '' clang refused the module.
-    dim as FB.Array( of ulong ) fTy
+    dim as containers.Array( of ulong ) fTy
     for k as long = 0 to sp->count - 1
         dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
         if c.ast->Kind( cn ) <> Tko.N_IDENT then return

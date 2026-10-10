@@ -1,5 +1,6 @@
 '' intern.bas -- see intern.bi
 
+#import "std/containers"
 #include once "support/intern.bi"
 #include once "support/text.bi"
 

@@ -3,6 +3,7 @@
 '' Split out of lower.bas when that file passed the 1500-line lint cap. The design is
 '' docs/plan/08 section 6 and the comments below; nothing moved with it changed.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -63,7 +64,7 @@ private sub EmitCleanupEntry_( byref c as Ctx, byval i as long )
         dim as MirValue sad
         if SynthFixedArrayDesc( c, sab, _
                                 cast( Tko.TypeId, c.cleanupType[i] ), sad ) then
-            dim as FB.Array( of ulong ) saa
+            dim as containers.Array( of ulong ) saa
             saa.Push( cast( ulong, sad.kind ) )
             saa.Push( cast( ulong, sad.id ) )
             dim as Tko.TypeId sae = _
@@ -85,7 +86,7 @@ private sub EmitCleanupEntry_( byref c as Ctx, byval i as long )
         wsa.id = c.cleanupSlot[i]
         dim as MirValue wsv = LowerExprLoad( c, wsa, MT_PTR )
         if wsv.kind <> cast( ubyte, MV_NONE ) then
-            dim as FB.Array( of ulong ) wsargs
+            dim as containers.Array( of ulong ) wsargs
             wsargs.Push( cast( ulong, wsv.kind ) ) : wsargs.Push( cast( ulong, wsv.id ) )
             EmitRtl( c, RTL_WSTR_DELETE, wsargs )
         end if
@@ -108,7 +109,7 @@ private sub EmitCleanupEntry_( byref c as Ctx, byval i as long )
         addr.kind = cast( ubyte, MV_LOCAL )
         addr.ty = cast( ubyte, MT_PTR )
         addr.id = c.cleanupSlot[i]
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         args.Push( cast( ulong, addr.kind ) )
         args.Push( cast( ulong, addr.id ) )
         '' A USTRING IS RELEASED BY fb_UStrDelete. The two descriptors are the same
@@ -227,7 +228,7 @@ sub ReleaseStrTemps_( byref c as Ctx, byval mark as long )
             addr.kind = cast( ubyte, MV_LOCAL )
             addr.ty = cast( ubyte, MT_PTR )
             addr.id = slot
-            dim as FB.Array( of ulong ) args
+            dim as containers.Array( of ulong ) args
             args.Push( cast( ulong, addr.kind ) ) : args.Push( cast( ulong, addr.id ) )
             EmitRtl( c, StrRtlFor_( c, c.f->locals[slot].frontendType, _
                                     RTL_STR_DELETE ), args )
@@ -249,7 +250,7 @@ sub ReleaseWstrTemps_( byref c as Ctx, byval mark as long )
             waddr.id = wslot
             dim as MirValue wv = LowerExprLoad( c, waddr, MT_PTR )
             if wv.kind <> cast( ubyte, MV_NONE ) then
-                dim as FB.Array( of ulong ) wargs
+                dim as containers.Array( of ulong ) wargs
                 wargs.Push( cast( ulong, wv.kind ) ) : wargs.Push( cast( ulong, wv.id ) )
                 EmitRtl( c, RTL_WSTR_DELETE, wargs )
             end if
@@ -276,7 +277,7 @@ sub ReleaseUdtTemps_( byref c as Ctx, byval mark as long )
                 '' AN ARRAY RESULT'S TEMPORARY is erased, not destroyed -- see lowerarrret.bas.
                 EmitEraseDynAt_( c, a, t )
             elseif dt <> Tko.SYMBOL_NONE then
-                dim as FB.Array( of ulong ) none_
+                dim as containers.Array( of ulong ) none_
                 EmitStructorCall( c, dt, -1, @a, @none_ )
             else
                 CallImplicitDtor_( c, t, a )
@@ -302,7 +303,7 @@ end sub
 '' forgotten out of order -- is left as it is.
 sub CallTempsInSourceOrder_ _
     ( byref c as Ctx, byval headMark as long, byval argMark as long, _
-      byval recvMark as long, byref segFrom as FB.Array( of ulong ) )
+      byval recvMark as long, byref segFrom as containers.Array( of ulong ) )
 
     dim as long n = c.udtTemps.Count
     if n - headMark < 2 then return
@@ -314,8 +315,8 @@ sub CallTempsInSourceOrder_ _
         prev = s
     next
 
-    dim as FB.Array( of ulong ) ns
-    dim as FB.Array( of ulong ) nt
+    dim as containers.Array( of ulong ) ns
+    dim as containers.Array( of ulong ) nt
     for k as long = recvMark to n - 1
         ns.Push( c.udtTemps[k] ) : nt.Push( c.udtTempTypes[k] )
     next

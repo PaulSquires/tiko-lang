@@ -24,12 +24,12 @@ type Ctx
     as Tko.SymbolId         currentProc
     '' The open WITH subjects, innermost last. A '.field' written inside one has no
     '' base in the AST and takes the innermost of these.
-    as FB.Array( of ulong )  withSubject
+    as containers.Array( of ulong )  withSubject
     '' For the BACKPATCH pass: this walk is in source order, and a typedef may name a
     '' type declared later. The typedefs, and the declarations that could not be typed
     '' because of one.
-    as FB.Array( of ulong )  typedefNode
-    as FB.Array( of ulong )  typedefScope
+    as containers.Array( of ulong )  typedefNode
+    as containers.Array( of ulong )  typedefScope
     '' How deep ResolveTypeRef is in typedefs it chased ahead of the walk -- see
     '' ChaseTypedef_ in resolvetype.bas. Bounds an alias cycle.
     as long                  typedefChase
@@ -37,17 +37,17 @@ type Ctx
     '' BackpatchTypedefs -- the same treatment pendingItem gives a variable. Every
     '' mingw binding needs it: win/windef.bi writes 'type WPARAM as UINT_PTR'
     '' before including the header that declares UINT_PTR.
-    as FB.Array( of ulong )  pendParam
-    as FB.Array( of ulong )  pendParamScope
+    as containers.Array( of ulong )  pendParam
+    as containers.Array( of ulong )  pendParamScope
     '' PROCEDURES whose RESULT typeref would not resolve, for the same reason.
-    as FB.Array( of ulong )  pendResultProc
-    as FB.Array( of ulong )  pendResultProcScope
+    as containers.Array( of ulong )  pendResultProc
+    as containers.Array( of ulong )  pendResultProcScope
     '' TYPE FIELDS, for the same reason: 'wParam as WPARAM' inside a TYPE met the same
     '' unresolved typedef, and a UDT with an untyped field gets NO LAYOUT -- so
     '' REBARBANDINFOW, returned by value from AfxNova's AfxGetRebarBandInfo, reached the
     '' backend with no size at all and stopped it with an ICE.
-    as FB.Array( of ulong )  pendField
-    as FB.Array( of ulong )  pendFieldScope
+    as containers.Array( of ulong )  pendField
+    as containers.Array( of ulong )  pendFieldScope
     '' TYPE ARGUMENTS IN EXPRESSIONS -- 'cast( LPARAM, p )', 'type<LPARAM>( 0 )' --
     '' for the same reason. The cast's result type IS its typeref's, cached here, so
     '' one resolved before its typedef leaves the call it is an argument of untyped:
@@ -56,26 +56,26 @@ type Ctx
     '' reason and repaired the same way -- except that the type is INTERNED and
     '' already bound to variables by the time the name becomes known, so the
     '' backpatch mends the TYPE rather than re-deriving it. See BackpatchTypedefs.
-    as FB.Array( of ulong )  pendProcType
-    as FB.Array( of ulong )  pendProcTypeScope
-    as FB.Array( of ulong )  pendProcTypeId
-    as FB.Array( of ulong )  pendExprType
-    as FB.Array( of ulong )  pendExprTypeScope
-    as FB.Array( of ulong )  pendingItem
-    as FB.Array( of ulong )  pendingScope
-    as FB.Array( of ulong )  rtlSeen      '' LOCATIONS reported TKO0813 -- resolvertl.bas
-    as FB.Array( of ulong )  rtlUndef     '' runtime names an '#undef' freed -- resolvertl.bas
-    as FB.Array( of ulong )  genArgSeen   '' LOCATIONS reported TKO0815/0816 -- resolvetype.bas
+    as containers.Array( of ulong )  pendProcType
+    as containers.Array( of ulong )  pendProcTypeScope
+    as containers.Array( of ulong )  pendProcTypeId
+    as containers.Array( of ulong )  pendExprType
+    as containers.Array( of ulong )  pendExprTypeScope
+    as containers.Array( of ulong )  pendingItem
+    as containers.Array( of ulong )  pendingScope
+    as containers.Array( of ulong )  rtlSeen      '' LOCATIONS reported TKO0813 -- resolvertl.bas
+    as containers.Array( of ulong )  rtlUndef     '' runtime names an '#undef' freed -- resolvertl.bas
+    as containers.Array( of ulong )  genArgSeen   '' LOCATIONS reported TKO0815/0816 -- resolvetype.bas
     '' GOTOs, DEFERs and what TKO0827 reported, in walk order -- resolvedefer.bas.
-    as FB.Array( of ulong )  xgName, xgNode, xgProc, xgSeq
-    as FB.Array( of ulong )  xdScope, xdNode, xdProc, xdSeq
-    as FB.Array( of ulong )  xSeenGoto, xSeenDefer
+    as containers.Array( of ulong )  xgName, xgNode, xgProc, xgSeq
+    as containers.Array( of ulong )  xdScope, xdNode, xdProc, xdSeq
+    as containers.Array( of ulong )  xSeenGoto, xSeenDefer
     as ulong                 xSeq
     '' The generic type parameters currently in scope, innermost binding last: the
     '' name and the TypeId it stands for. A plain stack rather than a map, because a
     '' generic has one or two parameters and instantiation nests at most a few deep.
-    as FB.Array( of ulong )  gparamName
-    as FB.Array( of ulong )  gparamType
+    as containers.Array( of ulong )  gparamName
+    as containers.Array( of ulong )  gparamType
     '' THE PARSER, still holding the token buffer the unit was parsed from. Kept as an
     '' 'any ptr' so this header does not have to include the parser's -- generic.bas
     '' casts it back. Zero when the caller has no parser to give, in which case a
@@ -90,8 +90,8 @@ type Ctx
     '' up -- including the one for the very DIM whose type is being resolved -- is a
     '' pointer INTO that vector, and dangles the moment it reallocates. The first
     '' 'dim as Box( of long ) a' in a file came out untyped for exactly that reason.
-    as FB.Array( of ulong )  pendInst
-    as FB.Array( of ulong )  pendInstArgs
+    as containers.Array( of ulong )  pendInst
+    as containers.Array( of ulong )  pendInstArgs
     '' How far pendInst has been drained. A cursor rather than a clear, because the
     '' drain is RE-ENTERED: instantiating one member walks its body, which reaches the
     '' same statement boundary and drains again. Each entry is still done once.
@@ -99,23 +99,23 @@ type Ctx
     '' GENERIC PROCEDURES waiting to be instantiated. Six entries each -- the generic's
     '' node, the symbol the call site was already given, its structural name, the scope
     '' it lives in, and the (first, count) of its arguments in pendProcArgs.
-    as FB.Array( of ulong )  pendProc
-    as FB.Array( of ulong )  pendProcArgs
+    as containers.Array( of ulong )  pendProc
+    as containers.Array( of ulong )  pendProcArgs
     as long                  pendProcDone
     '' HOW DEEP INSTANTIATION HAS GONE -- see InstDepthOk_ in generic.bas. 'instDepth' is fbc's
     '' counted depth and 'instChain' the real one; each queued entry keeps its chain.
     as long                  instDepth, instChain, maxInstDepth
-    as FB.Array( of ulong )  pendInstChain, pendProcChain
+    as containers.Array( of ulong )  pendInstChain, pendProcChain
     '' ...and each queued entry's instantiation frame, for the TKO0903 chain (T16,
     '' instframe.bas); curInstFrame is the TYPE instantiation being drained, or 0.
-    as FB.Array( of ulong )  pendInstFrame, pendProcFrame
+    as containers.Array( of ulong )  pendInstFrame, pendProcFrame
     as long                  curInstFrame
     '' THE INSTANTIATION CACHE for generic procedures, one entry each: the key and the
     '' symbol it produced. A SIDE table rather than a name lookup, because the key has
     '' to name the GENERIC as well as the arguments and the symbol's name must not --
     '' the name is what gets mangled, and fbc's is "MK<8>", not "MK#11<8>".
-    as FB.Array( of ulong )  procInstKey
-    as FB.Array( of ulong )  procInstSym
+    as containers.Array( of ulong )  procInstKey
+    as containers.Array( of ulong )  procInstSym
     '' WALKING A PARAMETER DEFAULT, which is written at the DECLARATION and evaluated at
     '' the call site -- not inside the procedure's body, though it is walked in the
     '' procedure's scope. A module-level local is visible to it, and fbc refuses it for a
@@ -153,7 +153,7 @@ declare function InitCountAt _
     ( byref c as Ctx, byval init as Tko.NodeId, byval depth as long ) as long
 declare function ArrayFromPairs _
     ( byref c as Ctx, byval base_ as Tko.TypeId, _
-      byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ), _
+      byref los as containers.Array( of ulong ), byref his as containers.Array( of ulong ), _
       byval init as Tko.NodeId = Tko.NODE_NONE, _
       byval emptyIsDynamic as boolean = false, _
       byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId

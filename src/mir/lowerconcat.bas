@@ -21,12 +21,12 @@ private function NarrowAppendWide_ _
         if UserCastToWide_( c, value, src ) = false then return false
     end if
     if src.kind = cast( ubyte, MV_NONE ) then return false
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     PushStrArg( args, dst )
     args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
     dim as MirValue joined
     if WideConcatStep_( c, args, RTL_WSTR_CONCAT_AW, joined ) = false then return false
-    dim as FB.Array( of ulong ) aargs
+    dim as containers.Array( of ulong ) aargs
     aargs.Push( cast( ulong, dst.kind ) ) : aargs.Push( cast( ulong, dst.id ) )
     PushStrLen_( c, aargs, -1 )
     aargs.Push( cast( ulong, joined.kind ) ) : aargs.Push( cast( ulong, joined.id ) )
@@ -74,10 +74,10 @@ function LowerConcatAssignStmt _
         '' narrow build followed: 'Tu', NUL -- fbsqlite's DbError.ToString lost everything
         '' after its first line ('text &= " [" & m_operation & "]"').
         if isU then
-            dim as FB.Array( of ulong ) vterms
+            dim as containers.Array( of ulong ) vterms
             FlattenConcat( c, value, vterms )
             if vterms.Count >= 2 then
-                dim as FB.Array( of ulong ) chain
+                dim as containers.Array( of ulong ) chain
                 chain.Push( cast( ulong, target ) )
                 for i as long = 0 to vterms.Count - 1
                     chain.Push( vterms[i] )
@@ -109,7 +109,7 @@ function LowerConcatAssignStmt _
         '' 'h &= u & wz' held "nU w i". It takes the fold 'h = h & u & wz' already takes.
         '' A UDT that ALSO casts to a narrow string stays narrow -- fbc picks that cast.
         if (isU = false) andalso (vf = STF_WIDE) then
-            dim as FB.Array( of ulong ) wterms
+            dim as containers.Array( of ulong ) wterms
             FlattenConcat( c, value, wterms )
             dim as boolean touchesU = false
             dim as boolean wideOnly = false
@@ -127,7 +127,7 @@ function LowerConcatAssignStmt _
                 end if
             next
             if touchesU then
-                dim as FB.Array( of ulong ) uchain
+                dim as containers.Array( of ulong ) uchain
                 uchain.Push( cast( ulong, target ) )
                 for i as long = 0 to wterms.Count - 1
                     uchain.Push( wterms[i] )
@@ -150,14 +150,14 @@ function LowerConcatAssignStmt _
             end if
         end if
         if mism then
-            dim as FB.Array( of ulong ) two
+            dim as containers.Array( of ulong ) two
             two.Push( cast( ulong, target ) )
             two.Push( cast( ulong, value ) )
             if LowerUStrChain( c, dst, isU, two, false ) then return true
             if isU then return LowerNarrowChainToU_( c, dst, two, false )
             return false
         end if
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         PushStrArg( args, dst )
         if EmitStrTerm( c, args, value, isU ) = false then return false
         args.Push( cast( ulong, MV_CONST_INT ) )
@@ -188,7 +188,7 @@ function LowerConcatAssignStmt _
     dim as MirValue fdst = LowerAddr( c, target )
     if fdst.kind = cast( ubyte, MV_NONE ) then return false
     if fxk = 3 then
-        dim as FB.Array( of ulong ) fa
+        dim as containers.Array( of ulong ) fa
         fa.Push( cast( ulong, fdst.kind ) ) : fa.Push( cast( ulong, fdst.id ) )
         PushStrLen_( c, fa, fxn )
         if EmitStrTerm( c, fa, value, false ) = false then return false
@@ -203,14 +203,14 @@ function LowerConcatAssignStmt _
     ftmp.ty = cast( ubyte, MT_PTR )
     ftmp.id = tslot
     ZeroStrTempAtEntry_( c, ftmp )
-    dim as FB.Array( of ulong ) ca
+    dim as containers.Array( of ulong ) ca
     ca.Push( cast( ulong, ftmp.kind ) ) : ca.Push( cast( ulong, ftmp.id ) )
     ca.Push( cast( ulong, fdst.kind ) ) : ca.Push( cast( ulong, fdst.id ) )
     PushStrLen_( c, ca, fxn )
     if EmitStrTerm( c, ca, value, false ) = false then return false
     dim as MirValue acc = EmitRtl( c, RTL_STR_CONCAT, ca )
     if acc.kind = cast( ubyte, MV_NONE ) then return false
-    dim as FB.Array( of ulong ) aa
+    dim as containers.Array( of ulong ) aa
     aa.Push( cast( ulong, fdst.kind ) ) : aa.Push( cast( ulong, fdst.id ) )
     PushStrLen_( c, aa, fxn )
     aa.Push( cast( ulong, acc.kind ) ) : aa.Push( cast( ulong, acc.id ) )
@@ -222,7 +222,7 @@ end function
 
 '' Flatten a left-leaning '+' chain into its terms, in source order.
 sub FlattenConcat _
-    ( byref c as Ctx, byval id as Tko.NodeId, byref outp as FB.Array( of ulong ) )
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outp as containers.Array( of ulong ) )
 
     if id = Tko.NODE_NONE then return
     '' A PARENTHESISED STRING CHAIN IS THE SAME CHAIN: 'a & ( b & c )' is 'a & b & c'.
@@ -298,7 +298,7 @@ sub FlattenConcat _
             if nulLit then nulLit = ConstStringTextOf_( c, id, nraw, 1 )
             if nulLit then nulLit = (instr( nraw, chr( 0 ) ) > 0)
             if nulLit then
-                dim as FB.Array( of ulong ) sub_
+                dim as containers.Array( of ulong ) sub_
                 FlattenConcat( c, bp->lhs, sub_ )
                 FlattenConcat( c, bp->rhs, sub_ )
                 dim as long keep = sub_.Count
@@ -405,7 +405,7 @@ function WideAssignViaTemp_ _
     ( byref c as Ctx, byref dst as MirValue, byval n as long, _
       byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 
-    dim as FB.Array( of ulong ) terms
+    dim as containers.Array( of ulong ) terms
     FlattenConcat( c, value, terms )
     dim as boolean reads = false
     for i as long = 1 to terms.Count - 1
@@ -414,7 +414,7 @@ function WideAssignViaTemp_ _
     if reads = false then return false
     dim as MirValue src
     if WideConcatToTemp_( c, value, src ) = false then return false
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, n ) )
     args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
@@ -473,7 +473,7 @@ function LowerOffsetOf _
     '' from the outside in and the names come out reversed, then applied in order,
     '' each one's offset added and its TYPE becoming the next one's container.
     dim as Tko.NodeId fn = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
-    dim as FB.Array( of ulong ) path
+    dim as containers.Array( of ulong ) path
     while c.ast->Kind( fn ) = Tko.N_MEMBER
         dim as Tko.BinaryPayload ptr mbp = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, fn )].data )]
@@ -509,11 +509,11 @@ end function
 '' ConcatAssign "z"; 'v = n & w': fb_UStrAssignFromA( v, n ), ConcatAssign w. The narrow
 '' digits concat-assigned unconverted read as UTF-16 -- '25' came out as U+3532.
 function LowerUStrInPlaceWithNumbers_ _
-    ( byref c as Ctx, byref dst as MirValue, byref terms as FB.Array( of ulong ) ) as boolean
+    ( byref c as Ctx, byref dst as MirValue, byref terms as containers.Array( of ulong ) ) as boolean
 
     for i as long = 0 to terms.Count - 1
         dim as Tko.NodeId term = cast( Tko.NodeId, terms[i] )
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         PushStrArg( args, dst )
         if IsRenderedNumberTerm_( c, term ) then
             dim as MirValue nv
@@ -525,7 +525,7 @@ function LowerUStrInPlaceWithNumbers_ _
                 EmitRtl( c, RTL_USTR_FROM_A, args )
                 continue for
             end if
-            dim as FB.Array( of ulong ) cv
+            dim as containers.Array( of ulong ) cv
             PushStrArg( cv, nv )
             dim as MirValue uv = EmitRtl( c, RTL_STR_TO_USTR, cv )
             if uv.kind = cast( ubyte, MV_NONE ) then return false

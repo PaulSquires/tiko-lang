@@ -1,5 +1,6 @@
 '' engine.bas -- see engine.bi
 
+#import "std/containers"
 #include once "diag/engine.bi"
 #include once "diag/render.bi"
 #include once "diag/machine.bi"

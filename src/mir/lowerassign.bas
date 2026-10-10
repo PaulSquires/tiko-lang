@@ -71,11 +71,11 @@ private function LowerTupleListAssign_ _
 
     '' ASSIGNED, not stored: a tuple whose half owns something has an 'operator let'
     '' and a raw copy would skip it. The same-type one -- the temp is a dt.
-    dim as FB.Array( of ulong ) tletT
+    dim as containers.Array( of ulong ) tletT
     tletT.Push( cast( ulong, dt ) )
     dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, dt, "let" ), tletT )
     if lt <> Tko.SYMBOL_NONE then
-        dim as FB.Array( of ulong ) largs
+        dim as containers.Array( of ulong ) largs
         largs.Push( cast( ulong, tv.kind ) ) : largs.Push( cast( ulong, tv.id ) )
         EmitStructorCall( c, lt, -1, @daddr, @largs )
         return true
@@ -202,7 +202,7 @@ private function LowerSpawnArgAssign_ _
         if c.types->BaseDistance( vt, dt ) >= 0 then return false
         if HasUdtConvCtor_( c, dt, vt ) = false then return false
     else
-        dim as FB.Array( of ulong ) argT
+        dim as containers.Array( of ulong ) argT
         argT.Push( cast( ulong, vt ) )
         if PickCtor( c, StructorOf( c, dt, "__ctor" ), argT ) = Tko.SYMBOL_NONE then return false
     end if
@@ -224,11 +224,11 @@ private function LowerSpawnArgAssign_ _
     tv.id = tslot
 
     '' ASSIGNED AS ITS OWN TYPE, as LowerTupleListAssign_ does it.
-    dim as FB.Array( of ulong ) letT
+    dim as containers.Array( of ulong ) letT
     letT.Push( cast( ulong, dt ) )
     dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, dt, "let" ), letT )
     if lt <> Tko.SYMBOL_NONE then
-        dim as FB.Array( of ulong ) largs
+        dim as containers.Array( of ulong ) largs
         largs.Push( cast( ulong, tv.kind ) ) : largs.Push( cast( ulong, tv.id ) )
         EmitStructorCall( c, lt, -1, @daddr, @largs )
         return true
@@ -554,12 +554,12 @@ private sub LowerAssign _
                                (ssa.kind <> cast( ubyte, MV_NONE )) then
                                 thisDst = LowerExprLoad( c, tsa, MT_PTR )
                                 if thisDst.kind <> cast( ubyte, MV_NONE ) then
-                                    dim as FB.Array( of ulong ) tlT
+                                    dim as containers.Array( of ulong ) tlT
                                     tlT.Push( cast( ulong, ot ) )
                                     dim as Tko.SymbolId tlet = _
                                         PickCtor( c, StructorOf( c, ot, "let" ), tlT )
                                     if tlet <> Tko.SYMBOL_NONE then
-                                        dim as FB.Array( of ulong ) tla
+                                        dim as containers.Array( of ulong ) tla
                                         tla.Push( cast( ulong, ssa.kind ) )
                                         tla.Push( cast( ulong, ssa.id ) )
                                         EmitStructorCall( c, tlet, -1, @thisDst, @tla )
@@ -607,7 +607,7 @@ private sub LowerAssign _
             end if
             if vat <> Tko.TYPE_NONE then
                 if c.types->Kind( vat ) = Tko.TK_ARRAY then
-                    dim as FB.Array( of ulong ) latT
+                    dim as containers.Array( of ulong ) latT
                     latT.Push( cast( ulong, vat ) )
                     dim as Tko.SymbolId alet = _
                         PickCtor( c, StructorOf( c, atl, "let" ), latT )
@@ -616,7 +616,7 @@ private sub LowerAssign _
                         dim as MirValue aadv
                         if (ada.kind <> cast( ubyte, MV_NONE )) andalso _
                            ArrayDescArg_( c, value, true, aadv ) then
-                            dim as FB.Array( of ulong ) alargs
+                            dim as containers.Array( of ulong ) alargs
                             alargs.Push( cast( ulong, aadv.kind ) )
                             alargs.Push( cast( ulong, aadv.id ) )
                             EmitStructorCall( c, alet, -1, @ada, @alargs )
@@ -679,7 +679,7 @@ private sub LowerAssign _
             '' -- so finding no same-type overload here is not a decline: it falls
             '' through to the ordinary aggregate copy below, which is what a UDT with
             '' no assignment operator at all already gets.
-            dim as FB.Array( of ulong ) sletT
+            dim as containers.Array( of ulong ) sletT
             sletT.Push( cast( ulong, atl ) )
             dim as Tko.SymbolId ulet = _
                 PickCtor( c, StructorOf( c, atl, "let" ), sletT )
@@ -711,7 +711,7 @@ private sub LowerAssign _
                 if (da.kind <> cast( ubyte, MV_NONE )) andalso _
                    (sa.kind <> cast( ubyte, MV_NONE )) then
                     if ulet <> Tko.SYMBOL_NONE then
-                        dim as FB.Array( of ulong ) largs
+                        dim as containers.Array( of ulong ) largs
                         largs.Push( cast( ulong, sa.kind ) )
                         largs.Push( cast( ulong, sa.id ) )
                         EmitStructorCall( c, ulet, -1, @da, @largs )

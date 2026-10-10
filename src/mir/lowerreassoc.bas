@@ -20,6 +20,7 @@
 '' A chain with no constant, or with an operand whose type is not a builtin number, is not
 '' taken: the ordinary binary path lowers it exactly as before.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -40,7 +41,7 @@ type RaNode
 end type
 
 type RaTree
-    as FB.Array( of RaNode ) nodes
+    as containers.Array( of RaNode ) nodes
     as MirType ty
 end type
 

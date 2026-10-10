@@ -4,10 +4,11 @@
 '' call node to a 'call' instruction lives here: the receiver, the hidden result
 '' pointer, argument passing, and the choice between a direct and an indirect call.
 
+#import "std/containers"
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
-declare function CallFailed_( byref c as Ctx, byref v as MirValue, byval ln as long = 0 ) as MirValue : declare sub UStrBackPush_( byref c as Ctx, byval e as Tko.NodeId, byval slot as long, byref nodes as FB.Array( of ulong ), byref slots as FB.Array( of ulong ) )
+declare function CallFailed_( byref c as Ctx, byref v as MirValue, byval ln as long = 0 ) as MirValue : declare sub UStrBackPush_( byref c as Ctx, byval e as Tko.NodeId, byval slot as long, byref nodes as containers.Array( of ulong ), byref slots as containers.Array( of ulong ) )
 declare function ClosureInvokeSym_ _
     ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
 declare function SigParamIsRef_ _
@@ -20,11 +21,11 @@ declare function FixedUStrArgTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, _
       byref outa as MirValue, byref outSlot as long ) as boolean
 declare sub CopyBackUStrArgs_ _
-    ( byref c as Ctx, byref nodes as FB.Array( of ulong ), _
-      byref slots as FB.Array( of ulong ) )
+    ( byref c as Ctx, byref nodes as containers.Array( of ulong ), _
+      byref slots as containers.Array( of ulong ) )
 declare sub DeleteStrArgTemps_ _
-    ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
-      byref types as FB.Array( of ulong ), byval defer as boolean = false )
+    ( byref c as Ctx, byref slots as containers.Array( of ulong ), _
+      byref types as containers.Array( of ulong ), byval defer as boolean = false )
 
 
 declare function BareTypeLiteralArg_ _
@@ -224,19 +225,19 @@ function LowerCallParts _
     '' with this one's, because the callee's extent was opened before its arguments were
     '' lowered: 'F( G( 7 ), 9 )' emitted 'call void F(%4, %5)' -- F( 7, G(7) ) -- and
     '' dropped the 9 entirely. No decline, no diagnostic, wrong arguments.
-    dim as FB.Array( of ulong ) argv
+    dim as containers.Array( of ulong ) argv
     '' THE CALLER-BUILT COPIES of byval non-trivial UDT arguments, and the conversions,
     '' are not collected here: each goes on the statement's temporary list the moment it
     '' is made -- see ByvalUdtCopyArg_. The STRING descriptors are collected, and
     '' released with the runtime right after the call rather than with a destructor.
-    dim as FB.Array( of ulong ) strTemps
-    dim as FB.Array( of ulong ) strTempTypes
+    dim as containers.Array( of ulong ) strTemps
+    dim as containers.Array( of ulong ) strTempTypes
     '' ...and the COPY-OUT a fixed USTRING argument needs. fbc copies a
     '' 'ustring * N' into a descriptor, calls, copies BACK and deletes; the
     '' write-back is not something DeleteStrArgTemps_ can do, so the source
     '' node and the temporary are kept until after the call.
-    dim as FB.Array( of ulong ) ustrBackNode
-    dim as FB.Array( of ulong ) ustrBackSlot
+    dim as containers.Array( of ulong ) ustrBackNode
+    dim as containers.Array( of ulong ) ustrBackSlot
     dim as long tempSlot = -1
     dim as Tko.TypeId tempType = Tko.TYPE_NONE
 
@@ -323,10 +324,10 @@ function LowerCallParts _
     '' That is the REVERSE OF THE ORDER THEY ARE PASSED, so a PASCAL call (codegen/abi.bas)
     '' runs left to right, its receiver -- passed last -- FIRST: 'P3( G(1), G(2), G(3) )' is
     '' 123, 'getT( ).M( G(1), G(2) )' getT 1 2. Slots fill as evaluated; argv is in POSITION order.
-    dim as FB.Array( of ulong ) slotKind
-    dim as FB.Array( of ulong ) slotId
+    dim as containers.Array( of ulong ) slotKind
+    dim as containers.Array( of ulong ) slotId
     '' ...and where each argument's temporaries begin -- see CallTempsInSourceOrder_.
-    dim as FB.Array( of ulong ) segFrom
+    dim as containers.Array( of ulong ) segFrom
     dim as long argMark = c.udtTemps.Count
     for i as long = 0 to slots - 1 : slotKind.Push( cast( ulong, MV_NONE ) ) : slotId.Push( 0 ) : segFrom.Push( 0 ) : next
     dim as boolean l2r = CallIsPascal_( c, callee, viaPointer, calleeSigT )

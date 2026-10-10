@@ -21,6 +21,7 @@
 ''   long ptr ptr        11 +  64
 ''   any ptr              0 +  32
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir

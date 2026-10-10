@@ -1,5 +1,6 @@
 '' import.bas -- one import: parse, name, emit, assemble. See import.bi.
 
+#import "std/containers"
 #include once "cimport/import.bi"
 
 namespace Tko.CImport

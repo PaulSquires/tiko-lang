@@ -3,6 +3,7 @@
 '' Split out of lower.bas, which is at its size limit. FOR EACH is a different
 '' construct and lives in lowerctl.bas with the other loops.
 
+#import "std/containers"
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
@@ -67,7 +68,7 @@ private function ForUdtInit_ _
     if sv.kind = cast( ubyte, MV_NONE ) then return false
     dim as Tko.SymbolId cc = CopyCtorOf_( c, ct )
     if cc <> Tko.SYMBOL_NONE then
-        dim as FB.Array( of ulong ) ccargs
+        dim as containers.Array( of ulong ) ccargs
         ccargs.Push( cast( ulong, sv.kind ) )
         ccargs.Push( cast( ulong, sv.id ) )
         EmitStructorCall( c, cc, -1, @dst, @ccargs )
@@ -144,7 +145,7 @@ private function LowerForUdt_ _
     '' THE STEP, constructed ONCE into a temporary of its own, for the same reason
     '' the limit is: all three operators read it, on every iteration.
     dim as MirValue stpAddr
-    dim as FB.Array( of ulong ) stpArgs
+    dim as containers.Array( of ulong ) stpArgs
     if hasStep then
         dim as long stpSlot = NewTempLocal( c, MT_AGG, lsz )
         if stpSlot < 0 then return false
@@ -214,7 +215,7 @@ private function LowerForUdt_ _
     Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
 
     c.curBlock = testB
-    dim as FB.Array( of ulong ) nargs
+    dim as containers.Array( of ulong ) nargs
     nargs.Push( cast( ulong, limAddr.kind ) )
     nargs.Push( cast( ulong, limAddr.id ) )
     if hasStep then

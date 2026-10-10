@@ -3,6 +3,7 @@
 '' Split out of lower.bas when that file passed the 1500-line lint cap. The division
 '' is by subject rather than by size: everything here is about the string runtime.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 #include once "support/fbstr.bi"
 
@@ -15,7 +16,7 @@ namespace Tko.Mir
 '' owns, and this is what parks it in a temporary and registers that for the
 '' fb_WstrDelete at the end of the statement.
 declare function WideConcatStep_ _
-    ( byref c as Ctx, byref args as FB.Array( of ulong ), byval r as RtlId, _
+    ( byref c as Ctx, byref args as containers.Array( of ulong ), byval r as RtlId, _
       byref acc as MirValue ) as boolean
 
 '' Defined below; the wide-string helpers above it classify a narrow operand.
@@ -26,7 +27,7 @@ declare function StrSwapKind_ _
 '' calls both, so they are no longer local to this file.
 declare function LowerConcatViaTemp _
     ( byref c as Ctx, byref dst as MirValue, _
-      byref terms as FB.Array( of ulong ) ) as boolean
+      byref terms as containers.Array( of ulong ) ) as boolean
 
 
 '' 'a = b + a'. The chain is built in an anonymous FBSTRING slot and then assigned.
@@ -37,7 +38,7 @@ declare function LowerConcatViaTemp _
 '' be a double free.
 private function LowerConcatViaTemp _
     ( byref c as Ctx, byref dst as MirValue, _
-      byref terms as FB.Array( of ulong ) ) as boolean
+      byref terms as containers.Array( of ulong ) ) as boolean
 
     if terms.Count < 2 then return false
     dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
@@ -63,7 +64,7 @@ private function LowerConcatViaTemp _
     dim as boolean isU = ConcatTermsAreU_( c, terms )
 
     '' fb_StrConcat takes the destination descriptor first, then the two operands.
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, tmp.kind ) )
     args.Push( cast( ulong, tmp.id ) )
     if EmitStrTerm( c, args, cast( Tko.NodeId, terms[0] ), isU ) = false then return false
@@ -72,7 +73,7 @@ private function LowerConcatViaTemp _
 
     '' Any further terms concatenate onto the temporary in place.
     for i as long = 2 to terms.Count - 1
-        dim as FB.Array( of ulong ) more
+        dim as containers.Array( of ulong ) more
         PushStrArg( more, tmp )
         if EmitStrTerm( c, more, cast( Tko.NodeId, terms[i] ), isU ) = false then return false
         more.Push( cast( ulong, MV_CONST_INT ) )
@@ -80,7 +81,7 @@ private function LowerConcatViaTemp _
         EmitRtl( c, iif( isU, RTL_USTR_CONCAT_ASSIGN, RTL_STR_CONCAT_ASSIGN ), more )
     next
 
-    dim as FB.Array( of ulong ) fin
+    dim as containers.Array( of ulong ) fin
     PushStrArg( fin, dst )
     PushStrArg( fin, tmp )
     fin.Push( cast( ulong, MV_CONST_INT ) )
@@ -102,7 +103,7 @@ function ConcatToTempDesc_ _
 
     if e = Tko.NODE_NONE then return false
     if c.ast->Kind( e ) <> Tko.N_BINARY then return false
-    dim as FB.Array( of ulong ) terms
+    dim as containers.Array( of ulong ) terms
     FlattenConcat( c, e, terms )
     return ConcatTermsToTempDesc_( c, terms, outv )
 end function
@@ -111,7 +112,7 @@ end function
 '' UTF-16 -- 'a & "y"' over a ustring is fb_UStrConcat with a UTF-16 literal -- and a
 '' literal on its own says nothing, so the terms are asked one at a time.
 function ConcatTermsAreU_ _
-    ( byref c as Ctx, byref terms as FB.Array( of ulong ) ) as boolean
+    ( byref c as Ctx, byref terms as containers.Array( of ulong ) ) as boolean
 
     for i as long = 0 to terms.Count - 1
         dim as Tko.NodeId tid = cast( Tko.NodeId, terms[i] )
@@ -125,7 +126,7 @@ end function
 '' path folds the NARROW PREFIX of a mixed chain: 'x & ", " & w' is a narrow concat of
 '' the first two and only then a wide one.
 function ConcatTermsToTempDesc_ _
-    ( byref c as Ctx, byref terms as FB.Array( of ulong ), _
+    ( byref c as Ctx, byref terms as containers.Array( of ulong ), _
       byref outv as MirValue ) as boolean
 
     if terms.Count < 2 then return false
@@ -151,14 +152,14 @@ function ConcatTermsToTempDesc_ _
         return true
     end if
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )
     if EmitStrTerm( c, args, cast( Tko.NodeId, terms[0] ), isU ) = false then return false
     if EmitStrTerm( c, args, cast( Tko.NodeId, terms[1] ), isU ) = false then return false
     EmitRtl( c, iif( isU, RTL_USTR_CONCAT, RTL_STR_CONCAT ), args )
 
     for i as long = 2 to terms.Count - 1
-        dim as FB.Array( of ulong ) more
+        dim as containers.Array( of ulong ) more
         PushStrArg( more, tmp )
         if EmitStrTerm( c, more, cast( Tko.NodeId, terms[i] ), isU ) = false then return false
         more.Push( cast( ulong, MV_CONST_INT ) )
@@ -343,7 +344,7 @@ end function
 '' A call to a runtime function, by table id. Nothing here spells a runtime name: the
 '' inventory is the only place that does (docs/plan/11 section 3).
 function EmitRtl _
-    ( byref c as Ctx, byval r as RtlId, byref args as FB.Array( of ulong ) ) as MirValue
+    ( byref c as Ctx, byval r as RtlId, byref args as containers.Array( of ulong ) ) as MirValue
 
     dim as MirValue v
     '' AN ARGUMENT THAT IS NOTHING IS NOT AN ARGUMENT, and a runtime call is no
@@ -523,7 +524,7 @@ end function
 
 
 sub PushStrLiteralArg _
-    ( byref args as FB.Array( of ulong ), byval gidx as long, byval nbytes as long )
+    ( byref args as containers.Array( of ulong ), byval gidx as long, byval nbytes as long )
     args.Push( cast( ulong, MV_GLOBAL ) )
     args.Push( cast( ulong, gidx ) )
     args.Push( cast( ulong, MV_CONST_INT ) )
@@ -531,7 +532,7 @@ sub PushStrLiteralArg _
 end sub
 
 sub PushStrArg _
-    ( byref args as FB.Array( of ulong ), byref addr as MirValue )
+    ( byref args as containers.Array( of ulong ), byref addr as MirValue )
     args.Push( cast( ulong, addr.kind ) )
     args.Push( cast( ulong, addr.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) )
@@ -604,7 +605,7 @@ function LowerStringInit_ _
 
     '' A concatenation cannot go through fb_StrInit, which takes one source. Zero the
     '' descriptor so it is a valid empty string, then build into it the ordinary way.
-    dim as FB.Array( of ulong ) terms
+    dim as containers.Array( of ulong ) terms
     FlattenConcat( c, value, terms )
     if terms.Count <> 1 then
         ZeroStrDescriptor( c, dst )
@@ -616,7 +617,7 @@ function LowerStringInit_ _
         '' The self-reference check LowerStringAssign does with 'target' has nothing to
         '' find here: the descriptor was just zeroed, so a chain naming the variable
         '' being declared reads the empty string either way.
-        dim as FB.Array( of ulong ) cterms
+        dim as containers.Array( of ulong ) cterms
         FlattenConcat( c, value, cterms )
         dim as boolean dIsU = false
         if slot >= 0 then dIsU = IsUStringType( c, c.f->locals[slot].frontendType )
@@ -660,7 +661,7 @@ function LowerStringInit_ _
         end if
     end if
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     PushStrArg( args, dst )
     if EmitStrTerm( c, args, cast( Tko.NodeId, terms[0] ), isU ) = false then
         '' The source did not lower, so the descriptor must still be made valid --
@@ -735,7 +736,7 @@ function LowerPrint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     '' No items at all is the bare 'print', a newline on its own.
     if sp->count = 0 then
-        dim as FB.Array( of ulong ) va
+        dim as containers.Array( of ulong ) va
         va.Push( cast( ulong, chan.kind ) ) : va.Push( cast( ulong, chan.id ) )
         PushConst( va, 1 )
         EmitRtl( c, RTL_PRINT_VOID, va )
@@ -777,7 +778,7 @@ function LowerPrint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
             if i <> usedSep then
                 dim as long smask = 0
                 if usp->op = cast( ushort, Tko.TK_COMMA ) then smask = 2
-                dim as FB.Array( of ulong ) sa
+                dim as containers.Array( of ulong ) sa
                 sa.Push( cast( ulong, chan.kind ) ) : sa.Push( cast( ulong, chan.id ) )
                 PushConst( sa, smask )
                 EmitRtl( c, RTL_PRINT_VOID, sa )
@@ -864,7 +865,7 @@ function PrintRtlFor( byref c as Ctx, byval t as Tko.TypeId ) as RtlId
 end function
 
 '' An i32 constant argument, which every print call needs twice.
-sub PushConst( byref args as FB.Array( of ulong ), byval v as long )
+sub PushConst( byref args as containers.Array( of ulong ), byval v as long )
     args.Push( cast( ulong, MV_CONST_INT ) )
     args.Push( cast( ulong, v ) )
 end sub
@@ -887,7 +888,7 @@ end sub
 '' truncates to plain N in that field and silently turns the fixed-length tag into an
 '' ordinary zstring count. A value that wide needs a CONST INSTRUCTION, which is what
 '' ConstInt emits, so it is pushed as a temp rather than inline.
-sub PushStrLen_( byref c as Ctx, byref args as FB.Array( of ulong ), byval n as longint )
+sub PushStrLen_( byref c as Ctx, byref args as containers.Array( of ulong ), byval n as longint )
     if (n >= -2147483648ll) andalso (n <= 2147483647ll) then
         args.Push( cast( ulong, MV_CONST_INT ) )
         args.Push( cast( ulong, cast( long, n ) ) )
@@ -1160,7 +1161,7 @@ function LowerLen _
             if WideOperand_( c, a, wa ) = false then return false
         end if
         if wa.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) wargs
+        dim as containers.Array( of ulong ) wargs
         wargs.Push( cast( ulong, wa.kind ) ) : wargs.Push( cast( ulong, wa.id ) )
         outv = EmitRtl( c, RTL_WSTR_LEN, wargs )
         return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -1193,7 +1194,7 @@ function LowerLen _
         if StrSwapKind_( c, at, un ) = 4 then
             dim as MirValue ua = LowerAddr( c, a )
             if ua.kind <> cast( ubyte, MV_NONE ) then
-                dim as FB.Array( of ulong ) uargs
+                dim as containers.Array( of ulong ) uargs
                 uargs.Push( cast( ulong, ua.kind ) )
                 uargs.Push( cast( ulong, ua.id ) )
                 '' PushStrLen_, NOT a bare push: the tagged length has the SIGN BIT
@@ -1262,7 +1263,7 @@ function LowerLen _
             zn = -1
         end if
         if sa.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) sargs
+        dim as containers.Array( of ulong ) sargs
         sargs.Push( cast( ulong, sa.kind ) ) : sargs.Push( cast( ulong, sa.id ) )
         sargs.Push( cast( ulong, MV_CONST_INT ) ) : sargs.Push( cast( ulong, zn ) )
         '' fb_UStrLen for a UTF-16 descriptor: it counts CODE UNITS, and fb_StrLen
@@ -1273,7 +1274,7 @@ function LowerLen _
         '' 'len( a & b )' over two ustrings measured a UTF-16 temporary with fb_StrLen.
         dim as boolean lenU = IsUStringType( c, at )
         if (lenU = false) andalso (c.ast->Kind( a ) = Tko.N_BINARY) then
-            dim as FB.Array( of ulong ) lterms
+            dim as containers.Array( of ulong ) lterms
             FlattenConcat( c, a, lterms )
             if lterms.Count > 1 then lenU = ConcatTermsAreU_( c, lterms )
         end if
@@ -1407,7 +1408,7 @@ function LowerStringAssignTo_ _
     '' A '+' chain is flattened and emitted as ONE assign followed by concat-assigns,
     '' which is exactly what fbc does: 'a = b + c' is fb_StrAssign(a,b) then
     '' fb_StrConcatAssign(a,c), with no temporary at all.
-    dim as FB.Array( of ulong ) terms
+    dim as containers.Array( of ulong ) terms
     FlattenConcat( c, value, terms )
 
     '' If the destination is read AFTER it would be written, the chain cannot be built
@@ -1474,7 +1475,7 @@ function LowerStringAssignTo_ _
                 if SameLValue( c, target, term ) then continue for
             end if
         end if
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         PushStrArg( args, dst )
         if EmitStrTerm( c, args, term, isU ) = false then return false
         args.Push( cast( ulong, MV_CONST_INT ) )

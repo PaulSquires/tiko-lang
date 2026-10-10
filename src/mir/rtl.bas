@@ -1,5 +1,6 @@
 '' rtl.bas -- the runtime inventory. See rtl.bi for why it is measured, not copied.
 
+#import "std/containers"
 #include once "mir/rtl.bi"
 #include once "support/text.bi"
 

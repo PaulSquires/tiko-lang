@@ -9,6 +9,7 @@
 '' together with the first, seeded with everything the first decided, and written as only
 '' what is new (cimport/state.bas). The session tracks the unit by its root file.
 
+#import "std/containers"
 #include once "support/diskcache.bi"
 #include once "driver/cinclude.bi"
 #include once "driver/cimportmode.bi"
@@ -25,13 +26,13 @@ type CIncludeSession_
     as string      clangExe
     '' This run's bindings, by key.
     as Tko.StrVec  keys
-    as FB.Array( of long ) fileIds
+    as containers.Array( of long ) fileIds
     as Tko.StrVec  states          '' what each decided, to seed the next delta
     as Tko.StrVec  texts           '' each binding's own text
     '' The unit being preprocessed.
     as Tko.FileId  unitRoot
     as Tko.StrVec  unitHeaders
-    as FB.Array( of long ) unitFiles
+    as containers.Array( of long ) unitFiles
     as string      unitState
     as string      unitText        '' every binding this unit has entered, in order
 end type
@@ -112,7 +113,7 @@ private function Hook_ cdecl _
 
     if s->loaded = false then
         s->loaded = true
-        dim as FB.Array( of string ) noLibs
+        dim as containers.Array( of string ) noLibs
         dim as string noClang = ""
         s->clangExe = Tko.Codegen.FindTools( noClang, noLibs ).clangExe
         Tko.CImport.ClangLoad( s->api, s->clangExe )

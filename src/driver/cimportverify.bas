@@ -5,6 +5,7 @@
 '' ComputeUdtLayouts. No Check and no codegen -- a layout needs neither -- so the whole of
 '' windows.h's binding is laid out in the time it takes to parse it.
 
+#import "std/containers"
 #include once "driver/cimportverify.bi"
 #include once "pp/pp.bi"
 #include once "parser/parser.bi"
@@ -31,8 +32,8 @@ type ClangRec_
     as long size
     as long align
     as Tko.StrVec fnames
-    as FB.Array( of long ) fbits
-    as FB.Array( of long ) fwidths
+    as containers.Array( of long ) fbits
+    as containers.Array( of long ) fwidths
 end type
 
 private function Word_( byref s as string, byref at as long ) as string

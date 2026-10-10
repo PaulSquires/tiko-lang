@@ -1,6 +1,7 @@
 '' lowerwstru.bas -- a USTRING source into a WSTRING destination.
 '' Split out of lowerwstr.bas on 2026-09-23 for the 1500-line cap.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -14,7 +15,7 @@ namespace Tko.Mir
 '' A ustring anywhere in the chain makes the chain a ustring: into a ustring it belongs to
 '' the conversion fold in lowerterm.bas, and into a wstring to one fb_UStrAssignToW.
 function ChainTouchesU_( byref c as Ctx, byval value as Tko.NodeId ) as boolean
-    dim as FB.Array( of ulong ) terms
+    dim as containers.Array( of ulong ) terms
     FlattenConcat( c, value, terms )
     for i as long = 0 to terms.Count - 1
         if IsUStringType( c, c.info->TypeOf_( cast( Tko.NodeId, terms[i] ) ) ) then
@@ -45,7 +46,7 @@ function WideConcatAssignUStr_ _
     dim as MirValue usrc
     dim as long uslot = -1
     if UStrOutOperand_( c, value, usrc, uslot ) = false then return -1
-    dim as FB.Array( of ulong ) wa
+    dim as containers.Array( of ulong ) wa
     wa.Push( cast( ulong, dst.kind ) ) : wa.Push( cast( ulong, dst.id ) )
     dim as MirValue cur = EmitRtl( c, RTL_WSTR_TO_USTR, wa )
     if cur.kind = cast( ubyte, MV_NONE ) then return -1
@@ -54,7 +55,7 @@ function WideConcatAssignUStr_ _
     dim as MirValue tmp
     tmp.kind = cast( ubyte, MV_LOCAL ) : tmp.ty = cast( ubyte, MT_PTR ) : tmp.id = tslot
     ZeroStrDescriptor( c, tmp )
-    dim as FB.Array( of ulong ) ca
+    dim as containers.Array( of ulong ) ca
     ca.Push( cast( ulong, tmp.kind ) ) : ca.Push( cast( ulong, tmp.id ) )
     ca.Push( cast( ulong, cur.kind ) ) : ca.Push( cast( ulong, cur.id ) )
     ca.Push( cast( ulong, MV_CONST_INT ) ) : ca.Push( cast( ulong, cast( ulongint, -1 ) ) )
@@ -62,7 +63,7 @@ function WideConcatAssignUStr_ _
     ca.Push( cast( ulong, MV_CONST_INT ) ) : ca.Push( cast( ulong, cast( ulongint, -1 ) ) )
     dim as MirValue joined = EmitRtl( c, RTL_USTR_CONCAT, ca )
     if joined.kind = cast( ubyte, MV_NONE ) then return -1
-    dim as FB.Array( of ulong ) aa
+    dim as containers.Array( of ulong ) aa
     aa.Push( cast( ulong, dst.kind ) ) : aa.Push( cast( ulong, dst.id ) )
     aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, n ) )
     aa.Push( cast( ulong, joined.kind ) ) : aa.Push( cast( ulong, joined.id ) )

@@ -3,6 +3,7 @@
 '' Split out of parser.bas at the 1500-line lint cap. Three predicates asking one
 '' question from three sides; nothing here parses anything.
 
+#import "std/containers"
 #include once "parser/parser.bi"
 
 namespace Tko.Parse

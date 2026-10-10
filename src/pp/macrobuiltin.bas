@@ -249,7 +249,7 @@ function PpExpandBuiltin _
     case PPB_ARG_COUNT
         dim as ArgList args
         if PpReadArgs( e, m, args ) then
-            dim as FB.Array( of string ) lst
+            dim as containers.Array( of string ) lst
             ExpandedArgList_( e, args, 0, lst )
             dim as long n = lst.Count
             if (n = 1) andalso (len( lst[0] ) = 0) then n = 0
@@ -286,7 +286,7 @@ function PpExpandBuiltin _
                 '' The LIST is everything after the index, expanded and RE-SPLIT --
                 '' so a macro standing in for several elements contributes all of
                 '' them, which is the whole point of this builtin.
-                dim as FB.Array( of string ) lst
+                dim as containers.Array( of string ) lst
                 ExpandedArgList_( e, args, 1, lst )
                 if i < lst.Count then
                     RelexInto( e, lst[cast( long, i )], use.loc, *buf )
@@ -357,7 +357,7 @@ function PpExpandBuiltin _
             else
                 dim as string mname = trim( ArgText( e, args, 0 ) )
                 '' ...and the LIST is re-split the same way here.
-                dim as FB.Array( of string ) lst
+                dim as containers.Array( of string ) lst
                 ExpandedArgList_( e, args, 2, lst )
                 if (lst.Count = 1) andalso (len( lst[0] ) = 0) then lst.Pop( )
                 dim as long n = lst.Count                  '' the list length

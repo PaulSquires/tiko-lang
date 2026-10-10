@@ -8,6 +8,7 @@
 '' model exists. Claiming a verifier is complete when it is not would be worse than
 '' having none, so the gaps are listed rather than glossed.
 
+#import "std/containers"
 #include once "mir/verify.bi"
 
 namespace Tko.Mir
@@ -32,7 +33,7 @@ end function
 
 private sub CheckUse_ _
     ( byref r as VerifyResult, byref bn as string, byval i as long, byval op as MirOp, _
-      byref v as MirValue, defined_ as FB.Array( of ubyte ) )
+      byref v as MirValue, defined_ as containers.Array( of ubyte ) )
 
     if v.kind <> cast( ubyte, MV_TEMP ) then return
     if cast( long, v.id ) >= defined_.Count then
@@ -61,7 +62,7 @@ function Verify _
 
         '' Which temps have been defined. Not dominance -- that needs a CFG walk --
         '' but it does catch a use of a temp that was never produced at all.
-        dim as FB.Array( of ubyte ) defined_
+        dim as containers.Array( of ubyte ) defined_
         for i as long = 0 to f->nextTemp
             defined_.Push( 0 )
         next
@@ -76,7 +77,7 @@ function Verify _
         '' ORDER: the entry block is where they all live, but a later block's use is
         '' seen before the entry block is finished being read only if the walk is
         '' single-pass. Two passes is simpler than reasoning about that.
-        dim as FB.Array( of ubyte ) allocated_
+        dim as containers.Array( of ubyte ) allocated_
         for i as long = 0 to f->locals.Count
             allocated_.Push( 0 )
         next
@@ -283,7 +284,7 @@ function Verify _
         '' Reachability is a fixed point over the terminators, cheap here because a
         '' block has at most two successors.
         if strict = false then continue for
-        dim as FB.Array( of ubyte ) seen
+        dim as containers.Array( of ubyte ) seen
         for i as long = 0 to f->blocks.Count - 1
             seen.Push( 0 )
         next

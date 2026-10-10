@@ -23,6 +23,7 @@
 '' One array per DATA STATEMENT, in source order, chained through the terminator.
 '' 'data 1 : data 2' on one line makes two.
 
+#import "std/containers"
 #include once "lowerctx.bi"
 #include once "support/fbstr.bi"
 
@@ -55,8 +56,8 @@ function CollectDataBlocks( byref c as Ctx, byval root as Tko.NodeId ) as long
 
     '' Two passes over the children: the blocks are built first so that the label map
     '' can point at them, and chained afterwards so each terminator knows its successor.
-    dim as FB.Array( of ulong ) blockOf         '' global index per DATA statement
-    dim as FB.Array( of ulong ) pendingLabels   '' labels seen since the last block
+    dim as containers.Array( of ulong ) blockOf         '' global index per DATA statement
+    dim as containers.Array( of ulong ) pendingLabels   '' labels seen since the last block
 
     for i as long = 0 to mp->count - 1
         dim as Tko.NodeId n = cast( Tko.NodeId, c.ast->children[mp->first + i] )
@@ -104,8 +105,8 @@ private function BuildDataBlock_( byref c as Ctx, byval id as Tko.NodeId ) as lo
 
     '' Folded FIRST, into scratch, so a block with one unfoldable item emits nothing
     '' rather than a short one.
-    dim as FB.Array( of long ) types
-    dim as FB.Array( of long ) refs
+    dim as containers.Array( of long ) types
+    dim as containers.Array( of long ) refs
     for i as long = 0 to sp->count - 1
         dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         dim as boolean isWide = false
@@ -318,7 +319,7 @@ function LowerRead( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as MirValue a = LowerAddr( c, dst )
         if a.kind = cast( ubyte, MV_NONE ) then return false
 
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         args.Push( cast( ulong, a.kind ) ) : args.Push( cast( ulong, a.id ) )
 
         if r = RTL_DATA_READ_STR then
@@ -424,7 +425,7 @@ function LowerRestore( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     g.kind = cast( ubyte, MV_GLOBAL )
     g.ty = cast( ubyte, MT_PTR )
     g.id = target
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, g.kind ) ) : args.Push( cast( ulong, g.id ) )
     EmitRtl( c, RTL_DATA_RESTORE, args )
     return true
@@ -441,7 +442,7 @@ sub EmitImplicitRestore( byref c as Ctx )
     g.kind = cast( ubyte, MV_GLOBAL )
     g.ty = cast( ubyte, MT_PTR )
     g.id = c.dataHead
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, g.kind ) ) : args.Push( cast( ulong, g.id ) )
     EmitRtl( c, RTL_DATA_RESTORE, args )
 end sub

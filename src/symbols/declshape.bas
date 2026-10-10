@@ -38,7 +38,7 @@ private function TypedefCycles_ ( byref c as Ctx, byval tr as NodeId, byval scop
     dim as StmtPayload ptr tp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, tr )].data )]
     dim as SymbolId sid = c.info->RefOf( tr )
     if (sid = SYMBOL_NONE) andalso (tp->name <> 0) andalso (tp->ownerName = 0) then sid = c.syms->LookupTyped( scope_, tp->name, true )
-    dim as FB.Array( of ulong ) seen
+    dim as containers.Array( of ulong ) seen
     for hop as long = 0 to 31
         dim as Symbol ptr sy = c.syms->SymbolAt( sid )
         if (sy = 0) orelse (sy->kind <> cast( ubyte, SYM_TYPEDEF )) then return false
@@ -646,7 +646,7 @@ end sub
 '' A USING applies from where it is written, so each one is taken at its node id (source
 '' order), against the scope it sits in. Resolve records the namespace on the N_USING node.
 private sub CollectNsNamed_ ( byref c as Ctx, byval ns as ScopeId, byval nm as InternId, _
-                              byref got as FB.Array( of ulong ), byval depth as long )
+                              byref got as containers.Array( of ulong ), byval depth as long )
     if (ns = SCOPE_NONE) orelse (depth > 8) then return
     dim as SymbolId sid = c.syms->LookupLocal( ns, nm )
     if sid <> SYMBOL_NONE then
@@ -664,7 +664,7 @@ private sub CollectNsNamed_ ( byref c as Ctx, byval ns as ScopeId, byval nm as I
 end sub
 
 private sub CheckUsingAmbiguity_ ( byref c as Ctx )
-    dim as FB.Array( of ulong ) uNode, uScope, uInner, uFile
+    dim as containers.Array( of ulong ) uNode, uScope, uInner, uFile
     dim as long total = c.ast->Count( )
     for n as long = 1 to total - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_USING then continue for
@@ -677,7 +677,7 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
     next
     if uNode.Count < 1 then return
     '' The right side of a member access is qualified, and not this question.
-    dim as FB.Array( of ubyte ) qualified
+    dim as containers.Array( of ubyte ) qualified
     for n as long = 0 to total
         qualified.Push( 0 )
     next
@@ -724,7 +724,7 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
             walk = ss->parent
         next
         if declared then continue for
-        dim as FB.Array( of ulong ) got
+        dim as containers.Array( of ulong ) got
         for guard as long = 0 to 255
             if sc = SCOPE_NONE then exit for
             for u as long = 0 to uNode.Count - 1
@@ -754,7 +754,7 @@ end sub
 '' IR clang refused for the second. One passed to a single procedure takes its parameter's.
 private sub CheckBareTypeLiterals_ ( byref c as Ctx )
     dim as long total = c.ast->Count( )
-    dim as FB.Array( of ubyte ) argOf
+    dim as containers.Array( of ubyte ) argOf
     for n as long = 0 to total
         argOf.Push( 0 )
     next

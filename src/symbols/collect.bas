@@ -11,6 +11,7 @@
 ''   - May NOT report undefined symbols, type errors, or anything needing a lookup of
 ''     something that might be declared later.
 
+#import "std/containers"
 #include once "symbols/collect.bi"
 #include once "lexer/token.bi"
 #include once "support/text.bi"

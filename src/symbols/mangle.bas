@@ -1,6 +1,7 @@
 '' mangle.bas -- the Itanium encoder. See mangle.bi for the four FreeBASIC rules and
 '' for why every one of them was measured against fbc rather than read off a document.
 
+#import "std/containers"
 #include once "symbols/mangle.bi"
 #include once "support/text.bi"
 #include once "support/irtext.bi"
@@ -52,7 +53,7 @@ end function
 
 sub RegisterInst _
     ( byref types as Tko.TypeContext, byval nm as Tko.InternId, _
-      byval spell as Tko.InternId, byref args as FB.Array( of ulong ) )
+      byval spell as Tko.InternId, byref args as containers.Array( of ulong ) )
 
     if FindInst_( types, nm ) >= 0 then return
     types.instName.Push( cast( ulong, nm ) )
@@ -75,7 +76,7 @@ end sub
 '' The key stays what it was -- it is the interning, not the name.
 sub RegisterTuple _
     ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
-      byval t as Tko.TypeId, byref elemTypes as FB.Array( of ulong ) )
+      byval t as Tko.TypeId, byref elemTypes as containers.Array( of ulong ) )
 
     if t = Tko.TYPE_NONE then return
     if elemTypes.Count = 0 then return
@@ -121,13 +122,13 @@ const CHAIN_QUAL as ulong = &hFFFFFFFFul
 '' when the outermost qualifier's symbol, or self_ when there is none, is SYMF_MODSRC.
 private sub QualifierChain _
     ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
-      byref names as Tko.Interner, byref outp as FB.Array( of string ), _
-      byref outTypes as FB.Array( of ulong ), _
+      byref names as Tko.Interner, byref outp as containers.Array( of string ), _
+      byref outTypes as containers.Array( of ulong ), _
       byval types as Tko.TypeContext ptr = 0, _
       byval withChain as boolean = false, byval self_ as Tko.SymbolId = Tko.SYMBOL_NONE )
 
-    dim as FB.Array( of string ) rev
-    dim as FB.Array( of ulong ) revT
+    dim as containers.Array( of string ) rev
+    dim as containers.Array( of ulong ) revT
     dim as Tko.Symbol ptr outer = 0
     dim as Tko.ScopeId cur = sc
     while cur <> Tko.SCOPE_NONE
@@ -229,8 +230,8 @@ function SourceQualifiedName _
 
     dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
     if s = 0 then return ""
-    dim as FB.Array( of string ) q
-    dim as FB.Array( of ulong ) qt
+    dim as containers.Array( of string ) q
+    dim as containers.Array( of ulong ) qt
     QualifierChain( syms, s->parent, names, q, qt )
     dim as string r = ""
     for i as long = 0 to q.Count - 1
@@ -379,7 +380,7 @@ end function
 '' been replaced by S_, appending the next component to that abbreviation produces a
 '' key that matches nothing, and every later component gets spelled out in full.
 private function EmitPrefix _
-    ( byref quals as FB.Array( of string ), byref qualTypes as FB.Array( of ulong ), _
+    ( byref quals as containers.Array( of string ), byref qualTypes as containers.Array( of ulong ), _
       byref subs as Substitutions, byval types as Tko.TypeContext ptr = 0, _
       byval syms as Tko.SymbolTable ptr = 0, byval names as Tko.Interner ptr = 0 ) as string
 
@@ -508,8 +509,8 @@ function TypeCode _
         '' A UDT inside a namespace is a NESTED NAME: N <prefix> <name> E, and the
         '' prefix is usually a substitution because the procedure's own qualifiers
         '' already emitted it -- 'byref as Vec' in namespace BYVAL_OK is NS2_3VECE.
-        dim as FB.Array( of string ) q
-        dim as FB.Array( of ulong ) qt
+        dim as containers.Array( of string ) q
+        dim as containers.Array( of ulong ) qt
         if ti <> 0 then
             '' The type's own symbol decides whether a module chain applies at top level.
             dim as Tko.SymbolId tsym = syms.LookupLocalTyped( _
@@ -693,8 +694,8 @@ private function OperatorCode _
     '' A MEMBER OPERATOR COUNTS ITS RECEIVER. Measured: a member 'operator ^=' with
     '' one declared parameter is v27selfpow -- arity TWO -- while the global 'operator
     '' ^' with two is v23pow. 'this' is not in the parameter list, so it is added here.
-    dim as FB.Array( of string ) aq
-    dim as FB.Array( of ulong ) aqt
+    dim as containers.Array( of string ) aq
+    dim as containers.Array( of ulong ) aqt
     QualifierChain( syms, info.ScopeOf( proc_ ), names, aq, aqt, @types )
     if aqt.Count > 0 then
         '' A MODULE CHAIN COMPONENT IS NO TYPE: in an importer a module's global 'operator
@@ -859,8 +860,8 @@ private function DecorateWin32 _
     '' INNERMOST qualifier is a TYPE and the procedure is not STATIC: 'W.G( )' is @4 with
     '' no parameters at all, while the static 'W.ST( )' is @0 and a namespace's
     '' 'TB.B30( )' is @0 too.
-    dim as FB.Array( of string ) q
-    dim as FB.Array( of ulong ) qt
+    dim as containers.Array( of string ) q
+    dim as containers.Array( of ulong ) qt
     QualifierChain( syms, info.ScopeOf( proc_ ), names, q, qt, @types )
     dim as boolean hasThis = false
     if qt.Count > 0 then
@@ -1104,8 +1105,8 @@ private function ProcNameCore _
         ident += PropertySuffix( ast, proc_ )
     end if
 
-    dim as FB.Array( of string ) quals
-    dim as FB.Array( of ulong ) qualTypes
+    dim as containers.Array( of string ) quals
+    dim as containers.Array( of ulong ) qualTypes
     '' The symbol that says whether this is module code. A generic instance's re-parsed body
     '' is bound to nothing; its symbol is the one of its own name, which copied the mark.
     dim as Tko.SymbolId selfSym = info.RefOf( proc_ )
@@ -1284,8 +1285,8 @@ function StaticMemberName _
     ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
       byref names as Tko.Interner, byref member as string ) as string
 
-    dim as FB.Array( of string ) quals
-    dim as FB.Array( of ulong ) qualTypes
+    dim as containers.Array( of string ) quals
+    dim as containers.Array( of ulong ) qualTypes
     QualifierChain( syms, sc, names, quals, qualTypes, 0, true )
     if quals.Count = 0 then return ""
     dim as string outp = "_ZN"
@@ -1304,8 +1305,8 @@ function CxxVarName _
     ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
       byref names as Tko.Interner, byref written as string ) as string
 
-    dim as FB.Array( of string ) quals
-    dim as FB.Array( of ulong ) qualTypes
+    dim as containers.Array( of string ) quals
+    dim as containers.Array( of ulong ) qualTypes
     QualifierChain( syms, sc, names, quals, qualTypes, 0, false )
     if quals.Count = 0 then return "_Z" & SrcName( written )
     dim as string outp = "_ZN"
@@ -1325,8 +1326,8 @@ function ModuleVarName _
 
     dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
     if s = 0 then return ""
-    dim as FB.Array( of string ) quals
-    dim as FB.Array( of ulong ) qualTypes
+    dim as containers.Array( of string ) quals
+    dim as containers.Array( of ulong ) qualTypes
     QualifierChain( syms, s->parent, names, quals, qualTypes, 0, true, sid )
     if quals.Count = 0 then return ""
     dim as string outp = "_ZN"

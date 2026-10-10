@@ -80,7 +80,7 @@ end sub
 '' fbc's error 42.
 private sub ConstRefs_ _
     ( byref c as Ctx, byval n as NodeId, byval scope_ as ScopeId, _
-      byref outv as FB.Array( of ulong ), byval depth as long )
+      byref outv as containers.Array( of ulong ), byval depth as long )
 
     if (n = NODE_NONE) orelse (depth > 64) then return
     select case c.ast->Kind( n )
@@ -123,14 +123,14 @@ private function ConstInit_( byref c as Ctx, byval sid as SymbolId ) as NodeId
 end function
 
 private sub ConstVisit_ _
-    ( byref c as Ctx, byval sid as SymbolId, byref color_ as FB.Array( of ubyte ), _
-      byref stack as FB.Array( of ulong ), byref found as boolean )
+    ( byref c as Ctx, byval sid as SymbolId, byref color_ as containers.Array( of ubyte ), _
+      byref stack as containers.Array( of ulong ), byref found as boolean )
 
     if found then return
     color_[cast( long, sid )] = 1
     stack.Push( cast( ulong, sid ) )
     dim as Symbol ptr s = c.syms->SymbolAt( sid )
-    dim as FB.Array( of ulong ) refs
+    dim as containers.Array( of ulong ) refs
     ConstRefs_( c, ConstInit_( c, sid ), s->parent, refs, 0 )
     for q as long = 0 to refs.Count - 2 step 2
         if found then exit for
@@ -159,7 +159,7 @@ end sub
 
 private sub CheckConstCycles_( byref c as Ctx )
     if c.syms->modFileCount = 0 then return
-    dim as FB.Array( of ubyte ) color_
+    dim as containers.Array( of ubyte ) color_
     for i as long = 0 to c.syms->symbols.Count - 1
         color_.Push( 0 )
     next
@@ -168,7 +168,7 @@ private sub CheckConstCycles_( byref c as Ctx )
         if s->kind <> cast( ubyte, SYM_CONSTANT ) then continue for
         if (s->flags and SYMF_MODSRC) = 0 then continue for
         if color_[i] <> 0 then continue for
-        dim as FB.Array( of ulong ) stack
+        dim as containers.Array( of ulong ) stack
         dim as boolean found = false
         ConstVisit_( c, cast( SymbolId, i ), color_, stack, found )
     next

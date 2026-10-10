@@ -1,5 +1,6 @@
 '' mir.bas -- MIR construction and the opcode metadata tables.
 
+#import "std/containers"
 #include once "mir/mir.bi"
 
 namespace Tko.Mir
@@ -27,8 +28,8 @@ end function
 
 sub IdMap.Put( byval k as ulong, byval v as long )
     if (this.used + 1) * 2 > this.keys.Count then
-        dim as FB.Array( of ulong ) ok = this.keys
-        dim as FB.Array( of long ) ov = this.vals
+        dim as containers.Array( of ulong ) ok = this.keys
+        dim as containers.Array( of long ) ov = this.vals
         dim as long ncap = iif( this.keys.Count = 0, 64, this.keys.Count * 2 )
         this.keys.Clear( ) : this.vals.Clear( )
         for j as long = 1 to ncap
@@ -77,7 +78,7 @@ end sub
 '' its name's chain -- newest first, which is what a lookup for 'the definition' wants
 '' to find without walking the declarations behind it.
 private sub IndexName_ _
-    ( byref idx as FB.Array( of long ), byval nm as InternId, byval at as long, _
+    ( byref idx as containers.Array( of long ), byval nm as InternId, byval at as long, _
       byref nextOut as long )
 
     dim as long key = cast( long, nm )
@@ -90,7 +91,7 @@ end sub
 
 '' The head of a name's chain, as an index, or -1 when the name has no entry.
 private function HeadOf_ _
-    ( byref idx as FB.Array( of long ), byval nm as InternId ) as long
+    ( byref idx as containers.Array( of long ), byval nm as InternId ) as long
 
     dim as long key = cast( long, nm )
     if (key < 0) orelse (key >= idx.Count) then return -1
@@ -169,7 +170,7 @@ end sub
 '' Two literals with the same TEXT have the same units, so the text is still the
 '' merge key.
 function MirModule.AddWideStringUnits _
-    ( byref text as string, byref units as FB.Array( of ulong ), _
+    ( byref text as string, byref units as containers.Array( of ulong ), _
       byref names as Interner ) as long
 
     '' ...AND THE SAME UNITS. A UTF-8 source's '"Ω"' decodes to one unit where a
@@ -210,7 +211,7 @@ end function
 function MirModule.AddWideStringLiteral _
     ( byref text as string, byref names as Interner ) as long
 
-    dim as FB.Array( of ulong ) units
+    dim as containers.Array( of ulong ) units
     for i as long = 0 to len( text ) - 1
         units.Push( cast( ulong, text[i] ) )
     next
@@ -422,7 +423,7 @@ end function
 '' The length is an M_CONST operand of the call: the count of the literal's units, or
 '' that count with the top bit set, which is how lowering marks a literal's length.
 private function FixUtf16Length_ _
-    ( byval f as MirFunction ptr, byref argPool as FB.Array( of ulong ), _
+    ( byval f as MirFunction ptr, byref argPool as containers.Array( of ulong ), _
       byval ak as long, byval oldCount as long, byval newCount as long ) as boolean
 
     if (ak + 1) >= argPool.Count then return false
@@ -463,7 +464,7 @@ sub MirModule.SplitUtf16Literals( byref names as Interner )
                     if (this.globals[gi].isWide = false) orelse this.globals[gi].isUtf16 then continue for
                     '' The units, copied out first: pushing a pool element into its own
                     '' pool hands Push a reference the reallocation invalidates.
-                    dim as FB.Array( of ulong ) units
+                    dim as containers.Array( of ulong ) units
                     dim as boolean astral = false
                     for u as long = 0 to this.globals[gi].wcharCount - 1
                         dim as ulong cu = this.wcharPool[this.globals[gi].wcharFirst + u]

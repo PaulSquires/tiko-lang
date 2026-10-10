@@ -4,6 +4,7 @@
 '' share one statement: the RFC-0002 iterator protocol over a user collection, a counted
 '' loop over an array, and a counted loop over a var-len string's characters.
 
+#import "std/containers"
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
@@ -40,7 +41,7 @@ private sub EachStrInit_ _
     ( byref c as Ctx, byref dst as MirValue, byref src as MirValue, _
       byval srcIsU as boolean, byval dstIsU as boolean )
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     if srcIsU = dstIsU then
         PushStrArg( args, dst )
         PushStrArg( args, src )
@@ -315,7 +316,7 @@ function LowerForEachIter _
         sa.id = cast( long, c.udtTemps[c.udtTemps.Count - 1] )
         dim as Tko.SymbolId cc = CopyCtorOf_( c, elT )
         if cc <> Tko.SYMBOL_NONE then
-            dim as FB.Array( of ulong ) cargs
+            dim as containers.Array( of ulong ) cargs
             cargs.Push( cast( ulong, sa.kind ) )
             cargs.Push( cast( ulong, sa.id ) )
             EmitStructorCall( c, cc, -1, @vaddr, @cargs )
@@ -337,7 +338,7 @@ function LowerForEachIter _
     if (bound = false) andalso vByref andalso byrefAgg andalso varLocal then
         dim as Tko.SymbolId bcc = CopyCtorOf_( c, elT )
         if bcc <> Tko.SYMBOL_NONE then
-            dim as FB.Array( of ulong ) bargs
+            dim as containers.Array( of ulong ) bargs
             bargs.Push( cast( ulong, evp.kind ) )
             bargs.Push( cast( ulong, evp.id ) )
             EmitStructorCall( c, bcc, -1, @vaddr, @bargs )
@@ -585,7 +586,7 @@ private function EachEmit_ _
         if vaddr.kind <> cast( ubyte, MV_LOCAL ) then return false
         dim as Tko.SymbolId cc = CopyCtorOf_( c, sq.elT )
         if cc <> Tko.SYMBOL_NONE then
-            dim as FB.Array( of ulong ) cargs
+            dim as containers.Array( of ulong ) cargs
             cargs.Push( cast( ulong, ea.kind ) )
             cargs.Push( cast( ulong, ea.id ) )
             EmitStructorCall( c, cc, -1, @vaddr, @cargs )
@@ -714,7 +715,7 @@ private function LowerForEachStr_ _
     sq.base_ = LowerExprLoad( c, da, MT_PTR )
     if sq.base_.kind = cast( ubyte, MV_NONE ) then return false
 
-    dim as FB.Array( of ulong ) largs
+    dim as containers.Array( of ulong ) largs
     PushStrArg( largs, da )
     dim as MirValue slen = EmitRtl( c, RTL_STR_LEN, largs )
     if slen.kind = cast( ubyte, MV_NONE ) then return false
@@ -842,11 +843,11 @@ function LowerForEachArray _
     sq.limitV = ConstInt( c, total, offTy )
     sq.cmpOp = cast( long, M_ICMP_SLT )
     if isDyn then
-        dim as FB.Array( of ulong ) la
+        dim as containers.Array( of ulong ) la
         la.Push( cast( ulong, seqAddr.kind ) ) : la.Push( cast( ulong, seqAddr.id ) )
         la.Push( cast( ulong, MV_CONST_INT ) ) : la.Push( 1 )
         sq.startV = EmitRtl( c, RTL_ARRAY_LBOUND, la )
-        dim as FB.Array( of ulong ) ua
+        dim as containers.Array( of ulong ) ua
         ua.Push( cast( ulong, seqAddr.kind ) ) : ua.Push( cast( ulong, seqAddr.id ) )
         ua.Push( cast( ulong, MV_CONST_INT ) ) : ua.Push( 1 )
         sq.limitV = EmitRtl( c, RTL_ARRAY_UBOUND, ua )

@@ -90,12 +90,12 @@ private function WideIifArm_ _
     dim as MirValue src
     if WideOperand_( c, e, src ) = false then return false
 
-    dim as FB.Array( of ulong ) la
+    dim as containers.Array( of ulong ) la
     la.Push( cast( ulong, src.kind ) ) : la.Push( cast( ulong, src.id ) )
     dim as MirValue n = EmitRtl( c, RTL_WSTR_LEN, la )
     if n.kind = cast( ubyte, MV_NONE ) then return false
 
-    dim as FB.Array( of ulong ) aa
+    dim as containers.Array( of ulong ) aa
     aa.Push( cast( ulong, n.kind ) ) : aa.Push( cast( ulong, n.id ) )
     dim as MirValue buf = EmitRtl( c, RTL_WSTR_ALLOC, aa )
     if buf.kind = cast( ubyte, MV_NONE ) then return false
@@ -111,7 +111,7 @@ private function WideIifArm_ _
     '' allocated to fit, and fbc passes 0 to say so.
     dim as MirValue dst = LowerExprLoad( c, slotAddr, MT_PTR )
     if dst.kind = cast( ubyte, MV_NONE ) then return false
-    dim as FB.Array( of ulong ) wa
+    dim as containers.Array( of ulong ) wa
     wa.Push( cast( ulong, dst.kind ) ) : wa.Push( cast( ulong, dst.id ) )
     wa.Push( cast( ulong, MV_CONST_INT ) ) : wa.Push( 0 )
     wa.Push( cast( ulong, src.kind ) ) : wa.Push( cast( ulong, src.id ) )

@@ -1,5 +1,6 @@
 '' text.bas -- see text.bi
 
+#import "std/containers"
 #include once "support/text.bi"
 
 namespace Tko.Text

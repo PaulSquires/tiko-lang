@@ -4,6 +4,7 @@
 '' 1500. The subscript lowering keeps one line of it; everything the check has to
 '' say for itself is here.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 #include once "mir/rtl.bi"
 
@@ -11,7 +12,7 @@ namespace Tko.Mir
 
 '' EmitRtl takes each argument as its KIND and then its ID, two ulongs. Spelled out
 '' at every other call site; once here, because this call pushes six.
-private sub PushArg_( byref a as FB.Array( of ulong ), byref v as MirValue )
+private sub PushArg_( byref a as containers.Array( of ulong ), byref v as MirValue )
     a.Push( cast( ulong, v.kind ) )
     a.Push( cast( ulong, v.id ) )
 end sub
@@ -135,7 +136,7 @@ sub EmitBoundsCheck_ _
     dim as MirValue nameV = LowerTextAddr( c, ArrayNameOf_( c, target ) )
     dim as MirValue lineV = ConstInt( c, fd.lineNo, MT_I32 )
 
-    dim as FB.Array( of ulong ) ba
+    dim as containers.Array( of ulong ) ba
     PushArg_( ba, iv )
     if lo <> 0 then PushArg_( ba, ConstInt( c, lo, offTy ) )
     PushArg_( ba, ConstInt( c, hi, offTy ) )
@@ -176,7 +177,7 @@ sub EmitBoundsCheckRange_ _
     dim as MirValue fileV = LowerTextAddr( c, c.srcMgr->PathOf( fd.file ) )
     dim as MirValue nameV = LowerTextAddr( c, ArrayNameOf_( c, target ) )
 
-    dim as FB.Array( of ulong ) ba
+    dim as containers.Array( of ulong ) ba
     PushArg_( ba, iv )
     PushArg_( ba, lov )
     PushArg_( ba, hiv )
@@ -209,7 +210,7 @@ sub EmitDimensionCheck_ _
     dim as MirValue fileV = LowerTextAddr( c, c.srcMgr->PathOf( fd.file ) )
     dim as MirValue nameV = LowerTextAddr( c, ArrayNameOf_( c, target ) )
 
-    dim as FB.Array( of ulong ) da
+    dim as containers.Array( of ulong ) da
     PushArg_( da, ConstInt( c, count, zt ) )
     PushArg_( da, desc )
     PushArg_( da, ConstInt( c, fd.lineNo, MT_I32 ) )
@@ -299,7 +300,7 @@ sub EmitRtlErrorCheck_( byref c as Ctx, byval id as Tko.NodeId, byref rc as MirV
     if sf <> 0 then
         if sf->isVirtual andalso (d.shownName <> Tko.INTERN_NONE) then fname = c.srcMgr->ShownPathOf( d )
     end if
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, d.lineNo ) )
     args.Push( cast( ulong, MV_GLOBAL ) )
     args.Push( cast( ulong, c.m->AddStringLiteral( fname, *c.names ) ) )
@@ -328,9 +329,9 @@ sub ResolveErrorJumps_( byref c as Ctx )
         for bi as long = 0 to c.f->blocks.Count - 1
             if c.f->blocks[bi].term <> cast( ubyte, MTERM_RET ) then continue for
             c.curBlock = bi
-            dim as FB.Array( of ulong ) none
+            dim as containers.Array( of ulong ) none
             dim as MirValue jb = EmitRtl( c, RTL_ERROR_JMPBUF, none )
-            dim as FB.Array( of ulong ) cp
+            dim as containers.Array( of ulong ) cp
             cp.Push( cast( ulong, jb.kind ) ) : cp.Push( cast( ulong, jb.id ) )
             cp.Push( cast( ulong, MV_LOCAL ) ) : cp.Push( cast( ulong, c.errLocalSave - 1 ) )
             cp.Push( cast( ulong, MV_CONST_INT ) ) : cp.Push( ERR_LOCAL_JMP_BYTES )
@@ -342,7 +343,7 @@ sub ResolveErrorJumps_( byref c as Ctx )
             ld.a.ty = cast( ubyte, MT_PTR )
             ld.a.id = c.errLocalHandler
             dim as MirValue h = Emit( c, ld )
-            dim as FB.Array( of ulong ) ha
+            dim as containers.Array( of ulong ) ha
             ha.Push( cast( ulong, h.kind ) ) : ha.Push( cast( ulong, h.id ) )
             EmitRtl( c, RTL_ERROR_SET_HANDLER, ha )
         next
@@ -408,7 +409,7 @@ sub EmitNullCheck_ _
     dim as Tko.DecodedLoc fd = c.srcMgr->Decode( c.ast->Loc( id ) )
     dim as MirValue fileV = LowerTextAddr( c, c.srcMgr->PathOf( fd.file ) )
 
-    dim as FB.Array( of ulong ) na
+    dim as containers.Array( of ulong ) na
     PushArg_( na, pv )
     PushArg_( na, ConstInt( c, fd.lineNo, MT_I32 ) )
     PushArg_( na, fileV )

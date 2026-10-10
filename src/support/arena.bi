@@ -19,7 +19,7 @@ namespace Tko
 
     const ARENA_BLOCK_BYTES as long = 65536
 
-    type BlockVec as FB.Array( of any ptr )
+    type BlockVec as containers.Array( of any ptr )
 
     type ByteArena
         as BlockVec  blocks

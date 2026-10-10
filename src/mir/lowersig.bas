@@ -2,6 +2,7 @@
 '' not define. Split out of lowerproc.bas on 2026-09-10 for the 1500-line cap; nothing
 '' about the code changed in the move.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir

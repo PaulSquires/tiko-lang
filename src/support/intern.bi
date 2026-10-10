@@ -30,8 +30,8 @@ namespace Tko
         as InternId  folded        '' 0 until first requested, then cached
     end type
 
-    type EntryVec as FB.Array( of InternEntry )
-    type SlotVec  as FB.Array( of ulong )
+    type EntryVec as containers.Array( of InternEntry )
+    type SlotVec  as containers.Array( of ulong )
 
     type Interner
         as ByteArena store

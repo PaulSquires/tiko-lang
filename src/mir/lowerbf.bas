@@ -4,6 +4,7 @@
 '' unit its neighbours share, so it has no address of its own: every access is a read
 '' of the whole unit, a shift and a mask.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir

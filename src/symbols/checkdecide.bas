@@ -258,7 +258,7 @@ private sub DecideCtorCall_( byref c as Ctx, byval id as Tko.NodeId, byval cp as
     if (t = Tko.TYPE_NONE) orelse (cp->count <= 0) then return
     t = c.types->Unqualify( t )
     if c.types->Kind( t ) <> Tko.TK_UDT then return
-    dim as FB.Array( of ulong ) argT
+    dim as containers.Array( of ulong ) argT
     for i as long = 0 to cp->count - 1
         dim as Tko.TypeId at = TypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) )
         if at = Tko.TYPE_NONE then return

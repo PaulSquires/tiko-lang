@@ -6,6 +6,7 @@
 '' that file passed the 1500-line cap: they are I/O that happens to produce a string,
 '' and nothing about them changed in the move.
 
+#import "std/containers"
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
@@ -204,7 +205,7 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
     end if
     if dst.kind = cast( ubyte, MV_NONE ) then return false
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
 
     '' A WIDE destination takes the wide pair, and only a wide source -- which may
     '' itself be a UDT with a wide 'operator cast'.
@@ -234,7 +235,7 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
     '' is the honest answer about the TYPE and the wrong one about the value in hand.
     if dstFromCast andalso (dstIsWideRaw = false) then dk = 1
     if dk = 1 then
-        dim as FB.Array( of ulong ) ta
+        dim as containers.Array( of ulong ) ta
         ta.Push( cast( ulong, dst.kind ) ) : ta.Push( cast( ulong, dst.id ) )
         dst = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, ta )
         if dst.kind = cast( ubyte, MV_NONE ) then return false
@@ -276,7 +277,7 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
         if litSrc andalso (IsWideString_( c, c.info->TypeOf_( srcE ) ) = false) then
             dim as longint ldlen = -1
             if dk = 4 then ldlen = zn
-            dim as FB.Array( of ulong ) la
+            dim as containers.Array( of ulong ) la
             la.Push( cast( ulong, dst.kind ) ) : la.Push( cast( ulong, dst.id ) )
             PushStrLen_( c, la, ldlen )
             if EmitStrTerm( c, la, usrc, true ) = false then return false
@@ -287,7 +288,7 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
         if IsWideString_( c, c.info->TypeOf_( srcE ) ) then
             dim as MirValue wp = LowerAddr( c, srcE )
             if wp.kind = cast( ubyte, MV_NONE ) then return false
-            dim as FB.Array( of ulong ) wa
+            dim as containers.Array( of ulong ) wa
             wa.Push( cast( ulong, wp.kind ) ) : wa.Push( cast( ulong, wp.id ) )
             uconv = EmitRtl( c, RTL_WSTR_TO_USTR, wa )
         else
@@ -302,7 +303,7 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
                 nn = -1
             end if
             if np.kind = cast( ubyte, MV_NONE ) then return false
-            dim as FB.Array( of ulong ) na
+            dim as containers.Array( of ulong ) na
             na.Push( cast( ulong, np.kind ) ) : na.Push( cast( ulong, np.id ) )
             PushStrLen_( c, na, nn )
             uconv = EmitRtl( c, RTL_STR_TO_USTR, na )
@@ -311,7 +312,7 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
         '' A var-length ustring passes -1 where a fixed one passes its tag.
         dim as longint dlen = -1
         if dk = 4 then dlen = zn
-        dim as FB.Array( of ulong ) ua
+        dim as containers.Array( of ulong ) ua
         ua.Push( cast( ulong, dst.kind ) ) : ua.Push( cast( ulong, dst.id ) )
         PushStrLen_( c, ua, dlen )
         ua.Push( cast( ulong, uconv.kind ) ) : ua.Push( cast( ulong, uconv.id ) )
@@ -349,7 +350,7 @@ private function PrintStrRtl_( byref c as Ctx, byval it as Tko.NodeId ) as RtlId
     '' type said narrow while the bytes were UTF-16: 'print "FAIL: " & what' printed
     '' "F A I L : ". fbc types that concatenation USTRING and calls fb_PrintUStr.
     if c.ast->Kind( it ) = Tko.N_BINARY then
-        dim as FB.Array( of ulong ) pts
+        dim as containers.Array( of ulong ) pts
         FlattenConcat( c, it, pts )
         if ConcatTermsAreU_( c, pts ) then return RTL_PRINT_USTR
     end if
@@ -402,7 +403,7 @@ function PrintOne _
         end if
     end if
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
 
     '' A WIDE STRING has its own entry point, and the same (channel, value, mask)
@@ -479,7 +480,7 @@ function PrintOne _
         dim as MirValue fut
         fut.kind = cast( ubyte, MV_LOCAL ) : fut.ty = cast( ubyte, MT_PTR ) : fut.id = fus
         ZeroStrDescriptor( c, fut )
-        dim as FB.Array( of ulong ) fargs
+        dim as containers.Array( of ulong ) fargs
         PushStrArg( fargs, fut )
         fargs.Push( cast( ulong, fua.kind ) ) : fargs.Push( cast( ulong, fua.id ) )
         PushStrLen_( c, fargs, fpn )
@@ -488,7 +489,7 @@ function PrintOne _
         args.Push( cast( ulong, fut.kind ) ) : args.Push( cast( ulong, fut.id ) )
         PushConst( args, mask )
         EmitRtl( c, RTL_PRINT_USTR, args )
-        dim as FB.Array( of ulong ) fdel
+        dim as containers.Array( of ulong ) fdel
         fdel.Push( cast( ulong, fut.kind ) ) : fdel.Push( cast( ulong, fut.id ) )
         EmitRtl( c, RTL_USTR_DELETE, fdel )
         return true
@@ -628,7 +629,7 @@ function PrintOne _
             '' fb_StrAssign but 3 for "lit" to fb_StrAllocTempDescZEx. The Z in the
             '' name is the difference -- it already knows the bytes are terminated,
             '' so it is not being told to include the terminator in the count.
-            dim as FB.Array( of ulong ) ta
+            dim as containers.Array( of ulong ) ta
             ta.Push( cast( ulong, MV_GLOBAL ) )
             ta.Push( cast( ulong, c.m->AddStringLiteral( litText, *c.names ) ) )
             ta.Push( cast( ulong, MV_CONST_INT ) )
@@ -821,7 +822,7 @@ function LowerOpenCall_ _
         if opN <> Tko.NODE_NONE then
             if StrDescriptorOf_( c, opN, fn ) = false then return false
         else
-            dim as FB.Array( of ulong ) ea
+            dim as containers.Array( of ulong ) ea
             ea.Push( cast( ulong, MV_GLOBAL ) )
             ea.Push( cast( ulong, c.m->AddStringLiteral( "", *c.names ) ) )
             ea.Push( cast( ulong, MV_CONST_INT ) ) : ea.Push( 0 )
@@ -860,7 +861,7 @@ function LowerOpenCall_ _
     dim as MirValue lk = ConstInt( c, cast( longint, _
         (sp->extra and Tko.OPEN_LOCK_MASK) shr Tko.OPEN_LOCK_SHIFT ), MT_I32 )
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
     args.Push( cast( ulong, md.kind ) ) : args.Push( cast( ulong, md.id ) )
     args.Push( cast( ulong, ac.kind ) ) : args.Push( cast( ulong, ac.id ) )
@@ -913,7 +914,7 @@ private function LineInputFileUStr_ _
       byref da as MirValue ) as boolean
     dim as MirValue fn = LowerNumArg_( c, chanE, MT_I32 )
     if fn.kind = cast( ubyte, MV_NONE ) then return false
-    dim as FB.Array( of ulong ) a
+    dim as containers.Array( of ulong ) a
     a.Push( cast( ulong, fn.kind ) ) : a.Push( cast( ulong, fn.id ) )
     a.Push( cast( ulong, da.kind ) ) : a.Push( cast( ulong, da.id ) )
     '' fbc marks it throwable: under -e a failed read raises (T68).
@@ -934,7 +935,7 @@ end function
 
 '' ...converted into the ustring, and released.
 private sub UStrFromLineTemp_( byref c as Ctx, byref u as MirValue, byref tmp as MirValue )
-    dim as FB.Array( of ulong ) a
+    dim as containers.Array( of ulong ) a
     a.Push( cast( ulong, u.kind ) ) : a.Push( cast( ulong, u.id ) )
     PushStrLen_( c, a, -1 )
     a.Push( cast( ulong, tmp.kind ) ) : a.Push( cast( ulong, tmp.id ) )
@@ -942,7 +943,7 @@ private sub UStrFromLineTemp_( byref c as Ctx, byref u as MirValue, byref tmp as
     a.Push( cast( ulong, MV_CONST_INT ) ) : a.Push( 0 )
     a.Push( cast( ulong, MV_CONST_INT ) ) : a.Push( 0 )
     EmitRtl( c, RTL_USTR_FROM_A, a )
-    dim as FB.Array( of ulong ) d
+    dim as containers.Array( of ulong ) d
     d.Push( cast( ulong, tmp.kind ) ) : d.Push( cast( ulong, tmp.id ) )
     EmitRtl( c, RTL_STR_DELETE, d )
 end sub
@@ -1003,7 +1004,7 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         mx = Coerce( c, mx, iif( c.types->target.pointerBits = 32, MT_I32, MT_I64 ), false )
     end if
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     if sp->a <> Tko.NODE_NONE then
         dim as MirValue fn = LowerNumArg_( c, sp->a, MT_I32 )
         if fn.kind = cast( ubyte, MV_NONE ) then return false
@@ -1024,7 +1025,7 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
             end if
         else
             if prompt = Tko.NODE_NONE then
-                dim as FB.Array( of ulong ) ea
+                dim as containers.Array( of ulong ) ea
                 ea.Push( cast( ulong, MV_GLOBAL ) )
                 ea.Push( cast( ulong, c.m->AddStringLiteral( "", *c.names ) ) )
                 ea.Push( cast( ulong, MV_CONST_INT ) )
@@ -1140,7 +1141,7 @@ private function InputPrompt( byref c as Ctx, byval promptE as Tko.NodeId ) as M
             ptext = StringLitText_( c, promptE )
         end if
     end if
-    dim as FB.Array( of ulong ) ta
+    dim as containers.Array( of ulong ) ta
     ta.Push( cast( ulong, MV_GLOBAL ) )
     ta.Push( cast( ulong, c.m->AddStringLiteral( ptext, *c.names ) ) )
     ta.Push( cast( ulong, MV_CONST_INT ) )
@@ -1202,7 +1203,7 @@ function LowerInput _
         if InputRtlFor( c, c.info->TypeOf_( d ), dn2 ) = RTL_NONE then return false
     next
 
-    dim as FB.Array( of ulong ) sargs
+    dim as containers.Array( of ulong ) sargs
     if toFile then
         sargs.Push( cast( ulong, chan.kind ) ) : sargs.Push( cast( ulong, chan.id ) )
         EmitRtl( c, RTL_FILE_INPUT, sargs )
@@ -1226,7 +1227,7 @@ function LowerInput _
         if (r = RTL_INPUT_USTR) andalso (StrSwapKind_( c, c.info->TypeOf_( d ), ufn ) = 4) then
             if UFixDestTemp_( c, d, da2, ufs ) = false then return false   '' 'ustring * N' -- see UFixDestTemp_
         end if
-        dim as FB.Array( of ulong ) dargs
+        dim as containers.Array( of ulong ) dargs
         dargs.Push( cast( ulong, da2.kind ) ) : dargs.Push( cast( ulong, da2.id ) )
         if r = RTL_INPUT_STRING then
             '' A tagged length is 64 bits wide, and a FIXED string's padding is filled: -1.

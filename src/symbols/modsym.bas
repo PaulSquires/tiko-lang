@@ -12,6 +12,7 @@
 '' overload set is one name, and 'public declare' above a plain definition makes the
 '' definition public.
 
+#import "std/containers"
 #include once "symbols/modsym.bi"
 #include once "support/text.bi"
 

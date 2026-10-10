@@ -5,10 +5,11 @@
 '' include and expansion the same mechanism and gives hide sets for free: a macro is
 '' hidden exactly while one of its own frames is on the stack.
 
+#import "std/containers"
+#import "std/fs"
 #include once "pp/pp.bi"
 #include once "pp/ppmodule.bi"
 #include once "support/text.bi"
-#include once "fb/filesystem.bi"
 
 namespace Tko
 
@@ -77,7 +78,7 @@ type PpEngine
     as PpConfig ptr      cfg
     as PpResult ptr      outp
 
-    as FB.Array( of PpFrame ) frames
+    as containers.Array( of PpFrame ) frames
     '' THE LOWEST FRAME COUNT PeekTok MAY POP TO. Zero everywhere except inside a
     '' builtin that is expanding ONE ARGUMENT of its own -- see ExpandedArgText_.
     ''
@@ -94,7 +95,7 @@ type PpEngine
     '' PeekOnLine's own pop is deliberately NOT floored: a synthesised directive
     '' continuing onto the invoking line depends on crossing exactly that boundary.
     as long                   frameFloor
-    as FB.Array( of PpCond )  conds
+    as containers.Array( of PpCond )  conds
     as MacroVec               macros
     as IdVec                  macroSlot     '' InternId -> macros index + 1
     '' THE NAMES THE PARSER HAS DECLARED SO FAR, so 'defined( X )' can answer for a
@@ -134,12 +135,12 @@ type PpEngine
     '' a literal, a negated literal, or another const already known -- and a name with
     '' no value keeps the old answer of 0 rather than guessing.
     as IdVec                  constMark
-    as FB.Array( of longint ) constVal
+    as containers.Array( of longint ) constVal
     '' THE UNDO LOG of local notes -- PpProcEnter: (table, id, old, old2) per entry, and
     '' where each open procedure body's entries begin.
-    as FB.Array( of longint ) localUndo
+    as containers.Array( of longint ) localUndo
     as StrVec                 constStr, localUndoStr   '' a string const's "=text", and the undo log's old ones
-    as FB.Array( of long )    procMarks
+    as containers.Array( of long )    procMarks
     '' WHAT '#if typeof( name )' READS (T61), filled by the parser on the same terms: by
     '' folded InternId, a variable's declared type and a typedef's target as a KEY --
     '' 'K<token kind>' for a builtin or 'N<InternId>' for a named type, then ' ptr' per
@@ -157,11 +158,11 @@ type PpEngine
     as StrVec                 typeNs
     as string                 usingIn
     as string                 curNs
-    as FB.Array( of any ptr ) lexed         '' Lex.Result ptr, one per FileId
+    as containers.Array( of any ptr ) lexed         '' Lex.Result ptr, one per FileId
     '' WHERE THE LITERALS AND THE LEXED FILES ACTUALLY LIVE -- this engine's own, or
     '' the invocation's shared ones. See PpConfig.sharedLits.
     as LiteralVec ptr             lits
-    as FB.Array( of any ptr ) ptr lexp
+    as containers.Array( of any ptr ) ptr lexp
     as boolean                    ownsLexed
     as IdVec                  onceFiles     '' FileId values marked #include once
     '' EVERY file included so far, once or not: '#include once' skips one already in here
@@ -169,7 +170,7 @@ type PpEngine
     as IdVec                  allIncluded
     as FileId                 rootFile
     as long                   uniqueCounter
-    as FB.Array( of ulong )   pasteLoc, pasteId, pasteKind : as StrVec pasteText, pasteGap : as SourceLoc apostEolAt   '' ppspell.bas
+    as containers.Array( of ulong )   pasteLoc, pasteId, pasteKind : as StrVec pasteText, pasteGap : as SourceLoc apostEolAt   '' ppspell.bas
     '' '##_' AT THE END OF A MACRO BODY LINE IS A LINE JOIN, and what it joins is the
     '' NEXT END OF LINE -- wherever that comes from. Measured on fbc, three shapes:
     ''

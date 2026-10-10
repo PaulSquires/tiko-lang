@@ -99,7 +99,7 @@ namespace Tko
         PPB_SELF
     end enum
 
-    type IdVec as FB.Array( of ulong )
+    type IdVec as containers.Array( of ulong )
 
     type PpMacro
         as InternId  name
@@ -121,7 +121,7 @@ namespace Tko
         as SourceLoc loc
     end type
 
-    type MacroVec as FB.Array( of PpMacro )
+    type MacroVec as containers.Array( of PpMacro )
 
     '' ONE '#import' LINE, as the preprocessor read it (ADR 0017; RFC-0001). The form is
     '' checked here -- quoting, '/' separators, segments, 'as', 'public'. Where the path
@@ -133,7 +133,7 @@ namespace Tko
         as boolean   isPublic    '' '#import ... public': re-exported (module files only)
         as SourceLoc loc         '' the '#', for diagnostics that point at the import
     end type
-    type PpImportVec as FB.Array( of PpImport )
+    type PpImportVec as containers.Array( of PpImport )
 
     '' THE INTERFACES AN '#import' READS IN (ADR 0017; RFC-0004 §4-5): the module's, and
     '' before it every one it depends on, dependencies first, as FileIds. The driver
@@ -161,7 +161,7 @@ namespace Tko
         '' when it was first lexed. Sharing the cache without sharing the pool would
         '' hand unit two indices into unit one's literals.
         as LiteralVec ptr             sharedLits
-        as FB.Array( of any ptr ) ptr sharedLexed
+        as containers.Array( of any ptr ) ptr sharedLexed
         as StrVec ptr defines        '' -d name[=value]
         as boolean    reportUnsupported
         '' '#cmdline' IS ONLY HONOURED IN THE FIRST SOURCE FILE, and this says which
@@ -434,7 +434,7 @@ namespace Tko
         as SourceLoc loc
         as boolean   isFunc
     end type
-    type MacroInfoVec as FB.Array( of PpMacroInfo )
+    type MacroInfoVec as containers.Array( of PpMacroInfo )
     declare sub PpSnapshotMacros( byref st as PpStream, byref outp as MacroInfoVec )
 
     '' Convenience: open, pump to exhaustion, close. What the non-parsing modes use.

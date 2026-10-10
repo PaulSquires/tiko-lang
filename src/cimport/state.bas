@@ -15,6 +15,7 @@
 ''
 '' Text, one fact a line, so it goes in the cache beside the binding it describes.
 
+#import "std/containers"
 #include once "cimport/import.bi"
 
 namespace Tko.CImport

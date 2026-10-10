@@ -9,12 +9,13 @@
 '' the context's destructor frees everything, so there is no global state to reset, no
 '' session to leak, and nothing that lint rule 2 (no 'dim shared') has to excuse.
 
+#import "std/containers"
 #include once "api/tikoparser.bi"
 #include once "driver/driver.bi"
 #include once "driver/scan.bi"
 #include once "support/text.bi"
 
-type U16Vec_ as FB.Array( of ushort )
+type U16Vec_ as containers.Array( of ushort )
 
 '' A host's UTF-16 string as the UTF-8 tiko reads.
 private function Utf16ToUtf8_( byval w as wstring ptr ) as string

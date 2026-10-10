@@ -1,10 +1,10 @@
 '' check.bas -- expression typing. See check.bi for the measured promotion rules and
 '' for why each of them is not what a C programmer would guess.
 
+#import "std/containers"
 #include once "symbols/check.bi"
 #include once "symbols/mangle.bi"
 #include once "support/irtext.bi"
-
 
 namespace Tko.Check
 
@@ -23,8 +23,8 @@ type Ctx
     '' THE UNTYPED MEMO -- see TypeOf_ (audit F-36).
     as long                     typeDepth
     as ulong                    memoEpoch
-    as FB.Array( of ulong )     memoEp
-    as FB.Array( of ulong )     memoVer
+    as containers.Array( of ulong )     memoEp
+    as containers.Array( of ulong )     memoVer
 end type
 
 const CONST_DEPTH_MAX as long = 64
@@ -774,7 +774,7 @@ private function TypeOfUncached_ _
             ''
             '' ComputeUdtLayouts runs AFTER Check and walks symbols, so a type declared
             '' here is laid out with every other.
-            dim as FB.Array( of ulong ) tets
+            dim as containers.Array( of ulong ) tets
             dim as boolean allTyped = true
             for i as long = 0 to tl->count - 1
                 dim as Tko.TypeId et = _

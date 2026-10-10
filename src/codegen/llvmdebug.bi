@@ -50,20 +50,20 @@ namespace Tko.Codegen
         as long     typeId          '' the one subroutine type every subprogram shares
         as long     mainFileId
         '' FileId + 1 -> the DIFile's metadata number, 0 while it has none.
-        as FB.Array( of long ) fileMeta
+        as containers.Array( of long ) fileMeta
         as long     curSp           '' the subprogram being emitted, -1 outside one
         as long     curFile         '' ...and its DIFile
         as long     locLine         '' the line the last DILocation was made for
         as long     locId
         as long     argNo           '' parameters declared so far in this subprogram
         '' TypeId -> its DI type node, 0 while it has none. -1 is "cannot be described".
-        as FB.Array( of long ) typeMeta
+        as containers.Array( of long ) typeMeta
         '' A procedure's SUBPROGRAM NUMBER, reserved before the procedure is emitted:
         '' a static local is a GLOBAL, globals are emitted first, and its scope is the
         '' procedure it lives in.
-        as FB.Array( of ulong ) spSym
-        as FB.Array( of long )  spId
-        as FB.Array( of ubyte ) spDone      '' ...and whether its text has been written
+        as containers.Array( of ulong ) spSym
+        as containers.Array( of long )  spId
+        as containers.Array( of ubyte ) spDone      '' ...and whether its text has been written
         as string   globals         '' ', !N' for each DIGlobalVariableExpression
         as long     intType         '' 'integer', for the descriptors' counts
     end type

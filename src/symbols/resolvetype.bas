@@ -452,7 +452,7 @@ function ResolveTypeRefAt_ _
     '' to each other.
     if cast( Tko.TokenKind, sp->op ) = Tko.TK_LPAREN then
         dim as string key = "$tup"
-        dim as FB.Array( of ulong ) elemTypes
+        dim as containers.Array( of ulong ) elemTypes
         for i as long = 0 to sp->count - 1
             dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[sp->first + i] )
             dim as Tko.TypeId et = ResolveTypeRef( c, e, scope_ )

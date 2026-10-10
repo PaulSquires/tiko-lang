@@ -49,7 +49,7 @@ private function LowerStaticCopyInit_ _
 
     dim as Tko.SymbolId ucp = CopyCtorOf_( c, t )
     if ucp <> Tko.SYMBOL_NONE then
-        dim as FB.Array( of ulong ) cargs
+        dim as containers.Array( of ulong ) cargs
         cargs.Push( cast( ulong, sa.kind ) )
         cargs.Push( cast( ulong, sa.id ) )
         EmitStructorCall( c, ucp, -1, @ga, @cargs )
@@ -226,7 +226,7 @@ function LowerStaticLocalInit_ _
         if isUdt then
             dim as Tko.SymbolId ct = StructorWithArity( c, ctors, 0 )
             if ct <> Tko.SYMBOL_NONE then
-                dim as FB.Array( of ulong ) none1
+                dim as containers.Array( of ulong ) none1
                 EmitStructorCall( c, ct, -1, @ga, @none1 )
                 constructed = true
             elseif TypeNeedsInit_( c, t ) then
@@ -257,7 +257,7 @@ function LowerStaticLocalInit_ _
             fa.callee = cast( ulong, thunk )
             dim as MirValue fv = Emit( c, fa )
             if fv.kind <> cast( ubyte, MV_NONE ) then
-                dim as FB.Array( of ulong ) aargs
+                dim as containers.Array( of ulong ) aargs
                 aargs.Push( cast( ulong, fv.kind ) )
                 aargs.Push( cast( ulong, fv.id ) )
                 EmitRtl( c, RTL_ATEXIT, aargs )
@@ -305,7 +305,7 @@ private function EmitStaticDtorThunk_ _
     if c.types->Kind( t ) = Tko.TK_UDT then
         dim as Tko.SymbolId dt = StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 )
         if dt <> Tko.SYMBOL_NONE then
-            dim as FB.Array( of ulong ) none2
+            dim as containers.Array( of ulong ) none2
             EmitStructorCall( c, dt, -1, @ga, @none2 )
         elseif TypeNeedsDtor_( c, t ) then
             CallImplicitDtor_( c, t, ga )

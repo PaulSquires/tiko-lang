@@ -354,7 +354,7 @@ end function
 '' through a different cast -- and tiko bound one in silence, because a UDT argument
 '' otherwise keeps the tie report quiet (overload.bas says why). A builtin or pointer
 '' argument beside it is fine; any other UDT argument still keeps it quiet.
-function UdtCastTie_( byref c as Ctx, byref argT as FB.Array( of ulong ) ) as boolean
+function UdtCastTie_( byref c as Ctx, byref argT as containers.Array( of ulong ) ) as boolean
     dim as boolean any_ = false
     for i as long = 0 to argT.Count - 1
         dim as Tko.TypeId a = c.types->Unqualify( cast( Tko.TypeId, argT[i] ) )

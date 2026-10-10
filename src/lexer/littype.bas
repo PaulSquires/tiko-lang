@@ -16,6 +16,7 @@
 ''
 '' Its own unit (build/sources.txt), namespace Tko, declared in token.bi.
 
+#import "std/containers"
 #include once "lexer/token.bi"
 
 namespace Tko

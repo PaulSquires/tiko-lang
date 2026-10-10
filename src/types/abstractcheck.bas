@@ -23,6 +23,7 @@
 '' itself counts: 'dim p as A ptr' and 'byref x as A' are both accepted by fbc, and a
 '' check that unwrapped pointers would refuse the only way an abstract type is ever used.
 
+#import "std/containers"
 #include once "types/vtable.bi"
 #include once "diag/diagids.bi"
 

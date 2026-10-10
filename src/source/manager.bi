@@ -22,7 +22,7 @@
 
 namespace Tko
 
-    type LongVec as FB.Array( of long )
+    type LongVec as containers.Array( of long )
 
     '' ONE '#line' DIRECTIVE. It renumbers from its own physical line, so the line
     '' the directive sits on becomes 'shownLine' and the next is 'shownLine + 1' --
@@ -35,7 +35,7 @@ namespace Tko
         as InternId shownName
     end type
 
-    type LineMarkVec as FB.Array( of LineMark )
+    type LineMarkVec as containers.Array( of LineMark )
 
     type SourceFile
         as InternId        path          '' absolute, normalised -- the identity
@@ -50,7 +50,7 @@ namespace Tko
         as LineMarkVec     lineMarks     '' '#line' directives, by increasing physLine
     end type
 
-    type FileVec as FB.Array( of SourceFile ptr )
+    type FileVec as containers.Array( of SourceFile ptr )
 
     type SourceManager
         as FileVec    files
@@ -58,7 +58,7 @@ namespace Tko
         as Interner ptr names           '' borrowed; owned by CompilerContext
         '' REAL FILES BY (folded, on Windows) PATH: FileId per InternId, 0 for none -- Find's
         '' answer without walking the table, which grows by one virtual file per expansion.
-        as FB.Array( of long ) pathIndex
+        as containers.Array( of long ) pathIndex
         as InternId   builtinName       '' "<builtin>", interned on first use by IsBuiltin
 
         '' Default-constructed, then attached. Members of CompilerContext need a

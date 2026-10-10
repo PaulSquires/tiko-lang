@@ -1,5 +1,6 @@
 '' fbstr.bas -- see fbstr.bi
 
+#import "std/containers"
 #include once "support/fbstr.bi"
 
 namespace Tko.Text

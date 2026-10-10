@@ -19,6 +19,7 @@
 ''
 '' Its own unit (build/sources.txt), namespace Tko.Check, declared in check.bi.
 
+#import "std/containers"
 #include once "symbols/check.bi"
 
 namespace Tko.Check

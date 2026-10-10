@@ -24,7 +24,7 @@ private function ConcatHasUStrTerm_ _
     if e = Tko.NODE_NONE then return false
     if IsUStringType( c, c.info->TypeOf_( e ) ) then return true
     if c.ast->Kind( e ) <> Tko.N_BINARY then return false
-    dim as FB.Array( of ulong ) uvt
+    dim as containers.Array( of ulong ) uvt
     FlattenConcat( c, e, uvt )
     for k as long = 0 to uvt.Count - 1
         if IsUStringType( c, c.info->TypeOf_( cast( Tko.NodeId, uvt[k] ) ) ) then
@@ -130,7 +130,7 @@ function UStrToStrAny_( byref c as Ctx, byval e as Tko.NodeId, byref outv as Mir
     if ConcatHasUStrTerm_( c, e ) = false then return false
     dim as MirValue dv
     if StrDescriptorOf_( c, e, dv ) = false then return false
-    dim as FB.Array( of ulong ) ua
+    dim as containers.Array( of ulong ) ua
     PushStrArg( ua, dv )
     outv = EmitRtl( c, RTL_USTR_TO_STR, ua )
     return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -174,7 +174,7 @@ function UStrZstrData_( byref c as Ctx, byval e as Tko.NodeId, byref outv as Mir
     zd.ty = cast( ubyte, MT_PTR )
     zd.id = ztmp
     ZeroStrDescriptor( c, zd )
-    dim as FB.Array( of ulong ) za
+    dim as containers.Array( of ulong ) za
     PushStrArg( za, zd )
     PushStrArg( za, nv )
     za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
@@ -399,7 +399,7 @@ function ByvalStrTemp_ _
         '' A CONCATENATION IS HANDLED BY THE CONVERTER, which builds its wide
         '' temporary first -- see WideTermAsUStr_.
         if WideTermAsUStr_( c, argNode, uv ) = false then return false
-        dim as FB.Array( of ulong ) uargs
+        dim as containers.Array( of ulong ) uargs
         uargs.Push( cast( ulong, dst.kind ) ) : uargs.Push( cast( ulong, dst.id ) )
         PushStrLen_( c, uargs, -1 )
         uargs.Push( cast( ulong, uv.kind ) ) : uargs.Push( cast( ulong, uv.id ) )
@@ -434,7 +434,7 @@ function ByvalStrTemp_ _
     if IsUStringType( c, pt ) andalso NarrowStrArg_( c, argNode ) then
         dim as MirValue nsv
         if StrDescriptorOf_( c, argNode, nsv ) = false then return false
-        dim as FB.Array( of ulong ) nargs
+        dim as containers.Array( of ulong ) nargs
         nargs.Push( cast( ulong, dst.kind ) ) : nargs.Push( cast( ulong, dst.id ) )
         PushStrLen_( c, nargs, -1 )
         nargs.Push( cast( ulong, nsv.kind ) ) : nargs.Push( cast( ulong, nsv.id ) )
@@ -490,7 +490,7 @@ function ByvalStrTemp_ _
                 usrc = LowerAddr( c, argNode )
             end if
             if usrc.kind = cast( ubyte, MV_NONE ) then return false
-            dim as FB.Array( of ulong ) usa
+            dim as containers.Array( of ulong ) usa
             usa.Push( cast( ulong, dst.kind ) ) : usa.Push( cast( ulong, dst.id ) )
             PushStrLen_( c, usa, -1 )
             usa.Push( cast( ulong, usrc.kind ) ) : usa.Push( cast( ulong, usrc.id ) )
@@ -591,7 +591,7 @@ function UStrResultArgTemp_ _
         if isU = false then return false
         rv = LowerExpr( c, an )
     case Tko.N_BINARY
-        dim as FB.Array( of ulong ) uterms
+        dim as containers.Array( of ulong ) uterms
         FlattenConcat( c, an, uterms )
         if uterms.Count < 2 then return false
         if ConcatTermsAreU_( c, uterms ) = false then return false
@@ -620,7 +620,7 @@ function UStrResultArgTemp_ _
     dim as MirValue dst
     dst.kind = cast( ubyte, MV_LOCAL ) : dst.ty = cast( ubyte, MT_PTR ) : dst.id = slot
     ZeroStrDescriptor( c, dst )
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
     PushStrLen_( c, args, -1 )
     args.Push( cast( ulong, rv.kind ) ) : args.Push( cast( ulong, rv.id ) )
@@ -651,7 +651,7 @@ end function
 '' anything else is WideOperand_'s, unchanged. The temporary joins 'temps'.
 function WideArgOperand_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byref outa as MirValue, _
-      byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ) ) as boolean
+      byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ) ) as boolean
 
     dim as Tko.TypeId ut = c.types->Builtin( Tko.TY_USTRING )
     dim as MirValue ud
@@ -692,7 +692,7 @@ private function FixedUStrArgTemp_ _
     dst.id = slot
     ZeroStrDescriptor( c, dst )
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
     PushStrLen_( c, args, -1 )
     args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
@@ -724,7 +724,7 @@ end function
 
 sub UFixDestBack_( byref c as Ctx, byval e as Tko.NodeId, byval slot as long )
     if slot < 0 then exit sub
-    dim as FB.Array( of ulong ) nodes, slots
+    dim as containers.Array( of ulong ) nodes, slots
     nodes.Push( cast( ulong, e ) ) : slots.Push( cast( ulong, slot ) )
     CopyBackUStrArgs_( c, nodes, slots )
     ReleaseUStrOut_( c, slot )
@@ -768,7 +768,7 @@ sub ReleaseUStrOut_( byref c as Ctx, byval slot as long )
     if slot < 0 then exit sub
     dim as MirValue tv
     tv.kind = cast( ubyte, MV_LOCAL ) : tv.ty = cast( ubyte, MT_PTR ) : tv.id = slot
-    dim as FB.Array( of ulong ) da
+    dim as containers.Array( of ulong ) da
     da.Push( cast( ulong, tv.kind ) ) : da.Push( cast( ulong, tv.id ) )
     EmitRtl( c, RTL_USTR_DELETE, da )
 end sub
@@ -789,8 +789,8 @@ end sub
 '' is left alone. fbc copies nothing back, so neither does this.
 function WideUdtStrArgTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-      byref outa as MirValue, byref temps as FB.Array( of ulong ), _
-      byref tempTypes as FB.Array( of ulong ) ) as boolean
+      byref outa as MirValue, byref temps as containers.Array( of ulong ), _
+      byref tempTypes as containers.Array( of ulong ) ) as boolean
 
     if argNode = Tko.NODE_NONE then return false
     if IsUStringType( c, pt ) then return false
@@ -824,7 +824,7 @@ end function
 const UBACK_MARK = &h40000000ul
 sub UStrBackPush_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byval slot as long, _
-      byref nodes as FB.Array( of ulong ), byref slots as FB.Array( of ulong ) )
+      byref nodes as containers.Array( of ulong ), byref slots as containers.Array( of ulong ) )
 
     if (e = Tko.NODE_NONE) orelse (slot < 0) then exit sub
     dim as Tko.NodeId ue = Unparen_( c, e )
@@ -861,7 +861,7 @@ private sub CopyBackFromUTemp_ _
     dim as longint tag = -1
     dim as long fk = StrSwapKind_( c, c.info->TypeOf_( an ), tag )
     if (fk <> 1) andalso (fk <> 2) andalso (fk <> 3) then tag = -1
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
     PushStrLen_( c, args, tag )
     args.Push( cast( ulong, MV_LOCAL ) ) : args.Push( cast( ulong, slot ) )
@@ -878,8 +878,8 @@ private sub CopyBackFromUTemp_ _
 end sub
 
 private sub CopyBackUStrArgs_ _
-    ( byref c as Ctx, byref nodes as FB.Array( of ulong ), _
-      byref slots as FB.Array( of ulong ) )
+    ( byref c as Ctx, byref nodes as containers.Array( of ulong ), _
+      byref slots as containers.Array( of ulong ) )
 
     for k as long = nodes.Count - 1 to 0 step -1
         dim as Tko.NodeId an = cast( Tko.NodeId, nodes[k] )
@@ -915,7 +915,7 @@ private sub CopyBackUStrArgs_ _
         src.kind = cast( ubyte, MV_LOCAL )
         src.ty = cast( ubyte, MT_PTR )
         src.id = cast( long, slots[k] )
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         '' A 'wstring * N' TAKES THE NARROW TEMPORARY BACK WIDENED: fbc emits 'fb_WstrAssignFromA( W$0,
         '' 4ll, &TMP, -1ll )' after the call (functions/param-string-copyback.bas); tiko dropped it.
         if fk = 2 then
@@ -949,13 +949,13 @@ end sub
 '' 'z'. tiko built the temporary and dropped it, so 'z' kept its old text (audit F-71,
 '' LOW-13). The pairs CtorArgValue_ recorded for the temporaries above 'mark' are written
 '' back here, just before ReleaseStrTemps_ deletes them; the rest stay for an outer mark.
-sub CopyBackStrArgs( byref c as Ctx, byref nodes as FB.Array( of ulong ), byref slots as FB.Array( of ulong ) )
+sub CopyBackStrArgs( byref c as Ctx, byref nodes as containers.Array( of ulong ), byref slots as containers.Array( of ulong ) )
     CopyBackUStrArgs_( c, nodes, slots )
 end sub
 
 sub FlushStrCopyBacks( byref c as Ctx, byval mark as long )
     if c.strBackSlot.Count = 0 then exit sub
-    dim as FB.Array( of ulong ) nodes, slots, keepN, keepS
+    dim as containers.Array( of ulong ) nodes, slots, keepN, keepS
     for k as long = 0 to c.strBackSlot.Count - 1
         dim as boolean mine = false
         for j as long = mark to c.strTemps.Count - 1
@@ -976,8 +976,8 @@ end sub
 
 '' ...and their release, after the call returns.
 private sub DeleteStrArgTemps_ _
-    ( byref c as Ctx, byref slots as FB.Array( of ulong ), _
-      byref types as FB.Array( of ulong ), byval defer as boolean = false )
+    ( byref c as Ctx, byref slots as containers.Array( of ulong ), _
+      byref types as containers.Array( of ulong ), byval defer as boolean = false )
 
     '' A BYREF RESULT MAY BE ONE OF THEM: 'function g( byval s as string ) byref as string' returns
     '' its own byval copy, which the caller owns -- fbc deletes it at the END OF THE STATEMENT, after
@@ -994,7 +994,7 @@ private sub DeleteStrArgTemps_ _
         a.kind = cast( ubyte, MV_LOCAL )
         a.ty = cast( ubyte, MT_PTR )
         a.id = cast( long, slots[k] )
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         args.Push( cast( ulong, a.kind ) ) : args.Push( cast( ulong, a.id ) )
         EmitRtl( c, StrRtlFor_( c, cast( Tko.TypeId, types[k] ), RTL_STR_DELETE ), args )
     next
@@ -1042,7 +1042,7 @@ end function
 function UStrOperandToNarrow_ _
     ( byref c as Ctx, byval sa as Tko.NodeId, byref outv as MirValue ) as boolean
 
-    dim as FB.Array( of ulong ) terms
+    dim as containers.Array( of ulong ) terms
     FlattenConcat( c, sa, terms )
     dim as boolean anyU16 = false
     for i as long = 0 to terms.Count - 1
@@ -1085,7 +1085,7 @@ end function
 function UStrParamArgTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outv as MirValue ) as boolean
-    dim as FB.Array( of ulong ) tt
+    dim as containers.Array( of ulong ) tt
     return UStrRefArg_( c, argNode, pt, outv, c.strTemps, tt, c.strBackNode, c.strBackSlot )
 end function
 
@@ -1105,8 +1105,8 @@ end function
 '' argument for a pointer, nothing emitted; -1 one that did not lower.
 function PtrStrArg_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byval ppt as Tko.TypeId, byval vararg as boolean, _
-      byref outv as MirValue, byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ), _
-      byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) ) as long
+      byref outv as MirValue, byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ), _
+      byref backN as containers.Array( of ulong ), byref backS as containers.Array( of ulong ) ) as long
 
     dim as boolean wantsZPtr = false
     dim as boolean wantsWPtr = false
@@ -1174,8 +1174,8 @@ end function
 '' one -- NarrowStrArg_ asks the terms. The caller passes its own lists (see NarrowRefStrArg_).
 function UStrRefArg_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue, _
-      byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ), _
-      byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) ) as boolean
+      byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ), _
+      byref backN as containers.Array( of ulong ), byref backS as containers.Array( of ulong ) ) as boolean
 
     if (e = Tko.NODE_NONE) orelse (pt = Tko.TYPE_NONE) then return false
     dim as Tko.TypeId pu = c.types->Unqualify( pt )
@@ -1227,8 +1227,8 @@ end function
 '' nothing, when no temporary is needed -- the caller passes the argument's own descriptor.
 function NarrowRefStrArg_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue, _
-      byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ), _
-      byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) ) as boolean
+      byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ), _
+      byref backN as containers.Array( of ulong ), byref backS as containers.Array( of ulong ) ) as boolean
 
     if NarrowStrCtorParamConverts_( c, e, pt ) = false then return false
     dim as Tko.TypeId snt = c.types->Builtin( Tko.TY_STRING )
@@ -1248,7 +1248,7 @@ end function
 '' length and fbc writes nothing back into it; a 'ustring * N' is a conversion, not a copy.
 sub StrBackPushNarrow_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byval slot as long, _
-      byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) )
+      byref backN as containers.Array( of ulong ), byref backS as containers.Array( of ulong ) )
 
     dim as longint tag
     dim as long fk = StrSwapKind_( c, c.info->TypeOf_( e ), tag )
@@ -1262,7 +1262,7 @@ end sub
 function NarrowParamArgTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outv as MirValue ) as boolean
-    dim as FB.Array( of ulong ) tt
+    dim as containers.Array( of ulong ) tt
     return NarrowRefStrArg_( c, argNode, pt, outv, c.strTemps, tt, c.strBackNode, c.strBackSlot )
 end function
 

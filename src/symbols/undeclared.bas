@@ -54,7 +54,7 @@ const SKIP_PROCPTR as ubyte = 2
 '' Mark every node in [lo, hi]. A call is built BOTTOM-UP IN SOURCE ORDER -- its target,
 '' then each argument, then the call node -- so an argument's subtree is exactly the ids
 '' after the previous one's root and up to its own.
-private sub MarkRange_( byref skip as FB.Array( of ubyte ), byval lo as long, byval hi as long )
+private sub MarkRange_( byref skip as containers.Array( of ubyte ), byval lo as long, byval hi as long )
     if lo < 1 then lo = 1
     if hi > skip.Count - 1 then hi = skip.Count - 1
     for i as long = lo to hi
@@ -103,18 +103,18 @@ sub ReportUndeclared _
     ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
       byref src as Tko.SourceManager, byref diags as Tko.DiagnosticEngine, _
       byref info as Tko.SemanticInfo, byref rst as Tko.Resolve.Stats, _
-      byref reserved as FB.Array( of ulong ), byref syms as Tko.SymbolTable, _
+      byref reserved as containers.Array( of ulong ), byref syms as Tko.SymbolTable, _
       byval isRtl as RtlNameFn )
 
     dim as long total = ast.Count( )
-    dim as FB.Array( of ubyte ) skip
+    dim as containers.Array( of ubyte ) skip
     for i as long = 0 to total
         skip.Push( 0 )
     next
     '' '#assert' LINES, as file and line pairs.
-    dim as FB.Array( of ulong ) ppAssert
+    dim as containers.Array( of ulong ) ppAssert
     '' Every generic type's parameters, as file, header line and folded name -- see N_TYPE.
-    dim as FB.Array( of ulong ) genHdr
+    dim as containers.Array( of ulong ) genHdr
 
     for i as long = 1 to total
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
@@ -245,7 +245,7 @@ sub ReportUndeclared _
 
     '' Every line reported, as file and line pairs -- an instantiation's body is walked
     '' apart from the rest and would otherwise name its line again.
-    dim as FB.Array( of ulong ) done
+    dim as containers.Array( of ulong ) done
     for i as long = 0 to rst.unresolvedIds.Count - 1
         dim as Tko.NodeId id = cast( Tko.NodeId, rst.unresolvedIds[i] )
         if (id < 1) orelse (cast( long, id ) > total) then continue for

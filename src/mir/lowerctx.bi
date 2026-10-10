@@ -40,8 +40,8 @@ type Ctx
     '' or after it -- so the indirectbr goes out with an empty destination list and the
     '' list is filled once the procedure is finished. LLVM verifies that set, and an
     '' omitted destination is a module it refuses.
-    as FB.Array( of ulong ) errHandlerBlocks
-    as FB.Array( of ulong ) errIndirectBlocks
+    as containers.Array( of ulong ) errHandlerBlocks
+    as containers.Array( of ulong ) errIndirectBlocks
     '' 'ON ERROR GOTO label' WHERE THE LABEL IS NOT LOWERED YET, which is the usual
     '' case: the handler sits at the end of the procedure and the statement naming it
     '' at the top. A block cannot be created early to take its address -- blocks are
@@ -49,8 +49,8 @@ type Ctx
     '' filled -- so the operand goes out as a placeholder and is rewritten once the
     '' label has been reached. Parallel arrays: where the operand sits in the argument
     '' pool, and which label slot it names.
-    as FB.Array( of ulong ) errPendingArg
-    as FB.Array( of ulong ) errPendingSlot
+    as containers.Array( of ulong ) errPendingArg
+    as containers.Array( of ulong ) errPendingSlot
     '' Whether this procedure has an ON ERROR at all, known before lowering starts.
     '' Without a handler the runtime never returns from a failed check -- it aborts --
     '' so the jump is dead code, and emitting it would mean an indirectbr with no
@@ -72,8 +72,8 @@ type Ctx
     as Tko.ScopeId          procScope
     '' The innermost loop's exit and continue targets, for EXIT and CONTINUE. A stack
     '' rather than a pair, because the statements take a level count.
-    as FB.Array( of long )  breakTo
-    as FB.Array( of long )  contTo
+    as containers.Array( of long )  breakTo
+    as containers.Array( of long )  contTo
     '' THE ONE COMPARISON NODE BEING LOWERED AS A CONDITION, or NODE_NONE.
     ''
     '' A comparison used as a VALUE is NEGATED -- fbc writes '-((int64)A < (int64)B)',
@@ -91,9 +91,9 @@ type Ctx
     '' to lower itself each time, 'with( status( hFindSlot( @this ) ) )' would call
     '' hFindSlot once per '.field'. fbc evaluates the subject ONCE, so its address is
     '' computed once here and every use inside the body reads this instead.
-    as FB.Array( of ulong )  withNode
-    as FB.Array( of ulong )  withKind
-    as FB.Array( of ulong )  withId
+    as containers.Array( of ulong )  withNode
+    as containers.Array( of ulong )  withKind
+    as containers.Array( of ulong )  withId
     as Tko.SourceManager ptr srcMgr    '' only for the constant evaluator
     '' THE DRIVER'S DiagnosticEngine, or 0 (tools call Lower without one). Lowering reports
     '' almost nothing; see CountUnlowredCall for the one error it does.
@@ -103,23 +103,23 @@ type Ctx
     '' where something calls it -- a file declaring a type and never a variable of it
     '' gets no constructor at all -- so the demand is recorded as calls are emitted and
     '' the bodies follow, rather than one per type whether used or not.
-    as FB.Array( of ulong ) implWantedType
-    as FB.Array( of long )  implWantedKind    '' 1 constructor, 0 destructor
+    as containers.Array( of ulong ) implWantedType
+    as containers.Array( of long )  implWantedKind    '' 1 constructor, 0 destructor
     '' MODULE-LIFETIME OBJECTS THAT NEED CONSTRUCTING. fbc emits a _GLOBAL__I and a
     '' _GLOBAL__D carrying GCC's constructor/destructor attributes, and runs the
     '' globals in DECLARATION order in the first and in exact reverse in the second.
     '' Recorded as declarations are seen, so the order is the source's.
-    as FB.Array( of long )  modInitGlobal
+    as containers.Array( of long )  modInitGlobal
     '' The INITIALISER NODE for a module global constructed by a named constructor --
     '' 'dim shared f as foo = foo( 7 )' -- or NODE_NONE for the default-constructed
     '' ones. Parallel to modInitGlobal. fbc emits the chosen call in its module
     '' initialiser: '_ZN3FOOC1Eu7INTEGER( &F$, 7ll )'.
-    as FB.Array( of ulong ) modInitCall
-    as FB.Array( of ulong ) modInitType
+    as containers.Array( of ulong ) modInitCall
+    as containers.Array( of ulong ) modInitType
     '' The DECLARATOR of a module global with a COLLECTION INITIALISER -- 'dim shared a as
     '' Array( of long ) = { 1, 2 }' -- or NODE_NONE. Parallel to modInitGlobal: its calls
     '' run in the module initialiser right after the constructor (lowermodinit.bas).
-    as FB.Array( of ulong ) modInitColl
+    as containers.Array( of ulong ) modInitColl
     '' The virtual method tables, for emitting them and for dispatching through one.
     as Tko.VTables ptr      vts
     '' THE CLEANUP MODEL (docs/plan/08 section 6).
@@ -136,43 +136,43 @@ type Ctx
     ''   DestroyLocal  cleanupNode = the dtor symbol,  cleanupSlot = the slot
     ''   DeleteString  cleanupNode = 0,                cleanupSlot = the slot
     ''   DeleteWstr    cleanupNode = CLEANUP_WSTR_DELETE, cleanupSlot = the slot
-    as FB.Array( of ulong ) cleanupNode
-    as FB.Array( of long )  cleanupSlot
+    as containers.Array( of ulong ) cleanupNode
+    as containers.Array( of long )  cleanupSlot
     ''   ImplicitDtor  cleanupNode = CLEANUP_IMPLICIT_DTOR, cleanupType = the type
     '' A fourth action, and the only one that needs a THIRD column: the structor it
     '' runs has no symbol -- fbc synthesised it and so does tiko-lang -- so the entry names
     '' the TYPE and the name is derived from that.
-    as FB.Array( of ulong ) cleanupType
-    as FB.Array( of long )  scopeMark      '' index into cleanupNode per open scope
+    as containers.Array( of ulong ) cleanupType
+    as containers.Array( of long )  scopeMark      '' index into cleanupNode per open scope
     '' WHICH CONSTRUCT each open scope belongs to -- the AST node whose body it brackets,
     '' or SCOPE_KEY_OPT or'd with the construct for a scope only some instances open. A
     '' GOTO compares these with its label's to find the scopes it really leaves; a depth
     '' alone cannot tell a sibling from the scope it is in (ScanLabels).
-    as FB.Array( of ulong ) scopeKey
+    as containers.Array( of ulong ) scopeKey
     '' The scope depth each open loop started at, so EXIT and CONTINUE know how many
     '' scopes they are leaving.
-    as FB.Array( of long )  loopScope
+    as containers.Array( of long )  loopScope
     '' The CONSTRUCT KIND behind each breakTo entry -- KW_FOR, KW_DO, KW_WHILE,
     '' KW_SELECT or KW_SCOPE. Without it 'exit for, for' broke ONE level instead of
     '' two, silently, and 'exit select' had nothing to match against.
-    as FB.Array( of long )  loopKind
+    as containers.Array( of long )  loopKind
     '' Slots holding string temporaries whose life ends with the current STATEMENT.
-    as FB.Array( of ulong ) strTemps
+    as containers.Array( of ulong ) strTemps
     '' ...AND THE COPY-BACKS SOME OF THEM OWE, as (argument node, slot) pairs: a fixed string
     '' given to a constructor's byref string parameter is written back before its temporary
     '' is released -- see FlushStrCopyBacks.
-    as FB.Array( of ulong ) strBackNode
-    as FB.Array( of ulong ) strBackSlot
+    as containers.Array( of ulong ) strBackNode
+    as containers.Array( of ulong ) strBackSlot
     '' The same, for WIDE temporaries -- a separate list because they are released
     '' differently: a wide temporary slot holds a POINTER to an allocation, so its
     '' release is fb_WstrDelete on the pointer LOADED from the slot, where a narrow one
     '' is fb_StrDelete on the descriptor's own address.
-    as FB.Array( of ulong ) wstrTemps
+    as containers.Array( of ulong ) wstrTemps
     '' STATEMENT-LIFETIME UDT TEMPORARIES: the hidden result object of a call that
     '' returns a UDT by value. Measured -- fbc destroys one at the END OF THE
     '' STATEMENT that consumed it, which is shorter than any scope, so it belongs
     '' beside the string temporaries and not on the cleanup list.
-    as FB.Array( of ulong ) udtTemps
+    as containers.Array( of ulong ) udtTemps
     '' WHERE THE CURRENT STATEMENT'S UDT TEMPORARIES START. LowerStmt releases
     '' everything above it once the statement ends, but a RETURN never gets there:
     '' it terminates the block, and the release then has nowhere to emit. The
@@ -183,14 +183,14 @@ type Ctx
     '' temporary, 29 MB over a million calls where fbc's stays at 4 (audit F-58).
     as long stmtStrMark
     as long stmtWstrMark
-    as FB.Array( of ulong ) udtTempTypes
+    as containers.Array( of ulong ) udtTempTypes
     '' ONE BYTE PER AST NODE: has LowerUserBinaryOp_ already declined this one?
     '' A speculative attempt that DESCENDS before it can fail costs its whole
     '' subtree every time it is retried, and the retry happens at every level of a
     '' concatenation, so the same nodes were lowered 2^n times. Indexed rather than
     '' searched: the answer is wanted once per binary node and the table is one byte
     '' per node of the unit.
-    as FB.Array( of ubyte ) userOpDeclined
+    as containers.Array( of ubyte ) userOpDeclined
     '' DATA. The head of the module's block chain (-1 when it has none), and the
     '' label -> block map a 'restore lbl' resolves through. Both are built by a
     '' PRE-PASS, because 'restore lbl' may name a label that appears later.
@@ -223,8 +223,8 @@ type Ctx
     as boolean              sretIntoAtNode
     as Tko.NodeId           sretIntoNode
     as long                 dataHead
-    as FB.Array( of ulong ) dataLabelName
-    as FB.Array( of ulong ) dataLabelBlock
+    as containers.Array( of ulong ) dataLabelName
+    as containers.Array( of ulong ) dataLabelBlock
 
     '' The procedure being lowered, as a SYMBOL. MirFunction carries only the mangled
     '' name, and __FUNCTION__ needs the source one -- 'NS.INNER', not '_ZN2NS5INNEREv'.
@@ -285,26 +285,26 @@ type Ctx
     '' DIM SHARED / STATIC storage, keyed by SYMBOL rather than by name. Two statics
     '' called 'n' in sibling scopes are two declarations and so two symbols; keying on
     '' the spelling merged them into one variable.
-    as FB.Array( of ulong ) gvarSym
-    as FB.Array( of long )  gvarSlot
+    as containers.Array( of ulong ) gvarSym
+    as containers.Array( of long )  gvarSlot
     '' ...and the same pairs indexed, symbol -> slot (audit F-63).
     as IdMap                gvarBySym
 
     '' Labels, three parallel arrays. The DEPTH is filled by a pre-scan before the body
     '' is lowered, because a forward 'goto' has to know how many scopes it leaves before
     '' the label itself has been reached.
-    as FB.Array( of ulong ) labelName
-    as FB.Array( of long )  labelBlock     '' -1 until the block is created
-    as FB.Array( of long )  labelDepth     '' -1 when the pre-scan never saw it
+    as containers.Array( of ulong ) labelName
+    as containers.Array( of long )  labelBlock     '' -1 until the block is created
+    as containers.Array( of long )  labelDepth     '' -1 when the pre-scan never saw it
     '' ...and WHERE each label is: its scope keys, inner to the body's own scope, as a
     '' run of labelPaths -- from the pre-scan, then from the scopes actually open when
     '' the label is lowered -- and how many cleanup entries were registered at that
     '' point, -1 until then. A backward GOTO runs the ones registered after it.
-    as FB.Array( of long )  labelPathAt
-    as FB.Array( of long )  labelPathLen
-    as FB.Array( of long )  labelCleanupAt
-    as FB.Array( of ulong ) labelPaths
-    as FB.Array( of ulong ) scanPath       '' the pre-scan's open keys
+    as containers.Array( of long )  labelPathAt
+    as containers.Array( of long )  labelPathLen
+    as containers.Array( of long )  labelCleanupAt
+    as containers.Array( of ulong ) labelPaths
+    as containers.Array( of ulong ) scanPath       '' the pre-scan's open keys
     as long                 labelBase      '' scopeMark index of the body's own scope
     '' THE PROCEDURE TYPE an '@f' or 'procptr( f )' is wanted as -- the target of the
     '' store, initialiser or argument that holds it, for the one node being lowered
@@ -341,14 +341,14 @@ declare function UserOpDeclined_( byref c as Ctx, byval id as Tko.NodeId ) as bo
 declare sub MarkUserOpDeclined_( byref c as Ctx, byval id as Tko.NodeId )
 declare sub CallTempsInSourceOrder_ _
     ( byref c as Ctx, byval headMark as long, byval argMark as long, _
-      byval recvMark as long, byref segFrom as FB.Array( of ulong ) )
+      byval recvMark as long, byref segFrom as containers.Array( of ulong ) )
 declare sub SretResultSlotAfter_( byref c as Ctx, byval t as Tko.TypeId, byval slot as long )
 declare sub ReleaseStrTemps_( byref c as Ctx, byval mark as long )
 '' THE SHADOW AUDIT of a lowering site that still makes its own overload choice -- lowerutil.bas.
 declare sub AuditPick( byref c as Ctx, byval n as Tko.NodeId, byref site as string, _
     byval lowered as Tko.SymbolId, byval recorded as Tko.SymbolId )
 declare sub FlushStrCopyBacks( byref c as Ctx, byval mark as long )
-declare sub CopyBackStrArgs( byref c as Ctx, byref nodes as FB.Array( of ulong ), byref slots as FB.Array( of ulong ) )
+declare sub CopyBackStrArgs( byref c as Ctx, byref nodes as containers.Array( of ulong ), byref slots as containers.Array( of ulong ) )
 declare sub ReleaseWstrTemps_( byref c as Ctx, byval mark as long )
 declare function ThisObjectAddr_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byref outT as Tko.TypeId, _
@@ -393,7 +393,7 @@ declare sub EmitDimensionCheck_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
       byref desc as MirValue, byval count as long )
 declare function EmitRtl _
-    ( byref c as Ctx, byval r as RtlId, byref args as FB.Array( of ulong ) ) as MirValue
+    ( byref c as Ctx, byval r as RtlId, byref args as containers.Array( of ulong ) ) as MirValue
 
 
     '' lowerctl.bas -- control flow.
@@ -475,11 +475,11 @@ declare function EmitRtl _
     declare sub ZeroStrTempAtEntry_( byref c as Ctx, byref dst as MirValue )
     '' The (pointer, length) pair for one term of a concatenation, appended to 'args'.
     declare function EmitStrTerm _
-        ( byref c as Ctx, byref args as FB.Array( of ulong ), _
+        ( byref c as Ctx, byref args as containers.Array( of ulong ), _
           byval term as Tko.NodeId, byval isU as boolean = false ) as boolean
     '' Flatten a left-leaning '+'/'&' chain into its terms, in source order.
     declare sub FlattenConcat _
-        ( byref c as Ctx, byval id as Tko.NodeId, byref outp as FB.Array( of ulong ) )
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outp as containers.Array( of ulong ) )
     '' 'str( u )' over a ustring operand: the narrow temporary fbc converts it into.
     '' False when no term is a ustring. lowerstrargs.bas.
     declare function UStrOperandToNarrow_ _
@@ -495,11 +495,11 @@ declare function EmitRtl _
     '' the ustring temporary fbc builds first. False when neither applies. lowerstrargs.bas.
     declare function UStrParamArgTemp_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-          byref outv as MirValue ) as boolean : declare function UStrRefArg_( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue, byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ), byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) ) as boolean
+          byref outv as MirValue ) as boolean : declare function UStrRefArg_( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue, byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ), byref backN as containers.Array( of ulong ), byref backS as containers.Array( of ulong ) ) as boolean
     '' ...and its narrow twin, for a 'byref as string' parameter. lowerstrargs.bas.
     declare function NarrowParamArgTemp_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-          byref outv as MirValue ) as boolean : declare function NarrowRefStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue, byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ), byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) ) as boolean : declare sub StrBackPushNarrow_( byref c as Ctx, byval e as Tko.NodeId, byval slot as long, byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) )
+          byref outv as MirValue ) as boolean : declare function NarrowRefStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue, byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ), byref backN as containers.Array( of ulong ), byref backS as containers.Array( of ulong ) ) as boolean : declare sub StrBackPushNarrow_( byref c as Ctx, byval e as Tko.NodeId, byval slot as long, byref backN as containers.Array( of ulong ), byref backS as containers.Array( of ulong ) )
     declare function LowerStringInit _
         ( byref c as Ctx, byval slot as long, byval target as Tko.NodeId, _
           byval value as Tko.NodeId ) as boolean : declare function LowerStringInit_( byref c as Ctx, byval slot as long, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
@@ -609,7 +609,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byref d as MirValue, byval t as Tko.TypeId )
     declare function PickCtor _
         ( byref c as Ctx, byval ctors as Tko.SymbolId, _
-          byref argT as FB.Array( of ulong ) ) as Tko.SymbolId
+          byref argT as containers.Array( of ulong ) ) as Tko.SymbolId
     '' A UDT parameter reached through that UDT's own constructor -- lowerctor.bas.
     declare function CtorUserConvCost_ _
         ( byref c as Ctx, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
@@ -676,7 +676,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval sp as Tko.StmtPayload ptr ) as boolean
     declare function LowerPrintPos _
         ( byref c as Ctx, byval it as Tko.NodeId, byref chan as MirValue ) as boolean
-    declare sub PushConst( byref args as FB.Array( of ulong ), byval v as long )
+    declare sub PushConst( byref args as containers.Array( of ulong ), byval v as long )
     declare function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function WideStringElems( byref c as Ctx, byval t as Tko.TypeId ) as long
@@ -686,7 +686,7 @@ declare function EmitRtl _
           byval seqE as Tko.NodeId, byval at as Tko.TypeId ) as boolean
     declare function EmitDirectCall_ _
         ( byref c as Ctx, byval sym as Tko.SymbolId, byval rt as MirType, _
-          byref args as FB.Array( of ulong ), _
+          byref args as containers.Array( of ulong ), _
           byval withSret as boolean = false ) as MirValue
     declare function MemberCallRetTy_ _
         ( byref c as Ctx, byval sym as Tko.SymbolId ) as MirType
@@ -697,7 +697,7 @@ declare function EmitRtl _
           byval first_ as long, byval count as long ) as boolean
     declare function EmitMemberCallArgs_ _
         ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
-          byval rt as MirType, byval args as FB.Array( of ulong ) ptr, _
+          byval rt as MirType, byval args as containers.Array( of ulong ) ptr, _
           byval vslot as long = -1 ) as MirValue
     '' lowerselfop.bas
     declare function SelfOpMemberCall_ _
@@ -763,7 +763,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byval isLine as boolean ) as boolean
     declare function Unparen_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
     declare function ConcatTermsToTempDesc_ _
-        ( byref c as Ctx, byref terms as FB.Array( of ulong ), _
+        ( byref c as Ctx, byref terms as containers.Array( of ulong ), _
           byref outv as MirValue ) as boolean
     declare function ConcatToTempDesc_ _
         ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
@@ -804,7 +804,7 @@ declare function EmitRtl _
     '' The type a constructor ARGUMENT is chosen by -- see lowercallarg.bas.
     declare function CtorArgTypeOf_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
     declare function WideLitChars_( byref c as Ctx, byval id as Tko.NodeId ) as long
-    declare function UnionMemberSkip_( byref c as Ctx, byval t as Tko.TypeId, byval i as long, byref thisPtr as MirValue ) as boolean : declare function EmitAllocCall_( byref c as Ctx, byval r as RtlId, byref args as FB.Array( of ulong ) ) as MirValue : declare function LetViaCast_( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, byval atl as Tko.TypeId, byval avt as Tko.TypeId, byval dstp as MirValue ptr = 0 ) as boolean : declare function BareTypeNameTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outa as MirValue ) as boolean : declare function WideConstChars_( byref c as Ctx, byval e as Tko.NodeId ) as long : declare function StaticDynBoundsOnce_( byref c as Ctx, byval sid as Tko.SymbolId, byval ip as Tko.StmtPayload ptr ) as boolean : declare function StaticOnceBegin_( byref c as Ctx, byval g as long, byval suffix as string ) as long : declare sub StaticOnceEnd_( byref c as Ctx, byval skipB as long )
+    declare function UnionMemberSkip_( byref c as Ctx, byval t as Tko.TypeId, byval i as long, byref thisPtr as MirValue ) as boolean : declare function EmitAllocCall_( byref c as Ctx, byval r as RtlId, byref args as containers.Array( of ulong ) ) as MirValue : declare function LetViaCast_( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, byval atl as Tko.TypeId, byval avt as Tko.TypeId, byval dstp as MirValue ptr = 0 ) as boolean : declare function BareTypeNameTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outa as MirValue ) as boolean : declare function WideConstChars_( byref c as Ctx, byval e as Tko.NodeId ) as long : declare function StaticDynBoundsOnce_( byref c as Ctx, byval sid as Tko.SymbolId, byval ip as Tko.StmtPayload ptr ) as boolean : declare function StaticOnceBegin_( byref c as Ctx, byval g as long, byval suffix as string ) as long : declare sub StaticOnceEnd_( byref c as Ctx, byval skipB as long )
     declare function Utf8WideLit_( byref c as Ctx, byval e as Tko.NodeId ) as boolean : declare function WideConstLitNode_( byref c as Ctx, byval e as Tko.NodeId, byval viaWstr as boolean = false ) as Tko.NodeId : declare function WideLitUnitAt_( byref c as Ctx, byval id as Tko.NodeId, byval k as longint ) as long
     declare function WideLitGlobal_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outChars as long ) as long
@@ -852,7 +852,7 @@ declare function EmitRtl _
 
     declare function IsUStringType( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function ConcatTermsAreU_ _
-        ( byref c as Ctx, byref terms as FB.Array( of ulong ) ) as boolean
+        ( byref c as Ctx, byref terms as containers.Array( of ulong ) ) as boolean
     declare function UStrRtl_( byval narrow as RtlId ) as RtlId
     declare function StrRtlFor_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval narrow as RtlId ) as RtlId
@@ -862,7 +862,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval v0 as Tko.NodeId, byval v0t as Tko.TypeId, _
           byref sd as MirValue ) as boolean
     declare sub PushUStrLiteralArg _
-        ( byref c as Ctx, byref args as FB.Array( of ulong ), byval gidx as long, _
+        ( byref c as Ctx, byref args as containers.Array( of ulong ), byval gidx as long, _
           byval nchars as long )
 
     '' A static aggregate's initial value, as the bytes of its storage -- lowerudtlit.bas.
@@ -874,7 +874,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
           byval size_ as long, byref outBytes as string, _
           byval vscope as Tko.ScopeId = Tko.SCOPE_NONE, _
-          byval relocs as FB.Array( of ulong ) ptr = 0 ) as boolean
+          byval relocs as containers.Array( of ulong ) ptr = 0 ) as boolean
 
     '' 'type<T>( ... )' as a value or an address -- lowersub.bas.
     '' An UPCAST initialiser: the base subobject of a derived value, sized to the
@@ -1042,7 +1042,7 @@ declare function EmitRtl _
     declare function LowerError( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerNew_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
-    declare sub ArrayInitLeaves_( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, byref leaves as FB.Array( of ulong ), byref idx as FB.Array( of ulong ) ) : declare function BaseLeafSlots_( byref c as Ctx, byval t as Tko.TypeId, byval first_ as long, byval n as long, byref lOff as FB.Array( of ulong ), byref lTy as FB.Array( of ulong ) ) as boolean
+    declare sub ArrayInitLeaves_( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, byref leaves as containers.Array( of ulong ), byref idx as containers.Array( of ulong ) ) : declare function BaseLeafSlots_( byref c as Ctx, byval t as Tko.TypeId, byval first_ as long, byval n as long, byref lOff as containers.Array( of ulong ), byref lTy as containers.Array( of ulong ) ) as boolean
     declare function CtorOf_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval want as long ) as Tko.SymbolId
     declare function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
@@ -1081,7 +1081,7 @@ declare function EmitRtl _
     '' 32-bit inline constant field -- which a fixed-length string's tagged length
     '' never does.
     declare sub PushStrArg _
-        ( byref args as FB.Array( of ulong ), byref addr as MirValue )
+        ( byref args as containers.Array( of ulong ), byref addr as MirValue )
     '' The FLAVOUR of one term of a string chain -- see lowerterm.bas. NEUTRAL follows
     '' the destination: a literal, a string constant, a rendered number, an untyped
     '' intrinsic call.
@@ -1122,13 +1122,13 @@ declare function EmitRtl _
     declare function LowerExprN_( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
     declare function NumSrcType_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
     declare function ChainHasRenderedNumber_ _
-        ( byref c as Ctx, byref terms as FB.Array( of ulong ) ) as boolean
+        ( byref c as Ctx, byref terms as containers.Array( of ulong ) ) as boolean
     '' A ustring destination built in place, each rendered number converted. lowerconcat.bas.
     declare function LowerUStrInPlaceWithNumbers_ _
-        ( byref c as Ctx, byref dst as MirValue, byref terms as FB.Array( of ulong ) ) as boolean
+        ( byref c as Ctx, byref dst as MirValue, byref terms as containers.Array( of ulong ) ) as boolean
     declare function IsUStrChain_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function UStrCmpOperand_ _
-        ( byref c as Ctx, byref args as FB.Array( of ulong ), _
+        ( byref c as Ctx, byref args as containers.Array( of ulong ), _
           byval term as Tko.NodeId ) as boolean
     declare function WideTermAsUStr_ _
         ( byref c as Ctx, byval term as Tko.NodeId, byref outv as MirValue ) as boolean
@@ -1138,15 +1138,15 @@ declare function EmitRtl _
           byval term as Tko.NodeId, byval isInit as boolean ) as boolean
     declare function LowerNarrowChainToU_ _
         ( byref c as Ctx, byref dst as MirValue, _
-          byref terms as FB.Array( of ulong ), byval isInit as boolean ) as boolean
+          byref terms as containers.Array( of ulong ), byval isInit as boolean ) as boolean
     declare function LowerUStrChain _
         ( byref c as Ctx, byref dst as MirValue, byval dstIsU as boolean, _
-          byref terms as FB.Array( of ulong ), byval isInit as boolean ) as boolean
+          byref terms as containers.Array( of ulong ), byval isInit as boolean ) as boolean
     declare function StrChainNeedsConvert _
         ( byref c as Ctx, byval dstIsU as boolean, _
-          byref terms as FB.Array( of ulong ) ) as boolean
+          byref terms as containers.Array( of ulong ) ) as boolean
     declare sub PushStrLiteralArg _
-        ( byref args as FB.Array( of ulong ), byval gidx as long, byval nbytes as long )
+        ( byref args as containers.Array( of ulong ), byval gidx as long, byval nbytes as long )
     '' lowerustr.bas -- the USTRING intrinsic family, the third beside the narrow set
     '' in lowersub.bas and the wide one in lowerwstr.bas.
     '' The ADDRESS of a SYNTHESISED structor -- kind_ 1 for the constructor, 0 for
@@ -1159,7 +1159,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
     declare sub PushStrLen_ _
-        ( byref c as Ctx, byref args as FB.Array( of ulong ), byval n as longint )
+        ( byref c as Ctx, byref args as containers.Array( of ulong ), byval n as longint )
     declare function LowerWideIif_ _
         ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
           byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
@@ -1212,7 +1212,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.TypeId
     declare function PushCtorArgs_ _
         ( byref c as Ctx, byval ctor as Tko.SymbolId, byval first_ as long, _
-          byval count as long, byref args as FB.Array( of ulong ) ) as boolean
+          byval count as long, byref args as containers.Array( of ulong ) ) as boolean
     declare function UserConvOperand_ _
         ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
           byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
@@ -1267,7 +1267,7 @@ declare function EmitRtl _
     '' has: a pointer, not a local.
     declare sub EmitStructorCall _
         ( byref c as Ctx, byval sym as Tko.SymbolId, byval slot as long, _
-          byval selfVal as MirValue ptr = 0, byval args as FB.Array( of ulong ) ptr = 0 )
+          byval selfVal as MirValue ptr = 0, byval args as containers.Array( of ulong ) ptr = 0 )
     declare sub EmitCtorCall _
         ( byref c as Ctx, byval sym as Tko.SymbolId, byval slot as long )
     declare sub EmitDtorCall _
@@ -1348,8 +1348,8 @@ declare function EmitRtl _
           byref outa as MirValue, byref outSlot as long ) as boolean
     declare function WideUdtStrArgTemp_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-          byref outa as MirValue, byref temps as FB.Array( of ulong ), _
-          byref tempTypes as FB.Array( of ulong ) ) as boolean
+          byref outa as MirValue, byref temps as containers.Array( of ulong ), _
+          byref tempTypes as containers.Array( of ulong ) ) as boolean
     declare function UStrOutOperand_ _
         ( byref c as Ctx, byval it as Tko.NodeId, byref outv as MirValue, _
           byref outSlot as long ) as boolean
@@ -1365,7 +1365,7 @@ declare function EmitRtl _
           byval anyChain as boolean = false ) as boolean
     declare function WideArgOperand_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byref outa as MirValue, _
-          byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ) ) as boolean : declare function PtrStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval ppt as Tko.TypeId, byval vararg as boolean, byref outv as MirValue, byref temps as FB.Array( of ulong ), byref tempTypes as FB.Array( of ulong ), byref backN as FB.Array( of ulong ), byref backS as FB.Array( of ulong ) ) as long
+          byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ) ) as boolean : declare function PtrStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval ppt as Tko.TypeId, byval vararg as boolean, byref outv as MirValue, byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ), byref backN as containers.Array( of ulong ), byref backS as containers.Array( of ulong ) ) as long
     declare function ParamWantsWideRef_ _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
           byval idx as long ) as boolean
@@ -1454,7 +1454,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval target as Tko.NodeId, byval callee as Tko.SymbolId ) as long
     declare function VirtualCalleeOf_ _
         ( byref c as Ctx, byref self_ as MirValue, byval slot as long ) as MirValue
-    declare sub WantVirtualImplicitDtors_( byref c as Ctx ) : declare function DeclForName_( byref c as Ctx, byval id as Tko.NodeId, byval s as Tko.Symbol ptr ) as Tko.NodeId : declare function ParamIsAny_( byref c as Ctx, byval t as Tko.TypeId ) as boolean : declare function MemberVSlot_( byref c as Ctx, byval sym as Tko.SymbolId ) as long : declare function EmitVirtualMember_( byref c as Ctx, byval sym as Tko.SymbolId, byval el as Tko.TypeId, byref selfp as MirValue, byval args as FB.Array( of ulong ) ptr ) as boolean : declare function EmitVirtualDtor_ _
+    declare sub WantVirtualImplicitDtors_( byref c as Ctx ) : declare function DeclForName_( byref c as Ctx, byval id as Tko.NodeId, byval s as Tko.Symbol ptr ) as Tko.NodeId : declare function ParamIsAny_( byref c as Ctx, byval t as Tko.TypeId ) as boolean : declare function MemberVSlot_( byref c as Ctx, byval sym as Tko.SymbolId ) as long : declare function EmitVirtualMember_( byref c as Ctx, byval sym as Tko.SymbolId, byval el as Tko.TypeId, byref selfp as MirValue, byval args as containers.Array( of ulong ) ptr ) as boolean : declare function EmitVirtualDtor_ _
         ( byref c as Ctx, byval el as Tko.TypeId, byval dtor as Tko.SymbolId, _
           byref p as MirValue ) as boolean
 
@@ -1477,7 +1477,7 @@ declare function EmitRtl _
     '' A UTF-8 source literal widened by CHARACTER, not by byte -- lowerterm.bas.
     declare sub PushSourceUnit_ _
         ( byref c as Ctx, byval u8 as boolean, byref body as string, byref i as long, _
-          byref units as FB.Array( of ulong ) )
+          byref units as containers.Array( of ulong ) )
     declare function PlainUtf8Text_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function WideFoldedText_ _
         ( byref c as Ctx, byval site as Tko.NodeId, byref txt as string, byref outChars as long ) as long

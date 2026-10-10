@@ -34,9 +34,9 @@ namespace Tko
         AMB_ERROR
     end enum
 
-    type SymIdVec  as FB.Array( of ulong )
-    type TypeIdVec3 as FB.Array( of ulong )
-    type ByteVec   as FB.Array( of ubyte )
+    type SymIdVec  as containers.Array( of ulong )
+    type TypeIdVec3 as containers.Array( of ulong )
+    type ByteVec   as containers.Array( of ubyte )
 
     '' Per-node annotations. Dense arrays indexed by NodeId: the AST is contiguous, so
     '' this is cheaper and simpler than a map.
@@ -87,15 +87,15 @@ namespace Tko.Resolve
         as long assigns
         '' Triage aid: the interned names that did not bind, so the causes can be
         '' aggregated instead of guessed at.
-        as FB.Array( of ulong ) unresolvedNames
+        as containers.Array( of ulong ) unresolvedNames
         '' ...and the NODES, for the undeclared-name report that runs after Check
         '' (Check.ReportUndeclared) -- Resolve cannot make it, because a builtin that is
         '' not a keyword binds nothing either and only a later pass can rule it out.
-        as FB.Array( of ulong ) unresolvedIds
+        as containers.Array( of ulong ) unresolvedIds
         '' ...and the TYPE REFERENCES whose name found nothing -- 'dim as Foo a', 'type X as
         '' FB.Array( of Cell )' with no Array declared. Reported after Check, by the same
         '' pass, once nothing has typed them by then; see undeclared.bas.
-        as FB.Array( of ulong ) unresolvedTypes
+        as containers.Array( of ulong ) unresolvedTypes
     end type
 
     declare sub Run _

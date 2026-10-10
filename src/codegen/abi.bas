@@ -1,5 +1,6 @@
 '' abi.bas -- see the header for the rule and where it was measured.
 
+#import "std/containers"
 #include once "codegen/abi.bi"
 
 namespace Tko.Codegen
@@ -568,7 +569,7 @@ private sub RewriteParamStore _
     end if
 
     '' Every new parameter that came from this original one, in order.
-    dim as FB.Array( of long ) parts
+    dim as containers.Array( of long ) parts
     for j as long = 0 to r.f->paramOrig.Count - 1
         if r.f->paramOrig[j] = oldIdx then parts.Push( j )
     next
@@ -670,17 +671,17 @@ private sub RewriteSignature _
     '' parameters and an in-place rewrite cannot say that. RewriteCallArgs expands the
     '' same way from the same original signature, and the two agree by construction --
     '' which is why the pass does every call site BEFORE any signature.
-    dim as FB.Array( of ubyte ) ptys
-    dim as FB.Array( of ulong ) paggs
-    dim as FB.Array( of ulong ) pcls
-    dim as FB.Array( of ubyte ) pattr
-    dim as FB.Array( of long )  porig
-    dim as FB.Array( of long )  ppart
+    dim as containers.Array( of ubyte ) ptys
+    dim as containers.Array( of ulong ) paggs
+    dim as containers.Array( of ulong ) pcls
+    dim as containers.Array( of ubyte ) pattr
+    dim as containers.Array( of long )  porig
+    dim as containers.Array( of long )  ppart
     '' AND HOW EACH ONE WIDENS. A narrow integer parameter becomes i32 here -- the one
     '' place a parameter's ABI type is decided -- and paramNarrow keeps what it was so
     '' RewriteParamStore can truncate back into the slot. MirFunction.paramExt says why.
-    dim as FB.Array( of ubyte ) pexts
-    dim as FB.Array( of ubyte ) pnarr
+    dim as containers.Array( of ubyte ) pexts
+    dim as containers.Array( of ubyte ) pnarr
 
     for i as long = 0 to f->paramTys.Count - 1
         dim as MirType pt = cast( MirType, f->paramTys[i] )
@@ -805,13 +806,13 @@ private sub RewriteSignature _
     '' other parameter right. It is inserted rather than appended, because that is where
     '' the ABI puts it and because the call sites do the same.
     f->retTy = cast( ubyte, MT_VOID )
-    dim as FB.Array( of ubyte ) rtys
-    dim as FB.Array( of ulong ) raggs
-    dim as FB.Array( of ulong ) rcls
-    dim as FB.Array( of ubyte ) rattr
+    dim as containers.Array( of ubyte ) rtys
+    dim as containers.Array( of ulong ) raggs
+    dim as containers.Array( of ulong ) rcls
+    dim as containers.Array( of ubyte ) rattr
     '' ...and the widening arrays, which move with the rest: see MirFunction.paramExt.
-    dim as FB.Array( of ubyte ) rext
-    dim as FB.Array( of ubyte ) rnarr
+    dim as containers.Array( of ubyte ) rext
+    dim as containers.Array( of ubyte ) rnarr
     rtys.Push( cast( ubyte, MT_PTR ) )
     raggs.Push( cast( ulong, f->retSize ) )
     rcls.Push( 0 )
@@ -821,8 +822,8 @@ private sub RewriteSignature _
     rattr.Push( TKO_PA_SRET )
     '' The sret pointer is a pointer: nothing to widen, nothing narrower behind it.
     rext.Push( TKO_PX_NONE ) : rnarr.Push( cast( ubyte, MT_PTR ) )
-    dim as FB.Array( of long ) rorig
-    dim as FB.Array( of long ) rpart
+    dim as containers.Array( of long ) rorig
+    dim as containers.Array( of long ) rpart
     '' -1: the pass invented this parameter, so no original index maps onto it.
     rorig.Push( -1 ) : rpart.Push( 0 )
     '' ALL FOUR ARRAYS MOVE TOGETHER. They are parallel and indexed by parameter, so
@@ -874,7 +875,7 @@ end sub
 '' source parameter each came from. The body names parameters by index, so nothing in
 '' it moves. A variadic procedure cannot be pascal; one that claims to is not reversed.
 sub PascalParamOrder _
-    ( byval f as MirFunction ptr, byval n as long, byref order as FB.Array( of long ) )
+    ( byval f as MirFunction ptr, byval n as long, byref order as containers.Array( of long ) )
 
     order.Clear( )
     dim as boolean rev = false
@@ -895,7 +896,7 @@ sub PascalParamOrder _
     end if
     '' Stable, descending by source parameter: a split aggregate keeps its halves in order.
     dim as boolean haveOrig = (f->paramOrig.Count = n)
-    dim as FB.Array( of long ) rest
+    dim as containers.Array( of long ) rest
     for i as long = first_ to n - 1
         dim as long oi = iif( haveOrig, f->paramOrig[i], i )
         dim as long at_ = rest.Count

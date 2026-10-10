@@ -153,7 +153,7 @@ declare function SlotsOfType_ _
 '' shared, because the layout pass returns bytes and this returns slots -- but the
 '' TRAVERSAL has to be identical, or 'union { type { a; b } }' counts as one.
 private function SlotsGroup_ _
-    ( byref c as Ctx, byref flds as FB.Array( of ulong ), byref idx as long, _
+    ( byref c as Ctx, byref flds as containers.Array( of ulong ), byref idx as long, _
       byval depth as long, byval isUnion as boolean, byval rdepth as long ) as long
 
     dim as long total = 0
@@ -215,7 +215,7 @@ private function SlotsOfUdt_ _
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return -1
 
-    dim as FB.Array( of ulong ) flds
+    dim as containers.Array( of ulong ) flds
     dim as Tko.SymbolId cur = sc->firstSym
     dim as long guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)

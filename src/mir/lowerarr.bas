@@ -13,6 +13,7 @@
 '' which is base + 20i - 20: stride 16 for the first dimension, 4 for the second, and a
 '' bias of 1*16 + 1*4 = 20.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -24,7 +25,7 @@ declare function UserOpTempAddr_ _
 declare function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 
 declare function ArrayStrides _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref strides as FB.Array( of longint ), _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref strides as containers.Array( of longint ), _
       byref bias as longint ) as boolean
 
 '' Whether a node is an 'iif' whose ARMS are UDTs. Asked before anything is lowered:
@@ -581,7 +582,7 @@ function LowerAddr _
                 if art <> Tko.TYPE_NONE then
                     dim as MirValue self_ = LowerAddr( c, mp->lhs )
                     if self_.kind = cast( ubyte, MV_NONE ) then return v
-                    dim as FB.Array( of ulong ) aargs
+                    dim as containers.Array( of ulong ) aargs
                     aargs.Push( cast( ulong, self_.kind ) )
                     aargs.Push( cast( ulong, self_.id ) )
                     '' 'operator ->' RETURNS BY VALUE UNLESS IT SAYS 'byref as', and
@@ -1159,7 +1160,7 @@ function LowerArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     '' element counts live in the descriptor and are read from it.
     if c.types->IsDynArray( at ) then return LowerDynArrayIndex( c, id, sp, at )
 
-    dim as FB.Array( of longint ) strides
+    dim as containers.Array( of longint ) strides
     dim as longint bias
     if ArrayStrides( c, at, strides, bias ) = false then return none_
     '' A subscript count that does not match the rank is an error the checker should
@@ -1236,7 +1237,7 @@ end function
 '' the element COUNTS of every dimension after it. Returns false when the bounds were not
 '' constant, in which case nothing may be folded and the subscript is not lowered.
 private function ArrayStrides _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref strides as FB.Array( of longint ), _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref strides as containers.Array( of longint ), _
       byref bias as longint ) as boolean
 
     bias = 0
@@ -1264,7 +1265,7 @@ private function ArrayStrides _
     loop
     if rank = 0 then return false
 
-    dim as FB.Array( of longint ) los, counts
+    dim as containers.Array( of longint ) los, counts
     for k as long = 0 to rank - 1
         dim as boolean lk, hk
         dim as longint lo = c.types->ArrayBound( t, k, false, lk )

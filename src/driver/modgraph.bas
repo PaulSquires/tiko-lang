@@ -15,12 +15,12 @@
 '' it is the chains' own order -- Go's rule since 1.21, which makes it a function of the
 '' graph and never of the command line. A cycle is refused and named whole (TKO0141).
 
+#import "std/containers"
 #include once "driver/modgraph.bi"
 #include once "driver/modresolve.bi"
 #include once "driver/unit.bi"
 #include once "support/text.bi"
 #include once "pp/pp.bi"
-#include once "fb/filesystem.bi"
 
 namespace Tko.Modules
 

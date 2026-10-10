@@ -252,7 +252,7 @@ function LowerBuiltinProc _
     refuse = refuse andalso notShort
     if refuse then return false
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     for i as long = 0 to argCount - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + i] )
 
@@ -487,7 +487,7 @@ function LowerBuiltinProc _
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
     end if
     if runShort then
-        dim as FB.Array( of ulong ) ta
+        dim as containers.Array( of ulong ) ta
         ta.Push( cast( ulong, MV_GLOBAL ) )
         ta.Push( cast( ulong, c.m->AddStringLiteral( "", *c.names ) ) )
         ta.Push( cast( ulong, MV_CONST_INT ) ) : ta.Push( 0 )

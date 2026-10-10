@@ -19,6 +19,7 @@
 '' what separates the names it may use from the ones that are only there for a generic's
 '' body to find (RFC-0002 §3).
 
+#import "std/containers"
 #include once "driver/tkiemit.bi"
 #include once "pp/pp.bi"
 #include once "symbols/mangle.bi"
@@ -34,16 +35,16 @@ type TkiWriter_
     as Tko.SymbolTable ptr     syms
     as Tko.SemanticInfo ptr    info
     '' Where the declaration starting at each token ends (exclusive), 0 where none starts.
-    as FB.Array( of long )     endAt
-    as FB.Array( of long )     nodeAt
+    as containers.Array( of long )     endAt
+    as containers.Array( of long )     nodeAt
     '' A procedure's FIRST DECLARATION, by node: the symbol keeps it as its payload. Only
     '' that one is written -- fbc refuses a second 'declare' of one signature, and a
     '' definition that follows its 'declare' adds nothing an importer can see.
-    as FB.Array( of ubyte )    firstSight
+    as containers.Array( of ubyte )    firstSight
     as string                  text
     '' Per token: 1 once it has been written. The headers the interface needs are the ones
     '' its WRITTEN tokens name something from (RequiredHeaders_).
-    as FB.Array( of ubyte )    emitted
+    as containers.Array( of ubyte )    emitted
     '' The source line the next output line stands for, so '#line' is written only when
     '' the two part.
     as ulong                   lineFile
@@ -55,15 +56,15 @@ type TkiWriter_
     '' Per token: the qualifier a name a 'using' reached is written with (Qualify_).
     as Tko.StrVec              qual
     '' Token by source location, for the declarations' tokens: open addressing, key loc + 1.
-    as FB.Array( of ulong )    hkey
-    as FB.Array( of long )     hval
+    as containers.Array( of ulong )    hkey
+    as containers.Array( of long )     hval
     as long                    hmask
     '' ...and EVERY token at a location, chained: one '#macro' expanded four times gives four
     '' tokens one location, and a qualifier set on the first alone left the others bare --
     '' fb/mathint.bi's 'as Optional( of short )', declared for each integer width (std/numeric,
     '' 2026-10-10). Per token: the next with its location, or -1; per slot, the last so far.
-    as FB.Array( of long )     locNext
-    as FB.Array( of long )     hlast
+    as containers.Array( of long )     locNext
+    as containers.Array( of long )     hlast
 end type
 
 function InterfaceNamespace( byref chain as string ) as string
@@ -289,7 +290,7 @@ end function
 private sub SharedVar_( byref w as TkiWriter_, byval s as long, byval kw as long, _
                         byval e as long, byval n as Tko.NodeId, byval sc as Tko.ScopeId )
     '' The names are the N_VAR_ITEMs', found by location.
-    dim as FB.Array( of ulong ) itemLocs
+    dim as containers.Array( of ulong ) itemLocs
     dim as Tko.StmtPayload ptr sp = @w.ast->stmts[cast( long, w.ast->nodes[cast( long, n )].data )]
     for c as long = 0 to sp->count - 1
         dim as Tko.NodeId item = cast( Tko.NodeId, w.ast->children[sp->first + c] )
@@ -447,7 +448,7 @@ end function
 '' where i is left pointing past it.
 sub Level_( byref w as TkiWriter_, byref i as long, byval sc as Tko.ScopeId, _
             byval closer as Tko.TokenKind )
-    dim as FB.Array( of long ) later
+    dim as containers.Array( of long ) later
     while i < w.toks->Count
         dim as Tko.TokenKind k = Kind_( w, i )
         if k = Tko.TK_EOF then exit while
@@ -683,7 +684,7 @@ private sub Qualify_( byref w as TkiWriter_ )
         w.hlast.Push( -1 )
     next
     '' A token in two declarations' ranges is chained once: twice would close a cycle.
-    dim as FB.Array( of ubyte ) chained
+    dim as containers.Array( of ubyte ) chained
     for i as long = 0 to w.toks->Count - 1
         w.locNext.Push( -1 )
         chained.Push( 0 )
@@ -767,7 +768,7 @@ end sub
 private function RequiredHeaders_ _
     ( byref w as TkiWriter_, byref headers as Tko.StrVec, byval pr as Tko.PpResult ptr, _
       byval allOf as boolean ) as string
-    dim as FB.Array( of ubyte ) need
+    dim as containers.Array( of ubyte ) need
     dim as boolean every = allOf orelse (pr = 0)
     dim as ubyte seed = iif( every, 1, 0 )
     for k as long = 0 to headers.Count - 1

@@ -15,6 +15,7 @@
 '' descriptor, because a ustring may be fixed-length and the length is what says so.
 '' PushStrArg pushes the pair with -1, which is 'as declared'.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -46,7 +47,7 @@ function LowerUStrIntrinB_ _
     dim as boolean a0U = IsUStringType( c, c.info->TypeOf_( a0 ) )
     if a0U = false then
         if c.ast->Kind( a0 ) = Tko.N_BINARY then
-            dim as FB.Array( of ulong ) a0t
+            dim as containers.Array( of ulong ) a0t
             FlattenConcat( c, a0, a0t )
             if a0t.Count > 1 then a0U = ConcatTermsAreU_( c, a0t )
         end if
@@ -151,7 +152,7 @@ function LowerUStrIntrinB_ _
     dim as boolean a0Fixed = (StrSwapKind_( c, c.info->TypeOf_( a0 ), fixTag ) = 4)
     dim as long fixSlot = -1
     dim as MirValue s0
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     if a0Fixed andalso takesLenTag then
         if EmitStrTerm( c, args, a0, true ) = false then return false
     elseif a0Fixed then

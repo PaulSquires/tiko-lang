@@ -1,5 +1,6 @@
 '' generic.bas -- instantiating a generic TYPE. Split out of resolve.bas.
 
+#import "std/containers"
 #include once "symbols/resolvectx.bi"
 #include once "symbols/check.bi"
 #include once "symbols/collect.bi"
@@ -121,7 +122,7 @@ function InstantiateGeneric_ _
     '' at module scope instead, so the mangled names came out as the bare source
     '' spelling and every call site linked to nothing.
     dim as string key = c.names->Spelling( gname ) & "<"
-    dim as FB.Array( of ulong ) argTypes
+    dim as containers.Array( of ulong ) argTypes
     for i as long = 0 to spCount - 1
         dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[spFirst + i] )
         dim as Tko.TypeId at = ResolveTypeRef( c, an, scope_ )
@@ -353,7 +354,7 @@ end function
 '' spelling and the TypeIds of its arguments, so this is a DECODE of that encoding
 '' rather than a guess -- the two belong together and must move together.
 private function InstArgsOf_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as FB.Array( of ulong ) ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as containers.Array( of ulong ) ) as boolean
 
     if t = Tko.TYPE_NONE then return false
     dim as Tko.TypeId ut = c.types->Unqualify( t )
@@ -421,7 +422,7 @@ end function
 
 private function InferProcTypeArgs_ _
     ( byref c as Ctx, byval callId as Tko.NodeId, byval gn as Tko.NodeId, _
-      byval scope_ as Tko.ScopeId, byref outT as FB.Array( of ulong ) ) as boolean
+      byval scope_ as Tko.ScopeId, byref outT as containers.Array( of ulong ) ) as boolean
 
     dim as Tko.StmtPayload ptr gp = StmtOf( c, gn )
     if gp->c = Tko.NODE_NONE then return false
@@ -524,7 +525,7 @@ private function InferProcTypeArgs_ _
                 '' written as an instantiation and the argument is not one: the
                 '' candidate cannot apply, and saying so is what lets the concrete
                 '' overloads be considered.
-                dim as FB.Array( of ulong ) iargs
+                dim as containers.Array( of ulong ) iargs
                 if InstArgsOf_( c, argT, iargs ) = false then return false
                 if SameGeneric_( c, argT, tp->name ) = false then return false
                 if at_ >= iargs.Count then return false
@@ -558,7 +559,7 @@ end function
 '' all -- which is every ordinary call, so it must be cheap to say no.
 declare function InstantiateProcAt_ _
     ( byref c as Ctx, byval gn as Tko.NodeId, byval gsid as Tko.SymbolId, _
-      byval gname as Tko.InternId, byref argTypes as FB.Array( of ulong ), _
+      byval gname as Tko.InternId, byref argTypes as containers.Array( of ulong ), _
       byval at_ as Tko.NodeId = Tko.NODE_NONE ) as Tko.SymbolId
 
 
@@ -654,7 +655,7 @@ function InstantiateGenericProc_ _
     '' own arguments where they were not. One that does not resolve means no
     '' instantiation rather than a wrong one -- the call then declines, which is the
     '' honest outcome and the same rule the type half uses.
-    dim as FB.Array( of ulong ) argTypes
+    dim as containers.Array( of ulong ) argTypes
     if written then
         for i as long = 0 to taCount - 1
             dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[taFirst + i] )
@@ -678,7 +679,7 @@ end function
 '' TYPE it is written over. Everything from the cache key down is the same work.
 function InstantiateProcAt_ _
     ( byref c as Ctx, byval gn as Tko.NodeId, byval gsid as Tko.SymbolId, _
-      byval gname as Tko.InternId, byref argTypes as FB.Array( of ulong ), _
+      byval gname as Tko.InternId, byref argTypes as containers.Array( of ulong ), _
       byval at_ as Tko.NodeId ) as Tko.SymbolId
 
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
@@ -1148,7 +1149,7 @@ private sub InstantiateGlobalOpsFor_ _
         wend
         if found = Tko.SYMBOL_NONE then continue for
 
-        dim as FB.Array( of ulong ) argTypes
+        dim as containers.Array( of ulong ) argTypes
         for k as long = 0 to argCount - 1
             argTypes.Push( c.pendInstArgs[argFirst + k] )
         next

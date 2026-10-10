@@ -28,7 +28,7 @@ private sub CheckTypeLiteralText_ ( byref c as Ctx )
     dim as long total = c.ast->Count( )
     '' THE 'dim' FORM OVER A 'string' FIELD IS TKO0757's already, from
     '' CheckAggregateInitFields_; it is not reported twice.
-    dim as FB.Array( of ubyte ) dimInit
+    dim as containers.Array( of ubyte ) dimInit
     for n as long = 0 to total
         dimInit.Push( 0 )
     next

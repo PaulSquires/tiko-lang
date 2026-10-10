@@ -28,11 +28,12 @@
 '' second got the first's object, compiled against the first's headers, since deps.txt
 '' (absolute) names the first's files, which had not changed.
 
+#import "std/containers"
+#import "std/fs"
 #include once "driver/modcache.bi"
 #include once "driver/modresolve.bi"
 #include once "support/diskcache.bi"
 #include once "codegen/target.bi"
-#include once "fb/filesystem.bi"
 
 '' The runtime's UTC clock: ticks of 100 ns since 0001-01-01, the unit FB.FileInfo's
 '' ModifiedUtc( ) reports -- so an entry's age is one subtraction. fbc-modern's runtime and
@@ -71,7 +72,7 @@ const TICKS_PER_DAY as longint = 864000000000ll
 const UNUSED_DAYS as long = 7
 
 private function Mtime_( byref p as string ) as longint
-    dim as FB.FsResultInfo r = FB.Stat( p )
+    dim as fs.FsResultInfo r = fs.Stat( p )
     if r.IsOk( ) = false then return 0
     return r.Value( ).ModifiedUtc( )
 end function
@@ -84,7 +85,7 @@ private function IsEntry_( byref root as string, byref nm as string ) as boolean
                               ((c >= asc( "a" )) andalso (c <= asc( "f" )))
         if hexd = false then return false
     next
-    return FB.IsFile( JoinPath( JoinPath( root, nm ), "key.txt" ) )
+    return fs.IsFile( JoinPath( JoinPath( root, nm ), "key.txt" ) )
 end function
 
 '' When a build last wrote or read the entry: its 'used' stamp, else its key.
@@ -113,15 +114,15 @@ end function
 '' The chain records whose entry is gone.
 private sub DropStaleChains_( byref root as string )
     dim as string cd = JoinPath( root, "chains" )
-    dim as FB.Array( of FB.DirEntry ) es
-    if FB.ListDir( cd, es ).IsOk( ) = false then return
+    dim as containers.Array( of fs.DirEntry ) es
+    if fs.ListDir( cd, es ).IsOk( ) = false then return
     for k as long = 0 to es.Count - 1
         if es[k].IsFile( ) = false then continue for
         dim as string p = JoinPath( cd, es[k].Name( ) )
         if right( p, 4 ) <> ".key" then continue for
         dim as string last_
         if Tko.DiskCache.ReadAll( p, last_ ) = false then continue for
-        if FB.IsDir( JoinPath( root, Tko.DiskCache.Hash( last_ ) ) ) = false then FB.RemoveFile( p )
+        if fs.IsDir( JoinPath( root, Tko.DiskCache.Hash( last_ ) ) ) = false then fs.RemoveFile( p )
     next
 end sub
 
@@ -133,8 +134,8 @@ private sub Trim_( byref root as string )
     dim as longint last_ = Mtime_( tf )
     if (last_ > 0) andalso (now_ - last_ < TICKS_PER_DAY) then return
     Tko.DiskCache.Commit( tf, "", 7 )
-    dim as FB.Array( of FB.DirEntry ) es
-    if FB.ListDir( root, es ).IsOk( ) = false then return
+    dim as containers.Array( of fs.DirEntry ) es
+    if fs.ListDir( root, es ).IsOk( ) = false then return
     for k as long = 0 to es.Count - 1
         if es[k].IsDirectory( ) = false then continue for
         dim as string nm = es[k].Name( )
@@ -142,7 +143,7 @@ private sub Trim_( byref root as string )
         dim as string d = JoinPath( root, nm )
         dim as longint used_ = LastUse_( d )
         if used_ = 0 then continue for
-        if now_ - used_ > UNUSED_DAYS * TICKS_PER_DAY then FB.RemoveDirAll( d )
+        if now_ - used_ > UNUSED_DAYS * TICKS_PER_DAY then fs.RemoveDirAll( d )
     next
     DropStaleChains_( root )
 end sub
@@ -156,8 +157,8 @@ private function PoolDir_( byref ctx as Tko.CompilerContext ) as string
             return ""
         end if
     end if
-    if FB.IsDir( root ) = false then FB.CreateDirAll( root )
-    if FB.IsDir( root ) = false then
+    if fs.IsDir( root ) = false then fs.CreateDirAll( root )
+    if fs.IsDir( root ) = false then
         ctx.diags.ReportGlobal( Tko.TKO0150, "cannot create '" & root & "'" )
         return ""
     end if
@@ -175,13 +176,13 @@ function CleanModuleCache( byref ctx as Tko.CompilerContext ) as string
     dim as string root = PoolDir_( ctx )
     if len( root ) = 0 then return ""
     dim as long n = 0
-    dim as FB.Array( of FB.DirEntry ) es
-    if FB.ListDir( root, es ).IsOk( ) then
+    dim as containers.Array( of fs.DirEntry ) es
+    if fs.ListDir( root, es ).IsOk( ) then
         for k as long = 0 to es.Count - 1
             if es[k].IsDirectory( ) = false then continue for
             dim as string nm = es[k].Name( )
             if IsEntry_( root, nm ) = false then continue for
-            if FB.RemoveDirAll( JoinPath( root, nm ) ).IsOk( ) then n += 1
+            if fs.RemoveDirAll( JoinPath( root, nm ) ).IsOk( ) then n += 1
         next
     end if
     DropStaleChains_( root )
@@ -190,7 +191,7 @@ end function
 
 '' Module n's dependencies, all of them, each once.
 private sub Closure_ _
-    ( byref ctx as Tko.CompilerContext, byval n as long, byref seen as FB.Array( of ubyte ) )
+    ( byref ctx as Tko.CompilerContext, byval n as long, byref seen as containers.Array( of ubyte ) )
     for e as long = 0 to ctx.ifaceEdgeFrom.Count - 1
         if cast( long, ctx.ifaceEdgeFrom[e] ) <> n then continue for
         dim as long m = cast( long, ctx.ifaceEdgeTo[e] )
@@ -262,7 +263,7 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as strin
              Tko.DiskCache.Hash( text_ ) & nl
     next
     '' The interfaces of its closure, by chain -- the graph's chain order is the sort.
-    dim as FB.Array( of ubyte ) seen
+    dim as containers.Array( of ubyte ) seen
     for i as long = 0 to ctx.ifaceChains.Count - 1
         seen.Push( 0 )
     next
@@ -324,7 +325,7 @@ function ModuleCacheLookup _
     if Tko.DiskCache.ReadAll( JoinPath( d, "iface.tki" ), iface ) = false then return false
     if Tko.DiskCache.ReadAll( JoinPath( d, "libs.txt" ), libs ) = false then return false
     objPath = JoinPath( d, "obj.o" )
-    if FB.IsFile( objPath ) = false then return false
+    if fs.IsFile( objPath ) = false then return false
     '' USED: what keeps the entry past the seven-day trim.
     Tko.DiskCache.Commit( JoinPath( d, "used" ), "", 8 )
     return true
@@ -386,8 +387,8 @@ sub ModuleCacheCommit _
 
     if len( root ) = 0 then return
     dim as string d = EntryDir_( root, key )
-    if FB.IsDir( d ) = false then FB.CreateDirAll( d )
-    if FB.IsDir( d ) = false then return
+    if fs.IsDir( d ) = false then fs.CreateDirAll( d )
+    if fs.IsDir( d ) = false then return
     dim as string obj
     if Tko.DiskCache.ReadAll( objPath, obj ) = false then return
     if Tko.DiskCache.Commit( JoinPath( d, "key.txt" ), key, 1 ) = false then return
@@ -396,7 +397,7 @@ sub ModuleCacheCommit _
     if Tko.DiskCache.Commit( JoinPath( d, "libs.txt" ), libs, 4 ) = false then return
     if Tko.DiskCache.Commit( JoinPath( d, "deps.txt" ), dl, 5 ) = false then return
     dim as string cd = JoinPath( root, "chains" )
-    if FB.IsDir( cd ) = false then FB.CreateDirAll( cd )
+    if fs.IsDir( cd ) = false then fs.CreateDirAll( cd )
     '' THE ENTRY THIS ONE SUPERSEDES: the same chain from the same directory, built the same
     '' way, from sources or interfaces that have since changed. Nothing can hit it again.
     dim as string cf = ChainFile_( root, chain, key )
@@ -404,7 +405,7 @@ sub ModuleCacheCommit _
     if Tko.DiskCache.ReadAll( cf, prev ) then
         if (prev <> key) andalso (Config_( prev ) = Config_( key )) then
             dim as string pd = EntryDir_( root, prev )
-            if (pd <> d) andalso IsEntry_( root, Tko.DiskCache.Hash( prev ) ) then FB.RemoveDirAll( pd )
+            if (pd <> d) andalso IsEntry_( root, Tko.DiskCache.Hash( prev ) ) then fs.RemoveDirAll( pd )
         end if
     end if
     Tko.DiskCache.Commit( cf, key, 6 )

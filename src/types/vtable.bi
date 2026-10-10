@@ -70,22 +70,22 @@ namespace Tko
     end type
 
     type VTables
-        as FB.Array( of VtInfo ) types_
-        as FB.Array( of VtSlot ) slots
+        as containers.Array( of VtInfo ) types_
+        as containers.Array( of VtSlot ) slots
         '' The interned 'base' -- the field an EXTENDS becomes. See udtlayout.bi.
         as InternId baseName
         '' EVERY DECLARATION THAT ACTUALLY FILLED AN INHERITED SLOT. 'override' is a
         '' promise, and checking it needs the answer the builder already computes and
         '' then throws away -- whether this declaration MATCHED one. Recomputing it
         '' afterwards would mean re-running the whole match; recording it costs a push.
-        as FB.Array( of ulong ) overrode
+        as containers.Array( of ulong ) overrode
         '' Declarations of a generic template that nothing instantiates -- never checked,
         '' as fbc never checks them. See NotePatternOnly_.
-        as FB.Array( of ulong ) patternOnly
+        as containers.Array( of ulong ) patternOnly
         '' A match on PARAMETER TYPES is not yet a legal override. Recorded here rather
         '' than reported from the builder, which has no diagnostics engine -- and would
         '' have to be given one on a path the dumps also take.
-        as FB.Array( of VtMismatch ) mismatches
+        as containers.Array( of VtMismatch ) mismatches
 
         declare function Find( byval t as TypeId ) as long
         '' Which slot dispatches to this procedure, or -1 if it is not virtual in this

@@ -127,8 +127,8 @@ end function
 '' 12, where tiko splices 'two' and the rescan's own tail join cannot reach the front of
 '' an expansion. And '&hn' needs '&h' to survive lexing with no digits after it, which
 '' it does not; no corpus file or bundled header writes either shape.
-type PieceVec as FB.Array( of long )
-type ByteVec as FB.Array( of ubyte )
+type PieceVec as containers.Array( of long )
+type ByteVec as containers.Array( of ubyte )
 
 '' Two tokens, joined if their spellings re-lex as exactly one -- TryTailJoin_'s rule,
 '' and its reasons, applied to a seam inside the expansion instead of the one at its end.

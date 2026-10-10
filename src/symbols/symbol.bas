@@ -1,5 +1,6 @@
 '' symbol.bas -- see symbol.bi
 
+#import "std/containers"
 #include once "symbols/symbol.bi"
 
 namespace Tko
@@ -832,7 +833,7 @@ end sub
 '' with the same element types are ONE type and assignable to each other.
 function TupleUdtFor _
     ( byref syms as SymbolTable, byref types as TypeContext, _
-      byref names as Interner, byref elemTypes as FB.Array( of ulong ), _
+      byref names as Interner, byref elemTypes as containers.Array( of ulong ), _
       byval at as SourceLoc ) as TypeId
 
     if elemTypes.Count = 0 then return TYPE_NONE

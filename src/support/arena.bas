@@ -1,5 +1,6 @@
 '' arena.bas -- see arena.bi
 
+#import "std/containers"
 #include once "support/arena.bi"
 
 namespace Tko

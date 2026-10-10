@@ -87,11 +87,10 @@
 '' The temp file the output is captured through is per-worker for the same reason --
 '' one fixed name was a race that fails by handing a test ANOTHER test's output.
 
-#include once "fb/array.bi"
-#include once "fb/filesystem.bi"
-#include once "fb/sort.bi"
 
-using FB
+#import "std/containers"
+#import "std/fs"
+using containers, fs
 
 const RUNNER_VERSION as string = "0.1.0"
 
@@ -103,7 +102,7 @@ type TestCase
     as long   expectExit
     as boolean haveExpectExit
     as string golden          '' relative to dir_, or "" for none
-    as FB.Array( of string ) targets   '' from <dir>TARGETS, else just win64
+    as containers.Array( of string ) targets   '' from <dir>TARGETS, else just win64
     as long   maxDiag
     as boolean haveMaxDiag
     as Array( of string ) expectOut
@@ -668,12 +667,12 @@ function RunSteps_ _
         select case kind
         case "CLEAN"
             '' EMPTY, not absent: tiko writes into an -o directory, it does not make one.
-            if FB.IsDir( rest ) then FB.RemoveDirAll( rest )
-            if FB.IsDir( rest ) then
+            if fs.IsDir( rest ) then fs.RemoveDirAll( rest )
+            if fs.IsDir( rest ) then
                 why = "CLEAN: could not remove " & rest
                 return false
             end if
-            FB.CreateDirAll( rest )
+            fs.CreateDirAll( rest )
         case "COPY"
             dim as long ar = instr( rest, "=>" )
             if ar = 0 then
@@ -682,13 +681,13 @@ function RunSteps_ _
             end if
             dim as string src = Trim_( left( rest, ar - 1 ) )
             dim as string dst = Trim_( mid( rest, ar + 2 ) )
-            if FB.IsDir( src ) then
-                FB.CreateDirAll( dst )
-                FB.CopyDir( src, dst )
+            if fs.IsDir( src ) then
+                fs.CreateDirAll( dst )
+                fs.CopyDir( src, dst )
             else
-                FB.CopyFile( src, dst, true )
+                fs.CopyFile( src, dst, true )
             end if
-            if FileExists_( dst ) = false andalso FB.IsDir( dst ) = false then
+            if FileExists_( dst ) = false andalso fs.IsDir( dst ) = false then
                 why = "COPY: nothing at " & dst
                 return false
             end if

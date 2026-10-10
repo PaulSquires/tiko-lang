@@ -17,9 +17,10 @@
 '' miss. Size and modification time, not content -- the cost of a hash over windows.h's
 '' 600 files on every build is what the cache exists to avoid.
 
+#import "std/containers"
+#import "std/fs"
 #include once "driver/cicache.bi"
 #include once "support/diskcache.bi"
-#include once "fb/filesystem.bi"
 #include once "codegen/target.bi"
 
 namespace Tko.CImportDriver
@@ -50,7 +51,7 @@ private function GccOnPath_( ) as string
         dim as long en = instr( st, p, sep )
         if en = 0 then en = len( p ) + 1
         dim as string d = mid( p, st, en - st )
-        if cbool( len( d ) > 0 ) andalso FB.IsFile( d & exe ) then return d & exe
+        if cbool( len( d ) > 0 ) andalso fs.IsFile( d & exe ) then return d & exe
         st = en + 1
     wend
     return ""
@@ -109,9 +110,9 @@ function CacheStore _
       byref state as string, byref deps as Tko.StrVec ) as string
     if len( root ) = 0 then return ""
     dim as string d = root & "/" & Tko.DiskCache.Hash( key )
-    if FB.IsDir( d ) = false then
-        FB.CreateDirAll( d )
-        if FB.IsDir( d ) = false then return ""
+    if fs.IsDir( d ) = false then
+        fs.CreateDirAll( d )
+        if fs.IsDir( d ) = false then return ""
     end if
     dim as string dl
     for i as long = 0 to deps.Count - 1

@@ -4,6 +4,7 @@
 '' kind of question -- what did the DECLARATION say about parameter n -- and none of
 '' them is about storage, which is what the rest of that file is.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -155,7 +156,7 @@ function BareTypeNameTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outa as
     elseif TypeNeedsInit_( c, t ) then
         CallImplicitCtor_( c, t, outa )
     else
-        dim as FB.Array( of ulong ) za
+        dim as containers.Array( of ulong ) za
         za.Push( cast( ulong, outa.kind ) ) : za.Push( cast( ulong, outa.id ) )
         za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
         za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( cast( ulong, sz ) )

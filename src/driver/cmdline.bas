@@ -1,8 +1,9 @@
 '' cmdline.bas -- see cmdline.bi
 
+#import "std/containers"
+#import "std/fs"
 #include once "driver/cmdline.bi"
 #include once "support/text.bi"
-#include once "fb/filesystem.bi"
 
 namespace Tko
 
@@ -203,14 +204,14 @@ private sub AppendDefaultIncludeDir( byref opts as Tko.DriverOptions )
     dim as ustring exeDir = exepath( )
     if len( exeDir ) = 0 then return
 
-    dim as ustring cand = FB.PathJoin( exeDir, "inc" )
-    if FB.IsDir( cand ) then
+    dim as ustring cand = fs.PathJoin( exeDir, "inc" )
+    if fs.IsDir( cand ) then
         opts.includePaths.Push( cand )
         return
     end if
 
-    cand = FB.PathJoin( FB.PathParent( exeDir ), "inc" )
-    if FB.IsDir( cand ) then opts.includePaths.Push( cand )
+    cand = fs.PathJoin( fs.PathParent( exeDir ), "inc" )
+    if fs.IsDir( cand ) then opts.includePaths.Push( cand )
 end sub
 
 '' The library half of the same rule, and it was the half still missing: the include
@@ -257,7 +258,7 @@ private sub AppendBundledLibDirs_( byref opts as Tko.DriverOptions )
                  ((right( dir_, 1 ) = "/") orelse (right( dir_, 1 ) = "\"))
             dir_ = left( dir_, len( dir_ ) - 1 )
         loop
-        if FB.IsDir( dir_ & "-fb" ) then opts.defaultLibPaths.Push( dir_ & "-fb" )
+        if fs.IsDir( dir_ & "-fb" ) then opts.defaultLibPaths.Push( dir_ & "-fb" )
         return
     end if
 
@@ -266,17 +267,17 @@ private sub AppendBundledLibDirs_( byref opts as Tko.DriverOptions )
 
     '' <exe-dir>/lib is fbc's shape, which the packaged toolchain copies;
     '' <exe-dir>/../lib is the development tree, where the exe sits in bin/.
-    dim as ustring root = FB.PathJoin( exeDir, "lib" )
-    if FB.IsDir( root ) = false then
-        root = FB.PathJoin( FB.PathParent( exeDir ), "lib" )
-        if FB.IsDir( root ) = false then return
+    dim as ustring root = fs.PathJoin( exeDir, "lib" )
+    if fs.IsDir( root ) = false then
+        root = fs.PathJoin( fs.PathParent( exeDir ), "lib" )
+        if fs.IsDir( root ) = false then return
     end if
 
-    dim as ustring cand = FB.PathJoin( root, opts.targetName )
-    if FB.IsDir( cand ) then opts.defaultLibPaths.Push( cand )
+    dim as ustring cand = fs.PathJoin( root, opts.targetName )
+    if fs.IsDir( cand ) then opts.defaultLibPaths.Push( cand )
 
-    cand = FB.PathJoin( root, opts.targetName & "-fb" )
-    if FB.IsDir( cand ) then opts.defaultLibPaths.Push( cand )
+    cand = fs.PathJoin( root, opts.targetName & "-fb" )
+    if fs.IsDir( cand ) then opts.defaultLibPaths.Push( cand )
 end sub
 
 '' ...AND THE CURRENT DIRECTORY, LAST. fbc searches it -- measured, its link line

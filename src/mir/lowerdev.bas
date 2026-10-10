@@ -24,7 +24,7 @@ private function LowerSeekStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boo
     dim as MirValue po = LowerNumArg_( c, poE, MT_I64 )
     if po.kind = cast( ubyte, MV_NONE ) then return false
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, ch.kind ) ) : args.Push( cast( ulong, ch.id ) )
     args.Push( cast( ulong, po.kind ) ) : args.Push( cast( ulong, po.id ) )
     EmitRtlErrorCheck_( c, id, EmitRtl( c, RTL_FILE_SEEK, args ) )     '' -e (T68)
@@ -54,7 +54,7 @@ private function LowerColorArgs_ _
 
     if count > 2 then return false
     dim as long mask = 0
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     for k as long = 0 to 1
         dim as Tko.NodeId e = Tko.NODE_NONE
         if k < count then e = cast( Tko.NodeId, c.ast->children[first + k] )
@@ -131,7 +131,7 @@ private function LowerErrSet_( byref c as Ctx, byval id as Tko.NodeId ) as boole
     dim as MirValue v = LowerNumArg_( c, sp->a, MT_I32 )
     if v.kind = cast( ubyte, MV_NONE ) then return false
     if v.kind = cast( ubyte, MV_NONE ) then return false
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
     dim as MirValue r = EmitRtl( c, RTL_ERR_SET, args )
     return (r.kind <> cast( ubyte, MV_NONE ))
@@ -163,7 +163,7 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
             if c.ast->Kind( a1 ) = Tko.N_ELIDED then return false
             dim as MirValue nv = LowerNumArg_( c, a1, MT_I32 )
             if nv.kind = cast( ubyte, MV_NONE ) then return false
-            dim as FB.Array( of ulong ) dargs
+            dim as containers.Array( of ulong ) dargs
             dargs.Push( cast( ulong, dv.kind ) ) : dargs.Push( cast( ulong, dv.id ) )
             dargs.Push( cast( ulong, nv.kind ) ) : dargs.Push( cast( ulong, nv.id ) )
             dim as MirValue dr = EmitRtl( c, RTL_WIDTH_DEV, dargs )
@@ -172,7 +172,7 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
         end if
     end if
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     for k as long = 0 to 1
         dim as Tko.NodeId e = Tko.NODE_NONE
         if k < sp->count then e = cast( Tko.NodeId, c.ast->children[sp->first + k] )
@@ -245,7 +245,7 @@ private function LowerLockStmt_ _
     end if
     if bv.kind = cast( ubyte, MV_NONE ) then return false
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, hv.kind ) ) : args.Push( cast( ulong, hv.id ) )
     args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
     args.Push( cast( ulong, bv.kind ) ) : args.Push( cast( ulong, bv.id ) )
@@ -278,7 +278,7 @@ private function EmitRename_ _
     dim as MirValue newp
     if ZstrDataOf_( c, newN, newp ) = false then return false
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, oldp.kind ) ) : args.Push( cast( ulong, oldp.id ) )
     args.Push( cast( ulong, newp.kind ) ) : args.Push( cast( ulong, newp.id ) )
     outv = EmitRtl( c, RTL_RENAME, args )
@@ -363,7 +363,7 @@ private function LowerScreenFn_ _
     end if
     if flagV.kind = cast( ubyte, MV_NONE ) then return false
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, colV.kind ) ) : args.Push( cast( ulong, colV.id ) )
     args.Push( cast( ulong, rowV.kind ) ) : args.Push( cast( ulong, rowV.id ) )
     args.Push( cast( ulong, flagV.kind ) ) : args.Push( cast( ulong, flagV.id ) )

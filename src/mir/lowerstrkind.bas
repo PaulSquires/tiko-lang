@@ -76,7 +76,7 @@ end function
 '' the sign bit set -- '"abc"' is &h8000000000000003 -- and the NUL is NOT counted,
 '' unlike the narrow family, where fb_StrInit is passed len+1.
 sub PushUStrLiteralArg _
-    ( byref c as Ctx, byref args as FB.Array( of ulong ), byval gidx as long, _
+    ( byref c as Ctx, byref args as containers.Array( of ulong ), byval gidx as long, _
       byval nchars as long )
     args.Push( cast( ulong, MV_GLOBAL ) )
     args.Push( cast( ulong, gidx ) )
@@ -104,7 +104,7 @@ function UStrValOperand_ _
     if IsUStringType( c, v0t ) = false then return false
     dim as MirValue ud
     if StrDescriptorOf_( c, v0, ud ) = false then return false
-    dim as FB.Array( of ulong ) ua
+    dim as containers.Array( of ulong ) ua
     PushStrArg( ua, ud )
     sd = EmitRtl( c, RTL_USTR_TO_STR, ua )
     return (sd.kind <> cast( ubyte, MV_NONE ))

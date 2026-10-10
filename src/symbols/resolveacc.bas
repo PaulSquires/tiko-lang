@@ -4,6 +4,7 @@
 '' arena, which is exactly why no caller may hold one across anything that can grow
 '' that arena -- see the note on N_BINARY in resolve.bas.
 
+#import "std/containers"
 #include once "symbols/resolvectx.bi"
 
 namespace Tko.Resolve

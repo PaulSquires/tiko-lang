@@ -1,5 +1,6 @@
 '' toolchain.bas -- see the header.
 
+#import "std/containers"
 #include once "codegen/toolchain.bi"
 
 namespace Tko.Codegen
@@ -38,7 +39,7 @@ private function SearchPath_( byref exeName as string ) as string
 end function
 
 function FindTools _
-    ( byref clangOpt as string, byref libOpt as FB.Array( of string ) ) as ToolPaths
+    ( byref clangOpt as string, byref libOpt as containers.Array( of string ) ) as ToolPaths
 
     dim as ToolPaths t
     t.found = false

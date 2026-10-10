@@ -1,10 +1,11 @@
 '' modresolve.bas -- where an '#import' path leads. The preprocessor has already checked
 '' its form (src/pp/ppmodule.bas); this finds the directory, and names the module.
 
+#import "std/containers"
+#import "std/fs"
 #include once "driver/modresolve.bi"
 #include once "driver/manifest.bi"
 #include once "support/text.bi"
-#include once "fb/filesystem.bi"
 
 namespace Tko.Modules
 
@@ -149,9 +150,9 @@ private function PkgDir_( byref ctx as Tko.CompilerContext ) as string
     dim as string exeDir = exepath( )
     if len( exeDir ) = 0 then return ""
     dim as string cand = JoinPath( exeDir, "pkg" )
-    if FB.IsDir( cand ) then return cand
+    if fs.IsDir( cand ) then return cand
     cand = JoinPath( exeDir, "../pkg" )
-    if FB.IsDir( cand ) then return cand
+    if fs.IsDir( cand ) then return cand
     return ""
 end function
 
@@ -276,8 +277,8 @@ sub PackageDefines( byref ctx as Tko.CompilerContext, byref name_ as string, byr
 end sub
 
 sub ModuleFiles( byref dir_ as string, byref files as Tko.StrVec )
-    dim as FB.Array( of FB.DirEntry ) entries
-    if FB.ListDir( dir_, entries ).IsOk( ) = false then return
+    dim as containers.Array( of fs.DirEntry ) entries
+    if fs.ListDir( dir_, entries ).IsOk( ) = false then return
     for k as long = 0 to entries.Count - 1
         if entries[k].IsFile( ) = false then continue for
         dim as string nm = entries[k].Name( )
@@ -339,7 +340,7 @@ function ResolveImport _
             ctx.diags.Report( Tko.TKO0142, at, p, pkgRoot )
             return false
         end if
-        if FB.IsDir( target ) = false then
+        if fs.IsDir( target ) = false then
             ctx.diags.Report( Tko.TKO0140, at, p, target )
             return false
         end if
@@ -365,7 +366,7 @@ function ResolveImport _
                 if (ctx.pkgDepOwner[k] = owner) andalso (ctx.pkgDepName[k] = lfirst) then proot = ctx.pkgDepPath[k]
             next
             if len( proot ) > 0 then
-                if FB.IsDir( proot ) = false then
+                if fs.IsDir( proot ) = false then
                     ctx.diags.ReportGlobal( Tko.TKO0146, lfirst, "no directory at '" & proot & "'" )
                     return false
                 end if
@@ -374,7 +375,7 @@ function ResolveImport _
         end if
         if len( proot ) > 0 then
             dim as string target = iif( len( rest ) = 0, proot, JoinPath( proot, rest ) )
-            if FB.IsDir( target ) = false then
+            if fs.IsDir( target ) = false then
                 ctx.diags.Report( Tko.TKO0140, at, p, target )
                 return false
             end if
@@ -396,14 +397,14 @@ function ResolveImport _
     dim as string tried = ""
     for i as long = 0 to roots.Count - 1
         dim as string proot = JoinPath( roots[i], first_ )
-        if FB.IsDir( proot ) = false then
+        if fs.IsDir( proot ) = false then
             tried += iif( len( tried ) > 0, ", ", "" ) & proot
             continue for
         end if
         '' THE PACKAGE IS FOUND, so this is the answer whether or not the module is in it:
         '' a later root holding another package of the same name does not get a say.
         dim as string target = iif( len( rest ) = 0, proot, JoinPath( proot, rest ) )
-        if FB.IsDir( target ) = false then
+        if fs.IsDir( target ) = false then
             ctx.diags.Report( Tko.TKO0140, at, p, target )
             return false
         end if

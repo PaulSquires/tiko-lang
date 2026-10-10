@@ -30,8 +30,8 @@
 '' descriptor bitwise -- two descriptors owning one buffer. That is the same class of
 '' bug as the one this file fixes and it is still open.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
-
 namespace Tko.Mir
 
 '' Defined in lowerstr.bas. IsStringType is true for a FIXED-LENGTH string too, and one
@@ -239,7 +239,7 @@ end function
 
 '' The fields of a UDT, in declaration order, as (symbol, offset) pairs.
 private sub FieldsInOrder_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as FB.Array( of ulong ) )
+    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as containers.Array( of ulong ) )
 
     dim as Tko.SymbolId ts = UdtSymOf_( c, t )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
@@ -283,7 +283,7 @@ function CtorPrologueWork_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if IsObjectT_( c, t ) then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     if ImplBaseOf_( c, t ) <> Tko.TYPE_NONE then return true
-    dim as FB.Array( of ulong ) flds
+    dim as containers.Array( of ulong ) flds
     FieldsInOrder_( c, t, flds )
     return (flds.Count > 0)
 end function
@@ -313,7 +313,7 @@ private sub DestroyMember_ _
     if addr.kind = cast( ubyte, MV_NONE ) then return
     if IsStringType( c, ft ) then
         if StrSwapKind_( c, ft, 0 ) = 0 then
-            dim as FB.Array( of ulong ) args
+            dim as containers.Array( of ulong ) args
             args.Push( cast( ulong, addr.kind ) ) : args.Push( cast( ulong, addr.id ) )
             EmitRtl( c, StrRtlFor_( c, ft, RTL_STR_DELETE ), args )
         end if
@@ -393,7 +393,7 @@ private sub DestroyMember_ _
         end if
         dim as MirValue adesc
         if SynthFixedArrayDesc( c, addr, ft, adesc ) = false then return
-        dim as FB.Array( of ulong ) aargs
+        dim as containers.Array( of ulong ) aargs
         aargs.Push( cast( ulong, adesc.kind ) ) : aargs.Push( cast( ulong, adesc.id ) )
         if aeU then
             EmitRtl( c, RTL_ARRAY_DESTRUCT_USTR, aargs )
@@ -407,7 +407,7 @@ private sub DestroyMember_ _
 
     dim as Tko.SymbolId dtor = StructorWithArity( c, StructorOf( c, ft, "__dtor" ), 0 )
     if dtor <> Tko.SYMBOL_NONE then
-        dim as FB.Array( of ulong ) none_
+        dim as containers.Array( of ulong ) none_
         EmitStructorCall( c, dtor, -1, @addr, @none_ )
         return
     end if
@@ -437,7 +437,7 @@ sub EmitCtorPrologue_ _
         if ba.kind <> cast( ubyte, MV_NONE ) then
             dim as Tko.SymbolId bc = StructorWithArity( c, StructorOf( c, bt, "__ctor" ), 0 )
             if bc <> Tko.SYMBOL_NONE then
-                dim as FB.Array( of ulong ) none_
+                dim as containers.Array( of ulong ) none_
                 EmitStructorCall( c, bc, -1, @ba, @none_ )
             elseif TypeNeedsInit_( c, bt ) then
                 CallImplicitCtor_( c, bt, ba )
@@ -449,7 +449,7 @@ sub EmitCtorPrologue_ _
                 '' the allocation held.
                 dim as long bsz2 = SizeOfType( c, bt )
                 if bsz2 > 0 then
-                    dim as FB.Array( of ulong ) bz
+                    dim as containers.Array( of ulong ) bz
                     bz.Push( cast( ulong, ba.kind ) ) : bz.Push( cast( ulong, ba.id ) )
                     bz.Push( cast( ulong, MV_CONST_INT ) ) : bz.Push( 0 )
                     bz.Push( cast( ulong, MV_CONST_INT ) ) : bz.Push( cast( ulong, bsz2 ) )
@@ -459,7 +459,7 @@ sub EmitCtorPrologue_ _
         end if
     end if
 
-    dim as FB.Array( of ulong ) flds
+    dim as containers.Array( of ulong ) flds
     FieldsInOrder_( c, t, flds )
     for i as long = 0 to flds.Count - 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
@@ -517,7 +517,7 @@ sub EmitCtorPrologue_ _
         if (needsInit = false) andalso (fi = Tko.NODE_NONE) then
             dim as long fsz = SizeOfType( c, f->type_ )
             if fsz > 0 then
-                dim as FB.Array( of ulong ) fz
+                dim as containers.Array( of ulong ) fz
                 fz.Push( cast( ulong, fa.kind ) ) : fz.Push( cast( ulong, fa.id ) )
                 fz.Push( cast( ulong, MV_CONST_INT ) ) : fz.Push( 0 )
                 fz.Push( cast( ulong, MV_CONST_INT ) ) : fz.Push( cast( ulong, fsz ) )
@@ -563,7 +563,7 @@ sub EmitDtorEpilogue_ _
 
     if thisPtr.kind = cast( ubyte, MV_NONE ) then return
 
-    dim as FB.Array( of ulong ) flds
+    dim as containers.Array( of ulong ) flds
     FieldsInOrder_( c, t, flds )
     for i as long = flds.Count - 1 to 0 step -1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
@@ -578,7 +578,7 @@ sub EmitDtorEpilogue_ _
         if ba.kind <> cast( ubyte, MV_NONE ) then
             dim as Tko.SymbolId bd = StructorWithArity( c, StructorOf( c, bt, "__dtor" ), 0 )
             if bd <> Tko.SYMBOL_NONE then
-                dim as FB.Array( of ulong ) none_
+                dim as containers.Array( of ulong ) none_
                 EmitStructorCall( c, bd, -1, @ba, @none_ )
             elseif TypeNeedsDtor_( c, bt ) then
                 CallImplicitDtor_( c, bt, ba )
@@ -816,7 +816,7 @@ private sub CopyMember_ _
     '' all reach it.
     dim as longint sn = 0
     if IsStringType( c, ft ) andalso (StrSwapKind_( c, ft, sn ) = 0) then
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, -1 ) )
         args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
@@ -893,7 +893,7 @@ private sub CopyMember_ _
             SkipHere( c )
             return
         end if
-        dim as FB.Array( of ulong ) ra
+        dim as containers.Array( of ulong ) ra
         ra.Push( cast( ulong, dst.kind ) ) : ra.Push( cast( ulong, dst.id ) )
         ra.Push( cast( ulong, src.kind ) ) : ra.Push( cast( ulong, src.id ) )
         ra.Push( cast( ulong, flag.kind ) ) : ra.Push( cast( ulong, flag.id ) )
@@ -917,7 +917,7 @@ private sub CopyMember_ _
             return
         end if
         if perElem = false then
-            dim as FB.Array( of ulong ) ma
+            dim as containers.Array( of ulong ) ma
             ma.Push( cast( ulong, dp.kind ) ) : ma.Push( cast( ulong, dp.id ) )
             ma.Push( cast( ulong, sp_.kind ) ) : ma.Push( cast( ulong, sp_.id ) )
             ma.Push( cast( ulong, sz.kind ) ) : ma.Push( cast( ulong, sz.id ) )
@@ -997,11 +997,11 @@ private sub CopyMember_ _
         '' text: tracks' 'result = frmCalendar_Show( ... )' came back with a 3-character
         '' date. No same-type overload falls through to the implicit let or a byte copy,
         '' as it does for a whole assignment.
-        dim as FB.Array( of ulong ) sletT
+        dim as containers.Array( of ulong ) sletT
         sletT.Push( cast( ulong, ft ) )
         dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, ft, "let" ), sletT )
         if lt <> Tko.SYMBOL_NONE then
-            dim as FB.Array( of ulong ) args
+            dim as containers.Array( of ulong ) args
             args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
             EmitStructorCall( c, lt, -1, @dst, @args )
             return
@@ -1070,7 +1070,7 @@ sub EmitLetBody_ _
         CopyMember_( c, FieldAddr_( c, dst, t, c.vts->baseName ), _
                      FieldAddr_( c, src, t, c.vts->baseName ), bt )
     end if
-    dim as FB.Array( of ulong ) flds
+    dim as containers.Array( of ulong ) flds
     FieldsInOrder_( c, t, flds )
     for i as long = 0 to flds.Count - 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
@@ -1346,11 +1346,11 @@ private sub EmitOneImplicit_ _
         EmitCtorPrologue_( c, t, selfv )
         '' The same-type let, for the reason CopyMember_ gives: a converting let
         '' declared first would be handed the source object's address.
-        dim as FB.Array( of ulong ) sletT
+        dim as containers.Array( of ulong ) sletT
         sletT.Push( cast( ulong, t ) )
         dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, t, "let" ), sletT )
         if lt <> Tko.SYMBOL_NONE then
-            dim as FB.Array( of ulong ) args
+            dim as containers.Array( of ulong ) args
             args.Push( cast( ulong, rhs.kind ) ) : args.Push( cast( ulong, rhs.id ) )
             EmitStructorCall( c, lt, -1, @selfv, @args )
         else
@@ -1433,7 +1433,7 @@ sub EmitArrayElemsAt_ _
         if isCtor then
             dim as Tko.SymbolId ct = StructorWithArity( c, StructorOf( c, el, "__ctor" ), 0 )
             if ct <> Tko.SYMBOL_NONE then
-                dim as FB.Array( of ulong ) none_
+                dim as containers.Array( of ulong ) none_
                 EmitStructorCall( c, ct, -1, @ea, @none_ )
             else
                 CallImplicitCtor_( c, el, ea )
@@ -1441,7 +1441,7 @@ sub EmitArrayElemsAt_ _
         else
             dim as Tko.SymbolId dt = StructorWithArity( c, StructorOf( c, el, "__dtor" ), 0 )
             if dt <> Tko.SYMBOL_NONE then
-                dim as FB.Array( of ulong ) none_
+                dim as containers.Array( of ulong ) none_
                 EmitStructorCall( c, dt, -1, @ea, @none_ )
             else
                 CallImplicitDtor_( c, el, ea )
@@ -1484,7 +1484,7 @@ sub EmitImplicitStructors( byref c as Ctx )
             '' 'let( byval d as double )' has none, and they called the synthesised copy --
             '' which this, counting any 'let' as written, never emitted: 'undefined symbol
             '' COLEDATETIMESPAN::operator=(const&)' in fbx/datetime. fbc copies it (42).
-            dim as FB.Array( of ulong ) selfT
+            dim as containers.Array( of ulong ) selfT
             selfT.Push( cast( ulong, t ) )
             written = (PickCtor( c, StructorOf( c, t, "let" ), selfT ) <> Tko.SYMBOL_NONE)
         case else

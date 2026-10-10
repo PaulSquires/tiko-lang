@@ -194,7 +194,7 @@ function LowerExpr _
                 fv = ConstInt( c, 0, MT_I32 )
             end if
             if fv.kind = cast( ubyte, MV_NONE ) then return v
-            dim as FB.Array( of ulong ) iargs
+            dim as containers.Array( of ulong ) iargs
             iargs.Push( cast( ulong, nv.kind ) ) : iargs.Push( cast( ulong, nv.id ) )
             iargs.Push( cast( ulong, fv.kind ) ) : iargs.Push( cast( ulong, fv.id ) )
             dim as long iw = RTL_FILE_STR_INPUT
@@ -373,7 +373,7 @@ function LowerExpr _
                 if aoOp <> Tko.SYMBOL_NONE then
                     dim as MirValue aoSelf = LowerAddr( c, ap->operand )
                     if aoSelf.kind <> cast( ubyte, MV_NONE ) then
-                        dim as FB.Array( of ulong ) aoArgs
+                        dim as containers.Array( of ulong ) aoArgs
                         aoArgs.Push( cast( ulong, aoSelf.kind ) )
                         aoArgs.Push( cast( ulong, aoSelf.id ) )
                         if MemberVSlot_( c, aoOp ) >= 0 then return EmitMemberCall( c, aoOp, aoSelf, MT_PTR )   '' a VIRTUAL '@' through the vptr (virtual.bas)
@@ -906,7 +906,7 @@ function LowerExpr _
         if tk = Tko.TK_CARET then
             dim as MirValue pl = CoerceTy( c, l, MT_F64, c.info->TypeOf_( bp->lhs ))
             dim as MirValue pr = CoerceTy( c, r, MT_F64, c.info->TypeOf_( bp->rhs ))
-            dim as FB.Array( of ulong ) pa
+            dim as containers.Array( of ulong ) pa
             pa.Push( cast( ulong, pl.kind ) ) : pa.Push( cast( ulong, pl.id ) )
             pa.Push( cast( ulong, pr.kind ) ) : pa.Push( cast( ulong, pr.id ) )
             return EmitRtl( c, RTL_POW, pa )

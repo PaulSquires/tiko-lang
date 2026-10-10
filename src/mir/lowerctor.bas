@@ -2,6 +2,7 @@
 ''
 '' Split out of lower.bas, which is at its size limit.
 
+#import "std/containers"
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
@@ -265,7 +266,7 @@ function CharPtrCtorInit_ _
     if spt = Tko.TYPE_NONE then return false
     dim as MirValue iav
     if CtorArgValue_( c, init_, spt, iav ) = false then return false
-    dim as FB.Array( of ulong ) iargs
+    dim as containers.Array( of ulong ) iargs
     iargs.Push( cast( ulong, iav.kind ) )
     iargs.Push( cast( ulong, iav.id ) )
     EmitStructorCall( c, sc, slot, selfv, @iargs )
@@ -320,7 +321,7 @@ function LowerConvCtorInit_ _
 
     dim as Tko.SymbolId ctors = StructorOf( c, t, "__ctor" )
     if ctors = Tko.SYMBOL_NONE then return false
-    dim as FB.Array( of ulong ) argT
+    dim as containers.Array( of ulong ) argT
     argT.Push( cast( ulong, it ) )
     dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
     '' ...AND A FIXED-LENGTH STRING ARGUMENT HAS A TYPE THE COSTING CANNOT CONVERT
@@ -418,7 +419,7 @@ function LowerConvCtorInit_ _
     elseif CtorArgValue_( c, init_, pt, av ) = false then   '' its temporary's copy-back: NarrowRefStrArg_
         return false
     end if
-    dim as FB.Array( of ulong ) cargs
+    dim as containers.Array( of ulong ) cargs
     cargs.Push( cast( ulong, av.kind ) )
     cargs.Push( cast( ulong, av.id ) )
     EmitStructorCall( c, pick, slot, selfv, @cargs )
@@ -478,7 +479,7 @@ function LowerUserLetConv_ _
     if wideLet then pick = WideCharOverload_( c, lets )
     wideLet = (pick <> Tko.SYMBOL_NONE)
     if pick = Tko.SYMBOL_NONE then
-        dim as FB.Array( of ulong ) argT
+        dim as containers.Array( of ulong ) argT
         argT.Push( cast( ulong, vt ) )
         pick = PickCtor( c, lets, argT )
     end if
@@ -583,7 +584,7 @@ function LowerUserLetConv_ _
     if (ulTook = false) andalso (CtorArgValue_( c, value, pt, av ) = false) then
         return false
     end if
-    dim as FB.Array( of ulong ) largs
+    dim as containers.Array( of ulong ) largs
     largs.Push( cast( ulong, av.kind ) ) : largs.Push( cast( ulong, av.id ) )
     if EmitVirtualMember_( c, pick, t, da, @largs ) = false then EmitStructorCall( c, pick, -1, @da, @largs )   '' lowervtab.bas
     return true
@@ -692,7 +693,7 @@ function LowerCtorInit _
     '' path converts through CtorArgValue_; declining here costs nothing, nothing having
     '' been emitted.
     scope
-        dim as FB.Array( of ulong ) preT
+        dim as containers.Array( of ulong ) preT
         for i as long = 0 to cp->count - 1
             preT.Push( cast( ulong, CtorArgTypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) ) )
         next
@@ -712,9 +713,9 @@ function LowerCtorInit _
 
     '' Argument VALUES first, then the pick: the types are needed to choose, and the
     '' values must be evaluated in source order regardless of which overload wins.
-    dim as FB.Array( of ulong ) argT
-    dim as FB.Array( of ulong ) argKind
-    dim as FB.Array( of ulong ) argId
+    dim as containers.Array( of ulong ) argT
+    dim as containers.Array( of ulong ) argKind
+    dim as containers.Array( of ulong ) argId
     '' AN ARRAY ARGUMENT TAKES A DESCRIPTOR. Measured: fbc builds a static one for a
     '' fixed-length array and passes its address --
     ''
@@ -729,10 +730,10 @@ function LowerCtorInit _
     '' The shape answers for itself, which is what lets this run before the overload is
     '' picked: 'garr( )' is an empty call over a name whose type is an ARRAY, and
     '' nothing else is.
-    dim as FB.Array( of ulong ) argDesc
+    dim as containers.Array( of ulong ) argDesc
     '' ...AND THE NODES THEY CAME FROM, because a byval STRING parameter needs the
     '' argument again once the overload is known: see the temporary below.
-    dim as FB.Array( of ulong ) argNode
+    dim as containers.Array( of ulong ) argNode
     for i as long = 0 to cp->count - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + i] )
         argNode.Push( cast( ulong, a ) )
@@ -778,9 +779,9 @@ function LowerCtorInit _
     '' be needed, so it has to be written down.
     dim as Tko.StmtPayload ptr cpp = StmtOf( c, pn )
     '' The caller-built string descriptors, deleted after the call returns.
-    dim as FB.Array( of ulong ) strTmp
-    dim as FB.Array( of ulong ) strTmpTy
-    dim as FB.Array( of ulong ) backN, backS   '' byref copy-backs owed -- FlushStrCopyBacks
+    dim as containers.Array( of ulong ) strTmp
+    dim as containers.Array( of ulong ) strTmpTy
+    dim as containers.Array( of ulong ) backN, backS   '' byref copy-backs owed -- FlushStrCopyBacks
     dim as long ai2 = 0
     for i as long = 0 to cpp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[cpp->first + i] )
@@ -1032,7 +1033,7 @@ function LowerCtorInit _
         sd.kind = cast( ubyte, MV_LOCAL )
         sd.ty = cast( ubyte, MT_PTR )
         sd.id = cast( long, strTmp[k] )
-        dim as FB.Array( of ulong ) dargs
+        dim as containers.Array( of ulong ) dargs
         dargs.Push( cast( ulong, sd.kind ) ) : dargs.Push( cast( ulong, sd.id ) )
         EmitRtl( c, StrRtlFor_( c, cast( Tko.TypeId, strTmpTy[k] ), RTL_STR_DELETE ), _
                  dargs )
@@ -1070,7 +1071,7 @@ function EmitTypeCtorInto_ _
     dim as boolean ctPicked = false
     if (t <> Tko.TYPE_NONE) andalso (cp->count > 0) then
         if c.types->Kind( t ) = Tko.TK_UDT then
-            dim as FB.Array( of ulong ) ctArgT
+            dim as containers.Array( of ulong ) ctArgT
             dim as boolean ctTyped = true
             for i as long = 0 to cp->count - 1
                 dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first + i] )
@@ -1129,7 +1130,7 @@ function EmitTypeCtorInto_ _
     if cn = Tko.NODE_NONE then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, cn )
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     if PushCtorArgs_( c, ctor, cp->first, cp->count, args ) = false then return false
 
     EmitStructorCall( c, ctor, slot, 0, @args )
@@ -1141,7 +1142,7 @@ end function
 '' had none of this: an ARRAY argument produced nothing and was pushed anyway.
 function PushCtorArgs_ _
     ( byref c as Ctx, byval ctor as Tko.SymbolId, byval first_ as long, _
-      byval count as long, byref args as FB.Array( of ulong ) ) as boolean
+      byval count as long, byref args as containers.Array( of ulong ) ) as boolean
 
     dim as Tko.Symbol ptr cs2 = c.syms->SymbolAt( ctor )
     if cs2 = 0 then return false
@@ -1315,7 +1316,7 @@ function LowerBaseFieldInit_ _
     end if
 
     '' THE LEADING FIELDS, one value each, in declaration order.
-    dim as FB.Array( of ulong ) lOff, lTy   '' a base subobject is entered -- lowernew.bas BaseLeafSlots_
+    dim as containers.Array( of ulong ) lOff, lTy   '' a base subobject is entered -- lowernew.bas BaseLeafSlots_
     if BaseLeafSlots_( c, bt, first_, count, lOff, lTy ) = false then return false
     dim as long tailOff = bsz
     for i as long = 0 to count - 1
@@ -1353,7 +1354,7 @@ function LowerBaseFieldInit_ _
         ta.imm = tailOff
         dim as MirValue taddr = Emit( c, ta )
         if taddr.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) za
+        dim as containers.Array( of ulong ) za
         za.Push( cast( ulong, taddr.kind ) ) : za.Push( cast( ulong, taddr.id ) )
         za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
         za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( cast( ulong, bsz - tailOff ) )
@@ -1436,13 +1437,13 @@ function LowerBaseCtorCall_ _
     '' fills those defaults, as fbc does at the call. Each argument is still lowered
     '' once, in source order: the pick needs only types, which CtorArgTypeOf_ gives
     '' without lowering anything.
-    dim as FB.Array( of ulong ) argT
+    dim as containers.Array( of ulong ) argT
     for i as long = 0 to cp->count - 1
         argT.Push( cast( ulong, CtorArgTypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) ) )
     next
     dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
     if pick = Tko.SYMBOL_NONE then return false
-    dim as FB.Array( of ulong ) cargs
+    dim as containers.Array( of ulong ) cargs
     if PushCtorArgs_( c, pick, cp->first, cp->count, cargs ) = false then return false
 
     dim as MirValue recv

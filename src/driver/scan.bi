@@ -72,7 +72,7 @@ namespace Tko.Scan
         as boolean isPublic     '' a module-level PUBLIC symbol of that module
         as boolean dropped      '' removed by Finish (a module nothing here imports)
     end type
-    type ScanSymVec as FB.Array( of ScanSym )
+    type ScanSymVec as containers.Array( of ScanSym )
 
     type ScanDiag
         as long   code          '' the TKO number
@@ -80,7 +80,7 @@ namespace Tko.Scan
         as long   line
         as string text          '' UTF-8
     end type
-    type ScanDiagVec as FB.Array( of ScanDiag )
+    type ScanDiagVec as containers.Array( of ScanDiag )
 
     type ScanResult
         as ScanSymVec  syms
@@ -90,7 +90,7 @@ namespace Tko.Scan
         as boolean     hasRootText
         as string      rootText
         '' ---- bookkeeping: the root's '#import' aliases, as (record, module chain) ----
-        as FB.Array( of long ) aliasRec
+        as containers.Array( of long ) aliasRec
         as StrVec      aliasChain
         '' ---- set while the modules a root imports are being scanned ----
         as boolean     importing

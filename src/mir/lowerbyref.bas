@@ -585,8 +585,8 @@ end function
 '' that is not a 'string * N'.
 function FixStrZArgTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byref outa as MirValue, _
-      byref strTemps as FB.Array( of ulong ), byref strTempTypes as FB.Array( of ulong ), _
-      byref backNodes as FB.Array( of ulong ), byref backSlots as FB.Array( of ulong ) ) as boolean
+      byref strTemps as containers.Array( of ulong ), byref strTempTypes as containers.Array( of ulong ), _
+      byref backNodes as containers.Array( of ulong ), byref backSlots as containers.Array( of ulong ) ) as boolean
 
     if argNode = Tko.NODE_NONE then return false
     dim as longint fn_
@@ -650,7 +650,7 @@ function UStrToStrTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outv as Mi
     '' ...AND A 'ustring * N', whose (buffer, tag) pair EmitStrTerm pushes: measured,
     '' 'fb_VAL( fb_UStrToStr( LF$0, &h8000000000000005 ) )'. It was a false TKO0626.
     if IsUStringType( c, ut ) = false then return false
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     if EmitStrTerm( c, args, e, true ) = false then return false
     outv = EmitRtl( c, RTL_USTR_TO_STR, args )
     return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -719,7 +719,7 @@ function CtorLitArgIsWide_ _
 
     dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + idx] )
     if c.ast->Kind( Unparen_( c, a ) ) <> Tko.N_STRING_LIT then return false
-    dim as FB.Array( of ulong ) argT
+    dim as containers.Array( of ulong ) argT
     for i as long = 0 to count - 1
         argT.Push( cast( ulong, c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[first_ + i] ) ) ) )
     next

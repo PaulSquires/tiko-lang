@@ -41,16 +41,16 @@ namespace Tko.Mangle
     '' added and the name diverges from fbc's. A type is looked up before it is
     '' encoded, never after.
     type Substitutions
-        as FB.Array( of string ) items      '' the encoding of each candidate
-        as FB.Array( of ulong )  keys       '' the TypeId it came from, 0 for a name
+        as containers.Array( of string ) items      '' the encoding of each candidate
+        as containers.Array( of ulong )  keys       '' the TypeId it came from, 0 for a name
         '' An ARRAY parameter is keyed by its ELEMENT type: 'FBARRAY<T>' and 'T'
         '' are two candidates over the one TypeId, and the encoding cannot be the
         '' key because the second occurrence of the element is itself substituted.
-        as FB.Array( of ulong )  arrKeys
-        as FB.Array( of long )   arrIdx
+        as containers.Array( of ulong )  arrKeys
+        as containers.Array( of long )   arrIdx
         '' THE RANK IS PART OF THE KEY: 'a(any)' and 'a(any,any)' are FBARRAY1 and
         '' FBARRAY2, two different template instantiations over the same element.
-        as FB.Array( of long )   arrRank
+        as containers.Array( of long )   arrRank
 
         declare function Find( byref enc as string ) as long
         declare function FindType( byval t as Tko.TypeId ) as long
@@ -69,13 +69,13 @@ namespace Tko.Mangle
         ( byref types as Tko.TypeContext, byval nm as Tko.InternId ) as boolean
     declare sub RegisterInst _
         ( byref types as Tko.TypeContext, byval nm as Tko.InternId, _
-          byval spell as Tko.InternId, byref args as FB.Array( of ulong ) )
+          byval spell as Tko.InternId, byref args as containers.Array( of ulong ) )
     '' The substitution naming 't' itself, once 'subs' holds its encoding -- 'S_', 'S0_'...
     declare function SelfRef( byref subs as Substitutions, byval t as Tko.TypeId ) as string
     '' ...and a TUPLE type as the instantiation 'FBTUPLE<N>( of <element types> )'.
     declare sub RegisterTuple _
         ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
-          byval t as Tko.TypeId, byref elemTypes as FB.Array( of ulong ) )
+          byval t as Tko.TypeId, byref elemTypes as containers.Array( of ulong ) )
 
     '' The emitted symbol name for one procedure declaration.
     declare function ProcName _

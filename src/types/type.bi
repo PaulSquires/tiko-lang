@@ -217,8 +217,8 @@ namespace Tko
         as boolean isMsvc
     end type
 
-    type TypeVec  as FB.Array( of TypeInfo )
-    type TypeIdVec2 as FB.Array( of ulong )
+    type TypeVec  as containers.Array( of TypeInfo )
+    type TypeIdVec2 as containers.Array( of ulong )
 
     type TypeLayout
         as long size
@@ -258,7 +258,7 @@ namespace Tko
     type TypeContext
         as TypeVec       types
         as TypeIdVec2    pool        '' element lists
-        as FB.Array( of longint ) boundPool   '' TK_ARRAY (lo, hi) pairs
+        as containers.Array( of longint ) boundPool   '' TK_ARRAY (lo, hi) pairs
         as Interner ptr  names
         as TargetLayout  target
         '' THE INTERNING INDEXES, one per finder's key -- see TypeIndex. Push_ files every
@@ -277,11 +277,11 @@ namespace Tko
         '' no tiko object could be linked against an fbc-built one that used a generic.
         '' Keyed by that folded name; the declared spelling and the argument TypeIds
         '' are what the Itanium template form needs. See Mangle.RegisterInst.
-        as FB.Array( of ulong ) instName
-        as FB.Array( of ulong ) instSpell
-        as FB.Array( of long )  instArgFirst
-        as FB.Array( of long )  instArgCount
-        as FB.Array( of ulong ) instArgs
+        as containers.Array( of ulong ) instName
+        as containers.Array( of ulong ) instSpell
+        as containers.Array( of long )  instArgFirst
+        as containers.Array( of long )  instArgCount
+        as containers.Array( of ulong ) instArgs
         '' NAME A BUILTIN THE WAY THIS PROGRAM DOES (T34): int32, float64, uint8 ... rather than
         '' long, double, ubyte. Those sized names are prelude typedefs, so a type that came from
         '' 'int32' IS 'long' here and the spelling is gone; the driver sets this per unit from
@@ -301,7 +301,7 @@ namespace Tko
         declare function ArrayOf _
             ( byval elem as TypeId, byval rank as long, _
               byval elems as long = 0, _
-              byval bounds as FB.Array( of longint ) ptr = 0 ) as TypeId
+              byval bounds as containers.Array( of longint ) ptr = 0 ) as TypeId
         '' The declared bounds of one dimension. 'known' is false for an array whose
         '' bounds were not constant, in which case nothing may be folded.
         declare function ArrayBound _

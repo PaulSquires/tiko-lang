@@ -31,15 +31,15 @@ namespace Tko.Codegen
         as string rcExe
         '' Where libfb lives, IN SEARCH ORDER. A list, not one path: a runtime may be
         '' partial and resolve the rest from one behind it.
-        as FB.Array( of string ) libPaths
+        as containers.Array( of string ) libPaths
         '' THE USER'S LIBRARIES, in order, emitted as -l<name>. '-l' put them in a
         '' list that nothing read until 2026-09-06, so 'tiko -l foo prog.bas' left
         '' foo out of the link and said nothing; '#inclib' was discarded by the
         '' preprocessor for the same span. Both arrive here now.
-        as FB.Array( of string ) libs
+        as containers.Array( of string ) libs
         '' '#foreignlib' results: exact paths, named as files. Kept apart from
         '' 'libs' because those go through '-l' and these deliberately do not.
-        as FB.Array( of string ) libFiles
+        as containers.Array( of string ) libFiles
         '' Strip the symbol table at the link. True unless '-g' was given, which is
         '' fbc's own rule and the first thing '-g' has ever done here: it was parsed
         '' into a field nothing read.
@@ -72,7 +72,7 @@ namespace Tko.Codegen
     '' docs/plan/12 section 4 gives the same order for every external tool, so that
     '' one override works the same way everywhere.
     declare function FindTools _
-        ( byref clangOpt as string, byref libOpt as FB.Array( of string ) ) as ToolPaths
+        ( byref clangOpt as string, byref libOpt as containers.Array( of string ) ) as ToolPaths
 
     '' A RESOURCE SCRIPT TO A '.res'. Windows only: there is no such thing to link
     '' into an ELF binary, and a '.rc' passed with a Linux target is a mistake worth

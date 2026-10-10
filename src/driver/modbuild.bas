@@ -14,13 +14,14 @@
 '' object is linked from the entry, its interface read from it, and what it adds to the
 '' link replayed. '-v' says which, per module.
 
+#import "std/containers"
+#import "std/fs"
 #include once "support/diskcache.bi"
 #include once "driver/modbuild.bi"
 #include once "driver/modgraph.bi"
 #include once "driver/unit.bi"
 #include once "driver/modresolve.bi"
 #include once "driver/modcache.bi"
-#include once "fb/filesystem.bi"
 
 namespace Tko.Modules
 
@@ -130,12 +131,12 @@ function BuildImports _
             '' leaves the object beside the output, for the roots' records to name.
             if ctx.options.compileOnly then
                 dim as string cp = ArchiveMemberPath( ctx )
-                FB.CopyFile( hitObj, cp, true )
+                fs.CopyFile( hitObj, cp, true )
                 ctx.modObjPaths.Push( AbsPath( cp ) )  '' absolute: the link that reads it may run anywhere
                 hitObj = cp
             elseif ctx.options.outKind = Tko.OUT_STATICLIB then
                 dim as string mp = ArchiveMemberPath( ctx )
-                FB.CopyFile( hitObj, mp, true )
+                fs.CopyFile( hitObj, mp, true )
                 tempObjs.Push( mp )
                 hitObj = mp
             end if
@@ -236,7 +237,7 @@ function EmitInterface( byref ctx as Tko.CompilerContext, byref dir_ as string )
     dim as long toolExit = Tko.EXIT_OK
     dim as boolean ok = BuildImports( ctx, 1, linkObjs, tempObjs, toolExit )
     for each t as string in tempObjs
-        if FB.IsFile( t ) then kill( t )
+        if fs.IsFile( t ) then kill( t )
     next
     if ok = false then return iif( toolExit <> Tko.EXIT_OK, toolExit, Tko.EXIT_USER_ERROR )
     for i as long = 0 to ctx.ifaceDirs.Count - 1

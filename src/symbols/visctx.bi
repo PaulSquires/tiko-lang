@@ -11,8 +11,8 @@
 '' symbol declared by an earlier sweep is never missed.
 type OwnerIndex
     as long                  builtAt = -1   '' symbols.Count when built; -1 = never
-    as FB.Array( of long )   nsHits, nsInner, udtHits, udtInner
-    as FB.Array( of ubyte )  head           '' a namespace, type or typedef has this name
+    as containers.Array( of long )   nsHits, nsInner, udtHits, udtInner
+    as containers.Array( of ubyte )  head           '' a namespace, type or typedef has this name
 end type
 
 type Ctx

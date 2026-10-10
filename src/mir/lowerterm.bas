@@ -9,6 +9,7 @@
 ''
 '' Split out of lowerstr.bas at the 1500-line cap. Nothing moved with it changed.
 
+#import "std/containers"
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
@@ -22,7 +23,7 @@ declare function StrSwapKind_ _
 
 '' The (pointer, length) pair for one term of a concatenation.
 function EmitStrTerm _
-    ( byref c as Ctx, byref args as FB.Array( of ulong ), _
+    ( byref c as Ctx, byref args as containers.Array( of ulong ), _
       byval term as Tko.NodeId, byval isU as boolean = false ) as boolean
 
     term = Unparen_( c, term )
@@ -173,7 +174,7 @@ function EmitStrTerm _
                     '' now emits 'fb_StrToUStr( vr, -1 )' first, as the chain path here always
                     '' did (LowerUStrChain).
                     if isU then
-                        dim as FB.Array( of ulong ) ncv
+                        dim as containers.Array( of ulong ) ncv
                         PushStrArg( ncv, nv )
                         dim as MirValue nuv = EmitRtl( c, RTL_STR_TO_USTR, ncv )
                         if nuv.kind = cast( ubyte, MV_NONE ) then return false
@@ -475,7 +476,7 @@ function WideTermAsUStr_ _
     '' wchr as UTF-16; the wide route below passed u's descriptor to fb_WstrConcatWA as
     '' narrow text, so "VFV" came out "V" and ApexWealth's lookup error named nothing.
     if c.ast->Kind( Unparen_( c, term ) ) = Tko.N_BINARY then
-        dim as FB.Array( of ulong ) uterms
+        dim as containers.Array( of ulong ) uterms
         FlattenConcat( c, Unparen_( c, term ), uterms )
         if uterms.Count >= 2 then
             if ConcatTermsAreU_( c, uterms ) then return ConcatTermsToTempDesc_( c, uterms, outv )
@@ -493,7 +494,7 @@ function WideTermAsUStr_ _
         return false
     end if
     if wp.kind = cast( ubyte, MV_NONE ) then return false
-    dim as FB.Array( of ulong ) wargs
+    dim as containers.Array( of ulong ) wargs
     wargs.Push( cast( ulong, wp.kind ) ) : wargs.Push( cast( ulong, wp.id ) )
     outv = EmitRtl( c, RTL_WSTR_TO_USTR, wargs )
     return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -513,7 +514,7 @@ function LowerStrConvertTerm _
 
     if dstIsU then
         if tf = STF_NARROW then
-            dim as FB.Array( of ulong ) args
+            dim as containers.Array( of ulong ) args
             PushStrArg( args, dst )
             if EmitStrTerm( c, args, term, false ) = false then return false
             args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
@@ -524,7 +525,7 @@ function LowerStrConvertTerm _
         if tf = STF_WIDE then
             dim as MirValue uv
             if WideTermAsUStr_( c, term, uv ) = false then return false
-            dim as FB.Array( of ulong ) args
+            dim as containers.Array( of ulong ) args
             PushStrArg( args, dst )
             PushStrArg( args, uv )
             args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
@@ -537,7 +538,7 @@ function LowerStrConvertTerm _
 
     '' A NARROW destination with a UTF-16 source is the same fact the other way round.
     if tf = STF_UTF16 then
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         PushStrArg( args, dst )
         if EmitStrTerm( c, args, term, true ) = false then return false
         args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
@@ -553,7 +554,7 @@ end function
 '' same-flavour call over a source that is not that flavour.
 function StrChainNeedsConvert _
     ( byref c as Ctx, byval dstIsU as boolean, _
-      byref terms as FB.Array( of ulong ) ) as boolean
+      byref terms as containers.Array( of ulong ) ) as boolean
 
     dim as boolean anyUW = false, anyRendered = false
     for i as long = 0 to terms.Count - 1
@@ -604,7 +605,7 @@ end function
 '' term's own: a WIDE term becomes a ustring descriptor through fb_WstrToUStr, and a
 '' neutral one follows whatever it was asked for.
 private function PushChainTerm_ _
-    ( byref c as Ctx, byref args as FB.Array( of ulong ), _
+    ( byref c as Ctx, byref args as containers.Array( of ulong ), _
       byval term as Tko.NodeId, byval wantU as boolean ) as boolean
 
     if wantU then
@@ -678,7 +679,7 @@ function IsRenderedNumberTerm_( byref c as Ctx, byval term as Tko.NodeId ) as bo
     return (StrSwapKind_( c, tt, tsk ) = -1)
 end function
 
-function ChainHasRenderedNumber_( byref c as Ctx, byref terms as FB.Array( of ulong ) ) as boolean
+function ChainHasRenderedNumber_( byref c as Ctx, byref terms as containers.Array( of ulong ) ) as boolean
     for i as long = 0 to terms.Count - 1
         if IsRenderedNumberTerm_( c, cast( Tko.NodeId, terms[i] ) ) then return true
     next
@@ -707,7 +708,7 @@ end function
 '' IsRenderedNumberTerm_.
 function LowerUStrChain _
     ( byref c as Ctx, byref dst as MirValue, byval dstIsU as boolean, _
-      byref terms as FB.Array( of ulong ), byval isInit as boolean ) as boolean
+      byref terms as containers.Array( of ulong ), byval isInit as boolean ) as boolean
 
     if terms.Count < 2 then return false
 
@@ -788,7 +789,7 @@ function LowerUStrChain _
         '' whole corpus ran green over it.
         ZeroStrTempAtEntry_( c, tmp )
 
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )
 
         '' The LEFT operand: the previous step's result, or the first term.
@@ -819,7 +820,7 @@ function LowerUStrChain _
     '' one more time.
     dim as longint flag = 0
     if isInit then flag = -1
-    dim as FB.Array( of ulong ) fin
+    dim as containers.Array( of ulong ) fin
     PushStrArg( fin, dst )
     PushStrArg( fin, acc )
     fin.Push( cast( ulong, MV_CONST_INT ) ) : fin.Push( 0 )
@@ -848,7 +849,7 @@ end function
 '' rather than transcoding each term. The trailing flag is -1 at a declaration.
 function LowerNarrowChainToU_ _
     ( byref c as Ctx, byref dst as MirValue, _
-      byref terms as FB.Array( of ulong ), byval isInit as boolean ) as boolean
+      byref terms as containers.Array( of ulong ), byval isInit as boolean ) as boolean
 
     if terms.Count < 2 then return false
     dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
@@ -860,7 +861,7 @@ function LowerNarrowChainToU_ _
     '' descriptor has to be cleared before the first term reaches it.
     ZeroStrTempAtEntry_( c, tmp )
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )
     if EmitStrTerm( c, args, cast( Tko.NodeId, terms[0] ), false ) = false then return false
     if EmitStrTerm( c, args, cast( Tko.NodeId, terms[1] ), false ) = false then return false
@@ -868,7 +869,7 @@ function LowerNarrowChainToU_ _
     if acc.kind = cast( ubyte, MV_NONE ) then return false
 
     for i as long = 2 to terms.Count - 1
-        dim as FB.Array( of ulong ) more
+        dim as containers.Array( of ulong ) more
         PushStrArg( more, tmp )
         if EmitStrTerm( c, more, cast( Tko.NodeId, terms[i] ), false ) = false then return false
         more.Push( cast( ulong, MV_CONST_INT ) ) : more.Push( 0 )
@@ -877,7 +878,7 @@ function LowerNarrowChainToU_ _
 
     dim as longint flag = 0
     if isInit then flag = -1
-    dim as FB.Array( of ulong ) fin
+    dim as containers.Array( of ulong ) fin
     PushStrArg( fin, dst )
     PushStrArg( fin, acc )
     fin.Push( cast( ulong, MV_CONST_INT ) ) : fin.Push( 0 )
@@ -894,7 +895,7 @@ function IsUStrChain_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     e = Unparen_( c, e )
     if e = Tko.NODE_NONE then return false
     if c.ast->Kind( e ) <> Tko.N_BINARY then return false
-    dim as FB.Array( of ulong ) ut
+    dim as containers.Array( of ulong ) ut
     FlattenConcat( c, e, ut )
     if ut.Count < 2 then return false
     return ConcatTermsAreU_( c, ut )
@@ -905,7 +906,7 @@ end function
 '' fb_WstrToUStr, which is what fbc emits and what makes the comparison compare the same
 '' encoding on both sides.
 function UStrCmpOperand_ _
-    ( byref c as Ctx, byref args as FB.Array( of ulong ), _
+    ( byref c as Ctx, byref args as containers.Array( of ulong ), _
       byval term as Tko.NodeId ) as boolean
 
     '' A USTRING CHAIN IS ALREADY UTF-16: EmitStrTerm builds its fb_UStrConcat temporary.
@@ -913,7 +914,7 @@ function UStrCmpOperand_ _
     if IsUStrChain_( c, term ) then return EmitStrTerm( c, args, term, true )
     select case StrTermFlavour_( c, term )
     case STF_NARROW
-        dim as FB.Array( of ulong ) sub_
+        dim as containers.Array( of ulong ) sub_
         if EmitStrTerm( c, sub_, term, false ) = false then return false
         dim as MirValue uv = EmitRtl( c, RTL_STR_TO_USTR, sub_ )
         if uv.kind = cast( ubyte, MV_NONE ) then return false
@@ -1098,7 +1099,7 @@ function ZstrDataOf_ _
         fd.ty = cast( ubyte, MT_PTR )
         fd.id = ftmp
         ZeroStrDescriptor( c, fd )
-        dim as FB.Array( of ulong ) fargs
+        dim as containers.Array( of ulong ) fargs
         PushStrArg( fargs, fd )
         PushStrArg( fargs, fda )
         fargs.Push( cast( ulong, MV_CONST_INT ) ) : fargs.Push( 0 )
@@ -1140,7 +1141,7 @@ function ZstrDataOf_ _
                 bd.ty = cast( ubyte, MT_PTR )
                 bd.id = btmp
                 ZeroStrDescriptor( c, bd )
-                dim as FB.Array( of ulong ) bargs
+                dim as containers.Array( of ulong ) bargs
                 PushStrArg( bargs, bd )
                 PushStrArg( bargs, da )
                 bargs.Push( cast( ulong, MV_CONST_INT ) ) : bargs.Push( 0 )
@@ -1335,7 +1336,7 @@ end function
 '' and the UTF-16 twin pass in mir.bas already refuses to narrow that one.
 sub PushSourceUnit_ _
     ( byref c as Ctx, byval u8 as boolean, byref body as string, byref i as long, _
-      byref units as FB.Array( of ulong ) )
+      byref units as containers.Array( of ulong ) )
 
     dim as ubyte b = body[i]
     dim as boolean plain = (b < &h80)
@@ -1397,7 +1398,7 @@ end function
 function WideFoldedText_ _
     ( byref c as Ctx, byval site as Tko.NodeId, byref txt as string, byref outChars as long ) as long
 
-    dim as FB.Array( of ulong ) units
+    dim as containers.Array( of ulong ) units
     dim as boolean u8 = PlainUtf8Text_( c, site )
     dim as long i = 0
     while i < len( txt )
@@ -1423,7 +1424,7 @@ function WideAppendToU_ _
     dim as MirValue uv
     if WideTermAsUStr_( c, value, uv ) = false then return false
     if uv.kind = cast( ubyte, MV_NONE ) then return false
-    dim as FB.Array( of ulong ) aargs
+    dim as containers.Array( of ulong ) aargs
     PushStrArg( aargs, dst )
     PushStrArg( aargs, uv )
     aargs.Push( cast( ulong, MV_CONST_INT ) )

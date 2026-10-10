@@ -186,7 +186,7 @@ namespace Tko
         end union
     end type
 
-    type TokenVec as FB.Array( of Token )
+    type TokenVec as containers.Array( of Token )
 
     '' ------------------------------------------------------------ literal pool
 
@@ -238,7 +238,7 @@ namespace Tko
         as long       textLength
     end type
 
-    type LiteralVec as FB.Array( of Literal )
+    type LiteralVec as containers.Array( of Literal )
 
     '' -------------------------------------------------------------- keyword map
     '' Keyword lookup is an array index, not a hash: the keyword spellings are
@@ -247,8 +247,8 @@ namespace Tko
     '' This replaces the perfect hash of docs/plan/03 section 5.2 -- same cost, and it
     '' falls out of interning the compiler already does.
     type KeywordMap
-        as FB.Array( of ushort ) kinds     '' index = InternId, value = TokenKind
-        as FB.Array( of ubyte )  classes   '' index = InternId, value = KeywordClass
+        as containers.Array( of ushort ) kinds     '' index = InternId, value = TokenKind
+        as containers.Array( of ubyte )  classes   '' index = InternId, value = KeywordClass
         as long maxId
 
         declare function KindOf( byval id as InternId ) as TokenKind

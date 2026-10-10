@@ -30,7 +30,7 @@
 '' to that type's frame.
 function InstFrameFor_ _
     ( byref c as Ctx, byval at_ as Tko.NodeId, byval gname as Tko.InternId, _
-      byref argTypes as FB.Array( of ulong ), byval fallback as long ) as long
+      byref argTypes as containers.Array( of ulong ), byval fallback as long ) as long
 
     if at_ = Tko.NODE_NONE then return fallback
     dim as string t = c.names->Spelling( gname ) & "( of "
@@ -60,7 +60,7 @@ end sub
 
 '' The frame queued with entry 'k' of a pending list, or 0 for one queued before frames
 '' existed -- the lists are parallel, and a short one means none.
-function PendingFrame_( byref frames as FB.Array( of ulong ), byval k as long ) as long
+function PendingFrame_( byref frames as containers.Array( of ulong ), byval k as long ) as long
     if (k < 0) orelse (k >= frames.Count) then return 0
     return cast( long, frames[k] )
 end function

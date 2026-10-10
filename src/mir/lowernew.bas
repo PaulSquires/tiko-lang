@@ -133,15 +133,15 @@ private function LowerNewArray_ _
         dim as Tko.SymbolId opNewA = _
             StructorWithArity( c, StructorOf( c, el, "new[]" ), 1 )
         if opNewA <> Tko.SYMBOL_NONE then
-            dim as FB.Array( of ulong ) nb
+            dim as containers.Array( of ulong ) nb
             nb.Push( cast( ulong, bytes_.kind ) ) : nb.Push( cast( ulong, bytes_.id ) )
             raw = EmitDirectCall_( c, opNewA, MT_PTR, nb )
         elseif noInit then
-            dim as FB.Array( of ulong ) ma
+            dim as containers.Array( of ulong ) ma
             ma.Push( cast( ulong, bytes_.kind ) ) : ma.Push( cast( ulong, bytes_.id ) )
             raw = EmitAllocCall_( c, RTL_MALLOC, ma )
         else
-            dim as FB.Array( of ulong ) aa
+            dim as containers.Array( of ulong ) aa
             aa.Push( cast( ulong, bytes_.kind ) ) : aa.Push( cast( ulong, bytes_.id ) )
             aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
             raw = EmitAllocCall_( c, RTL_CALLOC, aa )
@@ -212,7 +212,7 @@ private function LowerNewArray_ _
         dim as long zjoin = NewBlock( c, "newp.join" )
         Terminate( c, MTERM_CONDBR, zbody, zjoin, zcond )
         c.curBlock = zbody
-        dim as FB.Array( of ulong ) za
+        dim as containers.Array( of ulong ) za
         za.Push( cast( ulong, zp.kind ) ) : za.Push( cast( ulong, zp.id ) )
         za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
         za.Push( cast( ulong, bytes_.kind ) ) : za.Push( cast( ulong, bytes_.id ) )
@@ -265,7 +265,7 @@ private function LowerNewArray_ _
         c.curBlock = bodyB
         dim as MirValue ev = LowerExprLoad( c, cur, MT_PTR )
         if ev.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) noargs
+        dim as containers.Array( of ulong ) noargs
         if ctor <> Tko.SYMBOL_NONE then
             EmitStructorCall( c, ctor, -1, @ev, @noargs )
         else
@@ -301,7 +301,7 @@ end function
 '' fills (T32).
 private function ScalarFieldList_ _
     ( byref c as Ctx, byval el as Tko.TypeId, byval n as long, byval first_ as long ) as boolean
-    dim as FB.Array( of ulong ) lOff, lTy
+    dim as containers.Array( of ulong ) lOff, lTy
     if BaseLeafSlots_( c, el, first_, n, lOff, lTy ) = false then return false
     for i as long = 0 to n - 1
         dim as MirType fmt = LowerType( cast( Tko.TypeId, lTy[i] ), *c.types )
@@ -324,8 +324,8 @@ end function
 '' the slots.
 private sub BaseLeafWalk_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval off as long, byval first_ as long, _
-      byval n as long, byref ai as long, byref lOff as FB.Array( of ulong ), _
-      byref lTy as FB.Array( of ulong ) )
+      byval n as long, byref ai as long, byref lOff as containers.Array( of ulong ), _
+      byref lTy as containers.Array( of ulong ) )
     dim as long ui = c.udts->Find( t )
     if ui < 0 then return
     dim as long f0 = c.udts->udts[ui].first
@@ -349,7 +349,7 @@ end sub
 
 function BaseLeafSlots_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval first_ as long, byval n as long, _
-      byref lOff as FB.Array( of ulong ), byref lTy as FB.Array( of ulong ) ) as boolean
+      byref lOff as containers.Array( of ulong ), byref lTy as containers.Array( of ulong ) ) as boolean
     dim as long ai = 0
     BaseLeafWalk_( c, t, 0, first_, n, ai, lOff, lTy )
     return (ai = n)
@@ -420,18 +420,18 @@ function LowerNew_ _
         dim as Tko.SymbolId opNew = _
             StructorWithArity( c, StructorOf( c, el, "new" ), 1 )
         if opNew <> Tko.SYMBOL_NONE then
-            dim as FB.Array( of ulong ) na
+            dim as containers.Array( of ulong ) na
             na.Push( cast( ulong, MV_CONST_INT ) ) : na.Push( cast( ulong, esz ) )
             raw = EmitDirectCall_( c, opNew, MT_PTR, na )
         elseif noInit then
             '' 'new T( any )': malloc( bytes ), which zeroes nothing.
-            dim as FB.Array( of ulong ) ma
+            dim as containers.Array( of ulong ) ma
             ma.Push( cast( ulong, MV_CONST_INT ) ) : ma.Push( cast( ulong, esz ) )
             raw = EmitAllocCall_( c, RTL_MALLOC, ma )
         else
             '' calloc( bytes, 1 ). The second argument is the ELEMENT COUNT and fbc always
             '' passes 1, folding the whole size into the first -- not the other way round.
-            dim as FB.Array( of ulong ) aa
+            dim as containers.Array( of ulong ) aa
             aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( cast( ulong, esz ) )
             aa.Push( cast( ulong, MV_CONST_INT ) ) : aa.Push( 1 )
             raw = EmitAllocCall_( c, RTL_CALLOC, aa )
@@ -494,7 +494,7 @@ function LowerNew_ _
 
     dim as Tko.SymbolId ctor = Tko.SYMBOL_NONE
     if (argCount > 0) andalso (c.types->Kind( el ) = Tko.TK_UDT) then
-        dim as FB.Array( of ulong ) ctArgT
+        dim as containers.Array( of ulong ) ctArgT
         dim as boolean ctTyped = true
         for i as long = 0 to argCount - 1
             dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[argFirst + i] )
@@ -605,7 +605,7 @@ function LowerNew_ _
         if noCtor then noCtor = (fieldInit = false)
         placeZero = noCtor
     end if
-    dim as FB.Array( of ulong ) cargs
+    dim as containers.Array( of ulong ) cargs
     if (ctor <> Tko.SYMBOL_NONE) andalso (isPlace = false) then
         '' THE ARGUMENTS BEFORE THE BRANCH. fbc evaluates them where the 'new' is
         '' written, not inside the null-guarded arm -- which matters the moment one has
@@ -652,7 +652,7 @@ function LowerNew_ _
         elseif implCopy then
             CallImplicitCopy_( c, el, pv, copySrc )
         elseif upCopy then
-            dim as FB.Array( of ulong ) ua
+            dim as containers.Array( of ulong ) ua
             if isPlace then
                 ua.Push( cast( ulong, pv.kind ) ) : ua.Push( cast( ulong, pv.id ) )
                 ua.Push( cast( ulong, MV_CONST_INT ) ) : ua.Push( 0 )
@@ -686,7 +686,7 @@ function LowerNew_ _
         elseif fieldInit then
             if LowerBaseFieldInit_( c, pv, el, argFirst, argCount ) = false then return false
         elseif placeZero then
-            dim as FB.Array( of ulong ) pz
+            dim as containers.Array( of ulong ) pz
             pz.Push( cast( ulong, pv.kind ) ) : pz.Push( cast( ulong, pv.id ) )
             pz.Push( cast( ulong, MV_CONST_INT ) ) : pz.Push( 0 )
             pz.Push( cast( ulong, MV_CONST_INT ) ) : pz.Push( cast( ulong, esz ) )
@@ -815,7 +815,7 @@ function LowerDeleteArray_ _
 
     '' THE COOKIE'S ADDRESS IS WHAT WAS ALLOCATED, so it is what is released.
     c.curBlock = freeB
-    dim as FB.Array( of ulong ) da
+    dim as containers.Array( of ulong ) da
     da.Push( cast( ulong, base_.kind ) ) : da.Push( cast( ulong, base_.id ) )
     dim as Tko.SymbolId opDel = StructorWithArity( c, StructorOf( c, el, "delete[]" ), 1 )
     if opDel <> Tko.SYMBOL_NONE then
@@ -847,7 +847,7 @@ private function AllocOverride_( byref c as Ctx, byval nm as string ) as Tko.Sym
     return sid
 end function
 
-function EmitAllocCall_( byref c as Ctx, byval r as RtlId, byref args as FB.Array( of ulong ) ) as MirValue
+function EmitAllocCall_( byref c as Ctx, byval r as RtlId, byref args as containers.Array( of ulong ) ) as MirValue
     dim as string nm
     select case r
     case RTL_CALLOC : nm = "callocate"

@@ -6,6 +6,7 @@
 '' overload work or argument conversion, and all of them have to get the ABI shape of
 '' the call right on their own. That last part is why they were worth keeping together.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -24,7 +25,7 @@ namespace Tko.Mir
 '' the caller has already produced the operands the way the parameters want them.
 function EmitDirectCall_ _
     ( byref c as Ctx, byval sym as Tko.SymbolId, byval rt as MirType, _
-      byref args as FB.Array( of ulong ), byval withSret as boolean = false ) as MirValue
+      byref args as containers.Array( of ulong ), byval withSret as boolean = false ) as MirValue
 
     dim as MirValue none_
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
@@ -112,7 +113,7 @@ end function
 
 function EmitMemberCallArgs_ _
     ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
-      byval rt as MirType, byval args as FB.Array( of ulong ) ptr, _
+      byval rt as MirType, byval args as containers.Array( of ulong ) ptr, _
       byval vslot as long ) as MirValue
 
     dim as MirValue none_

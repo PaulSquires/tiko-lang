@@ -4,6 +4,7 @@
 '' structors a type did not write; these four answer an ABI question about a
 '' parameter, and the only thing they share with it is the size test.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir

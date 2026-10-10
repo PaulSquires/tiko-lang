@@ -127,6 +127,10 @@ done
 unset TKO_LIBPATH
 TKO_INCLUDE="$TKO_BOOT_INC"
 export TKO_INCLUDE
+# THE TREE'S std MODULES: the compiler's source imports std/containers and std/fs (2026-10-10),
+# and they are the tree's pkg/, as inc/ is -- never the seed's copy.
+TKO_PKG="$ROOT/pkg"
+export TKO_PKG
 
 SOURCES=$(grep -v '^[[:space:]]*#' build/sources.txt | grep -v '^[[:space:]]*$')
 NMOD=$(echo "$SOURCES" | wc -l | tr -d ' ')
@@ -147,7 +151,9 @@ say "target $TARGET ${OPT:--O0}, $NMOD modules, headers $TKO_BOOT_INC"
 build_stage( ) {
     # $1 = the compiler, $2 = the stage it builds
     ts=$(now)
-    "$1" $SOURCES -m "$MAINMOD" -i src -target "$TARGET" $OPT $LIBP -o "$OUT/$2/tiko$EXT" \
+    # EACH STAGE COMPILES THE std MODULES ITSELF, into a cache of its own: one shared cache
+    # would hand stage2 the objects stage1 made, and stage2 == stage3 would not cover them.
+    TKO_MODCACHE="$OUT/$2.modcache" "$1" $SOURCES -m "$MAINMOD" -i src -target "$TARGET" $OPT $LIBP -o "$OUT/$2/tiko$EXT" \
         > "$OUT/$2.log" 2>&1 || { cat "$OUT/$2.log" >&2; fail "$2 did not build"; }
     [ -f "$OUT/$2/tiko$EXT" ] || fail "$2 reported success and wrote no compiler"
     # A build that says nothing is the only acceptable one: a warning in the
@@ -178,7 +184,7 @@ S1="$OUT/stage1/tiko$EXT"
 # -------------------------------------------- 1. every statement lowers
 # One invocation over every module: 92 processes would re-read the shared headers
 # 92 times. Only the summary lines are kept; the IR itself is tens of megabytes.
-"$S1" --dump-ir -target "$TARGET" -i src $SOURCES 2>&1 | grep -E '^(lowered|verify):' > "$OUT/lowered.txt" || true
+TKO_MODCACHE="$OUT/lowered.modcache" "$S1" --dump-ir -target "$TARGET" -i src $SOURCES 2>&1 | grep -E '^(lowered|verify):' > "$OUT/lowered.txt" || true
 NLOW=$(grep -c '^lowered:' "$OUT/lowered.txt" || true)
 NVER=$(grep -c '^verify: ok' "$OUT/lowered.txt" || true)
 NDEC=$(grep '^lowered:' "$OUT/lowered.txt" | grep -vc ' 0 statements not lowered' || true)

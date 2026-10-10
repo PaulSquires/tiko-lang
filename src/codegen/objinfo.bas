@@ -1,5 +1,6 @@
 '' objinfo.bas -- the '.fbctinf' section, written and read. See objinfo.bi.
 
+#import "std/containers"
 #include once "codegen/objinfo.bi"
 
 namespace Tko.Codegen

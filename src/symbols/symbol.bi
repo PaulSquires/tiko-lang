@@ -271,9 +271,9 @@ namespace Tko
         as long     count
     end type
 
-    type SymbolVec as FB.Array( of Symbol )
-    type ScopeVec  as FB.Array( of SymScope )
-    type SymSlotVec as FB.Array( of ulong )
+    type SymbolVec as containers.Array( of Symbol )
+    type ScopeVec  as containers.Array( of SymScope )
+    type SymSlotVec as containers.Array( of ulong )
 
     type SymbolTable
         '' THE MODULE UNIT BEING COMPILED, if this is one (ADR 0017): its files, and
@@ -285,30 +285,30 @@ namespace Tko
         '' THE MODULES WHOSE INTERFACES THIS UNIT READ: each one's namespace symbol, and the
         '' chain it stands for, upper-cased and dotted ('ACME.NET.HTTP') -- what the mangler
         '' writes in the namespace's place, so an importer names what the module defined.
-        as FB.Array( of ulong ) importNs
+        as containers.Array( of ulong ) importNs
         as StrVec     importChains
         '' EVERY '#import' WHOSE ALIAS WAS BOUND: its path as written, its alias lower-cased,
         '' and where it stands -- for TKO0743's TKO0907, a path segment used as the alias.
         as StrVec     importPaths
         as StrVec     importAliases
-        as FB.Array( of ulong ) importLocs
+        as containers.Array( of ulong ) importLocs
         '' AN IMPORT BELONGS TO THE FILE THAT WRITES IT (M22; RFC-0002 §2). In a module unit of
         '' several files, each alias symbol and each file of the unit that imported it, as
         '' pairs; and for each node id, the unit file it was written in, 1-based, or 0 for a
         '' header's node or one made later. A lookup from a node of a file that did not import
         '' the alias does not find it (AliasHidden). Empty everywhere else.
-        as FB.Array( of ulong ) aliasPairSym
-        as FB.Array( of ulong ) aliasPairFile
-        as FB.Array( of ulong ) nodeModFile
+        as containers.Array( of ulong ) aliasPairSym
+        as containers.Array( of ulong ) aliasPairFile
+        as containers.Array( of ulong ) nodeModFile
         '' ...and the node a TYPE NAME is resolved for, which AliasHidden reads when usePos
         '' says USEPOS_LATEST, as Collect's does: 0 for none.
         as ulong      aliasPos
         '' ...and every name of theirs a lookup through their namespaces found but did not
         '' return, because the interface does not call it 'public' (SymbolTable.PublicOnly).
-        as FB.Array( of ulong ) hiddenHits
+        as containers.Array( of ulong ) hiddenHits
         '' THE NAMES '#pragma reserve' TOOK, folded: no symbol carries one, and
         '' '__FB_QUERY_SYMBOL__' answers FB_SYMBCLASS_RESERVED for them (lowerqsym.bas).
-        as FB.Array( of ulong ) reservedNames
+        as containers.Array( of ulong ) reservedNames
         '' SET WHILE A LOOKUP IS QUALIFIED BY A MODULE'S OWN NAMESPACE rather than an alias:
         '' PublicOnly lets everything through.
         as boolean    privileged
@@ -339,13 +339,13 @@ namespace Tko
         '' (the scope the USING was written in, the namespace's own scope). A list
         '' rather than a field on SymScope because almost no scope has one, and a scope
         '' may import several.
-        as FB.Array( of ulong ) usingAt
-        as FB.Array( of ulong ) usingInner
+        as containers.Array( of ulong ) usingAt
+        as containers.Array( of ulong ) usingInner
         '' ...AND THE UNIT FILE A USING OF AN IMPORTED MODULE'S NAMESPACE IS WRITTEN IN,
         '' 1-based, or 0 for a using every file sees. An import belongs to the file that
         '' writes it (M22), so its 'using' does too: in a unit of several files, a sibling
         '' that did not write it must not see the module's names bare. See UsingHere.
-        as FB.Array( of ulong ) usingFile
+        as containers.Array( of ulong ) usingFile
 
         declare constructor( )
         declare sub Attach( byval it as Interner ptr )
@@ -459,7 +459,7 @@ namespace Tko
     '' through the same offset and alignment code as every other type.
     declare function TupleUdtFor _
         ( byref syms as SymbolTable, byref types as TypeContext, _
-          byref names as Interner, byref elemTypes as FB.Array( of ulong ), _
+          byref names as Interner, byref elemTypes as containers.Array( of ulong ), _
           byval at as SourceLoc ) as TypeId
 
     declare function SymbolKindName( byval k as SymbolKind ) as string

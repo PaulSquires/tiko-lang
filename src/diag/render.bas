@@ -1,5 +1,6 @@
 '' render.bas -- see render.bi
 
+#import "std/containers"
 #include once "diag/render.bi"
 #include once "diag/engine.bi"
 #include once "support/text.bi"

@@ -53,7 +53,7 @@ function LowerRadixCall_ _
         if cp->count <> 1 then return false
         dim as MirValue n0 = LowerNumArg_( c, a0, MT_I64 )
         if n0.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) sa
+        dim as containers.Array( of ulong ) sa
         sa.Push( cast( ulong, n0.kind ) ) : sa.Push( cast( ulong, n0.id ) )
         outv = EmitRtl( c, RTL_STR_SPACE, sa )
         return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -85,7 +85,7 @@ function LowerRadixCall_ _
         end if
         dim as MirValue n0 = LowerNumArg_( c, a0, MT_I64 )
         if n0.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) sa
+        dim as containers.Array( of ulong ) sa
         sa.Push( cast( ulong, n0.kind ) ) : sa.Push( cast( ulong, n0.id ) )
         sa.Push( cast( ulong, fv.kind ) ) : sa.Push( cast( ulong, fv.id ) )
         if isStr then
@@ -244,7 +244,7 @@ function LowerRadixCall_ _
     end if
     if v0.kind = cast( ubyte, MV_NONE ) then return false
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, v0.kind ) ) : args.Push( cast( ulong, v0.id ) )
     if a1 <> Tko.NODE_NONE then
         args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )

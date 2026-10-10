@@ -1,5 +1,6 @@
 '' lexer.bas -- see lexer.bi
 
+#import "std/containers"
 #include once "lexer/lexer.bi"
 #include once "support/text.bi"
 #include once "support/irtext.bi"

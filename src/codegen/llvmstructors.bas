@@ -137,8 +137,8 @@ end function
 
 '' A MODULE UNIT's init and fini, over the unnumbered structors StructorLists_ set aside.
 private function ModUnitIr_ _
-    ( byref e as EmitCtx, byref m as MirModule, byref ctors as FB.Array( of long ), _
-      byref dtors as FB.Array( of long ) ) as string
+    ( byref e as EmitCtx, byref m as MirModule, byref ctors as containers.Array( of long ), _
+      byref dtors as containers.Array( of long ) ) as string
     dim as string nl = chr( 10 )
     dim as string done_ = ModSym_( "__tko_modinit_done$", m.modChain )
     dim as string fini = ModSym_( "__tko_modfini$", m.modChain )
@@ -168,8 +168,8 @@ end function
 '' _GLOBAL__I, the top-level code, then the 'constructor' subs as declared; the
 '' 'destructor' subs reversed, then _GLOBAL__D.
 private sub ModUnitOrder_ _
-    ( byref e as EmitCtx, byref m as MirModule, byref dflt as FB.Array( of long ), _
-      byval isCtor as boolean, byref outv as FB.Array( of long ) )
+    ( byref e as EmitCtx, byref m as MirModule, byref dflt as containers.Array( of long ), _
+      byval isCtor as boolean, byref outv as containers.Array( of long ) )
     dim as string first_ = iif( isCtor, "_GLOBAL__I", "_GLOBAL__D" )
     if isCtor then
         for each fi as long in dflt
@@ -198,10 +198,10 @@ private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as s
     dim as string r, used
     dim as long nused = 0
     dim as boolean modUnit = (len( m.modChain ) > 0)
-    dim as FB.Array( of long ) modCtors, modDtors
+    dim as containers.Array( of long ) modCtors, modDtors
     for pass as long = 0 to 1
         dim as boolean isCtor = (pass = 0)
-        dim as FB.Array( of long ) dflt
+        dim as containers.Array( of long ) dflt
         for fi as long = 0 to m.functions.Count - 1
             dim as MirFunction ptr f = m.functions[fi]
             if f = 0 then continue for

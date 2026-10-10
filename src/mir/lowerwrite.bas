@@ -36,7 +36,7 @@ function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     '' A bare 'write' is a newline on its own.
     if sp->count = 0 then
-        dim as FB.Array( of ulong ) va
+        dim as containers.Array( of ulong ) va
         va.Push( cast( ulong, chan.kind ) ) : va.Push( cast( ulong, chan.id ) )
         PushConst( va, 1 )
         EmitRtl( c, RTL_WRITE_VOID, va )
@@ -51,7 +51,7 @@ function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( it ) = Tko.N_PRINT_SEP then
             if prevSep then
-                dim as FB.Array( of ulong ) ea
+                dim as containers.Array( of ulong ) ea
                 ea.Push( cast( ulong, chan.kind ) ) : ea.Push( cast( ulong, chan.id ) )
                 PushConst( ea, 2 )
                 EmitRtl( c, RTL_WRITE_VOID, ea )
@@ -83,7 +83,7 @@ private function WriteOne_ _
       byref chan as MirValue ) as boolean
 
     dim as Tko.TypeId t = c.info->TypeOf_( it )
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
 
     '' A WIDE ITEM, AND ITS RVALUE SPELLINGS. LowerAddr alone accepted only an
@@ -113,7 +113,7 @@ private function WriteOne_ _
     dim as boolean itIsU = IsUStringType( c, t )
     if itIsU = false then itIsU = UdtCastIsUStr_( c, it )   '' a UDT casting to a ustring (T50)
     if (itIsU = false) andalso (c.ast->Kind( it ) = Tko.N_BINARY) then
-        dim as FB.Array( of ulong ) uts
+        dim as containers.Array( of ulong ) uts
         FlattenConcat( c, it, uts )
         itIsU = ConcatTermsAreU_( c, uts )
     end if
@@ -143,7 +143,7 @@ private function WriteOne_ _
         dim as MirValue desc
         if c.ast->Kind( it ) = Tko.N_STRING_LIT then
             dim as string litText = StringLitText_( c, it )
-            dim as FB.Array( of ulong ) ta
+            dim as containers.Array( of ulong ) ta
             ta.Push( cast( ulong, MV_GLOBAL ) )
             ta.Push( cast( ulong, c.m->AddStringLiteral( litText, *c.names ) ) )
             ta.Push( cast( ulong, MV_CONST_INT ) )

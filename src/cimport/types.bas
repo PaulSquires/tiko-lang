@@ -4,6 +4,7 @@
 '' declaration and records 'why' in the ledger. Never a guess: a type that is NEARLY right
 '' moves a different number of bytes at each end of a call, and nothing reports it.
 
+#import "std/containers"
 #include once "cimport/import.bi"
 
 namespace Tko.CImport

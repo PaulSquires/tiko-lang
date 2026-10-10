@@ -51,7 +51,7 @@ namespace Tko
         as string     text           '' already formatted
     end type
 
-    type NoteVec as FB.Array( of DiagNote )
+    type NoteVec as containers.Array( of DiagNote )
 
     '' ONE INSTANTIATION, for the 'in instantiation of' chain (T16, TKO0903): what was
     '' instantiated, where it was asked for, and the frame that was active when it was --
@@ -62,7 +62,7 @@ namespace Tko
         as long        parent
     end type
 
-    type InstFrameVec as FB.Array( of InstFrame )
+    type InstFrameVec as containers.Array( of InstFrame )
 
     type Diagnostic
         as DiagId      id
@@ -77,7 +77,7 @@ namespace Tko
         as long        instFrame
     end type
 
-    type DiagVec as FB.Array( of Diagnostic )
+    type DiagVec as containers.Array( of Diagnostic )
 
     '' Lookup into the generated table. Valid for 1 .. DIAG_COUNT-1.
     declare function DiagInfoOf( byval id as DiagId ) as DiagInfo ptr

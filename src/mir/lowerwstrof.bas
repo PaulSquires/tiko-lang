@@ -2,6 +2,7 @@
 '' Split out of lowerstr.bas on 2026-09-10 for the 1500-line cap; nothing about the
 '' code changed in the move.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -10,7 +11,7 @@ namespace Tko.Mir
 '' what parks it in a temporary and registers that for the fb_WstrDelete at the end of
 '' the statement. Declared here because this is its own compilation unit.
 declare function WideConcatStep_ _
-    ( byref c as Ctx, byref args as FB.Array( of ulong ), byval r as RtlId, _
+    ( byref c as Ctx, byref args as containers.Array( of ulong ), byval r as RtlId, _
       byref acc as MirValue ) as boolean
 
 '' Defined in lowerstrkind.bas: which fixed-string flavour a type is, and its length.
@@ -33,7 +34,7 @@ function FixStrWideTemp_ _
     fd.ty = cast( ubyte, MT_PTR )
     fd.id = fslot
     ZeroStrDescriptor( c, fd )
-    dim as FB.Array( of ulong ) faa
+    dim as containers.Array( of ulong ) faa
     faa.Push( cast( ulong, fd.kind ) ) : faa.Push( cast( ulong, fd.id ) )
     faa.Push( cast( ulong, MV_CONST_INT ) )
     faa.Push( cast( ulong, cast( ulongint, -1 ) ) )
@@ -59,7 +60,7 @@ function FixStrWideTemp_ _
     if fpa.kind = cast( ubyte, MV_NONE ) then return false
     dim as MirValue fraw = LowerExprLoad( c, fpa, MT_PTR )
     if fraw.kind = cast( ubyte, MV_NONE ) then return false
-    dim as FB.Array( of ulong ) fargs
+    dim as containers.Array( of ulong ) fargs
     fargs.Push( cast( ulong, fraw.kind ) ) : fargs.Push( cast( ulong, fraw.id ) )
     return WideConcatStep_( c, fargs, RTL_STR_TO_WSTR, outv )
 end function
@@ -149,7 +150,7 @@ function LowerWstrOf _
         dim as MirValue uo
         dim as long uoslot = -1
         if UStrOutOperand_( c, a, uo, uoslot ) = false then return false
-        dim as FB.Array( of ulong ) ua
+        dim as containers.Array( of ulong ) ua
         ua.Push( cast( ulong, uo.kind ) ) : ua.Push( cast( ulong, uo.id ) )
         PushStrLen_( c, ua, -1 )
         dim as MirValue nv = EmitRtl( c, RTL_USTR_TO_STR, ua )
@@ -160,7 +161,7 @@ function LowerWstrOf _
         dim as MirValue und
         und.kind = cast( ubyte, MV_LOCAL ) : und.ty = cast( ubyte, MT_PTR ) : und.id = uslot
         ZeroStrDescriptor( c, und )
-        dim as FB.Array( of ulong ) sa
+        dim as containers.Array( of ulong ) sa
         sa.Push( cast( ulong, und.kind ) ) : sa.Push( cast( ulong, und.id ) )
         PushStrLen_( c, sa, -1 )
         sa.Push( cast( ulong, nv.kind ) ) : sa.Push( cast( ulong, nv.id ) )
@@ -175,7 +176,7 @@ function LowerWstrOf _
         if upa.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirValue uraw = LowerExprLoad( c, upa, MT_PTR )
         if uraw.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) wargs
+        dim as containers.Array( of ulong ) wargs
         wargs.Push( cast( ulong, uraw.kind ) ) : wargs.Push( cast( ulong, uraw.id ) )
         return WideConcatStep_( c, wargs, RTL_STR_TO_WSTR, outv )
     end if
@@ -238,7 +239,7 @@ function LowerWstrOf _
         if pa.kind = cast( ubyte, MV_NONE ) then return false
         dim as MirValue raw = LowerExprLoad( c, pa, MT_PTR )
         if raw.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) sargs
+        dim as containers.Array( of ulong ) sargs
         sargs.Push( cast( ulong, raw.kind ) ) : sargs.Push( cast( ulong, raw.id ) )
         '' AND THE RESULT IS OWNED. fbc writes 'vr = fb_StrToWstr( ... )' and a
         '' matching fb_WstrDelete at the end of the statement -- measured over all
@@ -249,7 +250,7 @@ function LowerWstrOf _
         '' A ZSTRING * N IS already a char array: its address is the char*.
         dim as MirValue za = LowerAddr( c, a )
         if za.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) zargs
+        dim as containers.Array( of ulong ) zargs
         zargs.Push( cast( ulong, za.kind ) ) : zargs.Push( cast( ulong, za.id ) )
         return WideConcatStep_( c, zargs, RTL_STR_TO_WSTR, outv )
     elseif sk = 3 then
@@ -323,7 +324,7 @@ function LowerWstrOf _
     dim as MirValue av = LowerExpr( c, a )
     if av.kind = cast( ubyte, MV_NONE ) then return false
     av = CoerceTy( c, av, want, at)
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
     '' THROUGH WideConcatStep_, WHICH REGISTERS THE RESULT FOR ITS fb_WstrDelete, as the
     '' string rows above already did. EmitRtl alone dropped the pointer: 'print "a" &

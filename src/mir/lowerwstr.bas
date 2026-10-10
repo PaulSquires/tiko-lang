@@ -9,12 +9,13 @@
 '' The whole ABI was measured out of fbc's own C; tools/gen/check-rtl.sh holds every
 '' signature.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
 
 declare function WideConcatStep_ _
-    ( byref c as Ctx, byref args as FB.Array( of ulong ), byval r as RtlId, _
+    ( byref c as Ctx, byref args as containers.Array( of ulong ), byval r as RtlId, _
       byref acc as MirValue ) as boolean
 
 '' Defined in lowerstr.bas; the narrow classifier the wide code needs for a mixed
@@ -114,7 +115,7 @@ function LowerWideAssignTo_ _
     ( byref c as Ctx, byref dst as MirValue, byval n as long, _
       byval value as Tko.NodeId ) as boolean
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, n ) )
 
@@ -140,7 +141,7 @@ function LowerWideAssignTo_ _
     if wnl andalso (c.ast->Kind( value ) = Tko.N_BINARY) then wnl = ConstStringTextOf_( c, value, wnr, 1 ) else wnl = false
     if wnl then wnl = (instr( wnr, chr( 0 ) ) > 0)
     if wnl then
-        wnr = left( wnr, instr( wnr, chr( 0 ) ) - 1 ) : dim as FB.Array( of ulong ) wnu
+        wnr = left( wnr, instr( wnr, chr( 0 ) ) - 1 ) : dim as containers.Array( of ulong ) wnu
         for k as long = 0 to len( wnr ) - 1 : wnu.Push( cast( ulong, wnr[k] ) ) : next
         args.Push( cast( ulong, MV_GLOBAL ) ) : args.Push( cast( ulong, c.m->AddWideStringUnits( wnr, wnu, *c.names ) ) ) : EmitRtl( c, RTL_WSTR_ASSIGN, args ) : return true
     end if
@@ -330,14 +331,14 @@ function LowerWideConcatAssignTo _
             narrowSrc = (c.ast->Kind( Unparen_( c, value ) ) = Tko.N_STRING_LIT)
         end if
         if narrowSrc then
-            dim as FB.Array( of ulong ) wargs
+            dim as containers.Array( of ulong ) wargs
             wargs.Push( cast( ulong, dst.kind ) ) : wargs.Push( cast( ulong, dst.id ) )
             if EmitStrTerm( c, wargs, value ) = false then return false
             dim as MirValue acc
             if WideConcatStep_( c, wargs, RTL_WSTR_CONCAT_WA, acc ) = false then
                 return false
             end if
-            dim as FB.Array( of ulong ) aargs
+            dim as containers.Array( of ulong ) aargs
             aargs.Push( cast( ulong, dst.kind ) ) : aargs.Push( cast( ulong, dst.id ) )
             aargs.Push( cast( ulong, MV_CONST_INT ) ) : aargs.Push( cast( ulong, n ) )
             aargs.Push( cast( ulong, acc.kind ) ) : aargs.Push( cast( ulong, acc.id ) )
@@ -347,7 +348,7 @@ function LowerWideConcatAssignTo _
 
         dim as MirValue nv
         if NumberToWideTemp_( c, value, nv ) = false then return false
-        dim as FB.Array( of ulong ) nargs
+        dim as containers.Array( of ulong ) nargs
         nargs.Push( cast( ulong, dst.kind ) ) : nargs.Push( cast( ulong, dst.id ) )
         nargs.Push( cast( ulong, MV_CONST_INT ) ) : nargs.Push( cast( ulong, n ) )
         nargs.Push( cast( ulong, nv.kind ) ) : nargs.Push( cast( ulong, nv.id ) )
@@ -362,7 +363,7 @@ function LowerWideConcatAssignTo _
     dim as MirValue src
     if WideOperand_( c, value, src ) = false then return false
     if src.kind = cast( ubyte, MV_NONE ) then return false
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, n ) )
     args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
@@ -470,7 +471,7 @@ private sub EmitWideToNarrow_ _
     ( byref c as Ctx, byref dst as MirValue, byval dn as longint, byref src as MirValue, _
       byval isInit as boolean, byval pad as longint )
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
     '' PushStrLen_, NOT an inline MV_CONST_INT: that payload is 32 BITS and a
     '' 'string * N' length is '&h8000000000000000 or N', which truncates to plain N
@@ -681,7 +682,7 @@ function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
         if (IsUdtValue_( c, cbp->lhs ) andalso rNum) orelse (IsUdtValue_( c, cbp->rhs ) andalso lNum) then arith = true
         if arith then return false
     end if
-    dim as FB.Array( of ulong ) vt
+    dim as containers.Array( of ulong ) vt
     FlattenConcat( c, e, vt )
     for k as long = 0 to vt.Count - 1
         if TermIsWide_( c, cast( Tko.NodeId, vt[k] ) ) orelse Utf8WideLit_( c, cast( Tko.NodeId, vt[k] ) ) then return true   '' a UTF-8 literal too
@@ -725,7 +726,7 @@ function IsWideChain_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     if IsUStringType( c, c.info->TypeOf_( e ) ) then return false
     if c.ast->Kind( e ) = Tko.N_CALL then return IntrinOverWideConcat_( c, e )
     if c.ast->Kind( e ) <> Tko.N_BINARY then return false
-    dim as FB.Array( of ulong ) at
+    dim as containers.Array( of ulong ) at
     FlattenConcat( c, e, at )
     if (at.Count > 1) andalso ConcatTermsAreU_( c, at ) then return false
     return ConcatHasWideTerm_( c, e )
@@ -735,7 +736,7 @@ end function
 '' slot for deletion. Every result is an allocation the CALLER owns -- fbc emits an
 '' fb_WstrDelete for each -- so the slot goes on the statement-temporary list.
 function WideConcatStep_ _
-    ( byref c as Ctx, byref args as FB.Array( of ulong ), byval r as RtlId, _
+    ( byref c as Ctx, byref args as containers.Array( of ulong ), byval r as RtlId, _
       byref acc as MirValue ) as boolean
 
     dim as MirValue got = EmitRtl( c, r, args )
@@ -777,7 +778,7 @@ function WideToNarrowTemp_ _
     tmp.id = slot
     ZeroStrDescriptor( c, tmp )
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, cast( ulongint, -1 ) ) )
     args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
@@ -843,7 +844,7 @@ function NumberToWideTemp_ _
     dim as MirValue av = LowerExpr( c, e )
     if av.kind = cast( ubyte, MV_NONE ) then return false
     av = CoerceTy( c, av, want, at)
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
     return WideConcatStep_( c, args, r, outv )
 end function
@@ -856,7 +857,7 @@ function NarrowToWideTemp_ _
     if StrSwapKind_( c, c.info->TypeOf_( e ), fzn ) = 3 then return FixStrWideTemp_( c, e, fzn, outv )   '' 'string * N'
     dim as MirValue dp
     if ZstrDataOf_( c, e, dp ) = false then return false
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, dp.kind ) ) : args.Push( cast( ulong, dp.id ) )
     return WideConcatStep_( c, args, RTL_STR_TO_WSTR, outv )
 end function
@@ -866,7 +867,7 @@ function WideConcatToTemp_ _
 
     if e = Tko.NODE_NONE then return false
     if c.ast->Kind( e ) <> Tko.N_BINARY then return false
-    dim as FB.Array( of ulong ) terms
+    dim as containers.Array( of ulong ) terms
     FlattenConcat( c, e, terms )
     if terms.Count < 2 then return false
 
@@ -899,11 +900,11 @@ function WideConcatToTemp_ _
     if wi > 0 then
         '' The narrow prefix, as one (pointer, length) pair: a single term goes
         '' straight in, several fold into a temporary descriptor first.
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         if wi = 1 then
             if EmitStrTerm( c, args, cast( Tko.NodeId, terms[0] ) ) = false then return false
         else
-            dim as FB.Array( of ulong ) pre
+            dim as containers.Array( of ulong ) pre
             for k as long = 0 to wi - 1
                 pre.Push( terms[k] )
             next
@@ -921,7 +922,7 @@ function WideConcatToTemp_ _
     end if
 
     for k as long = start_ to terms.Count - 1
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         args.Push( cast( ulong, acc.kind ) ) : args.Push( cast( ulong, acc.id ) )
         dim as RtlId which = RTL_WSTR_CONCAT
         if TermIsWide_( c, cast( Tko.NodeId, terms[k] ) ) orelse Utf8WideLit_( c, cast( Tko.NodeId, terms[k] ) ) then
@@ -957,7 +958,7 @@ end function
 '' own wide literal for '!"A\n"' is L"A\\x000A".
 declare function WideLitUnits_ _
     ( byref c as Ctx, byval id as Tko.NodeId, _
-      byref outText as string, byref outUnits as FB.Array( of ulong ), byval keepNul as boolean = false ) as boolean
+      byref outText as string, byref outUnits as containers.Array( of ulong ), byval keepNul as boolean = false ) as boolean
 
 '' A SOURCE LITERAL AS A WIDE GLOBAL, with its escapes decoded, and the CHARACTER
 '' COUNT that goes with it. Every site that turns an N_STRING_LIT into a wide
@@ -970,7 +971,7 @@ function WideLitGlobal_ _
 
     outChars = 0
     dim as string wtext
-    dim as FB.Array( of ulong ) wunits
+    dim as containers.Array( of ulong ) wunits
     if WideLitUnits_( c, id, wtext, wunits ) = false then return -1
     outChars = cast( long, wunits.Count )
     return c.m->AddWideStringUnits( wtext, wunits, *c.names )
@@ -980,7 +981,7 @@ end function
 '' emitting a global: 'len( !"bcd\u0065" )' is 4 to fbc. -1 when it is not one.
 function WideLitChars_( byref c as Ctx, byval id as Tko.NodeId ) as long
     dim as string wtext
-    dim as FB.Array( of ulong ) wunits
+    dim as containers.Array( of ulong ) wunits
     if WideLitUnits_( c, id, wtext, wunits ) = false then return -1
     return cast( long, wunits.Count )
 end function
@@ -988,7 +989,7 @@ end function
 '' ONE CODE UNIT of such a literal, 1-based as 'asc' counts, or 0 outside it.
 function WideLitUnitAt_( byref c as Ctx, byval id as Tko.NodeId, byval k as longint ) as long
     dim as string wtext
-    dim as FB.Array( of ulong ) wunits
+    dim as containers.Array( of ulong ) wunits
     if WideLitUnits_( c, id, wtext, wunits, true ) = false then return 0
     if (k < 1) orelse (k > wunits.Count) then return 0
     return cast( long, wunits[k - 1] )
@@ -996,7 +997,7 @@ end function
 
 private function WideLitUnits_ _
     ( byref c as Ctx, byval id as Tko.NodeId, _
-      byref outText as string, byref outUnits as FB.Array( of ulong ), byval keepNul as boolean = false ) as boolean
+      byref outText as string, byref outUnits as containers.Array( of ulong ), byval keepNul as boolean = false ) as boolean
 
     '' A NAMED CONSTANT IS ITS INITIALISER. 'const TV = wchr( 256, 257 )' then
     '' 'dim as wstring * 32 s = TV' -- only an N_STRING_LIT was read here, so the
@@ -1136,7 +1137,7 @@ end function
 '' the operand has no constant text. PUT of a wide rvalue passes it, plus one (lowergetput).
 function WideConstUnitCount_( byref c as Ctx, byval id as Tko.NodeId ) as long
     dim as string wt
-    dim as FB.Array( of ulong ) wu
+    dim as containers.Array( of ulong ) wu
     if WideLitUnits_( c, Unparen_( c, id ), wt, wu ) then return wu.Count
     '' 'wstr( "cd" )' folds to its operand's text (ConstStringTextOf_), one unit per character.
     dim as string nt
@@ -1172,7 +1173,7 @@ function WideOperand_ _
     '' runtime -- so it takes the wide literal pool the DATA statement already uses.
     if c.ast->Kind( id ) = Tko.N_STRING_LIT then
         dim as string wtext
-        dim as FB.Array( of ulong ) wunits
+        dim as containers.Array( of ulong ) wunits
         if WideLitUnits_( c, id, wtext, wunits ) = false then return false
         outv.kind = cast( ubyte, MV_GLOBAL )
         outv.ty = cast( ubyte, MT_PTR )
@@ -1191,7 +1192,7 @@ function WideOperand_ _
             '' declined there, taking the assignment with it. WideLitUnits_ reads
             '' the constant's initialiser and hands back real code units.
             dim as string wut
-            dim as FB.Array( of ulong ) wuu
+            dim as containers.Array( of ulong ) wuu
             if WideLitUnits_( c, id, wut, wuu ) then
                 outv.kind = cast( ubyte, MV_GLOBAL )
                 outv.ty = cast( ubyte, MT_PTR )
@@ -1312,13 +1313,13 @@ function LowerWideRvalueB_ _
         '' global.
         '' THE FOLD IS WideLitUnits_'s, surrogate pairs above the BMP included (string/wchr-surrogate.bas).
         dim as string wtx
-        dim as FB.Array( of ulong ) wus
+        dim as containers.Array( of ulong ) wus
         if WideLitUnits_( c, value, wtx, wus ) then
             outv.kind = cast( ubyte, MV_GLOBAL ) : outv.ty = cast( ubyte, MT_PTR )
             outv.id = c.m->AddWideStringUnits( wtx, wus, *c.names )
             return true
         end if
-        dim as FB.Array( of ulong ) wca
+        dim as containers.Array( of ulong ) wca
         wca.Push( cast( ulong, MV_CONST_INT ) ) : wca.Push( cast( ulong, cp->count ) )
         for i as long = 0 to cp->count - 1
             dim as Tko.NodeId ai = cast( Tko.NodeId, c.ast->children[cp->first + i] )
@@ -1343,7 +1344,7 @@ function LowerWideRvalueB_ _
         dim as Tko.NodeId sn = cast( Tko.NodeId, c.ast->children[cp->first] )
         dim as MirValue nv = LowerNumArg_( c, sn, MT_I64 )   '' a UDT through its numeric cast
         if nv.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) sa
+        dim as containers.Array( of ulong ) sa
         sa.Push( cast( ulong, nv.kind ) ) : sa.Push( cast( ulong, nv.id ) )
         return WideConcatStep_( c, sa, RTL_WSTR_SPACE, outv )
     end if
@@ -1429,7 +1430,7 @@ function LowerWideRvalueB_ _
     end select
     if isAny andalso (secondIsWide = false) then return false
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, s0.kind ) ) : args.Push( cast( ulong, s0.id ) )
 
     if a1 <> Tko.NODE_NONE then

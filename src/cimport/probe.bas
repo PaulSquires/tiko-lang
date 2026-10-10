@@ -10,6 +10,7 @@
 '' run by a tiko built by fbc-modern and by a tiko built by tiko must print the same bytes
 '' -- that comparison is what catches tiko miscompiling its own importer.
 
+#import "std/containers"
 #include once "cimport/probe.bi"
 #include once "cimport/clang.bi"
 

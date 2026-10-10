@@ -31,7 +31,7 @@ private sub OwnerIndexBuild_( byref c as Ctx )
     if c.owners.builtAt = n then return
     '' FOLDED FIRST, then sized: folding can intern a new spelling, so the bound is only known
     '' after every name has been folded.
-    dim as FB.Array( of long ) fid
+    dim as containers.Array( of long ) fid
     fid.Reserve( n )
     for i as long = 0 to n - 1
         dim as Symbol ptr s = @c.syms->symbols[i]

@@ -4,6 +4,7 @@
 '' when overload resolution needed the answer too: check.bas is its own compilation unit
 '' and could not reach a private helper in another one.
 
+#import "std/containers"
 #include once "symbols/redimrank.bi"
 #include once "lexer/token.bi"
 

@@ -350,7 +350,7 @@ private sub CheckByrefResultCalls_ ( byref c as Ctx, byval total as long )
     '' called: 'print f( )', 'f( )' and 'f( ) = 1' are fbc's 71, '@f( )' is not -- measured
     '' with the typedef rule in CompletedBelow4_. Only a declaration's byref result may name
     '' an incomplete type at all.
-    dim as FB.Array( of ubyte ) addrOf
+    dim as containers.Array( of ubyte ) addrOf
     for i as long = 0 to total
         addrOf.Push( 0 )
     next

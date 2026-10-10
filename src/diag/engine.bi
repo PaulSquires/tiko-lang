@@ -26,7 +26,7 @@ namespace Tko
 
     const DIAG_DEFAULT_MAX_ERRORS as long = 20
 
-    type SeverityVec as FB.Array( of long )
+    type SeverityVec as containers.Array( of long )
 
     type DiagnosticEngine
         as SourceManager ptr sources
@@ -64,7 +64,7 @@ namespace Tko
         '' notes pointing at each line that asked. Stored here because every pass that can
         '' report from inside an instantiation -- resolve, check, visibility -- shares this.
         as InstFrameVec instFrames
-        as FB.Array( of long ) instActive
+        as containers.Array( of long ) instActive
 
         declare constructor( )
         declare sub Attach( byval src as SourceManager ptr )

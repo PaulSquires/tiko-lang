@@ -9,6 +9,7 @@
 '' a caller with no scope to look a name up in gets 'not constant', which is the honest
 '' answer for it.
 
+#import "std/containers"
 #include once "symbols/check.bi"
 #include once "types/udtlayout.bi"
 #include once "support/text.bi"

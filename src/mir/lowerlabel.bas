@@ -4,6 +4,7 @@
 '' Split out of lowerctl.bas when that file passed the 1500-line lint cap. ON ERROR and
 '' ON ... GOTO stay there and reach the label slots through LabelSlot and LabelBlockOf.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir

@@ -24,7 +24,7 @@
 '' is none; 'ok' false when there is one and its address cannot be taken.
 private function FileGetIob_ _
     ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byval isPut as boolean, _
-      byref args as FB.Array( of ulong ), byref ok as boolean ) as boolean
+      byref args as containers.Array( of ulong ), byref ok as boolean ) as boolean
     ok = true
     if isPut orelse (sp->count < 4) then return false
     dim as Tko.NodeId nrN = cast( Tko.NodeId, c.ast->children[sp->first + 3] )
@@ -109,7 +109,7 @@ function LowerFileGetPut _
     '' 'fb_FilePutStrLarge( 1, 1ll, (void*)"abcdefgh", 9ll )'. It has no address to take.
     if isPut andalso (c.ast->Kind( varN ) = Tko.N_STRING_LIT) then
         dim as string ltxt = StringLitText_( c, varN )
-        dim as FB.Array( of ulong ) largs
+        dim as containers.Array( of ulong ) largs
         largs.Push( cast( ulong, chan.kind ) ) : largs.Push( cast( ulong, chan.id ) )
         largs.Push( cast( ulong, pv.kind ) ) : largs.Push( cast( ulong, pv.id ) )
         largs.Push( cast( ulong, MV_GLOBAL ) )
@@ -136,7 +136,7 @@ function LowerFileGetPut _
         scope
             if WideOperand_( c, varN, wra ) = false then return false
             dim as longint wrn = WideConstUnitCount_( c, varN ) + 1   '' -1 + 1: no constant text, 0
-            dim as FB.Array( of ulong ) wrargs
+            dim as containers.Array( of ulong ) wrargs
             wrargs.Push( cast( ulong, chan.kind ) ) : wrargs.Push( cast( ulong, chan.id ) )
             wrargs.Push( cast( ulong, pv.kind ) ) : wrargs.Push( cast( ulong, pv.id ) )
             wrargs.Push( cast( ulong, wra.kind ) ) : wrargs.Push( cast( ulong, wra.id ) )
@@ -156,7 +156,7 @@ function LowerFileGetPut _
         '' concatenation's temporary to fb_FilePutStrLarge with -1. It has no address.
         if (sa.kind = cast( ubyte, MV_NONE )) andalso isPut then StrDescriptorOf_( c, varN, sa )
         if sa.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) sargs
+        dim as containers.Array( of ulong ) sargs
         sargs.Push( cast( ulong, chan.kind ) ) : sargs.Push( cast( ulong, chan.id ) )
         sargs.Push( cast( ulong, pv.kind ) ) : sargs.Push( cast( ulong, pv.id ) )
         sargs.Push( cast( ulong, sa.kind ) ) : sargs.Push( cast( ulong, sa.id ) )
@@ -195,7 +195,7 @@ function LowerFileGetPut _
         if nel < 0 then nel = 0
         dim as MirValue wa = LowerAddr( c, varN )
         if wa.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) wargs
+        dim as containers.Array( of ulong ) wargs
         wargs.Push( cast( ulong, chan.kind ) ) : wargs.Push( cast( ulong, chan.id ) )
         wargs.Push( cast( ulong, pv.kind ) ) : wargs.Push( cast( ulong, pv.id ) )
         wargs.Push( cast( ulong, wa.kind ) ) : wargs.Push( cast( ulong, wa.id ) )
@@ -223,7 +223,7 @@ function LowerFileGetPut _
         if (fsk = 1) orelse (fsk = 3) then
             dim as MirValue fa = LowerAddr( c, varN )
             if fa.kind = cast( ubyte, MV_NONE ) then return false
-            dim as FB.Array( of ulong ) fargs
+            dim as containers.Array( of ulong ) fargs
             fargs.Push( cast( ulong, chan.kind ) ) : fargs.Push( cast( ulong, chan.id ) )
             fargs.Push( cast( ulong, pv.kind ) ) : fargs.Push( cast( ulong, pv.id ) )
             fargs.Push( cast( ulong, fa.kind ) ) : fargs.Push( cast( ulong, fa.id ) )
@@ -272,7 +272,7 @@ function LowerFileGetPut _
             '' A DYNAMIC ARRAY TOO: its slot IS the descriptor fbc passes, '&DYN$0'. It was
             '' refused when tiko built none, and 'get #f, 1, dyn()' left the array zero.
             scope
-                dim as FB.Array( of ulong ) aargs
+                dim as containers.Array( of ulong ) aargs
                 aargs.Push( cast( ulong, chan.kind ) ) : aargs.Push( cast( ulong, chan.id ) )
                 aargs.Push( cast( ulong, pv.kind ) ) : aargs.Push( cast( ulong, pv.id ) )
                 aargs.Push( cast( ulong, adesc.kind ) ) : aargs.Push( cast( ulong, adesc.id ) )
@@ -292,7 +292,7 @@ function LowerFileGetPut _
     dim as MirValue va = LowerAddr( c, varN )
     if va.kind = cast( ubyte, MV_NONE ) then return false
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
     args.Push( cast( ulong, pv.kind ) ) : args.Push( cast( ulong, pv.id ) )
     args.Push( cast( ulong, va.kind ) ) : args.Push( cast( ulong, va.id ) )

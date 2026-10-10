@@ -27,7 +27,7 @@ function LowerStrCompare _
         return none_
     end select
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     dim as MirValue cmp
 
     '' A WIDE COMPARISON is a DIFFERENT function with a different shape: two bare

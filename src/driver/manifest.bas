@@ -12,16 +12,17 @@
 ''     [defines]                  NAME = "value": the package's modules see NAME
 ''     [dependencies.x.defines]   the root's say over dependency x's defines
 
+#import "std/containers"
+#import "std/fs"
 #include once "driver/manifest.bi"
 #include once "driver/modresolve.bi"
 #include once "support/diskcache.bi"
 #include once "support/text.bi"
-#include once "fb/filesystem.bi"
 
 namespace Tko.Modules
 
 function HasManifest( byref dir_ as string ) as boolean
-    return FB.IsFile( JoinPath( dir_, "tiko.toml" ) )
+    return fs.IsFile( JoinPath( dir_, "tiko.toml" ) )
 end function
 
 type TomlCursor_

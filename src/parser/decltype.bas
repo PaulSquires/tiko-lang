@@ -306,11 +306,11 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
     '' 'namespace a.b.c' opens THREE nested namespaces, not one called 'c'. fbcunit's
     '' SUITE macro expands to exactly this, and keeping only the last component made
     '' every generated procedure mangle three qualifiers short of fbc's.
-    dim as FB.Array( of ulong ) parts
+    dim as containers.Array( of ulong ) parts
     '' THE SOURCE SPELLING OF EACH COMPONENT. A namespace inside 'extern "C++"'
     '' mangles by what was WRITTEN -- measured, fbc emits _ZN2nn2g4Ev where the
     '' same namespace outside gives _ZN2NN2G4Ev. Unread anywhere else.
-    dim as FB.Array( of ulong ) rawParts
+    dim as containers.Array( of ulong ) rawParts
     dim as Tko.StmtPayload sp
     dim as Tko.InternId nsRaw = RawSpelling( p )
     DeclName( p, sp.name )

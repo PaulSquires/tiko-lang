@@ -1,5 +1,6 @@
 '' llvmemit.bas -- see the header.
 
+#import "std/containers"
 #include once "codegen/llvmemit.bi"
 #include once "codegen/llvmtype.bi"
 #include once "codegen/llvmdebug.bi"
@@ -25,26 +26,26 @@ type EmitCtx
     '' in LLVM is an operand, not an instruction -- so the instruction emits nothing
     '' and its uses substitute the literal. That produces the IR a C frontend would
     '' write instead of a pile of 'add i64 0, 5'.
-    as FB.Array( of string ) constText
-    as FB.Array( of ubyte )  isConst
+    as containers.Array( of string ) constText
+    as containers.Array( of ubyte )  isConst
     '' A temp produced by M_ALLOCA names a SLOT. The slot has its own stable name, so
     '' both spellings of the same address print the same way and the IR does not carry
     '' two names for one alloca.
-    as FB.Array( of long )   allocaSlot
+    as containers.Array( of long )   allocaSlot
     '' THE TYPE EACH TEMP WAS PRODUCED WITH. Needed only for a VARIADIC TAIL, where
     '' there is no declared parameter to take the type from and the argument pool
     '' carries a (kind, id) pair and no type at all. Defaulting the tail to i64 is
     '' right for a character code and for a REDIM bound, and wrong for fb_ThreadCall,
     '' whose tail is the user's own arguments and may hold a double -- 'i64 %t7' over
     '' a double is not a coercion, it is IR clang rejects.
-    as FB.Array( of ubyte )  tempTy
+    as containers.Array( of ubyte )  tempTy
     '' AND ITS SIZE, when that type is an aggregate. A temp has no slot to be sized
     '' by, so the only place the width is known is the instruction that DEFINED it --
     '' the load's address, the callee's declared return. Without this every aggregate
     '' that lived in a temp reached ValType with nothing to measure and became
     '' "an aggregate value with no size", which is the largest single class the
     '' codegen scan reports.
-    as FB.Array( of long )   tempAggSize
+    as containers.Array( of long )   tempAggSize
     '' WHERE THE EMITTER IS, so an ICE names it. "an aggregate value with no size" is
     '' true and useless on its own: the corpus file it came from has three thousand
     '' instructions and the message pointed at none of them.
@@ -400,7 +401,7 @@ private function CallArgs _
     ( byref e as EmitCtx, byref ins as MirInst, byval callee as MirFunction ptr ) as string
 
     dim as string r
-    dim as FB.Array( of long ) ord  '' pascal writes them in reverse -- abi.bas
+    dim as containers.Array( of long ) ord  '' pascal writes them in reverse -- abi.bas
     PascalParamOrder( callee, ins.count, ord )
     for q as long = 0 to ins.count - 1
         dim as long i = ord[q]
@@ -1054,7 +1055,7 @@ private function ParamList _
     ( byref e as EmitCtx, byval f as MirFunction ptr, byval named as boolean ) as string
 
     dim as string r
-    dim as FB.Array( of long ) ord  '' pascal writes them in reverse -- abi.bas
+    dim as containers.Array( of long ) ord  '' pascal writes them in reverse -- abi.bas
     PascalParamOrder( f, f->paramTys.Count, ord )
     for q as long = 0 to f->paramTys.Count - 1
         dim as long i = ord[q]
@@ -1364,7 +1365,7 @@ function EmitLlvm _
     '' AN UNREFERENCED PRIVATE PROCEDURE IS NOT EMITTED, because fbc does not emit one:
     '' emitting it made a link fail that fbc links, and only -O0 showed it (LLVM deletes
     '' the internal function at -O1). codegen/llvmrefs.bas has the measurement.
-    dim as FB.Array( of ubyte ) refd = ReferencedFunctions( m )
+    dim as containers.Array( of ubyte ) refd = ReferencedFunctions( m )
 
     '' DEFINITIONS FIRST, then declarations, which is only a readability choice -- LLVM
     '' does not care -- but it keeps a golden diff of the code away from the churn of

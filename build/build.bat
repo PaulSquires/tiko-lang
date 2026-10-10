@@ -70,6 +70,9 @@ set "INCOPT="
 if exist "%ROOT%\inc\" (
     if "%SEEDED%"=="1" ( set "TKO_INCLUDE=%ROOT%\inc" ) else ( set "INCOPT=-i inc" )
 )
+rem ...and its own packages, pkg\: the compiler imports std/containers and std/fs, the
+rem tree's and not the seed's copy -- see build.sh.
+set "TKO_PKG=%ROOT%\pkg"
 
 if /i "%CFG%"=="Debug"          set "FLAGS=-g -exx -w all"
 if /i "%CFG%"=="RelWithDebInfo" set "FLAGS=-g -w all"

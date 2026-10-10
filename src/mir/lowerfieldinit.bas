@@ -16,6 +16,7 @@
 '' all -- 'dim as bar x = ( 111, { ( 222, {1,2,3} ) } )' declines at lower.bas as a
 '' LOCAL too -- and is recorded here only so the decline is not read as one.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -122,16 +123,16 @@ end function
 '' '= "456"' hands over the one node. Everything after the argument list is the same.
 private function CtorArgsOnAddr_ _
     ( byref c as Ctx, byref addr as MirValue, byval ctors as Tko.SymbolId, _
-      byref args as FB.Array( of ulong ) ) as boolean
+      byref args as containers.Array( of ulong ) ) as boolean
 
     '' Argument VALUES first, then the pick: the types are needed to choose, and the
     '' values must be evaluated in source order whichever overload wins. Same order
     '' LowerBaseCtorCall_ uses, and for the same reason.
-    dim as FB.Array( of ulong ) argT
-    dim as FB.Array( of ulong ) argKind
-    dim as FB.Array( of ulong ) argId
-    dim as FB.Array( of ulong ) strTemps
-    dim as FB.Array( of ulong ) strTempTypes
+    dim as containers.Array( of ulong ) argT
+    dim as containers.Array( of ulong ) argKind
+    dim as containers.Array( of ulong ) argId
+    dim as containers.Array( of ulong ) strTemps
+    dim as containers.Array( of ulong ) strTempTypes
     for i as long = 0 to args.Count - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, args[i] )
         '' A STRING ARGUMENT IS A DESCRIPTOR, not the literal's bytes. 'A( "456" )' over
@@ -183,7 +184,7 @@ private function CtorArgsOnAddr_ _
     '' conversions, and the overload was picked knowing one would be needed.
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     dim as long ai = 0
-    dim as FB.Array( of ulong ) cargs
+    dim as containers.Array( of ulong ) cargs
     for i as long = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
@@ -217,7 +218,7 @@ private function CtorArgsOnAddr_ _
     '' The temporaries die with the call, in reverse -- DeleteStrArgTemps_'s order. That
     '' sub is the call path's own and private to it, so the release is spelled here.
     for k as long = strTemps.Count - 1 to 0 step -1
-        dim as FB.Array( of ulong ) dargs
+        dim as containers.Array( of ulong ) dargs
         dargs.Push( cast( ulong, MV_LOCAL ) ) : dargs.Push( strTemps[k] )
         EmitRtl( c, StrRtlFor_( c, cast( Tko.TypeId, strTempTypes[k] ), RTL_STR_DELETE ), dargs )
     next
@@ -237,7 +238,7 @@ function CtorCallOnAddr_ _
 
     dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     for i as long = 0 to cp->count - 1
         args.Push( cast( ulong, c.ast->children[cp->first + i] ) )
     next
@@ -277,7 +278,7 @@ function FieldConvCtorPick_ _
 
     dim as Tko.SymbolId ctors = StructorOf( c, ut, "__ctor" )
     if ctors = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
-    dim as FB.Array( of ulong ) argT
+    dim as containers.Array( of ulong ) argT
     argT.Push( cast( ulong, at ) )
     return PickCtor( c, ctors, argT )
 end function
@@ -287,7 +288,7 @@ private function ConvCtorOnAddr_ _
       byval init as Tko.NodeId ) as boolean
 
     if FieldConvCtorPick_( c, ft, init ) = Tko.SYMBOL_NONE then return false
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, init ) )
     return CtorArgsOnAddr_( c, addr, StructorOf( c, c.types->Unqualify( ft ), "__ctor" ), args )
 end function
@@ -336,7 +337,7 @@ sub EmitFieldInit_ _
                 if LowerStrConvertTerm( c, addr, true, init, false ) = false then SkipHere( c )
                 return
             end if
-            dim as FB.Array( of ulong ) uargs
+            dim as containers.Array( of ulong ) uargs
             PushStrArg( uargs, addr )
             if EmitStrTerm( c, uargs, init, true ) = false then
                 SkipHere( c )
@@ -356,7 +357,7 @@ sub EmitFieldInit_ _
             if LowerWideToNarrowSlot( c, -1, ft, init, true, @addr ) then return
         end if
         if sk = 0 then
-            dim as FB.Array( of ulong ) sargs
+            dim as containers.Array( of ulong ) sargs
             PushStrArg( sargs, addr )
             if EmitStrTerm( c, sargs, init ) = false then
                 SkipHere( c )

@@ -1,5 +1,6 @@
 '' target.bas -- one record per target, and nothing computed from another.
 
+#import "std/containers"
 #include once "codegen/target.bi"
 
 namespace Tko.Codegen

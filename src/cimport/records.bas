@@ -22,6 +22,7 @@
 '' move every member after it, and a record that is nearly right is the one bug the layout
 '' check cannot see: it would compare tiko's layout of the wrong record with itself.
 
+#import "std/containers"
 #include once "cimport/import.bi"
 
 namespace Tko.CImport

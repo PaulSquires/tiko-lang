@@ -1,5 +1,6 @@
 '' llvmtype.bas -- see the header for why each of these is what it is.
 
+#import "std/containers"
 #include once "codegen/llvmtype.bi"
 
 namespace Tko.Codegen

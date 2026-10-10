@@ -5,6 +5,7 @@
 '' compiles units that were never named on the command line, so the pass has to be
 '' callable on its own.
 
+#import "std/containers"
 #include once "driver/unit.bi"
 #include once "driver/modunit.bi"
 #include once "driver/modresolve.bi"

@@ -15,6 +15,7 @@
 ''   target of an assignment. Counted over N_IDENT only: a member access binds both the
 ''   N_MEMBER and its right-hand identifier, and counting both would count one use twice.
 
+#import "std/containers"
 #include once "driver/scan.bi"
 #include once "driver/unit.bi"
 #include once "driver/modiface.bi"

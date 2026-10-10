@@ -2,6 +2,7 @@
 ''
 '' Split out of lowersub.bas at the 1500-line cap. Nothing about it changed in the move.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -58,7 +59,7 @@ function StrDescriptorOf_ _
     if c.ast->Kind( id ) = Tko.N_STRCAT then constish = true
     if constish then
         if ConstStringTextOf_( c, id, constText ) then
-            dim as FB.Array( of ulong ) ca
+            dim as containers.Array( of ulong ) ca
             ca.Push( cast( ulong, MV_GLOBAL ) )
             ca.Push( cast( ulong, c.m->AddStringLiteral( constText, *c.names ) ) )
             ca.Push( cast( ulong, MV_CONST_INT ) )
@@ -84,7 +85,7 @@ function StrDescriptorOf_ _
             if (fns->flags and Tko.SYMF_FUNCNAME) <> 0 then
                 dim as string fnText = Tko.Mangle.ProcNameOrMain( _
                     *c.syms, c.curProcSym, *c.names )
-                dim as FB.Array( of ulong ) fa
+                dim as containers.Array( of ulong ) fa
                 fa.Push( cast( ulong, MV_GLOBAL ) )
                 fa.Push( cast( ulong, c.m->AddStringLiteral( fnText, *c.names ) ) )
                 fa.Push( cast( ulong, MV_CONST_INT ) )
@@ -97,7 +98,7 @@ function StrDescriptorOf_ _
 
     if c.ast->Kind( id ) = Tko.N_STRING_LIT then
         dim as string litText = StringLitText_( c, id )
-        dim as FB.Array( of ulong ) ta
+        dim as containers.Array( of ulong ) ta
         ta.Push( cast( ulong, MV_GLOBAL ) )
         ta.Push( cast( ulong, c.m->AddStringLiteral( litText, *c.names ) ) )
         ta.Push( cast( ulong, MV_CONST_INT ) )
@@ -237,7 +238,7 @@ function StrDescriptorOf_ _
     if StrSwapKind_( c, c.info->TypeOf_( id ), fdn ) = 3 then
         dim as MirValue fa = LowerAddr( c, id )
         if fa.kind <> cast( ubyte, MV_NONE ) then
-            dim as FB.Array( of ulong ) fta
+            dim as containers.Array( of ulong ) fta
             fta.Push( cast( ulong, fa.kind ) ) : fta.Push( cast( ulong, fa.id ) )
             PushStrLen_( c, fta, fdn )
             outv = EmitRtl( c, RTL_STR_TEMPF, fta )
@@ -253,7 +254,7 @@ function StrDescriptorOf_ _
     if StrSwapKind_( c, c.info->TypeOf_( id ), zn ) = 1 then
         dim as MirValue za = LowerAddr( c, id )
         if za.kind <> cast( ubyte, MV_NONE ) then
-            dim as FB.Array( of ulong ) ta
+            dim as containers.Array( of ulong ) ta
             ta.Push( cast( ulong, za.kind ) ) : ta.Push( cast( ulong, za.id ) )
             outv = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, ta )
             if outv.kind <> cast( ubyte, MV_NONE ) then return true
@@ -280,7 +281,7 @@ function StrDescriptorOf_ _
         '' A BARE char* borrows a temporary descriptor, exactly as a 'zstring * N'
         '' variable does -- and from the NO-LENGTH entry point, because a converted
         '' result carries no declared length to pass.
-        dim as FB.Array( of ulong ) ta
+        dim as containers.Array( of ulong ) ta
         ta.Push( cast( ulong, ucv.kind ) ) : ta.Push( cast( ulong, ucv.id ) )
         outv = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, ta )
         return (outv.kind <> cast( ubyte, MV_NONE ))

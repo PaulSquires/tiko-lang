@@ -17,7 +17,6 @@
 '' containers.bi header, using Map, Set, OrderedMap and OrderedSet, link and run. So a
 '' Map may be introduced where one is worth having -- on a measurement, not on
 '' principle. docs/internals/known-toolchain-issues.md section 1 has the probe.
-#include once "fb/array.bi"
 
 namespace Tko
 
@@ -62,15 +61,15 @@ namespace Tko
     '' under whatever name re-parsing the generic's body left in hFieldId's static
     '' buffer. tiko-lang takes both spellings; see
     '' docs/internals/phase-7-generic-type-field.md.
-    type ByteBuf as FB.Array( of ubyte )
+    type ByteBuf as containers.Array( of ubyte )
 
     '' Lives here rather than in driver/options.bi because the preprocessor needs it
     '' and may not depend on the driver.
-    type StrVec as FB.Array( of string )
+    type StrVec as containers.Array( of string )
 
     '' FileIds, as a list: a module unit's files (ADR 0017), which are not contiguous once
     '' a program's roots are loaded ahead of them.
-    type FileIdVec as FB.Array( of ulong )
+    type FileIdVec as containers.Array( of ulong )
 
 end namespace
 

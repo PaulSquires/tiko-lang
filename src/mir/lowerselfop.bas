@@ -2,6 +2,7 @@
 ''
 '' Split out of lowerintr.bas at the 1500-line cap. Nothing about it changed in the move.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -280,7 +281,7 @@ function SelfOpMemberCall_ _
     end if
     if av.kind = cast( ubyte, MV_NONE ) then return false
 
-    dim as FB.Array( of ulong ) oargs
+    dim as containers.Array( of ulong ) oargs
     oargs.Push( cast( ulong, av.kind ) )
     oargs.Push( cast( ulong, av.id ) )
     EmitStructorCall( c, want, -1, @self_, @oargs )
@@ -320,7 +321,7 @@ function LowerCompoundViaCast_ _
     if rt = Tko.TYPE_NONE then return false
     dim as MirType wt = LowerType( rt, *c.types )
     if (wt = MT_VOID) orelse (wt = MT_AGG) orelse (wt = MT_PTR) then return false
-    dim as FB.Array( of ulong ) letT
+    dim as containers.Array( of ulong ) letT
     letT.Push( cast( ulong, rt ) )
     dim as Tko.SymbolId ulet = PickCtor( c, StructorOf( c, ut, "let" ), letT )
     if ulet = Tko.SYMBOL_NONE then return false
@@ -340,7 +341,7 @@ function LowerCompoundViaCast_ _
 
     dim as MirValue res
     if bop = Tko.TK_CARET then
-        dim as FB.Array( of ulong ) pa
+        dim as containers.Array( of ulong ) pa
         pa.Push( cast( ulong, cur.kind ) ) : pa.Push( cast( ulong, cur.id ) )
         pa.Push( cast( ulong, rhs.kind ) ) : pa.Push( cast( ulong, rhs.id ) )
         res = EmitRtl( c, RTL_POW, pa )
@@ -360,7 +361,7 @@ function LowerCompoundViaCast_ _
 
     '' Into the let's parameter as an assignment converts -- rounded, as fbc's 'fb_D2I'.
     dim as MirValue av = CoerceTy( c, res, pmt, rt, pt )
-    dim as FB.Array( of ulong ) largs
+    dim as containers.Array( of ulong ) largs
     largs.Push( cast( ulong, av.kind ) ) : largs.Push( cast( ulong, av.id ) )
     EmitStructorCall( c, ulet, -1, @self_, @largs )
     return true

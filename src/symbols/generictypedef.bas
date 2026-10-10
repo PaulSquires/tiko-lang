@@ -3,6 +3,7 @@
 '' Split out of generic.bas at the 1500-line lint cap. None of it instantiates
 '' anything; they are the type-shaping helpers instantiation happens to call.
 
+#import "std/containers"
 #include once "symbols/resolvectx.bi"
 #include once "symbols/check.bi"
 
@@ -274,7 +275,7 @@ function ArrayFromBoundsNode _
     if c.ast->Kind( id ) <> Tko.N_BLOCK then return base_
     dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-    dim as FB.Array( of ulong ) los, his
+    dim as containers.Array( of ulong ) los, his
     for i as long = 0 to lp->count - 1
         dim as Tko.NodeId d = cast( Tko.NodeId, c.ast->children[lp->first + i] )
         if c.ast->Kind( d ) = Tko.N_CASE_RANGE then
@@ -347,7 +348,7 @@ end sub
 
 function ArrayFromPairs _
     ( byref c as Ctx, byval base_ as Tko.TypeId, _
-      byref los as FB.Array( of ulong ), byref his as FB.Array( of ulong ), _
+      byref los as containers.Array( of ulong ), byref his as containers.Array( of ulong ), _
       byval init as Tko.NodeId = Tko.NODE_NONE, _
       byval emptyIsDynamic as boolean = false, _
       byval scope_ as Tko.ScopeId = Tko.SCOPE_NONE ) as Tko.TypeId
@@ -377,7 +378,7 @@ function ArrayFromPairs _
     '' array, silently. fbc says error 50, 'Array too big'.
     dim as longint total = 1
     dim as boolean known = true, badOrder = false
-    dim as FB.Array( of longint ) bounds
+    dim as containers.Array( of longint ) bounds
     for i as long = 0 to los.Count - 1
         dim as longint lo = 0
         dim as Tko.NodeId loN = cast( Tko.NodeId, los[i] )

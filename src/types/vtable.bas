@@ -1,5 +1,6 @@
 '' vtable.bas -- see vtable.bi for the measured rules this implements.
 
+#import "std/containers"
 #include once "types/vtable.bi"
 #include once "support/irtext.bi"
 
@@ -39,7 +40,7 @@ end function
 '' derived type's override comparable at all.
 private sub ParamTypes_ _
     ( byref ast as AstArena, byref info as SemanticInfo, byval decl as NodeId, _
-      byref outv as FB.Array( of ulong ) )
+      byref outv as containers.Array( of ulong ) )
 
     if decl = NODE_NONE then return
     if ast.Kind( decl ) <> N_PROC then return
@@ -331,7 +332,7 @@ private function Overrides_ _
     ( byref ast as AstArena, byref info as SemanticInfo, byval a as NodeId, _
       byval b as NodeId ) as boolean
 
-    dim as FB.Array( of ulong ) pa, pb
+    dim as containers.Array( of ulong ) pa, pb
     ParamTypes_( ast, info, a, pa )
     ParamTypes_( ast, info, b, pb )
     if pa.Count <> pb.Count then return false

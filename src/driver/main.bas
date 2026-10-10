@@ -4,6 +4,7 @@
 '' decision, including how to fail, belongs to Driver.Run so that the whole compiler is
 '' reachable in-process from the test runner and from a fuzz harness.
 
+#import "std/containers"
 #include once "driver/driver.bi"
 
 using Tko

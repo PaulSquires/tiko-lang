@@ -6,6 +6,7 @@
 '' rather than assumed. PRINT and SWAP live in lowerstr.bas instead, because both are
 '' really about the string runtime.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -27,7 +28,7 @@ function LowerClose( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
 
     if sp->count = 0 then
-        dim as FB.Array( of ulong ) none_
+        dim as containers.Array( of ulong ) none_
         EmitRtl( c, RTL_FILE_CLOSEALL, none_ )
         return true
     end if
@@ -39,7 +40,7 @@ function LowerClose( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         if c.ast->Kind( it ) = Tko.N_ELIDED then continue for
         dim as MirValue fn = LowerExprN_( c, it )
         if fn.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         fn = CoerceTy( c, fn, MT_I32, NumSrcType_( c, it ))
         args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
         EmitRtlErrorCheck_( c, id, EmitRtl( c, RTL_FILE_CLOSE, args ) )    '' -e (T68)
@@ -66,7 +67,7 @@ function LowerCloseCall_ _
     '' 'close( )' WITH NO CHANNEL closes them all, and has a value of its own:
     '' measured, 'e = close( )' is 'vr$1 = fb_FileCloseAll( )'.
     if sp->count = 0 then
-        dim as FB.Array( of ulong ) none_
+        dim as containers.Array( of ulong ) none_
         outv = EmitRtl( c, RTL_FILE_CLOSEALL, none_ )
         return (outv.kind <> cast( ubyte, MV_NONE ))
     end if
@@ -76,7 +77,7 @@ function LowerCloseCall_ _
 
     dim as MirValue fn = LowerNumArg_( c, it, MT_I32 )
     if fn.kind = cast( ubyte, MV_NONE ) then return false
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, fn.kind ) ) : args.Push( cast( ulong, fn.id ) )
     outv = EmitRtl( c, RTL_FILE_CLOSE, args )
     return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -125,7 +126,7 @@ function LowerError( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         if sf->isVirtual andalso (d.shownName <> Tko.INTERN_NONE) then fname = c.srcMgr->ShownPathOf( d )
     end if
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, num.kind ) ) : args.Push( cast( ulong, num.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, d.lineNo ) )
     args.Push( cast( ulong, MV_GLOBAL ) )
@@ -274,7 +275,7 @@ function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' 'string ptr' is 'fb_StrDelete( PS ); free( PS )' -- measured -- and without the
     '' first the descriptor's own allocation leaked on every one.
     if IsStringType( c, el ) then
-        dim as FB.Array( of ulong ) sda
+        dim as containers.Array( of ulong ) sda
         sda.Push( cast( ulong, p.kind ) ) : sda.Push( cast( ulong, p.id ) )
         EmitRtl( c, StrRtlFor_( c, el, RTL_STR_DELETE ), sda )
     end if
@@ -291,11 +292,11 @@ function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.SymbolId opDel = _
         StructorWithArity( c, StructorOf( c, el, iif( isArray, "delete[]", "delete" ) ), 1 )
     if opDel <> Tko.SYMBOL_NONE then
-        dim as FB.Array( of ulong ) da
+        dim as containers.Array( of ulong ) da
         da.Push( cast( ulong, p.kind ) ) : da.Push( cast( ulong, p.id ) )
         EmitDirectCall_( c, opDel, MT_VOID, da )
     else
-        dim as FB.Array( of ulong ) fargs
+        dim as containers.Array( of ulong ) fargs
         fargs.Push( cast( ulong, p.kind ) ) : fargs.Push( cast( ulong, p.id ) )
         EmitAllocCall_( c, RTL_FREE, fargs )   '' a program's own 'deallocate' if it has one
     end if
@@ -486,7 +487,7 @@ function LowerCompoundAssign _
 
     dim as MirValue res
     if bop = Tko.TK_CARET then
-        dim as FB.Array( of ulong ) pa
+        dim as containers.Array( of ulong ) pa
         pa.Push( cast( ulong, cur.kind ) ) : pa.Push( cast( ulong, cur.id ) )
         pa.Push( cast( ulong, rhs.kind ) ) : pa.Push( cast( ulong, rhs.id ) )
         res = EmitRtl( c, RTL_POW, pa )
@@ -599,7 +600,7 @@ end function
 '' arm and then asked an N_CALL for an address it has not got. Falling through instead
 '' of declining is what makes the two orderings agree.
 private function StringArmAddr_ _
-    ( byref c as Ctx, byval e as Tko.NodeId, byref args as FB.Array( of ulong ) ) as boolean
+    ( byref c as Ctx, byval e as Tko.NodeId, byref args as containers.Array( of ulong ) ) as boolean
 
     if IsStringType( c, c.info->TypeOf_( e ) ) = false then return false
     if NamesProc_( c, e ) then return false   '' its "address" is its code: a CALL
@@ -617,7 +618,7 @@ end function
 function StrInitFrom_ _
     ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId ) as boolean
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) )
     args.Push( cast( ulong, cast( ulongint, -1 ) ) )
@@ -759,7 +760,7 @@ private function AggIifArm_ _
                 dim as MirValue asrc = LowerAddr( c, e )
                 if asrc.kind <> cast( ubyte, MV_NONE ) then
                     if acc <> Tko.SYMBOL_NONE then
-                        dim as FB.Array( of ulong ) aargs
+                        dim as containers.Array( of ulong ) aargs
                         aargs.Push( cast( ulong, asrc.kind ) ) : aargs.Push( cast( ulong, asrc.id ) )
                         EmitStructorCall( c, acc, -1, @dst, @aargs )
                     else

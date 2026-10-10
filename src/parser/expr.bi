@@ -98,13 +98,13 @@ namespace Tko
         '' speculative parse reports nothing, and the one whose result is KEPT --
         '' 'typeof( sub( ..., ... ) )' -- owes the report afterwards; see
         '' FlushVarargPending_.
-        as FB.Array( of ulong ) varargPending
+        as containers.Array( of ulong ) varargPending
         '' THE LIBRARIES 'declare ... lib "name"' ASKS FOR. The clause was parsed and
         '' the name THROWN AWAY, so 'declare function SHCreateItemFromParsingName lib
         '' "shell32"' linked against nothing -- 'undefined symbol', with the library
         '' sitting in the toolchain all along. Interned ids, drained by the driver
         '' into the same list '#inclib' feeds.
-        as FB.Array( of ulong ) declLibs
+        as containers.Array( of ulong ) declLibs
         as long                 errors
         as boolean              silent      '' suppress cascades after an error
         '' A MODULE UNIT: every declaration's token range goes to ast->declRanges.

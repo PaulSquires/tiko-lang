@@ -115,7 +115,7 @@ function LowerMathCall_ _
         end if
         v0 = Coerce( c, v0, a2t, uns )
         v1 = CoerceTy( c, v1, a2t, c.info->TypeOf_( a1 ))
-        dim as FB.Array( of ulong ) aa
+        dim as containers.Array( of ulong ) aa
         aa.Push( cast( ulong, v0.kind ) ) : aa.Push( cast( ulong, v0.id ) )
         aa.Push( cast( ulong, v1.kind ) ) : aa.Push( cast( ulong, v1.id ) )
         outv = EmitRtl( c, a2r, aa )
@@ -174,7 +174,7 @@ function LowerMathCall_ _
         if havePre = false then v0 = LowerExpr( c, a0 )
         if v0.kind = cast( ubyte, MV_NONE ) then return false
         v0 = Coerce( c, v0, want, uns )
-        dim as FB.Array( of ulong ) aa
+        dim as containers.Array( of ulong ) aa
         aa.Push( cast( ulong, v0.kind ) ) : aa.Push( cast( ulong, v0.id ) )
         outv = EmitRtl( c, r, aa )
         '' fb_SGN* answer an int32; sgn over an integer is INTEGER -- SIGN-extended here, as

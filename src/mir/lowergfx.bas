@@ -17,6 +17,7 @@
 ''   base of 4 besides. Conflating them puts every relative coordinate on the wrong
 ''   point.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -145,7 +146,7 @@ private function GfxTargetVal _
     return Coerce( c, v, MT_PTR )
 end function
 
-private sub PushV( byref args as FB.Array( of ulong ), byref v as MirValue )
+private sub PushV( byref args as containers.Array( of ulong ), byref v as MirValue )
     args.Push( cast( ulong, v.kind ) )
     args.Push( cast( ulong, v.id ) )
 end sub
@@ -194,7 +195,7 @@ function LowerGfxLine( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as long flags = GfxFlags2( sp->extra )
     if hasCol = false then flags or= GFXF_NOCOLOUR
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     PushV( args, tgt )
     PushV( args, x1 ) : PushV( args, y1 )
     PushV( args, x2 ) : PushV( args, y2 )
@@ -222,7 +223,7 @@ function LowerGfxPset _
     dim as long flags = GfxFlags1( sp->extra )
     if hasCol = false then flags or= GFXF_NOCOLOUR
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     PushV( args, tgt )
     PushV( args, x ) : PushV( args, y )
     PushV( args, col )
@@ -269,7 +270,7 @@ function LowerGfxCircle( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if hasCol = false then flags or= GFXF_NOCOLOUR
     dim as long fill = iif( (sp->extra and PGFX_FILL) <> 0, -1, 0 )
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     PushV( args, tgt )
     PushV( args, x ) : PushV( args, y ) : PushV( args, r )
     PushV( args, col )
@@ -315,7 +316,7 @@ function LowerGfxPaint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     else
         col = GfxInt( c, sp, 2, 0, hasCol, ok )
         '' The empty temporary descriptor fbc passes when there is no pattern.
-        dim as FB.Array( of ulong ) ta
+        dim as containers.Array( of ulong ) ta
         ta.Push( cast( ulong, MV_GLOBAL ) )
         ta.Push( cast( ulong, c.m->AddStringLiteral( "", *c.names ) ) )
         ta.Push( cast( ulong, MV_CONST_INT ) )
@@ -332,7 +333,7 @@ function LowerGfxPaint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if hasCol = false then flags or= GFXF_NOCOLOUR
     if hasBorder = false then flags or= GFXF_NOBORDER
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     PushV( args, tgt )
     PushV( args, x ) : PushV( args, y )
     PushV( args, col ) : PushV( args, bord )
@@ -359,7 +360,7 @@ function LowerGfxView( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as MirValue vtop = GfxInt( c, sp, 0, 0, w, ok )
         dim as MirValue vbot = GfxInt( c, sp, 1, 0, w, ok )
         if ok = false then return false
-        dim as FB.Array( of ulong ) va
+        dim as containers.Array( of ulong ) va
         PushV( va, vtop ) : PushV( va, vbot )
         EmitRtl( c, RTL_CONSOLE_VIEW, va )
         return true
@@ -379,7 +380,7 @@ function LowerGfxView( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if hasCol = false then flags or= GFXF_NOCOLOUR
     if hasBorder = false then flags or= GFXF_NOBORDER
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     PushV( args, x1 ) : PushV( args, y1 ) : PushV( args, x2 ) : PushV( args, y2 )
     PushV( args, col ) : PushV( args, bord )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, flags ) )
@@ -398,7 +399,7 @@ function LowerGfxWindow( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if ok = false then return false
     dim as long flags = iif( (sp->extra and PGFX_SCREEN) <> 0, 1, 0 )
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     PushV( args, x1 ) : PushV( args, y1 ) : PushV( args, x2 ) : PushV( args, y2 )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, flags ) )
     EmitRtl( c, RTL_GFX_WINDOW, args )
@@ -497,7 +498,7 @@ function LowerGfxDrawString_ _
         return false   '' a value for a method that takes none
     end if
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     PushV( args, tgt )
     PushV( args, x ) : PushV( args, y )
     args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, flags ) )
@@ -530,7 +531,7 @@ function LowerGfxDraw( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as MirValue sv
     if NarrowOperandAny_( c, sn, sv ) = false then return false   '' a ustring or wide text too
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     PushV( args, tgt )
     PushV( args, sv )
     EmitRtl( c, RTL_GFX_DRAW, args )
@@ -621,7 +622,7 @@ function LowerGfxGet( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if dst.kind = cast( ubyte, MV_NONE ) then return false
     dst = Coerce( c, dst, MT_PTR )
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     PushV( args, tgt )
     PushV( args, x1 ) : PushV( args, y1 ) : PushV( args, x2 ) : PushV( args, y2 )
     PushV( args, dst )
@@ -719,7 +720,7 @@ function LowerGfxPut( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as MirValue bl = FuncAddrOfRtl( c, PutBlender( mode ) )
     if bl.kind = cast( ubyte, MV_NONE ) then return false
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     PushV( args, tgt )
     PushV( args, x ) : PushV( args, y )
     PushV( args, src )
@@ -809,7 +810,7 @@ function LowerGfxPalette( byref c as Ctx, byval id as Tko.NodeId ) as boolean
             if av.kind = cast( ubyte, MV_NONE ) then av = LowerExpr( c, an )
         end if
         if av.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) ua
+        dim as containers.Array( of ulong ) ua
         PushV( ua, Coerce( c, av, MT_PTR ) )
         '' 'PALETTE GET USING' IS A FOURTH FORM with its own entry point -- reading it
         '' as a GET meant the array was taken for GET's colour index.
@@ -826,7 +827,7 @@ function LowerGfxPalette( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as boolean w = false
         dim as MirValue n = GfxInt( c, sp, 0, 0, w, ok )
         if ok = false then return false
-        dim as FB.Array( of ulong ) ga
+        dim as containers.Array( of ulong ) ga
         PushV( ga, n )
         for i as long = 1 to 3
             dim as Tko.NodeId on_ = GfxArg( c, sp, i )
@@ -843,7 +844,7 @@ function LowerGfxPalette( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         return true
     end if
 
-    dim as FB.Array( of ulong ) pa
+    dim as containers.Array( of ulong ) pa
     for i as long = 0 to 3
         dim as boolean w = false
         dim as MirValue v = GfxInt( c, sp, i, -1, w, ok )
@@ -888,7 +889,7 @@ end function
 function LowerGfxScreen( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as boolean ok = true
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     for i as long = 0 to 4
         dim as boolean w = false
         dim as longint dflt = 0
@@ -937,7 +938,7 @@ function LowerGfxExprCall_ _
 
     if nm = "imagecreate" then
         if (cp->count < 2) orelse (cp->count > 4) then return false
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         for i as long = 0 to 1
             dim as boolean w = false
             dim as MirValue v = GfxInt( c, @lp, i, 0, w, ok )
@@ -977,7 +978,7 @@ function LowerGfxExprCall_ _
             '' The sentinel that says "this is the one-argument form".
             y = ConstFloat( c, -8388607.0, MT_F32 )
         end if
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         PushV( args, tgt )
         PushV( args, x )
         PushV( args, y )

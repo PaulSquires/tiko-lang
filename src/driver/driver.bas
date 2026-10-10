@@ -1,5 +1,7 @@
 '' driver.bas -- see driver.bi
 
+#import "std/containers"
+#import "std/fs"
 #include once "driver/driver.bi"
 #include once "driver/cmdline.bi"
 #include once "driver/diagout.bi"
@@ -28,7 +30,6 @@
 #include once "driver/modunit.bi"
 #include once "driver/modbuild.bi"
 #include once "driver/modcache.bi"
-#include once "fb/filesystem.bi"
 #include once "types/udtlayout.bi"
 #include once "types/vtable.bi"
 #include once "driver/scan.bi"
@@ -796,7 +797,7 @@ function Run _
     '' ...AND A DIRECTORY IS A MODULE (ADR 0017): its files are compiled as one unit.
     dim as Tko.StrVec modDirs
     for each inputPath as string in ctx.options.inputs
-        if FB.IsDir( inputPath ) then
+        if fs.IsDir( inputPath ) then
             modDirs.Push( inputPath )
             continue for
         end if
@@ -975,7 +976,7 @@ function Run _
                 next
                 if seen then continue for
                 modObjs.Push( mo )
-                if FB.IsFile( mo ) = false then
+                if fs.IsFile( mo ) = false then
                     ctx.diags.ReportGlobal( Tko.TKO0153, objInputs[i], mo )
                     continue for
                 end if
@@ -1020,8 +1021,14 @@ function Run _
         '' A MODULE UNIT IS ONE UNIT, however many files it has: the engine reads them all.
         if ctx.modFileCount > 0 then srcCount = 1
         '' THE MODULES THE ROOTS IMPORT ARE BUILT FIRST, dependencies first (ADR 0017), into
-        '' objects that join the link. Only for a build: a dump names no objects.
-        dim as boolean builds = wantsOutput andalso (ctx.modFileCount = 0)
+        '' objects that join the link. ...AND FOR A DUMP TOO, which needs their INTERFACES and
+        '' names no objects: '--dump-ir' of a root that imports std/containers was TKO0992 and
+        '' every 'containers.Array' undeclared -- tiko's own source, once it imported std
+        '' (2026-10-10), could no longer be lowered by the gate or bootstrap's assertion 1.
+        '' The objects go to the cache as a build's would; nothing links them. NOT for the
+        '' editor's scan, which reads the interfaces its own way (scan.bas) and must not print
+        '' a module unit's symbols among the program's.
+        dim as boolean builds = (ctx.modFileCount = 0) andalso (ctx.options.dumpScan = false)
         '' ...WITH THE ROOT'S '#cmdline' OPTIONS (T75). The unit's own pass restarts on a
         '' '#cmdline', but the modules it imports are built before that pass, so
         '' '#cmdline "-mt"' reached the program and never std/tasks. The root's header

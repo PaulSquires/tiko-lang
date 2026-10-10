@@ -4,6 +4,7 @@
 '' into a repository, to read what the importer produced, or to diff it across an SDK
 '' upgrade. The output is deterministic, so a diff means the header changed.
 
+#import "std/containers"
 #include once "driver/cimportmode.bi"
 #include once "codegen/target.bi"
 #include once "cimport/import.bi"

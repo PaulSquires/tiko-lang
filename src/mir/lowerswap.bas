@@ -3,6 +3,7 @@
 '' Split out of lowerstr.bas, which is at its size limit. SWAP lives near the string
 '' code because its string forms are most of its complexity, not because it is one.
 
+#import "std/containers"
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
@@ -98,7 +99,7 @@ function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
             dim as longint wla = 0, wlb = 0
             if (StrSwapKind_( c, c.info->TypeOf_( sp->a ), wla ) <> 2) orelse (wla < 0) then wla = 0
             if (StrSwapKind_( c, c.info->TypeOf_( sp->b ), wlb ) <> 2) orelse (wlb < 0) then wlb = 0
-            dim as FB.Array( of ulong ) wargs
+            dim as containers.Array( of ulong ) wargs
             wargs.Push( cast( ulong, wa.kind ) ) : wargs.Push( cast( ulong, wa.id ) )
             wargs.Push( cast( ulong, MV_CONST_INT ) ) : wargs.Push( cast( ulong, wla ) )
             wargs.Push( cast( ulong, wb.kind ) ) : wargs.Push( cast( ulong, wb.id ) )
@@ -134,7 +135,7 @@ function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.NodeId ub = StrCallOperand_( c, sp->b )
     if UserCastToStr_( c, ua, ra, rawA ) andalso rawA then
         if UserCastToStr_( c, ub, rb, rawB ) andalso rawB then
-            dim as FB.Array( of ulong ) zargs
+            dim as containers.Array( of ulong ) zargs
             zargs.Push( cast( ulong, ra.kind ) ) : zargs.Push( cast( ulong, ra.id ) )
             zargs.Push( cast( ulong, MV_CONST_INT ) ) : zargs.Push( 0 )
             zargs.Push( cast( ulong, MV_CONST_INT ) ) : zargs.Push( 0 )
@@ -187,7 +188,7 @@ function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as boolean isUB = IsUStringType( c, SwapOperandType_( c, sp->b ) )
     if isUA orelse isUB then
         if (isUA = false) orelse (isUB = false) then return false
-        dim as FB.Array( of ulong ) uargs
+        dim as containers.Array( of ulong ) uargs
         uargs.Push( cast( ulong, la.kind ) ) : uargs.Push( cast( ulong, la.id ) )
         PushStrLen_( c, uargs, na )
         uargs.Push( cast( ulong, lb.kind ) ) : uargs.Push( cast( ulong, lb.id ) )
@@ -200,7 +201,7 @@ function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         '' emits something else again for that pairing, so it is declined rather than
         '' guessed at.
         if (ka = 2) <> (kb = 2) then return false
-        dim as FB.Array( of ulong ) args
+        dim as containers.Array( of ulong ) args
         args.Push( cast( ulong, la.kind ) ) : args.Push( cast( ulong, la.id ) )
         if ka = 2 then
             args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, na ) )
@@ -255,7 +256,7 @@ function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as long uib = c.udts->Find( rt )
         if uib >= 0 then szb = c.udts->udts[uib].size
         if (sza > 0) andalso (sza = szb) then
-            dim as FB.Array( of ulong ) margs
+            dim as containers.Array( of ulong ) margs
             margs.Push( cast( ulong, la.kind ) ) : margs.Push( cast( ulong, la.id ) )
             margs.Push( cast( ulong, lb.kind ) ) : margs.Push( cast( ulong, lb.id ) )
             margs.Push( cast( ulong, MV_CONST_INT ) ) : margs.Push( cast( ulong, sza ) )
@@ -475,7 +476,7 @@ function LowerUdtIndexOp_ _
         end if
     end if
 
-    dim as FB.Array( of ulong ) ia
+    dim as containers.Array( of ulong ) ia
     ia.Push( cast( ulong, iv.kind ) ) : ia.Push( cast( ulong, iv.id ) )
     outv = EmitMemberCallArgs_( c, ixs, self_, rt, @ia )
     return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -568,7 +569,7 @@ end function
 '' arguments in both accessors: getter = indices, setter = indices then the value.
 private function PushPropIndexArgs_ _
     ( byref c as Ctx, byval prop as Tko.SymbolId, byval idxFirst as long, _
-      byval idxCount as long, byref args as FB.Array( of ulong ) ) as boolean
+      byval idxCount as long, byref args as containers.Array( of ulong ) ) as boolean
 
     if idxCount = 0 then return true
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( prop )
@@ -832,7 +833,7 @@ end function
 '' argument; a global one takes both.
 declare function OperandValue_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
-      byval byref_ as boolean, byref args as FB.Array( of ulong ) ) as boolean
+      byval byref_ as boolean, byref args as containers.Array( of ulong ) ) as boolean
 
 function LowerUserBinaryOp_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
@@ -853,8 +854,8 @@ function LowerUserBinaryOp_ _
     if pp->op <> cast( ushort, Tko.KW_OPERATOR ) then return false
 
     '' The parameters, in order, with their byref-ness.
-    dim as FB.Array( of ulong ) ptypes
-    dim as FB.Array( of ulong ) prefs
+    dim as containers.Array( of ulong ) ptypes
+    dim as containers.Array( of ulong ) prefs
     for i as long = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
@@ -908,7 +909,7 @@ function LowerUserBinaryOp_ _
         end if
     end if
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     if usesSret then
         args.Push( cast( ulong, sretTmp.kind ) )
         args.Push( cast( ulong, sretTmp.id ) )
@@ -982,8 +983,8 @@ function LowerCompoundUserOp_ _
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     if pp->op <> cast( ushort, Tko.KW_OPERATOR ) then return false
 
-    dim as FB.Array( of ulong ) ptypes
-    dim as FB.Array( of ulong ) prefs
+    dim as containers.Array( of ulong ) ptypes
+    dim as containers.Array( of ulong ) prefs
     for i as long = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
@@ -1026,7 +1027,7 @@ function LowerCompoundUserOp_ _
     dim as MirType rmt = LowerType( ot, *c.types )
     dim as MirValue sretTmp
     dim as boolean usesSret = false
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     if udtTarget andalso UsesSretReturn( c, ot ) then
         dim as long tslot = SretResultSlot_( c, ot, false, op )
         if tslot < 0 then return false
@@ -1060,7 +1061,7 @@ function LowerCompoundUserOp_ _
         return true
     end if
     dim as long sz = SizeOfType( c, tt )
-    dim as FB.Array( of ulong ) sletT
+    dim as containers.Array( of ulong ) sletT
     sletT.Push( cast( ulong, tt ) )
     dim as Tko.SymbolId ulet = PickCtor( c, StructorOf( c, tt, "let" ), sletT )
     if (ulet = Tko.SYMBOL_NONE) andalso (NeedsLetBody_( c, tt ) = false) then
@@ -1078,7 +1079,7 @@ function LowerCompoundUserOp_ _
         StoreThrough( c, src, res )
     end if
     if ulet <> Tko.SYMBOL_NONE then
-        dim as FB.Array( of ulong ) largs
+        dim as containers.Array( of ulong ) largs
         largs.Push( cast( ulong, src.kind ) ) : largs.Push( cast( ulong, src.id ) )
         EmitStructorCall( c, ulet, -1, @da, @largs )
     else
@@ -1149,7 +1150,7 @@ function LowerUserUnaryOpSym_ _
     end if
     if np <> 1 then return false
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     '' A UDT RESULT THROUGH THE HIDDEN POINTER, as the binary operator passes one. None was
     '' pushed, so '-h' over a type with a destructor called '_ZngR1H(@h)' against a
     '' definition taking the result pointer too -- the verifier's 'calls _ZngR1H with 1
@@ -1192,7 +1193,7 @@ end function
 '' One operator operand, pushed as the parameter wants it.
 private function OperandValue_ _
     ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
-      byval byref_ as boolean, byref args as FB.Array( of ulong ) ) as boolean
+      byval byref_ as boolean, byref args as containers.Array( of ulong ) ) as boolean
 
     dim as MirValue v
 
@@ -1308,7 +1309,7 @@ function LowerPropertyGet_ _
     '' The INDEX ARGUMENTS follow the receiver, in written order, coerced to the
     '' parameters the chosen overload declared -- measured, fbc emits
     '' '_ZN3FOO10BAR__get__Eu7INTEGER( &F$, 0ll )'.
-    dim as FB.Array( of ulong ) gargs
+    dim as containers.Array( of ulong ) gargs
     if PushPropIndexArgs_( c, g, gFirst, gCount, gargs ) = false then return false
     '' A STRING-VALUED PROPERTY RETURNS A POINTER, which is what every
     '' string-returning procedure in this compiler returns -- the value leaves through
@@ -1377,7 +1378,7 @@ function LowerPropertySet_ _
         end if
     next
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     if PushPropIndexArgs_( c, sset, sFirst, sCount, args ) = false then
     end if
 

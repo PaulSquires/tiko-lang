@@ -115,10 +115,10 @@ type CImp
     '' per-USR tables are indexed by the interned id, the claim tables by its FOLDED id,
     '' because FreeBASIC is case-insensitive.
     as Tko.Interner strs
-    as FB.Array( of ubyte ) claimType       '' folded id -> 1 when a type holds that name
-    as FB.Array( of ubyte ) claimValue      '' folded id -> 1 when a value does
-    as FB.Array( of long )  usrName         '' USR id -> index into fbNames plus one
-    as FB.Array( of ubyte ) usrState        '' USR id -> US_* bits
+    as containers.Array( of ubyte ) claimType       '' folded id -> 1 when a type holds that name
+    as containers.Array( of ubyte ) claimValue      '' folded id -> 1 when a value does
+    as containers.Array( of long )  usrName         '' USR id -> index into fbNames plus one
+    as containers.Array( of ubyte ) usrState        '' USR id -> US_* bits
     as Tko.StrVec           fbNames
 
     '' THE OUTPUT, in the order it will be written.
@@ -131,8 +131,8 @@ type CImp
     as long       nStatic                   '' static and inline functions: counted, not ledgered
 
     '' THE LEDGERS.
-    as FB.Array( of long ) renKind
-    as FB.Array( of long ) renWhy           '' 0 reserved, 1 case-insensitive collision
+    as containers.Array( of long ) renKind
+    as containers.Array( of long ) renWhy           '' 0 reserved, 1 case-insensitive collision
     as Tko.StrVec renC
     as Tko.StrVec renFb
     as Tko.StrVec skipKind
@@ -149,10 +149,10 @@ type CImp
     '' MACROS. The object-like candidates in definition order, and what a C name that this
     '' import declared resolves to -- an alias may only name something that arrived.
     as Tko.StrVec macroNames
-    as FB.Array( of ubyte ) macroSeen       '' exact name id -> 1 once a candidate
+    as containers.Array( of ubyte ) macroSeen       '' exact name id -> 1 once a candidate
     as Tko.StrVec aliasNames                '' every '#define NAME target' written
-    as FB.Array( of long ) seedUndefined    '' seeded USR ids the seed never saw defined
-    as FB.Array( of long ) cDeclUsr          '' exact C-name id -> USR id plus one
+    as containers.Array( of long ) seedUndefined    '' seeded USR ids the seed never saw defined
+    as containers.Array( of long ) cDeclUsr          '' exact C-name id -> USR id plus one
     '' The parse, kept so macros.bas can parse again with its probes appended.
     as string     unitText
     as Tko.StrVec args

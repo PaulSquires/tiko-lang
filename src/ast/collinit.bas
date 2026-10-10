@@ -12,6 +12,7 @@
 '' Its own module because the AST's other side tables are defined in parser/expr.bas,
 '' which sits at the 1500-line cap.
 
+#import "std/containers"
 #include once "ast/nodes.bi"
 
 namespace Tko

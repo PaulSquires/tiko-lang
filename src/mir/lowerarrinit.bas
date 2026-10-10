@@ -2,11 +2,12 @@
 '' wide-string and UDT-element forms. Split out of lowerarr.bas on 2026-09-10 for the
 '' 1500-line cap; nothing about the code changed in the move.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
 declare function ArrayStrides _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref strides as FB.Array( of longint ), _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref strides as containers.Array( of longint ), _
       byref bias as longint ) as boolean
 
 '' A BRACE INITIALISER over a fixed-size array: 'dim a(0 to 2) as integer = { 1, 2, 3 }'.
@@ -29,7 +30,7 @@ declare function LowerFixStrArrayInit_ _
 
 declare sub FlattenInitLeaves_ _
     ( byref c as Ctx, byval init as Tko.NodeId, _
-      byref outv as FB.Array( of ulong ) )
+      byref outv as containers.Array( of ulong ) )
 
 
 declare function LowerStrArrayInit_ _
@@ -42,7 +43,7 @@ declare function LowerStrArrayInit_ _
 '' '{ {1,2,3}, {4,5,6} }' six integers laid out end to end.
 sub FlattenInitLeaves_ _
     ( byref c as Ctx, byval init as Tko.NodeId, _
-      byref outv as FB.Array( of ulong ) )
+      byref outv as containers.Array( of ulong ) )
 
     dim as Tko.ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
@@ -61,7 +62,7 @@ end sub
 private function ArrayLeafWalk_ _
     ( byref c as Ctx, byval lst as Tko.NodeId, byval d as long, byval rank as long, _
       byval ext as long ptr, byval strd as long ptr, byval base_ as long, _
-      byref leaves as FB.Array( of ulong ), byref idx as FB.Array( of ulong ) ) as boolean
+      byref leaves as containers.Array( of ulong ), byref idx as containers.Array( of ulong ) ) as boolean
     if c.ast->Kind( lst ) <> Tko.N_INITIALIZER then return false
     dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, lst )].data )]
     if lp->count > ext[d] then return false
@@ -82,7 +83,7 @@ end function
 '' dimension, unknown bounds or a flat list: positional, as before.
 sub ArrayInitLeaves_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
-      byref leaves as FB.Array( of ulong ), byref idx as FB.Array( of ulong ) )
+      byref leaves as containers.Array( of ulong ), byref idx as containers.Array( of ulong ) )
     dim as long rank = 0
     if c.types->Kind( t ) = Tko.TK_ARRAY then rank = c.types->types[cast( long, t )].dims
     dim as long ext( 0 to 7 ), strd( 0 to 7 )
@@ -199,7 +200,7 @@ function LowerArrayInit _
     '' Only where the array HAS more than one dimension. Over a one-dimensional array
     '' a nested brace list means something else -- the fields of an element -- and
     '' flattening it would spread one element's fields across several elements.
-    dim as FB.Array( of ulong ) leaves, lidx
+    dim as containers.Array( of ulong ) leaves, lidx
     ArrayInitLeaves_( c, t, init, leaves, lidx )
 
     dim as MirValue base_
@@ -217,7 +218,7 @@ function LowerArrayInit _
         if cast( long, lidx[i] ) <> i then sparse = true
     next
     if sparse andalso (total > 0) then
-        dim as FB.Array( of ulong ) sz0
+        dim as containers.Array( of ulong ) sz0
         sz0.Push( cast( ulong, base_.kind ) ) : sz0.Push( cast( ulong, base_.id ) )
         sz0.Push( cast( ulong, MV_CONST_INT ) ) : sz0.Push( 0 )
         sz0.Push( cast( ulong, MV_CONST_INT ) ) : sz0.Push( cast( ulong, total * esz ) )
@@ -255,7 +256,7 @@ function LowerArrayInit _
         dim as MirInst tz
         tz.op = cast( ushort, M_FIELD_ADDR ) : tz.ty = cast( ubyte, MT_PTR ) : tz.a = base_ : tz.imm = leaves.Count * esz
         dim as MirValue tza = Emit( c, tz )
-        dim as FB.Array( of ulong ) tzz
+        dim as containers.Array( of ulong ) tzz
         tzz.Push( cast( ulong, tza.kind ) ) : tzz.Push( cast( ulong, tza.id ) )
         tzz.Push( cast( ulong, MV_CONST_INT ) ) : tzz.Push( 0 )
         tzz.Push( cast( ulong, MV_CONST_INT ) ) : tzz.Push( cast( ulong, (total - leaves.Count) * esz ) )
@@ -282,7 +283,7 @@ private function LowerFixStrArrayInit_ _
     '' run in row-major order -- the same rule the scalar path follows. This walked only
     '' the TOP-LEVEL children, so every row arrived as a nested N_INITIALIZER that the
     '' element assignment had nothing to make of, and the whole declaration declined.
-    dim as FB.Array( of ulong ) leaves, lidx
+    dim as containers.Array( of ulong ) leaves, lidx
     ArrayInitLeaves_( c, t, init, leaves, lidx )   '' a short row pads -- see ArrayInitLeaves_
 
     dim as MirValue base_
@@ -301,7 +302,7 @@ private function LowerFixStrArrayInit_ _
         if cast( long, lidx[i] ) <> i then sparse = true
     next
     if sparse andalso (total > 0) then
-        dim as FB.Array( of ulong ) sz0
+        dim as containers.Array( of ulong ) sz0
         sz0.Push( cast( ulong, base_.kind ) ) : sz0.Push( cast( ulong, base_.id ) )
         sz0.Push( cast( ulong, MV_CONST_INT ) ) : sz0.Push( 0 )
         sz0.Push( cast( ulong, MV_CONST_INT ) ) : sz0.Push( cast( ulong, total * esz ) )
@@ -353,7 +354,7 @@ private function LowerFixStrArrayInit_ _
         ta.imm = written * esz
         dim as MirValue taddr = Emit( c, ta )
         if taddr.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) za
+        dim as containers.Array( of ulong ) za
         za.Push( cast( ulong, taddr.kind ) ) : za.Push( cast( ulong, taddr.id ) )
         za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
         za.Push( cast( ulong, MV_CONST_INT ) )
@@ -373,7 +374,7 @@ end function
 private function UStrElemInit_ _
     ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId ) as boolean
 
-    dim as FB.Array( of ulong ) terms
+    dim as containers.Array( of ulong ) terms
     FlattenConcat( c, e, terms )
     if terms.Count <> 1 then
         ZeroStrDescriptor( c, dst )
@@ -386,7 +387,7 @@ private function UStrElemInit_ _
         ZeroStrDescriptor( c, dst )
         return false
     end if
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     PushStrArg( args, dst )
     if EmitStrTerm( c, args, t0, true ) = false then
         ZeroStrDescriptor( c, dst )
@@ -472,7 +473,7 @@ function LowerUdtElemInit_ _
             dim as MirValue src = LowerAddr( c, e )
             if src.kind = cast( ubyte, MV_NONE ) then return false
             if ucp <> Tko.SYMBOL_NONE then
-                dim as FB.Array( of ulong ) cargs
+                dim as containers.Array( of ulong ) cargs
                 cargs.Push( cast( ulong, src.kind ) )
                 cargs.Push( cast( ulong, src.id ) )
                 EmitStructorCall( c, ucp, -1, @dst, @cargs )
@@ -575,7 +576,7 @@ function LowerUdtArrayInit_ _
         dim as MirInst tz
         tz.op = cast( ushort, M_FIELD_ADDR ) : tz.ty = cast( ubyte, MT_PTR ) : tz.a = base_ : tz.imm = lp->count * esz
         dim as MirValue tza = Emit( c, tz )
-        dim as FB.Array( of ulong ) tzz
+        dim as containers.Array( of ulong ) tzz
         tzz.Push( cast( ulong, tza.kind ) ) : tzz.Push( cast( ulong, tza.id ) )
         tzz.Push( cast( ulong, MV_CONST_INT ) ) : tzz.Push( 0 )
         tzz.Push( cast( ulong, MV_CONST_INT ) ) : tzz.Push( cast( ulong, (total - lp->count) * esz ) )

@@ -150,7 +150,7 @@ end sub
 
 '' The symbol a declarator or a field node declared, by its payload.
 private function BrSymOf_ _
-    ( byref c as Ctx, byref map as FB.Array( of ulong ), byval n as NodeId ) as Symbol ptr
+    ( byref c as Ctx, byref map as containers.Array( of ulong ), byval n as NodeId ) as Symbol ptr
     if cast( long, n ) >= map.Count then return 0
     dim as ulong s = map[cast( long, n )]
     if s = 0 then return 0
@@ -158,7 +158,7 @@ private function BrSymOf_ _
 end function
 
 private sub BrWalk_ _
-    ( byref c as Ctx, byref map as FB.Array( of ulong ), byval id as NodeId, _
+    ( byref c as Ctx, byref map as containers.Array( of ulong ), byval id as NodeId, _
       byval arrRes as boolean, byval isVar as boolean )
     if id = NODE_NONE then return
     dim as NodeKind k = c.ast->Kind( id )
@@ -292,7 +292,7 @@ end sub
 
 private sub CheckBraceLists_ ( byref c as Ctx )
     '' node -> symbol + 1, for the declarators and fields: their TYPE is on the symbol.
-    dim as FB.Array( of ulong ) map
+    dim as containers.Array( of ulong ) map
     for i as long = 0 to c.ast->Count( )
         map.Push( 0 )
     next

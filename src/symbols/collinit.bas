@@ -142,7 +142,7 @@ private function CiCallStmt_ _
       byval elem as Tko.NodeId ) as Tko.NodeId
 
     dim as Tko.SourceLoc lc = c.ast->Loc( elem )
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     dim as boolean nested = (c.ast->Kind( elem ) = Tko.N_INITIALIZER)
     if nested then nested = (ListOf( c, elem )->target = Tko.NODE_NONE)
     if nested then
@@ -253,12 +253,12 @@ private function CollInit_ _
     '' BUILT, then gathered into a block -- each call's own nodes interleave in the pool.
     dim as Tko.InternId varNm = ip->name
     dim as Tko.InternId methodNm = c.names->Fold( c.names->GetString( method ) )
-    dim as FB.Array( of ulong ) elems
+    dim as containers.Array( of ulong ) elems
     dim as Tko.ListPayload ptr bl = ListOf( c, braces )
     for k as long = 0 to bl->count - 1
         elems.Push( c.ast->children[bl->first + k] )
     next
-    dim as FB.Array( of ulong ) stmts
+    dim as containers.Array( of ulong ) stmts
     for k as long = 0 to elems.Count - 1
         stmts.Push( cast( ulong, CiCallStmt_( c, varNm, methodNm, cast( Tko.NodeId, elems[k] ) ) ) )
     next

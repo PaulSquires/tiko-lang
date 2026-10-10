@@ -5,6 +5,7 @@
 '' one instruction per line, fixed order, no addresses or ids that shift when
 '' unrelated code changes.
 
+#import "std/containers"
 #include once "mir/dump.bi"
 #include once "support/irtext.bi"
 

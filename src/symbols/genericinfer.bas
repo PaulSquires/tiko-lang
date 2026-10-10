@@ -543,7 +543,7 @@ private function InferArgType_ _
 end function
 
 declare function InstArgsOf_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as FB.Array( of ulong ) ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as containers.Array( of ulong ) ) as boolean
 declare function SameGeneric_ _
     ( byref c as Ctx, byval argT as Tko.TypeId, byval want as Tko.InternId ) as boolean
 declare function MergeInferred_ _
@@ -574,7 +574,7 @@ private function InferPtrInst_ _
     if c.types->Kind( aU ) = Tko.TK_REFERENCE then aU = c.types->Unqualify( c.types->Inner( aU ) )
     if c.types->Kind( aU ) <> Tko.TK_POINTER then return -1
     dim as Tko.TypeId el = c.types->Unqualify( c.types->Inner( aU ) )
-    dim as FB.Array( of ulong ) iargs
+    dim as containers.Array( of ulong ) iargs
     if InstArgsOf_( c, el, iargs ) = false then return -1
     if SameGeneric_( c, el, ip->name ) = false then return -1
     if at_ >= iargs.Count then return -1

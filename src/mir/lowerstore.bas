@@ -5,6 +5,7 @@
 '' performance matter: a DIM SHARED that lands in a frame gives every procedure its own
 '' private copy, and assignments to it are silently invisible to everyone else.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -194,7 +195,7 @@ end function
 '' one of its own.
 function PickCtor _
     ( byref c as Ctx, byval first_ as Tko.SymbolId, _
-      byref argT as FB.Array( of ulong ) ) as Tko.SymbolId
+      byref argT as containers.Array( of ulong ) ) as Tko.SymbolId
     return Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT )
 end function
 
@@ -273,7 +274,7 @@ end function
 '' the first argument, per the ABI, which is also how the mangled name reads.
 sub EmitStructorCall _
     ( byref c as Ctx, byval sym as Tko.SymbolId, byval slot as long, _
-      byval selfVal as MirValue ptr = 0, byval args as FB.Array( of ulong ) ptr = 0 )
+      byval selfVal as MirValue ptr = 0, byval args as containers.Array( of ulong ) ptr = 0 )
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
     if s = 0 then return
@@ -305,7 +306,7 @@ sub EmitStructorCall _
     '' tiko passed the literal's own bytes where the FBSTRING* belongs, and the
     '' constructor's first string operation crashed -- AfxNova's BSTRING declares
     '' exactly that constructor (scratchpad afx/q1.bas).
-    dim as FB.Array( of ulong ) defv
+    dim as containers.Array( of ulong ) defv
     dim as long written = 0
     if args <> 0 then written = args->Count \ 2
     dim as long declared = ParamCountOf( c, sym )
@@ -524,7 +525,7 @@ function ReceiverOf _
         if aop <> Tko.SYMBOL_NONE then
             dim as MirValue hself = LowerAddr( c, mb->lhs )
             if hself.kind <> cast( ubyte, MV_NONE ) then
-                dim as FB.Array( of ulong ) aargs
+                dim as containers.Array( of ulong ) aargs
                 aargs.Push( cast( ulong, hself.kind ) )
                 aargs.Push( cast( ulong, hself.id ) )
                 '' 'operator ->' RETURNS BY VALUE UNLESS IT SAYS 'byref as', and MT_PTR
@@ -623,7 +624,7 @@ end function
 '' value rather than a table of their own.
 declare sub FlattenInitLeaves_ _
     ( byref c as Ctx, byval init as Tko.NodeId, _
-      byref outv as FB.Array( of ulong ) )
+      byref outv as containers.Array( of ulong ) )
 
 '' THE ADDRESS AN INITIALISER LEAF NAMES, as a pointer-table entry: kind 1 and a global's
 '' index for '@g' or '@"lit"' -- a string literal already lives in a global of its own --
@@ -725,14 +726,14 @@ private function GlobalPtrArrayInit_ _
     end if
     if total <= 0 then return false
 
-    dim as FB.Array( of ulong ) leaves
+    dim as containers.Array( of ulong ) leaves
     FlattenInitLeaves_( c, init, leaves )
     if cast( long, leaves.Count ) <> total then return false
 
     '' EVERY WORD MUST BE ONE, or none of them is: a half-filled table would be a
     '' global whose remaining elements are silently zero.
-    dim as FB.Array( of long )  kinds
-    dim as FB.Array( of ulong ) refs
+    dim as containers.Array( of long )  kinds
+    dim as containers.Array( of ulong ) refs
     for k as long = 0 to total - 1
         dim as Tko.NodeId e = Unparen_( c, cast( Tko.NodeId, leaves[k] ) )
         if c.ast->Kind( e ) = Tko.N_ADDROF then
@@ -1103,7 +1104,7 @@ sub InitSharedGlobal _
         '' 'pl.p' was null and the program faulted on it. fbc writes
         '' 'static struct $2PL PL1$ = { (int32*)&GA$, 5 };'. The image keeps zeros where
         '' the addresses go, and each address is a relocation at its offset.
-        dim as FB.Array( of ulong ) rel
+        dim as containers.Array( of ulong ) rel
         if FoldAggInit_( c, c.m->globals[g].frontendType, init, _
                          c.m->globals[g].size, img, VarScopeOf_( c, sid ), @rel ) then
             if rel.Count > 0 then

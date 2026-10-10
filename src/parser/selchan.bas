@@ -197,10 +197,10 @@ function ParseSelectChannel_ _
     dim as Tko.SourceLoc lc = t.loc
     Advance( p )                              '' past 'channel'
 
-    dim as FB.Array( of ulong ) kinds
-    dim as FB.Array( of ulong ) chans         '' the channel expression
-    dim as FB.Array( of ulong ) vals          '' a send's value / a receive's target
-    dim as FB.Array( of ulong ) bodies
+    dim as containers.Array( of ulong ) kinds
+    dim as containers.Array( of ulong ) chans         '' the channel expression
+    dim as containers.Array( of ulong ) vals          '' a send's value / a receive's target
+    dim as containers.Array( of ulong ) bodies
     dim as Tko.NodeId timeoutMs = Tko.NODE_NONE
     dim as Tko.NodeId timeoutBody = Tko.NODE_NONE
     dim as Tko.NodeId elseBody = Tko.NODE_NONE

@@ -16,6 +16,7 @@
 '' THE STORED VPTR POINTS AT SLOT TWO, not at the table. Below it sit the null word and
 '' the RTTI pointer, and every call site indexes from there.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir
@@ -388,7 +389,7 @@ end function
 '' member that is not virtual or has no slot in 'el'.
 function EmitVirtualMember_ _
     ( byref c as Ctx, byval sym as Tko.SymbolId, byval el as Tko.TypeId, _
-      byref selfp as MirValue, byval args as FB.Array( of ulong ) ptr ) as boolean
+      byref selfp as MirValue, byval args as containers.Array( of ulong ) ptr ) as boolean
 
     if c.vts = 0 then return false
     dim as Tko.Symbol ptr ms = c.syms->SymbolAt( sym )
@@ -430,7 +431,7 @@ function LowerIsTypeOf_ _
     rec.ty = cast( ubyte, MT_PTR )
     rec.id = g
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, obj.kind ) ) : args.Push( cast( ulong, obj.id ) )
     args.Push( cast( ulong, rec.kind ) ) : args.Push( cast( ulong, rec.id ) )
     outv = EmitRtl( c, RTL_IS_TYPE_OF, args )

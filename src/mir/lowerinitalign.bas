@@ -16,7 +16,7 @@
 '' model answers false and the caller pairs by position as before.
 declare function AlignUdt_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval leaf0 as long, byval lst as Tko.NodeId, _
-      byref ci as long, byref vNode as FB.Array( of ulong ), byref vStart as FB.Array( of ulong ), _
+      byref ci as long, byref vNode as containers.Array( of ulong ), byref vStart as containers.Array( of ulong ), _
       byval depth as long ) as boolean
 
 private function IsBracketed_( byref c as Ctx, byval v as Tko.NodeId ) as boolean
@@ -37,7 +37,7 @@ end function
 '' ONE UDT-TYPED SLOT -- a field or an element -- at leaf 'start', from list position ci.
 private function AlignUdtSlot_ _
     ( byref c as Ctx, byval ut as Tko.TypeId, byval start as long, byval lst as Tko.NodeId, _
-      byref ci as long, byref vNode as FB.Array( of ulong ), byref vStart as FB.Array( of ulong ), _
+      byref ci as long, byref vNode as containers.Array( of ulong ), byref vStart as containers.Array( of ulong ), _
       byval depth as long ) as boolean
 
     dim as Tko.NodeId v = ListAt_( c, lst, ci )
@@ -60,7 +60,7 @@ end function
 
 private function AlignElem_ _
     ( byref c as Ctx, byval et as Tko.TypeId, byval start as long, byval lst as Tko.NodeId, _
-      byref ci as long, byref vNode as FB.Array( of ulong ), byref vStart as FB.Array( of ulong ), _
+      byref ci as long, byref vNode as containers.Array( of ulong ), byref vStart as containers.Array( of ulong ), _
       byval depth as long ) as boolean
 
     if (c.types->Kind( et ) = Tko.TK_UDT) andalso (IsStringType( c, et ) = false) then
@@ -77,13 +77,13 @@ end function
 
 function AlignUdt_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval leaf0 as long, byval lst as Tko.NodeId, _
-      byref ci as long, byref vNode as FB.Array( of ulong ), byref vStart as FB.Array( of ulong ), _
+      byref ci as long, byref vNode as containers.Array( of ulong ), byref vStart as containers.Array( of ulong ), _
       byval depth as long ) as boolean
 
     if depth > 8 then return false
     dim as long ui = c.udts->Find( t )
     if ui < 0 then return false
-    dim as FB.Array( of ulong ) lo, lty, lft
+    dim as containers.Array( of ulong ) lo, lty, lft
     if FlattenUdtFields_( c, t, 0, lo, lty, 0, lft ) = false then return false
     dim as long n = ListCount_( c, lst )
     dim as long li = 0
@@ -187,7 +187,7 @@ end function
 private function AlignDim_ _
     ( byref c as Ctx, byval et as Tko.TypeId, byval d as long, byval rank as long, _
       byval ext as long ptr, byval strd as long ptr, byval base_ as long, byval lst as Tko.NodeId, _
-      byref vNode as FB.Array( of ulong ), byref vStart as FB.Array( of ulong ) ) as boolean
+      byref vNode as containers.Array( of ulong ), byref vStart as containers.Array( of ulong ) ) as boolean
 
     dim as long n = ListCount_( c, lst )
     if n > ext[d] then return false
@@ -210,7 +210,7 @@ end function
 '' The whole initialiser: true when every value found its field and none was left over.
 function AlignInitValues_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
-      byref vNode as FB.Array( of ulong ), byref vStart as FB.Array( of ulong ) ) as boolean
+      byref vNode as containers.Array( of ulong ), byref vStart as containers.Array( of ulong ) ) as boolean
 
     if t = Tko.TYPE_NONE then return false
     t = c.types->Unqualify( t )
@@ -227,7 +227,7 @@ function AlignInitValues_ _
         dim as Tko.TypeId aet = c.types->Unqualify( c.types->Inner( t ) )
         dim as long pe = 1
         if (c.types->Kind( aet ) = Tko.TK_UDT) andalso (IsStringType( c, aet ) = false) then
-            dim as FB.Array( of ulong ) po, pty, pft
+            dim as containers.Array( of ulong ) po, pty, pft
             if FlattenUdtFields_( c, aet, 0, po, pty, 0, pft ) = false then return false
             pe = po.Count
         elseif LowerType( aet, *c.types ) = MT_AGG then

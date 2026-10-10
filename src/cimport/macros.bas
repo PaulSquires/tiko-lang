@@ -33,6 +33,7 @@
 '' crt headers define it); anything spelled __x or _X (the implementation's); a value that
 '' is a pointer; infinity and NaN, which FreeBASIC has no literal for.
 
+#import "std/containers"
 #include once "cimport/import.bi"
 
 namespace Tko.CImport

@@ -4,6 +4,7 @@
 '' in lowerwstr.bas; what makes these two families different is lifetime, not shape --
 '' see the comment on LowerStrRvalue.
 
+#import "std/containers"
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
@@ -13,7 +14,7 @@ using Tko
 '' Defined in lowerwstr.bas. A WIDE result is an allocation the caller owns, and
 '' this is what parks it in a temporary and registers that for its fb_WstrDelete.
 declare function WideConcatStep_ _
-    ( byref c as Ctx, byref args as FB.Array( of ulong ), byval r as RtlId, _
+    ( byref c as Ctx, byref args as containers.Array( of ulong ), byval r as RtlId, _
       byref acc as MirValue ) as boolean
 
 declare function StrSwapKind_ _
@@ -165,7 +166,7 @@ function LowerStrRvalueB_ _
     dim as MirValue s0
     if StrDescriptorOf_( c, a0, s0 ) = false then return false
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, s0.kind ) ) : args.Push( cast( ulong, s0.id ) )
     if a1 <> Tko.NODE_NONE then
         args.Push( cast( ulong, v1.kind ) ) : args.Push( cast( ulong, v1.id ) )
@@ -217,7 +218,7 @@ function LowerStrOf_ _
     '' CHR first: same family, but variadic and with a COUNT in front.
     if nm = "chr" then
         if cp->count < 1 then return false
-        dim as FB.Array( of ulong ) ca
+        dim as containers.Array( of ulong ) ca
         ca.Push( cast( ulong, MV_CONST_INT ) ) : ca.Push( cast( ulong, cp->count ) )
         for i as long = 0 to cp->count - 1
             dim as Tko.NodeId ai = cast( Tko.NodeId, c.ast->children[cp->first + i] )
@@ -250,7 +251,7 @@ function LowerStrOf_ _
         dim as Tko.NodeId ma = cast( Tko.NodeId, c.ast->children[cp->first] )
         dim as MirValue mv = LowerNumArg_( c, ma, mt2 )
         if mv.kind = cast( ubyte, MV_NONE ) then return false
-        dim as FB.Array( of ulong ) ma2
+        dim as containers.Array( of ulong ) ma2
         ma2.Push( cast( ulong, mv.kind ) ) : ma2.Push( cast( ulong, mv.id ) )
         outv = EmitRtl( c, mr, ma2 )
         return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -303,7 +304,7 @@ function NarrowConvOf_ _
         isConv = true
         dim as MirValue wsv
         if WideOperand_( c, sa, wsv ) = false then return false
-        dim as FB.Array( of ulong ) wsa
+        dim as containers.Array( of ulong ) wsa
         wsa.Push( cast( ulong, wsv.kind ) ) : wsa.Push( cast( ulong, wsv.id ) )
         outv = EmitRtl( c, RTL_WSTR_TO_STR, wsa )
         return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -380,7 +381,7 @@ function NumberToStrDesc_ _
     dim as MirValue v0 = LowerExpr( c, a0 )
     if v0.kind = cast( ubyte, MV_NONE ) then return false
     v0 = Coerce( c, v0, want, uns )
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, v0.kind ) ) : args.Push( cast( ulong, v0.id ) )
     outv = EmitRtl( c, r, args )
     return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -482,7 +483,7 @@ function LowerStrNumCallB_ _
             dim as MirValue nv = LowerExpr( c, v0 )
             if nv.kind = cast( ubyte, MV_NONE ) then return false
             nv = CoerceTy( c, nv, want, v0t)
-            dim as FB.Array( of ulong ) fa
+            dim as containers.Array( of ulong ) fa
             fa.Push( cast( ulong, nv.kind ) ) : fa.Push( cast( ulong, nv.id ) )
             outv = EmitRtl( c, fr, fa )
             return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -524,12 +525,12 @@ function LowerStrNumCallB_ _
             dim as boolean uRaw = false
             if UserCastToStr_( c, v0, ucv, uRaw ) = false then return false
             if uRaw = false then return false
-            dim as FB.Array( of ulong ) uta
+            dim as containers.Array( of ulong ) uta
             uta.Push( cast( ulong, ucv.kind ) ) : uta.Push( cast( ulong, ucv.id ) )
             sd = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, uta )
             if sd.kind = cast( ubyte, MV_NONE ) then return false
         end if
-        dim as FB.Array( of ulong ) va
+        dim as containers.Array( of ulong ) va
         va.Push( cast( ulong, sd.kind ) ) : va.Push( cast( ulong, sd.id ) )
         outv = EmitRtl( c, vr, va )
         return (outv.kind <> cast( ubyte, MV_NONE ))
@@ -559,7 +560,7 @@ function LowerStrNumCallB_ _
         if ascU = false then ascU = UdtCastIsUStr_( c, a0asc )   '' a UDT casting to a ustring (T50)
         dim as RtlId ascR = RTL_STR_ASC : if ascU then ascR = RTL_USTR_ASC
         dim as MirValue sd
-        dim as FB.Array( of ulong ) aa
+        dim as containers.Array( of ulong ) aa
         '' A 'ustring * N' HAS NO DESCRIPTOR: fbc passes its buffer and TAGGED length,
         '' 'fb_UStrAsc( LF$0, &h8000000000000005, 1 )', the pair EmitStrTerm pushes.
         dim as longint ascTag
@@ -715,7 +716,7 @@ function LowerStrNumCallB_ _
         if stv.kind = cast( ubyte, MV_NONE ) then return false
     end if
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     if isRev then
         if isU then
             args.Push( cast( ulong, sd.kind ) ) : args.Push( cast( ulong, sd.id ) ) : PushStrLen_( c, args, sTag )
@@ -790,7 +791,7 @@ function ConcatToTemp_ _
     '' does. ConcatTermsToTempDesc_ builds the chain the same way the PRINT path does.
     if e = Tko.NODE_NONE then return false
     if c.ast->Kind( e ) <> Tko.N_BINARY then return false
-    dim as FB.Array( of ulong ) terms
+    dim as containers.Array( of ulong ) terms
     FlattenConcat( c, e, terms )
     return ConcatTermsToTempDesc_( c, terms, outv )
 end function
@@ -1120,7 +1121,7 @@ end function
 '' path, so it is the one field type here that is not a plain store.
 declare function FlattenUdtFields_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval base_ as long, _
-      byref offs as FB.Array( of ulong ), byref tys as FB.Array( of ulong ), _
+      byref offs as containers.Array( of ulong ), byref tys as containers.Array( of ulong ), _
       byval depth as long ) as boolean
 
 function LowerZstrAssignTo _
@@ -1134,7 +1135,7 @@ function LowerZstrAssignTo _
     '' says the destination is a fixed one: the sign bit IS the tag.
     dim as long tail = iif( n < 0, -1, 0 )
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
     PushStrLen_( c, args, n )
 

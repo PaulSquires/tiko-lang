@@ -48,7 +48,7 @@ function InitCopyReturn_( byref c as Ctx, byval valueE as Tko.NodeId ) as boolea
     if (cc = Tko.SYMBOL_NONE) orelse (cc = CopyCtorOf_( c, rt )) then return false
     dim as MirValue src = LowerAddr( c, valueE )
     if src.kind = cast( ubyte, MV_NONE ) then return false
-    dim as FB.Array( of ulong ) cargs
+    dim as containers.Array( of ulong ) cargs
     cargs.Push( cast( ulong, src.kind ) )
     cargs.Push( cast( ulong, src.id ) )
     EmitStructorCall( c, cc, c.resultSlot, 0, @cargs )

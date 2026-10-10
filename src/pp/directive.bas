@@ -267,14 +267,14 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
     if len( rel ) > 1 then
         if (left( rel, 1 ) = "/") orelse (left( rel, 1 ) = "\") then relJ = mid( rel, 2 )
     end if
-    dim as ustring firstTry = FB.PathJoin( dir_, relJ )
+    dim as ustring firstTry = fs.PathJoin( dir_, relJ )
     got = e.src->LoadFile( firstTry, why )
     dim as StrVec missed_
     if got = FILE_NONE then missed_.Push( firstTry )
 
     if got = FILE_NONE then
         for each p as string in *e.cfg->includePaths
-            dim as ustring cand = FB.PathJoin( p, relJ )
+            dim as ustring cand = fs.PathJoin( p, relJ )
             got = e.src->LoadFile( cand, why )
             if got <> FILE_NONE then exit for
             missed_.Push( cand )

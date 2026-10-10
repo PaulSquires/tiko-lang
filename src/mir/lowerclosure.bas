@@ -117,7 +117,7 @@ function LowerClosureAddr_ _
                     if ccc <> Tko.SYMBOL_NONE then
                         dim as MirValue csrc = LowerAddr( c, cn )
                         if csrc.kind = cast( ubyte, MV_NONE ) then return false
-                        dim as FB.Array( of ulong ) ccargs
+                        dim as containers.Array( of ulong ) ccargs
                         ccargs.Push( cast( ulong, csrc.kind ) )
                         ccargs.Push( cast( ulong, csrc.id ) )
                         EmitStructorCall( c, ccc, -1, @dst, @ccargs )

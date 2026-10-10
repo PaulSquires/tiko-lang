@@ -7,6 +7,7 @@
 ''
 '' Win64 never calls any of this: its classifier takes a byte count and nothing else.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 
 namespace Tko.Mir

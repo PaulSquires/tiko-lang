@@ -1,5 +1,6 @@
 '' platform.bas -- see platform.bi
 
+#import "std/containers"
 #include once "support/platform.bi"
 
 #ifdef __FB_WIN32__

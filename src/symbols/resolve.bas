@@ -1,11 +1,11 @@
 '' resolve.bas -- see resolve.bi
 
+#import "std/containers"
 #include once "symbols/resolvectx.bi"
 #include once "support/irtext.bi"
 #include once "symbols/mangle.bi"
 #include once "symbols/check.bi"
 #include once "lexer/keywords.bi"
-
 namespace Tko
 
 #include once "symbols/resolveinfo.bas"

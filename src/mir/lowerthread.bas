@@ -114,11 +114,11 @@ end function
 '' loses the bitfield/anon flags this needs.
 declare function ThreadUdtFields_ _
     ( byref c as Ctx, byval t as Tko.TypeId, _
-      byref outFlds as FB.Array( of ulong ) ) as boolean
+      byref outFlds as containers.Array( of ulong ) ) as boolean
 
 private function ThreadUdtFields_ _
     ( byref c as Ctx, byval t as Tko.TypeId, _
-      byref outFlds as FB.Array( of ulong ) ) as boolean
+      byref outFlds as containers.Array( of ulong ) ) as boolean
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ThreadUdtSym_( c, t ) )
     if s = 0 then return false
@@ -201,7 +201,7 @@ private function ThreadTypeCode_ _
     case Tko.TK_ENUM
         u = c.types->Builtin( Tko.TY_INTEGER )
     case Tko.TK_UDT
-        dim as FB.Array( of ulong ) flds
+        dim as containers.Array( of ulong ) flds
         if ThreadUdtFields_( c, u, flds ) = false then return 0
         if flds.Count = 1 then
             '' THE CODE COLLAPSES, THE DESCRIPTOR DOES NOT -- see the header.
@@ -249,11 +249,11 @@ end function
 '' asked for -- NOT the single field a collapse looked through. See the header.
 declare function PushThreadDesc_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval code as longint, _
-      byref args as FB.Array( of ulong ), byval depth as long = 0 ) as boolean
+      byref args as containers.Array( of ulong ), byval depth as long = 0 ) as boolean
 
 private function PushThreadDesc_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval code as longint, _
-      byref args as FB.Array( of ulong ), byval depth as long ) as boolean
+      byref args as containers.Array( of ulong ), byval depth as long ) as boolean
 
     args.Push( cast( ulong, MV_CONST_INT ) )
     args.Push( cast( ulong, cast( long, code ) ) )
@@ -262,7 +262,7 @@ private function PushThreadDesc_ _
 
     dim as Tko.TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
-    dim as FB.Array( of ulong ) flds
+    dim as containers.Array( of ulong ) flds
     if ThreadUdtFields_( c, u, flds ) = false then return false
     args.Push( cast( ulong, MV_CONST_INT ) )
     args.Push( cast( ulong, flds.Count ) )
@@ -385,9 +385,9 @@ function LowerThreadCall_ _
 
     '' EVERY ARGUMENT LOWERED BEFORE ANYTHING IS PUSHED. A thread call that gives up
     '' half way would leave its temporaries and its stores behind and read as lowered.
-    dim as FB.Array( of ulong ) args
-    dim as FB.Array( of ulong ) strTemps
-    dim as FB.Array( of ulong ) strTempTypes
+    dim as containers.Array( of ulong ) args
+    dim as containers.Array( of ulong ) strTemps
+    dim as containers.Array( of ulong ) strTempTypes
     args.Push( cast( ulong, fa.kind ) ) : args.Push( cast( ulong, fa.id ) )
     '' THE CONVENTION IS THE CALLEE'S, RESOLVED -- and FOREIGN IS NOT A CONVENTION.
     '' 'extern "Windows-MS"' carries PF_FOREIGN, so treating that bit as cdecl sent

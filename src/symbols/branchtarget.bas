@@ -66,7 +66,7 @@ private sub BtExit_ _
 end sub
 
 '' The labels a procedure's body (or the module-level code) defines. Not into a procedure.
-private sub BtLabels_ ( byref c as Ctx, byval id as NodeId, byref labels as FB.Array( of ulong ) )
+private sub BtLabels_ ( byref c as Ctx, byval id as NodeId, byref labels as containers.Array( of ulong ) )
     if id = NODE_NONE then return
     dim as NodeKind k = c.ast->Kind( id )
     if (NodeKindCategory( k ) = NCAT_EXPR) orelse (NodeKindCategory( k ) = NCAT_TYPE) then return
@@ -91,7 +91,7 @@ end sub
 private sub BtWalk_ _
     ( byref c as Ctx, byval id as NodeId, byval procKw as TokenKind, _
       byval nFor as long, byval nDo as long, byval nWhile as long, byval nSel as long, _
-      byref labels as FB.Array( of ulong ) )
+      byref labels as containers.Array( of ulong ) )
     if id = NODE_NONE then return
     dim as NodeKind k = c.ast->Kind( id )
     if (NodeKindCategory( k ) = NCAT_EXPR) orelse (NodeKindCategory( k ) = NCAT_TYPE) then return
@@ -134,7 +134,7 @@ end sub
 private sub CheckBranchTargets_( byref c as Ctx )
     '' Module-level code: the root, with every procedure left to the loop below.
     if c.root <> NODE_NONE then
-        dim as FB.Array( of ulong ) top
+        dim as containers.Array( of ulong ) top
         BtLabels_( c, c.root, top )
         BtWalk_( c, c.root, cast( TokenKind, 0 ), 0, 0, 0, 0, top )
     end if
@@ -142,7 +142,7 @@ private sub CheckBranchTargets_( byref c as Ctx )
         if c.ast->Kind( cast( NodeId, n ) ) <> N_PROC then continue for
         dim as StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[n].data )]
         if pp->b = NODE_NONE then continue for
-        dim as FB.Array( of ulong ) labels
+        dim as containers.Array( of ulong ) labels
         BtLabels_( c, pp->b, labels )
         BtWalk_( c, pp->b, cast( TokenKind, pp->op ), 0, 0, 0, 0, labels )
     next

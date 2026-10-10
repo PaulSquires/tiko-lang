@@ -6,9 +6,10 @@
 '' once each leave a whole file, and since the key decides the content, whichever wins is
 '' right.
 
+#import "std/containers"
+#import "std/fs"
 #include once "support/diskcache.bi"
 #include once "support/platform.bi"
-#include once "fb/filesystem.bi"
 
 namespace Tko.DiskCache
 
@@ -22,9 +23,9 @@ function Hash( byref s as string ) as string
 end function
 
 function Stamp( byref path_ as string ) as string
-    dim as FB.FsResultInfo r = FB.Stat( path_ )
+    dim as fs.FsResultInfo r = fs.Stat( path_ )
     if r.IsOk( ) = false then return ""
-    dim as FB.FileInfo fi = r.Value( )
+    dim as fs.FileInfo fi = r.Value( )
     if fi.IsFile( ) = false then return ""
     return str( fi.Size( ) ) & chr( 9 ) & str( fi.ModifiedUtc( ) )
 end function
@@ -57,9 +58,9 @@ function Commit( byref path_ as string, byref text as string, byval serial as lo
     if open( tmp for binary access write as #f ) <> 0 then return false
     if len( text ) then put #f, , text
     close #f
-    dim as FB.FsResultBool r = FB.MoveFile( tmp, path_, true )
+    dim as fs.FsResultBool r = fs.MoveFile( tmp, path_, true )
     if r.IsOk( ) = false then
-        FB.RemoveFile( tmp )
+        fs.RemoveFile( tmp )
         return false
     end if
     return true

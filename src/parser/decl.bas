@@ -1462,7 +1462,7 @@ end sub
 function ParseTypeParams( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as Tko.NodeIdVec names
-    dim as FB.Array( of ulong ) seen
+    dim as containers.Array( of ulong ) seen
     do
         if (Peek( p ) <> Tko.TK_IDENT) andalso (Tko.IsKeywordKind( Peek( p ) ) = false) then
             '' 'type Empty( of )' and 'type NotId( of 42 )'. fbc reports both at the

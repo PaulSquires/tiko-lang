@@ -47,7 +47,7 @@ namespace Tko
         '' so the tokens are bound to whichever pool was current when they were lexed.
         '' See PpConfig.sharedLits.
         as LiteralVec             ppLits
-        as FB.Array( of any ptr ) ppLexed
+        as containers.Array( of any ptr ) ppLexed
         '' '#cinclude's session -- libclang and this run's bindings (cinclude.bas), made
         '' at the first #cinclude and freed with the context.
         as any ptr                cinclude

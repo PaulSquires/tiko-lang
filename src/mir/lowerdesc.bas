@@ -19,6 +19,7 @@
 '' pure function of compile-time constants -- the bounds, the element size, and the
 '' array's own address -- none of which can change between the two points.
 
+#import "std/containers"
 #include once "lowerctx.bi"
 
 namespace Tko.Mir
@@ -32,7 +33,7 @@ declare function RedimOne_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval item as Tko.NodeId, _
       byval presv as boolean ) as boolean
 declare function PushStructorPtr_ _
-    ( byref c as Ctx, byref args as FB.Array( of ulong ), _
+    ( byref c as Ctx, byref args as containers.Array( of ulong ), _
       byval s as Tko.SymbolId, byval t as Tko.TypeId, byval kind_ as long ) as boolean
 
 
@@ -131,9 +132,9 @@ function SynthFixedArrayDesc _
     '' Per-dimension element counts, and the row-major offset of the LOWEST index
     '' tuple -- which is what DATA is biased by. fbc never subtracts an lbound when
     '' indexing, so the bias has to be baked in here or every access is off by it.
-    dim as FB.Array( of longint ) lo
-    dim as FB.Array( of longint ) hi
-    dim as FB.Array( of longint ) nel
+    dim as containers.Array( of longint ) lo
+    dim as containers.Array( of longint ) hi
+    dim as containers.Array( of longint ) nel
     dim as longint total = 1
     for d as long = 0 to dims - 1
         dim as longint l = c.types->boundPool[first + d * 2]
@@ -322,7 +323,7 @@ private function EraseOne_( byref c as Ctx, byval it as Tko.NodeId ) as boolean
     if SynthFixedArrayDesc( c, base_, t, desc ) = false then return false
 
     dim as Tko.TypeId et = c.types->types[cast( long, t )].inner
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
 
     '' A var-len STRING element is destructed, not cleared: its bytes are a descriptor
@@ -392,7 +393,7 @@ end function
 '' fb_ArrayRedimPresvEx. No element was constructed or destructed. kind_ is 1 for the
 '' constructor and 0 for the destructor.
 private function PushStructorPtr_ _
-    ( byref c as Ctx, byref args as FB.Array( of ulong ), _
+    ( byref c as Ctx, byref args as containers.Array( of ulong ), _
       byval s as Tko.SymbolId, byval t as Tko.TypeId, byval kind_ as long ) as boolean
 
     if s = Tko.SYMBOL_NONE then
@@ -543,7 +544,7 @@ sub EmitEraseDynAt_ _
 
     if c.types->IsDynArray( t ) = false then return
     dim as Tko.TypeId et = c.types->Inner( t )
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, d.kind ) ) : args.Push( cast( ulong, d.id ) )
 
     if IsStringType( c, et ) then
@@ -576,7 +577,7 @@ sub EmitEraseDynAt_ _
             end if
             '' A structor whose address could not be taken: fall through to the plain
             '' erase rather than emitting a call with a missing argument.
-            dim as FB.Array( of ulong ) plain
+            dim as containers.Array( of ulong ) plain
             plain.Push( cast( ulong, d.kind ) ) : plain.Push( cast( ulong, d.id ) )
             EmitRtl( c, RTL_ARRAY_ERASE, plain )
             return
@@ -825,10 +826,10 @@ end function
 '' declaration -- an array result built from a brace list -- takes the same Ex / Obj decision.
 private function EmitRedimCall_ _
     ( byref c as Ctx, byref desc as MirValue, byval et as Tko.TypeId, byval dims as long, _
-      byref bk as FB.Array( of ulong ), byref bi as FB.Array( of ulong ), _
+      byref bk as containers.Array( of ulong ), byref bi as containers.Array( of ulong ), _
       byval presv as boolean, byval noCtor as boolean = false ) as boolean
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
     args.Push( cast( ulong, MV_CONST_INT ) )
     args.Push( cast( ulong, SizeOfType( c, et ) ) )
@@ -914,8 +915,8 @@ function EmitRedimConst_ _
     ( byref c as Ctx, byref desc as MirValue, byval aty as Tko.TypeId, byval n as longint ) as boolean
 
     dim as MirType zt = DescIntTy_( c )
-    dim as FB.Array( of ulong ) bk
-    dim as FB.Array( of ulong ) bi
+    dim as containers.Array( of ulong ) bk
+    dim as containers.Array( of ulong ) bi
     dim as MirValue lv = ConstInt( c, 0, zt )
     dim as MirValue hv = ConstInt( c, n - 1, zt )
     bk.Push( cast( ulong, lv.kind ) ) : bi.Push( cast( ulong, lv.id ) )
@@ -967,8 +968,8 @@ function EmitArrayBounds _
 
     '' Bound VALUES first: they are ordinary expressions and must be evaluated before
     '' anything is emitted that would be wrong to leave behind if one declines.
-    dim as FB.Array( of ulong ) bk
-    dim as FB.Array( of ulong ) bi
+    dim as containers.Array( of ulong ) bk
+    dim as containers.Array( of ulong ) bi
     for d as long = 0 to lp->count - 1
         dim as Tko.NodeId dn = cast( Tko.NodeId, c.ast->children[lp->first + d] )
         dim as Tko.NodeId loN = Tko.NODE_NONE
@@ -1189,7 +1190,7 @@ function LowerArrayBoundCall _
         dimV = CoerceTy( c, dv, zt, c.info->TypeOf_( a1 ))
     end if
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
     args.Push( cast( ulong, dimV.kind ) ) : args.Push( cast( ulong, dimV.id ) )
     outv = EmitRtl( c, r, args )
@@ -1225,7 +1226,7 @@ sub RedimFieldInit_( byref c as Ctx, byref fa as MirValue, byval f as Tko.Symbol
         end if
     next
     dim as MirType zt = DescIntTy_( c )
-    dim as FB.Array( of ulong ) bk, bi
+    dim as containers.Array( of ulong ) bk, bi
     for i as long = 0 to (sp->count \ 2) * 2 - 1
         dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if bn = Tko.NODE_NONE then   '' 'redim f( 3 )': the lower bound is 0

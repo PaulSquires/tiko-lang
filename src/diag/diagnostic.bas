@@ -1,5 +1,6 @@
 '' diagnostic.bas -- see diagnostic.bi
 
+#import "std/containers"
 #include once "diag/diagnostic.bi"
 #include once "support/text.bi"
 

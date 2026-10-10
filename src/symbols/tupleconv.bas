@@ -276,7 +276,7 @@ private function TupleConvBad_ _
     if (s = 0) orelse (s->inner = SCOPE_NONE) then return false
     dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
     if sc = 0 then return false
-    dim as FB.Array( of ulong ) ets
+    dim as containers.Array( of ulong ) ets
     dim as SymbolId cur = sc->firstSym
     for guard as long = 0 to 9999
         if cur = SYMBOL_NONE then exit for

@@ -6,8 +6,8 @@
 '' entry block, and both own a zero-initialised result slot -- main's IS the process
 '' exit code, and a function's is what 'function = expr' writes to.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
-
 namespace Tko.Mir
 declare function SretCopyResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean
@@ -741,11 +741,11 @@ sub LowerProc _
     dim as MirValue savedModName, savedFuncName
     if namesProc then
         dim as Tko.DecodedLoc pfd = c.srcMgr->Decode( c.ast->Loc( id ) )
-        dim as FB.Array( of ulong ) ma
+        dim as containers.Array( of ulong ) ma
         dim as MirValue mv = LowerTextAddr( c, c.srcMgr->PathOf( pfd.file ) )
         ma.Push( cast( ulong, mv.kind ) ) : ma.Push( cast( ulong, mv.id ) )
         savedModName = EmitRtl( c, RTL_ERROR_SET_MOD_NAME, ma )
-        dim as FB.Array( of ulong ) fa
+        dim as containers.Array( of ulong ) fa
         dim as MirValue fv = LowerTextAddr( c, Tko.Text.UpperAscii( c.names->Spelling( sp->name ) ) )
         fa.Push( cast( ulong, fv.kind ) ) : fa.Push( cast( ulong, fv.id ) )
         savedFuncName = EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, fa )
@@ -812,7 +812,7 @@ sub LowerProc _
         ra2.kind = cast( ubyte, MV_LOCAL )
         ra2.ty = cast( ubyte, MT_PTR )
         ra2.id = c.resultSlot
-        dim as FB.Array( of ulong ) rargs
+        dim as containers.Array( of ulong ) rargs
         rargs.Push( cast( ulong, ra2.kind ) ) : rargs.Push( cast( ulong, ra2.id ) )
         dim as MirValue rv2 = EmitRtl( c, ResultTempRtl_( c ), rargs )
         Terminate( c, MTERM_RET, -1, -1, rv2 )
@@ -851,11 +851,11 @@ sub LowerProc _
         for bi as long = 0 to c.f->blocks.Count - 1
             if c.f->blocks[bi].term <> cast( ubyte, MTERM_RET ) then continue for
             c.curBlock = bi
-            dim as FB.Array( of ulong ) ra
+            dim as containers.Array( of ulong ) ra
             ra.Push( cast( ulong, savedFuncName.kind ) )
             ra.Push( cast( ulong, savedFuncName.id ) )
             EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, ra )
-            dim as FB.Array( of ulong ) rb
+            dim as containers.Array( of ulong ) rb
             rb.Push( cast( ulong, savedModName.kind ) )
             rb.Push( cast( ulong, savedModName.id ) )
             EmitRtl( c, RTL_ERROR_SET_MOD_NAME, rb )
@@ -1234,14 +1234,14 @@ sub LowerMainModule _
         argvv.kind = cast( ubyte, MV_PARAM )
         argvv.ty = cast( ubyte, MT_PTR )
         argvv.id = 1
-        dim as FB.Array( of ulong ) ia
+        dim as containers.Array( of ulong ) ia
         ia.Push( cast( ulong, argcv.kind ) ) : ia.Push( cast( ulong, argcv.id ) )
         ia.Push( cast( ulong, argvv.kind ) ) : ia.Push( cast( ulong, argvv.id ) )
         dim as MirValue zero_ = ConstInt( c, 0, MT_I32 )
         ia.Push( cast( ulong, zero_.kind ) ) : ia.Push( cast( ulong, zero_.id ) )
         EmitRtl( c, RTL_INIT, ia )
         '' -e: fbc's 'fb_InitSignals( )' after fb_Init -- 'b \ 0' is runtime error 11 (F-59).
-        dim as FB.Array( of ulong ) noArgs : if (c.errFlags and 1) <> 0 then EmitRtl( c, RTL_INIT_SIGNALS, noArgs )
+        dim as containers.Array( of ulong ) noArgs : if (c.errFlags and 1) <> 0 then EmitRtl( c, RTL_INIT_SIGNALS, noArgs )
     end if
 
     ClearLabels( c, 0 )
@@ -1277,11 +1277,11 @@ sub LowerMainModule _
         '' whenever a name has been set at all -- so setting nothing is a third answer
         '' and matches neither.
         dim as Tko.DecodedLoc pfd = c.srcMgr->Decode( c.ast->Loc( root ) )
-        dim as FB.Array( of ulong ) ma
+        dim as containers.Array( of ulong ) ma
         dim as MirValue mv = LowerTextAddr( c, c.srcMgr->PathOf( pfd.file ) )
         ma.Push( cast( ulong, mv.kind ) ) : ma.Push( cast( ulong, mv.id ) )
         savedModName = EmitRtl( c, RTL_ERROR_SET_MOD_NAME, ma )
-        dim as FB.Array( of ulong ) fa
+        dim as containers.Array( of ulong ) fa
         dim as MirValue fv = LowerTextAddr( c, "" )
         fa.Push( cast( ulong, fv.kind ) ) : fa.Push( cast( ulong, fv.id ) )
         savedFuncName = EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, fa )
@@ -1310,7 +1310,7 @@ sub LowerMainModule _
     '' preceding it, so shutting the runtime down before releasing its strings would
     '' invert the order fbc actually emits.
     if isMainModule then
-        dim as FB.Array( of ulong ) ea
+        dim as containers.Array( of ulong ) ea
         dim as MirValue zend = ConstInt( c, 0, MT_I32 )
         ea.Push( cast( ulong, zend.kind ) ) : ea.Push( cast( ulong, zend.id ) )
         EmitRtl( c, RTL_END, ea )
@@ -1343,11 +1343,11 @@ sub LowerMainModule _
         for bi as long = 0 to c.f->blocks.Count - 1
             if c.f->blocks[bi].term <> cast( ubyte, MTERM_RET ) then continue for
             c.curBlock = bi
-            dim as FB.Array( of ulong ) ra
+            dim as containers.Array( of ulong ) ra
             ra.Push( cast( ulong, savedFuncName.kind ) )
             ra.Push( cast( ulong, savedFuncName.id ) )
             EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, ra )
-            dim as FB.Array( of ulong ) rb
+            dim as containers.Array( of ulong ) rb
             rb.Push( cast( ulong, savedModName.kind ) )
             rb.Push( cast( ulong, savedModName.id ) )
             EmitRtl( c, RTL_ERROR_SET_MOD_NAME, rb )

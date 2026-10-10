@@ -1,5 +1,6 @@
 '' lower.bas -- AST to MIR. See lower.bi for what this slice does and does not cover.
 
+#import "std/containers"
 #include once "mir/lower.bi"
 #include once "mir/lowerctx.bi"
 
@@ -400,7 +401,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                                 if c.wstrTemps.Count > wtBefore then
                                     released = true
                                 else
-                                    dim as FB.Array( of ulong ) wa
+                                    dim as containers.Array( of ulong ) wa
                                     wa.Push( cast( ulong, sd.kind ) )
                                     wa.Push( cast( ulong, sd.id ) )
                                     EmitRtl( c, RTL_WSTR_DELETE, wa )
@@ -408,7 +409,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                                 end if
                             end if
                         elseif StrDescriptorOf_( c, sp->a, sd ) then
-                            dim as FB.Array( of ulong ) da
+                            dim as containers.Array( of ulong ) da
                             da.Push( cast( ulong, sd.kind ) )
                             da.Push( cast( ulong, sd.id ) )
                             EmitRtl( c, RTL_H_STR_DEL_TEMP, da )
@@ -438,7 +439,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                         dim as longint dvn = 0
                         if IsStringType( c, dvt ) andalso _
                            (StrSwapKind_( c, dvt, dvn ) = 0) then
-                            dim as FB.Array( of ulong ) ra
+                            dim as containers.Array( of ulong ) ra
                             ra.Push( cast( ulong, dv.kind ) )
                             ra.Push( cast( ulong, dv.id ) )
                             EmitRtl( c, iif( IsUStringType( c, dvt ), _

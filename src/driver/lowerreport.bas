@@ -2,6 +2,7 @@
 '' breakdown of every statement that did not lower. Moved out of driver.bas on 2026-09-24
 '' for the 1500-line cap; nothing about it changed in the move.
 
+#import "std/containers"
 #include once "driver/lowerreport.bi"
 
 namespace Tko.Driver

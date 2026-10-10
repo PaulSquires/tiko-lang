@@ -11,6 +11,7 @@
 '' a declaration can only refer to what precedes it, and C's own order is the one order
 '' that is known to satisfy that.
 
+#import "std/containers"
 #include once "cimport/import.bi"
 
 namespace Tko.CImport

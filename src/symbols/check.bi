@@ -43,10 +43,10 @@ namespace Tko.Check
         '' so the callee never binds, so lowering has nothing to emit. Counting the
         '' argument's node KIND turns "some expression is missing" into a list of
         '' expression forms to implement, which is how PROCPTR was found.
-        as FB.Array( of long ) argUntypedKind
+        as containers.Array( of long ) argUntypedKind
         '' ... and the NAME at that leaf, when it has one. A kind says which shape is
         '' missing; the name says which one to write.
-        as FB.Array( of ulong ) argUntypedNames
+        as containers.Array( of ulong ) argUntypedNames
     end type
 
     '' What one argument costs to pass to one parameter. Lower is better; CONV_NONE
@@ -165,7 +165,7 @@ namespace Tko.Check
         ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
           byref src as Tko.SourceManager, byref diags as Tko.DiagnosticEngine, _
           byref info as Tko.SemanticInfo, byref rst as Tko.Resolve.Stats, _
-          byref reserved as FB.Array( of ulong ), byref syms as Tko.SymbolTable, _
+          byref reserved as containers.Array( of ulong ), byref syms as Tko.SymbolTable, _
           byval isRtl as RtlNameFn )
 
     '' The global 'operator ->' for a UDT and what it hands back. Both layers need
@@ -223,7 +223,7 @@ namespace Tko.Check
     declare function PickStructor _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
-          byval first_ as Tko.SymbolId, byref argT as FB.Array( of ulong ) ) as Tko.SymbolId
+          byval first_ as Tko.SymbolId, byref argT as containers.Array( of ulong ) ) as Tko.SymbolId
 
     '' WHICH 'operator cast' A STRING CONTEXT CALLS -- one rule, scored as fbc scores it
     '' (castpick.bas). CR_*: what a cast yields; CT_*: the target a context asks with;

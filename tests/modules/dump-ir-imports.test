@@ -1,0 +1,9 @@
+'' A DUMP OF A PROGRAM THAT IMPORTS builds the modules it imports, for their interfaces: no
+'' objects are linked, but every name they export resolves. '--dump-ir' of a root importing
+'' std/containers was TKO0992 and 'containers.array' undeclared -- and tiko's own source
+'' imports std/containers (2026-10-10), so the gate and bootstrap could not lower it.
+'' TEST: cli
+'' ARGS: --dump-ir -target win64-msvc tests/modules/src/stdfacade/containers.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: TKO0992

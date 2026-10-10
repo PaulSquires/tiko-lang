@@ -8,8 +8,8 @@ declare function TupleElemCmp_ _
     ( byref c as Ctx, byref ldst as MirValue, byref rdst as MirValue, _
       byval et as Tko.TypeId, byval off as long, byval isEq as boolean ) as MirValue
 declare function TupleElems_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref etypes as FB.Array( of ulong ), _
-      byref eoffs as FB.Array( of ulong ), byval flatten as boolean = true ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref etypes as containers.Array( of ulong ), _
+      byref eoffs as containers.Array( of ulong ), byval flatten as boolean = true ) as boolean
 
 '' TUPLE EQUALITY, which is a SHORT-CIRCUIT CHAIN over the elements.
 ''
@@ -43,8 +43,8 @@ function LowerTupleCompare _
 
     '' The elements, in declaration order, with their offsets. A structure that is not
     '' a tuple comes back false and takes no part in this.
-    dim as FB.Array( of ulong ) etypes
-    dim as FB.Array( of ulong ) eoffs
+    dim as containers.Array( of ulong ) etypes
+    dim as containers.Array( of ulong ) eoffs
     if TupleElems_( c, lt, etypes, eoffs, true ) = false then return false
 
     '' EACH SIDE'S ADDRESS ONCE, in a slot so it survives the blocks below.
@@ -197,7 +197,7 @@ function TupleElemCmp_ _
     '' descriptor is an aggregate, so comparing it as one would compare the pointer
     '' and the length rather than the text.
     if IsStringType( c, et ) then
-        dim as FB.Array( of ulong ) sargs
+        dim as containers.Array( of ulong ) sargs
         PushStrArg( sargs, laddr )
         PushStrArg( sargs, raddr )
         dim as MirValue sc = EmitRtl( c, RTL_STR_COMPARE, sargs )
@@ -248,7 +248,7 @@ function TupleElemCmp_ _
         if ucs = 0 then return none_
         dim as MirType urt = MT_I64
         if ucs->type_ <> Tko.TYPE_NONE then urt = LowerType( ucs->type_, *c.types )
-        dim as FB.Array( of ulong ) uargs
+        dim as containers.Array( of ulong ) uargs
         uargs.Push( cast( ulong, laddr.kind ) ) : uargs.Push( cast( ulong, laddr.id ) )
         uargs.Push( cast( ulong, raddr.kind ) ) : uargs.Push( cast( ulong, raddr.id ) )
         '' RAW, AS EVERY ELEMENT IS: the chain above negates a 1/0 into FreeBASIC's -1/0, and the
@@ -283,8 +283,8 @@ end function
 '' has no members of its own, so those two facts are what tell one from an ordinary
 '' structure. There is no other marker on the type.
 function TupleElems_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref etypes as FB.Array( of ulong ), _
-      byref eoffs as FB.Array( of ulong ), byval flatten as boolean ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref etypes as containers.Array( of ulong ), _
+      byref eoffs as containers.Array( of ulong ), byval flatten as boolean ) as boolean
 
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     dim as Tko.SymbolId ts = UdtSymOf_( c, t )
@@ -310,7 +310,7 @@ function TupleElems_ _
             '' A NESTED TUPLE IS FLATTENED into its own leaves, at their offsets from
             '' here -- measured: '((long, long), long)' is THREE element comparisons in
             '' one chain, not a comparison of a pair against a pair.
-            dim as FB.Array( of ulong ) sub_t, sub_o
+            dim as containers.Array( of ulong ) sub_t, sub_o
             if flatten andalso _
                TupleElems_( c, c.types->Unqualify( f->type_ ), sub_t, sub_o, true ) then
                 for k as long = 0 to sub_t.Count - 1
@@ -347,8 +347,8 @@ end function
 '' NAMES' CURRENT VALUES and stored the call's result into it. Nothing was assigned
 '' to a, b or c, no decline said so, and it verified.
 private function DestructureElems_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref etypes as FB.Array( of ulong ), _
-      byref eoffs as FB.Array( of ulong ) ) as boolean
+    ( byref c as Ctx, byval t as Tko.TypeId, byref etypes as containers.Array( of ulong ), _
+      byref eoffs as containers.Array( of ulong ) ) as boolean
 
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     dim as Tko.SymbolId ts = UdtSymOf_( c, t )
@@ -408,8 +408,8 @@ function LowerDestructure _
     '' lvalues and the middle one is a tuple of its own, which this does not model --
     '' the counts would not match and it declines.
     dim as Tko.TypeId vt = c.types->Unqualify( c.info->TypeOf_( value ) )
-    dim as FB.Array( of ulong ) etypes
-    dim as FB.Array( of ulong ) eoffs
+    dim as containers.Array( of ulong ) etypes
+    dim as containers.Array( of ulong ) eoffs
     if DestructureElems_( c, vt, etypes, eoffs ) = false then return false
     '' FEWER NAMES THAN FIELDS IS LEGAL and takes the leading ones; MORE is fbc
     '' error 266 and declines here.
@@ -467,7 +467,7 @@ function LowerDestructure _
 
         '' A STRING ELEMENT IS A RUNTIME CALL, from one descriptor into another.
         if IsStringType( c, et ) then
-            dim as FB.Array( of ulong ) sargs
+            dim as containers.Array( of ulong ) sargs
             PushStrArg( sargs, daddr )
             PushStrArg( sargs, saddr )
             sargs.Push( cast( ulong, MV_CONST_INT ) )
@@ -493,6 +493,6 @@ end function
 '' IS THIS TYPE A TUPLE? Its fields are named '_1', '_2', ... in order and it has no
 '' members of its own; there is no other marker.
 function IsTupleType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
-    dim as FB.Array( of ulong ) ts, os
+    dim as containers.Array( of ulong ) ts, os
     return TupleElems_( c, c.types->Unqualify( t ), ts, os, false )
 end function

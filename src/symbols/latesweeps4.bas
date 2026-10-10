@@ -1241,8 +1241,8 @@ end sub
 ''
 '' A type reference counts unless it sits behind a pointer, is a typedef's own target, or
 '' is inside a procedure type. One report per reference.
-private sub MarkTypeRefTree4_ ( byref c as Ctx, byval t as NodeId, byref mark as FB.Array( of ubyte ) )
-    dim as FB.Array( of ulong ) stack
+private sub MarkTypeRefTree4_ ( byref c as Ctx, byval t as NodeId, byref mark as containers.Array( of ubyte ) )
+    dim as containers.Array( of ulong ) stack
     stack.Push( cast( ulong, t ) )
     dim as long guard = 0
     while (stack.Count > 0) andalso (guard < 100000)
@@ -1317,7 +1317,7 @@ end function
 declare sub CheckByrefResultCalls_ ( byref c as Ctx, byval total as long )  '' staticdef.bas
 private sub CheckIncompleteObjects_ ( byref c as Ctx )
     dim as long total = c.ast->Count( )
-    dim as FB.Array( of ubyte ) mark
+    dim as containers.Array( of ubyte ) mark
     for i as long = 0 to total
         mark.Push( 0 )
     next
@@ -1368,7 +1368,7 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
             if pta <> NODE_NONE then MarkTypeRefTree4_( c, pta, mark )
         next
     next
-    dim as FB.Array( of ulong ) doneLoc
+    dim as containers.Array( of ulong ) doneLoc
     for i as long = 1 to total
         dim as NodeId n = cast( NodeId, i )
         if c.ast->Kind( n ) <> N_TYPEREF then continue for

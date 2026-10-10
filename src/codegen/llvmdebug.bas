@@ -1,5 +1,6 @@
 '' llvmdebug.bas -- see the header.
 
+#import "std/containers"
 #include once "codegen/llvmdebug.bi"
 #include once "support/text.bi"
 

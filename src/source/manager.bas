@@ -1,7 +1,8 @@
 '' manager.bas -- see manager.bi
 
+#import "std/containers"
+#import "std/fs"
 #include once "source/manager.bi"
-#include once "fb/filesystem.bi"
 
 namespace Tko
 
@@ -186,15 +187,15 @@ function SourceManager.LoadFile _
 
     errOut = ""
 
-    dim as FB.FsResultUStr abs_ = FB.AbsolutePath( path )
+    dim as fs.FsResultUStr abs_ = fs.AbsolutePath( path )
     dim as ustring absPath = path
-    if abs_.IsOk( ) then absPath = FB.PathNormalize( abs_.Value( ) )
+    if abs_.IsOk( ) then absPath = fs.PathNormalize( abs_.Value( ) )
 
     dim as FileId already = this.Find( absPath )
     if already <> FILE_NONE then return already
 
     dim as ByteBuf raw
-    dim as FB.FsResultI64 r = FB.ReadAllBytes( absPath, raw )
+    dim as fs.FsResultI64 r = fs.ReadAllBytes( absPath, raw )
     if r.IsOk( ) = false then
         errOut = r.Failure( ).Message( )
         return FILE_NONE
@@ -219,9 +220,9 @@ end function
 function SourceManager.AddBuffer _
     ( byref path as ustring, byref content as string ) as FileId
 
-    dim as FB.FsResultUStr abs_ = FB.AbsolutePath( path )
+    dim as fs.FsResultUStr abs_ = fs.AbsolutePath( path )
     dim as ustring absPath = path
-    if abs_.IsOk( ) then absPath = FB.PathNormalize( abs_.Value( ) )
+    if abs_.IsOk( ) then absPath = fs.PathNormalize( abs_.Value( ) )
     dim as FileId already = this.Find( absPath )
     if already <> FILE_NONE then return already
 

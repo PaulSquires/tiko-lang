@@ -1,5 +1,6 @@
 '' udtlayout.bas -- see udtlayout.bi for the measured rules this implements.
 
+#import "std/containers"
 #include once "types/udtlayout.bi"
 #include once "diag/diagids.bi"
 #include once "support/irtext.bi"
@@ -131,7 +132,7 @@ end function
 '' starts, and its size is not known until its members are placed, so it is measured
 '' first and then placed -- the same two-pass shape the old run-scan used, one level up.
 private sub PlaceGroup _
-    ( byref flds as FB.Array( of ulong ), byref idx as long, byval depth as long, _
+    ( byref flds as containers.Array( of ulong ), byref idx as long, byval depth as long, _
       byval isUnion as boolean, byval pack as long, byval baseOff as long, _
       byval emit as boolean, byref syms as SymbolTable, byref types as TypeContext, _
       byref store as UdtLayouts, byref u as UdtInfo, _
@@ -432,7 +433,7 @@ private function LayOutOne _
     '' The fields in declaration order, so the placement below can look ahead. The
     '' per-scope list is a linked list and a group needs its whole extent before its
     '' first member can be placed, which a single forward pass cannot give.
-    dim as FB.Array( of ulong ) flds
+    dim as containers.Array( of ulong ) flds
     dim as SymbolId cur = sc->firstSym
     while cur <> SYMBOL_NONE
         dim as Symbol ptr f = syms.SymbolAt( cur )

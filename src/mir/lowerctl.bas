@@ -4,6 +4,7 @@
 '' rather than by size: what is here is the multi-way and non-local transfers, while
 '' lower.bas keeps IF, the loops and the cleanup machinery they share.
 
+#import "std/containers"
 #include once "mir/lowerctx.bi"
 #include once "lexer/keywords.bi"
 
@@ -250,7 +251,7 @@ sub LowerEndStmt( byref c as Ctx, byval id as Tko.NodeId )
         code = Coerce( c, LowerExpr( c, esp->a ), MT_I32 )
     end if
     if code.kind = cast( ubyte, MV_NONE ) then code = ConstInt( c, 0, MT_I32 )
-    dim as FB.Array( of ulong ) ea
+    dim as containers.Array( of ulong ) ea
     ea.Push( cast( ulong, code.kind ) ) : ea.Push( cast( ulong, code.id ) )
     EmitRtl( c, RTL_END, ea )
     '' fb_End does not return, so nothing follows it in the same block.
@@ -487,7 +488,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
             dsc.ty = cast( ubyte, MT_PTR )
             dsc.id = dslot
             ZeroStrTempAtEntry_( c, dsc )
-            dim as FB.Array( of ulong ) dargs
+            dim as containers.Array( of ulong ) dargs
             dargs.Push( cast( ulong, dsc.kind ) ) : dargs.Push( cast( ulong, dsc.id ) )
             PushStrLen_( c, dargs, -1 )
             dargs.Push( cast( ulong, sv.kind ) ) : dargs.Push( cast( ulong, sv.id ) )
@@ -681,7 +682,7 @@ private function StrCaseCompare_ _
     dim as MirValue subjPtr = LowerExprLoad( c, slotAddr, MT_PTR )
     if subjPtr.kind = cast( ubyte, MV_NONE ) then return none_
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     dim as MirValue cmp
     if wide then
         dim as MirValue rv
@@ -976,10 +977,10 @@ private sub LowerOnError_( byref c as Ctx, byval id as Tko.NodeId )
         dim as long hs = NewTempLocal( c, MT_PTR, 8 )
         dim as long bs = NewTempLocal( c, MT_AGG, ERR_LOCAL_JMP_BYTES )
         if (hs >= 0) andalso (bs >= 0) then
-            dim as FB.Array( of ulong ) none
+            dim as containers.Array( of ulong ) none
             dim as MirValue jb = EmitRtl( c, RTL_ERROR_JMPBUF, none )
             if jb.kind <> cast( ubyte, MV_NONE ) then
-                dim as FB.Array( of ulong ) cp
+                dim as containers.Array( of ulong ) cp
                 cp.Push( cast( ulong, MV_LOCAL ) ) : cp.Push( cast( ulong, bs ) )
                 cp.Push( cast( ulong, jb.kind ) ) : cp.Push( cast( ulong, jb.id ) )
                 cp.Push( cast( ulong, MV_CONST_INT ) ) : cp.Push( ERR_LOCAL_JMP_BYTES )
@@ -991,7 +992,7 @@ private sub LowerOnError_( byref c as Ctx, byval id as Tko.NodeId )
         end if
     end if
 
-    dim as FB.Array( of ulong ) args
+    dim as containers.Array( of ulong ) args
     if sp->name = 0 then
         '' 'ON ERROR GOTO 0' -- a null handler. The parser leaves the name empty for the
         '' integer form, which in the fb dialect can only be 0: a numeric label is fbc's
@@ -1049,11 +1050,11 @@ private sub LowerOnError_( byref c as Ctx, byval id as Tko.NodeId )
     '' constant this procedure holds -- and jumps through it. The destination list is
     '' filled by ResolveErrorJumps_ with every handler block in this procedure, the
     '' same patch the throw sites use.
-    dim as FB.Array( of ulong ) noargs
+    dim as containers.Array( of ulong ) noargs
     dim as MirValue buf = EmitRtl( c, RTL_ERROR_JMPBUF, noargs )
     if buf.kind = cast( ubyte, MV_NONE ) then return
 
-    dim as FB.Array( of ulong ) sjargs
+    dim as containers.Array( of ulong ) sjargs
     sjargs.Push( cast( ulong, buf.kind ) )
     sjargs.Push( cast( ulong, buf.id ) )
     '' A NULL FRAME POINTER, deliberately. MSVC's _setjmp takes (env, frame) and a
@@ -1081,7 +1082,7 @@ private sub LowerOnError_( byref c as Ctx, byval id as Tko.NodeId )
     Terminate( c, MTERM_CONDBR, jumpB, contB, cond )
 
     c.curBlock = jumpB
-    dim as FB.Array( of ulong ) hargs
+    dim as containers.Array( of ulong ) hargs
     dim as MirValue h = EmitRtl( c, RTL_ERROR_GET_HANDLER, hargs )
     c.errIndirectBlocks.Push( cast( ulong, jumpB ) )
     Terminate( c, MTERM_INDIRECTBR, -1, -1, h )
@@ -1109,7 +1110,7 @@ sub LowerOnGoto( byref c as Ctx, byval id as Tko.NodeId )
     '' EVERY LABEL FIRST. A list naming one this procedure has not got would leave a
     '' branch to a block that never exists, so nothing is emitted until all of them
     '' are known -- the same rule LowerGoto applies to its single label.
-    dim as FB.Array( of ulong ) blocks
+    dim as containers.Array( of ulong ) blocks
     for i as long = 0 to sp->count - 1
         dim as Tko.NodeId ln = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( ln ) <> Tko.N_IDENT then
