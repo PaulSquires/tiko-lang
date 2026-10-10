@@ -99,6 +99,14 @@ private function ImportedElsewhere_( byref syms as Tko.SymbolTable, byref nm as 
     return -1
 end function
 
+'' The construct a SPAWN or SELECT qualifier node was built for (ast.tasksQual), or -1.
+private function TasksQualOf_( byref ast as Tko.AstArena, byval id as Tko.NodeId ) as long
+    for k as long = 0 to ast.tasksQual.Count - 2 step 2
+        if ast.tasksQual[k] = cast( ulong, id ) then return cast( long, ast.tasksQual[k + 1] )
+    next
+    return -1
+end function
+
 sub ReportUndeclared _
     ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
       byref src as Tko.SourceManager, byref diags as Tko.DiagnosticEngine, _
@@ -111,6 +119,7 @@ sub ReportUndeclared _
     for i as long = 0 to total
         skip.Push( 0 )
     next
+    dim as boolean tasksSaid = false
     '' '#assert' LINES, as file and line pairs.
     dim as containers.Array( of ulong ) ppAssert
     '' Every generic type's parameters, as file, header line and folded name -- see N_TYPE.
@@ -271,6 +280,16 @@ sub ReportUndeclared _
             if isRtl = 0 then continue for
             if isRtl( nm ) then continue for
         end if
+        '' THE 'FB' A SPAWN OR A SELECT WAS GIVEN, unresolved: std/tasks is not imported, and
+        '' there is no stand-in FB.Spawn either. TKO0423 says what is missing, once a unit.
+        dim as long tq = TasksQualOf_( ast, id )
+        if tq >= 0 then
+            if tasksSaid = false then
+                tasksSaid = true
+                diags.Report( Tko.TKO0423, Tko.PointRange( ast.Loc( id ) ), iif( tq = 0, "spawn", "select channel" ) )
+            end if
+            continue for
+        end if
         dim as Tko.DecodedLoc dl = src.Decode( ast.Loc( id ) )
         dim as boolean seen = false
         for k as long = 0 to ppAssert.Count - 2 step 2
@@ -327,6 +346,15 @@ sub ReportUndeclared _
         '' A NAME THE COMPILER MADE is never the user's to have declared: a lambda's closure
         '' type, '__tko_closure_...', is what an unsupported capture leaves behind.
         if left( lcase( tn ), 6 ) = "__tko_" then continue for
+        '' ...and nor is a SELECT's context type when std/tasks is not imported: TKO0423.
+        dim as long tqt = TasksQualOf_( ast, id )
+        if tqt >= 0 then
+            if tasksSaid = false then
+                tasksSaid = true
+                diags.Report( Tko.TKO0423, Tko.PointRange( ast.Loc( id ) ), "select channel" )
+            end if
+            continue for
+        end if
         if tp->ownerName <> Tko.INTERN_NONE then tn = names.Spelling( tp->ownerName ) & "." & tn
         dim as Tko.DecodedLoc dl = src.Decode( ast.Loc( id ) )
         dim as boolean seen = false

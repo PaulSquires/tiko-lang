@@ -3,7 +3,7 @@
 '' the runner does not execute what it builds -- so build/goldenrun.sh is what runs it
 '' beside fbc and compares the bytes; the source's header is fbc's output, measured.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/driver/src/select-channel-run.bas -o tests/driver/selchanrun.exe
+'' ARGS: -mt -target win64-msvc -i toolchains/tiko-windows/inc tests/driver/src/select-channel-run.bas -o tests/driver/selchanrun.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/selchanrun.exe

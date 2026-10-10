@@ -9,16 +9,16 @@
 '' A FIELD CALL BINDS TO THE INSTANTIATION'S MEMBER, named for its argument. The
 '' generic's own members are never lowered -- their parameters are void and their
 '' fields have no offsets -- so a call left bound to one is a call to nothing.
-'' EXPECT-OUT: call void _ZN5ArrayIhE4PUSHERh(
-'' EXPECT-OUT: call void _ZN5ArrayI8FBSTRINGE4PUSHERS0_(
+'' EXPECT-OUT: call void _ZN3STD10CONTAINERS5ArrayIhE4PUSHERh(
+'' EXPECT-OUT: call void _ZN3STD10CONTAINERS5ArrayI8FBSTRINGE4PUSHERS2_(
 
 '' A CONTAINER OF A TYPE THAT ITSELF HOLDS CONTAINERS.
-'' EXPECT-OUT: call void _ZN5ArrayI3BUFE4PUSHERS0_(
+'' EXPECT-OUT: call void _ZN3STD10CONTAINERS5ArrayI3BUFE4PUSHERS2_(
 
 '' 'for each' over a FIELD: GetIterator comes back typed, so the loop lowers. The
 '' CALL is not spelled the same on both targets -- a 16-byte return is an sret
 '' pointer under win64 and a register pair under SysV -- so the assertion is the
 '' NAME, which is the instantiation's.
-'' EXPECT-OUT: _ZN5ArrayIhE11GETITERATOREv(
+'' EXPECT-OUT: _ZN3STD10CONTAINERS5ArrayIhE11GETITERATOREv(
 '' EXPECT-OUT: verify: ok
 '' EXPECT-OUT: 0 statements not lowered

@@ -34,7 +34,49 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "build"))
-from stdport import HDR_MODULE, MODULES  # noqa: E402
+# The std modules and the inc/fb headers each was made from (build/stdport.py's table,
+# 2026-10-10; the script went with inc/fb).
+MODULES = {
+    "strings": ["string.bi"],
+    "tui": ["tuiwidthtab.bi", "tuiwidth.bi", "tuicore.bi", "tuiterm.bi", "tuibuffer.bi",
+            "tuiinput.bi", "tuilayout.bi", "tuiwidget.bi", "tuiwidgets.bi", "tuidraw.bi",
+            "tuiform.bi", "tuichrome.bi", "tuiapp.bi", "tui.bi"],
+    "money": ["currency.bi", "decimal.bi", "moneyformat.bi", "finerror.bi", "fincore.bi",
+              "finsolve.bi", "fintvm.bi", "fincash.bi", "findeprec.bi", "finloan.bi",
+              "finport.bi", "finance.bi"],
+    "logs": ["logrecord.bi", "logrender.bi", "logerror.bi", "logsink.bi", "logger.bi",
+             "logdefault.bi", "logfile.bi", "logasync.bi", "logging.bi", "logmacros.bi"],
+    "fs": ["fserror.bi", "fspath.bi", "fsinfo.bi", "fsdir.bi", "fsops.bi", "fsglob.bi",
+           "fslink.bi", "fsvolume.bi", "fsadvanced.bi", "filesystem.bi"],
+    "numeric": ["math.bi", "mathint.bi", "mathtext.bi", "complex.bi", "random.bi",
+                "stats.bi", "fenv.bi", "vector.bi"],
+    "tasks": ["scheduler.bi", "channel.bi", "sync.bi", "select.bi"],
+    "memory": ["sharedptr.bi"],
+    "chrono": ["chrono.bi"],
+    "outcome": ["optional.bi", "result.bi"],
+    "containers": ["hash.bi", "array.bi", "linkedlist.bi", "map.bi", "set.bi",
+                   "orderedmap.bi", "orderedset.bi", "sort.bi", "../containers.bi"],
+}
+UMBRELLAS = {"tui.bi", "finance.bi", "logging.bi", "filesystem.bi", "../containers.bi"}
+# The names a module exports beyond its facade's list.
+EXTRA_PUBLIC = {
+    # a new module: fb/sharedptr.bi was in no facade. SpCtl is the field type behind both.
+    "memory": {"sharedptr", "weakptr", "makeshared", "makesharedfrom", "spcast", "spctl"},
+    # the type behind the public alias Logger (TKO0868 otherwise)
+    "logs": {"logger_"},
+    # what a SELECT statement lowers to (src/parser/selchan.bas): the parser writes these
+    # names into the importer's own code, so they must be public, though no one writes them
+    "tasks": {"selectcase", "selectctx", "selectaddrecv", "selectaddsend", "selectaddrecvdiscard",
+              "selectrun", "selectcommitrecv", "selectcommitsend", "selectreleaserecv",
+              "selectreleasesend",
+              # ...and the channel types those and Channel's own members name
+              "chanwaiter", "chancore", "chanwaitercore"},
+}
+
+HDR_MODULE = {}
+for _m, _hs in MODULES.items():
+    for _h in _hs:
+        HDR_MODULE[os.path.basename(_h)] = _m
 
 VENDOR = os.path.join(ROOT, "tests", "vendor", "fbc-tests")
 OUT = os.path.join(ROOT, "tests", "std")

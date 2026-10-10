@@ -9,15 +9,15 @@
 ''
 '' fbc prints: copies cell7 cell7 use= 4 / row cell1 use= 6 / row cell2 use= 6 /
 '' row cell3 use= 6 / seen  3 use= 4
-#include once "fb/array.bi"
-#include once "fb/sharedptr.bi"
-type UStrArr as FB.Array( of ustring )
+#import "std/containers"
+#import "std/memory"
+type UStrArr as containers.Array( of ustring )
 type Cell
 	as long kind
 	as ustring txt
 end type
-type CellArr as FB.Array( of Cell )
-type NPtr as FB.SharedPtr( of UStrArr )
+type CellArr as containers.Array( of Cell )
+type NPtr as memory.SharedPtr( of UStrArr )
 type RowX
 	as NPtr m_names
 	as CellArr m_cells
@@ -65,7 +65,7 @@ dim as Coll co
 co.n = 3
 dim as UStrArr nm
 nm.Push( "name" )
-co.names = FB.MakeSharedFrom( of UStrArr )( nm )
+co.names = memory.MakeSharedFrom( of UStrArr )( nm )
 dim r1 as RowX = co.MakeRow( 7 )
 dim r2 as RowX = r1
 dim r3 as RowX

@@ -47,6 +47,10 @@ rm -rf "$WK"; mkdir -p "$WK/cache" "$WK/rd"
 export TKO_MODCACHE="$WK/cache"
 
 if [ "$MODE" = baseline ]; then
+    # THE BASELINE WAS TAKEN ONCE, over inc/fb, which left the tree on 2026-10-10: it runs
+    # only in a checkout from before that (git worktree add <dir> a04bae1f), and its results
+    # are tests/std/baseline as committed -- never rewrite them from a later tree.
+    [ -d "$ROOT/inc/fb" ] || { echo "stdsuite: --baseline needs inc/fb, gone since 2026-10-10 -- run it in a checkout of a04bae1f" >&2; exit 3; }
     SRCROOT=tests/vendor/fbc-tests
     INC=$ROOT/inc
     # Not com/: fb/comptr.bi is gone, ComPtr no longer a supported feature (2026-10-10).

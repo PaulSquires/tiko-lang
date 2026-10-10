@@ -30,6 +30,16 @@ for %%a in (%*) do (
     if /i "%%~a"=="--test-runner" set "TESTRUNNER=1"
 )
 if "%CFG%"=="--dll" set "CFG=Release"
+rem fbc cannot build this tree any more: its source imports the std modules (2026-10-10).
+rem '--oracle' and MinSizeRel were fbc builds of the compiler -- see build.sh.
+if "%ORACLE%"=="1" goto :nooracle
+if /i "%CFG%"=="MinSizeRel" goto :nooracle
+goto :oracleok
+:nooracle
+echo build: --oracle and MinSizeRel built the compiler with fbc, which cannot build it since 1>&2
+echo build: its source imports the std modules (2026-10-10); seed-3's V5 was the last 1>&2
+exit /b 2
+:oracleok
 
 rem THE SEED IS STAGE0: TKO_SEED, else defaultseed.bat's pick; '--oracle' builds with the fbc
 rem TKO_ORACLE_FBC names instead -- see the peer note in build.sh, which also says why that is

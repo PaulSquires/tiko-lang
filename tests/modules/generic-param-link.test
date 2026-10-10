@@ -1,7 +1,7 @@
 '' A NON-GENERIC PROCEDURE WHOSE SIGNATURE NAMES A GENERIC INSTANCE crosses as a 'declare'
-'' (RFC-0004 §7) and links to the module's one definition: a header's FB.Map as a parameter,
-'' FB.Array as a result, the module's own Box( of long ) as a result, and a non-generic
-'' type's out-of-line member taking FB.Array. Each was taken for a generic -- '( of' anywhere
+'' (RFC-0004 §7) and links to the module's one definition: std's containers.Map as a parameter,
+'' containers.Array as a result, the module's own Box( of long ) as a result, and a non-generic
+'' type's out-of-line member taking containers.Array. Each was taken for a generic -- '( of' anywhere
 '' in the header -- so its body went into the interface too, and the link failed on a
 '' duplicate symbol for every one. A generic procedure, 'Largest( of T )' and 'Smallest( Of T )',
 '' still travels whole and is instantiated here. 'calls' counts the module's own definitions.

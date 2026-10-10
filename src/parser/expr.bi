@@ -179,6 +179,7 @@ namespace Tko.Parse
 
 '' Defined in spawn.bas: the namespace 'spawn' and 'select' name their runtime through.
 declare function TasksNs( byref p as Tko.ParserState ) as string
+declare sub TasksQual( byref p as Tko.ParserState, byval n as Tko.NodeId, byval what as long )
 
 '' Defined in intrinsics.bas: 'open( ... )' used as an EXPRESSION. Declared here
 '' because Primary needs it and expr.bas is compiled before that file.

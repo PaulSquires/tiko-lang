@@ -19,7 +19,7 @@
 '' true of the arithmetic and false of everything else, and a program that
 '' wants Dot should not pay for twelve inverse hyperbolic functions.
 ''
-''     #include once "fb/complex.bi"     ' Complex, CAbs, CExp, CSqrt, ...
+''     (std/numeric's own complex.tiko)  ' Complex, CAbs, CExp, CSqrt, ...
 ''
 '' See C:\dev\docs\math\RFC-0009-complex.md, which supersedes RFC-0007 s5.
 ''

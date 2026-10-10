@@ -218,6 +218,10 @@
     '' fbc's error 189, "Invalid priority attribute". Measured: 101 and 65535 are
     '' accepted, 100, 0 and 65536 are refused.
     DIAG( TKO0422, SEV_ERROR,   "a module constructor or destructor priority must be from 101 to 65535" )
+    '' What a SPAWN or a SELECT CHANNEL lowers to is std/tasks' (Spawn, SelectCtx, ...); with
+    '' inc/fb gone (2026-10-10) there is nowhere else for it to come from but a program's own
+    '' namespace FB stand-in. Reported where the 'FB' it was given does not resolve.
+    DIAG( TKO0423, SEV_ERROR,   "'%0' needs '#import ""std/tasks""' in this file (and -mt)" )
 
     '' ------------------------------------------------------------------ semantic
     DIAG( TKO0600, SEV_ERROR,   "'%0' is already declared in this scope" )

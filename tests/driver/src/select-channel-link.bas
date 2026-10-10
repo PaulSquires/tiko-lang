@@ -5,7 +5,7 @@
 '' -- the TEMPLATE, called with T never inferred. Three causes, each needed:
 ''
 ''   - The desugaring (parser/selchan.bas) built its calls in the PAREN-LESS shape,
-''     'FB.SelectAddRecv sc, 0, c, v', and a generic called that way infers nothing --
+''     'tasks.SelectAddRecv sc, 0, c, v', and a generic called that way infers nothing --
 ''     fbc refuses the same spelling with error 340.
 ''   - Its channel copy is 'var c = ch', and a VAR has no type until Check, which runs
 ''     after type arguments are inferred.
@@ -14,11 +14,10 @@
 ''
 '' fbc's own concurrency/sched.bas and sync.bas are the shapes; they link and pass now.
 
-#include once "fb/channel.bi"
-#include once "fb/sync.bi"
-#include once "fb/select.bi"
-using FB
-
+#import "std/tasks"
+'' (was fb/sync.bi)
+'' (was fb/select.bi)
+using tasks
 sub Selector( byval ctx as Context )
 	dim never as Channel( of long )
 	dim as long v

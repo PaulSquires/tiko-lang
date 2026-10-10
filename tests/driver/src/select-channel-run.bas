@@ -17,10 +17,9 @@
 ''   sent 11; got 11
 ''   order 1 2 3
 
-#include once "fb/channel.bi"
-#include once "fb/select.bi"
-using FB
-
+#import "std/tasks"
+'' (was fb/select.bi)
+using tasks
 dim ch as Channel( of long ) = Channel( of long )( 1 )
 dim as long v = 0
 

@@ -498,6 +498,13 @@ namespace Tko
         '' left for an N_PROC that is not already somebody else's.
         as ChildPool   structorPrio
 
+        '' THE 'FB' A SPAWN OR A SELECT CHANNEL WAS GIVEN when the unit did not import std/tasks
+        '' (Parse.TasksNs): pairs (node, construct: 0 'spawn', 1 'select channel'). The node
+        '' is the qualifier's N_IDENT, or the select context's N_TYPEREF. A program may declare
+        '' a stand-in FB.Spawn of its own -- tests/mir/src/spawn.bas does -- so nothing is said
+        '' unless it does not resolve; then undeclared.bas reports TKO0423 for it.
+        as ChildPool   tasksQual
+
         '' COLLECTION INITIALISERS -- 'dim a as Array( of integer ) = { 1, 2 }', a tiko
         '' extension. Triples (item, original brace list, N_BLOCK of the method-call
         '' statements Resolve built for that declarator) in the shared child pool. See

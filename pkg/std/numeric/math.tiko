@@ -12,8 +12,8 @@
 ''
 '' THE MONEY TYPES ARE SEPARATE HEADERS and are NOT pulled in from here:
 ''
-''     #include once "fb/currency.bi"   ' 8 bytes, four decimal places, fixed
-''     #include once "fb/decimal.bi"    ' 16 bytes, 0..28 places, .NET's decimal
+''     #import "std/money"   ' Currency: 8 bytes, four decimal places, fixed
+''     #import "std/money"   ' Decimal: 16 bytes, 0..28 places, .NET's decimal
 ''
 '' Neither is included by this file on purpose.  Both cost a dependency --
 '' fb/optional.bi for their parse functions, and fb/currency.bi again for

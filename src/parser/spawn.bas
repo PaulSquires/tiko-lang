@@ -263,6 +263,7 @@ function MakeSpawn_ _
     dim as Tko.BinaryPayload qb
     qb.op = cast( ushort, Tko.TK_DOT )
     qb.lhs = SpIdent_( p, p.names->Fold( p.names->GetString( TasksNs( p ) ) ), t.loc )
+    TasksQual( p, qb.lhs, 0 )
     qb.rhs = SpIdent_( p, p.names->Fold( p.names->GetString( "spawn" ) ), t.loc )
     p.ast->binaries.Push( qb )
     dim as Tko.NodeId qn = _
@@ -305,11 +306,13 @@ function MakeSpawn_ _
     return MakeStmt( p, Tko.N_SPAWN, t.loc, ssp )
 end function
 
-'' WHERE 'spawn' AND 'select' NAME THEIR RUNTIME: FB.Spawn, FB.SelectCtx and the rest are
-'' std/tasks' since 2026-10-10, reached through its interface namespace,
-'' '__tko_mod_std_tasks', once the unit has read that interface -- asked at the statement,
-'' because the token stream is lazy and the '#import' above it was read only just now.
-'' Otherwise FB: fb/scheduler.bi and fb/select.bi included as headers.
+'' WHERE 'spawn' AND 'select' NAME THEIR RUNTIME: Spawn, SelectCtx and the rest are std/tasks',
+'' reached through its interface namespace, '__tko_mod_std_tasks', once the unit has read
+'' that interface -- asked at the statement, because the token stream is lazy and the
+'' '#import' above it was read only just now. Otherwise FB: the headers' namespace until
+'' inc/fb was deleted (2026-10-10), and still a program's own stand-in, which a test may
+'' declare. The caller records what it built with it (TasksQual) so that, when FB resolves
+'' to nothing, the report is TKO0423 and not an undeclared 'fb'.
 function TasksNs( byref p as Tko.ParserState ) as string
     if p.ifaceChains <> 0 then
         for k as long = 0 to p.ifaceChains->Count - 1
@@ -318,5 +321,11 @@ function TasksNs( byref p as Tko.ParserState ) as string
     end if
     return "FB"
 end function
+
+sub TasksQual( byref p as Tko.ParserState, byval n as Tko.NodeId, byval what as long )
+    if TasksNs( p ) <> "FB" then return
+    p.ast->tasksQual.Push( cast( ulong, n ) )
+    p.ast->tasksQual.Push( cast( ulong, what ) )
+end sub
 
 end namespace

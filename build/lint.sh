@@ -186,6 +186,11 @@ done
 for f in $(grep_files '^[[:space:]]*#[[:space:]]*import[[:space:]]+"([^s]|s[^t]|st[^d]|std[^/])' $(find src tools \( -name '*.bas' -o -name '*.bi' \) -print | sort)); do
     note "MODULES $f imports something other than std/ (only the std modules travel with the seed)"
 done
+# ...AND NO fb/ LIBRARY HEADER: they are the std modules since 2026-10-10, inc/fb is gone, and
+# an include of one would find a stale copy in some seed's inc/ or nothing at all.
+for f in $(grep_files '^[[:space:]]*#[[:space:]]*include[[:space:]]+(once[[:space:]]+)?"(fb/|containers\.bi")' $(find src tools pkg \( -name '*.bas' -o -name '*.bi' -o -name '*.tiko' -o -name '*.ti' \) -print | sort)); do
+    note "MODULES $f includes an fb/ library header or containers.bi; #import the std module instead"
+done
 
 # ------------------------------------- 4/5. trailing whitespace and hard tabs
 # THE CR OF A CRLF FILE IS NOT TRAILING WHITESPACE. Git Bash grep treats a CR-LF pair as

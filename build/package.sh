@@ -281,8 +281,9 @@ cp -f "$TIKO" "$OUT/${BINSUB}tiko$EXT"
 #   1. the third-party bindings -- SDL, GTK, AfxNova and the rest tiko-lang does not
 #      carry -- from --third-party-inc, else the seed's inc/. NOT fbc's: since
 #      2026-10-10 they come from tiko's own last release.
-#   2. tiko-lang's OWN HEADERS over them (phase H): fb/, containers.bi, crt/, win/,
-#      windows.bi and the rest of FreeBASIC's set are the tree's inc/, the one copy --
+#   2. tiko-lang's OWN HEADERS over them (phase H): crt/, win/, windows.bi and the rest
+#      of FreeBASIC's set are the tree's inc/, the one copy (fb/ and containers.bi are the
+#      std modules in pkg/ since 2026-10-10, and inc-exclude.txt keeps the seed's out) --
 #      inc/PROVENANCE.md says where each came from.
 #
 # AN EMPTY inc/ IS REFUSED. tiko-linux once shipped one -- copied from fbc-modern-linux's
@@ -617,7 +618,8 @@ verify_target( ) {
     # so a toolchain whose headers were unreachable -- tiko-linux, whose inc/ was
     # copied from fbc-modern-linux's EMPTY inc/ rather than its include/freebasic --
     # passed this, and the first '#include "containers.bi"' a user wrote was TKO0301.
-    printf '#include once "containers.bi"
+    # crt.bi since 2026-10-10, when containers.bi became std/containers (checked below).
+    printf '#include once "crt.bi"
 print "ok"
 ' > "$_tmp/hello.bas"
 

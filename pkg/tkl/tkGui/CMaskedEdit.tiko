@@ -29,7 +29,6 @@
 #import "tkl/tkCore"
 using tkCore
 #include once "tkGui.ti"
-#include once "fb/string.bi"
 
 #include once "windows.bi"
 #include once "/crt/ctype.bi"

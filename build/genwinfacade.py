@@ -42,8 +42,20 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from genfacades import keywords  # noqa: E402
+
+
+def keywords():
+    """tiko's keywords, and which of them are word-shaped operators ('mod', 'shl')."""
+    words, ops = set(), set()
+    with open(os.path.join(ROOT, "src", "lexer", "keywords.bi"), encoding="utf-8") as f:
+        for ln in f:
+            m = re.search(r'KW\(\s*KW_\w+,\s*"([A-Z0-9_]+)",\s*(\w+)', ln)
+            if m:
+                words.add(m.group(1).lower())
+                if m.group(2) == "KWCLASS_OPERATOR":
+                    ops.add(m.group(1).lower())
+    return words, ops
+
 
 OUT = os.path.join(ROOT, "pkg", "sys", "windows", "windows.bas")
 HEADER = "windows.bi"

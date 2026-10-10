@@ -1,0 +1,10 @@
+'' WHAT 'spawn' AND 'select channel' LOWER TO IS std/tasks', and inc/fb -- where it once came
+'' from -- is gone (2026-10-10). Without the import the 'FB' the parser gave them resolves to
+'' nothing, and that is reported once, as TKO0423, not as an undeclared 'fb' or a type
+'' '__tko_mod_std_tasks.selectctx'. A program's own stand-in FB.Spawn still works
+'' (tests/mir/spawn.test).
+'' TEST: cli
+'' ARGS: -mt --dump-ir tests/diagnostics/src/tasks-not-imported.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: tasks-not-imported.bas(4,1): error TKO0423: 'spawn' needs '#import "std/tasks"' in this file (and -mt)
+'' EXPECT-MAX-DIAG: 1

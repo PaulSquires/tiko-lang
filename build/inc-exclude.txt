@@ -143,6 +143,9 @@ crt/dos      unreachable
 crt/freebsd  unreachable
 CUnit
 libart_lgpl
-# ComPtr is no longer a supported feature (the author's order, 2026-10-10): fb/comptr.bi
-# left the tree, and is kept out of a toolchain whose inc/ is assembled from another.
-fb/comptr.bi
+# THE fb/ LIBRARY HEADERS AND containers.bi ARE THE std MODULES NOW (2026-10-10): pkg/std is
+# the one copy of that code, and inc/fb left the tree. Kept out of a toolchain whose inc/ is
+# assembled from another (the seed's), which still has them. ComPtr went with them, no
+# longer a supported feature.
+fb
+containers.bi

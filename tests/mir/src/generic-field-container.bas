@@ -1,4 +1,4 @@
-'' A REAL CONTAINER AS A FIELD: FB.Array( of T ) written inline, name-first, with the
+'' A REAL CONTAINER AS A FIELD: containers.Array( of T ) written inline, name-first, with the
 '' members used from the owning type's own methods.
 ''
 '' The pieces this needs are all instantiation-time: the field's type has to be the
@@ -10,11 +10,11 @@
 '' Count = 2, a deep copy on assignment, and a balanced ctor/dtor count (9/9 over an
 '' element type that counts its own).
 
-#include once "fb/array.bi"
+#import "std/containers"
 
 type Buf
-    bytes_ as FB.Array( of ubyte )
-    names as FB.Array( of string )
+    bytes_ as containers.Array( of ubyte )
+    names as containers.Array( of string )
     declare sub Add( byval b as ubyte, byref n as string )
     declare function Total( ) as long
 end type
@@ -35,7 +35,7 @@ end function
 '' A CONTAINER OF A TYPE THAT ITSELF HOLDS CONTAINERS -- the instantiation of the outer
 '' one walks a field type that is being instantiated on the way in.
 type Pool
-    items as FB.Array( of Buf )
+    items as containers.Array( of Buf )
 end type
 
 sub P( )

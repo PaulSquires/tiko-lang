@@ -1,7 +1,6 @@
 '' A SPAWN ARGUMENT IS CONVERTED THE WAY A CALL ARGUMENT IS -- see spawn-conv-arg.test.
-#include once "fb/sync.bi"
-using FB
-
+#import "std/tasks"
+using tasks
 '' A converting constructor on an ordinary type: was TKO0738.
 type Counted
 	as long ptr n

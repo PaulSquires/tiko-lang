@@ -30,6 +30,16 @@ for a in "$@"; do
         --oracle)      ORACLE=1 ;;
     esac
 done
+# FBC CANNOT BUILD THIS TREE ANY MORE: tiko-lang's source imports std/containers and std/fs
+# (2026-10-10), and fbc has no modules. '--oracle' -- fbc building the compiler, for the
+# bootstrap plan's V5 -- ended with seed-3, whose V5 was the last; MinSizeRel was fbc's gcc
+# backend and went with it. fbc stays the ORACLE of the comparison scripts (TKO_ORACLE_FBC),
+# which compile test programs, never this tree.
+if [ "$ORACLE" = "1" ] || [ "$CFG" = "MinSizeRel" ]; then
+    echo "build: --oracle and MinSizeRel built the compiler with fbc, which cannot build it since" >&2
+    echo "build: its source imports the std modules (2026-10-10); seed-3's V5 was the last" >&2
+    exit 2
+fi
 case "$CFG" in
     --dll)                CFG=Release ;;
     --no-dll|--test-runner|--oracle) CFG=Debug ;;

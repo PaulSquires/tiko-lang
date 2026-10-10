@@ -90,7 +90,9 @@ end function
 '' 'FB.<name>' as an expression -- or '__tko_mod_std_tasks.<name>': TasksNs.
 private function SelFb_ _
     ( byref p as Tko.ParserState, byval lc as Tko.SourceLoc, byref nm as string ) as Tko.NodeId
-    return SelDot_( p, lc, SelIdent_( p, lc, TasksNs( p ) ), nm )
+    dim as Tko.NodeId q = SelIdent_( p, lc, TasksNs( p ) )
+    TasksQual( p, q, 1 )
+    return SelDot_( p, lc, q, nm )
 end function
 
 '' A call, as a STATEMENT: the call-or-assign node, over a PARENTHESISED call -- the
@@ -314,8 +316,9 @@ function ParseSelectChannel_ _
     dim as Tko.StmtPayload ctxTy
     ctxTy.name = SelName_( p, "SelectCtx" )
     ctxTy.ownerName = SelName_( p, TasksNs( p ) )
-    body.Push( cast( ulong, SelDim_( p, lc, "__tkosel_sc", _
-        MakeStmt( p, Tko.N_TYPEREF, lc, ctxTy ), Tko.NODE_NONE, false ) ) )
+    dim as Tko.NodeId ctxTyN = MakeStmt( p, Tko.N_TYPEREF, lc, ctxTy )
+    TasksQual( p, ctxTyN, 1 )
+    body.Push( cast( ulong, SelDim_( p, lc, "__tkosel_sc", ctxTyN, Tko.NODE_NONE, false ) ) )
 
     '' ---- registration, in SOURCE ORDER --------------------------------------
     dim as long ci = 0
