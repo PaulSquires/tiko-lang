@@ -557,14 +557,16 @@ for t in $TARGETS; do
     SQLITE_STATE="$SQLITE_STATE
   $_sqline"
 done
-if [ -d "$OUT/inc" ] && [ -f "$SQLITE_SRC/inc/fbsqlite.bi" ]; then
-    for _h in fbsqlite.bi fbsqlite_csv.bi sqlite3api.bi; do
-        cp -f "$SQLITE_SRC/inc/$_h" "$OUT/inc/$_h"
-    done
+# THE WRAPPER IS A MODULE, pkg/db/sqlite (2026-10-10): fbsqlite.bi and fbsqlite_csv.bi
+# include fb/ library headers, which are the std modules now, so tiko ships its own port
+# ('#import "db/sqlite"') and only the C binding beside it, sqlite3api.bi, from fbsqlite.
+if [ -d "$OUT/inc" ] && [ -f "$SQLITE_SRC/inc/sqlite3api.bi" ]; then
+    cp -f "$SQLITE_SRC/inc/sqlite3api.bi" "$OUT/inc/sqlite3api.bi"
+    rm -f "$OUT/inc/fbsqlite.bi" "$OUT/inc/fbsqlite_csv.bi"
     SQLITE_STATE="$SQLITE_STATE
-  headers  fbsqlite.bi, fbsqlite_csv.bi, sqlite3api.bi from $SQLITE_SRC/inc"
+  headers  sqlite3api.bi from $SQLITE_SRC/inc; the wrapper is pkg/db/sqlite"
 else
-    note "WARNING: fbsqlite headers not packaged -- no inc/ or no $SQLITE_SRC/inc/fbsqlite.bi"
+    note "WARNING: sqlite3api.bi not packaged -- no inc/ or no $SQLITE_SRC/inc/sqlite3api.bi"
     SQLITE_STATE="$SQLITE_STATE
   headers  NOT packaged"
 fi
@@ -657,8 +659,8 @@ verify_fbsqlite( ) {
     _t=$1
     _tmp="$OUT/.verifysq.$_t"
     rm -rf "$_tmp"; mkdir -p "$_tmp"
-    printf '#include once "fbsqlite.bi"
-using SQLite
+    printf '#import "db/sqlite"
+using sqlite
 dim db as Database
 if db.OpenMemory( ).IsOk( ) = false then end 1
 db.Execute( "create virtual table t using fts5( word )" )

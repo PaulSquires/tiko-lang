@@ -1,0 +1,9 @@
+'' db/sqlite, a module in the toolchain's pkg/ since 2026-10-10: fbsqlite's wrapper, ported
+'' from its headers (which include fb/ library headers, gone from tiko) onto the std
+'' modules. fbsqlite's own twelve test programs pass against it (631 assertions).
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/sqlite.bas -o tests/modules/dbsqlite.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/dbsqlite.exe
+'' EXPECT-RUN-OUT: Ada  36

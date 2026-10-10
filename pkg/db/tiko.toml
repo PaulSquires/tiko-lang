@@ -1,0 +1,6 @@
+# The database package: db/sqlite, a wrapper for SQLite 3 (from fbsqlite, C:\dev\sqlite).
+# Shipped in the toolchain's pkg/ beside std; the sqlite3 library and its C binding,
+# sqlite3api.bi, ship in lib/ and inc/.
+[package]
+name = "db"
+version = "0.1.0"

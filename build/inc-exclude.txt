@@ -149,3 +149,7 @@ libart_lgpl
 # longer a supported feature.
 fb
 containers.bi
+# fbsqlite's wrapper headers include fb/ ones; tiko ships its own port, pkg/db/sqlite, and
+# keeps only the C binding, sqlite3api.bi (2026-10-10).
+fbsqlite.bi
+fbsqlite_csv.bi
