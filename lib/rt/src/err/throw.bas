@@ -38,7 +38,7 @@ end extern
 
 '' src/c/errjmp.c. Plain C linkage, like every other member there, because the
 '' C compiler is what has setjmp.h.
-extern "c"
+extern "c"   '' NON-FBCALL: src/c/errjmp.c's two entry points, plain C.
 	declare sub fb_ErrorJmpGoAt alias "fb_ErrorJmpGoAt" ( byval env as any ptr )
 	'' Defined below, after hCtx: the thrower calls them and sits between.
 	declare sub fb_ErrorJmpGo alias "fb_ErrorJmpGo" ( )
@@ -223,11 +223,7 @@ end function
 
 end extern
 
-extern "rtlib"
-
-'' FBCALL, unlike its neighbours. Returns the OLD handler, so ON ERROR can be
-'' nested and restored.
-extern "c"
+extern "c"   '' NON-FBCALL: the setjmp buffer the compiler arms and jumps through; plain C.
 
 '' THE BUFFER THE COMPILER SETJMPS INTO, aligned up to 16 out of the context's
 '' packed storage. Arming happens here rather than in the emitted code so that
@@ -256,6 +252,12 @@ sub fb_ErrorJmpGo alias "fb_ErrorJmpGo" ( )
 end sub
 
 end extern
+
+extern "rtlib"
+
+'' FBCALL, unlike its neighbours (fb_ErrorSetHandler, below). Returns the OLD handler, so
+'' ON ERROR can be nested and restored. The plain-C setjmp helpers above used to sit
+'' INSIDE this block, an extern "c" nested in an extern "rtlib"; lib/rt lint refused it.
 
 '' THE HANDLER THE COMPILER WILL JUMP TO once setjmp has returned non-zero.
 '' The emitted code cannot read the context itself and the address is not a

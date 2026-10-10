@@ -138,9 +138,13 @@ end extern
 	extern "c"   '' NON-FBCALL: libc.
 		declare function u_fsync alias "fsync" ( byval fd as long ) as long
 		declare function u_ftruncate alias "ftruncate" ( byval fd as long, byval length_ as longint ) as long
-		declare function u_fcntl_get alias "fcntl" ( byval fd as long, byval cmd as long ) as long
-		declare function u_fcntl_lock alias "fcntl" _
-			( byval fd as long, byval cmd as long, byval lck as FLOCK_ ptr ) as long
+		'' fcntl IS VARIADIC -- 'int fcntl( int fd, int cmd, ... )' -- and is declared so,
+		'' once. Two fixed declarations under one alias, two arguments and three, were
+		'' the same symbol twice: tiko keys a declaration by its link name and refused the
+		'' three-argument call (TKO0993, 'calls fcntl with 3 arguments, which declares 2')
+		'' when tiko first built this runtime on Linux (2026-10-10). And on x86-64 SysV a
+		'' variadic callee expects %al set, which only a variadic call site does.
+		declare function u_fcntl alias "fcntl" ( byval fd as long, byval cmd as long, ... ) as long
 	end extern
 
 #endif
@@ -220,7 +224,7 @@ private function hDoLock( byval f as FILE ptr, byval lock_ as long, _
 	dim as long fd = crt_fileno( f )
 
 	if( lock_ <> 0 ) then
-		if( (u_fcntl_get( fd, F_GETFL_ ) and O_RDONLY_) <> 0 ) then
+		if( (u_fcntl( fd, F_GETFL_ ) and O_RDONLY_) <> 0 ) then
 			lck.l_type = F_RDLCK_
 		else
 			lck.l_type = F_WRLCK_
@@ -234,7 +238,7 @@ private function hDoLock( byval f as FILE ptr, byval lock_ as long, _
 	lck.l_len = size_
 
 	'' F_SETLKW BLOCKS until a conflicting lock clears.
-	return tkrt_ErrorSetNum( iif( u_fcntl_lock( fd, F_SETLKW_, @lck ) <> 0, _
+	return tkrt_ErrorSetNum( iif( u_fcntl( fd, F_SETLKW_, @lck ) <> 0, _
 	                              FB_RTERROR_FILEIO, FB_RTERROR_OK ) )
 end function
 
