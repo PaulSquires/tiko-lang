@@ -16,7 +16,7 @@
 # THE TWO BUILDS ARE NOT THE SAME ABI, and they cannot be:
 #
 #   reference  fbc -gen llvm, MinGW, links libfbgfx.a  -- gfxlib2's answers
-#   subject    fbc -gen llvm -r -z msvc + clang, links libtkogfx.a + tiko-rt
+#   subject    tiko, win64-msvc, links the tree's libtkogfx.a + tiko-rt
 #
 # gfxlib2 ships only as a MinGW archive and libtkogfx only as an MSVC one, so
 # there is no configuration in which both are linkable. That is the same
@@ -25,31 +25,33 @@
 #
 # Needs an interactive desktop session: the subject opens a real window.
 #
+# AN ORACLE SCRIPT: fbc builds only the reference, gfxlib2's half -- TKO_ORACLE_FBC, else
+# fbc-modern's toolchain fbc -- and without one this SKIPS rather than fails. The subject
+# is built by the tree's bin/tiko since 2026-10-10, where it was fbc '-z msvc' and clang.
+#
 # Usage: tools/gate-entry.sh [--keep]
 
 HERE=$( cd "$( dirname "$0" )" && pwd )
 GFX=$( cd "$HERE/.." && pwd )
 
-# The bundled toolchain fbc for the reference (it links gfxlib2 itself), and the
-# LOCALLY BUILT one for the subject, which needs -z msvc.
-: "${FBC_REF:=/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}"
-: "${FBC:=/c/dev/fbc-modern/src/fbc.exe}"
-: "${CLANG:=$( command -v clang 2>/dev/null || echo "/c/Program Files/LLVM/bin/clang.exe" )}"
+# The oracle fbc for the reference (it links gfxlib2 itself); the tree's tiko for the
+# subject.
+FBC_REF=${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
+: "${TIKO:=$( cd "$GFX/../.." && pwd )/bin/tiko.exe}"
 
 TKOGFX="$GFX/lib/win64-msvc/libtkogfx.a"
 LIBFB="$GFX/../rt/lib/win64-msvc/libfb.a"
 # The import libraries tiko's own win64-msvc link resolves the CRT and Win32
-# through (build/mkmsvcimplibs.sh makes them). See the subject link below.
+# through (build/implibs.sh builds them). See the subject link below.
 : "${MSVC_IMPLIBS:=$( cd "$GFX/../.." && pwd )/toolchains/tiko-windows/lib/win64-msvc}"
 
-for f in "$FBC_REF" "$FBC" "$CLANG"; do
-    [ -x "$f" ] || { echo "gate-entry: no $f" >&2 ; exit 3 ; }
-done
+[ -x "$FBC_REF" ] || { echo "gate-entry: SKIPPED -- no oracle fbc at $FBC_REF (TKO_ORACLE_FBC)" ; exit 0 ; }
+[ -x "$TIKO" ] || { echo "gate-entry: no $TIKO -- run build/build.sh" >&2 ; exit 3 ; }
 for f in "$TKOGFX" "$LIBFB"; do
     [ -f "$f" ] || { echo "gate-entry: no $f -- run build/build.sh" >&2 ; exit 3 ; }
 done
 [ -f "$MSVC_IMPLIBS/ucrtbase.lib" ] || {
-    echo "gate-entry: no ucrtbase.lib in $MSVC_IMPLIBS -- run build/mkmsvcimplibs.sh" >&2 ; exit 3 ; }
+    echo "gate-entry: no ucrtbase.lib in $MSVC_IMPLIBS -- run build/implibs.sh build --out <dir>" >&2 ; exit 3 ; }
 
 TMP=$( mktemp -d )
 [ "$1" = "--keep" ] || trap 'rm -rf "$TMP"' EXIT
@@ -75,31 +77,14 @@ if ! timeout "$GATE_TIMEOUT" "$TMP/ref.exe" > "$TMP/ref.out" 2>&1; then
 fi
 
 # ------------------------------------------------------------------ subject
-if ! "$FBC" -c "$src" -m gate-entry -target win64 -gen llvm -r -z msvc \
-         -o "$TMP/sub.o" > "$TMP/sub.log" 2>&1; then
-    echo "gate-entry: the SUBJECT failed to emit IR" >&2
-    sed -n '1,10p' "$TMP/sub.log" >&2
-    exit 1
-fi
-if ! "$CLANG" --target=x86_64-pc-windows-msvc -march=x86-64 -O2 \
-         -Wno-override-module "$TMP/sub.ll" -c -o "$TMP/sub.o" \
-         >> "$TMP/sub.log" 2>&1; then
-    echo "gate-entry: the SUBJECT does not assemble for MSVC, see $TMP/sub.log" >&2
-    exit 1
-fi
 # An unresolved fb_Gfx* names an entry point a legitimate program needs and the
-# library does not export.
-#
-# THE LINK tiko ITSELF DOES for win64-msvc (src/codegen/toolchain.bas): lld,
-# '-nostdlib' so no Visual Studio CRT, ucrtbase.dll plus tiko-rt's msvccrt.o in
-# its place, and kernel32 named because '-nostdlib' drops it. NOT
-# -llegacy_stdio_definitions -- msvccrt.o defines sprintf, and the two collide.
-if ! "$CLANG" --target=x86_64-pc-windows-msvc -fuse-ld=lld "$TMP/sub.o" "$TKOGFX" "$LIBFB" \
-         -o "$TMP/sub.exe" \
-         -nostdlib "-L$( cygpath -m "$MSVC_IMPLIBS" )" -lucrtbase -lkernel32 \
-         -lwinspool -lgdi32 -luser32 -ladvapi32 -lwinmm -lmsimg32 -lversion -limm32 -lws2_32 \
-         -Xlinker /INCLUDE:tkort_msvc_init_ >> "$TMP/sub.log" 2>&1; then
-    echo "gate-entry: the SUBJECT does not link, still needs:" >&2
+# library does not export. The -p directories come first, so the tree's libtkogfx and
+# tiko-rt are the ones linked.
+if ! "$TIKO" "$src" -target win64-msvc -p "$( cygpath -m "$GFX/lib/win64-msvc" )" \
+         -p "$( cygpath -m "$GFX/../rt/lib/win64-msvc" )" -p "$( cygpath -m "$MSVC_IMPLIBS" )" \
+         -o "$TMP/sub.exe" > "$TMP/sub.log" 2>&1 || [ ! -f "$TMP/sub.exe" ]; then
+    echo "gate-entry: the SUBJECT does not build:" >&2
+    sed -n '1,10p' "$TMP/sub.log" >&2
     grep -o 'undefined symbol: [A-Za-z0-9_@$]*' "$TMP/sub.log" \
         | sed 's/undefined symbol: /    /' | sort -u >&2
     exit 1

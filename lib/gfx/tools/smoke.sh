@@ -1,5 +1,5 @@
 #!/bin/sh
-# smoke.sh -- drive the ENTRY LAYER from an fbc-compiled MSVC program.
+# smoke.sh -- drive the ENTRY LAYER from a tiko-compiled MSVC program.
 #
 # ORIGINAL WORK. Part of libtkogfx (LGPL-2.1-or-later with the static-linking
 # exception).
@@ -11,31 +11,29 @@
 #
 # It needs an interactive desktop session -- SCREENRES opens a real window.
 #
+# BUILT BY tiko since 2026-10-10 -- the tree's bin/tiko, linking the tree's libtkogfx and
+# tiko-rt ahead of the toolchain's -- where it was fbc '-z msvc' plus clang by hand.
+# Nothing here runs fbc now: the program is what a user's would be.
+#
 # Usage: tools/smoke.sh [--keep]
 
 HERE=$( cd "$( dirname "$0" )" && pwd )
 GFX=$( cd "$HERE/.." && pwd )
 
-# The LOCALLY BUILT fbc, not the bundled toolchain one: -z msvc landed
-# 2026-09-05 and the shipped compiler predates it. build/build.sh makes the same
-# demand and for the same reason.
-: "${FBC:=/c/dev/fbc-modern/src/fbc.exe}"
-: "${CLANG:=$( command -v clang 2>/dev/null || echo "/c/Program Files/LLVM/bin/clang.exe" )}"
+: "${TIKO:=$( cd "$GFX/../.." && pwd )/bin/tiko.exe}"
 
 TKOGFX="$GFX/lib/win64-msvc/libtkogfx.a"
 LIBFB="$GFX/../rt/lib/win64-msvc/libfb.a"
 # The import libraries tiko's own win64-msvc link resolves the CRT and Win32
-# through (build/mkmsvcimplibs.sh makes them). See the subject link below.
+# through (build/implibs.sh builds them). See the subject link below.
 : "${MSVC_IMPLIBS:=$( cd "$GFX/../.." && pwd )/toolchains/tiko-windows/lib/win64-msvc}"
 
-for f in "$FBC" "$CLANG"; do
-    [ -x "$f" ] || { echo "smoke: no $f" >&2 ; exit 3 ; }
-done
+[ -x "$TIKO" ] || { echo "smoke: no $TIKO -- run build/build.sh" >&2 ; exit 3 ; }
 for f in "$TKOGFX" "$LIBFB"; do
     [ -f "$f" ] || { echo "smoke: no $f -- run build/build.sh" >&2 ; exit 3 ; }
 done
 [ -f "$MSVC_IMPLIBS/ucrtbase.lib" ] || {
-    echo "smoke: no ucrtbase.lib in $MSVC_IMPLIBS -- run build/mkmsvcimplibs.sh" >&2 ; exit 3 ; }
+    echo "smoke: no ucrtbase.lib in $MSVC_IMPLIBS -- run build/implibs.sh build --out <dir>" >&2 ; exit 3 ; }
 
 TMP=$( mktemp -d )
 [ "$1" = "--keep" ] || trap 'rm -rf "$TMP"' EXIT
@@ -43,33 +41,14 @@ TMP=$( mktemp -d )
 src="$HERE/smoke-entry.bas"
 name=smoke-entry
 
-if ! "$FBC" -c "$src" -m "$name" -target win64 -gen llvm -r -z msvc \
-         -o "$TMP/$name.o" > "$TMP/$name.log" 2>&1; then
-    echo "smoke: FAILED TO EMIT IR" >&2
-    sed -n '1,10p' "$TMP/$name.log" >&2
-    exit 1
-fi
-
-if ! "$CLANG" --target=x86_64-pc-windows-msvc -march=x86-64 -O2 \
-         -Wno-override-module "$TMP/$name.ll" -c -o "$TMP/$name.o" \
-         >> "$TMP/$name.log" 2>&1; then
-    echo "smoke: DOES NOT ASSEMBLE FOR MSVC, see $TMP/$name.log" >&2
-    exit 1
-fi
-
 # An unresolved fb_Gfx* here is the useful failure: it names an entry point the
-# library still does not export, from a program that legitimately uses it.
-#
-# THE LINK tiko ITSELF DOES for win64-msvc (src/codegen/toolchain.bas): lld,
-# '-nostdlib' so no Visual Studio CRT, ucrtbase.dll plus tiko-rt's msvccrt.o in
-# its place, and kernel32 named because '-nostdlib' drops it. NOT
-# -llegacy_stdio_definitions -- msvccrt.o defines sprintf, and the two collide.
-if ! "$CLANG" --target=x86_64-pc-windows-msvc -fuse-ld=lld "$TMP/$name.o" "$TKOGFX" "$LIBFB" \
-         -o "$TMP/$name.exe" \
-         -nostdlib "-L$( cygpath -m "$MSVC_IMPLIBS" )" -lucrtbase -lkernel32 \
-         -lwinspool -lgdi32 -luser32 -ladvapi32 -lwinmm -lmsimg32 -lversion -limm32 -lws2_32 \
-         -Xlinker /INCLUDE:tkort_msvc_init_ >> "$TMP/$name.log" 2>&1; then
-    echo "smoke: DOES NOT LINK, still needs:" >&2
+# library still does not export, from a program that legitimately uses it. The -p
+# directories come first, so the tree's libtkogfx and tiko-rt are the ones linked.
+if ! "$TIKO" "$src" -target win64-msvc -p "$( cygpath -m "$GFX/lib/win64-msvc" )" \
+         -p "$( cygpath -m "$GFX/../rt/lib/win64-msvc" )" -p "$( cygpath -m "$MSVC_IMPLIBS" )" \
+         -o "$TMP/$name.exe" > "$TMP/$name.log" 2>&1 || [ ! -f "$TMP/$name.exe" ]; then
+    echo "smoke: DOES NOT BUILD, see below; an entry point it still needs:" >&2
+    sed -n '1,10p' "$TMP/$name.log" >&2
     grep -o 'undefined symbol: [A-Za-z0-9_@$]*' "$TMP/$name.log" \
         | sed 's/undefined symbol: /    /' | sort -u >&2
     exit 1
