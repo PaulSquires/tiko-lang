@@ -1,7 +1,0 @@
-'' tests/vendor/fbc-tests/com/comptr.bas ported to the std modules (build/stdtests.py, generated).
-'' Expected: what tests/std/baseline/com/comptr.txt recorded for the original.
-'' TEST: cli
-'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/std/com/comptr.bas -o tests/std/com/comptr.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
-'' EXPECT-EXIT: 0
-'' RUN: tests/std/com/comptr.exe

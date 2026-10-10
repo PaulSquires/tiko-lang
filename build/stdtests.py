@@ -293,6 +293,9 @@ def main():
             raw = open(p, "rb").read()
             if b'"fb/' not in raw and b'"containers.bi"' not in raw:
                 continue
+            # ComPtr is no longer a supported feature (2026-10-10): its tests are not ported.
+            if b'"fb/comptr.bi"' in raw:
+                continue
             text = raw.decode("utf-8").replace("\r\n", "\n")
             if not RX_INC.search(text):
                 continue
