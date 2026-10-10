@@ -91,7 +91,7 @@ PUBLIC TYPE CGpBlur EXTENDS CGpEffect
 Public:
    DECLARE CONSTRUCTOR
    DECLARE FUNCTION SetParameters (BYVAL params AS BlurParams PTR) AS GpStatus
-   DECLARE FUNCTION SetParameters (BYVAL radius AS REAL, BYVAL expandEdge AS BOOL) AS GpStatus
+   DECLARE FUNCTION SetParameters (BYVAL radius AS SINGLE, BYVAL expandEdge AS BOOL) AS GpStatus
    DECLARE FUNCTION GetParameters (BYVAL uSize AS UINT PTR, BYVAL params AS ANY PTR) AS GpStatus
 
 END TYPE
@@ -113,7 +113,7 @@ FUNCTION CGpBlur.SetParameters (BYVAL params AS BlurParams PTR) AS GpStatus
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-FUNCTION CGpBlur.SetParameters (BYVAL radius AS REAL, BYVAL expandEdge AS BOOL) AS GpStatus
+FUNCTION CGpBlur.SetParameters (BYVAL radius AS SINGLE, BYVAL expandEdge AS BOOL) AS GpStatus
    DIM params AS BlurParams = TYPE(radius, expandEdge)
    DIM uSize AS UINT = SIZEOF(params)
    RETURN SetStatus(GdipSetEffectParameters(m_pEffect, @params, uSize))
@@ -142,7 +142,7 @@ PUBLIC TYPE CGpSharpen EXTENDS CGpEffect
 Public:
    DECLARE CONSTRUCTOR
    DECLARE FUNCTION SetParameters (BYVAL params AS SharpenParams PTR) AS GpStatus
-   DECLARE FUNCTION SetParameters (BYVAL radius AS REAL, BYVAL amount AS REAL) AS GpStatus
+   DECLARE FUNCTION SetParameters (BYVAL radius AS SINGLE, BYVAL amount AS SINGLE) AS GpStatus
    DECLARE FUNCTION GetParameters (BYVAL uSize AS UINT PTR, BYVAL params AS ANY PTR) AS GpStatus
 
 END TYPE
@@ -166,7 +166,7 @@ END FUNCTION
 ' ========================================================================================
 ' The SetParameters method sets the parameters of this Sharpen object.
 ' ========================================================================================
-FUNCTION CGpSharpen.SetParameters (BYVAL radius AS REAL, BYVAL amount AS REAL) AS GpStatus
+FUNCTION CGpSharpen.SetParameters (BYVAL radius AS SINGLE, BYVAL amount AS SINGLE) AS GpStatus
    DIM params AS SharpenParams = TYPE(radius, amount)
    DIM uSize AS UINT = SIZEOF(params)
    RETURN SetStatus(GdipSetEffectParameters(m_pEffect, @params, uSize))

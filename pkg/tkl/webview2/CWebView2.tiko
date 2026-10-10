@@ -19,16 +19,6 @@
 using tkCore
 #include once "win/wincrypt.bi"
 
-#ifdef NM_WV2_IMAGEREADY
-#export NM_WV2_IMAGEREADY
-#endif
-#ifdef _CWV2_DEBUG_
-#export _CWV2_DEBUG_
-#endif
-#ifdef CWV2_DP
-#export CWV2_DP
-#endif
-
 PUBLIC TYPE CWebView2
 
    m_Result AS HRESULT                                ' // Result code
@@ -211,7 +201,6 @@ END TYPE
 ' Default constructor.
 ' ========================================================================================
 CONSTRUCTOR CWebView2
-   CWV2_DP(" - Default")
 END CONSTRUCTOR
 ' ========================================================================================
 
@@ -225,7 +214,6 @@ END CONSTRUCTOR
 ' Slightly slower startup, but perfect for multi-tab or multi-user contexts.
 ' ========================================================================================
 CONSTRUCTOR CWebView2 (BYVAL hWin AS HWND, BYVAL pUserDataFolder AS WSTRING PTR = NULL)
-   CWV2_DP("hWin: " & WSTR(hWin) & " - this: " & WSTR(@this))
    ' // Initialize the COM library
    CoInitialize NULL
    ' // Store the window handle
@@ -242,12 +230,10 @@ CONSTRUCTOR CWebView2 (BYVAL hWin AS HWND, BYVAL pUserDataFolder AS WSTRING PTR 
       hr = CreateCoreWebView2EnvironmentWithOptions(NULL, pUserDataFolder, NULL, cast(ANY PTR, pEnv))
    END IF
    SetResult(hr)
-   CWV2_DP("pEnv: " & WSTR(pEnv) & " - hr: " & HEX(hr))
 END CONSTRUCTOR
 ' ========================================================================================
 ' ========================================================================================
 CONSTRUCTOR CWebView2 (BYVAL hWin AS HWND, BYREF ustrUserDataFolder AS USTRING)
-   CWV2_DP("hWin: " & WSTR(hWin) & " - UserDataFolder: " & ustrUserDataFolder)
    ' // Initialize the COM library
    CoInitialize NULL
    ' // Store the window handle
@@ -264,7 +250,6 @@ CONSTRUCTOR CWebView2 (BYVAL hWin AS HWND, BYREF ustrUserDataFolder AS USTRING)
       hr = CreateCoreWebView2EnvironmentWithOptions(NULL, ustrUserDataFolder, NULL, cast(ANY PTR, pEnv))
    END IF
    SetResult(hr)
-   CWV2_DP("pEnv: " & WSTR(pEnv) & " - hr: " & HEX(hr))
 END CONSTRUCTOR
 ' ========================================================================================
 
@@ -272,16 +257,12 @@ END CONSTRUCTOR
 ' Destructor
 ' ========================================================================================
 DESTRUCTOR CWebView2
-   CWV2_DP("release CoreWebView: " & WSTR(m_pCoreWebView2))
-   CWV2_DP("release Controller: " & WSTR(m_pController))
-   CWV2_DP("release Environment: " & WSTR(m_pEnv))
    IF m_pCoreWebView2 THEN m_pCoreWebView2->Release
    IF m_pController THEN
       m_pController->Close
       m_pController->Release
    END IF
    IF m_pEnv THEN m_pEnv->Release
-   CWV2_DP("delete class - this: " & WSTR(@this))
    ' // Uninitialize the COM library
    CoUninitialize
 END DESTRUCTOR
@@ -390,7 +371,6 @@ END FUNCTION
 ' Checks if WebView2 is ready to be used.
 ' ========================================================================================
 FUNCTION CWebView2.IsReady (BYVAL dwMaxWaitMilliseconds AS LONG = -1) AS BOOLEAN
-   CWV2_DP("dwMaxWaitMilliseconds: " & WSTR(dwMaxWaitMilliseconds))
    DIM startTick AS DWORD = GetTickCount
    DO
       ' // Process messages to allow the callbacks to fire
@@ -613,11 +593,6 @@ END FUNCTION
 ' Cause a navigation of the top-level document to run to the specified URI.
 ' ========================================================================================
 FUNCTION CWebView2.Navigate (BYVAL uri AS LPCWSTR) AS HRESULT
-   IF uri THEN
-      CWV2_DP(*uri)
-   ELSE
-      CWV2_DP("")
-   END IF
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pCoreWebView2->Navigate(uri)
    RETURN m_Result
@@ -628,7 +603,6 @@ END FUNCTION
 ' Initiates a navigation to htmlContent as source HTML of a new document.
 ' ========================================================================================
 FUNCTION CWebView2.NavigateToString (BYVAL htmlContent AS LPCWSTR) AS HRESULT
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pCoreWebView2->NavigateToString(htmlContent)
    RETURN m_Result
@@ -639,7 +613,6 @@ END FUNCTION
 ' Stop all navigations and pending resource fetches. Does not stop scripts.
 ' ========================================================================================
 FUNCTION CWebView2.Stop () AS HRESULT
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pCoreWebView2->Stop
    RETURN m_Result
@@ -650,7 +623,6 @@ END FUNCTION
 ' Reload the current page.
 ' ========================================================================================
 FUNCTION CWebView2.Reload () AS HRESULT
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pCoreWebView2->Reload
    RETURN m_Result
@@ -661,7 +633,6 @@ END FUNCTION
 ' Navigates the WebView to the previous page in the navigation history.
 ' ========================================================================================
 FUNCTION CWebView2.GoBack () AS HRESULT
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pCoreWebView2->GoBack
    RETURN m_Result
@@ -672,7 +643,6 @@ END FUNCTION
 ' Navigates the WebView to the next page in the navigation history.
 ' ========================================================================================
 FUNCTION CWebView2.GoForward () AS HRESULT
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pCoreWebView2->GoForward
    RETURN m_Result
@@ -683,7 +653,6 @@ END FUNCTION
 ' TRUE if the WebView is able to navigate to the previous page in the navigation history.
 ' ========================================================================================
 FUNCTION CWebView2.CanGoBack () AS BOOLEAN
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN FALSE
    DIM bRes AS BOOL
    m_Result = m_pCoreWebView2->get_CanGoBack(@bRes)
@@ -695,7 +664,6 @@ END FUNCTION
 ' TRUE if the WebView is able to navigate to a next page in the navigation history.
 ' ========================================================================================
 FUNCTION CWebView2.CanGoForward () AS BOOLEAN
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN FALSE
    DIM bRes AS BOOL
    m_Result = m_pCoreWebView2->get_CanGoForward(@bRes)
@@ -707,7 +675,6 @@ END FUNCTION
 ' The process ID of the browser process that hosts the WebView.
 ' ========================================================================================
 FUNCTION CWebView2.GetBrowserProcessId () AS UINT32
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN 0
    DIM id AS UINT32
    m_Result = m_pCoreWebView2->get_BrowserProcessId(@id)
@@ -719,7 +686,6 @@ END FUNCTION
 ' The URI of the current top level document.
 ' ========================================================================================
 FUNCTION CWebView2.GetSource () AS USTRING
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN ""
    DIM uri AS WSTRING PTR
    DIM ustrUri AS USTRING
@@ -737,7 +703,6 @@ END FUNCTION
 ' rendered in the WebView.
 ' ========================================================================================
 FUNCTION CWebView2.ExecuteScript (BYVAL javaScript AS LPCWSTR, BYVAL handler AS ICoreWebView2ExecuteScriptCompletedHandler PTR = NULL) AS HRESULT
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pCoreWebView2->ExecuteScript(javaScript, handler)
    RETURN m_Result
@@ -748,7 +713,6 @@ END FUNCTION
 ' Post the specified webMessage to the top level document in this WebView.
 ' ========================================================================================
 FUNCTION CWebView2.PostWebMessageAsJson (BYVAL webMessageAsJson AS LPCWSTR) AS HRESULT
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pCoreWebView2->PostWebMessageAsJson(webMessageAsJson)
    RETURN m_Result
@@ -759,7 +723,6 @@ END FUNCTION
 ' Posts a message that is a simple string rather than a JSON string representation of a JavaScript object.
 ' ========================================================================================
 FUNCTION CWebView2.PostWebMessageAsString (BYVAL webMessageAsString AS LPCWSTR) AS HRESULT
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pCoreWebView2->PostWebMessageAsString(webMessageAsString)
    RETURN m_Result
@@ -770,7 +733,6 @@ END FUNCTION
 ' Capture an image of what WebView is displaying.
 ' ========================================================================================
 FUNCTION CWebView2.CapturePreview (BYVAL imageFormat AS COREWEBVIEW2_CAPTURE_PREVIEW_IMAGE_FORMAT, BYVAL imageStream AS IStream PTR, BYVAL handler AS ICoreWebView2CapturePreviewCompletedHandler PTR) AS HRESULT
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pCoreWebView2->CapturePreview(imageFormat, imageStream, handler)
    RETURN m_Result
@@ -781,7 +743,6 @@ END FUNCTION
 ' Opens the DevTools window for the current document in the WebView.
 ' ========================================================================================
 FUNCTION CWebView2.OpenDevToolsWindow () AS HRESULT
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pCoreWebView2->OpenDevToolsWindow
    RETURN m_Result
@@ -843,7 +804,6 @@ END FUNCTION
 ' Closes the WebView and cleans up the underlying browser instance.
 ' ========================================================================================
 FUNCTION CWebView2.Close () AS HRESULT
-   CWV2_DP("")
    IF m_pController = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pController->Close
    RETURN m_Result
@@ -854,7 +814,6 @@ END FUNCTION
 ' The parent window provided by the app that this WebView is using to render content.
 ' ========================================================================================
 FUNCTION CWebView2.GetParentWindow () AS HWND
-   CWV2_DP("")
    IF m_pController = NULL THEN m_Result = E_POINTER : RETURN NULL
    DIM hWin AS HWND
    m_Result = m_pController->get_ParentWindow(@hWin)
@@ -866,7 +825,6 @@ END FUNCTION
 ' Sets the parent window for the WebView.
 ' ========================================================================================
 FUNCTION CWebView2.SetParentWindow (BYVAL parentWindow AS HWND) AS HRESULT
-   CWV2_DP("")
    IF m_pController = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pController->put_ParentWindow(parentWindow)
    IF m_Result = S_OK THEN
@@ -881,7 +839,6 @@ END FUNCTION
 ' The IsVisible property determines whether to show or hide the WebView2.
 ' ========================================================================================
 FUNCTION CWebView2.GetIsVisible () AS BOOLEAN
-   CWV2_DP("")
    IF m_pController = NULL THEN m_Result = E_POINTER : RETURN FALSE
    DIM bRes AS BOOL
    m_Result = m_pController->get_IsVisible(@bRes)
@@ -893,7 +850,6 @@ END FUNCTION
 ' Sets the IsVisible property.
 ' ========================================================================================
 FUNCTION CWebView2.SetIsVisible (BYVAL IsVisible AS BOOLEAN) AS HRESULT
-   CWV2_DP("")
    IF m_pController = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pController->put_IsVisible(IsVisible)
    RETURN m_Result
@@ -904,7 +860,6 @@ END FUNCTION
 ' The zoom factor for the WebView.
 ' ========================================================================================
 FUNCTION CWebView2.GetZoomFactor () AS DOUBLE
-   CWV2_DP("")
    IF m_pController = NULL THEN m_Result = E_POINTER : RETURN 0
    DIM zoom AS DOUBLE
    m_Result = m_pController->get_ZoomFactor(@zoom)
@@ -916,7 +871,6 @@ END FUNCTION
 ' Sets the ZoomFactor property.
 ' ========================================================================================
 FUNCTION CWebView2.SetZoomFactor (BYVAL zoomFactor AS DOUBLE) AS HRESULT
-   CWV2_DP("")
    IF m_pController = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pController->put_ZoomFactor(zoomFactor)
    RETURN m_Result
@@ -927,7 +881,6 @@ END FUNCTION
 ' Gets the WebView bounds.
 ' ========================================================================================
 FUNCTION CWebView2.GetBounds () AS RECT
-   CWV2_DP("")
    DIM bounds AS RECT
    IF m_pController = NULL THEN m_Result = E_POINTER : RETURN bounds
    m_Result = m_pController->get_Bounds(@bounds)
@@ -939,7 +892,6 @@ END FUNCTION
 ' Sets the Bounds property.
 ' ========================================================================================
 FUNCTION CWebView2.SetBounds (BYVAL bounds AS RECT) AS HRESULT
-   CWV2_DP("")
    IF m_pController = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pController->put_Bounds(bounds)
    RETURN m_Result
@@ -950,7 +902,6 @@ END FUNCTION
 ' Moves focus into WebView.
 ' ========================================================================================
 FUNCTION CWebView2.MoveFocus (BYVAL reason AS COREWEBVIEW2_MOVE_FOCUS_REASON) AS HRESULT
-   CWV2_DP("")
    IF m_pController = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pController->MoveFocus(reason)
    RETURN m_Result
@@ -962,7 +913,6 @@ END FUNCTION
 ' parent (or any ancestor) HWND moved.
 ' ========================================================================================
 FUNCTION CWebView2.NotifyParentWindowPositionChanged () AS HRESULT
-   CWV2_DP("")
    IF m_pController = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pController->NotifyParentWindowPositionChanged
    RETURN m_Result
@@ -1596,7 +1546,6 @@ END FUNCTION
 ' included by the HTML document is run.
 ' ========================================================================================
 FUNCTION CWebView2.AddScriptToExecuteOnDocumentCreated (BYVAL javaScript AS LPCWSTR, BYVAL handler AS ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler PTR) AS HRESULT
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pCoreWebView2->AddScriptToExecuteOnDocumentCreated(javaScript, handler)
    RETURN m_Result
@@ -1607,7 +1556,6 @@ END FUNCTION
 ' Remove the corresponding JavaScript added using AddScriptToExecuteOnDocumentCreated with the specified script ID.
 ' ========================================================================================
 FUNCTION CWebView2.RemoveScriptToExecuteOnDocumentCreated (BYVAL id AS LPCWSTR) AS HRESULT
-   CWV2_DP("")
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN E_POINTER
    m_Result = m_pCoreWebView2->RemoveScriptToExecuteOnDocumentCreated(id)
    RETURN m_Result
@@ -1641,7 +1589,6 @@ END FUNCTION
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2CreateCoreWebView2EnvironmentCompletedHandlerInternal (BYVAL pWebView2 AS CWebView2 PTR)
-   CWV2_DP("pWebView2: " & WSTR(pWebView2)  & " - this: " & WSTR(@this))
    m_pWebView2 = pWebView2
 END CONSTRUCTOR
 ' =====================================================================================
@@ -1649,7 +1596,6 @@ END CONSTRUCTOR
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2CreateCoreWebView2EnvironmentCompletedHandlerInternal
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1658,7 +1604,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2CreateCoreWebView2EnvironmentCompletedHandlerInternal.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP("")
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1669,7 +1614,6 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CWebView2CreateCoreWebView2EnvironmentCompletedHandlerInternal.AddRef () AS ULONG
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -1680,18 +1624,13 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CWebView2CreateCoreWebView2EnvironmentCompletedHandlerInternal.Release () AS ULONG
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2CreateCoreWebView2EnvironmentCompletedHandlerInternal.Invoke (BYVAL errorCode AS HRESULT, BYVAL createdEnvironment AS ICoreWebView2Environment PTR) AS HRESULT
-   CWV2_DP("")
    IF errorCode = S_OK AND m_pWebView2 <> NULL THEN
       m_pWebView2->m_pEnv = createdEnvironment
       m_pWebView2->m_pEnv->AddRef
@@ -1720,7 +1659,6 @@ END FUNCTION
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2CreateCoreWebView2ControllerCompletedHandlerInternal (BYVAL pWebView2 AS CWebView2 PTR)
-   CWV2_DP("pWebView2: " & WSTR(pWebView2)  & " - this: " & WSTR(@this))
    m_pWebView2 = pWebView2
 END CONSTRUCTOR
 ' =====================================================================================
@@ -1728,7 +1666,6 @@ END CONSTRUCTOR
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2CreateCoreWebView2ControllerCompletedHandlerInternal
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1737,7 +1674,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2CreateCoreWebView2ControllerCompletedHandlerInternal.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP("")
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1748,7 +1684,6 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CWebView2CreateCoreWebView2ControllerCompletedHandlerInternal.AddRef () AS ULONG
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -1759,22 +1694,16 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CWebView2CreateCoreWebView2ControllerCompletedHandlerInternal.Release () AS ULONG
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2CreateCoreWebView2ControllerCompletedHandlerInternal.Invoke (BYVAL errorCode AS HRESULT, BYVAL createdController AS ICoreWebView2Controller PTR) AS HRESULT
-   CWV2_DP(WSTR(errorCode))
    IF errorCode = S_OK AND m_pWebView2 <> NULL THEN
       m_pWebView2->m_pController = createdController
       m_pWebView2->m_pController->AddRef
-      CWV2_DP("createdController: " & WSTR(createdController))
       ' // Get a pointer to the ICoreWebView2 inerface
       DIM pCoreWebView2 AS ICoreWebView2 PTR
       IF createdController->get_CoreWebView2(@pCoreWebView2) = S_OK THEN
@@ -1864,31 +1793,26 @@ END TYPE
 
 ' ========================================================================================
 CONSTRUCTOR CWebView2NewWindowRequestedEventHandlerInternal (BYVAL pWebView2 AS CWebView2 PTR, BYVAL useNewWindow AS BOOLEAN = FALSE)
-   CWV2_DP("pWebView2: " & WSTR(pWebView2))
    IF pWebView2 THEN
       m_pWebView2 = pWebView2
       DIM hr AS HRESULT = pWebView2->AddNewWindowRequested(cast(ANY PTR, @this), @m_token)
-   CWV2_DP("hr: " & WSTR(hr) & " - token: " & WSTR(m_token.value))
    END IF
    m_useNewWindow = useNewWindow
 END CONSTRUCTOR
 ' ========================================================================================
 ' ========================================================================================
 DESTRUCTOR CWebView2NewWindowRequestedEventHandlerInternal
-   CWV2_DP("")
    IF m_pWebView2 THEN m_pWebView2->RemoveNewWindowRequested(m_token)
 END DESTRUCTOR
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CWebView2NewWindowRequestedEventHandlerInternal.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2NewWindowRequestedEventArgs PTR) AS HRESULT
-   CWV2_DP("sender: " & WSTR(sender))
    IF m_useNewWindow = FALSE THEN
       ' // Avoid the opening of new external window
       args->put_Handled(TRUE)
       ' // Get the requested URI
       DIM uri AS WSTRING PTR
       IF SUCCEEDED(args->get_Uri(@uri)) THEN
-         CWV2_DP("Requested URI: " & *uri)
          ' // Redirect navigation to self window
          sender->Navigate(*uri)
          CoTaskMemFree uri
@@ -1920,26 +1844,21 @@ END TYPE
 
 ' ========================================================================================
 CONSTRUCTOR CWebView2WebMessageReceivedEventHandlerInternal (BYVAL pWebView2 AS CWebView2 PTR)
-   CWV2_DP("pWebView2: " & WSTR(pWebView2))
    IF pWebView2 THEN
       m_pWebView2 = pWebView2
       DIM hr AS HRESULT = pWebView2->AddWebMessageReceived(cast(ANY PTR, @this), @m_token)
-   CWV2_DP("hr: " & WSTR(hr) & " - token: " & WSTR(m_token.value))
    END IF
 END CONSTRUCTOR
 ' ========================================================================================
 ' ========================================================================================
 DESTRUCTOR CWebView2WebMessageReceivedEventHandlerInternal
-   CWV2_DP("")
    IF m_pWebView2 THEN m_pWebView2->RemoveWebMessageReceived(m_token)
 END DESTRUCTOR
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CWebView2WebMessageReceivedEventHandlerInternal.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2WebMessageReceivedEventArgs PTR) AS HRESULT
-   CWV2_DP("sender: " & WSTR(sender))
    DIM pwszMsg AS WSTRING PTR
    IF SUCCEEDED(args->TryGetWebMessageAsString(@pwszMsg)) THEN
-      CWV2_DP("Reveived message: " & *pwszMsg)
       DIM wszMsg AS WSTRING * 260
       wszMsg = *pwszMsg
       CoTaskMemFree pwszMsg

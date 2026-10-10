@@ -27,12 +27,6 @@
 #module "gdiplus"
 #include once "gdiplus.ti"
 
-#ifdef _CGDIP_DEBUG_
-#export _CGDIP_DEBUG_
-#endif
-#ifdef CGDIP_DP
-#export CGDIP_DP
-#endif
 #ifdef GDIP_WMF_RECORD_TO_EMFPLUS
 #export GDIP_WMF_RECORD_TO_EMFPLUS
 #endif
@@ -138,31 +132,8 @@
 #ifdef IsIndexedPixelFormat
 #export IsIndexedPixelFormat
 #endif
-#ifdef __GDIPLUS_COLOR_H
-#export __GDIPLUS_COLOR_H
-#endif
-#ifdef _GDIP_DEBUG_
-#export _GDIP_DEBUG_
-#endif
-#ifdef GDIP_DP
-#export GDIP_DP
-#endif
 
 #include once "win/ddraw.bi"
-
-' ========================================================================================
-' Macro for debug
-' To allow debugging, define _CGDIP_DEBUG_ 1 in your application before including this file.
-' ========================================================================================
-#ifndef _CGDIP_DEBUG_
-' [pkg/fbx] #define _CGDIP_DEBUG_ moved to gdiplus.ti
-#ENDIF
-#ifndef _CGDIP_DP_
-   #define _CGDIP_DP_ 1
-#export _CGDIP_DP_
-' [pkg/fbx] #define CGDIP_DP moved to gdiplus.ti
-#ENDIF
-' ========================================================================================
 
 PUBLIC TYPE CGpAdjustableArrowCap_ AS CGpAdjustableArrowCap
 PUBLIC TYPE CGpBitmap_ AS CGpBitmap
@@ -204,7 +175,6 @@ END TYPE
 ' Default constructor
 ' ========================================================================================
 CONSTRUCTOR CGpBase
-   CGDIP_DP("CONSTRUCTOR CGpBase")
    ' // Increase the reference count
    this.RefCount(TRUE)
 END CONSTRUCTOR
@@ -214,7 +184,6 @@ END CONSTRUCTOR
 ' Destructor
 ' ========================================================================================
 DESTRUCTOR CGpBase
-   CGDIP_DP("DESTRUCTOR CGpBase")
    ' // Decrease the reference count
    this.RefCount(FALSE)
 END DESTRUCTOR
@@ -225,24 +194,20 @@ END DESTRUCTOR
 ' ========================================================================================
 FUNCTION CGpBase.RefCount (BYVAL bIncrement AS BOOLEAN) AS LONG
    STATIC cRef AS LONG, token AS ULONG_PTR
-'   CGDIP_DP("--- BEGIN CGpBase - RefCount - cRef = " & WSTR(cRef))
    IF cRef = 0 THEN
       ' // Initialize the GDI+ library
       DIM StartupInput AS GdiplusStartupInput
       StartupInput.GdiplusVersion = 1 ' Version must be 1
       m_Status = GdiplusStartup(@token, @StartupInput, NULL)
       IF m_Status <> 0 THEN MessageBoxW(0, "GDI+ initialization failed - Error: " & STR(m_Status), "Error", MB_OK OR MB_ICONERROR OR MB_APPLMODAL)
-      CGDIP_DP("+++ CGpBase.RefCount Initialize GDI+ - version = " & WSTR(version) & "; token = " & WSTR(token))
    END IF
    ' // Increase or decrease the reference count
    IF bIncrement THEN cRef += 1 ELSE cRef -= 1
-   CGDIP_DP("--- END CGpBase - RefCount - cRef = " & WSTR(cRef))
    ' // If the reference count reaches a value of 0, shutdown GDI+
    IF cRef = 0  THEN
       ' // Shutdown GDI+
       IF token THEN GdiplusShutdown(token)
       token = 0
-      CGDIP_DP("+++ CGpBase.RefCount Shutdown GDI+")
    END IF
    RETURN cRef
 END FUNCTION

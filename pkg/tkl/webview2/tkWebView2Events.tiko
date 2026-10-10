@@ -32,14 +32,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2CreateCoreWebView2EnvironmentCompletedHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2CreateCoreWebView2EnvironmentCompletedHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -48,7 +46,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2CreateCoreWebView2EnvironmentCompletedHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -58,9 +55,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2CreateCoreWebView2EnvironmentCompletedHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -70,20 +65,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2CreateCoreWebView2EnvironmentCompletedHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2CreateCoreWebView2EnvironmentCompletedHandler.Invoke (BYVAL errorCode AS HRESULT, BYVAL createdEnvironment AS ICoreWebView2Environment PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -113,14 +102,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2CreateCoreWebView2ControllerCompletedHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2CreateCoreWebView2ControllerCompletedHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -129,7 +116,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2CreateCoreWebView2ControllerCompletedHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -139,9 +125,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2CreateCoreWebView2ControllerCompletedHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -151,20 +135,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2CreateCoreWebView2ControllerCompletedHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2CreateCoreWebView2ControllerCompletedHandler.Invoke (BYVAL errorCode AS HRESULT, BYVAL createdController AS ICoreWebView2Controller PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -194,14 +172,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2NavigationStartingdEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2NavigationStartingdEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -210,7 +186,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2NavigationStartingdEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -220,9 +195,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2NavigationStartingdEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -232,20 +205,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2NavigationStartingdEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2NavigationStartingdEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2NavigationCompletedEventArgs PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -275,14 +242,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2NavigationCompletedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2NavigationCompletedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -291,7 +256,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2NavigationCompletedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -301,9 +265,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2NavigationCompletedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -313,20 +275,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2NavigationCompletedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2NavigationCompletedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2NavigationCompletedEventArgs PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -356,14 +312,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2ContentLoadingEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2ContentLoadingEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -372,7 +326,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2ContentLoadingEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -382,9 +335,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2ContentLoadingEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -394,20 +345,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2ContentLoadingEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2ContentLoadingEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ContentLoadingEventArgs PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -437,14 +382,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2SourceChangedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2SourceChangedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -453,7 +396,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2SourceChangedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -463,9 +405,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2SourceChangedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -475,20 +415,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2SourceChangedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2SourceChangedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2SourceChangedEventArgs PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -518,14 +452,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2HistoryChangedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2HistoryChangedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -534,7 +466,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2HistoryChangedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -544,9 +475,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2HistoryChangedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -556,20 +485,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2HistoryChangedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2HistoryChangedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -599,14 +522,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2ScriptDialogOpeningEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2ScriptDialogOpeningEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -615,7 +536,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2ScriptDialogOpeningEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -625,9 +545,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2ScriptDialogOpeningEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -637,20 +555,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2ScriptDialogOpeningEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2ScriptDialogOpeningEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ScriptDialogOpeningEventArgs PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -680,14 +592,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2PermissionRequestedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2PermissionRequestedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -696,7 +606,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2PermissionRequestedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -706,9 +615,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2PermissionRequestedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -718,20 +625,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2PermissionRequestedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2PermissionRequestedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2PermissionRequestedEventArgs PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -761,14 +662,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2ProcessFailedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2ProcessFailedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -777,7 +676,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2ProcessFailedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -787,9 +685,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2ProcessFailedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -799,20 +695,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2ProcessFailedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2ProcessFailedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2ProcessFailedEventArgs PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -842,14 +732,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2WebMessageReceivedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2WebMessageReceivedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -858,7 +746,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2WebMessageReceivedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -868,9 +755,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2WebMessageReceivedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -880,20 +765,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2WebMessageReceivedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2WebMessageReceivedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2WebMessageReceivedEventArgs PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -923,14 +802,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2NewWindowRequestedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2NewWindowRequestedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -939,7 +816,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2NewWindowRequestedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -949,9 +825,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2NewWindowRequestedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -961,20 +835,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2NewWindowRequestedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2NewWindowRequestedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2NewWindowRequestedEventArgs PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1004,14 +872,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2DocumentTitleChangedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2DocumentTitleChangedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1020,7 +886,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2DocumentTitleChangedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1030,9 +895,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2DocumentTitleChangedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -1042,20 +905,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2DocumentTitleChangedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2DocumentTitleChangedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1085,14 +942,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2ContainsFullScreenElementChangedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2ContainsFullScreenElementChangedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1101,7 +956,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2ContainsFullScreenElementChangedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1111,9 +965,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2ContainsFullScreenElementChangedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -1123,20 +975,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2ContainsFullScreenElementChangedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2ContainsFullScreenElementChangedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1166,14 +1012,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2WebResourceRequestedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2WebResourceRequestedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1182,7 +1026,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2WebResourceRequestedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1192,9 +1035,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2WebResourceRequestedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -1204,20 +1045,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2WebResourceRequestedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2WebResourceRequestedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2WebResourceRequestedEventArgs PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1247,14 +1082,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2WindowCloseRequestedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2WindowCloseRequestedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1263,7 +1096,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2WindowCloseRequestedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1273,9 +1105,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2WindowCloseRequestedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -1285,20 +1115,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2WindowCloseRequestedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2WindowCloseRequestedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS IUnknown PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1328,14 +1152,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2ExecuteScriptCompletedHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2ExecuteScriptCompletedHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1344,7 +1166,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2ExecuteScriptCompletedHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1354,9 +1175,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2ExecuteScriptCompletedHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -1366,20 +1185,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2ExecuteScriptCompletedHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2ExecuteScriptCompletedHandler.Invoke (BYVAL errorCode AS HRESULT, BYVAL resultObjectAsJson AS LPCWSTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1409,14 +1222,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2AddScriptToExecuteOnDocumentCreatedCompleteHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2AddScriptToExecuteOnDocumentCreatedCompleteHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1424,7 +1235,6 @@ END DESTRUCTOR
 ' Returns pointers to the implemented classes and supported interfaces.
 ' ========================================================================================
 FUNCTION CWebView2AddScriptToExecuteOnDocumentCreatedCompleteHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1434,9 +1244,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2AddScriptToExecuteOnDocumentCreatedCompleteHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -1446,20 +1254,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2AddScriptToExecuteOnDocumentCreatedCompleteHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2AddScriptToExecuteOnDocumentCreatedCompleteHandler.Invoke (BYVAL errorCode AS HRESULT, BYVAL resultObjectAsJson AS LPCWSTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1489,14 +1291,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2AddCapturePreviewCompletedHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2AddCapturePreviewCompletedHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1505,7 +1305,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2AddCapturePreviewCompletedHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1515,9 +1314,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2AddCapturePreviewCompletedHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -1527,20 +1324,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2AddCapturePreviewCompletedHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2AddCapturePreviewCompletedHandler.Invoke (BYVAL errorCode AS HRESULT) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1570,14 +1361,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2DevToolsProtocolEventReceivedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2DevToolsProtocolEventReceivedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1586,7 +1375,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2DevToolsProtocolEventReceivedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1596,9 +1384,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2DevToolsProtocolEventReceivedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -1608,20 +1394,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2DevToolsProtocolEventReceivedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2DevToolsProtocolEventReceivedEventHandler.Invoke (BYVAL sender AS ICoreWebView2 PTR, BYVAL args AS ICoreWebView2DevToolsProtocolEventReceivedEventArgs PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1651,14 +1431,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2ZoomFactorChangedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2ZoomFactorChangedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1667,7 +1445,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2ZoomFactorChangedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1677,9 +1454,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2ZoomFactorChangedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -1689,20 +1464,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2ZoomFactorChangedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2ZoomFactorChangedEventHandler.Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS IUnknown PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1732,14 +1501,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2MoveFocusRequestedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2MoveFocusRequestedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1748,7 +1515,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2MoveFocusRequestedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1758,9 +1524,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2MoveFocusRequestedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -1770,20 +1534,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2MoveFocusRequestedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2MoveFocusRequestedEventHandler.Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS ICoreWebView2MoveFocusRequestedEventArgs PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1813,14 +1571,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2FocusChangedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2FocusChangedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1829,7 +1585,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2FocusChangedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1839,9 +1594,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2FocusChangedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -1851,20 +1604,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2FocusChangedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2FocusChangedEventHandler.Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS IUnknown PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1894,14 +1641,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2AcceleratorKeyPressedEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2AcceleratorKeyPressedEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1910,7 +1655,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2AcceleratorKeyPressedEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1920,9 +1664,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2AcceleratorKeyPressedEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -1932,20 +1674,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2AcceleratorKeyPressedEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2AcceleratorKeyPressedEventHandler.Invoke (BYVAL sender AS ICoreWebView2Controller PTR, BYVAL args AS ICoreWebView2AcceleratorKeyPressedEventArgs PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -1975,14 +1711,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2NewBrowserVersionAvailableEventHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2NewBrowserVersionAvailableEventHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -1991,7 +1725,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2NewBrowserVersionAvailableEventHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -2001,9 +1734,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2NewBrowserVersionAvailableEventHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -2013,20 +1744,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2NewBrowserVersionAvailableEventHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2NewBrowserVersionAvailableEventHandler.Invoke (BYVAL webviewEnvironment AS ICoreWebView2Environment PTR, BYVAL args AS IUNknown PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -2056,14 +1781,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2CallDevToolsProtocolMethodCompletedHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2CallDevToolsProtocolMethodCompletedHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -2072,7 +1795,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2CallDevToolsProtocolMethodCompletedHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -2082,9 +1804,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2CallDevToolsProtocolMethodCompletedHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -2094,20 +1814,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2CallDevToolsProtocolMethodCompletedHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2CallDevToolsProtocolMethodCompletedHandler.Invoke (BYVAL errorCode AS HRESULT, BYVAL returnObjectAsJson AS LPCWSTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -2139,14 +1853,12 @@ END TYPE
 ' Constructor
 ' =====================================================================================
 CONSTRUCTOR CWebView2ExecuteScriptWithResultCompletedHandler
-   CWV2_DP(WSTR(@this))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 ' Destructor
 ' =====================================================================================
 DESTRUCTOR CWebView2ExecuteScriptWithResultCompletedHandler
-   CWV2_DP(WSTR(@this))
 END DESTRUCTOR
 ' =====================================================================================
 
@@ -2155,7 +1867,6 @@ END DESTRUCTOR
 ' It is never called by WebView, so we simply return S_OK.
 ' ========================================================================================
 FUNCTION CWebView2ExecuteScriptWithResultCompletedHandler.QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObj AS LPVOID PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================
@@ -2165,9 +1876,7 @@ END FUNCTION
 ' for every new copy of a pointer to an interface on an object.
 ' ========================================================================================
 FUNCTION CWebView2ExecuteScriptWithResultCompletedHandler.AddRef () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount += 1
-   CWV2_DP(WSTR(refCount))
    RETURN refCount
 END FUNCTION
 ' ========================================================================================
@@ -2177,20 +1886,14 @@ END FUNCTION
 ' If the count reaches 0, it deletes itself.
 ' ========================================================================================
 FUNCTION CWebView2ExecuteScriptWithResultCompletedHandler.Release () AS ULONG
-   CWV2_DP(WSTR(@this))
    refCount -= 1
-   CWV2_DP(WSTR(refCount))
-   IF refCount = 0 THEN
-      CWV2_DP("Delete class")
-      Delete @this
-   END IF
+   IF refCount = 0 THEN Delete @this
    RETURN refCount
 END FUNCTION
 ' =====================================================================================
 
 ' =====================================================================================
 FUNCTION CWebView2ExecuteScriptWithResultCompletedHandler.Invoke (BYVAL errorCode AS HRESULT, BYVAL result AS ICoreWebView2ExecuteScriptResult PTR) AS HRESULT
-   CWV2_DP(WSTR(@this))
    RETURN S_OK
 END FUNCTION
 ' =====================================================================================

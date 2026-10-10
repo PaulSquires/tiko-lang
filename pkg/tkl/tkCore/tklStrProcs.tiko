@@ -339,16 +339,16 @@ END FUNCTION
 ' This function is case sensitive.
 ' Example: tkStrRemove("Hello World. Welcome to the Freebasic World", "World")
 ' ========================================================================================
-'PUBLIC FUNCTION tkStrRemove (BYREF wszMainStr AS CONST WSTRING, BYREF wszMatchStr AS CONST WSTRING) AS USTRING
-'   DIM ustrMainStr AS USTRING = wszMainStr
-'   DIM nLen AS LONG = LEN(wszMatchStr)
-'   DO
-'      DIM nPos AS LONG = INSTR(ustrMainStr, wszMatchStr)
-'      IF nPos = 0 THEN EXIT DO
-'      ustrMainStr = LEFT(ustrMainStr, nPos - 1) + MID(ustrMainStr, nPos + nLen)
-'   LOOP
-'   RETURN ustrMainStr
-'END FUNCTION
+PUBLIC FUNCTION tkStrRemove (BYREF wszMainStr AS CONST WSTRING, BYREF wszMatchStr AS CONST WSTRING) AS USTRING
+   DIM ustrMainStr AS USTRING = wszMainStr
+   DIM nLen AS LONG = LEN(wszMatchStr)
+   DO
+      DIM nPos AS LONG = INSTR(ustrMainStr, wszMatchStr)
+      IF nPos = 0 THEN EXIT DO
+      ustrMainStr = LEFT(ustrMainStr, nPos - 1) + MID(ustrMainStr, nPos + nLen)
+   LOOP
+   RETURN ustrMainStr
+END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================

@@ -58,7 +58,7 @@ END CONSTRUCTOR
 ' Creates an Image object from a resource file.
 ' ========================================================================================
 CONSTRUCTOR CGpImage (BYVAL hInst AS HINSTANCE, BYREF wszImageName AS WSTRING)
-   m_pStream = fbxImageStreamFromRes(hInst, wszImageName)
+   m_pStream = tkImageStreamFromRes(hInst, wszImageName)
    IF m_pStream = 0 THEN EXIT CONSTRUCTOR
    IF GdipLoadImageFromStream(m_pStream, @m_pImage) <> S_OK THEN m_pStream->lpVtbl->Release(m_pStream)
 END CONSTRUCTOR
@@ -539,7 +539,7 @@ END CONSTRUCTOR
 ' Creates an Bitmap object from a resource file.
 ' ========================================================================================
 CONSTRUCTOR CGpBitmap (BYVAL hInst AS HINSTANCE, BYREF wszImageName AS WSTRING)
-   m_pStream = fbxImageStreamFromRes(hInst, wszImageName)
+   m_pStream = tkImageStreamFromRes(hInst, wszImageName)
    IF m_pStream = 0 THEN EXIT CONSTRUCTOR
    IF GdipLoadImageFromStream(m_pStream, @m_pImage) <> S_OK THEN m_pStream->lpVtbl->Release(m_pStream)
 END CONSTRUCTOR

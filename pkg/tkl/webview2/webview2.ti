@@ -1,4 +1,4 @@
-' tk/webview2 (pkg/tk): every header the module's files include, and the
+' tk/webview2 (pkg/tkl): every header the module's files include, and the
 ' macros more than one of its files uses.
 #pragma once
 
@@ -8,13 +8,3 @@
 #include once "win/oaidl.bi"
 
 #define NM_WV2_IMAGEREADY CULNG(-1)
-#ifndef _CWV2_DEBUG_
-   #define _CWV2_DEBUG_ 0
-#endif
-#ifndef _CWV2_DP_
-   #MACRO CWV2_DP(st)
-      #if (_CWV2_DEBUG_ = 1)
-         OutputDebugStringW(__FUNCTION__ + ": " + st)
-      #endif
-   #ENDMACRO
-#endif

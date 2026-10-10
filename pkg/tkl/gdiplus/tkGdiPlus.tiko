@@ -234,7 +234,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns the version of Gdiplus.dll, e.g. 601 for version 6.01.
 ' * Returns the version of specified file multiplied by 100, e.g. 601 for version 6.01.
-' Example: DIM ver AS LONG = fbxGetFileVersion("COMCTL32.DLL")
+' Example: DIM ver AS LONG = tkGetFileVersion("COMCTL32.DLL")
 ' ========================================================================================
 PUBLIC FUNCTION tkGdipDllVersion () AS LONG
    DIM pvsffi AS VS_FIXEDFILEINFO PTR, dwHandle AS DWORD
@@ -1250,7 +1250,7 @@ END FUNCTION
 '   A pointer to the IStream interface, or NULL on failure.
 '   The returned stream owns the HGLOBAL memory (fDeleteOnRelease=TRUE).
 ' ========================================================================================
-PUBLIC FUNCTION fbxImageStreamFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszImageName AS WSTRING) AS IStream PTR
+PUBLIC FUNCTION tkImageStreamFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszImageName AS WSTRING) AS IStream PTR
 
    DIM hRes      AS HRSRC
    DIM cbRes     AS DWORD

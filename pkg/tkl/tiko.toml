@@ -1,5 +1,0 @@
-# tkl, José Roca's Windows library, as tiko modules: tkCore, gdiplus, tkGui and webview2.
-# Shipped in the toolchain's pkg/ beside std and sys; it replaces pkg/fbx.
-[package]
-name = "tkl"
-version = "0.1.0"

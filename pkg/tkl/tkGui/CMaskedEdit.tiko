@@ -1106,7 +1106,7 @@ FUNCTION CMaskedEdit.SetText (BYREF ustrText AS USTRING, BYVAL bSetMaskedCharsOn
       FOR i AS LONG = 1 TO LEN(m_strInputTemplate)
          IF MID(ustr, i, 1) = MID(m_strInputTemplate, i, 1) THEN MID(ustr, i, 1) = "_"
       NEXT
-      ustr = FB.Remove(ustr, "_")
+      ustr = tkStrRemove(ustr, "_")
    END IF
    FUNCTION = this.SetText(ustr)
 END FUNCTION
@@ -1121,7 +1121,7 @@ FUNCTION CMaskedEdit.GetText (BYVAL bGetMaskedCharsOnly AS BOOLEAN = FALSE) AS U
       FOR i AS LONG = 1 TO LEN(m_strInputTemplate)
          IF MID(ustr, i, 1) = MID(m_strInputTemplate, i, 1) THEN MID(ustr, i, 1) = "_"
       NEXT
-      ustr = FB.Remove(ustr, "_")
+      ustr = tkStrRemove(ustr, "_")
    END IF
    RETURN ustr
 END FUNCTION
@@ -1136,7 +1136,7 @@ FUNCTION CMaskedEdit.GetTextLength (BYVAL bGetMaskedCharsOnly AS BOOLEAN = FALSE
       FOR i AS LONG = 1 TO LEN(m_strInputTemplate)
          IF MID(ustr, i, 1) = MID(m_strInputTemplate, i, 1) THEN MID(ustr, i, 1) = "_"
       NEXT
-      ustr = FB.Remove(ustr, "_")
+      ustr = tkStrRemove(ustr, "_")
    END IF
    RETURN LEN(ustr)
 END FUNCTION
