@@ -21,9 +21,11 @@
 # THE COMPILER IS TIKO (bootstrap plan, phase G, 2026-10-10): the tree's bin/tiko, or
 # TKOGFX_TIKO, which targets win64-msvc itself -- one step, no clang retarget. Measured
 # when it changed: the same 368 functions and the same 83 public symbols as fbc's build.
-# An fbc builds it only when TKOGFX_FBC names one, and that fbc must understand -z msvc
-# (fbc-modern's working tree, 2026-09-05 or later): without it fbc emits the gnu triple
-# and builds the wrong ABI without saying so, so that path refuses rather than falls back.
+# An fbc builds it only as the ORACLE, when TKO_ORACLE_FBC names one -- to tell a
+# library difference from a compiler difference; nothing shipped is built that way. That
+# fbc must understand -z msvc (fbc-modern's working tree, 2026-09-05 or later): without it
+# fbc emits the gnu triple and builds the wrong ABI without saying so, so that path
+# refuses rather than falls back.
 #
 # WHAT IS NOT HERE: the entry points. tiko's src/mir/rtl.bi names 32 of them
 # with full signatures -- fb_GfxScreen( l, l, l, l, l ) as l and the rest -- and
@@ -50,9 +52,9 @@ case "$(uname -s)" in
     *) die "win64 host only -- the Microsoft ABI is not reachable from here" ;;
 esac
 
-if [ -n "${TKOGFX_FBC:-}" ]; then
-    FBC=$TKOGFX_FBC
-    [ -x "$FBC" ] || die "no fbc at $FBC (TKOGFX_FBC)"
+if [ -n "${TKO_ORACLE_FBC:-}" ]; then
+    FBC=$TKO_ORACLE_FBC
+    [ -x "$FBC" ] || die "no fbc at $FBC (TKO_ORACLE_FBC)"
 else
     TIKO=${TKOGFX_TIKO:-"$GFX_ROOT/../../bin/tiko.exe"}
     [ -x "$TIKO" ] || die "no tiko at $TIKO -- build the compiler first (build/build.sh), or set TKOGFX_TIKO"
@@ -64,10 +66,10 @@ AR=${TKOGFX_AR:-"C:/Program Files/LLVM/bin/llvm-ar.exe"}
 
 # -z msvc, or nothing -- the fbc path only. Probed rather than assumed.
 mkdir -p "$GFX_ROOT/obj"
-if [ -n "${TKOGFX_FBC:-}" ]; then
+if [ -n "${TKO_ORACLE_FBC:-}" ]; then
     printf 'end 0\n' > "$GFX_ROOT/obj/.zprobe.bas"
     if "$FBC" -c -gen llvm -z msvc -m zprobe "$GFX_ROOT/obj/.zprobe.bas" -o "$GFX_ROOT/obj/.zprobe.o" 2>&1 | grep -q 'Invalid command-line option'; then
-        die "$FBC does not understand -z msvc -- build fbc-modern from source (2026-09-05 or later)"
+        die "$FBC does not understand -z msvc -- it takes an fbc built from a working tree, 2026-09-05 or later"
     fi
     rm -f "$GFX_ROOT/obj/.zprobe.bas" "$GFX_ROOT/obj/.zprobe.o" "$GFX_ROOT/obj/zprobe.ll"
 fi
@@ -105,7 +107,7 @@ for target in $TARGETS; do
     # inc/, ahead of fbc's own. Without it they came from fbc-modern's src/inc.
     GFXINC=""
     [ -d "$GFX_ROOT/../../inc" ] && GFXINC="-i $(cd "$GFX_ROOT/../../inc" && pwd)"
-    if [ -z "${TKOGFX_FBC:-}" ]; then
+    if [ -z "${TKO_ORACLE_FBC:-}" ]; then
         # tiko: one step for the Microsoft ABI. '-O s' is not tiko's; MinSizeRel is -O2.
         TOPT=$OPT; [ "$TOPT" = "s" ] && TOPT=2
         # --keep-temps leaves all.o.ll, which the function count below reads, as fbc's

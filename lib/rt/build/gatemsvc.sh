@@ -43,6 +43,7 @@
 set -e
 
 . "$(dirname "$0")/common.sh"
+. "$(dirname "$0")/oracle.sh"
 
 # AFTER the source, or common.sh's own definition replaces this one -- and before
 # rt_check_tools, which is the first thing that can refuse.
@@ -51,6 +52,7 @@ if [ "${TKORT_GATE_OPTIONAL:-0}" = "1" ] ; then
 fi
 
 rt_check_tools
+rt_oracle_check gatemsvc.sh
 
 CFG=${1:-Release}
 rt_cfg_flags "$CFG" > /dev/null || rt_die "unknown configuration '$CFG'"

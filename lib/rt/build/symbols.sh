@@ -23,7 +23,9 @@
 set -eu
 
 . "$(dirname "$0")/common.sh"
+. "$(dirname "$0")/oracle.sh"
 rt_check_tools
+rt_oracle_check symbols.sh
 
 TARGETS=${*:-$RT_TARGETS}
 fails=0

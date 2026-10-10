@@ -37,7 +37,9 @@
 set -eu
 
 . "$(dirname "$0")/common.sh"
+. "$(dirname "$0")/oracle.sh"
 rt_check_tools
+rt_oracle_check bench.sh
 
 TARGET=${1:-win64}
 RUNS=${2:-5}

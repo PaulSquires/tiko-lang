@@ -47,7 +47,7 @@ compile_only( ) {
     for target in $RT_TARGETS; do
         for mt in "" "-d ENABLE_MT"; do
             label="$name [$target${mt:+ +MT}]"
-            out=$("$TKORT_FBC" -c "$src" -target "$target" -gen llvm \
+            out=$("$TKORT_TIKO" -c "$src" -target "$target" \
                     $(rt_incflags) $FLAGS $mt \
                     -o "$WORK/$name-$target.o" 2>&1) || true
             if [ -z "$out" ]; then

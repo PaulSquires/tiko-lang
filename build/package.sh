@@ -207,8 +207,7 @@ if [ "$DO_BUILD" = "1" ]; then
         die "the compiler build failed -- lib/rt/obj/package-tiko.log"
     fi
     note "compiler built"
-    # ...unless the caller named an fbc for the runtime (TKORT_FBC), the old path.
-    [ -n "${TKORT_FBC:-}" ] || { TKORT_TIKO="$ROOT/bin/tiko$EXT"; export TKORT_TIKO; }
+    TKORT_TIKO="$ROOT/bin/tiko$EXT"; export TKORT_TIKO
     _pids_rt=""
     for t in $TARGETS; do
         note "building the runtime [$CFG $t]"
@@ -863,11 +862,11 @@ if [ -n "$( git_in_root status --porcelain 2>/dev/null | head -1 )" ]; then
 fi
 
 # The seed the lock pins -- what build/build.sh builds the compiler with unless TKO_SEED
-# or TKO_STAGE0 says otherwise, in which case that is recorded instead.
+# or TKO_ORACLE_FBC says otherwise, in which case that is recorded instead.
 SEED_STATE=$( awk -v h="$HOST" '$1 == h { print $2 " (" $3 ", sha256 " $4 ")" }' "$ROOT/seed/seed.lock" 2>/dev/null )
 [ -n "$SEED_STATE" ] || SEED_STATE="none pinned for $HOST"
 [ -n "${TKO_SEED:-}" ] && SEED_STATE="TKO_SEED=$TKO_SEED (the lock pins $SEED_STATE)"
-[ -n "${TKO_STAGE0:-}" ] && SEED_STATE="TKO_STAGE0=$TKO_STAGE0 (the lock pins $SEED_STATE)"
+[ -z "${TKO_SEED:-}" ] && [ -n "${TKO_ORACLE_FBC:-}" ] && SEED_STATE="TKO_ORACLE_FBC=$TKO_ORACLE_FBC -- NOT a release build (the lock pins $SEED_STATE)"
 
 NFILES=$( cd "$OUT" && find . -type f ! -name MANIFEST.txt | wc -l )
 SIZE=$( du -sh "$OUT" | cut -f1 )

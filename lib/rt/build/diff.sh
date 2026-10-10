@@ -38,7 +38,9 @@
 set -e
 
 . "$(dirname "$0")/common.sh"
+. "$(dirname "$0")/oracle.sh"
 rt_check_tools
+rt_oracle_check diff.sh
 
 CFG=${1:-Debug}
 rt_cfg_flags "$CFG" > /dev/null || rt_die "unknown configuration '$CFG'"

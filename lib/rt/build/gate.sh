@@ -35,7 +35,9 @@
 set -eu
 
 . "$(dirname "$0")/common.sh"
+. "$(dirname "$0")/oracle.sh"
 rt_check_tools
+rt_oracle_check gate.sh
 
 TARGET=${1:?usage: gate.sh <target> [--baseline] [logfile]}
 rt_is_target "$TARGET" || rt_die "unsupported target '$TARGET' (R3: $RT_TARGETS)"

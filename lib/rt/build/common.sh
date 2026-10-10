@@ -10,30 +10,19 @@
 
 RT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 
-# The reference tree: fbc-modern's sources, its shipped archives, and its test
-# suite. tiko-rt reads HEADERS and BINARIES from here and never a .c body
-# (PROVENANCE.md). OPTIONAL since 2026-10-10: the build only consults fbc's archive,
-# when it is there, for the member-collision check below; the oracle scripts
-# (gate.sh, diff.sh, ...) still need it.
-FBC_TREE=${FBC_TREE:-/c/dev/fbc-modern}
-
-# THE COMPILER THAT BUILDS tiko-rt is tiko (bootstrap plan, phase R, 2026-10-10): the
-# tree's own bin/tiko -- build/package.sh builds it first -- or TKORT_TIKO. An fbc
-# builds it only when TKORT_FBC names one: the path every archive before that date
-# took, kept for comparison. Measured when it changed: the tiko-built win64-msvc
-# archive defines exactly the global symbols the fbc-built one does.
-if [ -n "${TKORT_FBC:-}" ]; then
-    TKORT_KIND=fbc
-else
-    TKORT_KIND=tiko
-    if [ -z "${TKORT_TIKO:-}" ]; then
-        case "$(uname -s)" in
-            MINGW*|MSYS*|CYGWIN*) TKORT_TIKO="$RT_ROOT/../../bin/tiko.exe" ;;
-            *)                    TKORT_TIKO="$RT_ROOT/../../bin/tiko" ;;
-        esac
-    fi
+# THE COMPILER THAT BUILDS tiko-rt is tiko (bootstrap plan, phases R and X,
+# 2026-10-10): the tree's own bin/tiko -- build/package.sh builds it first -- or
+# TKORT_TIKO. Measured when it changed: the tiko-built archives define exactly the
+# global symbols the fbc-built ones did, on win64-msvc, win64 and linux-x86_64.
+#
+# fbc and fbc-modern's tree are the ORACLE scripts' business, and live in oracle.sh:
+# nothing that builds tiko-rt reads them.
+if [ -z "${TKORT_TIKO:-}" ]; then
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) TKORT_TIKO="$RT_ROOT/../../bin/tiko.exe" ;;
+        *)                    TKORT_TIKO="$RT_ROOT/../../bin/tiko" ;;
+    esac
 fi
-TKORT_CC=${TKORT_FBC:-$TKORT_TIKO}
 
 # clang. fbc's -gen llvm hands the .ll to clang -c, and looks for a
 # target-prefixed <target>-clang.exe that does not exist: one clang serves every
@@ -83,16 +72,14 @@ RT_TARGETS="win64 linux-x86_64"
 # validated. Nothing should be shipped from it.
 RT_BUILD_ONLY_TARGETS="win64-msvc"
 
-# Include path. fbc's src/inc supplies the OS bindings (src/sys/sys.bi explains
-# why they, and not #cinclude, are the primary binding under the amended R6).
+# Include path: tiko-rt's own src/, then tiko-lang's inc/ (phase H, 2026-10-10), which
+# supplies crt/long.bi -- the only header lint lets through. It was fbc-modern's src/inc
+# until then.
 #
 # Note this also puts fb/*.bi, string.bi and the containers within reach -- all
 # of them BANNED by the freestanding subset. lint.sh is what keeps them out;
 # the include path cannot.
-RT_INC="$RT_ROOT/src $FBC_TREE/src/inc"
-# ...UNTIL tiko-lang HAS ITS OWN (phase H, 2026-10-10): then crt/long.bi -- the only
-# header lint lets through -- comes from the tree's inc/, and fbc-modern's is not read.
-[ -d "$RT_ROOT/../../inc" ] && RT_INC="$RT_ROOT/src $(cd "$RT_ROOT/../../inc" && pwd)"
+RT_INC="$RT_ROOT/src $(cd "$RT_ROOT/../../inc" && pwd)"
 
 rt_incflags( ) {
     for d in $RT_INC; do printf -- '-i %s ' "$d"; done
@@ -116,16 +103,6 @@ rt_is_buildable( ) {
         [ "$1" = "$__t" ] && return 0
     done
     return 1
-}
-
-# THE TARGET NAME fbc IS GIVEN. fbc has no MSVC target -- its -target table is
-# win64, win32, x86_64-w64-mingw32 and linux-x86_64, and every msvc spelling is
-# its error 81 -- so win64-msvc compiles as win64 and is retargeted afterwards.
-rt_fbc_target( ) {
-    case "$1" in
-        win64-msvc) echo "win64" ;;
-        *)          echo "$1" ;;
-    esac
 }
 
 # THE TRIPLE FOR A TARGET THAT DOES NOT RETARGET, which is what the C residue
@@ -210,28 +187,8 @@ rt_cfg_flags( ) {
 
 rt_die( ) { echo "tiko-rt: $*" >&2; exit 2; }
 
-# Where fbc's own libfb.a lives for a target.
-#
-# Two layouts, and the difference is not cosmetic: the standalone build tree puts
-# win32/win64 archives in lib/<target>/, but for linux-x86_64 that directory holds
-# only the startup objects (fbrt0.o and friends) and the ARCHIVES are one level
-# down in lib/freebasic/<target>/. A script that assumes the first layout finds a
-# real directory with no libfb.a in it, which reads as "wrong target" rather than
-# "wrong path".
-rt_reflib( ) {
-    for d in "$FBC_TREE/src/lib/$1" "$FBC_TREE/src/lib/freebasic/$1"; do
-        if [ -f "$d/libfb.a" ]; then echo "$d"; return 0; fi
-    done
-    return 1
-}
-
 rt_check_tools( ) {
-    if [ "$TKORT_KIND" = "fbc" ]; then
-        [ -x "$TKORT_FBC" ] || rt_die "stage0 compiler not found at $TKORT_FBC (set TKORT_FBC)"
-        [ -d "$FBC_TREE" ]  || rt_die "fbc-modern tree not found at $FBC_TREE (set FBC_TREE)"
-    else
-        [ -x "$TKORT_TIKO" ] || rt_die "no tiko at $TKORT_TIKO -- build the compiler first (build/build.sh), or set TKORT_TIKO"
-    fi
+    [ -x "$TKORT_TIKO" ] || rt_die "no tiko at $TKORT_TIKO -- build the compiler first (build/build.sh), or set TKORT_TIKO"
     [ -x "$CLANG" ]     || rt_die "clang not found at $CLANG (set CLANG)"
     [ -x "$TKORT_AR" ]  || rt_die "llvm-ar not found at $TKORT_AR (set TKORT_AR)"
     # AND llvm-nm, WHICH HAD NO GUARD. Every use of it redirects stderr away and

@@ -1,5 +1,5 @@
 #!/bin/sh
-# build.sh -- build tiko-rt's archives with tiko (or, given TKORT_FBC, with FBC-Modern).
+# build.sh -- build tiko-rt's archives with tiko.
 #
 #   build/build.sh [Debug|Release|RelWithDebInfo] [target ...]
 #
@@ -54,66 +54,12 @@ compile_src( ) {
     # is tiko-rt's. The paths below are all absolute, so nothing else moves.
     cd "$RT_ROOT/src" || rtw_die "no directory $RT_ROOT/src"
 
-    # WITH TIKO, ONE STEP: tiko targets win64-msvc itself, so the '-gen llvm -r' then
-    # clang-retarget dance below -- which exists because fbc has no MSVC triple -- is
-    # not needed, and its per-function sections come from tiko's own clang line.
-    if [ "$TKORT_KIND" = "tiko" ]; then
-        "$TKORT_TIKO" -c "$RT_ROOT/src/$src" -target "$RTW_TARGET" $RTW_INC \
-            $RTW_FLAGS $RTW_PIC -o "$obj" || rtw_die "$src failed to compile"
-        [ -f "$obj" ] || rtw_die "$src produced no object"
-        return 0
-    fi
-
-    # THE ASSEMBLE STEP IS OURS WHEN THE TRIPLE IS NOT fbc's.
-    #
-    # fbc cannot be asked for the Microsoft ABI: llvmTriple( ) is a two-way
-    # switch on the target with no MSVC branch, and -Wc does not reach the
-    # -gen llvm clang call at all (hCompileStage2ModuleLlvm builds its own
-    # option string and never appends extopt.gcc). Measured 2026-09-04.
-    #
-    # So -r stops fbc at the .ll -- it emits no object then, verified -- and
-    # clang is called here with the triple we want. The .ll is NOT edited:
-    # clang's --target overrides the module's own 'target triple' line, and
-    # the resulting object is symbol-for-symbol identical to one built from a
-    # rewritten .ll. RFC-0006 section 12.
-    #
-    # The clang line mirrors fbc's own, which is visible with -v:
-    #   clang --target=<t> -march=x86-64 -O<n> -Wno-override-module x.ll -c -o x.o
-    if [ -n "$RTW_TRIPLE" ]; then
-        __ll="${obj%.o}.ll"
-        rm -f "$__ll"
-        "$TKORT_FBC" -c "$RT_ROOT/src/$src" -target "$RTW_FBCTARGET" -gen llvm -r $RTW_INC \
-            $RTW_FLAGS -o "$obj" || rtw_die "$src failed to compile"
-        [ -f "$__ll" ] || rtw_die "$src produced no .ll"
-        # -ffunction-sections IS WHY A HELLO WORLD HALVED. Each FreeBASIC
-        # module compiles to ONE object holding every procedure in it, so a
-        # linker that discards unreferenced code could not: the unit it can
-        # drop is a section, and there was one section for the lot. A 'print'
-        # therefore dragged io_print.o, which dragged io_devscrn2.o for
-        # fb_DevScrnInit_Write, which dragged io_devfile.o -- 70 members
-        # pulled in for hello world where fbc's C libfb pulls 40.
-        #
-        # NO GC FLAG IS NEEDED AT THE LINK, which was the surprise. MSVC's
-        # linker already applies /OPT:REF in a non-debug link; it simply had
-        # nothing to work with. Measured 2026-09-06, win64-msvc hello world:
-        #
-        #     without   352,768 bytes   .text 270,560
-        #     with      164,352 bytes   .text  98,752
-        #
-        # The archive GROWS, 766 KB to 900 KB, because per-function sections
-        # cost headers. That is a build artefact; the executable is what ships.
-        #
-        # THIS TARGET ONLY, and not by choice. The gnu path below hands the
-        # whole compile to fbc, and -Wc does not reach its -gen llvm clang
-        # call (RFC-0006 section 12), so win64 keeps one section per module.
-        "$CLANG" --target="$RTW_TRIPLE" -march=x86-64 "-O$RTW_OPT" -ffunction-sections \
-            -fdata-sections -Wno-override-module "$__ll" -c -o "$obj" \
-            || rtw_die "$src failed to assemble for $RTW_TRIPLE"
-        rm -f "$__ll"
-    else
-        "$TKORT_FBC" -c "$RT_ROOT/src/$src" -target "$RTW_FBCTARGET" -gen llvm $RTW_INC \
-            $RTW_FLAGS $RTW_PIC -o "$obj" || rtw_die "$src failed to compile"
-    fi
+    # ONE STEP: tiko targets win64-msvc itself, and its per-function sections come
+    # from tiko's own clang line. (fbc could not be asked for the Microsoft ABI, so the
+    # fbc-built archives took '-gen llvm -r' and then clang with the triple; that path
+    # went with fbc, 2026-10-10.)
+    "$TKORT_TIKO" -c "$RT_ROOT/src/$src" -target "$RTW_TARGET" $RTW_INC \
+        $RTW_FLAGS $RTW_PIC -o "$obj" || rtw_die "$src failed to compile"
     [ -f "$obj" ] || rtw_die "$src produced no object"
 }
 if [ "${1:-}" = "--one" ]; then
@@ -150,11 +96,6 @@ thread_vars( ) {
 
     objdir="$RT_ROOT/obj/$target/$CFG/$thread"
     libdir="$RT_ROOT/lib/$target"
-    REFLIB=""
-    _refdir=$(rt_reflib "$target" 2>/dev/null || true)
-    if [ -n "$_refdir" ] && [ -f "$_refdir/libfb.a" ]; then
-        REFLIB="$_refdir/libfb.a"
-    fi
 }
 
 build_one( ) {
@@ -188,14 +129,11 @@ build_one( ) {
     # each by a --one worker -- see compile_src at the top. The archive below still
     # takes the objects in sources.txt order.
     RTW_WHAT="$target/$thread"
-    RTW_TRIPLE=$(rt_clang_triple "$target")
-    RTW_FBCTARGET=$(rt_fbc_target "$target")
     RTW_INC=$(rt_incflags)
     RTW_FLAGS="$FLAGS $mtdef $(rt_abi_define "$target")"
     RTW_PIC=$picdef
-    RTW_OPT=$(rt_opt_level "$CFG")
     RTW_TARGET=$target
-    export TKORT_FBC TKORT_TIKO TKORT_KIND CLANG RT_ROOT RTW_WHAT RTW_TRIPLE RTW_FBCTARGET RTW_TARGET RTW_INC RTW_FLAGS RTW_PIC RTW_OPT
+    export TKORT_TIKO CLANG RT_ROOT RTW_WHAT RTW_TARGET RTW_INC RTW_FLAGS RTW_PIC
     rt_sources | awk -v d="$objdir" '{ o = $0; gsub("/", "_", o); sub(/\.bas$/, ".o", o); print $0, d "/" o }' \
         > "$objdir/.pairs"
     if ! xargs -P "$RT_JOBS" -n 2 sh "$RT_SELF" --one < "$objdir/.pairs"; then
@@ -248,7 +186,6 @@ build_one( ) {
     # from a module that meant to define something and did not.
     "$TKORT_NM" --defined-only $objs > "$objdir/.ours" 2>/dev/null || true
     : > "$objdir/.theirs"
-    [ -z "$REFLIB" ] || "$TKORT_NM" --defined-only "$REFLIB" > "$objdir/.theirs" 2>/dev/null || true
     awk '
         FILENAME == ARGV[1] { n = split($2, p, /[/\\]/); src[p[n]] = $1; order[++no] = p[n]; next }
         /:$/                { c = $0; sub(/:$/, "", c); n = split(c, p, /[/\\]/); c = p[n]; next }
@@ -429,7 +366,7 @@ build_rt0( ) {
     echo "build: $_t/fbrt0.o$(case $_t in linux-*) echo ' + fbrt0pic.o' ;; esac)"
 }
 
-echo "build: tiko-rt [$CFG] with $TKORT_CC ($RT_JOBS jobs)"
+echo "build: tiko-rt [$CFG] with $TKORT_TIKO ($RT_JOBS jobs)"
 for target in $TARGETS; do
     build_one "$target" st
     build_one "$target" mt
