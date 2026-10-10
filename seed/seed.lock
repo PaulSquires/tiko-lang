@@ -16,10 +16,10 @@
 # later than it reaches the language. Advance this file at release points, together with
 # seed/chain.txt.
 #
-# STATUS 2026-10-09: no seed asset is published yet (the author's call: publish later).
-# Until then the seed is a local packaged toolchain -- on Windows,
-#   TKO_SEED=toolchains/tiko-windows/tiko.exe    (MANIFEST: commit bcdd65a8, Release)
-# -- and the lines below are the names the first published seed will use.
+# PINNED: seed-1, published 2026-10-10 (UTC). Both archives are the toolchains package.sh
+# --verify produced from bc4dbc6b, unchanged; the release notes list what was verified.
+# build/defaultseed.sh prefers seed/cache/<host> -- where fetch-seed.sh unpacks this -- over
+# any locally packaged toolchain.
 
-windows  seed-bcdd65a8  tiko-seed-windows-x86_64-bcdd65a8.zip  TBD  bcdd65a8974c7d7b33c52bbd6678a870d0f1921f
-linux    seed-bcdd65a8  tiko-seed-linux-x86_64-bcdd65a8.tar.gz  TBD  bcdd65a8974c7d7b33c52bbd6678a870d0f1921f
+windows  seed-1  tiko-seed-windows-x86_64-bc4dbc6b.zip  8538d187fb0987afb34533824d4b815427047dfcb73123d5d5803336c5fb2374  bc4dbc6bfa9f634a664380c6c28184ba1e6810ae
+linux    seed-1  tiko-seed-linux-x86_64-bc4dbc6b.tar.gz  cda41533b7435f3f2b2123d1f8ea5ac6cee21005ca0f3784faa33ef41ee1ee57  bc4dbc6bfa9f634a664380c6c28184ba1e6810ae

@@ -4,7 +4,8 @@
 #   seed/fetch-seed.sh [--host windows|linux] [--dest <dir>] [--trust-on-first-use]
 #
 # Reads seed/seed.lock, downloads the asset with 'gh release download' from
-# PaulSquires/tiko-lang, checks its sha256 BEFORE extracting, unpacks it into
+# PaulSquires/tiko-lang -- or, with no gh, with curl from the release's public URL --
+# checks its sha256 BEFORE extracting, unpacks it into
 # <dest>/<host> (default: seed/cache/<host>), and runs the seed's --version.
 #
 # Nothing is executed from the asset until its hash matches the lock. A lock line
@@ -45,7 +46,13 @@ LINE=$(grep -v '^[[:space:]]*#' "$HERE/seed.lock" | awk -v h="$HOST" '$1 == h' |
 set -- $LINE
 TAG=$2; ASSET=$3; WANT=$4; COMMIT=$5
 
-command -v gh > /dev/null 2>&1 || fail "gh (GitHub CLI) is required"
+# gh first: it also reaches a private repository. curl is enough for a PUBLIC release
+# only -- a private repository's release URL answers 404 to anyone not signed in
+# (measured, PaulSquires/tiko-lang, 2026-10-10). Without gh on a host, fetch on one that
+# has it with '--host <the other>' and copy seed/cache/<host> across.
+if command -v gh > /dev/null 2>&1; then GETTER=gh
+elif command -v curl > /dev/null 2>&1; then GETTER=curl
+else fail "neither gh (GitHub CLI) nor curl is available to download the seed"; fi
 if command -v sha256sum > /dev/null 2>&1; then SHA="sha256sum"
 elif command -v shasum > /dev/null 2>&1; then SHA="shasum -a 256"
 else fail "no sha256sum or shasum"; fi
@@ -53,7 +60,12 @@ else fail "no sha256sum or shasum"; fi
 DL="$DEST/.download"
 rm -rf "$DL"; mkdir -p "$DL"
 echo "fetch-seed: $REPO $TAG $ASSET"
-gh release download "$TAG" --repo "$REPO" --pattern "$ASSET" --dir "$DL" || fail "download failed"
+if [ "$GETTER" = "gh" ]; then
+    gh release download "$TAG" --repo "$REPO" --pattern "$ASSET" --dir "$DL" || fail "download failed"
+else
+    curl -fsSL -o "$DL/$ASSET" "https://github.com/$REPO/releases/download/$TAG/$ASSET" || \
+        fail "download failed (curl, no gh). A private repository's release needs gh: install it and run 'gh auth login', or fetch on a host that has it with --host $HOST"
+fi
 [ -f "$DL/$ASSET" ] || fail "the release has no asset named $ASSET"
 
 GOT=$($SHA "$DL/$ASSET" | cut -d' ' -f1)
@@ -75,9 +87,15 @@ rm -rf "$DL"
 
 # The archive holds one top-level directory (tiko-windows/ or tiko-linux/).
 TOP=$(ls -1 "$OUTD" | head -1)
-if [ -x "$OUTD/$TOP/tiko.exe" ]; then C="$OUTD/$TOP/tiko.exe"; else C="$OUTD/$TOP/bin/tiko"; fi
-[ -x "$C" ] || fail "no compiler in the unpacked seed ($OUTD/$TOP)"
-echo "fetch-seed: $($C --version 2>&1 | head -1)"
+if [ -f "$OUTD/$TOP/tiko.exe" ]; then C="$OUTD/$TOP/tiko.exe"; else C="$OUTD/$TOP/bin/tiko"; fi
+[ -f "$C" ] || fail "no compiler in the unpacked seed ($OUTD/$TOP)"
+# Run it only on its own host: a seed fetched for the other one cannot start here.
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) ME=windows ;; Linux) ME=linux ;; *) ME=other ;; esac
+if [ "$ME" = "$HOST" ]; then
+    echo "fetch-seed: $($C --version 2>&1 | head -1)"
+else
+    echo "fetch-seed: a $HOST seed, fetched on $ME -- not run here; copy seed/cache/$HOST to that host"
+fi
 echo "fetch-seed: built from $COMMIT"
 echo "fetch-seed: ok -- seed at $OUTD/$TOP"
 echo "fetch-seed: build with it: TKO_SEED=$C build/build.sh  (or build/bootstrap.sh --seed $C)"
