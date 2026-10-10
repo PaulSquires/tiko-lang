@@ -1085,40 +1085,6 @@ function FuncAddrOfRtl( byref c as Ctx, byval r as RtlId ) as MirValue
     return Emit( c, fa )
 end function
 
-'' The ADDRESS of a procedure symbol, as an M_FUNC_ADDR over the function table index.
-'' Split out of LowerProcPtr because ERASE over a UDT array needs the same thing for a
-'' constructor and a destructor that no source expression names.
-function FuncAddrOf( byref c as Ctx, byval fsid as Tko.SymbolId ) as MirValue
-    dim as MirValue none_
-    dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
-    if fs = 0 then return none_
-    if fs->kind <> cast( ubyte, Tko.SYM_PROC ) then return none_
-    dim as Tko.NodeId pn = cast( Tko.NodeId, fs->payload )
-    if pn = Tko.NODE_NONE then return none_
-    if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
-
-    dim as Tko.InternId nm = c.names->GetString( _
-        Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
-    dim as long fidx = -1
-    for i as long = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = nm then
-            fidx = i
-            exit for
-        end if
-    next
-    if fidx < 0 then
-        dim as MirFunction ptr decl = c.m->AddFunction( nm, MT_VOID )
-        decl->isDefinition = false
-        fidx = c.m->functions.Count - 1
-    end if
-
-    dim as MirInst fa
-    fa.op = cast( ushort, M_FUNC_ADDR )
-    fa.ty = cast( ubyte, MT_PTR )
-    fa.callee = cast( ulong, fidx )
-    return Emit( c, fa )
-end function
-
 '' ANDALSO / ORELSE: the right operand is evaluated only when the left does not
 '' already decide the answer. The result is materialised through a slot rather than a
 '' phi, which is what keeps this IR phi-free.

@@ -879,12 +879,12 @@ private sub CopyMember_ _
         dim as Tko.SymbolId eds = _
             StructorWithArity( c, StructorOf( c, et, "__dtor" ), 0 )
         if ecs <> Tko.SYMBOL_NONE then
-            ector = FuncAddrOf( c, ecs )
+            ector = FuncAddrOf( c, ecs, true )
         elseif TypeNeedsInit_( c, et ) andalso (elemVarStr = false) then
             ector = ImplStructorAddr_( c, et, 1 )
         end if
         if eds <> Tko.SYMBOL_NONE then
-            edtor = FuncAddrOf( c, eds )
+            edtor = FuncAddrOf( c, eds, true )
         elseif TypeNeedsDtor_( c, et ) andalso (elemVarStr = false) then
             edtor = ImplStructorAddr_( c, et, 0 )
         end if

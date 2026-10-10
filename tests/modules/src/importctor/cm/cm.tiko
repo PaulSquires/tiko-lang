@@ -1,0 +1,8 @@
+#module "cm"
+public type TT
+    as long k
+    declare constructor( )
+end type
+constructor TT( )
+    k = 7
+end constructor

@@ -78,7 +78,7 @@ def public_names(mod):
                 if re.match(r"\s*end\s+enum\b", code, re.I):
                     inenum = False
                     continue
-                for m in re.finditer(r"(?:^|,)\s*([A-Za-z_]\w*)", code):
+                for m in re.finditer(r"(?:^|[,:])\s*([A-Za-z_]\w*)", code):
                     names.setdefault(m.group(1).lower(), m.group(1))
                 continue
             m = re.match(r"\s*public\s+(?:declare\s+)?(?:function|sub|type|union|enum|const)"
@@ -233,6 +233,15 @@ def main():
                 ported, k = re.subn(rx, new, ported)
                 assert k > 0, (rel, rx)
             want[rel] = ported
+    # A SIBLING A PORT INCLUDES -- tui/tuiwidthdata_.bi -- is copied beside it as it is: it
+    # names no fb/ header, or it would have been ported above.
+    for rel in list(want):
+        area = rel.split("/")[0]
+        for inc in re.findall(r'(?im)^\s*#include(?:\s+once)?\s+"([^"/\\]+)"', want[rel]):
+            sib = area + "/" + inc
+            p = os.path.join(VENDOR, area, inc)
+            if sib not in want and os.path.isfile(p):
+                want[sib] = open(p, "rb").read().decode("utf-8").replace("\r\n", "\n")
     for rel in sorted(want):
         if not rel.endswith(".bas") or rel.endswith("_mod2.bas"):
             continue

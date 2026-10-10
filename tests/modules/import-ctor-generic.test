@@ -1,0 +1,11 @@
+'' A GENERIC INSTANTIATED OVER AN IMPORTED TYPE WITH A CONSTRUCTOR. Array's REDIM PRESERVE
+'' takes the constructor's address before anything calls it, and the declaration that made
+'' was an empty stub: with the constructor defined in the module, not here, every later
+'' call found the stub and went out with 'this' against a declaration of nothing -- the MIR
+'' verifier's 'calls CM::TT::TT with 1 arguments, which declares 0' (std/tui, 2026-10-10).
+'' TEST: cli
+'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/importctor/main.bas -o tests/modules/importctor.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/importctor.exe
+'' EXPECT-RUN-OUT: 1 7 7

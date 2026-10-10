@@ -1,0 +1,354 @@
+#module "tui"
+'' std/tui: tuiwidth -- how many columns a string occupies
+''
+''     print TuiStringWidth( "ab" )          '' 2
+''     print TuiStringWidth( cjk )           '' 4 for two ideographs
+''     dim as ustring cut = TuiTruncate( long_, 10 )
+''
+'' RFC-0005 -- C:\dev\docs\tui\RFC-0005-unicode-width.md.
+''
+'' ---------------------------------------------------------------------------
+'' THE PROBLEM IN ONE LINE
+''
+'' ustring counts UTF-16 CODE UNITS. A terminal counts COLUMNS. They disagree in
+'' both directions: a CJK ideograph is one unit and two columns, a combining
+'' acute is one unit and zero columns, and an emoji is two units and two
+'' columns. Every box border adjacent to non-ASCII text is off by one if this is
+'' wrong -- and not merely cosmetically, because the diff then writes into a
+'' cell the terminal has already shifted.
+''
+'' ---------------------------------------------------------------------------
+'' WHAT THIS DELIBERATELY GETS WRONG
+''
+'' There is no UAX-29 grapheme clustering. Emoji ZWJ sequences, regional-
+'' indicator flags and skin-tone modifiers all measure TOO WIDE:
+''
+''     family ZWJ sequence     measured 6, renders as 2 in most terminals
+''     regional-indicator flag measured 4, renders as 2
+''     emoji + skin tone       measured 4, renders as 2
+''
+'' That is a documented limit, not a bug to be filed later. The reason it is not
+'' worth fixing is not only cost: TERMINALS DISAGREE WITH EACH OTHER about these
+'' widths, so perfect segmentation would still misalign against a terminal that
+'' measured them differently. rationale.md section 6.
+
+
+#include once "fb/array.bi"
+
+using FB
+
+public type TuiStringArray as Array( of ustring )
+
+'' ============================================================== ambiguous
+
+'' East Asian AMBIGUOUS characters -- box drawing, Greek, Cyrillic, some
+'' punctuation -- are wide in legacy CJK fonts and narrow everywhere else. Every
+'' terminal outside a CJK locale renders them narrow, so narrow is the default.
+''
+'' The override is a property of the TERMINAL, so it is set once rather than
+'' passed per call: mixing the two answers within one frame guarantees
+'' misalignment.
+''
+'' It returns a POINTER for the reason recorded in phase 1: `@F( )` on a
+'' byref-returning function yields the PROCEDURE's address, silently. And the
+'' state is a `static` in a `private` function, so each translation unit that
+'' includes this header gets its own -- a program that sets it from one module
+'' and measures from another will disagree with itself. One module is the only
+'' case this has to serve, and the alternative needs runtime C.
+public function TuiAmbiguousWideFlag( ) as boolean ptr
+    static as boolean f
+    return @f
+end function
+
+public sub TuiSetAmbiguousWide( byval wide as boolean )
+    *TuiAmbiguousWideFlag( ) = wide
+end sub
+
+public function TuiAmbiguousWide( ) as boolean
+    return *TuiAmbiguousWideFlag( )
+end function
+
+'' ============================================================== lookup
+
+'' The tables are sorted, non-overlapping and merged, so this is an ordinary
+'' binary search over (lo, hi) pairs stored flat.
+'' The parameter is `ranges`, not `tab`: TAB is FreeBASIC's print-positioning
+'' function and is `error 59: Illegal specification` in parameter position.
+'' Note this differs from MEMBER position, where probe #45 found many such
+'' names legal -- a parameter list is stricter than a member list.
+public function TuiInRanges( byval ranges as ulong ptr, byval n as long, byval cp as ulong ) as boolean
+    dim as long lo = 0, hi = n - 1
+    while( lo <= hi )
+        dim as long mid_ = ( lo + hi ) \ 2
+        if( cp < ranges[ mid_ * 2 ] ) then
+            hi = mid_ - 1
+        elseif( cp > ranges[ mid_ * 2 + 1 ] ) then
+            lo = mid_ + 1
+        else
+            return TRUE
+        end if
+    wend
+    return FALSE
+end function
+
+'' 0, 1 or 2. Takes a CODEPOINT, not a code unit -- the caller decodes first.
+''
+'' Order matters: zero-width wins over wide, because a few codepoints are both
+'' a combining mark and East Asian Wide, and a mark that advanced the cursor
+'' would shift every cell after it.
+public function TuiCharWidth( byval cp as ulong ) as long
+    '' ASCII is the overwhelmingly common case and is answered without a
+    '' single comparison against the tables.
+    if( ( cp >= &h20 ) andalso ( cp < &h7F ) ) then return 1
+    if( cp = 0 ) then return 0
+
+    dim as long n = 0
+    dim as ulong ptr t
+
+    t = TuiWidthTabZero( n )
+    if( TuiInRanges( t, n, cp ) ) then return 0
+
+    t = TuiWidthTabWide( n )
+    if( TuiInRanges( t, n, cp ) ) then return 2
+
+    if( TuiAmbiguousWide( ) ) then
+        t = TuiWidthTabAmb( n )
+        if( TuiInRanges( t, n, cp ) ) then return 2
+    end if
+
+    return 1
+end function
+
+'' A control character is zero-width, but it is NOT a combining mark, and the
+'' difference matters to clustering. Lumping Cc into the zero-width table is
+'' correct for WIDTH and wrong for ABSORPTION: without this guard,
+'' TuiNextGrapheme swallowed a newline into the preceding cluster as though it
+'' were an accent, and TuiWrap could then never see it. Measured -- wrapping
+'' a two-line string produced ONE line with a literal newline inside it.
+public function TuiIsControl( byval cp as ulong ) as boolean
+    if( cp < &h20 ) then return TRUE
+    if( ( cp >= &h7F ) andalso ( cp <= &h9F ) ) then return TRUE
+    return FALSE
+end function
+
+'' ============================================================== codec
+
+'' Decodes the codepoint at code-unit index i and reports how many units it
+'' consumed. An unpaired surrogate is U+FFFD, width 1.
+public function TuiDecodeAt( byref s as ustring, byval i as long, byref outAdv as long ) as ulong
+    outAdv = 1
+    if( i < 0 ) then return &hFFFD
+    if( i >= len( s ) ) then return &hFFFD
+
+    dim as ulong u = s[i]
+    if( ( u >= &hD800 ) andalso ( u <= &hDBFF ) andalso ( i + 1 < len( s ) ) ) then
+        dim as ulong lo = s[i+1]
+        if( ( lo >= &hDC00 ) andalso ( lo <= &hDFFF ) ) then
+            outAdv = 2
+            return &h10000 + ( ( u - &hD800 ) shl 10 ) + ( lo - &hDC00 )
+        end if
+    end if
+    if( ( u >= &hD800 ) andalso ( u <= &hDFFF ) ) then return &hFFFD
+    return u
+end function
+
+'' Appends one codepoint to a ustring by DIRECT CODE-UNIT ASSIGNMENT.
+''
+'' Not WCHR. WCHR destroyed surrogate pairs where wchar_t is 32 bits until
+'' 0aa2601; direct assignment is correct on every toolchain vintage and costs
+'' nothing over the call.
+public sub TuiAppendCp( byref dst as ustring, byval cp as ulong )
+    if( cp < &h10000 ) then
+        dim as ustring one = " "
+        one[0] = cast( ushort, cp )
+        dst &= one
+    else
+        dim as ustring two = "  "
+        dim as ulong v = cp - &h10000
+        two[0] = cast( ushort, &hD800 + ( v shr 10 ) )
+        two[1] = cast( ushort, &hDC00 + ( v and &h3FF ) )
+        dst &= two
+    end if
+end sub
+
+'' ============================================================== measuring
+
+'' The primitive everything else is built on: given a code-unit index, returns
+'' the index AFTER the next cell-sized cluster, and its column width.
+''
+'' A cluster here is a base codepoint plus any zero-width codepoints that
+'' follow it -- combining marks, ZWJ, variation selectors. That is NOT UAX-29
+'' segmentation: it does not join emoji across ZWJ, so a family sequence comes
+'' back as several clusters rather than one.
+public function TuiNextGrapheme( byref s as ustring, byval i as long, byref outWidth as long ) as long
+    outWidth = 0
+    if( i < 0 ) then return 0
+    if( i >= len( s ) ) then return len( s )
+
+    dim as long adv = 0
+    dim as ulong cp = TuiDecodeAt( s, i, adv )
+    dim as long w = TuiCharWidth( cp )
+    dim as long j = i + adv
+
+    '' A control never starts a cluster that absorbs anything, and never gets
+    '' absorbed into one.
+    if( TuiIsControl( cp ) = FALSE ) then
+        '' absorb trailing zero-width codepoints -- combining marks, ZWJ,
+        '' variation selectors -- but never controls
+        while( j < len( s ) )
+            dim as long adv2 = 0
+            dim as ulong cp2 = TuiDecodeAt( s, j, adv2 )
+            if( TuiIsControl( cp2 ) ) then exit while
+            if( TuiCharWidth( cp2 ) <> 0 ) then exit while
+            j += adv2
+        wend
+    end if
+
+    outWidth = w
+    return j
+end function
+
+public function TuiStringWidth( byref s as ustring ) as long
+    dim as long total = 0, i = 0
+    while( i < len( s ) )
+        dim as long w = 0
+        i = TuiNextGrapheme( s, i, w )
+        total += w
+    wend
+    return total
+end function
+
+'' ============================================================== truncate
+
+'' Cuts to fit maxCols COLUMNS, never splitting a wide glyph and never orphaning
+'' a combining mark from its base. When the text does not fit, the ellipsis is
+'' appended and the cut is made so that text + ellipsis is still <= maxCols.
+public function TuiTruncate( byref s as ustring, byval maxCols as long, _
+                              byref ellipsis as ustring = "..." ) as ustring
+    if( maxCols <= 0 ) then return ""
+    if( TuiStringWidth( s ) <= maxCols ) then return s
+
+    dim as long ew = TuiStringWidth( ellipsis )
+
+    '' If even the ellipsis does not fit, truncate the ELLIPSIS -- returning
+    '' something wider than asked for is the one thing this must never do.
+    if( ew > maxCols ) then
+        dim as ustring cut
+        dim as long used = 0, i = 0
+        while( i < len( ellipsis ) )
+            dim as long w = 0
+            dim as long j = TuiNextGrapheme( ellipsis, i, w )
+            if( used + w > maxCols ) then exit while
+            cut &= mid( ellipsis, i + 1, j - i )
+            used += w
+            i = j
+        wend
+        return cut
+    end if
+
+    dim as long budget = maxCols - ew
+    dim as ustring out
+    dim as long used = 0, i = 0
+    while( i < len( s ) )
+        dim as long w = 0
+        dim as long j = TuiNextGrapheme( s, i, w )
+        if( used + w > budget ) then exit while
+        out &= mid( s, i + 1, j - i )
+        used += w
+        i = j
+    wend
+    return out & ellipsis
+end function
+
+'' ============================================================== wrap
+
+'' Breaks at `width` columns, preferring a break at a space and falling back to
+'' a hard break mid-run when a single word is longer than the line.
+''
+'' This is NOT UAX-14 line breaking: no dictionary-based CJK breaking and no
+'' hyphenation. CJK text breaks between any two ideographs, which is
+'' approximately right for CJK and exactly wrong for nothing else.
+'' The parameter is `cols`, not `cols`: WIDTH is a FreeBASIC statement.
+public function TuiWrap( byref s as ustring, byval cols as long ) as TuiStringArray
+    dim as TuiStringArray out
+    if( cols <= 0 ) then
+        out.Push( "" )
+        return out
+    end if
+
+    dim as ustring line_
+    dim as long lineW = 0
+    dim as ustring word_
+    dim as long wordW = 0
+    dim as long i = 0
+
+    while( i < len( s ) )
+        dim as long w = 0
+        dim as long j = TuiNextGrapheme( s, i, w )
+        dim as ustring g = mid( s, i + 1, j - i )
+        dim as ulong first = s[i]
+
+        if( first = 10 ) then                   '' explicit newline
+            out.Push( line_ & word_ )
+            line_ = "" : lineW = 0
+            word_ = "" : wordW = 0
+            i = j
+            continue while
+        end if
+
+        if( first = 32 ) then
+            '' the pending word is committed to the line, then the space
+            if( lineW + wordW > cols ) then
+                if( len( line_ ) > 0 ) then out.Push( line_ )
+                line_ = word_ : lineW = wordW
+            else
+                line_ &= word_ : lineW += wordW
+            end if
+            word_ = "" : wordW = 0
+
+            if( lineW + w <= cols ) then
+                line_ &= g
+                lineW += w
+            else
+                out.Push( line_ )
+                line_ = "" : lineW = 0
+            end if
+            i = j
+            continue while
+        end if
+
+        '' A single word longer than the whole line has to break mid-word,
+        '' otherwise it can never be emitted at all.
+        if( wordW + w > cols ) then
+            if( lineW > 0 ) then
+                out.Push( line_ )
+                line_ = "" : lineW = 0
+            end if
+            out.Push( word_ )
+            word_ = "" : wordW = 0
+        end if
+
+        word_ &= g
+        wordW += w
+
+        if( lineW + wordW > cols ) then
+            if( len( line_ ) > 0 ) then
+                out.Push( line_ )
+                line_ = "" : lineW = 0
+            end if
+        end if
+
+        i = j
+    wend
+
+    if( lineW + wordW > cols ) then
+        if( len( line_ ) > 0 ) then out.Push( line_ )
+        line_ = word_
+    else
+        line_ &= word_
+    end if
+    if( ( len( line_ ) > 0 ) orelse ( out.Count( ) = 0 ) ) then out.Push( line_ )
+
+    return out
+end function
+

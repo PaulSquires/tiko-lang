@@ -670,7 +670,7 @@ declare function EmitRtl _
     '' lowerthread.bas
     declare function LowerThreadCall_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
-    declare function FuncAddrOf( byref c as Ctx, byval fsid as Tko.SymbolId ) as MirValue
+    declare function FuncAddrOf( byref c as Ctx, byval fsid as Tko.SymbolId, byval structor as boolean = false ) as MirValue
     declare function FuncAddrOfRtl( byref c as Ctx, byval r as RtlId ) as MirValue
     declare function UsingEndsLine_ _
         ( byref c as Ctx, byval sp as Tko.StmtPayload ptr ) as boolean

@@ -1,0 +1,657 @@
+#module "tui"
+'' std/tui: tuicore -- the value layer of FB's terminal UI
+''
+''     #import "std/tui"
+''     using tui
+''
+''     dim as TuiRect r = TuiRectOf( 0, 0, 80, 24 )
+''     dim as TuiStyle st = TuiStyleOf( TuiRgb( 255, 128, 0 ), TuiDefaultColor( ), TUIATTR_BOLD )
+''
+'' RFC-0001 -- C:\dev\docs\tui\RFC-0001-geometry-and-style.md.
+''
+'' Geometry, colour, attributes and style. NOTHING HERE DOES I/O, takes a lock,
+'' or can fail. Everything is a value type and every operation is total -- which
+'' is what lets TuiCell hold a TuiStyle inside an Array( of TuiCell ) and get a
+'' correct deep copy for free.
+''
+'' Header-only. Member bodies are `private` so that two modules including this
+'' file do not collide at link -- the rule fb/logrecord.bi already set.
+''
+'' ---------------------------------------------------------------------------
+'' WHY TuiColor HAS NO UNION
+''
+'' The obvious layout is a tag plus a union of { index, rgb }. It saves nothing:
+'' sizeof( TuiColor ) = 4 as written, which is already the size of the largest
+'' alternative. docs/logging separately found that a ustring inside a UNION is
+'' `error 161`, so unions in this family of types have a track record of costing
+'' a redesign for no gain. RFC-0001 section 2.
+''
+'' ---------------------------------------------------------------------------
+'' RESERVED NAMES
+''
+'' 137 candidate member names were tested against the compiler before this file
+'' was written (README.md probe #45). 125 are legal, including Style, Color,
+'' Draw, Clear, Render, Buffer, Frame, Width, Line, Get, Put, View and Screen.
+'' TWELVE are not: Next, Base, Step, Int, With, Select, Scope, Var, Fix, Abs,
+'' Cast (error 4) and Rgb (error 1 -- it is a macro, not a keyword). Where one
+'' of those was the natural name, the name carries a trailing underscore and
+'' says so at the point of use.
+
+
+
+'' ============================================================== geometry
+
+public type TuiPos
+    as long x, y
+end type
+
+public type TuiSize
+    as long cols, rows
+end type
+
+'' TuiMargin is declared before TuiRect because TuiRect.Inner takes one.
+public type TuiMargin
+    as long left, top, right, bottom
+end type
+
+'' RIGHT AND BOTTOM ARE EXCLUSIVE. TuiRectOf( 0, 0, 80, 24 ).Right( ) is 80 and
+'' column 80 is NOT in the rectangle. Stated loudly because half-open versus
+'' closed is the most common off-by-one in layout code, and every loop in this
+'' module reads `for cx = r.x to r.Right( ) - 1`.
+''
+'' A RECTANGLE MAY BE EMPTY AND THAT IS LEGAL. Intersect of two disjoint rects
+'' gives w = 0; Inner of a 2-column rect with a 1-column margin each side gives
+'' w = 0. Every consumer must tolerate it and IsEmpty( ) is the guard. This is
+'' what makes "a terminal one column wide" a boring case rather than a crash.
+public type TuiRect
+    as long x, y, w, h
+
+    declare function Right( ) as long
+    declare function Bottom( ) as long
+    declare function IsEmpty( ) as boolean
+    declare function Contains( byval px as long, byval py as long ) as boolean
+    declare function Intersect( byval o as TuiRect ) as TuiRect
+    declare function Inner( byval m as TuiMargin ) as TuiRect
+    declare function Equals( byval o as TuiRect ) as boolean
+end type
+
+function TuiRect.Right( ) as long
+    return x + w
+end function
+
+function TuiRect.Bottom( ) as long
+    return y + h
+end function
+
+function TuiRect.IsEmpty( ) as boolean
+    return ( w <= 0 ) orelse ( h <= 0 )
+end function
+
+function TuiRect.Contains( byval px as long, byval py as long ) as boolean
+    if( px < x ) then return FALSE
+    if( py < y ) then return FALSE
+    if( px >= x + w ) then return FALSE
+    if( py >= y + h ) then return FALSE
+    return TRUE
+end function
+
+'' Clamps rather than going negative -- RFC-0001 section 1.
+function TuiRect.Intersect( byval o as TuiRect ) as TuiRect
+    dim as long nx = iif( x > o.x, x, o.x )
+    dim as long ny = iif( y > o.y, y, o.y )
+    dim as long nr = iif( x + w < o.x + o.w, x + w, o.x + o.w )
+    dim as long nb = iif( y + h < o.y + o.h, y + h, o.y + o.h )
+
+    dim as TuiRect r
+    r.x = nx
+    r.y = ny
+    r.w = iif( nr > nx, nr - nx, 0 )
+    r.h = iif( nb > ny, nb - ny, 0 )
+    return r
+end function
+
+function TuiRect.Inner( byval m as TuiMargin ) as TuiRect
+    dim as TuiRect r
+    r.x = x + m.left
+    r.y = y + m.top
+    dim as long nw = w - m.left - m.right
+    dim as long nh = h - m.top - m.bottom
+    r.w = iif( nw > 0, nw, 0 )
+    r.h = iif( nh > 0, nh, 0 )
+    return r
+end function
+
+function TuiRect.Equals( byval o as TuiRect ) as boolean
+    return ( x = o.x ) andalso ( y = o.y ) andalso ( w = o.w ) andalso ( h = o.h )
+end function
+
+'' Free constructors. FreeBASIC's `type( a, b, c, d )` literal works for these
+'' plain aggregates, but a named function reads better at a call site that is
+'' already dense with numbers, and it is what the RFC's examples use.
+public function TuiRectOf( byval x as long, byval y as long, _
+                            byval w as long, byval h as long ) as TuiRect
+    dim as TuiRect r
+    r.x = x : r.y = y : r.w = w : r.h = h
+    return r
+end function
+
+public function TuiSizeOf( byval cols as long, byval rows as long ) as TuiSize
+    dim as TuiSize s
+    s.cols = cols : s.rows = rows
+    return s
+end function
+
+public function TuiMarginOf( byval l as long, byval t as long, _
+                              byval r as long, byval b as long ) as TuiMargin
+    dim as TuiMargin m
+    m.left = l : m.top = t : m.right = r : m.bottom = b
+    return m
+end function
+
+public function TuiMarginAll( byval n as long ) as TuiMargin
+    return TuiMarginOf( n, n, n, n )
+end function
+
+'' ============================================================== colour
+
+public enum TuiColorKind
+    TUICOLOR_DEFAULT = 0    '' the terminal's own default -- SGR 39 / 49
+    TUICOLOR_ANSI16         '' 0..15, the classic palette; index lives in r
+    TUICOLOR_INDEXED        '' 0..255, the xterm cube; index lives in r
+    TUICOLOR_RGB            '' 24-bit
+end enum
+
+public type TuiColor
+    as ubyte kind
+    as ubyte r, g, b
+
+    declare constructor( )
+    declare function IsDefault( ) as boolean
+    declare function Equals( byval o as TuiColor ) as boolean
+    declare function Index( ) as ubyte
+end type
+
+constructor TuiColor( )
+    kind = TUICOLOR_DEFAULT
+end constructor
+
+function TuiColor.IsDefault( ) as boolean
+    return ( kind = TUICOLOR_DEFAULT )
+end function
+
+function TuiColor.Equals( byval o as TuiColor ) as boolean
+    if( kind <> o.kind ) then return FALSE
+    select case kind
+    case TUICOLOR_DEFAULT : return TRUE
+    case TUICOLOR_ANSI16, TUICOLOR_INDEXED : return ( r = o.r )
+    case else : return ( r = o.r ) andalso ( g = o.g ) andalso ( b = o.b )
+    end select
+end function
+
+function TuiColor.Index( ) as ubyte
+    return r
+end function
+
+'' The constructor set is free functions, not members. TuiRgb in particular
+'' CANNOT be a member named Rgb: `error 1: Argument count mismatch, expanding:
+'' RGB`, because RGB is a FreeBASIC macro (probe #45).
+public function TuiRgb( byval r as ubyte, byval g as ubyte, byval b as ubyte ) as TuiColor
+    dim as TuiColor c
+    c.kind = TUICOLOR_RGB
+    c.r = r : c.g = g : c.b = b
+    return c
+end function
+
+public function TuiAnsi( byval idx as ubyte ) as TuiColor
+    dim as TuiColor c
+    c.kind = TUICOLOR_ANSI16
+    c.r = idx and 15
+    return c
+end function
+
+public function TuiIndexed( byval idx as ubyte ) as TuiColor
+    dim as TuiColor c
+    c.kind = TUICOLOR_INDEXED
+    c.r = idx
+    return c
+end function
+
+public function TuiDefaultColor( ) as TuiColor
+    dim as TuiColor c
+    return c
+end function
+
+'' The sixteen, as TuiColor values. Functions rather than `dim shared` because
+'' a shared in a header included by two modules gives TWO of them -- the same
+'' constraint that stopped docs/logging making a process-wide default logger.
+public enum TuiAnsiIndex
+    TUIC_BLACK = 0   : TUIC_RED       : TUIC_GREEN   : TUIC_YELLOW
+    TUIC_BLUE        : TUIC_MAGENTA   : TUIC_CYAN    : TUIC_WHITE
+    TUIC_BRIGHTBLACK : TUIC_BRIGHTRED : TUIC_BRIGHTGREEN : TUIC_BRIGHTYELLOW
+    TUIC_BRIGHTBLUE  : TUIC_BRIGHTMAGENTA : TUIC_BRIGHTCYAN : TUIC_BRIGHTWHITE
+end enum
+
+public function TuiBlack( )         as TuiColor : return TuiAnsi( TUIC_BLACK )         : end function
+public function TuiRed( )           as TuiColor : return TuiAnsi( TUIC_RED )           : end function
+public function TuiGreen( )         as TuiColor : return TuiAnsi( TUIC_GREEN )         : end function
+public function TuiYellow( )        as TuiColor : return TuiAnsi( TUIC_YELLOW )        : end function
+public function TuiBlue( )          as TuiColor : return TuiAnsi( TUIC_BLUE )          : end function
+public function TuiMagenta( )       as TuiColor : return TuiAnsi( TUIC_MAGENTA )       : end function
+public function TuiCyan( )          as TuiColor : return TuiAnsi( TUIC_CYAN )          : end function
+public function TuiWhite( )         as TuiColor : return TuiAnsi( TUIC_WHITE )         : end function
+public function TuiBrightBlack( )   as TuiColor : return TuiAnsi( TUIC_BRIGHTBLACK )   : end function
+public function TuiBrightRed( )     as TuiColor : return TuiAnsi( TUIC_BRIGHTRED )     : end function
+public function TuiBrightGreen( )   as TuiColor : return TuiAnsi( TUIC_BRIGHTGREEN )   : end function
+public function TuiBrightYellow( )  as TuiColor : return TuiAnsi( TUIC_BRIGHTYELLOW )  : end function
+public function TuiBrightBlue( )    as TuiColor : return TuiAnsi( TUIC_BRIGHTBLUE )    : end function
+public function TuiBrightMagenta( ) as TuiColor : return TuiAnsi( TUIC_BRIGHTMAGENTA ) : end function
+public function TuiBrightCyan( )    as TuiColor : return TuiAnsi( TUIC_BRIGHTCYAN )    : end function
+public function TuiBrightWhite( )   as TuiColor : return TuiAnsi( TUIC_BRIGHTWHITE )   : end function
+
+'' ============================================================== attributes
+
+'' A bit set in a ushort, not a set of booleans, because a cell carries it and
+'' cell size is multiplied by rows x cols x 2.
+''
+'' NOTE FOR CALLERS: FreeBASIC warning 38 fires on mixing boolean and
+'' non-boolean operands in andalso/orelse. Test a bit as
+'' `( st.attrs and TUIATTR_BOLD ) <> 0` -- with the explicit <> 0 -- to stay
+'' warning-free at -w 3. Every test in this file does.
+public enum TuiAttr
+    TUIATTR_NONE      = 0
+    TUIATTR_BOLD      = 1
+    TUIATTR_DIM       = 2
+    TUIATTR_ITALIC    = 4
+    TUIATTR_UNDERLINE = 8
+    TUIATTR_BLINK     = 16
+    TUIATTR_REVERSE   = 32
+    TUIATTR_STRIKE    = 64
+    TUIATTR_HIDDEN    = 128
+    TUIATTR_ALL       = 255
+end enum
+
+'' ============================================================== style
+
+'' `mask` is what makes composition work. Without it, "underline the selected
+'' row" cannot be expressed as a style: a TuiStyle with only TUIATTR_UNDERLINE
+'' set would also assert NOT bold and NOT italic, and would silently clear
+'' whatever the base had. RFC-0001 section 4.
+public type TuiStyle
+    as TuiColor fg, bg
+    as ushort attrs
+    as ushort mask
+
+    declare function Patch( byval over as TuiStyle ) as TuiStyle
+    declare function Equals( byval o as TuiStyle ) as boolean
+    declare function HasAttr( byval a as TuiAttr ) as boolean
+end type
+
+function TuiStyle.Patch( byval over as TuiStyle ) as TuiStyle
+    dim as TuiStyle r = this
+
+    if( over.fg.IsDefault( ) = FALSE ) then r.fg = over.fg
+    if( over.bg.IsDefault( ) = FALSE ) then r.bg = over.bg
+
+    '' `not` on a ushort widens and sign-extends, so the complement is
+    '' spelled with an explicit xor against the 16-bit all-ones.
+    dim as ushort keep = over.mask xor &hFFFF
+    r.attrs = culng( ( attrs and keep ) or ( over.attrs and over.mask ) ) and &hFFFF
+    r.mask  = mask or over.mask
+    return r
+end function
+
+function TuiStyle.Equals( byval o as TuiStyle ) as boolean
+    if( fg.Equals( o.fg ) = FALSE ) then return FALSE
+    if( bg.Equals( o.bg ) = FALSE ) then return FALSE
+    return ( attrs = o.attrs )
+end function
+
+function TuiStyle.HasAttr( byval a as TuiAttr ) as boolean
+    return ( ( attrs and a ) <> 0 )
+end function
+
+public function TuiStyleDefault( ) as TuiStyle
+    dim as TuiStyle s
+    return s
+end function
+
+public function TuiStyleOf( byval fg as TuiColor, byval bg as TuiColor, _
+                             byval attrs as ushort = 0 ) as TuiStyle
+    dim as TuiStyle s
+    s.fg = fg
+    s.bg = bg
+    s.attrs = attrs
+    '' A style built this way has an opinion about every attribute it names
+    '' AND about every attribute it does not -- it is a complete style, not a
+    '' patch. A patch is built with TuiStylePatch below.
+    s.mask = TUIATTR_ALL
+    return s
+end function
+
+'' A PATCH has an opinion only about the attributes named in `which`. This is
+'' the form to use for "selected", "focused", "disabled" and friends.
+public function TuiStylePatch( byval fg as TuiColor, byval bg as TuiColor, _
+                                byval attrs as ushort, byval which as ushort ) as TuiStyle
+    dim as TuiStyle s
+    s.fg = fg
+    s.bg = bg
+    s.attrs = attrs
+    s.mask = which
+    return s
+end function
+
+'' ============================================================== downgrade
+
+public enum TuiColorDepth
+    TUIDEPTH_MONO = 0
+    TUIDEPTH_ANSI16
+    TUIDEPTH_256
+    TUIDEPTH_TRUECOLOR
+end enum
+
+'' The standard xterm palette for the first 16, used by the RGB -> 16 search.
+public function TuiAnsiPaletteR( byval i as long ) as long
+    static as long p( 0 to 15 ) = { &h00, &hCD, &h00, &hCD, &h00, &hCD, &h00, &hE5, _
+                                    &h7F, &hFF, &h00, &hFF, &h5C, &hFF, &h00, &hFF }
+    return p( i and 15 )
+end function
+public function TuiAnsiPaletteG( byval i as long ) as long
+    static as long p( 0 to 15 ) = { &h00, &h00, &hCD, &hCD, &h00, &h00, &hCD, &hE5, _
+                                    &h7F, &h00, &hFF, &hFF, &h5C, &h00, &hFF, &hFF }
+    return p( i and 15 )
+end function
+public function TuiAnsiPaletteB( byval i as long ) as long
+    static as long p( 0 to 15 ) = { &h00, &h00, &h00, &h00, &hEE, &hCD, &hCD, &hE5, _
+                                    &h7F, &h00, &h00, &h00, &hFF, &hFF, &hFF, &hFF }
+    return p( i and 15 )
+end function
+
+'' The 6-level cube ramp is NOT uniform: 0, 95, 135, 175, 215, 255.
+public function TuiCubeLevel( byval v as long ) as long
+    if( v < 48 ) then return 0
+    if( v < 115 ) then return 1
+    return ( v - 35 ) \ 40
+end function
+
+public function TuiCubeValue( byval level as long ) as long
+    if( level <= 0 ) then return 0
+    return 55 + level * 40
+end function
+
+'' RGB -> the 256-colour cube plus the 24-step grey ramp, whichever is nearer.
+public function TuiRgbTo256( byval r as long, byval g as long, byval b as long ) as ubyte
+    dim as long lr = TuiCubeLevel( r ), lg = TuiCubeLevel( g ), lb = TuiCubeLevel( b )
+    dim as long cr = TuiCubeValue( lr ), cg = TuiCubeValue( lg ), cb = TuiCubeValue( lb )
+    dim as long cubeIdx = 16 + 36 * lr + 6 * lg + lb
+    dim as long cubeErr = ( r - cr ) * ( r - cr ) + ( g - cg ) * ( g - cg ) + ( b - cb ) * ( b - cb )
+
+    '' the grey ramp: 232..255 is 8, 18, 28 ... 238
+    dim as long avg = ( r + g + b ) \ 3
+    dim as long gi = ( avg - 3 ) \ 10
+    if( gi < 0 ) then gi = 0
+    if( gi > 23 ) then gi = 23
+    dim as long gv = 8 + gi * 10
+    dim as long greyErr = ( r - gv ) * ( r - gv ) + ( g - gv ) * ( g - gv ) + ( b - gv ) * ( b - gv )
+
+    if( greyErr < cubeErr ) then return cuint( 232 + gi )
+    return cuint( cubeIdx )
+end function
+
+'' RGB -> the 16, by weighted Euclidean distance. The weights 2/4/3 track
+'' perceived distance well enough and cost sixteen comparisons.
+public function TuiRgbTo16( byval r as long, byval g as long, byval b as long ) as ubyte
+    dim as long best = 0, bestErr = &h7FFFFFFF
+    for i as long = 0 to 15
+        dim as long dr = r - TuiAnsiPaletteR( i )
+        dim as long dg = g - TuiAnsiPaletteG( i )
+        dim as long db = b - TuiAnsiPaletteB( i )
+        dim as long dist = 2 * dr * dr + 4 * dg * dg + 3 * db * db
+        if( dist < bestErr ) then
+            bestErr = dist
+            best = i
+        end if
+    next
+    return cuint( best )
+end function
+
+public function TuiLuminance( byval r as long, byval g as long, byval b as long ) as double
+    return ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) / 255.0
+end function
+
+'' RFC-0001 section 5. Applied at WRITE time in the backend, never at style
+'' construction, so a TuiStyle stays a faithful record of what was asked for and
+'' one buffer renders correctly on two different terminals.
+public function TuiDowngrade( byval c as TuiColor, byval depth as TuiColorDepth ) as TuiColor
+    if( c.kind = TUICOLOR_DEFAULT ) then return c
+
+    select case depth
+    case TUIDEPTH_TRUECOLOR
+        return c
+
+    case TUIDEPTH_256
+        if( c.kind = TUICOLOR_RGB ) then
+            return TuiIndexed( TuiRgbTo256( c.r, c.g, c.b ) )
+        end if
+        return c
+
+    case TUIDEPTH_ANSI16
+        select case c.kind
+        case TUICOLOR_ANSI16
+            return c
+        case TUICOLOR_INDEXED
+            if( c.r < 16 ) then return TuiAnsi( c.r )
+            '' expand the cube/grey index to RGB, then search the 16
+            dim as long r, g, b
+            if( c.r >= 232 ) then
+                r = 8 + ( c.r - 232 ) * 10 : g = r : b = r
+            else
+                dim as long v = c.r - 16
+                r = TuiCubeValue( v \ 36 )
+                g = TuiCubeValue( ( v \ 6 ) mod 6 )
+                b = TuiCubeValue( v mod 6 )
+            end if
+            return TuiAnsi( TuiRgbTo16( r, g, b ) )
+        case else
+            return TuiAnsi( TuiRgbTo16( c.r, c.g, c.b ) )
+        end select
+
+    case else    '' TUIDEPTH_MONO
+        dim as long r, g, b
+        select case c.kind
+        case TUICOLOR_ANSI16
+            r = TuiAnsiPaletteR( c.r ) : g = TuiAnsiPaletteG( c.r ) : b = TuiAnsiPaletteB( c.r )
+        case TUICOLOR_INDEXED
+            if( c.r < 16 ) then
+                r = TuiAnsiPaletteR( c.r ) : g = TuiAnsiPaletteG( c.r ) : b = TuiAnsiPaletteB( c.r )
+            elseif( c.r >= 232 ) then
+                r = 8 + ( c.r - 232 ) * 10 : g = r : b = r
+            else
+                dim as long v = c.r - 16
+                r = TuiCubeValue( v \ 36 )
+                g = TuiCubeValue( ( v \ 6 ) mod 6 )
+                b = TuiCubeValue( v mod 6 )
+            end if
+        case else
+            r = c.r : g = c.g : b = c.b
+        end select
+
+        if( TuiLuminance( r, g, b ) >= 0.5 ) then return TuiAnsi( TUIC_WHITE )
+        return TuiAnsi( TUIC_BLACK )
+    end select
+end function
+
+public function TuiDowngradeStyle( byval s as TuiStyle, byval depth as TuiColorDepth ) as TuiStyle
+    dim as TuiStyle r = s
+    r.fg = TuiDowngrade( s.fg, depth )
+    r.bg = TuiDowngrade( s.bg, depth )
+    '' Mono keeps only the attributes a monochrome terminal can actually show.
+    if( depth = TUIDEPTH_MONO ) then
+        r.attrs = s.attrs and ( TUIATTR_BOLD or TUIATTR_UNDERLINE or TUIATTR_REVERSE )
+    end if
+    return r
+end function
+
+'' ============================================================== theme
+
+'' A plain value, passed explicitly to the widgets that use it. THERE IS NO
+'' AMBIENT CURRENT THEME -- a FreeBASIC header cannot make a process-wide
+'' singleton, and docs/logging paid for discovering that mid-implementation.
+'' rationale.md section 9.
+''
+'' `dim_` carries the underscore because Dim is a keyword.
+public type TuiTheme
+    as TuiStyle normal, dim_, accent, selected, disabled
+    as TuiStyle border, borderFocused, title
+    as TuiStyle success, warning, danger, info
+end type
+
+public function TuiThemeDefault( ) as TuiTheme
+    dim as TuiTheme t
+
+    t.normal        = TuiStyleOf( TuiDefaultColor( ), TuiDefaultColor( ) )
+    t.dim_          = TuiStyleOf( TuiBrightBlack( ),  TuiDefaultColor( ) )
+    t.accent        = TuiStyleOf( TuiBrightCyan( ),   TuiDefaultColor( ), TUIATTR_BOLD )
+    t.selected      = TuiStylePatch( TuiDefaultColor( ), TuiDefaultColor( ), _
+                                     TUIATTR_REVERSE, TUIATTR_REVERSE )
+    t.disabled      = TuiStyleOf( TuiBrightBlack( ),  TuiDefaultColor( ), TUIATTR_DIM )
+
+    t.border        = TuiStyleOf( TuiBrightBlack( ),  TuiDefaultColor( ) )
+    t.borderFocused = TuiStyleOf( TuiBrightCyan( ),   TuiDefaultColor( ) )
+    t.title         = TuiStyleOf( TuiBrightWhite( ),  TuiDefaultColor( ), TUIATTR_BOLD )
+
+    t.success       = TuiStyleOf( TuiBrightGreen( ),  TuiDefaultColor( ) )
+    t.warning       = TuiStyleOf( TuiBrightYellow( ), TuiDefaultColor( ) )
+    t.danger        = TuiStyleOf( TuiBrightRed( ),    TuiDefaultColor( ) )
+    t.info          = TuiStyleOf( TuiBrightBlue( ),   TuiDefaultColor( ) )
+    return t
+end function
+
+public function TuiThemeMono( ) as TuiTheme
+    dim as TuiTheme t
+    dim as TuiStyle plain = TuiStyleDefault( )
+
+    t.normal        = plain
+    t.dim_          = plain
+    t.accent        = TuiStyleOf( TuiDefaultColor( ), TuiDefaultColor( ), TUIATTR_BOLD )
+    t.selected      = TuiStylePatch( TuiDefaultColor( ), TuiDefaultColor( ), _
+                                     TUIATTR_REVERSE, TUIATTR_REVERSE )
+    t.disabled      = plain
+    t.border        = plain
+    t.borderFocused = TuiStyleOf( TuiDefaultColor( ), TuiDefaultColor( ), TUIATTR_BOLD )
+    t.title         = TuiStyleOf( TuiDefaultColor( ), TuiDefaultColor( ), TUIATTR_BOLD )
+    t.success       = plain
+    t.warning       = plain
+    t.danger        = TuiStyleOf( TuiDefaultColor( ), TuiDefaultColor( ), TUIATTR_BOLD )
+    t.info          = plain
+    return t
+end function
+
+'' ============================================================== SGR
+
+'' The one place a TuiStyle becomes bytes. It lives here rather than in
+'' tuiterm.bi because it is pure -- it takes a depth and returns a string, and
+'' it is therefore testable without a terminal.
+''
+'' `prev` is the style the terminal is currently in. Only the DIFFERENCE is
+'' emitted, which is where most of the diff renderer's byte reduction comes
+'' from -- more than from the cell comparison itself. RFC-0003 section 5.
+public function TuiSgrColor( byval c as TuiColor, byval isFg as boolean ) as string
+    dim as long base_ = iif( isFg, 30, 40 )
+
+    select case c.kind
+    case TUICOLOR_DEFAULT
+        return str( base_ + 9 )
+    case TUICOLOR_ANSI16
+        if( c.r < 8 ) then return str( base_ + c.r )
+        return str( base_ + 60 + ( c.r - 8 ) )
+    case TUICOLOR_INDEXED
+        return str( base_ + 8 ) & ";5;" & str( c.r )
+    case else
+        return str( base_ + 8 ) & ";2;" & str( c.r ) & ";" & str( c.g ) & ";" & str( c.b )
+    end select
+end function
+
+public function TuiAttrOnCode( byval a as TuiAttr ) as long
+    select case a
+    case TUIATTR_BOLD      : return 1
+    case TUIATTR_DIM       : return 2
+    case TUIATTR_ITALIC    : return 3
+    case TUIATTR_UNDERLINE : return 4
+    case TUIATTR_BLINK     : return 5
+    case TUIATTR_REVERSE   : return 7
+    case TUIATTR_HIDDEN    : return 8
+    case TUIATTR_STRIKE    : return 9
+    case else              : return 0
+    end select
+end function
+
+public function TuiAttrOffCode( byval a as TuiAttr ) as long
+    select case a
+    '' 21 is "doubly underlined" on some terminals; 22 clears both bold and
+    '' dim, which is why turning either off re-asserts the other below.
+    case TUIATTR_BOLD      : return 22
+    case TUIATTR_DIM       : return 22
+    case TUIATTR_ITALIC    : return 23
+    case TUIATTR_UNDERLINE : return 24
+    case TUIATTR_BLINK     : return 25
+    case TUIATTR_REVERSE   : return 27
+    case TUIATTR_HIDDEN    : return 28
+    case TUIATTR_STRIKE    : return 29
+    case else              : return 0
+    end select
+end function
+
+public function TuiSgr( byval prev as TuiStyle, byval want as TuiStyle, _
+                         byval depth as TuiColorDepth ) as string
+    dim as TuiStyle p = TuiDowngradeStyle( prev, depth )
+    dim as TuiStyle w = TuiDowngradeStyle( want, depth )
+
+    if( p.Equals( w ) ) then return ""
+
+    dim as string parts
+
+    '' SGR 22 clears bold AND dim together, so if either is being turned off
+    '' while the other stays on, the cheapest correct move is a full reset
+    '' followed by the wanted state. Otherwise emit only the deltas.
+    dim as ushort turnedOff = p.attrs and ( w.attrs xor &hFFFF )
+    dim as boolean boldDimTangle = ( ( turnedOff and ( TUIATTR_BOLD or TUIATTR_DIM ) ) <> 0 ) andalso _
+                                   ( ( w.attrs and ( TUIATTR_BOLD or TUIATTR_DIM ) ) <> 0 )
+
+    if( boldDimTangle ) then
+        parts = "0"
+        for a as long = 0 to 7
+            dim as TuiAttr bit = cast( TuiAttr, 1 shl a )
+            if( ( w.attrs and bit ) <> 0 ) then parts &= ";" & str( TuiAttrOnCode( bit ) )
+        next
+        if( w.fg.IsDefault( ) = FALSE ) then parts &= ";" & TuiSgrColor( w.fg, TRUE )
+        if( w.bg.IsDefault( ) = FALSE ) then parts &= ";" & TuiSgrColor( w.bg, FALSE )
+        return chr( 27 ) & "[" & parts & "m"
+    end if
+
+    for a as long = 0 to 7
+        dim as TuiAttr bit = cast( TuiAttr, 1 shl a )
+        dim as boolean was = ( ( p.attrs and bit ) <> 0 )
+        dim as boolean now_ = ( ( w.attrs and bit ) <> 0 )
+        if( was = now_ ) then continue for
+        dim as long code = iif( now_, TuiAttrOnCode( bit ), TuiAttrOffCode( bit ) )
+        if( len( parts ) > 0 ) then parts &= ";"
+        parts &= str( code )
+    next
+
+    if( p.fg.Equals( w.fg ) = FALSE ) then
+        if( len( parts ) > 0 ) then parts &= ";"
+        parts &= TuiSgrColor( w.fg, TRUE )
+    end if
+    if( p.bg.Equals( w.bg ) = FALSE ) then
+        if( len( parts ) > 0 ) then parts &= ";"
+        parts &= TuiSgrColor( w.bg, FALSE )
+    end if
+
+    if( len( parts ) = 0 ) then return ""
+    return chr( 27 ) & "[" & parts & "m"
+end function
+
+public function TuiSgrReset( ) as string
+    return chr( 27 ) & "[0m"
+end function
+

@@ -60,12 +60,8 @@ FACADES = {
     "logs": (["fb/logging.bi"],
              ["logging.bi", "logger.bi", "logrecord.bi", "logrender.bi", "logsink.bi",
               "logdefault.bi", "logerror.bi", "logfile.bi", "logasync.bi"], False),
-    "tui": (["fb/tui.bi"],
-            ["tui.bi", "tuiapp.bi", "tuibuffer.bi", "tuichrome.bi", "tuicore.bi", "tuidraw.bi",
-             "tuiform.bi", "tuiinput.bi", "tuilayout.bi", "tuiterm.bi", "tuiwidget.bi",
-             "tuiwidgets.bi", "tuiwidth.bi", "tuiwidthtab.bi"], False),
 }
-# Real modules now (build/stdport.py, 2026-10-10), no longer written here: strings.
+# Real modules now (build/stdport.py, 2026-10-10), no longer written here: strings, tui.
 
 # std/path's names, kept in std/fs when std/path was folded into it (RFC-0009 M30). Each is
 # the header's function, with the header's behaviour -- see pkg/std/README.md.

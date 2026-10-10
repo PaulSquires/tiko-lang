@@ -414,7 +414,7 @@ private function PushStructorPtr_ _
         args.Push( 0 )
         return true
     end if
-    dim as MirValue fp = FuncAddrOf( c, s )
+    dim as MirValue fp = FuncAddrOf( c, s, true )
     if fp.kind = cast( ubyte, MV_NONE ) then return false
     args.Push( cast( ulong, fp.kind ) ) : args.Push( cast( ulong, fp.id ) )
     return true

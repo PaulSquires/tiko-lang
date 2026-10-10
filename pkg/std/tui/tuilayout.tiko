@@ -1,0 +1,311 @@
+#module "tui"
+'' std/tui: tuilayout -- the constraint layout solver
+''
+''     dim as TuiConstraintArray cs
+''     cs.Push( TuiPercent( 45 ) )
+''     cs.Push( TuiFill( ) )
+''     var parts = TuiSplitH( f->Area( ), cs )
+''
+'' RFC-0006 -- C:\dev\docs\tui\RFC-0006-layout.md.
+''
+'' Pure arithmetic on TuiRect. No widgets, no I/O, no state -- a split is a
+'' function of a rectangle and a constraint list, recomputed every frame. That
+'' is what immediate mode buys: nothing to invalidate, nothing to keep in sync
+'' with a widget hierarchy, and a resize is handled by the fact that the next
+'' frame passes a different rectangle.
+''
+'' ---------------------------------------------------------------------------
+'' DETERMINISM IS THE WHOLE POINT
+''
+'' Two runs with the same inputs give identical rectangles, and the parts sum to
+'' the parent EXACTLY, at every width, with no cell lost or double-counted. The
+'' integer-remainder rule in step 5 is the one usually left unspecified, and it
+'' is the reason two "identical" layout engines drift by a column.
+''
+'' Post-conditions, all asserted exhaustively by the suite:
+''
+''     sum( sizes ) = total              exactly, always
+''     every size >= 0
+''     rectangles are contiguous and non-overlapping
+''     result.Count( ) = constraints.Count( )   -- a zero-size part is LEGAL
+''                                                 and is returned, not dropped
+
+
+#include once "fb/array.bi"
+
+using FB
+
+'' ============================================================== constraints
+
+public enum TuiConstraintKind
+    TUICON_LENGTH = 0       '' exactly n cells
+    TUICON_PERCENT          '' n% of the parent
+    TUICON_RATIO            '' num/den of the parent
+    TUICON_MIN              '' at least n
+    TUICON_MAX              '' at most n
+    TUICON_FILL             '' share the remainder, weighted by n
+end enum
+
+public type TuiConstraint
+    as ubyte kind
+    as long a, b            '' n, or num/den for RATIO
+end type
+
+public type TuiConstraintArray as Array( of TuiConstraint )
+public type TuiRectArray        as Array( of TuiRect )
+
+public function TuiConstraintOf( byval k as TuiConstraintKind, byval a as long, byval b as long = 0 ) as TuiConstraint
+    dim as TuiConstraint c
+    c.kind = k
+    c.a = a
+    c.b = b
+    return c
+end function
+
+public function TuiLength( byval n as long ) as TuiConstraint
+    return TuiConstraintOf( TUICON_LENGTH, n )
+end function
+
+public function TuiPercent( byval n as long ) as TuiConstraint
+    return TuiConstraintOf( TUICON_PERCENT, n )
+end function
+
+public function TuiRatio( byval num as long, byval den as long ) as TuiConstraint
+    return TuiConstraintOf( TUICON_RATIO, num, den )
+end function
+
+'' Min_ and Max_ carry underscores to avoid colliding with FB.Min and FB.Max
+'' from fb/math.bi. FreeBASIC identifiers are case-insensitive, so this is a
+'' collision WITHIN namespace FB and the Tui prefix does not save it -- the same
+'' shadowing that made a parameter named `ok` fail with error 72.
+public function TuiMin_( byval n as long ) as TuiConstraint
+    return TuiConstraintOf( TUICON_MIN, n )
+end function
+
+public function TuiMax_( byval n as long ) as TuiConstraint
+    return TuiConstraintOf( TUICON_MAX, n )
+end function
+
+public function TuiFill( byval weight as long = 1 ) as TuiConstraint
+    return TuiConstraintOf( TUICON_FILL, iif( weight > 0, weight, 1 ) )
+end function
+
+'' ============================================================== the solver
+
+'' Divides `total` among the constraints, returning one size per constraint.
+'' RFC-0006 section 3, step by step.
+public function TuiSolve( byval total as long, byref cs as TuiConstraintArray ) as Array( of long )
+    dim as Array( of long ) size_
+    dim as long n = cs.Count( )
+    if( n <= 0 ) then return size_
+    if( total < 0 ) then total = 0
+
+    size_.Reserve( n )
+
+    '' ---- 1 and 2: the fixed pass, each clamped to [0, total]
+    for i as long = 0 to n - 1
+        dim as long d = 0
+        select case cs[i].kind
+        case TUICON_LENGTH  : d = cs[i].a
+        case TUICON_PERCENT : d = ( total * cs[i].a ) \ 100
+        case TUICON_RATIO   : d = iif( cs[i].b <> 0, ( total * cs[i].a ) \ cs[i].b, 0 )
+        case TUICON_MIN     : d = cs[i].a
+        case TUICON_MAX     : d = cs[i].a
+        case else           : d = 0          '' FILL, resolved from the remainder
+        end select
+        if( d < 0 ) then d = 0
+        if( d > total ) then d = total
+        size_.Push( d )
+    next
+
+    '' ---- 3 and 4: the remainder
+    dim as long s = 0
+    for i as long = 0 to n - 1
+        s += size_[i]
+    next
+    dim as long r = total - s
+
+    if( r > 0 ) then
+        dim as long wsum = 0
+        for i as long = 0 to n - 1
+            if( cs[i].kind = TUICON_FILL ) then wsum += cs[i].a
+        next
+
+        if( wsum > 0 ) then
+            '' proportional by weight, floored -- the leftovers are step 5
+            dim as long given = 0
+            for i as long = 0 to n - 1
+                if( cs[i].kind <> TUICON_FILL ) then continue for
+                dim as long share = ( r * cs[i].a ) \ wsum
+                size_[i] += share
+                given += share
+            next
+
+            '' ---- 5: the integer remainder, ONE CELL EACH, LEFT TO RIGHT.
+            '' Never spread fractionally, never all to one. This is the rule
+            '' that keeps two runs identical.
+            dim as long leftover = r - given
+            while( leftover > 0 )
+                dim as boolean moved = FALSE
+                for i as long = 0 to n - 1
+                    if( leftover <= 0 ) then exit for
+                    if( cs[i].kind <> TUICON_FILL ) then continue for
+                    size_[i] += 1
+                    leftover -= 1
+                    moved = TRUE
+                next
+                if( moved = FALSE ) then exit while
+            wend
+        else
+            '' No FILL at all: the slack goes to the last MIN, because MIN is
+            '' the only other constraint that means "and more if there is any".
+            '' Failing that, to the last constraint, so the post-condition
+            '' still holds.
+            dim as long target = -1
+            for i as long = 0 to n - 1
+                if( cs[i].kind = TUICON_MIN ) then target = i
+            next
+            if( target < 0 ) then target = n - 1
+            size_[target] += r
+        end if
+
+    elseif( r < 0 ) then
+        '' Over-subscribed. Shrink in this order, each down to its floor:
+        '' FILL, MAX, PERCENT/RATIO, MIN, LENGTH. MIN shrinks late because
+        '' that is what MIN means; LENGTH shrinks last.
+        dim as long deficit = -r
+
+        '' RIGHT TO LEFT within each pass. RFC-0006 fixes the pass ORDER but
+        '' says nothing about direction, and the difference is visible: a row
+        '' of Length(12) + Fill + Length(9) squeezed into 15 columns gives
+        '' [12,0,3] shrinking rightwards and [6,0,9] shrinking leftwards. The
+        '' leading panel is almost always the primary one, so it is the last to
+        '' give up cells. Recorded as a phase-4 amendment.
+        for pass as long = 0 to 4
+            if( deficit <= 0 ) then exit for
+            for i as long = n - 1 to 0 step -1
+                if( deficit <= 0 ) then exit for
+
+                dim as boolean apply = FALSE
+                dim as long floor_ = 0
+                select case pass
+                case 0 : apply = ( cs[i].kind = TUICON_FILL )
+                case 1 : apply = ( cs[i].kind = TUICON_MAX )
+                case 2 : apply = ( cs[i].kind = TUICON_PERCENT ) orelse ( cs[i].kind = TUICON_RATIO )
+                case 3
+                    apply = ( cs[i].kind = TUICON_MIN )
+                    floor_ = cs[i].a
+                case else : apply = ( cs[i].kind = TUICON_LENGTH )
+                end select
+                if( apply = FALSE ) then continue for
+
+                dim as long room = size_[i] - floor_
+                if( room <= 0 ) then continue for
+                dim as long take = iif( room < deficit, room, deficit )
+                size_[i] -= take
+                deficit -= take
+            next
+        next
+
+        '' THE RFC'S SHRINK ORDER CAN STILL LEAVE US OVER, and phase 4 found
+        '' it: if the MIN floors alone exceed the total -- three Min_( 40 ) in
+        '' a 100-cell row -- every listed pass reaches its floor with the
+        '' deficit unpaid. RFC-0006's post-condition is unconditional, so a
+        '' final pass takes the rest from the right, ignoring floors. A MIN
+        '' that cannot be honoured is better reported as a short rectangle
+        '' than as a layout that overflows its parent.
+        if( deficit > 0 ) then
+            for i as long = n - 1 to 0 step -1
+                if( deficit <= 0 ) then exit for
+                dim as long take = iif( size_[i] < deficit, size_[i], deficit )
+                size_[i] -= take
+                deficit -= take
+            next
+        end if
+    end if
+
+    return size_
+end function
+
+'' ============================================================== splitting
+
+'' SplitH divides the WIDTH into vertical columns side by side; SplitV divides
+'' the HEIGHT into horizontal bands. The naming follows Ratatui, and is stated
+'' because the opposite reading is equally natural and that is where the bugs
+'' come from.
+public function TuiSplitH( byval area as TuiRect, byref cs as TuiConstraintArray ) as TuiRectArray
+    dim as TuiRectArray out
+    dim as long n = cs.Count( )
+    if( n <= 0 ) then return out
+
+    dim as Array( of long ) size_ = TuiSolve( iif( area.w > 0, area.w, 0 ), cs )
+    dim as long x = area.x
+    for i as long = 0 to n - 1
+        out.Push( TuiRectOf( x, area.y, size_[i], iif( area.h > 0, area.h, 0 ) ) )
+        x += size_[i]
+    next
+    return out
+end function
+
+public function TuiSplitV( byval area as TuiRect, byref cs as TuiConstraintArray ) as TuiRectArray
+    dim as TuiRectArray out
+    dim as long n = cs.Count( )
+    if( n <= 0 ) then return out
+
+    dim as Array( of long ) size_ = TuiSolve( iif( area.h > 0, area.h, 0 ), cs )
+    dim as long y = area.y
+    for i as long = 0 to n - 1
+        out.Push( TuiRectOf( area.x, y, iif( area.w > 0, area.w, 0 ), size_[i] ) )
+        y += size_[i]
+    next
+    return out
+end function
+
+'' ============================================================== padding
+
+'' All of these CLAMP rather than going negative -- padding a 2-column rectangle
+'' by 2 gives width 0, not -2. RFC-0001 section 1 established that an empty
+'' rectangle is legal, and this is where that pays.
+public function TuiPad( byval r as TuiRect, byval m as TuiMargin ) as TuiRect
+    return r.Inner( m )
+end function
+
+public function TuiPadAll( byval r as TuiRect, byval n as long ) as TuiRect
+    return r.Inner( TuiMarginAll( n ) )
+end function
+
+public enum TuiAlign
+    TUIALIGN_LEFT = 0
+    TUIALIGN_CENTER
+    TUIALIGN_RIGHT
+end enum
+
+'' The popup primitive: given the screen and a desired size, the centred
+'' rectangle, clamped to fit.
+public function TuiCenter( byval outer as TuiRect, byval w as long, byval h as long ) as TuiRect
+    if( w < 0 ) then w = 0
+    if( h < 0 ) then h = 0
+    if( w > outer.w ) then w = iif( outer.w > 0, outer.w, 0 )
+    if( h > outer.h ) then h = iif( outer.h > 0, outer.h, 0 )
+
+    dim as long x = outer.x + ( outer.w - w ) \ 2
+    dim as long y = outer.y + ( outer.h - h ) \ 2
+    if( x < outer.x ) then x = outer.x
+    if( y < outer.y ) then y = outer.y
+    return TuiRectOf( x, y, w, h )
+end function
+
+'' Places a w-wide band inside `outer` horizontally, per the alignment.
+public function TuiAlignIn( byval outer as TuiRect, byval w as long, byval a as TuiAlign ) as TuiRect
+    if( w < 0 ) then w = 0
+    if( w > outer.w ) then w = iif( outer.w > 0, outer.w, 0 )
+
+    dim as long x = outer.x
+    select case a
+    case TUIALIGN_CENTER : x = outer.x + ( outer.w - w ) \ 2
+    case TUIALIGN_RIGHT  : x = outer.x + ( outer.w - w )
+    end select
+    if( x < outer.x ) then x = outer.x
+    return TuiRectOf( x, outer.y, w, iif( outer.h > 0, outer.h, 0 ) )
+end function
+

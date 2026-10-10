@@ -1,0 +1,710 @@
+#module "tui"
+'' std/tui: tuiwidgets -- the core widget catalogue
+''
+'' RFC-0008 sections 1 and 2 -- C:\dev\docs\tui\RFC-0008-widget-catalogue.md.
+''
+'' Block, Paragraph, List, Table, Tabs, Gauge, Spinner, Scrollbar. Drawn from
+'' Ratatui and from AfxNova's Ps* control family, which is the densest column in
+'' the comparison matrix and the best evidence of what a real FreeBASIC
+'' application needs.
+''
+'' ---------------------------------------------------------------------------
+'' EVERY WIDGET MUST TOLERATE A ZERO-SIZE AREA
+''
+'' Not a defensive nicety: phase 4 measured the success-criterion dashboard at
+'' 40x12 and the memory panel came out with height 0. A widget that assumes at
+'' least one row is a widget that faults on a small terminal.
+''
+'' ---------------------------------------------------------------------------
+'' STATE IS THE CALLER'S
+''
+'' A list's selection and a table's scroll offset live in a caller-owned state
+'' struct passed in by pointer. That is the honest consequence of immediate
+'' mode: if the widget is rebuilt every frame, it cannot be where the selection
+'' lives. The widget NEVER deletes that pointer -- the one exception to
+'' RFC-0007's ownership rule, and the reason the rule is written down.
+
+
+#include once "fb/array.bi"
+#include once "fb/array.bi"
+#include once "fb/array.bi"
+#include once "fb/result.bi"
+#include once "fb/optional.bi"
+#ifdef __FB_WIN32__
+    #include once "windows.bi"
+#else
+    #include once "crt.bi"
+#endif
+#include once "fb/optional.bi"
+#include once "fb/array.bi"
+#include once "fb/optional.bi"
+#include once "fb/array.bi"
+
+using FB
+
+'' ============================================================== block
+
+public enum TuiBorderKind
+    TUIBORDER_NONE = 0
+    TUIBORDER_PLAIN
+    TUIBORDER_ROUNDED
+    TUIBORDER_DOUBLE
+    TUIBORDER_THICK
+    TUIBORDER_ASCII
+end enum
+
+public enum TuiBorderSide
+    TUISIDE_NONE   = 0
+    TUISIDE_TOP    = 1
+    TUISIDE_RIGHT  = 2
+    TUISIDE_BOTTOM = 4
+    TUISIDE_LEFT   = 8
+    TUISIDE_ALL    = 15
+end enum
+
+'' Six glyphs per style: horizontal, vertical, and the four corners. Built from
+'' CODEPOINTS rather than source literals, so the file stays pure ASCII and no
+'' source-encoding step can corrupt a border.
+public type TuiBorderSet
+    as ustring h, v, tl, tr, bl, br
+end type
+
+public function TuiBorderGlyphs( byval kind as TuiBorderKind ) as TuiBorderSet
+    dim as TuiBorderSet g
+    select case kind
+    case TUIBORDER_ASCII
+        g.h = "-" : g.v = "|"
+        g.tl = "+" : g.tr = "+" : g.bl = "+" : g.br = "+"
+    case TUIBORDER_ROUNDED
+        TuiAppendCp( g.h, &h2500 ) : TuiAppendCp( g.v, &h2502 )
+        TuiAppendCp( g.tl, &h256D ) : TuiAppendCp( g.tr, &h256E )
+        TuiAppendCp( g.bl, &h2570 ) : TuiAppendCp( g.br, &h256F )
+    case TUIBORDER_DOUBLE
+        TuiAppendCp( g.h, &h2550 ) : TuiAppendCp( g.v, &h2551 )
+        TuiAppendCp( g.tl, &h2554 ) : TuiAppendCp( g.tr, &h2557 )
+        TuiAppendCp( g.bl, &h255A ) : TuiAppendCp( g.br, &h255D )
+    case TUIBORDER_THICK
+        TuiAppendCp( g.h, &h2501 ) : TuiAppendCp( g.v, &h2503 )
+        TuiAppendCp( g.tl, &h250F ) : TuiAppendCp( g.tr, &h2513 )
+        TuiAppendCp( g.bl, &h2517 ) : TuiAppendCp( g.br, &h251B )
+    case else            '' PLAIN
+        TuiAppendCp( g.h, &h2500 ) : TuiAppendCp( g.v, &h2502 )
+        TuiAppendCp( g.tl, &h250C ) : TuiAppendCp( g.tr, &h2510 )
+        TuiAppendCp( g.bl, &h2514 ) : TuiAppendCp( g.br, &h2518 )
+    end select
+    return g
+end function
+
+'' MULTIPLE TITLES PER SIDE, each independently aligned, is not a luxury: it is
+'' what puts a hotkey number at the top-left, inline controls beside it and a
+'' clock at the top-right of ONE border, which is exactly the target layout.
+public type TuiTitle
+    as ustring text
+    as TuiStyle st
+    as ubyte side           '' TUISIDE_TOP or TUISIDE_BOTTOM
+    as ubyte align
+end type
+
+public type TuiTitleArray as Array( of TuiTitle )
+
+public function TuiTitleOf( byref t as ustring, byval st as TuiStyle, _
+                             byval side as TuiBorderSide = TUISIDE_TOP, _
+                             byval align as TuiAlign = TUIALIGN_LEFT ) as TuiTitle
+    dim as TuiTitle r
+    r.text = t
+    r.st = st
+    r.side = side
+    r.align = align
+    return r
+end function
+
+public type TuiBlock extends TuiWidget
+    '' `borderKind` and not `kind`: identifiers are case-insensitive, so a
+    '' field named `kind` collides with the abstract Kind( ) every widget must
+    '' implement -- error 4, reported against the `override` keyword.
+    as ubyte borderKind
+    as ubyte sides
+    as TuiStyle borderStyle
+    as TuiStyle fillStyle
+    as boolean fill
+    as TuiTitleArray titles
+
+    declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+    declare function Kind( ) as ustring override
+    declare function Inner( byval area as TuiRect ) as TuiRect
+    declare sub AddTitle( byref t as ustring, byval st as TuiStyle, _
+                          byval side as TuiBorderSide = TUISIDE_TOP, _
+                          byval align as TuiAlign = TUIALIGN_LEFT )
+
+    private:
+        declare sub hTitles( byref f as TuiFrame, byval area as TuiRect, byval side as TuiBorderSide )
+end type
+
+function TuiBlock.Kind( ) as ustring : return "Block" : end function
+
+sub TuiBlock.AddTitle( byref t as ustring, byval st as TuiStyle, _
+                               byval side as TuiBorderSide, byval align as TuiAlign )
+    titles.Push( TuiTitleOf( t, st, side, align ) )
+end sub
+
+'' Clamps: a TuiBlock with all four sides in a 1x1 rectangle returns an empty
+'' inner rect, which is legal.
+function TuiBlock.Inner( byval area as TuiRect ) as TuiRect
+    dim as TuiMargin m
+    if( borderKind <> TUIBORDER_NONE ) then
+        if( ( sides and TUISIDE_LEFT ) <> 0 )   then m.left = 1
+        if( ( sides and TUISIDE_TOP ) <> 0 )    then m.top = 1
+        if( ( sides and TUISIDE_RIGHT ) <> 0 )  then m.right = 1
+        if( ( sides and TUISIDE_BOTTOM ) <> 0 ) then m.bottom = 1
+    end if
+    return area.Inner( m )
+end function
+
+'' Left-aligned titles are laid out first, then right-aligned from the right
+'' edge, then centred in what remains. A title that no longer fits is truncated.
+sub TuiBlock.hTitles( byref f as TuiFrame, byval area as TuiRect, byval side as TuiBorderSide )
+    if( area.w <= 0 ) then exit sub
+    dim as long y = iif( side = TUISIDE_TOP, area.y, area.Bottom( ) - 1 )
+    if( ( y < area.y ) orelse ( y >= area.Bottom( ) ) ) then exit sub
+
+    dim as long lx = area.x + 1
+    dim as long rx = area.Right( ) - 1
+
+    '' pass 1: left, then pass 2: right, then pass 3: centre
+    for pass as long = 0 to 2
+        for i as long = 0 to titles.Count( ) - 1
+            if( titles[i].side <> side ) then continue for
+            dim as long a = titles[i].align
+            if( ( pass = 0 ) andalso ( a <> TUIALIGN_LEFT ) ) then continue for
+            if( ( pass = 1 ) andalso ( a <> TUIALIGN_RIGHT ) ) then continue for
+            if( ( pass = 2 ) andalso ( a <> TUIALIGN_CENTER ) ) then continue for
+
+            dim as long room = rx - lx
+            if( room <= 0 ) then exit for
+            dim as ustring t = TuiTruncate( titles[i].text, room )
+            dim as long tw = TuiStringWidth( t )
+            if( tw <= 0 ) then continue for
+
+            select case a
+            case TUIALIGN_LEFT
+                f.DrawText( lx, y, t, titles[i].st )
+                lx += tw + 1
+            case TUIALIGN_RIGHT
+                f.DrawText( rx - tw, y, t, titles[i].st )
+                rx -= tw + 1
+            case else
+                dim as long cx = lx + ( room - tw ) \ 2
+                f.DrawText( cx, y, t, titles[i].st )
+            end select
+        next
+    next
+end sub
+
+sub TuiBlock.Render( byref f as TuiFrame, byval area as TuiRect )
+    if( area.IsEmpty( ) ) then exit sub
+
+    if( fill ) then f.FillRect( area, " ", fillStyle )
+    if( borderKind = TUIBORDER_NONE ) then exit sub
+
+    dim as TuiBorderSet g = TuiBorderGlyphs( cast( TuiBorderKind, borderKind ) )
+    dim as boolean T_ = ( ( sides and TUISIDE_TOP ) <> 0 )
+    dim as boolean B_ = ( ( sides and TUISIDE_BOTTOM ) <> 0 )
+    dim as boolean L_ = ( ( sides and TUISIDE_LEFT ) <> 0 )
+    dim as boolean R_ = ( ( sides and TUISIDE_RIGHT ) <> 0 )
+
+    if( T_ ) then
+        for x as long = area.x to area.Right( ) - 1
+            f.SetCell( x, area.y, g.h, borderStyle )
+        next
+    end if
+    if( B_ andalso ( area.h > 1 ) ) then
+        for x as long = area.x to area.Right( ) - 1
+            f.SetCell( x, area.Bottom( ) - 1, g.h, borderStyle )
+        next
+    end if
+    if( L_ ) then
+        for y as long = area.y to area.Bottom( ) - 1
+            f.SetCell( area.x, y, g.v, borderStyle )
+        next
+    end if
+    if( R_ andalso ( area.w > 1 ) ) then
+        for y as long = area.y to area.Bottom( ) - 1
+            f.SetCell( area.Right( ) - 1, y, g.v, borderStyle )
+        next
+    end if
+
+    '' corners only where both sides meet
+    if( T_ andalso L_ ) then f.SetCell( area.x, area.y, g.tl, borderStyle )
+    if( T_ andalso R_ andalso ( area.w > 1 ) ) then f.SetCell( area.Right( ) - 1, area.y, g.tr, borderStyle )
+    if( B_ andalso L_ andalso ( area.h > 1 ) ) then f.SetCell( area.x, area.Bottom( ) - 1, g.bl, borderStyle )
+    if( B_ andalso R_ andalso ( area.w > 1 ) andalso ( area.h > 1 ) ) then _
+        f.SetCell( area.Right( ) - 1, area.Bottom( ) - 1, g.br, borderStyle )
+
+    if( T_ ) then hTitles( f, area, TUISIDE_TOP )
+    if( B_ andalso ( area.h > 1 ) ) then hTitles( f, area, TUISIDE_BOTTOM )
+end sub
+
+'' ============================================================== paragraph
+
+public type TuiParagraph extends TuiWidget
+    as ustring text
+    as TuiStyle st
+    as boolean wrap
+    as ubyte align
+    as long scrollY
+
+    declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+    declare function Kind( ) as ustring override
+    declare function SizeHint( byval avail as TuiRect ) as TuiSize override
+end type
+
+function TuiParagraph.Kind( ) as ustring : return "Paragraph" : end function
+
+function TuiParagraph.SizeHint( byval avail as TuiRect ) as TuiSize
+    if( wrap andalso ( avail.w > 0 ) ) then
+        return TuiSizeOf( avail.w, TuiWrap( text, avail.w ).Count( ) )
+    end if
+    return TuiSizeOf( TuiStringWidth( text ), 1 )
+end function
+
+sub TuiParagraph.Render( byref f as TuiFrame, byval area as TuiRect )
+    if( area.IsEmpty( ) ) then exit sub
+
+    dim as TuiStringArray lines_
+    if( wrap ) then
+        lines_ = TuiWrap( text, area.w )
+    else
+        '' still split on explicit newlines
+        lines_ = TuiWrap( text, 1000000 )
+    end if
+
+    dim as long row = 0
+    for i as long = scrollY to lines_.Count( ) - 1
+        if( row >= area.h ) then exit for
+        dim as ustring ln = TuiTruncate( lines_[i], area.w )
+        dim as long w = TuiStringWidth( ln )
+        dim as long x = area.x
+        select case align
+        case TUIALIGN_CENTER : x = area.x + ( area.w - w ) \ 2
+        case TUIALIGN_RIGHT  : x = area.x + ( area.w - w )
+        end select
+        if( x < area.x ) then x = area.x
+        f.DrawText( x, area.y + row, ln, st )
+        row += 1
+    next
+end sub
+
+'' ============================================================== list
+
+public type TuiListState
+    as long selected            '' -1 = nothing selected
+    as long offset              '' first visible row
+end type
+
+public type TuiList extends TuiWidget
+    as TuiStringArray items
+    as TuiStyle normal, selected
+    as ustring selectPrefix
+    as boolean wrapSelection
+    as TuiListState ptr state   '' CALLER-OWNED, never deleted here
+    as boolean focused
+
+    declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+    declare function Kind( ) as ustring override
+    declare function HandleEvent( byref e as TuiEvent ) as boolean override
+    declare function CanFocus( ) as boolean override
+    declare sub SetFocused( byval on_ as boolean ) override
+
+    private:
+        as long lastH
+        declare sub hClamp( )
+end type
+
+function TuiList.Kind( ) as ustring : return "List" : end function
+function TuiList.CanFocus( ) as boolean : return TRUE : end function
+sub TuiList.SetFocused( byval on_ as boolean ) : focused = on_ : end sub
+
+'' The scroll follows the SELECTION, never the other way round.
+sub TuiList.hClamp( )
+    if( state = 0 ) then exit sub
+    dim as long n = items.Count( )
+    if( n = 0 ) then
+        state->selected = -1
+        state->offset = 0
+        exit sub
+    end if
+
+    if( state->selected < 0 ) then state->selected = iif( wrapSelection, n - 1, 0 )
+    if( state->selected >= n ) then state->selected = iif( wrapSelection, 0, n - 1 )
+
+    dim as long h = iif( lastH > 0, lastH, 1 )
+    if( state->offset > state->selected ) then state->offset = state->selected
+    if( state->selected >= state->offset + h ) then state->offset = state->selected - h + 1
+    if( state->offset < 0 ) then state->offset = 0
+    if( state->offset > n - 1 ) then state->offset = iif( n > 0, n - 1, 0 )
+end sub
+
+sub TuiList.Render( byref f as TuiFrame, byval area as TuiRect )
+    if( area.IsEmpty( ) ) then exit sub
+    lastH = area.h
+    hClamp( )
+
+    dim as long off = iif( state <> 0, state->offset, 0 )
+    dim as long sel = iif( state <> 0, state->selected, -1 )
+    dim as long pw = TuiStringWidth( selectPrefix )
+
+    for row as long = 0 to area.h - 1
+        dim as long i = off + row
+        if( i >= items.Count( ) ) then exit for
+        dim as boolean isSel = ( i = sel )
+        dim as TuiStyle st = iif( isSel, selected, normal )
+
+        f.FillRect( TuiRectOf( area.x, area.y + row, area.w, 1 ), " ", st )
+        dim as long x = area.x
+        if( pw > 0 ) then
+            if( isSel ) then
+                f.DrawText( x, area.y + row, selectPrefix, st )
+            end if
+            x += pw
+        end if
+        f.DrawText( x, area.y + row, TuiTruncate( items[i], area.Right( ) - x ), st )
+    next
+end sub
+
+function TuiList.HandleEvent( byref e as TuiEvent ) as boolean
+    if( focused = FALSE ) then return FALSE
+    if( e.kind <> TUIEVENT_KEY ) then return FALSE
+    if( state = 0 ) then return FALSE
+    if( items.Count( ) = 0 ) then return FALSE
+
+    dim as long h = iif( lastH > 0, lastH, 1 )
+    select case e.key.code
+    case TUIKEY_UP       : state->selected -= 1
+    case TUIKEY_DOWN     : state->selected += 1
+    case TUIKEY_PAGEUP   : state->selected -= h
+    case TUIKEY_PAGEDOWN : state->selected += h
+    case TUIKEY_HOME     : state->selected = 0
+    case TUIKEY_END_     : state->selected = items.Count( ) - 1
+    case else            : return FALSE
+    end select
+
+    '' clamp without wrapping for the paging keys
+    if( state->selected < 0 ) then state->selected = iif( wrapSelection, items.Count( ) - 1, 0 )
+    if( state->selected >= items.Count( ) ) then state->selected = iif( wrapSelection, 0, items.Count( ) - 1 )
+    hClamp( )
+    return TRUE
+end function
+
+'' ============================================================== table
+
+public type TuiRow
+    as TuiStringArray cells
+end type
+
+public type TuiRowArray as Array( of TuiRow )
+
+public type TuiTableState
+    as long selected, offset
+end type
+
+public type TuiTable extends TuiWidget
+    as TuiStringArray headers
+    as TuiRowArray rows
+    as TuiConstraintArray widths
+    as TuiStyle headerStyle, rowStyle, selectedStyle
+    as boolean showHeader
+    as TuiTableState ptr state
+    as boolean focused
+
+    declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+    declare function Kind( ) as ustring override
+    declare function HandleEvent( byref e as TuiEvent ) as boolean override
+    declare function CanFocus( ) as boolean override
+    declare sub SetFocused( byval on_ as boolean ) override
+
+    private:
+        as long lastBody
+        declare sub hClamp( )
+end type
+
+function TuiTable.Kind( ) as ustring : return "Table" : end function
+
+'' THE SCROLL FOLLOWS THE SELECTION, AND IT MUST DO SO IN Render.
+''
+'' Doing it only in HandleEvent works right up until an application moves
+'' `selected` itself instead of routing keys through the table -- which is
+'' exactly what examples/dashboard.bas does. The selection then walks below the
+'' visible window, the offset never follows, and the table shows no highlighted
+'' row at all while the status line reports a selection. TuiList always got this
+'' right; TuiTable did not, and the two are siblings.
+sub TuiTable.hClamp( )
+    if( state = 0 ) then exit sub
+    dim as long n = rows.Count( )
+    if( n = 0 ) then
+        state->selected = -1
+        state->offset = 0
+        exit sub
+    end if
+    if( state->selected < 0 ) then state->selected = 0
+    if( state->selected >= n ) then state->selected = n - 1
+
+    dim as long h = iif( lastBody > 0, lastBody, 1 )
+    if( state->offset > state->selected ) then state->offset = state->selected
+    if( state->selected >= state->offset + h ) then state->offset = state->selected - h + 1
+    if( state->offset < 0 ) then state->offset = 0
+    if( state->offset > n - 1 ) then state->offset = n - 1
+end sub
+function TuiTable.CanFocus( ) as boolean : return TRUE : end function
+sub TuiTable.SetFocused( byval on_ as boolean ) : focused = on_ : end sub
+
+sub TuiTable.Render( byref f as TuiFrame, byval area as TuiRect )
+    if( area.IsEmpty( ) ) then exit sub
+
+    dim as long top = area.y
+    dim as long h = area.h
+    if( showHeader andalso ( h > 0 ) ) then
+        '' column widths come from the SAME RFC-0006 solver -- there is not a
+        '' second sizing algorithm in this module
+        dim as TuiRectArray cols = TuiSplitH( TuiRectOf( area.x, top, area.w, 1 ), widths )
+        f.FillRect( TuiRectOf( area.x, top, area.w, 1 ), " ", headerStyle )
+        for c as long = 0 to headers.Count( ) - 1
+            if( c >= cols.Count( ) ) then exit for
+            if( cols[c].w <= 0 ) then continue for
+            f.DrawText( cols[c].x, top, TuiTruncate( headers[c], cols[c].w ), headerStyle )
+        next
+        top += 1
+        h -= 1
+    end if
+
+    lastBody = h
+    if( h <= 0 ) then exit sub
+    hClamp( )
+
+    dim as long off = iif( state <> 0, state->offset, 0 )
+    dim as long sel = iif( state <> 0, state->selected, -1 )
+    if( off < 0 ) then off = 0
+
+    dim as TuiRectArray cols = TuiSplitH( TuiRectOf( area.x, top, area.w, 1 ), widths )
+    for row as long = 0 to h - 1
+        dim as long i = off + row
+        if( i >= rows.Count( ) ) then exit for
+        dim as TuiStyle st = iif( i = sel, selectedStyle, rowStyle )
+        f.FillRect( TuiRectOf( area.x, top + row, area.w, 1 ), " ", st )
+        for c as long = 0 to rows[i].cells.Count( ) - 1
+            if( c >= cols.Count( ) ) then exit for
+            if( cols[c].w <= 0 ) then continue for
+            f.DrawText( cols[c].x, top + row, TuiTruncate( rows[i].cells[c], cols[c].w ), st )
+        next
+    next
+end sub
+
+function TuiTable.HandleEvent( byref e as TuiEvent ) as boolean
+    if( focused = FALSE ) then return FALSE
+    if( e.kind <> TUIEVENT_KEY ) then return FALSE
+    if( state = 0 ) then return FALSE
+    if( rows.Count( ) = 0 ) then return FALSE
+
+    dim as long h = iif( lastBody > 0, lastBody, 1 )
+    select case e.key.code
+    case TUIKEY_UP       : state->selected -= 1
+    case TUIKEY_DOWN     : state->selected += 1
+    case TUIKEY_PAGEUP   : state->selected -= h
+    case TUIKEY_PAGEDOWN : state->selected += h
+    case TUIKEY_HOME     : state->selected = 0
+    case TUIKEY_END_     : state->selected = rows.Count( ) - 1
+    case else            : return FALSE
+    end select
+
+    hClamp( )
+    return TRUE
+end function
+
+'' ============================================================== tabs
+
+public type TuiTabs extends TuiWidget
+    as TuiStringArray titles
+    as long selected
+    as ustring divider
+    as TuiStyle normal, active
+
+    declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+    declare function Kind( ) as ustring override
+end type
+
+function TuiTabs.Kind( ) as ustring : return "Tabs" : end function
+
+sub TuiTabs.Render( byref f as TuiFrame, byval area as TuiRect )
+    if( area.IsEmpty( ) ) then exit sub
+    '' IIF does not accept ustring operands -- error 24. Spelled out.
+    dim as ustring div_ = " | "
+    if( len( divider ) > 0 ) then div_ = divider
+    dim as long x = area.x
+
+    for i as long = 0 to titles.Count( ) - 1
+        if( x >= area.Right( ) ) then exit for
+        dim as TuiStyle st = iif( i = selected, active, normal )
+        dim as ustring t = TuiTruncate( titles[i], area.Right( ) - x )
+        x += f.DrawText( x, area.y, t, st )
+        if( ( i < titles.Count( ) - 1 ) andalso ( x < area.Right( ) ) ) then
+            x += f.DrawText( x, area.y, TuiTruncate( div_, area.Right( ) - x ), normal )
+        end if
+    next
+end sub
+
+'' ============================================================== gauge
+
+'' The eight vertical partial blocks give one-eighth-cell resolution at the tip.
+public function TuiEighthBlock( byval n as long ) as ustring
+    dim as ustring s
+    if( n <= 0 ) then return " "
+    if( n >= 8 ) then
+        TuiAppendCp( s, &h2588 )        '' FULL BLOCK
+        return s
+    end if
+    '' U+258F LEFT ONE EIGHTH BLOCK .. U+2589 LEFT SEVEN EIGHTHS BLOCK
+    TuiAppendCp( s, &h2590 - n )
+    return s
+end function
+
+public type TuiGauge extends TuiWidget
+    as double ratio             '' 0.0 .. 1.0, clamped
+    as ustring label            '' empty = the percentage
+    as TuiStyle bar, background
+    as boolean useUnicode
+    as boolean showLabel
+
+    declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+    declare function Kind( ) as ustring override
+end type
+
+function TuiGauge.Kind( ) as ustring : return "Gauge" : end function
+
+sub TuiGauge.Render( byref f as TuiFrame, byval area as TuiRect )
+    if( area.IsEmpty( ) ) then exit sub
+
+    dim as double r = ratio
+    if( r < 0.0 ) then r = 0.0
+    if( r > 1.0 ) then r = 1.0
+
+    f.FillRect( TuiRectOf( area.x, area.y, area.w, 1 ), " ", background )
+
+    dim as long eighths = clng( r * area.w * 8 )
+    dim as long full_ = eighths \ 8
+    dim as long rem_ = eighths mod 8
+
+    dim as ustring block_
+    if( useUnicode ) then
+        TuiAppendCp( block_, &h2588 )
+    else
+        block_ = "#"
+    end if
+    for i as long = 0 to full_ - 1
+        if( area.x + i >= area.Right( ) ) then exit for
+        f.SetCell( area.x + i, area.y, block_, bar )
+    next
+    if( useUnicode andalso ( rem_ > 0 ) andalso ( area.x + full_ < area.Right( ) ) ) then
+        f.SetCell( area.x + full_, area.y, TuiEighthBlock( rem_ ), bar )
+    end if
+
+    if( showLabel ) then
+        dim as ustring t = label
+        if( len( t ) = 0 ) then t = str( clng( r * 100 ) ) & "%"
+        dim as long w = TuiStringWidth( t )
+        dim as long x = area.x + ( area.w - w ) \ 2
+        if( x < area.x ) then x = area.x
+        f.DrawText( x, area.y, TuiTruncate( t, area.w ), bar )
+    end if
+end sub
+
+'' ============================================================== spinner
+
+public type TuiSpinner extends TuiWidget
+    as long frame
+    as TuiStringArray frames
+    as TuiStyle st
+
+    declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+    declare function Kind( ) as ustring override
+    declare sub Advance( )
+end type
+
+function TuiSpinner.Kind( ) as ustring : return "Spinner" : end function
+
+'' The default frames are the braille spinner, built from codepoints.
+public sub TuiSpinnerDefaultFrames( byref out as TuiStringArray )
+    out.Clear( )
+    static as ulong cps( 0 to 9 ) = { &h280B, &h2819, &h2839, &h2838, &h283C, _
+                                      &h2834, &h2826, &h2827, &h2807, &h280F }
+    for i as long = 0 to 9
+        dim as ustring s
+        TuiAppendCp( s, cps( i ) )
+        out.Push( s )
+    next
+end sub
+
+sub TuiSpinner.Advance( )
+    if( frames.Count( ) = 0 ) then exit sub
+    frame = ( frame + 1 ) mod frames.Count( )
+end sub
+
+sub TuiSpinner.Render( byref f as TuiFrame, byval area as TuiRect )
+    if( area.IsEmpty( ) ) then exit sub
+    if( frames.Count( ) = 0 ) then exit sub
+    dim as long i = frame mod frames.Count( )
+    if( i < 0 ) then i = 0
+    f.DrawText( area.x, area.y, frames[i], st )
+end sub
+
+'' ============================================================== scrollbar
+
+public type TuiScrollbar extends TuiWidget
+    as long total, visible, position
+    as boolean vertical
+    as TuiStyle thumb, track
+    as ustring thumbChar, trackChar
+
+    declare sub Render( byref f as TuiFrame, byval area as TuiRect ) override
+    declare function Kind( ) as ustring override
+end type
+
+function TuiScrollbar.Kind( ) as ustring : return "Scrollbar" : end function
+
+'' Renders NOTHING when everything fits. The thumb is at least one cell however
+'' long the content is -- a zero-height thumb is invisible, and a scrollbar you
+'' cannot see is not a scrollbar.
+sub TuiScrollbar.Render( byref f as TuiFrame, byval area as TuiRect )
+    if( area.IsEmpty( ) ) then exit sub
+    if( total <= 0 ) then exit sub
+    if( visible >= total ) then exit sub
+
+    dim as ustring tc = thumbChar
+    dim as ustring kc = trackChar
+    if( len( tc ) = 0 ) then TuiAppendCp( tc, &h2588 )
+    if( len( kc ) = 0 ) then TuiAppendCp( kc, &h2502 )
+
+    dim as long span = iif( vertical, area.h, area.w )
+    if( span <= 0 ) then exit sub
+
+    dim as long tlen = ( visible * span ) \ total
+    if( tlen < 1 ) then tlen = 1
+    if( tlen > span ) then tlen = span
+
+    dim as long maxPos = total - visible
+    dim as long pos = position
+    if( pos < 0 ) then pos = 0
+    if( pos > maxPos ) then pos = maxPos
+    dim as long tpos = iif( maxPos > 0, ( pos * ( span - tlen ) ) \ maxPos, 0 )
+
+    for i as long = 0 to span - 1
+        dim as boolean onThumb = ( i >= tpos ) andalso ( i < tpos + tlen )
+        dim as ustring g = kc
+        if( onThumb ) then g = tc
+        dim as TuiStyle st = iif( onThumb, thumb, track )
+        if( vertical ) then
+            f.SetCell( area.x, area.y + i, g, st )
+        else
+            f.SetCell( area.x + i, area.y, g, st )
+        end if
+    next
+end sub
+

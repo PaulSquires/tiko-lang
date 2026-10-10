@@ -61,8 +61,15 @@ private function RtlGlobalChain_ ( byref c as Ctx, byval sc as Tko.ScopeId ) as 
         dim as Tko.SymScope ptr ss = c.syms->ScopeAt( sc )
         if ss = 0 then return false
         select case ss->kind
-        case Tko.SCOPEK_GLOBAL, Tko.SCOPEK_MODULE
+        case Tko.SCOPEK_GLOBAL
             return true
+        '' A MODULE IS A NAMESPACE (ADR 0017): its names are spelled from its chain and never
+        '' meet the global runtime procedures, so it takes what a namespace takes. fb/tui.bi
+        '' declared 'dim as ustring out' inside namespace FB, and as std/tui the same
+        '' local was TKO0813 (2026-10-10). An ordinary program's file scope is a MODULE scope
+        '' too, and is the global namespace's: only a '#module' unit's is not.
+        case Tko.SCOPEK_MODULE
+            return (c.syms->modFileCount = 0)
         case Tko.SCOPEK_NAMESPACE, Tko.SCOPEK_TYPE
             return false
         case Tko.SCOPEK_PROC

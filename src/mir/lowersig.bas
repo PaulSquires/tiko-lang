@@ -280,4 +280,49 @@ function DeclIndexFor_ _
     return c.m->functions.Count - 1
 end function
 
+'' (Moved here from lowerintr.bas on 2026-10-10 for the 1500-line cap.)
+'' The ADDRESS of a procedure symbol, as an M_FUNC_ADDR over the function table index.
+'' Split out of LowerProcPtr because ERASE over a UDT array needs the same thing for a
+'' constructor and a destructor that no source expression names.
+''
+'' A STRUCTOR'S DECLARATION IS MADE WHOLE: its receiver, from 'structor'. An address alone
+'' says nothing of a signature, so the declaration was an empty stub, and when the structor
+'' was IMPORTED -- no definition here to replace it -- every later call found the stub by
+'' name and went out with 'this' against a declaration of nothing: 'calls TT::TT with 1
+'' arguments, which declares 0', in any program instantiating FB.Array( of mod.TT ) over a
+'' module type with a constructor (std/tui's TuiColor, 2026-10-10). REDIM PRESERVE takes
+'' the constructor's address before anything calls it.
+function FuncAddrOf( byref c as Ctx, byval fsid as Tko.SymbolId, _
+                     byval structor as boolean = false ) as MirValue
+    dim as MirValue none_
+    dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
+    if fs = 0 then return none_
+    if fs->kind <> cast( ubyte, Tko.SYM_PROC ) then return none_
+    dim as Tko.NodeId pn = cast( Tko.NodeId, fs->payload )
+    if pn = Tko.NODE_NONE then return none_
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
+
+    dim as Tko.InternId nm = c.names->GetString( _
+        Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
+    dim as long fidx = -1
+    for i as long = 0 to c.m->functions.Count - 1
+        if c.m->functions[i]->name = nm then
+            fidx = i
+            exit for
+        end if
+    next
+    if fidx < 0 then
+        dim as MirFunction ptr decl = c.m->AddFunction( nm, MT_VOID )
+        decl->isDefinition = false
+        if structor then SignatureFromProc( c, decl, pn, false, true )
+        fidx = c.m->functions.Count - 1
+    end if
+
+    dim as MirInst fa
+    fa.op = cast( ushort, M_FUNC_ADDR )
+    fa.ty = cast( ubyte, MT_PTR )
+    fa.callee = cast( ulong, fidx )
+    return Emit( c, fa )
+end function
+
 end namespace

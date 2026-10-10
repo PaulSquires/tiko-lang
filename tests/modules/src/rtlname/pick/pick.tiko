@@ -1,0 +1,6 @@
+#module "pick"
+'' A local named like a runtime procedure: accepted in a module, as in a namespace.
+public function Three( ) as long
+    dim as long out = 3
+    return out
+end function

@@ -1,0 +1,9 @@
+'' A MODULE IS A NAMESPACE TO THE RUNTIME-NAME RULE (fbc's error 4, TKO0813): 'dim as long out'
+'' in a module's procedure is accepted, as it is inside a NAMESPACE, where fb/tui.bi had it
+'' before it became std/tui. In the global namespace it is still TKO0813 (rtl-name-clash).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/modules/src/rtlname/main.bas -o tests/modules/rtlname.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/rtlname.exe
+'' EXPECT-RUN-OUT: 3

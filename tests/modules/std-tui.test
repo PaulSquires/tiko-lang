@@ -1,10 +1,10 @@
-'' std/tui (RFC-0009): a TuiRect into an FB.TuiRect parameter, TuiRectOf, the public TuiMin_ and TUIKEY_END_, TuiRgb, TuiStringWidth -- nothing that touches the terminal.
-'' It is a facade -- exported macros over the header, found through -i as a user's toolchain
-'' finds it in its inc/ -- and the program includes that header too, so the facade's names
-'' and the header's FB names are shown to be one and the same.
+'' std/tui, a real module since 2026-10-10 (it was a facade over fb/tui.bi): TuiRectOf, the
+'' public TuiMin_ and TUIKEY_END_, TuiRgb, TuiStringWidth, and TUI_UCD_VERSION -- a header
+'' #define, now a public constant -- bare under 'using tui'. Nothing touches the terminal.
 '' TEST: cli
 '' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/tui.bas -o tests/modules/stdtui.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdtui.exe
 '' EXPECT-RUN-OUT: 12 3 -1
+'' EXPECT-RUN-OUT: 2 17.0.0

@@ -70,7 +70,7 @@ for _m, _hs in MODULES.items():
         HDR_MODULE[os.path.basename(_h)] = _m
 
 PROC = r"(?:function|sub|operator|property|constructor|destructor)"
-RX_MEMBER = re.compile(r"^(\s*)private\s+(?:(static)\s+)?(" + PROC + r")(\s+)([\w]+\s*(?:\(\s*of\b[^)]*\))?\s*\.)", re.I)
+RX_MEMBER = re.compile(r"^(\s*)private\s+((?:(?:static|const|virtual|abstract)\s+)*)(" + PROC + r")(\s+)([\w]+\s*(?:\(\s*of\b[^)]*\))?\s*\.)", re.I)
 RX_CTOR = re.compile(r"^(\s*)private\s+((?:constructor|destructor)\s+\w+\s*(?:\(\s*of\b[^)]*\))?\s*[(:]?)", re.I)
 RX_FREEPROC = re.compile(r"^(\s*)private\s+(function|sub)(\s+)(\w+)", re.I)
 RX_FREEOP = re.compile(r"^(\s*)private\s+operator\b", re.I)
@@ -89,14 +89,15 @@ RX_FBNS_INC = {"fberror.bi", "fbpark.bi", "fbclaim.bi", "fblimits.bi", "fbatomic
 
 
 def api_names(mod):
-    """The facade's exported names, lower-cased: its '#define X FB.X' lines."""
-    p = os.path.join(ROOT, "pkg", "std", mod, mod + ".bas")
+    """The facade's exported names, lower-cased."""
+    # Frozen in tests/std/api when the facades went: '<name> <header name>' per line.
+    p = os.path.join(ROOT, "tests", "std", "api", mod + ".txt")
     names = set(EXTRA_PUBLIC.get(mod, set()))
     if os.path.isfile(p):
         for ln in io.open(p, encoding="utf-8"):
-            m = re.match(r"#define (\w+) FB\.(\w+)", ln)
-            if m and m.group(1) == m.group(2):
-                names.add(m.group(1).lower())
+            f = ln.split()
+            if len(f) == 2 and f[0] == f[1]:
+                names.add(f[0].lower())
     return names
 
 
@@ -115,12 +116,68 @@ def code_of(ln):
     return "".join(out)
 
 
-def port(mod, hdr, api, converted, notes):
+def header_lines(hdr):
     path = os.path.normpath(os.path.join(INC, "fb", hdr))
     src = io.open(path, encoding="utf-8", newline="").read().replace("\r\n", "\n")
     lines = src.split("\n")
     if lines and lines[-1] == "":
         lines.pop()
+    return lines
+
+
+def carried_includes(mod, hdr, seen):
+    """WHAT A SAME-MODULE HEADER BROUGHT WITH IT. A module's files do not share includes --
+    each is preprocessed alone -- so the file that included 'fb/tuiterm.bi' and got
+    windows.bi through it must include windows.bi itself. Its include lines, and each
+    top-level '#if' block that holds nothing but includes, verbatim; a same-module header
+    inside is followed in turn. Each header once."""
+    if hdr in seen:
+        return []
+    seen.add(hdr)
+    out = []
+    lines = header_lines(hdr)
+    i = 0
+    depth = 0
+    while i < len(lines):
+        code = code_of(lines[i]).strip()
+        lo = code.lower()
+        if depth == 0 and re.match(r"#if(n?def)?\b", lo):
+            # A block of includes only?
+            j, d, ok = i + 1, 1, True
+            while j < len(lines) and d > 0:
+                c = code_of(lines[j]).strip().lower()
+                if re.match(r"#if(n?def)?\b", c):
+                    d += 1
+                elif c.startswith("#endif"):
+                    d -= 1
+                elif c and not (c.startswith("#include") or c.startswith("#else")
+                                or c.startswith("#elseif")):
+                    ok = False
+                j += 1
+            if ok:
+                out.extend(ln.replace("\t", "    ") for ln in lines[i:j])
+            i = j
+            continue
+        if re.match(r"#if(n?def)?\b", lo):
+            depth += 1
+        elif lo.startswith("#endif"):
+            depth -= 1
+        elif depth == 0:
+            mi = RX_INC.match(code)
+            if mi:
+                inc = mi.group(2)
+                base = os.path.basename(inc)
+                dep = HDR_MODULE.get(base) if (inc.startswith("fb/") or inc == "containers.bi") else None
+                if dep == mod:
+                    out.extend(carried_includes(mod, base, seen))
+                else:
+                    out.append(code)
+        i += 1
+    return out
+
+
+def port(mod, hdr, api, converted, notes):
+    lines = header_lines(hdr)
     out = ['#module "%s"' % mod]
     imports, nsstack = [], []
     inproc = intype = 0
@@ -129,14 +186,20 @@ def port(mod, hdr, api, converted, notes):
     usingfb = False
     need_fb = False
     placed_using = False
-    for raw in lines:
+    carried = set([os.path.basename(hdr)])
+    dedent = False
+    lines = list(lines)
+    k = 0
+    while k < len(lines):
+        raw = lines[k]
+        k += 1
         ln = raw
         # Leading tabs -> spaces.
         m = re.match(r"^(\t+)", ln)
         if m:
             ln = "    " * len(m.group(1)) + ln[len(m.group(1)):]
-        # One level less inside what was 'namespace FB'.
-        if nsstack[:1] == ["FB"] and ln.startswith("    "):
+        # One level less inside what was 'namespace FB' -- when the header indented it.
+        if dedent and nsstack[:1] == ["FB"] and ln.startswith("    "):
             ln = ln[4:]
         code = code_of(ln)
         stmt = not cont
@@ -158,6 +221,9 @@ def port(mod, hdr, api, converted, notes):
             base = os.path.basename(inc)
             dep = HDR_MODULE.get(base) if (inc.startswith("fb/") or inc == "containers.bi") else None
             if dep == mod:
+                # Its own includes come instead, processed as if written here.
+                if hdr not in UMBRELLAS:
+                    lines[k:k] = carried_includes(mod, base, carried)
                 continue
             if dep and dep in converted:
                 if dep not in imports:
@@ -171,6 +237,12 @@ def port(mod, hdr, api, converted, notes):
         if mn and not inproc and not intype:
             if mn.group(1).upper() == "FB" and not nsstack:
                 nsstack.append("FB")
+                # Did the header indent what it put inside the namespace?
+                for nxt in lines[k:]:
+                    c = code_of(nxt)
+                    if c.strip() and not c.strip().startswith("#"):
+                        dedent = c[:1] in (" ", "	")
+                        break
                 if need_fb and not placed_using:
                     out.append("using FB")
                     placed_using = True
@@ -189,7 +261,7 @@ def port(mod, hdr, api, converted, notes):
         if intop:
             m = RX_MEMBER.match(ln)
             if m:
-                ln = RX_MEMBER.sub(lambda g: g.group(1) + ((g.group(2) + " ") if g.group(2) else "")
+                ln = RX_MEMBER.sub(lambda g: g.group(1) + (g.group(2) or "")
                                    + g.group(3) + g.group(4) + g.group(5), ln, count=1)
             elif RX_CTOR.match(ln):
                 # A type's constructor or destructor body: a member, as a dotted name is.
@@ -210,7 +282,9 @@ def port(mod, hdr, api, converted, notes):
                         name = m.group(m.lastindex).lower()
                         if (name in api or inmacro) and not re.match(r"\s*public\b", ln, re.I):
                             ln = re.sub(r"^(\s*)", r"\1public ", ln, count=1)
-                if re.match(r"^\s*(private\s+)?dim\s+shared\b|^\s*common\b|^\s*extern\s+(?!\")", ln, re.I):
+                # A header's per-includer global is the module's one: 'private dim shared'.
+                ln = re.sub(r"^(\s*)private\s+(dim\s+shared\b)", r"\1\2", ln, count=1, flags=re.I)
+                if re.match(r"^\s*common\b|^\s*extern\s+(?!\")", ln, re.I):
                     notes.append("%s: global, by hand: %s" % (hdr, ln.strip()[:90]))
                 if re.match(r"^\s*private\s", ln, re.I) and not RX_MEMBER.match(ln):
                     notes.append("%s: 'private' left: %s" % (hdr, ln.strip()[:90]))
@@ -239,14 +313,49 @@ def port(mod, hdr, api, converted, notes):
     return "\n".join([out[0]] + hdrlines + out[1:]) + "\n"
 
 
+def fix_comments(text, mod):
+    """The header's own words, said of the module: its title line, and a usage example's
+    '#include once "fb/x.bi"' (and the 'using FB' after it) as '#import "std/<m>"'. Safe
+    to run again, and on files edited by hand since."""
+    out = []
+    lines = text.split("\n")
+    i = 0
+    while i < len(lines):
+        ln = lines[i]
+        m = re.match(r"^'' (?:fb/)?(\w+)\.bi -- (.*)$", ln)
+        if m and i <= 2:
+            ln = "'' std/%s: %s -- %s" % (mod, m.group(1), m.group(2))
+        m = re.match(r"^(''\s+)#include once \"(fb/\w+\.bi|containers\.bi)\"\s*$", ln)
+        if m and HDR_MODULE.get(os.path.basename(m.group(2))) == mod:
+            ln = m.group(1) + '#import "std/%s"' % mod
+            if i + 1 < len(lines) and re.match(r"^''\s+using FB\s*$", lines[i + 1]):
+                lines[i + 1] = m.group(1) + "using " + mod
+        out.append(ln)
+        i += 1
+    return "\n".join(out)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("module")
     ap.add_argument("--converted", default="", help="modules already real, comma separated")
     ap.add_argument("--out", default=os.path.join(ROOT, "pkg", "std"))
     ap.add_argument("--check", action="store_true", help="print notes, write nothing")
+    ap.add_argument("--comments", action="store_true",
+                    help="only normalise the comments of the module's existing files, in place")
     a = ap.parse_args()
     mod = a.module
+    if a.comments:
+        d = os.path.join(a.out, mod)
+        for f in sorted(os.listdir(d)):
+            if f.endswith(".tiko"):
+                p = os.path.join(d, f)
+                t = io.open(p, encoding="utf-8", newline="").read()
+                n = fix_comments(t, mod)
+                if n != t:
+                    io.open(p, "w", encoding="utf-8", newline="").write(n)
+                    print("stdport: comments in " + f)
+        return
     converted = set(x for x in a.converted.split(",") if x)
     api = api_names(mod)
     notes = []
@@ -254,7 +363,7 @@ def main():
     for h in MODULES[mod]:
         base = os.path.basename(h)
         name = mod if base in UMBRELLAS else os.path.splitext(base)[0]
-        outs[name + ".tiko"] = port(mod, h, api, converted, notes)
+        outs[name + ".tiko"] = fix_comments(port(mod, h, api, converted, notes), mod)
     for n in notes:
         print("stdport: " + n)
     if a.check:

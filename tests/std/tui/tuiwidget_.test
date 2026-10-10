@@ -1,0 +1,8 @@
+'' tests/vendor/fbc-tests/tui/tuiwidget_.bas ported to the std modules (build/stdtests.py, generated).
+'' Expected: what tests/std/baseline/tui/tuiwidget_.txt recorded for the original.
+'' TEST: cli
+'' ARGS: -target win64-msvc -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/tui/tuiwidget_.bas -o tests/std/tui/tuiwidget_.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/std/tui/tuiwidget_.exe
+'' EXPECT-RUN-OUT: 1628      1628         0  fbc_tests.tui.tuiwidget_                      14
