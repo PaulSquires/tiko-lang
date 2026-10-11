@@ -1,5 +1,5 @@
 #module "outcome"
-'' std/outcome: optional -- FB.Optional( of T ), a value that might not be there
+'' std/outcome: optional -- outcome.Optional( of T ), a value that might not be there
 ''
 '' Sketch S.2.  Replaces the "encode absence in the value" idiom, which is
 '' spelled differently in every library and is indistinguishable from a

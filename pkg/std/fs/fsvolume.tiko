@@ -3,7 +3,7 @@
 #import "std/containers"
 using outcome
 using containers
-'' std/fs: fsvolume -- FB.DiskSpace, FB.VolumeInfo, FB.GetVolumes
+'' std/fs: fsvolume -- fs.DiskSpace, fs.VolumeInfo, fs.GetVolumes
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0008-volumes.md.
 ''
@@ -25,7 +25,7 @@ using containers
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/fsvolume.bi requires -lang fb (it uses namespaces)"
+    #error "std/fs requires -lang fb (it uses namespaces)"
 #endif
 
 #if defined( __FB_WIN32__ ) and ( not defined( __FB_64BIT__ ) )

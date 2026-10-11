@@ -58,7 +58,7 @@ using FB
 ''
 '' An INTEGER argument therefore binds to the LONGINT (or LONG) overload by
 '' ordinary widening.  Nothing is lost; only the ambiguity is.
-'' (fb/hash.bi can afford both because its functions take ONE argument, so an
+'' (std/containers' hash.tiko can afford both because its functions take ONE argument, so an
 '' exact match always exists and mixing cannot arise.)
 
 '' ===========================================================================
@@ -309,7 +309,7 @@ end function
 '' fails and its name is in the function name, so an error value would carry no
 '' information.  Optional already default-constructs EMPTY, so a forgotten
 '' assignment reads as overflow rather than as success -- the same property
-'' that made Result default to failure in fb/result.bi.
+'' that made Result default to failure in std/outcome's result.tiko.
 ''
 '' THE LIMITATION, STATED PLAINLY.  These protect the call sites you thought
 '' about.  Overflow bugs live at the call sites nobody thought about, which is

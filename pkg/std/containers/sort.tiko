@@ -61,7 +61,7 @@
 '' resulting order is still garbage.  Return BOOLEAN.
 ''
 '' THE COMPARER GOES THROUGH A GENERIC PARAMETER, 'of TCmp', not a procedure
-'' pointer -- the same reason FB.ForEach does.  A CAPTURING lambda is a closure
+'' pointer -- the same reason ForEach does.  A CAPTURING lambda is a closure
 '' object and cannot convert to a procptr, so a procptr parameter would reject
 '' the most useful kind of comparer:
 ''
@@ -104,9 +104,9 @@ public const SORT_INSERTION_CUTOFF as long = 16
 '' -------------------------------------------------------------- internal
 ''
 '' The six below are the pieces of the algorithms, not the interface.  They are
-'' in namespace FB because a generic procedure cannot be PRIVATE and still be
-'' instantiable from another one's body, and they carry the 'Sort' prefix so
-'' that 'using FB' does not put anything surprising in scope.
+'' not 'public', so the module does not export them. As fb/sort.bi they sat in namespace FB, as a
+'' generic procedure could not be PRIVATE and still be instantiable from another one's body; the
+'' 'Sort' prefix dates from then, so that 'using FB' put nothing surprising in scope.
 
 '' Insertion sort over a.items( lo .. hi ), inclusive.  An empty or one-element
 '' range is a no-op, which is what lets the introsort loop hand it anything.

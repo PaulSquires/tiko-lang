@@ -5,7 +5,7 @@
 using numeric
 using chrono
 using containers
-'' std/logs: logrender -- FB.Logging renderers
+'' std/logs: logrender -- std/logs' renderers
 ''
 '' RFC-0003 -- C:\dev\docs\logging\RFC-0003-renderers.md.
 ''
@@ -55,7 +55,7 @@ public type TextRenderer extends Renderer
     levelwide as boolean      '' default TRUE: pad the level for column alignment
 
     '' TS_MONO's baseline: the first record THIS renderer saw. Not a
-    '' process-wide zero -- a header cannot own one.
+    '' process-wide zero -- a header could not own one.
     m_monobase as longint
 
     declare constructor( )
@@ -117,8 +117,8 @@ function hStampText( byref r as LogRecord, byval mode as TextStamp, byref monoba
         '' start. LogRecord.mono is a RAW monotonic reading -- an absolute
         '' counter with an arbitrary epoch -- because a process-start
         '' baseline would need a process-wide singleton, which a FreeBASIC
-        '' header cannot make (see fb/logger.bi). A renderer is one object,
-        '' so it can hold the baseline that the module cannot.
+        '' header could not make (see logger.tiko). A renderer is one object,
+        '' so it can hold the baseline that the header could not.
         ''
         '' Rendering r.mono directly would print a number in the millions of
         '' seconds and call it an elapsed time.

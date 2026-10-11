@@ -10,24 +10,24 @@
 ''     print Hypot( 3.0, 4.0 )      '' 5
 ''     if( IsNaN( d ) ) then ...
 ''
-'' THE MONEY TYPES ARE SEPARATE HEADERS and are NOT pulled in from here:
+'' THE MONEY TYPES ARE A SEPARATE MODULE and are NOT pulled in from here:
 ''
 ''     #import "std/money"   ' Currency: 8 bytes, four decimal places, fixed
 ''     #import "std/money"   ' Decimal: 16 bytes, 0..28 places, .NET's decimal
 ''
-'' Neither is included by this file on purpose.  Both cost a dependency --
-'' fb/optional.bi for their parse functions, and fb/currency.bi again for
+'' Neither is imported by this module on purpose.  Both cost a dependency --
+'' std/outcome for their parse functions, and Currency again for
 '' Decimal's bridge -- and a program that only wants Round and Clamp should not
-'' pay for them.  Include the one you need beside this one.
+'' pay for them.  Import std/money beside this one when you need them.
 ''
-'' Specified by C:\dev\docs\math\RFC-0001-core.md.  This header is phase 1:
+'' Specified by C:\dev\docs\math\RFC-0001-core.md.  This file is phase 1:
 '' constants, selection, rounding, the libm surface under FreeBASIC names, and
 '' floating-point classification.
 ''
 '' NOTHING HERE IS A KEYWORD.  'min', 'max', 'round' and 'clamp' are all legal
 '' identifiers in FreeBASIC and twenty years of code uses them as variable
-'' names, so everything lives in namespace FB behind this #include.  'using FB'
-'' is the caller's decision; a program with its own 'Min' writes 'FB.Min' or
+'' names, so everything is the module's, behind its #import.  'using numeric'
+'' is the caller's decision; a program with its own 'Min' writes 'numeric.Min' or
 '' does not write it at all.
 ''
 '' NOTHING EXISTING CHANGES.  '^', 'MOD', 'INT', 'FIX', 'VAL', 'STR' and
@@ -44,7 +44,7 @@
 '' silently, twice.  Here a SINGLE argument takes the single path.
 ''
 '' Free overloads rather than members, following the precedent measured in
-'' fb/hash.bi: a member cannot be added to 'double' or 'longint', and a generic
+'' std/containers' hash.tiko: a member cannot be added to 'double' or 'longint', and a generic
 '' body cannot branch on what its type parameter is bound to.  Dispatch has to
 '' be ordinary overload resolution.
 ''
@@ -57,14 +57,14 @@
 
 #include once "fblimits.bi"
 
-'' crt/math.bi DEFINES SIX MACROS NAMED LIKE MEMBERS OF THIS HEADER -- INFINITY,
+'' crt/math.bi DEFINES SIX MACROS NAMED LIKE MEMBERS OF THIS FILE -- INFINITY,
 '' and FP_NAN, FP_INFINITE, FP_ZERO, FP_SUBNORMAL, FP_NORMAL -- and a macro is
 '' global and blind to case.  Read first (crt.bi includes it, and on Linux so
-'' does fb/tuiterm.bi), they rewrote Infinity( ) and the FpClass members below
+'' did fb/tuiterm.bi), they rewrote Infinity( ) and the FpClass members below
 '' into C expressions and this header did not compile, under fbc and tiko
 '' alike.  A program in that order never compiled, so taking the macros back
-'' costs it nothing; FB.Infinity( ) and FB.FP_INFINITE are what this header
-'' offers in their place.
+'' costs it nothing; numeric.Infinity( ) and numeric.FP_INFINITE are what this
+'' module offers in their place.
 #ifdef __crt_math_bi__
     #undef INFINITY
     #undef FP_NAN
@@ -236,7 +236,7 @@ public function MinSubnormalSingle overload ( ) as single
 end function
 
 '' Integer bounds are NOT duplicated here.  fblimits.bi already supplies
-'' MIN_VALUE_LONGINT and friends in this namespace, and a second spelling of the
+'' MIN_VALUE_LONGINT and friends in namespace FB, and a second spelling of the
 '' same constant is how the two drift apart.
 
 '' ---------------------------------------------------------------------------
@@ -478,7 +478,7 @@ end function
 '' ---------------------------------------------------------------------------
 '' Rounding
 ''
-'' The part most often got wrong, and the part FB.Currency depends on.
+'' The part most often got wrong, and the part money.Currency depends on.
 ''
 '' Round is NOT 'int( x + 0.5 )'.  That idiom is wrong twice: wrong for
 '' negatives -- int( -2.5 + 0.5 ) is -2, not -3 -- and wrong just below a tie,

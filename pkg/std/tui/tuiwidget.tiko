@@ -176,7 +176,7 @@ end function
 '' 32 rather than asc( " " ), and that is not style. An intrinsic call with a
 '' string literal inside a GENERIC member body breaks at instantiation:
 '' `error 9: Expected expression, found ')'` -- reported against the line in
-'' this header but quoting an unrelated line from the file that triggered the
+'' this file but quoting an unrelated line from the file that triggered the
 '' instantiation, which makes it thoroughly misleading. The identical
 '' expression in the NON-generic TuiButton.HandleEvent compiles fine.
 public const TUI_SPACE = 32

@@ -3,19 +3,19 @@
 #import "std/containers"
 using outcome
 using containers
-''  LOCAL NAMES HERE MUST NOT COLLIDE WITH ANYTHING DECLARED AT NAMESPACE
-''  SCOPE IN FB.  This file lives inside `namespace FB`, so a local called
-''  `count`, `e` or `norm` is a duplicate of FB.Count (fb/stats.bi), FB.e
+''  LOCAL NAMES HERE AVOID `count`, `e` AND `norm`, FOR A REASON THAT IS NOW
+''  HISTORY.  As fb/fsops.bi this file lived inside `namespace FB`, so such a
+''  local was a duplicate of FB.Count (fb/stats.bi), FB.e
 ''  (fb/math.bi, Euler's number) or FB.Norm (fb/vector.bi) the moment any of
-''  those headers has been included FIRST.
+''  those headers had been included FIRST.
 ''
 ''  It compiled for as long as it did only because filesystem.bi happened to be
-''  included before them.  Reverse the order -- which any program using both
-''  finance and the filesystem will do -- and this file fails to parse with
-''  errors that all point HERE and none of which mention the other header.
+''  included before them.  Reversing the order -- which any program using both
+''  finance and the filesystem would do -- made this file fail to parse with
+''  errors that all pointed HERE and none of which mentioned the other header.
 ''  Hence nParts, failure_ and normalized.
 
-'' fb/fsops.bi -- whole-file IO, bulk directory operations, temp, atomic replace
+'' std/fs: fsops -- whole-file IO, bulk directory operations, temp, atomic replace
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0005-operations.md.
 ''
@@ -39,7 +39,7 @@ using containers
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/fsops.bi requires -lang fb (it uses namespaces)"
+    #error "std/fs requires -lang fb (it uses namespaces)"
 #endif
 
 #if defined( __FB_WIN32__ ) and ( not defined( __FB_64BIT__ ) )
@@ -118,7 +118,7 @@ end function
 
 '' Fills a caller-supplied Array and returns the count, rather than returning
 '' FsResult( of Array( of ubyte ) ): a Result holds BOTH slots always
-'' (result.bi:30-33), so returning an array that way would cost a spare
+'' (std/outcome's result.tiko), so returning an array that way would cost a spare
 '' default-constructed array on every call -- and the caller usually has one to
 '' reuse across a loop of files.
 public function ReadAllBytes( byref p as const ustring, buf as Array( of ubyte ) ) as FsResultI64

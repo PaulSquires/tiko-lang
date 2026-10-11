@@ -20,7 +20,7 @@
 '' THE HAZARD, STATED RATHER THAN HIDDEN.  The optimiser is entitled to move
 '' floating-point operations across a call, and moving one across a
 '' rounding-mode change silently produces the wrong answer.  C solves this with
-'' '#pragma STDC FENV_ACCESS'; fbc has no equivalent, and this header cannot
+'' '#pragma STDC FENV_ACCESS'; fbc has no equivalent, and this file cannot
 '' invent one.  In practice the calls below are opaque to fbc -- it does not
 '' reorder floating-point work across an external call it cannot see into --
 '' but that is an OBSERVATION ABOUT TODAY'S COMPILER, not a guarantee.  Keep
@@ -179,9 +179,9 @@ public type ScopedRounding
     declare destructor( )
 end type
 
-'' PRIVATE, like every other type body in fb/*.bi.  Without it the ctor and dtor
-'' get external linkage, and a second module including this header fails to link
-'' with 'multiple definition of FB::SCOPEDROUNDING::SCOPEDROUNDING(int)'.
+'' Not PRIVATE: std/numeric is one module, compiled once. As fb/fenv.bi these bodies were PRIVATE,
+'' like every type body in fb/*.bi: with external linkage a second module including the header
+'' failed to link with 'multiple definition of FB::SCOPEDROUNDING::SCOPEDROUNDING(int)'.
 
 '' saved_ holds the CRT'S OWN spelling, not FB's -- it is only ever handed back
 '' to fesetround, so translating it twice would be a way to get it wrong.

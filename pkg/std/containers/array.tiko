@@ -1,5 +1,5 @@
 #module "containers"
-'' std/containers: array -- FB.Array( of T ), a growable array
+'' std/containers: array -- containers.Array( of T ), a growable array
 ''
 '' RFC-0004 §2 (there called Vector).  Replaces the 'redim preserve' append
 '' idiom, which reallocates and copies on EVERY call and is therefore O(n²) over
@@ -8,7 +8,7 @@
 ''     redim preserve arr( 0 to ubound( arr ) + 1 )     '' don't
 ''     arr( ubound( arr ) ) = newItem
 ''
-''     dim v as FB.Array( of string )                   '' do
+''     dim v as containers.Array( of string )           '' do
 ''     v.Push( "ada" )
 ''
 '' INDICES ARE ZERO-BASED.  This is a deliberate break with 'dim arr(1 to 10)'
@@ -216,7 +216,7 @@ end sub
 
 '' ------------------------------------------------- free generic procedures
 ''
-'' IndexOf and Contains -- and everything in fb/sort.bi -- are NOT members, and
+'' IndexOf and Contains -- and everything in sort.tiko -- are NOT members, and
 '' that is not a style choice.
 ''
 '' Every member body of a generic is replayed for every instantiation, whether
@@ -247,12 +247,12 @@ public function Contains( of T )( byref a as Array( of T ), byref v as T ) as bo
     return IndexOf( a, v ) >= 0
 end function
 
-'' SORTING IS IN fb/sort.bi, not here.  Sort, SortBy, StableSort, StableSortBy
+'' SORTING IS IN sort.tiko, not here.  Sort, SortBy, StableSort, StableSortBy
 '' and IsSorted are free generic procedures over Array( of T ) for the same
 '' reason IndexOf and Contains are -- they need '<' on T -- but they are a
 '' concern of their own and a good deal longer than this file, so they live in
-'' their own header.  'containers.bi' pulls it in; a program that includes only
-'' 'fb/array.bi' has to include 'fb/sort.bi' as well.
+'' their own file.  Both are std/containers, so '#import "std/containers"'
+'' gets them together.
 
 '' Apply f to every element, in order, passing each BYREF so it can be modified
 '' in place.

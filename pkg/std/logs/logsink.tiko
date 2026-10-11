@@ -5,7 +5,7 @@
 using numeric
 using chrono
 using containers
-'' std/logs: logsink -- FB.Logging sinks
+'' std/logs: logsink -- std/logs' sinks
 ''
 '' RFC-0004 -- C:\dev\docs\logging\RFC-0004-sinks.md.
 ''
@@ -13,14 +13,14 @@ using containers
 '' the only thing in this module that touches the outside world.
 ''
 '' Phase 1 ships ConsoleSink. FileSink and rotation (phase 3) are in
-'' fb/logfile.bi.
+'' logfile.tiko.
 ''
 '' ---------------------------------------------------------------------------
 '' WHY THERE IS NO -mt REQUIREMENT
 ''
 '' mutexcreate/mutexlock work in a SINGLE-THREADED build as well -- measured.
 '' So the lock is unconditional and a program does not have to opt into -mt to
-'' get a correct logger, unlike fb/sync.bi and fb/scheduler.bi which do.
+'' get a correct logger, unlike std/tasks, which does.
 
 
 

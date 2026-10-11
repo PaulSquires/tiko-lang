@@ -4,31 +4,31 @@
 ''     #import "std/money"
 ''     using money
 ''
-'' Specified by C:\dev\docs\finance\ -- README.md is the index, and each header
+'' Specified by C:\dev\docs\finance\ -- README.md is the index, and each file
 '' names the RFC that specifies it.
 ''
-'' AN UMBRELLA, AND NOTHING ELSE.  This file declares no type and no function;
-'' it includes the parts in dependency order, the way fb/filesystem.bi and
-'' fb/logging.bi do.  Include a part directly if you want only that part --
-'' every one of them is independently includable and guarded.
+'' AN OVERVIEW, AND NOTHING ELSE.  This file declares no type and no function;
+'' the parts are the module's other files, the way std/fs and std/logs are
+'' laid out, and one #import gets them all.  (As fb/finance.bi this was an
+'' umbrella that included the part headers in dependency order.)
 ''
-''     Phase  Header             RFC   What it is
+''     Phase  File               RFC   What it is
 ''     -----  -----------------  ----  ------------------------------------
-''       1    fb/finerror.bi     0001  FinanceError, the codes, the aliases
-''       1    fb/fincore.bi      0002  conventions, day count, the rate kernel
-''       2    fb/fintvm.bi       0004  present/future value, payment, term
-''       3    fb/finsolve.bi     0003  the root finder
-''       4    fb/finloan.bi      0005  loans, schedules, amortization
-''       5    fb/fincash.bi      0006  NPV, IRR, MIRR, payback
-''       6    fb/findeprec.bi    0007  depreciation
-''       7    fb/finport.bi      0008  returns and risk
+''       1    finerror.tiko      0001  FinanceError, the codes, the aliases
+''       1    fincore.tiko       0002  conventions, day count, the rate kernel
+''       2    fintvm.tiko        0004  present/future value, payment, term
+''       3    finsolve.tiko      0003  the root finder
+''       4    finloan.tiko       0005  loans, schedules, amortization
+''       5    fincash.tiko       0006  NPV, IRR, MIRR, payback
+''       6    findeprec.tiko     0007  depreciation
+''       7    finport.tiko       0008  returns and risk
 ''
-'' Phases 2 through 7 are not built yet, and this file grows one line each time
-'' one lands.  It lists them above rather than including them, so that the
-'' table is the plan and the includes are the truth.
+'' All seven phases are built.
+'' std/money also holds currency.tiko, decimal.tiko and moneyformat.tiko, which were headers of
+'' their own.
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/finance.bi requires -lang fb (it uses namespaces)"
+    #error "std/money requires -lang fb (it uses namespaces)"
 #endif
 

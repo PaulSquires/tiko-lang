@@ -3,12 +3,12 @@
 #import "std/containers"
 using outcome
 using containers
-'' std/fs: fsglob -- FB.MatchPattern and FB.Glob
+'' std/fs: fsglob -- fs.MatchPattern and fs.Glob
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0006-glob.md.
 ''
 '' TWO FUNCTIONS, and only one of them touches the disk. MatchPattern is pure
-'' and belongs with fspath.bi in spirit; it lives here because the grammar it
+'' and belongs with fspath.tiko in spirit; it lives here because the grammar it
 '' implements is this file's subject. Glob is MatchPattern plus WalkDir plus a
 '' filter, which is why this ranks below the walk it is built on.
 ''
@@ -40,7 +40,7 @@ using containers
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/fsglob.bi requires -lang fb (it uses namespaces)"
+    #error "std/fs requires -lang fb (it uses namespaces)"
 #endif
 
 #if defined( __FB_WIN32__ ) and ( not defined( __FB_64BIT__ ) )
@@ -111,8 +111,8 @@ end function
 '' A caller who needs per-entry errors uses WalkDir with MatchPattern directly,
 '' which is what this function itself does and is two lines:
 ''
-''     for each r in FB.WalkDir( root )
-''         if( r.IsOk( ) andalso FB.MatchPattern( rel, pat ) ) then ...
+''     for each r in fs.WalkDir( root )
+''         if( r.IsOk( ) andalso fs.MatchPattern( rel, pat ) ) then ...
 ''     next
 public declare function Glob overload ( byref pattern as const ustring, results as Array( of ustring ), byval gram as long = FB_PATH_NATIVE ) as FsResultLong
 
@@ -178,7 +178,7 @@ end function
 
 '' ------------------------------------------------- the STRING/WSTRING family
 ''
-'' Same three-overload rule as fspath.bi: resolved on the FIRST argument, every
+'' Same three-overload rule as fspath.tiko: resolved on the FIRST argument, every
 '' later parameter a ustring in all three.
 public declare function MatchPattern overload ( byref s as const string, byref pattern as const ustring, byval gram as long = FB_PATH_NATIVE ) as boolean
 public declare function MatchPattern overload ( byref s as const wstring, byref pattern as const ustring, byval gram as long = FB_PATH_NATIVE ) as boolean

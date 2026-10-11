@@ -15,7 +15,7 @@ using outcome
 ''
 ''     m.UseLocale( MONEY_F_THOUSANDSSEP )  '' back to the locale's separator
 ''
-'' fb/currency.bi and fb/decimal.bi HOLD money and fb/finance.bi COMPUTES with
+'' currency.tiko and decimal.tiko HOLD money and the fin*.tiko files COMPUTE with
 '' it. Nothing displayed it. This is that half: assign a value, set the
 '' properties you care about, read back the string.
 ''
@@ -51,14 +51,14 @@ using outcome
 '' LOCALE_NAME_USER_DEFAULT and LOCALE_SNAME all sit behind
 '' `#if _WIN32_WINNT >= &h0600` in inc/win/winnls.bi. With the shipped headers
 '' they ARE NOT VISIBLE -- the call fails to compile rather than failing to
-'' link -- and raising _WIN32_WINNT from inside a public fb/ header would move
-'' the whole calling program's Windows baseline as a side effect.
+'' link -- and raising _WIN32_WINNT from inside a public fb/ header (as this
+'' file was) would move the whole calling program's Windows baseline as a side effect.
 ''
 '' So the four things needed are declared below instead. The payoff is larger
 '' than dodging the guard: a module that prints a price does not drag in
-'' windows.bi, and there is no tagDEC collision with FB.Decimal (the hazard
-'' fb/decimal.bi already warns about, where a program including win/wtypes.bi
-'' and saying `using FB` has two things named Decimal in scope).
+'' windows.bi, and there is no tagDEC collision with money.Decimal (the hazard
+'' decimal.tiko already warns about, where a program including win/wtypes.bi
+'' and saying `using money` has two things named Decimal in scope).
 ''
 '' GetLocaleInfoEx is Vista+.
 ''
@@ -77,12 +77,12 @@ using outcome
 ''     rewrite the snapshot while another thread may be reading it. Call them
 ''     at start-up, or while nothing is formatting. A lock on every ToString
 ''     would cost more than the feature is worth.
-''   * ONE SNAPSHOT PER MODULE. A `dim shared` in a .bi included by two modules
-''     gives two of them -- the same wall fb/scheduler.bi and fb/logger.bi
-''     describe -- so MoneySetLocale affects the module that calls it. On Linux
-''     the underlying setlocale IS process-wide, so the other module's snapshot
-''     is merely stale, not different; on Windows it is per module. In practice
-''     one module formats money.
+''   * ONE SNAPSHOT PER PROGRAM. std/money is one module, so its
+''     `dim shared` exists once and MoneySetLocale affects every caller.
+''     (As a header, fb/moneyformat.bi, it was one snapshot per INCLUDING
+''     module: a `dim shared` in a .bi included by two modules gave two
+''     of them -- the same wall fb/scheduler.bi and fb/logger.bi
+''     described.)
 
 
 #include once "fblimits.bi"
@@ -92,7 +92,7 @@ using outcome
     #include once "crt/locale.bi"
 #endif
 
-'' The Windows NLS entry points, self-declared -- see the header note above.
+'' The Windows NLS entry points, self-declared -- see the note above.
 '' The FB identifiers are prefixed so that a program which ALSO includes
 '' win/winnls.bi with _WIN32_WINNT >= &h0600 does not get a duplicate
 '' declaration; `alias` keeps the linker symbol correct either way.
@@ -411,7 +411,7 @@ end sub
 '' LC_MONETARY, NOT LC_ALL, AND THAT IS NOT A DETAIL.
 ''
 '' setlocale is process-global, so widening the request to LC_ALL would also
-'' move LC_NUMERIC -- and fb/decimal.bi's DecimalFromDouble builds its value by
+'' move LC_NUMERIC -- and decimal.tiko's DecimalFromDouble builds its value by
 '' snprintf( "%.14e" ) and then walking the digits. Under a German LC_NUMERIC
 '' that prints "1,23456e+03", the comma is not a digit, and EVERY DOUBLE
 '' ASSIGNED TO A MoneyFormat SILENTLY BECOMES AN INVALID Decimal, which renders
@@ -514,8 +514,8 @@ if mnySnap_.Loaded = false then mnyLoadSnap_( )
 end sub
 
 '' Re-read the settings -- after the user has changed Settings > Region, say.
-'' See the header note: not thread-safe against a concurrent format, and it
-'' refreshes the calling module's snapshot.
+'' See the note at the top: not thread-safe against a concurrent format, and it
+'' refreshes the program's one snapshot.
 public sub MoneyRefreshLocale( )
 mnyLoadSnap_( )
 end sub
@@ -896,7 +896,7 @@ dim as long fd = this.FracDigits
 
 '' Exact decimal rounding, then an exact rescale to the same place. No
 '' snprintf and no binary round trip, so the printed figure agrees with
-'' what fb/finance.bi computed.
+'' what std/money's finance functions computed.
 dim as Decimal r = this.value_.RoundMode( fd, this.round_ )
 if r.IsValid( ) = false then return ""
 dim as string ds = r.ToStringFixed( fd )

@@ -90,7 +90,7 @@ end enum
 ''
 '' Why a sentinel rather than Result: an operator cannot return
 '' Result( of Currency, E ) and still compose -- 'a * n + b' would need an
-'' unwrap between every pair and nobody would use the type.  fb/chrono.bi
+'' unwrap between every pair and nobody would use the type.  std/chrono
 '' reached the same conclusion for DateTime, and matching it means one rule to
 '' learn rather than two.  As there, INVALID = INVALID IS FALSE; test IsValid.
 public function CurrencyInvalid overload ( ) as Currency
@@ -124,8 +124,8 @@ end function
 ''     dim as Currency price = Currency( 19.99 )
 ''
 '' would compile and silently store 19.  Naming every conversion means the
-'' inexact one cannot be reached by accident.  This follows fb/optional.bi and
-'' fb/result.bi, which construct through Some/None and Ok/Fail for the
+'' inexact one cannot be reached by accident.  This follows std/outcome's
+'' Optional and Result, which construct through Some/None and Ok/Fail for the
 '' analogous reason.
 '' ===========================================================================
 
@@ -219,7 +219,7 @@ end function
 '' ===========================================================================
 '' Rounding
 ''
-'' The tie logic is the same half-to-even decision fb/math.bi's RoundHalfEven
+'' The tie logic is the same half-to-even decision std/numeric's RoundHalfEven
 '' makes, applied to the scaled integer -- which is why rank 1 was built first.
 '' ===========================================================================
 

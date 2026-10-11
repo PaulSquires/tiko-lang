@@ -8,14 +8,14 @@ using containers
 '' Specified in C:\dev\docs\filesystem\RFC-0009-advanced.md.
 ''
 '' THREE SUBSYSTEMS THAT SHARE NOTHING BUT A PHASE. They are collected in one
-'' header because collecting them is cheaper than three near-empty ones, not
+'' file because collecting them is cheaper than three near-empty ones, not
 '' because they belong together -- each has its own threading model and its own
 '' lifetime rules, and nothing here calls anything else here.
 
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/fsadvanced.bi requires -lang fb (it uses namespaces)"
+    #error "std/fs requires -lang fb (it uses namespaces)"
 #endif
 
 #if defined( __FB_WIN32__ ) and ( not defined( __FB_64BIT__ ) )

@@ -4,7 +4,7 @@
 ''     #import "std/chrono"
 ''
 '' Specified by C:\dev\docs\datetime\RFC-0001-core-representation.md (core types) and
-'' RFC-0002-timespan.md (durations).  This header is phase 2: the types, their
+'' RFC-0002-timespan.md (durations).  This file is phase 2: the types, their
 '' component accessors, exact arithmetic and operators.  Formatting and parsing
 '' (RFC-0005/0006), calendar arithmetic (RFC-0004), clocks (RFC-0003) and zones
 '' (RFC-0007) arrive in later phases.
@@ -31,7 +31,7 @@
 '' overflowing arithmetic both yield an Invalid value, which is absorbing --
 '' anything touching it becomes Invalid.  Arithmetic NEVER wraps.
 ''
-''     dim as FB.DateTime d = FB.DateTime( 2025, 2, 30 )   '' no such date
+''     dim as chrono.DateTime d = chrono.DateTime( 2025, 2, 30 )   '' no such date
 ''     if d.IsValid then ...
 ''
 '' BEWARE: comparing an Invalid value with ANYTHING is false, including
@@ -106,7 +106,7 @@ public const DT_SUNDAY    as long = 7
 ''
 '' C:\dev\docs\datetime\RFC-0001 section 5.  Pure functions in src/rtlib/dt_core.c:
 '' no OS calls, no allocation, no locale.  Declared here rather than in a
-'' separate header so the whole library is one #include.
+'' separate header so the whole library is one #import.
 
 '' extern "C": at a module's scope an alias alone is spelled through the module's chain
 '' (MAIN::CHRONO::fb_DtIsValidDate), and in the header these were global.

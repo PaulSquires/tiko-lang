@@ -1,5 +1,5 @@
 #module "tasks"
-'' std/tasks: channel -- FB.Channel( of T ), a typed thread-safe queue
+'' std/tasks: channel -- tasks.Channel( of T ), a typed thread-safe queue
 ''
 '' RFC-0002 (C:\dev\docs\goroutines\RFC-0002-channels.md).  Go's hchan,
 '' transliterated: a lock, a ring buffer, two waiter lists, and a direct
@@ -20,7 +20,7 @@
 ''
 '' COPIES SHARE.  A Channel is a refcounted handle to a channel, not a channel.
 '' Handing a copy to each of four workers gives four handles on ONE queue, which
-'' is what makes fan-out work.  Deliberately unlike FB.Array, whose copy is
+'' is what makes fan-out work.  Deliberately unlike containers.Array, whose copy is
 '' deep.  The destructor does NOT Close: closing means "no more values will be
 '' sent", and a scope that merely stopped holding a reference has not said that.
 ''
@@ -41,7 +41,7 @@
 
 
 #if not defined( __FB_MT__ )
-    #error "fb/channel.bi requires -mt (the multithreaded runtime)"
+    #error "std/tasks requires -mt (the multithreaded runtime)"
 #endif
 
 #include once "fberror.bi"
@@ -848,7 +848,7 @@ end sub
 
 '' ------------------------------------------- typed commits, for SELECT
 ''
-'' Called only from fb/select.bi, and only after SelectRun( ) polled this
+'' Called only from select.tiko, and only after SelectRun( ) polled this
 '' channel ready with its lock HELD.  Each performs the typed transfer and then
 '' UNLOCKS.  Releasing the lock before the transfer would let another thread
 '' take the item between the poll and the commit, which is the whole reason the

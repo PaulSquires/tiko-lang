@@ -30,11 +30,11 @@ using containers
 '' the right answer rather than a compromise.  Three reasons, stated once here
 '' instead of per function:
 ''
-''   1. fb/decimal.bi has NO SQUARE ROOT.  Volatility, tracking error and both
+''   1. decimal.tiko has NO SQUARE ROOT.  Volatility, tracking error and both
 ''      ratio denominators are square roots.  Implementing one on a 96-bit
 ''      mantissa to serve a statistic whose input is uncertain in its third
 ''      significant digit is effort in the wrong place.
-''   2. fb/stats.bi ALREADY DOES THIS WELL -- Neumaier-compensated summation,
+''   2. std/numeric's stats.tiko ALREADY DOES THIS WELL -- Neumaier-compensated summation,
 ''      and Welford for the moments.  Reimplementing in Decimal would duplicate
 ''      tested code to get a less accurate answer more slowly.
 ''   3. Nobody quotes a Sharpe ratio to 28 digits.
@@ -60,7 +60,7 @@ using containers
 '' cancel, so sample-over-sample and population-over-population give the
 '' IDENTICAL number.  Mixing them -- sample covariance over POPULATION variance,
 '' which is what the RFC first specified -- scales the answer by (n-1)/n and is
-'' wrong.  fb/stats.bi has no population covariance to pair with
+'' wrong.  std/numeric has no population covariance to pair with
 '' VariancePopulation anyway, so the sample pair is both correct and the only
 '' one available.  See C:\dev\docs\finance\amendments.md.
 ''
@@ -72,7 +72,7 @@ using containers
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/finport.bi requires -lang fb (it uses namespaces)"
+    #error "std/money requires -lang fb (it uses namespaces)"
 #endif
 
 #include once "fblimits.bi"
@@ -146,7 +146,7 @@ end sub
 '' Returns
 '' ===========================================================================
 
-'' EXACT -- one Decimal division.  See the header note on why this alone stays
+'' EXACT -- one Decimal division.  See the note at the top on why this alone stays
 '' out of the double kernel.
 public function HoldingPeriodReturn overload _
     ( byref beginValue as Decimal, byref endValue as Decimal, byref income as Decimal ) as FinResultDec
@@ -174,7 +174,7 @@ public function CompoundAnnualGrowthRate overload _
 
     dim as double ratio = endValue.ToDouble( ) / beginValue.ToDouble( )
     '' Expm1/Log1p rather than Pow: the RESULT IS A RATE near zero, so the
-    '' "- 1" would lose its leading digits -- fb/fincore.bi's rule.
+    '' "- 1" would lose its leading digits -- fincore.tiko's rule.
     return FinOkDbl( Expm1( Log1p( ratio - 1.0 ) / years ) )
 end function
 
@@ -258,7 +258,7 @@ end function
 '' appended, so it DOES reflect the timing of contributions.  It measures the
 '' INVESTOR; TimeWeightedReturn measures the MANAGER.
 ''
-'' Inherits every limit of fb/finsolve.bi, including non-convergence.
+'' Inherits every limit of finsolve.tiko, including non-convergence.
 public function MoneyWeightedReturn overload _
     ( _
         byref flows as Array( of CashFlow ), byref terminalValue as Decimal, _
@@ -401,7 +401,7 @@ end function
 '' ===========================================================================
 '' Risk
 ''
-'' Every moment here comes from fb/stats.bi.  Nothing statistical is
+'' Every moment here comes from std/numeric's stats.tiko.  Nothing statistical is
 '' reimplemented, with ONE stated exception: DownsideDeviation, which measures
 '' shortfall against a TARGET over the FULL count and therefore cannot be
 '' StdDev.
@@ -413,12 +413,12 @@ public function Volatility overload ( byref periodReturns as Array( of double ),
     dim as FinanceErrorCode bad = hPortCheck( periodReturns, 2 )
     if( bad <> FIN_OK ) then return FinFailDbl( bad )
 
-    dim as double sd = StdDev( periodReturns )           '' fb/stats.bi, n-1
+    dim as double sd = StdDev( periodReturns )           '' std/numeric, n-1
     if( IsFinite( sd ) = FALSE ) then return FinFailDbl( FIN_DOMAIN )
     return FinOkDbl( sd * sqr( cdbl( clng( f ) ) ) )
 end function
 
-'' NOT StdDev, and the header says why: this measures shortfall against a
+'' NOT StdDev, and the note at the top says why: this measures shortfall against a
 '' TARGET, not spread about the mean, and divides by the FULL observation count
 '' so that rarely being below target is rewarded.
 public function DownsideDeviation overload _
@@ -444,8 +444,8 @@ public function SharpeRatio overload _
     dim as FinanceErrorCode bad = hPortCheck( periodReturns, 2 )
     if( bad <> FIN_OK ) then return FinFailDbl( bad )
 
-    dim as double avg = Mean( periodReturns )            '' fb/stats.bi
-    dim as double sd = StdDev( periodReturns )           '' fb/stats.bi, n-1
+    dim as double avg = Mean( periodReturns )            '' std/numeric
+    dim as double sd = StdDev( periodReturns )           '' std/numeric, n-1
     if( sd = 0.0 ) then return FinFailDbl( FIN_DOMAIN )
     if( IsFinite( sd ) = FALSE ) then return FinFailDbl( FIN_DOMAIN )
 
@@ -515,7 +515,7 @@ public function TrackingError overload _
     dim as Array( of double ) act
     hPortActive( assetReturns, benchmarkReturns, act )
 
-    dim as double sd = StdDev( act )                     '' fb/stats.bi, n-1
+    dim as double sd = StdDev( act )                     '' std/numeric, n-1
     if( IsFinite( sd ) = FALSE ) then return FinFailDbl( FIN_DOMAIN )
     return FinOkDbl( sd * sqr( cdbl( clng( f ) ) ) )
 end function
@@ -540,7 +540,7 @@ public function CorrelationToBenchmark overload _
     dim as FinanceErrorCode bad = hPortCheckPair( assetReturns, benchmarkReturns, 2 )
     if( bad <> FIN_OK ) then return FinFailDbl( bad )
 
-    dim as double c = Correlation( assetReturns, benchmarkReturns )         '' fb/stats.bi
+    dim as double c = Correlation( assetReturns, benchmarkReturns )         '' std/numeric
     if( IsFinite( c ) = FALSE ) then return FinFailDbl( FIN_DOMAIN )
     return FinOkDbl( c )
 end function

@@ -1,48 +1,48 @@
 #module "tui"
-'' std/tui: tui -- FB's terminal UI module, umbrella header
+'' std/tui: tui -- the terminal UI module, its overview
 ''
 ''     #import "std/tui"
 ''     using tui
 ''
-'' C:\dev\docs\tui\README.md is the index; each header names its RFC.
+'' C:\dev\docs\tui\README.md is the index; each file names its RFC.
 ''
-'' Mirrors fb/logging.bi: one include that pulls the module in, so a caller does
+'' Mirrors std/logs: one #import pulls the whole module in, so a caller does
 '' not have to know which type lives in which file.
 ''
 '' PHASE 1 ships the value layer, the backend and the renderer:
 ''
-''     tuicore.bi     RFC-0001   TuiRect, TuiColor, TuiStyle, the SGR encoder
-''     tuiterm.bi     RFC-0002   TuiTerminal -- raw mode, capabilities, restore
-''     tuibuffer.bi   RFC-0003   TuiCell, TuiBuffer, TuiFrame, TuiScreen, the diff
+''     tuicore.tiko     RFC-0001   TuiRect, TuiColor, TuiStyle, the SGR encoder
+''     tuiterm.tiko     RFC-0002   TuiTerminal -- raw mode, capabilities, restore
+''     tuibuffer.tiko   RFC-0003   TuiCell, TuiBuffer, TuiFrame, TuiScreen, the diff
 ''
 '' PHASE 2 adds input, PHASE 3 the column-width table:
 ''
-''     tuiinput.bi    RFC-0004   TuiEvent, the VT grammar, TuiInput, PollEvent
-''     tuiwidth.bi    RFC-0005   TuiCharWidth, TuiStringWidth, TuiTruncate, TuiWrap
-''     tuiwidthtab.bi            GENERATED from the UCD -- do not edit by hand
+''     tuiinput.tiko    RFC-0004   TuiEvent, the VT grammar, TuiInput, PollEvent
+''     tuiwidth.tiko    RFC-0005   TuiCharWidth, TuiStringWidth, TuiTruncate, TuiWrap
+''     tuiwidthtab.tiko            GENERATED from the UCD -- do not edit by hand
 ''
 '' PHASE 4 adds layout:
 ''
-''     tuilayout.bi   RFC-0006   TuiConstraint, TuiSplitH/V, padding, centring
+''     tuilayout.tiko   RFC-0006   TuiConstraint, TuiSplitH/V, padding, centring
 ''
 '' PHASE 5 adds widgets:
 ''
-''     tuiwidget.bi   RFC-0007   TuiWidget, TuiFocusRing, TuiButton/TuiButtonOf, TuiStack
-''     tuiwidgets.bi  RFC-0008   Block, Paragraph, List, Table, Tabs, Gauge, Spinner, Scrollbar
+''     tuiwidget.tiko   RFC-0007   TuiWidget, TuiFocusRing, TuiButton/TuiButtonOf, TuiStack
+''     tuiwidgets.tiko  RFC-0008   Block, Paragraph, List, Table, Tabs, Gauge, Spinner, Scrollbar
 ''
 '' PHASE 6 adds charts:
 ''
-''     tuidraw.bi     RFC-0008   TuiCanvas (braille), TuiGraph, TuiSparkline,
-''                               TuiBarChart, TuiMeter
+''     tuidraw.tiko     RFC-0008   TuiCanvas (braille), TuiGraph, TuiSparkline,
+''                                 TuiBarChart, TuiMeter
 ''
 '' PHASE 7 adds input widgets and overlays:
 ''
-''     tuiform.bi     RFC-0008   TextInput, TextArea, Checkbox, RadioGroup, Select
-''     tuichrome.bi   RFC-0008   Popup, MessageBox, MenuBar, StatusBar, Tree
+''     tuiform.tiko     RFC-0008   TextInput, TextArea, Checkbox, RadioGroup, Select
+''     tuichrome.tiko   RFC-0008   Popup, MessageBox, MenuBar, StatusBar, Tree
 ''
 '' PHASE 8 adds the application loop:
 ''
-''     tuiapp.bi      RFC-0009   TuiApp, TuiCmd, TuiRun, TuiRenderOnce
+''     tuiapp.tiko      RFC-0009   TuiApp, TuiCmd, TuiRun, TuiRenderOnce
 ''
 '' The module is complete.
 ''

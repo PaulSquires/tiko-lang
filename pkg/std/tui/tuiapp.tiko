@@ -135,7 +135,7 @@ public type TuiRunResult as Result( of long, TuiError )
 
 '' ============================================================== the clock
 
-'' A monotonic millisecond reading, from fb/chrono.bi's Stopwatch -- which is
+'' A monotonic millisecond reading, from std/chrono's Stopwatch -- which is
 '' backed by a real monotonic source, not by the wall clock. A frame budget
 '' driven by wall time would stutter whenever the clock was adjusted.
 public function TuiClockMs( ) as double

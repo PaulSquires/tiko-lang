@@ -23,14 +23,14 @@
 ''     OrderedMap( of K, V )   red-black tree map, always in key order
 ''     OrderedSet( of T )      red-black tree set, always in order
 ''
-'' They live in NAMESPACE FB and nothing is added to the global namespace, so a
+'' They are the MODULE's names and nothing is added to the global namespace, so a
 '' program that already defines its own Array, Map, Set or List is unaffected
-'' until it says 'using FB'.  This file is not included by default.
+'' until it says 'using containers'.  Nothing imports this module by default.
 ''
-'' The pieces can be included individually -- fb/array.bi, fb/map.bi, fb/set.bi,
-'' fb/linkedlist.bi -- and fb/hash.bi is where a user type is made usable as a
-'' Map key or a Set element.  fb/orderedmap.bi and fb/orderedset.bi are the
-'' sorted ones, and need only '<' on the key -- no hash.  fb/sort.bi sorts an
+'' The pieces are one file each -- array.tiko, map.tiko, set.tiko,
+'' linkedlist.tiko -- and hash.tiko is where a user type is made usable as a
+'' Map key or a Set element.  orderedmap.tiko and orderedset.tiko are the
+'' sorted ones, and need only '<' on the key -- no hash.  sort.tiko sorts an
 '' Array or a LinkedList:
 '' Sort( ) is an introsort, StableSort( ) a merge sort, and both take an
 '' optional comparer under the -By names.

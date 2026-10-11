@@ -1,5 +1,5 @@
 #module "tui"
-'' std/tui: tuicore -- the value layer of FB's terminal UI
+'' std/tui: tuicore -- the value layer of std/tui
 ''
 ''     #import "std/tui"
 ''     using tui
@@ -14,8 +14,8 @@
 '' is what lets TuiCell hold a TuiStyle inside an Array( of TuiCell ) and get a
 '' correct deep copy for free.
 ''
-'' Header-only. Member bodies are `private` so that two modules including this
-'' file do not collide at link -- the rule fb/logrecord.bi already set.
+'' Compiled once, as part of std/tui. As a header its member bodies were `private` so that two
+'' modules including it did not collide at link -- the rule fb/logrecord.bi set.
 ''
 '' ---------------------------------------------------------------------------
 '' WHY TuiColor HAS NO UNION
@@ -222,7 +222,7 @@ public function TuiDefaultColor( ) as TuiColor
 end function
 
 '' The sixteen, as TuiColor values. Functions rather than `dim shared` because
-'' a shared in a header included by two modules gives TWO of them -- the same
+'' a shared in a header included by two modules gave TWO of them -- the same
 '' constraint that stopped docs/logging making a process-wide default logger.
 public enum TuiAnsiIndex
     TUIC_BLACK = 0   : TUIC_RED       : TUIC_GREEN   : TUIC_YELLOW
@@ -494,7 +494,7 @@ end function
 '' ============================================================== theme
 
 '' A plain value, passed explicitly to the widgets that use it. THERE IS NO
-'' AMBIENT CURRENT THEME -- a FreeBASIC header cannot make a process-wide
+'' AMBIENT CURRENT THEME -- a FreeBASIC header could not make a process-wide
 '' singleton, and docs/logging paid for discovering that mid-implementation.
 '' rationale.md section 9.
 ''
@@ -549,7 +549,7 @@ end function
 '' ============================================================== SGR
 
 '' The one place a TuiStyle becomes bytes. It lives here rather than in
-'' tuiterm.bi because it is pure -- it takes a depth and returns a string, and
+'' tuiterm.tiko because it is pure -- it takes a depth and returns a string, and
 '' it is therefore testable without a terminal.
 ''
 '' `prev` is the style the terminal is currently in. Only the DIFFERENCE is

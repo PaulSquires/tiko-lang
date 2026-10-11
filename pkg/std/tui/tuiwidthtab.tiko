@@ -8,7 +8,7 @@
 '' Regenerate rather than edit. RFC-0005 section 4 requires it, for the reason
 '' that a hand-edited width table is a table nobody will ever trust again.
 ''
-'' Three sorted, merged range sets, searched by binary search in fb/tuiwidth.bi:
+'' Three sorted, merged range sets, searched by binary search in tuiwidth.tiko:
 ''
 ''     WIDE   East Asian Wide + Fullwidth        -> 2 columns
 ''     ZERO   Mn + Me + Cf + Cc                  -> 0 columns

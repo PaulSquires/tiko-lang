@@ -1,12 +1,12 @@
 #module "containers"
-'' std/containers: map -- FB.Map( of TK, TV ), an open-addressed hash map
+'' std/containers: map -- containers.Map( of TK, TV ), an open-addressed hash map
 ''
 '' RFC-0004 §3 (there called Dictionary).  Replaces CDicObj.inc, which obtains a
 '' dictionary by instantiating Scripting.Dictionary over COM -- Windows-only,
 '' CoInitialize per instance, every key and value a VARIANT, every lookup a
 '' late-bound IDispatch call.
 ''
-''     dim ages as FB.Map( of string, long )
+''     dim ages as containers.Map( of string, long )
 ''     ages.Put( "ada", 36 )
 ''     if ages.Contains( "ada" ) then print ages[ "ada" ]
 ''
@@ -24,7 +24,7 @@
 '' silently growing the map is the price.  Every language has this argument and
 '' none has won it; C# splits it the same way.  Use TryGet or Contains to READ.
 ''
-'' THE HASH CONTRACT is in fb/hash.bi: 'FB.HashOf( k )' must resolve and 'k = k'
+'' THE HASH CONTRACT is in hash.tiko: 'HashOf( k )' must resolve and 'k = k'
 '' must compare, and EQUAL KEYS MUST HASH EQUAL.
 ''
 '' IMPLEMENTATION.  Open addressing with linear probing, power-of-two capacity,

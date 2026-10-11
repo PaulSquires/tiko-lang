@@ -1,5 +1,5 @@
 #module "outcome"
-'' std/outcome: result -- FB.Result( of T, E ), a value or the reason there isn't one
+'' std/outcome: result -- outcome.Result( of T, E ), a value or the reason there isn't one
 ''
 '' Sketch S.5.  Replaces the global-status-code idiom, in which the error is not
 '' part of the return type, does not participate in the type system, and is

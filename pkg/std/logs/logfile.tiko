@@ -7,7 +7,7 @@ using fs
 using numeric
 using chrono
 using containers
-'' std/logs: logfile -- FB.Logging's file sink, with rotation
+'' std/logs: logfile -- std/logs' file sink, with rotation
 ''
 ''     #import "std/logs"
 ''     using logs
@@ -27,12 +27,12 @@ using containers
 '' ---------------------------------------------------------------------------
 '' HOW THE FILE IS HELD, AND WHY IT DIFFERS BY PLATFORM
 ''
-'' fb/fsops.bi has whole-file operations and no streaming handle, so this sink
+'' std/fs' fsops.tiko has whole-file operations and no streaming handle, so this sink
 '' keeps its own. FreeBASIC's OPEN cannot be that handle on Windows: it passes
 '' the path to the C runtime as NARROW text, so "té.log" is created as
 '' "tÃ©.log" -- measured. So:
 ''
-''   Windows  CreateFileW, reached through hLogK32 (fb/logsink.bi), with
+''   Windows  CreateFileW, reached through hLogK32 (logerror.tiko), with
 ''            FILE_APPEND_DATA, so every write lands at the end even when
 ''            another process appends to the same file.
 ''   POSIX    FreeBASIC's OPEN ... FOR BINARY plus a seek to the end. A path
@@ -57,7 +57,7 @@ using containers
 '' RotateFailures( ). It does not stop, it does not retry per record, and it
 '' does not queue: the next attempt waits for another maxbytes, or the next
 '' day. A too-large log is a far better outcome than a lost one. Every failure
-'' is reported through OnLogError (fb/logerror.bi), throttled.
+'' is reported through OnLogError (logerror.tiko), throttled.
 
 
 

@@ -7,7 +7,7 @@ using fs
 using numeric
 using chrono
 using containers
-'' std/logs: logger -- FB.Logging front end
+'' std/logs: logger -- std/logs' front end
 ''
 '' RFC-0002 -- C:\dev\docs\logging\RFC-0002-logger.md.
 ''
@@ -42,10 +42,10 @@ using containers
 '' ---------------------------------------------------------------------------
 '' THE DEFAULT LOGGER IS NOT HERE
 ''
-'' FB.DefaultLogger( ), LogInit and LogShutdown of RFC-0002 section 6 are in
-'' fb/logdefault.bi (phase 4): a `dim shared` in a .bi included by two modules
-'' gives two of them, so the program defines the one object itself with
-'' FB_LOG_IMPLEMENT( ).
+'' logs.DefaultLogger( ), LogInit and LogShutdown of RFC-0002 section 6 are in
+'' logdefault.tiko (phase 4). As a header that file could not make the object --
+'' a `dim shared` in a .bi included by two modules gave two of them, so the
+'' program defined it with FB_LOG_IMPLEMENT( ); std/logs, one module, now does.
 
 
 
@@ -159,7 +159,7 @@ end property
 ''
 '' What it does NOT avoid is evaluating the ARGUMENTS at the call site. That is
 '' irreducible at runtime in a language without lazy arguments, and it is what
-'' fb/logmacros.bi (phase 5) exists to remove.
+'' logmacros.tiko (phase 5) exists to remove.
 function Logger_.Enabled( byval lv as LogLevel ) as boolean
     return ( lv >= this.m_minlevel )
 end function
@@ -236,7 +236,7 @@ function Logger_.Log( byval lv as LogLevel ) as LogEvent
     e.m_rec.level   = lv
     e.m_rec.stamp   = WallClock.UtcNow( )
     '' Raw monotonic ticks rather than a process Stopwatch: a Stopwatch would
-    '' be a process-wide singleton, which a header cannot make. Absolute and
+    '' be a process-wide singleton, which a header could not make. Absolute and
     '' comparable within the process, which is all ordering needs.
     e.m_rec.mono    = fb_DtTicksFromCounts( fb_DtMonoTimestamp( ), fb_DtMonoFrequency( ) )
     e.m_rec.logname = this.m_name

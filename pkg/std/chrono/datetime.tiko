@@ -154,7 +154,7 @@ public type DateTime
     declare static function FromOleDate  ( byval d as double ) as DateTime
 
     '' ------------------------------------------------ USTRING (phase 8)
-    '' The tree's rule (fb/string.bi) is that the INPUT type decides the
+    '' The tree's rule (std/strings) is that the INPUT type decides the
     '' output type, and that a function cannot return the type it was
     '' handed.  So anything taking text overloads and returns USTRING;
     '' anything taking none cannot overload on return type alone and so

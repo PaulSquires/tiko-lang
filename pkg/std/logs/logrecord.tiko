@@ -5,7 +5,7 @@
 using numeric
 using chrono
 using containers
-'' std/logs: logrecord -- the value layer of FB.Logging
+'' std/logs: logrecord -- the value layer of std/logs
 ''
 ''     #import "std/logs"
 ''     using logs
@@ -18,8 +18,8 @@ using containers
 '' Levels, values, fields and the record. NOTHING HERE DOES I/O, takes a lock,
 '' or can fail. Everything is a value type and every operation is total.
 ''
-'' Header-only: there is no logging C in the runtime. Member bodies are
-'' `private` so that two modules including this file do not collide at link.
+'' No logging C in the runtime: this is FreeBASIC, compiled once with std/logs. As a header its
+'' member bodies were `private` so that two modules including it did not collide at link.
 ''
 '' ---------------------------------------------------------------------------
 '' WHY LogValue LOOKS LIKE THAT
@@ -287,7 +287,7 @@ public declare function LogDoubleText( byval d as double ) as string
 ''
 '' Not STR. Phase 1 used STR on the claim that it round-trips, and it does not:
 '' STR is 16 significant digits, so str( 0.1 + 0.2 ) is "0.3" and two different
-'' values log as the same text. fb/mathtext.bi's ToString is the
+'' values log as the same text. std/numeric's ToString (mathtext.tiko) is the
 '' shortest-correct form, and both renderers use it, so the text line and the
 '' JSON line agree digit for digit.
 ''

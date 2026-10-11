@@ -1,11 +1,11 @@
 #module "containers"
-'' std/containers: orderedmap -- FB.OrderedMap( of TK, TV ), a red-black tree map
+'' std/containers: orderedmap -- containers.OrderedMap( of TK, TV ), a red-black tree map
 ''
-'' The always-sorted sibling of FB.Map.  Same operations, plus the ones only an
+'' The always-sorted sibling of Map.  Same operations, plus the ones only an
 '' ordered container can offer, and FOR EACH walks it in ASCENDING KEY ORDER --
 '' which is the entire reason to reach for it.
 ''
-''     dim ages as FB.OrderedMap( of string, long )
+''     dim ages as containers.OrderedMap( of string, long )
 ''     ages.Put( "ada", 36 )
 ''     ages.Put( "bob", 41 )
 ''
@@ -13,23 +13,23 @@
 ''         print kv.key, kv.value          '' "ada" then "bob", always
 ''     next
 ''
-'' WHICH ONE TO USE.  FB.Map unless you need the order.  A hash map is O(1) per
+'' WHICH ONE TO USE.  Map unless you need the order.  A hash map is O(1) per
 '' operation against this one's O(log n), it touches one allocation instead of
 '' one per entry, and its lookups do not chase pointers.  This is the right
 '' choice when you need keys in order, a range of keys, or the smallest or
 '' largest -- not as a general-purpose map.
 ''
-''     FB.Map            avg O(1)      unspecified, unstable order
-''     FB.OrderedMap     O(log n)      ascending key order, always
+''     Map               avg O(1)      unspecified, unstable order
+''     OrderedMap        O(log n)      ascending key order, always
 ''
-'' THE ORDERING CONTRACT is '<' on TK, and nothing else.  Unlike FB.Map this
+'' THE ORDERING CONTRACT is '<' on TK, and nothing else.  Unlike Map this
 '' needs no HashOf and no '=': two keys are the same key when neither is less
 '' than the other, which is what std::map means by an equivalence.  A TK with a
 '' '<' that is not a strict weak ordering -- one where 'a < a' is true, or where
 '' a < b and b < c does not give a < c -- produces a tree that is merely wrong,
 '' not one that crashes.
 ''
-'' READING vs WRITING is exactly as in FB.Map, and for the same reasons:
+'' READING vs WRITING is exactly as in Map, and for the same reasons:
 ''
 ''     m[ k ]        INSERTS a default-constructed TV if k is absent.
 ''     m.TryGet      does not.
@@ -45,19 +45,19 @@
 '' Chosen over an AVL tree because the rebalancing is cheaper on write -- at most
 '' two rotations for an insert and three for a removal, against AVL's O(log n)
 '' -- for a tree that is at most 2x rather than 1.44x the ideal height.  Read-
-'' heavy workloads that would prefer the AVL trade are better served by FB.Map
+'' heavy workloads that would prefer the AVL trade are better served by Map
 '' anyway.
 ''
 '' NODES CARRY PARENT POINTERS.  That is what makes the iterator a plain
 '' successor walk with no stack of its own, so an iterator is two pointers and
 '' FOR EACH allocates nothing.  It also keeps the removal rebalance readable.
 ''
-'' OWNERSHIP.  Like FB.LinkedList and unlike the other three containers, this
+'' OWNERSHIP.  Like LinkedList and unlike the other three containers, this
 '' holds RAW NODE POINTERS, so the destructor, the copy constructor and
 '' 'operator let' are all written out.  Copy and assignment are DEEP and rebuild
 '' the whole tree; pass it BYREF where that matters.
 ''
-'' ITERATOR INVALIDATION.  An iterator is a pointer to a node, so unlike FB.Map
+'' ITERATOR INVALIDATION.  An iterator is a pointer to a node, so unlike Map
 '' -- where any rehash invalidates every iterator -- inserting does not disturb
 '' iterators over other nodes even though it may rotate them into new positions.
 '' REMOVING a key invalidates any iterator standing on that key, and nothing
@@ -77,7 +77,7 @@ public type RBMapNode( of TK, TV )
     as boolean red
 end type
 
-'' What iteration yields -- the same shape FB.Map yields, so code that walks one
+'' What iteration yields -- the same shape Map yields, so code that walks one
 '' walks the other unchanged.
 public type OrderedPair( of TK, TV )
     as TK key
@@ -724,7 +724,7 @@ end sub
 '' ---------------------------------------------------------- ordered-only
 ''
 '' The four below are what an ordered map is FOR, and none of them can be
-'' answered by a hash map at all -- FB.Map would have to walk every slot.
+'' answered by a hash map at all -- Map would have to walk every slot.
 
 '' The smallest key and its value.  FALSE and both outputs untouched when empty.
 function OrderedMap( of TK, TV ).TryFirst( byref outk as TK, byref outv as TV ) as boolean
@@ -927,7 +927,7 @@ sub OrderedMapIterator( of TK, TV ).MoveNext( )
 end sub
 
 '' The tuple view, so 'for each (k, v) in m.Pairs( )' destructures -- exactly as
-'' FB.Map.Pairs( ) does, and for the same reason: FreeBASIC cannot overload on
+'' Map.Pairs( ) does, and for the same reason: FreeBASIC cannot overload on
 '' the return type alone, so Value( ) has to pick one shape and a second view
 '' supplies the other.
 function OrderedMap( of TK, TV ).Pairs( ) as OrderedMapPairView( of TK, TV )

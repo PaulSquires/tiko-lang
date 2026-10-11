@@ -38,7 +38,7 @@ using containers
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/fslink.bi requires -lang fb (it uses namespaces)"
+    #error "std/fs requires -lang fb (it uses namespaces)"
 #endif
 
 #if defined( __FB_WIN32__ ) and ( not defined( __FB_64BIT__ ) )
@@ -94,8 +94,8 @@ public declare function LinkCount overload ( byref p as const ustring ) as FsRes
 '' and falls back, so nothing here is left on the table.
 ''
 '' THE PARAMETER IS `targetIsDir`, NOT `isdir`. FreeBASIC identifiers are
-'' case-insensitive, so a parameter named `isdir` inside NAMESPACE FB collides
-'' with FB.IsDir from fsinfo.bi and the compiler reports
+'' case-insensitive, so a parameter named `isdir` inside NAMESPACE FB collided
+'' with FB.IsDir from fsinfo.bi and the compiler reported
 '' "error 4: Duplicated definition, at parameter 3" -- which points at the
 '' parameter and says nothing about the function it clashed with.
 public function CreateSymlink( byref target as const ustring, byref lnk as const ustring, byval targetIsDir as boolean ) as FsResultBool
@@ -286,12 +286,12 @@ end function
 
 '' ------------------------------------------------------ CopyDir options
 ''
-'' RFC-0007 section 3. This overload lives HERE rather than in fsops.bi because
+'' RFC-0007 section 3. This overload lives HERE rather than in fsops.tiko because
 '' preserving permissions and timestamps needs this file's API, and putting it
-'' the other way round would make fsops.bi depend on fslink.bi while fslink.bi
-'' already depends on fsops.bi.
+'' the other way round would make fsops.tiko depend on fslink.tiko while
+'' fslink.tiko already depends on fsops.tiko.
 ''
-'' THE NO-OPTIONS OVERLOAD IN fsops.bi KEEPS ITS PHASE-3 BEHAVIOUR EXACTLY, so
+'' THE NO-OPTIONS OVERLOAD IN fsops.tiko KEEPS ITS PHASE-3 BEHAVIOUR EXACTLY, so
 '' nothing that compiled before this phase changes meaning now. That is the
 '' contract RFC-0007 section 3 makes, and phase 3's CopyDir tests still pass
 '' unchanged -- which is what proves it.
@@ -348,7 +348,7 @@ public function CopyDir( byref src as const ustring, byref dst as const ustring,
     asrc = PathNormalize( ra.Value( ) )
     adst = PathNormalize( rb.Value( ) )
 
-    '' Without this the call never terminates -- see fsops.bi.
+    '' Without this the call never terminates -- see fsops.tiko.
     if( PathStartsWith( adst, asrc ) ) then
         return FsFail( of longint )( FS_INVALID_PATH, "CopyDir", dst )
     end if

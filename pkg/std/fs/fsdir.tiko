@@ -3,7 +3,7 @@
 #import "std/containers"
 using outcome
 using containers
-'' std/fs: fsdir -- FB.DirEntry, FB.DirIterator, FB.ReadDir
+'' std/fs: fsdir -- fs.DirEntry, fs.DirIterator, fs.ReadDir
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0004-iteration.md.
 ''
@@ -26,12 +26,12 @@ using containers
 '' a device that went away. Making the failure an ELEMENT puts it where the loop
 '' already looks:
 ''
-''     for each r in FB.ReadDir( "C:\dev" )
+''     for each r in fs.ReadDir( "C:\dev" )
 ''         if( r.IsOk( ) ) then print r.Value( ).Name( ) else print "skipped"
 ''     next
 ''
 '' The alternatives lose information: a sticky LastError read after the loop is
-'' the global-status-code idiom result.bi exists to replace, and silent skipping
+'' the global-status-code idiom Result exists to replace, and silent skipping
 '' turns "I listed the directory" into a claim the program cannot support.
 '' Rust's ReadDir yields io::Result<DirEntry> for exactly this reason.
 ''
@@ -44,7 +44,7 @@ using containers
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/fsdir.bi requires -lang fb (it uses namespaces)"
+    #error "std/fs requires -lang fb (it uses namespaces)"
 #endif
 
 #if defined( __FB_WIN32__ ) and ( not defined( __FB_64BIT__ ) )

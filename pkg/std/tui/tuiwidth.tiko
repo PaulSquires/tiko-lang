@@ -51,10 +51,10 @@ public type TuiStringArray as Array( of ustring )
 ''
 '' It returns a POINTER for the reason recorded in phase 1: `@F( )` on a
 '' byref-returning function yields the PROCEDURE's address, silently. And the
-'' state is a `static` in a `private` function, so each translation unit that
-'' includes this header gets its own -- a program that sets it from one module
-'' and measures from another will disagree with itself. One module is the only
-'' case this has to serve, and the alternative needs runtime C.
+'' state is a `static` in a function of std/tui, so a program has one. (As a
+'' header it was in a `private` function, so each translation unit that
+'' included the header got its own -- a program that set it from one module
+'' and measured from another disagreed with itself.)
 public function TuiAmbiguousWideFlag( ) as boolean ptr
     static as boolean f
     return @f

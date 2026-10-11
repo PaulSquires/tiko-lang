@@ -32,8 +32,8 @@ using outcome
 '' with.  THIS TYPE HAS THE SAME 16-BYTE LAYOUT AS 'tagDEC', field for field,
 '' so the interop boundary is a REINTERPRET and not a conversion.
 ''
-'' WHY, GIVEN fb/currency.bi ALREADY EXISTS.  Currency is a LONGINT scaled by
-'' 10,000: eight bytes, four decimal places, fixed, and the header says up
+'' WHY, GIVEN currency.tiko ALREADY EXISTS.  Currency is a LONGINT scaled by
+'' 10,000: eight bytes, four decimal places, fixed, and that file says up
 '' front that this is its central limitation.  FX rates quoted to six or eight
 '' places, per-unit costs, per-mille rates, interest accrual and tax tables all
 '' need more, and a Currency cannot hold them.  Decimal can:
@@ -44,7 +44,7 @@ using outcome
 '' The cost is size and speed.  Currency is one machine word and its add is one
 '' instruction; Decimal is sixteen bytes and every operation is software
 '' multi-precision.  IF FOUR PLACES IS ENOUGH, USE Currency -- it is the
-'' cheaper type and this header does not deprecate it.  DecimalFromCurrency and
+'' cheaper type and this file does not deprecate it.  DecimalFromCurrency and
 '' Decimal.ToCurrency convert between them exactly in the direction that can be
 '' exact, and tell you when it cannot.
 ''
@@ -72,12 +72,12 @@ using outcome
 ''
 '' NAME COLLISION, STATED UP FRONT.  win\wtypes.bi declares a global type
 '' called DECIMAL, and FreeBASIC identifiers are case-insensitive.  A module
-'' that includes it AND writes 'using FB' has two things called Decimal in
-'' scope, and the FB one wins; spell them FB.Decimal and tagDEC there to say
+'' that includes it AND writes 'using money' has two things called Decimal in
+'' scope; spell them money.Decimal and tagDEC there to say
 '' which you meant.  PLAIN windows.bi DOES NOT PULL wtypes.bi IN, so most
 '' Win32 programs never meet this at all.
 ''
-'' The layout claim is TESTED, not asserted: writing through an FB.Decimal and
+'' The layout claim is TESTED, not asserted: writing through a money.Decimal and
 '' reading back through a 'tagDEC ptr' aimed at the same bytes agrees on all
 '' six fields -- wReserved, scale, sign, Hi32, Lo32, Mid32 -- and sizeof is 16
 '' for both.
@@ -133,7 +133,7 @@ end type
 '' Rounding modes.  The DEFAULT IS HALF-TO-EVEN, which is what .NET's
 '' decimal.Round does, what IEEE 754 does, and what stops a ledger drifting
 '' upward -- half-up biases every tie the same way, and across a million lines
-'' that is real money.  The names mirror fb/currency.bi's CUR_* set exactly, so
+'' that is real money.  The names mirror currency.tiko's CUR_* set exactly, so
 '' there is one rule to learn rather than two.
 public enum DecimalRounding
     DEC_HALF_EVEN
@@ -461,7 +461,7 @@ end function
 '' ===========================================================================
 '' Construction
 ''
-'' FREE FUNCTIONS, NOT CONSTRUCTORS, for the reason fb/currency.bi gives: a
+'' FREE FUNCTIONS, NOT CONSTRUCTORS, for the reason currency.tiko gives: a
 '' one-argument constructor taking LONGINT would also accept a DOUBLE through
 '' FreeBASIC's implicit conversion, so 'Decimal( 19.99 )' would compile and
 '' silently store 19.  Naming every conversion means the inexact one cannot be
@@ -474,7 +474,7 @@ end function
 ''
 '' Why a sentinel rather than Result: an operator cannot return
 '' Result( of Decimal, E ) and still compose -- 'a * b + c' would need an
-'' unwrap between every pair.  fb/chrono.bi and fb/currency.bi reached the same
+'' unwrap between every pair.  std/chrono and currency.tiko reached the same
 '' conclusion, and matching them means one rule to learn rather than three.
 '' As there, INVALID = INVALID IS FALSE; test IsValid.
 public function DecimalInvalid overload ( ) as Decimal
@@ -885,7 +885,7 @@ end operator
 ''                       28 digits, rounded half-to-even.
 ''   a MOD b             EXACT; sign follows the dividend, as in .NET.
 ''
-'' UNLIKE fb/currency.bi, 'Decimal * Decimal' AND 'Decimal / Decimal' EXIST and
+'' UNLIKE currency.tiko, 'Decimal * Decimal' AND 'Decimal / Decimal' EXIST and
 '' both yield a Decimal.  Currency is an AMOUNT and money times money has the
 '' wrong units; Decimal is a NUMBER that happens to be decimal, which is what
 '' .NET's type is, and rates, factors and ratios are its ordinary business.
@@ -1294,7 +1294,7 @@ end function
 '' hoc is how a reconciliation fails.  Largest-remainder: the parts always sum
 '' to the total, exactly, at the requested scale.
 ''
-'' This is fb/currency.bi's Apportion with the scale made explicit -- Currency
+'' This is currency.tiko's Apportion with the scale made explicit -- Currency
 '' had only one scale to apportion at, and Decimal has twenty-nine.
 '' ===========================================================================
 

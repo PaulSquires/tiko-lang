@@ -12,7 +12,7 @@ using containers
 ''
 '' EVERY ARRAY PARAMETER IS containers.Array( of T ), NOT a plain 'v( ) as double'.
 '' containers.Array is ZERO-BASED, so a caller that used to pass a 1-based array gets
-'' the same values with different indices -- see fb/array.bi.
+'' the same values with different indices -- see std/containers' array.tiko.
 ''
 ''     dim acc as RunningStats
 ''     acc.Add( x )                             ' one pass, constant space
@@ -182,7 +182,7 @@ public function Percentile overload ( byref a as Array( of T ), byval p as doubl
         c( i ) = cdbl( a[ i ] )
     next
     '' insertion sort on the copy: n is small in every caller this has, and
-    '' fb/sort.bi is a separate dependency this header does not need
+    '' as a header this one avoided fb/sort.bi, a dependency it did not need
     for i as long = 1 to n - 1
         dim as double key = c( i )
         dim as long j = i - 1

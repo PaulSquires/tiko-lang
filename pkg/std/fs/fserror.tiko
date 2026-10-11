@@ -1,7 +1,7 @@
 #module "fs"
 #import "std/outcome"
 using outcome
-'' std/fs: fserror -- FB.FsError, and the Result convention for the filesystem
+'' std/fs: fserror -- fs.FsError, and the Result convention for the filesystem
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0001-errors.md.
 ''
@@ -15,7 +15,7 @@ using outcome
 '' actionable. Filesystem calls are the opposite: the difference between NO SUCH
 '' FILE, ACCESS DENIED, IS A DIRECTORY and DISK FULL changes what the program
 '' does next -- create it, prompt for elevation, report a bug, or fail loudly.
-'' That is exactly what Result carries and Optional does not (result.bi:13).
+'' That is exactly what Result carries and Optional does not (std/outcome).
 ''
 '' THERE IS NO GENERIC TYPEDEF IN THE LANGUAGE. The obvious spelling
 ''
@@ -29,21 +29,21 @@ using outcome
 '' So the aliases below are concrete, one per T the module actually returns. The
 '' set is small and closed, which is why this costs a table and not a
 '' workaround. A `#define FsResult(T)` macro works and was REJECTED: macros
-'' ignore NAMESPACE entirely, so it would inject an unqualified FsResult into
-'' every translation unit that includes this file -- exactly what
-'' inc/containers.bi:22 promises the library will not do.
+'' ignore NAMESPACE entirely, so as a header it would have injected an
+'' unqualified FsResult into every translation unit that included it -- exactly
+'' what inc/containers.bi:22 promised the library would not do.
 ''
 '' IGNORING A RESULT STAYS A CONVENTION. No '?' operator, no must-use
 '' diagnostic. What the type buys is that the failure has a name and a shape,
-'' not that anyone is forced to look at it (result.bi:17-22).
+'' not that anyone is forced to look at it (std/outcome's result.tiko).
 
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/fserror.bi requires -lang fb (it uses namespaces)"
+    #error "std/fs requires -lang fb (it uses namespaces)"
 #endif
 
-'' Same calling-convention switch as fb/string.bi:101-105, for the same measured
+'' Same calling-convention switch as std/strings' FBSTR_EXTERN, for the same measured
 '' reason: FBCALL is __stdcall on win32 and nothing everywhere else, and a bare
 '' `extern "C"` inside a NAMESPACE asks the linker for an undecorated symbol
 '' that win32 does not export. win64 cannot tell the two apart, so this is a
@@ -103,7 +103,7 @@ end extern
 '' word, and why RFC-0004 returns the directory walk's element BYREF.
 public type FsError
     '' Default-constructible because Result default-constructs both slots
-    '' (result.bi:33). A default FsError is not meaningful; it is FS_UNKNOWN.
+    '' (std/outcome). A default FsError is not meaningful; it is FS_UNKNOWN.
     declare constructor( )
     declare constructor( byval c as FsErrorCode, byval osc as long, _
                          byref op as const ustring, byref p as const ustring )
@@ -188,7 +188,7 @@ public type FsResultStr   as Result( of string,  FsError )
 ''     ) of __FBGENPROC()
 ''
 '' reported against result.bi rather than against the offending line. Measured
-'' and reduced; it affects generic procedures only, and result.bi never trips it
+'' and reduced; it affects generic procedures only, and result.tiko never trips it
 '' because Ok and Fail each already fit on one line. Until fbc is fixed, every
 '' generic procedure in this module keeps its parameter list on one line.
 ''
@@ -198,7 +198,7 @@ public type FsResultStr   as Result( of string,  FsError )
 ''     error 147: Default types or suffixes are only valid in
 ''                -lang deprecated or fblite or qb, found 'T'
 ''
-'' because the declaration form does not parse `( of T )`. result.bi's Ok and
+'' because the declaration form does not parse `( of T )`. result.tiko's Ok and
 '' Fail are written the same way for the same reason.
 public function FsFail( of T )( byval c as FsErrorCode, byref op as const ustring, byref p as const ustring ) as Result( of T, FsError )
     return Fail( of T, FsError )( FsError( c, FsOsError( ), op, p ) )

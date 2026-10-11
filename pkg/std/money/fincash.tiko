@@ -36,7 +36,7 @@ using containers
 '' that silently differed would be a trap.
 ''
 '' THE THREE SERIES PRE-CHECKS LIVE HERE, NOT IN THE SOLVER.  RFC-0003 section
-'' 4.0 lists four; fb/finsolve.bi can only make the fourth, because a caller's
+'' 4.0 lists four; finsolve.tiko can only make the fourth, because a caller's
 '' series reaches it as an opaque `any ptr`.  So empty, no-sign-change and
 '' unordered-dates are detected HERE, before the solver is ever called:
 ''
@@ -53,7 +53,7 @@ using containers
 ''
 '' MULTIPLE ROOTS, RESTATED HERE RATHER THAN ONLY CROSS-REFERENCED.  A series
 '' with more than one sign change can have more than one internal rate of
-'' return.  fb/finsolve.bi returns ONE of them -- not necessarily the nearest to
+'' return.  finsolve.tiko returns ONE of them -- not necessarily the nearest to
 '' any seed -- and that is not an error: the question is ILL-POSED rather than
 '' hard.  ModifiedInternalRateOfReturn is the well-posed alternative and has
 '' exactly one solution by construction.  Repeated at the call site because IRR
@@ -62,7 +62,7 @@ using containers
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/fincash.bi requires -lang fb (it uses namespaces)"
+    #error "std/money requires -lang fb (it uses namespaces)"
 #endif
 
 #include once "fblimits.bi"
@@ -219,11 +219,11 @@ function hIrrObjective( byval rate as double, byval ctx as any ptr ) as double
     return acc
 end function
 
-'' DOUBLE KERNEL -- fb/finsolve.bi.
+'' DOUBLE KERNEL -- finsolve.tiko.
 ''
 '' MULTIPLE ROOTS ARE NOT AN ERROR.  A series with more than one sign change can
 '' have several internal rates of return; this returns ONE of them, and NOT
-'' necessarily the one nearest any seed -- see the header note and RFC-0003
+'' necessarily the one nearest any seed -- see the note at the top and RFC-0003
 '' section 5.  ModifiedInternalRateOfReturn is the well-posed alternative.
 public function InternalRateOfReturn overload ( byref flows as Array( of Decimal ), byref opt as FinSolverOptions ) as FinResultDec
     dim as FinanceErrorCode bad = hCashCheckSeries( flows )
@@ -317,7 +317,7 @@ public function ModifiedInternalRateOfReturn overload _
     if( a <= 0.0 ) then return FinFailDec( FIN_DOMAIN )
 
     '' ( FV / -PV )^(1/n) - 1, through Expm1/Log1p because the result is a rate
-    '' near zero -- fb/fincore.bi's cancellation rule.
+    '' near zero -- fincore.tiko's cancellation rule.
     dim as double m = Expm1( Log1p( a / b - 1.0 ) / cdbl( n ) )
     dim as Decimal d = hFinFromDouble( m )
     if( d.IsValid( ) = FALSE ) then return FinFailDec( FIN_OVERFLOW )
@@ -426,7 +426,7 @@ end function
 '' ===========================================================================
 
 function hCashPayback overload ( byref flows as Array( of Decimal ), byref rate as Decimal, byval discounted as boolean ) as Optional( of double )
-    '' 'absent', not 'none': None( of T ) is a generic in fb/optional.bi and
+    '' 'absent', not 'none': None( of T ) is a generic in std/outcome and
     '' FreeBASIC identifiers are case-insensitive.
     dim as Optional( of double ) absent
     dim as long n = flows.Count( )
@@ -447,7 +447,7 @@ function hCashPayback overload ( byref flows as Array( of Decimal ), byref rate 
         '' The crossing: from negative (or zero) to positive.
         if( ( prev < 0.0 ) andalso ( running >= 0.0 ) ) then
             '' BOTH type arguments written out: inference reads parameter
-            '' positions only (optional.bi).
+            '' positions only (std/outcome's optional.tiko).
             if( amt = 0.0 ) then return Some( of double )( cdbl( k ) )
             '' linear interpolation inside the period
             dim as double part = cdbl( k - 1 ) + ( -prev / amt )

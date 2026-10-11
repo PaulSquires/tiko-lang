@@ -23,7 +23,7 @@ using outcome
 ''     PV + PMT * a( i, n, timing ) + FV * v( i, n ) = 0
 ''
 '' where a is the annuity factor and v = 1/(1+i)^n the discount factor, both
-'' from fb/fincore.bi.  Writing it once is what stops the five functions
+'' from fincore.tiko.  Writing it once is what stops the five functions
 '' drifting apart, and the suite asserts the IDENTITY on every case rather than
 '' only asserting each function against an oracle.
 ''
@@ -37,11 +37,11 @@ using outcome
 ''     PresentValue_ = +400000     you received the loan
 ''     PaymentAmount( ) < 0        you pay it back
 ''
-'' STATED HERE ONCE AND NOT RE-LITIGATED PER FUNCTION.  fb/finloan.bi
+'' STATED HERE ONCE AND NOT RE-LITIGATED PER FUNCTION.  finloan.tiko
 '' deliberately uses the OPPOSITE convention -- a mortgage statement shows a
 '' positive payment against a positive balance, because that is what a
 '' statement looks like -- and bridges the two in one private helper.  If you
-'' are diffing the two headers and the signs disagree, that is the reason, and
+'' are diffing the two files and the signs disagree, that is the reason, and
 '' RFC-0005 section 2 argues it.
 ''
 '' THE TWO LUMP-SUM FUNCTIONS ARE NOT PART OF THE IDENTITY.  PresentValueOfLump
@@ -65,7 +65,7 @@ using outcome
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/fintvm.bi requires -lang fb (it uses namespaces)"
+    #error "std/money requires -lang fb (it uses namespaces)"
 #endif
 
 #include once "fblimits.bi"
@@ -80,7 +80,7 @@ using FB
 '' timing ) is five arguments of which three are Decimal and adjacent, and
 '' transposing pv and fv compiles and returns a plausible wrong number.  A named
 '' record makes the transposition visible at the call site -- and it is the same
-'' record fb/finloan.bi builds internally, so the two surfaces share one shape.
+'' record finloan.tiko builds internally, so the two surfaces share one shape.
 '' ===========================================================================
 
 public type AnnuityTerms
@@ -93,7 +93,7 @@ public type AnnuityTerms
 end type
 
 '' Construction by named free function, never by a one-arg constructor -- the
-'' fb/decimal.bi and fb/currency.bi rule, for the same reason.
+'' decimal.tiko and currency.tiko rule, for the same reason.
 public function AnnuityTermsMake overload _
     ( _
         byref rate as Decimal, byval periods as long, _
@@ -136,7 +136,7 @@ end function
 '' ===========================================================================
 '' The annuity factors
 ''
-'' Exposed because they are the reusable pieces, and because fb/finloan.bi
+'' Exposed because they are the reusable pieces, and because finloan.tiko
 '' needs them without re-deriving them.
 '' ===========================================================================
 
@@ -261,7 +261,7 @@ end function
 '' ===========================================================================
 '' Lump sums
 ''
-'' A MULTIPLY, NOT A REARRANGEMENT.  See the header note: these take an amount
+'' A MULTIPLY, NOT A REARRANGEMENT.  See the note at the top: these take an amount
 '' and return its value at the other end of n periods, sign unchanged.  They do
 '' not participate in the identity and there is nothing to negate.
 '' ===========================================================================
@@ -380,7 +380,7 @@ end function
 '' ===========================================================================
 '' The rate
 ''
-'' DOUBLE KERNEL -- fb/finsolve.bi.  There is no closed form for i in
+'' DOUBLE KERNEL -- finsolve.tiko.  There is no closed form for i in
 ''
 ''     PV + PMT * a( i, n, timing ) + FV * v( i, n ) = 0
 ''
@@ -388,7 +388,7 @@ end function
 '' ===========================================================================
 
 '' The objective's context.  A plain record behind an 'any ptr', per
-'' fb/finsolve.bi's note on why this is a function pointer and not a capture.
+'' finsolve.tiko's note on why this is a function pointer and not a capture.
 type hTvmRateCtx
     as double Pv_, Fv_, Pmt_
     as long   N_
@@ -398,7 +398,7 @@ end type
 '' f( i ) = PV + PMT * a( i, n, timing ) + FV * v( i, n ), all in double.
 ''
 '' Written with Log1p and Expm1 rather than Pow, because BOTH terms are of the
-'' catastrophic-cancellation shape fb/fincore.bi's note describes: at a monthly
+'' catastrophic-cancellation shape fincore.tiko's note describes: at a monthly
 '' rate, ( 1 + i )^-n is 0.99... and 1 minus it keeps only the digits that
 '' cancellation would otherwise destroy.
 function hTvmRateObjective( byval i as double, byval ctx as any ptr ) as double
@@ -434,7 +434,7 @@ end function
 '' expansion owns the guarantee.
 ''
 '' AN ORDINARY ANNUITY HAS EXACTLY ONE ROOT, because the cash flows change sign
-'' exactly once, so fb/finsolve.bi's multiple-roots caveat does not arise here.
+'' exactly once, so finsolve.tiko's multiple-roots caveat does not arise here.
 '' Said explicitly so a reader does not carry that worry over from RFC-0003.
 public function SolveRatePerPeriod overload _
     (  byref t as AnnuityTerms, byref opt as FinSolverOptions ) as FinResultDec

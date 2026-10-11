@@ -13,8 +13,8 @@
 ''
 '' Specified by C:\dev\docs\math\RFC-0007-vectors.md.  Phase 8.
 ''
-'' COMPLEX NUMBERS ARE NOT HERE any more, and this header does NOT include the
-'' one they moved to.  They used to be generated from the same macro text as
+'' COMPLEX NUMBERS ARE NOT HERE any more: they moved to their own file of this
+'' module, complex.tiko.  They used to be generated from the same macro text as
 '' Vec/Mat/Quat on the grounds that they are the same kind of object; that was
 '' true of the arithmetic and false of everything else, and a program that
 '' wants Dot should not pay for twelve inverse hyperbolic functions.
@@ -29,7 +29,7 @@
 '' was rejected -- the operator surface is large, global generic operators
 '' infer through nested positions combinatorially, and with no constraints on
 '' type parameters 'Vec3( of string )' instantiates happily and fails somewhere
-'' unhelpful inside the header.  So: concrete types, generated from one text.
+'' unhelpful inside the module.  So: concrete types, generated from one text.
 ''
 '' CONVENTIONS, STATED BECAUSE HALF OF ALL MATRIX BUGS ARE THESE TWO:
 ''

@@ -1,10 +1,10 @@
 #module "containers"
-'' std/containers: set -- FB.Set( of T ), a hash set
+'' std/containers: set -- containers.Set( of T ), a hash set
 ''
 '' RFC-0004 §5.  A Map with the value machinery removed rather than a wrapper
 '' around one, so a Set costs one slot per element instead of two.
 ''
-''     dim seen as FB.Set( of long )
+''     dim seen as containers.Set( of long )
 ''     if seen.Add( 42 ) then print "first time"
 ''
 ''     for each x in seen
@@ -14,7 +14,7 @@
 '' Add returns FALSE when the element was already present, which is what makes
 '' 'if seen.Add( x ) then' the natural spelling of "process each thing once".
 ''
-'' THE HASH CONTRACT is in fb/hash.bi: 'FB.HashOf( v )' must resolve and 'v = v'
+'' THE HASH CONTRACT is in hash.tiko: 'HashOf( v )' must resolve and 'v = v'
 '' must compare, and EQUAL ELEMENTS MUST HASH EQUAL.
 ''
 '' Same implementation as Map -- open addressing, linear probing, power-of-two

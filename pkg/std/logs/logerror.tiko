@@ -15,14 +15,14 @@ declare function fb_DtTicksFromCounts alias "fb_DtTicksFromCounts" ( byval count
 declare function fb_DtClockLocalOffsetNow alias "fb_DtClockLocalOffsetNow" ( ) as long
 end extern
 
-'' std/logs: logerror -- FB.Logging's OS plumbing and its error channel
+'' std/logs: logerror -- std/logs' OS plumbing and its error channel
 ''
 ''     #import "std/logs"
 ''
 ''     sub MyHandler( byref sinkname as ustring, byref reason as ustring, byval oscode as long )
 ''         '' ... page someone, bump a metric, write to a fallback file
 ''     end sub
-''     FB.SetLogErrorHandler( @MyHandler )
+''     logs.SetLogErrorHandler( @MyHandler )
 ''
 '' RFC-0005 sections 1-3 -- C:\dev\docs\logging\RFC-0005-errors-async.md. Phase 4.
 ''
@@ -32,17 +32,17 @@ end extern
 '' and every shipped sink reports through it.
 ''
 '' ---------------------------------------------------------------------------
-'' WHY THE HANDLER LIVES IN A COMMON BLOCK
+'' WHY THE HANDLER IS A PLAIN `dim shared`
 ''
-'' A header cannot make a process-wide variable: a `dim shared` in a .bi gives
-'' every module its own copy. The default LOGGER solves that with
-'' FB_LOG_IMPLEMENT (fb/logdefault.bi), which one module expands. The handler
-'' cannot: the sinks report through it, so a sink would then fail to LINK in a
-'' program that never expanded the macro -- every program using an explicit
+'' std/logs is one module, compiled once, so its `dim shared` is the one process-wide variable.
+'' As a header (fb/logerror.bi) it could not be: a `dim shared` in a .bi gave every module its
+'' own copy. The default LOGGER solved that with FB_LOG_IMPLEMENT (fb/logdefault.bi), which one
+'' module expanded. The handler could not: the sinks report through it, so a sink would then have
+'' failed to LINK in a program that never expanded the macro -- every program using an explicit
 '' FileSink.
 ''
-'' `common shared` is the way out. Every module that includes this header
-'' declares the same two variables and the LINKER merges them into one, zero
+'' `common shared` was the header's way out. Every module that included it
+'' declared the same two variables and the LINKER merged them into one, zero
 '' initialised, with no defining module. Measured across two modules on fbc
 '' gas64, fbc gcc, win32, linux-x86_64 (gcc 13 and gas64) and tiko. It holds a
 '' pointer and a flag, not an object, so nothing needs constructing.
@@ -50,8 +50,8 @@ end extern
 '' ---------------------------------------------------------------------------
 '' WHY THE OS DECLARATIONS ARE NAMESPACED AND ALIASED
 ''
-'' This header cannot #include "windows.bi": it would drag the whole Win32
-'' surface into every program that logs. It also cannot declare GetStdHandle in
+'' As a header this could not #include "windows.bi": it would drag the whole Win32
+'' surface into every program that logs. It also could not declare GetStdHandle in
 '' the global namespace, because a program that includes windows.bi ITSELF would
 '' then fail with `error 4: Duplicated definition` -- and most of the programs
 '' that want a logger are Win32 programs. Measured, not guessed.
@@ -78,8 +78,8 @@ end extern
 ''
 '' gas64 and tiko do not mind; gcc does. Resolving the entry points with
 '' dylibsymbol emits no prototype at all, so nothing can conflict. Each sink
-'' resolves its own table at construction: a header cannot hold a
-'' process-wide one (see fb/logger.bi), and LoadLibrary on kernel32 is a
+'' resolves its own table at construction: a header could not hold a
+'' process-wide one (see logger.tiko), and LoadLibrary on kernel32 is a
 '' reference-count bump.
 type hK32GetStdHandle      as function stdcall ( byval as ulong ) as any ptr
 type hK32GetFileType       as function stdcall ( byval as any ptr ) as ulong
@@ -146,7 +146,7 @@ const FB_LOG_ENABLE_VT      = 4       '' ENABLE_VIRTUAL_TERMINAL_PROCESSING
 extern "C"
     declare function hWriteFd alias "write"  ( byval fd as long, byval b as any ptr, byval n as uinteger ) as integer
     declare function hIsATty  alias "isatty" ( byval fd as long ) as long
-    '' FileSink's flush (fb/logfile.bi), the same C prototype as file.bi's
+    '' FileSink's flush (logfile.tiko), the same C prototype as file.bi's
     '' FileFlush so the two coexist under -gen gcc.
     declare function hFileFlush alias "fb_FileFlush" _
         ( byval filenumber as long = -1, byval systembuffer as long = 0 ) as long

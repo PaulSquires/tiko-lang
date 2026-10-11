@@ -43,7 +43,7 @@ end extern
 '' So there is no CanadianMortgageRate beside an American one.  There is
 '' RatePerPaymentFromNominal, and the two markets differ in ONE ENUM.
 ''
-'' THE EXACT / DOUBLE BOUNDARY, STATED ONCE.  fb/decimal.bi has no Pow, Exp,
+'' THE EXACT / DOUBLE BOUNDARY, STATED ONCE.  decimal.tiko has no Pow, Exp,
 '' Log or Sqrt -- it has + - * / mod, comparison, rounding and conversion.  So
 '' anything here needing a power is either built from multiplication or is not
 '' exact.  The rule, and every public function repeats which side it is on:
@@ -68,16 +68,16 @@ end extern
 '' here as it is in C#.  Said plainly so the word is not read as a stronger
 '' claim than it is.
 ''
-'' NOTHING NUMERIC IS HAND-ROLLED.  The double kernel calls fb/math.bi:
+'' NOTHING NUMERIC IS HAND-ROLLED.  The double kernel calls std/numeric:
 '' Pow, Expm1, Log1p, Ceil, Floor, IsNaN, NaN; the exact path calls
-'' fb/decimal.bi's own arithmetic and Round; the calendar arithmetic calls
-'' fb/chrono.bi and fb_DtIsLeapYear.  The one algorithm written here is the
+'' decimal.tiko's own arithmetic and Round; the calendar arithmetic calls
+'' std/chrono and fb_DtIsLeapYear.  The one algorithm written here is the
 '' BINARY EXPONENTIATION in GrowthFactor, and it exists only because
-'' fb/decimal.bi has no power at all -- mathint.bi's IPow is exact but INTEGER,
-'' and math.bi's Pow is DOUBLE, so neither can raise a Decimal.
+'' decimal.tiko has no power at all -- mathint.tiko's IPow is exact but INTEGER,
+'' and math.tiko's Pow is DOUBLE, so neither can raise a Decimal.
 ''
 '' WHICH OF Pow AND Expm1/Log1p, AND WHY IT IS NOT ARBITRARY.  Both ship in
-'' fb/math.bi and the choice is about CANCELLATION, not preference:
+'' std/numeric and the choice is about CANCELLATION, not preference:
 ''
 ''     the result is a FACTOR, near 1..10   ->  Pow( 1 + i, n )
 ''     the result is a RATE, near zero      ->  Expm1( n * Log1p( i ) )
@@ -87,15 +87,15 @@ end extern
 '' functions that exist to avoid exactly that, and every '- 1' form below uses
 '' them.  GrowthFactorFractional returns the factor itself and uses Pow.
 ''
-'' NAME COLLISIONS, STATED UP FRONT.  fb/math.bi declares `const as double E`
+'' NAME COLLISIONS, STATED UP FRONT.  std/numeric declares `const as double E`
 '' (Euler's number) and free functions Min, Max, Clamp, Sign and Round.
 '' FreeBASIC identifiers are case-insensitive, so a local named 'e' or 'sign'
-'' in a file that includes this one will not compile.  Measured, not guessed --
-'' `dim as FinanceError e` cost a build.
+'' in a file that says 'using numeric', as this one does, will not compile.
+'' Measured, not guessed -- `dim as FinanceError e` cost a build.
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/fincore.bi requires -lang fb (it uses namespaces)"
+    #error "std/money requires -lang fb (it uses namespaces)"
 #endif
 
 #include once "fblimits.bi"
@@ -181,7 +181,7 @@ end enum
 '' from one another.
 ''
 '' Excel's basis 0 is a NASD variant that additionally adjusts for the last day
-'' of February.  It is NOT reproduced here and this header does not claim it:
+'' of February.  It is NOT reproduced here and this file does not claim it:
 '' see C:\dev\docs\finance\amendments.md.
 public enum DayCount
     DAYCOUNT_ACTUAL_365_FIXED
@@ -195,8 +195,8 @@ end enum
 '' ===========================================================================
 '' Rounding policy
 ''
-'' The mode enum is fb/decimal.bi's DecimalRounding, NOT a new FIN_* set.
-'' decimal.bi mirrored currency.bi's CUR_* names for exactly this reason -- one
+'' The mode enum is decimal.tiko's DecimalRounding, NOT a new FIN_* set.
+'' decimal.tiko mirrors currency.tiko's CUR_* names for exactly this reason -- one
 '' rule to learn rather than two -- and a third spelling of half-to-even would
 '' undo that.
 '' ===========================================================================
@@ -221,7 +221,7 @@ public function MoneyRoundingMake overload _
 end function
 
 '' The default in every record that carries one.  Half-to-even for the reason
-'' currency.bi and decimal.bi both give: half-up biases every tie the same way,
+'' currency.tiko and decimal.tiko both give: half-up biases every tie the same way,
 '' and across a long schedule that is real money.
 public function MoneyRoundingCents overload ( ) as MoneyRounding
     return MoneyRoundingMake( 2, DEC_HALF_EVEN, TRUE )
@@ -300,7 +300,7 @@ end function
 '' Day count
 ''
 '' Plain values, not Result: these are total over their domain.  An Invalid
-'' LocalDate is already Invalid in fb/chrono.bi and yields a zero-day span; an
+'' LocalDate is already Invalid in std/chrono and yields a zero-day span; an
 '' out-of-range basis falls back to Act/365F, which is documented rather than
 '' left to be discovered.
 '' ===========================================================================

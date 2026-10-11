@@ -1,10 +1,10 @@
 #module "containers"
-'' std/containers: orderedset -- FB.OrderedSet( of T ), a red-black tree set
+'' std/containers: orderedset -- containers.OrderedSet( of T ), a red-black tree set
 ''
-'' The always-sorted sibling of FB.Set.  FOR EACH walks it in ASCENDING ORDER,
+'' The always-sorted sibling of Set.  FOR EACH walks it in ASCENDING ORDER,
 '' which is the entire reason to reach for it.
 ''
-''     dim seen as FB.OrderedSet( of long )
+''     dim seen as containers.OrderedSet( of long )
 ''     if seen.Add( 42 ) then print "first time"
 ''
 ''     for each x in seen
@@ -12,28 +12,28 @@
 ''     next
 ''
 '' An OrderedMap with the value machinery removed rather than a wrapper around
-'' one -- the same choice FB.Set makes against FB.Map, and for the same reason:
+'' one -- the same choice Set makes against Map, and for the same reason:
 '' a node here costs one T instead of a T and a dead value.
 ''
-'' WHICH ONE TO USE.  FB.Set unless you need the order.  A hash set is O(1) per
+'' WHICH ONE TO USE.  Set unless you need the order.  A hash set is O(1) per
 '' operation against this one's O(log n) and allocates once instead of per
 '' element.
 ''
-''     FB.Set            avg O(1)      unspecified, unstable order
-''     FB.OrderedSet     O(log n)      ascending order, always
+''     Set               avg O(1)      unspecified, unstable order
+''     OrderedSet        O(log n)      ascending order, always
 ''
 '' THE ORDERING CONTRACT is '<' on T, and nothing else -- no HashOf, no '='.
 '' Two elements are the same element when neither is less than the other.  See
-'' fb/orderedmap.bi for what the tree guarantees and what it costs.
+'' orderedmap.tiko for what the tree guarantees and what it costs.
 ''
-'' NO Reserve AND NO Capacity, unlike FB.Set: a tree allocates exactly one node
+'' NO Reserve AND NO Capacity, unlike Set: a tree allocates exactly one node
 '' per element when that element arrives, so there is no table to size in
 '' advance and nothing for a caller to tune.
 ''
 '' WRITING THROUGH THE ITERATOR CORRUPTS THE SET.  Value( ) returns BYREF, as
-'' FB.Set's does, so 'for each byref x in s' compiles -- and assigning to x
+'' Set's does, so 'for each byref x in s' compiles -- and assigning to x
 '' changes the key the tree is sorted by without moving the node.  The same
-'' hazard exists for FB.Set, where it breaks the hash instead.  Remove and
+'' hazard exists for Set, where it breaks the hash instead.  Remove and
 '' re-Add rather than assigning.
 
 
@@ -126,7 +126,7 @@ operator OrderedSet( of T ).let( byref rhs as OrderedSet( of T ) )
 end operator
 
 '' Rebuilt node for node, colours included, so the copy is structurally
-'' identical rather than merely equal -- see fb/orderedmap.bi.
+'' identical rather than merely equal -- see orderedmap.tiko.
 sub OrderedSet( of T ).CopyFrom( byref rhs as OrderedSet( of T ) )
     this.root = this.CloneSubtree( rhs.root, 0 )
     this.num = rhs.num
@@ -249,7 +249,7 @@ end function
 
 '' FALSE when the element was already present -- which is what makes
 '' 'if seen.Add( x ) then' the natural spelling of "process each thing once",
-'' exactly as in FB.Set.
+'' exactly as in Set.
 function OrderedSet( of T ).Add( byref v as T ) as boolean
     '' Copy first: v may refer INTO this set, and the node holding it can move.
     dim as T vv = v
@@ -296,7 +296,7 @@ function OrderedSet( of T ).Add( byref v as T ) as boolean
     return true
 end function
 
-'' See fb/orderedmap.bi for what the three cases are and why.
+'' See orderedmap.tiko for what the three cases are and why.
 sub OrderedSet( of T ).InsertFixup( byval z as RBSetNode( of T ) ptr )
     do
         dim as RBSetNode( of T ) ptr par = z->parent
@@ -438,7 +438,7 @@ sub OrderedSet( of T ).RemoveNode( byval z as RBSetNode( of T ) ptr )
     end if
 end sub
 
-'' See fb/orderedmap.bi for what the four cases are and why.
+'' See orderedmap.tiko for what the four cases are and why.
 sub OrderedSet( of T ).RemoveFixup _
     ( _
         byval x as RBSetNode( of T ) ptr, _
@@ -566,7 +566,7 @@ end sub
 
 '' ------------------------------------------------------------ set algebra
 ''
-'' The same three FB.Set offers, with the same meanings.  Each is O(m log n)
+'' The same three Set offers, with the same meanings.  Each is O(m log n)
 '' rather than O(m); a tree has no cheaper way to do them, and doing them
 '' through Items( ) first would only add an array.
 
@@ -755,7 +755,7 @@ end function
 
 '' ------------------------------------------------------------- iteration
 
-'' A sorted snapshot.  Unlike FB.Set.Items( ), whose order is unspecified, this
+'' A sorted snapshot.  Unlike Set.Items( ), whose order is unspecified, this
 '' one is ascending -- and it is already sorted, so nothing needs Sort( ).
 function OrderedSet( of T ).Items( ) as Array( of T )
     dim r as Array( of T )
@@ -841,7 +841,7 @@ sub OrderedSetIterator( of T ).MoveNext( )
 end sub
 
 '' The black height, or -1 when any red-black invariant is broken.  See
-'' fb/orderedmap.bi -- same check, same reason for being a member.
+'' orderedmap.tiko -- same check, same reason for being a member.
 function OrderedSet( of T ).BlackHeight( ) as long
     dim as RBSetNode( of T ) ptr n = this.root
     dim as long h = 1

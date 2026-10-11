@@ -35,7 +35,7 @@ using containers
 ''    OpeningBookValue_ - Salvage_ and every later period is EXACTLY zero.
 ''    Never a negative expense; never a book value below salvage; not
 ''    "approximately salvage" -- the floor is enforced by assignment, the same
-''    way fb/finloan.bi lands a final balance on zero.
+''    way finloan.tiko lands a final balance on zero.
 ''
 '' 2. THE SWITCH RULE COMPARES AGAINST THE REMAINING BASE OVER THE REMAINING
 ''    LIFE, recomputed every period:
@@ -57,16 +57,16 @@ using containers
 '' proportion is 0.5, and it reproduces the IRS MACRS 200%-declining-balance
 '' schedule exactly.  What is NOT shipped is the published PERCENTAGE TABLES and
 '' their display rounding: Publication 946 alternates 8.93/8.92/8.93 in the
-'' seven-year column so it sums to 100, and this header returns the unrounded
+'' seven-year column so it sums to 100, and this file returns the unrounded
 '' 8.9249 three times.  The arithmetic agrees; the presentation is the caller's.
 ''
 '' WHICH FEES, WHICH CONVENTION AND WHICH ASSET CLASS remain the caller's --
-'' they differ by jurisdiction, asset and year, and this header takes the
-'' numbers rather than the policy.  Same line fb/finloan.bi draws for APR.
+'' they differ by jurisdiction, asset and year, and this file takes the
+'' numbers rather than the policy.  Same line finloan.tiko draws for APR.
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/findeprec.bi requires -lang fb (it uses namespaces)"
+    #error "std/money requires -lang fb (it uses namespaces)"
 #endif
 
 #include once "fblimits.bi"
@@ -364,7 +364,7 @@ end function
 '' ===========================================================================
 '' The schedule
 ''
-'' Same Range/Iterator shape as fb/finloan.bi's, and the same note applies: the
+'' Same Range/Iterator shape as finloan.tiko's, and the same note applies: the
 '' iterator owns NO resource and needs NO destructor.
 '' ===========================================================================
 
@@ -391,7 +391,7 @@ sub DepreciationScheduleIterator.MoveNext( )
 end sub
 
 '' The rows are MATERIALIZED here rather than walked lazily, unlike
-'' fb/finloan.bi's schedule.  The reason is the final-period adjustment: the
+'' finloan.tiko's schedule.  The reason is the final-period adjustment: the
 '' last row's expense depends on the accumulated rounding of every row before
 '' it, so it cannot be produced without having built them.  A life is tens of
 '' periods rather than hundreds, so the allocation is not worth avoiding.

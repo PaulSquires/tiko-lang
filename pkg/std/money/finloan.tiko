@@ -21,8 +21,8 @@ using containers
 ''
 '' Specified by C:\dev\docs\finance\RFC-0005-loans.md.  Phase 4.
 ''
-'' THE SIGN CONVENTION IS INVERTED HERE, ON PURPOSE.  fb/fintvm.bi uses
-'' cash-flow signs, where a payment is negative.  THIS HEADER DOES NOT: the
+'' THE SIGN CONVENTION IS INVERTED HERE, ON PURPOSE.  fintvm.tiko uses
+'' cash-flow signs, where a payment is negative.  THIS FILE DOES NOT: the
 '' principal is positive, the payment is positive, the interest is positive, and
 '' the balance is positive and decreasing.
 ''
@@ -31,8 +31,8 @@ using containers
 '' a balance of 479,268.15 is a row a user will file a bug against, correctly.
 ''
 '' The bridge is ONE private helper, hLoanToAnnuity, which negates on the way
-'' into fb/fintvm.bi and back out.  It is named here so that a reader who diffs
-'' the two headers and notices the inconsistency finds the DECISION rather than
+'' into fintvm.tiko and back out.  It is named here so that a reader who diffs
+'' the two files and notices the inconsistency finds the DECISION rather than
 '' guessing at an accident.  RFC-0005 section 2 argues it.
 ''
 '' ONE CODE PATH FOR BOTH MARKETS.  LoanTermsUsMortgage and
@@ -42,7 +42,7 @@ using containers
 '' the convention at the call site is clearer than expecting every caller to
 '' know which enum their country uses, NOT because the arithmetic differs.
 ''
-'' THE ROUNDING ALGORITHM IS NORMATIVE, and it is why this header is long.  Nine
+'' THE ROUNDING ALGORITHM IS NORMATIVE, and it is why this file is long.  Nine
 '' numbered steps, in hAdvance below, each carrying the RFC-0005 section 6 step
 '' it implements.  The load-bearing one is step 3: PRINCIPAL IS THE RESIDUAL,
 '' Payment - Interest, never computed independently.  That single line is the
@@ -56,7 +56,7 @@ using containers
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/finloan.bi requires -lang fb (it uses namespaces)"
+    #error "std/money requires -lang fb (it uses namespaces)"
 #endif
 
 #include once "fblimits.bi"
@@ -258,9 +258,9 @@ function hLoanAccrualRate overload ( byref t as LoanTerms ) as FinResultDec
     return FinOkDec( d )
 end function
 
-'' THE BRIDGE between this header's statement signs and fb/fintvm.bi's
+'' THE BRIDGE between this file's statement signs and fintvm.tiko's
 '' cash-flow signs.  Named in RFC-0005 section 2 so the inconsistency between
-'' the two headers reads as a decision rather than an accident.
+'' the two files reads as a decision rather than an accident.
 function hLoanToAnnuity overload _
     ( byref t as LoanTerms, byref rate as Decimal, byval periods as long ) as AnnuityTerms
 
@@ -320,7 +320,7 @@ end function
 '' ===========================================================================
 '' The iterator
 ''
-'' Follows fb/fsdir.bi's DirRange/DirIterator split -- but with NO DESTRUCTOR.
+'' Follows std/fs' fsdir.tiko's DirRange/DirIterator split -- but with NO DESTRUCTOR.
 '' DirIterator owns an OS handle; this one owns nothing, is freely copyable, and
 '' abandoning a FOR EACH early leaks nothing because there is nothing to leak.
 '' Copying a sibling and inheriting its comments is how an iterator acquires an
@@ -546,7 +546,7 @@ public type AmortizationSchedule
     as long         m_count
 end type
 
-'' CONST and BY VALUE, for the reason fb/fsdir.bi gives: FreeBASIC cannot
+'' CONST and BY VALUE, for the reason std/fs' fsdir.tiko gives: FreeBASIC cannot
 '' overload on constness alone, so one const accessor serves const and
 '' non-const collections alike.
 const function AmortizationSchedule.GetIterator( ) as AmortizationIterator
@@ -636,7 +636,7 @@ public function LoanSchedule overload ( byref t as LoanTerms, byref extras as Ar
 end function
 
 '' Materialize when random access is genuinely wanted.  containers.Array from
-'' fb/array.bi -- NOT fb/vector.bi, which is Vec2/Mat4/Quat.  Not a Result,
+'' std/containers -- NOT std/numeric's vector.tiko, which is Vec2/Mat4/Quat.  Not a Result,
 '' because the terms were validated when the schedule was built.
 public function ScheduleToArray overload ( byref s as AmortizationSchedule ) as Array( of AmortizationRow )
     dim as Array( of AmortizationRow ) rows
@@ -847,7 +847,7 @@ end function
 '' Implied rate and APR
 '' ===========================================================================
 
-'' DOUBLE KERNEL -- fb/finsolve.bi, through fb/fintvm.bi's SolveRatePerPeriod.
+'' DOUBLE KERNEL -- finsolve.tiko, through fintvm.tiko's SolveRatePerPeriod.
 '' Returns the NOMINAL ANNUAL rate at the given compounding, so it is directly
 '' comparable with the rate the loan was quoted at.
 public function LoanImpliedRate overload _

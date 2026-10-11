@@ -1,5 +1,5 @@
 #module "tasks"
-'' std/tasks: sync -- FB.WaitGroup and FB.Context
+'' std/tasks: sync -- tasks.WaitGroup and tasks.Context
 ''
 '' RFC-0005 (C:\dev\docs\goroutines\RFC-0005-sync.md).  The two small pieces
 '' that make goroutines and channels usable: a way to wait for a fan-out, and a
@@ -25,7 +25,7 @@
 
 
 #if not defined( __FB_MT__ )
-    #error "fb/sync.bi requires -mt (the multithreaded runtime)"
+    #error "std/tasks requires -mt (the multithreaded runtime)"
 #endif
 
 #include once "fberror.bi"

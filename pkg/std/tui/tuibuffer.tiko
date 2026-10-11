@@ -12,8 +12,8 @@ using containers
 ''
 '' RFC-0003 -- C:\dev\docs\tui\RFC-0003-buffer-and-renderer.md.
 ''
-'' Depends on tuicore.bi only. Does NO I/O itself: Render( ) returns the byte
-'' string, and tuiterm.bi writes it.
+'' Depends on tuicore.tiko only. Does NO I/O itself: Render( ) returns the byte
+'' string, and tuiterm.tiko writes it.
 ''
 '' ---------------------------------------------------------------------------
 '' DRAWING NEVER FAILS
@@ -31,7 +31,7 @@ using containers
 ''
 '' The phase-1 placeholder that lived here -- a handful of hand-written
 '' double-width ranges -- is gone. TuiCharWidth, TuiDecodeAt and TuiStringWidth
-'' now come from fb/tuiwidth.bi, over the full East-Asian-Width table generated
+'' now come from tuiwidth.tiko, over the full East-Asian-Width table generated
 '' from the UCD. RFC-0005.
 
 '' ============================================================== the cell
@@ -141,7 +141,7 @@ end function
 '' Returns a POINTER, not a byref. `@buf.At( x, y )` on a byref-returning
 '' function does not yield the cell's address -- it yields the PROCEDURE's
 '' address, silently, with no diagnostic. Measured during phase 1; the same
-'' wart forced tuiterm.bi's TuiSaved( ) to return a pointer.
+'' wart forced tuiterm.tiko's TuiSaved( ) to return a pointer.
 function TuiBuffer.At( byval x as long, byval y as long ) as TuiCell ptr
     if( InBounds( x, y ) = FALSE ) then return 0
     return @cells[ y * cols + x ]

@@ -25,10 +25,10 @@
 ''
 '' SpCtl is a plain record with no members for the same reason it is not
 '' generic: a control block with a virtual Dispose( ) would need a non-generic
-'' base class whose method bodies live in this header, and a method body in a
-'' header is a duplicate symbol in every module that includes it.  So the
-'' control block stores no type information at all, and DESTRUCTION IS DONE BY
-'' THE HANDLE, which knows T:  delete cptr( T ptr, ctl->obj ).
+'' base class whose method bodies live in this file, and as a header
+'' (fb/sharedptr.bi) such a body was a duplicate symbol in every module that
+'' included it.  So the control block stores no type information at all, and
+'' DESTRUCTION IS DONE BY THE HANDLE, which knows T:  delete cptr( T ptr, ctl->obj ).
 ''
 '' ---------------------------------------------------------------- the counts
 ''
@@ -86,7 +86,7 @@
 '' other alive for ever.  WeakPtr is the tool; it is not automatic.
 
 
-'' For FB_RTERROR_ILLEGALFUNCTIONCALL, as optional.bi does.
+'' For FB_RTERROR_ILLEGALFUNCTIONCALL, as std/outcome's optional.tiko does.
 #include once "fberror.bi"
 
 #ifdef __FB_MT__
@@ -110,8 +110,8 @@ end type
 '' the last one?" has to be answered by the same atomic step that does the
 '' decrement.  Testing the count afterwards is the classic double-free.
 ''
-'' PRIVATE so that a header included by two modules does not define the symbol
-'' twice -- the same reason channel.bi's queue helpers are private.
+'' Not 'public', so the module keeps them to itself. As a header they were PRIVATE so a header
+'' included by two modules did not define them twice, as channel.bi's queue helpers were.
 
 function hRefInc( byval p as long ptr ) as long
 #ifdef __FB_MT__

@@ -47,7 +47,7 @@ using outcome
 '' A FUNCTION POINTER AND A CONTEXT, NOT A CAPTURING LAMBDA.  fbc-modern has
 '' capturing lambdas and this is deliberately not one of their use sites: the
 '' objective is stored in a record, passed down two call levels and invoked from
-'' a header-only inline body, and a capture's lifetime is tied to the scope that
+'' another procedure's body, and a capture's lifetime is tied to the scope that
 '' made it.  `function ( x, ctx )` plus an `any ptr` is what every numerical
 '' library in every language uses here, and it is trivially correct.
 ''
@@ -72,13 +72,13 @@ using outcome
 '' pre-checks.  Only the LAST of them -- bad bounds -- is visible from here: the
 '' other three are about a caller's SERIES, which reaches the solver as an
 '' opaque `any ptr`.  Empty series, no sign change and unordered dates are
-'' therefore the CALLER's to detect, before calling, and fb/fincash.bi does so
+'' therefore the CALLER's to detect, before calling, and fincash.tiko does so
 '' in phase 5.  Recorded here so the division of labour is a decision rather
 '' than an omission.
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/finsolve.bi requires -lang fb (it uses namespaces)"
+    #error "std/money requires -lang fb (it uses namespaces)"
 #endif
 
 #include once "fblimits.bi"
@@ -102,7 +102,7 @@ end type
 
 public function FinSolverOptionsDefault overload ( ) as FinSolverOptions
     dim as FinSolverOptions o
-    o.Guess_         = NaN( )        '' fb/math.bi -- "the caller has no seed"
+    o.Guess_         = NaN( )        '' std/numeric -- "the caller has no seed"
     o.LowerBound_    = -0.9999999
     o.UpperBound_    = 1.0e6
     o.Tolerance_     = 1.0e-12
@@ -138,11 +138,11 @@ public type FinResultSolve as Result( of FinSolveResult, FinanceError )
 '' factor at an absurd trial rate, say -- is SKIPPED rather than fatal.  This is
 '' the single test for that, used at every evaluation site.
 function hSolveUsable overload ( byval y as double ) as boolean
-    return IsFinite( y )        '' fb/math.bi
+    return IsFinite( y )        '' std/numeric
 end function
 
 function hSolveClamp overload ( byval x as double, byref o as FinSolverOptions ) as double
-    return Clamp( x, o.LowerBound_, o.UpperBound_ )    '' fb/math.bi
+    return Clamp( x, o.LowerBound_, o.UpperBound_ )    '' std/numeric
 end function
 
 function hSolveOk overload _
@@ -182,8 +182,8 @@ end function
 '' a/b/c/d/e and fa/fb/fc.  TWO of those names are taken, both because
 '' FreeBASIC identifiers are case-insensitive:
 ''
-''     e   IS fb/math.bi's Euler constant  -> `dim as double e` will not compile
-''     fb  IS THE NAMESPACE THIS FILE IS IN -> `yb = ...` gives
+''     e   IS std/numeric's Euler constant -> `dim as double e` will not compile
+''     fb  IS A NAMESPACE (FB, fblimits.bi) -> `fb = ...` gives
 ''         "error 120: Expected period ('.')", because fb.something is expected
 ''
 '' The second one is worth knowing before writing any numeric code in this
@@ -216,7 +216,7 @@ function hSolveBrent overload _
             ya = yb : yb = yc : yc = ya
         end if
 
-        '' EPSILON_DOUBLE is yb/math.bi's; the 2* is the standard guard against
+        '' EPSILON_DOUBLE is std/numeric's; the 2* is the standard guard against
         '' asking for a step smaller than the representation allows.
         dim as double tol1 = 2.0 * EPSILON_DOUBLE * abs( xb ) _
                            + 0.5 * o.StepTolerance_ * Max( 1.0, abs( xb ) )
@@ -267,7 +267,7 @@ function hSolveBrent overload _
         if( abs( dcur ) > tol1 ) then
             xb += dcur
         else
-            xb += CopySign( tol1, xm )       '' yb/math.bi
+            xb += CopySign( tol1, xm )       '' std/numeric
         end if
 
         yb = f( xb, ctx )
@@ -288,7 +288,7 @@ public function FinSolveRoot overload _
         byval f as FinObjective, byval ctx as any ptr, byref o as FinSolverOptions _
     ) as FinResultSolve
 
-    '' ---- step 0: the one pre-check this header can make
+    '' ---- step 0: the one pre-check this file can make
     if( f = 0 ) then return hSolveFail( FIN_DOMAIN, 0, NaN( ), NaN( ) )
     if( hSolveUsable( o.LowerBound_ ) = FALSE ) then return hSolveFail( FIN_DOMAIN, 0, NaN( ), NaN( ) )
     if( hSolveUsable( o.UpperBound_ ) = FALSE ) then return hSolveFail( FIN_DOMAIN, 0, NaN( ), NaN( ) )

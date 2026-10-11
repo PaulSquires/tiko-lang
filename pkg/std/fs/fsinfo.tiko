@@ -3,7 +3,7 @@
 #import "std/containers"
 using outcome
 using containers
-'' std/fs: fsinfo -- FB.FileInfo and the metadata calls
+'' std/fs: fsinfo -- fs.FileInfo and the metadata calls
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0003-metadata.md.
 ''
@@ -20,7 +20,7 @@ using containers
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/fsinfo.bi requires -lang fb (it uses namespaces)"
+    #error "std/fs requires -lang fb (it uses namespaces)"
 #endif
 
 #if defined( __FB_WIN32__ ) and ( not defined( __FB_64BIT__ ) )

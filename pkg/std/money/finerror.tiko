@@ -15,7 +15,7 @@ using outcome
 ''
 '' Specified by C:\dev\docs\finance\RFC-0001-errors.md.  Phase 1.
 ''
-'' A SMALL VALUE TYPE, NOT fb/fserror.bi's SHAPE.  FsError carries an OS error
+'' A SMALL VALUE TYPE, NOT std/fs' FsError SHAPE.  FsError carries an OS error
 '' number, an operation name and up to two paths, because a filesystem failure
 '' is ABOUT a file.  A finance failure is about a COMPUTATION: there is no path
 '' to name and no errno to translate.  What a caller actually needs when a
@@ -36,22 +36,22 @@ using outcome
 '' system, not in a comment.
 ''
 '' THERE IS NO GENERIC TYPEDEF IN THE LANGUAGE, so the result aliases at the
-'' bottom are concrete, one per T this docset returns.  fb/fserror.bi:17-33
+'' bottom are concrete, one per T this docset returns.  std/fs' fserror.tiko
 '' measured it: `type X( of T ) as Result( of T, E )` is read as the opening of
 '' a generic TYPE BODY and swallows the next statement, giving
 ''
 ''     error 338: Unbalanced block in generic body
 ''
 '' and a `#define` macro works but ignores NAMESPACE entirely, which is exactly
-'' what the container headers promise the library will not do.
+'' what the container headers promised the library would not do.
 ''
 '' IGNORING A RESULT STAYS A CONVENTION.  No '?' operator, no must-use
-'' diagnostic (result.bi:17-22).  What the type buys is that the failure has a
+'' diagnostic (std/outcome's result.tiko).  What the type buys is that the failure has a
 '' name and a shape, not that anyone is forced to look at it.
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/finerror.bi requires -lang fb (it uses namespaces)"
+    #error "std/money requires -lang fb (it uses namespaces)"
 #endif
 
 #include once "fblimits.bi"
@@ -102,7 +102,7 @@ end enum
 '' programmer, it is not user-facing prose.  A program showing this to a person
 '' localizes from Code( ) instead.
 ''
-'' Returns STRING, not USTRING -- fb/fserror.bi returns ustring because a path
+'' Returns STRING, not USTRING -- std/fs' FsError returns ustring because a path
 '' can be non-ASCII, and nothing here can.
 public function FinanceErrorMessage overload ( byval c as FinanceErrorCode ) as string
     select case as const c
@@ -129,7 +129,7 @@ end function
 
 public type FinanceError
     '' Default-constructible because Result default-constructs BOTH slots
-    '' (result.bi:33).  A default FinanceError is not meaningful; it is
+    '' (std/outcome).  A default FinanceError is not meaningful; it is
     '' FIN_UNKNOWN, and a default-constructed Result is a failure carrying it.
     declare constructor( )
     declare constructor( byval c as FinanceErrorCode )
@@ -163,7 +163,7 @@ constructor FinanceError( )
     this.m_code     = FIN_UNKNOWN
     this.m_iters    = 0
     this.m_residual = 0.0
-    this.m_best     = NaN( )        '' fb/math.bi
+    this.m_best     = NaN( )        '' std/numeric
 end constructor
 
 constructor FinanceError( byval c as FinanceErrorCode )
@@ -174,7 +174,7 @@ constructor FinanceError( byval c as FinanceErrorCode )
 end constructor
 
 '' A CONSTRUCTOR RATHER THAN A SETTER, because the fields are private and a free
-'' function in the same namespace still cannot reach them -- fb/fserror.bi hit
+'' function in the same namespace still cannot reach them -- std/fs' FsError hit
 '' the same wall and answered it with a public SetPath2( ).  A constructor is
 '' the better answer here: the solver payload is set once, at construction, and
 '' there is no reason for it ever to be mutated afterwards.
@@ -214,17 +214,17 @@ end function
 '' Construction
 ''
 '' By named free function, never by an implicit conversion -- the same rule
-'' fb/decimal.bi and fb/currency.bi follow, and for the same reason: a
+'' decimal.tiko and currency.tiko follow, and for the same reason: a
 '' one-argument constructor that silently accepts the wrong thing is a defect
 '' that compiles.
 '' ===========================================================================
 
-'' 'fe', NOT the obvious 'e'.  fb/math.bi declares `const as double E` (Euler's
+'' 'fe', NOT the obvious 'e'.  std/numeric declares `const as double E` (Euler's
 '' number) and FreeBASIC identifiers are case-insensitive, so `dim as
 '' FinanceError e` collides with it:
 ''     error 4: Duplicated definition, e
-'' Measured while building this header.  Any local named 'e' in a translation
-'' unit that includes fb/math.bi has the same problem.
+'' Measured while building this file, as fb/finerror.bi.  Any local named 'e'
+'' in a file that says 'using numeric' has the same problem.
 public function FinanceErrorMake overload ( byval c as FinanceErrorCode ) as FinanceError
     dim as FinanceError fe = FinanceError( c )
     return fe
@@ -247,9 +247,9 @@ end function
 '' The result aliases
 ''
 '' One per T this module returns.  See the header comment for why this cannot
-'' be a single generic alias.  Aliases whose T is defined in a later header --
+'' be a single generic alias.  Aliases whose T is defined in a later file --
 '' AmortizationSchedule, ReturnSummary and the rest -- are declared in the
-'' header that owns the payload type, because an alias needs its T complete.
+'' file that owns the payload type, because an alias needs its T complete.
 '' ===========================================================================
 
 public type FinResultDec  as Result( of Decimal,  FinanceError )
@@ -263,7 +263,7 @@ public type FinResultLong as Result( of long,     FinanceError )
 '' Spelled once because `Fail( of Decimal, FinanceError )( ... )` is four words
 '' of ceremony at every one of the several dozen call sites, and because
 '' BOTH type arguments have to be written out -- inference reads parameter
-'' positions only, and Fail mentions just E (result.bi:139-149).
+'' positions only, and Fail mentions just E (std/outcome's result.tiko).
 '' ===========================================================================
 
 public function FinFailDec overload ( byval c as FinanceErrorCode ) as FinResultDec

@@ -232,14 +232,14 @@ end function
 '' ============================================================== restore state
 ''
 '' The crash-restore path needs state a signal handler can reach, and a signal
-'' handler cannot be a closure or a method. It also cannot be `dim shared` in a
-'' header: two modules including this file would collide at link.
+'' handler cannot be a closure or a method. As a header it also could not be
+'' `dim shared`: two modules including the file would have collided at link.
 ''
-'' A `static` local inside a `private` function gives each module its own slot,
-'' which is correct because the handler installed is also that module's own
-'' `private` procedure -- whichever module called Enter( ) installed a handler
-'' pointing at the state that module owns. One terminal per process is the only
-'' case this has to serve, and it serves it.
+'' A `static` local inside a function holds it: one slot per program, now that
+'' std/tui is one module. (As a header the function was `private`, giving each
+'' including module its own slot, which was correct because the handler
+'' installed was also that module's own `private` procedure.) One terminal per
+'' process is the only case this has to serve, and it serves it.
 
 type TuiSavedMode
     as boolean active

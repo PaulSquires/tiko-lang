@@ -35,7 +35,7 @@
 
 
 #if not defined( __FB_MT__ )
-    #error "fb/select.bi requires -mt (the multithreaded runtime)"
+    #error "std/tasks requires -mt (the multithreaded runtime)"
 #endif
 
 #include once "fberror.bi"
@@ -67,7 +67,7 @@ end type
 public type SelectCtx
     as SelectCase  cases( 0 to SELECT_MAXCASES-1 )
     as long        n
-    as boolean     done          '' the per-select claim flag; see channel.bi
+    as boolean     done          '' the per-select claim flag; see channel.tiko
     as boolean     hastimeout
     as ulong       timeoutms
     as boolean     haselse

@@ -13,9 +13,9 @@ using outcome
 ''
 '' Specified by C:\dev\docs\math\RFC-0009-complex.md, which supersedes RFC-0007
 '' s5.  Complex numbers used to live in fb/vector.bi; they were removed from it
-'' when this header was written, and fb/vector.bi does NOT re-include this one.
-'' A program that wants both writes both #includes -- the same decision
-'' fb/math.bi makes about fb/currency.bi.
+'' when this file was written, as fb/complex.bi.  Both are std/numeric now, so
+'' one #import gets both -- vector.tiko and complex.tiko are files of the same
+'' module.
 ''
 '' EVERY FUNCTION CARRIES A 'C' PREFIX.  Exp, Log, Sqr, Sin, Cos, Tan, Abs, Atn
 '' and Str are FreeBASIC intrinsics, and a function of one of those names in
@@ -49,17 +49,17 @@ using outcome
 ''
 '' NEITHER IS FOLLOWED WHERE IT IS BEATEN.  Both ship .NET Framework 4.7's
 '' polar CSqrt, which loses most of its significant digits near the negative
-'' real axis; this header has the .NET Core 3.0 replacement.  AfxNova leaves
+'' real axis; this file has the .NET Core 3.0 replacement.  AfxNova leaves
 '' its double/Complex and Complex/double division overloads naive even though
 '' its Complex/Complex is Smith; here all three are Smith.
 ''
 '' NOTHING FROM AfxComplex'S FIRST 150 LINES IS PORTED.  Its private acosh,
 '' asinh, atanh, hypot3, isinf and isinfinity, and its HUGE_VALF comparisons,
-'' are all supplied by fb/math.bi as proper overload sets.
+'' are all supplied by math.tiko as proper overload sets.
 ''
-'' DEPENDENCIES, stated rather than left to be discovered: fb/math.bi for the
-'' libm surface and the classification predicates, and fb/mathtext.bi for
-'' CToString -- the second costs fb/optional.bi transitively.
+'' DEPENDENCIES, stated rather than left to be discovered: math.tiko for the
+'' libm surface and the classification predicates, and mathtext.tiko for
+'' CToString -- the second costs std/outcome transitively.
 
 
 #include once "fblimits.bi"
@@ -80,7 +80,7 @@ end type
 ''
 '' THE SPECIAL VALUES ARE FUNCTIONS, NOT CONSTANTS.  'const as Complex N' can
 '' not be initialised from 0.0/0.0 -- that is a compile-time division by zero
-'' and does not compile.  Same decision, same reason, as NaN( ) in fb/math.bi.
+'' and does not compile.  Same decision, same reason, as NaN( ) in math.tiko.
 '' ===========================================================================
 
 public function CSet( byval re as double, byval im as double ) as Complex
@@ -154,7 +154,7 @@ end function
 '' reasoning that declined lexicographic ordering on tuples.  AfxNova's CSgn,
 '' which returned a LONG by comparing the real parts and then the imaginary
 '' ones, was such an ordering under another name; see CSgn below for what this
-'' header does with that name instead.
+'' file does with that name instead.
 '' ===========================================================================
 
 public operator = ( byref a as Complex, byref b as Complex ) as boolean
@@ -358,7 +358,7 @@ end function
 '' DELIBERATELY DIFFERENT FROM AfxNova, whose CSgn returned a LONG: +1 if the
 '' real part was positive, else -1 if negative, else the same test on the
 '' imaginary part.  That is a lexicographic tie-break, not a sign, and this
-'' header has just declined to give C an ordering.  Code ported from AfxNova
+'' file has just declined to give C an ordering.  Code ported from AfxNova
 '' gets a compile error at the assignment rather than a silently different
 '' number, which is the intended outcome.
 public function CSgn( byref z as Complex ) as Complex
@@ -382,7 +382,7 @@ end function
 '' PRINCIPAL BRANCH, cut along the negative real axis, with the cut BELOW it:
 '' CLog( -1 + 0i ) is +PI*i and CLog( -1 - 0i ) is -PI*i.  That is atan2's
 '' convention and C99's, and it is why the two zeros have to be distinguishable
-'' -- see IsNegative in fb/math.bi.
+'' -- see IsNegative in math.tiko.
 public function CLog overload ( byref z as Complex ) as Complex
     function = CSet( CLogAbs( z ), atan2( z.im, z.re ) )
 end function
@@ -855,7 +855,7 @@ end function
 '' ===========================================================================
 '' Text
 ''
-'' BUILT ON fb/mathtext.bi's ToString, so the components round-trip: the value
+'' BUILT ON mathtext.tiko's ToString, so the components round-trip: the value
 '' that comes back out of TryParseDouble is the value that went in, which STR
 '' does not promise and does not deliver.
 ''

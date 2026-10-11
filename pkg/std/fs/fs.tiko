@@ -1,12 +1,12 @@
 #module "fs"
-'' std/fs: filesystem -- the modern filesystem module, in one include
+'' std/fs: filesystem -- the modern filesystem module, in one #import
 ''
-'' Specified in C:\dev\docs\filesystem\. Mirrors inc/containers.bi: this file is an
-'' umbrella and contains no declarations of its own.
+'' Specified in C:\dev\docs\filesystem\. Mirrors std/containers' containers.tiko: this
+'' file is the module's overview and declares nothing but std/path's old names below.
 ''
-'' Everything lives in NAMESPACE FB and nothing is added to the global
+'' Every name is the module's and nothing is added to the global
 '' namespace, so a program that already defines its own PathJoin, FsError or
-'' Stat is unaffected. Write `using FB` to drop the qualification.
+'' Stat is unaffected. Write `using fs` to drop the qualification.
 ''
 '' NOTHING HERE REPLACES ANYTHING. inc/file.bi, inc/dir.bi and the legacy Dir,
 '' FileExists, FileLen, FileCopy, Kill, Name, MkDir and RmDir are untouched and
@@ -17,7 +17,7 @@
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/filesystem.bi requires -lang fb (it uses namespaces)"
+    #error "std/fs requires -lang fb (it uses namespaces)"
 #endif
 
 '' Phase 1 -- RFC-0001, RFC-0002

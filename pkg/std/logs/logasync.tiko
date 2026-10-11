@@ -5,7 +5,7 @@
 using numeric
 using chrono
 using containers
-'' std/logs: logasync -- FB.Logging's asynchronous sink
+'' std/logs: logasync -- std/logs' asynchronous sink
 ''
 ''     #import "std/logs"
 ''     using logs
@@ -25,9 +25,9 @@ using containers
 '' rendering happens on the worker, and the caller pays for a copy and a lock.
 ''
 '' ---------------------------------------------------------------------------
-'' NOT fb/channel.bi, WHICH THE RFC NAMED
+'' NOT std/tasks' Channel (fb/channel.bi), WHICH THE RFC NAMED
 ''
-'' FB.Channel runs on the goroutine scheduler (fb/scheduler.bi), which needs -mt
+'' tasks.Channel runs on the goroutine scheduler (std/tasks), which needs -mt
 '' and a scheduler started; this module promised a logger that needs neither. The
 '' queue here is a ring of LogRecord copies under one mutex, with three condition
 '' variables -- room, a record, and empty-and-idle -- and the worker is a plain

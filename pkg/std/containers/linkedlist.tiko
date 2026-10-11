@@ -1,11 +1,11 @@
 #module "containers"
-'' std/containers: linkedlist -- FB.LinkedList( of T ), a doubly-linked list
+'' std/containers: linkedlist -- containers.LinkedList( of T ), a doubly-linked list
 ''
 '' RFC-0004 §6 (there called List).  Included because Array cannot give O(1)
 '' insertion at the front, and because a LinkedList iterator stays valid across
 '' insertions elsewhere in the list.
 ''
-''     dim q as FB.LinkedList( of string )
+''     dim q as containers.LinkedList( of string )
 ''     q.PushBack( "b" )
 ''     q.PushFront( "a" )
 ''     print q.PopFront( )                 '' "a"

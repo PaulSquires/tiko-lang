@@ -1,5 +1,5 @@
 #module "containers"
-'' std/containers: hash -- the hash contract for FB.Map and FB.Set
+'' std/containers: hash -- the hash contract for containers.Map and containers.Set
 ''
 '' RFC-0004 §4.  A key type K is hashable if 'HashOf( k )' resolves and 'k = k'
 '' compares.  Overloads are supplied here for every built-in type; a user type is
@@ -38,14 +38,14 @@
 '' A key type with no matching overload fails at the instantiation site naming
 '' HashOf, which is the unconstrained-generics diagnostic RFC-0001 describes.
 ''
-'' EVERY OVERLOAD BELOW IS 'PRIVATE', as HashBytes and HashInt already were.
-'' This is header-only code with no .bas behind it, so a public definition is
-'' emitted into every module that includes the header -- and two modules in one
-'' program then fail to link with ~18 'multiple definition of FB::HASHOF(...)'
+'' EVERY OVERLOAD BELOW IS PUBLIC, defined once: std/containers is one module. As fb/hash.bi they
+'' were 'PRIVATE', as HashBytes and HashInt were: that was header-only code with no .bas behind
+'' it, so a public definition was emitted into every module that included the header -- and two
+'' modules in one program then failed to link with ~18 'multiple definition of FB::HASHOF(...)'
 '' errors, naming a standard-library function and neither of the two files
-'' responsible.  fb/map.bi and fb/set.bi include this header, so without
+'' responsible.  fb/map.bi and fb/set.bi included that header, so without
 '' 'private' a Map or a Set could be used from only ONE module per program.
-'' Same rule as fb/decimal.bi and fb/chrono.bi.
+'' Same rule as fb/decimal.bi and fb/chrono.bi followed.
 ''
 
 

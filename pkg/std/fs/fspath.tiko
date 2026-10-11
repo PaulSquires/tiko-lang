@@ -3,12 +3,12 @@
 #import "std/containers"
 using outcome
 using containers
-'' std/fs: fspath -- FB.Path* , the pure path algebra
+'' std/fs: fspath -- fs.Path* , the pure path algebra
 ''
 '' Specified in C:\dev\docs\filesystem\RFC-0002-path.md.
 ''
 '' PURE. Nothing here touches the filesystem. A path is manipulated AS A STRING;
-'' whether it names anything is fb/fsinfo.bi's question (RFC-0003). That is why
+'' whether it names anything is fsinfo.tiko's question (RFC-0003). That is why
 '' AbsolutePath and CanonicalPath are NOT here: the line this file draws is
 '' syscalls, not subject matter.
 ''
@@ -20,18 +20,18 @@ using containers
 '' C:\dev\docs\filesystem\rationale.md.
 ''
 '' THREE OVERLOADS PER FUNCTION, resolved on the FIRST argument alone, with
-'' EVERY LATER PARAMETER A USTRING in all three -- the rule fb/string.bi:21-38
+'' EVERY LATER PARAMETER A USTRING in all three -- the rule std/strings' string.tiko
 '' establishes and the reason it gives: fbc ranks an overload on ALL of its
 '' parameters, so per-family later parameters make the set ambiguous rather than
-'' resolvable. Return type follows string.bi:53-54 --
+'' resolvable. Return type follows string.tiko too --
 ''
 ''     string, zstring  ->  string        (byte oriented, no encoding assumed)
 ''     wstring, ustring ->  ustring       (UTF-16 on every target)
 ''
 '' THE USTRING FAMILY IS THE KERNEL. It aliases straight onto the C entry points
 '' with no wrapper body, because a C function CAN return a FreeBASIC dynamic
-'' string by handing back a temp descriptor -- which is how the whole FB.*
-'' string family already works. The STRING and WSTRING families are thin FB
+'' string by handing back a temp descriptor -- which is how the whole std/strings
+'' family already works. The STRING and WSTRING families are thin FB
 '' bodies that widen, delegate, and narrow.
 ''
 '' NARROWING IS LOSSY AND SAYS SO. A Windows path is a counted sequence of
@@ -50,7 +50,7 @@ using containers
 
 
 #if __FB_LANG__ <> "fb"
-    #error "fb/fspath.bi requires -lang fb (it uses namespaces)"
+    #error "std/fs requires -lang fb (it uses namespaces)"
 #endif
 
 #if defined( __FB_WIN32__ ) and ( not defined( __FB_64BIT__ ) )
@@ -323,7 +323,7 @@ FBFS_PATH1_OVERLOADS( PathToNative )
 ''
 '' PathJoin and PathChangeExtension RETURN TEXT, so they owe the same rule the
 '' seven decomposition functions above follow: string in -> string out,
-'' wstring/ustring in -> ustring out (fb/string.bi:53-54).
+'' wstring/ustring in -> ustring out (std/strings' string.tiko).
 ''
 '' THEY DID NOT HAVE IT. Until the phase-8 audit both returned `ustring` even
 '' for a STRING argument, so `dim as string p = PathJoin( a, b )` compiled and
@@ -332,7 +332,7 @@ FBFS_PATH1_OVERLOADS( PathToNative )
 '' nothing in the type system to notice -- implicit conversion made the
 '' inconsistency invisible at every call site.
 ''
-'' Only the FIRST parameter varies, exactly as fb/string.bi:27-34 requires:
+'' Only the FIRST parameter varies, exactly as std/strings' string.tiko requires:
 '' giving the later parameters per-family types is what makes the set ambiguous
 '' rather than resolvable.
 

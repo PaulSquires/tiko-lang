@@ -796,7 +796,7 @@ end function
 '' timeoutMs: 0 polls, -1 blocks, anything else waits that long.
 ''
 '' Returning Optional rather than a boolean plus an out-parameter is exactly
-'' what fb/optional.bi exists for -- a timeout is "nothing is here, and it needs
+'' what std/outcome's Optional exists for -- a timeout is "nothing is here, and it needs
 '' no explanation".
 public function PollEvent( byref t as TuiTerminal, byref src as TuiInput, _
                             byval timeoutMs as long = -1 ) as TuiEventOpt
