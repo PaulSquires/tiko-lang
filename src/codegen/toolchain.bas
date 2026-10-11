@@ -156,9 +156,39 @@ end function
 '' included, which is the one thing a missing object (fbrt0.o was one) cannot hide
 '' from. Printed before it runs, as fbc's own '-v' does, so a tool that hangs or
 '' crashes is still named.
+''
+'' A LINE PAST WINDOWS' LIMIT GOES IN A RESPONSE FILE. CreateProcess takes at most 32,767
+'' characters: 126 objects at absolute paths made a 43,911-character link line, the link
+'' never started, and all that was said was TKO0116 'exit -1' (tiko-build B0, 2026-10-11).
+'' clang and llvm-ar read '@file' with the Windows quoting Q( ) already writes, and as
+'' UTF-8. Linux's limit is ARG_MAX, megabytes, so its lines are left on the command line.
+const RSP_AT_ = 30000
+
 private function Exec_ _
     ( byref t as ToolPaths, byref exe as string, byref args as string ) as long
     if t.verbose then print Q( exe ) & " " & args
+    #ifdef __FB_WIN32__
+        if len( exe ) + len( args ) > RSP_AT_ then
+            dim as string tmp = environ( "TEMP" )
+            if len( tmp ) = 0 then tmp = environ( "TMP" )
+            if len( tmp ) = 0 then tmp = "."
+            dim as string rsp
+            dim as long n = 0
+            do
+                rsp = tmp & "\tiko-" & hex( cast( ulong, timer * 1000000 ) ) & "-" & n & ".rsp"
+                n += 1
+            loop while FileExists_( rsp )
+            dim as long fh = freefile
+            if open( rsp for output as #fh ) = 0 then
+                print #fh, args;
+                close #fh
+                if t.verbose then print "  (through the response file " & rsp & ")"
+                dim as long rc = exec( exe, "@" & Q( rsp ) )
+                kill( rsp )
+                return rc
+            end if
+        end if
+    #endif
     return exec( exe, args )
 end function
 

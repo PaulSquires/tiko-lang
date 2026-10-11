@@ -1,0 +1,13 @@
+'' A LINK LINE PAST WINDOWS' 32,767-CHARACTER LIMIT GOES THROUGH A RESPONSE FILE (tiko-build
+'' B0, 2026-10-11). It went on the command line, CreateProcess refused it, and the link
+'' failed as TKO0116 'exit -1' -- 126 objects at absolute paths were enough. The root's
+'' '#libpath's make a 36,000-character line here; it links, and the program runs. (A Linux
+'' host has no such limit and keeps the line; '-v' says when a response file is used.)
+'' TEST: cli
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.lrf
+'' ARGS: -target win64-msvc tests/driver/src/long-link-line.bas -o build/.lrf/long.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0116
+'' RUN: build/.lrf/long.exe
+'' EXPECT-RUN-OUT: linked
