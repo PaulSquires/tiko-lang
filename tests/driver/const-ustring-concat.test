@@ -1,0 +1,21 @@
+'' A 'const as ustring' IN A CONCATENATION WITH A RUNTIME TERM, PRINTED. 'print n & G' was
+'' a ustring chain -- ConcatTermsAreU_ asks G's type -- in which StrTermFlavour_ called G
+'' NEUTRAL, like a literal, so LowerUStrChain found no UTF-16 term, declined, and the
+'' statement was dropped: TKO0994, the book's ch03/declare.tiko. The constant is now a
+'' UTF-16 term (src/mir/lowerterm.bas). fbc-modern 1.20 has no 'const as ustring' (error
+'' 24), so there is no differential; the expected text is the concatenation itself.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/const-ustring-concat.bas -o tests/driver/constustrconcat.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/constustrconcat.exe
+'' RUN: tests/driver/constustrconcat.exe
+'' EXPECT-RUN-OUT: 3hi
+'' EXPECT-RUN-OUT: hi3
+'' EXPECT-RUN-OUT: 3 hi
+'' EXPECT-RUN-OUT: Shi|hiS
+'' EXPECT-RUN-OUT: Uhi|xhi
+'' EXPECT-RUN-OUT: 3s
+'' EXPECT-RUN-OUT: 3hi|3hi| 3 3
+'' EXPECT-RUN-OUT: 3hi
+'' EXPECT-RUN-EXIT: 0

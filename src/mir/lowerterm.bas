@@ -428,7 +428,14 @@ function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
     if c.ast->Kind( t2 ) = Tko.N_STRING_LIT then return STF_NEUTRAL
     if IsConstNameRef_( c, t2 ) then
         dim as string ct
-        if ConstStringTextOf_( c, t2, ct ) then return STF_NEUTRAL
+        '' ...but a 'const as ustring' IS ONE: 'print n & G' over 'const G as ustring' is a
+        '' ustring chain (ConcatTermsAreU_ asks the type), and with no UTF-16 term in it
+        '' LowerUStrChain declined and the statement was dropped -- TKO0994, the book's
+        '' ch03/declare.tiko.
+        if ConstStringTextOf_( c, t2, ct ) then
+            if IsUStringType( c, c.info->TypeOf_( t2 ) ) then return STF_UTF16
+            return STF_NEUTRAL
+        end if
     end if
 
     '' A MIXED CONCATENATION HAS NO TYPE OF ITS OWN, so the type test below answers
