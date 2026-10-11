@@ -1,0 +1,12 @@
+sub Report( )
+    print "in "; __FUNCTION__; ", line"; __LINE__
+end sub
+
+print "line:"; __LINE__
+Report( )
+print "an ISO date has 10 characters:"; len( __DATE_ISO__ )
+#line 1000 "generated.tiko"
+print "now:"; __LINE__; " of "; __FILE__
+#ifdef __TKO_VERSION__
+print "compiled by tiko"
+#endif

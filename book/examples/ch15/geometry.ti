@@ -1,0 +1,15 @@
+'' geometry.ti -- what the three files of the program share.
+#pragma once
+
+type Point
+    x as float64
+    y as float64
+end type
+
+'' Defined in shapes.tiko.
+declare function Distance( byval a as Point, _
+                           byval b as Point ) as float64
+declare function Perimeter( pts() as Point ) as float64
+
+'' Defined in measure.tiko, read everywhere.
+extern measured as int32

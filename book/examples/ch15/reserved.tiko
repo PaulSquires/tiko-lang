@@ -1,0 +1,6 @@
+'' Keep a name free for a later version of the library.
+#pragma reserve Checksum
+
+function Checksum( byval s as ustring ) as uint32
+    return len( s )
+end function

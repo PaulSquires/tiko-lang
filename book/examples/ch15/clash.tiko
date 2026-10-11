@@ -1,0 +1,6 @@
+'' clash.tiko -- two files, each with a sub called Init.
+sub Init( )
+    print "report ready"
+end sub
+
+Init( )

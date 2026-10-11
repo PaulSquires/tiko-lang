@@ -1,0 +1,20 @@
+'' shapes.tiko -- distances and perimeters.
+#include once "geometry.ti"
+
+private function Square( byval v as float64 ) as float64
+    return v * v
+end function
+
+function Distance( byval a as Point, byval b as Point ) as float64
+    measured += 1
+    return sqr( Square( a.x - b.x ) + Square( a.y - b.y ) )
+end function
+
+function Perimeter( pts() as Point ) as float64
+    dim total as float64 = 0
+    for i as int32 = lbound( pts ) to ubound( pts )
+        var j = iif( i = ubound( pts ), lbound( pts ), i + 1 )
+        total += Distance( pts( i ), pts( j ) )
+    next
+    return total
+end function

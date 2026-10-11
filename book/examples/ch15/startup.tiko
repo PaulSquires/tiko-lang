@@ -1,0 +1,10 @@
+'' startup.tiko -- the main module, with the log's setup and teardown.
+private sub OpenLog( ) constructor 101
+    print "101: open the log"
+end sub
+
+private sub CloseLog( ) destructor 101
+    print "101: close the log"
+end sub
+
+print "main runs"

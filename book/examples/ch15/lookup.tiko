@@ -1,0 +1,21 @@
+namespace Defaults
+    const LIMIT = 20
+    function Label( ) as ustring
+        return "from Defaults"
+    end function
+end namespace
+
+const LIMIT = 10
+function Label( ) as ustring
+    return "from the module"
+end function
+
+sub Show( )
+    using Defaults
+    print LIMIT, Label( )
+end sub
+
+print "inside Show, under using Defaults:"
+Show( )
+print "qualified:"
+print Defaults.LIMIT, Defaults.Label( )

@@ -22,6 +22,7 @@
 - [12. Operator Overloading](ch12-operator-overloading.md)
 - [13. Inheritance and Polymorphism](ch13-inheritance.md)
 - [14. Modules and Packages](ch14-modules-packages.md)
+- [15. Namespaces, Headers and the Preprocessor](ch15-namespaces-preprocessor.md)
 - [16. Generics](ch16-generics.md)
 - [17. Errors: Optional, Result and Runtime Checks](ch17-errors.md)
 - [18. Testing, Debugging and Tooling](ch18-testing-debugging.md)

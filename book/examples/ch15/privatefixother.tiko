@@ -1,0 +1,8 @@
+'' privatefixother.tiko -- its Init is its own business.
+private sub Init( )
+    print "export ready"
+end sub
+
+sub StartExport( )
+    Init( )
+end sub

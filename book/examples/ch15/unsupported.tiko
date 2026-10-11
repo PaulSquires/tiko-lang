@@ -1,0 +1,6 @@
+'' This program needs a configuration chosen on the command line.
+#ifndef CONFIG
+    #error "build with -d CONFIG=1 (development) or 2 (release)"
+#else
+    print "configuration"; CONFIG
+#endif

@@ -1,0 +1,2 @@
+#ifdef TRACE: tracing is on
+#if TRACE: tracing is off

@@ -1,0 +1,6 @@
+'' tallyother.tiko -- the same declaration, the same storage.
+common shared hits as int32
+
+sub Hit( )
+    hits += 1
+end sub

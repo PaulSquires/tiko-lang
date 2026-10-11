@@ -1,0 +1,2 @@
+'' whichmainother.tiko -- named by -m, so its code is the program.
+print "whichmainother.tiko: the main program"

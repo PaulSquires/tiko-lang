@@ -1,0 +1,17 @@
+'' platform.ti -- what this program needs to know about where it runs.
+#pragma once
+#include once "separator.ti"
+
+#if defined( __FB_WIN32__ )
+    const PLATFORM = "Windows"
+#elseif defined( __FB_LINUX__ )
+    const PLATFORM = "Linux"
+#else
+    #error "platform.ti: this platform is not supported"
+#endif
+
+#ifdef __FB_64BIT__
+    const POINTER_BITS = 64
+#else
+    const POINTER_BITS = 32
+#endif

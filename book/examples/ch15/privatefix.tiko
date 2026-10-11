@@ -1,0 +1,9 @@
+'' privatefix.tiko -- two subs called Init, and the program links.
+declare sub StartExport( )
+
+sub Init( )
+    print "report ready"
+end sub
+
+Init( )
+StartExport( )

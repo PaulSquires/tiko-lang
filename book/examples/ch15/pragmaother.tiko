@@ -1,0 +1,22 @@
+'' pragmaother.tiko -- one public entry point over private helpers.
+#pragma push( private, true )
+
+sub Validate( byval n as int32 )
+    print "validating"; n
+end sub
+
+sub Store( byval n as int32 )
+    print "storing"; n
+end sub
+
+'' Inside the region, but it says so: visible to the program.
+public sub Flush( )
+    print "flushing"
+end sub
+
+#pragma pop( private )
+
+sub Save( byval n as int32 )
+    Validate( n )
+    Store( n )
+end sub

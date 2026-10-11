@@ -1,0 +1,3 @@
+BAD_SQUARE( 1 + 2 ) = 5
+SQUARE( 1 + 2 )     = 9
+100 / SQUARE( 5 )   = 4

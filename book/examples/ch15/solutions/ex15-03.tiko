@@ -1,0 +1,10 @@
+'' ex15-03.tiko -- where this platform keeps temporary files.
+#if defined( __FB_WIN32__ )
+    const TEMP_VAR = "TEMP"
+#elseif defined( __FB_LINUX__ )
+    const TEMP_VAR = "TMPDIR"
+#else
+    #error "ex15-03: this platform is not supported"
+#endif
+
+print "temporary files: the "; TEMP_VAR; " variable"

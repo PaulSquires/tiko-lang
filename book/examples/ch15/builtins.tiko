@@ -1,0 +1,22 @@
+#define SIZES 8, 16, 32, 64
+
+print "count:"; __FB_ARG_COUNT__( SIZES )
+print "third:"; __FB_ARG_EXTRACT__( 2, SIZES )
+#define PAIR key = value
+print "left of =: "; __FB_QUOTE__( __FB_ARG_LEFTOF__( PAIR, = ) )
+print "right of =: "; __FB_QUOTE__( __FB_ARG_RIGHTOF__( PAIR, = ) )
+print "evaluated:"; __FB_EVAL__( 6 * 7 )
+
+dim as int32 total32 = 32
+print "joined:"; __FB_JOIN__( total, 32 )
+__FB_UNQUOTE__( "print ""unquoted into code""" )
+
+'' A name no other use of the macro can collide with.
+#macro TIMES_TWO( v )
+    __FB_UNIQUEID_PUSH__( tmp )
+    var __FB_UNIQUEID__( tmp ) = v
+    print "twice"; v; " is"; __FB_UNIQUEID__( tmp ) * 2
+    __FB_UNIQUEID_POP__( tmp )
+#endmacro
+TIMES_TWO( 5 )
+TIMES_TWO( 9 )

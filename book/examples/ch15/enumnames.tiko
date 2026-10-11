@@ -1,0 +1,25 @@
+'' One list of names, written once: the enum and its spelling.
+#macro DEFINE_ENUM( name, a, b, c )
+    enum name
+        a
+        b
+        c
+    end enum
+
+    function name##_Name( byval v as name ) as ustring
+        select case v
+        case a : return #a
+        case b : return #b
+        case c : return #c
+        end select
+        return "?"
+    end function
+#endmacro
+
+DEFINE_ENUM( Colour, RED, GREEN, BLUE )
+DEFINE_ENUM( Size, SMALL, MEDIUM, LARGE )
+
+print Colour_Name( GREEN ); " "; Size_Name( LARGE )
+for c as Colour = RED to BLUE
+    print c; " "; Colour_Name( c )
+next

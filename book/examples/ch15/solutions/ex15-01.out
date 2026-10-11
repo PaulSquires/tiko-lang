@@ -1,0 +1,6 @@
+CUBE( 1 + 1 ) = 8
+100 \ CUBE( 2 ) = 12
+NextTwo called: 1
+NextTwo called: 2
+NextTwo called: 3
+CUBE( NextTwo( ) ) = 8

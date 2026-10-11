@@ -1,0 +1,4 @@
+inside Show, under using Defaults:
+ 10           from the module
+qualified:
+ 20           from Defaults

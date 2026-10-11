@@ -1,0 +1,8 @@
+'' tally.tiko -- both files declare the same common variable.
+common shared hits as int32
+declare sub Hit( )
+
+Hit( )
+Hit( )
+Hit( )
+print "hits:"; hits

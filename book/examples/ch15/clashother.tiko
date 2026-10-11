@@ -1,0 +1,4 @@
+'' clashother.tiko -- the other file.
+sub Init( )
+    print "export ready"
+end sub

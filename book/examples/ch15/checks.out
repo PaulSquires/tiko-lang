@@ -1,0 +1,4 @@
+a 64-bit build, by tiko
+count is an int32
+total is not the same type as count
+Header is 8 bytes

@@ -1,0 +1,4 @@
+'' whichmain.tiko -- compiled first, but not the main module.
+#cmdline "-m whichmainother"
+
+print "whichmain.tiko: top-level code"

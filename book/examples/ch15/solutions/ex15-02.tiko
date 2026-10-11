@@ -1,0 +1,14 @@
+'' ex15-02.tiko -- one macro, a numbered counter per name.
+#macro DEFINE_COUNTER( name )
+    function Next##name( ) as int32
+        static as int32 n = 0
+        n += 1
+        return n
+    end function
+#endmacro
+
+DEFINE_COUNTER( Order )
+DEFINE_COUNTER( Invoice )
+
+print "orders and invoices:"
+print NextOrder( ); NextOrder( ); NextInvoice( ); NextOrder( )

@@ -1,0 +1,4 @@
+'' measure.tiko -- owns the counter that geometry.ti declares.
+#include once "geometry.ti"
+
+dim shared measured as int32

@@ -1,0 +1,6 @@
+101: open the log
+102: load the config
+startupconfig.tiko: top-level code
+main runs
+102: save the config
+101: close the log

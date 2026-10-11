@@ -1,0 +1,8 @@
+'' geometry.tiko -- the main module.
+#include once "geometry.ti"
+
+dim box( 0 to 3 ) as Point = { ( 0, 0 ), ( 4, 0 ), ( 4, 3 ), ( 0, 3 ) }
+
+print "diagonal: "; Distance( box( 0 ), box( 2 ) )
+print "perimeter:"; Perimeter( box() )
+print "distances measured:"; measured

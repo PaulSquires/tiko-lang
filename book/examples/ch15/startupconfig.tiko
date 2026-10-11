@@ -1,0 +1,11 @@
+'' startupconfig.tiko -- the configuration, which needs the log.
+private sub LoadConfig( ) constructor 102
+    print "102: load the config"
+end sub
+
+private sub SaveConfig( ) destructor 102
+    print "102: save the config"
+end sub
+
+'' Top-level code in a file that is not the main module.
+print "startupconfig.tiko: top-level code"

@@ -1,0 +1,6 @@
+'' pragma.tiko -- Save and Flush are all this file can reach.
+declare sub Save( byval n as int32 )
+declare sub Flush( )
+
+Save( 42 )
+Flush( )

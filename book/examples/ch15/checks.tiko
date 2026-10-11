@@ -1,0 +1,22 @@
+'' Questions answered while compiling, not while running.
+dim as int32 count = 0
+dim as int64 total = 0
+
+#if defined( __FB_64BIT__ ) andalso defined( __TKO_VERSION__ )
+print "a 64-bit build, by tiko"
+#endif
+
+#if typeof( count ) = typeof( int32 )
+print "count is an int32"
+#endif
+#if typeof( total ) <> typeof( count )
+print "total is not the same type as count"
+#endif
+
+'' The build stops here if the record's layout ever changes.
+type Header
+    magic as uint32
+    size as uint32
+end type
+#assert sizeof( Header ) = 8
+print "Header is"; sizeof( Header ); " bytes"
