@@ -68,6 +68,21 @@ sub ReplayLibs( byref ctx as Tko.CompilerContext, byref libs as string )
     wend
 end sub
 
+'' A DIRECTORY NO OTHER RUN HAS, in the temporary directory: 'mkdir' fails when the name is
+'' taken, so the first name it makes is this run's alone -- a clock-based NAME was not, for two
+'' runs started in the same millisecond. "" when none can be made.
+private function PrivateTempDir_( ) as string
+    dim as string tmp = environ( "TEMP" )
+    if len( tmp ) = 0 then tmp = environ( "TMPDIR" )
+    if len( tmp ) = 0 then tmp = "/tmp"
+    dim as string stamp_ = hex( cast( ulong, ( timer * 1000000 ) mod 4294967296 ) )
+    for n as long = 0 to 999
+        dim as string d = JoinPath( tmp, "tiko-" & stamp_ & "-" & n )
+        if mkdir( d ) = 0 then return d
+    next
+    return ""
+end function
+
 function BuildImports _
     ( byref ctx as Tko.CompilerContext, byval rootCount as long, _
       byref linkObjs as Tko.StrVec, byref tempObjs as Tko.StrVec, _
@@ -86,6 +101,19 @@ function BuildImports _
         return false
     end if
     ctx.modObjPaths.Clear( )
+
+    '' A RUN WITH NO OUTPUT -- '--dump-ir' and the other dumps -- still compiles every module it
+    '' imports, into the cache. Its intermediates were '<output>.<i>.o' with no output, so
+    '' '.80.o' in the working directory, which every such run shares: measured 2026-10-11, of
+    '' 8 parallel '--dump-ir's of one program 4 to 7 failed TKO0113, each having had its
+    '' '.80.o.ll' deleted by another -- the suite's intermittent exit-5 failures. Such a run
+    '' compiles its modules in a directory of its own, removed once the cache holds them.
+    dim as string privDir = ""
+    dim as boolean noOutput = (len( ctx.options.outputPath ) = 0)
+    if noOutput andalso (ctx.options.compileOnly = false) andalso (scanOnly = false) then
+        privDir = PrivateTempDir_( )
+        if len( privDir ) > 0 then ctx.options.outputPath = JoinPath( privDir, "m" )
+    end if
 
     ctx.importsBuilt = true
     ctx.ifaceChains.Clear( )
@@ -214,6 +242,10 @@ function BuildImports _
     ctx.modName = ""
     ctx.modFiles.Clear( )
     ctx.modFileCount = 0
+    if len( privDir ) > 0 then
+        ctx.options.outputPath = ""
+        fs.RemoveDirAll( privDir )
+    end if
     return (toolExit = Tko.EXIT_OK) andalso (Tko.Driver.FrontendFailed_( ctx ) = false)
 end function
 
@@ -246,16 +278,16 @@ function EmitInterface( byref ctx as Tko.CompilerContext, byref dir_ as string )
                            "#import " & chr( 34 ) & path_ & chr( 34 ) & chr( 10 ) )
     '' Each module the build compiles leaves an intermediate object, named after the
     '' output; there is none, so they go to the temporary directory and are deleted.
-    dim as string tmp = environ( "TEMP" )
-    if len( tmp ) = 0 then tmp = environ( "TMPDIR" )
-    if len( tmp ) = 0 then tmp = "/tmp"
-    ctx.options.outputPath = JoinPath( tmp, "tiko-emit-tki-" & hex( cast( ulong, timer * 1000 ) ) )
+    dim as string privDir = PrivateTempDir_( )
+    if len( privDir ) = 0 then privDir = environ( "TEMP" )
+    ctx.options.outputPath = JoinPath( privDir, "tiko-emit-tki" )
     dim as Tko.StrVec linkObjs, tempObjs
     dim as long toolExit = Tko.EXIT_OK
     dim as boolean ok = BuildImports( ctx, 1, linkObjs, tempObjs, toolExit )
     for each t as string in tempObjs
         if fs.IsFile( t ) then kill( t )
     next
+    if privDir <> environ( "TEMP" ) then fs.RemoveDirAll( privDir )
     if ok = false then return iif( toolExit <> Tko.EXIT_OK, toolExit, Tko.EXIT_USER_ERROR )
     for i as long = 0 to ctx.ifaceDirs.Count - 1
         dim as string a = AbsPath( ctx.ifaceDirs[i] ), b = AbsPath( d )

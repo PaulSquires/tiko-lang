@@ -1,0 +1,14 @@
+'' A '--dump-ir' THAT IMPORTS COMPILES ITS MODULES IN A DIRECTORY OF ITS OWN (2026-10-11). With
+'' no output, a module's intermediate was '<output>.<i>.o' -- '.80.o' in the working directory,
+'' shared by every such run -- and under the suite's parallel workers one run deleted another's
+'' '.80.o.ll': TKO0113, exit 5, in dump-ir-imports, generic-field-container and
+'' foreach-iterator-owner, never when run alone. The race cannot be staged here; its cause can:
+'' the module misses (a fresh cache), and its clang line must not name a relative '.N.o'.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.dpo/cache
+'' CLEAN: build/.dpo
+'' ARGS: -v --dump-ir -target win64-msvc tests/modules/src/stdfacade/containers.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: module std.containers: miss
+'' EXPECT-OUT: /m.
+'' EXPECT-NOT: -o ".
