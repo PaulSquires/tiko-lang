@@ -1,0 +1,28 @@
+'' lock.bi -- one 'tiko build' of an output at a time (tiko-build RFC-0001 §7, TKO0166).
+''
+'' AN OPERATING-SYSTEM LOCK, NOT A FILE THAT MERELY EXISTS. A marker file outlives a build
+'' that crashed and blocks every later one until someone deletes it by hand. These locks die
+'' with the process: on Windows an exclusive handle with FILE_FLAG_DELETE_ON_CLOSE, so the
+'' file goes too; elsewhere flock( ), whose file stays but no longer holds anyone off.
+
+#pragma once
+
+#include once "tko.bi"
+
+namespace Tko.Build
+
+    type BuildLock
+        as longint h = -1      '' a HANDLE or a file descriptor; -1 when nothing is held
+        as string  path_
+    end type
+
+    enum LockResult
+        LOCK_TAKEN       '' held until ReleaseLock
+        LOCK_BUSY        '' another process holds it
+        LOCK_UNAVAILABLE '' could not be made at all (no directory, no permission): go on unlocked
+    end enum
+
+    declare function TakeLock( byref lk as BuildLock, byref path_ as string ) as LockResult
+    declare sub ReleaseLock( byref lk as BuildLock )
+
+end namespace

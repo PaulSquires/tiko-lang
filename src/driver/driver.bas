@@ -5,6 +5,7 @@
 #include once "driver/driver.bi"
 #include once "driver/cmdline.bi"
 #include once "driver/diagout.bi"
+#include once "build/events.bi"
 #include once "support/text.bi"
 #include once "pp/pp.bi"
 #include once "parser/expr.bi"
@@ -701,7 +702,7 @@ end function
 '' file and one naming an option tiko does not have becomes its usual error.
 private function RestartWith_ _
     ( byref args as Tko.StrVec, byref injected as Tko.StrVec, _
-      byval depth as long ) as long
+      byval depth as long, byval buildOut as any ptr ) as long
 
     dim as Tko.StrVec again
     for i as long = 0 to args.Count - 1
@@ -710,15 +711,20 @@ private function RestartWith_ _
     for i as long = 0 to injected.Count - 1
         again.Push( injected[i] )
     next
-    return Run( again, depth + 1 )
+    return Run( again, depth + 1, 0, buildOut )
+end function
+
+function DefaultOutput( byref o as Tko.DriverOptions ) as string
+    return DefaultOutputPath_( o )
 end function
 
 function Run _
     ( byref args as Tko.StrVec, byval restartDepth as long = 0, _
-      byval scanOut as any ptr = 0 ) as long
+      byval scanOut as any ptr = 0, byval buildOut as any ptr = 0 ) as long
 
     dim as double tRunStart = timer
     dim as Tko.CompilerContext ctx
+    ctx.build = buildOut
 
     '' THE EXIT CODE OF A FAILURE THAT IS NOT A DIAGNOSTIC.
     ''
@@ -1057,7 +1063,7 @@ function Run _
             Tko.PpRun( ctx.sources, cast( Tko.FileId, 1 ), ctx.names, ctx.keywords, _
                        ctx.diags, hcfg, hpr )
             ctx.diags.RollBack( hp0, he0, hw0, hs0 )
-            if hpr.cmdlineArgs.Count > 0 then return RestartWith_( args, hpr.cmdlineArgs, restartDepth )
+            if hpr.cmdlineArgs.Count > 0 then return RestartWith_( args, hpr.cmdlineArgs, restartDepth, buildOut )
         end if
         if builds then
             dim as double tImp = timer
@@ -1113,8 +1119,9 @@ function Run _
                 '' The restart rebuilds every object, under the same names: none of this
                 '' pass's may still be being written.
                 DrainObjects( ctx )
-                return RestartWith_( args, restartArgs, restartDepth )
+                return RestartWith_( args, restartArgs, restartDepth, buildOut )
             end if
+            Tko.Build.OnUnit( ctx.build, "root", ctx.sources.PathOf( cast( Tko.FileId, i ) ), "compiled" )
         next
         '' EVERY OBJECT EXISTS BEFORE ANYTHING READS ONE, and a clang that failed is reported
         '' now, as the first failure, exactly as it was when it ran inline.
@@ -1169,6 +1176,10 @@ function Run _
                     toolExit = LinkAll( ctx, linkObjs, ltd, tempObjs )
                     ctx.timing.Add( Tko.PH_LINK, tLink )
                 end if
+                if toolExit = Tko.EXIT_OK then
+                    Tko.Build.OnArtifact( ctx.build, iif( ctx.options.outKind = Tko.OUT_STATICLIB, "lib", _
+                        iif( ctx.options.outKind = Tko.OUT_DLL, "dll", "exe" ) ), ctx.options.outputPath )
+                end if
             end if
         end if
         '' AN INTERMEDIATE OBJECT GOES WHATEVER HAPPENED. LinkAll and ArchiveAll removed them
@@ -1222,7 +1233,7 @@ function Run _
             dim as boolean dumpRestarting = _
                 (pr.cmdlineArgs.Count > 0) andalso (restartDepth = 0)
             if dumpRestarting then _
-                return RestartWith_( args, pr.cmdlineArgs, restartDepth )
+                return RestartWith_( args, pr.cmdlineArgs, restartDepth, buildOut )
 
             nodes += ast.Count( )
             astBytes += AstBytes_( ast )

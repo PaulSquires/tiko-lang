@@ -105,6 +105,9 @@ namespace Tko
         '' run is one: every unit then stops after Check and is harvested into it. 0 for
         '' every other run. An 'any ptr' so this header need not include the scan's.
         as any ptr                scan
+        '' THE 'tiko build' LISTENING, when this run is one (src/build/events.bi, a
+        '' Tko.Build.Observer): told each unit, the artefact and the totals. 0 otherwise.
+        as any ptr                build
         '' WHERE THE TIME WENT, phase by phase (driver/phasetime.bi); printed by '--time-passes'.
         as PhaseTimes             timing
         '' THE clang -c RUNS STARTED AND NOT YET WAITED FOR (driver/objqueue.bi).
@@ -126,9 +129,13 @@ namespace Tko.Driver
     '' remains reachable in-process.
     '' 'scanOut', when given, is a Tko.Scan.ScanResult the run fills instead of printing --
     '' how tikoParser.dll (src/api) drives a scan through the same command line as a CLI run.
+    '' 'buildOut', when given, is the Tko.Build.Observer of a 'tiko build' (src/build).
     declare function Run _
         ( byref args as Tko.StrVec, byval restartDepth as long = 0, _
-          byval scanOut as any ptr = 0 ) as long
+          byval scanOut as any ptr = 0, byval buildOut as any ptr = 0 ) as long
+
+    '' The output a run with these options writes when no '-o' names one, by fbc's rule.
+    declare function DefaultOutput( byref o as Tko.DriverOptions ) as string
 
 end namespace
 

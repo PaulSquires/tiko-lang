@@ -6,6 +6,7 @@
 
 #import "std/containers"
 #include once "driver/driver.bi"
+#include once "build/build.bi"
 
 using Tko
 
@@ -65,7 +66,7 @@ end type
 
 private sub RunOnBigStack_( byval p as any ptr )
     dim as RunJob_ ptr j = p
-    j->rc = Driver.Run( *j->args )
+    j->rc = Tko.Build.Entry( *j->args )
 end sub
 
 dim as RunJob_ job
@@ -83,12 +84,12 @@ job.args = @args
         return 0
     end function
     dim as any ptr wth = CreateThread_( 0, BIG_STACK_, @BigStackEntry_, @job, &h00010000, 0 )
-    if wth = 0 then end Driver.Run( args )
+    if wth = 0 then end Tko.Build.Entry( args )
     WaitForSingleObject_( wth, &hFFFFFFFFul )
     CloseHandle_( wth )
 #else
     dim as any ptr th = threadcreate( @RunOnBigStack_, @job, BIG_STACK_ )
-    if th = 0 then end Driver.Run( args )
+    if th = 0 then end Tko.Build.Entry( args )
     threadwait( th )
 #endif
 end job.rc

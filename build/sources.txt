@@ -111,6 +111,9 @@ src/driver/tkiemit.bas
 src/driver/modiface.bas
 src/driver/modcache.bas
 src/driver/diagout.bas
+src/build/events.bas
+src/build/lock.bas
+src/build/subcmd.bas
 src/cimport/clang.bas
 src/cimport/probe.bas
 src/cimport/names.bas

@@ -1,0 +1,15 @@
+'' '--message-format json' (tiko-build RFC-0001 §8.1, PLAN B1): one JSON object per line on
+'' stdout -- build-start, a unit event per module and root, the artefact, build-end. The
+'' cache is new, so the module misses; paths are as given on the command line.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.bev/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.bev
+'' ARGS: build -target win64-msvc tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bev/app.exe --message-format json
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: {"event":"build-start","format":1,"target":"main","roots":["tests/driver/src/build-b1/main.tiko","tests/driver/src/build-b1/other.tiko"]}
+'' EXPECT-OUT: {"event":"unit","kind":"module","unit":"main.util","status":"miss"}
+'' EXPECT-OUT: {"event":"unit","kind":"root","unit":"tests/driver/src/build-b1/main.tiko","status":"compiled"}
+'' EXPECT-OUT: {"event":"unit","kind":"root","unit":"tests/driver/src/build-b1/other.tiko","status":"compiled"}
+'' EXPECT-OUT: {"event":"artifact","kind":"exe","path":"build/.bev/app.exe"}
+'' EXPECT-OUT: {"event":"build-end","errors":0,"warnings":0,"exit":0,"ms":

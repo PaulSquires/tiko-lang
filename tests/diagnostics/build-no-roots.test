@@ -1,0 +1,5 @@
+'' 'tiko build' with no roots is TKO0102, not a compile of a file named 'build' (RFC-0001 §4.1).
+'' TEST: cli
+'' ARGS: build
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0102: no input files

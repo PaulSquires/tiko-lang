@@ -532,12 +532,25 @@ private function RunCaptureWin_( byval cmdLine as string, byref outText as strin
 end function
 #endif
 
+'' '--color=never' FIRST -- or after a leading SUBCOMMAND, which must itself be first
+'' (tiko-build RFC-0001 §4.1); WithTarget_ below does the same for '-target'.
+function ColorFirst_( byval args as string ) as string
+    dim as string r = Trim_( args )
+    dim as long sp = instr( r, " " )
+    dim as string w = iif( sp > 0, left( r, sp - 1 ), r )
+    select case w
+    case "build", "run", "check", "clean", "metadata"
+        return w & " --color=never" & iif( sp > 0, mid( r, sp ), "" )
+    end select
+    return "--color=never " & args
+end function
+
 function RunTko _
     ( byval tikoPath as string, byval args as string, byref outText as string, _
       byval slotId as long ) as long
 
     #ifdef __FB_WIN32__
-        return RunCaptureWin_( NativePath( tikoPath ) & " --color=never " & args, outText )
+        return RunCaptureWin_( NativePath( tikoPath ) & " " & ColorFirst_( args ), outText )
     #endif
 
     '' ONE TEMP FILE PER WORKER. A single fixed name is a race the moment two tests
@@ -546,7 +559,7 @@ function RunTko _
     dim as string tmp = "build/.tikotest." & slotId & ".out"
     '' --color=never goes FIRST: appended last, a trailing value-taking option in
     '' the test's own ARGS would swallow it as its value.
-    dim as string cmd = NativePath( tikoPath ) & " --color=never " & args & _
+    dim as string cmd = NativePath( tikoPath ) & " " & ColorFirst_( args ) & _
                         " > " & NativePath( tmp ) & " 2>&1"
     dim as long rc = shell( cmd )
     outText = NormalizeEol( ReadTextFile( tmp ) )
@@ -598,6 +611,19 @@ function IsHostTarget_( byval tgt as string ) as boolean
     #else
         return (tgt = "linux-x86_64")
     #endif
+end function
+
+'' THE RUNNER'S '-target', placed where the command line can take it: first, except after a
+'' SUBCOMMAND ('tiko build ...'), which must itself be first (tiko-build RFC-0001 §4.1).
+function WithTarget_( byval tgt as string, byval rest as string ) as string
+    dim as string r = Trim_( rest )
+    dim as long sp = instr( r, " " )
+    dim as string w = iif( sp > 0, left( r, sp - 1 ), r )
+    select case w
+    case "build", "run", "check", "clean", "metadata"
+        return w & " -target " & tgt & iif( sp > 0, mid( r, sp ), "" )
+    end select
+    return "-target " & tgt & " " & rest
 end function
 
 '' THE TARGET A RUN ACTUALLY BUILT FOR: the LAST '-target' on its command line, since a
@@ -700,7 +726,7 @@ function RunSteps_ _
             WriteTextFile( Trim_( left( rest, sp - 1 ) ), Unescape_( Trim_( mid( rest, sp + 2 ) ) ) )
         case "STEP"
             n += 1
-            dim as long rc = RunTko( opts.tikoPath, "-target " & tgt & " " & rest, outText, slotId )
+            dim as long rc = RunTko( opts.tikoPath, WithTarget_( tgt, rest ), outText, slotId )
             if rc <> 0 then
                 why = "STEP " & n & " exited " & rc & ", expected 0:" & chr( 10 ) & outText
                 return false
@@ -809,7 +835,7 @@ function RunOne _
         if ok_ then
             dim as string laneArgs = args
             if len( opts.runArgs ) > 0 then laneArgs = args & " " & opts.runArgs
-            rc = RunTko( opts.tikoPath, "-target " & tgt & " " & laneArgs, outText, slotId )
+            rc = RunTko( opts.tikoPath, WithTarget_( tgt, laneArgs ), outText, slotId )
             ok_ = CheckOne_( tc, opts, tgt, rc, outText, why )
         end if
         '' HOISTED, each term a boolean of its own: warning 38 otherwise.

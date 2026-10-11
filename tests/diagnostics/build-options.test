@@ -1,0 +1,9 @@
+'' A SUBCOMMAND'S OWN COMMAND LINE (tiko-build PLAN B1): an option it does not take is
+'' TKO0100 -- compiler flags go in '--options' -- and '-v' with '--message-format json' is
+'' TKO0154, since -v prints to stdout, which is the event stream.
+'' TEST: cli
+'' ARGS: build --bogus -v --message-format json tests/driver/src/build-b1/main.tiko
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0100: unknown option '--bogus'
+'' EXPECT-OUT: error TKO0154: '-v' cannot be used with '--message-format json'
+'' EXPECT-OUT: {"event":"build-end","errors":2,

@@ -1,0 +1,5 @@
+'' The tiko-build B1 tests' main root: it imports a module and calls a second root.
+#import "./util"
+declare sub Other( )
+print "main:"; util.Twice( 21 )
+Other( )

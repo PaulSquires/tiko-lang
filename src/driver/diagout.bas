@@ -3,6 +3,7 @@
 #import "std/containers"
 #include once "driver/diagout.bi"
 #include once "diag/machine.bi"
+#include once "build/events.bi"
 #include once "driver/modresolve.bi"
 
 namespace Tko.DiagOut
@@ -47,6 +48,7 @@ end function
 
 function Finish( byref ctx as Tko.CompilerContext, byval rc as long ) as long
     ctx.diags.Flush( )
+    Tko.Build.OnFinish( ctx.build, ctx.diags.ErrorCount( ), ctx.diags.WarningCount( ), rc )
     if len( ctx.options.diagFile ) = 0 then return rc
 
     '' ONE WRITE, and the trailing ';' matters: each record already ends in LF, and a

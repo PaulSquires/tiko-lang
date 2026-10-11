@@ -1,0 +1,4 @@
+'' The tiko-build B1 tests' second root.
+public sub Other( )
+    print "other"
+end sub

@@ -1,0 +1,5 @@
+'' The tiko-build B1 tests' module: the roots import it relatively, so its chain is main.util.
+#module "util"
+public function Twice( byval x as long ) as long
+    return x * 2
+end function

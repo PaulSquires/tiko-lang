@@ -22,6 +22,7 @@
 #include once "driver/unit.bi"
 #include once "driver/modresolve.bi"
 #include once "driver/modcache.bi"
+#include once "build/events.bi"
 
 namespace Tko.Modules
 
@@ -127,6 +128,7 @@ function BuildImports _
         if len( cacheRoot ) > 0 then key = ModuleKey( ctx, n )
         if ModuleCacheLookup( ctx, cacheRoot, key, hitObj, hitIface, hitLibs ) then
             if ctx.options.verbose then print "module " & ctx.modChain & ": hit"
+            Tko.Build.OnUnit( ctx.build, "module", ctx.modChain, "hit" )
             '' An ARCHIVE keeps the member's name: not the entry's 'obj.o', the chain's. '-c'
             '' leaves the object beside the output, for the roots' records to name.
             if ctx.options.compileOnly then
@@ -160,6 +162,7 @@ function BuildImports _
         Tko.Driver.CompileUnit( ctx, cast( long, ctx.modFiles[0] ), 1, 1, true, _
                                 linkObjs, tempObjs, toolExit, restartArgs )
         if (toolExit <> Tko.EXIT_OK) orelse Tko.Driver.FrontendFailed_( ctx ) then exit for
+        Tko.Build.OnUnit( ctx.build, "module", ctx.modChain, "miss" )
         if ctx.options.compileOnly andalso (linkObjs.Count > objs0) then
             ctx.modObjPaths.Push( AbsPath( linkObjs[linkObjs.Count - 1] ) )
         end if

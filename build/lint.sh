@@ -42,7 +42,7 @@ note( ) {
 # layer 2: lexer pp parser ast types symbols semantics
 # layer 3: mir lowering
 # layer 4: target abi codegen
-# layer 5: toolchain driver
+# layer 5: toolchain driver build
 # layer 6: api               -- the editor's tikoParser.dll, over the driver
 #
 # INTRA-LAYER RULE: diag may include source (it renders locations), source may NOT
@@ -75,7 +75,7 @@ function layer( d ) {
     if (d ~ /^(lexer|pp|parser|ast|types|symbols|semantics)$/) return 2
     if (d == "mir" || d == "lowering") return 3
     if (d ~ /^(target|abi|codegen)$/) return 4
-    if (d ~ /^(toolchain|driver|cimport)$/) return 5
+    if (d ~ /^(toolchain|driver|cimport|build)$/) return 5
     if (d == "api") return 6
     return 9
 }
