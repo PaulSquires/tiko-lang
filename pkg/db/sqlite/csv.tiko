@@ -8,10 +8,10 @@ using containers, oc, memory, strings, fs
 #include once "crt/string.bi"
 #include once "sqlite3api.bi"
 '' ===========================================================================
-''  fbsqlite_csv.bi -- optional CSV companion for fbsqlite
+''  csv.tiko -- the CSV half of db/sqlite (it was fbsqlite_csv.bi)
 ''
-''      #include once "fbsqlite_csv.bi"
-''      using SQLite
+''      #import "db/sqlite"
+''      using sqlite
 ''
 ''      dim loaded as CountResult = ImportCsv( db, "company", "companies.csv" )
 ''      if loaded.IsOk( ) then print loaded.Value( ); " rows"
@@ -19,7 +19,7 @@ using containers, oc, memory, strings, fs
 ''  Real CSV, not split-on-comma: quoted fields, embedded delimiters, embedded
 ''  newlines, doubled quotes, CRLF or LF line endings, and a UTF-8 BOM.
 ''
-''  Include it only if you want it; fbsqlite.bi does not.
+''  Part of the module: '#import "db/sqlite"' brings it with the rest.
 '' ===========================================================================
 
 
