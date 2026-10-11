@@ -1,0 +1,21 @@
+'' A SOURCE ROOT LINKED WITH '-c' OBJECTS THAT IMPORT THE SAME MODULE (tiko-build B0,
+'' 2026-10-11). a.o and b.o, compiled into two directories, each name their own
+'' 'acme.util.o' in a '-tkomod' record, and main.bas imports acme.util itself. The link took
+'' all three copies -- the records were told apart by path, and this build's own module
+'' object was added beside them -- and failed on duplicate symbols. One copy is linked now.
+'' This is tiko-editor-tiko's build: modules with '-c', then the main file and the objects.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.mct-mix/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.mct-mix
+'' CLEAN: build/.mct-mix/one
+'' CLEAN: build/.mct-mix/two
+'' STEP: -c -target win64-msvc -i tests/modules/src/mixed/libs tests/modules/src/mixed/app/a.bas -o build/.mct-mix/one/a.o
+'' STEP: -c -target win64-msvc -i tests/modules/src/mixed/libs tests/modules/src/mixed/app/b.bas -o build/.mct-mix/two/b.o
+'' ARGS: -m main -target win64-msvc -i tests/modules/src/mixed/libs tests/modules/src/mixed/app/main.bas build/.mct-mix/one/a.o build/.mct-mix/two/b.o -o build/.mct-mix/app.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: duplicate symbol
+'' RUN: build/.mct-mix/app.exe
+'' EXPECT-RUN-OUT: a: 4
+'' EXPECT-RUN-OUT: b: 6
+'' EXPECT-RUN-OUT: main: 10

@@ -134,6 +134,18 @@ function StripExt_( byref path_ as string ) as string
     return path_
 end function
 
+'' THE MODULE A '-tkomod' RECORD'S OBJECT HOLDS. '-c' writes it as '<chain>.o' beside its
+'' output (Modules.ArchiveMemberPath), so the file name less '.o' is the chain.
+private function RecordChain_( byref p as string ) as string
+    dim as long k = len( p )
+    while (k > 0) andalso (p[k - 1] <> 47) andalso (p[k - 1] <> 92)
+        k -= 1
+    wend
+    dim as string b = mid( p, k + 1 )
+    if lcase( right( b, 2 ) ) = ".o" then b = left( b, len( b ) - 2 )
+    return b
+end function
+
 '' THE EXTENSION THE OUTPUT KIND ASKS FOR. Measured against fbc: '-dll thing.bas'
 '' writes thing.dll, '-lib thing.bas' writes libthing.a, and a plain build writes
 '' thing.exe on Windows and 'thing' on Linux.
@@ -959,7 +971,8 @@ function Run _
         dim as Tko.StrVec linkObjs
         dim as Tko.StrVec tempObjs
         '' ...AND THE OBJECTS OF THE MODULES a '-c' root imports (ADR 0017; RFC-0005 §6),
-        '' once each however many roots name them.
+        '' once each however many roots name them -- ONCE PER MODULE, not per path: two
+        '' roots compiled into different directories each name their own '<chain>.o'.
         dim as Tko.StrVec modObjs
         for i as long = 0 to objInputs.Count - 1
             linkObjs.Push( objInputs[i] )
@@ -972,7 +985,7 @@ function Run _
             for each mo as string in named
                 dim as boolean seen = false
                 for each x as string in modObjs
-                    if x = mo then seen = true
+                    if RecordChain_( x ) = RecordChain_( mo ) then seen = true
                 next
                 if seen then continue for
                 modObjs.Push( mo )
@@ -1053,6 +1066,29 @@ function Run _
             if impOk = false then
                 ctx.diags.Flush( )
                 return Tko.DiagOut.Finish( ctx, iif( toolExit <> Tko.EXIT_OK, toolExit, Tko.EXIT_USER_ERROR ) )
+            end if
+            '' A MODULE THIS BUILD PROVIDES IS NOT LINKED AGAIN FROM A RECORD. A source root
+            '' and a '-c' object that import one module named it twice -- the record's
+            '' '<chain>.o' and this build's own -- and the link failed on duplicate symbols
+            '' (tiko-build B0, 2026-10-11). This build's object stays: the roots compiled
+            '' against its interface.
+            if (modObjs.Count > 0) andalso (ctx.ifaceChains.Count > 0) then
+                dim as Tko.StrVec kept
+                for each lo as string in linkObjs
+                    dim as boolean drop = false
+                    for each mo as string in modObjs
+                        if lo <> mo then continue for
+                        dim as string ch = RecordChain_( mo )
+                        for each c as string in ctx.ifaceChains
+                            if c = ch then drop = true
+                        next
+                    next
+                    if drop = false then kept.Push( lo )
+                next
+                linkObjs.Clear( )
+                for each lo as string in kept
+                    linkObjs.Push( lo )
+                next
             end if
         end if
         '' ...AND FOR A SCAN, front end only: each module is harvested, and its interface lets
