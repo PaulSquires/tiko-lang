@@ -5,7 +5,7 @@
 '' T1's placeholder, and the order-free pre-pass that ran after it fixed the alias alone:
 '' 'return x' was TKO0738, "no conversion between these two types". 'late' is the same module
 '' in the order that always worked. ModuleTypedefsFirst_ now runs before discovery as well
-'' (src/symbols/resolve.bas). pkg/db/sqlite's sqlite_csv.tiko was named to dodge this.
+'' (src/symbols/resolve.bas). pkg/db/sqlite's csv.tiko, which sorts before sqlite.tiko, meets it too.
 '' TEST: cli
 '' ARGS: -target win64-msvc tests/modules/src/aliasinst/main.bas -o tests/modules/aliasinst.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
