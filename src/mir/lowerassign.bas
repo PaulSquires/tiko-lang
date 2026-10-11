@@ -13,6 +13,31 @@
 
 '' -------------------------------------------------------------- statements
 
+'' THE 'operator let' THAT TAKES A 't' AS IT IS, or SYMBOL_NONE. PickCtor scores conversions,
+'' so a type declaring only 'let( byval v as double )' beside 'cast( ) as double' offered that
+'' let for 'y = x' -- through the cast -- and lowering handed it x's ADDRESS as the double:
+'' the book's fixedpoint.tiko printed -9223372036854775.808 for 0.1 + 0.2. fbc copies
+'' (member-wise) there; only a let whose parameter is the type, or a base of it, is one.
+private function SameTypeLet_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    dim as containers.Array( of ulong ) tt
+    tt.Push( cast( ulong, t ) )
+    dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, t, "let" ), tt )
+    dim as Tko.Symbol ptr ls = c.syms->SymbolAt( lt )
+    if ls = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, ls->payload )
+    if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return lt
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    for k as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        dim as Tko.TypeId pt = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) )
+        if pt = Tko.TYPE_NONE then return lt
+        if c.types->BaseDistance( t, pt ) >= 0 then return lt
+        return Tko.SYMBOL_NONE
+    next
+    return lt
+end function
+
 
 
 '' 'u = ( a, b )' -- A BARE TUPLE LIST ASSIGNED TO A TUPLE VARIABLE.
@@ -71,9 +96,7 @@ private function LowerTupleListAssign_ _
 
     '' ASSIGNED, not stored: a tuple whose half owns something has an 'operator let'
     '' and a raw copy would skip it. The same-type one -- the temp is a dt.
-    dim as containers.Array( of ulong ) tletT
-    tletT.Push( cast( ulong, dt ) )
-    dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, dt, "let" ), tletT )
+    dim as Tko.SymbolId lt = SameTypeLet_( c, dt )
     if lt <> Tko.SYMBOL_NONE then
         dim as containers.Array( of ulong ) largs
         largs.Push( cast( ulong, tv.kind ) ) : largs.Push( cast( ulong, tv.id ) )
@@ -224,9 +247,7 @@ private function LowerSpawnArgAssign_ _
     tv.id = tslot
 
     '' ASSIGNED AS ITS OWN TYPE, as LowerTupleListAssign_ does it.
-    dim as containers.Array( of ulong ) letT
-    letT.Push( cast( ulong, dt ) )
-    dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, dt, "let" ), letT )
+    dim as Tko.SymbolId lt = SameTypeLet_( c, dt )
     if lt <> Tko.SYMBOL_NONE then
         dim as containers.Array( of ulong ) largs
         largs.Push( cast( ulong, tv.kind ) ) : largs.Push( cast( ulong, tv.id ) )
@@ -554,10 +575,7 @@ private sub LowerAssign _
                                (ssa.kind <> cast( ubyte, MV_NONE )) then
                                 thisDst = LowerExprLoad( c, tsa, MT_PTR )
                                 if thisDst.kind <> cast( ubyte, MV_NONE ) then
-                                    dim as containers.Array( of ulong ) tlT
-                                    tlT.Push( cast( ulong, ot ) )
-                                    dim as Tko.SymbolId tlet = _
-                                        PickCtor( c, StructorOf( c, ot, "let" ), tlT )
+                                    dim as Tko.SymbolId tlet = SameTypeLet_( c, ot )
                                     if tlet <> Tko.SYMBOL_NONE then
                                         dim as containers.Array( of ulong ) tla
                                         tla.Push( cast( ulong, ssa.kind ) )
@@ -679,10 +697,7 @@ private sub LowerAssign _
             '' -- so finding no same-type overload here is not a decline: it falls
             '' through to the ordinary aggregate copy below, which is what a UDT with
             '' no assignment operator at all already gets.
-            dim as containers.Array( of ulong ) sletT
-            sletT.Push( cast( ulong, atl ) )
-            dim as Tko.SymbolId ulet = _
-                PickCtor( c, StructorOf( c, atl, "let" ), sletT )
+            dim as Tko.SymbolId ulet = SameTypeLet_( c, atl )
             if (ulet <> Tko.SYMBOL_NONE) orelse NeedsLetBody_( c, atl ) then
                 dim as MirValue da = LowerAddr( c, target )
                 '' A PAREN-LESS FUNCTION ON THE RIGHT IS A CALL, not an address.

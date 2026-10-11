@@ -1,0 +1,20 @@
+'' A SAME-TYPE ASSIGNMENT OVER A TYPE WHOSE ONLY 'operator let' CONVERTS is a copy. Fx
+'' declares 'let( byval v as double )' and 'cast( ) as double'; PickCtor, asked for the
+'' let taking an Fx, found that one THROUGH THE CAST, and lowering passed the source's
+'' ADDRESS as the double -- 's = p + q' stored -9223372036854775808 (the book's
+'' ch12/fixedpoint.tiko), and 'this.f = o' over a byref Fx was rejected by clang. See
+'' SameTypeLet_ in src/mir/lowerassign.bas.
+''
+'' A goldenrun.sh differential: built and run by fbc-modern 1.20 and by tiko, the two
+'' outputs are byte-identical (measured 2026-10-10).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/let-same-type-cast.bas -o tests/driver/letsametypecast.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/letsametypecast.exe
+'' RUN: tests/driver/letsametypecast.exe
+'' EXPECT-RUN-OUT: sum 300
+'' EXPECT-RUN-OUT: copy 100
+'' EXPECT-RUN-OUT: member 200
+'' EXPECT-RUN-OUT: let 1250
+'' EXPECT-RUN-EXIT: 0
