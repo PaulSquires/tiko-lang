@@ -1,0 +1,21 @@
+'' A GENERIC DECLARED BEFORE AN ORDINARY OVERLOAD OF ITS NAME IS HIDDEN, as in fbc-modern:
+'' calls resolve among the ordinary overloads alone (GenericOfSet_,
+'' src/symbols/genericset.bas). 'GenFirst.H( s )' was bound to the generic and reported
+'' TKO0809, "cannot infer"; it is the ordinary 'byval v as long' refusing a string. And
+'' TYPE ARGUMENTS WRITTEN ON AN ORDINARY PROCEDURE are an error: 'P( of long )( 3 )'
+'' compiled, the type arguments ignored.
+''
+'' MEASURED, fbc-modern 1.20 with -maxerr inf over the source, 2026-10-10: errors on
+'' exactly lines 10-12, and no others --
+''
+''     10  error 58   a string to the ordinary 'byval v as long' (line 9, a long, binds)
+''     11  error 42   'GenFirst.H( of long )( 3 )' -- the generic is not reachable
+''     12  error 1    'P( of long )( 3 )' over a procedure that is not generic
+'' TEST: cli
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/generic-hidden.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: generic-hidden.bas(10,19): error TKO0698
+'' EXPECT-OUT: generic-hidden.bas(11,28): error TKO0816
+'' EXPECT-OUT: generic-hidden.bas(12,19): error TKO0816
+'' EXPECT-NOT: TKO0809
+'' EXPECT-NOT: TKO0994

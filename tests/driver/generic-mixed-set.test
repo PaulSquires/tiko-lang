@@ -1,0 +1,23 @@
+'' A NAME THAT IS BOTH A GENERIC PROCEDURE AND AN ORDINARY ONE resolves as fbc-modern does:
+'' declared AFTER the ordinary overloads, the generic takes every call it is offered --
+'' exact ordinary matches included, and 'H( of short )( 5 )'; declared BEFORE them, it is
+'' hidden. See GenericOfSet_ in src/symbols/genericset.bas.
+''
+'' 'H( k )' over a MyKey -- a call only the generic can take -- was TKO0994 at the top
+'' level and, inside 'Use( of K )', a MIR verifier fault, "a function returning i64
+'' returns no value": the head of the chain was ordinary, so the generic was never
+'' instantiated. The other calls compiled, to the ordinary overloads fbc does not choose.
+''
+'' A goldenrun.sh differential: built and run by fbc-modern 1.20 and by tiko, the two
+'' outputs are byte-identical (measured 2026-10-10).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/generic-mixed-set.bas -o tests/driver/genericmixedset.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/genericmixedset.exe
+'' RUN: tests/driver/genericmixedset.exe
+'' EXPECT-RUN-OUT: key4040
+'' EXPECT-RUN-OUT: ordfirst30043008302430243008
+'' EXPECT-RUN-OUT: written3002
+'' EXPECT-RUN-OUT: genfirst1007100520041002
+'' EXPECT-RUN-EXIT: 0

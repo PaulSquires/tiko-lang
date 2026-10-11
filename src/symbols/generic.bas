@@ -563,6 +563,8 @@ declare function InstantiateProcAt_ _
       byval at_ as Tko.NodeId = Tko.NODE_NONE ) as Tko.SymbolId
 
 
+#include once "symbols/genericset.bas"
+
 function InstantiateGenericProc_ _
     ( byref c as Ctx, byval callId as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.SymbolId
 
@@ -626,11 +628,46 @@ function InstantiateGenericProc_ _
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
     if gs = 0 then return Tko.SYMBOL_NONE
     if gs->kind <> cast( ubyte, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
+    '' A NAME BOTH GENERIC AND NOT: the set's generic, or none -- GenericOfSet_.
+    dim as Tko.SymbolId headSid = gsid
+    gsid = GenericOfSet_( c, gsid )
+    if gsid = Tko.SYMBOL_NONE then
+        '' NO GENERIC TO REACH -- none, or one an ordinary overload hides. The call is the
+        '' ordinary procedures', bound to the first so overload resolution never meets the
+        '' hidden generic; and type arguments written on one are fbc's 42 (TKO0816 here):
+        '' 'H( of long )( 3 )' compiled, its type arguments ignored.
+        dim as Tko.SymbolId ord = FirstOrdinaryOf_( c, headSid )
+        if (ord <> Tko.SYMBOL_NONE) andalso (ord <> headSid) then
+            c.info->SetRef( tgt, ord )
+            c.info->SetRef( lp->target, ord )
+        end if
+        if written andalso (ord <> Tko.SYMBOL_NONE) then
+            dim as ulong at = cast( ulong, c.ast->Loc( callId ) )
+            dim as boolean seen = false
+            for i as long = 0 to c.genArgSeen.Count - 1
+                if c.genArgSeen[i] = at then seen = true
+            next
+            if seen = false then
+                c.genArgSeen.Push( at )
+                c.diags->Report( Tko.TKO0816, Tko.PointRange( c.ast->Loc( callId ) ), _
+                                 c.names->Spelling( gname ), "0", str( taCount ) )
+            end if
+        end if
+        return Tko.SYMBOL_NONE
+    end if
+    gs = c.syms->SymbolAt( gsid )
+    dim as boolean mixed = (gsid <> headSid)
     dim as Tko.NodeId gn = cast( Tko.NodeId, gs->payload )
     if gn = Tko.NODE_NONE then return Tko.SYMBOL_NONE
     if c.ast->Kind( gn ) <> Tko.N_PROC then return Tko.SYMBOL_NONE
     dim as Tko.StmtPayload ptr gp = StmtOf( c, gn )
     if (gp->extra and Tko.PF_GENERIC_PROC) = 0 then return Tko.SYMBOL_NONE
+    '' ...and a call the generic cannot take is the GENERIC'S failure, not the head's:
+    '' bound to it, the call reaches TKO0809 (fbc's 340) as a generic-only name's does.
+    if mixed then
+        c.info->SetRef( tgt, gsid )
+        c.info->SetRef( lp->target, gsid )
+    end if
     if gp->c = Tko.NODE_NONE then return Tko.SYMBOL_NONE
     if c.ast->Kind( gp->c ) <> Tko.N_BLOCK then return Tko.SYMBOL_NONE
     dim as Tko.ListPayload ptr pl = _

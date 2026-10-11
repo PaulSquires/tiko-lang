@@ -7,18 +7,13 @@
 ''
 '' std/strings and std/containers are two modules now, and their Contains two names, so the
 '' chain is declared HERE (2026-10-10): the runtime's string overloads and a generic over a
-'' minimal array type, in one namespace, as the header had them.
+'' minimal array type, in one namespace, as the header had them -- the GENERIC FIRST. That
+'' order matters: an ordinary overload after a generic HIDES it in fbc-modern, so these calls
+'' are the string overloads'. The other order makes the generic take every call, and fbc
+'' refuses all five with 340 (GenericOfSet_, src/symbols/genericset.bas).
 ''
 '' fbc prints: true false true false false
 namespace N
-    extern "C"
-        declare function Contains overload alias "fb_StrContains" _
-            ( byref s as const string, byref match as const ustring, _
-              byval ignoreCase as boolean = false ) as boolean
-        declare function Contains overload alias "fb_UStrContains" _
-            ( byref s as const ustring, byref match as const ustring, _
-              byval ignoreCase as boolean = false ) as boolean
-    end extern
     type Arr( of T )
         as T items( any )
     end type
@@ -28,6 +23,14 @@ namespace N
         next
         return false
     end function
+    extern "C"
+        declare function Contains overload alias "fb_StrContains" _
+            ( byref s as const string, byref match as const ustring, _
+              byval ignoreCase as boolean = false ) as boolean
+        declare function Contains overload alias "fb_UStrContains" _
+            ( byref s as const ustring, byref match as const ustring, _
+              byval ignoreCase as boolean = false ) as boolean
+    end extern
 end namespace
 type Cell
 	as ustring t
