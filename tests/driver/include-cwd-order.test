@@ -1,0 +1,14 @@
+'' THE WORKING DIRECTORY IS SEARCHED SECOND, before every -i directory and the toolchain's
+'' inc/ (T97). main.bas includes "tests/driver/src/inc-order/which.bi": not beside
+'' main.bas, present from the working directory -- the repository root, where the suite
+'' runs -- and, under the same relative name, in the -i directory. fbc-modern takes the
+'' working directory's (measured from the repository root: "working directory"); tiko took
+'' the -i directory's. See PpInclude in src/pp/directive.bas.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/inc-order/main.bas -i tests/driver/src/inc-order/idir -o tests/driver/incorder.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/incorder.exe
+'' RUN: tests/driver/incorder.exe
+'' EXPECT-RUN-OUT: working directory
+'' EXPECT-RUN-EXIT: 0
