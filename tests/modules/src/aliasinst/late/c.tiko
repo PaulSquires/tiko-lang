@@ -1,0 +1,10 @@
+#module "late"
+#import "std/containers"
+'' T2 names T1, which is declared in a file that sorts BEFORE this one.
+public type T2 as containers.Array( of T1 )
+public function Make( ) as T2
+    dim x as T2
+    x.Push( T1( ) )
+    x[0].Push( "late" )
+    return x
+end function

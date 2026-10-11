@@ -1,0 +1,3 @@
+#module "late"
+#import "std/containers"
+public type T1 as containers.Array( of ustring )

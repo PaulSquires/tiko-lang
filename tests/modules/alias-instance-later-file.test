@@ -1,0 +1,15 @@
+'' A MODULE'S ALIAS OVER A GENERIC INSTANCE WHOSE ARGUMENT IS AN ALIAS FROM A FILE THAT SORTS
+'' LATER is one type. In 'early', a.tiko's 'T2 as containers.Array( of T1 )' sorts before
+'' b.tiko's 'T1 as containers.Array( of ustring )'; DISCOVERY walks the files in that order,
+'' so T2 -- and the result type of 'Make( ) as T2', cached on its node -- were resolved over
+'' T1's placeholder, and the order-free pre-pass that ran after it fixed the alias alone:
+'' 'return x' was TKO0738, "no conversion between these two types". 'late' is the same module
+'' in the order that always worked. ModuleTypedefsFirst_ now runs before discovery as well
+'' (src/symbols/resolve.bas). pkg/db/sqlite's sqlite_csv.tiko was named to dodge this.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/modules/src/aliasinst/main.bas -o tests/modules/aliasinst.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/aliasinst.exe
+'' EXPECT-RUN-OUT:  1 1 early
+'' EXPECT-RUN-OUT:  1 1 late
