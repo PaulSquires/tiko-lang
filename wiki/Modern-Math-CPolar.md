@@ -21,7 +21,7 @@ CPolar( byval r as float64, byval theta as float64 ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CPolar( 2.0, 0.0 ) )                   '' 2+0i   -- theta = 0 is the positive real axis
 print CToString( CPolar( 5.0, CArg( CSet( 3, 4 ) ) ) )  '' 3.0000000000000004+3.9999999999999996i   -- back to 3+4i, near enough

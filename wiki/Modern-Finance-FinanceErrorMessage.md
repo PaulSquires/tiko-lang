@@ -12,7 +12,7 @@ FinanceErrorMessage( code )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Fixed English for a code, with no allocation and no locale.  A program
 '' showing this to a person localizes from the code instead.
@@ -26,4 +26,4 @@ print FinanceErrorMessage( FIN_EMPTY_SERIES )      '' empty series
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finerror.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finerror.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

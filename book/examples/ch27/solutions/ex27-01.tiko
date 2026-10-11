@@ -1,7 +1,7 @@
 '' Total sales per region, largest first, from an in-memory table.
-#include once "fbsqlite.bi"
+#import "db/sqlite"
 
-dim db as SQLite.Database
+dim db as sqlite.Database
 db.OpenMemory( )
 db.Execute( "create table sale( region text, amount integer )" )
 
@@ -10,7 +10,7 @@ dim as ustring regions( ... ) = { "north", "south", "north", "east", _
 dim as int64 amounts( ... ) = { 120, 80, 45, 200, 30, 15 }
 for i as int32 = 0 to ubound( regions )
     db.Execute( "insert into sale values( ?, ? )", _
-                SQLite.Args( regions( i ), amounts( i ) ) )
+                sqlite.Args( regions( i ), amounts( i ) ) )
 next
 
 var rows = db.Query( "select region, sum( amount ) as total, " & _

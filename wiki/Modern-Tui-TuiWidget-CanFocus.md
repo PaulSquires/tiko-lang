@@ -16,7 +16,7 @@ Whether this widget can take focus. False by default, so decoration is skipped b
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiParagraph p
 dim as TuiCheckbox c

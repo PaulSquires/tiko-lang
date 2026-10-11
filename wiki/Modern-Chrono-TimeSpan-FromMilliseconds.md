@@ -18,7 +18,7 @@ FromMilliseconds( float64 )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print TimeSpan.FromMilliseconds( 1500 ).TotalSeconds     '' 1.5
 

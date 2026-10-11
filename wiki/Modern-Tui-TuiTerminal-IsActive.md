@@ -16,7 +16,7 @@ True between a successful Enter and its Leave.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTerminal term
 print term.IsActive( )            '' false

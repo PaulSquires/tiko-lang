@@ -20,7 +20,7 @@ Round( x, digits )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' HALF AWAY FROM ZERO -- the school rule, and NOT what the CPU does
 print Round( 2.5 )           '' 3

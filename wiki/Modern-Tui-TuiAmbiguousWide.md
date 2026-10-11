@@ -16,7 +16,7 @@ The current ambiguous-width setting.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiAmbiguousWide( )         '' false -- narrow by default
 ```

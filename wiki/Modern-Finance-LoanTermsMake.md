@@ -12,7 +12,7 @@ LoanTermsMake( principal, nominalAnnualRate, termMonths, paymentFrequency, compo
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The general constructor, for anything the two named mortgage forms do
 '' not cover -- here a five-year car loan paying weekly.
@@ -34,4 +34,4 @@ print t.BalloonAmount_.IsZero( )         '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

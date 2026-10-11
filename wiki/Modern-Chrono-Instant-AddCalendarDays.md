@@ -12,7 +12,7 @@ Instant.AddCalendarDays( n )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 '' "Same time tomorrow": walks the civil date and re-resolves the

@@ -7,7 +7,7 @@
 
 sub Walk( byval root as ustring, _
           byval paths as tasks.SendChan( of ustring ), _
-          byval wg as FB.WaitGroup ptr )
+          byval wg as tasks.WaitGroup ptr )
     for each r in fs.WalkDir( root )
         if r.IsOk( ) andalso r.Value( ).IsFile( ) then
             paths.Send( r.Value( ).Name( ) )
@@ -16,7 +16,7 @@ sub Walk( byval root as ustring, _
     wg->Done( )
 end sub
 
-sub CloseWhenDone( byval wg as FB.WaitGroup ptr, _
+sub CloseWhenDone( byval wg as tasks.WaitGroup ptr, _
                    byval paths as tasks.Channel( of ustring ) )
     wg->Wait( )
     paths.Close( )

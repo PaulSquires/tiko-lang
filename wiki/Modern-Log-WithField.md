@@ -12,7 +12,7 @@ WithField( k, v as LogValue ) as Logger_
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 dim con as ConsoleSink
 dim lg as Logger

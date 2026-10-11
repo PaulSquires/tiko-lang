@@ -12,7 +12,7 @@ Instant.WeeksInYear( y )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' 52 or 53, depending on which weekdays the year starts and ends on
 print DateTime.WeeksInYear( 2026 )      '' 53

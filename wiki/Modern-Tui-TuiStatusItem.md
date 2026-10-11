@@ -20,7 +20,7 @@ One piece of a status bar.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiStatusItem i = TuiStatusItemOf( " q quit ", TuiStyleDefault( ), TUIALIGN_LEFT )
 print i.text                      '' " q quit "

@@ -12,7 +12,7 @@ DecimalMaxValue( )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' 2^96-1 at scale 0 -- the largest value the type holds
 print DecimalMaxValue( ).ToString( )

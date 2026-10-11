@@ -11,8 +11,9 @@ c.Amount_  c.Date_
 ## Examples
 
 ```freebasic
+#import "std/chrono"
 #import "std/money"
-using FB
+using money, chrono
 
 '' An amount and the date it happens.  The dated NPV and IRR take these;
 '' the periodic forms take a plain Decimal array instead.
@@ -34,4 +35,4 @@ print p.Date_.IsValid                    '' false
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincash.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincash.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

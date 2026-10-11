@@ -18,7 +18,7 @@ TallyChars( s, chars [, ic] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print TallyChars( "hello world", "lo" )      '' 5 -- l, l, o, o, l
 print TallyChars( "hello world", "" )        '' 0 -- an empty set matches nothing

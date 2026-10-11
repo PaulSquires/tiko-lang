@@ -16,7 +16,7 @@ Takes the terminal: alternate screen, raw mode, cursor, mouse, bracketed paste, 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTerminal term
 dim as TuiTermOptions o = TuiTermOptionsDefault( )

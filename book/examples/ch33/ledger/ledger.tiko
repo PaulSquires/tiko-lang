@@ -3,10 +3,9 @@
 #import "std/chrono"
 #import "std/money"
 #import "std/containers"
-'' fbsqlite is header-only and must be compiled into ONE unit, so this
-'' module is the only place that includes it. Nothing from it is public.
-#include once "fbsqlite.bi"
-#include once "fbsqlite_csv.bi"
+'' This module is the only place that imports SQLite, and nothing
+'' from it is public.
+#import "db/sqlite"
 '' ANCHOR_END: head
 
 '' ANCHOR: model
@@ -30,7 +29,7 @@ public type MonthMap as containers.OrderedMap( of ustring, MonthTotals )
 '' ANCHOR_END: model
 
 '' The program's one database. Open and Close bracket its use.
-private dim shared as SQLite.Database db
+private dim shared as sqlite.Database db
 
 '' ANCHOR: parse
 '' Check four fields of text and build a Txn from them: "" if they make
@@ -95,7 +94,7 @@ function Migrate( ) as ustring
                str( current ) & ")"
     end if
     for v as int32 = current + 1 to LATEST_SCHEMA
-        dim t as SQLite.Transaction
+        dim t as sqlite.Transaction
         t.Begin( db )
         var r = db.Execute( SchemaStep( v ) )
         if r.IsOk( ) then r = db.Execute( "pragma user_version = " & v )
@@ -131,7 +130,7 @@ end sub
 function Insert( byref t as Txn ) as ustring
     var r = db.Execute( "insert into txn( day, payee, category, " & _
                         "amount ) values( ?, ?, ?, ? )", _
-                        SQLite.Args( t.day.ToIsoUString( ), _
+                        sqlite.Args( t.day.ToIsoUString( ), _
                                      t.payee, t.category, _
                                      t.amount.ToString( ) ) )
     if r.IsOk( ) = false then return r.Failure( ).Message( )
@@ -172,7 +171,7 @@ public function ImportCsv _
     ( byref path as ustring, _
       byref problems as containers.Array( of ustring ) ) as int32
     db.Execute( "drop table if exists import_raw" )
-    var loaded = SQLite.ImportCsv( db, "import_raw", path )
+    var loaded = sqlite.ImportCsv( db, "import_raw", path )
     if loaded.IsOk( ) = false then
         problems.Push( path & ": " & loaded.Failure( ).Message( ) )
         return 0
@@ -185,7 +184,7 @@ public function ImportCsv _
     end if
 
     dim as int32 added = 0
-    dim tr as SQLite.Transaction
+    dim tr as sqlite.Transaction
     tr.Begin( db )
     for each r in rows.Value( )
         dim t as Txn

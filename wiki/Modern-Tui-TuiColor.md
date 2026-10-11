@@ -19,7 +19,7 @@ A tagged colour value, four bytes, deliberately not a UNION -- a ustring inside 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiColor d = TuiDefaultColor( )       '' the terminal's own default
 dim as TuiColor a = TuiAnsi( TUIC_BRIGHTBLUE )

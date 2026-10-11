@@ -40,7 +40,7 @@ dim f as Fn = function[ byval bias ]( byval x as int32 ) as int32 ...
 ' error 355: A capturing lambda cannot convert to a procedure pointer
 ```
 
-It reaches an API through a GENERIC parameter instead. That is what FB.ForEach is for, and why it takes 'of F' rather than a procedure pointer.
+It reaches an API through a GENERIC parameter instead. That is what containers.ForEach is for, and why it takes 'of F' rather than a procedure pointer.
 
 BOTH kinds are called the same way: 'f( 3 )'.
 
@@ -193,7 +193,7 @@ fbc's own lambda tests are vendored in tiko-lang under `tests/vendor/fbc-tests/g
 
 lambda.bas -- non-capturing: both forms, one-line and multi-line bodies, VAR inference, byref params and a byref return proven to be a reference, inline as an argument, returned from a function, at module level, nested lambdas, a procptr result type, EXIT inside a body, two lambdas staying distinct, interchangeability with @proc, and a real qsort comparator.
 
-lambda-capture.bas -- capturing: byref and byval, the byval snapshot, several captures of mixed mode, independent state, every call position including zero-argument and nested calls, the empty capture list, a capturing AND a non-capturing lambda through the same generic parameter, FB.ForEach, capturing a UDT both ways, and destructor balance showing that byval copies once and byref copies not at all.
+lambda-capture.bas -- capturing: byref and byval, the byval snapshot, several captures of mixed mode, independent state, every call position including zero-argument and nested calls, the empty capture list, a capturing AND a non-capturing lambda through the same generic parameter, containers.ForEach, capturing a UDT both ways, and destructor balance showing that byval copies once and byref copies not at all.
 
 Under tiko, measured 2026-09-24 at origin/master 50c71751: lambda.bas, lambda-capture.bas and lambda-in-generic.bas build and run with exit 0 and the same output as fbc's builds, and the three-module lambda-mm-main.bas + lambda-mm-a.bas + lambda-mm-b.bas builds and runs clean. `build/runscan.sh` (2026-09-20) has every in-scope run program of the corpus byte-identical to fbc's builds. tiko's own suite: `tests/mir/lambda.test`, `lambda-capture.test`, `lambda-byref-arg.test`, `lambda-capture-generic.test`, `lambda-in-generic.test`, `closure-udt-result.test` and `generic-closure-arg.test`.
 

@@ -18,7 +18,7 @@ Clear( )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim seen as Set( of integer )
 dim as integer x = 42

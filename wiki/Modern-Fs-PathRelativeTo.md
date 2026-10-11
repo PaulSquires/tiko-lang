@@ -18,7 +18,7 @@ PathRelativeTo( p, base )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' THE ONE PATH FUNCTION THAT CAN FAIL, so it returns an FsResult rather
 '' than a bare string: there IS no relative path between two different

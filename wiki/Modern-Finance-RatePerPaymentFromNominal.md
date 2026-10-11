@@ -12,7 +12,7 @@ RatePerPaymentFromNominal( nominalAnnual, compounding, paymentFrequency )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' THE FUNNEL every loan function goes through, and the reason this
 '' module exists.  Compounding and payment frequency are SEPARATE, so
@@ -38,4 +38,4 @@ print ( ca.Value( ) < us.Value( ) )                         '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

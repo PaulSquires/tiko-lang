@@ -18,7 +18,7 @@ PathNextComponent( p, gram, from, outlen )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' The cursor PathSplit is built on, so the C side never allocates. It
 '' returns the ZERO-BASED OFFSET of the next component and writes its

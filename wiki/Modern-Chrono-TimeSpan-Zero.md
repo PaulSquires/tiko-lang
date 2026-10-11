@@ -12,7 +12,7 @@ TimeSpan.Zero
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as TimeSpan z = TimeSpan.Zero( )
 

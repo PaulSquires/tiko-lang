@@ -12,7 +12,7 @@ FutureValue( annuityTerms )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' What a stream of payments will be worth at the end of the term.
 dim as Decimal i = DecimalParse( "0.005" ).Value( )
@@ -39,4 +39,4 @@ print FutureValue( done_ ).Value( ).ToStringFixed( 2 )        '' 0.00
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fintvm.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fintvm.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

@@ -16,7 +16,7 @@ A pointer to one cell. It returns a POINTER rather than a byref because taking t
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiBuffer b
 b.Resize( 8, 2 )

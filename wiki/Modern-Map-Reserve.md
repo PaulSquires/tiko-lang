@@ -18,7 +18,7 @@ Reserve( byval n as int32 )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim ages as Map( of ustring, integer )
 

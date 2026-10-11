@@ -11,8 +11,9 @@ FinSolverOptionsWithGuess( guess )
 ## Examples
 
 ```freebasic
+#import "std/numeric"
 #import "std/money"
-using FB
+using money, numeric
 
 '' The defaults, plus a starting point.  A good seed saves iterations; it
 '' never changes the answer, because the bracket owns the guarantee.
@@ -31,4 +32,4 @@ print o.MaxIterations_                   '' 128
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finsolve.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finsolve.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

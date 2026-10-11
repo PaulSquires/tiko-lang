@@ -19,7 +19,7 @@ One row of items, packed from the left and from the right. Left items run in the
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 40, 1 )

@@ -16,7 +16,7 @@ Leave the loop and return an exit code from TuiRun. Returning this from Init exi
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiQuit( ).arg              '' 0 -- the default
 print TuiQuit( 3 ).arg            '' 3

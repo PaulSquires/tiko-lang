@@ -16,7 +16,7 @@ Ends the overlay started by PushLayer. Every PushLayer needs exactly one.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 10, 3 )

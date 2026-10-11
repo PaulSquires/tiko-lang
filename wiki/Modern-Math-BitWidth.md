@@ -20,7 +20,7 @@ BitWidth( byval x as T ) as int32
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as uint32 x = 8
 print BitWidth( x )          '' 4 -- 1000 needs four bits

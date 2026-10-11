@@ -20,7 +20,7 @@ The VT parser. Feed it bytes, take events out. You need this only when driving y
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiInput keys
 keys.Feed( chr( 27 ) & "[A" )              '' CSI A -- cursor up

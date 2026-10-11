@@ -12,7 +12,7 @@ IsOk( ) as boolean
 
 ```freebasic
 #import "std/outcome"
-using FB
+using outcome
 
 dim r as Result( of int32, ustring ) = Ok( of int32, ustring )( 42 )
 

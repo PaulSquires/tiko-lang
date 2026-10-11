@@ -18,7 +18,7 @@ A cell coordinate. Returned by TuiFrame.CursorPos.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiPos p
 p.x = 3 : p.y = 7

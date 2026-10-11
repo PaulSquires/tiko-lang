@@ -18,7 +18,7 @@ Render( r, byref outbuf as ustring )
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 '' Render is the Renderer side: it turns a LogRecord into text and
 '' appends it to a buffer, without doing any I/O itself. That split is

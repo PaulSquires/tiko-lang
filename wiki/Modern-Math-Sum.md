@@ -18,7 +18,7 @@ Sum( a( ) )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' COMPENSATED summation (Neumaier), so the running error is tracked and
 '' folded back in rather than accumulating

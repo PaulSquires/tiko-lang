@@ -16,7 +16,7 @@ Clears the back buffer and returns the frame to draw into. Everything you want o
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 12, 3 )

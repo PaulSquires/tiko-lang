@@ -12,7 +12,7 @@ DecimalOne( )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' One at scale 0 -- the multiplicative identity, spelled out so that a
 '' loop accumulating a product has something to start from

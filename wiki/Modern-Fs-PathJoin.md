@@ -18,7 +18,7 @@ PathJoin( a, b )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 print PathJoin( "C:\dev", "src" )         '' C:\dev\src
 

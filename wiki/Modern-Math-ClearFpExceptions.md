@@ -12,7 +12,7 @@ ClearFpExceptions( )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' Clears every sticky flag at once. They ACCUMULATE until cleared, so
 '' the sequence is always: clear, compute, test.

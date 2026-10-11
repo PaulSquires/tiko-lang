@@ -16,7 +16,7 @@ A colour from the 256-entry palette: 0-15 the classic set, 16-231 a 6x6x6 cube, 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiColor orange = TuiIndexed( 214 )
 dim as TuiColor grey   = TuiIndexed( 244 )

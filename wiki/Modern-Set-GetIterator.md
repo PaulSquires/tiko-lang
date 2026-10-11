@@ -12,7 +12,7 @@ GetIterator( ) as SetIterator( of T )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim seen as Set( of integer )
 for i as integer = 1 to 3

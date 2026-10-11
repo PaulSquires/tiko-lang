@@ -12,13 +12,13 @@ PaymentAmount( annuityTerms )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The level payment that amortizes a principal over a term.
 ''
 '' IT IS NEGATIVE when the present value is positive, and that surprises
 '' everyone exactly once: you RECEIVED the loan, so you PAY it back.
-'' fb/finloan.bi flips the convention for schedules, deliberately.
+'' finloan.tiko flips the convention for schedules, deliberately.
 dim as Decimal i = RatePerPeriod( DecimalParse( "0.0595" ).Value( ), COMPOUND_MONTHLY ).Value( )
 
 dim as AnnuityTerms t = AnnuityTermsMake( i, 360, DecimalZero( ), _
@@ -38,4 +38,4 @@ print PaymentAmount( z ).Value( ).ToString( )            '' -100
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fintvm.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fintvm.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

@@ -13,7 +13,7 @@ Instant.ParseExact
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' Parse against a PATTERN, for text whose layout you already know
 dim as DateTime d = DateTime.ParseExact( "13/08/2026", "dd/MM/yyyy" )

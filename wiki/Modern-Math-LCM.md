@@ -12,7 +12,7 @@ LCM( a, b )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as int32 a = 4, b = 6
 print LCM( a, b )            '' 12

@@ -21,7 +21,7 @@ Correlation( x( ) as T, y( ) as T ) as float64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as float64 x( 0 to 4 ) = { 1.0, 2.0, 3.0, 4.0, 5.0 }
 dim as float64 y( 0 to 4 ) = { 2.0, 4.0, 6.0, 8.0, 10.0 }

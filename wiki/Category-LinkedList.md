@@ -4,7 +4,7 @@
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim q as LinkedList( of ustring )
 
@@ -142,7 +142,7 @@ There is one list sort and it is the stable one. Introsort is not available here
 
 See docs/sort/sort.txt.
 
-Source: src/inc/fb/linkedlist.bi
+Source: pkg/std/containers/linkedlist.tiko
 
 ## Tests
 

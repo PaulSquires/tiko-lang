@@ -12,7 +12,7 @@ DepreciationSumOfYearsDigits( terms, period )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Weighted by position in the life: with a life of 7 the digits sum to
 '' 28, so period one takes 7/28 of the base and period seven takes 1/28.
@@ -38,4 +38,4 @@ print ( DepreciationSumOfYearsDigits( t, 4 ).Value( ) = _
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/findeprec.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/findeprec.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

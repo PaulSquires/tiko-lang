@@ -12,7 +12,7 @@ Clamp( v, lo, hi )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as float64 lo = 0.0, hi = 10.0
 

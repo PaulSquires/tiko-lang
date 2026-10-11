@@ -16,7 +16,7 @@ Splits a rect into side-by-side columns. Nest freely: split a result again for a
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiConstraintArray cs
 cs.Push( TuiPercent( 45 ) )

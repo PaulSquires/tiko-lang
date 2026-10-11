@@ -12,7 +12,7 @@ IsNaN( x )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print IsNaN( NaN( ) )        '' true
 print IsNaN( 1.0 )            '' false

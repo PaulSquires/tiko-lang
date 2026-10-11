@@ -20,7 +20,7 @@ Stopwatch.IsHighResolution( ) as boolean
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print Stopwatch.IsHighResolution( )           '' true on a modern machine
 

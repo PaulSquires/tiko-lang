@@ -16,7 +16,7 @@ The current terminal size, as Result( of TuiSize, TuiError ). It is never zero: 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTerminal term
 dim as TuiSizeResult sr = term.Size( )

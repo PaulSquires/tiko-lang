@@ -172,9 +172,10 @@ stored:
 ```
 
 `probe` is a different variable from `spot`, with the same contents, and the map finds it: the two
-are equal, so they hash equally and land in the same place. The hash is an overload of `HashOf`,
-added to `namespace FB`, the namespace the container library lives in; `HashOf` already has an
-overload for every built-in type, which is what `HashOf( k.row )` calls.
+are equal, so they hash equally and land in the same place. The hash is the key's own `HashOf( )`,
+an override of the abstract one in `containers.Hashable`, which every key type extends; the module's
+`containers.HashOf` already has an overload for every built-in type, which is what
+`containers.HashOf( row )` calls.
 
 One rule makes it work: **equal keys must produce equal hashes.** Compute the hash from exactly the
 fields that `=` compares. A hash that included a field `=` ignores would put two equal keys in
@@ -317,7 +318,8 @@ Collect the changes in a second container during the loop, and apply them after 
 - `Map`: **`m[k]` inserts on a miss** — read with `TryGet`/`Contains`. `Add` will not replace;
   `Put` will. No order: sort `Keys( )` to print.
 - `Set`: unique values, with `IntersectWith`, `UnionWith`, `ExceptWith`.
-- A custom key needs `=` and a `HashOf` overload in `namespace FB`; equal keys must hash equally.
+- A custom key needs `=`, and extends `containers.Hashable` with a `HashOf( )` override; equal
+  keys must hash equally.
 - `OrderedMap`/`OrderedSet`: sorted, O(log n), `TryFirst`/`TryLast`/`TryFloor`/`TryCeiling`; need
   only `<`.
 - `LinkedList`: O(1) at both ends; popping an empty list returns a default value.

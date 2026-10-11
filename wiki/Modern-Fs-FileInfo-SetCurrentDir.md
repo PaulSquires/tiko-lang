@@ -18,7 +18,7 @@ SetCurrentDir( p )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 dim as ustring was = CurrentDir( ).Value( )
 

@@ -12,11 +12,11 @@ t.RatePerPeriod_  t.Periods_  t.Payment_  t.PresentValue_  t.FutureValue_  t.Tim
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The five quantities of an annuity in one record, so a transposed
 '' argument is visible at the call site rather than a plausible wrong
-'' number.  Everything in fb/fintvm.bi rearranges
+'' number.  Everything in fintvm.tiko rearranges
 ''
 ''     PV + PMT * a( i, n, timing ) + FV * v( i, n ) = 0
 dim as Decimal i = RatePerPeriod( DecimalParse( "0.06" ).Value( ), COMPOUND_MONTHLY ).Value( )
@@ -34,4 +34,4 @@ print PaymentAmount( t ).Value( ).ToStringFixed( 2 )    '' -2398.20
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fintvm.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fintvm.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

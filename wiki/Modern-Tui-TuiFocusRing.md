@@ -20,8 +20,9 @@ Tab order, as a ring. It calls SetFocused for you and never owns or frees anythi
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 type FormApp extends TuiApp
     as TuiTextInput  nameBox      '' FIELDS, not locals

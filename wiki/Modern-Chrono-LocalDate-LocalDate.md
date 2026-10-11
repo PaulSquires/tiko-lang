@@ -19,7 +19,7 @@ LocalDate( y, mo, d )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' A calendar date with no time and no zone. One LONG day number,
 '' counted from 0001-01-01 in the proleptic Gregorian calendar.

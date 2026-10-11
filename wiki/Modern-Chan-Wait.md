@@ -12,7 +12,7 @@ Wait( )
 
 ```freebasic
 #import "std/tasks"
-using FB
+using tasks
 
 dim wg as WaitGroup
 

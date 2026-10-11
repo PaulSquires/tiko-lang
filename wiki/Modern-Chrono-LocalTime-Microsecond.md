@@ -12,7 +12,7 @@ LocalTime.Microsecond
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' The constructor stops at MILLISECONDS -- there is no microsecond
 '' parameter, so finer values are built from ticks

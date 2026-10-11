@@ -16,7 +16,7 @@ The escape sequence that moves a terminal from one style to another at a given d
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiStyle a = TuiStyleDefault( )
 dim as TuiStyle b = TuiStyleOf( TuiRgb( 235, 80, 80 ), TuiDefaultColor( ), TUIATTR_BOLD )

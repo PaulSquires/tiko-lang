@@ -12,7 +12,7 @@ LocalDate.TryParseIso
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as LocalDate d
 

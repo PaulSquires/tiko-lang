@@ -16,7 +16,7 @@ True when this is the terminal's own default colour rather than a chosen one. It
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiDefaultColor( ).IsDefault( )        '' true
 print TuiRgb( 0, 0, 0 ).IsDefault( )         '' false -- black is not default

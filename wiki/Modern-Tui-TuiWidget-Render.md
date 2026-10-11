@@ -16,7 +16,7 @@ Draw yourself into `area`. It cannot fail and must not mutate application state 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 30, 5 )

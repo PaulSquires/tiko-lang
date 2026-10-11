@@ -12,7 +12,7 @@ LocalDate.CompareTo
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as LocalDate a = LocalDate( 2026, 1, 1 )
 dim as LocalDate b = LocalDate( 2026, 8, 13 )

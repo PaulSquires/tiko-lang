@@ -12,7 +12,7 @@ DiskSpace.FreeBytes
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 dim sp as DiskSpace = GetDiskSpace( "." ).Value( )
 

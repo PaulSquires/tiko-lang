@@ -12,7 +12,7 @@ EuclidMod(-7,-3)
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' The remainder that is ALWAYS NON-NEGATIVE, whatever the signs
 dim as int32 a = -1, b = 5

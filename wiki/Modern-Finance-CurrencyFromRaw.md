@@ -12,7 +12,7 @@ CurrencyFromRaw( scaled )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The scaled integer directly: 1 unit is 10000
 dim as int64 raw = 123400

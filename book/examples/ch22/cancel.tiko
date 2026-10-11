@@ -1,6 +1,5 @@
 #import "std/tasks"
 #cmdline "-mt"
-#include once "fb/select.bi"
 
 '' Works until its context says stop, then reports how it ended.
 sub Poll( byval ctx as tasks.Context, _

@@ -12,7 +12,7 @@ DiscountFactor( ratePerPeriod, periods )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' 1 / ( 1 + i )^n -- what a pound at period n is worth today.
 dim as Decimal i = DecimalParse( "0.005" ).Value( )
@@ -31,4 +31,4 @@ print ( g * v ).Round( 20 ).ToString( )                     '' 1.000000000000000
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

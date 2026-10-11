@@ -12,7 +12,7 @@ DepreciationTermsMake( cost, salvage, lifePeriods )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Construction by named free function.  It defaults RateFactor_ to 2,
 '' PlacedInService_ to 1 and the rounding policy to cents.
@@ -34,4 +34,4 @@ print total.ToStringFixed( 2 )           '' 45000.00
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/findeprec.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/findeprec.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

@@ -20,7 +20,7 @@ RunningStats.Reset( )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim rs as RunningStats
 for i as int32 = 1 to 5 : rs.Add( i ) : next

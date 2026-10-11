@@ -20,7 +20,7 @@ TrailingZeros( byval x as T ) as int32
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as uint32 x = 8
 print TrailingZeros( x )     '' 3 -- 8 is 1 shifted left three times

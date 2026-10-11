@@ -16,7 +16,7 @@ Cuts a string to fit a column budget. THE ELLIPSIS DEFAULTS TO "..." and is itse
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiTruncate( "abcdefgh", 5 )                 '' ab... -- the ellipsis
                                                    '' DEFAULTS to "..." and

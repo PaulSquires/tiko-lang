@@ -16,7 +16,7 @@ Builds a title value. NOTE THE ARGUMENT ORDER: the SIDE comes before the alignme
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTitle t = TuiTitleOf( " log ", TuiStyleDefault( ), _
                                 TUISIDE_TOP, TUIALIGN_CENTER )

@@ -12,7 +12,7 @@ Instant.AddMinutes
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 print d.AddMinutes( 30 ).Hour        '' 15

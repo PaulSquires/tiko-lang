@@ -16,7 +16,7 @@ Current width in cells.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 100, 30 )

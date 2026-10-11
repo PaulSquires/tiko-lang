@@ -16,7 +16,7 @@ Removes the selected span and puts the cursor where it was. A no-op when nothing
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTextInputState st
 TuiTextInputStateInit( st )

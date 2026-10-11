@@ -12,7 +12,7 @@ LocalDate.IsFirstDayOfMonth
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print LocalDate( 2026, 8, 1 ).IsFirstDayOfMonth      '' true
 print LocalDate( 2026, 8, 13 ).IsFirstDayOfMonth     '' false

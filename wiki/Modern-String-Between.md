@@ -18,7 +18,7 @@ Between( s, open, close [, start] [, ic] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print Between( "blah (text here) blah", "(", ")" )   '' text here
 print Between( "(a)(b)", "(", ")" )                  '' a -- pairs cannot cross

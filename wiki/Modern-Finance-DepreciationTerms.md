@@ -12,7 +12,7 @@ t.Cost_  t.Salvage_  t.LifePeriods_  t.RateFactor_  t.PlacedInService_  t.Roundi
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' What an asset is worth, what it will be worth, and over how long.
 '' LifePeriods_ is PERIODS, not years -- a monthly schedule passes 84,
@@ -35,4 +35,4 @@ print DepreciationDecliningBalance( t, 1 ).Value( ).ToStringFixed( 2 )   '' 1071
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/findeprec.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/findeprec.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

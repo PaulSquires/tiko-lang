@@ -12,7 +12,7 @@ Instant.Add( span )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 print d.Add( TimeSpan.FromHours( 2 ) ).Hour       '' 16

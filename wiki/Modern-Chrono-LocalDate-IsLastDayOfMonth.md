@@ -12,7 +12,7 @@ LocalDate.IsLastDayOfMonth
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print LocalDate( 2026, 8, 31 ).IsLastDayOfMonth      '' true
 print LocalDate( 2026, 8, 30 ).IsLastDayOfMonth      '' false

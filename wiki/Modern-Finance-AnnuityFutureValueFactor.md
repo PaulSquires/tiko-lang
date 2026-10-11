@@ -12,7 +12,7 @@ AnnuityFutureValueFactor( ratePerPeriod, periods, timing )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' ( (1+i)^n - 1 ) / i -- what one unit per period grows to by the end.
 dim as Decimal i = DecimalParse( "0.10" ).Value( )
@@ -35,4 +35,4 @@ print AnnuityFutureValueFactor( DecimalZero( ), 10, PAY_END_OF_PERIOD ).Value( )
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fintvm.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fintvm.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

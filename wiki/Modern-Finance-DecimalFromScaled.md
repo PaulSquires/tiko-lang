@@ -12,7 +12,7 @@ DecimalFromScaled( mantissa, scale )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' value = mantissa / 10 ^ scale, exactly.  The usual way to write a
 '' literal amount without going through text

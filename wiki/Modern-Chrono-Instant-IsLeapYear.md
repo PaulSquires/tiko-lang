@@ -12,7 +12,7 @@ Instant.IsLeapYear( y )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print DateTime.IsLeapYear( 2024 )       '' true
 print DateTime.IsLeapYear( 2025 )       '' false

@@ -18,7 +18,7 @@ EndsWith( s, suffix [, ic] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print EndsWith( "report.txt", ".txt" )         '' true
 print EndsWith( "report.TXT", ".txt", true )   '' true

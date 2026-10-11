@@ -12,16 +12,16 @@ OrderedMap( of TK, TV )
 
 ## Notes
 
-- **`for each` walks it in ascending key order, always** -- which is the entire reason to reach for it over `FB.Map`.
+- **`for each` walks it in ascending key order, always** -- which is the entire reason to reach for it over `containers.Map`.
 - The **ordering contract is `<` on TK and nothing else**: no `HashOf` and no `=` are needed. Two keys are the same key when neither is less than the other, which is what std::map means by equivalence.
-- `FB.Map` unless you need the order: it is O(1) per operation against this one's O(log n), one allocation instead of one per entry, and no pointer chasing.
-- Reading through `m[ k ]` inserts, exactly as in `FB.Map`.
+- `containers.Map` unless you need the order: it is O(1) per operation against this one's O(log n), one allocation instead of one per entry, and no pointer chasing.
+- Reading through `m[ k ]` inserts, exactly as in `containers.Map`.
 
 ## Examples
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim ages as OrderedMap( of ustring, integer )
 ages.Put( "bob", 41 )

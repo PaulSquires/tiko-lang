@@ -17,8 +17,9 @@ FsError.Path2( )
 ## Examples
 
 ```freebasic
+#import "std/numeric"
 #import "std/fs"
-using FB
+using fs, numeric
 
 '' The SECOND path, for the two-path operations: CopyFile, MoveFile,
 '' CreateSymlink, ReplaceFile

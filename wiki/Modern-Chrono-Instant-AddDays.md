@@ -12,7 +12,7 @@ Instant.AddDays
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' EXACT arithmetic -- 86400 seconds per day, and the argument is a
 '' DOUBLE, so fractions are allowed

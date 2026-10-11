@@ -13,7 +13,7 @@ LoanSchedule( loanTerms, extras( ) )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The amortization schedule -- LAZY, holding the terms rather than the
 '' rows, so a 360-period mortgage costs one record and not 360.
@@ -41,4 +41,4 @@ print lastBalance.IsZero( )              '' true -- EXACTLY zero
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

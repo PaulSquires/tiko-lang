@@ -11,8 +11,9 @@ Pop( ) as T
 ## Examples
 
 ```freebasic
+#import "std/numeric"
 #import "std/containers"
-using FB
+using containers, numeric
 
 dim v as Array( of int32 )
 v.Push( 10 ) : v.Push( 20 ) : v.Push( 30 )

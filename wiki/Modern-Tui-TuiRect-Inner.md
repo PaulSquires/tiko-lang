@@ -16,7 +16,7 @@ The rect shrunk by a margin. It never goes negative -- a margin larger than the 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRect r = TuiRectOf( 0, 0, 20, 10 )
 dim as TuiRect i = r.Inner( TuiMarginOf( 2, 1, 2, 1 ) )

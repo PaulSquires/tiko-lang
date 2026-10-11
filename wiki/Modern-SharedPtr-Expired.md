@@ -11,8 +11,8 @@ Expired( ) as boolean
 ## Examples
 
 ```freebasic
-#include once "fb/sharedptr.bi"
-using FB
+#import "std/memory"
+using memory
 
 type Node
     as int32 id

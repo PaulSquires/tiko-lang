@@ -12,7 +12,7 @@ TryCeiling( k, byref outk ) as boolean
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim m as OrderedMap( of integer, ustring )
 m.Put( 10, "ten" ) : m.Put( 20, "twenty" ) : m.Put( 30, "thirty" )

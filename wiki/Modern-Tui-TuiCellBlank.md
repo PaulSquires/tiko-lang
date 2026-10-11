@@ -16,7 +16,7 @@ A space in the given style -- what Clear fills a buffer with.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCell c = TuiCellBlank( TuiStyleOf( TuiWhite( ), TuiBlack( ) ) )
 print c.width                     '' 1

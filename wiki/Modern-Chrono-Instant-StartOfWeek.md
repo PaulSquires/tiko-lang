@@ -12,7 +12,7 @@ Instant.StartOfWeek( firstDay = DT_MONDAY )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 '' Defaults to MONDAY, the ISO convention

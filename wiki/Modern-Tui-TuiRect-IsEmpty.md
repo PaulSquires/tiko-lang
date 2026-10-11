@@ -16,7 +16,7 @@ True when the rect has no area. Test it after every Intersect and after taking t
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiRectOf( 0, 0, 10, 4 ).IsEmpty( )     '' false
 print TuiRectOf( 0, 0, 0, 4 ).IsEmpty( )      '' true

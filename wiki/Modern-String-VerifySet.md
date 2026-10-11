@@ -18,7 +18,7 @@ VerifySet( start, s, chars [, ic] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 const digits = "0123456789"
 

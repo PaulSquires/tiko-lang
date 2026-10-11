@@ -15,8 +15,9 @@ React to one event and return what the loop should do. NEVER DRAW HERE. Events a
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 type App2 extends TuiApp
     as int32 sel

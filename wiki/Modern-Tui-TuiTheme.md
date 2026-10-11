@@ -20,7 +20,7 @@ Twelve named styles. There is NO ambient theme singleton -- you hold a theme and
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTheme th = TuiThemeDefault( )
 print th.accent.fg.IsDefault( )        '' false -- the accent picks a colour

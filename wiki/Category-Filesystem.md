@@ -4,7 +4,7 @@
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 print PathJoin( "C:\dev", "tiko", "src" )    ' C:\dev\tiko\src
 print PathExtension( "frmMain.tiko" )         ' .tiko
@@ -43,7 +43,7 @@ FOUR CALLS TO LEARN FOUR FACTS. FileExists + FileAttr + FileLen + FileDateTime a
 
 This library ships ALONGSIDE all of that. Nothing in inc/file.bi, inc/dir.bi or the runtime's existing file routines changed, and nothing here depends on them. A program using DIR compiles and behaves exactly as before; the only new consequence is that a better option now sits next to it.
 
-NO COMPILER SUPPORT IS INVOLVED. This is a library: the runtime half is in tiko-rt (lib/rt/src/fs/), the FreeBASIC types in inc/fb/fs\*.bi. Nothing here is a keyword, and Stat, ReadDir, CopyFile and the rest stay available as your own identifiers until you write 'using FB'.
+NO COMPILER SUPPORT IS INVOLVED. This is a library: the runtime half is in tiko-rt (lib/rt/src/fs/), the FreeBASIC types in the std/fs module (pkg/std/fs/). Nothing here is a keyword, and Stat, ReadDir, CopyFile and the rest stay available as your own identifiers: nothing is added to a program until it imports std/fs, and the bare names only after 'using fs'.
 
 It is specified before it is implemented -- nine RFCs, one per area, each normative. Where the code and an RFC disagreed, the RFC was amended in the same change; several such corrections are recorded in them.
 
@@ -57,11 +57,11 @@ along with rationale.md (why each thing is shaped this way), comparison- matrix.
 
 ## The Shape, In One Table
 
-Namespace     Everything is in NAMESPACE FB. Nothing is added to the global
+Module        Everything belongs to the module fs. Nothing is added to a
 
 ```freebasic
-namespace, so a program with its own Stat or CopyFile is
-unaffected until it writes 'using FB'.
+program until it imports std/fs, so a program with its own Stat
+or CopyFile is unaffected until it writes 'using fs'.
 ```
 
 Errors        Every fallible call returns Result( of T, FsError ). No err( ),
@@ -85,13 +85,13 @@ a directory.
 
 Platforms     win64 and linux-x86_64, both first-class.
 
-One header pulls in everything:
+One import pulls in everything:
 
 ```freebasic
 #import "std/fs"
 ```
 
-or include only what you use -- fb/fspath.bi, fb/fsinfo.bi, fb/fsdir.bi, fb/fsops.bi, fb/fsglob.bi, fb/fslink.bi, fb/fsvolume.bi, fb/fsadvanced.bi. fb/fserror.bi comes with all of them.
+A module is imported whole; there is no importing a part of it. Its files, in pkg/std/fs/, are fspath, fsinfo, fsdir, fsops, fsglob, fslink, fsvolume, fsadvanced and fserror. JoinPath, DirName, BaseName, Extension, IsAbsolute and Separator are exported MACROS, written qualified: 'fs.JoinPath( a, b )'.
 
 ## Errors
 
@@ -370,7 +370,7 @@ THE FOUR KINDS ARE EXCLUSIVE AND EXHAUSTIVE. Exactly one of IsFile, IsDirectory,
 
 IsSymlink IS ONLY EVER TRUE FROM LStat. Stat follows, so it reports what the link points at; a Stat result with IsSymlink true would be a contradiction.
 
-TIMES ARE TICKS OF 100 ns SINCE 0001-01-01 UTC -- the same unit fb/chrono.bi uses, so the two libraries interoperate without conversion.
+TIMES ARE TICKS OF 100 ns SINCE 0001-01-01 UTC -- the same unit std/chrono uses, so the two libraries interoperate without conversion.
 
 NOT EVERY PLATFORM HAS EVERY TIME, and the library says so rather than inventing one:
 
@@ -808,7 +808,7 @@ GetVolumes on Windows is the logical drives, skipping any reporting no media. On
 
 ## Locking, Mapping AND Watching
 
-Three subsystems that share nothing but a header.
+Three subsystems that share nothing but a file.
 
 FileLock -- advisory, whole-file
 
@@ -956,7 +956,7 @@ Any change to inc/file.bi, inc/dir.bi or the runtime's existing file routines.
 
 ## Implementation
 
-inc/fb/fserror.bi      FsError, the codes, the result aliases inc/fb/fspath.bi       the path family inc/fb/fsinfo.bi       FileInfo, Stat, the resolvers inc/fb/fsdir.bi        DirEntry, the iterators, ReadDir, WalkDir inc/fb/fsops.bi        whole-file, bulk, atomic, temp inc/fb/fsglob.bi       MatchPattern, Glob inc/fb/fslink.bi       links, permissions, SetTimes, CopyOptions inc/fb/fsvolume.bi     DiskSpace, VolumeInfo inc/fb/fsadvanced.bi   FileLock, MemoryMappedFile, FileWatcher inc/fb/filesystem.bi   the umbrella
+pkg/std/fs/fserror.tiko FsError, the codes, the result aliases pkg/std/fs/fspath.tiko the path family pkg/std/fs/fsinfo.tiko FileInfo, Stat, the resolvers pkg/std/fs/fsdir.tiko  DirEntry, the iterators, ReadDir, WalkDir pkg/std/fs/fsops.tiko  whole-file, bulk, atomic, temp pkg/std/fs/fsglob.tiko MatchPattern, Glob pkg/std/fs/fslink.tiko links, permissions, SetTimes, CopyOptions pkg/std/fs/fsvolume.tiko DiskSpace, VolumeInfo pkg/std/fs/fsadvanced.tiko FileLock, MemoryMappedFile, FileWatcher pkg/std/fs/fs.tiko     the umbrella
 
 lib/rt/src/fs/path.bas     the path algebra: pure, portable, ONE copy,
 
@@ -996,7 +996,7 @@ README.md records what is deliberately NOT asserted and why -- among them that a
 
 ## Dialects
 
--lang fb only. The library uses namespaces, and fb/fserror.bi says so with an #error in the other dialects rather than failing obscurely later.
+-lang fb only. The library uses namespaces, and std/fs says so with an #error in the other dialects rather than failing obscurely later.
 
 ## API reference
 

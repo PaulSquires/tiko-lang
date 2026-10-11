@@ -12,7 +12,7 @@ LocalDate.Year
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print LocalDate( 2026, 8, 13 ).Year       '' 2026
 

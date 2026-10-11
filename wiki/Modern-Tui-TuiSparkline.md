@@ -19,7 +19,7 @@ A single row of block characters -- one value per cell, eight height steps. For 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 20, 1 )

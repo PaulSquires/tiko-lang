@@ -12,7 +12,7 @@ Instant.Hour
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 print d.Hour                 '' 14 -- 0 to 23, no AM/PM here

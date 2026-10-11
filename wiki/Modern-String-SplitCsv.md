@@ -25,8 +25,9 @@ SplitCsv( s [, delim] )
 ## Examples
 
 ```freebasic
+#import "std/containers"
 #import "std/strings"
-using FB
+using strings, containers
 
 '' A quoted comma is content -- this is what Split cannot do
 dim as Array( of CsvRow ) t = SplitCsv( !"name,note\nPaul,\"one, two\"" )

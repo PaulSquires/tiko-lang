@@ -12,10 +12,10 @@ AnnuityTermsMake( ratePerPeriod, periods, payment, presentValue, futureValue, ti
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Construction by named free function, never a one-argument constructor
-'' -- the same rule fb/decimal.bi follows.
+'' -- the same rule decimal.tiko follows.
 dim as Decimal i = DecimalParse( "0.01" ).Value( )
 
 '' A savings plan: nothing now, 100 a month for 120 months.
@@ -36,4 +36,4 @@ print PaymentAmount( loan_ ).Value( ).ToStringFixed( 2 )  '' -143.47
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fintvm.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fintvm.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

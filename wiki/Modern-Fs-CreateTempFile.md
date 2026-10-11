@@ -18,7 +18,7 @@ CreateTempFile( [ prefix ] )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 dim r as FsResultUStr = CreateTempFile( "fbdoc" )
 dim as ustring p = r.Value( )

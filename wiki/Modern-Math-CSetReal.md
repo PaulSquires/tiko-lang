@@ -19,7 +19,7 @@ CSetReal( byref z as Complex, byval x as float64 )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Complex z = CSet( 3, 4 )
 CSetReal( z, 9 )

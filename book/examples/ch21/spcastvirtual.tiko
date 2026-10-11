@@ -1,5 +1,5 @@
-#include once "fb/sharedptr.bi"
 
+#import "std/memory"
 type Shape extends object
     declare virtual destructor( )
 end type
@@ -16,8 +16,8 @@ destructor Circle( )
 end destructor
 
 scope
-    var c = FB.MakeShared( of Circle )( )
-    var s = FB.SpCast( of Circle, Shape )( c )   '' derived to base
+    var c = memory.MakeShared( of Circle )( )
+    var s = memory.SpCast( of Circle, Shape )( c )   '' derived to base
     c.Reset( )
     print "the Shape handle is the last owner"
 end scope

@@ -18,7 +18,7 @@ CCoth( byref z as Complex ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Complex z = CSet( 0.5, 0.25 )
 

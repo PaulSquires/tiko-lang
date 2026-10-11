@@ -20,7 +20,7 @@ EuclidDiv( byval a as T, byval b as T ) as T
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as int32 a = -7, b = 2
 print EuclidDiv( a, b )      '' -4

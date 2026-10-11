@@ -21,7 +21,7 @@ Hypot( x, y )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print Hypot( 3.0, 4.0 )      '' 5
 

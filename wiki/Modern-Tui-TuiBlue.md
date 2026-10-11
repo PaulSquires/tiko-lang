@@ -16,7 +16,7 @@ Shorthand for TuiAnsi( TUIC_BLUE ) -- palette index 4.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiColor c = TuiBlue( )
 print c.Index( )                  '' 4

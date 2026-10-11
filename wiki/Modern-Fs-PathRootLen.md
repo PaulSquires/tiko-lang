@@ -18,7 +18,7 @@ PathRootLen( p )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 print PathRootLen( "C:\dev\src" )         '' 3 -- "C:\"
 print PathRootLen( "relative" )           '' 0

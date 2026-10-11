@@ -15,8 +15,9 @@ What the terminal is believed to be showing. After Render the two buffers have s
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as TuiScreen scr
 scr.Resize( 20, 3 )

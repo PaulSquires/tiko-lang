@@ -18,7 +18,7 @@ AddMonths( 1 )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' Exact-field arithmetic on the calendar: the offset is left untouched
 dim as DateTime d = DateTime( 2026, 1, 31, 12, 0, 0, 0 )

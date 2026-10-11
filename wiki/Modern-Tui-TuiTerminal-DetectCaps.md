@@ -16,7 +16,7 @@ Runs detection again, without entering. Useful before Enter -- to choose a theme
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTerminal term
 dim as TuiCaps c = term.DetectCaps( )

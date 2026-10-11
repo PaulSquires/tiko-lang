@@ -12,7 +12,7 @@ r.Root_  r.Residual_  r.Iterations_  r.Converged_  r.Bracketed_
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 private function fRoot( byval x as float64, byval ctx as any ptr ) as float64
     return x * x - 2.0
@@ -38,4 +38,4 @@ print ( abs( r.Value( ).Residual_ ) <= 1.0e-12 )   '' -1 (an integer comparison)
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finsolve.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finsolve.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

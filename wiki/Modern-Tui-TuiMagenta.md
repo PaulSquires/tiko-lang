@@ -16,7 +16,7 @@ Shorthand for TuiAnsi( TUIC_MAGENTA ) -- palette index 5.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiColor c = TuiMagenta( )
 print c.Index( )                  '' 5

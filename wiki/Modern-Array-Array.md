@@ -12,7 +12,7 @@ Array( of Array( of int32 ) )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 '' A growable array. Indices are ZERO-based -- a deliberate break with
 '' `dim arr(1 to 10)` tradition, because Count and index arithmetic are

@@ -16,7 +16,7 @@ The upper end of the selection in code units. Equal to SelectionStart when nothi
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTextInputState st
 TuiTextInputStateInit( st )

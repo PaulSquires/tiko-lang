@@ -12,7 +12,7 @@ Instant.EndOfDay
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 print d.EndOfDay( ).ToIsoString( )       '' 2026-08-13T23:59:59.9999999

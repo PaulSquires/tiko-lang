@@ -15,8 +15,9 @@ Point-in-rect, half-open on the right and bottom. This is the hit test for mouse
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as TuiRect body = TuiRectOf( 10, 5, 30, 12 )
 print body.Contains( 10, 5 )      '' true  -- the top-left corner is inside

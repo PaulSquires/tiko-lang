@@ -18,7 +18,7 @@ PathEquals( a, b )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' Compares NORMALIZED paths, and case-insensitively where the grammar
 '' says the platform is

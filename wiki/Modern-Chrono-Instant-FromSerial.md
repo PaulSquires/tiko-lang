@@ -12,7 +12,7 @@ Instant.FromSerial( float64 )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' The OLE/BASIC serial date: days since 1899-12-30, fractional
 dim as DateTime d = DateTime.FromSerial( 46247.6042 )

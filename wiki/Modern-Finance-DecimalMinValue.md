@@ -12,7 +12,7 @@ DecimalMinValue( )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' -(2^96-1) at scale 0 -- the most negative value the type holds.  The
 '' range is SYMMETRIC, unlike a two's-complement integer, because the sign

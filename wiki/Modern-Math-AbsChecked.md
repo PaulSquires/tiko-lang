@@ -20,7 +20,7 @@ AbsChecked( byval a as T ) as Optional( of T )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as int8 worst = -128
 

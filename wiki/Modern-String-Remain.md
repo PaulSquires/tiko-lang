@@ -20,7 +20,7 @@ Remain( s, missing )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print Remain( "Brevity is the soul of wit", "is " )   '' the soul of wit
 print Remain( "Brevity is the soul of wit", "zzz" )   '' (empty) -- a miss gives ""

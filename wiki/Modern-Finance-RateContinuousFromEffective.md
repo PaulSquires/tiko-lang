@@ -12,7 +12,7 @@ RateContinuousFromEffective( effectiveAnnual )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The continuously-compounded rate that produces a given effective
 '' annual return: ln( 1 + e ).
@@ -30,4 +30,4 @@ print ( RateContinuousFromEffective( eff ).Value( ) < eff )             '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

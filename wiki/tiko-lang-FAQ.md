@@ -46,7 +46,7 @@ None at all. `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap` and `OrderedSet` 
 - Conversion to and from `STRING` is UTF-8 on every target, instead of going through the C locale.
 
 **Does the new date/time library replace `datetime.bi`?**
-No. `fb/chrono.bi` ships alongside it, and the two meet at `FromSerial` / `Serial`.
+No. `std/chrono` ships alongside it, and the two meet at `FromSerial` / `Serial`.
 
 **Are goroutines as cheap as Go's?**
 No. `spawn` copies the call's arguments at the spawn point and queues the call for a pool of operating-system worker threads: tiko-rt's scheduler, `lib/rt/src/thread/sched.bas`, which ports FBC-Modern's. No green threads run underneath.

@@ -18,7 +18,7 @@ One row of a table: the cells, in column order.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRow r
 r.cells.Push( "25513" )

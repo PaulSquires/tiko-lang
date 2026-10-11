@@ -20,7 +20,7 @@ CurrencyAccum.Total( ) as Currency
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 dim acc as CurrencyAccum
 

@@ -12,7 +12,7 @@ Instant.HasOffset
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 '' Constructed from civil fields, so there is no offset: this is a wall

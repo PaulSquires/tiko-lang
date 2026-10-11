@@ -16,7 +16,7 @@ The escape sequence Enter writes for a given set of options. Exposed so it can b
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTermOptions o = TuiTermOptionsDefault( )
 print instr( TuiEnterSeq( o ), "[?1049h" ) > 0 '' -1 (true)  -- alternate screen

@@ -12,7 +12,7 @@ Capacity( ) as int32
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of int32 )
 print v.Capacity         '' 0 -- nothing allocated yet

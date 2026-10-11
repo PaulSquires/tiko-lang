@@ -21,7 +21,7 @@ IndexOf( a, v ) as int32
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 '' A free procedure, not a member: it needs '=' on T, and as a member that
 '' requirement would fall on every instantiation of Array whether or not it

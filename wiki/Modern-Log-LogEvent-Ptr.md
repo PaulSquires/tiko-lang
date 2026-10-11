@@ -12,7 +12,7 @@ Ptr_( k, v as any ptr )
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 dim con as ConsoleSink
 dim lg as Logger

@@ -16,7 +16,7 @@ How many widgets are in the ring.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiFocusRing ring
 print ring.Count( )               '' 0

@@ -18,7 +18,7 @@ LeadingZeros( 0 )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' How many zero bits before the highest set one
 dim as uint32 x = 1

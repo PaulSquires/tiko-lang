@@ -16,7 +16,7 @@ Patches the style of every cell in a rect, leaving the characters alone. This is
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 20, 4 )

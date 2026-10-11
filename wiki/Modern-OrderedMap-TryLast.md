@@ -17,8 +17,9 @@ TryLast( byref outk, byref outv )
 ## Examples
 
 ```freebasic
+#import "std/numeric"
 #import "std/containers"
-using FB
+using containers, numeric
 
 dim ages as OrderedMap( of ustring, integer )
 ages.Put( "bob", 41 )

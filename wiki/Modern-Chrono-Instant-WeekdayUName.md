@@ -12,7 +12,7 @@ Instant.WeekdayUName
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as ustring s = DateTime.WeekdayUName( 4 )
 

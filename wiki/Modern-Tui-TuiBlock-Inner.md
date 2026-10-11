@@ -16,7 +16,7 @@ The space left inside the border, which depends on which sides are drawn. ALWAYS
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiBlock b
 b.borderKind = TUIBORDER_PLAIN

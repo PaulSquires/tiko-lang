@@ -20,7 +20,7 @@ Foreground, background, attribute bits, and a MASK saying which of those this st
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiStyle s = TuiStyleOf( TuiRgb( 200, 200, 200 ), TuiRgb( 20, 20, 30 ), TUIATTR_BOLD )
 print s.fg.r, s.bg.b              '' 200 30

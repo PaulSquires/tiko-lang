@@ -1,6 +1,5 @@
 #import "std/tasks"
 #cmdline "-mt"
-#include once "fb/select.bi"
 
 sub SlowAnswer( byval delayMs as int32, _
                 byval out_ as tasks.SendChan( of int32 ) )

@@ -12,7 +12,7 @@ DecimalParse( s )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Parses text exactly, with no double anywhere in the path
 var r = DecimalParse( "12.34" )

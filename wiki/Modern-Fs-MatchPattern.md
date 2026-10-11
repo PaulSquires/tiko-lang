@@ -18,7 +18,7 @@ MatchPattern( s, pattern )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' PURE -- no syscalls. It matches TEXT against a glob, and never asks
 '' whether anything exists.

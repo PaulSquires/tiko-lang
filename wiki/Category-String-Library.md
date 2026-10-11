@@ -3,8 +3,9 @@
 # String Library
 
 ```freebasic
+#import "std/containers"
 #import "std/strings"
-using FB
+using strings, containers
 
 print Replace( "Hello World", "World", "Earth" )   ' Hello Earth
 print Tally( "a,b,c", "," )                        ' 2
@@ -25,7 +26,7 @@ FreeBASIC ships LEFT, RIGHT, MID, INSTR, INSTRREV, TRIM, UCASE, LCASE, SPACE and
 
 These 39 functions are the portable half of the AfxNova string library (AfxStr.inc and DWStrProcs.inc) -- two decades of use, but Windows-only, tied to WSTRING and DWSTRING, and in places built on COM -- plus the CSV pair, which comes from elsewhere and is described in its own section below.
 
-NOTHING HERE IS A KEYWORD. Replace, Contains, Split and the rest stay available as your own identifiers until you write 'using FB'. The language is unchanged.
+NOTHING HERE IS A KEYWORD. Replace, Contains, Split and the rest belong to the module: nothing is added to a program until it imports std/strings, and the bare names only after 'using strings', so they stay available as your own identifiers. The language is unchanged.
 
 ## All Four String Types
 
@@ -54,7 +55,7 @@ The cost is that a pattern handed to the BYTE family is converted UTF-8 -> UTF-1
 
 Positions and lengths count CODE UNITS, matching LEN, \[\] and INSTR. On the wide family an astral character is a surrogate pair and counts as 2. A search can never land mid-character -- a surrogate half cannot equal a BMP unit -- though MID can still split one, as it always could.
 
-POSITIONS ARE 1-BASED, and 0 means "not found", matching INSTR. This is NOT the zero-based convention FB.Array uses. Strings and containers are different worlds and each keeps its own tradition.
+POSITIONS ARE 1-BASED, and 0 means "not found", matching INSTR. This is NOT the zero-based convention containers.Array uses. Strings and containers are different worlds and each keeps its own tradition.
 
 A start below 1 is invalid and answers 0 (or "" for a function returning text) rather than clamping, so a position fed back in from a call that returned "not found" cannot silently restart the scan. AfxNova reads a negative start as counting from the right; that reading and this one claim the same range, so only one could survive, and consistency won.
 
@@ -247,7 +248,7 @@ COMPLEXITY IS O(n). The scan appends whole runs of ordinary characters with MID 
 
 Ported from the finara import engine (fnr\_CsvParse), itself ported from tracks. The cursor is the same; three things changed on the way in:
 
-- the failure is a ROW COUNT rather than a Result( of Table, Error ), so the string library keeps its single dependency on fb/array.bi and stays total;
+- the failure is a ROW COUNT rather than a Result( of Table, Error ), so the string library keeps its single dependency on std/containers' Array and stays total;
 - an EMPTY INPUT is one empty record rather than none, which is what makes the zero-row signal unambiguous;
 - a delimiter that is not one unit is a no-op rather than an error, matching how every other invalid argument here behaves.
 
@@ -388,9 +389,9 @@ Excluded entirely, as Windows-only or COM-bound: locale and country names, month
 
 In tiko-rt the algorithms live in lib/rt/src/inc/ops-core.bi and are written ONCE, then instantiated twice -- lib/rt/src/str/ops.bas at byte width, lib/rt/src/ustr/ops.bas at 16-bit -- with ## token pasting, the technique fbc's C runtime uses with str_ops_core.h. Two hand-maintained copies of a search loop drift, and the drift shows up as one width quietly disagreeing with the other on an edge case nobody tests twice.
 
-Reached from FreeBASIC through 'extern "C" declare ... alias' inside namespace FB -- the pattern inc/string.bi already uses for FORMAT. Note that 'alias' alone is not enough inside a namespace: without the nested extern "C", fbc mangles right past it, and a nested namespace does not inherit an enclosing one either.
+Reached from FreeBASIC through 'extern "C" declare ... alias' at the module's scope -- the pattern inc/string.bi already uses for FORMAT. Note that 'alias' alone is not enough inside a module: without the extern "C" the name is mangled through the module's chain, and a nested namespace does not inherit an enclosing extern either.
 
-Split, SplitChars, Join, SplitCsv and SplitCsvRow are the only ones with FreeBASIC bodies, because their result is an Array( of T ) that the runtime cannot build. They are 'private', so each including module gets its own copy and two modules including the header still link -- the same trade the generic containers make. The runtime side returns field boundaries rather than strings, so a split is two linear passes instead of the ParseCount-then-Parse-in-a-loop shape, which rescans from the start for every field and is quadratic.
+Split, SplitChars, Join, SplitCsv and SplitCsvRow are the only ones with FreeBASIC bodies, because their result is an Array( of T ) that the runtime cannot build. They are public members of the module, compiled once with it, so any number of files in a program can import std/strings and still link. The runtime side returns field boundaries rather than strings, so a split is two linear passes instead of the ParseCount-then-Parse-in-a-loop shape, which rescans from the start for every field and is quadratic.
 
 ## ONE FreeBASIC QUIRK WORTH KNOWING
 
@@ -398,7 +399,7 @@ LEN and SIZEOF do not honour a namespace qualifier on a function call that comes
 their operand:
 
 ```freebasic
-print len( FB.Replace( s, "a", "b" ) )    ' fbc: error 42: Variable not declared
+print len( strings.Replace( s, "a", "b" ) )    ' error TKO0743: 'replace' is not declared
 ```
 
 This is not specific to this library or to USTRING -- stock fbc 1.10.1 fails identically on
@@ -410,17 +411,17 @@ end namespace
 print len( NS.Twice( t ) )
 ```
 
-The operand may be a TYPE, and 'FB.' may begin one, so the compiler reads the qualifier as a type's, finds no type, and parses what follows it UNQUALIFIED. With no 'Replace' in view that is error 42. With one in view it is worse: that one is called, and measured. Given a global 'function Twice' beside NS's, 'len( NS.Twice( t ) )' calls the global one. The qualifier holds when the call is not the first thing in the operand: '( NS.Twice( t ) )', '"x" & NS.Twice( t )' and 'cast( ... )' all reach NS's. It also holds for a qualified VARIABLE, so 'len( NS.v )' is NS's.
+The operand may be a TYPE, and 'strings.' may begin one, so the compiler reads the qualifier as a type's, finds no type, and parses what follows it UNQUALIFIED. With no 'Replace' in view that is error 42 under fbc and TKO0743 under tiko. With one in view it is worse: that one is called, and measured. Given a global 'function Twice' beside NS's, 'len( NS.Twice( t ) )' calls the global one. The qualifier holds when the call is not the first thing in the operand: '( NS.Twice( t ) )', '"x" & NS.Twice( t )' and 'cast( ... )' all reach NS's. It also holds for a qualified VARIABLE, so 'len( NS.v )' is NS's.
 
-tiko does the same (measured 2026-09-24 against fbc 1.20.0, FBC-Modern), and tests/mir/len-ns-prefix.test and tests/diagnostics/len-ns-prefix.test hold it there. The workarounds are ordinary: write 'using FB' and drop the qualifier, or assign the result first and take LEN of the variable, or put the call in parentheses. It is mentioned here only because the qualified spelling is the natural one to reach for before discovering 'using', and the error message points nowhere near the cause.
+tiko does the same (measured 2026-09-24 against fbc 1.20.0, FBC-Modern), and tests/mir/len-ns-prefix.test and tests/diagnostics/len-ns-prefix.test hold it there. The workarounds are ordinary: write 'using strings' and drop the qualifier, or assign the result first and take LEN of the variable, or put the call in parentheses. It is mentioned here only because the qualified spelling is the natural one to reach for before discovering 'using', and the error message points nowhere near the cause.
 
 ## Money Formatting
 
-`fb/moneyformat.bi` renders an amount the way the user's locale writes money. Assign a numeric value, set the properties you care about, read back the string.
+`MoneyFormat`, from `std/money`, renders an amount the way the user's locale writes money. Assign a numeric value, set the properties you care about, read back the string.
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 dim as MoneyFormat m = DecimalParse( "-1234.5" ).Value( )
 print m.ToString( )                  '' -$1,234.50   on en-CA
@@ -432,11 +433,11 @@ print m.ToString( )                  '' ($1234.50)
 m.UseLocale( MONEY_F_THOUSANDSSEP )  '' back to the locale's separator
 ```
 
-`fb/currency.bi` and `fb/decimal.bi` HOLD money and `fb/finance.bi` COMPUTES with it. Nothing displayed it. [MoneyFormat](Modern-String-MoneyFormat) is that half, and it sits in this library rather than beside Currency because what it does is build a string.
+`Currency` and `Decimal` HOLD money and the finance functions COMPUTE with it. Nothing displayed it. [MoneyFormat](Modern-String-MoneyFormat) is that half. It is documented in this library because what it does is build a string, and it ships in `std/money` beside Currency.
 
 Everything the locale specifies -- symbol, decimal point, thousands separator, digit grouping, fraction digits, which side the symbol goes on, where the sign goes -- is used by default, and every one of them can be overridden or suppressed individually. Setting a property always marks it as yours, so `m.Symbol = ""` SUPPRESSES the symbol and only `UseLocale` gives it back; without that distinction suppression could not be expressed at all.
 
-Windows reads `GetLocaleInfoEx( LOCALE_NAME_USER_DEFAULT, ... )` and Linux reads `localeconv( )`. Not one portable path, and both reasons are silent failures rather than errors: the Windows CRT is not the Region control panel and does not reliably see per-user overrides, and `localeconv` hands back bytes in the process code page, where the euro sign is one byte on a 1252 machine. The header pulls in nothing from `inc/win` -- `GetLocaleInfoEx` sits behind `_WIN32_WINNT >= &h0600` and `inc/win/_mingw.bi` defaults that to `&h0502`, so with the shipped headers it is not visible at all.
+Windows reads `GetLocaleInfoEx( LOCALE_NAME_USER_DEFAULT, ... )` and Linux reads `localeconv( )`. Not one portable path, and both reasons are silent failures rather than errors: the Windows CRT is not the Region control panel and does not reliably see per-user overrides, and `localeconv` hands back bytes in the process code page, where the euro sign is one byte on a 1252 machine. `std/money` pulls in nothing from `inc/win` -- `GetLocaleInfoEx` sits behind `_WIN32_WINNT >= &h0600` and `inc/win/_mingw.bi` defaults that to `&h0502`, so with the shipped headers it is not visible at all.
 
 On Linux it asks for `LC_MONETARY` alone. Widening it to `LC_ALL` would move `LC_NUMERIC` too, and `DecimalFromDouble` parses `snprintf( "%.14e" )` output -- under a German `LC_NUMERIC` every double assigned to a MoneyFormat would silently become an invalid Decimal. Formatting money must not change how the rest of the program reads numbers.
 
@@ -444,7 +445,7 @@ The thirty layout combinations behind [MoneyCompose](Modern-String-MoneyCompose)
 
 ## Dialects
 
--lang fb only. The library uses namespaces, and Split returns a generic container. The header says so with #error rather than failing obscurely.
+-lang fb only. The library uses namespaces, and Split returns a generic container. std/strings says so with #error rather than failing obscurely.
 
 ## API reference
 

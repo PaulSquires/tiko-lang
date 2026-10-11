@@ -21,8 +21,9 @@ A scrolling selection list. The state is CALLER-OWNED so the widget can be a thr
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as TuiListState st
 dim as TuiList lst

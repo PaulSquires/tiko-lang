@@ -12,7 +12,7 @@ DecimalZero( )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Zero at scale 0.  A default-constructed Decimal is the same thing --
 '' zero is the meaningful default for a number, so there is no

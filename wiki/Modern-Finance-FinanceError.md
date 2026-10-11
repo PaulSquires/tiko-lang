@@ -11,8 +11,9 @@ err.Code( )  err.Message( )  err.Iterations( )  err.Residual( )  err.BestGuess( 
 ## Examples
 
 ```freebasic
+#import "std/numeric"
 #import "std/money"
-using FB
+using money, numeric
 
 '' Every fallible finance call returns Result( of T, FinanceError ).
 '' The error carries a code, and -- for solvers -- how close it got.
@@ -33,4 +34,4 @@ print IsNaN( bad.Failure( ).BestGuess( ) )   '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finerror.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finerror.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

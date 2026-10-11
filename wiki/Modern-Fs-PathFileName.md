@@ -18,7 +18,7 @@ PathFileName( p )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 print PathFileName( "C:\dev\src\main.tiko" )       '' main.tiko
 print PathFileName( "main.tiko" )                  '' main.tiko

@@ -12,7 +12,7 @@ LoanTermsCanadianMortgage( principal, nominalAnnualRate, amortizationYears )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The Canadian convention: the Interest Act requires a mortgage rate to
 '' be quoted SEMI-ANNUALLY, NOT IN ADVANCE, while payments stay monthly.
@@ -36,4 +36,4 @@ print ( LoanPayment( us ).Value( ) - LoanPayment( ca ).Value( ) ).ToStringFixed(
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

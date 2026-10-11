@@ -12,7 +12,7 @@ DepreciationUnitsOfProduction( terms, unitsThisPeriod, totalUnits )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Depreciation by USE rather than by time -- the base times this
 '' period's share of the asset's total expected output.
@@ -36,4 +36,4 @@ print DepreciationUnitsOfProduction( t, DecimalParse( "100" ).Value( ), _
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/findeprec.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/findeprec.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

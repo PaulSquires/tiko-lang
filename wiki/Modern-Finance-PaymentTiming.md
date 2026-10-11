@@ -12,7 +12,7 @@ PAY_END_OF_PERIOD  PAY_BEGIN_OF_PERIOD
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' An ordinary annuity pays at the END of each period; an annuity due
 '' pays at the START, so every payment works one period longer.
@@ -33,4 +33,4 @@ print ( due.Value( ) = ( ord_.Value( ) * ( DecimalOne( ) + i ) ) )   '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

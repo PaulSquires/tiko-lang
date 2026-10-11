@@ -20,7 +20,7 @@ Fma( byval x as float64, byval y as float64, byval z as float64 ) as float64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print Fma( 2.0, 3.0, 4.0 )   '' 10
 

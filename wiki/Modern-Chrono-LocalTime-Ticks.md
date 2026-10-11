@@ -12,7 +12,7 @@ LocalTime.Ticks
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as LocalTime t = LocalTime( 1, 0, 0, 0 )
 

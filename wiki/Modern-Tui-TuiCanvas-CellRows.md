@@ -16,7 +16,7 @@ The canvas height in terminal cells.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiCanvas( 40, 10 ).CellRows( )          '' 10
 ```

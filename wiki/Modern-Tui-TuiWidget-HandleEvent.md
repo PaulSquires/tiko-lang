@@ -15,8 +15,9 @@ Returns TRUE when the event was CONSUMED. A container offers the event to its fo
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as TuiListState st
 dim as TuiList lst

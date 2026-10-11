@@ -12,7 +12,7 @@ Err( )
 
 ```freebasic
 #import "std/tasks"
-using FB
+using tasks
 
 dim root as Context
 

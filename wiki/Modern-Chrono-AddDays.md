@@ -18,7 +18,7 @@ AddDays( 1 )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' EXACT arithmetic: 86400 seconds, which does NOT keep the wall-clock
 '' time across a DST boundary. "24 hours from now".

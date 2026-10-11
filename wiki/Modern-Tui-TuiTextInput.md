@@ -21,7 +21,7 @@ A one-line editor: cursor, selection, word movement, password masking. Editing k
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTextInputState st
 TuiTextInputStateInit( st )

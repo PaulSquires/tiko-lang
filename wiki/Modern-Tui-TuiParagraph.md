@@ -22,7 +22,7 @@ Text: wrapped or not, left/centre/right, scrollable. Embedded chr(10) starts a n
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 12, 5 )

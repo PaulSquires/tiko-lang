@@ -23,7 +23,7 @@ CAtanh( byval x as float64 ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CAtanh( CSet( 0.5, 0.25 ) ) )  '' 0.5003700000525311+0.3143981432077165i
 print CToString( CAtanh( 2.0 ) )                '' 0.5493061443340549+1.5707963267948966i   -- outside the real function's domain

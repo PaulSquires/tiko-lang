@@ -12,7 +12,7 @@ Done( )
 
 ```freebasic
 #import "std/tasks"
-using FB
+using tasks
 
 dim wg as WaitGroup
 wg.Add( 2 )

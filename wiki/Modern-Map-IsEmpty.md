@@ -12,7 +12,7 @@ IsEmpty( ) as boolean
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim ages as Map( of ustring, integer )
 print ages.IsEmpty               '' true

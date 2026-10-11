@@ -12,7 +12,7 @@ Instant.OleDate
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 print int( d.OleDate )       '' 46247

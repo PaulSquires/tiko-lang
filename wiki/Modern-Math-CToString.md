@@ -12,7 +12,7 @@ CToString( byref z as Complex ) as string
 
 ## Notes
 
-- Built on `ToString` from `fb/mathtext.bi`, so **the components round-trip**: what `TryParseDouble` gives back is bit-for-bit what went in. `STR` does not promise that and does not deliver it.
+- Built on `ToString` from `mathtext.tiko`, so **the components round-trip**: what `TryParseDouble` gives back is bit-for-bit what went in. `STR` does not promise that and does not deliver it.
 - **The sign is emitted separately from the magnitude so that a negative zero survives.** `"3-0i"` parses back to `-0.0`, where `"3+0i"` would not — and which zero an operand carries is what decides the side of a branch cut.
 - The non-finite components come out as `"nan"`, `"inf"` and `"-inf"`, all of which `TryParseDouble` accepts again. A NaN is not equal to itself, though, so what survives that trip is the spelling and not the value.
 - `CStr` is a FreeBASIC keyword, which is why AfxNova's `CStr( z )` could not keep its name.
@@ -21,7 +21,7 @@ CToString( byref z as Complex ) as string
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CSet( 3, 4 ) )          '' 3+4i
 print CToString( CSet( 3, -4 ) )         '' 3-4i

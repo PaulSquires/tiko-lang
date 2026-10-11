@@ -18,7 +18,7 @@ IsNumeric( s )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print IsNumeric( " -1.5e+3 " )    '' true -- surrounding whitespace is allowed
 print IsNumeric( "42" )           '' true

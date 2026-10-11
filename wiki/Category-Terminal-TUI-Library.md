@@ -5,8 +5,9 @@
 > 📘 **Working examples:** [hello.tiko](Modern-Tui-Example-Hello) · [form.tiko](Modern-Tui-Example-Form) · [dashboard.tiko](Modern-Tui-Example-Dashboard) — complete programs, in `docs/tui/examples/` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 type HelloApp extends TuiApp
     as int32 presses
@@ -100,7 +101,7 @@ Build and run:
 tiko examples/hello.tiko        ' win64-msvc on Windows, linux-x86_64 on Linux
 ```
 
-With a packaged toolchain no -i and no -p are needed: the headers and the runtime are in it. Run them from a REAL TERMINAL -- redirected output is rejected with an honest error rather than a dashboard drawn into a pipe.
+With a packaged toolchain no -i and no -p are needed: the modules and the runtime are in it. Run them from a REAL TERMINAL -- redirected output is rejected with an honest error rather than a dashboard drawn into a pipe.
 
 tiko builds all three with no diagnostics for win64-msvc and win64, and compiles them for linux-x86_64 with `-c` -- measured 2026-09-24 at origin/master 50c71751; they were built, not run, because they need a real terminal. fbc builds all three.
 
@@ -805,26 +806,27 @@ TuiError.detail             what was being attempted
 TuiError.Message( )         a formatted line, including the OS error
 ```
 
-## Headers
+## Files
 
 ```freebasic
-fb/tui.bi           the umbrella. Include this one.
+#import "std/tui"   the module, imported whole. pkg/std/tui/ holds:
 
-fb/tuicore.bi       geometry, colour, style, theme
-fb/tuiterm.bi       terminal, capabilities, raw mode, restore
-fb/tuibuffer.bi     cells, buffer, frame, screen, the diff
-fb/tuiinput.bi      events, the VT grammar, PollEvent
-fb/tuiwidth.bi      Unicode column widths, truncate, wrap
-fb/tuilayout.bi     the constraint solver
-fb/tuiwidget.bi     the widget protocol, focus ring, buttons, stack
-fb/tuiwidgets.bi    block, paragraph, list, table, tabs, gauge, spinner,
+tui.tiko            the umbrella
+tuicore.tiko        geometry, colour, style, theme
+tuiterm.tiko        terminal, capabilities, raw mode, restore
+tuibuffer.tiko      cells, buffer, frame, screen, the diff
+tuiinput.tiko       events, the VT grammar, PollEvent
+tuiwidth.tiko       Unicode column widths, truncate, wrap
+tuilayout.tiko      the constraint solver
+tuiwidget.tiko      the widget protocol, focus ring, buttons, stack
+tuiwidgets.tiko     block, paragraph, list, table, tabs, gauge, spinner,
                     scrollbar
-fb/tuidraw.bi       canvas, graph, sparkline, bar chart, meter
-fb/tuiform.bi       text input, text area, checkbox, radio, select
-fb/tuichrome.bi     popup, message box, menu bar, status bar, tree
+tuidraw.tiko        canvas, graph, sparkline, bar chart, meter
+tuiform.tiko        text input, text area, checkbox, radio, select
+tuichrome.tiko      popup, message box, menu bar, status bar, tree
 ```
 
-Everything is in NAMESPACE FB with a Tui prefix, following the LogRecord/LogSink precedent. `using FB` at the top of your program is the normal thing to do.
+Every name belongs to the module and carries a Tui prefix, following the LogRecord/LogSink precedent. `using tui` at the top of your program is the normal thing to do.
 
 ## Naming Traps
 

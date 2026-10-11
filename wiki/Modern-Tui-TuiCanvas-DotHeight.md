@@ -16,7 +16,7 @@ The canvas height in dots -- cells times 4. Four times the vertical resolution i
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiCanvas( 40, 10 ).DotHeight( )         '' 40
 ```

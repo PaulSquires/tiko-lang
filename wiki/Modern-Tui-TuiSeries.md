@@ -20,7 +20,7 @@ One line on a graph. THE RIGHTMOST SAMPLE IS THE NEWEST -- a history plot pushes
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiSeries s
 for i as int32 = 0 to 99

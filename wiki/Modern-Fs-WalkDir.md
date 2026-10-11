@@ -19,7 +19,7 @@ WalkDir( p, opts )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
 dim as ustring dir_ = td.Value( )

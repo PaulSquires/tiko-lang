@@ -18,7 +18,7 @@ TimeSpan.FromMicroseconds( int64 )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print TimeSpan.FromMicroseconds( 1000000 ).TotalSeconds      '' 1
 

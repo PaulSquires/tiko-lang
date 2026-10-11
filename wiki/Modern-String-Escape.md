@@ -18,7 +18,7 @@ Escape( s )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 dim as ustring s = "path" & chr(9) & "c:\tmp" & chr(10)
 

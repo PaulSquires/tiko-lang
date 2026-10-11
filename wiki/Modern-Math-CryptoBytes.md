@@ -12,7 +12,7 @@ CryptoBytes( ptr, n )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' From the OS CSPRNG -- BCryptGenRandom or getrandom -- not from the
 '' Rng, which is fast and reproducible but NOT secure

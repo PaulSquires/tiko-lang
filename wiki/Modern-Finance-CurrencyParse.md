@@ -12,7 +12,7 @@ CurrencyParse( s )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Parses text exactly, with no double in the middle
 var r = CurrencyParse( "12.34" )

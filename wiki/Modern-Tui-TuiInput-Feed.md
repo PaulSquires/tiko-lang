@@ -16,7 +16,7 @@ Appends raw bytes. A sequence may arrive split across two reads; the parser keep
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiInput keys
 keys.Feed( chr( 27 ) )            '' half of a sequence

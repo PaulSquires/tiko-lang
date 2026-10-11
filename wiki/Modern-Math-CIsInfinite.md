@@ -19,7 +19,7 @@ CIsInfinite( byref z as Complex ) as boolean
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CIsInfinite( CInfinity( ) )                 '' true
 print CIsInfinite( CSet( NegInfinity( ), 1.0 ) )  '' true

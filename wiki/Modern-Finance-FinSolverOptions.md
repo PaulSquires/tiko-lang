@@ -11,8 +11,9 @@ o.Guess_  o.LowerBound_  o.UpperBound_  o.Tolerance_  o.StepTolerance_  o.MaxIte
 ## Examples
 
 ```freebasic
+#import "std/numeric"
 #import "std/money"
-using FB
+using money, numeric
 
 '' How the root finder should search.  THE DEFAULT BOUNDS ARE RATE
 '' BOUNDS -- a periodic rate at or below -100% is meaningless -- so a
@@ -35,4 +36,4 @@ print o.Tolerance_                       '' 1e-014
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finsolve.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finsolve.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

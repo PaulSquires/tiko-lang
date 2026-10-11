@@ -18,7 +18,7 @@ CAcoth( byref z as Complex ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CAcoth( CSet( 2, 1 ) ) )  '' 0.4023594781085251-0.23182380450040307i
 print CToString( CAcoth( CSet( 2, 0 ) ) )  '' 0.5493061443340549-0i   -- 1/2 is inside the real domain

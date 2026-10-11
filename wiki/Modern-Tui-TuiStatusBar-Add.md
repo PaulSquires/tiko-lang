@@ -16,7 +16,7 @@ Appends an item. Include the padding spaces in the text -- the bar does not add 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiStatusBar sb
 sb.Add( " ready ", TuiStyleDefault( ), TUIALIGN_LEFT )

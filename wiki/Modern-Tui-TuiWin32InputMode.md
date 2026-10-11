@@ -16,7 +16,7 @@ Windows only. The console input mode Enter will install, as a pure function of t
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 #ifdef __FB_WIN32__
     dim as DWORD found = ENABLE_LINE_INPUT or ENABLE_ECHO_INPUT or _

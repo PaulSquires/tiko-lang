@@ -12,7 +12,7 @@ Instant.TickOfDay
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 '' Ticks since midnight, which is the time of day as one number

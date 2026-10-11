@@ -4,7 +4,7 @@
 
 ```freebasic
 #import "std/outcome"
-using FB
+using outcome
 
 type ParseResult as Result( of int32, ustring )
 
@@ -95,8 +95,7 @@ The usual inference rule still applies inside: an untyped integer literal is an 
 Value( ) on a failure and Failure( ) on a success BOTH raise FB_RTERROR_ILLEGALFUNCTIONCALL. With no handler installed the program stops:
 
 ```freebasic
-Aborting due to runtime error 1 (illegal function call)
-  at line 87 of ...\inc\fb\result.bi()
+Aborting due to runtime error 1 (illegal function call) at line 115 of ...\pkg\std\outcome\result.tiko()
 ```
 
 The symmetry is deliberate. Asking why something failed when it did not fail is the same class of mistake as reading a value that is not there, and it is the one a one-sided implementation would let through silently.
@@ -203,7 +202,7 @@ error 14: Expected identifier, found 'E'
 
 The same collision bites CALLERS, and much more sharply: a variable named 'e' anywhere in scope at the point Result is instantiated breaks that instantiation with the same error. This is a defect in the generics implementation, not a property of Result -- the type parameter is being resolved against the instantiation site's scope -- and it applies to 't' and Array( of T ) and every other shipped generic equally. Until it is fixed, avoid single-letter variables named after a type parameter near a generic instantiation.
 
-Source: src/inc/fb/result.bi
+Source: pkg/std/outcome/result.tiko
 
 ## Tests
 

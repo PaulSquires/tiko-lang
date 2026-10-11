@@ -5,14 +5,14 @@
 
 sub Produce( byval first as int32, _
              byval out_ as tasks.SendChan( of int32 ), _
-             byval wg as FB.WaitGroup ptr )
+             byval wg as tasks.WaitGroup ptr )
     for i as int32 = first to first + 2
         out_.Send( i )
     next
     wg->Done( )
 end sub
 
-sub CloseAfter( byval wg as FB.WaitGroup ptr, _
+sub CloseAfter( byval wg as tasks.WaitGroup ptr, _
                 byval merged as tasks.Channel( of int32 ) )
     wg->Wait( )
     merged.Close( )

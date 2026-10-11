@@ -12,7 +12,7 @@ MaxDrawdownPeak( periodReturns( ) )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The index of the peak the worst drawdown fell FROM.
 ''
@@ -35,4 +35,4 @@ print MaxDrawdownPeak( up_( ) ).HasValue( )  '' false
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finport.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finport.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

@@ -18,7 +18,7 @@ NaiveSum( a( ) )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' The straight loop -- FASTER, and NAMED SO YOU MEANT IT
 dim as float64 a( 0 to 3 ) = { 1e16, 1.0, -1e16, 1.0 }

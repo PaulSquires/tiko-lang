@@ -12,7 +12,7 @@ RemoveSink( s )
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 dim con as ConsoleSink
 dim lg as Logger

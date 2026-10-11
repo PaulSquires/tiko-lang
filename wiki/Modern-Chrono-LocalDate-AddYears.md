@@ -12,7 +12,7 @@ LocalDate.AddYears( n )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as LocalDate d = LocalDate( 2026, 8, 13 )
 print d.AddYears( 4 ).ToIsoString( )     '' 2030-08-13

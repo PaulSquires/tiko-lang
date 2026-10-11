@@ -13,7 +13,7 @@ Map( of TK, TV )
 ## Notes
 
 - **READING vs WRITING is the thing to know.** `m[ k ]` **inserts** a default-constructed value when `k` is absent; `TryGet` and `Contains` do not. `m[ k ] += 1` just working is why, and `if m[ k ] = 0` silently growing the map is the price.
-- The **hash contract** is in `fb/hash.bi`: `FB.HashOf( k )` must resolve, `k = k` must compare, and **equal keys must hash equal**.
+- The **hash contract**: `K` extends `containers.Hashable` (or is a built-in type), `k = k` must compare, and **equal keys must hash equal**.
 - Open addressing with linear probing, power-of-two capacity, tombstones on removal, load factor 0.75. Open addressing rather than chaining means one allocation instead of one per entry, which matters more in a language with no garbage collector.
 - **Iteration order is unspecified** and changes across insertions. It is not randomised per process -- stability within one unmodified map is more useful when debugging.
 
@@ -21,7 +21,7 @@ Map( of TK, TV )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim ages as Map( of ustring, integer )
 

@@ -12,7 +12,7 @@ Some( v ) as Optional( of T )
 
 ```freebasic
 #import "std/outcome"
-using FB
+using outcome
 
 dim o as Optional( of integer ) = Some( 42 )
 

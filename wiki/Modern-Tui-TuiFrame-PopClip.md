@@ -16,7 +16,7 @@ Restores a clip returned by PushClip. Pass back exactly what PushClip gave you -
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 20, 4 )

@@ -18,7 +18,7 @@ Unescape( s )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print Unescape( "line\nnext" )      '' two lines
 print Unescape( "\x41\x42" )       '' AB

@@ -12,7 +12,7 @@ Instant.OffsetMinutes
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 '' WITH NO OFFSET ATTACHED THIS IS 32767, the sentinel, NOT zero -- so

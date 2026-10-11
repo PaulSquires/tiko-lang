@@ -19,7 +19,7 @@ CLog10( byref z as Complex ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CLog10( CSet( 100, 0 ) ) )    '' 2+0i
 print CToString( CLog10( CSet( 0.001, 0 ) ) )  '' -2.9999999999999996+0i

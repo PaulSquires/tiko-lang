@@ -20,8 +20,9 @@ A labelled checkbox. Its whole state is one boolean, so it points at YOUR boolea
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as boolean agreed
 dim as TuiCheckbox c

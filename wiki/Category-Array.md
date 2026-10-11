@@ -4,7 +4,7 @@
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of ustring )
 
@@ -65,7 +65,7 @@ IndexOf( a, v ) as int32                  needs '=' on T; -1 if absent
 Contains( a, v ) as boolean               needs '=' on T
 ```
 
-Sorting is in fb/sort.bi, documented in docs/sort/sort.txt.
+Sorting is in sort.tiko, in the same std/containers module, documented in docs/sort/sort.txt.
 
 ## At( ) IS FOR READING
 
@@ -126,7 +126,7 @@ Sort( ) is an introsort: quicksort, falling back to heapsort at a recursion dept
 
 Both move elements with SWAP, so a T holding a heap allocation is never copied.
 
-Sorting used to be a Shell sort declared here in fb/array.bi. It moved to its own header when it grew a comparer, a stable form and a LinkedList form; see docs/sort/sort.txt. A program that includes only fb/array.bi now has to include fb/sort.bi as well -- containers.bi pulls in both.
+Sorting used to be a Shell sort declared here, in what is now array.tiko. It moved to its own file when it grew a comparer, a stable form and a LinkedList form; see docs/sort/sort.txt. Both files are std/containers, so '#import "std/containers"' brings in both.
 
 ## Ownership AND Copying
 
@@ -160,7 +160,7 @@ The elements live in an ordinary FreeBASIC dynamic array field, redim'd only whe
 
 RFC-0004 rejects "wrap the existing redim array" because it would inherit the O(n^2) append -- but that objection is about redim'ing per append, not about the storage.
 
-Source: src/inc/fb/array.bi
+Source: pkg/std/containers/array.tiko
 
 ## Tests
 

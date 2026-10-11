@@ -16,7 +16,7 @@ Inserts text at the cursor, replacing any selection first. This is what a paste 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTextInputState st
 TuiTextInputStateInit( st )

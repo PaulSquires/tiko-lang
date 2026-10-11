@@ -20,7 +20,7 @@ A key press. `code` is either TUIKEY_CHAR -- in which case `ch` holds the codepo
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiKey k
 k.code = TUIKEY_CHAR

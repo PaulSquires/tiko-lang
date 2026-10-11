@@ -18,7 +18,7 @@ Clear( )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim s as OrderedSet( of integer )
 s.Add( 1 ) : s.Add( 2 )

@@ -1,6 +1,5 @@
 #import "std/tasks"
 #cmdline "-mt"
-#include once "fb/select.bi"
 
 '' Would send a million values; stops as soon as its context is done.
 sub Produce( byval ctx as tasks.Context, _

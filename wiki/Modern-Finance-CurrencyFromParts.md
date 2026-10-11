@@ -12,7 +12,7 @@ CurrencyFromParts( w, tt )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Units and four-decimal fraction, given separately and exactly
 dim as int64 units_ = 12, cents = 3400

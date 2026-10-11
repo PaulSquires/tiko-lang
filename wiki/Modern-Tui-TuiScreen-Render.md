@@ -16,7 +16,7 @@ Diffs back against front, emits the bytes, and swaps. The style is carried ACROS
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 16, 3 )

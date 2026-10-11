@@ -20,7 +20,7 @@ AddSaturating( byval a as T, byval b as T ) as T
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as int8 a = 100, b = 100
 

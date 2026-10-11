@@ -16,7 +16,7 @@ Whether the dropdown is showing its list. Worth checking before you draw anythin
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiSelectState st
 dim as TuiSelect s

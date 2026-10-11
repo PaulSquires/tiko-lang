@@ -12,7 +12,7 @@ TimeSpan.FromTicks( int64 )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' The tick is 100 ns, and is the unit everything here measures in
 print TimeSpan.FromTicks( 10000000ll ).TotalSeconds     '' 1

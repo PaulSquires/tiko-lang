@@ -11,10 +11,10 @@ DecimalFromCurrency( c )
 ## Examples
 
 ```freebasic
+#import "std/outcome"
 #import "std/money"
-using FB
+using money, outcome
 
-#include once "fb/currency.bi"
 
 '' EXACT, always: Currency is four decimal places and Decimal has
 '' twenty-eight, so nothing can be lost in this direction

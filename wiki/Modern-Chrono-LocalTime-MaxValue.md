@@ -12,7 +12,7 @@ LocalTime.MaxValue
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as LocalTime t = LocalTime.MaxValue( )
 

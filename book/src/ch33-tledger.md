@@ -6,7 +6,7 @@ into a monthly report. It joins the parts of the book that deal with real data:
 
 - `Decimal` for money that must be exact (Chapter 26);
 - `LocalDate` for days (Chapter 25);
-- SQLite through `fbsqlite`, and CSV through its companion (Chapter 27);
+- SQLite through `db/sqlite`, and CSV through the same module (Chapter 27);
 - an `OrderedMap` for the report (Chapter 23);
 - the TUI library for the screens (Chapter 27);
 - modules and a package to hold it together (Chapter 14).
@@ -45,12 +45,10 @@ ch33/
     bank.csv, bad.csv   a bank export, and one with mistakes in it
 ```
 
-The split follows the rule from Chapter 31, with one more reason behind it. **`fbsqlite` is a
-header-only library meant to be compiled into exactly one unit.** Its procedures are defined in
-the header itself, and not as `private`, so two units that both include it define them twice, and
-the link fails. So `ledger` is the only file that includes `fbsqlite.bi`. **Nothing from SQLite is
-public**: the rest of the program sees transactions and totals, never a `Database` or a `Row`.
-Swapping SQLite for something else would change one file.
+The split follows the rule from Chapter 31, with one more reason behind it. **`ledger` is the
+only file that imports `db/sqlite`, and nothing from SQLite is public**: the rest of the program
+sees transactions and totals, never a `Database` or a `Row`. Swapping SQLite for something else
+would change one file.
 
 ## The model
 
@@ -90,14 +88,14 @@ the text had. Categories are folded to lower case, so `Food` and `food` are one 
 The module keeps **one database for the whole program**, in a module variable:
 
 ```tiko
-private dim shared as SQLite.Database db
+private dim shared as sqlite.Database db
 ```
 
 It is `private` for a reason that goes beyond tidiness. A module's interface describes its
 module-level variables to the files that import it, so that a generic's body can use them. A
-variable that is not `private` would put `SQLite.Database` into that description, and every
-importer would then need `fbsqlite.bi`. That is exactly the second inclusion the module exists to
-prevent. `private` keeps the variable, and its type, inside the module.
+variable that is not `private` would put `sqlite.Database` into that description, and SQLite
+would reach every importer. That is exactly what the module exists to prevent. `private` keeps the
+variable, and its type, inside the module.
 
 ### The schema, and migrations
 
@@ -153,7 +151,7 @@ Nothing is pasted into SQL.
 {{#include ../examples/ch33/ledger/ledger.tiko:import}}
 ```
 
-`SQLite.ImportCsv` (Chapter 27) does the reading: quoted fields such as `"Smith, Jones & Co"`,
+`sqlite.ImportCsv` (Chapter 27) does the reading: quoted fields such as `"Smith, Jones & Co"`,
 either kind of line ending, and a table made from the header row. It loads into a **staging table**,
 `import_raw`, which is not the ledger. Every staged row then goes through `ParseTxn`, and the good
 ones are inserted, all inside one **transaction**. If any line was refused, the transaction rolls
@@ -313,7 +311,7 @@ screens on it.
 
 ## Shipping
 
-`fbsqlite` links **SQLite itself** into the program. `sqlite3.bi` says `#inclib "sqlite3"`, and
+`db/sqlite` links **SQLite itself** into the program. `sqlite3api.bi` says `#inclib "sqlite3"`, and
 the toolchain ships `libsqlite3.a` for both win64-msvc and linux-x86_64. `tledger` is one
 executable with no database server and no shared library to install. Copy it, and it runs. The
 ledger is one ordinary file, which can be backed up by copying it while the program is not
@@ -336,8 +334,8 @@ sources, one file per platform. SQLite does not need it, because the toolchain a
 
 ## Summary
 
-- Keep a header-only, one-unit library such as `fbsqlite` in **one module**. Make nothing from it
-  public, and make module variables of its types `private`, so that its header stays out of the
+- Keep a library you may want to replace, such as `db/sqlite`, in **one module**. Make nothing
+  from it public, and make module variables of its types `private`, so that it stays out of the
   interface.
 - Hold money in `Decimal` and days in `LocalDate`. Store them as text that sorts and round-trips
   exactly, and do the arithmetic in the program.

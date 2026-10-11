@@ -19,7 +19,7 @@ NextBoolean( ) as boolean
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim r as Rng = RngFromEntropy( )
 

@@ -16,7 +16,7 @@ Bounds check. At( ) does not check for you, so this is the guard when you index 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiBuffer b
 b.Resize( 10, 4 )

@@ -18,7 +18,7 @@ IsBlank( s )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print IsBlank( "" )                    '' true
 print IsBlank( "   " & chr(9) )        '' true -- space, tab, LF, VT, FF, CR

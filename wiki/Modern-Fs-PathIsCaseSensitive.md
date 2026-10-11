@@ -18,7 +18,7 @@ PathIsCaseSensitive( )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' COMPILE-TIME, PER PLATFORM -- not per volume. It answers what the
 '' grammar assumes, not what the file system in front of you does.

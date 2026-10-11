@@ -18,7 +18,7 @@ PadCenter( s, width [, pad] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print PadCenter( "FreeBasic", 13, "*" )    '' **FreeBasic**
 

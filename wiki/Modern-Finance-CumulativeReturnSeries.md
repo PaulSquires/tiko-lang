@@ -12,7 +12,7 @@ CumulativeReturnSeries( periodReturns( ) )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The compounded return after each observation -- what a growth-of-100
 '' chart plots.
@@ -37,4 +37,4 @@ print cum.Value( ).At( 11 )              '' 0.1410864155548182
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finport.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finport.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

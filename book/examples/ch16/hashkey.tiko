@@ -1,23 +1,26 @@
 #import "std/containers"
-using FB
+using containers
 
-type Point_
+'' The hash contract: extend Hashable and override its HashOf( ).
+type Point_ extends Hashable
     as int32 x, y
+    declare constructor( byval x as int32 = 0, byval y as int32 = 0 )
+    declare function HashOf( ) as ulongint override
 end type
+
+constructor Point_( byval x as int32, byval y as int32 )
+    this.x = x : this.y = y
+end constructor
+
+function Point_.HashOf( ) as ulongint
+    return containers.HashOf( x ) * 31 + containers.HashOf( y )
+end function
 
 operator = ( byref a as Point_, byref b as Point_ ) as boolean
     return ( a.x = b.x ) andalso ( a.y = b.y )
 end operator
 
-'' The hash contract: re-open FB and add one overload. It needs
-'' 'private', as the header's own do.
-namespace FB
-    private function HashOf overload ( byref p as Point_ ) as ulongint
-        return HashOf( p.x ) * 31 + HashOf( p.y )
-    end function
-end namespace
-
-dim seen as containers.Map( of Point_, ustring )
-dim as Point_ a = ( 1, 2 ), b = ( 1, 2 )
+dim seen as Map( of Point_, ustring )
+dim as Point_ a = Point_( 1, 2 ), b = Point_( 1, 2 )
 seen[ a ] = "first"
 print "keys: " & seen.Count & "   lookup: " & seen[ b ]

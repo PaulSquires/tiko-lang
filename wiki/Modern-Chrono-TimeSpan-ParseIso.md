@@ -12,7 +12,7 @@ TimeSpan.ParseIso( s )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as TimeSpan t = TimeSpan.ParseIso( "P1DT2H3M4S" )
 

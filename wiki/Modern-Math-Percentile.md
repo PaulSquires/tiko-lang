@@ -21,7 +21,7 @@ Percentile( a( ) as T, byval p as float64 ) as float64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as float64 a( 0 to 4 ) = { 2.0, 4.0, 4.0, 4.0, 6.0 }
 

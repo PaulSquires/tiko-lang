@@ -20,7 +20,7 @@ A flat grid of cells, row-major. TuiScreen owns two of these -- front and back -
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiBuffer b
 b.Resize( 20, 5 )

@@ -16,7 +16,7 @@ The cursor-position sequence for a 0-BASED cell. VT is 1-based; this is the one 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiCursorTo( 0, 0 ) = chr( 27 ) & "[1;1H" '' -1 (true)
 print TuiCursorTo( 4, 2 ) = chr( 27 ) & "[3;5H" '' -1 (true)  -- row then col

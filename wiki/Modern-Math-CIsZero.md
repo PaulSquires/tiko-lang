@@ -19,7 +19,7 @@ CIsZero( byref z as Complex ) as boolean
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CIsZero( CZero( ) )           '' true
 print CIsZero( CSet( -0.0, 0.0 ) )  '' true

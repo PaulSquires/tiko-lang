@@ -13,7 +13,7 @@ LoanSummarize( loanTerms, extras( ) )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The whole loan in one record: what it costs, how long it runs, and --
 '' with extras -- what they saved.
@@ -38,4 +38,4 @@ print ( s.Value( ).TotalPaid_ = _
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

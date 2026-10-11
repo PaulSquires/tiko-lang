@@ -18,7 +18,7 @@ Clear( )
 
 ```freebasic
 #import "std/outcome"
-using FB
+using outcome
 
 dim o as Optional( of integer ) = Some( 42 )
 print o.HasValue( )          '' true

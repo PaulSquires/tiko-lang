@@ -16,7 +16,7 @@ Reshapes the grid and blanks it. Contents do not survive a resize, which is why 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiBuffer b
 b.Resize( 10, 3 )

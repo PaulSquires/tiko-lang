@@ -16,7 +16,7 @@ Linear interpolation between two colours, t from 0 to 1. What a meter's gradient
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiColor green_ = TuiRgb( 0, 255, 0 )
 dim as TuiColor red_ = TuiRgb( 255, 0, 0 )

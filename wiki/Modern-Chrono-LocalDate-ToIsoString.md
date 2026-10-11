@@ -12,7 +12,7 @@ LocalDate.ToIsoString
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print LocalDate( 2026, 8, 13 ).ToIsoString( )      '' 2026-08-13
 

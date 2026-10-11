@@ -4,7 +4,7 @@
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim ages as Map( of ustring, int32 )
 
@@ -97,7 +97,7 @@ m.Put( "ada", 99 )       ' false -- key existed, value now 99
 A key type K must satisfy:
 
 ```freebasic
-FB.HashOf( k )       must resolve
+K extends containers.Hashable, or is a built-in type
 k = k                must compare
 EQUAL KEYS MUST PRODUCE EQUAL HASH CODES
 ```
@@ -106,38 +106,39 @@ The converse is not required -- two different keys may collide, and the map hand
 
 Overloads are supplied for every built-in type: all integer types, both float types, pointers, string, zstring, wstring and ustring. Strings hash by CONTENT, so a string built at run time finds the literal it equals. A ustring hashes its CODE UNITS, so a USTRING \* N and a var-len ustring holding the same text agree. +0.0 and -0.0 hash the same, because they compare equal.
 
-A user type is made usable as a key by RE-OPENING the namespace:
+A user type is made usable as a key by EXTENDING containers.Hashable and overriding its abstract HashOf( ) member:
 
 ```freebasic
-type PairKey
+#import "std/containers"
+using containers
+
+type PairKey extends Hashable
     as int32 a, b
+    declare function HashOf( ) as ulongint override
 end type
+
+function PairKey.HashOf( ) as ulongint
+    return containers.HashOf( a ) xor ( containers.HashOf( b ) shl 1 )
+end function
 
 operator = ( byref x as PairKey, byref y as PairKey ) as boolean
     return (x.a = y.a) andalso (x.b = y.b)
 end operator
-
-namespace FB
-    function HashOf overload ( byref k as PairKey ) as uint64
-        return HashOf( k.a ) xor (HashOf( k.b ) shl 1)
-    end function
-end namespace
 ```
 
 Derive the hash only from the fields '=' compares, or equal keys will hash differently.
 
-A key type with no overload fails at the INSTANTIATION site:
+A key type that is neither fails when Map is instantiated, naming HashOf inside the module:
 
 ```freebasic
-error 99: No matching overloaded function, HASHOF()
-  in instantiation of 'Map( of NOHASH, long )'
+...\pkg\std\containers\map.tiko(144,35): error TKO0632: no overload of 'hashof' matches these arguments
 ```
 
 That is what unconstrained generics can offer today, and it is the strongest single argument for adding constraints later.
 
-Why an overloaded function rather than a HashCode( ) member: a member cannot be added to 'long' or 'string', and a generic body cannot branch on its type parameter -- 'typeof( T )' inside a generic sees the parameter, not what it is bound to. Ordinary overload resolution at the instantiation site is the mechanism that works.
+Why an overloaded function rather than a HashCode( ) member: a member cannot be added to 'long' or 'string', and a generic body cannot branch on its type parameter -- 'typeof( T )' inside a generic sees the parameter, not what it is bound to. Ordinary overload resolution at the instantiation site is the mechanism that works. A USER type does carry a member, through Hashable, because a module's namespace cannot be re-opened and an overload declared in the importing program is invisible to Map's body, which belongs to the module.
 
-Source: src/inc/fb/hash.bi
+Source: pkg/std/containers/hash.tiko
 
 ## Iteration
 
@@ -171,7 +172,7 @@ See docs/tuples/RFC-0003-destructuring.md.
 
 ITERATION ORDER IS UNSPECIFIED and changes across insertions. It is not randomised per process -- that is a hash-flooding defence FreeBASIC has no threat model for, and stability within one unmodified map is more useful when debugging.
 
-If you need the keys in order, FB.OrderedMap is the same interface over a red-black tree -- O(log n) instead of O(1), always sorted, and needing only '<' rather than a hash. See docs/ordered/ordered.txt.
+If you need the keys in order, containers.OrderedMap is the same interface over a red-black tree -- O(log n) instead of O(1), always sorted, and needing only '<' rather than a hash. See docs/ordered/ordered.txt.
 
 Keys( ) and Values( ) are SNAPSHOTS, returned as Array( of K ) and Array( of V ). Changing them does not change the map.
 
@@ -183,7 +184,7 @@ Open addressing is chosen over chaining for one allocation instead of one per en
 
 Removal leaves a TOMBSTONE rather than an empty slot. Probing stops at the first EMPTY slot, so blanking a slot would cut the probe chain and hide every key that had collided past it. Rehashing drops every tombstone, which is what stops an add/remove churn loop from filling the table with them.
 
-Source: src/inc/fb/map.bi
+Source: pkg/std/containers/map.tiko
 
 ## Ownership AND Copying
 

@@ -16,7 +16,7 @@ Draws a string and returns the COLUMNS it advanced -- not the character count, w
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 40, 4 )

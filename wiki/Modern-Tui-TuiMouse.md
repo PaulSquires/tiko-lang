@@ -18,8 +18,9 @@ A mouse event. The coordinates are 0-based cell positions in the same space as e
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as TuiEvent e
 e.kind = TUIEVENT_MOUSE

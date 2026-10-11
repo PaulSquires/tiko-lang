@@ -20,8 +20,9 @@ A focusable button whose callback is a PLAIN procedure pointer. For a callback t
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 sub OnSave( byval id as int32 )
     print "saved, button id "; id

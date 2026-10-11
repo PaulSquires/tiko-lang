@@ -20,7 +20,7 @@ Name as ustring             '' get and set
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 dim con as ConsoleSink
 dim lg as Logger

@@ -19,8 +19,9 @@ The error carried by every Result in the module. Errors exist only at the termin
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as TuiError e = TuiError( TUIERR_NOTATTY, "stdout is not a console", 0 )
 print e.code = TUIERR_NOTATTY      '' -1 (true)

@@ -12,7 +12,7 @@ Add( v ) as boolean
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim s as OrderedSet( of integer )
 
@@ -20,7 +20,7 @@ print s.Add( 42 )        '' true -- inserted
 print s.Add( 42 )        '' false -- already present
 print s.Count            '' 1
 
-'' Like FB.Set, that FALSE is the natural "have I seen this before" --
+'' Like containers.Set, that FALSE is the natural "have I seen this before" --
 '' but iteration here comes out in ascending order
 ```
 

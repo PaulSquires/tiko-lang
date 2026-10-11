@@ -18,7 +18,7 @@ IntersectWith( other )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim a as OrderedSet( of integer )
 dim b as OrderedSet( of integer )

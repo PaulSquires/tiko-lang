@@ -12,7 +12,7 @@ FloorMod(-7,3)
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' The remainder with the SIGN OF THE DIVISOR, which is what a wrapping
 '' index wants -- unlike MOD, which follows the dividend

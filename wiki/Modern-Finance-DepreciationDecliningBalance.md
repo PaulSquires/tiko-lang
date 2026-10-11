@@ -12,7 +12,7 @@ DepreciationDecliningBalance( terms, period )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' A fixed fraction of the REMAINING book value each period, so the
 '' expense falls away geometrically.  RateFactor_ chooses the speed.
@@ -37,4 +37,4 @@ print slower                             '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/findeprec.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/findeprec.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

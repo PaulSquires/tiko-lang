@@ -21,7 +21,7 @@ CNthRoot( byref z as Complex, byval n as int32, byval k as int32 = 0 ) as Comple
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Complex z = CSet( 3, 4 )
 

@@ -16,7 +16,7 @@ The glyph set for a border kind. Use TUIBORDER_ASCII when TuiCaps reports the te
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiBorderGlyphs( TUIBORDER_ASCII ).h        '' -
 print TuiBorderGlyphs( TUIBORDER_DOUBLE ).h <> "-" '' -1 (true)

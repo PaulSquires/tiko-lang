@@ -12,7 +12,7 @@ DepreciationScheduleOf( terms, method )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Builds the schedule for a method.  This is the ONLY way to reach
 '' DOUBLE_DECLINING_WITH_SWITCH, because the switch is path-dependent:
@@ -36,4 +36,4 @@ next
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/findeprec.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/findeprec.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

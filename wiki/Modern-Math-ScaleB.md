@@ -20,7 +20,7 @@ ScaleB( byval x as float64, byval n as int32 ) as float64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print ScaleB( 1.0, 10 )      '' 1024
 print ScaleB( 3.0, -1 )      '' 1.5

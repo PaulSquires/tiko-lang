@@ -12,7 +12,7 @@ GetIterator( )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 '' RFC-0002: a type is iterable when it has GetIterator( ), and the
 '' iterator it hands back has IsValid( ), Value( ) and MoveNext( ).

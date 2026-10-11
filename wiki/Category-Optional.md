@@ -4,7 +4,7 @@
 
 ```freebasic
 #import "std/outcome"
-using FB
+using outcome
 
 function Lookup( byref key as ustring ) as Optional( of int32 )
     if( key = "ada" ) then
@@ -94,8 +94,7 @@ The same rule the containers already carry, for the same reason: inference reads
 Value( ) on an empty Optional raises FB_RTERROR_ILLEGALFUNCTIONCALL through the ordinary fbc path. With no handler installed the program stops:
 
 ```freebasic
-Aborting due to runtime error 1 (illegal function call)
-  at line 84 of ...\inc\fb\optional.bi()
+Aborting due to runtime error 1 (illegal function call) at line 92 of ...\pkg\std\outcome\optional.tiko()
 ```
 
 It is catchable by 'on error' and reports a line under -exx. This is a bug at the call site, not a recoverable condition: HasValue( ) or ValueOr( ) is available and costs nothing.
@@ -212,7 +211,7 @@ Value( ) returns a reference to the stored slot even on the raising path, becaus
 
 It does NOT use the function-'static' blank that LinkedList.Front( ) uses. That pattern is correct there -- an empty list has no node to point at -- but it would be a leak here with a measured cause: a function-'static' UDT in FreeBASIC is constructed lazily on first call and is NEVER destroyed, so every instantiation of the member would retain one T, and its resources, for the lifetime of the program.
 
-Source: src/inc/fb/optional.bi
+Source: pkg/std/outcome/optional.tiko
 
 ## Tests
 

@@ -12,7 +12,7 @@ Stopwatch( )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' The MONOTONIC clock: how long since. It never jumps, so unlike TIMER
 '' it stays correct across an NTP correction or a DST shift.

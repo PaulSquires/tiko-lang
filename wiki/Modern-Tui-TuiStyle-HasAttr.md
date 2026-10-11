@@ -16,7 +16,7 @@ Tests one attribute bit. The attributes are TUIATTR_BOLD, _DIM, _ITALIC, _UNDERL
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiStyle s = TuiStyleOf( TuiWhite( ), TuiBlack( ), TUIATTR_BOLD or TUIATTR_UNDERLINE )
 print s.HasAttr( TUIATTR_BOLD )        '' true

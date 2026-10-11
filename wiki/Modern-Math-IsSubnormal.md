@@ -12,7 +12,7 @@ IsSubnormal( x )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' Below the smallest normal, where the exponent has bottomed out and
 '' precision is being lost bit by bit

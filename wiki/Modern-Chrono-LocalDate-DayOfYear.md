@@ -12,7 +12,7 @@ LocalDate.DayOfYear
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print LocalDate( 2026, 1, 1 ).DayOfYear     '' 1 -- one-based
 print LocalDate( 2026, 8, 13 ).DayOfYear    '' 225

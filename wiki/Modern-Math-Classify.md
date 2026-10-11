@@ -12,7 +12,7 @@ Classify( x )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' One call instead of a chain of predicates, answering with an FpClass
 print Classify( 1.0 ) = FP_NORMAL             '' -1 (true)

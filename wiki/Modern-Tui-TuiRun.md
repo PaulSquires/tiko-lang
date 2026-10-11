@@ -17,7 +17,7 @@ Enters the terminal, runs the loop, and restores everything on the way out -- in
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as CounterApp app             '' see TuiApp for its definition
 dim as TuiRunResult r = TuiRun( app, TuiTermOptionsDefault( ) )

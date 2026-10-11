@@ -12,7 +12,7 @@ GCD( a, b )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as int32 a = 12, b = 18
 print GCD( a, b )            '' 6

@@ -18,7 +18,7 @@ Shrink( )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of int32 )
 v.Reserve( 1000 )

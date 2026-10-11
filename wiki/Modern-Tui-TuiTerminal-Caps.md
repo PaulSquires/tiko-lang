@@ -16,7 +16,7 @@ The capabilities detected at Enter. Cached -- detection runs once.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTerminal term
 dim as TuiCaps c = term.Caps( )

@@ -15,8 +15,9 @@ True once Esc was pressed -- dismissed rather than answered, which is a differen
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as TuiMessageBox mb
 mb.buttons.Push( "Yes" ) : mb.buttons.Push( "No" )

@@ -23,7 +23,7 @@ end type
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Complex z = CSet( 3, 4 )
 

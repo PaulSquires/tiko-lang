@@ -20,7 +20,7 @@ IsNil( ) as boolean
 
 ```freebasic
 #import "std/tasks"
-using FB
+using tasks
 
 dim ch as Channel( of int32 )
 print ch.IsNil( )            '' true -- default-constructed

@@ -16,7 +16,7 @@ Forgets what the terminal is showing, so the next Render is a full repaint inclu
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 10, 3 )

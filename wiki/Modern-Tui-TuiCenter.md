@@ -16,7 +16,7 @@ A w-by-h rect centred inside another. This is how a dialog is placed, and it re-
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRect box = TuiCenter( TuiRectOf( 0, 0, 80, 24 ), 40, 8 )
 print box.x, box.y, box.w, box.h  '' 20 8 40 8

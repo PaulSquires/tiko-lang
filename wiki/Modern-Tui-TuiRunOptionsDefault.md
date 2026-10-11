@@ -16,7 +16,7 @@ TuiRunOptionsDefault( ) as TuiRunOptions
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRunOptions ro = TuiRunOptionsDefault( )
 print ro.fps                      '' 60

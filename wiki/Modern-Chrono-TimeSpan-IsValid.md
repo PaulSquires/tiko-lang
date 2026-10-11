@@ -12,7 +12,7 @@ TimeSpan.IsValid
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print TimeSpan.FromDays( 1 ).IsValid      '' true
 print TimeSpan.Invalid( ).IsValid         '' false

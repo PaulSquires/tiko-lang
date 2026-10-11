@@ -12,7 +12,7 @@ s.ScheduledPayment_  s.FinalPayment_  s.PaymentCount_  s.TotalPaid_  s.TotalInte
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' What LoanSummarize returns.  The last three fields are the ones that
 '' only mean something when extra payments were supplied.
@@ -36,4 +36,4 @@ print early.Value( ).InterestSavedVsScheduled_.ToStringFixed( 2 )   '' 96974.24
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

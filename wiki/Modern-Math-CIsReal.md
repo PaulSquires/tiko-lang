@@ -12,14 +12,14 @@ CIsReal( byref z as Complex ) as boolean
 
 ## Notes
 
-- **True for a negative zero imaginary part.** `-0.0 = 0.0` as numbers, so `CSet( 3, -0.0 )` is on the real axis — but *which* zero it carries decides which side of a branch cut it is on. `IsNegative` from `fb/math.bi` is what tells them apart.
+- **True for a negative zero imaginary part.** `-0.0 = 0.0` as numbers, so `CSet( 3, -0.0 )` is on the real axis — but *which* zero it carries decides which side of a branch cut it is on. `IsNegative` from `math.tiko` is what tells them apart.
 - A merely tiny imaginary part is not zero: `1e-320` is subnormal, not absent.
 
 ## Examples
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CIsReal( CSet( 3, 0 ) )       '' true
 print CIsReal( CSet( 3, -0.0 ) )    '' true   -- the other zero is still zero

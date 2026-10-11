@@ -12,7 +12,7 @@ LevelToSyslog( lv ) as int32
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 '' The RFC 5424 severity number, for a sink that speaks syslog rather
 '' than these names. Note the scales run OPPOSITE ways: higher severity

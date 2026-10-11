@@ -3,7 +3,7 @@
 
 sub Worker( byval jobs as tasks.RecvChan( of int32 ), _
             byval results as tasks.SendChan( of int32 ), _
-            byval wg as FB.WaitGroup ptr )
+            byval wg as tasks.WaitGroup ptr )
     dim as int32 job
     do while jobs.Receive( job )      '' until the jobs channel closes
         results.Send( job * 2 )
@@ -11,7 +11,7 @@ sub Worker( byval jobs as tasks.RecvChan( of int32 ), _
     wg->Done( )
 end sub
 
-sub CloseWhenDone( byval wg as FB.WaitGroup ptr, _
+sub CloseWhenDone( byval wg as tasks.WaitGroup ptr, _
                    byval results as tasks.Channel( of int32 ) )
     wg->Wait( )
     results.Close( )

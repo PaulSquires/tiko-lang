@@ -21,7 +21,7 @@ A collapsible tree with guides and its own scroll. Left collapses, right expands
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTreeState st
 dim as TuiTree t

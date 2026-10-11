@@ -12,7 +12,7 @@ SetRoundingMode( m )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' PROCESS-WIDE AND STICKY: it changes every later floating-point
 '' operation in the program, not just the next one. Put it back.

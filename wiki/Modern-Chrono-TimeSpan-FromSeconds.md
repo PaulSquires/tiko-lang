@@ -21,7 +21,7 @@ TimeSpan.FromSeconds( v )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print TimeSpan.FromSeconds( 90 ).TotalMinutes    '' 1.5
 print TimeSpan.FromSeconds( 1.5 ).TotalMilliseconds      '' 1500

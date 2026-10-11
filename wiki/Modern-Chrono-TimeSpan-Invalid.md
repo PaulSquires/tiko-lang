@@ -12,7 +12,7 @@ TimeSpan.Invalid
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as TimeSpan bad = TimeSpan.Invalid( )
 

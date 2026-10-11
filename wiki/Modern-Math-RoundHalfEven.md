@@ -19,7 +19,7 @@ RoundHalfEven( x, digits )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' BANKER'S ROUNDING: a half goes to the EVEN neighbour, so a long run
 '' of halves does not drift upwards the way half-away-from-zero does

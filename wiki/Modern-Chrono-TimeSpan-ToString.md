@@ -12,7 +12,7 @@ TimeSpan.ToString
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print TimeSpan( 1, 2, 3, 4, 5 ).ToString( )        '' P1DT2H3M4.005S
 print TimeSpan( 2, 3, 4 ).ToString( )              '' PT2H3M4S

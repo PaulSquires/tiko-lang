@@ -12,7 +12,7 @@ RateConvertCompounding( nominalAnnual, fromCompounding, toCompounding )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Restate a quoted rate under a different compounding frequency, so two
 '' quotes can actually be compared.  It goes through the effective annual
@@ -31,4 +31,4 @@ print ( RateConvertCompounding( j, COMPOUND_MONTHLY, COMPOUND_MONTHLY ).Value( )
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

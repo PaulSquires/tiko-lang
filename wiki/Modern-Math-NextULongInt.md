@@ -20,7 +20,7 @@ NextULongInt( ) as uint64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim r as Rng = RngFromEntropy( )
 

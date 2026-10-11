@@ -20,7 +20,7 @@ Count( ) as int32
 
 ```freebasic
 #import "std/tasks"
-using FB
+using tasks
 
 dim ch as Channel( of int32 ) = Channel( of int32 )( 4 )
 print ch.Count( )            '' 0

@@ -18,7 +18,7 @@ RetainChars( s, chars [, ic] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print RetainChars( "abacadabra", "bc" )        '' bcb
 print RetainChars( "(555) 123-4567", "0123456789" )    '' 5551234567

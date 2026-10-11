@@ -21,7 +21,7 @@ A floating panel. It ignores the area passed to Render and uses its own `area` f
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 40, 12 )

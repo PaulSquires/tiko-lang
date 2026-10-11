@@ -12,7 +12,7 @@ TimeSpan.Duration
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as TimeSpan t = TimeSpan.FromHours( -2 )
 

@@ -12,7 +12,7 @@ IsSortedBy( a, less ) as boolean
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of ustring )
 v.Push( "fig" ) : v.Push( "pear" ) : v.Push( "banana" )

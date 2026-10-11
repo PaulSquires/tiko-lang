@@ -15,13 +15,13 @@ CAbs( byref z as Complex ) as float64
 - **Factors out the larger component**, so it does not overflow for operands near the type maximum where the naive `sqr( x*x + y*y )` does. Identical in .NET and in AfxNova, and worth keeping.
 - An infinite component makes the whole modulus infinite, NaN or not.
 - For comparisons use `CNorm` instead: `CAbs(a) < CAbs(b)` costs two square roots for a question that needs none.
-- `fb/vector.bi` used to spell this `AbsValue`. AfxNova spelled it `CAbs`, `CMagnitude`, `CModulus` and `CMod`; one name survives here.
+- `vector.tiko` used to spell this `AbsValue`. AfxNova spelled it `CAbs`, `CMagnitude`, `CModulus` and `CMod`; one name survives here.
 
 ## Examples
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Complex big_ = CSet( 1e200, 1e200 )
 

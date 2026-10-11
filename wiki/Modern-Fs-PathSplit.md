@@ -17,8 +17,9 @@ PathSplit( p, comps )
 ## Examples
 
 ```freebasic
+#import "std/containers"
 #import "std/fs"
-using FB
+using fs, containers
 
 '' Fills an Array with the components and returns the count.
 ''

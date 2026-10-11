@@ -31,12 +31,12 @@ file (`TKO0362`). A program can ask how it was built: `__FB_MT__` is −1 under 
 without it.
 
 ````admonish danger title="Pitfall"
-**`std/tasks` refuses a build without `-mt`; the headers beneath it do not.** `#import "std/tasks"`
+**`std/tasks` refuses a build without `-mt`, and the refusal matters.** `#import "std/tasks"`
 without `-mt` stops at once: `TKO0309: #error: "std/tasks needs the multithreaded runtime: build
-with -mt"`. A program that includes the thread headers directly — `#include once "fb/channel.bi"`
-— is not checked, and compiles. Built without `-mt`, the goroutine program in the next section
-printed its correct result and then, run three times, crashed once with a segmentation fault and
-hung twice at exit. That is the worst kind of failure: the output looks right.
+with -mt"`. Before the library was a module its headers could be included directly, unchecked, and
+built without `-mt` the goroutine program in the next section printed its correct result and then,
+run three times, crashed once with a segmentation fault and hung twice at exit. That is the worst
+kind of failure: the output looks right.
 
 Every listing in this chapter carries `#cmdline "-mt"`. Do the same in yours.
 ````
@@ -224,8 +224,8 @@ the code that created the `Channel` still holds both ends.
 ## Waiting on several channels: select channel
 
 `select channel` waits until one of several channel operations can proceed, and runs that case.
-It is part of the language, and its runtime support comes from one more header,
-`#include once "fb/select.bi"`:
+It is part of the language, and its runtime support is in `std/tasks`, which the file imports
+already (`TKO0423` says so when it does not):
 
 ```tiko
 {{#include ../examples/ch22/selecttimeout.tiko}}
@@ -371,8 +371,8 @@ that depend on each other inside one goroutine.
   the spawn, and a `byref` parameter is refused (`TKO0812`). Nothing waits for goroutines at exit.
 - `Channel( of T )( capacity )`: 0 is a rendezvous. `Receive` is `false` at the end of a closed
   stream; `for each` drains one. `SendChan`/`RecvChan` give one end each.
-- `select channel` waits on several operations, with `timeout` or `else`
-  (`#include once "fb/select.bi"`).
+- `select channel` waits on several operations, with `timeout` or `else`; like `spawn`, it needs
+  `#import "std/tasks"` in the file (`TKO0423`).
 - `WaitGroup`: `Add` before `spawn`, `Done` in the goroutine, `Wait` to join. `Context`: cooperative
   cancellation through a `Done( )` channel, by hand or by deadline.
 - Shared variables need a mutex or an atomic; per-thread runtime state such as `dir( )`'s listing

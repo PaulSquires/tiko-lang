@@ -12,7 +12,7 @@ DecimalFromInt( n )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' A LONGINT, exactly -- every one of them fits
 print DecimalFromInt( 0 ).ToString( )     '' 0

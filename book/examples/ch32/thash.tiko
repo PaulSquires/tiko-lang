@@ -6,7 +6,6 @@
 #import "std/numeric"
 #import "std/chrono"
 #import "std/logs"
-#include once "fb/select.bi"
 '' ANCHOR_END: head
 
 '' ANCHOR: types
@@ -90,7 +89,7 @@ sub Hasher( byval ctx as tasks.Context, _
             byval paths as tasks.RecvChan( of ustring ), _
             byval results as tasks.SendChan( of FileHash ), _
             byval lg as logs.Logger ptr, _
-            byval wg as FB.WaitGroup ptr )
+            byval wg as tasks.WaitGroup ptr )
     dim as ustring p
     do while paths.Receive( p )
         if len( ctx.Err( ) ) > 0 then exit do
@@ -119,7 +118,7 @@ end sub
 
 '' Closes results once every hasher has finished: the collector's
 '' 'for each' ends there.
-sub CloseWhenDone( byval wg as FB.WaitGroup ptr, _
+sub CloseWhenDone( byval wg as tasks.WaitGroup ptr, _
                    byval results as tasks.Channel( of FileHash ) )
     wg->Wait( )
     results.Close( )

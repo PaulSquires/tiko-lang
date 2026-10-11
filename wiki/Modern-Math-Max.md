@@ -12,7 +12,7 @@ Max( a, b )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as float64 a = 3.0, b = 7.0
 print Max( a, b )            '' 7

@@ -16,7 +16,7 @@ A margin of n on every side. This is what a one-cell border costs.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRect r = TuiRectOf( 0, 0, 30, 10 )
 dim as TuiRect inside = r.Inner( TuiMarginAll( 1 ) )

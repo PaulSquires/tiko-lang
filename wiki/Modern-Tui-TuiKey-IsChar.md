@@ -16,7 +16,7 @@ True when this is a printable character rather than a named key -- that is, when
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiKey k
 k.code = TUIKEY_CHAR : k.ch = asc( "q" )

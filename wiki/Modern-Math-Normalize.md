@@ -20,7 +20,7 @@ Normalize( byref a as Vec3 ) as Vec3
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Vec3 v = type<Vec3>( 3, 4, 0 )
 dim as Vec3 n = Normalize( v )

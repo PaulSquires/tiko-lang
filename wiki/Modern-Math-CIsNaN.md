@@ -19,7 +19,7 @@ CIsNaN( byref z as Complex ) as boolean
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CIsNaN( CNaN( ) )                      '' true
 print CIsNaN( CSet( Infinity( ), NaN( ) ) )  '' false   -- infinite, so NOT NaN

@@ -18,7 +18,7 @@ PathChangeExtension( p, ext )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 print PathChangeExtension( "main.tiko", ".o" )       '' main.o
 

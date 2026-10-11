@@ -12,7 +12,7 @@ Instant.FromFileTime( int64 )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' A Windows FILETIME: 100 ns ticks since 1601-01-01 UTC
 dim as DateTime d = DateTime.FromFileTime( 133689600000000000ll )

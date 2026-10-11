@@ -12,7 +12,7 @@ Instant.Invalid
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime bad = DateTime.Invalid( )
 print bad.IsValid            '' false

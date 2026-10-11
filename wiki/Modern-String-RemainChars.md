@@ -18,7 +18,7 @@ RemainChars( s, chars [, start] [, ic] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print RemainChars( "width: 80", ":=" )       '' " 80" -- everything after the ":"
 print RemainChars( "abacadabra", "cd" )      '' adabra -- after the first c or d

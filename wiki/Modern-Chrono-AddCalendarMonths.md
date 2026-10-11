@@ -18,7 +18,7 @@ AddCalendarMonths( 1 )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' "Same time next month": AddMonths, then the offset re-resolved for
 '' the new local time

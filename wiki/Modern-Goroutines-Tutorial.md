@@ -12,8 +12,8 @@ of those you *shouldn't* write.
 
 * A tiko toolchain: `toolchains\tiko-windows\tiko.exe` on Windows,
   `toolchains/tiko-linux/bin/tiko` on Linux.
-* The `-mt` flag on **every** build. The headers refuse to compile without it
-  rather than link a single-threaded runtime and misbehave quietly.
+* The `-mt` flag on **every** build. `std/tasks` refuses to compile without it
+  (TKO0423) rather than link a single-threaded runtime and misbehave quietly.
 
 ```bash
 toolchains\tiko-windows\tiko.exe -mt example.tiko
@@ -32,13 +32,13 @@ program output, not illustrations — from fbc's build. Under tiko, measured
   concurrent lines, ex01's elapsed seconds, which worker takes which job in ex07,
   ex10's hit count before its deadline, and ex15's lost-update count, which is
   random by design.
-* ex08 is two procedures rather than a program; with the `#include` and
-  `using FB` it needs, it compiles under both.
+* ex08 is two procedures rather than a program; with the `#import` and
+  `using tasks` it needs, it compiles under both.
 
 The compiler messages quoted below are fbc's; tiko reports its own, with
 `TKOnnnn` ids, on the same programs: a `byref` parameter at a spawn site is
 TKO0812 (fbc's error 358), and a `RecvChan` or `SendChan` in a `select channel`
-case is TKO0809 (fbc's error 340), which names the `fb/select.bi` generic that
+case is TKO0809 (fbc's error 340), which names the `std/tasks` generic that
 could not be instantiated.
 
 ---
@@ -165,7 +165,7 @@ One new word: `spawn`.
 ```basic
 '' ex02 -- the same three fetches, concurrently
 #import "std/tasks"
-using FB
+using tasks
 
 sub FetchPage( byval id as int32 )
 	sleep 300, 1
@@ -285,7 +285,7 @@ unlike blocking on a UI thread.
 ```basic
 '' ex03 -- getting an answer back
 #import "std/tasks"
-using FB
+using tasks
 
 sub CountWords( byval text_ as ustring, byval reply as Channel( of int32 ) )
 	dim as int32 n = 0
@@ -322,7 +322,7 @@ dim b as Channel( of int32 ) = a          '' NOT a copy of the queue
 ```
 
 A `Channel` is a **refcounted handle**. Handing a copy to each of four workers
-gives four handles on **one** queue. This is deliberately unlike `FB.Array`,
+gives four handles on **one** queue. This is deliberately unlike `containers.Array`,
 whose copy is deep. It is what makes `spawn Worker( jobs )` work at all, since
 `spawn` copies its arguments.
 
@@ -369,7 +369,7 @@ that outruns its consumer is forced to slow down to the consumer's rate.
 ```basic
 '' ex04 -- backpressure: a fast producer against a slow consumer
 #import "std/tasks"
-using FB
+using tasks
 
 sub FastProducer( byval out_ as Channel( of int32 ) )
 	for i as int32 = 1 to 6
@@ -445,7 +445,7 @@ wakes every blocked waiter.
 ```basic
 '' ex05 -- close, and the two ways to drain
 #import "std/tasks"
-using FB
+using tasks
 
 sub ReadLines( byval out_ as Channel( of ustring ) )
 	dim as ustring lines_(0 to 2) = { "alpha", "beta", "gamma" }
@@ -524,7 +524,7 @@ should handle, and it deserves to be loud. Hence the two rules:
 ```basic
 '' ex19 -- work still running at program exit is ABANDONED, silently
 #import "std/tasks"
-using FB
+using tasks
 
 sub SaveDraft( byval id as int32 )
 	sleep 300, 1
@@ -557,7 +557,7 @@ it, and `Wait` blocks until it reaches zero.
 ```basic
 '' ex06 -- wait for a fan-out to finish, with a WaitGroup
 #import "std/tasks"
-using FB
+using tasks
 
 sub UploadFile( byval id as int32, byval wg as WaitGroup ptr )
 	sleep 100 + id * 40, 1
@@ -636,7 +636,7 @@ Two ideas make it work:
 ```basic
 '' ex07 -- a worker pool: fan-out to N workers, fan-in to one result stream
 #import "std/tasks"
-using FB
+using tasks
 
 sub Worker( byval id      as int32, _
             byval jobs    as RecvChan( of int32 ), _
@@ -800,17 +800,17 @@ Two honest caveats:
 *and* a cancel signal, a cache *and* a network, an inbox *and* a timer.
 
 `select channel` waits on all of them at once and runs the case that becomes
-ready first. It needs one extra include:
+ready first. It needs no extra import -- the statement comes from the same
+module as the channels:
 
 ```basic
-#include once "fb/select.bi"
+#import "std/tasks"
 ```
 
 ```basic
 '' ex09 -- select channel: whichever source answers first
 #import "std/tasks"
-#include once "fb/select.bi"
-using FB
+using tasks
 
 sub Feed( byval ch as Channel( of ustring ), byval label_ as ustring, _
           byval ms as uint32, byval n as int32 )
@@ -989,7 +989,7 @@ The `Try*` and `*For` forms return `FALSE` rather than raising when they give up
 ```basic
 '' ex18 -- a deadline on ONE operation, without a select
 #import "std/tasks"
-using FB
+using tasks
 
 sub SlowService( byval reply as Channel( of ustring ), byval ms as uint32 )
 	sleep ms, 1
@@ -1075,8 +1075,7 @@ arrives, with no polling and no flag.
 ```basic
 '' ex10 -- cancellation: the user hits Stop, or the deadline passes
 #import "std/tasks"
-#include once "fb/select.bi"
-using FB
+using tasks
 
 sub SearchFolder( byval ctx  as Context, _
                   byval jobs as Channel( of int32 ), _
@@ -1171,7 +1170,7 @@ made for it: it holds either a value or a reason, and `IsOk( )` says which.
 '' ex11 -- errors do not propagate out of a goroutine.  Send them.
 #import "std/tasks"
 #import "std/outcome"
-using FB
+using tasks, outcome
 
 type ParseResult as Result( of int32, ustring )
 
@@ -1249,7 +1248,7 @@ own.
 ```basic
 '' ex12 -- a pipeline: read -> clean -> count, three stages running at once
 #import "std/tasks"
-using FB
+using tasks
 
 sub Stage1_Read( byval out_ as SendChan( of ustring ) )
 	dim as ustring src(0 to 4) = { "  Hello ", "WORLD", "", " Fbc  ", "Modern" }
@@ -1331,7 +1330,7 @@ Take a permit before the work, give it back after.
 ```basic
 '' ex17 -- a channel as a semaphore: at most N things in flight at once
 #import "std/tasks"
-using FB
+using tasks
 
 sub Download( byval id as int32, byval slots as Channel( of boolean ), byval wg as WaitGroup ptr )
 	dim as boolean tok
@@ -1401,8 +1400,7 @@ unit of time*. A ticker goroutine gives you one.
 ```basic
 '' ex13 -- polling without blocking, and pacing a loop
 #import "std/tasks"
-#include once "fb/select.bi"
-using FB
+using tasks
 
 '' A ticker: one value every 'ms', for 'n' ticks, then closed.
 sub Ticker( byval ch as Channel( of boolean ), byval ms as uint32, byval n as int32 )
@@ -1478,7 +1476,7 @@ global 200,000 times. The answer must be 1,600,000.
 ```basic
 '' ex15 -- there is NO data-race protection.  This is a broken program.
 #import "std/tasks"
-using FB
+using tasks
 
 dim shared as int32 g_counter
 
@@ -1526,7 +1524,7 @@ goroutine to own the variable**, and have the others send it messages.
 ```basic
 '' ex16 -- the same count, owned by ONE goroutine.  Correct by construction.
 #import "std/tasks"
-using FB
+using tasks
 
 sub Bump( byval times_ as int32, byval ticks as SendChan( of int32 ), byval wg as WaitGroup ptr )
 	for i as int32 = 1 to times_
@@ -1623,7 +1621,7 @@ is the exact bug the goroutine was introduced to fix.
 ```basic
 '' ex14 -- the desktop-app shape: a background scan, drained by the UI thread
 #import "std/tasks"
-using FB
+using tasks
 
 type ScanResult
 	as ustring path_
@@ -1718,7 +1716,7 @@ Print this. Almost every bug in a first concurrent program is on it.
 
 **Build**
 
-* [ ] **`-mt` on every build.** The headers refuse to compile without it, rather
+* [ ] **`-mt` on every build.** `std/tasks` refuses to compile without it, rather
       than linking a single-threaded runtime and misbehaving quietly.
 
 **Lifetime**
@@ -1763,7 +1761,7 @@ Print this. Almost every bug in a first concurrent program is on it.
 
 **`select channel`**
 
-* [ ] **`#include once "fb/select.bi"`.**
+* [ ] **`#import "std/tasks"` in the file that uses it.**
 * [ ] **A closed channel is always ready.** Detect the close and nil the channel
       out, or your loop spins at full speed forever.
 * [ ] **`case else` and `case timeout` cannot coexist** — a compile error.
@@ -1823,16 +1821,18 @@ and print when it times out; that usually names the culprit in one run.
 "raises" is runtime error 1, illegal function call — the same one
 `Optional.Value( )` raises on an empty `Optional`.
 
-### Headers
+### The module
 
-| Header | What it brings |
+Everything is one module, `#import "std/tasks"`; its files are:
+
+| File | What it brings |
 |---|---|
-| `fb/channel.bi` | `Channel`, `SendChan`, `RecvChan` |
-| `fb/scheduler.bi` | `FB.Spawn`, `GoroutineCount`, `WorkerCount` |
-| `fb/select.bi` | the `SELECT CHANNEL` runtime — include it to use the statement |
-| `fb/sync.bi` | `WaitGroup`, `Context`; includes channel + scheduler |
+| `channel.tiko` | `Channel`, `SendChan`, `RecvChan` |
+| `scheduler.tiko` | `tasks.Spawn`, `GoroutineCount`, `WorkerCount` |
+| `select.tiko` | the `SELECT CHANNEL` runtime — the statement needs the import |
+| `sync.tiko` | `WaitGroup`, `Context` |
 
-In practice: `fb/sync.bi` plus `fb/select.bi` covers everything.
+In practice: `#import "std/tasks"` plus `-mt` covers everything.
 
 ### Which tool for which job
 

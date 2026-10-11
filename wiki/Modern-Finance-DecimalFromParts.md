@@ -12,7 +12,7 @@ DecimalFromParts( lo, mid, hi, neg, scale )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The .NET constructor, limb for limb: three 32-bit words of mantissa, a
 '' sign flag and a scale.  Use it when the parts came from somewhere else

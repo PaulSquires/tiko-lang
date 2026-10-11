@@ -20,7 +20,7 @@ LengthSquared( byref a as Vec3 ) as float32
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Vec3 v = type<Vec3>( 3, 4, 0 )
 print LengthSquared( v )     '' 25

@@ -16,7 +16,7 @@ Narrows the clip to the intersection of the current clip and r, and RETURNS THE 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 30, 6 )

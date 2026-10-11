@@ -12,7 +12,7 @@ LevelFromName( s, byref out ) as boolean
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 '' Note the shape: the level comes back through an OUT PARAMETER and
 '' the return value says whether the name was recognised. That is what

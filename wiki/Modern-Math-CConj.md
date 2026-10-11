@@ -14,13 +14,13 @@ CConj( byref z as Complex ) as Complex
 
 - `z * CConj( z )` is real and equals `CNorm( z )`. That is the identity the conjugate is for, and it is how a complex division is derived.
 - `CConj( CConj( z ) )` is `z`, exactly — the operation is its own inverse and involves no arithmetic.
-- AfxNova spelled this `CConj` and `CConjugate`. `Conjugate` in `fb/vector.bi` now applies only to quaternions.
+- AfxNova spelled this `CConj` and `CConjugate`. `Conjugate` in `vector.tiko` now applies only to quaternions.
 
 ## Examples
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Complex z = CSet( 3, 4 )
 

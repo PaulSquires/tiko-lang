@@ -20,7 +20,7 @@ CAcsc( byval x as float64 ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CAcsc( CSet( 2, 1 ) ) )  '' 0.40158639166780613-0.21561241855582966i
 print CToString( CAcsc( 0.5 ) )           '' 1.5707963267948966+1.3169578969248166i

@@ -12,7 +12,7 @@ Instant.FromOleDate( float64 )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' The OLE automation date, the same serial Excel and ADO use
 dim as DateTime d = DateTime.FromOleDate( 46247.0 )

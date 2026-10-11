@@ -18,7 +18,7 @@ PathIsAbsolute( p )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 print PathIsAbsolute( "C:\dev" )          '' true
 print PathIsAbsolute( "dev\src" )        '' false

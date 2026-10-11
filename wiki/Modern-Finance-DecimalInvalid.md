@@ -12,7 +12,7 @@ DecimalInvalid( )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The one representation that is not a number -- scale 255, which no
 '' value can have.  Overflow, division by zero and a conversion that will
@@ -26,8 +26,8 @@ print ( DecimalOne( ) / DecimalZero( ) ).IsValid( )       '' false
 '' It is INFECTIOUS: anything touching it is Invalid too
 print ( DecimalInvalid( ) * DecimalOne( ) ).IsValid( )    '' false
 
-'' and INVALID = INVALID IS FALSE, the same rule fb/currency.bi and
-'' fb/chrono.bi use.  Test with IsValid( ), never with =
+'' and INVALID = INVALID IS FALSE, the same rule currency.tiko and
+'' std/chrono use.  Test with IsValid( ), never with =
 print ( DecimalInvalid( ) = DecimalInvalid( ) )           '' false
 ```
 

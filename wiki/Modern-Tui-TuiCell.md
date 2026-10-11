@@ -20,7 +20,7 @@ One character cell: a base codepoint, a short combining tail, a style and a colu
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCell c = TuiCellBlank( TuiStyleDefault( ) )
 print c.width                     '' 1

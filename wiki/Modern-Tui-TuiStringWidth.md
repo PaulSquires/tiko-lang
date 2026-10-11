@@ -16,7 +16,7 @@ Columns for a whole string. Use this and never LEN when deciding whether text fi
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiStringWidth( "hello" )                    '' 5
 print TuiStringWidth( wchr( &h4E2D ) & "x" )       '' 3 -- 2 + 1

@@ -12,7 +12,7 @@ ModifiedInternalRateOfReturn( flows( ), financeRate, reinvestRate )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The WELL-POSED alternative to IRR: it discounts the negative flows at
 '' one rate and compounds the positive ones at another, so it has exactly
@@ -40,4 +40,4 @@ print ( hi > lo )                        '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincash.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincash.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

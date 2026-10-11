@@ -12,7 +12,7 @@ LocalTime.CompareTo
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as LocalTime a = LocalTime( 9, 0, 0, 0 )
 dim as LocalTime b = LocalTime( 17, 0, 0, 0 )

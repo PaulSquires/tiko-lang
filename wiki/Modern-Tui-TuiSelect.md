@@ -20,8 +20,9 @@ A dropdown. When open it draws OUTSIDE its own area, over whatever is beneath --
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as TuiSelectState st
 dim as TuiSelect s

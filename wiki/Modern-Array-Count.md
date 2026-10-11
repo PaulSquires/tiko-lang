@@ -12,7 +12,7 @@ Count( ) as int32
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of ustring )
 print v.Count            '' 0

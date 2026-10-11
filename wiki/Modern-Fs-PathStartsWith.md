@@ -12,7 +12,7 @@ PathStartsWith( p, pre )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' Whole-COMPONENT prefix test, not a string prefix -- which is what
 '' makes it safe for a containment check

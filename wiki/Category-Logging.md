@@ -4,7 +4,7 @@
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 dim shared as ConsoleSink con
 dim shared as Logger lg
@@ -20,7 +20,7 @@ lg.Warn( ).Str( "user", u ).Int_( "attempts", n ).Msg( "login failed" )
 
 FreeBASIC has no logging facility at all -- not a weak one, none. PRINT, PRINT #, OPEN and ERR are the whole surface, so every program grows a WriteLog( ) that opens a file, appends a line and closes it: no level, no timestamp, no structure, no rotation, and no lock. This module replaces that. It ships ALONGSIDE the legacy surface and changes none of it.
 
-LIBRARY ONLY. Every line is FreeBASIC -- no compiler change, and unlike fb/filesystem.bi, not one line of C in the runtime.
+LIBRARY ONLY. Every line is FreeBASIC -- no compiler change, and unlike std/fs, not one line of C in the runtime.
 
 ## What You Get
 
@@ -240,7 +240,7 @@ Colour wraps THE LEVEL WORD ONLY, never the message or the fields, which may con
 
 No function that emits a record returns a Result, and none can raise.
 
-This DELIBERATELY BREAKS the convention the rest of this library follows. fb/filesystem.bi returns Result( of T, FsError ) from everything fallible and is right to. The caller of a log function has nothing useful to do with a failure -- the most common context for a log call is already inside an error path -- and a Result that every call site ignores is worse than no Result, because it looks checked.
+This DELIBERATELY BREAKS the convention the rest of this library follows. std/fs returns Result( of T, FsError ) from everything fallible and is right to. The caller of a log function has nothing useful to do with a failure -- the most common context for a log call is already inside an error path -- and a Result that every call site ignores is worse than no Result, because it looks checked.
 
 Every mainstream logging library guarantees the same thing, and three of them grew a SECOND, out-of-band channel to report that the first one broke: Serilog's SelfLog, Logback's StatusManager, spdlog's err_handler. DroppedCount is this module's version; the OnLogError handler that goes with it is phase 4.
 
@@ -266,7 +266,7 @@ So it is lg.Error( "boom" ), not lg.Error\_( ), and .Val( k, v ) for a LogValue 
 
 Note that Str SHADOWS the intrinsic STR( ) inside its own type's member bodies -- error 58 if you call STR( ) there. That is why LogValueToText is a free function and not a member.
 
-One more, for anyone deriving from these types: 'type Logger as Logger\_' makes Logger an INCOMPLETE type inside the header, so a member returning a logger by value is declared 'as Logger\_'. Callers write 'dim as Logger'.
+One more, for anyone deriving from these types: 'type Logger as Logger\_' makes Logger an INCOMPLETE type inside the module, so a member returning a logger by value is declared 'as Logger\_'. Callers write 'dim as Logger'.
 
 ## NOT In This Phase
 
@@ -275,13 +275,13 @@ Phase 1 ships the record, the logger, the builder, TextRenderer and ConsoleSink.
 ```freebasic
 2   JsonRenderer -- one JSON object per line, with the eleven rules
 3   FileSink, size and daily rotation
-4   OnLogError, and the process-wide default logger FB.Log( )
-5   fb/logmacros.bi -- __FILE__/__LINE__/__FUNCTION__ and compile-time
-    elision below FB_LOG_MIN_LEVEL
-6   AsyncSink over FB.Channel, with an explicit overflow policy
+4   OnLogError, and the process-wide default logger logs.DefaultLogger( )
+5   logs.LogInfo( m ) and friends -- __FILE__/__LINE__/__FUNCTION__ and
+    compile-time elision below LOG_MIN_LEVEL
+6   AsyncSink over tasks.Channel, with an explicit overflow policy
 ```
 
-THERE IS NO PROCESS-WIDE DEFAULT LOGGER YET, and the reason is worth knowing: a 'dim shared' in a .bi included by two modules gives TWO of them, and there is no lock available to guard a lazy first-use init. A FreeBASIC header cannot make a singleton -- fb/scheduler.bi says the same thing, which is why the goroutine scheduler lives in sched.c. Own your Logger until phase 4 decides between a fifteen-line C file and a macro a program expands in exactly one module.
+THE PROCESS-WIDE DEFAULT LOGGER IS logs.DefaultLogger( ), and why it took a module is worth knowing: a 'dim shared' in a .bi included by two modules gave TWO of them, so a FreeBASIC header could not make a singleton, and the header-era library made the program define it once with FB_LOG_IMPLEMENT( ). std/logs is a module, compiled once, so its 'dim shared' default logger exists ONCE PER PROGRAM however many files import it, and the macro is gone. logs.LogInit( @sink, level ) gives it a sink, logs.LogShutdown( ) flushes and closes it, and logs.LogInfo( m ) and the other five level macros write to it. LOG_MIN_LEVEL, which compiles calls below a level away, goes in a tiko.toml's [defines]: a module never sees its importer's -d.
 
 DECLINED, not deferred: OS-native sinks (OutputDebugString, Windows Event Log, syslog), printf-style format strings, sampling and rate limiting, file-based configuration, and a logger hierarchy resolved by dotted name.
 
@@ -290,19 +290,20 @@ DECLINED, not deferred: OS-native sinks (OutputDebugString, Windows Event Log, s
 The interface is public, and this is the whole of the sink a Windows GUI program wants -- there is no console for ConsoleSink to write to:
 
 ```freebasic
+#import "std/logs"
 #include once "windows.bi"
 
-type DebugSink extends FB.Sink
-    declare sub Write( byref r as FB.LogRecord ) override
+type DebugSink extends logs.Sink
+    declare sub Write( byref r as logs.LogRecord ) override
     declare sub Flush( ) override
     declare sub Close( ) override
     declare function DroppedCount( ) as uint64 override
     private:
     m_lock as any ptr
-    m_rend as FB.TextRenderer
+    m_rend as logs.TextRenderer
 end type
 
-sub DebugSink.Write( byref r as FB.LogRecord )
+sub DebugSink.Write( byref r as logs.LogRecord )
     dim as ustring buf
     mutexlock( this.m_lock )
     this.m_rend.Render( r, buf )
@@ -315,7 +316,7 @@ sub DebugSink.Close( ) : end sub
 function DebugSink.DroppedCount( ) as uint64 : return 0 : end function
 ```
 
-Note that fb/logging.bi declares the handful of Win32 functions it needs INSIDE namespace FB with an ALIAS to the real export. Declaring GetStdHandle globally would make any program that includes windows.bi fail with error 4 -- and most programs that want a logger are Win32 programs.
+Note that std/logs declares none of the handful of Win32 functions it needs: it resolves them at run time with DYLIBLOAD / DYLIBSYMBOL. Declaring GetStdHandle globally would make any program that includes windows.bi fail with error 4 -- and most programs that want a logger are Win32 programs.
 
 ## Measured AND NOT Measured
 
@@ -335,7 +336,7 @@ logrecord.bas pins the value layer: all nine constructors round-tripping both TA
 
 logger_sinks.bas pins the four phase-1 gates, plus what only commits, the parent/child field order and snapshot semantics, and field quoting.
 
-See also: C:\\dev\\docs\\logging\\                  the RFCs: design and what was declined C:\\dev\\docs\\logging\\comparison-matrix.md   eight languages, FB, and AfxNova docs/datetime/datetime.txt            Instant, TimeSpan, WallClock, Stopwatch docs/filesystem/filesystem.txt        where phase 3's FileSink will live docs/result/result.txt                the convention this module breaks docs/goroutines/goroutines.txt        FB.Channel, which phase 6 builds on
+See also: C:\\dev\\docs\\logging\\                  the RFCs: design and what was declined C:\\dev\\docs\\logging\\comparison-matrix.md   eight languages, FB, and AfxNova docs/datetime/datetime.txt            Instant, TimeSpan, WallClock, Stopwatch docs/filesystem/filesystem.txt        where phase 3's FileSink will live docs/result/result.txt                the convention this module breaks docs/goroutines/goroutines.txt        tasks.Channel, which phase 6 builds on
 
 ## API reference
 

@@ -12,7 +12,7 @@ Count( )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim s as OrderedSet( of integer )
 print s.Count            '' 0

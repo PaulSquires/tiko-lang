@@ -12,7 +12,7 @@ Instant.AssumeUtc
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 '' Reads an UNZONED value AS IF it were UTC, giving the moment it then

@@ -17,17 +17,17 @@ SetTimes( p, mtimeUtc [, atimeUtc ] )
 ## Examples
 
 ```freebasic
+#import "std/chrono"
 #import "std/fs"
-using FB
+using fs, chrono
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
 dim as ustring dir_ = td.Value( )
 dim as ustring p = PathJoin( dir_, "f.txt" )
 WriteAllText( p, "hello" )
 
-#include once "fb/chrono.bi"
 
-'' Ticks, in UTC -- the same 100 ns tick fb/chrono.bi uses
+'' Ticks, in UTC -- the same 100 ns tick std/chrono uses
 dim as int64 when_ = Instant.FromUnixSeconds( 1767225600 ).Ticks
 
 print SetTimes( p, when_ ).IsOk( )        '' true

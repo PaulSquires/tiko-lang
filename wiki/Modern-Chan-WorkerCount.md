@@ -20,7 +20,7 @@ WorkerCount( ) as int32
 
 ```freebasic
 #import "std/tasks"
-using FB
+using tasks
 
 print WorkerCount( ) >= 1        '' -1 (true) -- at least one
 

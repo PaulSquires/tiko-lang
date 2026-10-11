@@ -19,8 +19,9 @@ A one-row menu bar with drop-downs. Left and right move between menus, Enter ope
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as TuiMenuBar bar
 dim as TuiMenu file_, help_

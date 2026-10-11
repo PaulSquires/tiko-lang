@@ -21,7 +21,7 @@ A progress bar. `ratio` is 0.0 to 1.0 and is clamped, so a computed value that o
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 30, 3 )

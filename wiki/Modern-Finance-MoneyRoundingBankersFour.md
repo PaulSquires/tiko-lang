@@ -12,9 +12,9 @@ MoneyRoundingBankersFour( )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
-'' Four places, half-to-even -- the resolution FB.Currency carries, for
+'' Four places, half-to-even -- the resolution money.Currency carries, for
 '' callers reconciling against a Currency-based ledger.
 dim as MoneyRounding p = MoneyRoundingBankersFour( )
 
@@ -28,4 +28,4 @@ print MoneyRound( DecimalParse( "1.000150" ).Value( ), p ).ToString( )  '' 1.000
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

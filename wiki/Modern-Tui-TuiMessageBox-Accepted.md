@@ -15,8 +15,9 @@ True once Enter was pressed on a button. Read `selected` to find out WHICH.
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as TuiMessageBox mb
 mb.buttons.Push( "OK" ) : mb.buttons.Push( "Cancel" )

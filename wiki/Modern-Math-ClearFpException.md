@@ -12,7 +12,7 @@ ClearFpException( e )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' Clears ONE flag, leaving the others alone -- for code that cares
 '' about a single condition inside a larger computation

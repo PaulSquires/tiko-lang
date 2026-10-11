@@ -18,7 +18,7 @@ MCase( s )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print MCase( "hello wide world" )     '' Hello Wide World
 print MCase( "SHOUTING TEXT" )        '' Shouting Text

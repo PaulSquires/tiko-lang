@@ -16,7 +16,7 @@ Starts an overlay. A popup or an open dropdown draws inside a layer, which is wh
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 30, 8 )

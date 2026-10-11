@@ -14,12 +14,12 @@ print m.ToString( )
 
 ## Notes
 
-- In `fb/moneyformat.bi`, not `fb/string.bi`. It is the one member of this library that is a TYPE, because it carries state a function would need six arguments for.
-- Whatever you assign becomes an `FB.Decimal`, so there is one render path and one rounding rule. Integers and `Currency` widen exactly; a `float64` does not, because a double is not exact to begin with.
+- In `std/money` (`moneyformat.tiko`), not `std/strings`. It is the one member of this library that is a TYPE, because it carries state a function would need six arguments for.
+- Whatever you assign becomes a `money.Decimal`, so there is one render path and one rounding rule. Integers and `Currency` widen exactly; a `float64` does not, because a double is not exact to begin with.
 - An invalid `Decimal` renders as the empty string rather than as `0.00`.
 - Settings: `Symbol`, `DecimalPoint`, `ThousandsSep`, `Grouping`, `FracDigits`, `SymbolPrecedes`, `SpaceBySymbol`, `Negative`, `BlankIfZero`, `ZeroText`, `ForcePlus`, `Rounding`. A getter reports the EFFECTIVE value: your override if you made one, otherwise the locale's.
 - Setting a property ALWAYS marks it as yours, so `m.Symbol = ""` SUPPRESSES the symbol. Only [UseLocale](Modern-String-MoneyFormat) gives it back. `FracDigits = -1` is the numeric spelling of the same thing.
-- Rounding is half-even by default, matching `FB.Decimal` and `fb/finance.bi` so the printed figure never disagrees with the computed one. `Rounding = DEC_HALF_UP` gives the accounting and Windows convention.
+- Rounding is half-even by default, matching `money.Decimal` and the rest of `std/money` so the printed figure never disagrees with the computed one. `Rounding = DEC_HALF_UP` gives the accounting and Windows convention.
 - Overrides are per instance and never touch the process locale.
 - About 96 bytes; it touches the heap only for the string it produces.
 
@@ -27,7 +27,7 @@ print m.ToString( )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 dim as MoneyFormat m = DecimalParse( "-1234.5" ).Value( )
 print m.ToString( )                  '' -$1,234.50   on en-CA

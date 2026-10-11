@@ -11,8 +11,9 @@ DayCountDays( d1, d2, basis )
 ## Examples
 
 ```freebasic
+#import "std/chrono"
 #import "std/money"
-using FB
+using money, chrono
 
 '' The day count between two dates on a basis.  The actual bases count
 '' real days; the 30/360 pair apply their end-of-month rules first.
@@ -32,4 +33,4 @@ print DayCountDays( LocalDate( 2024, 1, 1 ), LocalDate( 2025, 1, 1 ), _
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

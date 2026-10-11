@@ -12,7 +12,7 @@ TimeSpan.ToIsoString
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print TimeSpan( 1, 2, 3, 4, 5 ).ToIsoString( )     '' P1DT2H3M4.005S
 print TimeSpan( 2, 0, 0 ).ToIsoString( )           '' PT2H

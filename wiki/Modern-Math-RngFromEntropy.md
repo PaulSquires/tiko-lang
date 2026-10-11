@@ -12,7 +12,7 @@ RngFromEntropy( )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' A generator seeded from the OS entropy source, so two runs differ.
 '' Rng( seed ) is the reproducible alternative.

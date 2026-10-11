@@ -16,7 +16,7 @@ y + h -- one row past the last one inside the rect.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRect r = TuiRectOf( 4, 2, 20, 6 )
 print r.Bottom( )                 '' 8

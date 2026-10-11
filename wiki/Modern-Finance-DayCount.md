@@ -11,8 +11,9 @@ DAYCOUNT_ACTUAL_365_FIXED  DAYCOUNT_ACTUAL_360  DAYCOUNT_ACTUAL_ACTUAL_ISDA  DAY
 ## Examples
 
 ```freebasic
+#import "std/chrono"
 #import "std/money"
-using FB
+using money, chrono
 
 '' The six bases, and the case that separates the two 30/360 variants.
 dim as LocalDate a = LocalDate( 2026, 1, 15 )
@@ -33,4 +34,4 @@ print DayCountDays( a, b, DAYCOUNT_ACTUAL_365_FIXED ) '' 75
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

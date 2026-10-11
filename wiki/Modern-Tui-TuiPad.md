@@ -16,7 +16,7 @@ Shrinks a rect by a margin -- the free-function form of TuiRect.Inner.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRect r = TuiPad( TuiRectOf( 0, 0, 20, 10 ), TuiMarginOf( 2, 1, 2, 1 ) )
 print r.x, r.y, r.w, r.h          '' 2 1 16 8

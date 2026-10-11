@@ -12,7 +12,7 @@ At( i ) byref as T
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of int32 )
 v.Push( 10 ) : v.Push( 20 )

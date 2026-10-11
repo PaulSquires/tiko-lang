@@ -12,7 +12,7 @@ LevelNameShort( lv ) as ustring
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 print LevelNameShort( LOG_TRACE )    '' TRC
 print LevelNameShort( LOG_INFO )     '' INF

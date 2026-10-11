@@ -19,7 +19,7 @@ A list's selection and scroll, owned by you. Set `selected` directly if your app
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiListState st
 print st.selected, st.offset      '' 0 0

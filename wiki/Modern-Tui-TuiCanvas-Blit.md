@@ -16,7 +16,7 @@ Draws the canvas into a frame as braille characters, one per cell, each tinted b
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 20, 5 )

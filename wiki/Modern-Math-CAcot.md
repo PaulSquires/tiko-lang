@@ -19,7 +19,7 @@ CAcot( byref z as Complex ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CAcot( CSet( 2, 1 ) ) )  '' 0.39269908169872414-0.1732867951399863i
 print CToString( CAcot( CZero( ) ) )      '' 0+0i   -- zero, following CReciprocal's rule

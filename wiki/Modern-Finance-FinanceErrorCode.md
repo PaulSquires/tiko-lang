@@ -12,7 +12,7 @@ FIN_OK  FIN_INVALID_RATE  FIN_NO_SIGN_CHANGE  FIN_NO_CONVERGENCE  ...
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Thirteen codes, each one a thing a caller can act on differently.
 '' The pair worth knowing: NO_SIGN_CHANGE means no root can EXIST, so a
@@ -37,4 +37,4 @@ print gaveUp                             '' false
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finerror.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finerror.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

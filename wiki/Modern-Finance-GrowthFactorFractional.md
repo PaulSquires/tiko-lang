@@ -12,7 +12,7 @@ GrowthFactorFractional( ratePerPeriod, periods )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' A FRACTIONAL number of periods, which needs a real power and so takes
 '' the double kernel -- every function says which path it is on.
@@ -31,4 +31,4 @@ print ( h * h ).Round( 10 ).ToString( )                               '' 1.06000
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

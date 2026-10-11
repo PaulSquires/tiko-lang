@@ -12,7 +12,7 @@ LevelName( lv ) as ustring
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 print LevelName( LOG_TRACE )     '' TRACE
 print LevelName( LOG_INFO )      '' INFO

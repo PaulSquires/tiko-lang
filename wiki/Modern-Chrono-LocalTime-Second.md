@@ -12,7 +12,7 @@ LocalTime.Second
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as LocalTime t = LocalTime( 14, 30, 5, 0 )
 print t.Second               '' 5

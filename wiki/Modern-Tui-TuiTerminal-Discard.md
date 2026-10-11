@@ -16,7 +16,7 @@ Throws the pending buffer away without writing it. For abandoning a frame you de
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTerminal term
 term.Write( "half a frame" )

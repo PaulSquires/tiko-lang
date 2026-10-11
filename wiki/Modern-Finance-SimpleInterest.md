@@ -12,7 +12,7 @@ SimpleInterest( principal, annualRate, yearFraction )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Interest that does not compound: principal x rate x time.  EXACT.
 dim as Decimal p = DecimalParse( "10000" ).Value( )
@@ -30,4 +30,4 @@ print SimpleInterest( p, r, DecimalZero( ) ).IsZero( )                      '' t
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

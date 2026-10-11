@@ -12,7 +12,7 @@ Remove( v ) as boolean
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim s as OrderedSet( of integer )
 s.Add( 42 )

@@ -20,7 +20,7 @@ NextPow2( byval x as T ) as T
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as uint32 a = 5
 print NextPow2( a )          '' 8

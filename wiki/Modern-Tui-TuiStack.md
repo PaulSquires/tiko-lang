@@ -20,7 +20,7 @@ A container that lays its children out with the constraint solver and forwards e
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiStack st
 st.vertical = TRUE

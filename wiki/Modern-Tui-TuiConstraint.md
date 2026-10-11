@@ -19,7 +19,7 @@ One rule in a split: Length, Percent, Ratio, Min, Max or Fill. Build them with t
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiConstraintArray cs
 cs.Push( TuiLength( 3 ) )

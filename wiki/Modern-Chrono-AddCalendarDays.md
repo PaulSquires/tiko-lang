@@ -18,7 +18,7 @@ AddCalendarDays( 1 )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' CALENDAR arithmetic: "same time tomorrow". It walks the civil date
 '' and then re-resolves the offset, so the wall-clock time survives a

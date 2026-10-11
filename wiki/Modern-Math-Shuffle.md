@@ -12,7 +12,7 @@ Shuffle( r, a( ) )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim r as Rng = RngFromEntropy( )
 dim as int32 a( 0 to 4 ) = { 1, 2, 3, 4, 5 }

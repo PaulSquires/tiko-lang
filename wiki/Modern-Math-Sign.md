@@ -12,7 +12,7 @@ Sign( x ) as LONG
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print Sign( 42.0 )           '' 1
 print Sign( -42.0 )          '' -1

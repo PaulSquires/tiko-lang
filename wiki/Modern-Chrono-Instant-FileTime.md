@@ -12,7 +12,7 @@ Instant.FileTime
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 '' Windows FILETIME: 100 ns ticks since 1601-01-01 UTC

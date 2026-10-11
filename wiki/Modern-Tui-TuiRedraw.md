@@ -16,7 +16,7 @@ Mark the screen dirty so the next frame is rendered. The diff still applies -- a
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiRedraw( ).kind = TUICMD_REDRAW '' -1 (true)
 ```

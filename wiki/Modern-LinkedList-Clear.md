@@ -18,7 +18,7 @@ Clear( )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim q as LinkedList( of ustring )
 q.PushBack( "a" ) : q.PushBack( "b" )

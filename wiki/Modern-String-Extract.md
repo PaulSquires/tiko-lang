@@ -20,7 +20,7 @@ Extract( 1, s, missing )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print Extract( 1, "abacadabra", "cad" )    '' aba -- text before the match
 print Extract( 1, "abacadabra", "zzz" )    '' abacadabra -- a miss gives the whole remainder

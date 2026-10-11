@@ -12,7 +12,7 @@ DecimalCompare( a, b )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' -1, 0 or +1, blind to the scale: 1.10 and 1.1 are the same number
 print DecimalCompare( DecimalParse( "1.10" ).Value( ), _

@@ -12,7 +12,7 @@ LinkedNode( of T )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 '' The node the list is built from: a value and two raw pointers.
 '' Ordinary code never touches it -- Push*/Pop*/Front/Back and the

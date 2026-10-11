@@ -12,7 +12,7 @@ BlackHeight( ) as int32
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim m as OrderedMap( of integer, ustring )
 for i as integer = 1 to 10

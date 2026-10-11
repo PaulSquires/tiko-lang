@@ -20,7 +20,7 @@ Ulp( byval x as float64 ) as float64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print Ulp( 1.0 ) > 0         '' -1 (true)
 

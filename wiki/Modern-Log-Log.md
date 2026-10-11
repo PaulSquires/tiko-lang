@@ -19,7 +19,7 @@ Log( lv, m )
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 '' THERE IS NO PROCESS-WIDE DEFAULT LOGGER in phase 1. A `dim shared`
 '' in a .bi included by two modules gives two of them, so a singleton

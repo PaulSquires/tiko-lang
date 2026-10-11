@@ -18,12 +18,11 @@ Optional( of T )
 
 ```freebasic
 #import "std/outcome"
-using FB
+using outcome
 
 '' Optional is Result's smaller sibling: absence with no explanation.
 '' Use Optional when the miss needs no reason -- a lookup that found
 '' nothing -- and Result when it does.
-#include once "fb/optional.bi"
 
 dim o as Optional( of integer ) = Some( 42 )
 print o.HasValue( )          '' true

@@ -16,7 +16,7 @@ A theme built from ATTRIBUTES rather than colours -- bold, dim, reverse, underli
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTheme mo = TuiThemeMono( )
 print mo.normal.fg.IsDefault( )        '' true -- it chooses no colours

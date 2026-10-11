@@ -20,7 +20,7 @@ IsPow2( byval x as T ) as boolean
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as uint32 a = 8
 print IsPow2( a )            '' true

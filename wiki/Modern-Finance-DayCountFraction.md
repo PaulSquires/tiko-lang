@@ -11,8 +11,9 @@ DayCountFraction( d1, d2, basis )
 ## Examples
 
 ```freebasic
+#import "std/chrono"
 #import "std/money"
-using FB
+using money, chrono
 
 '' The year fraction, EXACT -- an integer over an integer.
 dim as LocalDate a = LocalDate( 2026, 1, 1 )
@@ -36,4 +37,4 @@ print DayCountFraction( LocalDate( 2023, 1, 1 ), LocalDate( 2027, 1, 1 ), _
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

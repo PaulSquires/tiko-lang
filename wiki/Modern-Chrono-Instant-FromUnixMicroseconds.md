@@ -20,7 +20,7 @@ Instant.FromUnixMicroseconds( byval v as int64 ) as Instant
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as Instant i = Instant.FromUnixMicroseconds( 1500000 )
 

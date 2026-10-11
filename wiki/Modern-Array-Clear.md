@@ -18,7 +18,7 @@ Clear( )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of ustring )
 v.Push( "a" ) : v.Push( "b" )

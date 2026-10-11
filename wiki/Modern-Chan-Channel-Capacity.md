@@ -20,7 +20,7 @@ Capacity( ) as int32
 
 ```freebasic
 #import "std/tasks"
-using FB
+using tasks
 
 dim buffered as Channel( of int32 ) = Channel( of int32 )( 16 )
 print buffered.Capacity( )   '' 16

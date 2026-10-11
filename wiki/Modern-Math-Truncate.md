@@ -12,7 +12,7 @@ Truncate( x )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' TOWARDS ZERO, whichever side of it you are on
 print Truncate( 2.7 )        '' 2

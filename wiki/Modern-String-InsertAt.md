@@ -18,7 +18,7 @@ InsertAt( s, insert, position )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print InsertAt( "1234567890", "--", 6 )    '' 12345--67890
 print InsertAt( "12345", "--", 99 )        '' 12345-- -- past the end appends

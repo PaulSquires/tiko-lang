@@ -24,7 +24,7 @@ The abstract base every widget derives from, so a container can hold a mixed Arr
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 type Ticker extends TuiWidget
     as int32 n

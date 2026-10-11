@@ -23,7 +23,7 @@ CPow( byval x as float64,  byref w as Complex ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CPow( CSet( 3, 4 ), 2.0 ) )        '' -6.999999999999998+24.000000000000004i
 print CToString( CSet( 3, 4 ) ^ 2.0 )               '' -6.999999999999998+24.000000000000004i   -- the operator agrees

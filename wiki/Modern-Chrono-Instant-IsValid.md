@@ -12,7 +12,7 @@ Instant.IsValid
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print DateTime( 2026, 8, 13 ).IsValid     '' true
 print DateTime( 2025, 2, 30 ).IsValid     '' false -- no such date

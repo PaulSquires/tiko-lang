@@ -16,7 +16,7 @@ How many columns one codepoint occupies: 0, 1 or 2. From a table generated out o
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiCharWidth( asc( "A" ) )  '' 1
 print TuiCharWidth( &h4E2D )      '' 2 -- a CJK ideograph

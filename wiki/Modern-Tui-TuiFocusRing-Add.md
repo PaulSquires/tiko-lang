@@ -16,7 +16,7 @@ Appends a widget to the tab order. The ring stores the pointer and nothing else 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCheckbox a, b
 dim as boolean va, vb

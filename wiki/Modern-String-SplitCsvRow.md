@@ -22,8 +22,9 @@ SplitCsvRow( s [, delim] )
 ## Examples
 
 ```freebasic
+#import "std/containers"
 #import "std/strings"
-using FB
+using strings, containers
 
 dim as Array( of string ) f = SplitCsvRow( !"a,\"b,c\",d" )
 

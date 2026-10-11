@@ -16,7 +16,7 @@ Builds a PARTIAL style: `which` is the mask of what this style actually sets. Ev
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 '' a style that sets ONLY the bold bit
 dim as TuiStyle boldOnly = TuiStylePatch( TuiDefaultColor( ), TuiDefaultColor( ), _

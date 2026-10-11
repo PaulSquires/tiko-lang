@@ -16,7 +16,7 @@ Downgrades both colours of a style at once. At TUIDEPTH_MONO each colour collaps
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiStyle s = TuiStyleOf( TuiRgb( 235, 80, 80 ), TuiRgb( 20, 20, 30 ), TUIATTR_BOLD )
 dim as TuiStyle m = TuiDowngradeStyle( s, TUIDEPTH_MONO )

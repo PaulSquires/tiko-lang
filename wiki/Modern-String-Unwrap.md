@@ -18,7 +18,7 @@ Unwrap( s [, open] [, close] [, ic] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print Unwrap( "<Paul>", "<", ">" )    '' Paul
 print Unwrap( "<Paul", "<", ">" )     '' <Paul -- unbalanced, left untouched

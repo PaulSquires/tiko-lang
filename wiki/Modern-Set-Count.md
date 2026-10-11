@@ -12,7 +12,7 @@ Count( ) as int32
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim seen as Set( of integer )
 print seen.Count             '' 0

@@ -18,7 +18,7 @@ CurrentDir( )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 dim r as FsResultUStr = CurrentDir( )
 

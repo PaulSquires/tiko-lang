@@ -13,7 +13,7 @@ Instant.TryParseExact
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d
 

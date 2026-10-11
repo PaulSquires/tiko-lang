@@ -19,7 +19,7 @@ Result( of ustring, ustring )
 
 ```freebasic
 #import "std/outcome"
-using FB
+using outcome
 
 '' A value, or the reason there isn't one. The difference from Optional
 '' is the E: Optional says "nothing is here", Result says "nothing is

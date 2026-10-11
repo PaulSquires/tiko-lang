@@ -12,7 +12,7 @@ GetRoundingMode( )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' The FPU's current rounding direction. TO NEAREST by default, which
 '' is why RoundHalfEven agrees with the hardware and Round does not.

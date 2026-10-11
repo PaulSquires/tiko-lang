@@ -11,8 +11,9 @@ row.Period_  row.OpeningBookValue_  row.Expense_  row.AccumulatedDepreciation_  
 ## Examples
 
 ```freebasic
+#import "std/containers"
 #import "std/money"
-using FB
+using money, containers
 
 '' One period of a schedule.  SwitchedToStraightLine_ latches from the
 '' period the switch happens and stays set.
@@ -38,4 +39,4 @@ print ( rows.At( 6 ).ClosingBookValue_ = t.Salvage_ )    '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/findeprec.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/findeprec.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

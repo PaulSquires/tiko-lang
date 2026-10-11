@@ -12,7 +12,7 @@ Stopwatch.Start
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim sw as Stopwatch
 print sw.IsRunning           '' false -- a fresh Stopwatch is stopped

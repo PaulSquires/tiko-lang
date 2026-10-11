@@ -12,7 +12,7 @@ TimeSpan.Multiply( f )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as TimeSpan t = TimeSpan( 0, 30, 0 )
 

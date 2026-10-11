@@ -16,7 +16,7 @@ ESC [ 0 m -- back to the terminal's default everything. The leave sequence start
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print len( TuiSgrReset( ) )            '' 4
 print asc( TuiSgrReset( ), 1 )         '' 27

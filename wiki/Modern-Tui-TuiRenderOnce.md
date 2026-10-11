@@ -16,7 +16,7 @@ One Init/View cycle against a screen with NO TERMINAL AT ALL, returning the byte
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as CounterApp app             '' see TuiApp for its definition
 dim as TuiScreen scr

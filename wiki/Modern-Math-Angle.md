@@ -20,7 +20,7 @@ Angle( byref a as Vec3, byref b as Vec3 ) as float32
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Vec3 x = type<Vec3>( 1, 0, 0 ), y = type<Vec3>( 0, 1, 0 )
 

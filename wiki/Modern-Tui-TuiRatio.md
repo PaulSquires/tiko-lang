@@ -15,8 +15,9 @@ num/den of the total. TuiRatio( 1, 3 ) is a third -- clearer than TuiPercent( 33
 ## Example
 
 ```freebasic
+#import "std/containers"
 #import "std/tui"
-using FB
+using tui, containers
 
 dim as TuiConstraintArray cs
 cs.Push( TuiRatio( 1, 3 ) )

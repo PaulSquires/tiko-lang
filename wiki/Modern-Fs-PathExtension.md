@@ -18,7 +18,7 @@ PathExtension( p )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' WITH the dot, which is what makes it concatenate back on cleanly
 print PathExtension( "main.tiko" )         '' .tiko

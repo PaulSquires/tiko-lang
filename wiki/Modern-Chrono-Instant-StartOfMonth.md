@@ -12,7 +12,7 @@ Instant.StartOfMonth
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 print d.StartOfMonth( ).ToIsoString( )   '' 2026-08-01T00:00:00

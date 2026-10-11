@@ -18,7 +18,7 @@ A four-sided inset, used by TuiRect.Inner and TuiPad. The order is left, top, ri
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiMargin m = TuiMarginOf( 2, 1, 2, 1 )
 print m.left, m.top, m.right, m.bottom     '' 2 1 2 1

@@ -16,7 +16,7 @@ Appends bytes to the output buffer. NOTHING REACHES THE TERMINAL until Flush -- 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTerminal term
 term.Write( TuiCursorTo( 0, 0 ) )

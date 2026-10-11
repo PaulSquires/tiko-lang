@@ -21,7 +21,7 @@ The editor's state, owned by you. Note the units: `cursor` and `selAnchor` are U
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTextInputState st
 TuiTextInputStateInit( st )

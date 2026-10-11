@@ -13,7 +13,7 @@ Currency(2)
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' A FIXED-POINT decimal: four decimal places in a longint, so money
 '' arithmetic is exact where a double is not

@@ -12,7 +12,7 @@ Instant.JulianDay
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 '' Fractional and NOON-BASED, which is why the half appears

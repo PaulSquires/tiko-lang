@@ -139,8 +139,8 @@ every type that can be copied, and you never had to enumerate what those are.
 ## Making your own type fit a generic's demands
 
 The standard containers state their demands in their documentation rather than in the language.
-`Map( of K, V )` needs two things of a key: that `K = K` compiles, and that `FB.HashOf( k )`
-resolves. You supply both:
+`Map( of K, V )` needs two things of a key: that `K = K` compiles, and that the key can hash
+itself. You supply both:
 
 ```tiko
 {{#include ../examples/ch16/hashkey.tiko}}
@@ -150,9 +150,10 @@ resolves. You supply both:
 {{#include ../examples/ch16/hashkey.out}}
 ```
 
-The `HashOf` overload goes **inside `namespace FB`**, because that is where the container looks it
-up from; an overload in the global namespace is invisible to it. It also needs `private`, matching
-the ones the header itself declares.
+The key **extends `Hashable`** and overrides its `HashOf( )`, because the container's code lives in
+the `std/containers` module: a free `HashOf` overload of your own would be invisible to it, and a
+module's namespace cannot be re-opened to add one. The built-in types are hashable already, and
+`containers.HashOf( x )` is how the override hashes its fields.
 
 ```admonish note
 `operator =` for a key type is not optional. A hash gets you to the right bucket; equality decides
@@ -250,8 +251,8 @@ produces real diagnostics where a macro produces diagnostics about the expansion
 - An instantiation is an ordinary type: it can extend a base and override virtual methods.
 - **A type parameter promises nothing.** The body is checked per instantiation; the error lands
   in the body, and a `note: in instantiation of` names the instantiation that caused it.
-- A container states its demands in its docs: `Map`'s key needs `=` and an `FB.HashOf` overload,
-  added by re-opening `namespace FB`.
+- A container states its demands in its docs: `Map`'s key needs `=`, and a `HashOf( )` override
+  from extending `containers.Hashable`.
 - **A brace list fills a container**: one `Add`, `PushBack` or `Push` per element, after
   construction, and `{ k, v }` supplies one call's arguments. Any type that needs constructing and
   has one of those methods takes part.

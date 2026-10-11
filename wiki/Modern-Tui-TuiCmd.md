@@ -19,7 +19,7 @@ What Update and Init tell the loop to do. A plain value, so you can build one, p
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCmd c = TuiTick( 250 )
 print c.kind = TUICMD_TICK         '' -1 (true)

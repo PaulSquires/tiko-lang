@@ -16,7 +16,7 @@ Appends a ustring, encoded as UTF-8. On Windows this is why Enter sets the conso
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTerminal term
 term.WriteText( "CJK: " & wchr( &h4E2D ) )

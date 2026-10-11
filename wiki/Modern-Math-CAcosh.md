@@ -21,7 +21,7 @@ CAcosh( byval x as float64 ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CAcosh( CSet( 2, 1 ) ) )      '' 1.4693517443681854+0.5073563032171445i
 print CToString( CAcosh( 0.5 ) )               '' 0+1.0471975511965979i   -- purely imaginary, real part +0

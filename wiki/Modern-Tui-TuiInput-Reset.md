@@ -16,7 +16,7 @@ Throws away both the byte buffer and the event queue. Use it after a suspend, wh
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiInput keys
 keys.Feed( chr( 27 ) & "[1;5" )   '' a partial sequence

@@ -12,7 +12,7 @@ DecimalApportion( total, scale, weights( ), result( ) )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Splitting 100.00 three ways gives 33.33 each, whose sum is 99.99.
 '' Every accounting system has to decide where the missing cent goes, and
@@ -29,7 +29,7 @@ print r( 2 ).ToString( )   '' 33.33
 print ( r( 0 ) + r( 1 ) + r( 2 ) ).ToString( )   '' 100.00
 
 '' Weights need not be equal, and the scale is yours to pick -- which is
-'' the one thing fb/currency.bi's Apportion could not offer, having only
+'' the one thing currency.tiko's Apportion could not offer, having only
 '' four decimal places to apportion at
 dim as int64 w2( 0 to 2 ) = { 1, 2, 3 }
 DecimalApportion( DecimalParse( "100.00" ).Value( ), 2, w2( ), r( ) )

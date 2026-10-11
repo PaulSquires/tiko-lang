@@ -12,7 +12,7 @@ LocalTime.ParseIso(+ USTRING overloads, .ToIsoUString)
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as LocalTime t = LocalTime.ParseIso( "14:30:05" )
 print t.Hour & " " & t.Minute            '' 14 30

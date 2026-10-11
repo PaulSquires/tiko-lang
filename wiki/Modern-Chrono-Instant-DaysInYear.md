@@ -12,7 +12,7 @@ Instant.DaysInYear( y )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print DateTime.DaysInYear( 2025 )       '' 365
 print DateTime.DaysInYear( 2024 )       '' 366

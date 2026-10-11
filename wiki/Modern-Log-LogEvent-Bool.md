@@ -12,7 +12,7 @@ Bool( k, v as boolean )
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 dim con as ConsoleSink
 dim lg as Logger

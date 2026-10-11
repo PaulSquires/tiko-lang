@@ -16,7 +16,7 @@ Shorthand for TuiAnsi( TUIC_BRIGHTGREEN ) -- palette index 10.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiColor c = TuiBrightGreen( )
 print c.Index( )                  '' 10

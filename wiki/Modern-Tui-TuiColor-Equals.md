@@ -16,7 +16,7 @@ Compares kind and components. Two colours that would render identically but were
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiRgb( 10, 20, 30 ).Equals( TuiRgb( 10, 20, 30 ) )    '' true
 print TuiRgb( 0, 0, 0 ).Equals( TuiAnsi( TUIC_BLACK ) )      '' false

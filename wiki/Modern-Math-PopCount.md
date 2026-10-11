@@ -20,7 +20,7 @@ PopCount( byval x as T ) as int32
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as uint32 x = &b1011
 print PopCount( x )          '' 3

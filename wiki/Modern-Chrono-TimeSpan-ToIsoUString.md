@@ -12,7 +12,7 @@ TimeSpan.ToIsoUString
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' The same text as ToIsoString, as a USTRING -- for a call site that
 '' is already working in ustring and would otherwise convert

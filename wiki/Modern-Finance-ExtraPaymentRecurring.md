@@ -12,7 +12,7 @@ ExtraPaymentRecurring( fromPeriod, toPeriod, amount )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The same extra every period across a range.
 dim as LoanTerms t = LoanTermsUsMortgage( DecimalParse( "400000" ).Value( ), _
@@ -39,4 +39,4 @@ print quick.Value( ).TotalPrincipal_.ToString( )         '' 400000.00
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

@@ -18,7 +18,7 @@ RemoveChars( s, chars [, ic] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print RemoveChars( "abacadabra", "bac" )      '' dr
 print RemoveChars( "(555) 123-4567", "() -" )    '' 5551234567

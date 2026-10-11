@@ -12,7 +12,7 @@ MoveNext( )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of int32 )
 v.Push( 1 ) : v.Push( 2 )

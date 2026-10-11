@@ -18,7 +18,7 @@ PadLeft( s, width [, pad] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print PadLeft( "FreeBasic", 12, "*" )    '' ***FreeBasic
 print PadLeft( "42", 5, "0" )            '' 00042

@@ -21,7 +21,7 @@ A line graph over one or more series. TUIGRAPH_BRAILLE gives the highest resolut
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 40, 10 )

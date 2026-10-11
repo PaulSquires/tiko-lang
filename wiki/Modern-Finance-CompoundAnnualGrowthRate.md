@@ -12,7 +12,7 @@ CompoundAnnualGrowthRate( beginValue, endValue, years )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The single annual rate that turns the opening value into the closing
 '' one over the term -- a fractional root, so the double kernel.
@@ -33,4 +33,4 @@ print CompoundAnnualGrowthRate( DecimalZero( ), DecimalFromInt( 10 ), 5.0 ).Fail
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finport.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finport.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

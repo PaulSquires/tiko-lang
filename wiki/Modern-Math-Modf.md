@@ -20,7 +20,7 @@ Modf( byval x as float64, byref ipart as float64 ) as float64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as float64 ip
 print Modf( 2.75, ip )       '' 0.75

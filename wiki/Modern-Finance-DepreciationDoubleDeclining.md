@@ -12,7 +12,7 @@ DepreciationDoubleDeclining( terms, period )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Declining balance at twice the straight-line rate.  It IGNORES
 '' RateFactor_ and forces 2 -- otherwise "double" would be a lie whenever
@@ -39,4 +39,4 @@ print DepreciationDoubleDeclining( a, 5 ).Value( ).IsZero( )             '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/findeprec.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/findeprec.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

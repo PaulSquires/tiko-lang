@@ -18,7 +18,7 @@ ClipLeft( s, count )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print ClipLeft( "1234567890", 3 )     '' 4567890
 print ClipLeft( "1234567890", 0 )     '' 1234567890 -- 0 or less removes nothing

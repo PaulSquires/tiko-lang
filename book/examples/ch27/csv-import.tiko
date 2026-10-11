@@ -1,11 +1,11 @@
 '' The CSV companion: real CSV, with quoted fields and empty values.
-#include once "fbsqlite_csv.bi"
+#import "db/sqlite"
 
-dim db as SQLite.Database
+dim db as sqlite.Database
 db.OpenMemory( )
 
 '' The header row names the columns, and the table is created from it.
-var loaded = SQLite.ImportCsv( db, "people", "people.csv" )
+var loaded = sqlite.ImportCsv( db, "people", "people.csv" )
 if loaded.IsOk( ) = false then
     print "import failed: "; loaded.Failure( ).Message( )
     end 1

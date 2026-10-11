@@ -19,7 +19,7 @@ CZero( ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CZero( ) )  '' 0+0i
 print CIsZero( CZero( ) )    '' true

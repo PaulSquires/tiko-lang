@@ -16,7 +16,7 @@ cols * rows.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiBuffer b
 b.Resize( 200, 50 )

@@ -16,7 +16,7 @@ Whether this frame asked for a cursor.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 10, 3 )

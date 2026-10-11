@@ -12,7 +12,7 @@ LocalTime.ToIsoString
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print LocalTime( 14, 30, 5, 0 ).ToIsoString( )         '' 14:30:05
 print LocalTime( 14, 30, 5, 123 ).ToIsoString( )    '' 14:30:05.123

@@ -14,14 +14,14 @@ Set( of T )
 
 - A **Map with the value machinery removed**, rather than a wrapper around one -- so it costs one slot per element instead of two.
 - `Add` returns FALSE when the element was already present, which is what makes `if seen.Add( x ) then` the natural spelling of "process each thing once".
-- The **hash contract** is `fb/hash.bi`'s: `HashOf( v )` must resolve, `v = v` must compare, and equal elements must hash equal.
+- The **hash contract** is Map's: the element type extends `containers.Hashable` (or is a built-in type), `v = v` must compare, and equal elements must hash equal.
 - Same implementation and same **unspecified iteration order** as Map.
 
 ## Examples
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim seen as Set( of integer )
 

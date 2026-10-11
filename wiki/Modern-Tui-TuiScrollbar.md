@@ -21,7 +21,7 @@ A scrollbar drawn from three numbers. It is passive -- it reflects a list's or t
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 20, 10 )

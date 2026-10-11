@@ -20,7 +20,7 @@ The terminal itself: raw mode, the alternate screen, capability detection and bu
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTerminal term
 dim as TuiUnitResult er = term.Enter( TuiTermOptionsDefault( ) )

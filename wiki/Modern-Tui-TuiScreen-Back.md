@@ -16,7 +16,7 @@ The buffer being drawn into. Reading cells out of it is how you assert what a Vi
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 20, 3 )

@@ -12,7 +12,7 @@ SortinoRatio( periodReturns( ), targetPerPeriod, frequency )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Sharpe's cousin, dividing by DOWNSIDE deviation instead of total
 '' volatility -- so a portfolio is not penalised for rising sharply.
@@ -39,4 +39,4 @@ print SortinoRatio( up_( ), 0.0, RETURN_MONTHLY ).Failure( ).Message( )
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finport.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finport.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

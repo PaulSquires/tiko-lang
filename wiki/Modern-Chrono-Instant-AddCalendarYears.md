@@ -12,7 +12,7 @@ Instant.AddCalendarYears( n )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 print d.AddCalendarYears( 4 ).Year               '' 2030

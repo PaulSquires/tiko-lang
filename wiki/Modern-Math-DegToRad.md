@@ -20,7 +20,7 @@ DegToRad( byval x as float64 ) as float64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print DegToRad( 180.0 )      '' 3.141592653589793
 print DegToRad( 90.0 )       '' 1.570796326794897

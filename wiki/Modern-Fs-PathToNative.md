@@ -18,7 +18,7 @@ PathToNative( p )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' Rewrites the separators to the platform's own, so a path read from a
 '' config file written on the other platform still works

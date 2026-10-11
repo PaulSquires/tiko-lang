@@ -12,7 +12,7 @@ DownsideDeviation( periodReturns( ), targetPerPeriod, frequency )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Only the SHORTFALL against a target counts -- upside volatility is
 '' ignored, which is what makes it the right denominator for Sortino.
@@ -42,4 +42,4 @@ print DownsideDeviation( up_( ), 0.0, RETURN_MONTHLY ).Value( )   '' 0
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finport.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finport.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

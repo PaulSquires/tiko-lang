@@ -15,8 +15,9 @@ Called once as the loop exits, including on the early-exit path where Init retur
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 type Closer extends TuiApp
     declare function Init( ) as TuiCmd override

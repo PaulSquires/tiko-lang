@@ -18,7 +18,7 @@ CAcsch( byref z as Complex ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CAcsch( CSet( 2, 1 ) ) )  '' 0.396568230112329-0.18631805410781552i
 print CToString( CAcsch( CSet( 1, 0 ) ) )  '' 0.8813735870195429-0i

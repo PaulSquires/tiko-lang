@@ -17,8 +17,9 @@ FileInfo.ModifiedUtc( )
 ## Examples
 
 ```freebasic
+#import "std/chrono"
 #import "std/fs"
-using FB
+using fs, chrono
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
 dim as ustring dir_ = td.Value( )
@@ -27,11 +28,10 @@ WriteAllText( p, "hello" )
 
 dim info as FileInfo = Stat( p ).Value( )
 
-'' TICKS -- the same 100 ns tick fb/chrono.bi uses, so it converts
+'' TICKS -- the same 100 ns tick std/chrono uses, so it converts
 '' straight into an Instant with no arithmetic
 print info.ModifiedUtc( ) > 0            '' -1 (true)
 
-#include once "fb/chrono.bi"
 dim as Instant when_ = Instant.FromTicks( info.ModifiedUtc( ) )
 print when_.IsValid                      '' true
 

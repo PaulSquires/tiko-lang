@@ -20,7 +20,7 @@ Stopwatch.StartNew( ) as Stopwatch
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim sw as Stopwatch = Stopwatch.StartNew( )
 

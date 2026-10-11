@@ -12,7 +12,7 @@ ValueOr( byref dflt as T ) byref as T
 
 ```freebasic
 #import "std/outcome"
-using FB
+using outcome
 
 dim some_ as Optional( of integer ) = Some( 42 )
 dim none_ as Optional( of integer ) = None( of integer )( )

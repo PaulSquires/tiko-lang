@@ -12,7 +12,7 @@ CryptoULongInt( )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' Eight cryptographically secure bytes as one number
 dim as uint64 a = CryptoULongInt( )

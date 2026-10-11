@@ -12,7 +12,7 @@ ProfitabilityIndex( flows( ), ratePerPeriod )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The present value of everything after t = 0, over the initial outlay.
 '' Above one exactly when the NPV is positive.
@@ -41,4 +41,4 @@ print ProfitabilityIndex( z( ), DecimalParse( "0.10" ).Value( ) ).Failure( ).Mes
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincash.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincash.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

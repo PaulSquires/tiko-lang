@@ -12,7 +12,7 @@ LocalDate.ParseIso(+ USTRING overloads, .ToIsoUString)
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as LocalDate d = LocalDate.ParseIso( "2026-08-13" )
 print d.Year & " " & d.Month & " " & d.Day        '' 2026 8 13

@@ -12,7 +12,7 @@ Capacity( ) as int32
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim ages as Map( of ustring, integer )
 print ages.Capacity              '' 0 -- nothing allocated yet

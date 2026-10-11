@@ -12,7 +12,7 @@ DecimalFromDouble( d )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' NAMED, because it is not exact -- the DOUBLE 0.1 is not one tenth.
 '' Fifteen significant digits, trailing zeros stripped, which is what

@@ -16,7 +16,7 @@ Shrinks by n on every side.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRect r = TuiPadAll( TuiRectOf( 0, 0, 20, 10 ), 2 )
 print r.x, r.y, r.w, r.h          '' 2 2 16 6

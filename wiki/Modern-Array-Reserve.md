@@ -18,7 +18,7 @@ Reserve( byval n as int32 )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of int32 )
 

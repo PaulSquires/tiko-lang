@@ -16,7 +16,7 @@ Empties the ring. Nothing is deleted -- the widgets are yours.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCheckbox a
 dim as boolean v

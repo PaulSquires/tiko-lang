@@ -12,7 +12,7 @@ IsEmpty( ) as boolean
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim q as LinkedList( of int32 )
 print q.IsEmpty          '' true

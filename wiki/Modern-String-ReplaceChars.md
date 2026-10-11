@@ -18,7 +18,7 @@ ReplaceChars( s, chars, with_ [, ic] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print ReplaceChars( "abacadabra", "bac", "*" )    '' *****d**r*
 print ReplaceChars( "a/b\c", "/\", "." )         '' a.b.c

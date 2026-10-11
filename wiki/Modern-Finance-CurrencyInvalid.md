@@ -20,7 +20,7 @@ CurrencyInvalid( ) as Currency
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 dim as Currency bad = CurrencyInvalid( )
 print bad.IsValid( )         '' false

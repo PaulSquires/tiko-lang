@@ -18,7 +18,7 @@ Push( byref v as T )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of int32 )
 

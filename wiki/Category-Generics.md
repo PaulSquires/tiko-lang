@@ -266,7 +266,7 @@ Inside a generic body tiko reports the offending line and column itself -- `TKO0
 
 Across fbc's 30 generics `fail-*.bas` files, tiko rejects 26 with a diagnostic of its own, compiles 1 with no error, fails 2 only in code generation (an internal compiler error, TKO0993: `fail-container-nohash.bas` and `fail-container-nohash-set.bas`), and rejects `fail-instdepth.bas` with `TKO0829`, as fbc does with 339 (since 2026-09-25; before that, with `TKO0100` for its `#cmdline "-maxinstdepth 2"`). Measured 2026-09-25 by compiling each to an object; the 1 is `fail-lambda-capture-typaram`, which pins an FBC-Modern limitation rather than a language rule: a capturing lambda in a generic body cannot name T in its own parameter list there (error 59 on the closure's `__FBINVOKE`), and tiko builds it.
 
-A diagnostic raised inside an instantiated body -- `IndexOf` over a type with no `operator =` is fb/array.bi's own comparison failing -- is reported at the line in the generic that fails. fbc reports it too, on its own line numbering of the instantiation.
+A diagnostic raised inside an instantiated body -- `IndexOf` over a type with no `operator =` is array.tiko's own comparison failing -- is reported at the line in the generic that fails. fbc reports it too, on its own line numbering of the instantiation.
 
 ## Known Limits
 
@@ -277,7 +277,7 @@ All measured, none blocking.
 ```freebasic
 whole type unusable for a T without one -- which is why Array's Sort,
 IndexOf and Contains are free procedures rather than members. The
-diagnostic lands inside the container header at the instantiation site,
+diagnostic lands inside the container module at the instantiation site,
 which is honest but not friendly. This is the strongest practical argument
 for adding constraints later; four fail-container-* tests pin the current
 behaviour.

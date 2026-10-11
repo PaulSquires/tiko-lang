@@ -12,7 +12,7 @@ TryGet( k, byref outv ) as boolean
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim ages as OrderedMap( of ustring, integer )
 ages.Put( "ada", 36 )
@@ -21,7 +21,7 @@ dim as integer got
 if ages.TryGet( "ada", got ) then print got     '' 36
 
 '' Reading through m[ k ] INSERTS a default value when k is absent;
-'' TryGet does not. This is exactly FB.Map's rule.
+'' TryGet does not. This is exactly containers.Map's rule.
 got = -1
 print ages.TryGet( "nobody", got )    '' false
 print got                              '' -1, untouched

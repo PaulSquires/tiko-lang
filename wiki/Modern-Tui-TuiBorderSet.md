@@ -18,7 +18,7 @@ The six glyphs a border is drawn from: horizontal, vertical, and the four corner
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiBorderSet g = TuiBorderGlyphs( TUIBORDER_ASCII )
 print g.h; g.v; g.tl              '' -|+  -- the ASCII fallback

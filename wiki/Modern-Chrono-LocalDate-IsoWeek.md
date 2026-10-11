@@ -12,7 +12,7 @@ LocalDate.IsoWeek
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' The ISO 8601 week number, 1 to 53. A week belongs to the year that
 '' holds its THURSDAY, which is why this and IsoWeekYear come as a pair.

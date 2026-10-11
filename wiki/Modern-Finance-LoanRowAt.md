@@ -12,7 +12,7 @@ LoanRowAt( loanTerms, period )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' One row of the schedule.  It WALKS, and is therefore AUTHORITATIVE --
 '' the sum of what would actually be posted, rounding and all.
@@ -35,4 +35,4 @@ print last_.ClosingBalance_.IsZero( )    '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

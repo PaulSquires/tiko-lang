@@ -18,7 +18,7 @@ ISqrt( n )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' The EXACT floor of the true square root -- integer arithmetic
 '' throughout, so it cannot be off by one the way clng( sqr( n ) ) can

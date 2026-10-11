@@ -16,7 +16,7 @@ Turns every dot off.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCanvas cv = TuiCanvas( 4, 2 )
 cv.Dot( 0, 0, TuiWhite( ) )

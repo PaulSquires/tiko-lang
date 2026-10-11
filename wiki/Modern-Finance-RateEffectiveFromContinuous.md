@@ -12,7 +12,7 @@ RateEffectiveFromContinuous( continuousRate )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' exp( r ) - 1 -- the effective annual return of a continuously
 '' compounded rate.
@@ -31,4 +31,4 @@ print RateEffectiveFromContinuous( c ).Value( ).Round( 12 ).ToString( )
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

@@ -12,7 +12,7 @@ None( of T )
 
 ```freebasic
 #import "std/outcome"
-using FB
+using outcome
 
 dim o as Optional( of integer ) = None( of integer )( )
 

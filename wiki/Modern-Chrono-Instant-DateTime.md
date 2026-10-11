@@ -20,7 +20,7 @@ DateTime( y, mo, d, h, mi, s, ms )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' A DateTime is the CIVIL view: calendar fields plus an optional
 '' offset. An Instant is the moment itself.

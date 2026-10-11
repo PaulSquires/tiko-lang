@@ -19,8 +19,9 @@ SubChecked( byval a as T, byval b as T ) as Optional( of T )
 ## Examples
 
 ```freebasic
+#import "std/outcome"
 #import "std/numeric"
-using FB
+using numeric, outcome
 
 dim as int8 a = 100, b = 100
 

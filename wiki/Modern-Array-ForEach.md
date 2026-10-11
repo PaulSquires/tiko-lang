@@ -21,7 +21,7 @@ ForEach( byref a as Array( of T ), byref f as F )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of int32 )
 for i as int32 = 1 to 3

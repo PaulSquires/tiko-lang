@@ -12,7 +12,7 @@ it.IsValid( )  it.Value( )  it.MoveNext( )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The iterator protocol behind FOR EACH -- walk it by hand to stop
 '' early or inspect a window.
@@ -36,4 +36,4 @@ print k                                  '' 3
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/findeprec.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/findeprec.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

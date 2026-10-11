@@ -18,7 +18,7 @@ Remove( s, match [, ic] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print Remove( "Hello World", "l" )       '' Heo Word
 print Remove( "a-b-c", "-" )             '' abc

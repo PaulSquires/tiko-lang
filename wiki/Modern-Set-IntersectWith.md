@@ -20,7 +20,7 @@ IntersectWith( byref other as Set( of T ) )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim a as Set( of integer )
 dim b as Set( of integer )

@@ -19,7 +19,7 @@ LocalTime( h, mi, s, ms )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' A time of day with no date and no zone. One LONGINT of 100 ns ticks.
 dim as LocalTime t = LocalTime( 14, 30, 5, 0 )

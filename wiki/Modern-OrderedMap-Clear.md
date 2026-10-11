@@ -18,7 +18,7 @@ Clear( )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim ages as OrderedMap( of ustring, integer )
 ages.Put( "ada", 36 )

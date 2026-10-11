@@ -17,8 +17,9 @@ FsChange.Kind( )
 ## Examples
 
 ```freebasic
+#import "std/containers"
 #import "std/fs"
-using FB
+using fs, containers
 
 dim td as FsResultUStr = CreateTempDir( "fbdoc" )
 dim as ustring dir_ = td.Value( )

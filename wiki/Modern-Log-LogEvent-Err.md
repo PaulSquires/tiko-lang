@@ -17,10 +17,13 @@ Err( v as FsError )
 ## Examples
 
 ```freebasic
+#import "std/fs"
+#import "std/containers"
+#import "std/outcome"
+#import "std/numeric"
 #import "std/logs"
-using FB
+using logs, fs, containers, outcome, numeric
 
-#include once "fb/filesystem.bi"
 
 dim con as ConsoleSink
 dim lg as Logger

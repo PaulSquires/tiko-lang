@@ -12,7 +12,7 @@ CorrelationToBenchmark( assetReturns( ), benchmarkReturns( ) )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' How tightly the two move together, between -1 and 1.
 dim as float64 r( 0 to 11 ) = { 0.02, -0.01, 0.03, 0.015, -0.025, 0.04, _
@@ -38,4 +38,4 @@ print Beta( lev( ), b( ) ).Value( )                      '' 2
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finport.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finport.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

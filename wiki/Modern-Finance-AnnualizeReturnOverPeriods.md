@@ -12,7 +12,7 @@ AnnualizeReturnOverPeriods( totalReturn, periods, frequency )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' A total return spread over a known number of observations, then
 '' annualized -- for when you have the whole-period figure rather than
@@ -34,4 +34,4 @@ print scaledUp                           '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finport.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finport.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

@@ -20,7 +20,7 @@ Stopwatch.Frequency( ) as int64
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print Stopwatch.Frequency( ) > 0              '' -1 (true)
 

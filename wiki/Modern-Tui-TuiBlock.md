@@ -21,7 +21,7 @@ A border with titles, and the Inner( ) rect inside it. Almost every panel starts
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 30, 8 )

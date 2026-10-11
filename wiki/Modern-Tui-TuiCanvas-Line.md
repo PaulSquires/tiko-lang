@@ -16,7 +16,7 @@ A Bresenham line in dot coordinates. The underscore is because LINE is a stateme
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCanvas cv = TuiCanvas( 20, 5 )       '' 40 x 20 dots
 cv.Line_( 0, 0, 39, 19, TuiRgb( 200, 80, 80 ) )

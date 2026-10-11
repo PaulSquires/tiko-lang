@@ -20,7 +20,7 @@ RngSeeded( byval seed as uint64 ) as Rng
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as uint64 seed = 12345
 dim a as Rng = RngSeeded( seed )

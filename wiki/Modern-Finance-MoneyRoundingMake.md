@@ -12,7 +12,7 @@ MoneyRoundingMake( digits, mode, roundEach )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Build a policy explicitly when none of the three named ones fits --
 '' here, three decimal places rounding away from zero.
@@ -28,4 +28,4 @@ print MoneyRound( DecimalParse( "-1.23401" ).Value( ), p ).ToString( )  '' -1.23
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

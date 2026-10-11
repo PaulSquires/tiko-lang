@@ -15,8 +15,9 @@ At least n cells, more if there is room. The underscore is because MIN is an int
 ## Example
 
 ```freebasic
+#import "std/containers"
 #import "std/tui"
-using FB
+using tui, containers
 
 dim as TuiConstraintArray cs
 cs.Push( TuiMin_( 20 ) )

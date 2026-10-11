@@ -12,7 +12,7 @@ ValueOr( byref dflt as T ) byref as T
 
 ```freebasic
 #import "std/outcome"
-using FB
+using outcome
 
 dim good as Result( of int32, ustring ) = Ok( of int32, ustring )( 42 )
 dim bad  as Result( of int32, ustring ) = Fail( of int32, ustring )( "nope" )

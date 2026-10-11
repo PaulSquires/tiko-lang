@@ -16,7 +16,7 @@ Sets one dot in DOT coordinates, with a colour that tints the cell containing it
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCanvas cv = TuiCanvas( 4, 2 )        '' 8 x 8 dots
 cv.Dot( 0, 0, TuiRgb( 90, 200, 90 ) )

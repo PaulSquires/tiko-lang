@@ -13,13 +13,13 @@ CReal( byref z as Complex ) as float64
 ## Notes
 
 - `z.re` reads the same field. `CReal( z )` is the documented spelling because it survives a field rename and because it says at the call site that the operand is complex.
-- `fb/vector.bi` used to spell this `Real`. That name is gone with the rest of the mixed scheme — every function in `fb/complex.bi` now carries a `C` prefix, and the `fb/complex.bi` section of [Math Library](Category-Math-Library) says why.
+- `vector.tiko` used to spell this `Real`. That name is gone with the rest of the mixed scheme — every function in `complex.tiko` now carries a `C` prefix, and the `complex.tiko` section of [Math Library](Category-Math-Library) says why.
 
 ## Examples
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Complex z = CSet( 3, 4 )
 

@@ -15,8 +15,9 @@ Exactly n cells. Fixed constraints are satisfied before anything is shared out.
 ## Example
 
 ```freebasic
+#import "std/containers"
 #import "std/tui"
-using FB
+using tui, containers
 
 dim as TuiConstraintArray cs
 cs.Push( TuiLength( 10 ) )

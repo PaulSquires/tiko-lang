@@ -12,7 +12,7 @@ Count( )
 
 ```freebasic
 #import "std/tasks"
-using FB
+using tasks
 
 dim wg as WaitGroup
 print wg.Count( )            '' 0

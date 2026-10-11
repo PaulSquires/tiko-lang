@@ -12,7 +12,7 @@ Stopwatch.Elapsed
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim sw as Stopwatch
 sw.Start( )

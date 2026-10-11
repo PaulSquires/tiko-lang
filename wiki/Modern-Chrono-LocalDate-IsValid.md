@@ -12,7 +12,7 @@ LocalDate.IsValid
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print LocalDate( 2026, 8, 13 ).IsValid      '' true
 print LocalDate( 2025, 2, 30 ).IsValid      '' false -- no such date

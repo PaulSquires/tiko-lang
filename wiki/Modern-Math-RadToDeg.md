@@ -20,7 +20,7 @@ RadToDeg( byval x as float64 ) as float64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print RadToDeg( 3.141592653589793 )           '' 180
 print RadToDeg( 1.570796326794897 )           '' 90

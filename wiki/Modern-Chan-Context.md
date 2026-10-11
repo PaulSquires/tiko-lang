@@ -18,7 +18,7 @@ Context( )
 
 ```freebasic
 #import "std/tasks"
-using FB
+using tasks
 
 '' The background context: never cancelled, and the root every other
 '' context descends from

@@ -20,7 +20,7 @@ A busy indicator. It does NOT animate itself -- call Advance on a tick, which ke
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiSpinner s
 TuiSpinnerDefaultFrames( s.frames )

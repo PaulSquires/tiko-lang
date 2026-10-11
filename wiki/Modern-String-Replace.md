@@ -18,7 +18,7 @@ Replace( s, match, with_ [, ic] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print Replace( "Hello World", "World", "Earth" )    '' Hello Earth
 print Replace( "hello world", "WORLD", "Earth", true )    '' hello Earth

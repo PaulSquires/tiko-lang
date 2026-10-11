@@ -16,7 +16,7 @@ Full comparison including the mask. The renderer uses this to decide whether an 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiStyle a = TuiStyleOf( TuiRgb( 1, 2, 3 ), TuiRgb( 4, 5, 6 ), TUIATTR_BOLD )
 dim as TuiStyle b = TuiStyleOf( TuiRgb( 1, 2, 3 ), TuiRgb( 4, 5, 6 ), TUIATTR_BOLD )

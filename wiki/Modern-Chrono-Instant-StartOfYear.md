@@ -12,7 +12,7 @@ Instant.StartOfYear
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 print d.StartOfYear( ).ToIsoString( )    '' 2026-01-01T00:00:00

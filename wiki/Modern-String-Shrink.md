@@ -18,7 +18,7 @@ Shrink( s [, mask] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 dim as ustring s = ",,, one , two     three, four,"
 

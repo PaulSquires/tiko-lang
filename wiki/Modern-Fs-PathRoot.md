@@ -18,7 +18,7 @@ PathRoot( p )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 print PathRoot( "C:\dev\src" )            '' C:\
 print PathRoot( "\\srv\share\dir" )      '' \\srv\share\

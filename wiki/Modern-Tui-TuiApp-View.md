@@ -16,7 +16,7 @@ Draw the whole screen from your state. It must not mutate anything -- render the
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen a, b
 a.Resize( 30, 6 )

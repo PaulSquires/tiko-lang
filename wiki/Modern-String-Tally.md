@@ -18,7 +18,7 @@ Tally( s, match [, ic] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 dim as ustring csv = "a,b,,c"
 

@@ -12,7 +12,7 @@ IsInfinite( x )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print IsInfinite( Infinity( ) )       '' true
 print IsInfinite( NegInfinity( ) )    '' true -- either sign

@@ -16,7 +16,7 @@ The palette index, for an ANSI-16 or 256-colour value. Meaningless for RGB and d
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiIndexed( 214 ).Index( )             '' 214
 print TuiAnsi( TUIC_BRIGHTBLUE ).Index( )    '' 12

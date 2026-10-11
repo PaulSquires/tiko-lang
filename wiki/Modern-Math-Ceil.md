@@ -12,7 +12,7 @@ Ceil( x )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print Ceil( 2.1 )            '' 3
 print Ceil( -2.7 )           '' -2 -- towards POSITIVE infinity

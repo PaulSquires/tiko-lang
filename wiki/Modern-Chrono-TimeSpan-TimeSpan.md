@@ -21,7 +21,7 @@ TimeSpan( d, h, mi, s, ms )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' A FIXED duration -- an exact count of 100 ns ticks. Signed, so
 '' `earlier - later` is meaningful rather than an error.

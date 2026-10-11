@@ -20,7 +20,7 @@ A braille sub-cell drawing surface. Each terminal cell holds a 2x4 dot grid, so 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCanvas cv = TuiCanvas( 40, 10 )      '' CELLS
 print cv.CellCols( ), cv.CellRows( )           '' 40 10

@@ -538,7 +538,7 @@ build elsewhere.
 
 The standard library is the package `std`, shipped in the toolchain's `pkg/` directory. Its
 modules are `strings`, `fs`, `containers`, `chrono`, `tasks`, `outcome`, `numeric`, `money`,
-`logs` and `tui`, and the library chapters (Part IV) use them throughout:
+`logs`, `tui` and `memory`, and the library chapters (Part IV) use them throughout:
 
 ```tiko
 {{#include ../examples/ch14/stdlib.tiko}}
@@ -548,14 +548,15 @@ modules are `strings`, `fs`, `containers`, `chrono`, `tasks`, `outcome`, `numeri
 {{#include ../examples/ch14/stdlib.out}}
 ```
 
-These modules are **facades**. Each fronts one of the toolchain's header libraries, and its names
-*are* the header's names, exported as macros: `strings.Replace` is the very same procedure as the
-header's `FB.Replace`. Two things follow from that:
+These are ordinary modules, built the way this chapter describes: compiled once, cached, and
+initialised in import order. Everything in the chapter applies to them:
 
-- **A facade's names are used qualified.** `using strings` does not make `Replace` a bare name,
-  because exported macros never are. Qualify, or `using FB` for the header's namespace.
-- **A facade value and a header value are the same type.** A `containers.Map( of ustring, int32 )`
-  can be passed where the header's `FB.Map( of ustring, int32 )` is expected.
+- **`using strings` makes `Replace` a bare name**, as for any module. Two `using`s that supply
+  the same name -- `strings.Contains` and `containers.Contains` -- are `TKO0919` when the name is
+  used bare; qualify it.
+- **Their macros are exported**, and used qualified: `logs.LogInfo( "started" )`.
+- **A statement may need one.** `spawn` and `select channel` lower to `std/tasks`, so a file that
+  uses them imports it (`TKO0423` otherwise), and builds with `-mt`.
 
 ## Converting a header library into a module
 
@@ -644,7 +645,7 @@ once.
   in the importer, so its helpers must be module-private, not `private`.
 - `--print-graph`, `-v`, `--no-module-cache`, `--clean-module-cache` and `--emit-tki` show and
   control the build; `-c`, `-lib` and `-dll` work on programs that import.
-- `std` is a package in the toolchain; its facades' names are used qualified.
+- `std` is a package in the toolchain, and its modules are ordinary modules.
 - Converting a header library: add `#module`, drop the guard and the namespace, mark the API
   `public`, unmark the helpers, and turn configuration macros into `[defines]`.
 

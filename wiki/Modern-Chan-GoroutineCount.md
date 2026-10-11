@@ -20,7 +20,7 @@ GoroutineCount( ) as int32
 
 ```freebasic
 #import "std/tasks"
-using FB
+using tasks
 
 print GoroutineCount( ) >= 0     '' -1 (true)
 

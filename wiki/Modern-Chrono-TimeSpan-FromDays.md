@@ -12,7 +12,7 @@ TimeSpan.FromDays
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print TimeSpan.FromDays( 1 ).TotalHours          '' 24
 print TimeSpan.FromDays( 0.5 ).TotalHours        '' 12 -- fractional

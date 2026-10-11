@@ -32,8 +32,9 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 '' Run it from a real terminal. Redirected output is rejected with an honest
 '' error rather than a dashboard drawn into a pipe.
 
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 '' ---------------------------------------------------------------------------
 '' The model. Update mutates it, View reads it, and nothing else touches it.

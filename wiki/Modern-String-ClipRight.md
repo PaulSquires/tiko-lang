@@ -18,7 +18,7 @@ ClipRight( s, count )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print ClipRight( "1234567890", 3 )     '' 1234567
 print ClipRight( "1234567890", 0 )     '' 1234567890

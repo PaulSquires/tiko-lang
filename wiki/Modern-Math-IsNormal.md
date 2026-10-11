@@ -12,7 +12,7 @@ IsNormal( x )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print IsNormal( 1.0 )         '' true
 print IsNormal( 0.0 )         '' false -- zero is not normal

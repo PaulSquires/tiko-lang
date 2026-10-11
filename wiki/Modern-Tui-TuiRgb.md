@@ -16,7 +16,7 @@ A 24-bit colour. Write these freely: on a 256-colour or 16-colour terminal the r
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiColor c = TuiRgb( 120, 220, 160 )
 print c.r, c.g, c.b               '' 120 220 160

@@ -16,7 +16,7 @@ Splits a rect into stacked rows. The header/body/status-bar shape is one call.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiConstraintArray cs
 cs.Push( TuiLength( 1 ) )         '' menu bar

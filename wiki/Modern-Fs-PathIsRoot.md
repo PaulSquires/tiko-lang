@@ -18,7 +18,7 @@ PathIsRoot( p )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 print PathIsRoot( "C:\" )                 '' true
 print PathIsRoot( "C:\dev" )             '' false

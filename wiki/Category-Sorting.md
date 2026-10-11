@@ -4,7 +4,7 @@
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of int32 )
 ...
@@ -41,7 +41,7 @@ SortList( l )                         O(n log n) worst   O(1) extra, STABLE
 SortListBy( l, less )                 O(n log n) worst   O(1) extra, STABLE
 ```
 
-All eight are FREE GENERIC PROCEDURES, not members, and none is included by fb/array.bi or fb/linkedlist.bi on its own.
+All eight are FREE GENERIC PROCEDURES, not members, in sort.tiko; '#import "std/containers"' brings them in with Array and LinkedList.
 
 Map and Set are not in the list and never will be. Both are open-addressed hash tables whose element order is a function of the hash; permuting their storage would destroy the lookup. Sort a snapshot instead:
 
@@ -114,7 +114,7 @@ This is why the insertion sort here bubbles an element down by adjacent swaps ra
 
 A comparer that returns TRUE for equal elements is the classic way to make a sort walk off the end of its array. The partition here is bounds-checked so that it cannot -- a bad comparer gives a bad ORDER, not a crash or a corruption, and the test suite pins that with an always-true and an always-false comparer. The resulting order is still garbage.
 
-The comparer arrives through a GENERIC PARAMETER, 'of TCmp', rather than a procedure pointer, for the same reason FB.ForEach does. A CAPTURING lambda is a closure object and cannot convert to a procptr, so a procptr parameter would reject the most useful kind of comparer:
+The comparer arrives through a GENERIC PARAMETER, 'of TCmp', rather than a procedure pointer, for the same reason containers.ForEach does. A CAPTURING lambda is a closure object and cannot convert to a procptr, so a procptr parameter would reject the most useful kind of comparer:
 
 ```freebasic
 dim as int32 comparisons = 0
@@ -204,7 +204,7 @@ afterwards.
 
 Element types: long, double, string, a UDT with a global '<', a counting UDT, and a nested Array( of Array( of long ) ) to confirm the outer container still instantiates.
 
-See also: docs/array/array.txt              FB.Array( of T ) docs/linkedlist/linkedlist.txt    FB.LinkedList( of T ) docs/lambda/lambda.txt            capturing and non-capturing lambdas docs/generics/generics.txt        RFC-0001, and the limits above
+See also: docs/array/array.txt              containers.Array( of T ) docs/linkedlist/linkedlist.txt    containers.LinkedList( of T ) docs/lambda/lambda.txt            capturing and non-capturing lambdas docs/generics/generics.txt        RFC-0001, and the limits above
 
 ## API reference
 

@@ -6,12 +6,12 @@
 #import "std/numeric"
 #import "std/money"
 
-using FB
+using numeric, money
 ```
 
 FreeBASIC's numeric surface is QuickBASIC's plus ATAN2: ABS SGN SQR SIN COS TAN ASIN ACOS ATN ATAN2 EXP LOG INT FIX FRAC RND RANDOMIZE and the operators. No MIN, no MAX, no ROUND, no pi, no way to ask whether a DOUBLE is NaN, no money type, no complex numbers, no vectors, no statistics, and no way to tell a failed parse from a legitimate zero.
 
-These headers add those. Everything is a library in namespace FB behind an #include. NOTHING BECOMES A KEYWORD and nothing existing changes.
+These modules add those. Everything is a library behind an #import -- std/numeric, and std/money for the money types. NOTHING BECOMES A KEYWORD and nothing existing changes.
 
 ## WHY IT EXISTS -- four things the language gets wrong today
 
@@ -58,17 +58,18 @@ None of these four are fixed in place.  '^', 'MOD', 'VAL', 'STR', 'RND' and 'RAN
 dim as int32 min = 1, max = 2, round = 3, clamp = 4      ' still compiles
 ```
 
-Those four are the most obvious names here and all four are legal identifiers in FreeBASIC.  Twenty years of code uses them as variable names, so everything lives in namespace FB and 'using FB' is your decision.  Your own local shadows the library cleanly and the qualified name still works:
+Those four are the most obvious names here and all four are legal identifiers in FreeBASIC.  Twenty years of code uses them as variable names, so everything belongs to the module and 'using numeric' is your decision.  Your own local shadows the library cleanly and the qualified name still works:
 
 ```freebasic
-using FB
+#import "std/numeric"
+using numeric
 dim as float64 e = 2.0
-print e, FB.E                   ' 2    2.718281828459045
+print e, numeric.E              ' 2    2.718281828459045
 ```
 
-Because these headers add no keyword and no grammar, they cannot change any diagnostic fbc already produces.
+Because these modules add no keyword and no grammar, they cannot change any diagnostic fbc already produces.
 
-================================ fb/math.bi ================================
+========================== std/numeric: math.tiko ==========================
 
 CONSTANTS
 
@@ -86,7 +87,7 @@ NaNF( ) InfinityF( ) NegInfinityF( )
 MinSubnormalDouble( )  MinSubnormalSingle( )
 ```
 
-Integer bounds are NOT duplicated here; fblimits.bi already supplies MIN_VALUE_LONGINT and friends in this namespace, and this header includes it.
+Integer bounds are NOT duplicated here; fblimits.bi already supplies FB.MIN_VALUE_LONGINT and friends. The module includes it for its own use, but an import does not pass it on -- #include it yourself.
 
 CLASSIFICATION
 
@@ -139,7 +140,7 @@ Floor( x )  Ceil( x )  Truncate( x )
 
 Floor and Ceil exist even though INT is floor: INT is floor and FIX is truncation, but the NAMES do not say so and half the FB code in existence uses INT believing it truncates.
 
-RoundHalfEven is what financial code wants -- half-up drifts upward across a ledger.  It is implemented rather than delegated to C's rint, because rint honours the CURRENT rounding mode and would stop being deterministic the moment fb/fenv.bi is used.
+RoundHalfEven is what financial code wants -- half-up drifts upward across a ledger.  It is implemented rather than delegated to C's rint, because rint honours the CURRENT rounding mode and would stop being deterministic the moment fenv.tiko's rounding control is used.
 
 THE DIGITS FORM SCALES, AND THE SCALING IS VISIBLE:
 
@@ -178,7 +179,7 @@ Log1p( 1e-17 )          ' 1e-17
 
 Pow is NOT a replacement for '^'; it is the double-to-double operation under a name.  Integer exponentiation is IPow.
 
-============================== fb/mathint.bi ==============================
+======================== std/numeric: mathint.tiko ========================
 
 DIVISION AND MODULO -- three conventions, all named
 
@@ -247,14 +248,14 @@ The PORTABLE implementation is the contract.  Per-backend intrinsics would be an
 
 NO 'INTEGER' / 'UINTEGER' OVERLOADS.  INTEGER is the same width as LONGINT on win64, so they add nothing -- and fbc RETYPES a negated literal (typeof(-17LL) is INTEGER, not LONGINT), which with both overloads present makes 'IPow( -2LL, 3LL )' error 98, Ambiguous call.  With only the LONGINT overload it resolves losslessly.
 
-THE MONEY TYPES LIVE IN THEIR OWN CATEGORY.  `fb/currency.bi` and
-`fb/decimal.bi` are documented under [Finance](Category-Finance) -- exact
+THE MONEY TYPES LIVE IN THEIR OWN CATEGORY.  `std/money`'s Currency and
+Decimal are documented under [Finance](Category-Finance) -- exact
 fixed-point money in eight bytes, and the 128-bit .NET decimal.  They are part
 of the same library and ship in the same tree; they are filed separately
 because money is a subject of its own, not a corner of arithmetic.
 
 
-============================= fb/mathtext.bi =============================
+======================= std/numeric: mathtext.tiko =======================
 
 PARSING -- strict by default
 
@@ -309,7 +310,7 @@ ToString( 1234567.891, f )      ' 1,234,567.89
 
 NOT a format-string mini-language: FORMAT already has a picture syntax and a second incompatible one is worse than none.  LOCALE IS EXPLICIT OR ABSENT -- an implicitly locale-dependent number format is how a program writes a CSV its own importer cannot read on another machine.
 
-============================== fb/random.bi ==============================
+======================== std/numeric: random.tiko ========================
 
 ```freebasic
 dim r as Rng = RngSeeded( 12345 )
@@ -343,7 +344,7 @@ Shuffle is Fisher-Yates DESCENDING with an inclusive bound -- the form that prod
 
 CryptoBytes IS A SEPARATE SURFACE AND NOT AN Rng.  No seed, no reproducibility, no state.  One type with two contradictory contracts would invite exactly the mistake this separation prevents.  RngFromEntropy( ) is the bridge.
 
-============================== fb/stats.bi ==============================
+======================== std/numeric: stats.tiko ========================
 
 ```freebasic
 Sum( a( ) )         compensated -- Neumaier
@@ -382,7 +383,7 @@ acc.Merge( other )   acc.Reset( )   acc.Count( )
 
 Constant space, one pass, Welford internally.  Merge combines two accumulators exactly (Chan's formula), so a fan-out across threads reduces without re-reading the data.
 
-============================= fb/vector.bi =============================
+======================= std/numeric: vector.tiko =======================
 
 ```freebasic
 dim as Vec3 a = Vec3f_( 1, 2, 3 )
@@ -418,9 +419,9 @@ LengthSquared is the one to use for comparisons: 'Length(a) < Length(b)' costs t
 
 SLERP TAKES THE SHORT PATH: q and -q are the same rotation, and without negating one operand it takes the long way round three-quarters of the time.
 
-COMPLEX NUMBERS ARE NOT HERE any more and this header does not include the one they moved to -- see fb/complex.bi below.  They were generated from the same macro text as Vec/Mat/Quat on the grounds that they are the same kind of small operator-overloaded value type; that was true of the arithmetic and false of everything else, and a program that wants Dot should not pay for twelve inverse hyperbolic functions.
+COMPLEX NUMBERS ARE NOT HERE any more -- they moved to their own file, complex.tiko, below.  They were generated from the same macro text as Vec/Mat/Quat on the grounds that they are the same kind of small operator-overloaded value type; that was true of the arithmetic and false of everything else, and a program that wants Dot should not pay for twelve inverse hyperbolic functions.
 
-============================ fb/complex.bi ============================
+====================== std/numeric: complex.tiko ======================
 
 ```freebasic
 dim as Complex z = CSet( 3, 4 )
@@ -443,7 +444,7 @@ CToString CToStringPolar
                   float64 with Complex, Complex with float64
 ```
 
-EVERY FUNCTION CARRIES A 'C' PREFIX.  Exp, Log, Sqr, Sin, Cos, Tan, Abs, Atn and Str are FreeBASIC intrinsics, and a function of one of those names in namespace FB SHADOWS the intrinsic for every later header -- measured, it broke fb/random.bi -- after which the intrinsic cannot be called back.  Given that the transcendentals must be prefixed, the prefix is applied UNIFORMLY: a mixed scheme would need the reader to know which of 'Sin' and 'Real' is an intrinsic in order to guess the spelling.  The TYPE is 'Complex', unprefixed.
+EVERY FUNCTION CARRIES A 'C' PREFIX.  Exp, Log, Sqr, Sin, Cos, Tan, Abs, Atn and Str are FreeBASIC intrinsics, and when this library was headers in namespace FB, a function of one of those names SHADOWED the intrinsic for every later header -- measured, it broke what is now random.tiko -- after which the intrinsic could not be called back.  The names stayed when the headers became std/numeric.  Given that the transcendentals must be prefixed, the prefix is applied UNIFORMLY: a mixed scheme would need the reader to know which of 'Sin' and 'Real' is an intrinsic in order to guess the spelling.  The TYPE is 'Complex', unprefixed.
 
 'CStr' is a keyword, so AfxNova's CStr( z ) is CToString( z ) -- which also names what it is: the round-tripping form, not STR.
 
@@ -451,7 +452,7 @@ DOUBLE ONLY, and no macro.  Both source libraries are double-only, and with one 
 
 BREADTH FROM AfxNova, NUMERICS FROM .NET, both MIT.  AfxComplex.inc supplies the sec/csc/cot families, all twelve inverses, the hyperbolics, CNthRoot and CLogAbs.  System.Numerics.Complex supplies Smith division, the scaled Abs, Asin_Internal, the stabilised Tan and the predicate set.  NEITHER IS FOLLOWED WHERE IT IS BEATEN.
 
-TWO THINGS fb/vector.bi USED TO GET WRONG, and both are fixed:
+TWO THINGS THE OLD VECTOR HEADER USED TO GET WRONG, and both are fixed:
 
 '/' WAS THE NAIVE ( ac + bd ) / ( c^2 + d^2 ).  Its denominator overflows once |d| passes about 1.3e154, so ( 1e200 + 1e200i ) / ( 1e200 + 1e200i ) came back NaN instead of 1.  Smith's formula divides through by the larger component first and has no range restriction.  All THREE division overloads get it; AfxNova leaves its two mixed ones naive.
 
@@ -470,7 +471,7 @@ After the nine, 3,030 of 3,030 comparisons agree, signed zeros included, except 
 
 NO ORDERING OPERATORS: '<' on complex numbers has no meaning.  AfxNova's CSgn returned a LONG by comparing real parts and then imaginary ones, which is such an ordering under another name; CSgn here returns z/|z|, the unit vector in z's direction, and CZero( ) for zero.  Porting code gets a compile error rather than a silently different number.
 
-THE SPECIAL VALUES ARE FUNCTIONS, not constants: 'const as Complex N' cannot be initialised from 0.0/0.0, which is a compile-time division by zero.  Same decision, same reason, as NaN( ) in fb/math.bi.
+THE SPECIAL VALUES ARE FUNCTIONS, not constants: 'const as Complex N' cannot be initialised from 0.0/0.0, which is a compile-time division by zero.  Same decision, same reason, as NaN( ) in math.tiko.
 
 CIsNaN IS NOT 'either part is NaN'.  One infinite part and one NaN is INFINITE, because the infinity already answers every question anyone asks of the number.
 
@@ -481,7 +482,7 @@ TWO THINGS DELIBERATELY NOT DONE, stated rather than left to be discovered:
 
 Specified by RFC-0009-complex.md, which supersedes RFC-0007 s5.  tiko's vendored copy of fbc's suites has no suite for this header, so there is no tiko result to report for it.
 
-=============================== fb/fenv.bi ===============================
+========================= std/numeric: fenv.tiko =========================
 
 ```freebasic
 scope
@@ -503,7 +504,7 @@ THE HAZARD, STATED RATHER THAN HIDDEN.  The optimiser may move floating-point op
 
 The rounding mode is per-thread on every supported platform.
 
-The constants above are FB'S OWN, and are deliberately not the C library's. The C FE\_\* values are not a property of the platform: MSVC, and mingw-w64 since v8, define them in terms of the CRT's abstract \_RC\_\* / \_SW\_\* codes, while glibc, the BSDs, djgpp and mingw-w64 v7 use the x87 control- and status-word encoding directly.  Which family applies is decided by the C runtime the program finally links against -- mingw-w64 changed sides between v7 and v8 without the target changing -- and the compiler cannot know that at compile time, so no '#ifdef' on target can be right.  fb/fenv.bi therefore DETECTS the family at startup, by offering the CRT the x87 spelling of FE_DOWNWARD and seeing whether it is accepted, and translates.  Getting this wrong is silent, not loud: the two families overlap numerically without agreeing, so x87 FP_DIVBYZERO (&h04) reads as FP_OVERFLOW to a \_SW\_\* CRT and fetestexcept cheerfully answers about the wrong flag.
+The constants above are THE LIBRARY'S OWN, and are deliberately not the C library's. The C FE\_\* values are not a property of the platform: MSVC, and mingw-w64 since v8, define them in terms of the CRT's abstract \_RC\_\* / \_SW\_\* codes, while glibc, the BSDs, djgpp and mingw-w64 v7 use the x87 control- and status-word encoding directly.  Which family applies is decided by the C runtime the program finally links against -- mingw-w64 changed sides between v7 and v8 without the target changing -- and the compiler cannot know that at compile time, so no '#ifdef' on target can be right.  fenv.tiko therefore DETECTS the family at startup, by offering the CRT the x87 spelling of FE_DOWNWARD and seeing whether it is accepted, and translates.  Getting this wrong is silent, not loud: the two families overlap numerically without agreeing, so x87 FP_DIVBYZERO (&h04) reads as FP_OVERFLOW to a \_SW\_\* CRT and fetestexcept cheerfully answers about the wrong flag.
 
 ## EXACT vs BOUNDED -- what is reproducible
 
@@ -512,7 +513,7 @@ Two classes with two different guarantees, and the difference matters if you shi
 EXACT     Identical results everywhere.  All integer arithmetic, all of
 
 ```freebasic
-FB.Currency, all of FB.Decimal, rounding, classification,
+money.Currency, all of money.Decimal, rounding, classification,
 Min/Max/Clamp/Sign, the bit family, RNG streams, and vector/matrix
 arithmetic.
 ```

@@ -12,7 +12,7 @@ LocalTime.Invalid
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as LocalTime bad = LocalTime.Invalid( )
 

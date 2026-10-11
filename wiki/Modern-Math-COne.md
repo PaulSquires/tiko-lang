@@ -19,7 +19,7 @@ COne( ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( COne( ) )                 '' 1+0i
 print CToString( CSet( 3, 4 ) * COne( ) )  '' 3+4i   -- the multiplicative identity

@@ -377,9 +377,9 @@ An array is the right answer when the index is meaningful and the size is known,
 It is the wrong answer when you find yourself writing the bookkeeping around it: a separate count
 of how many slots are really in use, a doubling strategy, a search to find where something is.
 
-That bookkeeping is what `FB.Array( of T )` already contains, along with `Map`, `Set` and the rest
-of the containers in Chapter 23. The rule is the ordinary one: use the raw array while it is
-simpler, and stop as soon as it is not.
+That bookkeeping is what `containers.Array( of T )` already contains, along with `Map`, `Set` and
+the rest of the containers in Chapter 23. The rule is the ordinary one: use the raw array while it
+is simpler, and stop as soon as it is not.
 
 ## What it costs
 
@@ -419,8 +419,8 @@ simpler, and stop as soon as it is not.
 - The array variable is a descriptor; `fbc-int/array.bi` exposes `FB.ArrayLen`, `FB.ArraySize` and
   the record itself.
 - **Stop using a raw array when you start writing bookkeeping around it** — a live count, a doubling
-  strategy, a search. `FB.Array( of T )` and the containers in Chapter 23 already contain it, and
-  growing one element at a time with `redim preserve` is quadratic.
+  strategy, a search. `containers.Array( of T )` and the containers in Chapter 23 already contain
+  it, and growing one element at a time with `redim preserve` is quadratic.
 
 ## Exercises
 

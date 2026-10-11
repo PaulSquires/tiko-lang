@@ -12,7 +12,7 @@ TryParseLongInt( s [, base] )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 var r = TryParseLongInt( "9223372036854775807" )
 print r.HasValue( )          '' true

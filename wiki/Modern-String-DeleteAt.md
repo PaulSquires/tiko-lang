@@ -18,7 +18,7 @@ DeleteAt( s, start, count )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print DeleteAt( "1234567890", 4, 3 )    '' 1237890
 print DeleteAt( "1234567890", 4, 99 )   '' 123 -- a count past the end takes what is there

@@ -16,7 +16,7 @@ Whether a drop-down is showing.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiMenuBar bar
 dim as TuiMenu m

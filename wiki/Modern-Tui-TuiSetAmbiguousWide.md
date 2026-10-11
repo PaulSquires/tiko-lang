@@ -16,7 +16,7 @@ Switches the 179 East Asian AMBIGUOUS ranges between 1 and 2 columns. Narrow is 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiCharWidth( &h00A1 )      '' 1 -- INVERTED EXCLAMATION MARK, ambiguous
 TuiSetAmbiguousWide( TRUE )

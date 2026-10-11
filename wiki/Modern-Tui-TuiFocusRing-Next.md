@@ -16,7 +16,7 @@ Moves focus forward, wrapping at the end. This is Tab. The underscore is because
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCheckbox a, b
 dim as boolean va, vb

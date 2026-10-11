@@ -13,7 +13,7 @@ Decimal(2)
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' A 128-BIT DECIMAL: a 96-bit mantissa, a scale of 0..28 and a sign, so
 '' money arithmetic is exact where a double is not.  This is the .NET
@@ -35,7 +35,7 @@ print DecimalParse( "1.1"  ).Value( ).ToString( )   '' 1.1
 print DecimalParse( "1.10" ).Value( ) = _
       DecimalParse( "1.1"  ).Value( )               '' true
 
-'' 28 significant digits, where fb/currency.bi has four decimal places
+'' 28 significant digits, where currency.tiko has four decimal places
 print ( DecimalParse( "19.99" ).Value( ) * 3 ).ToString( )   '' 59.97
 print ( DecimalFromInt( 1 ) / DecimalFromInt( 3 ) ).ToString( )
 '' 0.3333333333333333333333333333

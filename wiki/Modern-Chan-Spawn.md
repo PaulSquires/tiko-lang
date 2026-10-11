@@ -21,7 +21,7 @@ spawn Procedure( [ args ] )
 
 ```freebasic
 #import "std/tasks"
-using FB
+using tasks
 
 '' THE SHAPE, with the Add BEFORE the spawn -- never inside the
 '' goroutine, or Wait can see zero and return before the worker starts:

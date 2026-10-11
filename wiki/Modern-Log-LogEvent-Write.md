@@ -12,7 +12,7 @@ Write( r )
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 '' Write is the Sink side, not the LogEvent side: every Sink implements
 '' Write / Flush / Close / DroppedCount, and the Logger calls Write once

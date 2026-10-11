@@ -20,7 +20,7 @@ BitReverse( byval x as T ) as T
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as uint32 x = 1
 print hex( BitReverse( x ) ) '' 80000000 -- the bit moved to the top

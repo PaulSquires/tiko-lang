@@ -12,7 +12,7 @@ TimeSpan.TotalMilliseconds
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as TimeSpan t = TimeSpan.FromSeconds( 1.5 )
 

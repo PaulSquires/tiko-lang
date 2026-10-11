@@ -12,7 +12,7 @@ RaiseFpException( e )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' Raises a flag by hand, so a routine can report a condition through
 '' the same channel the hardware uses

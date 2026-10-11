@@ -12,7 +12,7 @@ Instant.CompareTo
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as Instant a = Instant.FromUnixSeconds( 0 )
 dim as Instant b = Instant.FromUnixSeconds( 86400 )

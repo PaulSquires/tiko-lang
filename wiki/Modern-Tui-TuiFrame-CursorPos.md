@@ -16,7 +16,7 @@ Where the cursor was last put.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 10, 3 )

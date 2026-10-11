@@ -16,7 +16,7 @@ The 256-palette entry nearest an RGB triple -- the 6x6x6 cube, or the grey ramp 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiRgbTo256( 255, 0, 0 )         '' 196 -- the cube's pure red
 print TuiRgbTo256( 128, 128, 128 )     '' 244 -- a GREY-RAMP entry, not a

@@ -12,7 +12,7 @@ IsNegative( x )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print IsNegative( -1.0 )      '' true
 print IsNegative( 1.0 )       '' false

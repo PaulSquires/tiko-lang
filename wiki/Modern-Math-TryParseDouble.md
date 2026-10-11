@@ -12,7 +12,7 @@ TryParseDouble( s [, flags] )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' An Optional, so failure is absence rather than a zero that cannot be
 '' told apart from a parsed "0"

@@ -19,7 +19,7 @@ CImag( byref z as Complex ) as float64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Complex z = CSet( 3, 4 )
 

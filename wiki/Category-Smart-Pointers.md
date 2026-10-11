@@ -3,8 +3,8 @@
 # Smart Pointers
 
 ```freebasic
-#include once "fb/sharedptr.bi"
-using FB
+#import "std/memory"
+using memory
 
 type Session
     as ustring user
@@ -111,7 +111,7 @@ C++'s make_shared fuses the control block and the object into one allocation. Th
 
 Fusing them means embedding 'as T obj' in the control block, which makes the control block generic. Every member of a generic is instantiated whether it is called or not, so a control block containing a T would require T to be default-constructible for EVERY use of SharedPtr -- including the ones that adopt an already-built pointer, where no default constructor is wanted or possible. A non-generic control block holding an 'any ptr' costs one extra allocation and leaves T completely unconstrained. That is the trade.
 
-It is also why the control block has no members at all. A control block with a virtual Dispose( ) would need a non-generic base class whose method bodies live in the header, and a method body in a header is a duplicate symbol in every module that includes it. So the block stores no type information, and DESTRUCTION IS DONE BY THE HANDLE, which knows T.
+It is also why the control block has no members at all. A control block with a virtual Dispose( ) would need a non-generic base class whose method bodies lived in the header this library was written as, and a method body in a header is a duplicate symbol in every module that includes it. So the block stores no type information, and DESTRUCTION IS DONE BY THE HANDLE, which knows T.
 
 ## Thread Safety
 
@@ -175,7 +175,7 @@ Neither '\*sp' nor 'sp->' checks for null: they compile to the same dereference 
 
 ## NULL Access Raises
 
-Ref( ) on a null SharedPtr raises FB_RTERROR_ILLEGALFUNCTIONCALL through the ordinary fbc path, so it is catchable by 'on error' and reports a line under -exx. With no handler the program aborts with 'runtime error 1' naming the line in fb/sharedptr.bi.
+Ref( ) on a null SharedPtr raises FB_RTERROR_ILLEGALFUNCTIONCALL through the ordinary fbc path, so it is catchable by 'on error' and reports a line under -exx. With no handler the program aborts with 'runtime error 1' naming the line in sharedptr.tiko.
 
 Unlike Optional.Value( ), there is nothing sane to return afterwards -- a null handle owns no object, so no T exists anywhere to reference. A function-static blank would be worse than the fault: it would force T to be default- constructible for every use of SharedPtr, and a function-static UDT in FreeBASIC is constructed lazily and NEVER destroyed, so it would retain one T and its resources for the life of the program.
 
@@ -223,7 +223,7 @@ through generic instantiations has no coverage anywhere in this tree.
 
 ## Library Only, With One Compiler Fix
 
-The types are entirely a header -- fb/sharedptr.bi, which tiko ships unchanged in its toolchain's inc/.
+The types are entirely FreeBASIC -- the std/memory module, pkg/std/memory/sharedptr.tiko, ported from fbc's fb/sharedptr.bi.
 
 The one compiler change was FBC-Modern's: its generic global UNARY operators -- '\*', '->', unary '-' and NOT -- were never instantiated at their use sites, so none of them worked until it was fixed. tiko's generics are its own and need no such fix. Measured 2026-09-24 at origin/master 50c71751: fbc's generics/global-unary-operators.bas -- each of those four beside a binary operator of the same spelling over a plain Box( of T ) -- builds and runs under tiko with exit 0 and the same output as fbc's build, and tiko's own `tests/mir/generic-global-operator.test` covers '+', unary '\*' and '->'.
 
@@ -278,7 +278,7 @@ SharedPtr in sight: unary '-', NOT, unary '*' and '->', each alongside a
 binary operator of the same spelling over the same type.
 ```
 
-Under tiko, measured 2026-09-24 at origin/master 50c71751, each against fbc's build of the same file: container-sharedptr.bas and global-unary-operators.bas build and run with exit 0 and the same output; sharedptr-mt.bas, built with -mt against fbcunit, passes 14 of 14 assertions under both; sharedptr-null-ref.bas aborts with 'runtime error 1 (illegal function call)' under both -- tiko names line 326 of fb/sharedptr.bi, the ERROR( ) inside Ref( ), where fbc names line 318, the first line of Ref( ); and fail-sharedptr-scalar-arrow.bas is refused by both, by tiko with `TKO0739: 'sharedptr' has no member named 'v'`.
+Under tiko, measured 2026-09-24 at origin/master 50c71751, each against fbc's build of the same file: container-sharedptr.bas and global-unary-operators.bas build and run with exit 0 and the same output; sharedptr-mt.bas, built with -mt against fbcunit, passes 14 of 14 assertions under both; sharedptr-null-ref.bas aborts with 'runtime error 1 (illegal function call)' under both -- tiko names line 326 of fb/sharedptr.bi (of pkg/std/memory/sharedptr.tiko since the header became a module, re-measured 2026-10-10), the ERROR( ) inside Ref( ), where fbc names line 318, the first line of Ref( ); and fail-sharedptr-scalar-arrow.bas is refused by both, by tiko with `TKO0739: 'sharedptr' has no member named 'v'`.
 
 ## API reference
 

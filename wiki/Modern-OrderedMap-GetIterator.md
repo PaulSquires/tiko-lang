@@ -18,14 +18,14 @@ GetIterator( )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim ages as OrderedMap( of ustring, integer )
 ages.Put( "bob", 41 )
 ages.Put( "ada", 36 )
 
 '' ASCENDING KEY ORDER, always -- the entire reason to choose this over
-'' FB.Map, whose order is unspecified and changes as it grows
+'' containers.Map, whose order is unspecified and changes as it grows
 for each kv in ages
     print kv.key & " " & kv.value      '' ada 36 / bob 41
 next

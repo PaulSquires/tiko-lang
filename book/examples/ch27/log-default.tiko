@@ -1,10 +1,7 @@
 #import "std/logs"
 
-'' The process-wide default logger is defined in exactly one module.
-FB_LOG_IMPLEMENT( )
-
-'' Any procedure, in any module, can then log without being handed a
-'' logger.
+'' std/logs holds one process-wide default logger, so any procedure,
+'' in any module, can log without being handed a logger.
 sub SaveSettings( byref path as ustring )
     logs.DefaultLogger( ).Info( ).Str( "path", path ).Msg( "saved" )
 end sub

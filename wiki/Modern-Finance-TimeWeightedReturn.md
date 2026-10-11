@@ -12,7 +12,7 @@ TimeWeightedReturn( subPeriodReturns( ) )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Geometric linking of sub-period returns -- it measures the MANAGER,
 '' because it removes the effect of when money was added or withdrawn.
@@ -42,4 +42,4 @@ print TimeWeightedReturn( wipe( ) ).Failure( ).Message( )
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finport.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finport.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

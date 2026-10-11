@@ -23,7 +23,7 @@ A gradient bar: the colour interpolates from `from_` to `to_` ALONG THE BAR, so 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 30, 1 )

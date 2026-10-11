@@ -16,7 +16,7 @@ Undoes everything Enter did, in exactly the reverse order, and restores the save
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTerminal term
 print term.Leave( ).IsOk( )       '' true -- nothing to undo, still fine

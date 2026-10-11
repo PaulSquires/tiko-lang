@@ -12,7 +12,7 @@ Instant.FromJulianDay( float64 )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' Julian day: FRACTIONAL and NOON-BASED, which is where the half-day
 '' comes from. JD 2451545.0 is 2000-01-01T12:00 UTC.

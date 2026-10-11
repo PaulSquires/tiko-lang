@@ -11,8 +11,9 @@ SimpleInterestBetween( principal, annualRate, d1, d2, basis )
 ## Examples
 
 ```freebasic
+#import "std/chrono"
 #import "std/money"
-using FB
+using money, chrono
 
 '' Simple interest across a real date span, on a chosen day-count basis.
 dim as Decimal p = DecimalParse( "10000" ).Value( )
@@ -33,4 +34,4 @@ print ( SimpleInterestBetween( p, r, a, b, DAYCOUNT_ACTUAL_360 ) > _
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

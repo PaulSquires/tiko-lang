@@ -21,7 +21,7 @@ TimeSpan.FromHours( v )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print TimeSpan.FromHours( 2 ).TotalMinutes       '' 120
 print TimeSpan.FromHours( 1.5 ).ToIsoString( )   '' PT1H30M

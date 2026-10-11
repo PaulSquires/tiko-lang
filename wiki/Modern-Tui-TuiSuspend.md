@@ -16,7 +16,7 @@ Leave the terminal, raise SIGTSTP, and come back with the screen invalidated. Ct
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiSuspend( ).kind = TUICMD_SUSPEND '' -1 (true)
 

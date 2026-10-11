@@ -12,7 +12,7 @@ LoanAnnualPercentageRate( loanTerms, financedFees )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The rate implied once financed fees are counted as part of the cost of
 '' borrowing: the borrower receives less but repays the same.
@@ -37,4 +37,4 @@ print higher                             '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

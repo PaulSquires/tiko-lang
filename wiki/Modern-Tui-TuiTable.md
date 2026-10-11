@@ -22,7 +22,7 @@ A scrolling table whose columns are sized by the SAME constraint solver as the l
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTableState st
 dim as TuiTable t

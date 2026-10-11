@@ -12,7 +12,7 @@ NaNF( )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as float32 n = NaNF( )
 

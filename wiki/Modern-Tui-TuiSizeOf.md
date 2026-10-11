@@ -16,7 +16,7 @@ Builds a TuiSize.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiSize s = TuiSizeOf( 100, 30 )
 print s.cols * s.rows             '' 3000 cells

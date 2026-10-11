@@ -18,7 +18,7 @@ AbsolutePath( p )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' PURELY TEXTUAL apart from needing the current directory: it prefixes
 '' the working directory and normalises, and never asks whether the path

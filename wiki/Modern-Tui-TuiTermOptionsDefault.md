@@ -16,7 +16,7 @@ Alternate screen, raw mode, hidden cursor and bracketed paste. MOUSE AND FOCUS E
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTermOptions o = TuiTermOptionsDefault( )
 print o.altScreen, o.rawMode, o.hideCursor      '' true true true

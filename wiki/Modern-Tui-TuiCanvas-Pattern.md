@@ -16,7 +16,7 @@ The raw 8-bit braille pattern for one cell -- the byte added to U+2800. The bit 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCanvas cv = TuiCanvas( 1, 1 )        '' one cell: 2 x 4 dots
 cv.Dot( 0, 0, TuiWhite( ) )

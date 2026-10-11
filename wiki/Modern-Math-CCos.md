@@ -15,13 +15,13 @@ CCos( byref z as Complex ) as Complex
 - `cos(re)·cosh(im) - i·sin(re)·sinh(im)`, written out directly.
 - Even: `CCos( -z )` is `CCos( z )`.
 - Overflows for a large imaginary part, like `CSin` and for the same reason.
-- Spelled with the `C` prefix because a function of the unprefixed name in namespace `FB` would shadow the FreeBASIC intrinsic for every later header — measured, it broke `fb/random.bi` — after which the intrinsic cannot be called back.
+- Spelled with the `C` prefix because, when this library was a header in namespace `FB`, a function of the unprefixed name shadowed the FreeBASIC intrinsic for every later header — measured, it broke what is now `random.tiko` — after which the intrinsic could not be called back. The name stayed when the header became `std/numeric`.
 
 ## Examples
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Complex z = CSet( 3, 4 )
 

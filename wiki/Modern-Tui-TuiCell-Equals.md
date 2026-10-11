@@ -16,7 +16,7 @@ Character, combining tail, style and width. This is the comparison the diff runs
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCell a = TuiCellBlank( TuiStyleDefault( ) )
 dim as TuiCell b = TuiCellBlank( TuiStyleDefault( ) )

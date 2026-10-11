@@ -18,7 +18,7 @@ PathNormalize( p )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' Collapses duplicate separators and drops a trailing one
 print PathNormalize( "C:\\dev\\\\src\\" )      '' C:\dev\src

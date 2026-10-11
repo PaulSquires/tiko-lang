@@ -20,7 +20,7 @@ Slerp( byref a as Quat, byref b as Quat, byval t as float32 ) as Quat
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Quat a = type<Quat>( 0, 0, 0, 1 )
 dim as Quat b = type<Quat>( 0, 0, 0, 1 )

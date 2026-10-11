@@ -12,7 +12,7 @@ AnnualizeReturn( periodReturn, frequency )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' GEOMETRIC: ( 1 + r )^f - 1, NOT r * f.  Both are one-liners and the
 '' wrong one appears in a great deal of published code, which is why this
@@ -33,4 +33,4 @@ print compounds                          '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finport.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finport.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

@@ -15,8 +15,9 @@ Set up, and return a command the loop honours BEFORE the first poll. It returns 
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 type DashApp extends TuiApp
     as int32 frames

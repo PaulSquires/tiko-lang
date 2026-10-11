@@ -18,7 +18,7 @@ PathSeparator( )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' The native separator, as a string
 print PathSeparator( )       '' \ on Windows, / elsewhere

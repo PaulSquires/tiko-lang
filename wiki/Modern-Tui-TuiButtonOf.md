@@ -19,8 +19,9 @@ A button whose handler is a CAPTURING lambda. It exists because of two hard comp
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as int32 clicks = 0
 

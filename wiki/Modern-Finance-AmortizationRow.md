@@ -12,7 +12,7 @@ row.Period_  row.DueDate_  row.OpeningBalance_  row.Payment_  row.Interest_  row
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' One posted period.  PRINCIPAL IS THE RESIDUAL -- Payment minus
 '' Interest -- which is what makes the row add up as an IDENTITY rather
@@ -37,4 +37,4 @@ print ( r.Payment_ = ( r.Interest_ + r.Principal_ ) )    '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

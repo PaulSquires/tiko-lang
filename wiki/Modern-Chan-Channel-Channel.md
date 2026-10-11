@@ -13,7 +13,7 @@ Channel( of T )( [ capacity ] )
 ## Notes
 
 - A **capacity of 0 is a RENDEZVOUS**, not a zero-length buffer. `Send` blocks until a receiver takes the value, and the value is handed over **directly** rather than through the buffer -- which makes the rendezvous an ordering point as well as a handoff.
-- **Copies SHARE.** A Channel is a refcounted handle to a channel, not a channel. Handing a copy to each of four workers gives four handles on one queue, which is what makes fan-out work. Deliberately unlike `FB.Array`, whose copy is deep.
+- **Copies SHARE.** A Channel is a refcounted handle to a channel, not a channel. Handing a copy to each of four workers gives four handles on one queue, which is what makes fan-out work. Deliberately unlike `containers.Array`, whose copy is deep.
 - A **default-constructed channel is NIL**, and a nil channel blocks forever on `Send` and `Receive`. That is Go's rule, and `IsNil` exists so a program can assert its own initialisation -- "my program hangs" is the symptom of forgetting it.
 - The destructor does **not** Close. Closing means "no more values will be sent", and a scope that merely stopped holding a reference has not said that.
 - Requires `-mt`; the header refuses to compile without it.
@@ -22,7 +22,7 @@ Channel( of T )( [ capacity ] )
 
 ```freebasic
 #import "std/tasks"
-using FB
+using tasks
 
 dim ch as Channel( of int32 ) = Channel( of int32 )( 4 )
 

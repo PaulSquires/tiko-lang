@@ -12,7 +12,7 @@ TryParseSingle( s [, flags] )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 var r = TryParseSingle( "1.5" )
 print r.HasValue( )          '' true

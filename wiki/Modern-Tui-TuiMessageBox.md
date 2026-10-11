@@ -21,8 +21,9 @@ A modal dialog with buttons. `msgKind` is TUIMSG_INFO, _WARNING, _ERROR_ or _QUE
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as TuiMessageBox mb
 mb.title = "Confirm"

@@ -1,11 +1,11 @@
+#import "std/memory"
 #import "std/containers"
-#include once "fb/sharedptr.bi"
 
 '' Children own each other upward AND downward: a cycle.
 type LeakyNode
     name as ustring
-    kids as containers.Array( of FB.SharedPtr( of LeakyNode ) )
-    parent as FB.SharedPtr( of LeakyNode )
+    kids as containers.Array( of memory.SharedPtr( of LeakyNode ) )
+    parent as memory.SharedPtr( of LeakyNode )
     declare destructor( )
 end type
 destructor LeakyNode( )
@@ -15,8 +15,8 @@ end destructor
 '' The parent link observes instead of owning.
 type Node
     name as ustring
-    kids as containers.Array( of FB.SharedPtr( of Node ) )
-    parent as FB.WeakPtr( of Node )
+    kids as containers.Array( of memory.SharedPtr( of Node ) )
+    parent as memory.WeakPtr( of Node )
     declare destructor( )
 end type
 destructor Node( )
@@ -24,9 +24,9 @@ destructor Node( )
 end destructor
 
 scope
-    var root = FB.MakeShared( of LeakyNode )( )
+    var root = memory.MakeShared( of LeakyNode )( )
     root->name = "leaky root"
-    var kid = FB.MakeShared( of LeakyNode )( )
+    var kid = memory.MakeShared( of LeakyNode )( )
     kid->name = "leaky kid"
     kid->parent = root
     root->kids.Push( kid )
@@ -34,9 +34,9 @@ end scope
 print "-- leaky tree out of scope"
 
 scope
-    var root = FB.MakeShared( of Node )( )
+    var root = memory.MakeShared( of Node )( )
     root->name = "root"
-    var kid = FB.MakeShared( of Node )( )
+    var kid = memory.MakeShared( of Node )( )
     kid->name = "kid"
     kid->parent = root
     root->kids.Push( kid )

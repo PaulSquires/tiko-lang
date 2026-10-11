@@ -12,7 +12,7 @@ Instant.IsoWeek
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 '' ISO 8601 week number. A week belongs to the year holding its

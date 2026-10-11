@@ -12,7 +12,7 @@ Instant.AddMonths( n )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 1, 31, 12, 0, 0, 0 )
 

@@ -18,7 +18,7 @@ CreateTempDir( [ prefix ] )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' CREATES the directory and hands back its path. It does not return a
 '' name for you to create yourself: the gap between choosing a name and

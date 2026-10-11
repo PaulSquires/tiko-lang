@@ -12,7 +12,7 @@ LocalTime.FromTicks
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' Ticks since midnight, 100 ns each
 dim as LocalTime t = LocalTime.FromTicks( 36000000000ll )    '' one hour

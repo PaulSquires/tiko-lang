@@ -12,7 +12,7 @@ Contains( v ) as boolean
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim s as OrderedSet( of integer )
 s.Add( 42 )
@@ -20,7 +20,7 @@ s.Add( 42 )
 print s.Contains( 42 )   '' true
 print s.Contains( 7 )    '' false
 
-'' O(log n), against FB.Set's average O(1) -- the price of the ordering
+'' O(log n), against containers.Set's average O(1) -- the price of the ordering
 ```
 
 ---

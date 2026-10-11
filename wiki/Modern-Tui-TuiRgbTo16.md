@@ -16,7 +16,7 @@ The nearest of the sixteen classic colours, bright forms included.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiRgbTo16( 255, 0, 0 )          '' 9  -- bright red
 print TuiRgbTo16( 90, 0, 0 )           '' 0  -- BLACK. A dark red is closer

@@ -12,7 +12,7 @@ Instant.MinValue
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime.MinValue( )
 

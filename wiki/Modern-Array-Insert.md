@@ -18,7 +18,7 @@ Insert( byval i as int32, byref v as T )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of ustring )
 v.Push( "a" ) : v.Push( "c" )

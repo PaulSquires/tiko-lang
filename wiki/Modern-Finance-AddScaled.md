@@ -20,7 +20,7 @@ CurrencyAccum.AddScaled( byref c as Currency, byval num as int64, byval den as i
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 dim acc as CurrencyAccum
 dim as Currency total_ = CurrencyFromInt( 100 )

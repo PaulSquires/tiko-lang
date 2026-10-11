@@ -12,7 +12,7 @@ Contains( k ) as boolean
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim ages as Map( of ustring, integer )
 ages.Put( "ada", 36 )

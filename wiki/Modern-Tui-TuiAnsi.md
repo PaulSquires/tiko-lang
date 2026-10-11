@@ -16,7 +16,7 @@ One of the sixteen classic colours. Use these when you want the user's palette h
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiColor c = TuiAnsi( TUIC_BRIGHTGREEN )
 print c.Index( )                  '' 10

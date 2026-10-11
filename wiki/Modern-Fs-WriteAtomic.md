@@ -12,7 +12,7 @@ WriteAtomic( p, s )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' Everything below happens inside a temp directory of its own, and is
 '' removed at the end

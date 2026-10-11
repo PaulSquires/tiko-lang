@@ -20,7 +20,7 @@ CToStringPolar( byref z as Complex ) as string
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToStringPolar( CSet( 3, 4 ) )     '' 5 * exp(0.9272952180016122i)
 print CToStringPolar( CSet( -1, 0.0 ) )  '' 1 * exp(3.141592653589793i)

@@ -15,8 +15,9 @@ The focused widget, or nothing when the ring is empty. It returns an Optional ra
 ## Example
 
 ```freebasic
+#import "std/outcome"
 #import "std/tui"
-using FB
+using tui, outcome
 
 dim as TuiCheckbox a
 dim as boolean v

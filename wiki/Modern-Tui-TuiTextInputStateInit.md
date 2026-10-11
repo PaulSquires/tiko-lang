@@ -16,7 +16,7 @@ Initialises a state in place -- a SUB, not a function returning one. Call it bef
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTextInputState st
 TuiTextInputStateInit( st )

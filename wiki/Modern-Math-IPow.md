@@ -18,7 +18,7 @@ IPow( base, exp )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' INTEGER power by squaring -- exact, with no trip through double
 dim as int64 b = 2, e = 10

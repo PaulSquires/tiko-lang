@@ -22,8 +22,9 @@ A tagged union by convention rather than by UNION -- a ustring cannot live in on
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as TuiEvent e
 e.kind = TUIEVENT_KEY

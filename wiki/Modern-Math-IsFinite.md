@@ -12,7 +12,7 @@ IsFinite( x )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print IsFinite( 1.0 )         '' true
 print IsFinite( Infinity( ) ) '' false

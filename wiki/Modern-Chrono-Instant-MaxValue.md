@@ -12,7 +12,7 @@ Instant.MaxValue
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime.MaxValue( )
 

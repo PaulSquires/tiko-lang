@@ -18,7 +18,7 @@ GetIterator( )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim s as OrderedSet( of integer )
 s.Add( 30 ) : s.Add( 10 ) : s.Add( 20 )

@@ -15,8 +15,9 @@ The raw sizes, if you want to lay something out yourself. The rule is stated exa
 ## Example
 
 ```freebasic
+#import "std/containers"
 #import "std/tui"
-using FB
+using tui, containers
 
 dim as TuiConstraintArray cs
 cs.Push( TuiLength( 3 ) )

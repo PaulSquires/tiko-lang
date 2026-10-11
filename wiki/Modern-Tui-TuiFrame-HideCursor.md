@@ -16,7 +16,7 @@ Hides the cursor for this frame. The default -- a frame with nothing focused sho
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 10, 3 )

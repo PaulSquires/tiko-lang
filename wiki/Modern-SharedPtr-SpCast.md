@@ -11,8 +11,8 @@ SpCast( of D, B )
 ## Examples
 
 ```freebasic
-#include once "fb/sharedptr.bi"
-using FB
+#import "std/memory"
+using memory
 
 type Shape extends Object
     as int32 id

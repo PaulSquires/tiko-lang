@@ -18,7 +18,7 @@ PathStem( p )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' The leaf without its extension
 print PathStem( "C:\dev\main.tiko" )      '' main

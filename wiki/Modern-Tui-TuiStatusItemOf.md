@@ -16,7 +16,7 @@ Builds a status item value.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiStatusBar sb
 sb.items.Push( TuiStatusItemOf( " ready ", TuiStyleDefault( ), TUIALIGN_LEFT ) )

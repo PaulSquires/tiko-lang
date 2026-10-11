@@ -12,7 +12,7 @@ VolumeInfo.IsCaseSensitive
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 dim v as VolumeInfo = GetVolumeInfo( "." ).Value( )
 

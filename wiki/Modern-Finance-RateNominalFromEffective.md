@@ -12,7 +12,7 @@ RateNominalFromEffective( effectiveAnnual, compounding )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The inverse of RateEffectiveFromNominal: the rate you would have to
 '' quote to earn a given effective return.  Double kernel -- a root.
@@ -31,4 +31,4 @@ print RateNominalFromEffective( e2, COMPOUND_MONTHLY ).Value( ).Round( 12 ).ToSt
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

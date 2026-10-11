@@ -12,7 +12,7 @@ DepreciationStraightLine( terms, period )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The depreciable base spread evenly: ( cost - salvage ) / life.
 dim as DepreciationTerms t = DepreciationTermsMake( DecimalParse( "50000" ).Value( ), _
@@ -35,4 +35,4 @@ print DepreciationStraightLine( t, 8 ).Failure( ).Message( )
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/findeprec.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/findeprec.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

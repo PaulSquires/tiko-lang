@@ -19,7 +19,7 @@ CInfinity( ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CIsInfinite( CInfinity( ) )              '' true
 print CIsInfinite( CSet( 1.0, Infinity( ) ) )  '' true   -- one part is enough

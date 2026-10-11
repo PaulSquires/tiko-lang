@@ -16,7 +16,7 @@ Builds a TuiRect. There is no constructor, so this is how you make one in an exp
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRect full = TuiRectOf( 0, 0, 80, 24 )
 dim as TuiRect pane = TuiRectOf( 0, 0, 40, 24 )

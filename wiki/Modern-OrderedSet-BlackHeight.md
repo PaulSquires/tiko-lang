@@ -12,7 +12,7 @@ BlackHeight( ) as int32
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim s as OrderedSet( of integer )
 for i as integer = 1 to 10

@@ -12,7 +12,7 @@ Instant.FromDate( date )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as LocalDate ld = LocalDate( 2026, 8, 13 )
 dim as DateTime d = DateTime.FromDate( ld )

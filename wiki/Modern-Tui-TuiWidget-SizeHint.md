@@ -16,7 +16,7 @@ How big this widget would like to be, given the space available. Advisory: nothi
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiParagraph p
 p.text = "one" & chr( 10 ) & "two" & chr( 10 ) & "three"

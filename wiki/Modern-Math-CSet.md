@@ -19,7 +19,7 @@ CSet( byval re as float64, byval im as float64 ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CSet( 3, 4 ) )    '' 3+4i
 print CToString( CSet( 0, -1 ) )   '' 0-1i

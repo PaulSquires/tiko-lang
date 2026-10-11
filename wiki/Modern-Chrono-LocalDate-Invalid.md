@@ -12,7 +12,7 @@ LocalDate.Invalid
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as LocalDate bad = LocalDate.Invalid( )
 print bad.IsValid            '' false

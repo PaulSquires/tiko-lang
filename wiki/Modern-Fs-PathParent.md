@@ -18,7 +18,7 @@ PathParent( p )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 print PathParent( "C:\dev\src" )          '' C:\dev
 print PathParent( "C:\dev" )             '' C:\

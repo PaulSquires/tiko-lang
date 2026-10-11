@@ -20,7 +20,7 @@ Determinant( byref a as Mat4 ) as float32
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Mat4 m
 for i as int32 = 0 to 15

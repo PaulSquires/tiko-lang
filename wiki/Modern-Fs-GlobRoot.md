@@ -18,7 +18,7 @@ GlobRoot( pattern )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' The directory a pattern will be walked FROM -- the fixed prefix
 '' before the first wildcard

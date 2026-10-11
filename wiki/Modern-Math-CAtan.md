@@ -21,7 +21,7 @@ CAtan( byref z as Complex ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CAtan( CSet( 0.5, 0.25 ) ) )  '' 0.4842544903299662+0.2005866181312343i
 print CToString( CAtan( CSet( 0, 2 ) ) )       '' 1.5707963267948966+0.5493061443340549i   -- on the cut, above it

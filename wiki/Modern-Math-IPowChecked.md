@@ -12,7 +12,7 @@ IPowChecked( base, exp )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' The overflow-safe form: an Optional, empty when the result does not
 '' fit rather than wrapping silently

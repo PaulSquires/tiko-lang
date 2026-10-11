@@ -19,7 +19,7 @@ Parity( byval x as T ) as int32
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as uint32 x = &b1011
 print Parity( x )            '' 1 -- three bits, odd

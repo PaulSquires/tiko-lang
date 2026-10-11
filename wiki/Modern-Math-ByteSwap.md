@@ -20,7 +20,7 @@ ByteSwap( byval x as T ) as T
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as uint32 x = &h12345678
 print hex( ByteSwap( x ) )   '' 78563412

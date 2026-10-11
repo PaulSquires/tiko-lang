@@ -12,7 +12,7 @@ CurrencyFromDouble( d )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 dim as Currency c = CurrencyFromDouble( 1.5 )
 print c.ToString( )          '' 1.5000

@@ -70,7 +70,7 @@ ch32/
 ```
 
 Every concurrent listing starts like this. `#import "std/tasks"` comes first, then `#cmdline "-mt"`
-so that the program links the thread-safe runtime. `fb/select.bi` adds `select channel`.
+so that the program links the thread-safe runtime. The import also brings `select channel`.
 
 ```tiko
 {{#include ../examples/ch32/thash.tiko:types}}

@@ -12,7 +12,7 @@ TimeSpan.Hours
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as TimeSpan t = TimeSpan( 1, 2, 3, 4, 0 )
 

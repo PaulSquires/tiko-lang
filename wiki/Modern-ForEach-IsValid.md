@@ -12,7 +12,7 @@ IsValid( )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 '' Asked BEFORE every element, including the first: it is the loop
 '' condition, so an empty container runs the body zero times.

@@ -18,7 +18,7 @@ SortListBy( l, less )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim q as LinkedList( of ustring )
 q.PushBack( "pear" ) : q.PushBack( "fig" ) : q.PushBack( "banana" )

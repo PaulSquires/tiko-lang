@@ -12,7 +12,7 @@ LocalDate.AddMonths( n )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as LocalDate d = LocalDate( 2026, 1, 31 )
 

@@ -12,7 +12,7 @@ TimeSpan.Negate
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as TimeSpan t = TimeSpan( 1, 30, 0 )
 

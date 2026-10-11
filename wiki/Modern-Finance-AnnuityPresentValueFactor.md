@@ -12,7 +12,7 @@ AnnuityPresentValueFactor( ratePerPeriod, periods, timing )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' ( 1 - v^n ) / i -- what one unit per period is worth today.  Exposed
 '' because it is the reusable piece the value functions are built from.
@@ -34,4 +34,4 @@ print AnnuityPresentValueFactor( i, 0, PAY_END_OF_PERIOD ).Value( ).IsZero( )   
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fintvm.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fintvm.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

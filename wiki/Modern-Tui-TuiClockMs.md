@@ -16,7 +16,7 @@ A monotonic millisecond clock. The loop schedules ticks and frames from it; it i
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as float64 t0 = TuiClockMs( )
 print t0 >= 0                      '' -1 (true)

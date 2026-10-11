@@ -17,8 +17,9 @@ SplitChars( s [, chars] [, ic] )
 ## Examples
 
 ```freebasic
+#import "std/containers"
 #import "std/strings"
-using FB
+using strings, containers
 
 '' Split on a SET of characters rather than one delimiter string
 dim as Array( of string ) parts = SplitChars( "a,b;c", ",;" )

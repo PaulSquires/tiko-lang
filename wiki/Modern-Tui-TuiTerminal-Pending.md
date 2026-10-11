@@ -16,7 +16,7 @@ Bytes buffered and not yet flushed.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTerminal term
 print term.Pending( )             '' 0

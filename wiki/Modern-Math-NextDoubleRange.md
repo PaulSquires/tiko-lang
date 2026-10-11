@@ -20,7 +20,7 @@ NextDoubleRange( byval lo as float64, byval hi as float64 ) as float64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim r as Rng = RngFromEntropy( )
 

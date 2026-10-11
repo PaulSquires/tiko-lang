@@ -23,7 +23,7 @@ CAcos( byval x as float64 ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CAcos( CSet( 0.5, 0.25 ) ) )  '' 1.0691874735193958-0.2813960562452928i
 print CToString( CAcos( CSet( 1, 0 ) ) )       '' 0-0i

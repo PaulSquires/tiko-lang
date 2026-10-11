@@ -12,7 +12,7 @@ FutureValueOfLump( amount, ratePerPeriod, periods )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' A single amount compounded forward.  Also a plain multiply.
 dim as Decimal i = DecimalParse( "0.10" ).Value( )
@@ -30,4 +30,4 @@ print PresentValueOfLump( fv, i, 10 ).Value( ).ToStringFixed( 2 )         '' 100
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fintvm.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fintvm.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

@@ -20,7 +20,7 @@ Ceiling( ) as Currency
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 dim as Currency c = CurrencyFromDouble( 12.34 )
 print c.Ceiling( ).ToString( )                '' 13.0000

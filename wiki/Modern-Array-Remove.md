@@ -18,7 +18,7 @@ Remove( byval i as int32 )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of ustring )
 v.Push( "a" ) : v.Push( "b" ) : v.Push( "c" )

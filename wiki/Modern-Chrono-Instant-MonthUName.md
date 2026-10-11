@@ -12,7 +12,7 @@ Instant.MonthUName
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' The same invariant English name as MonthName, as a USTRING
 dim as ustring s = DateTime.MonthUName( 8 )

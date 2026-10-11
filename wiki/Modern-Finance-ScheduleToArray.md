@@ -11,8 +11,9 @@ ScheduleToArray( amortizationSchedule )
 ## Examples
 
 ```freebasic
+#import "std/containers"
 #import "std/money"
-using FB
+using money, containers
 
 '' Materialize the whole schedule when you genuinely want random access.
 '' The lazy walk is the default because it allocates nothing.
@@ -34,4 +35,4 @@ print rows.At( 359 ).ClosingBalance_.IsZero( )           '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

@@ -16,7 +16,7 @@ A printable name, modifiers included -- for a status line, a keybinding list, or
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiKey k
 k.code = TUIKEY_F5

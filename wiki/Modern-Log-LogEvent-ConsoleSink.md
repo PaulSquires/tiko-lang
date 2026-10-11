@@ -22,7 +22,7 @@ ConsoleSink( target, r as Renderer ptr )
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 '' Writes to stderr, with its own TextRenderer. Detects whether the
 '' handle is a terminal, so colour is not emitted into a redirected file.

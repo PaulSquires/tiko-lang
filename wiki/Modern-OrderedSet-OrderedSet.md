@@ -14,14 +14,14 @@ OrderedSet( of T )
 
 - Iteration is in **ascending order, always** -- and `Items( )` comes back sorted, so it needs no sort afterwards.
 - The ordering contract is `<` on T, with no hash and no `=` required.
-- `FB.Set` unless the order is what you need: O(1) against O(log n).
+- `containers.Set` unless the order is what you need: O(1) against O(log n).
 - It also offers what a hash set cannot: `TryFirst`, `TryLast`, `TryFloor` and `TryCeiling`.
 
 ## Examples
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim s as OrderedSet( of integer )
 s.Add( 30 ) : s.Add( 10 ) : s.Add( 20 )

@@ -20,7 +20,7 @@ Frexp( byval x as float64, byref expo as int32 ) as float64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as int32 e
 dim as float64 f = Frexp( 1024.0, e )

@@ -19,7 +19,7 @@ CImaginaryOne( ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CImaginaryOne( ) )                     '' 0+1i
 print CToString( CImaginaryOne( ) * CImaginaryOne( ) )  '' -1+0i   -- exactly -1

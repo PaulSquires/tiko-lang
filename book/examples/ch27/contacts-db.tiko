@@ -1,7 +1,7 @@
-'' No module fronts the SQLite wrapper, so it is included as a header.
-#include once "fbsqlite.bi"
+'' The SQLite wrapper is a module of its own, in the db package.
+#import "db/sqlite"
 
-dim db as SQLite.Database
+dim db as sqlite.Database
 db.OpenMemory( )
 db.Execute( "create table contact( id integer primary key, " & _
             "name text not null, email text )" )
@@ -12,7 +12,7 @@ dim as ustring emails( ... ) = { "grace@example.org", _
                                  "ada@example.org", "" }
 for i as int32 = 0 to ubound( names )
     db.Execute( "insert into contact( name, email ) values( ?, ? )", _
-                SQLite.Args( names( i ), emails( i ) ) )
+                sqlite.Args( names( i ), emails( i ) ) )
 next
 print "last id:"; db.LastInsertRowId( )
 
@@ -27,7 +27,7 @@ if rows.IsOk( ) then
 end if
 
 '' A transaction: everything in it happens, or nothing does.
-dim t as SQLite.Transaction
+dim t as sqlite.Transaction
 t.Begin( db )
 db.Execute( "delete from contact" )
 t.Rollback( )

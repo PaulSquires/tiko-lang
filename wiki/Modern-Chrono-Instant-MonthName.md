@@ -12,7 +12,7 @@ Instant.MonthName( mo [, abbrev] )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print DateTime.MonthName( 8 )           '' August
 print DateTime.MonthName( 8, true )     '' Aug -- abbreviated

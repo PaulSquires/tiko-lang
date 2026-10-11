@@ -16,7 +16,7 @@ Builds a style that sets all three things. For a style that sets only some of th
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiStyle s = TuiStyleOf( TuiRgb( 235, 80, 80 ), TuiDefaultColor( ), TUIATTR_BOLD )
 print s.fg.r, s.bg.IsDefault( ), s.HasAttr( TUIATTR_BOLD )   '' 235 true true

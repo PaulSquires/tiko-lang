@@ -16,7 +16,7 @@ Appends a child and the constraint that sizes it. OWNERSHIP TRANSFERS -- the sta
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiStack st
 dim as TuiParagraph ptr p = new TuiParagraph

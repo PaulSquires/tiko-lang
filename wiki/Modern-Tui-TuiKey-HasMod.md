@@ -16,7 +16,7 @@ Tests one modifier bit: TUIMOD_SHIFT, TUIMOD_ALT or TUIMOD_CTRL. Also a bare boo
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiKey k
 k.code = TUIKEY_LEFT

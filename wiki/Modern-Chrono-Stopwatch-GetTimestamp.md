@@ -20,7 +20,7 @@ Stopwatch.GetTimestamp( ) as int64
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as int64 a = Stopwatch.GetTimestamp( )
 sleep 20, 1

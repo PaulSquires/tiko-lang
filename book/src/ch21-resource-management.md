@@ -89,10 +89,8 @@ T )` answers that with a **count of owners**: each copy of the pointer adds one,
 away subtracts one, and the object is destroyed when the count reaches zero.
 
 ```admonish note
-**No `std` module fronts this library**, so it is reached with `#include once "fb/sharedptr.bi"`,
-and its names are written `FB.SharedPtr`, `FB.MakeShared` and so on (or with `using FB`). The ten
-`std` modules each front a family of headers; smart pointers belong to none of them, and a module
-of one header would add a name to learn and nothing else.
+**Smart pointers are the `std/memory` module**: `#import "std/memory"`, and its names are written
+`memory.SharedPtr`, `memory.MakeShared` and so on (or bare, after `using memory`).
 ```
 
 ```tiko
@@ -105,7 +103,7 @@ of one header would add a name to learn and nothing else.
 
 | Member | Does |
 |---|---|
-| `FB.MakeShared( of T )( )` | a new `T` on the heap, owned by the returned pointer |
+| `memory.MakeShared( of T )( )` | a new `T` on the heap, owned by the returned pointer |
 | `p->field`, `*p` | the object, as through a raw pointer — no check for null |
 | `p.Ref( )` | the object, **checked**: a runtime error on an empty pointer |
 | `p.UseCount( )` | how many `SharedPtr`s own the object |
@@ -113,7 +111,7 @@ of one header would add a name to learn and nothing else.
 | `p.IsNull( )` | whether this pointer owns nothing |
 | `p.Get( )` | the raw `T ptr`, for code that needs one |
 
-A pointer can also adopt an object that already exists: `FB.SharedPtr( of T )( new T( … ) )`.
+A pointer can also adopt an object that already exists: `memory.SharedPtr( of T )( new T( … ) )`.
 After that, the `SharedPtr` owns it — never `delete` it yourself.
 
 ### Passing one around
@@ -182,7 +180,7 @@ A `SharedPtr( of Circle )` does not convert to a `SharedPtr( of Shape )` on its 
 is written out, with both types named:
 
 ```tiko
-var s = FB.SpCast( of Circle, Shape )( c )
+var s = memory.SpCast( of Circle, Shape )( c )
 ```
 
 Both pointers now own the same `Circle`, and the count is shared.
@@ -242,12 +240,12 @@ covers threads and locks.
   program has many of or passes around.
 - A handle type acquires in its constructor, releases in its destructor, and usually refuses to be
   copied: a private copy constructor and `operator let` (`TKO0633` at any copy).
-- `#include once "fb/sharedptr.bi"` — no module fronts it. `FB.MakeShared`, `->`, `*`, `Ref( )`
+- `#import "std/memory"` — `memory.MakeShared`, `->`, `*`, `Ref( )`
   (checked), `UseCount( )`, `Reset( )`. Pass `byref` unless the callee keeps a copy.
 - **Two objects that own each other are never freed.** Make back links `WeakPtr`s and read them
   with `Lock( )`.
-- `FB.SpCast( of Derived, Base )` converts explicitly; **the base needs a virtual destructor**, or
-  the derived part is never destroyed.
+- `memory.SpCast( of Derived, Base )` converts explicitly; **the base needs a virtual
+  destructor**, or the derived part is never destroyed.
 - Under `-mt` the counts are atomic; the object itself is not protected.
 
 ## Exercises

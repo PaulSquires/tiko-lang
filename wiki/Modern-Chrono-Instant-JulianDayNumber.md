@@ -12,7 +12,7 @@ Instant.JulianDayNumber
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 '' The whole-number day, for calendars and astronomy that count days

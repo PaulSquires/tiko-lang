@@ -18,7 +18,7 @@ The only rectangle in the module. Everything is 0-based: VT coordinates are 1-ba
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRect r = TuiRectOf( 4, 2, 20, 6 )
 print r.x, r.y, r.w, r.h          '' 4 2 20 6

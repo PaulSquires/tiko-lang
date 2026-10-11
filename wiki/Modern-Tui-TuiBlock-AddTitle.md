@@ -16,7 +16,7 @@ Adds a title to one side of the border. SEVERAL TITLES CAN SHARE ONE BORDER, eac
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 40, 5 )

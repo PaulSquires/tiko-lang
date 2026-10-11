@@ -1,27 +1,31 @@
 #import "std/containers"
 
-type Cell
+'' A key extends Hashable and overrides HashOf( ). Hash only what
+'' '=' compares: equal keys must hash equally.
+type Cell extends containers.Hashable
     row as int32
     col as int32
+    declare constructor( byval row as int32 = 0, byval col as int32 = 0 )
+    declare function HashOf( ) as uint64 override
 end type
 
-'' A key needs '=' ...
+constructor Cell( byval row as int32, byval col as int32 )
+    this.row = row : this.col = col
+end constructor
+
+function Cell.HashOf( ) as uint64
+    return containers.HashOf( row ) xor ( containers.HashOf( col ) shl 1 )
+end function
+
+'' ...and '='.
 operator = ( byref a as Cell, byref b as Cell ) as boolean
     return ( a.row = b.row ) andalso ( a.col = b.col )
 end operator
 
-'' ...and a HashOf overload, added to the library's namespace, FB.
-'' Hash only what '=' compares: equal keys must hash equally.
-namespace FB
-    function HashOf overload ( byref k as Cell ) as uint64
-        return HashOf( k.row ) xor ( HashOf( k.col ) shl 1 )
-    end function
-end namespace
-
 dim terrain as containers.Map( of Cell, ustring )
-dim spot as Cell = type( 2, 3 )
+dim spot as Cell = Cell( 2, 3 )
 terrain[ spot ] = "forest"
 
-dim probe as Cell = type( 2, 3 )            '' a different variable
+dim probe as Cell = Cell( 2, 3 )            '' a different variable
 dim found as ustring
 if terrain.TryGet( probe, found ) then print "( 2, 3 ) is "; found

@@ -19,7 +19,7 @@ One menu on a menu bar: its label and its drop-down items.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiMenu m
 m.label = "File"

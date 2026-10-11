@@ -18,7 +18,7 @@ TimeSpan.CompareTo( other )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as TimeSpan a = TimeSpan( 1, 0, 0 )
 dim as TimeSpan b = TimeSpan( 2, 0, 0 )

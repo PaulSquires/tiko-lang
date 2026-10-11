@@ -17,8 +17,9 @@ FsError.Operation( )
 ## Examples
 
 ```freebasic
+#import "std/numeric"
 #import "std/fs"
-using FB
+using fs, numeric
 
 dim e as FsError = FsError( FS_NOT_FOUND, 2, "CreateFileW", "missing.txt" )
 

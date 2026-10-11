@@ -19,7 +19,7 @@ AbsSaturating( byval a as T ) as T
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as int8 worst = -128
 print AbsSaturating( worst ) '' 127 -- clamped, not left negative

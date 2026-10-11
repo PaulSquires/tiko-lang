@@ -1,14 +1,14 @@
 '' Exercise 21-2: a cache that observes and never keeps alive.
-#include once "fb/sharedptr.bi"
 
+#import "std/memory"
 type Image
     name as ustring
 end type
 
-dim cached as FB.WeakPtr( of Image )
+dim cached as memory.WeakPtr( of Image )
 
 scope
-    var img = FB.MakeShared( of Image )( )
+    var img = memory.MakeShared( of Image )( )
     img->name = "logo.png"
     cached = img
     var hit = cached.Lock( )

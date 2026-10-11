@@ -16,7 +16,7 @@ Reduces one colour to what a terminal of the given depth can show. You rarely ca
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiColor c = TuiRgb( 235, 80, 80 )
 print TuiDowngrade( c, TUIDEPTH_TRUECOLOR ).r     '' 235 -- untouched

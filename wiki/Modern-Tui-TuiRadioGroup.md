@@ -20,8 +20,9 @@ One-of-N. Like the checkbox it points at your own variable. `activeStyle` is COM
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as int32 choice
 dim as TuiTheme th = TuiThemeDefault( )

@@ -20,7 +20,7 @@ Two buffers and the diff between them. Draw into the frame, call Render, and get
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 20, 5 )

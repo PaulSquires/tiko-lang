@@ -13,7 +13,7 @@ Instant.ParseIso
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime.ParseIso( "2026-08-13T14:30:05.123" )
 print d.Hour & " " & d.Minute            '' 14 30

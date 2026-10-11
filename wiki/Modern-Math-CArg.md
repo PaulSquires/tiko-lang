@@ -20,7 +20,7 @@ CArg( byref z as Complex ) as float64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CArg( CSet( 1, 0 ) )      '' 0
 print CArg( CSet( 0, 1 ) )      '' 1.570796326794897   -- PI/2

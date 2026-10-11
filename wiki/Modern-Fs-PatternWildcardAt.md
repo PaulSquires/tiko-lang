@@ -18,7 +18,7 @@ PatternWildcardAt( pattern )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' The offset of the first wildcard, or -1 when the pattern is a plain
 '' path with nothing to expand

@@ -4,7 +4,7 @@
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim seen as Set( of int32 )
 
@@ -68,41 +68,42 @@ IntersectWith collects the doomed elements first and removes them afterwards. Re
 An element type T must satisfy:
 
 ```freebasic
-FB.HashOf( v )       must resolve
+T extends containers.Hashable, or is a built-in type
 v = v                must compare
 EQUAL ELEMENTS MUST PRODUCE EQUAL HASH CODES
 ```
 
 The converse is not required. Overloads are supplied for every built-in type; strings hash by CONTENT, and +0.0 / -0.0 hash the same because they compare equal.
 
-A user type is made usable by RE-OPENING the namespace:
+A user type is made usable by EXTENDING containers.Hashable and overriding its abstract HashOf( ) member:
 
 ```freebasic
-type Tag
+#import "std/containers"
+using containers
+
+type Tag extends Hashable
     as int32 id
+    declare function HashOf( ) as ulongint override
 end type
+
+function Tag.HashOf( ) as ulongint
+    return containers.HashOf( id )
+end function
 
 operator = ( byref x as Tag, byref y as Tag ) as boolean
     return x.id = y.id
 end operator
-
-namespace FB
-    function HashOf overload ( byref k as Tag ) as uint64
-        return HashOf( k.id )
-    end function
-end namespace
 ```
 
 Derive the hash only from the fields '=' compares.
 
-An element type with no overload fails at the INSTANTIATION site:
+An element type that is neither fails when Set is instantiated, naming HashOf inside the module:
 
 ```freebasic
-error 99: No matching overloaded function, HASHOF()
-  in instantiation of 'Set( of NOHASH )'
+...\pkg\std\containers\set.tiko(89,35): error TKO0632: no overload of 'hashof' matches these arguments
 ```
 
-Source: src/inc/fb/hash.bi
+Source: pkg/std/containers/hash.tiko
 
 ## Do NOT Modify An Element In Place
 
@@ -122,7 +123,7 @@ The byref binding is allowed rather than blocked because the container cannot te
 
 ITERATION ORDER IS UNSPECIFIED and changes across insertions. It is not randomised per process.
 
-If you need the elements in order, FB.OrderedSet is the same interface over a red-black tree -- O(log n) instead of O(1), always sorted, and needing only '<' rather than a hash. See docs/ordered/ordered.txt.
+If you need the elements in order, containers.OrderedSet is the same interface over a red-black tree -- O(log n) instead of O(1), always sorted, and needing only '<' rather than a hash. See docs/ordered/ordered.txt.
 
 Items( ) is a SNAPSHOT, returned as Array( of T ). Changing it does not change the set -- which is the safe way to remove while "iterating":
 
@@ -139,7 +140,7 @@ A Map with the value machinery removed rather than a wrapper around one, so a Se
 
 Open addressing with linear probing, power-of-two capacity, tombstones on removal, load factor 0.75, rehash doubles. Removal leaves a tombstone rather than an empty slot, because probing stops at the first EMPTY slot and blanking would cut the chain. Rehashing drops tombstones, which is what stops an add/remove churn loop from filling the table with them.
 
-Source: src/inc/fb/set.bi
+Source: pkg/std/containers/set.tiko
 
 ## Ownership AND Copying
 

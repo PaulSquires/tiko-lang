@@ -16,7 +16,7 @@ Bytes held that have not yet formed an event.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiInput keys
 keys.Feed( chr( 27 ) & "[" )

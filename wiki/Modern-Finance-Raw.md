@@ -20,7 +20,7 @@ Raw( ) as int64
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 dim as Currency c = CurrencyFromParts( 12, 3400 )
 

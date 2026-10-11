@@ -16,7 +16,7 @@ Consumes the pending-resize flag: true once per resize, false afterwards. On Lin
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTerminal term
 print term.TakeResize( )          '' false -- nothing pending

@@ -12,7 +12,7 @@ Instant.AddTicks( n )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 print d.AddTicks( DT_TICKS_PER_HOUR ).Hour        '' 15

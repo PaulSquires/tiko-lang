@@ -16,7 +16,7 @@ Writes one cell. THE STYLE IS ASSIGNED, NOT MERGED -- to compose with what is un
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 20, 4 )

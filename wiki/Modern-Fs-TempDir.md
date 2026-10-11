@@ -18,7 +18,7 @@ TempDir( )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' The system temp directory. It CREATES NOTHING -- it only reports
 '' where temporary files belong.

@@ -12,7 +12,7 @@ LocalDate.DayOfWeek
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' ISO NUMBERING: Monday is 1 through Sunday is 7. NOT the 0-based
 '' Sunday-first convention that WEEKDAY and most C code use.

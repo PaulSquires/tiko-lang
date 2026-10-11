@@ -12,7 +12,7 @@ CurrencyFromInt( n )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Whole units, exactly -- no rounding step at all
 dim as int64 n = 42

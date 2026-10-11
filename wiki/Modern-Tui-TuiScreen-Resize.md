@@ -16,7 +16,7 @@ Reshapes both buffers and invalidates. Call this on a resize event -- TuiRun alr
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 80, 24 )

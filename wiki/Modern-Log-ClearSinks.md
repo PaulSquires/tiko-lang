@@ -12,7 +12,7 @@ ClearSinks( )
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 dim a as ConsoleSink
 dim b as ConsoleSink

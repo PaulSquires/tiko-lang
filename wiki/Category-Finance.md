@@ -5,13 +5,13 @@
 ```freebasic
 #import "std/money"
 
-using FB
+using money
 ```
 
-Or take only the part you need: `fb/currency.bi` and `fb/decimal.bi` for the money
-types, and `fb/finerror.bi`, `fb/fincore.bi`, `fb/finsolve.bi`, `fb/fintvm.bi`,
-`fb/finloan.bi`, `fb/fincash.bi`, `fb/findeprec.bi`, `fb/finport.bi` for the finance
-functions. Every header is independently includable.
+A module is imported whole. Its files, in `pkg/std/money/`, are `currency.tiko` and
+`decimal.tiko` for the money types, and `finerror.tiko`, `fincore.tiko`, `finsolve.tiko`,
+`fintvm.tiko`, `finloan.tiko`, `fincash.tiko`, `findeprec.tiko`, `finport.tiko` for the
+finance functions.
 
 This category is in two halves. **The money types** come first, because everything else
 is built on them. **The finance functions** follow -- interest and rate conventions, the
@@ -22,7 +22,7 @@ and portfolio returns and risk.
 
 ## The money types
 
-FreeBASIC has no money type. Every program that holds an amount holds it in a `DOUBLE`, and `0.1 + 0.2 <> 0.3` in binary floating point -- so every one of them is one rounding away from a penny that does not reconcile. These two headers are the answer, and which one you want is a single question: **is four decimal places enough?**
+FreeBASIC has no money type. Every program that holds an amount holds it in a `DOUBLE`, and `0.1 + 0.2 <> 0.3` in binary floating point -- so every one of them is one rounding away from a penny that does not reconcile. These two types are the answer, and which one you want is a single question: **is four decimal places enough?**
 
 | | `Currency` | `Decimal` |
 |---|---|---|
@@ -40,15 +40,15 @@ NEITHER IS A NEW REPRESENTATION. Both are shapes that Windows, COM and SQL Serve
 
 NO ARITHMETIC IS DELEGATED TO OleAut32. AfxNova's `CDEC.inc` and `CInt96.inc` wrap `VarCyAdd` / `VarDecMul` and friends, which works and is Windows-only. This compiler ships and gates on linux-x86_64, so the arithmetic is implemented in FreeBASIC and `VarCy*`, `VarDec*` and .NET itself are TEST ORACLES rather than dependencies. Both types behave identically on every target.
 
-ONE SET OF RULES, NOT TWO. The two headers deliberately agree on everything they can:
+ONE SET OF RULES, NOT TWO. The two types deliberately agree on everything they can:
 
 - **Construction is by free function, not constructor.** A one-argument constructor taking `LONGINT` would also accept a `DOUBLE` through FreeBASIC's implicit conversion, so `Currency( 19.99 )` would have compiled and stored 19. Naming every conversion means the inexact one cannot be reached by accident.
 - **Half-to-even is the default,** because half-up biases every tie the same way and across a million lines that is real money. The mode names match: `CUR_HALF_EVEN` / `DEC_HALF_EVEN` and their six siblings.
-- **Overflow is `Invalid`, it is infectious, and `Invalid = Invalid` is FALSE** -- the same rule `fb/chrono.bi` uses for `DateTime`. Test with `IsValid( )`. A default-constructed value is ZERO and VALID.
+- **Overflow is `Invalid`, it is infectious, and `Invalid = Invalid` is FALSE** -- the same rule `std/chrono` uses for `DateTime`. Test with `IsValid( )`. A default-constructed value is ZERO and VALID.
 - **Text is exact both ways,** with no `DOUBLE` anywhere in the path, and parsing is STRICT: the whole string must be consumed, and more than the type's decimal places is an ERROR rather than a truncation.
 - **`Apportion` splits a total so the parts sum EXACTLY to it.** Largest-remainder, in both types.
 
-============================= fb/currency.bi =============================
+======================== std/money: currency.tiko ========================
 
 ```freebasic
 dim as Currency price = CurrencyParse( "19.99" ).Value( )
@@ -139,7 +139,7 @@ TEXT is exact both ways -- no DOUBLE anywhere in the path.  ToString always prin
 CurrencyParse( "1.23456" )      ' empty -- not silently 1.2345
 ```
 
-============================= fb/decimal.bi =============================
+======================== std/money: decimal.tiko ========================
 
 ```freebasic
 dim as Decimal price = DecimalParse( "19.99" ).Value( )
@@ -158,16 +158,16 @@ smallest     0.0000000000000000000000000001   (1e-28)
 size         16 bytes
 ```
 
-This IS the .NET System.Decimal of C# and VB.NET, the COM DECIMAL / VT_DECIMAL type, and SQL Server's decimal(28,s).  win\wtypes.bi:329 has declared 'tagDEC' for twenty years and FB.Decimal has the same sixteen bytes in the same order, so the interop boundary is a REINTERPRET rather than a conversion.
+This IS the .NET System.Decimal of C# and VB.NET, the COM DECIMAL / VT_DECIMAL type, and SQL Server's decimal(28,s).  win\wtypes.bi:329 has declared 'tagDEC' for twenty years and money.Decimal has the same sixteen bytes in the same order, so the interop boundary is a REINTERPRET rather than a conversion.
 
-WHY, GIVEN fb/currency.bi ALREADY EXISTS.  Currency is four decimal places, fixed, in eight bytes, and its own header says up front that this is its central limitation.  FX rates quoted to six or eight places, per-unit costs, per-mille rates and interest accrual all need more.
+WHY, GIVEN Currency ALREADY EXISTS.  Currency is four decimal places, fixed, in eight bytes, and its own source says up front that this is its central limitation.  FX rates quoted to six or eight places, per-unit costs, per-mille rates and interest accrual all need more.
 
 ```freebasic
 Currency    +-922,337,203,685,477.5807      4 places, always      8 bytes
 Decimal     +-7.9228162514264337e28         0..28, per value     16 bytes
 ```
 
-The cost is size and speed: Currency's add is one instruction, Decimal's is software multi-precision.  IF FOUR PLACES IS ENOUGH, USE Currency -- this header does not deprecate it, and `DecimalFromCurrency( c )` / `d.ToCurrency( )` convert between them.
+The cost is size and speed: Currency's add is one instruction, Decimal's is software multi-precision.  IF FOUR PLACES IS ENOUGH, USE Currency -- Decimal does not deprecate it, and `DecimalFromCurrency( c )` / `d.ToCurrency( )` convert between them.
 
 THE SCALE IS PART OF THE VALUE, NOT PART OF THE FORMATTING.  1.10 and 1.1 are EQUAL, print DIFFERENTLY, and report different scales -- exactly as in .NET.  That is what lets a price read back from a file print the way it was written.
 
@@ -289,7 +289,7 @@ last period is treated like every other.
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 var t     = LoanTermsCanadianMortgage( principal, rate, 25 )
 var sched = LoanSchedule( t )
@@ -326,14 +326,14 @@ $17.64 a month, about $5,292 over the term.
 
 ### Exact where it matters, `float64` where it cannot be
 
-`fb/decimal.bi` has no `Pow`, `Exp`, `Log` or `Sqrt`, so anything needing a power is
+`Decimal` has no `Pow`, `Exp`, `Log` or `Sqrt`, so anything needing a power is
 either built from multiplication or is not exact. The boundary is drawn once and every
 function states which side it is on, in its own doc comment:
 
 | | |
 |---|---|
 | **Exact** | growth and discount over an **integer** number of periods; every sum, product and quotient of money; day-count fractions |
-| **`float64`** | fractional exponents -- nominal-from-effective, the Canadian sixth root, dated discounting; continuous compounding; every solver; all of `fb/finport.bi` |
+| **`float64`** | fractional exponents -- nominal-from-effective, the Canadian sixth root, dated discounting; continuous compounding; every solver; all of `finport.tiko` |
 
 A rate that crosses into `float64` crosses back at a fixed scale, and **everything
 downstream of it is exact again**. A Canadian mortgage crosses once, at the rate
@@ -383,38 +383,38 @@ deliberately not reproduced -- only the arithmetic beneath them.
 
 One page per entry, 150 in all, each with a compilable example.
 
-**Money types — `fb/currency.bi`, `fb/decimal.bi`**
+**Money types — `currency.tiko`, `decimal.tiko`**
 
 [Currency](Modern-Finance-Currency) · [CurrencyFromInt](Modern-Finance-CurrencyFromInt) · [CurrencyFromParts](Modern-Finance-CurrencyFromParts) · [CurrencyFromRaw](Modern-Finance-CurrencyFromRaw) · [CurrencyFromDouble](Modern-Finance-CurrencyFromDouble) · [CurrencyParse](Modern-Finance-CurrencyParse) · [CurrencyInvalid](Modern-Finance-CurrencyInvalid) · [Raw](Modern-Finance-Raw) · [Apportion](Modern-Finance-Apportion) · [AddProduct](Modern-Finance-AddProduct) · [AddScaled](Modern-Finance-AddScaled) · [Total](Modern-Finance-Total) · [Decimal](Modern-Finance-Decimal) · [DecimalZero](Modern-Finance-DecimalZero) · [DecimalOne](Modern-Finance-DecimalOne) · [DecimalMinusOne](Modern-Finance-DecimalMinusOne) · [DecimalMinValue](Modern-Finance-DecimalMinValue) · [DecimalMaxValue](Modern-Finance-DecimalMaxValue) · [DecimalInvalid](Modern-Finance-DecimalInvalid) · [DecimalFromInt](Modern-Finance-DecimalFromInt) · [DecimalFromUInt](Modern-Finance-DecimalFromUInt) · [DecimalFromScaled](Modern-Finance-DecimalFromScaled) · [DecimalFromParts](Modern-Finance-DecimalFromParts) · [DecimalFromDouble](Modern-Finance-DecimalFromDouble) · [DecimalFromCurrency](Modern-Finance-DecimalFromCurrency) · [DecimalParse](Modern-Finance-DecimalParse) · [DecimalCompare](Modern-Finance-DecimalCompare) · [DecimalApportion](Modern-Finance-DecimalApportion) · [IsValid](Modern-Finance-IsValid) · [Ceiling](Modern-Finance-Ceiling) · [RoundMode](Modern-Finance-RoundMode) · [ToDouble](Modern-Finance-ToDouble)
 
-**Errors — `fb/finerror.bi`**
+**Errors — `finerror.tiko`**
 
 [FinanceError](Modern-Finance-FinanceError) · [FinanceErrorCode](Modern-Finance-FinanceErrorCode) · [FinanceErrorMessage](Modern-Finance-FinanceErrorMessage)
 
-**Conventions, day count and rates — `fb/fincore.bi`**
+**Conventions, day count and rates — `fincore.tiko`**
 
 [Compounding](Modern-Finance-Compounding) · [PaymentFrequency](Modern-Finance-PaymentFrequency) · [PaymentTiming](Modern-Finance-PaymentTiming) · [DayCount](Modern-Finance-DayCount) · [MoneyRounding](Modern-Finance-MoneyRounding) · [MoneyRoundingMake](Modern-Finance-MoneyRoundingMake) · [MoneyRoundingCents](Modern-Finance-MoneyRoundingCents) · [MoneyRoundingBankersFour](Modern-Finance-MoneyRoundingBankersFour) · [MoneyRoundingExact](Modern-Finance-MoneyRoundingExact) · [MoneyRound](Modern-Finance-MoneyRound) · [DayCountDays](Modern-Finance-DayCountDays) · [DayCountFraction](Modern-Finance-DayCountFraction) · [DayCountFractionDouble](Modern-Finance-DayCountFractionDouble) · [GrowthFactor](Modern-Finance-GrowthFactor) · [DiscountFactor](Modern-Finance-DiscountFactor) · [GrowthFactorFractional](Modern-Finance-GrowthFactorFractional) · [GrowthFactorContinuous](Modern-Finance-GrowthFactorContinuous) · [SimpleInterest](Modern-Finance-SimpleInterest) · [SimpleInterestBetween](Modern-Finance-SimpleInterestBetween) · [RatePerPeriod](Modern-Finance-RatePerPeriod) · [RateEffectiveFromNominal](Modern-Finance-RateEffectiveFromNominal) · [RateNominalFromEffective](Modern-Finance-RateNominalFromEffective) · [RateConvertCompounding](Modern-Finance-RateConvertCompounding) · [RateContinuousFromEffective](Modern-Finance-RateContinuousFromEffective) · [RateEffectiveFromContinuous](Modern-Finance-RateEffectiveFromContinuous) · [RatePerPaymentFromNominal](Modern-Finance-RatePerPaymentFromNominal)
 
-**The root finder — `fb/finsolve.bi`**
+**The root finder — `finsolve.tiko`**
 
 [FinSolverOptions](Modern-Finance-FinSolverOptions) · [FinSolverOptionsDefault](Modern-Finance-FinSolverOptionsDefault) · [FinSolverOptionsWithGuess](Modern-Finance-FinSolverOptionsWithGuess) · [FinObjective](Modern-Finance-FinObjective) · [FinSolveResult](Modern-Finance-FinSolveResult) · [FinSolveRoot](Modern-Finance-FinSolveRoot)
 
-**Time value of money — `fb/fintvm.bi`**
+**Time value of money — `fintvm.tiko`**
 
 [AnnuityTerms](Modern-Finance-AnnuityTerms) · [AnnuityTermsMake](Modern-Finance-AnnuityTermsMake) · [PresentValue](Modern-Finance-PresentValue) · [FutureValue](Modern-Finance-FutureValue) · [PaymentAmount](Modern-Finance-PaymentAmount) · [PresentValueOfLump](Modern-Finance-PresentValueOfLump) · [FutureValueOfLump](Modern-Finance-FutureValueOfLump) · [AnnuityPresentValueFactor](Modern-Finance-AnnuityPresentValueFactor) · [AnnuityFutureValueFactor](Modern-Finance-AnnuityFutureValueFactor) · [PeriodsRequired](Modern-Finance-PeriodsRequired) · [PeriodsRequiredWhole](Modern-Finance-PeriodsRequiredWhole) · [SolveRatePerPeriod](Modern-Finance-SolveRatePerPeriod)
 
-**Loans and amortization — `fb/finloan.bi`**
+**Loans and amortization — `finloan.tiko`**
 
 [LoanTerms](Modern-Finance-LoanTerms) · [LoanTermsMake](Modern-Finance-LoanTermsMake) · [LoanTermsUsMortgage](Modern-Finance-LoanTermsUsMortgage) · [LoanTermsCanadianMortgage](Modern-Finance-LoanTermsCanadianMortgage) · [AmortizationRow](Modern-Finance-AmortizationRow) · [AmortizationSchedule](Modern-Finance-AmortizationSchedule) · [AmortizationIterator](Modern-Finance-AmortizationIterator) · [ScheduleToArray](Modern-Finance-ScheduleToArray) · [LoanPayment](Modern-Finance-LoanPayment) · [LoanSchedule](Modern-Finance-LoanSchedule) · [LoanRowAt](Modern-Finance-LoanRowAt) · [LoanBalanceAt](Modern-Finance-LoanBalanceAt) · [LoanInterestBetween](Modern-Finance-LoanInterestBetween) · [LoanPrincipalBetween](Modern-Finance-LoanPrincipalBetween) · [LoanSummarize](Modern-Finance-LoanSummarize) · [LoanSummary](Modern-Finance-LoanSummary) · [ExtraPayment](Modern-Finance-ExtraPayment) · [ExtraPaymentOnce](Modern-Finance-ExtraPaymentOnce) · [ExtraPaymentRecurring](Modern-Finance-ExtraPaymentRecurring) · [LoanPayoffAmount](Modern-Finance-LoanPayoffAmount) · [LoanImpliedRate](Modern-Finance-LoanImpliedRate) · [LoanAnnualPercentageRate](Modern-Finance-LoanAnnualPercentageRate)
 
-**Cash flows and appraisal — `fb/fincash.bi`**
+**Cash flows and appraisal — `fincash.tiko`**
 
 [CashFlow](Modern-Finance-CashFlow) · [CashFlowMake](Modern-Finance-CashFlowMake) · [CashFlowAt](Modern-Finance-CashFlowAt) · [NetPresentValue](Modern-Finance-NetPresentValue) · [NetFutureValue](Modern-Finance-NetFutureValue) · [InternalRateOfReturn](Modern-Finance-InternalRateOfReturn) · [ModifiedInternalRateOfReturn](Modern-Finance-ModifiedInternalRateOfReturn) · [NetPresentValueOnDates](Modern-Finance-NetPresentValueOnDates) · [InternalRateOfReturnOnDates](Modern-Finance-InternalRateOfReturnOnDates) · [PaybackPeriod](Modern-Finance-PaybackPeriod) · [DiscountedPaybackPeriod](Modern-Finance-DiscountedPaybackPeriod) · [ProfitabilityIndex](Modern-Finance-ProfitabilityIndex)
 
-**Depreciation — `fb/findeprec.bi`**
+**Depreciation — `findeprec.tiko`**
 
 [DepreciationTerms](Modern-Finance-DepreciationTerms) · [DepreciationTermsMake](Modern-Finance-DepreciationTermsMake) · [DepreciationRow](Modern-Finance-DepreciationRow) · [DepreciationMethod](Modern-Finance-DepreciationMethod) · [DepreciationStraightLine](Modern-Finance-DepreciationStraightLine) · [DepreciationDecliningBalance](Modern-Finance-DepreciationDecliningBalance) · [DepreciationDoubleDeclining](Modern-Finance-DepreciationDoubleDeclining) · [DepreciationSumOfYearsDigits](Modern-Finance-DepreciationSumOfYearsDigits) · [DepreciationUnitsOfProduction](Modern-Finance-DepreciationUnitsOfProduction) · [DepreciationSchedule](Modern-Finance-DepreciationSchedule) · [DepreciationScheduleIterator](Modern-Finance-DepreciationScheduleIterator) · [DepreciationScheduleOf](Modern-Finance-DepreciationScheduleOf) · [DepreciationScheduleToArray](Modern-Finance-DepreciationScheduleToArray)
 
-**Returns and risk — `fb/finport.bi`**
+**Returns and risk — `finport.tiko`**
 
 [ReturnFrequency](Modern-Finance-ReturnFrequency) · [ReturnSummary](Modern-Finance-ReturnSummary) · [SummarizeReturns](Modern-Finance-SummarizeReturns) · [HoldingPeriodReturn](Modern-Finance-HoldingPeriodReturn) · [CompoundAnnualGrowthRate](Modern-Finance-CompoundAnnualGrowthRate) · [AnnualizeReturn](Modern-Finance-AnnualizeReturn) · [AnnualizeReturnOverPeriods](Modern-Finance-AnnualizeReturnOverPeriods) · [TimeWeightedReturn](Modern-Finance-TimeWeightedReturn) · [ModifiedDietzReturn](Modern-Finance-ModifiedDietzReturn) · [MoneyWeightedReturn](Modern-Finance-MoneyWeightedReturn) · [CumulativeReturnSeries](Modern-Finance-CumulativeReturnSeries) · [DrawdownSeries](Modern-Finance-DrawdownSeries) · [MaxDrawdown](Modern-Finance-MaxDrawdown) · [MaxDrawdownPeak](Modern-Finance-MaxDrawdownPeak) · [MaxDrawdownTrough](Modern-Finance-MaxDrawdownTrough) · [Volatility](Modern-Finance-Volatility) · [DownsideDeviation](Modern-Finance-DownsideDeviation) · [SharpeRatio](Modern-Finance-SharpeRatio) · [SortinoRatio](Modern-Finance-SortinoRatio) · [Beta](Modern-Finance-Beta) · [Alpha](Modern-Finance-Alpha) · [TrackingError](Modern-Finance-TrackingError) · [InformationRatio](Modern-Finance-InformationRatio) · [CorrelationToBenchmark](Modern-Finance-CorrelationToBenchmark)

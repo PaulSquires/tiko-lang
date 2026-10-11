@@ -12,7 +12,7 @@ Add( byref v as T ) as boolean
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim seen as Set( of ustring )
 

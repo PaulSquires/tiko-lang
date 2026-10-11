@@ -12,7 +12,7 @@ Instant.Serial
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 '' The OLE/BASIC serial: days since 1899-12-30, fractional

@@ -20,7 +20,7 @@ One bar of a bar chart.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiBar b
 b.label = "mon"

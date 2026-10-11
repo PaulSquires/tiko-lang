@@ -39,8 +39,9 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 '' synthetic -- this is a layout and rendering demonstration, not a system
 '' monitor.
 
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 const HISTORY = 240        '' samples kept for the braille plots
 const NPROC   = 24

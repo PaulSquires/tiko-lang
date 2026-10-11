@@ -16,7 +16,7 @@ Focuses a specific widget, returning false when it is not in the ring. This is w
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCheckbox a, b, stranger
 dim as boolean va, vb, vs

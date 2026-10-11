@@ -16,7 +16,7 @@ The lower end of the selection in code units, or the cursor when nothing is sele
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTextInputState st
 TuiTextInputStateInit( st )

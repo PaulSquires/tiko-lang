@@ -6,8 +6,7 @@
 
 ```freebasic
 #import "std/tasks"
-#include once "fb/select.bi"
-using FB
+using tasks
 
 sub Produce( byval jobs as SendChan( of int32 ), byval n as int32 )
     for i as int32 = 1 to n
@@ -25,7 +24,7 @@ for each v in jobs               ' ends when the producer closes and drains
 next
 ```
 
-Requires -mt.  The headers refuse to compile without it rather than link a single-threaded runtime and misbehave.
+Requires -mt.  std/tasks refuses to compile without it (TKO0423) rather than link a single-threaded runtime and misbehave.
 
 ## Why It Exists
 
@@ -57,11 +56,11 @@ WaitGroup                  wait for a fan-out to finish
 Context                    ask a goroutine to stop; composes with select
 SendChan / RecvChan        one-way views, so a signature says which end
 
-Header                     What it brings
-fb/channel.bi              Channel, SendChan, RecvChan
-fb/scheduler.bi            FB.Spawn, GoroutineCount, WorkerCount
-fb/select.bi               the SELECT CHANNEL runtime (include to use it)
-fb/sync.bi                 WaitGroup, Context; includes channel + scheduler
+std/tasks file             What it brings
+channel.tiko               Channel, SendChan, RecvChan
+scheduler.tiko             tasks.Spawn, GoroutineCount, WorkerCount
+select.tiko                the SELECT CHANNEL runtime (import to use it)
+sync.tiko                  WaitGroup, Context
 ```
 
 ## What A Goroutine Is -- Read This Once
@@ -133,7 +132,7 @@ EVERY ARGUMENT MUST BE WRITTEN.  A default argument cannot be omitted at a spawn
 
 A goroutine returns nothing.  The channel is the return path.
 
-FB.Spawn( @Worker, @ctx ) is the library form the statement lowers to.  It is public, and it puts the entire lifetime of ctx on you -- prefer the statement.
+tasks.Spawn( @Worker, @ctx ) is the library form the statement lowers to.  It is public, and it puts the entire lifetime of ctx on you -- prefer the statement.
 
 ## Channel
 
@@ -155,7 +154,7 @@ CAPACITY 0 IS A RENDEZVOUS, not a zero-length buffer.  Send does not return unti
 
 CAPACITY N buffers N items; Send blocks only when full.  That backpressure is what keeps a fast producer from consuming all memory.  There is no unbounded capacity, because an unbounded channel turns a slow consumer into an out-of-memory kill far from the cause.
 
-COPIES SHARE.  A Channel is a refcounted handle, so handing a copy to each of four workers gives four handles on ONE queue.  This is deliberately unlike FB.Array, whose copy is deep.  The destructor does NOT close.
+COPIES SHARE.  A Channel is a refcounted handle, so handing a copy to each of four workers gives four handles on ONE queue.  This is deliberately unlike containers.Array, whose copy is deep.  The destructor does NOT close.
 
 WHAT EVERY OPERATION RETURNS
 
@@ -189,7 +188,7 @@ Closing does not discard buffered items, and it wakes every blocked waiter.
 
 THE NIL CHANNEL.  A default-constructed Channel is nil, and Send and Receive on it block FOREVER.  That looks like a defect until you meet SELECT, where assigning a nil channel is how a case is disabled.  IsNil( ) exists so a program can assert its own initialisation, because "my program hangs" is the symptom of forgetting it.
 
-T must be default-constructible, copy-constructible and destructible -- the same requirement FB.Array makes.  Every send copies, and a buffered send copies twice; there is no move constructor in the language.  For a large T, send a pointer.
+T must be default-constructible, copy-constructible and destructible -- the same requirement containers.Array makes.  Every send copies, and a buffered send copies twice; there is no move constructor in the language.  For a large T, send a pointer.
 
 ## Select
 
@@ -203,7 +202,7 @@ select channel
 end select
 ```
 
-Waits on several channels at once and runs the case that becomes ready first. Include fb/select.bi to use it.
+Waits on several channels at once and runs the case that becomes ready first. The file that uses it needs '#import "std/tasks"', and the build needs -mt.
 
 \* CASE ELSE makes the whole statement NON-BLOCKING: it fires the moment
 
@@ -360,7 +359,7 @@ TryReceive rather than Receive is the whole point of that loop: the UI thread dr
 
 ## The Rules That Are Easy To Get Wrong
 
-\* Requires -mt.  The headers say so rather than misbehaving. \* A goroutine still running at program exit is ABANDONED, silently. \* Send after close RAISES; Receive at end of stream returns FALSE.  They are
+\* Requires -mt.  std/tasks says so rather than misbehaving. \* A goroutine still running at program exit is ABANDONED, silently. \* Send after close RAISES; Receive at end of stream returns FALSE.  They are
 
 ```freebasic
 different on purpose.
@@ -407,7 +406,7 @@ documentation in a costume.
 return path.
 ```
 
-\* WithDeadline.  WithTimeout covers it without dragging fb/chrono.bi into
+\* WithDeadline.  WithTimeout covers it without dragging std/chrono into
 
 ```freebasic
 every program that wants cancellation.
@@ -440,11 +439,11 @@ tree, not something spawn introduced.  A generic PROCEDURE is fine.
 
 ## Implementation
 
-Both statements are desugared in tiko's parser (src/parser/spawn.bas, src/parser/selchan.bas) into ordinary statements that the rest of the compiler already lowers.  'spawn' builds the argument frame itself and hands a plain thunk straight to fb_Spawn, where fbc goes through a generic frame type and a virtual Invoke; the observable behaviour is the same -- the arguments are copied at the spawn, and the frame is destroyed and freed afterwards.  'select channel' becomes the calls into the generics of fb/select.bi that fbc builds for it.
+Both statements are desugared in tiko's parser (src/parser/spawn.bas, src/parser/selchan.bas) into ordinary statements that the rest of the compiler already lowers.  'spawn' builds the argument frame itself and hands a plain thunk straight to fb_Spawn, where fbc goes through a generic frame type and a virtual Invoke; the observable behaviour is the same -- the arguments are copied at the spawn, and the frame is destroyed and freed afterwards.  'select channel' becomes the calls into the generics of std/tasks' select.tiko -- the calls fbc builds into fb/select.bi's.
 
 The runtime side is tiko-rt's, written in FreeBASIC: the park/unpark layer (lib/rt/src/thread/park.bas), the scheduler (sched.bas) and the process-wide claim lock (claimlock.bas).  fbc has these in C because a process-wide singleton cannot be built from a HEADER -- a 'dim shared' in a .bi included by two modules gives two of them.  In a runtime module that reason does not apply.
 
-Channel, select, WaitGroup, Context and the directional views are ordinary FreeBASIC in fb/*.bi -- fbc's headers, shipped unchanged in tiko's toolchain inc/ -- written on generics with no compiler privileges.
+Channel, select, WaitGroup, Context and the directional views are ordinary FreeBASIC in the std/tasks module (pkg/std/tasks/, ported from fbc's fb/*.bi headers) -- written on generics with no compiler privileges.
 
 Full design, with every rejected alternative and the reasons: C:\\dev\\docs\\goroutines\\.
 
@@ -456,7 +455,7 @@ The library is measured with fbc's own fbcunit suites, built by both compilers w
 
 The programs in the [Goroutines Tutorial](Modern-Goroutines-Tutorial), built with 'tiko -mt' and run beside fbc's builds (measured 2026-09-24 at origin/master 50c71751, win64-msvc), all print what fbc's builds print, the example at the top of this page among them, up to what depends on timing: ex01's elapsed seconds, which worker takes which job in ex07, ex10's hit count before its deadline, and ex15's lost updates, which are random by design.  Re-measured on 2026-09-24 after two fixes: a SendChan or RecvChan parameter built from a Channel argument under spawn, and 'for each' over a Channel( of string ).
 
-Build a program that uses this module with a packaged toolchain -- no -i, no -p, because the headers and the runtime are in it:
+Build a program that uses this module with a packaged toolchain -- no -i, no -p, because the modules and the runtime are in it:
 
 ```freebasic
 toolchains\tiko-windows\tiko.exe -mt yourprogram.tiko

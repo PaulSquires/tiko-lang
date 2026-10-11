@@ -12,7 +12,7 @@ TryCeiling( v, byref outv )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim s as OrderedSet( of integer )
 s.Add( 10 ) : s.Add( 20 ) : s.Add( 30 )

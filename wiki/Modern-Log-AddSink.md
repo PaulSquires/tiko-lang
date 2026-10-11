@@ -18,7 +18,7 @@ AddSink( s as Sink ptr )
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 '' THE LOGGER DOES NOT OWN THE SINK -- it stores a pointer, so the sink
 '' must outlive the logger. Declaring both in the same scope, sink first,

@@ -18,7 +18,7 @@ SortBy( a, less )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim v as Array( of ustring )
 v.Push( "pear" ) : v.Push( "fig" ) : v.Push( "banana" )

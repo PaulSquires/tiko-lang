@@ -16,7 +16,7 @@ Builds a margin. Left, top, right, bottom.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRect r = TuiRectOf( 0, 0, 30, 10 )
 print r.Inner( TuiMarginOf( 3, 0, 3, 0 ) ).w       '' 24 -- sides only

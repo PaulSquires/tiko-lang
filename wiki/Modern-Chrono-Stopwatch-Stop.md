@@ -12,7 +12,7 @@ Stopwatch.Stop_
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' Spelled Stop_ WITH A TRAILING UNDERSCORE, because STOP is a
 '' FreeBASIC statement

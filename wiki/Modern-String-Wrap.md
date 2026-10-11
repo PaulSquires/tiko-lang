@@ -18,7 +18,7 @@ Wrap( s [, open] [, close] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print Wrap( "Paul" )               '' "Paul" -- double quotes by default
 print Wrap( "Paul", "'" )          '' 'Paul' -- an empty closing means "same as opening"

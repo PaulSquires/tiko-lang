@@ -12,7 +12,7 @@ LoanBalanceAt( loanTerms, period )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The closed form, O(1) -- it does NOT walk, so it does not include
 '' per-payment rounding drift.  Use it for a chart with a thousand
@@ -33,4 +33,4 @@ print LoanRowAt( t, 180 ).Value( ).ClosingBalance_.ToStringFixed( 2 )   '' 28358
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

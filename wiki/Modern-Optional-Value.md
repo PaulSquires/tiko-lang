@@ -12,7 +12,7 @@ Value( ) byref as T
 
 ```freebasic
 #import "std/outcome"
-using FB
+using outcome
 
 dim o as Optional( of integer ) = Some( 42 )
 

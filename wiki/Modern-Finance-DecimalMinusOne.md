@@ -12,7 +12,7 @@ DecimalMinusOne( )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Minus one at scale 0.  Multiplying by it negates without the unary
 '' operator, and it is what Sign( ) is reporting against

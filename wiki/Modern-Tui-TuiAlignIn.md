@@ -16,7 +16,7 @@ A w-wide rect placed left, centre or right inside another, full height. What a s
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRect outer_ = TuiRectOf( 0, 0, 20, 3 )
 print TuiAlignIn( outer_, 6, TUIALIGN_LEFT ).x     '' 0

@@ -12,7 +12,7 @@ InfinityF( )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as float32 inf = InfinityF( )
 

@@ -12,7 +12,7 @@ Lerp( a, b, t )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' Linear interpolation: t = 0 gives a, t = 1 gives b
 print Lerp( 0.0, 10.0, 0.0 ) '' 0

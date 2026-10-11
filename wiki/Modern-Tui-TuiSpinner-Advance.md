@@ -16,7 +16,7 @@ Steps to the next frame, wrapping at the end.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiSpinner s
 TuiSpinnerDefaultFrames( s.frames )

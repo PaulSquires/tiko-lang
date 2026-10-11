@@ -18,7 +18,7 @@ Reverse( s )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print Reverse( "abcdef" )     '' fedcba
 print Reverse( "" )           '' (empty)

@@ -18,7 +18,7 @@ StableSortBy( a, less )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 type Rec
     as ustring surname

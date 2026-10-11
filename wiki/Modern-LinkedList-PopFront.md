@@ -11,8 +11,9 @@ PopFront( ) as T
 ## Examples
 
 ```freebasic
+#import "std/numeric"
 #import "std/containers"
-using FB
+using containers, numeric
 
 dim q as LinkedList( of ustring )
 q.PushBack( "a" ) : q.PushBack( "b" )

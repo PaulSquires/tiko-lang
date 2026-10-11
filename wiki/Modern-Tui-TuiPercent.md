@@ -15,8 +15,9 @@ n per cent of the TOTAL being split -- not of what is left over.
 ## Example
 
 ```freebasic
+#import "std/containers"
 #import "std/tui"
-using FB
+using tui, containers
 
 dim as TuiConstraintArray cs
 cs.Push( TuiPercent( 45 ) )

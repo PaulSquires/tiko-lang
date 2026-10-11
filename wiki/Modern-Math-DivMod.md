@@ -18,7 +18,7 @@ DivMod( a, b )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' Quotient and remainder from ONE divide, returned as a TUPLE -- which
 '' is where the tuple feature earns its keep

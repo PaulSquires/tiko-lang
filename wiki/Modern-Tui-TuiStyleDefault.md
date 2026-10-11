@@ -16,7 +16,7 @@ Default foreground on default background, no attributes -- the style the termina
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiStyle d = TuiStyleDefault( )
 print d.fg.IsDefault( ), d.bg.IsDefault( )   '' true true

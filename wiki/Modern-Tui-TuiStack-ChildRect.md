@@ -16,7 +16,7 @@ The rect a child was given at the last Render. Use it for hit-testing a mouse cl
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 20, 6 )

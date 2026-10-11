@@ -17,8 +17,9 @@ GetVolumes( vols )
 ## Examples
 
 ```freebasic
+#import "std/containers"
 #import "std/fs"
-using FB
+using fs, containers
 
 '' Every mounted volume, filling an Array
 dim vols as Array( of VolumeInfo )

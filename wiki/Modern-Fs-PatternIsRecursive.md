@@ -12,7 +12,7 @@ PatternIsRecursive( pattern )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' ** means "this directory and everything under it"
 print PatternIsRecursive( "src\**\*.bas" )        '' true

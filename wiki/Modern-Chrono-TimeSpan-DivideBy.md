@@ -18,7 +18,7 @@ TimeSpan.DivideBy( other )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as TimeSpan a = TimeSpan( 1, 0, 0 )
 dim as TimeSpan b = TimeSpan( 0, 30, 0 )

@@ -12,7 +12,7 @@ Floor( x )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print Floor( 2.7 )           '' 2
 print Floor( -2.1 )          '' -3 -- TOWARDS NEGATIVE INFINITY, not zero

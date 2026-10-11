@@ -12,7 +12,7 @@ Instant.FromUnixSeconds
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as Instant i = Instant.FromUnixSeconds( 0 )
 

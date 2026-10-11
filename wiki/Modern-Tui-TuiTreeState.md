@@ -18,7 +18,7 @@ A tree's selection and scroll, owned by you. Expansion state lives in the tree i
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTreeState st
 print st.selected, st.offset      '' 0 0

@@ -20,7 +20,7 @@ TrySend( byref v as T ) as boolean
 
 ```freebasic
 #import "std/tasks"
-using FB
+using tasks
 
 dim ch as Channel( of int32 ) = Channel( of int32 )( 1 )
 

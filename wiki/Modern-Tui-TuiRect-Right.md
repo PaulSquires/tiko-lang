@@ -16,7 +16,7 @@ x + w -- one column PAST the last one inside the rect, the way an end iterator w
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRect r = TuiRectOf( 4, 2, 20, 6 )
 print r.Right( )                  '' 24

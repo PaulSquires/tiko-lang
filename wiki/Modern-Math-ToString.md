@@ -21,7 +21,7 @@ ToString( int64 )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' THE SHORTEST STRING THAT READS BACK EXACTLY -- round-trip precision,
 '' which STR( ) does not promise

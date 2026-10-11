@@ -13,7 +13,7 @@ Instant.FromTicks( t, offMin )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' Ticks of 100 ns since 0001-01-01T00:00:00 UTC
 dim as Instant i = Instant.FromTicks( 638914932000000000ll )

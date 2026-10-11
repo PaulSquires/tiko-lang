@@ -16,7 +16,7 @@ The stock colour theme. Every example in the module starts here.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTheme th = TuiThemeDefault( )
 dim as TuiStyle focusFill = th.normal.Patch( th.selected )

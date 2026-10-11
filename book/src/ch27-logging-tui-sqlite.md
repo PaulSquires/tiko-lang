@@ -5,10 +5,10 @@ of time needs to say what it did, and **`std/logs`** writes that record properly
 typed fields, more than one destination and no lines torn apart by threads. A tool that a person
 drives from a terminal can do better than `print` and `input`, and **`std/tui`** builds full-screen
 interfaces from a grid of cells, a layout solver and some thirty widgets. A program that keeps data
-between runs usually wants a database rather than files of its own invention, and **`fbsqlite`**
-puts SQLite, the most widely deployed database there is, a `#include` away.
+between runs usually wants a database rather than files of its own invention, and **`db/sqlite`**
+puts SQLite, the most widely deployed database there is, an `#import` away.
 
-The chapter ends with a map of the finance headers, the rest of the `std/money` module from
+The chapter ends with a map of the finance library, the rest of the `std/money` module from
 Chapter 26.
 
 ## Logging
@@ -80,9 +80,8 @@ because it is different on every run.
 ```
 
 Passing a logger to every procedure that might log is tedious. The **default logger** is one
-logger for the whole program: **`FB_LOG_IMPLEMENT( )`** defines it, in exactly one module (forget
-it and the link fails naming the logger; write it twice and the link fails too), **`LogInit`**
-attaches a sink and sets the level, **`DefaultLogger( )`** reaches it from anywhere, and
+logger for the whole program, and `std/logs` holds it, so there is nothing to define:
+**`LogInit`** attaches a sink and sets the level, **`DefaultLogger( )`** reaches it from anywhere, and
 **`LogShutdown`** flushes and closes its sinks. It is not called for you at exit, so a program
 calls it last, or risks losing its final lines.
 
@@ -177,8 +176,8 @@ navigated. Make every widget that takes the focus a field of the app, as the sta
 ## SQLite
 
 SQLite is a database in a library: no server, one file per database (or none, in memory), and
-the SQL language. `fbsqlite` wraps it. **No module fronts it**, so it is
-`#include once "fbsqlite.bi"`, and its names are in namespace `SQLite`.
+the SQL language. The **`db/sqlite`** module wraps it: `#import "db/sqlite"`, and its names are
+written `sqlite.Database` and so on (or bare, after `using sqlite`).
 
 ```tiko
 {{#include ../examples/ch27/contacts-db.tiko}}
@@ -197,7 +196,7 @@ listing is a `not null` constraint refusing a row.
 ```admonish danger title="Pitfall"
 **Never build SQL by pasting values into the text.** `"... where name = '" & name & "'"` breaks on
 the first name with an apostrophe in it, and lets anyone who controls the value rewrite the query.
-Write `?` where each value goes and pass the values with `SQLite.Args( … )`: they travel
+Write `?` where each value goes and pass the values with `sqlite.Args( … )`: they travel
 separately from the SQL and cannot change what it means.
 ```
 
@@ -227,32 +226,32 @@ and `Bind` gives it new values each time.
 {{#include ../examples/ch27/csv-import.out}}
 ```
 
-**`#include once "fbsqlite_csv.bi"`** adds **`ImportCsv( db, table, path )`**, which reads real CSV
+The same module has **`ImportCsv( db, table, path )`**, which reads real CSV
 — quoted fields, commas and doubled quotes inside them, line breaks inside quotes, either kind of
 line ending — creates the table from the header row, and loads every line in one transaction. An
 empty field arrives as NULL. `ImportCsvWith` takes a `CsvOptions` for another delimiter or a file
 without a header, and **`ExportCsv( db, sql, path )`** writes a query's result back out.
 
-## The finance headers
+## The finance library
 
 Chapter 26 used `Decimal`, `Currency` and loan schedules from **`#import "std/money"`**. The same
-module carries the rest of a finance library, one header per subject, all built on `Decimal`:
+module carries the rest of a finance library, one source file per subject, all built on `Decimal`:
 
-| Header | Covers |
+| File | Covers |
 |---|---|
-| `fb/fincore.bi` | interest, rates and the conventions they are quoted in; compounding and payment frequency; day counts |
-| `fb/fintvm.bi` | the time value of money: present and future value, annuities |
-| `fb/finloan.bi` | loans, mortgages and amortization schedules |
-| `fb/fincash.bi` | cash flows: net present value, internal rate of return, payback |
-| `fb/findeprec.bi` | depreciation, by six methods |
-| `fb/finport.bi` | portfolio returns and risk: volatility, drawdown, Sharpe and Sortino ratios |
-| `fb/finsolve.bi` | the one root finder behind every implied rate |
-| `fb/finerror.bi` | `FinanceError`, which every fallible call returns in its `Result` |
+| `fincore.tiko` | interest, rates and the conventions they are quoted in; compounding and payment frequency; day counts |
+| `fintvm.tiko` | the time value of money: present and future value, annuities |
+| `finloan.tiko` | loans, mortgages and amortization schedules |
+| `fincash.tiko` | cash flows: net present value, internal rate of return, payback |
+| `findeprec.tiko` | depreciation, by six methods |
+| `finport.tiko` | portfolio returns and risk: volatility, drawdown, Sharpe and Sortino ratios |
+| `finsolve.tiko` | the one root finder behind every implied rate |
+| `finerror.tiko` | `FinanceError`, which every fallible call returns in its `Result` |
 
 Each calculation is exact where it can be — growth over a whole number of periods, every sum and
 product of money — and uses `float64` only where a fractional power or a solver makes that
-impossible, converting back to `Decimal` at a fixed scale. The header comments document every
-function, and `std/money` re-exports all of them under `money.`.
+impossible, converting back to `Decimal` at a fixed scale. The comments in `pkg/std/money` document
+every function, and all of them are reached as `money.`.
 
 ## What it costs
 
@@ -262,7 +261,7 @@ function, and `std/money` re-exports all of them under `money.`.
   unchanged frame writes nothing, and an idle interface uses no processor time.
 - **Each SQL statement outside a transaction is a separate write to disk.** Thousands of inserts
   belong in one transaction; a prepared statement saves compiling the SQL each time.
-- **`fbsqlite` links SQLite itself into the program**, from a static library of about 2 MB that
+- **`db/sqlite` links SQLite itself into the program**, from a static library of about 2 MB that
   ships with tiko; nothing needs installing on the machine that runs it.
 
 ## Summary
@@ -271,13 +270,13 @@ function, and `std/money` re-exports all of them under `money.`.
   `Warn( ).Str( … ).Int_( … ).Msg( "text" )` for fields; `WithField` for a child logger.
 - Sinks: `ConsoleSink` (stderr by default), `FileSink` with rotation, `AsyncSink`; renderers:
   `TextRenderer`, `JsonRenderer`. The logger does not own its sinks.
-- `FB_LOG_IMPLEMENT( )` once, then `LogInit`, `DefaultLogger( )` and `LogShutdown` for one
-  program-wide logger.
+- `LogInit`, `DefaultLogger( )` and `LogShutdown` for the one program-wide logger, which
+  `std/logs` holds.
 - `#import "std/tui"`: a `TuiApp` with `Init`, `Update` and `View`; `TuiRun` drives it, and
   `TuiRenderOnce` draws a frame with no terminal. Layout with constraints, widgets as values, state
   in the app.
-- `#include once "fbsqlite.bi"`: `Database`, `Execute`, `Query`, parameters with `?` and `Args`,
-  `Transaction`; every call returns a `Result`. `fbsqlite_csv.bi` imports and exports CSV.
+- `#import "db/sqlite"`: `Database`, `Execute`, `Query`, parameters with `?` and `Args`,
+  `Transaction`; every call returns a `Result`. `ImportCsv` and `ExportCsv` move CSV.
 - `std/money` also carries rates, the time value of money, loans, cash flows, depreciation and
   portfolio measures.
 

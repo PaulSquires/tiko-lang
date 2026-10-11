@@ -20,7 +20,7 @@ IsValid( ) as boolean
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 dim as Currency c = CurrencyFromInt( 10 )
 print c.IsValid( )           '' true

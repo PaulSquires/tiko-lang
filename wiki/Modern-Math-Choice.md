@@ -12,7 +12,7 @@ Choice( r, a( ) )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim r as Rng = RngFromEntropy( )
 dim as string names_( 0 to 2 ) = { "ada", "grace", "alan" }

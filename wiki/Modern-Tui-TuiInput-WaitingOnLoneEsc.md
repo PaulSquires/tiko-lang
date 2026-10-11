@@ -16,7 +16,7 @@ True when the parser is holding an ESC it cannot yet classify. This is what a lo
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiInput keys
 keys.Feed( chr( 27 ) )

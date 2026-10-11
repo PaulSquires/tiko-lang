@@ -15,8 +15,9 @@ Share whatever is left, in proportion to the weight. Two TuiFill( 1 ) split the 
 ## Example
 
 ```freebasic
+#import "std/containers"
 #import "std/tui"
-using FB
+using tui, containers
 
 dim as TuiConstraintArray cs
 cs.Push( TuiFill( 2 ) )

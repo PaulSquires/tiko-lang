@@ -12,7 +12,7 @@ s.GetIterator( )  s.Count( )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The whole write-off, period by period.  Unlike the loan schedule this
 '' one MATERIALIZES its rows, because the last period clears the
@@ -35,4 +35,4 @@ print total.ToStringFixed( 2 )           '' 45000.00 -- exactly the base
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/findeprec.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/findeprec.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

@@ -12,7 +12,7 @@ x.FromPeriod_  x.ToPeriod_  x.Amount_
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Extra principal applied over a range of periods.  Overlapping ranges
 '' ADD, so a recurring extra plus a one-off both land in the same period.
@@ -31,4 +31,4 @@ print bonus.Amount_.ToString( )          '' 5000
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

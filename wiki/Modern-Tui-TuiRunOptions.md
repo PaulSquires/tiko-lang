@@ -19,7 +19,7 @@ Loop tuning. quitOnCtrlC exists because raw mode clears ISIG: Ctrl+C arrives nei
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRunOptions ro = TuiRunOptionsDefault( )
 print ro.fps, ro.quitOnCtrlC      '' 60 true

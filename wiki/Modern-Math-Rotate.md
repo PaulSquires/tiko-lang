@@ -20,7 +20,7 @@ Rotate( byref q as Quat, byref v as Vec3 ) as Vec3
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Quat q = type<Quat>( 0, 0, 0, 1 )      '' identity
 dim as Vec3 v = type<Vec3>( 1, 2, 3 )

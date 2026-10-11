@@ -17,8 +17,9 @@ FsError.Code( )
 ## Examples
 
 ```freebasic
+#import "std/numeric"
 #import "std/fs"
-using FB
+using fs, numeric
 
 '' Every failing FS call returns a result carrying one of these
 dim e as FsError = FsError( FS_NOT_FOUND, 2, "CreateFileW", "missing.txt" )

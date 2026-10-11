@@ -12,7 +12,7 @@ Failure( ) byref as E
 
 ```freebasic
 #import "std/outcome"
-using FB
+using outcome
 
 dim r as Result( of int32, ustring ) = Fail( of int32, ustring )( "not a number" )
 

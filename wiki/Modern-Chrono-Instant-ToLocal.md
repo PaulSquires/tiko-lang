@@ -12,7 +12,7 @@ Instant.ToLocal
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 '' Converts to the machine's current zone offset. The result depends on

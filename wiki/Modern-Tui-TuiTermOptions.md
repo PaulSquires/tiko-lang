@@ -19,7 +19,7 @@ What to take from the terminal. Every field is off in a default-constructed valu
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTermOptions bare        '' everything FALSE
 print len( TuiEnterSeq( bare ) )  '' 0 -- takes nothing, emits nothing

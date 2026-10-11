@@ -16,7 +16,7 @@ Perceptual brightness, 0.0 to 1.0, using the Rec. 709 weights. This is the botto
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiLuminance( 255, 255, 255 )    '' 0.9999999999999999 -- the weights
                                        '' sum to 1 in exact arithmetic, not in

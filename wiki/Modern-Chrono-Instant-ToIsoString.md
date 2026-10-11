@@ -12,7 +12,7 @@ Instant.ToIsoString
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 print d.ToIsoString( )       '' 2026-08-13T14:30:05.1230000

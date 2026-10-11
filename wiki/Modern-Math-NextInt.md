@@ -18,7 +18,7 @@ NextInt( lo, hi )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim r as Rng = RngFromEntropy( )
 dim as int64 lo = 1, hi = 6

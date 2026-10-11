@@ -20,7 +20,7 @@ CurrentLocaleFormat( ) as NumFormat
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim f as NumFormat = CurrentLocaleFormat( )
 

@@ -4,7 +4,7 @@
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2025, 3, 4, 14, 30, 5, 0 ).WithOffset( 330 )
 print d.ToIsoString( )                     ' 2025-03-04T14:30:05+05:30
@@ -26,7 +26,7 @@ FreeBASIC's date and time surface is the VB6 model: a date is a serial DOUBLE, r
 
 This library ships ALONGSIDE all of that. Nothing in datetime.bi, vbcompat.bi, FORMAT or the runtime's existing date and time routines changed, and nothing here depends on them. The two meet at FromSerial / Serial, so a program migrates one function at a time. See migration.md for the member-by-member mapping.
 
-NO COMPILER SUPPORT IS INVOLVED. This is a library: the runtime half is in tiko-rt (lib/rt/src/chrono/), the FreeBASIC types in inc/fb/chrono.bi. Nothing here is a keyword, and DateTime, Instant, WallClock and the rest stay available as your own identifiers until you write 'using FB'.
+NO COMPILER SUPPORT IS INVOLVED. This is a library: the runtime half is in tiko-rt (lib/rt/src/chrono/), the FreeBASIC types in the std/chrono module (pkg/std/chrono/). Nothing here is a keyword, and DateTime, Instant, WallClock and the rest stay available as your own identifiers: nothing is added to a program until it imports std/chrono, and the bare names only after 'using chrono'.
 
 ## The Tick
 
@@ -600,7 +600,7 @@ Locale output is also the only part of the library that is routinely non-ASCII, 
 
 ## Strings: String Core, Ustring Overloads
 
-The core is STRING, holding UTF-8. USTRING overloads are layered on top, following the same rule fb/string.bi uses: THE INPUT TYPE DECIDES THE OUTPUT TYPE, and a function cannot return the type it was handed.
+The core is STRING, holding UTF-8. USTRING overloads are layered on top, following the same rule std/strings uses: THE INPUT TYPE DECIDES THE OUTPUT TYPE, and a function cannot return the type it was handed.
 
 So anything TAKING text overloads on ustring and returns ustring, and anything taking NO text cannot overload on return type alone -- which is why those carry a U in the name:
 
@@ -627,7 +627,7 @@ Julian day              .JulianDay / .JulianDayNumber / .FromJulianDay
 legacy serial float64   .Serial / .FromSerial          datetime.bi
 
 dim as float64 serial = DateSerial( 2025, 3, 4 )
-dim as FB.DateTime d = FB.DateTime.FromSerial( serial )
+dim as chrono.DateTime d = chrono.DateTime.FromSerial( serial )
 dim as float64 back   = d.Serial
 ```
 
@@ -733,7 +733,7 @@ calendar abstraction to make room for others.
 A LENIENT PARSER. There is no equivalent of DateValue's guessing. If the
 input is not ISO 8601, name the pattern.
 
-AssumeLocal. RFC-0007 declares it; the shipped header has AssumeUtc,
+AssumeLocal. RFC-0007 declares it; the shipped module has AssumeUtc,
 ToInstant and ToLocal but not AssumeLocal. Compose it as
 d.WithOffset( TimeZoneInfo.LocalOffset ).ToInstant( ) when the value is
 known to be present-day, and read RFC-0007 section 1 on why a fall-back
@@ -743,7 +743,7 @@ hour makes the general case ambiguous.
 ## Implementation
 
 ```freebasic
-inc/fb/chrono.bi                the whole FB surface -- one #include
+pkg/std/chrono/                 the whole FB surface -- one #import
 lib/rt/src/inc/chrono.bi        the tick representation and its constants
 lib/rt/src/chrono/core.bas      civil<->tick kernel, calendar primitives
 lib/rt/src/chrono/iso.bas       ISO 8601 emit and strict parse
@@ -754,7 +754,7 @@ lib/rt/src/chrono/zone.bas      offsets, DST, locale formatting
 
 The kernel in core.bas is PURE: no OS calls, no allocation, no locale, no static state. Everything platform-specific is in clock.bas and zone.bas, which is what makes the civil<->tick conversion testable exhaustively.
 
-The FB side is a header of value types with no compiler support of any kind. It is declared in namespace FB, and the C entry points are reached through 'extern "C" declare ... alias' -- the pattern inc/string.bi already uses. Note that 'alias' alone is not enough inside a namespace: without the nested extern "C", fbc mangles right past it.
+The FB side is a module of value types with no compiler support of any kind. Its C entry points are reached through 'extern "C" declare ... alias' -- the pattern inc/string.bi already uses. Note that 'alias' alone is not enough inside a module: without the extern "C" the name is mangled through the module's chain.
 
 clock.bas and zone.bas each hold BOTH platform halves, chosen by #if. fbc keeps a win32/ and a unix/ copy of each and compiles one; tiko-rt's build has no per-target source selection, so the split is made inside the file.
 

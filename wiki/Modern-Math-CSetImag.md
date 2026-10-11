@@ -19,7 +19,7 @@ CSetImag( byref z as Complex, byval y as float64 )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Complex z = CSet( 3, 4 )
 CSetImag( z, -2 )

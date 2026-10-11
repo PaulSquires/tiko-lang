@@ -21,8 +21,9 @@ The application. Three methods you must write: Init to set up, Update to react, 
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 type CounterApp extends TuiApp
     as int32 n

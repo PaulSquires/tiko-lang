@@ -21,7 +21,7 @@ CLogAbs( byref z as Complex ) as float64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CLogAbs( CSet( 1e300, 1e300 ) )  '' 691.1221014884936
 print CLogAbs( CSet( 3, 4 ) )          '' 1.6094379124341   -- log( 5 )

@@ -20,7 +20,7 @@ Reflect( byref v as Vec3, byref n as Vec3 ) as Vec3
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Vec3 v = type<Vec3>( 1, -1, 0 )
 dim as Vec3 n = type<Vec3>( 0, 1, 0 )      '' already normalised

@@ -31,7 +31,7 @@ operator =  ( byval x as float64,  byref z as Complex ) as boolean
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Complex a = CSet( 3, 4 ), b = CSet( -1, 2 )
 

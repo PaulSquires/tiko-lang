@@ -18,7 +18,7 @@ PadRight( s, width [, pad] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print PadRight( "FreeBasic", 12, "*" )    '' FreeBasic***
 print PadRight( "FreeBasic", 12 )         '' FreeBasic    (spaces)

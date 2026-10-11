@@ -12,7 +12,7 @@ LocalDate.Day
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print LocalDate( 2026, 8, 13 ).Day        '' 13
 

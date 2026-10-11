@@ -16,7 +16,7 @@ The terminal's own default foreground or background -- whatever the user configu
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiStyle s = TuiStyleOf( TuiRgb( 200, 200, 200 ), TuiDefaultColor( ), TUIATTR_NONE )
 print s.bg.IsDefault( )           '' true -- text over the user's own background

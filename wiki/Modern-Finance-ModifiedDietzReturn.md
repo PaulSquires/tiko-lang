@@ -12,7 +12,7 @@ ModifiedDietzReturn( beginValue, endValue, flows( ), flowDayOffsets( ), periodDa
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The standard approximation to a time-weighted return when you cannot
 '' value the portfolio at every flow: each flow is weighted by the
@@ -39,4 +39,4 @@ print ModifiedDietzReturn( DecimalParse( "100000" ).Value( ), _
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finport.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finport.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

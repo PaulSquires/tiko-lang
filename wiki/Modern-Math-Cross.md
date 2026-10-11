@@ -20,7 +20,7 @@ Cross( byref a as Vec3, byref b as Vec3 ) as Vec3
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Vec3 a = type<Vec3>( 1, 2, 3 ), b = type<Vec3>( 4, 5, 6 )
 

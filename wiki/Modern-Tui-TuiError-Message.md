@@ -15,8 +15,9 @@ A formatted line: what went wrong, what was being attempted, and the OS error nu
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as TuiError e = TuiError( TUIERR_RAWMODE, "SetConsoleMode(in)", 5 )
 print e.Message( )                '' includes the detail and the OS number 5

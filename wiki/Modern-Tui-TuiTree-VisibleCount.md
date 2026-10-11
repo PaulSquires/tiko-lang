@@ -16,7 +16,7 @@ How many nodes are currently visible -- children of a collapsed node do not coun
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTreeState st
 dim as TuiTree t

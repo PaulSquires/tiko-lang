@@ -21,7 +21,7 @@ Labelled bars, vertical or horizontal. Scaled to the largest value present.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 30, 8 )

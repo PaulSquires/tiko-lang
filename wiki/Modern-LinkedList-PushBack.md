@@ -18,7 +18,7 @@ PushBack( byref v as T )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim q as LinkedList( of ustring )
 

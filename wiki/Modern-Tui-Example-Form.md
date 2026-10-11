@@ -33,8 +33,10 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 '' Build (win64-msvc, win64 or linux-x86_64):
 ''     tiko form.tiko
 
+#import "std/numeric"
+#import "std/outcome"
 #import "std/tui"
-using FB
+using tui, numeric, outcome
 
 '' ---------------------------------------------------------------------------
 '' WHERE A CLOSURE-CARRYING WIDGET CAN BE BUILT

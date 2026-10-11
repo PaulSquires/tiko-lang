@@ -21,7 +21,7 @@ One node of a tree, held in a FLAT array with a depth rather than as a linked st
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTree t
 t.Add( "src", 0, TRUE, 100 )

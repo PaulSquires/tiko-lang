@@ -11,10 +11,10 @@ Time( k, v as Instant )
 ## Examples
 
 ```freebasic
+#import "std/chrono"
 #import "std/logs"
-using FB
+using logs, chrono
 
-#include once "fb/chrono.bi"
 
 dim con as ConsoleSink
 dim lg as Logger

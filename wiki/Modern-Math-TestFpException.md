@@ -12,7 +12,7 @@ TestFpException( e )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 '' The flags are STICKY: once raised they stay raised until cleared, so
 '' a test after a long computation says "this happened at some point",

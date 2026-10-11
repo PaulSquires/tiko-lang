@@ -18,7 +18,7 @@ ExtractChars( start, s, chars [, ic] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print ExtractChars( 1, "abacadabra", "cd" )     '' aba -- stops at the first c or d
 print ExtractChars( 1, "abacadabra", "xyz" )    '' abacadabra -- a miss keeps the remainder

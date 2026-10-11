@@ -17,8 +17,9 @@ Columns and rows. Returned by TuiTerminal.Size, by SizeHint, and carried on a re
 ## Example
 
 ```freebasic
+#import "std/numeric"
 #import "std/tui"
-using FB
+using tui, numeric
 
 dim as TuiSize s = TuiSizeOf( 80, 24 )
 print s.cols, s.rows              '' 80 24

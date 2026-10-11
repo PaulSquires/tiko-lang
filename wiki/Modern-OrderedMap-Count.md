@@ -12,7 +12,7 @@ Count( ) as int32
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim ages as OrderedMap( of ustring, integer )
 print ages.Count                  '' 0

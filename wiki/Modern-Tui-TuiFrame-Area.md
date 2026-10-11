@@ -16,7 +16,7 @@ The whole buffer, as a rect at 0,0. This is the root of every layout.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 80, 24 )

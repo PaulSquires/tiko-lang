@@ -16,7 +16,7 @@ Deliver one TUIEVENT_TICK after ms milliseconds. IT IS ONE-SHOT: to keep animati
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiTick( 250 ).arg          '' 250
 print TuiTick( -5 ).arg           '' 0 -- clamped, never negative

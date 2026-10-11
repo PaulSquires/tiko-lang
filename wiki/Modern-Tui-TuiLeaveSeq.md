@@ -16,7 +16,7 @@ The sequence Leave writes -- every mode Enter set, undone in reverse. It is deli
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTermOptions o = TuiTermOptionsDefault( )
 dim as string lv = TuiLeaveSeq( o )

@@ -15,8 +15,9 @@ At most n cells. Use it to stop a sidebar growing absurdly wide on a big termina
 ## Example
 
 ```freebasic
+#import "std/containers"
 #import "std/tui"
-using FB
+using tui, containers
 
 dim as TuiConstraintArray cs
 cs.Push( TuiMax_( 30 ) )

@@ -12,7 +12,7 @@ Add( delta = 1 )
 
 ```freebasic
 #import "std/tasks"
-using FB
+using tasks
 
 '' A WaitGroup counts outstanding work. Add BEFORE spawning, never
 '' inside the goroutine -- otherwise Wait( ) can see zero and return

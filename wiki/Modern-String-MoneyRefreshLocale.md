@@ -14,7 +14,7 @@ MoneyRefreshLocale( )
 
 - The settings are read once, lazily, into a snapshot, because `setlocale` is process-global and `GetLocaleInfoEx` is comparatively slow. This is how you ask for a fresh read.
 - NOT thread-safe against a concurrent format: it rewrites the snapshot another thread may be reading. A lock on every `ToString` would cost more than the feature is worth.
-- A `dim shared` in a .bi included by two modules gives two of them, so this refreshes the CALLING module's snapshot -- the same wall `fb/scheduler.bi` and `fb/logger.bi` describe. In practice one module formats money.
+- The snapshot is a `dim shared` in `std/money`, and a module exists once per program, so there is one snapshot and this refreshes it for every caller.
 
 ## Examples
 

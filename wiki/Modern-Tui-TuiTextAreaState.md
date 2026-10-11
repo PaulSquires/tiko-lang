@@ -20,7 +20,7 @@ The multi-line editor's state, owned by you. `lines_` carries the underscore bec
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTextAreaState st
 TuiTextAreaStateInit( st )

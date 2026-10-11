@@ -20,7 +20,7 @@ The per-frame draw target: a buffer plus a clip rect and a layer stack. DRAWING 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 40, 10 )

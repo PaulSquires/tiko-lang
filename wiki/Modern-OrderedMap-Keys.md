@@ -12,7 +12,7 @@ Keys( ) as Array( of TK )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim ages as OrderedMap( of ustring, integer )
 ages.Put( "bob", 41 )

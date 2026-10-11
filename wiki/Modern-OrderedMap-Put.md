@@ -12,7 +12,7 @@ Put( k, v ) as boolean
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim ages as OrderedMap( of ustring, integer )
 
@@ -21,7 +21,7 @@ print ages.Put( "bob", 42 )      '' false -- existed, and was OVERWRITTEN
 print ages[ "bob" ]              '' 42
 
 '' The ordering contract is '<' on TK and nothing else -- no HashOf and
-'' no '=' are needed, unlike FB.Map
+'' no '=' are needed, unlike containers.Map
 ```
 
 ---

@@ -18,7 +18,7 @@ Repeat( count, s )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print Repeat( 3, "ab" )       '' ababab
 print Repeat( 0, "ab" )       '' (empty) -- 0 or less gives ""

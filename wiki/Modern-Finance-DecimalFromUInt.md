@@ -12,7 +12,7 @@ DecimalFromUInt( u )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' A ULONGINT, exactly.  The whole 64-bit range fits inside the 96-bit
 '' mantissa, so nothing is lost at the top end either

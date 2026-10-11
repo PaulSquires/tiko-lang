@@ -20,7 +20,7 @@ RunningStats.Merge( byref other as RunningStats )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim a as RunningStats
 dim b as RunningStats

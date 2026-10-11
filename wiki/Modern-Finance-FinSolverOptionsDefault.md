@@ -11,8 +11,9 @@ FinSolverOptionsDefault( )
 ## Examples
 
 ```freebasic
+#import "std/numeric"
 #import "std/money"
-using FB
+using money, numeric
 
 '' The standard settings: bracket a rate, 128 iterations, |f| <= 1e-12.
 dim as FinSolverOptions o = FinSolverOptionsDefault( )
@@ -32,4 +33,4 @@ print IsNaN( o.Guess_ )                  '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finsolve.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finsolve.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

@@ -13,7 +13,7 @@ Instant( ticks )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' An INSTANT is a moment on the UTC timeline -- a tick count with no
 '' calendar fields and no offset. A DateTime is the civil view of one.

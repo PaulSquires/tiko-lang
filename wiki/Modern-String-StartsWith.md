@@ -18,7 +18,7 @@ StartsWith( s, prefix [, ic] )
 
 ```freebasic
 #import "std/strings"
-using FB
+using strings
 
 print StartsWith( "Hello", "He" )         '' true
 print StartsWith( "Hello", "he" )         '' false -- case matters by default

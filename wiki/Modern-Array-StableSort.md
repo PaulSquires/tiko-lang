@@ -18,7 +18,7 @@ StableSort( a )
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 '' Stability only means something when T carries more than the key.
 '' For scalars StableSort and Sort produce identical output.

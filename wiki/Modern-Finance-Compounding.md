@@ -12,7 +12,7 @@ COMPOUND_ANNUAL  COMPOUND_SEMIANNUAL  COMPOUND_MONTHLY  COMPOUND_CONTINUOUS  COM
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' THE VALUES ARE PERIODS PER YEAR, so converting a rate is a division
 '' rather than a lookup table.
@@ -35,4 +35,4 @@ print RateEffectiveFromNominal( j, COMPOUND_SEMIANNUAL ).Value( ).ToString( )
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

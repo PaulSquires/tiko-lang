@@ -16,7 +16,7 @@ Appends a node. Order matters: a node's children are the nodes that follow it wi
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTree t
 t.Add( "root", 0, TRUE, 1 )

@@ -12,7 +12,7 @@ PathHasExtension( p )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 print PathHasExtension( "main.tiko" )       '' true
 print PathHasExtension( "README" )        '' false

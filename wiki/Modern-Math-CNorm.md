@@ -21,7 +21,7 @@ CNorm( byref z as Complex ) as float64
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CNorm( CSet( 3, 4 ) )                              '' 25
 print CToString( CSet( 3, 4 ) * CConj( CSet( 3, 4 ) ) )  '' 25+0i   -- real, and equal to CNorm

@@ -17,8 +17,9 @@ ReadAllBytes( p, buf )
 ## Examples
 
 ```freebasic
+#import "std/containers"
 #import "std/fs"
-using FB
+using fs, containers
 
 '' Everything below happens inside a temp directory of its own, and is
 '' removed at the end

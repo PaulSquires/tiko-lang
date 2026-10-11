@@ -20,7 +20,7 @@ RunningStats.Add( byval x as float64 )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim rs as RunningStats
 

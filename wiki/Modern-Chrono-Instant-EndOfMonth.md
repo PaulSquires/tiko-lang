@@ -12,7 +12,7 @@ Instant.EndOfMonth
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 print d.EndOfMonth( ).ToIsoString( )     '' 2026-08-31T23:59:59.9999999

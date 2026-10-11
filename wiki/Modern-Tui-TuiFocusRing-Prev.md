@@ -16,7 +16,7 @@ Moves focus backward, wrapping at the start. This is Shift+Tab.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCheckbox a, b
 dim as boolean va, vb

@@ -16,7 +16,7 @@ Compose two styles: `over` supplies only what it SETS, and everything else is ke
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiStyle base_ = TuiStyleOf( TuiRgb( 200, 200, 200 ), TuiRgb( 20, 20, 30 ), TUIATTR_NONE )
 dim as TuiStyle accent = TuiStyleOf( TuiRgb( 250, 180, 60 ), TuiDefaultColor( ), TUIATTR_BOLD )

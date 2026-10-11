@@ -16,7 +16,7 @@ Reshapes the canvas in CELLS and clears it. A graph does this every frame when i
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCanvas cv = TuiCanvas( 10, 3 )
 print cv.DotWidth( )              '' 20

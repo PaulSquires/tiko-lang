@@ -11,8 +11,9 @@ LoanPayoffAmount( loanTerms, afterPeriod, asOf )
 ## Examples
 
 ```freebasic
+#import "std/chrono"
 #import "std/money"
-using FB
+using money, chrono
 
 '' What it costs to settle: the balance after a period, plus per-diem
 '' interest to the settlement date on the loan's day-count basis.
@@ -37,4 +38,4 @@ print LoanPayoffAmount( t, 12, LocalDate( 2026, 12, 1 ) ).Failure( ).Message( )
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

@@ -11,8 +11,9 @@ NetPresentValueOnDates( flows( ), annualRate, basis )
 ## Examples
 
 ```freebasic
+#import "std/chrono"
 #import "std/money"
-using FB
+using money, chrono
 
 '' NPV over irregular DATES rather than equal periods.  The discount
 '' exponent is a day-count fraction, so this takes the double kernel.
@@ -36,4 +37,4 @@ print NetPresentValueOnDates( f( ), DecimalParse( "0.09" ).Value( ), _
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincash.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincash.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

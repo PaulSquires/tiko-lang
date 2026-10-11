@@ -16,7 +16,7 @@ The overlap of two rects, or an empty rect when they do not touch. This is what 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRect a = TuiRectOf( 0, 0, 20, 10 )
 dim as TuiRect b = TuiRectOf( 15, 5, 20, 10 )

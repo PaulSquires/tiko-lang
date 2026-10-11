@@ -11,11 +11,12 @@ DayCountFractionDouble( d1, d2, basis )
 ## Examples
 
 ```freebasic
+#import "std/chrono"
 #import "std/money"
-using FB
+using money, chrono
 
 '' The same fraction as a double, for the dated discounting in
-'' fb/fincash.bi where the exponent cannot be exact anyway.
+'' fincash.tiko where the exponent cannot be exact anyway.
 dim as LocalDate a = LocalDate( 2026, 1, 1 )
 dim as LocalDate b = LocalDate( 2026, 7, 1 )
 
@@ -28,4 +29,4 @@ print DayCountFractionDouble( a, b, DAYCOUNT_THIRTY_360_US )      '' 0.5
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

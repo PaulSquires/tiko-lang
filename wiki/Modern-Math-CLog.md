@@ -22,7 +22,7 @@ CLog( byref z as Complex, byval baseValue as float64 ) as Complex
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 print CToString( CLog( CSet( 3, 4 ) ) )       '' 1.6094379124341003+0.9272952180016122i
 print CToString( CLog( CSet( -1, 0.0 ) ) )    '' 0+3.141592653589793i   -- above the cut

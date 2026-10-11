@@ -12,7 +12,7 @@ LoanPrincipalBetween( loanTerms, fromPeriod, toPeriod )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Principal retired across a range -- including any extra payments made
 '' in it.
@@ -35,4 +35,4 @@ print laterIsMore                        '' true
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

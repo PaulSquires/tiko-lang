@@ -21,7 +21,7 @@ RoundMode( byval digits as int32, byval mode as int32 ) as Currency
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 dim as Currency c = CurrencyFromParts( 0, 2500 )      '' 0.2500
 

@@ -16,7 +16,7 @@ Events parsed and waiting to be taken.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiInput keys
 keys.Feed( "abc" )                '' three complete characters

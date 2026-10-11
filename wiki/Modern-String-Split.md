@@ -17,8 +17,9 @@ Split( s [, delim] [, ic] )
 ## Examples
 
 ```freebasic
+#import "std/containers"
 #import "std/strings"
-using FB
+using strings, containers
 
 dim as Array( of string ) parts = Split( "a,b,,c" )
 

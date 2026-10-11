@@ -12,7 +12,7 @@ NaN( )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as float64 n = NaN( )
 

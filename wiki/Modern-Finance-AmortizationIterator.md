@@ -12,7 +12,7 @@ it.IsValid( )  it.Value( )  it.MoveNext( )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The structural iterator protocol, which is what FOR EACH uses.  Walk
 '' it by hand when you want to stop early or look at a window.
@@ -30,7 +30,7 @@ while( it.IsValid( ) andalso ( k < 3 ) )
     k += 1
 wend
 
-'' NO DESTRUCTOR is needed -- unlike fb/fsdir.bi's directory iterator,
+'' NO DESTRUCTOR is needed -- unlike std/fs's directory iterator,
 '' this one holds no handle, so stopping here leaks nothing.
 print k                                  '' 3
 ```
@@ -40,4 +40,4 @@ print k                                  '' 3
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finloan.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finloan.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

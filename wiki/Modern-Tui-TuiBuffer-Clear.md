@@ -16,7 +16,7 @@ Fills every cell with a blank in the given style.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiBuffer b
 b.Resize( 4, 2 )

@@ -12,7 +12,7 @@ LocalDate.FromDayNumber( days )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' Days since 0001-01-01, which is day 0
 dim as LocalDate epoch = LocalDate.FromDayNumber( 0 )

@@ -12,7 +12,7 @@ LocalTime.IsValid
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 print LocalTime( 14, 30, 5, 0 ).IsValid      '' true
 print LocalTime( 25, 0, 0, 0 ).IsValid       '' false -- no such hour

@@ -18,7 +18,7 @@ A table's selection and scroll, owned by you.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTableState st
 st.selected = 4

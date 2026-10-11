@@ -20,7 +20,7 @@ One title on a block's border. Built for you by AddTitle; TuiTitleOf makes one d
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiTitle t = TuiTitleOf( " log ", TuiStyleDefault( ), _
                                 TUISIDE_TOP, TUIALIGN_CENTER )

@@ -20,7 +20,7 @@ CurrencyAccum.AddProduct( byref c as Currency, byval rate as float64 )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 dim acc as CurrencyAccum
 dim as Currency line_ = CurrencyFromDouble( 19.99 )

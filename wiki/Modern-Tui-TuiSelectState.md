@@ -20,7 +20,7 @@ The dropdown's state. `selected` is the committed choice; `highlight` is where t
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiSelectState st
 print st.selected, st.open_       '' 0 false

@@ -12,7 +12,7 @@ Apportion( total, weights( ), result( ) )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Splits a total so the parts sum EXACTLY to it -- the rounding
 '' remainder is distributed rather than dropped, which is what makes

@@ -12,7 +12,7 @@ TryParseLong( s )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 var r = TryParseLong( "42" )
 print r.HasValue( )          '' true

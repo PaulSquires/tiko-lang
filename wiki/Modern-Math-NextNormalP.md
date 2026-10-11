@@ -12,7 +12,7 @@ NextNormalP( mean, sd )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim r as Rng = RngFromEntropy( )
 

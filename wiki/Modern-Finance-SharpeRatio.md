@@ -12,7 +12,7 @@ SharpeRatio( periodReturns( ), riskFreePerPeriod, frequency )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Excess return per unit of TOTAL risk, both annualized.
 dim as float64 r( 0 to 11 ) = { 0.02, -0.01, 0.03, 0.015, -0.025, 0.04, _
@@ -38,4 +38,4 @@ print SharpeRatio( flat_( ), 0.0, RETURN_MONTHLY ).Failure( ).Message( )
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finport.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finport.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

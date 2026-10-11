@@ -4,7 +4,7 @@
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim ages as OrderedMap( of ustring, int32 )
 ages.Put( "bob", 41 )
@@ -18,15 +18,15 @@ dim seen as OrderedSet( of int32 )
 if seen.Add( 42 ) then print "first time"
 ```
 
-The always-sorted siblings of FB.Map and FB.Set. Same operations, plus the four an ordered container can answer and a hash one cannot, and FOR EACH walks them in ascending key order -- which is the entire reason to reach for them.
+The always-sorted siblings of containers.Map and containers.Set. Same operations, plus the four an ordered container can answer and a hash one cannot, and FOR EACH walks them in ascending key order -- which is the entire reason to reach for them.
 
 ## Which One To Use
 
-FB.Map and FB.Set unless you need the ORDER.
+containers.Map and containers.Set unless you need the ORDER.
 
 ```freebasic
-FB.Map / FB.Set                 avg O(1)     order unspecified and unstable
-FB.OrderedMap / FB.OrderedSet   O(log n)     ascending, always
+Map / Set                 avg O(1)     order unspecified and unstable
+OrderedMap / OrderedSet   O(log n)     ascending, always
 ```
 
 A hash map is faster on every single operation, allocates once instead of once per entry, and does not chase pointers on lookup. These are the right choice when you need keys in order, the smallest or largest key, or the nearest key either side of a probe -- not as a general-purpose map.
@@ -34,12 +34,13 @@ A hash map is faster on every single operation, allocates once instead of once p
 There is one case where they win outright: a key type that has '<' but no hash.
 
 ```freebasic
-FB.Map                needs FB.HashOf( k ), and '=', and equal keys must
+Map                   needs K to extend containers.Hashable (or be a
+                      built-in type), and '=', and equal keys must
                       hash equal
-FB.OrderedMap         needs '<'. Nothing else.
+OrderedMap            needs '<'. Nothing else.
 ```
 
-A type with an ordering and no hash cannot be an FB.Map key at all.
+A type with an ordering and no hash cannot be a Map key at all.
 
 ## Members
 
@@ -90,11 +91,11 @@ GetIterator( )                              O(log n)
 BlackHeight( ) as int32                     O(n)
 ```
 
-NO Reserve AND NO Capacity on either, unlike FB.Map and FB.Set: a tree allocates exactly one node per entry when that entry arrives, so there is no table to size in advance and nothing to tune.
+NO Reserve AND NO Capacity on either, unlike Map and Set: a tree allocates exactly one node per entry when that entry arrives, so there is no table to size in advance and nothing to tune.
 
 ## READING vs WRITING
 
-Exactly as FB.Map, and for the same reasons:
+Exactly as Map, and for the same reasons:
 
 ```freebasic
 m[ k ]        INSERTS a default-constructed TV if k is absent.
@@ -126,7 +127,7 @@ That is deliberate and is the difference from Array's Sort, which is a free proc
 
 A red-black tree: a binary search tree in which every node is red or black, the root and every null child count as black, a red node has no red child, and every path from a node down to its descendant nulls holds the same number of black nodes. Those invariants bound the longest root-to-leaf path at twice the shortest, which is what makes the height O(log n) and every operation with it.
 
-Chosen over an AVL tree because the rebalancing is cheaper on write -- at most two rotations for an insert and three for a removal, against AVL's O(log n) -- for a tree that is at most 2x rather than 1.44x the ideal height. A workload that would prefer the AVL trade is better served by FB.Map anyway.
+Chosen over an AVL tree because the rebalancing is cheaper on write -- at most two rotations for an insert and three for a removal, against AVL's O(log n) -- for a tree that is at most 2x rather than 1.44x the ideal height. A workload that would prefer the AVL trade is better served by Map anyway.
 
 NODES CARRY PARENT POINTERS. That is what makes the iterator a plain successor walk with no stack of its own, so an iterator is one pointer and FOR EACH allocates nothing. It also keeps the removal rebalance readable.
 
@@ -134,7 +135,7 @@ Insertion colours the new node RED, which cannot break the equal-black-count inv
 
 ## Ownership AND Copying
 
-Like FB.LinkedList and unlike the array-backed containers, these hold RAW NODE POINTERS, so the destructor, the copy constructor and 'operator let' are all written out.
+Like LinkedList and unlike the array-backed containers, these hold RAW NODE POINTERS, so the destructor, the copy constructor and 'operator let' are all written out.
 
 Copy and assignment are DEEP and rebuild the whole tree, node for node and colour for colour -- so a copy is STRUCTURALLY IDENTICAL to its original, not merely equal to it. Rebuilding by walking in order and re-inserting would give a legal tree with different shape. Pass them BYREF where the cost matters.
 
@@ -146,7 +147,7 @@ An iterator holds a node pointer, so:
 
 ```freebasic
 positions, but every node keeps its identity and the walk still reaches all
-of them. FB.Map cannot say this: any rehash invalidates everything.
+of them. Map cannot say this: any rehash invalidates everything.
 ```
 
 - REMOVING a key invalidates an iterator standing on THAT key, and nothing
@@ -155,7 +156,7 @@ of them. FB.Map cannot say this: any rehash invalidates everything.
 else.
 ```
 
-Do not write through OrderedSet's iterator. Value( ) returns BYREF, matching FB.Set, so 'for each byref x in s' compiles -- and assigning to x changes the key the tree is sorted by without moving the node. Remove and re-Add instead. The same hazard exists for FB.Set, where it breaks the hash.
+Do not write through OrderedSet's iterator. Value( ) returns BYREF, matching Set, so 'for each byref x in s' compiles -- and assigning to x changes the key the tree is sorted by without moving the node. Remove and re-Add instead. The same hazard exists for Set, where it breaks the hash.
 
 ## Measured
 
@@ -180,7 +181,7 @@ black height                                            13
 TryFirst + TryLast                                       7 us
 ```
 
-A black height of 13 at a million entries is the balance guarantee doing its job -- the theoretical floor is 20 nodes deep, and a degenerate tree would be a million. FB.Map cannot answer any of these three at all: the nearest key either side of a probe, the smallest, and the largest each mean walking every slot.
+A black height of 13 at a million entries is the balance guarantee doing its job -- the theoretical floor is 20 nodes deep, and a degenerate tree would be a million. Map cannot answer any of these three at all: the nearest key either side of a probe, the smallest, and the largest each mean walking every slot.
 
 ## Tests
 
@@ -207,11 +208,11 @@ detections were checked against hand-corrupted trees before being relied on.
 at most 20. A degenerate tree would report about 1,000.
 ```
 
-The removal rebalance's four cases and their mirrors need specific tree shapes that no hand-written case reliably produces, so both suites end in a DIFFERENTIAL STRESS: 120 rounds x 1,500 random operations mirrored into FB.Map or FB.Set, with every answer compared, the invariants checked each round, and Floor/Ceiling cross-checked against a linear scan.
+The removal rebalance's four cases and their mirrors need specific tree shapes that no hand-written case reliably produces, so both suites end in a DIFFERENTIAL STRESS: 120 rounds x 1,500 random operations mirrored into Map or Set, with every answer compared, the invariants checked each round, and Floor/Ceiling cross-checked against a linear scan.
 
 Under tiko, measured 2026-09-24 at origin/master 50c71751: both files build and run with exit 0 and print what fbc's builds print -- `container-orderedmap: ok` and `container-orderedset: ok` -- invariant checks and differential stress included. Both are among the 68 in-scope run programs that `build/runscan.sh` (2026-09-20) found byte-identical to fbc's builds.
 
-See also: docs/map/map.txt                  FB.Map( of TK, TV ) docs/set/set.txt                  FB.Set( of T ) docs/sort/sort.txt                sorting an Array or a LinkedList instead docs/generics/generics.txt        RFC-0001
+See also: docs/map/map.txt                  containers.Map( of TK, TV ) docs/set/set.txt                  containers.Set( of T ) docs/sort/sort.txt                sorting an Array or a LinkedList instead docs/generics/generics.txt        RFC-0001
 
 ## API reference
 

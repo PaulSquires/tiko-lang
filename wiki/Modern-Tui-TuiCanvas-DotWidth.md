@@ -16,7 +16,7 @@ The canvas width in dots -- cells times 2.
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 print TuiCanvas( 40, 10 ).DotWidth( )          '' 80
 ```

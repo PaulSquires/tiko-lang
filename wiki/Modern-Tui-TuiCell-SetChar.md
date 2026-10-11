@@ -16,7 +16,7 @@ Sets the base codepoint and recomputes the cell's column width from the Unicode 
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiCell c = TuiCellBlank( TuiStyleDefault( ) )
 c.SetChar( &h3042 )               '' HIRAGANA A -- East Asian Wide

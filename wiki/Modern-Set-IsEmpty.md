@@ -12,7 +12,7 @@ IsEmpty( ) as boolean
 
 ```freebasic
 #import "std/containers"
-using FB
+using containers
 
 dim seen as Set( of integer )
 print seen.IsEmpty           '' true

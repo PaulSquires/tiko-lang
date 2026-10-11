@@ -12,7 +12,7 @@ RatePerPeriod( nominalAnnual, compounding )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' The quoted annual rate divided by its compounding frequency.  EXACT --
 '' a plain Decimal division, not reduced, so the claim below holds.
@@ -36,4 +36,4 @@ print refused                                                              '' tr
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/fincore.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/fincore.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

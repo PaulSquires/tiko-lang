@@ -20,7 +20,7 @@ DivChecked( byval a as T, byval b as T ) as Optional( of T )
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as int8 a = 10, b = 0
 print DivChecked( a, b ).HasValue( )          '' false -- divide by zero

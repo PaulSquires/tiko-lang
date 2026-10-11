@@ -18,7 +18,7 @@ Site( file, line, func )
 
 ```freebasic
 #import "std/logs"
-using FB
+using logs
 
 '' File, line and function. Phase 5's macro layer will fill these in
 '' automatically; until then they are passed by hand.

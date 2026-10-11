@@ -12,16 +12,16 @@ CSinh( byref z as Complex ) as Complex
 
 ## Notes
 
-- `sinh(re)·cos(im) + i·cosh(re)·sin(im)`, written out on libm's `Sinh` and `Cosh` from `fb/math.bi`.
+- `sinh(re)·cos(im) + i·cosh(re)·sin(im)`, written out on libm's `Sinh` and `Cosh` from `math.tiko`.
 - **Not routed through `CSin`**, although `sinh z = -i·sin( iz )` is exact: the rotation arrives with the signed zeros negated on the real axis, and the sign of a zero is what decides a branch cut.
 - `CCosh² - CSinh² = 1` holds to within rounding for every operand.
-- Spelled with the `C` prefix because a function of the unprefixed name in namespace `FB` would shadow the FreeBASIC intrinsic for every later header — measured, it broke `fb/random.bi` — after which the intrinsic cannot be called back.
+- Spelled with the `C` prefix because, when this library was a header in namespace `FB`, a function of the unprefixed name shadowed the FreeBASIC intrinsic for every later header — measured, it broke what is now `random.tiko` — after which the intrinsic could not be called back. The name stayed when the header became `std/numeric`.
 
 ## Examples
 
 ```freebasic
 #import "std/numeric"
-using FB
+using numeric
 
 dim as Complex z = CSet( 3, 4 )
 

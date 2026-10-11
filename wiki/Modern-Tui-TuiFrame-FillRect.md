@@ -16,7 +16,7 @@ Fills a rect with one character in one style. This is how a block paints its bac
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiScreen scr
 scr.Resize( 20, 6 )

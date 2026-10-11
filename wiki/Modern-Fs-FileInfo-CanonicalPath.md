@@ -18,7 +18,7 @@ CanonicalPath( p )
 
 ```freebasic
 #import "std/fs"
-using FB
+using fs
 
 '' ASKS THE FILESYSTEM: it resolves every symlink and returns the real
 '' path, so it FAILS when the path does not exist

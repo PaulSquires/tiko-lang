@@ -12,7 +12,7 @@ SummarizeReturns( periodReturns( ), riskFreePerPeriod, frequency )
 
 ```freebasic
 #import "std/money"
-using FB
+using money
 
 '' Every headline figure in one call.  It is a CONVENIENCE, not a second
 '' implementation -- each field equals its own standalone function.
@@ -38,4 +38,4 @@ print TimeWeightedReturn( r( ) ).Value( )                '' 0.1410864155548182
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
 **Documented under:** Nothing Becomes A Keyword  
-**Source:** `src/inc/fb/finport.bi` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Source:** `pkg/std/money/finport.tiko` in the [tiko repository](https://github.com/PaulSquires/tiko-lang).

@@ -12,7 +12,7 @@ LocalDate.IsoWeekYear
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' The year the ISO WEEK belongs to, which is not always the calendar
 '' year: a week belongs to the year containing its Thursday.

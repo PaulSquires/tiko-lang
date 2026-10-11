@@ -16,7 +16,7 @@ Field-by-field comparison. Useful for skipping work when a computed layout has n
 
 ```freebasic
 #import "std/tui"
-using FB
+using tui
 
 dim as TuiRect a = TuiRectOf( 1, 2, 3, 4 )
 print a.Equals( TuiRectOf( 1, 2, 3, 4 ) )    '' true

@@ -12,7 +12,7 @@ Instant.WeekdayName( dow [, abbrev] )
 
 ```freebasic
 #import "std/chrono"
-using FB
+using chrono
 
 '' Takes the ISO day number: Monday 1 through Sunday 7
 print DateTime.WeekdayName( 4 )         '' Thursday

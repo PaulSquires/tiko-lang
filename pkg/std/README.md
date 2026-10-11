@@ -6,68 +6,59 @@ that name (RFC-0007 §3, §5).
 
 ## The modules
 
-Each module is a **facade** over a header library in the toolchain's `inc/` (RFC-0009). It
-includes the header and re-exports the header's `FB.*` names under the module's alias:
-`fs.PathJoin` is `FB.PathJoin`. The headers remain the one copy of the code -- and since
-2026-10-10 that copy is tiko-lang's own `inc/` (see `inc/PROVENANCE.md`), which the compiler
-is built from and `build/package.sh` ships, not fbc-modern's.
+Each module is a **real module** (ADR 0017): compiled once, cached, initialised in import
+order, and the one copy of its code. Until 2026-10-10 they were facades over header
+libraries in `inc/fb`; that directory is gone, and its code lives here.
 
-| Module | Fronts | Needs |
+| Module | Holds | Needs |
 |---|---|---|
-| `std/strings` | `fb/string.bi` | |
-| `std/fs` | `fb/filesystem.bi`: paths, directories, files, globs, links, volumes, and `std/path`'s old names | |
-| `std/containers` | `containers.bi`: `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap`, `OrderedSet`, `Sort` | |
-| `std/chrono` | `fb/chrono.bi`: `DateTime`, `LocalDate`, `TimeSpan`, `Stopwatch`, `WallClock` … | |
-| `std/tasks` | `fb/scheduler.bi`, `channel.bi`, `sync.bi`: `Channel`, `WaitGroup`, `Context` … | `-mt` |
-| `std/outcome` | `fb/optional.bi`, `fb/result.bi`: `Optional`, `Result`, `Some`, `None`, `Ok`, `Fail` | |
-| `std/numeric` | `fb/math.bi`, `mathint`, `complex`, `mathtext`, `random`, `stats`, `fenv`, `vector` | |
-| `std/money` | `fb/decimal.bi`, `currency`, `moneyformat`, `finance` | |
-| `std/logs` | `fb/logging.bi` | |
-| `std/tui` | `fb/tui.bi` | |
+| `std/strings` | string algorithms: `Split`, `Join`, `Replace`, `Tally`, `PadLeft`, CSV, … | |
+| `std/fs` | paths, directories, files, globs, links, volumes, and `std/path`'s old names | |
+| `std/containers` | `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap`, `OrderedSet`, `Sort`, `HashOf`, `Hashable` | |
+| `std/chrono` | `DateTime`, `LocalDate`, `TimeSpan`, `Instant`, `Stopwatch`, `WallClock`, the `DT_` constants | |
+| `std/tasks` | `Channel`, `WaitGroup`, `Context`, `Spawn` -- and what `spawn` and `select channel` lower to | `-mt` |
+| `std/outcome` | `Optional`, `Result`, `Some`, `None`, `Ok`, `Fail` | |
+| `std/numeric` | math, checked integers, complex, text formatting, random, statistics, fenv, vectors | |
+| `std/money` | `Decimal`, `Currency`, `MoneyFormat`, the finance library | |
+| `std/logs` | `Logger`, sinks, renderers, the default logger, and the logging macros | |
+| `std/tui` | the terminal UI library | |
+| `std/memory` | `SharedPtr`, `WeakPtr`, `MakeShared` | |
 
-**What a facade's names are:**
-- **Qualified only.** The names are exported macros, so they are reached as `alias.NAME`.
-  `using strings` does not make `Replace` a name. For bare names, write `using FB`: the
-  header travels with the module's interface, so `FB.*` is always there too.
-- **Identical to the header's names.** A `containers.Map( of string, long )` *is* an
-  `FB.Map( of string, long )`. A program may also `#include` the header directly, and there
-  is still one copy.
-- **Not yet seen by the tooling.** tiko-lsp's completion and the editor's parser list a
-  module's public symbols, and exported macros are not symbols.
+**How a module's names are used:**
+- **Qualified, or through `using`.** `strings.Replace( s, "a", "b" )`, or `using strings` and
+  then `Replace( s, "a", "b" )`. Two modules that both export a name -- `strings.Contains` and
+  `containers.Contains` -- need qualifying when both are `using`ed (TKO0919).
+- **Macros are exported and used qualified**: `logs.LogInfo( "started" )`,
+  `logs.LogEventWarn( Str( "path", p ), "write failed" )`, and std/fs's `JoinPath`, `DirName`,
+  `BaseName`, `Extension`, `IsAbsolute`, `Separator`. `using` never makes a macro bare.
+- **A key type for `Map` or `Set`** extends `containers.Hashable` and overrides its
+  `HashOf( )`; it needs `=` too (and `OrderedMap`/`OrderedSet` need only `<`). Built-in types
+  are hashable already.
+- **`spawn` and `select channel` need `#import "std/tasks"`** in the file that uses them, and
+  `-mt` (TKO0423 says so).
 
-**Left out:**
-- `fb/select.bi`, which is what a `SELECT` statement lowers to;
-- the headers' internal helpers;
-- `fb/sharedptr.bi`, which fits none of the modules;
-- the global `DT_*` constants of `fb/chrono.bi`, which are not in `FB` and need no module to
-  be reached.
+**Settings.** `std/logs` elides log calls below `LOG_MIN_LEVEL` at compile time (10, everything,
+when unset); a module never sees its importer's `-d`, so it is set in a `tiko.toml`'s
+`[defines]`.
 
-## Moving from the pilot
-
-`std/strings` and `std/path` were hand-written modules until RFC-0009 (M30, M31). They now
-have the header's behaviour:
+## Moving from the facades and headers
 
 | Before | Now |
 |---|---|
-| `strings.Repeat( s, n )` | `strings.Repeat( n, s )`: the count comes first |
-| `strings.Split( s, sep, parts( ) )` returned a count | `strings.Split( s, sep )` returns an `FB.Array( of string )` (`.Count( )`, `[i]`) |
-| `StartsWith`, `EndsWith`, `Contains`, `Replace` | the same, plus an optional `ignoreCase` |
-| `#import "std/path"` | `#import "std/fs"`: `Separator`, `JoinPath`, `DirName`, `BaseName`, `Extension`, `IsAbsolute` are kept as names for `PathSeparator`, `PathJoin`, `PathParent`, `PathFileName`, `PathExtension`, `PathIsAbsolute` |
-| `IsAbsolute( "/x" )` was true on Windows | false: a rooted path without a drive is not absolute there, and `"C:\x"` is |
-| `DirName( "a/b/" )` was `"a/b"`; `BaseName( "a/b/" )` was `""` | `"a"` and `"b"`: a trailing separator is ignored |
-| `JoinPath( "a", "/b" )` was `"a\/b"` | `"/b"`: a rooted second part replaces the first |
-| `Extension( "a." )` was `"."` | `""` |
+| `#include once "fb/string.bi"` + `using FB` | `#import "std/strings"` + `using strings` |
+| `#include once "containers.bi"`, `FB.Array( of T )` | `#import "std/containers"`, `containers.Array( of T )` |
+| `#import "std/x"` + `using FB` | `#import "std/x"` + `using x` |
+| `HashOf` overload added in `namespace FB` | `type K extends containers.Hashable` with a `HashOf( )` override |
+| `FB_LOG_INFO( m )` and the other `FB_LOG_*` macros | `logs.LogInfo( m )`, `logs.LogEventWarn( f, m )`, ... |
+| `FB_LOG_IMPLEMENT( )` in one module | nothing: the default logger is std/logs' own |
+| `FB_LOG_MIN_LEVEL` | `LOG_MIN_LEVEL`, std/logs' setting |
+| `#include once "fb/sharedptr.bi"` | `#import "std/memory"` |
+| `#include once "fbsqlite.bi"` + `using SQLite` | `#import "db/sqlite"` + `using sqlite` |
+| ComPtr (`fb/comptr.bi`) | no longer supported |
 
-## Regenerating
+## The tests
 
-The facades are written by `build/genfacades.py` from the headers themselves. It uses
-`tiko --dump-scan`, so the names come from the compiler, not from a text search. Re-run it
-from the repository root whenever a header changes, and commit the result:
-
-```sh
-python build/genfacades.py            # rewrite every facade
-python build/genfacades.py --check    # exit 1 if one would change
-```
-
-`build/package.sh --verify` builds and runs one value from every facade, per target, so a
-header that renames or drops an exported name fails the packaging run.
+`tests/std` holds fbc's own tests of these libraries, ported from `tests/vendor` (which is never
+edited) by `build/stdtests.py`, with `tests/std/baseline` recording what the originals did over
+the headers; `build/stdsuite.sh` compares the two. `build/package.sh --verify` builds and runs one
+value from every module, per target.

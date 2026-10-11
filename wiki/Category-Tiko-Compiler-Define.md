@@ -17,9 +17,9 @@ tiko defines `__TIKO_COMPILER__`, always `1`. Stock fbc and FBC-Modern do not de
 Test it with `#ifdef` or `defined( )`, so that a compiler which does not define it takes the other branch rather than stopping:
 
 ```freebasic
+#import "std/containers"
 #ifdef __TIKO_COMPILER__
-	#include once "fb/array.bi"
-	dim names as FB.Array( of ustring )  '' tiko builds this
+	dim names as containers.Array( of ustring )  '' tiko builds this
 #else
 	dim names(0 to 63) as string         '' fbc builds this
 #endif
