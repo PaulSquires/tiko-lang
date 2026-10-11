@@ -1,0 +1,13 @@
+'' TKO0801 for the function form of NAME with other than two arguments (fbc's 9, 16 and 7).
+'' It was TKO0994, an internal compiler error, on every one -- 'len( stamp.Name( ) )' among
+'' them, since len drops the namespace (DropNsPrefix_) and leaves the keyword. Two
+'' arguments still compile. See BuiltinArity_ in symbols/builtinarity.bas.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/name-arity.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: name-arity.bas(10,9): error TKO0801: 'name' does not take these arguments
+'' EXPECT-OUT: name-arity.bas(11,9): error TKO0801
+'' EXPECT-OUT: name-arity.bas(12,9): error TKO0801
+'' EXPECT-OUT: name-arity.bas(13,22)
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 4

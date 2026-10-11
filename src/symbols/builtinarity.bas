@@ -11,6 +11,7 @@
 ''     one or two         asc ucase lcase trim ltrim rtrim
 ''     two or three       mid instr
 ''     one or more        chr
+''     two exactly        name -- the function form of NAME; 0 and 1 were TKO0994 (2026-10-11)
 ''
 '' Too few is error 9 (16 for mid and instr), too many error 7, and the bare name error 6.
 '' tiko dropped every one of those statements in silence -- 'print len( s, 2 )' printed
@@ -27,6 +28,8 @@ private function BuiltinArity_ ( byref nm as string, byref lo as long, byref hi 
         lo = 2 : hi = 3
     case "chr"
         lo = 1 : hi = 9999
+    case "name"
+        lo = 2 : hi = 2
     case else
         return false
     end select
