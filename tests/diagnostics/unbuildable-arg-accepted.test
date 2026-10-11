@@ -1,0 +1,13 @@
+'' THE NEIGHBOURS fbc ACCEPTS are not refused: a long, a literal and a double through the
+'' long constructor, the type itself byref and byval, a string, a literal and a UDT that
+'' casts to string through the string constructor, and the long constructor of the type
+'' that also has a 'let'. fbc-modern 1.20 compiles the source clean and prints
+'' ' 7 7 5 2 2 9 9', ' 3 4 4', ' 7 2'; tiko's build prints the same. Beside
+'' unbuildable-arg.test, whose refused calls these shapes neighbour.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/unbuildable-arg-accepted.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: TKO0698
+'' EXPECT-NOT: error

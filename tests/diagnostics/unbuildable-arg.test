@@ -1,0 +1,28 @@
+'' AN ARGUMENT NO CONSTRUCTOR CAN BUILD THE PARAMETER FROM IS AN ERROR -- fbc's 58 -- even
+'' when the parameter's type HAS constructors, or an 'operator let' that would take it. Each
+'' call was an internal error, TKO0994 "this statement was not compiled": the one candidate
+'' scored unviable, argmismatch.bas judged only a type with no constructor at all, and the
+'' untyped call reached lowering. See AmUnbuildable_ in src/symbols/argmismatch.bas.
+''
+'' MEASURED, fbc-modern 1.20 with -maxerr inf over the source, 2026-10-10: error 58 on
+'' exactly lines 45-54, and no others --
+''
+''     45-46  a string to 'byref' and 'byval as A.E', built from a long
+''     47-48  B.E, an identical type in another namespace, to the same two
+''     49     a UDT with no constructor              50  a string literal
+''     51-52  a UDT and a double to a type built from a string
+''     53-54  a string and a UDT to a type built from a long with a 'let' from string
+'' TEST: cli
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/unbuildable-arg.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: unbuildable-arg.bas(45,11): error TKO0698
+'' EXPECT-OUT: unbuildable-arg.bas(46,11): error TKO0698
+'' EXPECT-OUT: unbuildable-arg.bas(47,11): error TKO0698
+'' EXPECT-OUT: unbuildable-arg.bas(48,11): error TKO0698
+'' EXPECT-OUT: unbuildable-arg.bas(49,11): error TKO0698
+'' EXPECT-OUT: unbuildable-arg.bas(50,11): error TKO0698
+'' EXPECT-OUT: unbuildable-arg.bas(51,11): error TKO0698
+'' EXPECT-OUT: unbuildable-arg.bas(52,11): error TKO0698
+'' EXPECT-OUT: unbuildable-arg.bas(53,11): error TKO0698
+'' EXPECT-OUT: unbuildable-arg.bas(54,11): error TKO0698
+'' EXPECT-NOT: TKO0994

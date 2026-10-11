@@ -27,6 +27,8 @@
 ''                  LITERAL, a named constant, an enum and even 'i + 1' are fbc's warning
 ''                  1 and bind, so only a named variable or parameter is judged.
 ''   a string       to a UDT with no constructor, no 'let' and no base -- 58
+''   a string, a number or a UDT with no cast and no base
+''                  to a UDT that HAS constructors, none of which takes it -- 58 (AmUnbuildable_)
 ''
 '' Anything else -- an untyped argument, an array, an elided or 'byval'-forced argument,
 '' a 'type( ... )' literal, a generic or property procedure -- is not judged at all.
@@ -307,6 +309,41 @@ private function AmBadPair_ _
     return false
 end function
 
+declare function UserConvCost_ _
+    ( byref c as Ctx, byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
+      byval depth as long = 0, byval overloaded as boolean = false ) as long
+
+'' A UDT PARAMETER THAT NO CONSTRUCTOR BUILDS FROM THE ARGUMENT -- fbc's 58, whatever else
+'' the type declares. Measured against fbc-modern 1.20, byref and byval alike: a string, a
+'' double and a UDT with no cast, into a type built from 'long' or from 'string', with and
+'' without an 'operator let' from string (assignment is no way into a parameter). AmBadPair_
+'' judges only a type with no constructor at all, so these came out untyped and lowering
+'' dropped the statement -- TKO0994, "this statement was not compiled".
+''
+'' Only where every conversion is modelled: the parameter's constructors are found (so not a
+'' type whose members this cannot see), neither type has a base, the argument has no cast,
+'' and no standard conversion or constructor (UserConvCost_) takes it.
+private function AmUnbuildable_ _
+    ( byref c as Ctx, byval au as Tko.TypeId, byval pu as Tko.TypeId, _
+      byval at as Tko.TypeId, byval pt as Tko.TypeId ) as boolean
+
+    if c.types->Kind( pu ) <> Tko.TK_UDT then return false
+    if au = pu then return false
+    if c.types->BaseOf( pu ) <> Tko.TYPE_NONE then return false
+    dim as string tn = left( c.names->Spelling( c.types->NameOf( pu ) ), 1 )
+    if (tn = "(") orelse (tn = "$") orelse (tn = "~") then return false
+    if UdtMemberSym_( c, pu, "__ctor" ) = Tko.SYMBOL_NONE then return false
+    if c.types->Kind( au ) = Tko.TK_UDT then
+        dim as string an = left( c.names->Spelling( c.types->NameOf( au ) ), 1 )
+        if (an = "(") orelse (an = "$") orelse (an = "~") then return false
+        if AmPlainUdt_( c, au, "cast", "" ) = false then return false
+    elseif (AmString_( c, au ) = false) andalso (AmNumeric_( c, au ) = false) then
+        return false
+    end if
+    if ConversionCost( at, pt, *c.types ) < CONV_NONE then return false
+    return (UserConvCost_( c, at, pt ) >= CONV_NONE)
+end function
+
 '' Called by ResolveCall_ when a NON-overloaded callee scored unviable. Reports TKO0698 at
 '' the first argument that is one of the pairs above, and nothing otherwise.
 private sub ReportArgMismatch_ _
@@ -362,7 +399,7 @@ private sub ReportArgMismatch_ _
                 exit sub
             end if
         end if
-        if AmBadPair_( c, au, pu, byref_, a ) then
+        if AmBadPair_( c, au, pu, byref_, a ) orelse AmUnbuildable_( c, au, pu, at, pt ) then
             c.diags->Report( Tko.TKO0698, Tko.PointRange( c.ast->Loc( a ) ) )
             exit sub
         end if
