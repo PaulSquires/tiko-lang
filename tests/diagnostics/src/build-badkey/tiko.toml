@@ -1,0 +1,6 @@
+# build-badkey: a key no [target] takes, and a target without 'main'.
+[package]
+name = "badkey"
+
+[target.app]
+mian = "m.bas"

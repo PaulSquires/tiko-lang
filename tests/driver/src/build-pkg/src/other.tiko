@@ -1,0 +1,4 @@
+'' build-pkg's second root of [target.app].
+public sub Other( )
+    print "other"
+end sub

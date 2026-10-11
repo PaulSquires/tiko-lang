@@ -49,6 +49,7 @@ declare sub ModuleFiles( byref dir_ as string, byref files as Tko.StrVec )
 declare sub ChainForDir( byref ctx as Tko.CompilerContext, byref dir_ as string, byref outw as ModWhere )
 
 '' THE PACKAGES OF ONE BUILD (RFC-0007): forgotten at the start of each graph.
+declare sub SearchPaths( byref ctx as Tko.CompilerContext, byref roots as Tko.StrVec, byref pkg as string )
 declare sub ResetPackages( byref ctx as Tko.CompilerContext )
 
 '' THE ROOTS' PACKAGE: the nearest tiko.toml's at or above the first root's directory, else

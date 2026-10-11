@@ -1,0 +1,6 @@
+'' TKO0164 (tiko-build PLAN B2): [profile.a] inherits b, which inherits a.
+'' TEST: cli
+'' ARGS: build --manifest tests/diagnostics/src/build-bad same1 --profile a
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0164: profile 'a' inherits itself: a -> b -> a
+'' EXPECT-MAX-DIAG: 1

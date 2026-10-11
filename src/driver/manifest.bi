@@ -18,6 +18,18 @@ type Manifest
     '' [dependencies.x.defines]: honoured only in the root's manifest. ddDep[k] is x.
     as StrVec  ddDep
     as StrVec  ddDefine
+    '' [target.<name>], [target.<name>.defines] and [profile.<name>] (tiko-build RFC-0001
+    '' §5): what to build, read only by 'tiko build' (src/build). Kept as records -- the
+    '' table's name, the key, the value, an array's elements joined by LF; a define is key
+    '' 'define', value NAME=value -- in file order, each name once in *Names.
+    as StrVec  targetNames
+    as StrVec  tgtName
+    as StrVec  tgtKey
+    as StrVec  tgtVal
+    as StrVec  profileNames
+    as StrVec  prfName
+    as StrVec  prfKey
+    as StrVec  prfVal
 end type
 
 '' READ dir_/tiko.toml. False with the reason reported (TKO0144) when it is not the subset

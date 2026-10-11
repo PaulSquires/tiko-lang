@@ -1,0 +1,5 @@
+'' TKO0144 FOR A [target] KEY tiko does not know (tiko-build PLAN B2), with the line.
+'' TEST: cli
+'' ARGS: build --manifest tests/diagnostics/src/build-badkey
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: tiko.toml(6): unknown key 'mian' in [target.app]

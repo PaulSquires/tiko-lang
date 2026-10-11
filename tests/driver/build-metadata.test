@@ -1,0 +1,14 @@
+'' 'tiko metadata' (RFC-0001 §8.2, PLAN B2): the package, its profiles and their flags, each
+'' target with an output per profile, the module graph and a unit per root -- one JSON
+'' object, nothing compiled.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.bmd/cache
+'' ARGS: metadata -target win64-msvc --manifest tests/driver/src/build-pkg
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: {"format":1,"package":{"name":"demo","manifest":"tests/driver/src/build-pkg/tiko.toml","root":"tests/driver/src/build-pkg"}
+'' EXPECT-OUT: {"name":"debug","flags":["-g","-exx","-O0"]}
+'' EXPECT-OUT: {"name":"fast","flags":["-O2","-d","FAST=1"]}
+'' EXPECT-OUT: "outputs":{"debug":"tests/driver/src/build-pkg/out/debug/app.exe","release":"tests/driver/src/build-pkg/out/release/app.exe","fast":"tests/driver/src/build-pkg/out/fast/app.exe"}
+'' EXPECT-OUT: "modules":[{"chain":"demo.src.util","package":"demo"
+'' EXPECT-OUT: {"target":"app","root":"tests/driver/src/build-pkg/src/main.tiko","defines":["GREETING=1"]
+'' EXPECT-NO-FILE: tests/driver/src/build-pkg/out/debug/app.exe

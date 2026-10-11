@@ -1,0 +1,9 @@
+'' build-pkg's module. [target.app.defines] gives the ROOTS GREETING; a module never sees a
+'' root's defines (RFC-0003 §2), so this returns x * 2 even then.
+#module "util"
+public function Twice( byval x as long ) as long
+#ifdef GREETING
+    return -1
+#endif
+    return x * 2
+end function

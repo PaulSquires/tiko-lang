@@ -175,7 +175,7 @@ private function Value_( byref c as TomlCursor_, byref v as string, byref kind a
             Ws_( a )
             if (a.p <= len( a.s )) andalso (a.s[a.p - 1] = asc( "," )) then a.p += 1
         loop
-        c.p += a.p
+        c.p += a.p + 1   '' past the closing bracket: it stopped ON it, and every array was "text after the value"
         kind = "a"
         return true
     end if
@@ -245,6 +245,102 @@ private function InlinePath_( byref inner as string, byref err_ as string ) as s
     return path_
 end function
 
+'' A NAME in [target.NAME] / [profile.NAME]: a word an output file can be named after.
+private function BuildName_( byref n as string ) as boolean
+    if len( n ) = 0 then return false
+    for i as long = 0 to len( n ) - 1
+        dim as ubyte ch = n[i]
+        dim as boolean ok = ((ch >= 97) andalso (ch <= 122)) orelse ((ch >= 48) andalso (ch <= 57)) orelse _
+                            (ch = 95) orelse (ch = 45)
+        if ok = false then return false
+    next
+    return true
+end function
+
+'' [target.x], [target.x.defines], [profile.x]: "" when the header is one, else why not.
+private function BuildTable_( byref m as Manifest, byref table_ as string ) as string
+    dim as boolean isT = (left( table_, 7 ) = "target.")
+    if (isT = false) andalso (left( table_, 8 ) <> "profile.") then return "unknown table [" & table_ & "]"
+    dim as string rest = mid( table_, iif( isT, 8, 9 ) )
+    dim as long dt = instr( rest, "." )
+    if dt > 0 then
+        if (isT = false) orelse (mid( rest, dt + 1 ) <> "defines") then return "unknown table [" & table_ & "]"
+        rest = left( rest, dt - 1 )
+    end if
+    if BuildName_( rest ) = false then
+        return "'" & rest & "' is not a name a target or profile may have (letters, digits, '_' and '-')"
+    end if
+    dim as boolean seen = false
+    if isT then
+        for each x as string in m.targetNames
+            if x = rest then seen = true
+        next
+        if seen = false then m.targetNames.Push( rest )
+    else
+        for each x as string in m.profileNames
+            if x = rest then seen = true
+        next
+        if seen = false then m.profileNames.Push( rest )
+    end if
+    return ""
+end function
+
+private function OneOf_( byref v as string, byref allowed as string ) as boolean
+    return instr( "|" & allowed & "|", "|" & v & "|" ) > 0
+end function
+
+'' One 'key = value' inside a [target.x] / [target.x.defines] / [profile.x] table.
+private function BuildKey_ _
+    ( byref m as Manifest, byref table_ as string, byref k as string, byref v as string, _
+      byref kind as string ) as string
+
+    dim as boolean isT = (left( table_, 7 ) = "target.")
+    dim as string rest = mid( table_, iif( isT, 8, 9 ) )
+    dim as long dt = instr( rest, "." )
+    if dt > 0 then
+        if kind <> "s" then return "a define's value is a string"
+        m.tgtName.Push( left( rest, dt - 1 ) ) : m.tgtKey.Push( "define" ) : m.tgtVal.Push( k & "=" & v )
+        return ""
+    end if
+    dim as string want, allowed
+    if isT then
+        select case k
+        case "kind"      : want = "s" : allowed = "exe|dll|lib"
+        case "subsystem" : want = "s" : allowed = "gui|console"
+        case "main", "output" : want = "s"
+        case "sources", "resources", "libs", "libpaths", "options" : want = "a"
+        case else
+            return "unknown key '" & k & "' in [" & table_ & "]"
+        end select
+    else
+        select case k
+        case "inherits" : want = "s"
+        case "errors"   : want = "s" : allowed = "|e|ex|exx"
+        case "opt"      : want = "i" : allowed = "0|1|2|3"
+        case "debug"    : want = "b"
+        case "options"  : want = "a"
+        case else
+            return "unknown key '" & k & "' in [" & table_ & "]"
+        end select
+    end if
+    if kind <> want then
+        dim as string what = "a string"
+        if want = "a" then what = "an array of strings"
+        if want = "i" then what = "an integer"
+        if want = "b" then what = "true or false"
+        return "'" & k & "' in [" & table_ & "] is " & what
+    end if
+    if (len( allowed ) > 0) andalso (OneOf_( v, allowed ) = false) then
+        return "'" & k & "' in [" & table_ & "] is one of " & allowed & ", not '" & v & "'"
+    end if
+    if isT then
+        m.tgtName.Push( rest ) : m.tgtKey.Push( k ) : m.tgtVal.Push( v )
+    else
+        m.prfName.Push( rest ) : m.prfKey.Push( k ) : m.prfVal.Push( v )
+    end if
+    return ""
+end function
+
 function LoadManifest _
     ( byref ctx as Tko.CompilerContext, byref dir_ as string, byref m as Manifest ) as boolean
 
@@ -283,7 +379,7 @@ function LoadManifest _
                     dim as boolean known = (table_ = "package") orelse (table_ = "dependencies") orelse (table_ = "defines")
                     if known = false then
                         dim as boolean depT = (left( table_, 13 ) = "dependencies.")
-                        if depT = false then why = "unknown table [" & table_ & "]"
+                        if depT = false then why = BuildTable_( m, table_ )
                     end if
                 end if
             end if
@@ -327,6 +423,10 @@ function LoadManifest _
                 case "defines"
                     if kind <> "s" then why = "a define's value is a string" else m.defines.Push( k & "=" & v )
                 case else
+                    if (left( table_, 7 ) = "target.") orelse (left( table_, 8 ) = "profile.") then
+                        why = BuildKey_( m, table_, k, v, kind )
+                        exit select
+                    end if
                     '' [dependencies.x] or [dependencies.x.defines]
                     dim as string rest = mid( table_, 14 )
                     dim as long dt = instr( rest, "." )

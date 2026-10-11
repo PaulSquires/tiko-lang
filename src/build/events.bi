@@ -23,6 +23,13 @@ namespace Tko.Build
         as long    exitCode
         as long    errors
         as long    warnings
+        '' 'tiko metadata' (B2): what a '--print-graph' run reports instead of printing --
+        '' each module once, as a JSON object, and where the last run looked for imports.
+        as Tko.StrVec modChains
+        as Tko.StrVec modJson
+        as string     searchJson
+        as string     includesJson
+        as string     definesJson
     end type
 
     '' 'kind' is "module" or "root"; 'status' is "hit", "miss" or "compiled" (B1 caches no
@@ -34,6 +41,20 @@ namespace Tko.Build
     '' The run's totals, from DiagOut.Finish -- once per run, the '#cmdline' restart included.
     declare sub OnFinish _
         ( byval obs as any ptr, byval errors as long, byval warnings as long, byval rc as long )
+
+    '' One module of a '--print-graph' run: its chain, directory, package, files and the chains
+    '' it imports. Kept once per chain, across the runs of every target.
+    declare sub OnModule _
+        ( byval obs as any ptr, byref chain as string, byref dir_ as string, byref pkg as string, _
+          byref files as Tko.StrVec, byref imports as Tko.StrVec )
+    '' ...and where that run looked: the package search roots, the toolchain's pkg/, and its
+    '' include directories and '-d' defines.
+    declare sub OnSearch _
+        ( byval obs as any ptr, byref roots as Tko.StrVec, byref pkg as string, _
+          byref includes as Tko.StrVec, byref defines as Tko.StrVec )
+
+    '' A JSON array of strings.
+    declare function JsonArr( byref v as Tko.StrVec ) as string
 
     '' A JSON string literal, quotes included: '"', '\' and control characters escaped,
     '' everything else -- UTF-8 included -- as it is.

@@ -24,6 +24,41 @@ function JsonStr( byref s as string ) as string
     return r & chr( 34 )
 end function
 
+function JsonArr( byref v as Tko.StrVec ) as string
+    dim as string r = "["
+    for i as long = 0 to v.Count - 1
+        if i > 0 then r &= ","
+        r &= JsonStr( v[i] )
+    next
+    return r & "]"
+end function
+
+sub OnModule _
+    ( byval obs as any ptr, byref chain as string, byref dir_ as string, byref pkg as string, _
+      byref files as Tko.StrVec, byref imports as Tko.StrVec )
+
+    if obs = 0 then return
+    dim as Observer ptr o = obs
+    for each c as string in o->modChains
+        if c = chain then return
+    next
+    o->modChains.Push( chain )
+    o->modJson.Push( "{""chain"":" & JsonStr( chain ) & ",""package"":" & JsonStr( pkg ) & _
+                     ",""dir"":" & JsonStr( dir_ ) & ",""files"":" & JsonArr( files ) & _
+                     ",""imports"":" & JsonArr( imports ) & "}" )
+end sub
+
+sub OnSearch _
+    ( byval obs as any ptr, byref roots as Tko.StrVec, byref pkg as string, _
+      byref includes as Tko.StrVec, byref defines as Tko.StrVec )
+
+    if obs = 0 then return
+    dim as Observer ptr o = obs
+    o->searchJson = "{""roots"":" & JsonArr( roots ) & ",""pkg"":" & JsonStr( pkg ) & "}"
+    o->includesJson = JsonArr( includes )
+    o->definesJson = JsonArr( defines )
+end sub
+
 '' ONE LINE, LF, NOTHING ELSE ON IT: an editor reads the stream a line at a time. 'print'
 '' ends a line with the host's ending, which on Windows is CRLF, so the LF is written by hand.
 sub EmitLine( byref obs as Observer, byref body as string )

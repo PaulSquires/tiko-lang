@@ -156,6 +156,13 @@ private function PkgDir_( byref ctx as Tko.CompilerContext ) as string
     return ""
 end function
 
+'' WHERE AN IMPORT IS LOOKED FOR, for 'tiko metadata' (src/build): the search roots in order
+'' and the toolchain's package tree, as SearchRoots_ and PkgDir_ find them.
+sub SearchPaths( byref ctx as Tko.CompilerContext, byref roots as Tko.StrVec, byref pkg as string )
+    SearchRoots_( ctx, roots )
+    pkg = PkgDir_( ctx )
+end sub
+
 sub ResetPackages( byref ctx as Tko.CompilerContext )
     ctx.pkgNames.Clear( ) : ctx.pkgRoots.Clear( )
     ctx.pkgDepOwner.Clear( ) : ctx.pkgDepName.Clear( ) : ctx.pkgDepPath.Clear( )

@@ -1,0 +1,17 @@
+# build-pkg: the tiko-build B2 fixture -- two targets, a define for one, a profile that inherits.
+[package]
+name = "demo"
+
+[target.app]
+main = "src/main.tiko"
+sources = ["src/other.tiko"]
+
+[target.app.defines]
+GREETING = "1"
+
+[target.tool]
+main = "tools/tool.tiko"
+
+[profile.fast]
+inherits = "release"
+options = ["-d", "FAST=1"]

@@ -1,0 +1,12 @@
+'' A NAMED TARGET UNDER A USER PROFILE (PLAN B2): [profile.fast] inherits 'release' -- so clang
+'' runs at -O2 -- and adds '-d FAST=1'; the target writes out/fast/.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.bpf/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.bpf
+'' COPY: tests/driver/src/build-pkg => build/.bpf/pkg
+'' ARGS: build tool -target win64-msvc --manifest build/.bpf/pkg --profile fast -v
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: -O2
+'' RUN: build/.bpf/pkg/out/fast/tool.exe
+'' EXPECT-RUN-OUT: tool fast

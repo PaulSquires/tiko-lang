@@ -1,0 +1,8 @@
+'' build-pkg's [target.app] main: it sees GREETING, its target's define.
+#import "./util"
+declare sub Other( )
+#ifdef GREETING
+print "greeting on"
+#endif
+print "main:"; util.Twice( 21 )
+Other( )

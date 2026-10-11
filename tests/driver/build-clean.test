@@ -6,5 +6,5 @@
 '' STEP: build -target win64-msvc tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bcl/app.exe
 '' ARGS: clean -target win64-msvc tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bcl/app.exe --message-format json
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: {"event":"clean","path":"build/.bcl/app.exe","removed":true}
+'' EXPECT-OUT: {"event":"clean","target":"main","path":"build/.bcl/app.exe","removed":true}
 '' EXPECT-NO-FILE: build/.bcl/app.exe

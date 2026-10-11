@@ -1,0 +1,6 @@
+'' build-pkg's [target.tool]: FAST comes from [profile.fast]'s options.
+#ifdef FAST
+print "tool fast"
+#else
+print "tool"
+#endif

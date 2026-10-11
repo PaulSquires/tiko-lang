@@ -1,0 +1,8 @@
+'' TKO0161, TKO0162, TKO0165 (tiko-build PLAN B2): a root that is a module directory, a source
+'' that is not there, and two targets writing one file -- all reported, nothing built.
+'' TEST: cli
+'' ARGS: build --manifest tests/diagnostics/src/build-bad dir missing same1 same2
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0161: target 'dir': 'tests/diagnostics/src/build-bad/util' is a module directory
+'' EXPECT-OUT: error TKO0162: target 'missing': 'tests/diagnostics/src/build-bad/nope.bas' not found
+'' EXPECT-OUT: error TKO0165: targets 'same1' and 'same2' write the same output 'tests/diagnostics/src/build-bad/x.exe'

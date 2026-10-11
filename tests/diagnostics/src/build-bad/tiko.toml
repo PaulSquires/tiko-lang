@@ -1,0 +1,24 @@
+# build-bad: manifests that 'tiko build' must refuse (tiko-build PLAN B2).
+[package]
+name = "bad"
+
+[target.dir]
+main = "util"
+
+[target.missing]
+main = "m.bas"
+sources = ["nope.bas"]
+
+[target.same1]
+main = "m.bas"
+output = "x.exe"
+
+[target.same2]
+main = "m.bas"
+output = "x.exe"
+
+[profile.a]
+inherits = "b"
+
+[profile.b]
+inherits = "a"

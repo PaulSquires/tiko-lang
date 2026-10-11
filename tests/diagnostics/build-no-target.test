@@ -1,0 +1,6 @@
+'' TKO0160 (tiko-build PLAN B2): a word that could be a target name, and the manifest has no
+'' such target.
+'' TEST: cli
+'' ARGS: build --manifest tests/diagnostics/src/build-bad nosuch
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0160: no target named 'nosuch' (targets: dir, missing, same1, same2)

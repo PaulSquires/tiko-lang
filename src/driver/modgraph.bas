@@ -19,6 +19,7 @@
 #include once "driver/modgraph.bi"
 #include once "driver/modresolve.bi"
 #include once "driver/unit.bi"
+#include once "build/events.bi"
 #include once "support/text.bi"
 #include once "pp/pp.bi"
 
@@ -226,6 +227,12 @@ end function
 function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long ) as long
     dim as ModGraph g
     if BuildGraph( ctx, rootCount, false, g ) = false then return Tko.EXIT_USER_ERROR
+    if ctx.build <> 0 then
+        dim as Tko.StrVec roots
+        dim as string pkg
+        SearchPaths( ctx, roots, pkg )
+        Tko.Build.OnSearch( ctx.build, roots, pkg, ctx.options.includePaths, ctx.options.defines )
+    end if
     dim as Tko.IdVec order
     for each o as ulong in g.order
         order.Push( o )
@@ -255,6 +262,15 @@ function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long )
             wend
             deps[at] = c
         next
+        '' 'tiko metadata' LISTENS INSTEAD (src/build): the module, its files and its imports.
+        if ctx.build <> 0 then
+            dim as Tko.StrVec files
+            for k as long = 0 to g.fileCount[n] - 1
+                files.Push( ctx.sources.PathOf( cast( Tko.FileId, g.fileIds[g.fileFirst[n] + k] ) ) )
+            next
+            Tko.Build.OnModule( ctx.build, g.chains[n], g.dirs[n], g.pkgNames[n], files, deps )
+            continue for
+        end if
         if deps.Count > 0 then
             ln += "  ["
             for d as long = 0 to deps.Count - 1
