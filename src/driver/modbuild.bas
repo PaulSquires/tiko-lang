@@ -176,7 +176,13 @@ function BuildImports _
             next
             if ctx.unitThreadRtl then libs &= "mt" & chr( 9 ) & "1" & chr( 10 )
             dim as string dl
-            if ModuleCacheDeps( ctx, dl ) then
+            '' A MODULE THAT READ THE CLOCK IS NOT STORED: a hit would link the first build's
+            '' __DATE__ / __TIME__ into every later one (tiko-build B0, 2026-10-11).
+            if ctx.unitUsesClock then
+                if ctx.options.verbose then
+                    print "module " & ctx.modChain & ": not stored (it expands __DATE__, __DATE_ISO__ or __TIME__)"
+                end if
+            elseif ModuleCacheDeps( ctx, dl ) then
                 storeKeys.Push( key ) : storeObjs.Push( linkObjs[linkObjs.Count - 1] )
                 storeIfaces.Push( ctx.ifaceTexts[n] ) : storeLibs.Push( libs )
                 storeChains.Push( ctx.modChain ) : storeDeps.Push( dl )

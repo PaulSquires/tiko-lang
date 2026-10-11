@@ -72,6 +72,7 @@ function PpExpandBuiltin _
         RelexInto( e, """" & left( ap, cut ) & """", use.loc, *buf )
 
     case PPB_DATE
+        if e.outp then e.outp->usesClock = true
         RelexInto( e, """" & date( ) & """", use.loc, *buf )
 
     '' __DATE_ISO__ IS THE SAME DAY IN THE OTHER ORDER. Measured, one probe on
@@ -80,12 +81,14 @@ function PpExpandBuiltin _
     '' than asking the clock twice -- a run that straddles midnight would
     '' otherwise put two different days in one program.
     case PPB_DATE_ISO
+        if e.outp then e.outp->usesClock = true
         dim as string dmy = date( )
         dim as string iso = mid( dmy, 7, 4 ) & "-" & mid( dmy, 1, 2 ) & "-" & _
                             mid( dmy, 4, 2 )
         RelexInto( e, """" & iso & """", use.loc, *buf )
 
     case PPB_TIME
+        if e.outp then e.outp->usesClock = true
         RelexInto( e, """" & time( ) & """", use.loc, *buf )
 
     case PPB_UNIQUEID, PPB_UNIQUEID_PUSH, PPB_UNIQUEID_POP

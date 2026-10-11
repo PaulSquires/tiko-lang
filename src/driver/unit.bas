@@ -248,6 +248,7 @@ function CompileUnit _
         ctx.unitProbesMissed.Push( m_ )
     next
     ctx.unitThreadRtl = false
+    ctx.unitUsesClock = pr.usesClock
 
     dim as Tko.SymbolTable syms
     syms.Attach( @ctx.names )

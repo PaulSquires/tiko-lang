@@ -72,6 +72,7 @@ namespace Tko
         as FileIdVec              unitFilesRead
         as StrVec                 unitProbesMissed   '' include candidates that were absent
         as boolean                unitThreadRtl
+        as boolean                unitUsesClock      '' expanded __DATE__ / __TIME__: never stored
         as FileIdVec              ifaceFiles
         '' '-c' OF A PROGRAM THAT IMPORTS (RFC-0005 §6): each module's object, written as
         '' <chain>.o beside the output, absolute -- what the roots' '.fbctinf' records name.

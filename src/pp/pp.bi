@@ -308,6 +308,10 @@ namespace Tko
         '' EVERY FILE THE UNIT LEXED, in first-read order, repeats allowed: what a module's
         '' cache entry depends on besides its sources (RFC-0005 §4).
         as FileIdVec   filesRead
+        '' THE UNIT EXPANDED __DATE__, __DATE_ISO__ OR __TIME__: its object holds the clock, so
+        '' a cache entry made from it would print the first build's date on every later build,
+        '' and look right doing it (tiko-build B0, 2026-10-11). Such a unit is never stored.
+        as boolean     usesClock
         '' ...AND EVERY '#include' CANDIDATE TRIED AND NOT THERE before the one that was:
         '' a file created at one of them later SHADOWS the header the unit read, which a
         '' cache keyed on what was read cannot see (audit Phase 5, negative dependencies).
