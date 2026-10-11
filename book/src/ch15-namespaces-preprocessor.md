@@ -77,16 +77,12 @@ includes `separator.ti` with no directory at all, and finds it beside `platform.
 looked for first beside the file that includes it**, not beside the program's first file. That is
 what lets a header bring its own helpers along without knowing where it will be used from.
 
-When the file is not there, tiko tries the directory the compiler was run in and every directory
-given with `-i`, and finally its own `inc/`, which holds the C bindings and the classic headers
-that ship with the toolchain.
-
-```admonish warning title="Status in this version"
-**When the same header is in the working directory and in an `-i` directory, tiko takes the `-i`
-one; fbc takes the working directory's (T97).** A header beside the including file wins in
-both. Until T97 is closed, do not rely on the order between the other two: give headers distinct
-names, or include them by a path relative to the file that needs them.
-```
+When the file is not there, tiko tries the directory the compiler was run in, then each directory
+given with `-i`, in the order they were given, and finally its own `inc/`, which holds the C
+bindings and the classic headers that ship with the toolchain. The first place that has the file
+wins. So a header of your own in the working directory, named like one of the toolchain's, is the
+one your files get when they include that name, in place of the toolchain's. Give your headers
+names of their own, or include them by a path relative to the file that needs them.
 
 ### Headers or modules?
 
@@ -498,8 +494,8 @@ never need to write it; any other is `TKO0317`.
   (`.ti`) declares what the files share: `declare` for procedures, `extern` for variables. Exactly
   one file defines each.
 - `#include once` and `#pragma once` make a header safe to reach more than once. A header is
-  looked for first beside the file that includes it, then in the working directory and `-i`
-  directories, then in tiko's `inc/` (and see T97 for the order between the middle two).
+  looked for first beside the file that includes it, then in the working directory, then in each
+  `-i` directory in turn, then in tiko's `inc/`.
 - Procedures are public by default. `private` keeps one in its file, and `#pragma push( private,
   true )` … `#pragma pop( private )` makes private the default for a region.
 - `dim shared` in one file with `extern` in the header shares a variable; `common shared` makes
