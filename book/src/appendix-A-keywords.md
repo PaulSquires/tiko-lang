@@ -145,9 +145,8 @@ Tightest first. Operators on one row bind equally, and **every binary operator i
 | 10 | `not` |
 | 11 | `and` |
 | 12 | `or` |
-| 13 | `xor` |
-| 14 | `imp` `eqv` |
-| 15 | `orelse` `andalso` |
+| 13 | `imp` `eqv` `xor` |
+| 14 | `orelse` `andalso` |
 
 The table is FreeBASIC's, measured operator pair by operator pair against fbc, and several rows differ from C and from intuition (Chapter 4). Each line below prints the same with tiko and with fbc-modern:
 
@@ -166,4 +165,4 @@ not 0 and 3           3     ...and tighter than and: (not 0) and 3
 
 `&` binds looser than `+` and `-`, so `"a" & 1 + 2` means `"a" & (1 + 2)`, and both compilers print `a3`.
 
-<!-- 247 reserved words, 104 runtime names, generated 2026-10-04 from src/lexer/keywords.bi, src/symbols/resolvertl.bas and src/parser/prectable.bi at 023534ea -->
+<!-- 247 reserved words, 104 runtime names, generated 2026-10-11 from src/lexer/keywords.bi, src/symbols/resolvertl.bas and src/parser/prectable.bi at 99d2fbb6 -->
