@@ -918,16 +918,18 @@ end function
 '' It was lowered NOWHERE -- not even for a narrow string -- so every 'n = len( s )'
 '' declined, and inside a DIM initialiser did so silently until the initialiser path
 '' started counting.
-'' A DOTTED PATH THROUGH A TYPE OR A NAMESPACE rather than through an object --
-'' 'T.field', 'T.Inner.field', 'ns.name'. What distinguishes it is the LEFTMOST name: a
-'' type or a namespace, never a variable.
+'' A DOTTED PATH THROUGH A TYPE, OR A NAMESPACE UP TO AN OBJECT -- 'T.field', 'ns.T.field',
+'' 'ns.k' -- not through one. 'ns.v' over a variable IS one: 'len( stamp.sg )' over "hello"
+'' printed 24, the descriptor, where fbc prints 5. The first non-namespace name decides.
 private function QualifiedStaticPath_ _
     ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     if id = Tko.NODE_NONE then return false
     dim as Tko.NodeId cur = id
+    dim as Tko.NodeId path_(0 to 63)   '' the member nodes, outermost first
     dim as long guard = 0
     while (c.ast->Kind( cur ) = Tko.N_MEMBER) andalso (guard < 64)
+        path_(guard) = cur
         guard += 1
         cur = c.ast->binaries[cast( long, c.ast->nodes[cast( long, cur )].data )].lhs
     wend
@@ -936,8 +938,14 @@ private function QualifiedStaticPath_ _
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cur ) )
     if s = 0 then return false
     select case s->kind
-    case cast( ubyte, Tko.SYM_UDT ), cast( ubyte, Tko.SYM_NAMESPACE ), _
-         cast( ubyte, Tko.SYM_TYPEDEF )
+    case cast( ubyte, Tko.SYM_UDT ), cast( ubyte, Tko.SYM_TYPEDEF ) : return true
+    case cast( ubyte, Tko.SYM_NAMESPACE )
+        for k as long = guard - 1 to 0 step -1
+            dim as Tko.Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( path_(k) ) )
+            if ms = 0 then return true
+            if ms->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then continue for
+            return (ms->kind <> cast( ubyte, Tko.SYM_VARIABLE )) andalso (ms->kind <> cast( ubyte, Tko.SYM_PARAMETER ))
+        next
         return true
     end select
     return false

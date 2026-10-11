@@ -1,0 +1,16 @@
+'' 'len' OF A NAME THROUGH A NAMESPACE MEASURES THE OBJECT (2026-10-11). Every qualified
+'' string, zstring, wstring and string field folded to its size -- 'len( stamp.sg )' over
+'' "hello" printed 24 -- because a dotted path whose leftmost name was a namespace was taken
+'' for a static one, as 'T.field' over a type is. The expected output is fbc-modern's,
+'' run on this program; the constant and the type's members stay static, and sizeof is
+'' unchanged.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.nml
+'' ARGS: -target win64-msvc tests/driver/src/namespace-member-len.bas -o build/.nml/nml.exe
+'' EXPECT-EXIT: 0
+'' RUN: build/.nml/nml.exe
+'' EXPECT-RUN-OUT:  5 3 4 7 8
+'' EXPECT-RUN-OUT:  5 24 4
+'' EXPECT-RUN-OUT:  24 20 40 24 4
+'' EXPECT-RUN-OUT:  5 7
