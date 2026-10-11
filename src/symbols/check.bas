@@ -907,9 +907,9 @@ private function TypeOfUncached_ _
         '' 'x - y' over two UDTs went down the builtin path -- and a UDT with an
         '' 'operator cast' to a number then SUBTRACTED THE RAW AGGREGATES as integers,
         '' emitting code, verifying, and never calling the operator that was written.
-        dim as Tko.SymbolId uop = Tko.SYMBOL_NONE
+        dim as Tko.SymbolId uop = Tko.SYMBOL_NONE : dim as long uopSeen = 0
         if IsUdtOperand_( c, lt ) orelse IsUdtOperand_( c, rt ) then
-            uop = UserBinaryOp_( c, op, lt, rt )
+            uop = UserBinaryOp_( c, op, lt, rt, uopSeen )
             if uop <> Tko.SYMBOL_NONE then
                 dim as Tko.Symbol ptr us = c.syms->SymbolAt( uop )
                 if us <> 0 then
@@ -934,10 +934,10 @@ private function TypeOfUncached_ _
            (rt <> Tko.TYPE_NONE) then
             '' Both operands are known and the combination is still not allowed --
             '' that is a real operand-type error rather than a gap in this pass.
-            if (c.types->Kind( lt ) = Tko.TK_BUILTIN) andalso _
-               (c.types->Kind( rt ) = Tko.TK_BUILTIN) then
+            if (c.types->Kind( lt ) = Tko.TK_BUILTIN) andalso (c.types->Kind( rt ) = Tko.TK_BUILTIN) then
                 c.st->badOperands += 1
             end if
+            if uopSeen = 1 then UnviableUserOp_( c, id, op, lt, rt )   '' fbc's 20 -- udtcastu.bas
         end if
 
     case Tko.N_MEMBER

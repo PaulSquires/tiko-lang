@@ -47,7 +47,8 @@ private sub CompoundUserOp_( byref c as Ctx, byval n as Tko.NodeId )
     if lUdt then
         if UdtOperatorNamed_( c, lt, selfNm ) <> Tko.SYMBOL_NONE then return
     end if
-    dim as Tko.SymbolId uop = UserBinaryOp_( c, bop, lt, rt )
+    dim as long uopSeen
+    dim as Tko.SymbolId uop = UserBinaryOp_( c, bop, lt, rt, uopSeen )
     dim as Tko.Symbol ptr us = c.syms->SymbolAt( uop )
     if us = 0 then return
     dim as Tko.TypeId ot = c.types->Unqualify( us->type_ )

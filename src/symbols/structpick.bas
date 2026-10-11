@@ -145,14 +145,45 @@ function UdtHasStrCast _
     return false
 end function
 
+'' StructorCastCost's POINTER arm: CONV_USERDEF for a cast on 'a' yielding exactly 'p' -- a typed
+'' pointer, never 'any ptr' -- and CONV_NONE otherwise. See StructorCastCost.
+private function PtrCastCtorCost_ _
+    ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byval a as Tko.TypeId, byval p as Tko.TypeId ) as long
+
+    dim as Tko.TypeId pe = types.Unqualify( types.Inner( p ) )
+    if types.Kind( pe ) = Tko.TK_BUILTIN then
+        if types.BuiltinOf( pe ) = Tko.TY_ANY then return CONV_NONE
+    end if
+    dim as Tko.SymbolId cur = StructorNamed( syms, types, names, a, "cast" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
+        if cs = 0 then exit while
+        dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
+        if rt <> Tko.TYPE_NONE then
+            if types.Kind( rt ) = Tko.TK_REFERENCE then rt = types.Unqualify( types.Inner( rt ) )
+            if rt = p then return CONV_USERDEF
+        end if
+        cur = cs->nextOverload
+    wend
+    return CONV_NONE
+end function
+
 '' A UDT ARGUMENT REACHING A CONSTRUCTOR'S (or 'let's) STRING OR NUMERIC PARAMETER THROUGH ITS OWN
 '' 'operator cast', or CONV_NONE. Measured on fbc-modern: S casting to string (or 'byref as
 '' wstring') and T constructible from 'byref/byval as string' or 'byref as wstring' -- 'T( s )',
 '' 'dim as T q = s', a T argument and an operand all run [cast][ctor]; and over numbers every
 '' CONVERTING pair does too (a 'double' cast into 'constructor( byval as long )', 'short' into
-'' 'integer', ...). fbc refuses only the pairs whose types are IDENTICAL -- 'long' into 'long',
-'' 'double' into 'double' -- with error 99, which is its defect, not a rule: tiko takes those too
-'' (the F-76 precedent). A numeric cast is the one NumericCastPick takes for the parameter.
+'' 'integer', ...). fbc REFUSES the pairs whose types are IDENTICAL -- 'long' into 'long',
+'' 'double' into 'double', boolean -- in every context: 58 as an argument, 20 as an operand, 24
+'' as an initialiser, 99 for 'T( x )', 181 returned; and so does tiko, the author's call
+'' (2026-10-10; tiko took them before). A numeric cast is the one NumericCastPick takes for the
+'' parameter, so a second, converting cast beside the identical one does not rescue it (58).
+'' POINTERS ARE THE MIRROR IMAGE, measured: only a cast yielding EXACTLY the parameter's typed
+'' pointer runs -- 'long ptr', 'zstring ptr', 'E ptr' -- while 'any ptr' even into 'any ptr',
+'' and every converting pointer pair, are 58 (tiko refused them all, TKO0698).
 function StructorCastCost _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
       byref names as Tko.Interner, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
@@ -164,11 +195,13 @@ function StructorCastCost _
     dim as Tko.TypeId p = types.Unqualify( pt )
     if types.Kind( p ) = Tko.TK_REFERENCE then p = types.Unqualify( types.Inner( p ) )
     if StrKind_( types, p ) = 0 then
+        if types.Kind( p ) = Tko.TK_POINTER then return PtrCastCtorCost_( syms, types, names, a, p )
         if NumericCastRank( types, p ) = 0 then return CONV_NONE
         dim as Tko.SymbolId nc = NumericCastPick( syms, types, names, a, p )
         if nc = Tko.SYMBOL_NONE then return CONV_NONE
         dim as long sc = ConversionCost( types.Unqualify( syms.SymbolAt( nc )->type_ ), p, types )
         if sc >= CONV_NONE then return CONV_NONE
+        if sc = 0 then return CONV_NONE    '' IDENTICAL types: fbc's refusal, above
         if sc > 0 then sc = CONV_NUMERIC   '' a cast then ANY conversion: one flat score, as fbc ranks it
         return CONV_USERDEF + sc + 2   '' a string cast beats a numeric one, as UserConvCost_ prices them
     end if

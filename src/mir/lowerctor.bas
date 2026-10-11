@@ -167,6 +167,10 @@ private function CtorArgValue_ _
         dim as Tko.TypeId au = c.types->Unqualify( at )
         if c.types->Kind( au ) = Tko.TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
         if c.types->Kind( au ) = Tko.TK_UDT then
+            '' ...AND A POINTER PARAMETER through its pointer cast (StructorCastCost's pointer arm).
+            if c.types->Kind( c.types->Unqualify( pt ) ) = Tko.TK_POINTER then
+                if UserCastToPtr_( c, argNode, outv, pt ) then return true
+            end if
             dim as Tko.SymbolId nc = Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, au, pt )
             dim as MirType nmt = LowerType( pt, *c.types )
             if (nc <> Tko.SYMBOL_NONE) andalso (nmt <> MT_VOID) andalso (nmt <> MT_AGG) then

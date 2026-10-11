@@ -673,7 +673,15 @@ private function UdtConvTemp_ _
         '' chain (structpick.bas StructorCastCost), coerced from the cast's own result type.
         dim as Tko.SymbolId numCast = Tko.SYMBOL_NONE
         if c.types->Kind( au ) = Tko.TK_UDT then numCast = Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, au, cpu )
-        if numCast <> Tko.SYMBOL_NONE then
+        '' ...AND A POINTER PARAMETER through its pointer cast (StructorCastCost's pointer arm).
+        dim as Tko.SymbolId ptrCast = Tko.SYMBOL_NONE
+        if (c.types->Kind( au ) = Tko.TK_UDT) andalso (c.types->Kind( cpu ) = Tko.TK_POINTER) then
+            ptrCast = Tko.Check.PtrCastPick( *c.syms, *c.types, *c.names, au, cpu )
+        end if
+        if ptrCast <> Tko.SYMBOL_NONE then
+            if UserCastToPtr_( c, argNode, av, cpu ) = false then return false
+            chainCast = ptrCast
+        elseif numCast <> Tko.SYMBOL_NONE then
             if UserCastToNum_( c, argNode, av, cpu ) = false then return false
             dim as MirType nmt = LowerType( cpt, *c.types )
             if (nmt = MT_VOID) orelse (nmt = MT_AGG) then return false

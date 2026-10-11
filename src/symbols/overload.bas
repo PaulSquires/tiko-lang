@@ -330,10 +330,12 @@ declare function SameProc_ _
 declare function ProcHasBody_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
 
+'' 'seen': 0 nothing, 1 an ordinary candidate none of which fits (TKO0820 at the caller), 2 a fit.
 private function UserBinaryOp_ _
     ( byref c as Ctx, byval op as Tko.TokenKind, byval lt as Tko.TypeId, _
-      byval rt as Tko.TypeId ) as Tko.SymbolId
+      byval rt as Tko.TypeId, byref seen as long ) as Tko.SymbolId
 
+    seen = 0
     dim as string nm = Tko.TokenKindText( op )
     if len( nm ) = 0 then return Tko.SYMBOL_NONE
     dim as Tko.InternId fold = c.names->Fold( c.names->GetString( nm ) )
@@ -518,6 +520,8 @@ private function UserBinaryOp_ _
                         if u0 andalso u1 then
                             c0 = CONV_NONE
                             c1 = CONV_NONE
+                        elseif (seen = 0) andalso ((pp->extra and Tko.PF_GENERIC_PROC) = 0) andalso ((s->flags and Tko.SYMF_GENERIC_INST) = 0) then
+                            seen = 1    '' a candidate for TKO0820: one operand is its type already
                         end if
                         if (c0 < CONV_NONE) andalso (c1 < CONV_NONE) then total = c0 + c1
                     elseif np = 1 then
@@ -538,6 +542,7 @@ private function UserBinaryOp_ _
                         end if
                     end if
                     if total < CONV_NONE then
+                        seen = 2
                         if total < bestCost then
                             bestCost = total
                             best = cur

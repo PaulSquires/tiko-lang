@@ -1,0 +1,31 @@
+'' A CAST WHOSE TYPE IS THE CONSTRUCTOR'S PARAMETER'S EXACTLY DOES NOT BUILD THE OBJECT, as in
+'' fbc-modern: 'operator cast( ) as long' into 'constructor( byval k as long )' is refused in
+'' every context -- and so is any pointer pair but an identical typed pointer, 'any ptr'
+'' included. tiko took every such chain (UserConvCost_'s two-level arm and PickStructor, both
+'' through StructorCastCost, src/symbols/structpick.bas), and the operator form, refused for a
+'' string cast already, was not a diagnostic at all: TKO0994. The author's call, 2026-10-10:
+'' match fbc. See cast-ctor-chain-accepted.test for the neighbours fbc takes.
+''
+'' QL also casts to double -- a converting pair on its own -- and still the identical cast is
+'' the one fbc picks for the long parameter, and refuses.
+''
+'' MEASURED, fbc-modern 1.20 with -maxerr inf over the source, 2026-10-10: errors on exactly
+'' lines 36-41 and 44, and no others --
+''
+''     36-37  error 58   an argument to 'byref' and 'byval as E'
+''     38     error 20   an operand of 'operator <>( E, E )'          (TKO0820 here)
+''     39     error 24   an initialiser, 'dim as E e1 = x'             (TKO0738)
+''     40     error 99   'E( x )'                                      (TKO0632)
+''     41     error 58   'long ptr' into a constructor taking 'any ptr'
+''     44     error 181  'return z' from a function returning E        (TKO0738)
+'' TEST: cli
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/cast-ctor-chain.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: cast-ctor-chain.bas(36,11): error TKO0698
+'' EXPECT-OUT: cast-ctor-chain.bas(37,11): error TKO0698
+'' EXPECT-OUT: cast-ctor-chain.bas(38,10): error TKO0820
+'' EXPECT-OUT: cast-ctor-chain.bas(41,11): error TKO0698
+'' EXPECT-OUT: cast-ctor-chain.bas(40,12): error TKO0632
+'' EXPECT-OUT: cast-ctor-chain.bas(44,12): error TKO0738
+'' EXPECT-OUT: cast-ctor-chain.bas(39,10): error TKO0738
+'' EXPECT-NOT: TKO0994

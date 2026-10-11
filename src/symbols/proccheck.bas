@@ -661,6 +661,15 @@ private function OperandClass_( byref c as Ctx, byval t as TypeId ) as long
     return iif( c.types->Kind( t0 ) = TK_ARRAY, 0, 1 )
 end function
 
+'' TKO0820 ONCE PER EXPRESSION: Check's binary case reports a declared operator no operand
+'' reaches (UnviableUserOp_, udtcastu.bas) before these sweeps see the same node.
+private sub Report0820_( byref c as Ctx, byval id as NodeId, byref opText as string )
+    for i as long = 0 to c.diags->pending.Count - 1
+        if (c.diags->pending[i].id = TKO0820) andalso (c.diags->pending[i].range.first = c.ast->Loc( id )) then return
+    next
+    c.diags->Report( TKO0820, PointRange( c.ast->Loc( id ) ), opText )
+end sub
+
 private sub UdtArith_ ( byref c as Ctx, byval id as NodeId, byval bp as BinaryPayload ptr )
     if (bp->lhs = NODE_NONE) orelse (bp->rhs = NODE_NONE) then return
     if c.info->RefOf( id ) <> SYMBOL_NONE then return
@@ -680,7 +689,7 @@ private sub UdtArith_ ( byref c as Ctx, byval id as NodeId, byval bp as BinaryPa
     if (lUdt orelse rUdt) = false then
         dim as long lc = OperandClass_( c, lt ), rc = OperandClass_( c, rt )
         if (lc <> 0) andalso (rc <> 0) andalso ((lc = 2) andalso (rc = 2)) = false then
-            c.diags->Report( TKO0820, PointRange( c.ast->Loc( id ) ), _
+            Report0820_( c, id, _
                              lcase( TokenKindText( cast( TokenKind, bp->op ) ) ) )
         end if
         return
@@ -691,7 +700,7 @@ private sub UdtArith_ ( byref c as Ctx, byval id as NodeId, byval bp as BinaryPa
     if rUdt then
         if StructorOf_( c, rt, "cast" ) <> 0 then return
     end if
-    c.diags->Report( TKO0820, PointRange( c.ast->Loc( id ) ), _
+    Report0820_( c, id, _
                      lcase( TokenKindText( cast( TokenKind, bp->op ) ) ) )
 end sub
 
@@ -753,7 +762,7 @@ private sub CheckUdtCompound_ ( byref c as Ctx, byval id as NodeId )
     else
         return
     end if
-    c.diags->Report( TKO0820, PointRange( c.ast->Loc( id ) ), selfNm )
+    Report0820_( c, id, selfNm )
 end sub
 
 '' '*i' OVER A NUMBER and '@5' OVER A LITERAL -- fbc's 28 and 24. A string is left to
@@ -807,7 +816,7 @@ private sub CheckUdtUnary_ ( byref c as Ctx, byval id as NodeId )
         if TupleLike_( c, t ) then return
         if StructorOf_( c, t, "cast" ) <> 0 then return
     end if
-    c.diags->Report( TKO0820, PointRange( c.ast->Loc( id ) ), _
+    Report0820_( c, id, _
                      lcase( TokenKindText( cast( TokenKind, up->op ) ) ) )
 end sub
 
@@ -982,7 +991,7 @@ private sub UdtCastOperands_ ( byref c as Ctx, byval id as NodeId, byval bp as B
             end if
         end if
     end if
-    if bad then c.diags->Report( TKO0820, PointRange( c.ast->Loc( id ) ), lcase( TokenKindText( op ) ) )
+    if bad then Report0820_( c, id, lcase( TokenKindText( op ) ) )
 end sub
 
 private sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )

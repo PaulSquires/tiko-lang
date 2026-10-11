@@ -1,0 +1,22 @@
+'' THE CAST-THEN-CONSTRUCTOR CHAINS fbc-modern TAKES still build, beside the ones
+'' tests/diagnostics/cast-ctor-chain refuses: a numeric cast that CONVERTS into the
+'' constructor's parameter (double and ulong into 'byval as long'), a string cast into a string
+'' constructor, and a cast yielding EXACTLY the constructor's typed pointer ('long ptr',
+'' 'zstring ptr') -- as an argument, an operand, an initialiser, 'T( x )' and a result. The
+'' pointer chains were TKO0698 (refused) or dropped: StructorCastCost had no pointer arm, nor
+'' lowering one (lowerctor.bas, lowercallarg.bas -- UserCastToPtr_).
+''
+'' A goldenrun.sh differential: built and run by fbc-modern 1.20 and by tiko, the two
+'' outputs are byte-identical (measured 2026-10-10).
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/driver/src/cast-ctor-chain-accepted.bas -o tests/driver/castctorchain.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/castctorchain.exe
+'' RUN: tests/driver/castctorchain.exe
+'' EXPECT-RUN-OUT: arg 3 9 41 7 4
+'' EXPECT-RUN-OUT: opfalsetrue
+'' EXPECT-RUN-OUT: init 9 41
+'' EXPECT-RUN-OUT: ctor 7 41
+'' EXPECT-RUN-OUT: ret 3
+'' EXPECT-RUN-EXIT: 0
