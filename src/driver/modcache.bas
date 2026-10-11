@@ -213,12 +213,13 @@ private function KeyPath_( byref p as string ) as string
     #endif
 end function
 
-function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as string
+'' THE OPTIONS AN OBJECT DEPENDS ON, shared by the module key and the unit key so the two
+'' cannot drift apart: the error checks, -g, -O, -mt, the include and #cinclude paths,
+'' what the object is for.
+private function OptionLines_( byref ctx as Tko.CompilerContext ) as string
     dim as string nl = Nl_( )
     dim as Tko.DriverOptions ptr o = @ctx.options
-    dim as string k = "tki-format 1" & nl
-    k &= "tiko " & Tko.DiskCache.CompilerStamp( ) & nl
-    k &= "triple " & Tko.Codegen.TargetFor( o->target ).triple & nl
+    dim as string k = ""
     k &= "options e=" & o->errFlags & " g=" & iif( o->debugInfo, 1, 0 ) & _
          " O=" & o->optLevel & " mt=" & iif( o->threadSafe, 1, 0 ) & _
          " w=" & iif( o->warningsAsErrors, 1, 0 ) & " maxinstdepth=" & o->maxInstDepth & _
@@ -244,6 +245,16 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as strin
         k &= "cinclude " & KeyPath_( p ) & nl
     next
     k &= "outkind " & o->outKind & nl
+    return k
+end function
+
+function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as string
+    dim as string nl = Nl_( )
+    dim as Tko.DriverOptions ptr o = @ctx.options
+    dim as string k = "tki-format 1" & nl
+    k &= "tiko " & Tko.DiskCache.CompilerStamp( ) & nl
+    k &= "triple " & Tko.Codegen.TargetFor( o->target ).triple & nl
+    k &= OptionLines_( ctx )
     '' The package's [defines], which the module is compiled with.
     dim as Tko.StrVec pdefs
     PackageDefines( ctx, ctx.modPkgName, pdefs )
@@ -342,6 +353,51 @@ private function ChainFile_( byref root as string, byref chain as string, byref 
         d = mid( key, at, e - at )
     end if
     return JoinPath( JoinPath( root, "chains" ), chain & "." & Tko.DiskCache.Hash( d ) & ".key" )
+end function
+
+'' THE KEY OF A CLASSIC ROOT'S OBJECT (tiko-build RFC-0001 §6.1). What a module's key holds
+'' that applies to a root, and what only a root sees: the command line's '-d' defines and the
+'' rest of its arguments, the working directory ('#include' searches it), whether it owns
+'' main and whether it is the first unit (only the first may '#cmdline'). Then its source --
+'' the files it includes are deps.txt's -- and the interface of every module this build
+'' imports: more than its own closure, which costs a rebuild now and then and never a
+'' stale object.
+function UnitKey _
+    ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval isMain as boolean, _
+      byval first as boolean, byref args as string ) as string
+
+    dim as string nl = Nl_( )
+    dim as string k = "unit-format 1" & nl
+    k &= "tiko " & Tko.DiskCache.CompilerStamp( ) & nl
+    k &= "triple " & Tko.Codegen.TargetFor( ctx.options.target ).triple & nl
+    k &= OptionLines_( ctx )
+    k &= "args " & args & nl
+    for each d as string in ctx.options.defines
+        k &= "define " & d & nl
+    next
+    k &= "cwd " & KeyPath_( curdir( ) ) & nl
+    k &= "main " & iif( isMain, 1, 0 ) & " first " & iif( first, 1, 0 ) & nl
+    dim as string p = ctx.sources.AbsPathOf( id )
+    dim as string text_
+    Tko.DiskCache.ReadAll( p, text_ )
+    k &= "source " & KeyPath_( p ) & " " & len( text_ ) & " " & Tko.DiskCache.Hash( text_ ) & nl
+    dim as Tko.StrVec lines_
+    for i as long = 0 to ctx.ifaceChains.Count - 1
+        lines_.Push( "iface " & ctx.ifaceChains[i] & " " & Tko.DiskCache.Hash( ctx.ifaceTexts[i] ) )
+    next
+    for i as long = 1 to lines_.Count - 1
+        dim as string v = lines_[i]
+        dim as long j = i - 1
+        while (j >= 0) andalso (lines_[j] > v)
+            lines_[j + 1] = lines_[j]
+            j -= 1
+        wend
+        lines_[j + 1] = v
+    next
+    for each l as string in lines_
+        k &= l & nl
+    next
+    return k
 end function
 
 function ModuleCacheDeps( byref ctx as Tko.CompilerContext, byref dl as string ) as boolean

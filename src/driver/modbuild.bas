@@ -30,8 +30,26 @@ function ArchiveMemberPath( byref ctx as Tko.CompilerContext ) as string
     return JoinPath( DirOfFile( ctx.options.outputPath ), ctx.modChain & ".o" )
 end function
 
-'' A cached module's contribution to the link, as ModuleCacheCommit recorded it.
-private sub ReplayLibs_( byref ctx as Tko.CompilerContext, byref libs as string )
+'' What a unit added to the link since the counts were taken, as a cache entry's libs.txt.
+function LibsSince _
+    ( byref ctx as Tko.CompilerContext, byval libs0 as long, byval paths0 as long, _
+      byval files0 as long ) as string
+    dim as string libs = ""
+    for k as long = libs0 to ctx.options.pragmaLibs.Count - 1
+        libs &= "lib" & chr( 9 ) & ctx.options.pragmaLibs[k] & chr( 10 )
+    next
+    for k as long = paths0 to ctx.options.pragmaLibPaths.Count - 1
+        libs &= "libpath" & chr( 9 ) & ctx.options.pragmaLibPaths[k] & chr( 10 )
+    next
+    for k as long = files0 to ctx.options.pragmaLibFiles.Count - 1
+        libs &= "libfile" & chr( 9 ) & ctx.options.pragmaLibFiles[k] & chr( 10 )
+    next
+    if ctx.unitThreadRtl then libs &= "mt" & chr( 9 ) & "1" & chr( 10 )
+    return libs
+end function
+
+'' A cached unit's contribution to the link, as its entry recorded it.
+sub ReplayLibs( byref ctx as Tko.CompilerContext, byref libs as string )
     dim as long p = 1
     while p <= len( libs )
         dim as long e = instr( p, libs, chr( 10 ) )
@@ -145,7 +163,7 @@ function BuildImports _
             linkObjs.Push( hitObj )
             ctx.ifaceTexts[n] = hitIface
             ctx.ifaceFiles[n] = cast( ulong, ctx.sources.AddVirtual( ctx.modChain & ".tki", hitIface ) )
-            ReplayLibs_( ctx, hitLibs )
+            ReplayLibs( ctx, hitLibs )
             continue for
         end if
         if ctx.options.verbose andalso (len( cacheRoot ) > 0) then
@@ -167,17 +185,7 @@ function BuildImports _
             ctx.modObjPaths.Push( AbsPath( linkObjs[linkObjs.Count - 1] ) )
         end if
         if (len( cacheRoot ) > 0) andalso (linkObjs.Count > objs0) then
-            dim as string libs = ""
-            for k as long = libs0 to ctx.options.pragmaLibs.Count - 1
-                libs &= "lib" & chr( 9 ) & ctx.options.pragmaLibs[k] & chr( 10 )
-            next
-            for k as long = paths0 to ctx.options.pragmaLibPaths.Count - 1
-                libs &= "libpath" & chr( 9 ) & ctx.options.pragmaLibPaths[k] & chr( 10 )
-            next
-            for k as long = files0 to ctx.options.pragmaLibFiles.Count - 1
-                libs &= "libfile" & chr( 9 ) & ctx.options.pragmaLibFiles[k] & chr( 10 )
-            next
-            if ctx.unitThreadRtl then libs &= "mt" & chr( 9 ) & "1" & chr( 10 )
+            dim as string libs = LibsSince( ctx, libs0, paths0, files0 )
             dim as string dl
             '' A MODULE THAT READ THE CLOCK IS NOT STORED: a hit would link the first build's
             '' __DATE__ / __TIME__ into every later one (tiko-build B0, 2026-10-11).

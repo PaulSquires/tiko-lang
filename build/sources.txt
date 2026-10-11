@@ -110,6 +110,7 @@ src/driver/modbuild.bas
 src/driver/tkiemit.bas
 src/driver/modiface.bas
 src/driver/modcache.bas
+src/driver/unitcache.bas
 src/driver/diagout.bas
 src/build/events.bas
 src/build/lock.bas

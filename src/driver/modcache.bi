@@ -19,6 +19,11 @@ declare function CleanModuleCache( byref ctx as Tko.CompilerContext ) as string
 '' THE KEY of module n of the build (ctx.ifaceChains[n]), whose dependencies' interfaces are
 '' already in ctx.ifaceTexts. One line per item.
 declare function ModuleKey( byref ctx as Tko.CompilerContext, byval n as long ) as string
+'' ...and a classic ROOT's, for 'tiko build' (tiko-build RFC-0001 §6.1; unitcache.bas).
+'' 'args' is the command line less its inputs and what cannot reach an object.
+declare function UnitKey _
+    ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval isMain as boolean, _
+      byval first as boolean, byref args as string ) as string
 
 '' A HIT: the entry exists, its key is this one, and every file it records is as it was.
 '' objPath, the interface text and the libraries are the entry's.

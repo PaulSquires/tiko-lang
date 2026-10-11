@@ -83,7 +83,7 @@ end function
 
 '' DOES UNIT i's TOP-LEVEL CODE BECOME 'main'? Decided once and asked twice: by the
 '' preprocessor, for __FB_MAIN__ (T96), and by the lowering. The rules are below.
-private function IsMainUnit_ _
+function IsMainUnit_ _
     ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval i as long ) as boolean
     dim as string modName = ModuleStem( ctx.sources.PathOf( id ) )
     if ctx.modFileCount > 0 then modName = ctx.modName

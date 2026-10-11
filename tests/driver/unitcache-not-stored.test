@@ -1,0 +1,17 @@
+'' NEVER STORED (PLAN B3): a root that expands __TIME__ (a hit would print the first build's
+'' clock) and a root with a warning (a hit would not report it again). Each misses on the
+'' second build, says why under -v (TKO0169), and the warning is reported again; a clean
+'' root beside them hits.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.ucn/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.ucn
+'' COPY: tests/driver/src/unitcache => build/.ucn/src
+'' STEP: build -target win64-msvc build/.ucn/src/a.tiko build/.ucn/src/b.tiko build/.ucn/src/clock.tiko build/.ucn/src/warn.tiko -o build/.ucn/app.exe
+'' ARGS: build -target win64-msvc build/.ucn/src/a.tiko build/.ucn/src/b.tiko build/.ucn/src/clock.tiko build/.ucn/src/warn.tiko -o build/.ucn/app.exe -v
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: unit build/.ucn/src/a.tiko: hit
+'' EXPECT-OUT: unit build/.ucn/src/clock.tiko: miss (new)
+'' EXPECT-OUT: note TKO0169: 'build/.ucn/src/clock.tiko' is not cached: it expands __DATE__, __DATE_ISO__ or __TIME__
+'' EXPECT-OUT: warning TKO0312
+'' EXPECT-OUT: note TKO0169: 'build/.ucn/src/warn.tiko' is not cached: it has warnings

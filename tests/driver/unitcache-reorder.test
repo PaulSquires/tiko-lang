@@ -1,0 +1,17 @@
+'' WHICH ROOT OWNS MAIN IS IN THE KEY (PLAN B3): the same two sources in the other order make b
+'' main and a a module constructor, so both miss on the 'main' line -- a hit would link two
+'' mains, or none -- and the program now runs a's code first.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.ucr/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.ucr
+'' COPY: tests/driver/src/unitcache => build/.ucr/src
+'' STEP: build -target win64-msvc build/.ucr/src/a.tiko build/.ucr/src/b.tiko -o build/.ucr/app.exe
+'' ARGS: build -target win64-msvc build/.ucr/src/b.tiko build/.ucr/src/a.tiko -o build/.ucr/app.exe -v
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: unit build/.ucr/src/b.tiko: miss (main 1 first 1)
+'' EXPECT-OUT: unit build/.ucr/src/a.tiko: miss (main 0 first 0)
+'' RUN: build/.ucr/app.exe
+'' EXPECT-RUN-OUT: a top
+'' EXPECT-RUN-OUT: b says 7
+'' EXPECT-RUN-OUT: b top

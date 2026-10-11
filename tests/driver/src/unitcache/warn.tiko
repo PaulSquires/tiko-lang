@@ -1,0 +1,4 @@
+'' unitcache's warning root: an unknown pragma is a warning, so it is never stored.
+#pragma tiko_no_such_pragma
+public sub Warned( )
+end sub

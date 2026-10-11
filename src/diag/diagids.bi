@@ -95,6 +95,7 @@
     DIAG( TKO0163, SEV_ERROR,   "no profile named '%0' (profiles: %1)" )
     DIAG( TKO0164, SEV_ERROR,   "profile '%0' inherits itself: %1" )
     DIAG( TKO0165, SEV_ERROR,   "targets '%0' and '%1' write the same output '%2'" )
+    DIAG( TKO0169, SEV_NOTE,    "'%0' is not cached: %1" )
     DIAG( TKO0166, SEV_ERROR,   "another build of '%0' is running (it holds %1)" )
     DIAG( TKO0153, SEV_ERROR,   "'%0' was compiled against module object '%1', which is not there; compile it again with -c" )
     DIAG( TKO0152, SEV_ERROR,   "'--emit-tki' writes a module's interface, and needs one module directory as its input" )

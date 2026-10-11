@@ -66,6 +66,9 @@ private function ParseArgs_ _
             continue while
         case "-v"
             a.verbose = true
+        '' NOTHING READ FROM OR WRITTEN TO THE CACHE, modules or roots (B3).
+        case "--no-cache"
+            a.extra.Push( "--no-module-cache" )
         '' THE CONSOLE'S COLOUR is the driver's, passed on as given (the test runner says never).
         case "--color=always", "--color=never", "--color=auto"
             a.extra.Push( w )

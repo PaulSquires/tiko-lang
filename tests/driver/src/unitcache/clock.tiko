@@ -1,0 +1,4 @@
+'' unitcache's clock root: it expands __TIME__, so it is never stored.
+public function BuiltAt( ) as string
+    return __TIME__
+end function

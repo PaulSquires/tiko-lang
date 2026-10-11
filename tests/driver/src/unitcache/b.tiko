@@ -1,0 +1,6 @@
+'' unitcache's second root: it includes hdr.bi, so a header edit must miss it and only it.
+#include once "hdr.bi"
+public sub FromB( )
+    print "b says"; HDR_VALUE
+end sub
+print "b top"

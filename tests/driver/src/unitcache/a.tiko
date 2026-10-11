@@ -1,0 +1,4 @@
+'' unitcache's first root: top-level code, which is main when this unit is first.
+declare sub FromB( )
+print "a top"
+FromB( )

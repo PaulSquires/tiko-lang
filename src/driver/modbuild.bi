@@ -22,6 +22,10 @@ declare function BuildImports _
 '' WHERE A MODULE'S OBJECT GOES when the output is a static library, whose members keep
 '' their names: '<chain>.o' beside the archive -- 'std.strings.o'.
 declare function ArchiveMemberPath( byref ctx as Tko.CompilerContext ) as string
+declare function LibsSince _
+    ( byref ctx as Tko.CompilerContext, byval libs0 as long, byval paths0 as long, _
+      byval files0 as long ) as string
+declare sub ReplayLibs( byref ctx as Tko.CompilerContext, byref libs as string )
 
 '' '--emit-tki <dir>': THE INTERFACE OF THE MODULE IN dir_, printed, built the way a program
 '' that imports it builds it -- its own imports first, its package's [defines] applied, the

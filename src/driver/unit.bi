@@ -29,6 +29,10 @@ declare function CompileUnit _
       byref linkObjs as Tko.StrVec, byref tempObjs as Tko.StrVec, _
       byref toolExit as long, byref restartArgs as Tko.StrVec ) as boolean
 
+'' Does unit i's top-level code become 'main'? (unit.bas; the unit cache keys on it too)
+declare function IsMainUnit_ _
+    ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval i as long ) as boolean
+
 '' ---- driver.bas's helpers that the unit pass calls too. Defined there.
 declare function ModuleStem( byref path_ as string ) as string
 declare function StripExt_( byref path_ as string ) as string

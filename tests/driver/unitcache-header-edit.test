@@ -1,0 +1,15 @@
+'' A HEADER EDIT MISSES EXACTLY ITS INCLUDERS (PLAN B3): hdr.bi is in b.tiko's deps.txt and not
+'' in a.tiko's, so b misses on "a file it read changed" and a hits; b prints the new value.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.uce/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.uce
+'' COPY: tests/driver/src/unitcache => build/.uce/src
+'' STEP: build -target win64-msvc build/.uce/src/a.tiko build/.uce/src/b.tiko -o build/.uce/app.exe
+'' WRITE: build/.uce/src/hdr.bi :: '' edited\n#define HDR_VALUE 9\n
+'' ARGS: build -target win64-msvc build/.uce/src/a.tiko build/.uce/src/b.tiko -o build/.uce/app.exe -v
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: unit build/.uce/src/a.tiko: hit
+'' EXPECT-OUT: unit build/.uce/src/b.tiko: miss (a file it read changed)
+'' RUN: build/.uce/app.exe
+'' EXPECT-RUN-OUT: b says 9

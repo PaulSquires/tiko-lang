@@ -6,6 +6,7 @@
 #include once "driver/cmdline.bi"
 #include once "driver/diagout.bi"
 #include once "build/events.bi"
+#include once "driver/unitcache.bi"
 #include once "support/text.bi"
 #include once "pp/pp.bi"
 #include once "parser/expr.bi"
@@ -1105,9 +1106,21 @@ function Run _
             cast( Tko.Scan.ScanResult ptr, ctx.scan )->importing = false
         end if
         dim as double tFrontStart = timer
+        '' A 'tiko build' CACHES ITS ROOTS (unitcache.bi) when the run links.
+        dim as Tko.UnitCache.Store ucs
+        dim as boolean ucLinks = wantsOutput andalso (ctx.options.compileOnly = false) andalso _
+            (scanning = false) andalso (ctx.options.emitIr = false) andalso (ctx.options.emitAsm = false)
+        Tko.UnitCache.Open( ctx, args, restartDepth, ucLinks, ucs )
         for i as long = 1 to srcCount
             '' PAST THE ERROR CAP no further unit is compiled.
             if ctx.diags.Stopped( ) then exit for
+            dim as string ukey
+            if Tko.UnitCache.TryHit( ctx, ucs, i, ukey, linkObjs, tempObjs ) then
+                Tko.Build.OnUnit( ctx.build, "root", ctx.sources.PathOf( cast( Tko.FileId, i ) ), "hit" )
+                continue for
+            end if
+            dim as Tko.UnitCache.Mark um
+            Tko.UnitCache.Before( ctx, linkObjs, um )
             '' ONE UNIT, compiled by CompileUnit in unit.bas -- moved there unchanged on
             '' 2026-09-27, so that the module build of ADR 0017 can compile a unit it did
             '' not read from the command line. A '#cmdline' restart comes back here, because
@@ -1121,12 +1134,15 @@ function Run _
                 DrainObjects( ctx )
                 return RestartWith_( args, restartArgs, restartDepth, buildOut )
             end if
-            Tko.Build.OnUnit( ctx.build, "root", ctx.sources.PathOf( cast( Tko.FileId, i ) ), "compiled" )
+            Tko.Build.OnUnit( ctx.build, "root", ctx.sources.PathOf( cast( Tko.FileId, i ) ), _
+                              Tko.UnitCache.After( ctx, ucs, i, ukey, um, linkObjs ) )
         next
         '' EVERY OBJECT EXISTS BEFORE ANYTHING READS ONE, and a clang that failed is reported
         '' now, as the first failure, exactly as it was when it ran inline.
         dim as long drained = DrainObjects( ctx )
         if (drained <> Tko.EXIT_OK) andalso (toolExit = Tko.EXIT_OK) then toolExit = drained
+        '' ...and the roots' entries are stored while their objects still exist.
+        if (toolExit = Tko.EXIT_OK) andalso (FrontendFailed_( ctx ) = false) then Tko.UnitCache.Commit( ctx, ucs )
 
         '' THE FRONTEND'S OWN TIME, so the budget in docs/plan/14 section 4 can be read
         '' off a single file rather than wall-clocked with the process start-up

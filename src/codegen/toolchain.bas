@@ -252,6 +252,11 @@ private function CompileIrArgs_ _
     '' that emits every method of its classes -- pkg/fbx's gui -- linked every one of them
     '' into every program that imported it, called or not.
     cmd += " -ffunction-sections -fdata-sections"
+    '' A ZERO TIMESTAMP IN THE COFF HEADER for the msvc triple, whose default stamps the build
+    '' time: measured (tiko-build B0), two compiles of one unit then differ in that field
+    '' alone, and with the flag they are the same bytes -- what lets a cached object be
+    '' checked against a fresh one. lld does not read the stamp.
+    if instr( target.triple, "msvc" ) > 0 then cmd += " -mno-incremental-linker-compatible"
     '' -fPIC FOR AN ELF SHARED LIBRARY, as fbc passes it -- measured, 'fbc -gen llvm
     '' -dll' on Linux hands clang '-fPIC'. clang's Linux default is PIE, which may
     '' reach the module's own globals directly, and ld refuses that in a shared object.

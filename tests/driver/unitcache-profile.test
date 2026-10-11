@@ -1,0 +1,15 @@
+'' A PROFILE SWITCH MISSES EVERY ROOT, AND SWITCHING BACK HITS (PLAN B3): release's -O2 is in
+'' the key; the debug entries are still there afterwards.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.ucp/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.ucp
+'' COPY: tests/driver/src/unitcache => build/.ucp/src
+'' STEP: build -target win64-msvc build/.ucp/src/a.tiko build/.ucp/src/b.tiko -o build/.ucp/app.exe --profile debug
+'' STEP: build -target win64-msvc build/.ucp/src/a.tiko build/.ucp/src/b.tiko -o build/.ucp/app.exe --profile release -v
+'' STEP-OUT: unit build/.ucp/src/a.tiko: miss (options
+'' STEP-OUT: unit build/.ucp/src/b.tiko: miss (options
+'' ARGS: build -target win64-msvc build/.ucp/src/a.tiko build/.ucp/src/b.tiko -o build/.ucp/app.exe --profile debug -v
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: unit build/.ucp/src/a.tiko: hit
+'' EXPECT-OUT: unit build/.ucp/src/b.tiko: hit
