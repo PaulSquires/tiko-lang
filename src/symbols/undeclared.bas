@@ -322,6 +322,15 @@ sub ReportUndeclared _
                 diags.AddNote( Tko.TKO0940, Tko.PointRange( cast( Tko.SourceLoc, syms.importLocs[ik] ) ), _
                                syms.importAliases[ik] )
             end if
+            '' 'len( NS.F( ) )': fbc's 42 too, which says nothing of why (2026-10-11).
+            for each dn as ulong in rst.droppedNsIds
+                if dn <> cast( ulong, id ) then continue for
+                diags.AddNote( Tko.TKO0900, Tko.PointRange( ast.Loc( id ) ), _
+                    "inside len, sizeof and typeof a qualified name may begin a type, so the " & _
+                    "qualifier is dropped from a procedure and '" & nm & "' is looked up unqualified, " & _
+                    "as fbc does; parenthesise the operand -- len( (ns." & nm & "( )) ) -- to call it" )
+                exit for
+            next
         end if
     next
 

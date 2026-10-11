@@ -96,6 +96,9 @@ namespace Tko.Resolve
         '' FB.Array( of Cell )' with no Array declared. Reported after Check, by the same
         '' pass, once nothing has typed them by then; see undeclared.bas.
         as containers.Array( of ulong ) unresolvedTypes
+        '' ...and the operands of len / sizeof / typeof whose namespace prefix was DROPPED
+        '' (resolveintr.bas DropNsPrefix_): an undeclared one is told why (undeclared.bas).
+        as containers.Array( of ulong ) droppedNsIds
     end type
 
     declare sub Run _

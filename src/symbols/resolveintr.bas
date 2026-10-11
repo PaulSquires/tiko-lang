@@ -124,6 +124,7 @@ sub DropNsPrefix_ _
             c.ast->nodes[cast( long, n )].kind = cast( ushort, Tko.N_IDENT )
             c.ast->nodes[cast( long, n )].data = c.ast->nodes[cast( long, mb->rhs )].data
             c.info->SetRef( n, Tko.SYMBOL_NONE )
+            c.st->droppedNsIds.Push( cast( ulong, n ) )
             WalkExpr( c, n, scope_ )
             if parent <> Tko.NODE_NONE then
                 if c.ast->Kind( parent ) = Tko.N_CALL then

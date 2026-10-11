@@ -1,0 +1,10 @@
+'' TKO0743 (fbc's 42) for 'len( NS.F( ) )', now with a note saying why (2026-10-11): len,
+'' sizeof and typeof drop a namespace from a procedure (resolveintr.bas DropNsPrefix_), so
+'' 'greet' is looked up unqualified. The parenthesised operand on the next line compiles.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/len-ns-call.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: len-ns-call.bas(9,17): error TKO0743: 'greet' is not declared
+'' EXPECT-OUT: len-ns-call.bas(9,17): note: inside len, sizeof and typeof a qualified name may begin a type
+'' EXPECT-OUT: len( (ns.greet( )) ) -- to call it
+'' EXPECT-MAX-DIAG: 1
