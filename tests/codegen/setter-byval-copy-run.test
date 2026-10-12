@@ -1,0 +1,21 @@
+'' A BYVAL UDT SETTER VALUE OF THE SAME TYPE is copied as a call's argument is: the copy constructor
+'' into a temporary, its address, the destructor after the call. 'o.Q( 1 ) = vv' over a V with a
+'' destructor passed the loaded aggregate where the setter takes a pointer, and clang refused the
+'' module. A trivial byval W is unchanged; the setter's own changes never reach 'vv'. fbc-modern's output.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/setter-byval-copy.bas -o tests/codegen/setterbyvalcopy.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/setterbyvalcopy.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: ctor 7
+'' EXPECT-RUN-OUT: copy 7
+'' EXPECT-RUN-OUT: Q 1 7 n7
+'' EXPECT-RUN-OUT: dtor 7
+'' EXPECT-RUN-OUT: R 8
+'' EXPECT-RUN-OUT: copy 7
+'' EXPECT-RUN-OUT: S 107
+'' EXPECT-RUN-OUT: dtor 107
+'' EXPECT-RUN-OUT: vv 7
+'' EXPECT-RUN-OUT: end
+'' EXPECT-RUN-OUT: dtor 7

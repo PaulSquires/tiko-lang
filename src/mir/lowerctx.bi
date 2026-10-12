@@ -1020,7 +1020,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
     declare function ByrefConvArg_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-          byref outa as MirValue ) as boolean : declare function SetterUdtConvArg_( byref c as Ctx, byval sset as Tko.SymbolId, byval idx as long, byval valNode as Tko.NodeId, byref outv as MirValue ) as boolean
+          byref outa as MirValue ) as boolean : declare function SetterUdtArg_( byref c as Ctx, byval sset as Tko.SymbolId, byval idx as long, byval valNode as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function NamesProc_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function StrDescriptorOf_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean

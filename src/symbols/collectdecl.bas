@@ -187,6 +187,22 @@ private function ClassNameTaken_ _
                 if vid <> Tko.SYMBOL_NONE then return vid
             end if
             exit while
+        case Tko.SCOPEK_TYPE
+            '' A METHOD'S LOCAL MAY NOT TAKE THE NAME OF A PROCEDURE OR A CONST OF ITS OWN TYPE
+            '' -- fbc's error 4. Measured on fbc-modern 1.20.0, in the body of 'sub T.foo':
+            ''     a parameter, a dim, a 'for' variable or a dim in a SCOPE named like     error 4
+            ''       foo itself, another method or property of T, or a const of T
+            ''     ...like a field, a static member, an enum of T, or a method of a base  accepted
+            '' 'property Nm( byval nm as wstring ptr )' compiled here and is refused there.
+            if sc <> scope_ then
+                dim as Tko.Symbol ptr ms = w.syms->SymbolAt( w.syms->LookupLocal( sc, nm ) )
+                if ms <> 0 then
+                    select case cast( Tko.SymbolKind, ms->kind )
+                    case Tko.SYM_PROC, Tko.SYM_CONSTANT : return w.syms->LookupLocal( sc, nm )
+                    end select
+                end if
+            end if
+            exit while
         case else
             exit while
         end select

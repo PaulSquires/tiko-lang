@@ -1435,10 +1435,10 @@ function LowerPropertySet_ _
             gotV = StrDescriptorOf_( c, value, v )
         end if
     end if
-    '' A VALUE OF ANOTHER TYPE FOR A UDT PARAMETER IS CONVERTED, as a call's argument is: 'o.P = 5' over
-    '' 'byref v as V' and 'constructor V( byval n as long )' had no address to give and was dropped.
+    '' A UDT PARAMETER'S VALUE IS CONVERTED OR COPIED, as a call's argument is (SetterUdtArg_): 'o.P = 5'
+    '' over 'byref v as V' was dropped, and a byval V with a destructor got the loaded aggregate.
     if (gotV = false) andalso (np2 > 0) then
-        if SetterUdtConvArg_( c, sset, np2 - 1, value, v ) then
+        if SetterUdtArg_( c, sset, np2 - 1, value, v ) then
             if v.kind = cast( ubyte, MV_NONE ) then return false
             gotV = true
         end if

@@ -1,0 +1,13 @@
+'' A METHOD'S LOCAL -- a parameter of its definition, a dim (in any block), a 'for' variable --
+'' may not take the name of a PROCEDURE or a CONST of the method's own type: TKO0945, fbc's error 4.
+'' That covers the method's own name, another method or property, any case. Accepted, as in fbc:
+'' a field, a static member, an enum of the type, a method of a BASE, a parameter of a DECLARE,
+'' and the same names in a procedure that is not a method. tiko accepted all eight refusals.
+''
+'' MEASURED, fbc-modern 1.20.0 win64, 'fbc64 -maxerr 100 -c' on the source -- error 4 on
+'' exactly the eight lines marked REFUSED, and nothing else: 25 27 30 32 34 40 43 48.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/member-value-names.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 8
+'' GOLDEN: expected/member-value-names.out
