@@ -75,7 +75,15 @@ mkdir -p out/prep
 prepped=()
 for f in "${files[@]}"; do
   dest="out/prep/$(basename "$f")"
-  "$PYTHON" tools/prep_admonish.py "$f" > "$dest"
+  # The running header's chapter number (template/book.typ, chapter-number): set after the
+  # title, never before it -- a block ahead of a level-1 heading takes a page of its own.
+  # 'none' for every file that is not chNN-*.md, so a number never runs into the appendices.
+  num="none"
+  [[ "$(basename "$f")" =~ ^ch([0-9]+)- ]] && num=$((10#${BASH_REMATCH[1]}))
+  "$PYTHON" tools/prep_admonish.py "$f" | awk -v n="$num" '
+    !done && /^# / { print; print ""; print "```{=typst}"; print "#chapter-number.update(" n ")"; print "```"; done = 1; next }
+    { print }
+  ' > "$dest"
   prepped+=("$dest")
 done
 files=("${prepped[@]}")

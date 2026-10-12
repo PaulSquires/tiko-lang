@@ -5,6 +5,10 @@ $--   trim     page size, e.g. "7in x 9.25in" (informational; the size is set be
 $definitions.typst()$
 
 // ---------------------------------------------------------------- page and type
+// The current chapter's number, for the running header; none in the preface and the
+// appendices, whose titles name themselves. pdf.sh sets it after each level-1 heading.
+#let chapter-number = state("chapter-number", none)
+
 #set page(
   width: 7in,
   height: 9.25in,
@@ -19,11 +23,19 @@ $definitions.typst()$
     if not opens-here {
       let before = query(selector(heading.where(level: 1)).before(here()))
       let chap = if before.len() > 0 { before.last().body } else { [] }
+      let num = chapter-number.get()
+      if num != none { chap = [Chapter #num: #chap] }
       let n = counter(page).get().first()
       set text(size: 8pt, style: "italic", fill: luma(40%))
-      grid(columns: (1fr, 1fr),
-        align(left)[#if calc.even(n) [$title$] else [#chap]],
-        align(right)[#if calc.even(n) [#chap] else [$title$]])
+      // The book title takes only its own width and the chapter side the rest: with two
+      // equal columns 'Chapter 17: Errors: Optional, Result and Runtime Checks' wrapped.
+      if calc.even(n) {
+        grid(columns: (auto, 1fr), column-gutter: 1em,
+          align(left)[$title$], align(right)[#chap])
+      } else {
+        grid(columns: (1fr, auto), column-gutter: 1em,
+          align(left)[#chap], align(right)[$title$])
+      }
       line(length: 100%, stroke: 0.4pt + luma(75%))
     }
   },
