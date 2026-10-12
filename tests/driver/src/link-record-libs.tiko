@@ -1,0 +1,8 @@
+'' One library asked for four times, in three spellings: '#inclib', a declare's 'lib "..."'
+'' twice, '#inclib' again. The link line names it once; so must the '.link' record.
+#inclib "kernel32"
+declare function TickA lib "KERNEL32.dll" alias "GetTickCount" ( ) as ulong
+declare function TickB lib "KERNEL32.dll" alias "GetTickCount" ( ) as ulong
+#inclib "Kernel32.DLL"
+
+print iif( TickA( ) > 0 andalso TickB( ) > 0, "ticks", "no ticks" )

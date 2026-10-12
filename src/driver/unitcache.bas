@@ -12,6 +12,7 @@
 #include once "support/spawn.bi"
 #include once "support/platform.bi"
 #include once "build/events.bi"
+#include once "codegen/target.bi"
 
 namespace Tko.UnitCache
 
@@ -295,24 +296,47 @@ end function
 '' last, the artefact as it was left. A 'tiko build' whose link would read the same skips it;
 '' anything that differs, the artefact deleted or touched included, links. A classic run
 '' never skips: "" is no signature.
+'' True the first time 'key' is offered to 'seen' (which starts as chr( 0 )), false after.
+private function FirstTime_( byref seen as string, byref key as string ) as boolean
+    if instr( seen, chr( 0 ) & key & chr( 0 ) ) > 0 then return false
+    seen &= key & chr( 0 )
+    return true
+end function
+
+'' A LIBRARY ONCE, by the rule the link line itself applies (codegen/toolchain.bas): on a COFF
+'' target the name is case-folded and a trailing '.dll' dropped, so 'dwmapi.dll', 'DWMAPI.DLL'
+'' and 'dwmapi' are one '-ldwmapi'; elsewhere the name is compared as written. Every
+'' 'declare ... lib "dwmapi.dll"' is a request of its own -- AfxNova's DWM header makes 31 --
+'' and the record listed each one. The first spelling is the one recorded.
+private function LibKey_( byref l as string, byval coff as boolean ) as string
+    if coff = false then return l
+    dim as string k = lcase( l )
+    if (len( k ) > 4) andalso (right( k, 4 ) = ".dll") then k = left( k, len( k ) - 4 )
+    return k
+end function
+
 function LinkSignature _
     ( byref ctx as Tko.CompilerContext, byref args as Tko.StrVec, byref linkObjs as Tko.StrVec ) as string
     if (ctx.build = 0) orelse (len( ctx.options.outputPath ) = 0) then return ""
     dim as string stamp_ = Tko.DiskCache.CompilerStamp( )
     if len( stamp_ ) = 0 then return ""
     dim as string nl = chr( 10 )
-    dim as string sig = "link-format 1" & nl & "tiko " & stamp_ & nl & "args" & ArgsLine_( ctx, args ) & nl
+    '' Format 2: libraries, library paths and library files each once (format 1 listed every
+    '' request). A record of the other format never matches, so the first build relinks.
+    dim as string sig = "link-format 2" & nl & "tiko " & stamp_ & nl & "args" & ArgsLine_( ctx, args ) & nl
     for each o as string in linkObjs
         sig &= "obj " & Tko.DiskCache.Stamp( o ) & chr( 9 ) & Tko.Modules.AbsPath( o ) & nl
     next
+    dim as boolean coff = (Tko.Codegen.TargetFor( ctx.options.target ).objFormat = Tko.Codegen.OBJ_COFF)
+    dim as string seen = chr( 0 )
     for each l as string in ctx.options.pragmaLibs
-        sig &= "lib " & l & nl
+        if FirstTime_( seen, "lib " & LibKey_( l, coff ) ) then sig &= "lib " & l & nl
     next
     for each l as string in ctx.options.pragmaLibPaths
-        sig &= "libpath " & l & nl
+        if FirstTime_( seen, "libpath " & l ) then sig &= "libpath " & l & nl
     next
     for each l as string in ctx.options.pragmaLibFiles
-        sig &= "libfile " & Tko.DiskCache.Stamp( l ) & chr( 9 ) & l & nl
+        if FirstTime_( seen, "libfile " & l ) then sig &= "libfile " & Tko.DiskCache.Stamp( l ) & chr( 9 ) & l & nl
     next
     sig &= "mt " & iif( ctx.options.threadSafe, 1, 0 ) & nl
     return sig
