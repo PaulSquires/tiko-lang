@@ -1155,6 +1155,21 @@ function PtrStrArg_ _
     return 1
 end function
 
+'' ...FOR A PROPERTY'S INDEX, on the statement's own lists: PushPropIndexArgs_ (lowerswap.bas) has
+'' none of a call's. ReleaseStrTemps_ deletes a temporary by its slot's type, so it is recorded here.
+function PropPtrStrArg_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval ppt as Tko.TypeId, byref outv as MirValue ) as long
+
+    dim as long mark = c.strTemps.Count
+    dim as containers.Array( of ulong ) tt
+    dim as long r = PtrStrArg_( c, e, ppt, false, outv, c.strTemps, tt, c.strBackNode, c.strBackSlot )
+    for j as long = 0 to tt.Count - 1
+        if mark + j >= c.strTemps.Count then exit for
+        c.f->locals[cast( long, c.strTemps[mark + j] )].frontendType = cast( Tko.TypeId, tt[j] )
+    next
+    return r
+end function
+
 '' THE ONE 'byref as ustring' ENCODER (audit G3) -- the USTRING twin of NarrowRefStrArg_, for a
 '' call, a constructor, an operator and a self-operator alike. Four shapes need a temporary;
 '' everything else is a ustring that owns its descriptor and passes it. Measured, fbc:

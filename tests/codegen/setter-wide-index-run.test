@@ -1,0 +1,18 @@
+'' A STRING FOR A SETTER'S 'wstring ptr' / 'zstring ptr' INDEX is encoded as a call's argument: tiko
+'' passed the narrow literal where UTF-16 belongs, so CDispInvoke's 'Put( "Pattern" )' named no
+'' property (DISP_E_UNKNOWNNAME). Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/setter-wide-index.bas -o tests/codegen/setterwideindex.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/setterwideindex.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: N set [Pattern] 7 1
+'' EXPECT-RUN-OUT: N set [abcd] 4 2
+'' EXPECT-RUN-OUT: N set [xyz] 3 3
+'' EXPECT-RUN-OUT: N set [litabcd] 7 4
+'' EXPECT-RUN-OUT: N get [Pattern] 7
+'' EXPECT-RUN-OUT: Z [Pattern] 5
+'' EXPECT-RUN-OUT: Z [abcd] 6
+'' EXPECT-RUN-OUT: Z [litabcd] 7
+'' EXPECT-RUN-OUT: Z [fix   ] 8

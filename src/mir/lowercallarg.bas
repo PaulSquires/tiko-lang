@@ -730,6 +730,45 @@ private function UdtConvTemp_ _
     return true
 end function
 
+'' A PROPERTY SETTER'S VALUE THAT HAS TO BE CONVERTED into its UDT parameter 'idx' -- what a call's
+'' argument loop does (ByrefConvArg_, or ArgNeedsUdtConv_ + UdtConvTemp_), for LowerPropertySet_
+'' (lowerswap.bas), which builds its own argument list. Measured, fbc over 'property P( byref v as V
+'' )' and 'constructor V( byval n as long )': 'o.P = 5' is '_ZN1VC1Ei( &TMP$1$0, 5 ); P( &O$0, &TMP$1$0
+'' )'. FALSE, touching nothing, when no conversion is needed; TRUE with 'outv' NONE when one is
+'' needed and could not be built.
+function SetterUdtConvArg_ _
+    ( byref c as Ctx, byval sset as Tko.SymbolId, byval idx as long, _
+      byval valNode as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Tko.TypeId pt = ParamTypeAt( c, sset, idx )
+    if pt = Tko.TYPE_NONE then return false
+    if ParamIsByref( c, sset, idx ) then return ByrefConvArg_( c, valNode, pt, outv )
+    if ArgNeedsUdtConv_( c, sset, idx, valNode ) = false then return false
+    dim as MirValue none_
+    outv = none_
+    if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Inner( pt )
+    pt = c.types->Unqualify( pt )
+    dim as MirValue ca
+    dim as long ts = -1
+    dim as Tko.TypeId tt = Tko.TYPE_NONE
+    if UdtConvTemp_( c, valNode, pt, ca, ts, tt ) = false then
+        c.blameNode = cast( ulong, valNode )
+        return true
+    end if
+    '' A statement temporary, destroyed after the call -- as the call path's.
+    if ts >= 0 then
+        c.udtTemps.Push( cast( ulong, ts ) )
+        c.udtTempTypes.Push( cast( ulong, tt ) )
+    end if
+    '' The temporary's ADDRESS when the type is passed indirectly, the aggregate when not.
+    if ParamIsIndirectUdt_( c, sset, idx ) then
+        outv = ca
+    else
+        outv = LowerExprLoad( c, ca, MT_AGG )
+    end if
+    return true
+end function
+
 '' THE OPERAND OF A USER-DEFINED OPERATOR, converted to the parameter's type the way
 '' an ARGUMENT would be. Two shapes, and they are not the same code:
 ''

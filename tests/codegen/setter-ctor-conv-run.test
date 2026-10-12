@@ -1,0 +1,27 @@
+'' A PROPERTY SETTER'S VALUE THROUGH A CONVERSION CONSTRUCTOR, as a call's argument: 'o.P = 5' over
+'' 'byref v as V' and 'constructor V( byval n as long )', byval and indexed too. tiko scored no setter
+'' and dropped the statement (TKO0994) -- CDispInvoke's 'pDisp.Put( "Pattern" ) = ".is"'. Expected
+'' output is fbc-modern's, temporaries destroyed after each call.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/codegen/src/setter-ctor-conv.bas -o tests/codegen/setterctorconv.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/setterctorconv.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: ctor 5
+'' EXPECT-RUN-OUT: P 5 n5
+'' EXPECT-RUN-OUT: dtor 5
+'' EXPECT-RUN-OUT: sctor hey
+'' EXPECT-RUN-OUT: P 3 hey
+'' EXPECT-RUN-OUT: dtor 3
+'' EXPECT-RUN-OUT: ctor 6
+'' EXPECT-RUN-OUT: Q 1 6 n6
+'' EXPECT-RUN-OUT: dtor 6
+'' EXPECT-RUN-OUT: R 7
+'' EXPECT-RUN-OUT: ctor 8
+'' EXPECT-RUN-OUT: Put id 2 8
+'' EXPECT-RUN-OUT: dtor 8
+'' EXPECT-RUN-OUT: sctor abc
+'' EXPECT-RUN-OUT: Put name 3
+'' EXPECT-RUN-OUT: dtor 3
+'' EXPECT-RUN-OUT: end

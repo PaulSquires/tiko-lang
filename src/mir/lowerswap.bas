@@ -598,8 +598,12 @@ private function PushPropIndexArgs_ _
         elseif byref_ then
             av = LowerAddr( c, a )
         else
-            av = LowerExpr( c, a )
-            if av.kind <> cast( ubyte, MV_NONE ) then
+            '' A STRING FOR A 'wstring ptr' / 'zstring ptr' INDEX goes through a call's encoder: 'pDisp.Put(
+            '' "Pattern" ) = v' passed the NARROW literal as the wide name, and COM answered DISP_E_UNKNOWNNAME.
+            dim as long psk = PropPtrStrArg_( c, a, pt, av )
+            if psk < 0 then return false
+            if psk = 0 then av = LowerExpr( c, a )
+            if (psk = 0) andalso (av.kind <> cast( ubyte, MV_NONE )) then
                 dim as MirType pmt = LowerType( pt, *c.types )
                 if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
                     av = CoerceTy( c, av, pmt, c.info->TypeOf_( a ))
@@ -683,6 +687,9 @@ private function PropIndexCost_ _
         '' ...AND ANY UDT THROUGH ITS STRING OR NUMERIC CAST (structpick.bas StructorCastCost): 'b.T2 = s'
         '' over 'byref v as string' found no setter and became a string store over the getter.
         if vc >= Tko.Check.CONV_NONE then vc = Tko.Check.StructorCastCost( *c.ast, *c.syms, *c.types, *c.names, vat, vpt )
+        '' ...AND A CONVERSION CONSTRUCTOR ON A UDT PARAMETER, as a call's argument has: 'pDisp.Put( "Pattern" )
+        '' = ".is"' over 'byref dv as DVARIANT' found no setter and the statement was not compiled (TKO0994).
+        if vc >= Tko.Check.CONV_NONE then vc = CtorUserConvCost_( c, vat, vpt )
         if vc >= Tko.Check.CONV_NONE then return Tko.Check.CONV_NONE
         total += vc
     end if
@@ -1426,6 +1433,14 @@ function LowerPropertySet_ _
             gotV = true
         elseif IsStringType( c, pt ) then
             gotV = StrDescriptorOf_( c, value, v )
+        end if
+    end if
+    '' A VALUE OF ANOTHER TYPE FOR A UDT PARAMETER IS CONVERTED, as a call's argument is: 'o.P = 5' over
+    '' 'byref v as V' and 'constructor V( byval n as long )' had no address to give and was dropped.
+    if (gotV = false) andalso (np2 > 0) then
+        if SetterUdtConvArg_( c, sset, np2 - 1, value, v ) then
+            if v.kind = cast( ubyte, MV_NONE ) then return false
+            gotV = true
         end if
     end if
     '' A BYREF UDT VALUE TAKES AN ADDRESS, and the parameter's own type does not say

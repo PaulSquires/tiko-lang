@@ -1020,7 +1020,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
     declare function ByrefConvArg_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
-          byref outa as MirValue ) as boolean
+          byref outa as MirValue ) as boolean : declare function SetterUdtConvArg_( byref c as Ctx, byval sset as Tko.SymbolId, byval idx as long, byval valNode as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function NamesProc_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function StrDescriptorOf_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
@@ -1365,7 +1365,7 @@ declare function EmitRtl _
           byval anyChain as boolean = false ) as boolean
     declare function WideArgOperand_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byref outa as MirValue, _
-          byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ) ) as boolean : declare function PtrStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval ppt as Tko.TypeId, byval vararg as boolean, byref outv as MirValue, byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ), byref backN as containers.Array( of ulong ), byref backS as containers.Array( of ulong ) ) as long
+          byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ) ) as boolean : declare function PtrStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval ppt as Tko.TypeId, byval vararg as boolean, byref outv as MirValue, byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ), byref backN as containers.Array( of ulong ), byref backS as containers.Array( of ulong ) ) as long : declare function PropPtrStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval ppt as Tko.TypeId, byref outv as MirValue ) as long
     declare function ParamWantsWideRef_ _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
           byval idx as long ) as boolean
