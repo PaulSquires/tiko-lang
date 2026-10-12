@@ -1,0 +1,173 @@
+'' claimlock.tiko -- fb_ClaimLock and fb_ClaimUnlock, the process-wide claim
+'' lock. Two symbols, one fbc member (chan_claim.o), portable.
+''
+'' WHAT IT IS FOR. A channel waiter is CLAIMED -- test-and-set of one boolean --
+'' before it is woken, so that a waiter registered on N channels wakes exactly
+'' once. While a waiter could only ever be in one channel's queue, the channel's
+'' own lock was enough. SELECT broke that: one wait record sits in every case's
+'' queue, so two threads holding two DIFFERENT channel locks can race for the
+'' same record. Go does this with a compare-and-swap; this does it with one
+'' process-wide mutex held across a read-modify-write of a single boolean.
+''
+'' LOCK ORDER: CHANNEL LOCK(S) FIRST, THEN THIS ONE, NEVER THE REVERSE. The
+'' claim lock is a leaf and must stay one -- it is never held across a park, an
+'' allocation, a copy, or another lock.
+''
+'' fbc's SOURCE SAYS "WHY THIS IS C" AND GIVES THREE REASONS. All three are
+'' about putting the code in a FreeBASIC **HEADER**, and none of them survives
+'' the move into a runtime MODULE:
+''
+''   "a `dim shared` in a .bi included by two modules gives two mutexes"
+''       -- true of a header. This is a .bas: `dim shared` here is a file-scope
+''          static, exactly what C's `static` gives, and there is exactly one.
+''   "there is no lock available to guard a lazy first-use initialisation"
+''       -- see below; on Windows the lazy init is done with the same
+''          interlocked state machine fbc uses, and on POSIX no lazy init is
+''          needed at all.
+''   "shutdown must be ordered against rtlib teardown"
+''       -- that is the scheduler's constraint, not this file's; nothing here
+''          has any teardown.
+''
+'' THE TWO PLATFORMS NEED DIFFERENT AMOUNTS OF WORK, and the asymmetry is the
+'' whole content of this file:
+''
+''   POSIX   PTHREAD_MUTEX_INITIALIZER IS ALL ZERO BYTES -- measured, all 40 of
+''           them. A `dim shared` lands in .bss already zero-filled, so the
+''           mutex is statically initialised for free and there is no
+''           initialisation problem to solve.
+''   WINDOWS A CRITICAL_SECTION has no static initialiser and must be
+''           InitializeCriticalSection'd exactly once, from whichever thread
+''           gets there first. That needs an atomic, which is the reason fbc
+''           reached for C here.
+''
+'' THE WINDOWS INIT IS A THREE-STATE INTERLOCKED SPIN, reproduced exactly:
+'' 0 = untouched, 1 = initialising, 2 = ready. The first thread to swap 0->1
+'' initialises and then publishes 2; any thread seeing 2 proceeds; any thread
+'' seeing 1 yields with Sleep(0) and retries. A plain "if not inited then init"
+'' would let two threads both initialise, and InitializeCriticalSection on an
+'' already-initialised section leaks its debug info.
+''
+'' Sleep(0) YIELDS ONLY TO A THREAD OF EQUAL PRIORITY ON THE SAME CORE, which
+'' is a weaker guarantee than it looks -- but the window it covers is a handful
+'' of instructions and it is fbc's choice.
+''
+'' UNLOCK DOES NOT ENSURE. fb_ClaimUnlock calls LeaveCriticalSection without
+'' first checking that the section exists, on the reasoning that a caller
+'' unlocking must already have locked. An unmatched unlock is undefined
+'' behaviour rather than an error, exactly as in fbc.
+
+#include once "inc/descriptors.ti"
+
+#ifdef __FB_WIN32__
+
+'' MEASURED: 40 bytes on win64 (a clang probe against the SDK header). Declared
+'' as opaque storage rather than field by field -- nothing here reads it, only
+'' the four kernel32 calls do, and spelling out RTL_CRITICAL_SECTION's internals
+'' would be four more layouts to keep honest for no gain.
+''
+'' The win32 value is smaller (the pointers halve), so the block is sized from
+'' sizeof( any ptr ) rather than hard-coded: 40 on win64, 24 on win32.
+type TKORT_CRITSEC
+	as any ptr  DebugInfo
+	as long     LockCount
+	as long     RecursionCount
+	as any ptr  OwningThread
+	as any ptr  LockSemaphore
+	as uinteger SpinCount
+end type
+
+#assert sizeof( TKORT_CRITSEC ) = 40
+
+extern "c"   '' NON-FBCALL: kernel32 imports.
+	declare sub w_InitializeCriticalSection stdcall alias "InitializeCriticalSection" _
+		( byval cs as TKORT_CRITSEC ptr )
+	declare sub w_EnterCriticalSection stdcall alias "EnterCriticalSection" _
+		( byval cs as TKORT_CRITSEC ptr )
+	declare sub w_LeaveCriticalSection stdcall alias "LeaveCriticalSection" _
+		( byval cs as TKORT_CRITSEC ptr )
+	declare sub w_Sleep stdcall alias "Sleep" ( byval ms as ulong )
+end extern
+
+'' THE ATOMIC COMES FROM THE RUNTIME, NOT FROM kernel32. InterlockedExchange and
+'' InterlockedCompareExchange are COMPILER INTRINSICS on x86-64 MinGW -- inlined
+'' out of winnt.h, with no exported symbol to import -- so declaring them
+'' compiles and then fails to link with `undefined reference to
+'' InterlockedExchange`. fb_AtomicCasLong is a real exported entry point and is
+'' what atomic.c exists to provide.
+''
+'' IT RETURNS THE **PREVIOUS** VALUE, so success is (result = expected). The
+'' unconditional store is expressed as a CAS from the value only this thread can
+'' be holding, which needs no separate exchange primitive.
+extern "rtlib"   '' FBCALL: fb_thread.h declares it with FBCALL.
+	declare function tkrt_AtomicCasLong alias "fb_AtomicCasLong" _
+		( byval p as long ptr, byval expected as long, byval desired as long ) as long
+end extern
+
+'' File-local, and there is exactly one of each -- see the file header on why
+'' that is true in a .bas and would not be in a .bi.
+dim shared as TKORT_CRITSEC tkort_claimcs
+dim shared as long          tkort_claiminit
+
+'' 0 = untouched, 1 = initialising, 2 = ready. See the file header.
+private sub tkort_hEnsure( )
+	do
+		dim as long s = tkrt_AtomicCasLong( @tkort_claiminit, 0, 1 )
+		if( s = 0 ) then
+			w_InitializeCriticalSection( @tkort_claimcs )
+			'' 1 -> 2. Only this thread can see 1 here, so the CAS cannot fail.
+			tkrt_AtomicCasLong( @tkort_claiminit, 1, 2 )
+			exit sub
+		end if
+		if( s = 2 ) then exit sub
+		'' Another thread is initialising.
+		w_Sleep( 0 )
+	loop
+end sub
+
+extern "rtlib"   '' FBCALL: fbc declares both with FBCALL and the win32 archive
+                 '' decorates them -- _fb_ClaimLock@0 and _fb_ClaimUnlock@0.
+
+sub tkort_ClaimLock alias "fb_ClaimLock" ( )
+	tkort_hEnsure( )
+	w_EnterCriticalSection( @tkort_claimcs )
+end sub
+
+'' NO hEnsure HERE -- see the file header.
+sub tkort_ClaimUnlock alias "fb_ClaimUnlock" ( )
+	w_LeaveCriticalSection( @tkort_claimcs )
+end sub
+
+end extern
+
+#else
+
+'' MEASURED: pthread_mutex_t is 40 bytes and PTHREAD_MUTEX_INITIALIZER is ALL
+'' ZERO BYTES -- so .bss initialises it and there is nothing to do lazily.
+type TKORT_PTHREAD_MUTEX
+	as ubyte raw( 0 to 39 )
+end type
+
+#assert sizeof( TKORT_PTHREAD_MUTEX ) = 40
+
+extern "c"   '' NON-FBCALL: libpthread.
+	declare function c_pthread_mutex_lock alias "pthread_mutex_lock" _
+		( byval m as TKORT_PTHREAD_MUTEX ptr ) as long
+	declare function c_pthread_mutex_unlock alias "pthread_mutex_unlock" _
+		( byval m as TKORT_PTHREAD_MUTEX ptr ) as long
+end extern
+
+dim shared as TKORT_PTHREAD_MUTEX tkort_claimmx
+
+extern "rtlib"   '' FBCALL, as above.
+
+sub tkort_ClaimLock alias "fb_ClaimLock" ( )
+	c_pthread_mutex_lock( @tkort_claimmx )
+end sub
+
+sub tkort_ClaimUnlock alias "fb_ClaimUnlock" ( )
+	c_pthread_mutex_unlock( @tkort_claimmx )
+end sub
+
+end extern
+
+#endif

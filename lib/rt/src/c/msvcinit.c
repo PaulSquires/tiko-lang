@@ -63,9 +63,9 @@ void fb_hRtExit( void );
 **     MinGW   setlocale( 6, NULL ) -> NULL, four more calls, exit 0
 **     UCRT    setlocale( 6, NULL ) -> 0xC0000409, no output
 **
-** fbc's own chrono/iso.bas does exactly that in no_locale_leakage_, which is
+** fbc's own chrono/iso.tiko does exactly that in no_locale_leakage_, which is
 ** why the MSVC gate died at startup with nothing printed. (tiko-rt itself is
-** not the caller: src/init/rtinit.bas hard-codes 2 on Windows and 0 on Linux,
+** not the caller: src/init/rtinit.tiko hard-codes 2 on Windows and 0 on Linux,
 ** and says why.)
 **
 ** THE COST IS REAL AND IS THE POINT. A genuine bad argument now returns an

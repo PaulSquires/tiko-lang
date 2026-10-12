@@ -47,7 +47,7 @@ compile_src( ) {
     obj=$2
 
     # FROM src/, WHATEVER DIRECTORY THE CALLER IS IN. tiko-rt includes its own headers
-    # as '#include once "inc/file.bi"', and fbc tries the CURRENT DIRECTORY before any
+    # as '#include once "inc/file.ti"', and fbc tries the CURRENT DIRECTORY before any
     # -i. Run from tiko-lang's root -- package.sh does -- that found the root's
     # inc/file.bi, FreeBASIC's, once tiko-lang had an inc/ of its own (phase H,
     # 2026-10-10): FB_FILE undefined in io/devlptopen and three more. From src/, 'inc/'
@@ -111,7 +111,7 @@ build_one( ) {
     # one), but it used to leave the PREVIOUS run's archive sitting in lib/, so
     # anything reading it afterwards saw a complete, valid, stale library.
     #
-    # That is not hypothetical: a linux-only failure in strw/case.bas let
+    # That is not hypothetical: a linux-only failure in strw/case.tiko let
     # build/symbols.sh report "912 symbol names identical" for a tree that had
     # just failed to build, because the caller piped build.sh through `tail` and
     # `&&` then saw the PIPE's exit status rather than the build's.
@@ -134,7 +134,7 @@ build_one( ) {
     RTW_PIC=$picdef
     RTW_TARGET=$target
     export TKORT_TIKO CLANG RT_ROOT RTW_WHAT RTW_TARGET RTW_INC RTW_FLAGS RTW_PIC
-    rt_sources | awk -v d="$objdir" '{ o = $0; gsub("/", "_", o); sub(/\.bas$/, ".o", o); print $0, d "/" o }' \
+    rt_sources | awk -v d="$objdir" '{ o = $0; gsub("/", "_", o); sub(/\.tiko$/, ".o", o); print $0, d "/" o }' \
         > "$objdir/.pairs"
     if ! xargs -P "$RT_JOBS" -n 2 sh "$RT_SELF" --one < "$objdir/.pairs"; then
         rt_die "$target/$thread: a source failed to build -- see above"
@@ -157,7 +157,7 @@ build_one( ) {
     # only because time_sleep.c happens to reference one of the lost symbols
     # there.
     #
-    # Replacing a member IS the point of the port -- str/core.bas becomes
+    # Replacing a member IS the point of the port -- str/core.tiko becomes
     # str_core.o and supplies all ten of its symbols. What must never happen
     # is replacing one by NAME while leaving some of its symbols undefined.
     # So the test is not "does the name collide" but "does the collision lose
@@ -165,7 +165,7 @@ build_one( ) {
     #
     # A SOURCE THAT CONTRIBUTES NO GLOBAL SYMBOL SHIPPED NOTHING.
     #
-    # src/error/errmsg.bas defined __fb_errmsg as a bare "dim shared" inside
+    # src/error/errmsg.tiko defined __fb_errmsg as a bare "dim shared" inside
     # an EXTERN "c" block, which FreeBASIC emits as a FILE-LOCAL symbol --
     # nm shows lowercase b, not B. tiko-rt's archive therefore still carried
     # an UNDEFINED reference to the name and fbc's own error_message.o kept
@@ -181,7 +181,7 @@ build_one( ) {
     # archive at all.
     #
     # A MODULE THAT IS DELIBERATELY EMPTY ON SOME TARGETS MUST SAY SO, with
-    # a marker naming them -- io/conprint.bas is the POSIX console writer and
+    # a marker naming them -- io/conprint.tiko is the POSIX console writer and
     # is #ifdef-ed to nothing on Windows. The marker is what separates that
     # from a module that meant to define something and did not.
     "$TKORT_NM" --defined-only $objs > "$objdir/.ours" 2>/dev/null || true
@@ -192,7 +192,7 @@ build_one( ) {
         NF == 3 {
             # C, A COMMON SYMBOL, DEFINES THE NAME TOO: the gcc and gas64 backends of fbc,
             # and tiko, measured alike, emit an uninitialised extern+dim as one; only
-            # fbc -gen llvm wrote B. __fb_errmsg (error/errmsg.bas) read as having no
+            # fbc -gen llvm wrote B. __fb_errmsg (error/errmsg.tiko) read as having no
             # global symbols without it. (No apostrophes: this is inside a quoted awk.)
             tdb = ($2 == "T" || $2 == "D" || $2 == "B" || $2 == "C")
             if (FILENAME == ARGV[2]) { if (tdb) th[c] = th[c] " " $3 }
@@ -228,7 +228,7 @@ build_one( ) {
         [ "$_k" = "EMPTY" ] || continue
         # THE PLATFORM, NOT THE ABI. windows-x86_64 is win64 with a different
         # calling-convention-free ABI: the same files are empty on it for
-        # the same reasons, and hinitposix.bas is empty on both because
+        # the same reasons, and hinitposix.tiko is empty on both because
         # neither is POSIX. Matching the full target name instead would
         # mean adding "windows-x86_64" to every EMPTY-ON line in the tree, and
         # again to each one for any later ABI variant.
@@ -240,7 +240,7 @@ build_one( ) {
             echo "build: it is in build/sources.txt but contributes nothing to the archive." >&2
             echo "build: a data definition needs the EXTERN ... ALIAS declaration inside" >&2
             echo "build: an extern block AND the DIM SHARED outside it -- a bare" >&2
-            echo "build: dim shared inside the block is file-local. See src/utf/core.bas." >&2
+            echo "build: dim shared inside the block is file-local. See src/utf/core.tiko." >&2
             echo "build: if the file is empty on this target BY DESIGN, add a comment" >&2
             echo "build: line naming them, e.g.   '' EMPTY-ON: win64" >&2
             rt_die "define something, mark it EMPTY-ON, or take it out of sources.txt"

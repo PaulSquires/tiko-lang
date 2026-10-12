@@ -26,8 +26,8 @@
 '' the library (DRAW STRING passes a blender), so PutBlend32 is implemented and
 '' marked UNVERIFIED rather than left out or pretended tested.
 
-#include once "../raster/put.bi"
-#include once "../core/image.bi"
+#include once "../raster/put.ti"
+#include once "../core/image.ti"
 #include once "abtest.bi"
 #include once "crt/string.bi"
 #ifdef ABTEST_HAS_GFXLIB2

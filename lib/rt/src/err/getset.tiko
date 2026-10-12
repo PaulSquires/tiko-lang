@@ -1,0 +1,103 @@
+'' getset.tiko -- the error-context accessors (error_getset.o, 7 entry points).
+''
+'' A different subsystem from the string work, and it brings in a mechanism none
+'' of the earlier modules touched: the per-thread context. FB_TLSGETCTX(ERROR)
+'' expands to
+''
+''     fb_TlsGetCtx( FB_TLSKEY_ERROR, sizeof( FB_ERRORCTX ), fb_ERRORCTX_Destructor )
+''
+'' with FB_TLSKEY_ERROR = 0 (first in the enum in fb_thread.h) and
+'' fb_ERRORCTX_Destructor defined as NULL in fb_error.h. fb_TlsGetCtx is a
+'' published FBCALL entry point and stays fbc's: it allocates the context on
+'' first use and, under ENABLE_MT, gives each thread its own.
+''
+'' MEASURED, NOT ASSUMED (PROVENANCE.md -- no .c body was opened):
+''
+'' PROBE-25/26 -- THE SETTERS DO NOT AGREE WITH EACH OTHER:
+''
+''     fb_ErrorSetNum( n )       returns the NEW value
+''     fb_ErrorSetModName( s )   returns the OLD value
+''     fb_ErrorSetFuncName( s )  returns the OLD value
+''
+'' Guessing a uniform convention here would have been the same shape of mistake
+'' as fb_hStrDelTempDesc's status return, which is bug 8 on this project's list.
+''
+'' Also measured, and worth knowing before writing a test: **PRINT clears the
+'' error number.** A first attempt at PROBE-25 printed between each call and
+'' concluded that fb_ErrorSetNum did not persist at all. It does; a successful
+'' I/O statement resets ERR, which is ordinary BASIC behaviour and was entirely
+'' the test's fault. Any test of these accessors has to accumulate and print at
+'' the end.
+''
+'' fb_ErrorGetNum is NOT destructive -- two consecutive reads both return the
+'' value.
+
+#include once "inc/descriptors.ti"
+
+const FB_TLSKEY_ERROR as long = 0
+
+extern "rtlib"
+	declare function fb_TlsGetCtx alias "fb_TlsGetCtx" _
+		( byval idx as long, byval length as uinteger, byval dtor as any ptr ) as any ptr
+end extern
+
+private function hCtx( ) as FB_ERRORCTX ptr
+	return cptr( FB_ERRORCTX ptr, _
+		fb_TlsGetCtx( FB_TLSKEY_ERROR, sizeof( FB_ERRORCTX ), 0 ) )
+end function
+
+extern "rtlib"
+
+function tkort_ErrorGetNum alias "fb_ErrorGetNum" ( ) as long
+	dim as FB_ERRORCTX ptr c = hCtx( )
+	if( c = 0 ) then return 0
+	return c->err_num
+end function
+
+'' Returns the NEW value -- unlike the name setters below.
+function tkort_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as long ) as long
+	dim as FB_ERRORCTX ptr c = hCtx( )
+	if( c = 0 ) then return errnum
+	c->err_num = errnum
+	return errnum
+end function
+
+function tkort_ErrorGetLineNum alias "fb_ErrorGetLineNum" ( ) as long
+	dim as FB_ERRORCTX ptr c = hCtx( )
+	if( c = 0 ) then return 0
+	return c->line_num
+end function
+
+function tkort_ErrorGetModName alias "fb_ErrorGetModName" ( ) as zstring ptr
+	dim as FB_ERRORCTX ptr c = hCtx( )
+	if( c = 0 ) then return 0
+	return c->mod_name
+end function
+
+'' Returns the OLD value -- unlike fb_ErrorSetNum above.
+function tkort_ErrorSetModName alias "fb_ErrorSetModName" _
+	( byval modname as zstring ptr ) as zstring ptr
+	dim as FB_ERRORCTX ptr c = hCtx( )
+	if( c = 0 ) then return 0
+	dim as zstring ptr old = c->mod_name
+	c->mod_name = modname
+	return old
+end function
+
+function tkort_ErrorGetFuncName alias "fb_ErrorGetFuncName" ( ) as zstring ptr
+	dim as FB_ERRORCTX ptr c = hCtx( )
+	if( c = 0 ) then return 0
+	return c->fun_name
+end function
+
+'' Returns the OLD value.
+function tkort_ErrorSetFuncName alias "fb_ErrorSetFuncName" _
+	( byval funcname as zstring ptr ) as zstring ptr
+	dim as FB_ERRORCTX ptr c = hCtx( )
+	if( c = 0 ) then return 0
+	dim as zstring ptr old = c->fun_name
+	c->fun_name = funcname
+	return old
+end function
+
+end extern

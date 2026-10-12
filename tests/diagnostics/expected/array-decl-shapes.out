@@ -87,7 +87,7 @@ verify: ok
 lowered: 3 functions, 3 blocks, 63 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
   amb call-nocode 1
-  skip-site lowercall.bas:289 1
+  skip-site lowercall.tiko:289 1
 tests/diagnostics/src/array-decl-shapes.bas(34,9): error TKO0693: base( ) is given more values than the base type has fields
      |
   34 |     base( 1, 2, 3, 4 )

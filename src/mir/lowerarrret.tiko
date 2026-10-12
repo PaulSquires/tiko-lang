@@ -1,0 +1,207 @@
+'' lowerarrret.tiko -- A TIKO EXTENSION: the VALUE of a 'return' or 'function =' in a procedure
+'' whose result is a dynamic array.
+''
+''     function foo( ) as integer( )
+''         return { 10, 20, 30 }
+''     end function
+''
+'' fbc has no array result, so nothing here is measured against it. The result travels as the
+'' UDT that owns a dynamic array already does: through the HIDDEN POINTER -- parameter 0,
+'' holding the caller's storage, returned as well -- and what Check accepted (symbols/
+'' arrresult.tiko) is exactly what is built here. LowerProc has already written an EMPTY
+'' descriptor into the caller's storage (InitResultAtEntry_), so a body that returns nothing
+'' still returns a valid, empty array.
+''
+''     { a, b, c }       redim the caller's array to n elements, then store them
+''     a local array     its descriptor's bytes are MOVED into the caller's, and the local is
+''                       re-initialised empty so its scope-exit erase frees nothing
+''     f( )              the call's temporary is moved in, and forgotten so it is not erased
+''
+'' The caller's storage is ERASED first, which costs nothing on the empty array it starts as
+'' and is what makes a second 'function = ...' replace the first instead of leaking it.
+
+#import "std/containers"
+#include once "mir/lowerctx.ti"
+
+namespace Tko.Mir
+
+'' 'return { a, b, c }': the brace list, flat -- Check has refused a nested one.
+private function ArrResultFromList_ _
+    ( byref c as Ctx, byref dst as MirValue, byval rt as Tko.TypeId, _
+      byval init as Tko.NodeId ) as boolean
+
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, init )].data )]
+    dim as long n = lp->count
+    EmitEraseDynAt_( c, dst, rt )
+    if n = 0 then return true
+    if EmitRedimConst_( c, dst, rt, n ) = false then return false
+    '' The element base is DATA, already biased by the lower bound -- and the bound is 0.
+    dim as MirValue base_ = DynArrayDataPtr( c, dst )
+    if base_.kind = cast( ubyte, MV_NONE ) then return false
+    '' The same element stores 'dim a( 0 to n - 1 ) = { ... }' runs, for every element type
+    '' it knows: scalars, strings, ustrings, fixed-length strings and UDTs.
+    return LowerArrayInit( c, -1, rt, init, @base_ )
+end function
+
+'' 'return a' OVER A LOCAL ARRAY: a MOVE. Copying the descriptor alone would leave two owners
+'' of one buffer, so the local is given a fresh empty descriptor afterwards and its erase,
+'' registered at its declaration, becomes a no-op.
+private function ArrResultFromLocal_ _
+    ( byref c as Ctx, byref dst as MirValue, byval rt as Tko.TypeId, _
+      byval nameNode as Tko.NodeId ) as boolean
+
+    dim as Tko.TypeId lt = c.types->Unqualify( c.info->TypeOf_( nameNode ) )
+    if c.types->IsDynArray( lt ) = false then return false
+    dim as MirValue src = LowerAddr( c, nameNode )
+    '' A SLOT, and nothing else: only a local array has one to give away.
+    if src.kind <> cast( ubyte, MV_LOCAL ) then return false
+    EmitEraseDynAt_( c, dst, rt )
+    dim as containers.Array( of ulong ) ma
+    ma.Push( cast( ulong, dst.kind ) ) : ma.Push( cast( ulong, dst.id ) )
+    ma.Push( cast( ulong, src.kind ) ) : ma.Push( cast( ulong, src.id ) )
+    ma.Push( cast( ulong, MV_CONST_INT ) )
+    ma.Push( cast( ulong, DescBytesFor( c, c.types->DynRank( lt ) ) ) )
+    EmitRtl( c, RTL_MEM_COPY, ma )
+    InitDynArrayDesc( c, src, lt )
+    return true
+end function
+
+'' 'return f( )': the call's own result is already an array in a temporary of this frame, so its
+'' bytes are moved in and the temporary forgotten.
+private function ArrResultFromCall_ _
+    ( byref c as Ctx, byref dst as MirValue, byval rt as Tko.TypeId, _
+      byval callE as Tko.NodeId ) as boolean
+
+    dim as long cmark = c.udtTemps.Count
+    dim as MirValue src = InitSourceAddr_( c, callE )
+    if src.kind <> cast( ubyte, MV_LOCAL ) then return false
+    dim as boolean registered = false
+    for k as long = cmark to c.udtTemps.Count - 1
+        if cast( long, c.udtTemps[k] ) = src.id then registered = true
+    next
+    if registered = false then return false
+    dim as Tko.TypeId ct = c.types->Unqualify( c.info->TypeOf_( callE ) )
+    if c.types->IsDynArray( ct ) = false then return false
+    EmitEraseDynAt_( c, dst, rt )
+    dim as containers.Array( of ulong ) ma
+    ma.Push( cast( ulong, dst.kind ) ) : ma.Push( cast( ulong, dst.id ) )
+    ma.Push( cast( ulong, src.kind ) ) : ma.Push( cast( ulong, src.id ) )
+    ma.Push( cast( ulong, MV_CONST_INT ) )
+    ma.Push( cast( ulong, DescBytesFor( c, c.types->DynRank( ct ) ) ) )
+    EmitRtl( c, RTL_MEM_COPY, ma )
+    ForgetUdtTemp_( c, src.id )
+    return true
+end function
+
+'' WHETHER AN EXPRESSION IS A CALL OF A PROCEDURE THAT RETURNS AN ARRAY -- not an array's own name
+'' with an empty subscript, which is an N_CALL too and is typed as an element.
+private function IsArrayResultCall_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byref outT as Tko.TypeId ) as boolean
+
+    if c.ast->Kind( e ) <> Tko.N_CALL then return false
+    outT = c.types->Unqualify( c.info->TypeOf_( e ) )
+    if c.types->IsDynArray( outT ) = false then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+    dim as Tko.SymbolId callee = c.info->RefOf( e )
+    if (callee = Tko.SYMBOL_NONE) andalso (cp->target <> Tko.NODE_NONE) then
+        callee = c.info->RefOf( cp->target )
+    end if
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return false
+    return (cs->kind = cast( ubyte, Tko.SYM_PROC ))
+end function
+
+'' 'show( f( ) )' OVER A BY-DESCRIPTOR PARAMETER: the call's temporary IS the array, so its
+'' descriptor is what crosses, and the temporary is erased with the statement.
+function ArrayCallArg_ _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Tko.TypeId vt
+    if IsArrayResultCall_( c, argNode, vt ) = false then return false
+    outv = InitSourceAddr_( c, argNode )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' 'a = f( )' OVER A DYNAMIC ARRAY: a MOVE -- a's old elements are erased, the call's descriptor
+'' bytes replace them, and the temporary is forgotten so it is not erased a second time. It
+'' was a plain store of the descriptor, which left two owners of one buffer and a crash at
+'' scope exit. Only an array-result call is taken; 'a = b' is not touched.
+function AssignArrayResult_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+
+    dim as Tko.NodeId e = Unparen_( c, value )
+    dim as Tko.TypeId vt
+    if IsArrayResultCall_( c, e, vt ) = false then return false
+    dim as Tko.TypeId tt = c.types->Unqualify( c.info->TypeOf_( target ) )
+    if c.types->IsDynArray( tt ) = false then return false
+    if c.types->Unqualify( c.types->Inner( tt ) ) <> c.types->Unqualify( c.types->Inner( vt ) ) then return false
+
+    dim as MirValue dst = LowerAddr( c, target )
+    if dst.kind = cast( ubyte, MV_NONE ) then return false
+    dim as long cmark = c.udtTemps.Count
+    dim as MirValue src = InitSourceAddr_( c, e )
+    if src.kind <> cast( ubyte, MV_LOCAL ) then return false
+    dim as boolean registered = false
+    for k as long = cmark to c.udtTemps.Count - 1
+        if cast( long, c.udtTemps[k] ) = src.id then registered = true
+    next
+    if registered = false then return false
+    EmitEraseDynAt_( c, dst, tt )
+    '' THE DESTINATION'S OWN SIZE: a descriptor written with one dimension is 72 bytes and
+    '' the result's temporary is the 240 of an unspecified rank.
+    dim as containers.Array( of ulong ) ma
+    ma.Push( cast( ulong, dst.kind ) ) : ma.Push( cast( ulong, dst.id ) )
+    ma.Push( cast( ulong, src.kind ) ) : ma.Push( cast( ulong, src.id ) )
+    ma.Push( cast( ulong, MV_CONST_INT ) )
+    ma.Push( cast( ulong, DescBytesFor( c, c.types->DynRank( tt ) ) ) )
+    EmitRtl( c, RTL_MEM_COPY, ma )
+    ForgetUdtTemp_( c, src.id )
+    return true
+end function
+
+'' The entry point LowerSretResult takes for an array result. False means nothing was built,
+'' and the caller counts the statement as declined.
+function LowerArrayResult_ _
+    ( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+
+    if c.sretParam < 0 then return false
+    if valueE = Tko.NODE_NONE then return false
+    dim as Tko.TypeId rt = c.types->Unqualify( c.resultType )
+    if c.types->IsDynArray( rt ) = false then return false
+
+    dim as Tko.NodeId e = Unparen_( c, valueE )
+    dim as MirValue sa
+    sa.kind = cast( ubyte, MV_LOCAL )
+    sa.ty = cast( ubyte, MT_PTR )
+    sa.id = c.sretParam
+
+    select case c.ast->Kind( e )
+    case Tko.N_INITIALIZER
+        dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
+        if dst.kind = cast( ubyte, MV_NONE ) then return false
+        return ArrResultFromList_( c, dst, rt, e )
+    case Tko.N_IDENT
+        dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
+        if dst.kind = cast( ubyte, MV_NONE ) then return false
+        return ArrResultFromLocal_( c, dst, rt, e )
+    case Tko.N_CALL
+        dim as Tko.ListPayload ptr cp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
+        if dst.kind = cast( ubyte, MV_NONE ) then return false
+        '' 'return a( )' is the array's NAME with an empty subscript, as a call argument spells it.
+        dim as boolean nameCall = (cp->count = 0) andalso (cp->target <> Tko.NODE_NONE)
+        if nameCall then nameCall = (c.ast->Kind( cp->target ) = Tko.N_IDENT)
+        if nameCall then
+            dim as Tko.TypeId nt = c.types->Unqualify( c.info->TypeOf_( cp->target ) )
+            nameCall = c.types->IsDynArray( nt )
+        end if
+        if nameCall then return ArrResultFromLocal_( c, dst, rt, cp->target )
+        return ArrResultFromCall_( c, dst, rt, e )
+    end select
+    return false
+end function
+
+end namespace

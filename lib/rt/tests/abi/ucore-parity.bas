@@ -7,7 +7,7 @@
 '' THE POINT OF THIS FILE is that the ustring allocator is NOT the narrow one at
 '' a different width. It rounds to 16 CODE UNITS, adds 12.5% on top in realloc,
 '' and only shrinks past a 12.5% hysteresis -- three laws the byte side does not
-'' have. A "port" that reused src/str/core.bas's arithmetic would pass every
+'' have. A "port" that reused src/str/core.tiko's arithmetic would pass every
 '' behavioural test in the suite and report the wrong `size` for every ustring,
 '' which fbc-int publishes and a program can read.
 ''

@@ -1,0 +1,288 @@
+'' conwindow.tiko -- the console window: where it is, how big it can be, and the
+'' translation between window coordinates and screen-buffer coordinates. Seven
+'' symbols, one fbc member (io_window.o), Windows only.
+''
+'' EMPTY-ON: linux-x86_64
+''
+'' THE WHOLE MEMBER EXISTS BECAUSE THE USER CAN SCROLL. A Windows console has a
+'' screen BUFFER that is usually taller than its WINDOW, and the user may scroll
+'' the window up at any moment -- including while the program is drawing. If the
+'' runtime re-read the window position on every operation, a program that
+'' positions text would draw relative to wherever the user had scrolled to, and
+'' the output would land in the wrong place or off-screen entirely.
+''
+'' SO THE POSITION IS CACHED, AND REFRESHED AT EXACTLY THREE MOMENTS: at
+'' initialisation, after WIDTH changes the buffer size, and after printing. fbc's
+'' comment lists them. Between those, every coordinate conversion uses the
+'' remembered rectangle rather than the live one.
+''
+'' TWO RECTANGLES ARE KEPT, and the difference is the point:
+''
+''   __fb_con.window       the DRAWING area -- full buffer width, window height.
+''                         Left is forced to 0 and Right to dwSize.X - 1, so a
+''                         narrow window still addresses the whole buffer width.
+''   srRealConsoleWindow   what the window ACTUALLY shows, used only to put it
+''                         back if the user scrolled.
+''
+'' Reading one where the other is meant gives coordinates that are right until
+'' someone resizes the window narrower than the buffer.
+''
+'' setByUser SUPPRESSES ALL OF IT. If the program called WIDTH the runtime owns
+'' the geometry and must not re-query -- both Update and Restore return
+'' immediately. That is what stops a program that set its own size from being
+'' fought by the scroll-restoring logic.
+''
+'' RESTORE COMPARES ONLY TOP AND BOTTOM, and then writes back the WHOLE saved
+'' rectangle including left and right. So a horizontal scroll is not detected but
+'' IS undone. fbc's, reproduced.
+''
+'' AND IT WRITES TO EVERY PAGE, not just the active one -- four handles on
+'' Windows -- because SetConsoleWindowInfo acts on a screen buffer and each page
+'' is a separate buffer with its own window position.
+''
+'' THE CONVERSIONS ARE PLUS AND MINUS THE SAME QUANTITY, `win_left - 1`, and both
+'' return silently when the window rectangle is EMPTY. An empty rectangle means
+'' output is redirected -- there is no window -- and in that case coordinates
+'' pass through untouched rather than being offset by garbage.
+''
+'' fb_ConsoleGetMaxWindowSize SUBSTITUTES 80x25 FOR ZERO. GetLargestConsoleWindowSize
+'' returns 0,0 when there is no console at all, and a caller dividing by it would
+'' fault -- so the historical default stands in.
+
+#include once "inc/descriptors.ti"
+#include once "inc/console.ti"
+
+#ifdef __FB_WIN32__
+
+const FB_SCRN_DEFAULT_WIDTH_  = 80
+const FB_SCRN_DEFAULT_HEIGHT_ = 25
+
+'' Four screen buffers on Windows -- the same count src/io/conpage.tiko measured.
+const FB_CONSOLE_MAXPAGES_ = 4
+
+'' The __fb_con fields this file needs beyond what inc/console.ti binds, spelled
+'' locally in the style src/io/conpage.tiko uses. MEASURED, and quoted in
+'' inc/console.ti's own header comment.
+const TKORT_CON_PGTB_      = 16
+const TKORT_CON_SETBYUSER_ = 64
+
+#define TKORT_CON_PAGE_( i )   (*cptr( any ptr ptr, @__fb_con + TKORT_CON_PGTB_ + (i) * sizeof( any ptr ) ))
+#define TKORT_CON_SETBYUSER()  (*cptr( long ptr, @__fb_con + TKORT_CON_SETBYUSER_ ))
+
+extern "c"   '' NON-FBCALL: kernel32, `stdcall` per declaration.
+	declare function w_SetConsoleWindowInfo stdcall alias "SetConsoleWindowInfo" _
+		( byval h as any ptr, byval absolute as long, byval r as any ptr ) as long
+	'' w_GetLargestConsoleWindowSize is NOT declared here -- inc/console.ti
+	'' already provides it, already as a LONG, because a COORD returned by value
+	'' is packed into one 32-bit slot on both widths.
+end extern
+
+'' FORWARD DECLARATIONS, INSIDE AN `extern "c"` BLOCK. Three procedures below
+'' call each other in the other direction, and a `declare` written at FILE SCOPE
+'' would take FreeBASIC's win32 stdcall default -- which the definition does NOT
+'' override. That produced `_fb_DIRCTX_Destructor@4` once already, built clean on
+'' every target, and only symbols.sh saw it.
+extern "c"   '' NON-FBCALL, matching the definitions.
+	declare sub tkort_InitConsoleWindow alias "fb_InitConsoleWindow" ( )
+	declare sub tkort_hConsoleGetWindow alias "fb_hConsoleGetWindow" _
+		( byval left_ as long ptr, byval top_ as long ptr, _
+		  byval cols as long ptr, byval rows as long ptr )
+end extern
+
+'' SMALL_RECT is four SHORTs: Left, Top, Right, Bottom.
+type SMALL_RECT_
+	as short Left_, Top_, Right_, Bottom_
+end type
+
+#assert sizeof( SMALL_RECT_ ) = 8
+
+'' File-local, like fbc's static. This is the rectangle the window ACTUALLY
+'' showed -- see the file header on why two are kept.
+dim shared as SMALL_RECT_ tkort_srRealConsoleWindow
+
+'' Reads the console rectangle in one of its two meanings. A FAILED QUERY ZEROES
+'' the rectangle rather than leaving it -- which is what makes
+'' TKORT_CON_WINDOW_EMPTY() true for a redirected handle.
+private sub hReadConsoleRect( byval pRect as SMALL_RECT_ ptr, byval GetRealWindow as long )
+
+	dim as ubyte csbi( 0 to CSBI_SIZE_ - 1 ) = any
+
+	if( w_GetConsoleScreenBufferInfo( TKORT_OUT_HANDLE(), @csbi(0) ) = 0 ) then
+		pRect->Left_ = 0 : pRect->Top_ = 0 : pRect->Right_ = 0 : pRect->Bottom_ = 0
+		exit sub
+	end if
+
+	'' CONSOLE_SCREEN_BUFFER_INFO: dwSize at 0, srWindow at 10 (4 SHORTs).
+	dim as short ptr srWindow = cptr( short ptr, @csbi(10) )
+	dim as short dwSizeX = *cptr( short ptr, @csbi(CSBI_DWSIZE_X_) )
+
+	if( GetRealWindow <> 0 ) then
+		'' WHAT THE WINDOW ACTUALLY SHOWS.
+		pRect->Left_   = srWindow[0]
+		pRect->Top_    = srWindow[1]
+		pRect->Right_  = srWindow[2]
+		pRect->Bottom_ = srWindow[3]
+	else
+		'' THE DRAWING AREA: full buffer width, window height. Left is forced to
+		'' zero and Right to the buffer width, so a narrow window still addresses
+		'' every column. See the file header.
+		pRect->Left_   = 0
+		pRect->Top_    = srWindow[1]
+		pRect->Right_  = dwSizeX - 1
+		pRect->Bottom_ = srWindow[3]
+	end if
+
+end sub
+
+extern "rtlib"   '' FBCALL: the win32 archive spells these four with `@N` --
+                 '' `_fb_hUpdateConsoleWindow@0`, `_fb_hRestoreConsoleWindow@0`,
+                 '' `_fb_hConvertToConsole@16`, `_fb_hConvertFromConsole@16`.
+
+'' REFRESHES THE CACHE. Called at init, after WIDTH, and after printing -- and
+'' nowhere else, which is the whole scroll-safety strategy.
+sub tkort_hUpdateConsoleWindow alias "fb_hUpdateConsoleWindow" ( )
+
+	'' THE PROGRAM OWNS THE GEOMETRY once it has called WIDTH. Re-querying here
+	'' would fight it.
+	if( TKORT_CON_SETBYUSER() <> 0 ) then exit sub
+
+	dim as SMALL_RECT_ w = any
+	hReadConsoleRect( @w, 0 )
+	TKORT_CON_WINDOW_LEFT()   = w.Left_
+	TKORT_CON_WINDOW_TOP()    = w.Top_
+	TKORT_CON_WINDOW_RIGHT()  = w.Right_
+	TKORT_CON_WINDOW_BOTTOM() = w.Bottom_
+
+	hReadConsoleRect( @tkort_srRealConsoleWindow, -1 )
+
+end sub
+
+'' PUTS THE WINDOW BACK if the user scrolled it. Compares only Top and Bottom but
+'' restores the whole rectangle -- see the file header.
+sub tkort_hRestoreConsoleWindow alias "fb_hRestoreConsoleWindow" ( )
+
+	if( TKORT_CON_SETBYUSER() <> 0 ) then exit sub
+
+	tkort_InitConsoleWindow( )
+
+	dim as SMALL_RECT_ sr = any
+	hReadConsoleRect( @sr, -1 )
+
+	if( (sr.Top_ <> tkort_srRealConsoleWindow.Top_) orelse _
+	    (sr.Bottom_ <> tkort_srRealConsoleWindow.Bottom_) ) then
+		'' EVERY PAGE, not just the active one -- each is its own screen buffer
+		'' with its own window position.
+		for i as integer = 0 to FB_CONSOLE_MAXPAGES_ - 1
+			if( TKORT_CON_PAGE_( i ) <> 0 ) then
+				w_SetConsoleWindowInfo( TKORT_CON_PAGE_( i ), -1, @tkort_srRealConsoleWindow )
+			end if
+		next
+	end if
+
+end sub
+
+'' WINDOW COORDINATES TO BUFFER COORDINATES: add the window origin, less one.
+'' A redirected handle has an EMPTY rectangle and the coordinates pass through
+'' untouched rather than being offset by garbage.
+sub tkort_hConvertToConsole alias "fb_hConvertToConsole" _
+	( byval left_ as long ptr, byval top_ as long ptr, _
+	  byval right_ as long ptr, byval bottom_ as long ptr )
+
+	dim as long win_left = any, win_top = any
+
+	tkort_InitConsoleWindow( )
+
+	if( TKORT_CON_WINDOW_EMPTY() ) then exit sub
+
+	tkort_hConsoleGetWindow( @win_left, @win_top, 0, 0 )
+
+	if( left_ <> 0 )   then *left_   += win_left - 1
+	if( top_ <> 0 )    then *top_    += win_top - 1
+	if( right_ <> 0 )  then *right_  += win_left - 1
+	if( bottom_ <> 0 ) then *bottom_ += win_top - 1
+
+end sub
+
+'' AND BACK: subtract the same quantity.
+sub tkort_hConvertFromConsole alias "fb_hConvertFromConsole" _
+	( byval left_ as long ptr, byval top_ as long ptr, _
+	  byval right_ as long ptr, byval bottom_ as long ptr )
+
+	dim as long win_left = any, win_top = any
+
+	tkort_InitConsoleWindow( )
+
+	if( TKORT_CON_WINDOW_EMPTY() ) then exit sub
+
+	tkort_hConsoleGetWindow( @win_left, @win_top, 0, 0 )
+
+	if( left_ <> 0 )   then *left_   -= win_left - 1
+	if( top_ <> 0 )    then *top_    -= win_top - 1
+	if( right_ <> 0 )  then *right_  -= win_left - 1
+	if( bottom_ <> 0 ) then *bottom_ -= win_top - 1
+
+end sub
+
+end extern
+
+extern "c"   '' NON-FBCALL: these three carry no `@N` in the win32 archive --
+             '' `_fb_InitConsoleWindow`, `_fb_ConsoleGetMaxWindowSize`,
+             '' `_fb_hConsoleGetWindow`.
+
+'' ONE-SHOT, and the flag is file-local rather than in __fb_con -- so a runtime
+'' reloaded into the same process would query again, which is correct.
+sub tkort_InitConsoleWindow alias "fb_InitConsoleWindow" ( )
+
+	static as long inited = 0
+
+	if( inited = 0 ) then
+		inited = -1
+		'' QUERIED ONLY WHEN NEEDED. A program that never touches the console
+		'' never pays for this.
+		tkort_hUpdateConsoleWindow( )
+	end if
+
+end sub
+
+'' ZERO MEANS NO CONSOLE, and the historical 80x25 stands in -- a caller
+'' dividing by the result would otherwise fault.
+sub tkort_ConsoleGetMaxWindowSize alias "fb_ConsoleGetMaxWindowSize" _
+	( byval cols as long ptr, byval rows as long ptr )
+
+	'' A COORD BY VALUE, packed into one 32-bit slot: X in the low half, Y in
+	'' the high one, both signed.
+	dim as long packed = w_GetLargestConsoleWindowSize( TKORT_OUT_HANDLE() )
+	dim as short maxX = cast( short, packed and &hFFFF )
+	dim as short maxY = cast( short, (packed shr 16) and &hFFFF )
+
+	if( cols <> 0 ) then *cols = iif( maxX = 0, FB_SCRN_DEFAULT_WIDTH_, maxX )
+	if( rows <> 0 ) then *rows = iif( maxY = 0, FB_SCRN_DEFAULT_HEIGHT_, maxY )
+
+end sub
+
+'' READS THE CACHE, never the live console -- see the file header. An empty
+'' rectangle answers zeroes rather than a stale position.
+sub tkort_hConsoleGetWindow alias "fb_hConsoleGetWindow" _
+	( byval left_ as long ptr, byval top_ as long ptr, _
+	  byval cols as long ptr, byval rows as long ptr )
+
+	tkort_InitConsoleWindow( )
+
+	if( TKORT_CON_WINDOW_EMPTY() ) then
+		if( left_ <> 0 ) then *left_ = 0
+		if( top_ <> 0 )  then *top_ = 0
+		if( cols <> 0 )  then *cols = 0
+		if( rows <> 0 )  then *rows = 0
+	else
+		if( left_ <> 0 ) then *left_ = TKORT_CON_WINDOW_LEFT()
+		if( top_ <> 0 )  then *top_ = TKORT_CON_WINDOW_TOP()
+		'' INCLUSIVE BOUNDS, so the count is right minus left PLUS ONE.
+		if( cols <> 0 )  then *cols = TKORT_CON_WINDOW_RIGHT() - TKORT_CON_WINDOW_LEFT() + 1
+		if( rows <> 0 )  then *rows = TKORT_CON_WINDOW_BOTTOM() - TKORT_CON_WINDOW_TOP() + 1
+	end if
+
+end sub
+
+end extern
+
+#endif

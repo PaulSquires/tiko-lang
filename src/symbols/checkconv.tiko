@@ -1,0 +1,255 @@
+'' checkconv.tiko -- WHAT ONE CONVERSION COSTS.
+''
+'' Split out of check.tiko at the 1500-line cap and included from it in the same
+'' place, so nothing about the compile order changes. Nothing in it changed in the
+'' move.
+
+function ConversionCost _
+    ( byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
+      byref types as Tko.TypeContext, _
+      byval overloaded as boolean = false ) as long
+
+    if (from_ = Tko.TYPE_NONE) orelse (to_ = Tko.TYPE_NONE) then return CONV_NONE
+    if from_ = to_ then return CONV_EXACT
+
+    '' CONST IS NOT A DIFFERENT TYPE HERE. 'byref lhs as const U' is the natural way to
+    '' declare an operand a procedure will not write, and 'U' and 'const U' are distinct
+    '' TypeIds -- so every such parameter scored CONV_NONE against its own type and the
+    '' overload was never found. 'r = a + b' over a UDT declined for it, which is every
+    '' global arithmetic operator over a value type in cpp/bop-fbc.bas.
+    ''
+    '' Whether a CONST argument may bind to a NON-const byref parameter is a separate
+    '' question that nothing here models either way; this only stops const from hiding
+    '' an exact match.
+    if types.Unqualify( from_ ) = types.Unqualify( to_ ) then
+        dim as boolean dstConst = types.IsConst( to_ )
+        dim as boolean srcConst = types.IsConst( from_ )
+        if dstConst andalso (srcConst = false) then
+            if types.Kind( types.Unqualify( to_ ) ) = Tko.TK_UDT then return CONV_UDT_CONST_ADD
+            return CONV_CONST_ADD
+        end if
+        return CONV_EXACT
+    end if
+
+    '' A fixed-length string converts as the string type it is. Its LENGTH plays no
+    '' part, and cannot: fbc refuses 'byval x as zstring * 4' outright -- error 59,
+    '' "Illegal specification" -- so no parameter ever has one of these types and no
+    '' length-to-length question arises.
+    '' ...and it converts as the FLAVOUR it is, which is not the same as its element
+    '' type. 'string * N' is an array of TY_FIXSTR and 'ustring * N' one of TY_FIXUSTR,
+    '' and NEITHER is a string as far as the table below is concerned: every one scored
+    '' CONV_NONE against a plain 'string' parameter. That is not a diagnostic -- the
+    '' callee still binds, so the call comes out with a VOID result and whatever
+    '' consumed it declines. 'f( byval s as string )' handed a 'string * 31' is twenty
+    '' declines in functions/temp-strings.bas alone.
+    ''
+    '' Measured: offered { string, zstring ptr, wstring ptr }, a 'string * 31' argument
+    '' takes the STRING overload -- _Z1G8FBSTRING -- and a 'zstring * 31' takes
+    '' _Z1GPc. StrFlavourOf_ already knew this mapping and this path did not use it.
+    '' ...EXCEPT THAT A 'ustring * N' IS NO POINTER'S ARGUMENT. Measured, fbc refuses it for a
+    '' 'zstring ptr' and a 'wstring ptr' parameter alike -- error 24 -- where a var-length
+    '' ustring is converted. Mapped to USTRING it was accepted, and 'ppz( uf )' lowered to a
+    '' call with no argument value at all.
+    if types.Kind( types.Unqualify( to_ ) ) = Tko.TK_POINTER then
+        dim as Tko.TypeId fel = FixedStringElem( from_, types )
+        if fel <> Tko.TYPE_NONE then
+            if types.BuiltinOf( fel ) = Tko.TY_FIXUSTR then return CONV_NONE
+        end if
+    end if
+    from_ = StrFlavourOf_( types, from_ )
+    to_ = StrFlavourOf_( types, to_ )
+    if from_ = to_ then return CONV_EXACT
+
+    '' THE STRING FAMILY, BEFORE THE EXACT TEST, because fbc does not treat an exact
+    '' string match as unbeatable. Measured, one probe per pair:
+    ''
+    ''   a STRING variable offered { string, zstring }   takes ZSTRING
+    ''   a ZSTRING * n offered     { string, zstring }   takes STRING
+    ''
+    '' -- so in both the exact candidate LOSES, and a model that answers CONV_EXACT
+    '' for it can never agree. The four orders below are each a total order derived
+    '' from every pair, and they are not one rule with the roles swapped.
+    ''
+    '' Until this existed EVERY string-to-string conversion cost the same CONV_WIDEN,
+    '' so any two string overloads TIED -- the call bound to nothing, the expression
+    '' stayed untyped, and whatever consumed it declined with no diagnostic. That is
+    '' 80 declines in fb/fspath.bi's own test alone, whose seven decomposition
+    '' functions each have a { string, wstring, ustring } overload set.
+    if (types.Kind( from_ ) = Tko.TK_BUILTIN) andalso _
+       (types.Kind( to_ ) = Tko.TK_BUILTIN) then
+        dim as long sr = StringPref_( types.BuiltinOf( from_ ), types.BuiltinOf( to_ ) )
+        '' ...but a STRING reaching a WIDE string is fbc's HALF tier, dearer than a
+        '' 'zstring ptr' -- see CONV_STR_TO_USTR. Measured: a string offered { byref
+        '' const ustring, const zstring ptr } takes the pointer, and so does one offered
+        '' { byref const wstring, const zstring ptr }. The order between the two wide
+        '' kinds is StringPref_'s, unchanged.
+        if types.BuiltinOf( from_ ) = Tko.TY_STRING then
+            select case types.BuiltinOf( to_ )
+            case Tko.TY_USTRING : return CONV_STR_TO_USTR
+            case Tko.TY_WSTRING : return CONV_STR_TO_WSTR
+            end select
+        end if
+        if sr >= 0 then return CONV_WIDEN + sr
+    end if
+
+    '' POINTERS, before the builtin-only tiers below. Everything here is measured in
+    '' tests/types/expected/fbc-ptr.txt; the shape a cost model would guess -- pointee
+    '' compatibility, a distance between pointee types -- is not the shape fbc has.
+    dim as boolean srcP = (types.Kind( from_ ) = Tko.TK_POINTER)
+    dim as boolean dstP = (types.Kind( to_ ) = Tko.TK_POINTER)
+    if srcP orelse dstP then
+        return PointerCost_( from_, to_, srcP, dstP, types, overloaded )
+    end if
+
+    '' DERIVED TO BASE -- see UdtBaseCost_.
+    if (types.Kind( from_ ) = Tko.TK_UDT) andalso (types.Kind( to_ ) = Tko.TK_UDT) then
+        return UdtBaseCost_( from_, to_, types )
+    end if
+
+    '' AN ENUM CONVERTS AS ITS UNDERLYING INTEGER, which is what the binary-operator
+    '' path two hundred lines above already assumes. Without it every enum argument
+    '' scored CONV_NONE against every numeric parameter, so a call like
+    '' 'TuiAnsi( TUIC_BLACK )' matched NO overload -- and the effect was not a
+    '' diagnostic but an UNTYPED CALL: the callee still bound, so the call was emitted
+    '' with a VOID result and whatever consumed it declined. 'return TuiAnsi( ... )'
+    '' out of a UDT-returning function is how the tui headers write nearly everything.
+    '' ...BUT NOT AS AN IDENTITY, and the asymmetry is measured. An ENUM ARGUMENT
+    '' reaches a numeric parameter the way an INTEGER does -- offered
+    '' { integer, byte } it takes integer, and { single, integer } integer again.
+    '' A NUMERIC ARGUMENT reaching an ENUM PARAMETER is the dearest conversion
+    '' there is short of a user-defined one: offered { longint, E } an integer
+    '' takes longint, { byte, E } takes byte, { single, E } takes single, and even
+    '' { boolean, E } takes boolean. It is still VIABLE -- with only the enum
+    '' candidate offered, fbc accepts it -- so it is a cost and not a refusal.
+    ''
+    '' Mapping both sides to INTEGER unconditionally made the two EXACT, so
+    '' 'proc( intvar )' over { integer, E } TIED, bound to neither, and came out
+    '' UNTYPED -- which is a decline at whatever consumed it, never at the call.
+    '' overload/simple.bas is seven of them.
+    dim as boolean fromEnum = (types.Kind( from_ ) = Tko.TK_ENUM)
+    dim as boolean toEnum   = (types.Kind( to_ ) = Tko.TK_ENUM)
+    if fromEnum then from_ = types.Builtin( Tko.TY_INTEGER )
+    if toEnum then to_ = types.Builtin( Tko.TY_INTEGER )
+    if from_ = to_ then
+        if toEnum andalso (fromEnum = false) then return CONV_BOOL + CONV_WIDEN
+        '' AN ENUM ARGUMENT REACHING AN INTEGER PARAMETER IS STILL A CONVERSION.
+        '' Costing it EXACT tied with the enum's own overload and the call bound
+        '' to neither: measured, 'p2( ev )' over { integer, E } takes E. WIDEN
+        '' keeps it ahead of everything it was measured to beat -- offered
+        '' { integer, byte } an enum takes integer, and { single, integer }
+        '' integer again.
+        if fromEnum orelse toEnum then return CONV_NUMERIC + CONV_WIDEN
+        return CONV_EXACT
+    end if
+    '' A NUMERIC PARAMETER TAKING AN ENUM keeps the integer cost the mapping just
+    '' gave it; only the other direction is dear.
+    if toEnum andalso (fromEnum = false) then
+        return CONV_BOOL + CONV_WIDEN
+    end if
+
+    if types.Kind( from_ ) <> Tko.TK_BUILTIN then return CONV_NONE
+    if types.Kind( to_ ) <> Tko.TK_BUILTIN then return CONV_NONE
+
+    '' Named srcB / dstB, not fb / tb: 'fb' is the FB namespace, and FreeBASIC is
+    '' case-insensitive, so a local called fb shadows it.
+    dim as Tko.BuiltinType srcB = types.BuiltinOf( from_ )
+    dim as Tko.BuiltinType dstB = types.BuiltinOf( to_ )
+    if srcB = dstB then return CONV_EXACT
+
+    '' A string converts to a string and to nothing else, in either direction.
+    if IsStringy_( srcB ) orelse IsStringy_( dstB ) then
+        if IsStringy_( srcB ) andalso IsStringy_( dstB ) then return CONV_WIDEN
+        return CONV_NONE
+    end if
+
+    dim as long sr = Rank_( srcB )
+    dim as long dr = Rank_( dstB )
+
+    '' BOOLEAN on either side is its own tier, dearer than any numeric conversion
+    '' however lossy: offered 'byte' and 'boolean' for a DOUBLE argument, fbc takes
+    '' byte. Within the tier a SIGNED parameter is preferred, then the lower rank --
+    '' a boolean argument offered 'uinteger' and 'longint' takes longint.
+    if (srcB = Tko.TY_BOOLEAN) orelse (dstB = Tko.TY_BOOLEAN) then
+        dim as long b = CONV_BOOL
+        if dr = 0 then return b + 1
+        '' Within the tier, in order: the integer class beats the float class, then
+        '' the nearest WIDTH, then SIGNED before unsigned, then rank. That last pair
+        '' is what makes a boolean argument offered 'uinteger' and 'longint' take
+        '' longint -- the only case in the table where the higher rank wins.
+        if IsFloat_( dstB ) then b += 1000
+        dim as long bs = types.Layout( to_ ).size - 1
+        if bs < 0 then bs = -bs
+        b += bs * 16
+        if IsUnsignedInt_( dstB ) then b += 8
+        '' The same pointer-sized preference as the integer path below, but bounded by
+        '' the SIGNEDNESS step of 8 rather than by the width step of 16 -- and that bound
+        '' is load-bearing. A boolean offered 'uinteger' and 'longint' takes longint on
+        '' win64, the one row in the whole table where a higher rank wins, and it wins
+        '' only because uinteger pays the unsigned penalty. A bonus of 8 here erased that
+        '' and broke the win64 gate; 3 clears the rank gap of 2 and nothing else.
+        if (dstB = Tko.TY_INTEGER) orelse (dstB = Tko.TY_UINTEGER) then
+            return b + dr - 3
+        end if
+        return b + dr
+    end if
+    if (sr = 0) orelse (dr = 0) then return CONV_NONE
+
+    '' Staying in the class beats changing it OUTRIGHT, even when staying means
+    '' narrowing: offered 'short' and 'double' for a LONG argument, fbc takes short.
+    dim as long cost = CONV_NUMERIC      '' see its declaration
+    if IsFloat_( srcB ) <> IsFloat_( dstB ) then cost += CONV_CLASS
+
+    '' Then SIZE: the same width beats a widening, and a widening beats a narrowing.
+    '' 'byte' beats 'short' for a UBYTE argument (same width), while 'longint' beats
+    '' 'short' for a LONG argument (widening rather than narrowing).
+    dim as long ss = types.Layout( from_ ).size
+    dim as long ds = types.Layout( to_ ).size
+    '' Width dominates every later tiebreak: a LONG argument offered 'byte' and
+    '' 'ushort' takes ushort, the nearer width, even though byte matches its
+    '' signedness and ushort does not.
+    if ds > ss then
+        cost += CONV_WIDEN + (ds - ss) * 64
+    elseif ds < ss then
+        cost += CONV_NARROW + (ss - ds) * 64
+    end if
+
+    '' The remaining tiebreaks, strongest first.
+    ''
+    '' FAMILY: byte/ubyte, short/ushort, long/ulong, integer/uinteger and
+    '' longint/ulongint are signed/unsigned partners. An argument prefers a candidate
+    '' from its own pair -- which is the only thing that explains a LONGINT argument
+    '' offered 'uinteger' and 'ulongint' taking ulongint, since both are unsigned,
+    '' 8 bytes wide, and one rank step away.
+    if (sr + 1) \ 2 <> (dr + 1) \ 2 then cost += 16
+
+    '' SIGNEDNESS, which outranks BOTH family and rank distance. The four 8-byte
+    '' cross pairs are what pin this down: a UINTEGER argument offered 'integer' and
+    '' 'ulongint' takes ulongint -- matching signedness -- although integer is its
+    '' own family partner and one rank step away.
+    if IsUnsignedInt_( srcB ) <> IsUnsignedInt_( dstB ) then cost += 32
+
+    '' Rank distance, but only WITHIN a class. Across the integer/float boundary it
+    '' does not apply: a SINGLE argument offered 'integer' and 'longint' takes
+    '' integer, though longint is nearer in rank.
+    if IsFloat_( srcB ) = IsFloat_( dstB ) then
+        dim as long rd = dr - sr
+        if rd < 0 then rd = -rd
+        cost += rd * 2
+    end if
+
+    '' The LAST tiebreak, and it only ever fires when two candidates are otherwise
+    '' identical: prefer INTEGER / UINTEGER, the pointer-sized pair. On win64 nothing
+    '' reaches this -- 'long' and 'integer' are four and eight bytes, so the width tier
+    '' has already decided. On win32 they are the same width, the same signedness and one
+    '' rank apart, and fbc takes integer: 14 rows of the overload gate say so.
+    ''
+    '' EIGHT is fitted, not derived, and the bound it sits inside is: bigger than the two
+    '' rank tiers it has to beat -- rank DISTANCE contributes 4 here and rank itself 2 --
+    '' and smaller than the family tier at 16, so it can never override family or
+    '' signedness. Read it as "the type an operand would promote to wins a tie", which is
+    '' what INTEGER is.
+    if (dstB = Tko.TY_INTEGER) orelse (dstB = Tko.TY_UINTEGER) then
+        return cost + dr - 8
+    end if
+    return cost + dr
+end function

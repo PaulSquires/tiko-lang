@@ -127,17 +127,17 @@ fi
 # with its reason recorded at the site that makes it:
 #
 #   ___chkstk_ms   -> __chkstk           the backend's, chosen by the triple
-#   __iob_func     -> __acrt_iob_func    src/sys/sys.bi -- a different CALL
-#   __mingw_sprintf-> sprintf            src/inc/fmt.bi -- the C99 half
+#   __iob_func     -> __acrt_iob_func    src/sys/sys.ti -- a different CALL
+#   __mingw_sprintf-> sprintf            src/inc/fmt.ti -- the C99 half
 #   snprintf       -> __stdio_common_vsprintf
-#                                       src/inc/fmt.bi -- the MSVCRT half. The
+#                                       src/inc/fmt.ti -- the MSVCRT half. The
 #                       UCRT's whole printf family is a wrapper over that one
 #                       function, and the legacy behaviours fbc inherits from
 #                       MinGW (three-digit exponents, 1.#INF, round-half-away)
 #                       are OPTION BITS to it. Binding it directly is how the
 #                       msvc build reproduces them; the gated archive gets them
 #                       from MSVCRT's snprintf and needs no such call.
-#   _findfirst     -> _findfirst64i32   src/fs/legacydir.bas -- NOT one function.
+#   _findfirst     -> _findfirst64i32   src/fs/legacydir.tiko -- NOT one function.
 #   _findnext      -> _findnext64i32        The undecorated name is _finddata32_t
 #                       in the UCRT and _finddata64i32_t in MinGW: name at offset
 #                       20 against 36, so the same struct filled by the other CRT
@@ -155,7 +155,7 @@ fi
 # argument kills the process with 0xC0000409 and no output where MinGW would
 # have returned an error. src/c/msvcinit.c installs a handler that returns,
 # restoring MSVCRT's behaviour, which is the behaviour FreeBASIC programs were
-# written against. Measured on fbc's own chrono/iso.bas -- see that file.
+# written against. Measured on fbc's own chrono/iso.tiko -- see that file.
 #
 # fb_hRtExit is the one that is NOT a rename. src/c/msvcinit.c hands it to
 # atexit and calls fb_hRtInit, so the MSVC archive references BOTH where the

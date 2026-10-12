@@ -1,0 +1,293 @@
+'' lowerlabel.tiko -- labels and GOTO: the pre-scan of where each label is, and the
+'' cleanups a jump runs on its way there.
+''
+'' Split out of lowerctl.tiko when that file passed the 1500-line lint cap. ON ERROR and
+'' ON ... GOTO stay there and reach the label slots through LabelSlot and LabelBlockOf.
+
+#import "std/containers"
+#include once "mir/lowerctx.ti"
+
+namespace Tko.Mir
+
+'' ------------------------------------------------------------ labels and GOTO
+
+'' The label slot for a name, created on first mention. A goto may be lowered before
+'' its label exists, so both directions come through here.
+function LabelSlot( byref c as Ctx, byval nm as Tko.InternId ) as long
+    for i as long = 0 to c.labelName.Count - 1
+        if c.labelName[i] = cast( ulong, nm ) then return i
+    next
+    c.labelName.Push( cast( ulong, nm ) )
+    c.labelBlock.Push( -1 )
+    c.labelDepth.Push( -1 )
+    c.labelPathAt.Push( -1 )
+    c.labelPathLen.Push( 0 )
+    c.labelCleanupAt.Push( -1 )
+    return c.labelName.Count - 1
+end function
+
+'' Labels are per procedure: the same name in two procedures is two labels. 'base_' is
+'' the scopeMark index of the body's own scope, where every label path starts.
+sub ClearLabels( byref c as Ctx, byval base_ as long )
+    while c.labelName.Count > 0
+        c.labelName.Pop( ) : c.labelBlock.Pop( ) : c.labelDepth.Pop( )
+        c.labelPathAt.Pop( ) : c.labelPathLen.Pop( ) : c.labelCleanupAt.Pop( )
+    wend
+    while c.labelPaths.Count > 0 : c.labelPaths.Pop( ) : wend
+    while c.scanPath.Count > 0 : c.scanPath.Pop( ) : wend
+    c.labelBase = base_
+end sub
+
+'' How far a jump to this label stays inside the scopes open here: the index, into
+'' scopeMark, of the first scope it LEAVES. The open keys and the label's are walked
+'' together from the body's own scope; an OPTIONAL key in the label's path that the
+'' lowering never opened is stepped over. 'within' answers whether the label's whole
+'' path matched -- the label is in a scope still open, the one a backward jump can
+'' rewind inside.
+private function KeptScopes_ _
+    ( byref c as Ctx, byval slot as long, byref within as boolean ) as long
+
+    dim as long i = c.labelBase
+    dim as long j = 0
+    dim as long at = c.labelPathAt[slot]
+    dim as long n = c.labelPathLen[slot]
+    while i < c.scopeKey.Count
+        if j >= n then exit while
+        dim as ulong lk = c.labelPaths[at + j]
+        if c.scopeKey[i] = lk then
+            i += 1 : j += 1
+        elseif (lk and SCOPE_KEY_OPT) <> 0 then
+            j += 1
+        else
+            exit while
+        end if
+    wend
+    while j < n
+        if (c.labelPaths[at + j] and SCOPE_KEY_OPT) = 0 then exit while
+        j += 1
+    wend
+    within = (j >= n)
+    return i
+end function
+
+'' The pre-scan's half: entering a scope that the lowering will open around 'body'.
+private sub ScanScoped_ _
+    ( byref c as Ctx, byval body as Tko.NodeId, byval depth as long, byval key as ulong )
+    if body = Tko.NODE_NONE then return
+    c.scanPath.Push( key )
+    ScanLabels( c, body, depth )
+    c.scanPath.Pop( )
+end sub
+
+function LabelBlockOf( byref c as Ctx, byval slot as long ) as long
+    if c.labelBlock[slot] < 0 then
+        c.labelBlock[slot] = NewBlock( c, "lbl." & c.names->Spelling( _
+            cast( Tko.InternId, c.labelName[slot] ) ) )
+    end if
+    return c.labelBlock[slot]
+end function
+
+'' Records the scope depth of every label in the body BEFORE any of it is lowered.
+''
+'' The measurement (tests/semantic/cleanup/trace-goto) is that a scope-crossing jump
+'' runs the cleanups of every scope it leaves, innermost first, BEFORE the branch. To
+'' emit those at a forward goto, the target's depth has to be known already -- hence a
+'' pre-pass rather than a fixup.
+''
+'' This mirrors the scope discipline of the lowering rather than sharing it, so the two
+'' could drift. They are not left to drift silently: LowerLabel asserts that the depth
+'' recorded here equals the depth actually open when the label is reached, so any
+'' divergence is reported on the first program that shows it instead of quietly
+'' producing the wrong number of destructor calls.
+sub ScanLabels _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long )
+
+    if id = Tko.NODE_NONE then return
+    dim as Tko.NodeKind k = c.ast->Kind( id )
+
+    select case k
+    case Tko.N_LABEL
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+        dim as long slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
+        '' The SAME NAME twice in one procedure. Labels are scoped in FreeBASIC, so
+        '' sibling scopes may each declare 'label1' -- fbcunit's TEST macro produces
+        '' exactly that. Slots are keyed by name alone, which cannot tell them apart,
+        '' so the name is marked AMBIGUOUS rather than resolved to whichever came last.
+        '' A goto naming it then declines to lower instead of branching somewhere that
+        '' merely looks plausible.
+        if c.labelDepth[slot] <> -1 then
+            c.labelDepth[slot] = LABEL_AMBIGUOUS
+        else
+            c.labelDepth[slot] = depth
+            c.labelPathAt[slot] = c.labelPaths.Count
+            c.labelPathLen[slot] = c.scanPath.Count
+            for i as long = 0 to c.scanPath.Count - 1
+                c.labelPaths.Push( c.scanPath[i] )
+            next
+        end if
+        return
+
+    case Tko.N_BLOCK
+        dim as Tko.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        for i as long = 0 to lp->count - 1
+            ScanLabels( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), depth )
+        next
+        return
+
+    case Tko.N_SCOPE, Tko.N_WHILE, Tko.N_DO
+        '' Each of these opens exactly one scope around its body, keyed by the body --
+        '' the PushScope in the corresponding Lower* routine.
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+        ScanScoped_( c, sp->b, depth + 1, cast( ulong, sp->b ) )
+        return
+
+    case Tko.N_FOR
+        '' A FOR over a UDT counter opens a scope around the WHOLE loop for the counter,
+        '' limit and step, and the body's inside it. Others open only the body's.
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+        c.scanPath.Push( cast( ulong, sp->a ) or SCOPE_KEY_OPT )
+        ScanScoped_( c, sp->b, depth + 1, cast( ulong, sp->b ) )
+        c.scanPath.Pop( )
+        return
+
+    case Tko.N_WITH
+        '' A WITH over a temporary subject is a scope, for the temporary (lower.tiko).
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+        ScanScoped_( c, sp->b, depth, cast( ulong, sp->b ) or SCOPE_KEY_OPT )
+        return
+
+    case Tko.N_FOREACH
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+        ScanScoped_( c, sp->b, depth + 1, cast( ulong, sp->b ) or SCOPE_KEY_OPT )
+        return
+
+    case Tko.N_SELECT
+        '' Every CASE body is a scope of its own, and the SELECT one around them all when
+        '' its subject is wide (LowerSelect).
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+        c.scanPath.Push( cast( ulong, id ) or SCOPE_KEY_OPT )
+        if sp->b <> Tko.NODE_NONE then
+            dim as Tko.ListPayload ptr lp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
+            for i as long = 0 to lp->count - 1
+                dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+                if c.ast->Kind( cs ) = Tko.N_CASE then
+                    ScanScoped_( c, StmtOf( c, cs )->b, depth + 1, cast( ulong, StmtOf( c, cs )->b ) )
+                end if
+            next
+        end if
+        ScanScoped_( c, sp->c, depth + 1, cast( ulong, sp->c ) )
+        c.scanPath.Pop( )
+        return
+
+    case Tko.N_IF
+        '' EVERY ARM IS A SCOPE, the ELSE included -- LowerIf brackets each with
+        '' PushScope. This said an arm was not one, which stopped being true when the arms
+        '' became scopes, and a 'goto' to a label in its own arm then ran the arm's
+        '' cleanups at the jump AND at the end of the arm: a destructor twice, a string
+        '' freed and then read.
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+        if sp->b <> Tko.NODE_NONE then
+            dim as Tko.ListPayload ptr bl = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->b )].data )]
+            for i as long = 0 to bl->count - 1
+                dim as Tko.NodeId br = cast( Tko.NodeId, c.ast->children[bl->first + i] )
+                if c.ast->Kind( br ) = Tko.N_IF_BRANCH then
+                    ScanScoped_( c, StmtOf( c, br )->b, depth + 1, cast( ulong, StmtOf( c, br )->b ) )
+                end if
+            next
+        end if
+        ScanScoped_( c, sp->c, depth + 1, cast( ulong, sp->c ) )
+        return
+    end select
+
+    if Tko.NodeKindCategory( k ) = Tko.NCAT_STMT then
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+        ScanLabels( c, sp->b, depth )
+        ScanLabels( c, sp->c, depth )
+    end if
+end sub
+
+sub LowerLabel( byref c as Ctx, byval id as Tko.NodeId )
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    dim as long slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
+
+    '' An ambiguous name gets a FRESH block per occurrence. Sharing one block between
+    '' two same-named labels would splice unrelated code together; nothing branches to
+    '' these, since LowerGoto declines them.
+    dim as long b
+    if c.labelDepth[slot] = LABEL_AMBIGUOUS then
+        b = NewBlock( c, "lbl.dup" )
+    else
+        '' The pre-scan's path against the scopes actually open. They must agree: a
+        '' forward goto has already emitted its cleanups from the recorded path.
+        dim as boolean within
+        if (KeptScopes_( c, slot, within ) <> c.scopeKey.Count) orelse (within = false) then
+            c.st->labelDepthMismatch += 1
+        end if
+        '' From here on the label is where it really is, and so is the cleanup list: a
+        '' BACKWARD goto runs everything registered after this point.
+        c.labelDepth[slot] = c.scopeMark.Count
+        c.labelPathAt[slot] = c.labelPaths.Count
+        c.labelPathLen[slot] = c.scopeKey.Count - c.labelBase
+        for i as long = c.labelBase to c.scopeKey.Count - 1
+            c.labelPaths.Push( c.scopeKey[i] )
+        next
+        c.labelCleanupAt[slot] = c.cleanupNode.Count
+        b = LabelBlockOf( c, slot )
+    end if
+    Terminate( c, MTERM_BR, b, -1, NoVal( ) )
+    c.curBlock = b
+end sub
+
+sub LowerGoto( byref c as Ctx, byval id as Tko.NodeId )
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->name = 0 then
+        SkipHere( c )
+        return
+    end if
+    dim as long slot = LabelSlot( c, cast( Tko.InternId, sp->name ) )
+    dim as long d = c.labelDepth[slot]
+    if d = LABEL_AMBIGUOUS then
+        '' Two labels of this name in one procedure; which one is meant depends on
+        '' scope, which these slots do not record.
+        SkipHere( c )
+        return
+    end if
+    if d < 0 then
+        '' A label the pre-scan never saw, so the jump is to somewhere outside this
+        '' body. Emitting a branch to a block that will never exist is worse than
+        '' declining to lower it.
+        SkipHere( c )
+        return
+    end if
+
+    '' Leaving scopes runs their cleanups, innermost first. Jumping INWARD leaves
+    '' nothing, and the loop below simply does not run -- fbc permits that jump with
+    '' warning 14 rather than rejecting it, so it must lower, not fail.
+    ''
+    '' WHICH SCOPES ARE LEFT is the label's path against the open one, not a depth. A
+    '' depth cannot tell the scope a jump is in from a SIBLING at the same depth, so a
+    '' goto from one 'scope' block into the next ran nothing for the one it left: fbc
+    '' prints '+3-3[lbl]' and tiko printed '+3[lbl]'.
+    ''
+    '' A BACKWARD jump to a label in a scope still open runs what was defined AFTER the
+    '' label first -- 'again: dim t as Tr = Tr( n ) : ... : goto again' destroys t
+    '' before the definition runs again. fbc prints '+0-0+1-1+2-2'; leaving only whole
+    '' scopes printed '+0+1+2-2', and a string defined the same way leaked every pass.
+    dim as boolean within
+    dim as long kept = KeptScopes_( c, slot, within )
+    if within andalso (c.labelCleanupAt[slot] >= 0) then
+        EmitCleanupsFrom( c, c.labelCleanupAt[slot] )
+    else
+        EmitCleanupsTo( c, kept )
+    end if
+    Terminate( c, MTERM_BR, LabelBlockOf( c, slot ), -1, NoVal( ) )
+
+    '' Statements after an unconditional jump are unreachable but still lower, so they
+    '' need somewhere to go that is not the block just terminated.
+    c.curBlock = NewBlock( c, "goto.after" )
+end sub
+
+end namespace

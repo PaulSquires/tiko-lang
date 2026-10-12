@@ -387,7 +387,7 @@ Excluded entirely, as Windows-only or COM-bound: locale and country names, month
 
 ## Implementation
 
-In tiko-rt the algorithms live in lib/rt/src/inc/ops-core.bi and are written ONCE, then instantiated twice -- lib/rt/src/str/ops.bas at byte width, lib/rt/src/ustr/ops.bas at 16-bit -- with ## token pasting, the technique fbc's C runtime uses with str_ops_core.h. Two hand-maintained copies of a search loop drift, and the drift shows up as one width quietly disagreeing with the other on an edge case nobody tests twice.
+In tiko-rt the algorithms live in lib/rt/src/inc/ops-core.ti and are written ONCE, then instantiated twice -- lib/rt/src/str/ops.tiko at byte width, lib/rt/src/ustr/ops.tiko at 16-bit -- with ## token pasting, the technique fbc's C runtime uses with str_ops_core.h. Two hand-maintained copies of a search loop drift, and the drift shows up as one width quietly disagreeing with the other on an edge case nobody tests twice.
 
 Reached from FreeBASIC through 'extern "C" declare ... alias' at the module's scope -- the pattern inc/string.bi already uses for FORMAT. Note that 'alias' alone is not enough inside a module: without the extern "C" the name is mangled through the module's chain, and a nested namespace does not inherit an enclosing extern either.
 

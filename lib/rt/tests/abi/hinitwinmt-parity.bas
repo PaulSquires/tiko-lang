@@ -13,7 +13,7 @@
 '' entirely. Entering and leaving each of the six actually depends on it.
 ''
 '' AND EACH IS ENTERED TWICE, NESTED. A Windows CRITICAL_SECTION is recursive by
-'' definition, which is exactly why hinitwin.bas needs no attribute where the
+'' definition, which is exactly why hinitwin.tiko needs no attribute where the
 '' POSIX half has to ask pthreads for PTHREAD_MUTEX_RECURSIVE explicitly. If a
 '' future version of this member were "simplified" to a non-recursive primitive
 '' -- a Semaphore, an SRWLOCK -- the second Enter would DEADLOCK rather than

@@ -47,7 +47,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def keywords():
     """tiko's keywords, and which of them are word-shaped operators ('mod', 'shl')."""
     words, ops = set(), set()
-    with open(os.path.join(ROOT, "src", "lexer", "keywords.bi"), encoding="utf-8") as f:
+    with open(os.path.join(ROOT, "src", "lexer", "keywords.ti"), encoding="utf-8") as f:
         for ln in f:
             m = re.search(r'KW\(\s*KW_\w+,\s*"([A-Z0-9_]+)",\s*(\w+)', ln)
             if m:

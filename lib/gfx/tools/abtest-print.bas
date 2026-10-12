@@ -7,7 +7,7 @@
 '' comparable the same way every other primitive is: print with gfxlib2, render
 '' the same text ourselves, digest both.
 ''
-'' This also verifies the EXTRACTED FONT DATA. `core/font-data.bi` is 9728 bytes
+'' This also verifies the EXTRACTED FONT DATA. `core/font-data.ti` is 9728 bytes
 '' read out of gfxlib2 by rendering rather than transcribed, and every case here
 '' re-renders through the reference, so a stale or mis-packed table fails as a
 '' glyph mismatch rather than as a subtly wrong letter somewhere.
@@ -40,7 +40,7 @@
 '' like the other 223. The caret shape has its own cases in tools/gate-entry.bas,
 '' where a public PRINT can be compared.
 
-#include once "../raster/text.bi"
+#include once "../raster/text.ti"
 #include once "abtest.bi"
 #include once "crt/string.bi"
 #ifdef ABTEST_HAS_GFXLIB2
@@ -132,7 +132,7 @@ for mi as integer = 0 to ubound( modes )
         '' PRINT uses 0-based cells internally; LOCATE is 1-based
         '' On modes 7/8/9 COLOR routes the background into palette entry 0 and
         '' leaves bg_color at 0 -- so the glyph background is 0, not 5. See
-        '' raster/color.bi. Using 5 here renders every cell wrong.
+        '' raster/color.ti. Using 5 here renders every cell wrong.
         dim as long usebg = iif( (mode = 7) orelse (mode = 8) orelse (mode = 9), 0, 5 )
         DrawText( s, ccol - 1, crow - 1, txt, fidx, 2, usebg )
 

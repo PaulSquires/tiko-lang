@@ -1,0 +1,126 @@
+'' ctx.tiko -- thread-local context storage. Five symbols over one fbc member;
+'' two of them exist only in the MT archive.
+''
+'' EVERY PER-THREAD BLOCK IN THE RUNTIME COMES THROUGH HERE -- the error state,
+'' the DIR cursor, INPUT, PRINT USING, the profiler, the FBTHREAD self-pointer
+'' and the cached parker. The table is indexed by a fixed enum, so the INDEX is
+'' the contract and err/getset.tiko and io/printusg.tiko already hard-code 0 and 3
+'' against it.
+''
+'' WITHOUT ENABLE_MT THE "THREAD-LOCAL" TABLE IS A PLAIN ARRAY OF POINTERS, and
+'' that is correct rather than a stub: the single-threaded archive is used by
+'' programs that have one thread, so per-thread and per-process are the same
+'' thing. With ENABLE_MT the entries are pthread keys or TlsAlloc slots. This is
+'' exactly fbc's structure, and it is why fb_TlsInit and fb_TlsExit exist only
+'' in libfbmt.a -- referencing them from an ST build would not link.
+''
+'' A HEADER PRECEDES EVERY BLOCK. The caller is handed the address just PAST a
+'' one-pointer header holding the destructor, so the destructor travels with the
+'' data and fb_TlsFreeCtxTb can run it without knowing which key it came from.
+'' The pointer arithmetic is the whole of the ABI here: get the header back by
+'' subtracting one FB_TLS_CTX_HEADER, never by subtracting a hardcoded 8.
+
+#include once "inc/thread.ti"
+#include once "inc/sysbind.ti"
+
+'' The key table. NOT thread-local itself -- it holds the KEYS, and the keys are
+'' process-wide by construction.
+#if defined( ENABLE_MT ) and (defined( __FB_WIN32__ ) or defined( __FB_WIN64__ ))
+	type TKORT_TLSENTRY as ulong          '' a TlsAlloc index
+#elseif defined( ENABLE_MT )
+	type TKORT_TLSENTRY as ulong          '' a pthread_key_t
+#else
+	type TKORT_TLSENTRY as any ptr        '' the value itself
+#endif
+
+dim shared as TKORT_TLSENTRY tkort_tls_ctxtb( 0 to FB_TLSKEYS - 1 )
+
+'' The four primitives, as macros rather than functions, so the single-threaded
+'' build genuinely compiles to a load and a store rather than to a call.
+#if defined( ENABLE_MT ) and (defined( __FB_WIN32__ ) or defined( __FB_WIN64__ ))
+	#define TKORT_TLSALLOC( k )     k = w_TlsAlloc( )
+	#define TKORT_TLSFREE( k )      w_TlsFree( k )
+	#define TKORT_TLSSET( k, v )    w_TlsSetValue( k, v )
+	#define TKORT_TLSGET( k )       w_TlsGetValue( k )
+#elseif defined( ENABLE_MT )
+	#define TKORT_TLSALLOC( k )     u_pthread_key_create( @(k), 0 )
+	#define TKORT_TLSFREE( k )      u_pthread_key_delete( k )
+	#define TKORT_TLSSET( k, v )    u_pthread_setspecific( k, v )
+	#define TKORT_TLSGET( k )       u_pthread_getspecific( k )
+#else
+	#define TKORT_TLSALLOC( k )     k = 0
+	#define TKORT_TLSFREE( k )      k = 0
+	#define TKORT_TLSSET( k, v )    k = (v)
+	#define TKORT_TLSGET( k )       k
+#endif
+
+extern "rtlib"
+
+'' Retrieve or create the TLS context for a key. calloc, not malloc: every
+'' caller assumes its context starts zeroed, and thread/parkself.tiko depends on
+'' it for the lazily created parker.
+function tkort_TlsGetCtx alias "fb_TlsGetCtx" _
+	( byval index_ as long, byval len_ as uinteger, byval dtor as FB_TLS_DESTRUCTOR ) as any ptr
+
+	dim as any ptr ctx = TKORT_TLSGET( tkort_tls_ctxtb(index_) )
+	dim as FB_TLS_CTX_HEADER ptr hdr = any
+
+	if( ctx = 0 ) then
+		hdr = calloc( 1, len_ + sizeof( FB_TLS_CTX_HEADER ) )
+		if( hdr <> 0 ) then
+			hdr->dtor = dtor
+			ctx = cptr( any ptr, hdr + 1 )
+			TKORT_TLSSET( tkort_tls_ctxtb(index_), ctx )
+		end if
+	end if
+
+	return ctx
+end function
+
+sub tkort_TlsDelCtx alias "fb_TlsDelCtx" ( byval index_ as long )
+	dim as any ptr ctx = TKORT_TLSGET( tkort_tls_ctxtb(index_) )
+	dim as FB_TLS_CTX_HEADER ptr hdr = any
+
+	if( ctx <> 0 ) then
+		hdr = cptr( FB_TLS_CTX_HEADER ptr, ctx ) - 1
+		if( hdr->dtor <> 0 ) then hdr->dtor( ctx )
+		free( hdr )
+		TKORT_TLSSET( tkort_tls_ctxtb(index_), cast( any ptr, 0 ) )
+	end if
+end sub
+
+'' Called from every platform's threadproc as the thread exits, and from
+'' fb_TlsExit for the main thread.
+sub tkort_TlsFreeCtxTb alias "fb_TlsFreeCtxTb" ( )
+	dim as long i = any
+	for i = 0 to FB_TLSKEYS - 1
+		tkort_TlsDelCtx( i )
+	next
+end sub
+
+end extern
+
+#ifdef ENABLE_MT
+
+'' NOT FBCALL: internal, and declared plain in fb_thread.h. Present only in
+'' libfbmt.a, which is why the ST build must not reference them.
+extern "c"   '' NON-FBCALL: internal, and present only in libfbmt.a.
+
+sub tkort_TlsInit alias "fb_TlsInit" ( )
+	dim as long i = any
+	for i = 0 to FB_TLSKEYS - 1
+		TKORT_TLSALLOC( tkort_tls_ctxtb(i) )
+	next
+end sub
+
+sub tkort_TlsExit alias "fb_TlsExit" ( )
+	dim as long i = any
+	for i = 0 to FB_TLSKEYS - 1
+		TKORT_TLSFREE( tkort_tls_ctxtb(i) )
+	next
+	fb_CloseAtomicFBThreadFlagMutex( )
+end sub
+
+end extern
+
+#endif

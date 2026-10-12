@@ -16,7 +16,7 @@
 '' it can assert are the ones it just wrote.
 ''
 '' IT FOUND THE INVERTED WindowOpen TEST ON ITS FIRST RUN. WindowOpen returns 1
-'' on success; entry/screen.bi tested it for non-zero and treated success as
+'' on success; entry/screen.ti tested it for non-zero and treated success as
 '' failure, so SCREEN had NEVER opened a screen and every drawing call answered
 '' -1. Nothing else in the project could have caught it: the abtests never call
 '' an entry point, and the archive linked and exported all 39 symbols happily.
@@ -210,7 +210,7 @@ scope
         for i as integer = 1 to 4
             ext += inkey
         next
-        '' THE RESTATED SCANCODES MUST MATCH fbgfx.bi. core/keyboard.bi cannot
+        '' THE RESTATED SCANCODES MUST MATCH fbgfx.bi. core/keyboard.ti cannot
         '' include the reference header, so it restates the five codes the
         '' editing loop needs; this is what stops that restatement drifting.
         '' The expected values come from fbgfx.bi, the actual ones from what the

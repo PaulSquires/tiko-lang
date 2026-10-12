@@ -1,0 +1,89 @@
+'' all.tiko -- the whole of libtkogfx, as one translation unit.
+''
+'' ORIGINAL WORK. Part of libtkogfx: LGPL-2.1-or-later with the static-linking
+'' exception. This file contains no graphics code of its own -- it is the include
+'' list -- but RFC-0001 D13 wants the provenance on every source in the tree, and
+'' a file that names the whole library is a poor place to make an exception.
+''
+'' THE LIBRARY IS HEADER-ONLY AND EVERY ROUTINE IN IT IS `private`. That is
+'' RFC-0001's rule, not an accident: the entry-point layer is meant to be the
+'' only public surface, so the internals cannot be reached around. One TU is
+'' therefore the natural shape -- there is nothing to link between modules --
+'' and it lets clang see the whole library at once.
+''
+'' THE ORDER IS abi, core, driver, raster, AND IT MATTERS. abi/ mirrors the
+'' runtime's own structs and everything else reads them; driver/ presents what
+'' core/ owns; raster/ draws into surfaces core/ defines. Each group's headers
+'' are #include once, so a wrong order shows up as a missing type rather than a
+'' subtle one.
+''
+'' GENERATED, by build/build.sh's sibling in tools/. Adding a .ti to the tree
+'' and forgetting this file would compile nothing and report success, so the
+'' list is written out rather than globbed at build time.
+
+'' ---- abi
+#include once "../abi/rtlabi.ti"
+#include once "../abi/rtlctx-offsets.ti"
+#include once "../abi/rtlctx.ti"
+#include once "../abi/rtlseam.ti"
+
+'' ---- core
+#include once "../core/bmp.ti"
+#include once "../core/bsave.ti"
+#include once "../core/cells.ti"
+#include once "../core/control.ti"
+#include once "../core/dirty.ti"
+#include once "../core/events.ti"
+#include once "../core/font-data.ti"
+#include once "../core/hooks.ti"
+#include once "../core/image.ti"
+#include once "../core/keyboard.ti"
+#include once "../core/lzw.ti"
+#include once "../core/mode.ti"
+#include once "../core/palette-data.ti"
+#include once "../core/palette.ti"
+#include once "../core/surface.ti"
+#include once "../core/vgaport.ti"
+#include once "../core/viewport.ti"
+
+'' ---- driver
+#include once "../driver/driver.ti"
+#include once "../driver/gdi.ti"
+#include once "../driver/mem.ti"
+#include once "../driver/mouse.ti"
+#include once "../driver/window.ti"
+
+'' ---- raster
+#include once "../raster/blit.ti"
+#include once "../raster/box.ti"
+#include once "../raster/circle.ti"
+#include once "../raster/cls.ti"
+#include once "../raster/color.ti"
+#include once "../raster/convert.ti"
+#include once "../raster/draw.ti"
+#include once "../raster/line.ti"
+#include once "../raster/paint.ti"
+#include once "../raster/pixel.ti"
+#include once "../raster/pixelfmt.ti"
+#include once "../raster/put.ti"
+#include once "../raster/text.ti"
+
+'' ---- entry  (the public surface; MUST come last -- it references the
+''              privates above, and it is what pulls them into the archive)
+#include once "../entry/context.ti"
+#include once "../entry/mouse.ti"
+#include once "../entry/ports.ti"
+#include once "../entry/console.ti"
+#include once "../entry/screen.ti"
+#include once "../entry/page.ti"
+#include once "../entry/access.ti"
+#include once "../entry/info.ti"
+#include once "../entry/control.ti"
+#include once "../entry/event.ti"
+#include once "../entry/putblend.ti"
+#include once "../entry/draw2d.ti"
+#include once "../entry/palette.ti"
+#include once "../entry/image.ti"
+#include once "../entry/drawstr.ti"
+#include once "../entry/bmpio.ti"
+#include once "../entry/misc.ti"

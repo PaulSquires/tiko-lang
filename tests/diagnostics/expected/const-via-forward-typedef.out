@@ -32,7 +32,7 @@ verify: ok
 lowered: 1 functions, 1 blocks, 19 insts, 2 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 2
   amb other 2
-  skip-site src\mir\lower.bas:499 2
+  skip-site src\mir\lower.tiko:499 2
   amb-other-class 5 2
 tests/diagnostics/src/const-via-forward-typedef.bas(14,1): error TKO0617: cannot modify 'i': it is a constant
      |

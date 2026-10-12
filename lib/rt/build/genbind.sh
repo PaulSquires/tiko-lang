@@ -1,8 +1,8 @@
 #!/bin/sh
 # genbind.sh -- regenerate tiko-rt's C library binding for this host's target.
 #
-#   lib/rt/build/genbind.sh            on Windows: src/inc/sysbind/win64.bi
-#                                      on Linux:   src/inc/sysbind/linux-x86_64.bi
+#   lib/rt/build/genbind.sh            on Windows: src/inc/sysbind/win64.ti
+#                                      on Linux:   src/inc/sysbind/linux-x86_64.ti
 #
 # tiko's own C importer (-cimport, decision 0016) reads lib/rt/build/sysbind.h against the
 # host's C headers -- MinGW-w64's on Windows, the system's glibc on Linux -- and genbind.py
@@ -11,8 +11,8 @@
 #
 # RUN IT AFTER THE RUNTIME STARTS USING ANOTHER C FUNCTION, and commit the result: the
 # binding is generated but CHECKED IN, so a build needs no libclang and a review sees every
-# declaration the runtime depends on. windows-x86_64 builds from win64.bi (fbc compiles it AS
-# win64); inc/sysbind.bi holds the streams, errno and jmp_buf no importer can carry.
+# declaration the runtime depends on. windows-x86_64 builds from win64.ti (fbc compiles it AS
+# win64); inc/sysbind.ti holds the streams, errno and jmp_buf no importer can carry.
 #
 # PROVED EQUIVALENT to fbc's crt/*.bi when it replaced them (2026-09-24): every runtime
 # object built from it was byte-identical to the one built from crt/ on win64, and on
@@ -30,4 +30,4 @@ WK=${TMPDIR:-/tmp}/genbind.$$
 mkdir -p "$WK"
 trap 'rm -rf "$WK"' EXIT
 "$TKO" -target "$TARGET" -cimport build/sysbind.h -cimport-out "$WK/full.bi"
-"$PY" build/genbind.py "$WK/full.bi" src "$TARGET" "src/inc/sysbind/$TARGET.bi"
+"$PY" build/genbind.py "$WK/full.bi" src "$TARGET" "src/inc/sysbind/$TARGET.ti"

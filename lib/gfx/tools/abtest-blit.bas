@@ -31,11 +31,11 @@
 '' 8to16RGB have a missing-parenthesis error and take the wrong five bits of
 '' blue. This suite is what confirms that reading, and what will notice if the
 '' reference is ever fixed -- at which point these stop matching and the gate
-'' fails loudly rather than the divergence going unseen. See raster/blit.bi.
+'' fails loudly rather than the divergence going unseen. See raster/blit.ti.
 
-#include once "../raster/blit.bi"
-#include once "../abi/rtlctx.bi"
-#include once "../core/mode.bi"
+#include once "../raster/blit.ti"
+#include once "../abi/rtlctx.ti"
+#include once "../core/mode.ti"
 #include once "fbgfx.bi"
 #include once "crt/string.bi"
 

@@ -1,0 +1,115 @@
+'' valuestmt.tiko -- A VALUE ALONE AS A STATEMENT: CheckValueStmt_, asked of every N_AMBIGUOUS.
+''
+'' Included from latesweeps2.tiko, just below latesweeps3.tiko, in the same namespace and over
+'' the same Ctx.
+''
+'' Measured on fbc-modern 1.20, 2026-09-28. Each of these, alone on a line, is error 10,
+'' "Expected '='":
+''
+''     ar( 1 )    uu.b( 1 )    ua( 0 )    rr( 0 )    pfa( 0 )       an element of an array
+''     n          uu.a         ua( 0 ).a  this       this.a    a    a variable, parameter or field
+''     pf         vv.fp                                             a procedure pointer, not called
+''     p[0]       *p           (pp)
+''
+'' and a CONST or an ENUM member alone is error 119. tiko dropped every one in silence. These
+'' stay clean: a call to a sub or function, with or without parentheses, a method, a property
+'' read, a static member, 'pf( )', 'vv.fp( )' and 'pfa( 0 )( )'. A non-array value CALLED --
+'' 'n( )' -- is TKO0772's, and is not asked twice.
+
+'' IS THIS VARIABLE, PARAMETER OR FIELD AN ARRAY. The spellings CheckCalledExpr_ accepts
+'' (latechecks.tiko): declared with dimensions, made by REDIM, or typed as one -- where an array
+'' of a character builtin is a fixed-length string, not an array.
+private function ValueIsArray_ ( byref c as Ctx, byval vs as Symbol ptr, byval tgt as NodeId ) as boolean
+    if (vs->flags and SYMF_REDIM) <> 0 then return true
+    dim as NodeId dn = cast( NodeId, vs->payload )
+    if (dn > 0) andalso (dn <= c.ast->Count( )) then
+        if (c.ast->nodes[cast( long, dn )].flags and NF_ARRAY) <> 0 then return true
+    end if
+    for pass as long = 0 to 1
+        dim as TypeId vt = iif( pass = 0, vs->type_, c.info->TypeOf_( tgt ) )
+        if vt = TYPE_NONE then continue for
+        vt = c.types->Unqualify( vt )
+        if c.types->Kind( vt ) = TK_REFERENCE then vt = c.types->Unqualify( c.types->Inner( vt ) )
+        if c.types->IsDynArray( vt ) then return true
+        if c.types->Kind( vt ) = TK_ARRAY then
+            dim as TypeId el = c.types->Unqualify( c.types->Inner( vt ) )
+            if c.types->Kind( el ) <> TK_BUILTIN then return true
+            select case c.types->BuiltinOf( el )
+            case TY_ZSTRING, TY_WSTRING, TY_FIXSTR, TY_FIXUSTR
+            case else : return true
+            end select
+        end if
+    next
+    return false
+end function
+
+private sub CheckValueStmt_ ( byref c as Ctx, byval id as NodeId )
+    select case c.info->AmbiguousOf( id )
+    case AMB_CALL, AMB_UNRESOLVED
+    case else
+        return
+    end select
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    '' 'Foo 1, 2' has arguments, and a value with arguments is some other error.
+    if (sp->count > 0) orelse (sp->b <> NODE_NONE) then return
+    dim as NodeId a = sp->a
+    if a = NODE_NONE then return
+    dim as boolean bad = false
+    select case c.ast->Kind( a )
+    case N_INDEX, N_DEREF, N_PAREN
+        bad = true
+    case N_IDENT, N_MEMBER
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
+        if s = 0 then return
+        select case cast( SymbolKind, s->kind )
+        case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD, SYM_CONSTANT, SYM_ENUMCONST
+            bad = true
+        end select
+    case N_CALL
+        dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, a )].data )]
+        dim as NodeId tgt = lp->target
+        if tgt = NODE_NONE then return
+        if (c.ast->Kind( tgt ) <> N_IDENT) andalso (c.ast->Kind( tgt ) <> N_MEMBER) then return
+        dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( tgt ) )
+        if vs = 0 then return
+        select case cast( SymbolKind, vs->kind )
+        case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
+        case else
+            return
+        end select
+        bad = ValueIsArray_( c, vs, tgt )
+    end select
+    if bad = false then return
+    c.diags->Report( TKO0874, PointRange( c.ast->Loc( id ) ) )
+end sub
+
+'' A PROPERTY WITH EMPTY PARENTHESES OPENING A STATEMENT. Measured on fbc-modern 1.20,
+'' 2026-09-28 -- error 9, "Expected expression, found ')'", for each of
+''
+''     vv.P( )    vv.P( ) = 3    vv.R( )    vv.W( )    vv.W( ) = 2
+''     .P( )  and  .P( ) = 1  in a WITH      P( ), P( ) = 1, this.P( )  in a method
+''
+'' over a get/set P, a get-only R and a set-only W: there, the parentheses hold the value or
+'' the index. tiko accepted each. 'x = vv.P( )' and 'print vv.P( )' are fbc's too, and so are
+'' 'vv.P', 'vv.P = 4', 'vv.Q( 1 )', 'vv.Q( 1 ) = 5' and 'vv.W( 6 )'.
+private sub CheckEmptyPropCall_ ( byref c as Ctx, byval id as NodeId )
+    if c.info->AmbiguousOf( id ) = AMB_ERROR then return
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->count > 0 then return
+    dim as NodeId a = sp->a
+    if a = NODE_NONE then return
+    if c.ast->Kind( a ) <> N_CALL then return
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, a )].data )]
+    if lp->count <> 0 then return
+    dim as NodeId tgt = lp->target
+    if tgt = NODE_NONE then return
+    if (c.ast->Kind( tgt ) <> N_IDENT) andalso (c.ast->Kind( tgt ) <> N_MEMBER) then return
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
+    if s = 0 then s = c.syms->SymbolAt( c.info->RefOf( tgt ) )
+    if s = 0 then return
+    if s->kind <> cast( ubyte, SYM_PROC ) then return
+    dim as NodeId pn = cast( NodeId, s->payload )
+    if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return
+    if c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )].op <> cast( ushort, KW_PROPERTY ) then return
+    c.diags->Report( TKO0875, PointRange( c.ast->Loc( id ) ), c.names->Spelling( s->name ) )
+end sub

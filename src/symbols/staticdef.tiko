@@ -1,0 +1,387 @@
+'' staticdef.tiko -- A STATIC MEMBER'S DEFINITION THAT DISAGREES WITH ITS DECLARATION, and a
+'' CONVERSION INTRINSIC OVER A POINTER OR A UDT: CheckStaticMemberDef_ (asked of every N_VAR)
+'' and CheckConvIntrinsic_ (every N_CALL), which also asks CheckMathIntrinsic_.
+''
+'' Included from latesweeps2.tiko, below iifudt.tiko, in the same namespace and over the same Ctx.
+
+'' 'var UDT.i = cshort( 0 )' OVER A 'static i as integer' -- measured on fbc-modern 1.20,
+'' 2026-09-29:
+''
+''     var UDT.i = cshort( 0 )  /  = 0.5  /  = 5ll            error 20, "Type mismatch"
+''     dim UDT.i as short                                     error 131
+''     dim shared byref UDT.ri as integer = x                 error 20 -- ri is not byref
+''     var UDT.i = 0    dim UDT.i as integer = 5              fine
+''
+'' dim/member-var-bad-5 and member-var-bad-byref-2 write the first and the third. tiko took
+'' the definition's own type. Only a SCALAR member is judged: an array's element type is
+'' what its definition writes, and its bounds are TKO0751's.
+private sub CheckStaticMemberDef_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    for k as long = 0 to sp->count - 1
+        dim as NodeId item = cast( NodeId, c.ast->children[sp->first + k] )
+        if (item = NODE_NONE) orelse (c.ast->Kind( item ) <> N_VAR_ITEM) then continue for
+        if (c.ast->nodes[cast( long, item )].flags and NF_QUALIFIED) = 0 then continue for
+        dim as StmtPayload ptr ip = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, item )].data )]
+        if (ip->ownerName = 0) orelse (ip->c <> NODE_NONE) then continue for
+        if instr( c.names->Spelling( ip->ownerName ), "." ) > 0 then continue for
+        dim as Symbol ptr os = c.syms->SymbolAt( c.syms->LookupTyped( c.info->ScopeOf( id ), ip->ownerName, true ) )
+        if (os = 0) orelse (os->kind <> cast( ubyte, SYM_UDT )) then continue for
+        '' The member, in the type or in what it extends.
+        dim as Symbol ptr ms = 0
+        dim as TypeId ut = os->type_
+        for guard as long = 0 to 31
+            dim as Symbol ptr us = UdtSymbolOf_( c, ut )
+            if (us = 0) orelse (us->inner = SCOPE_NONE) then exit for
+            ms = c.syms->SymbolAt( c.syms->LookupLocalTyped( us->inner, ip->name, false ) )
+            if ms <> 0 then exit for
+            ut = BaseOf_( c, ut )
+            if ut = TYPE_NONE then exit for
+        next
+        if ms = 0 then continue for
+        if (ms->flags and SYMF_STATIC) = 0 then continue for
+        if ms->type_ = TYPE_NONE then continue for
+        dim as boolean declByref = ((ms->flags and SYMF_BYREF) <> 0) orelse (c.types->Kind( ms->type_ ) = TK_REFERENCE)
+        dim as boolean defByref = (((c.ast->nodes[cast( long, id )].flags or c.ast->nodes[cast( long, item )].flags) and NF_BYREF) <> 0)
+        '' 'dim byref T.ri as integer', with nothing to bind: fbc's 320 is HERE, and the
+        '' declaration in the type needs none (ByrefNeedsInit_, fieldctor.tiko).
+        if declByref andalso defByref andalso (ip->b = NODE_NONE) then
+            c.diags->Report( TKO0644, PointRange( c.ast->Loc( item ) ), c.names->Spelling( ip->name ) )
+            continue for
+        end if
+        dim as TypeId dt = ValueType_( c, ms->type_ )
+        if cbool( dt = TYPE_NONE ) orelse cbool( c.types->Kind( dt ) = TK_ARRAY ) orelse c.types->IsDynArray( dt ) then continue for
+        dim as boolean bad = (declByref <> defByref)
+        if bad = false then
+            dim as TypeId vt = TYPE_NONE
+            if ip->a <> NODE_NONE then
+                vt = c.info->TypeOf_( ip->a )
+            elseif ip->b <> NODE_NONE then
+                vt = c.info->TypeOf_( ip->b )
+            end if
+            if vt = TYPE_NONE then continue for
+            vt = ValueType_( c, vt )
+            if vt = TYPE_NONE then continue for
+            bad = (c.types->Unqualify( vt ) <> c.types->Unqualify( dt ))
+        end if
+        if bad then
+            c.diags->Report( TKO0889, PointRange( c.ast->Loc( item ) ), _
+                             c.names->Spelling( ip->ownerName ) & "." & c.names->Spelling( ip->name ) )
+        end if
+    next
+end sub
+
+'' A CONVERSION INTRINSIC OVER A POINTER OR A UDT -- fbc's error 20, measured on fbc-modern
+'' 1.20, 2026-09-29, 64-bit:
+''
+''     clng( p ), culng( p ), cshort( p ), cbyte( p ), cdbl( p )     p any ptr     error 20
+''     cint( p ), cuint( p ), clngint( p )                                         fine
+''     cint( f ) over a UDT whose only 'operator cast' is 'as single' or 'as long'  error 20
+''     cint( f ) with 'cast as integer', csng( f ) with 'cast as single'            fine
+''
+'' A pointer converts to an integer of ITS OWN size and nothing else, and a UDT converts
+'' through a cast to EXACTLY the intrinsic's type. pointers/cast-to-int-mismatch and
+'' overload/op_cast_missing write one each, and tiko converted both.
+private function ConvTarget_ ( byref nm as string ) as BuiltinType
+    select case nm
+    case "cbyte"    : return TY_BYTE
+    case "cubyte"   : return TY_UBYTE
+    case "cshort"   : return TY_SHORT
+    case "cushort"  : return TY_USHORT
+    case "clng"     : return TY_LONG
+    case "culng"    : return TY_ULONG
+    case "cint"     : return TY_INTEGER
+    case "cuint"    : return TY_UINTEGER
+    case "clngint"  : return TY_LONGINT
+    case "culngint" : return TY_ULONGINT
+    case "csng"     : return TY_SINGLE
+    case "cdbl"     : return TY_DOUBLE
+    end select
+    return TY_NONE
+end function
+
+'' A MATHS INTRINSIC OVER WHAT IS NOT A NUMBER (T51) -- fbc's error 24, measured on
+'' fbc-modern 1.20 2026-10-01 across sqr, abs, int, sgn, frac, sin and both atan2 sides:
+''
+''     a string of any kind, fixed or not      a pointer        a boolean
+''     a UDT with no numeric 'operator cast' OF ITS OWN -- one casting only to a string
+''     or a pointer, and one whose BASE has the numeric cast, included
+''
+'' are all refused, and a number or an enum is taken. tiko took every one of them and
+'' then dropped the statement: 'print sqr( n )' compiled and printed nothing. A UDT is
+'' taken when an 'operator sqr' (or abs, ...) is declared over exactly that type -- one
+'' over another type changes nothing, measured -- and left alone when it extends
+'' something that is not a UDT, or is anonymous or generic.
+private function MathArgIsNumber_ _
+    ( byref c as Ctx, byval bound as SymbolId, byval scope_ as ScopeId, byref nm as string, _
+      byval at as TypeId ) as boolean
+
+    if at = TYPE_NONE then return true
+    at = c.types->Unqualify( at )
+    if c.types->Kind( at ) = TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
+    select case c.types->Kind( at )
+    case TK_POINTER
+        return false
+    case TK_ARRAY
+        return (Tko.Check.FixedStringElem( at, *c.types ) = TYPE_NONE)
+    case TK_BUILTIN
+        select case c.types->BuiltinOf( at )
+        case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_BOOLEAN
+            return false
+        end select
+        return true
+    case TK_UDT
+        '' What the name BINDS to, which is the operator when there is one; the scope lookup
+        '' is the fallback, and on its own found nothing this late.
+        dim as SymbolId uo = bound
+        if uo = SYMBOL_NONE then uo = c.syms->Lookup( scope_, c.names->Fold( c.names->GetString( nm ) ) )
+        for guard as long = 0 to 63
+            dim as Symbol ptr os = c.syms->SymbolAt( uo )
+            if os = 0 then exit for
+            if os->payload <> 0 then
+                if c.ast->Kind( cast( NodeId, os->payload ) ) = N_PROC then
+                    dim as long rk
+                    dim as TypeId pt = ParamTypeAt_( c, cast( NodeId, os->payload ), 0, rk )
+                    if pt <> TYPE_NONE then
+                        pt = c.types->Unqualify( pt )
+                        if c.types->Kind( pt ) = TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
+                        if pt = at then return true
+                    end if
+                end if
+            end if
+            uo = os->nextOverload
+        next
+        dim as InternId un = c.types->NameOf( at )
+        if un = 0 then return true
+        dim as string h = left( c.names->Spelling( un ), 1 )
+        if (h = "(") orelse (h = "$") orelse (h = "~") then return true
+        if instr( c.names->Spelling( un ), "<" ) > 0 then return true
+        dim as TypeId bt = BaseOf_( c, at )
+        if bt <> TYPE_NONE then
+            if c.types->Kind( c.types->Unqualify( bt ) ) <> TK_UDT then return true
+        end if
+        dim as Symbol ptr cs = StructorOf_( c, at, "cast" )
+        for guard as long = 0 to 63
+            if cs = 0 then exit for
+            dim as TypeId rt = c.types->Unqualify( cs->type_ )
+            if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+            if c.types->Kind( rt ) = TK_ENUM then return true
+            if c.types->Kind( rt ) = TK_BUILTIN then
+                select case c.types->BuiltinOf( rt )
+                case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_VOID
+                case else
+                    return true
+                end select
+            end if
+            cs = c.syms->SymbolAt( cs->nextOverload )
+        next
+        return false
+    end select
+    return true
+end function
+
+private sub CheckMathIntrinsic_ _
+    ( byref c as Ctx, byval id as NodeId, byval lp as ListPayload ptr, byref nm as string )
+
+    if instr( " sin cos tan atn asin acos atan2 exp log sqr abs sgn int fix frac ", " " & nm & " " ) = 0 then return
+    dim as long want = iif( nm = "atan2", 2, 1 )
+    if lp->count <> want then return
+    for i as long = 0 to want - 1
+        dim as TypeId at = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first + i] ) )
+        if MathArgIsNumber_( c, c.info->RefOf( lp->target ), c.info->ScopeOf( id ), nm, at ) = false then
+            c.diags->Report( TKO0928, PointRange( c.ast->Loc( id ) ), nm, c.types->Name( c.types->Unqualify( at ) ) )
+            return
+        end if
+    next
+end sub
+
+'' HEX, OCT, BIN AND CHR OVER A UDT -- measured on fbc-modern, over a type casting to long:
+'' 'hex( a )' (and oct, bin, their wide halves) is error 98, the overloads all reaching it
+'' through the one cast at one flat score; 'chr( a )' and 'wchr( a )' are 58. tiko took the
+'' cast, or failed to lower. A tuple is tiko's own; a user overload of the name is not this.
+private sub CheckUdtRadixChr_ _
+    ( byref c as Ctx, byval id as NodeId, byval lp as ListPayload ptr, byref nm as string )
+
+    '' ...AND 'string( n, x )' / 'wstring( n, x )' OVER A UDT x WITH NO NUMERIC CAST is 58 too: the
+    '' fill is a character code ('string( 2, m )' over a long cast is AA), never a string cast.
+    '' ...AND 'strptr( x )' / 'sadd( x )' OVER A UDT is fbc's 24 whatever it casts to -- 'string' or
+    '' 'byref as zstring' alike, measured. Its own udt-zstring/strptr.bas passes a type that EXTENDS
+    '' zstring, which PlainUdtOperand_ does not judge.
+    if ((nm = "strptr") orelse (nm = "sadd")) andalso (lp->count = 1) then
+        dim as NodeId sa = cast( NodeId, c.ast->children[lp->first] )
+        dim as TypeId st = c.info->TypeOf_( sa )
+        if st = TYPE_NONE then return
+        st = c.types->Unqualify( st )
+        if c.types->Kind( st ) = TK_REFERENCE then st = c.types->Unqualify( c.types->Inner( st ) )
+        if PlainUdtOperand_( c, st ) = false then return
+        c.diags->Report( TKO0698, PointRange( c.ast->Loc( sa ) ) )
+        return
+    end if
+    if ((nm = "string") orelse (nm = "wstring")) andalso (lp->count = 2) then
+        if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
+        dim as NodeId fa = cast( NodeId, c.ast->children[lp->first + 1] )
+        dim as TypeId ft = c.info->TypeOf_( fa )
+        if ft = TYPE_NONE then return
+        ft = c.types->Unqualify( ft )
+        if c.types->Kind( ft ) = TK_REFERENCE then ft = c.types->Unqualify( c.types->Inner( ft ) )
+        if c.types->Kind( ft ) <> TK_UDT then return
+        dim as string fh = left( c.names->Spelling( c.types->NameOf( ft ) ), 1 )
+        if (fh = "(") orelse (fh = "$") orelse (fh = "~") then return
+        if BaseOf_( c, ft ) <> TYPE_NONE then return
+        if Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, ft, TYPE_NONE ) <> SYMBOL_NONE then return
+        c.diags->Report( TKO0698, PointRange( c.ast->Loc( fa ) ) )
+        return
+    end if
+    if instr( " hex oct bin whex woct wbin chr wchr ", " " & nm & " " ) = 0 then return
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
+    dim as NodeId a0 = cast( NodeId, c.ast->children[lp->first] )
+    dim as TypeId at = c.info->TypeOf_( a0 )
+    if at = TYPE_NONE then return
+    at = c.types->Unqualify( at )
+    if c.types->Kind( at ) = TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
+    if c.types->Kind( at ) <> TK_UDT then return
+    dim as InternId un = c.types->NameOf( at )
+    if un = 0 then return
+    dim as string h = left( c.names->Spelling( un ), 1 )
+    if (h = "(") orelse (h = "$") orelse (h = "~") then return
+    if right( nm, 3 ) = "chr" then
+        c.diags->Report( TKO0698, PointRange( c.ast->Loc( a0 ) ) )
+    else
+        c.diags->Report( TKO0660, PointRange( c.ast->Loc( id ) ), nm )
+    end if
+end sub
+
+'' A UDT VALUE FOR AN EXPLICIT CONVERSION TO THE BUILTIN 'want' -- 'cast( T, x )': it needs an
+'' 'operator cast' yielding exactly that type, TKO0890 otherwise. The same test the conversion
+'' intrinsics' UDT arm makes below; a tuple, a generic instance and a derived type are not judged.
+private sub CheckUdtExactCast_ _
+    ( byref c as Ctx, byval id as NodeId, byval arg as NodeId, byval want as BuiltinType, byref nm as string )
+
+    if (c.info->RefOf( id ) <> SYMBOL_NONE) then return
+    dim as TypeId at = c.info->TypeOf_( arg )
+    if at = TYPE_NONE then return
+    at = c.types->Unqualify( at )
+    if c.types->Kind( at ) = TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
+    if c.types->Kind( at ) <> TK_UDT then return
+    dim as InternId un = c.types->NameOf( at )
+    if un = 0 then return
+    dim as string h = left( c.names->Spelling( un ), 1 )
+    if (h = "(") orelse (h = "$") orelse (h = "~") then return
+    if instr( c.names->Spelling( un ), "<" ) > 0 then return
+    if BaseOf_( c, at ) <> TYPE_NONE then return
+    dim as Symbol ptr cs = StructorOf_( c, at, "cast" )
+    if cs = 0 then return   '' no cast at all is another rule's
+    for guard as long = 0 to 63
+        if cs = 0 then exit for
+        dim as TypeId rt = c.types->Unqualify( cs->type_ )
+        if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+        if (c.types->Kind( rt ) = TK_BUILTIN) andalso (c.types->BuiltinOf( rt ) = want) then return
+        cs = c.syms->SymbolAt( cs->nextOverload )
+    next
+    c.diags->Report( TKO0890, PointRange( c.ast->Loc( id ) ), nm, c.types->Name( at ) )
+end sub
+
+private sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if (lp->target = NODE_NONE) orelse (lp->count < 1) then return
+    if c.ast->Kind( lp->target ) <> N_IDENT then return
+    dim as string nm = lcase( SpellOf_( c, lp->target ) )
+    '' ASKED BEFORE THE BINDING TEST: these names are keywords, so what binds one is a
+    '' user 'operator sqr', and MathArgIsNumber_ matches that against the argument itself.
+    dim as BuiltinType want = ConvTarget_( nm )
+    '' 'cast( T, x )' OVER A UDT NEEDS A CAST YIELDING EXACTLY T, as cint and the rest do --
+    '' measured: over a type casting to long, 'cast( long, a )' compiles and 'cast( integer, a )',
+    '' 'cast( double, a )' are fbc's 20. A builtin T only; the type argument comes first.
+    if (nm = "cast") andalso (lp->count = 2) then
+        dim as TypeId ct = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first] ) )
+        if ct <> TYPE_NONE then
+            ct = c.types->Unqualify( ct )
+            if c.types->Kind( ct ) = TK_BUILTIN then want = c.types->BuiltinOf( ct )
+        end if
+        if want = TY_NONE then return
+        CheckUdtExactCast_( c, id, cast( NodeId, c.ast->children[lp->first + 1] ), want, nm )
+        return
+    end if
+    if want = TY_NONE then
+        CheckMathIntrinsic_( c, id, lp, nm )
+        CheckUdtRadixChr_( c, id, lp, nm )
+        return
+    end if
+    if (c.info->RefOf( lp->target ) <> SYMBOL_NONE) orelse (c.info->RefOf( id ) <> SYMBOL_NONE) then return
+    if lp->count <> 1 then return
+    dim as NodeId arg = cast( NodeId, c.ast->children[lp->first] )
+    dim as TypeId at = c.info->TypeOf_( arg )
+    if at = TYPE_NONE then return
+    at = c.types->Unqualify( at )
+    if c.types->Kind( at ) = TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
+    select case c.types->Kind( at )
+    case TK_POINTER
+        dim as boolean ok
+        if c.types->target.pointerBits = 64 then
+            ok = (want = TY_INTEGER) orelse (want = TY_UINTEGER) orelse (want = TY_LONGINT) orelse (want = TY_ULONGINT)
+        else
+            ok = (want = TY_INTEGER) orelse (want = TY_UINTEGER) orelse (want = TY_LONG) orelse (want = TY_ULONG)
+        end if
+        if ok then return
+    case TK_UDT
+        dim as InternId un = c.types->NameOf( at )
+        if un = 0 then return
+        dim as string h = left( c.names->Spelling( un ), 1 )
+        if (h = "(") orelse (h = "$") orelse (h = "~") then return
+        if instr( c.names->Spelling( un ), "<" ) > 0 then return
+        '' A type that extends another may convert through the base's cast: not judged.
+        if BaseOf_( c, at ) <> TYPE_NONE then return
+        dim as Symbol ptr cs = StructorOf_( c, at, "cast" )
+        for guard as long = 0 to 63
+            if cs = 0 then exit for
+            dim as TypeId rt = c.types->Unqualify( cs->type_ )
+            if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+            if (c.types->Kind( rt ) = TK_BUILTIN) andalso (c.types->BuiltinOf( rt ) = want) then return
+            cs = c.syms->SymbolAt( cs->nextOverload )
+        next
+    case else
+        return
+    end select
+    c.diags->Report( TKO0890, PointRange( c.ast->Loc( id ) ), nm, c.types->Name( at ) )
+end sub
+
+'' Asked from CheckIncompleteObjects_ in latesweeps4.tiko, which is at the line cap.
+private sub CheckByrefResultCalls_ ( byref c as Ctx, byval total as long )
+    '' A CALL TO A BYREF-RESULT FUNCTION whose declared result is not complete where it is
+    '' called: 'print f( )', 'f( )' and 'f( ) = 1' are fbc's 71, '@f( )' is not -- measured
+    '' with the typedef rule in CompletedBelow4_. Only a declaration's byref result may name
+    '' an incomplete type at all.
+    dim as containers.Array( of ubyte ) addrOf
+    for i as long = 0 to total
+        addrOf.Push( 0 )
+    next
+    for i as long = 1 to total
+        if c.ast->Kind( cast( NodeId, i ) ) <> N_ADDROF then continue for
+        dim as NodeId ao = Unparen3_( c, c.ast->unaries[cast( long, c.ast->nodes[i].data )].operand )
+        if (ao > 0) andalso (cast( long, ao ) <= total) then addrOf[cast( long, ao )] = 1
+    next
+    for i as long = 1 to total
+        if c.ast->Kind( cast( NodeId, i ) ) <> N_CALL then continue for
+        if addrOf[i] <> 0 then continue for
+        dim as ListPayload ptr cp = @c.ast->lists[cast( long, c.ast->nodes[i].data )]
+        if cp->target = NODE_NONE then continue for
+        dim as Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( cast( NodeId, i ) ) )
+        if ps = 0 then ps = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
+        if (ps = 0) orelse (ps->kind <> cast( ubyte, SYM_PROC )) then continue for
+        dim as NodeId pd = cast( NodeId, ps->payload )
+        if (pd = NODE_NONE) orelse (c.ast->Kind( pd ) <> N_PROC) then continue for
+        dim as StmtPayload ptr pdp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pd )].data )]
+        if (((c.ast->nodes[cast( long, pd )].flags and NF_BYREF) <> 0) orelse ((pdp->extra and PF_BYREF_RESULT) <> 0)) = false then continue for
+        if (pdp->a = NODE_NONE) orelse (c.ast->Kind( pdp->a ) <> N_TYPEREF) then continue for
+        if (c.ast->nodes[cast( long, pdp->a )].flags and (NF_PTR or NF_PROC_TYPE)) <> 0 then continue for
+        dim as TypeId rt = c.info->TypeOf_( pdp->a )
+        if rt = TYPE_NONE then continue for
+        rt = c.types->Unqualify( rt )
+        if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+        if c.types->Kind( rt ) = TK_FORWARD then
+            c.diags->Report( TKO0810, PointRange( c.ast->Loc( cast( NodeId, i ) ) ), c.names->Spelling( c.types->NameOf( rt ) ) )
+        else
+            dim as string cnm = CompletedBelow4_( c, pdp->a, cast( NodeId, i ) )
+            if len( cnm ) > 0 then c.diags->Report( TKO0811, PointRange( c.ast->Loc( cast( NodeId, i ) ) ), cnm )
+        end if
+    next
+end sub

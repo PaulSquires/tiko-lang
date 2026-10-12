@@ -32,10 +32,10 @@
 '' differs.
 ''
 
-#include once "../raster/paint.bi"
-#include once "../raster/box.bi"
-#include once "../raster/line.bi"
-#include once "../raster/circle.bi"
+#include once "../raster/paint.ti"
+#include once "../raster/box.ti"
+#include once "../raster/line.ti"
+#include once "../raster/circle.ti"
 #include once "abtest.bi"
 #include once "crt/string.bi"
 #ifdef ABTEST_HAS_GFXLIB2

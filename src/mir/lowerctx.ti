@@ -1,0 +1,1500 @@
+'' lowerctx.ti -- the state MIR lowering threads through itself.
+''
+'' Private to src/mir: it exists because lowering outgrew one file (build/lint.sh caps
+'' a source at 1500 lines), and splitting it means the context has to be shared rather
+'' than file-local.
+
+#ifndef __TKO_LOWERCTX_BI__
+#define __TKO_LOWERCTX_BI__
+
+#include once "mir/lower.ti"
+#include once "symbols/mangle.ti"
+#include once "symbols/modsym.ti"
+
+namespace Tko.Mir
+
+'' How much of tiko-rt's setjmp buffer 'ON LOCAL ERROR' saves and restores: from the
+'' 16-aligned address fb_ErrorJmpBuf returns, more than Windows x64's 256-byte jmp_buf
+'' and glibc's 200, and within the 528 the context holds past the alignment.
+const ERR_LOCAL_JMP_BYTES = 512
+
+type Ctx
+    as Tko.AstArena ptr     ast
+    as Tko.SymbolTable ptr  syms
+    as Tko.TypeContext ptr  types
+    as Tko.Interner ptr     names
+    as Tko.SemanticInfo ptr info
+    as MirModule ptr        m
+    as MirFunction ptr      f
+    as LowerStats ptr       st
+    as long                 curBlock, strCastTarget, castForce   '' strCastTarget, castForce: ScoredStrTerm_ (lowercastpick.tiko)
+    '' -e/-ex/-exx. Only level 3 changes emission today: array bounds checks.
+    as long                 errFlags     '' Options.errFlags: which runtime checks to emit
+    '' The module name those checks report, filled once at entry.
+    as string               errModName
+    '' 'ON ERROR GOTO label' -- the blocks a runtime error may jump to in the procedure
+    '' being lowered, and the blocks whose terminator is that jump.
+    ''
+    '' BOTH LISTS EXIST BECAUSE THE JUMP IS EMITTED BEFORE ITS DESTINATIONS ARE KNOWN.
+    '' A check site can be lowered long before the ON ERROR that installs the handler --
+    '' or after it -- so the indirectbr goes out with an empty destination list and the
+    '' list is filled once the procedure is finished. LLVM verifies that set, and an
+    '' omitted destination is a module it refuses.
+    as containers.Array( of ulong ) errHandlerBlocks
+    as containers.Array( of ulong ) errIndirectBlocks
+    '' 'ON ERROR GOTO label' WHERE THE LABEL IS NOT LOWERED YET, which is the usual
+    '' case: the handler sits at the end of the procedure and the statement naming it
+    '' at the top. A block cannot be created early to take its address -- blocks are
+    '' EXTENTS over one instruction list and must be created in the order they are
+    '' filled -- so the operand goes out as a placeholder and is rewritten once the
+    '' label has been reached. Parallel arrays: where the operand sits in the argument
+    '' pool, and which label slot it names.
+    as containers.Array( of ulong ) errPendingArg
+    as containers.Array( of ulong ) errPendingSlot
+    '' Whether this procedure has an ON ERROR at all, known before lowering starts.
+    '' Without a handler the runtime never returns from a failed check -- it aborts --
+    '' so the jump is dead code, and emitting it would mean an indirectbr with no
+    '' destinations, which LLVM will not take.
+    as boolean              hasErrHandler
+    '' 'ON LOCAL ERROR' (T69): the temporaries the handler and the setjmp buffer it
+    '' replaced are saved in. errLocalSave is the buffer's slot + 1, 0 for none;
+    '' ResolveErrorJumps_ restores both before every 'ret' and clears it.
+    as long                 errLocalSave
+    as long                 errLocalHandler
+    '' THE UNIT'S MODULE SCOPE, recorded once. Lowering has no scope of its own -- it
+    '' walks a typed tree -- but a CONSTANT FOLD needs one: ConstOf answers 'unknown'
+    '' for every identifier when it is handed no symbol table, and Lookup walks
+    '' OUTWARD, so SCOPE_GLOBAL cannot see a module-level 'const'.
+    as Tko.ScopeId          modScope
+    '' ...and the procedure currently being lowered, for the same reason: a 'static'
+    '' local's initialiser is folded while lowering the PROCEDURE, and the constant it
+    '' names may be in the namespace the procedure lives in rather than at file level.
+    as Tko.ScopeId          procScope
+    '' The innermost loop's exit and continue targets, for EXIT and CONTINUE. A stack
+    '' rather than a pair, because the statements take a level count.
+    as containers.Array( of long )  breakTo
+    as containers.Array( of long )  contTo
+    '' THE ONE COMPARISON NODE BEING LOWERED AS A CONDITION, or NODE_NONE.
+    ''
+    '' A comparison used as a VALUE is NEGATED -- fbc writes '-((int64)A < (int64)B)',
+    '' so 'print a < b' prints -1 and not 1 -- and a comparison used as a CONDITION is
+    '' a branch, which only asks whether it is nonzero. Negating one there would be an
+    '' extra instruction in every IF in the corpus and is not what fbc emits.
+    ''
+    '' The exact NODE rather than a depth, because a condition may CONTAIN a value-
+    '' position comparison: 'if (a < b) + 1' negates the inner one, measured.
+    as Tko.NodeId           rawCmpNode
+    '' THE OPEN 'with' SUBJECTS AND THE ADDRESS EACH WAS EVALUATED TO, innermost last.
+    ''
+    '' Resolve points every baseless '.field' at the subject's OWN NODE, which makes the
+    '' tree a DAG: one expression reached from as many places as there are members. Left
+    '' to lower itself each time, 'with( status( hFindSlot( @this ) ) )' would call
+    '' hFindSlot once per '.field'. fbc evaluates the subject ONCE, so its address is
+    '' computed once here and every use inside the body reads this instead.
+    as containers.Array( of ulong )  withNode
+    as containers.Array( of ulong )  withKind
+    as containers.Array( of ulong )  withId
+    as Tko.SourceManager ptr srcMgr    '' only for the constant evaluator
+    '' THE DRIVER'S DiagnosticEngine, or 0 (tools call Lower without one). Lowering reports
+    '' almost nothing; see CountUnlowredCall for the one error it does.
+    as any ptr              diags
+    as Tko.UdtLayouts ptr   udts      '' field offsets, for member access
+    '' THE SYNTHESISED STRUCTORS THIS UNIT ACTUALLY ASKED FOR. fbc emits one only
+    '' where something calls it -- a file declaring a type and never a variable of it
+    '' gets no constructor at all -- so the demand is recorded as calls are emitted and
+    '' the bodies follow, rather than one per type whether used or not.
+    as containers.Array( of ulong ) implWantedType
+    as containers.Array( of long )  implWantedKind    '' 1 constructor, 0 destructor
+    '' MODULE-LIFETIME OBJECTS THAT NEED CONSTRUCTING. fbc emits a _GLOBAL__I and a
+    '' _GLOBAL__D carrying GCC's constructor/destructor attributes, and runs the
+    '' globals in DECLARATION order in the first and in exact reverse in the second.
+    '' Recorded as declarations are seen, so the order is the source's.
+    as containers.Array( of long )  modInitGlobal
+    '' The INITIALISER NODE for a module global constructed by a named constructor --
+    '' 'dim shared f as foo = foo( 7 )' -- or NODE_NONE for the default-constructed
+    '' ones. Parallel to modInitGlobal. fbc emits the chosen call in its module
+    '' initialiser: '_ZN3FOOC1Eu7INTEGER( &F$, 7ll )'.
+    as containers.Array( of ulong ) modInitCall
+    as containers.Array( of ulong ) modInitType
+    '' The DECLARATOR of a module global with a COLLECTION INITIALISER -- 'dim shared a as
+    '' Array( of long ) = { 1, 2 }' -- or NODE_NONE. Parallel to modInitGlobal: its calls
+    '' run in the module initialiser right after the constructor (lowermodinit.tiko).
+    as containers.Array( of ulong ) modInitColl
+    '' The virtual method tables, for emitting them and for dispatching through one.
+    as Tko.VTables ptr      vts
+    '' THE CLEANUP MODEL (docs/plan/08 section 6).
+    ''
+    '' One flat list of actions, plus a stack of marks giving where each open scope's
+    '' actions begin. Actions run in REVERSE REGISTRATION ORDER, and locals and
+    '' DEFERs share the one list -- which is what makes the measured fbc order fall
+    '' out rather than needing to be arranged. Measured: a local 'a' declared before
+    '' two defers is destroyed AFTER both of them run, newest defer first.
+    '' Two action kinds share ONE list, because the ORDER is one order: a local
+    '' declared before two defers is destroyed after both run (measured), which only
+    '' falls out if they are interleaved rather than kept apart.
+    ''   RunDefer      cleanupNode = the statement,   cleanupSlot = -1
+    ''   DestroyLocal  cleanupNode = the dtor symbol,  cleanupSlot = the slot
+    ''   DeleteString  cleanupNode = 0,                cleanupSlot = the slot
+    ''   DeleteWstr    cleanupNode = CLEANUP_WSTR_DELETE, cleanupSlot = the slot
+    as containers.Array( of ulong ) cleanupNode
+    as containers.Array( of long )  cleanupSlot
+    ''   ImplicitDtor  cleanupNode = CLEANUP_IMPLICIT_DTOR, cleanupType = the type
+    '' A fourth action, and the only one that needs a THIRD column: the structor it
+    '' runs has no symbol -- fbc synthesised it and so does tiko-lang -- so the entry names
+    '' the TYPE and the name is derived from that.
+    as containers.Array( of ulong ) cleanupType
+    as containers.Array( of long )  scopeMark      '' index into cleanupNode per open scope
+    '' WHICH CONSTRUCT each open scope belongs to -- the AST node whose body it brackets,
+    '' or SCOPE_KEY_OPT or'd with the construct for a scope only some instances open. A
+    '' GOTO compares these with its label's to find the scopes it really leaves; a depth
+    '' alone cannot tell a sibling from the scope it is in (ScanLabels).
+    as containers.Array( of ulong ) scopeKey
+    '' The scope depth each open loop started at, so EXIT and CONTINUE know how many
+    '' scopes they are leaving.
+    as containers.Array( of long )  loopScope
+    '' The CONSTRUCT KIND behind each breakTo entry -- KW_FOR, KW_DO, KW_WHILE,
+    '' KW_SELECT or KW_SCOPE. Without it 'exit for, for' broke ONE level instead of
+    '' two, silently, and 'exit select' had nothing to match against.
+    as containers.Array( of long )  loopKind
+    '' Slots holding string temporaries whose life ends with the current STATEMENT.
+    as containers.Array( of ulong ) strTemps
+    '' ...AND THE COPY-BACKS SOME OF THEM OWE, as (argument node, slot) pairs: a fixed string
+    '' given to a constructor's byref string parameter is written back before its temporary
+    '' is released -- see FlushStrCopyBacks.
+    as containers.Array( of ulong ) strBackNode
+    as containers.Array( of ulong ) strBackSlot
+    '' The same, for WIDE temporaries -- a separate list because they are released
+    '' differently: a wide temporary slot holds a POINTER to an allocation, so its
+    '' release is fb_WstrDelete on the pointer LOADED from the slot, where a narrow one
+    '' is fb_StrDelete on the descriptor's own address.
+    as containers.Array( of ulong ) wstrTemps
+    '' STATEMENT-LIFETIME UDT TEMPORARIES: the hidden result object of a call that
+    '' returns a UDT by value. Measured -- fbc destroys one at the END OF THE
+    '' STATEMENT that consumed it, which is shorter than any scope, so it belongs
+    '' beside the string temporaries and not on the cleanup list.
+    as containers.Array( of ulong ) udtTemps
+    '' WHERE THE CURRENT STATEMENT'S UDT TEMPORARIES START. LowerStmt releases
+    '' everything above it once the statement ends, but a RETURN never gets there:
+    '' it terminates the block, and the release then has nowhere to emit. The
+    '' return paths use this mark to let go of them BEFORE they terminate.
+    as long stmtUdtMark
+    '' ...and the same marks for the statement's STRING and WIDE temporaries, which a RETURN
+    '' leaked the same way: 'return wstr( n )' from a string function kept the wide
+    '' temporary, 29 MB over a million calls where fbc's stays at 4 (audit F-58).
+    as long stmtStrMark
+    as long stmtWstrMark
+    as containers.Array( of ulong ) udtTempTypes
+    '' ONE BYTE PER AST NODE: has LowerUserBinaryOp_ already declined this one?
+    '' A speculative attempt that DESCENDS before it can fail costs its whole
+    '' subtree every time it is retried, and the retry happens at every level of a
+    '' concatenation, so the same nodes were lowered 2^n times. Indexed rather than
+    '' searched: the answer is wanted once per binary node and the table is one byte
+    '' per node of the unit.
+    as containers.Array( of ubyte ) userOpDeclined
+    '' DATA. The head of the module's block chain (-1 when it has none), and the
+    '' label -> block map a 'restore lbl' resolves through. Both are built by a
+    '' PRE-PASS, because 'restore lbl' may name a label that appears later.
+    '' The current procedure's HIDDEN RESULT POINTER, when it has one: parameter 0,
+    '' holding the caller's storage. -1 when the result is not returned that way.
+    '' Whether the current procedure returns a TRIVIAL UDT by value, in which case the
+    '' result slot holds the object itself and 'ret' carries its VALUE.
+    as boolean              udtResult
+    '' A BYREF RESULT: the slot holds an ADDRESS, and 'function = expr' stores the
+    '' address of expr rather than its value.
+    as boolean              byrefResult
+    '' WHETHER THE LAST CALL LOWERED. Read by the statement dispatcher, because a
+    '' call's arguments are emitted before the call can fail and an instruction count
+    '' therefore cannot tell a dropped call from a lowered one. Calls NEST, and the
+    '' OUTERMOST is the last to write it -- which is the one the statement is asking
+    '' about, and why this is a flag rather than a counter.
+    as boolean              lastCallOk
+    as long                 lastCallFailLine
+    as long                 sretParam
+    '' A HIDDEN RESULT DESTINATION ON OFFER: 'dim as T x = f( )' hands x's slot to the
+    '' first hidden-pointer call that asks. SretResultSlot_ / SretInPlaceInit_.
+    as boolean              sretIntoOn
+    as boolean              sretIntoTaken
+    as long                 sretIntoSlot
+    as Tko.TypeId           sretIntoType
+    as Tko.SymbolId         sretIntoSym
+    '' ...and for a GETTER, the member node whose own call it is: armed by
+    '' LowerPropertyGet_ only once that node's receiver is lowered.
+    as boolean              propAddrWanted   '' LowerAddr asks LowerPropertyGet_ for a byref getter's pointer
+    as boolean              sretIntoAtNode
+    as Tko.NodeId           sretIntoNode
+    as long                 dataHead
+    as containers.Array( of ulong ) dataLabelName
+    as containers.Array( of ulong ) dataLabelBlock
+
+    '' The procedure being lowered, as a SYMBOL. MirFunction carries only the mangled
+    '' name, and __FUNCTION__ needs the source one -- 'NS.INNER', not '_ZN2NS5INNEREv'.
+    as Tko.SymbolId         curProcSym
+
+    '' THE PROLOGUE OF A CONSTRUCTOR THAT WRITES 'base( ... )' -- its fields and its vptr
+    '' -- waits for that call, and is emitted right after it (lower.tiko,
+    '' BeginCtorPrologue_). Emitted in front of the body, the vptr store came BEFORE the
+    '' base constructor, whose own store then won: every virtual call through a base
+    '' pointer reached the base's method (T48). Keyed by the function, so a prologue left
+    '' pending by a base call that failed to lower is never spent in another one.
+    as Tko.TypeId           pendPrologueType
+    as MirValue             pendPrologueThis
+    as MirFunction ptr      pendPrologueFn
+
+    '' The result slot of the procedure being lowered, or -1 for a SUB and for any
+    '' result type this does not handle. Measured from fbc's own C:
+    ''
+    ''     int64 F( int64 N$1 ) {
+    ''         int64 fb$result$1;
+    ''         __builtin_memset( &fb$result$1, 0, 8ll );
+    ''         fb$result$1 = 7ll;             <- 'function = 7'
+    ''         return fb$result$1;            <- falling off the end
+    ''     }
+    ''
+    '' Zero-initialised and returned unconditionally, so a function that assigns
+    '' nothing returns zero rather than whatever the stack held.
+    as long                 resultSlot
+    as ubyte                resultTy
+    as Tko.TypeId           resultType
+
+    '' The statement kind currently being lowered, so a decline INSIDE one can say which.
+    '' The statement-dispatch breakdown accounts for about 3,700 of ~98,700 declines; the
+    '' rest happen part-way through a statement and had no attribution at all.
+    as ushort               curStmtKind
+    '' The statement being lowered, so a decline can name the SOURCE LINE it came
+    '' from. Bucketing by the diagnostic hides what bucketing by the line shows.
+    as ulong                curStmtNode
+    '' A BUILTIN'S CALLEE whose call declined in this statement -- reported as TKO0801
+    '' only if the statement is then dropped (SkipAt). See NoteBuiltinDecline.
+    as ulong                badBuiltinNode
+    '' The line Emit stamps on each instruction, decoded once per statement: the
+    '' statement and function it was decoded for, and the answer.
+    as ulong                dbgNode
+    '' THE MODULE'S OWN FILE, -1 when the driver did not say. main's statements are the
+    '' module's, but the ROOT's location is the first token after preprocessing -- inside
+    '' the first '#include' -- and main took that file, so every line of it was dropped.
+    as long                 moduleFile
+    as any ptr              dbgFn
+    as long                 dbgLine
+    '' The sub-expression to BLAME for the next decline, when something narrower than
+    '' the statement is known to be at fault. A statement written inside a MACRO reports
+    '' the macro's own line, so 'CU_ASSERT( x )' attributed every failure in the corpus
+    '' to one line of fbcunit.bi; the ARGUMENT's tokens come from the INVOCATION and
+    '' point where the work actually is. Cleared as it is consumed.
+    as ulong                blameNode
+
+    '' DIM SHARED / STATIC storage, keyed by SYMBOL rather than by name. Two statics
+    '' called 'n' in sibling scopes are two declarations and so two symbols; keying on
+    '' the spelling merged them into one variable.
+    as containers.Array( of ulong ) gvarSym
+    as containers.Array( of long )  gvarSlot
+    '' ...and the same pairs indexed, symbol -> slot (audit F-63).
+    as IdMap                gvarBySym
+
+    '' Labels, three parallel arrays. The DEPTH is filled by a pre-scan before the body
+    '' is lowered, because a forward 'goto' has to know how many scopes it leaves before
+    '' the label itself has been reached.
+    as containers.Array( of ulong ) labelName
+    as containers.Array( of long )  labelBlock     '' -1 until the block is created
+    as containers.Array( of long )  labelDepth     '' -1 when the pre-scan never saw it
+    '' ...and WHERE each label is: its scope keys, inner to the body's own scope, as a
+    '' run of labelPaths -- from the pre-scan, then from the scopes actually open when
+    '' the label is lowered -- and how many cleanup entries were registered at that
+    '' point, -1 until then. A backward GOTO runs the ones registered after it.
+    as containers.Array( of long )  labelPathAt
+    as containers.Array( of long )  labelPathLen
+    as containers.Array( of long )  labelCleanupAt
+    as containers.Array( of ulong ) labelPaths
+    as containers.Array( of ulong ) scanPath       '' the pre-scan's open keys
+    as long                 labelBase      '' scopeMark index of the body's own scope
+    '' THE PROCEDURE TYPE an '@f' or 'procptr( f )' is wanted as -- the target of the
+    '' store, initialiser or argument that holds it, for the one node being lowered
+    '' there. It picks the overload of f; see LowerExprWant_ (lowerprocptr.tiko).
+    as Tko.NodeId           procWantNode
+    as Tko.TypeId           procWantType
+end type
+
+'' A scope key for a scope that only SOME instances of a construct open -- a FOR over a
+'' UDT counter, a SELECT over a wide subject, a FOR EACH. The pre-scan records it for
+'' every instance and a GOTO skips it where the lowering opened no such scope.
+const SCOPE_KEY_OPT = &h80000000ul
+
+'' A label name declared more than once in one procedure -- see ScanLabels.
+const LABEL_AMBIGUOUS = -2
+
+declare function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
+declare function NoVal( ) as MirValue
+declare function PtrArithElem_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as long
+declare function LowerExpr( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
+'' An expression lowered as a CONDITION: the same lowering, with the top-level
+'' comparison left un-negated because a branch only asks whether it is nonzero.
+declare function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
+'' Destroy every statement-lifetime UDT temporary made since 'mark'. Called from the
+'' statement dispatcher, and from a LOOP HEAD, where waiting for the statement to end
+'' would leak one per iteration.
+declare sub ReleaseUdtTemps_( byref c as Ctx, byval mark as long )
+
+'' A NODE WHOSE USER-OPERATOR LOWERING HAS ALREADY DECLINED. See
+'' MarkUserOpDeclined_ for why remembering that is what keeps a long
+'' concatenation linear.
+declare function UserOpDeclined_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+declare sub MarkUserOpDeclined_( byref c as Ctx, byval id as Tko.NodeId )
+declare sub CallTempsInSourceOrder_ _
+    ( byref c as Ctx, byval headMark as long, byval argMark as long, _
+      byval recvMark as long, byref segFrom as containers.Array( of ulong ) )
+declare sub SretResultSlotAfter_( byref c as Ctx, byval t as Tko.TypeId, byval slot as long )
+declare sub ReleaseStrTemps_( byref c as Ctx, byval mark as long )
+'' THE SHADOW AUDIT of a lowering site that still makes its own overload choice -- lowerutil.tiko.
+declare sub AuditPick( byref c as Ctx, byval n as Tko.NodeId, byref site as string, _
+    byval lowered as Tko.SymbolId, byval recorded as Tko.SymbolId )
+declare sub FlushStrCopyBacks( byref c as Ctx, byval mark as long )
+declare sub CopyBackStrArgs( byref c as Ctx, byref nodes as containers.Array( of ulong ), byref slots as containers.Array( of ulong ) )
+declare sub ReleaseWstrTemps_( byref c as Ctx, byval mark as long )
+declare function ThisObjectAddr_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byref outT as Tko.TypeId, _
+      byref outAddr as MirValue, byval typeOnly as boolean = false ) as boolean
+declare function IsBaseOf_ _
+    ( byref c as Ctx, byval baseT as Tko.TypeId, byval derivedT as Tko.TypeId ) as boolean
+declare sub ForgetUdtTemp_( byref c as Ctx, byval slot as long )
+declare function LowerAddr( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
+'' The operand of a conversion-free cast used as an lvalue, or NODE_NONE. lowerarr.tiko.
+declare function NoConvOperand_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+declare sub LowerStmt( byref c as Ctx, byval id as Tko.NodeId )
+'' A collection initialiser's calls, for one declarator. mir/lowervarinit.tiko.
+declare sub LowerCollInitCalls_( byref c as Ctx, byval item as Tko.NodeId )
+declare function StmtOf _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
+declare function SameLValue _
+    ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+declare function TermReadsLValue_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval e as Tko.NodeId ) as boolean
+declare function UStrToStrTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+declare function CtorArgLowersLate_( byref c as Ctx, byval a as Tko.NodeId ) as boolean
+declare function WideAssignViaTemp_ _
+    ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+      byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+declare function IsStringType( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+declare function IsFixedStrArray_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+declare function LowerStringAssign _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+declare function NewTempLocal _
+    ( byref c as Ctx, byval ty as MirType, byval sizeBytes as long ) as long
+    '' lowerboundchk.tiko -- the -exx array bounds check, one dimension at a time.
+declare sub EmitNullCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref pv as MirValue )
+declare sub EmitBoundsCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
+      byval at as Tko.TypeId, byval k as long, byref iv as MirValue, _
+      byval offTy as MirType )
+declare sub EmitBoundsCheckRange_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
+      byref iv as MirValue, byref lov as MirValue, byref hiv as MirValue )
+declare sub EmitDimensionCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
+      byref desc as MirValue, byval count as long )
+declare function EmitRtl _
+    ( byref c as Ctx, byval r as RtlId, byref args as containers.Array( of ulong ) ) as MirValue
+
+
+    '' lowerctl.tiko -- control flow.
+    declare sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
+    declare sub LowerExitLike _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval isExit as boolean )
+    declare sub LowerEndStmt( byref c as Ctx, byval id as Tko.NodeId )
+    declare sub LowerLabel( byref c as Ctx, byval id as Tko.NodeId )
+    declare sub LowerOnGoto( byref c as Ctx, byval id as Tko.NodeId )
+    declare sub LowerGoto( byref c as Ctx, byval id as Tko.NodeId )
+    declare sub ScanLabels _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long )
+    declare sub ClearLabels( byref c as Ctx, byval base_ as long )
+    '' lowerfor.tiko -- a UDT object in SLOT destroyed as a scope cleanup.
+    declare sub RegisterForUdtDtor_( byref c as Ctx, byval ct as Tko.TypeId, byval slot as long )
+
+
+    '' lower.tiko -- shared by the other lowering files.
+    '' lowerboundchk.tiko -- the indirect jump a failed -e check hands back, and the
+    '' pass that gives it its destinations once the procedure's handlers are known.
+    declare sub EmitErrorJump_( byref c as Ctx, byref r as MirValue )
+    '' ...and, under -e, a runtime STATEMENT's error code thrown when it is not 0 (T68).
+    declare sub EmitRtlErrorCheck_( byref c as Ctx, byval id as Tko.NodeId, byref rc as MirValue )
+    declare sub ResolveErrorJumps_( byref c as Ctx )
+    declare function NewBlock( byref c as Ctx, byref label as string ) as long
+    declare sub Terminate _
+        ( byref c as Ctx, byval k as MirTermKind, byval t1 as long, _
+          byval t2 as long, byref cond as MirValue )
+    declare function IsUnsignedType _
+        ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare sub PushScope( byref c as Ctx, byval key as ulong = 0 )
+    declare sub CloseScope( byref c as Ctx )
+    declare sub EmitCleanupsTo( byref c as Ctx, byval outermost as long )
+    declare sub EmitCleanupsFrom( byref c as Ctx, byval firstEntry as long )
+    declare function LowerExprLoad _
+    ( byref c as Ctx, byref addr as MirValue, byval t as MirType, _
+      byval sizeBytes as long = 0 ) as MirValue
+    declare function LoadResult( byref c as Ctx ) as MirValue
+    '' lowerproc.tiko -- the two procedure lowerings.
+    declare sub LowerProc( byref c as Ctx, byval id as Tko.NodeId )
+    '' isMainModule decides whether the top-level code becomes 'main' or a module
+    '' constructor named 'fb_ctor__<moduleName>'.
+    declare sub LowerMainModule _
+        ( byref c as Ctx, byval root as Tko.NodeId, _
+          byval isMainModule as boolean, byref moduleName as string )
+    declare function ZeroOf( byref c as Ctx, byval t as MirType ) as MirValue
+    '' 'srcUnsigned' is the SOURCE's signedness, which a MirType cannot carry: MT_I32
+    '' says 32 bits and nothing about how to widen them. Without it a ULONG widened to
+    '' a LONGINT sign-extended -- 4,000,000,000 became -294,967,296 -- and a ULONGINT
+    '' converted to a DOUBLE went through sitofp and came out -1. Both measured by
+    '' running fbc, which prints 4000000000 and 1.844674407370955e+019.
+    '' COERCE, GIVEN THE SOURCE'S FRONTEND TYPE. Prefer this to Coerce wherever the
+    '' source type is known: it asks BOTH questions the conversion depends on --
+    '' signedness and booleanness -- where the bare Coerce could only be told one.
+    declare function CoerceTy _
+        ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
+          byval srcTid as Tko.TypeId, _
+          byval dstTid as Tko.TypeId = Tko.TYPE_NONE ) as MirValue
+    declare function IsBooleanType _
+        ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function Coerce _
+        ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
+          byval srcUnsigned as boolean = false, _
+          byval dstUnsigned as boolean = false ) as MirValue
+    declare function EmitImpEqv_ _
+        ( byref c as Ctx, byval tk as Tko.TokenKind, byval ty as MirType, _
+          byref l as MirValue, byref r as MirValue, byval isBool as boolean = false ) as MirValue
+    declare function BinOpFor _
+        ( byval tk as Tko.TokenKind, byval t as MirType, _
+          byval isUnsigned as boolean ) as MirOp
+    '' A float ADD/SUB/MUL chain with constants in it, regrouped as fbc regroups it.
+    '' False, before anything is lowered, when the chain is not one. lowerreassoc.tiko.
+    declare function LowerFloatChain _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, _
+          byref outv as MirValue ) as boolean
+    declare sub LowerBlock( byref c as Ctx, byval id as Tko.NodeId )
+
+    declare sub ZeroStrDescriptor( byref c as Ctx, byref dst as MirValue )
+    declare sub ZeroStrTempAtEntry_( byref c as Ctx, byref dst as MirValue )
+    '' The (pointer, length) pair for one term of a concatenation, appended to 'args'.
+    declare function EmitStrTerm _
+        ( byref c as Ctx, byref args as containers.Array( of ulong ), _
+          byval term as Tko.NodeId, byval isU as boolean = false ) as boolean
+    '' Flatten a left-leaning '+'/'&' chain into its terms, in source order.
+    declare sub FlattenConcat _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outp as containers.Array( of ulong ) )
+    '' 'str( u )' over a ustring operand: the narrow temporary fbc converts it into.
+    '' False when no term is a ustring. lowerstrargs.tiko.
+    declare function UStrOperandToNarrow_ _
+        ( byref c as Ctx, byval sa as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' 'str( e )' and 'type<string>( e )' over a wide or UTF-16 e: the narrow conversion.
+    '' 'isConv' false when e needed none. lowersub.tiko.
+    declare function NarrowConvOf_ _
+        ( byref c as Ctx, byval sa as Tko.NodeId, byref outv as MirValue, _
+          byref isConv as boolean ) as boolean
+    '' The operand of 'type<string>( e )' when that converts. lowerinit.tiko.
+    declare function NarrowingTypeLitOperand_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+    '' A narrow argument for a 'byref as ustring' parameter outside the ordinary call path:
+    '' the ustring temporary fbc builds first. False when neither applies. lowerstrargs.tiko.
+    declare function UStrParamArgTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outv as MirValue ) as boolean : declare function UStrRefArg_( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue, byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ), byref backN as containers.Array( of ulong ), byref backS as containers.Array( of ulong ) ) as boolean
+    '' ...and its narrow twin, for a 'byref as string' parameter. lowerstrargs.tiko.
+    declare function NarrowParamArgTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outv as MirValue ) as boolean : declare function NarrowRefStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue, byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ), byref backN as containers.Array( of ulong ), byref backS as containers.Array( of ulong ) ) as boolean : declare sub StrBackPushNarrow_( byref c as Ctx, byval e as Tko.NodeId, byval slot as long, byref backN as containers.Array( of ulong ), byref backS as containers.Array( of ulong ) )
+    declare function LowerStringInit _
+        ( byref c as Ctx, byval slot as long, byval target as Tko.NodeId, _
+          byval value as Tko.NodeId ) as boolean : declare function LowerStringInit_( byref c as Ctx, byval slot as long, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+
+    '' lowerstore.tiko -- frame slot vs module storage.
+    declare function LocalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
+    declare function ProcIsStatic_ _
+        ( byref c as Ctx, byval defn as Tko.NodeId, byval sid as Tko.SymbolId ) as boolean
+    declare function ProcCallConv_ _
+        ( byref c as Ctx, byval pn as Tko.NodeId ) as ubyte
+    '' A call to a pascal procedure, named or through a pascal procedure type.
+    declare function CallIsPascal_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval viaPointer as boolean, _
+          byval sigT as Tko.TypeId ) as boolean
+    '' TKO_PX_* for a parameter of this type -- see lowerstore.tiko.
+    declare function ParamExtClass_ _
+        ( byref c as Ctx, byval t as Tko.TypeId ) as ubyte
+    declare function ParamMirType _
+        ( byref c as Ctx, byval t as Tko.TypeId ) as MirType
+    '' Fills a function's signature from the procedure it declares -- see lowerproc.tiko.
+    declare sub SignatureFromProc _
+        ( byref c as Ctx, byval f as MirFunction ptr, byval pn as Tko.NodeId, _
+          byval withSret as boolean, byval withThis as boolean )
+    '' A procedure POINTER's signature, as a declaration a call names by index -- lowersig.tiko.
+    declare function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as long
+    declare function IsSharedVar( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
+    declare function IsStaticLocal( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
+    declare function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as long
+    declare function BindAliasStorage _
+        ( byref c as Ctx, byval sid as Tko.SymbolId, byval init_ as Tko.NodeId, _
+          byval inModule as boolean ) as boolean
+    declare function AddrOfVar( byref c as Ctx, byval sid as Tko.SymbolId ) as MirValue
+    declare function AddrOfThisField _
+        ( byref c as Ctx, byval fsid as Tko.SymbolId ) as MirValue
+    declare function LowerBaseCtorCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+    declare function LowerPrint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    '' lowerio.tiko
+    declare function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerIsTypeOf_ _
+        ( byref c as Ctx, byval lhs as Tko.NodeId, byval rhs as Tko.NodeId, _
+          byref outv as MirValue ) as boolean
+    declare function LowerPeek _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, byval wantAddr as boolean = false ) as boolean
+
+    declare function LowerMidAssign _
+        ( byref c as Ctx, byval target as Tko.NodeId, _
+          byval value as Tko.NodeId ) as boolean
+    declare function LowerCloseCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerDir _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerBitOp _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    declare function LowerPoke( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerLrset _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval isRight as boolean ) as boolean
+    '' lowerusing.tiko
+    declare function LowerPrintUsing _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval fromIdx as long = 0, _
+          byval fmtNode as Tko.NodeId = Tko.NODE_NONE ) as boolean
+    '' lowerdesc.tiko
+    '' How many elements a FIXED array holds, across every dimension; 0 when the
+    '' shape is dynamic or its bounds do not read.
+    declare function FixedArrayElems _
+        ( byref c as Ctx, byval t as TypeId ) as longint
+    declare function SynthFixedArrayDesc _
+        ( byref c as Ctx, byref arrAddr as MirValue, byval t as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    '' Whether a UDT return travels through an explicit hidden pointer. Measured:
+    '' the type has a DESTRUCTOR or a COPY CONSTRUCTOR. Size plays no part.
+    declare function UsesSretReturn( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    '' A hidden result's storage: the declared variable on offer, or a temporary; and the
+    '' declaration that offers it. lowercallemit.tiko.
+    declare function SretResultSlot_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval registerDtor as boolean, _
+          byval sym as Tko.SymbolId ) as long
+    declare function SretInPlaceInit_ _
+        ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+          byval e as Tko.NodeId ) as boolean
+    '' An untyped call's result: the result of the procedure its binding names.
+    declare function UntypedCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
+    declare function LowerErase( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function SizeOfType( byref c as Ctx, byval t as Tko.TypeId ) as long
+    '' ...and the size LEN and SIZEOF report for it, which for an array is its
+    '' ELEMENT's -- mir/lowerterm.tiko says why, and what fbc answers.
+    declare function MeasuredSizeOfType_( byref c as Ctx, byval t as Tko.TypeId ) as long
+    '' The SysV eightbyte classes of a type -- see mir/eightbyte.tiko.
+    declare function ClassifyEightbytes _
+        ( byref c as Ctx, byval t as Tko.TypeId ) as ulong
+    '' A cleanup entry that is neither a symbol nor the string-delete 0: erase the
+    '' dynamic array in this slot. Deliberately an impossible SymbolId.
+    const CLEANUP_ERASE_ARRAY as ulong = &hFFFFFFFF
+    const CLEANUP_IMPLICIT_DTOR as ulong = &hFFFFFFFE
+    const CLEANUP_DESTROY_ARRAY as ulong = &hFFFFFFFD
+    const CLEANUP_DTOR_EPILOGUE as ulong = &hFFFFFFFC
+    const CLEANUP_DESTRUCT_STR_ARRAY as ulong = &hFFFFFFFB
+    const CLEANUP_WSTR_DELETE as ulong = &hFFFFFFFA
+
+    declare function DescBytesFor( byref c as Ctx, byval rank as long ) as long
+    declare sub EmitEraseDynLocal( byref c as Ctx, byval slot as long )
+    '' The same for a descriptor whose ADDRESS is in hand -- 'erase this.items', where
+    '' the descriptor is a FIELD and has no slot of its own.
+    declare sub EmitEraseDynAt_ _
+        ( byref c as Ctx, byref d as MirValue, byval t as Tko.TypeId )
+    declare function PickCtor _
+        ( byref c as Ctx, byval ctors as Tko.SymbolId, _
+          byref argT as containers.Array( of ulong ) ) as Tko.SymbolId
+    '' A UDT parameter reached through that UDT's own constructor -- lowerctor.tiko.
+    declare function CtorUserConvCost_ _
+        ( byref c as Ctx, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as long
+    '' lowerctor.tiko
+    declare function LowerConvCtorInit_ _
+        ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+    '' A CONVERTING 'operator let' -- 'x = 5' over a UDT. See lowerctor.tiko.
+    declare function LowerUserLetConv_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval t as Tko.TypeId, _
+          byval value as Tko.NodeId, byval sretSlot as long = -1, _
+          byval slotIsObject as boolean = false ) as boolean
+    '' Another type into a UDT result held in its own slot. lowerprocret.tiko.
+    declare function UdtConvResult_ _
+        ( byref c as Ctx, byval valueE as Tko.NodeId, byval isReturn as boolean ) as boolean
+    declare function LowerCtorInit _
+        ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+    '' A STATIC LOCAL that needs constructing: the guard flag, the constructor and the
+    '' atexit thunk fbc emits for one.
+    declare function LowerStaticLocalInit_ _
+        ( byref c as Ctx, byval sid as Tko.SymbolId, byval init_ as Tko.NodeId ) as boolean
+    declare function LowerDynArrayIndex _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.ListPayload ptr, _
+          byval at as Tko.TypeId ) as MirValue
+    declare function LowerArrayBoundCall _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' lowerdata.tiko
+    declare function CollectDataBlocks( byref c as Ctx, byval root as Tko.NodeId ) as long
+    declare function LowerRead( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerRestore( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare sub EmitImplicitRestore( byref c as Ctx )
+    declare function LowerRedim _
+        ( byref c as Ctx, byval id as Tko.NodeId, _
+          byval sp as Tko.StmtPayload ptr ) as boolean
+    declare function NormaliseBool _
+        ( byref c as Ctx, byref v as MirValue ) as MirValue
+    declare function AnyDimCount _
+        ( byref c as Ctx, byval ip as Tko.StmtPayload ptr ) as long
+    '' lowerarrret.tiko -- the array result, a TIKO EXTENSION
+    declare function EmitRedimConst_ _
+        ( byref c as Ctx, byref desc as MirValue, byval aty as Tko.TypeId, _
+          byval n as longint ) as boolean
+    declare function LowerArrayResult_ _
+        ( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+    declare function ArrayCallArg_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function AssignArrayResult_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    declare sub RedimFieldInit_( byref c as Ctx, byref fa as MirValue, byval f as Tko.Symbol ptr )
+    declare function EmitArrayBounds _
+        ( byref c as Ctx, byref desc as MirValue, byval aty as Tko.TypeId, _
+          byval ip as Tko.StmtPayload ptr, byval presv as boolean ) as boolean
+    declare sub InitDynArrayDesc _
+        ( byref c as Ctx, byref desc as MirValue, byval t as Tko.TypeId )
+    declare function DynArrayDataPtr _
+        ( byref c as Ctx, byref desc as MirValue ) as MirValue
+    '' lowerthread.tiko
+    declare function LowerThreadCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function FuncAddrOf( byref c as Ctx, byval fsid as Tko.SymbolId, byval structor as boolean = false ) as MirValue
+    declare function FuncAddrOfRtl( byref c as Ctx, byval r as RtlId ) as MirValue
+    declare function UsingEndsLine_ _
+        ( byref c as Ctx, byval sp as Tko.StmtPayload ptr ) as boolean
+    declare function LowerPrintPos _
+        ( byref c as Ctx, byval it as Tko.NodeId, byref chan as MirValue ) as boolean
+    declare sub PushConst( byref args as containers.Array( of ulong ), byval v as long )
+    declare function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function WideStringElems( byref c as Ctx, byval t as Tko.TypeId ) as long
+    declare function LowerForEachArray( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerForEachIter _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
+          byval seqE as Tko.NodeId, byval at as Tko.TypeId ) as boolean
+    declare function EmitDirectCall_ _
+        ( byref c as Ctx, byval sym as Tko.SymbolId, byval rt as MirType, _
+          byref args as containers.Array( of ulong ), _
+          byval withSret as boolean = false ) as MirValue
+    declare function MemberCallRetTy_ _
+        ( byref c as Ctx, byval sym as Tko.SymbolId ) as MirType
+    '' lowerctor.tiko: a type with no constructor filled from an argument list, field by
+    '' field -- 'base( 1, 2 )', and 'new T( 1, 2 )' (T32).
+    declare function LowerBaseFieldInit_ _
+        ( byref c as Ctx, byval selfAddr as MirValue, byval bt as Tko.TypeId, _
+          byval first_ as long, byval count as long ) as boolean
+    declare function EmitMemberCallArgs_ _
+        ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
+          byval rt as MirType, byval args as containers.Array( of ulong ) ptr, _
+          byval vslot as long = -1 ) as MirValue
+    '' lowerselfop.tiko
+    declare function SelfOpMemberCall_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
+          byval op as Tko.TokenKind, byval tt as Tko.TypeId ) as boolean
+    declare function UserConvToScalar_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval dstT as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    declare function UserCastNumOverload_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval want as Tko.TypeId = Tko.TYPE_NONE ) as Tko.SymbolId
+    '' lowercallarg.tiko -- 'operator cast( ) as <that UDT>' on the SOURCE's type, and
+    '' whether it can be taken. Every position that converts one UDT into another asks
+    '' the same pair, so none of them can disagree about when the operator runs.
+    declare function UdtCastValue_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byval dstT as Tko.TypeId, _
+          byref outv as MirValue, byval constructing as boolean = true ) as boolean
+    declare function UdtCastToUdt_ _
+        ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId
+    declare function UdtCastArgOk_ _
+        ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as boolean : declare function UdtByrefCast_( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId : declare function LitOnlyChain_( byref c as Ctx, byval id as Tko.NodeId, byval depth as long ) as boolean : declare function UdtPtrCast_( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId, byref isRef as boolean ) as Tko.SymbolId : declare function ByrefCastInit_( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, byval init_ as Tko.NodeId, byval selfv as MirValue ptr ) as boolean
+    declare function UserCastCharRef_( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean : declare function HasNarrowStrCast_( byref c as Ctx, byval t as Tko.TypeId ) as boolean : declare function UdtTermWide_( byref c as Ctx, byval t as Tko.TypeId ) as boolean : declare function ScoredStrTerm_( byref c as Ctx, byval t as Tko.TypeId, byref sym as Tko.SymbolId ) as long   '' lowercastpick.tiko
+    declare function UserCastToNum_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+          byval want as Tko.TypeId = Tko.TYPE_NONE ) as boolean
+    declare function UserCastToPtr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+          byval want as Tko.TypeId = Tko.TYPE_NONE ) as boolean
+    declare function UdtSelfAddr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function UserCastToWstr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    declare function UdtMemberNamed_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
+    declare function EmitMemberCall _
+        ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
+          byval rt as MirType ) as MirValue
+    '' lowerfor.tiko
+    declare sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
+    declare sub LowerDo( byref c as Ctx, byval id as Tko.NodeId )
+    declare function LowerStringReturn( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+    declare function BodyAssignsResult_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long = 0 ) as boolean
+    declare function BodyReturnsValue_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval depth as long = 0 ) as boolean
+    '' The result zeroed or default-constructed at entry, where fbc does it.
+    declare sub InitResultAtEntry_ _
+        ( byref c as Ctx, byval rt as Tko.TypeId, byref dst as MirValue, _
+          byval body as Tko.NodeId, byval zeroTrivial as boolean )
+    declare function SretAssignResult_ _
+        ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean
+    declare function LowerSretResult _
+        ( byref c as Ctx, byval valueE as Tko.NodeId, _
+          byval isReturn as boolean = false ) as boolean
+    declare function LowerStringAssignToSlot _
+        ( byref c as Ctx, byval slot as long, byval value as Tko.NodeId ) as boolean
+    '' 'dstFlavour' -1 derives the destination's flavour (the target's type, else the slot);
+    '' 0 says narrow and 1 USTRING, for an address -- a FIELD -- that carries neither.
+    declare function LowerStringAssignTo _
+        ( byref c as Ctx, byref dst as MirValue, byval target as Tko.NodeId, _
+          byval value as Tko.NodeId, byval dstFlavour as long = -1 ) as boolean : declare function LowerStringAssignTo_( byref c as Ctx, byref dst as MirValue, byval target as Tko.NodeId, byval value as Tko.NodeId, byval dstFlavour as long ) as boolean
+    declare function LowerInput _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval isLine as boolean ) as boolean
+    declare function Unparen_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+    declare function ConcatTermsToTempDesc_ _
+        ( byref c as Ctx, byref terms as containers.Array( of ulong ), _
+          byref outv as MirValue ) as boolean
+    declare function ConcatToTempDesc_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' lowerinit.tiko -- the two CHARACTER predicates. Declared here rather than in
+    '' lower.tiko alone because lowerwstr.tiko is its OWN compilation unit and could
+    '' not see them: the wide concatenation test needs the same 'a character plus a
+    '' number is arithmetic' rule the narrow one has.
+    '' lowermember.tiko -- one field's initialisation, for the synthesised structors.
+    declare sub InitMember_ _
+        ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId )
+    declare function CharLvalueTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
+    declare function NumericTerm_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function TermIsWide_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function IntrinOverWideConcat_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function IsWideChain_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    '' Must a 'byref as string' constructor parameter build a temporary for this
+    '' argument? See NarrowStrCtorParamConverts_.
+    declare function NarrowStrCtorParamConverts_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+    declare function NarrowStrArg_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function RuntimeEntryCallee_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId ) as boolean
+    declare function StrArgOwnDescriptor_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+    declare function WideCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function WideToNarrowTemp_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' A number or a boolean rendered WIDE, into a statement-lifetime temporary.
+    declare function NumberToWideTemp_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function FixStrWideTemp_ _
+        ( byref c as Ctx, byval a as Tko.NodeId, byval zn as longint, byref outv as MirValue ) as boolean
+    declare function NarrowToWideTemp_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LitHasUnicodeEscape_ _
+        ( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    '' The type a constructor ARGUMENT is chosen by -- see lowercallarg.tiko.
+    declare function CtorArgTypeOf_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
+    declare function WideLitChars_( byref c as Ctx, byval id as Tko.NodeId ) as long
+    declare function UnionMemberSkip_( byref c as Ctx, byval t as Tko.TypeId, byval i as long, byref thisPtr as MirValue ) as boolean : declare function EmitAllocCall_( byref c as Ctx, byval r as RtlId, byref args as containers.Array( of ulong ) ) as MirValue : declare function LetViaCast_( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, byval atl as Tko.TypeId, byval avt as Tko.TypeId, byval dstp as MirValue ptr = 0 ) as boolean : declare function BareTypeNameTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outa as MirValue ) as boolean : declare function WideConstChars_( byref c as Ctx, byval e as Tko.NodeId ) as long : declare function StaticDynBoundsOnce_( byref c as Ctx, byval sid as Tko.SymbolId, byval ip as Tko.StmtPayload ptr ) as boolean : declare function StaticOnceBegin_( byref c as Ctx, byval g as long, byval suffix as string ) as long : declare sub StaticOnceEnd_( byref c as Ctx, byval skipB as long )
+    declare function Utf8WideLit_( byref c as Ctx, byval e as Tko.NodeId ) as boolean : declare function WideConstLitNode_( byref c as Ctx, byval e as Tko.NodeId, byval viaWstr as boolean = false ) as Tko.NodeId : declare function WideLitUnitAt_( byref c as Ctx, byval id as Tko.NodeId, byval k as longint ) as long
+    declare function WideLitGlobal_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outChars as long ) as long
+    declare function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function IsStrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function NumberToStrDesc_ _
+        ( byref c as Ctx, byval a0 as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerClosureAddr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+          byval dstv as MirValue ptr = 0 ) as boolean
+    declare function LowerClosure_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function ConstStringTextOf_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outText as string, _
+          byval depth as long = 0, _
+          byval scope_ as Tko.ScopeId = Tko.SCOPE_GLOBAL ) as boolean
+    declare function IsConstNameRef_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function ZstrDataOf_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerConcatAssignStmt _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
+          byval op as Tko.TokenKind ) as boolean
+    declare function LowerWideConcatAssign _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval n as long, _
+          byval value as Tko.NodeId ) as boolean
+    declare function LowerWstrOf _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerLen _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerWideAssign _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    '' USTRING -- the UTF-16 string flavour, lowerstr.tiko.
+    '' 'T( args )' as an addressable temporary -- lowerswap.tiko.
+    '' 'a[ i ]' over a UDT with 'operator []', in the shape the operator declares.
+    declare function LowerUdtIndexOp_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+          byref outByref as boolean ) as boolean
+    declare function LowerTypeCtorTempAddr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    '' File GET and PUT -- lowerio.tiko.
+    declare function LowerFileGetPut _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval isPut as boolean, _
+          byref outv as MirValue ) as boolean
+
+    declare function IsUStringType( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function ConcatTermsAreU_ _
+        ( byref c as Ctx, byref terms as containers.Array( of ulong ) ) as boolean
+    declare function UStrRtl_( byval narrow as RtlId ) as RtlId
+    declare function StrRtlFor_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval narrow as RtlId ) as RtlId
+    '' A USTRING operand of the VAL family as the narrow temporary fb_VAL wants
+    '' (fb_UStrToStr), or false for anything that is not a ustring. lowerstrkind.tiko.
+    declare function UStrValOperand_ _
+        ( byref c as Ctx, byval v0 as Tko.NodeId, byval v0t as Tko.TypeId, _
+          byref sd as MirValue ) as boolean
+    declare sub PushUStrLiteralArg _
+        ( byref c as Ctx, byref args as containers.Array( of ulong ), byval gidx as long, _
+          byval nchars as long )
+
+    '' A static aggregate's initial value, as the bytes of its storage -- lowerudtlit.tiko.
+    '' lowerstore.tiko -- the address an initialiser leaf names, as a pointer-table entry.
+    declare function AddrWordOf_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref kind as long, byref ref as ulong, _
+          byval onlyStatic as boolean = true ) as boolean
+    declare function FoldAggInit_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
+          byval size_ as long, byref outBytes as string, _
+          byval vscope as Tko.ScopeId = Tko.SCOPE_NONE, _
+          byval relocs as containers.Array( of ulong ) ptr = 0 ) as boolean
+
+    '' 'type<T>( ... )' as a value or an address -- lowersub.tiko.
+    '' An UPCAST initialiser: the base subobject of a derived value, sized to the
+    '' destination. False when this is not an upcast, which is every ordinary one.
+    declare function UpcastAggInit_ _
+        ( byref c as Ctx, byval srcNode as Tko.NodeId, byval dstT as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    declare function LowerUdtLiteralValue_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerUdtLiteralAddr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    '' THE VARARG CURSOR -- lowercva.tiko.
+    declare function LowerCvaStart( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerCvaCopy( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerCvaEnd( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerCvaArg _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerWideToNarrow _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    declare function LowerWideToNarrowSlot _
+        ( byref c as Ctx, byval slot as long, byval dt as Tko.TypeId, _
+          byval value as Tko.NodeId, byval isInit as boolean = false, _
+          byval selfv as MirValue ptr = 0 ) as boolean
+    declare function IsStringIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function IsAggIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerAggIif_ _
+        ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
+          byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare sub StoreThrough _
+        ( byref c as Ctx, byref addr as MirValue, byref val as MirValue )
+    '' A brace initialiser over an array of UDT. 'selfv' is the destination when there
+    '' is no slot -- a STATIC local's storage is a global.
+    declare function LowerUdtArrayInit_ _
+        ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+          byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+    declare function LowerUdtParenInit_ _
+        ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+          byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+    declare function IsUnionType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function LowerZstrAssignTo _
+        ( byref c as Ctx, byref dst as MirValue, byval n as longint, _
+          byval value as Tko.NodeId, byval isInit as boolean, _
+          byval isU as boolean = false ) as boolean
+    declare function LowerStrRvalue _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function CallsUserProcNamedLikeBuiltin _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function ConcatToTemp_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerMathCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare sub LowerIf _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr )
+    declare function LowerTypeCtorExpr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function TypeCtorTypeOf_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+    declare function EmitTypeCtorInto_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval slot as long, _
+          byval cp as Tko.ListPayload ptr, byval callId as Tko.NodeId ) as boolean
+    declare function LowerUserUnaryOp_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval up as Tko.UnaryPayload ptr, _
+          byval mt as MirType, byref outv as MirValue ) as boolean
+    declare function LowerUserUnaryOpSym_ _
+        ( byref c as Ctx, byval op as Tko.SymbolId, byval operand as Tko.NodeId, _
+          byval mt as MirType, byref outv as MirValue ) as boolean
+    declare function LowerUserBinaryOp_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
+          byval mt as MirType, byref outv as MirValue ) as boolean
+    declare function LowerCompoundUserOp_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    declare function LowerPropertyGet_ _
+        ( byref c as Ctx, byval node as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerPropertySet_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    declare function UserCastToStr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+          byref raw as boolean ) as boolean
+    declare function UdtCastIsUStr_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function UserCastToWide_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerStrOf_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerStrNumCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerRadixCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+          byval wantWide as boolean = false ) as boolean
+    declare function LowerOpen_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerOpenCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' A byval non-trivial UDT argument's copy, and the lowering that precedes it
+    '' -- lowerbyref.tiko.
+    declare sub ByvalIndirectRetemp_ _
+        ( byref c as Ctx, byref rv as MirValue, byval pty as Tko.TypeId )
+    declare function ByvalDefaultArg_ _
+        ( byref c as Ctx, byval dv as Tko.NodeId, byval pty as Tko.TypeId ) as MirValue
+    '' An address for a byref parameter whose argument is already lowered
+    '' -- lowerbyref.tiko.
+    declare function ByrefAggTempOf_ _
+        ( byref c as Ctx, byref rv as MirValue, byval pty as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    '' The address a byref CONSTRUCTOR argument passes, its own or a temporary's
+    '' -- lowerbyref.tiko.
+    declare function CtorByrefArgAddr_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pty as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    '' A CONSTRUCTOR's byref parameter given an rvalue -- lowerbyref.tiko.
+    declare function CtorByrefRvalue_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval refT as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    '' A temporary holding an argument that must be passed BYREF and has no address of
+    '' its own -- lowercall.tiko.
+    declare function ByrefTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as MirValue
+    '' A 'byref as [const] wstring' constructor argument's wide characters -- lowerbyref.tiko.
+    declare function WideRefCtorArg_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    '' A wide string argument for a UDT with a 'wstring ptr' constructor -- lowerbyref.tiko --
+    '' and that constructor run into a slot or an address -- lowerctor.tiko.
+    declare function WideArgCharPtrCtor_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+    '' Whether UDT 'pt' has a one-parameter converting constructor for an 'at' --
+    '' lowerbyref.tiko.
+    declare function HasUdtConvCtor_ _
+        ( byref c as Ctx, byval pt as Tko.TypeId, byval at as Tko.TypeId ) as boolean
+    declare function CharPtrCtorInit_ _
+        ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+    '' The wide-character member of a one-argument 'let' or '+=' family -- lowerbyref.tiko.
+    declare function WideCharOverload_ _
+        ( byref c as Ctx, byval first_ as Tko.SymbolId ) as Tko.SymbolId
+    '' A wide value that is not itself a UDT -- lowercallarg.tiko.
+    declare function WideValueForCharMember_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function CtorLitArgIsWide_ _
+        ( byref c as Ctx, byval ctors as Tko.SymbolId, byval first_ as long, _
+          byval count as long, byval idx as long ) as boolean
+    declare function ByrefTempOf_ _
+        ( byref c as Ctx, byref rv as MirValue, byval pt as Tko.TypeId ) as MirValue
+    '' A byref UDT parameter's argument of another type, converted -- lowerbyref.tiko.
+    declare function ByrefConvNeeded_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+    declare function ByrefConvArg_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue ) as boolean : declare function SetterUdtArg_( byref c as Ctx, byval sset as Tko.SymbolId, byval idx as long, byval valNode as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function NamesProc_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function StrDescriptorOf_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function IifArmType_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+    declare function WideAppendToU_ _
+        ( byref c as Ctx, byref dst as MirValue, byval value as Tko.NodeId ) as boolean
+    declare function WideOperand_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerWideRvalue _
+        ( byref c as Ctx, byval value as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerWideAssignTo _
+        ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+          byval value as Tko.NodeId ) as boolean : declare function LowerWideAssignTo_( byref c as Ctx, byref dst as MirValue, byval n as long, byval value as Tko.NodeId ) as boolean
+    declare function LowerWideConcatAssignTo _
+        ( byref c as Ctx, byref dst as MirValue, byval n as long, _
+          byval value as Tko.NodeId ) as boolean
+    '' lowerintr.tiko
+    declare function LowerClose( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerError( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerNew_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare sub ArrayInitLeaves_( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, byref leaves as containers.Array( of ulong ), byref idx as containers.Array( of ulong ) ) : declare function BaseLeafSlots_( byref c as Ctx, byval t as Tko.TypeId, byval first_ as long, byval n as long, byref lOff as containers.Array( of ulong ), byref lTy as containers.Array( of ulong ) ) as boolean
+    declare function CtorOf_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval want as long ) as Tko.SymbolId
+    declare function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerColorCall_ _
+        ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as long, _
+          byval argCount as long, byref outv as MirValue ) as boolean
+    declare function LowerBuiltinProc _
+        ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as long, _
+          byval argCount as long, byref outv as MirValue, _
+          byval unboundOnly as boolean = false ) as boolean
+    declare sub NoteBuiltinDecline( byref c as Ctx, byval calleeNode as Tko.NodeId )
+    declare sub ReportBuiltinDecline( byref c as Ctx )
+    declare function LowerProcPtr _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerArrayInit _
+        ( byref c as Ctx, byval slot as long, byval t as Tko.TypeId, _
+          byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+    declare function PrintRtlFor( byref c as Ctx, byval t as Tko.TypeId ) as RtlId
+    declare function PrintOne _
+        ( byref c as Ctx, byval it as Tko.NodeId, byval mask as long, _
+          byref chan as MirValue ) as boolean
+    declare function IsWideString_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    '' A WIDE CONCATENATION built into a temporary the caller owns. fb_WstrConcat gives
+    '' back an allocation released with fb_WstrDelete at the end of the statement.
+    declare function WideConcatToTemp_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' 1 for a narrow string type, 2 for a wide one, 0 for anything else. Both the
+    '' SIZED spelling ('zstring * 8', an array of the builtin) and the UNSIZED one
+    '' (the bare builtin, which a 'zstring ptr' points at) count.
+    declare function CharElemSize_( byref c as Ctx, byval t as Tko.TypeId ) as long
+    '' The LENGTH ARGUMENT a 'string * N' is passed as, which is not N: measured,
+    '' '&h8000000000000000 or N' on win64 and '&h80000000 or N' on win32, the SIGN BIT
+    '' being the tag that says "N space-padded bytes".
+    declare function FixedStrLenArg_( byref c as Ctx, byval n as longint ) as longint
+    '' Push a string operand's LENGTH, as a const instruction when it will not fit the
+    '' 32-bit inline constant field -- which a fixed-length string's tagged length
+    '' never does.
+    declare sub PushStrArg _
+        ( byref args as containers.Array( of ulong ), byref addr as MirValue )
+    '' The FLAVOUR of one term of a string chain -- see lowerterm.tiko. NEUTRAL follows
+    '' the destination: a literal, a string constant, a rendered number, an untyped
+    '' intrinsic call.
+    const STF_NEUTRAL as long = 0
+    const STF_NARROW  as long = 1
+    const STF_WIDE    as long = 2
+    const STF_UTF16   as long = 3
+    declare function LowerStrOperandOp_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function IsTupleType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function LowerDestructure _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    declare function LowerTupleCompare _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
+          byval tk as Tko.TokenKind, byref outv as MirValue ) as boolean
+    '' '__FB_QUERY_SYMBOL__( q, sym )' -- fbc's compile-time symbol query, folded.
+    '' The low 'n' bits set, for a bitfield mask.
+    declare function BitMask_( byval n as long ) as longint
+    '' 'x.a op= v' over a BITFIELD: a read, the operator and a masked write.
+    declare function BitfieldCompound_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
+          byval bop as Tko.TokenKind ) as boolean
+    declare function LowerQuerySymbol_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerOffsetOf _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function TyWidthBytes_( byval t as MirType ) as long
+    declare function StrCatText_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as string ) as boolean
+    declare function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
+    '' A NUMBER rendered into a string chain: NARROW, never neutral. lowerterm.tiko.
+    declare function IsRenderedNumberTerm_( byref c as Ctx, byval term as Tko.NodeId ) as boolean
+    '' A UDT's 'operator cast' to zstring or string, else SYMBOL_NONE. lowerterm.tiko.
+    declare function NarrowCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function CastYieldsPtr_( byref c as Ctx, byval sym as Tko.SymbolId ) as boolean
+    declare function LowerNumArg_( byref c as Ctx, byval e as Tko.NodeId, byval mt as MirType ) as MirValue
+    declare function IsUdtValue_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function LowerExprN_( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
+    declare function NumSrcType_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
+    declare function ChainHasRenderedNumber_ _
+        ( byref c as Ctx, byref terms as containers.Array( of ulong ) ) as boolean
+    '' A ustring destination built in place, each rendered number converted. lowerconcat.tiko.
+    declare function LowerUStrInPlaceWithNumbers_ _
+        ( byref c as Ctx, byref dst as MirValue, byref terms as containers.Array( of ulong ) ) as boolean
+    declare function IsUStrChain_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function UStrCmpOperand_ _
+        ( byref c as Ctx, byref args as containers.Array( of ulong ), _
+          byval term as Tko.NodeId ) as boolean
+    declare function WideTermAsUStr_ _
+        ( byref c as Ctx, byval term as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function IsUStringDest_( byref c as Ctx, byref dst as MirValue ) as boolean
+    declare function LowerStrConvertTerm _
+        ( byref c as Ctx, byref dst as MirValue, byval dstIsU as boolean, _
+          byval term as Tko.NodeId, byval isInit as boolean ) as boolean
+    declare function LowerNarrowChainToU_ _
+        ( byref c as Ctx, byref dst as MirValue, _
+          byref terms as containers.Array( of ulong ), byval isInit as boolean ) as boolean
+    declare function LowerUStrChain _
+        ( byref c as Ctx, byref dst as MirValue, byval dstIsU as boolean, _
+          byref terms as containers.Array( of ulong ), byval isInit as boolean ) as boolean
+    declare function StrChainNeedsConvert _
+        ( byref c as Ctx, byval dstIsU as boolean, _
+          byref terms as containers.Array( of ulong ) ) as boolean
+    declare sub PushStrLiteralArg _
+        ( byref args as containers.Array( of ulong ), byval gidx as long, byval nbytes as long )
+    '' lowerustr.tiko -- the USTRING intrinsic family, the third beside the narrow set
+    '' in lowersub.tiko and the wide one in lowerwstr.tiko.
+    '' The ADDRESS of a SYNTHESISED structor -- kind_ 1 for the constructor, 0 for
+    '' the destructor. FuncAddrOf names a WRITTEN procedure through its symbol; an
+    '' implicit one has only the name its body will be emitted under.
+    declare function ImplStructorAddr_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as long ) as MirValue
+
+    declare function LowerUStrIntrin_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    declare sub PushStrLen_ _
+        ( byref c as Ctx, byref args as containers.Array( of ulong ), byval n as longint )
+    declare function LowerWideIif_ _
+        ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
+          byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function IsStrIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerStringIif_ _
+        ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
+          byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function StrInitFrom_ _
+        ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId ) as boolean
+    '' An 'iif' call and its three arms, WITHOUT asking what the arms are. Used where
+    '' the context already knows the result is a string -- a term of a string
+    '' assignment, an arm of another string iif -- because the arm types cannot answer
+    '' it: Check computes no type for an intrinsic call, so 'iif( c, hex( 1 ),
+    '' hex( 2 ) )' looks like an iif over nothing.
+    declare function IsIifCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref condE as Tko.NodeId, _
+          byref thenE as Tko.NodeId, byref elseE as Tko.NodeId ) as boolean
+    declare function LowerIif _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, _
+          byref outv as MirValue ) as boolean
+    declare function LowerBitfieldRead _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerBitfieldStoreValue_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref val as MirValue ) as boolean
+    declare function BitfieldSwapOnce_( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean : declare function BitfieldMemberInit_( byref c as Ctx, byref thisPtr as MirValue, byval t as Tko.TypeId, byval f as Tko.Symbol ptr, byval init as Tko.NodeId ) as boolean : declare function BitfieldFieldStore_ _
+        ( byref c as Ctx, byref base_ as MirValue, byval fi as long, byref val as MirValue ) as boolean
+    declare function LowerBitfieldStore _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    '' 'a andalso b' from its PIECES, so the compound form can reach it too.
+    declare function LowerShortCircuitParts_ _
+        ( byref c as Ctx, byval lhsE as Tko.NodeId, byval rhsE as Tko.NodeId, _
+          byval isAnd as boolean, byval mt as MirType ) as MirValue
+    declare function LowerCompoundAssign _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
+          byval op as Tko.TokenKind ) as boolean
+    declare function ParamCountOf( byref c as Ctx, byval callee as Tko.SymbolId ) as long
+    declare function LowerBareProcCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, _
+          byref outv as MirValue ) as boolean
+    declare function IsVariadicProc( byref c as Ctx, byval callee as Tko.SymbolId ) as boolean
+    declare function ParamDefaultAt _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.NodeId
+    declare function PtrCallDecl_ _
+        ( byref c as Ctx, byval viaPointer as boolean, byval sigT as Tko.TypeId, _
+          byval calleeNode as Tko.NodeId, byref nparams as long ) as Tko.NodeId
+    declare function CallDefaultAt_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval ptrDecl as Tko.NodeId, _
+          byval viaPointer as boolean, byval idx as long ) as Tko.NodeId
+    declare function ParamTypeAt _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.TypeId
+    declare function PushCtorArgs_ _
+        ( byref c as Ctx, byval ctor as Tko.SymbolId, byval first_ as long, _
+          byval count as long, byref args as containers.Array( of ulong ) ) as boolean
+    declare function UserConvOperand_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId ) as boolean
+    declare function ArrayDescArg_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, _
+          byval isArrayParam as boolean, byref outv as MirValue ) as boolean
+
+    declare function ParamIsArray _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
+    declare function ParamIsByref _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean
+
+    declare function LowerStrCompare _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
+          byval tk as Tko.TokenKind ) as MirValue
+
+    '' lowerarr.tiko -- array indexing.
+    '' Is this node 'this' -- the receiver, held in the ABI as a POINTER?
+    declare function IsThisPointerIdent_ _
+        ( byref c as Ctx, byval n as Tko.NodeId ) as boolean
+    declare function InitSourceType_( byref c as Ctx, byval n as Tko.NodeId ) as Tko.TypeId
+    declare function InitSourceAddr_( byref c as Ctx, byval n as Tko.NodeId ) as MirValue
+    declare function IsArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
+    declare function ConstFloat _
+        ( byref c as Ctx, byval v as double, byval t as MirType ) as MirValue
+    declare function IsFloatTy( byval t as MirType ) as boolean
+    '' The conversion intrinsics -- CBYTE, CBOOL, CAST, CPTR and the rest.
+    declare function IsConvIntrinsic _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    '' The operand of a string-to-string 'cast'/'cptr' -- see the definition.
+    declare function StrIdentityConvOperand_ _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+    declare function LowerConvIntrinsic _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
+
+    declare function ConstInt _
+        ( byref c as Ctx, byval v as longint, byval t as MirType ) as MirValue
+
+    '' The address of a string literal's bytes, as a module global.
+    declare function LowerStringLitAddr _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
+    declare function LowerTextAddr _
+        ( byref c as Ctx, byref text as string ) as MirValue
+    '' Constructors and destructors: finding them, and calling one on a slot.
+    declare function StructorOf _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref which as string ) as Tko.SymbolId
+    declare function StructorWithArity _
+        ( byref c as Ctx, byval first_ as Tko.SymbolId, byval want as long ) as Tko.SymbolId
+    '' 'slot' is a LOCAL whose address is the receiver. A NEGATIVE slot means the
+    '' receiver is already a value and comes through 'selfVal' -- which is what DELETE
+    '' has: a pointer, not a local.
+    declare sub EmitStructorCall _
+        ( byref c as Ctx, byval sym as Tko.SymbolId, byval slot as long, _
+          byval selfVal as MirValue ptr = 0, byval args as containers.Array( of ulong ) ptr = 0 )
+    declare sub EmitCtorCall _
+        ( byref c as Ctx, byval sym as Tko.SymbolId, byval slot as long )
+    declare sub EmitDtorCall _
+        ( byref c as Ctx, byval sym as Tko.SymbolId, byval slot as long )
+
+    '' A call from its PIECES, so both of FreeBASIC's spellings reach one place.
+    '' 'wantRef' asks for the REFERENCE a byref-returning call hands back rather than
+    '' the referent. LowerAddr needs the address; every value read needs the load.
+    '' It cannot be inferred from 'mt': a 'function f( ) byref as long ptr' read as a
+    '' VALUE also asks for MT_PTR, and loading is right for that one.
+    declare function LowerCallParts _
+        ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval callee as Tko.SymbolId, _
+          byval argFirst as long, byval argCount as long, _
+          byval mt as MirType, byval wantRef as boolean = false ) as MirValue
+
+    '' The paren-less call statement: 'W 1, 2'.
+    declare function LowerStmtCall _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
+
+    '' The implicit THIS for 'obj.M( )' / 'p->M( )', or MV_NONE when there is none.
+    '' lowergfx.tiko -- the graphics statements.
+    declare function LowerCallExpr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
+    declare function LowerRgbCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerVarPtrCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerStrPtrCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerIntrinsicStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerGfxStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerGfxScreen( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerGfxExprCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    '' lowerfieldinit.tiko -- 'a as integer = 123' inside a TYPE. The value is run by
+    '' the constructor, so lowerimpl.tiko is what calls both of these.
+    declare function FieldInitOf_ _
+        ( byref c as Ctx, byval f as Tko.Symbol ptr ) as Tko.NodeId
+    declare sub EmitFieldInit_ _
+        ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId, _
+          byval init as Tko.NodeId )
+    '' ...and whether that initialiser is the word ANY, which suppresses the field's
+    '' zero fill and its member constructor as well as the store.
+    declare function FieldInitIsAny_ _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    '' 'T( args )' constructed ON AN ADDRESS -- a field's, or a shared global's. The
+    '' chosen constructor, its arguments coerced to that overload's parameters, and no
+    '' temporary of T anywhere.
+    declare function CtorCallOnAddr_ _
+        ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId, _
+          byval init as Tko.NodeId ) as boolean
+    '' ...and the converting constructor a bare '= value' picks for a UDT field, or
+    '' SYMBOL_NONE. Types only: the prologue asks before it default-constructs.
+    declare function FieldConvCtorPick_ _
+        ( byref c as Ctx, byval ft as Tko.TypeId, byval init as Tko.NodeId ) as Tko.SymbolId
+    '' lowerimpl.tiko -- the structors fbc writes for you.
+    declare function UdtSymOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function TypeNeedsDtor_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function NeedsCtorBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    '' ...and whether a constructor that ALREADY EXISTS has a prologue. Not the same
+    '' question: see the comment on the definition.
+    declare function CtorPrologueWork_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    '' A byval UDT parameter that fbc passes as a POINTER to a caller-built copy.
+    declare function ByvalUdtIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function ParamIsIndirectUdt_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long, _
+          byval sigT as Tko.TypeId = Tko.TYPE_NONE ) as boolean
+    '' ...and a byval var-length STRING parameter, which is the same shape with the
+    '' string runtime doing the copying.
+    declare function ByvalStrIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function ParamIsIndirectStr_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long, _
+          byval sigT as Tko.TypeId = Tko.TYPE_NONE ) as boolean
+    declare function ByvalStrTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue, byref outSlot as long ) as boolean
+    declare function WideUdtStrArgTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue, byref temps as containers.Array( of ulong ), _
+          byref tempTypes as containers.Array( of ulong ) ) as boolean
+    declare function UStrOutOperand_ _
+        ( byref c as Ctx, byval it as Tko.NodeId, byref outv as MirValue, _
+          byref outSlot as long ) as boolean
+    declare sub ReleaseUStrOut_( byref c as Ctx, byval slot as long )
+    declare sub RuntimeUStrNarrowArg_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval argNode as Tko.NodeId, _
+          byval pt as Tko.TypeId, byref outa as MirValue )
+    declare function UStrToStrAny_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean : declare function NarrowOperandAny_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function UStrZstrData_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function UStrResultArgTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue, byref outSlot as long, _
+          byval anyChain as boolean = false ) as boolean
+    declare function WideArgOperand_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byref outa as MirValue, _
+          byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ) ) as boolean : declare function PtrStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval ppt as Tko.TypeId, byval vararg as boolean, byref outv as MirValue, byref temps as containers.Array( of ulong ), byref tempTypes as containers.Array( of ulong ), byref backN as containers.Array( of ulong ), byref backS as containers.Array( of ulong ) ) as long : declare function PropPtrStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval ppt as Tko.TypeId, byref outv as MirValue ) as long
+    declare function ParamWantsWideRef_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
+          byval idx as long ) as boolean
+    declare function IsNarrowStrArg_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function NeedsDtorBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare sub EmitCtorPrologue_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue, _
+          byval skipBase as boolean = false )
+    declare sub BeginCtorPrologue_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue, _
+          byval callsBase as boolean )
+    declare sub EmitDtorEpilogue_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue )
+    declare function ImplicitCtorName_( byref c as Ctx, byval t as Tko.TypeId ) as string
+    declare function ImplicitDtorName_( byref c as Ctx, byval t as Tko.TypeId ) as string
+    declare sub CallImplicitCtor_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref selfv as MirValue )
+    declare sub CallImplicitDtor_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref selfv as MirValue )
+    declare function NeedsLetBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function CopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function InitCopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function InitCopyReturn_( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+    declare function IsCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function IifArmsScalar_ _
+        ( byref c as Ctx, byval thenE as Tko.NodeId, byval elseE as Tko.NodeId ) as boolean
+    declare function StrIifAbandon_ _
+        ( byref c as Ctx, byval joinB as long, byval elseB as long ) as boolean
+    declare function DeclIndexFor_ _
+        ( byref c as Ctx, byval cnm as Tko.InternId, byval callTy as MirType, _
+          byval cs as Tko.Symbol ptr, byval withSret as boolean, _
+          byval withThis as boolean ) as long
+    declare function SretCallType_ _
+        ( byref c as Ctx, byval cs as Tko.Symbol ptr, byval viaPointer as boolean, _
+          byval sigT as Tko.TypeId ) as Tko.TypeId
+    declare function SretOrResult_ _
+        ( byref c as Ctx, byref sretTmp as MirValue, byref iv as MirValue, _
+          byval mt as MirType ) as MirValue
+    declare function ThisByvalArg_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue ) as boolean
+    declare function CallReturnsByref_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function UStrDataArg_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function HasDynArrayMember_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function ImplicitLetName_( byref c as Ctx, byval t as Tko.TypeId ) as string
+    declare function ImplicitCopyName_( byref c as Ctx, byval t as Tko.TypeId ) as string
+    declare sub EmitLetBody_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref dst as MirValue, byref src as MirValue )
+    declare sub CallImplicitLet_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref dst as MirValue, byref src as MirValue )
+    declare sub CallImplicitCopy_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref dst as MirValue, byref src as MirValue )
+    declare sub WantImplicit_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval k as long )
+    declare function ArrayElemNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function LowerUdtElemInit_ _
+        ( byref c as Ctx, byref dst as MirValue, byval et as Tko.TypeId, _
+          byval e as Tko.NodeId ) as boolean
+    declare function ArrayCtorList_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId ) as boolean
+    declare sub EmitArrayCtorList_ _
+        ( byref c as Ctx, byref ga as MirValue, byval t as Tko.TypeId, byval init as Tko.NodeId )
+    declare function ArrayElemNeedsDtor_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare sub EmitArrayElems_ _
+        ( byref c as Ctx, byval slot as long, byval at as Tko.TypeId, byval isCtor as boolean, _
+          byval skip as long = 0 )
+    declare sub EmitArrayElemsAt_ _
+        ( byref c as Ctx, byref base_ as MirValue, byval at as Tko.TypeId, _
+          byval isCtor as boolean, byval skip as long = 0 )
+    declare sub EmitModuleInit_( byref c as Ctx )
+    declare function FlatInitCount_( byref c as Ctx, byval init as Tko.NodeId ) as long
+    declare function LowerExprWant_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byval t as Tko.TypeId ) as MirValue
+    declare function ProcAddrForWanted_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function StructorPrioOf_( byref c as Ctx, byval id as Tko.NodeId ) as long
+    declare sub EmitImplicitStructors( byref c as Ctx )
+
+    '' lowervtab.tiko -- virtual method tables.
+    declare sub EmitVTableGlobals( byref c as Ctx )
+    declare function VtableGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
+    declare function RttiGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
+    declare function StoreVptr_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref thisAddr as MirValue ) as boolean
+    declare function VirtualSlotOf_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval callee as Tko.SymbolId ) as long
+    declare function VirtualCalleeOf_ _
+        ( byref c as Ctx, byref self_ as MirValue, byval slot as long ) as MirValue
+    declare sub WantVirtualImplicitDtors_( byref c as Ctx ) : declare function DeclForName_( byref c as Ctx, byval id as Tko.NodeId, byval s as Tko.Symbol ptr ) as Tko.NodeId : declare function ParamIsAny_( byref c as Ctx, byval t as Tko.TypeId ) as boolean : declare function MemberVSlot_( byref c as Ctx, byval sym as Tko.SymbolId ) as long : declare function EmitVirtualMember_( byref c as Ctx, byval sym as Tko.SymbolId, byval el as Tko.TypeId, byref selfp as MirValue, byval args as containers.Array( of ulong ) ptr ) as boolean : declare function EmitVirtualDtor_ _
+        ( byref c as Ctx, byval el as Tko.TypeId, byval dtor as Tko.SymbolId, _
+          byref p as MirValue ) as boolean
+
+    declare function ReceiverOf _
+        ( byref c as Ctx, byval target as Tko.NodeId, _
+          byval callee as Tko.SymbolId ) as MirValue
+
+    '' A DIM SHARED / STATIC initialiser: a compile-time value, not a store on entry.
+    declare sub InitSharedGlobal _
+        ( byref c as Ctx, byval sid as Tko.SymbolId, byval init as Tko.NodeId )
+
+    '' TRUE, FALSE and __FUNCTION__: predeclared names that are values, not storage.
+    declare function LowerPredeclared _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
+
+    '' A string literal's text, with the escapes already resolved.
+    declare function StringLitText_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval keepNul as boolean = false ) as string
+
+    '' A UTF-8 source literal widened by CHARACTER, not by byte -- lowerterm.tiko.
+    declare sub PushSourceUnit_ _
+        ( byref c as Ctx, byval u8 as boolean, byref body as string, byref i as long, _
+          byref units as containers.Array( of ulong ) )
+    declare function PlainUtf8Text_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function WideFoldedText_ _
+        ( byref c as Ctx, byval site as Tko.NodeId, byref txt as string, byref outChars as long ) as long
+
+    '' Which half of a declined call statement is at fault, and the callee's name.
+    declare sub CountUnlowredCall( byref c as Ctx, byval call_ as Tko.NodeId )
+
+    '' Records a decline part-way through the statement being lowered.
+    ''
+    '' A MACRO, so the call SITE is captured rather than this file's own line. Twenty
+    '' places give up on a statement and the totals alone cannot tell them apart; with
+    '' the site, "what is not lowered" is a list of lines to go and read.
+    declare sub SkipAt _
+        ( byref c as Ctx, byref fileName as string, byval lineNo as long )
+    #define SkipHere( c__ ) SkipAt( (c__), __FILE__, __LINE__ )
+    declare sub SkipStmt( byref c as Ctx, byval id as Tko.NodeId )
+
+end namespace
+
+#endif

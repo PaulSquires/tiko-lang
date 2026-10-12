@@ -112,7 +112,7 @@ lowered: 4 functions, 9 blocks, 58 insts, 1 statements not lowered, 0 scope imba
   unlowered N_INTRINSIC 1
   inside N_INTRINSIC 1
   unlowered intrinsic KW_PRINT 1
-  skip-site src\mir\lowerctl.bas:206 1
+  skip-site src\mir\lowerctl.tiko:206 1
 tests/diagnostics/src/misc-shapes-3.bas(8,15): error TKO0672: the ALIAS name string is empty
      |
    8 | type T1 alias ""

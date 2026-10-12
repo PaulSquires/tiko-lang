@@ -21,7 +21,7 @@
 # THIS DOES NOT PRODUCE A SELF-CONTAINED TOOLCHAIN, and the manifest it writes says
 # so. One thing stays external, and one is optional:
 #
-#   clang    src/codegen/toolchain.bas runs clang for BOTH steps -- the .ll to .o
+#   clang    src/codegen/toolchain.tiko runs clang for BOTH steps -- the .ll to .o
 #            compile and the link. It is found at C:\Program Files\LLVM\bin, or
 #            wherever TKO_CLANG points. Bundling LLVM is a gigabyte and a separate
 #            decision, so a packaged toolchain depends on an installed one.
@@ -124,7 +124,7 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         HOST=windows; EXT=".exe"; BINSUB=""
         TARGETS="windows-x86_64"
-        # The compiler's own default on this host -- HostTarget( ), src/types/type.bas.
+        # The compiler's own default on this host -- HostTarget( ), src/types/type.tiko.
         DEFTARGET=windows-x86_64
         CLANG_DEFAULT='C:\Program Files\LLVM\bin\clang.exe'
         ;;
@@ -132,7 +132,7 @@ case "$(uname -s)" in
         HOST=linux; EXT=""; BINSUB="bin/"
         TARGETS="linux-x86_64"
         DEFTARGET=linux-x86_64
-        # The compiler's own default on Linux -- see src/codegen/toolchain.bas.
+        # The compiler's own default on Linux -- see src/codegen/toolchain.tiko.
         CLANG_DEFAULT=/usr/bin/clang
         ;;
     *)  die "unsupported host '$(uname -s)' -- this packages Windows or Linux" ;;
@@ -623,9 +623,9 @@ verify_target( ) {
     # crt.bi since 2026-10-10, when containers.bi became std/containers (checked below).
     printf '#include once "crt.bi"
 print "ok"
-' > "$_tmp/hello.bas"
+' > "$_tmp/hello.tiko"
 
-    ( cd "$OUT" && "./${BINSUB}tiko$EXT" -target "$_t"             ".verify.$_t/hello.bas" -o ".verify.$_t/hello$EXT" ) >"$_tmp/log" 2>&1 || true
+    ( cd "$OUT" && "./${BINSUB}tiko$EXT" -target "$_t"             ".verify.$_t/hello.tiko" -o ".verify.$_t/hello$EXT" ) >"$_tmp/log" 2>&1 || true
 
     # THE EXIT CODE IS NOT THE TEST. Measured 2026-09-04: tiko returns 0 when the
     # link fails and writes no executable, so trusting it reported a win32 link
@@ -667,8 +667,8 @@ db.Execute( "create virtual table t using fts5( word )" )
 db.Execute( "insert into t values( ?1 )", Args( "tiko" ) )
 dim n as MaybeValueResult = db.QueryScalar( "select count(*) from t where t match ?1", Args( "tiko" ) )
 if n.IsOk( ) andalso n.Value( ).Value( ).AsInt64( ) = 1 then print "ok"
-' > "$_tmp/sq.bas"
-    ( cd "$OUT" && "./${BINSUB}tiko$EXT" -target "$_t" ".verifysq.$_t/sq.bas" -o ".verifysq.$_t/sq$EXT" ) >"$_tmp/log" 2>&1 || true
+' > "$_tmp/sq.tiko"
+    ( cd "$OUT" && "./${BINSUB}tiko$EXT" -target "$_t" ".verifysq.$_t/sq.tiko" -o ".verifysq.$_t/sq$EXT" ) >"$_tmp/log" 2>&1 || true
     if [ -f "$_tmp/sq$EXT" ] && [ "$( "$_tmp/sq$EXT" 2>/dev/null )" = "ok" ]; then
         VERIFY_LINES="$VERIFY_LINES
   $_t  fbsqlite PASS -- compiled, linked and ran an FTS5 query"
@@ -688,8 +688,8 @@ verify_fbcunit( ) {
     printf '#include once "fbcunit.bi"
 CU_ASSERT( 1 + 1 = 2 )
 if fbcu.dblIsInf( 1.0 ) = false then print "ok"
-' > "$_tmp/cu.bas"
-    ( cd "$OUT" && "./${BINSUB}tiko$EXT" -target "$_t" ".verifycu.$_t/cu.bas" -o ".verifycu.$_t/cu$EXT" ) >"$_tmp/log" 2>&1 || true
+' > "$_tmp/cu.tiko"
+    ( cd "$OUT" && "./${BINSUB}tiko$EXT" -target "$_t" ".verifycu.$_t/cu.tiko" -o ".verifycu.$_t/cu$EXT" ) >"$_tmp/log" 2>&1 || true
     if [ -f "$_tmp/cu$EXT" ] && [ "$( "$_tmp/cu$EXT" 2>/dev/null )" = "ok" ]; then
         VERIFY_LINES="$VERIFY_LINES
   $_t  fbcunit PASS -- compiled, linked and ran"
@@ -727,15 +727,15 @@ verify_std_run( ) {
     _t=$1; _tag=$2; _checks=$3; _flags=$4
     _tmp="$OUT/.verifystd.$_t.$_tag"
     rm -rf "$_tmp"; mkdir -p "$_tmp"
-    : > "$_tmp/std.bas"
+    : > "$_tmp/std.tiko"
     echo "$_checks" | while IFS='|' read -r _m _code _want; do
-        printf '#import "std/%s"\n' "$_m" >> "$_tmp/std.bas"
+        printf '#import "std/%s"\n' "$_m" >> "$_tmp/std.tiko"
     done
     echo "$_checks" | while IFS='|' read -r _m _code _want; do
-        printf '%s\n' "$_code" >> "$_tmp/std.bas"
+        printf '%s\n' "$_code" >> "$_tmp/std.tiko"
     done
     ( cd "$OUT" && TKO_MODCACHE=".verifystd.$_t.$_tag/cache" "./${BINSUB}tiko$EXT" $_flags -target "$_t" \
-        ".verifystd.$_t.$_tag/std.bas" -o ".verifystd.$_t.$_tag/std$EXT" ) >"$_tmp/log" 2>&1 || true
+        ".verifystd.$_t.$_tag/std.tiko" -o ".verifystd.$_t.$_tag/std$EXT" ) >"$_tmp/log" 2>&1 || true
     _why=""
     if [ -f "$_tmp/std$EXT" ]; then
         "$_tmp/std$EXT" 2>/dev/null | tr -d '\r' > "$_tmp/out" || true
@@ -775,9 +775,9 @@ verify_sys( ) {
     rm -rf "$_tmp"; mkdir -p "$_tmp"
     printf '#import "sys/windows" as win
 print len( win.SE_DEBUG_NAME ); sizeof( win.TCHAR ); win.IsWindow( 0 )
-' > "$_tmp/sys.bas"
+' > "$_tmp/sys.tiko"
     ( cd "$OUT" && TKO_MODCACHE=".verifysys.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t" \
-        ".verifysys.$_t/sys.bas" -o ".verifysys.$_t/sys$EXT" ) >"$_tmp/log" 2>&1 || true
+        ".verifysys.$_t/sys.tiko" -o ".verifysys.$_t/sys$EXT" ) >"$_tmp/log" 2>&1 || true
     if [ -f "$_tmp/sys$EXT" ] && [ "$( "$_tmp/sys$EXT" 2>/dev/null | tr -d '\r' )" = " 16 2 0" ]; then
         VERIFY_LINES="$VERIFY_LINES
   $_t  sys/windows PASS -- imported, compiled, linked and ran"
@@ -803,8 +803,8 @@ verify_tkl( ) {
 #import "tkl/tkGui"
 dim as tkGui.CWindow w
 print tkCore.tkUcase( "tiko" ); " "; hex( gdiplus.GDIP_ARGB( &hFF, 1, 2, 3 ) )
-' > "$_tmp/tkl.bas"
-    ( cd "$OUT" && TKO_MODCACHE=".verifytkl.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t"         ".verifytkl.$_t/tkl.bas" -o ".verifytkl.$_t/tkl$EXT" ) >"$_tmp/log" 2>&1 || true
+' > "$_tmp/tkl.tiko"
+    ( cd "$OUT" && TKO_MODCACHE=".verifytkl.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t"         ".verifytkl.$_t/tkl.tiko" -o ".verifytkl.$_t/tkl$EXT" ) >"$_tmp/log" 2>&1 || true
     if [ -f "$_tmp/tkl$EXT" ] && [ "$( "$_tmp/tkl$EXT" 2>/dev/null | tr -d '' )" = "TIKO FF010203" ]; then
         VERIFY_LINES="$VERIFY_LINES
   $_t  tkl PASS -- tkCore, gdiplus and tkGui imported, compiled, linked and ran"
@@ -923,9 +923,9 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say "lib/<target>/ to the library search on its own, both relative to the"
     say "executable."
     say
-    say "  tiko yourprogram.bas                  the default, $DEFTARGET"
+    say "  tiko yourprogram.tiko                 the default, $DEFTARGET"
     for t in $TARGETS; do
-        say "  tiko -target $t yourprogram.bas"
+        say "  tiko -target $t yourprogram.tiko"
     done
     say
     if [ "$HOST" = "windows" ]; then

@@ -127,7 +127,7 @@ lowered: 3 functions, 3 blocks, 95 insts, 2 statements not lowered, 0 scope imba
   unlowered N_INTRINSIC 2
   inside N_INTRINSIC 2
   unlowered intrinsic KW_PRINT 2
-  skip-site src\mir\lowerctl.bas:218 2
+  skip-site src\mir\lowerctl.tiko:218 2
 tests/diagnostics/src/erase-compare-dynfield.bas(40,8): error TKO0721: the dynamic array field 'arr' must write its rank: '(any)'
      |
   40 |     arr() as integer

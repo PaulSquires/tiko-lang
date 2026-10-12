@@ -1,0 +1,367 @@
+'' clock.tiko -- the chrono clocks: nine entry points over one fbc member,
+'' and the FIRST platform-split file in tiko-rt.
+''
+'' ONE FILE, TWO BACKENDS, chosen by #if -- fbc keeps win32/dt_clock.c and
+'' unix/dt_clock.c as separate sources and compiles one of them. The split is
+'' reproduced here inside a single module because the build has no per-target
+'' source selection, and because the two halves share the tick arithmetic that
+'' surrounds them.
+''
+'' THE THREE CLOCKS ARE NOT INTERCHANGEABLE AND ARE NOT IN THE SAME UNITS:
+''
+''   fb_DtClockUtcNow    ticks since 0001-01-01, absolute, and it CAN step
+''                       backwards when the system clock is set
+''   fb_DtMonoTimestamp  an OPAQUE counter for measuring elapsed time -- QPC
+''                       units on Windows, NANOSECONDS on Unix -- which is why
+''                       fb_DtMonoFrequency exists and why a caller may never
+''                       assume it is in ticks
+''   fb_DtCpu*Time       a DURATION in ticks, not an instant
+''
+'' Treating the monotonic timestamp as ticks is the mistake this layout exists
+'' to prevent: on Windows it is whatever QPC counts, and the number means
+'' nothing without the frequency.
+''
+'' WINDOWS FILETIME IS ALREADY IN THIS LIBRARY'S UNIT -- 100 ns -- so UtcNow is
+'' one addition with no scaling and no rounding. That is the payoff from the
+'' chosen tick size, and it is why the Windows path is exact where the Unix one
+'' has to divide nanoseconds by 100.
+
+#include once "inc/descriptors.ti"
+#include once "inc/chrono.ti"
+
+const FB_DT_TICKS_TO_UNIX_EPOCH = 621355968000000000ll
+const FB_DT_TICKS_TO_FILETIME   = 504911232000000000ll
+const FB_DT_TICKS_PER_MICROSECOND = 10ll
+
+extern "rtlib"
+	declare function tkrt_DtIsValidTicks alias "fb_DtIsValidTicks" ( byval t as longint ) as long
+end extern
+
+#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+
+'' ---------------------------------------------------------- the Windows half
+
+type FILETIME_
+	as ulong dwLowDateTime
+	as ulong dwHighDateTime
+end type
+
+type SYSTEMTIME_
+	as ushort wYear, wMonth, wDayOfWeek, wDay, wHour, wMinute, wSecond, wMilliseconds
+end type
+
+type TIME_ZONE_INFORMATION_
+	as long         Bias
+	as wstring * 32 StandardName
+	as SYSTEMTIME_  StandardDate
+	as long         StandardBias
+	as wstring * 32 DaylightName
+	as SYSTEMTIME_  DaylightDate
+	as long         DaylightBias
+end type
+
+const TIME_ZONE_ID_INVALID  = &hFFFFFFFFul
+const TIME_ZONE_ID_DAYLIGHT = 2
+
+type FB_PRECISETIMEPROC as sub stdcall ( byval ft as FILETIME_ ptr )
+
+'' PREFIXED w_ BECAUSE THE BARE NAMES COLLIDE. Some of these -- GetCurrentThread
+'' among them -- are already declared by a header this file reaches through
+'' its includes, and a second DECLARE of the same name is an error rather than
+'' a compatible redeclaration. The alias carries the real import name.
+extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
+	declare sub w_GetSystemTimeAsFileTime stdcall alias "GetSystemTimeAsFileTime" ( byval ft as FILETIME_ ptr )
+	declare function w_GetModuleHandleA stdcall alias "GetModuleHandleA" ( byval n as zstring ptr ) as any ptr
+	declare function w_GetProcAddress stdcall alias "GetProcAddress" ( byval m as any ptr, byval n as zstring ptr ) as any ptr
+	declare function w_GetTimeZoneInformation stdcall alias "GetTimeZoneInformation" ( byval tzi as TIME_ZONE_INFORMATION_ ptr ) as ulong
+	declare function w_QueryPerformanceCounter stdcall alias "QueryPerformanceCounter" ( byval c as longint ptr ) as long
+	declare function w_QueryPerformanceFrequency stdcall alias "QueryPerformanceFrequency" ( byval f as longint ptr ) as long
+	declare function w_GetCurrentProcess stdcall alias "GetCurrentProcess" ( ) as any ptr
+	declare function w_GetCurrentThread stdcall alias "GetCurrentThread" ( ) as any ptr
+	declare function w_GetProcessTimes stdcall alias "GetProcessTimes" _
+		( byval h as any ptr, byval cre as FILETIME_ ptr, byval ex as FILETIME_ ptr, _
+		  byval krn as FILETIME_ ptr, byval usr as FILETIME_ ptr ) as long
+	declare function w_GetThreadTimes stdcall alias "GetThreadTimes" _
+		( byval h as any ptr, byval cre as FILETIME_ ptr, byval ex as FILETIME_ ptr, _
+		  byval krn as FILETIME_ ptr, byval usr as FILETIME_ ptr ) as long
+end extern
+
+'' Resolved ONCE, with the "checked" flag separate from the pointer so a
+'' genuine absence is not looked up again on every call.
+dim shared as FB_PRECISETIMEPROC hDtPreciseTime = 0
+dim shared as long hDtPreciseTimeChecked = 0
+
+private function hGetPreciseTimeProc( ) as FB_PRECISETIMEPROC
+	dim as any ptr k32 = any
+	if( hDtPreciseTimeChecked = 0 ) then
+		'' GetSystemTimePreciseAsFileTime is Windows 8; without it the wall
+		'' clock granularity is ~15.6 ms, which is a real functional
+		'' difference and is why fb_DtClockResolution exists.
+		k32 = w_GetModuleHandleA( @"kernel32.dll" )
+		if( k32 <> 0 ) then
+			hDtPreciseTime = cast( FB_PRECISETIMEPROC, _
+				w_GetProcAddress( k32, @"GetSystemTimePreciseAsFileTime" ) )
+		end if
+		hDtPreciseTimeChecked = 1
+	end if
+	return hDtPreciseTime
+end function
+
+'' Reassembled from two 32-bit halves rather than read as a longint: FILETIME
+'' is two DWORDs and is not guaranteed 8-aligned.
+private function hFileTimeToTicks( byval ft as FILETIME_ ptr ) as longint
+	return cast( longint, (cast( ulongint, ft->dwHighDateTime ) shl 32) or _
+	                       cast( ulongint, ft->dwLowDateTime ) )
+end function
+
+extern "rtlib"
+
+function tkort_DtClockUtcNow alias "fb_DtClockUtcNow" ( ) as longint
+	dim as FILETIME_ ft = any
+	dim as longint ticks = any
+	dim as FB_PRECISETIMEPROC precise = hGetPreciseTimeProc( )
+
+	if( precise <> 0 ) then
+		precise( @ft )
+	else
+		w_GetSystemTimeAsFileTime( @ft )
+	end if
+
+	ticks = hFileTimeToTicks( @ft ) + FB_DT_TICKS_TO_FILETIME
+	if( tkrt_DtIsValidTicks( ticks ) = 0 ) then return FB_DT_INVALID_TICKS
+	return ticks
+end function
+
+function tkort_DtClockResolution alias "fb_DtClockResolution" ( ) as longint
+	if( hGetPreciseTimeProc( ) <> 0 ) then return 1
+	return 156250
+end function
+
+'' THE SIGN IS INVERTED FROM "offset east of UTC". Windows defines Bias as
+'' UTC = local + bias, so the answer is its negation.
+function tkort_DtClockLocalOffsetNow alias "fb_DtClockLocalOffsetNow" ( ) as long
+	dim as TIME_ZONE_INFORMATION_ tzi = any
+	dim as ulong id = w_GetTimeZoneInformation( @tzi )
+	dim as long bias = any
+
+	if( id = TIME_ZONE_ID_INVALID ) then return 0
+
+	bias = tzi.Bias
+	if( id = TIME_ZONE_ID_DAYLIGHT ) then
+		bias += tzi.DaylightBias
+	else
+		bias += tzi.StandardBias
+	end if
+
+	return -bias
+end function
+
+function tkort_DtMonoTimestamp alias "fb_DtMonoTimestamp" ( ) as longint
+	dim as longint c = any
+	if( w_QueryPerformanceCounter( @c ) = 0 ) then return 0
+	return c
+end function
+
+function tkort_DtMonoFrequency alias "fb_DtMonoFrequency" ( ) as longint
+	static as longint freq = 0
+	dim as longint f = any
+	if( freq = 0 ) then
+		if( w_QueryPerformanceFrequency( @f ) <> 0 ) then
+			freq = f
+		else
+			'' 1, not 0 -- callers divide by this.
+			freq = 1
+		end if
+	end if
+	return freq
+end function
+
+function tkort_DtMonoIsHighRes alias "fb_DtMonoIsHighRes" ( ) as long
+	return 1
+end function
+
+'' A FILETIME from GetProcessTimes is a DURATION in 100 ns units, so it is
+'' already in ticks and takes no epoch adjustment.
+function tkort_DtCpuProcessTime alias "fb_DtCpuProcessTime" _
+	( byval user as longint ptr, byval kernel as longint ptr ) as long
+	dim as FILETIME_ cre = any, ex = any, krn = any, usr = any
+	if( w_GetProcessTimes( w_GetCurrentProcess( ), @cre, @ex, @krn, @usr ) = 0 ) then return 1
+	if( user <> 0 ) then *user = hFileTimeToTicks( @usr )
+	if( kernel <> 0 ) then *kernel = hFileTimeToTicks( @krn )
+	return 0
+end function
+
+function tkort_DtCpuThreadTime alias "fb_DtCpuThreadTime" _
+	( byval user as longint ptr, byval kernel as longint ptr ) as long
+	dim as FILETIME_ cre = any, ex = any, krn = any, usr = any
+	if( w_GetThreadTimes( w_GetCurrentThread( ), @cre, @ex, @krn, @usr ) = 0 ) then return 1
+	if( user <> 0 ) then *user = hFileTimeToTicks( @usr )
+	if( kernel <> 0 ) then *kernel = hFileTimeToTicks( @krn )
+	return 0
+end function
+
+function tkort_DtCpuIsSupported alias "fb_DtCpuIsSupported" ( ) as long
+	return 1
+end function
+
+end extern
+
+#else
+
+'' ------------------------------------------------------------- the Unix half
+
+type timespec_
+	as clong tv_sec
+	as clong tv_nsec
+end type
+
+type timeval_
+	as clong tv_sec
+	as clong tv_usec
+end type
+
+type rusage_
+	as timeval_ ru_utime
+	as timeval_ ru_stime
+	as clong    ru_rest( 0 to 13 )
+end type
+
+const CLOCK_REALTIME          = 0
+const CLOCK_MONOTONIC         = 1
+const CLOCK_THREAD_CPUTIME_ID = 3
+const RUSAGE_SELF             = 0
+
+'' PREFIXED u_ for the same reason as the w_ imports above: localtime_r is
+'' already declared by a header reached through the includes, and a second
+'' DECLARE is an error. The alias carries the real libc name.
+extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
+	declare function u_clock_gettime alias "clock_gettime" ( byval id as long, byval ts as timespec_ ptr ) as long
+	declare function u_clock_getres alias "clock_getres" ( byval id as long, byval ts as timespec_ ptr ) as long
+	declare function u_gettimeofday alias "gettimeofday" ( byval tv as timeval_ ptr, byval tz as any ptr ) as long
+	declare function u_getrusage alias "getrusage" ( byval who as long, byval ru as rusage_ ptr ) as long
+	declare function u_localtime_r alias "localtime_r" ( byval t as clong ptr, byval result as any ptr ) as any ptr
+	declare function u_time alias "time" ( byval t as clong ptr ) as clong
+end extern
+
+extern "rtlib"
+
+function tkort_DtClockUtcNow alias "fb_DtClockUtcNow" ( ) as longint
+	dim as timespec_ ts = any
+	dim as timeval_ tv = any
+	dim as longint ticks = any
+
+	if( u_clock_gettime( CLOCK_REALTIME, @ts ) = 0 ) then
+		'' Nanoseconds DIVIDED BY 100 -- the Unix path is not exact where the
+		'' Windows one is, because the source unit is finer than a tick.
+		ticks = cast( longint, ts.tv_sec ) * FB_DT_TICKS_PER_SECOND _
+		      + cast( longint, ts.tv_nsec ) \ 100 _
+		      + FB_DT_TICKS_TO_UNIX_EPOCH
+		if( tkrt_DtIsValidTicks( ticks ) = 0 ) then return FB_DT_INVALID_TICKS
+		return ticks
+	end if
+
+	if( u_gettimeofday( @tv, 0 ) <> 0 ) then return FB_DT_INVALID_TICKS
+	ticks = cast( longint, tv.tv_sec ) * FB_DT_TICKS_PER_SECOND _
+	      + cast( longint, tv.tv_usec ) * FB_DT_TICKS_PER_MICROSECOND _
+	      + FB_DT_TICKS_TO_UNIX_EPOCH
+
+	if( tkrt_DtIsValidTicks( ticks ) = 0 ) then return FB_DT_INVALID_TICKS
+	return ticks
+end function
+
+function tkort_DtClockResolution alias "fb_DtClockResolution" ( ) as longint
+	dim as timespec_ res = any
+	dim as longint t = any
+	if( u_clock_getres( CLOCK_REALTIME, @res ) = 0 ) then
+		t = cast( longint, res.tv_sec ) * FB_DT_TICKS_PER_SECOND _
+		  + cast( longint, res.tv_nsec ) \ 100
+		'' Never 0: a sub-tick resolution still reports one tick.
+		if( t > 0 ) then return t
+		return 1
+	end if
+	return FB_DT_TICKS_PER_MICROSECOND
+end function
+
+'' localtime_r, NEVER localtime -- this has to be thread-safe. glibc consults
+'' TZ and /etc/localtime here, which is where the system tz database is read,
+'' so historical correctness comes for free and this library ships no copy.
+''
+'' tm_gmtoff is at a fixed offset in glibc's struct tm; it is read positionally
+'' rather than through a declared struct, because the layout past the first
+'' nine ints is what varies between libcs and only this field is wanted.
+function tkort_DtClockLocalOffsetNow alias "fb_DtClockLocalOffsetNow" ( ) as long
+	dim as clong now_ = any
+	dim as ubyte tmv( 0 to 127 )
+	dim as clong ptr gmtoff = any
+
+	now_ = u_time( 0 )
+	if( u_localtime_r( @now_, @tmv(0) ) = 0 ) then return 0
+
+	'' struct tm: nine ints, then tm_gmtoff (a long) after the tm_zone
+	'' pointer on glibc -- offset 40 on LP64 with the pointer at 32.
+	gmtoff = cptr( clong ptr, @tmv(0) + 40 )
+	return cast( long, *gmtoff \ 60 )
+end function
+
+function tkort_DtMonoTimestamp alias "fb_DtMonoTimestamp" ( ) as longint
+	dim as timespec_ ts = any
+	dim as timeval_ tv = any
+	'' CLOCK_MONOTONIC rather than _RAW: slewed but never stepped, which is
+	'' what a stopwatch wants, and it is the one that is cheap via the vDSO.
+	if( u_clock_gettime( CLOCK_MONOTONIC, @ts ) = 0 ) then
+		return cast( longint, ts.tv_sec ) * 1000000000ll + cast( longint, ts.tv_nsec )
+	end if
+	if( u_gettimeofday( @tv, 0 ) <> 0 ) then return 0
+	return cast( longint, tv.tv_sec ) * 1000000000ll + cast( longint, tv.tv_usec ) * 1000ll
+end function
+
+function tkort_DtMonoFrequency alias "fb_DtMonoFrequency" ( ) as longint
+	return 1000000000ll        '' the counter above is in nanoseconds
+end function
+
+function tkort_DtMonoIsHighRes alias "fb_DtMonoIsHighRes" ( ) as long
+	return 1
+end function
+
+'' getrusage rather than CLOCK_PROCESS_CPUTIME_ID, because only getrusage
+'' splits user from kernel. The cost is microsecond rather than nanosecond
+'' resolution.
+function tkort_DtCpuProcessTime alias "fb_DtCpuProcessTime" _
+	( byval user as longint ptr, byval kernel as longint ptr ) as long
+	dim as rusage_ ru = any
+	if( u_getrusage( RUSAGE_SELF, @ru ) <> 0 ) then return 1
+	if( user <> 0 ) then
+		*user = cast( longint, ru.ru_utime.tv_sec ) * FB_DT_TICKS_PER_SECOND _
+		      + cast( longint, ru.ru_utime.tv_usec ) * FB_DT_TICKS_PER_MICROSECOND
+	end if
+	if( kernel <> 0 ) then
+		*kernel = cast( longint, ru.ru_stime.tv_sec ) * FB_DT_TICKS_PER_SECOND _
+		        + cast( longint, ru.ru_stime.tv_usec ) * FB_DT_TICKS_PER_MICROSECOND
+	end if
+	return 0
+end function
+
+'' LINUX GIVES A COMBINED PER-THREAD FIGURE ONLY. The user/kernel split is not
+'' available per thread, so the total goes in *user and *kernel receives -1 --
+'' a sentinel, not a time. Inventing a split would be worse than reporting none.
+function tkort_DtCpuThreadTime alias "fb_DtCpuThreadTime" _
+	( byval user as longint ptr, byval kernel as longint ptr ) as long
+	dim as timespec_ ts = any
+	if( u_clock_gettime( CLOCK_THREAD_CPUTIME_ID, @ts ) = 0 ) then
+		if( user <> 0 ) then
+			*user = cast( longint, ts.tv_sec ) * FB_DT_TICKS_PER_SECOND _
+			      + cast( longint, ts.tv_nsec ) \ 100
+		end if
+		if( kernel <> 0 ) then *kernel = -1
+		return 0
+	end if
+	return 1
+end function
+
+function tkort_DtCpuIsSupported alias "fb_DtCpuIsSupported" ( ) as long
+	return 1
+end function
+
+end extern
+
+#endif

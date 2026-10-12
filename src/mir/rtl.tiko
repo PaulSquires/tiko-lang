@@ -1,0 +1,225 @@
+'' rtl.tiko -- the runtime inventory. See rtl.ti for why it is measured, not copied.
+
+#import "std/containers"
+#include once "mir/rtl.ti"
+#include once "support/text.ti"
+
+namespace Tko.Mir
+
+function RtlSymbol( byval r as RtlId, byval is32 as boolean = false ) as string
+    '' A HANDFUL OF ENTRIES ARE NAMED DIFFERENTLY ON WIN32, not merely decorated
+    '' differently. Measured: the file GET and PUT that take a 64-bit position are
+    '' fb_FileGetLarge and fb_FilePutLarge on win64 and plain fb_FileGet and fb_FilePut
+    '' on win32, where the position and count are 32-bit. Every other row here has one
+    '' name and only its DECORATION varies, which is RtlLinkName's business.
+    if is32 then
+        select case r
+        case RTL_FILE_GET        : return "fb_FileGet"
+        case RTL_FILE_PUT        : return "fb_FilePut"
+        case RTL_FILE_GET_ARRAY  : return "fb_FileGetArray"
+        case RTL_FILE_PUT_ARRAY  : return "fb_FilePutArray"
+        case RTL_FILE_GET_STR    : return "fb_FileGetStr"
+        case RTL_FILE_PUT_STR    : return "fb_FilePutStr"
+        case RTL_FILE_GET_WSTR   : return "fb_FileGetWstr"
+        case RTL_FILE_LOCK       : return "fb_FileLock"
+        case RTL_FILE_UNLOCK     : return "fb_FileUnlock"
+        case RTL_FILE_SEEK       : return "fb_FileSeek"
+        end select
+    end if
+    select case r
+    #define RTL( r_id, r_sym, r_ret, r_args ) case r_id : return r_sym
+    TKO_RTL_LIST( RTL )
+    #undef RTL
+    end select
+    return ""
+end function
+
+'' The MIR type one letter names. One alphabet for returns and parameters, so a
+'' pointer-width value cannot be spelled one way in one column and another in the other.
+function RtlTypeOfLetter _
+    ( byref c as string, byval is32 as boolean ) as MirType
+
+    select case c
+    case "v" : return MT_VOID
+    case "b" : return MT_I8
+    case "s" : return MT_I16
+    case "l" : return MT_I32
+    case "L" : return MT_I32
+    case "q" : return MT_I64
+    case "z" : return iif( is32, MT_I32, MT_I64 )
+    case "f" : return MT_F32
+    case "d" : return MT_F64
+    case "p" : return MT_PTR
+    case "." : return MT_VOID      '' the variadic marker names no type
+    end select
+    return MT_VOID
+end function
+
+function RtlReturn( byval r as RtlId, byval is32 as boolean ) as MirType
+    dim as string ret = ""
+    select case r
+    #define RTL( r_id, r_sym, r_ret, r_args ) case r_id : ret = r_ret
+    TKO_RTL_LIST( RTL )
+    #undef RTL
+    end select
+    return RtlTypeOfLetter( ret, is32 )
+end function
+
+'' The linker-visible name. On win32 every runtime symbol carries the leading
+'' underscore, and everything but the VARIADIC entries carries a stdcall '@N' as well:
+'' varargs need caller cleanup, so fb_ArrayRedimEx is '_fb_ArrayRedimEx' with no
+'' suffix while fb_StrAssign is '_fb_StrAssign@20'. Both measured from libfb.a.
+'' The inventory entry with this SYMBOL NAME, or RTL_NONE. Case-insensitive, because
+'' FreeBASIC identifiers are: a program may write 'fb_arrayredimex'.
+''
+'' fbc PREDECLARES the whole runtime, so a program may name any of these with nothing
+'' declaring it -- 'chk = procptr( fb_ArrayRedimEx )' is 510 statements in one corpus
+'' file testing exactly that.
+private function LowerName_( byref nm as string ) as string
+    return Tko.Text.LowerAscii( nm )
+end function
+
+function RtlByName( byref nm as string ) as RtlId
+    '' Compared through a helper rather than inline: the macro expands its body once
+    '' per row, and a qualified call inside that expansion does not parse.
+    dim as string want = LowerName_( nm )
+
+    '' TWELVE ENTRY POINTS ARE DECLARED UNDER A DIFFERENT NAME than the one a program
+    '' writes. 'procptr( fb_MemMove )' is legal FreeBASIC and what fbc emits for it is
+    '' plain 'memmove'; the same goes for memcpy, pow, rename, atexit, __main, libgcc's
+    '' four 64-bit division helpers, __fixunsdfdi, and fb_LeftSelf, whose runtime name
+    '' is the SHOUTED fb_LEFTSELF. Measured from the C 'fbc -r' emits for each.
+    ''
+    '' Mapped here rather than by adding a second row per name: the table's symbol is
+    '' what LINKS, and two rows for one function would be two entries in the inventory
+    '' the gate counts.
+    select case want
+    case "fb_memmove"      : want = "memmove"
+    case "fb_memcopy"      : want = "memcpy"
+    case "fb_pow"          : want = "pow"
+    case "fb_rename"       : want = "rename"
+    case "fb_atexit"       : want = "atexit"
+    case "fb___main"       : want = "__main"
+    case "fb___divdi3"     : want = "__divdi3"
+    case "fb___udivdi3"    : want = "__udivdi3"
+    case "fb___moddi3"     : want = "__moddi3"
+    case "fb___umoddi3"    : want = "__umoddi3"
+    case "fb___fixunsdfdi" : want = "__fixunsdfdi"
+    case "fb_leftself"     : want = "fb_leftself"
+    end select
+    #define RTL( r_id, r_sym, r_ret, r_args ) if LowerName_( r_sym ) = want then return r_id
+    TKO_RTL_LIST( RTL )
+    #undef RTL
+    return RTL_NONE
+end function
+
+function RtlLinkName( byval r as RtlId, byval is32 as boolean ) as string
+    dim as string nm = RtlSymbol( r, is32 )
+    if is32 = false then return nm
+    dim as string ps = RtlParams( r )
+    if instr( ps, "." ) > 0 then return "_" & nm
+
+    '' NOT EVERYTHING IN THE RUNTIME IS STDCALL ON WIN32. fb_ErrorThrowEx is cdecl --
+    '' measured, libfb.a carries '_fb_ErrorThrowEx' with no '@20' -- and decorating it
+    '' emits a name the linker cannot resolve. Found by check-rtl the moment the entry
+    '' was added, which is the whole reason that gate compares the DECORATED name.
+    if r = RTL_ERROR_THROW then return "_" & nm
+    '' libc is CDECL: the leading underscore is all win32 adds, no '@N'.
+    select case r
+    case RTL_FREE, RTL_MALLOC, RTL_CALLOC, RTL_REALLOC, RTL_MEMSET, _
+         RTL_POW, RTL_ATAN2, RTL_ATEXIT
+        return "_" & nm
+    '' The rest of libc and libgcc, reached through 'procptr( fb_MemMove )' and its
+    '' eleven siblings. Same rule, measured the same way.
+    case RTL_MEM_MOVE, RTL_MEM_COPY, RTL_RENAME, RTL_C_MAIN, RTL_DIVDI3, _
+         RTL_UDIVDI3, RTL_MODDI3, RTL_UMODDI3, RTL_FIXUNSDFDI
+        return "_" & nm
+    '' ...and four of the runtime's own, which are cdecl where their families are not.
+    '' Measured: libfb.a carries '_fb_ErrorResume' with no '@N' while every fb_Error*
+    '' entry point beside them is decorated.
+    case RTL_ERROR_RESUME, RTL_ERROR_RESUME_NEXT, RTL_ERROR_THROW_AT, RTL_H_PUT_ADD
+        return "_" & nm
+    '' ...AND SO ARE THE PUT BLENDERS, alone among the graphics family. Measured: every
+    '' fb_Gfx* entry point is __stdcall with an asm name on win32 and every fb_hPut* is
+    '' plain cdecl with none. Not a rule anyone would guess from the family they are in.
+    case RTL_GFX_PUT_TRANS, RTL_GFX_PUT_PSET, RTL_GFX_PUT_PRESET, RTL_GFX_PUT_AND, _
+         RTL_GFX_PUT_OR, RTL_GFX_PUT_XOR, RTL_GFX_PUT_ALPHA, RTL_GFX_PUT_BLEND, _
+         RTL_GFX_PUT_CUSTOM
+        return "_" & nm
+    end select
+
+    dim as long total = 0
+    for i as long = 0 to len( ps ) - 1
+        dim as MirType t = RtlTypeOfLetter( mid( ps, i + 1, 1 ), true )
+        dim as long sz = 4
+        if (t = MT_I64) orelse (t = MT_F64) then sz = 8
+        total += sz
+    next
+    return "_" & nm & "@" & total
+end function
+
+function RtlParams( byval r as RtlId ) as string
+    select case r
+    #define RTL( r_id, r_sym, r_ret, r_args ) case r_id : return r_args
+    TKO_RTL_LIST( RTL )
+    #undef RTL
+    end select
+    return ""
+end function
+
+function RtlArity( byval r as RtlId ) as long
+    return len( RtlParams( r ) )
+end function
+
+'' The MIR type a parameter letter names. Kept next to the table so the two cannot
+'' drift apart.
+sub RtlSignature _
+    ( byval f as MirFunction ptr, byval r as RtlId, byval is32 as boolean )
+
+    if f = 0 then return
+    '' THE '.' IS NOT A PARAMETER. RtlArity is the LENGTH of the parameter string and
+    '' counts it, which is right for the fixed-prefix check it was written for and
+    '' wrong here: it produced a fifth, void parameter on fb_ThreadCall, whose real
+    '' signature is 'void* fb_ThreadCall( void*, int32, int64, int32, ... )'.
+    dim as string ps = RtlParams( r )
+    for i as long = 0 to len( ps ) - 1
+        if ps[i] = asc( "." ) then exit for
+        f->AddParam( RtlParamType( r, i, is32 ) )
+    next
+    '' '.' marks a variadic tail -- a REDIM's bounds, PRINT's argument list -- and only
+    '' the fixed prefix above is typed. LLVM needs to be TOLD, because a call to a
+    '' variadic is a different call: on win64 a float in the tail goes in an XMM
+    '' register AND its shadow GPR.
+    f->isVariadic = (instr( RtlParams( r ), "." ) > 0)
+end sub
+
+function RtlParamType _
+    ( byval r as RtlId, byval i as long, byval is32 as boolean ) as MirType
+
+    dim as string p = RtlParams( r )
+    if (i < 0) orelse (i >= len( p )) then return MT_VOID
+    return RtlTypeOfLetter( mid( p, i + 1, 1 ), is32 )
+end function
+
+function DumpRtl( byval is32 as boolean ) as string
+    dim as string outp = ""
+    for i as long = 1 to RTL_COUNT - 1
+        dim as RtlId r = cast( RtlId, i )
+        outp += RtlLinkName( r, is32 ) & " " & _
+                TypeName( RtlReturn( r, is32 ) ) & " ("
+        dim as string ps = RtlParams( r )
+        for j as long = 0 to len( ps ) - 1
+            if j > 0 then outp += ", "
+            if mid( ps, j + 1, 1 ) = "." then
+                outp += "..."
+            else
+                outp += TypeName( RtlParamType( r, j, is32 ) )
+            end if
+        next
+        outp += ")" & chr( 10 )
+    next
+    outp += "rtl: " & str( RTL_COUNT - 1 ) & " entries" & chr( 10 )
+    return outp
+end function
+
+end namespace

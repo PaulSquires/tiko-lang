@@ -1,0 +1,1133 @@
+'' printerwin.tiko -- the WINDOWS printer driver: fb_PrinterOpen,
+'' fb_PrinterWrite, fb_PrinterWriteWstr and fb_PrinterClose. Four symbols, one
+'' fbc member (win32/io_printer.o).
+''
+'' EMPTY-ON: linux-x86_64
+''
+'' THE POSIX HALF IS src/io/printerposix.tiko AND IS 194 LINES OF popen( "lp" ).
+'' This one is 873 lines of spooler enumeration, GDI device contexts and a page
+'' emulator, because Windows has no `lp` and no device node -- LPRINT has to be
+'' built out of the print subsystem.
+''
+'' ---------------------------------------------------------------------------
+'' THERE ARE TWO COMPLETELY DIFFERENT OUTPUT PATHS, chosen by whether the device
+'' string carried an EMULATION suffix, and nothing after the open distinguishes
+'' them except which handle is NULL:
+''
+''   NO EMULATION   OpenPrinter + StartDocPrinter + WritePrinter. Bytes go to
+''                  the spooler as datatype "RAW" -- straight to the printer's
+''                  own language, no rendering. hPrinter is set, hDc is NULL.
+''   EMULATION      CreateDC( "WINSPOOL", name ) + StartDoc, and every character
+''                  is DRAWN with TextOut at a computed position. hDc is set,
+''                  hPrinter is NULL.
+''
+'' fb_PrinterWrite TESTS hPrinter TO DECIDE, and fb_PrinterClose tests hDc. Two
+'' functions, two different fields, same distinction -- reproduced as written.
+''
+'' ---------------------------------------------------------------------------
+'' LPTn IS MAPPED TO A PRINTER BY BUILDING A LIST, EVERY TIME. There is no
+'' cache: each fb_PrinterOpen with a numbered port enumerates every printer on
+'' the machine, builds a fresh list, finds one node and frees the rest. The
+'' mapping is built in three passes and the ORDER IS THE POLICY:
+''
+''   1  LOCAL PRINTERS ON LPTx PORTS keep their own port number. A printer's
+''      pPortName may be a COMMA-SEPARATED LIST, so it is split, each entry
+''      trimmed of leading spaces, and only those starting "LPT" are taken.
+''   2  THE DEFAULT PRINTER is mapped to the first free LPT number from 1 --
+''      so it lands on LPT1 unless a real local printer already claimed it.
+''   3  EVERYTHING ELSE (network printers, PDF writers) is mapped from LPT128
+''      upward.
+''
+'' THE SPLIT WRITES INTO THE ENUMERATION BUFFER. `*pFoundPos = 0` truncates the
+'' comma-separated string in place, inside the block EnumPrinters filled. That
+'' is safe only because the buffer is this function's own and is freed
+'' immediately after -- and it is why the buffer cannot be shared or cached.
+''
+'' THE DEFAULT PRINTER IS FOUND TWO WAYS. EnumPrinters with PRINTER_ENUM_DEFAULT
+'' first; if that returns nothing, winspool.drv is LOADED AT RUNTIME and
+'' GetDefaultPrinterA is called through GetProcAddress. The dynamic path exists
+'' because GetDefaultPrinter did not exist before Windows 2000 and linking it
+'' statically would have made the runtime refuse to start on NT4. Reproduced --
+'' a static import would change which systems the runtime loads on.
+''
+'' AND THAT PATH LEAKS ON ONE BRANCH. When realloc fails, fbc frees the old
+'' buffer and then CALLS pfnGetDefaultPrinter AGAIN WITH THE FREED POINTER,
+'' because the `if (buffer == NULL) free(oldBuffer);` has no `break` after it.
+'' Reproduced exactly: it is unreachable unless the allocation fails, and
+'' diverging would be a repair rather than a port.
+''
+'' ---------------------------------------------------------------------------
+'' THE EMULATOR IS A TEXT TERMINAL DRAWN ONTO A PAGE.
+''
+'' RAW mode places every character individually at (dwCurrentX, dwCurrentY) with
+'' TextOut, advances by one font width, wraps at the right edge and ejects the
+'' page at the bottom. One GDI call PER CHARACTER, which is slow and is what
+'' makes the output positionally exact.
+''
+'' TTY mode runs the text through fb_ConPrintTTY -- the same teletype layer the
+'' console uses -- with hooks that translate cell coordinates into device
+'' coordinates. So tabs, carriage returns and line wrapping behave on paper
+'' exactly as they do on screen.
+''
+'' FORMFEED IS HANDLED OUTSIDE THE TTY LAYER. fb_ConPrintTTY does not know about
+'' character 12, so TTY mode scans for it, prints up to it, and then calls the
+'' SCROLL HOOK with rows = 0 to eject the page. The scroll hook doubles as the
+'' page-eject mechanism.
+''
+'' THE PAGE STARTS LAZILY. EmuPageStart is called before every character and
+'' returns immediately once iPageStarted is set, so a document that prints
+'' nothing never calls StartPage and produces no blank page.
+''
+'' THE BOTTOM BORDER USES THE FONT **WIDTH**. fbc computes
+''     Border.Bottom = ( dwSizeY - dwFontSizeX + 1 ) / dwFontSizeY
+'' -- dwFontSizeX in the numerator where dwFontSizeY belongs. On a monospace
+'' font the two are close and the row count comes out near enough; on a
+'' proportional one it is simply wrong. Reproduced, because the row count is
+'' observable in where the page breaks.
+''
+'' ---------------------------------------------------------------------------
+'' EVERY STRUCT LAYOUT HERE WAS MEASURED with a clang probe targeting
+'' x86_64-w64-windows-gnu -- the same triple the archive is built for. The win32
+'' values cannot be probed here (no i686 headers), so those structs are declared
+'' with their natural field types and FreeBASIC's own layout rules produce them;
+'' the asserts below therefore pin win64 exactly and win32 by construction.
+'' LOGFONTA and TEXTMETRICA contain no pointers, so they are the same on both.
+
+#include once "inc/descriptors.ti"
+#include once "inc/rterror.ti"
+#include once "inc/list.ti"
+#include once "inc/conhooks.ti"
+#include once "inc/sysbind.ti"
+
+#ifdef __FB_WIN32__
+
+const ERROR_INSUFFICIENT_BUFFER_ = 122
+
+const PRINTER_ENUM_DEFAULT_     = 1
+const PRINTER_ENUM_LOCAL_       = 2
+const PRINTER_ENUM_CONNECTIONS_ = 4
+
+'' GetDeviceCaps indices -- MEASURED.
+const PHYSICALWIDTH_   = 110
+const PHYSICALHEIGHT_  = 111
+const HORZRES_         = 8
+const VERTRES_         = 10
+const PHYSICALOFFSETX_ = 112
+const PHYSICALOFFSETY_ = 113
+const LOGPIXELSX_      = 88
+const LOGPIXELSY_      = 90
+
+'' LOGFONT fields -- MEASURED.
+const FW_NORMAL_          = 400
+const OEM_CHARSET_        = 255
+const OUT_DEFAULT_PRECIS_ = 0
+const CLIP_DEFAULT_PRECIS_ = 0
+const DRAFT_QUALITY_      = 1
+const FIXED_PITCH_        = 1
+const FF_MODERN_          = 48
+const VARIABLE_PITCH_     = 2
+const FF_SWISS_           = 32
+
+'' TA_TOP, TA_LEFT and TA_NOUPDATECP ARE ALL ZERO -- measured. fbc's
+'' SetTextAlign( hDc, TA_TOP or TA_LEFT or TA_NOUPDATECP ) therefore sets the
+'' alignment to 0, which is also the default. Kept because the call is
+'' observable through GDI even though the value is not.
+const TA_DEFAULT_ = 0
+
+const LF_FACESIZE_ = 32
+
+'' DEV_LPT_INFO and DEV_LPT_PROTOCOL, as in src/io/devlptopen.tiko.
+type DEV_LPT_INFO
+	as any ptr      driver_opaque
+	as zstring ptr  pszDevice
+	as long         iPort
+	as uinteger     uiRefCount
+end type
+
+type DEV_LPT_PROTOCOL
+	as zstring ptr proto
+	as long        iPort
+	as zstring ptr name_
+	as zstring ptr title_
+	as zstring ptr emu
+end type
+
+#assert sizeof( DEV_LPT_PROTOCOL ) = 40
+
+'' MEASURED: 60 bytes, and lfCharSet sits at 23 -- the four BYTE fields pack
+'' tightly after lfWeight with no padding. No pointers, so win32 agrees.
+type LOGFONTA_
+	as long  lfHeight
+	as long  lfWidth
+	as long  lfEscapement
+	as long  lfOrientation
+	as long  lfWeight
+	as ubyte lfItalic
+	as ubyte lfUnderline
+	as ubyte lfStrikeOut
+	as ubyte lfCharSet
+	as ubyte lfOutPrecision
+	as ubyte lfClipPrecision
+	as ubyte lfQuality
+	as ubyte lfPitchAndFamily
+	as zstring * LF_FACESIZE_ lfFaceName
+end type
+
+#assert sizeof( LOGFONTA_ ) = 60
+#assert offsetof( LOGFONTA_, lfCharSet ) = 23
+#assert offsetof( LOGFONTA_, lfFaceName ) = 28
+
+'' MEASURED: 56 bytes, tmHeight at 0 and tmMaxCharWidth at 24. Only those two
+'' are read, but the whole thing is spelled out so the offsets are checked.
+type TEXTMETRICA_
+	as long  tmHeight
+	as long  tmAscent
+	as long  tmDescent
+	as long  tmInternalLeading
+	as long  tmExternalLeading
+	as long  tmAveCharWidth
+	as long  tmMaxCharWidth
+	as long  tmWeight
+	as long  tmOverhang
+	as long  tmDigitizedAspectX
+	as long  tmDigitizedAspectY
+	as ubyte tmFirstChar
+	as ubyte tmLastChar
+	as ubyte tmDefaultChar
+	as ubyte tmBreakChar
+	as ubyte tmItalic
+	as ubyte tmUnderlined
+	as ubyte tmStruckOut
+	as ubyte tmPitchAndFamily
+	as ubyte tmCharSet
+end type
+
+#assert sizeof( TEXTMETRICA_ ) = 56
+#assert offsetof( TEXTMETRICA_, tmMaxCharWidth ) = 24
+
+'' MEASURED on win64: 40 bytes, lpszDocName at 8. On win32 the pointers halve
+'' and FreeBASIC's natural layout follows.
+type DOCINFOA_
+	as long        cbSize
+	as zstring ptr lpszDocName
+	as zstring ptr lpszOutput
+	as zstring ptr lpszDatatype
+	as ulong       fwType
+end type
+
+#assert sizeof( DOCINFOA_ ) = 40
+#assert offsetof( DOCINFOA_, lpszDocName ) = 8
+
+'' MEASURED on win64: 24 bytes, three pointers.
+type DOC_INFO_1A_
+	as zstring ptr pDocName
+	as zstring ptr pOutputFile
+	as zstring ptr pDatatype
+end type
+
+#assert sizeof( DOC_INFO_1A_ ) = 24
+
+'' MEASURED on win64: 136 bytes, pServerName at 0, pPrinterName at 8, pPortName
+'' at 24. Only those three are read; the rest is present so the SIZE is right,
+'' because EnumPrinters returns an ARRAY and a wrong stride reads garbage from
+'' the second element onward -- which looks like a corrupt printer name rather
+'' than like a layout bug.
+type PRINTER_INFO_2A_
+	as zstring ptr pServerName
+	as zstring ptr pPrinterName
+	as zstring ptr pShareName
+	as zstring ptr pPortName
+	as zstring ptr pDriverName
+	as zstring ptr pComment
+	as zstring ptr pLocation
+	as any ptr     pDevMode
+	as zstring ptr pSepFile
+	as zstring ptr pPrintProcessor
+	as zstring ptr pDatatype
+	as zstring ptr pParameters
+	as any ptr     pSecurityDescriptor
+	as ulong       Attributes
+	as ulong       Priority
+	as ulong       DefaultPriority
+	as ulong       StartTime
+	as ulong       UntilTime
+	as ulong       Status
+	as ulong       cJobs
+	as ulong       AveragePPM
+end type
+
+#assert sizeof( PRINTER_INFO_2A_ ) = 136
+#assert offsetof( PRINTER_INFO_2A_, pPortName ) = 24
+
+'' MEASURED on win64: 32 bytes (28 of content, padded).
+type PRINTER_INFO_5A_
+	as zstring ptr pPrinterName
+	as zstring ptr pPortName
+	as ulong       Attributes
+	as ulong       DeviceNotSelectedTimeout
+	as ulong       TransmissionRetryTimeout
+end type
+
+#assert sizeof( PRINTER_INFO_5A_ ) = 32
+
+'' The emulator's per-handle state. Nested exactly as fbc nests it, because
+'' nothing outside this file reads it and the shape documents the split between
+'' the two output paths.
+type W32_PRINTER_EMU
+	as ulong  dwFullSizeX
+	as ulong  dwFullSizeY
+	as ulong  dwSizeX
+	as ulong  dwSizeY
+	as ulong  dwOffsetX
+	as ulong  dwOffsetY
+	as ulong  dwDPI_X
+	as ulong  dwDPI_Y
+
+	as ulong  dwCurrentX
+	as ulong  dwCurrentY
+	as any ptr hFont
+	as ulong  clFore
+	as ulong  clBack
+	as ulong  dwFontSizeX
+	as ulong  dwFontSizeY
+	as long   iPageStarted
+
+	as any ptr pfnPrint
+end type
+
+type W32_PRINTER_INFO
+	as any ptr        hPrinter
+	as ulong          dwJob
+	as any ptr        hDc
+	as W32_PRINTER_EMU Emu
+end type
+
+'' A node in the LPTn -> printer-name map.
+type DEV_PRINTER_DEVICE
+	as FB_LISTELEM elem
+	as zstring ptr device
+	as zstring ptr printer_name
+end type
+
+'' The emulator entry points, resolved by name from the device string.
+type FnEmuPrint as sub cdecl _
+	( byval pInfo as W32_PRINTER_INFO ptr, byval pText as any ptr, _
+	  byval uiLength as uinteger, byval isunicode as long )
+
+extern "c"   '' NON-FBCALL: kernel32, gdi32 and winspool imports.
+	declare function w_GetLastError stdcall alias "GetLastError" ( ) as ulong
+	declare function w_LoadLibraryA stdcall alias "LoadLibraryA" ( byval n as zstring ptr ) as any ptr
+	declare function w_FreeLibrary stdcall alias "FreeLibrary" ( byval h as any ptr ) as long
+	declare function w_GetProcAddress stdcall alias "GetProcAddress" _
+		( byval h as any ptr, byval n as zstring ptr ) as any ptr
+
+	declare function w_EnumPrintersA stdcall alias "EnumPrintersA" _
+		( byval flags as ulong, byval name_ as zstring ptr, byval level as ulong, _
+		  byval buf as any ptr, byval cbBuf as ulong, byval needed as ulong ptr, _
+		  byval returned as ulong ptr ) as long
+	declare function w_OpenPrinterA stdcall alias "OpenPrinterA" _
+		( byval name_ as zstring ptr, byval h as any ptr ptr, byval def as any ptr ) as long
+	declare function w_ClosePrinter stdcall alias "ClosePrinter" ( byval h as any ptr ) as long
+	declare function w_StartDocPrinterA stdcall alias "StartDocPrinterA" _
+		( byval h as any ptr, byval level as ulong, byval info as any ptr ) as ulong
+	declare function w_EndDocPrinter stdcall alias "EndDocPrinter" ( byval h as any ptr ) as long
+	declare function w_WritePrinter stdcall alias "WritePrinter" _
+		( byval h as any ptr, byval buf as any ptr, byval n as ulong, byval written as ulong ptr ) as long
+
+	declare function w_CreateDCA stdcall alias "CreateDCA" _
+		( byval drv as zstring ptr, byval dev as zstring ptr, byval out_ as zstring ptr, _
+		  byval init as any ptr ) as any ptr
+	declare function w_DeleteDC stdcall alias "DeleteDC" ( byval h as any ptr ) as long
+	declare function w_StartDocA stdcall alias "StartDocA" _
+		( byval h as any ptr, byval di as DOCINFOA_ ptr ) as long
+	declare function w_EndDoc stdcall alias "EndDoc" ( byval h as any ptr ) as long
+	declare function w_StartPage stdcall alias "StartPage" ( byval h as any ptr ) as long
+	declare function w_EndPage stdcall alias "EndPage" ( byval h as any ptr ) as long
+	declare function w_GetDeviceCaps stdcall alias "GetDeviceCaps" _
+		( byval h as any ptr, byval idx as long ) as long
+	declare function w_CreateFontIndirectA stdcall alias "CreateFontIndirectA" _
+		( byval lf as LOGFONTA_ ptr ) as any ptr
+	declare function w_SelectObject stdcall alias "SelectObject" _
+		( byval h as any ptr, byval o as any ptr ) as any ptr
+	declare function w_GetTextMetricsA stdcall alias "GetTextMetricsA" _
+		( byval h as any ptr, byval tm as TEXTMETRICA_ ptr ) as long
+	declare function w_SetTextAlign stdcall alias "SetTextAlign" _
+		( byval h as any ptr, byval mode_ as ulong ) as ulong
+	declare function w_SetTextColor stdcall alias "SetTextColor" _
+		( byval h as any ptr, byval c as ulong ) as ulong
+	declare function w_SetBkColor stdcall alias "SetBkColor" _
+		( byval h as any ptr, byval c as ulong ) as ulong
+	declare function w_TextOutA stdcall alias "TextOutA" _
+		( byval h as any ptr, byval x as long, byval y as long, _
+		  byval s as zstring ptr, byval n as long ) as long
+	declare function w_TextOutW stdcall alias "TextOutW" _
+		( byval h as any ptr, byval x as long, byval y as long, _
+		  byval s as wstring ptr, byval n as long ) as long
+end extern
+
+'' GetDefaultPrinterA, resolved at RUNTIME -- see the file header on why it is
+'' not a static import.
+type FnGetDefaultPrinter as function stdcall _
+	( byval buf as zstring ptr, byval cch as ulong ptr ) as long
+
+extern "c"   '' NON-FBCALL: rtlib internals.
+	declare function tkrt_DevLptParseProtocol alias "fb_DevLptParseProtocol" _
+		( byval lpt_proto_out as DEV_LPT_PROTOCOL ptr ptr, byval proto_raw as zstring ptr, _
+		  byval proto_raw_len as uinteger, byval subst_prn as long ) as long
+	declare sub tkrt_ConPrintTTY alias "fb_ConPrintTTY" _
+		( byval handle as fb_ConHooks ptr, byval pachText as ubyte ptr, _
+		  byval TextLength as uinteger, byval is_text_mode as long )
+end extern
+
+extern "rtlib"   '' FBCALL.
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+end extern
+
+'' RGB( r, g, b ) is r + (g shl 8) + (b shl 16).
+#define TKORT_RGB( r, g, b ) (cast( ulong, r ) or (cast( ulong, g ) shl 8) or (cast( ulong, b ) shl 16))
+
+'' strdup / strcasecmp / strncasecmp / isspace, written out -- MinGW spells the
+'' first three with a leading underscore. Same reason as src/io/devcomopen.tiko.
+private function hStrDup( byval s as zstring ptr ) as zstring ptr
+	if( s = 0 ) then return 0
+	dim as uinteger n = strlen( s )
+	dim as zstring ptr p = cast( zstring ptr, malloc( n + 1 ) )
+	if( p = 0 ) then return 0
+	memcpy( p, s, n + 1 )
+	return p
+end function
+
+'' NOT named hCaseEqN: FreeBASIC is CASE-INSENSITIVE, so that name and the
+'' HCASEEQN macro below would be the same identifier (error 4).
+private function hStrCaseCmpN( byval a as zstring ptr, byval b as zstring ptr, byval n as integer ) as long
+	dim as ubyte ptr pa = cast( ubyte ptr, a )
+	dim as ubyte ptr pb = cast( ubyte ptr, b )
+	dim as integer i = 0
+	do
+		dim as ubyte ca = pa[i], cb = pb[i]
+		if( (ca >= 97) andalso (ca <= 122) ) then ca -= 32
+		if( (cb >= 97) andalso (cb <= 122) ) then cb -= 32
+		if( ca <> cb ) then return 0
+		if( ca = 0 ) then return 1
+		i += 1
+		if( (n >= 0) andalso (i >= n) ) then return 1
+	loop
+end function
+
+#define HCASEEQ( a, b )     ( hStrCaseCmpN( (a), (b), -1 ) <> 0 )
+#define HCASEEQN( a, b, n ) ( hStrCaseCmpN( (a), (b), (n) ) <> 0 )
+
+private function hIsSpace( byval c as ubyte ) as long
+	return iif( (c = 32) orelse ((c >= 9) andalso (c <= 13)), -1, 0 )
+end function
+
+'' ------------------------------------------------------------ the device list
+
+private function hListDevElemAlloc _
+	( byval lst as FB_LIST ptr, byval device as zstring ptr, _
+	  byval printer_name as zstring ptr ) as DEV_PRINTER_DEVICE ptr
+
+	dim as DEV_PRINTER_DEVICE ptr node = _
+		cast( DEV_PRINTER_DEVICE ptr, calloc( 1, sizeof( DEV_PRINTER_DEVICE ) ) )
+	if( node = 0 ) then return 0
+	node->device = hStrDup( device )
+	node->printer_name = hStrDup( printer_name )
+	fb_hListDynElemAdd( lst, @node->elem )
+	return node
+end function
+
+private sub hListDevElemFree( byval lst as FB_LIST ptr, byval node as DEV_PRINTER_DEVICE ptr )
+	fb_hListDynElemRemove( lst, @node->elem )
+	free( node->device )
+	free( node->printer_name )
+	free( node )
+end sub
+
+'' THE NODE IS THE ELEM. FB_LISTELEM is the FIRST member of DEV_PRINTER_DEVICE,
+'' so the list head can be cast straight to a node -- the intrusive-list trick
+'' fbc relies on throughout, and the reason `elem` must stay first.
+private sub hListDevClear( byval lst as FB_LIST ptr )
+	while( lst->head <> 0 )
+		hListDevElemFree( lst, cast( DEV_PRINTER_DEVICE ptr, lst->head ) )
+	wend
+end sub
+
+private function hListDevFindDevice _
+	( byval lst as FB_LIST ptr, byval pszDevice as zstring ptr ) as DEV_PRINTER_DEVICE ptr
+
+	dim as DEV_PRINTER_DEVICE ptr node = cast( DEV_PRINTER_DEVICE ptr, lst->head )
+	while( node <> 0 )
+		if( HCASEEQ( pszDevice, node->device ) ) then return node
+		node = cast( DEV_PRINTER_DEVICE ptr, node->elem.next )
+	wend
+	return 0
+end function
+
+private function hListDevFindName _
+	( byval lst as FB_LIST ptr, byval pszPrinterName as zstring ptr ) as DEV_PRINTER_DEVICE ptr
+
+	dim as DEV_PRINTER_DEVICE ptr node = cast( DEV_PRINTER_DEVICE ptr, lst->head )
+	while( node <> 0 )
+		if( HCASEEQ( pszPrinterName, node->printer_name ) ) then return node
+		node = cast( DEV_PRINTER_DEVICE ptr, node->elem.next )
+	wend
+	return 0
+end function
+
+'' ------------------------------------------------------------- enumeration
+''
+'' BOTH ENUMERATORS RETRY UNTIL THE BUFFER IS BIG ENOUGH, and both give up on
+'' any error other than ERROR_INSUFFICIENT_BUFFER. The realloc-failure branch
+'' frees the old block and breaks, leaving *pCount at whatever the last call
+'' reported.
+
+private function hGetDefaultPrinters( byval pCount as long ptr ) as PRINTER_INFO_5A_ ptr
+
+	dim as ulong dwNeeded = 0, dwReturned = 0
+	dim as PRINTER_INFO_5A_ ptr result_ = 0
+	dim as ulong dwFlags = PRINTER_ENUM_DEFAULT_
+
+	*pCount = 0
+
+	dim as long fResult = w_EnumPrintersA( dwFlags, 0, 5, 0, 0, @dwNeeded, @dwReturned )
+
+	while( fResult = 0 )
+		if( w_GetLastError( ) <> ERROR_INSUFFICIENT_BUFFER_ ) then exit while
+
+		dim as PRINTER_INFO_5A_ ptr oldResult = result_
+		result_ = cast( PRINTER_INFO_5A_ ptr, realloc( result_, dwNeeded ) )
+		if( result_ = 0 ) then
+			free( oldResult )
+			exit while
+		end if
+
+		fResult = w_EnumPrintersA( dwFlags, 0, 5, result_, dwNeeded, @dwNeeded, @dwReturned )
+	wend
+
+	*pCount = cast( long, dwReturned )
+	return result_
+end function
+
+private function hGetPrinters( byval pCount as long ptr ) as PRINTER_INFO_2A_ ptr
+
+	dim as ulong dwNeeded = 0, dwReturned = 0
+	dim as PRINTER_INFO_2A_ ptr result_ = 0
+	dim as ulong dwFlags = PRINTER_ENUM_LOCAL_ or PRINTER_ENUM_CONNECTIONS_
+
+	*pCount = 0
+
+	dim as long fResult = w_EnumPrintersA( dwFlags, 0, 2, 0, 0, @dwNeeded, @dwReturned )
+
+	while( fResult = 0 )
+		if( w_GetLastError( ) <> ERROR_INSUFFICIENT_BUFFER_ ) then exit while
+
+		dim as PRINTER_INFO_2A_ ptr oldResult = result_
+		result_ = cast( PRINTER_INFO_2A_ ptr, realloc( result_, dwNeeded ) )
+		if( result_ = 0 ) then
+			free( oldResult )
+			exit while
+		end if
+
+		fResult = w_EnumPrintersA( dwFlags, 0, 2, result_, dwNeeded, @dwNeeded, @dwReturned )
+	wend
+
+	*pCount = cast( long, dwReturned )
+	return result_
+end function
+
+'' TWO WAYS TO FIND THE DEFAULT PRINTER, and the second is loaded at runtime --
+'' see the file header, including the leak on the realloc-failure branch.
+private function hGetDefaultPrinterName( ) as zstring ptr
+
+	dim as zstring ptr result_ = 0
+	dim as long nprint = any
+	dim as PRINTER_INFO_5A_ ptr printers = hGetDefaultPrinters( @nprint )
+
+	if( nprint = 0 ) then
+		dim as any ptr hMod = w_LoadLibraryA( @"winspool.drv" )
+		if( hMod <> 0 ) then
+			dim as FnGetDefaultPrinter pfn = _
+				cast( FnGetDefaultPrinter, w_GetProcAddress( hMod, @"GetDefaultPrinterA" ) )
+			if( pfn <> 0 ) then
+				dim as zstring ptr buffer_ = 0
+				dim as ulong dwSize = 0
+				dim as long fResult = pfn( 0, @dwSize )
+				while( fResult = 0 )
+					if( w_GetLastError( ) <> ERROR_INSUFFICIENT_BUFFER_ ) then exit while
+
+					dim as zstring ptr oldBuffer = buffer_
+					buffer_ = cast( zstring ptr, realloc( buffer_, dwSize ) )
+					'' NO `exit while` AFTER THE FREE -- fbc has none either, so
+					'' a failed realloc calls through the freed pointer on the
+					'' next iteration. Unreachable unless the allocation fails.
+					if( buffer_ = 0 ) then free( oldBuffer )
+					fResult = pfn( buffer_, @dwSize )
+				wend
+				'' > 1 rather than <> 0: a size of exactly 1 is the empty string.
+				if( dwSize > 1 ) then result_ = buffer_
+			end if
+			w_FreeLibrary( hMod )
+		end if
+	else
+		result_ = hStrDup( printers->pPrinterName )
+	end if
+
+	free( printers )
+	return result_
+end function
+
+'' ----------------------------------------------------------- list building
+
+'' PASS 1: local printers keep their own LPT port. The port name may be a
+'' COMMA-SEPARATED LIST and is split IN PLACE -- see the file header.
+private sub hPrinterBuildListLocal( byval lst as FB_LIST ptr )
+
+	dim as long nprint = any
+	dim as PRINTER_INFO_2A_ ptr printers = hGetPrinters( @nprint )
+	if( printers = 0 ) then exit sub
+
+	for i as long = 0 to nprint - 1
+		dim as PRINTER_INFO_2A_ ptr printer = printers + i
+		'' A NULL pServerName IS WHAT "LOCAL" MEANS here.
+		if( printer->pServerName = 0 ) then
+			dim as zstring ptr pPortName = printer->pPortName
+			dim as zstring ptr pFoundPos = strchr( pPortName, 44 )      '' ','
+			while( pFoundPos <> 0 )
+				pFoundPos[0] = 0
+
+				if( HCASEEQN( pPortName, @"LPT", 3 ) ) then
+					if( hListDevFindDevice( lst, pPortName ) = 0 ) then
+						hListDevElemAlloc( lst, pPortName, printer->pPrinterName )
+					end if
+				end if
+
+				pPortName = cast( zstring ptr, cast( ubyte ptr, pFoundPos ) + 1 )
+				while( hIsSpace( cptr( ubyte ptr, pPortName )[0] ) <> 0 )
+					pPortName = cast( zstring ptr, cast( ubyte ptr, pPortName ) + 1 )
+				wend
+				pFoundPos = strchr( pPortName, 44 )
+			wend
+
+			'' The last (or only) entry, after the final comma.
+			if( HCASEEQN( pPortName, @"LPT", 3 ) ) then
+				if( hListDevFindDevice( lst, pPortName ) = 0 ) then
+					hListDevElemAlloc( lst, pPortName, printer->pPrinterName )
+				end if
+			end if
+		end if
+	next
+
+	free( printers )
+end sub
+
+'' PASS 2: the default printer takes the first FREE LPT number from iStartPort.
+private function hPrinterBuildListDefault _
+	( byval lst as FB_LIST ptr, byval iStartPort as long ) as long
+
+	dim as zstring * 32 Buffer_
+	dim as long iPort = iStartPort - 1
+	dim as zstring ptr printer_name = hGetDefaultPrinterName( )
+
+	if( printer_name <> 0 ) then
+		if( hListDevFindName( lst, printer_name ) = 0 ) then
+			dim as DEV_PRINTER_DEVICE ptr node = any
+			do
+				iPort += 1
+				sprintf( @Buffer_, @"LPT%d", iPort )
+				node = hListDevFindDevice( lst, @Buffer_ )
+			loop while( node <> 0 )
+
+			hListDevElemAlloc( lst, @Buffer_, printer_name )
+		end if
+		free( printer_name )
+	end if
+
+	return iPort + 1
+end function
+
+'' PASS 3: everything else, from LPT128 up.
+private function hPrinterBuildListOther _
+	( byval lst as FB_LIST ptr, byval iStartPort as long ) as long
+
+	dim as zstring * 32 Buffer_
+	dim as long nprint = any, iPort = iStartPort - 1
+	dim as PRINTER_INFO_2A_ ptr printers = hGetPrinters( @nprint )
+	if( printers = 0 ) then return iPort + 1
+
+	for i as long = 0 to nprint - 1
+		dim as PRINTER_INFO_2A_ ptr printer = printers + i
+		if( hListDevFindName( lst, printer->pPrinterName ) = 0 ) then
+			dim as DEV_PRINTER_DEVICE ptr node = any
+			do
+				iPort += 1
+				sprintf( @Buffer_, @"LPT%d", iPort )
+				node = hListDevFindDevice( lst, @Buffer_ )
+			loop while( node <> 0 )
+
+			hListDevElemAlloc( lst, @Buffer_, printer->pPrinterName )
+		end if
+	next
+
+	free( printers )
+	return iPort + 1
+end function
+
+'' THE ORDER OF THE THREE PASSES IS THE POLICY -- see the file header.
+private sub hPrinterBuildList( byval lst as FB_LIST ptr )
+	hPrinterBuildListLocal( lst )
+	hPrinterBuildListDefault( lst, 1 )
+	hPrinterBuildListOther( lst, 128 )
+end sub
+
+'' -------------------------------------------------------------- the emulator
+
+'' uiCPI = 0 asks for a PROPORTIONAL font; anything else is monospace at that
+'' many characters per inch, with the width derived from the device's DPI.
+private sub hEmuBuild_LOGFONT _
+	( byval lf as LOGFONTA_ ptr, byval pInfo as W32_PRINTER_INFO ptr, byval uiCPI as ulong )
+
+	memset( lf, 0, sizeof( LOGFONTA_ ) )
+	'' Ten points: DPI * 10 / 72.
+	lf->lfHeight = pInfo->Emu.dwDPI_Y * 10 \ 72
+	lf->lfWeight = FW_NORMAL_
+	lf->lfCharSet = OEM_CHARSET_
+	lf->lfOutPrecision = OUT_DEFAULT_PRECIS_
+	lf->lfClipPrecision = CLIP_DEFAULT_PRECIS_
+	lf->lfQuality = DRAFT_QUALITY_
+	if( uiCPI <> 0 ) then
+		lf->lfWidth = pInfo->Emu.dwDPI_X \ uiCPI
+		lf->lfPitchAndFamily = FIXED_PITCH_ or FF_MODERN_
+		lf->lfFaceName = "System"
+	else
+		lf->lfWidth = 0
+		lf->lfPitchAndFamily = VARIABLE_PITCH_ or FF_SWISS_
+		lf->lfFaceName = "MS Sans Serif"
+	end if
+end sub
+
+private sub hEmuUpdateInfo( byval pInfo as W32_PRINTER_INFO ptr )
+	dim as TEXTMETRICA_ tm
+
+	w_SelectObject( pInfo->hDc, pInfo->Emu.hFont )
+	w_GetTextMetricsA( pInfo->hDc, @tm )
+	pInfo->Emu.dwFontSizeX = tm.tmMaxCharWidth
+	pInfo->Emu.dwFontSizeY = tm.tmHeight
+end sub
+
+'' LAZY: returns immediately once the page is open, so a document that prints
+'' nothing produces no blank page.
+private sub hEmuPageStart( byval pInfo as W32_PRINTER_INFO ptr )
+	if( pInfo->Emu.iPageStarted <> 0 ) then exit sub
+
+	w_StartPage( pInfo->hDc )
+	pInfo->Emu.iPageStarted = -1
+
+	hEmuUpdateInfo( pInfo )
+
+	w_SetTextColor( pInfo->hDc, pInfo->Emu.clFore )
+	w_SetBkColor( pInfo->hDc, pInfo->Emu.clBack )
+end sub
+
+'' ONE GDI CALL PER CHARACTER -- see the file header.
+private sub hEmuPrint_RAW cdecl _
+	( byval pInfo as W32_PRINTER_INFO ptr, byval pText as any ptr, _
+	  byval uiLength as uinteger, byval isunicode as long )
+
+	dim as ubyte ptr p = cast( ubyte ptr, pText )
+	dim as uinteger remaining_ = uiLength
+
+	while( remaining_ <> 0 )
+		if( isunicode = 0 ) then
+			dim as zstring * 2 ch
+			ch[0] = p[0]
+			ch[1] = 0
+			p += 1
+			hEmuPageStart( pInfo )
+			w_TextOutA( pInfo->hDc, pInfo->Emu.dwCurrentX, pInfo->Emu.dwCurrentY, @ch, 1 )
+		else
+			dim as wstring * 2 wch
+			wch[0] = *cptr( ushort ptr, p )
+			wch[1] = 0
+			p += sizeof( wstring )
+			hEmuPageStart( pInfo )
+			w_TextOutW( pInfo->hDc, pInfo->Emu.dwCurrentX, pInfo->Emu.dwCurrentY, @wch, 1 )
+		end if
+
+		pInfo->Emu.dwCurrentX += pInfo->Emu.dwFontSizeX
+
+		if( pInfo->Emu.dwCurrentX >= pInfo->Emu.dwSizeX ) then
+			pInfo->Emu.dwCurrentX = 0
+			pInfo->Emu.dwCurrentY += pInfo->Emu.dwFontSizeY
+			if( pInfo->Emu.dwCurrentY >= pInfo->Emu.dwSizeY ) then
+				pInfo->Emu.dwCurrentY = 0
+				w_EndPage( pInfo->hDc )
+				pInfo->Emu.iPageStarted = 0
+			end if
+		end if
+
+		remaining_ -= 1
+	wend
+end sub
+
+'' THE SCROLL HOOK DOUBLES AS THE PAGE EJECT -- see the file header. Called with
+'' rows = 0 by the formfeed path.
+private sub hHookConPrinterScroll cdecl _
+	( byval handle as fb_ConHooks ptr, byval x1 as long, byval y1 as long, _
+	  byval x2 as long, byval y2 as long, byval rows as long )
+
+	dim as W32_PRINTER_INFO ptr pInfo = cast( W32_PRINTER_INFO ptr, handle->Opaque )
+	dim as long page_rows = (pInfo->Emu.dwSizeY + pInfo->Emu.dwFontSizeY - 1) \ pInfo->Emu.dwFontSizeY
+
+	if( pInfo->Emu.iPageStarted = 0 ) then w_StartPage( pInfo->hDc )
+	w_EndPage( pInfo->hDc )
+
+	'' Scrolling by more than a page ejects whole blank pages.
+	while( rows >= page_rows )
+		w_StartPage( pInfo->hDc )
+		w_EndPage( pInfo->hDc )
+		rows -= page_rows
+	wend
+
+	pInfo->Emu.iPageStarted = 0
+	if( rows <> 0 ) then rows -= 1
+	handle->Coord_.Y_ = rows
+end sub
+
+private function hHookConPrinterWrite cdecl _
+	( byval handle as fb_ConHooks ptr, byval buffer_ as any ptr, byval length_ as uinteger ) as long
+
+	dim as W32_PRINTER_INFO ptr pInfo = cast( W32_PRINTER_INFO ptr, handle->Opaque )
+	pInfo->Emu.dwCurrentX = handle->Coord_.X_ * pInfo->Emu.dwFontSizeX
+	pInfo->Emu.dwCurrentY = handle->Coord_.Y_ * pInfo->Emu.dwFontSizeY
+	hEmuPrint_RAW( pInfo, buffer_, length_, 0 )
+	return -1
+end function
+
+private function hHookConPrinterWriteWstr cdecl _
+	( byval handle as fb_ConHooks ptr, byval buffer_ as any ptr, byval length_ as uinteger ) as long
+
+	dim as W32_PRINTER_INFO ptr pInfo = cast( W32_PRINTER_INFO ptr, handle->Opaque )
+	pInfo->Emu.dwCurrentX = handle->Coord_.X_ * pInfo->Emu.dwFontSizeX
+	pInfo->Emu.dwCurrentY = handle->Coord_.Y_ * pInfo->Emu.dwFontSizeY
+	hEmuPrint_RAW( pInfo, buffer_, length_, -1 )
+	return -1
+end function
+
+'' TTY MODE: the console's own teletype layer, with hooks that map cells to
+'' device coordinates. Formfeed is handled here because fb_ConPrintTTY does not
+'' know about it -- see the file header.
+private sub hEmuPrint_TTY cdecl _
+	( byval pInfo as W32_PRINTER_INFO ptr, byval pText as any ptr, _
+	  byval uiLength as uinteger, byval isunicode as long )
+
+	dim as fb_ConHooks hooks
+	dim as ubyte ptr p = cast( ubyte ptr, pText )
+	dim as uinteger remaining_ = uiLength
+
+	hooks.Opaque  = pInfo
+	hooks.Scroll_ = @hHookConPrinterScroll
+	hooks.Write_  = iif( isunicode <> 0, _
+	                     cast( FnConWrite, @hHookConPrinterWriteWstr ), _
+	                     cast( FnConWrite, @hHookConPrinterWrite ) )
+	hooks.Border.Left_ = 0
+	hooks.Border.Top_  = 0
+	hooks.Border.Right_ = (pInfo->Emu.dwSizeX - pInfo->Emu.dwFontSizeX + 1) \ pInfo->Emu.dwFontSizeX
+	'' dwFontSize**X** IN THE NUMERATOR, where Y belongs. fbc's, and the row
+	'' count is observable in where the page breaks -- see the file header.
+	hooks.Border.Bottom_ = (pInfo->Emu.dwSizeY - pInfo->Emu.dwFontSizeX + 1) \ pInfo->Emu.dwFontSizeY
+
+	hooks.Coord_.X_ = pInfo->Emu.dwCurrentX \ pInfo->Emu.dwFontSizeX
+	hooks.Coord_.Y_ = pInfo->Emu.dwCurrentY \ pInfo->Emu.dwFontSizeY
+
+	while( remaining_ <> 0 )
+		dim as ubyte chControl = 0
+		dim as uinteger uiLengthTTY = remaining_
+
+		'' Find the first character the TTY layer cannot handle.
+		for ui as uinteger = 0 to remaining_ - 1
+			dim as ubyte ch = any
+			if( isunicode = 0 ) then
+				ch = p[ui]
+			else
+				'' THE WIDE SCAN TRUNCATES TO A BYTE, exactly as fbc's
+				'' `char ch = ((FB_WCHAR *)pText)[ui]` does -- so U+010C would
+				'' also match formfeed. Reproduced.
+				ch = cast( ubyte, cptr( ushort ptr, p )[ui] )
+			end if
+			if( ch = 12 ) then
+				chControl = ch
+				uiLengthTTY = ui
+				exit for
+			end if
+		next
+
+		tkrt_ConPrintTTY( @hooks, p, uiLengthTTY, -1 )
+
+		if( remaining_ <> uiLengthTTY ) then
+			uiLengthTTY += 1
+			if( chControl = 12 ) then
+				'' FORMFEED: eject the page through the scroll hook.
+				hHookConPrinterScroll( @hooks, 0, 0, 0, 0, 0 )
+			end if
+		end if
+
+		if( isunicode = 0 ) then
+			p += uiLengthTTY
+		else
+			p += uiLengthTTY * sizeof( wstring )
+		end if
+		remaining_ -= uiLengthTTY
+	wend
+
+	if( (hooks.Coord_.X_ <> hooks.Border.Left_) orelse _
+	    (hooks.Coord_.Y_ <> (hooks.Border.Bottom_ + 1)) ) then
+		TKORT_CONCHECKSCROLL( @hooks )
+	end if
+
+	pInfo->Emu.dwCurrentX = hooks.Coord_.X_ * pInfo->Emu.dwFontSizeX
+	pInfo->Emu.dwCurrentY = hooks.Coord_.Y_ * pInfo->Emu.dwFontSizeY
+end sub
+
+'' The emulation modes, matched by name from the device string. fbc carries a
+'' third, "ESC/P2", behind #if 0; it is absent here for the same reason.
+dim shared as zstring * 8 tkort_emu_raw = "RAW"
+dim shared as zstring * 8 tkort_emu_tty = "TTY"
+
+'' ---------------------------------------------------------------- the exports
+
+extern "c"   '' NON-FBCALL: fb_printer.h declares all four plainly.
+
+function tkort_PrinterOpen alias "fb_PrinterOpen" _
+	( byval devInfo as DEV_LPT_INFO ptr, byval iPort as long, _
+	  byval pszDevice as zstring ptr ) as long
+
+	dim as long result_ = tkrt_ErrorSetNum( FB_RTERROR_OK )
+	dim as FnEmuPrint pFoundEmu = 0
+	dim as long foundEmu = 0
+	dim as ulong dwJob = 0
+	dim as long fResult = any
+	dim as any ptr hPrinter = 0
+	dim as any ptr hDc = 0
+	dim as zstring ptr printer_name = 0
+	dim as zstring ptr doc_title = 0
+	dim as DEV_LPT_PROTOCOL ptr lpt_proto = 0
+
+	if( tkrt_DevLptParseProtocol( @lpt_proto, pszDevice, strlen( pszDevice ), 1 ) = 0 ) then
+		if( lpt_proto <> 0 ) then free( lpt_proto )
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	'' AN UNKNOWN EMULATION IS AN ERROR, not a fallback to RAW.
+	if( cptr( ubyte ptr, lpt_proto->emu )[0] <> 0 ) then
+		if( HCASEEQ( lpt_proto->emu, @tkort_emu_raw ) ) then
+			pFoundEmu = cast( FnEmuPrint, @hEmuPrint_RAW ) : foundEmu = -1
+		elseif( HCASEEQ( lpt_proto->emu, @tkort_emu_tty ) ) then
+			pFoundEmu = cast( FnEmuPrint, @hEmuPrint_TTY ) : foundEmu = -1
+		end if
+		if( foundEmu = 0 ) then
+			free( lpt_proto )
+			return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		end if
+	end if
+
+	if( iPort = 0 ) then
+		'' LPT:[PrinterName] -- a name, or the default.
+		if( cptr( ubyte ptr, lpt_proto->name_ )[0] <> 0 ) then
+			printer_name = hStrDup( lpt_proto->name_ )
+		else
+			printer_name = hGetDefaultPrinterName( )
+		end if
+	else
+		'' LPTx: -- build the whole map and look one entry up. See the header.
+		dim as FB_LIST dev_printer_devs
+		fb_hListDynInit( @dev_printer_devs )
+		hPrinterBuildList( @dev_printer_devs )
+
+		dim as DEV_PRINTER_DEVICE ptr node = _
+			hListDevFindDevice( @dev_printer_devs, lpt_proto->proto )
+		if( node <> 0 ) then printer_name = hStrDup( node->printer_name )
+
+		hListDevClear( @dev_printer_devs )
+	end if
+
+	if( printer_name = 0 ) then
+		result_ = tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
+	else
+		if( cptr( ubyte ptr, lpt_proto->emu )[0] <> 0 ) then
+			'' EMULATION NEEDS A DEVICE CONTEXT, not the printer handle.
+			hDc = w_CreateDCA( @"WINSPOOL", printer_name, 0, 0 )
+			fResult = iif( hDc <> 0, -1, 0 )
+		else
+			fResult = w_OpenPrinterA( printer_name, @hPrinter, 0 )
+		end if
+		if( fResult = 0 ) then
+			result_ = tkrt_ErrorSetNum( FB_RTERROR_FILENOTFOUND )
+		end if
+	end if
+
+	'' THE TITLE IS ALLOCATED EVEN WHEN THE OPEN ALREADY FAILED, and freed at
+	'' the bottom. fbc's ordering, kept.
+	if( (lpt_proto->title_ <> 0) andalso (cptr( ubyte ptr, lpt_proto->title_ )[0] <> 0) ) then
+		doc_title = hStrDup( lpt_proto->title_ )
+	else
+		doc_title = hStrDup( @"FreeBASIC document" )
+	end if
+
+	if( result_ = FB_RTERROR_OK ) then
+		if( cptr( ubyte ptr, lpt_proto->emu )[0] <> 0 ) then
+			dim as DOCINFOA_ docInfo
+			memset( @docInfo, 0, sizeof( DOCINFOA_ ) )
+			docInfo.cbSize = sizeof( DOCINFOA_ )
+			docInfo.lpszDocName = doc_title
+			dim as long iJob = w_StartDocA( hDc, @docInfo )
+			if( iJob <= 0 ) then
+				result_ = tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
+			else
+				dwJob = cast( ulong, iJob )
+			end if
+		else
+			'' DATATYPE "RAW" -- the bytes reach the printer unrendered.
+			dim as DOC_INFO_1A_ DocInfo
+			DocInfo.pDocName = doc_title
+			DocInfo.pOutputFile = 0
+			DocInfo.pDatatype = @"RAW"
+
+			dwJob = w_StartDocPrinterA( hPrinter, 1, @DocInfo )
+			if( dwJob = 0 ) then result_ = tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
+		end if
+	end if
+
+	if( result_ = FB_RTERROR_OK ) then
+		dim as W32_PRINTER_INFO ptr pInfo = _
+			cast( W32_PRINTER_INFO ptr, calloc( 1, sizeof( W32_PRINTER_INFO ) ) )
+		if( pInfo = 0 ) then
+			result_ = tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+		else
+			devInfo->driver_opaque = pInfo
+			pInfo->hPrinter = hPrinter
+			pInfo->dwJob = dwJob
+			pInfo->hDc = hDc
+			if( hDc <> 0 ) then
+				dim as LOGFONTA_ lf
+
+				pInfo->Emu.dwFullSizeX = w_GetDeviceCaps( hDc, PHYSICALWIDTH_ )
+				pInfo->Emu.dwFullSizeY = w_GetDeviceCaps( hDc, PHYSICALHEIGHT_ )
+				pInfo->Emu.dwSizeX = w_GetDeviceCaps( hDc, HORZRES_ )
+				pInfo->Emu.dwSizeY = w_GetDeviceCaps( hDc, VERTRES_ )
+				pInfo->Emu.dwOffsetX = w_GetDeviceCaps( hDc, PHYSICALOFFSETX_ )
+				pInfo->Emu.dwOffsetY = w_GetDeviceCaps( hDc, PHYSICALOFFSETY_ )
+				pInfo->Emu.dwDPI_X = w_GetDeviceCaps( hDc, LOGPIXELSX_ )
+				pInfo->Emu.dwDPI_Y = w_GetDeviceCaps( hDc, LOGPIXELSY_ )
+
+				'' ZERO, NOT THE PHYSICAL OFFSET. fbc carries the offset
+				'' version beside this under #if 0; the live branch starts at
+				'' the top-left of the PRINTABLE area, so the margin the driver
+				'' already applies is not added twice.
+				pInfo->Emu.dwCurrentX = 0
+				pInfo->Emu.dwCurrentY = 0
+
+				pInfo->Emu.clFore = TKORT_RGB( 0, 0, 0 )
+				pInfo->Emu.clBack = TKORT_RGB( 255, 255, 255 )
+
+				'' 12 CPI monospace to start.
+				hEmuBuild_LOGFONT( @lf, pInfo, 12 )
+				pInfo->Emu.hFont = w_CreateFontIndirectA( @lf )
+
+				pInfo->Emu.pfnPrint = cast( any ptr, pFoundEmu )
+
+				'' TA_TOP or TA_LEFT or TA_NOUPDATECP is 0 -- see the header.
+				w_SetTextAlign( hDc, TA_DEFAULT_ )
+
+				hEmuUpdateInfo( pInfo )
+			end if
+		end if
+	end if
+
+	if( result_ <> FB_RTERROR_OK ) then
+		if( dwJob <> 0 ) then
+			if( cptr( ubyte ptr, lpt_proto->emu )[0] <> 0 ) then
+				w_EndDoc( hDc )
+			else
+				w_EndDocPrinter( hPrinter )
+			end if
+		end if
+		if( hPrinter <> 0 ) then w_ClosePrinter( hPrinter )
+		if( hDc <> 0 ) then w_DeleteDC( hDc )
+	end if
+
+	if( printer_name <> 0 ) then free( printer_name )
+	if( doc_title <> 0 ) then free( doc_title )
+	if( lpt_proto <> 0 ) then free( lpt_proto )
+
+	return result_
+end function
+
+'' hPrinter NULL MEANS EMULATION -- see the file header on the two paths.
+function tkort_PrinterWrite alias "fb_PrinterWrite" _
+	( byval devInfo as DEV_LPT_INFO ptr, byval data_ as any ptr, byval length_ as uinteger ) as long
+
+	dim as W32_PRINTER_INFO ptr pInfo = cast( W32_PRINTER_INFO ptr, devInfo->driver_opaque )
+	dim as ulong dwWritten = any
+
+	if( pInfo->hPrinter = 0 ) then
+		dim as FnEmuPrint fn_ = cast( FnEmuPrint, pInfo->Emu.pfnPrint )
+		fn_( pInfo, data_, length_, 0 )
+	elseif( w_WritePrinter( pInfo->hPrinter, data_, cast( ulong, length_ ), @dwWritten ) = 0 ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
+	elseif( cast( uinteger, dwWritten ) <> length_ ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
+	end if
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' THE WIDE SPOOLER PATH WRITES RAW CODE UNITS, byte count doubled -- no
+'' conversion, unlike the POSIX driver which encodes UTF-8.
+function tkort_PrinterWriteWstr alias "fb_PrinterWriteWstr" _
+	( byval devInfo as DEV_LPT_INFO ptr, byval data_ as wstring ptr, byval length_ as uinteger ) as long
+
+	dim as W32_PRINTER_INFO ptr pInfo = cast( W32_PRINTER_INFO ptr, devInfo->driver_opaque )
+	dim as ulong dwWritten = any
+	dim as uinteger bytes_ = length_ * sizeof( wstring )
+
+	if( pInfo->hPrinter = 0 ) then
+		dim as FnEmuPrint fn_ = cast( FnEmuPrint, pInfo->Emu.pfnPrint )
+		fn_( pInfo, data_, length_, -1 )
+	elseif( w_WritePrinter( pInfo->hPrinter, data_, cast( ulong, bytes_ ), @dwWritten ) = 0 ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
+	elseif( cast( uinteger, dwWritten ) <> bytes_ ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
+	end if
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' CLOSE TESTS hDc, WHERE WRITE TESTED hPrinter -- the same distinction asked
+'' two different ways. See the file header.
+''
+'' THE FONT IS NEVER DELETED. CreateFontIndirect's HFONT is stored in
+'' Emu.hFont and no DeleteObject ever runs, so a program that opens and closes
+'' an emulated printer repeatedly leaks one GDI object per open. Reproduced.
+function tkort_PrinterClose alias "fb_PrinterClose" _
+	( byval devInfo as DEV_LPT_INFO ptr ) as long
+
+	dim as W32_PRINTER_INFO ptr pInfo = cast( W32_PRINTER_INFO ptr, devInfo->driver_opaque )
+
+	if( pInfo->hDc <> 0 ) then
+		if( pInfo->Emu.iPageStarted <> 0 ) then w_EndPage( pInfo->hDc )
+		w_EndDoc( pInfo->hDc )
+		w_DeleteDC( pInfo->hDc )
+	else
+		w_EndDocPrinter( pInfo->hPrinter )
+		w_ClosePrinter( pInfo->hPrinter )
+	end if
+
+	if( devInfo->driver_opaque <> 0 ) then free( devInfo->driver_opaque )
+	devInfo->driver_opaque = 0
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+end extern
+
+#endif

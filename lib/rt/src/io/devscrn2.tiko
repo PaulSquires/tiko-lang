@@ -1,0 +1,512 @@
+'' devscrn2.tiko -- the SCREEN device: the console dressed as a file channel.
+'' Seventeen symbols across eight fbc members, and portable.
+''
+'' THE HOOK TABLE IS FILLED IN BY WHOEVER LINKS. Each member here defines ONE
+'' hook and an `Init_X` that patches it into the shared table -- and the patch is
+'' guarded on the slot still being NULL. That is not defensive coding, it is the
+'' whole mechanism: fbc's compiler emits a call to `fb_DevScrnInit_Write` only
+'' from a program that writes to SCRN:, so a program that never does never links
+'' dev_scrn_write.o and the slot stays NULL. The table is a linker-driven feature
+'' switch, and the guard is what makes calling Init twice harmless.
+''
+'' THE TABLE ITSELF IS STATIC AND SHARED, so tiko-rt owning some members and fbc
+'' owning others still works: whichever side defines the table, the other side's
+'' Init writes into it through FB_HANDLE_SCREEN->hooks.
+''
+'' OPENING SCRN: ON A CHANNEL DUPLICATES THE STATE. `OPEN SCRN: FOR INPUT AS #1`
+'' gets its OWN DEV_SCRN_INFO copied from the screen handle's, and its
+'' `redirection_to` points back at the screen handle -- so two channels on the
+'' console each have their own pushback buffer but share the terminal. Sharing
+'' one info block would make a read on #1 swallow the characters #2 was about to
+'' see.
+''
+'' INPUT FROM SCRN: IS INKEY, NOT stdin, AND THAT IS THE POINT. fb_DevScrnFillInput
+'' pulls from the keyboard buffer, so INPUT #1 on a SCRN: channel reads keystrokes
+'' rather than a redirected file -- unless input IS redirected, in which case
+'' Init_Read installs a hook that reads stdin instead. The choice is made ONCE, at
+'' init, from fb_IsRedirected.
+''
+'' THE READ LOOP SPINS ON fb_KeyHit AND SLEEPS 25 ms, which is a busy-wait with a
+'' yield rather than a blocking read: there is no portable "wait for a keystroke"
+'' that also honours the runtime's own event pumping. Reproduced as it stands.
+''
+'' WIDE INPUT IS NARROW INPUT WIDENED. fbc's own comment says "no unicode input
+'' supported"; the wide entry points convert from the same byte buffer. Not
+'' improved, because a ustring-aware console read is a different feature and this
+'' is a port.
+
+#include once "inc/descriptors.ti"
+#include once "inc/file.ti"
+#include once "inc/iolock.ti"
+#include once "inc/rterror.ti"
+#include once "inc/sysbind.ti"
+
+'' FB_FILE_ACCESS_READWRITE is READ or WRITE -- fb_file.h's two bits, not a
+'' value of its own.
+const FB_FILE_ACCESS_READWRITE_ = 3
+
+'' char buffer[16] then an unsigned length.
+const TKORT_SCRN_BUFSIZE = 16
+
+type DEV_SCRN_INFO
+	as ubyte    buffer( 0 to TKORT_SCRN_BUFSIZE - 1 )
+	as ulong    length_
+end type
+
+extern "rtlib"
+	'' tiko-rt's own, in io/devscrn.tiko and io/print*.bas.
+	declare sub tkrt_DevScrnInit_NoOpen alias "fb_DevScrnInit_NoOpen" ( )
+	declare sub tkrt_DevScrnInit_Screen alias "fb_DevScrnInit_Screen" ( )
+	declare sub tkrt_DevScrnEnd alias "fb_DevScrnEnd" ( byval handle as FB_FILE ptr )
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as long ) as long
+	declare function tkrt_IsRedirected alias "fb_IsRedirected" ( byval is_input as long ) as long
+	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
+	declare sub tkrt_WstrAssignFromA alias "fb_WstrAssignFromA" _
+		( byval dst as wstring ptr, byval dst_chars as integer, byval src as any ptr, byval src_size as integer )
+	declare function tkrt_wstr_ConvFromA alias "fb_wstr_ConvFromA" _
+		( byval dst as wstring ptr, byval dst_chars as integer, byval src as zstring ptr ) as wstring ptr
+
+	'' fbc's own: the keyboard, the delay and the line editor.
+	declare function tkrt_Inkey alias "fb_Inkey" ( ) as FBSTRING ptr
+	declare function tkrt_KeyHit alias "fb_KeyHit" ( ) as long
+	declare sub tkrt_Delay alias "fb_Delay" ( byval ms as ulong )
+	declare function tkrt_LineInput alias "fb_LineInput" _
+		( byval text as FBSTRING ptr, byval dst as any ptr, byval dst_len as long, _
+		  byval fillrem as long, byval addquestion as long, byval addnewline as long ) as long
+end extern
+
+extern "c"   '' NON-FBCALL: internal, declared plain in fb_print.h and fb_device.h.
+	declare sub tkrt_PrintBufferEx alias "fb_PrintBufferEx" _
+		( byval s as any ptr, byval len_ as uinteger, byval mask as long )
+	declare sub tkrt_PrintBufferWstrEx alias "fb_PrintBufferWstrEx" _
+		( byval s as any ptr, byval len_ as uinteger, byval mask as long )
+	declare function tkrt_DevFileRead alias "fb_DevFileRead" _
+		( byval handle as FB_FILE ptr, byval dst as any ptr, byval plen as uinteger ptr ) as long
+	declare function tkrt_DevFileReadWstr alias "fb_DevFileReadWstr" _
+		( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as long
+	declare sub tkrt_hStrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr )
+end extern
+
+'' A handle is "the screen" only after its redirection chain is followed --
+'' OPEN "SCRN:" builds a handle whose redirection_to points at the real one, and
+'' the DEV_SCRN_INFO the reads use hangs off whichever handle was passed in.
+private function hDeref( byval h as FB_FILE ptr ) as FB_FILE ptr
+	if( h = 0 ) then return TKORT_HANDLE_SCREEN()
+	return h
+end function
+
+'' ---------------------------------------------------------------- the table
+''
+'' The order is FB_FILE_HOOKS's, and the NULLs are slots this device fills in
+'' lazily -- see the file header.
+
+extern "c"   '' NON-FBCALL, and THE FORWARD DECLARATION DECIDES: these eight
+             '' sat outside every extern block, so they took FreeBASIC's win32
+             '' default -- stdcall -- and decorated as @N even after the
+             '' definitions below were moved to extern "c". symbols.sh went
+             '' 17 -> 8, not 17 -> 0.
+
+declare function tkort_DevScrnEof alias "fb_DevScrnEof" ( byval handle as FB_FILE ptr ) as long
+declare function tkort_DevScrnClose alias "fb_DevScrnClose" ( byval handle as FB_FILE ptr ) as long
+declare function tkort_DevScrnRead alias "fb_DevScrnRead" _
+	( byval handle as FB_FILE ptr, byval value as any ptr, byval plen as uinteger ptr ) as long
+declare function tkort_DevScrnReadWstr alias "fb_DevScrnReadWstr" _
+	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as long
+declare function tkort_DevScrnWrite alias "fb_DevScrnWrite" _
+	( byval handle as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as long
+declare function tkort_DevScrnWriteWstr alias "fb_DevScrnWriteWstr" _
+	( byval handle as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as long
+declare function tkort_DevScrnReadLine alias "fb_DevScrnReadLine" _
+	( byval handle as FB_FILE ptr, byval dst as FBSTRING ptr ) as long
+declare function tkort_DevScrnReadLineWstr alias "fb_DevScrnReadLineWstr" _
+	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval dst_chars as integer ) as long
+
+end extern
+
+'' FILLED IN AT FIRST OPEN, NOT STATICALLY INITIALISED, and that is a FreeBASIC
+'' constraint rather than a design choice: a `dim shared` initialiser can only
+'' name functions already DEFINED, and the table has to be visible to the
+'' functions themselves -- fb_DevScrnOpen attaches it -- so no ordering of the
+'' file satisfies both.
+''
+'' hFillTable is idempotent and runs under the I/O lock from the two entry
+'' points that can be first: nothing can reach a hook without going through one
+'' of them, because the hooks are reached THROUGH the handle and the handle gets
+'' its table there.
+dim shared as FB_FILE_HOOKS tkort_hooks_dev_scrn
+dim shared as long tkort_hooks_filled
+
+private sub hFillTable( )
+	if( tkort_hooks_filled <> 0 ) then exit sub
+	tkort_hooks_filled = 1
+
+	tkort_hooks_dev_scrn.pfnEof          = @tkort_DevScrnEof
+	tkort_hooks_dev_scrn.pfnClose        = @tkort_DevScrnClose
+	tkort_hooks_dev_scrn.pfnRead         = @tkort_DevScrnRead
+	tkort_hooks_dev_scrn.pfnReadWstr     = @tkort_DevScrnReadWstr
+	tkort_hooks_dev_scrn.pfnWrite        = @tkort_DevScrnWrite
+	tkort_hooks_dev_scrn.pfnWriteWstr    = @tkort_DevScrnWriteWstr
+	tkort_hooks_dev_scrn.pfnReadLine     = @tkort_DevScrnReadLine
+	tkort_hooks_dev_scrn.pfnReadLineWstr = @tkort_DevScrnReadLineWstr
+end sub
+
+extern "c"   '' NON-FBCALL: every dev_scrn name is UNDECORATED in fbc's win32
+             '' archive. These are DEVICE HOOKS, reached through a function
+             '' pointer in FB_FILE_HOOKS, so the compiler never emits a direct
+             '' call and there is no FBCALL among them -- symbols.sh reported
+             '' all seventeen carrying an @N that fbc's do not.
+
+'' -------------------------------------------------------------------- open
+
+function tkort_DevScrnOpen alias "fb_DevScrnOpen" _
+	( byval handle as FB_FILE ptr, byval filename as zstring ptr, byval filename_len as uinteger ) as long
+
+	'' `srcinfo`, not `screeninfo`: SCREENINFO is a FreeBASIC graphics STATEMENT,
+	'' and the collision reports at the DECLARATION here rather than at a use.
+	dim as DEV_SCRN_INFO ptr srcinfo = any, info = any
+
+	TKORT_IOLOCK()
+	hFillTable( )
+
+	if( handle <> TKORT_HANDLE_SCREEN() ) then
+		'' A SECOND CHANNEL ON THE CONSOLE GETS ITS OWN pushback buffer -- see
+		'' the file header -- and points back at the screen handle so the two
+		'' share the terminal.
+		srcinfo = cptr( DEV_SCRN_INFO ptr, TKORT_HANDLE_SCREEN()->opaque )
+		info = malloc( sizeof( DEV_SCRN_INFO ) )
+		if( info <> 0 ) then
+			if( srcinfo <> 0 ) then
+				memcpy( info, srcinfo, sizeof( DEV_SCRN_INFO ) )
+			else
+				memset( info, 0, sizeof( DEV_SCRN_INFO ) )
+			end if
+		end if
+		handle->opaque = info
+
+		handle->hooks = @tkort_hooks_dev_scrn
+		handle->redirection_to = TKORT_HANDLE_SCREEN()
+
+	elseif( handle->hooks <> @tkort_hooks_dev_scrn ) then
+		'' A NULL table means the screen handle has never been set up, so the
+		'' device's own init runs first -- and only then is the table attached.
+		if( handle->hooks = 0 ) then tkrt_DevScrnInit_Screen( )
+		handle->hooks = @tkort_hooks_dev_scrn
+		handle->type_ = FB_FILE_TYPE_CONSOLE
+	end if
+
+	TKORT_IOUNLOCK()
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+sub tkort_DevScrnInit alias "fb_DevScrnInit" ( )
+	TKORT_IOLOCK()
+	hFillTable( )
+
+	if( TKORT_HANDLE_SCREEN()->hooks = 0 ) then
+		memset( TKORT_HANDLE_SCREEN(), 0, sizeof( FB_FILE ) )
+
+		TKORT_HANDLE_SCREEN()->mode   = FB_FILE_MODE_APPEND
+		TKORT_HANDLE_SCREEN()->encod  = FB_FILE_ENCOD_ASCII
+		'' VFS, not CONSOLE: the Open below promotes it, and it must not look
+		'' like a console until the table is attached.
+		TKORT_HANDLE_SCREEN()->type_  = FB_FILE_TYPE_VFS
+		TKORT_HANDLE_SCREEN()->access = FB_FILE_ACCESS_READWRITE_
+
+		tkort_DevScrnOpen( TKORT_HANDLE_SCREEN(), 0, 0 )
+	elseif( TKORT_HANDLE_SCREEN()->hooks <> @tkort_hooks_dev_scrn ) then
+		TKORT_HANDLE_SCREEN()->hooks = @tkort_hooks_dev_scrn
+	end if
+
+	TKORT_IOUNLOCK()
+end sub
+
+'' ------------------------------------------------------------------- close
+
+function tkort_DevScrnClose alias "fb_DevScrnClose" ( byval handle as FB_FILE ptr ) as long
+	TKORT_IOLOCK()
+	tkrt_DevScrnEnd( handle )
+	TKORT_IOUNLOCK()
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' --------------------------------------------------------------------- eof
+''
+'' EOF ON THE CONSOLE MEANS "NO KEYSTROKE PENDING", so it has to TRY to fill the
+'' buffer before answering -- an EOF that only looked at what was already
+'' buffered would report true on an idle keyboard and the caller would stop
+'' reading.
+
+sub tkort_DevScrnFillInput alias "fb_DevScrnFillInput" ( byval info as DEV_SCRN_INFO ptr )
+	dim as FBSTRING ptr s = any
+	dim as integer len_ = 0
+
+	s = tkrt_Inkey( )
+	if( s <> 0 ) then
+		len_ = FB_STRSIZE( s )
+		if( (s->data <> 0) andalso (len_ > 0) ) then
+			'' the NUL goes too, so the buffer is usable as a C string
+			if( len_ < TKORT_SCRN_BUFSIZE ) then
+				memcpy( @info->buffer(0), s->data, len_ + 1 )
+			else
+				len_ = 0
+			end if
+		end if
+		tkrt_hStrDelTemp( s )
+	end if
+
+	info->length_ = len_
+end sub
+
+function tkort_DevScrnEof alias "fb_DevScrnEof" ( byval handle as FB_FILE ptr ) as long
+	dim as DEV_SCRN_INFO ptr info = any
+	dim as long got_data = any
+
+	TKORT_IOLOCK()
+	info = cptr( DEV_SCRN_INFO ptr, hDeref( handle )->opaque )
+	got_data = iif( info->length_ <> 0, 1, 0 )
+	TKORT_IOUNLOCK()
+
+	if( got_data = 0 ) then
+		TKORT_IOLOCK()
+		tkort_DevScrnFillInput( info )
+		got_data = iif( info->length_ <> 0, 1, 0 )
+		TKORT_IOUNLOCK()
+	end if
+
+	return iif( got_data <> 0, 0, 1 )
+end function
+
+'' ------------------------------------------------------------------- write
+
+function tkort_DevScrnWrite alias "fb_DevScrnWrite" _
+	( byval handle as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as long
+	'' fb_PrintBufferEx, the THREE-argument console one -- not the file
+	'' fb_hFilePrintBufferEx, which would recurse straight back into this device.
+	tkrt_PrintBufferEx( value, valuelen, 0 )
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+sub tkort_DevScrnInit_Write alias "fb_DevScrnInit_Write" ( )
+	tkrt_DevScrnInit_NoOpen( )
+	TKORT_IOLOCK()
+	if( TKORT_HANDLE_SCREEN()->hooks->pfnWrite = 0 ) then
+		TKORT_HANDLE_SCREEN()->hooks->pfnWrite = @tkort_DevScrnWrite
+	end if
+	TKORT_IOUNLOCK()
+end sub
+
+function tkort_DevScrnWriteWstr alias "fb_DevScrnWriteWstr" _
+	( byval handle as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as long
+	tkrt_PrintBufferWstrEx( value, valuelen, 0 )
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+sub tkort_DevScrnInit_WriteWstr alias "fb_DevScrnInit_WriteWstr" ( )
+	tkrt_DevScrnInit_NoOpen( )
+	TKORT_IOLOCK()
+	if( TKORT_HANDLE_SCREEN()->hooks->pfnWriteWstr = 0 ) then
+		TKORT_HANDLE_SCREEN()->hooks->pfnWriteWstr = @tkort_DevScrnWriteWstr
+	end if
+	TKORT_IOUNLOCK()
+end sub
+
+'' -------------------------------------------------------------------- read
+
+function tkort_DevScrnRead alias "fb_DevScrnRead" _
+	( byval handle as FB_FILE ptr, byval value as any ptr, byval plen as uinteger ptr ) as long
+
+	dim as uinteger length_ = any, copy_length = any
+	dim as DEV_SCRN_INFO ptr info = any
+	dim as ubyte ptr pach = value
+
+	TKORT_IOLOCK()
+
+	length_ = *plen
+	info = cptr( DEV_SCRN_INFO ptr, hDeref( handle )->opaque )
+
+	while( length_ > 0 )
+		copy_length = iif( length_ > info->length_, info->length_, length_ )
+
+		if( copy_length = 0 ) then
+			'' A BUSY-WAIT WITH A YIELD, not a blocking read -- see the file
+			'' header. 25 ms is long enough not to spin a core and short enough
+			'' to feel immediate.
+			while( tkrt_KeyHit( ) = 0 )
+				tkrt_Delay( 25 )
+			wend
+
+			tkort_DevScrnFillInput( info )
+			if( info->length_ <> 0 ) then continue while
+
+			exit while
+		end if
+
+		memcpy( pach, @info->buffer(0), copy_length )
+		info->length_ -= copy_length
+		if( info->length_ <> 0 ) then
+			'' memmove, not memcpy: the source and destination overlap.
+			memmove( @info->buffer(0), @info->buffer(0) + copy_length, info->length_ )
+		end if
+
+		length_ -= copy_length
+		pach += copy_length
+	wend
+
+	TKORT_IOUNLOCK()
+
+	'' A SHORT READ IS ZERO-FILLED, so the caller's buffer never holds stale
+	'' bytes, and the LENGTH is written back so it can tell.
+	if( length_ <> 0 ) then memset( pach, 0, length_ )
+
+	*plen -= length_
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+end extern
+
+'' The stdin alternative, installed instead of the keyboard reader when input is
+'' redirected. Private, and it exists only to be a function POINTER.
+private function hReadFromStdin cdecl _
+	( byval handle as FB_FILE ptr, byval dst as any ptr, byval plen as uinteger ptr ) as long
+	return tkrt_DevFileRead( 0, dst, plen )
+end function
+
+private function hReadFromStdinWstr cdecl _
+	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as long
+	return tkrt_DevFileReadWstr( 0, dst, pchars )
+end function
+
+extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
+
+'' THE CHOICE IS MADE ONCE, AT INIT. A program whose input is a pipe reads the
+'' pipe; one with a console reads keystrokes. Deciding per call would let a
+'' program change its mind halfway through a read.
+sub tkort_DevScrnInit_Read alias "fb_DevScrnInit_Read" ( )
+	tkrt_DevScrnInit_NoOpen( )
+	TKORT_IOLOCK()
+	if( TKORT_HANDLE_SCREEN()->hooks->pfnRead = 0 ) then
+		if( tkrt_IsRedirected( 1 ) <> 0 ) then
+			TKORT_HANDLE_SCREEN()->hooks->pfnRead = cast( FnFileRead, @hReadFromStdin )
+		else
+			TKORT_HANDLE_SCREEN()->hooks->pfnRead = @tkort_DevScrnRead
+		end if
+	end if
+	TKORT_IOUNLOCK()
+end sub
+
+'' WIDE INPUT IS NARROW INPUT WIDENED -- fbc's own comment says "no unicode input
+'' supported", and the byte buffer is converted on the way out.
+function tkort_DevScrnReadWstr alias "fb_DevScrnReadWstr" _
+	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as long
+
+	dim as uinteger chars = any, copy_chars = any, len_ = any
+	dim as DEV_SCRN_INFO ptr info = any
+	dim as wstring ptr d = dst
+
+	TKORT_IOLOCK()
+
+	chars = *pchars
+	info = cptr( DEV_SCRN_INFO ptr, hDeref( handle )->opaque )
+
+	while( chars > 0 )
+		'' The byte length divided by the WIDE character size, which is what
+		'' makes this "no unicode input" rather than a decode.
+		len_ = info->length_ \ sizeof( wstring )
+		copy_chars = iif( chars > len_, len_, chars )
+
+		if( copy_chars = 0 ) then
+			while( tkrt_KeyHit( ) = 0 )
+				tkrt_Delay( 25 )
+			wend
+
+			tkort_DevScrnFillInput( info )
+			if( info->length_ <> 0 ) then continue while
+
+			exit while
+		end if
+
+		tkrt_wstr_ConvFromA( d, chars, cptr( zstring ptr, @info->buffer(0) ) )
+
+		info->length_ -= copy_chars * sizeof( wstring )
+		if( info->length_ <> 0 ) then
+			memmove( @info->buffer(0), @info->buffer(0) + copy_chars * sizeof( wstring ), info->length_ )
+		end if
+
+		chars -= copy_chars
+		d += copy_chars
+	wend
+
+	TKORT_IOUNLOCK()
+
+	if( chars <> 0 ) then memset( d, 0, chars * sizeof( wstring ) )
+
+	*pchars -= chars
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+sub tkort_DevScrnInit_ReadWstr alias "fb_DevScrnInit_ReadWstr" ( )
+	tkrt_DevScrnInit_NoOpen( )
+	TKORT_IOLOCK()
+	if( TKORT_HANDLE_SCREEN()->hooks->pfnReadWstr = 0 ) then
+		if( tkrt_IsRedirected( 1 ) <> 0 ) then
+			TKORT_HANDLE_SCREEN()->hooks->pfnReadWstr = cast( FnFileReadWstr, @hReadFromStdinWstr )
+		else
+			TKORT_HANDLE_SCREEN()->hooks->pfnReadWstr = @tkort_DevScrnReadWstr
+		end if
+	end if
+	TKORT_IOUNLOCK()
+end sub
+
+'' --------------------------------------------------------------- read line
+''
+'' LINE INPUT on the console is the LINE EDITOR, not a buffer read: it echoes,
+'' handles backspace and ends on Enter. That is why it goes through fb_LineInput
+'' rather than through the pushback buffer the character reads use.
+
+function tkort_DevScrnReadLine alias "fb_DevScrnReadLine" _
+	( byval handle as FB_FILE ptr, byval dst as FBSTRING ptr ) as long
+	'' -1 length, no fill, no question mark, but DO add the newline.
+	return tkrt_LineInput( 0, dst, -1, 0, 0, 1 )
+end function
+
+sub tkort_DevScrnInit_ReadLine alias "fb_DevScrnInit_ReadLine" ( )
+	tkrt_DevScrnInit_NoOpen( )
+	TKORT_IOLOCK()
+	if( TKORT_HANDLE_SCREEN()->hooks->pfnReadLine = 0 ) then
+		TKORT_HANDLE_SCREEN()->hooks->pfnReadLine = @tkort_DevScrnReadLine
+	end if
+	TKORT_IOUNLOCK()
+end sub
+
+function tkort_DevScrnReadLineWstr alias "fb_DevScrnReadLineWstr" _
+	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval dst_chars as integer ) as long
+
+	dim as long res = any
+	dim as FBSTRING temp_ = ( 0, 0, 0 )
+
+	res = tkrt_LineInput( 0, @temp_, -1, 0, 0, 1 )
+
+	if( res = FB_RTERROR_OK ) then
+		tkrt_WstrAssignFromA( dst, dst_chars, @temp_, -1 )
+	end if
+
+	'' DELETED EITHER WAY. The temp descriptor is a local, so a failed read still
+	'' leaves a buffer for this to release.
+	tkrt_StrDelete( @temp_ )
+
+	return res
+end function
+
+sub tkort_DevScrnInit_ReadLineWstr alias "fb_DevScrnInit_ReadLineWstr" ( )
+	tkrt_DevScrnInit_NoOpen( )
+	TKORT_IOLOCK()
+	if( TKORT_HANDLE_SCREEN()->hooks->pfnReadLineWstr = 0 ) then
+		TKORT_HANDLE_SCREEN()->hooks->pfnReadLineWstr = @tkort_DevScrnReadLineWstr
+	end if
+	TKORT_IOUNLOCK()
+end sub
+
+end extern

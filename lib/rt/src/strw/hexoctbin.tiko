@@ -1,0 +1,200 @@
+'' hexoctbin.tiko -- HEX, OCT and BIN for WSTRING: thirty entry points over nine
+'' fbc members. The wide twin of src/str/hexoctbin.tiko.
+''
+'' THE ALGORITHM IS SHARED (inc/radix-core.ti, instantiated here at wide width);
+'' only the destination differs, and it differs in two ways that matter:
+''
+''   ALLOCATION      a wstring result is a plain malloc the caller frees with
+''                   fb_WstrDelete -- no descriptor, no temp pool, no temp bit.
+''
+''   FAILURE         returns NULL, where the narrow side returns the shared
+''                   empty descriptor. Same rule as the rest of this family: on
+''                   WSTRING, "empty" and "absent" are the same value, so there
+''                   is nothing else NULL could be confused with.
+
+#include once "inc/descriptors.ti"
+#include once "inc/wstr.ti"
+
+'' The store goes through a pointer whose element width is the TARGET'S, because
+'' indexing a `wstring ptr` yields a wstring expression rather than a number --
+'' the trap documented at the top of inc/wstr.ti. One typed accessor is used for
+'' both the fill and the terminator so the two cannot disagree about the width.
+#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+	type TKORT_WRDX_UNIT as ushort
+#else
+	type TKORT_WRDX_UNIT as ulong
+#endif
+
+#define RDX( n )   hw_##n
+#define RDX_UNIT   TKORT_WRDX_UNIT
+#include once "inc/radix-core.ti"
+
+private function hRadixW _
+	( byval num as ulongint, byval digits as long, _
+	  byval shift as long, byval mask as ulongint, byval ishex as long ) as wstring ptr
+
+	if( digits <= 0 ) then digits = hw_hDigits( num, shift )
+
+	dim as wstring ptr s = FB_WSTR_ALLOCTEMP( digits )
+	if( s = 0 ) then return 0
+
+	hw_hFill( cptr( TKORT_WRDX_UNIT ptr, s ), num, digits, shift, mask, ishex )
+	cptr( TKORT_WRDX_UNIT ptr, s )[digits] = 0
+	return s
+
+end function
+
+extern "rtlib"
+
+'' ------------------------------------------------------------------- HEX
+
+function tkort_WstrHexEx_l alias "fb_WstrHexEx_l" _
+	( byval num as ulongint, byval digits as long ) as wstring ptr
+	return hRadixW( num, digits, 4, 15, 1 )
+end function
+function tkort_WstrHex_l alias "fb_WstrHex_l" ( byval num as ulongint ) as wstring ptr
+	return tkort_WstrHexEx_l( num, 0 )
+end function
+function tkort_WstrHexEx_b alias "fb_WstrHexEx_b" _
+	( byval num as ubyte, byval digits as long ) as wstring ptr
+	return tkort_WstrHexEx_l( num, digits )
+end function
+function tkort_WstrHex_b alias "fb_WstrHex_b" ( byval num as ubyte ) as wstring ptr
+	return tkort_WstrHexEx_l( num, 0 )
+end function
+function tkort_WstrHexEx_s alias "fb_WstrHexEx_s" _
+	( byval num as ushort, byval digits as long ) as wstring ptr
+	return tkort_WstrHexEx_l( num, digits )
+end function
+function tkort_WstrHex_s alias "fb_WstrHex_s" ( byval num as ushort ) as wstring ptr
+	return tkort_WstrHexEx_l( num, 0 )
+end function
+function tkort_WstrHexEx_i alias "fb_WstrHexEx_i" _
+	( byval num as ulong, byval digits as long ) as wstring ptr
+	return tkort_WstrHexEx_l( num, digits )
+end function
+function tkort_WstrHex_i alias "fb_WstrHex_i" ( byval num as ulong ) as wstring ptr
+	return tkort_WstrHexEx_l( num, 0 )
+end function
+
+'' ------------------------------------------------------------------- OCT
+
+function tkort_WstrOctEx_l alias "fb_WstrOctEx_l" _
+	( byval num as ulongint, byval digits as long ) as wstring ptr
+	return hRadixW( num, digits, 3, 7, 0 )
+end function
+function tkort_WstrOct_l alias "fb_WstrOct_l" ( byval num as ulongint ) as wstring ptr
+	return tkort_WstrOctEx_l( num, 0 )
+end function
+function tkort_WstrOctEx_b alias "fb_WstrOctEx_b" _
+	( byval num as ubyte, byval digits as long ) as wstring ptr
+	return tkort_WstrOctEx_l( num, digits )
+end function
+function tkort_WstrOct_b alias "fb_WstrOct_b" ( byval num as ubyte ) as wstring ptr
+	return tkort_WstrOctEx_l( num, 0 )
+end function
+function tkort_WstrOctEx_s alias "fb_WstrOctEx_s" _
+	( byval num as ushort, byval digits as long ) as wstring ptr
+	return tkort_WstrOctEx_l( num, digits )
+end function
+function tkort_WstrOct_s alias "fb_WstrOct_s" ( byval num as ushort ) as wstring ptr
+	return tkort_WstrOctEx_l( num, 0 )
+end function
+function tkort_WstrOctEx_i alias "fb_WstrOctEx_i" _
+	( byval num as ulong, byval digits as long ) as wstring ptr
+	return tkort_WstrOctEx_l( num, digits )
+end function
+function tkort_WstrOct_i alias "fb_WstrOct_i" ( byval num as ulong ) as wstring ptr
+	return tkort_WstrOctEx_l( num, 0 )
+end function
+
+'' ------------------------------------------------------------------- BIN
+
+function tkort_WstrBinEx_l alias "fb_WstrBinEx_l" _
+	( byval num as ulongint, byval digits as long ) as wstring ptr
+	return hRadixW( num, digits, 1, 1, 0 )
+end function
+function tkort_WstrBin_l alias "fb_WstrBin_l" ( byval num as ulongint ) as wstring ptr
+	return tkort_WstrBinEx_l( num, 0 )
+end function
+function tkort_WstrBinEx_b alias "fb_WstrBinEx_b" _
+	( byval num as ubyte, byval digits as long ) as wstring ptr
+	return tkort_WstrBinEx_l( num, digits )
+end function
+function tkort_WstrBin_b alias "fb_WstrBin_b" ( byval num as ubyte ) as wstring ptr
+	return tkort_WstrBinEx_l( num, 0 )
+end function
+function tkort_WstrBinEx_s alias "fb_WstrBinEx_s" _
+	( byval num as ushort, byval digits as long ) as wstring ptr
+	return tkort_WstrBinEx_l( num, digits )
+end function
+function tkort_WstrBin_s alias "fb_WstrBin_s" ( byval num as ushort ) as wstring ptr
+	return tkort_WstrBinEx_l( num, 0 )
+end function
+function tkort_WstrBinEx_i alias "fb_WstrBinEx_i" _
+	( byval num as ulong, byval digits as long ) as wstring ptr
+	return tkort_WstrBinEx_l( num, digits )
+end function
+function tkort_WstrBin_i alias "fb_WstrBin_i" ( byval num as ulong ) as wstring ptr
+	return tkort_WstrBinEx_l( num, 0 )
+end function
+
+'' ------------------------------------------------------- the pointer forms
+''
+'' WIDTH-DEPENDENT BY DESIGN: an ANY PTR prints its natural width, so the
+'' 64-bit host forwards to the 64-bit routine and the 32-bit one does not pad.
+'' Branch on sizeof rather than #ifdef, so the half that is dead here still
+'' compiles and type-checks.
+''
+'' AND THE DEAD HALF IS WHY THE CAST GOES THROUGH POINTER WIDTH FIRST:
+'' `cast( ulongint, p )` is error 20 on win32, where the pointer is 32 bits.
+
+function tkort_WstrHex_p alias "fb_WstrHex_p" ( byval p as any ptr ) as wstring ptr
+	if( sizeof( any ptr ) = 8 ) then
+		return tkort_WstrHexEx_l( cast( ulongint, cast( uinteger, p ) ), 0 )
+	else
+		return tkort_WstrHexEx_i( cast( ulong, cast( uinteger, p ) ), 0 )
+	end if
+end function
+function tkort_WstrHexEx_p alias "fb_WstrHexEx_p" _
+	( byval p as any ptr, byval digits as long ) as wstring ptr
+	if( sizeof( any ptr ) = 8 ) then
+		return tkort_WstrHexEx_l( cast( ulongint, cast( uinteger, p ) ), digits )
+	else
+		return tkort_WstrHexEx_i( cast( ulong, cast( uinteger, p ) ), digits )
+	end if
+end function
+
+function tkort_WstrOct_p alias "fb_WstrOct_p" ( byval p as any ptr ) as wstring ptr
+	if( sizeof( any ptr ) = 8 ) then
+		return tkort_WstrOctEx_l( cast( ulongint, cast( uinteger, p ) ), 0 )
+	else
+		return tkort_WstrOctEx_i( cast( ulong, cast( uinteger, p ) ), 0 )
+	end if
+end function
+function tkort_WstrOctEx_p alias "fb_WstrOctEx_p" _
+	( byval p as any ptr, byval digits as long ) as wstring ptr
+	if( sizeof( any ptr ) = 8 ) then
+		return tkort_WstrOctEx_l( cast( ulongint, cast( uinteger, p ) ), digits )
+	else
+		return tkort_WstrOctEx_i( cast( ulong, cast( uinteger, p ) ), digits )
+	end if
+end function
+
+function tkort_WstrBin_p alias "fb_WstrBin_p" ( byval p as any ptr ) as wstring ptr
+	if( sizeof( any ptr ) = 8 ) then
+		return tkort_WstrBinEx_l( cast( ulongint, cast( uinteger, p ) ), 0 )
+	else
+		return tkort_WstrBinEx_i( cast( ulong, cast( uinteger, p ) ), 0 )
+	end if
+end function
+function tkort_WstrBinEx_p alias "fb_WstrBinEx_p" _
+	( byval p as any ptr, byval digits as long ) as wstring ptr
+	if( sizeof( any ptr ) = 8 ) then
+		return tkort_WstrBinEx_l( cast( ulongint, cast( uinteger, p ) ), digits )
+	else
+		return tkort_WstrBinEx_i( cast( ulong, cast( uinteger, p ) ), digits )
+	end if
+end function
+
+end extern

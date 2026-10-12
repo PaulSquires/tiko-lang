@@ -70,7 +70,7 @@ lowered: 4 functions, 4 blocks, 40 insts, 3 statements not lowered, 0 scope imba
   unlowered N_INTRINSIC 3
   inside N_INTRINSIC 3
   unlowered intrinsic KW_PRINT 3
-  skip-site src\mir\lowerctl.bas:212 3
+  skip-site src\mir\lowerctl.tiko:212 3
 tests/diagnostics/src/generic-member-missing.bas(28,13): error TKO0739: 'box' has no member named 'nosuchthing'
      |
   28 |     print a.NoSuchThing( )

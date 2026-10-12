@@ -1,7 +1,7 @@
 /* fbrt0.c -- the runtime's startup and shutdown hooks, for the gnu targets.
 **
 ** WHAT THIS REPLACES.  fbc's own fbrt0.o, which the compiler names on every gnu
-** link (toolchain.bas LinkExe, first match across the library paths) and which
+** link (toolchain.tiko LinkExe, first match across the library paths) and which
 ** was the last file of fbc's that a win64 or linux-x86_64 program still took
 ** from lib/<target>-fb/.  It is the ONLY caller of fb_hRtInit, and so of fb_hInit:
 ** nothing refers to it by name, which is why it is a loose object the driver

@@ -20,7 +20,7 @@
 '' console hooks into the framebuffer and never reaches stdout. Results go to a
 '' file, and the summary is printed only after SCREEN 0.
 
-#include once "../abi/rtlctx.bi"
+#include once "../abi/rtlctx.ti"
 #include once "fbgfx.bi"
 
 using TkoAbi

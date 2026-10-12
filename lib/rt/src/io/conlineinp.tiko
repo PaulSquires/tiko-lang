@@ -1,0 +1,387 @@
+'' conlineinp.tiko -- LOCATE's return value, POS, INPUT and the two console
+'' LINE INPUTs. Five symbols across five fbc members.
+''
+'' LOCATE RETURNS THE OLD POSITION, AND ON FAILURE IT ASKS TWICE. fb_LocateEx
+'' does the work and reports both a code and the previous row/column packed into
+'' one int; when it fails -- an out-of-range row, say -- fb_Locate calls it AGAIN
+'' with row and column zero, which means "do not move", purely to obtain a
+'' position to return. So a rejected LOCATE still answers with where the cursor
+'' is, and the error is left in ERR rather than in the return.
+''
+'' POS IGNORES ITS ARGUMENT. `POS(0)`, `POS(1)` and `POS(anything)` are all
+'' fb_GetX -- the parameter exists because QBASIC's did.
+''
+'' INPUT SPLITS ON REDIRECTION BEFORE IT PROMPTS. With input redirected there is
+'' nobody to prompt, so the prompt string is DELETED and the whole thing becomes
+'' fb_FileInput on channel 0 -- the same tokeniser the file path uses, reading
+'' the SCREEN device, which fb_DevScrnInit_Read has just pointed at stdin.
+''
+'' AND WHEN IT IS NOT REDIRECTED, THE TLS CONTEXT IS RESET BY HAND: handle to
+'' zero, status to zero, index to zero, and the leftover string deleted. Zeroing
+'' the handle is what makes the tokeniser read from ctx->str instead of a file.
+''
+'' THE TWO LINE INPUTS ARE DIFFERENT FUNCTIONS ON WINDOWS AND POSIX, not one
+'' function with a branch. Windows uses fb_ConReadLine, which does its own line
+'' editing against the console; POSIX reads stdin through
+'' fb_DevFileReadLineDumb and then FIXES THE CURSOR UP BY HAND, because the
+'' terminal has already echoed the line and moved on.
+''
+'' THAT CURSOR ARITHMETIC IS WHERE THE BODIES ARE. On POSIX with addnewline
+'' false, the runtime has to put the cursor back where the input STARTED plus
+'' the length typed:
+''
+''     old_x += len - 1;  old_x %= cols;  old_x += 1;  old_y -= 1;
+''
+'' -- one-based columns, so the -1 and +1 straddle the modulo, and old_y is the
+'' row AFTER the echoed newline so it is decremented. fbc's own comment calls it
+'' "the easy and dumb method" and notes it does not handle TABs. Reproduced
+'' exactly, TAB bug included: a different formula is a different cursor.
+''
+'' THE WIDE FORM IS THE NARROW ONE WITH A CONVERSION AT THE END, and fbc's
+'' comment says so: "no support for unicode input". It reads bytes and widens.
+''
+'' AND IT NEVER DELETES ITS PROMPT. fb_ConsoleLineInput deletes a NULL-data
+'' prompt descriptor as a temp; the wide one takes a plain wstring pointer and
+'' has nothing to delete. Not a leak -- a different parameter type.
+
+#include once "inc/descriptors.ti"
+#include once "inc/file.ti"
+#include once "inc/iolock.ti"
+#include once "inc/rterror.ti"
+#include once "inc/thread.ti"
+#include once "inc/sysbind.ti"
+
+'' fb_print.h.
+const FB_PRINT_NEWLINE      = 1
+const FB_PRINT_FORCE_ADJUST = 8
+
+'' fb_file.h's FB_INPUTCTX, as io/fileinput.tiko measures it -- only `handle`,
+'' `status`, `str` and `index` exist, and all four are written here.
+type FB_INPUTCTX field = 1
+	as FB_FILE ptr handle
+	as long        status
+	as long    pad0_
+	as FBSTRING    str_
+	as long        cursor
+	as long    pad1_
+end type
+
+#assert sizeof( FB_INPUTCTX ) = 48
+
+extern "rtlib"
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
+	declare function tkrt_StrAssign alias "fb_StrAssign" _
+		( byval dst as any ptr, byval dst_size as integer, _
+		  byval src as any ptr, byval src_size as integer, byval fill_rem as long ) as any ptr
+	declare function tkrt_WstrAssignFromA alias "fb_WstrAssignFromA" _
+		( byval dst as wstring ptr, byval dst_chars as integer, _
+		  byval src as any ptr, byval src_size as integer ) as wstring ptr
+
+	declare function tkrt_GetX alias "fb_GetX" ( ) as long
+	declare sub tkrt_GetXY alias "fb_GetXY" ( byval col as long ptr, byval row as long ptr )
+	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as long ptr, byval rows as long ptr )
+	declare function tkrt_IsRedirected alias "fb_IsRedirected" ( byval is_input as long ) as long
+	declare function tkrt_FileInput alias "fb_FileInput" ( byval fnum as long ) as long
+	declare sub tkrt_DevScrnInit_Read alias "fb_DevScrnInit_Read" ( )
+
+	declare sub tkrt_PrintString alias "fb_PrintString" _
+		( byval fnum as long, byval s as FBSTRING ptr, byval mask as long )
+	declare sub tkrt_PrintFixString alias "fb_PrintFixString" _
+		( byval fnum as long, byval s as zstring ptr, byval mask as long )
+	declare sub tkrt_PrintWstr alias "fb_PrintWstr" _
+		( byval fnum as long, byval s as wstring ptr, byval mask as long )
+	declare sub tkrt_PrintVoid alias "fb_PrintVoid" ( byval fnum as long, byval mask as long )
+	declare sub tkrt_PrintBufferEx alias "fb_PrintBufferEx" _
+		( byval buffer as any ptr, byval length_ as uinteger, byval mask as long )
+end extern
+
+extern "c"   '' NON-FBCALL: the *Ex forms and the h-prefixed internals.
+	declare function tkrt_LocateEx alias "fb_LocateEx" _
+		( byval row as long, byval col as long, byval cursor as long, _
+		  byval new_pos as long ptr ) as long
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_TlsGetCtx alias "fb_TlsGetCtx" _
+		( byval keyid as long, byval len_ as uinteger, byval dtor as any ptr ) as any ptr
+	declare sub tkrt_INPUTCTX_Destructor alias "fb_INPUTCTX_Destructor" ( byval d as any ptr )
+	declare function tkrt_LineInput alias "fb_LineInput" _
+		( byval text_ as FBSTRING ptr, byval dst as any ptr, byval dst_len as integer, _
+		  byval fillrem as long, byval addquestion as long, byval addnewline as long ) as long
+	declare function tkrt_DevFileReadLineDumb alias "fb_DevFileReadLineDumb" _
+		( byval fp as FILE ptr, byval dst as FBSTRING ptr, byval pfn as any ptr ) as long
+	#if defined( __FB_WIN32__ )
+		declare function tkrt_ConReadLine alias "fb_ConReadLine" ( byval addnl as long ) as FBSTRING ptr
+	#else
+		declare function tkrt_ReadString alias "fb_ReadString" _
+			( byval buffer as zstring ptr, byval count as uinteger, byval fp as FILE ptr ) as zstring ptr
+	#endif
+end extern
+
+#define TKORT_TLSGET_INPUT() _
+	cptr( FB_INPUTCTX ptr, tkrt_TlsGetCtx( FB_TLSKEY_INPUT, sizeof( FB_INPUTCTX ), _
+	                                       @tkrt_INPUTCTX_Destructor ) )
+
+'' "? ", the prompt INPUT adds when asked. A FIXED string, printed through
+'' fb_PrintFixString rather than as a descriptor.
+dim shared as zstring * 4 pszDefaultQuestion = "? "
+
+extern "rtlib"
+
+'' ------------------------------------------------------------------ LOCATE
+
+'' THE SECOND CALL IS NOT A RETRY. Row and column zero mean "do not move", so it
+'' runs only to obtain a position for the return value after the first call
+'' rejected the arguments. start and stop are accepted and ignored -- they are
+'' QBASIC's cursor-shape parameters, which fbc does not implement.
+function tkort_Locate alias "fb_Locate" _
+	( byval row as long, byval col as long, byval cursor as long, _
+	  byval start_ as long, byval stop_ as long ) as long
+
+	dim as long new_pos = any
+	dim as long res = tkrt_LocateEx( row, col, cursor, @new_pos )
+	if( res <> FB_RTERROR_OK ) then
+		tkrt_LocateEx( 0, 0, cursor, @new_pos )
+	end if
+	return new_pos
+end function
+
+'' ------------------------------------------------------------------ POS
+
+'' The argument is ignored. See the file header.
+function tkort_Pos alias "fb_Pos" ( byval dummy as long ) as long
+	return tkrt_GetX( )
+end function
+
+'' ------------------------------------------------------------------ INPUT
+
+function tkort_ConsoleInput alias "fb_ConsoleInput" _
+	( byval text_ as FBSTRING ptr, byval addquestion as long, byval addnewline as long ) as long
+
+	'' Point the SCREEN device's reader at stdin or at the keyboard, once.
+	tkrt_DevScrnInit_Read( )
+
+	if( tkrt_IsRedirected( -1 ) <> 0 ) then
+		'' NOBODY TO PROMPT: the prompt is deleted unread and the whole thing
+		'' becomes a file INPUT on channel 0.
+		tkrt_DelTemp( text_ )
+		return tkrt_FileInput( 0 )
+	end if
+
+	dim as FB_INPUTCTX ptr ctx = TKORT_TLSGET_INPUT()
+
+	'' ZEROING THE HANDLE is what makes the tokeniser read ctx->str rather than
+	'' a channel -- see io/fileinput.tiko's hReadChar.
+	tkrt_StrDelete( @ctx->str_ )
+	ctx->handle = 0
+	ctx->status = 0
+	ctx->cursor = 0
+
+	return tkrt_LineInput( text_, @ctx->str_, -1, 0, addquestion, addnewline )
+end function
+
+end extern
+
+'' ------------------------------------------------------------- LINE INPUT
+
+extern "c"   '' NON-FBCALL: fb_console.h declares both plainly.
+
+#if defined( __FB_WIN32__)
+
+'' WINDOWS: fb_ConReadLine does the line editing itself, against the console, so
+'' there is no cursor to repair afterwards -- only the optional newline.
+function tkort_ConsoleLineInput alias "fb_ConsoleLineInput" _
+	( byval text_ as FBSTRING ptr, byval dst as any ptr, byval dst_len as integer, _
+	  byval fillrem as long, byval addquestion as long, byval addnewline as long ) as long
+
+	TKORT_IOLOCK()
+
+	'' FORCE_ADJUST with a NULL buffer and zero length is not a print: it is
+	'' how the cursor position is brought up to date before anything is drawn.
+	tkrt_PrintBufferEx( 0, 0, FB_PRINT_FORCE_ADJUST )
+
+	if( text_ <> 0 ) then
+		if( text_->data <> 0 ) then
+			tkrt_PrintString( 0, text_, 0 )
+		else
+			'' An EMPTY prompt is still a temp descriptor that has to go.
+			tkrt_DelTemp( text_ )
+		end if
+
+		'' AND THE "? " IS ONLY ADDED WHEN THERE WAS A PROMPT AT ALL -- it is
+		'' inside the `text <> NULL` test, so `INPUT x` with no prompt string
+		'' gets nothing.
+		if( addquestion <> FB_FALSE ) then
+			tkrt_PrintFixString( 0, @pszDefaultQuestion, 0 )
+		end if
+	end if
+
+	TKORT_IOUNLOCK()
+
+	'' READ OUTSIDE THE LOCK. The read blocks for as long as the user takes,
+	'' and holding the I/O lock across it would stop every other thread.
+	dim as FBSTRING ptr tmp_result = tkrt_ConReadLine( 0 )
+
+	if( addnewline <> 0 ) then tkrt_PrintVoid( 0, FB_PRINT_NEWLINE )
+
+	if( tmp_result <> 0 ) then
+		tkrt_StrAssign( dst, dst_len, tmp_result, -1, fillrem )
+		return tkrt_ErrorSetNum( FB_RTERROR_OK )
+	end if
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+end function
+
+function tkort_ConsoleLineInputWstr alias "fb_ConsoleLineInputWstr" _
+	( byval text_ as wstring ptr, byval dst as wstring ptr, byval max_chars as integer, _
+	  byval addquestion as long, byval addnewline as long ) as long
+
+	TKORT_IOLOCK()
+
+	tkrt_PrintBufferEx( 0, 0, FB_PRINT_FORCE_ADJUST )
+
+	if( text_ <> 0 ) then
+		tkrt_PrintWstr( 0, text_, 0 )
+		if( addquestion <> FB_FALSE ) then
+			tkrt_PrintFixString( 0, @pszDefaultQuestion, 0 )
+		end if
+	end if
+
+	TKORT_IOUNLOCK()
+
+	dim as FBSTRING ptr tmp_result = tkrt_ConReadLine( 0 )
+
+	if( addnewline <> 0 ) then tkrt_PrintVoid( 0, FB_PRINT_NEWLINE )
+
+	if( tmp_result = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+
+	'' BYTES, WIDENED. fbc's own comment: "no support for unicode input".
+	tkrt_WstrAssignFromA( dst, max_chars, tmp_result, -1 )
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+#else
+
+'' POSIX: the terminal echoes and advances the cursor itself, so the runtime
+'' reads stdin and then puts the cursor back by hand. See the file header on the
+'' arithmetic.
+private function hWrapper cdecl _
+	( byval buffer as zstring ptr, byval count as uinteger, byval fp as FILE ptr ) as zstring ptr
+	return tkrt_ReadString( buffer, count, fp )
+end function
+
+function tkort_ConsoleLineInput alias "fb_ConsoleLineInput" _
+	( byval text_ as FBSTRING ptr, byval dst as any ptr, byval dst_len as integer, _
+	  byval fillrem as long, byval addquestion as long, byval addnewline as long ) as long
+
+	dim as long res = any, old_x = any, old_y = any
+	dim as uinteger length_ = any
+
+	'' BOTH OF THESE HAPPEN BEFORE THE LOCK, and the position is captured
+	'' BEFORE the prompt is printed -- the arithmetic below needs where the
+	'' input STARTED, which is after the prompt, so old_x is re-read later on
+	'' the Windows side and here it is not. That asymmetry is fbc's.
+	tkrt_PrintBufferEx( 0, 0, FB_PRINT_FORCE_ADJUST )
+	tkrt_GetXY( @old_x, @old_y )
+
+	TKORT_IOLOCK()
+
+	if( text_ <> 0 ) then
+		if( text_->data <> 0 ) then
+			tkrt_PrintString( 0, text_, 0 )
+		else
+			tkrt_DelTemp( text_ )
+		end if
+
+		if( addquestion <> FB_FALSE ) then
+			tkrt_PrintFixString( 0, @pszDefaultQuestion, 0 )
+		end if
+	end if
+
+	dim as FBSTRING str_result
+	str_result.data = 0
+	str_result.len = 0
+	str_result.size = 0
+
+	res = tkrt_DevFileReadLineDumb( stdin, @str_result, cast( any ptr, @hWrapper ) )
+
+	length_ = FB_STRSIZE( @str_result )
+
+	if( addnewline = 0 ) then
+		'' "The easy and dumb method", in fbc's own words -- and it does not
+		'' handle TABs. Reproduced exactly: a different formula is a different
+		'' cursor, and the TAB bug is part of the contract.
+		dim as long cols = any, rows = any, cur_y = any
+		tkrt_GetSize( @cols, @rows )
+		tkrt_GetXY( 0, @cur_y )
+
+		'' One-based columns, which is why the -1 and the +1 straddle the
+		'' modulo; and cur_y is the row AFTER the echoed newline.
+		old_x += length_ - 1
+		old_x mod= cols
+		old_x += 1
+		cur_y -= 1
+
+		tkort_Locate( cur_y, old_x, -1, 0, 0 )
+	end if
+
+	tkrt_StrAssign( dst, dst_len, @str_result, -1, fillrem )
+	tkrt_StrDelete( @str_result )
+
+	TKORT_IOUNLOCK()
+
+	return res
+end function
+
+function tkort_ConsoleLineInputWstr alias "fb_ConsoleLineInputWstr" _
+	( byval text_ as wstring ptr, byval dst as wstring ptr, byval max_chars as integer, _
+	  byval addquestion as long, byval addnewline as long ) as long
+
+	dim as long res = any, old_x = any, old_y = any
+	dim as uinteger length_ = any
+
+	tkrt_PrintBufferEx( 0, 0, FB_PRINT_FORCE_ADJUST )
+	tkrt_GetXY( @old_x, @old_y )
+
+	TKORT_IOLOCK()
+
+	if( text_ <> 0 ) then
+		tkrt_PrintWstr( 0, text_, 0 )
+		if( addquestion <> FB_FALSE ) then
+			tkrt_PrintFixString( 0, @pszDefaultQuestion, 0 )
+		end if
+	end if
+
+	dim as FBSTRING str_result
+	str_result.data = 0
+	str_result.len = 0
+	str_result.size = 0
+
+	res = tkrt_DevFileReadLineDumb( stdin, @str_result, cast( any ptr, @hWrapper ) )
+
+	length_ = FB_STRSIZE( @str_result )
+
+	if( addnewline = 0 ) then
+		dim as long cols = any, rows = any, cur_y = any
+		tkrt_GetSize( @cols, @rows )
+		tkrt_GetXY( 0, @cur_y )
+
+		old_x += length_ - 1
+		old_x mod= cols
+		old_x += 1
+		cur_y -= 1
+
+		tkort_Locate( cur_y, old_x, -1, 0, 0 )
+	end if
+
+	tkrt_WstrAssignFromA( dst, max_chars, @str_result, -1 )
+	tkrt_StrDelete( @str_result )
+
+	TKORT_IOUNLOCK()
+
+	return res
+end function
+
+#endif
+
+end extern

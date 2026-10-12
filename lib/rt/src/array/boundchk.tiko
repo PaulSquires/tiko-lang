@@ -1,0 +1,142 @@
+'' boundchk.tiko -- the -exx array checks: five entry points over one fbc
+'' member.
+''
+'' EVERY ONE RETURNS A POINTER, AND THE POINTER IS THE HANDLER TO JUMP TO.
+'' NULL means "no error, carry on". The compiler emits a conditional jump on
+'' the result, so returning a handler on success would jump into the error path
+'' of a program that had no error.
+''
+'' fb_ArraySngBoundChkEx TAKES ITS INDEX UNSIGNED ON PURPOSE. With lbound known
+'' to be 0, ubound cannot be negative, so a negative index reinterpreted as
+'' unsigned becomes enormous and fails the single `idx > ubound` test. That is
+'' one comparison instead of two, and it is why the parameter types differ from
+'' fb_ArrayBoundChkEx's signed pair. Making them consistent would either cost a
+'' comparison or stop catching negative indices.
+''
+'' THE TWO UNSUFFIXED FORMS ARE LEGACY, kept so a debug build of newer fbc
+'' sources can be compiled by an older fbc. They forward with a NULL variable
+'' name, which is what selects the word "array" over "'name'" in the message.
+''
+'' THE MESSAGE IS BUILT WITH snprintf INTO A LOCAL, then handed to
+'' fb_ErrorThrowMsg, which copies nothing -- it passes the pointer through to
+'' fb_Die, which formats it into __fb_errmsg before this frame goes away. The
+'' buffer being local is therefore safe, and is not an oversight to "fix".
+
+#include once "inc/descriptors.ti"
+#include once "inc/rterror.ti"
+#include once "inc/ctx.ti"
+#include once "inc/fmt.ti"
+
+extern "c"   '' NON-FBCALL: fb_error.h declares the thrower plain.
+	declare function tkrt_ErrorThrowMsg alias "fb_ErrorThrowMsg" _
+		( byval err_num as long, byval line_num as long, byval mod_name as zstring ptr, _
+		  byval msg as zstring ptr, byval res_label as any ptr, _
+		  byval resnext_label as any ptr ) as FB_ERRHANDLER
+end extern
+
+'' The three messages, assembled in the order fbc assembles them: a leading
+'' newline, then either the variable's name in quotes or the bare word "array",
+'' then the complaint.
+private function hThrowError( byval errnum as long, byval idx as longint, _
+                              byval lbound_ as longint, byval ubound_ as longint, _
+                              byval linenum as long, byval filename as zstring ptr, _
+                              byval variablename as zstring ptr ) as any ptr
+
+	'' integer, not long: it is a byte offset into the message buffer, and
+	'' snprintf returns a C int that is widened here explicitly.
+	dim as integer pos_ = 0
+	dim as zstring * FB_ERRMSG_SIZE msg = any
+
+	pos_ += tkrt_snprintf( @msg + pos_, FB_ERRMSG_SIZE - pos_, @!"\n" )
+
+	if( variablename <> 0 ) then
+		pos_ += tkrt_snprintf( @msg + pos_, FB_ERRMSG_SIZE - pos_, @"'%s' ", variablename )
+	else
+		pos_ += tkrt_snprintf( @msg + pos_, FB_ERRMSG_SIZE - pos_, @"array " )
+	end if
+
+	if( errnum = FB_RTERROR_NOTDIMENSIONED ) then
+		pos_ += tkrt_snprintf( @msg + pos_, FB_ERRMSG_SIZE - pos_, _
+		                       @"not dimensioned and array elements are not allocated" )
+	elseif( errnum = FB_RTERROR_WRONGDIMENSIONS ) then
+		'' idx carries the count GIVEN and ubound the count EXPECTED -- the
+		'' two parameters are reused for a different pair of numbers here.
+		pos_ += tkrt_snprintf( @msg + pos_, FB_ERRMSG_SIZE - pos_, _
+		                       @"accessed with wrong number of dimensions, %lld given but expected %lld", _
+		                       idx, ubound_ )
+	else
+		pos_ += tkrt_snprintf( @msg + pos_, FB_ERRMSG_SIZE - pos_, _
+		                       @"accessed with invalid index = %lld, must be between %lld and %lld", _
+		                       idx, lbound_, ubound_ )
+	end if
+
+	msg[FB_ERRMSG_SIZE - 1] = 0
+
+	return cast( any ptr, tkrt_ErrorThrowMsg( errnum, linenum, filename, @msg, 0, 0 ) )
+end function
+
+extern "rtlib"
+
+'' An unallocated array reports NOTDIMENSIONED; a live one with the wrong rank
+'' reports WRONGDIMENSIONS. The NULL-descriptor case takes the first path, not
+'' a crash.
+function tkort_ArrayDimensionChk alias "fb_ArrayDimensionChk" _
+	( byval dimensions as integer, byval array_ as FBARRAY ptr, byval linenum as long, _
+	  byval filename as zstring ptr, byval variablename as zstring ptr ) as any ptr
+
+	if( array_ = 0 ) then
+		return hThrowError( FB_RTERROR_NOTDIMENSIONED, 0, 0, 0, linenum, filename, variablename )
+	end if
+	if( array_->index_ptr = 0 ) then
+		return hThrowError( FB_RTERROR_NOTDIMENSIONED, 0, 0, 0, linenum, filename, variablename )
+	end if
+
+	if( cuint( dimensions ) <> array_->dimensions ) then
+		return hThrowError( FB_RTERROR_WRONGDIMENSIONS, dimensions, 0, _
+		                    array_->dimensions, linenum, filename, variablename )
+	end if
+
+	return 0
+end function
+
+function tkort_ArrayBoundChkEx alias "fb_ArrayBoundChkEx" _
+	( byval idx as integer, byval lbound_ as integer, byval ubound_ as integer, _
+	  byval linenum as long, byval filename as zstring ptr, _
+	  byval variablename as zstring ptr ) as any ptr
+
+	if( (idx < lbound_) orelse (idx > ubound_) ) then
+		return hThrowError( FB_RTERROR_OUTOFBOUNDS, idx, lbound_, ubound_, _
+		                    linenum, filename, variablename )
+	end if
+	return 0
+end function
+
+'' UNSIGNED idx and ubound -- see the header. One comparison catches both ends.
+function tkort_ArraySngBoundChkEx alias "fb_ArraySngBoundChkEx" _
+	( byval idx as uinteger, byval ubound_ as uinteger, byval linenum as long, _
+	  byval filename as zstring ptr, byval variablename as zstring ptr ) as any ptr
+
+	if( idx > ubound_ ) then
+		'' Reported as SIGNED, so a negative index prints as itself rather
+		'' than as the huge unsigned value the comparison used.
+		return hThrowError( FB_RTERROR_OUTOFBOUNDS, cast( integer, idx ), 0, _
+		                    cast( integer, ubound_ ), linenum, filename, variablename )
+	end if
+	return 0
+end function
+
+'' Legacy, pre-1.20.0: no variable name. Kept so an older fbc can build a debug
+'' version of newer fbc sources.
+function tkort_ArrayBoundChk alias "fb_ArrayBoundChk" _
+	( byval idx as integer, byval lbound_ as integer, byval ubound_ as integer, _
+	  byval linenum as long, byval filename as zstring ptr ) as any ptr
+	return tkort_ArrayBoundChkEx( idx, lbound_, ubound_, linenum, filename, 0 )
+end function
+
+function tkort_ArraySngBoundChk alias "fb_ArraySngBoundChk" _
+	( byval idx as uinteger, byval ubound_ as uinteger, byval linenum as long, _
+	  byval filename as zstring ptr ) as any ptr
+	return tkort_ArraySngBoundChkEx( idx, ubound_, linenum, filename, 0 )
+end function
+
+end extern

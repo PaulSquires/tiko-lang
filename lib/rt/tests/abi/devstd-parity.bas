@@ -83,7 +83,7 @@ print "  __fb_errmsg is 1024 zero bytes="; allzero
 '' leaves its result only in ERR, which this project has been bitten by three
 '' times. Calling fb_DevConsOpen on a descriptor of this test's own reads the
 '' return AND lets the handle state be inspected afterwards.
-'' FB_FILE, laid out as inc/file.bi measures it. Only the fields the validation
+'' FB_FILE, laid out as inc/file.ti measures it. Only the fields the validation
 '' reads are set; the rest is zeroed, which is what a real OPEN would have done.
 type TKORT_FB_FILE
 	as long      mode

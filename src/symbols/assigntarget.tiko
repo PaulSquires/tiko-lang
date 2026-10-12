@@ -1,0 +1,141 @@
+'' assigntarget.tiko -- WHAT AN ASSIGNMENT MAY NOT WRITE INTO.
+''
+'' Split out of visibility.tiko at the 1500-line lint cap and included from it, at the
+'' exact spot the sub stood, inside its namespace. Nothing in it changed in the move
+'' except the stale paragraph about const pointers, which the batch that split it made
+'' untrue.
+
+'' WHAT AN ASSIGNMENT MAY NOT WRITE INTO, beyond the bare constant name Resolve already
+'' refuses. Measured:
+''
+''     0 = 1     error 24    a LITERAL has no storage to write into
+''
+'' THE POINTER HALF NOW LIVES IN latesweeps2.tiko. '*cptr( const integer ptr, pi ) = 123'
+'' and its relatives were once accepted here because 'const integer ptr' and 'integer const
+'' ptr' were ONE type in this compiler; they became two when the typeref parser learned
+'' that a 'const' before 'ptr' qualifies the pointer, and CheckConstWriteTarget_ asks the
+'' question this sub could not. What is left here is the bare NAME, the literal and the
+'' let( ) list.
+private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->op = 0 then return
+    if sp->a = NODE_NONE then return
+    select case c.ast->Kind( sp->a )
+    case N_IDENT
+        '' 'foo = 1' OVER A BARE ENUM CONSTANT. Resolve refuses a bare CONST but an enum
+        '' item reached this far, and the store went into the constant's slot.
+        dim as Symbol ptr es = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+        if es = 0 then return
+        dim as SymbolKind mk = cast( SymbolKind, es->kind )
+        if mk = SYM_ENUMCONST then
+            c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), _
+                             c.names->Spelling( es->name ) )
+            return
+        end if
+        '' ...AND A VARIABLE WHOSE TYPE WAS CONST ONLY AFTER THE WALK. 'type as const u t'
+        '' with 'u' declared LATER leaves 't' a placeholder when 'dim as t i' and 'i = 0'
+        '' are walked; the typedef is back-patched afterwards, so Resolve's own test saw
+        '' no type and said nothing. Resolve marks what it DID report AMB_ERROR, which is
+        '' what keeps this from repeating it. fbc error 119; ten corpus files in const/.
+        '' ...AND A 'byref ... as const' PARAMETER (T18). Its type is a REFERENCE to the const
+        '' type, so the reference is looked through: 's = "x"' and 's &= "x"' over 'byref s as
+        '' const string' -- or const ustring, long, a UDT -- are fbc's 119, measured, and tiko
+        '' wrote through the reference into the caller's variable. A byval const parameter
+        '' is Resolve's, marked AMB_ERROR below.
+        if (mk <> SYM_VARIABLE) andalso (mk <> SYM_PARAMETER) then return
+        if c.info->AmbiguousOf( id ) = AMB_ERROR then return
+        if es->type_ = TYPE_NONE then return
+        dim as TypeId et = es->type_
+        if c.types->Kind( et ) = TK_REFERENCE then et = c.types->Inner( et )
+        if c.types->IsConst( et ) = false then return
+        c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), _
+                         c.names->Spelling( es->name ) )
+    case N_INT_LIT, N_FLOAT_LIT, N_STRING_LIT, N_STRCAT
+        c.diags->Report( TKO0652, PointRange( c.ast->Loc( sp->a ) ) )
+        return
+    case N_CALL
+        '' 'iif( c, 0, 0 ) = 0' -- fbc error 24: a call's result is a temporary. Only the
+        '' intrinsic is judged; an indexing expression has the same shape and is an
+        '' lvalue.
+        dim as ListPayload ptr cl = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
+        if cl->target = NODE_NONE then return
+        if c.ast->Kind( cl->target ) <> N_IDENT then return
+        if c.info->RefOf( cl->target ) <> SYMBOL_NONE then return
+        dim as InternId cn = _
+            c.ast->idents[cast( long, c.ast->nodes[cast( long, cl->target )].data )].name
+        if c.names->Fold( cn ) <> c.names->Fold( c.names->GetString( "iif" ) ) then return
+        c.diags->Report( TKO0652, PointRange( c.ast->Loc( sp->a ) ) )
+        return
+    case N_PAREN, N_TUPLE
+        '' ...AND NOT FROM A UNION: 'let( a, b ) = x' over a union is fbc error 268,
+        '' "UNIONs are not allowed" -- a union has one value, not a sequence of them.
+        if sp->b <> NODE_NONE then
+            dim as TypeId ut = c.types->Unqualify( c.info->TypeOf_( sp->b ) )
+            if (ut <> TYPE_NONE) andalso (c.types->Kind( ut ) = TK_UDT) then
+                dim as ScopeId uds = cast( ScopeId, c.types->DeclScopeOf( ut ) )
+                dim as SymbolId usid = c.syms->LookupLocalTyped( uds, c.types->NameOf( ut ), true )
+                if usid = SYMBOL_NONE then usid = c.syms->LookupTyped( uds, c.types->NameOf( ut ), true )
+                dim as Symbol ptr us = c.syms->SymbolAt( usid )
+                '' ...OR A TYPE THAT HOLDS AN ANONYMOUS UNION, which fbc refuses the same
+                '' way: a field inside one carries SYMF_UNION.
+                dim as boolean holdsUnion = false
+                if (us <> 0) andalso (us->inner <> SCOPE_NONE) then
+                    for fi as long = 0 to c.syms->symbols.Count - 1
+                        dim as Symbol ptr ff = @c.syms->symbols[fi]
+                        if ff->parent <> us->inner then continue for
+                        if ff->kind <> cast( ubyte, SYM_FIELD ) then continue for
+                        if (ff->flags and SYMF_UNION) <> 0 then
+                            holdsUnion = true
+                            exit for
+                        end if
+                    next
+                end if
+                if (us <> 0) andalso (((us->flags and SYMF_UNION_KIND) <> 0) orelse holdsUnion) then
+                    c.diags->Report( TKO0718, PointRange( c.ast->Loc( sp->b ) ) )
+                    return
+                end if
+            end if
+        end if
+        '' 'let( a, b ) = x' UNPACKS INTO ITS TARGETS, and each must be a variable:
+        '' 'let( 0 ) = x' is fbc error 24 and 'let( K ) = x' over a constant is 119.
+        '' The tuple is a list node; each element is judged the way a bare target is.
+        dim as ListPayload ptr tl = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, sp->a )].data )]
+        for i as long = 0 to tl->count - 1
+            dim as NodeId el = cast( NodeId, c.ast->children[tl->first + i] )
+            if el = NODE_NONE then continue for
+            select case c.ast->Kind( el )
+            case N_INT_LIT, N_FLOAT_LIT, N_STRING_LIT, N_STRCAT
+                c.diags->Report( TKO0652, PointRange( c.ast->Loc( el ) ) )
+            case N_IDENT
+                dim as Symbol ptr es2 = c.syms->SymbolAt( c.info->RefOf( el ) )
+                if es2 = 0 then continue for
+                dim as SymbolKind ek = cast( SymbolKind, es2->kind )
+                '' ...AND A CONST VARIABLE, not only a named constant: 'let( i ) = x' over
+                '' a 'dim as const integer i' is fbc's 119 too, and let( ) writes it.
+                dim as boolean constVar = false
+                if ek = SYM_VARIABLE then
+                    if es2->type_ <> TYPE_NONE then constVar = c.types->IsConst( es2->type_ )
+                end if
+                dim as boolean namedConst = _
+                    ((ek = SYM_CONSTANT) orelse (ek = SYM_ENUMCONST))
+                if (namedConst orelse constVar) = false then continue for
+                c.diags->Report( TKO0617, PointRange( c.ast->Loc( el ) ), _
+                                 c.names->Spelling( es2->name ) )
+            end select
+        next
+        return
+    case N_MEMBER
+        '' 'ns.foo = 1' OVER A NAMESPACE CONSTANT. Resolve refuses the BARE name, which
+        '' is all it can see -- a qualified one is not bound until Check -- so the
+        '' qualified spelling reached lowering and stored into the constant's slot.
+        dim as Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+        if ms = 0 then return
+        dim as SymbolKind mk = cast( SymbolKind, ms->kind )
+        if (mk <> SYM_CONSTANT) andalso (mk <> SYM_ENUMCONST) then return
+        c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), _
+                         c.names->Spelling( ms->name ) )
+    end select
+end sub

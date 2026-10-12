@@ -29,8 +29,8 @@
 '' is nonsense. Every loop below varies its arguments per iteration, and a sink
 '' reads the buffer back afterwards, so neither side can be elided.
 
-#include once "../raster/box.bi"
-#include once "../raster/line.bi"
+#include once "../raster/box.ti"
+#include once "../raster/line.ti"
 #include once "fbgfx.bi"
 #include once "crt/string.bi"
 

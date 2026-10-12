@@ -1,0 +1,598 @@
+'' trimex.tiko -- the pattern-taking TRIM family, SPACE, CHR, LEFTSELF and the two
+'' legacy wide-case wrappers. Eleven symbols across eleven fbc members.
+''
+'' TWO DIFFERENT TRIM FAMILIES LIVE HERE AND THEY ARE NOT VARIANTS OF EACH OTHER.
+''
+''   ...Ex   trims the pattern AS A UNIT, repeatedly: TRIM("abcabcx", "abc")
+''           strips two whole copies and stops. The pattern is a SUBSTRING.
+''   ...Any  trims any of the pattern's CHARACTERS, in any order:
+''           TRIM("cbax", ANY "abc") strips c, b and a individually. The pattern
+''           is a CHARACTER SET.
+''
+'' Confusing the two is the single most likely error in this file, and every
+'' test that uses a one-character pattern would miss it -- with `len_pattern = 1`
+'' the two families agree exactly.
+''
+'' AND len_pattern = 1 IS A SEPARATE CODE PATH IN THE Ex FAMILY, not an
+'' optimisation of the general one. It calls fb_hStrSkipChar / fb_hStrSkipCharRev
+'' and computes the length by POINTER DIFFERENCE; the multi-character path walks
+'' in pattern-sized steps and computes it from an INDEX. The two arithmetics are
+'' written differently and must agree on the boundary, which is what a
+'' single-character pattern test actually checks.
+''
+'' `if( len >= len_pattern )` GUARDS BOTH HALVES, so a pattern longer than the
+'' string trims NOTHING rather than erroring -- and an EMPTY pattern
+'' (len_pattern = 0) falls through both `if`s and returns the string unchanged,
+'' because `len_pattern != 0` is false in the multi-character arm and 1 is not 0
+'' in the single one.
+''
+'' A NULL src DELETES THE PATTERN AND RETURNS THE NULL DESCRIPTOR, and it does
+'' that with fb_hStrDelTemp -- the LOCKING form -- because it happens BEFORE the
+'' lock is taken. Every other delete in the file is the _NoLock form inside the
+'' critical section. Getting that backwards deadlocks the MT build and nothing in
+'' the ST build would show it.
+''
+'' fb_LEFTSELF DOES NOT REALLOCATE, and that is its whole reason to exist. It is
+'' `a = LEFT(a, n)` done by adjusting the length field and writing a NUL --
+'' fbc's compiler does NOT emit it, so it only runs when a user calls it
+'' directly. Passing a TEMPORARY to it therefore truncates something that is
+'' about to be deleted, which fbc's own comment warns about and this reproduces.
+''
+'' AND fb_LEFTSELF's `chars > src_len` BRANCH SETS THE LENGTH TO src_len -- i.e.
+'' it writes the length it already had. The two arms of that `if` differ only in
+'' which value is clamped, so the branch exists to avoid growing, not to do
+'' anything on the longer side.
+''
+'' fb_CHR IS VARIADIC AND THEREFORE CDECL ON EVERY TARGET, including win32 --
+'' `_fb_CHR` with no `@N`. fb.h decorates it FBCALL, which a variadic function
+'' cannot honour; gcc silently demotes it and the archive is what settles it.
+''
+'' EVERY ARGUMENT IS READ AS `unsigned int` AND TRUNCATED TO A BYTE. CHR(&h141)
+'' gives CHR(&h41) -- no error, no wide character. That is why fb_hMakeInkeyStr
+'' has to split an extended key into two calls itself.
+''
+'' THE TWO legacy_strw_* WRAPPERS ARE ONE LINE EACH, forwarding to the `2` forms
+'' with a null second argument. They exist for binary compatibility with objects
+'' compiled before that parameter was added, and they are FBCALL where fb_CHR is
+'' not.
+
+#include once "inc/descriptors.ti"
+#include once "inc/ctx.ti"
+#include once "inc/wstr.ti"
+#include once "inc/sysbind.ti"
+
+extern "c"   '' NON-FBCALL: the string internals, declared plain in fb_string.h.
+	declare function tkrt_hStrAllocTemp alias "fb_hStrAllocTemp" _
+		( byval s as FBSTRING ptr, byval size_ as integer ) as FBSTRING ptr
+	declare function tkrt_hStrAllocTemp_NoLock alias "fb_hStrAllocTemp_NoLock" _
+		( byval s as FBSTRING ptr, byval size_ as integer ) as FBSTRING ptr
+	declare sub tkrt_hStrCopy alias "fb_hStrCopy" _
+		( byval dst as zstring ptr, byval src as zstring ptr, byval l as integer )
+	declare function tkrt_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
+		( byval s as FBSTRING ptr ) as long
+	declare sub fb_StrLock alias "fb_StrLock" ( )
+	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+end extern
+
+extern "rtlib"   '' FBCALL: these three ARE decorated, and the win32 archive
+                 '' confirms the `@N` on each.
+	declare function tkrt_hStrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_hStrSkipChar alias "fb_hStrSkipChar" _
+		( byval s as zstring ptr, byval l as integer, byval c as long ) as zstring ptr
+	declare function tkrt_hStrSkipCharRev alias "fb_hStrSkipCharRev" _
+		( byval s as zstring ptr, byval l as integer, byval c as long ) as zstring ptr
+	declare function tkrt_WstrUcase2 alias "fb_WstrUcase2" _
+		( byval s as wstring ptr, byval mode_ as long ) as wstring ptr
+	declare function tkrt_WstrLcase2 alias "fb_WstrLcase2" _
+		( byval s as wstring ptr, byval mode_ as long ) as wstring ptr
+end extern
+
+#ifdef ENABLE_MT
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+'' fb_hStrSetLength, which is `static __inline__` in fb_string.h and therefore
+'' HAS NO SYMBOL TO CALL -- the same class as fb_wstr_Len and
+'' fb_hConCheckScroll, both of which archived cleanly and then failed at link.
+'' THE TEMP BIT IS PRESERVED: the length field's sign bit marks a temporary, so
+'' a plain store would silently un-temp the descriptor and leak it.
+'' AS A STATEMENT, NOT AN EXPRESSION: wrapping the assignment in parentheses
+'' makes FreeBASIC parse the expansion as a comparison and demand an `=`.
+#define TKORT_STRSETLENGTH( s, n ) _
+	(s)->len = ((n) or ((s)->len and FB_TEMPSTRBIT))
+
+'' The pattern's length, or zero if there is no usable pattern. Spelled once
+'' because all six trim entry points open with it and the NULL-vs-null-data
+'' distinction is easy to drop.
+'' A SINGLE BYTE OUT OF A `zstring ptr`, AND THE OBVIOUS SPELLINGS ARE WRONG.
+'' `*p` and `p[i]` on a `zstring ptr` both type as a ZSTRING -- a whole string,
+'' not a character -- so `cast( ubyte, *p )` converts the STRING to a number,
+'' which for "xxhello" is 0. Every trim in this file then saw a pattern byte of
+'' zero, matched nothing, and returned its input unchanged: the differential
+'' showed tiko-rt trimming NOTHING in all six entry points while fbc trimmed
+'' correctly. It compiled without a warning.
+''
+'' The spelling that gives a byte is an explicit pointer cast, which is what
+'' every site below uses.
+#define TKORT_BYTE( p, i ) (cptr( ubyte ptr, p )[i])
+
+#define TKORT_PATLEN( pattern ) _
+	iif( ((pattern) <> 0) andalso ((pattern)->data <> 0), FB_STRSIZE( pattern ), 0 )
+
+extern "rtlib"   '' FBCALL: every entry point below is decorated in fb_string.h,
+                 '' EXCEPT fb_CHR, which is variadic -- see the file header and
+                 '' its own block at the end.
+
+'' ------------------------------------------------------------- the Any family
+
+'' THE PATTERN IS A CHARACTER SET. memchr per character, from each end.
+function tkort_TrimAny alias "fb_TrimAny" _
+	( byval src as FBSTRING ptr, byval pattern as FBSTRING ptr ) as FBSTRING ptr
+
+	dim as zstring ptr pachText = 0
+	dim as FBSTRING ptr dst = any
+	dim as integer l = any
+
+	'' BEFORE THE LOCK, so this is the LOCKING delete -- see the file header.
+	if( src = 0 ) then
+		tkrt_hStrDelTemp( pattern )
+		return TKORT_NULLSTR()
+	end if
+
+	STRLOCK()
+
+	l = 0
+	if( src->data <> 0 ) then
+		dim as integer len_pattern = TKORT_PATLEN( pattern )
+		pachText = src->data
+		l = FB_STRSIZE( src )
+
+		if( len_pattern <> 0 ) then
+			'' FROM THE FRONT: advance while the character is in the set.
+			while( l <> 0 )
+				if( memchr( pattern->data, cast( long, cptr( ubyte ptr, pachText )[0] ), len_pattern ) = 0 ) then exit while
+				l -= 1
+				pachText += 1
+			wend
+
+			'' AND FROM THE BACK. The decrement comes FIRST and is undone on a
+			'' miss, which is what makes the loop stop ON the kept character
+			'' rather than one past it.
+			while( l <> 0 )
+				l -= 1
+				if( memchr( pattern->data, cast( long, cptr( ubyte ptr, pachText )[l] ), len_pattern ) = 0 ) then
+					l += 1
+					exit while
+				end if
+			wend
+		end if
+	end if
+
+	if( l > 0 ) then
+		dst = tkrt_hStrAllocTemp_NoLock( 0, l )
+		if( dst <> 0 ) then
+			tkrt_hStrCopy( dst->data, pachText, l )
+		else
+			dst = TKORT_NULLSTR()
+		end if
+	else
+		dst = TKORT_NULLSTR()
+	end if
+
+	tkrt_hStrDelTemp_NoLock( src )
+	tkrt_hStrDelTemp_NoLock( pattern )
+
+	STRUNLOCK()
+
+	return dst
+end function
+
+function tkort_LTrimAny alias "fb_LTrimAny" _
+	( byval src as FBSTRING ptr, byval pattern as FBSTRING ptr ) as FBSTRING ptr
+
+	dim as zstring ptr pachText = 0
+	dim as FBSTRING ptr dst = any
+	dim as integer l = any
+
+	if( src = 0 ) then
+		tkrt_hStrDelTemp( pattern )
+		return TKORT_NULLSTR()
+	end if
+
+	STRLOCK()
+
+	l = 0
+	if( src->data <> 0 ) then
+		dim as integer len_pattern = TKORT_PATLEN( pattern )
+		pachText = src->data
+		l = FB_STRSIZE( src )
+
+		if( len_pattern <> 0 ) then
+			while( l <> 0 )
+				if( memchr( pattern->data, cast( long, cptr( ubyte ptr, pachText )[0] ), len_pattern ) = 0 ) then exit while
+				l -= 1
+				pachText += 1
+			wend
+		end if
+	end if
+
+	if( l > 0 ) then
+		dst = tkrt_hStrAllocTemp_NoLock( 0, l )
+		if( dst <> 0 ) then
+			tkrt_hStrCopy( dst->data, pachText, l )
+		else
+			dst = TKORT_NULLSTR()
+		end if
+	else
+		dst = TKORT_NULLSTR()
+	end if
+
+	tkrt_hStrDelTemp_NoLock( src )
+	tkrt_hStrDelTemp_NoLock( pattern )
+
+	STRUNLOCK()
+
+	return dst
+end function
+
+'' THE RIGHT-HAND ONE DOES NOT MOVE THE POINTER, only the length -- so unlike its
+'' two siblings it copies from src->data and never from an offset.
+function tkort_RTrimAny alias "fb_RTrimAny" _
+	( byval src as FBSTRING ptr, byval pattern as FBSTRING ptr ) as FBSTRING ptr
+
+	dim as zstring ptr pachText = 0
+	dim as FBSTRING ptr dst = any
+	dim as integer l = any
+
+	if( src = 0 ) then
+		tkrt_hStrDelTemp( pattern )
+		return TKORT_NULLSTR()
+	end if
+
+	STRLOCK()
+
+	l = 0
+	if( src->data <> 0 ) then
+		dim as integer len_pattern = TKORT_PATLEN( pattern )
+		pachText = src->data
+		l = FB_STRSIZE( src )
+
+		if( len_pattern <> 0 ) then
+			while( l <> 0 )
+				l -= 1
+				if( memchr( pattern->data, cast( long, cptr( ubyte ptr, pachText )[l] ), len_pattern ) = 0 ) then
+					l += 1
+					exit while
+				end if
+			wend
+		end if
+	end if
+
+	if( l > 0 ) then
+		dst = tkrt_hStrAllocTemp_NoLock( 0, l )
+		if( dst <> 0 ) then
+			tkrt_hStrCopy( dst->data, pachText, l )
+		else
+			dst = TKORT_NULLSTR()
+		end if
+	else
+		dst = TKORT_NULLSTR()
+	end if
+
+	tkrt_hStrDelTemp_NoLock( src )
+	tkrt_hStrDelTemp_NoLock( pattern )
+
+	STRUNLOCK()
+
+	return dst
+end function
+
+'' -------------------------------------------------------------- the Ex family
+
+'' THE PATTERN IS A SUBSTRING, stripped whole and repeatedly. The
+'' single-character case is a DIFFERENT PATH, not a special case of this one --
+'' see the file header.
+function tkort_TrimEx alias "fb_TrimEx" _
+	( byval src as FBSTRING ptr, byval pattern as FBSTRING ptr ) as FBSTRING ptr
+
+	dim as FBSTRING ptr dst = any
+	dim as integer l = any
+	dim as zstring ptr src_ptr = 0
+
+	if( src = 0 ) then
+		tkrt_hStrDelTemp( pattern )
+		return TKORT_NULLSTR()
+	end if
+
+	STRLOCK()
+
+	if( src->data <> 0 ) then
+		dim as integer len_pattern = TKORT_PATLEN( pattern )
+		l = FB_STRSIZE( src )
+		src_ptr = src->data
+
+		'' ---- the front
+		if( l >= len_pattern ) then
+			if( len_pattern = 1 ) then
+				'' POINTER DIFFERENCE arithmetic.
+				src_ptr = tkrt_hStrSkipChar( src_ptr, l, cast( long, cptr( ubyte ptr, pattern->data )[0] ) )
+				l = l - cast( integer, src_ptr - src->data )
+			elseif( len_pattern <> 0 ) then
+				'' PATTERN-SIZED STEPS.
+				while( l >= len_pattern )
+					if( memcmp( src_ptr, pattern->data, len_pattern ) <> 0 ) then exit while
+					src_ptr += len_pattern
+					l -= len_pattern
+				wend
+			end if
+		end if
+
+		'' ---- and the back, re-testing the guard because the front may have
+		'' taken the length below the pattern's.
+		if( l >= len_pattern ) then
+			if( len_pattern = 1 ) then
+				dim as zstring ptr p_tmp = tkrt_hStrSkipCharRev( src_ptr, l, _
+				                              cast( long, cptr( ubyte ptr, pattern->data )[0] ) )
+				'' PLUS ONE, because SkipCharRev lands ON the last kept
+				'' character rather than one past it.
+				l = cast( integer, p_tmp - src_ptr ) + 1
+			elseif( len_pattern <> 0 ) then
+				'' INDEX arithmetic here, not pointer arithmetic -- and
+				'' test_index can go NEGATIVE, which is why the length is
+				'' recovered as `test_index + len_pattern` afterwards rather
+				'' than tracked in the loop.
+				dim as integer test_index = l - len_pattern
+				while( l >= len_pattern )
+					if( memcmp( src_ptr + test_index, pattern->data, len_pattern ) <> 0 ) then exit while
+					test_index -= len_pattern
+				wend
+				l = test_index + len_pattern
+			end if
+		end if
+	else
+		l = 0
+	end if
+
+	if( l > 0 ) then
+		dst = tkrt_hStrAllocTemp_NoLock( 0, l )
+		if( dst <> 0 ) then
+			tkrt_hStrCopy( dst->data, src_ptr, l )
+		else
+			dst = TKORT_NULLSTR()
+		end if
+	else
+		dst = TKORT_NULLSTR()
+	end if
+
+	tkrt_hStrDelTemp_NoLock( src )
+	tkrt_hStrDelTemp_NoLock( pattern )
+
+	STRUNLOCK()
+
+	return dst
+end function
+
+function tkort_LTrimEx alias "fb_LTrimEx" _
+	( byval src as FBSTRING ptr, byval pattern as FBSTRING ptr ) as FBSTRING ptr
+
+	dim as FBSTRING ptr dst = any
+	dim as integer l = any
+	dim as zstring ptr src_ptr = 0
+
+	if( src = 0 ) then
+		tkrt_hStrDelTemp( pattern )
+		return TKORT_NULLSTR()
+	end if
+
+	STRLOCK()
+
+	if( src->data <> 0 ) then
+		dim as integer len_pattern = TKORT_PATLEN( pattern )
+		l = FB_STRSIZE( src )
+		src_ptr = src->data
+
+		if( l >= len_pattern ) then
+			if( len_pattern = 1 ) then
+				src_ptr = tkrt_hStrSkipChar( src_ptr, l, cast( long, cptr( ubyte ptr, pattern->data )[0] ) )
+				l = l - cast( integer, src_ptr - src->data )
+			elseif( len_pattern <> 0 ) then
+				while( l >= len_pattern )
+					if( memcmp( src_ptr, pattern->data, len_pattern ) <> 0 ) then exit while
+					src_ptr += len_pattern
+					l -= len_pattern
+				wend
+			end if
+		end if
+	else
+		l = 0
+	end if
+
+	if( l > 0 ) then
+		dst = tkrt_hStrAllocTemp_NoLock( 0, l )
+		if( dst <> 0 ) then
+			tkrt_hStrCopy( dst->data, src_ptr, l )
+		else
+			dst = TKORT_NULLSTR()
+		end if
+	else
+		dst = TKORT_NULLSTR()
+	end if
+
+	tkrt_hStrDelTemp_NoLock( src )
+	tkrt_hStrDelTemp_NoLock( pattern )
+
+	STRUNLOCK()
+
+	return dst
+end function
+
+'' COPIES FROM src->data, never from an offset -- only the length moves.
+function tkort_RTrimEx alias "fb_RTrimEx" _
+	( byval src as FBSTRING ptr, byval pattern as FBSTRING ptr ) as FBSTRING ptr
+
+	dim as FBSTRING ptr dst = any
+	dim as integer l = any
+
+	if( src = 0 ) then
+		tkrt_hStrDelTemp( pattern )
+		return TKORT_NULLSTR()
+	end if
+
+	STRLOCK()
+
+	if( src->data <> 0 ) then
+		dim as integer len_pattern = TKORT_PATLEN( pattern )
+		l = FB_STRSIZE( src )
+
+		if( l >= len_pattern ) then
+			if( len_pattern = 1 ) then
+				dim as zstring ptr src_ptr = tkrt_hStrSkipCharRev( src->data, l, _
+				                                 cast( long, cptr( ubyte ptr, pattern->data )[0] ) )
+				l = cast( integer, src_ptr - src->data ) + 1
+			elseif( len_pattern <> 0 ) then
+				dim as zstring ptr src_ptr = src->data
+				dim as integer test_index = l - len_pattern
+				while( l >= len_pattern )
+					if( memcmp( src_ptr + test_index, pattern->data, len_pattern ) <> 0 ) then exit while
+					test_index -= len_pattern
+				wend
+				l = test_index + len_pattern
+			end if
+		end if
+	else
+		l = 0
+	end if
+
+	if( l > 0 ) then
+		dst = tkrt_hStrAllocTemp_NoLock( 0, l )
+		if( dst <> 0 ) then
+			tkrt_hStrCopy( dst->data, src->data, l )
+		else
+			dst = TKORT_NULLSTR()
+		end if
+	else
+		dst = TKORT_NULLSTR()
+	end if
+
+	tkrt_hStrDelTemp_NoLock( src )
+	tkrt_hStrDelTemp_NoLock( pattern )
+
+	STRUNLOCK()
+
+	return dst
+end function
+
+'' ---------------------------------------------------------------- SPACE
+
+'' A LENGTH OF ZERO OR LESS IS THE NULL DESCRIPTOR, not an empty allocation --
+'' so SPACE(0) and SPACE(-1) are indistinguishable.
+function tkort_SPACE alias "fb_SPACE" ( byval l as integer ) as FBSTRING ptr
+
+	dim as FBSTRING ptr dst = any
+
+	if( l > 0 ) then
+		dst = tkrt_hStrAllocTemp( 0, l )
+		if( dst <> 0 ) then
+			memset( dst->data, 32, l )
+			dst->data[l] = 0
+		else
+			dst = TKORT_NULLSTR()
+		end if
+	else
+		dst = TKORT_NULLSTR()
+	end if
+
+	return dst
+end function
+
+'' -------------------------------------------------------------- LEFTSELF
+
+'' NO REALLOCATION -- the length field is adjusted and a NUL written in place.
+'' See the file header on why fbc never emits a call to this.
+sub tkort_LEFTSELF alias "fb_LEFTSELF" ( byval src as FBSTRING ptr, byval chars as integer )
+
+	if( src = 0 ) then exit sub
+
+	STRLOCK()
+
+	dim as integer src_len = FB_STRSIZE( src )
+
+	if( (src->data <> 0) andalso (chars >= 0) andalso (src_len >= 0) ) then
+		if( chars > src_len ) then
+			'' SETS THE LENGTH IT ALREADY HAD -- the branch exists to refuse to
+			'' grow, not to do anything here.
+			TKORT_STRSETLENGTH( src, src_len )
+			src->data[src_len] = 0
+		else
+			TKORT_STRSETLENGTH( src, chars )
+			src->data[chars] = 0
+		end if
+	end if
+
+	'' A TEMPORARY IS DELETED, which means truncating it accomplished nothing --
+	'' fbc's own comment warns about exactly this call shape.
+	tkrt_hStrDelTemp_NoLock( src )
+
+	STRUNLOCK()
+end sub
+
+'' -------------------------------------------------- the legacy wide wrappers
+
+'' ONE LINE EACH, forwarding with a null mode. They exist for objects compiled
+'' before the second parameter was added.
+function tkort_WstrUcase alias "fb_WstrUcase" ( byval src as wstring ptr ) as wstring ptr
+	return tkrt_WstrUcase2( src, 0 )
+end function
+
+function tkort_WstrLcase alias "fb_WstrLcase" ( byval src as wstring ptr ) as wstring ptr
+	return tkrt_WstrLcase2( src, 0 )
+end function
+
+end extern
+
+'' ------------------------------------------------------------------- CHR
+
+'' NOT FBCALL, AND THE ARCHIVE IS WHAT SAYS SO: win32 spells it `_fb_CHR` with no
+'' `@N`. A variadic stdcall is impossible -- the callee cannot know how much to
+'' pop -- so gcc demotes it and fb.h's FBCALL is a decoration the linker
+'' corrects. fbc-modern refuses to emit the lie at all: declaring this
+'' EXTERN "rtlib" is error 312.
+extern "c"   '' NON-FBCALL: variadic, hence cdecl on every target.
+
+'' EVERY ARGUMENT IS READ AS `unsigned int` AND TRUNCATED TO ONE BYTE, so
+'' CHR(&h141) is CHR(&h41) with no diagnostic. See the file header.
+function tkort_CHR alias "fb_CHR" ( byval args as long, ... ) as FBSTRING ptr
+
+	dim as FBSTRING ptr dst = any
+	dim as cva_list ap = any
+
+	'' ZERO OR FEWER ARGUMENTS IS THE NULL DESCRIPTOR, and returns BEFORE
+	'' cva_start -- so the va_list is never opened and never needs closing.
+	if( args <= 0 ) then return TKORT_NULLSTR()
+
+	cva_start( ap, args )
+
+	dst = tkrt_hStrAllocTemp( 0, args )
+	if( dst <> 0 ) then
+		for i as integer = 0 to args - 1
+			'' READ AS `unsigned int` -- the default promotion for every
+			'' integer type narrower than int, which is what the caller's
+			'' argument became on the way in.
+			dim as ulong num = cva_arg( ap, ulong )
+			dst->data[i] = cast( ubyte, num )
+		next
+		dst->data[args] = 0
+	else
+		dst = TKORT_NULLSTR()
+	end if
+
+	cva_end( ap )
+
+	return dst
+end function
+
+end extern

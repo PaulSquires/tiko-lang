@@ -28,7 +28,7 @@
 '' program never names gfxlib2 at all, which is what lets it be built for the
 '' MSVC ABI, where libfbgfx.a cannot be linked.
 
-#include once "../raster/line.bi"
+#include once "../raster/line.ti"
 #include once "abtest.bi"
 #include once "crt/string.bi"
 #ifdef ABTEST_HAS_GFXLIB2

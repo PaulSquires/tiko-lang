@@ -26,7 +26,7 @@
 '' test asserts that too -- claiming to answer them would be worse than
 '' declining.
 
-#include once "../core/control.bi"
+#include once "../core/control.ti"
 #include once "abtest.bi"
 #ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"

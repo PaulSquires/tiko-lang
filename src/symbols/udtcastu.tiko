@@ -1,0 +1,30 @@
+'' udtcastu.tiko -- WHETHER A UDT'S STRING CONVERSION IS A USTRING (T50).
+''
+'' Included from check.tiko below intrinsics.tiko, whose UdtStringCastType_ it asks, and
+'' declared above overload.tiko, whose ConcatHasUString_ calls it: a concatenation with
+'' such a term is a USTRING argument -- measured, fbc's 'ucase( "q" & v )' over
+'' 'operator cast( ) as ustring' is fb_UStrUcase -- where Check typed it STRING and the
+'' UTF-16 result went out as narrow bytes, "Q(4," for "Q(4, 6)".
+''
+'' And UnviableUserOp_, at the end: check.tiko's binary case is at the line cap.
+
+function UdtCastsToUStr_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    dim as Tko.TypeId st = UdtStringCastType_( c, t )
+    if st = Tko.TYPE_NONE then return false
+    return (c.types->BuiltinOf( st ) = Tko.TY_USTRING)
+end function
+
+'' A DECLARED OPERATOR NO OPERAND REACHES, with nothing else to type the expression -- fbc's 20,
+'' TKO0820. 'e <> q' over 'operator <>( byref a as E, byref b as E )', where q's only way to an E
+'' is a cast to long into 'constructor( byval as long )' -- a chain fbc refuses (structpick.tiko
+'' StructorCastCost) -- came out untyped and lowering dropped the statement (TKO0994). Called by
+'' Check's binary case when UserBinaryOp_ saw candidates and none was viable. Not a tuple: its
+'' built-in element-wise compare stands where a user operator does not fit.
+private sub UnviableUserOp_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval op as Tko.TokenKind, _
+      byval lt as Tko.TypeId, byval rt as Tko.TypeId )
+
+    if c.types->Kind( c.types->Unqualify( lt ) ) = Tko.TK_TUPLE then return
+    if c.types->Kind( c.types->Unqualify( rt ) ) = Tko.TK_TUPLE then return
+    c.diags->Report( Tko.TKO0820, Tko.PointRange( c.ast->Loc( id ) ), lcase( Tko.TokenKindText( op ) ) )
+end sub

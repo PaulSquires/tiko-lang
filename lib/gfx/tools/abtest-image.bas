@@ -24,9 +24,9 @@
 '' Ownership does NOT cross -- each image is destroyed by whichever library
 '' allocated it.
 
-#include once "../core/image.bi"
-#include once "../raster/box.bi"
-#include once "../raster/line.bi"
+#include once "../core/image.ti"
+#include once "../raster/box.ti"
+#include once "../raster/line.ti"
 #include once "abtest.bi"
 #ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"

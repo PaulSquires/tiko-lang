@@ -151,8 +151,8 @@ lowered: 8 functions, 8 blocks, 85 insts, 3 statements not lowered, 0 scope imba
   inside N_INTRINSIC 2
   unlowered intrinsic KW_PRINT 2
   amb call-nocode 1
-  skip-site lowercall.bas:557 1
-  skip-site src\mir\lowerctl.bas:218 2
+  skip-site lowercall.tiko:557 1
+  skip-site src\mir\lowerctl.tiko:218 2
 tests/diagnostics/src/args-and-index.bas(42,9): error TKO0699: a const value cannot be passed to a non-const byref parameter
      |
   42 | takesT( cv )

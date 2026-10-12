@@ -64,7 +64,7 @@ EXTRA_PUBLIC = {
     "memory": {"sharedptr", "weakptr", "makeshared", "makesharedfrom", "spcast", "spctl"},
     # the type behind the public alias Logger (TKO0868 otherwise)
     "logs": {"logger_"},
-    # what a SELECT statement lowers to (src/parser/selchan.bas): the parser writes these
+    # what a SELECT statement lowers to (src/parser/selchan.tiko): the parser writes these
     # names into the importer's own code, so they must be public, though no one writes them
     "tasks": {"selectcase", "selectctx", "selectaddrecv", "selectaddsend", "selectaddrecvdiscard",
               "selectrun", "selectcommitrecv", "selectcommitsend", "selectreleaserecv",

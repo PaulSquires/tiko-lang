@@ -1,0 +1,559 @@
+'' fileopen.tiko -- OPEN, in all nine of its spellings. Fourteen symbols across
+'' eleven fbc members, and portable.
+''
+'' ONE FUNCTION DOES THE WORK AND NINE CHOOSE A DEVICE. fb_FileOpenVfsRawEx is
+'' the whole of OPEN: it clears the handle, fills in mode/access/lock/reclen,
+'' calls the device's own open through a function pointer and measures the size
+'' if the device did not. Everything else in this file -- OPEN, OPEN SCRN:,
+'' OPEN CONS:, OPEN ERR:, OPEN PIPE:, OPEN COM:, OPEN LPT:, OPEN ENCODING and the
+'' short QB form -- differs only in WHICH pfnOpen it passes.
+''
+'' THE HANDLE IS CLEARED TO ZERO AND CLEARED AGAIN ON FAILURE, and the second
+'' clear is what makes a failed OPEN leave a REUSABLE file number: hooks goes
+'' back to NULL, so the next OPEN on the same number sees a free slot rather than
+'' "file already open".
+''
+'' AN ALREADY-OPEN HANDLE IS ERROR 1, TESTED BEFORE ANYTHING IS TOUCHED. The test
+'' is `hooks <> NULL`, not a flag -- which is why fb_DevFileClose sets opaque to
+'' NULL but leaves hooks alone, and why fb_FileClose is what actually frees the
+'' slot.
+''
+'' SIZE IS MEASURED TWICE ONLY IF THE DEVICE DECLINED. handle->size is set to -1
+'' before the device open; a device that knows its size writes it (the FILE*
+'' device does, in fb_DevFileOpen) and hFileGetSize is skipped. A device that
+'' cannot -- a pipe, a serial port -- leaves -1 and hFileGetSize seeks to the end
+'' through the hooks and back. A DEVICE WITH NO pfnSeek REPORTS ZERO, not an
+'' error: LOF on a pipe is 0, not a failure.
+''
+'' reclen DEFAULTS TO 128 FOR RANDOM, INPUT AND OUTPUT and to zero for BINARY and
+'' APPEND. That is QB's default record length; a BINARY handle has no records at
+'' all, so giving it 128 would make LOC divide by the wrong thing.
+''
+'' __fb_ctx.do_file_reset IS SET BY EVERY OPEN and never cleared here. It is the
+'' flag that makes fb_End close the channels: a program that never opened
+'' anything skips the whole file-reset path at exit.
+''
+'' THE PRINTER HANDLE OPENS ITSELF ONCE AND REGISTERS AN atexit. fb_LPrintInit is
+'' the only entry point here that names a device string of its own -- and the
+'' string is per-platform, "LPT:EMU=TTY" on Windows and "LPT:" elsewhere, which
+'' is why LPRINT talks to the system default printer and cannot be redirected by
+'' an argument.
+
+#include once "inc/descriptors.ti"
+#include once "inc/file.ti"
+#include once "inc/iolock.ti"
+#include once "inc/rterror.ti"
+#include once "inc/ctx.ti"
+#include once "inc/sysbind.ti"
+
+'' fb_file.h.
+const FB_FILE_ACCESS_ANY       = 0
+const FB_FILE_ACCESS_READ      = 1
+const FB_FILE_ACCESS_WRITE     = 2
+const FB_FILE_ACCESS_READWRITE = 3
+
+const FB_FILE_LOCK_SHARED    = 0
+const FB_FILE_LOCK_READ      = 1
+const FB_FILE_LOCK_WRITE     = 2
+const FB_FILE_LOCK_READWRITE = 3
+
+'' ASCII is zero and is also the default, so a handle whose encoding was never
+'' set is an ASCII handle.
+const FB_FILE_ENCOD_DEFAULT = FB_FILE_ENCOD_ASCII
+
+const SEEK_SET_ = 0
+const SEEK_END_ = 2
+
+'' Where the copied filename lives when it is short. Not an observable: see
+'' devfile.tiko's header.
+const STAGE = 1024
+
+
+'' NOT `access_`, AND THAT IS A LINUX-ONLY COLLISION: FreeBASIC's own
+'' crt/linux/unistd.bi binds POSIX access(2) as `access_ alias "access"`, and
+'' crt/stdlib.bi pulls it in on that target only. win64 and win32 both built
+'' clean with the parameter named access_; Linux reported a duplicated
+'' definition at parameter 5 and then eleven cascading errors that named
+'' everything except the actual clash.
+
+'' The device open hook. cdecl, and every device's own open matches it.
+type FnFileOpen as function cdecl _
+	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval fname_len as uinteger ) as long
+
+extern "rtlib"
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare sub tkrt_StrCopy alias "fb_hStrCopy" _
+		( byval dst as zstring ptr, byval src as zstring ptr, byval bytes as integer )
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_DelTempNoLock alias "fb_hStrDelTemp_NoLock" ( byval s as FBSTRING ptr ) as long
+	declare sub tkrt_DevScrnInit alias "fb_DevScrnInit" ( )
+end extern
+
+extern "c"   '' NON-FBCALL: the device opens are hooks, and the *Ex forms take a
+             '' handle -- all undecorated in fbc's win32 archive.
+	declare function tkrt_DevFileOpen alias "fb_DevFileOpen" _
+		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as long
+	declare function tkrt_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
+		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as long
+	declare function tkrt_DevScrnOpen alias "fb_DevScrnOpen" _
+		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as long
+	declare function tkrt_DevConsOpen alias "fb_DevConsOpen" _
+		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as long
+	declare function tkrt_DevErrOpen alias "fb_DevErrOpen" _
+		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as long
+	declare function tkrt_DevPipeOpen alias "fb_DevPipeOpen" _
+		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as long
+	declare function tkrt_DevComOpen alias "fb_DevComOpen" _
+		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as long
+	declare function tkrt_DevLptOpen alias "fb_DevLptOpen" _
+		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as long
+end extern
+
+extern "c"   '' NON-FBCALL: fb_file.h declares the *Ex forms and the two helpers
+             '' without FBCALL -- fbc's own code calls them, generated code does
+             '' not.
+
+declare function tkort_FileOpenVfsRawEx alias "fb_FileOpenVfsRawEx" _
+	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval filename_length as uinteger, _
+	  byval mode as ulong, byval acc as ulong, byval lock_ as ulong, byval reclen as long, _
+	  byval encod_ as long, byval pfnOpen as FnFileOpen ) as long
+
+declare function tkort_FileOpenVfsEx alias "fb_FileOpenVfsEx" _
+	( byval h as FB_FILE ptr, byval str_filename as FBSTRING ptr, _
+	  byval mode as ulong, byval acc as ulong, byval lock_ as ulong, byval reclen as long, _
+	  byval encod_ as long, byval pfnOpen as FnFileOpen ) as long
+
+declare function tkort_hFileStrToEncoding alias "fb_hFileStrToEncoding" _
+	( byval encod_ as zstring ptr ) as long
+
+end extern
+
+extern "rtlib"
+	declare function tkrt_FileOpen alias "fb_FileOpen" _
+		( byval s as FBSTRING ptr, byval mode as ulong, byval acc as ulong, _
+		  byval lock_ as ulong, byval fnum as long, byval reclen as long ) as long
+end extern
+
+'' ---------------------------------------------------------------- encoding
+
+'' CASE-INSENSITIVE ON THE PREFIX, CASE-SENSITIVE ON THE DIGITS, and that
+'' asymmetry is fbc's, not an oversight reproduced carelessly: the prefix goes
+'' through strncasecmp and the tail through strcmp, so "utf-16" is UTF-16 and
+'' "UTF-16 " (trailing space) is the DEFAULT. An unrecognised encoding is never
+'' an error -- it silently means ASCII.
+private function hUpper3Is( byval s as zstring ptr, byval a as ubyte, byval b as ubyte, byval c as ubyte ) as long
+	dim as ubyte ptr p = cast( ubyte ptr, s )
+	dim as ubyte ch = any
+	dim as ubyte want(0 to 2) = { a, b, c }
+	for i as integer = 0 to 2
+		ch = p[i]
+		if( ch = 0 ) then return 0
+		if( (ch >= 97) andalso (ch <= 122) ) then ch -= 32
+		if( ch <> want(i) ) then return 0
+	next
+	return 1
+end function
+
+'' One byte, upper-cased. Returns 0 past the terminator, which is what lets the
+'' two-letter tests below check "and nothing after it" without a length.
+private function hUpperChar( byval s as zstring ptr, byval i as integer ) as ubyte
+	dim as ubyte c = cast( ubyte ptr, s )[i]
+	if( (c >= 97) andalso (c <= 122) ) then c -= 32
+	return c
+end function
+
+'' "R" -> 1, "W" -> 2, "RW" -> 3, anything else -> -1. The three values are
+'' FB_FILE_ACCESS_READ/WRITE/READWRITE, and the letters are the caller's.
+private function hTwoLetter( byval s as zstring ptr, byval first as ubyte, byval second as ubyte ) as long
+	dim as ubyte c0 = hUpperChar( s, 0 )
+	dim as ubyte c1 = hUpperChar( s, 1 )
+	if( (c0 = first) andalso (c1 = 0) ) then return 1
+	if( (c0 = second) andalso (c1 = 0) ) then return 2
+	if( (c0 = first) andalso (c1 = second) andalso (hUpperChar( s, 2 ) = 0) ) then return 3
+	return -1
+end function
+
+extern "c"   '' NON-FBCALL, as declared above.
+
+function tkort_hFileStrToEncoding alias "fb_hFileStrToEncoding" _
+	( byval encod_ as zstring ptr ) as long
+
+	if( encod_ = 0 ) then return FB_FILE_ENCOD_DEFAULT
+
+	dim as ubyte ptr p = cast( ubyte ptr, encod_ )
+
+	if( hUpper3Is( encod_, 85, 84, 70 ) <> 0 ) then      '' "UTF"
+		p += 3
+		if( p[0] = 45 ) then p += 1                        '' an optional '-'
+
+		if( p[0] = 56 ) then return FB_FILE_ENCOD_UTF8     '' '8', and nothing
+		                                                   '' after it is checked
+
+		'' The digits, exactly: strcmp, so "16x" is not UTF-16.
+		if( (p[0] = 49) andalso (p[1] = 54) andalso (p[2] = 0) ) then return FB_FILE_ENCOD_UTF16
+		if( (p[0] = 51) andalso (p[1] = 50) andalso (p[2] = 0) ) then return FB_FILE_ENCOD_UTF32
+	else
+		if( hUpper3Is( encod_, 65, 83, 67 ) <> 0 ) then return FB_FILE_ENCOD_ASCII  '' "ASC"
+	end if
+
+	return FB_FILE_ENCOD_DEFAULT
+end function
+
+'' ------------------------------------------------------------------ the core
+
+'' ZERO, NOT -1, WHEN THE DEVICE CANNOT SEEK. A pipe has no pfnSeek and no
+'' pfnTell, and LOF on it is 0 rather than an error.
+private function hFileGetSize( byval h as FB_FILE ptr ) as longint
+
+	dim as longint sz = 0
+
+	if( (h->hooks->pfnSeek = 0) orelse (h->hooks->pfnTell = 0) ) then return sz
+
+	select case h->mode
+	case FB_FILE_MODE_BINARY, FB_FILE_MODE_RANDOM, FB_FILE_MODE_INPUT
+		if( h->hooks->pfnSeek( h, 0, SEEK_END_ ) <> 0 ) then return -1
+		h->hooks->pfnTell( h, @sz )
+		'' Back to the start, unconditionally -- OPEN must not leave the
+		'' stream parked at the end.
+		h->hooks->pfnSeek( h, 0, SEEK_SET_ )
+
+	case FB_FILE_MODE_APPEND
+		h->hooks->pfnTell( h, @sz )
+	end select
+
+	return sz
+end function
+
+function tkort_FileOpenVfsRawEx alias "fb_FileOpenVfsRawEx" _
+	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval filename_length as uinteger, _
+	  byval mode as ulong, byval acc as ulong, byval lock_ as ulong, byval reclen as long, _
+	  byval encod_ as long, byval pfnOpen as FnFileOpen ) as long
+
+	TKORT_IOLOCK()
+
+	'' ALREADY OPEN. The test is on hooks, which is what fb_FileClose clears.
+	if( h->hooks <> 0 ) then
+		TKORT_IOUNLOCK()
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	TKORT_DO_FILE_RESET() = FB_TRUE
+
+	memset( h, 0, sizeof( FB_FILE ) )
+
+	h->mode        = mode
+	h->encod       = encod_
+	h->size        = 0
+	h->type_       = FB_FILE_TYPE_VFS
+	h->access      = acc
+	h->lock_       = lock_        '' recorded, not enforced -- fbc does not
+	                              '' implement lock modes at open
+	h->line_length = 0
+
+	'' 128 IS QB'S DEFAULT RECORD LENGTH, and only the record-oriented modes
+	'' get it. BINARY and APPEND have no records, so LOC on them must not
+	'' divide by 128.
+	select case mode
+	case FB_FILE_MODE_RANDOM, FB_FILE_MODE_INPUT, FB_FILE_MODE_OUTPUT
+		if( reclen <= 0 ) then reclen = 128
+		h->reclen = reclen
+	case else
+		h->reclen = 0
+	end select
+
+	if( pfnOpen = 0 ) then
+		'' An OPEN whose protocol prefix matched nothing. The handle keeps the
+		'' fields set above but has no hooks, so it is still a free slot.
+		TKORT_IOUNLOCK()
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	'' -1 means "the device did not tell us". See the file header.
+	h->size = -1
+
+	dim as long result_ = pfnOpen( h, filename, filename_length )
+
+	if( result_ = 0 ) then
+		if( h->size = -1 ) then h->size = hFileGetSize( h )
+	else
+		'' THE CLEAR ON FAILURE IS WHAT FREES THE SLOT. Without it a failed
+		'' OPEN would leave hooks set and the file number unusable.
+		memset( h, 0, sizeof( FB_FILE ) )
+	end if
+
+	TKORT_IOUNLOCK()
+
+	return result_
+end function
+
+'' THE DESCRIPTOR IS DELETED IF TEMP, AND BEFORE THE OPEN RUNS -- so a filename
+'' built by concatenation is freed even when the open fails.
+function tkort_FileOpenVfsEx alias "fb_FileOpenVfsEx" _
+	( byval h as FB_FILE ptr, byval str_filename as FBSTRING ptr, _
+	  byval mode as ulong, byval acc as ulong, byval lock_ as ulong, byval reclen as long, _
+	  byval encod_ as long, byval pfnOpen as FnFileOpen ) as long
+
+	dim as uinteger filename_length = FB_STRSIZE( str_filename )
+	dim as zstring * (STAGE) local_ = any
+	dim as zstring ptr filename = @local_
+	dim as any ptr heap_ = 0
+
+	if( filename_length >= STAGE ) then
+		heap_ = malloc( filename_length + 1 )
+		if( heap_ = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+		filename = cast( zstring ptr, heap_ )
+	end if
+
+	tkrt_StrCopy( filename, str_filename->data, filename_length )
+	cast( ubyte ptr, filename )[filename_length] = 0
+
+	tkrt_DelTemp( str_filename )
+
+	dim as long res = tkort_FileOpenVfsRawEx( h, filename, filename_length, _
+	                                          mode, acc, lock_, reclen, encod_, pfnOpen )
+
+	if( heap_ <> 0 ) then free( heap_ )
+
+	return res
+end function
+
+function tkort_FileOpenEx alias "fb_FileOpenEx" _
+	( byval h as FB_FILE ptr, byval s as FBSTRING ptr, byval mode as ulong, _
+	  byval acc as ulong, byval lock_ as ulong, byval reclen as long ) as long
+
+	return tkort_FileOpenVfsEx( h, s, mode, acc, lock_, reclen, _
+	                            FB_FILE_ENCOD_DEFAULT, @tkrt_DevFileOpen )
+end function
+
+'' THE PRINTER DEVICE STRING IS FIXED AND PER-PLATFORM. There is no argument, so
+'' LPRINT always means the system default printer -- `OPEN LPT "x.txt" ...` opens
+'' a different channel that LPRINT never looks at.
+#ifdef __FB_WIN32__
+	dim shared as zstring * 16 pszPrinterDev = "LPT:EMU=TTY"
+#elseif defined( __FB_LINUX__ )
+	dim shared as zstring * 16 pszPrinterDev = "LPT:"
+#else
+	dim shared as zstring * 16 pszPrinterDev = "LPT1:"
+#endif
+
+'' atexit, not fb_End: the printer handle is opened lazily by the first LPRINT,
+'' so nothing in the normal shutdown path knows it exists.
+private sub hClosePrinterHandle cdecl ( )
+	if( TKORT_HANDLE_PRINTER()->hooks = 0 ) then exit sub
+	TKORT_HANDLE_PRINTER()->hooks->pfnClose( TKORT_HANDLE_PRINTER() )
+end sub
+
+function tkort_LPrintInit alias "fb_LPrintInit" ( ) as long
+
+	if( TKORT_HANDLE_PRINTER()->hooks = 0 ) then
+		dim as long res = tkort_FileOpenVfsRawEx( TKORT_HANDLE_PRINTER(), _
+		                                          @pszPrinterDev, len( pszPrinterDev ), _
+		                                          FB_FILE_MODE_APPEND, FB_FILE_ACCESS_WRITE, _
+		                                          FB_FILE_LOCK_READWRITE, 0, _
+		                                          FB_FILE_ENCOD_DEFAULT, @tkrt_DevLptOpen )
+		'' REGISTERED ONLY ON SUCCESS, so a machine with no printer does not
+		'' get an atexit that calls through a NULL hook table.
+		if( res = FB_RTERROR_OK ) then atexit( @hClosePrinterHandle )
+		return res
+	end if
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+end extern
+
+'' ------------------------------------------------------------------ the nine
+
+'' EVERY ONE OF THESE VALIDATES THE FILE NUMBER FIRST and then differs only in
+'' the device it names. The validation is not redundant with the table lookup:
+'' FB_FILE_TO_HANDLE yields NULL for an out-of-range number and nothing below
+'' would notice.
+extern "rtlib"
+
+function tkort_FileOpen alias "fb_FileOpen" _
+	( byval s as FBSTRING ptr, byval mode as ulong, byval acc as ulong, _
+	  byval lock_ as ulong, byval fnum as long, byval reclen as long ) as long
+
+	if( TKORT_FILE_INDEX_VALID( fnum ) = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	return tkort_FileOpenEx( TKORT_FILE_TO_HANDLE( fnum ), s, mode, acc, lock_, reclen )
+end function
+
+'' OPEN SCRN: INITIALISES THE SCREEN DEVICE FIRST. The other eight do not need
+'' an equivalent, because their devices have no shared state to set up.
+function tkort_FileOpenScrn alias "fb_FileOpenScrn" _
+	( byval s as FBSTRING ptr, byval mode as ulong, byval acc as ulong, _
+	  byval lock_ as ulong, byval fnum as long, byval reclen as long, _
+	  byval encod_ as zstring ptr ) as long
+
+	if( TKORT_FILE_INDEX_VALID( fnum ) = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	tkrt_DevScrnInit( )
+	return tkort_FileOpenVfsEx( TKORT_FILE_TO_HANDLE( fnum ), s, mode, acc, lock_, reclen, _
+	                            tkort_hFileStrToEncoding( encod_ ), @tkrt_DevScrnOpen )
+end function
+
+function tkort_FileOpenCons alias "fb_FileOpenCons" _
+	( byval s as FBSTRING ptr, byval mode as ulong, byval acc as ulong, _
+	  byval lock_ as ulong, byval fnum as long, byval reclen as long, _
+	  byval encod_ as zstring ptr ) as long
+
+	if( TKORT_FILE_INDEX_VALID( fnum ) = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	return tkort_FileOpenVfsEx( TKORT_FILE_TO_HANDLE( fnum ), s, mode, acc, lock_, reclen, _
+	                            tkort_hFileStrToEncoding( encod_ ), @tkrt_DevConsOpen )
+end function
+
+function tkort_FileOpenErr alias "fb_FileOpenErr" _
+	( byval s as FBSTRING ptr, byval mode as ulong, byval acc as ulong, _
+	  byval lock_ as ulong, byval fnum as long, byval reclen as long, _
+	  byval encod_ as zstring ptr ) as long
+
+	if( TKORT_FILE_INDEX_VALID( fnum ) = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	return tkort_FileOpenVfsEx( TKORT_FILE_TO_HANDLE( fnum ), s, mode, acc, lock_, reclen, _
+	                            tkort_hFileStrToEncoding( encod_ ), @tkrt_DevErrOpen )
+end function
+
+function tkort_FileOpenPipe alias "fb_FileOpenPipe" _
+	( byval s as FBSTRING ptr, byval mode as ulong, byval acc as ulong, _
+	  byval lock_ as ulong, byval fnum as long, byval reclen as long, _
+	  byval encod_ as zstring ptr ) as long
+
+	if( TKORT_FILE_INDEX_VALID( fnum ) = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	return tkort_FileOpenVfsEx( TKORT_FILE_TO_HANDLE( fnum ), s, mode, acc, lock_, reclen, _
+	                            tkort_hFileStrToEncoding( encod_ ), @tkrt_DevPipeOpen )
+end function
+
+function tkort_FileOpenCom alias "fb_FileOpenCom" _
+	( byval s as FBSTRING ptr, byval mode as ulong, byval acc as ulong, _
+	  byval lock_ as ulong, byval fnum as long, byval reclen as long, _
+	  byval encod_ as zstring ptr ) as long
+
+	if( TKORT_FILE_INDEX_VALID( fnum ) = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	return tkort_FileOpenVfsEx( TKORT_FILE_TO_HANDLE( fnum ), s, mode, acc, lock_, reclen, _
+	                            tkort_hFileStrToEncoding( encod_ ), @tkrt_DevComOpen )
+end function
+
+function tkort_FileOpenLpt alias "fb_FileOpenLpt" _
+	( byval s as FBSTRING ptr, byval mode as ulong, byval acc as ulong, _
+	  byval lock_ as ulong, byval fnum as long, byval reclen as long, _
+	  byval encod_ as zstring ptr ) as long
+
+	if( TKORT_FILE_INDEX_VALID( fnum ) = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	return tkort_FileOpenVfsEx( TKORT_FILE_TO_HANDLE( fnum ), s, mode, acc, lock_, reclen, _
+	                            tkort_hFileStrToEncoding( encod_ ), @tkrt_DevLptOpen )
+end function
+
+'' ASCII GOES TO THE PLAIN DEVICE, not to the encoding one. `OPEN ... ENCODING
+'' "ascii"` is exactly `OPEN ...` -- the encoding device would add a BOM skip and
+'' a conversion layer that an ASCII file must not have.
+function tkort_FileOpenEncod alias "fb_FileOpenEncod" _
+	( byval s as FBSTRING ptr, byval mode as ulong, byval acc as ulong, _
+	  byval lock_ as ulong, byval fnum as long, byval reclen as long, _
+	  byval encod_ as zstring ptr ) as long
+
+	if( TKORT_FILE_INDEX_VALID( fnum ) = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+
+	dim as long e = tkort_hFileStrToEncoding( encod_ )
+	dim as FnFileOpen pfn = iif( e = FB_FILE_ENCOD_ASCII, _
+	                             cast( FnFileOpen, @tkrt_DevFileOpen ), _
+	                             cast( FnFileOpen, @tkrt_DevFileOpenEncod ) )
+
+	return tkort_FileOpenVfsEx( TKORT_FILE_TO_HANDLE( fnum ), s, mode, acc, lock_, reclen, _
+	                            e, pfn )
+end function
+
+'' ------------------------------------------------------------------ short form
+''
+'' THE THREE TEMP DESCRIPTORS ARE DELETED EVEN WHEN THE PARSE FAILED, and under
+'' one lock. An early return on a bad mode string that skipped the deletes would
+'' leak three descriptors per failed OPEN -- which output comparison would never
+'' show.
+''
+'' THE ACCESS AND LOCK DEFAULTS DEPEND ON THE FILE MODE, and only when the
+'' corresponding string was empty: INPUT defaults to read + shared, OUTPUT and
+'' APPEND to write, everything else to ANY + write. -1 is the "not given"
+'' sentinel and cannot collide with a real mode, all of which are >= 0.
+function tkort_FileOpenShort alias "fb_FileOpenShort" _
+	( byval str_file_mode as FBSTRING ptr, byval fnum as long, _
+	  byval filename as FBSTRING ptr, byval reclen as long, _
+	  byval str_access_mode as FBSTRING ptr, byval str_lock_mode as FBSTRING ptr ) as long
+
+	dim as ulong file_mode = 0
+	dim as long access_mode = -1, lock_mode = -1
+	dim as long error_code = FB_RTERROR_OK
+
+	if( TKORT_FILE_INDEX_VALID( fnum ) = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+
+	dim as uinteger file_mode_len   = FB_STRSIZE( str_file_mode )
+	dim as uinteger access_mode_len = FB_STRSIZE( str_access_mode )
+	dim as uinteger lock_mode_len   = FB_STRSIZE( str_lock_mode )
+
+	if( (file_mode_len <> 1) orelse (access_mode_len > 2) orelse (lock_mode_len > 2) ) then
+		error_code = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	if( error_code = FB_RTERROR_OK ) then
+		select case hUpperChar( str_file_mode->data, 0 )
+		case 66 : file_mode = FB_FILE_MODE_BINARY    '' B
+		case 73 : file_mode = FB_FILE_MODE_INPUT     '' I
+		case 79 : file_mode = FB_FILE_MODE_OUTPUT    '' O
+		case 65 : file_mode = FB_FILE_MODE_APPEND    '' A
+		case 82 : file_mode = FB_FILE_MODE_RANDOM    '' R
+		case else
+			error_code = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		end select
+	end if
+
+	if( (access_mode_len <> 0) andalso (error_code = FB_RTERROR_OK) ) then
+		access_mode = hTwoLetter( str_access_mode->data, 82, 87 )   '' R / W / RW
+		if( access_mode < 0 ) then error_code = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	if( (lock_mode_len <> 0) andalso (error_code = FB_RTERROR_OK) ) then
+		'' S is a fourth spelling the access field does not have, so the lock
+		'' string is parsed separately rather than shared with the one above.
+		dim as ubyte c0 = hUpperChar( str_lock_mode->data, 0 )
+		dim as ubyte c1 = hUpperChar( str_lock_mode->data, 1 )
+		if( (c0 = 83) andalso (c1 = 0) ) then
+			lock_mode = FB_FILE_LOCK_SHARED
+		elseif( (c0 = 82) andalso (c1 = 0) ) then
+			lock_mode = FB_FILE_LOCK_READ
+		elseif( (c0 = 87) andalso (c1 = 0) ) then
+			lock_mode = FB_FILE_LOCK_WRITE
+		elseif( (c0 = 82) andalso (c1 = 87) andalso (hUpperChar( str_lock_mode->data, 2 ) = 0) ) then
+			lock_mode = FB_FILE_LOCK_READWRITE
+		else
+			error_code = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		end if
+	end if
+
+	TKORT_IOLOCK()
+	tkrt_DelTempNoLock( str_file_mode )
+	tkrt_DelTempNoLock( str_access_mode )
+	tkrt_DelTempNoLock( str_lock_mode )
+	TKORT_IOUNLOCK()
+
+	if( error_code <> FB_RTERROR_OK ) then return error_code
+
+	if( access_mode = -1 ) then
+		select case file_mode
+		case FB_FILE_MODE_INPUT
+			access_mode = FB_FILE_ACCESS_READ
+		case FB_FILE_MODE_OUTPUT, FB_FILE_MODE_APPEND
+			access_mode = FB_FILE_ACCESS_WRITE
+		case else
+			access_mode = FB_FILE_ACCESS_ANY
+		end select
+	end if
+
+	if( lock_mode = -1 ) then
+		select case file_mode
+		case FB_FILE_MODE_INPUT
+			lock_mode = FB_FILE_LOCK_SHARED
+		case else
+			lock_mode = FB_FILE_LOCK_WRITE
+		end select
+	end if
+
+	return tkort_FileOpen( filename, file_mode, access_mode, lock_mode, fnum, reclen )
+end function
+
+end extern

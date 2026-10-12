@@ -1,0 +1,779 @@
+'' decltype.tiko -- TYPE, ENUM and NAMESPACE declarations, and the top-level
+'' Declaration dispatch.  Included by decl.tiko, INSIDE namespace Tko.Parse.
+
+'' A RESERVED WORD IS NO TYPE NAME: 'type T as dim' is fbc's error 14, "Expected identifier"
+'' (typedef/identifiers-fwdref-keyword). Measured on fbc-modern 1.20, 2026-09-29, over every
+'' KEYWORD- and OPERATOR-class word in the table: only the type keywords -- integer, string,
+'' any, sub ... -- are taken. The INTRINSIC words -- print, len, get, redim -- are names to
+'' fbc and forward-reference a type like any other. TypeRef reads any keyword as a name.
+private sub TypedefKeywordTarget_( byref p as Tko.ParserState, byval n as Tko.NodeId )
+    if (n = Tko.NODE_NONE) orelse p.silent then return
+    if p.ast->Kind( n ) <> Tko.N_TYPEREF then return
+    if (p.ast->nodes[cast( long, n )].flags and Tko.NF_PROC_TYPE) <> 0 then return
+    dim as Tko.TokenKind k = cast( Tko.TokenKind, p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )].op )
+    if Tko.IsKeywordKind( k ) = false then return
+    if Tko.IsTypeKeyword( k ) then return
+    if Tko.KeywordClassOf( k ) = Tko.KWCLASS_INTRINSIC then return
+    p.diags->Report( Tko.TKO0893, Tko.PointRange( p.ast->Loc( n ) ), lcase( mid( Tko.TokenKindName( k ), 4 ) ) )  '' 'KW_DIM' -> 'dim'
+end sub
+
+private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    dim as long typeTok0 = p.pos
+    dim as boolean isUnion = (Peek( p ) = Tko.KW_UNION)
+    Advance( p )
+
+    '' 'type as integer myint' -- the REVERSED typedef, and it has to be tested before
+    '' DeclName, which happily takes 'as' as the name. That is what happened: the type
+    '' was called 'as', the next token was not AS, and the parser fell through to the
+    '' aggregate body and hunted for an 'end type' that was never coming.
+    ''
+    '' Measured: fbc accepts 'type as integer myint', 'type as const u ptr t', the
+    '' procedure form 'type as function( as integer ) as integer PFunc', and a COMMA
+    '' LIST -- 'type as integer a, b' declares both, and three corpus files use it.
+    dim as Tko.StmtPayload sp
+    if Peek( p ) = Tko.KW_AS then
+        Advance( p )
+        dim as Tko.NodeId aliased = TypeRef( p )
+        TypedefKeywordTarget_( p, aliased )
+        sp.a = aliased
+        DeclName( p, sp.name )
+        '' Every name after the first becomes its own N_TYPEDEF child sharing the same
+        '' type reference. One node per name is what Collect and Resolve already know
+        '' how to handle; a payload with a name LIST would need a new shape in both.
+        dim as Tko.NodeIdVec extra
+        while Accept( p, Tko.TK_COMMA )
+            dim as Tko.Token nt = Cur( p )
+            dim as Tko.StmtPayload ep
+            ep.a = aliased
+            if DeclName( p, ep.name ) = false then exit while
+            extra.Push( cast( ulong, MakeStmt( p, Tko.N_TYPEDEF, nt.loc, ep ) ) )
+        wend
+        sp.first = p.ast->children.Count
+        sp.count = extra.Count
+        for i as long = 0 to extra.Count - 1
+            p.ast->children.Push( extra[i] )
+        next
+        return MakeStmt( p, Tko.N_TYPEDEF, t.loc, sp )
+    end if
+
+    '' 'union field = 4' -- an ANONYMOUS aggregate carrying the alignment clause. The
+    '' branch below already anticipates a FIELD after the name, but it never ran,
+    '' because DeclName happily takes 'field' AS the name: the union was called 'field',
+    '' and a TYPE containing two of them reported a duplicate. 14 corpus files, all
+    '' through winnt.bi.
+    ''
+    '' The '=' is what tells the clause from a genuine name -- 'union field' with
+    '' nothing after it really is a union called 'field'.
+    dim as boolean fieldClause = false
+    if Peek( p ) = Tko.KW_FIELD then
+        if HasTok( p, p.pos + 1 ) then
+            fieldClause = _
+                (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_EQ) orelse _
+                (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_FATARROW)
+        end if
+    end if
+
+    '' THE SOURCE SPELLING, CASE PRESERVED. A UDT declared inside an 'extern "C++"'
+    '' block mangles by what was WRITTEN, not by the folded name -- see
+    '' TypeInfo.rawName. Harmless everywhere else: nothing reads it unless the
+    '' declaration is marked foreign.
+    sp.rawName = RawSpelling( p )
+    if fieldClause orelse (DeclName( p, sp.name ) = false) then
+        '' An ANONYMOUS union or type, which is legal inside another aggregate and
+        '' nowhere else. Its members belong to the enclosing type, so it carries no
+        '' name and Collect splices it rather than opening a scope.
+        if (p.aggDepth > 0) andalso _
+           ((Peek( p ) = Tko.TK_EOL) orelse (Peek( p ) = Tko.KW_FIELD)) then
+            sp.name = 0
+            ParseFieldClause( p, sp )
+            '' THEY MUST ALTERNATE. Measured on fbc-modern 1.20, 2026-09-28: a 'union' directly
+            '' in a UNION and a 'type' directly in a TYPE are error 17 (and 19 at its 'end'), at
+            '' any depth; a union in a type and a type in a union are fine. tiko laid them out.
+            dim as boolean outerUnion = p.aggUnion
+            if (isUnion = outerUnion) andalso (p.silent = false) then
+                p.diags->Report( Tko.TKO0877, Tko.PointRange( t.loc ), iif( isUnion, "UNION", "TYPE" ) )
+            end if
+            p.aggUnion = isUnion
+            dim as Tko.NodeId anon = ParseAggregateBody( p, t, sp, isUnion )
+            p.aggUnion = outerUnion
+            return anon
+        end if
+        '' 'type as long ptr Foo' is a typedef. But 'type' with nothing after it is
+        '' malformed, and silently returning a node would swallow the error.
+        if Peek( p ) <> Tko.KW_AS then
+            ErrorNode( p, Tko.TKO0406 )
+            return MakeStmt( p, Tko.N_TYPEDEF, t.loc, sp )
+        end if
+        Advance( p )
+        sp.a = TypeRef( p )
+        TypedefKeywordTarget_( p, sp.a )
+        DeclName( p, sp.name )
+        return MakeStmt( p, Tko.N_TYPEDEF, t.loc, sp )
+    end if
+
+    '' 'type Foo as long' -- also a typedef.
+    if Peek( p ) = Tko.KW_AS then
+        Advance( p )
+        sp.a = TypeRef( p )
+        TypedefKeywordTarget_( p, sp.a )
+
+        '' A COMMA LIST, and unlike the reversed 'type as integer a, b' form each
+        '' declarator carries its OWN type: 'type a as integer, b as double' declares
+        '' a as integer and b as double. Only the first was parsed, so the rest of the
+        '' line was silently dropped -- 'dim x2 as b' then had no type at all and its
+        '' slot lowered to VOID. Measured: fbc accepts it and gives x2 a double.
+        dim as Tko.NodeIdVec extra2
+        while Accept( p, Tko.TK_COMMA )
+            dim as Tko.Token nt2 = Cur( p )
+            dim as Tko.StmtPayload ep2
+            if DeclName( p, ep2.name ) = false then exit while
+            if Accept( p, Tko.KW_AS ) = false then exit while
+            ep2.a = TypeRef( p )
+            TypedefKeywordTarget_( p, ep2.a )
+            extra2.Push( cast( ulong, MakeStmt( p, Tko.N_TYPEDEF, nt2.loc, ep2 ) ) )
+        wend
+        sp.first = p.ast->children.Count
+        sp.count = extra2.Count
+        for i as long = 0 to extra2.Count - 1
+            p.ast->children.Push( extra2[i] )
+        next
+        return MakeStmt( p, Tko.N_TYPEDEF, t.loc, sp )
+    end if
+
+    '' 'type Box( of T )' -- THE TYPE PARAMETERS ARE KEPT, as an N_BLOCK of N_IDENT in
+    '' 'b'. They used to be skipped, which is why every instantiation of one generic
+    '' was the same type: 'Box( of long )' and 'Box( of double )' both resolved to one
+    '' fieldless UDT of size ZERO, and every access through one declined.
+    ''
+    '' 'of' is CONTEXTUAL in fbc-modern -- there is no KW_OF -- so it is matched by
+    '' spelling, and a paren group that does not start with it keeps the old blind
+    '' skip rather than being reinterpreted.
+    if Peek( p ) = Tko.TK_LPAREN then
+        dim as long saveG = p.pos
+        Advance( p )
+        dim as boolean isGen = false
+        if Peek( p ) = Tko.TK_IDENT then
+            isGen = (p.names->Spelling( cast( Tko.InternId, Cur( p ).literal ) ) = "of")
+        end if
+        if isGen then
+            Advance( p )
+            sp.b = ParseTypeParams( p )
+        else
+            p.pos = saveG
+            while (Peek( p ) <> Tko.TK_RPAREN) andalso (AtEnd( p ) = false)
+                Advance( p )
+            wend
+            Expect( p, Tko.TK_RPAREN, ")" )
+        end if
+    end if
+    ParseFieldClause( p, sp )
+
+    '' 'type UDT alias ""' -- fbc's error 304 -- the same empty-alias test the other
+    '' sites make; a non-empty one is accepted and, as a mangling control, otherwise
+    '' left alone here.
+    if Accept( p, Tko.KW_ALIAS ) then
+        if Peek( p ) = Tko.TK_STRING_LIT then
+            dim as Tko.Token aTok = Cur( p )
+            EmptyAliasCheck( p, StringLitText( p ), aTok, false )
+            Advance( p )
+        end if
+    end if
+
+    '' A TUPLE WRITTEN AS THE BASE -- 'extends (long, long)' -- is fbc's error 14, "Expected
+    '' identifier": a tuple has no vtable, no RTTI and no identity to inherit (fbc-modern 1.20,
+    '' 2026-09-25, its errors/tuple-errors.bas). A typedef OF a tuple, 'extends P', compiles
+    '' under fbc, so this is the spelling and nothing more. tiko accepted both.
+    if Accept( p, Tko.KW_EXTENDS ) then
+        if (Peek( p ) = Tko.TK_LPAREN) andalso (p.silent = false) then
+            p.diags->Report( Tko.TKO0824, Tko.PointRange( Cur( p ).loc ) )
+        end if
+        sp.c = TypeRef( p )
+    end if
+
+    dim as boolean isGeneric = (sp.b <> Tko.NODE_NONE)
+    dim as boolean outerUnion_ = p.aggUnion
+    p.aggUnion = isUnion
+    dim as Tko.NodeId tn = ParseAggregateBody( p, t, sp, isUnion )
+    p.aggUnion = outerUnion_
+    '' Only a GENERIC is recorded. An ordinary TYPE is never re-parsed, and the table
+    '' is scanned linearly, so keeping every type in it would cost for nothing.
+    if isGeneric then p.ast->RecordTokens( tn, typeTok0, p.pos )
+    return tn
+end function
+
+private function ParseEnumDecl( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    Advance( p )
+    dim as Tko.StmtPayload sp
+    DeclName( p, sp.name )
+
+    '' 'enum E explicit' -- the members are reachable ONLY as 'E.A'. Without this
+    '' EXPLICIT was consumed as the enum's FIRST MEMBER: a constant nobody wrote, which
+    '' collides with anything actually named 'explicit' and shifts every real member's
+    '' implicit value by one. No diagnostic either way.
+    ''
+    '' The keyword is recorded and the SCOPING it implies is NOT implemented: fbc says
+    '' a bare 'A' is error 42 for an explicit enum, and tiko-lang still resolves it, because
+    '' the members would need a scope of their own and 'E.A' a path to reach into it.
+    '' Accepting more than fbc never loses a file; the diagnostic is owed.
+    '' 'enum E alias ""' is fbc's error 304 as well.
+    if Accept( p, Tko.KW_ALIAS ) then
+        if Peek( p ) = Tko.TK_STRING_LIT then
+            dim as Tko.Token eaTok = Cur( p )
+            EmptyAliasCheck( p, StringLitText( p ), eaTok, false )
+            Advance( p )
+        end if
+    end if
+    dim as boolean isExplicit = Accept( p, Tko.KW_EXPLICIT )
+
+    '' EACH MEMBER'S VALUE IS TOLD TO THE PREPROCESSOR, as a const's is (declconst.tiko):
+    '' fbc's '#if' reads an enum member like any constant -- measured, 'B = 5' then 'C'
+    '' makes '#if C = 6' true, and 'D = B * 2' '#if D = 10'. They read as 0 here, so
+    '' structs/udt-ops-check.bi's '#if (TX_id = TX_as_integer)' took every branch and
+    '' declared TX five times. Module level only, as for a const; a value that does not
+    '' fold leaves the rest of the enum unknown.
+    dim as longint enumNext = 0
+    dim as boolean enumKnown = true
+    dim as Tko.NodeIdVec items
+    do
+        SkipEols( p )
+        if AtEnd( p ) then exit do
+        if Peek( p ) = Tko.KW_END then exit do
+
+        dim as Tko.Token it = Cur( p )
+        dim as Tko.StmtPayload ip
+        p.bareNameOk += 1                   '' an ENUM member is its enum's (BareMacroDecl_)
+        dim as boolean gotName = DeclName( p, ip.name )
+        p.bareNameOk -= 1
+        if gotName = false then
+            Advance( p )
+            continue do
+        end if
+        if Accept( p, Tko.TK_EQ ) orelse Accept( p, Tko.TK_FATARROW ) then ip.b = Expression( p )   '' 'K => 1' too
+        if ip.b <> Tko.NODE_NONE then enumKnown = ConstFoldsToInt_( p, ip.b, enumNext )
+        if enumKnown andalso (p.aggDepth = 0) andalso (p.procDepth = 0) andalso (p.stream <> 0) then
+            Tko.PpNoteConst( *cast( Tko.PpStream ptr, p.stream ), ip.name, enumNext, it.loc )
+        end if
+        enumNext += 1
+        items.Push( cast( ulong, MakeStmt( p, Tko.N_ENUM_ITEM, it.loc, ip ) ) )
+        if Accept( p, Tko.TK_COMMA ) = false then EndOfStatement( p )
+    loop
+
+    sp.first = p.ast->children.Count
+    sp.count = items.Count
+    for i as long = 0 to items.Count - 1
+        p.ast->children.Push( items[i] )
+    next
+    if (items.Count = 0) andalso EndsHere_( p, Tko.KW_ENUM ) then p.diags->Report( Tko.TKO0876, Tko.PointRange( Cur( p ).loc ), "ENUM" )  '' declempty.tiko
+    ExpectEnd( p, Tko.KW_ENUM )
+    '' Recorded in 'extra' rather than a node flag: the ushort NF_ set is fully
+    '' allocated, and N_ENUM uses 'extra' for nothing else.
+    if isExplicit then sp.extra = 1
+    return MakeStmt( p, Tko.N_ENUM, t.loc, sp )
+end function
+
+'' MARK A DECLARATION AS BEING INSIDE 'extern "C++"'.
+''
+'' RECURSIVE, because a NAMESPACE inside the block is not itself a declaration:
+'' 'extern "C++" : namespace nn : sub g4( ) : ...' has one member, the namespace,
+'' and marking only the block's immediate children left g4 mangled as an ordinary
+'' FB procedure -- _ZN2NN2G4Ev where fbc writes _ZN2nn2g4Ev, a name that differs
+'' from the definition only in case and fails at link time.
+''
+'' A NESTED 'extern' BLOCK IS LEFT ALONE: it states its own linkage, and an
+'' 'extern "C"' inside a C++ one means C.
+private sub MarkCxx_( byref p as Tko.ParserState, byval n as Tko.NodeId )
+    if n = Tko.NODE_NONE then return
+    select case p.ast->Kind( n )
+    case Tko.N_PROC, Tko.N_TYPE, Tko.N_VAR
+        dim as Tko.StmtPayload ptr mp = _
+            @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
+        mp->extra or= Tko.PF_CXX
+    case Tko.N_NAMESPACE
+        dim as Tko.StmtPayload ptr np = _
+            @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
+        np->extra or= Tko.PF_CXX
+        for i as long = 0 to np->count - 1
+            MarkCxx_( p, cast( Tko.NodeId, p.ast->children[np->first + i] ) )
+        next
+    end select
+end sub
+
+private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    Advance( p )
+    '' 'namespace a.b.c' opens THREE nested namespaces, not one called 'c'. fbcunit's
+    '' SUITE macro expands to exactly this, and keeping only the last component made
+    '' every generated procedure mangle three qualifiers short of fbc's.
+    dim as containers.Array( of ulong ) parts
+    '' THE SOURCE SPELLING OF EACH COMPONENT. A namespace inside 'extern "C++"'
+    '' mangles by what was WRITTEN -- measured, fbc emits _ZN2nn2g4Ev where the
+    '' same namespace outside gives _ZN2NN2G4Ev. Unread anywhere else.
+    dim as containers.Array( of ulong ) rawParts
+    dim as Tko.StmtPayload sp
+    dim as Tko.InternId nsRaw = RawSpelling( p )
+    DeclName( p, sp.name )
+
+    '' AN ANONYMOUS NAMESPACE IS NAMED AFTER ITS LINE. 'namespace' with no name is
+    '' legal FreeBASIC, and two of them are two DIFFERENT namespaces: measured, fbc
+    '' emits '_ZN7LABEL$21FEi' and '_ZN7LABEL$71FEd' for a private 'f' in each.
+    ''
+    '' A COUNTER, NOT A LINE NUMBER. fbc's own numbers are 2 and 7 for namespaces on
+    '' lines 1 and 8, so its LABEL$ is a sequence rather than a location -- and a
+    '' line would not work anyway: every token of a macro expansion carries the
+    '' INVOCATION's location, so const-overflow's 508 expansions of one macro all
+    '' report line 14 and collided again one name along.
+    ''
+    '' The spelling need not match fbc's: these are PRIVATE symbols, unique within
+    '' the module and linked against by nothing outside it.
+
+    ''
+    '' Unnamed, every one of them was the module scope, so a macro that wraps its
+    '' helpers in one -- which is exactly what warnings/const-overflow does, 508
+    '' times -- declared 'f' again and again under a single name: clang's 'invalid
+    '' redefinition of function F'.
+    if sp.name = 0 then
+        p.anonNsSeq += 1
+        sp.name = p.names->Fold( p.names->GetString( "LABEL$" & str( p.anonNsSeq ) ) )
+    end if
+
+    '' 'namespace aaa alias "aaa"' -- a MANGLING control, exactly as it is on a
+    '' procedure. Measured: fbc accepts it, and REJECTS an empty one with error 304,
+    '' "ALIAS name string is empty" -- which the corpus tests, so the string is kept
+    '' rather than skipped and the diagnostic is owed from the checker.
+    if Accept( p, Tko.KW_ALIAS ) then
+        if Peek( p ) = Tko.TK_STRING_LIT then
+            dim as Tko.Token aTok = Cur( p )
+            sp.aliasName = StringLitText( p )
+            EmptyAliasCheck( p, sp.aliasName, aTok, false )
+            Advance( p )
+        end if
+    end if
+    parts.Push( cast( ulong, sp.name ) )
+    rawParts.Push( cast( ulong, nsRaw ) )
+    while Peek( p ) = Tko.TK_DOT
+        Advance( p )
+        nsRaw = RawSpelling( p )
+        DeclName( p, sp.name )
+        parts.Push( cast( ulong, sp.name ) )
+        rawParts.Push( cast( ulong, nsRaw ) )
+    wend
+
+    dim as Tko.NodeIdVec members
+    dim as string outerNs = p.nsPath
+    for i as long = 0 to parts.Count - 1
+        if len( p.nsPath ) > 0 then p.nsPath += "."
+        p.nsPath += Tko.Text.LowerAscii( p.names->Spelling( cast( Tko.InternId, parts[i] ) ) )
+    next
+    if p.stream <> 0 then Tko.PpSetNamespace( *cast( Tko.PpStream ptr, p.stream ), p.nsPath )
+    p.nsDepth += 1
+    do
+        SkipEols( p )
+        if AtEnd( p ) then exit do
+        if Peek( p ) = Tko.KW_END then exit do
+        dim as long before = p.pos
+        dim as Tko.NodeId s = Statement( p )
+        if s <> Tko.NODE_NONE then members.Push( cast( ulong, s ) )
+        if p.pos = before then Advance( p )
+    loop
+    p.nsDepth -= 1
+    p.nsPath = outerNs
+    if p.stream <> 0 then Tko.PpSetNamespace( *cast( Tko.PpStream ptr, p.stream ), p.nsPath )
+
+    sp.first = p.ast->children.Count
+    sp.count = members.Count
+    for i as long = 0 to members.Count - 1
+        p.ast->children.Push( members[i] )
+    next
+    ExpectEnd( p, Tko.KW_NAMESPACE )
+
+    '' Innermost first: each outer level wraps the one below as its single member.
+    sp.name = cast( Tko.InternId, parts[parts.Count - 1] )
+    sp.rawName = cast( Tko.InternId, rawParts[rawParts.Count - 1] )
+    dim as Tko.NodeId n = MakeStmt( p, Tko.N_NAMESPACE, t.loc, sp )
+    for i as long = parts.Count - 2 to 0 step -1
+        dim as Tko.StmtPayload outer
+        outer.name = cast( Tko.InternId, parts[i] )
+        outer.rawName = cast( Tko.InternId, rawParts[i] )
+        outer.first = p.ast->children.Count
+        outer.count = 1
+        p.ast->children.Push( cast( ulong, n ) )
+        n = MakeStmt( p, Tko.N_NAMESPACE, t.loc, outer )
+    next
+    return n
+end function
+
+'' THE VISIBILITY WORD ON A DECLARATION. On a procedure 'private' is fbc's -- module-static,
+'' PF_PRIVATE -- and that is unchanged. Every kind also records which word was written, as
+'' PF_VIS_PUBLIC or PF_VIS_PRIVATE: in module code they decide what an importer may see
+'' (ADR 0017), and in classic code nothing reads them.
+private function MarkPrivate _
+    ( byref p as Tko.ParserState, byval n as Tko.NodeId, _
+      byval visKw as Tko.TokenKind ) as Tko.NodeId
+
+    if (visKw = 0) orelse (n = Tko.NODE_NONE) then return n
+    '' ONLY A DECLARATION HAS A STATEMENT PAYLOAD. A failed parse returns N_ERROR, whose
+    '' data is 0, and the flag landed on stmts[0] -- another statement's (audit F-72).
+    if Tko.NodeKindCategory( p.ast->Kind( n ) ) <> Tko.NCAT_DECL then return n
+    dim as Tko.StmtPayload ptr sp = _
+        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, n )].data )]
+    if visKw = Tko.KW_PUBLIC then
+        sp->extra or= Tko.PF_VIS_PUBLIC
+        return n
+    end if
+    sp->extra or= Tko.PF_VIS_PRIVATE
+    if p.ast->Kind( n ) = Tko.N_PROC then sp->extra or= Tko.PF_PRIVATE
+    return n
+end function
+
+'' ONE USING PATH, DOTTED, as a single spelling -- the same shape a qualified TYPE
+'' REFERENCE and a member DEFINITION both keep.
+''
+'' It used to OVERWRITE the name per component, so 'using a.b' arrived as plain 'b' --
+'' which is not visible unqualified, so the lookup found nothing and AddUsing was never
+'' called at all. Seventeen corpus statements imported nothing and every name they were
+'' meant to bring in declined.
+''
+'' A LEADING '..' IS THE GLOBAL ROOT: 'using ..outer1' inside a namespace names the outer1
+'' at FILE scope. fbc accepts it -- the probe prints 7 -- and here the first token is a DOT,
+'' so DeclName failed, the path came out EMPTY, and the using imported nothing at all. The
+'' dots are kept in the path spelling; the resolver reads them.
+private function UsingPath_( byref p as Tko.ParserState ) as string
+    dim as string usePath
+    p.bareNameOk += 1                   '' a path names, it does not declare
+    while Peek( p ) = Tko.TK_DOT
+        Advance( p )
+        usePath += "."
+    wend
+    dim as Tko.InternId head = 0
+    DeclName( p, head )
+    if head <> 0 then usePath += p.names->Spelling( head )
+    while Peek( p ) = Tko.TK_DOT
+        Advance( p )
+        dim as Tko.InternId comp = 0
+        DeclName( p, comp )
+        if comp = 0 then exit while
+        usePath += "." & p.names->Spelling( comp )
+    wend
+    p.bareNameOk -= 1
+    return usePath
+end function
+
+'' A MODULE-LEVEL 'using', for the preprocessor: from here on a '#define' may not take a
+'' name that namespace declares -- fbc's error 4 (TKO0371). Measured on fbc-modern 1.20,
+'' 2026-10-03: 'using FB' then '#define LOG_TRACE( m ) ...' over FB's enum member
+'' LOG_TRACE is "Duplicated definition", and so is one over a const, a sub or a shared
+'' variable of FB; without the 'using' all four are accepted. A 'using' inside a
+'' procedure or a namespace body is not recorded.
+private sub NoteUsing_( byref p as Tko.ParserState, byref path as string )
+    if (p.stream = 0) orelse (len( path ) = 0) then return
+    dim as string q = path
+    while left( q, 1 ) = "."
+        q = mid( q, 2 )
+    wend
+    '' Every 'using', at any depth, for '#if typeof' (PpEngine.typeNs); the rest is module-level.
+    Tko.PpNoteUsingIn( *cast( Tko.PpStream ptr, p.stream ), p.nsPath, Tko.Text.LowerAscii( q ) )
+    if (p.nsDepth <> 0) orelse (p.procDepth <> 0) then return
+    Tko.PpNoteUsing( *cast( Tko.PpStream ptr, p.stream ), Tko.Text.LowerAscii( q ) )
+end sub
+
+#include once "parser/pptypenote.tiko"
+
+'' '#pragma private' IN EFFECT AT TOKEN pos (PpResult.privateAt): fbc makes every procedure
+'' defined under it private, a method's body too, unless it says 'public'.
+private function PragmaPrivate_( byref p as Tko.ParserState, byval pos_ as long ) as boolean
+    if p.stream = 0 then return false
+    dim as Tko.PpStream ptr st = cast( Tko.PpStream ptr, p.stream )
+    if st->outp = 0 then return false
+    dim as boolean on_ = false
+    for i as long = 0 to st->outp->privateAt.Count - 2 step 2
+        if cast( long, st->outp->privateAt[i] ) > pos_ then exit for
+        on_ = (st->outp->privateAt[i + 1] <> 0)
+    next
+    return on_
+end function
+
+private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    dim as Tko.TokenKind k = Peek( p )
+
+    '' 'private'/'public' only qualify what follows -- except that PRIVATE makes a
+    '' procedure module-static, which means it has no linker-visible name at all.
+    dim as Tko.TokenKind visKw = 0
+    if (k = Tko.KW_PRIVATE) orelse (k = Tko.KW_PUBLIC) then
+        visKw = k
+        Advance( p )
+        k = Peek( p )
+    end if
+    dim as Tko.TokenKind procVis = visKw
+    if (procVis = 0) andalso PragmaPrivate_( p, p.pos ) then procVis = Tko.KW_PRIVATE
+
+    '' 'extern "C" ... end extern' is a linkage BLOCK; 'extern x as long' is a
+    '' variable declaration. The string literal is what tells them apart.
+    if k = Tko.KW_EXTERN then
+        dim as boolean isBlock = false
+        if HasTok( p, p.pos + 1 ) then
+            isBlock = (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_STRING_LIT)
+        end if
+        if isBlock then
+            Advance( p )
+            dim as Tko.StmtPayload sp
+            '' The language decides how everything inside is NAMED: 'C' and
+            '' 'Windows' take the source spelling verbatim, case and all, and the
+            '' OVERLOAD keyword is ignored for them.
+            dim as Tko.InternId lang = StringLitText( p )
+            sp.aliasName = lang
+            sp.a = Expression( p, Tko.PREC_POSTFIX )
+            '' 'extern "c" lib ""' -- fbc's error 305, "LIB name string is empty".
+            if Accept( p, Tko.KW_LIB ) then
+                if Peek( p ) = Tko.TK_STRING_LIT then
+                    dim as Tko.Token lbTok = Cur( p )
+                    dim as Tko.InternId blib = StringLitText( p )
+                    EmptyAliasCheck( p, blib, lbTok, true )
+                    '' ...AND LINKED, as a declare's own 'lib' clause is -- see
+                    '' ParserState.declLibs. AfxNova's AfxGdiPlus.bi names gdiplus
+                    '' ONLY here, so dropping it left every Gdip* call undefined.
+                    if blib <> 0 then p.declLibs.Push( cast( ulong, blib ) )
+                    Advance( p )
+                end if
+            end if
+            EndOfStatement( p )
+            '' 'C++' IS NOT A FOREIGN BLOCK. A foreign one takes the spelling
+            '' VERBATIM and ignores OVERLOAD; a C++ one MANGLES, and mangles the
+            '' SOURCE spelling. Measured, 'sub g2( byval n as integer )' inside
+            '' 'extern "C++"' is _Z2g2u7INTEGER to fbc and the same line outside it
+            '' is plain 'H'. Reading "C++" as foreign gave four overloads all named
+            '' 'f1', which clang refused outright -- functions/return-byref.bas.
+            dim as boolean foreign_ = false
+            dim as boolean cxx_ = false
+            '' ...and the convention a procedure written inside gets when it writes none,
+            '' for the '...' rule: see CheckVarargConv_. Lexical, so it reaches a TYPE's
+            '' members and a procedure TYPE as well as a plain declaration.
+            dim as ubyte outerConv = p.externConv
+            p.externConv = Tko.CC_NONE
+            if lang <> 0 then
+                dim as string lgl = Tko.Text.LowerAscii( p.names->Spelling( lang ) )
+                cxx_ = (lgl = "c++")
+                foreign_ = (lgl <> "fb") andalso (cxx_ = false)
+                if (lgl = "c") orelse cxx_ then
+                    p.externConv = Tko.CC_CDECL
+                elseif left( lgl, 7 ) = "windows" then
+                    p.externConv = Tko.CC_STDCALL
+                end if
+            end if
+
+            dim as Tko.NodeIdVec members
+            do
+                SkipEols( p )
+                if AtEnd( p ) then exit do
+                if Peek( p ) = Tko.KW_END then exit do
+                dim as long before = p.pos
+                dim as Tko.NodeId st = Statement( p )
+                if st <> Tko.NODE_NONE then members.Push( cast( ulong, st ) )
+                if p.pos = before then Advance( p )
+            loop
+
+            sp.first = p.ast->children.Count
+            sp.count = members.Count
+            for i as long = 0 to members.Count - 1
+                dim as Tko.NodeId m = cast( Tko.NodeId, members[i] )
+                '' A FOREIGN BLOCK NAMES ITS VARIABLES TOO, not only its procedures.
+                '' 'extern "Windows" : extern CLSID_ShellLink as const GUID' links by
+                '' the source spelling; the same line outside a block is 'CLSID_SHELLLINK$'.
+                if (foreign_ orelse cxx_) andalso (p.ast->Kind( m ) = Tko.N_TYPE) then
+                    dim as Tko.StmtPayload ptr tp2 = _
+                        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+                    if cxx_ then
+                        tp2->extra or= Tko.PF_CXX
+                    else
+                        tp2->extra or= Tko.PF_FOREIGN
+                    end if
+                end if
+                if foreign_ andalso (p.ast->Kind( m ) = Tko.N_VAR) then
+                    dim as Tko.StmtPayload ptr vp = _
+                        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+                    vp->extra or= Tko.PF_FOREIGN
+                end if
+                if cxx_ then MarkCxx_( p, m )
+                '' A NAMESPACE IN A FOREIGN BLOCK MANGLES -- it has to say the namespace -- and
+                '' keeps the written case, which is what PF_CXX means: measured, fbc names
+                '' 'namespace cns : declare sub cfun( .. )' in 'extern "C"' _ZN3cns4cfunEi,
+                '' where tiko upper-cased it to _ZN3CNS4CFUNEi and the link missed.
+                if foreign_ andalso (p.ast->Kind( m ) = Tko.N_NAMESPACE) then MarkCxx_( p, m )
+                if foreign_ andalso (p.ast->Kind( m ) = Tko.N_PROC) then
+                    dim as Tko.StmtPayload ptr mp = _
+                        @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+                    mp->extra or= Tko.PF_FOREIGN
+                    '' The BLOCK supplies a convention to members that wrote none:
+                    '' measured, 'extern "C"' gives _EC and 'extern "Windows"' _EW@4.
+                    if Tko.CallConvOf( mp->extra ) = Tko.CC_NONE then
+                        dim as string lg = Tko.Text.LowerAscii( p.names->Spelling( lang ) )
+                        if lg = "c" then
+                            mp->extra or= Tko.PF_CDECL
+                        elseif left( lg, 7 ) = "windows" then
+                            mp->extra or= Tko.PF_STDCALL
+                        end if
+                    end if
+                end if
+                p.ast->children.Push( members[i] )
+            next
+            p.externConv = outerConv
+            ExpectEnd( p, Tko.KW_EXTERN )
+            return MakeStmt( p, Tko.N_EXTERN_BLOCK, t.loc, sp )
+        end if
+    end if
+
+    '' A leading CONST, STATIC, VIRTUAL or ABSTRACT followed by a procedure keyword
+    '' modifies the PROCEDURE; it does not start a constant or a variable declaration.
+    '' The keyword is deliberately NOT consumed here -- ParseProc's own modifier loop
+    '' reads it, which is why this only has to route.
+    dim as boolean procQual = (k = Tko.KW_CONST) orelse (k = Tko.KW_STATIC) orelse _
+                              (k = Tko.KW_VIRTUAL) orelse (k = Tko.KW_ABSTRACT)
+    '' ...AND THERE MAY BE MORE THAN ONE OF THEM. 'const virtual sub A.s07( )' is one
+    '' declaration and fbc emits it, mangled _ZNK1A3S07Ev and in the vtable. Peeking a
+    '' single token saw 'virtual', fell through to ParseConstDecl, and reported
+    '' "'virtual' has no type" -- and the desync then took the NEXT definition with it,
+    '' which is where the decline landed. ParseProc's own modifier loop already reads
+    '' the whole run; only the routing here stopped at one.
+    if procQual then
+        dim as long q = p.pos + 1
+        do while HasTok( p, q )
+            select case cast( Tko.TokenKind, p.toks->At( q ).kind )
+            case Tko.KW_CONST, Tko.KW_STATIC, Tko.KW_VIRTUAL, Tko.KW_ABSTRACT
+                q += 1
+            case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_OPERATOR, _
+                 Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR
+                return MarkPrivate( p, ParseProc( p, false ), procVis )
+            case else
+                exit do
+            end select
+        loop
+    end if
+
+    select case k
+    case Tko.KW_DIM, Tko.KW_REDIM, Tko.KW_VAR, Tko.KW_STATIC, Tko.KW_SHARED, _
+         Tko.KW_COMMON, Tko.KW_EXTERN
+        dim as Tko.NodeId vn = ParseVarDecl( p )
+        NoteTypes_( p, vn )
+        return MarkPrivate( p, vn, visKw )
+
+    case Tko.KW_CONST
+        return MarkPrivate( p, ParseConstDecl( p ), visKw )
+
+    case Tko.KW_TYPE, Tko.KW_UNION
+        dim as Tko.NodeId tn = ParseTypeDecl( p )
+        NoteTypes_( p, tn )
+        return MarkPrivate( p, tn, visKw )
+
+    case Tko.KW_ENUM
+        dim as Tko.NodeId en = ParseEnumDecl( p )
+        NoteTypes_( p, en )
+        return MarkPrivate( p, en, visKw )
+
+    case Tko.KW_NAMESPACE
+        return MarkPrivate( p, ParseNamespaceDecl( p ), visKw )
+
+    case Tko.KW_DECLARE
+        Advance( p )
+        return MarkPrivate( p, ParseProc( p, true ), procVis )
+
+    case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_CONSTRUCTOR, _
+         Tko.KW_DESTRUCTOR, Tko.KW_OPERATOR
+        return MarkPrivate( p, ParseProc( p, false ), procVis )
+
+    case Tko.KW_USING
+        Advance( p )
+        dim as Tko.StmtPayload sp
+        dim as string usePath = UsingPath_( p )
+        if len( usePath ) > 0 then sp.name = p.names->GetString( usePath )
+        NoteUsing_( p, usePath )
+        '' A COMMA LIST -- 'using a, b, c.d' imports each, in order, exactly as three USING
+        '' statements would (fbc-modern 1.20, measured 2026-09-30: it prints all three
+        '' namespaces' values). Each later path is a child N_USING of the first; a trailing
+        '' comma is fbc's error 14, "Expected identifier". Only the first path was read, and
+        '' the comma ended the statement with TKO0420.
+        dim as Tko.NodeIdVec moreUsing
+        while Accept( p, Tko.TK_COMMA )
+            dim as Tko.Token ut = Cur( p )
+            dim as string mp = UsingPath_( p )
+            if len( mp ) = 0 then
+                if p.silent = false then p.diags->Report( Tko.TKO0406, Tko.PointRange( Cur( p ).loc ) )
+                exit while
+            end if
+            dim as Tko.StmtPayload up
+            up.name = p.names->GetString( mp )
+            NoteUsing_( p, mp )
+            moreUsing.Push( cast( ulong, MakeStmt( p, Tko.N_USING, ut.loc, up ) ) )
+        wend
+        sp.first = p.ast->children.Count
+        sp.count = moreUsing.Count
+        for i as long = 0 to moreUsing.Count - 1
+            p.ast->children.Push( moreUsing[i] )
+        next
+        return MakeStmt( p, Tko.N_USING, t.loc, sp )
+
+    case Tko.KW_OPTION
+        '' fbc refuses every OPTION statement in -lang fb, error 146 -- 'option explicit',
+        '' 'option base 1' -- and this said nothing (T86). Reported, then still parsed as
+        '' one statement, because warnings/suffix-fblite.bas writes it.
+        ErrorNode( p, Tko.TKO0409, "OPTION" )
+        Advance( p )
+        dim as Tko.StmtPayload sp
+        DeclName( p, sp.name )
+        '' 'option base 1' TAKES A NUMBER.
+        if sp.name <> 0 then
+            if Tko.Text.LowerAscii( p.names->Spelling( sp.name ) ) = "base" then
+                sp.a = Expression( p )
+            end if
+        end if
+        return MakeStmt( p, Tko.N_OPTION, t.loc, sp )
+    end select
+
+    return ErrorNode( p, Tko.TKO0408 )
+end function
+
+'' ...and, in a module unit, where each one's tokens are (RFC-0004 §3).
+function Declaration( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as long tok0 = p.pos
+    dim as Tko.NodeId n = Declaration_( p )
+    if p.recordDecls andalso (n <> Tko.NODE_NONE) andalso (p.pos > tok0) then
+        p.ast->declRanges.Push( cast( ulong, n ) )
+        p.ast->declRanges.Push( cast( ulong, tok0 ) )
+        p.ast->declRanges.Push( cast( ulong, p.pos ) )
+    end if
+    return n
+end function
+
+'' A calling convention -- RECORDED, not eaten: it decides the win32 name -- and,
+'' with 'nameless', the OVERLOAD and ALIAS that may sit WHERE A NAME WOULD BE. A
+'' constructor has none, and the name reader accepts any keyword, so it took those
+'' as the name and then as the OWNING TYPE, losing the file from that line on.
+function TakeProcPrefix_ _
+    ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
+      byval nameless as boolean = false ) as boolean
+    if Tko.IsCallConvKind( Peek( p ) ) then
+        select case Peek( p )
+        case Tko.KW_CDECL   : sp.extra or= Tko.PF_CDECL
+        case Tko.KW_STDCALL : sp.extra or= Tko.PF_STDCALL
+        case Tko.KW_PASCAL  : sp.extra or= Tko.PF_PASCAL
+        end select
+        Advance( p )
+        return true
+    end if
+    if nameless = false then return false
+    if Accept( p, Tko.KW_OVERLOAD ) then
+        sp.extra or= Tko.PF_OVERLOAD
+        return true
+    end if
+    if Accept( p, Tko.KW_ALIAS ) then
+        if Peek( p ) = Tko.TK_STRING_LIT then
+            dim as Tko.Token aTok2 = Cur( p )
+            sp.aliasName = StringLitText( p )
+            EmptyAliasCheck( p, sp.aliasName, aTok2, false )
+            Advance( p )
+        end if
+        return true
+    end if
+    return false
+end function

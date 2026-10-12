@@ -1,0 +1,123 @@
+'' instrrev.tiko -- fb_StrInstrRev (str_instrrev.o).
+''
+'' NOT the mirror of fb_StrInstr. Three differences, and only the first is
+'' obvious from the name:
+''
+'' 1. THE ARGUMENT ORDER IS DIFFERENT. fb_StrInstr( start, src, patt );
+''    fb_StrInstrRev( src, patt, start ). The start moves to the end.
+''
+'' 2. THE SEARCH IS NAIVE, NOT BOYER-MOORE. fbc's file carries both and has the
+''    BM path #if 0'd out. So this member allocates NOTHING, where fb_StrInstr
+''    mallocs and frees two arrays per call -- reproduced, because allocator
+''    traffic is what Gate 3 compares (RFC-0004 section 4).
+''
+'' 3. START IS CLAMPED, NOT REJECTED, and the clamping has an exact order:
+''
+''       start < 0                    -> len(src) - len(patt) + 1   (search all)
+''       start > len(src)             -> 0  (answers 0)
+''       start > len(src) - len(patt) -> len(src) - len(patt) + 1
+''
+''    fb_StrInstr rejects an out-of-range start outright; this one moves it to
+''    the last position a match could begin at. `start = 0` is excluded by the
+''    guard and answers 0.
+''
+'' Both operands are consumed inside one critical section, as in instr.tiko.
+
+#include once "inc/descriptors.ti"
+
+extern "rtlib"
+	declare function tkrt_DelTempNoLock alias "fb_hStrDelTemp_NoLock" _
+		( byval s as FBSTRING ptr ) as long
+	declare sub fb_StrLock alias "fb_StrLock" ( )
+	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+end extern
+
+#ifdef ENABLE_MT
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+extern "rtlib"
+
+'' Walks BACKWARDS from `start`, comparing forwards at each position.
+private function hFindNaiveRev _
+	( _
+		byval start as integer, _
+		byval text_ as ubyte ptr, byval len_text as integer, _
+		byval patt as ubyte ptr, byval len_patt as integer _
+	) as integer
+
+	dim as ubyte ptr p = text_ + start
+	dim as integer i = any, j = any
+
+	for i = 0 to start
+		j = 0
+		while( j <> len_patt )
+			if( p[j] <> patt[j] ) then exit while
+			j += 1
+		wend
+		if( j = len_patt ) then return start - i + 1
+		p -= 1
+	next
+
+	return 0
+
+end function
+
+function tkort_StrInstrRev alias "fb_StrInstrRev" _
+	( _
+		byval src as FBSTRING ptr, byval patt as FBSTRING ptr, byval start as integer _
+	) as integer
+
+	dim as integer r = 0
+	dim as integer ok = 0
+
+	if( src <> 0 ) then
+		if( src->data <> 0 ) then
+			if( patt <> 0 ) then
+				if( patt->data <> 0 ) then ok = 1
+			end if
+		end if
+	end if
+
+	if( ok <> 0 ) then
+		dim as integer size_src = FB_STRSIZE( src )
+		dim as integer size_patt = FB_STRSIZE( patt )
+
+		dim as integer usable = 1
+		if( size_src = 0 ) then usable = 0
+		if( size_patt = 0 ) then usable = 0
+		if( size_patt > size_src ) then usable = 0
+		if( start = 0 ) then usable = 0
+
+		if( usable <> 0 ) then
+			'' The clamp, in fbc's order. Note the middle branch answers 0 by
+			'' setting start to 0, not by clamping down to the last position.
+			if( start < 0 ) then
+				start = size_src - size_patt + 1
+			elseif( start > size_src ) then
+				start = 0
+			elseif( start > size_src - size_patt ) then
+				start = size_src - size_patt + 1
+			end if
+
+			if( start > 0 ) then
+				r = hFindNaiveRev( start - 1, cptr( ubyte ptr, src->data ), size_src, _
+				                              cptr( ubyte ptr, patt->data ), size_patt )
+			end if
+		end if
+	end if
+
+	STRLOCK()
+	tkrt_DelTempNoLock( src )
+	tkrt_DelTempNoLock( patt )
+	STRUNLOCK()
+
+	return r
+
+end function
+
+end extern

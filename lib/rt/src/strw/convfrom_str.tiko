@@ -1,0 +1,113 @@
+'' convfrom_str.tiko -- strw_convfrom_str.o: STRING -> WSTRING, two entry points.
+''
+'' THIS FAMILY GOES THROUGH THE C LOCALE, and that is the difference from
+'' src/ustr/conv.tiko next door. mbstowcs interprets the bytes in the process
+'' locale, so the same STRING produces different WSTRINGs on different machines
+'' and different codepages. USTRING deliberately does not work this way -- it is
+'' UTF-8 on every target -- and the two must not be made to agree, because each
+'' is right for what it is for: WSTRING is the OS's text type, USTRING is
+'' portable text.
+''
+'' THE FALLBACK IS NOT AN ERROR PATH, it is the common one on a C-locale system:
+'' mbstowcs fails on any byte above 127, and then ASCII is translated and
+'' everything else becomes '?'. A conversion that "worked" is not evidence the
+'' text survived.
+
+#include once "inc/descriptors.ti"
+#include once "inc/sysbind.ti"
+
+
+'' mbstowcs failed -- translate at least the ASCII and write '?' for the rest.
+'' Returns the count written, excluding the terminator that is always written.
+private function hNoMultibyte _
+	( byval dst as wstring ptr, byval dst_chars as integer, byval src as zstring ptr ) as integer
+
+	dim as integer w = 0
+	dim as ubyte ptr s = cptr( ubyte ptr, src )
+
+	while( w < dst_chars )
+		dim as ubyte c = s[w]
+		if( c = 0 ) then exit while
+		if( c > 127 ) then c = asc( "?" )
+		dst[w] = c
+		w += 1
+	wend
+
+	dst[w] = 0
+	return w
+
+end function
+
+extern "c"   '' NON-FBCALL: fb_unicode.h declares fb_wstr_ConvFromA without it.
+
+'' dst_chars is the room in dst EXCLUDING the terminator, so the buffer must be
+'' at least (dst_chars + 1) characters. src must be NUL-terminated. Returns the
+'' number of characters written, excluding the terminator, which is always
+'' written.
+function tkort_wstr_ConvFromA alias "fb_wstr_ConvFromA" _
+	( byval dst as wstring ptr, byval dst_chars as integer, byval src as zstring ptr ) as integer
+
+	if( src = 0 ) then
+		dst[0] = 0
+		return 0
+	end if
+
+	'' The count is in CHARACTERS, not bytes, and includes room for the
+	'' terminator -- hence dst_chars + 1.
+	dim as integer chars = cast( integer, mbstowcs( dst, src, dst_chars + 1 ) )
+
+	if( chars >= 0 ) then
+		'' mbstowcs does NOT terminate when the text exactly fills the buffer,
+		'' so it is done by hand -- which cuts off the last character. That is
+		'' fbc's behaviour, including the dst_chars - 1 it then reports, and it
+		'' is reproduced rather than corrected: the contract is "identical to
+		'' libfb", and a caller reading the returned count would otherwise see
+		'' tiko-rt and fbc disagree by one on a truncating conversion.
+		if( chars = (dst_chars + 1) ) then
+			dst[dst_chars] = 0
+			return dst_chars - 1
+		end if
+		return chars
+	end if
+
+	return hNoMultibyte( dst, dst_chars, src )
+
+end function
+
+end extern
+
+extern "rtlib"
+
+'' STRING -> a freshly allocated WSTRING temporary. The caller frees it.
+''
+'' RETURNS NULL FOR AN EMPTY SOURCE, not an empty wstring -- and NULL for a NULL
+'' source. Both are the caller's problem to distinguish, and fbc's codegen does.
+function tkort_StrToWstr alias "fb_StrToWstr" ( byval src as zstring ptr ) as wstring ptr
+
+	if( src = 0 ) then return 0
+
+	'' Measure first. A negative result means the bytes are not valid in this
+	'' locale at all, and then the length is taken as bytes and the ASCII
+	'' fallback is used directly -- calling ConvFromA would only reach the same
+	'' fallback after failing a second time.
+	dim as integer chars = cast( integer, mbstowcs( 0, src, 0 ) )
+
+	if( chars < 0 ) then
+		chars = cast( integer, strlen( src ) )
+		dim as wstring ptr d = cptr( wstring ptr, allocate( (chars + 1) * sizeof( wstring ) ) )
+		if( d = 0 ) then return 0
+		hNoMultibyte( d, chars, src )
+		return d
+	end if
+
+	if( chars = 0 ) then return 0
+
+	dim as wstring ptr dst = cptr( wstring ptr, allocate( (chars + 1) * sizeof( wstring ) ) )
+	if( dst = 0 ) then return 0
+
+	tkort_wstr_ConvFromA( dst, chars, src )
+	return dst
+
+end function
+
+end extern

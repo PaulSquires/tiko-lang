@@ -156,7 +156,7 @@ func void _ZN16HASSTRINGANDCTORD1Ev(ptr $0) {
 verify: ok
 lowered: 10 functions, 10 blocks, 87 insts, 4 statements not lowered, 0 scope imbalance
   inside N_VAR 4
-  skip-site src\mir\lowerstore.bas:1112 4
+  skip-site src\mir\lowerstore.tiko:1112 4
 tests/diagnostics/src/aggregate-init-fields.bas(32,12): error TKO0757: 'fromliteral' holds a var-len string, which an initializer list cannot fill
      |
   32 | dim shared fromLiteral as HasString = ( "123" )

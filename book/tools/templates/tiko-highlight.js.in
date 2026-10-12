@@ -2,7 +2,7 @@
 //
 // mdBook highlights with highlight.js, which has no tiko grammar. This registers one and
 // re-highlights the tiko blocks, because mdBook has already run by the time additional-js
-// executes. The word lists come from the compiler's own src/lexer/keywords.bi, so the site
+// executes. The word lists come from the compiler's own src/lexer/keywords.ti, so the site
 // cannot disagree with tiko about what a keyword is.
 //
 // This file is a TEMPLATE with @PLACEHOLDERS@, kept as real JavaScript rather than built

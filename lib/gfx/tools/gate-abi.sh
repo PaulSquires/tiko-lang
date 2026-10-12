@@ -77,7 +77,7 @@ done
 
 # ---------------------------------------------------------------------------
 # The FB side. The C probe above measures the REAL runtime; this measures our
-# MIRROR of it in abi/rtlabi.bi. Both must agree, or every field access through
+# MIRROR of it in abi/rtlabi.ti. Both must agree, or every field access through
 # the mirror is reading the wrong bytes.
 #
 # The C probe also prints alignof, which FreeBASIC has no operator for, and it
@@ -125,11 +125,11 @@ fi
 # regenerate and diff -- it drives the real gfxlib2 through SCREENRES/SCREEN 0
 # and watches the hook table populate and clear. Garbage cannot do that.
 if [ -x "$FBC" ]; then
-    sh "$HERE/gen-rtlctx.sh" "$TMP/rtlctx-offsets.bi" > /dev/null
-    if diff -q --strip-trailing-cr "$GFX/abi/rtlctx-offsets.bi"              "$TMP/rtlctx-offsets.bi" > /dev/null 2>&1; then
+    sh "$HERE/gen-rtlctx.sh" "$TMP/rtlctx-offsets.ti" > /dev/null
+    if diff -q --strip-trailing-cr "$GFX/abi/rtlctx-offsets.ti"              "$TMP/rtlctx-offsets.ti" > /dev/null 2>&1; then
         echo "gate-abi: rtlctx -- generated offsets are current"
     else
-        echo "gate-abi: rtlctx -- abi/rtlctx-offsets.bi is STALE, re-run tools/gen-rtlctx.sh" >&2
+        echo "gate-abi: rtlctx -- abi/rtlctx-offsets.ti is STALE, re-run tools/gen-rtlctx.sh" >&2
         status=1
     fi
 

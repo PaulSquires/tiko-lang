@@ -60,7 +60,7 @@ def int_expr(depth=0):
 
 # THE DOUBLES STAY BELOW 2^64. Above it FORMAT$ diverges between fbc and tiko-rt --
 # fbc's cast of the integer part is undefined behaviour in C and carries its error,
-# ours carries zeros past the seventeenth digit (lib/rt/src/str/format.bas). Phase 14's
+# ours carries zeros past the seventeenth digit (lib/rt/src/str/format.tiko). Phase 14's
 # first 2,000-seed campaign found four programs of that shape and no compiler fault, so
 # the magnitudes are clamped here: a campaign is meant to measure the compiler.
 DBL_CLAMP = "(( %s ) - int(( %s ) / 1e18) * 1e18)"

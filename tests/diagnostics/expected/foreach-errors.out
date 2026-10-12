@@ -213,7 +213,7 @@ verify: ok
 lowered: 8 functions, 16 blocks, 128 insts, 4 statements not lowered, 0 scope imbalance
   unlowered N_FOREACH 4
   inside N_FOREACH 4
-  skip-site src\mir\lowerctl.bas:213 4
+  skip-site src\mir\lowerctl.tiko:213 4
 tests/diagnostics/src/foreach-errors.bas(41,1): error TKO0609: 'for each' cannot walk a fixed-length string: it carries no length
      |
   41 | for each ch in z

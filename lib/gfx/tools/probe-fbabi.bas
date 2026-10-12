@@ -4,7 +4,7 @@
 '' exception.
 ''
 '' Prints the same table as tools/probe-rtlabi.c, in the same format, for the
-'' mirrors in abi/rtlabi.bi. tools/gate-abi.sh diffs the two; any difference
+'' mirrors in abi/rtlabi.ti. tools/gate-abi.sh diffs the two; any difference
 '' means the FB mirror and the real runtime disagree, and that is a build
 '' failure.
 ''
@@ -12,7 +12,7 @@
 '' gate strips those columns before comparing rather than guessing at them --
 '' comparing what both sides can actually measure, and nothing more.
 
-#include once "../abi/rtlabi.bi"
+#include once "../abi/rtlabi.ti"
 
 using TkoAbi
 

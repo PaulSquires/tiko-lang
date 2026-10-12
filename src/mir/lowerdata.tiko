@@ -1,0 +1,450 @@
+'' lowerdata.tiko -- DATA, READ and RESTORE.
+''
+'' See docs/internals/phase-6-print-using-and-data.md for the measurements. The short
+'' version, and none of it is what the names suggest:
+''
+''     struct __FB_DATADESC { int16 TYPE packed aligned(1); void* NODE packed aligned(1); }
+''
+'' sizeof 10 on win64 and 6 on win32, with NODE at offset 2 -- DELIBERATELY MISALIGNED,
+'' and the packing attributes are load-bearing.
+''
+'' TYPE IS NOT A DATATYPE. It is the CHARACTER LENGTH of the datum, with bit 15 set for
+'' a wide one, and -1 marking the terminator:
+''
+''     TYPE = len            narrow datum, NODE is char*
+''     TYPE = len or &h8000  wide datum,   NODE is uint16*
+''     TYPE = -1             terminator,   NODE is the NEXT block, or NULL
+''
+'' Every item is CONSTANT-FOLDED and re-rendered as decimal TEXT, so 'data &hFF' and
+'' 'data "255"' produce byte-identical entries. That is why this needs Tko.Text's
+'' StrOfDouble: fbc renders a float with its own STR(), and rendering it differently
+'' would make a 'read' of that datum return a different number.
+''
+'' One array per DATA STATEMENT, in source order, chained through the terminator.
+'' 'data 1 : data 2' on one line makes two.
+
+#import "std/containers"
+#include once "lowerctx.ti"
+#include once "support/fbstr.ti"
+
+namespace Tko.Mir
+
+using Tko
+
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+declare function BuildDataBlock_( byref c as Ctx, byval id as Tko.NodeId ) as long
+declare function DataItemText_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byref isWide as boolean, _
+      byref outp as string ) as boolean
+declare function DataReadRtlFor_( byref c as Ctx, byval t as Tko.TypeId ) as RtlId
+
+
+'' Collect every module-level DATA block, in source order, and build the chain.
+''
+'' A PRE-PASS, before any statement is lowered, because 'restore lbl' may name a label
+'' that appears later in the file -- fbc accepts the forward reference.
+''
+'' Returns the global index of the FIRST block, or -1 when the module has no DATA. A
+'' block whose items cannot all be folded is skipped ENTIRELY rather than emitted half
+'' full: a short block would silently shift every later READ onto the wrong datum.
+function CollectDataBlocks( byref c as Ctx, byval root as Tko.NodeId ) as long
+    if root = Tko.NODE_NONE then return -1
+    if c.ast->Kind( root ) <> Tko.N_MODULE then return -1
+    dim as Tko.ListPayload ptr mp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, root )].data )]
+
+    '' Two passes over the children: the blocks are built first so that the label map
+    '' can point at them, and chained afterwards so each terminator knows its successor.
+    dim as containers.Array( of ulong ) blockOf         '' global index per DATA statement
+    dim as containers.Array( of ulong ) pendingLabels   '' labels seen since the last block
+
+    for i as long = 0 to mp->count - 1
+        dim as Tko.NodeId n = cast( Tko.NodeId, c.ast->children[mp->first + i] )
+        if c.ast->Kind( n ) = Tko.N_LABEL then
+            pendingLabels.Push( cast( ulong, StmtOf( c, n )->name ) )
+            continue for
+        end if
+        if c.ast->Kind( n ) <> Tko.N_INTRINSIC then continue for
+        if StmtOf( c, n )->op <> cast( ushort, Tko.KW_DATA ) then continue for
+
+        dim as long g = BuildDataBlock_( c, n )
+        if g < 0 then
+            '' The block declined. Its labels stay pending so a 'restore' naming one
+            '' lands on the next block that DID build, which is what fbc's own
+            '' at-or-after rule does.
+            SkipStmt( c, n )
+            continue for
+        end if
+        blockOf.Push( cast( ulong, g ) )
+        '' Every label at or before this block now names it.
+        while pendingLabels.Count > 0
+            c.dataLabelName.Push( pendingLabels[0] )
+            c.dataLabelBlock.Push( cast( ulong, g ) )
+            for k as long = 0 to pendingLabels.Count - 2
+                pendingLabels[k] = pendingLabels[k + 1]
+            next
+            pendingLabels.Pop( )
+        wend
+    next
+
+    if blockOf.Count = 0 then return -1
+
+    '' Chain: each block's terminator points at the next, and the last one at NULL.
+    for i as long = 0 to blockOf.Count - 2
+        dim as long g = cast( long, blockOf[i] )
+        dim as long last = c.m->globals[g].dataFirst + c.m->globals[g].dataCount - 1
+        c.m->dataRefs[last] = cast( long, blockOf[i + 1] )
+    next
+    return cast( long, blockOf[0] )
+end function
+
+'' One DATA statement's descriptor array. Returns its global index, or -1.
+private function BuildDataBlock_( byref c as Ctx, byval id as Tko.NodeId ) as long
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+
+    '' Folded FIRST, into scratch, so a block with one unfoldable item emits nothing
+    '' rather than a short one.
+    dim as containers.Array( of long ) types
+    dim as containers.Array( of long ) refs
+    for i as long = 0 to sp->count - 1
+        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as boolean isWide = false
+        dim as string txt
+        '' '@"foo"' -- THE DATUM IS AN ADDRESS, and its tag is -2 rather than a
+        '' length. Measured: '{ (int16)-2, (void*)"foo" }', read back with
+        '' fb_DataReadULongint into a pointer. Nothing here knew the tag, so the
+        '' whole block declined and the READ and RESTORE beside it went with it.
+        dim as Tko.NodeId ae = Unparen_( c, e )
+        if c.ast->Kind( ae ) = Tko.N_ADDROF then
+            dim as Tko.UnaryPayload ptr aup = _
+                @c.ast->unaries[cast( long, c.ast->nodes[cast( long, ae )].data )]
+            dim as Tko.NodeId ao = Unparen_( c, aup->operand )
+            if c.ast->Kind( ao ) = Tko.N_STRING_LIT then
+                types.Push( -2 )
+                refs.Push( c.m->AddStringLiteral( StringLitText_( c, ao ), *c.names ) )
+                continue for
+            end if
+            '' '@somevar' OVER A MODULE-LIFETIME VARIABLE IS A RELOCATION, and a
+            '' descriptor entry IS one: its ref names a GLOBAL. Measured:
+            ''
+            ''   data @"fOObAR", @mydbl, 5
+            ''   { (int16)-2, (void*)"fOObAR" }, { (int16)-2, (void*)&MYDBL$ },
+            ''   { (int16)1, (void*)"5" }, { (int16)-1, (void*)0ull }
+            ''
+            '' Refusing it cost far more than the one item: a block with any
+            '' unfoldable entry emits NOTHING, which leaves the module with no
+            '' data head at all -- so every DATA and every RESTORE in the file
+            '' declined too.
+            ''
+            '' A LOCAL still declines: it has no address the image can hold.
+            if c.ast->Kind( ao ) = Tko.N_IDENT then
+                dim as Tko.SymbolId asid = c.info->RefOf( ao )
+                dim as Tko.Symbol ptr asy = c.syms->SymbolAt( asid )
+                if asy <> 0 then
+                    if asy->kind = cast( ubyte, Tko.SYM_VARIABLE ) then
+                        '' SHARED or STATIC -- module lifetime, so the address is a
+                        '' link-time constant. A plain local has none.
+                        dim as boolean isMod = _
+                            ((asy->flags and Tko.SYMF_SHARED) <> 0)
+                        if isMod = false then
+                            isMod = ((asy->flags and Tko.SYMF_STATIC) <> 0)
+                        end if
+                        if isMod then
+                            dim as long ag = GlobalFor( c, asid )
+                            if ag >= 0 then
+                                types.Push( -2 )
+                                refs.Push( ag )
+                                continue for
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+            return -1
+        end if
+        if DataItemText_( c, e, isWide, txt ) = false then return -1
+        if len( txt ) > 32766 then return -1        '' would collide with the terminator
+        dim as long ty = len( txt )
+        if isWide then ty = ty or &h8000
+        types.Push( ty )
+        if isWide then
+            refs.Push( c.m->AddWideStringLiteral( txt, *c.names ) )
+        else
+            refs.Push( c.m->AddStringLiteral( txt, *c.names ) )
+        end if
+    next
+
+    dim as long g = c.m->AddDataBlock( *c.names )
+    for i as long = 0 to types.Count - 1
+        c.m->PushDataEntry( g, types[i], refs[i] )
+    next
+    '' The terminator. Its NODE is filled in by the chaining pass, or left NULL.
+    c.m->PushDataEntry( g, -1, -1 )
+    return g
+end function
+
+'' One DATA item as the TEXT fbc would store, and whether it is wide.
+''
+'' fbc folds every item to a compile-time constant and renders it as decimal, so the
+'' source spelling is gone: 'data &hFF' and 'data "255"' produce byte-identical
+'' entries. Anything that will not fold declines the whole block.
+'' IS THIS CONSTANT'S TEXT WIDE? The constant itself carries no type worth asking --
+'' 'const V1 = wstr( "123" )' is recorded with none -- so the question goes to its
+'' INITIALISER, which is where the wstr( ) is.
+private function DataConstIsWide_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    if e = Tko.NODE_NONE then return false
+    if TermIsWide_( c, e ) then return true
+    dim as Tko.NodeKind k = c.ast->Kind( e )
+    if (k <> Tko.N_IDENT) andalso (k <> Tko.N_MEMBER) then return false
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( e ) )
+    if cs = 0 then return false
+    if cs->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return false
+    if cs->payload = 0 then return false
+    dim as Tko.NodeId item = cast( Tko.NodeId, cs->payload )
+    if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then return false
+    return TermIsWide_( c, StmtOf( c, item )->b )
+end function
+
+private function DataItemText_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byref isWide as boolean, _
+      byref outp as string ) as boolean
+
+    isWide = false
+    if e = Tko.NODE_NONE then return false
+
+    if c.ast->Kind( e ) = Tko.N_STRING_LIT then
+        '' Source has no wide string literal syntax -- a wide datum comes from a
+        '' WSTRING constant, which does not fold here -- so TYPE's bit 15 is never
+        '' set by this path.
+        outp = StringLitText_( c, e )
+        return true
+    end if
+
+    '' A FLOAT LITERAL, rendered with fbc's own STR() digit for digit -- see
+    '' tools/gen/check-str.sh. Rendering it any other way would make a 'read' of the
+    '' datum return a DIFFERENT NUMBER, with nothing to say so.
+    ''
+    '' Handled before ConstOf because ConstOf folds INTEGERS ONLY: it has no float
+    '' field at all, so '1.234e+4' is simply not constant to it. A folded float
+    '' EXPRESSION -- 'data 1.0 / 3.0' -- therefore still declines, and that is stated
+    '' rather than approximated.
+    if c.ast->Kind( e ) = Tko.N_FLOAT_LIT then
+        dim as Tko.LiteralPayload ptr flp = _
+            @c.ast->literals[cast( long, c.ast->nodes[cast( long, e )].data )]
+        outp = Tko.Text.StrOfDouble( flp->fltValue )
+        return true
+    end if
+
+    '' A UNARY MINUS over a float literal: '-0.0' and '-1.5e-3' are that shape, and
+    '' the sign matters -- fbc renders -0.0 as "-0", not "0".
+    if c.ast->Kind( e ) = Tko.N_UNARY then
+        dim as Tko.UnaryPayload ptr up = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, e )].data )]
+        if c.ast->Kind( up->operand ) = Tko.N_FLOAT_LIT then
+            dim as Tko.LiteralPayload ptr flp2 = _
+                @c.ast->literals[cast( long, c.ast->nodes[cast( long, up->operand )].data )]
+            dim as double fv = flp2->fltValue
+            select case cast( Tko.TokenKind, up->op )
+            case Tko.TK_MINUS : outp = Tko.Text.StrOfDouble( -fv )
+            case Tko.TK_PLUS  : outp = Tko.Text.StrOfDouble( fv )
+            case else         : return false
+            end select
+            return true
+        end if
+    end if
+
+    '' A STRING CONSTANT IS ITS TEXT, and a WIDE one sets bit 15. The note above
+    '' said a wide datum 'does not fold here' -- it does now, and so does a narrow
+    '' one, which ConstOf could never answer for because it has no string field.
+    ''
+    '' Measured, for 'const S = "abc"' and 'const V1 = wstr( "123" )':
+    ''
+    ''   { (int16)3, (void*)"abc" }, { (int16)-32765, (void*)L"123" }
+    ''
+    '' -- 3 is the length, and -32765 is 3 with bit 15 set. wstring/data.bas is six
+    '' of them, and the four RESTOREs that cascade off the block declining with
+    '' them.
+    dim as string ct
+    if ConstStringTextOf_( c, e, ct ) then
+        outp = ct
+        isWide = DataConstIsWide_( c, e )
+        return true
+    end if
+
+    dim as Tko.Check.ConstVal v = _
+        Tko.Check.ConstOf( *c.ast, e, *c.srcMgr, *c.names, c.types->target.pointerBits )
+    if v.known then
+        if v.uns then
+            outp = str( cast( ulongint, v.value ) )
+        else
+            outp = str( v.value )
+        end if
+        return true
+    end if
+
+    '' A FOLDED FLOAT EXPRESSION -- 'data (1.0*1.0/24.0)'. ConstOf has no float field at
+    '' all, so an expression that is only constant as a DOUBLE reached here and the whole
+    '' block declined. datetime/testtime.bas writes sixteen of them and nothing else.
+    ''
+    '' AFTER the integer attempt, not before: '(1)' has to keep rendering "1" and a wide
+    '' int64 datum has to keep its exact digits, neither of which survives a trip through
+    '' a double.
+    ''
+    '' Measured: fbc renders '(1.0*1.0/24.0)' as the decimal string
+    '' "0.04166666666666666" with length 19, and '-(1.0/(24.0*60.0))' with its sign --
+    '' the same digits STR() gives, which is what StrOfDouble reproduces.
+    dim as double fd = 0
+    if Tko.Check.ConstFloatOf( *c.ast, e, fd, 0, c.syms, Tko.SCOPE_GLOBAL ) then
+        outp = Tko.Text.StrOfDouble( fd )
+        return true
+    end if
+    return false
+end function
+
+
+'' READ.
+''
+'' The DESTINATION TYPE alone picks the entry point -- no mask, no channel -- and
+'' 'read a, b' is two consecutive calls.
+function LowerRead( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->count < 1 then return false
+
+    for i as long = 0 to sp->count - 1
+        dim as Tko.NodeId dst = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.TypeId t = c.info->TypeOf_( dst )
+        dim as RtlId r = DataReadRtlFor_( c, t )
+        if r = RTL_NONE then return false
+        dim as MirValue a = LowerAddr( c, dst )
+        if a.kind = cast( ubyte, MV_NONE ) then return false
+
+        dim as containers.Array( of ulong ) args
+        args.Push( cast( ulong, a.kind ) ) : args.Push( cast( ulong, a.id ) )
+
+        if r = RTL_DATA_READ_STR then
+            '' (pointer, length, isFixed). A var-len string passes -1 and 0; a
+            '' 'zstring * n' passes n and 0; an FB 'string * n' passes n or SSIZE_MIN
+            '' and -1. tiko-lang cannot tell the last two apart -- both are an array of
+            '' TY_ZSTRING -- so only the first two are lowered.
+            dim as longint zn
+            dim as long sk = StrSwapKind_( c, t, zn )
+            if sk = 0 then
+                args.Push( cast( ulong, MV_CONST_INT ) )
+                args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+            elseif sk = 1 then
+                args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, zn ) )
+            else
+                return false
+            end if
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        elseif r = RTL_DATA_READ_WSTR then
+            dim as long wn = WideStringElems( c, t )
+            if wn <= 0 then return false
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, wn ) )
+        end if
+
+        EmitRtl( c, r, args )
+    next
+    return true
+end function
+
+'' The READ entry point for a destination type. INTEGER and UINTEGER are
+'' TARGET-DEPENDENT: Longint/ULongint on win64, Int/UInt on win32.
+private function DataReadRtlFor_( byref c as Ctx, byval t as Tko.TypeId ) as RtlId
+    if t = Tko.TYPE_NONE then return RTL_NONE
+    if WideStringElems( c, t ) > 0 then return RTL_DATA_READ_WSTR
+    if IsStringType( c, t ) then return RTL_DATA_READ_STR
+    dim as longint zn
+    if StrSwapKind_( c, t, zn ) = 1 then return RTL_DATA_READ_STR
+
+    select case c.types->Kind( t )
+    '' A POINTER TARGET READS AS AN UNSIGNED WORD. Measured: 'read ps' over a
+    '' 'zstring ptr' is 'fb_DataReadULongint( (uint64*)&PS$0 )' -- the runtime
+    '' moves the ADDRESS stored in the datum, and has no pointer reader of its
+    '' own. On win32 that is the 32-bit entry point, for the same reason INTEGER
+    '' splits below.
+    case Tko.TK_POINTER
+        if c.types->target.pointerBits = 32 then return RTL_DATA_READ_UINT
+        return RTL_DATA_READ_ULONGINT
+    case Tko.TK_ENUM : return RTL_DATA_READ_INT
+    case Tko.TK_BUILTIN
+        select case c.types->BuiltinOf( t )
+        case Tko.TY_BYTE      : return RTL_DATA_READ_BYTE
+        case Tko.TY_UBYTE     : return RTL_DATA_READ_UBYTE
+        case Tko.TY_SHORT     : return RTL_DATA_READ_SHORT
+        case Tko.TY_USHORT    : return RTL_DATA_READ_USHORT
+        case Tko.TY_LONG      : return RTL_DATA_READ_INT
+        case Tko.TY_ULONG     : return RTL_DATA_READ_UINT
+        case Tko.TY_LONGINT   : return RTL_DATA_READ_LONGINT
+        case Tko.TY_ULONGINT  : return RTL_DATA_READ_ULONGINT
+        case Tko.TY_SINGLE    : return RTL_DATA_READ_SINGLE
+        case Tko.TY_DOUBLE    : return RTL_DATA_READ_DOUBLE
+        case Tko.TY_BOOLEAN   : return RTL_DATA_READ_BOOL
+        case Tko.TY_INTEGER
+            if c.types->target.pointerBits = 32 then return RTL_DATA_READ_INT
+            return RTL_DATA_READ_LONGINT
+        case Tko.TY_UINTEGER
+            if c.types->target.pointerBits = 32 then return RTL_DATA_READ_UINT
+            return RTL_DATA_READ_ULONGINT
+        end select
+    end select
+    return RTL_NONE
+end function
+
+
+'' RESTORE.
+''
+'' A bare 'restore' targets the head of the module's chain. 'restore lbl' targets the
+'' first DATA at or after lbl, and a forward reference is legal -- which is why the
+'' blocks are collected before any statement is lowered.
+function LowerRestore( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    dim as long target = c.dataHead
+
+    if sp->count >= 1 then
+        dim as Tko.NodeId lbl = cast( Tko.NodeId, c.ast->children[sp->first] )
+        if c.ast->Kind( lbl ) <> Tko.N_IDENT then return false
+        dim as Tko.IdentPayload ptr ip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, lbl )].data )]
+        target = -1
+        for i as long = 0 to c.dataLabelName.Count - 1
+            if cast( Tko.InternId, c.dataLabelName[i] ) = ip->name then
+                target = cast( long, c.dataLabelBlock[i] )
+                exit for
+            end if
+        next
+        '' A LABEL WITH NO DATA AFTER IT. fbc emits a reference to a label it never
+        '' defines and its own C backend then refuses the program -- a defect, not a
+        '' contract. tiko-lang declines instead of reproducing it.
+        if target < 0 then return false
+    end if
+
+    if target < 0 then return false
+    dim as MirValue g
+    g.kind = cast( ubyte, MV_GLOBAL )
+    g.ty = cast( ubyte, MT_PTR )
+    g.id = target
+    dim as containers.Array( of ulong ) args
+    args.Push( cast( ulong, g.kind ) ) : args.Push( cast( ulong, g.id ) )
+    EmitRtl( c, RTL_DATA_RESTORE, args )
+    return true
+end function
+
+'' The implicit restore fbc emits at module start.
+''
+'' Measured, and BOTH conditions matter: it appears only in the MAIN translation unit,
+'' and only when that module itself contains at least one DATA. A main module with READ
+'' but no DATA gets none at all, and the runtime pointer is simply never initialised.
+sub EmitImplicitRestore( byref c as Ctx )
+    if c.dataHead < 0 then return
+    dim as MirValue g
+    g.kind = cast( ubyte, MV_GLOBAL )
+    g.ty = cast( ubyte, MT_PTR )
+    g.id = c.dataHead
+    dim as containers.Array( of ulong ) args
+    args.Push( cast( ulong, g.kind ) ) : args.Push( cast( ulong, g.id ) )
+    EmitRtl( c, RTL_DATA_RESTORE, args )
+end sub
+
+end namespace

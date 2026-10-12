@@ -44,13 +44,13 @@ def main() -> int:
         return pinlib.read_source(pin, rel)
 
     groups: dict[str, list[str]] = {
-        "keywords": [w.lower() for w in KW_RE.findall(read("src/lexer/keywords.bi"))],
+        "keywords": [w.lower() for w in KW_RE.findall(read("src/lexer/keywords.ti"))],
         "builtins": sorted(
-            {w for w in INTRINSIC_RE.findall(read("src/symbols/intrinsicname.bas"))} - SKIP_BUILTINS
+            {w for w in INTRINSIC_RE.findall(read("src/symbols/intrinsicname.tiko"))} - SKIP_BUILTINS
         ),
-        "prelude": sorted({w.lower() for w in PRELUDE_RE.findall(read("src/parser/prelude.bas"))}),
-        "pp symbols": sorted({w.lower() for w in PPSYM_RE.findall(read("src/pp/directive.bas"))}),
-        "cli options": sorted({w.lower() for w in OPT_RE.findall(read("src/driver/options.bi"))}),
+        "prelude": sorted({w.lower() for w in PRELUDE_RE.findall(read("src/parser/prelude.tiko"))}),
+        "pp symbols": sorted({w.lower() for w in PPSYM_RE.findall(read("src/pp/directive.tiko"))}),
+        "cli options": sorted({w.lower() for w in OPT_RE.findall(read("src/driver/options.ti"))}),
         # The headers are gitignored build products, so they come from the packaged
         # toolchain -- which check-listings.sh has already matched to this same pin.
         "fb headers": sorted(
@@ -59,7 +59,7 @@ def main() -> int:
     }
 
     counts = {
-        "diagnostics": len(DIAG_RE.findall(read("src/diag/diagids.bi"))),
+        "diagnostics": len(DIAG_RE.findall(read("src/diag/diagids.ti"))),
     }
 
     bad = 0

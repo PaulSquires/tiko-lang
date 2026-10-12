@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate appendices/C-cli.md from tiko's option table.
 
-src/driver/options.bi holds one OPT( ) row per option, and that one table drives both
+src/driver/options.ti holds one OPT( ) row per option, and that one table drives both
 the command-line parser and `tiko --help`. The appendix is generated from it so the book
 cannot document an option the compiler does not have, or miss one it does.
 
@@ -87,7 +87,7 @@ def main() -> int:
 
     pin = pinlib.read_pin(args.tiko_src, args.rev, args.worktree)
     pinlib.announce(pin, "gen_cli")
-    rows = OPT_RE.findall(pinlib.read_source(pin, "src/driver/options.bi"))
+    rows = OPT_RE.findall(pinlib.read_source(pin, "src/driver/options.ti"))
     if len(rows) < 20:
         sys.exit(f"gen_cli: only {len(rows)} rows parsed at {pin.commit} -- the table's shape changed")
 
@@ -105,7 +105,7 @@ def main() -> int:
 
     # THE SUBCOMMANDS -- tiko build, run, check, clean, metadata -- are words, not options,
     # so they are not in the table; they are read from the --help text that lists them.
-    subs = SUB_RE.findall(pinlib.read_source(pin, "src/driver/cmdline.bas"))
+    subs = SUB_RE.findall(pinlib.read_source(pin, "src/driver/cmdline.tiko"))
     if subs:
         lines += [
             "## Subcommands {#app-cli-subcommands}",
@@ -151,7 +151,7 @@ def main() -> int:
 
     lines += [
         f"<!-- {len(rows)} options, generated {datetime.date.today().isoformat()} from "
-        f"src/driver/options.bi at {pin.commit} -->",
+        f"src/driver/options.ti at {pin.commit} -->",
         "",
     ]
 

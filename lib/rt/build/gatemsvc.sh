@@ -229,7 +229,7 @@ for o in $TOBJS "$W/t/fbc-tests.o"; do cygpath -m "$o" >> "$W/objs.rsp"; done
 # Without '-nostdlib' clang reaches for the MSVC CRT out of a Visual Studio install, and
 # there is none on a machine that has only the toolchain -- so every module came back
 # with "unresolved external symbol memset" and the gate read as an ABI failure when it
-# was a missing library. See src/codegen/toolchain.bas: what replaces the CRT is
+# was a missing library. See src/codegen/toolchain.tiko: what replaces the CRT is
 # ucrtbase.dll, reached through the import library build/implibs.sh builds, and
 # the handful it does not export are tiko-rt's own src/c/msvccrt.c -- already inside the
 # archive being linked here, mainCRTStartup included.

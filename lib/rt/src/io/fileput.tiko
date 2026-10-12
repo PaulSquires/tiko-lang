@@ -1,0 +1,210 @@
+'' fileput.tiko -- the PUT data path: four entry points, one fbc member.
+''
+'' PUT is where the DEVICE WRITE and the PRINT LINE BOOKKEEPING meet, and the
+'' second half is the part with the rules.
+''
+'' ================================================ THE RANDOM-MODE SKIP
+''
+'' A RANDOM write must land on a record boundary, so after writing `length`
+'' bytes the file is advanced to the end of the current record:
+''
+''     skip = (reclen - (bytes mod reclen)) mod reclen
+''
+'' The OUTER mod is what makes a full-record write skip NOTHING rather than a
+'' whole record -- drop it and every RANDOM PUT leaves a record-sized hole.
+''
+'' fbc's own check that the write was exactly one record is COMMENTED OUT in its
+'' source; the comment is kept here because it records that short RANDOM writes
+'' are tolerated deliberately rather than by omission.
+''
+'' ================================================ THE LINE-LENGTH RULE
+''
+'' `checknewline` makes PUT update the handle's line_length -- the same field
+'' PRINT's comma padding reads. It scans BACKWARDS for the last CR or LF:
+''
+''     no newline found   line_length += length      (the line continues)
+''     newline at i       line_length = length - i   (a fresh line after it)
+''
+'' and then wraps modulo the device width. So writing text through PUT keeps
+'' PRINT's tab stops correct, which is why the two share the field at all.
+''
+'' NOTE THE DOUBLE DEREF. fbc reassigns `handle = FB_HANDLE_DEREF(handle)` and
+'' then calls FB_HANDLE_DEREF AGAIN on the result to read the width. The second
+'' is a no-op on an already-dereferenced handle; it is reproduced rather than
+'' tidied because the chain walk is cheap and the shapes should match.
+
+#include once "inc/descriptors.ti"
+#include once "inc/file.ti"
+#include once "inc/print.ti"
+
+#ifdef ENABLE_MT
+	extern "rtlib"
+		declare sub fb_Lock alias "fb_Lock" ( )
+		declare sub fb_Unlock alias "fb_Unlock" ( )
+	end extern
+	#define IOLOCK()   fb_Lock()
+	#define IOUNLOCK() fb_Unlock()
+#else
+	#define IOLOCK()
+	#define IOUNLOCK()
+#endif
+
+const FB_RTERROR_OK = 0
+const FB_RTERROR_ILLEGALFUNCTIONCALL = 1
+const FB_RTERROR_FILEIO = 3
+const TKORT_SEEK_CUR = 1
+
+extern "rtlib"
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+end extern
+
+extern "c"   '' NON-FBCALL: the *Ex forms take a handle.
+	declare function tkrt_FileSeekEx alias "fb_FileSeekEx" _
+		( byval h as FB_FILE ptr, byval newpos as longint ) as long
+end extern
+
+extern "c"   '' NON-FBCALL: fb_file.h declares these plainly.
+
+function tkort_FilePutDataEx alias "fb_FilePutDataEx" _
+	( byval h as FB_FILE ptr, byval pos_ as longint, byval data_ as any ptr, _
+	  byval length as uinteger, byval adjust_rec_pos as long, _
+	  byval checknewline as long, byval is_unicode as long ) as long
+
+	if( TKORT_HANDLE_USED( h ) = 0 ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+	if( pos_ < 0 ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	IOLOCK()
+
+	dim as long res = tkrt_ErrorSetNum( FB_RTERROR_OK )
+
+	'' Any modifying non-read operation drops the put-back buffer.
+	h->putback_size = 0
+
+	'' A position of 0 means "wherever we are" -- only a positive one seeks.
+	if( pos_ > 0 ) then res = tkrt_FileSeekEx( h, pos_ )
+
+	if( res = FB_RTERROR_OK ) then
+		if( is_unicode = 0 ) then
+			if( h->hooks->pfnWrite <> 0 ) then
+				res = h->hooks->pfnWrite( h, data_, length )
+			else
+				res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+			end if
+		else
+			if( h->hooks->pfnWriteWstr <> 0 ) then
+				res = h->hooks->pfnWriteWstr( h, cptr( wstring ptr, data_ ), length )
+			else
+				res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+			end if
+		end if
+	end if
+
+	'' ---- the RANDOM record skip
+	dim as integer do_skip = -1
+	if( h->mode <> FB_FILE_MODE_RANDOM ) then do_skip = 0
+	if( res <> FB_RTERROR_OK ) then do_skip = 0
+	if( adjust_rec_pos = 0 ) then do_skip = 0
+	if( h->reclen = 0 ) then do_skip = 0
+	if( h->hooks->pfnSeek = 0 ) then do_skip = 0
+
+	if( do_skip ) then
+		'' A RANDOM WRITE MUST BE EXACTLY ONE RECORD. A short one sets FILEIO --
+		'' and the skip below still runs, so the position advances to the record
+		'' boundary anyway and only the RETURN VALUE reports the problem.
+		''
+		'' The first version here treated this check as commented out, because a
+		'' regex that stripped comment lines had removed the `*/` that ends the
+		'' comment two lines above it. The check is live code. Reading source
+		'' through a filter that deletes lines can change what the rest appears
+		'' to mean, and the differential is what caught it.
+		if( length <> h->reclen ) then res = tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
+
+		dim as uinteger bytes = length
+		if( is_unicode <> 0 ) then bytes = length * sizeof( wstring )
+		'' THE OUTER MOD: a full-record write skips nothing.
+		dim as longint skip_size = (h->reclen - (bytes mod h->reclen)) mod h->reclen
+		if( skip_size <> 0 ) then
+			h->hooks->pfnSeek( h, skip_size, TKORT_SEEK_CUR )
+		end if
+	end if
+
+	'' ---- the line-length bookkeeping PRINT's padding reads
+	if( checknewline <> 0 ) then
+		if( res = FB_RTERROR_OK ) then
+
+			'' Scan BACKWARDS for the last CR or LF. `i` ends one past the
+			'' newline, or 0 when there is none.
+			dim as integer i = length
+			if( is_unicode = 0 ) then
+				dim as ubyte ptr t = cptr( ubyte ptr, data_ )
+				do
+					i -= 1
+					if( i < 0 ) then exit do
+					dim as ulong ch = t[i]
+					if( (ch = 10) orelse (ch = 13) ) then exit do
+				loop
+			else
+				dim as wstring ptr t = cptr( wstring ptr, data_ )
+				do
+					i -= 1
+					if( i < 0 ) then exit do
+					dim as ulong ch = t[i]
+					if( (ch = 10) orelse (ch = 13) ) then exit do
+				loop
+			end if
+
+			h = tkort_HandleDeref( h )
+			i += 1
+
+			if( i = 0 ) then
+				h->line_length += length          '' the line continues
+			else
+				h->line_length = length - i       '' a fresh line after the break
+			end if
+
+			'' The second deref is fbc's and is a no-op here; kept so the shapes
+			'' match rather than because it does anything.
+			dim as long iWidth = cast( long, tkort_HandleDeref( h )->width )
+			if( iWidth <> 0 ) then h->line_length mod= iWidth
+
+		end if
+	end if
+
+	IOUNLOCK()
+
+	'' SET THE ERROR CODE AGAIN: pfnSeek above may have reset it, so the value
+	'' the caller sees has to be re-established from `res`.
+	return tkrt_ErrorSetNum( res )
+
+end function
+
+function tkort_FilePutData alias "fb_FilePutData" _
+	( byval fnum as long, byval pos_ as longint, byval data_ as any ptr, _
+	  byval length as uinteger, byval adjust_rec_pos as long, _
+	  byval checknewline as long ) as long
+	return tkort_FilePutDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, data_, length, _
+	                            adjust_rec_pos, checknewline, 0 )
+end function
+
+end extern
+
+extern "rtlib"
+
+'' PUT #f, pos, value -- adjusts the record position, does NOT track newlines.
+function tkort_FilePut alias "fb_FilePut" _
+	( byval fnum as long, byval pos_ as long, byval value as any ptr, _
+	  byval valuelen as uinteger ) as long
+	return tkort_FilePutData( fnum, pos_, value, valuelen, -1, 0 )
+end function
+
+function tkort_FilePutLarge alias "fb_FilePutLarge" _
+	( byval fnum as long, byval pos_ as longint, byval value as any ptr, _
+	  byval valuelen as uinteger ) as long
+	return tkort_FilePutData( fnum, pos_, value, valuelen, -1, 0 )
+end function
+
+end extern

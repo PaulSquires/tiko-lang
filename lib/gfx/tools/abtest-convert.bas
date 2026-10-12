@@ -16,7 +16,7 @@
 '' to a known non-trivial state first -- a palette that is the identity, or grey,
 '' would hide a channel-order error in exactly the way the default one might.
 
-#include once "../raster/convert.bi"
+#include once "../raster/convert.ti"
 #include once "abtest.bi"
 #ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"

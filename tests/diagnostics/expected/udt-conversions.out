@@ -442,9 +442,9 @@ lowered: 14 functions, 14 blocks, 328 insts, 8 statements not lowered, 0 scope i
   amb assign 1
   amb-assign-kind 1 1
   amb-assign-val N_IDENT 1
-  skip-site src\mir\lowerutil.bas:40 6
-  skip-site src\mir\lowerassign.bas:246 1
-  skip-site src\mir\lowerassign.bas:516 1
+  skip-site src\mir\lowerutil.tiko:40 6
+  skip-site src\mir\lowerassign.tiko:246 1
+  skip-site src\mir\lowerassign.tiko:516 1
 tests/diagnostics/src/udt-conversions.bas(48,1): error TKO0738: no conversion between these two types
      |
   48 | c = a

@@ -1,0 +1,856 @@
+'' path.tiko -- pure path algebra: sixteen entry points over one fbc member.
+''
+'' PURE. No syscall, no filesystem access, no global, no locale, and no
+'' allocation beyond the returned descriptor. Whether a path NAMES anything is
+'' a different layer's question; this file manipulates a path as a string.
+''
+'' ONE FILE, NO PLATFORM COPIES, and the grammar is a PARAMETER. That is what
+'' lets the differential evaluate Windows path rules on Linux and POSIX rules
+'' on Windows -- both grammars, both hosts, every build.
+''
+'' THE UNIT IS FB_UCHAR (UTF-16), not FB_WCHAR. On Linux those differ in width,
+'' so a path buffer reinterpreted rather than re-encoded is accidentally right
+'' on Windows and wrong everywhere else.
+''
+'' ROOT LENGTH IS THE PRIMITIVE EVERYTHING ELSE IS BUILT ON, and it INCLUDES a
+'' trailing separator when one is present. "C:\" is 3 and "C:" is 2 -- which is
+'' exactly how drive-isabs is told from drive-relative. Collapsing those two
+'' would make C:foo isabs, which is a real bug with real consequences.
+''
+'' ABSOLUTE IS NARROWER THAN ROOTED. "\foo" has a root of 1 and is NOT
+'' isabs: it is rooted on the current drive. "C:foo" has a root of 2 and is
+'' not isabs either. Only a root that fixes both drive and directory counts.
+''
+'' A \?\ DEVICE PATH IS COPIED THROUGH VERBATIM. Under it the OS does no
+'' parsing at all -- '.' and '..' are ordinary names and '/' is not a separator
+'' -- so normalising the interior would change which file is named.
+''
+'' THE LOCAL FOR "is this absolute" IS `isabs`, NOT `absolute`. ABSOLUTE is a
+'' FreeBASIC keyword (the DIM ... ABSOLUTE form), and like PRESET, RUN and FRAC
+'' before it the clash is reported at the first USE as a duplicated definition,
+'' never at the declaration as a keyword error.
+''
+'' '..' RESOLUTION IS LEXICAL, and that is a documented limitation rather than
+'' an oversight: if a/b is a symlink then a/b/.. is '/' to the OS but 'a' here.
+'' Resolving it properly would mean touching the disk from a pure function.
+
+#include once "inc/descriptors.ti"
+#include once "inc/ustr.ti"
+#include once "inc/fspath.ti"
+#include once "inc/sysbind.ti"
+
+extern "c"   '' NON-FBCALL: the ustring helpers, declared plain in fb_ustring.h.
+	declare sub tkrt_UStrCopy2 alias "fb_hUStrCopy" _
+		( byval dst as FB_UCHAR ptr, byval src as FB_UCHAR ptr, byval units as integer )
+	declare function tkrt_UStrToUpper alias "fb_hUStrToUpper" ( byval c as FB_UCHAR ) as FB_UCHAR
+	declare function tkrt_UStrAllocTemp alias "fb_hUStrAllocTemp" _
+		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
+end extern
+
+'' Unpack a `byref as const ustring` parameter. THROUGH FB_USTRSIZE, never
+'' ->len raw: the temp flag lives in the sign bit, and reading it raw is what
+'' once made the whole wide-string family return empty on Linux.
+private sub hArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, _
+                  byval len_ as integer ptr )
+	static as FB_UCHAR empty_(0 to 0) = { 0 }
+	if( s = 0 ) then
+		*ptr_ = @empty_(0) : *len_ = 0
+	elseif( s->data = 0 ) then
+		*ptr_ = @empty_(0) : *len_ = 0
+	else
+		*ptr_ = s->data
+		*len_ = FB_USTRSIZE( s )
+	end if
+end sub
+
+'' Build the returned USTRING. The result is a TEMP the CALLER frees -- the
+'' same contract every FB.* string entry point uses.
+private function hTemp( byval src as FB_UCHAR ptr, byval units as integer ) as FBUSTRING ptr
+	dim as FBUSTRING ptr dst = any
+	if( units <= 0 ) then return TKORT_UNULL_DESC()
+	dst = tkrt_UStrAllocTemp( 0, units )
+	if( dst = 0 ) then return TKORT_UNULL_DESC()
+	if( dst->data <> 0 ) then
+		if( src <> 0 ) then tkrt_UStrCopy2( dst->data, src, units )
+		dst->data[units] = 0
+	end if
+	return dst
+end function
+
+'' Under the Windows grammar BOTH slashes separate; under POSIX only '/'.
+private function hIsSep( byval c as FB_UCHAR, byval gram as long ) as long
+	if( gram = FB_PATH_WIN32 ) then
+		if( (c = 92) orelse (c = 47) ) then return 1
+		return 0
+	end if
+	if( c = 47 ) then return 1
+	return 0
+end function
+
+private function hNativeSep( byval gram as long ) as FB_UCHAR
+	if( gram = FB_PATH_WIN32 ) then return 92
+	return 47
+end function
+
+private function hIsAlpha( byval c as FB_UCHAR ) as long
+	if( (c >= 65) andalso (c <= 90) ) then return 1
+	if( (c >= 97) andalso (c <= 122) ) then return 1
+	return 0
+end function
+
+'' Case folding for comparison. NOT ASCII-only: NTFS folds far more than
+'' ASCII, so this goes through the generated BMP table the FB.* string family
+'' uses. towupper() would give a locale-dependent answer.
+private function hFold( byval c as FB_UCHAR, byval gram as long ) as FB_UCHAR
+	if( gram = FB_PATH_WIN32 ) then return tkrt_UStrToUpper( c )
+	return c
+end function
+
+private function hIsUncLiteral( byval p as FB_UCHAR ptr ) as long
+	if( tkrt_UStrToUpper( p[0] ) <> 85 ) then return 0        '' 'U'
+	if( tkrt_UStrToUpper( p[1] ) <> 78 ) then return 0        '' 'N'
+	if( tkrt_UStrToUpper( p[2] ) <> 67 ) then return 0        '' 'C'
+	return 1
+end function
+
+'' Two components (server, share), for both \server\share and \?\UNC\...
+private function hUncTail( byval p as FB_UCHAR ptr, byval len_ as integer, _
+                           byval at_ as integer, byval gram as long ) as integer
+	dim as long comp = any
+	for comp = 0 to 1
+		'' A component must be non-empty; "\\" alone is not a root.
+		if( at_ >= len_ ) then return len_
+		if( hIsSep( p[at_], gram ) ) then return len_
+		while( at_ < len_ )
+			if( hIsSep( p[at_], gram ) ) then exit while
+			at_ += 1
+		wend
+		if( comp = 0 ) then
+			if( at_ >= len_ ) then return len_
+			at_ += 1                        '' the separator between them
+		end if
+	next
+	if( at_ < len_ ) then
+		if( hIsSep( p[at_], gram ) ) then at_ += 1
+	end if
+	return at_
+end function
+
+private function hRootLen( byval p as FB_UCHAR ptr, byval len_ as integer, _
+                           byval gram as long ) as integer
+	dim as integer at_ = any
+
+	if( len_ <= 0 ) then return 0
+
+	if( gram <> FB_PATH_WIN32 ) then
+		if( hIsSep( p[0], gram ) ) then return 1
+		return 0
+	end if
+
+	'' \?\ and \.\ -- the device namespace
+	if( len_ >= 4 ) then
+		if( hIsSep( p[0], gram ) andalso hIsSep( p[1], gram ) andalso _
+		    ((p[2] = 63) orelse (p[2] = 46)) andalso hIsSep( p[3], gram ) ) then
+
+			'' \?\UNC\server\share\
+			if( (p[2] = 63) andalso (len_ >= 8) ) then
+				if( hIsUncLiteral( p + 4 ) andalso hIsSep( p[7], gram ) ) then
+					return hUncTail( p, len_, 8, gram )
+				end if
+			end if
+
+			'' \?\C:\ -- one component after the prefix plus its separator.
+			'' \.\PhysicalDrive0 lands here too.
+			at_ = 4
+			while( at_ < len_ )
+				if( hIsSep( p[at_], gram ) ) then exit while
+				at_ += 1
+			wend
+			if( at_ < len_ ) then
+				if( hIsSep( p[at_], gram ) ) then at_ += 1
+			end if
+			return at_
+		end if
+	end if
+
+	'' \server\share\
+	if( len_ >= 2 ) then
+		if( hIsSep( p[0], gram ) andalso hIsSep( p[1], gram ) ) then
+			return hUncTail( p, len_, 2, gram )
+		end if
+	end if
+
+	'' C:\ is isabs; C: is drive-RELATIVE. Both have a root, of 3 and 2.
+	if( len_ >= 2 ) then
+		if( hIsAlpha( p[0] ) andalso (p[1] = 58) ) then
+			if( len_ >= 3 ) then
+				if( hIsSep( p[2], gram ) ) then return 3
+			end if
+			return 2
+		end if
+	end if
+
+	'' \dev -- rooted on the current drive, and NOT isabs
+	if( hIsSep( p[0], gram ) ) then return 1
+
+	return 0
+end function
+
+'' See the header: rooted is not isabs.
+private function hIsAbsolute( byval p as FB_UCHAR ptr, byval len_ as integer, _
+                              byval gram as long ) as long
+	dim as integer rl = hRootLen( p, len_, gram )
+
+	if( rl = 0 ) then return 0
+	if( gram <> FB_PATH_WIN32 ) then return 1
+
+	if( rl = 1 ) then return 0                          '' "\" alone
+	if( (rl = 2) andalso (p[1] = 58) ) then return 0    '' "C:" with no sep
+	return 1
+end function
+
+private function hIsDevicePath( byval p as FB_UCHAR ptr, byval len_ as integer, _
+                                byval gram as long ) as long
+	if( gram <> FB_PATH_WIN32 ) then return 0
+	if( len_ < 4 ) then return 0
+	if( hIsSep( p[0], gram ) = 0 ) then return 0
+	if( hIsSep( p[1], gram ) = 0 ) then return 0
+	if( p[2] <> 63 ) then return 0                      '' '?'
+	if( hIsSep( p[3], gram ) = 0 ) then return 0
+	return 1
+end function
+
+'' Offset of the component at or after `from`, or -1 when exhausted.
+private function hNextComp( byval p as FB_UCHAR ptr, byval len_ as integer, _
+                            byval gram as long, byval from_ as integer, _
+                            byval out_len as integer ptr ) as integer
+	dim as integer start_ = any
+	while( from_ < len_ )
+		if( hIsSep( p[from_], gram ) = 0 ) then exit while
+		from_ += 1
+	wend
+	if( from_ >= len_ ) then return -1
+	start_ = from_
+	while( from_ < len_ )
+		if( hIsSep( p[from_], gram ) ) then exit while
+		from_ += 1
+	wend
+	*out_len = from_ - start_
+	return start_
+end function
+
+private function hIsDot( byval p as FB_UCHAR ptr, byval len_ as integer ) as long
+	if( (len_ = 1) andalso (p[0] = 46) ) then return 1
+	return 0
+end function
+
+private function hIsDotDot( byval p as FB_UCHAR ptr, byval len_ as integer ) as long
+	if( (len_ = 2) andalso (p[0] = 46) andalso (p[1] = 46) ) then return 1
+	return 0
+end function
+
+'' Trailing separators, EXCEPT any that belong to the root -- "C:\" keeps its.
+private function hStripTrailingSeps( byval p as FB_UCHAR ptr, byval len_ as integer, _
+                                     byval rootlen as integer, byval gram as long ) as integer
+	while( len_ > rootlen )
+		if( hIsSep( p[len_ - 1], gram ) = 0 ) then exit while
+		len_ -= 1
+	wend
+	return len_
+end function
+
+'' Collapses '.', resolves '..' lexically, removes duplicate separators, and
+'' removes a trailing separator except from a root. Writes into `out`, which
+'' must have room for len + 2 units, and returns the length written.
+private function hNormalize( byval p as FB_UCHAR ptr, byval len_ as integer, _
+                             byval gram as long, byval out_ as FB_UCHAR ptr ) as integer
+
+	dim as integer rootlen = any, at_ = any, o = any, clen = any, cstart = any, top = any
+	dim as integer stack_(0 to 511)
+	dim as long nstack = 0, isabs = any
+	dim as FB_UCHAR sep = hNativeSep( gram )
+
+	'' \?\ disables OS parsing, so the interior must not be rewritten.
+	if( hIsDevicePath( p, len_, gram ) ) then
+		tkrt_UStrCopy2( out_, p, len_ )
+		return len_
+	end if
+
+	rootlen = hRootLen( p, len_, gram )
+	isabs = hIsAbsolute( p, len_, gram )
+
+	'' The root's separators are normalised to native, but it is otherwise
+	'' untouched -- a UNC server name is not a component.
+	o = 0
+	for at_ = 0 to rootlen - 1
+		if( hIsSep( p[at_], gram ) ) then
+			out_[o] = sep
+		else
+			out_[o] = p[at_]
+		end if
+		o += 1
+	next
+
+	at_ = rootlen
+	do
+		cstart = hNextComp( p, len_, gram, at_, @clen )
+		if( cstart < 0 ) then exit do
+		at_ = cstart + clen
+
+		if( hIsDot( p + cstart, clen ) ) then continue do
+
+		if( hIsDotDot( p + cstart, clen ) ) then
+			if( nstack > 0 ) then
+				'' Pop -- UNLESS what is on top is itself a '..', which only
+				'' happens in a relative path that has already climbed out
+				'' of its own start. Popping that would discard a real level.
+				top = stack_(nstack - 1)
+				if( hIsDotDot( out_ + top, o - top ) = 0 ) then
+					o = top
+					if( o > rootlen ) then
+						if( out_[o - 1] = sep ) then o -= 1
+					end if
+					nstack -= 1
+					continue do
+				end if
+			end if
+
+			'' Nothing to pop. An isabs path CLAMPS at its root and never
+			'' escapes it; a relative path has no root to clamp to, so the
+			'' '..' is kept.
+			if( isabs orelse (rootlen > 0) ) then continue do
+		end if
+
+		if( o > 0 ) then
+			if( out_[o - 1] <> sep ) then
+				out_[o] = sep
+				o += 1
+			end if
+		end if
+
+		if( nstack < 512 ) then
+			stack_(nstack) = o
+			nstack += 1
+		end if
+
+		tkrt_UStrCopy2( out_ + o, p + cstart, clen )
+		o += clen
+	loop
+
+	'' "" normalises to ".", matching Go. A root normalises to itself.
+	if( o = 0 ) then
+		out_[0] = 46
+		return 1
+	end if
+
+	return o
+end function
+
+'' The final '.' and everything after it, IN THE FILE NAME ONLY, and only when
+'' that '.' is neither the first character of the name nor the last. So
+'' ".gitignore" has NO extension -- a dotfile is a name -- and "a." has none
+'' either. Matches Python, Rust and Go.
+private function hExtStart( byval s as FB_UCHAR ptr, byval len_ as integer, _
+                            byval gram as long, byval out_fnstart as integer ptr ) as integer
+	dim as integer rootlen = any, i = any, fnstart = any
+
+	rootlen = hRootLen( s, len_, gram )
+	len_ = hStripTrailingSeps( s, len_, rootlen, gram )
+
+	fnstart = rootlen
+	for i = len_ to rootlen + 1 step -1
+		if( hIsSep( s[i - 1], gram ) ) then
+			fnstart = i
+			exit for
+		end if
+	next
+
+	*out_fnstart = fnstart
+
+	if( len_ <= fnstart ) then return -1
+
+	for i = len_ - 1 to fnstart + 1 step -1
+		if( s[i] = 46 ) then
+			if( i = len_ - 1 ) then return -1      '' trailing dot: none
+			return i
+		end if
+	next
+
+	return -1
+end function
+
+'' Compares NORMALISED paths, case-insensitively under Windows and byte-wise
+'' under POSIX. A LEXICAL answer: two paths naming one file through a symlink
+'' compare unequal.
+private function hNormEquals( byval a as FB_UCHAR ptr, byval la as integer, _
+                              byval b as FB_UCHAR ptr, byval lb as integer, _
+                              byval gram as long ) as long
+	dim as integer i = any
+	if( la <> lb ) then return 0
+	for i = 0 to la - 1
+		if( hFold( a[i], gram ) <> hFold( b[i], gram ) ) then return 0
+	next
+	return 1
+end function
+
+extern "rtlib"
+
+function tkort_UStrPathRootLen alias "fb_UStrPathRootLen" _
+	( byval p as FBUSTRING ptr, byval gram as long ) as integer
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any
+	hArg( p, @s, @len_ )
+	return hRootLen( s, len_, gram )
+end function
+
+function tkort_UStrPathIsAbsolute alias "fb_UStrPathIsAbsolute" _
+	( byval p as FBUSTRING ptr, byval gram as long ) as long
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any
+	hArg( p, @s, @len_ )
+	return hIsAbsolute( s, len_, gram )
+end function
+
+'' A path IS its root -- "C:\", "/", "\srv\share\" -- and nothing more.
+function tkort_UStrPathIsRoot alias "fb_UStrPathIsRoot" _
+	( byval p as FBUSTRING ptr, byval gram as long ) as long
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any, rl = any
+	hArg( p, @s, @len_ )
+	rl = hRootLen( s, len_, gram )
+	if( (rl > 0) andalso (rl = len_) ) then return 1
+	return 0
+end function
+
+function tkort_UStrPathRoot alias "fb_UStrPathRoot" _
+	( byval p as FBUSTRING ptr, byval gram as long ) as FBUSTRING ptr
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any
+	hArg( p, @s, @len_ )
+	return hTemp( s, hRootLen( s, len_, gram ) )
+end function
+
+'' The parent of a ROOT is nothing, not the root itself.
+function tkort_UStrPathParent alias "fb_UStrPathParent" _
+	( byval p as FBUSTRING ptr, byval gram as long ) as FBUSTRING ptr
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any, rootlen = any, i = any, end_ = any
+
+	hArg( p, @s, @len_ )
+	rootlen = hRootLen( s, len_, gram )
+	len_ = hStripTrailingSeps( s, len_, rootlen, gram )
+
+	if( len_ <= rootlen ) then return TKORT_UNULL_DESC()
+
+	for i = len_ to rootlen + 1 step -1
+		if( hIsSep( s[i - 1], gram ) ) then
+			end_ = hStripTrailingSeps( s, i - 1, rootlen, gram )
+			if( end_ <= rootlen ) then return hTemp( s, rootlen )
+			return hTemp( s, end_ )
+		end if
+	next
+
+	'' One component below the root.
+	return hTemp( s, rootlen )
+end function
+
+function tkort_UStrPathFileName alias "fb_UStrPathFileName" _
+	( byval p as FBUSTRING ptr, byval gram as long ) as FBUSTRING ptr
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any, rootlen = any, i = any
+
+	hArg( p, @s, @len_ )
+	rootlen = hRootLen( s, len_, gram )
+	len_ = hStripTrailingSeps( s, len_, rootlen, gram )
+
+	if( len_ <= rootlen ) then return TKORT_UNULL_DESC()
+
+	for i = len_ to rootlen + 1 step -1
+		if( hIsSep( s[i - 1], gram ) ) then return hTemp( s + i, len_ - i )
+	next
+
+	return hTemp( s + rootlen, len_ - rootlen )
+end function
+
+function tkort_UStrPathExtension alias "fb_UStrPathExtension" _
+	( byval p as FBUSTRING ptr, byval gram as long ) as FBUSTRING ptr
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any, rootlen = any, fnstart = any, ext = any
+
+	hArg( p, @s, @len_ )
+	rootlen = hRootLen( s, len_, gram )
+	len_ = hStripTrailingSeps( s, len_, rootlen, gram )
+
+	ext = hExtStart( s, len_, gram, @fnstart )
+	if( ext < 0 ) then return TKORT_UNULL_DESC()
+	return hTemp( s + ext, len_ - ext )
+end function
+
+function tkort_UStrPathStem alias "fb_UStrPathStem" _
+	( byval p as FBUSTRING ptr, byval gram as long ) as FBUSTRING ptr
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any, rootlen = any, fnstart = any, ext = any
+
+	hArg( p, @s, @len_ )
+	rootlen = hRootLen( s, len_, gram )
+	len_ = hStripTrailingSeps( s, len_, rootlen, gram )
+
+	ext = hExtStart( s, len_, gram, @fnstart )
+
+	if( len_ <= fnstart ) then return TKORT_UNULL_DESC()
+	if( ext < 0 ) then return hTemp( s + fnstart, len_ - fnstart )
+	return hTemp( s + fnstart, ext - fnstart )
+end function
+
+function tkort_UStrPathNormalize alias "fb_UStrPathNormalize" _
+	( byval p as FBUSTRING ptr, byval gram as long ) as FBUSTRING ptr
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any, n = any
+	dim as FBUSTRING ptr dst = any
+
+	hArg( p, @s, @len_ )
+
+	'' len + 2: normalisation never grows a path, but "" becomes "." and the
+	'' terminator needs a slot.
+	dst = tkrt_UStrAllocTemp( 0, len_ + 2 )
+	if( dst = 0 ) then return TKORT_UNULL_DESC()
+	if( dst->data = 0 ) then return TKORT_UNULL_DESC()
+
+	n = hNormalize( s, len_, gram, dst->data )
+
+	TKORT_USTR_SETLEN( dst, n )
+	dst->data[n] = 0
+	return dst
+end function
+
+'' Separators to native and duplicates collapsed, but NO '.' or '..'
+'' resolution. Differs from fb_hConvertPath in three ways: it does not mutate
+'' its argument, it returns a value, and it collapses duplicates.
+function tkort_UStrPathToNative alias "fb_UStrPathToNative" _
+	( byval p as FBUSTRING ptr, byval gram as long ) as FBUSTRING ptr
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any, i = any, o = any, rootlen = any
+	dim as FB_UCHAR sep = hNativeSep( gram )
+	dim as FBUSTRING ptr dst = any
+
+	hArg( p, @s, @len_ )
+
+	if( hIsDevicePath( s, len_, gram ) ) then return hTemp( s, len_ )
+
+	dst = tkrt_UStrAllocTemp( 0, len_ + 1 )
+	if( dst = 0 ) then return TKORT_UNULL_DESC()
+	if( dst->data = 0 ) then return TKORT_UNULL_DESC()
+
+	rootlen = hRootLen( s, len_, gram )
+
+	o = 0
+	for i = 0 to len_ - 1
+		if( hIsSep( s[i], gram ) ) then
+			'' INSIDE THE ROOT A DOUBLED SEPARATOR IS MEANINGFUL (\srv), so
+			'' the collapse only applies past it.
+			if( (i >= rootlen) andalso (o > 0) ) then
+				if( dst->data[o - 1] = sep ) then continue for
+			end if
+			dst->data[o] = sep
+			o += 1
+		else
+			dst->data[o] = s[i]
+			o += 1
+		end if
+	next
+
+	TKORT_USTR_SETLEN( dst, o )
+	dst->data[o] = 0
+	return dst
+end function
+
+'' B WINS OUTRIGHT when b is isabs OR merely rooted, and a is discarded.
+'' That discard is why Join( base, userInput ) is a security consideration
+'' rather than a convenience: a caller needing containment checks StartsWith
+'' afterwards. Exactly one separator is inserted, never a leading one, and
+'' NOTHING is normalised -- a join that quietly resolved '..' would be doing so
+'' without knowing whether the previous component is a symlink.
+function tkort_UStrPathJoin2 alias "fb_UStrPathJoin2" _
+	( byval a as FBUSTRING ptr, byval b as FBUSTRING ptr, byval gram as long ) as FBUSTRING ptr
+	dim as FB_UCHAR ptr sa = any, sb = any
+	dim as integer la = any, lb = any, o = any
+	dim as FB_UCHAR sep = hNativeSep( gram )
+	dim as FBUSTRING ptr dst = any
+
+	hArg( a, @sa, @la )
+	hArg( b, @sb, @lb )
+
+	if( lb = 0 ) then return hTemp( sa, la )
+	if( la = 0 ) then return hTemp( sb, lb )
+
+	if( hRootLen( sb, lb, gram ) > 0 ) then return hTemp( sb, lb )
+
+	dst = tkrt_UStrAllocTemp( 0, la + lb + 1 )
+	if( dst = 0 ) then return TKORT_UNULL_DESC()
+	if( dst->data = 0 ) then return TKORT_UNULL_DESC()
+
+	tkrt_UStrCopy2( dst->data, sa, la )
+	o = la
+
+	if( hIsSep( sa[la - 1], gram ) = 0 ) then
+		dst->data[o] = sep
+		o += 1
+	end if
+
+	tkrt_UStrCopy2( dst->data + o, sb, lb )
+	o += lb
+
+	TKORT_USTR_SETLEN( dst, o )
+	dst->data[o] = 0
+	return dst
+end function
+
+'' Accepts the new extension WITH OR WITHOUT its dot. An EMPTY ext removes the
+'' extension including the dot.
+function tkort_UStrPathChangeExt alias "fb_UStrPathChangeExt" _
+	( byval p as FBUSTRING ptr, byval ext as FBUSTRING ptr, byval gram as long ) as FBUSTRING ptr
+	dim as FB_UCHAR ptr s = any, e = any
+	dim as integer len_ = any, elen = any, rootlen = any, fnstart = any
+	dim as integer extat = any, base_ = any, o = any
+	dim as FBUSTRING ptr dst = any
+	dim as long needdot = any
+
+	hArg( p, @s, @len_ )
+	hArg( ext, @e, @elen )
+
+	rootlen = hRootLen( s, len_, gram )
+	len_ = hStripTrailingSeps( s, len_, rootlen, gram )
+
+	extat = hExtStart( s, len_, gram, @fnstart )
+	if( extat < 0 ) then base_ = len_ else base_ = extat
+
+	if( elen = 0 ) then return hTemp( s, base_ )
+
+	if( e[0] <> 46 ) then needdot = 1 else needdot = 0
+
+	dst = tkrt_UStrAllocTemp( 0, base_ + elen + 1 )
+	if( dst = 0 ) then return TKORT_UNULL_DESC()
+	if( dst->data = 0 ) then return TKORT_UNULL_DESC()
+
+	tkrt_UStrCopy2( dst->data, s, base_ )
+	o = base_
+
+	if( needdot ) then
+		dst->data[o] = 46
+		o += 1
+	end if
+
+	tkrt_UStrCopy2( dst->data + o, e, elen )
+	o += elen
+
+	TKORT_USTR_SETLEN( dst, o )
+	dst->data[o] = 0
+	return dst
+end function
+
+'' Both of the comparison entry points NORMALISE INTO malloc'd scratch first
+'' and free it before returning. The scratch is malloc, not the runtime
+'' allocator, so it stays invisible to an allocation-count differential.
+function tkort_UStrPathEquals alias "fb_UStrPathEquals" _
+	( byval a as FBUSTRING ptr, byval b as FBUSTRING ptr, byval gram as long ) as long
+	dim as FB_UCHAR ptr sa = any, sb = any, ba = any, bb = any
+	dim as integer la = any, lb = any, na = any, nb = any
+	dim as long r = any
+
+	hArg( a, @sa, @la )
+	hArg( b, @sb, @lb )
+
+	ba = malloc( (la + 2) * sizeof( FB_UCHAR ) )
+	bb = malloc( (lb + 2) * sizeof( FB_UCHAR ) )
+	if( (ba = 0) orelse (bb = 0) ) then
+		free( ba ) : free( bb )
+		return 0
+	end if
+
+	na = hNormalize( sa, la, gram, ba )
+	nb = hNormalize( sb, lb, gram, bb )
+
+	r = hNormEquals( ba, na, bb, nb, gram )
+
+	free( ba ) : free( bb )
+	return r
+end function
+
+'' COMPARES WHOLE COMPONENTS. "C:\abc" does not start with "C:\ab" -- anything
+'' else makes this useless for the containment check that Join sends callers
+'' here for.
+function tkort_UStrPathStartsWith alias "fb_UStrPathStartsWith" _
+	( byval p as FBUSTRING ptr, byval pre as FBUSTRING ptr, byval gram as long ) as long
+	dim as FB_UCHAR ptr sp = any, spre = any, bp = any, bpre = any
+	dim as integer lp = any, lpre = any, np = any, npre = any, prerootlen = any
+	dim as long r = 0
+
+	hArg( p, @sp, @lp )
+	hArg( pre, @spre, @lpre )
+
+	bp = malloc( (lp + 2) * sizeof( FB_UCHAR ) )
+	bpre = malloc( (lpre + 2) * sizeof( FB_UCHAR ) )
+	if( (bp = 0) orelse (bpre = 0) ) then
+		free( bp ) : free( bpre )
+		return 0
+	end if
+
+	np = hNormalize( sp, lp, gram, bp )
+	npre = hNormalize( spre, lpre, gram, bpre )
+
+	'' A trailing separator on the prefix is not significant.
+	prerootlen = hRootLen( bpre, npre, gram )
+	npre = hStripTrailingSeps( bpre, npre, prerootlen, gram )
+
+	if( npre = 0 ) then
+		r = 0
+	elseif( np = npre ) then
+		r = hNormEquals( bp, np, bpre, npre, gram )
+	elseif( np > npre ) then
+		if( hNormEquals( bp, npre, bpre, npre, gram ) ) then
+			'' The next unit must be a BOUNDARY, not more of a name -- and
+			'' it may already be one when the prefix is a root, since "C:\"
+			'' normalises with its separator kept.
+			if( hIsSep( bp[npre], gram ) orelse hIsSep( bpre[npre - 1], gram ) ) then
+				r = 1
+			end if
+		end if
+	end if
+
+	free( bp ) : free( bpre )
+	return r
+end function
+
+'' FAILS when the two paths have different roots -- different drives, one
+'' isabs and one relative, one UNC and one local. There IS no relative path
+'' between C:\a and D:\b, and returning "..\..\D:\b" would be a fabrication.
+function tkort_UStrPathRelative alias "fb_UStrPathRelative" _
+	( byval p as FBUSTRING ptr, byval base_ as FBUSTRING ptr, byval gram as long, _
+	  byval status as long ptr ) as FBUSTRING ptr
+
+	dim as FB_UCHAR ptr sp = any, sb = any, bp = any, bb = any
+	dim as integer lp = any, lb = any, np = any, nb = any
+	dim as integer rp = any, rb = any, ip = any, ib = any
+	dim as integer clp = any, clb = any, cp = any, cb = any
+	dim as integer upcount = any, o = any, sp2 = any, sb2 = any, s2 = any
+	dim as FBUSTRING ptr dst = TKORT_UNULL_DESC()
+	dim as FB_UCHAR sep = hNativeSep( gram )
+
+	if( status <> 0 ) then *status = FB_FS_OK
+
+	hArg( p, @sp, @lp )
+	hArg( base_, @sb, @lb )
+
+	bp = malloc( (lp + 2) * sizeof( FB_UCHAR ) )
+	bb = malloc( (lb + 2) * sizeof( FB_UCHAR ) )
+	if( (bp = 0) orelse (bb = 0) ) then
+		free( bp ) : free( bb )
+		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+		return dst
+	end if
+
+	np = hNormalize( sp, lp, gram, bp )
+	nb = hNormalize( sb, lb, gram, bb )
+
+	rp = hRootLen( bp, np, gram )
+	rb = hRootLen( bb, nb, gram )
+
+	if( (rp <> rb) orelse (hNormEquals( bp, rp, bb, rb, gram ) = 0) ) then
+		free( bp ) : free( bb )
+		if( status <> 0 ) then *status = FB_FS_INVALID_PATH
+		return dst
+	end if
+
+	'' Skip the common component prefix.
+	ip = rp : ib = rb
+	do
+		sp2 = hNextComp( bp, np, gram, ip, @clp )
+		sb2 = hNextComp( bb, nb, gram, ib, @clb )
+		if( (sp2 < 0) orelse (sb2 < 0) ) then exit do
+		if( hNormEquals( bp + sp2, clp, bb + sb2, clb, gram ) = 0 ) then exit do
+		ip = sp2 + clp
+		ib = sb2 + clb
+	loop
+
+	'' One ".." per remaining base component.
+	upcount = 0
+	cb = ib
+	do
+		s2 = hNextComp( bb, nb, gram, cb, @clb )
+		if( s2 < 0 ) then exit do
+		cb = s2 + clb
+		upcount += 1
+	loop
+
+	dst = tkrt_UStrAllocTemp( 0, (upcount * 3) + (np - ip) + 2 )
+	if( dst = 0 ) then
+		free( bp ) : free( bb )
+		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+		return TKORT_UNULL_DESC()
+	end if
+	if( dst->data = 0 ) then
+		free( bp ) : free( bb )
+		if( status <> 0 ) then *status = FB_FS_UNKNOWN
+		return TKORT_UNULL_DESC()
+	end if
+
+	o = 0
+	while( upcount > 0 )
+		upcount -= 1
+		if( o > 0 ) then
+			dst->data[o] = sep
+			o += 1
+		end if
+		dst->data[o] = 46 : o += 1
+		dst->data[o] = 46 : o += 1
+	wend
+
+	cp = ip
+	do
+		s2 = hNextComp( bp, np, gram, cp, @clp )
+		if( s2 < 0 ) then exit do
+		cp = s2 + clp
+		if( o > 0 ) then
+			dst->data[o] = sep
+			o += 1
+		end if
+		tkrt_UStrCopy2( dst->data + o, bp + s2, clp )
+		o += clp
+	loop
+
+	'' Two equal paths are ".", not the empty string.
+	if( o = 0 ) then
+		dst->data[o] = 46
+		o += 1
+	end if
+
+	TKORT_USTR_SETLEN( dst, o )
+	dst->data[o] = 0
+
+	free( bp ) : free( bb )
+	return dst
+end function
+
+'' The iterator. `from` is CLAMPED UP to the root length, so a caller starting
+'' at 0 never gets the root back as a component.
+function tkort_UStrPathNextComp alias "fb_UStrPathNextComp" _
+	( byval p as FBUSTRING ptr, byval gram as long, byval from_ as integer, _
+	  byval out_len as integer ptr ) as integer
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any, rootlen = any, start_ = any, clen = any
+
+	hArg( p, @s, @len_ )
+	rootlen = hRootLen( s, len_, gram )
+
+	if( from_ < rootlen ) then from_ = rootlen
+
+	start_ = hNextComp( s, len_, gram, from_, @clen )
+
+	if( out_len <> 0 ) then
+		if( start_ < 0 ) then *out_len = 0 else *out_len = clen
+	end if
+
+	return start_
+end function
+
+end extern

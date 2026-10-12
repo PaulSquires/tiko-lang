@@ -10,7 +10,7 @@ rem accepting a golden, or re-reading a failure each paid it for nothing.
 rem
 rem What counts as a dependency is deliberately COARSE: for the compiler, anything
 rem under src\ plus the source list and build.bat; for the runner, anything under
-rem tools\. A .bi is included by whatever includes it and 23 of the .bas files under
+rem tools\. A .ti is included by whatever includes it and 23 of the .tiko files under
 rem src\ are #included rather than compiled, so per-file dependency tracking is not
 rem something a timestamp can do honestly -- and being wrong in that direction means
 rem NOT rebuilding, which is the expensive kind of wrong.

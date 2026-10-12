@@ -1,0 +1,701 @@
+'' intldrv.tiko -- the locale DRIVERS, the platform half of what src/dt/intl.tiko
+'' sits on top of. Seven symbols across six fbc members: the four dividers, the
+'' two format strings, the month and weekday names, and on Windows the locale
+'' reader and the code-page converter underneath them all.
+''
+'' THE TWO PLATFORMS ANSWER THE SAME QUESTIONS FROM COMPLETELY DIFFERENT SOURCES.
+''
+''   Windows  GetLocaleInfo against LOCALE_USER_DEFAULT, then a CODE-PAGE
+''            CONVERSION of every name into the console's code page -- because
+''            GetLocaleInfo answers in the ANSI code page and PRINT writes in the
+''            console's, and on a machine where those differ an unconverted name
+''            comes out as mojibake.
+''   POSIX    nl_langinfo, which answers in the locale's own encoding and is
+''            never converted -- so the same program is byte-exact on Linux and
+''            re-encoded on Windows, deliberately.
+''
+'' AND THE POSIX FORMAT DRIVERS ARE A TRANSLATOR, not a lookup. nl_langinfo gives
+'' a strftime pattern (`%m/%d/%y`) and FreeBASIC's FORMAT wants a Visual-Basic
+'' one (`MM/dd/yy`), so the two format entry points are small parsers that
+'' rewrite one into the other a directive at a time.
+''
+'' AN UNSUPPORTED DIRECTIVE STOPS THE TRANSLATION AND KEEPS WHAT IT HAD. The
+'' `default:` arm breaks out of the loop and the function still returns TRUE with
+'' a TRUNCATED buffer -- so a locale using a directive not in the table yields a
+'' short format rather than an error. That is fbc's behaviour and a caller cannot
+'' tell it from a complete answer.
+''
+'' A BUFFER ONE BYTE TOO SHORT RETURNS FALSE AND LEAVES A PARTIAL WRITE. Both
+'' translators write as they go and only then discover they have run out, so the
+'' caller's buffer is already dirty when FALSE comes back. fb_IntlGetDateFormat
+'' above them overwrites it with the English default, which is the only reason
+'' this is not visible.
+''
+'' THE WINDOWS FALLBACKS ARE DEAD CODE AND ARE WRITTEN ANYWAY. Both format
+'' drivers try LOCALE_SSHORTDATE / LOCALE_STIMEFORMAT first and fall back to
+'' assembling the pattern from LOCALE_IDATE and friends "for Win95 and WinNT <
+'' 4.0". Those calls have not failed on any Windows this can run on, so the
+'' fallbacks are unreachable -- they are reproduced because "unreachable" is a
+'' claim about the OS, not about the code, and a differential cannot prove it.
+''
+'' fb_hGetLocaleInfo HAS TWO MODES IN ONE SIGNATURE, chosen by uiSize:
+''
+''   uiSize > 0   fill the caller's buffer, return it or NULL.
+''   uiSize = 0   IGNORE pszBuffer ENTIRELY, malloc, and DOUBLE FROM 128 until it
+''                fits. The caller frees. Passing a buffer with size 0 leaks
+''                nothing but does silently discard the buffer.
+''
+'' AND THE GROWING LOOP STARTS AT 128, NOT 64. `uiSize <<= 1` is evaluated in the
+'' realloc argument, so the first allocation is already doubled. A reimplementation
+'' that started at 64 would allocate a different first block and change the
+'' allocation trace without changing any answer.
+''
+'' THE WEEKDAY INDEX IS ROTATED BY ONE ON WINDOWS AND NOT ON POSIX. Windows'
+'' LOCALE_SDAYNAME1 is MONDAY; fbc's callers pass Sunday-first, so the Windows
+'' driver maps 1 to 8 and then subtracts 2. POSIX's DAY_1 is already Sunday and
+'' subtracts 1. Getting this wrong shifts every weekday name by one and every
+'' test that only checks "a name came back" still passes.
+
+#include once "inc/descriptors.ti"
+#include once "inc/ctx.ti"
+#include once "inc/sysbind.ti"
+
+'' fb_datetime.h's eFbIntlIndex.
+const eFIL_DateDivider           = 0
+const eFIL_TimeDivider           = 1
+const eFIL_NumDecimalPoint       = 2
+const eFIL_NumThousandsSeparator = 3
+
+extern "c"   '' NON-FBCALL: the string internals, declared plain in fb_string.h.
+	declare function tkrt_hStrAllocTemp alias "fb_hStrAllocTemp" _
+		( byval s as FBSTRING ptr, byval size_ as integer ) as FBSTRING ptr
+	declare function tkrt_hStrAllocTemp_NoLock alias "fb_hStrAllocTemp_NoLock" _
+		( byval s as FBSTRING ptr, byval size_ as integer ) as FBSTRING ptr
+	declare function tkrt_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
+		( byval s as FBSTRING ptr ) as long
+	declare sub fb_StrLock alias "fb_StrLock" ( )
+	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+end extern
+
+#ifdef ENABLE_MT
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+#ifdef __FB_WIN32__
+
+	'' Every LCTYPE below was MEASURED with a C probe against the SDK headers
+	'' rather than transcribed -- they are macros, and several (STIMEFORMAT,
+	'' ITIMEMARKPOSN) are four-digit values that do not follow the pattern of
+	'' their neighbours.
+	const LOCALE_USER_DEFAULT_      = &h0400
+	const LOCALE_SDATE_             = &h001D
+	const LOCALE_STIME_             = &h001E
+	const LOCALE_SDECIMAL_          = &h000E
+	const LOCALE_STHOUSAND_         = &h000F
+	const LOCALE_SSHORTDATE_        = &h001F
+	const LOCALE_STIMEFORMAT_       = &h1003
+	const LOCALE_SMONTHNAME1_       = &h0038
+	const LOCALE_SABBREVMONTHNAME1_ = &h0044
+	const LOCALE_SDAYNAME1_         = &h002A
+	const LOCALE_SABBREVDAYNAME1_   = &h0031
+	const LOCALE_IDAYLZERO_         = &h0026
+	const LOCALE_IMONLZERO_         = &h0027
+	const LOCALE_IDATE_             = &h0021
+	const LOCALE_ITIMEMARKPOSN_     = &h1005
+	const LOCALE_ITIME_             = &h0023
+	const LOCALE_ITLZERO_           = &h0025
+	const CP_ACP_                   = 0
+	const ERROR_INSUFFICIENT_BUFFER_ = 122
+
+	extern "c"   '' NON-FBCALL: kernel32, `stdcall` per declaration.
+		declare function w_GetLocaleInfoA stdcall alias "GetLocaleInfoA" _
+			( byval lcid as ulong, byval lctype as ulong, _
+			  byval buf as zstring ptr, byval sz as long ) as long
+		declare function w_GetLastError stdcall alias "GetLastError" ( ) as ulong
+		declare function w_GetConsoleCP stdcall alias "GetConsoleCP" ( ) as ulong
+		declare function w_MultiByteToWideChar stdcall alias "MultiByteToWideChar" _
+			( byval cp as ulong, byval flags as ulong, byval src as zstring ptr, _
+			  byval srclen as long, byval dst as any ptr, byval dstlen as long ) as long
+		declare function w_WideCharToMultiByte stdcall alias "WideCharToMultiByte" _
+			( byval cp as ulong, byval flags as ulong, byval src as any ptr, _
+			  byval srclen as long, byval dst as zstring ptr, byval dstlen as long, _
+			  byval defchar as any ptr, byval useddef as any ptr ) as long
+	end extern
+
+#else
+
+	'' nl_item constants, MEASURED under WSL against glibc -- they are macros
+	'' built from a category number and an index, and nothing about their values
+	'' is guessable.
+	const NL_RADIXCHAR = 65536
+	const NL_THOUSEP   = 65537
+	const NL_MON_1     = 131098
+	const NL_ABMON_1   = 131086
+	const NL_DAY_1     = 131079
+	const NL_ABDAY_1   = 131072
+	const NL_D_FMT     = 131113
+	const NL_T_FMT     = 131114
+
+	extern "c"   '' NON-FBCALL: libc.
+		declare function u_nl_langinfo alias "nl_langinfo" ( byval item as long ) as zstring ptr
+	end extern
+
+#endif
+
+extern "c"   '' NON-FBCALL: every driver is declared plain in fb_datetime.h and
+             '' fb_private_intl.h.
+
+#ifdef __FB_WIN32__
+
+'' TWO MODES IN ONE SIGNATURE -- see the file header. The growing mode ignores
+'' pszBuffer, and the loop's first allocation is 128 because `uiSize <<= 1`
+'' happens inside the realloc argument.
+function tkort_hGetLocaleInfo alias "fb_hGetLocaleInfo" _
+	( byval Locale as ulong, byval LCType as ulong, _
+	  byval pszBuffer as zstring ptr, byval uiSize as uinteger ) as zstring ptr
+
+	if( uiSize = 0 ) then
+		uiSize = 64
+		pszBuffer = 0
+		do
+			uiSize shl= 1
+			dim as zstring ptr nb = cptr( zstring ptr, realloc( pszBuffer, uiSize ) )
+			if( nb = 0 ) then
+				free( pszBuffer )
+				exit do
+			end if
+			pszBuffer = nb
+
+			'' ONE LESS THAN THE BUFFER, so a full answer still has room for the
+			'' terminator GetLocaleInfo writes.
+			if( w_GetLocaleInfoA( Locale, LCType, pszBuffer, cast( long, uiSize ) - 1 ) <> 0 ) then
+				return pszBuffer
+			end if
+
+			'' ONLY "TOO SMALL" IS RETRIED. Any other error frees and gives up,
+			'' so an invalid LCTYPE does not loop until it exhausts memory.
+			if( w_GetLastError( ) <> ERROR_INSUFFICIENT_BUFFER_ ) then
+				free( pszBuffer )
+				pszBuffer = 0
+				exit do
+			end if
+		loop
+	else
+		'' AND HERE THE FULL SIZE IS PASSED, not one less -- the two modes differ
+		'' by a byte and fbc does not explain why.
+		if( w_GetLocaleInfoA( Locale, LCType, pszBuffer, cast( long, uiSize ) ) <> 0 ) then
+			return pszBuffer
+		end if
+	end if
+
+	return 0
+end function
+
+'' ANSI -> UTF-16 -> the target code page, because Windows has no direct
+'' code-page-to-code-page conversion. Each half allocates a temp, deletes its
+'' input, and gives back the null descriptor on failure -- so the pair never
+'' returns NULL and never leaks the intermediate.
+private function hIntlConvertToWC( byval source as FBSTRING ptr, byval source_cp as ulong ) as FBSTRING ptr
+
+	dim as FBSTRING ptr res = any
+
+	STRLOCK()
+
+	'' A NULL destination ASKS FOR THE LENGTH; the same call with a buffer then
+	'' does the work.
+	dim as long CharsRequired = w_MultiByteToWideChar( source_cp, 0, source->data, _
+	                                                   FB_STRSIZE( source ), 0, 0 )
+
+	'' THE SIZE IS IN BYTES AND CARRIES ITS OWN TERMINATOR: (n+1) wide characters
+	'' minus one byte, because fb_hStrAllocTemp adds the byte back.
+	res = tkrt_hStrAllocTemp_NoLock( 0, (CharsRequired + 1) * 2 - 1 )
+	if( res <> 0 ) then
+		dim as integer idx = CharsRequired * 2
+		w_MultiByteToWideChar( source_cp, 0, source->data, FB_STRSIZE( source ), _
+		                       res->data, CharsRequired )
+		'' THE WIDE TERMINATOR IS WRITTEN BY HAND -- MultiByteToWideChar does not
+		'' add one when it is given an explicit source length.
+		*cptr( ushort ptr, res->data + idx ) = 0
+	else
+		res = TKORT_NULLSTR()
+	end if
+
+	tkrt_hStrDelTemp_NoLock( source )
+
+	STRUNLOCK()
+
+	return res
+end function
+
+private function hIntlConvertFromWC( byval source as FBSTRING ptr, byval dest_cp as ulong ) as FBSTRING ptr
+
+	dim as FBSTRING ptr res = any
+
+	STRLOCK()
+
+	'' THE SOURCE LENGTH IS IN CHARACTERS HERE, so the byte length is halved --
+	'' the one place the descriptor's byte count and the API's unit count differ.
+	dim as long CharsRequired = w_WideCharToMultiByte( dest_cp, 0, source->data, _
+	                                                   FB_STRSIZE( source ) \ 2, 0, 0, 0, 0 )
+
+	res = tkrt_hStrAllocTemp_NoLock( 0, CharsRequired )
+	if( res <> 0 ) then
+		w_WideCharToMultiByte( dest_cp, 0, source->data, FB_STRSIZE( source ) \ 2, _
+		                       res->data, CharsRequired, 0, 0 )
+		res->data[CharsRequired] = 0
+	else
+		res = TKORT_NULLSTR()
+	end if
+
+	tkrt_hStrDelTemp_NoLock( source )
+
+	STRUNLOCK()
+
+	return res
+end function
+
+function tkort_hIntlConvertString alias "fb_hIntlConvertString" _
+	( byval source as FBSTRING ptr, byval source_cp as long, byval dest_cp as long ) as FBSTRING ptr
+
+	return hIntlConvertFromWC( hIntlConvertToWC( source, cast( ulong, source_cp ) ), _
+	                           cast( ulong, dest_cp ) )
+end function
+
+'' The name lookup shared by the month and weekday drivers: read it in the ANSI
+'' code page, copy it into a temp, and re-encode into the console's code page.
+private function hLocaleName( byval lctype as ulong ) as FBSTRING ptr
+
+	'' uiSize = 0, so this ALLOCATES and the buffer is ours to free.
+	dim as zstring ptr pszName = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, lctype, 0, 0 )
+	if( pszName = 0 ) then return 0
+
+	dim as integer name_len = strlen( pszName )
+	dim as FBSTRING ptr result = tkrt_hStrAllocTemp( 0, name_len )
+
+	if( result <> 0 ) then
+		'' GetConsoleCP RETURNS 0 WITH NO CONSOLE, and fbc tests for -1 rather
+		'' than 0 -- so a console-less process converts to code page 0, which is
+		'' CP_ACP, which is where the name already was. Harmless, and
+		'' reproduced.
+		dim as ulong target_cp = w_GetConsoleCP( )
+		if( target_cp <> cast( ulong, -1 ) ) then
+			'' THE TERMINATOR TRAVELS WITH IT: name_len + 1.
+			memcpy( result->data, pszName, name_len + 1 )
+			result = tkort_hIntlConvertString( result, CP_ACP_, cast( long, target_cp ) )
+		end if
+	end if
+
+	free( pszName )
+
+	return result
+end function
+
+#endif
+
+'' ------------------------------------------------------------ the dividers
+
+'' WINDOWS ASKS THE LOCALE; POSIX HARD-CODES THE FIRST TWO and asks only for the
+'' numeric ones. So a French Windows reports "." as its date divider and a French
+'' Linux still reports "/" -- a real behavioural difference between the two
+'' platforms, not a bug in either.
+function tkort_DrvIntlGet alias "fb_DrvIntlGet" ( byval index_ as long ) as zstring ptr
+
+	#ifdef __FB_WIN32__
+		'' A FILE-STATIC BUFFER, so the answer survives only until the next call
+		'' -- and two threads asking at once overwrite each other. fbc's, and
+		'' the reason fb_IntlGet copies before it returns.
+		static as zstring * 128 buf
+		dim as ulong lctype = any
+
+		select case index_
+		case eFIL_DateDivider           : lctype = LOCALE_SDATE_
+		case eFIL_TimeDivider           : lctype = LOCALE_STIME_
+		case eFIL_NumDecimalPoint       : lctype = LOCALE_SDECIMAL_
+		case eFIL_NumThousandsSeparator : lctype = LOCALE_STHOUSAND_
+		case else                       : return 0
+		end select
+
+		if( tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, lctype, @buf, 127 ) <> 0 ) then
+			return @buf
+		end if
+		return 0
+	#else
+		select case index_
+		case eFIL_DateDivider           : return @"/"
+		case eFIL_TimeDivider           : return @":"
+		case eFIL_NumDecimalPoint       : return u_nl_langinfo( NL_RADIXCHAR )
+		case eFIL_NumThousandsSeparator : return u_nl_langinfo( NL_THOUSEP )
+		end select
+		return 0
+	#endif
+end function
+
+'' ------------------------------------------------------------- the names
+
+'' THE MONTH TABLE IS JANUARY-FIRST ON BOTH and needs no rotation -- unlike the
+'' weekday one below.
+function tkort_DrvIntlGetMonthName alias "fb_DrvIntlGetMonthName" _
+	( byval month_ as long, byval short_names as long ) as FBSTRING ptr
+
+	if( (month_ < 1) orelse (month_ > 12) ) then return 0
+
+	#ifdef __FB_WIN32__
+		dim as ulong lctype = any
+		if( short_names <> 0 ) then
+			lctype = LOCALE_SABBREVMONTHNAME1_ + month_ - 1
+		else
+			lctype = LOCALE_SMONTHNAME1_ + month_ - 1
+		end if
+		return hLocaleName( lctype )
+	#else
+		dim as long item = any
+		if( short_names <> 0 ) then
+			item = NL_ABMON_1 + month_ - 1
+		else
+			item = NL_MON_1 + month_ - 1
+		end if
+
+		dim as zstring ptr pszName = u_nl_langinfo( item )
+		if( pszName = 0 ) then return 0
+
+		'' NO CODE-PAGE CONVERSION ON POSIX -- nl_langinfo already answers in the
+		'' locale's encoding, which is what the terminal expects.
+		dim as integer name_len = strlen( pszName )
+		dim as FBSTRING ptr result = tkrt_hStrAllocTemp( 0, name_len )
+		if( result <> 0 ) then memcpy( result->data, pszName, name_len + 1 )
+		return result
+	#endif
+end function
+
+'' THE ROTATION IS THE TRAP. Windows' LOCALE_SDAYNAME1 is MONDAY and the callers
+'' pass Sunday-first, so 1 becomes 8 and then 2 is subtracted; POSIX's DAY_1 is
+'' already Sunday and subtracts 1. Off by one here shifts every name and every
+'' "did a name come back" test still passes.
+function tkort_DrvIntlGetWeekdayName alias "fb_DrvIntlGetWeekdayName" _
+	( byval weekday_ as long, byval short_names as long ) as FBSTRING ptr
+
+	if( (weekday_ < 1) orelse (weekday_ > 7) ) then return 0
+
+	#ifdef __FB_WIN32__
+		'' SUNDAY WRAPS TO THE END of Windows' Monday-first table.
+		if( weekday_ = 1 ) then weekday_ = 8
+
+		dim as ulong lctype = any
+		if( short_names <> 0 ) then
+			lctype = LOCALE_SABBREVDAYNAME1_ + weekday_ - 2
+		else
+			lctype = LOCALE_SDAYNAME1_ + weekday_ - 2
+		end if
+		return hLocaleName( lctype )
+	#else
+		dim as long item = any
+		if( short_names <> 0 ) then
+			item = NL_ABDAY_1 + weekday_ - 1
+		else
+			item = NL_DAY_1 + weekday_ - 1
+		end if
+
+		dim as zstring ptr pszName = u_nl_langinfo( item )
+		if( pszName = 0 ) then return 0
+
+		dim as integer name_len = strlen( pszName )
+		dim as FBSTRING ptr result = tkrt_hStrAllocTemp( 0, name_len )
+		if( result <> 0 ) then memcpy( result->data, pszName, name_len + 1 )
+		return result
+	#endif
+end function
+
+'' -------------------------------------------------------- the two formats
+
+#ifndef __FB_WIN32__
+
+'' THE strftime-TO-VB TRANSLATOR, written TWICE -- once for dates and once for
+'' times -- because the two differ only in their directive table, and a macro
+'' cannot carry that table as an argument: FreeBASIC splits macro arguments on
+'' commas, and `case 104, 98` has one. Two explicit loops beat one macro that
+'' has to spell every multi-value case as a separate arm.
+''
+'' `remaining` STARTS AT len - 1, so the terminator's byte is reserved before
+'' anything is written -- and strcpy then writes it on every append, which is
+'' why the result comes back terminated without an explicit store.
+
+'' The state one translation step carries. Bundled so the append below can be a
+'' procedure rather than a fourth copy of the same six lines.
+'' NEWLINE AND TAB AS NAMED BUFFERS. Taking the ADDRESS of an escaped string
+'' literal does not parse -- FreeBASIC rejects it, and the error it gives
+'' not take the address of an escaped string literal, and the error it gives
+'' ("cannot modify a constant") points at the rest of the line rather than at the
+'' literal. Two initialised zstrings say the same thing and can be pointed at.
+dim shared as zstring * 2 tkort_xlat_nl = chr( 10 )
+dim shared as zstring * 2 tkort_xlat_tab = chr( 9 )
+
+type XLAT_
+	as long do_esc, do_fmt
+	as zstring ptr out
+	as integer remaining
+	as zstring * 2 one
+end type
+
+'' Appends one piece and reports whether it fitted. FALSE leaves the caller's
+'' buffer ALREADY DIRTY -- the writes that came before are not rolled back, and
+'' that is fbc's behaviour, not an oversight here.
+private function hXlatAdd( byval x as XLAT_ ptr, byval pszAdd as zstring ptr, _
+                           byval add_len as integer ) as long
+	if( add_len = 0 ) then return 1
+	if( x->remaining < add_len ) then return 0
+	strcpy( x->out, pszAdd )
+	x->out += add_len
+	x->remaining -= add_len
+	return 1
+end function
+
+#endif
+
+'' `%m/%d/%y` BECOMES `MM/dd/yy`, and note the case flip: strftime's lower-case
+'' m is the month and VB's upper-case M is, while lower-case m in VB is the
+'' minute. A translator that preserved case would produce a format meaning
+'' something else entirely.
+function tkort_DrvIntlGetDateFormat alias "fb_DrvIntlGetDateFormat" _
+	( byval buffer as zstring ptr, byval len_ as uinteger ) as long
+
+	#ifdef __FB_WIN32__
+		'' THE PRIMARY PATH, and the only one that runs on any supported
+		'' Windows. LOCALE_SSHORTDATE is already in VB spelling, so there is
+		'' nothing to translate.
+		dim as zstring * 90 achFormat = any
+		dim as zstring ptr pszName = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, _
+		                                                   LOCALE_SSHORTDATE_, _
+		                                                   @achFormat, 89 )
+		if( pszName <> 0 ) then
+			'' STRICTLY LESS THAN, so a format exactly filling the buffer is
+			'' REFUSED rather than truncated.
+			if( cast( uinteger, strlen( pszName ) ) < len_ ) then
+				strcpy( buffer, pszName )
+				return 1
+			end if
+			return 0
+		end if
+
+		'' ------ the Win95 / NT<4 fallback, which is dead code; see the header.
+		dim as zstring * 2 achDayZero = any, achMonZero = any, achDate = any
+		dim as zstring ptr pszDayZero = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, LOCALE_IDAYLZERO_, @achDayZero, 2 )
+		dim as zstring ptr pszMonZero = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, LOCALE_IMONLZERO_, @achMonZero, 2 )
+		dim as zstring ptr pszDate = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, LOCALE_IDATE_, @achDate, 2 )
+
+		if( (pszDate <> 0) andalso (pszDayZero <> 0) andalso (pszMonZero <> 0) ) then
+			dim as zstring * 4 achOrder = any
+			achOrder[0] = 0 : achOrder[1] = 0 : achOrder[2] = 0 : achOrder[3] = 0
+
+			select case atoi( pszDate )
+			case 0 : memcpy( @achOrder, @"mdy", 3 )
+			case 1 : memcpy( @achOrder, @"dmy", 3 )
+			case 2 : memcpy( @achOrder, @"ymd", 3 )
+			end select
+
+			if( achOrder[0] <> 0 ) then
+				dim as integer remaining = len_ - 1
+				dim as long day_lead_zero = ( atoi( pszDayZero ) <> 0 )
+				dim as long mon_lead_zero = ( atoi( pszMonZero ) <> 0 )
+
+				for i as integer = 0 to 2
+					dim as zstring ptr pszAdd = 0
+					select case cast( long, achOrder[i] )
+					case 109 : pszAdd = iif( mon_lead_zero, @"MM", @"M" )    '' 'm'
+					case 100 : pszAdd = iif( day_lead_zero, @"dd", @"d" )    '' 'd'
+					case 121 : pszAdd = @"yyyy"                              '' 'y'
+					end select
+
+					dim as integer add_len = strlen( pszAdd )
+					if( remaining < add_len ) then return 0
+					strcpy( buffer, pszAdd )
+					buffer += add_len
+					remaining -= add_len
+
+					'' THE DIVIDER IS ALWAYS '/' HERE, even though the whole
+					'' point of the locale lookup was the divider. fbc's.
+					if( i <> 2 ) then
+						if( remaining = 0 ) then return 0
+						strcpy( buffer, @"/" )
+						buffer += 1
+						remaining -= 1
+					end if
+				next
+
+				return 1
+			end if
+		end if
+
+		return 0
+	#else
+		dim as zstring ptr pszCurrent = u_nl_langinfo( NL_D_FMT )
+		dim as XLAT_ x
+		x.do_esc = 0 : x.do_fmt = 0 : x.out = buffer : x.remaining = len_ - 1
+		x.one[0] = 0 : x.one[1] = 0
+
+		while( pszCurrent[0] <> 0 )
+			dim as ubyte ch = pszCurrent[0]
+			dim as zstring ptr pszAdd = 0
+			dim as integer add_len = 0
+
+			if( x.do_esc <> 0 ) then
+				'' A BACKSLASHED CHARACTER IS LITERAL, whatever it is.
+				x.do_esc = 0
+				x.one[0] = ch : pszAdd = @x.one : add_len = 1
+			elseif( x.do_fmt <> 0 ) then
+				dim as long succeeded = 1
+				x.do_fmt = 0
+
+				'' NOTE THE CASE FLIP: strftime's lower-case m is the MONTH and VB's
+				'' upper-case M is, while lower-case m in VB is the MINUTE. A
+				'' translator that preserved case would produce a format meaning
+				'' something else entirely.
+				select case cast( long, ch )
+				case 110 : pszAdd = @tkort_xlat_nl  : add_len = 1     '' n
+				case 116 : pszAdd = @tkort_xlat_tab : add_len = 1     '' t
+				case 37  : pszAdd = @"%"          : add_len = 1     '' percent
+				case 97  : pszAdd = @"ddd"        : add_len = 3     '' a
+				case 65  : pszAdd = @"dddd"       : add_len = 4     '' A
+				case 104, 98 : pszAdd = @"mmm"    : add_len = 3     '' h, b
+				case 66  : pszAdd = @"mmmm"       : add_len = 4     '' B
+				case 100, 101 : pszAdd = @"dd"    : add_len = 2     '' d, e
+				case 70  : pszAdd = @"yyyy-MM-dd" : add_len = 10    '' F
+				case 109 : pszAdd = @"MM"         : add_len = 2     '' m
+				case 68, 120 : pszAdd = @"MM/dd/yyyy" : add_len = 10 '' D, x
+				case 121 : pszAdd = @"yy"         : add_len = 2     '' y
+				case 89  : pszAdd = @"yyyy"       : add_len = 4     '' Y
+				case else : succeeded = 0
+				end select
+
+				'' AN UNSUPPORTED DIRECTIVE STOPS AND KEEPS WHAT IT HAD -- and still
+				'' returns TRUE. See the file header.
+				if( succeeded = 0 ) then exit while
+			else
+				select case cast( long, ch )
+				case 37 : x.do_fmt = 1                 '' percent
+				case 92 : x.do_esc = 1                 '' backslash
+				case else
+					x.one[0] = ch : pszAdd = @x.one : add_len = 1
+				end select
+			end if
+
+			if( hXlatAdd( @x, pszAdd, add_len ) = 0 ) then return 0
+			pszCurrent += 1
+		wend
+
+		return 1
+	#endif
+end function
+
+function tkort_DrvIntlGetTimeFormat alias "fb_DrvIntlGetTimeFormat" _
+	( byval buffer as zstring ptr, byval len_ as uinteger ) as long
+
+	#ifdef __FB_WIN32__
+		dim as zstring * 90 achFormat = any
+		dim as zstring ptr pszFormat = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, _
+		                                                     LOCALE_STIMEFORMAT_, _
+		                                                     @achFormat, 89 )
+		if( pszFormat <> 0 ) then
+			if( cast( uinteger, strlen( pszFormat ) ) < len_ ) then
+				strcpy( buffer, pszFormat )
+				return 1
+			end if
+			return 0
+		end if
+
+		'' ------ the Win95 / NT<4 fallback, dead code; see the header.
+		dim as zstring * 8 achHourZero = any, achTimeMark = any, achTimeMarkPos = any
+		dim as zstring ptr pszTimeMarkPos = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, LOCALE_ITIMEMARKPOSN_, @achTimeMarkPos, 8 )
+		dim as zstring ptr pszTimeMark = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, LOCALE_ITIME_, @achTimeMark, 8 )
+		dim as zstring ptr pszHourZero = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, LOCALE_ITLZERO_, @achHourZero, 8 )
+
+		dim as integer i = 0
+		dim as long use_timemark = ( (pszTimeMark <> 0) andalso (atoi( pszTimeMark ) = 1) )
+		dim as long timemark_prefix = ( (pszTimeMarkPos <> 0) andalso (atoi( pszTimeMarkPos ) = 1) )
+
+		if( use_timemark andalso timemark_prefix ) then
+			strcpy( @achFormat + i, @"AM/PM " )
+			i += 6
+		end if
+
+		'' THE HOUR IS ONLY EMITTED WHEN LEADING ZEROES ARE ON. With ITLZERO
+		'' clear the format begins at "mm:ss" and has NO HOUR AT ALL -- which
+		'' looks like a bug and is fbc's, faithfully.
+		if( (pszHourZero <> 0) andalso (atoi( pszHourZero ) = 1) ) then
+			if( use_timemark = 0 ) then
+				strcpy( @achFormat + i, @"HH:" )
+			else
+				strcpy( @achFormat + i, @"hh:" )
+			end if
+			i += 3
+		end if
+
+		strcpy( @achFormat + i, @"mm:ss" )
+		i += 5
+
+		if( use_timemark andalso (timemark_prefix = 0) ) then
+			strcpy( @achFormat + i, @" AM/PM" )
+			i += 6
+		end if
+
+		if( len_ < (i + 1) ) then return 0
+
+		memcpy( buffer, @achFormat, i )
+		buffer[i] = 0
+
+		return 1
+	#else
+		dim as zstring ptr pszCurrent = u_nl_langinfo( NL_T_FMT )
+		dim as XLAT_ x
+		x.do_esc = 0 : x.do_fmt = 0 : x.out = buffer : x.remaining = len_ - 1
+		x.one[0] = 0 : x.one[1] = 0
+
+		while( pszCurrent[0] <> 0 )
+			dim as ubyte ch = pszCurrent[0]
+			dim as zstring ptr pszAdd = 0
+			dim as integer add_len = 0
+
+			if( x.do_esc <> 0 ) then
+				x.do_esc = 0
+				x.one[0] = ch : pszAdd = @x.one : add_len = 1
+			elseif( x.do_fmt <> 0 ) then
+				dim as long succeeded = 1
+				x.do_fmt = 0
+
+				select case cast( long, ch )
+				case 110 : pszAdd = @tkort_xlat_nl  : add_len = 1     '' n
+				case 116 : pszAdd = @tkort_xlat_tab : add_len = 1     '' t
+				case 37  : pszAdd = @"%"           : add_len = 1     '' percent
+				case 72  : pszAdd = @"HH"          : add_len = 2     '' H
+				case 73  : pszAdd = @"hh"          : add_len = 2     '' I
+				case 77  : pszAdd = @"mm"          : add_len = 2     '' M
+				case 112 : pszAdd = @"tt"          : add_len = 2     '' p
+				case 114 : pszAdd = @"hh:mm:ss tt" : add_len = 11    '' r
+				case 82  : pszAdd = @"HH:mm"       : add_len = 5     '' R
+				case 83  : pszAdd = @"ss"          : add_len = 2     '' S
+				case 84, 88 : pszAdd = @"HH:mm:ss" : add_len = 8     '' T, X
+				case else : succeeded = 0
+				end select
+
+				if( succeeded = 0 ) then exit while
+			else
+				select case cast( long, ch )
+				case 37 : x.do_fmt = 1
+				case 92 : x.do_esc = 1
+				case else
+					x.one[0] = ch : pszAdd = @x.one : add_len = 1
+				end select
+			end if
+
+			if( hXlatAdd( @x, pszAdd, add_len ) = 0 ) then return 0
+			pszCurrent += 1
+		wend
+
+		return 1
+	#endif
+end function
+
+end extern

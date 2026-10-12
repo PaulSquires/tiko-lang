@@ -2,7 +2,7 @@
 ''
 '' The trim family is built out of the `static __inline__` helpers in
 '' fb_unicode.h -- 21 of the 38 in the whole runtime. C inlines them; fbc has no
-'' inliner, so tiko-rt expresses them as #macro (src/inc/wstr.bi). If that
+'' inliner, so tiko-rt expresses them as #macro (src/inc/wstr.ti). If that
 '' mitigation does not work, it should show here more than anywhere else.
 ''
 '' The loops are deliberately trim-heavy and allocate a result every pass, which

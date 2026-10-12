@@ -1,7 +1,7 @@
 '' val-parity.bas -- the VAL family: fb_VAL, fb_VALINT, fb_VALUINT, fb_VALLNG,
 '' fb_VALULNG, and the radix parsers beneath them.
 ''
-'' The 64-bit forms are PLATFORM-CONDITIONAL (see src/str/vallng.bas), so the
+'' The 64-bit forms are PLATFORM-CONDITIONAL (see src/str/vallng.tiko), so the
 '' prefixed-overflow rows below are expected to read differently on Linux than
 '' on Windows -- but identically between the two RUNTIMES on each, which is what
 '' this compares.

@@ -9,7 +9,7 @@ folding renders a float identically to its runtime STR( ). That is the fact this
 protecting: `data 1.5` is stored as the TEXT "1.5", so a rendering difference is a READ
 that returns a different number with nothing to say so.
 
-tiko-lang's side comes from tools/gen/strfmt.bas, compiled against src/support/fbstr.bas with
+tiko-lang's side comes from tools/gen/strfmt.bas, compiled against src/support/fbstr.tiko with
 the stage0 compiler -- the one build/build.sh uses, so the renderer is measured as the shipped
 compiler has it: the seed. Rows are keyed by BIT PATTERN, so
 neither side's literal parser can get into the measurement.
@@ -74,7 +74,7 @@ def build():
         print("check-str: no seed compiler (seed/fetch-seed.sh, or TKO_SEED)",
               file=sys.stderr)
         return None
-    args = [str(cc), str(ROOT / "tools/gen/strfmt.bas"), str(ROOT / "src/support/fbstr.bas"),
+    args = [str(cc), str(ROOT / "tools/gen/strfmt.bas"), str(ROOT / "src/support/fbstr.tiko"),
             "-i", str(ROOT / "src")]
     env = dict(os.environ)
     if is_tiko:

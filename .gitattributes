@@ -17,7 +17,7 @@ lib/rt/** text eol=lf
 # -- the '\r' is part of the argument. Worse, a FRESH checkout on Windows gets
 # CRLF for ALL of them plus build/sources.txt, so 'git worktree add' produced a
 # tree whose Linux build could not start at all: 'syntax error near unexpected
-# token $'in\r'' from build.sh, then error 81 from fbc on "src/driver/main.bas\r".
+# token $'in\r'' from build.sh, then error 81 from fbc on "src/driver/main.tiko\r".
 #
 # sources.txt is here because it is READ BY a script -- grep hands each line to
 # fbc as an argument -- not because it is one.

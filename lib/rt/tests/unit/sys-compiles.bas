@@ -7,7 +7,7 @@
 ''
 '' An empty archive proves the archiver runs. This proves the compiler does.
 
-#include once "sys/sys.bi"
+#include once "sys/sys.ti"
 
 extern "rtlib"
 

@@ -1,0 +1,101 @@
+'' concatassign.tiko -- fb_StrConcatAssign (str_concatassign.o).
+''
+'' `dst &= src`, in place. Three destination forms again, and the middle one is
+'' the surprise:
+''
+''   var-len          realloc to dst_len + src_len with KEEPDATA, then copy on
+''                    the end. This is the one path in the runtime that uses
+''                    fb_hStrRealloc's keepdata mode (RFC-0002 section 4.7), and
+''                    it is why `s &= x` in a loop does not reallocate every pass.
+''
+''   fixed STRING * N NOTHING HAPPENS. fbc's comment: "can't concat to STRING*N
+''                    because it is padded with spaces". Silently a no-op, not an
+''                    error and not a truncating append.
+''
+''   ZSTRING / ptr    strlen( dst ) finds the current end -- not a descriptor
+''                    read -- then truncate to dst_size - 1 and optionally
+''                    NUL-fill the remainder.
+''
+'' AN EMPTY SOURCE DOES NOTHING AT ALL, including to a var-len destination: the
+'' whole body is inside `if src_len > 0`. So `s &= ""` does not even touch the
+'' allocator.
+''
+'' The source temp is released with fb_hStrDelTemp -- the LOCKING form -- and
+'' outside any lock this function takes, because it takes none.
+
+#include once "inc/descriptors.ti"
+
+extern "rtlib"
+	declare sub fb_hStrCopy alias "fb_hStrCopy" _
+		( byval dst as zstring ptr, byval src as zstring ptr, byval bytes as integer )
+	declare function fb_hStrRealloc alias "fb_hStrRealloc" _
+		( byval s as FBSTRING ptr, byval length as integer, byval keepdata as long ) as FBSTRING ptr
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" _
+		( byval s as FBSTRING ptr ) as long
+end extern
+
+extern "rtlib"
+
+function tkort_StrConcatAssign alias "fb_StrConcatAssign" _
+	( _
+		byval dst as any ptr, byval dst_size as integer, _
+		byval src as any ptr, byval src_size as integer, byval fillrem as long _
+	) as any ptr
+
+	if( dst = 0 ) then
+		if( src_size = FB_STRSIZEVARLEN ) then
+			tkrt_DelTemp( cptr( FBSTRING ptr, src ) )
+		end if
+		return dst
+	end if
+
+	dim as zstring ptr src_ptr = any
+	dim as integer src_len = any
+	FB_STRSETUP_FIX( src, src_size, src_ptr, src_len )
+
+	if( src_len > 0 ) then
+		if( dst_size = FB_STRSIZEVARLEN ) then
+			dim as FBSTRING ptr dstr = cptr( FBSTRING ptr, dst )
+			dim as integer dst_len = FB_STRSIZE( dst )
+
+			'' KEEPDATA: grow only when the block no longer fits.
+			fb_hStrRealloc( dstr, dst_len + src_len, 1 )
+
+			fb_hStrCopy( @dstr->data[dst_len], src_ptr, src_len )
+
+		elseif( (dst_size and FB_STRISFIXED) <> 0 ) then
+			'' Deliberately nothing. A STRING * N is space-padded to its full
+			'' width, so there is no "end" to append at.
+
+		else
+			'' The current end comes from strlen, not from a descriptor.
+			dim as integer dst_len = strlen( cptr( zstring ptr, dst ) )
+
+			'' A byte pointer (dst_size 0) is not checked -- as in C.
+			if( dst_size > 0 ) then
+				dst_size -= 1
+				if( src_len > dst_size - dst_len ) then
+					src_len = dst_size - dst_len
+				end if
+			end if
+
+			fb_hStrCopy( @cptr( zstring ptr, dst )[dst_len], src_ptr, src_len )
+
+			if( (fillrem <> 0) andalso (dst_size > 0) ) then
+				dst_size -= (dst_len + src_len)
+				if( dst_size > 0 ) then
+					memset( cptr( ubyte ptr, dst ) + dst_len + src_len, 0, dst_size )
+				end if
+			end if
+		end if
+	end if
+
+	if( src_size = FB_STRSIZEVARLEN ) then
+		tkrt_DelTemp( cptr( FBSTRING ptr, src ) )
+	end if
+
+	return dst
+
+end function
+
+end extern

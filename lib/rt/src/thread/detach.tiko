@@ -1,0 +1,42 @@
+'' detach.tiko -- fb_ThreadDetach. One entry point over one fbc member, split by
+'' platform.
+''
+'' THE HANDOFF IS THE WHOLE OF THIS FILE. Detach and thread-exit race, and
+'' whichever happens SECOND frees the FBTHREAD. Both read the value the flags
+'' held BEFORE their own bit went in, so exactly one of them sees the other's
+'' bit -- a plain store followed by a separate test would let both see it (double
+'' free) or neither (leak).
+''
+'' THE MAIN THREAD CANNOT BE DETACHED, and is refused rather than handled: its
+'' FBTHREAD lives inside the TLS context block, so freeing it would free half of
+'' something else.
+''
+'' Windows closes the handle here and POSIX calls pthread_detach; on Windows the
+'' handle is closed even though the thread may still be running, which is correct
+'' -- the thread object survives until it exits, the handle is only the caller's
+'' reference to it.
+
+#include once "inc/thread.ti"
+#include once "inc/sysbind.ti"
+
+extern "rtlib"
+
+sub tkort_ThreadDetach alias "fb_ThreadDetach" ( byval thread as FBTHREAD ptr )
+	dim as long flags = any
+
+	if( thread = 0 ) then exit sub
+	if( (thread->flags and FBTHREAD_MAIN) <> 0 ) then exit sub
+
+	flags = fb_AtomicSetThreadFlags( @thread->flags, FBTHREAD_DETACHED )
+
+#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+	w_CloseHandle( thread->id )
+#else
+	u_pthread_detach( thread->id )
+#endif
+
+	'' already exited: nobody else will ever look at this again
+	if( (flags and FBTHREAD_EXITED) <> 0 ) then free( thread )
+end sub
+
+end extern

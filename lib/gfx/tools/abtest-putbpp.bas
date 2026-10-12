@@ -20,8 +20,8 @@
 '' Each image is cleared explicitly after creation and the screen is touched
 '' between depths -- see the two gfxlib2 defects noted in abtest-bpp.bas.
 
-#include once "../raster/put.bi"
-#include once "../core/image.bi"
+#include once "../raster/put.ti"
+#include once "../core/image.ti"
 #include once "abtest.bi"
 #ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"

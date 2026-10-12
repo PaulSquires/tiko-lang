@@ -3,9 +3,9 @@
 
 Three tables come from the compiler at the pinned commit, so the page cannot drift from it:
 
-- the reserved words, from src/lexer/keywords.bi (the lexer's own table);
-- the runtime procedure names a declaration may not reuse, from src/symbols/resolvertl.bas;
-- the precedence levels, from src/parser/prectable.bi, the only place the compiler states them.
+- the reserved words, from src/lexer/keywords.ti (the lexer's own table);
+- the runtime procedure names a declaration may not reuse, from src/symbols/resolvertl.tiko;
+- the precedence levels, from src/parser/prectable.ti, the only place the compiler states them.
 
 The rest -- which names are contextual, where a keyword may name a field -- is MEASURED, not
 read: every keyword and runtime name was compiled as a variable, a procedure, a field, a local
@@ -105,12 +105,12 @@ def main() -> int:
 
     pin = pinlib.read_pin(args.tiko_src, args.rev, args.worktree)
     pinlib.announce(pin, "gen_keywords")
-    kws = KW_RE.findall(pinlib.read_source(pin, "src/lexer/keywords.bi"))
+    kws = KW_RE.findall(pinlib.read_source(pin, "src/lexer/keywords.ti"))
     if len(kws) < 200:
         sys.exit(f"gen_keywords: only {len(kws)} keywords parsed at {pin.commit}")
     words = sorted(w.lower() for w, _ in kws)
-    ovl, rtl = rtl_names(pinlib.read_source(pin, "src/symbols/resolvertl.bas"))
-    prec = precedence(pinlib.read_source(pin, "src/parser/prectable.bi"))
+    ovl, rtl = rtl_names(pinlib.read_source(pin, "src/symbols/resolvertl.tiko"))
+    prec = precedence(pinlib.read_source(pin, "src/parser/prectable.ti"))
 
     L = [
         "# Appendix A: Keywords and Operator Precedence {#app-keywords}",
@@ -250,8 +250,8 @@ def main() -> int:
         "both compilers print `a3`.",
         "",
         f"<!-- {len(words)} reserved words, {len(ovl) + len(rtl)} runtime names, generated "
-        f"{datetime.date.today().isoformat()} from src/lexer/keywords.bi, "
-        f"src/symbols/resolvertl.bas and src/parser/prectable.bi at {pin.commit} -->",
+        f"{datetime.date.today().isoformat()} from src/lexer/keywords.ti, "
+        f"src/symbols/resolvertl.tiko and src/parser/prectable.ti at {pin.commit} -->",
         "",
     ]
     out = pathlib.Path(args.out)

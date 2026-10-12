@@ -18,8 +18,8 @@
 '' Direction 3 is the one that catches an endianness mistake in the size field.
 '' Directions 1 and 2 would both pass if we wrote big-endian and read big-endian.
 
-#include once "../core/bsave.bi"
-#include once "../core/image.bi"
+#include once "../core/bsave.ti"
+#include once "../core/image.ti"
 #include once "abtest.bi"
 #ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"

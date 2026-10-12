@@ -19,7 +19,7 @@
 '' resets them explicitly first. Without that reset the cases contaminate each
 '' other -- which is itself worth knowing, and case "persist" checks it.
 
-#include once "../raster/draw.bi"
+#include once "../raster/draw.ti"
 #include once "abtest.bi"
 #include once "crt/string.bi"
 #ifdef ABTEST_HAS_GFXLIB2

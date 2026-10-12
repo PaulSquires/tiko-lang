@@ -1,0 +1,442 @@
+'' lowervtab.tiko -- emitting virtual method tables, and dispatching through one.
+''
+'' The shape is measured and recorded in docs/language/object-abi.md; the SLOT ORDER is
+'' computed in types/vtable.tiko and gated against fbc by tools/gen/check-vtable.py. What
+'' is here is only the emission of that answer.
+''
+'' Two globals per type. fbc writes them as
+''
+''     static struct $8fb_RTTI$ _ZTSN1AE = { (void*)0, (char*)"1A", &__fb_ZTS6Object };
+''     static void* _ZTVN1AE[4] = { (void*)0, (void*)&_ZTSN1AE,
+''                                  (void*)&_ZN1A3VF1Ev, (void*)&_ZN1A3VF2Ev };
+''
+'' -- three pointer-sized words and a run of them, so both are a POINTER TABLE here and
+'' nothing more specific is needed.
+''
+'' THE STORED VPTR POINTS AT SLOT TWO, not at the table. Below it sit the null word and
+'' the RTTI pointer, and every call site indexes from there.
+
+#import "std/containers"
+#include once "mir/lowerctx.ti"
+
+namespace Tko.Mir
+
+'' The Itanium encoding of a type, as fbc spells it in an RTTI record's ID: '1A' for a
+'' top-level type, 'N2NS1AE' for one in a namespace. Both measured.
+private function TypeCodeOf_( byref c as Ctx, byval t as Tko.TypeId ) as string
+    dim as Tko.Mangle.Substitutions subs
+    return Tko.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
+end function
+
+'' '_ZTS' / '_ZTV' plus the type, NESTED-WRAPPED. fbc writes '_ZTSN1AE' for a top-level
+'' type -- the N...E is always there -- while the ID STRING inside the record is the
+'' bare '1A'. A type already in a namespace encodes as 'N2NS1AE' and is not wrapped
+'' twice: '_ZTSN2NS1AE', measured.
+private function TableName_ _
+    ( byref c as Ctx, byval prefix as string, byval t as Tko.TypeId ) as string
+
+    dim as string code = TypeCodeOf_( c, t )
+    if len( code ) = 0 then return ""
+    if left( code, 1 ) = "N" then return prefix + code
+    return prefix + "N" + code + "E"
+end function
+
+'' Is this the predeclared OBJECT?
+private function IsObjectType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_UDT then return false
+    return (c.types->NameOf( t ) = c.names->GetString( "object" ))
+end function
+
+'' The type a UDT extends, or nothing. 'extends' is a field named 'base' at offset 0.
+private function BaseOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.TypeId
+    if t = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.TYPE_NONE
+    dim as Tko.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Tko.TYPE_NONE
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Tko.TYPE_NONE
+    if s->inner = Tko.SCOPE_NONE then return Tko.TYPE_NONE
+    dim as Tko.SymbolId bf = c.syms->LookupLocal( s->inner, c.vts->baseName )
+    if bf = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
+    dim as Tko.Symbol ptr b = c.syms->SymbolAt( bf )
+    if b = 0 then return Tko.TYPE_NONE
+    if b->kind <> cast( ubyte, Tko.SYM_FIELD ) then return Tko.TYPE_NONE
+    return b->type_
+end function
+
+'' This type's RTTI record, built if it does not exist yet.
+''
+'' OBJECT'S OWN RECORD IS THE RUNTIME'S. fbc references it as 'extern struct $8fb_RTTI$
+'' __fb_ZTS6Object' and never defines it, so it is declared here with no contents rather
+'' than invented -- an empty table is a declaration, which is what an extern is.
+function RttiGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
+    if t = Tko.TYPE_NONE then return -1
+    if IsObjectType_( c, t ) then
+        dim as long g = c.m->AddPtrTable( c.names->GetString( "__fb_ZTS6Object" ) )
+        c.m->globals[g].isExternal = true
+        return g
+    end if
+
+    dim as string nm = TableName_( c, "_ZTS", t )
+    if len( nm ) = 0 then return -1
+    dim as Tko.InternId id = c.names->GetString( nm )
+    dim as long have = c.m->FindPtrTable( id )
+    if have >= 0 then return have
+
+    '' THE BASE'S RECORD FIRST: the chain is a field of this one, and building it after
+    '' would append its entries into the middle of this table's run. The pool is shared
+    '' and the runs are contiguous.
+    dim as long baseG = -1
+    dim as Tko.TypeId bt = BaseOf_( c, t )
+    if (bt <> Tko.TYPE_NONE) andalso (bt <> t) then baseG = RttiGlobalOf_( c, bt )
+
+    '' ...and so is the ID string, for the same reason.
+    dim as long idG = c.m->AddStringLiteral( TypeCodeOf_( c, t ), *c.names )
+
+    dim as long g = c.m->AddPtrTable( id )
+    '' INTERNAL, as fbc's 'static struct' is: every module that needs the record
+    '' emits its own, and external copies failed the link as 'duplicate symbol:
+    '' typeinfo name for B'. Per-module copies are safe because 'is' compares the
+    '' ID STRINGS, not the addresses (fb_IsTypeOf, lib/rt/src/oop/istypeof.tiko).
+    c.m->globals[g].isInternal = true
+    '' 'STDLIBVTABLE' -- null in every shape measured, and nothing fbc emits fills it.
+    c.m->PushPtrNull( g )
+    c.m->PushPtrGlobal( g, idG )
+    if baseG >= 0 then
+        c.m->PushPtrGlobal( g, baseG )
+    else
+        c.m->PushPtrNull( g )
+    end if
+    return g
+end function
+
+'' This type's vtable, built if it does not exist yet.
+declare function ImplicitDtorSlot_( byref c as Ctx, byval t as Tko.TypeId, byval sl as Tko.VtSlot ptr ) as boolean
+
+function VtableGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as long
+    if t = Tko.TYPE_NONE then return -1
+    if IsObjectType_( c, t ) then return -1
+    dim as long vi = c.vts->Find( t )
+    if vi < 0 then return -1
+
+    dim as string nm = TableName_( c, "_ZTV", t )
+    if len( nm ) = 0 then return -1
+    dim as Tko.InternId id = c.names->GetString( nm )
+    dim as long have = c.m->FindPtrTable( id )
+    if have >= 0 then return have
+
+    '' The RTTI record before the table is opened: its entries would otherwise land in
+    '' the middle of this table's run.
+    dim as long rg = RttiGlobalOf_( c, t )
+
+    dim as long g = c.m->AddPtrTable( id )
+    '' Internal for the same reason as the RTTI record above: fbc's 'static void*'.
+    c.m->globals[g].isInternal = true
+    '' The two leading words. INFERRED for the first: it is null in every shape
+    '' measured and nothing in the C fbc generates ever reads it.
+    c.m->PushPtrNull( g )
+    if rg >= 0 then
+        c.m->PushPtrGlobal( g, rg )
+    else
+        c.m->PushPtrNull( g )
+    end if
+
+    dim as Tko.VtInfo ptr v = @c.vts->types_[vi]
+    for i as long = 0 to v->count - 1
+        dim as Tko.VtSlot ptr sl = @c.vts->slots[v->first + i]
+        '' AN ABSTRACT SLOT IS A NULL WORD, not an absent one. A derived type's
+        '' override fills the same index.
+        if (sl->proc_ = Tko.SYMBOL_NONE) orelse (sl->decl = Tko.NODE_NONE) then
+            c.m->PushPtrNull( g )
+        elseif ImplicitDtorSlot_( c, t, sl ) then
+            c.m->PushPtrFunc( g, c.names->GetString( ImplicitDtorName_( c, t ) ) )
+        else
+            c.m->PushPtrFunc( g, c.names->GetString( Tko.Mangle.ProcName( _
+                *c.ast, sl->decl, *c.syms, *c.names, *c.types, *c.info ) ) )
+        end if
+    next
+    return g
+end function
+
+'' A BASE'S VIRTUAL DESTRUCTOR SLOT, IN A TYPE WITH NO DESTRUCTOR OF ITS OWN BUT ONE IMPLIED. B extends
+'' A, A's destructor virtual, B holding a field with a destructor and declaring none: fbc's implicit
+'' B destructor OVERRIDES A's, so 'delete pa' over an 'A ptr' to a B destroys the field too
+'' (virtual/virtual.bas implicitDtorOverrides). The slot named A's and the field leaked.
+function ImplicitDtorSlot_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval sl as Tko.VtSlot ptr ) as boolean
+    if (sl->proc_ = Tko.SYMBOL_NONE) orelse (sl->decl = Tko.NODE_NONE) then return false
+    dim as Tko.Symbol ptr ds = c.syms->SymbolAt( sl->proc_ )
+    if (ds = 0) orelse (c.names->Spelling( ds->name ) <> "__dtor") then return false
+    if StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 ) <> Tko.SYMBOL_NONE then return false
+    return TypeNeedsDtor_( c, t )
+end function
+
+'' ...asked for before the synthesised structors are written, so the slot has a body to name.
+sub WantVirtualImplicitDtors_( byref c as Ctx )
+    if c.vts = 0 then return
+    for i as long = 0 to c.vts->types_.Count - 1
+        dim as Tko.TypeId t = c.vts->types_[i].type_
+        if IsObjectType_( c, t ) then continue for
+        for k as long = 0 to c.vts->types_[i].count - 1
+            if ImplicitDtorSlot_( c, t, @c.vts->slots[c.vts->types_[i].first + k] ) then WantImplicit_( c, t, 0 ) : exit for
+        next
+    next
+end sub
+
+'' Every table the unit needs. Called once, after the procedures are lowered, so a
+'' slot's function has a name to be referred to by.
+sub EmitVTableGlobals( byref c as Ctx )
+    if c.vts = 0 then return
+    for i as long = 0 to c.vts->types_.Count - 1
+        VtableGlobalOf_( c, c.vts->types_[i].type_ )
+    next
+end sub
+
+'' THE STORED VPTR: the vtable's address plus TWO WORDS.
+''
+''     *(void**)THIS$1 = (void*)((uint8*)_ZTVN1AE + 16ll);     // win32: + 8
+''
+'' 'thisAddr' is the object's address, and the vptr is its first pointer-sized word --
+'' fbc writes '*(void**)this' with no offset anywhere, on any type.
+function StoreVptr_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref thisAddr as MirValue ) as boolean
+
+    if thisAddr.kind = cast( ubyte, MV_NONE ) then return false
+    dim as long g = VtableGlobalOf_( c, t )
+    if g < 0 then return false
+
+    dim as MirValue vtabAddr
+    vtabAddr.kind = cast( ubyte, MV_GLOBAL )
+    vtabAddr.ty = cast( ubyte, MT_PTR )
+    vtabAddr.id = g
+
+    dim as MirInst fa
+    fa.op = cast( ushort, M_FIELD_ADDR )
+    fa.ty = cast( ubyte, MT_PTR )
+    fa.a = vtabAddr
+    fa.imm = 2 * (c.types->target.pointerBits \ 8)
+    dim as MirValue vp = Emit( c, fa )
+    if vp.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirInst st
+    st.op = cast( ushort, M_STORE )
+    st.ty = cast( ubyte, MT_VOID )
+    st.a = thisAddr
+    st.b = vp
+    Emit( c, st )
+    return true
+end function
+
+'' Which slot a call reaches, or -1 when the call is not virtual.
+''
+'' Decided by the RECEIVER'S STATIC TYPE, not by the callee's owner: 'p->f( )' through
+'' an 'A ptr' binds to A's f, and A's table is what the index is into. A call on a
+'' known-concrete local goes through the table too -- fbc does not devirtualise at the C
+'' level, and neither is done here.
+function VirtualSlotOf_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval callee as Tko.SymbolId ) as long
+
+    if c.vts = 0 then return -1
+    if callee = Tko.SYMBOL_NONE then return -1
+
+    '' THE CALL SITE IS DECIDED BY THE 'virtual' KEYWORD ON THE BOUND DECLARATION, and
+    '' that is NOT the same rule as slot occupancy. Measured, and neither half is
+    '' guessable from the other:
+    ''
+    ''   declare function f( ) as long override            -- fills A's slot, and a
+    ''                                                        call to it is DIRECT
+    ''   declare virtual function f( ) as long override    -- fills A's slot, and a
+    ''                                                        call to it is INDIRECT
+    ''
+    '' So an override that does not repeat 'virtual' still overrides -- a call through a
+    '' base pointer reaches it -- while a call that BINDS to it goes straight there.
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = 0 then return -1
+    dim as Tko.NodeId cd = cast( Tko.NodeId, cs->payload )
+    if cd = Tko.NODE_NONE then return -1
+    if c.ast->Kind( cd ) <> Tko.N_PROC then return -1
+    dim as ushort cmods = StmtOf( c, cd )->extra
+    if (cmods and (Tko.PF_VIRTUAL or Tko.PF_ABSTRACT)) = 0 then return -1
+
+    dim as Tko.TypeId rt = Tko.TYPE_NONE
+
+    if c.ast->Kind( target ) = Tko.N_MEMBER then
+        dim as Tko.BinaryPayload ptr mb = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, target )].data )]
+
+        '' 'base.v( )' IS NEVER VIRTUAL. It is the one spelling that means "the base's
+        '' version of this, whatever I am" -- fbc emits a direct '_ZN1A1VEv( (struct
+        '' $1A*)THIS$1 )' -- and dispatching it through the vptr makes an override that
+        '' calls 'base.v( )' CALL ITSELF, forever.
+        ''
+        '' The receiver arrives as an ordinary identifier named 'base', because that is
+        '' also the field an EXTENDS becomes, which is what makes the member lookup work
+        '' at all. BASE is a keyword, so no user identifier can reach here.
+        if c.ast->Kind( mb->lhs ) = Tko.N_IDENT then
+            dim as Tko.IdentPayload ptr ip = _
+                @c.ast->idents[cast( long, c.ast->nodes[cast( long, mb->lhs )].data )]
+            if ip->name = c.vts->baseName then return -1
+        end if
+
+        rt = c.info->TypeOf_( mb->lhs )
+        if rt <> Tko.TYPE_NONE then
+            if c.types->Kind( rt ) = Tko.TK_POINTER then rt = c.types->Inner( rt )
+        end if
+
+        '' 'p->V( )' OVER A UDT dispatches through the ARROW'S RESULT, not the handle:
+        '' the handle has no vtable of its own, so the slot lookup found nothing and the
+        '' call fell out of the virtual path entirely. Every virtual method reached
+        '' through a smart pointer -- which is what fb/comptr.bi exists for -- is this.
+        dim as Tko.TypeId urt = c.types->Unqualify( rt )
+        if ((c.ast->nodes[cast( long, target )].flags and Tko.NF_ARROW) <> 0) andalso _
+           (c.types->Kind( urt ) = Tko.TK_UDT) then
+            dim as Tko.SymbolId vaop = Tko.Check.ArrowOperatorFor( _
+                *c.types, *c.syms, *c.names, *c.ast, *c.info, urt )
+            if vaop <> Tko.SYMBOL_NONE then
+                dim as Tko.TypeId vart = Tko.Check.ArrowResultType( *c.types, *c.syms, vaop )
+                if vart <> Tko.TYPE_NONE then rt = vart
+            end if
+        end if
+    else
+        '' AN UNQUALIFIED CALL TO A SIBLING METHOD dispatches virtually too --
+        '' measured: inside C.v2, a bare 'v1( )' goes through this's own vptr while
+        '' 'base.v1( )' is a direct call. The receiver is the enclosing method's THIS,
+        '' so its type is the type that method belongs to.
+        if c.curProcSym = Tko.SYMBOL_NONE then return -1
+        dim as Tko.Symbol ptr me = c.syms->SymbolAt( c.curProcSym )
+        if me = 0 then return -1
+        dim as Tko.SymScope ptr owner = c.syms->ScopeAt( me->parent )
+        if owner = 0 then return -1
+        if owner->kind <> cast( ubyte, Tko.SCOPEK_TYPE ) then return -1
+        dim as Tko.Symbol ptr os = c.syms->SymbolAt( owner->owner )
+        if os = 0 then return -1
+        rt = os->type_
+    end if
+
+    if rt = Tko.TYPE_NONE then return -1
+    return c.vts->SlotOf( rt, callee, cd )
+end function
+
+'' The function pointer a virtual call goes through: the vptr, indexed.
+''
+''     (*(tmp$5*)((uint8*)*(void***)PA$ + 8ll))( PA$ )
+''
+'' -- load the first word of the object, add slot * sizeof(ptr), load that.
+function VirtualCalleeOf_ _
+    ( byref c as Ctx, byref self_ as MirValue, byval slot as long ) as MirValue
+
+    dim as MirValue none_
+    if self_.kind = cast( ubyte, MV_NONE ) then return none_
+    if slot < 0 then return none_
+
+    dim as MirValue vptr = LowerExprLoad( c, self_, MT_PTR )
+    if vptr.kind = cast( ubyte, MV_NONE ) then return none_
+
+    dim as MirInst fa
+    fa.op = cast( ushort, M_FIELD_ADDR )
+    fa.ty = cast( ubyte, MT_PTR )
+    fa.a = vptr
+    fa.imm = slot * (c.types->target.pointerBits \ 8)
+    dim as MirValue at = Emit( c, fa )
+    if at.kind = cast( ubyte, MV_NONE ) then return none_
+    return LowerExprLoad( c, at, MT_PTR )
+end function
+
+
+'' 'delete p' OVER A VIRTUAL DESTRUCTOR goes through p's vptr, exactly as a virtual
+'' method call does. Measured, fbc emits
+''
+''     (*(tmp$4*)*(void***)P$0)( P$0 );  free( (void*)P$0 );
+''
+'' and tiko called the STATIC type's destructor by name, so 'delete' through a base
+'' pointer ran the base's destructor alone and every derived one was skipped --
+'' fb/tuiwidget.bi's containers, which own their children as 'TuiWidget ptr', leaked
+'' all of them. False when the destructor has no slot; the caller then calls it
+'' directly, which is right for a non-virtual one.
+function EmitVirtualDtor_ _
+    ( byref c as Ctx, byval el as Tko.TypeId, byval dtor as Tko.SymbolId, _
+      byref p as MirValue ) as boolean
+
+    if c.vts = 0 then return false
+    dim as Tko.Symbol ptr ds = c.syms->SymbolAt( dtor )
+    if ds = 0 then return false
+    dim as long slot = c.vts->SlotOf( c.types->Unqualify( el ), dtor, _
+                                      cast( Tko.NodeId, ds->payload ) )
+    if slot < 0 then return false
+    dim as MirValue vfp = VirtualCalleeOf_( c, p, slot )
+    if vfp.kind = cast( ubyte, MV_NONE ) then return false
+    dim as long first = c.m->argPool.Count \ 2
+    c.m->argPool.Push( cast( ulong, p.kind ) )
+    c.m->argPool.Push( cast( ulong, p.id ) )
+    dim as MirInst vc
+    vc.op = cast( ushort, M_CALL_IND )
+    vc.ty = cast( ubyte, MT_VOID )
+    vc.a = vfp
+    vc.first = first
+    vc.count = 1
+    Emit( c, vc )
+    return true
+end function
+
+
+'' A VIRTUAL MEMBER CALLED ON AN OBJECT ONLY KNOWN BY ITS STATIC TYPE -- 'operator let' above all:
+'' '*p = 123' over an 'A ptr' to a C runs C's let, through the vtable, under fbc (virtual/virtual.bas
+'' vtableSlotsReusedOperators). The let path called A's directly. False, emitting nothing, for a
+'' member that is not virtual or has no slot in 'el'.
+function EmitVirtualMember_ _
+    ( byref c as Ctx, byval sym as Tko.SymbolId, byval el as Tko.TypeId, _
+      byref selfp as MirValue, byval args as containers.Array( of ulong ) ptr ) as boolean
+
+    if c.vts = 0 then return false
+    dim as Tko.Symbol ptr ms = c.syms->SymbolAt( sym )
+    if ms = 0 then return false
+    dim as Tko.NodeId md = cast( Tko.NodeId, ms->payload )
+    if (md = Tko.NODE_NONE) orelse (c.ast->Kind( md ) <> Tko.N_PROC) then return false
+    if (StmtOf( c, md )->extra and (Tko.PF_VIRTUAL or Tko.PF_ABSTRACT)) = 0 then return false
+    dim as long slot = c.vts->SlotOf( c.types->Unqualify( el ), sym, md )
+    if slot < 0 then return false
+    dim as MirValue r = EmitMemberCallArgs_( c, sym, selfp, MT_VOID, args, slot )
+    return true
+end function
+
+'' 'a IS T' -- fb_IsTypeOf over the object's address and T's RTTI record.
+''
+'' The record is the one the vtable already points at, built on demand and shared, so
+'' a test against a type with no vtable of its own still has something to name. A type
+'' with no record at all -- a builtin, a pointer -- is not a thing this can answer, so
+'' it declines rather than passing a null the runtime would dereference.
+function LowerIsTypeOf_ _
+    ( byref c as Ctx, byval lhs as Tko.NodeId, byval rhs as Tko.NodeId, _
+      byref outv as MirValue ) as boolean
+
+    dim as Tko.TypeId rt = c.info->TypeOf_( rhs )
+    if rt = Tko.TYPE_NONE then return false
+    rt = c.types->Unqualify( rt )
+    if c.types->Kind( rt ) <> Tko.TK_UDT then return false
+
+    '' THE OBJECT'S ADDRESS. A dereference has one by the ordinary route, and so has a
+    '' variable or a byref alias; a value with no address is not something IS can be
+    '' asked about.
+    dim as MirValue obj = LowerAddr( c, lhs )
+    if obj.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as long g = RttiGlobalOf_( c, rt )
+    if g < 0 then return false
+    dim as MirValue rec
+    rec.kind = cast( ubyte, MV_GLOBAL )
+    rec.ty = cast( ubyte, MT_PTR )
+    rec.id = g
+
+    dim as containers.Array( of ulong ) args
+    args.Push( cast( ulong, obj.kind ) ) : args.Push( cast( ulong, obj.id ) )
+    args.Push( cast( ulong, rec.kind ) ) : args.Push( cast( ulong, rec.id ) )
+    outv = EmitRtl( c, RTL_IS_TYPE_OF, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+
+end namespace

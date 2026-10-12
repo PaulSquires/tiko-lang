@@ -129,8 +129,8 @@ lowered: 1 functions, 1 blocks, 108 insts, 4 statements not lowered, 0 scope imb
   unlowered N_INTRINSIC 3
   inside N_INTRINSIC 4
   unlowered intrinsic KW_PRINT 3
-  skip-site src\mir\lowerstr.bas:357 1
-  skip-site src\mir\lowerctl.bas:218 3
+  skip-site src\mir\lowerstr.tiko:357 1
+  skip-site src\mir\lowerctl.tiko:218 3
 tests/diagnostics/src/gfx-target-and-cast-size.bas(16,6): error TKO0708: the image target of a graphics statement must be a pointer
      |
   16 | line z, (0, 0)-(31, 31), 0

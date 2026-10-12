@@ -1,0 +1,89 @@
+'' hookprint.tiko -- the PRINT indirection: four entry points over two fbc
+'' members.
+''
+'' EVERY PRINT IN A COMPILED PROGRAM ARRIVES HERE FIRST. If gfxlib has installed
+'' a hook the text goes to the graphics window; otherwise it falls through to the
+'' console. That is the whole of the mechanism -- one pointer test -- and it is
+'' why PRINT inside SCREEN 13 does not scribble on the terminal.
+''
+'' THE HOOK IS READ UNDER THE LOCK AND CALLED UNDER IT TOO. fbc holds FB_LOCK
+'' across the dispatch rather than releasing it first, so a hook that itself
+'' prints re-enters a recursive mutex. Reproduced: releasing early would be a
+'' different concurrency contract, and the recursion is what makes it safe.
+''
+'' THE NARROW ENTRY MEASURES WITH strlen AND THE WIDE ONE WITH fb_wstr_Len, so
+'' neither can carry an embedded NUL -- unlike fb_PrintStringEx next door, which
+'' takes a descriptor and a length. Two ways into PRINT with different rules
+'' about what a string is.
+
+#include once "inc/descriptors.ti"
+#include once "inc/ctx.ti"
+#include once "inc/wstr.ti"
+#include once "inc/sysbind.ti"
+
+#ifdef ENABLE_MT
+	extern "rtlib"
+		declare sub fb_Lock alias "fb_Lock" ( )
+		declare sub fb_Unlock alias "fb_Unlock" ( )
+	end extern
+	#define IOLOCK()   fb_Lock()
+	#define IOUNLOCK() fb_Unlock()
+#else
+	#define IOLOCK()
+	#define IOUNLOCK()
+#endif
+
+extern "rtlib"
+	declare sub tkrt_ConsolePrintBufferEx alias "fb_ConsolePrintBufferEx" _
+		( byval buffer as any ptr, byval length as uinteger, byval mask as long )
+	declare sub tkrt_ConsolePrintBufferWstrEx alias "fb_ConsolePrintBufferWstrEx" _
+		( byval buffer as wstring ptr, byval length as uinteger, byval mask as long )
+end extern
+
+extern "rtlib"
+
+sub tkort_PrintBufferEx alias "fb_PrintBufferEx" _
+	( byval buffer as any ptr, byval length as uinteger, byval mask as long )
+
+	IOLOCK()
+
+	dim as FB_PRINTBUFFPROC p = TKORT_HOOK_PRINTBUFFPROC()
+	if( p <> 0 ) then
+		p( buffer, length, mask )
+	else
+		tkrt_ConsolePrintBufferEx( buffer, length, mask )
+	end if
+
+	IOUNLOCK()
+
+end sub
+
+'' NOTE THE LENGTH COMES FROM strlen -- so this form cannot carry an embedded
+'' NUL, where fb_PrintStringEx can.
+sub tkort_PrintBuffer alias "fb_PrintBuffer" _
+	( byval buffer as zstring ptr, byval mask as long )
+	tkort_PrintBufferEx( buffer, strlen( buffer ), mask )
+end sub
+
+sub tkort_PrintBufferWstrEx alias "fb_PrintBufferWstrEx" _
+	( byval buffer as wstring ptr, byval length as uinteger, byval mask as long )
+
+	IOLOCK()
+
+	dim as FB_PRINTBUFFWPROC p = TKORT_HOOK_PRINTBUFFWPROC()
+	if( p <> 0 ) then
+		p( buffer, length, mask )
+	else
+		tkrt_ConsolePrintBufferWstrEx( buffer, length, mask )
+	end if
+
+	IOUNLOCK()
+
+end sub
+
+sub tkort_PrintBufferWstr alias "fb_PrintBufferWstr" _
+	( byval buffer as wstring ptr, byval mask as long )
+	tkort_PrintBufferWstrEx( buffer, FB_WSTR_LEN( buffer ), mask )
+end sub
+
+end extern

@@ -85,7 +85,7 @@ if "%TKO_BOOT_LIBDIRS%"=="" (
 )
 if "%TKO_BOOT_LIBDIRS%"=="" (
     if /i "%TARGET%"=="windows-x86_64" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\windows-x86_64"
-    rem MinGW needs its CRT objects beside the runtime; see cmdline.bas.
+    rem MinGW needs its CRT objects beside the runtime; see cmdline.tiko.
     if /i "%TARGET%"=="win64" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64"
     if /i "%TARGET%"=="win64" if exist "%ROOT%\toolchains\tiko-windows\lib\win64-fb\" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64 %ROOT%\toolchains\tiko-windows\lib\win64-fb"
 )
@@ -173,7 +173,7 @@ echo bootstrap: fixpoint  stage1 == stage2 as well: the seed reproduces this com
 :fixdone
 
 rem ------------------------------------------ 3. stage3 builds a working program
-> "%OUT%\hello\hello.bas" (
+> "%OUT%\hello\hello.tiko" (
     echo namespace Boot
     echo     const WHO as string = "stage3"
     echo end namespace
@@ -183,19 +183,19 @@ rem ------------------------------------------ 3. stage3 builds a working progra
     echo dim as string s = "hello from " ^& Boot.WHO
     echo print s; Twice^( 21 ^); " "; len^( s ^)
 )
-"%OUT%\stage3\tiko.exe" "%OUT%\hello\hello.bas" -target %TARGET% %LIBP% -o "%OUT%\hello\hello3.exe" > "%OUT%\hello\build3.log" 2>&1
-if errorlevel 1 ( type "%OUT%\hello\build3.log" 1>&2 & set "WHY=stage3 could not build hello.bas" & goto fail )
+"%OUT%\stage3\tiko.exe" "%OUT%\hello\hello.tiko" -target %TARGET% %LIBP% -o "%OUT%\hello\hello3.exe" > "%OUT%\hello\build3.log" 2>&1
+if errorlevel 1 ( type "%OUT%\hello\build3.log" 1>&2 & set "WHY=stage3 could not build hello.tiko" & goto fail )
 "%OUT%\hello\hello3.exe" > "%OUT%\hello\out3.txt" 2>&1
 if errorlevel 1 ( set "WHY=stage3's hello did not run" & goto fail )
 pushd "%OUT%\hello"
-"%TKO_SEED%" hello.bas -target %SEED_TARGET% %LIBP% -o hello0.exe > build0.log 2>&1
+"%TKO_SEED%" hello.tiko -target %SEED_TARGET% %LIBP% -o hello0.exe > build0.log 2>&1
 set "RC=%ERRORLEVEL%"
 popd
-if not "%RC%"=="0" ( set "WHY=the reference compiler could not build hello.bas" & goto fail )
+if not "%RC%"=="0" ( set "WHY=the reference compiler could not build hello.tiko" & goto fail )
 "%OUT%\hello\hello0.exe" > "%OUT%\hello\out0.txt" 2>&1
 fc /b "%OUT%\hello\out0.txt" "%OUT%\hello\out3.txt" >nul
 if errorlevel 1 ( set "WHY=stage3's hello prints differently from the seed's" & goto fail )
-echo bootstrap: stage3  builds hello.bas, and it prints what the seed's build prints
+echo bootstrap: stage3  builds hello.tiko, and it prints what the seed's build prints
 
 rem ------------------------------------------------- 4. the suite, both ways
 if not "%GATE%"=="1" goto done

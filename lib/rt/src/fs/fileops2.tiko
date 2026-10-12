@@ -1,0 +1,374 @@
+'' fileops2.tiko -- FILEATTR, FILEEXISTS, FILEDATETIME, KILL, the CRT file copy
+'' and the three DIR wrappers. Eight symbols across eight fbc members, and
+'' portable.
+''
+'' FILEATTR(n, 2) RETURNS AN OS HANDLE, AND WHICH ONE DEPENDS ON THE DEVICE.
+'' A plain file gives its CRT FILE*; a PRINTER gives the Windows HPRINTER or the
+'' Unix FILE*; a SERIAL channel gives the Windows HANDLE, or the Linux file
+'' DESCRIPTOR. Three different things through one entry point, and the only
+'' thing they share is that each is the FIRST member of its device's private
+'' struct -- which is why this file can reach them without binding those structs
+'' in full. fb_printer.h says so in a comment: "this member must be first".
+''
+'' THE MODE MAP IS NOT THE IDENTITY. FB_FILE_MODE_* are 0..4 and
+'' FB_FILE_ATTR_MODE_* are 32, 4, 1, 2, 8 -- a BITMASK in a different order, so
+'' the map is a five-element table and not arithmetic. Returning the mode
+'' directly would give a plausible small number for every channel.
+''
+'' A PRINTER OR SERIAL HANDLE THAT IS NOT OPEN LEAVES ret AT ZERO AND err AT
+'' ILLEGAL FUNCTION CALL -- because the inner `if( info )` never runs and neither
+'' assignment happens. That is not an error path fbc wrote; it is the initialiser
+'' surviving, and it means FILEATTR on a closed printer reports error 1 while
+'' FILEATTR on a closed FILE reports 0 with no error.
+''
+'' FILEEXISTS OPENS THE FILE. It is fopen + fclose, so it answers FALSE for a
+'' file that exists but cannot be read, and it TOUCHES THE ACCESS TIME. There is
+'' no stat here.
+''
+'' KILL MAPS errno TO FOUR FB CODES and nothing else -- ENOENT to 2, EACCES to 3,
+'' EPERM to 70, everything else to 1. errno is read IMMEDIATELY after remove(),
+'' before fb_hStrDelTemp, because the delete can clobber it.
+''
+'' DIR IS STATEFUL AND fb_DirNext HOLDS THE STATE IN A FILE-SCOPE DESCRIPTOR that
+'' is never freed and never assigned -- a permanently empty FBSTRING whose only
+'' job is to be a non-NULL argument meaning "continue". Passing NULL instead
+'' would start a new search.
+''
+'' THE 64-BIT DIR FORMS ARE WIDENING WRAPPERS. fb_Dir writes an int attribute;
+'' fb_Dir64 gives it an int of its own and widens the result, because the caller
+'' supplied a longlong and writing four bytes into eight would leave the top half
+'' as whatever was on the stack.
+
+#include once "inc/descriptors.ti"
+#include once "inc/file.ti"
+#include once "inc/rterror.ti"
+#include once "inc/sysbind.ti"
+
+'' fb_file.h. A BITMASK, and not in mode order -- see the file header.
+const FB_FILE_ATTR_MODE_INPUT  = 1
+const FB_FILE_ATTR_MODE_OUTPUT = 2
+const FB_FILE_ATTR_MODE_RANDOM = 4
+const FB_FILE_ATTR_MODE_APPEND = 8
+const FB_FILE_ATTR_MODE_BINARY = 32
+
+const FB_FILE_ATTR_MODE     = 1
+const FB_FILE_ATTR_HANDLE   = 2
+const FB_FILE_ATTR_ENCODING = 3
+
+const COPY_BUFFER_SIZE = 512
+
+'' ---------------------------------------------------- struct stat, measured
+''
+'' FreeBASIC's own crt/sys/stat.bi is `#error Unsupported platform` off Windows,
+'' so the layout is bound as a RAW BUFFER with one measured offset -- the same
+'' idiom fs/dir.tiko already uses for st_mode.
+''
+'' MEASURED THREE WAYS, all agreeing:
+''
+''   win64   a C probe: sizeof(struct _stat)=48, offsetof(st_mtime)=32
+''   win32   DISASSEMBLING fbc's own file_datetime.o -- the buffer is passed
+''           from -0x40(%ebp) and the mtime is read from -0x20(%ebp), a gap of
+''           exactly 0x20. No 32-bit MinGW headers exist on this machine, so
+''           the probe could not be compiled and the object was read instead.
+''   linux   a WSL probe AND fbc's object: buffer at -0xa0(%rbp), mtime read
+''           from -0x48(%rbp), a gap of 0x58 = 88; sizeof(struct stat)=144.
+''
+'' AND THE FUNCTION IS NOT `stat`. fbc's objects call `_stat64i32` on Windows
+'' and `stat64` on Linux -- the 64-bit-time variants -- with `_localtime64` and
+'' `localtime` respectively. Calling plain `stat` would bind a different struct
+'' layout on MinGW, where `stat` is a macro.
+#ifdef __FB_WIN32__
+	const STAT_BUF_SIZE_ = 64          '' 48 measured; rounded up, it is a local
+	const STAT_MTIME_    = 32
+#else
+	const STAT_BUF_SIZE_ = 144
+	const STAT_MTIME_    = 88
+#endif
+
+type TKORT_STATBUF
+	as ubyte raw( 0 to STAT_BUF_SIZE_ - 1 )
+end type
+
+'' struct tm, whose first six ints are sec, min, hour, mday, mon, year -- the
+'' only fields used, and identical on all three targets.
+type TKORT_TM
+	as long tm_sec, tm_min, tm_hour, tm_mday, tm_mon, tm_year
+end type
+
+extern "c"   '' NON-FBCALL: libc.
+	#ifdef __FB_WIN32__
+		declare function crt_stat alias "_stat64i32" _
+			( byval p as zstring ptr, byval st as TKORT_STATBUF ptr ) as long
+		declare function crt_localtime alias "_localtime64" ( byval t as longint ptr ) as TKORT_TM ptr
+	#else
+		declare function crt_stat alias "stat64" _
+			( byval p as zstring ptr, byval st as TKORT_STATBUF ptr ) as long
+		declare function crt_localtime alias "localtime" ( byval t as longint ptr ) as TKORT_TM ptr
+	#endif
+end extern
+
+extern "rtlib"
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_DateSerial alias "fb_DateSerial" _
+		( byval y as long, byval m as long, byval d as long ) as long
+	declare function tkrt_TimeSerial alias "fb_TimeSerial" _
+		( byval h as long, byval m as long, byval s as long ) as double
+	declare function tkrt_Dir alias "fb_Dir" _
+		( byval filespec as FBSTRING ptr, byval attrib as long, _
+		  byval outattrib as long ptr ) as FBSTRING ptr
+end extern
+
+extern "c"   '' NON-FBCALL: the h-prefixed helper and the CRT.
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function crt_remove alias "remove" ( byval p as zstring ptr ) as long
+end extern
+
+'' THE ONLY THING NEEDED FROM THE THREE DEVICE STRUCTS IS THEIR FIRST MEMBER, so
+'' none of them is bound. `driver_opaque`, `hSerial`, `hDevice` and `sfd` are all
+'' at offset zero of their respective types -- fb_printer.h states the rule for
+'' the first of them outright -- and binding the rest would be four platform
+'' layouts to keep right for no gain.
+#define TKORT_FIRST_PTR( p ) (*cptr( any ptr ptr, p ))
+#define TKORT_FIRST_LONG( p ) (*cptr( long ptr, p ))
+
+extern "rtlib"
+
+'' ------------------------------------------------------------------ FILEATTR
+
+function tkort_FileAttr alias "fb_FileAttr" _
+	( byval handle as long, byval returntype as long ) as integer
+
+	dim as integer ret = 0
+	dim as long err_ = 0
+	dim as FB_FILE ptr file_ = TKORT_FILE_TO_HANDLE( handle )
+
+	if( file_ = 0 ) then
+		ret = 0
+		err_ = FB_RTERROR_ILLEGALFUNCTIONCALL
+	else
+		select case returntype
+		case FB_FILE_ATTR_MODE
+			'' The five-element map, indexed by FB_FILE_MODE_*. NOT the mode.
+			select case file_->mode
+			case FB_FILE_MODE_BINARY : ret = FB_FILE_ATTR_MODE_BINARY
+			case FB_FILE_MODE_RANDOM : ret = FB_FILE_ATTR_MODE_RANDOM
+			case FB_FILE_MODE_INPUT  : ret = FB_FILE_ATTR_MODE_INPUT
+			case FB_FILE_MODE_OUTPUT : ret = FB_FILE_ATTR_MODE_OUTPUT
+			case FB_FILE_MODE_APPEND : ret = FB_FILE_ATTR_MODE_APPEND
+			case else
+				'' fbc indexes the table unconditionally, so a mode outside
+				'' 0..4 reads past it. That cannot happen through any entry
+				'' point -- every open sets one of the five -- and this
+				'' returns 0 rather than reproducing an out-of-bounds read.
+				ret = 0
+			end select
+			err_ = FB_RTERROR_OK
+
+		case FB_FILE_ATTR_HANDLE
+			select case file_->type_
+			case FB_FILE_TYPE_PRINTER
+				'' DEV_LPT_INFO.driver_opaque, then on Windows
+				'' W32_PRINTER_INFO.hPrinter -- both at offset zero.
+				dim as any ptr lptinfo = file_->opaque
+				if( lptinfo <> 0 ) then
+					dim as any ptr driver_ = TKORT_FIRST_PTR( lptinfo )
+					#ifdef __FB_WIN32__
+						if( driver_ <> 0 ) then
+							ret = cast( integer, TKORT_FIRST_PTR( driver_ ) )
+							err_ = FB_RTERROR_OK
+						end if
+					#else
+						'' Unix: the driver pointer IS the CRT FILE*, with no
+						'' second indirection.
+						ret = cast( integer, driver_ )
+						err_ = FB_RTERROR_OK
+					#endif
+				end if
+
+			case FB_FILE_TYPE_SERIAL
+				'' DEV_COM_INFO.hSerial, then the platform's own struct --
+				'' a HANDLE on Windows, an int file DESCRIPTOR on Linux.
+				dim as any ptr cominfo = file_->opaque
+				if( cominfo <> 0 ) then
+					dim as any ptr serialinfo = TKORT_FIRST_PTR( cominfo )
+					if( serialinfo <> 0 ) then
+						#ifdef __FB_WIN32__
+							ret = cast( integer, TKORT_FIRST_PTR( serialinfo ) )
+						#else
+							ret = TKORT_FIRST_LONG( serialinfo )
+						#endif
+						err_ = FB_RTERROR_OK
+					end if
+				end if
+
+			case else
+				'' Everything else is the CRT FILE*, NULL included -- a closed
+				'' file answers 0 with NO error, unlike a closed printer.
+				ret = cast( integer, file_->opaque )
+				err_ = FB_RTERROR_OK
+			end select
+
+		case FB_FILE_ATTR_ENCODING
+			ret = file_->encod
+			err_ = FB_RTERROR_OK
+
+		case else
+			ret = 0
+			err_ = FB_RTERROR_ILLEGALFUNCTIONCALL
+		end select
+	end if
+
+	tkrt_ErrorSetNum( err_ )
+	return ret
+end function
+
+'' ---------------------------------------------------------------- FILEEXISTS
+
+'' fopen + fclose, NOT stat. A file that exists but cannot be opened for reading
+'' is FALSE, and the access time is touched.
+function tkort_FileExists alias "fb_FileExists" ( byval filename as zstring ptr ) as long
+
+	dim as FILE ptr fp = fopen( filename, @"r" )
+	if( fp <> 0 ) then
+		fclose( fp )
+		return FB_TRUE
+	end if
+	return FB_FALSE
+end function
+
+'' -------------------------------------------------------------- FILEDATETIME
+
+'' A DATE SERIAL PLUS A TIME SERIAL, from st_mtime through localtime. Zero on
+'' any failure -- and 0.0 is also a legitimate serial (1899-12-30), so a caller
+'' cannot tell "missing" from "very old" except by testing separately.
+function tkort_FileDateTime alias "fb_FileDateTime" ( byval filename as zstring ptr ) as double
+
+	dim as TKORT_STATBUF buf = any
+
+	if( crt_stat( filename, @buf ) <> 0 ) then return 0.0
+
+	'' The mtime is copied OUT of the buffer before localtime is called, exactly
+	'' as fbc's object does -- localtime takes a pointer to a time_t, not a
+	'' pointer into a struct.
+	dim as longint t = *cptr( longint ptr, @buf.raw(STAT_MTIME_) )
+
+	dim as TKORT_TM ptr ptm = crt_localtime( @t )
+	if( ptm = 0 ) then return 0.0
+
+	return tkrt_DateSerial( 1900 + ptm->tm_year, 1 + ptm->tm_mon, ptm->tm_mday ) + _
+	       tkrt_TimeSerial( ptm->tm_hour, ptm->tm_min, ptm->tm_sec )
+end function
+
+'' ------------------------------------------------------------------ KILL
+
+'' errno IS READ IMMEDIATELY, before the temp descriptor is deleted -- fb_StrDelete
+'' calls free(), and free() may set errno.
+function tkort_FileKill alias "fb_FileKill" ( byval str_ as FBSTRING ptr ) as long
+
+	dim as long res = 0, err_ = 0
+
+	if( str_->data <> 0 ) then
+		res = crt_remove( str_->data )
+		err_ = errno
+	end if
+
+	tkrt_DelTemp( str_ )
+
+	if( res = 0 ) then
+		'' A NULL data pointer takes this path too: KILL on an unassigned
+		'' string is SUCCESS, because res was never set.
+		res = FB_RTERROR_OK
+	else
+		select case err_
+		case ENOENT : res = FB_RTERROR_FILENOTFOUND
+		case EACCES : res = FB_RTERROR_FILEIO
+		case EPERM  : res = FB_RTERROR_NOPRIVILEGES
+		case else   : res = FB_RTERROR_ILLEGALFUNCTIONCALL
+		end select
+	end if
+
+	return tkrt_ErrorSetNum( res )
+end function
+
+end extern
+
+'' ------------------------------------------------------------- the CRT copy
+
+extern "rtlib"
+
+'' A 512-BYTE LOOP, and the feof CHECK AT THE END is what distinguishes "read
+'' everything" from "stopped early on an error" -- a short read with the error
+'' flag set would otherwise look like a complete copy.
+''
+'' BOTH STREAMS ARE CLOSED ON EVERY PATH, including the ones that copyfail before
+'' the second was opened -- which is why dst is initialised to NULL first.
+function tkort_CrtFileCopy alias "fb_CrtFileCopy" _
+	( byval source as zstring ptr, byval destination as zstring ptr ) as long
+
+	dim as FILE ptr src = 0, dst = 0
+	dim as ubyte buffer( 0 to COPY_BUFFER_SIZE - 1 ) = any
+	dim as uinteger bytesread = any
+	dim as long copyfail = 0
+
+	src = fopen( source, @"rb" )
+	if( src = 0 ) then
+		copyfail = 1
+	else
+		dst = fopen( destination, @"wb" )
+		if( dst = 0 ) then
+			copyfail = 1
+		else
+			do
+				bytesread = fread( @buffer(0), 1, COPY_BUFFER_SIZE, src )
+				if( bytesread = 0 ) then exit do
+				if( fwrite( @buffer(0), 1, bytesread, dst ) <> bytesread ) then
+					copyfail = 1
+					exit do
+				end if
+			loop
+
+			if( (copyfail = 0) andalso (feof( src ) = 0) ) then copyfail = 1
+		end if
+	end if
+
+	if( src <> 0 ) then fclose( src )
+	if( dst <> 0 ) then fclose( dst )
+
+	if( copyfail <> 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' ------------------------------------------------------------------ DIR
+
+'' THE STATE IS A FILE-SCOPE DESCRIPTOR THAT IS NEVER ASSIGNED AND NEVER FREED.
+'' Its only job is to be a NON-NULL, EMPTY filespec, which is how fb_Dir is told
+'' "continue the current search" rather than "start a new one". Passing NULL
+'' would start one.
+dim shared as FBSTRING tkort_dirnext_fname
+
+function tkort_DirNext alias "fb_DirNext" ( byval attrib as long ptr ) as FBSTRING ptr
+	return tkrt_Dir( @tkort_dirnext_fname, 0, attrib )
+end function
+
+'' THE WIDENING WRAPPERS. fb_Dir writes four bytes; the caller supplied eight, so
+'' the int is taken locally and widened -- writing directly would leave the top
+'' half as whatever was on the stack.
+function tkort_Dir64 alias "fb_Dir64" _
+	( byval filespec as FBSTRING ptr, byval attrib as long, _
+	  byval outattrib as longint ptr ) as FBSTRING ptr
+
+	dim as long ioutattrib = any
+	dim as FBSTRING ptr res = tkrt_Dir( filespec, attrib, @ioutattrib )
+	*outattrib = ioutattrib
+	return res
+end function
+
+function tkort_DirNext64 alias "fb_DirNext64" ( byval outattrib as longint ptr ) as FBSTRING ptr
+
+	dim as long ioutattrib = any
+	dim as FBSTRING ptr res = tkort_DirNext( @ioutattrib )
+	*outattrib = ioutattrib
+	return res
+end function
+
+end extern

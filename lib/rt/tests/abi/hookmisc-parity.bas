@@ -72,7 +72,7 @@ extern "c"
 	extern __fb_ctx_bytes alias "__fb_ctx" as ubyte
 end extern
 
-'' Measured, and the same run inc/ctx.bi already uses.
+'' Measured, and the same run inc/ctx.ti already uses.
 const HOOKS_BASE = 72
 const PTR_SIZE   = 8
 

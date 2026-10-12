@@ -1,0 +1,278 @@
+'' misc.tiko -- five small singletons that have nothing in common but their size:
+'' the console handle cache, BEEP, the short-path helper, SHELL's backend, and
+'' the two QB-compatible wrappers. Six symbols across five fbc members.
+''
+'' THE HANDLE CACHE IS THE ONLY ONE WITH STATE, and it is the reason
+'' fb_hFileResetEx has to call fb_hConsoleResetHandles before it reopens the
+'' standard streams: the cached handle refers to whatever stdout WAS, so a reset
+'' that did not clear it would leave every later console call pointed at the old
+'' redirection target.
+''
+'' THE CACHE IS SET **BEFORE** THE HANDLES ARE READ. `is_init = TRUE` is the
+'' first statement inside the guard, not the last -- so a re-entrant call during
+'' initialisation sees "already done" and reads whatever is in __fb_con at that
+'' moment, which is zero. Nothing re-enters it today; it is reproduced as it
+'' stands.
+''
+'' AND IT ENABLES ENABLE_PROCESSED_INPUT AS A SIDE EFFECT, which is what makes
+'' Ctrl-C generate a console control event rather than arriving as a keystroke.
+'' A program that had cleared that flag deliberately gets it turned back on by
+'' the first console read.
+''
+'' THE OUTPUT HANDLE IS READ FROM THE PAGE TABLE, not from `outHandle` -- so a
+'' program that has switched pages with SCREEN gets the active page's handle,
+'' while the INPUT handle has no page and comes straight from `inHandle`. The
+'' asymmetry is real and one that a reader reaching for the obvious field would
+'' get wrong.
+''
+'' fb_hGetShortPath ONLY CALLS Windows AT ALL IF THE PATH CONTAINS A SPACE. With
+'' no space it is a bounded copy -- and the 8.3 short name is wanted only because
+'' the CRT's exec family splits its command line on spaces. On a volume with 8.3
+'' generation disabled GetShortPathName returns the long name unchanged and the
+'' exec still breaks, which is not something this layer can detect.
+''
+'' AND WHEN IT DOES CALL Windows IT DOES NOT CHECK THE RESULT. A failure leaves
+'' `dst` untouched -- uninitialised, in every caller -- and the function still
+'' returns it. fbc's, reproduced.
+''
+'' fb_hShell IS `system()` AND NOTHING ELSE, so SHELL inherits every one of that
+'' function's properties: it goes through the platform shell, it blocks, and a
+'' program name containing a shell metacharacter is INTERPRETED rather than
+'' escaped. That is the documented behaviour of the SHELL statement.
+''
+'' fb_InkeyQB REWRITES THE EXTENDED-KEY MARKER. fb_Inkey returns a two-byte
+'' string whose first byte is FB_EXT_CHAR (255) for a function key; QB used a
+'' leading NUL for the same thing, so this wrapper overwrites 255 with 0 IN
+'' PLACE. It mutates the descriptor fb_Inkey just returned rather than making a
+'' copy -- correct only because that descriptor is a fresh temporary.
+
+#include once "inc/descriptors.ti"
+#include once "inc/console.ti"
+#include once "inc/sysbind.ti"
+
+'' fb.h's FB_EXT_CHAR, spelled as a byte -- it is `((char)255)` there, which is
+'' -1 on a signed-char platform and 255 on an unsigned one. Comparing as UBYTE
+'' avoids the question entirely.
+const FB_EXT_CHAR_ = 255
+
+extern "c"   '' NON-FBCALL: the string lock, declared plain in fb_string.h, and
+             '' libc's system().
+	declare sub fb_StrLock alias "fb_StrLock" ( )
+	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+	'' `system_` is already taken -- FreeBASIC provides it -- so the binding
+	'' carries a prefix like every other libc call in this tree.
+	declare function crt_system alias "system" ( byval cmd as zstring ptr ) as long
+end extern
+
+extern "rtlib"   '' FBCALL: fb_Inkey and fb_Sleep are both decorated, and the
+                 '' win32 archive confirms the `@N`.
+	declare function tkrt_Inkey alias "fb_Inkey" ( ) as FBSTRING ptr
+	declare sub tkrt_Sleep alias "fb_Sleep" ( byval msecs as long )
+end extern
+
+#ifdef ENABLE_MT
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+#ifdef __FB_WIN32__
+
+	const STD_INPUT_HANDLE_  = -10
+	const STD_OUTPUT_HANDLE_ = -11
+	const ENABLE_PROCESSED_INPUT_ = &h0001
+
+	extern "c"   '' NON-FBCALL: kernel32, `stdcall` per declaration.
+		declare function w_GetStdHandle stdcall alias "GetStdHandle" ( byval n as long ) as any ptr
+		'' w_GetConsoleMode is NOT declared here -- inc/console.ti already
+		'' provides it, and a second declaration is error 4.
+		declare function w_SetConsoleMode stdcall alias "SetConsoleMode" _
+			( byval h as any ptr, byval m as ulong ) as long
+		declare sub w_Beep stdcall alias "Beep" ( byval freq as ulong, byval dur as ulong )
+		declare function w_GetShortPathNameA stdcall alias "GetShortPathNameA" _
+			( byval src as zstring ptr, byval dst as zstring ptr, byval sz as ulong ) as ulong
+	end extern
+
+	'' The __fb_con offsets this file needs, spelled locally in the same style
+	'' src/io/conpage.tiko uses -- inc/console.ti carries the window rect and the
+	'' scroll flag but not the handles or the page table. MEASURED, and quoted
+	'' in inc/console.ti's own header comment:
+	''
+	''            win64   win32
+	''   inHandle      0       0
+	''   outHandle     8       4
+	''   pgHandleTb   16       8
+	''   active       48      24
+	''   visible      52      28
+	const TKORT_CON_INHANDLE  = 0
+	const TKORT_CON_OUTHANDLE = 8
+	const TKORT_CON_PGTB      = 16
+	const TKORT_CON_ACTIVE    = 48
+	const TKORT_CON_VISIBLE   = 52
+
+	#define TKORT_CON_IN()        (*cptr( any ptr ptr, @__fb_con + TKORT_CON_INHANDLE ))
+	#define TKORT_CON_OUT()       (*cptr( any ptr ptr, @__fb_con + TKORT_CON_OUTHANDLE ))
+	#define TKORT_CON_PAGE( i )   (*cptr( any ptr ptr, @__fb_con + TKORT_CON_PGTB + (i) * sizeof( any ptr ) ))
+	#define TKORT_CON_ACTIVEPG()  (*cptr( long ptr, @__fb_con + TKORT_CON_ACTIVE ))
+	#define TKORT_CON_VISIBLEPG() (*cptr( long ptr, @__fb_con + TKORT_CON_VISIBLE ))
+
+	'' FILE-STATIC AND UNGUARDED, exactly as fbc's is -- see the file header on
+	'' why it is set before the handles are read.
+	dim shared as long tkort_gethnd_inited = 0
+
+#else
+
+	'' The terminal escape emitter, which is fbc's and lives in unix/io_hterm.o.
+	'' SEQ_BEEP is 6 -- `#define SEQ_BEEP 6  /* "bl" - beep */` in
+	'' unix/fb_private_console.h. It is an index into the terminfo capability
+	'' table, so a plausible-looking 0 would have emitted the WRONG escape
+	'' sequence and still returned successfully.
+	const SEQ_BEEP_ = 6
+
+	'' tkrt_hTermOut is NOT declared here -- inc/console.ti already provides it,
+	'' and a second declaration is error 4. Its shape there is what this file
+	'' calls; it is a FUNCTION, not a SUB, and the result is discarded.
+
+#endif
+
+#ifdef __FB_WIN32__
+
+extern "c"   '' NON-FBCALL: both console-handle entry points are declared plain
+             '' in fb_private_console.h, and the win32 archive confirms no `@N`.
+
+'' RETURNS THE INPUT HANDLE OR THE ACTIVE PAGE'S OUTPUT HANDLE -- not
+'' `outHandle`; see the file header on why those are different.
+function tkort_hConsoleGetHandle alias "fb_hConsoleGetHandle" ( byval is_input as long ) as any ptr
+
+	if( tkort_gethnd_inited = 0 ) then
+		'' SET FIRST, deliberately. See the file header.
+		tkort_gethnd_inited = 1
+
+		TKORT_CON_IN() = w_GetStdHandle( STD_INPUT_HANDLE_ )
+		TKORT_CON_OUT() = w_GetStdHandle( STD_OUTPUT_HANDLE_ )
+
+		if( TKORT_CON_IN() <> 0 ) then
+			'' PROCESSED INPUT IS TURNED ON AS A SIDE EFFECT, which is what
+			'' makes Ctrl-C a console control event rather than a keystroke.
+			dim as ulong dwMode = any
+			if( w_GetConsoleMode( TKORT_CON_IN(), @dwMode ) <> 0 ) then
+				dwMode or= ENABLE_PROCESSED_INPUT_
+				w_SetConsoleMode( TKORT_CON_IN(), dwMode )
+			end if
+		end if
+
+		TKORT_CON_ACTIVEPG() = 0
+		TKORT_CON_VISIBLEPG() = 0
+		TKORT_CON_PAGE( 0 ) = TKORT_CON_OUT()
+	end if
+
+	if( is_input <> 0 ) then return TKORT_CON_IN()
+	return TKORT_CON_PAGE( TKORT_CON_ACTIVEPG() )
+end function
+
+'' CLEARS THE FLAG ONLY. The handles themselves are left stale until the next
+'' get, which is why fb_hFileResetEx calls this BEFORE it reopens and then reads
+'' a handle immediately afterwards.
+sub tkort_hConsoleResetHandles alias "fb_hConsoleResetHandles" ( )
+	tkort_gethnd_inited = 0
+end sub
+
+end extern
+
+#endif
+
+extern "c"   '' NON-FBCALL: fb_hGetShortPath and fb_hShell are internal helpers
+             '' and the win32 archive confirms no `@N` on either.
+
+#ifdef __FB_WIN32__
+
+'' THE SPACE TEST IS THE WHOLE FUNCTION. No space means no ambiguity when the
+'' CRT splits the command line, so nothing is converted -- and the failure of
+'' GetShortPathName is not checked, leaving dst untouched. See the file header.
+function tkort_hGetShortPath alias "fb_hGetShortPath" _
+	( byval src as zstring ptr, byval dst as zstring ptr, byval maxlen as integer ) as zstring ptr
+
+	if( strchr( src, 32 ) = 0 ) then
+		'' strncpy DOES NOT TERMINATE when the source fills the buffer, which is
+		'' why the byte is written back explicitly.
+		strncpy( dst, src, maxlen )
+		dst[maxlen - 1] = 0
+	else
+		w_GetShortPathNameA( src, dst, cast( ulong, maxlen ) )
+	end if
+
+	return dst
+end function
+
+#endif
+
+'' system(), AND NOTHING ELSE -- SHELL inherits every property of it, including
+'' that metacharacters in the program name are interpreted.
+''
+'' ON POSIX system() RETURNS A WAIT STATUS, not an exit code (T81): 'exit 3' came
+'' back as 768, 3 shl 8. fbc's unix/sys_hshell.c decodes it -- WIFEXITED, then
+'' WEXITSTATUS -- and reads 127, "/bin/sh could not be executed", as -1. So does
+'' this, with the two macros spelled out: WIFEXITED is (st and &h7F) = 0, and
+'' WEXITSTATUS is (st shr 8) and &hFF. Windows' system() already returns the code.
+function tkort_hShell alias "fb_hShell" ( byval program as zstring ptr ) as long
+	dim as long errcode = crt_system( program )
+	#ifndef __FB_WIN32__
+		if( (errcode <> -1) andalso ((errcode and &h7F) = 0) ) then
+			errcode = (errcode shr 8) and &hFF
+			if( errcode = 127 ) then errcode = -1
+		end if
+	#endif
+	return errcode
+end function
+
+end extern
+
+extern "rtlib"   '' FBCALL: fb_Beep, fb_SleepQB and fb_InkeyQB are all decorated
+                 '' in fb_hook.h and fb.h, and the win32 archive agrees.
+
+'' 1000 Hz FOR 250 ms ON WINDOWS, and the terminal's own bell on POSIX -- so the
+'' two are not the same sound, and on POSIX the terminal may be configured to
+'' flash instead of sounding anything at all.
+sub tkort_Beep alias "fb_Beep" ( )
+	#ifdef __FB_WIN32__
+		w_Beep( 1000, 250 )
+	#else
+		tkrt_hTermOut( SEQ_BEEP_, 0, 0 )
+	#endif
+end sub
+
+'' SECONDS, NOT MILLISECONDS -- and a NEGATIVE value is passed through
+'' UNSCALED, because fb_Sleep reads a negative as "until a key is pressed" and
+'' multiplying it by 1000 would still be negative but would lose that meaning if
+'' the sign convention ever changed.
+sub tkort_SleepQB alias "fb_SleepQB" ( byval secs as long )
+	tkrt_Sleep( iif( secs < 0, secs, secs * 1000 ) )
+end sub
+
+'' REWRITES THE EXTENDED-KEY MARKER IN PLACE: 255 becomes 0, so an extended key
+'' reads as QB's CHR(0) + scancode rather than FreeBASIC's CHR(255) + scancode.
+'' Mutating fb_Inkey's result is safe only because that result is a fresh
+'' temporary.
+function tkort_InkeyQB alias "fb_InkeyQB" ( ) as FBSTRING ptr
+
+	dim as FBSTRING ptr res = tkrt_Inkey( )
+
+	STRLOCK()
+
+	'' ALL THREE CONDITIONS MATTER: a length of exactly two, and a first byte of
+	'' 255. A one-byte string is an ordinary character and must not be touched.
+	if( (res <> 0) andalso (res->data <> 0) ) then
+		if( (FB_STRSIZE( res ) = 2) andalso _
+		    (cast( ubyte, res->data[0] ) = FB_EXT_CHAR_) ) then
+			res->data[0] = 0
+		end if
+	end if
+
+	STRUNLOCK()
+
+	return res
+end function
+
+end extern

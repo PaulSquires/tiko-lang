@@ -138,7 +138,7 @@ goto :compiler
     set "DLLFLAGS=!FLAGS:-exx=!"
     echo build: tikoParser.dll [%CFG%] with %STAGE0%
     pushd "%ROOT%"
-    "%STAGE0%" -dll !LIBSRC! src\api\tikoparser.bas -i src !INCOPT! !DLLFLAGS! !OUTOPT! "bin\tikoParser.dll"
+    "%STAGE0%" -dll !LIBSRC! src\api\tikoparser.tiko -i src !INCOPT! !DLLFLAGS! !OUTOPT! "bin\tikoParser.dll"
     if errorlevel 1 ( popd & exit /b 1 )
     popd
     rem Beside tiko-editor.exe, which loads it from there. A failed copy (a running editor
@@ -168,7 +168,7 @@ goto :done
 
 :buildrunner
 echo build: tiko-test [%CFG%]
-"%STAGE0%" tools\tiko-test\tikotest.bas -i src %INCOPT% %FLAGS% -mt %OUTOPT% "bin\tiko-test.exe"
+"%STAGE0%" tools\tiko-test\tikotest.tiko -i src %INCOPT% %FLAGS% -mt %OUTOPT% "bin\tiko-test.exe"
 if errorlevel 1 ( popd & exit /b 1 )
 
 :done

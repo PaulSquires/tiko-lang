@@ -1,0 +1,1180 @@
+'' ops-core.ti -- the FB.* string algorithms, ONE COPY, instantiated per width.
+''
+'' This mirrors str_ops_core.h exactly, and for the same reason fbc gives:
+'' two hand-maintained copies of a search loop drift, and the drift shows up as
+'' one width quietly disagreeing with the other on an edge case nobody tests
+'' twice.
+''
+'' src/str/ops.tiko recorded the opposite -- that FreeBASIC has no templates, so
+'' the two instantiations WOULD be hand-maintained copies, logged as a known
+'' cost of the language. That was wrong, and pleasantly so: FreeBASIC has ##
+'' token pasting and #undef, so the C technique carries over unchanged.
+'' Measured before this file existed, because 'the macro system is probably good
+'' enough' is exactly the kind of assumption this project keeps disproving.
+''
+'' WHAT THE INCLUDER MUST DEFINE FIRST
+''
+''   SOP( name )      name mangling, so the two instantiations do not collide
+''   SOP_UNIT         the code unit type (ubyte / ushort)
+''   SOP_FOLD( c )    case fold, one unit in and one unit out
+''   SOP_LOWER( c )   the lowercase map
+''   SOP_ISWORD( c, r )   word character, for title case
+''
+'' NO INCLUDE GUARD, deliberately: this file is meant to be included more than
+'' once, and a guard would silently give the second width nothing.
+''
+'' EVERY memcpy AND memcmp COUNTS BYTES, so each carries an explicit
+'' * sizeof( SOP_UNIT ). At byte width that multiplier is 1 and invisible; at
+'' 16-bit width, omitting one copies half the string. That is the single most
+'' likely way to get this wrong, which is why it is stated here rather than
+'' left to each call site.
+
+'' ============================================================ primitives
+
+'' Compare two runs, honouring the fold flag.
+private function SOP(hEq) _
+	( byval a as SOP_UNIT ptr, byval b as SOP_UNIT ptr, byval length as integer, byval ic as long ) as long
+
+	if( ic = 0 ) then
+		if( memcmp( a, b, length * sizeof( SOP_UNIT ) ) = 0 ) then return 1
+		return 0
+	end if
+
+	for i as integer = 0 to length - 1
+		if( SOP_FOLD( a[i] ) <> SOP_FOLD( b[i] ) ) then return 0
+	next
+
+	return 1
+
+end function
+
+'' Is c one of set[0..setlen-1]?
+private function SOP(hInSet) _
+	( byval c as SOP_UNIT, byval st as SOP_UNIT ptr, byval setlen as integer, byval ic as long ) as long
+
+	if( ic <> 0 ) then
+		dim as SOP_UNIT fc = SOP_FOLD( c )
+		for i as integer = 0 to setlen - 1
+			if( SOP_FOLD( st[i] ) = fc ) then return 1
+		next
+	else
+		for i as integer = 0 to setlen - 1
+			if( st[i] = c ) then return 1
+		next
+	end if
+
+	return 0
+
+end function
+
+'' First index >= from where pat occurs, or -1. AN EMPTY PATTERN RETURNS -1.
+private function SOP(hFind) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval pat as SOP_UNIT ptr, byval patlen as integer, _
+		byval from as integer, byval ic as long _
+	) as integer
+
+	if( patlen <= 0 ) then return -1
+	if( slen <= 0 ) then return -1
+	if( from < 0 ) then return -1
+
+	dim as integer last = slen - patlen
+	for i as integer = from to last
+		if( SOP(hEq)( @s[i], pat, patlen, ic ) <> 0 ) then return i
+	next
+
+	return -1
+
+end function
+
+'' First index >= from whose unit IS in set, or -1.
+private function SOP(hFindAny) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval st as SOP_UNIT ptr, byval setlen as integer, _
+		byval from as integer, byval ic as long _
+	) as integer
+
+	if( setlen <= 0 ) then return -1
+	if( slen <= 0 ) then return -1
+	if( from < 0 ) then return -1
+
+	for i as integer = from to slen - 1
+		if( SOP(hInSet)( s[i], st, setlen, ic ) <> 0 ) then return i
+	next
+
+	return -1
+
+end function
+
+'' First index >= from whose unit is NOT in set, or -1. An EMPTY SET makes
+'' `from` the answer -- the opposite of SOP(hFindAny)'s rule, and deliberately so.
+private function SOP(hVerify) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval st as SOP_UNIT ptr, byval setlen as integer, _
+		byval from as integer, byval ic as long _
+	) as integer
+
+	if( slen <= 0 ) then return -1
+	if( from < 0 ) then return -1
+	if( from >= slen ) then return -1
+
+	for i as integer = from to slen - 1
+		if( SOP(hInSet)( s[i], st, setlen, ic ) = 0 ) then return i
+	next
+
+	return -1
+
+end function
+
+'' How many units from `from` onward are in set. Always >= 0.
+private function SOP(hSpan) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval st as SOP_UNIT ptr, byval setlen as integer, _
+		byval from as integer, byval ic as long _
+	) as integer
+
+	if( slen <= 0 ) then return 0
+	if( from < 0 ) then return 0
+	if( from >= slen ) then return 0
+
+	dim as integer i = from
+	while( i < slen )
+		if( SOP(hInSet)( s[i], st, setlen, ic ) = 0 ) then exit while
+		i += 1
+	wend
+
+	return i - from
+
+end function
+
+'' Count of NON-OVERLAPPING occurrences: "aaaa" contains "aa" TWICE, not three
+'' times. That is the count Replace and Split need -- the number of things that
+'' would be replaced, or the number of separators.
+private function SOP(hTally) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval pat as SOP_UNIT ptr, byval patlen as integer, byval ic as long _
+	) as integer
+
+	if( patlen <= 0 ) then return 0
+	if( slen <= 0 ) then return 0
+
+	dim as integer n = 0, i = 0, at = any
+	do
+		at = SOP(hFind)( s, slen, pat, patlen, i, ic )
+		if( at < 0 ) then exit do
+		n += 1
+		i = at + patlen
+	loop
+
+	return n
+
+end function
+
+private function SOP(hTallyAny) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval st as SOP_UNIT ptr, byval setlen as integer, byval ic as long _
+	) as integer
+
+	if( setlen <= 0 ) then return 0
+	if( slen <= 0 ) then return 0
+
+	dim as integer n = 0
+	for i as integer = 0 to slen - 1
+		if( SOP(hInSet)( s[i], st, setlen, ic ) <> 0 ) then n += 1
+	next
+
+	return n
+
+end function
+
+'' An EMPTY affix is present in every string, including the empty one -- and
+'' this deliberately does NOT go through SOP(hFind), whose empty pattern never
+'' matches, so that the two can disagree.
+private function SOP(hStartsWith) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval pre as SOP_UNIT ptr, byval prelen as integer, byval ic as long _
+	) as long
+
+	if( prelen <= 0 ) then return 1
+	if( prelen > slen ) then return 0
+	return SOP(hEq)( s, pre, prelen, ic )
+
+end function
+
+private function SOP(hEndsWith) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval suf as SOP_UNIT ptr, byval suflen as integer, byval ic as long _
+	) as long
+
+	if( suflen <= 0 ) then return 1
+	if( suflen > slen ) then return 0
+	return SOP(hEq)( @s[slen - suflen], suf, suflen, ic )
+
+end function
+
+'' ================================================================= spans
+''
+'' The extract family all answer the same question -- WHICH RUN of the input
+'' comes back -- so they compute an (offset, count) span and leave only the
+'' allocation to the wrapper. The index arithmetic, which is where these go
+'' wrong, stays in one place.
+''
+'' Spans are 0-based and always valid to slice: a miss is (0, 0), never a
+'' negative count.
+
+'' Text BEFORE the first occurrence of pat at or after `from`.
+''
+'' A MISS RETURNS THE WHOLE REMAINDER, not the empty string -- the PowerBASIC
+'' EXTRACT$ rule. It is what makes a parse loop terminate naturally: the last
+'' field has no trailing delimiter, and this hands it back instead of losing it.
+'' An empty pattern is a miss, so it too yields the whole remainder.
+private sub SOP(hExtractSpan) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval pat as SOP_UNIT ptr, byval patlen as integer, _
+		byval from as integer, byval ic as long, _
+		byval off as integer ptr, byval cnt as integer ptr _
+	)
+
+	*off = 0
+	*cnt = 0
+
+	if( slen <= 0 ) then exit sub
+	if( from < 0 ) then exit sub
+	if( from >= slen ) then exit sub
+
+	dim as integer at = SOP(hFind)( s, slen, pat, patlen, from, ic )
+
+	*off = from
+	if( at < 0 ) then *cnt = slen - from else *cnt = at - from
+
+end sub
+
+private sub SOP(hExtractCharsSpan) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval st as SOP_UNIT ptr, byval setlen as integer, _
+		byval from as integer, byval ic as long, _
+		byval off as integer ptr, byval cnt as integer ptr _
+	)
+
+	*off = 0
+	*cnt = 0
+
+	if( slen <= 0 ) then exit sub
+	if( from < 0 ) then exit sub
+	if( from >= slen ) then exit sub
+
+	dim as integer at = SOP(hFindAny)( s, slen, st, setlen, from, ic )
+
+	*off = from
+	if( at < 0 ) then *cnt = slen - from else *cnt = at - from
+
+end sub
+
+'' Text AFTER the first occurrence of pat at or after `from`.
+''
+'' A MISS RETURNS EMPTY -- the opposite of SOP(hExtractSpan), deliberately. Nothing
+'' followed the thing that was not there, and returning the whole remainder
+'' would produce text that was never after anything.
+private sub SOP(hRemainSpan) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval pat as SOP_UNIT ptr, byval patlen as integer, _
+		byval from as integer, byval ic as long, _
+		byval off as integer ptr, byval cnt as integer ptr _
+	)
+
+	*off = 0
+	*cnt = 0
+
+	if( slen <= 0 ) then exit sub
+	if( patlen <= 0 ) then exit sub
+	if( from < 0 ) then exit sub
+	if( from >= slen ) then exit sub
+
+	dim as integer at = SOP(hFind)( s, slen, pat, patlen, from, ic )
+	if( at < 0 ) then exit sub
+
+	*off = at + patlen
+	*cnt = slen - *off
+
+end sub
+
+private sub SOP(hRemainCharsSpan) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval st as SOP_UNIT ptr, byval setlen as integer, _
+		byval from as integer, byval ic as long, _
+		byval off as integer ptr, byval cnt as integer ptr _
+	)
+
+	*off = 0
+	*cnt = 0
+
+	if( slen <= 0 ) then exit sub
+	if( setlen <= 0 ) then exit sub
+	if( from < 0 ) then exit sub
+	if( from >= slen ) then exit sub
+
+	dim as integer at = SOP(hFindAny)( s, slen, st, setlen, from, ic )
+	if( at < 0 ) then exit sub
+
+	*off = at + 1
+	*cnt = slen - *off
+
+end sub
+
+'' Text between the first d1 at or after `from` and the first d2 after THAT.
+''
+'' d2 is searched from the END OF d1, never from `from`, so
+'' Between( "(a)(b)", "(", ")" ) is "a" and cannot match the second ")" first.
+'' Either delimiter missing yields empty -- there is no "between" without both
+'' ends -- and an empty delimiter never matches, so it is a miss like any other.
+private sub SOP(hBetweenSpan) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval d1 as SOP_UNIT ptr, byval d1len as integer, _
+		byval d2 as SOP_UNIT ptr, byval d2len as integer, _
+		byval from as integer, byval ic as long, _
+		byval off as integer ptr, byval cnt as integer ptr _
+	)
+
+	*off = 0
+	*cnt = 0
+
+	if( slen <= 0 ) then exit sub
+	if( from < 0 ) then exit sub
+	if( from >= slen ) then exit sub
+
+	dim as integer a = SOP(hFind)( s, slen, d1, d1len, from, ic )
+	if( a < 0 ) then exit sub
+
+	dim as integer inner = a + d1len
+
+	dim as integer b = SOP(hFind)( s, slen, d2, d2len, inner, ic )
+	if( b < 0 ) then exit sub
+
+	*off = inner
+	*cnt = b - inner
+
+end sub
+
+'' The next three are pure index arithmetic and never look at the text.
+''
+'' A count of 0 or less removes nothing and returns the whole string; a count at
+'' or beyond the length removes all of it. Neither clamps into a negative span.
+private sub SOP(hClipLeftSpan) _
+	( byval slen as integer, byval n as integer, byval off as integer ptr, byval cnt as integer ptr )
+
+	if( (slen <= 0) orelse (n >= slen) ) then
+		*off = 0 : *cnt = 0
+		exit sub
+	end if
+
+	if( n <= 0 ) then
+		*off = 0 : *cnt = slen
+		exit sub
+	end if
+
+	*off = n
+	*cnt = slen - n
+
+end sub
+
+private sub SOP(hClipRightSpan) _
+	( byval slen as integer, byval n as integer, byval off as integer ptr, byval cnt as integer ptr )
+
+	*off = 0
+
+	if( (slen <= 0) orelse (n >= slen) ) then
+		*cnt = 0
+	elseif( n <= 0 ) then
+		*cnt = slen
+	else
+		*cnt = slen - n
+	end if
+
+end sub
+
+'' DeleteAt: the run to REMOVE, given a 1-based start. A zero count removes
+'' nothing and the whole string comes back -- which is what EVERY invalid
+'' argument produces here. An out-of-range delete is a no-op, not an error and
+'' not a truncation.
+private sub SOP(hDeleteCut) _
+	( _
+		byval slen as integer, byval start1 as integer, byval count as integer, _
+		byval coff as integer ptr, byval clen as integer ptr _
+	)
+
+	*coff = 0
+	*clen = 0
+
+	if( slen <= 0 ) then exit sub
+	if( start1 < 1 ) then exit sub
+	if( count <= 0 ) then exit sub
+	if( start1 > slen ) then exit sub
+
+	*coff = start1 - 1
+	*clen = count
+
+	if( *clen > slen - *coff ) then *clen = slen - *coff
+
+end sub
+
+'' InsertAt: the 0-based offset to splice at, or -1 for "do not insert".
+''
+'' A position PAST THE END APPENDS -- the useful reading of "insert at position
+'' 20 of a 5-character string". A position below 1 does NOT insert.
+''
+'' fbc's comment records that AfxStrInsert's own comment says a position <= 0
+'' appends while its code returns the string unchanged, and that the CODE was
+'' followed, because appending on a negative index is the kind of silent success
+'' that hides a caller's off-by-one. Reproduced with the reasoning intact.
+private function SOP(hInsertSplit) _
+	( byval slen as integer, byval pos1 as integer ) as integer
+
+	if( pos1 < 1 ) then return -1
+	if( pos1 > slen ) then return slen
+	return pos1 - 1
+
+end function
+
+'' ============================================================ transforms
+''
+'' These build a new string rather than slicing the old one, so each is a FILL:
+'' it writes into a caller-allocated buffer and returns how much it wrote. Every
+'' one has a length the caller can compute in advance, so none needs a measure
+'' pass:
+''
+''   Replace       slen + count * (replen - patlen), count from SOP(hTally)
+''   Remove* / Retain* / Shrink   at most slen
+''   ReplaceChars / Reverse / MCase   exactly slen
+
+private function SOP(hReplaceFill) _
+	( _
+		byval dst as SOP_UNIT ptr, _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval pat as SOP_UNIT ptr, byval patlen as integer, _
+		byval rep as SOP_UNIT ptr, byval replen as integer, _
+		byval ic as long _
+	) as integer
+
+	if( (patlen <= 0) orelse (slen <= 0) ) then
+		if( slen > 0 ) then
+			memcpy( dst, s, (slen) * sizeof( SOP_UNIT ) )
+			return slen
+		end if
+		return 0
+	end if
+
+	dim as integer i = 0, w = 0, at = any
+
+	do
+		at = SOP(hFind)( s, slen, pat, patlen, i, ic )
+		if( at < 0 ) then exit do
+
+		if( at > i ) then
+			memcpy( @dst[w], @s[i], (at - i) * sizeof( SOP_UNIT ) )
+			w += at - i
+		end if
+
+		if( replen > 0 ) then
+			memcpy( @dst[w], rep, (replen) * sizeof( SOP_UNIT ) )
+			w += replen
+		end if
+
+		i = at + patlen
+	loop
+
+	if( slen > i ) then
+		memcpy( @dst[w], @s[i], (slen - i) * sizeof( SOP_UNIT ) )
+		w += slen - i
+	end if
+
+	return w
+
+end function
+
+'' Drop every unit that is in `set`. An EMPTY SET DROPS NOTHING.
+private function SOP(hRemoveCharsFill) _
+	( _
+		byval dst as SOP_UNIT ptr, _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval st as SOP_UNIT ptr, byval setlen as integer, byval ic as long _
+	) as integer
+
+	dim as integer w = 0
+
+	for i as integer = 0 to slen - 1
+		if( setlen <= 0 ) then
+			dst[w] = s[i] : w += 1
+		elseif( SOP(hInSet)( s[i], st, setlen, ic ) = 0 ) then
+			dst[w] = s[i] : w += 1
+		end if
+	next
+
+	return w
+
+end function
+
+'' Keep only the units in `set`. An EMPTY SET KEEPS NOTHING -- the complement of
+'' dropping nothing, and the reason this one returns early rather than falling
+'' through the loop.
+private function SOP(hRetainCharsFill) _
+	( _
+		byval dst as SOP_UNIT ptr, _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval st as SOP_UNIT ptr, byval setlen as integer, byval ic as long _
+	) as integer
+
+	if( setlen <= 0 ) then return 0
+
+	dim as integer w = 0
+
+	for i as integer = 0 to slen - 1
+		if( SOP(hInSet)( s[i], st, setlen, ic ) <> 0 ) then
+			dst[w] = s[i] : w += 1
+		end if
+	next
+
+	return w
+
+end function
+
+'' Map every unit in `set` to `unit`. LENGTH NEVER CHANGES -- a one-for-one
+'' substitution, not a replacement, which is what keeps offsets into the result
+'' lined up with the input.
+private function SOP(hReplaceCharsFill) _
+	( _
+		byval dst as SOP_UNIT ptr, _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval st as SOP_UNIT ptr, byval setlen as integer, _
+		byval unit as SOP_UNIT, byval ic as long _
+	) as integer
+
+	for i as integer = 0 to slen - 1
+		if( setlen > 0 ) then
+			if( SOP(hInSet)( s[i], st, setlen, ic ) <> 0 ) then
+				dst[i] = unit
+			else
+				dst[i] = s[i]
+			end if
+		else
+			dst[i] = s[i]
+		end if
+	next
+
+	return slen
+
+end function
+
+'' Reverse.
+''
+'' SURROGATE PAIRS ARE KEPT INTACT AT 16-BIT WIDTH AND NOT AT BYTE WIDTH, and
+'' the asymmetry is deliberate.
+''
+'' A ustring is UTF-16 by definition, so reversing its code units blindly emits
+'' a low surrogate before its high one -- invalid UTF-16, every single time an
+'' astral character is present, not occasionally. AfxStrReverse does exactly
+'' that. Keeping the pair together costs one comparison per unit and is the only
+'' result that is still a string.
+''
+'' A STRING is bytes with no declared encoding, so there is no pair to preserve
+'' and no way to know whether there would be one; bytes reverse as bytes. That
+'' does corrupt multi-byte UTF-8, and it is the only defensible answer for a
+'' type that does not say what it holds.
+''
+'' SOP_ISHIGH / SOP_ISLOW are constant 0 at byte width, so the branch folds away
+'' there entirely -- which is why str/ops.tiko defines them to 0 rather than
+'' leaving them out. The first draft of the byte instantiation simply DELETED
+'' this branch, which was right for that width and would have silently split
+'' every astral pair once the core was shared.
+private sub SOP(hReverseFill) _
+	( byval dst as SOP_UNIT ptr, byval s as SOP_UNIT ptr, byval slen as integer )
+
+	dim as integer i = slen - 1, w = 0
+
+	while( i >= 0 )
+		if( (i >= 1) andalso SOP_ISLOW( s[i] ) andalso SOP_ISHIGH( s[i - 1] ) ) then
+			dst[w] = s[i - 1] : w += 1
+			dst[w] = s[i] : w += 1
+			i -= 2
+		else
+			dst[w] = s[i] : w += 1
+			i -= 1
+		end if
+	wend
+
+end sub
+
+'' Collapse runs of mask characters and strip them from both ends: every maximal
+'' run becomes ONE copy of mask[0], and leading and trailing runs go entirely.
+''
+'' AN EMPTY MASK RETURNS THE INPUT UNCHANGED. fbc's comment records that
+'' AfxStrShrink returns the EMPTY STRING for an empty mask, calls that a guard
+'' clause that fell through to the wrong variable, and declines to preserve it.
+'' Noted because it is a place where fbc deliberately does NOT match AfxNova.
+''
+'' The `pending` flag is what strips the trailing run without a second pass: a
+'' mask run is remembered and only emitted once a word actually follows.
+private function SOP(hShrinkFill) _
+	( _
+		byval dst as SOP_UNIT ptr, _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval mask as SOP_UNIT ptr, byval masklen as integer _
+	) as integer
+
+	if( masklen <= 0 ) then
+		if( slen > 0 ) then
+			memcpy( dst, s, (slen) * sizeof( SOP_UNIT ) )
+			return slen
+		end if
+		return 0
+	end if
+
+	dim as integer w = 0
+	dim as integer pending = 0
+
+	for i as integer = 0 to slen - 1
+		if( SOP(hInSet)( s[i], mask, masklen, 0 ) <> 0 ) then
+			'' Remember it, but emit only if a word follows.
+			if( w > 0 ) then pending = 1
+		else
+			if( pending <> 0 ) then
+				dst[w] = mask[0] : w += 1
+				pending = 0
+			end if
+			dst[w] = s[i] : w += 1
+		end if
+	next
+
+	return w
+
+end function
+
+'' Title case: the first letter of each word upper, everything else lower.
+''
+'' A WORD STARTS AFTER ANY NON-ALPHANUMERIC. fbc's comment contrasts this with
+'' AfxNova's DWStrMCase, which tests a fixed list of punctuation and therefore
+'' capitalises after "." and "-" but not after "/", "_" or a tab -- an omission
+'' rather than a decision. "Not alphanumeric" needs no list and has no gaps.
+''
+'' Non-ASCII counts as a WORD character: an accented letter continues a word,
+'' and a CJK character has no case to change anyway.
+private function SOP(hMCaseFill) _
+	( byval dst as SOP_UNIT ptr, byval s as SOP_UNIT ptr, byval slen as integer ) as integer
+
+	dim as integer startsWord = 1
+	dim as SOP_UNIT c = any
+	dim as integer isword = any
+
+	for i as integer = 0 to slen - 1
+		c = s[i]
+
+		if( startsWord <> 0 ) then
+			dst[i] = SOP_FOLD( c )
+		else
+			dst[i] = SOP_LOWER( c )
+		end if
+
+		SOP_ISWORD( c, isword )
+		startsWord = iif( isword <> 0, 0, 1 )
+	next
+
+	return slen
+
+end function
+
+'' Remove from each `d1` through the matching `d2`, delimiters included.
+''
+'' EITHER DELIMITER MISSING STOPS THE WALK and copies the rest through, so an
+'' unbalanced opener is left alone rather than swallowing the tail. d2 is
+'' searched from the END of d1, so a pair cannot be crossed -- the same rule
+'' SOP(hBetweenSpan) follows.
+private function SOP(hRemoveBetweenFill) _
+	( _
+		byval dst as SOP_UNIT ptr, _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval d1 as SOP_UNIT ptr, byval d1len as integer, _
+		byval d2 as SOP_UNIT ptr, byval d2len as integer, _
+		byval removeAll as long, byval from as integer, byval ic as long _
+	) as integer
+
+	if( slen <= 0 ) then return 0
+
+	if( from < 0 ) then from = 0
+	if( from > slen ) then from = slen
+
+	dim as integer w = 0
+	if( from > 0 ) then
+		memcpy( dst, s, (from) * sizeof( SOP_UNIT ) )
+		w = from
+	end if
+
+	dim as integer i = from
+	dim as integer a = any, b = any
+
+	do
+		a = SOP(hFind)( s, slen, d1, d1len, i, ic )
+		if( a < 0 ) then exit do
+
+		b = SOP(hFind)( s, slen, d2, d2len, a + d1len, ic )
+		if( b < 0 ) then exit do
+
+		if( a > i ) then
+			memcpy( @dst[w], @s[i], (a - i) * sizeof( SOP_UNIT ) )
+			w += a - i
+		end if
+
+		i = b + d2len
+
+		if( removeAll = 0 ) then exit do
+	loop
+
+	if( slen > i ) then
+		memcpy( @dst[w], @s[i], (slen - i) * sizeof( SOP_UNIT ) )
+		w += slen - i
+	end if
+
+	return w
+
+end function
+
+'' Justify into a field of EXACTLY `fieldw`.
+''
+'' The parameter is `fieldw`, not `width`: WIDTH is a FreeBASIC statement and is
+'' error 59 as a parameter name. Sixth reserved word to collide with a natural
+'' name here, after PRESERVE, POS, LEN, STR and MKD.
+''
+''   mode 0  left-justified  (PadRight -- the padding goes on the right)
+''   mode 1  right-justified (PadLeft)
+''   mode 2  centred
+''
+'' A string LONGER than the field is TRUNCATED, keeping its left, which is what
+'' makes a column line up whatever is in it. A width of 0 or less gives empty.
+''
+'' CENTRING PUTS THE ODD UNIT ON THE RIGHT: a 1-unit string in a 4-unit field
+'' gets 1 before and 2 after. Integer division decides it, the choice is
+'' arbitrary, and fbc writes it down rather than leaving it to be discovered.
+private function SOP(hPadFill) _
+	( _
+		byval dst as SOP_UNIT ptr, _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval fieldw as integer, byval pad as SOP_UNIT, byval mode as long _
+	) as integer
+
+	if( fieldw <= 0 ) then return 0
+
+	if( slen >= fieldw ) then
+		memcpy( dst, s, (fieldw) * sizeof( SOP_UNIT ) )
+		return fieldw
+	end if
+
+	for i as integer = 0 to fieldw - 1
+		dst[i] = pad
+	next
+
+	dim as integer keep = slen
+	dim as integer at = any
+
+	select case as const mode
+	case 1
+		at = fieldw - keep
+	case 2
+		at = (fieldw - keep) \ 2
+	case else
+		at = 0
+	end select
+
+	if( keep > 0 ) then memcpy( @dst[at], s, (keep) * sizeof( SOP_UNIT ) )
+
+	return fieldw
+
+end function
+
+'' Unwrap: strip ONE leading `open` and ONE trailing `close`, and only if BOTH
+'' are present and they do not overlap.
+''
+'' fbc's comment records a DELIBERATE DIVERGENCE from AfxStrUnWrap, which uses
+'' LTRIM/RTRIM with the delimiter and therefore strips REPEATED occurrences and
+'' does not require a pair: "'''x'''" loses all six quotes and "'x" loses its
+'' opener with nothing matching it. Removing a delimiter that was never balanced
+'' is how a quoted field containing a quote gets silently mangled.
+private sub SOP(hUnwrapSpan) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval op as SOP_UNIT ptr, byval oplen as integer, _
+		byval cl as SOP_UNIT ptr, byval cllen as integer, _
+		byval ic as long, byval off as integer ptr, byval cnt as integer ptr _
+	)
+
+	*off = 0
+	if( slen > 0 ) then *cnt = slen else *cnt = 0
+
+	if( slen <= 0 ) then exit sub
+	if( oplen <= 0 ) then exit sub
+	if( cllen <= 0 ) then exit sub
+
+	'' The two must fit WITHOUT OVERLAPPING -- "'" is not both ends of itself.
+	if( slen < oplen + cllen ) then exit sub
+
+	if( SOP(hStartsWith)( s, slen, op, oplen, ic ) = 0 ) then exit sub
+	if( SOP(hEndsWith)( s, slen, cl, cllen, ic ) = 0 ) then exit sub
+
+	*off = oplen
+	*cnt = slen - oplen - cllen
+
+end sub
+
+'' ===================================================== escape / unescape
+''
+'' Backslash escaping -- the kind that makes a string safe to write inside
+'' quotes in a config file or generated source, and reversible afterwards.
+''
+'' NOT AfxNova's DWStrEscape, which escapes REGULAR EXPRESSION metacharacters.
+'' That one is only meaningful next to a regex engine (it is built on CRegExp,
+'' a COM class) and there is none here, so it is not carried across.
+''
+''     \  "            ->  \  \"
+''     LF CR TAB NUL   ->  \n \r \t \0
+''     other < 32, 127 ->  \xHH
+''     everything else, INCLUDING ALL NON-ASCII, passes through
+''
+'' Non-ASCII is left alone deliberately: escaping it would turn a UTF-8 STRING
+'' into a wall of hex for no gain. The point is to neutralise what breaks
+'' quoting, not to reduce the string to ASCII.
+''
+'' Unescape is the EXACT inverse for every input, including one that already
+'' contains backslashes.
+
+dim shared as ubyte tkort_hexDigit(0 to 15) = _
+	{ asc("0"), asc("1"), asc("2"), asc("3"), asc("4"), asc("5"), asc("6"), asc("7"), _
+	  asc("8"), asc("9"), asc("A"), asc("B"), asc("C"), asc("D"), asc("E"), asc("F") }
+
+'' Measures when dst is NULL, fills otherwise. Returns the escaped length.
+private function SOP(hEscapeFill) _
+	( byval dst as SOP_UNIT ptr, byval s as SOP_UNIT ptr, byval slen as integer ) as integer
+
+	dim as integer w = 0
+	dim as SOP_UNIT c = any
+
+	#macro EMIT( u )
+		if( dst <> 0 ) then dst[w] = cast( SOP_UNIT, u )
+		w += 1
+	#endmacro
+
+	for i as integer = 0 to slen - 1
+		c = s[i]
+
+		select case as const c
+		case asc("\")
+			EMIT( asc("\") ) : EMIT( asc("\") )
+		case asc("""")
+			EMIT( asc("\") ) : EMIT( asc("""") )
+		case 10
+			EMIT( asc("\") ) : EMIT( asc("n") )
+		case 13
+			EMIT( asc("\") ) : EMIT( asc("r") )
+		case 9
+			EMIT( asc("\") ) : EMIT( asc("t") )
+		case 0
+			EMIT( asc("\") ) : EMIT( asc("0") )
+		case else
+			if( (c < 32) orelse (c = 127) ) then
+				EMIT( asc("\") )
+				EMIT( asc("x") )
+				EMIT( tkort_hexDigit( (c shr 4) and &h0F ) )
+				EMIT( tkort_hexDigit( c and &h0F ) )
+			else
+				EMIT( c )
+			end if
+		end select
+	next
+
+	return w
+
+end function
+
+'' One hex digit's value, or -1.
+private function SOP(hHexVal)( byval c as SOP_UNIT ) as long
+	if( (c >= asc("0")) andalso (c <= asc("9")) ) then return c - asc("0")
+	if( (c >= asc("a")) andalso (c <= asc("f")) ) then return c - asc("a") + 10
+	if( (c >= asc("A")) andalso (c <= asc("F")) ) then return c - asc("A") + 10
+	return -1
+end function
+
+'' The inverse. Output is never longer than the input, so one pass into a
+'' buffer of slen is enough.
+''
+'' AN UNRECOGNISED ESCAPE YIELDS THE ESCAPED CHARACTER ITSELF, so "\q" becomes
+'' "q" -- the backslash did its job of quoting and is consumed. A TRAILING LONE
+'' BACKSLASH is kept as a backslash, the only choice that does not lose a
+'' character.
+private function SOP(hUnescapeFill) _
+	( byval dst as SOP_UNIT ptr, byval s as SOP_UNIT ptr, byval slen as integer ) as integer
+
+	dim as integer i = 0, w = 0
+	dim as SOP_UNIT c = any, e = any
+
+	while( i < slen )
+		c = s[i]
+
+		if( c <> asc("\") ) then
+			dst[w] = s[i] : w += 1 : i += 1
+			continue while
+		end if
+
+		if( i + 1 >= slen ) then
+			'' Trailing backslash: nothing follows it to unquote.
+			dst[w] = s[i] : w += 1 : i += 1
+			continue while
+		end if
+
+		e = s[i + 1]
+
+		select case as const e
+		case asc("n")
+			dst[w] = 10 : w += 1 : i += 2
+		case asc("r")
+			dst[w] = 13 : w += 1 : i += 2
+		case asc("t")
+			dst[w] = 9 : w += 1 : i += 2
+		case asc("0")
+			dst[w] = 0 : w += 1 : i += 2
+		case asc("x")
+			dim as long done_ = 0
+			if( i + 3 < slen ) then
+				dim as long hi = SOP(hHexVal)( s[i + 2] )
+				dim as long lo = SOP(hHexVal)( s[i + 3] )
+				if( (hi >= 0) andalso (lo >= 0) ) then
+					dst[w] = cast( SOP_UNIT, (hi shl 4) or lo )
+					w += 1 : i += 4
+					done_ = 1
+				end if
+			end if
+			'' Not a well-formed \xHH: take the 'x' itself.
+			if( done_ = 0 ) then
+				dst[w] = s[i + 1] : w += 1 : i += 2
+			end if
+		case else
+			'' \ and \" land here, as does any unknown escape.
+			dst[w] = s[i + 1] : w += 1 : i += 2
+		end select
+	wend
+
+	return w
+
+end function
+
+'' ============================================================ predicates
+
+'' Whitespace: space, tab, LF, VT, FF, CR. The same six C's isspace() uses,
+'' spelled out so it does not depend on a locale.
+private function SOP(hIsSpace)( byval c as SOP_UNIT ) as long
+	if( c = 32 ) then return 1
+	if( (c >= 9) andalso (c <= 13) ) then return 1
+	return 0
+end function
+
+private function SOP(hIsBlank)( byval s as SOP_UNIT ptr, byval slen as integer ) as long
+	for i as integer = 0 to slen - 1
+		if( SOP(hIsSpace)( s[i] ) = 0 ) then return 0
+	next
+	return 1
+end function
+
+'' Does the WHOLE string parse as a decimal number?
+''
+''   [ws] [+|-] ( digits [ . [digits] ] | . digits ) [ (e|E|d|D) [+|-] digits ] [ws]
+''
+'' At least one digit is required, so "", "+", "." and "e5" are all false, and
+'' trailing junk fails: "12abc" is not a number.
+''
+'' fbc's comment is explicit that THIS IS A DIFFERENT FUNCTION FROM AfxIsNumeric
+'' rather than a port of it. That one asks whether every character is drawn from
+'' "+-.0123456789", which makes "++--.." numeric and is really a character-set
+'' test -- RetainChars already does that, and better.
+''
+'' RADIX LITERALS (&H, &O, &B) ARE NOT ACCEPTED, even though VAL takes them:
+'' they are a FreeBASIC literal syntax rather than a numeric string, and
+'' admitting them would make "&HZZ" a parse question with no good answer.
+private function SOP(hIsNumeric)( byval s as SOP_UNIT ptr, byval slen as integer ) as long
+
+	dim as integer i = 0
+	dim as integer digits = 0
+
+	while( (i < slen) andalso (SOP(hIsSpace)( s[i] ) <> 0) )
+		i += 1
+	wend
+
+	if( i >= slen ) then return 0          '' empty or all whitespace
+
+	if( (s[i] = asc("+")) orelse (s[i] = asc("-")) ) then i += 1
+
+	while( i < slen )
+		if( (s[i] < asc("0")) orelse (s[i] > asc("9")) ) then exit while
+		digits += 1
+		i += 1
+	wend
+
+	if( i < slen ) then
+		if( s[i] = asc(".") ) then
+			i += 1
+			while( i < slen )
+				if( (s[i] < asc("0")) orelse (s[i] > asc("9")) ) then exit while
+				digits += 1
+				i += 1
+			wend
+		end if
+	end if
+
+	'' A sign and a dot are not a number.
+	if( digits = 0 ) then return 0
+
+	if( i < slen ) then
+		dim as SOP_UNIT e = s[i]
+		if( (e = asc("e")) orelse (e = asc("E")) orelse (e = asc("d")) orelse (e = asc("D")) ) then
+			dim as integer save_ = i
+			dim as integer expDigits = 0
+
+			i += 1
+			if( i < slen ) then
+				if( (s[i] = asc("+")) orelse (s[i] = asc("-")) ) then i += 1
+			end if
+
+			while( i < slen )
+				if( (s[i] < asc("0")) orelse (s[i] > asc("9")) ) then exit while
+				expDigits += 1
+				i += 1
+			wend
+
+			'' An exponent marker with no digits is not an exponent, and what
+			'' follows is then trailing junk.
+			if( expDigits = 0 ) then i = save_
+		end if
+	end if
+
+	while( (i < slen) andalso (SOP(hIsSpace)( s[i] ) <> 0) )
+		i += 1
+	wend
+
+	return iif( i = slen, 1, 0 )
+
+end function
+
+'' ================================================================= split
+''
+'' Split is the one operation whose result is not a string, so this stops at the
+'' field BOUNDARIES and the caller turns them into an array. Writing spans keeps
+'' it LINEAR: the other shape -- a count function plus an nth-field function --
+'' rescans from the start for every field and is O(n^2), which is exactly the
+'' AfxStrParseCount / AfxStrParse pair this replaces.
+''
+'' `spans` receives COUNT PAIRS of (offset, length), 0-based. Pass NULL to count
+'' (the parameter is `spans` rather than fbc's `out` because OUT is a FreeBASIC
+'' statement -- port I/O -- and is error 4 as a parameter name. Seventh reserved
+'' word to collide here, after PRESERVE, POS, LEN, STR, MKD and WIDTH)
+'' without writing, which is how a caller sizes its buffer; `maxpairs` bounds
+'' the write, so a caller that guessed cannot overrun.
+''
+'' THE FIELD COUNT IS ALWAYS AT LEAST 1. N delimiters produce N+1 fields, always,
+'' and no field is ever silently dropped:
+''
+''     "a,b,c" -> 3    "a,,c" -> 3    ",a" -> 2    "a," -> 2    "" -> 1
+''
+'' An EMPTY DELIMITER splits nothing and yields the whole input as one field --
+'' consistent with SOP(hFind), where an empty pattern never matches.
+private function SOP(hSplitSpans) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval pat as SOP_UNIT ptr, byval patlen as integer, _
+		byval ic as long, byval spans as integer ptr, byval maxpairs as integer _
+	) as integer
+
+	if( slen < 0 ) then slen = 0
+
+	if( patlen <= 0 ) then
+		if( (spans <> 0) andalso (maxpairs >= 1) ) then
+			spans[0] = 0
+			spans[1] = slen
+		end if
+		return 1
+	end if
+
+	dim as integer i = 0, n = 0, at = any
+
+	do
+		at = SOP(hFind)( s, slen, pat, patlen, i, ic )
+		if( at < 0 ) then exit do
+
+		if( (spans <> 0) andalso (n < maxpairs) ) then
+			spans[n * 2] = i
+			spans[n * 2 + 1] = at - i
+		end if
+		n += 1
+
+		i = at + patlen
+	loop
+
+	'' The tail after the last delimiter -- always a field, even when empty.
+	if( (spans <> 0) andalso (n < maxpairs) ) then
+		spans[n * 2] = i
+		spans[n * 2 + 1] = slen - i
+	end if
+	n += 1
+
+	return n
+
+end function
+
+'' Same, but every unit in `set` is a separator in its own right.
+private function SOP(hSplitCharsSpans) _
+	( _
+		byval s as SOP_UNIT ptr, byval slen as integer, _
+		byval st as SOP_UNIT ptr, byval setlen as integer, _
+		byval ic as long, byval spans as integer ptr, byval maxpairs as integer _
+	) as integer
+
+	if( slen < 0 ) then slen = 0
+
+	if( setlen <= 0 ) then
+		if( (spans <> 0) andalso (maxpairs >= 1) ) then
+			spans[0] = 0
+			spans[1] = slen
+		end if
+		return 1
+	end if
+
+	dim as integer i = 0, n = 0, at = any
+
+	do
+		at = SOP(hFindAny)( s, slen, st, setlen, i, ic )
+		if( at < 0 ) then exit do
+
+		if( (spans <> 0) andalso (n < maxpairs) ) then
+			spans[n * 2] = i
+			spans[n * 2 + 1] = at - i
+		end if
+		n += 1
+
+		i = at + 1
+	loop
+
+	if( (spans <> 0) andalso (n < maxpairs) ) then
+		spans[n * 2] = i
+		spans[n * 2 + 1] = slen - i
+	end if
+	n += 1
+
+	return n
+
+end function

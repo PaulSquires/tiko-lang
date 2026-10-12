@@ -1,0 +1,107 @@
+'' collectdump.tiko -- the SYMBOL TABLE DUMP, '--dump-symbols'.
+''
+'' Split out of collect.tiko, which reached the 1500-line cap. Nothing here walks the
+'' AST or touches the Walker: it reads a finished table, so it is the part of the file
+'' with no reason to sit next to the collection pass.
+
+#import "std/containers"
+#include once "symbols/collect.ti"
+#include once "support/irtext.ti"
+
+namespace Tko.Collect
+
+'' ----------------------------------------------------------------------- dump
+
+function Dump _
+    ( byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref types as Tko.TypeContext, byref src as Tko.SourceManager ) as string
+
+    '' THE COUNTS EXCLUDE THE PRELUDE TOO, or they would contradict the rows below --
+    '' thirty declarations counted and none of them printed. The prelude's own total is
+    '' reported beside them rather than hidden.
+    dim as long nbuiltin = 0
+    for i as long = 1 to syms.Count( )
+        dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, i ) )
+        if s = 0 then continue for
+        if src.IsBuiltin( s->loc ) then nbuiltin += 1
+    next
+    dim as long nscopes = 0
+    for i as long = 1 to syms.ScopeCount( )
+        dim as Tko.SymScope ptr sc = syms.ScopeAt( cast( Tko.ScopeId, i ) )
+        if sc = 0 then continue for
+        if sc->owner <> Tko.SYMBOL_NONE then
+            dim as Tko.Symbol ptr os = syms.SymbolAt( sc->owner )
+            if os <> 0 then
+                if src.IsBuiltin( os->loc ) then continue for
+            end if
+        end if
+        nscopes += 1
+    next
+
+    dim as IrText outp
+    outp += "scopes: " & nscopes & "  symbols: " & (syms.Count( ) - nbuiltin)
+    if nbuiltin > 0 then outp += "  (builtin: " & nbuiltin & ")"
+    outp += chr( 10 )
+
+    for i as long = 1 to syms.ScopeCount( )
+        dim as Tko.SymScope ptr sc = syms.ScopeAt( cast( Tko.ScopeId, i ) )
+        if sc->count = 0 then continue for
+        '' A scope the prelude opened -- the body of one of its declarations -- is not
+        '' printed at all.
+        if sc->owner <> Tko.SYMBOL_NONE then
+            dim as Tko.Symbol ptr os = syms.SymbolAt( sc->owner )
+            if os <> 0 then
+                if src.IsBuiltin( os->loc ) then continue for
+            end if
+        end if
+        '' How many of this scope's symbols are the user's, which is what the rows
+        '' below will actually show.
+        dim as long nvis = 0
+        dim as Tko.SymbolId vc = sc->firstSym
+        while vc <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr vs = syms.SymbolAt( vc )
+            if vs = 0 then exit while
+            if src.IsBuiltin( vs->loc ) = false then nvis += 1
+            vc = vs->nextInScope
+        wend
+        if nvis = 0 then continue for
+
+        dim as string owner = ""
+        if sc->owner <> Tko.SYMBOL_NONE then
+            owner = " of '" & names.Spelling( syms.SymbolAt( sc->owner )->name ) & "'"
+        end if
+        outp += "scope " & i & " " & Tko.ScopeKindName( cast( Tko.ScopeKind, sc->kind ) ) & _
+                owner & " parent=" & sc->parent & " (" & nvis & ")" & chr( 10 )
+
+        '' Declaration order, which is the order destruction will reverse.
+        dim as Tko.SymbolId cur = sc->firstSym
+        while cur <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr s = syms.SymbolAt( cur )
+            '' Same reason as the AST dump: the prelude is declared, and listing it
+            '' under every file would bury the file.
+            if src.IsBuiltin( s->loc ) then
+                cur = s->nextInScope
+                continue while
+            end if
+            dim as string row = "    " & _
+                left( Tko.SymbolKindName( cast( Tko.SymbolKind, s->kind ) ) & "         ", 10 ) & _
+                "'" & names.Spelling( s->name ) & "'"
+            if (s->flags and Tko.SYMF_SHARED) <> 0 then row += " shared"
+            if (s->flags and Tko.SYMF_STATIC) <> 0 then row += " static"
+            if (s->flags and Tko.SYMF_CONST) <> 0 then row += " const"
+            if (s->flags and Tko.SYMF_DECLARED) <> 0 then row += " declared"
+            if (s->flags and Tko.SYMF_DEFINED) <> 0 then row += " defined"
+            if (s->flags and Tko.SYMF_BUILTIN) <> 0 then row += " builtin"
+            if s->callConv <> cast( ubyte, Tko.CC_NONE ) then
+                row += " " & Tko.CallConvName( cast( Tko.CallConv, s->callConv ) )
+            end if
+            if (s->flags and Tko.SYMF_FUNCNAME) <> 0 then row += " funcname"
+            if s->nextOverload <> Tko.SYMBOL_NONE then row += " +overloads"
+            outp += row & chr( 10 )
+            cur = s->nextInScope
+        wend
+    next
+    return outp
+end function
+
+end namespace

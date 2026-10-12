@@ -1,0 +1,131 @@
+'' lowermember.tiko -- InitMember_ and DestroyMember_: one field's initialisation and
+'' one field's release, for the synthesised structors. Split out of lowerimpl.tiko on
+'' 2026-09-10 for the 1500-line cap; nothing about the code changed in the move.
+
+#import "std/containers"
+#include once "mir/lowerctx.ti"
+
+namespace Tko.Mir
+
+'' Defined in lowerstrkind.tiko: which fixed-string flavour a type is, and its length.
+'' Declared here because this is its own compilation unit.
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+
+
+'' One member's initialisation, whatever it turns out to be.
+sub InitMember_ _
+    ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId )
+
+    if addr.kind = cast( ubyte, MV_NONE ) then return
+    if IsStringType( c, ft ) then
+        '' A var-length string is a descriptor, and an UNZEROED one is what made
+        '' fb_StrAssign free a pointer that was never allocated.
+        if StrSwapKind_( c, ft, 0 ) = 0 then ZeroStrDescriptor( c, addr )
+        return
+    end if
+    if c.types->IsDynArray( ft ) then
+        InitDynArrayDesc( c, addr, ft )
+        return
+    end if
+
+    '' A FIXED ARRAY FIELD, and this branch was simply missing.
+    ''
+    '' DestroyMember_ below grew a TK_ARRAY branch -- it destroys every element of a
+    '' fixed array of strings through fb_ArrayDestructStr -- and its twin here did
+    '' not. So a type holding 'as string items(0 to 3)' got a synthesised
+    '' constructor that emitted NOTHING and a destructor that freed four descriptors
+    '' nobody had written: 'dim as B3 a' then one assignment exits 0xC0000374 where
+    '' fbc prints and returns 0. The missing half turned a leak into a crash.
+    ''
+    '' Measured, fbc zeroes the WHOLE FIELD in one go and does nothing else:
+    ''
+    ''     static void _ZN2B3C1Ev( struct $2B3* THIS$1 )
+    ''     { __builtin_memset( (FBSTRING*)THIS$1, 0, 96ll ); }
+    ''
+    '' -- 96 bytes, four 24-byte descriptors, no per-element call. A UDT ELEMENT with
+    '' a real constructor still needs its own loop and is NOT modelled here: fbc
+    '' emits one, and which shape a FIELD should take is the same open choice
+    '' DestroyMember_ records for its own UDT-element case. Zeroing is right for the
+    '' string element that crashes today and harmless under a constructor that would
+    '' overwrite it, so the zero-fill goes in and the element loop stays owed.
+    if c.types->Kind( ft ) = Tko.TK_ARRAY then
+        dim as long asz2 = SizeOfType( c, ft )
+        if asz2 <= 0 then return
+        '' A 'string * N' FIELD IS SPACE-PADDED, NOT ZERO-FILLED. Measured: a bare
+        '' 'dim x as T1' over 'as string * 10 a' gives ten bytes of 32 under fbc
+        '' and 'x.a = space( 10 )' is true; tiko zeroed them with the blanket fill
+        '' below, and the comparison was false. There is NO terminator -- the field
+        '' is exactly N bytes -- which is what separates it from 'zstring * N',
+        '' where the zero fill is right and stays.
+        ''
+        '' A LOCAL of the same type was already correct; only the FIELD path took
+        '' the blanket memset. The working case beside the broken one again.
+        dim as Tko.TypeId inner_ = ft
+        do while c.types->Kind( inner_ ) = Tko.TK_ARRAY
+            dim as Tko.TypeId nx = c.types->Inner( inner_ )
+            if nx = Tko.TYPE_NONE then exit do
+            inner_ = nx
+        loop
+        dim as long fill = 0
+        if c.types->Kind( inner_ ) = Tko.TK_BUILTIN then
+            if c.types->BuiltinOf( inner_ ) = Tko.TY_FIXSTR then fill = 32
+        end if
+        if fill <> 0 then
+            dim as containers.Array( of ulong ) sargs
+            sargs.Push( cast( ulong, addr.kind ) )
+            sargs.Push( cast( ulong, addr.id ) )
+            sargs.Push( cast( ulong, MV_CONST_INT ) )
+            sargs.Push( cast( ulong, fill ) )
+            sargs.Push( cast( ulong, MV_CONST_INT ) )
+            sargs.Push( cast( ulong, asz2 ) )
+            EmitRtl( c, RTL_MEMSET, sargs )
+            return
+        end if
+        dim as containers.Array( of ulong ) zargs2
+        zargs2.Push( cast( ulong, addr.kind ) )
+        zargs2.Push( cast( ulong, addr.id ) )
+        zargs2.Push( cast( ulong, MV_CONST_INT ) ) : zargs2.Push( 0 )
+        zargs2.Push( cast( ulong, MV_CONST_INT ) )
+        zargs2.Push( cast( ulong, asz2 ) )
+        EmitRtl( c, RTL_MEMSET, zargs2 )
+        '' ...AND THEN EVERY ELEMENT OF A UDT THAT NEEDS ONE IS CONSTRUCTED -- the loop the
+        '' note above left owed. Measured with a counting constructor: a 'e(1 to 3) as EL'
+        '' field is three constructions under fbc and was NONE here, while the destructor
+        '' already destroyed all three. AfxNova's DWSTRING arrays in PsCalendar started
+        '' with null buffers and the first assignment wrote through one.
+        if ArrayElemNeedsInit_( c, ft ) then EmitArrayElemsAt_( c, addr, ft, true )
+        return
+    end if
+
+    if c.types->Kind( ft ) <> Tko.TK_UDT then return
+
+    dim as Tko.SymbolId ctor = StructorWithArity( c, StructorOf( c, ft, "__ctor" ), 0 )
+    if ctor <> Tko.SYMBOL_NONE then
+        dim as containers.Array( of ulong ) none_
+        EmitStructorCall( c, ctor, -1, @addr, @none_ )
+        return
+    end if
+    if TypeNeedsInit_( c, ft ) then CallImplicitCtor_( c, ft, addr )
+end sub
+
+
+'' A UNION'S PROLOGUE: the whole union is ZEROED first and only its FIRST member gets its default
+'' initialisation on top. 'union bar : f0 as integer : type : ... f4 as double : end type : ...'
+'' with a constructor reads f4 as 0.0 under fbc (structs/ctor_union.bas) -- initialising the first
+'' member alone left the bytes past it as the frame held them. True for a member to skip.
+function UnionMemberSkip_( byref c as Ctx, byval t as Tko.TypeId, byval i as long, byref thisPtr as MirValue ) as boolean
+    if IsUnionType_( c, t ) = false then return false
+    if i > 0 then return true
+    dim as long usz = SizeOfType( c, t )
+    if usz > 0 then
+        dim as containers.Array( of ulong ) za
+        za.Push( cast( ulong, thisPtr.kind ) ) : za.Push( cast( ulong, thisPtr.id ) )
+        za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( 0 )
+        za.Push( cast( ulong, MV_CONST_INT ) ) : za.Push( cast( ulong, usz ) )
+        EmitRtl( c, RTL_MEMSET, za )
+    end if
+    return false
+end function
+
+end namespace

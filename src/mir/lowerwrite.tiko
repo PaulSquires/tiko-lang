@@ -1,0 +1,280 @@
+'' lowerwrite.tiko -- the WRITE statement: its items, and the per-type runtime entry
+'' points they take.
+''
+'' Split out of lowerio.tiko at the 1500-line cap and INCLUDED from it, inside the
+'' same namespace. Nothing moved here changed in the move.
+
+
+
+'' WRITE.
+''
+'' One-to-one with PRINT minus SPC, TAB and USING, and it shares PRINT's mask
+'' encoding -- but its ONLY separator is ',' (fbc rejects 'write s;' with error 3), so
+'' the only masks it can produce are 2 for 'a comma follows' and 1 for
+'' end-of-statement. A trailing comma keeps mask 2 and emits no newline.
+function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+
+    '' 'write using' does not exist; if the parser ever marks one, decline rather
+    '' than silently writing without the format.
+    if sp->extra <> 0 then return false
+
+    dim as MirValue chan
+    chan.kind = cast( ubyte, MV_CONST_INT )
+    chan.ty = cast( ubyte, MT_I32 )
+    chan.id = 0
+    '' The channel's temporaries and each item's die as that part is written, as PRINT's
+    '' do -- see LowerPrint. Measured, fbc's 'write takeR( mkH( 1 ) ), cnt( ),
+    '' takeR( mkH( 2 ) ), cnt( )' writes '1,1,2,2'.
+    dim as long wmark = c.udtTemps.Count
+    if sp->a <> Tko.NODE_NONE then
+        dim as MirValue ch = LowerExpr( c, sp->a )
+        if ch.kind = cast( ubyte, MV_NONE ) then return false
+        chan = CoerceTy( c, ch, MT_I32, c.info->TypeOf_( sp->a ))
+        ReleaseUdtTemps_( c, wmark )
+    end if
+
+    '' A bare 'write' is a newline on its own.
+    if sp->count = 0 then
+        dim as containers.Array( of ulong ) va
+        va.Push( cast( ulong, chan.kind ) ) : va.Push( cast( ulong, chan.id ) )
+        PushConst( va, 1 )
+        EmitRtl( c, RTL_WRITE_VOID, va )
+        return true
+    end if
+
+    '' AN EMPTY ITEM -- a separator with no item before it, 'write 1, , 3' -- is
+    '' fb_WriteVoid( ch, 2 ): measured, fbc writes '1,<TAB>3' where tiko wrote '1,3'
+    '' (audit F-73, RT-19). A trailing comma still ends nothing.
+    dim as boolean prevSep = true
+    for i as long = 0 to sp->count - 1
+        dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( it ) = Tko.N_PRINT_SEP then
+            if prevSep then
+                dim as containers.Array( of ulong ) ea
+                ea.Push( cast( ulong, chan.kind ) ) : ea.Push( cast( ulong, chan.id ) )
+                PushConst( ea, 2 )
+                EmitRtl( c, RTL_WRITE_VOID, ea )
+            end if
+            prevSep = true
+            continue for
+        end if
+        prevSep = false
+
+        '' A comma FOLLOWING this item pads to the next zone; running out of children
+        '' ends the line. A trailing comma is still a pad, which is why the 2 stands
+        '' whether or not anything comes after it.
+        dim as long mask = 1
+        if i + 1 < sp->count then
+            if c.ast->Kind( cast( Tko.NodeId, c.ast->children[sp->first + i + 1] ) ) = _
+               Tko.N_PRINT_SEP then
+                mask = 2
+            end if
+        end if
+
+        if WriteOne_( c, it, mask, chan ) = false then return false
+        ReleaseUdtTemps_( c, wmark )
+    next
+    return true
+end function
+
+private function WriteOne_ _
+    ( byref c as Ctx, byval it as Tko.NodeId, byval mask as long, _
+      byref chan as MirValue ) as boolean
+
+    dim as Tko.TypeId t = c.info->TypeOf_( it )
+    dim as containers.Array( of ulong ) args
+    args.Push( cast( ulong, chan.kind ) ) : args.Push( cast( ulong, chan.id ) )
+
+    '' A WIDE ITEM, AND ITS RVALUE SPELLINGS. LowerAddr alone accepted only an
+    '' addressable wide variable, so 'write #1, wstr( "World!" )' had nothing to
+    '' pass and the whole statement declined -- measured, fbc writes
+    '' 'fb_WriteWstr( 1, (uint16*)L"World!", 1 )'. WideOperand_ knows all three
+    '' spellings and is what every other wide site already asks; only this one
+    '' asked for an address directly. file/encod.bas is three of them.
+    if IsWideString_( c, t ) orelse TermIsWide_( c, it ) then
+        dim as MirValue wa
+        if WideOperand_( c, it, wa ) = false then wa = LowerAddr( c, it )
+        if wa.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, wa.kind ) ) : args.Push( cast( ulong, wa.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_WRITE_WSTR, args )
+        return true
+    end if
+
+    '' A USTRING HAS ITS OWN ENTRY POINT, as it does in PRINT. WRITE had none, so every
+    '' ustring item went out through fb_WriteString: the callee read a UTF-16 buffer as
+    '' narrow text and 'write u' wrote "lv" for "lvU". Measured, fbc calls fb_WriteUStr
+    '' for a variable, a field, a 'ustring * N', a chain and a call alike -- see
+    '' UStrOutOperand_, which builds the descriptor each one needs.
+    ''
+    '' A CHAIN IS ONE if any term is, the rule PrintStrRtl_ follows: Check types every
+    '' '&' as STRING, so the type alone says narrow for 'u1 & u2'.
+    dim as boolean itIsU = IsUStringType( c, t )
+    if itIsU = false then itIsU = UdtCastIsUStr_( c, it )   '' a UDT casting to a ustring (T50)
+    if (itIsU = false) andalso (c.ast->Kind( it ) = Tko.N_BINARY) then
+        dim as containers.Array( of ulong ) uts
+        FlattenConcat( c, it, uts )
+        itIsU = ConcatTermsAreU_( c, uts )
+    end if
+    if itIsU then
+        dim as MirValue uv
+        dim as long uslot = -1
+        if UStrOutOperand_( c, it, uv, uslot ) = false then return false
+        args.Push( cast( ulong, uv.kind ) ) : args.Push( cast( ulong, uv.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_WRITE_USTR, args )
+        ReleaseUStrOut_( c, uslot )
+        return true
+    end if
+
+    '' A string RVALUE -- 'write trim( s )' -- before the type test, for the same
+    '' reason PRINT does it: Check types those calls as STRING, so the test below
+    '' catches them and then LowerAddr on a call fails.
+    dim as MirValue srv
+    if LowerStrRvalue( c, it, srv ) then
+        args.Push( cast( ulong, srv.kind ) ) : args.Push( cast( ulong, srv.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_WRITE_STRING, args )
+        return true
+    end if
+
+    if IsStringType( c, t ) then
+        dim as MirValue desc
+        if c.ast->Kind( it ) = Tko.N_STRING_LIT then
+            dim as string litText = StringLitText_( c, it )
+            dim as containers.Array( of ulong ) ta
+            ta.Push( cast( ulong, MV_GLOBAL ) )
+            ta.Push( cast( ulong, c.m->AddStringLiteral( litText, *c.names ) ) )
+            ta.Push( cast( ulong, MV_CONST_INT ) )
+            ta.Push( cast( ulong, len( litText ) ) )
+            desc = EmitRtl( c, RTL_STR_TEMPZ, ta )
+        elseif NamesProc_( c, it ) orelse (c.ast->Kind( it ) = Tko.N_CALL) then
+            '' A CALL IS A DESCRIPTOR, with parentheses or without. Measured, fbc
+            '' passes the result: 'vr = _ZN1T4GETSEi( &O$0, 0 ); fb_WriteString( 0,
+            '' vr, 1 )'. LowerAddr answers NOTHING for 'write f( )' -- a call has no
+            '' address -- so the item declined and took the whole statement with it,
+            '' silently; for the paren-less spelling it answered with the procedure's
+            '' CODE address. PRINT has asked StrDescriptorOf_ for both all along.
+            '' The ustring spelling of this is the fb_WriteUStr branch above.
+            ''
+            '' AND AN N_CALL IS NOT ALWAYS A CALL: 'write a( i )' over a string ARRAY
+            '' is one too, so the address stays as the fallback rather than a decline.
+            if StrDescriptorOf_( c, it, desc ) = false then desc = LowerAddr( c, it )
+        else
+            desc = LowerAddr( c, it )
+            '' ...and what has no address -- a concatenation -- is a temporary (StrDescriptorOf_).
+            if desc.kind = cast( ubyte, MV_NONE ) then StrDescriptorOf_( c, it, desc )
+        end if
+        if desc.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, desc.kind ) ) : args.Push( cast( ulong, desc.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_WRITE_STRING, args )
+        return true
+    end if
+
+    '' ANY OTHER NARROW STRING -- 'string * N', 'zstring * N', '*pz' -- through a temporary
+    '' descriptor (StrDescriptorOf_, the narrow encoder PRINT uses). Measured: 'write #1, f' over
+    '' a string * 8 is 'fb_StrAllocTempDescF( F, <tag> )' then fb_WriteString, a zstring one
+    '' fb_StrAllocTempDescZ; tiko declined all three.
+    dim as longint wkn
+    dim as long wk = StrSwapKind_( c, t, wkn )
+    if (wk = 1) orelse (wk = 3) then
+        dim as MirValue wdesc
+        if StrDescriptorOf_( c, it, wdesc ) = false then return false
+        args.Push( cast( ulong, wdesc.kind ) ) : args.Push( cast( ulong, wdesc.id ) )
+        PushConst( args, mask )
+        EmitRtl( c, RTL_WRITE_STRING, args )
+        return true
+    end if
+
+    '' A UDT ITEM IS ITS 'operator cast', not its bytes -- the same rule PRINT
+    '' follows through StrDescriptorOf_, which this path never asked. Measured,
+    '' over a type declaring a STRING cast and a DOUBLE one:
+    ''
+    ''   print l               vr$2 = _ZN1Tcv8FBSTRINGEv( &L ); fb_PrintString
+    ''   write l               vr$4 = _ZN1Tcv8FBSTRINGEv( &L ); fb_WriteString
+    ''   print using "#.##"; l  vr$7 = _ZN1TcvdEv( &L );        fb_PrintUsingDouble
+    ''
+    '' -- so WRITE takes the STRING overload, and the numeric one is asked for only
+    '' when there is no string cast. Without either, the whole WRITE declined.
+    if c.types->Kind( c.types->Unqualify( t ) ) = Tko.TK_UDT then
+        dim as MirValue ucv
+        dim as boolean ucRaw = false
+        if UserCastToStr_( c, it, ucv, ucRaw ) then
+            if ucv.kind <> cast( ubyte, MV_NONE ) then
+                args.Push( cast( ulong, ucv.kind ) )
+                args.Push( cast( ulong, ucv.id ) )
+                PushConst( args, mask )
+                EmitRtl( c, RTL_WRITE_STRING, args )
+                return true
+            end if
+        end if
+        dim as MirValue unv
+        if UserCastToNum_( c, it, unv ) then
+            dim as Tko.SymbolId nsym = UserCastNumOverload_( c, _
+                c.types->Unqualify( t ) )
+            dim as Tko.TypeId nt = Tko.TYPE_NONE
+            if nsym <> Tko.SYMBOL_NONE then
+                nt = c.types->Unqualify( c.syms->SymbolAt( nsym )->type_ )
+            end if
+            dim as RtlId nw = WriteRtlFor_( c, nt )
+            if (nw <> RTL_NONE) andalso (unv.kind <> cast( ubyte, MV_NONE )) then
+                unv = Coerce( c, unv, LowerType( nt, *c.types ) )
+                args.Push( cast( ulong, unv.kind ) )
+                args.Push( cast( ulong, unv.id ) )
+                PushConst( args, mask )
+                EmitRtl( c, nw, args )
+                return true
+            end if
+        end if
+        return false
+    end if
+
+    if t = Tko.TYPE_NONE then t = IifArmType_( c, it )
+    dim as RtlId which = WriteRtlFor_( c, t )
+    if which = RTL_NONE then return false
+    dim as MirValue v = LowerExpr( c, it )
+    if v.kind = cast( ubyte, MV_NONE ) then return false
+    v = Coerce( c, v, LowerType( t, *c.types ) )
+    args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+    PushConst( args, mask )
+    EmitRtl( c, which, args )
+    return true
+end function
+
+'' The WRITE entry point for a type. The same per-width family PRINT has, including
+'' the target-dependent rows: a POINTER and an INTEGER are 64-bit on win64 and 32-bit
+'' on win32, and fbc picks a different entry accordingly.
+private function WriteRtlFor_( byref c as Ctx, byval t as Tko.TypeId ) as RtlId
+    if t = Tko.TYPE_NONE then return RTL_NONE
+    select case c.types->Kind( t )
+    case Tko.TK_POINTER, Tko.TK_PROC
+        if c.types->target.pointerBits = 32 then return RTL_WRITE_UINT
+        return RTL_WRITE_ULONGINT
+    case Tko.TK_ENUM
+        if c.types->target.pointerBits = 32 then return RTL_WRITE_INT
+        return RTL_WRITE_LONGINT
+    case Tko.TK_BUILTIN
+        select case c.types->BuiltinOf( t )
+        case Tko.TY_BYTE      : return RTL_WRITE_BYTE
+        case Tko.TY_UBYTE     : return RTL_WRITE_UBYTE
+        case Tko.TY_SHORT     : return RTL_WRITE_SHORT
+        case Tko.TY_USHORT    : return RTL_WRITE_USHORT
+        case Tko.TY_LONG      : return RTL_WRITE_INT
+        case Tko.TY_ULONG     : return RTL_WRITE_UINT
+        case Tko.TY_LONGINT   : return RTL_WRITE_LONGINT
+        case Tko.TY_ULONGINT  : return RTL_WRITE_ULONGINT
+        case Tko.TY_SINGLE    : return RTL_WRITE_SINGLE
+        case Tko.TY_DOUBLE    : return RTL_WRITE_DOUBLE
+        case Tko.TY_BOOLEAN   : return RTL_WRITE_BOOL
+        case Tko.TY_INTEGER
+            if c.types->target.pointerBits = 32 then return RTL_WRITE_INT
+            return RTL_WRITE_LONGINT
+        case Tko.TY_UINTEGER
+            if c.types->target.pointerBits = 32 then return RTL_WRITE_UINT
+            return RTL_WRITE_ULONGINT
+        end select
+    end select
+    return RTL_NONE
+end function

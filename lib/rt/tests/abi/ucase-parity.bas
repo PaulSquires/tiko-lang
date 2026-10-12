@@ -1,7 +1,7 @@
 '' ucase-parity.bas -- ustr_casetable.o, asked about EVERY code unit.
 ''
 '' This is the test that makes the generation method irrelevant. The table in
-'' src/ustr/casetable.bas was produced by calling fbc's own fb_hUStrToUpper and
+'' src/ustr/casetable.tiko was produced by calling fbc's own fb_hUStrToUpper and
 '' fb_hUStrToLower once per BMP code unit and run-length encoding the result; if
 '' that process went wrong ANYWHERE, this file finds it, because it re-asks all
 '' 131,072 questions and compares the answers against the stock runtime.

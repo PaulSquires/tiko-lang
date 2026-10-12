@@ -64,7 +64,7 @@
 #                             rounded, so past the fifteenth the MICROSOFT SIDE
 #                             IS THE CORRECT ONE. All three values are dyadic
 #                             rationals whose exact decimal expansion was
-#                             computed; see src/inc/fmt.bi. No UCRT option bit
+#                             computed; see src/inc/fmt.ti. No UCRT option bit
 #                             makes it less accurate.
 #
 #   format-parity   2 values  NOT printf -- libm, and exactly one function of
@@ -88,7 +88,7 @@
 #                             and ALL 28 are pow with a negative exponent.
 #                             pow of an exact power of two, exp2, log10, ceil,
 #                             floor and modf are identical on both CRTs, and
-#                             pow is called from ONE file -- src/str/format.bas,
+#                             pow is called from ONE file -- src/str/format.tiko,
 #                             six sites, of which the two positive-exponent ones
 #                             agree.
 #

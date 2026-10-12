@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate appendices/B-diagnostics.md from tiko's diagnostic table.
 
-Every message tiko can emit is one DIAG( ) row in src/diag/diagids.bi, and nothing else
+Every message tiko can emit is one DIAG( ) row in src/diag/diagids.ti, and nothing else
 in the compiler may invent one. So the appendix is that table, rendered -- never a
 hand-maintained list that can drift.
 
@@ -48,7 +48,7 @@ def main() -> int:
 
     pin = pinlib.read_pin(args.tiko_src, args.rev, args.worktree)
     pinlib.announce(pin, "gen_diagnostics")
-    rows = DIAG_RE.findall(pinlib.read_source(pin, "src/diag/diagids.bi"))
+    rows = DIAG_RE.findall(pinlib.read_source(pin, "src/diag/diagids.ti"))
     if len(rows) < 100:
         sys.exit(f"gen_diagnostics: only {len(rows)} rows parsed at {pin.commit} -- the table's shape changed")
 
@@ -89,7 +89,7 @@ def main() -> int:
 
     lines += [
         f"<!-- {len(rows)} rows, generated {datetime.date.today().isoformat()} from "
-        f"src/diag/diagids.bi at {pin.commit} -->",
+        f"src/diag/diagids.ti at {pin.commit} -->",
         "",
     ]
 

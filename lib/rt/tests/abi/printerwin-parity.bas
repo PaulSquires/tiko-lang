@@ -76,7 +76,7 @@ next
 print "  count="; n; " distinct="; distinct
 print "  ALL FOUR ARE ADDRESS ONLY -- they queue real print jobs; see the header"
 
-'' THE POSIX HALF MUST NOT BE HERE. printerposix.bas is EMPTY-ON Windows and
+'' THE POSIX HALF MUST NOT BE HERE. printerposix.tiko is EMPTY-ON Windows and
 '' this file is EMPTY-ON Linux, so exactly one of the two provides these four
 '' symbols on any given target -- and if both ever did, the archive would have
 '' duplicate definitions and the link would fail rather than pick one.
@@ -85,7 +85,7 @@ print "  (the POSIX driver is EMPTY-ON this target, so these are printerwin's)"
 #else
 
 print "-- resolution"
-print "  win32/io_printer.o is EMPTY-ON linux-x86_64; see printerposix.bas"
+print "  win32/io_printer.o is EMPTY-ON linux-x86_64; see printerposix.tiko"
 
 #endif
 

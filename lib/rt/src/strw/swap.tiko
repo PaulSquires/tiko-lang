@@ -1,0 +1,88 @@
+'' swap.tiko -- SWAP for two WSTRINGs: one entry point.
+''
+'' NOT A DESCRIPTOR EXCHANGE, unlike the string and ustring versions -- a wstring
+'' is a bare pointer with no descriptor to exchange, so the TEXT has to move.
+''
+'' THE LENGTH RULE COMES FIRST. A size of 0 or less means "user-allocated, walk
+'' it"; a positive size is a declared WSTRING * N and its usable length is
+'' size - 1, the terminator excluded. Reading the declared size as the length
+'' would swap one character too many.
+''
+'' THEN THREE CASES, and the third is the one with a rule:
+''
+''   equal lengths   one MemSwap, and the terminators need not move
+''   unequal         MemSwap the shorter run, then MOVE the remainder across
+''   no room         a fixed-length destination that cannot hold the longer
+''                   string keeps its own length instead -- the tail is DROPPED
+''                   rather than overflowing the buffer
+''
+'' That third case is why the operands are reordered so str1 is always the
+'' shorter: the capacity test only has to be written once, against the one
+'' buffer that might be too small.
+
+#include once "inc/descriptors.ti"
+#include once "inc/wstr.ti"
+
+extern "rtlib"
+	declare sub tkrt_MemSwap alias "fb_MemSwap" _
+		( byval a as ubyte ptr, byval b as ubyte ptr, byval bytes as uinteger )
+end extern
+
+extern "rtlib"
+
+sub tkort_WstrSwap alias "fb_WstrSwap" _
+	( byval str1 as wstring ptr, byval size1 as integer, _
+	  byval str2 as wstring ptr, byval size2 as integer )
+
+	if( str1 = 0 ) then exit sub
+	if( str2 = 0 ) then exit sub
+
+	'' A non-positive size means "walk it"; a positive one is a declared
+	'' capacity INCLUDING the terminator.
+	dim as integer len1 = any, len2 = any
+	if( size1 <= 0 ) then len1 = FB_WSTR_LEN( str1 ) else len1 = size1 - 1
+	if( size2 <= 0 ) then len2 = FB_WSTR_LEN( str2 ) else len2 = size2 - 1
+
+	'' Equal lengths: one swap, and the terminators are already where they
+	'' belong.
+	if( len1 = len2 ) then
+		if( len1 > 0 ) then
+			tkrt_MemSwap( cptr( ubyte ptr, str1 ), cptr( ubyte ptr, str2 ), _
+			              len1 * sizeof( wstring ) )
+		end if
+		exit sub
+	end if
+
+	'' Reorder so str1 is the SHORTER -- the capacity test below is then written
+	'' once, against the only buffer that can be too small.
+	if( len1 > len2 ) then
+		swap str1, str2
+		swap len1, len2
+		swap size1, size2
+	end if
+
+	if( len1 > 0 ) then
+		tkrt_MemSwap( cptr( ubyte ptr, str1 ), cptr( ubyte ptr, str2 ), _
+		              len1 * sizeof( wstring ) )
+	end if
+
+	'' THE TAIL IS DROPPED when a fixed-length destination cannot hold it. Not
+	'' an error and not a truncation of the SOURCE -- the shorter string simply
+	'' keeps its own length and the longer one loses the overhang.
+	if( (size1 > 0) andalso (len2 >= size1) ) then
+		len2 = len1
+	elseif( len2 > len1 ) then
+		FB_WSTR_MOVE( str1 + len1, str2 + len1, len2 - len1 )
+	end if
+
+	'' The two terminators end up SWAPPED with the lengths.
+	dim as ubyte ptr b1 = cptr( ubyte ptr, str1 )
+	dim as ubyte ptr b2 = cptr( ubyte ptr, str2 )
+	for k as integer = 0 to sizeof( wstring ) - 1
+		b1[len2 * sizeof( wstring ) + k] = 0
+		b2[len1 * sizeof( wstring ) + k] = 0
+	next
+
+end sub
+
+end extern

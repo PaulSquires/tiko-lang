@@ -1,0 +1,60 @@
+'' collectanon.tiko -- the ANONYMOUS UNION / TYPE splice.
+''
+'' Split out of collect.tiko at the 1500-line lint cap and included from it, inside its
+'' own namespace. Nothing in it changed in the move.
+
+'' An anonymous aggregate is SPLICED into the enclosing type, so its members become
+'' siblings of the enclosing type's own. The nesting they lose is recorded on each
+'' field instead: how deep it sits, HOW MANY aggregates open at it, and what KIND each
+'' level is -- see Symbol.anonOpen and Symbol.anonUnionMask for why one depth and one
+'' bit were not enough.
+private sub CollectAnonAggregate_ _
+    ( byref w as Walker, byval id as Tko.NodeId, byval n as Tko.AstNode ptr, _
+      byval sp as Tko.StmtPayload ptr, byval scope_ as Tko.ScopeId )
+
+    '' An anonymous UNION's members overlap; an anonymous TYPE's are sequential. The
+    '' distinction has to survive the splice, or the layout pass cannot tell them
+    '' apart afterwards.
+    dim as boolean saved = w.inUnion
+    dim as boolean savedFirst = w.unionFirst
+    dim as long savedDepth = w.anonDepth
+    dim as ushort savedMask = w.anonUnionMask
+    dim as boolean thisIsUnion = ((n->flags and Tko.NF_IS_UNION) <> 0)
+    w.inUnion = thisIsUnion
+    w.anonDepth = savedDepth + 1
+    '' ONE MORE LEVEL OPEN, and it stays open until a field is actually
+    '' declared -- so the field that finally arrives records EVERY aggregate
+    '' entered on the way to it, not just the innermost.
+    w.anonOpen += 1
+    if w.anonDepth <= 16 then
+        dim as ushort bit_ = cast( ushort, 1 shl (w.anonDepth - 1) )
+        if thisIsUnion then
+            w.anonUnionMask or= bit_
+        else
+            w.anonUnionMask and= cast( ushort, not bit_ )
+        end if
+    end if
+    '' Every anonymous group marks its OWN first field -- union or type alike --
+    '' so the layout can tell two adjacent groups apart.
+    w.unionFirst = true
+    '' ITS OWN 'field = N', which ParseFieldClause left in 'extra' -- see Symbol.anonPack.
+    dim as long savedPack = w.anonPack, savedPackLevel = w.anonPackLevel
+    if (sp->extra > 0) andalso (sp->extra <= 255) then
+        w.anonPack = sp->extra : w.anonPackLevel = w.anonDepth
+    end if
+    WalkChildren( w, sp->first, sp->count, scope_ )
+    w.anonPack = savedPack : w.anonPackLevel = savedPackLevel
+    w.inUnion = saved
+    '' RESTORED, not left set. Leaving it true marked the field AFTER a nested
+    '' group as a group head too, and 'union { type { a; b }; c }' then laid c
+    '' out as a sibling of the union rather than inside it -- 16 bytes where
+    '' fbc says 8.
+    '' anonOpen IS NOT RESTORED. It is a PENDING count -- "aggregates entered
+    '' with no field declared since" -- and a field inside the group has
+    '' already cleared it. Restoring it marked the field AFTER a nested group
+    '' as a group head, and 'union { type { a; b }; c }' then laid c out beside
+    '' the union rather than inside it: 16 bytes where fbc says 8.
+    w.unionFirst = savedFirst andalso (w.anonOpen > 0)
+    w.anonDepth = savedDepth
+    w.anonUnionMask = savedMask
+end sub

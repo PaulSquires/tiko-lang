@@ -1,0 +1,232 @@
+'' mouseposix.tiko -- fb_ConsoleGetMouse and fb_ConsoleSetMouse, the console
+'' mouse. Two symbols, one fbc member (linux/io_mouse.o).
+''
+'' EMPTY-ON: win64
+''
+'' THE GPM BRANCH IS NOT HERE, AND THAT IS MEASURED RATHER THAN ASSUMED. fbc's
+'' source carries a whole libgpm path for the real Linux console -- dynamic
+'' load of libgpm.so.2, a Gpm_Connect, a Gpm_Event with two static asserts
+'' about where its wdx/wdy fields sit -- all inside `#ifndef DISABLE_GPM`.
+''
+'' The SHIPPED io_mouse.o references NO Gpm symbol and NOT EVEN fb_hDynLoad:
+''
+''     U __fb_con   U fb_BgLock   U fb_ErrorSetNum   U fb_hGetCh
+''     U fb_hStartBgThread   U fb_hTermOut
+''     U fb_hXTermExitFocus   U fb_hXTermHasFocus   U fb_hXTermInitFocus
+''
+'' So the archive was built with DISABLE_GPM defined, and reproducing the GPM
+'' path would ADD a code path fbc does not have -- and would drag in a
+'' gpm.h-derived struct layout that this machine cannot even measure. The
+'' consequence, reproduced: on a real Linux console mouse_init FAILS, and
+'' MOUSE is only available under a terminal emulator.
+''
+'' EVERYTHING THE MOUSE KNOWS ARRIVES THROUGH THE INKEY PATH. There is no
+'' polling of a device: xterm reports a click as an escape sequence, the key
+'' tree in src/io/inkeyposix.tiko recognises "\e[M", reads THREE more bytes and
+'' calls __fb_con.mouse_update with them. That is why fb_ConsoleGetMouse calls
+'' fb_hGetCh( FALSE ) before reading its own state -- the read is what pumps the
+'' sequence through.
+''
+'' THE THREE BYTES ARE BIASED BY 0x20 AND 0x21. A button byte of 0x20 is button
+'' one down, and a coordinate byte of 0x21 is column zero -- xterm's X10 mouse
+'' encoding adds 32 to everything so the bytes stay printable. Hence the
+'' `cb - 0x20` normalisation and the `cx - 0x21` coordinate.
+''
+'' AND THE WHEEL IS ENCODED AS BUTTONS 4 AND 5 at 0x60/0x61, which is why the
+'' test is `cb >= 0x60` before the button switch and why `cb - 0x60` (rather
+'' than a comparison) selects the direction: zero means up.
+''
+'' LOSING FOCUS REPORTS -1 FOR EVERYTHING, ONCE. The handler sets x, y and
+'' buttons to -1 on the transition into unfocused and then leaves them; regaining
+'' focus zeroes the buttons so a click released elsewhere is not still held.
+''
+'' fb_ConsoleSetMouse ALWAYS FAILS. There is no way to warp the pointer or hide
+'' the cursor through a terminal, so it is one line returning
+'' ILLEGALFUNCTIONCALL -- the same on every POSIX target.
+
+#include once "inc/descriptors.ti"
+#include once "inc/rterror.ti"
+
+#ifndef __FB_WIN32__
+
+const INIT_CONSOLE3_ = 1
+const INIT_X11_3_    = 2
+
+'' SEQ_INIT_XMOUSE / SEQ_EXIT_XMOUSE.
+const SEQ_INIT_XMOUSE_ = 104
+const SEQ_EXIT_XMOUSE_ = 105
+
+'' __fb_con's offsets -- the mirror described in inc/console.ti, which this file
+'' uses rather than the struct, because only five fields are touched.
+#include once "inc/console.ti"
+
+extern "c"   '' NON-FBCALL: rtlib internals, declared plain.
+	declare function tkrt_hTermOut3 alias "fb_hTermOut" _
+		( byval code_ as long, byval p1 as long, byval p2 as long ) as long
+	declare function tkrt_hXTermHasFocus3 alias "fb_hXTermHasFocus" ( ) as long
+	declare sub tkrt_hXTermInitFocus3 alias "fb_hXTermInitFocus" ( )
+	declare sub tkrt_hXTermExitFocus3 alias "fb_hXTermExitFocus" ( )
+	declare sub tkrt_hStartBgThread3 alias "fb_hStartBgThread" ( )
+	declare function tkrt_hGetCh3 alias "fb_hGetCh" ( byval remove_ as long ) as long
+end extern
+
+extern "rtlib"   '' FBCALL.
+	declare sub tkrt_BgLock3 alias "fb_BgLock" ( )
+	declare sub tkrt_BgUnlock3 alias "fb_BgUnlock" ( )
+	declare function tkrt_ErrorSetNum3 alias "fb_ErrorSetNum" ( byval e as long ) as long
+end extern
+
+'' File-local state. has_focus starts TRUE: a program that never loses focus
+'' must not have to gain it first.
+dim shared as long tkort_has_focus = -1
+dim shared as long tkort_mouse_x = 0, tkort_mouse_y = 0
+dim shared as long tkort_mouse_z = 0, tkort_mouse_buttons = 0
+
+'' CALLED FROM THE INKEY PATH with the three bytes of an X10 mouse report -- see
+'' the file header on the 0x20/0x21 bias.
+private sub tkort_mouse_update cdecl ( byval cb as long, byval cx as long, byval cy as long )
+
+	if( tkort_has_focus = 0 ) then exit sub
+
+	'' Bits 2..4 are the modifier keys and are discarded.
+	cb and= not &h1C
+
+	if( cb >= &h60 ) then
+		'' THE WHEEL. 0x60 is up, 0x61 is down -- the subtraction is the test.
+		if( (cb - &h60) <> 0 ) then
+			tkort_mouse_z -= 1
+		else
+			tkort_mouse_z += 1
+		end if
+	else
+		'' 0x40..0x5F is a DRAG report; it is folded onto the plain button
+		'' range by subtracting 0x20 rather than handled separately.
+		if( cb >= &h40 ) then cb -= &h20
+		select case cb
+		case &h20 : tkort_mouse_buttons or= &h1     '' left
+		case &h21 : tkort_mouse_buttons or= &h4     '' middle
+		case &h22 : tkort_mouse_buttons or= &h2     '' right
+		case &h23 : tkort_mouse_buttons = 0         '' release: ALL of them
+		end select
+	end if
+
+	tkort_mouse_x = cx - &h21
+	tkort_mouse_y = cy - &h21
+end sub
+
+'' THE ONLY HANDLER LEFT IS THE X11 ONE -- see the file header on DISABLE_GPM.
+private sub tkort_mouse_handler cdecl ( )
+
+	if( TKORT_CON_L( TKORT_CON_INITED ) = INIT_X11_3_ ) then
+		if( tkrt_hXTermHasFocus3( ) <> 0 ) then
+			'' REGAINING FOCUS CLEARS THE BUTTONS: a button released while we
+			'' were not looking must not still read as held.
+			if( tkort_has_focus = 0 ) then tkort_mouse_buttons = 0
+			tkort_has_focus = -1
+		else
+			'' LOSING IT REPORTS -1 ONCE, then leaves the values alone.
+			if( tkort_has_focus <> 0 ) then
+				tkort_mouse_x = -1
+				tkort_mouse_y = -1
+				tkort_mouse_buttons = -1
+			end if
+			tkort_has_focus = 0
+		end if
+	end if
+
+	'' On a real console with GPM disabled there is nothing else to poll.
+end sub
+
+private function tkort_mouse_init cdecl ( ) as long
+
+	if( TKORT_CON_L( TKORT_CON_INITED ) = INIT_CONSOLE3_ ) then
+		'' NO GPM IN THIS BUILD -- see the file header. MOUSE is unavailable on
+		'' a real Linux console.
+		return -1
+	else
+		tkrt_hTermOut3( SEQ_INIT_XMOUSE_, 0, 0 )
+		TKORT_CON_P( TKORT_CON_MOUSEUPDATE ) = cast( ubyte ptr, @tkort_mouse_update )
+		tkrt_hXTermInitFocus3( )
+	end if
+
+	return 0
+end function
+
+private sub tkort_mouse_exit cdecl ( )
+
+	if( TKORT_CON_L( TKORT_CON_INITED ) <> INIT_CONSOLE3_ ) then
+		tkrt_hTermOut3( SEQ_EXIT_XMOUSE_, 0, 0 )
+		tkrt_hXTermExitFocus3( )
+		TKORT_CON_P( TKORT_CON_MOUSEUPDATE ) = 0
+	end if
+
+	TKORT_CON_P( TKORT_CON_MOUSEHANDLER ) = 0
+	TKORT_CON_P( TKORT_CON_MOUSEEXIT ) = 0
+end sub
+
+extern "c"   '' NON-FBCALL: fb_private_console.h declares both plainly.
+
+'' EVERY OUT PARAMETER IS OPTIONAL and each is tested separately -- a caller may
+'' ask for only the buttons.
+function tkort_ConsoleGetMouse alias "fb_ConsoleGetMouse" _
+	( byval x as long ptr, byval y as long ptr, byval z as long ptr, _
+	  byval buttons as long ptr, byval clip as long ptr ) as long
+
+	if( TKORT_CON_L( TKORT_CON_INITED ) = 0 ) then
+		if( x <> 0 ) then *x = -1
+		if( y <> 0 ) then *y = -1
+		if( z <> 0 ) then *z = -1
+		if( buttons <> 0 ) then *buttons = -1
+		if( clip <> 0 ) then *clip = -1
+		return tkrt_ErrorSetNum3( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	tkrt_BgLock3( )
+
+	tkrt_hStartBgThread3( )
+
+	if( TKORT_CON_P( TKORT_CON_MOUSEHANDLER ) = 0 ) then
+		if( tkort_mouse_init( ) = 0 ) then
+			TKORT_CON_P( TKORT_CON_MOUSEINIT ) = cast( ubyte ptr, @tkort_mouse_init )
+			TKORT_CON_P( TKORT_CON_MOUSEEXIT ) = cast( ubyte ptr, @tkort_mouse_exit )
+			TKORT_CON_P( TKORT_CON_MOUSEHANDLER ) = cast( ubyte ptr, @tkort_mouse_handler )
+		else
+			if( x <> 0 ) then *x = -1
+			if( y <> 0 ) then *y = -1
+			if( z <> 0 ) then *z = -1
+			if( buttons <> 0 ) then *buttons = -1
+			if( clip <> 0 ) then *clip = -1
+			tkrt_BgUnlock3( )
+			return tkrt_ErrorSetNum3( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		end if
+	end if
+
+	'' PUMPING THE KEY PATH IS WHAT DELIVERS THE MOUSE REPORT -- see the file
+	'' header. Only under a terminal emulator; the console path has no
+	'' sequences to read.
+	if( TKORT_CON_L( TKORT_CON_INITED ) <> INIT_CONSOLE3_ ) then
+		tkrt_hGetCh3( 0 )
+	end if
+
+	if( x <> 0 ) then *x = tkort_mouse_x
+	if( y <> 0 ) then *y = tkort_mouse_y
+	if( z <> 0 ) then *z = tkort_mouse_z
+	if( buttons <> 0 ) then *buttons = tkort_mouse_buttons
+	'' CLIP IS ALWAYS ZERO -- a terminal has no clipping region.
+	if( clip <> 0 ) then *clip = 0
+
+	tkrt_BgUnlock3( )
+
+	return FB_RTERROR_OK
+end function
+
+'' ALWAYS FAILS: a terminal cannot be told where to put the pointer.
+function tkort_ConsoleSetMouse alias "fb_ConsoleSetMouse" _
+	( byval x as long, byval y as long, byval cursor as long, byval clip as long ) as long
+
+	return tkrt_ErrorSetNum3( FB_RTERROR_ILLEGALFUNCTIONCALL )
+end function
+
+end extern
+
+#endif

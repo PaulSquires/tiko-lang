@@ -22,7 +22,7 @@
 '' TABLE, never by what SCREEN did, so it is the same in every role -- an
 '' unsupported mode still emits its five geometry cases, comparing zero to zero.
 
-#include once "../core/mode.bi"
+#include once "../core/mode.ti"
 #include once "abtest.bi"
 #ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"

@@ -1,0 +1,1500 @@
+'' lowerproc.tiko -- the two PROCEDURE lowerings: a user SUB/FUNCTION, and the
+'' implicit main that module-level code goes into.
+''
+'' Split out of lower.tiko when the result slot pushed that file past the 1,500-line
+'' limit. They belong together: both build a MirFunction from nothing, both open the
+'' entry block, and both own a zero-initialised result slot -- main's IS the process
+'' exit code, and a function's is what 'function = expr' writes to.
+
+#import "std/containers"
+#include once "mir/lowerctx.ti"
+namespace Tko.Mir
+declare function SretCopyResult_ _
+    ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean
+declare function RetFromUserOp_( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+
+
+'' ------------------------------------------------------------------ the walk
+
+'' True for a member definition whose OWNER IS A GENERIC -- the template itself, not an
+'' instantiation of it. The owner is reached through the procedure's scope rather than
+'' through its ownerName, because an instantiation's members are qualified by the
+'' structural name and the two must not be confused.
+private function IsGenericMemberBody_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+    dim as Tko.ScopeId ps = c.info->ScopeOf( id )
+    if ps = Tko.SCOPE_NONE then return false
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( ps )
+    if sc = 0 then return false
+    dim as Tko.SymScope ptr owner = c.syms->ScopeAt( sc->parent )
+    if owner = 0 then return false
+    dim as Tko.Symbol ptr os = c.syms->SymbolAt( owner->owner )
+    if os = 0 then return false
+    if os->kind <> cast( ubyte, Tko.SYM_UDT ) then return false
+    dim as Tko.NodeId tn = cast( Tko.NodeId, os->payload )
+    if tn = Tko.NODE_NONE then return false
+    if c.ast->Kind( tn ) <> Tko.N_TYPE then return false
+    dim as Tko.StmtPayload ptr tp = StmtOf( c, tn )
+    '' 'b' holds the type PARAMETERS. A plain UDT has none.
+    if tp->b = Tko.NODE_NONE then return false
+    '' AN INSTANTIATION SHARES THE GENERIC'S NODE as its payload, so the node alone
+    '' does not tell them apart -- the NAME does: the generic is declared under its
+    '' source spelling, an instantiation under the structural key.
+    return (os->name = tp->name)
+end function
+
+'' Does this constructor body WRITE 'base( ... )'? A top-level statement of the body
+'' only -- fbc rejects the call anywhere else, and looking deeper would suppress the
+'' implicit construction for a 'base( )' the language never let run there.
+'' THE TEMP-RESULT ENTRY POINT FOR THIS PROCEDURE'S RESULT TYPE. A USTRING has its own:
+'' measured, 'function f( ) as ustring' ends
+''
+''     FBUSTRING* vr$7 = fb_UStrAllocTempResult( &fb$result$1 );
+''
+'' -- and handing an FBUSTRING to the NARROW fb_StrAllocTempResult, which is what every
+'' string-returning procedure used to do, books the wrong descriptor into the runtime's
+'' temp list. The narrow case is unchanged.
+private function ResultTempRtl_( byref c as Ctx ) as RtlId
+    if IsUStringType( c, c.resultType ) then return RTL_USTR_TEMP_RESULT
+    return RTL_STR_TEMP_RESULT
+end function
+
+private function BodyCallsStructorWord_ _
+    ( byref c as Ctx, byval body as Tko.NodeId, byval want as string ) as boolean
+
+    if body = Tko.NODE_NONE then return false
+    if c.ast->Kind( body ) <> Tko.N_BLOCK then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, body )].data )]
+    for i as long = 0 to lp->count - 1
+        dim as Tko.NodeId st = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( st ) <> Tko.N_AMBIGUOUS then continue for
+        dim as Tko.NodeId e = StmtOf( c, st )->a
+        if e = Tko.NODE_NONE then continue for
+        if c.ast->Kind( e ) <> Tko.N_CALL then continue for
+        dim as Tko.ListPayload ptr cp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+        if cp->target = Tko.NODE_NONE then continue for
+        if c.ast->Kind( cp->target ) <> Tko.N_IDENT then continue for
+        dim as Tko.IdentPayload ptr tip = _
+            @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+        if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) = want then return true
+    next
+    return false
+end function
+
+'' 'base( ... )' at the top level of a constructor body: an EXPLICIT base construction,
+'' which replaces the implicit one.
+private function BodyCallsBase_( byref c as Ctx, byval body as Tko.NodeId ) as boolean
+    return BodyCallsStructorWord_( c, body, "base" )
+end function
+
+'' 'constructor( ... )' at the top level of a constructor body: a DELEGATION to another
+'' constructor of the same type, which replaces the WHOLE prologue and not just the
+'' base part. Measured on fbc: the delegating constructor's C contains the delegated
+'' call and nothing else -- no base constructor, no field memset, and no vptr store,
+'' even for a type with virtual methods. The constructor it calls does all three.
+private function BodyDelegatesCtor_( byref c as Ctx, byval body as Tko.NodeId ) as boolean
+    return BodyCallsStructorWord_( c, body, "constructor" )
+end function
+
+sub LowerProc _
+    ( byref c as Ctx, byval id as Tko.NodeId )
+
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->b = Tko.NODE_NONE then return       '' a declaration, not a definition
+
+    '' A GENERIC'S OWN MEMBER BODY IS NOT CODE. 'sub Box.Put( byval x as T )' has no
+    '' meaning until T is something: its parameter is void, its fields have no offsets,
+    '' and lowering it produced a function that stored into nothing and returned
+    '' nothing. fbc emits no such function either -- an uninstantiated generic reaches
+    '' its output not at all. The INSTANTIATIONS are separate nodes and are lowered.
+    if IsGenericMemberBody_( c, id ) then return
+
+    '' A GENERIC PROCEDURE is not code either, for the same reason and one step worse:
+    '' tiko-lang does not even keep its type parameters, so nothing can instantiate it. Its
+    '' body used to lower with every 'as T' standing for nothing -- 'local agg r size 0'
+    '' beside stores into void slots -- and it counted as fully lowered. Declining says
+    '' what is actually true.
+    '' SILENTLY, exactly as the generic member body above. A template is NOT CODE, so
+    '' not emitting it is the RIGHT answer and not a decline -- fbc emits nothing for
+    '' one either. Counting it said 8,096 things were owed that were not: a template
+    '' nobody instantiates needs no instantiation, and one that is instantiated shows
+    '' up as the instantiation. What a MISSING instantiation looks like is a CALL that
+    '' bound to nothing, and that is counted where it happens.
+    if (sp->extra and Tko.PF_GENERIC_PROC) <> 0 then return
+
+    dim as Tko.SymbolId sid = c.info->RefOf( id )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    dim as Tko.TypeId rt = iif( s <> 0, s->type_, Tko.TYPE_NONE )
+
+    '' MIR carries the MANGLED name and never a source one.
+    dim as Tko.InternId nm = c.names->GetString( _
+        Tko.Mangle.ProcName( *c.ast, DeclForName_( c, id, s ), *c.syms, *c.names, *c.types, *c.info ) )
+
+    '' A STRING-RETURNING FUNCTION RETURNS A POINTER. fbc's own C says so --
+    '' 'FBSTRING* F( void )' -- because the value leaves through
+    '' fb_StrAllocTempResult, not as the descriptor itself. Declaring it 'agg' would
+    '' put a type on the function that its own 'ret' contradicts.
+    dim as MirType declRet = LowerType( rt, *c.types )
+    if rt <> Tko.TYPE_NONE then
+        if IsStringType( c, rt ) then declRet = MT_PTR
+        '' A UDT RETURNED THROUGH THE HIDDEN POINTER returns THAT POINTER, which is
+        '' what fbc's own C says: 'struct T* F( struct T* tmp )'. Declaring it 'agg'
+        '' would put a type on the function that its own 'ret' contradicts.
+        if UsesSretReturn( c, rt ) then declRet = MT_PTR
+        '' A BYREF RETURN IS A POINTER, which is what a reference IS at the ABI:
+        '' fbc writes 'struct INNER* F( void )' for 'function f( ) byref as Inner'.
+        '' Declared 'agg', the function returned the object by the hidden-pointer
+        '' convention while every CALL to it read a pointer -- and 'operator ->', which
+        '' is byref by construction, is the shape that made it visible.
+        if (c.ast->nodes[cast( long, id )].flags and Tko.NF_BYREF) <> 0 then
+            declRet = MT_PTR
+        end if
+    end if
+    dim as MirFunction ptr f = c.m->AddFunction( nm, declRet )
+    '' AN AGGREGATE RETURN NEEDS ITS SIZE for the same reason a parameter does: the ABI
+    '' classifier's whole question is how many bytes it is.
+    if declRet = MT_AGG then
+        f->retSize = SizeOfType( c, rt )
+        f->retClass = ClassifyEightbytes( c, rt )
+    end if
+    f->isDefinition = true
+    f->callConv = ProcCallConv_( c, id )
+    '' A TRAILING 'constructor' / 'destructor' -- see PF_MODCTOR. The C runtime calls
+    '' these around main, and without the flag the procedure was emitted correctly and
+    '' then never called by anything.
+    if (sp->extra and Tko.PF_MODCTOR) <> 0 then f->isModuleCtor = true
+    if (sp->extra and Tko.PF_MODDTOR) <> 0 then f->isModuleDtor = true
+    if f->isModuleCtor orelse f->isModuleDtor then f->structorPrio = StructorPrioOf_( c, id )
+    '' PRIVATE MEANS INTERNAL LINKAGE, and it did not: 'private sub f' emitted a
+    '' GLOBAL symbol, so two modules each with their own private helper of the same
+    '' name would collide at the link. fbc gives it lowercase 't'; measured on the
+    '' same source, tiko gave 'T'.
+    if (sp->extra and Tko.PF_PRIVATE) <> 0 then f->isPrivate = true
+    if (sp->extra and Tko.PF_EXPORT) <> 0 then f->isExported = true
+    Tko.ModSym.ProcLinkage( *c.syms, sid, f->isPrivate, f->isExported, f->isHidden )   '' ADR 0017
+    '' AN INSTANTIATED GENERIC IS EMITTED BY EVERY UNIT THAT USES IT, so its
+    '' definition needs weak, foldable linkage. Without it the first attempt to
+    '' compile tiko-lang with tiko-lang failed the LINK on twenty duplicate
+    '' symbols, every one an Array( of T ) member.
+    if sid <> Tko.SYMBOL_NONE then
+        dim as Tko.Symbol ptr gsy = c.syms->SymbolAt( sid )
+        if gsy <> 0 then
+            if (gsy->flags and Tko.SYMF_GENERIC_INST) <> 0 then f->isWeak = true
+        end if
+    end if
+    '' ...AND BY THE INSTANTIATION REGISTRY, because the FLAG does not reach every
+    '' path. An instantiation is created in three places -- a generic TYPE's members, a
+    '' generic PROCEDURE, and the re-parsed body Collect declares for one -- and the
+    '' symbol the N_PROC node refers to is not always the one that got flagged. Without
+    '' this the bootstrap's link failed on fb/fsresult.bi's Fail( of T, E ) helpers,
+    '' called from many modules and so defined in each of them. It asked whether the
+    '' MANGLED name held a '<' until instantiations were mangled as Itanium templates,
+    '' which have none -- lld let the duplicates through and GNU ld did not.
+    if f->isWeak = false then
+        if Tko.Mangle.IsInstName( *c.types, sp->name ) then f->isWeak = true
+    end if
+    dim as MirFunction ptr savedF = c.f
+    dim as long savedB = c.curBlock
+    dim as Tko.SymbolId savedSym = c.curProcSym
+    c.f = f
+    if c.srcMgr <> 0 then
+        dim as Tko.DecodedLoc dbgAt = c.srcMgr->Decode( c.ast->Loc( id ) )
+        f->dbgFile = cast( ulong, dbgAt.file ) + 1
+        f->dbgLine = dbgAt.physLine
+    end if
+    c.curProcSym = sid : f->procSym = cast( ulong, sid )
+    c.st->functions += 1
+
+    '' An instance method takes THIS as parameter ZERO. It is never written in the
+    '' source, so nothing else would count it -- and without it '@this' named a fresh
+    '' uninitialised local while every CALL site dutifully passed a receiver into
+    '' nothing.
+    dim as Tko.SymbolId thisSym = Tko.SYMBOL_NONE
+    if s <> 0 then
+        if s->inner <> Tko.SCOPE_NONE then
+            thisSym = c.syms->LookupLocal( s->inner, _
+                c.names->Fold( c.names->GetString( "this" ) ) )
+        end if
+    end if
+
+    '' A NAMESPACE-QUALIFIED PROCEDURE HAS NO RECEIVER. 'private function
+    '' procA.f1( ) as integer' defines a free function in a namespace, not a method,
+    '' and fbc gives it no 'this' at all -- but Collect declares one for every
+    '' qualified definition, because at that point it cannot tell a namespace from a
+    '' type. So the function took a parameter nothing passed, spilled it into an
+    '' untyped local, and 17 stores in one corpus file went into a 'void' slot.
+    ''
+    '' Decided here rather than in Collect: only by now is the owner's KIND known.
+    if thisSym <> Tko.SYMBOL_NONE then
+        '' A CONSTRUCTOR, DESTRUCTOR or PROPERTY is a member by construction and always
+        '' has one. 'constructor ns.UDT( )' is qualified by a NAMESPACE and owned by a
+        '' TYPE, so nothing about the qualifier decides it -- testing the enclosing
+        '' scope's parent got that wrong and silently emptied ten corpus files' worth
+        '' of constructors.
+        ''
+        '' AN OPERATOR IS NOT IN THAT LIST, and it was. A binary operator may be a FREE
+        '' FUNCTION -- fbc allows a global one inside a namespace, and namespace/outside
+        '' says so in its own comment before writing 'operator op.+( a as op.UDT, b as
+        '' op.UDT )' outside the namespace that declared it. Held to be a member by
+        '' construction, that definition took a 'this' every call site correctly did not
+        '' pass, so both operands arrived one place late. The receiver question is the
+        '' same one an ordinary qualified procedure asks -- is a TYPE scope around it --
+        '' and the walk below answers it for a member operator too: 'operator UDT.+'
+        '' reaches the UDT's scope from its own 'this' and keeps the receiver.
+        dim as boolean isStructor = false
+        dim as boolean isOperator = (cast( Tko.TokenKind, sp->op ) = Tko.KW_OPERATOR)
+        select case cast( Tko.TokenKind, sp->op )
+        case Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR, Tko.KW_PROPERTY
+            isStructor = true
+        end select
+
+        '' THE FOUR ALLOCATION OPERATORS ARE STATIC whether or not the definition
+        '' repeats the word -- fbc accepts 'static' on the DECLARE only, and emits
+        '' 'void* _ZN3BARnwEu8UINTEGER( uint64 SIZE$1 )': ONE parameter, no receiver.
+        '' Treated as ordinary operators they took a 'this' nothing passes, so every
+        '' argument arrived one place late. The scope walk cannot answer this one --
+        '' these ARE declared inside the type -- so it stays a name test.
+        if isOperator then
+            select case Tko.Text.LowerAscii( c.names->Spelling( sp->name ) )
+            case "new", "delete", "new[]", "delete[]"
+                thisSym = Tko.SYMBOL_NONE
+            end select
+        end if
+
+        '' A STATIC MEMBER HAS NO RECEIVER either, and the word is on the DECLARE
+        '' rather than on the definition: 'declare static sub s1( )' inside the type,
+        '' then 'private sub T.s1( )' outside it, which repeats nothing. So the
+        '' definition's own flags cannot answer this and the SYMBOL's declaration is
+        '' consulted -- the same place mangling reads it from.
+        ''
+        '' Found by the call-arity rule: the definition took a 'this' and every call
+        '' site correctly passed none, so the method read a receiver that was never
+        '' written. The four allocation operators above are the same fact arrived at
+        '' from the other direction; this is the general case they are an instance of.
+        if ProcIsStatic_( c, id, sid ) then thisSym = Tko.SYMBOL_NONE
+
+        if isStructor = false then
+            '' Otherwise: a receiver exists only if a TYPE scope encloses the
+            '' procedure. 'private function procA.f1( ) as integer' inside 'namespace
+            '' procA' is a FREE FUNCTION, and fbc gives it no 'this' -- but Collect
+            '' declares one for every qualified definition, because at that point it
+            '' cannot tell a namespace from a type. The function then took a parameter
+            '' nothing passed and spilled it into an untyped local: 17 stores into a
+            '' 'void' slot in one file.
+            dim as Tko.Symbol ptr ts = c.syms->SymbolAt( thisSym )
+            dim as boolean inType = false
+            if ts <> 0 then
+                dim as Tko.ScopeId walk = ts->parent
+                dim as long guard = 0
+                while (walk <> Tko.SCOPE_NONE) andalso (guard < 64)
+                    dim as Tko.SymScope ptr sc2 = c.syms->ScopeAt( walk )
+                    if sc2 = 0 then exit while
+                    if sc2->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
+                        inType = true
+                        exit while
+                    end if
+                    walk = sc2->parent
+                    guard += 1
+                wend
+            end if
+            if inType = false then thisSym = Tko.SYMBOL_NONE
+        end if
+    end if
+    '' THE HIDDEN RESULT POINTER IS A PARAMETER. Counted here so the declaration and
+    '' every call site agree on the arity -- on win32 fbc EXCLUDES it from the stdcall
+    '' '@N' but the callee still pops it, so the two numbers are genuinely different
+    '' things and only this one is the argument count.
+    '' THE SIGNATURE IS RECORDED BELOW, beside the parameter slots, because only there
+    '' are the TYPES known -- a slot's type is the answer to what byref, a descriptor and
+    '' an aggregate each lower to, and re-deriving it here would be a second opinion that
+    '' could disagree with the first. The arity used to be counted here and the types
+    '' never recorded at all, which is what left 'declare i32 @F()' for every function
+    '' this module does not define.
+
+    c.curBlock = NewBlock( c, "entry" )
+    '' The scope this procedure's body lives in -- see the field's comment.
+    dim as Tko.ScopeId savedProcScope = c.procScope
+    c.procScope = c.info->ScopeOf( id )
+
+    '' The result slot, zero-initialised, exactly as fbc's C does it. Only for a
+    '' SCALAR result: a STRING or UDT return goes through a hidden pointer tiko-lang does
+    '' not model yet, and inventing a slot for one would miscompile silently rather
+    '' than decline -- which is the failure mode this file has hit four times.
+    dim as long savedRes = c.resultSlot
+    dim as ubyte savedResTy = c.resultTy
+    dim as Tko.TypeId savedResType = c.resultType
+    dim as long savedSret = c.sretParam
+    dim as boolean savedUdtRes = c.udtResult
+    dim as boolean savedByrefRes = c.byrefResult
+    c.udtResult = false
+    c.byrefResult = false
+    c.resultSlot = -1
+    c.resultTy = cast( ubyte, MT_VOID )
+    c.resultType = Tko.TYPE_NONE
+    c.sretParam = -1
+
+    dim as MirType rmt = LowerType( rt, *c.types )
+    dim as boolean scalarResult = (rt <> Tko.TYPE_NONE) andalso (rmt <> MT_VOID) andalso _
+                                  (rmt <> MT_AGG)
+
+    '' A BYREF RESULT IS A POINTER, whatever the declared type is, and so is its
+    '' RESULT SLOT. Measured:
+    ''
+    ''     struct $5INNER* F( void ) { struct $5INNER* fb$result$1;
+    ''                                 fb$result$1 = &G$;  return fb$result$1; }
+    ''
+    '' The return TYPE already followed that rule; the slot did not, so
+    '' 'function = g' over a byref UDT result copied g into a local aggregate and
+    '' returned the AGGREGATE where the declaration promised a pointer. It lowered,
+    '' it verified, and the caller read whichever bytes happened to be there. A byref
+    '' STRING or ZSTRING result had no slot at all and declined instead -- which is
+    '' every 'function = *strptr( s )' in functions/temp-strings.bas.
+    dim as boolean byrefDecl = _
+        ((c.ast->nodes[cast( long, id )].flags and Tko.NF_BYREF) <> 0)
+    c.byrefResult = byrefDecl andalso (rt <> Tko.TYPE_NONE)
+    if c.byrefResult then
+        scalarResult = false
+        rmt = MT_PTR
+    end if
+
+    '' A UDT RESULT WITH A DESTRUCTOR OR A COPY CONSTRUCTOR travels through an
+    '' EXPLICIT HIDDEN POINTER: parameter 0, holding the caller's storage, and the
+    '' function returns that same pointer. Measured, and the rule is about TRIVIALITY,
+    '' not size -- a one-byte type with a destructor is sret and a sixteen-byte POD is
+    '' not. See docs/internals/phase-6-udt-return.md.
+    ''
+    '' There is NO result local in this case: the hidden pointer IS the result object,
+    '' so 'function = expr' writes straight through it.
+    dim as boolean sretResult = false
+    dim as boolean sretMaybe = (rt <> Tko.TYPE_NONE)
+    sretMaybe = sretMaybe andalso (scalarResult = false)
+    sretMaybe = sretMaybe andalso (c.byrefResult = false)
+    if sretMaybe then
+        sretResult = UsesSretReturn( c, rt )
+    end if
+
+    '' A STRING RESULT is an aggregate, but not one that needs a hidden pointer: fbc
+    '' builds it in a LOCAL DESCRIPTOR and returns what fb_StrAllocTempResult gives
+    '' back for it.
+    ''
+    ''     FBSTRING fb$result;  memset( &fb$result, 0, 24 );
+    ''     fb_StrInit( &fb$result, -1, "hi", 3, 0 );
+    ''     return fb_StrAllocTempResult( &fb$result );
+    ''
+    '' So the slot IS a descriptor and 'function = expr' is an ordinary string
+    '' assignment into it -- which is why this one can be modelled where the UDT
+    '' return, whose value really does come back through a hidden pointer, cannot.
+    '' A BYREF STRING RESULT IS NOT A STRING RESULT: it is a pointer to somebody
+    '' else's descriptor, so there is no local descriptor to build and none to
+    '' release. Measured -- fbc writes 'char* F1( FBSTRING* )' for
+    '' 'byref as zstring' and returns the data pointer it was handed.
+    dim as boolean stringResult = false
+    dim as boolean aggRet = (rt <> Tko.TYPE_NONE)
+    aggRet = aggRet andalso (scalarResult = false)
+    aggRet = aggRet andalso (c.byrefResult = false)
+    if aggRet then
+        stringResult = IsStringType( c, rt )
+    end if
+    if stringResult then
+        c.resultSlot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        c.resultTy = cast( ubyte, MT_AGG )
+        c.resultType = rt
+        '' THE RESULT DESCRIPTOR CARRIES ITS OWN FLAVOUR. IsUStringDest_ asks the
+        '' slot's frontendType, and this temporary had none: a 'function f( ) as
+        '' ustring' looked NARROW, so 'return u' went through fb_UStrAssignToA,
+        '' which TRANSCODES down to narrow bytes. fbc emits a ustring into a
+        '' ustring and no conversion at all; the caller side was always right.
+        if c.resultSlot >= 0 then
+            c.f->locals[c.resultSlot].frontendType = rt
+        end if
+        dim as MirValue sa
+        sa.kind = cast( ubyte, MV_LOCAL )
+        sa.ty = cast( ubyte, MT_PTR )
+        sa.id = c.resultSlot
+        '' The descriptor must be ZEROED before anything registers a delete for it,
+        '' exactly as a string local is.
+        ZeroStrDescriptor( c, sa )
+    end if
+
+    if sretResult then
+        '' The hidden pointer is parameter 0, BEFORE 'this'. Its slot is an ordinary
+        '' local holding the pointer, exactly as 'this' is.
+        c.sretParam = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+        c.resultTy = cast( ubyte, MT_AGG )
+        c.resultType = rt
+        dim as MirValue sa
+        sa.kind = cast( ubyte, MV_LOCAL )
+        sa.ty = cast( ubyte, MT_PTR )
+        sa.id = c.sretParam
+        dim as MirValue spv
+        spv.kind = cast( ubyte, MV_PARAM )
+        spv.ty = cast( ubyte, MT_PTR )
+        spv.id = 0
+        dim as MirInst sins
+        sins.op = cast( ushort, M_STORE )
+        sins.ty = cast( ubyte, MT_VOID )
+        sins.a = sa
+        sins.b = spv
+        Emit( c, sins )
+
+        '' THE RESULT IS DEFAULT-CONSTRUCTED AT ENTRY unless the body leaves through
+        '' 'return expr' -- including a body that never sets it. See InitResultAtEntry_.
+        dim as MirValue rdst = LowerExprLoad( c, sa, MT_PTR )
+        if rdst.kind <> cast( ubyte, MV_NONE ) then
+            InitResultAtEntry_( c, rt, rdst, sp->b, false )
+        end if
+    end if
+
+    '' A TRIVIAL UDT RESULT -- no destructor, no copy constructor -- is returned BY
+    '' VALUE. fbc emits a named 'fb$result' local, zeroed at entry, and returns it:
+    ''
+    ''     struct BIG MKB1( void ) { struct BIG fb$result$1; memset(...); ...
+    ''                               return fb$result$1; }
+    ''
+    '' MIR says the same thing. An aggregate VALUE is already a first-class thing in
+    '' this IR -- 'y = x' over a UDT is a whole-aggregate load and store -- so
+    '' returning one needs no new shape, and WHICH REGISTER OR MEMORY it travels in is
+    '' the backend's decision. That is the same division of labour fbc has with gcc:
+    '' fbc's frontend never names a register either.
+    '' Hoisted to a boolean local: FreeBASIC warns 38 on a mixed boolean/non-boolean
+    '' chain, and the house rule is to name the condition rather than silence it.
+    dim as boolean haveRet = (rt <> Tko.TYPE_NONE)
+    dim as boolean udtByValue = false
+    dim as boolean udtMaybe = haveRet
+    udtMaybe = udtMaybe andalso (scalarResult = false)
+    udtMaybe = udtMaybe andalso (sretResult = false)
+    udtMaybe = udtMaybe andalso (c.byrefResult = false)
+    if udtMaybe then
+        udtByValue = (c.types->Kind( rt ) = Tko.TK_UDT)
+        '' A 'cva_list' RESULT IS THE SAME SHAPE and needs the same slot. It is a
+        '' BUILTIN rather than a UDT, so the kind test alone said no to it and
+        '' 'function = args' declined in four places in one corpus file. fbc gives it
+        '' the same named result local everything else here gets:
+        ''
+        ''     __builtin_va_list fb$result$1;  __builtin_memset( &fb$result$1, 0, 8 );
+        ''     fb$result$1 = ARGS$1;  return fb$result$1;
+        ''
+        '' Only cva_list is added, not 'anything that lowers to MT_AGG': a STRING
+        '' result is also an aggregate and is handled above, by a path that zeroes the
+        '' descriptor and registers its cleanup.
+        if udtByValue = false then
+            if c.types->Kind( rt ) = Tko.TK_BUILTIN then
+                udtByValue = (c.types->BuiltinOf( rt ) = Tko.TY_CVA_LIST)
+            end if
+        end if
+    end if
+    if udtByValue then
+        c.resultSlot = NewTempLocal( c, MT_AGG, SizeOfType( c, rt ) )
+        c.resultTy = cast( ubyte, MT_AGG )
+        c.resultType = rt
+        c.udtResult = true
+        '' Zeroed or constructed exactly where fbc does it -- see InitResultAtEntry_.
+        dim as MirValue ua
+        ua.kind = cast( ubyte, MV_LOCAL )
+        ua.ty = cast( ubyte, MT_PTR )
+        ua.id = c.resultSlot
+        InitResultAtEntry_( c, rt, ua, sp->b, true )
+    end if
+
+    if c.byrefResult then
+        c.resultSlot = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+        c.resultTy = cast( ubyte, MT_PTR )
+        c.resultType = rt
+        dim as MirValue ba
+        ba.kind = cast( ubyte, MV_LOCAL )
+        ba.ty = cast( ubyte, MT_PTR )
+        ba.id = c.resultSlot
+        StoreThrough( c, ba, ConstInt( c, 0, MT_PTR ) )
+    end if
+
+    if scalarResult then
+        c.resultSlot = NewTempLocal( c, rmt, c.types->Layout( rt ).size )
+        c.resultTy = cast( ubyte, rmt )
+        c.resultType = rt
+        dim as MirValue ra
+        ra.kind = cast( ubyte, MV_LOCAL )
+        ra.ty = cast( ubyte, MT_PTR )
+        ra.id = c.resultSlot
+        dim as MirInst zi
+        zi.op = cast( ushort, M_STORE )
+        zi.ty = cast( ubyte, MT_VOID )
+        zi.a = ra
+        zi.b = ZeroOf( c, rmt )
+        Emit( c, zi )
+    end if
+
+    '' A parameter is a slot like any other local, written once on entry. That is
+    '' what makes 'byval' parameters assignable, which FreeBASIC allows, and it is
+    '' the shape mem2reg expects.
+    '' THE HIDDEN POINTER CONSUMES ARGUMENT SLOT 0, so 'this' and every visible
+    '' parameter shift up by one. Measured in fbc's own assembly: for a method with a
+    '' hidden pointer, RCX is the pointer and RDX is 'this', and a later double lands
+    '' in XMM3 rather than XMM1.
+    dim as long pidx = 0
+    if c.sretParam >= 0 then
+        f->AddParam( MT_PTR )
+        f->hasSretParam = true
+        pidx = 1
+    end if
+    if thisSym <> Tko.SYMBOL_NONE then
+        '' THIS is a POINTER TO the object -- the symbol carries that type, so the slot
+        '' comes out a pointer and 'this.field' reaches through it like any other
+        '' pointer base. It is what fbc's own C says: 'struct $1T* THIS$1'.
+        dim as long tslot = LocalFor( c, thisSym )
+        '' AN UNTYPED 'this' HAS NO SLOT AT ALL, and storing the receiver into one is
+        '' malformed. That happens when the structor's owner does not name a type here
+        '' -- which is now TKO0323 -- so the error is already reported and the store
+        '' would only add a verify failure on top of it. LocalFor answers -1 rather
+        '' than a void slot; substituting zero pointed at somebody else's local.
+        dim as boolean thisTyped = (tslot >= 0)
+        if thisTyped andalso (tslot < c.f->locals.Count) then
+            thisTyped = (c.f->locals[tslot].ty <> cast( ubyte, MT_VOID ))
+        end if
+        if thisTyped = false then
+            '' The ARGUMENT still exists and is still a pointer -- only the STORE into
+            '' the slot is skipped -- so the signature keeps it.
+            f->AddParam( MT_PTR )
+            pidx += 1
+            thisSym = Tko.SYMBOL_NONE
+        end if
+    end if
+    if thisSym <> Tko.SYMBOL_NONE then
+        f->AddParam( MT_PTR )
+        dim as long tslot = LocalFor( c, thisSym )
+        '' NO SLOT MEANS NO STORE. 'this' has no slot when its owner does not name a
+        '' type here -- TKO0323, already reported -- and substituting slot ZERO wrote
+        '' the receiver into whatever local happened to be first, or into no local at
+        '' all: 'store @?0, $0' in a function that has none. The PARAMETER is still
+        '' declared and still counted, because the arity is the caller's business and
+        '' does not change with a diagnostic.
+        if tslot >= 0 then
+            dim as MirValue taddr
+            taddr.kind = cast( ubyte, MV_LOCAL )
+            taddr.ty = cast( ubyte, MT_PTR )
+            taddr.id = tslot
+            dim as MirValue tpv
+            tpv.kind = cast( ubyte, MV_PARAM )
+            tpv.ty = cast( ubyte, MT_PTR )
+            tpv.id = pidx
+            dim as MirInst tins
+            tins.op = cast( ushort, M_STORE )
+            tins.ty = cast( ubyte, MT_VOID )
+            tins.a = taddr
+            tins.b = tpv
+            Emit( c, tins )
+        end if
+        pidx += 1
+    end if
+    for i as long = 0 to sp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        dim as Tko.StmtPayload ptr pp = StmtOf( c, prm )
+        '' ...and is not one here either -- see SignatureFromProc below. It used to be
+        '' COUNTED into the arity, which nothing noticed while the arity was all there
+        '' was: a variadic's declared arity was one too many and every call to it
+        '' disagreed with it by exactly the ellipsis.
+        if pp->op = cast( ushort, Tko.TK_ELLIPSIS ) then
+            f->isVariadic = true
+            pidx += 1
+            continue for
+        end if
+        dim as Tko.SymbolId psid = _
+            c.syms->LookupLocalTyped( c.info->ScopeOf( id ), pp->name, false )
+        '' THE SLOT'S TYPE IS THE PARAMETER'S TYPE. Where there is no slot -- an
+        '' unresolved or unnamed parameter -- the declared type is lowered instead, so
+        '' the arity and the signature stay the same length either way.
+        dim as long pslot = -1
+        if psid <> Tko.SYMBOL_NONE then pslot = LocalFor( c, psid )
+        if (pslot >= 0) andalso (pslot < c.f->locals.Count) then
+            '' The SLOT already knows how many bytes it reserved, which is the same
+            '' number the ABI classifier wants -- but ONLY for a parameter that really
+            '' is an aggregate. A byval non-trivial UDT and a byval var-length string
+            '' both lower to a POINTER (see ParamMirType), and recording their object's
+            '' size against a pointer parameter told the ABI pass it had an aggregate
+            '' to classify. It then rewrote the prologue to copy an object into a slot
+            '' that holds an address.
+            dim as MirType pmt = cast( MirType, c.f->locals[pslot].ty )
+            dim as ulong psz = 0
+            dim as ulong pcl = 0
+            if pmt = MT_AGG then
+                psz = cast( ulong, c.f->locals[pslot].size )
+                pcl = ClassifyEightbytes( c, c.f->locals[pslot].frontendType )
+            end if
+            '' THE DEFINITION WIDENS EXACTLY AS THE DECLARATION DOES, off the slot's own
+            '' frontend type -- the two paths must agree or a module disagrees with
+            '' itself. The SLOT stays narrow; the ABI pass truncates into it.
+            f->AddParam( pmt, psz, pcl, TKO_PA_NONE, _
+                         ParamExtClass_( c, c.f->locals[pslot].frontendType ) )
+        else
+            dim as Tko.TypeId pt = c.info->TypeOf_( pp->a )
+            dim as MirType pmt2 = ParamMirType( c, pt )
+            dim as ulong psz2 = 0
+            dim as ulong pcl2 = 0
+            if pmt2 = MT_AGG then
+                psz2 = cast( ulong, SizeOfType( c, pt ) )
+                pcl2 = ClassifyEightbytes( c, pt )
+            end if
+            f->AddParam( pmt2, psz2, pcl2, TKO_PA_NONE, ParamExtClass_( c, pt ) )
+        end if
+        if psid <> Tko.SYMBOL_NONE then
+            dim as long slot = pslot
+            if slot >= 0 then
+                dim as MirValue addr
+                addr.kind = cast( ubyte, MV_LOCAL )
+                addr.ty = cast( ubyte, MT_PTR )
+                addr.id = slot
+                dim as MirValue pv
+                pv.kind = cast( ubyte, MV_PARAM )
+                pv.ty = c.f->locals[slot].ty
+                pv.id = pidx
+                dim as MirInst ins
+                ins.op = cast( ushort, M_STORE )
+                ins.ty = cast( ubyte, MT_VOID )
+                ins.a = addr
+                ins.b = pv
+                Emit( c, ins )
+            end if
+        end if
+        pidx += 1
+    next
+
+    '' Labels are per-function: the same name in two procedures is two labels.
+    ClearLabels( c, 0 )
+
+    '' THE IMPLICIT PROLOGUE OF A CONSTRUCTOR, and the vptr of a destructor.
+    ''
+    '' Measured: fbc PREPENDS the whole synthesised prologue to a written constructor
+    '' rather than using one instead of the other -- the base call, then the fields in
+    '' declaration order, then the vptr -- and prepends the vptr store to a written
+    '' destructor. Whose epilogue is appended after the body, below.
+    ''
+    '' So a written 'constructor B( )' still constructs A, and still zeroes its own
+    '' string fields before its first statement can assign through one.
+    dim as Tko.TypeId structorType = Tko.TYPE_NONE
+    dim as boolean inCtor = false
+    if (thisSym <> Tko.SYMBOL_NONE) andalso (s <> 0) then
+        dim as Tko.InternId ctorNm = c.names->Fold( c.names->GetString( "__ctor" ) )
+        dim as Tko.InternId dtorNm = c.names->Fold( c.names->GetString( "__dtor" ) )
+        if (s->name = ctorNm) orelse (s->name = dtorNm) then
+            inCtor = (s->name = ctorNm)
+            dim as Tko.SymScope ptr ownerSc = c.syms->ScopeAt( s->parent )
+            if ownerSc <> 0 then
+                dim as Tko.Symbol ptr ownerSym = c.syms->SymbolAt( ownerSc->owner )
+                if ownerSym <> 0 then structorType = ownerSym->type_
+            end if
+        end if
+    end if
+
+    '' ASKED BEFORE ANYTHING IS EMITTED. Loading 'this' and then finding there is
+    '' nothing to do left a dead load in the prologue of every structor of every
+    '' ordinary UDT -- the same mistake, twice, in the same function.
+    dim as boolean wantsPrologue = false
+    if structorType <> Tko.TYPE_NONE then
+        if inCtor then
+            '' NOT NeedsCtorBody_, which asks whether one must be SYNTHESISED. This
+            '' constructor is WRITTEN and already exists; the question is whether it has
+            '' a prologue, and every field it does not initialise is a zero it owes.
+            wantsPrologue = CtorPrologueWork_( c, structorType )
+        elseif c.vts <> 0 then
+            wantsPrologue = (c.vts->Find( structorType ) >= 0)
+        end if
+    end if
+
+    if wantsPrologue then
+        dim as MirValue ta = AddrOfVar( c, thisSym )
+        if ta.kind <> cast( ubyte, MV_NONE ) then
+            dim as MirValue tv = LowerExprLoad( c, ta, MT_PTR )
+            if inCtor then
+                '' A DELEGATING CONSTRUCTOR HAS NO PROLOGUE AT ALL -- see
+                '' BodyDelegatesCtor_ for what fbc emits. Skipping only the base, the
+                '' way an explicit 'base( )' does, would zero the fields a second time
+                '' AFTER the constructor it delegates to had filled them.
+                if BodyDelegatesCtor_( c, sp->b ) = false then
+                    BeginCtorPrologue_( c, structorType, tv, BodyCallsBase_( c, sp->b ) )
+                end if
+            else
+                '' THE VPTR FIRST in a destructor, so its body -- and anything it calls
+                '' -- sees this type's own table rather than the derived one.
+                StoreVptr_( c, structorType, tv )
+            end if
+        end if
+    end if
+
+    '' -exx NAMES THE PROCEDURE IN A RUNTIME ABORT, and without this the slot was empty:
+    '' fbc says 'at line 4 of oob.bas::TOUCHIT()' where this said 'of oob.bas()'.
+    '' lowerboundchk.tiko records why it was left alone -- setting the name at module
+    '' level only is the cheap half and makes every check inside a SUB report
+    '' {MODLEVEL}, a name that is wrong rather than missing -- and says the save/restore
+    '' pair belongs here. This is that pair.
+    ''
+    '' SAVE AND RESTORE, because the name is GLOBAL STATE. fbc keeps the previous value
+    '' in a local and puts it back on the way out; setting without restoring would leave
+    '' a returned-from procedure's name in place for everything after it, which is the
+    '' same 'wrong rather than missing' failure from the other direction.
+    ''
+    '' -exx ONLY. Measured across the whole family: '-e', '-ex' and no flag at all emit
+    '' none of this, and only '-exx' does.
+    dim as boolean namesProc = ((c.errFlags and 256) <> 0)   '' -elocation, in -exx
+    dim as MirValue savedModName, savedFuncName
+    if namesProc then
+        dim as Tko.DecodedLoc pfd = c.srcMgr->Decode( c.ast->Loc( id ) )
+        dim as containers.Array( of ulong ) ma
+        dim as MirValue mv = LowerTextAddr( c, c.srcMgr->PathOf( pfd.file ) )
+        ma.Push( cast( ulong, mv.kind ) ) : ma.Push( cast( ulong, mv.id ) )
+        savedModName = EmitRtl( c, RTL_ERROR_SET_MOD_NAME, ma )
+        dim as containers.Array( of ulong ) fa
+        dim as MirValue fv = LowerTextAddr( c, Tko.Text.UpperAscii( c.names->Spelling( sp->name ) ) )
+        fa.Push( cast( ulong, fv.kind ) ) : fa.Push( cast( ulong, fv.id ) )
+        savedFuncName = EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, fa )
+    end if
+    dim as long scopeDepthIn = c.scopeMark.Count
+    PushScope( c )
+
+    '' THE IMPLICIT EPILOGUE OF A DESTRUCTOR -- the fields in REVERSE declaration order,
+    '' then the base's destructor -- IS A CLEANUP ACTION, not something appended after
+    '' the body.
+    ''
+    '' A 'return' inside a destructor leaves through the cleanup path, so appending it
+    '' meant such a destructor released NOTHING. Registered FIRST, so reverse
+    '' registration order runs it LAST: after every local the body declares, which is
+    '' the order fbc emits.
+    dim as boolean wantsEpilogue = false
+    if (structorType <> Tko.TYPE_NONE) andalso (inCtor = false) then
+        wantsEpilogue = NeedsDtorBody_( c, structorType )
+    end if
+    if wantsEpilogue then
+        '' The slot holds THIS, which is a pointer, so the action LOADS it rather than
+        '' taking its address.
+        dim as long tslot = LocalFor( c, thisSym )
+        if tslot >= 0 then
+            c.cleanupNode.Push( CLEANUP_DTOR_EPILOGUE )
+            c.cleanupSlot.Push( tslot )
+            c.cleanupType.Push( cast( ulong, structorType ) )
+        end if
+    end if
+
+    '' Depths are recorded relative to the scope just opened for the body, which is the
+    '' depth a label written directly in the procedure sees.
+    c.labelBase = scopeDepthIn + 1
+    ScanLabels( c, sp->b, scopeDepthIn + 1 )
+    LowerBlock( c, sp->b )
+    CloseScope( c )
+    '' Every scope opened must have been closed. An imbalance means some exit path
+    '' skipped a scope's cleanup, which is the bug class this whole model exists to
+    '' prevent, so it is checked rather than assumed.
+    if c.scopeMark.Count <> scopeDepthIn then
+        c.st->scopeImbalance += 1
+    end if
+    '' A function whose last block has no terminator falls off the end; FreeBASIC
+    '' allows that and returns the result variable, so an explicit RET closes it.
+    '' A STRING result leaves through the runtime, not as a load of the slot.
+    if c.udtResult andalso (c.resultSlot >= 0) then
+        '' By value: the result local's VALUE, exactly as fbc returns fb$result.
+        dim as MirValue ura
+        ura.kind = cast( ubyte, MV_LOCAL )
+        ura.ty = cast( ubyte, MT_PTR )
+        ura.id = c.resultSlot
+        Terminate( c, MTERM_RET, -1, -1, LowerExprLoad( c, ura, MT_AGG ) )
+    elseif c.sretParam >= 0 then
+        '' A UDT returned through the hidden pointer returns THAT POINTER, whether the
+        '' function fell off the end or not: fbc emits 'return tmp$2$1' at the exit
+        '' label either way.
+        dim as MirValue spa2
+        spa2.kind = cast( ubyte, MV_LOCAL )
+        spa2.ty = cast( ubyte, MT_PTR )
+        spa2.id = c.sretParam
+        Terminate( c, MTERM_RET, -1, -1, LowerExprLoad( c, spa2, MT_PTR ) )
+    elseif (c.resultSlot >= 0) andalso (c.resultTy = cast( ubyte, MT_AGG )) then
+        dim as MirValue ra2
+        ra2.kind = cast( ubyte, MV_LOCAL )
+        ra2.ty = cast( ubyte, MT_PTR )
+        ra2.id = c.resultSlot
+        dim as containers.Array( of ulong ) rargs
+        rargs.Push( cast( ulong, ra2.kind ) ) : rargs.Push( cast( ulong, ra2.id ) )
+        dim as MirValue rv2 = EmitRtl( c, ResultTempRtl_( c ), rargs )
+        Terminate( c, MTERM_RET, -1, -1, rv2 )
+    else
+        Terminate( c, MTERM_RET, -1, -1, LoadResult( c ) )
+    end if
+
+    '' EVERY block must have a terminator, not just the last one. A block created for
+    '' a label the lowering never reached -- a forward GOTO into a statement that was
+    '' DECLINED -- is left open and nothing else closes it, and a block with no
+    '' terminator is not IR at all.
+    ''
+    '' Measured: 9 such blocks across the corpus, in files whose GOTO jumps into a WITH
+    '' or a SELECT CASE over a string. The repair is a fallthrough to the next block in
+    '' order, which is what an EMPTY label body degenerates to, rather than a RET, which
+    '' would invent an early exit from a procedure that has none.
+    ''
+    '' Counted, not silent: a repair here always means something above declined, and a
+    '' number that only ever goes down is worth being able to read.
+    '' EVERY ERROR JUMP GETS ITS DESTINATIONS. Done here because a check site can be
+    '' lowered before the ON ERROR that installs the handler, so the list is not knowable
+    '' where the jump is emitted -- only once the whole body has been seen.
+    ResolveErrorJumps_( c )
+
+    '' THE RESTORE GOES BEFORE EVERY 'ret', because this IR has no single exit: a
+    '' 'return' terminates whatever block it is in, so there is no one epilogue to
+    '' append to the way fbc's single goto label gives it one.
+    ''
+    '' A block's terminator is NOT in its instruction list -- see MirBlock -- so
+    '' emitting into the block appends AFTER the returned value is already computed and
+    '' BEFORE the ret itself, which is exactly where these belong.
+    ''
+    '' Reverse order, as fbc restores them: the function name, then the module name.
+    if namesProc then
+        dim as long savedCurBlk = c.curBlock
+        for bi as long = 0 to c.f->blocks.Count - 1
+            if c.f->blocks[bi].term <> cast( ubyte, MTERM_RET ) then continue for
+            c.curBlock = bi
+            dim as containers.Array( of ulong ) ra
+            ra.Push( cast( ulong, savedFuncName.kind ) )
+            ra.Push( cast( ulong, savedFuncName.id ) )
+            EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, ra )
+            dim as containers.Array( of ulong ) rb
+            rb.Push( cast( ulong, savedModName.kind ) )
+            rb.Push( cast( ulong, savedModName.id ) )
+            EmitRtl( c, RTL_ERROR_SET_MOD_NAME, rb )
+        next
+        c.curBlock = savedCurBlk
+    end if
+    for bi as long = 0 to c.f->blocks.Count - 1
+        if c.f->blocks[bi].term <> cast( ubyte, MTERM_NONE ) then continue for
+        c.st->blocksRepaired += 1
+        if bi + 1 < c.f->blocks.Count then
+            c.f->blocks[bi].term = cast( ubyte, MTERM_BR )
+            c.f->blocks[bi].target = bi + 1
+        else
+            c.f->blocks[bi].term = cast( ubyte, MTERM_RET )
+        end if
+    next
+
+
+    c.f = savedF
+    c.curProcSym = savedSym
+    c.curBlock = savedB
+    c.udtResult = savedUdtRes
+    c.byrefResult = savedByrefRes
+    c.sretParam = savedSret
+    c.procScope = savedProcScope
+    c.resultSlot = savedRes
+    c.resultTy = savedResTy
+    c.resultType = savedResType
+end sub
+
+
+'' The implicit main, into which module-level code is lowered.
+''
+'' MEASURED from fbc's own C intermediate for the main translation unit ('fbc -r -m'),
+'' not assumed:
+''
+''     int32 main( int32 argc, char** argv ) {
+''         int32 fb$result$0;
+''         __builtin_memset( &fb$result$0, 0, 4 );
+''         fb_Init( argc, argv, 0 );
+''         ... module-level body ...
+''         fb_StrDelete( &S$0 );          <- cleanups, BEFORE fb_End
+''         fb_End( 0 );
+''         return fb$result$0;
+''     }
+''
+'' Two things that shape the lowering and would be easy to get wrong the other way:
+''
+'' The result slot is ZERO-INITIALISED and returned. It is the process exit code, which
+'' 'END n' writes; falling off the end must yield 0, so the store is unconditional.
+''
+'' Module-level 'dim' becomes a LOCAL of main, not a global. That looks surprising for
+'' a variable declared at file scope, but a module-level DIM without SHARED is visible
+'' only at module level, so a local is exactly right -- and it is what makes the string
+'' cleanup above run at all.
+declare function ModuleHasCode( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+'' 'function = expr' inside a UDT function that returns through the HIDDEN POINTER.
+''
+'' There is no result local: the pointer IS the result object, so the value is copied
+'' straight through it. Measured -- fbc emits '__builtin_memcpy( tmp$2$1, &T$1, 4 )'.
+''
+'' fbc uses the type's 'operator let' where it has one. tiko-lang does not, here or in an
+'' ordinary UDT assignment: both are a whole-aggregate load and store. That is one
+'' behaviour, consistently wrong for a type with a user LET, rather than two.
+function LowerSretResult _
+    ( byref c as Ctx, byval valueE as Tko.NodeId, _
+      byval isReturn as boolean ) as boolean
+    if c.sretParam < 0 then return false
+    if valueE = Tko.NODE_NONE then return false
+    if c.types->IsDynArray( c.resultType ) then return LowerArrayResult_( c, valueE )   '' lowerarrret.tiko
+
+    '' A UDT RESULT WITH A COPY CONSTRUCTOR IS COPY-CONSTRUCTED INTO, not stored.
+    ''
+    '' Measured: 'return t' out of a function returning a type that holds a string is
+    ''
+    ''     _ZN1SC1ERKS_( tmp$4$1, &T$1 );      copy-construct the caller's storage
+    ''     _ZN1SD1Ev( &T$1 );                  ...and T is still destroyed on the way out
+    ''
+    '' A whole-aggregate store instead made the result and the local own ONE buffer,
+    '' and the local's destructor then freed it -- so the caller was handed a
+    '' descriptor pointing at released memory. It lowered, it verified, and every
+    '' function returning a string-holding type had it.
+    '' ...AND ONLY FOR 'return'. 'function = expr' ASSIGNS into a result that was
+    '' default-constructed at entry -- see BodyAssignsResult_ for fbc's own C beside
+    '' this one -- so copy-constructing there ran one constructor too few and one
+    '' copy too many, on every 'function =' over a type with a destructor.
+    if c.resultType <> Tko.TYPE_NONE then
+        if isReturn then
+            if SretCopyResult_( c, valueE, c.resultType ) then return true
+        else
+            if SretAssignResult_( c, valueE, c.resultType ) then return true
+        end if
+    end if
+
+    '' 'function = type( )' -- A BARE TYPE LITERAL has no type of its own, so LowerExpr
+    '' answers nothing and LowerAddr has nothing to take: the statement declined. It is
+    '' the RESULT TYPE that supplies the type, exactly as a declaration's does.
+    ''
+    '' Measured, fbc builds a TEMPORARY, copies it into the hidden pointer and destroys
+    '' it -- the temporary is why this only showed up on a type with a DESTRUCTOR:
+    ''
+    ''     _ZN8CLASSUDTC1Ev( tmp$2$1 );
+    ''     _ZN8CLASSUDTC1Ev( &TMP$3$1 );
+    ''     __builtin_memcpy( tmp$2$1, &TMP$3$1, 8 );
+    ''     _ZN8CLASSUDTD1Ev( &TMP$3$1 );
+    ''
+    '' and run, the function returns 123.
+    dim as boolean bareLit = (c.ast->Kind( valueE ) = Tko.N_TUPLE)
+    if bareLit then
+        bareLit = ((c.ast->nodes[cast( long, valueE )].flags and _
+                    Tko.NF_TYPE_LITERAL) <> 0)
+    end if
+    '' THE NAMED FORM IS A LITERAL TOO. 'type<T>( )' carries its own type, so the
+    '' TypeOf_ test below -- which is what tells a BARE 'type( )' from anything else
+    '' -- excludes it, and only the RETURN path wants it: it builds into the hidden
+    '' pointer exactly as the bare one does.
+    dim as boolean namedLit = bareLit
+    if namedLit then
+        dim as Tko.TypeId nlt = c.info->TypeOf_( valueE )
+        if nlt <> Tko.TYPE_NONE then
+            namedLit = (c.types->Unqualify( nlt ) = c.types->Unqualify( c.resultType ))
+        end if
+    end if
+    if bareLit then bareLit = (c.info->TypeOf_( valueE ) = Tko.TYPE_NONE)
+
+    '' A BARE TUPLE LIST IS THE THIRD SPELLING: it HAS a type of its own and still
+    '' means "build this as the destination". 'return ( Counted( 7 ), 8 )' out of a
+    '' '(Counted, long)' typed the literal (Counted, INTEGER) -- 16 bytes against
+    '' the result's 8 -- and copied all sixteen into the hidden pointer. ONLY for a
+    '' TUPLE result: over a UDT a list is the field-list initialiser.
+    dim as boolean tupleLit = false
+    if (bareLit = false) andalso (namedLit = false) then
+        if c.ast->Kind( valueE ) = Tko.N_TUPLE then
+            if (c.ast->nodes[cast( long, valueE )].flags and _
+                Tko.NF_TYPE_LITERAL) = 0 then
+                if c.resultType <> Tko.TYPE_NONE then
+                    tupleLit = IsTupleType_( c, c.types->Unqualify( c.resultType ) )
+                end if
+            end if
+        end if
+    end if
+    if (bareLit orelse namedLit orelse tupleLit) andalso _
+       (c.resultType <> Tko.TYPE_NONE) then
+        dim as Tko.TypeId lt = c.types->Unqualify( c.resultType )
+        '' RETURN CONSTRUCTS STRAIGHT INTO THE HIDDEN POINTER; 'function =' does
+        '' not. The measurement above is of the ASSIGNMENT form and is right for it;
+        '' the two statements are not the same thing. Measured side by side, one
+        '' type with a constructor and a destructor:
+        ''
+        ''     return type<T>        _ZN1TC1Ev( tmp$1 ); return tmp$1
+        ''     return type<T>( )     _ZN1TC1Ev( tmp$1 ); return tmp$1
+        ''     return type( )        _ZN1TC1Ev( tmp$1 ); return tmp$1
+        ''     function = type( )    _ZN1TC1Ev( tmp$1 );
+        ''                           _ZN1TC1Ev( &TMP );
+        ''                           memcpy( tmp$1, &TMP, 8 ); _ZN1TD1Ev( &TMP )
+        ''
+        '' -- so a RETURN runs ONE constructor and NO destructor, which is the whole
+        '' subject of pp/typeof-no-dtors.bas. Building the temporary anyway ran a
+        '' destructor fbc does not, and for a type owning a buffer the bitwise copy
+        '' would have left two owners of it.
+        if isReturn andalso (c.types->Kind( lt ) = Tko.TK_UDT) then
+            dim as MirValue rsa
+            rsa.kind = cast( ubyte, MV_LOCAL )
+            rsa.ty = cast( ubyte, MT_PTR )
+            rsa.id = c.sretParam
+            dim as MirValue rdst = LowerExprLoad( c, rsa, MT_PTR )
+            if rdst.kind <> cast( ubyte, MV_NONE ) then
+                if LowerCtorInit( c, -1, lt, valueE, @rdst ) then return true
+                '' THE HIDDEN POINTER'S STORAGE IS RAW, and a field list ASSIGNS into
+                '' its leaves. Assigning into a field nobody constructed is one
+                '' constructor short of the destructor that will run for it:
+                '' 'return ( Counted( 7 ), 8 )' gave 2 and 3 where fbc gives 2 and 2.
+                if TypeNeedsInit_( c, lt ) then CallImplicitCtor_( c, lt, rdst )
+                if LowerUdtParenInit_( c, -1, lt, valueE, @rdst ) then return true
+            end if
+        end if
+        if (bareLit orelse tupleLit) andalso (c.types->Kind( lt ) = Tko.TK_UDT) then
+            dim as long lsz = SizeOfType( c, lt )
+            if lsz > 0 then
+                dim as long lslot = NewTempLocal( c, MT_AGG, lsz )
+                if lslot >= 0 then
+                    if LowerCtorInit( c, lslot, lt, valueE ) then
+                        '' NOT REGISTERED FOR DESTRUCTION. The store below is a
+                        '' BITWISE move into the caller's storage, so the
+                        '' temporary's buffers leave with it -- destroying it here
+                        '' hands the caller a descriptor pointing at freed memory.
+                        '' It used to be registered and it never showed, because a
+                        '' RETURN terminates the block before the statement-end
+                        '' release could emit anything; the moment that hole was
+                        '' closed, 'return (5, "five")' exited 0xC0000374.
+                        ''
+                        '' A LEAK IF THE CALLER DOES NOT TAKE IT, which is the same
+                        '' trade fbc makes for its own move of a bare literal into
+                        '' the hidden pointer.
+                        dim as MirValue laddr2
+                        laddr2.kind = cast( ubyte, MV_LOCAL )
+                        laddr2.ty = cast( ubyte, MT_PTR )
+                        laddr2.id = lslot
+                        dim as MirValue lv2 = LowerExprLoad( c, laddr2, MT_AGG )
+                        if lv2.kind <> cast( ubyte, MV_NONE ) then
+                            dim as MirValue lsa
+                            lsa.kind = cast( ubyte, MV_LOCAL )
+                            lsa.ty = cast( ubyte, MT_PTR )
+                            lsa.id = c.sretParam
+                            dim as MirValue ldst = LowerExprLoad( c, lsa, MT_PTR )
+                            if ldst.kind <> cast( ubyte, MV_NONE ) then
+                                dim as MirInst lst
+                                lst.op = cast( ushort, M_STORE )
+                                lst.ty = cast( ubyte, MT_VOID )
+                                lst.a = ldst
+                                lst.b = lv2
+                                Emit( c, lst )
+                                return true
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
+    end if
+
+    '' The VALUE first, the address only as a fallback: 'function = F( )' has no
+    '' address to take, and a call result is already an aggregate value here.
+    '' A TEMPORARY BUILT HERE IS MOVED, NOT COPIED. The store below is bitwise, so
+    '' whatever the temporary owned leaves with it; destroying it afterwards would
+    '' hand the caller a descriptor pointing at freed memory. Measured:
+    '' 'return (5, "five")' out of a '(long, string)' builds the tuple in a
+    '' temporary and stores it, and with that temporary on the destruction list the
+    '' program exited 0xC0000374 after printing the right answer.
+    ''
+    '' ONLY THE ONE THIS EXPRESSION BUILT, which is why the mark is taken here.
+    dim as long smark = c.udtTemps.Count
+    dim as MirValue val = LowerExpr( c, valueE )
+    dim as MirValue movedFrom
+    if val.kind = cast( ubyte, MV_NONE ) then
+        dim as MirValue src = LowerAddr( c, valueE )
+        if src.kind = cast( ubyte, MV_NONE ) then return false
+        movedFrom = src
+        val = LowerExprLoad( c, src, MT_AGG )
+    end if
+    if val.kind = cast( ubyte, MV_NONE ) then return false
+    '' A USER OPERATOR'S HIDDEN RESULT IS ITS TEMPORARY'S ADDRESS -- see LowerUserBinaryOp_
+    '' -- and the object is the bytes behind it. 'return m & " " & str( y )' over a type
+    '' with no copy constructor stored the temporary's ADDRESS into the caller's object.
+    if val.kind = cast( ubyte, MV_LOCAL ) then
+        if c.f->locals[val.id].ty = cast( ubyte, MT_AGG ) then
+            '' ...COPIED, not moved, when an operator built it -- RetFromUserOp_.
+            if RetFromUserOp_( c, valueE ) = false then movedFrom = val
+            val = LowerExprLoad( c, val, MT_AGG )
+            if val.kind = cast( ubyte, MV_NONE ) then return false
+        end if
+    end if
+    '' THE OUTERMOST temporary the expression built, which is the object whose bytes
+    '' the store moves. Anything deeper -- an argument's temporary, say -- was
+    '' consumed inside and still has to be destroyed.
+    if movedFrom.kind = cast( ubyte, MV_LOCAL ) then
+        ForgetUdtTemp_( c, movedFrom.id )
+    elseif (c.udtTemps.Count > smark) andalso _
+           (c.ast->Kind( valueE ) = Tko.N_TUPLE) then
+        ForgetUdtTemp_( c, cast( long, c.udtTemps[c.udtTemps.Count - 1] ) )
+    end if
+
+    dim as MirValue sa
+    sa.kind = cast( ubyte, MV_LOCAL )
+    sa.ty = cast( ubyte, MT_PTR )
+    sa.id = c.sretParam
+    dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
+    if dst.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirInst st
+    st.op = cast( ushort, M_STORE )
+    st.ty = cast( ubyte, MT_VOID )
+    st.a = dst
+    st.b = val
+    Emit( c, st )
+    return true
+end function
+
+
+'' A PROGRAM HAS ONE main AND ANY NUMBER OF MODULE CONSTRUCTORS.
+''
+'' Every module's top-level code has to run. In the module named by '-m' it becomes
+'' 'main'; in every other module it becomes a CONSTRUCTOR that the C runtime calls
+'' before main. Emitting 'main' from each was the multiple-definition failure the
+'' comment below already predicted -- and it only appeared once more than one module
+'' could be linked at all.
+''
+'' MEASURED AGAINST fbc, which is the contract:
+''
+''     fbc -c mod.bas -m mod -o a.o     ->  T main, and it references fb_Init/fb_End
+''     fbc -c mod.bas        -o b.o     ->  t fb_ctor__b, and an 8-byte .ctors entry
+''
+'' Two things that are easy to get wrong and are therefore stated. The ctor's name
+'' comes from the OBJECT's basename, not the source's -- '-o zzz.o' gives
+'' 'fb_ctor__zzz' whatever the file was called. And it is LOCAL, lowercase 't': two
+'' modules in one program would otherwise collide on the ctor instead of on main,
+'' which is the same bug wearing a different name.
+sub LowerMainModule _
+    ( byref c as Ctx, byval root as Tko.NodeId, _
+      byval isMainModule as boolean, byref moduleName as string )
+
+    if root = Tko.NODE_NONE then return
+    if c.ast->Kind( root ) <> Tko.N_MODULE then return
+
+    '' Nothing to run means no entry point at all, rather than an empty one: a module
+    '' compiled as a library has none, and emitting one would collide at link time.
+    ''
+    '' THE MAIN MODULE IS THE EXCEPTION, and it is fbc's. Measured, over a file whose
+    '' whole content is 'sub s1() : print 1 : end sub':
+    ''
+    ''     fbc -r nomain.bas          static void fb_ctor__nomain( void ) only
+    ''     fbc -r -m nomain nomain.bas   int32 main( int32, char** ) as well
+    ''
+    '' -- so the empty main IS emitted for the module that is the program's, and only
+    '' for that one. Without it a test whose top level is nothing but SUITE macros --
+    '' which expand to module constructors and declarations and no statement at all --
+    '' produced an object with no entry point, and lld answered 'subsystem must be
+    '' defined'. 622 of the corpus, every fbcunit test in it, and build/linkscan.sh
+    '' is what made that visible: icescan stops at -c, where fbc emits no main either.
+    if isMainModule = false then
+        if ModuleHasCode( c, root ) = false then return
+    end if
+
+    '' ONE FUNCTION, TWO SHAPES. The body below is identical either way -- it is the
+    '' PROLOGUE and EPILOGUE that differ, so the two are parameterised here rather
+    '' than duplicated into paths that would drift.
+    dim as MirFunction ptr f
+    if isMainModule then
+        f = c.m->AddFunction( c.names->GetString( "main" ), MT_I32 )
+        f->isDefinition = true
+        '' argc, argv -- 'int32 main( int32 ARGC$1, char** ARGV$1 )', which is what fbc
+        '' emits and what the C runtime calls.
+        f->AddParam( MT_I32 )
+        f->AddParam( MT_PTR )
+    else
+        '' NO argc/argv, NO fb_Init AND NO fb_End: the runtime is already up by the
+        '' time a constructor runs, and tearing it down here would end the program
+        '' before main started.
+        f = c.m->AddFunction( c.names->GetString( "fb_ctor__" & moduleName ), MT_VOID )
+        f->isDefinition = true
+        f->isModuleCtor = true
+        f->isPrivate = true
+    end if
+    dim as MirFunction ptr savedF = c.f
+    dim as long savedB = c.curBlock
+    c.f = f
+    if c.srcMgr <> 0 then
+        dim as Tko.DecodedLoc dbgAt = c.srcMgr->Decode( c.ast->Loc( root ) )
+        f->dbgFile = cast( ulong, iif( c.moduleFile >= 0, c.moduleFile, dbgAt.file ) ) + 1
+        f->dbgLine = iif( cast( ulong, dbgAt.file ) + 1 = f->dbgFile, dbgAt.physLine, 1 )
+    end if
+    c.st->functions += 1
+    c.curBlock = NewBlock( c, "entry" )
+
+    '' DECLARED OUTSIDE THE GUARD because the epilogue reads it: a 'dim' inside an
+    '' IF is scoped to that IF, and main's return value is stored here at the top and
+    '' loaded at the bottom.
+    dim as MirValue resAddr
+    if isMainModule then
+        dim as long resSlot = NewTempLocal( c, MT_I32, 4 )
+        resAddr.kind = cast( ubyte, MV_LOCAL )
+        resAddr.ty = cast( ubyte, MT_PTR )
+        resAddr.id = resSlot
+        dim as MirInst z
+        z.op = cast( ushort, M_STORE )
+        z.ty = cast( ubyte, MT_VOID )
+        z.a = resAddr
+        z.b = ConstInt( c, 0, MT_I32 )
+        Emit( c, z )
+
+        dim as MirValue argcv, argvv
+        argcv.kind = cast( ubyte, MV_PARAM )
+        argcv.ty = cast( ubyte, MT_I32 )
+        argcv.id = 0
+        argvv.kind = cast( ubyte, MV_PARAM )
+        argvv.ty = cast( ubyte, MT_PTR )
+        argvv.id = 1
+        dim as containers.Array( of ulong ) ia
+        ia.Push( cast( ulong, argcv.kind ) ) : ia.Push( cast( ulong, argcv.id ) )
+        ia.Push( cast( ulong, argvv.kind ) ) : ia.Push( cast( ulong, argvv.id ) )
+        dim as MirValue zero_ = ConstInt( c, 0, MT_I32 )
+        ia.Push( cast( ulong, zero_.kind ) ) : ia.Push( cast( ulong, zero_.id ) )
+        EmitRtl( c, RTL_INIT, ia )
+        '' -e: fbc's 'fb_InitSignals( )' after fb_Init -- 'b \ 0' is runtime error 11 (F-59).
+        dim as containers.Array( of ulong ) noArgs : if (c.errFlags and 1) <> 0 then EmitRtl( c, RTL_INIT_SIGNALS, noArgs )
+    end if
+
+    ClearLabels( c, 0 )
+
+    '' The implicit restore, immediately after fb_Init and before the module body --
+    '' which is where fbc puts it. Emitted only when this module actually has a DATA
+    '' statement; a main module with READ but no DATA gets none at all.
+    EmitImplicitRestore( c )
+
+    '' -exx NAMES THE PROCEDURE IN A RUNTIME ABORT, and without this the slot was empty:
+    '' fbc says 'at line 4 of oob.bas::TOUCHIT()' where this said 'of oob.bas()'.
+    '' lowerboundchk.tiko records why it was left alone -- setting the name at module
+    '' level only is the cheap half and makes every check inside a SUB report
+    '' {MODLEVEL}, a name that is wrong rather than missing -- and says the save/restore
+    '' pair belongs here. This is that pair.
+    ''
+    '' SAVE AND RESTORE, because the name is GLOBAL STATE. fbc keeps the previous value
+    '' in a local and puts it back on the way out; setting without restoring would leave
+    '' a returned-from procedure's name in place for everything after it, which is the
+    '' same 'wrong rather than missing' failure from the other direction.
+    ''
+    '' -exx ONLY. Measured across the whole family: '-e', '-ex' and no flag at all emit
+    '' none of this, and only '-exx' does.
+    dim as boolean namesProc = ((c.errFlags and 256) <> 0)   '' -elocation, in -exx
+    dim as MirValue savedModName, savedFuncName
+    if namesProc then
+        '' AN EMPTY NAME AT MODULE LEVEL, and that is fbc's OUTPUT rather than its
+        '' source. fbc emits 'fb_ErrorSetFuncName( "{MODLEVEL}" )' here and then aborts
+        '' with 'of oob3.bas::()' -- the marker is suppressed somewhere in its runtime,
+        '' and tiko-rt has no such marker to suppress. The empty string reproduces what
+        '' fbc PRINTS, which is what a program sees; emitting the marker made this one
+        '' say 'oob3.bas::{MODLEVEL}()'. The '::' is still there, because it appears
+        '' whenever a name has been set at all -- so setting nothing is a third answer
+        '' and matches neither.
+        dim as Tko.DecodedLoc pfd = c.srcMgr->Decode( c.ast->Loc( root ) )
+        dim as containers.Array( of ulong ) ma
+        dim as MirValue mv = LowerTextAddr( c, c.srcMgr->PathOf( pfd.file ) )
+        ma.Push( cast( ulong, mv.kind ) ) : ma.Push( cast( ulong, mv.id ) )
+        savedModName = EmitRtl( c, RTL_ERROR_SET_MOD_NAME, ma )
+        dim as containers.Array( of ulong ) fa
+        dim as MirValue fv = LowerTextAddr( c, "" )
+        fa.Push( cast( ulong, fv.kind ) ) : fa.Push( cast( ulong, fv.id ) )
+        savedFuncName = EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, fa )
+    end if
+    dim as long scopeDepthIn = c.scopeMark.Count
+    PushScope( c )
+    '' The children are walked directly rather than through LowerBlock. N_MODULE is a
+    '' LIST node, so handing it to a routine that reads a statement payload would read
+    '' the wrong pool -- the mistake this file has made three times already.
+    dim as Tko.ListPayload ptr mp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, root )].data )]
+    c.labelBase = scopeDepthIn + 1
+    for i as long = 0 to mp->count - 1
+        ScanLabels( c, cast( Tko.NodeId, c.ast->children[mp->first + i] ), _
+                    scopeDepthIn + 1 )
+    next
+    for i as long = 0 to mp->count - 1
+        LowerStmt( c, cast( Tko.NodeId, c.ast->children[mp->first + i] ) )
+    next
+    CloseScope( c )
+    if c.scopeMark.Count <> scopeDepthIn then
+        c.st->scopeImbalance += 1
+    end if
+
+    '' fb_End comes AFTER the scope's cleanups: the measurement shows fb_StrDelete
+    '' preceding it, so shutting the runtime down before releasing its strings would
+    '' invert the order fbc actually emits.
+    if isMainModule then
+        dim as containers.Array( of ulong ) ea
+        dim as MirValue zend = ConstInt( c, 0, MT_I32 )
+        ea.Push( cast( ulong, zend.kind ) ) : ea.Push( cast( ulong, zend.id ) )
+        EmitRtl( c, RTL_END, ea )
+
+        dim as MirValue rv = LowerExprLoad( c, resAddr, MT_I32 )
+        Terminate( c, MTERM_RET, -1, -1, rv )
+    else
+        dim as MirValue novalue
+        Terminate( c, MTERM_RET, -1, -1, novalue )
+    end if
+
+    '' The same repair the procedure path makes, for the same reason: module-level
+    '' code is where the GOTO-into-a-declined-WITH files put their broken block.
+    '' EVERY ERROR JUMP GETS ITS DESTINATIONS. Done here because a check site can be
+    '' lowered before the ON ERROR that installs the handler, so the list is not knowable
+    '' where the jump is emitted -- only once the whole body has been seen.
+    ResolveErrorJumps_( c )
+
+    '' THE RESTORE GOES BEFORE EVERY 'ret', because this IR has no single exit: a
+    '' 'return' terminates whatever block it is in, so there is no one epilogue to
+    '' append to the way fbc's single goto label gives it one.
+    ''
+    '' A block's terminator is NOT in its instruction list -- see MirBlock -- so
+    '' emitting into the block appends AFTER the returned value is already computed and
+    '' BEFORE the ret itself, which is exactly where these belong.
+    ''
+    '' Reverse order, as fbc restores them: the function name, then the module name.
+    if namesProc then
+        dim as long savedCurBlk = c.curBlock
+        for bi as long = 0 to c.f->blocks.Count - 1
+            if c.f->blocks[bi].term <> cast( ubyte, MTERM_RET ) then continue for
+            c.curBlock = bi
+            dim as containers.Array( of ulong ) ra
+            ra.Push( cast( ulong, savedFuncName.kind ) )
+            ra.Push( cast( ulong, savedFuncName.id ) )
+            EmitRtl( c, RTL_ERROR_SET_FUNC_NAME, ra )
+            dim as containers.Array( of ulong ) rb
+            rb.Push( cast( ulong, savedModName.kind ) )
+            rb.Push( cast( ulong, savedModName.id ) )
+            EmitRtl( c, RTL_ERROR_SET_MOD_NAME, rb )
+        next
+        c.curBlock = savedCurBlk
+    end if
+    for bi as long = 0 to c.f->blocks.Count - 1
+        if c.f->blocks[bi].term <> cast( ubyte, MTERM_NONE ) then continue for
+        c.st->blocksRepaired += 1
+        if bi + 1 < c.f->blocks.Count then
+            c.f->blocks[bi].term = cast( ubyte, MTERM_BR )
+            c.f->blocks[bi].target = bi + 1
+        else
+            c.f->blocks[bi].term = cast( ubyte, MTERM_RET )
+        end if
+    next
+
+    c.f = savedF
+    c.curBlock = savedB
+end sub
+
+'' Whether a module has anything to run, as opposed to only declarations.
+''
+'' A NAMESPACE IS NOT A LEAF. It was counted as a declaration and not looked
+'' inside, so a module whose every top-level item sits in one answered 'no code'
+'' -- and a SECONDARY module that answers that gets no module constructor at all,
+'' which means its 'dim shared ... = init' never runs. Measured:
+''
+''     ' mod.bas, compiled alongside a main module
+''     namespace ns
+''         dim shared as integer g = 123
+''     end namespace
+''
+'' read back 0 under tiko-lang and 123 under fbc. The same declaration OUTSIDE a
+'' namespace was already right, and so was one inside a namespace in the MAIN
+'' module -- which is why it survived: the working case sat beside the broken one.
+'' It is the corpus's own shape, because SUITE( x ) expands to 'namespace x' and
+'' the suite file is always the secondary module.
+private function TopItemIsCode_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if id = Tko.NODE_NONE then return false
+    select case c.ast->Kind( id )
+    case Tko.N_PROC, Tko.N_TYPE, Tko.N_ENUM, Tko.N_TYPEDEF, _
+         Tko.N_CONST, Tko.N_FIELD, Tko.N_PARAM
+        '' A declaration; it does not put anything in main.
+        return false
+    case Tko.N_NAMESPACE, Tko.N_EXTERN_BLOCK
+        '' Its BODY decides, exactly as WalkTop below descends into one.
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+        for i as long = 0 to sp->count - 1
+            if TopItemIsCode_( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ) ) then
+                return true
+            end if
+        next
+        return false
+    end select
+    return true
+end function
+
+function ModuleHasCode( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if id = Tko.NODE_NONE then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    for i as long = 0 to lp->count - 1
+        if TopItemIsCode_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ) ) then
+            return true
+        end if
+    next
+    return false
+end function
+
+private sub WalkTop( byref c as Ctx, byval id as Tko.NodeId )
+    if id = Tko.NODE_NONE then return
+    select case c.ast->Kind( id )
+    case Tko.N_MODULE, Tko.N_BLOCK
+        dim as Tko.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        for i as long = 0 to lp->count - 1
+            WalkTop( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ) )
+        next
+    case Tko.N_NAMESPACE, Tko.N_EXTERN_BLOCK
+        dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+        for i as long = 0 to sp->count - 1
+            WalkTop( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ) )
+        next
+    case Tko.N_PROC
+        LowerProc( c, id )
+    end select
+end sub
+
+function Lower _
+    ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
+      byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
+      byref src as Tko.SourceManager, byref udts as Tko.UdtLayouts, _
+      byref vts as Tko.VTables, _
+      byref m as MirModule, byref st as LowerStats, _
+      byval isMainModule as boolean = true, _
+      byref moduleName as string = "", _
+      byval errFlags as long = 0, _
+      byval diags as any ptr = 0, byval moduleFile as long = -1 ) as long
+
+    dim as Ctx c
+    c.srcMgr = @src
+    c.diags = diags : c.moduleFile = moduleFile
+    c.udts = @udts
+    c.vts = @vts
+    c.ast = @ast
+    c.syms = @syms
+    c.types = @types
+    c.names = @names
+    c.info = @info
+    c.m = @m
+    c.st = @st
+    c.curBlock = -1
+    c.errFlags = errFlags
+    '' THE FILE NAME THE ERROR MESSAGES CARRY. fbc puts the module's own path
+    '' into every bounds-check call so the abort can say which file the bad
+    '' index came from. Taken once here rather than decoded at each access.
+    c.errModName = moduleName
+    '' THE MODULE SCOPE, recorded once -- see the field's comment.
+    c.modScope = info.ScopeOf( root )
+    if c.modScope = Tko.SCOPE_NONE then c.modScope = Tko.SCOPE_GLOBAL
+
+    '' DATA FIRST, before anything is lowered. Two reasons, and both are measured:
+    '' 'restore lbl' may name a label that appears LATER in the file, and the block
+    '' chain has to exist before the implicit restore at the top of main can point at
+    '' its head.
+    c.dataHead = CollectDataBlocks( c, root )
+
+    WalkTop( c, root )
+    '' THE INSTANTIATED GENERIC MEMBERS. They are procedures like any other, but they
+    '' were created after the unit's root block was closed, so nothing reaches them
+    '' from root -- they would be collected, resolved and typed, and then silently not
+    '' emitted, which reads at a call site as a call into a name with no code.
+    for i as long = 0 to ast.extraTopLevel.Count - 1
+        WalkTop( c, cast( Tko.NodeId, ast.extraTopLevel[i] ) )
+    next
+    LowerMainModule( c, root, isMainModule, moduleName )
+    '' THE SYNTHESISED STRUCTORS, after every written one exists to be called by them
+    '' and before the tables, whose destructor slot may name one.
+    '' THE MODULE INITIALISER, before the structors it calls are written.
+    EmitModuleInit_( c )
+    EmitImplicitStructors( c )
+    '' THE TABLES LAST. A slot names a FUNCTION, and naming one that was never lowered
+    '' would put a reference to a symbol with no code in the module.
+    EmitVTableGlobals( c )
+    return st.functions
+end function
+
+#include once "mir/lowerprocret.tiko"

@@ -14,7 +14,7 @@
 '' hardcodes when it lays out a stack frame, and every string or array variable
 '' in every compiled program is the wrong size.
 
-#include once "inc/descriptors.bi"
+#include once "inc/descriptors.ti"
 #include once "fbc-int/string.bi"
 #include once "fbc-int/array.bi"
 

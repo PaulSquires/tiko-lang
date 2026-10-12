@@ -1,0 +1,419 @@
+'' lowerboundchk.tiko -- the '-exx' array bounds check.
+''
+'' SPLIT OUT OF lowerarr.tiko, which this pushed to 1548 lines against a limit of
+'' 1500. The subscript lowering keeps one line of it; everything the check has to
+'' say for itself is here.
+
+#import "std/containers"
+#include once "mir/lowerctx.ti"
+#include once "mir/rtl.ti"
+
+namespace Tko.Mir
+
+'' EmitRtl takes each argument as its KIND and then its ID, two ulongs. Spelled out
+'' at every other call site; once here, because this call pushes six.
+private sub PushArg_( byref a as containers.Array( of ulong ), byref v as MirValue )
+    a.Push( cast( ulong, v.kind ) )
+    a.Push( cast( ulong, v.id ) )
+end sub
+
+'' The array's own name, which is what turns the runtime message from 'array
+'' accessed with invalid index' into "'A' accessed with invalid index".
+''
+'' UPPERCASED, which is fbc's spelling here and not a stylistic choice: FreeBASIC
+'' identifiers are case-insensitive, so 'A' is the canonical form of a name written
+'' 'a'. Measured -- fbc prints 'A' for 'dim a(0 to 9)'.
+''
+'' EMPTY WHEN THE TARGET IS NOT A PLAIN IDENTIFIER. A subscript on a field or on a
+'' returned array has no single name to give, and the runtime prints the generic
+'' word for an empty string. That is fbc's own fallback rather than a gap here: its
+'' legacy fb_ArraySngBoundChk forwards a NULL name for exactly this case.
+private function ArrayNameOf_( byref c as Ctx, byval target as Tko.NodeId ) as string
+    if target = Tko.NODE_NONE then return ""
+    if c.ast->Kind( target ) <> Tko.N_IDENT then return ""
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, target )].data )]
+    return ucase( c.names->Spelling( ip->name ) )
+end function
+
+'' ONE DIMENSION OF ONE SUBSCRIPT, checked before it becomes an address.
+''
+'' fbc emits one call per DIMENSION rather than one per access, and the shape was
+'' measured from its own '-gen llvm -r' output:
+''
+''     fb_ArraySngBoundChkEx( idx, ubound, line, filename, varname )
+''
+'' THE SINGLE-BOUND FORM IS FOR AN LBOUND OF 0. The runtime declares those first two
+'' parameters unsigned on purpose: a negative index reinterpreted as unsigned becomes
+'' enormous and fails the one 'idx > ubound' test, which is one comparison instead of
+'' two. An lbound of anything else takes fb_ArrayBoundChkEx and its signed triple.
+''
+'' THE RESULT IS IGNORED, and that is correct HERE and nowhere else. The runtime
+'' returns null when the index is in range and a resume address when it is not -- but
+'' tiko-lang does not implement ON ERROR (lowerintr.tiko), so no handler can be
+'' installed and the out-of-range path never returns: it reaches fb_Die. fbc branches
+'' on the result because '-ex' gives it somewhere to branch TO. When RESUME arrives,
+'' this is the site that changes with it.
+''
+'' NO fb_ErrorSetFuncName, DELIBERATELY. fbc calls it at entry and again on the way
+'' out, so its abort reads 'oob.bas::()' where this one reads 'oob.bas()' -- the file
+'' is named and the function slot is empty. Setting it at module level only, which is
+'' the cheap half, would leave every check inside a SUB reporting {MODLEVEL}: a name
+'' that is wrong rather than missing. The save/restore pair that makes it right
+'' belongs with the procedure lowering.
+''
+'' NOTHING IS EMITTED WHEN THE BOUNDS ARE NOT CONSTANT. A dynamic array carries its
+'' bounds in a descriptor and takes a different path entirely; a fixed one whose
+'' bounds did not fold has nothing to compare against, and inventing a limit would
+'' turn a missing check into a wrong one.
+'' A SUBSCRIPT'S VALUE WHEN IT IS A CONSTANT: the M_CONST just emitted for it, through the
+'' sext Coerce may have added and the 'neg' of a negative literal. Only the last few instructions of the block are read --
+'' the constant is always among them -- so a long block costs nothing.
+private function ConstIndex_( byref c as Ctx, byval v as MirValue, byref outV as longint ) as boolean
+    if (c.f = 0) orelse (c.curBlock < 0) then return false
+    dim as longint sign_ = 1
+    for hop as long = 0 to 3
+        if v.kind <> cast( ubyte, MV_TEMP ) then return false
+        dim as MirBlock ptr b = @c.f->blocks[c.curBlock]
+        dim as MirInst ptr found = 0
+        dim as long stopAt = b->insts.Count - 8
+        if stopAt < 0 then stopAt = 0
+        for i as long = b->insts.Count - 1 to stopAt step -1
+            if b->insts[i].result = v.id then found = @b->insts[i] : exit for
+        next
+        if found = 0 then return false
+        select case cast( MirOp, found->op )
+        case M_CONST
+            if IsFloatTy( cast( MirType, found->ty ) ) then return false
+            outV = found->imm * sign_
+            return true
+        case M_SEXT
+            v = found->a
+        case M_NEG
+            sign_ = -sign_
+            v = found->a
+        case else
+            return false
+        end select
+    next
+    return false
+end function
+
+sub EmitBoundsCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
+      byval at as Tko.TypeId, byval k as long, byref iv as MirValue, _
+      byval offTy as MirType )
+
+    dim as boolean loKnown = false, hiKnown = false
+    dim as longint lo = c.types->ArrayBound( at, k, false, loKnown )
+    dim as longint hi = c.types->ArrayBound( at, k, true, hiKnown )
+    if (loKnown = false) orelse (hiKnown = false) then return
+
+    '' A CONSTANT SUBSCRIPT OUTSIDE CONSTANT BOUNDS IS A COMPILE-TIME ERROR -- fbc's 92,
+    '' "Array out-of-bounds", under -exx or -earray only (measured on fbc-modern 1.20: 'print
+    '' a( 0 )' over 'a( 1 to 3 )', a field array, a shared one read in a SUB). tiko built it
+    '' and left it to the run time (audit F-71). Once per place, however often it lowers.
+    dim as longint cv
+    if (c.diags <> 0) andalso ConstIndex_( c, iv, cv ) then
+        if (cv < lo) orelse (cv > hi) then
+            dim as Tko.DiagnosticEngine ptr de = cast( Tko.DiagnosticEngine ptr, c.diags )
+            dim as boolean seen = false
+            for i as long = 0 to de->pending.Count - 1
+                if (de->pending[i].id = Tko.TKO0960) andalso (de->pending[i].range.first = c.ast->Loc( id )) then seen = true
+            next
+            if seen = false then
+                de->Report( Tko.TKO0960, Tko.PointRange( c.ast->Loc( id ) ), str( cv ), str( lo ), str( hi ) )
+            end if
+        end if
+    end if
+
+    '' THE SOURCE FILE, not the module stem. Measured against fbc: its abort says
+    '' 'at line 4 of oob.bas::()', and the string it hands the check is the path as
+    '' written on the command line. Passing the stem produced 'of oob()' -- the same
+    '' failure, naming the wrong thing.
+    dim as Tko.DecodedLoc fd = c.srcMgr->Decode( c.ast->Loc( id ) )
+    dim as MirValue fileV = LowerTextAddr( c, c.srcMgr->PathOf( fd.file ) )
+    dim as MirValue nameV = LowerTextAddr( c, ArrayNameOf_( c, target ) )
+    dim as MirValue lineV = ConstInt( c, fd.lineNo, MT_I32 )
+
+    dim as containers.Array( of ulong ) ba
+    PushArg_( ba, iv )
+    if lo <> 0 then PushArg_( ba, ConstInt( c, lo, offTy ) )
+    PushArg_( ba, ConstInt( c, hi, offTy ) )
+    PushArg_( ba, lineV )
+    PushArg_( ba, fileV )
+    PushArg_( ba, nameV )
+
+    dim as MirValue r
+    if lo = 0 then
+        r = EmitRtl( c, RTL_ARRAY_SNG_BOUND_CHK_EX, ba )
+    else
+        r = EmitRtl( c, RTL_ARRAY_BOUND_CHK_EX, ba )
+    end if
+    EmitErrorJump_( c, r )
+end sub
+
+'' THE SAME CHECK WITH BOUNDS KNOWN ONLY AT RUN TIME -- a DYNAMIC array (T21).
+''
+'' The constant check above declines a dynamic array, and nothing else checked one, so
+'' under -exx 'a( 9 ) = 42' on a three-element REDIM-ed array wrote past the block and
+'' the program exited 0. fbc checks it, measured from its '-gen llvm -r' output on that
+'' program: the dimension's lbound and ubound are LOADED from the descriptor -- offsets
+'' 56 and 64 for dimension 0 on a 64-bit target -- and passed to
+''
+''     fb_ArrayBoundChkEx( idx, lbound, ubound, line, filename, varname )
+''
+'' -- the signed form always, since the lbound is not known to be 0. The caller loads
+'' the bounds (lowerdesc.tiko owns the descriptor layout); this makes the call, and the
+'' runtime's message is the fixed-array one: "'A' accessed with invalid index = 9,
+'' must be between 1 and 3". An array never REDIM-ed is NOT caught here -- its bounds
+'' are zero-filled, so index 0 passes 0..0 and the null data pointer is what fails; that
+'' is EmitDimensionCheck_'s job, which runs first.
+sub EmitBoundsCheckRange_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
+      byref iv as MirValue, byref lov as MirValue, byref hiv as MirValue )
+
+    dim as Tko.DecodedLoc fd = c.srcMgr->Decode( c.ast->Loc( id ) )
+    dim as MirValue fileV = LowerTextAddr( c, c.srcMgr->PathOf( fd.file ) )
+    dim as MirValue nameV = LowerTextAddr( c, ArrayNameOf_( c, target ) )
+
+    dim as containers.Array( of ulong ) ba
+    PushArg_( ba, iv )
+    PushArg_( ba, lov )
+    PushArg_( ba, hiv )
+    PushArg_( ba, ConstInt( c, fd.lineNo, MT_I32 ) )
+    PushArg_( ba, fileV )
+    PushArg_( ba, nameV )
+    EmitErrorJump_( c, EmitRtl( c, RTL_ARRAY_BOUND_CHK_EX, ba ) )
+end sub
+
+'' -exx: IS THE ARRAY DIMENSIONED, AND WITH THIS MANY SUBSCRIPTS? Once per access to a
+'' DYNAMIC array, before the bounds (T21). fbc emits it ahead of every
+'' fb_ArrayBoundChkEx on a dynamic array -- measured from its '-gen llvm -r':
+''
+''     fb_ArrayDimensionChk( subscripts, @descriptor, line, filename, varname )
+''
+'' and it is what turns 'dim a( )' then 'a( 0 )' into runtime error 18, "'A' not
+'' dimensioned and array elements are not allocated", exit 18. Without it the bounds
+'' check passes -- a fresh descriptor's bounds are zero-filled, so 0 is inside 0..0 --
+'' and the access reads through a null data pointer: tiko crashed, measured, where fbc
+'' reported. The runtime (lib/rt/src/array/boundchk.tiko) also reports a subscript count
+'' that differs from the array's rank, which a 'dim a( )' cannot tell at compile time.
+sub EmitDimensionCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
+      byref desc as MirValue, byval count as long )
+
+    if desc.kind = cast( ubyte, MV_NONE ) then return
+    dim as MirType zt = MT_I64
+    if c.types->target.pointerBits = 32 then zt = MT_I32
+    dim as Tko.DecodedLoc fd = c.srcMgr->Decode( c.ast->Loc( id ) )
+    dim as MirValue fileV = LowerTextAddr( c, c.srcMgr->PathOf( fd.file ) )
+    dim as MirValue nameV = LowerTextAddr( c, ArrayNameOf_( c, target ) )
+
+    dim as containers.Array( of ulong ) da
+    PushArg_( da, ConstInt( c, count, zt ) )
+    PushArg_( da, desc )
+    PushArg_( da, ConstInt( c, fd.lineNo, MT_I32 ) )
+    PushArg_( da, fileV )
+    PushArg_( da, nameV )
+    EmitErrorJump_( c, EmitRtl( c, RTL_ARRAY_DIMENSION_CHK, da ) )
+end sub
+
+'' THE JUMP A FAILED CHECK HANDS BACK. Every -e check returns an address: null when
+'' the operation succeeded, and otherwise the place to continue at. fbc tests it and
+'' jumps, measured on the same source:
+''
+''     void* vr$5 = fb_ArraySngBoundChkEx( ... );
+''     if( vr$5 == 0ll) goto label$3;
+''     goto *vr$5;
+''     label$3:;
+''
+'' EMITTED ALWAYS, as fbc emits it, and RESOLVED AT THE END OF THE PROCEDURE. A check
+'' can be lowered before the ON ERROR that installs the handler -- or after it -- so the
+'' destination list is not knowable here; ResolveErrorJumps_ fills it once the body is
+'' finished.
+''
+'' WHERE THE PROCEDURE HAS NO HANDLER the jump block becomes 'unreachable' rather than an
+'' indirectbr with no destinations, which LLVM will not take. That is not a shortcut: with
+'' no handler installed the runtime does not return from a failed check at all, it aborts,
+'' so the non-null path genuinely cannot be reached. Ignoring the result -- what this did
+'' before ON ERROR existed -- was correct for the same reason, and stopped being correct
+'' the moment a handler could exist.
+sub EmitErrorJump_( byref c as Ctx, byref r as MirValue )
+    if r.kind = cast( ubyte, MV_NONE ) then return
+
+    '' THE JUMP BLOCK IS CREATED FIRST, and that is not a preference. A block's
+    '' instructions are an EXTENT over the function's one list, so blocks have to be
+    '' FILLED in the order they are created -- see Emit: "lowering never returns to a
+    '' finished block". Creating the continue block first and coming back to it put
+    '' every statement after the check into a block that had already been passed: the
+    '' handler came out empty, the code after it was spliced into the wrong block, and
+    '' 'exit sub' disappeared. The IR looked plausible and the program printed
+    '' 'no error' where fbc printed 'sub caught'.
+    dim as long jumpB = NewBlock( c, "errjmp" )
+    dim as long contB = NewBlock( c, "errok" )
+    Terminate( c, MTERM_CONDBR, jumpB, contB, r )
+
+    '' The jump block holds nothing but the indirect branch; its destinations are
+    '' patched in at the end of the procedure.
+    c.curBlock = jumpB
+    c.errIndirectBlocks.Push( cast( ulong, jumpB ) )
+    Terminate( c, MTERM_INDIRECTBR, -1, -1, r )
+    c.curBlock = contB
+end sub
+
+'' A RUNTIME STATEMENT THAT FAILED, under -e (bit 1 of errFlags; T68). The function form
+'' of OPEN, CLOSE, GET and the rest hands its error code back; the STATEMENT form drops
+'' it, and under -e fbc does not -- measured from its C (rtlErrorCheck):
+''
+''     int32 vr$2 = fb_FileOpen( ... );
+''     if( (int64)vr$2 == 0ll) goto label$2;
+''     void* vr$4 = fb_ErrorThrowAt( 2, (char*)"io.bas", (void*)0ull, (void*)0ull );
+''     goto *vr$4;
+''
+'' fb_ErrorThrowAt throws the error the runtime just recorded, so a missing file under
+'' -e stops with runtime error 2 or reaches the ON ERROR handler. tiko dropped the code
+'' and carried on. The throw is the one LowerError makes, through the same jump.
+sub EmitRtlErrorCheck_( byref c as Ctx, byval id as Tko.NodeId, byref rc as MirValue )
+    if (c.errFlags and 1) = 0 then return
+    if rc.kind = cast( ubyte, MV_NONE ) then return
+
+    dim as MirInst ne_
+    ne_.op = cast( ushort, M_ICMP_NE )
+    ne_.ty = cast( ubyte, MT_I8 )
+    ne_.a = rc
+    ne_.b = ConstInt( c, 0, cast( MirType, rc.ty ) )
+    dim as MirValue failed = Emit( c, ne_ )
+
+    '' The throw block first, for the reason EmitErrorJump_ gives.
+    dim as long throwB = NewBlock( c, "rterr" )
+    dim as long contB = NewBlock( c, "rtok" )
+    Terminate( c, MTERM_CONDBR, throwB, contB, failed )
+    c.curBlock = throwB
+
+    dim as Tko.DecodedLoc d = c.srcMgr->Decode( c.ast->Loc( id ) )
+    dim as string fname = ""
+    dim as Tko.SourceFile ptr sf = c.srcMgr->FileAt( d.file )
+    if sf <> 0 then fname = c.names->Spelling( sf->displayPath )
+    '' A MODULE'S GENERIC, compiled from the module's interface, is named by the source
+    '' file its '#line' points at -- sharedptr.tiko, not std.memory.tki.
+    if sf <> 0 then
+        if sf->isVirtual andalso (d.shownName <> Tko.INTERN_NONE) then fname = c.srcMgr->ShownPathOf( d )
+    end if
+    dim as containers.Array( of ulong ) args
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, d.lineNo ) )
+    args.Push( cast( ulong, MV_GLOBAL ) )
+    args.Push( cast( ulong, c.m->AddStringLiteral( fname, *c.names ) ) )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+    dim as MirValue jr = EmitRtl( c, RTL_ERROR_THROW_AT, args )
+    if jr.kind = cast( ubyte, MV_NONE ) then
+        Terminate( c, MTERM_UNREACHABLE, -1, -1, NoVal( ) )
+    else
+        c.errIndirectBlocks.Push( cast( ulong, c.curBlock ) )
+        Terminate( c, MTERM_INDIRECTBR, -1, -1, jr )
+    end if
+    c.curBlock = contB
+end sub
+
+'' EVERY JUMP GETS ITS DESTINATIONS, once the procedure is finished and every ON ERROR
+'' in it has been seen. Run from the two places a procedure body ends.
+sub ResolveErrorJumps_( byref c as Ctx )
+    '' 'ON LOCAL ERROR' PUTS BACK WHAT IT REPLACED (T69), before every 'ret': this IR
+    '' has no single exit. A terminator is not in its block's instruction list, so
+    '' this lands after the result is computed and before the ret. The buffer first,
+    '' through fb_ErrorJmpBuf, which arms it; then the handler, which disarms it again
+    '' when the caller had none -- every non-null handler was installed with a setjmp.
+    if c.errLocalSave > 0 then
+        dim as long savedCurBlk = c.curBlock
+        for bi as long = 0 to c.f->blocks.Count - 1
+            if c.f->blocks[bi].term <> cast( ubyte, MTERM_RET ) then continue for
+            c.curBlock = bi
+            dim as containers.Array( of ulong ) none
+            dim as MirValue jb = EmitRtl( c, RTL_ERROR_JMPBUF, none )
+            dim as containers.Array( of ulong ) cp
+            cp.Push( cast( ulong, jb.kind ) ) : cp.Push( cast( ulong, jb.id ) )
+            cp.Push( cast( ulong, MV_LOCAL ) ) : cp.Push( cast( ulong, c.errLocalSave - 1 ) )
+            cp.Push( cast( ulong, MV_CONST_INT ) ) : cp.Push( ERR_LOCAL_JMP_BYTES )
+            EmitRtl( c, RTL_MEM_COPY, cp )
+            dim as MirInst ld
+            ld.op = cast( ushort, M_LOAD )
+            ld.ty = cast( ubyte, MT_PTR )
+            ld.a.kind = cast( ubyte, MV_LOCAL )
+            ld.a.ty = cast( ubyte, MT_PTR )
+            ld.a.id = c.errLocalHandler
+            dim as MirValue h = Emit( c, ld )
+            dim as containers.Array( of ulong ) ha
+            ha.Push( cast( ulong, h.kind ) ) : ha.Push( cast( ulong, h.id ) )
+            EmitRtl( c, RTL_ERROR_SET_HANDLER, ha )
+        next
+        c.curBlock = savedCurBlk
+        c.errLocalSave = 0
+    end if
+
+    '' THE HANDLER ADDRESSES FIRST: every 'ON ERROR GOTO label' left a null placeholder
+    '' where the block address belongs, because the label's block did not exist yet and
+    '' could not be made to. Now it does -- the label has been lowered in its own order.
+    for i as long = 0 to c.errPendingArg.Count - 1
+        dim as long slot = cast( long, c.errPendingSlot[i] )
+        dim as long blk = c.labelBlock[slot]
+        '' A LABEL THAT WAS NEVER REACHED has no block, and inventing one here would
+        '' create it after every other -- an empty block nothing branches into, named by
+        '' a handler that can never run. The placeholder stays null, which is exactly
+        '' 'ON ERROR GOTO 0'.
+        if blk < 0 then continue for
+        dim as long at = cast( long, c.errPendingArg[i] )
+        if (at < 0) orelse (at + 1 >= c.m->argPool.Count) then continue for
+        c.m->argPool[at] = cast( ulong, MV_BLOCKADDR )
+        c.m->argPool[at + 1] = cast( ulong, blk )
+        dim as boolean known = false
+        for h as long = 0 to c.errHandlerBlocks.Count - 1
+            if c.errHandlerBlocks[h] = cast( ulong, blk ) then known = true
+        next
+        if known = false then c.errHandlerBlocks.Push( cast( ulong, blk ) )
+    next
+    c.errPendingArg.Clear( )
+    c.errPendingSlot.Clear( )
+
+    for i as long = 0 to c.errIndirectBlocks.Count - 1
+        dim as long b = cast( long, c.errIndirectBlocks[i] )
+        if (b < 0) orelse (b >= c.f->blocks.Count) then continue for
+        if c.errHandlerBlocks.Count = 0 then
+            '' No handler in this procedure: see EmitErrorJump_. The runtime aborts
+            '' rather than returning, so this block cannot be reached.
+            c.f->blocks[b].term = cast( ubyte, MTERM_UNREACHABLE )
+            continue for
+        end if
+        for h as long = 0 to c.errHandlerBlocks.Count - 1
+            c.f->blocks[b].indirectTargets.Push( c.errHandlerBlocks[h] )
+        next
+    next
+    c.errIndirectBlocks.Clear( )
+    c.errHandlerBlocks.Clear( )
+end sub
+
+'' -exx: A POINTER DEREFERENCE, CHECKED FOR NULL.
+''
+'' fb_NullPtrChk( p, line, filename ), measured from fbc's own IR, and the abort
+'' it produces is runtime error 7 with exit code 7.
+''
+'' THE RESULT IS IGNORED for the reason the bounds check gives: without ON ERROR
+'' there is no handler to resume into, so the failing path never returns.
+''
+'' ONLY A DEREFERENCE, not every pointer that is read. '*p' is the shape fbc checks;
+'' passing a null pointer to a procedure, or storing one, is legal and is not.
+sub EmitNullCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref pv as MirValue )
+
+    if pv.kind = cast( ubyte, MV_NONE ) then return
+    dim as Tko.DecodedLoc fd = c.srcMgr->Decode( c.ast->Loc( id ) )
+    dim as MirValue fileV = LowerTextAddr( c, c.srcMgr->PathOf( fd.file ) )
+
+    dim as containers.Array( of ulong ) na
+    PushArg_( na, pv )
+    PushArg_( na, ConstInt( c, fd.lineNo, MT_I32 ) )
+    PushArg_( na, fileV )
+    EmitErrorJump_( c, EmitRtl( c, RTL_NULL_PTR_CHK, na ) )
+end sub
+
+end namespace

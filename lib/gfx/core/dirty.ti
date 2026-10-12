@@ -1,0 +1,91 @@
+'' dirty.ti -- which scanlines changed since the last present.
+''
+'' Derived from: fb_gfx.h (SET_DIRTY), gfx_driver_gdi.c and gfx_driver_x11.c
+'' (the consumer side). LGPL-2.1-or-later with the static-linking exception.
+''
+'' One byte per scanline, non-zero meaning "changed". Producers mark the row
+'' RANGE a primitive touched -- once per primitive, not once per pixel, which is
+'' why this costs nothing in the inner loops. The presenter finds the first and
+'' last marked row, blits that span, and clears the array.
+''
+'' THE GATE IS "AM I DRAWING TO THE VISIBLE PAGE", NOT "AM I DRAWING". gfxlib2's
+'' macro is
+''
+''     if (__fb_gfx->framebuffer == ctx->line[0]) memset(dirty + y, TRUE, h)
+''
+'' so drawing to an image, or to a non-visible page, marks nothing. Surface.dirty
+'' is NULL for exactly those cases and every entry point here no-ops on NULL.
+'' Getting this wrong does not corrupt anything -- it just makes the screen
+'' repaint more than it needs to, or not repaint at all, and the second failure
+'' looks like a drawing bug rather than a presentation one.
+''
+'' Note the span is first..last, NOT a list of runs: gfxlib2 blits one rectangle
+'' covering every changed row, including clean rows in between. Matching that
+'' matters for the A/B, and it is also the right trade -- one large blit beats
+'' several small ones.
+
+#pragma once
+
+#include once "surface.ti"
+
+namespace TkoGfx
+
+'' Mark h rows starting at y. Clipped to the surface; no-op without tracking.
+private sub DirtyMark( byref s as Surface, byval y as long, byval h as long )
+    if s.dirty = 0 then exit sub
+    if h <= 0 then exit sub
+
+    dim as long y1 = y
+    dim as long y2 = y + h - 1
+    if y1 < 0 then y1 = 0
+    if y2 > s.h - 1 then y2 = s.h - 1
+    if y1 > y2 then exit sub
+
+    dim as integer i = y1
+    while i <= y2
+        s.dirty[i] = 1
+        i += 1
+    wend
+end sub
+
+'' Mark the rows between two y coordinates, in either order. Primitives that
+'' track a top and bottom as they draw use this.
+private sub DirtyMarkSpan( byref s as Surface, byval ya as long, byval yb as long )
+    if ya > yb then swap ya, yb
+    DirtyMark( s, ya, yb - ya + 1 )
+end sub
+
+private sub DirtyClear( byref s as Surface )
+    if s.dirty = 0 then exit sub
+    dim as integer i = 0
+    while i < s.h
+        s.dirty[i] = 0
+        i += 1
+    wend
+end sub
+
+'' First and last dirty rows. Returns 0 and leaves y1/y2 untouched when nothing
+'' is dirty -- the presenter must check the return, not the coordinates.
+private function DirtySpan( _
+        byref s as Surface, byref y1 as long, byref y2 as long ) as long
+    if s.dirty = 0 then return 0
+
+    dim as integer i = 0
+    while i < s.h
+        if s.dirty[i] then exit while
+        i += 1
+    wend
+    if i >= s.h then return 0
+
+    dim as integer j = s.h - 1
+    while j > i
+        if s.dirty[j] then exit while
+        j -= 1
+    wend
+
+    y1 = i
+    y2 = j
+    return 1
+end function
+
+end namespace

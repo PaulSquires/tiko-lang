@@ -185,7 +185,7 @@ tiko reports its own ids. Measured 2026-09-24 at origin/master 50c71751, one cas
 
 ## Implementation
 
-tiko's implementation is its own. `src/parser/lambda.bas` reads the lambda, the closure type of a capturing lambda is built during name resolution (`src/symbols/resolvesynth.bas`), and `src/mir/lowerclosure.bas` builds the closure object -- one field per capture, holding the address for a BYREF capture and the value for a BYVAL one.
+tiko's implementation is its own. `src/parser/lambda.tiko` reads the lambda, the closure type of a capturing lambda is built during name resolution (`src/symbols/resolvesynth.tiko`), and `src/mir/lowerclosure.tiko` builds the closure object -- one field per capture, holding the address for a BYREF capture and the value for a BYVAL one.
 
 ## Tests
 

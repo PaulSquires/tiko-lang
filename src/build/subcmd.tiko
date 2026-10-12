@@ -1,0 +1,594 @@
+'' subcmd.tiko -- see build.ti.
+
+#import "std/containers"
+#import "std/fs"
+#include once "build/build.ti"
+#include once "build/events.ti"
+#include once "build/lock.ti"
+#include once "build/plan.ti"
+#include once "driver/driver.ti"
+#include once "driver/diagout.ti"
+#include once "driver/manifest.ti"
+#include once "driver/modresolve.ti"
+#include once "support/spawn.ti"
+#include once "support/diskcache.ti"
+
+namespace Tko.Build
+
+function IsCommand( byref w as string ) as boolean
+    select case w
+    case "build", "run", "check", "clean", "metadata"
+        return true
+    end select
+    return false
+end function
+
+'' What a subcommand's own command line says (RFC §4). '--options' carries compiler flags
+'' for every unit (B15); nothing else of the classic driver's is taken here, so a typo is
+'' TKO0100 rather than a flag quietly passed on.
+private function ParseArgs_ _
+    ( byref args as Tko.StrVec, byref a as BuildArgs, byref diags as Tko.DiagnosticEngine ) as boolean
+
+    dim as boolean ok = true
+    a.verb = args[0]
+    dim as long i = 1
+    while i < args.Count
+        dim as string w = args[i]
+        '' '--' ENDS tiko's arguments: the rest are the program's, for 'tiko run' only.
+        if w = "--" then
+            if a.verb <> "run" then
+                diags.ReportGlobal( Tko.TKO0154, "--", "tiko " & a.verb )
+                ok = false
+            end if
+            for k as long = i + 1 to args.Count - 1
+                a.runArgs.Push( args[k] )
+            next
+            exit while
+        end if
+        select case w
+        case "-target", "-o", "-x", "--options", "--message-format", "--diagnostics-file", "--profile", "--format", "--manifest", "-j"
+            if i + 1 >= args.Count then
+                diags.ReportGlobal( Tko.TKO0101, w )
+                return false
+            end if
+            dim as string v = args[i + 1]
+            i += 2
+            select case w
+            case "-target"           : a.target = v
+            case "-o", "-x"          : a.outPath = v
+            case "--diagnostics-file" : a.diagFile = v
+            case "--options"         : Tko.Spawn.SplitArgs( v, a.extra )
+            case "--profile"         : a.profile = v : a.hasProfile = true
+            case "--manifest"        : a.manifest = v
+            case "-j"
+                a.jobs = valint( v )
+                if a.jobs < 1 then
+                    diags.ReportGlobal( Tko.TKO0106, v, w )
+                    ok = false
+                end if
+            '' 'metadata --format json' (RFC §8.2): the one format there is.
+            case "--format"
+                if v <> "json" then
+                    diags.ReportGlobal( Tko.TKO0106, v, w )
+                    ok = false
+                end if
+            case "--message-format"
+                if v = "json" then
+                    a.json = true
+                elseif v <> "text" then
+                    diags.ReportGlobal( Tko.TKO0106, v, w )
+                    ok = false
+                end if
+            end select
+            continue while
+        case "-v"
+            a.verbose = true
+        '' NOTHING READ FROM OR WRITTEN TO THE CACHE, modules or roots (B3).
+        case "--no-cache"
+            a.extra.Push( "--no-module-cache" )
+        '' THE CONSOLE'S COLOUR is the driver's, passed on as given (the test runner says never).
+        case "--color=always", "--color=never", "--color=auto"
+            a.extra.Push( w )
+        case else
+            '' HOISTED: a length test beside a comparison is warning 38.
+            dim as boolean isOpt = (len( w ) > 1)
+            if isOpt then isOpt = (left( w, 1 ) = "-")
+            if isOpt then
+                diags.ReportGlobal( Tko.TKO0100, w )
+                ok = false
+            else
+                a.words.Push( w )
+            end if
+        end select
+        i += 1
+    wend
+    '' -v PRINTS EVERY TOOL'S COMMAND TO STDOUT, which in JSON mode is the event stream.
+    dim as boolean wordy = a.verbose
+    for each x as string in a.extra
+        if (x = "-v") orelse (x = "--time-passes") then wordy = true
+    next
+    if a.json andalso wordy then
+        diags.ReportGlobal( Tko.TKO0154, "-v", "--message-format json" )
+        ok = false
+    end if
+    return ok
+end function
+
+'' A WORD IS A TARGET when a manifest is in force and the word could not be a file name --
+'' no '.', no separator -- else a ROOT. A target that the manifest does not have is TKO0160.
+private function Classify_ _
+    ( byref a as BuildArgs, byval hasM as boolean, byref m as Tko.Modules.Manifest, _
+      byref targets as Tko.StrVec, byref roots as Tko.StrVec, byref diags as Tko.DiagnosticEngine ) as boolean
+
+    dim as boolean ok = true
+    for each w as string in a.words
+        dim as boolean nameLike = hasM andalso (instr( w, "." ) = 0) andalso (instr( w, "/" ) = 0) andalso (instr( w, "\" ) = 0)
+        if nameLike = false then
+            roots.Push( w )
+            continue for
+        end if
+        dim as boolean known = false
+        for each t as string in m.targetNames
+            if t = w then known = true
+        next
+        if known then
+            targets.Push( w )
+        else
+            dim as string list_ = ""
+            for each t as string in m.targetNames
+                list_ &= iif( len( list_ ) > 0, ", ", "" ) & t
+            next
+            if len( list_ ) = 0 then list_ = "none"
+            diags.ReportGlobal( Tko.TKO0160, w, list_ )
+            ok = false
+        end if
+    next
+    if ok andalso (targets.Count > 0) andalso (roots.Count > 0) then
+        diags.ReportGlobal( Tko.TKO0154, roots[0], "target " & targets[0] )
+        ok = false
+    end if
+    return ok
+end function
+
+'' ONE BUILD OF AN OUTPUT AT A TIME: '<artefact>.build.lock' beside it (lock.ti).
+private function Lock_( byref p as TargetPlan, byref lk as BuildLock, byref diags as Tko.DiagnosticEngine ) as boolean
+    dim as string base_ = p.artifact
+    if len( base_ ) = 0 then base_ = Stem( p.roots[0] )
+    dim as string lp = base_ & ".build.lock"
+    if TakeLock( lk, lp ) = LOCK_BUSY then
+        diags.ReportGlobal( Tko.TKO0166, p.artifact, lp )
+        return false
+    end if
+    return true
+end function
+
+'' ONE DIAGNOSTICS FILE FOR THE WHOLE BUILD: each target's run wrote its own, and they are
+'' joined -- one header, every record in target order, one 'end' with the totals.
+private sub MergeDiagFiles_( byref dest as string, byref parts as Tko.StrVec, byval rc as long )
+    dim as string header = "", body = ""
+    dim as long errs = 0, warns = 0
+    for each part as string in parts
+        dim as string t
+        if Tko.DiskCache.ReadAll( part, t ) = false then continue for
+        kill( part )
+        dim as long p = 1
+        while p <= len( t )
+            dim as long e = instr( p, t, chr( 10 ) )
+            if e = 0 then e = len( t ) + 1
+            dim as string ln = mid( t, p, e - p )
+            p = e + 1
+            if len( header ) = 0 then
+                header = ln
+                continue while
+            end if
+            if ln = header then continue while
+            if left( ln, 4 ) = "end" & chr( 9 ) then
+                dim as long t1 = instr( 5, ln, chr( 9 ) )
+                errs += valint( mid( ln, 5, t1 - 5 ) )
+                warns += valint( mid( ln, t1 + 1 ) )
+                continue while
+            end if
+            if len( ln ) > 0 then body &= ln & chr( 10 )
+        wend
+    next
+    if len( header ) = 0 then return
+    dim as long fh = freefile
+    if open( dest for output as #fh ) <> 0 then return
+    print #fh, header & chr( 10 ) & body & "end" & chr( 9 ) & errs & chr( 9 ) & warns & chr( 9 ) & rc & chr( 10 );
+    close #fh
+end sub
+
+private sub BuildStart_( byref obs as Observer, byref p as TargetPlan )
+    EmitLine( obs, """event"":""build-start"",""format"":" & EVENT_FORMAT & ",""target"":" & _
+                   JsonStr( p.name ) & ",""profile"":" & JsonStr( p.profile ) & ",""roots"":" & _
+                   JsonArr( p.roots ) )
+end sub
+
+'' WHERE A COPY GOES: the artefact's file name in a copy_to directory.
+private function CopyPath_( byref dir_ as string, byref artifact as string ) as string
+    dim as string d = dir_
+    if (right( d, 1 ) = "/") orelse (right( d, 1 ) = "\") then d = left( d, len( d ) - 1 )
+    return d & "/" & BaseName( artifact )
+end function
+
+'' copy_to (tiko.toml): after a build that succeeded, the artefact copied into each directory --
+'' made when missing -- so the program runs beside the DLLs and data files it needs, while
+'' out/<profile>/ keeps the original the link check reads. A copy already there with the same
+'' size and no older is left alone, so an unchanged build writes nothing. A DLL goes alone:
+'' its import library is for the linker, not the program. A failure is TKO0171, exit 5.
+private function CopyTo_ _
+    ( byref p as TargetPlan, byref obs as Observer, byval wordy as boolean, _
+      byref diags as Tko.DiagnosticEngine ) as long
+
+    for each dir_ as string in p.copyTo
+        dim as string dst = CopyPath_( dir_, p.artifact )
+        if Tko.Modules.AbsPath( dst ) = Tko.Modules.AbsPath( p.artifact ) then continue for
+        if fs.IsDir( dir_ ) = false then fs.CreateDirAll( dir_ )
+        dim as boolean same = false
+        dim as fs.FsResultInfo rs = fs.Stat( p.artifact )
+        dim as fs.FsResultInfo rd = fs.Stat( dst )
+        if rs.IsOk( ) andalso rd.IsOk( ) then
+            dim as fs.FileInfo fsrc = rs.Value( )
+            dim as fs.FileInfo fdst = rd.Value( )
+            same = (fsrc.Size( ) = fdst.Size( )) andalso (fsrc.ModifiedUtc( ) <= fdst.ModifiedUtc( ))
+        end if
+        if same = false then
+            dim as fs.FsResultBool r = fs.CopyFile( p.artifact, dst, true )
+            if r.IsOk( ) = false then
+                diags.ReportGlobal( Tko.TKO0171, p.artifact, dst )
+                return Tko.EXIT_TOOL_FAILED
+            end if
+            if wordy then print "copy: " & p.artifact & " -> " & dst
+        end if
+        EmitLine( obs, """event"":""copy"",""target"":" & JsonStr( p.name ) & ",""from"":" & _
+                       JsonStr( p.artifact ) & ",""path"":" & JsonStr( dst ) & ",""copied"":" & _
+                       iif( same, "false", "true" ) )
+    next
+    return Tko.EXIT_OK
+end function
+
+private sub BuildEnd_( byref obs as Observer, byref p as TargetPlan, byval rc as long )
+    EmitLine( obs, """event"":""build-end"",""target"":" & JsonStr( p.name ) & ",""errors"":" & _
+                   obs.errors & ",""warnings"":" & obs.warnings & ",""exit"":" & rc & ",""ms"":" & _
+                   clng( ( timer - obs.t0 ) * 1000 ) )
+end sub
+
+'' THE PLANS, in order: every named target, or every target, or the implicit one.
+private function Plan_ _
+    ( byref a as BuildArgs, byval hasM as boolean, byref m as Tko.Modules.Manifest, byref mdir as string, _
+      byref names as Tko.StrVec, byref ctx as Tko.CompilerContext, byref plans as Tko.StrVec ) as boolean
+    '' 'plans' holds the target names, "" for the implicit one; each is planned again when
+    '' built, which is cheap, so no array of plans has to be carried.
+    if names.Count = 0 then
+        plans.Push( "" )
+        return true
+    end if
+    dim as Tko.StrVec arts
+    dim as boolean ok = true
+    for each n as string in names
+        dim as TargetPlan p
+        if PlanTarget( a, m, mdir, n, iif( a.hasProfile, a.profile, "debug" ), p, ctx.diags ) = false then
+            ok = false
+            continue for
+        end if
+        '' TWO TARGETS MAY NOT WRITE ONE FILE (TKO0165).
+        for k as long = 0 to arts.Count - 1
+            if arts[k] = p.artifact then ctx.diags.ReportGlobal( Tko.TKO0165, plans[k], n, p.artifact ) : ok = false
+        next
+        arts.Push( p.artifact )
+        plans.Push( n )
+    next
+    return ok
+end function
+
+private function PlanOne_ _
+    ( byref a as BuildArgs, byref m as Tko.Modules.Manifest, byref mdir as string, byref n as string, _
+      byref p as TargetPlan, byref diags as Tko.DiagnosticEngine ) as boolean
+    if len( n ) = 0 then return PlanImplicit( a, m, p, diags )
+    return PlanTarget( a, m, mdir, n, iif( a.hasProfile, a.profile, "debug" ), p, diags )
+end function
+
+'' 'tiko build', and 'tiko check' (checkOnly): the same plans and the same runs, with
+'' --frontend-only -- every diagnostic through lowering, nothing written, so no lock and no
+'' output directory either.
+private function Build_ _
+    ( byref a as BuildArgs, byref m as Tko.Modules.Manifest, byref mdir as string, _
+      byref plans as Tko.StrVec, byref ctx as Tko.CompilerContext, byref obs as Observer, _
+      byval checkOnly as boolean = false ) as long
+
+    dim as long rc = Tko.EXIT_OK
+    dim as Tko.StrVec diagParts
+    for i as long = 0 to plans.Count - 1
+        dim as TargetPlan p
+        '' Several targets: each run writes a diagnostics file of its own, joined at the end.
+        dim as string ownDiag = a.diagFile
+        if (len( a.diagFile ) > 0) andalso (plans.Count > 1) then
+            a.diagFile = ownDiag & "." & i
+            diagParts.Push( a.diagFile )
+        end if
+        dim as boolean planned = PlanOne_( a, m, mdir, plans[i], p, ctx.diags )
+        a.diagFile = ownDiag
+        if planned = false then
+            rc = Tko.EXIT_CMDLINE
+            exit for
+        end if
+        dim as BuildLock lk
+        if checkOnly then
+            p.dargs.Push( "--frontend-only" )
+        else
+            dim as string outDir = Tko.Modules.DirOfFile( p.artifact )
+            if (len( outDir ) > 0) andalso (fs.IsDir( outDir ) = false) then fs.CreateDirAll( outDir )
+            if Lock_( p, lk, ctx.diags ) = false then
+                rc = Tko.EXIT_USER_ERROR
+                exit for
+            end if
+        end if
+        obs.finished = false
+        BuildStart_( obs, p )
+        rc = Tko.Driver.Run( p.dargs, 0, 0, @obs )
+        if (rc = Tko.EXIT_OK) andalso (checkOnly = false) then
+            rc = CopyTo_( p, obs, a.verbose, ctx.diags )
+            if rc <> Tko.EXIT_OK then ctx.diags.Flush( )
+        end if
+        ReleaseLock( lk )
+        BuildEnd_( obs, p, rc )
+        '' FAIL FAST (RFC B14): no target starts after one fails.
+        if rc <> Tko.EXIT_OK then exit for
+    next
+    if diagParts.Count > 0 then MergeDiagFiles_( a.diagFile, diagParts, rc )
+    return rc
+end function
+
+'' 'tiko run' (RFC 4): ONE target, an exe, built, then run with the arguments after '--'; its
+'' exit code is the program's. The path is made absolute: CreateProcess searches the directory
+'' of the running executable -- tiko's -- before the current one for a bare name.
+private function Run_ _
+    ( byref a as BuildArgs, byref m as Tko.Modules.Manifest, byref mdir as string, _
+      byref plans as Tko.StrVec, byref ctx as Tko.CompilerContext, byref obs as Observer ) as long
+
+    if plans.Count <> 1 then
+        dim as string list_ = ""
+        for each n as string in plans
+            list_ &= iif( len( list_ ) > 0, ", ", "" ) & n
+        next
+        ctx.diags.ReportGlobal( Tko.TKO0170, list_ )
+        return Tko.EXIT_CMDLINE
+    end if
+    dim as TargetPlan p
+    if PlanOne_( a, m, mdir, plans[0], p, ctx.diags ) = false then return Tko.EXIT_CMDLINE
+    if p.kind <> "exe" then
+        ctx.diags.ReportGlobal( Tko.TKO0168, p.name, p.kind )
+        return Tko.EXIT_CMDLINE
+    end if
+    dim as long rc = Build_( a, m, mdir, plans, ctx, obs )
+    if rc <> Tko.EXIT_OK then return rc
+
+    '' THE FIRST copy_to COPY, when the target has one: it is the one beside the DLLs and data
+    '' files the program needs, so it is what double-clicking it in that directory would run.
+    dim as string exe = Tko.Modules.AbsPath( p.artifact )
+    if p.copyTo.Count > 0 then exe = Tko.Modules.AbsPath( CopyPath_( p.copyTo[0], p.artifact ) )
+    dim as string argline = ""
+    for each x as string in a.runArgs
+        argline &= " " & Tko.Spawn.QuoteArg( x )
+    next
+    EmitLine( obs, """event"":""run"",""path"":" & JsonStr( exe ) & ",""args"":" & JsonArr( a.runArgs ) )
+    dim as Tko.Spawn.Proc pr = Tko.Spawn.Start( exe, mid( argline, 2 ) )
+    if pr = 0 then
+        ctx.diags.ReportGlobal( Tko.TKO0111, "could not start " & exe )
+        return Tko.EXIT_TOOL_FAILED
+    end if
+    dim as long prc = Tko.Spawn.Wait( pr )
+    EmitLine( obs, """event"":""run-end"",""exit"":" & prc )
+    return prc
+end function
+
+private function Clean_ _
+    ( byref a as BuildArgs, byref m as Tko.Modules.Manifest, byref mdir as string, _
+      byref plans as Tko.StrVec, byref ctx as Tko.CompilerContext, byref obs as Observer ) as long
+
+    for each n as string in plans
+        dim as TargetPlan p
+        if PlanOne_( a, m, mdir, n, p, ctx.diags ) = false then return Tko.EXIT_CMDLINE
+        dim as BuildLock lk
+        if Lock_( p, lk, ctx.diags ) = false then return Tko.EXIT_USER_ERROR
+        dim as boolean had = fs.IsFile( p.artifact )
+        if had then kill( p.artifact )
+        '' ...and the record of its link (B5), which says what the deleted artefact was made of.
+        if fs.IsFile( p.artifact & ".link" ) then kill( p.artifact & ".link" )
+        ReleaseLock( lk )
+        EmitLine( obs, """event"":""clean"",""target"":" & JsonStr( p.name ) & ",""path"":" & _
+                       JsonStr( p.artifact ) & ",""removed"":" & iif( had, "true", "false" ) )
+        '' ...and its copies (copy_to), each its own event.
+        for each dir_ as string in p.copyTo
+            dim as string dst = CopyPath_( dir_, p.artifact )
+            if Tko.Modules.AbsPath( dst ) = Tko.Modules.AbsPath( p.artifact ) then continue for
+            dim as boolean hadCopy = fs.IsFile( dst )
+            if hadCopy then kill( dst )
+            EmitLine( obs, """event"":""clean"",""target"":" & JsonStr( p.name ) & ",""path"":" & _
+                           JsonStr( dst ) & ",""removed"":" & iif( hadCopy, "true", "false" ) )
+        next
+    next
+    return Tko.EXIT_OK
+end function
+
+'' 'tiko metadata' (RFC §8.2): the project as one JSON object, nothing compiled. The module
+'' graph and the search paths come from a '--print-graph' run of each target, reported to
+'' the observer rather than printed (modgraph.tiko).
+private function Metadata_ _
+    ( byref a as BuildArgs, byval hasM as boolean, byref m as Tko.Modules.Manifest, byref mdir as string, _
+      byref plans as Tko.StrVec, byref ctx as Tko.CompilerContext, byref obs as Observer ) as long
+
+    dim as long rc = Tko.EXIT_OK
+    dim as Tko.StrVec profiles
+    ProfileNames( m, profiles )
+    dim as string tj = "", uj = "", pj = ""
+    for each pn as string in profiles
+        dim as Tko.StrVec fl
+        if ProfileFlags( m, pn, fl, ctx.diags ) = false then rc = Tko.EXIT_CMDLINE
+        pj &= iif( len( pj ) > 0, ",", "" ) & "{""name"":" & JsonStr( pn ) & ",""flags"":" & JsonArr( fl ) & "}"
+    next
+    obs.json = false
+    for each n as string in plans
+        dim as TargetPlan p
+        if PlanOne_( a, m, mdir, n, p, ctx.diags ) = false then
+            rc = Tko.EXIT_CMDLINE
+            continue for
+        end if
+        dim as string outs = ""
+        if len( n ) > 0 then
+            for each pn as string in profiles
+                outs &= iif( len( outs ) > 0, ",", "" ) & JsonStr( pn ) & ":" & _
+                        JsonStr( TargetOutput( a, m, mdir, n, pn, ctx.diags ) )
+            next
+        else
+            outs = JsonStr( p.profile ) & ":" & JsonStr( p.artifact )
+        end if
+        tj &= iif( len( tj ) > 0, ",", "" ) & "{""name"":" & JsonStr( p.name ) & ",""kind"":" & JsonStr( p.kind ) & _
+              ",""implicit"":" & iif( len( n ) = 0, "true", "false" ) & ",""main"":" & JsonStr( p.roots[0] ) & _
+              ",""roots"":" & JsonArr( p.roots ) & ",""resources"":" & JsonArr( p.resources ) & _
+              ",""defines"":" & JsonArr( p.defines ) & ",""flags"":" & JsonArr( p.flags ) & _
+              ",""copyTo"":" & JsonArr( p.copyTo ) & _
+              ",""outputs"":{" & outs & "}}"
+        '' THE GRAPH RUN: the target's flags and roots, its target triple, '--print-graph'.
+        dim as Tko.StrVec g
+        for each x as string in p.flags
+            if (x <> "-v") andalso (x <> "--time-passes") then g.Push( x )
+        next
+        for each x as string in p.roots
+            g.Push( x )
+        next
+        for each x as string in p.defines
+            g.Push( "-d" ) : g.Push( x )
+        next
+        if len( a.target ) > 0 then g.Push( "-target" ) : g.Push( a.target )
+        g.Push( "--print-graph" )
+        obs.includesJson = "[]" : obs.definesJson = "[]"
+        dim as long grc = Tko.Driver.Run( g, 0, 0, @obs )
+        if grc <> Tko.EXIT_OK then rc = grc
+        for each r as string in p.roots
+            uj &= iif( len( uj ) > 0, ",", "" ) & "{""target"":" & JsonStr( p.name ) & ",""root"":" & JsonStr( r ) & _
+                  ",""defines"":" & obs.definesJson & ",""includes"":" & obs.includesJson & "}"
+        next
+    next
+    dim as string mj = ""
+    for each x as string in obs.modJson
+        mj &= iif( len( mj ) > 0, ",", "" ) & x
+    next
+    dim as string pkg = "null"
+    if hasM then
+        pkg = "{""name"":" & JsonStr( m.name ) & ",""manifest"":" & JsonStr( Rel( mdir, "tiko.toml" ) ) & _
+              ",""root"":" & JsonStr( mdir ) & "}"
+    end if
+    dim as string sj = obs.searchJson
+    if len( sj ) = 0 then sj = "null"
+    print "{""format"":" & EVENT_FORMAT & ",""package"":" & pkg & ",""profiles"":[" & pj & _
+          "],""targets"":[" & tj & "],""modules"":[" & mj & "],""searchPaths"":" & sj & _
+          ",""units"":[" & uj & "]}" & chr( 10 );
+    return rc
+end function
+
+function Entry( byref args as Tko.StrVec ) as long
+    if args.IsEmpty( ) then return Tko.Driver.Run( args )
+    if IsCommand( args[0] ) = false then return Tko.Driver.Run( args )
+
+    '' THE SUBCOMMAND'S OWN DIAGNOSTICS -- a bad option, a manifest, a busy lock -- go through
+    '' an engine like any run's, rendered the same way and written to the same file.
+    dim as Tko.CompilerContext ctx
+    dim as Observer obs
+    obs.t0 = timer
+    dim as BuildArgs a
+    dim as boolean ok = ParseArgs_( args, a, ctx.diags )
+    obs.json = a.json
+    '' -j IS THE JOB BUDGET, for this build and the processes it starts: TKO_JOBS, which
+    '' Spawn.DefaultJobs reads for clang and the unit cache's children alike. A variable
+    '' and not a temporary: on Linux setenviron is putenv, which keeps the pointer.
+    dim as string jobsEnv
+    if a.jobs > 0 then
+        jobsEnv = "TKO_JOBS=" & a.jobs
+        setenviron( jobsEnv )
+    end if
+    ctx.options.diagFile = a.diagFile
+    if Tko.DiagOut.Start( ctx ) = false then ok = false
+
+    '' THE MANIFEST: '--manifest' -- tiko.toml or the directory holding it -- else the nearest
+    '' tiko.toml at or above the current directory, if any. Paths in it stay relative to it.
+    dim as string mdir = ""
+    if len( a.manifest ) > 0 then
+        mdir = a.manifest
+        if lcase( right( mdir, 9 ) ) = "tiko.toml" then mdir = Tko.Modules.DirOfFile( mdir )
+        if len( mdir ) = 0 then mdir = "."
+        if Tko.Modules.HasManifest( mdir ) = false then
+            ctx.diags.ReportGlobal( Tko.TKO0144, "no tiko.toml in '" & mdir & "'" )
+            ok = false
+        end if
+    else
+        mdir = FindManifestDir( )
+    end if
+    dim as boolean hasM = (len( mdir ) > 0)
+    dim as Tko.Modules.Manifest m
+    if ok andalso hasM then
+        if Tko.Modules.LoadManifest( ctx, mdir, m ) = false then ok = false
+    end if
+    dim as Tko.StrVec targets, roots, plans
+    if ok then ok = Classify_( a, hasM, m, targets, roots, ctx.diags )
+    '' THE PROFILE, checked once rather than once per target.
+    if ok andalso a.hasProfile then
+        dim as Tko.StrVec pf
+        ok = ProfileFlags( m, a.profile, pf, ctx.diags )
+    end if
+    if ok then
+        if (targets.Count = 0) andalso (roots.Count = 0) then
+            '' NO WORDS: every target of the manifest, or nothing to do.
+            for each t as string in m.targetNames
+                targets.Push( t )
+            next
+            if targets.Count = 0 then
+                ctx.diags.ReportGlobal( Tko.TKO0102 )
+                ok = false
+            end if
+        end if
+    end if
+    if ok then
+        if roots.Count > 0 then
+            a.words.Clear( )
+            for each r as string in roots
+                a.words.Push( r )
+            next
+        end if
+        ok = Plan_( a, hasM, m, mdir, targets, ctx, plans )
+    end if
+
+    dim as long rc = Tko.EXIT_CMDLINE
+    if ok then
+        select case a.verb
+        case "build"
+            rc = Build_( a, m, mdir, plans, ctx, obs )
+        case "check"
+            rc = Build_( a, m, mdir, plans, ctx, obs, true )
+        case "run"
+            rc = Run_( a, m, mdir, plans, ctx, obs )
+        case "clean"
+            rc = Clean_( a, m, mdir, plans, ctx, obs )
+        case "metadata"
+            rc = Metadata_( a, hasM, m, mdir, plans, ctx, obs )
+        case else
+            ctx.diags.ReportGlobal( Tko.TKO0992, "tiko " & a.verb )
+            rc = Tko.EXIT_USER_ERROR
+        end select
+    end if
+
+    '' A failure before any driver run is written here; a run wrote its own file and totals.
+    dim as boolean ran = obs.finished
+    if ran = false then rc = Tko.DiagOut.Finish( ctx, rc )
+    '' ...and one raised after a run -- a later target's busy lock -- still reaches the console.
+    if ran then ctx.diags.Flush( )
+    if ((a.verb = "build") orelse (a.verb = "check") orelse (a.verb = "run")) andalso (ran = false) then
+        obs.errors = ctx.diags.ErrorCount( )
+        obs.warnings = ctx.diags.WarningCount( )
+        EmitLine( obs, """event"":""build-end"",""errors"":" & obs.errors & ",""warnings"":" & _
+                       obs.warnings & ",""exit"":" & rc & ",""ms"":" & clng( ( timer - obs.t0 ) * 1000 ) )
+    end if
+    return rc
+end function
+
+end namespace

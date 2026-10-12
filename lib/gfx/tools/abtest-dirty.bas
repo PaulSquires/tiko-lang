@@ -9,7 +9,7 @@
 '' which is a bad way to spend an afternoon.
 ''
 '' It IS observable from here, though. __fb_gfx->dirty is a byte per scanline,
-'' and abi/rtlctx.bi can reach it. So:
+'' and abi/rtlctx.ti can reach it. So:
 ''
 ''   1. draw a case to the SCREEN with gfxlib2, read its dirty span, clear it
 ''   2. draw the same case into our own surface with tracking on
@@ -24,12 +24,12 @@
 '' rectangle covering first..last, so rows in between are irrelevant to what
 '' reaches the screen.
 
-#include once "../raster/line.bi"
-#include once "../raster/box.bi"
+#include once "../raster/line.ti"
+#include once "../raster/box.ti"
 #include once "abtest.bi"
 #include once "crt/string.bi"
 #ifdef ABTEST_HAS_GFXLIB2
-#include once "../abi/rtlctx.bi"
+#include once "../abi/rtlctx.ti"
 #include once "fbgfx.bi"
 #endif
 

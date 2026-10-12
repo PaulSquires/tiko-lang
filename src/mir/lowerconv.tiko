@@ -1,0 +1,572 @@
+'' lowerconv.tiko -- the conversion intrinsics.
+''
+'' CBYTE, CUBYTE, CSHORT, CUSHORT, CLNG, CULNG, CINT, CUINT, CLNGINT, CULNGINT, CSNG,
+'' CDBL, CBOOL, CSIGN, CUNSG, CAST and CPTR. They are KEYWORDS, not procedures, so
+'' nothing is called: each one lowers to the coercion its result type asks for.
+''
+'' Check has already computed that result type, measured against fbc in
+'' tests/types/expected/fbc-conv.txt, so this file decides only HOW the value gets
+'' there and never WHAT it becomes.
+''
+'' Without this the intrinsics typed and then lowered to nothing, while the call around
+'' them still emitted -- 'call void P(_)', an undef where a boolean belonged, with the
+'' statement counted as fully lowered. That is the third time this shape has appeared;
+'' see docs/internals/phase-6-pointers.md.
+
+#import "std/containers"
+#include once "mir/lowerctx.ti"
+
+'' Defined in lowerterm.tiko and declared per unit, the way every other caller of it
+'' does: a fixed-length string is an ARRAY of the element builtin and only this
+'' predicate sees that.
+namespace Tko.Mir
+
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nOut as longint ) as long
+
+
+'' DOES THIS UDT EXTEND THE BUILT-IN 'zstring'? Measured, and NEITHER HALF ALONE IS
+'' ENOUGH -- three probes on fbc, one line apart:
+''
+''     type UZ                     : operator cast() byref as const zstring
+''         clng( u )  ->  error 20, Type mismatch
+''     type UZB extends zstring    : type UZ extends UZB : operator cast() ...
+''         clng( u )  ->  ACCEPTED
+''     type UZ extends zstring     : no cast operator
+''         clng( u )  ->  error 20
+''
+'' So the conversion is legal only when the type INHERITS from the built-in string type
+'' AND declares the cast. Taking the cast alone would make tiko compute an answer for a
+'' program fbc REFUSES, which is the wrong direction to be wrong in -- it was written
+'' that way first and the corpus caught it.
+''
+'' The walk is over the BASE field, transitively: udt-zstring's own type is
+'' 'UZSTRING_FIXED extends UZSTRING_FIXED_BASE extends zstring', two levels.
+private function ExtendsStrKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval want as Tko.BuiltinType ) as boolean
+
+    dim as Tko.TypeId cur = c.types->Unqualify( t )
+    dim as long guard = 0
+    while (cur <> Tko.TYPE_NONE) andalso (guard < 32)
+        guard += 1
+        if c.types->Kind( cur ) = Tko.TK_BUILTIN then
+            return (c.types->BuiltinOf( cur ) = want)
+        end if
+        if c.types->Kind( cur ) <> Tko.TK_UDT then return false
+        dim as Tko.SymbolId bs = UdtMemberNamed_( c, cur, "base" )
+        if bs = Tko.SYMBOL_NONE then return false
+        dim as Tko.Symbol ptr bsy = c.syms->SymbolAt( bs )
+        if bsy = 0 then return false
+        cur = c.types->Unqualify( bsy->type_ )
+    wend
+    return false
+end function
+
+private function ExtendsZstring_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    return ExtendsStrKind_( c, t, Tko.TY_ZSTRING )
+end function
+
+'' ...AND THE WIDE ONE. 'type UWSTRING_FIXED_BASE extends wstring' is what
+'' udt-wstring/conversion.bas writes, and the whole VAL family over it went
+'' through the aggregate instead.
+private function ExtendsWstring_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    return ExtendsStrKind_( c, t, Tko.TY_WSTRING )
+end function
+
+'' The intrinsic's spelling, or "" when this call is not one of them.
+private function ConvName_ _
+    ( byref c as Ctx, byval cp as Tko.ListPayload ptr ) as string
+
+    if cp->target = Tko.NODE_NONE then return ""
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return ""
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    select case nm
+    case "cbyte", "cubyte", "cshort", "cushort", "clng", "culng", "cint", "cuint", _
+         "clngint", "culngint", "csng", "cdbl", "cbool", "csign", "cunsg", _
+         "cast", "cptr"
+        return nm
+    end select
+    return ""
+end function
+
+function IsConvIntrinsic _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    return len( ConvName_( c, cp ) ) > 0
+end function
+
+'' THE OPERAND OF A STRING-TO-STRING 'cast' OR 'cptr', or NODE_NONE.
+''
+'' 'cast( string, s )' converts nothing -- measured, fbc emits the ordinary byval-string
+'' temporary and nothing else: 'fb_StrAssign( &TMP$2$1, -1ll, S$1, -1ll, 0 );
+'' CONST_CAST_STRING1( &TMP$2$1 );'. So every string path can look straight through it,
+'' and without that 'takes( cast(string, s) )', 'dim t = cast(string, s)',
+'' 'y = cast(string, x)' and 'print cast(string, s)' all declined.
+''
+'' A byref parameter's type is a REFERENCE and a reference is transparent to this too.
+function StrIdentityConvOperand_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+
+    if id = Tko.NODE_NONE then return Tko.NODE_NONE
+    if c.ast->Kind( id ) <> Tko.N_CALL then return Tko.NODE_NONE
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as string nm = ConvName_( c, cp )
+    if (nm <> "cast") andalso (nm <> "cptr") then return Tko.NODE_NONE
+    if cp->count <> 2 then return Tko.NODE_NONE
+    dim as Tko.NodeId op = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+    '' UNQUALIFIED on both sides. IsStringType tests the BUILTIN kind and a 'const
+    '' string' is a distinct qualified entry, so 'cast( string, x )' over a
+    '' 'dim x as const string' answered 'not a string' and the identity was missed --
+    '' which is the whole of what const-discard.bas writes.
+    '' THE TARGET TYPE COMES FROM THE TYPEREF, not from the call's own type: Check
+    '' computes none for 'cast( string, x )' -- a string result is not a value it
+    '' models here -- so testing the call answered TYPE_NONE and the identity was never
+    '' recognised at all.
+    dim as Tko.TypeId rt2 = c.info->TypeOf_( id )
+    if rt2 = Tko.TYPE_NONE then
+        dim as Tko.NodeId tn2 = cast( Tko.NodeId, c.ast->children[cp->first] )
+        if c.ast->Kind( tn2 ) = Tko.N_TYPEREF then rt2 = c.info->TypeOf_( tn2 )
+    end if
+    if IsStringType( c, c.types->Unqualify( rt2 ) ) = false then
+        return Tko.NODE_NONE
+    end if
+    dim as Tko.TypeId ot = c.types->Unqualify( c.info->TypeOf_( op ) )
+    if c.types->Kind( ot ) = Tko.TK_REFERENCE then
+        ot = c.types->Unqualify( c.types->Inner( ot ) )
+    end if
+    if IsStringType( c, ot ) then return op
+    '' ...AND A UDT WITH A NARROW 'operator cast' IS ITS OWN CAST TO A STRING. Every caller
+    '' already takes such a UDT where a string belongs -- 'print b' lowers -- and none took
+    '' the spelling that says so: 'print cast( string, b )' and 'dim s as string = cast(
+    '' string, b )' were dropped with nothing said, where fbc-modern prints the cast's
+    '' result (measured 2026-09-19). A UDT with only a WIDE cast is left as it was.
+    if c.types->Kind( ot ) = Tko.TK_UDT then
+        if NarrowCastOverload_( c, ot ) <> Tko.SYMBOL_NONE then return op
+    end if
+    return Tko.NODE_NONE
+end function
+'' THE 'operator cast' OVERLOAD WHOSE RESULT IS EXACTLY THE NAMED TYPE.
+''
+'' UserCastToNum_ picks the BEST-RANKED numeric overload, which is right where the
+'' conversion is implicit -- 'l + r' promotes -- and wrong for an EXPLICIT cast, whose
+'' whole content is the type it names. Over a type declaring both 'cast( ) as integer'
+'' and 'cast( ) as double', fbc calls '_ZN4PAIRcvu7INTEGEREv' for 'cast( integer, p )'
+'' and '_ZN4PAIRcvdEv' for 'cast( double, p )'; ranking alone called the DOUBLE one for
+'' both. fbc rejects a cast to a type no overload yields at all -- 'error 20: Type
+'' mismatch' -- so there is no case here for a near miss, and one that gets past Check
+'' falls back to the ranked choice rather than declining.
+private function ExactCastOverload_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval dstT as Tko.TypeId ) as Tko.SymbolId
+
+    if (t = Tko.TYPE_NONE) orelse (dstT = Tko.TYPE_NONE) then return Tko.SYMBOL_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId d = c.types->Unqualify( dstT )
+    dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
+        if cse = 0 then exit while
+        if cse->type_ <> Tko.TYPE_NONE then
+            if c.types->Unqualify( cse->type_ ) = d then return cur
+        end if
+        cur = cse->nextOverload
+    wend
+    return Tko.SYMBOL_NONE
+end function
+
+function LowerConvIntrinsic _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
+
+    dim as MirValue v
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as string nm = ConvName_( c, cp )
+    if len( nm ) = 0 then return v
+
+    '' CAST and CPTR take the TYPE first, so the value is the second argument.
+    dim as long vi = 0
+    if (nm = "cast") orelse (nm = "cptr") then
+        if cp->count <> 2 then return v
+        vi = 1
+    else
+        if cp->count <> 1 then return v
+    end if
+
+    dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[cp->first + vi] )
+
+    '' 'cast( parent, c )' OVER A DERIVED VALUE IS AN UPCAST, and only the base
+    '' subobject crosses. Everything below this coerces a SCALAR; an aggregate fell
+    '' through whole, and 's1( cast( parent, c0 ), 2 )' then stored sixteen bytes
+    '' into the eight-byte slot the parameter sized. See UpcastAggInit_ -- the same
+    '' rule an initialiser and a plain argument need.
+    if (nm = "cast") orelse (nm = "ctype") then
+        dim as MirValue uv
+        if UpcastAggInit_( c, arg, c.info->TypeOf_( id ), uv ) then return uv
+        '' ...AND 'cast( <a UDT>, <another> )' IS THE SOURCE'S OWN 'operator cast',
+        '' which is the one spelling that says so out loud. See UdtCastValue_.
+        if UdtCastValue_( c, arg, c.info->TypeOf_( id ), uv, false ) then return uv
+    end if
+
+    '' A STRING OPERAND IS PARSED, NOT COERCED. There was no case for one at all, so
+    '' 'm = cuint( x )' over a string LOADED THE DESCRIPTOR'S FIRST EIGHT BYTES -- the
+    '' char* data pointer -- and zero-extended THAT into the integer. A heap address
+    '' where 37 belonged, verifier clean, 0 statements not lowered. A string TEMPORARY
+    '' -- 'cuint( left( x, 1 ) )' -- has no value to load, so that one declined instead:
+    '' the same hole, showing on two sides.
+    ''
+    '' Measured, and the entry point is chosen by the RESULT'S width and signedness
+    '' rather than by the intrinsic's name:
+    ''
+    ''     cbyte/cubyte/cshort/cushort/clng/culng   fb_VALINT  / fb_VALUINT
+    ''     cint/clngint  and their unsigned twins   fb_VALLNG  / fb_VALULNG
+    ''     csng/cdbl                                fb_VAL
+    ''
+    '' -- so 'clng( x )' is 'int32 vr = fb_VALINT( &X$0 )' and 'cint( x )' is
+    '' 'int64 vr = fb_VALLNG( &X$0 )'. Run, all thirteen print 37.
+    ''
+    '' CAST and CPTR are NOT in this: 'cast( string, s )' is the identity on a string
+    '' and has nothing to parse.
+    dim as boolean isCastLike = (nm = "cast") orelse (nm = "cptr")
+    if isCastLike = false then
+        dim as Tko.TypeId at2 = c.info->TypeOf_( arg )
+
+        '' A WIDE OPERAND HAS ITS OWN FIVE ENTRY POINTS, taking a bare uint16* rather
+        '' than a descriptor -- the same five 'valint( w )' already uses, and chosen by
+        '' the RESULT's width and signedness exactly as the narrow rows below are.
+        '' Measured, over a 'wstring * 8' holding "789":
+        ''
+        ''     cbyte/cshort/clng      fb_WstrValInt      cubyte/cushort/culng  ...UInt
+        ''     cint/clngint           fb_WstrValLng      cuint/culngint        ...ULng
+        ''     csng/cdbl              fb_WstrVal
+        ''
+        '' Without them a wide argument fell past this whole block to the ordinary
+        '' coercion, which read the STRING AS A NUMBER: 'cdbl( w )' emitted a bare
+        '' 'sitofp' over the buffer and 'cdbl( wstr( "789" ) )' a 'bitcast' of the
+        '' literal's ADDRESS. Verifier clean, 0 statements not lowered, and the answer
+        '' was a pointer. This is the same hole the narrow rows below were written to
+        '' close, left open on the wide side.
+        '' A UDT THAT CASTS TO A WSTRING IS A WIDE OPERAND TOO. The narrow rows
+        '' below have asked this since they were written; the wide branch did not, so
+        '' 'cint( u )' over 'type B extends wstring' declaring
+        '' 'operator cast( ) byref as const wstring' compared the OBJECT to zero --
+        '' 'icmp ne [34 x i8] %t7, 0', which is not an instruction, so no module.
+        ''
+        '' ONLY WHEN IT EXTENDS WSTRING, for the same reason the narrow side insists:
+        '' the cast alone is fbc's error 20, so accepting it would compute an answer
+        '' for a program fbc refuses.
+        dim as boolean udtWide = false
+        if (IsWideString_( c, at2 ) = false) andalso _
+           (c.types->Kind( at2 ) = Tko.TK_UDT) then
+            udtWide = ExtendsWstring_( c, at2 )
+        end if
+        if IsWideString_( c, at2 ) orelse udtWide then
+            dim as MirValue wd
+            if udtWide then
+                if UserCastToWstr_( c, arg, wd ) = false then return v
+            else
+                if WideOperand_( c, arg, wd ) = false then return v
+            end if
+            if wd.kind = cast( ubyte, MV_NONE ) then return v
+            dim as containers.Array( of ulong ) wargs
+            wargs.Push( cast( ulong, wd.kind ) ) : wargs.Push( cast( ulong, wd.id ) )
+            dim as long ww = RTL_WSTR_VALINT
+            dim as MirType wmt = MT_I32
+            select case nm
+            '' CBOOL PARSES THE WORD, not a number: fbc has an entry point of its own
+            '' for it and 'cbool( "true" )' is TRUE through it. Reaching VALINT
+            '' instead parsed "true" as a NUMBER, got 0, and answered false.
+            case "cbool"
+                ww = RTL_WSTR_VAL_BOOL : wmt = MT_I8
+            case "csng", "cdbl"
+                ww = RTL_WSTR_VAL : wmt = MT_F64
+            case "cint", "clngint"
+                ww = RTL_WSTR_VALLNG : wmt = MT_I64
+            case "cuint", "culngint"
+                ww = RTL_WSTR_VALULNG : wmt = MT_I64
+            case "cubyte", "cushort", "culng"
+                ww = RTL_WSTR_VALUINT : wmt = MT_I32
+            case else
+                ww = RTL_WSTR_VALINT : wmt = MT_I32
+            end select
+            dim as MirValue wr = EmitRtl( c, ww, wargs )
+            if wr.kind = cast( ubyte, MV_NONE ) then return v
+            dim as MirType wwant = mt
+            if wwant = MT_VOID then wwant = wmt
+            dim as boolean wU = (ww = RTL_WSTR_VALULNG) orelse (ww = RTL_WSTR_VALUINT)
+            return Coerce( c, wr, wwant, wU, _
+                           IsUnsignedType( c, c.info->TypeOf_( id ) ) )
+        end if
+
+        '' A UDT THAT CASTS TO A STRING IS A STRING OPERAND HERE TOO, and this was the
+        '' one place in the family that did not ask. 'clng( u )' over a type declaring
+        '' 'operator cast( ) byref as const zstring' fell past the whole VAL dispatch,
+        '' reached LowerExpr, and asked a UDT for a value it has not got -- which the
+        '' LLVM emitter meets as an aggregate with no storage:
+        ''
+        ''     emit: ICE: an aggregate value with no size
+        ''
+        '' AND --dump-ir NEVER SAW IT. The emitter runs after lowering, so the file
+        '' reported '0 statements not lowered' and mirsweep -- which dumps IR and stops
+        '' -- called it clean. The whole decline census is blind to this class.
+        ''
+        '' Measured, fbc converts through the cast and then uses the ordinary entry
+        '' point, exactly as it does for a real zstring:
+        ''
+        ''     char*     vr  = _ZN14UZSTRING_FIXEDcvcEv( &U );
+        ''     FBSTRING* vr2 = fb_StrAllocTempDescZ( vr );
+        ''     int32     vr3 = fb_VALINT( vr2 );
+        ''
+        '' UserCastToStr_ is what picks the string overload off the cast chain and
+        '' borrows the temporary descriptor for a bare char* result, so the rest of the
+        '' dispatch below is unchanged.
+        '' ...AND A 'zstring * N' IS A STRING OPERAND, which IsStringType says NO to:
+        '' a fixed narrow string is an ARRAY of TY_ZSTRING, and this file asked the one
+        '' predicate that cannot see that. The cost was not a decline:
+        ''
+        ''     dim as zstring * 50 t = "42"
+        ''     print clng( t )              fbc prints 42; tiko ICEd in the emitter
+        ''
+        '' Two lines, no UDT, nothing exotic -- and '--dump-ir' called it '0 statements
+        '' not lowered', so the sweep has never seen it. StrSwapKind_ is the predicate
+        '' the rest of the compiler uses for exactly this reason; the WIDE kinds are
+        '' already answered by the branch above, so only the narrow ones are taken here.
+        dim as longint fixN = 0
+        dim as long fixK = StrSwapKind_( c, at2, fixN )
+        dim as boolean argIsStr = IsStringType( c, at2 )
+        if argIsStr = false then
+            argIsStr = (fixK = 0) orelse (fixK = 1) orelse (fixK = 3) orelse (fixK = 4)
+        end if
+        dim as MirValue udtSd
+        dim as boolean udtRaw = false
+        dim as boolean argIsUdtStr = false
+        if (argIsStr = false) andalso (c.types->Kind( at2 ) = Tko.TK_UDT) then
+            '' ...AND ONLY WHEN IT EXTENDS ZSTRING. See ExtendsZstring_: the cast alone
+            '' is fbc error 20, so accepting it would compute an answer for a program
+            '' fbc refuses.
+            if ExtendsZstring_( c, at2 ) then
+                argIsUdtStr = UserCastToStr_( c, arg, udtSd, udtRaw )
+            end if
+        end if
+        if argIsStr orelse argIsUdtStr then
+            dim as MirValue sd
+            if argIsUdtStr then
+                sd = udtSd
+                '' A BYREF ZSTRING RESULT IS A BARE char*, NOT A DESCRIPTOR, and
+                '' fb_VALINT takes FBSTRING*. Passing the pointer straight through made
+                '' 'clng( u )' answer 0 for a UDT holding "42" -- the runtime read a
+                '' descriptor out of string data. fbc borrows one from the no-length
+                '' entry point first, which is the whole of the difference:
+                ''
+                ''     char*     vr  = _ZN14UZSTRING_FIXEDcvcEv( &U );
+                ''     FBSTRING* vr2 = fb_StrAllocTempDescZ( vr );
+                ''     int32     vr3 = fb_VALINT( vr2 );
+                if udtRaw then
+                    dim as containers.Array( of ulong ) tda
+                    tda.Push( cast( ulong, sd.kind ) ) : tda.Push( cast( ulong, sd.id ) )
+                    sd = EmitRtl( c, RTL_STR_TEMPZ_NOLEN, tda )
+                end if
+            else
+                if StrDescriptorOf_( c, arg, sd ) = false then return v
+            end if
+            if sd.kind = cast( ubyte, MV_NONE ) then return v
+            dim as containers.Array( of ulong ) vargs
+            vargs.Push( cast( ulong, sd.kind ) ) : vargs.Push( cast( ulong, sd.id ) )
+            dim as long vw = RTL_VAL
+            dim as MirType vmt = MT_F64
+            select case nm
+            '' The narrow twin of the same rule -- see the wide row above.
+            case "cbool"
+                vw = RTL_VAL_BOOL : vmt = MT_I8
+            case "csng", "cdbl"
+                vw = RTL_VAL : vmt = MT_F64
+            case "cint", "clngint"
+                vw = RTL_VALLNG : vmt = MT_I64
+            case "cuint", "culngint"
+                vw = RTL_VALULNG : vmt = MT_I64
+            case "cubyte", "cushort", "culng"
+                vw = RTL_VALUINT : vmt = MT_I32
+            case else
+                vw = RTL_VALINT : vmt = MT_I32
+            end select
+            dim as MirValue vr2 = EmitRtl( c, vw, vargs )
+            if vr2.kind = cast( ubyte, MV_NONE ) then return v
+            dim as MirType vwant = mt
+            if vwant = MT_VOID then vwant = vmt
+            dim as boolean vU = (vw = RTL_VALULNG) orelse (vw = RTL_VALUINT)
+            return Coerce( c, vr2, vwant, vU, IsUnsignedType( c, c.info->TypeOf_( id ) ) )
+        end if
+
+        '' A BLANKET 'a UDT here declines' GUARD WAS TRIED AND REVERTED. It was meant to
+        '' stop 'clng( u )' over a type with a zstring cast that does NOT extend zstring
+        '' -- fbc's error 20 -- from reaching LowerExpr and ICEing in the emitter. It
+        '' cost 196 DECLINES corpus-wide: a UDT with a NUMERIC 'operator cast' lowers
+        '' perfectly well through the fall-through below, and the guard killed all of
+        '' them. The sweep is what said so, 709 -> 905.
+        ''
+        '' So that one shape still ICEs, and it is left ICEing deliberately rather than
+        '' paid for at that price. Narrowing the guard needs a predicate that answers
+        '' "has a STRING cast" WITHOUT emitting one, and UserCastToStr_ emits.
+    end if
+
+    '' A UDT OPERAND IS ITS 'operator cast', not its bytes. The IMPLICIT direction --
+    '' 'dim as integer r = x' -- already went through UserConvToScalar_; the EXPLICIT
+    '' spelling 'cast( integer, x )' fell straight to LowerExpr below, which asked a
+    '' UDT for a value it has not got and reached the emitter as an aggregate with no
+    '' size: 'emit: ICE: an aggregate value with no size'. Measured, fbc emits the same
+    '' call for both spellings -- 'int64 vr$2 = _ZN1Vcvu7INTEGEREv( &X$0 )'.
+    ''
+    '' THE DESTINATION COMES FROM THE TYPEREF when the call has no type of its own,
+    '' for the same reason StrIdentityConvOperand_ above reads it from there.
+    '' ...AND THE 'cXXX' FAMILY REACHES IT TOO, over a UDT.
+    ''
+    '' 'isCastLike' gated this block to 'cast' and 'cptr', so 'cint( u )' over a type
+    '' declaring 'operator cast( ) as integer' fell through every string-parsing row
+    '' to a bare aggregate load and the assignment then declined. Measured, fbc emits
+    '' the SAME call for both spellings and prints 4 for both:
+    ''
+    ''     a = cast( integer, an )    -> 4      b = cint( an )   -> 4
+    ''
+    '' while tiko gave 4 and 0. The IMPLICIT spelling 'c = an' was right all along,
+    '' which is what made this look like an intrinsic problem rather than a cast one.
+    ''
+    '' ONLY WHERE THE OPERATOR ACTUALLY MATCHES. ExactCastOverload_ below asks for one
+    '' whose result IS the destination, and fbc is just as strict: with only
+    '' 'operator cast( ) as integer' declared, 'clngint( an )' and 'cdbl( an )' are
+    '' its error 20, Type mismatch -- so a cXXX whose width does not match keeps
+    '' declining, which is what it already did.
+    dim as boolean udtCastLike = isCastLike
+    if udtCastLike = false then
+        dim as Tko.TypeId uat = c.types->Unqualify( c.info->TypeOf_( arg ) )
+        if uat <> Tko.TYPE_NONE then
+            udtCastLike = (c.types->Kind( uat ) = Tko.TK_UDT)
+        end if
+    end if
+    if udtCastLike then
+        dim as Tko.TypeId dstT = c.info->TypeOf_( id )
+        if dstT = Tko.TYPE_NONE then
+            dim as Tko.NodeId tn3 = cast( Tko.NodeId, c.ast->children[cp->first] )
+            if c.ast->Kind( tn3 ) = Tko.N_TYPEREF then dstT = c.info->TypeOf_( tn3 )
+        end if
+        dim as MirValue uv
+        dim as boolean gotU = false
+        dim as Tko.TypeId argT2 = c.types->Unqualify( c.info->TypeOf_( arg ) )
+        dim as Tko.SymbolId exact = ExactCastOverload_( c, argT2, dstT )
+        if exact <> Tko.SYMBOL_NONE then
+            dim as MirValue eself = LowerAddr( c, arg )
+            if eself.kind <> cast( ubyte, MV_NONE ) then
+                dim as MirType emt = LowerType( c.types->Unqualify( dstT ), *c.types )
+                if (emt <> MT_VOID) andalso (emt <> MT_AGG) then
+                    uv = EmitMemberCall( c, exact, eself, emt )
+                    gotU = (uv.kind <> cast( ubyte, MV_NONE ))
+                end if
+            end if
+        end if
+        if gotU = false then gotU = UserConvToScalar_( c, arg, dstT, uv )
+        if gotU then
+            dim as MirType uwant = mt
+            if uwant = MT_VOID then uwant = LowerType( dstT, *c.types )
+            if uwant = MT_VOID then uwant = cast( MirType, uv.ty )
+            if uwant = cast( MirType, uv.ty ) then return uv
+            if (uwant = MT_PTR) orelse (uv.ty = cast( ubyte, MT_PTR )) then
+                dim as MirInst ubc
+                ubc.op = cast( ushort, M_BITCAST )
+                ubc.ty = cast( ubyte, uwant )
+                ubc.a = uv
+                return Emit( c, ubc )
+            end if
+            '' THE SOURCE SIGNEDNESS IS THE OPERATOR'S RESULT TYPE, not the UDT's --
+            '' the UDT is not a number and IsUnsignedType over it answers nothing
+            '' useful. UserCastNumOverload_ is the same choice UserCastToNum_ made.
+            dim as boolean srcU2 = false
+            dim as Tko.SymbolId ucs2 = _
+                UserCastNumOverload_( c, c.types->Unqualify( c.info->TypeOf_( arg ) ), dstT )
+            if ucs2 <> Tko.SYMBOL_NONE then
+                dim as Tko.Symbol ptr uss2 = c.syms->SymbolAt( ucs2 )
+                if uss2 <> 0 then srcU2 = IsUnsignedType( c, uss2->type_ )
+            end if
+            return Coerce( c, uv, uwant, srcU2, IsUnsignedType( c, dstT ) )
+        end if
+    end if
+
+    dim as MirValue x = LowerExpr( c, arg )
+    if x.kind = cast( ubyte, MV_NONE ) then return v
+
+    '' CBOOL is a COMPARISON, not a narrowing: fbc emits '(boolean)(V != 0)', so
+    '' cbool( 256 ) is true where a truncation to one byte would make it false.
+    if nm = "cbool" then
+        dim as MirInst ins
+        ins.op = cast( ushort, iif( IsFloatTy( cast( MirType, x.ty ) ), _
+                                    M_FCMP_NE, M_ICMP_NE ) )
+        ins.ty = cast( ubyte, MT_I8 )
+        ins.a = x
+        if IsFloatTy( cast( MirType, x.ty ) ) then
+            ins.b = ConstFloat( c, 0.0, cast( MirType, x.ty ) )
+        else
+            ins.b = ConstInt( c, 0, cast( MirType, x.ty ) )
+        end if
+        return Emit( c, ins )
+    end if
+
+    '' Everything else is the coercion its result type asks for. A pointer result and a
+    '' pointer argument differ only in what the type system calls them.
+    dim as MirType want = mt
+    if want = MT_VOID then want = cast( MirType, x.ty )
+    '' NORMALISED FIRST, because the negation is of the STORAGE value. A boolean
+    '' CONSTANT arrives as the integer -1 -- 'true' is declared -1 and cbool folds to
+    '' -1, both the widened MEANING rather than the stored byte -- so '0 - -1' gave
+    '' 'cint( bool_T )' the answer 1 where fbc gives -1.
+    '' BEFORE THE IDENTITY SHORT-CIRCUIT. 'cbyte( someBool )' is MT_I8 to MT_I8, so
+    '' the test below returned the value untouched and the conversion never happened
+    '' -- it is a NEGATE, not a widening, and skipping it gave 1 where fbc gives -1.
+    if IsBooleanType( c, c.info->TypeOf_( arg ) ) then
+        dim as MirInst ng0
+        ng0.op = cast( ushort, M_SUB )
+        ng0.ty = cast( ubyte, MT_I8 )
+        ng0.a = ConstInt( c, 0, MT_I8 )
+        ng0.b = NormaliseBool( c, x )
+        x = Emit( c, ng0 )
+        if want = MT_I8 then return x
+        return Coerce( c, x, want, false )
+    end if
+    if want = cast( MirType, x.ty ) then return x
+    if (want = MT_PTR) orelse (x.ty = cast( ubyte, MT_PTR )) then
+        dim as MirInst bc
+        bc.op = cast( ushort, M_BITCAST )
+        bc.ty = cast( ubyte, want )
+        bc.a = x
+        return Emit( c, bc )
+    end if
+    '' THE CONVERSION'S OWN SIGNEDNESS. Only CUINT and CULNGINT name an unsigned
+    '' 64-bit target, and only there does fbc call fb_D2UL rather than the signed
+    '' helper.
+    dim as boolean dstU = (nm = "cuint") orelse (nm = "culngint") orelse _
+                          (nm = "culng") orelse (nm = "cushort") orelse _
+                          (nm = "cubyte")
+    if (nm = "cast") orelse (nm = "cptr") then
+        dstU = IsUnsignedType( c, c.info->TypeOf_( id ) )
+    end if
+    '' A BOOLEAN SOURCE NEGATES FIRST -- see CoerceTy, which cannot be used here
+    '' because this call names a DESTINATION signedness too. 'cint( someBool )' is -1
+    '' for the same reason 'dim as integer i = someBool' is.
+    '' NO MT_I8 GUARD HERE, unlike CoerceTy's. This is an EXPLICIT conversion and its
+    '' name says the destination: 'cbyte' and 'cubyte' are never boolean -- 'cbool' is,
+    '' and it returned long before this point. So a boolean source always negates.
+    if IsBooleanType( c, c.info->TypeOf_( arg ) ) then
+        dim as MirInst ng
+        ng.op = cast( ushort, M_SUB )
+        ng.ty = cast( ubyte, MT_I8 )
+        ng.a = ConstInt( c, 0, MT_I8 )
+        ng.b = NormaliseBool( c, x )
+        x = Emit( c, ng )
+        return Coerce( c, x, want, false, dstU )
+    end if
+    return Coerce( c, x, want, IsUnsignedType( c, c.info->TypeOf_( arg ) ), dstU )
+end function
+
+end namespace

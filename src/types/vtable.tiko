@@ -1,0 +1,857 @@
+'' vtable.tiko -- see vtable.ti for the measured rules this implements.
+
+#import "std/containers"
+#include once "types/vtable.ti"
+#include once "support/irtext.ti"
+
+namespace Tko
+
+function VTables.Find( byval t as TypeId ) as long
+    for i as long = 0 to this.types_.Count - 1
+        if this.types_[i].type_ = t then return i
+    next
+    return -1
+end function
+
+function VTables.SlotOf _
+    ( byval t as TypeId, byval p as SymbolId, byval decl as NodeId ) as long
+
+    dim as long vi = this.Find( t )
+    if vi < 0 then return -1
+    dim as VtInfo ptr v = @this.types_[vi]
+    for i as long = 0 to v->count - 1
+        if this.slots[v->first + i].proc_ = p then return i
+    next
+
+    '' AN ABSTRACT SLOT HAS NO PROCEDURE: its entry in the emitted table is null and an
+    '' override fills it, so a call to the abstract DECLARATION itself matched nothing
+    '' and was emitted as a DIRECT call to a procedure with no body -- silently, and for
+    '' every call through a base handle to an abstract method, which is the whole of
+    '' fb/comptr.bi's surface. Matched by its DECLARATION NODE instead.
+    if decl = NODE_NONE then return -1
+    for i as long = 0 to v->count - 1
+        if this.slots[v->first + i].decl = decl then return i
+    next
+    return -1
+end function
+
+'' The procedure declaration's PARAMETER TYPES, in order. 'this' is not among them --
+'' it is not written and not an N_PARAM -- which is what makes a base's method and a
+'' derived type's override comparable at all.
+private sub ParamTypes_ _
+    ( byref ast as AstArena, byref info as SemanticInfo, byval decl as NodeId, _
+      byref outv as containers.Array( of ulong ) )
+
+    if decl = NODE_NONE then return
+    if ast.Kind( decl ) <> N_PROC then return
+    dim as StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[cast( long, decl )].data )]
+    for i as long = 0 to sp->count - 1
+        dim as NodeId prm = cast( NodeId, ast.children[sp->first + i] )
+        if ast.Kind( prm ) <> N_PARAM then continue for
+        dim as StmtPayload ptr pp = @ast.stmts[cast( long, ast.nodes[cast( long, prm )].data )]
+        outv.Push( cast( ulong, info.TypeOf_( pp->a ) ) )
+    next
+end sub
+
+'' Does this declaration OVERRIDE that one? Same name, same parameter types.
+''
+'' fbc does not require the OVERRIDE keyword, and the corpus writes it both ways, so
+'' matching on the signature is the rule rather than on the modifier. The return type
+'' is deliberately not compared: fbc rejects a mismatched one, and treating it as a
+'' NON-match here would silently append a second slot instead.
+'' A MATCH ON PARAMETER TYPES IS NOT YET A LEGAL OVERRIDE. Measured, fbc refuses three
+'' more things once the names and parameter types line up -- and ACCEPTS two that look
+'' like they should be refused, which is why each of these is a separate test rather than
+'' a general "the signatures must be identical":
+''
+''     base virtual sub f( )        derived function f( ) as integer   error 225
+''     base virtual sub f( )        derived const sub f( )             error 230
+''     base virtual sub f( byref i as integer )
+''                                  derived sub f( byval i as integer ) error 231
+''
+''     base virtual sub f( )        derived sub f( byval i as integer ) ACCEPTED
+''         -- a different parameter LIST is an ordinary OVERLOAD, not a broken override
+''     base virtual sub foo cdecl( ) derived sub foo stdcall( )         ACCEPTED
+''         -- a differing calling convention is not an incompatible override
+private function BuiltinIsFloat_( byval b as BuiltinType ) as boolean
+    select case b
+    case TY_SINGLE, TY_DOUBLE
+        return true
+    end select
+    return false
+end function
+
+private function BuiltinIsStringy_( byval b as BuiltinType ) as boolean
+    select case b
+    case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
+        return true
+    end select
+    return false
+end function
+
+private sub NoteMismatch_ _
+    ( byref store as VTables, byval decl as NodeId, byval kind as VtMismatchKind )
+
+    dim as VtMismatch m
+    m.decl = decl
+    m.kind = cast( ubyte, kind )
+    store.mismatches.Push( m )
+end sub
+
+'' The RETURN TYPE of a declaration, or TYPE_NONE for a SUB.
+private function ReturnTypeOf_ _
+    ( byref ast as AstArena, byref info as SemanticInfo, byval decl as NodeId ) as TypeId
+
+    if decl = NODE_NONE then return TYPE_NONE
+    if ast.Kind( decl ) <> N_PROC then return TYPE_NONE
+    dim as StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[cast( long, decl )].data )]
+    if sp->a = NODE_NONE then return TYPE_NONE
+    return info.TypeOf_( sp->a )
+end function
+
+'' Whether each parameter was WRITTEN 'byval' or 'byref'. Only a pair where BOTH wrote
+'' something is compared: with neither keyword the default depends on the parameter's
+'' type, and two declarations that both leave it out agree whatever it resolves to.
+private sub CompareByref_ _
+    ( byref ast as AstArena, byref store as VTables, byval oldd as NodeId, _
+      byval newd as NodeId )
+
+    if (oldd = NODE_NONE) orelse (newd = NODE_NONE) then return
+    if ast.Kind( oldd ) <> N_PROC then return
+    if ast.Kind( newd ) <> N_PROC then return
+    dim as StmtPayload ptr op = @ast.stmts[cast( long, ast.nodes[cast( long, oldd )].data )]
+    dim as StmtPayload ptr np = @ast.stmts[cast( long, ast.nodes[cast( long, newd )].data )]
+    if op->count <> np->count then return
+    for i as long = 0 to op->count - 1
+        dim as NodeId a = cast( NodeId, ast.children[op->first + i] )
+        dim as NodeId b = cast( NodeId, ast.children[np->first + i] )
+        if ast.Kind( a ) <> N_PARAM then continue for
+        if ast.Kind( b ) <> N_PARAM then continue for
+        dim as ushort flagsA = ast.nodes[cast( long, a )].flags
+        dim as ushort flagsB = ast.nodes[cast( long, b )].flags
+        dim as ushort mask = cast( ushort, NF_BYREF or NF_BYVAL_WRITTEN )
+        dim as ushort ma = cast( ushort, flagsA and mask )
+        dim as ushort mb = cast( ushort, flagsB and mask )
+        '' A BYDESC PARAMETER'S RANK IS PART OF THE SIGNATURE -- fbc error 231 for
+        '' '( ) as integer' overridden by '( any ) as integer', and 223 ("not overriding
+        '' any virtual method") for '( any )' by '( any, any )'. The rank as written is
+        '' what the parser recorded in 'extra': 0 for '( )', 1 for '( any )', and so on.
+        if ((flagsA and NF_ARRAY) <> 0) andalso ((flagsB and NF_ARRAY) <> 0) then
+            dim as StmtPayload ptr pa = @ast.stmts[cast( long, ast.nodes[cast( long, a )].data )]
+            dim as StmtPayload ptr pb = @ast.stmts[cast( long, ast.nodes[cast( long, b )].data )]
+            if pa->extra <> pb->extra then
+                NoteMismatch_( store, newd, VTM_RANK )
+                return
+            end if
+        end if
+        if (ma = 0) orelse (mb = 0) then continue for
+        if ma <> mb then
+            NoteMismatch_( store, newd, VTM_BYREF )
+            return
+        end if
+    next
+end sub
+
+'' Do the two declarations' ARRAY PARAMETERS agree on rank? Overrides_ does not ask, so
+'' 'f( array(any) )' beside 'f( array(any, any) )' in the base both matched the first --
+'' measured on fbc-modern 1.20, 2026-09-30, each override takes the overload of its own rank
+'' (virtual/virtual.bas, bydescParams2). The rank as written is the parameter's 'extra'.
+private function RanksAgree_ ( byref ast as AstArena, byval a as NodeId, byval b as NodeId ) as boolean
+    if (a = NODE_NONE) orelse (b = NODE_NONE) then return true
+    dim as StmtPayload ptr pa = @ast.stmts[cast( long, ast.nodes[cast( long, a )].data )]
+    dim as StmtPayload ptr pb = @ast.stmts[cast( long, ast.nodes[cast( long, b )].data )]
+    if pa->count <> pb->count then return true
+    for i as long = 0 to pa->count - 1
+        dim as NodeId x = cast( NodeId, ast.children[pa->first + i] )
+        dim as NodeId y = cast( NodeId, ast.children[pb->first + i] )
+        if (ast.Kind( x ) <> N_PARAM) orelse (ast.Kind( y ) <> N_PARAM) then continue for
+        if ((ast.nodes[cast( long, x )].flags and NF_ARRAY) = 0) orelse ((ast.nodes[cast( long, y )].flags and NF_ARRAY) = 0) then continue for
+        if ast.stmts[cast( long, ast.nodes[cast( long, x )].data )].extra <> ast.stmts[cast( long, ast.nodes[cast( long, y )].data )].extra then return false
+    next
+    return true
+end function
+
+'' A RETURN TYPE MAY CHANGE ITS SIGNEDNESS AND NOTHING ELSE. Measured, and the first
+'' version of this check -- strict identity -- refused two files fbc accepts:
+''
+''     byte -> ubyte           OK          long -> integer   error 225   4 against 8
+''     long -> ulong           OK          long -> short     error 225
+''     integer -> longint      OK          long -> single    error 225   integer vs float
+''     longint -> integer      OK          long -> string    error 225
+''     boolean -> byte         OK          integer ptr -> byte ptr   error 225
+''
+'' -- so it is the WIDTH and the CLASS that must agree, not the name. 'integer' is eight
+'' bytes on win64, which is why swapping it with 'longint' is accepted there;
+'' virtual/compatible-override.bas writes exactly that pair, both ways, and spells the
+'' 32-bit half with '#ifdef __FB_64BIT__'.
+'' A POINTER RESULT MAY BE COVARIANT: the override's pointee the base's own type or one
+'' derived from it, at the same depth. Measured, fbc-modern, over 'B ptr' in the base:
+''
+''     D ptr           OK          (D extends B -- the FreeBASIC manual's clone( ) example)
+''     object ptr <- D ptr   OK    D ptr ptr over B ptr ptr   OK
+''     const B ptr <- D ptr  OK    B ptr <- const D ptr       error 225  (const added)
+''     D const ptr     OK          (const on the pointer itself is not compared)
+''     U ptr, any ptr, long ptr    error 225, and 'any ptr' over 'D ptr' too
+''
+'' By VALUE the same pair is 225 -- ReturnCompatible_ keeps that.
+private function PointerResultCompatible_ _
+    ( byref types as TypeContext, byval a as TypeId, byval b as TypeId ) as boolean
+
+    dim as TypeId pa = types.Unqualify( a )
+    dim as TypeId pb = types.Unqualify( b )
+    while (types.Kind( pa ) = TK_POINTER) andalso (types.Kind( pb ) = TK_POINTER)
+        dim as TypeId ia = types.Inner( pa )
+        dim as TypeId ib = types.Inner( pb )
+        '' The override may drop a const the base's pointee has, never add one.
+        if types.IsConst( ib ) andalso (types.IsConst( ia ) = false) then return false
+        pa = types.Unqualify( ia )
+        pb = types.Unqualify( ib )
+    wend
+    if pa = pb then return true
+    if (types.Kind( pa ) <> TK_UDT) orelse (types.Kind( pb ) <> TK_UDT) then return false
+    return types.BaseDistance( pb, pa ) > 0
+end function
+
+private function ReturnCompatible_ _
+    ( byref types as TypeContext, byval a as TypeId, byval b as TypeId ) as boolean
+
+    if a = b then return true
+    '' A SUB and a FUNCTION are never compatible, whatever the function returns.
+    if (a = TYPE_NONE) orelse (b = TYPE_NONE) then return false
+    if (types.Kind( types.Unqualify( a ) ) = TK_POINTER) andalso _
+       (types.Kind( types.Unqualify( b ) ) = TK_POINTER) then
+        return PointerResultCompatible_( types, a, b )
+    end if
+    '' Anything that is not a plain builtin -- a pointer, a UDT, an array -- must be the
+    '' SAME type: 'integer ptr' against 'byte ptr' is error 225.
+    if types.Kind( a ) <> TK_BUILTIN then return false
+    if types.Kind( b ) <> TK_BUILTIN then return false
+    dim as BuiltinType ba = types.BuiltinOf( a )
+    dim as BuiltinType bb = types.BuiltinOf( b )
+    if BuiltinIsFloat_( ba ) <> BuiltinIsFloat_( bb ) then return false
+    if BuiltinIsStringy_( ba ) <> BuiltinIsStringy_( bb ) then return false
+    return types.Layout( a ).size = types.Layout( b ).size
+end function
+
+'' Do these two declarations differ in calling convention ON THIS TARGET?
+''
+'' PASCAL IS THE ONE THAT ALWAYS DIFFERS: it reverses the argument order, so it is a
+'' different convention on every target. CDECL and STDCALL coincide on x86-64 -- there
+'' is one ABI and the keywords are accepted and ignored -- and are distinct on 32-bit,
+'' which is why fbc accepts 'stdcall' over 'cdecl' on win64 and refuses it on win32.
+'' An absent keyword means CDECL, so it compares equal to a written one.
+private function CallConvDiffers_ _
+    ( byref types as TypeContext, byval a as ushort, byval b as ushort ) as boolean
+
+    dim as boolean pa = ((a and PF_PASCAL) <> 0)
+    dim as boolean pb = ((b and PF_PASCAL) <> 0)
+    if pa <> pb then return true
+    if pa then return false
+
+    '' Neither is pascal, so the two are cdecl or stdcall in some combination.
+    if types.target.pointerBits <> 32 then return false
+    dim as boolean sa = ((a and PF_STDCALL) <> 0)
+    dim as boolean sb = ((b and PF_STDCALL) <> 0)
+    return (sa <> sb)
+end function
+
+private sub CheckOverrideBody_ _
+    ( byref ast as AstArena, byref info as SemanticInfo, byref types as TypeContext, _
+      byref store as VTables, byval oldd as NodeId, byval newd as NodeId )
+
+    if (oldd = NODE_NONE) orelse (newd = NODE_NONE) then return
+    if ast.Kind( oldd ) <> N_PROC then return
+    if ast.Kind( newd ) <> N_PROC then return
+    '' AN OPERATOR IS NOT COMPARED AT ALL. 'operator cast' overloads are distinguished
+    '' BY THEIR RETURN TYPE and by nothing else -- virtual.bas declares 'cast( ) as
+    '' string' beside 'cast( ) as integer' -- so a parameter-list match says nothing
+    '' about whether one overrides the other, and every pair looked incompatible.
+    dim as StmtPayload ptr osp = @ast.stmts[cast( long, ast.nodes[cast( long, oldd )].data )]
+    dim as StmtPayload ptr nsp = @ast.stmts[cast( long, ast.nodes[cast( long, newd )].data )]
+    dim as boolean isOperator = (cast( TokenKind, osp->op ) = KW_OPERATOR) orelse _
+                                (cast( TokenKind, nsp->op ) = KW_OPERATOR)
+
+    '' A COVARIANT BYREF RESULT IS LEGAL: 'byref as A' overridden by 'byref as B' where
+    '' B extends A, which compatible-override.bas writes. By VALUE the same pair is fbc
+    '' error 225, which is why the test is on the byref-ness rather than on the types.
+    dim as ushort obf = cast( ushort, ast.nodes[cast( long, oldd )].flags and NF_BYREF )
+    dim as ushort nbf = cast( ushort, ast.nodes[cast( long, newd )].flags and NF_BYREF )
+    dim as boolean bothByref = (obf <> 0) andalso (nbf <> 0)
+
+    dim as TypeId ra = ReturnTypeOf_( ast, info, oldd )
+    dim as TypeId rb = ReturnTypeOf_( ast, info, newd )
+    '' BYREF AGAINST BYVAL IS A DIFFERENT RESULT -- fbc error 225 either way round:
+    '' 'byref as integer' overridden by 'as integer', and the reverse, are both refused.
+    '' ...AND SO IS THE CONSTNESS OF A BYREF RESULT: 'byref as integer' overridden by
+    '' 'byref as const integer' is 225 too, while the covariant 'byref as B' over 'byref
+    '' as A' stays legal -- so with both byref only the qualifier is compared here.
+    '' ...AND ONLY ONE WAY: the override may DROP the const -- 'byref as const integer'
+    '' overridden by 'byref as integer' is fine (fbc-modern 1.20, 2026-09-30;
+    '' virtual/compatible-override.bas): the caller was promised no more than that.
+    if (isOperator = false) andalso ((obf <> 0) <> (nbf <> 0)) then
+        NoteMismatch_( store, newd, VTM_RETURN )
+        return
+    end if
+    if (isOperator = false) andalso bothByref then
+        if (types.IsConst( ra ) = false) andalso types.IsConst( rb ) then
+            NoteMismatch_( store, newd, VTM_RETURN )
+            return
+        end if
+    end if
+    dim as boolean skipReturn = isOperator orelse bothByref
+    if (skipReturn = false) andalso (ReturnCompatible_( types, ra, rb ) = false) then
+        NoteMismatch_( store, newd, VTM_RETURN )
+        return
+    end if
+    if isOperator then return
+    dim as ushort ca = cast( ushort, osp->extra and PF_CONST )
+    dim as ushort cb = cast( ushort, nsp->extra and PF_CONST )
+    if ca <> cb then
+        NoteMismatch_( store, newd, VTM_CONST )
+        return
+    end if
+
+    '' THE CALLING CONVENTION -- fbc 226, and the comparison is TARGET-DEPENDENT rather
+    '' than a flag equality. Measured on win64:
+    ''
+    ''     base cdecl,  override stdcall   accepted   -- they coincide here
+    ''     base pascal, override default   error 226
+    ''     base pascal, override pascal    accepted
+    ''
+    '' virtual/incompatible-override-6.bas is the first of those, marked
+    '' COMPILE_ONLY_FAIL in the corpus because 32-bit DOES refuse it -- so comparing the
+    '' flags directly would refuse a file fbc compiles on the target that ships.
+    if CallConvDiffers_( types, osp->extra, nsp->extra ) then
+        NoteMismatch_( store, newd, VTM_CALLCONV )
+        return
+    end if
+    CompareByref_( ast, store, oldd, newd )
+end sub
+
+private function Overrides_ _
+    ( byref ast as AstArena, byref info as SemanticInfo, byval a as NodeId, _
+      byval b as NodeId ) as boolean
+
+    dim as containers.Array( of ulong ) pa, pb
+    ParamTypes_( ast, info, a, pa )
+    ParamTypes_( ast, info, b, pb )
+    if pa.Count <> pb.Count then return false
+    for i as long = 0 to pa.Count - 1
+        if pa[i] <> pb[i] then return false
+    next
+    '' AN OPERATOR IS ALSO TOLD APART BY ITS RESULT: 'cast( ) as string' and 'cast( ) as integer' take
+    '' the same (no) parameters and are two slots. Read as one, the second took the first's slot and
+    '' a call to the first went direct -- A's string cast through an 'A ptr' to a B (virtual/virtual.bas).
+    dim as StmtPayload ptr sa = @ast.stmts[cast( long, ast.nodes[cast( long, a )].data )]
+    dim as StmtPayload ptr sb = @ast.stmts[cast( long, ast.nodes[cast( long, b )].data )]
+    if (sa->op = cast( ushort, KW_OPERATOR )) andalso (sb->op = cast( ushort, KW_OPERATOR )) then
+        if ReturnTypeOf_( ast, info, a ) <> ReturnTypeOf_( ast, info, b ) then return false
+    end if
+    return true
+end function
+
+'' The type this one extends, or TYPE_NONE. 'extends' is a field named 'base' at
+'' offset 0 -- see the parser -- so the base type is that field's type.
+private function BaseTypeOf_ _
+    ( byref syms as SymbolTable, byval s as Symbol ptr, byval baseNm as InternId ) as TypeId
+
+    if s = 0 then return TYPE_NONE
+    if s->inner = SCOPE_NONE then return TYPE_NONE
+    dim as SymbolId bf = syms.LookupLocal( s->inner, baseNm )
+    if bf = SYMBOL_NONE then return TYPE_NONE
+    dim as Symbol ptr b = syms.SymbolAt( bf )
+    if b = 0 then return TYPE_NONE
+    if b->kind <> cast( ubyte, SYM_FIELD ) then return TYPE_NONE
+    return b->type_
+end function
+
+'' The UDT symbol a TypeId belongs to.
+private function UdtSymbolOf_ _
+    ( byref syms as SymbolTable, byref types as TypeContext, byval t as TypeId ) as SymbolId
+
+    if t = TYPE_NONE then return SYMBOL_NONE
+    if types.Kind( t ) <> TK_UDT then return SYMBOL_NONE
+    dim as InternId tn = types.NameOf( t )
+    if tn = 0 then return SYMBOL_NONE
+    dim as ScopeId ds = cast( ScopeId, types.DeclScopeOf( t ) )
+    dim as SymbolId ts = syms.LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = syms.LookupTyped( ds, tn, true )
+    return ts
+end function
+
+'' Does this type extend OBJECT, transitively? That -- and nothing about the methods --
+'' is what decides whether there is a table at all.
+private function ExtendsObject_ _
+    ( byref syms as SymbolTable, byref types as TypeContext, byval t as TypeId, _
+      byval baseNm as InternId, byval objNm as InternId ) as boolean
+
+    dim as TypeId cur = t
+    dim as long guard = 0
+    while (cur <> TYPE_NONE) andalso (guard < 64)
+        guard += 1
+        if types.NameOf( cur ) = objNm then return true
+        dim as SymbolId s = UdtSymbolOf_( syms, types, cur )
+        dim as TypeId nx = BaseTypeOf_( syms, syms.SymbolAt( s ), baseNm )
+        if nx = cur then return false
+        cur = nx
+    wend
+    return false
+end function
+
+'' One type's table: the base's slots, then this type's own virtuals, with an override
+'' REPLACING the slot it matches rather than appending.
+'' The DESTRUCTOR this type declares itself, or NODE_NONE. Its own, not an inherited
+'' one: the whole question below is what happens when a type declares none.
+private function DeclaredDtorOf_ _
+    ( byref ast as AstArena, byref syms as SymbolTable, _
+      byval ts as SymbolId ) as NodeId
+
+    dim as Symbol ptr s = syms.SymbolAt( ts )
+    if s = 0 then return NODE_NONE
+    if s->inner = SCOPE_NONE then return NODE_NONE
+    dim as SymScope ptr sc = syms.ScopeAt( s->inner )
+    if sc = 0 then return NODE_NONE
+    dim as SymbolId cur = sc->firstSym
+    dim as long guard = 0
+    while (cur <> SYMBOL_NONE) andalso (guard < 100000)
+        guard += 1
+        dim as Symbol ptr m = syms.SymbolAt( cur )
+        if m = 0 then exit while
+        dim as SymbolId ov = cur
+        while ov <> SYMBOL_NONE
+            dim as Symbol ptr mo = syms.SymbolAt( ov )
+            if mo = 0 then exit while
+            if mo->kind = cast( ubyte, SYM_PROC ) then
+                dim as NodeId d = cast( NodeId, mo->payload )
+                if (d <> NODE_NONE) andalso (ast.Kind( d ) = N_PROC) then
+                    dim as StmtPayload ptr dsp = _
+                        @ast.stmts[cast( long, ast.nodes[cast( long, d )].data )]
+                    if cast( TokenKind, dsp->op ) = KW_DESTRUCTOR then return d
+                end if
+            end if
+            ov = mo->nextOverload
+        wend
+        cur = m->nextInScope
+    wend
+    return NODE_NONE
+end function
+
+'' fbc 227: A TYPE THAT DECLARES NO DESTRUCTOR GETS AN IMPLICIT ONE, and an implicit one
+'' has the DEFAULT calling convention. If the base's virtual destructor was declared
+'' 'pascal', the implicit override cannot match it and fbc refuses the derived type.
+''
+'' Measured, and each clause below is one of the answers:
+''
+''     base virtual destructor pascal, derived declares nothing    error 227
+''     base destructor pascal but NOT virtual                      accepted
+''     base virtual SUB pascal, derived declares nothing           accepted
+''     base virtual destructor stdcall, derived nothing            accepted on win64
+''     derived declares 'destructor pascal( )'                     accepted
+''
+'' ONLY THE IMMEDIATE BASE, and only its DECLARED destructor. For A(pascal) <- B <- C
+'' fbc reports ONE error, against B -- not two. That is not first-error-wins: B's
+'' implicit destructor has the default convention, so C inheriting THAT matches its own
+'' implicit one. Walking further up would invent a second complaint fbc does not make.
+private sub CheckImplicitDtorConv_ _
+    ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+      byref store as VTables, byval ts as SymbolId, byval bt as TypeId )
+
+    if bt = TYPE_NONE then return
+    dim as Symbol ptr s = syms.SymbolAt( ts )
+    if s = 0 then return
+    if DeclaredDtorOf_( ast, syms, ts ) <> NODE_NONE then return
+
+    dim as SymbolId bs = UdtSymbolOf_( syms, types, bt )
+    if bs = SYMBOL_NONE then return
+    dim as NodeId bd = DeclaredDtorOf_( ast, syms, bs )
+    if bd = NODE_NONE then return
+    dim as StmtPayload ptr bsp = _
+        @ast.stmts[cast( long, ast.nodes[cast( long, bd )].data )]
+    if (bsp->extra and PF_VIRTUAL) = 0 then return
+
+    '' AGAINST THE DEFAULT, which is what an implicit destructor is given -- so the
+    '' comparison is the base's flags against none, through the same target-aware test
+    '' an explicit override uses.
+    if CallConvDiffers_( types, bsp->extra, 0 ) = false then return
+
+    dim as NodeId tn = cast( NodeId, s->payload )
+    if tn = NODE_NONE then return
+    if ast.Kind( tn ) <> N_TYPE then return
+    NoteMismatch_( store, tn, VTM_IMPL_DTOR_CC )
+end sub
+
+'' THE TEMPLATE'S OWN SCOPE, for a generic INSTANTIATION -- or SCOPE_NONE for anything
+'' else. An instantiation shares the template's declaration node (generic.tiko sets
+'' 'isym->payload = gn'), so the node is the way back to it; the two are told apart by
+'' the NAME, since the instantiation is declared under a structural key, 'Root<8>'.
+private function TemplateScopeOf_ _
+    ( byref ast as AstArena, byref syms as SymbolTable, byval s as Symbol ptr ) as ScopeId
+
+    if s = 0 then return SCOPE_NONE
+    dim as NodeId dn = cast( NodeId, s->payload )
+    if dn = NODE_NONE then return SCOPE_NONE
+    if ast.Kind( dn ) <> N_TYPE then return SCOPE_NONE
+    dim as StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[cast( long, dn )].data )]
+    if sp->b = NODE_NONE then return SCOPE_NONE
+    if sp->name = 0 then return SCOPE_NONE
+    if s->name = sp->name then return SCOPE_NONE
+    dim as SymbolId gt = syms.LookupLocalTyped( s->parent, sp->name, true )
+    dim as Symbol ptr gs = syms.SymbolAt( gt )
+    if gs = 0 then return SCOPE_NONE
+    if gs->kind <> cast( ubyte, SYM_UDT ) then return SCOPE_NONE
+    return gs->inner
+end function
+
+'' THE NEAREST DECLARATION DECIDES, as fbc measures it (T47). A derived method of the same
+'' signature overrides an inherited slot only while that slot is OPEN -- the declaration
+'' that last filled it said 'virtual' or 'abstract' -- and only if no type between this
+'' one's base and the slot's owner declares the same NAME, which hides every inherited
+'' overload of it. Measured on fbc-modern 1.20, A virtual F, then:
+''
+''     B: F override          C: F            through an A ptr on a C:  B
+''     B: F override          C: F override   error 223 (TKO0621 here)
+''     B: F                   C: F            B -- an implicit override is not virtual
+''     B: virtual F override  C: F            C
+''     B: (no F)              C: F            C -- B declares nothing, so A's slot is open
+''     B: F( long ) override  C: F( string )  A's F( string ) -- B's F hides it
+''
+'' A DESTRUCTOR follows the same rule with one difference: a type that declares none
+'' still HAS one (the implicit destructor that calls its base's), and that one is not
+'' virtual. So a derived destructor overrides only when its DIRECT base's destructor was
+'' declared virtual: 'A virtual destructor, B nothing, C destructor' runs '~A' alone when
+'' a C is deleted through an A ptr, in fbc and now here.
+''
+'' Before this, any matching name and signature replaced the slot -- C++'s rule, not
+'' fbc's -- so the same program dispatched differently under the two compilers.
+private function DeclaresName_ _
+    ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+      byval t as TypeId, byval nm as InternId ) as boolean
+
+    dim as Symbol ptr s = syms.SymbolAt( UdtSymbolOf_( syms, types, t ) )
+    if s = 0 then return false
+    for pass_ as long = 0 to 1
+        dim as ScopeId sc = s->inner
+        if pass_ = 1 then sc = TemplateScopeOf_( ast, syms, s )
+        if sc = SCOPE_NONE then continue for
+        dim as Symbol ptr m = syms.SymbolAt( syms.LookupLocal( sc, nm ) )
+        if m <> 0 then
+            if m->kind = cast( ubyte, SYM_PROC ) then return true
+        end if
+    next
+    return false
+end function
+
+private function SlotClosedFor_ _
+    ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+      byref store as VTables, byval t as TypeId, byval bt as TypeId, _
+      byval sl as VtSlot ptr, byval nm as InternId, byval isDtor as boolean ) as boolean
+
+    '' THIS TYPE RE-FILLING ITS OWN SLOT: an instantiation's out-of-line definitions
+    '' landing on the slots its template's declarations opened (see BuildOne_).
+    if sl->owner = t then return false
+    if sl->owner = TYPE_NONE then return false
+    if sl->open = false then return true
+    if isDtor then return (sl->owner <> bt)
+    dim as TypeId cur = bt
+    for guard as long = 0 to 64
+        if (cur = TYPE_NONE) orelse (cur = sl->owner) then return false
+        if DeclaresName_( ast, syms, types, cur, nm ) then return true
+        dim as Symbol ptr cs = syms.SymbolAt( UdtSymbolOf_( syms, types, cur ) )
+        if cs = 0 then return false
+        dim as TypeId up = BaseTypeOf_( syms, cs, store.baseName )
+        if up = cur then return false
+        cur = up
+    next
+    return false
+end function
+
+private function BuildOne_ _
+    ( byval t as TypeId, byref ast as AstArena, byref syms as SymbolTable, _
+      byref types as TypeContext, byref info as SemanticInfo, _
+      byref store as VTables, byval objNm as InternId ) as boolean
+
+    if store.Find( t ) >= 0 then return true
+    dim as SymbolId ts = UdtSymbolOf_( syms, types, t )
+    dim as Symbol ptr s = syms.SymbolAt( ts )
+    if s = 0 then return false
+
+    '' THE BASE FIRST, and only once it has a table of its own: its slots are this
+    '' type's leading slots, in its order, and an override has to find them there.
+    dim as TypeId bt = BaseTypeOf_( syms, s, store.baseName )
+    if (bt <> TYPE_NONE) andalso (bt <> t) then
+        if store.Find( bt ) < 0 then return false
+    end if
+
+    dim as VtInfo v
+    v.type_ = t
+    v.first = store.slots.Count
+    v.count = 0
+
+    if (bt <> TYPE_NONE) andalso (bt <> t) then
+        dim as long bi = store.Find( bt )
+        if bi >= 0 then
+            dim as VtInfo ptr b = @store.types_[bi]
+            '' COPIED TO A LOCAL FIRST. 'store.slots.Push( store.slots[ i ] )' pushes an
+            '' element of an array INTO ITSELF: the argument is a reference into the
+            '' vector, and the Push that reallocates it leaves that reference dangling
+            '' BEFORE the copy is made. The slot that landed held whatever the freed
+            '' block did -- and it looked like a real entry, so a type that inherits
+            '' more slots than its base's vector had room for got a vtable with a
+            '' PROCEDURE in it that mangled to the empty string: 'ptr @""', which
+            '' clang reports as 'use of undefined value'.
+            ''
+            '' IShellItem_ is the smallest shape in the corpus: three inherited slots
+            '' from ComUnknown and five of its own, all eight abstract, and slot 0
+            '' came out non-abstract with no name.
+            for i as long = 0 to b->count - 1
+                dim as VtSlot bs = store.slots[b->first + i]
+                store.slots.Push( bs )
+                v.count += 1
+            next
+        end if
+    end if
+
+    '' This type's own procedures, IN DECLARATION ORDER. Overload chains hang off the
+    '' symbol in the scope list, and each link is its own declaration, so both are
+    '' walked: two overloads of one virtual name are two slots.
+    '' TWO SCOPES, IN THIS ORDER, for a generic instantiation.
+    ''
+    '' 'type Root( of T ) extends object' writes 'declare virtual function nm( )' and
+    '' 'declare abstract function tag( )' INSIDE the type, and those lines are never
+    '' re-parsed: InstantiateGeneric_ walks the body for FIELDS, and the member symbols
+    '' of the instantiation come from the out-of-line DEFINITIONS -- which carry neither
+    '' 'virtual' nor 'abstract', because that is not where FreeBASIC spells them. So
+    '' every instantiation that declared a virtual of its OWN got a table with NO SLOTS:
+    '' 'r->tag( )' through a 'Root( of integer ) ptr' lowered to a DIRECT call and the
+    '' link failed on 'ROOT::TAG()', a name only the template would have defined.
+    ''
+    '' The template's scope supplies the SLOTS and their abstractness; the
+    '' instantiation's supplies the definitions, which land on those slots as ordinary
+    '' overrides and carry the mangled name that actually exists. An instantiation whose
+    '' virtuals all override an inherited slot -- 'Sq( of T ) extends Shape' -- is
+    '' unchanged by this: the template pass matches the same inherited slots and the
+    '' instantiation pass replaces them again.
+    dim as ScopeId tmplScope = TemplateScopeOf_( ast, syms, s )
+    dim as long nInherited = v.count   '' slots below this came from the base
+    for pass_ as long = 0 to 1
+        dim as ScopeId msc = s->inner
+        if pass_ = 0 then msc = tmplScope
+        if msc = SCOPE_NONE then continue for
+        dim as SymScope ptr sc = syms.ScopeAt( msc )
+        if sc <> 0 then
+            dim as SymbolId cur = sc->firstSym
+            dim as long guard = 0
+            while (cur <> SYMBOL_NONE) andalso (guard < 100000)
+                guard += 1
+                dim as Symbol ptr m = syms.SymbolAt( cur )
+                if m = 0 then exit while
+                dim as SymbolId nextInScope = m->nextInScope
+                dim as SymbolId ov = cur
+                while ov <> SYMBOL_NONE
+                    dim as Symbol ptr mo = syms.SymbolAt( ov )
+                    if mo = 0 then exit while
+                    if mo->kind = cast( ubyte, SYM_PROC ) then
+                        dim as NodeId decl = cast( NodeId, mo->payload )
+                        if (decl <> NODE_NONE) andalso (ast.Kind( decl ) = N_PROC) then
+                            dim as StmtPayload ptr pp = _
+                                @ast.stmts[cast( long, ast.nodes[cast( long, decl )].data )]
+                            dim as boolean isAbstract = ((pp->extra and PF_ABSTRACT) <> 0)
+                            dim as boolean isVirtual = ((pp->extra and PF_VIRTUAL) <> 0) orelse _
+                                                       isAbstract
+
+                            '' AN OVERRIDE NEED NOT SAY 'virtual'. What makes a
+                            '' procedure occupy a slot is matching an inherited one --
+                            '' 'declare function f( ) as long override' carries neither
+                            '' modifier tiko-lang records, and it is B's f that a call through
+                            '' an A ptr must reach.
+                            dim as long at = -1, loose = -1
+                            for i as long = 0 to v.count - 1
+                                dim as VtSlot ptr sl = @store.slots[v.first + i]
+                                if sl->name <> mo->name then continue for
+                                if Overrides_( ast, info, sl->decl, decl ) then
+                                    if loose < 0 then loose = i
+                                    if RanksAgree_( ast, sl->decl, decl ) = false then continue for
+                                    at = i
+                                    exit for
+                                end if
+                            next
+                            '' ...falling back to the first INHERITED match, whose rank
+                            '' CompareByref_ reports. A sibling overload of another rank in
+                            '' this same type is a slot of its own, not an override.
+                            if (at < 0) andalso (loose >= 0) andalso (loose < nInherited) then at = loose
+                            '' ...BUT ONLY AN OPEN SLOT, not hidden on the way down (T47 --
+                            '' SlotClosedFor_). A closed one is not overridden: the method
+                            '' HIDES it, and opens a slot of its own only if it says 'virtual'.
+                            if at >= 0 then
+                                dim as boolean isDtor = (cast( TokenKind, pp->op ) = KW_DESTRUCTOR)
+                                if SlotClosedFor_( ast, syms, types, store, t, bt, _
+                                                   @store.slots[v.first + at], mo->name, isDtor ) then at = -1
+                            end if
+
+                            if at >= 0 then
+                                '' AN ABSTRACT SLOT IS NULL, and an override fills it.
+                                store.overrode.Push( cast( ulong, decl ) )
+                                dim as VtSlot ptr sl = @store.slots[v.first + at]
+                                CheckOverrideBody_( ast, info, types, store, sl->decl, decl )
+                                sl->proc_ = iif( isAbstract, cast( SymbolId, SYMBOL_NONE ), ov )
+                                sl->decl = decl
+                                '' Open for the next level only if THIS declaration is virtual
+                                '' -- or this type's own template already opened it.
+                                if sl->owner = t then
+                                    sl->open = sl->open orelse isVirtual
+                                else
+                                    sl->open = isVirtual
+                                end if
+                                sl->owner = t
+                            elseif isVirtual then
+                                dim as VtSlot ns
+                                ns.proc_ = iif( isAbstract, cast( SymbolId, SYMBOL_NONE ), ov )
+                                ns.name = mo->name
+                                ns.decl = decl
+                                ns.owner = t
+                                ns.open = true
+                                store.slots.Push( ns )
+                                v.count += 1
+                            end if
+                        end if
+                    end if
+                    ov = mo->nextOverload
+                wend
+                cur = nextInScope
+            wend
+        end if
+    next
+
+    CheckImplicitDtorConv_( ast, syms, types, store, ts, bt )
+
+    store.types_.Push( v )
+    return true
+end function
+
+'' A GENERIC TEMPLATE HAS NO VTABLE. 'type Sq( of T ) extends Shape' is a pattern, not
+'' a type: its methods are re-parsed once per instantiation and only those exist as
+'' procedures. Building a table for the template emitted '@_ZTVN2SQE' whose slots named
+'' '_ZN2SQ2NMEv' -- the template's own declaration node mangled -- and nobody defines
+'' that, so clang refused the module. The INSTANTIATIONS get their own tables beside it
+'' and always did; this only stops the template getting one too.
+private function IsGenericTemplateUdt_ _
+    ( byref ast as AstArena, byval s as Symbol ptr ) as boolean
+
+    if s = 0 then return false
+    dim as NodeId dn = cast( NodeId, s->payload )
+    if dn = NODE_NONE then return false
+    if ast.Kind( dn ) <> N_TYPE then return false
+    dim as StmtPayload ptr sp = @ast.stmts[cast( long, ast.nodes[cast( long, dn )].data )]
+    if sp->b = NODE_NONE then return false
+    return (s->name = sp->name)
+end function
+
+'' A TEMPLATE NOTHING INSTANTIATES IS NEVER CHECKED, by fbc or here. Measured on
+'' fbc-modern: 'type G( of T ) extends B' declaring 'sub Nope( ) override' against a B
+'' with no Nope compiles clean until something writes 'G( of long )' -- then it is
+'' error 223 "in instantiation of 'G( of long )'". The template gets no table (see
+'' IsGenericTemplateUdt_), so none of its declarations can be in 'overrode', and
+'' CheckOverridePromise refused every 'override' in a generic that went unused --
+'' fb/tuiwidget.bi's TuiButtonOf, in seven of fbc's ten tui tests.
+''
+'' An instantiated template is left alone: BuildOne_'s template pass walks the SAME
+'' declaration nodes and records the ones that matched, so a broken promise in an
+'' instantiated generic is still reported.
+private sub NotePatternOnly_ _
+    ( byref ast as AstArena, byref syms as SymbolTable, byref store as VTables )
+
+    for i as long = 1 to syms.Count( )
+        dim as Symbol ptr s = syms.SymbolAt( cast( SymbolId, i ) )
+        if s = 0 then continue for
+        if s->kind <> cast( ubyte, SYM_UDT ) then continue for
+        if IsGenericTemplateUdt_( ast, s ) = false then continue for
+        if s->inner = SCOPE_NONE then continue for
+        dim as boolean used = false
+        for j as long = 1 to syms.Count( )
+            dim as Symbol ptr u = syms.SymbolAt( cast( SymbolId, j ) )
+            if u = 0 then continue for
+            if u->kind <> cast( ubyte, SYM_UDT ) then continue for
+            if TemplateScopeOf_( ast, syms, u ) = s->inner then
+                used = true
+                exit for
+            end if
+        next
+        if used then continue for
+        dim as SymScope ptr sc = syms.ScopeAt( s->inner )
+        if sc = 0 then continue for
+        dim as SymbolId cur = sc->firstSym
+        dim as long guard = 0
+        while (cur <> SYMBOL_NONE) andalso (guard < 100000)
+            guard += 1
+            dim as Symbol ptr m = syms.SymbolAt( cur )
+            if m = 0 then exit while
+            dim as SymbolId ov = cur
+            while ov <> SYMBOL_NONE
+                dim as Symbol ptr mo = syms.SymbolAt( ov )
+                if mo = 0 then exit while
+                if mo->kind = cast( ubyte, SYM_PROC ) then
+                    store.patternOnly.Push( cast( ulong, mo->payload ) )
+                end if
+                ov = mo->nextOverload
+            wend
+            cur = m->nextInScope
+        wend
+    next
+end sub
+
+function ComputeVTables _
+    ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+      byref info as SemanticInfo, byref store as VTables ) as long
+
+    if syms.names = 0 then return 0
+    store.baseName = syms.names->GetString( "base" )
+    dim as InternId objNm = syms.names->GetString( "object" )
+
+    '' A base must be built before what derives from it, and the depth is small, so the
+    '' same repeat-until-nothing-new shape the layout pass uses serves here too: a cycle
+    '' stops making progress instead of recursing.
+    dim as boolean progress = true
+    while progress
+        progress = false
+        for i as long = 1 to syms.Count( )
+            dim as Symbol ptr s = syms.SymbolAt( cast( SymbolId, i ) )
+            if s = 0 then continue for
+            if s->kind <> cast( ubyte, SYM_UDT ) then continue for
+            if s->type_ = TYPE_NONE then continue for
+            if store.Find( s->type_ ) >= 0 then continue for
+            if IsGenericTemplateUdt_( ast, s ) then continue for
+            if ExtendsObject_( syms, types, s->type_, store.baseName, objNm ) = false then
+                continue for
+            end if
+            if BuildOne_( s->type_, ast, syms, types, info, store, objNm ) then
+                progress = true
+            end if
+        next
+    wend
+    NotePatternOnly_( ast, syms, store )
+    return store.types_.Count
+end function
+
+function DumpVTables _
+    ( byref ast as AstArena, byref store as VTables, byref types as TypeContext, _
+      byref names as Interner, byref syms as SymbolTable, _
+      byref info as SemanticInfo ) as string
+
+    dim as IrText outp
+    for i as long = 0 to store.types_.Count - 1
+        dim as VtInfo ptr v = @store.types_[i]
+        outp += types.Name( v->type_ ) & " vtable " & str( v->count ) & " slot(s)" & chr( 10 )
+        for j as long = 0 to v->count - 1
+            dim as VtSlot ptr sl = @store.slots[v->first + j]
+            dim as string who = "<abstract>"
+            if (sl->proc_ <> SYMBOL_NONE) andalso (sl->decl <> NODE_NONE) then
+                who = Mangle.ProcName( ast, sl->decl, syms, names, types, info )
+            end if
+            outp += "  slot " & str( j ) & " " & who & chr( 10 )
+        next
+    next
+    outp += "vtables: " & str( store.types_.Count ) & chr( 10 )
+    return outp
+end function
+
+end namespace

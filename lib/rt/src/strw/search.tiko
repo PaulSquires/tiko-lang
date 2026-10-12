@@ -1,0 +1,166 @@
+'' search.tiko -- INSTRW, INSTRREVW and their Any forms.
+''
+'' THIS FAMILY USES THE libc WIDE FUNCTIONS, and that is correct here where it
+'' would be a bug next door. src/ustr/prim.tiko bans wcsstr/wcschr/wcscspn
+'' outright, because a USTRING code unit is 16 bits on every target while
+'' wchar_t is 16 on Windows and 32 on Linux -- the calls would link and look
+'' right on one platform and read the wrong stride on the other. A WSTRING **is**
+'' wchar_t, so the same calls are exactly right. Same functions, opposite
+'' verdicts, decided by what the buffer actually holds.
+''
+'' Positions are 1-BASED and 0 MEANS NOT FOUND.
+
+#include once "inc/descriptors.ti"
+#include once "inc/wstr.ti"
+
+'' wcsstr and wcscspn come from the CRT bindings that inc/wstr.ti already
+'' pulls in -- declaring them again here is error 4, not a redundancy.
+
+extern "rtlib"
+
+'' INSTRW( [start,] src, pattern ).
+''
+'' NOTE THE POSITION ARITHMETIC. wcsstr is handed the TAIL from `start`, and the
+'' result is turned back into an absolute 1-based position by measuring from the
+'' ORIGINAL src -- not by adding start to a tail-relative index. The difference
+'' does not show up until start > 1.
+function tkort_WstrInstr alias "fb_WstrInstr" _
+	( byval start_ as integer, byval src as wstring ptr, byval patt as wstring ptr ) as integer
+
+	if( src = 0 ) then return 0
+	if( patt = 0 ) then return 0
+
+	dim as integer res = 0
+
+	dim as integer ok = -1
+	if( start_ <= 0 ) then ok = 0
+	if( start_ > FB_WSTR_LEN( src ) ) then ok = 0
+	if( FB_WSTR_LEN( patt ) = 0 ) then ok = 0
+
+	if( ok ) then
+		dim as wstring ptr p = wcsstr( @src[start_ - 1], patt )
+		if( p <> 0 ) then res = FB_WSTR_CALCDIFF( src, p ) + 1
+	end if
+
+	return res
+
+end function
+
+'' INSTRW( [start,] src, ANY set ).
+''
+'' wcscspn returns the length of the leading run containing NONE of the set, so
+'' "not found" and "found at the very end" both come back as the remaining
+'' length -- which is why the result is checked against size_src AFTERWARDS and
+'' turned into 0. Without that test a miss would report the position one past
+'' the end of the string.
+function tkort_WstrInstrAny alias "fb_WstrInstrAny" _
+	( byval start_ as integer, byval src as wstring ptr, byval patt as wstring ptr ) as integer
+
+	if( src = 0 ) then return 0
+	if( patt = 0 ) then return 0
+
+	dim as integer res = 0
+	dim as integer size_src = FB_WSTR_LEN( src )
+
+	if( (start_ > 0) andalso (start_ <= size_src) ) then
+		res = cast( integer, wcscspn( @src[start_ - 1], patt ) ) + start_
+		if( res > size_src ) then res = 0
+	end if
+
+	return res
+
+end function
+
+'' INSTRREVW( src, pattern [, start] ). start < 0 means "from the end"; start = 0
+'' is rejected outright, which is why the guard tests `start <> 0`.
+''
+'' Brute force, because there is no wcsrstr.
+function tkort_WstrInstrRev alias "fb_WstrInstrRev" _
+	( byval src as wstring ptr, byval patt as wstring ptr, byval start_ as integer ) as integer
+
+	if( src = 0 ) then return 0
+	if( patt = 0 ) then return 0
+
+	dim as integer size_src = FB_WSTR_LEN( src )
+	dim as integer size_patt = FB_WSTR_LEN( patt )
+
+	dim as integer ok = -1
+	if( size_src = 0 ) then ok = 0
+	if( size_patt = 0 ) then ok = 0
+	if( size_patt > size_src ) then ok = 0
+	if( start_ = 0 ) then ok = 0
+
+	if( ok = 0 ) then return 0
+
+	'' THREE CLAMPS, NOT TWO, and the middle one is easy to miss: a start PAST
+	'' the end of the source becomes 0 -- meaning "search nothing" -- while a
+	'' start merely past the last position where the pattern still FITS is
+	'' pulled back to that position. So an out-of-range start and a
+	'' nearly-out-of-range start behave completely differently.
+	if( start_ < 0 ) then
+		start_ = size_src - size_patt + 1
+	elseif( start_ > size_src ) then
+		start_ = 0
+	elseif( start_ > (size_src - size_patt) ) then
+		start_ = size_src - size_patt + 1
+	end if
+
+	for i as integer = 0 to start_ - 1
+		dim as integer j = 0
+		while( j <> size_patt )
+			'' BOTH OPERANDS THROUGH LOCALS. `src[k] <> patt[j]` compares two
+			'' wstring EXPRESSIONS, not two characters, and the loop never
+			'' matched anything -- every InstrRev returned 0. Third time today
+			'' that indexing a wstring ptr without a local went wrong, and the
+			'' first in a COMPARISON rather than a cast.
+			dim as ulong __a = src[start_ - i + j - 1]
+			dim as ulong __b = patt[j]
+			if( __a <> __b ) then exit while
+			j += 1
+		wend
+		if( j = size_patt ) then return start_ - i
+	next
+
+	return 0
+
+end function
+
+'' INSTRREVW( src, ANY set [, start] ). Note the clamp differs from the pattern
+'' form: a set match is one character wide, so an over-large start becomes 0
+'' rather than being pulled back.
+function tkort_WstrInstrRevAny alias "fb_WstrInstrRevAny" _
+	( byval src as wstring ptr, byval patt as wstring ptr, byval start_ as integer ) as integer
+
+	if( src = 0 ) then return 0
+	if( patt = 0 ) then return 0
+
+	dim as integer size_src = FB_WSTR_LEN( src )
+	dim as integer size_patt = FB_WSTR_LEN( patt )
+
+	dim as integer ok = -1
+	if( size_src = 0 ) then ok = 0
+	if( size_patt = 0 ) then ok = 0
+	if( start_ = 0 ) then ok = 0
+
+	if( ok = 0 ) then return 0
+
+	if( start_ < 0 ) then
+		start_ = size_src
+	elseif( start_ > size_src ) then
+		start_ = 0
+	end if
+
+	while( start_ > 0 )
+		start_ -= 1
+		dim as ulong __c = src[start_]
+		for i as integer = 0 to size_patt - 1
+			dim as ulong __p = patt[i]
+			if( __c = __p ) then return start_ + 1
+		next
+	wend
+
+	return 0
+
+end function
+
+end extern

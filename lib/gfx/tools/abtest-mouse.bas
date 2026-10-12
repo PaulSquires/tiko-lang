@@ -45,7 +45,7 @@
 '' running; that requirement did not go away, it just applies to one window at
 '' a time now.
 
-#include once "../driver/window.bi"
+#include once "../driver/window.ti"
 #include once "abtest.bi"
 #include once "windows.bi"
 #ifdef ABTEST_HAS_GFXLIB2

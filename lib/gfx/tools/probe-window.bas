@@ -43,9 +43,9 @@
 '' passed, because a green run that silently verified nothing is worse than a
 '' loud gap.
 
-#include once "../driver/window.bi"
-#include once "../raster/box.bi"
-#include once "../raster/pixel.bi"
+#include once "../driver/window.ti"
+#include once "../raster/box.ti"
+#include once "../raster/pixel.ti"
 #include once "windows.bi"
 
 using TkoGfx

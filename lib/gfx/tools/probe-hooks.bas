@@ -23,7 +23,7 @@
 '' but note the library proper still owes its `dim shared` allowlist entries in
 '' build/lint.sh, which does not yet scan lib/ for that rule.
 
-#include once "../core/hooks.bi"
+#include once "../core/hooks.ti"
 #include once "crt/string.bi"
 
 using TkoGfx

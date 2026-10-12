@@ -49,7 +49,7 @@
 '' machine. Nothing else moved -- the single shared VgaPortState still spans
 '' every mode, for the reason above it.
 
-#include once "../core/vgaport.bi"
+#include once "../core/vgaport.ti"
 #include once "abtest.bi"
 #ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"

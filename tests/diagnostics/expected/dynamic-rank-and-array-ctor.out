@@ -345,7 +345,7 @@ lowered: 4 functions, 4 blocks, 306 insts, 3 statements not lowered, 0 scope imb
   unlowered N_INTRINSIC 3
   inside N_INTRINSIC 3
   unlowered intrinsic KW_PRINT 3
-  skip-site src\mir\lowerctl.bas:206 3
+  skip-site src\mir\lowerctl.tiko:206 3
 tests/diagnostics/src/dynamic-rank-and-array-ctor.bas(32,9): error TKO0658: 'a1' is indexed with the wrong number of subscripts
      |
   32 | print a1(0, 0)

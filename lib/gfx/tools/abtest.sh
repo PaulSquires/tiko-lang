@@ -217,7 +217,7 @@ else
         # An unresolved fb_Gfx* here is not a build accident: it means the
         # source still calls gfxlib2 in-process, so the manifest is wrong.
         #
-        # THE LINK tiko ITSELF DOES for windows-x86_64 (src/codegen/toolchain.bas):
+        # THE LINK tiko ITSELF DOES for windows-x86_64 (src/codegen/toolchain.tiko):
         # lld, '-nostdlib' so no Visual Studio CRT, ucrtbase.dll plus tiko-rt's
         # msvccrt.o in its place, and kernel32 named because '-nostdlib' drops
         # it. NOT -llegacy_stdio_definitions -- msvccrt.o defines sprintf, and

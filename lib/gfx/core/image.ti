@@ -1,0 +1,148 @@
+'' image.ti -- IMAGECREATE / IMAGEINFO and the 32-byte image header.
+''
+'' Derived from: gfx_image.c (fb_hGfxImageCreate), gfx_image_info.c
+'' (fb_GfxImageInfo). LGPL-2.1-or-later with the static-linking exception.
+''
+'' NAMES DELIBERATELY DO NOT MATCH THE STATEMENTS. `ImageCreate`, `ImageInfo`
+'' and `ImageDestroy` are case-insensitively identical to FreeBASIC's own
+'' IMAGECREATE / IMAGEINFO / IMAGEDESTROY intrinsics, and a call resolves to the
+'' INTRINSIC rather than to the function defined here -- silently, with no
+'' warning, and with plausible results because the intrinsic does something very
+'' similar.
+''
+'' That made the entire cross-library interchange test VACUOUS: every "our image"
+'' was in fact a gfxlib2 image, both directions trivially agreed, and two
+'' deliberate corruptions of the header went undetected. Hence TkoImageNew,
+'' TkoImageFree, TkoImageQuery, TkoImagePixels.
+''
+'' THIS IS THE INTERCHANGE CONTRACT. An image is a 32-byte PUT_HEADER followed
+'' immediately by pixels, and a buffer written by one library has to be readable
+'' by the other -- that is the whole of D2. Everything here is fixed by that:
+''
+''   offset 0   type      must be PUT_HEADER_NEW (7) or the reader treats the
+''                        first four bytes as the OLD 4-byte header instead
+''   offset 4   bpp       BYTES per pixel: 1, 2 or 4
+''   offset 8   width
+''   offset 12  height
+''   offset 16  pitch     bytes per row, NOT width * bpp -- rows are padded
+''   offset 20  tex       the OpenGL texture id. `fbgfx.bi` calls offsets 20..31
+''                        twelve reserved bytes and is WRONG; the C header puts
+''                        tex here and leaves only eight reserved at 24..31.
+''                        Measured in Phase 1, and the gate still checks it.
+''   offset 32  pixels
+''
+'' THE BUFFER IS 16-BYTE ALIGNED AND CARRIES ITS OWN FREE POINTER. gfxlib2
+'' over-allocates, aligns the header up to a 16-byte boundary, and stores the
+'' original malloc pointer at `((void ptr ptr) image)[-1]` so IMAGEDESTROY can
+'' recover it. An image allocated here follows the same layout, so gfxlib2 can
+'' read it -- but see the note on ownership below.
+''
+'' OWNERSHIP DOES NOT CROSS. Reading each other's pixels is the contract; freeing
+'' each other's allocations is not. libtkogfx frees what it allocated and nothing
+'' else, because the two libraries need not share a heap. The A/B test destroys
+'' each image with whichever library made it.
+
+#pragma once
+
+#include once "../abi/rtlabi.ti"
+#include once "surface.ti"
+
+namespace TkoGfx
+
+const IMAGE_HEADER_SIZE = 32
+
+'' Pitch gfxlib2 chooses: rows padded up to a 16-BYTE boundary.
+''
+'' MEASURED, not guessed. The first version here padded to 4 bytes, which is
+'' correct-looking and wrong -- and every interchange test still PASSED, because
+'' a reader takes the pitch from the header, so a self-consistent wrong value
+'' works in both directions. Only comparing our pitch against the one gfxlib2
+'' picks for the same dimensions catches it.
+''
+''   depth 8:  w=16 -> 16,  w=17 -> 32
+''   depth 16: w=8  -> 16,  w=9  -> 32
+''   depth 32: w=4  -> 16,  w=5  -> 32,  w=17 -> 80
+private function ImagePitch( byval w as long, byval bpp as long ) as long
+    return ((w * bpp) + 15) and (not 15)
+end function
+
+'' Allocate an image with gfxlib2's layout. Returns the HEADER address, which is
+'' what every image-taking statement expects -- not the pixel address.
+private function TkoImageNew( _
+        byval w as long, byval h as long, byval bpp as long ) as TkoAbi.PUT_HEADER ptr
+
+    if (w <= 0) orelse (h <= 0) then return 0
+    if (bpp <> 1) andalso (bpp <> 2) andalso (bpp <> 4) then return 0
+
+    dim as long pitch = ImagePitch( w, bpp )
+    dim as integer bytes = cast( integer, pitch ) * h
+
+    '' Room for the header, the pixels, the stashed pointer, and slack to align.
+    dim as integer p_size = sizeof( any ptr )
+    dim as any ptr raw = allocate( bytes + IMAGE_HEADER_SIZE + p_size + 16 )
+    if raw = 0 then return 0
+
+    dim as integer addr_ = cast( integer, raw ) + p_size + 15
+    addr_ = addr_ and (not 15)
+    dim as TkoAbi.PUT_HEADER ptr img = cptr( TkoAbi.PUT_HEADER ptr, addr_ )
+
+    '' The free pointer lives immediately before the header.
+    cptr( any ptr ptr, img )[-1] = raw
+
+    img->htype  = TkoAbi.PUT_HEADER_NEW
+    img->bpp    = bpp
+    img->width  = w
+    img->height = h
+    img->pitch  = pitch
+    img->tex    = 0
+    for i as integer = 0 to 7
+        img->reserved(i) = 0
+    next
+
+    return img
+end function
+
+private sub TkoImageFree( byval img as TkoAbi.PUT_HEADER ptr )
+    if img = 0 then exit sub
+    dim as any ptr raw = cptr( any ptr ptr, img )[-1]
+    if raw <> 0 then deallocate( raw )
+end sub
+
+'' First pixel byte. Always header + 32 for a new-style image.
+private function TkoImagePixels( byval img as TkoAbi.PUT_HEADER ptr ) as ubyte ptr
+    if img = 0 then return 0
+    return cptr( ubyte ptr, img ) + IMAGE_HEADER_SIZE
+end function
+
+'' Point a Surface at an image's pixels. The Surface borrows; destroying the
+'' image invalidates it.
+private sub SurfaceFromImage( byref s as Surface, byval img as TkoAbi.PUT_HEADER ptr )
+    if img = 0 then exit sub
+    SurfaceInit( s, TkoImagePixels( img ), img->width, img->height, img->pitch, img->bpp )
+end sub
+
+'' IMAGEINFO. Returns 0 on success, non-zero for a malformed image -- gfxlib2
+'' reports FB_RTERROR_ILLEGALFUNCTIONCALL and fills everything with -1.
+private function TkoImageQuery( _
+        byval img as TkoAbi.PUT_HEADER ptr, _
+        byref w as long, byref h as long, byref bpp as long, byref pitch as long, _
+        byref pixels as any ptr, byref size as long ) as long
+
+    if (img = 0) orelse (img->htype = 0) then
+        w = -1 : h = -1 : bpp = -1 : pitch = -1 : size = -1
+        pixels = 0
+        return 1
+    end if
+
+    '' Only the new-style header is produced here; the old 4-byte form is a
+    '' read-only compatibility case handled by the GET/PUT path.
+    w      = img->width
+    h      = img->height
+    bpp    = img->bpp
+    pitch  = img->pitch
+    pixels = TkoImagePixels( img )
+    size   = pitch * h + IMAGE_HEADER_SIZE
+    return 0
+end function
+
+end namespace

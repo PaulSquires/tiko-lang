@@ -17,8 +17,8 @@
 '' .bsv name produces the raw block instead. Both are checked, because a writer
 '' that ignored the extension would still pass a BMP-only test.
 
-#include once "../core/bmp.bi"
-#include once "../core/bsave.bi"
+#include once "../core/bmp.ti"
+#include once "../core/bsave.ti"
 #include once "abtest.bi"
 #ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"

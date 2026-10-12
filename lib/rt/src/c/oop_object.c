@@ -33,7 +33,7 @@
 **     @__fb_ZTS6Object = external global %"8fb_RTTI$"
 **     @__fb_ZTS6Object = internal global %"10TKORT_RTTI" zeroinitializer
 **
-** src/oop/object_copyctor.bas recorded this when it was written; it is why
+** src/oop/object_copyctor.tiko recorded this when it was written; it is why
 ** that file calls the constructor instead of being the constructor.
 **
 ** THE LAYOUT IS MEASURED FROM fbc's OWN OBJECT, not read from its sources.
@@ -46,16 +46,16 @@
 **
 ** and the constructor is six instructions that store .data+0x30 -- which is
 ** Object_VT PLUS sizeof(vtable header) -- into *this.  That bias is not an
-** accident of this object: src/inc/oop.bi and src/oop/istypeof.bas both
+** accident of this object: src/inc/oop.ti and src/oop/istypeof.tiko both
 ** describe it, because a vptr names the first METHOD slot and the header sits
-** behind it.  istypeof.bas subtracts exactly the same amount to walk back.
+** behind it.  istypeof.tiko subtracts exactly the same amount to walk back.
 **
 ** THE ID STRING IS "6OBJECT": fbc's length-prefixed, upper-cased type name.
-** istypeof.bas compares these with strcmp rather than by address, because two
+** istypeof.tiko compares these with strcmp rather than by address, because two
 ** DLLs each carry their own copy of the record.
 */
 
-/* The two shapes, from src/inc/oop.bi.  Pointers only, so nothing here is
+/* The two shapes, from src/inc/oop.ti.  Pointers only, so nothing here is
 ** target-dependent. */
 typedef struct _tkort_rtti {
 	void                *stdlistVT;

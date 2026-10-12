@@ -10,8 +10,8 @@
 # lib/rt excludes gfx/ and fbc-int/gfx, and why 22 of the 26 unresolved symbols
 # in its first full link were fb_Gfx*.
 #
-# THE LIBRARY IS HEADER-ONLY, so this is ONE translation unit. Every .bi under
-# abi/, core/, driver/ and raster/ is included by src/all.bas, and every routine
+# THE LIBRARY IS HEADER-ONLY, so this is ONE translation unit. Every .ti under
+# abi/, core/, driver/ and raster/ is included by src/all.tiko, and every routine
 # in them is `private`. That is deliberate -- RFC-0001 makes the entry-point
 # layer the only public surface -- and it means the archive this produces today
 # exports NOTHING. It compiles 7,781 lines into 108 functions and proves the
@@ -27,7 +27,7 @@
 # fbc emits the gnu triple and builds the wrong ABI without saying so, so that path
 # refuses rather than falls back.
 #
-# WHAT IS NOT HERE: the entry points. tiko's src/mir/rtl.bi names 32 of them
+# WHAT IS NOT HERE: the entry points. tiko's src/mir/rtl.ti names 32 of them
 # with full signatures -- fb_GfxScreen( l, l, l, l, l ) as l and the rest -- and
 # that table IS the ABI this library owes. None is implemented. An entry point
 # that links and does nothing turns a loud failure into a silent one, so none is
@@ -94,7 +94,7 @@ for target in $TARGETS; do
     # five separate incidents of exactly that.
     rm -f "$LIBDIR/libtkogfx.a" "$LIBDIR/.config"
 
-    # -m NAMES THE MAIN MODULE, AND all.bas MUST NOT BE IT. Compiled as the main
+    # -m NAMES THE MAIN MODULE, AND all.tiko MUST NOT BE IT. Compiled as the main
     # module fbc emits a `main` into it, and the archive then collides with every
     # program that links it:
     #
@@ -112,13 +112,17 @@ for target in $TARGETS; do
         TOPT=$OPT; [ "$TOPT" = "s" ] && TOPT=2
         # --keep-temps leaves all.o.ll, which the function count below reads, as fbc's
         # -r left all.ll.
-        ( cd "$OBJDIR" && "$TIKO" -c "$GFX_ROOT/src/all.bas" -m __tkogfx_lib $GFXINC \
+        ( cd "$OBJDIR" && "$TIKO" -c "$GFX_ROOT/src/all.tiko" -m __tkogfx_lib $GFXINC \
             -target windows-x86_64 -mt "-O$TOPT" --keep-temps -o "$OBJDIR/all.o" ) > "$OBJDIR/tiko.log" 2>&1 \
             || { sed 's/^/    /' "$OBJDIR/tiko.log" >&2; die "tiko failed -- see $OBJDIR/tiko.log"; }
         [ -f "$OBJDIR/all.o" ] || die "tiko produced no object -- see $OBJDIR/tiko.log"
         mv -f "$OBJDIR/all.o.ll" "$OBJDIR/all.ll"
     else
-    ( cd "$OBJDIR" && "$FBC" -c "$GFX_ROOT/src/all.bas" -m __tkogfx_lib $GFXINC \
+    # fbc takes only a .bas as a source, so the oracle compiles a one-line .bas that
+    # includes all.tiko by a native path (fbc does not see MSYS paths); its own includes
+    # resolve from all.tiko's directory as before.
+    printf '#include once "%s"\n' "$(cd "$GFX_ROOT/src" && { pwd -W 2>/dev/null || pwd; })/all.tiko" > "$OBJDIR/all.bas"
+    ( cd "$OBJDIR" && "$FBC" -c "$OBJDIR/all.bas" -m __tkogfx_lib $GFXINC \
         -target win64 -gen llvm -r -z msvc -mt \
         -o "$OBJDIR/all.o" ) > "$OBJDIR/fbc.log" 2>&1 \
         || { sed 's/^/    /' "$OBJDIR/fbc.log" >&2; die "fbc failed -- see $OBJDIR/fbc.log"; }
@@ -151,7 +155,7 @@ for target in $TARGETS; do
     echo "build: $target/libtkogfx.a [$CFG] -- $ir functions compiled, $code reached the archive, $pub public entry points"
     if [ "$pub" = "0" ]; then
         echo "build: NOTE -- no entry points exist yet, so the archive holds no code." >&2
-        echo "build:         tiko src/mir/rtl.bi names the 32 this library owes." >&2
+        echo "build:         tiko src/mir/rtl.ti names the 32 this library owes." >&2
     fi
 done
 echo "build: ok"

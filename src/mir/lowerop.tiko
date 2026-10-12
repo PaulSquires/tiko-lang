@@ -1,0 +1,75 @@
+'' lowerop.tiko -- which MIR opcode a FreeBASIC operator token becomes, and the two
+'' type questions that choice depends on.
+''
+'' Split out of lowercall.tiko at the 1500-line lint cap. Nothing here lowers a call;
+'' they sit beside one another only because the operator path reuses the call path's
+'' argument machinery.
+
+#import "std/containers"
+#include once "mir/lowerctx.ti"
+
+namespace Tko.Mir
+
+
+function BinOpFor _
+    ( byval tk as Tko.TokenKind, byval t as MirType, _
+      byval isUnsigned as boolean ) as MirOp
+
+    dim as boolean f = IsFloatTy( t )
+    select case tk
+    case Tko.TK_PLUS      : return M_ADD
+    case Tko.TK_MINUS     : return M_SUB
+    case Tko.TK_STAR      : return M_MUL
+    case Tko.TK_SLASH     : return M_FDIV
+    case Tko.TK_BACKSLASH : return iif( isUnsigned, M_UDIV, M_SDIV )
+    case Tko.KW_MOD       : return iif( isUnsigned, M_UREM, M_SREM )
+    case Tko.KW_AND       : return M_AND
+    case Tko.KW_OR        : return M_OR
+    case Tko.KW_XOR       : return M_XOR
+    case Tko.KW_SHL       : return M_SHL
+    '' SHR is ARITHMETIC on a signed value -- '-1 shr 1' is -1, measured in
+    '' docs/internals/phase-5-const.md -- so it is ashr unless the type is unsigned.
+    case Tko.KW_SHR       : return iif( isUnsigned, M_LSHR, M_ASHR )
+    case Tko.TK_EQ        : return iif( f, M_FCMP_EQ, M_ICMP_EQ )
+    case Tko.TK_NE        : return iif( f, M_FCMP_NE, M_ICMP_NE )
+    case Tko.TK_LT        : return iif( f, M_FCMP_LT, iif( isUnsigned, M_ICMP_ULT, M_ICMP_SLT ) )
+    case Tko.TK_GT        : return iif( f, M_FCMP_GT, iif( isUnsigned, M_ICMP_UGT, M_ICMP_SGT ) )
+    '' UNSIGNED '<=' AND '>=' WERE SIGNED COMPARES -- '<' and '>' already asked, and
+    '' it bites only at the type's full width. 'dim as ulongint a = &hFFFFFFFFFFFFFFFF
+    '' : a <= 1' answered TRUE, -1 <= 1 signed; fbc says false.
+    case Tko.TK_LE        : return iif( f, M_FCMP_LE, iif( isUnsigned, M_ICMP_ULE, M_ICMP_SLE ) )
+    case Tko.TK_GE        : return iif( f, M_FCMP_GE, iif( isUnsigned, M_ICMP_UGE, M_ICMP_SGE ) )
+    end select
+    return M_NONE
+end function
+
+'' IS THIS THE BOOLEAN TYPE? Its own question, because MIR cannot answer it: mir.tiko
+'' maps TY_BOOLEAN, TY_BYTE and TY_UBYTE all to MT_I8, so by the time a value reaches
+'' Coerce a boolean is indistinguishable from a byte -- and the two widen DIFFERENTLY.
+function IsBooleanType _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_BUILTIN then return false
+    return (c.types->BuiltinOf( t ) = Tko.TY_BOOLEAN)
+end function
+
+function IsUnsignedType _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_BUILTIN then return false
+    select case c.types->BuiltinOf( t )
+    case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG, Tko.TY_UINTEGER, Tko.TY_ULONGINT
+        return true
+    '' A STRING IN AN ARITHMETIC CONTEXT IS ONE CHARACTER, and characters are
+    '' UNSIGNED. The only way a string TYPE reaches a numeric coercion is '*pz' or
+    '' 's[ i ]' being widened, and fbc writes '(double)(uint8)*PZ$0' for it -- a byte
+    '' above 127 would come out NEGATIVE through a sign extension. Every string PATH
+    '' goes through the descriptor helpers instead and never asks this.
+    case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_STRING, Tko.TY_USTRING, _
+         Tko.TY_FIXSTR, Tko.TY_FIXUSTR
+        return true
+    end select
+    return false
+end function
+
+end namespace

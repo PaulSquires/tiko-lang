@@ -55,7 +55,7 @@ lowered: 3 functions, 3 blocks, 28 insts, 2 statements not lowered, 0 scope imba
   amb assign 2
   amb-assign-kind 1 2
   amb-assign-val N_INT_LIT 2
-  skip-site src\mir\lower.bas:846 2
+  skip-site src\mir\lower.tiko:846 2
 tests/diagnostics/src/fixlen-and-concat.bas(32,5): error TKO0635: '&=' concatenates, so its target must be a string
      |
   32 |     i &= 1

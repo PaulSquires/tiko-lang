@@ -1,0 +1,508 @@
+'' sched.tiko -- the goroutine scheduler: fb_Spawn, fb_GoroutineCount,
+'' fb_SchedWorkerCount and fb_SchedShutdown. Four symbols, one fbc member
+'' (sched.o), portable.
+''
+'' fbc's SOURCE SAYS "WHY THIS IS C AND NOT A FreeBASIC LIBRARY" and gives three
+'' reasons. All three are about putting the scheduler in src/inc/fb/scheduler.bi
+'' -- a HEADER -- and none of them survives the move into a runtime MODULE:
+''
+''   "a `dim shared` in a .bi included by two modules gives two of them"
+''       -- true of a header. This is a .bas: `dim shared` is a file-scope
+''          static, exactly what C's `static` gives, and there is one.
+''   "worker hygiene needs fb_ErrorSetNum, which is runtime-internal"
+''       -- tiko-rt IS the runtime. It is declared below like any other.
+''   "shutdown must be called from fb_hRtExit, and only C can be"
+''       -- tiko-rt owns fb_hRtExit (src/init/rtinit.tiko), which already calls
+''          fb_SchedShutdown.
+''
+'' THE ONE-TIME LOCK IS THE PRIMITIVE THE WHOLE FILE RESTS ON. sched.lock is an
+'' FBMUTEX that must itself be created exactly once, so its creation needs a
+'' lock that exists BEFORE it -- statically, with no initialiser to run.
+''
+''   POSIX   PTHREAD_MUTEX_INITIALIZER is all zero bytes (measured, 40 of
+''           them), so a `dim shared` in .bss already is one.
+''   WINDOWS no such thing exists, so it is a spin on
+''           fb_AtomicCasLong with Sleep(0) between attempts -- a
+''           plain lock rather than the three-state machine in
+''           src/thread/claimlock.tiko, because here the protected thing is an
+''           ordinary flag rather than a CRITICAL_SECTION that must not be
+''           initialised twice.
+''
+'' hInit CHECKS inited TWICE, and the second check inside the lock is not
+'' redundant: two threads can both pass the first, and only one may create the
+'' mutex and the workers. The fast path outside the lock is what keeps fb_Spawn
+'' from serialising on it after startup.
+''
+'' inited IS THREE-STATE: 0 not tried, 1 running, -1 FAILED PERMANENTLY. The
+'' failure state matters -- without it, every fb_Spawn on a machine where thread
+'' creation fails would retry the whole startup, which is slow and, at exit,
+'' racy.
+''
+'' AND WHEN INIT FAILS, fb_Spawn RUNS THE WORK INLINE. That is wrong
+'' concurrently and right semantically: the work happens, exactly once, on the
+'' caller's thread. It is what makes SPAWN degrade rather than silently drop
+'' work on a target with no threads.
+''
+'' THE QUEUE IS UNBOUNDED AND fb_Spawn NEVER BLOCKS. A goroutine spawning
+'' another goroutine is the normal case, so a bounded queue would deadlock the
+'' moment it filled with goroutines that were each trying to spawn. Backpressure
+'' belongs on channels, where the bound is a number the programmer wrote.
+''
+'' THE IDLE LIST IS LIFO, deliberately: the most recently parked worker is
+'' warmest in cache and is woken first.
+''
+'' A WORKER ENQUEUES ITSELF ONLY ONCE. A spurious wake leaves it still on the
+'' idle list, and pushing again would corrupt the list -- hence the `parked`
+'' flag rather than just checking whether it is on the list.
+''
+'' WORKER HYGIENE: fb_ErrorSetNum(0) IS CALLED ON BOTH SIDES of the work item.
+'' Before, so the goroutine starts clean; after, so nothing leaks out of it into
+'' the next, unrelated goroutine that reuses the thread. THIS BUG CANNOT EXIST
+'' IN A THREAD-PER-TASK MODEL and no single-goroutine test will find it.
+''
+'' THE MONITOR IS THE HONEST REPLACEMENT FOR GO'S SYSCALL-AWARE SCHEDULER. It
+'' cannot know a goroutine is blocked in ReadFile; it can see that work is
+'' queued and nobody is taking it, which is the observable consequence. Two
+'' consecutive starved ticks -- not one -- because every worker being busy for a
+'' few milliseconds is normal and must not create a thread.
+''
+'' SHUTDOWN DOES NOT JOIN, AND THAT IS NOT LAZINESS. fb_hRtExit runs in a global
+'' destructor, and waiting for a thread from there can deadlock on the Windows
+'' loader lock: the thread being waited on needs the same lock to exit. So
+'' shutdown sets a flag and unparks everyone; work still running is abandoned --
+'' which is also exactly Go's semantics, since when main returns the process
+'' ends and every goroutine dies with it.
+''
+'' THE UNPARK HAPPENS OUTSIDE THE LOCK, in both fb_Spawn and fb_SchedShutdown.
+'' Doing it inside would have the woken worker immediately block on the lock the
+'' waker is still holding.
+''
+'' THE TWO COUNTS ARE SNAPSHOTS, stale the instant they return. Metrics only,
+'' never control flow.
+
+#include once "inc/descriptors.ti"
+#include once "inc/thread.ti"
+#include once "inc/sysbind.ti"
+
+'' Grow the pool after this many consecutive starved ticks, at this interval.
+const FB_SCHED_TICK_MS_      = 50
+const FB_SCHED_STARVE_TICKS_ = 2
+
+'' A goroutine blocked in a syscall holds an OS thread, so a program that blocks
+'' everything hits this rather than exhausting the machine.
+const FB_SCHED_MAX_WORKERS_  = 256
+
+'' fb_thread.h declares `typedef void (FBCALL *FB_SPAWNPROC)( void *ctx )`, and
+'' FBCALL IS NOT A FreeBASIC KEYWORD -- it is a C macro that expands to
+'' __stdcall on 32-bit Windows and to nothing everywhere else. `extern "rtlib"`
+'' says the same thing for a DECLARATION, but a procedure TYPE has to spell the
+'' convention out, so the #if below is what FBCALL means.
+''
+'' ONE ARM LEFT, AND THE WARNING OUTLIVES IT. Until 2026-09-04 the win32 arm
+'' spelled this `stdcall`, because FBCALL is __stdcall there; getting it wrong was
+'' a stack imbalance at every spawned call rather than a compile error, and win64
+'' and Linux would both have stayed green. x86-64 is now the only architecture
+'' (D14), so cdecl is unconditional -- but the reason a procedure TYPE must spell
+'' its convention out at all has not changed, and neither has the fact that no
+'' remaining target can catch it being wrong.
+type FB_SPAWNPROC as sub cdecl ( byval ctx as any ptr )
+
+'' The thread proc type and the parker type both live inside src/thread/core.tiko
+'' and src/thread/park.tiko rather than in a shared header, so neither is visible
+'' here. The thread proc is respelled below -- it is part of the call's ABI and
+'' getting it wrong corrupts the stack rather than failing to compile -- while a
+'' parker is only ever passed through opaquely, so it stays `any ptr`.
+type FB_THREADPROC_ as sub cdecl ( byval param as any ptr )
+
+type FBWORKITEM_
+	as FB_SPAWNPROC   proc_
+	as any ptr        ctx
+	as FBWORKITEM_ ptr next_
+end type
+
+type FBWORKER_
+	as any ptr        parker
+	as long           parked
+	as FBWORKER_ ptr  nextidle
+end type
+
+'' The whole scheduler, file-local. See the file header on why one `dim shared`
+'' in a .bas is the singleton fbc's comment says a .bi cannot provide.
+type TKORT_SCHED
+	as long           inited        '' 0 not tried, 1 running, -1 failed
+	as long           shutdown_
+	as FBMUTEX ptr    lock_
+
+	as FBWORKITEM_ ptr qhead
+	as FBWORKITEM_ ptr qtail
+	as long           qlen
+
+	as FBWORKER_ ptr  idle          '' LIFO -- warmest first
+	as long           idlecount
+	as long           workers
+	as long           busy
+
+	as long           starveticks
+end type
+
+dim shared as TKORT_SCHED sched_
+
+extern "rtlib"   '' FBCALL: all of these are decorated on win32.
+	declare function tkrt_MutexCreate alias "fb_MutexCreate" ( ) as FBMUTEX ptr
+	declare sub tkrt_MutexLock alias "fb_MutexLock" ( byval m as FBMUTEX ptr )
+	declare sub tkrt_MutexUnlock alias "fb_MutexUnlock" ( byval m as FBMUTEX ptr )
+	declare function tkrt_ThreadCreate alias "fb_ThreadCreate" _
+		( byval proc_ as FB_THREADPROC_, byval param as any ptr, _
+		  byval stack_size as integer ) as FBTHREAD ptr
+	declare sub tkrt_ThreadDetach alias "fb_ThreadDetach" ( byval t as FBTHREAD ptr )
+	declare function tkrt_ParkerSelf alias "fb_ParkerSelf" ( ) as any ptr
+	declare sub tkrt_Park alias "fb_Park" ( byval p as any ptr )
+	declare function tkrt_ParkTimed alias "fb_ParkTimed" _
+		( byval p as any ptr, byval ms as ulong ) as long
+	declare sub tkrt_Unpark alias "fb_Unpark" ( byval p as any ptr )
+	declare function tkrt_CpuCount alias "fb_CpuCount" ( ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+end extern
+
+'' ---------------------------------------------------------------- one-time
+''
+'' The lock that must exist before sched_.lock_ does -- see the file header.
+
+#ifdef __FB_WIN32__
+
+extern "c"   '' NON-FBCALL: kernel32 import.
+	declare sub w_Sleep stdcall alias "Sleep" ( byval ms as ulong )
+end extern
+
+'' fb_AtomicCasLong RATHER THAN InterlockedCompareExchange -- the Interlocked
+'' family are compiler intrinsics on x86-64 MinGW with no symbol to import, so
+'' importing them links with `undefined reference`. See src/thread/claimlock.tiko.
+extern "rtlib"   '' FBCALL.
+	declare function tkrt_AtomicCasLong alias "fb_AtomicCasLong" _
+		( byval p as long ptr, byval expected as long, byval desired as long ) as long
+end extern
+
+dim shared as long tkort_hOnceLock
+
+'' A PLAIN SPIN LOCK, not the three-state machine in claimlock.tiko: what this
+'' guards is an ordinary flag rather than a CRITICAL_SECTION that must not be
+'' initialised twice.
+private sub tkort_hLockOnce( )
+	while( tkrt_AtomicCasLong( @tkort_hOnceLock, 0, 1 ) <> 0 )
+		w_Sleep( 0 )
+	wend
+end sub
+
+private sub tkort_hUnlockOnce( )
+	tkrt_AtomicCasLong( @tkort_hOnceLock, 1, 0 )
+end sub
+
+#else
+
+'' ALL ZERO BYTES IS A VALID MUTEX on glibc -- measured. So .bss is the static
+'' initialiser and there is nothing to run.
+type TKORT_PTHREAD_MUTEX2
+	as ubyte raw( 0 to 39 )
+end type
+
+#assert sizeof( TKORT_PTHREAD_MUTEX2 ) = 40
+
+extern "c"   '' NON-FBCALL: libpthread.
+	declare function c_pthread_mutex_lock2 alias "pthread_mutex_lock" _
+		( byval m as TKORT_PTHREAD_MUTEX2 ptr ) as long
+	declare function c_pthread_mutex_unlock2 alias "pthread_mutex_unlock" _
+		( byval m as TKORT_PTHREAD_MUTEX2 ptr ) as long
+end extern
+
+dim shared as TKORT_PTHREAD_MUTEX2 tkort_hOnceMx
+
+private sub tkort_hLockOnce( )
+	c_pthread_mutex_lock2( @tkort_hOnceMx )
+end sub
+
+private sub tkort_hUnlockOnce( )
+	c_pthread_mutex_unlock2( @tkort_hOnceMx )
+end sub
+
+#endif
+
+'' ------------------------------------------------------------------ worker
+
+'' Forward-declared because hWorkerProc and hAddWorker call each other, and
+'' inside an `extern "c"` block so a bare `declare` cannot inherit stdcall on
+'' win32 -- the trap this repo has sprung three times.
+extern "c"   '' NON-FBCALL: file-local, never exported.
+	declare sub tkort_hAddWorker( )
+end extern
+
+private sub tkort_hWorkerProc cdecl ( byval param as any ptr )
+
+	dim as FBWORKER_ ptr self_ = cast( FBWORKER_ ptr, param )
+
+	self_->parker = tkrt_ParkerSelf( )
+
+	do
+		dim as FBWORKITEM_ ptr item = 0
+
+		tkrt_MutexLock( sched_.lock_ )
+
+		do
+			if( sched_.qhead <> 0 ) then
+				item = sched_.qhead
+				sched_.qhead = item->next_
+				if( sched_.qhead = 0 ) then sched_.qtail = 0
+				sched_.qlen -= 1
+				sched_.busy += 1
+				exit do
+			end if
+
+			if( sched_.shutdown_ <> 0 ) then
+				tkrt_MutexUnlock( sched_.lock_ )
+				exit sub
+			end if
+
+			'' ENQUEUE ONLY ONCE -- a spurious wake leaves us still on the idle
+			'' list, and pushing again would corrupt it.
+			if( self_->parked = 0 ) then
+				self_->parked = -1
+				self_->nextidle = sched_.idle
+				sched_.idle = self_
+				sched_.idlecount += 1
+			end if
+
+			tkrt_MutexUnlock( sched_.lock_ )
+			tkrt_Park( self_->parker )
+			tkrt_MutexLock( sched_.lock_ )
+		loop
+
+		tkrt_MutexUnlock( sched_.lock_ )
+
+		'' WORKER HYGIENE, ON BOTH SIDES -- see the file header.
+		'' THROUGH A LOCAL, not `item->proc_( ... )` directly: FreeBASIC will
+		'' not call through a procedure-pointer FIELD in place (error 7).
+		dim as FB_SPAWNPROC fn_ = item->proc_
+		tkrt_ErrorSetNum( 0 )
+		fn_( item->ctx )
+		tkrt_ErrorSetNum( 0 )
+
+		free( item )
+
+		tkrt_MutexLock( sched_.lock_ )
+		sched_.busy -= 1
+		tkrt_MutexUnlock( sched_.lock_ )
+	loop
+
+end sub
+
+'' CALLED WITH sched_.lock_ HELD, or during init before any worker exists.
+private sub tkort_hAddWorker( )
+
+	if( sched_.workers >= FB_SCHED_MAX_WORKERS_ ) then exit sub
+
+	dim as FBWORKER_ ptr w = cast( FBWORKER_ ptr, calloc( 1, sizeof( FBWORKER_ ) ) )
+	if( w = 0 ) then exit sub
+
+	dim as FBTHREAD ptr t = tkrt_ThreadCreate( @tkort_hWorkerProc, w, 0 )
+	if( t = 0 ) then
+		free( w )
+		exit sub
+	end if
+
+	'' DETACHED: nothing ever joins a worker, so the thread structure has to be
+	'' freed by the thread itself.
+	tkrt_ThreadDetach( t )
+	sched_.workers += 1
+end sub
+
+'' ----------------------------------------------------------------- monitor
+
+private sub tkort_hMonitorProc cdecl ( byval param as any ptr )
+
+	dim as any ptr p = tkrt_ParkerSelf( )
+
+	do
+		tkrt_ParkTimed( p, FB_SCHED_TICK_MS_ )
+
+		tkrt_MutexLock( sched_.lock_ )
+
+		if( sched_.shutdown_ <> 0 ) then
+			tkrt_MutexUnlock( sched_.lock_ )
+			exit sub
+		end if
+
+		'' WORK QUEUED AND NOBODY TAKING IT is the observable consequence of a
+		'' worker blocked in a syscall. TWO ticks, not one -- see the header.
+		if( (sched_.qlen > 0) andalso (sched_.idlecount = 0) andalso _
+		    (sched_.workers < FB_SCHED_MAX_WORKERS_) ) then
+			sched_.starveticks += 1
+			if( sched_.starveticks >= FB_SCHED_STARVE_TICKS_ ) then
+				tkort_hAddWorker( )
+				sched_.starveticks = 0
+			end if
+		else
+			sched_.starveticks = 0
+		end if
+
+		tkrt_MutexUnlock( sched_.lock_ )
+	loop
+
+end sub
+
+'' -------------------------------------------------------------------- init
+
+'' THE FIRST inited CHECK IS OUTSIDE THE LOCK and the second inside; neither is
+'' redundant. See the file header.
+private function tkort_hInit( ) as long
+
+	if( sched_.inited <> 0 ) then return iif( sched_.inited > 0, -1, 0 )
+
+	tkort_hLockOnce( )
+
+	if( sched_.inited = 0 ) then
+		sched_.lock_ = tkrt_MutexCreate( )
+		if( sched_.lock_ = 0 ) then
+			sched_.inited = -1
+			tkort_hUnlockOnce( )
+			return 0
+		end if
+
+		'' ONE WORKER PER CPU to start; the monitor grows the pool from there.
+		dim as long n = tkrt_CpuCount( )
+		for i as long = 0 to n - 1
+			tkort_hAddWorker( )
+		next
+
+		if( sched_.workers > 0 ) then
+			dim as FBTHREAD ptr t = tkrt_ThreadCreate( @tkort_hMonitorProc, 0, 0 )
+			if( t <> 0 ) then tkrt_ThreadDetach( t )
+		end if
+
+		'' NO WORKERS MEANS PERMANENT FAILURE, not "try again next time".
+		sched_.inited = iif( sched_.workers > 0, 1, -1 )
+	end if
+
+	tkort_hUnlockOnce( )
+
+	return iif( sched_.inited > 0, -1, 0 )
+end function
+
+'' ------------------------------------------------------------------ exports
+
+extern "rtlib"   '' FBCALL: fb_thread.h declares fb_Spawn, fb_GoroutineCount and
+                 '' fb_SchedWorkerCount with FBCALL.
+
+'' RUNS INLINE WHEN INIT FAILS -- wrong concurrently, right semantically. See
+'' the file header.
+sub tkort_Spawn alias "fb_Spawn" ( byval proc_ as FB_SPAWNPROC, byval ctx as any ptr )
+
+	dim as FBWORKITEM_ ptr item = any
+	dim as FBWORKER_ ptr w = 0
+
+	if( proc_ = 0 ) then exit sub
+
+	if( tkort_hInit( ) = 0 ) then
+		proc_( ctx )
+		exit sub
+	end if
+
+	item = cast( FBWORKITEM_ ptr, malloc( sizeof( FBWORKITEM_ ) ) )
+	if( item = 0 ) then
+		'' Same fallback for a failed allocation.
+		proc_( ctx )
+		exit sub
+	end if
+	item->proc_ = proc_
+	item->ctx = ctx
+	item->next_ = 0
+
+	tkrt_MutexLock( sched_.lock_ )
+
+	if( sched_.shutdown_ <> 0 ) then
+		'' Past the point of no return; the process is going away.
+		tkrt_MutexUnlock( sched_.lock_ )
+		free( item )
+		exit sub
+	end if
+
+	'' UNBOUNDED, AND THIS NEVER BLOCKS -- see the file header.
+	if( sched_.qtail <> 0 ) then
+		sched_.qtail->next_ = item
+	else
+		sched_.qhead = item
+	end if
+	sched_.qtail = item
+	sched_.qlen += 1
+
+	if( sched_.idle <> 0 ) then
+		w = sched_.idle
+		sched_.idle = w->nextidle
+		w->nextidle = 0
+		w->parked = 0
+		sched_.idlecount -= 1
+	end if
+
+	tkrt_MutexUnlock( sched_.lock_ )
+
+	'' OUTSIDE THE LOCK: waking inside it would have the woken worker block
+	'' immediately on the lock we still hold.
+	if( w <> 0 ) then tkrt_Unpark( w->parker )
+end sub
+
+'' A SNAPSHOT: queued plus running, stale the instant it returns.
+function tkort_GoroutineCount alias "fb_GoroutineCount" ( ) as long
+
+	dim as long n = any
+
+	if( (sched_.inited = 0) orelse (sched_.lock_ = 0) ) then return 0
+
+	tkrt_MutexLock( sched_.lock_ )
+	n = sched_.qlen + sched_.busy
+	tkrt_MutexUnlock( sched_.lock_ )
+
+	return n
+end function
+
+function tkort_SchedWorkerCount alias "fb_SchedWorkerCount" ( ) as long
+
+	dim as long n = any
+
+	if( (sched_.inited = 0) orelse (sched_.lock_ = 0) ) then return 0
+
+	tkrt_MutexLock( sched_.lock_ )
+	n = sched_.workers
+	tkrt_MutexUnlock( sched_.lock_ )
+
+	return n
+end function
+
+end extern
+
+'' NOT FBCALL: fb_SchedShutdown is declared PLAIN, unlike the three above it --
+'' it is called from fb_hRtExit and never from generated code.
+extern "c"   '' NON-FBCALL, and the archive agrees -- no @N on win32.
+
+sub tkort_SchedShutdown alias "fb_SchedShutdown" ( )
+
+	dim as FBWORKER_ ptr w = any
+
+	if( (sched_.inited = 0) orelse (sched_.lock_ = 0) ) then exit sub
+
+	tkrt_MutexLock( sched_.lock_ )
+	sched_.shutdown_ = -1
+	'' The whole idle list is taken under the lock and walked outside it.
+	w = sched_.idle
+	sched_.idle = 0
+	sched_.idlecount = 0
+	tkrt_MutexUnlock( sched_.lock_ )
+
+	'' DOES NOT JOIN -- see the file header on the loader-lock deadlock.
+	while( w <> 0 )
+		dim as FBWORKER_ ptr next_ = w->nextidle
+		w->parked = 0
+		tkrt_Unpark( w->parker )
+		w = next_
+	wend
+
+end sub
+
+end extern

@@ -23,8 +23,8 @@
 '' the same sequence, so dropping the gfxlib2 half leaves ours driven exactly as
 '' before -- which is what makes this one splittable at all.
 
-#include once "../raster/color.bi"
-#include once "../raster/box.bi"
+#include once "../raster/color.ti"
+#include once "../raster/box.ti"
 #include once "abtest.bi"
 #include once "crt/string.bi"
 #ifdef ABTEST_HAS_GFXLIB2

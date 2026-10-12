@@ -1,0 +1,455 @@
+'' val.tiko -- the WSTRING number parsers: VALW and friends, twenty-three entry
+'' points over ten fbc members.
+''
+'' THESE MIRROR src/str/val*.bas, and the mirror was checked rather than assumed.
+'' fbc's own header calls strw_convfrom_qb.c "wide twins of the routines in
+'' str_convfrom_qb.c", and earlier today a pair documented that way -- the string
+'' and ustring ALLOCATORS -- turned out to disagree, with the narrow one wrong
+'' for fifteen gate runs. So the QB routines below were read against the narrow
+'' implementation already in this tree before being written. They agree.
+''
+'' THE INTEGER PARSERS ALL CALL THE **UNSIGNED** LIBC FUNCTION ON PURPOSE.
+'' wcstol and wcstoll SATURATE at the signed limits, so VALINT("&hFFFFFFFF")
+'' would come back as 2147483647 instead of -1. wcstoul and wcstoull wrap
+'' instead, which is what FB wants. fbc says so in a comment at each site and it
+'' is reproduced at each site here.
+
+#include once "inc/descriptors.ti"
+#include once "inc/wstr.ti"
+
+extern "c"   '' NON-FBCALL: the libc wide parsers.
+	'' LOCAL NAMES, for the reason src/strw/case.tiko records: fbc's Windows CRT
+	'' bindings already declare wcstod and wcstoul (so re-declaring them is
+	'' error 4) while the Linux ones do not declare wcstoull (so NOT declaring
+	'' it is error 42). An alias is the only spelling that builds on both.
+	declare function tkrt_wcstod cdecl alias "wcstod" _
+		( byval s as wstring ptr, byval e as wstring ptr ptr ) as double
+	declare function tkrt_wcstoul cdecl alias "wcstoul" _
+		( byval s as wstring ptr, byval e as wstring ptr ptr, byval base_ as long ) as ulong
+	declare function tkrt_wcstoull cdecl alias "wcstoull" _
+		( byval s as wstring ptr, byval e as wstring ptr ptr, byval base_ as long ) as ulongint
+end extern
+
+'' Skip leading spaces and report how many characters remain. Returns the new
+'' start; `length` is updated in place.
+private function hSkipSpace _
+	( byval src as wstring ptr, byval length as integer ptr ) as wstring ptr
+
+	dim as wstring ptr p = src
+	dim as integer n = *length
+
+	while( n > 0 )
+		'' Through a local: comparing p[0] to a literal compares wstring
+		'' EXPRESSIONS, which is the trap that produced four bugs in the strw
+		'' batch (see inc/wstr.ti).
+		dim as ulong c = p[0]
+		if( c <> 32 ) then exit while
+		p += 1
+		n -= 1
+	wend
+
+	*length = n
+	return p
+
+end function
+
+'' Decode an `&h` / `&o` / `&b` prefix. Returns the radix and advances past it;
+'' 0 when there is no prefix.
+''
+'' A BARE `&` MEANS OCTAL, and only ONE character is consumed rather than two --
+'' `&777` is 511. That default is the reason the skip count is a variable.
+private function hRadixPrefix _
+	( byval p as wstring ptr ptr, byval length as integer ptr ) as long
+
+	if( *length < 2 ) then return 0
+
+	dim as ulong lead = (*p)[0]
+	if( lead <> asc( "&" ) ) then return 0
+
+	dim as ulong c = (*p)[1]
+	dim as long radix = any, skip = 2
+
+	select case as const c
+	case asc( "h" ), asc( "H" ) : radix = 16
+	case asc( "o" ), asc( "O" ) : radix = 8
+	case asc( "b" ), asc( "B" ) : radix = 2
+	case else
+		radix = 8
+		skip = 1
+	end select
+
+	*p += skip
+	*length -= skip
+	return radix
+
+end function
+
+extern "rtlib"
+
+'' ------------------------------------------------------- the radix parsers
+''
+'' Hand-rolled rather than handed to wcstoull, because these stop at the FIRST
+'' character that is not a digit in the radix and return what they have -- there
+'' is no error, no end pointer and no overflow report. VALINT("&hFFZZ") is
+'' &hFF's value, not zero and not an error.
+function tkort_WstrRadix2Longint alias "fb_WstrRadix2Longint" _
+	( byval src as wstring ptr, byval length as integer, byval radix as long ) as longint
+
+	dim as longint v = 0
+	dim as wstring ptr p = src
+
+	select case as const radix
+	case 16
+		while( length > 0 )
+			dim as ulong c = p[0]
+			if( (c >= 97) andalso (c <= 102) ) then
+				c -= 87
+			elseif( (c >= 65) andalso (c <= 70) ) then
+				c -= 55
+			elseif( (c >= 48) andalso (c <= 57) ) then
+				c -= 48
+			else
+				exit while
+			end if
+			v = (v * 16) + c
+			p += 1 : length -= 1
+		wend
+	case 8
+		while( length > 0 )
+			dim as ulong c = p[0]
+			if( (c < 48) orelse (c > 55) ) then exit while
+			v = (v * 8) + (c - 48)
+			p += 1 : length -= 1
+		wend
+	case 2
+		while( length > 0 )
+			dim as ulong c = p[0]
+			if( (c < 48) orelse (c > 49) ) then exit while
+			v = (v * 2) + (c - 48)
+			p += 1 : length -= 1
+		wend
+	end select
+
+	return v
+
+end function
+
+function tkort_WstrRadix2Int alias "fb_WstrRadix2Int" _
+	( byval src as wstring ptr, byval length as integer, byval radix as long ) as long
+	'' NOTE: fbc has a SEPARATE 32-bit implementation rather than a truncation
+	'' of the 64-bit one, and the two agree for every input -- the accumulator
+	'' wraps at 32 bits there and is truncated here, which is the same value.
+	return cast( long, tkort_WstrRadix2Longint( src, length, radix ) )
+end function
+
+'' --------------------------------------------------------- VAL and friends
+''
+'' Every one of these has the same prologue: skip spaces, look for an `&`
+'' prefix, and fall through to libc when there is none.
+#macro WVAL_PROLOGUE( src, length, p, radix, bail )
+	dim as integer length = _length
+	dim as wstring ptr p = hSkipSpace( src, @length )
+	if( length < 1 ) then return bail
+	dim as long radix = 10
+	dim as wstring ptr __r = p
+	dim as integer __rl = length
+	dim as long __pfx = hRadixPrefix( @__r, @__rl )
+	if( __pfx <> 0 ) then radix = __pfx
+#endmacro
+
+function tkort_WstrToDouble alias "fb_WstrToDouble" _
+	( byval src as wstring ptr, byval _length as integer ) as double
+
+	WVAL_PROLOGUE( src, length, p, radix, 0.0 )
+
+	'' A prefixed literal is an INTEGER literal, parsed exactly, and only then
+	'' widened -- going through wcstod would lose precision above 2^53.
+	if( radix <> 10 ) then
+		return cast( double, tkort_WstrRadix2Longint( __r, __rl, radix ) )
+	end if
+
+	'' THE 'd' EXPONENT WORKAROUND. FreeBASIC accepts 1d5 for 1e5, and wcstod
+	'' does not outside win32 -- so the text is copied and every 'd' or 'D' is
+	'' bumped by one, which lands exactly on 'e' or 'E'. Reproduced including
+	'' the copy, because the allocation is observable in an allocation count.
+	dim as wstring ptr q = FB_WSTR_ALLOCTEMP( length )
+	if( q = 0 ) then return 0.0
+
+	for i as integer = 0 to length - 1
+		dim as ulong c = p[i]
+		if( (c = asc( "d" )) orelse (c = asc( "D" )) ) then c += 1
+		q[i] = c
+	next
+	q[length] = 0
+
+	dim as double ret = tkrt_wcstod( q, 0 )
+	FB_WSTR_DEL( q )
+	return ret
+
+end function
+
+function tkort_WstrVal alias "fb_WstrVal" ( byval s as wstring ptr ) as double
+	if( s = 0 ) then return 0.0
+	dim as integer n = FB_WSTR_LEN( s )
+	if( n = 0 ) then return 0.0
+	return tkort_WstrToDouble( s, n )
+end function
+
+'' ------------------------------------------------------ the integer parsers
+''
+'' THE 32-BIT AND 64-BIT PAIRS DIFFER ON THE PREFIXED PATH, AND ONLY ON WINDOWS.
+''
+''   VALINT / VALUINT   hand the whole thing to wcstoul with the radix, on
+''                      every target.
+''   VALLNG / VALULNG   on MinGW go through fb_WstrRadix2Longint instead, and
+''                      elsewhere fall through to wcstoull.
+''
+'' That is a real divergence in fbc, not a tidy-up opportunity: the two paths
+'' disagree on trailing garbage and on overflow. It is an #ifdef rather than a
+'' sizeof branch because it is genuinely about WHICH LIBC, not about a width.
+
+function tkort_WstrToInt alias "fb_WstrToInt" _
+	( byval src as wstring ptr, byval _length as integer ) as long
+	WVAL_PROLOGUE( src, length, p, radix, 0 )
+	if( radix <> 10 ) then p = __r
+	'' wcstoul, not wcstol: the signed one SATURATES.
+	return cast( long, tkrt_wcstoul( p, 0, radix ) )
+end function
+
+function tkort_WstrValInt alias "fb_WstrValInt" ( byval s as wstring ptr ) as long
+	if( s = 0 ) then return 0
+	dim as integer n = FB_WSTR_LEN( s )
+	if( n = 0 ) then return 0
+	return tkort_WstrToInt( s, n )
+end function
+
+function tkort_WstrToUInt alias "fb_WstrToUInt" _
+	( byval src as wstring ptr, byval _length as integer ) as ulong
+	WVAL_PROLOGUE( src, length, p, radix, 0 )
+	if( radix <> 10 ) then p = __r
+	return tkrt_wcstoul( p, 0, radix )
+end function
+
+function tkort_WstrValUInt alias "fb_WstrValUInt" ( byval s as wstring ptr ) as ulong
+	if( s = 0 ) then return 0
+	dim as integer n = FB_WSTR_LEN( s )
+	if( n = 0 ) then return 0
+	return tkort_WstrToUInt( s, n )
+end function
+
+function tkort_WstrToLongint alias "fb_WstrToLongint" _
+	( byval src as wstring ptr, byval _length as integer ) as longint
+	WVAL_PROLOGUE( src, length, p, radix, 0 )
+	if( radix <> 10 ) then
+		#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+			return tkort_WstrRadix2Longint( __r, __rl, radix )
+		#else
+			p = __r
+		#endif
+	end if
+	'' wcstoull, not wcstoll: the signed one SATURATES.
+	return cast( longint, tkrt_wcstoull( p, 0, radix ) )
+end function
+
+function tkort_WstrValLng alias "fb_WstrValLng" ( byval s as wstring ptr ) as longint
+	if( s = 0 ) then return 0
+	dim as integer n = FB_WSTR_LEN( s )
+	if( n = 0 ) then return 0
+	return tkort_WstrToLongint( s, n )
+end function
+
+function tkort_WstrToULongint alias "fb_WstrToULongint" _
+	( byval src as wstring ptr, byval _length as integer ) as ulongint
+	WVAL_PROLOGUE( src, length, p, radix, 0 )
+	if( radix <> 10 ) then
+		#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+			return cast( ulongint, tkort_WstrRadix2Longint( __r, __rl, radix ) )
+		#else
+			p = __r
+		#endif
+	end if
+	return tkrt_wcstoull( p, 0, radix )
+end function
+
+function tkort_WstrValULng alias "fb_WstrValULng" ( byval s as wstring ptr ) as ulongint
+	if( s = 0 ) then return 0
+	dim as integer n = FB_WSTR_LEN( s )
+	if( n = 0 ) then return 0
+	return tkort_WstrToULongint( s, n )
+end function
+
+'' -------------------------------------------------------------- BOOL
+''
+'' "true" and "false" are matched CASE-INSENSITIVELY against the very strings
+'' fb_hBoolToWstr returns, rather than against literals written here -- so the
+'' parser and the formatter cannot drift apart.
+dim shared as wstring * 6 tkort_wfalse, tkort_wtrue
+dim shared as integer tkort_wbool_ready
+
+private sub hBoolInit( )
+	if( tkort_wbool_ready = 0 ) then
+		tkort_wfalse = "false"
+		tkort_wtrue  = "true"
+		tkort_wbool_ready = 1
+	end if
+end sub
+
+function tkort_hBoolToWstr alias "fb_hBoolToWstr" ( byval num as byte ) as wstring ptr
+	hBoolInit( )
+	if( num <> 0 ) then return @tkort_wtrue
+	return @tkort_wfalse
+end function
+
+function tkort_BoolToWstr alias "fb_BoolToWstr" ( byval num as byte ) as wstring ptr
+	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( 5 )
+	if( dst <> 0 ) then
+		dim as wstring ptr src = tkort_hBoolToWstr( num )
+		FB_WSTR_COPY( dst, src, FB_WSTR_LEN( src ) )
+	end if
+	return dst
+end function
+
+'' Case-insensitive compare against a NUL-terminated wstring of known length.
+private function hWCmp _
+	( byval a as wstring ptr, byval length as integer, byval z as wstring ptr ) as long
+
+	dim as integer chars = FB_WSTR_LEN( z )
+	if( chars <> length ) then return 1
+
+	for i as integer = 0 to chars - 1
+		dim as ulong ca = a[i], cz = z[i]
+		'' ASCII fold is enough: the only words compared are "true" and "false".
+		if( (ca >= 97) andalso (ca <= 122) ) then ca -= 32
+		if( (cz >= 97) andalso (cz <= 122) ) then cz -= 32
+		if( ca <> cz ) then return 1
+	next
+
+	return 0
+
+end function
+
+'' ANYTHING THAT IS NOT ZERO IS TRUE, including a string that does not parse as
+'' a number at all -- VAL of it is 0.0 and that is what decides. Note both signs
+'' of zero are tested, because -0.0 compares equal to 0.0 but is a distinct value.
+function tkort_WstrToBool alias "fb_WstrToBool" _
+	( byval src as wstring ptr, byval length as integer ) as byte
+
+	if( hWCmp( src, length, tkort_hBoolToWstr( 0 ) ) = 0 ) then return 0
+	if( hWCmp( src, length, tkort_hBoolToWstr( 1 ) ) = 0 ) then return 1
+
+	dim as double v = tkort_WstrToDouble( src, length )
+	if( (v <> 0.0) andalso (v <> -0.0) ) then return 1
+	return 0
+
+end function
+
+function tkort_WstrValBool alias "fb_WstrValBool" ( byval s as wstring ptr ) as byte
+	if( s = 0 ) then return 0
+	dim as integer n = FB_WSTR_LEN( s )
+	if( n = 0 ) then return 0
+	return tkort_WstrToBool( s, n )
+end function
+
+
+'' ============================================================ THE QB DIALECT
+''
+'' Reached through the WSTR branch of the QB READ/DATA readers. fbc's header
+'' calls these "wide twins of the routines in str_convfrom_qb.c", and that claim
+'' was CHECKED against src/str/valqb.tiko in this tree rather than trusted --
+'' earlier today a pair documented the same way, the string and ustring
+'' allocators, turned out to disagree with the narrow one wrong for fifteen gate
+'' runs. These two agree.
+''
+'' THE QB RULE, which is the whole reason these exist: a prefixed literal that
+'' FITS IN A QB INTEGER **IS** ONE, sign bit and all -- so &hFFFF is -1, not
+'' 65535. One that fits in a LONG is a LONG. Anything wider is left alone rather
+'' than mangled, because QB could not express it and there is no compatible
+'' answer to give.
+
+function tkort_WstrRadix2LongintQB alias "fb_WstrRadix2LongintQB" _
+	( byval src as wstring ptr, byval length as integer, byval radix as long ) as longint
+
+	dim as ulongint v = 0
+	dim as long islong = 0
+	dim as wstring ptr p = src
+
+	while( length > 0 )
+		dim as ulong c = p[0]
+		dim as long digit = -1
+		if( (c >= 48) andalso (c <= 57) ) then
+			digit = c - 48
+		elseif( (c >= 97) andalso (c <= 102) ) then
+			digit = (c - 97) + 10
+		elseif( (c >= 65) andalso (c <= 70) ) then
+			digit = (c - 65) + 10
+		end if
+		if( digit < 0 ) then exit while
+		if( digit >= radix ) then exit while
+
+		v = (v * cast( ulongint, radix )) + cast( ulongint, digit )
+		p += 1
+		length -= 1
+	wend
+
+	'' The '&' LONG suffix keeps the literal 32 bits wide.
+	if( length > 0 ) then
+		dim as ulong c = p[0]
+		if( c = asc( "&" ) ) then islong = 1
+	end if
+
+	if( (islong = 0) andalso (v <= &hFFFFull) ) then
+		return cast( longint, cast( short, cast( ushort, v ) ) )
+	end if
+
+	if( v <= &hFFFFFFFFull ) then
+		return cast( longint, cast( long, cast( ulong, v ) ) )
+	end if
+
+	return cast( longint, v )
+
+end function
+
+function tkort_WstrRadix2IntQB alias "fb_WstrRadix2IntQB" _
+	( byval src as wstring ptr, byval length as integer, byval radix as long ) as long
+	return cast( long, tkort_WstrRadix2LongintQB( src, length, radix ) )
+end function
+
+'' The five below share one shape: skip spaces, try a prefix, and fall through
+'' to the ORDINARY parser when there is none -- QB has nothing to say about
+'' plain decimal.
+function tkort_WstrToLongintQB alias "fb_WstrToLongintQB" _
+	( byval src as wstring ptr, byval _length as integer ) as longint
+	WVAL_PROLOGUE( src, length, p, radix, 0 )
+	if( __pfx <> 0 ) then return tkort_WstrRadix2LongintQB( __r, __rl, __pfx )
+	return tkort_WstrToLongint( p, length )
+end function
+
+function tkort_WstrToIntQB alias "fb_WstrToIntQB" _
+	( byval src as wstring ptr, byval _length as integer ) as long
+	WVAL_PROLOGUE( src, length, p, radix, 0 )
+	if( __pfx <> 0 ) then return tkort_WstrRadix2IntQB( __r, __rl, __pfx )
+	return tkort_WstrToInt( p, length )
+end function
+
+function tkort_WstrToUIntQB alias "fb_WstrToUIntQB" _
+	( byval src as wstring ptr, byval _length as integer ) as ulong
+	WVAL_PROLOGUE( src, length, p, radix, 0 )
+	if( __pfx <> 0 ) then return cast( ulong, tkort_WstrRadix2IntQB( __r, __rl, __pfx ) )
+	return tkort_WstrToUInt( p, length )
+end function
+
+function tkort_WstrToULongintQB alias "fb_WstrToULongintQB" _
+	( byval src as wstring ptr, byval _length as integer ) as ulongint
+	WVAL_PROLOGUE( src, length, p, radix, 0 )
+	if( __pfx <> 0 ) then return cast( ulongint, tkort_WstrRadix2LongintQB( __r, __rl, __pfx ) )
+	return tkort_WstrToULongint( p, length )
+end function
+
+function tkort_WstrToDoubleQB alias "fb_WstrToDoubleQB" _
+	( byval src as wstring ptr, byval _length as integer ) as double
+	WVAL_PROLOGUE( src, length, p, radix, 0.0 )
+	if( __pfx <> 0 ) then return cast( double, tkort_WstrRadix2LongintQB( __r, __rl, __pfx ) )
+	return tkort_WstrToDouble( p, length )
+end function
+
+end extern

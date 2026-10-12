@@ -1,0 +1,140 @@
+'' entry/page.ti -- SCREENSET, FLIP / SCREENCOPY / PCOPY.
+''
+'' Derived from: gfx_page.c (fb_GfxPageSet, fb_GfxFlip, fb_GfxPageCopy).
+'' LGPL-2.1-or-later with the static-linking exception.
+''
+'' The pages themselves are entry/context.ti's ScreenState. These two move the
+'' work and visible pages and copy one page onto another; the console hooks in
+'' entry/console.ti point at the same two functions, which is how PCOPY and
+'' SCREEN's QB page arguments reach them.
+''
+'' FOUR RULES FROM THE C, EACH OF WHICH A NATURAL GUESS GETS WRONG:
+''
+'' 1. PAGESET RETURNS THE PAGES AS THEY WERE, work in the low byte and visible in
+''    the second -- and -1, not 0, with no screen open.
+'' 2. A PAGE OUT OF RANGE IS IGNORED, NOT AN ERROR. SCREENSET 5, 0 on a two-page
+''    screen changes the visible page and leaves the work page alone. Both
+''    arguments negative means "0, 0", which is what a bare SCREENSET does.
+'' 3. FLIP COPIES ONLY THE VIEW. The pixel copy is clipped to the current VIEW
+''    rectangle; the character cells are copied whole. Out-of-range pages ARE an
+''    error here, unlike PAGESET.
+'' 4. FLIP MARKS THE COPY DIRTY ONLY WHEN IT TOOK THE LOCK ITSELF -- when the
+''    destination is the visible page and no SCREENLOCK is held. Under a
+''    SCREENLOCK the rows are not marked, and the copy is presented only when
+''    something else marks them. Reproduced, not fixed.
+
+#pragma once
+
+extern "c"
+
+'' SCREENSET [work_page] [, visible_page]
+''
+'' NOT FBCALL in fbc's table (FB_FUNCMODE_CDECL), which is the same thing on
+'' x86-64.
+function TkoGfxPageSet alias "fb_GfxPageSet" ( _
+        byval work_page as long, byval visible_page as long ) as long
+
+    if TkoGfx.TheScreen.isOpen = 0 then return -1
+
+    dim as long res = TkoGfx.TheScreen.work_page or (TkoGfx.TheScreen.visible_page shl 8)
+
+    if (work_page < 0) andalso (visible_page < 0) then
+        work_page = 0
+        visible_page = 0
+    end if
+
+    if (work_page >= 0) andalso (work_page < TkoGfx.TheScreen.num_pages) then
+        TkoGfx.TheScreen.work_page = work_page
+    end if
+
+    '' THE PRESENTER READS `present` EVERY FRAME, so it is re-pointed under the
+    '' window lock -- the DRIVER_LOCK of the C -- and the whole page is marked,
+    '' since every row the window shows has just changed.
+    if (visible_page >= 0) andalso (visible_page < TkoGfx.TheScreen.num_pages) andalso _
+       (visible_page <> TkoGfx.TheScreen.visible_page) then
+        TkoGfx.WindowLock( TkoGfx.TheScreen.wnd )
+        TkoGfx.TheScreen.present.pixels = TkoGfx.TheScreen.page(visible_page)
+        TkoGfx.TheScreen.visible_page = visible_page
+        TkoGfx.DirtyMark( TkoGfx.TheScreen.present, 0, TkoGfx.TheScreen.present.h )
+        TkoGfx.WindowUnlock( TkoGfx.TheScreen.wnd )
+    end if
+
+    TkoGfx.ScreenBindPages( )
+    return res
+end function
+
+'' FLIP [from_page] [, to_page]   and   SCREENCOPY, PCOPY
+''
+'' From defaults to the work page, to defaults to the visible page. Returns the
+'' runtime error and sets it, as fb_ErrorSetNum does in the C.
+function TkoGfxFlip alias "fb_GfxFlip" ( _
+        byval from_page as long, byval to_page as long ) as long
+
+    if TkoGfx.TheScreen.isOpen = 0 then
+        RtlErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+        return FB_RTERROR_ILLEGALFUNCTIONCALL
+    end if
+
+    dim as long n = TkoGfx.TheScreen.num_pages
+    dim as long src_page, dst_page
+
+    if from_page < 0 then
+        src_page = TkoGfx.TheScreen.work_page
+    elseif from_page >= n then
+        RtlErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+        return FB_RTERROR_ILLEGALFUNCTIONCALL
+    else
+        src_page = from_page
+    end if
+
+    if to_page < 0 then
+        dst_page = TkoGfx.TheScreen.visible_page
+    elseif to_page >= n then
+        RtlErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+        return FB_RTERROR_ILLEGALFUNCTIONCALL
+    else
+        dst_page = to_page
+    end if
+
+    if src_page = dst_page then
+        RtlErrorSetNum( 0 )
+        return 0
+    end if
+
+    '' Rule 4: the lock is taken, and the rows marked, only when the copy lands
+    '' on the page being shown and nobody else holds the lock.
+    dim as long lock_ = 0
+    if (dst_page = TkoGfx.TheScreen.visible_page) andalso (TkoGfx.TheScreen.lock_count = 0) then
+        lock_ = 1
+    end if
+
+    dim as TkoGfx.Viewport ptr vp = @TkoGfx.ScreenCtx.vp
+    dim as integer pitch = TkoGfx.ScreenCtx.surf.pitch
+    dim as integer bpp = TkoGfx.ScreenCtx.surf.bpp
+    dim as integer offs = cast( integer, vp->view_y ) * pitch + cast( integer, vp->view_x ) * bpp
+    dim as ubyte ptr s = cptr( ubyte ptr, TkoGfx.TheScreen.page(src_page) ) + offs
+    dim as ubyte ptr d = cptr( ubyte ptr, TkoGfx.TheScreen.page(dst_page) ) + offs
+    dim as integer size = cast( integer, vp->view_w ) * bpp
+
+    if lock_ then TkoGfx.WindowLock( TkoGfx.TheScreen.wnd )
+    for i as integer = 1 to vp->view_h
+        memcpy( d, s, size )
+        d += pitch
+        s += pitch
+    next
+
+    '' Rule 3: the cells go whole, whatever the view.
+    if TkoGfx.TheCon.live then
+        TkoGfx.CellPageCopy( TkoGfx.TheCon.cp, src_page, dst_page )
+    end if
+
+    if lock_ then
+        TkoGfx.DirtyMark( TkoGfx.TheScreen.present, vp->view_y, vp->view_h )
+        TkoGfx.WindowUnlock( TkoGfx.TheScreen.wnd )
+    end if
+
+    RtlErrorSetNum( 0 )
+    return 0
+end function
+
+end extern

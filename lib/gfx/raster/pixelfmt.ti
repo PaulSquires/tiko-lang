@@ -1,0 +1,216 @@
+'' pixelfmt.ti -- the 8, 16 and 32 bpp pixel paths, monomorphised.
+''
+'' Derived from: gfx_core.c (fb_hPutPixel1/2/4, fb_hGetPixel1/2/4,
+'' fb_hPixelSet2/4). LGPL-2.1-or-later with the static-linking exception.
+''
+'' ONE MACRO, THREE FORMATS. gfxlib2 dispatches per-bpp through function
+'' pointers on the context -- `ctx->put_pixel`, `ctx->pixel_set` -- resolved at
+'' every call. That indirection is exactly what stops its 64-bit fill loop
+'' vectorising: measured, `fb_hPixelSet4` emits ZERO SIMD instructions on x64
+'' while the equivalent monomorphised loop here emits four.
+''
+'' So the formats are generated instead of dispatched. `bpp` is a compile-time
+'' constant inside each generated loop, the element type is concrete, and the
+'' caller picks the function once per operation rather than per pixel.
+''
+'' `bpp` IS BYTES PER PIXEL, matching PUT_HEADER.bpp and Surface.bpp -- 1, 2 or
+'' 4. It is not bits. gfxlib2 uses `depth` for bits and `bpp` for bytes and the
+'' two are a constant source of confusion when reading it; this library only
+'' ever says bpp for bytes.
+''
+'' 24bpp IS DELIBERATELY ABSENT. gfxlib2 has no 3-byte pixel path either: it
+'' stores 24-bit modes in 4-byte pixels and converts on the way to the device,
+'' which is why PUT_HEADER.bpp is only ever 1, 2 or 4. A 3-byte Surface would be
+'' a format this library invented, and nothing could read it.
+
+#pragma once
+
+#include once "../core/surface.ti"
+#include once "pixel.ti"
+#include once "../core/dirty.ti"
+
+namespace TkoGfx
+
+'' Colour conversion, applied at the STATEMENT level -- not inside put_pixel.
+''
+'' gfxlib2 calls fb_hFixColor from fb_GfxPset, fb_GfxLine and friends, then hands
+'' the already-converted value to the per-bpp writer. Doing it inside the writer
+'' instead would double-convert whenever one primitive calls another.
+''
+'' 16BPP IS A CONVERSION, NOT A MASK. It is the one width where the value is
+'' reinterpreted rather than truncated:
+''
+''   8bpp   colour and &hFF          -- a palette index, truncated
+''   16bpp  RGB888 -> RGB565         -- (b>>3) | ((g<<3) and 07E0) | ((r<<8) and F800)
+''   32bpp  unchanged
+''
+'' Assuming 16bpp truncated like the other two made all ten 16bpp A/B cases fail,
+'' including colour 0 -- which is what made it obvious the difference was
+'' structural rather than a masking edge case.
+private function FixColor( byval bpp as long, byval col as ulong ) as ulong
+    select case bpp
+    case 1
+        return col and &hFF
+    case 2
+        dim as ulong r = (col shr 16) and &hFF
+        dim as ulong g = (col shr 8) and &hFF
+        dim as ulong b = col and &hFF
+        return ((b shr 3) or ((g shl 3) and &h07E0) or ((r shl 8) and &hF800)) and &hFFFF
+    case else
+        return col
+    end select
+end function
+
+'' Generate the pixel path for one element type.
+''
+''   suffix   the name suffix -- 8, 16, 32
+''   elem     the element type -- ubyte, ushort, ulong
+#macro TKO_DEFINE_PIXEL_FORMAT( suffix, elem )
+
+    '' Unclipped write. Matches fb_hPutPixel1/2/4 -- no bounds check at all.
+    private sub PutPixel##suffix( _
+            byref s as Surface, byval x as long, byval y as long, byval col as ulong )
+        dim as elem ptr row = cptr( elem ptr, SurfaceRowAddr( s, y ) )
+        row[x] = cast( elem, col )
+    end sub
+
+    '' Unclipped read, widened to ulong so callers compare in one type.
+    private function GetPixel##suffix( _
+            byref s as Surface, byval x as long, byval y as long ) as ulong
+        dim as elem ptr row = cptr( elem ptr, SurfaceRowAddr( s, y ) )
+        return cast( ulong, row[x] )
+    end function
+
+    '' PSET: clip, write, mark.
+    private sub PSet##suffix( _
+            byref s as Surface, byval x as long, byval y as long, byval col as ulong )
+        if x < s.clip_x1 then exit sub
+        if y < s.clip_y1 then exit sub
+        if x > s.clip_x2 then exit sub
+        if y > s.clip_y2 then exit sub
+        PutPixel##suffix( s, x, y, col )
+        DirtyMark( s, y, 1 )
+    end sub
+
+    '' POINT: -1 outside the viewport, as gfxlib2 returns.
+    private function Point##suffix( _
+            byref s as Surface, byval x as long, byval y as long ) as long
+        if (x < s.clip_x1) orelse (y < s.clip_y1) orelse _
+           (x > s.clip_x2) orelse (y > s.clip_y2) then return -1
+        return cast( long, GetPixel##suffix( s, x, y ) )
+    end function
+
+    '' Horizontal run. This is the loop that has to vectorise -- see the header.
+    '' The counter is `integer` (pointer-width) deliberately: a narrow induction
+    '' variable round-trips through i64 and defeats ScalarEvolution, costing
+    '' about 4x. build/lint.sh enforces that rule in this directory.
+    private sub FillRow##suffix( _
+            byref s as Surface, byval x as long, byval y as long, _
+            byval count as long, byval col as ulong )
+        if count <= 0 then exit sub
+        dim as elem ptr row = cptr( elem ptr, SurfaceRowAddr( s, y ) )
+        dim as elem v = cast( elem, col )
+        dim as integer i = x
+        dim as integer last = x + count - 1
+        while i <= last
+            row[i] = v
+            i += 1
+        wend
+    end sub
+
+    '' Rectangle fill, clipped. The common case behind CLS, VIEW and LINE BF.
+    private sub FillRect##suffix( _
+            byref s as Surface, _
+            byval x1 as long, byval y1 as long, _
+            byval x2 as long, byval y2 as long, byval col as ulong )
+        if x1 < s.clip_x1 then x1 = s.clip_x1
+        if y1 < s.clip_y1 then y1 = s.clip_y1
+        if x2 > s.clip_x2 then x2 = s.clip_x2
+        if y2 > s.clip_y2 then y2 = s.clip_y2
+        if (x1 > x2) orelse (y1 > y2) then exit sub
+        dim as integer y = y1
+        while y <= y2
+            FillRow##suffix( s, x1, y, x2 - x1 + 1, col )
+            y += 1
+        wend
+        DirtyMark( s, y1, y2 - y1 + 1 )
+    end sub
+
+#endmacro
+
+TKO_DEFINE_PIXEL_FORMAT( 8,  ubyte  )
+TKO_DEFINE_PIXEL_FORMAT( 16, ushort )
+
+'' 32bpp already exists in raster/pixel.ti, which predates this macro and is
+'' what every A/B test so far has exercised. It is NOT regenerated here -- two
+'' definitions of PutPixel32 would be a duplicate symbol, and silently replacing
+'' the tested one with a generated near-copy would throw away that coverage for
+'' no gain. The macro produces FillRow32/FillRect32 only, which pixel.ti lacks.
+#macro TKO_DEFINE_FILL_ONLY( suffix, elem )
+    private sub FillRow##suffix( _
+            byref s as Surface, byval x as long, byval y as long, _
+            byval count as long, byval col as ulong )
+        if count <= 0 then exit sub
+        dim as elem ptr row = cptr( elem ptr, SurfaceRowAddr( s, y ) )
+        dim as elem v = cast( elem, col )
+        dim as integer i = x
+        dim as integer last = x + count - 1
+        while i <= last
+            row[i] = v
+            i += 1
+        wend
+    end sub
+
+    private sub FillRect##suffix( _
+            byref s as Surface, _
+            byval x1 as long, byval y1 as long, _
+            byval x2 as long, byval y2 as long, byval col as ulong )
+        if x1 < s.clip_x1 then x1 = s.clip_x1
+        if y1 < s.clip_y1 then y1 = s.clip_y1
+        if x2 > s.clip_x2 then x2 = s.clip_x2
+        if y2 > s.clip_y2 then y2 = s.clip_y2
+        if (x1 > x2) orelse (y1 > y2) then exit sub
+        dim as integer y = y1
+        while y <= y2
+            FillRow##suffix( s, x1, y, x2 - x1 + 1, col )
+            y += 1
+        wend
+        DirtyMark( s, y1, y2 - y1 + 1 )
+    end sub
+#endmacro
+
+TKO_DEFINE_FILL_ONLY( 32, ulong )
+
+'' Dispatch by Surface.bpp, for the statement layer where the format is not
+'' known at the call site. Prefer the typed entry points inside a loop -- this
+'' one costs a branch per call, which is fine per primitive and not per pixel.
+private sub PSetAny( _
+        byref s as Surface, byval x as long, byval y as long, byval col as ulong )
+    select case s.bpp
+    case 1 : PSet8( s, x, y, col )
+    case 2 : PSet16( s, x, y, col )
+    case else : PSet32( s, x, y, col )
+    end select
+end sub
+
+private function PointAny( _
+        byref s as Surface, byval x as long, byval y as long ) as long
+    select case s.bpp
+    case 1 : return Point8( s, x, y )
+    case 2 : return Point16( s, x, y )
+    case else : return Point32( s, x, y )
+    end select
+end function
+
+private sub FillRectAny( _
+        byref s as Surface, _
+        byval x1 as long, byval y1 as long, _
+        byval x2 as long, byval y2 as long, byval col as ulong )
+    select case s.bpp
+    case 1 : FillRect8( s, x1, y1, x2, y2, col )
+    case 2 : FillRect16( s, x1, y1, x2, y2, col )
+    case else : FillRect32( s, x1, y1, x2, y2, col )
+    end select
+end sub
+
+end namespace

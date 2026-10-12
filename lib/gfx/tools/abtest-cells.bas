@@ -37,8 +37,8 @@
 '' POS and CSRLIN are compared as part of 2: they are the cursor half of the
 '' same state, and PRINT advances them.
 
-#include once "../core/cells.bi"
-#include once "../raster/pixelfmt.bi"
+#include once "../core/cells.ti"
+#include once "../raster/pixelfmt.ti"
 #include once "fbgfx.bi"
 
 using TkoGfx
@@ -151,7 +151,7 @@ for mi as integer = 0 to ubound( modes )
         '' mirror it into our plane
         dim as ulong mfg, mbg
         if sdepth <= 8 then
-            '' the legacy COLOR rules already verified in raster/color.bi apply;
+            '' the legacy COLOR rules already verified in raster/color.ti apply;
             '' take the effective values from the reference rather than
             '' re-deriving them here, since this file is about CELLS
             mfg = cast( ulong, screen( r, c, 1 ) )

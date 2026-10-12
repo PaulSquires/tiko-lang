@@ -1,0 +1,45 @@
+'' chrono.ti -- the tick representation shared by the dt_* kernel.
+''
+'' TICKS ARE 100-NANOSECOND UNITS SINCE 0001-01-01T00:00:00, and the epoch is
+'' the START of the range rather than its middle: FB_DT_MIN_TICKS is 0, so a
+'' valid tick count is never negative. Code that treats 0 as "unset" is wrong
+'' here -- 0 is a real instant, and the sentinel is FB_DT_INVALID_TICKS, which
+'' is LLONG_MIN and deliberately far outside the range.
+''
+'' The calendar is PROLEPTIC GREGORIAN: the Gregorian rules projected back past
+'' 1582 with no Julian calendar and no cutover, which is what ISO 8601 requires
+'' and what makes the closed-form conversions below valid for every year.
+
+#pragma once
+
+const FB_DT_TICKS_PER_SECOND = 10000000ll
+const FB_DT_TICKS_PER_MINUTE = 600000000ll
+const FB_DT_TICKS_PER_HOUR   = 36000000000ll
+const FB_DT_TICKS_PER_DAY    = 864000000000ll
+
+const FB_DT_MIN_YEAR = 1
+const FB_DT_MAX_YEAR = 9999
+
+const FB_DT_MIN_TICKS = 0ll
+'' 9999-12-31T23:59:59.9999999
+const FB_DT_MAX_TICKS = 3155378975999999999ll
+
+'' LLONG_MIN, written as -MAX-1 because the literal -9223372036854775808 does
+'' not parse as a longint constant: it is read as a negated 9223372036854775808,
+'' which does not fit.
+const FB_DT_INVALID_TICKS = -9223372036854775807ll - 1ll
+
+'' The days-from-civil algorithm's natural origin is 0000-03-01. Hinnant's
+'' published form returns days from 1970-01-01 via a -719468 shift; this wants
+'' days from 0001-01-01, which is 719162 days earlier, so the two constants
+'' fold into a single -306.
+const DT_ERA_SHIFT    = 306
+const DT_DAYS_PER_ERA = 146097          '' 400 Gregorian years
+
+const FB_DT_MIN_DAYS = 0                '' 0001-01-01
+const FB_DT_MAX_DAYS = 3652058          '' 9999-12-31
+
+'' Not a real offset: the sentinel for "no zone given". 32767 rather than a
+'' negative, because a negative offset is a legitimate value.
+const DT_ISO_OFFSET_UNSPECIFIED = 32767
+const DT_ISO_OFFSET_LIMIT       = 1080  '' +/- 18:00, in minutes

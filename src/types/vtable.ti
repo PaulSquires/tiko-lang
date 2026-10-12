@@ -1,0 +1,135 @@
+'' vtable.ti -- the virtual method table a UDT gets from EXTENDS OBJECT.
+''
+'' Every rule here was measured from fbc's own C output and is recorded in
+'' docs/language/object-abi.md. The three that are NOT guessable:
+''
+''   - The stored vptr points at SLOT TWO, not slot zero. Below it sit a null word
+''     and the pointer to this type's RTTI record. So slot n of the table below is at
+''     byte offset n * sizeof(ptr) FROM THE VPTR, which is what a call site indexes.
+''   - A 'declare abstract' occupies a slot, holding NULL. It is not absent, and a
+''     derived type's override fills that same slot rather than appending.
+''   - A virtual DESTRUCTOR's slot is its DECLARATION POSITION like any other. It is
+''     not first and not last by rule; declared first, it is slot 0.
+''
+'' A type has a table if and only if it extends OBJECT, transitively. fbc rejects
+'' 'virtual' on anything that does not -- error 221 -- so there is no such thing as a
+'' vptr-bearing UDT outside this chain, and the vptr is never anywhere but offset 0.
+
+#ifndef __TKO_VTABLE_BI__
+#define __TKO_VTABLE_BI__
+
+#include once "tko.ti"
+#include once "ast/nodes.ti"
+#include once "types/type.ti"
+#include once "symbols/symbol.ti"
+#include once "symbols/mangle.ti"
+#include once "symbols/resolve.ti"
+
+namespace Tko
+
+    type VtSlot
+        '' The procedure this slot dispatches to, or SYMBOL_NONE for an ABSTRACT slot
+        '' that no type in this chain has filled yet.
+        as SymbolId proc_
+        '' Kept beside the symbol so an override can be matched without going back to
+        '' the symbol table for every candidate.
+        as InternId name
+        as NodeId   decl
+        '' WHO FILLED THIS SLOT LAST, and whether that declaration left it OPEN -- virtual
+        '' or abstract -- for a further-derived type to override (T47). fbc's rule: a
+        '' method that overrides is itself virtual only if it says 'virtual' too, so
+        '' 'declare function f( ) as long override' closes the slot below it.
+        as TypeId   owner
+        as boolean  open
+    end type
+
+    '' WHY a matched override is still incompatible. fbc has a separate error number for
+    '' each, and they are separate here for the same reason: the fix is different.
+    enum VtMismatchKind
+        VTM_RETURN = 0     '' fbc 225 -- different return type
+        VTM_CONST          '' fbc 229 / 230 -- one is a const member and the other is not
+        VTM_BYREF          '' fbc 231 -- a parameter's byref-ness differs
+        VTM_RANK           '' fbc 231 / 223 -- a bydesc parameter's rank differs
+        VTM_CALLCONV       '' fbc 226 -- the calling conventions differ on this target
+        '' fbc 227 -- the base's virtual destructor has a convention an IMPLICIT one
+        '' cannot match. Its 'decl' is the DERIVED TYPE's node, not a procedure's:
+        '' there is no declaration to point at, which is the whole complaint.
+        VTM_IMPL_DTOR_CC
+    end enum
+
+
+    type VtMismatch
+        as NodeId decl     '' the DERIVED declaration, which is where fbc points
+        as ubyte  kind
+    end type
+
+    type VtInfo
+        as TypeId   type_
+        as long     first          '' into the store's slot pool
+        as long     count
+    end type
+
+    type VTables
+        as containers.Array( of VtInfo ) types_
+        as containers.Array( of VtSlot ) slots
+        '' The interned 'base' -- the field an EXTENDS becomes. See udtlayout.ti.
+        as InternId baseName
+        '' EVERY DECLARATION THAT ACTUALLY FILLED AN INHERITED SLOT. 'override' is a
+        '' promise, and checking it needs the answer the builder already computes and
+        '' then throws away -- whether this declaration MATCHED one. Recomputing it
+        '' afterwards would mean re-running the whole match; recording it costs a push.
+        as containers.Array( of ulong ) overrode
+        '' Declarations of a generic template that nothing instantiates -- never checked,
+        '' as fbc never checks them. See NotePatternOnly_.
+        as containers.Array( of ulong ) patternOnly
+        '' A match on PARAMETER TYPES is not yet a legal override. Recorded here rather
+        '' than reported from the builder, which has no diagnostics engine -- and would
+        '' have to be given one on a path the dumps also take.
+        as containers.Array( of VtMismatch ) mismatches
+
+        declare function Find( byval t as TypeId ) as long
+        '' Which slot dispatches to this procedure, or -1 if it is not virtual in this
+        '' type. This is what a call site needs and the only reason the table exists.
+        '' 'decl' is the callee's own declaration node, which is how an ABSTRACT slot
+        '' is matched: it carries no procedure symbol.
+        declare function SlotOf _
+            ( byval t as TypeId, byval p as SymbolId, _
+              byval decl as NodeId = NODE_NONE ) as long
+    end type
+
+    '' Build a table for every UDT that extends OBJECT. Runs after Resolve, because
+    '' matching an override needs the PARAMETER TYPES and those are Resolve's answer.
+    declare function ComputeVTables _
+        ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+          byref info as SemanticInfo, byref store as VTables ) as long
+
+    '' An ABSTRACT type cannot be instantiated -- fbc error 274. Runs after the tables
+    '' are built, because "abstract" here means "has a slot with no procedure".
+    declare sub CheckAbstractInstances _
+        ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+          byref info as SemanticInfo, byref store as VTables, byref names as Interner, _
+          byref diags as DiagnosticEngine )
+
+    '' 'override' promises that this declaration replaces an inherited virtual -- fbc
+    '' error 223 when it does not. Runs after the tables are built, over what the builder
+    '' recorded while matching.
+    declare sub CheckOverridePromise _
+        ( byref ast as AstArena, byref store as VTables, byref names as Interner, _
+          byref diags as DiagnosticEngine )
+
+    '' ...and a match that is not compatible -- fbc's 225, 229, 230 and 231.
+    declare sub CheckOverrideCompatible _
+        ( byref ast as AstArena, byref store as VTables, byref names as Interner, _
+          byref diags as DiagnosticEngine )
+
+    '' Slots are printed as the EMITTED SYMBOL NAME, not as 'Type.method': that is what
+    '' fbc's own vtable initialiser holds, so the gate compares the two directly rather
+    '' than through a spelling neither compiler uses.
+    declare function DumpVTables _
+        ( byref ast as AstArena, byref store as VTables, byref types as TypeContext, _
+          byref names as Interner, byref syms as SymbolTable, _
+          byref info as SemanticInfo ) as string
+
+end namespace
+
+#endif

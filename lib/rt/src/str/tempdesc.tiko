@@ -1,0 +1,118 @@
+'' tempdesc.tiko -- fb_StrAllocTempDescZ, fb_StrAllocTempDescZEx (str_tempdescz.o)
+''                 and fb_StrAllocTempDescF (str_tempdescf.o).
+''
+'' Two members, three entry points. These wrap a raw buffer -- a literal, or a
+'' fixed-length string -- in a POOL DESCRIPTOR so that entry points taking an
+'' FBSTRING ptr can be handed one without copying the characters.
+''
+'' THIS IS THE SOURCE OF BUG 15, now visible rather than inferred. The descriptor
+'' comes from the pool, but the LENGTH IS WRITTEN RAW:
+''
+''     dsc->len = len          -- no FB_TEMPSTRBIT
+''
+'' so the temp bit is CLEAR while the descriptor is nonetheless the pool's. A
+'' caller that decides "not temp, therefore not mine to release" strands a pool
+'' slot on every `asc(z)` and `len(z)` over a fixed zstring, and 256 of those
+'' exhaust the pool. PROBE-17 measured that clear bit and could not say why;
+'' this is why. fb_hStrDelTemp is the only thing that gets to decide -- it keys
+'' the DATA free off the temp bit and the DESCRIPTOR release off pool membership,
+'' which are genuinely two different questions.
+''
+'' POOL EXHAUSTION RETURNS THE SHARED EMPTY, not NULL (RFC-0002 section 4.6).
+''
+'' fb_StrAllocTempDescF's length rule has three branches and the ORDER matters,
+'' because FB_STRISFIXED is the sign bit:
+''
+''     str_size > 0                 len = str_size - 1     (fixed ZSTRING: less
+''                                                          the terminator)
+''     str_size and FB_STRISFIXED   len = str_size masked  (fixed STRING -- and
+''                                                          it is NEGATIVE, so it
+''                                                          reaches here only
+''                                                          because the first
+''                                                          test failed)
+''     otherwise                    len = strlen( str )    (str_size = 0)
+''
+'' `size` is set equal to `len` in every case: the descriptor does not own a
+'' block, so there is no allocated capacity to report.
+
+#include once "inc/descriptors.ti"
+#include once "inc/ctx.ti"
+
+extern "rtlib"
+	declare function fb_hStrAllocTempDesc alias "fb_hStrAllocTempDesc" ( ) as FBSTRING ptr
+	declare sub fb_StrLock alias "fb_StrLock" ( )
+	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+end extern
+
+#ifdef ENABLE_MT
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+extern "rtlib"
+
+function tkort_StrAllocTempDescZEx alias "fb_StrAllocTempDescZEx" _
+	( byval s as zstring ptr, byval length as integer ) as FBSTRING ptr
+
+	'' Only the pool call is locked -- the descriptor is private once handed out.
+	STRLOCK()
+	dim as FBSTRING ptr dsc = fb_hStrAllocTempDesc( )
+	STRUNLOCK()
+
+	if( dsc = 0 ) then return TKORT_NULLSTR( )
+
+	dsc->data = s
+	'' RAW, not FB_STRSETLEN: the temp bit stays CLEAR. See the note above.
+	dsc->len = length
+	dsc->size = length
+
+	return dsc
+
+end function
+
+function tkort_StrAllocTempDescZ alias "fb_StrAllocTempDescZ" _
+	( byval s as zstring ptr ) as FBSTRING ptr
+
+	dim as integer length = 0
+	if( s <> 0 ) then length = strlen( s )
+
+	return tkort_StrAllocTempDescZEx( s, length )
+
+end function
+
+function tkort_StrAllocTempDescF alias "fb_StrAllocTempDescF" _
+	( byval s as zstring ptr, byval str_size as integer ) as FBSTRING ptr
+
+	STRLOCK()
+	dim as FBSTRING ptr dsc = fb_hStrAllocTempDesc( )
+	STRUNLOCK()
+
+	if( dsc = 0 ) then return TKORT_NULLSTR( )
+
+	dsc->data = s
+
+	if( str_size > 0 ) then
+		'' A fixed ZSTRING * N: the declared size less the terminator.
+		dsc->len = str_size - 1
+	elseif( (str_size and FB_STRISFIXED) <> 0 ) then
+		'' A fixed STRING * N. Reached only because FB_STRISFIXED is the sign
+		'' bit, so such a size is negative and fails the test above.
+		dsc->len = str_size and FB_STRSIZEMSK
+	else
+		if( s <> 0 ) then
+			dsc->len = strlen( s )
+		else
+			dsc->len = 0
+		end if
+	end if
+
+	dsc->size = dsc->len
+
+	return dsc
+
+end function
+
+end extern

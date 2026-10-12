@@ -1,0 +1,1341 @@
+'' mangle.tiko -- the Itanium encoder. See mangle.ti for the four FreeBASIC rules and
+'' for why every one of them was measured against fbc rather than read off a document.
+
+#import "std/containers"
+#include once "symbols/mangle.ti"
+#include once "support/text.ti"
+#include once "support/irtext.ti"
+
+namespace Tko.Mangle
+
+'' -------------------------------------------------------------- substitutions
+
+function Substitutions.Find( byref enc as string ) as long
+    for i as long = 0 to items.Count - 1
+        if items[i] = enc then return i
+    next
+    return -1
+end function
+
+function Substitutions.FindType( byval t as Tko.TypeId ) as long
+    if t = Tko.TYPE_NONE then return -1
+    for i as long = 0 to keys.Count - 1
+        if keys[i] = cast( ulong, t ) then return i
+    next
+    return -1
+end function
+
+sub Substitutions.Add( byref enc as string, byval t as Tko.TypeId = 0 )
+    if (t = 0) andalso (Find( enc ) >= 0) then return
+    if (t <> 0) andalso (FindType( t ) >= 0) then return
+    items.Push( enc )
+    keys.Push( cast( ulong, t ) )
+end sub
+
+sub Substitutions.AddRaw( byref enc as string, byval t as Tko.TypeId = 0 )
+    items.Push( enc )
+    keys.Push( cast( ulong, t ) )
+end sub
+
+'' ------------------------------------------------------- generic instantiations
+
+private function FindInst_( byref types as Tko.TypeContext, byval nm as Tko.InternId ) as long
+    if nm = 0 then return -1
+    for i as long = 0 to types.instName.Count - 1
+        if types.instName[i] = cast( ulong, nm ) then return i
+    next
+    return -1
+end function
+
+function IsInstName( byref types as Tko.TypeContext, byval nm as Tko.InternId ) as boolean
+    return FindInst_( types, nm ) >= 0
+end function
+
+sub RegisterInst _
+    ( byref types as Tko.TypeContext, byval nm as Tko.InternId, _
+      byval spell as Tko.InternId, byref args as containers.Array( of ulong ) )
+
+    if FindInst_( types, nm ) >= 0 then return
+    types.instName.Push( cast( ulong, nm ) )
+    types.instSpell.Push( cast( ulong, spell ) )
+    types.instArgFirst.Push( types.instArgs.Count )
+    types.instArgCount.Push( args.Count )
+    for i as long = 0 to args.Count - 1
+        types.instArgs.Push( args[i] )
+    next
+end sub
+
+'' A TUPLE IS AN INSTANTIATION OF 'FBTUPLE<N>', its element types the arguments -- which
+'' is how fbc mangles one, and why two modules that both write '(long, long)' link.
+'' Measured against fbc: 'NS.Sum2( byval t as (long, long) )' is
+'' _ZN2NS4SUM2E8FBTUPLE2IiiE, '(Counted, long)''s constructor _ZN8FBTUPLE2I7COUNTEDiEC1Ev,
+'' and a nested one _ZN8FBTUPLE2I8FBTUPLE2Ii8FBSTRINGEiEC1ERKS3_. tiko named the type by
+'' its STRUCTURAL KEY, '$tup:<type id>:...', and mangled that: _ZN2NS4SUM2E8$TUP:6:6. A
+'' type id is a per-module number, so a tuple parameter compiled in one module and called
+'' from another failed to link ('$TUP:26:15'), and nothing met fbc's objects either.
+'' The key stays what it was -- it is the interning, not the name.
+sub RegisterTuple _
+    ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
+      byval t as Tko.TypeId, byref elemTypes as containers.Array( of ulong ) )
+
+    if t = Tko.TYPE_NONE then return
+    if elemTypes.Count = 0 then return
+    dim as Tko.InternId nm = types.types[cast( long, t )].name
+    if nm = 0 then return
+    RegisterInst( types, nm, names.GetString( "FBTUPLE" & str( elemTypes.Count ) ), elemTypes )
+end sub
+
+'' S_ is candidate 0, S0_ is candidate 1, S1_ is candidate 2: the number in the
+'' encoding is one LESS than the index, and the first candidate has none at all.
+private function SubRef( byval idx as long ) as string
+    if idx = 0 then return "S_"
+    return "S" & trim( str( idx - 1 ) ) & "_"
+end function
+
+'' THE SUBSTITUTION THAT REFERS BACK TO TYPE 't' once it has been encoded into 'subs': 'S_'
+'' for a plain UDT, 'S0_' for NS.T (the namespace is candidate 0), 'S1_' for
+'' Box( of string ) and for the tuple (long, string) (the template name and its argument
+'' come first). 'S_' when 't' is not a candidate at all. See mir/lowerimpl.tiko, whose
+'' implicit 'operator let' and copy constructor take 'const T&'.
+function SelfRef( byref subs as Substitutions, byval t as Tko.TypeId ) as string
+    dim as long ix = subs.FindType( t )
+    if ix < 0 then return "S_"
+    return SubRef( ix )
+end function
+
+'' Itanium <source-name>: the length in decimal, then the characters.
+private function SrcName( byref s as string ) as string
+    return trim( str( len( s ) ) ) & s
+end function
+
+'' ------------------------------------------------------------------ type codes
+
+'' 'types' is the TypeId each component names, or 0 for a namespace. It matters: a
+'' TYPE component is the same substitution candidate as that type used as a
+'' parameter, so 'operator let( byref rhs as W )' inside W is _ZN1WaSERS_ -- the R
+'' refers BACK to the 1W already emitted, and keying it by name alone would miss.
+'' A COMPONENT OF THE MODULE CHAIN in outTypes: a namespace component EmitPrefix keeps even
+'' outside a generic instance, which drops every other qualifier (ADR 0017; RFC-0002 §5).
+const CHAIN_QUAL as ulong = &hFFFFFFFFul
+
+'' withChain: the name is a LINK name, and module code's carries the module's chain first --
+'' when the outermost qualifier's symbol, or self_ when there is none, is SYMF_MODSRC.
+private sub QualifierChain _
+    ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
+      byref names as Tko.Interner, byref outp as containers.Array( of string ), _
+      byref outTypes as containers.Array( of ulong ), _
+      byval types as Tko.TypeContext ptr = 0, _
+      byval withChain as boolean = false, byval self_ as Tko.SymbolId = Tko.SYMBOL_NONE )
+
+    dim as containers.Array( of string ) rev
+    dim as containers.Array( of ulong ) revT
+    dim as Tko.Symbol ptr outer = 0
+    dim as Tko.ScopeId cur = sc
+    while cur <> Tko.SCOPE_NONE
+        dim as Tko.SymScope ptr s = syms.ScopeAt( cur )
+        if s = 0 then exit while
+        if (s->kind = cast( ubyte, Tko.SCOPEK_NAMESPACE )) orelse _
+           (s->kind = cast( ubyte, Tko.SCOPEK_TYPE )) then
+            dim as Tko.Symbol ptr owner = syms.SymbolAt( s->owner )
+            '' A MODULE'S INTERFACE NAMESPACE is the module's chain, component by component
+            '' and kept as a chain is (ADR 0017): _ZN4ACME3NET4HTTP5FETCHEv, as the module
+            '' itself named it.
+            dim as long imp_ = -1
+            if (owner <> 0) andalso (syms.importNs.Count > 0) then
+                for k as long = 0 to syms.importNs.Count - 1
+                    if syms.importNs[k] = cast( ulong, s->owner ) then imp_ = k
+                next
+            end if
+            if imp_ >= 0 then
+                dim as string ch = syms.importChains[imp_]
+                dim as long e_ = len( ch )
+                for q as long = len( ch ) to 0 step -1
+                    dim as boolean cut = (q = 0)
+                    if cut = false then cut = (ch[q - 1] = asc( "." ))
+                    if cut then
+                        rev.Push( mid( ch, q + 1, e_ - q ) )
+                        revT.Push( CHAIN_QUAL )
+                        e_ = q - 1
+                    end if
+                next
+                outer = 0
+                cur = s->parent
+                continue while
+            end if
+            if owner <> 0 then
+                outer = owner
+                '' A NAMESPACE ALIAS replaces the name and keeps its CASE, where a
+                '' plain namespace is uppercased. Measured: 'namespace aaa alias "zzz"'
+                '' gives _ZN3zzz1FEv, not _ZN3AAA1FEv.
+                dim as string qual = Tko.Text.UpperAscii( names.Spelling( owner->name ) )
+                '' ...AND A UDT DECLARED IN AN 'extern "C++"' BLOCK KEEPS ITS OWN
+                '' SPELLING, for the same reason a namespace alias does. Measured:
+                '' fbc mangles FBQLCDNumber's constructor '_ZN12FBQLCDNumberC1E...',
+                '' and the CALL SITE has to agree with the definition or the link
+                '' fails on a name that differs from it only in case.
+                if types <> 0 then
+                    if owner->type_ <> Tko.TYPE_NONE then
+                        dim as long oi = cast( long, owner->type_ )
+                        if (oi > 0) andalso (oi < types->types.Count) then
+                            dim as Tko.InternId orw = types->types[oi].rawName
+                            if orw <> 0 then qual = names.Spelling( orw )
+                        end if
+                    end if
+                end if
+                if owner->kind = cast( ubyte, Tko.SYM_NAMESPACE ) then
+                    if owner->payload <> 0 then
+                        qual = names.Spelling( cast( Tko.InternId, owner->payload ) )
+                    end if
+                end if
+                rev.Push( qual )
+                if s->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
+                    revT.Push( cast( ulong, owner->type_ ) )
+                else
+                    revT.Push( 0 )
+                end if
+            end if
+        end if
+        cur = s->parent
+    wend
+    if withChain then
+        dim as Tko.Symbol ptr root_ = outer
+        if root_ = 0 then root_ = syms.SymbolAt( self_ )
+        dim as boolean chained = (root_ <> 0)
+        if chained then chained = ((root_->flags and Tko.SYMF_MODSRC) <> 0)
+        if chained then
+            for i as long = 0 to syms.selfChain.Count - 1
+                outp.Push( syms.selfChain[i] )
+                outTypes.Push( CHAIN_QUAL )
+            next
+        end if
+    end if
+    for i as long = rev.Count - 1 to 0 step -1
+        outp.Push( rev[i] )
+        outTypes.Push( revT[i] )
+    next
+end sub
+
+
+
+'' __FUNCTION__'s value. Shares the qualifier walk with mangling and nothing else:
+'' the result is 'NS.INNER', not '_ZN2NS5INNEREv', and two overloads of one name give
+'' the SAME answer because fbc does not distinguish them here.
+'' The implicit module-level procedure. fbc emits P( (char*)"__FB_MAINPROC__" ) for a
+'' module-level __FUNCTION__, so this is a measured spelling and not a placeholder.
+const MAIN_PROC_NAME as string = "__FB_MAINPROC__"
+
+function SourceQualifiedName _
+    ( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, _
+      byref names as Tko.Interner ) as string
+
+    dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
+    if s = 0 then return ""
+    dim as containers.Array( of string ) q
+    dim as containers.Array( of ulong ) qt
+    QualifierChain( syms, s->parent, names, q, qt )
+    dim as string r = ""
+    for i as long = 0 to q.Count - 1
+        r += q[i] & "."
+    next
+    return r & Tko.Text.UpperAscii( names.Spelling( s->name ) )
+end function
+
+
+function ProcNameOrMain _
+    ( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, _
+      byref names as Tko.Interner ) as string
+
+    if sid = Tko.SYMBOL_NONE then return MAIN_PROC_NAME
+    dim as string r = SourceQualifiedName( syms, sid, names )
+    if len( r ) = 0 then return MAIN_PROC_NAME
+    return r
+end function
+
+function EnclosingProcName _
+    ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
+      byref names as Tko.Interner ) as string
+
+    dim as Tko.ScopeId cur = sc
+    while cur <> Tko.SCOPE_NONE
+        dim as Tko.SymScope ptr s = syms.ScopeAt( cur )
+        if s = 0 then exit while
+        if s->kind = cast( ubyte, Tko.SCOPEK_PROC ) then
+            dim as string r = SourceQualifiedName( syms, s->owner, names )
+            if len( r ) > 0 then return r
+            exit while
+        end if
+        cur = s->parent
+    wend
+    return MAIN_PROC_NAME
+end function
+
+
+'' Measured against fbc, tests/mangle. 'integer' and 'uinteger' are VENDOR EXTENDED
+'' types rather than 'x'/'y': they are pointer-sized, so they stay distinct from
+'' longint even on a target where both happen to be 64 bits wide.
+'' 'is32' is win32: Linux is 64-bit only by decision, so a 32-bit pointer means Windows.
+'' INTEGER and UINTEGER are the only codes that move. They are VENDOR EXTENDED on win64
+'' because they are pointer-sized and so distinct from every C type; on win32 they are
+'' four bytes and coincide with C's long, and fbc spells them 'l' and 'm'.
+''
+'' That also silently changes the SUBSTITUTION table, which is the part worth watching:
+'' a single-letter code is never a substitution candidate, so 'sub S6( a as integer,
+'' b as integer )' ends 'Eu7INTEGERS0_' on win64 and plainly 'Ell' on win32. It falls
+'' out of IsSubstitutable rather than needing a rule.
+private function BuiltinCode _
+    ( byval b as Tko.BuiltinType, byval is32 as boolean, _
+      byval isWin as boolean = true ) as string
+
+    '' 'cva_list' IS NOT ONE TYPE ACROSS TARGETS, and the mangling is where that shows.
+    '' Measured, 'namespace N: sub P( byref a as cva_list )':
+    ''
+    ''     win64  _ZN1N1PERPc                   -- R + Pc: a reference to char*
+    ''     win32  _ZN1N1PERPc                   -- the same
+    ''     linux  _ZN1N1PERA1_13__va_list_tag   -- reference to __va_list_tag[1]
+    ''
+    '' So on Windows fbc's own type for it is literally 'zstring ptr', and on Linux it
+    '' is an array of one 24-byte struct. Neither is derivable from the other and
+    '' neither is guessable from the width, which is why both are written out.
+    if b = Tko.TY_CVA_LIST then
+        if isWin then return "Pc"
+        return "A1_13__va_list_tag"
+    end if
+
+    if is32 then
+        select case b
+        case Tko.TY_INTEGER  : return "l"
+        case Tko.TY_UINTEGER : return "m"
+        end select
+    end if
+    select case b
+    case Tko.TY_BYTE     : return "a"
+    case Tko.TY_UBYTE    : return "h"
+    case Tko.TY_SHORT    : return "s"
+    case Tko.TY_USHORT   : return "t"
+    case Tko.TY_LONG     : return "i"
+    case Tko.TY_ULONG    : return "j"
+    case Tko.TY_INTEGER  : return "u7INTEGER"
+    case Tko.TY_UINTEGER : return "u8UINTEGER"
+    case Tko.TY_LONGINT  : return "x"
+    case Tko.TY_ULONGINT : return "y"
+    case Tko.TY_SINGLE   : return "f"
+    case Tko.TY_DOUBLE   : return "d"
+    case Tko.TY_BOOLEAN  : return "b"
+    case Tko.TY_STRING   : return "8FBSTRING"
+    case Tko.TY_USTRING  : return "9FBUSTRING"
+    case Tko.TY_ZSTRING  : return "c"
+    case Tko.TY_WSTRING  : return "w"
+    end select
+    return "v"
+end function
+
+'' The single-letter builtins are never substitution candidates; everything longer
+'' is. Measured: 'sub S6( byval a as integer, byval b as integer )' ends Eu7INTEGERS0_,
+'' so the vendor extended forms DO take part.
+private function IsSubstitutable( byref enc as string ) as boolean
+    return len( enc ) > 1
+end function
+
+'' AN INSTANTIATION IS AN ITANIUM TEMPLATE: <name> I <args> E. Measured against fbc
+'' over probes of Box, Pair, NS.Cell, a nested Box( of Box( of long ) ), and the
+'' generic procedures Ident and NS.Twice:
+''
+''     Box( of string ).Put( byval x as T )     _ZN3BoxI8FBSTRINGE3PUTES0_
+''     Pair( of Plain, Plain ).Touch( a, b )    _ZN4PairI5PLAIN5PLAINE5TOUCHES0_S0_
+''     NS.Cell( of Plain ).Touch( byref Cell )  _ZN4CellI5PLAINE5TOUCHERS1_
+''     Box( of Box( of long ) ).Put             _ZN3BoxI3BoxIiEE3PUTES1_
+''     NS.Twice( of long )                      _Z5TwiceIiEi
+''
+'' Four facts, each visible above. The NAME keeps its DECLARED case -- 'BOX( of long )'
+'' at the use site still gives 3Box. No NAMESPACE is written: NS.Cell is 4Cell and
+'' FB.ArrayIterator is 13ArrayIterator. The arguments are ordinary type codes but are
+'' NEVER substituted, not against each other (5PLAIN5PLAIN) and not against the name
+'' (the inner 3Box). And the candidates are pushed in order, name first, then every
+'' argument's own, duplicates and all -- then the caller pushes the whole, which is
+'' why the nested Box's parameter is S1_ and Pair's is S0_.
+private function TemplateCode_ _
+    ( byval ix as long, byref types as Tko.TypeContext, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref subs as Substitutions ) as string
+
+    dim as string nm = SrcName( names.Spelling( cast( Tko.InternId, types.instSpell[ix] ) ) )
+    subs.AddRaw( nm )
+    dim as string enc = nm & "I"
+    dim as long af = types.instArgFirst[ix]
+    dim as long an = types.instArgCount[ix]
+    for i as long = 0 to an - 1
+        '' A FRESH TABLE per argument is what 'never substituted' means; its
+        '' candidates are then appended to the real one in the order they were made.
+        dim as Substitutions tmp
+        enc += TypeCode( cast( Tko.TypeId, types.instArgs[af + i] ), types, syms, names, tmp )
+        for k as long = 0 to tmp.items.Count - 1
+            subs.AddRaw( tmp.items[k], cast( Tko.TypeId, tmp.keys[k] ) )
+        next
+    next
+    return enc & "E"
+end function
+
+'' Emit a nested-name prefix, substituting the LONGEST cumulative prefix already
+'' seen. The lookup key is always the full literal encoding: once a component has
+'' been replaced by S_, appending the next component to that abbreviation produces a
+'' key that matches nothing, and every later component gets spelled out in full.
+private function EmitPrefix _
+    ( byref quals as containers.Array( of string ), byref qualTypes as containers.Array( of ulong ), _
+      byref subs as Substitutions, byval types as Tko.TypeContext ptr = 0, _
+      byval syms as Tko.SymbolTable ptr = 0, byval names as Tko.Interner ptr = 0 ) as string
+
+    '' AN INSTANTIATION OWNS NO NAMESPACE (see TemplateCode_): everything outside the
+    '' innermost one is dropped, so a member of FB.Array( of T ) starts at the template.
+    dim as long start = 0
+    dim as long instAt = -1
+    dim as long instIx = -1
+    if (types <> 0) andalso (syms <> 0) andalso (names <> 0) then
+        for i as long = quals.Count - 1 to 0 step -1
+            dim as long qi = cast( long, qualTypes[i] )
+            if (qi > 0) andalso (qi < types->types.Count) then
+                dim as long ix = FindInst_( *types, types->types[qi].name )
+                if ix >= 0 then
+                    start = i
+                    instAt = i
+                    instIx = ix
+                    exit for
+                end if
+            end if
+        next
+    end if
+
+    '' ...EXCEPT THE MODULE CHAIN, which is kept: 'a.Box( of long )' and 'b.Box( of long )'
+    '' are two types and would otherwise be one name.
+    dim as long chainLen = 0
+    while chainLen < quals.Count
+        if qualTypes[chainLen] <> CHAIN_QUAL then exit while
+        chainLen += 1
+    wend
+
+    dim as string full = ""      '' the literal cumulative prefix -- the KEY
+    dim as string body = ""      '' what actually gets emitted
+    for i as long = 0 to quals.Count - 1
+        dim as boolean dropped = (i >= chainLen)
+        if dropped then dropped = (i < start)
+        if dropped then continue for
+        dim as Tko.TypeId qt = cast( Tko.TypeId, qualTypes[i] )
+        if i < chainLen then qt = Tko.TYPE_NONE
+        if i = instAt then
+            dim as long ihit = subs.FindType( qt )
+            if ihit >= 0 then
+                body = SubRef( ihit )
+                full = "#" & str( cast( long, qt ) )
+            else
+                dim as string tc = TemplateCode_( instIx, *types, *syms, *names, subs )
+                body += tc
+                full = tc
+                subs.Add( full, qt )
+            end if
+            continue for
+        end if
+        dim as string comp = SrcName( quals[i] )
+        full += comp
+        dim as long hit = -1
+        if qt <> 0 then
+            hit = subs.FindType( qt )
+        else
+            hit = subs.Find( full )
+        end if
+        if hit >= 0 then
+            body = SubRef( hit )
+        else
+            body += comp
+            subs.Add( full, qt )
+        end if
+    next
+    return body
+end function
+
+function TypeCode _
+    ( byval t as Tko.TypeId, byref types as Tko.TypeContext, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref subs as Substitutions ) as string
+
+    if t = Tko.TYPE_NONE then return "v"
+
+    '' Look the TYPE up before encoding it. Doing it afterwards compares an encoding
+    '' whose inner components have already been substituted, which never matches.
+    dim as long hit = subs.FindType( t )
+    if hit >= 0 then return SubRef( hit )
+
+    dim as string enc = ""
+
+    '' A const qualifier is its own component: K<T>. 'const long ptr' is PKi and
+    '' 'byref as const long' is RKi -- in both the K binds to the base type, so it is
+    '' stripped here and re-applied around whatever is left.
+    if types.IsConst( t ) then
+        dim as Tko.TypeId bare = types.Unqualify( t )
+        if bare <> t then
+            enc = "K" & TypeCode( bare, types, syms, names, subs )
+            subs.Add( enc, t )
+            return enc
+        end if
+    end if
+
+    dim as Tko.TypeInfo ptr ti = 0
+    if cast( long, t ) < types.types.Count then ti = @types.types[cast( long, t )]
+
+    select case types.Kind( t )
+    case Tko.TK_POINTER
+        enc = "P" & TypeCode( types.Inner( t ), types, syms, names, subs )
+
+    case Tko.TK_REFERENCE
+        enc = "R" & TypeCode( types.Inner( t ), types, syms, names, subs )
+
+    case Tko.TK_UDT, Tko.TK_ENUM, Tko.TK_FORWARD, Tko.TK_TYPEDEF
+        dim as long instIx = -1
+        if ti <> 0 then instIx = FindInst_( types, ti->name )
+        if instIx >= 0 then
+            enc = TemplateCode_( instIx, types, syms, names, subs )
+            exit select
+        end if
+        dim as string nm = ""
+        if ti <> 0 then
+            '' THE SOURCE SPELLING WINS WHERE THERE IS ONE. It is set only for a UDT
+            '' declared inside an 'extern "C++"' block, whose name a C++ linker
+            '' spells as written; every FB type is folded and uppercased as before.
+            if ti->rawName <> 0 then
+                nm = names.Spelling( ti->rawName )
+            else
+                nm = Tko.Text.UpperAscii( names.Spelling( ti->name ) )
+            end if
+        end if
+        if len( nm ) = 0 then return "v"
+        '' A UDT inside a namespace is a NESTED NAME: N <prefix> <name> E, and the
+        '' prefix is usually a substitution because the procedure's own qualifiers
+        '' already emitted it -- 'byref as Vec' in namespace BYVAL_OK is NS2_3VECE.
+        dim as containers.Array( of string ) q
+        dim as containers.Array( of ulong ) qt
+        if ti <> 0 then
+            '' The type's own symbol decides whether a module chain applies at top level.
+            dim as Tko.SymbolId tsym = syms.LookupLocalTyped( _
+                cast( Tko.ScopeId, ti->declScope ), ti->name, true )
+            QualifierChain( syms, cast( Tko.ScopeId, ti->declScope ), names, q, qt, @types, _
+                            true, tsym )
+        end if
+        if q.Count = 0 then
+            enc = SrcName( nm )
+        else
+            enc = "N" & EmitPrefix( q, qt, subs, @types, @syms, @names ) & SrcName( nm ) & "E"
+        end if
+
+    case Tko.TK_ARRAY
+        '' AN ARRAY INSIDE A PROCEDURE TYPE. The FBARRAY template, rank and all, but
+        '' WITHOUT the leading 'R' -- a procedure type's array parameter is built as a
+        '' REFERENCE to this, and the TK_REFERENCE arm above adds the R. A parameter
+        '' written on a real procedure takes the ArrayParamCode path instead, which
+        '' has its own substitution bookkeeping.
+        dim as string aanm = "FBARRAY"
+        dim as long arnk = types.DynRank( t )
+        if arnk > 0 then aanm += str( arnk )
+        enc = str( len( aanm ) ) & aanm & "I" & _
+              TypeCode( types.Inner( t ), types, syms, names, subs ) & "E"
+
+    case Tko.TK_PROC
+        '' F <return> <params...> E. A function TYPE encodes its return type, unlike
+        '' a procedure NAME, which never does.
+        '' ...AND A BYREF RESULT IS 'R' AND ITS TYPE, with only the TYPE a substitution
+        '' candidate: measured, fbc writes 'function( byref as long ) byref as long' as
+        '' 'PFRiRiE', where registering 'Ri' made it 'PFRiS0_E' and the link missed
+        '' (audit F-55, SYM-9).
+        dim as Tko.TypeId rt_ = types.Inner( t )
+        dim as string body
+        if (rt_ <> Tko.TYPE_NONE) andalso (types.Kind( rt_ ) = Tko.TK_REFERENCE) then
+            body = "FR" & TypeCode( types.Inner( rt_ ), types, syms, names, subs )
+        else
+            body = "F" & TypeCode( rt_, types, syms, names, subs )
+        end if
+        dim as long n = 0
+        if ti <> 0 then n = ti->count
+        if n <= 0 then
+            body += "v"
+        else
+            for i as long = 0 to n - 1
+                dim as Tko.TypeId pt = cast( Tko.TypeId, types.pool[ti->first + i] )
+                body += TypeCode( pt, types, syms, names, subs )
+            next
+        end if
+        '' ...AND THE ELLIPSIS, which is 'z' and comes last. Measured: fbc writes
+        '' 'sub cdecl( byval as integer, ... )' as 'PFvu7INTEGERzE'. Without it the
+        '' variadic overload was the same symbol as the one beside it that takes only
+        '' the integer, and clang refused the redefinition.
+        if ti <> 0 then
+            if (ti->flags and Tko.TF_VARIADIC) <> 0 then body += "z"
+        end if
+        enc = body & "E"
+
+    case Tko.TK_BUILTIN
+        enc = BuiltinCode( types.BuiltinOf( t ), (types.target.pointerBits = 32), _
+                           types.target.isWindows )
+
+    case else
+        enc = "v"
+    end select
+
+    if IsSubstitutable( enc ) = false then return enc
+    subs.Add( enc, t )
+    return enc
+end function
+
+'' ------------------------------------------------------------------ proc names
+
+'' ------------------------------------------------------------------ proc names
+
+private function StmtOf _
+    ( byref ast as Tko.AstArena, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
+    return @ast.stmts[cast( long, ast.nodes[cast( long, id )].data )]
+end function
+
+'' The enclosing NAMESPACE and TYPE names, outermost first. A procedure's own scope
+'' and any block scope inside it are not part of its name.
+
+'' A property's emitted name carries its accessor: SIZE__get__ / SIZE__set__.
+''
+'' WHICH ONE IT IS COMES FROM THE RESULT TYPE, not the parameter count. "A getter takes
+'' no parameters" is false for an INDEXED property -- 'property bar( index as integer )
+'' as integer' takes one and is still a getter -- so every indexed getter in the corpus
+'' went out as '__set__'. No decline and no diagnostic: it simply links against a name
+'' nothing defines, and can collide with the real setter when the argument lists agree.
+'' Measured, fbc emits '_ZN3FOO10BAR__get__Eu7INTEGER' for exactly that declaration.
+private function PropertySuffix _
+    ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId ) as string
+    dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
+    if sp->a <> Tko.NODE_NONE then return "__get__"
+    return "__set__"
+end function
+
+'' THE FOUR ALLOCATION OPERATORS ARE STATIC whether or not the definition repeats the
+'' word -- fbc accepts 'static' on the DECLARE only. They take no receiver, which two
+'' places have to know: the arity that picks a unary code from a binary one, and win32's
+'' stdcall '@N'. Measured: '_ZN5MGOPS4OPNWnwEm@4', one 4-byte argument, not @8.
+'' The three FOR-protocol operators, which do NOT count their receiver -- see the
+'' arity rule in OperatorCode.
+private function IsLoopOperator_ _
+    ( byref names as Tko.Interner, byval nm as Tko.InternId ) as boolean
+
+    select case Tko.Text.LowerAscii( names.Spelling( nm ) )
+    case "for", "step", "next" : return true
+    end select
+    return false
+end function
+
+private function IsAllocOperator_ _
+    ( byref names as Tko.Interner, byval nm as Tko.InternId ) as boolean
+
+    select case Tko.Text.LowerAscii( names.Spelling( nm ) )
+    case "new", "delete", "new[]", "delete[]" : return true
+    end select
+    return false
+end function
+'' fbc rejects most operators as members ("Operator cannot be a member function"),
+'' so only the two that compile are encoded: LET is Itanium's assignment operator,
+'' and CAST is a conversion operator whose TARGET TYPE is part of the name -- which
+'' is what distinguishes 'operator cast as long' from 'operator cast as string'.
+private function OperatorCode _
+    ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId, _
+      byref types as Tko.TypeContext, byref syms as Tko.SymbolTable, _
+      byref names as Tko.Interner, _
+      byref info as Tko.SemanticInfo, byref subs as Substitutions, _
+      byref ident as string ) as string
+
+    dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
+    dim as string nm = Tko.Text.LowerAscii( names.Spelling( sp->name ) )
+    if nm = "let" then return "aS"
+    '' ALLOCATION, and all four have Itanium codes. Measured:
+    ''
+    ''     operator bar.new      _ZN3BARnwEu8UINTEGER
+    ''     operator bar.delete   _ZN3BARdlEPv
+    ''     operator bar.new[]    _ZN3BARnaEu8UINTEGER
+    ''     operator bar.delete[] _ZN3BARdaEPv
+    ''
+    '' tiko-lang spelled all four as the VENDOR EXTENSION over the word --
+    '' '_ZN3BARv23newEu8UINTEGER' -- which is a name nothing defines. The two vector
+    '' forms did not even reach here: the parser lost their '[ ]' and with it their
+    '' whole parameter list.
+    if nm = "new" then return "nw"
+    if nm = "delete" then return "dl"
+    if nm = "new[]" then return "na"
+    if nm = "delete[]" then return "da"
+    if nm = "cast" then
+        '' THE RESULT'S BYREF-NESS AND ITS TOP-LEVEL CONST ARE BOTH DROPPED. Measured
+        '' against fbc, four operators on one type:
+        ''
+        ''     cast() byref as const zstring    _ZN1TcvcEv
+        ''     cast() byref as const wstring    _ZN1TcvwEv
+        ''     cast() byref as const integer    _ZN1Tcvu7INTEGEREv
+        ''     cast() byref as integer ptr      _ZN1TcvPu7INTEGEREv
+        ''     cast() as const integer          _ZN1Tcvu7INTEGEREv
+        ''     cast() as const zstring ptr      _ZN1TcvPKcEv
+        ''
+        '' -- so a const BELOW a pointer is kept and only the outermost one goes, and
+        '' 'byref as const zstring ptr' is a DUPLICATED DEFINITION against
+        '' 'as const zstring ptr', which is the same fact stated by the parser.
+        ''
+        '' tiko-lang encoded both, answering '_ZN1TcvKcEv' for the zstring cast --
+        '' a name nothing defines. Every 'operator cast() byref as const zstring' in
+        '' the corpus, which is how the udt-zstring reference type spells its
+        '' conversion, would have failed to link.
+        dim as Tko.TypeId ct = info.TypeOf_( sp->a )
+        if types.Kind( ct ) = Tko.TK_REFERENCE then ct = types.Inner( ct )
+        ct = types.Unqualify( ct )
+        return "cv" & TypeCode( ct, types, syms, names, subs )
+    end if
+
+    dim as long arity = 0
+    for i as long = 0 to sp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[sp->first + i] )
+        if ast.Kind( prm ) = Tko.N_PARAM then arity += 1
+    next
+    '' A MEMBER OPERATOR COUNTS ITS RECEIVER. Measured: a member 'operator ^=' with
+    '' one declared parameter is v27selfpow -- arity TWO -- while the global 'operator
+    '' ^' with two is v23pow. 'this' is not in the parameter list, so it is added here.
+    dim as containers.Array( of string ) aq
+    dim as containers.Array( of ulong ) aqt
+    QualifierChain( syms, info.ScopeOf( proc_ ), names, aq, aqt, @types )
+    if aqt.Count > 0 then
+        '' A MODULE CHAIN COMPONENT IS NO TYPE: in an importer a module's global 'operator
+        '' len' sits in the module's namespace, written as the chain, and counted a receiver
+        '' -- v23len where the module defined v13len (fbx/core's DWSTRING).
+        dim as boolean memb = (aqt[aqt.Count - 1] <> 0) andalso (aqt[aqt.Count - 1] <> CHAIN_QUAL)
+        memb = memb andalso ((sp->extra and Tko.PF_STATIC) = 0)
+        memb = memb andalso (IsAllocOperator_( names, sp->name ) = false)
+        '' ...AND NEITHER DO THE THREE LOOP OPERATORS. Measured, in ONE type, which is
+        '' what makes the rule a rule rather than a guess:
+        ''
+        ''     operator ^=( byval v as integer )    _ZN1Tv27selfpowEu7INTEGER   arity 2
+        ''     operator for( )                      _ZN1Tv03forEv               arity 0
+        ''     operator step( )                     _ZN1Tv04stepEv              arity 0
+        ''     operator next( byref e as T )        _ZN1Tv14nextERS_            arity 1
+        ''
+        '' -- '^=' counts its receiver and 'for', 'step' and 'next' do not. tiko wrote
+        '' v1/v1/v2 for the three, which is a name fbc never emits: a tiko object and
+        '' an fbc object of the same type could not be linked together, and the ABI
+        '' this file exists to reproduce was wrong for every type with a FOR protocol.
+        memb = memb andalso (IsLoopOperator_( names, sp->name ) = false)
+        if memb then arity += 1
+    end if
+
+    '' THE ITANIUM OPERATOR CODES, for the operators C++ also has. Measured against
+    '' fbc, and the two-character codes are not derivable from the spelling:
+    ''
+    ''   =  eq    <> ne    <  lt    <= le    >  gt    >= ge
+    ''   +  pl    -  mi    *  ml    /  dv    mod rm
+    ''   shl ls   shr rs   and an   or or    xor eo   not co
+    ''
+    '' '+' AND '-' DEPEND ON ARITY: binary is pl/mi, UNARY is ps/ng. Nothing in the
+    '' name says which, so the parameter count decides.
+    select case nm
+    case "="   : return "eq"
+    case "<>"  : return "ne"
+    case "<"   : return "lt"
+    case "<="  : return "le"
+    case ">"   : return "gt"
+    case ">="  : return "ge"
+    case "/"   : return "dv"
+    case "mod" : return "rm"
+    case "shl" : return "ls"
+    case "shr" : return "rs"
+    case "and" : return "an"
+    case "or"  : return "or"
+    case "xor" : return "eo"
+    case "not" : return "co"
+    case "[]"  : return "ix"
+    case "+"   : return iif( arity = 1, "ps", "pl" )
+    case "-"   : return iif( arity = 1, "ng", "mi" )
+    '' AND SO DOES '*': binary is MULTIPLY, 'ml', and UNARY is DEREFERENCE, 'de'.
+    '' fb/sharedptr.bi and fb/comptr.bi both declare the unary form.
+    case "*"   : return iif( arity = 1, "de", "ml" )
+    '' '->' IS 'pt', and it is not in the arity group because there is only one form.
+    '' It was falling through to the VENDOR EXTENSION below and coming out as
+    '' '_Zv12->R6HOLDER' -- a link error against every smart pointer there is.
+    case "->"  : return "pt"
+
+    '' ...AND '@' IS 'ad', the same way and for the same reason: measured, fbc emits
+    '' 'int64* _ZN3FOOadEv( struct $3FOO* THIS$1 )' for 'operator foo.@ ( ) as integer
+    '' ptr', while the vendor extension spelled it '_ZN3FOOv11@Ev'. One form only --
+    '' FreeBASIC has no binary '@'.
+    case "@"   : return "ad"
+    '' THE COMPOUND ASSIGNMENTS. Measured, all fifteen, and the split between the
+    '' Itanium codes and the vendor extension is not the one the binary operators
+    '' make: 'mod=' and 'shl=' have codes while '\=' and '^=' do not, and '&=' -- FB's
+    '' string concatenation -- has none either.
+    ''
+    ''   +=  pL    -=  mI    *=  mL    /=  dV    mod= rM
+    ''   shl= lS   shr= rS   and= aN   or=  oR   xor= eO
+    ''
+    '' tiko spelled every one of them as a vendor extension over the PUNCTUATION,
+    '' '_ZN1Tv12+=Eu7INTEGER', which is a name nothing defines.
+    case "+="   : return "pL"
+    case "-="   : return "mI"
+    case "*="   : return "mL"
+    case "/="   : return "dV"
+    case "mod=" : return "rM"
+    case "shl=" : return "lS"
+    case "shr=" : return "rS"
+    case "and=" : return "aN"
+    case "or="  : return "oR"
+    case "xor=" : return "eO"
+    end select
+
+    '' FreeBASIC's OWN operators -- integer divide, power, FOR/STEP/NEXT, the custom
+    '' loop protocol -- have no C++ counterpart, so fbc uses Itanium's VENDOR EXTENDED
+    '' operator: 'v', the arity, then the name. Note that the two SYMBOLS in this group
+    '' are spelled by their KEYWORD name and not by their punctuation: '\' is v24idiv
+    '' and '^' is v23pow.
+    select case nm
+    case "\"  : return "v" & trim( str( arity ) ) & SrcName( "idiv" )
+    case "^"  : return "v" & trim( str( arity ) ) & SrcName( "pow" )
+    '' ...and '&', FB's string concatenation, is 'cat' -- measured, '_Zv23catR1TR8FBSTRING'
+    '' for 'operator &( byref a as T, byref b as string )'. Spelled '_Zv21&', a tiko object
+    '' could not call AfxNova's DWSTRING '&' in an fbc-built one, nor the reverse.
+    case "&"  : return "v" & trim( str( arity ) ) & SrcName( "cat" )
+    '' The five COMPOUND assignments C++ has no code for. Their vendor name is 'self'
+    '' plus the operation and not the punctuation: measured, '\=' is v28selfidiv,
+    '' '^=' is v27selfpow and '&=' -- FB's string concatenation -- is v27selfcat.
+    case "\="  : return "v" & trim( str( arity ) ) & SrcName( "selfidiv" )
+    case "^="  : return "v" & trim( str( arity ) ) & SrcName( "selfpow" )
+    case "&="  : return "v" & trim( str( arity ) ) & SrcName( "selfcat" )
+    case "eqv=" : return "v" & trim( str( arity ) ) & SrcName( "selfeqv" )
+    case "imp=" : return "v" & trim( str( arity ) ) & SrcName( "selfimp" )
+    end select
+    return "v" & trim( str( arity ) ) & SrcName( nm )
+end function
+
+
+'' ------------------------------------------------------- win32 decoration
+
+'' The stack a stdcall callee pops, which is the '@N' suffix. Every argument is rounded
+'' up to four bytes INDIVIDUALLY and then summed -- two BYTE parameters are @8, not @4 --
+'' and a by-value aggregate contributes its OWN size rather than a hidden pointer: a
+'' 12-byte UDT is @12, a 5-byte one @8, and a byval STRING @12, the descriptor on the
+'' stack. All measured.
+private function StdcallBytes _
+    ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId, _
+      byref types as Tko.TypeContext, byref info as Tko.SemanticInfo, _
+      byval hasThis as boolean ) as long
+
+    dim as long total = 0
+    if hasThis then total += 4
+    dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
+    for i as long = 0 to sp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[sp->first + i] )
+        if ast.Kind( prm ) <> Tko.N_PARAM then continue for
+        '' BYREF is a pointer whatever it refers to -- AND SO IS AN ARRAY, which
+        '' passes a descriptor pointer. Measured: 'ap2( x( ) as double )' is @8 on
+        '' win32, not @12, and 'ap3( x( ) as string )' @8 and not @16.
+        if (ast.nodes[cast( long, prm )].flags and _
+            (Tko.NF_BYREF or Tko.NF_ARRAY)) <> 0 then
+            total += 4
+            continue for
+        end if
+        dim as Tko.StmtPayload ptr pp = StmtOf( ast, prm )
+        dim as long sz = types.Layout( info.TypeOf_( pp->a ) ).size
+        if sz < 4 then sz = 4
+        total += ((sz + 3) \ 4) * 4
+    next
+    return total
+end function
+
+'' The linker-visible name on win32: a leading underscore on EVERYTHING, and '@N' on
+'' stdcall only.
+''
+'' CONSTRUCTORS AND DESTRUCTORS CARRY NO SUFFIX -- measured, '__ZN1WC1Ei' where the
+'' rule would predict @8 -- so they are cdecl whatever the surrounding declaration says.
+'' An ALIAS does not remove the suffix either: 'my_alias' with no parameters is
+'' '_my_alias@0'.
+private function DecorateWin32 _
+    ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref types as Tko.TypeContext, byref info as Tko.SemanticInfo, _
+      byref nm as string ) as string
+
+    dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
+
+    '' An instance method's implicit THIS is four more bytes. It is one only when the
+    '' INNERMOST qualifier is a TYPE and the procedure is not STATIC: 'W.G( )' is @4 with
+    '' no parameters at all, while the static 'W.ST( )' is @0 and a namespace's
+    '' 'TB.B30( )' is @0 too.
+    dim as containers.Array( of string ) q
+    dim as containers.Array( of ulong ) qt
+    QualifierChain( syms, info.ScopeOf( proc_ ), names, q, qt, @types )
+    dim as boolean hasThis = false
+    if qt.Count > 0 then
+        '' Hoisted: an 'andalso' chain mixing a boolean with a masked flag is
+        '' warning 38.
+        dim as boolean qOwned = (qt[qt.Count - 1] <> 0)
+        dim as boolean qStatic = ((sp->extra and Tko.PF_STATIC) <> 0)
+        dim as boolean qAlloc = IsAllocOperator_( names, sp->name )
+        hasThis = qOwned andalso (qStatic = false) andalso (qAlloc = false)
+    end if
+    dim as ushort kw = sp->op
+    if (kw = cast( ushort, Tko.KW_CONSTRUCTOR )) orelse _
+       (kw = cast( ushort, Tko.KW_DESTRUCTOR )) then
+        return "_" & nm
+    end if
+
+    '' The convention lives on the SYMBOL, not the node: a definition inherits its
+    '' DECLARE's, and reading the node alone would decorate the two halves differently.
+    dim as Tko.CallConv cc = Tko.CallConvOf( sp->extra )
+    dim as Tko.Symbol ptr s = syms.SymbolAt( info.RefOf( proc_ ) )
+    if s <> 0 then
+        if s->callConv <> cast( ubyte, Tko.CC_NONE ) then
+            cc = cast( Tko.CallConv, s->callConv )
+        end if
+    end if
+    if cc = Tko.CC_NONE then cc = Tko.CC_STDCALL
+    if cc <> Tko.CC_STDCALL then return "_" & nm
+
+    return "_" & nm & "@" & StdcallBytes( ast, proc_, types, info, hasThis )
+end function
+
+'' The name before any target decoration. Split out so the win32 underscore and '@N'
+'' apply to EVERY path -- the foreign one, the unmangled one and the Itanium one alike --
+'' rather than to whichever return the change happened to be written next to.
+'' AN ARRAY PARAMETER IS A REFERENCE TO A TEMPLATE. Measured, for every element
+'' shape fbc accepts -- byref and byval are both ILLEGAL on one, so the passing mode
+'' never enters into it:
+''
+''   x( ) as integer      R7FBARRAYIu7INTEGERE
+''   x( ) as double       R7FBARRAYIdE
+''   x( ) as string       R7FBARRAYI8FBSTRINGE
+''   x( ) as C1           R7FBARRAYIS_E        (inside C1)
+''   x( ) as integer ptr  R7FBARRAYIPu7INTEGERE
+''   x( ) as const integer R7FBARRAYIKu7INTEGERE
+''
+'' The element goes through the ordinary encoder and shares the one substitution
+'' table, which is why the C1 case comes out as S_.
+''
+'' TWO CANDIDATES, AND THE NAME IS NOT ONE OF THEM. Measured from the repeats:
+'' 'd1( x( ) as integer, byref y as C1, z( ) as C1, w( ) as C1 )' ends in S5_ and
+'' 'c1x( x( ) as integer, y( ) as integer )' in S2_, and both count only if
+'' '7FBARRAY' takes no slot at all -- which is why 'R7FBARRAYIS_E' is written out
+'' in full every time with the earlier one right there in the table.
+''
+'' KEYED BY THE ELEMENT TYPE, not by the encoding: the second occurrence of the
+'' element is itself substituted, so the string built the second time round never
+'' equals the one stored the first.
+'' ...AND THE RANK IS IN THE TEMPLATE'S NAME. Measured, and it is a separate
+'' instantiation each time:
+''
+''   a( ) as integer            R7FBARRAYIu7INTEGERE     -- unspecified
+''   a( any ) as integer        R8FBARRAY1Iu7INTEGERE
+''   a( any, any ) as integer   R8FBARRAY2Iu7INTEGERE
+''   eight dimensions           R8FBARRAY8Iu7INTEGERE
+''
+'' Every rank was written '7FBARRAY', so 'k2( a(any) as integer )' and
+'' 'k3( a(any,any) as integer )' were ONE SYMBOL -- ordinary code, no generics and no
+'' procedure pointers, and nothing said so until a file declared both.
+private function ArrayParamCode _
+    ( byval elem as Tko.TypeId, byref types as Tko.TypeContext, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref subs as Substitutions, byval rank as long = 0 ) as string
+
+    for i as long = 0 to subs.arrKeys.Count - 1
+        if subs.arrKeys[i] <> cast( ulong, elem ) then continue for
+        if subs.arrRank[i] <> rank then continue for
+        return SubRef( subs.arrIdx[i] )
+    next
+    dim as string anm = "FBARRAY"
+    if rank > 0 then anm += str( rank )
+    dim as string tmpl = str( len( anm ) ) & anm & "I" & _
+        TypeCode( elem, types, syms, names, subs ) & "E"
+    subs.items.Push( tmpl )
+    subs.keys.Push( 0 )
+    subs.items.Push( "R" & tmpl )
+    subs.keys.Push( 0 )
+    subs.arrKeys.Push( cast( ulong, elem ) )
+    subs.arrRank.Push( rank )
+    subs.arrIdx.Push( subs.items.Count - 1 )
+    return "R" & tmpl
+end function
+
+
+private function ProcNameCore _
+    ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref types as Tko.TypeContext, byref info as Tko.SemanticInfo ) as string
+
+    if ast.Kind( proc_ ) <> Tko.N_PROC then return ""
+    dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
+
+    '' THE ALIAS MAY BE ON THE DECLARE ALONE, and usually is: fbc accepts
+    ''
+    ''     declare sub plain alias "myPlainName"( byval i as integer )
+    ''     sub plain( byval i as integer )
+    ''
+    '' and emits 'void myPlainName( int64 )'. This read the DEFINITION's own node, found
+    '' no alias there, and emitted PLAIN -- so every procedure bound to a foreign symbol
+    '' by an alias on its declare went out under the wrong name, and the link failed on
+    '' a name nobody wrote. CheckAliasAgrees_ already walks from a definition to its
+    '' declaration this way, and refuses the two disagreeing, so reading the declaration
+    '' here cannot pick up a different name than the one written on this node.
+    dim as Tko.InternId aliasNm = sp->aliasName
+    if aliasNm = 0 then
+        dim as Tko.Symbol ptr asym = syms.SymbolAt( info.RefOf( proc_ ) )
+        if asym <> 0 then
+            dim as Tko.NodeId adecl = cast( Tko.NodeId, asym->payload )
+            if (adecl <> Tko.NODE_NONE) andalso (adecl <> proc_) then
+                if ast.Kind( adecl ) = Tko.N_PROC then
+                    aliasNm = StmtOf( ast, adecl )->aliasName
+                end if
+            end if
+        end if
+    end if
+
+    dim as boolean aliased = (aliasNm <> 0)
+    dim as string written = ""
+    if sp->rawName <> 0 then written = names.Spelling( sp->rawName )
+    if len( written ) = 0 then written = names.Spelling( sp->name )
+
+    '' A METHOD -- its scope, or its declare's, sits inside a TYPE's.
+    dim as Tko.SymScope ptr msc = syms.ScopeAt( info.ScopeOf( proc_ ) )
+    dim as long mup = 0
+    while (msc <> 0) andalso (mup < 4)
+        if msc->kind <> cast( ubyte, Tko.SCOPEK_PROC ) then exit while
+        msc = syms.ScopeAt( msc->parent )
+        mup += 1
+    wend
+    dim as boolean isMethod = false
+    if msc <> 0 then isMethod = (msc->kind = cast( ubyte, Tko.SCOPEK_TYPE ))
+
+    '' Rule 3: foreign linkage takes the spelling verbatim and ignores OVERLOAD.
+    '' ...EXCEPT A METHOD, which is mangled like an 'extern "C++"' one with the written case
+    '' kept -- measured, 'A.foo' of a type declared in 'extern "c"' is _ZN2G11A3fooEu7INTEGER,
+    '' and plain 'foo' made every such method in a module one symbol (virtual/virtual.bas,
+    '' clang: invalid redefinition of 'foo').
+    dim as boolean foreignMethod = false
+    if (sp->extra and Tko.PF_FOREIGN) <> 0 then
+        if aliased then return names.Spelling( aliasNm )
+        if isMethod = false then return written
+        foreignMethod = true
+    end if
+    '' ...OR ITS DECLARATION'S, read the way the alias is above. 'declare sub fwd( )' in
+    '' an 'extern "c"' block and the body written after the block as 'private sub fwd( )'
+    '' are one procedure, and fbc names both by the DECLARATION: measured, 'static void
+    '' fwdCase( int32 )' for a body spelt FWDCASE, and 'void fwdPub( int32 )' when it is
+    '' not private. The body went out as FWD while every call named 'fwd', so the call
+    '' was an undefined symbol -- and under -O2 the private body, now unreferenced, was
+    '' deleted outright (tiko-rt's thread/sched.tiko, tkort_hAddWorker). Procedures only:
+    '' a method's foreign spelling comes from its TYPE, below.
+    if (isMethod = false) andalso (aliased = false) then
+        dim as Tko.Symbol ptr fsym = syms.SymbolAt( info.RefOf( proc_ ) )
+        if fsym <> 0 then
+            dim as Tko.NodeId fdecl = cast( Tko.NodeId, fsym->payload )
+            if (fdecl <> Tko.NODE_NONE) andalso (fdecl <> proc_) then
+                if ast.Kind( fdecl ) = Tko.N_PROC then
+                    dim as Tko.StmtPayload ptr fdp = StmtOf( ast, fdecl )
+                    if (fdp->extra and Tko.PF_FOREIGN) <> 0 then
+                        if fdp->rawName <> 0 then return names.Spelling( fdp->rawName )
+                        return names.Spelling( fdp->name )
+                    end if
+                end if
+            end if
+        end if
+    end if
+
+    '' Rule 2: an ALIAS replaces the identifier and KEEPS ITS CASE.
+    ''
+    '' ...AND SO DOES A PROCEDURE INSIDE 'extern "C++"'. Measured, 'sub g2( byval
+    '' n as integer )' there is _Z2g2u7INTEGER and the same line outside it is
+    '' plain 'H' -- the C++ block mangles, and mangles what was WRITTEN.
+    dim as boolean isCxx = ((sp->extra and Tko.PF_CXX) <> 0) orelse foreignMethod
+    '' ...OR ITS DECLARATION'S: 'sub cns.cfun( .. )' defined after the block is the
+    '' procedure the block declared, and fbc names both _ZN3cns4cfunEi -- read from the
+    '' declaration the way an alias is, above.
+    if isCxx = false then
+        dim as Tko.Symbol ptr csym = syms.SymbolAt( info.RefOf( proc_ ) )
+        if csym <> 0 then
+            dim as Tko.NodeId cxDecl = cast( Tko.NodeId, csym->payload )
+            if (cxDecl <> Tko.NODE_NONE) andalso (cxDecl <> proc_) then
+                if ast.Kind( cxDecl ) = Tko.N_PROC then
+                    isCxx = ((StmtOf( ast, cxDecl )->extra and Tko.PF_CXX) <> 0)
+                end if
+            end if
+        end if
+    end if
+    '' ...AND SO DOES A METHOD OF A TYPE DECLARED THERE, in the block or defined outside
+    '' it. Its members never got PF_CXX, so 'Widget.doThing' went out _ZN6Widget7DOTHINGEi
+    '' and every call into a real C++ class was an undefined symbol. Measured, fbc keeps
+    '' the written case: _ZN6Widget7doThingEi. The TYPE says it -- it keeps its rawName.
+    if isCxx = false then
+        '' A member's own scope, or a declare's, sits inside the TYPE's -- msc, above.
+        if msc <> 0 then
+            if msc->kind = cast( ubyte, Tko.SCOPEK_TYPE ) then
+                dim as Tko.Symbol ptr mown = syms.SymbolAt( msc->owner )
+                if mown <> 0 then
+                    dim as long moi = cast( long, mown->type_ )
+                    if (moi > 0) andalso (moi < types.types.Count) then
+                        isCxx = (types.types[moi].rawName <> 0)
+                    end if
+                end if
+            end if
+        end if
+    end if
+    dim as string ident = ""
+    if aliased then
+        ident = names.Spelling( aliasNm )
+    elseif isCxx then
+        ident = written
+    else
+        ident = Tko.Text.UpperAscii( written )
+    end if
+
+    dim as ushort kw = sp->op
+    '' AN ALIASED STRUCTOR IS THE METHOD IT NAMES: 'declare constructor cdecl alias "init"( )' beside
+    '' 'declare sub init cdecl alias "init"( )' is fbc's one _ZN3UDT4initEv, the sub's body serving
+    '' both -- the constructor has none of its own (structs/ctor_alias.bas).
+    dim as boolean isCtor = (kw = cast( ushort, Tko.KW_CONSTRUCTOR )) andalso (aliased = false)
+    dim as boolean isDtor = (kw = cast( ushort, Tko.KW_DESTRUCTOR )) andalso (aliased = false)
+    '' ...BUT AN ALIASED PROPERTY TAKES THE ALIAS ALONE. The suffix is what fbc uses
+    '' when it has to invent a name; an alias IS the name, and appending to it names
+    '' something that does not exist. Measured over structs/obj_property_alias.bas,
+    '' where a property aliases a method that is also declared under that name:
+    ''
+    ''     declare function getv alias "getv"( ) as integer
+    ''     declare property v    alias "getv"( ) as integer
+    ''
+    '' fbc emits ONE symbol, '_ZN3UDT4getvEv', and 'x.v' calls it. tiko-lang emitted
+    '' 'getv__get__' -- a receiver-less declaration nothing defines, called with one.
+    if (kw = cast( ushort, Tko.KW_PROPERTY )) andalso (aliased = false) then
+        ident += PropertySuffix( ast, proc_ )
+    end if
+
+    dim as containers.Array( of string ) quals
+    dim as containers.Array( of ulong ) qualTypes
+    '' The symbol that says whether this is module code. A generic instance's re-parsed body
+    '' is bound to nothing; its symbol is the one of its own name, which copied the mark.
+    dim as Tko.SymbolId selfSym = info.RefOf( proc_ )
+    if selfSym = Tko.SYMBOL_NONE then selfSym = syms.Lookup( info.ScopeOf( proc_ ), sp->name )
+    QualifierChain( syms, info.ScopeOf( proc_ ), names, quals, qualTypes, @types, _
+                    true, selfSym )
+    '' A LIBRARY'S EXPORT -- 'declare sub D2D1SinCos lib "d2d1" alias "D2D1SinCos"' -- is
+    '' linked by that name, as a classic program's global declaration is. In a module it
+    '' took the chain, and every call named FBX::DIRECT2D::D2D1SinCos, which d2d1 does not
+    '' export (fbx/direct2d, 2026-09-29): in the module, and again in each importer, whose
+    '' interface puts it in the module's namespace. Classic code keeps fbc's rules.
+    if ((sp->extra and Tko.PF_LIB) <> 0) andalso (quals.Count > 0) then
+        if qualTypes[0] = CHAIN_QUAL then
+            quals.Clear( )
+            qualTypes.Clear( )
+        end if
+    end if
+    '' MODULE CODE IS NESTED UNDER ITS CHAIN, generic instances included (RFC-0002 §5).
+    dim as boolean hasQuals = (quals.Count > 0)
+    dim as boolean chained = hasQuals
+    if chained then chained = (qualTypes[0] = CHAIN_QUAL)
+
+    '' AN INSTANTIATED GENERIC PROCEDURE is a template name and never nested -- fbc
+    '' writes NS.Twice( of long ) as _Z5TwiceIiEi. An OPERATOR is not: fb/comptr.bi's
+    '' generic arrow is _ZptR8ComPtrI6IFAKEBE, the operator code and no argument list.
+    ''
+    '' NOR IS A CONSTRUCTOR OR DESTRUCTOR, whose NAME is the type's -- which for an
+    '' instantiation is the very key the registry holds. Matched, LinkedList( of long )'s
+    '' two structors both came out _Z10LinkedListIiEv, a redefinition clang refused in
+    '' every container and ComPtr file; fbc writes _ZN10LinkedListIiEC1Ev and ...D1Ev.
+    dim as long procInst = -1
+    if (aliased = false) andalso cbool( kw <> cast( ushort, Tko.KW_OPERATOR ) ) andalso _
+       (isCtor = false) andalso (isDtor = false) then
+        procInst = FindInst_( types, sp->name )
+    end if
+
+    dim as boolean plainProc = (procInst < 0)
+    dim as boolean nested = hasQuals andalso (plainProc orelse chained)
+    dim as boolean overloaded = ((sp->extra and Tko.PF_OVERLOAD) <> 0)
+
+    '' Rule 1: not nested and no OVERLOAD -- the uppercased spelling, nothing more.
+    ''
+    '' AN OPERATOR IS NEVER THAT. A global 'operator -( byref a as D, byref b as D )'
+    '' is _ZmiR1DS0_ to fbc, measured -- the operator CODE and its parameters, with no
+    '' N...E around it because there is no qualifier. Returning the spelling gave a
+    '' function literally named '-', which no linker would accept and no call site
+    '' could name.
+    dim as boolean isOp = (kw = cast( ushort, Tko.KW_OPERATOR ))
+    '' AN 'extern "C++"' PROCEDURE IS NEVER THAT EITHER: the whole point of the
+    '' block is that its members carry the C++ mangling, overloaded or not.
+    if (nested = false) andalso (overloaded = false) andalso (isOp = false) andalso _
+       (isCxx = false) andalso (procInst < 0) then
+        return ident
+    end if
+
+    dim as Substitutions subs
+    dim as string outp = "_Z"
+
+    if nested then
+        outp += "N"
+        '' A const method is _ZNK..., not _ZN...: the qualifier sits before the
+        '' nested name rather than with the parameters.
+        if (sp->extra and Tko.PF_CONST) <> 0 then outp += "K"
+        '' A prefix candidate is the CUMULATIVE prefix, not the single component.
+        '' 'namespace tests.fbc_tests.boolean_.boolean_' has two components spelled
+        '' the same, and fbc emits 8BOOLEAN_8BOOLEAN_ rather than substituting the
+        '' second: they are different PREFIXES. Matching per component produced
+        '' 8BOOLEAN_S1_ and a name no linker would ever resolve.
+        outp += EmitPrefix( quals, qualTypes, subs, @types, @syms, @names )
+        if isCtor then
+            outp += "C1"
+        elseif isDtor then
+            outp += "D1"
+        elseif kw = cast( ushort, Tko.KW_OPERATOR ) then
+            outp += OperatorCode( ast, proc_, types, syms, names, info, subs, ident )
+        elseif procInst >= 0 then
+            outp += TemplateCode_( procInst, types, syms, names, subs )
+        else
+            outp += SrcName( ident )
+        end if
+        outp += "E"
+    elseif isOp then
+        outp += OperatorCode( ast, proc_, types, syms, names, info, subs, ident )
+    elseif procInst >= 0 then
+        outp += TemplateCode_( procInst, types, syms, names, subs )
+    else
+        outp += SrcName( ident )
+    end if
+
+    '' Parameters. A procedure's RETURN type is never encoded; only a function
+    '' POINTER's is, and TypeCode handles that.
+    dim as long emitted = 0
+    for i as long = 0 to sp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[sp->first + i] )
+        if ast.Kind( prm ) <> Tko.N_PARAM then continue for
+        dim as Tko.StmtPayload ptr pp = StmtOf( ast, prm )
+        dim as Tko.TypeId pt = info.TypeOf_( pp->a )
+        if (ast.nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0 then
+            outp += ArrayParamCode( pt, types, syms, names, subs, _
+                                    cast( long, pp->extra ) )
+            emitted += 1
+            continue for
+        end if
+        if (ast.nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then
+            pt = types.Reference( pt )
+        else
+            '' A BYVAL PARAMETER'S OWN CONST IS NOT PART OF THE NAME. Read out of fbc's
+            '' generated C, which is the only ground truth for a mangling:
+            ''
+            ''     byval p as const integer            _Z1Fu7INTEGER   -- no K
+            ''     byval p as integer                  _Z1Fu7INTEGER
+            ''     byval p as zstring const ptr        _Z1FPc          -- no K
+            ''     byval p as const zstring const ptr  _Z1FPKc         -- the POINTEE's K only
+            ''     byref p as const integer            _Z1FRKu7INTEGER -- byref DOES carry it
+            ''
+            '' ...which is the same fact that makes 'byval as integer' and 'byval as const
+            '' integer' a DUPLICATE DEFINITION to fbc while the byref pair are two distinct
+            '' overloads. Only the TOP level is stripped: a pointee's const stays.
+            pt = types.Unqualify( pt )
+        end if
+        outp += TypeCode( pt, types, syms, names, subs )
+        emitted += 1
+    next
+    if emitted = 0 then outp += "v"
+    return outp
+end function
+
+function ProcName _
+    ( byref ast as Tko.AstArena, byval proc_ as Tko.NodeId, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref types as Tko.TypeContext, byref info as Tko.SemanticInfo ) as string
+
+    dim as string nm = ProcNameCore( ast, proc_, syms, names, types, info )
+    '' A 32-bit pointer means win32: Linux is 64-bit only by decision.
+    if types.target.pointerBits <> 32 then return nm
+    return DecorateWin32( ast, proc_, syms, names, types, info, nm )
+end function
+
+
+'' ------------------------------------------------------------------------ dump
+
+function Dump _
+    ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref types as Tko.TypeContext, byref info as Tko.SemanticInfo ) as string
+
+    dim as IrText outp
+    for i as long = 1 to ast.Count( )
+        dim as Tko.NodeId n = cast( Tko.NodeId, i )
+        if ast.Kind( n ) <> Tko.N_PROC then continue for
+        '' A DECLARE with no body names the same symbol its definition does; emitting
+        '' both would double every entry in the dump.
+        if StmtOf( ast, n )->b = Tko.NODE_NONE then continue for
+        '' A PRIVATE procedure is module-static: it has an internal name but no
+        '' symbol the linker can see, so fbc's object file has no entry to compare.
+        if (StmtOf( ast, n )->extra and Tko.PF_PRIVATE) <> 0 then continue for
+        dim as string m = ProcName( ast, n, syms, names, types, info )
+        if len( m ) > 0 then outp += m & chr( 10 )
+    next
+    return outp
+end function
+
+
+'' A STATIC MEMBER'S LINKER NAME -- 'static x as integer' inside a type, defined with
+'' 'dim shared T.x'.
+''
+'' Measured: fbc emits '_ZN1T8COUNTER$E' for 'T.counter' and '_ZN2NS1U4VAL$E' for one
+'' inside a namespace -- the ordinary NESTED-NAME mangling with the member component
+'' UPPERCASED and a '$' appended, and the length counting that '$'.
+''
+'' It is not a static LOCAL: those are named per procedure, which is what tiko-lang was
+'' doing here -- '_ZN1T2S1Ev$x', the name of whichever member function first touched
+'' it. Within one translation unit the values were right; across two the name would
+'' not agree.
+function StaticMemberName _
+    ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
+      byref names as Tko.Interner, byref member as string ) as string
+
+    dim as containers.Array( of string ) quals
+    dim as containers.Array( of ulong ) qualTypes
+    QualifierChain( syms, sc, names, quals, qualTypes, 0, true )
+    if quals.Count = 0 then return ""
+    dim as string outp = "_ZN"
+    for i as long = 0 to quals.Count - 1
+        outp += str( len( quals[i] ) ) & quals[i]
+    next
+    dim as string m = Tko.Text.UpperAscii( member ) & "$"
+    outp += str( len( m ) ) & m & "E"
+    return outp
+end function
+
+'' A VARIABLE OF AN 'extern "C++"' BLOCK -- the C++ name, spelled as WRITTEN and with no '$':
+'' measured, fbc names 'extern cppv as long' _Z4cppv and the same in 'namespace cn' _ZN2cn3nsvE.
+'' tiko gave fbc's own 'CPPV$', so a C++ library's variable never linked (audit F-55, SYM-10).
+function CxxVarName _
+    ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, _
+      byref names as Tko.Interner, byref written as string ) as string
+
+    dim as containers.Array( of string ) quals
+    dim as containers.Array( of ulong ) qualTypes
+    QualifierChain( syms, sc, names, quals, qualTypes, 0, false )
+    if quals.Count = 0 then return "_Z" & SrcName( written )
+    dim as string outp = "_ZN"
+    for i as long = 0 to quals.Count - 1
+        outp += SrcName( quals[i] )
+    next
+    return outp & SrcName( written ) & "E"
+end function
+
+'' A MODULE'S VARIABLE (ADR 0017; RFC-0002 §5): the nested name of its chain, any namespace
+'' inside the module, and the name upper-cased -- 'public dim shared counter' in acme.net.http
+'' is _ZN4ACME3NET4HTTP7COUNTERE. No '$': that marks fbc's own spellings, and a module's names
+'' are not fbc's. "" for a symbol that is not module code.
+function ModuleVarName _
+    ( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, _
+      byref names as Tko.Interner ) as string
+
+    dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
+    if s = 0 then return ""
+    dim as containers.Array( of string ) quals
+    dim as containers.Array( of ulong ) qualTypes
+    QualifierChain( syms, s->parent, names, quals, qualTypes, 0, true, sid )
+    if quals.Count = 0 then return ""
+    dim as string outp = "_ZN"
+    for i as long = 0 to quals.Count - 1
+        outp += str( len( quals[i] ) ) & quals[i]
+    next
+    dim as string m = Tko.Text.UpperAscii( names.Spelling( s->name ) )
+    return outp & str( len( m ) ) & m & "E"
+end function
+
+end namespace

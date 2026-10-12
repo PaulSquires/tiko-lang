@@ -103,6 +103,12 @@ def read_source(pin: Pin, rel_path: str) -> str:
 
     got = subprocess.run(["git", "-C", str(pin.tiko_src), "show", f"{pin.sha}:{rel_path}"],
                          capture_output=True, text=True, errors="replace")
+    if got.returncode != 0 and rel_path.endswith((".tiko", ".ti")):
+        # The compiler's sources were .bas and .bi until the rename to .tiko and .ti; a pin
+        # from before it names the file by its old extension.
+        legacy = rel_path[:-5] + ".bas" if rel_path.endswith(".tiko") else rel_path[:-3] + ".bi"
+        got = subprocess.run(["git", "-C", str(pin.tiko_src), "show", f"{pin.sha}:{legacy}"],
+                             capture_output=True, text=True, errors="replace")
     if got.returncode != 0:
         sys.exit(
             f"pin: {rel_path} does not exist at {pin.commit} ({pin.sha[:8]}).\n"

@@ -1,0 +1,26 @@
+'' oop/object_copyctor.tiko -- fb_Object$'s copy constructor.
+''
+'' IT DOES NOT COPY THE VPTR, and that is the whole content of this file. The
+'' right-hand side may be a DERIVED object that was up-cast on the way in, so
+'' taking its vptr would leave the new object claiming a type it is not. The
+'' vptr is built from scratch exactly as the default constructor builds it, and
+'' fb_Object$ has nothing else in it to copy.
+''
+'' THE DEFAULT CONSTRUCTOR IS STILL fbc's. It defines __fb_ZTS6Object, which fbc
+'' RESERVES -- the compiler emits its own 'external global %"8fb_RTTI$"' for it,
+'' so a FreeBASIC module defining it emits the symbol twice and clang refuses
+'' the file. Measured; see src/c/README.md. Calling it from here is fine, and
+'' this file is what shrinks the residue by one either way.
+
+#include once "../sys/sys.ti"
+#include once "../inc/oop.ti"
+
+extern "c"   '' NON-FBCALL: a constructor, mangled by fbc and declared plain.
+	declare sub tkort_ObjectCtor alias "_ZN10fb_Object$C1Ev" _
+		( byval this_ as TKORT_OBJECT ptr )
+
+	sub tkort_ObjectCopyCtor alias "_ZN10fb_Object$C1ERKS_" _
+		( byval this_ as TKORT_OBJECT ptr, byval rhs as const TKORT_OBJECT ptr )
+		tkort_ObjectCtor( this_ )
+	end sub
+end extern

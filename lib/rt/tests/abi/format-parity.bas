@@ -94,7 +94,7 @@ print "-- no mask at all (fb_hBuildDouble, 11 digits)"
 '' differently: clang's sequence yields 0 (so FORMAT$ returns an empty string)
 '' and FreeBASIC's saturates to ULLONG_MAX (so it returns 18446744073709551615).
 ''
-'' That divergence is real and it is documented in src/str/format.bas, but it is
+'' That divergence is real and it is documented in src/str/format.tiko, but it is
 '' NOT something a differential can usefully assert: it compares two compilers'
 '' undefined behaviour, and a different clang build would move it. Only the
 '' NO-MASK path is exposed, because every masked path scales the value below

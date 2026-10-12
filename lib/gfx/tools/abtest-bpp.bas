@@ -53,7 +53,7 @@
 ''   honouring a dangling pointer. Each iteration here touches the SCREEN first,
 ''   which sets last_target to NULL and forces gfxlib2 to rebind.
 
-#include once "../raster/pixelfmt.bi"
+#include once "../raster/pixelfmt.ti"
 #include once "abtest.bi"
 #include once "crt/string.bi"
 #ifdef ABTEST_HAS_GFXLIB2

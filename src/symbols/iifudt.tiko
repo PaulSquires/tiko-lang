@@ -1,0 +1,186 @@
+'' iifudt.tiko -- IIF OVER A UDT THAT CANNOT BE COPIED INTO ITS RESULT: CheckIifUdt_, asked of every
+'' N_CALL.
+''
+'' Included from latesweeps2.tiko, below constout.tiko, in the same namespace and over the same Ctx.
+''
+'' Measured on fbc-modern 1.20, 2026-09-29, 'x1 = iif( c, x1, x2 )' over a UDT:
+''
+''     only 'constructor( byval as integer )'                  error 24, "Invalid data types"
+''     ...and 'constructor( )'                                 fine
+''     ...and 'constructor( byref as UDT )'                     fine
+''     ...with the integer defaulted, '= 0'                     fine
+''     ...and a STRING field                                   fine -- fbc writes a copy constructor
+''
+'' So IIF's result is built by a default or a copy constructor, and a UDT with constructors of
+'' its own but neither has no way to build one. expressions/iif-no-matching-ctor-1..3 write
+'' the three spellings -- two variables, a variable and a temporary each way round. tiko
+'' accepted them.
+
+'' Does a field of this UDT need constructing -- so fbc writes the copy constructor itself?
+private function IifFieldNeedsCtor_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    dim as InternId tn = c.types->NameOf( t )
+    if tn = 0 then return false
+    if lcase( c.names->Spelling( tn ) ) = "object" then return true
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Symbol ptr s = c.syms->SymbolAt( c.syms->LookupLocalTyped( ds, tn, true ) )
+    if (s = 0) orelse (s->inner = SCOPE_NONE) then return false
+    dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
+    if sc = 0 then return false
+    dim as SymbolId cur = sc->firstSym
+    for guard as long = 0 to 9999
+        if cur = SYMBOL_NONE then exit for
+        dim as Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = 0 then exit for
+        if f->kind = cast( ubyte, SYM_FIELD ) then
+            dim as TypeId ft = c.types->Unqualify( f->type_ )
+            if c.types->IsDynArray( ft ) then return true
+            if c.types->Kind( ft ) = TK_BUILTIN then
+                select case c.types->BuiltinOf( ft )
+                case TY_STRING, TY_USTRING : return true
+                end select
+            end if
+            if TcNeedsCtor_( c, ft, 1 ) then return true
+        end if
+        cur = f->nextInScope
+    next
+    return false
+end function
+
+'' Can IIF build a result of this UDT: no constructors at all, a default one, or a copy one.
+private function IifUdtCopyable_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    dim as Symbol ptr ct = StructorOf_( c, t, "__ctor" )
+    if ct = 0 then return true
+    dim as long guard = 0
+    while (ct <> 0) andalso (guard < 1000)
+        guard += 1
+        dim as NodeId cd = cast( NodeId, ct->payload )
+        if (cd = NODE_NONE) orelse (c.ast->Kind( cd ) <> N_PROC) then return true
+        if RequiredParams_( c, cd ) = 0 then return true
+        '' A COPY constructor: one parameter, of this type.
+        dim as StmtPayload ptr cp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, cd )].data )]
+        dim as long np = 0
+        dim as NodeId p0 = NODE_NONE
+        for i as long = 0 to cp->count - 1
+            dim as NodeId pn = cast( NodeId, c.ast->children[cp->first + i] )
+            if c.ast->Kind( pn ) <> N_PARAM then continue for
+            np += 1
+            if np = 1 then p0 = pn
+        next
+        '' ...WHATEVER FOLLOWS IT DEFAULTED: structs/temp-var-dtors.bas's B has 'constructor( byref
+        '' rhs as B, byref x as A = type<A>( 123 ) )', and fbc copies with it.
+        if (np >= 1) andalso (p0 <> NODE_NONE) andalso (RequiredParams_( c, cd ) <= 1) then
+            dim as NodeId pta = c.ast->stmts[cast( long, c.ast->nodes[cast( long, p0 )].data )].a
+            if pta <> NODE_NONE then
+                dim as TypeId pt = c.types->Unqualify( c.info->TypeOf_( pta ) )
+                if c.types->Kind( pt ) = TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
+                if pt = t then return true
+            end if
+        end if
+        ct = c.syms->SymbolAt( ct->nextOverload )
+    wend
+    return IifFieldNeedsCtor_( c, t )
+end function
+
+'' THE KIND OF STRING an IIF result operand is, for CheckIifUdt_: "" if it is no string. fbc
+'' keeps three apart -- narrow (STRING, ZSTRING, a literal), wide (WSTRING, WSTR( )) and USTRING.
+private function IifStringKind_ ( byref c as Ctx, byval n as NodeId ) as string
+    dim as TypeId t = c.info->TypeOf_( n )
+    if t = TYPE_NONE then return ""
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    '' 'zstring * 8', 'wstring * 8' and WSTR( )'s result are ARRAYS of the character type.
+    if c.types->Kind( t ) = TK_ARRAY then
+        t = c.types->Unqualify( c.types->Inner( t ) )
+        if c.types->Kind( t ) <> TK_BUILTIN then return ""
+        select case c.types->BuiltinOf( t )
+        case TY_ZSTRING, TY_WSTRING, TY_USTRING
+        case else
+            return ""
+        end select
+    end if
+    if c.types->Kind( t ) <> TK_BUILTIN then return ""
+    select case c.types->BuiltinOf( t )
+    case TY_STRING, TY_ZSTRING : return "narrow string"
+    case TY_WSTRING            : return "wstring"
+    case TY_USTRING            : return "ustring"
+    end select
+    return ""
+end function
+
+'' A CONDITION FBC FOLDS: literals, TRUE and FALSE, constants and enum members, through
+'' operators. fbc picks the branch at compile time then, and the other operand's string
+'' kind never meets it -- fbc's own wstring/iif.bas and udt-wstring/iif.bas pass '0' and '-1'
+'' with a WSTRING on one side and a narrow literal on the other, and fbc compiles them.
+private function IifCondConst_ ( byref c as Ctx, byval n as NodeId, byval depth as long = 0 ) as boolean
+    if (n = NODE_NONE) orelse (depth > 32) then return false
+    n = Unparen3_( c, n )
+    select case c.ast->Kind( n )
+    case N_INT_LIT, N_FLOAT_LIT
+        return true
+    case N_UNARY
+        return IifCondConst_( c, c.ast->unaries[cast( long, c.ast->nodes[cast( long, n )].data )].operand, depth + 1 )
+    case N_BINARY
+        dim as BinaryPayload ptr bp = @c.ast->binaries[cast( long, c.ast->nodes[cast( long, n )].data )]
+        dim as NodeId l = bp->lhs, r = bp->rhs
+        return IifCondConst_( c, l, depth + 1 ) andalso IifCondConst_( c, r, depth + 1 )
+    case N_IDENT
+        dim as string nm = lcase( SpellOf_( c, n ) )
+        if (nm = "true") orelse (nm = "false") then return true
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+        if s = 0 then return false
+        return (s->kind = cast( ubyte, SYM_CONSTANT )) orelse (s->kind = cast( ubyte, SYM_ENUMCONST ))
+    end select
+    return false
+end function
+
+private sub CheckIifUdt_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if (lp->target = NODE_NONE) orelse (lp->count <> 3) then return
+    if c.ast->Kind( lp->target ) <> N_IDENT then return
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
+    if lcase( SpellOf_( c, lp->target ) ) <> "iif" then return
+    '' TWO KINDS OF STRING (T88). 'iif( c, "(none)", u )' with u a USTRING compiled, and
+    '' either branch printed the narrow bytes read as UTF-16. fbc-modern 1.20 refuses every
+    '' mix of the three kinds with error 24 -- a literal or a STRING with a USTRING or a
+    '' WSTRING, and a USTRING with a WSTRING, either way round; measured 2026-10-03.
+    dim as string sk1 = IifStringKind_( c, cast( NodeId, c.ast->children[lp->first + 1] ) )
+    dim as string sk2 = IifStringKind_( c, cast( NodeId, c.ast->children[lp->first + 2] ) )
+    dim as boolean mixed = (len( sk1 ) > 0) andalso (len( sk2 ) > 0)
+    if mixed then mixed = (sk1 <> sk2)
+    if mixed then mixed = (IifCondConst_( c, cast( NodeId, c.ast->children[lp->first] ) ) = false)
+    if mixed then
+        c.diags->Report( TKO0946, PointRange( c.ast->Loc( id ) ), sk1, sk2 )
+        return
+    end if
+    for k as long = 1 to 2
+        '' ONLY AN OPERAND THAT HAS TO BE COPIED -- a variable, a field, an element, a deref.
+        '' 'iif( c, CtorUdt( 123 ), CtorUdt( 456 ) )' picks one of two TEMPORARIES, and fbc
+        '' takes it (expressions/iif.bas) whatever constructors the type has.
+        dim as NodeId opn = Unparen3_( c, cast( NodeId, c.ast->children[lp->first + k] ) )
+        dim as boolean lv = false
+        select case c.ast->Kind( opn )
+        case N_MEMBER, N_INDEX, N_DEREF
+            lv = true
+        case N_IDENT, N_CALL
+            dim as NodeId tg = opn
+            if c.ast->Kind( opn ) = N_CALL then tg = c.ast->lists[cast( long, c.ast->nodes[cast( long, opn )].data )].target
+            if tg <> NODE_NONE then
+                dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( tg ) )
+                if vs <> 0 then
+                    select case cast( SymbolKind, vs->kind )
+                    case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD : lv = true
+                    end select
+                end if
+            end if
+        end select
+        if lv = false then continue for
+        dim as TypeId t = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first + k] ) )
+        if t = TYPE_NONE then continue for
+        t = c.types->Unqualify( t )
+        if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+        if c.types->Kind( t ) <> TK_UDT then continue for
+        if IifUdtCopyable_( c, t ) then return
+        c.diags->Report( TKO0882, PointRange( c.ast->Loc( id ) ), c.names->Spelling( c.types->NameOf( t ) ) )
+        return
+    next
+end sub

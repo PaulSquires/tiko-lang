@@ -1,0 +1,432 @@
+'' arrayredim.bas -- REDIM and REDIM PRESERVE. Eight symbols across five fbc
+'' members, and portable.
+''
+'' THE BOUNDS ARRIVE AS VARIADIC ARGUMENTS, two per dimension, lbound then
+'' ubound, each a pointer-width signed integer. fbc emits the count as
+'' `dimensions` and the pairs after it, and there is no other way to reach these
+'' functions -- which is why fb_hArrayAlloc and fb_hArrayRealloc take a
+'' `cva_list` rather than a bounds array: the caller has already started the list
+'' and the callee must continue it.
+''
+'' THE DIMENSION COUNT CANNOT BE CHANGED, and that is a DESCRIPTOR SIZE
+'' constraint, not a language one. fbc may allocate a descriptor with room for
+'' only the dimensions it saw, so writing an extra FBARRAYDIM would write past
+'' the end of somebody's UDT. The one exception is `dimensions = 0`, which is how
+'' fbc marks "I could not tell at compile time, so I allocated room for
+'' FB_MAXDIMENSIONS" -- the first REDIM fixes the count and no later one may
+'' change it.
+''
+'' doclear IS A TRISTATE, NOT A BOOLEAN. Zero means "leave the memory alone",
+'' 32 means "fill with spaces" -- STRING*N -- and any other non-zero means
+'' "zero it". 32 is the SPACE character, and treating doclear as a boolean gives
+'' a fixed-length string array full of NULs that compares unequal to "".
+''
+'' A CONSTRUCTOR SUPPRESSES CLEARING ENTIRELY, in every path. A ctor is
+'' responsible for the whole initialisation, so clearing first would be wasted
+'' work -- and worse, clearing AFTER would destroy what it built.
+''
+'' REDIM PRESERVE THAT SHRINKS DESTROYS THE TAIL FIRST, through an FB_DTORMULT
+'' with a non-zero keep_idx, and only then reallocs. Reallocating first would
+'' hand the elements' memory back before their destructors ran.
+''
+'' REDIM PRESERVE ON A NEVER-ALLOCATED ARRAY IS A PLAIN REDIM. There is nothing
+'' to preserve, and realloc(NULL) is a path this project has already been bitten
+'' by once -- see str/core.tiko, where LLVM folded realloc(NULL,n) into malloc(n)
+'' at -O2 and only the Release differential caught it.
+''
+'' fb_ArrayRedimTo COPIES A SHAPE, NOT CONTENTS. It gives dest the same bounds
+'' and size as source and then allocates FRESH, zeroed (or constructed) storage
+'' -- it is what `REDIM dst(...) ` behind an array-typed assignment lowers to,
+'' and the elements are copied by the caller afterwards. The `diff` it computes
+'' from source is the lbound offset, reused rather than recalculated because the
+'' bounds have already been copied.
+
+#include once "inc/descriptors.ti"
+#include once "inc/rterror.ti"
+#include once "inc/sysbind.ti"
+
+type FB_DEFCTOR as sub cdecl ( byval this_ as any ptr )
+type FB_DTORMULT as sub cdecl ( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR, byval base_idx as uinteger )
+
+'' doclear's third state. See the header.
+const DOCLEAR_SPACE = 32
+
+extern "rtlib"
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ArrayLen alias "fb_ArrayLen" ( byval a as FBARRAY ptr ) as uinteger
+	declare function tkrt_ArrayErase alias "fb_ArrayErase" ( byval a as FBARRAY ptr ) as long
+	declare sub tkrt_ArrayStrErase alias "fb_ArrayStrErase" ( byval a as FBARRAY ptr )
+	declare sub tkrt_ArrayDestructObj alias "fb_ArrayDestructObj" _
+		( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR )
+end extern
+
+extern "c"   '' NON-FBCALL: the calc helpers and the dtor loops are declared
+             '' plainly in fb_array.h and are undecorated in fbc's win32 archive.
+	declare function tkrt_CalcElements alias "fb_hArrayCalcElements" _
+		( byval dimensions as uinteger, byval lbTB as integer ptr, byval ubTB as integer ptr ) as uinteger
+	declare function tkrt_CalcDiff alias "fb_hArrayCalcDiff" _
+		( byval dimensions as uinteger, byval lbTB as integer ptr, byval ubTB as integer ptr ) as integer
+	declare sub tkrt_ArrayDtorObj alias "fb_hArrayDtorObj" _
+		( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR, byval keep_idx as uinteger )
+	declare sub tkrt_ArrayDtorStr alias "fb_hArrayDtorStr" _
+		( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR, byval keep_idx as uinteger )
+end extern
+
+'' fb_hArrayAlloc, fb_hArrayRealloc, fb_ArrayRedimEx, fb_ArrayRedimPresvEx,
+'' fb_ArrayRedimObj and fb_ArrayRedimPresvObj are ALL undecorated on win32 --
+'' the four variadic ones necessarily so, because stdcall cannot be variadic, and
+'' the two helpers because fb_array.h declares them without FBCALL.
+extern "c"   '' NON-FBCALL: four are variadic (stdcall cannot be), two are
+             '' declared plainly in fb_array.h.
+
+declare function tkort_ArrayAlloc alias "fb_hArrayAlloc" _
+	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as long, _
+	  byval ctor as FB_DEFCTOR, byval dimensions as uinteger, byval ap as cva_list ) as long
+
+declare function tkort_ArrayRealloc alias "fb_hArrayRealloc" _
+	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as long, _
+	  byval ctor as FB_DEFCTOR, byval dtor_mult as FB_DTORMULT, byval dtor as FB_DEFCTOR, _
+	  byval dimensions as uinteger, byval ap as cva_list ) as long
+
+'' ------------------------------------------------------------------ alloc
+
+function tkort_ArrayAlloc alias "fb_hArrayAlloc" _
+	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as long, _
+	  byval ctor as FB_DEFCTOR, byval dimensions as uinteger, byval ap as cva_list ) as long
+
+	dim as uinteger i = any, elements = any, size_ = any
+	dim as integer diff = any
+	dim as FBARRAYDIM ptr dim_ = any
+	dim as integer lbTB( 0 to FB_MAXDIMENSIONS - 1 )
+	dim as integer ubTB( 0 to FB_MAXDIMENSIONS - 1 )
+
+	'' A fixed-length array cannot be resized at all.
+	if( (a->flags and FBARRAY_FLAGS_FIXED_LEN) <> 0 ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	'' Zero means "not decided yet"; anything else must match. See the header.
+	if( (dimensions <> a->dimensions) andalso (a->dimensions <> 0) ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	'' THE BOUNDS ARE WRITTEN INTO dimTb AS THEY ARE READ, before the size is
+	'' known -- so a bad pair leaves the descriptor half-updated. That is fbc's
+	'' behaviour and a program that ignores the error sees it.
+	dim_ = @a->dimTb(0)
+	for i = 0 to dimensions - 1
+		lbTB(i) = cva_arg( ap, integer )
+		ubTB(i) = cva_arg( ap, integer )
+
+		if( lbTB(i) > ubTB(i) ) then
+			return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		end if
+
+		dim_->elements = (ubTB(i) - lbTB(i)) + 1
+		dim_->lbound_  = lbTB(i)
+		dim_->ubound_  = ubTB(i)
+		dim_ += 1
+	next
+
+	elements = tkrt_CalcElements( dimensions, @lbTB(0), @ubTB(0) )
+	diff = tkrt_CalcDiff( dimensions, @lbTB(0), @ubTB(0) ) * element_len
+	size_ = elements * element_len
+
+	'' Three allocation shapes for doclear's three states, and none of them
+	'' clears when a ctor will run.
+	if( (doclear = DOCLEAR_SPACE) andalso (ctor = 0) ) then
+		a->base_ptr = malloc( size_ )
+		memset( a->base_ptr, DOCLEAR_SPACE, size_ )
+	elseif( (doclear <> 0) andalso (ctor = 0) ) then
+		a->base_ptr = calloc( size_, 1 )
+	else
+		a->base_ptr = malloc( size_ )
+	end if
+
+	if( a->base_ptr = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+
+	if( ctor <> 0 ) then
+		dim as ubyte ptr this_ = cast( ubyte ptr, a->base_ptr )
+		while( elements > 0 )
+			ctor( this_ )
+			this_ += element_len
+			elements -= 1
+		wend
+	end if
+
+	'' index_ptr is base_ptr biased by the lbound offset, so that a(lbound) is
+	'' index_ptr[lbound]. diff is negative when the bounds start above zero.
+	a->index_ptr   = cast( ubyte ptr, a->base_ptr ) + diff
+	a->size        = size_
+	a->element_len = element_len
+	a->dimensions  = dimensions
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' ------------------------------------------------------------------ realloc
+
+'' THE ORDER HERE IS THE WHOLE FUNCTION: check, read bounds, compute the new
+'' size, DESTROY THE TAIL IF SHRINKING, realloc, construct or clear only the
+'' REMAINDER, then update the descriptor. Every step depends on the descriptor
+'' still describing the OLD array, which is why the bounds are written into
+'' dimTb last rather than as they are read -- the opposite of fb_hArrayAlloc.
+function tkort_ArrayRealloc alias "fb_hArrayRealloc" _
+	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as long, _
+	  byval ctor as FB_DEFCTOR, byval dtor_mult as FB_DTORMULT, byval dtor as FB_DEFCTOR, _
+	  byval dimensions as uinteger, byval ap as cva_list ) as long
+
+	dim as uinteger i = any, elements = any, size_ = any
+	dim as integer diff = any
+	dim as FBARRAYDIM ptr dim_ = any
+	dim as integer lbTB( 0 to FB_MAXDIMENSIONS - 1 ) = any
+	dim as integer ubTB( 0 to FB_MAXDIMENSIONS - 1 ) = any
+	dim as ubyte ptr this_ = any
+	dim as any ptr reallocTemp = any
+
+	if( (dimensions <> a->dimensions) andalso (a->dimensions <> 0) ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	if( (a->flags and FBARRAY_FLAGS_FIXED_LEN) <> 0 ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	for i = 0 to dimensions - 1
+		lbTB(i) = cva_arg( ap, integer )
+		ubTB(i) = cva_arg( ap, integer )
+		if( lbTB(i) > ubTB(i) ) then
+			return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		end if
+	next
+
+	elements = tkrt_CalcElements( dimensions, @lbTB(0), @ubTB(0) )
+	diff = tkrt_CalcDiff( dimensions, @lbTB(0), @ubTB(0) ) * element_len
+	size_ = elements * element_len
+
+	'' SHRINKING: destroy what is about to be freed, BEFORE the realloc. The
+	'' comparison is in ELEMENTS, not bytes, because keep_idx is an index.
+	if( dtor_mult <> 0 ) then
+		if( elements < tkrt_ArrayLen( a ) ) then
+			dtor_mult( a, dtor, elements )
+		end if
+	end if
+
+	reallocTemp = realloc( a->base_ptr, size_ )
+	if( reallocTemp = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+
+	a->base_ptr = reallocTemp
+
+	'' GROWING: only the new tail is touched. The preserved part must not be,
+	'' which is the entire point of REDIM PRESERVE.
+	if( size_ > a->size ) then
+		this_ = cast( ubyte ptr, a->base_ptr ) + a->size
+		if( ctor <> 0 ) then
+			dim as uinteger objects = (size_ - a->size) \ element_len
+			while( objects > 0 )
+				ctor( this_ )
+				this_ += element_len
+				objects -= 1
+			wend
+		elseif( doclear = DOCLEAR_SPACE ) then
+			memset( this_, DOCLEAR_SPACE, size_ - a->size )
+		elseif( doclear <> 0 ) then
+			memset( this_, 0, size_ - a->size )
+		end if
+	end if
+
+	a->index_ptr   = cast( ubyte ptr, a->base_ptr ) + diff
+	a->size        = size_
+	a->element_len = element_len
+	a->dimensions  = dimensions
+
+	dim_ = @a->dimTb(0)
+	for i = 0 to dimensions - 1
+		dim_->elements = (ubTB(i) - lbTB(i)) + 1
+		dim_->lbound_  = lbTB(i)
+		dim_->ubound_  = ubTB(i)
+		dim_ += 1
+	next
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+'' ------------------------------------------------------------------ REDIM
+
+'' THE OLD ARRAY IS FREED FIRST, and which free depends on the element type: a
+'' var-len STRING array has to have every element deleted, a plain one only has
+'' its block released. Getting this wrong leaks one allocation per element and
+'' shows up in nothing but allocation counting.
+function tkort_ArrayRedimEx alias "fb_ArrayRedimEx" _
+	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as long, _
+	  byval isvarlen as long, byval dimensions as uinteger, ... ) as long
+
+	dim as cva_list ap = any
+	dim as long res = any
+
+	cva_start( ap, dimensions )
+
+	if( isvarlen <> 0 ) then
+		tkrt_ArrayStrErase( a )
+	else
+		tkrt_ArrayErase( a )
+	end if
+
+	res = tkort_ArrayAlloc( a, element_len, doclear, 0, dimensions, ap )
+
+	cva_end( ap )
+
+	return res
+end function
+
+'' doclear IS ASSUMED TRUE because there is no parameter for it -- fbc's own
+'' comment says "better be safe". A ctor, when present, suppresses it anyway.
+function tkort_ArrayRedimObj alias "fb_ArrayRedimObj" _
+	( byval a as FBARRAY ptr, byval element_len as uinteger, byval ctor as FB_DEFCTOR, _
+	  byval dtor as FB_DEFCTOR, byval dimensions as uinteger, ... ) as long
+
+	dim as cva_list ap = any
+	dim as long res = any
+
+	if( dtor <> 0 ) then tkrt_ArrayDestructObj( a, dtor )
+	tkrt_ArrayErase( a )
+
+	cva_start( ap, dimensions )
+	res = tkort_ArrayAlloc( a, element_len, FB_TRUE, ctor, dimensions, ap )
+	cva_end( ap )
+
+	return res
+end function
+
+'' ------------------------------------------------------------ REDIM PRESERVE
+
+function tkort_ArrayRedimPresvEx alias "fb_ArrayRedimPresvEx" _
+	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as long, _
+	  byval isvarlen as long, byval dimensions as uinteger, ... ) as long
+
+	dim as cva_list ap = any
+	dim as long res = any
+	dim as FB_DTORMULT dtor_mult = any
+
+	cva_start( ap, dimensions )
+
+	'' Never allocated? Then there is nothing to preserve, and this is a plain
+	'' REDIM -- which also keeps realloc(NULL) off the path entirely.
+	if( a->base_ptr = 0 ) then
+		res = tkort_ArrayAlloc( a, element_len, doclear, 0, dimensions, ap )
+	else
+		'' A shrinking var-len string array must have its tail elements
+		'' deleted; a plain one has nothing to destroy.
+		dtor_mult = iif( isvarlen <> 0, cast( FB_DTORMULT, @tkrt_ArrayDtorStr ), _
+		                                cast( FB_DTORMULT, 0 ) )
+		res = tkort_ArrayRealloc( a, element_len, doclear, 0, dtor_mult, 0, dimensions, ap )
+	end if
+
+	cva_end( ap )
+
+	return res
+end function
+
+function tkort_ArrayRedimPresvObj alias "fb_ArrayRedimPresvObj" _
+	( byval a as FBARRAY ptr, byval element_len as uinteger, byval ctor as FB_DEFCTOR, _
+	  byval dtor as FB_DEFCTOR, byval dimensions as uinteger, ... ) as long
+
+	dim as cva_list ap = any
+	dim as long res = any
+	dim as FB_DTORMULT dtor_mult = any
+
+	cva_start( ap, dimensions )
+
+	if( a->base_ptr = 0 ) then
+		res = tkort_ArrayAlloc( a, element_len, FB_TRUE, ctor, dimensions, ap )
+	else
+		dtor_mult = iif( dtor <> 0, cast( FB_DTORMULT, @tkrt_ArrayDtorObj ), _
+		                            cast( FB_DTORMULT, 0 ) )
+		res = tkort_ArrayRealloc( a, element_len, FB_TRUE, ctor, dtor_mult, dtor, dimensions, ap )
+	end if
+
+	cva_end( ap )
+
+	return res
+end function
+
+end extern
+
+'' ------------------------------------------------------------------ REDIM TO
+
+extern "rtlib"
+
+'' A SHAPE COPY WITH FRESH STORAGE. See the header on why nothing is copied.
+function tkort_ArrayRedimTo alias "fb_ArrayRedimTo" _
+	( byval dest as FBARRAY ptr, byval source as FBARRAY ptr, byval isvarlen as long, _
+	  byval ctor as FB_DEFCTOR, byval dtor as FB_DEFCTOR ) as long
+
+	dim as integer diff = any
+	dim as ubyte ptr this_ = any, limit_ = any
+
+	'' REDIM a TO a is a no-op, and the test has to come first: everything
+	'' below frees dest.
+	if( dest = source ) then return tkrt_ErrorSetNum( FB_RTERROR_OK )
+
+	if( (source->dimensions <> dest->dimensions) andalso (dest->dimensions <> 0) ) then
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	'' REUSED, NOT RECALCULATED. diff is the lbound bias, and source already
+	'' carries it as the gap between its two pointers -- signed, because the
+	'' bias is negative whenever the lower bound is above zero. Both pointers
+	'' may be NULL, in which case diff is zero.
+	if( cast( uinteger, source->base_ptr ) > cast( uinteger, source->index_ptr ) ) then
+		diff = cast( integer, cast( uinteger, source->base_ptr ) - cast( uinteger, source->index_ptr ) )
+		diff = -diff
+	else
+		diff = cast( integer, cast( uinteger, source->index_ptr ) - cast( uinteger, source->base_ptr ) )
+	end if
+
+	if( dtor <> 0 ) then tkrt_ArrayDestructObj( dest, dtor )
+
+	if( isvarlen <> 0 ) then
+		tkrt_ArrayStrErase( dest )
+	else
+		tkrt_ArrayErase( dest )
+	end if
+
+	dest->size        = source->size
+	dest->element_len = source->element_len
+	dest->dimensions  = source->dimensions
+	memcpy( @dest->dimTb(0), @source->dimTb(0), sizeof( FBARRAYDIM ) * dest->dimensions )
+
+	'' AN EMPTY SOURCE GIVES AN EMPTY DESTINATION, not a zero-byte allocation:
+	'' calloc(0,1) may return a non-NULL pointer, and the descriptor would then
+	'' claim storage it has no size for.
+	if( dest->size = 0 ) then
+		dest->base_ptr = 0
+		dest->index_ptr = 0
+		return tkrt_ErrorSetNum( FB_RTERROR_OK )
+	end if
+
+	if( ctor = 0 ) then
+		dest->base_ptr = calloc( dest->size, 1 )
+	else
+		dest->base_ptr = malloc( dest->size )
+	end if
+	if( dest->base_ptr = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
+
+	dest->index_ptr = cast( ubyte ptr, dest->base_ptr ) + diff
+
+	'' THE LIMIT IS COMPUTED FROM size, NOT FROM AN ELEMENT COUNT -- so a
+	'' descriptor whose size is not a whole multiple of element_len constructs
+	'' the same number of objects fbc does rather than one more or one fewer.
+	if( ctor <> 0 ) then
+		this_ = cast( ubyte ptr, dest->base_ptr )
+		limit_ = this_ + dest->size
+		while( this_ < limit_ )
+			ctor( this_ )
+			this_ += dest->element_len
+		wend
+	end if
+
+	return tkrt_ErrorSetNum( FB_RTERROR_OK )
+end function
+
+end extern

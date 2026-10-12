@@ -47,7 +47,7 @@ verify: ok
 lowered: 3 functions, 3 blocks, 24 insts, 2 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 2
   amb call-unbound 2
-  skip-site lowercall.bas:235 2
+  skip-site lowercall.tiko:235 2
   amb-unbound-shape N_MEMBER 2
   amb member-base-typed 2
   amb-member-name constructor

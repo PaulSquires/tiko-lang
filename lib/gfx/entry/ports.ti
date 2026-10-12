@@ -1,0 +1,84 @@
+'' entry/ports.ti -- INP and OUT, which on a graphics screen are the VGA DAC.
+''
+'' ORIGINAL WORK. Part of libtkogfx: LGPL-2.1-or-later with the static-linking
+'' exception.
+''
+'' HOOKS, NOT ENTRY POINTS. `out &h3C8, 5` compiles to the runtime's fb_Out,
+'' which consults __fb_ctx.hooks.outproc; nothing here is exported.
+''
+'' THE PORT BEHAVIOUR IS core/vgaport.ti's and is already compared against
+'' gfxlib2 by tools/abtest-vgaport.bas -- the shared index/shift/colour state,
+'' the 2/10/18 shift sequence, the two commit paths that disagree about scaling.
+'' What is new here is the seam and the three things the port layer deliberately
+'' does NOT do, because they need the screen:
+''
+''   the PALETTE it acts on      PaletteCurrent( )
+''   the LUT rebuild after a commit, without which an 8bpp window keeps
+''   showing the colours it had
+''   the DIRTY marking of every scanline: the pixels did not move but their
+''   colours did, so nothing would be re-presented otherwise
+''
+'' THE STATE IS NOT RESET BY A MODE CHANGE, matching the C, where idx, shift and
+'' color are file statics. A half-finished three-byte DAC write survives SCREEN.
+'' That is faithfulness rather than an oversight: a program that interleaves INP
+'' and OUT on 3C9 depends on the shared shift, and abtest-vgaport gates it.
+
+#pragma once
+
+namespace TkoGfx
+
+'' The C's statics, and their initial values: shift starts at 2 because the DAC
+'' value is parked in the top six bits of the byte.
+dim shared as VgaPortState ThePorts = ( 0, 2, 0 )
+
+'' gfxlib2's "vsync wait" on the GDI driver is not a vsync at all -- it is
+'' Sleep( 1000 / refresh ), with refresh defaulting to 60. Reproduced, because a
+'' program polling 3DA for a retrace would otherwise spin a core flat, and the
+'' reference's own answer to that is this sleep.
+''
+'' WinSleep, not SLEEP: entry/console.ti installs a sleep hook, so the statement
+'' would call back into this library. See driver/window.ti.
+const PORT_VSYNC_MS = 1000 \ 60
+
+end namespace
+
+extern "c"
+
+'' INP( port ). -1 for anything not handled, which includes the DAC data port
+'' above 8bpp -- but NOT the status port, which answers at every depth.
+function TkoGfxIn cdecl ( byval port as ushort ) as long
+    if TkoGfx.TheScreen.isOpen = 0 then return -1
+
+    dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
+    if p = 0 then return -1
+
+    dim as long vsynced = 0
+    dim as long v = TkoGfx.VgaPortIn( TkoGfx.ThePorts, *p, _
+                        TkoGfx.ScreenCtx.surf.bpp * 8, port, vsynced )
+    if vsynced <> 0 then WinSleep( TkoGfx.PORT_VSYNC_MS )
+    return v
+end function
+
+'' OUT port, value. 0 when handled, -1 otherwise.
+function TkoGfxOut cdecl ( byval port as ushort, byval value as ubyte ) as long
+    if TkoGfx.TheScreen.isOpen = 0 then return -1
+
+    dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
+    if p = 0 then return -1
+
+    dim as long dirtied = 0
+    dim as long r = TkoGfx.VgaPortOut( TkoGfx.ThePorts, *p, _
+                        TkoGfx.ScreenCtx.surf.bpp * 8, port, value, dirtied )
+
+    if dirtied <> 0 then
+        '' BOTH OF THESE, and each was a separate bug when the 8bpp path was
+        '' built: the LUT is what the window expands a paletted surface through,
+        '' and the dirty span is what makes it re-present a screen whose pixels
+        '' are unchanged.
+        TkoGfx.PaletteLutRebuild( )
+        TkoGfx.DirtyMark( TkoGfx.ScreenCtx.surf, 0, TkoGfx.ScreenCtx.surf.h )
+    end if
+    return r
+end function
+
+end extern

@@ -15,9 +15,9 @@
 ''     array is never cleared, and it looks like it works)
 ''   - drawing after a present must mark again from scratch
 
-#include once "../driver/mem.bi"
-#include once "../raster/line.bi"
-#include once "../raster/box.bi"
+#include once "../driver/mem.ti"
+#include once "../raster/line.ti"
+#include once "../raster/box.ti"
 #include once "crt/string.bi"
 
 using TkoGfx

@@ -1,0 +1,153 @@
+'' swap.tiko -- fb_StrSwap (swap_str.o).
+''
+'' SWAP a, b for strings. Five paths, chosen by the argument forms, and they get
+'' progressively less obvious.
+''
+'' 1. BOTH VAR-LEN -- swap the DESCRIPTORS, field by field, including the temp
+''    bit (raw `len`, not FB_STRSIZE). No allocation, no copying, no lock.
+''
+'' 2. EQUAL LENGTHS -- fb_MemSwap over the bytes. "null terminators don't need to
+''    change", as fbc's comment puts it, because both ends already have one at
+''    the same offset.
+''
+'' 3. EITHER SIDE VAR-LEN (unequal lengths) -- three fb_StrAssign calls through a
+''    local descriptor, then fb_StrDelete. The var-len side may have to grow, and
+''    fb_StrAssign is what knows how.
+''
+'' 4/5. BOTH FIXED -- the intricate case. The pointers are first NORMALISED so
+''    that p1 is the SHORTER: fbc swaps p1/p2, len1/len2, size1/size2 AND
+''    fillrem1/fillrem2 together. Everything after that assumes len1 <= len2, and
+''    the four sub-cases (z->z, string->string, string->z, z->string) differ in
+''    whether they terminate, space-pad or NUL-pad the remainder.
+''
+'' THE ONE THAT IS EASY TO GET WRONG is the zstring pair: if the larger text does
+'' not fit in the smaller buffer -- `size1 > 0 andalso len2 >= size1` -- the copy
+'' is ABANDONED (len2 = len1) rather than truncated, so the shorter string keeps
+'' its own length instead of receiving a clipped copy.
+
+#include once "inc/descriptors.ti"
+
+extern "rtlib"
+	'' LOCAL NAME, like every other reserved entry point: fbc predeclares
+	'' fb_MemSwap in rtlLookupTB, so the bare name is error 4 even though
+	'' tiko-rt is the thing that defines it (mem/mem.tiko).
+	declare sub tkrt_MemSwap alias "fb_MemSwap" _
+		( byval a as ubyte ptr, byval b as ubyte ptr, byval bytes as integer )
+	declare function tkrt_StrAssign alias "fb_StrAssign" _
+		( byval dst as any ptr, byval dst_size as integer, _
+		  byval src as any ptr, byval src_size as integer, byval fill_rem as long ) as any ptr
+	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
+end extern
+
+extern "rtlib"
+
+sub tkort_StrSwap alias "fb_StrSwap" _
+	( _
+		byval str1 as any ptr, byval size1 as integer, byval fillrem1 as long, _
+		byval str2 as any ptr, byval size2 as integer, byval fillrem2 as long _
+	)
+
+	if( str1 = 0 ) then exit sub
+	if( str2 = 0 ) then exit sub
+
+	'' 1. Both var-len: swap the descriptors whole, temp bits included.
+	if( (size1 = FB_STRSIZEVARLEN) andalso (size2 = FB_STRSIZEVARLEN) ) then
+		dim as FBSTRING ptr a = cptr( FBSTRING ptr, str1 )
+		dim as FBSTRING ptr b = cptr( FBSTRING ptr, str2 )
+
+		dim as zstring ptr tdata = a->data
+		dim as integer tlen = a->len
+		dim as integer tsize = a->size
+
+		a->data = b->data : a->len = b->len : a->size = b->size
+		b->data = tdata   : b->len = tlen   : b->size = tsize
+		exit sub
+	end if
+
+	dim as zstring ptr p1 = any, p2 = any
+	dim as integer len1 = any, len2 = any
+
+	FB_STRSETUP_FIX( str1, size1, p1, len1 )
+	FB_STRSETUP_FIX( str2, size2, p2, len2 )
+
+	'' 2. Equal lengths: swap the bytes and leave the terminators alone.
+	if( len1 = len2 ) then
+		if( len1 > 0 ) then
+			tkrt_MemSwap( cptr( ubyte ptr, p1 ), cptr( ubyte ptr, p2 ), len1 )
+		end if
+		exit sub
+	end if
+
+	'' 3. One side var-len and the lengths differ: let fb_StrAssign resize.
+	if( (size1 = FB_STRSIZEVARLEN) orelse (size2 = FB_STRSIZEVARLEN) ) then
+		dim as FBSTRING td
+		td.data = 0 : td.len = 0 : td.size = 0
+
+		tkrt_StrAssign( @td, FB_STRSIZEVARLEN, str1, size1, 0 )
+		tkrt_StrAssign( str1, size1, str2, size2, fillrem1 )
+		tkrt_StrAssign( str2, size2, @td, FB_STRSIZEVARLEN, fillrem2 )
+		tkrt_StrDelete( @td )
+		exit sub
+	end if
+
+	'' 4/5. Both fixed. NORMALISE so p1 is the shorter -- four values move
+	'' together, and forgetting fillrem is the easy mistake.
+	if( len1 > len2 ) then
+		dim as zstring ptr pt = p1 : p1 = p2 : p2 = pt
+		dim as integer lt = len1 : len1 = len2 : len2 = lt
+		dim as integer st = size1 : size1 = size2 : size2 = st
+		dim as long ft = fillrem1 : fillrem1 = fillrem2 : fillrem2 = ft
+	end if
+
+	if( len1 > 0 ) then
+		tkrt_MemSwap( cptr( ubyte ptr, p1 ), cptr( ubyte ptr, p2 ), len1 )
+	end if
+
+	if( (size1 >= 0) andalso (size2 >= 0) ) then
+		'' zstring <-> zstring
+		if( (size1 > 0) andalso (len2 >= size1) ) then
+			'' Does not fit: ABANDON the copy rather than truncate it.
+			len2 = len1
+		elseif( len2 > len1 ) then
+			memcpy( cptr( ubyte ptr, p1 ) + len1, cptr( ubyte ptr, p2 ) + len1, len2 - len1 )
+		end if
+
+		p1[len2] = 0
+		p2[len1] = 0
+
+		if( fillrem2 <> 0 ) then
+			dim as integer used2 = len1
+			if( size2 > used2 ) then
+				memset( cptr( ubyte ptr, p2 ) + used2, 0, size2 - used2 )
+			end if
+		end if
+
+	elseif( ((size1 and FB_STRISFIXED) <> 0) andalso ((size2 and FB_STRISFIXED) <> 0) ) then
+		'' STRING * N <-> STRING * N: space-pad the tail of the longer.
+		if( (len2 - len1) > 0 ) then
+			memset( cptr( ubyte ptr, p2 ) + len1, 32, len2 - len1 )
+		end if
+
+	elseif( ((size1 and FB_STRISFIXED) <> 0) andalso (size2 > 0) ) then
+		'' STRING * N -> zstring: only a terminator is owed.
+		p2[len1] = 0
+
+	elseif( (size1 >= 0) andalso ((size2 and FB_STRISFIXED) <> 0) ) then
+		'' zstring -> STRING * N
+		if( (size1 > 0) andalso (len2 >= size1) ) then
+			len2 = len1
+		elseif( len2 > len1 ) then
+			memcpy( cptr( ubyte ptr, p1 ) + len1, cptr( ubyte ptr, p2 ) + len1, len2 - len1 )
+		end if
+
+		p1[len2] = 0
+
+		'' Note the bound: size1, not len1.
+		if( (len2 - size1) > 0 ) then
+			memset( cptr( ubyte ptr, p2 ) + len1, 32, len2 - size1 )
+		end if
+	end if
+
+end sub
+
+end extern

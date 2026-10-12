@@ -1,0 +1,104 @@
+'' surface.ti -- a drawable: pixels, geometry, and a clip rectangle.
+''
+'' ORIGINAL WORK. Part of libtkogfx: LGPL-2.1-or-later with the static-linking
+'' exception.
+''
+'' A Surface is a VIEW, not an owner. It borrows pixels from one of three places:
+'' a screen page, a PUT_HEADER image, or a plain malloc'd block in a test. It
+'' frees nothing and outlives nothing.
+''
+'' Layout matches what gfxlib2 works with, because the whole point is that a
+'' buffer written by one library reads correctly in the other:
+''
+''   pixels   first byte of row 0
+''   pitch    BYTES per row, not pixels -- rows may be padded
+''   bpp      BYTES per pixel (1, 2 or 4), the same sense as PUT_HEADER.bpp
+''
+'' The clip rectangle is INCLUSIVE on both corners, matching gfxlib2's view
+'' handling, where view_x/view_y/view_w/view_h describe a box the last pixel is
+'' inside of. Off-by-one here shows up as a missing right/bottom edge, which is
+'' exactly the kind of difference the A/B digest catches.
+
+#pragma once
+
+namespace TkoGfx
+
+'' gfxlib2's PI, in full. Shared by every module that needs it -- CIRCLE's arc
+'' normalisation and DRAW's degree-to-radian conversion. Note that CIRCLE's
+'' full-turn TEST uses a float literal instead, and the two values differ
+'' deliberately; see raster/circle.ti.
+const PI_ as double = 3.1415926535897932384626
+
+type Surface
+    pixels  as ubyte ptr
+    w       as long        '' pixels
+    h       as long
+    pitch   as integer     '' BYTES per row
+    bpp     as long        '' BYTES per pixel
+
+    '' Byte-per-scanline change tracking, or NULL. Non-NULL ONLY when this
+    '' surface is the visible page -- gfxlib2 gates its SET_DIRTY on
+    '' `__fb_gfx->framebuffer == ctx->line[0]`, so drawing to an image or to a
+    '' hidden page marks nothing. See core/dirty.ti.
+    dirty   as ubyte ptr
+
+    '' Inclusive clip box. Defaults to the whole surface.
+    clip_x1 as long
+    clip_y1 as long
+    clip_x2 as long
+    clip_y2 as long
+end type
+
+'' Point a Surface at existing pixels. Clip starts as the full extent.
+private sub SurfaceInit( _
+        byref s as Surface, _
+        byval pixels as any ptr, _
+        byval w as long, _
+        byval h as long, _
+        byval pitch as integer, _
+        byval bpp as long )
+
+    s.pixels  = cptr( ubyte ptr, pixels )
+    s.dirty   = 0
+    s.w       = w
+    s.h       = h
+    s.pitch   = pitch
+    s.bpp     = bpp
+    s.clip_x1 = 0
+    s.clip_y1 = 0
+    s.clip_x2 = w - 1
+    s.clip_y2 = h - 1
+end sub
+
+'' Narrow the clip box, intersected with the surface. An empty or inverted box
+'' is left inverted on purpose: SurfaceClipEmpty then reports it, and every
+'' drawing primitive is expected to check that before touching memory.
+private sub SurfaceSetClip( _
+        byref s as Surface, _
+        byval x1 as long, byval y1 as long, _
+        byval x2 as long, byval y2 as long )
+
+    s.clip_x1 = iif( x1 > 0, x1, 0 )
+    s.clip_y1 = iif( y1 > 0, y1, 0 )
+    s.clip_x2 = iif( x2 < s.w - 1, x2, s.w - 1 )
+    s.clip_y2 = iif( y2 < s.h - 1, y2, s.h - 1 )
+end sub
+
+private function SurfaceClipEmpty( byref s as Surface ) as long
+    return iif( (s.clip_x1 > s.clip_x2) orelse (s.clip_y1 > s.clip_y2), 1, 0 )
+end function
+
+'' Address of a pixel. No bounds checking -- callers clip first. Returned as a
+'' byte pointer because the caller knows the format and we do not want a cast
+'' per format here.
+private function SurfacePixelAddr( _
+        byref s as Surface, byval x as long, byval y as long ) as ubyte ptr
+    return s.pixels + cast( integer, y ) * s.pitch + cast( integer, x ) * s.bpp
+end function
+
+'' Address of the first byte of a row.
+private function SurfaceRowAddr( byref s as Surface, byval y as long ) as ubyte ptr
+    return s.pixels + cast( integer, y ) * s.pitch
+end function
+
+end namespace

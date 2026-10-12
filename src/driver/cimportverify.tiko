@@ -1,0 +1,252 @@
+'' cimportverify.tiko -- the imported records' layout, tiko's against clang's. See
+'' cimportverify.ti.
+''
+'' THE --dump-udt PIPELINE, over the binding alone: preprocess, parse, Collect, Resolve,
+'' ComputeUdtLayouts. No Check and no codegen -- a layout needs neither -- so the whole of
+'' windows.h's binding is laid out in the time it takes to parse it.
+
+#import "std/containers"
+#include once "driver/cimportverify.ti"
+#include once "pp/pp.ti"
+#include once "parser/parser.ti"
+#include once "symbols/collect.ti"
+#include once "symbols/resolve.ti"
+#include once "types/udtlayout.ti"
+#include once "codegen/target.ti"
+
+'' Defined in driver.tiko: the preprocessor's configuration for this invocation's target.
+namespace Tko.Driver
+declare function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
+end namespace
+
+namespace Tko.CImportDriver
+
+'' The shown name of the binding while it is checked. A diagnostic in it is the
+'' importer's bug, and this is what the user sees it against.
+const BINDING_NAME = "tiko-cimport-binding.bi"
+
+'' One manifest record: clang's size and alignment, and each named member's bit offset
+'' from the record's start and bit-field width (0 for an ordinary member).
+type ClangRec_
+    as string name
+    as long size
+    as long align
+    as Tko.StrVec fnames
+    as containers.Array( of long ) fbits
+    as containers.Array( of long ) fwidths
+end type
+
+private function Word_( byref s as string, byref at as long ) as string
+    while (at <= len( s )) andalso (mid( s, at, 1 ) = " ")
+        at += 1
+    wend
+    dim as long st = at
+    while (at <= len( s )) andalso (mid( s, at, 1 ) <> " ")
+        at += 1
+    wend
+    return mid( s, st, at - st )
+end function
+
+private sub ParseManifest_( byref manifest as string, recs() as ClangRec_, byref n as long )
+    n = 0
+    dim as long p = 1
+    while p <= len( manifest )
+        dim as long e = instr( p, manifest, chr( 10 ) )
+        if e = 0 then e = len( manifest ) + 1
+        dim as string ln = mid( manifest, p, e - p )
+        p = e + 1
+        dim as long at = 1
+        dim as string kw = Word_( ln, at )
+        if kw = "record" then
+            if n > ubound( recs ) then redim preserve recs( n * 2 + 15 )
+            recs( n ).name = Word_( ln, at )
+            recs( n ).size = valint( Word_( ln, at ) )
+            recs( n ).align = valint( Word_( ln, at ) )
+            n += 1
+        elseif (kw = "field") andalso (n > 0) then
+            recs( n - 1 ).fnames.Push( Word_( ln, at ) )
+            recs( n - 1 ).fbits.Push( valint( Word_( ln, at ) ) )
+            recs( n - 1 ).fwidths.Push( valint( Word_( ln, at ) ) )
+        end if
+    wend
+end sub
+
+function VerifyLayout _
+    ( byref ctx as Tko.CompilerContext, byref text as string, byref manifest as string, _
+      byref badName as Tko.StrVec, byref badWhy as Tko.StrVec ) as boolean
+
+    dim as long errs0 = ctx.diags.ErrorCount( )
+    '' crt/long.bi IS TWO TYPEDEFS, spelled here so the check needs no include directory --
+    '' the test runner gives tiko none, and a toolchain without its headers could still
+    '' import. 'long' is the target's: four bytes on Windows, eight on Linux.
+    '' Every one after the first goes: a delta import's check sees several bindings.
+    dim as string src = text
+    const LONG_INC = "#include once ""crt/long.bi"""
+    dim as long li = instr( src, LONG_INC )
+    dim as boolean first = true
+    while li > 0
+        dim as string defs
+        if first then
+            if Tko.TargetIsWindows( ctx.options.target ) then
+                defs = "type clong as long : type culong as ulong"
+            else
+                defs = "type clong as integer : type culong as uinteger"
+            end if
+            first = false
+        end if
+        src = left( src, li - 1 ) & defs & mid( src, li + len( LONG_INC ) )
+        li = instr( li + len( defs ), src, LONG_INC )
+    wend
+    dim as Tko.FileId id = ctx.sources.AddVirtual( BINDING_NAME, src )
+
+    dim as Tko.PpResult pr
+    dim as Tko.PpConfig cfg = Tko.Driver.MakePpConfig( ctx )
+    '' A binding has no #cinclude of its own, and this runs INSIDE one.
+    cfg.cimportFn = 0
+    dim as Tko.PpStream st
+    Tko.PpOpen( st, ctx.sources, id, ctx.names, ctx.keywords, ctx.diags, cfg, pr )
+    dim as Tko.AstArena ast
+    dim as Tko.ParserState ps
+    ps.toks = @pr.tokens
+    ps.stream = @st
+    ps.litPool = @ctx.ppLits
+    ps.ast = @ast
+    ps.src = @ctx.sources
+    ps.kw = @ctx.keywords
+    ps.names = @ctx.names
+    ps.diags = @ctx.diags
+    ps.pos = 0
+    ps.fbcallConv = iif( Tko.TargetIsWindows( ctx.options.target ), Tko.CC_STDCALL, Tko.CC_CDECL )
+    dim as Tko.NodeId root = Tko.Parse.Unit( ps )
+    Tko.PpClose( st )
+
+    dim as Tko.SymbolTable syms
+    syms.Attach( @ctx.names )
+    dim as Tko.SemanticInfo info
+    Tko.Collect.Run( ast, root, syms, ctx.names, ctx.types, ctx.diags, info, @ctx.sources )
+    dim as Tko.Resolve.Stats rst
+    Tko.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, ctx.sources, info, rst, @ps )
+    if ctx.diags.ErrorCount( ) > errs0 then return false
+    dim as Tko.UdtLayouts store
+    Tko.ComputeUdtLayouts( syms, ctx.types, store )
+
+    '' tiko's records by name. Case-insensitive, as the language is: the type table
+    '' keeps one spelling for all of them.
+    dim as Tko.StrVec tname
+    for i as long = 0 to store.udts.Count - 1
+        tname.Push( lcase( ctx.types.Name( store.udts[i].type_ ) ) )
+    next
+
+    dim as ClangRec_ recs( any )
+    dim as long nrec
+    dim as Tko.StrVec badAll          '' every record that disagreed, lower-cased
+    ParseManifest_( manifest, recs(), nrec )
+    for r as long = 0 to nrec - 1
+        dim as string lname = lcase( recs( r ).name )
+        dim as long ui = -1
+        for i as long = 0 to tname.Count - 1
+            if tname[i] = lname then ui = i : exit for
+        next
+        dim as string why
+        if ui < 0 then
+            why = "tiko did not lay it out"
+        else
+            dim as Tko.UdtInfo ptr u = @store.udts[ui]
+            '' 'field = N' caps the alignment the type's size is rounded to -- its own
+            '' stays its members' natural maximum, and where that differs from C's the
+            '' record that EMBEDS it is where the offsets part, and is caught there.
+            dim as long ualign = u->align
+            dim as long pack = ctx.types.Packing( u->type_ )
+            if (pack > 0) andalso (ualign > pack) then ualign = pack
+            '' ...AND NOTHING IS ALIGNED PAST EIGHT. winnt.h's _M128A, _CONTEXT and
+            '' _SLIST_HEADER are 16 to C; the importer pads their SIZE to C's, which is
+            '' what an array or a pointer walk needs, and a record that embeds one is
+            '' checked at its own offsets. fbc-modern keeps them the same way. What no
+            '' check can give is a 16-aligned variable -- see 0016 §limits.
+            dim as long calign = recs( r ).align
+            if (calign > 8) andalso (ualign = 8) then calign = 8
+            if (u->size <> recs( r ).size) orelse (ualign <> calign) then
+                why = "tiko lays it out in " & u->size & " bytes aligned to " & ualign & _
+                      ", clang in " & recs( r ).size & " aligned to " & recs( r ).align
+            end if
+            '' The FIRST member that disagrees, in C's order.
+            for f as long = 0 to recs( r ).fnames.Count - 1
+                dim as string lf = lcase( recs( r ).fnames[f] )
+                dim as long tb = -1, tw = 0
+                for j as long = 0 to u->count - 1
+                    dim as Tko.UdtField ptr uf = @store.fields[u->first + j]
+                    if lcase( ctx.names.Spelling( uf->name ) ) = lf then
+                        tb = uf->offset * 8 + uf->bitOffset
+                        tw = uf->bitWidth
+                        exit for
+                    end if
+                next
+                dim as string fwhy
+                if tb < 0 then
+                    fwhy = "member '" & recs( r ).fnames[f] & "' is not in tiko's layout"
+                elseif (tb <> recs( r ).fbits[f]) orelse (tw <> recs( r ).fwidths[f]) then
+                    fwhy = "member '" & recs( r ).fnames[f] & "' is at bit " & tb & _
+                           " in tiko's layout and bit " & recs( r ).fbits[f] & " in clang's"
+                end if
+                if len( fwhy ) then
+                    if len( why ) then why &= "; "
+                    why &= fwhy
+                    exit for
+                end if
+            next
+        end if
+        if len( why ) = 0 then continue for
+        '' A RECORD THAT DISAGREES BECAUSE IT HOLDS ONE THAT DOES is not refused for its own
+        '' layout: refusing the member's record refuses it next round, with the reason that
+        '' is true -- "uses 'lay_bits', which was skipped". The manifest lists a record
+        '' after every record it holds, so the member's verdict is already in.
+        dim as boolean inherited = false
+        dim as long hcount = 0, hfirst = 0
+        if ui >= 0 then hcount = store.udts[ui].count : hfirst = store.udts[ui].first
+        for j as long = 0 to hcount - 1
+            dim as Tko.TypeId ft = ctx.types.Unqualify( store.fields[hfirst + j].type_ )
+            while ctx.types.Kind( ft ) = Tko.TK_ARRAY
+                ft = ctx.types.Unqualify( ctx.types.Inner( ft ) )
+            wend
+            if ctx.types.Kind( ft ) <> Tko.TK_UDT then continue for
+            dim as string mn = lcase( ctx.types.Name( ft ) )
+            for k as long = 0 to badAll.Count - 1
+                if badAll[k] = mn then inherited = true : exit for
+            next
+            if inherited then exit for
+        next
+        badAll.Push( lname )
+        if inherited = false then
+            badName.Push( recs( r ).name )
+            badWhy.Push( why )
+        end if
+    next
+    return true
+end function
+
+function ImportChecked _
+    ( byref ctx as Tko.CompilerContext, byref api as Tko.CImport.ClangApi, _
+      byref io as Tko.CImport.CImportOptions, byref res as Tko.CImport.CImportResult, _
+      byref prefix as string ) as long
+
+    '' A round refuses at least one record, so the rounds end; the bound is a backstop.
+    for round as long = 1 to 16
+        dim as Tko.CImport.CImportResult r1
+        dim as boolean imported = Tko.CImport.CImportRun( api, io, r1 )
+        res = r1
+        if imported = false then return iif( res.rc = 0, 1, res.rc )
+        if ctx.options.cNoVerify then return 0
+        dim as Tko.StrVec badName, badWhy
+        if VerifyLayout( ctx, prefix & res.text, res.manifest, badName, badWhy ) = false then return 5
+        if badName.Count = 0 then return 0
+        for i as long = 0 to badName.Count - 1
+            io.refuseName.Push( badName[i] )
+            io.refuseWhy.Push( badWhy[i] )
+        next
+    next
+    '' THE BACKSTOP IS A FAILURE, not a pass: the sixteenth round still refused records,
+    '' so the binding in 'res' holds layouts that differ from clang's (audit F-75).
+    return 5
+end function
+
+end namespace

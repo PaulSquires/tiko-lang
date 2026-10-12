@@ -1,0 +1,76 @@
+'' rtlctx.ti -- reaching into the runtime's global context.
+''
+'' ORIGINAL WORK. Part of libtkogfx: LGPL-2.1-or-later with the static-linking
+'' exception.
+''
+'' The runtime owns one global `FB_RTLIB_CTX __fb_ctx`. libtkogfx needs exactly
+'' two fields of it:
+''
+''   .hooks         the 28-entry console hook table we install on SCREEN and
+''                  clear on SCREEN 0, so PRINT/INKEY/LOCATE/... route into the
+''                  graphics console instead of the text one.
+''   .exit_gfxlib2  a teardown callback the runtime invokes from fb_End().
+''
+'' Everything else in that struct -- and it is over 20KB, most of it FB_FILE --
+'' is none of our business. Rather than mirror it, we take the address of the
+'' global and add a GENERATED offset. See tools/gen-rtlctx.sh for why.
+''
+'' WHY fb_End() AND NOT A DESTRUCTOR: the win32 backends run the window on a
+'' background thread. A module destructor or atexit handler runs under the
+'' loader lock, and joining that thread there deadlocks. gfxlib2 hit this and
+'' solved it the same way; docs/goroutines/RFC-0003-spawn.md records the same
+'' hazard from the other direction. This is why RFC-0001 forbids module-level
+'' code and global destructors anywhere in this library.
+
+#pragma once
+
+#include once "rtlabi.ti"
+#include once "rtlctx-offsets.ti"
+
+'' The runtime's global context. Declared as an opaque byte so nothing here can
+'' accidentally depend on a layout we have not measured. On win32 fbc decorates
+'' this to ___fb_ctx by itself, exactly as it does for the cdecl runtime entries.
+''
+'' DECLARED OUTSIDE THE NAMESPACE ON PURPOSE. Inside one, fbc mangles the symbol
+'' to TKOABI::__fb_ctx and the ALIAS does not override it -- the link then fails
+'' with an undefined reference to a name that never existed in the runtime.
+'' The FB identifier is deliberately not __fb_ctx: a local name plus ALIAS keeps
+'' the link name explicit and avoids any chance of colliding with fbc's own
+'' __FB_* internals (FreeBASIC is case-insensitive, so __fb_ctx folds to
+'' __FB_CTX). Measured resolving correctly: @RtlCtxBase lands in data at
+'' 0x410040 against code at 0x401700.
+extern "c"
+    extern RtlCtxBase alias "__fb_ctx" as ubyte
+
+    '' gfxlib2's global graphics state, NULL outside a graphics mode. Lives in
+    '' libfbgfx rather than libfb, so a program that never opens a screen does
+    '' not pull it in. Same local-name-plus-ALIAS treatment as above.
+    extern RtlGfxState alias "__fb_gfx" as any ptr
+end extern
+
+namespace TkoAbi
+
+'' The hook table the runtime consults before falling back to its own console.
+''
+'' RETURNS A POINTER, NOT BYREF, ON PURPOSE. With a BYREF result, the natural
+'' call `@RtlHooks( )` takes the address of the FUNCTION rather than of what it
+'' refers to -- it compiles, and then you are reading the function's own
+'' prologue. That cost a debugging cycle here; a pointer result makes the
+'' mistake unsayable.
+private function RtlHooks( ) as FB_HOOKSTB ptr
+    return cptr( FB_HOOKSTB ptr, @RtlCtxBase + RTLCTX_HOOKS_OFS )
+end function
+
+'' gfxlib2's FBGFX, or NULL when no graphics mode is active. Reading this is how
+'' we observe what the real library did -- the dirty array in particular, which
+'' is otherwise invisible from outside.
+private function RtlGfx( ) as FBGFX ptr
+    return cptr( FBGFX ptr, RtlGfxState )
+end function
+
+'' Slot for the teardown callback fb_End() invokes. Pointer result, same reason.
+private function RtlExitGfxSlot( ) as any ptr ptr
+    return cptr( any ptr ptr, @RtlCtxBase + RTLCTX_EXITGFX_OFS )
+end function
+
+end namespace

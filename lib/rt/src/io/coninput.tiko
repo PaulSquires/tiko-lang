@@ -1,0 +1,356 @@
+'' coninput.tiko -- the Windows console input trio: INKEY, GETKEY and KEYHIT, the
+'' multikey table behind MULTIKEY, and the console mouse. Seven symbols across
+'' three fbc members (io_inkey.o, io_multikey.o, io_mouse.o).
+''
+'' EMPTY-ON: linux-x86_64
+''
+'' WINDOWS ONLY, DELIBERATELY. The POSIX halves of these three members are 295,
+'' 376 and 236 lines of terminfo parsing, /dev/input scanning and xterm mouse
+'' protocol, and they stay fbc's for now. gate.sh deletes fbc's members BY SYMBOL
+'' PER TARGET, so a Windows-only replacement is legal: Windows gets tiko-rt's,
+'' Linux keeps fbc's, and neither archive has a hole. src/sys/vt100.tiko already
+'' works the other way round.
+''
+'' fb_ConsoleGetkey IS THE ONLY ONE THAT LOCKS, and it locks INSIDE a loop rather
+'' than around the whole call. That is not an oversight: it BLOCKS until a key
+'' arrives, so holding the I/O lock for the duration would stop every other
+'' thread from printing. It takes the lock, reads, drops it, and sleeps -- and
+'' fbc's own comment says so. The other two expect the CALLER to hold the lock.
+''
+'' fb_Sleep( -1 ) IS "UNTIL A KEY IS PRESSED", not a duration. That is the whole
+'' polling strategy: the loop never spins, because the sleep itself is what waits
+'' for the keyboard.
+''
+'' THE MULTIKEY TABLE MAPS ONE SCANCODE TO TWO VIRTUAL KEYS, and the second is
+'' what makes the numeric keypad work: SC_HOME is VK_HOME or VK_NUMPAD7, and
+'' MULTIKEY(SC_HOME) must be true for either. A table with one column would
+'' report the keypad as unpressed and nothing else would look wrong.
+''
+'' AND fb_hVirtualToScancode SEARCHES THE SECOND COLUMN FIRST -- the C reads
+'' `[i][2] == vkey || [i][1] == vkey`. Reversing the two changes which scancode a
+'' keypad press reports, because several keys appear in both columns of
+'' different rows.
+''
+'' WHICH MEANS VIRTUAL KEY **ZERO** RETURNS SC_ESCAPE. Every row without a keypad
+'' alternate carries 0 in column 2, so a query for vkey 0 matches the very first
+'' row on that column before any other test runs. It is not a lookup failure and
+'' it is not the terminator being hit -- it is row 0 answering. Measured, and
+'' fbc does exactly the same, which is the only reason it is safe to keep.
+''
+'' THE TABLE IS FILE-LOCAL HERE AND GLOBAL IN fbc. __fb_keytable is class `R` --
+'' read-only data -- and nm shows nothing else in the archive references it, so
+'' exporting it would add a symbol to the comparison surface for no caller.
+''
+'' IT WAS GENERATED FROM fbc's SOURCE, NOT TRANSCRIBED. A script resolved every
+'' SC_ and VK_ name against fb_event.h and the SDK headers and emitted the 88
+'' rows below, terminator included. That is 264 numbers, and copying them by hand
+'' is exactly the kind of work that produces one wrong digit no test would find.
+''
+'' THE MOUSE IS THREE-STATE, not two. `inited` starts at -1 meaning "not asked
+'' yet", becomes the BUTTON COUNT on first use, and 0 means the machine has no
+'' mouse -- in which case every out-parameter is set to -1 and the call reports
+'' an error. A two-state flag would re-query GetSystemMetrics forever on a
+'' machine with no mouse.
+''
+'' AND IT TURNS QUICK-EDIT MODE OFF, which has a visible consequence: while a
+'' program is reading the mouse the user can no longer select text in the console
+'' window. Turning it off also requires setting ENABLE_EXTENDED_FLAGS in the same
+'' call, or the change is silently ignored.
+''
+'' fb_ConsoleSetMouse ALWAYS FAILS. There is no console API to move the pointer,
+'' so it reports an illegal function call unconditionally.
+
+#include once "inc/descriptors.ti"
+#include once "inc/ctx.ti"
+#include once "inc/console.ti"
+#include once "inc/rterror.ti"
+#include once "inc/iolock.ti"
+
+#ifdef __FB_WIN32__
+
+'' MEASURED with a C probe against the SDK headers -- these are macros, and the
+'' console-mode values in particular are not guessable.
+const SM_CMOUSEBUTTONS_       = 43
+const ENABLE_MOUSE_INPUT_     = 16
+const ENABLE_QUICK_EDIT_MODE_ = 64
+const ENABLE_EXTENDED_FLAGS_  = 128
+const MOUSE_WHEELED_          = 4
+
+'' __fb_con.mouseHook, spelled locally in the same style src/io/conpage.tiko uses
+'' for the page table. inc/console.ti documents the offset in its header comment
+'' -- 72 on win64, 48 on win32 -- but does not bind it, because until now nothing
+'' needed it.
+const TKORT_CON_MOUSEHOOK_OFF = 72
+
+#define TKORT_CON_MOUSEHOOK() (*cptr( any ptr ptr, @__fb_con + TKORT_CON_MOUSEHOOK_OFF ))
+
+type TKORT_KEYROW
+	as ubyte sc
+	as ubyte vk1
+	as ubyte vk2
+end type
+
+'' One row: scancode, primary virtual key, keypad alternate (0 if none).
+#define _KT( a, b, c ) type<TKORT_KEYROW>( a, b, c )
+
+'' GENERATED FROM fbc's SOURCE -- see the file header. 88 rows, the last being
+'' the {0,0,0} terminator every loop below stops on.
+'' THE BOUND IS EXPLICIT: FreeBASIC refuses to initialise a var-len array
+'' (error 75), so the 88 rows are declared as 0 to 87 rather than inferred.
+dim shared as TKORT_KEYROW tkort_keytable( 0 to 87 ) = { _
+	_KT( &h01, &h1B, &h00 ), _KT( &h02, &h31, &h00 ), _
+	_KT( &h03, &h32, &h00 ), _KT( &h04, &h33, &h00 ), _
+	_KT( &h05, &h34, &h00 ), _KT( &h06, &h35, &h00 ), _
+	_KT( &h07, &h36, &h00 ), _KT( &h08, &h37, &h00 ), _
+	_KT( &h09, &h38, &h00 ), _KT( &h0A, &h39, &h00 ), _
+	_KT( &h0B, &h30, &h00 ), _KT( &h0C, &hBD, &h6D ), _
+	_KT( &h0D, &hBB, &h00 ), _KT( &h0E, &h08, &h00 ), _
+	_KT( &h0F, &h09, &h00 ), _KT( &h10, &h51, &h00 ), _
+	_KT( &h11, &h57, &h00 ), _KT( &h12, &h45, &h00 ), _
+	_KT( &h13, &h52, &h00 ), _KT( &h14, &h54, &h00 ), _
+	_KT( &h15, &h59, &h00 ), _KT( &h16, &h55, &h00 ), _
+	_KT( &h17, &h49, &h00 ), _KT( &h18, &h4F, &h00 ), _
+	_KT( &h19, &h50, &h00 ), _KT( &h1A, &hDB, &h00 ), _
+	_KT( &h1B, &hDD, &h00 ), _KT( &h1C, &h0D, &h00 ), _
+	_KT( &h1D, &h11, &h00 ), _KT( &h1E, &h41, &h00 ), _
+	_KT( &h1F, &h53, &h00 ), _KT( &h20, &h44, &h00 ), _
+	_KT( &h21, &h46, &h00 ), _KT( &h22, &h47, &h00 ), _
+	_KT( &h23, &h48, &h00 ), _KT( &h24, &h4A, &h00 ), _
+	_KT( &h25, &h4B, &h00 ), _KT( &h26, &h4C, &h00 ), _
+	_KT( &h27, &hBA, &h00 ), _KT( &h28, &hDE, &h00 ), _
+	_KT( &h29, &hC0, &h00 ), _KT( &h2A, &h10, &h00 ), _
+	_KT( &h2B, &hDC, &h00 ), _KT( &h2C, &h5A, &h00 ), _
+	_KT( &h2D, &h58, &h00 ), _KT( &h2E, &h43, &h00 ), _
+	_KT( &h2F, &h56, &h00 ), _KT( &h30, &h42, &h00 ), _
+	_KT( &h31, &h4E, &h00 ), _KT( &h32, &h4D, &h00 ), _
+	_KT( &h33, &hBC, &h00 ), _KT( &h34, &hBE, &h00 ), _
+	_KT( &h35, &hBF, &h6F ), _KT( &h36, &h10, &h00 ), _
+	_KT( &h37, &h6A, &h00 ), _KT( &h38, &h12, &h00 ), _
+	_KT( &h39, &h20, &h00 ), _KT( &h3A, &h14, &h00 ), _
+	_KT( &h3B, &h70, &h00 ), _KT( &h3C, &h71, &h00 ), _
+	_KT( &h3D, &h72, &h00 ), _KT( &h3E, &h73, &h00 ), _
+	_KT( &h3F, &h74, &h00 ), _KT( &h40, &h75, &h00 ), _
+	_KT( &h41, &h76, &h00 ), _KT( &h42, &h77, &h00 ), _
+	_KT( &h43, &h78, &h00 ), _KT( &h44, &h79, &h00 ), _
+	_KT( &h45, &h90, &h00 ), _KT( &h46, &h91, &h00 ), _
+	_KT( &h47, &h24, &h67 ), _KT( &h48, &h26, &h68 ), _
+	_KT( &h49, &h21, &h69 ), _KT( &h4B, &h25, &h64 ), _
+	_KT( &h4C, &h65, &h00 ), _KT( &h4D, &h27, &h66 ), _
+	_KT( &h4E, &h6B, &h00 ), _KT( &h4F, &h23, &h61 ), _
+	_KT( &h50, &h28, &h62 ), _KT( &h51, &h22, &h63 ), _
+	_KT( &h52, &h2D, &h60 ), _KT( &h53, &h2E, &h6E ), _
+	_KT( &h57, &h7A, &h00 ), _KT( &h58, &h7B, &h00 ), _
+	_KT( &h5B, &h5B, &h00 ), _KT( &h5C, &h5C, &h00 ), _
+	_KT( &h5D, &h5D, &h00 ), _KT( &h00, &h00, &h00 ) }
+
+extern "c"   '' NON-FBCALL: kernel32 and user32, `stdcall` per declaration --
+             '' the house idiom, as in inc/console.ti.
+	declare function w_GetSystemMetrics stdcall alias "GetSystemMetrics" ( byval idx as long ) as long
+	declare function w_GetAsyncKeyState stdcall alias "GetAsyncKeyState" ( byval vk as long ) as short
+	declare function w_SetConsoleModeM stdcall alias "SetConsoleMode" _
+		( byval h as any ptr, byval m as ulong ) as long
+end extern
+
+extern "c"   '' NON-FBCALL: fbc's console internals, all still C and all
+             '' declared plain in fb_private_console.h.
+	declare function tkrt_hConsoleGetKey alias "fb_hConsoleGetKey" ( byval wait_ as long ) as long
+	declare function tkrt_hConsolePeekKey alias "fb_hConsolePeekKey" ( byval wait_ as long ) as long
+	declare function tkrt_ConsoleHasFocus alias "fb_ConsoleHasFocus" ( ) as long
+	declare sub tkrt_ConsoleProcessEvents alias "fb_ConsoleProcessEvents" ( )
+	'' tkrt_hConvertToConsole and tkrt_hConvertFromConsole are NOT declared here
+	'' -- inc/console.ti already provides both, and a second declaration is
+	'' error 4.
+end extern
+
+extern "rtlib"   '' FBCALL: these three are decorated, and the win32 archive
+                 '' confirms the `@N` on each.
+	declare function tkrt_hMakeInkeyStr alias "fb_hMakeInkeyStr" ( byval key as long ) as FBSTRING ptr
+	declare sub tkrt_Sleep alias "fb_Sleep" ( byval msecs as long )
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+end extern
+
+'' THREE-STATE, and file-local -- see the file header.
+dim shared as long tkort_mouse_inited = -1
+dim shared as long tkort_last_x = 0, tkort_last_y = 0
+dim shared as long tkort_last_z = 0, tkort_last_buttons = 0
+
+'' MOUSE_EVENT_RECORD, only as far as the fields this reads. The position is a
+'' COORD -- two SHORTs -- packed at the front.
+type MOUSE_EVENT_RECORD_
+	as short  dwMousePositionX
+	as short  dwMousePositionY
+	as ulong  dwButtonState
+	as ulong  dwControlKeyState
+	as ulong  dwEventFlags
+end type
+
+extern "c"   '' NON-FBCALL: fb_private_console.h declares all seven plainly, and
+             '' the win32 archive spells every one without `@N`.
+
+'' --------------------------------------------------------------- INKEY
+
+'' THE CALLER HOLDS THE LOCK -- fbc says so in a comment.
+function tkort_ConsoleInkey alias "fb_ConsoleInkey" ( ) as FBSTRING ptr
+
+	dim as long key = tkrt_hConsoleGetKey( -1 )
+
+	'' NO KEY IS THE NULL DESCRIPTOR, not an empty allocation.
+	if( key = -1 ) then return TKORT_NULLSTR()
+
+	return tkrt_hMakeInkeyStr( key )
+
+end function
+
+'' LOCKS INSIDE THE LOOP, NOT AROUND IT -- see the file header.
+function tkort_ConsoleGetkey alias "fb_ConsoleGetkey" ( ) as long
+
+	dim as long k = any
+
+	do
+		TKORT_IOLOCK()
+		k = tkrt_hConsoleGetKey( -1 )
+		TKORT_IOUNLOCK()
+
+		if( k <> -1 ) then exit do
+
+		'' MINUS ONE IS "UNTIL A KEY IS PRESSED", which is what stops this loop
+		'' from spinning.
+		tkrt_Sleep( -1 )
+	loop
+
+	return k
+
+end function
+
+'' PEEK, not get: the key stays in the queue. The caller holds the lock.
+function tkort_ConsoleKeyHit alias "fb_ConsoleKeyHit" ( ) as long
+	return iif( tkrt_hConsolePeekKey( -1 ) <> -1, 1, 0 )
+end function
+
+'' ------------------------------------------------------------ MULTIKEY
+
+'' SEARCHES THE SECOND COLUMN FIRST -- see the file header.
+function tkort_hVirtualToScancode alias "fb_hVirtualToScancode" ( byval vkey as long ) as long
+
+	dim as integer i = 0
+	while( tkort_keytable(i).sc <> 0 )
+		if( (tkort_keytable(i).vk2 = vkey) orelse (tkort_keytable(i).vk1 = vkey) ) then
+			return tkort_keytable(i).sc
+		end if
+		i += 1
+	wend
+
+	return 0
+end function
+
+'' TRUE ONLY WHILE THE CONSOLE HAS FOCUS, because GetAsyncKeyState is global to
+'' the desktop -- without the focus test a background program would report keys
+'' pressed in whatever window the user is actually typing into.
+function tkort_ConsoleMultikey alias "fb_ConsoleMultikey" ( byval scancode as long ) as long
+
+	tkrt_ConsoleProcessEvents( )
+
+	if( tkrt_ConsoleHasFocus( ) <> 0 ) then
+		dim as integer i = 0
+		while( tkort_keytable(i).sc <> 0 )
+			if( tkort_keytable(i).sc = scancode ) then
+				'' BOTH VIRTUAL KEYS, OR'd -- the keypad alternate is what makes
+				'' MULTIKEY(SC_HOME) true for the 7 on the numeric pad.
+				dim as long st = w_GetAsyncKeyState( tkort_keytable(i).vk1 )
+				if( tkort_keytable(i).vk2 <> 0 ) then
+					st or= w_GetAsyncKeyState( tkort_keytable(i).vk2 )
+				end if
+				return iif( (st and &h8000) <> 0, FB_TRUE, FB_FALSE )
+			end if
+			i += 1
+		wend
+	end if
+
+	return FB_FALSE
+end function
+
+'' --------------------------------------------------------------- MOUSE
+
+'' The hook the console event pump calls for every mouse record, installed into
+'' __fb_con.mouseHook on first use.
+private sub tkort_ProcessMouseEvent cdecl ( byval pEvent as MOUSE_EVENT_RECORD_ ptr )
+
+	if( pEvent->dwEventFlags = MOUSE_WHEELED_ ) then
+		'' THE WHEEL ACCUMULATES rather than reporting a delta -- Z is a running
+		'' total -- and its direction is the sign of the high byte.
+		tkort_last_z += iif( (pEvent->dwButtonState and &hFF000000ul) <> 0, -1, 1 )
+	else
+		tkort_last_x = pEvent->dwMousePositionX
+		tkort_last_y = pEvent->dwMousePositionY
+		'' ONLY THE LOW THREE BUTTONS; anything above is discarded.
+		tkort_last_buttons = pEvent->dwButtonState and &h7
+	end if
+
+end sub
+
+function tkort_ConsoleGetMouse alias "fb_ConsoleGetMouse" _
+	( byval x as long ptr, byval y as long ptr, byval z as long ptr, _
+	  byval buttons as long ptr, byval clip as long ptr ) as long
+
+	dim as ulong dwMode = any
+
+	'' FIRST CALL ASKS THE SYSTEM. -1 is "not asked"; the answer becomes the
+	'' button count, and zero means there is no mouse at all.
+	if( tkort_mouse_inited = -1 ) then
+		tkort_mouse_inited = w_GetSystemMetrics( SM_CMOUSEBUTTONS_ )
+		if( tkort_mouse_inited <> 0 ) then
+			TKORT_CON_MOUSEHOOK() = cast( any ptr, @tkort_ProcessMouseEvent )
+			tkort_last_x = 1
+			tkort_last_y = 1
+			tkrt_hConvertToConsole( @tkort_last_x, @tkort_last_y, 0, 0 )
+		end if
+	end if
+
+	'' NO MOUSE: every out-parameter is -1 and the call is an error.
+	if( tkort_mouse_inited = 0 ) then
+		if( x <> 0 ) then *x = -1
+		if( y <> 0 ) then *y = -1
+		if( z <> 0 ) then *z = -1
+		if( buttons <> 0 ) then *buttons = -1
+		if( clip <> 0 ) then *clip = -1
+		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+	end if
+
+	if( tkort_mouse_inited > 0 ) then
+		w_GetConsoleMode( TKORT_IN_HANDLE(), @dwMode )
+		'' MOUSE INPUT ON **AND** QUICK-EDIT OFF. The test is against the exact
+		'' pair, so a console with both on still needs fixing.
+		if( (dwMode and (ENABLE_MOUSE_INPUT_ or ENABLE_QUICK_EDIT_MODE_)) <> ENABLE_MOUSE_INPUT_ ) then
+			'' EXTENDED_FLAGS IS REQUIRED to turn quick-edit off -- without it
+			'' the call silently does nothing.
+			dwMode or= (ENABLE_MOUSE_INPUT_ or ENABLE_EXTENDED_FLAGS_)
+			dwMode and= (not cast( ulong, ENABLE_QUICK_EDIT_MODE_ ))
+			w_SetConsoleModeM( TKORT_IN_HANDLE(), dwMode )
+		end if
+	end if
+
+	tkrt_ConsoleProcessEvents( )
+
+	'' MINUS ONE UNDOES THE PLUS ONE fb_hConvertToConsole applied when the
+	'' position was seeded.
+	if( x <> 0 ) then *x = tkort_last_x - 1
+	if( y <> 0 ) then *y = tkort_last_y - 1
+	if( z <> 0 ) then *z = tkort_last_z
+	if( buttons <> 0 ) then *buttons = tkort_last_buttons
+	if( clip <> 0 ) then *clip = 0
+
+	tkrt_hConvertFromConsole( x, y, 0, 0 )
+
+	return FB_RTERROR_OK
+end function
+
+'' ALWAYS FAILS. There is no console API to move the pointer.
+function tkort_ConsoleSetMouse alias "fb_ConsoleSetMouse" _
+	( byval x as long, byval y as long, byval cursor as long, byval clip as long ) as long
+
+	return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+end function
+
+end extern
+
+#endif

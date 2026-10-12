@@ -1,0 +1,66 @@
+'' modsym.ti -- which symbols are module code, and what a module lets out (ADR 0017). See
+'' modsym.tiko.
+
+#pragma once
+
+#include once "tko.ti"
+#include once "symbols/symbol.ti"
+#include once "symbols/resolve.ti"
+#include once "ast/nodes.ti"
+#include once "source/manager.ti"
+#include once "diag/engine.ti"
+#include once "types/type.ti"
+
+namespace Tko.ModSym
+
+'' THE UNIT IS A MODULE: these are its files, and its chain is 'acme.net.http'.
+declare sub Begin _
+    ( byref syms as Tko.SymbolTable, byref files as Tko.FileIdVec, byref chain as string )
+
+'' AFTER COLLECT, BEFORE RESOLVE (generic instances copy their generic's marks as they are
+'' made). SYMF_MODSRC on every symbol declared at module or namespace level in a file of
+'' the unit; SYMF_PUBLIC / SYMF_PRIVDECL where the declaration said 'public' / 'private'.
+declare sub Mark _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+      byref info as Tko.SemanticInfo, byref src as Tko.SourceManager, _
+      byref diags as Tko.DiagnosticEngine )
+
+'' AN IMPORTER'S VIEW OF THE INTERFACES IT READ (RFC-0004 §5): SYMF_IMPORTED on every
+'' module- or namespace-level symbol declared in one of those files, and SYMF_PUBLIC where
+'' the interface says 'public'.
+declare sub MarkImported _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+      byref info as Tko.SemanticInfo, byref src as Tko.SourceManager, _
+      byref ifaces as Tko.FileIdVec )
+
+'' The unit's MODULE scope, which Collect opens inside the global one.
+declare function ModuleScope( byref syms as Tko.SymbolTable ) as Tko.ScopeId
+
+'' A MODULE'S DECLARATIONS HAVE NO ORDER (RFC-0003 §5): a procedure, type, enum, constant,
+'' typedef, generic, namespace or 'dim shared' of the module unit -- or an enum's member,
+'' or a type's -- may be used above where it is declared, in the same file or an earlier
+'' one. A module-level variable that is not shared belongs to the module's top-level code,
+'' which runs in order, and keeps the rule, as every local does. In an importer, the names
+'' a module's interface brought in are free the same way.
+declare function OrderFree( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId ) as boolean
+
+'' A PROCEDURE'S LINKAGE, as module code (RFC-0002 §4): 'private' is internal, as always;
+'' 'public' is an ordinary external symbol; and everything else -- the default -- is
+'' external but HIDDEN, and never dllexported: other files of the module and an importer's
+'' instantiation of an exported generic can call it, and nothing outside the program can.
+declare sub ProcLinkage _
+    ( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, _
+      byref isPrivate as boolean, byref isExported as boolean, byref isHidden as boolean )
+
+'' A SYMBOL MADE AFTER Mark -- a generic instance's re-parsed body -- takes its generic's
+'' module marks.
+declare sub Inherit( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, byval from as Tko.SymbolId )
+
+'' A PUBLIC DECLARATION THAT NAMES A MODULE-PRIVATE TYPE (RFC-0002 §3): TKO0868. An importer
+'' handed a value of a type it cannot name could not declare a variable to hold it. After
+'' Check: a declaration's types are not all known until Resolve has run.
+declare sub CheckPublicTypes _
+    ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref diags as Tko.DiagnosticEngine )
+
+end namespace

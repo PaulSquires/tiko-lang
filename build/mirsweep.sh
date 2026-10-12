@@ -41,7 +41,7 @@
 #
 # THE LESSON, since the count is now uninformative: every site that builds a
 # declaration has to report what the call is about to push rather than assume it.
-# lowercall.bas says so in its own comment and is the model.
+# lowercall.tiko says so in its own comment and is the model.
 #
 # MEASURE IT THE WAY THIS SCRIPT DOES -- '-i <corpus>/fbcunit/inc' AND TKO_INCLUDE set.
 # Both matter and each was got wrong once while deriving the old family list: without

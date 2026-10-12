@@ -1,0 +1,1488 @@
+'' lowerterm.tiko -- ONE TERM of a string operation, as the (pointer, length) pair the
+'' runtime takes.
+''
+'' Every string entry point has the same argument shape and this is what fills it: a
+'' literal, a constant, an iif, a concatenation with no address, a fixed 'zstring * N',
+'' a descriptor. The 'isU' flag is which FLAVOUR the destination is, because a UTF-16
+'' operation needs a UTF-16 literal and a tagged length where the narrow one needs
+'' neither.
+''
+'' Split out of lowerstr.tiko at the 1500-line cap. Nothing moved with it changed.
+
+#import "std/containers"
+#include once "lowerctx.ti"
+
+namespace Tko.Mir
+
+using Tko
+
+'' Defined at the foot of this file, and used above it.
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+
+
+'' The (pointer, length) pair for one term of a concatenation.
+function EmitStrTerm _
+    ( byref c as Ctx, byref args as containers.Array( of ulong ), _
+      byval term as Tko.NodeId, byval isU as boolean = false ) as boolean
+
+    term = Unparen_( c, term )
+
+    '' A STRING-TO-STRING 'cast' IS THE IDENTITY -- see StrIdentityConvOperand_.
+    dim as Tko.NodeId sic = StrIdentityConvOperand_( c, term )
+    if sic <> Tko.NODE_NONE then term = Unparen_( c, sic )
+
+    '' 'type<string>( e )' OVER A WIDE OR UTF-16 e IS A NARROW CONVERSION, and its node has
+    '' no address for the type test below -- StrDescriptorOf_ makes it. Its flavour is
+    '' NARROW, so a UTF-16 context converts the result like any narrow term.
+    if (isU = false) andalso (NarrowingTypeLitOperand_( c, term ) <> Tko.NODE_NONE) then
+        dim as MirValue tlv
+        if StrDescriptorOf_( c, term, tlv ) = false then return false
+        PushStrArg( args, tlv )
+        return true
+    end if
+
+    '' 'input( n [, [#]f] )' IN EXPRESSION POSITION HANDS BACK A DESCRIPTOR, and its
+    '' node is an N_INTRINSIC -- nothing here claimed it, so 'd = input( 2, #1 )'
+    '' declined while the wide half lowered. StrDescriptorOf_ knows the shape.
+    if c.ast->Kind( term ) = Tko.N_INTRINSIC then
+        dim as Tko.StmtPayload ptr itp = StmtOf( c, term )
+        if (itp->extra and 8) <> 0 then
+            dim as MirValue idv
+            if StrDescriptorOf_( c, term, idv ) then
+                args.Push( cast( ulong, idv.kind ) )
+                args.Push( cast( ulong, idv.id ) )
+                args.Push( cast( ulong, MV_CONST_INT ) )
+                args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+                return true
+            end if
+        end if
+    end if
+
+    '' A STRING CONSTANT IS ITS TEXT, and it has to be recognised BEFORE the type test
+    '' below claims it and asks for an address a constant has not got.
+    '' '__FUNCTION__' IS A STRING LITERAL, folded to the enclosing procedure's name --
+    '' measured, fbc folds a concatenation containing one to a single literal. It is
+    '' recognised here for the same reason a string CONSTANT is: the type test below
+    '' would claim it and then ask a predeclared name for an address it has not got.
+    if c.ast->Kind( term ) = Tko.N_IDENT then
+        dim as Tko.Symbol ptr fns = c.syms->SymbolAt( c.info->RefOf( term ) )
+        if fns <> 0 then
+            if (fns->flags and Tko.SYMF_FUNCNAME) <> 0 then
+                dim as string fnText = Tko.Mangle.ProcNameOrMain( _
+                    *c.syms, c.curProcSym, *c.names )
+                if isU then
+                    PushUStrLiteralArg( c, args, _
+                        c.m->AddWideStringLiteral( fnText, *c.names ), len( fnText ) )
+                else
+                    PushStrLiteralArg( args, _
+                        c.m->AddStringLiteral( fnText, *c.names ), len( fnText ) )
+                end if
+                return true
+            end if
+        end if
+    end if
+
+    if IsConstNameRef_( c, term ) then
+        dim as string ct
+        if ConstStringTextOf_( c, term, ct ) then
+            if isU then
+                dim as long cch = 0
+                dim as long cgi = WideFoldedText_( c, term, ct, cch )
+                PushUStrLiteralArg( c, args, cgi, cch )
+            else
+                PushStrLiteralArg( args, c.m->AddStringLiteral( ct, *c.names ), len( ct ) )
+            end if
+            return true
+        end if
+    end if
+
+    '' ADJACENT LITERALS ARE ONE STRING. '"a" "b"' is N_STRCAT, and the corpus writes
+    '' it as '(#op " ")' -- a STRINGIZE followed by a literal -- which is how
+    '' structs/ops.bas declares all 36 of its operators. Nothing here looked at one, so
+    '' every 'return (#op " ") & a.value' declined.
+    dim as string catText
+    if StrCatText_( c, term, catText ) then
+        if isU then
+            dim as long kch = 0
+            dim as long kgi = WideFoldedText_( c, term, catText, kch )
+            PushUStrLiteralArg( c, args, kgi, kch )
+        else
+            PushStrLiteralArg( args, c.m->AddStringLiteral( catText, *c.names ), _
+                               len( catText ) )
+        end if
+        return true
+    end if
+
+    if c.ast->Kind( term ) = Tko.N_STRING_LIT then
+        '' Named litText, not text: 'Text' is a namespace and FreeBASIC is
+        '' case-insensitive, so a local called text shadows it.
+        dim as string litText = StringLitText_( c, term )
+        '' A USTRING LITERAL IS UTF-16 AND ITS LENGTH IS TAGGED. Emitting the narrow
+        '' global here is what put narrow bytes in a UTF-16 descriptor.
+        if isU then
+            '' THE UNITS, not the spelling: '!"\u0041"' is one character written
+            '' with six, and both the global and the length come from the same
+            '' decode.
+            dim as long wch = 0
+            dim as long wg = WideLitGlobal_( c, term, wch )
+            if wg < 0 then return false
+            PushUStrLiteralArg( c, args, wg, wch )
+        else
+            PushStrLiteralArg( args, c.m->AddStringLiteral( litText, *c.names ), _
+                               len( litText ) )
+        end if
+        return true
+    end if
+    '' A STRING 'iif' produces a temporary DESCRIPTOR, whose address is exactly what
+    '' this needs. Tried before the type test because Check computes no type for an
+    '' iif call, so a type-first test would never reach it.
+    '' THE DESTINATION IS ALREADY KNOWN TO BE A STRING, so an iif here is a string
+    '' iif whatever its arms look like. Asking IsStringIif_ instead meant every
+    '' 'iif( c, hex( 1 ), hex( 2 ) )' declined: Check computes no type for an
+    '' intrinsic call, so neither arm looked like a string and the whole statement
+    '' produced nothing.
+    dim as Tko.NodeId iC, iT, iE
+    if IsIifCall_( c, term, iC, iT, iE ) andalso (IifArmsScalar_( c, iT, iE ) = false) then
+        dim as MirValue iv
+        if LowerStringIif_( c, iC, iT, iE, iv ) = false then return false
+        if iv.kind = cast( ubyte, MV_NONE ) then return false
+        PushStrArg( args, iv )
+        return true
+    end if
+
+    '' A NUMBER IN A CONCATENATION IS RENDERED, not refused: 'x & ", "' over a byte is
+    '' 'fb_IntToStr( (int32)X )' and then an ordinary narrow concat of the result. The
+    '' renderer already existed for STR( ) and only STR( ) could reach it, so every
+    '' 'number & string' in the corpus declined -- which is what the wstring PRINT
+    '' files are made of.
+    ''
+    '' Tried before the string tests below rather than after: a number is not
+    '' string-typed, so nothing else here would look at it.
+    dim as Tko.TypeId termT = c.info->TypeOf_( term )
+    if termT <> Tko.TYPE_NONE then
+        if IsStringType( c, termT ) = false then
+            dim as longint tsk
+            if StrSwapKind_( c, termT, tsk ) = -1 then
+                dim as MirValue nv
+                if NumberToStrDesc_( c, term, nv ) then
+                    '' ...AND FOR A UTF-16 CONSUMER, DECODED: the rendering is NARROW, and
+                    '' handed to fb_UStrConcatAssign as it stood, "42" (34 32) was read as ONE
+                    '' unit, U+3234, and the NUL and whatever lay past it as the next -- 'u = u
+                    '' & n' gave "a", U+3234, NUL, and the trailing unit varied run to run.
+                    '' That was fbc-modern's own lowering, copied; fixed there 2026-09-19, it
+                    '' now emits 'fb_StrToUStr( vr, -1 )' first, as the chain path here always
+                    '' did (LowerUStrChain).
+                    if isU then
+                        dim as containers.Array( of ulong ) ncv
+                        PushStrArg( ncv, nv )
+                        dim as MirValue nuv = EmitRtl( c, RTL_STR_TO_USTR, ncv )
+                        if nuv.kind = cast( ubyte, MV_NONE ) then return false
+                        PushStrArg( args, nuv )
+                        return true
+                    end if
+                    PushStrArg( args, nv )
+                    return true
+                end if
+            end if
+        end if
+    end if
+
+    '' 'dir( ... )' -- an INTRINSIC that hands back a descriptor pointer, tried before
+    '' the ordinary call path below: Check now types it STRING, so that path would
+    '' claim it and then look for a callee symbol it has not got.
+    dim as MirValue drv
+    if LowerDir( c, term, drv ) then
+        PushStrArg( args, drv )
+        return true
+    end if
+
+    '' A CALL TO A STRING-RETURNING FUNCTION, before the type test below claims it.
+    ''
+    '' 's = f( 1 )' and 'print f( 2 )' both produced NOTHING -- the term is string-typed,
+    '' so the type test asked for its address, an N_CALL has none, and the whole
+    '' statement declined. One of the commonest shapes there is.
+    ''
+    '' A string-returning function RETURNS THE DESCRIPTOR POINTER, which is what fbc's
+    '' own C says: 'FBSTRING* vr$1 = F( 1 ); fb_StrAssign( &S, -1, vr$1, -1, 0 )'. The
+    '' intrinsic family above reaches the same place by its own route because Check
+    '' computes no type for those calls.
+    if c.ast->Kind( term ) = Tko.N_CALL then
+        if IsStringType( c, c.info->TypeOf_( term ) ) then
+            '' TYPED MT_PTR, not left to the expression's own type. A string is an
+            '' AGGREGATE to LowerType, so LowerExpr would type the call 'agg' and the
+            '' descriptor pointer would come back sign-extended and bitcast. The
+            '' FUNCTION returns a pointer -- that is what its own declaration says.
+            dim as Tko.ListPayload ptr scp = _
+                @c.ast->lists[cast( long, c.ast->nodes[cast( long, term )].data )]
+            dim as Tko.SymbolId scallee = c.info->RefOf( term )
+            if scallee = Tko.SYMBOL_NONE then scallee = c.info->RefOf( scp->target )
+            dim as MirValue scv = LowerCallParts( c, scp->target, scallee, _
+                                                  scp->first, scp->count, MT_PTR )
+            if scv.kind <> cast( ubyte, MV_NONE ) then
+                PushStrArg( args, scv )
+                return true
+            end if
+        end if
+    end if
+
+    '' A BARE STRING-RETURNING FUNCTION NAME, before the type test below claims it.
+    '' 's = curdir' names a function whose TYPE is string, so the type test takes its
+    '' ADDRESS -- and a function's address is a well-typed pointer, so fb_CurDir's entry
+    '' point was handed to fb_StrAssign as a descriptor and the whole thing verified.
+    dim as MirValue bpv
+    if LowerBareProcCall_( c, term, MT_PTR, bpv ) then
+        PushStrArg( args, bpv )
+        return true
+    end if
+
+    '' 'trim( s )', 'left( s, n )' and the rest hand back a descriptor pointer, which
+    '' is exactly what a term is. Tried before the type test: Check computes no type
+    '' for these calls either.
+    dim as MirValue rvv
+    if LowerStrRvalue( c, term, rvv ) then
+        PushStrArg( args, rvv )
+        return true
+    end if
+
+    '' A USER OPERATOR THAT RETURNS A STRING is a call and hands back a descriptor
+    '' pointer, exactly as a string-returning function does -- and it is spelled '-a'
+    '' or 'a + b', so it arrives as a UNARY or a BINARY and none of the tests above
+    '' looks at one.
+    dim as MirValue uopv
+    if LowerStrOperandOp_( c, term, uopv ) then
+        PushStrArg( args, uopv )
+        return true
+    end if
+
+    '' A FIXED-LENGTH STRING IS A CHAR ARRAY WITH NO DESCRIPTOR, so it passes its
+    '' ADDRESS and its DECLARED LENGTH where a var-length string passes -1 and lets the
+    '' descriptor say. Measured -- 'dim as string c : dim as zstring * 8 fa : c = fa':
+    ''
+    ''     fb_StrAssign( (void*)&C$1, -1ll, (void*)FA$1, 8ll, 0 );
+    ''
+    '' PushStrArg's -1 would have made the runtime read a length out of the first bytes
+    '' of the text. The reverse direction -- a fixed destination -- was already handled;
+    '' this is the same fact on the other side, and it declined outright: 'c = fa' is
+    '' one of the commonest shapes in the corpus and produced nothing at all.
+    '' A CONCATENATION, before the type test below claims it. Reached from the string
+    '' COMPARISON path -- 'if a + b = c' -- where the operands are not flattened; the
+    '' assignment path flattens first, so a term is never a concat there.
+    dim as MirValue tcc
+    if ConcatToTemp_( c, term, tcc ) then
+        args.Push( cast( ulong, tcc.kind ) ) : args.Push( cast( ulong, tcc.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+        return true
+    end if
+
+    '' A UDT CONVERTED BY 'operator cast'. A bare char* passes LENGTH 0 here, not -1
+    '' and not a declared count: measured, 'r = u' is
+    '' 'fb_StrAssign( &R, -1ll, vr, 0ll, 0 )'. 0 means NUL-terminated, work it out.
+    dim as boolean tRaw = false
+    dim as MirValue tuc
+    if UserCastToStr_( c, term, tuc, tRaw ) then
+        args.Push( cast( ulong, tuc.kind ) ) : args.Push( cast( ulong, tuc.id ) )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, iif( tRaw, 0, cast( longint, -1 ) ) ) )
+        return true
+    end if
+
+    '' A FIXED-LENGTH STRING passes its address and its ENCODED length -- kind 3 comes
+    '' back with the sign-tagged constant already in 'zn', so this is the same push as
+    '' the zstring case and the two share a branch.
+    '' KIND 4 IS 'ustring * N', and it belongs here for the same reason as the other
+    '' two: it is a char array with no descriptor and its tagged length is already in
+    '' 'zn'. It is taken ONLY when the destination is UTF-16, because its bytes are --
+    '' handing them to a narrow entry point would be the wrong encoding, not a shorter
+    '' string. Without it 'dim as ustring u = uf' had no term at all and the whole
+    '' initialiser was dropped.
+    dim as longint zn
+    dim as long zk = StrSwapKind_( c, c.info->TypeOf_( term ), zn )
+    if (zk = 4) andalso (isU = false) then return false
+    if (zk = 1) orelse (zk = 3) orelse (zk = 4) then
+        dim as MirValue za = LowerAddr( c, term )
+        if za.kind <> cast( ubyte, MV_NONE ) then
+            args.Push( cast( ulong, za.kind ) )
+            args.Push( cast( ulong, za.id ) )
+            PushStrLen_( c, args, zn )
+            return true
+        end if
+    end if
+
+    if IsStringType( c, c.info->TypeOf_( term ) ) = false then return false
+    dim as MirValue src = LowerAddr( c, term )
+    if src.kind = cast( ubyte, MV_NONE ) then return false
+    PushStrArg( args, src )
+    return true
+end function
+
+'' ------------------------------------------------------- ustring CONVERSION
+''
+'' A USTRING NEVER CONVERTS BY COPYING. It transcodes, and which entry point does it
+'' depends on the flavours of BOTH sides -- which is exactly what was missing: the
+'' flavour came from the DESTINATION alone and every term was pushed as if it shared
+'' it, so 'u = q' over a narrow string called fb_UStrAssign and put UTF-8 bytes in a
+'' UTF-16 descriptor. It lowered, it verified, and it was wrong every time.
+''
+'' Measured from what fbc emits, one statement at a time:
+''
+''     u = q            fb_UStrAssignFromA( u, -1, q, -1, 0, 0 )
+''     dim u = q        fb_UStrAssignFromA( u, -1, q, -1, 0, -1 )
+''     u = p            fb_WstrToUStr( p ) then the ordinary fb_UStrAssign
+''     s = u            fb_UStrAssignToA( s, -1, u, -1, 0, 0 )
+''     dim s = u        fb_UStrAssignToA( s, -1, u, -1, 0, -1 )
+''
+'' so the trailing int32 is -1 at a DECLARATION and 0 at a later store, the same
+'' distinction fb_StrInit and fb_StrAssign make by being separate functions.
+
+'' Which FLAVOUR one term of a chain is, which is not the same question as what the
+'' destination is.
+''
+'' NEUTRAL is the interesting one: a literal, a string CONSTANT and a rendered NUMBER
+'' all follow the destination -- measured, 'u = u & "lit"' emits the UTF-16 literal
+'' straight into fb_UStrConcatAssign and 'u = u & n' renders the number narrow and
+'' decodes it, fb_StrToUStr, before the same entry point (fbc-modern handed the narrow
+'' rendering over raw until 2026-09-19 -- see EmitStrTerm). An untyped term is neutral
+'' too, because Check computes no type for an intrinsic call and following the
+'' destination is what the code did before any of this.
+'' Is this the call 'str( x )'? THE MIRROR OF IsWstrCall_, and asked for the same
+'' reason: a term's width is decided before anything is emitted for it, and Check
+'' computes no type for an intrinsic call, so TermIsWide_ falls back on the operand.
+'' Over 'str( u )' where u is a UDT with 'operator cast' to a WSTRING that fallback
+'' says WIDE -- and str( ) is narrow by definition, whatever it was handed. Measured:
+''
+''     vr$2 = _ZN14UWSTRING_FIXEDcvwEv( &U1$0 );
+''     vr$3 = fb_WstrToStr( vr$2 );
+''     fb_StrInit( (void*)ZZ$0, 10ll, (void*)vr$3, -1ll, 0 );
+''
+'' -- a narrow destination and no wide transfer anywhere. tiko-lang instead routed
+'' 'dim s as string = str( u )' and 'print str( u )' through the wide-to-narrow slot
+'' path, which has no wide source to offer, and both declined.
+'' Moved here from lowerstr.tiko at the 1500-line cap, beside its mirror IsStrCall_.
+'' Nothing about it changed in the move.
+'' 'wstr( x )' -- a scalar or a narrow string widened into a fresh wide TEMPORARY.
+'' Returns false when the node is not one.
+''
+'' Measured: byte and short widen to int32 and go through fb_IntToWstr, ubyte and
+'' ushort to uint32 and fb_UIntToWstr -- there are NO per-width entries. A narrow
+'' string goes through fb_StrToWstr, which takes a RAW char*, so fbc dereferences the
+'' descriptor's data field at the call site rather than passing the descriptor.
+''
+'' The result is a temporary the caller must release with fb_WstrDelete, and LowerWstrOf
+'' registers it for that through WideConcatStep_ -- every row, the scalar one included.
+'' Is this the call 'wstr( x )'? Asked by the concatenation and PRINT paths, which need
+'' to know a term is WIDE before anything is emitted for it -- and its TYPE does not
+'' say so.
+function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if id = Tko.NODE_NONE then return false
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    if CallsUserProcNamedLikeBuiltin( c, id ) then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count < 1 then return false
+    if lp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    '' ...and the WIDE RADIX FAMILY, which is wide by the same rule and for the same
+    '' reason: Check computes no type for the call, so only the NAME says so.
+    select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    '' ...AND 'wspace( n )', which is wide for the same reason and was not here:
+    '' it lowered standalone -- fb_WstrSpace -- and compared against a wstring, but
+    '' inside a CONCATENATION TermIsWide_ asks this list, decided the term was
+    '' narrow, and sent it to the narrow emitter, which had nothing to give.
+    '' Measured: 'wstr( "a" ) + wspace( 3 )' is
+    '' 'fb_WstrConcat( L"a", fb_WstrSpace( 3 ) )'.
+    '' 'wchr( a, b, ... )' IS VARIADIC and wide whatever its arity, which is why the
+    '' one-argument guard is per-name and no longer at the top: measured,
+    '' 'dim s as zstring * 10 = wchr( 65 )' is
+    '' 'fb_WstrAssignToA_Init( S1, 10, L"A", 0 )' -- the code folded to a wide
+    '' literal -- and tiko-lang declined it while 'wstr( "B" )' beside it lowered.
+    case "wstr", "whex", "woct", "wbin", "wspace"
+        return (lp->count = 1)
+    case "wchr"
+        return true
+    end select
+    return false
+end function
+
+'' Moved here from lowerstr.tiko at the 1500-line cap. Nothing about it changed.
+function IsStrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if id = Tko.NODE_NONE then return false
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    if CallsUserProcNamedLikeBuiltin( c, id ) then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <> 1 then return false
+    if lp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, lp->target )].data )]
+    return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "str")
+end function
+
+function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
+
+    dim as Tko.NodeId t2 = Unparen_( c, term )
+    if c.ast->Kind( t2 ) = Tko.N_STRING_LIT then return STF_NEUTRAL
+    if IsConstNameRef_( c, t2 ) then
+        dim as string ct
+        '' ...but a 'const as ustring' IS ONE: 'print n & G' over 'const G as ustring' is a
+        '' ustring chain (ConcatTermsAreU_ asks the type), and with no UTF-16 term in it
+        '' LowerUStrChain declined and the statement was dropped -- TKO0994, the book's
+        '' ch03/declare.tiko.
+        if ConstStringTextOf_( c, t2, ct ) then
+            if IsUStringType( c, c.info->TypeOf_( t2 ) ) then return STF_UTF16
+            return STF_NEUTRAL
+        end if
+    end if
+
+    '' A MIXED CONCATENATION HAS NO TYPE OF ITS OWN, so the type test below answers
+    '' NEUTRAL for one and a ustring comparison then pushed its bytes unconverted.
+    '' Whether any TERM is wide is the question, and it is the same predicate the
+    '' narrow-destination path already asks.
+    if ConcatHasWideTerm_( c, t2 ) then return STF_WIDE
+    '' ...and so has 'right( "00" & wstr( i ), 2 )', whose type follows that chain's.
+    if IntrinOverWideConcat_( c, t2 ) then return STF_WIDE
+
+    dim as Tko.TypeId tt = c.info->TypeOf_( t2 )
+    if tt = Tko.TYPE_NONE then return STF_NEUTRAL
+    if IsUStringType( c, tt ) then return STF_UTF16
+    if WideStringElems( c, tt ) > 0 then return STF_WIDE
+    if c.types->Kind( tt ) = Tko.TK_BUILTIN then
+        if c.types->BuiltinOf( tt ) = Tko.TY_WSTRING then return STF_WIDE
+    end if
+    if IsStringType( c, tt ) then return STF_NARROW
+    dim as longint sn
+    if StrSwapKind_( c, tt, sn ) >= 0 then return STF_NARROW
+    '' A UDT WITH 'operator cast( ) as wstring' IS WIDE -- AfxNova's DWSTRING. Answered
+    '' NEUTRAL, 'dim as ustring u = dws' saw no flavour to convert from, EmitStrTerm had
+    '' no descriptor for a UDT, and the initialiser was DROPPED: the ustring stayed empty
+    '' with nothing declined. Measured, fbc calls the cast, then fb_WstrToUStr, then
+    '' fb_UStrInit -- the conversion WideTermAsUStr_ already makes once it is asked.
+    '' tracks' 'dim as ustring path_ = this.ConfigFilename' was this, and every setting
+    '' failed to load with 'config: no such file or directory'.
+    if UdtTermWide_( c, tt ) then return STF_WIDE      '' fbc's pick: [ustring, byref wstring] is UTF-16
+    if UdtCastIsUStr_( c, t2 ) then return STF_UTF16     '' ...and one with 'as ustring' is UTF-16 (T39)
+    '' ...AND ONE WHOSE PICKED CAST IS NARROW IS NARROW, not 'follow the destination': into a ustring
+    '' it CONVERTS. Measured, 'dim as ustring s = u' over [as string, byref as zstring] is the
+    '' zstring cast and fb_UStrAssignFromA; NEUTRAL handed the char* to fb_UStrInit as UTF-16.
+    dim as Tko.SymbolId nsym
+    if ScoredStrTerm_( c, tt, nsym ) = 1 then return STF_NARROW
+    return STF_NEUTRAL
+end function
+
+'' A WIDE term as a USTRING DESCRIPTOR -- fb_WstrToUStr, which takes the bare uint16*
+'' and hands back a descriptor the ordinary ustring entry points accept.
+function WideTermAsUStr_ _
+    ( byref c as Ctx, byval term as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    '' A CHAIN WITH A USTRING TERM IS A USTRING CHAIN, whatever else is in it. Measured, fbc
+    '' builds '"exactly " & wchr( 34 ) & u' with fb_UStrConcat alone, the literals and the
+    '' wchr as UTF-16; the wide route below passed u's descriptor to fb_WstrConcatWA as
+    '' narrow text, so "VFV" came out "V" and ApexWealth's lookup error named nothing.
+    if c.ast->Kind( Unparen_( c, term ) ) = Tko.N_BINARY then
+        dim as containers.Array( of ulong ) uterms
+        FlattenConcat( c, Unparen_( c, term ), uterms )
+        if uterms.Count >= 2 then
+            if ConcatTermsAreU_( c, uterms ) then return ConcatTermsToTempDesc_( c, uterms, outv )
+        end if
+    end if
+    dim as MirValue wp
+    '' A CONCATENATION HAS NO ADDRESS AND NO SINGLE OPERAND. It is built into a
+    '' wide temporary first and converted from THAT -- measured, 'u = w & "z"' is
+    '' 'fb_WstrConcatWA( W, "z", 2 )' and then fb_WstrToUStr over its result.
+    '' WideOperand_ answers for a single term only, so every wide concatenation
+    '' reaching a ustring -- as an argument or as a comparison operand -- declined.
+    if ConcatHasWideTerm_( c, term ) then
+        if WideConcatToTemp_( c, term, wp ) = false then return false
+    elseif WideOperand_( c, term, wp ) = false then
+        return false
+    end if
+    if wp.kind = cast( ubyte, MV_NONE ) then return false
+    dim as containers.Array( of ulong ) wargs
+    wargs.Push( cast( ulong, wp.kind ) ) : wargs.Push( cast( ulong, wp.id ) )
+    outv = EmitRtl( c, RTL_WSTR_TO_USTR, wargs )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' ONE term into a destination of a DIFFERENT flavour. False when the two agree, which
+'' leaves the caller's existing path to handle it, and false again for a mismatch this
+'' does not model -- a chain, or a WIDE destination -- because emitting the same-flavour
+'' call anyway is what produced the wrong bytes in the first place.
+function LowerStrConvertTerm _
+    ( byref c as Ctx, byref dst as MirValue, byval dstIsU as boolean, _
+      byval term as Tko.NodeId, byval isInit as boolean ) as boolean
+
+    dim as long tf = StrTermFlavour_( c, term )
+    dim as longint flag = 0
+    if isInit then flag = -1
+
+    if dstIsU then
+        if tf = STF_NARROW then
+            dim as containers.Array( of ulong ) args
+            PushStrArg( args, dst )
+            if EmitStrTerm( c, args, term, false ) = false then return false
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+            args.Push( cast( ulong, MV_CONST_INT ) )
+            args.Push( cast( ulong, cast( ulongint, flag ) ) )
+            return (EmitRtl( c, RTL_USTR_FROM_A, args ).kind <> cast( ubyte, MV_NONE ))
+        end if
+        if tf = STF_WIDE then
+            dim as MirValue uv
+            if WideTermAsUStr_( c, term, uv ) = false then return false
+            dim as containers.Array( of ulong ) args
+            PushStrArg( args, dst )
+            PushStrArg( args, uv )
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+            dim as long which = RTL_USTR_ASSIGN
+            if isInit then which = RTL_USTR_INIT
+            return (EmitRtl( c, which, args ).kind <> cast( ubyte, MV_NONE ))
+        end if
+        return false
+    end if
+
+    '' A NARROW destination with a UTF-16 source is the same fact the other way round.
+    if tf = STF_UTF16 then
+        dim as containers.Array( of ulong ) args
+        PushStrArg( args, dst )
+        if EmitStrTerm( c, args, term, true ) = false then return false
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( cast( ulong, cast( ulongint, flag ) ) )
+        return (EmitRtl( c, RTL_USTR_TO_A, args ).kind <> cast( ubyte, MV_NONE ))
+    end if
+    return false
+end function
+
+'' True when a chain cannot be built with ONE flavour's entry points -- any term of a
+'' flavour the destination is not. The caller declines rather than emitting the
+'' same-flavour call over a source that is not that flavour.
+function StrChainNeedsConvert _
+    ( byref c as Ctx, byval dstIsU as boolean, _
+      byref terms as containers.Array( of ulong ) ) as boolean
+
+    dim as boolean anyUW = false, anyRendered = false
+    for i as long = 0 to terms.Count - 1
+        dim as Tko.NodeId tn = cast( Tko.NodeId, terms[i] )
+        dim as long tf = StrTermFlavour_( c, tn )
+        if tf = STF_NEUTRAL then
+            '' A NEUTRAL term that is not a literal or a string constant is a value the
+            '' concatenation RENDERS -- 'n' in '"u" & n' -- and it renders NARROW.
+            dim as Tko.NodeId tu = Unparen_( c, tn )
+            if c.ast->Kind( tu ) <> Tko.N_STRING_LIT then
+                dim as string ctx_
+                if ConstStringTextOf_( c, tu, ctx_ ) = false then anyRendered = true
+            end if
+            continue for
+        end if
+        if (tf = STF_UTF16) orelse (tf = STF_WIDE) then anyUW = true
+        if dstIsU then
+            if tf <> STF_UTF16 then return true
+        else
+            if tf = STF_UTF16 then return true
+        end if
+    next
+    '' A USTRING DESTINATION FOR A CHAIN WITH NO USTRING IN IT. '"u" & n' is string &
+    '' integer, a NARROW string. Measured: fbc builds 'n & "x"' and '"a" & n & "b"'
+    '' with fb_StrConcat and transcodes ONCE, fb_UStrAssignFromA. tiko built a ustring
+    '' chain around fb_IntToStr's narrow temporary instead, and 'function Mk( n ) as
+    '' ustring : return "u" & n' ran the runtime out of descriptors after ~900 calls.
+    '' 'u & n', with the ustring in it, is fbc's fb_UStrConcatAssign and stays as it was.
+    dim as boolean multi = (terms.Count >= 2)
+    if dstIsU andalso multi andalso (anyUW = false) andalso anyRendered then
+        return true
+    end if
+    return false
+end function
+
+'' The destination's flavour when there is no NODE to ask -- a string-returning
+'' function's result descriptor, or a declaration's slot. The SLOT carries the frontend
+'' type, which is the only thing that knows a ustring from a string here.
+function IsUStringDest_( byref c as Ctx, byref dst as MirValue ) as boolean
+    if dst.kind <> cast( ubyte, MV_LOCAL ) then return false
+    if dst.id < 0 then return false
+    if dst.id >= c.f->locals.Count then return false
+    return IsUStringType( c, c.f->locals[dst.id].frontendType )
+end function
+
+'' One term of a mixed chain pushed as the (pointer, length) pair the chosen entry point
+'' wants. 'wantU' is the flavour that SIDE of the call takes, which is not always the
+'' term's own: a WIDE term becomes a ustring descriptor through fb_WstrToUStr, and a
+'' neutral one follows whatever it was asked for.
+private function PushChainTerm_ _
+    ( byref c as Ctx, byref args as containers.Array( of ulong ), _
+      byval term as Tko.NodeId, byval wantU as boolean ) as boolean
+
+    if wantU then
+        if StrTermFlavour_( c, term ) = STF_WIDE then
+            dim as MirValue uv
+            if WideTermAsUStr_( c, term, uv ) = false then return false
+            PushStrArg( args, uv )
+            return true
+        end if
+    end if
+    return EmitStrTerm( c, args, term, wantU )
+end function
+
+'' A NUMBER RENDERED INTO A CHAIN -- the term EmitStrTerm's number arm claims -- is NARROW,
+'' not neutral: fbc renders it with fb_LongintToStr and its siblings and joins it with
+'' fb_UStrConcatUA / AU, or converts it with fb_StrToUStr when building in place. A literal
+'' and a string constant are the neutral terms; a number never is. Measured, n = 25:
+'' 'dim v as ustring = w & n' is fb_UStrConcatUA, and treating the number as neutral
+'' concatenated its narrow digits as UTF-16 -- '25' printed as U+3532.
+'' A UDT's NARROW 'operator cast' -- to zstring or string, byref, pointer or value -- or
+'' SYMBOL_NONE. The same walk WideCastOverload_ makes, for the other width: a UDT that
+'' declares BOTH a 'byref as const zstring' and a 'byref as const wstring' cast is joined
+'' NARROW by fbc -- measured, 'dim as ustring t = "x=" & d' is 'x=narrow' -- so the wide
+'' claim in IsRenderedNumberTerm_ below has to know there is no narrow cast beside it.
+function NarrowCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId cur
+    for pass as long = 0 to 1
+        cur = UdtMemberNamed_( c, t, "cast" )
+        while cur <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
+            if cse = 0 then exit while
+            if (pass = 0) andalso CastYieldsPtr_( c, cur ) then cur = cse->nextOverload : continue while   '' a pointer last
+            if cse->type_ <> Tko.TYPE_NONE then
+                dim as Tko.TypeId inner = c.types->Unqualify( cse->type_ )
+                if c.types->Kind( inner ) = Tko.TK_REFERENCE then
+                    inner = c.types->Unqualify( c.types->Inner( inner ) )
+                end if
+                if c.types->Kind( inner ) = Tko.TK_POINTER then
+                    inner = c.types->Unqualify( c.types->Inner( inner ) )
+                end if
+                if c.types->Kind( inner ) = Tko.TK_BUILTIN then
+                    select case c.types->BuiltinOf( inner )
+                    case Tko.TY_ZSTRING, Tko.TY_STRING
+                        return cur
+                    end select
+                end if
+            end if
+            cur = cse->nextOverload
+        wend
+    next
+    return Tko.SYMBOL_NONE
+end function
+
+function IsRenderedNumberTerm_( byref c as Ctx, byval term as Tko.NodeId ) as boolean
+    term = Unparen_( c, term )
+    if c.ast->Kind( term ) = Tko.N_STRING_LIT then return false
+    dim as Tko.TypeId tt = c.info->TypeOf_( term )
+    if tt = Tko.TYPE_NONE then return false
+    if IsStringType( c, tt ) then return false
+    '' A UDT THAT CASTS TO A WSTRING IS NOT A NUMBER -- AfxNova's DWSTRING. StrSwapKind_ is -1
+    '' for every non-string, so this called it a rendered number, and LowerUStrChain let that
+    '' override StrTermFlavour_'s WIDE and forced it NARROW, where EmitStrTerm has no form
+    '' for a UDT. Every ustring chain holding one was dropped: tracks' 's &= "TwsHost=" &
+    '' this.TwsHost & nl' and its CATEGORY line lost their settings on each save. A UDT with
+    '' a NARROW cast as well is left alone -- fbc joins that one narrow; see above.
+    if UdtCastIsUStr_( c, term ) then return false     '' a ustring cast is a UTF-16 term (T39)
+    if UdtTermWide_( c, tt ) then return false
+    dim as longint tsk
+    return (StrSwapKind_( c, tt, tsk ) = -1)
+end function
+
+function ChainHasRenderedNumber_( byref c as Ctx, byref terms as containers.Array( of ulong ) ) as boolean
+    for i as long = 0 to terms.Count - 1
+        if IsRenderedNumberTerm_( c, cast( Tko.NodeId, terms[i] ) ) then return true
+    next
+    return false
+end function
+
+'' A MIXED-FLAVOUR CHAIN, folded LEFT TO RIGHT with a fresh temporary per step. Every
+'' shape below was read out of what fbc emits:
+''
+''     v = q + u + r     UStrConcatAU( t1, q, u )   UStrConcatUA( t2, t1, r )
+''     v = q + r + u     StrConcat   ( t1, q, r )   UStrConcatAU( t2, t1, u )
+''     v = u + q + r     UStrConcatUA( t1, u, q )   UStrConcatUA( t2, t1, r )
+''     s = q + u + r     the same fold, then UStrAssignToA
+''     v = "lit" + q + u StrConcat   ( t1, lit, q ) UStrConcatAU( t2, t1, u )
+''     v = p + u         WstrToUStr( p ) then UStrConcat
+''
+'' so the ACCUMULATOR has a flavour of its own and the entry point names which side is
+'' the ustring: UA when the accumulator is, AU when the term is, plain UStrConcat when
+'' both are and fb_StrConcat when neither is. A NEUTRAL term -- a literal, a constant, a
+'' rendered number -- takes the accumulator's flavour, which is what makes '"lit" + q'
+'' fold narrow before the ustring arrives.
+''
+'' A chain with a NARROW term, a WIDE one and a ustring used to be refused here; it is
+'' folded now, left to right -- see 'A CHAIN CARRYING ALL THREE WIDTHS' below. A UDT that
+'' casts to a wstring (AfxNova's DWSTRING) is a WIDE term, not a rendered number: see
+'' IsRenderedNumberTerm_.
+function LowerUStrChain _
+    ( byref c as Ctx, byref dst as MirValue, byval dstIsU as boolean, _
+      byref terms as containers.Array( of ulong ), byval isInit as boolean ) as boolean
+
+    if terms.Count < 2 then return false
+
+    dim as boolean hasN = false, hasW = false, hasU = false
+    for i as long = 0 to terms.Count - 1
+        dim as long tfc = StrTermFlavour_( c, cast( Tko.NodeId, terms[i] ) )
+        if IsRenderedNumberTerm_( c, cast( Tko.NodeId, terms[i] ) ) then tfc = STF_NARROW
+        select case tfc
+        case STF_NARROW : hasN = true
+        case STF_WIDE   : hasW = true
+        case STF_UTF16  : hasU = true
+        end select
+    next
+    '' A WIDE TERM IN A USTRING DESTINATION IS A USTRING TERM. 'dim as ustring u =
+    '' "caf" & wchr( &hE9 )' has no ustring-TYPED term at all -- a narrow literal and a
+    '' wide call -- so this refused the chain, and the narrow fallback then pushed the
+    '' wide term at narrow width and failed too. Fourteen corpus statements, every one
+    '' of them in a DECLARATION, which is what made it look like an initialiser gap.
+    ''
+    '' Measured, fbc const-folds the whole chain to one UTF-16 literal; what is emitted
+    '' here is fb_WstrToUStr on the wide term and fb_UStrConcat over the rest, which is
+    '' the same VALUE by the same runtime and is what the non-constant chain gets from
+    '' fbc too.
+    if (hasU = false) andalso (dstIsU = false) then return false
+    if (hasU = false) andalso (hasW = false) then return false
+    '' A CHAIN CARRYING ALL THREE WIDTHS IS THIS FOLD'S BUSINESS TOO. The refusal that
+    '' stood here said a narrow-plus-wide prefix folds into a WIDE temporary first,
+    '' which is fbc's business and not this one's -- and for 's & w & u' that is exactly
+    '' what fbc does, fb_WstrConcatAW then fb_WstrToUStr. But for 'w & u & s' it does
+    '' NOT: measured,
+    ''
+    ''     FBUSTRING* vr$6  = fb_WstrToUStr ( (uint16*)W$0 );
+    ''     FBUSTRING* vr$9  = fb_UStrConcat  ( &TMP$6$0, vr$6, -1ll, &U$0,  -1ll );
+    ''     FBUSTRING* vr$12 = fb_UStrConcatUA( &TMP$7$0, vr$9, -1ll, &S$0,  -1ll );
+    ''
+    '' which is the left-to-right fold below, term for term. The refusal was blunt: it
+    '' turned away six orderings to describe one, and all six produce the same value by
+    '' the same runtime -- 'fb_UStrConcatAU( &TMP, &S$0, -1ll, &U$0, -1ll )' is
+    '' measured to be the narrow-then-UTF-16 step, so the accumulator reaches UTF-16 by
+    '' a different route and not to a different string. Run, fbc prints "wus" and "swu".
+
+    '' The accumulator starts as the FIRST NON-NEUTRAL term's flavour, and a wide one
+    '' becomes UTF-16 as soon as it meets a ustring -- which is every chain here.
+    dim as boolean accU = dstIsU
+    for i as long = 0 to terms.Count - 1
+        dim as long f0 = StrTermFlavour_( c, cast( Tko.NodeId, terms[i] ) )
+        '' A RENDERED NUMBER STARTS A NARROW ACCUMULATOR: 'dim v as ustring = "q" & n & w'
+        '' is fb_StrConcat( "q", n ) then fb_UStrConcatAU, measured.
+        if IsRenderedNumberTerm_( c, cast( Tko.NodeId, terms[i] ) ) then f0 = STF_NARROW
+        if f0 = STF_NEUTRAL then continue for
+        accU = (f0 <> STF_NARROW)
+        exit for
+    next
+
+    dim as MirValue acc
+    dim as boolean haveAcc = false
+
+    for i as long = 1 to terms.Count - 1
+        dim as Tko.NodeId tn = cast( Tko.NodeId, terms[i] )
+        dim as long tf = StrTermFlavour_( c, tn )
+        dim as boolean termU = (tf = STF_UTF16) orelse (tf = STF_WIDE)
+        if tf = STF_NEUTRAL then termU = accU
+        '' ...and is joined as NARROW, never at the accumulator's flavour: 'w & n' is
+        '' fb_UStrConcatUA, where treating it as neutral chose fb_UStrConcat.
+        if IsRenderedNumberTerm_( c, tn ) then termU = false
+
+        dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        dim as MirValue tmp
+        tmp.kind = cast( ubyte, MV_LOCAL )
+        tmp.ty = cast( ubyte, MT_PTR )
+        tmp.id = slot
+        '' AN UNCLEARED DESCRIPTOR IS A WILD POINTER. fb_StrConcat and its ustring
+        '' siblings REALLOCATE the destination's buffer, so a fresh 24-byte alloca
+        '' full of stack leftovers is handed to the allocator as a live block.
+        '' Measured: 'dim as ustring k = "k" + str( 1 )' exits 0xC0000374, heap
+        '' corruption, when the surrounding frame happens to leave a plausible
+        '' pointer there -- and prints correctly when it does not, which is why the
+        '' whole corpus ran green over it.
+        ZeroStrTempAtEntry_( c, tmp )
+
+        dim as containers.Array( of ulong ) args
+        args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )
+
+        '' The LEFT operand: the previous step's result, or the first term.
+        if haveAcc then
+            PushStrArg( args, acc )
+        else
+            if PushChainTerm_( c, args, cast( Tko.NodeId, terms[0] ), accU ) = false then
+                return false
+            end if
+        end if
+        if PushChainTerm_( c, args, tn, termU ) = false then return false
+
+        dim as long which = RTL_STR_CONCAT
+        if accU andalso termU then
+            which = RTL_USTR_CONCAT
+        elseif accU then
+            which = RTL_USTR_CONCAT_UA
+        elseif termU then
+            which = RTL_USTR_CONCAT_AU
+        end if
+        acc = EmitRtl( c, which, args )
+        if acc.kind = cast( ubyte, MV_NONE ) then return false
+        haveAcc = true
+        accU = accU orelse termU
+    next
+
+    '' ...and the accumulator into the destination, which is the same four-way choice
+    '' one more time.
+    dim as longint flag = 0
+    if isInit then flag = -1
+    dim as containers.Array( of ulong ) fin
+    PushStrArg( fin, dst )
+    PushStrArg( fin, acc )
+    fin.Push( cast( ulong, MV_CONST_INT ) ) : fin.Push( 0 )
+    if accU andalso dstIsU then
+        dim as long w2 = RTL_USTR_ASSIGN
+        if isInit then w2 = RTL_USTR_INIT
+        return (EmitRtl( c, w2, fin ).kind <> cast( ubyte, MV_NONE ))
+    end if
+    fin.Push( cast( ulong, MV_CONST_INT ) )
+    fin.Push( cast( ulong, cast( ulongint, flag ) ) )
+    if accU then
+        return (EmitRtl( c, RTL_USTR_TO_A, fin ).kind <> cast( ubyte, MV_NONE ))
+    end if
+    if dstIsU then
+        return (EmitRtl( c, RTL_USTR_FROM_A, fin ).kind <> cast( ubyte, MV_NONE ))
+    end if
+    return false
+end function
+
+'' AN ALL-NARROW CHAIN INTO A USTRING DESTINATION. Measured: fbc folds the narrow part
+'' with fb_StrConcat into a temporary and transcodes ONCE at the end --
+''
+''     u = q + q     fb_StrConcat( &TMP, q, -1, q, -1 )
+''                   fb_UStrAssignFromA( &U, -1, vr, -1, 0, 0 )
+''
+'' rather than transcoding each term. The trailing flag is -1 at a declaration.
+function LowerNarrowChainToU_ _
+    ( byref c as Ctx, byref dst as MirValue, _
+      byref terms as containers.Array( of ulong ), byval isInit as boolean ) as boolean
+
+    if terms.Count < 2 then return false
+    dim as long slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    dim as MirValue tmp
+    tmp.kind = cast( ubyte, MV_LOCAL )
+    tmp.ty = cast( ubyte, MT_PTR )
+    tmp.id = slot
+    '' See the sibling above: fb_StrConcat reallocates its destination, so the
+    '' descriptor has to be cleared before the first term reaches it.
+    ZeroStrTempAtEntry_( c, tmp )
+
+    dim as containers.Array( of ulong ) args
+    args.Push( cast( ulong, tmp.kind ) ) : args.Push( cast( ulong, tmp.id ) )
+    if EmitStrTerm( c, args, cast( Tko.NodeId, terms[0] ), false ) = false then return false
+    if EmitStrTerm( c, args, cast( Tko.NodeId, terms[1] ), false ) = false then return false
+    dim as MirValue acc = EmitRtl( c, RTL_STR_CONCAT, args )
+    if acc.kind = cast( ubyte, MV_NONE ) then return false
+
+    for i as long = 2 to terms.Count - 1
+        dim as containers.Array( of ulong ) more
+        PushStrArg( more, tmp )
+        if EmitStrTerm( c, more, cast( Tko.NodeId, terms[i] ), false ) = false then return false
+        more.Push( cast( ulong, MV_CONST_INT ) ) : more.Push( 0 )
+        EmitRtl( c, RTL_STR_CONCAT_ASSIGN, more )
+    next
+
+    dim as longint flag = 0
+    if isInit then flag = -1
+    dim as containers.Array( of ulong ) fin
+    PushStrArg( fin, dst )
+    PushStrArg( fin, acc )
+    fin.Push( cast( ulong, MV_CONST_INT ) ) : fin.Push( 0 )
+    fin.Push( cast( ulong, MV_CONST_INT ) )
+    fin.Push( cast( ulong, cast( ulongint, flag ) ) )
+    return (EmitRtl( c, RTL_USTR_FROM_A, fin ).kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' IS THIS A USTRING CHAIN -- a concatenation with a ustring term? Check types every '&'
+'' STRING, so 'u & "y"' is no USTRING to it; to fbc it is one, and 'u & "y" = "Uy"' is
+'' fb_UStrCompare against a UTF-16 literal. tiko compared it with fb_StrCompare and a
+'' narrow one, and every '=' and '<>' over a ustring chain answered wrong.
+function IsUStrChain_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    e = Unparen_( c, e )
+    if e = Tko.NODE_NONE then return false
+    if c.ast->Kind( e ) <> Tko.N_BINARY then return false
+    dim as containers.Array( of ulong ) ut
+    FlattenConcat( c, e, ut )
+    if ut.Count < 2 then return false
+    return ConcatTermsAreU_( c, ut )
+end function
+
+'' ONE OPERAND OF A USTRING COMPARISON. A ustring and a literal push as they are; a real
+'' NARROW string becomes a ustring through fb_StrToUStr first and a WIDE one through
+'' fb_WstrToUStr, which is what fbc emits and what makes the comparison compare the same
+'' encoding on both sides.
+function UStrCmpOperand_ _
+    ( byref c as Ctx, byref args as containers.Array( of ulong ), _
+      byval term as Tko.NodeId ) as boolean
+
+    '' A USTRING CHAIN IS ALREADY UTF-16: EmitStrTerm builds its fb_UStrConcat temporary.
+    '' StrTermFlavour_ reads Check's STRING for it and converted it again as narrow bytes.
+    if IsUStrChain_( c, term ) then return EmitStrTerm( c, args, term, true )
+    select case StrTermFlavour_( c, term )
+    case STF_NARROW
+        dim as containers.Array( of ulong ) sub_
+        if EmitStrTerm( c, sub_, term, false ) = false then return false
+        dim as MirValue uv = EmitRtl( c, RTL_STR_TO_USTR, sub_ )
+        if uv.kind = cast( ubyte, MV_NONE ) then return false
+        PushStrArg( args, uv )
+        return true
+    case STF_WIDE
+        dim as MirValue wv
+        if WideTermAsUStr_( c, term, wv ) = false then return false
+        PushStrArg( args, wv )
+        return true
+    end select
+    return EmitStrTerm( c, args, term, true )
+end function
+
+'' Moved here from lowerstr.tiko at the 1500-line cap. Nothing about it changed.
+'' A byref ZSTRING parameter takes the DATA POINTER, not a descriptor and not the
+'' address of one. Measured, all three spellings:
+''
+''     P2( (char*)"lit" )     a literal: the bytes themselves
+''     P2( (char*)ZS )        a 'zstring * N': its own address
+''     P2( *(char**)&S )      a STRING: the pointer LOADED out of the descriptor
+''
+'' The wide half of this is WideOperand_, which already existed for the same reason.
+'' Whether a narrow string TERM owns its descriptor or borrows one from the runtime.
+''
+'' A CALL and a CONCATENATION are rvalues: fb_LongintToStr and fb_StrConcat hand back
+'' a temporary of the runtime's, and taking its data pointer without copying leaves
+'' nothing to delete it. A variable, a field, an element and a literal are not: their
+'' descriptors outlive the statement and copying one would be a delete fbc does not
+'' emit.
+''
+'' Answered from the NODE KIND on purpose. The other way to ask -- whether LowerAddr
+'' can produce an address -- would lower the expression a SECOND time and repeat its
+'' side effects.
+private function ZstrTermIsRvalue_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    select case c.ast->Kind( id )
+    case Tko.N_CALL
+        '' ...BUT AN ARRAY ELEMENT PARSES AS A CALL, and it has storage. Taken for an
+        '' rvalue, 'strptr( av( i ) )' copied the element into a temporary, handed back
+        '' THE TEMPORARY'S buffer and deleted it at the end of the statement -- a pointer
+        '' into freed memory, where fbc gives the element's own. Measured: after some
+        '' heap churn one of four such pointers read '####...', and all four compared
+        '' unequal to the element's strptr; fbc: all equal. tiko's own C importer builds
+        '' libclang's argv exactly this way, and a tiko-built tiko passed libclang
+        '' garbage arguments -- '-resourc<E0>P...' -- where the fbc-built one did not.
+        return (IsArrayIndex( c, id ) = false)
+    case Tko.N_INTRINSIC
+        return true
+    case Tko.N_BINARY
+        '' A concatenation only; every other binary over strings is a comparison,
+        '' whose result is not a string at all.
+        return IsStringType( c, c.info->TypeOf_( id ) )
+    end select
+    return false
+end function
+
+function ZstrDataOf_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    if c.ast->Kind( id ) = Tko.N_STRING_LIT then
+        outv.kind = cast( ubyte, MV_GLOBAL )
+        outv.ty = cast( ubyte, MT_PTR )
+        outv.id = c.m->AddStringLiteral( StringLitText_( c, id ), *c.names )
+        return true
+    end if
+
+    '' ADJACENT LITERALS ARE ONE LITERAL, and they must reach a ZSTRING PTR
+    '' PARAMETER as a plain pointer into the literal pool -- which is what fbc
+    '' emits for both spellings: 'f( "a" "b" )' and 'f( "ab" )' are the same
+    '' 'F( (char*)"ab" )'. Only N_STRING_LIT was folded here; N_STRCAT fell through
+    '' to the descriptor path and took a slot out of the runtime's TEMP DESCRIPTOR
+    '' POOL -- and nothing gave it back, because the borrow-and-delete guard below
+    '' fires only for an rvalue and a concatenation of constants is not one.
+    ''
+    '' THE POOL IS 256 SLOTS (lib/rt/src/inc/config.ti, FB_STR_TMPDESCRIPTORS) and
+    '' it never refills. fbcunit's CU_ASSERT builds '"CU_ASSERT(" #a ")"' -- three
+    '' adjacent literals -- for a 'byval as zstring ptr', so EVERY assertion leaked
+    '' one. The 256th exhausted the pool, fb_hStrAllocTempDesc returned NULL, and
+    '' from there the program printed '(null)', empty numbers and NO NEWLINES AT
+    '' ALL. Measured: 255 asserts clean, 256 corrupt. It was reported as two
+    '' unrelated codegen faults in select_const.bas and odd-arg.bas, which share
+    '' nothing except having more than 256 assertions.
+    if c.ast->Kind( id ) = Tko.N_STRCAT then
+        dim as string ct
+        if ConstStringTextOf_( c, id, ct ) then
+            outv.kind = cast( ubyte, MV_GLOBAL )
+            outv.ty = cast( ubyte, MT_PTR )
+            outv.id = c.m->AddStringLiteral( ct, *c.names )
+            return true
+        end if
+    end if
+
+    '' A USTRING IS A NARROW COPY, never its own UTF-16 data -- see UStrZstrData_.
+    if UStrZstrData_( c, id, outv ) then return true
+
+    '' AN 'iif' IS ASKED BEFORE THE KIND TESTS, not after them. Measured, fbc builds
+    '' ONE var-length temporary, initialises it in EACH BRANCH, and takes the data
+    '' pointer out of it:
+    ''
+    ''     if( EXPR == 0 ) goto else;
+    ''       fb_StrInit( &TMP, -1, T1, 50, 0 ); goto join;
+    ''     else: fb_StrInit( &TMP, -1, T2, 50, 0 );
+    ''     join: _ZN14UZSTRING_FIXEDC1EPKc( &A, *(char**)&TMP );
+    ''           fb_StrDelete( &TMP );
+    ''
+    '' -- NOT a pointer per arm, which is what the note left here previously guessed.
+    '' Check DOES type an iif over two 'zstring * N' arms -- as 'zstring * N' --
+    '' so it took the FIXED row below, asked an iif for an ADDRESS it has not got,
+    '' and stopped there. StrDescriptorOf_ is structural about iif and builds that
+    '' temporary, so this is the same plain load the var-length row above does.
+    '' Without it 'dim a as uzstr_t = iif( expr, t1, t2 )' over two 'zstring * 50'
+    '' declined -- udt-zstring/iif.bas is four statements of it.
+    dim as Tko.NodeId qC, qT, qE
+    if IsIifCall_( c, id, qC, qT, qE ) then
+        dim as MirValue qd
+        if StrDescriptorOf_( c, id, qd ) then
+            outv = LowerExprLoad( c, qd, MT_PTR )
+            if outv.kind <> cast( ubyte, MV_NONE ) then return true
+        end if
+    end if
+
+    dim as longint n
+    dim as long k = StrSwapKind_( c, c.info->TypeOf_( id ), n )
+    if k = 1 then
+        outv = LowerAddr( c, id )
+        '' AN IIF OVER TWO FIXED ZSTRINGS HAS NO ADDRESS -- which is where
+        '' 'dim a as uzstr_t = iif( expr, t1, t2 )' used to stop. The iif row above
+        '' claims it now; this stays for anything else with no address. The classification above it is now right (a
+        '' 'zstring * 50' argument does reach the zstring-pointer constructor); what
+        '' is missing is an iif that yields a POINTER PER ARM, which LowerIif cannot
+        '' express: it writes one temporary of a requested MIR type, and these arms
+        '' are aggregates whose VALUE is an address. Closing it needs an iif entry
+        '' point that takes the arms' lowering from the caller.
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    '' A 'string * N' IS NOT ITS OWN DATA POINTER. It is SPACE-PADDED and carries NO
+    '' TERMINATOR, so handing its buffer to anything that walks to a NUL reads past it --
+    '' which is why fbc borrows a temporary DESCRIPTOR first, with the tagged length, and
+    '' takes the pointer out of that. Measured, comparing a 'wstring * N' with one:
+    ''
+    ''     fb_StrAssign( &TMP, -1, F, 0x8000000000000000|10, 0 );
+    ''     fb_StrToWstr( *(char**)&TMP );
+    ''
+    '' Refusing it instead left the whole comparison unlowered, in both directions.
+    if k = 3 then
+        '' ...BUT WHERE IT HAS STORAGE, THE BORROW BELOW WAS A LEAK, and the storage is
+        '' what it pointed at anyway. Measured inside a SUB, over a local 'string * 32' and
+        '' a field: 'strptr( fs )', 'sadd( fs )', 'strptr( h.fs )' and 'TakeZ( fs )' --
+        ''
+        ''     TAKEZ( (char*)FS$1 );     TAKEZ( (char*)((uint8*)&H$1 + 4ll) );
+        ''
+        '' NOT EVERY CALLER MATCHES fbc, and this does not claim to. For a MODULE-LEVEL
+        '' 'string * 10' handed to a 'byval as zstring ptr', and for the fb_StrToWstr of a
+        '' comparison, fbc copies into a TERMINATED temporary, passes that, copies back and
+        '' deletes it. tiko passed the unterminated buffer before this change (the borrow
+        '' wrapped it without copying) and passes it after; only the leak is gone. The
+        '' fb_StrToWstr half now copies -- NarrowToWideTemp_ takes FixStrWideTemp_.
+        ''
+        '' tiko took fb_StrAllocTempDescF: a POOL slot wrapping that same buffer, so the
+        '' pointer value was identical -- and nothing ever gave the slot back. tracks
+        '' calls 'recv( s, strptr( temp_buffer ), ... )' on a local 'string * 8192' on
+        '' every loop pass; live market data drained the 256 slots in seconds, every
+        '' temporary string came back empty, the next strptr was NULL, recv failed and
+        '' the socket thread dropped the TWS connection.
+        ''
+        '' An RVALUE has no storage, so it is copied into a real temporary that dies with
+        '' the statement -- the k = 0 row's borrow, which CONSUMES the runtime's slot.
+        if ZstrTermIsRvalue_( c, id ) = false then
+            outv = LowerAddr( c, id )
+            return (outv.kind <> cast( ubyte, MV_NONE ))
+        end if
+        dim as MirValue fda
+        if StrDescriptorOf_( c, id, fda ) = false then return false
+        dim as long ftmp = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        if ftmp < 0 then return false
+        dim as MirValue fd
+        fd.kind = cast( ubyte, MV_LOCAL )
+        fd.ty = cast( ubyte, MT_PTR )
+        fd.id = ftmp
+        ZeroStrDescriptor( c, fd )
+        dim as containers.Array( of ulong ) fargs
+        PushStrArg( fargs, fd )
+        PushStrArg( fargs, fda )
+        fargs.Push( cast( ulong, MV_CONST_INT ) ) : fargs.Push( 0 )
+        EmitRtl( c, RTL_STR_ASSIGN, fargs )
+        c.strTemps.Push( cast( ulong, ftmp ) )
+        outv = LowerExprLoad( c, fd, MT_PTR )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    if k = 0 then
+        '' StrDescriptorOf_ RATHER THAN LowerAddr, so an rvalue works too: 'str( t )'
+        '' has no address, and fbc copies it into a temporary descriptor before taking
+        '' the pointer. Everything with an address comes back as its own address here,
+        '' so the variable case is unchanged.
+        dim as MirValue da
+        if StrDescriptorOf_( c, id, da ) = false then da = LowerAddr( c, id )
+        if da.kind = cast( ubyte, MV_NONE ) then return false
+
+        '' AN RVALUE IS BORROWED INTO A TEMPORARY, and the temporary is DELETED.
+        '' Measured, for a 'byval as const zstring ptr' parameter:
+        ''
+        ''     T( s )        -- a variable: the descriptor is taken as it is
+        ''     T( "lit" )    -- a literal: the bytes are taken as they are
+        ''     T( str( n ) ) -- fb_StrAssign( &TMP, -1, vr, -1, 0 )
+        ''                      T( *(char**)&TMP ); fb_StrDelete( &TMP )
+        ''     T( s & "x" )  -- the same borrow
+        ''
+        '' tiko took the data pointer straight out of the RUNTIME's temporary and
+        '' deleted nothing, so every such argument leaked one string. The comment
+        '' on this row already SAID fbc copies it first; the row just never did.
+        ''
+        '' Whether it is an rvalue is answered from the NODE, not by lowering it
+        '' again: asking LowerAddr a second time would re-emit the expression and
+        '' its side effects.
+        if ZstrTermIsRvalue_( c, id ) then
+            dim as long btmp = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+            if btmp >= 0 then
+                dim as MirValue bd
+                bd.kind = cast( ubyte, MV_LOCAL )
+                bd.ty = cast( ubyte, MT_PTR )
+                bd.id = btmp
+                ZeroStrDescriptor( c, bd )
+                dim as containers.Array( of ulong ) bargs
+                PushStrArg( bargs, bd )
+                PushStrArg( bargs, da )
+                bargs.Push( cast( ulong, MV_CONST_INT ) ) : bargs.Push( 0 )
+                EmitRtl( c, RTL_STR_ASSIGN, bargs )
+                c.strTemps.Push( cast( ulong, btmp ) )
+                da = bd
+            end if
+        end if
+        '' The data pointer is the descriptor's FIRST field, which is why this is a
+        '' plain load and not a field address.
+        outv = LowerExprLoad( c, da, MT_PTR )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    '' A UDT WITH 'operator cast' TO A NARROW STRING. Its data pointer IS the
+    '' conversion's result, and fbc says so directly:
+    ''
+    ''     vr$2 = _ZN14UZSTRING_FIXEDcvcEv( &U1$0 );
+    ''     vr$3 = fb_StrToWstr( vr$2 );
+    ''
+    '' -- which is 'wstr( u )' over the udt-zstring reference type, whose cast is
+    '' 'byref as const zstring'. StrSwapKind_ answers nothing for a UDT, so this fell
+    '' off the end and every wide use of one declined: 'wstr( u )' into a 'wstring * N'
+    '' and into another UDT alike.
+    dim as boolean ucRaw = false
+    dim as MirValue ucv
+    if UserCastToStr_( c, id, ucv, ucRaw ) then
+        '' A BARE char* is the pointer itself; a DESCRIPTOR keeps its data in field 0,
+        '' which is the same plain load the var-length row above does.
+        if ucRaw then
+            outv = ucv
+            return true
+        end if
+        outv = LowerExprLoad( c, ucv, MT_PTR )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    return false
+end function
+
+'' Moved here from lowerstr.tiko at the 1500-line cap. Nothing about it changed.
+'' SWAP a, b -- measured from fbc, and it is TWO different lowerings.
+''
+'' A STRING pair goes through the runtime, six arguments rather than four: each side is
+'' (pointer, length, flag) with the flag 0.
+''
+''     fb_StrSwap( &S$1, -1ll, 0, &T$1, -1ll, 0 )
+''
+'' Anything else is a TEMPORARY OF THE OPERAND'S OWN TYPE and three assignments:
+''
+''     { double TMP;  TMP = D$1;  D$1 = E$1;  E$1 = TMP; }
+''
+'' Note the temporary is typed to the operand, not to a fixed width: swapping two
+'' doubles through an integer slot would round-trip the bits through the wrong register
+'' class, and swapping two aggregates would not fit at all.
+'' What kind of string a type is, for the SWAP runtime's argument shape. Returns
+''   0 = var-length STRING, and 'n' is set to -1
+''   1 = ZSTRING * N,       and 'n' is N
+''   2 = WSTRING * N,       and 'n' is N
+''  -1 = not a string
+''
+'' A fixed-length string is modelled as an ARRAY of the element builtin, which is what
+'' it is, so the count comes off the array rather than out of a byte size.
+function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nOut as longint ) as long
+
+    if t = Tko.TYPE_NONE then return -1
+    '' CONST IS NOT A DIFFERENT STRING. 'dim cz as const zstring * 10' is the same char
+    '' array as a mutable one and every runtime call takes it the same way, but the
+    '' QUALIFIED type is a distinct entry whose kind test fell through to "not a string
+    '' at all" -- so every term spelled with one had no (pointer, length) pair and the
+    '' whole statement produced nothing. string/concat.bas is half const by design.
+    t = c.types->Unqualify( t )
+    if IsStringType( c, t ) then
+        nOut = -1
+        return 0
+    end if
+    '' AN UNSIZED ZSTRING -- what a 'zstring ptr' points at, and what '*pz' is. It has
+    '' no declared count, and fbc passes LENGTH 0 for one: 'fb_StrAssign( PC, 0ll, PA,
+    '' 0ll, 0 )', 0 meaning "NUL-terminated, work it out". It matched neither the array
+    '' test below nor IsStringType above, so every operation through a zstring pointer
+    '' declined -- and 'hStringChecks( *pa, *pb, *pc )' is how the corpus exercises the
+    '' whole string surface a second time.
+    if c.types->Kind( t ) = Tko.TK_BUILTIN then
+        if c.types->BuiltinOf( t ) = Tko.TY_ZSTRING then
+            nOut = 0
+            return 1
+        end if
+        '' AND THE WIDE HALF OF THE SAME THING -- what a 'wstring ptr' points at, and
+        '' what '*pw' is. Its absence made 'line input #1, *pw, 10' answer "not a
+        '' string at all" and decline, while the zstring line beside it lowered.
+        if c.types->BuiltinOf( t ) = Tko.TY_WSTRING then
+            nOut = 0
+            return 2
+        end if
+    end if
+
+    if c.types->Kind( t ) <> Tko.TK_ARRAY then return -1
+    dim as Tko.TypeId el = c.types->Inner( t )
+    if el = Tko.TYPE_NONE then return -1
+    if c.types->Kind( el ) <> Tko.TK_BUILTIN then return -1
+    nOut = c.types->ElemCount( t )
+    if nOut <= 0 then return -1
+    select case c.types->BuiltinOf( el )
+    case Tko.TY_ZSTRING : return 1
+    case Tko.TY_WSTRING : return 2
+    case Tko.TY_FIXUSTR
+        '' 'ustring * N' -- the FIXED-LENGTH UTF-16 flavour, and its tag is N MINUS
+        '' ONE where 'string * N' uses N. Measured, both on win64:
+        ''
+        ''     dim as string  * 8 s   ->  fb_StrInit ( S, &h8000000000000008, ... )
+        ''     dim as ustring * 8 u   ->  fb_UStrInit( U, &h8000000000000007, ... )
+        ''
+        '' so its capacity is N-1 usable characters, exactly as 'zstring * N' is, and
+        '' the fixed narrow string is the odd one out. Nothing about the two spellings
+        '' says which, and getting it wrong writes one character past the end.
+        nOut = FixedStrLenArg_( c, nOut - 1 )
+        return 4
+    case Tko.TY_FIXSTR
+        '' 'string * N' -- the FIXED-LENGTH, space-padded flavour. 'n' comes back
+        '' ENCODED, because that is the only form any runtime call wants it in, and
+        '' encoding it here means every '(pointer, length)' push site emits fbc's
+        '' constant without knowing this type exists.
+        nOut = FixedStrLenArg_( c, nOut )
+        return 3
+    end select
+    return -1
+end function
+
+'' A USER OPERATOR WHOSE RESULT IS A STRING, as the descriptor pointer every string
+'' reader wants. '-a' and 'a + b' over a UDT are calls like any other, but they are
+'' spelled as a UNARY and a BINARY, so nothing that looks for a string CALL finds them.
+function LowerStrOperandOp_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    dim as Tko.SymbolId opsym = c.info->RefOf( id )
+    if opsym = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr opsy = c.syms->SymbolAt( opsym )
+    if opsy = 0 then return false
+    if opsy->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    if IsStringType( c, opsy->type_ ) = false then return false
+
+    if c.ast->Kind( id ) = Tko.N_UNARY then
+        dim as Tko.UnaryPayload ptr uop = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        return LowerUserUnaryOp_( c, id, uop, MT_PTR, outv )
+    end if
+    if c.ast->Kind( id ) = Tko.N_BINARY then
+        dim as Tko.BinaryPayload ptr bop = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        return LowerUserBinaryOp_( c, id, bop, MT_PTR, outv )
+    end if
+    return false
+end function
+
+'' THE TEXT OF A RUN OF ADJACENT STRING LITERALS, or false when the node is not one.
+'' The lexer keeps '"a" "b"' as an N_STRCAT of its parts rather than folding it, so the
+'' whole run has to be joined before it can be emitted as one literal.
+function StrCatText_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as string ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    if c.ast->Kind( id ) <> Tko.N_STRCAT then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if lp->count <= 0 then return false
+    outv = ""
+    for i as long = 0 to lp->count - 1
+        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        if c.ast->Kind( e ) = Tko.N_STRING_LIT then
+            outv &= StringLitText_( c, e )
+        else
+            dim as string inner
+            if StrCatText_( c, e, inner ) = false then return false
+            outv &= inner
+        end if
+    next
+    return true
+end function
+
+'' ONE SOURCE CHARACTER OF A LITERAL AS WIDE UNITS, 'i' (0-based) advanced past it.
+''
+'' FROM A UTF-8 SOURCE A BYTE >= &h80 STARTS A CHARACTER, not a unit. fbc-modern decodes a
+'' narrow literal as UTF-8 wherever it is widened; tiko widened it one unit per BYTE.
+'' Measured, 'Ω日' in a BOM-less UTF-8 file: 'dim w as wstring * 10 = lit' and 'wstr( lit )'
+'' are 2 characters under fbc and were 5, 'u &= "Ω"' 2 and was 3, 'instr( u, "Ω" )' 2 and
+'' was 0 -- fbsqlite's test_unicode built 5000 units where it asked for 2000. A file that is
+'' not valid UTF-8 (ENC_BYTES) keeps one unit per byte (u8 false), as before. Bytes below
+'' &h80 pass through unchanged, so an escape's own spelling is never touched.
+''
+'' Above U+FFFF a 2-byte wchar takes a surrogate pair; a 4-byte one takes the code point,
+'' and the UTF-16 twin pass in mir.tiko already refuses to narrow that one.
+sub PushSourceUnit_ _
+    ( byref c as Ctx, byval u8 as boolean, byref body as string, byref i as long, _
+      byref units as containers.Array( of ulong ) )
+
+    dim as ubyte b = body[i]
+    dim as boolean plain = (b < &h80)
+    if (u8 = false) orelse plain then
+        units.Push( cast( ulong, b ) )
+        i += 1
+        return
+    end if
+    dim as ulong cp = Tko.Text.DecodeUtf8( cast( const ubyte ptr, strptr( body ) ), len( body ), i )
+    dim as boolean astral = (cp > &hFFFF)
+    if astral andalso (c.types->target.wcharBytes = 2) then
+        cp -= &h10000
+        units.Push( &hD800 + (cp shr 10) )
+        units.Push( &hDC00 + (cp and &h3FF) )
+    else
+        units.Push( cp )
+    end if
+end sub
+
+'' Whether a FOLDED string's text came only from PLAIN literals of UTF-8 sources: an
+'' unescaped N_STRING_LIT, adjacent ones (N_STRCAT), or a constant initialised by either.
+'' An escaped literal's text has its escapes already turned into bytes, and fbc-modern
+'' leaves an escape's bytes one unit each -- so that text is not decoded, and says false.
+function PlainUtf8Text_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if id = Tko.NODE_NONE then return false
+    select case c.ast->Kind( id )
+    case Tko.N_STRING_LIT
+        dim as Tko.LiteralPayload ptr lp = _
+            @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if lp->strLength < 0 then return false
+        if lp->strKind = cast( ubyte, Tko.STRK_ESCAPED ) then return false
+        dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
+        if f = 0 then return false
+        return (f->encoding <> Tko.Text.ENC_BYTES)
+    case Tko.N_STRCAT
+        dim as Tko.ListPayload ptr sp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if sp->count <= 0 then return false
+        for i as long = 0 to sp->count - 1
+            if PlainUtf8Text_( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ) ) = false then
+                return false
+            end if
+        next
+        return true
+    case Tko.N_IDENT, Tko.N_MEMBER
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
+        if cs = 0 then return false
+        if cs->kind <> cast( ubyte, Tko.SYM_CONSTANT ) then return false
+        if cs->payload = 0 then return false
+        dim as Tko.NodeId item = cast( Tko.NodeId, cs->payload )
+        if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then return false
+        return PlainUtf8Text_( c, StmtOf( c, item )->b )
+    end select
+    return false
+end function
+
+'' A FOLDED string's text as a WIDE global, decoded where PlainUtf8Text_ says so; the
+'' CHARACTER COUNT comes back beside it, since decoding makes it shorter than the text.
+function WideFoldedText_ _
+    ( byref c as Ctx, byval site as Tko.NodeId, byref txt as string, byref outChars as long ) as long
+
+    dim as containers.Array( of ulong ) units
+    dim as boolean u8 = PlainUtf8Text_( c, site )
+    dim as long i = 0
+    while i < len( txt )
+        PushSourceUnit_( c, u8, txt, i, units )
+    wend
+    outChars = cast( long, units.Count )
+    return c.m->AddWideStringUnits( txt, units, *c.names )
+end function
+
+
+'' 'u &= <wide>' -- A WIDE VALUE APPENDED TO A USTRING, which is a CONVERSION and not
+'' a concatenation. Measured:
+''
+''     vr$2 = fb_WstrChr( 1, QUOTE );
+''     vr$3 = fb_WstrToUStr( vr$2 );
+''     fb_UStrConcatAssign( &CUR$0, -1, vr$3, -1, 0 );
+''
+'' -- which is how fb/string.bi appends 'wchr( QUOTE )' to the ustring it is building,
+'' on the line its own comment insists must be WCHR and never CHR.
+function WideAppendToU_ _
+    ( byref c as Ctx, byref dst as MirValue, byval value as Tko.NodeId ) as boolean
+
+    dim as MirValue uv
+    if WideTermAsUStr_( c, value, uv ) = false then return false
+    if uv.kind = cast( ubyte, MV_NONE ) then return false
+    dim as containers.Array( of ulong ) aargs
+    PushStrArg( aargs, dst )
+    PushStrArg( aargs, uv )
+    aargs.Push( cast( ulong, MV_CONST_INT ) )
+    aargs.Push( 0 )
+    EmitRtl( c, RTL_USTR_CONCAT_ASSIGN, aargs )
+    return true
+end function
+
+'' THE SIZE 'len' AND 'sizeof' REPORT, WHICH FOR AN ARRAY IS ITS ELEMENT'S.
+''
+'' Measured against fbc-modern 1.20.0 on 2026-09-19. Every one of these answers the
+'' ELEMENT and never the storage, and tiko-lang answered the storage:
+''
+''     dim b( 0 to 3 ) as ubyte          fbc 1    tiko 4
+''     dim l( 0 to 3 ) as long                4        16
+''     dim m( 0 to 1, 0 to 2 ) as long        4        24
+''     dim sa( 0 to 2 ) as string            24        72     the descriptor, and no strlen
+''     dim za( 0 to 2 ) as zstring * 8        8        24
+''     dim p( 0 to 3 ) as long ptr            8        32
+''     h.arr, an array FIELD                  4        16
+''     dim t_( 0 to 2 ) as T2 (8 bytes)       8   DECLINED, and the whole PRINT with it
+''
+'' The last is the same bug wearing another face: the fallback looked the ARRAY type up
+'' in the UDT table, found nothing and gave up, so 'print "a"; sizeof( t_ )' printed 'a'
+'' and no number at all, with no diagnostic.
+''
+'' A FIXED-LENGTH STRING IS NOT AN ARRAY FOR THIS PURPOSE, though it is one in the type
+'' model -- 'zstring * 8' is an array of 8 TY_ZSTRING and 'string * 6' one of 6 TY_FIXSTR.
+'' fbc measures the whole thing there: sizeof( z ) is 8 and sizeof( f ) is 6. So the
+'' unwrap stops at a CHARACTER element, which is also what makes 'za' 8 rather than 24:
+'' one step out of the outer array lands on 'zstring * 8' and stops.
+''
+'' It LOOPS rather than unwrapping once, because an array of fixed strings nests and a
+'' multidimensional array may or may not: either modelling then gives the element.
+function MeasuredSizeOfType_( byref c as Ctx, byval t as Tko.TypeId ) as long
+    if t = Tko.TYPE_NONE then return 0
+    dim as Tko.TypeId tu = c.types->Unqualify( t )
+    dim as long guard = 0
+    while (c.types->Kind( tu ) = Tko.TK_ARRAY) andalso (guard < 16)
+        guard += 1
+        dim as Tko.TypeId el = c.types->Inner( tu )
+        if el = Tko.TYPE_NONE then exit while
+        if c.types->Kind( el ) = Tko.TK_BUILTIN then
+            select case c.types->BuiltinOf( el )
+            case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_FIXSTR, Tko.TY_FIXUSTR
+                exit while
+            end select
+        end if
+        tu = el
+    wend
+    return SizeOfType( c, tu )
+end function
+
+end namespace

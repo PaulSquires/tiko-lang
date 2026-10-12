@@ -1,0 +1,372 @@
+'' lowerdev.tiko -- the DEVICE and FILE-POSITION statements: SEEK and COLOR.
+''
+'' Split out of lowerintr.tiko at the 1500-line cap and INCLUDED from it, inside the
+'' same namespace. Nothing moved here changed in the move.
+
+'' 'seek #n, pos' -- MOVE THE FILE POSITION.
+''
+'' Measured: 'seek #1, 2' is 'fb_FileSeekLarge( 1, 2ll )' and nothing else. It is
+'' the LARGE entry point on both targets -- fbc emits it for a plain integer
+'' position as readily as for a longint -- so there is no width to choose.
+''
+'' The FUNCTION spelling, 'seek( 1 )', is a different entry point and already
+'' lowers: this is the two-argument STATEMENT.
+private function LowerSeekStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->count <> 2 then return false
+    dim as Tko.NodeId chE = cast( Tko.NodeId, c.ast->children[sp->first] )
+    dim as Tko.NodeId poE = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
+    if (c.ast->Kind( chE ) = Tko.N_ELIDED) orelse _
+       (c.ast->Kind( poE ) = Tko.N_ELIDED) then return false
+
+    dim as MirValue ch = LowerNumArg_( c, chE, MT_I32 )
+    if ch.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue po = LowerNumArg_( c, poE, MT_I64 )
+    if po.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as containers.Array( of ulong ) args
+    args.Push( cast( ulong, ch.kind ) ) : args.Push( cast( ulong, ch.id ) )
+    args.Push( cast( ulong, po.kind ) ) : args.Push( cast( ulong, po.id ) )
+    EmitRtlErrorCheck_( c, id, EmitRtl( c, RTL_FILE_SEEK, args ) )     '' -e (T68)
+    return true
+end function
+
+'' 'color fg, bg' -- and its THIRD argument is a mask of what was OMITTED.
+''
+'' Measured, one probe per spelling:
+''
+''   color 1, 2    fb_Color( 1, 2, 0u )
+''   color 3       fb_Color( 3, 0, 2u )
+''   color , 4     fb_Color( 0, 4, 1u )
+''   color         fb_Color( 0, 0, 3u )
+''
+'' -- so bit 1 says the FOREGROUND was not written and bit 2 the BACKGROUND, an
+'' omitted argument passes 0, and the mask is the only thing that tells the
+'' runtime which of those zeros to believe. Guessing it as a COUNT would answer
+'' correctly for two of the four.
+'' COLOR's arguments and its mask, from wherever they were written. The STATEMENT
+'' keeps them on an N_INTRINSIC and the EXPRESSION on an N_CALL, and the emission
+'' is the same either way -- 'var oldcolors = color( 1 )' is 'fb_Color( 1, 0, 2u )',
+'' the same call the statement makes with its result discarded.
+private function LowerColorArgs_ _
+    ( byref c as Ctx, byval first as long, byval count as long, _
+      byref outv as MirValue ) as boolean
+
+    if count > 2 then return false
+    dim as long mask = 0
+    dim as containers.Array( of ulong ) args
+    for k as long = 0 to 1
+        dim as Tko.NodeId e = Tko.NODE_NONE
+        if k < count then e = cast( Tko.NodeId, c.ast->children[first + k] )
+        if e <> Tko.NODE_NONE then
+            if c.ast->Kind( e ) = Tko.N_ELIDED then e = Tko.NODE_NONE
+        end if
+        if e = Tko.NODE_NONE then
+            mask or= (1 shl k)
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+        else
+            dim as MirValue v = LowerNumArg_( c, e, MT_I32 )
+            if v.kind = cast( ubyte, MV_NONE ) then return false
+            args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+        end if
+    next
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, mask ) )
+    outv = EmitRtl( c, RTL_COLOR, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' 'color( fg )' IN EXPRESSION POSITION yields the PREVIOUS colours, which is what
+'' the runtime returns and what 'var oldcolors = color( 1 )' is for.
+function LowerColorCall_ _
+    ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as long, _
+      byval argCount as long, byref outv as MirValue ) as boolean
+
+    if calleeNode = Tko.NODE_NONE then return false
+    if c.ast->Kind( calleeNode ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, calleeNode )].data )]
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "color" then
+        return false
+    end if
+    return LowerColorArgs_( c, argFirst, argCount, outv )
+end function
+
+'' WIDTH -- THREE ENTRY POINTS, chosen by the FIRST argument. Measured:
+''
+''   width 80, 25       fb_Width( 80, 25 )
+''   width 80           fb_Width( 80, -1 )
+''   width , 25         fb_Width( -1, 25 )
+''   width "scrn:", 40  fb_WidthDev( fb_StrAllocTempDescZEx( "scrn:", 5 ), 40 )
+''   width #1, 40       fb_WidthFile( 1, 40 )
+''   n = width          fb_Width( -1, -1 )
+''
+'' -- AN OMITTED ARGUMENT IS -1, not a mask as COLOR's is, and not a count: the two
+'' statements sit next to each other and do not share that rule.
+''
+'' The EXPRESSION form already lowered, through the builtin-call path that defaults
+'' every argument it is not given; only the STATEMENT had no case at all, so every
+'' spelling of it declined with fb_WidthDev and fb_WidthFile sitting in the runtime
+'' table with no caller.
+''
+'' TWO FORMS ARE NOT REACHED, both recorded rather than half-built:
+''   'width #1, 40' -- IFORM_GENERIC cannot read a file number, so it is a PARSE error
+''     before this is asked, and fb_WidthFile still has no caller.
+''   'n = width' with NO PARENTHESES -- a bare KEYWORD intrinsic in expression position
+''     is a plain N_IDENT that nothing claims. 'n = width( )' is the same call and does
+''     lower; 'n = pos' works only because pos is a PRELUDE function and not a keyword.
+'' 'err = n' -- THE WRITE HALF OF THE ERR PSEUDO-VARIABLE. Measured:
+''
+''     e = err     int32 vr = fb_ErrorGetNum( );  E = (int64)vr
+''     err = 5     fb_ErrorSetNum( 5 )
+''
+'' The read has always worked -- the prelude declares 'err' aliased to
+'' fb_ErrorGetNum, so it is an ordinary call -- and the write never reached the
+'' statement parser at all, because ERR is a KEYWORD. fb_ErrorSetNum sat in the
+'' runtime table with no caller.
+''
+'' fbc DISCARDS the result: 'fb_ErrorSetNum( 5 );' as a statement, not assigned.
+private function LowerErrSet_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->a = Tko.NODE_NONE then return false
+    dim as MirValue v = LowerNumArg_( c, sp->a, MT_I32 )
+    if v.kind = cast( ubyte, MV_NONE ) then return false
+    if v.kind = cast( ubyte, MV_NONE ) then return false
+    dim as containers.Array( of ulong ) args
+    args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+    dim as MirValue r = EmitRtl( c, RTL_ERR_SET, args )
+    return (r.kind <> cast( ubyte, MV_NONE ))
+end function
+
+private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->count > 2 then return false
+
+    dim as Tko.NodeId a0 = Tko.NODE_NONE
+    if sp->count >= 1 then a0 = cast( Tko.NodeId, c.ast->children[sp->first] )
+    if a0 <> Tko.NODE_NONE then
+        if c.ast->Kind( a0 ) = Tko.N_ELIDED then a0 = Tko.NODE_NONE
+    end if
+
+    '' THE DEVICE FORM, and the first argument being a STRING is what says so.
+    if a0 <> Tko.NODE_NONE then
+        '' ...ANY string: a 'string * N', a zstring, '*pz', a ustring and a wide value too. Only
+        '' a var-length string counted, so '*pz' and 'wstr( "lpt1:" )' took the NUMERIC form.
+        dim as Tko.TypeId a0t = c.info->TypeOf_( a0 )
+        dim as longint a0n
+        dim as boolean isStr = (c.ast->Kind( a0 ) = Tko.N_STRING_LIT)
+        if isStr = false then isStr = IsStringType( c, a0t ) orelse IsWideString_( c, a0t ) orelse cbool( StrSwapKind_( c, a0t, a0n ) >= 1 ) orelse TermIsWide_( c, a0 )
+        if isStr then
+            if sp->count <> 2 then return false
+            dim as MirValue dv
+            if NarrowOperandAny_( c, a0, dv ) = false then return false
+            dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
+            if c.ast->Kind( a1 ) = Tko.N_ELIDED then return false
+            dim as MirValue nv = LowerNumArg_( c, a1, MT_I32 )
+            if nv.kind = cast( ubyte, MV_NONE ) then return false
+            dim as containers.Array( of ulong ) dargs
+            dargs.Push( cast( ulong, dv.kind ) ) : dargs.Push( cast( ulong, dv.id ) )
+            dargs.Push( cast( ulong, nv.kind ) ) : dargs.Push( cast( ulong, nv.id ) )
+            dim as MirValue dr = EmitRtl( c, RTL_WIDTH_DEV, dargs )
+            EmitRtlErrorCheck_( c, id, dr )                 '' -e (T68)
+            return (dr.kind <> cast( ubyte, MV_NONE ))
+        end if
+    end if
+
+    dim as containers.Array( of ulong ) args
+    for k as long = 0 to 1
+        dim as Tko.NodeId e = Tko.NODE_NONE
+        if k < sp->count then e = cast( Tko.NodeId, c.ast->children[sp->first + k] )
+        if e <> Tko.NODE_NONE then
+            if c.ast->Kind( e ) = Tko.N_ELIDED then e = Tko.NODE_NONE
+        end if
+        if e = Tko.NODE_NONE then
+            args.Push( cast( ulong, MV_CONST_INT ) )
+            args.Push( cast( ulong, cast( ulongint, -1 ) ) )
+        else
+            dim as MirValue v = LowerNumArg_( c, e, MT_I32 )
+            if v.kind = cast( ubyte, MV_NONE ) then return false
+            args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+        end if
+    next
+    dim as MirValue wr = EmitRtl( c, RTL_WIDTH, args )
+    EmitRtlErrorCheck_( c, id, wr )                         '' -e (T68)
+    return (wr.kind <> cast( ubyte, MV_NONE ))
+end function
+
+private function LowerColorStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    dim as MirValue cv
+    return LowerColorArgs_( c, sp->first, sp->count, cv )
+end function
+
+
+'' LOCK AND UNLOCK -- a byte range of an open file.
+''
+'' Measured from fbc's own C, and the 'Large' spelling is the only one it emits on
+'' win64:
+''
+''     lock #1, 5        fb_FileLockLarge  ( 1, 5ll, 0ll )
+''     lock #1, 3 to 9   fb_FileLockLarge  ( 1, 3ll, 9ll )
+''     unlock #1, 3 to 9 fb_FileUnlockLarge( 1, 3ll, 9ll )
+''     lock h, 2         fb_FileLockLarge  ( (int32)H, 2ll, 0ll )
+''
+'' THE MISSING SECOND BOUND IS 0, not a repeat of the first -- which is what a guess
+'' would have written and is the reason it was probed. The handle is an i32 and both
+'' bounds are i64 whatever the source types are. The result is discarded.
+''
+'' The 'to' half was being dropped by the PARSER before this: 'lock #1, 3 to 9' came
+'' through as two operands and the 9 never reached lowering at all.
+private function LowerLockStmt_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval isUnlock as boolean ) as boolean
+
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->count < 2 then return false
+    if sp->count > 3 then return false
+
+    dim as Tko.NodeId hn = cast( Tko.NodeId, c.ast->children[sp->first] )
+    dim as MirValue hv = LowerNumArg_( c, hn, MT_I32 )
+    if hv.kind = cast( ubyte, MV_NONE ) then return false
+    if hv.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
+    dim as MirValue av = LowerNumArg_( c, an, MT_I64 )
+    if av.kind = cast( ubyte, MV_NONE ) then return false
+    if av.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' The default bound is materialised only when there is no 'to', so the range form
+    '' does not carry a dead 'const i64 0' fbc never emits.
+    dim as MirValue bv
+    if sp->count = 3 then
+        dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[sp->first + 2] )
+        bv = LowerNumArg_( c, bn, MT_I64 )
+        if bv.kind = cast( ubyte, MV_NONE ) then return false
+    else
+        bv = ConstInt( c, 0, MT_I64 )
+    end if
+    if bv.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as containers.Array( of ulong ) args
+    args.Push( cast( ulong, hv.kind ) ) : args.Push( cast( ulong, hv.id ) )
+    args.Push( cast( ulong, av.kind ) ) : args.Push( cast( ulong, av.id ) )
+    args.Push( cast( ulong, bv.kind ) ) : args.Push( cast( ulong, bv.id ) )
+    dim as long w = RTL_FILE_LOCK
+    if isUnlock then w = RTL_FILE_UNLOCK
+    dim as MirValue r = EmitRtl( c, w, args )
+    return (r.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' NAME old AS new -- rename a file.
+''
+'' LIBC, not the FB runtime, and measured rather than assumed: fbc emits a plain
+''
+''     rename( (char*)*(char**)&S$0, (char*)"z" )
+''
+'' -- the strings' DATA POINTERS, a literal passed as its own bytes, and the result
+'' discarded. It does NOT go through an fb_* entry point the way KILL, MKDIR and RMDIR
+'' do, so the same statement family is split across two conventions.
+''
+'' 'name a, b' is the SAME statement as 'name a as b': fbc accepts both spellings and
+'' emits identical calls, and the parser already folds them into one shape.
+private function EmitRename_ _
+    ( byref c as Ctx, byval oldN as Tko.NodeId, byval newN as Tko.NodeId, _
+      byref outv as MirValue ) as boolean
+
+    if oldN = Tko.NODE_NONE then return false
+    if newN = Tko.NODE_NONE then return false
+    dim as MirValue oldp
+    if ZstrDataOf_( c, oldN, oldp ) = false then return false
+    dim as MirValue newp
+    if ZstrDataOf_( c, newN, newp ) = false then return false
+
+    dim as containers.Array( of ulong ) args
+    args.Push( cast( ulong, oldp.kind ) ) : args.Push( cast( ulong, oldp.id ) )
+    args.Push( cast( ulong, newp.kind ) ) : args.Push( cast( ulong, newp.id ) )
+    outv = EmitRtl( c, RTL_RENAME, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+private function LowerNameStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    dim as MirValue r
+    if EmitRename_( c, sp->a, sp->b, r ) = false then return false
+    EmitRtlErrorCheck_( c, id, r )                          '' -e (T68)
+    return true
+end function
+
+'' 'name( old, new )' IN EXPRESSION POSITION yields rename's RESULT CODE. Measured:
+'' 'print name( "a.tmp", "b.tmp" )' is 'int32 vr = rename( ... ); fb_PrintInt( 0, vr, 1 )'
+'' and '#print typeof( name( "a", "b" ) )' is LONG -- the same call the statement makes,
+'' with its result kept rather than discarded.
+private function LowerNameFn_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->count <> 2 then return false
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "name" then return false
+
+    return EmitRename_( c, cast( Tko.NodeId, c.ast->children[cp->first] ), _
+                        cast( Tko.NodeId, c.ast->children[cp->first + 1] ), outv )
+end function
+
+'' 'screen( row, column [, colourFlag ] )' IN EXPRESSION POSITION -- the character or
+'' the colour attribute at a console cell. A different construct from the SCREEN
+'' STATEMENT, which sets a graphics mode, and they share a keyword the way GET and PUT
+'' do.
+''
+'' THE ARGUMENTS ARE SWAPPED, which is the whole reason this was probed rather than
+'' written from the name. Measured:
+''
+''     screen( 1, 2 )      uint32 vr = fb_ReadXY( 2, 1, 0 )
+''     screen( 1, 2, 1 )   uint32 vr = fb_ReadXY( 2, 1, 1 )
+''
+'' -- FreeBASIC says (row, column) and fb_ReadXY takes (x, y), so the column goes
+'' first. The third argument is 0 when not written, and '#print typeof( screen( 1, 2 ) )'
+'' is ULONG.
+private function LowerScreenFn_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "screen" then return false
+    if (cp->count < 2) orelse (cp->count > 3) then return false
+
+    dim as Tko.NodeId rowN = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId colN = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+
+    '' Source order, then swapped at the call: fbc evaluates the row expression first
+    '' even though the column is passed first, and either may have a side effect.
+    dim as MirValue rowV = LowerNumArg_( c, rowN, MT_I32 )
+    if rowV.kind = cast( ubyte, MV_NONE ) then return false
+    if rowV.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirValue colV = LowerNumArg_( c, colN, MT_I32 )
+    if colV.kind = cast( ubyte, MV_NONE ) then return false
+    if colV.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirValue flagV
+    if cp->count = 3 then
+        dim as Tko.NodeId fN = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
+        flagV = LowerNumArg_( c, fN, MT_I32 )
+        if flagV.kind = cast( ubyte, MV_NONE ) then return false
+    else
+        flagV = ConstInt( c, 0, MT_I32 )
+    end if
+    if flagV.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as containers.Array( of ulong ) args
+    args.Push( cast( ulong, colV.kind ) ) : args.Push( cast( ulong, colV.id ) )
+    args.Push( cast( ulong, rowV.kind ) ) : args.Push( cast( ulong, rowV.id ) )
+    args.Push( cast( ulong, flagV.kind ) ) : args.Push( cast( ulong, flagV.id ) )
+    outv = EmitRtl( c, RTL_READ_XY, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function

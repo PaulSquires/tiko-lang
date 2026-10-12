@@ -87,7 +87,7 @@ lowered: 6 functions, 6 blocks, 39 insts, 1 statements not lowered, 0 scope imba
   unlowered N_INTRINSIC 1
   inside N_INTRINSIC 1
   unlowered intrinsic KW_PRINT 1
-  skip-site src\mir\lowerctl.bas:206 1
+  skip-site src\mir\lowerctl.tiko:206 1
 tests/diagnostics/src/parse-shapes-2.bas(6,13): error TKO0734: CONST is not needed on a constructor or destructor
      |
    6 |     declare const constructor( )

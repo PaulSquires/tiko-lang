@@ -15,8 +15,8 @@
 '' only checked round-trips would hide that; checking both against the reference
 '' pins each one where it actually is.
 
-#include once "../core/viewport.bi"
-#include once "../raster/pixel.bi"
+#include once "../core/viewport.ti"
+#include once "../raster/pixel.ti"
 #include once "abtest.bi"
 #include once "crt/string.bi"
 #ifdef ABTEST_HAS_GFXLIB2

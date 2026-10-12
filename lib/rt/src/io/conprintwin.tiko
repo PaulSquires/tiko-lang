@@ -1,0 +1,415 @@
+'' conprintwin.tiko -- the WINDOWS fb_ConsolePrintBuffer and
+'' fb_ConsolePrintBufferEx, the bottom of every PRINT on Windows. Two symbols,
+'' one fbc member (win32/io_printbuff.o).
+''
+'' EMPTY-ON: linux-x86_64
+''
+'' THE POSIX HALF IS src/io/conprint.tiko AND SHARES NOTHING WITH THIS. The two
+'' are separate files rather than two arms of one #if because they are separate
+'' programs: POSIX writes bytes to stdout and keeps its own shadow of the
+'' screen, Windows writes CHAR_INFO cells into a console screen buffer that the
+'' OS owns and asks the OS where the cursor is. 40 lines against 250.
+''
+'' THERE ARE THREE OUTPUT PATHS AND THEY ARE TRIED IN THIS ORDER:
+''
+''   1  REDIRECTED -- an empty console window rect means stdout is a pipe or a
+''      file. Raw WriteFile, no cells, no cursor. This is what makes `PRINT`
+''      work in a pipe.
+''   2  UTF-16 STREAM -- decode the bytes with the console's OWN output
+''      codepage and hand the result to WriteConsoleW. This is the only path
+''      that can render a multi-byte sequence as the character the console
+''      would show, because the cell path spends one cell per BYTE. It is also
+''      the only path that gets double-width glyphs right.
+''   3  CELLS -- WriteConsoleOutput, one CHAR_INFO per byte, with fbc doing its
+''      own wrapping, scrolling and cursor arithmetic through fb_ConPrintTTY
+''      and the two hooks below.
+''
+'' PATH 2 REFUSES RATHER THAN GUESSES. fb_hConsoleStreamOutW (in
+'' src/io/conprintw.tiko) returns FALSE when VIEW PRINT is active or the window
+'' is narrower than the screen buffer, because in both cases the console would
+'' wrap and scroll somewhere fbc does not want it to. Path 3 then runs and the
+'' bytes stay exact. MB_ERR_INVALID_CHARS is asked for ONLY under CP 65001 --
+'' a single-byte codepage maps all 256 values, so demanding validity there
+'' would reject nothing and cost a flag.
+''
+'' scrollWasOff IS A DEFERRED SCROLL, and it is the subtlest thing here. A write
+'' that ends exactly at the last column has filled the line but must NOT scroll
+'' yet, because the next thing might be a LOCATE. So the scroll is remembered in
+'' __fb_con.scrollWasOff and the cursor is parked at the last cell; the NEXT
+'' print performs it. Getting this wrong does not crash -- it prints a blank
+'' line at the wrong moment, which is exactly the kind of defect a suite that
+'' compares output catches and one that compares return values does not.
+''
+'' alloca IS REPLACED BY malloc/free. The freestanding subset has no alloca and
+'' -gen llvm will not take inline asm; the write hook allocates and frees per
+'' call instead. That is a real cost on the hot path and it is stated here
+'' rather than hidden: the cell path is already one WriteConsoleOutput syscall
+'' per run of text, so a malloc beside it is not what decides the speed. THE
+'' FAILURE MODE DIFFERS THOUGH -- alloca cannot fail and malloc can, so the hook
+'' returns 0 (write failed) where fbc would have carried on.
+''
+'' AND THE HIGH BYTE OF CHAR_INFO.Char DIFFERS. fbc writes only AsciiChar into
+'' an alloca'd, uninitialised buffer, so the other byte of the union is stack
+'' residue; this writes the whole 16-bit union with the byte in the low half and
+'' zero above. WriteConsoleOutputA reads AsciiChar alone, so the difference is
+'' not observable -- but it is a difference, and the reason it is safe is worth
+'' recording rather than rediscovering.
+
+#include once "inc/descriptors.ti"
+#include once "inc/console.ti"
+#include once "inc/conhooks.ti"
+#include once "inc/iolock.ti"
+#include once "inc/print.ti"
+#include once "inc/sysbind.ti"
+
+#ifdef __FB_WIN32__
+
+const CP_UTF8_              = 65001
+const MB_ERR_INVALID_CHARS_ = 8
+
+'' CHAR_INFO: a union of WCHAR/CHAR, then a WORD of attributes. Four bytes.
+'' See the file header on the high byte of the union.
+type TKORT_CHARINFO
+	as ushort ch
+	as ushort attr
+end type
+
+#assert sizeof( TKORT_CHARINFO ) = 4
+
+'' SMALL_RECT: Left, Top, Right, Bottom as SHORT, in that order.
+type TKORT_SMALLRECT
+	as short Left_, Top_, Right_, Bottom_
+end type
+
+#assert sizeof( TKORT_SMALLRECT ) = 8
+
+'' The per-call state the two hooks share, hung off fb_ConHooks.Opaque. This is
+'' fbc's `fb_PrintInfo` and it never leaves PrintBufferEx's stack frame.
+type TKORT_PRINTINFO
+	as fb_Rect  rWindow
+	as fb_Coord BufferSize
+	as ushort   wAttributes
+	as any ptr  hOutput
+	as long     fViewSet
+end type
+
+extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
+	declare function w_WriteFile stdcall alias "WriteFile" _
+		( byval h as any ptr, byval buf as any ptr, byval n as ulong, _
+		  byval wrote as ulong ptr, byval ov as any ptr ) as long
+	declare function w_GetConsoleOutputCP stdcall alias "GetConsoleOutputCP" ( ) as ulong
+	declare function w_MultiByteToWideChar stdcall alias "MultiByteToWideChar" _
+		( byval cp as ulong, byval flags as ulong, byval src as zstring ptr, _
+		  byval srclen as long, byval dst as any ptr, byval dstlen as long ) as long
+	declare function w_WriteConsoleOutputA stdcall alias "WriteConsoleOutputA" _
+		( byval h as any ptr, byval buf as any ptr, byval size_ as ulong, _
+		  byval pos as ulong, byval region as any ptr ) as long
+	declare function w_ScrollConsoleScreenBufferA stdcall alias "ScrollConsoleScreenBufferA" _
+		( byval h as any ptr, byval scroll_ as any ptr, byval clip as any ptr, _
+		  byval dest as ulong, byval fill as any ptr ) as long
+	declare function w_FillConsoleOutputAttribute stdcall alias "FillConsoleOutputAttribute" _
+		( byval h as any ptr, byval attr as ushort, byval n as ulong, _
+		  byval c as ulong, byval got as ulong ptr ) as long
+	declare function w_FillConsoleOutputCharacterA stdcall alias "FillConsoleOutputCharacterA" _
+		( byval h as any ptr, byval ch as ubyte, byval n as ulong, _
+		  byval c as ulong, byval got as ulong ptr ) as long
+	declare function w_SetConsoleWindowInfo stdcall alias "SetConsoleWindowInfo" _
+		( byval h as any ptr, byval absolute as long, byval rect as any ptr ) as long
+end extern
+
+extern "c"   '' NON-FBCALL: rtlib internals, all declared plain.
+	declare sub tkrt_ConsoleGetView alias "fb_ConsoleGetView" _
+		( byval top_ as long ptr, byval bot as long ptr )
+	declare sub tkrt_ConPrintTTY alias "fb_ConPrintTTY" _
+		( byval handle as fb_ConHooks ptr, byval pachText as ubyte ptr, _
+		  byval TextLength as uinteger, byval is_text_mode as long )
+	declare function tkrt_hConsoleStreamOutW alias "fb_hConsoleStreamOutW" _
+		( byval text as wstring ptr, byval chars as uinteger ) as long
+end extern
+
+'' ---------------------------------------------------------------- the hooks
+''
+'' Both are file-local: fbc's are `static` and the archive exports neither.
+
+private sub tkort_HookConScroll cdecl _
+	( byval handle as fb_ConHooks ptr, byval x1 as long, byval y1 as long, _
+	  byval x2 as long, byval y2 as long, byval rows as long )
+
+	dim as TKORT_PRINTINFO ptr pInfo = cast( TKORT_PRINTINFO ptr, handle->Opaque )
+	dim as any ptr hnd = pInfo->hOutput
+	dim as long iBufferHeight = any, iScrollHeight = any
+	dim as long iClearFrom = any, iClearTo = any, iClearPos = any
+	dim as TKORT_SMALLRECT srScroll
+	dim as long destX = any, destY = any
+
+	if( pInfo->fViewSet = 0 ) then
+		'' MOVE THE WINDOW BEFORE SCROLLING THE BUFFER. While there are unused
+		'' rows below, sliding the window down costs nothing and preserves the
+		'' scrollback; only when the window is already at the bottom of the
+		'' screen buffer does the buffer itself have to move.
+		if( (handle->Border.Bottom_ + 1) < pInfo->BufferSize.Y_ ) then
+			dim as long remaining_ = pInfo->BufferSize.Y_ - handle->Border.Bottom_ - 1
+			dim as long move_size = iif( remaining_ < rows, remaining_, rows )
+
+			handle->Border.Top_ += move_size
+			handle->Border.Bottom_ += move_size
+
+			rows -= move_size
+			if( rows = 0 ) then exit sub
+		end if
+
+		destX = 0 : destY = 0
+		srScroll.Right_ = cast( short, pInfo->BufferSize.X_ - 1 )
+		srScroll.Bottom_ = cast( short, pInfo->BufferSize.Y_ - 1 )
+		iBufferHeight = pInfo->BufferSize.Y_
+	else
+		'' A VIEW PRINT region scrolls alone.
+		destX = handle->Border.Left_
+		destY = handle->Border.Top_
+		srScroll.Right_ = cast( short, handle->Border.Right_ )
+		srScroll.Bottom_ = cast( short, handle->Border.Bottom_ )
+		iBufferHeight = handle->Border.Bottom_ - handle->Border.Top_ + 1
+	end if
+
+	if( iBufferHeight <= rows ) then
+		'' Scrolling by at least the whole height: nothing survives, so clear
+		'' rather than move. srScroll.Left_/Top_ are never set on this path and
+		'' ScrollConsoleScreenBuffer is never called -- fbc leaves them
+		'' uninitialised for the same reason.
+		iClearFrom = handle->Border.Top_
+		iClearTo = handle->Border.Bottom_ + 1
+	else
+		dim as TKORT_CHARINFO FillChar
+
+		srScroll.Left_ = cast( short, destX )
+		srScroll.Top_ = cast( short, destY + rows )
+
+		iScrollHeight = srScroll.Bottom_ - srScroll.Top_ + 1
+		if( iScrollHeight < rows ) then
+			'' The source region is shorter than the distance moved, so the
+			'' rows between the two are covered by neither and must be cleared.
+			iClearFrom = destY + iScrollHeight
+			iClearTo = srScroll.Bottom_ + 1
+		else
+			iClearFrom = 0 : iClearTo = 0
+		end if
+
+		FillChar.attr = pInfo->wAttributes
+		FillChar.ch = 32
+
+		w_ScrollConsoleScreenBufferA( hnd, @srScroll, 0, _
+		                              TKORT_COORD( destX, destY ), @FillChar )
+	end if
+
+	if( iClearFrom <> iClearTo ) then
+		dim as short cx1 = cast( short, handle->Border.Left_ )
+		dim as ushort attr = pInfo->wAttributes
+		dim as ulong width_ = handle->Border.Right_ - cx1 + 1
+		dim as ulong written = any
+
+		iClearPos = iClearFrom
+		while( iClearPos <> iClearTo )
+			w_FillConsoleOutputAttribute( hnd, attr, width_, _
+			                              TKORT_COORD( cx1, iClearPos ), @written )
+			w_FillConsoleOutputCharacterA( hnd, 32, width_, _
+			                               TKORT_COORD( cx1, iClearPos ), @written )
+			iClearPos += 1
+		wend
+	end if
+
+	handle->Coord_.Y_ = handle->Border.Bottom_
+end sub
+
+private function tkort_HookConWrite cdecl _
+	( byval handle as fb_ConHooks ptr, byval buffer as any ptr, _
+	  byval length_ as uinteger ) as long
+
+	dim as TKORT_PRINTINFO ptr pInfo = cast( TKORT_PRINTINFO ptr, handle->Opaque )
+	dim as any ptr hnd = pInfo->hOutput
+	dim as ubyte ptr pachText = cast( ubyte ptr, buffer )
+	dim as ushort wAttributes = pInfo->wAttributes
+	dim as TKORT_SMALLRECT srWriteRegion
+	dim as long result_ = any
+
+	'' malloc, NOT alloca -- see the file header, including the failure mode
+	'' that fbc does not have.
+	dim as TKORT_CHARINFO ptr lpBuffer = _
+		cast( TKORT_CHARINFO ptr, malloc( sizeof( TKORT_CHARINFO ) * length_ ) )
+	if( lpBuffer = 0 ) then return 0
+
+	srWriteRegion.Left_ = cast( short, handle->Coord_.X_ )
+	srWriteRegion.Top_ = cast( short, handle->Coord_.Y_ )
+	srWriteRegion.Right_ = cast( short, handle->Coord_.X_ + length_ - 1 )
+	srWriteRegion.Bottom_ = cast( short, handle->Coord_.Y_ )
+
+	'' GUARDED, because FreeBASIC's FOR is not C's. C's `for( i=0; i!=length; ++i )`
+	'' does nothing when length is 0; `for i = 0 to length_ - 1` over an UNSIGNED
+	'' counter would wrap to 0xFFFF... and run essentially forever. The console
+	'' call still happens, exactly as it does in fbc, with an empty region.
+	if( length_ <> 0 ) then
+		for i as uinteger = 0 to length_ - 1
+			lpBuffer[i].attr = wAttributes
+			lpBuffer[i].ch = pachText[i]
+		next
+	end if
+
+	result_ = w_WriteConsoleOutputA( hnd, lpBuffer, _
+	                                 TKORT_COORD( length_, 1 ), _
+	                                 TKORT_COORD( 0, 0 ), _
+	                                 @srWriteRegion )
+	free( lpBuffer )
+	return result_
+end function
+
+'' ------------------------------------------------------------ the two exports
+
+extern "c"   '' NON-FBCALL: fb_console.h declares both plainly, and the archive
+             '' agrees on all three targets -- no @N on win32.
+
+sub tkort_ConsolePrintBufferEx alias "fb_ConsolePrintBufferEx" _
+	( byval buffer as any ptr, byval length_ as uinteger, byval mask as long )
+
+	dim as ubyte ptr pachText = cast( ubyte ptr, buffer )
+	dim as uinteger len_ = length_
+	dim as long win_left = any, win_top = any, win_cols = any, win_rows = any
+	dim as long view_top = any, view_bottom = any
+	dim as TKORT_PRINTINFO info
+	dim as fb_ConHooks hooks
+
+	'' FORCE_ADJUST IS HOW THE DEFERRED SCROLL GETS PERFORMED: a zero-length
+	'' call with that bit set does nothing but settle the cursor. Without the
+	'' bit, a zero length is simply nothing to do.
+	if( (mask and FB_PRINT_FORCE_ADJUST) = 0 ) then
+		if( len_ = 0 ) then exit sub
+	end if
+
+	TKORT_IOLOCK()
+
+	'' PATH 1: REDIRECTED. See the file header.
+	if( TKORT_CON_WINDOW_EMPTY() ) then
+		dim as ulong dwBytesWritten = any
+		while( (len_ <> 0) andalso _
+		       (w_WriteFile( TKORT_OUT_HANDLE(), pachText, len_, @dwBytesWritten, 0 ) <> 0) )
+			pachText += dwBytesWritten
+			len_ -= dwBytesWritten
+		wend
+		TKORT_IOUNLOCK()
+		exit sub
+	end if
+
+	'' PATH 2: THE UTF-16 STREAM. See the file header.
+	if( (buffer <> 0) andalso (len_ <> 0) ) then
+		dim as ulong cp = w_GetConsoleOutputCP( )
+		dim as ulong flags = iif( cp = CP_UTF8_, MB_ERR_INVALID_CHARS_, 0 )
+		dim as long wlen = w_MultiByteToWideChar( cp, flags, pachText, cast( long, len_ ), 0, 0 )
+
+		if( wlen > 0 ) then
+			'' sizeof( FB_WCHAR ) is 2 on Windows -- the whole reason this path
+			'' is Windows-only.
+			dim as wstring ptr wbuf = cast( wstring ptr, malloc( wlen * 2 ) )
+			if( wbuf <> 0 ) then
+				dim as long done_ = 0
+				if( w_MultiByteToWideChar( cp, flags, pachText, cast( long, len_ ), _
+				                           wbuf, wlen ) = wlen ) then
+					done_ = tkrt_hConsoleStreamOutW( wbuf, cast( uinteger, wlen ) )
+				end if
+				free( wbuf )
+				if( done_ <> 0 ) then
+					TKORT_IOUNLOCK()
+					exit sub
+				end if
+			end if
+		end if
+	end if
+
+	'' PATH 3: CELLS.
+	tkrt_ConsoleGetView( @view_top, @view_bottom )
+	tkrt_hConsoleGetWindow( @win_left, @win_top, @win_cols, @win_rows )
+
+	hooks.Opaque         = @info
+	hooks.Scroll_        = @tkort_HookConScroll
+	hooks.Write_         = @tkort_HookConWrite
+	hooks.Border.Left_   = win_left
+	hooks.Border.Top_    = win_top + view_top - 1
+	hooks.Border.Right_  = win_left + win_cols - 1
+	hooks.Border.Bottom_ = win_top + view_bottom - 1
+
+	info.hOutput         = TKORT_OUT_HANDLE()
+	info.rWindow.Left_   = win_left
+	info.rWindow.Top_    = win_top
+	info.rWindow.Right_  = win_left + win_cols - 1
+	info.rWindow.Bottom_ = win_top + win_rows - 1
+	info.fViewSet        = iif( (hooks.Border.Top_ <> info.rWindow.Top_) orelse _
+	                            (hooks.Border.Bottom_ <> info.rWindow.Bottom_), 1, 0 )
+
+	scope
+		dim as ubyte screen_info( 0 to CSBI_SIZE_ - 1 ) = any
+
+		'' A FAILED QUERY FALLS BACK TO 80x25 AND ATTRIBUTE 7 rather than
+		'' giving up -- the print still happens, at the top-left of the border.
+		if( w_GetConsoleScreenBufferInfo( TKORT_OUT_HANDLE(), @screen_info(0) ) = 0 ) then
+			hooks.Coord_.X_ = hooks.Border.Left_
+			hooks.Coord_.Y_ = hooks.Border.Top_
+			info.BufferSize.X_ = FB_SCRN_DEFAULT_WIDTH
+			info.BufferSize.Y_ = FB_SCRN_DEFAULT_HEIGHT
+			info.wAttributes = 7
+		else
+			hooks.Coord_.X_ = *cptr( short ptr, @screen_info(CSBI_CURSOR_X_) )
+			hooks.Coord_.Y_ = *cptr( short ptr, @screen_info(CSBI_CURSOR_Y_) )
+			info.BufferSize.X_ = *cptr( short ptr, @screen_info(CSBI_DWSIZE_X_) )
+			info.BufferSize.Y_ = *cptr( short ptr, @screen_info(CSBI_DWSIZE_Y_) )
+			info.wAttributes = *cptr( ushort ptr, @screen_info(CSBI_ATTRIBUTES_) )
+		end if
+
+		'' THE DEFERRED SCROLL, PERFORMED. See the file header.
+		if( TKORT_CON_SCROLLOFF() <> 0 ) then
+			TKORT_CON_SCROLLOFF() = 0
+			hooks.Coord_.Y_ += 1
+			hooks.Coord_.X_ = hooks.Border.Left_
+			TKORT_CONCHECKSCROLL( @hooks )
+		end if
+
+		tkrt_ConPrintTTY( @hooks, pachText, len_, 1 )
+
+		'' AND THE DEFERRED SCROLL, DEFERRED. Landing exactly at the left of the
+		'' row after the border means the text filled the last line; park the
+		'' cursor on the last cell and remember to scroll next time.
+		if( (hooks.Coord_.X_ <> hooks.Border.Left_) orelse _
+		    (hooks.Coord_.Y_ <> (hooks.Border.Bottom_ + 1)) ) then
+			TKORT_CONCHECKSCROLL( @hooks )
+		else
+			TKORT_CON_SCROLLOFF() = 1
+			hooks.Coord_.X_ = hooks.Border.Right_
+			hooks.Coord_.Y_ = hooks.Border.Bottom_
+		end if
+
+		w_SetConsoleCursorPosition( info.hOutput, _
+		                            TKORT_COORD( hooks.Coord_.X_, hooks.Coord_.Y_ ) )
+	end scope
+
+	'' THE SCROLL HOOK MAY HAVE MOVED THE BORDER (see it above), and if it did,
+	'' the visible window has to follow or the print landed off-screen.
+	if( (hooks.Border.Top_ <> win_top) andalso (info.fViewSet = 0) ) then
+		dim as TKORT_SMALLRECT srWindow
+		srWindow.Left_ = cast( short, hooks.Border.Left_ )
+		srWindow.Top_ = cast( short, hooks.Border.Top_ )
+		srWindow.Right_ = cast( short, hooks.Border.Right_ )
+		srWindow.Bottom_ = cast( short, hooks.Border.Bottom_ )
+		w_SetConsoleWindowInfo( info.hOutput, 1, @srWindow )
+	end if
+
+	tkrt_hUpdateConsoleWindow( )
+
+	TKORT_IOUNLOCK()
+end sub
+
+'' THE LENGTH COMES FROM strlen, so this spelling cannot print an embedded NUL.
+sub tkort_ConsolePrintBuffer alias "fb_ConsolePrintBuffer" _
+	( byval buffer as zstring ptr, byval mask as long )
+
+	tkort_ConsolePrintBufferEx( buffer, strlen( buffer ), mask )
+end sub
+
+end extern
+
+#endif

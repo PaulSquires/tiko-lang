@@ -1,0 +1,28 @@
+'' cmdline.ti -- command-line parsing.
+''
+'' A separate, independently testable module: it takes an argument vector and a
+'' diagnostic engine, and produces a DriverOptions. It touches no files, spawns no
+'' processes and reads no environment, so tests/driver/cmdline can drive it directly
+'' with synthetic argument vectors.
+
+#ifndef __TKO_CMDLINE_BI__
+#define __TKO_CMDLINE_BI__
+
+#include once "tko.ti"
+#include once "driver/options.ti"
+#include once "diag/engine.ti"
+
+namespace Tko.Cmdline
+
+    '' Returns false when the command line was rejected. Diagnostics are reported
+    '' through the engine, so the caller only needs the boolean.
+    declare function Parse _
+        ( byref args as Tko.StrVec, byref opts as Tko.DriverOptions, _
+          byref diags as Tko.DiagnosticEngine ) as boolean
+
+    declare function HelpText( byval category as string = "" ) as string
+    declare function VersionText( ) as string
+
+end namespace
+
+#endif

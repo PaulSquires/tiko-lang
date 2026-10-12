@@ -1,0 +1,42 @@
+'' manifest.ti -- a package's tiko.toml (ADR 0017; RFC-0007 §2). See manifest.tiko.
+
+#pragma once
+
+#include once "tko.ti"
+#include once "driver/driver.ti"
+
+namespace Tko.Modules
+
+type Manifest
+    as string  dir_          '' the directory holding tiko.toml
+    as string  name          '' [package] name, lower case
+    '' [dependencies] x = { path = "..." }: the key, and the path resolved against dir_.
+    as StrVec  depNames
+    as StrVec  depPaths
+    '' [defines], as NAME=value, the form '-d' takes.
+    as StrVec  defines
+    '' [dependencies.x.defines]: honoured only in the root's manifest. ddDep[k] is x.
+    as StrVec  ddDep
+    as StrVec  ddDefine
+    '' [target.<name>], [target.<name>.defines] and [profile.<name>] (tiko-build RFC-0001
+    '' §5): what to build, read only by 'tiko build' (src/build). Kept as records -- the
+    '' table's name, the key, the value, an array's elements joined by LF; a define is key
+    '' 'define', value NAME=value -- in file order, each name once in *Names.
+    as StrVec  targetNames
+    as StrVec  tgtName
+    as StrVec  tgtKey
+    as StrVec  tgtVal
+    as StrVec  profileNames
+    as StrVec  prfName
+    as StrVec  prfKey
+    as StrVec  prfVal
+end type
+
+'' READ dir_/tiko.toml. False with the reason reported (TKO0144) when it is not the subset
+'' RFC-0007 §2 allows; when the file is not there, false and nothing reported -- ask
+'' HasManifest first.
+declare function HasManifest( byref dir_ as string ) as boolean
+declare function LoadManifest _
+    ( byref ctx as Tko.CompilerContext, byref dir_ as string, byref m as Manifest ) as boolean
+
+end namespace

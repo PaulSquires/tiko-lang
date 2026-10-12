@@ -53,8 +53,8 @@ note( ) {
 # layer_of -- and at Git Bash's ~40ms a process that was 250 seconds (2026-09-28). The
 # rules and the messages are the same; only the order of the messages within one rule
 # can differ.
-SRC=$(find src -name '*.bas' -o -name '*.bi' | sort)
-ALL=$(find src tools lib -path 'lib/rt' -prune -o \( -name '*.bas' -o -name '*.bi' \) -print | sort)
+SRC=$(find src -name '*.tiko' -o -name '*.ti' | sort)
+ALL=$(find src tools lib -path 'lib/rt' -prune -o \( -name '*.tiko' -o -name '*.ti' -o -name '*.bas' -o -name '*.bi' \) -print | sort)
 # THE STANDARD LIBRARY'S MODULES (pkg/std, real modules since 2026-10-10) are held to the
 # size, whitespace and tab rules too. Not to layering or the 'dim shared' allowlist: those
 # are the compiler's own architecture, and a module's state is its own.
@@ -82,7 +82,7 @@ function layer( d ) {
 {
     f = $1; inc = $2
     split( f, part, "/" ); dir = part[2]
-    if (dir == "tko.bi") next
+    if (dir == "tko.ti") next
     mine = layer( dir ); if (mine == 9) next
     theirs = layer( inc ); if (theirs == 9) next
     if (theirs > mine) print "LAYERING " f " (layer " mine ") includes " inc "/ (layer " theirs ")"
@@ -97,14 +97,14 @@ rm -f build/.lint.layer
 #
 # Allowlist, with the reason each is allowed:
 #
-#   diag/diagnostic.bas   the DiagId table          write-once, built from an X-macro
-#   driver/cmdline.bas    the option table          write-once, built from an X-macro
-#   lexer/lexer.bas       the token-kind name table write-once, built from an X-macro
-#   parser/expr.bas       node names + infix table   write-once, built from an X-macro
-#   parser/intrinsics.bas the intrinsic form table    write-once, built from an X-macro
-#   types/type.bas        the builtin metadata table write-once, built from an X-macro
-#   symbols/symbol.bas    the symbol-kind name table  write-once, built from an X-macro
-#   diag/engine.bas       the stderr file handle    a PROCESS resource, opened once
+#   diag/diagnostic.tiko   the DiagId table          write-once, built from an X-macro
+#   driver/cmdline.tiko    the option table          write-once, built from an X-macro
+#   lexer/lexer.tiko       the token-kind name table write-once, built from an X-macro
+#   parser/expr.tiko       node names + infix table   write-once, built from an X-macro
+#   parser/intrinsics.tiko the intrinsic form table    write-once, built from an X-macro
+#   types/type.tiko        the builtin metadata table write-once, built from an X-macro
+#   symbols/symbol.tiko    the symbol-kind name table  write-once, built from an X-macro
+#   diag/engine.tiko       the stderr file handle    a PROCESS resource, opened once
 #
 # The first three are lazily-built constant tables: written by their Init sub and
 # read-only thereafter, so they are shared state but not mutable state. The fourth is
@@ -112,10 +112,10 @@ rm -f build/.lint.layer
 # Nothing else may be added here without the same kind of argument.
 allow_shared( ) {
     case "$1" in
-        src/diag/diagnostic.bas|src/driver/cmdline.bas) return 0 ;;
-        src/lexer/lexer.bas|src/diag/engine.bas) return 0 ;;
-        src/parser/expr.bas|src/parser/intrinsics.bas) return 0 ;;
-        src/types/type.bas|src/symbols/symbol.bas) return 0 ;;
+        src/diag/diagnostic.tiko|src/driver/cmdline.tiko) return 0 ;;
+        src/lexer/lexer.tiko|src/diag/engine.tiko) return 0 ;;
+        src/parser/expr.tiko|src/parser/intrinsics.tiko) return 0 ;;
+        src/types/type.tiko|src/symbols/symbol.tiko) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -150,7 +150,7 @@ done
 # 'integer' is pointer-width on every target we build, so it is the portable
 # answer. This applies only to the pixel-pushing modules; elsewhere a 'long'
 # counter is fine and this rule would just be noise.
-for f in $(grep_files 'for [A-Za-z_][A-Za-z0-9_]* as (long|short|byte) ' $(find lib/gfx/raster lib/gfx/blit lib/gfx/put -name '*.bas' -o -name '*.bi' 2>/dev/null | sort)); do
+for f in $(grep_files 'for [A-Za-z_][A-Za-z0-9_]* as (long|short|byte) ' $(find lib/gfx/raster lib/gfx/blit lib/gfx/put -name '*.tiko' -o -name '*.ti' 2>/dev/null | sort)); do
     note "NARROW LOOP $f uses a narrow loop counter in a hot path; use 'integer' (docs/graphics/probe-results.md)"
 done
 
@@ -160,7 +160,7 @@ done
 # must say where its bodies came from -- 'Derived from: <gfxlib2 file>' or
 # 'ORIGINAL WORK'. This is a licence obligation, and it is also how you find the
 # file to re-check when upstream fbc fixes a rasterizer bug.
-GFX=$(find lib/gfx -name '*.bas' -o -name '*.bi' -o -name '*.c' 2>/dev/null | sort)
+GFX=$(find lib/gfx -name '*.tiko' -o -name '*.ti' -o -name '*.bas' -o -name '*.bi' -o -name '*.c' 2>/dev/null | sort)
 if [ -n "$GFX" ]; then
     attributed=" $(awk 'FNR <= 20 && /Derived from:|ORIGINAL WORK/ { print FILENAME; nextfile }' $GFX | tr '\n' ' ') "
     for f in $GFX; do
@@ -180,10 +180,10 @@ fi
 # a module) and an import of anything but std, which would make the compiler depend on a
 # package the seed does not carry. Directives at the start of a line only, so comments and
 # the preprocessor's own 'case "import"' do not match.
-for f in $(grep_files '^[[:space:]]*#[[:space:]]*(module|export)([^A-Za-z0-9_]|$)' $(find src tools \( -name '*.bas' -o -name '*.bi' \) -print | sort)); do
+for f in $(grep_files '^[[:space:]]*#[[:space:]]*(module|export)([^A-Za-z0-9_]|$)' $(find src tools \( -name '*.tiko' -o -name '*.ti' -o -name '*.bas' -o -name '*.bi' \) -print | sort)); do
     note "MODULES $f uses #module/#export; tiko's own source is not a module (ADR 0017)"
 done
-for f in $(grep_files '^[[:space:]]*#[[:space:]]*import[[:space:]]+"([^s]|s[^t]|st[^d]|std[^/])' $(find src tools \( -name '*.bas' -o -name '*.bi' \) -print | sort)); do
+for f in $(grep_files '^[[:space:]]*#[[:space:]]*import[[:space:]]+"([^s]|s[^t]|st[^d]|std[^/])' $(find src tools \( -name '*.tiko' -o -name '*.ti' -o -name '*.bas' -o -name '*.bi' \) -print | sort)); do
     note "MODULES $f imports something other than std/ (only the std modules travel with the seed)"
 done
 # ...AND NO fb/ LIBRARY HEADER: they are the std modules since 2026-10-10, inc/fb is gone, and

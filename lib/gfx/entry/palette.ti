@@ -1,0 +1,198 @@
+'' entry/palette.ti -- the seven PALETTE entry points.
+''
+'' ORIGINAL WORK. Part of libtkogfx: LGPL-2.1-or-later with the static-linking
+'' exception.
+''
+'' MEASURED, NOT INFERRED. docs/language/graphics-abi.md records three of these;
+'' the other four were probed for this file with `fbc -r -gen gcc`, which is the
+'' project's own rule -- a fact with no measurement behind it is a guess. What
+'' the probe said:
+''
+''     palette using a(0)        long array     fb_GfxPaletteUsing( int32* )
+''     palette using b(0)        integer array  fb_GfxPaletteUsing64( int64* )
+''     palette get using a(0)                   fb_GfxPaletteGetUsing( int32* )
+''     palette get using b(0)                   fb_GfxPaletteGetUsing64( int64* )
+''     palette 3, 10, 20, 30                    fb_GfxPalette( 3, 10, 20, 30 )
+''     palette 3, 99                            fb_GfxPalette( 3, 99, -1, -1 )
+''     palette get 3, r, g, b     long          fb_GfxPaletteGet( 3, &r, &g, &b )
+''     palette get 3, r           long          fb_GfxPaletteGet( 3, &r, NULL, NULL )
+''     palette get 3, r, g, b     integer        fb_GfxPaletteGet64( 3, ... int64* )
+''
+'' So "64" IS THE ELEMENT WIDTH OF THE CALLER'S ARRAY, not a 6-bit DAC range.
+'' `dim as integer` is 64-bit on win64 and fbc emits a different symbol for it
+'' rather than converting at the call site. Guessing that "64" meant 0..63
+'' values would have produced a library that compiles, links, and writes the
+'' wrong numbers through a correctly-typed pointer.
+''
+'' THE TWO SCALAR FORMS ARE TOLD APART BY -1, NOT BY AN ARGUMENT COUNT. Both
+'' `PALETTE i, r, g, b` and `PALETTE i, value` reach fb_GfxPalette with four
+'' arguments; the second passes -1 for g and b. Likewise PALETTE GET's packed
+'' form passes NULL for the two it does not want. core/palette.ti already
+'' implements both paths and tools/abtest-palette.bas compares both against
+'' gfxlib2, so this file is dispatch and nothing else.
+''
+'' PALETTE IS A NO-OP ABOVE 8BPP, and with no screen open there is no palette at
+'' all -- both are silent, as they are in fbc.
+
+#pragma once
+
+'' EVERY MUTATOR REFRESHES THE PRESENTATION LUT.
+''
+'' entry/context.ti keeps 256 packed values that the window expands a paletted
+'' surface through. Changing the table without rebuilding it leaves the screen
+'' showing the OLD colours -- or, from a SCREENRES 8bpp start where the table
+'' begins all zero, showing black however much the program draws. Measured that
+'' way: tools/gate-entry.sh could not capture a non-blank frame from an 8bpp
+'' window until this was added, while 32bpp presented correctly all along.
+
+extern "c"
+
+'' PALETTE index, r, g, b   -- or PALETTE index, value when g and b are -1.
+''
+'' An omitted INDEX is -1 and means "restore the mode's defaults", which is how
+'' a bare `PALETTE` is spelled.
+sub TkoGfxPalette alias "fb_GfxPalette" ( _
+        byval index as long, _
+        byval r as long, byval g as long, byval b as long )
+
+    dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
+    if p = 0 then exit sub
+
+    if index < 0 then
+        TkoGfx.PaletteForget( )
+        TkoGfx.PaletteCurrent( )
+        TkoGfx.PaletteLutRebuild( )
+        exit sub
+    end if
+
+    if (g < 0) andalso (b < 0) then
+        '' the two-argument form: a 6-bit packed colour on a 256-colour mode, a
+        '' REGISTER NUMBER on the low-colour ones. core/palette.ti knows which.
+        TkoGfx.PaletteSetPacked( *p, index, cast( ulong, r ) )
+    else
+        TkoGfx.PaletteSetRgb( *p, index, r, g, b )
+    end if
+    TkoGfx.PaletteLutRebuild( )
+end sub
+
+'' PALETTE GET index, r [, g, b]
+''
+'' OMITTED OUTPUTS ARE NULL POINTERS, not temporaries -- the opposite of what
+'' SCREENINFO does. So a NULL g and b is the packed form, not "discard these".
+sub TkoGfxPaletteGet alias "fb_GfxPaletteGet" ( _
+        byval index as long, _
+        byval r as long ptr, byval g as long ptr, byval b as long ptr )
+
+    dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
+    if p = 0 then exit sub
+
+    if (g = 0) andalso (b = 0) then
+        if r <> 0 then *r = TkoGfx.PaletteGetPacked( *p, index )
+        exit sub
+    end if
+
+    dim as long rr, gg, bb
+    TkoGfx.PaletteGetRgb( *p, index, rr, gg, bb )
+    if r <> 0 then *r = rr
+    if g <> 0 then *g = gg
+    if b <> 0 then *b = bb
+end sub
+
+'' The same, through a caller array of FreeBASIC `integer` -- 64-bit on win64.
+'' A separate symbol rather than a conversion at the call site, measured.
+sub TkoGfxPaletteGet64 alias "fb_GfxPaletteGet64" ( _
+        byval index as long, _
+        byval r as longint ptr, byval g as longint ptr, byval b as longint ptr )
+
+    dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
+    if p = 0 then exit sub
+
+    if (g = 0) andalso (b = 0) then
+        if r <> 0 then *r = TkoGfx.PaletteGetPacked( *p, index )
+        exit sub
+    end if
+
+    dim as long rr, gg, bb
+    TkoGfx.PaletteGetRgb( *p, index, rr, gg, bb )
+    if r <> 0 then *r = rr
+    if g <> 0 then *g = gg
+    if b <> 0 then *b = bb
+end sub
+
+'' PALETTE USING array(0)
+''
+'' THE RAW DATA POINTER, WITH NO ARRAY DESCRIPTOR: fbc passes &a(0) and nothing
+'' else, so there is no bound to check against. The count comes from the MODE --
+'' as many entries as the mode has colours -- which is the only source available
+'' and is what gfxlib2 uses too.
+''
+'' Each element is a packed 6-bit-per-channel value, the same encoding the
+'' two-argument PALETTE takes.
+''
+'' THE COUNTS ARE gfxlib2's, measured (fbc-modern 1.20, gfx/palette.bas):
+''
+''   PALETTE USING       1 shl depth entries, none at all above 8 bits, and a
+''                       NEGATIVE entry is skipped -- that index keeps its colour
+''   PALETTE GET USING   the default table's colours capped at 1 shl depth. A
+''                       SCREENRES opens with the 256-colour table at every depth,
+''                       so depth 4 reads 16, 8 and 16 read 256 -- and 24 and 32
+''                       read ONE: gfxlib2 stores 24 as 32, and C's '1 << 32' is 1
+''                       on x86, the shift count being masked to five bits.
+''
+'' This took the mode table's count for both, which is 0 for every SCREENRES, so
+'' neither statement touched a single entry there.
+private function PaletteUsingCount_( ) as long
+    dim as long dep = TkoGfx.TheScreen.depth
+    if dep > 8 then return 0
+    return 1 shl dep
+end function
+
+private function PaletteGetUsingCount_( ) as long
+    dim as long dep = TkoGfx.TheScreen.depth
+    if dep > 16 then return 1
+    dim as long colours = 256
+    if TkoGfx.TheScreen.mode <> 0 then colours = TkoGfx.ModePaletteColors( TkoGfx.TheScreen.mode )
+    if colours > (1 shl dep) then colours = 1 shl dep
+    return colours
+end function
+
+sub TkoGfxPaletteUsing alias "fb_GfxPaletteUsing" ( byval src as long ptr )
+    dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
+    if (p = 0) orelse (src = 0) then exit sub
+    dim as long n = PaletteUsingCount_( )
+    for i as integer = 0 to n - 1
+        if src[i] >= 0 then TkoGfx.PaletteSetPacked( *p, i, cast( ulong, src[i] ) )
+    next
+    TkoGfx.PaletteLutRebuild( )
+end sub
+
+sub TkoGfxPaletteUsing64 alias "fb_GfxPaletteUsing64" ( byval src as longint ptr )
+    dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
+    if (p = 0) orelse (src = 0) then exit sub
+    dim as long n = PaletteUsingCount_( )
+    for i as integer = 0 to n - 1
+        if src[i] >= 0 then TkoGfx.PaletteSetPacked( *p, i, cast( ulong, src[i] ) )
+    next
+    TkoGfx.PaletteLutRebuild( )
+end sub
+
+'' PALETTE GET USING array(0) -- the same, outward.
+sub TkoGfxPaletteGetUsing alias "fb_GfxPaletteGetUsing" ( byval dst as long ptr )
+    dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
+    if (p = 0) orelse (dst = 0) then exit sub
+    dim as long n = PaletteGetUsingCount_( )      '' see PaletteUsingCount_
+    for i as integer = 0 to n - 1
+        dst[i] = TkoGfx.PaletteGetPacked( *p, i )
+    next
+end sub
+
+sub TkoGfxPaletteGetUsing64 alias "fb_GfxPaletteGetUsing64" ( byval dst as longint ptr )
+    dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
+    if (p = 0) orelse (dst = 0) then exit sub
+    dim as long n = PaletteGetUsingCount_( )
+    for i as integer = 0 to n - 1
+        dst[i] = TkoGfx.PaletteGetPacked( *p, i )
+    next
+end sub
+
+end extern

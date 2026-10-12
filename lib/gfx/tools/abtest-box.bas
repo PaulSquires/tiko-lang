@@ -19,7 +19,7 @@
 '' Split into roles like abtest-line.bas so the B side can be built for the
 '' MSVC ABI, where libfbgfx.a cannot be linked. See abtest.bi.
 
-#include once "../raster/box.bi"
+#include once "../raster/box.ti"
 #include once "abtest.bi"
 #include once "crt/string.bi"
 #ifdef ABTEST_HAS_GFXLIB2

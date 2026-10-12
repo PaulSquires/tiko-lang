@@ -1,0 +1,108 @@
+'' unitcache.ti -- a 'tiko build' caches its classic roots too (tiko-build RFC-0001 §6; B3).
+''
+'' THE MODULE CACHE'S POOL AND DISCIPLINE, a different key. An entry is the module entry's
+'' files with an empty interface: key.txt, obj.o, libs.txt and deps.txt, committed after the
+'' objects exist. A hit links obj.o and replays libs.txt; deps.txt -- every file the unit read,
+'' and every include candidate it tried and did not find -- is re-checked first, as a
+'' module's is. The key is Modules.UnitKey.
+''
+'' ONLY UNDER 'tiko build', only when it links, and never:
+''   - after a '#cmdline' restart: the first run's key would not say what the restart added;
+''   - for a unit with an error or a WARNING, which a hit would not report again;
+''   - for a unit that expands __DATE__, __DATE_ISO__ or __TIME__ (B0: a hit would print the
+''     first build's clock);
+''   - under --no-module-cache, which 'tiko build --no-cache' passes.
+'' A classic 'tiko a.bas b.bas' caches nothing, as before.
+
+#pragma once
+
+#include once "tko.ti"
+#include once "driver/driver.ti"
+
+namespace Tko.UnitCache
+
+    '' What the probe found of each root, and what became of a child's (RunChildren).
+    enum UnitState
+        UNIT_UNKNOWN = 0     '' no probe ran
+        UNIT_HIT             '' cached before this build
+        UNIT_MISS            '' not cached, and no child built it
+        UNIT_CHILD           '' a child compiled it, and the cache holds it now
+        UNIT_REDO            '' a child ran and stored nothing (errors, warnings, the clock)
+        UNIT_CRASHED         '' its child died: TKO0167, and it is not compiled again here
+    end enum
+
+    type Store
+        as string     root       '' the pool; "" when this run caches no unit
+        as string     args       '' the key's 'args' line
+        as Tko.StrVec keys
+        as Tko.StrVec chains
+        as Tko.StrVec objs
+        as Tko.StrVec libs
+        as Tko.StrVec deps
+        '' THE PROBE (RunChildren), indexed by unit: its state, key and -- for a hit -- the
+        '' entry's object and libraries, so TryHit does not look again. Empty when no probe ran.
+        as Tko.IdVec  state
+        as Tko.StrVec pkey
+        as Tko.StrVec pobj
+        as Tko.StrVec plibs
+        '' Unit events are sent in unit order: 1 .. emitted have been (Report).
+        as long       emitted
+        '' 'tiko check' (--frontend-only): the cache is READ and never written. A hit was
+        '' stored only by a build that compiled the unit with no error and no warning, and a
+        '' check reports a subset of what a build does -- so a hit is a unit the check would
+        '' find nothing in, and it is not looked at again.
+        as boolean    lookupOnly
+    end type
+
+    '' What the run held before a unit compiled, so After( ) can say what it added.
+    type Mark
+        as long libs0
+        as long paths0
+        as long files0
+        as long objs0
+        as long errs0
+        as long warns0
+    end type
+
+    '' 'eligible': the run links (no -c, no IR or assembly stop, no dump, no scan).
+    declare sub Open _
+        ( byref ctx as Tko.CompilerContext, byref args as Tko.StrVec, byval restartDepth as long, _
+          byval eligible as boolean, byref s as Store )
+    '' Unit i from the cache: its object joins the link and its libraries are replayed.
+    '' 'key' is set either way ("" when the unit is not cached at all).
+    declare function TryHit _
+        ( byref ctx as Tko.CompilerContext, byref s as Store, byval i as long, byref key as string, _
+          byref linkObjs as Tko.StrVec, byref tempObjs as Tko.StrVec ) as boolean
+    declare sub Before( byref ctx as Tko.CompilerContext, byref linkObjs as Tko.StrVec, byref m as Mark )
+    '' After unit i compiled: remembered for Commit when it may be stored. Returns the unit
+    '' event's status -- "miss" when the cache is on, "compiled" when it is not.
+    declare function After _
+        ( byref ctx as Tko.CompilerContext, byref s as Store, byval i as long, byref key as string, _
+          byref m as Mark, byref linkObjs as Tko.StrVec ) as string
+    '' Once the objects exist and before the link deletes them.
+    declare sub Commit( byref ctx as Tko.CompilerContext, byref s as Store )
+
+    '' THE ROOTS THAT MISS, COMPILED IN PARALLEL (tiko-build B4): when the cache is on, the
+    '' run links, and the job budget (Spawn.DefaultJobs: -j, TKO_JOBS, the processors) is
+    '' over one, every root is probed; two or more misses are handed to child tikos -- this
+    '' run's own command line plus '--build-only-unit <i>', output discarded -- that compile
+    '' one root each into the cache. The unit loop then runs as it always has: the children's
+    '' units hit, and what no child could store (an error, a warning, the clock) compiles here
+    '' and reports here, in unit order, exactly as a serial build would. Returns a tool exit
+    '' code: EXIT_CHILD_CRASHED when a child died (TKO0167), else EXIT_OK.
+    declare function RunChildren _
+        ( byref ctx as Tko.CompilerContext, byref s as Store, byref args as Tko.StrVec, _
+          byval srcCount as long ) as long
+    '' Unit i's event, in order: once per unit, "miss" for one a child compiled.
+    declare sub Report( byref ctx as Tko.CompilerContext, byref s as Store, byval i as long, byref status as string )
+    declare function Crashed( byref s as Store, byval i as long ) as boolean
+
+    '' THE LINK, skipped when nothing it reads has changed (tiko-build B5): its signature --
+    '' "" outside a 'tiko build' -- whether '<output>.link' holds it with the artefact as it is,
+    '' and the record written after a link that succeeded (removed otherwise).
+    declare function LinkSignature _
+        ( byref ctx as Tko.CompilerContext, byref args as Tko.StrVec, byref linkObjs as Tko.StrVec ) as string
+    declare function LinkUpToDate( byref ctx as Tko.CompilerContext, byref sig as string ) as boolean
+    declare sub LinkRecord( byref ctx as Tko.CompilerContext, byref sig as string, byval linked as boolean )
+
+end namespace

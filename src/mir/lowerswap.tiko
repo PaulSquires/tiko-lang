@@ -1,0 +1,1490 @@
+'' lowerswap.tiko -- SWAP.
+''
+'' Split out of lowerstr.tiko, which is at its size limit. SWAP lives near the string
+'' code because its string forms are most of its complexity, not because it is one.
+
+#import "std/containers"
+#include once "lowerctx.ti"
+
+namespace Tko.Mir
+
+using Tko
+
+declare function StrSwapKind_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
+
+'' A SWAP operand's type.
+''
+'' Check does not type a POINTER SUBSCRIPT: TypeOf_( pa[i] ) is TYPE_NONE, so
+'' 'swap pa[i], pb[i]' declined on its very first line while the array form beside it
+'' lowered. The pointee is what the subscript yields, and asking the TARGET for it is
+'' the same thing LowerPtrIndex already does to compute the element size.
+'' THE OPERAND OF A 'str( x )' CALL, or the node itself when it is not one. SWAP over
+'' a UDT that casts to a string is written 'swap str( u1 ), str( u2 )' in the corpus,
+'' and the cast that answers for it hangs off the UDT, not off the call.
+private function StrCallOperand_ _
+    ( byref c as Ctx, byval e as Tko.NodeId ) as Tko.NodeId
+
+    if e = Tko.NODE_NONE then return e
+    if c.ast->Kind( e ) <> Tko.N_CALL then return e
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+    if cp->count <> 1 then return e
+    if cp->target = Tko.NODE_NONE then return e
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return e
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "str" then return e
+    return cast( Tko.NodeId, c.ast->children[cp->first] )
+end function
+
+private function SwapOperandType_ _
+    ( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
+
+    dim as Tko.TypeId t = c.info->TypeOf_( e )
+    if t <> Tko.TYPE_NONE then return t
+    if e = Tko.NODE_NONE then return Tko.TYPE_NONE
+    if c.ast->Kind( e ) <> Tko.N_INDEX then return Tko.TYPE_NONE
+
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, e )].data )]
+    if lp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
+    dim as Tko.TypeId pt = c.info->TypeOf_( lp->target )
+    if pt = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    if c.types->Kind( pt ) <> Tko.TK_POINTER then return Tko.TYPE_NONE
+    return c.types->Inner( pt )
+end function
+
+
+'' 'swap x.a, x.b' WHERE EITHER IS A BITFIELD.
+''
+'' Measured from fbc -- a temporary of the field's own type and three read-modify-writes
+'' through the container word, no address taken anywhere:
+''
+''     TMP = x.a;  x.a = x.b;  x.b = TMP;
+''
+'' Each side is read and written through the ordinary bitfield helpers, so a bitfield
+'' may be swapped with a plain lvalue and the masking is the same masking every other
+'' bitfield write uses. Returns false when NEITHER side is one, which leaves the
+'' address-first paths below untouched.
+private function BitfieldSwap_ _
+    ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+    return BitfieldSwapOnce_( c, a, b )   '' lowerbf.tiko: each base lowered once
+end function
+
+function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if (sp->a = Tko.NODE_NONE) orelse (sp->b = Tko.NODE_NONE) then return false
+
+    '' AN OPERAND WITH NO ADDRESS BUT A WIDE VALUE. 'swap wstr( u1 ), wstr( u2 )' over
+    '' a UDT whose 'operator cast( ) byref as wstring' hands back a uint16* is
+    '' measured as
+    ''
+    ''     vr$3 = _ZN3UWHcvwEv( &U2$1 );
+    ''     vr$5 = _ZN3UWHcvwEv( &U1$1 );
+    ''     fb_WstrSwap( vr$5, 0ll, vr$3, 0ll );
+    ''
+    '' -- both through the operator, and LENGTH 0 for each, where an addressable
+    '' 'wstring * 5' passes its own 5. A call has no address, so both sides answered
+    '' nothing and the whole statement declined: udt-wstring/swap.bas writes the shape
+    '' three times per element type.
+    if TermIsWide_( c, sp->a ) andalso TermIsWide_( c, sp->b ) then
+        dim as MirValue wa, wb
+        dim as boolean gotA = WideOperand_( c, sp->a, wa )
+        dim as boolean gotB = false
+        if gotA then gotB = WideOperand_( c, sp->b, wb )
+        if gotB then
+            '' A 'wstring * N' passes its own N -- 'fb_WstrSwap( W1, 10ll, W2, 5ll )', measured; 0 told
+            '' the runtime both were unbounded, and the longer one overran the shorter (swap/strings.bas).
+            dim as longint wla = 0, wlb = 0
+            if (StrSwapKind_( c, c.info->TypeOf_( sp->a ), wla ) <> 2) orelse (wla < 0) then wla = 0
+            if (StrSwapKind_( c, c.info->TypeOf_( sp->b ), wlb ) <> 2) orelse (wlb < 0) then wlb = 0
+            dim as containers.Array( of ulong ) wargs
+            wargs.Push( cast( ulong, wa.kind ) ) : wargs.Push( cast( ulong, wa.id ) )
+            wargs.Push( cast( ulong, MV_CONST_INT ) ) : wargs.Push( cast( ulong, wla ) )
+            wargs.Push( cast( ulong, wb.kind ) ) : wargs.Push( cast( ulong, wb.id ) )
+            wargs.Push( cast( ulong, MV_CONST_INT ) ) : wargs.Push( cast( ulong, wlb ) )
+            EmitRtl( c, RTL_WSTR_SWAP, wargs )
+            return true
+        end if
+    end if
+
+    '' ...AND THE NARROW TWIN OF IT, which is the same shape one flavour over: 'swap
+    '' str( u1 ), str( u2 )' over a UDT whose 'operator cast( ) byref as zstring' hands
+    '' back a char*. Measured:
+    ''
+    ''     vr$3 = _ZN1UcvcEv( &U2$0 );
+    ''     vr$5 = _ZN1UcvcEv( &U1$0 );
+    ''     fb_StrSwap( vr$5, 0ll, 0, vr$3, 0ll, 0 );
+    ''
+    '' -- both through the operator, LENGTH 0 for each where an addressable
+    '' 'zstring * 50' passes its own 50, and the same fill argument the ordinary path
+    '' passes. A call has no address, so both sides answered nothing and the whole
+    '' statement declined; udt-zstring/swap.bas writes the shape twelve times.
+    ''
+    '' The MIXED spelling the same file writes -- 'swap str( u1 ), u2' -- is not this:
+    '' one side is a raw pointer and the other a UDT, and what fbc emits for that
+    '' pairing has not been measured, so it declines rather than being guessed at.
+    '' UNWRAPPED FIRST. 'str( u1 )' is a CALL whose type is STRING, so asking it for
+    '' a user cast finds none -- the cast lives on the UDT INSIDE it. fbc emits no
+    '' conversion for this shape at all: 'str' of a value that casts to zstring is the
+    '' cast and nothing more.
+    dim as MirValue ra, rb
+    dim as boolean rawA = false, rawB = false
+    dim as Tko.NodeId ua = StrCallOperand_( c, sp->a )
+    dim as Tko.NodeId ub = StrCallOperand_( c, sp->b )
+    if UserCastToStr_( c, ua, ra, rawA ) andalso rawA then
+        if UserCastToStr_( c, ub, rb, rawB ) andalso rawB then
+            dim as containers.Array( of ulong ) zargs
+            zargs.Push( cast( ulong, ra.kind ) ) : zargs.Push( cast( ulong, ra.id ) )
+            zargs.Push( cast( ulong, MV_CONST_INT ) ) : zargs.Push( 0 )
+            zargs.Push( cast( ulong, MV_CONST_INT ) ) : zargs.Push( 0 )
+            zargs.Push( cast( ulong, rb.kind ) ) : zargs.Push( cast( ulong, rb.id ) )
+            zargs.Push( cast( ulong, MV_CONST_INT ) ) : zargs.Push( 0 )
+            zargs.Push( cast( ulong, MV_CONST_INT ) ) : zargs.Push( 0 )
+            EmitRtl( c, RTL_STR_SWAP, zargs )
+            return true
+        end if
+    end if
+
+    dim as Tko.TypeId t = SwapOperandType_( c, sp->a )
+    if t = Tko.TYPE_NONE then return false
+
+    '' A BITFIELD HAS NO ADDRESS OF ITS OWN -- it is bits inside a unit its neighbours
+    '' share -- so every path below, which is address-first, declined the whole
+    '' statement. Measured: fbc emits a temporary of the FIELD'S type and three
+    '' read-modify-writes through the container word, with no address taken anywhere.
+    ''
+    '' Either side may be one, and a bitfield may be swapped with an ordinary lvalue.
+    dim as MirValue bfTmp
+    if BitfieldSwap_( c, sp->a, sp->b ) then return true
+
+    dim as MirValue la = LowerAddr( c, sp->a )
+    dim as MirValue lb = LowerAddr( c, sp->b )
+
+    if (la.kind = cast( ubyte, MV_NONE )) orelse (lb.kind = cast( ubyte, MV_NONE )) then
+        return false
+    end if
+
+    '' THE LENGTH ARGUMENT IS NOT ALWAYS -1. Measured from fbc's own C:
+    ''
+    ''     fb_StrSwap( &S1, -1, 0, &S2, -1, 0 )        string  x string
+    ''     fb_StrSwap( Z1,   5, 0, Z2,   5, 0 )        zstring * 5, both sides
+    ''     fb_StrSwap( &S1, -1, 0, Z1,   5, 0 )        MIXED -- each side its own
+    ''     fb_WstrSwap( W1, 5, W2, 5 )                 wstring, a DIFFERENT function
+    ''
+    '' Passing -1 for a fixed-length operand tells the runtime to read a descriptor out
+    '' of character data. That was live for the mixed case: a var-length left operand
+    '' took this branch and both sides went out as -1.
+    dim as longint na, nb_
+    dim as long ka = StrSwapKind_( c, t, na )
+    dim as long kb = StrSwapKind_( c, SwapOperandType_( c, sp->b ), nb_ )
+    '' TWO USTRINGS -- var-length or 'ustring * N' -- are fb_UStrSwap's, never fb_StrSwap's:
+    '' that one copied a fixed ustring's UTF-8 bytes as a narrow buffer and overran both.
+    '' Measured: 'fb_UStrSwap( &A, -1ll, &B, -1ll )', and for a 'ustring * 8'
+    '' 'fb_UStrSwap( FA, -9223372036854775801ll, ... )' -- StrSwapKind_'s tagged N - 1.
+    '' One ustring against a narrow string is Check's TKO0759 (fbc's error 20).
+    dim as boolean isUA = IsUStringType( c, t )
+    dim as boolean isUB = IsUStringType( c, SwapOperandType_( c, sp->b ) )
+    if isUA orelse isUB then
+        if (isUA = false) orelse (isUB = false) then return false
+        dim as containers.Array( of ulong ) uargs
+        uargs.Push( cast( ulong, la.kind ) ) : uargs.Push( cast( ulong, la.id ) )
+        PushStrLen_( c, uargs, na )
+        uargs.Push( cast( ulong, lb.kind ) ) : uargs.Push( cast( ulong, lb.id ) )
+        PushStrLen_( c, uargs, nb_ )
+        EmitRtl( c, RTL_USTR_SWAP, uargs )
+        return true
+    end if
+    if (ka >= 0) andalso (kb >= 0) then
+        '' WSTRING has its own entry point and does not mix with the byte forms; fbc
+        '' emits something else again for that pairing, so it is declined rather than
+        '' guessed at.
+        if (ka = 2) <> (kb = 2) then return false
+        dim as containers.Array( of ulong ) args
+        args.Push( cast( ulong, la.kind ) ) : args.Push( cast( ulong, la.id ) )
+        if ka = 2 then
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, na ) )
+            args.Push( cast( ulong, lb.kind ) ) : args.Push( cast( ulong, lb.id ) )
+            args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, nb_ ) )
+            EmitRtl( c, RTL_WSTR_SWAP, args )
+            return true
+        end if
+        '' THE LENGTH THROUGH PushStrLen_, AND -1 TO FILL A 'string * N'. A fixed narrow
+        '' string's length is TAGGED -- '&h8000000000000000 or N' -- and pushed raw into
+        '' a 32-bit constant it came out as plain N, so the runtime took the operand for a
+        '' 'zstring * N': 'swap f4, f8' over 'string * 4' and 'string * 8' copied a NUL
+        '' and two stale bytes into the padding and wrote past f4 into the next local.
+        '' Measured: fbc passes the tag and fill -1 for each fixed side --
+        '' 'fb_StrSwap( F4, -9223372036854775804ll, -1, F8, -9223372036854775800ll, -1 )',
+        '' and 'fb_StrSwap( &S, -1ll, 0, F8, -9223372036854775800ll, -1 )' when one is not.
+        PushStrLen_( c, args, na )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, iif( ka = 3, -1, 0 ) ) )
+        args.Push( cast( ulong, lb.kind ) ) : args.Push( cast( ulong, lb.id ) )
+        PushStrLen_( c, args, nb_ )
+        args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( cast( ulong, iif( kb = 3, -1, 0 ) ) )
+        EmitRtl( c, RTL_STR_SWAP, args )
+        return true
+    end if
+
+    '' THE OPERANDS MAY DIFFER IN TYPE. fbc allows 'swap' between a long and a double
+    '' and CONVERTS across the assignments -- the temporary is typed to the LEFT operand
+    '' and each store converts into its destination:
+    ''
+    ''     int32 TMP = A;   A = fb_D2I( B );   B = (double)TMP;
+    ''
+    '' Loading both sides through one type instead reinterprets the bits, which lowers
+    '' cleanly, verifies, and is wrong. This was exactly that bug for one commit.
+    dim as Tko.TypeId rt = SwapOperandType_( c, sp->b )
+    if rt = Tko.TYPE_NONE then return false
+    dim as MirType mtl = LowerType( t, *c.types )
+    dim as MirType mtr = LowerType( rt, *c.types )
+    if (mtl = MT_VOID) orelse (mtr = MT_VOID) then return false
+    '' An aggregate has no single load/store, so it is declined rather than
+    '' half-swapped. Strings are the aggregate that matters and took the path above.
+    '' TWO AGGREGATES of the same size swap as BYTES: fbc emits
+    '' 'fb_MemSwap( &U1, &U2, 16 )' for a pair of 16-byte UDTs. Different sizes are
+    '' not a swap fbc accepts, so they still decline.
+    if (mtl = MT_AGG) andalso (mtr = MT_AGG) then
+        '' A UDT's size lives in the LAYOUT TABLE, not in TypeContext.Layout -- the
+        '' same two-step LocalFor makes when it sizes an aggregate slot. Asking the
+        '' type alone gives 0 and the swap silently declined.
+        dim as long sza = c.types->Layout( t ).size
+        dim as long szb = c.types->Layout( rt ).size
+        dim as long uia = c.udts->Find( t )
+        if uia >= 0 then sza = c.udts->udts[uia].size
+        dim as long uib = c.udts->Find( rt )
+        if uib >= 0 then szb = c.udts->udts[uib].size
+        if (sza > 0) andalso (sza = szb) then
+            dim as containers.Array( of ulong ) margs
+            margs.Push( cast( ulong, la.kind ) ) : margs.Push( cast( ulong, la.id ) )
+            margs.Push( cast( ulong, lb.kind ) ) : margs.Push( cast( ulong, lb.id ) )
+            margs.Push( cast( ulong, MV_CONST_INT ) ) : margs.Push( cast( ulong, sza ) )
+            EmitRtl( c, RTL_MEM_SWAP, margs )
+            return true
+        end if
+    end if
+    if (mtl = MT_AGG) orelse (mtr = MT_AGG) then return false
+
+    dim as long slot = NewTempLocal( c, mtl, c.types->Layout( t ).size )
+    dim as MirValue tmp
+    tmp.kind = cast( ubyte, MV_LOCAL )
+    tmp.ty = cast( ubyte, MT_PTR )
+    tmp.id = slot
+
+    StoreThrough( c, tmp, LowerExprLoad( c, la, mtl ) )
+    StoreThrough( c, la, Coerce( c, LowerExprLoad( c, lb, mtr ), mtl ) )
+    StoreThrough( c, lb, Coerce( c, LowerExprLoad( c, tmp, mtl ), mtr ) )
+    return true
+end function
+
+'' Zeroes a 24-byte string descriptor.
+''
+'' fbc emits '__builtin_memset( &A, 0, 24 )' for a string local with no initialiser.
+'' MIR has no memset, so this is three i64 stores -- which mem2reg folds away for a
+'' local that is written before it is read anyway.
+''
+'' This is NOT cosmetic. A string local always registers an fb_StrDelete for its scope
+'' exit, so a descriptor that was never written would hand the runtime a wild pointer
+'' to free.
+'' THE SAME ZEROING, BUT IN THE ENTRY BLOCK, for a TEMPORARY descriptor.
+''
+'' A temporary made inside a loop body is ONE slot reused every iteration, and the
+'' runtime concatenation entry points reallocate whatever buffer they find in the
+'' destination. Zeroing it where it is used therefore does the right thing on the
+'' first pass and LEAKS the buffer on every pass after; zeroing it where it was
+'' allocated does the right thing once and lets the runtime reuse the buffer, which
+'' is the shape fbc emits -- its temporaries are cleared function locals.
+''
+'' NewTempLocal already places its alloca in block 0 for the same reason.
+sub ZeroStrTempAtEntry_( byref c as Ctx, byref dst as MirValue )
+    dim as long saved = c.curBlock
+    c.curBlock = 0
+    ZeroStrDescriptor( c, dst )
+    c.curBlock = saved
+end sub
+
+sub ZeroStrDescriptor( byref c as Ctx, byref dst as MirValue )
+    for off as long = 0 to 16 step 8
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR )
+        fa.ty = cast( ubyte, MT_PTR )
+        fa.a = dst
+        fa.imm = off
+        dim as MirValue p = Emit( c, fa )
+        dim as MirValue z
+        z.kind = cast( ubyte, MV_CONST_INT )
+        z.ty = cast( ubyte, MT_I64 )
+        z.id = 0
+        dim as MirInst st_
+        st_.op = cast( ushort, M_STORE )
+        st_.ty = cast( ubyte, MT_VOID )
+        st_.a = p
+        st_.b = z
+        Emit( c, st_ )
+    next
+end sub
+
+'' 'T( args )' -- A TYPE CONSTRUCTOR USED AS AN EXPRESSION.
+''
+'' 'return TimeSpan( this.m_ticks )' is how the chrono and finance headers build almost
+'' every value they return, and there was no case for it: the callee is a TYPE, not a
+'' procedure, so the ordinary call path found nothing to call.
+''
+'' A temporary is built and constructed, and its VALUE is what comes back -- an
+'' aggregate value is first class in this IR, so nothing new is needed to carry it.
+''
+'' fbc constructs STRAIGHT INTO THE RESULT SLOT when the expression is the whole of a
+'' 'return' -- '_ZN1TC1Ex( &fb$result$1, N$1 ); return fb$result$1;' -- which is one
+'' copy fewer. Same value; the copy is recorded here rather than hidden.
+function LowerTypeCtorExpr_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Tko.TypeId t = TypeCtorTypeOf_( c, id )
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+
+    dim as long slot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
+    if slot < 0 then return false
+    if EmitTypeCtorInto_( c, t, slot, cp, id ) = false then return false
+
+    dim as MirValue addr
+    addr.kind = cast( ubyte, MV_LOCAL )
+    addr.ty = cast( ubyte, MT_PTR )
+    addr.id = slot
+    outv = LowerExprLoad( c, addr, MT_AGG )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' 'a[ i ]' OVER A UDT WITH 'operator []' -- the call, in the shape the operator itself
+'' declares. Two things were assumed rather than read, and both were wrong for anything
+'' but a container indexed by a 32-bit subscript:
+''
+''   THE INDEX WAS COERCED TO MT_I32. 'operator []( byval i as integer )' takes an i64
+''   on win64 -- fbc emits '_ZN1VixEu7INTEGER( &X$0, 3ll )' -- so the argument was
+''   truncated and handed to a parameter twice its width. clang refused the module:
+''   "'%t8' defined with type 'i32' but expected 'i64'". EVERY 'operator []' declared
+''   with the natural spelling was affected, byref and byval alike.
+''
+''   THE RESULT WAS ASSUMED BYREF. That is one of the two shapes: fbc writes
+''   'int32* vr = _ZN1TixEi( &A, 1 ); *vr = 99;' for a BYREF operator, which is what
+''   makes 'a[ 1 ] = 99' an lvalue, and 'int64 vr$2 = _ZN1VixEu7INTEGER( &X$0, 3ll );'
+''   for a BYVAL one. Taking the pointer shape for both loaded through an integer.
+''
+'' 'outByref' says which came back, because the caller's next move differs: a byref
+'' result IS an address and the value form loads through it, where a byval result is
+'' the value and has no address at all.
+function LowerUdtIndexOp_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+      byref outByref as boolean ) as boolean
+
+    outByref = false
+    if c.ast->Kind( id ) <> Tko.N_INDEX then return false
+    dim as Tko.ListPayload ptr sp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if sp->count <> 1 then return false
+    if sp->target = Tko.NODE_NONE then return false
+    dim as Tko.TypeId pt = c.info->TypeOf_( sp->target )
+    if pt = Tko.TYPE_NONE then return false
+    if c.types->Kind( pt ) <> Tko.TK_UDT then return false
+
+    '' WHICH 'operator []' IS CHECK'S, recorded on the node (checkdecide.tiko IndexOperatorFor_):
+    '' by conversion cost over the written index, uniquely, else the chain head -- the rule
+    '' this file applied itself while Check typed the node by the head (audit Phase 4).
+    dim as Tko.SymbolId ixs = c.info->RefOf( id )
+    if ixs = Tko.SYMBOL_NONE then return false
+
+    dim as MirValue self_ = LowerAddr( c, sp->target )
+    if self_.kind = cast( ubyte, MV_NONE ) then return false
+    dim as Tko.NodeId ie = cast( Tko.NodeId, c.ast->children[sp->first] )
+
+    '' THE ARGUMENT IN THE SHAPE THE PARAMETER ASKS FOR -- the same three-way answer an
+    '' operator's operand already gets in lowerselfop.tiko, and the reason this is not a
+    '' width fix alone: fb/map.bi and fb/orderedmap.bi both declare
+    '' 'operator []( byref k as TK )', so a KEY travels as an ADDRESS. Passing its value
+    '' handed the operator a reference to nothing.
+    dim as MirValue iv
+    dim as Tko.TypeId ipt = ParamTypeAt( c, ixs, 0 )
+    if ArrayDescArg_( c, ie, ParamIsArray( c, ixs, 0 ), iv ) then
+    elseif ParamIsByref( c, ixs, 0 ) then
+        '' A BYREF STRING PARAMETER TAKES A DESCRIPTOR, and a LITERAL has none. This is
+        '' the whole of 'mc[ "nums" ].Count( )' -- a map keyed by string, indexed by a
+        '' literal, which is how generics/container-map.bas writes it. LowerAddr answers
+        '' nothing for a literal, so the index declined, the member call lost its
+        '' receiver, and 'calls FB.ARRAY.COUNT with 0 arguments, which declares 1' is
+        '' what the verifier made of it.
+        ''
+        '' StrDescriptorOf_ knows all four shapes -- a descriptor variable, a literal, a
+        '' fixed-length string and a concatenation -- and is what an ordinary call's
+        '' byref string argument already goes through.
+        dim as boolean gotDesc = false
+        '' ...BUT A NARROW KEY FOR A USTRING PARAMETER IS A CONVERSION, exactly as for an
+        '' ordinary call's argument. Measured, 'r[ "name" ]' over 'operator []( byref
+        '' wantedName as ustring )': fbc builds 'fb_UStrAssign( &TMP, -1, (uint16[]){...} )',
+        '' calls with &TMP and deletes it after the statement. Passing the literal's NARROW
+        '' descriptor found no column: fbsqlite's 'row[ "name" ]' read NULL every time.
+        gotDesc = UStrParamArgTemp_( c, ie, ipt, iv )
+        if (gotDesc = false) andalso IsStringType( c, ipt ) then gotDesc = StrDescriptorOf_( c, ie, iv )
+        if gotDesc = false then iv = LowerAddr( c, ie )
+        '' AND A TEMPORARY FOR ANYTHING WITH NO ADDRESS, which is most subscripts:
+        '' 'operator []( index as integer )' declares a BYREF parameter, because in the
+        '' fb dialect a parameter is byref unless it says otherwise, and 'x[ 0 ]' passes
+        '' a literal to it. overload/op-ptrindex.bas writes exactly that and is nothing
+        '' but subscripts. The same temporary an ordinary call's byref argument gets.
+        if iv.kind = cast( ubyte, MV_NONE ) then iv = ByrefTemp_( c, ie, ipt )
+    else
+        iv = LowerExpr( c, ie )
+        '' TO THE PARAMETER'S WIDTH, not the subscript's. 'byval i as integer' is an i64
+        '' on win64 -- fbc emits '_ZN1VixEu7INTEGER( &X$0, 3ll )' -- and this coerced to
+        '' a fixed MT_I32, so the argument was truncated and handed to a parameter twice
+        '' its width. clang refused the module outright.
+        if iv.kind <> cast( ubyte, MV_NONE ) then
+            dim as MirType imt = LowerType( ipt, *c.types )
+            if (imt <> MT_VOID) andalso (imt <> MT_AGG) then
+                iv = CoerceTy( c, iv, imt, c.info->TypeOf_( ie ), ipt )
+            end if
+        end if
+    end if
+    if iv.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' ...AND ITS OWN RESULT SHAPE. The BYREF flag lives on the declaration, which is
+    '' where lowercall.tiko reads it from for an ordinary call.
+    dim as Tko.Symbol ptr ixsym = c.syms->SymbolAt( ixs )
+    if ixsym = 0 then return false
+    dim as Tko.NodeId ixpn = cast( Tko.NodeId, ixsym->payload )
+    if ixpn <> Tko.NODE_NONE then
+        if (c.ast->nodes[cast( long, ixpn )].flags and Tko.NF_BYREF) <> 0 then
+            outByref = true
+        end if
+    end if
+
+    '' WHAT THE CALLEE RETURNS, asked of the callee. 'operator []( index as integer ) as
+    '' string' returns by VALUE and still comes back as a POINTER to a descriptor -- the
+    '' definition is 'func ptr' -- so deriving the call's type from 'as string' emitted
+    '' 'call agg' against it and the whole statement declined. Where the callee has not
+    '' been emitted yet the declared type is all there is, which is the shape this had.
+    dim as MirType rt = MT_PTR
+    if outByref = false then
+        rt = MemberCallRetTy_( c, ixs )
+        if rt = MT_VOID then rt = LowerType( ixsym->type_, *c.types )
+        if rt = MT_VOID then return false
+        '' A POINTER RESULT IS AN ADDRESS, whatever made it one, and the reader loads
+        '' through it exactly as it does for a byref result.
+        if (rt = MT_PTR) andalso (LowerType( ixsym->type_, *c.types ) <> MT_PTR) then
+            outByref = true
+        end if
+    end if
+
+    dim as containers.Array( of ulong ) ia
+    ia.Push( cast( ulong, iv.kind ) ) : ia.Push( cast( ulong, iv.id ) )
+    outv = EmitMemberCallArgs_( c, ixs, self_, rt, @ia )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' 'T( args )' AS AN ADDRESSABLE TEMPORARY -- what 'P( 3 ).v' and 'DateTime( y, m, d
+'' ).AddMonths( 0 )' need. The value form loads the aggregate; a member access needs the
+'' storage it was built in.
+''
+'' Without this a member on a CONSTRUCTOR temporary declined while the same member on a
+'' FUNCTION's returned temporary worked -- the call-result path above it asks for a
+'' SYM_PROC, and a type-constructor call binds to the UDT instead. fb/chrono.bi writes
+'' most of its assertions this way.
+function LowerTypeCtorTempAddr_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    dim as Tko.TypeId t = TypeCtorTypeOf_( c, id )
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+
+    dim as long slot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
+    if slot < 0 then return false
+    if EmitTypeCtorInto_( c, t, slot, cp, id ) = false then return false
+
+    '' DESTROYED AT THE END OF THE STATEMENT. 'T( args )' written as an EXPRESSION
+    '' builds a real object here, and nothing was ever going to destroy it: the
+    '' other temporary-building paths -- a byval UDT argument, a UDT assignment, a
+    '' tuple literal -- all register, and this one was the gap. Measured:
+    '' 'dim as (Counted, long) t = ( Counted( 1 ), 2 )' ran two constructors and one
+    '' destructor, and a for-each over a collection yielding such a tuple failed the
+    '' corpus's 'ctors = dtors' by exactly one object per element.
+    if TypeNeedsDtor_( c, t ) then
+        c.udtTemps.Push( cast( ulong, slot ) )
+        c.udtTempTypes.Push( cast( ulong, t ) )
+    end if
+    outv.kind = cast( ubyte, MV_LOCAL )
+    outv.ty = cast( ubyte, MT_PTR )
+    outv.id = slot
+    return true
+end function
+
+'' The TYPE a 'T( args )' expression builds, or nothing when this is not one. A call
+'' whose callee is bound to a UDT SYMBOL rather than to a procedure.
+function TypeCtorTypeOf_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+    if c.ast->Kind( id ) <> Tko.N_CALL then return Tko.TYPE_NONE
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
+    if s = 0 then return Tko.TYPE_NONE
+    '' ...OR TO A TYPEDEF FOR ONE. 'type Alias as T' is a SYM_TYPEDEF whose own type is
+    '' a TK_TYPEDEF placeholder, so both tests below refused it and 'Alias( ).a'
+    '' declined -- while 'T( ).a' and 'type<Alias>( ).a' beside it lowered.
+    select case s->kind
+    case cast( ubyte, Tko.SYM_UDT ), cast( ubyte, Tko.SYM_TYPEDEF )
+    case else
+        return Tko.TYPE_NONE
+    end select
+    dim as Tko.TypeId ct = c.types->Unqualify( c.info->TypeOf_( cp->target ) )
+    if ct <> Tko.TYPE_NONE then
+        if c.types->Kind( ct ) = Tko.TK_UDT then return ct
+    end if
+    if s->type_ = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    if c.types->Kind( s->type_ ) <> Tko.TK_UDT then return Tko.TYPE_NONE
+    return s->type_
+end function
+
+
+'' A PROPERTY ACCESS -- 't.V' with no parentheses, and 't.V = x'.
+''
+'' Both are CALLS. fbc emits '_ZN1T8V__get__Ev( &T )' and '_ZN1T8V__set__Ei( &T, 5 )',
+'' and the mangler here already knew the two suffixes -- it was lowering that had no
+'' case, so a bare property read declined and a property WRITE went to the ordinary
+'' store path, which looked for a field of that name, found a procedure and declined
+'' too.
+''
+'' 't.V( )' with parentheses already worked, because that is an ordinary call. The
+'' whole gap is the spelling without them, which is how properties are actually used --
+'' 'd1.Year', 'd1.Month', 'd1.Day' in one line of the finance headers.
+''
+'' WHICH OVERLOAD IS DECIDED BY ARITY, not by the name: the getter takes none and the
+'' setter one, they share a symbol chain, and taking the head of it picks whichever was
+'' declared first.
+'' WHAT ONE CANDIDATE'S INDEX PARAMETERS COST for this call's index arguments, or
+'' CONV_NONE when it cannot take them. The parameters are matched positionally from the
+'' front; a SETTER's trailing value parameter is not one of them and is not scored here.
+'' THE INDEX ARGUMENTS of an indexed property, coerced to the chosen overload's own
+'' parameters and pushed in written order. They come before the receiver's other
+'' arguments in both accessors: getter = indices, setter = indices then the value.
+private function PushPropIndexArgs_ _
+    ( byref c as Ctx, byval prop as Tko.SymbolId, byval idxFirst as long, _
+      byval idxCount as long, byref args as containers.Array( of ulong ) ) as boolean
+
+    if idxCount = 0 then return true
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( prop )
+    if s = 0 then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if pn = Tko.NODE_NONE then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    dim as long seen = 0
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if seen >= idxCount then exit for
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[idxFirst + seen] )
+        dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        dim as MirValue av
+        dim as boolean byref_ = _
+            ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
+        '' A BYREF STRING PARAMETER TAKES A DESCRIPTOR, and a literal has none --
+        '' measured, fbc materialises one and passes its address:
+        '' '_ZN3FOO10BAR__set__ER8FBSTRINGu7INTEGER( &F$0, &TMP$3$0, 5678ll )'.
+        '' LowerAddr has none to give, so every STRING-indexed property declined
+        '' while the integer-indexed one lowered; and handing over the literal's own
+        '' bytes instead would be a wild read, not a decline.
+        if byref_ andalso IsStringType( c, pt ) then
+            if StrDescriptorOf_( c, a, av ) = false then return false
+        elseif byref_ then
+            av = LowerAddr( c, a )
+        else
+            '' A STRING FOR A 'wstring ptr' / 'zstring ptr' INDEX goes through a call's encoder: 'pDisp.Put(
+            '' "Pattern" ) = v' passed the NARROW literal as the wide name, and COM answered DISP_E_UNKNOWNNAME.
+            dim as long psk = PropPtrStrArg_( c, a, pt, av )
+            if psk < 0 then return false
+            if psk = 0 then av = LowerExpr( c, a )
+            if (psk = 0) andalso (av.kind <> cast( ubyte, MV_NONE )) then
+                dim as MirType pmt = LowerType( pt, *c.types )
+                if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
+                    av = CoerceTy( c, av, pmt, c.info->TypeOf_( a ))
+                end if
+            end if
+        end if
+        if av.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, av.kind ) )
+        args.Push( cast( ulong, av.id ) )
+        seen += 1
+    next
+    return (seen = idxCount)
+end function
+
+'' A SETTER OVERLOAD IS ALSO CHOSEN BY ITS VALUE PARAMETER, not by its indices alone:
+'' obj_property_idx.bas declares bar(integer,integer), bar(integer,string),
+'' bar(string,integer) and bar(string,string), so scoring the index only leaves two
+'' candidates tied on every call and the whole statement declined as ambiguous.
+private function PropIndexCost_ _
+    ( byref c as Ctx, byval prop as Tko.SymbolId, byval idxFirst as long, _
+      byval idxCount as long, byval valNode as Tko.NodeId = Tko.NODE_NONE ) as long
+
+    if (idxCount = 0) andalso (valNode = Tko.NODE_NONE) then return Tko.Check.CONV_EXACT
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( prop )
+    if s = 0 then return Tko.Check.CONV_NONE
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if pn = Tko.NODE_NONE then return Tko.Check.CONV_NONE
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.Check.CONV_NONE
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    dim as long total = 0
+    dim as long seen = 0
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if seen >= idxCount then exit for
+        dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        dim as Tko.TypeId at = c.info->TypeOf_( _
+            cast( Tko.NodeId, c.ast->children[idxFirst + seen] ) )
+        if (pt = Tko.TYPE_NONE) orelse (at = Tko.TYPE_NONE) then return Tko.Check.CONV_NONE
+        dim as Tko.TypeId pu = c.types->Unqualify( pt )
+        if c.types->Kind( pu ) = Tko.TK_REFERENCE then
+            pu = c.types->Unqualify( c.types->Inner( pu ) )
+        end if
+        dim as long cst = Tko.Check.ConversionCost( c.types->Unqualify( at ), pu, *c.types )
+        if cst >= Tko.Check.CONV_NONE then return Tko.Check.CONV_NONE
+        total += cst
+        seen += 1
+    next
+    if seen <> idxCount then return Tko.Check.CONV_NONE
+
+    '' ...and the TRAILING VALUE PARAMETER, which sits one past the indices.
+    if valNode <> Tko.NODE_NONE then
+        dim as long at2 = 0
+        dim as Tko.TypeId vpt = Tko.TYPE_NONE
+        for i as long = 0 to pp->count - 1
+            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+            if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+            if at2 = idxCount then
+                vpt = c.info->TypeOf_( StmtOf( c, prm )->a )
+                exit for
+            end if
+            at2 += 1
+        next
+        dim as Tko.TypeId vat = c.info->TypeOf_( valNode )
+        if (vpt = Tko.TYPE_NONE) orelse (vat = Tko.TYPE_NONE) then
+            return Tko.Check.CONV_NONE
+        end if
+        dim as Tko.TypeId vpu = c.types->Unqualify( vpt )
+        if c.types->Kind( vpu ) = Tko.TK_REFERENCE then
+            vpu = c.types->Unqualify( c.types->Inner( vpu ) )
+        end if
+        dim as long vc = Tko.Check.ConversionCost( _
+            c.types->Unqualify( vat ), vpu, *c.types )
+        '' A UDT WITH A WIDE CAST reaches a WSTRING value parameter through that cast --
+        '' LowerPropertySet_ passes what it returns. Unscored, 'pRegExp.Pattern = dws' found
+        '' no setter and the same-type LET wrote over the getter's code.
+        if (vc >= Tko.Check.CONV_NONE) andalso (c.types->Kind( vpu ) = Tko.TK_BUILTIN) then
+            if (c.types->BuiltinOf( vpu ) = Tko.TY_WSTRING) andalso _
+               (WideCastOverload_( c, vat ) <> Tko.SYMBOL_NONE) then vc = Tko.Check.CONV_USERDEF
+        end if
+        '' ...AND ANY UDT THROUGH ITS STRING OR NUMERIC CAST (structpick.tiko StructorCastCost): 'b.T2 = s'
+        '' over 'byref v as string' found no setter and became a string store over the getter.
+        if vc >= Tko.Check.CONV_NONE then vc = Tko.Check.StructorCastCost( *c.ast, *c.syms, *c.types, *c.names, vat, vpt )
+        '' ...AND A CONVERSION CONSTRUCTOR ON A UDT PARAMETER, as a call's argument has: 'pDisp.Put( "Pattern" )
+        '' = ".is"' over 'byref dv as DVARIANT' found no setter and the statement was not compiled (TKO0994).
+        if vc >= Tko.Check.CONV_NONE then vc = CtorUserConvCost_( c, vat, vpt )
+        if vc >= Tko.Check.CONV_NONE then return Tko.Check.CONV_NONE
+        total += vc
+    end if
+    return total
+end function
+
+function PropertyAt_ _
+    ( byref c as Ctx, byval node as Tko.NodeId, byval want as long, _
+      byref self_ as MirValue, byref outIdxFirst as long, _
+      byref outIdxCount as long, _
+      byval valNode as Tko.NodeId = Tko.NODE_NONE ) as Tko.SymbolId
+
+    '' AN INDEXED PROPERTY IS SPELLED LIKE A CALL. 'f.bar( 0 )' is an N_CALL whose
+    '' TARGET is the member, and this refused anything that was not a bare member on its
+    '' first line -- so 'f.bar( 0 ) = v' fell through to the ordinary store path, which
+    '' looked for a field of that name, found a procedure and declined.
+    dim as Tko.NodeId member = node
+    dim as long idxFirst = 0
+    dim as long idxCount = 0
+    if c.ast->Kind( node ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr ip2 = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, node )].data )]
+        if ip2->target = Tko.NODE_NONE then return Tko.SYMBOL_NONE
+        if c.ast->Kind( ip2->target ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
+        member = ip2->target
+        idxFirst = ip2->first
+        idxCount = ip2->count
+    end if
+    if c.ast->Kind( member ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId sid = c.info->RefOf( member )
+    if sid = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    outIdxFirst = idxFirst
+    outIdxCount = idxCount
+
+    '' The whole chain, because the getter and the setter share one symbol.
+    ''
+    '' FROM THE HEAD, not from whatever Resolve bound. A chain is singly linked and a
+    '' name maps to the FIRST of its overloads, so starting at the bound symbol can only
+    '' ever see the accessors declared AFTER it. With
+    ''
+    ''     declare property v( byval new_v as integer )
+    ''     declare property v( ) as integer
+    ''
+    '' Resolve bound 'x.v' to the GETTER, the second of the two, and the walk for a
+    '' SETTER found nothing behind it -- so 'x.v = 1' fell through to the ordinary store
+    '' path and stored 1 through the address of the getter's own code. It verified: a
+    '' store of an i64 into a pointer is well formed, and nothing here knew the pointer
+    '' was a function.
+    dim as Tko.SymbolId head = sid
+    dim as Tko.Symbol ptr s0 = c.syms->SymbolAt( sid )
+    if s0 <> 0 then
+        dim as Tko.SymbolId h = c.syms->LookupLocal( s0->parent, s0->name )
+        if h <> Tko.SYMBOL_NONE then head = h
+    end if
+    '' A GETTER IS CHECK'S CHOICE, recorded on the node -- PropertyReadAccessor_ for 't.P', the
+    '' call's resolution for 't.P( i )' -- and agrees with the walk below everywhere it was
+    '' audited (overload re-pick refactor, Phase 1). Only a PROPERTY with a result counts:
+    '' a setter-only 't.P' read has none and declines, as before. The walk is the setter's.
+    dim as Tko.SymbolId cur = head
+    dim as Tko.SymbolId want_ = Tko.SYMBOL_NONE
+    if want = 0 then
+        cur = Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr rgs = c.syms->SymbolAt( c.info->RefOf( node ) )
+        if rgs <> 0 then
+            if (rgs->kind = cast( ubyte, Tko.SYM_PROC )) andalso (rgs->payload <> 0) then
+                dim as Tko.NodeId rgn = cast( Tko.NodeId, rgs->payload )
+                if c.ast->Kind( rgn ) = Tko.N_PROC then
+                    dim as Tko.StmtPayload ptr rgp = StmtOf( c, rgn )
+                    if (rgp->op = cast( ushort, Tko.KW_PROPERTY )) andalso (rgp->a <> Tko.NODE_NONE) then want_ = c.info->RefOf( node )
+                end if
+            end if
+        end if
+    end if
+    dim as long bestCost = Tko.Check.CONV_NONE
+    dim as long ties = 0
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = 0 then exit while
+        if s->kind = cast( ubyte, Tko.SYM_PROC ) then
+            dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+            if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
+                dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+                if pp->op = cast( ushort, Tko.KW_PROPERTY ) then
+                    dim as long np = 0
+                    for i as long = 0 to pp->count - 1
+                        dim as Tko.NodeId prm = _
+                            cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                        if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
+                    next
+                    '' WHICH ACCESSOR IT IS COMES FROM THE RESULT TYPE, not from the
+                    '' parameter count: an INDEXED getter takes one parameter and is
+                    '' still a getter. 'want' is 0 for a get and 1 for a set, and the
+                    '' index arguments are added on top of it.
+                    dim as boolean isGet = (pp->a <> Tko.NODE_NONE)
+                    dim as boolean wantGet = (want = 0)
+                    if (isGet = wantGet) andalso (np = idxCount + want) then
+                        '' SCORED over the index arguments, because a type may declare
+                        '' several -- obj_property_idx.bas overloads on the index type
+                        '' AND the value type. A tie picks nothing.
+                        dim as long cost = PropIndexCost_( _
+                            c, cur, idxFirst, idxCount, valNode )
+                        if cost < bestCost then
+                            bestCost = cost
+                            want_ = cur
+                            ties = 0
+                        elseif (cost = bestCost) andalso (cost < Tko.Check.CONV_NONE) then
+                            ties += 1
+                        end if
+                    end if
+                end if
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+    if want_ = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    if ties > 0 then return Tko.SYMBOL_NONE
+
+    '' The RECEIVER is the member's base, by address -- 'p.V' through a pointer takes
+    '' the pointer's value instead, exactly as a field access does.
+    dim as Tko.BinaryPayload ptr mp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, member )].data )]
+    dim as Tko.TypeId bt = c.info->TypeOf_( mp->lhs )
+    '' A PAREN-LESS PROCEDURE AS THE BASE IS A CALL: 'TS.Big.Ticks' over 'static
+    '' function Big( ) as TS' reads the getter off Big's RESULT -- fbc prints 77, and
+    '' LowerAddr handed the getter Big's machine code.
+    dim as boolean procBase = false
+    if (c.ast->Kind( mp->lhs ) = Tko.N_IDENT) orelse (c.ast->Kind( mp->lhs ) = Tko.N_MEMBER) then
+        dim as Tko.Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
+        if ls <> 0 then procBase = (ls->kind = cast( ubyte, Tko.SYM_PROC ))
+    end if
+    if (bt <> Tko.TYPE_NONE) andalso (c.types->Kind( bt ) = Tko.TK_POINTER) then
+        self_ = LowerExpr( c, mp->lhs )
+    elseif procBase andalso (bt <> Tko.TYPE_NONE) then
+        self_ = ByrefTemp_( c, mp->lhs, bt )
+    else
+        self_ = LowerAddr( c, mp->lhs )
+    end if
+    if self_.kind = cast( ubyte, MV_NONE ) then return Tko.SYMBOL_NONE
+    return want_
+end function
+
+'' A USER-DEFINED BINARY OPERATOR, called. Check chose the overload and recorded it on
+'' the expression node; what is left is passing the operands the way the parameters
+'' want them -- BYREF is the usual spelling for a value type, and an operand with no
+'' address of its own gets a temporary exactly as a call argument does.
+''
+'' A MEMBER operator takes the left operand as its RECEIVER and the right as its only
+'' argument; a global one takes both.
+declare function OperandValue_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
+      byval byref_ as boolean, byref args as containers.Array( of ulong ) ) as boolean
+
+function LowerUserBinaryOp_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
+      byval mt as MirType, byref outv as MirValue ) as boolean
+
+    '' ALREADY ANSWERED. See MarkUserOpDeclined_ -- without this the retry
+    '' descends the whole left subtree again, once per level.
+    if UserOpDeclined_( c, id ) then return false
+    dim as Tko.SymbolId op = c.info->RefOf( id )
+    if op = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
+    if os = 0 then return false
+    if os->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    if pp->op <> cast( ushort, Tko.KW_OPERATOR ) then return false
+
+    '' The parameters, in order, with their byref-ness.
+    dim as containers.Array( of ulong ) ptypes
+    dim as containers.Array( of ulong ) prefs
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        ptypes.Push( cast( ulong, c.info->TypeOf_( StmtOf( c, prm )->a ) ) )
+        dim as ulong isRef = 0
+        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then isRef = 1
+        prefs.Push( isRef )
+    next
+    if (ptypes.Count <> 1) andalso (ptypes.Count <> 2) then return false
+
+    dim as MirType rmt = mt
+    if os->type_ <> Tko.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
+    if IsStringType( c, os->type_ ) then rmt = MT_PTR
+    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then rmt = MT_PTR
+
+    '' A UDT RESULT TRAVELS THROUGH A HIDDEN POINTER, and the caller provides the
+    '' landing place: a temporary passed as ARGUMENT 0, before the operands. fbc emits
+    '' 'struct T* _ZplRK1TS1_( struct T* tmp, ... )' -- the declaration says a pointer,
+    '' so a call typed 'agg' with no temporary was neither the right type nor the right
+    '' argument list, and 'r = a + b' over a UDT-returning operator declined. That is
+    '' every global arithmetic operator over a value type there is.
+    ''
+    '' The call's VALUE is the temporary's ADDRESS, which is what the assignment then
+    '' reads through.
+    dim as MirValue sretTmp
+    dim as boolean usesSret = false
+    if os->type_ <> Tko.TYPE_NONE then
+        if UsesSretReturn( c, os->type_ ) then
+            '' ...or the variable a declaration is building -- SretInPlaceInit_. Destroyed at
+            '' the end of the statement like a call's, and it never was: 'x = a + b' leaked
+            '' the result, so a type whose destructor frees lost one block per assignment.
+            '' Measured, fbc destroys it after every use --
+            ''
+            ''   _ZplR1HR1H( &TMP$23$1, &A$1, &B$1 );
+            ''   __builtin_memcpy( &X$1, &TMP$23$1, 8 );
+            ''   _ZN1HD1Ev( &TMP$23$1 );
+            ''
+            '' -- as an assignment's source, through 'operator let', as an argument, under a
+            '' member access and inside 'a + b + c'.
+            ''
+            '' REGISTERED AFTER THE OPERANDS, which fbc builds first: the result dies BEFORE
+            '' its operands' temporaries. Measured, 'takeR( a + b + a )' destroys 4 and then
+            '' 3. The slot is taken now because the arguments need it; see SretResultSlotAfter_.
+            dim as long tslot = SretResultSlot_( c, os->type_, false, op )
+            if tslot < 0 then return false
+            sretTmp.kind = cast( ubyte, MV_LOCAL )
+            sretTmp.ty = cast( ubyte, MT_PTR )
+            sretTmp.id = tslot
+            usesSret = true
+            rmt = MT_PTR
+        end if
+    end if
+
+    dim as containers.Array( of ulong ) args
+    if usesSret then
+        args.Push( cast( ulong, sretTmp.kind ) )
+        args.Push( cast( ulong, sretTmp.id ) )
+    end if
+    dim as long firstArg = 0
+    '' AN OPERAND'S COPY-BACK FOLLOWS THE OPERATOR CALL, not the statement: measured, fbc
+    '' prints 'uf=[A]' for 'print a & uf; uf' over an operator that writes 'byref as ustring'.
+    dim as long cbMark = c.strTemps.Count
+    if ptypes.Count = 1 then
+        '' The RECEIVER is the left operand, by address.
+        dim as MirValue self_ = LowerAddr( c, bp->lhs )
+        if self_.kind = cast( ubyte, MV_NONE ) then return false
+        args.Push( cast( ulong, self_.kind ) ) : args.Push( cast( ulong, self_.id ) )
+    else
+        if OperandValue_( c, bp->lhs, cast( Tko.TypeId, ptypes[0] ), _
+                          (prefs[0] <> 0), args ) = false then
+            MarkUserOpDeclined_( c, id )
+            return false
+        end if
+        firstArg = 1
+    end if
+    if OperandValue_( c, bp->rhs, cast( Tko.TypeId, ptypes[firstArg] ), _
+                      (prefs[firstArg] <> 0), args ) = false then
+        MarkUserOpDeclined_( c, id )
+        return false
+    end if
+    if usesSret then SretResultSlotAfter_( c, os->type_, sretTmp.id )
+
+    outv = EmitDirectCall_( c, op, rmt, args, usesSret )
+    FlushStrCopyBacks( c, cbMark )
+    '' A CONVERTED OPERAND'S TEMPORARY is a statement temporary -- see ByvalUdtCopyArg_.
+    '' fbc's '_ZN2TUD1Ev( &TMP$2$0 )' on the line after the call was an operator at the
+    '' top of its statement; 'print ( w1 + 9 ) + cnt( ); cnt( )' prints ' 10[~W9] 1'.
+    if usesSret then
+        '' The RESULT IS THE TEMPORARY, not what the call handed back: fbc returns the
+        '' same pointer it was given, and reading the temporary is what every use of
+        '' the result then does.
+        if outv.kind = cast( ubyte, MV_NONE ) then return false
+        outv = sretTmp
+        return true
+    end if
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' 'q += w' THROUGH THE BINARY 'operator +' -- 'q = q + w', with the operator Check bound
+'' on the statement (CompoundUserOp_, symbols/checkwalk.tiko). The TARGET IS EVALUATED
+'' ONCE: its address is the left operand and the destination both. Measured, fbc calls
+'' f once for 'qa( f( ) ) += q2'.
+''
+'' The result goes back as an assignment of its own type would: the type's 'operator let'
+'' or its implicit one where it has either, a bitwise copy where it has neither, and a
+'' plain store into a scalar target.
+function LowerCompoundUserOp_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+
+    dim as Tko.NodeId sid = cast( Tko.NodeId, c.curStmtNode )
+    if sid = Tko.NODE_NONE then return false
+    if c.ast->Kind( sid ) <> Tko.N_AMBIGUOUS then return false
+    if c.info->AmbiguousOf( sid ) <> Tko.AMB_ASSIGN then return false
+    dim as Tko.StmtPayload ptr ssp = StmtOf( c, sid )
+    if (ssp->a <> target) orelse (ssp->b <> value) then return false
+    dim as Tko.SymbolId op = c.info->RefOf( sid )
+    if op = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
+    if os = 0 then return false
+    if os->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    if pp->op <> cast( ushort, Tko.KW_OPERATOR ) then return false
+
+    dim as containers.Array( of ulong ) ptypes
+    dim as containers.Array( of ulong ) prefs
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        ptypes.Push( cast( ulong, c.info->TypeOf_( StmtOf( c, prm )->a ) ) )
+        dim as ulong isRef = 0
+        if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0 then isRef = 1
+        prefs.Push( isRef )
+    next
+    if (ptypes.Count <> 1) andalso (ptypes.Count <> 2) then return false
+
+    '' EVERY QUESTION BEFORE THE FIRST INSTRUCTION, so a decline leaves nothing behind.
+    dim as Tko.TypeId tt = c.types->Unqualify( c.info->TypeOf_( target ) )
+    if c.types->Kind( tt ) = Tko.TK_REFERENCE then tt = c.types->Unqualify( c.types->Inner( tt ) )
+    dim as Tko.TypeId ot = c.types->Unqualify( os->type_ )
+    dim as boolean udtTarget = (c.types->Kind( tt ) = Tko.TK_UDT)
+    dim as MirType tmt = LowerType( tt, *c.types )
+    if udtTarget then
+        if ot <> tt then return false
+    else
+        if cbool( tmt = MT_VOID ) orelse cbool( tmt = MT_AGG ) orelse IsStringType( c, tt ) then return false
+        if (c.types->Kind( ot ) = Tko.TK_UDT) orelse IsStringType( c, ot ) then return false
+    end if
+    '' The left operand as the parameter takes it: the target's address for a receiver or
+    '' a byref parameter of its own type, its value for a byval scalar.
+    dim as MirType lpmt = MT_VOID
+    if ptypes.Count = 2 then
+        dim as Tko.TypeId lpt = c.types->Unqualify( cast( Tko.TypeId, ptypes[0] ) )
+        if c.types->Kind( lpt ) = Tko.TK_REFERENCE then lpt = c.types->Unqualify( c.types->Inner( lpt ) )
+        if prefs[0] <> 0 then
+            if lpt <> tt then return false
+        else
+            lpmt = LowerType( lpt, *c.types )
+            if cbool( lpmt = MT_VOID ) orelse cbool( lpmt = MT_AGG ) orelse udtTarget then return false
+        end if
+    end if
+
+    dim as MirValue da = LowerAddr( c, target )
+    if da.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirType rmt = LowerType( ot, *c.types )
+    dim as MirValue sretTmp
+    dim as boolean usesSret = false
+    dim as containers.Array( of ulong ) args
+    if udtTarget andalso UsesSretReturn( c, ot ) then
+        dim as long tslot = SretResultSlot_( c, ot, false, op )
+        if tslot < 0 then return false
+        sretTmp.kind = cast( ubyte, MV_LOCAL )
+        sretTmp.ty = cast( ubyte, MT_PTR )
+        sretTmp.id = tslot
+        usesSret = true
+        rmt = MT_PTR
+        args.Push( cast( ulong, sretTmp.kind ) ) : args.Push( cast( ulong, sretTmp.id ) )
+    end if
+    dim as long firstArg = 0
+    if (ptypes.Count = 1) orelse (prefs[0] <> 0) then
+        args.Push( cast( ulong, da.kind ) ) : args.Push( cast( ulong, da.id ) )
+    else
+        dim as MirValue lv = LowerExprLoad( c, da, tmt )
+        if lv.kind = cast( ubyte, MV_NONE ) then return false
+        lv = CoerceTy( c, lv, lpmt, tt )
+        args.Push( cast( ulong, lv.kind ) ) : args.Push( cast( ulong, lv.id ) )
+    end if
+    if ptypes.Count = 2 then firstArg = 1
+    dim as long cbMark = c.strTemps.Count   '' the operand's copy-back follows the call
+    if OperandValue_( c, value, cast( Tko.TypeId, ptypes[firstArg] ), _
+                      (prefs[firstArg] <> 0), args ) = false then return false
+    if usesSret then SretResultSlotAfter_( c, ot, sretTmp.id )
+    dim as MirValue res = EmitDirectCall_( c, op, rmt, args, usesSret )
+    FlushStrCopyBacks( c, cbMark )
+    if res.kind = cast( ubyte, MV_NONE ) then return false
+
+    if udtTarget = false then
+        StoreThrough( c, da, CoerceTy( c, res, tmt, ot ) )
+        return true
+    end if
+    dim as long sz = SizeOfType( c, tt )
+    dim as containers.Array( of ulong ) sletT
+    sletT.Push( cast( ulong, tt ) )
+    dim as Tko.SymbolId ulet = PickCtor( c, StructorOf( c, tt, "let" ), sletT )
+    if (ulet = Tko.SYMBOL_NONE) andalso (NeedsLetBody_( c, tt ) = false) then
+        if usesSret then res = LowerExprLoad( c, sretTmp, MT_AGG, sz )
+        StoreThrough( c, da, res )
+        return true
+    end if
+    dim as MirValue src = sretTmp
+    if usesSret = false then
+        dim as long rslot = NewTempLocal( c, MT_AGG, sz )
+        if rslot < 0 then return false
+        src.kind = cast( ubyte, MV_LOCAL )
+        src.ty = cast( ubyte, MT_PTR )
+        src.id = rslot
+        StoreThrough( c, src, res )
+    end if
+    if ulet <> Tko.SYMBOL_NONE then
+        dim as containers.Array( of ulong ) largs
+        largs.Push( cast( ulong, src.kind ) ) : largs.Push( cast( ulong, src.id ) )
+        EmitStructorCall( c, ulet, -1, @da, @largs )
+    else
+        CallImplicitLet_( c, tt, da, src )
+    end if
+    return true
+end function
+
+'' A USER-DEFINED UNARY OPERATOR, called. A GLOBAL one takes the operand as its only
+'' parameter; a MEMBER one takes it as the receiver and nothing else.
+function LowerUserUnaryOp_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval up as Tko.UnaryPayload ptr, _
+      byval mt as MirType, byref outv as MirValue ) as boolean
+
+    return LowerUserUnaryOpSym_( c, c.info->RefOf( id ), up->operand, mt, outv )
+end function
+
+'' THE SAME OPERATOR CALL, GIVEN THE SYMBOL RATHER THAN THE NODE.
+''
+'' An N_UNARY is bound to its operator by Check, and the rule above reads the
+'' binding. A MATH INTRINSIC over a UDT is not an N_UNARY at all -- 'sqr( t )'
+'' parses as a CALL -- and nothing binds it, so the caller finds the operator by
+'' NAME and hands it here. One implementation, because everything after the
+'' binding is identical and a second copy would drift from it.
+function LowerUserUnaryOpSym_ _
+    ( byref c as Ctx, byval op as Tko.SymbolId, byval operand as Tko.NodeId, _
+      byval mt as MirType, byref outv as MirValue ) as boolean
+
+    if op = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
+    if os = 0 then return false
+    if os->kind <> cast( ubyte, Tko.SYM_PROC ) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
+    if pn = Tko.NODE_NONE then return false
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    if pp->op <> cast( ushort, Tko.KW_OPERATOR ) then return false
+
+    dim as Tko.TypeId pt = Tko.TYPE_NONE
+    dim as boolean isRef = false
+    dim as long np = 0
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+        if np = 0 then
+            pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+            isRef = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
+        end if
+        np += 1
+    next
+
+    dim as MirType rmt = mt
+    if os->type_ <> Tko.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
+    '' A STRING RESULT IS A DESCRIPTOR POINTER, which is what the function's own
+    '' declaration says: 'FBSTRING* F( void )'. Reading it as the string's MIR type put
+    '' an 'agg' result on a call to a function declared to return a pointer.
+    if IsStringType( c, os->type_ ) then rmt = MT_PTR
+    '' A BYREF RETURN IS A POINTER, which is what the DECLARATION says too. Reading it
+    '' as the referent's own MIR type put an i32 result on a function declared to return
+    '' a pointer -- 'operator *' over a smart pointer is byref by construction.
+    if (c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) <> 0 then rmt = MT_PTR
+
+    if np = 0 then
+        dim as MirValue self_ = LowerAddr( c, operand )
+        if self_.kind = cast( ubyte, MV_NONE ) then return false
+        outv = EmitMemberCall( c, op, self_, rmt )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    if np <> 1 then return false
+
+    dim as containers.Array( of ulong ) args
+    '' A UDT RESULT THROUGH THE HIDDEN POINTER, as the binary operator passes one. None was
+    '' pushed, so '-h' over a type with a destructor called '_ZngR1H(@h)' against a
+    '' definition taking the result pointer too -- the verifier's 'calls _ZngR1H with 1
+    '' arguments, which declares 2', and clang refused the module. fbc emits
+    '' '_ZngR1H( &TMP, &H )'. A byref result is a pointer and takes none.
+    dim as MirValue sretTmp
+    dim as boolean usesSret = false
+    if (os->type_ <> Tko.TYPE_NONE) andalso ((c.ast->nodes[cast( long, pn )].flags and Tko.NF_BYREF) = 0) then
+        if UsesSretReturn( c, os->type_ ) then
+            '' ...or the variable a declaration is building -- SretInPlaceInit_. Destroyed at
+            '' the end of the statement like a call's: measured, fbc destroys the '-x' in
+            '' '(-x).plus( 3 )' and in '-(-x)'. Registered after the operand, as the binary
+            '' operator's is.
+            dim as long tslot = SretResultSlot_( c, os->type_, false, op )
+            if tslot < 0 then return false
+            sretTmp.kind = cast( ubyte, MV_LOCAL )
+            sretTmp.ty = cast( ubyte, MT_PTR )
+            sretTmp.id = tslot
+            usesSret = true
+            rmt = MT_PTR
+            args.Push( cast( ulong, sretTmp.kind ) ) : args.Push( cast( ulong, sretTmp.id ) )
+        end if
+    end if
+    dim as long cbMark = c.strTemps.Count   '' the operand's copy-back follows the call
+    if OperandValue_( c, operand, pt, isRef, args ) = false then
+        return false
+    end if
+    if usesSret then SretResultSlotAfter_( c, os->type_, sretTmp.id )
+    outv = EmitDirectCall_( c, op, rmt, args, usesSret )
+    FlushStrCopyBacks( c, cbMark )
+    if usesSret then
+        '' The RESULT IS THE TEMPORARY'S ADDRESS, exactly as for the binary operator.
+        if outv.kind = cast( ubyte, MV_NONE ) then return false
+        outv = sretTmp
+        return true
+    end if
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' One operator operand, pushed as the parameter wants it.
+private function OperandValue_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
+      byval byref_ as boolean, byref args as containers.Array( of ulong ) ) as boolean
+
+    dim as MirValue v
+
+    '' AN OPERAND THAT IS NOT THE PARAMETER'S TYPE IS A CONVERSION, and it is asked
+    '' before anything else: neither branch below has anything to convert with, so
+    '' 'u <> v' over an unrelated UDT handed the operator the RAW operand -- or, once
+    '' the cost model refused it, declined outright.
+    dim as long ucSlot = -1
+    dim as Tko.TypeId ucType = Tko.TYPE_NONE
+    if UserConvOperand_( c, e, pt, v, ucSlot, ucType ) then
+        '' A statement temporary -- see ByvalUdtCopyArg_.
+        if ucSlot >= 0 then
+            c.udtTemps.Push( cast( ulong, ucSlot ) )
+            c.udtTempTypes.Push( cast( ulong, ucType ) )
+        end if
+        args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+        return true
+    end if
+
+    if byref_ then
+        '' A 'byref as string' OPERAND THAT DOES NOT OWN ITS DESCRIPTOR IS COPIED FIRST, as
+        '' at a call -- see StrArgOwnDescriptor_. 'dws & " 2026"' over AfxNova's 'operator &
+        '' ( byref dws as DWSTRING, byref s as STRING )' stored the LITERAL'S BYTES in a
+        '' pointer temporary and passed that where a descriptor is read. Released with
+        '' the statement.
+        dim as Tko.TypeId snu = pt
+        if c.types->Kind( snu ) = Tko.TK_REFERENCE then snu = c.types->Unqualify( c.types->Inner( snu ) )
+        dim as boolean narrowStr = (c.types->Kind( snu ) = Tko.TK_BUILTIN)
+        if narrowStr then narrowStr = (c.types->BuiltinOf( snu ) = Tko.TY_STRING)
+        '' A WIDE OPERAND FOR IT IS CONVERTED into a narrow temporary first -- measured, fbc
+        '' emits 'fb_WstrAssignToA( &TMP, -1, wide, 0 )' for AfxNova's 'dws & mid( dws, 5, 2 )',
+        '' which binds 'operator &( byref as DWSTRING, byref as STRING )'. Nothing here could
+        '' pass a wstring there: the operand declined, the statement was dropped, every retry
+        '' re-lowered the left side, and tracks' DateInsertHyphens returned garbage.
+        '' NarrowRefStrArg_ owns both, and the copy-back fbc emits after the operator.
+        if narrowStr andalso NarrowParamArgTemp_( c, e, snu, v ) then
+            args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+            return true
+        end if
+        '' ...AND THE USTRING TWIN, UStrRefArg_: 'a & uf' over 'operator &( byref as T, byref as
+        '' ustring )' handed the operator the 'ustring * N' buffer as an FBUSTRING* and crashed.
+        if UStrParamArgTemp_( c, e, pt, v ) then
+            args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+            return true
+        end if
+        '' A PAREN-LESS PROCEDURE IS A CALL, not an address: 'LocalDate.Invalid =
+        '' LocalDate.Invalid' compared the procedure's CODE with itself and said true.
+        dim as Tko.Symbol ptr es = 0
+        if (c.ast->Kind( e ) = Tko.N_IDENT) orelse (c.ast->Kind( e ) = Tko.N_MEMBER) then
+            es = c.syms->SymbolAt( c.info->RefOf( e ) )
+        end if
+        dim as MirValue pv
+        if es <> 0 then
+            if es->kind = cast( ubyte, Tko.SYM_PROC ) then pv = ByrefTemp_( c, e, pt )
+        end if
+        v = pv
+        if v.kind = cast( ubyte, MV_NONE ) then v = LowerAddr( c, e )
+        if v.kind = cast( ubyte, MV_NONE ) then
+            '' An operand with no address -- another operator's result -- gets a
+            '' temporary, the same answer a byref call argument gets.
+            dim as MirValue rv = LowerExpr( c, e )
+            if rv.kind = cast( ubyte, MV_NONE ) then return false
+            dim as MirType pmt = LowerType( pt, *c.types )
+            if pmt = MT_VOID then return false
+            dim as long sz = c.types->Layout( pt ).size
+            if pmt = MT_AGG then sz = SizeOfType( c, pt )
+            dim as long slot = NewTempLocal( c, pmt, sz )
+            if slot < 0 then return false
+            dim as MirValue tmp
+            tmp.kind = cast( ubyte, MV_LOCAL )
+            tmp.ty = cast( ubyte, MT_PTR )
+            tmp.id = slot
+            if pmt <> MT_AGG then rv = CoerceTy( c, rv, pmt, pt)
+            StoreThrough( c, tmp, rv )
+            v = tmp
+        end if
+    else
+        v = LowerExpr( c, e )
+        if v.kind = cast( ubyte, MV_NONE ) then return false
+        dim as MirType pmt = LowerType( pt, *c.types )
+        if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
+            v = CoerceTy( c, v, pmt, pt)
+        end if
+    end if
+    if v.kind = cast( ubyte, MV_NONE ) then return false
+    args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+    return true
+end function
+
+'' THE VTABLE SLOT A PROPERTY ACCESS DISPATCHES THROUGH, or -1 for a direct call (T49).
+'' The same question a method call asks VirtualSlotOf_ -- the 'virtual' keyword on the
+'' bound accessor, 'base.P' kept direct -- over the MEMBER, which an indexed property
+'' spells as the target of a call: 'f.bar( 0 )'.
+private function PropertyVSlot_ _
+    ( byref c as Ctx, byval node as Tko.NodeId, byval acc as Tko.SymbolId ) as long
+    dim as Tko.NodeId member = node
+    if c.ast->Kind( node ) = Tko.N_CALL then
+        member = c.ast->lists[cast( long, c.ast->nodes[cast( long, node )].data )].target
+    end if
+    if member = Tko.NODE_NONE then return -1
+    return VirtualSlotOf_( c, member, acc )
+end function
+
+'' 't.V' as a value: the GETTER, called on the base.
+function LowerPropertyGet_ _
+    ( byref c as Ctx, byval node as Tko.NodeId, byref outv as MirValue ) as boolean
+    dim as MirValue self_
+    dim as long gFirst, gCount
+    dim as Tko.SymbolId g = PropertyAt_( c, node, 0, self_, gFirst, gCount )
+    if g = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( g )
+    if gs = 0 then return false
+    '' The INDEX ARGUMENTS follow the receiver, in written order, coerced to the
+    '' parameters the chosen overload declared -- measured, fbc emits
+    '' '_ZN3FOO10BAR__get__Eu7INTEGER( &F$, 0ll )'.
+    dim as containers.Array( of ulong ) gargs
+    if PushPropIndexArgs_( c, g, gFirst, gCount, gargs ) = false then return false
+    '' A STRING-VALUED PROPERTY RETURNS A POINTER, which is what every
+    '' string-returning procedure in this compiler returns -- the value leaves through
+    '' fb_StrAllocTempResult, and the getter is lowered as 'func ptr' accordingly.
+    '' Asking for the property's OWN type gave MT_AGG against a definition that
+    '' returns ptr, so the call would not lower and the caller fell back to
+    '' LowerAddr -- which answered with the GETTER'S CODE ADDRESS and printed the
+    '' function's machine code as a descriptor.
+    dim as MirType gmt = LowerType( gs->type_, *c.types )
+    if IsStringType( c, gs->type_ ) then gmt = MT_PTR
+    '' THE DECLARATION'S OWN GETTER BUILDS x IN PLACE, armed only now that the receiver is
+    '' lowered: 'dim as H a = x.twin.twin' had the INNER getter -- the same symbol, called
+    '' for the receiver -- take x. SretInPlaceInit_.
+    if c.sretIntoAtNode andalso (c.sretIntoNode = node) then
+        c.sretIntoAtNode = false
+        c.sretIntoOn = true
+    end if
+    '' A BYREF GETTER returns the ADDRESS of its answer -- 'property f( ) byref as integer':
+    '' the value is read through it (functions/return-byref.bas properties). tiko printed the
+    '' address itself. The getter's NF_BYREF is lowerproc.tiko's own test.
+    dim as boolean gByref = false
+    dim as Tko.NodeId gpn = cast( Tko.NodeId, gs->payload )
+    if (gpn <> Tko.NODE_NONE) andalso (c.ast->Kind( gpn ) = Tko.N_PROC) then gByref = ((c.ast->nodes[cast( long, gpn )].flags and Tko.NF_BYREF) <> 0)
+    if gByref andalso (IsStringType( c, gs->type_ ) = false) then
+        dim as MirValue gp = EmitMemberCallArgs_( c, g, self_, MT_PTR, @gargs, PropertyVSlot_( c, node, g ) )
+        if gp.kind = cast( ubyte, MV_NONE ) then return false
+        if c.propAddrWanted then
+            outv = gp
+        else
+            outv = LowerExprLoad( c, gp, gmt )
+        end if
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+    if c.propAddrWanted then return false   '' an ordinary getter has no address to give
+    outv = EmitMemberCallArgs_( c, g, self_, gmt, @gargs, PropertyVSlot_( c, node, g ) )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' 't.V = x': the SETTER, called with the value after the receiver.
+function LowerPropertySet_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    dim as MirValue self_
+    dim as long sFirst, sCount
+    dim as Tko.SymbolId sset = PropertyAt_( _
+        c, target, 1, self_, sFirst, sCount, value )
+    if sset = Tko.SYMBOL_NONE then return false
+
+    '' The parameter's type, so the value is coerced the way the callee expects.
+    dim as Tko.Symbol ptr ss = c.syms->SymbolAt( sset )
+    if ss = 0 then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, ss->payload )
+    if pn = Tko.NODE_NONE then return false
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    '' THE VALUE IS THE LAST PARAMETER, not the first. For an INDEXED setter the
+    '' leading ones are the indices, and taking parameter zero for the value coerced
+    '' the value to the INDEX's type.
+    dim as Tko.TypeId pt = Tko.TYPE_NONE
+    dim as long np2 = 0
+    dim as boolean ptByref = false
+    for i as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        if c.ast->Kind( prm ) = Tko.N_PARAM then
+            pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+            ptByref = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_BYREF) <> 0)
+            np2 += 1
+        end if
+    next
+
+    dim as containers.Array( of ulong ) args
+    if PushPropIndexArgs_( c, sset, sFirst, sCount, args ) = false then
+    end if
+
+    '' A STRING PARAMETER TAKES A DESCRIPTOR, not the bytes.
+    ''
+    '' The setter is lowered as '__set__E8FBSTRING(ptr, ptr)' and its body hands the
+    '' second argument straight to fb_StrAssign, so it must be a DESCRIPTOR. LowerExpr
+    '' over a literal answers with the literal's own global -- its BYTES -- and
+    '' fb_StrAssign then read a descriptor out of \"zero\", took a garbage length, and
+    '' stored nothing: 'a.first = \"zero\"' followed by 'print a.first' printed an
+    '' empty line where fbc prints 'zero'. StrDescriptorOf_ is what borrows a
+    '' temporary descriptor for a literal, and it is what every other string-argument
+    '' site in this compiler already uses.
+    dim as MirValue v
+    dim as boolean gotV = false
+    '' A UDT WITH A WIDE CAST, FOR A WSTRING PARAMETER, passes what its cast returns:
+    '' CRegExp's 'property Pattern( byref wszPattern as const wstring )' given a DWSTRING.
+    if pt <> Tko.TYPE_NONE then
+        dim as Tko.TypeId upt = c.types->Unqualify( pt )
+        if c.types->Kind( upt ) = Tko.TK_BUILTIN then
+            if (c.types->BuiltinOf( upt ) = Tko.TY_WSTRING) andalso _
+               (WideCastOverload_( c, c.info->TypeOf_( value ) ) <> Tko.SYMBOL_NONE) then
+                gotV = UserCastToWide_( c, value, v )
+            end if
+        end if
+    end if
+    if (gotV = false) andalso (pt <> Tko.TYPE_NONE) then
+        if IsStringType( c, pt ) andalso IsUdtValue_( c, value ) then
+            '' A UDT THROUGH ITS STRING CAST is built into a string temporary, as a constructor's
+            '' argument is (CtorArgValue_): 'b.T2 = s' over 'byref v as string' borrowed the cast's
+            '' result and the program crashed. fbc prints the text.
+            dim as long sslot = -1
+            dim as Tko.TypeId snu = c.types->Unqualify( pt )
+            if c.types->Kind( snu ) = Tko.TK_REFERENCE then snu = c.types->Unqualify( c.types->Inner( snu ) )
+            gotV = ByvalStrTemp_( c, value, snu, v, sslot )
+            if gotV andalso (sslot >= 0) then
+                c.f->locals[sslot].frontendType = snu
+                c.strTemps.Push( cast( ulong, sslot ) )
+            end if
+        elseif UStrParamArgTemp_( c, value, pt, v ) orelse NarrowParamArgTemp_( c, value, pt, v ) then
+            '' ANY OTHER STRING VALUE takes the shared encoders (UStrRefArg_ / NarrowRefStrArg_): a temporary
+            '' and fbc's copy-back. 'o.PS = w' over 'byref v as string' handed the 'wstring * 6' BUFFER
+            '' where an FBSTRING* belongs and clang refused the module; 'o.PU = s' gave a ustring
+            '' parameter a narrow descriptor (tka-probes/phase4/t_propset.bas).
+            gotV = true
+        elseif IsStringType( c, pt ) then
+            gotV = StrDescriptorOf_( c, value, v )
+        end if
+    end if
+    '' A UDT PARAMETER'S VALUE IS CONVERTED OR COPIED, as a call's argument is (SetterUdtArg_): 'o.P = 5'
+    '' over 'byref v as V' was dropped, and a byval V with a destructor got the loaded aggregate.
+    if (gotV = false) andalso (np2 > 0) then
+        if SetterUdtArg_( c, sset, np2 - 1, value, v ) then
+            if v.kind = cast( ubyte, MV_NONE ) then return false
+            gotV = true
+        end if
+    end if
+    '' A BYREF UDT VALUE TAKES AN ADDRESS, and the parameter's own type does not say
+    '' so: a reference is transparent to TypeOf_. 'p( 0 ) = a' over a
+    '' 'property p( byval i as long, byref v as A )' passed the LOADED aggregate
+    '' where the setter's signature wants a pointer.
+    if (gotV = false) andalso ptByref andalso (pt <> Tko.TYPE_NONE) then
+        if c.types->Kind( c.types->Unqualify( pt ) ) = Tko.TK_UDT then
+            dim as MirValue pa = LowerAddr( c, value )
+            if pa.kind <> cast( ubyte, MV_NONE ) then
+                v = pa
+                gotV = true
+            end if
+        end if
+    end if
+    '' A UDT VALUE FOR A NUMERIC SETTER goes through its numeric cast: 'b.N2 = m' lowered the object,
+    '' coerced nothing, declined -- and the numeric store below wrote over the GETTER's address.
+    dim as boolean udtVal = (gotV = false) andalso cbool( pt <> Tko.TYPE_NONE )
+    if udtVal then udtVal = IsUdtValue_( c, value )
+    if udtVal then
+        dim as MirType nvt = LowerType( pt, *c.types )
+        if (nvt <> MT_VOID) andalso (nvt <> MT_AGG) andalso (nvt <> MT_PTR) then
+            v = LowerNumArg_( c, value, nvt )
+            gotV = (v.kind <> cast( ubyte, MV_NONE ))
+        end if
+    end if
+    if gotV = false then v = LowerExpr( c, value )
+    if v.kind = cast( ubyte, MV_NONE ) then return false
+    if gotV = false andalso (pt <> Tko.TYPE_NONE) then
+        dim as MirType vmt = LowerType( pt, *c.types )
+        if (vmt <> MT_VOID) andalso (vmt <> MT_AGG) then
+            v = CoerceTy( c, v, vmt, pt)
+            if v.kind = cast( ubyte, MV_NONE ) then return false
+        end if
+    end if
+    args.Push( cast( ulong, v.kind ) ) : args.Push( cast( ulong, v.id ) )
+    '' A VIRTUAL SETTER DISPATCHES TOO (T49); a plain one is called by name, as before.
+    dim as long svs = PropertyVSlot_( c, target, sset )
+    if svs >= 0 then
+        dim as MirValue sr = EmitMemberCallArgs_( c, sset, self_, MT_VOID, @args, svs )
+        return true
+    end if
+    EmitStructorCall( c, sset, -1, @self_, @args )
+    return true
+end function
+
+end namespace

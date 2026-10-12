@@ -79,7 +79,7 @@ lowered: 3 functions, 3 blocks, 53 insts, 2 statements not lowered, 0 scope imba
   unlowered N_INTRINSIC 2
   inside N_INTRINSIC 2
   unlowered intrinsic KW_PRINT 2
-  skip-site src\mir\lowerctl.bas:206 2
+  skip-site src\mir\lowerctl.tiko:206 2
 tests/diagnostics/src/subscript-count.bas(18,14): error TKO0658: 'two' is indexed with the wrong number of subscripts
      |
   18 |     print two( 0 )

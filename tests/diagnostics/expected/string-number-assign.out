@@ -93,7 +93,7 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 2 functions, 2 blocks, 64 insts, 4 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 4
-  skip-site src\mir\lowerutil.bas:40 4
+  skip-site src\mir\lowerutil.tiko:40 4
 tests/diagnostics/src/string-number-assign.bas(33,13): error TKO0703: operator [] cannot be STATIC
      |
   33 |     declare static operator []( byval i as integer ) as integer

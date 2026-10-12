@@ -1,7 +1,7 @@
 '' mt-stress.bas -- the temporary-descriptor pool under real contention.
 ''
 '' Everything measured so far has been single-threaded. The locking in
-'' src/str/core.bas was derived from PROBE-15 -- fb_hStrAllocTemp( NULL, n )
+'' src/str/core.tiko was derived from PROBE-15 -- fb_hStrAllocTemp( NULL, n )
 '' takes a descriptor from the pool, which is why the _NoLock twins exist -- and
 '' has never actually run with threads competing for it.
 ''

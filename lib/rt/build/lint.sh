@@ -37,7 +37,7 @@ codelines( ) {
 
 # Everything tiko-rt owns -- provenance and hygiene apply to all of it.
 srcfiles( ) {
-    find src tests -name '*.bas' -o -name '*.bi' 2>/dev/null | sort
+    find src tests -name '*.tiko' -o -name '*.ti' -o -name '*.bas' -o -name '*.bi' 2>/dev/null | sort
 }
 
 # Runtime code only. The freestanding subset applies HERE and nowhere else:
@@ -45,7 +45,7 @@ srcfiles( ) {
 # the outside, and they must use STRING, PRINT and dynamic arrays -- that is
 # what they are measuring.
 rtfiles( ) {
-    find src tests/unit -name '*.bas' -o -name '*.bi' 2>/dev/null | sort
+    find src tests/unit -name '*.tiko' -o -name '*.ti' -o -name '*.bas' -o -name '*.bi' 2>/dev/null | sort
 }
 
 # ------------------------------------------------------------- 1. provenance
@@ -136,7 +136,7 @@ done
 # and EXTERN "c" must be opted into at the site with a NON-FBCALL marker, so
 # that choosing it is a decision someone recorded rather than a default.
 
-for f in $(find src -name '*.bas' -o -name '*.bi' 2>/dev/null); do
+for f in $(find src -name '*.tiko' -o -name '*.ti' 2>/dev/null); do
     for kind in '"windows"' '"Windows"' '"Windows-MS"'; do
         if codelines "$f" | grep -qE "extern[[:space:]]+$kind"; then
             note "$f: EXTERN $kind is never correct -- FBCALL is EXTERN \"rtlib\" (RFC-0002 section 2.2)"
@@ -171,7 +171,7 @@ done
 #
 # THE RULE IS NARROWER THAN RFC-0007 SECTION 4 SPECIFIED, and deliberately so.
 # That section says "a top-level declare outside an extern block". Measured
-# against the tree, that wording flags three declarations in src/math/rnd.bas of
+# against the tree, that wording flags three declarations in src/math/rnd.tiko of
 # which two are already unambiguous -- they say 'cdecl' outright. A declaration
 # that names its convention is correct on every target whether or not a block
 # encloses it, so the hazard is not the missing block, it is the missing
@@ -252,15 +252,15 @@ done
 
 # ------------------------------------------------------------ fbc's crt/
 #
-# THE C LIBRARY IS tiko-rt's OWN: src/inc/sysbind.bi, generated with tiko's -cimport
+# THE C LIBRARY IS tiko-rt's OWN: src/inc/sysbind.ti, generated with tiko's -cimport
 # (decision 0016, phase E). 61 of the 81 headers under fbc's crt/ may not be
 # redistributed, and a runtime that includes them cannot be published. crt/long.bi, which
 # carries no such notice, is the one allowed -- the binding uses its clong and culong.
 # windows.bi went with them: it declared nothing the runtime used.
-crt_hits=$(grep -rnE '#include[^"]*"(crt/|windows\.bi")' "$RT_ROOT/src" --include=*.bas --include=*.bi \
+crt_hits=$(grep -rnE '#include[^"]*"(crt/|windows\.bi")' "$RT_ROOT/src" --include=*.tiko --include=*.ti \
            | grep -v '"crt/long.bi"' | grep -vE "^[^:]*:[0-9]+:[[:space:]]*''" | head -3)
 if [ -n "$crt_hits" ]; then
-    echo "lint: an fbc crt/ header or windows.bi is included -- use inc/sysbind.bi (only crt/long.bi may be named)" >&2
+    echo "lint: an fbc crt/ header or windows.bi is included -- use inc/sysbind.ti (only crt/long.bi may be named)" >&2
     echo "$crt_hits" | sed 's/^/    /' >&2
     fails=$((fails + 1))
 fi

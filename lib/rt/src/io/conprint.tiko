@@ -1,0 +1,189 @@
+'' conprint.tiko -- fb_ConsolePrintBuffer and fb_ConsolePrintBufferEx, the
+'' bottom of every PRINT. Two symbols across two fbc members.
+''
+'' NOT printbuff.bas. That name compiles to io_printbuff.o, which is an fbc
+'' MEMBER name -- and because this file is empty on Windows, the gate would
+'' there have replaced fbc's real member with nothing and lost both symbols.
+'' The build refused it and named them.
+''
+'' EMPTY-ON: win64
+''
+'' POSIX ONLY. The Windows implementation is a different function entirely --
+'' WriteConsoleOutput into CHAR_INFO cells, a scroll hook, a VIEW PRINT region
+'' and a UTF-16 stream path through MultiByteToWideChar -- 220 lines against
+'' this one's 40, and it lives in src/io/conprintwin.tiko. This file is `#ifdef`d
+'' on Windows, which is why it adds two symbols on Linux and none there.
+''
+'' AN UNINITIALISED CONSOLE IS A PLAIN fwrite. Before fb_ConsoleInit runs -- and
+'' for a program whose output is redirected, which never initialises the console
+'' at all -- the whole cell-tracking apparatus is skipped and the bytes go
+'' straight to stdout. That branch is what makes `PRINT` work in a pipe.
+''
+'' THE SHADOW BUFFERS ARE WRITTEN BEFORE THE TEXT IS. __fb_con.char_buffer and
+'' attr_buffer are the runtime's own picture of the screen, used by SCREEN() and
+'' by PCOPY; they are filled with memcpy/memset FIRST, from the CURRENT cursor
+'' position, and only then is the text emitted character by character. Emitting
+'' first would leave the shadow one line behind whenever the emit scrolled.
+''
+'' AND THE COPY IS CLIPPED TO WHAT IS LEFT ON SCREEN, not to the text length: a
+'' string longer than the remaining cells is copied only as far as the last cell.
+'' The TEXT is still printed in full -- the terminal scrolls -- so the shadow and
+'' the screen genuinely disagree after that, and reproducing the clip is what
+'' reproduces the disagreement.
+''
+'' THIRTEEN CONTROL CHARACTERS ARE UNPRINTABLE AND GO OUT AS UNICODE. CTRL_ALWAYS
+'' is a BITMASK over codes 0..31 -- 0x0800D101 -- and a set bit means the
+'' terminal would interpret the byte instead of drawing it. Those are wrapped in
+'' the ISO-2022 UTF-8 escape and emitted as U+F0xx from the private use area,
+'' which is where a VGA font puts the CP437 glyphs. Everything else, including
+'' the other control codes, is written as itself.
+''
+'' A NUL BECOMES A SPACE before any of that, so `PRINT CHR(0)` advances the
+'' cursor rather than doing nothing.
+''
+'' THE CURSOR ADVANCES ONE PER BYTE AND WRAPS ON LF OR AT THE RIGHT EDGE, and it
+'' STICKS at the bottom row -- cur_y is clamped to h rather than scrolling the
+'' shadow. That is the same disagreement as the clip above, from the same cause.
+
+#include once "inc/descriptors.ti"
+#include once "inc/console.ti"
+#include once "inc/iolock.ti"
+#include once "inc/sysbind.ti"
+
+#ifndef __FB_WIN32__
+
+'' A BITMASK OVER CODES 0..31, not a list. Bit n set means code n cannot be
+'' printed as itself. 0x0800D101 is bits 0, 8, 12, 13, 15, 27 -- NUL, backspace,
+'' formfeed, CR, SI and ESC.
+const CTRL_ALWAYS = &h0800D101u
+
+'' ISO-2022 escapes: enter UTF-8, and return to the previous encoding. The
+'' three bytes between them are U+F000 plus the control code, in the private
+'' use area -- which is where a VGA font puts the CP437 glyphs.
+''
+'' EMITTED AS INDIVIDUAL BYTES, not as an escaped string literal. fbc writes
+''
+''     fputs( ESC % G  then EF 80, stdout );  fputc( c | 0x80, stdout );
+''     fputs( ESC % @, stdout );
+''
+'' and the BYTES ON THE WIRE are the contract. Spelling them as numbers removes
+'' every question about how FreeBASIC renders a hex escape -- a patch that wrote
+'' them as a literal produced the UTF-8 encoding of U+00EF instead, which is two
+'' bytes and the wrong ones, and nothing said so.
+const ESC_       = 27
+const PERCENT_   = 37
+const BIG_G_     = 71
+const AT_SIGN_   = 64
+const UTF8_LEAD_ = &hEF        '' U+F000's first byte
+const UTF8_MID_  = &h80        '' and its second
+
+extern "c"   '' NON-FBCALL: internal, declared plain in fb_private_console.h.
+	declare sub tkrt_RecheckConsoleSize alias "fb_hRecheckConsoleSize" ( byval force as long )
+end extern
+
+extern "c"   '' NON-FBCALL: fb_console.h declares both plainly.
+
+sub tkort_ConsolePrintBufferEx alias "fb_ConsolePrintBufferEx" _
+	( byval buffer as any ptr, byval length_ as uinteger, byval mask as long )
+
+	dim as ubyte ptr cbuffer = cast( ubyte ptr, buffer )
+	dim as ulong c = any
+	dim as uinteger avail = any, avail_len = any
+	dim as uinteger remaining = length_
+
+	'' NOT INITIALISED: a pipe, or a program that has not printed to a real
+	'' terminal yet. Straight to stdout, and no cell tracking at all.
+	if( TKORT_CON_L( TKORT_CON_INITED ) = 0 ) then
+		fwrite( buffer, length_, 1, stdout )
+		fflush( stdout )
+		exit sub
+	end if
+
+	'' The window may have been resized since the last print. TRUE forces the
+	'' re-read rather than trusting a cached size.
+	''
+	'' BG_LOCK()/BG_UNLOCK() in unix/fb_unix.h is the GRAPHICS background lock,
+	'' NOT the I/O one -- fb_hRecheckConsoleSize touches state the gfx driver
+	'' also reads, and taking the I/O lock here would be a different lock order
+	'' from every other caller. inc/console.ti already declares the pair.
+	tkrt_BgLock()
+	tkrt_RecheckConsoleSize( -1 )
+	tkrt_BgUnlock()
+
+	dim as long w = TKORT_CON_L( TKORT_CON_W )
+	dim as long h = TKORT_CON_L( TKORT_CON_H )
+
+	'' CELLS LEFT ON SCREEN, from the cursor to the end -- and the coordinates
+	'' are ONE-BASED, which is where the two subtractions come from.
+	dim as integer offset_ = ((TKORT_CON_L( TKORT_CON_CURY ) - 1) * w) + _
+	                          TKORT_CON_L( TKORT_CON_CURX ) - 1
+	avail = (w * h) - offset_
+	avail_len = length_
+	if( avail < avail_len ) then avail_len = avail
+
+	'' THE SHADOW FIRST. See the file header on why, and on why the clip makes
+	'' it disagree with the terminal for a long string.
+	memcpy( TKORT_CON_P( TKORT_CON_CHARBUF ) + offset_, buffer, avail_len )
+	memset( TKORT_CON_P( TKORT_CON_ATTRBUF ) + offset_, _
+	        TKORT_CON_L( TKORT_CON_FGCOLOR ) or (TKORT_CON_L( TKORT_CON_BGCOLOR ) shl 4), avail_len )
+
+	while( remaining <> 0 )
+		c = *cbuffer
+
+		'' A NUL PRINTS AS A SPACE, before anything else looks at it.
+		if( c = 0 ) then c = 32
+
+		if( c < 32 ) then
+			if( ((CTRL_ALWAYS shr c) and 1) <> 0 ) then
+				'' Unprintable: enter UTF-8, emit U+F000 + c as the three
+				'' bytes EF 80 (c|80), and leave UTF-8 again.
+				'' ESC % G, then the two constant bytes of U+F000.
+				fputc( ESC_, stdout )
+				fputc( PERCENT_, stdout )
+				fputc( BIG_G_, stdout )
+				fputc( UTF8_LEAD_, stdout )
+				fputc( UTF8_MID_, stdout )
+				'' The low six bits, as U+F000's third byte.
+				fputc( c or &h80, stdout )
+				'' ESC % @, back to the previous encoding.
+				fputc( ESC_, stdout )
+				fputc( PERCENT_, stdout )
+				fputc( AT_SIGN_, stdout )
+			else
+				fputc( c, stdout )
+			end if
+		else
+			fputc( c, stdout )
+		end if
+
+		'' THE CURSOR IS UPDATED THROUGH THE CONTEXT, not through locals written
+		'' back at the end. It is observable mid-loop -- a signal handler or a
+		'' hooked stdout can read it -- so hoisting it would be a rewrite
+		'' dividend and not a translation.
+		TKORT_CON_L( TKORT_CON_CURX ) += 1
+		if( (c = 10) orelse (TKORT_CON_L( TKORT_CON_CURX ) >= w) ) then
+			TKORT_CON_L( TKORT_CON_CURX ) = 1
+			TKORT_CON_L( TKORT_CON_CURY ) += 1
+			'' CLAMPED, NOT SCROLLED -- the shadow sticks at the bottom row
+			'' while the terminal scrolls past it.
+			if( TKORT_CON_L( TKORT_CON_CURY ) > h ) then TKORT_CON_L( TKORT_CON_CURY ) = h
+		end if
+
+		cbuffer += 1
+		remaining -= 1
+	wend
+
+	fflush( stdout )
+end sub
+
+'' THE LENGTH COMES FROM strlen, so this spelling cannot print an embedded NUL
+'' -- and the *Ex form's NUL-to-space rule is therefore unreachable through it.
+sub tkort_ConsolePrintBuffer alias "fb_ConsolePrintBuffer" _
+	( byval buffer as zstring ptr, byval mask as long )
+
+	tkort_ConsolePrintBufferEx( buffer, strlen( buffer ), mask )
+end sub
+
+end extern
+
+#endif

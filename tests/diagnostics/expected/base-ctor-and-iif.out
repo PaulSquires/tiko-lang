@@ -133,7 +133,7 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 6 functions, 18 blocks, 60 insts, 1 statements not lowered, 0 scope imbalance
   inside N_INTRINSIC 1
-  skip-site src\mir\lowerutil.bas:40 1
+  skip-site src\mir\lowerutil.tiko:40 1
 tests/diagnostics/src/base-ctor-and-iif.bas(58,14): error TKO0655: the two arms of 'iif' have incompatible types
      |
   58 |     print iif( c, n1, sv )

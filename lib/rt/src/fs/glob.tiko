@@ -1,0 +1,418 @@
+'' glob.tiko -- pattern matching. Three entry points over one fbc member, and
+'' PURE: no syscalls, no globals, no locale, and the grammar is a PARAMETER so
+'' Windows rules can be checked on Linux and POSIX rules on Windows.
+''
+'' THE MATCHER IS ITERATIVE, NOT RECURSIVE, and that is the one implementation
+'' decision here that matters. A recursive matcher on a hostile pattern like
+'' "a*a*a*a*a*b" against a long non-matching string is EXPONENTIAL and will blow
+'' the stack; the iterative form -- ONE saved (star, match) pair per level -- is
+'' linear in practice and cannot. The failure mode of getting this wrong is a
+'' HANG rather than a wrong answer, which is why the differential runs exactly
+'' that pattern.
+''
+'' TWO LEVELS, because the grammar has two kinds of wildcard:
+''
+''   hMatchComp   one path component, where "*" and "?" live and where neither
+''                may cross a separator.
+''   hMatchComps  the component LIST, where "**" lives and spans components.
+''
+'' Splitting it this way is what makes "* does not cross a separator" and
+'' "** matches ZERO components" fall out of the ordinary rules instead of being
+'' special cases. Zero is the one most implementations get wrong.
+''
+'' THERE IS NO ESCAPE CHARACTER ON WINDOWS, because "\" is the separator. A
+'' literal "[" is matched there by the character class "[[]". The asymmetry is
+'' real, is what every other library does, and is documented rather than papered
+'' over.
+''
+'' A MALFORMED CLASS IS A LITERAL: "[abc" with no closing bracket matches those
+'' four characters. It is not an error -- a glob that raised on a typo in a
+'' user-supplied pattern would be worse than one that matches nothing.
+
+#include once "inc/descriptors.ti"
+#include once "inc/fspath.ti"
+
+const FB_GLOB_MAXCOMP = 256
+
+extern "c"   '' NON-FBCALL: the shared case-fold table, declared plain.
+	declare function tkrt_UStrToUpper alias "fb_hUStrToUpper" ( byval c as FB_UCHAR ) as FB_UCHAR
+end extern
+
+private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
+	static as FB_UCHAR empty_(0 to 0) = { 0 }
+	if( s = 0 ) then
+		*ptr_ = @empty_(0) : *len_ = 0
+	elseif( s->data = 0 ) then
+		*ptr_ = @empty_(0) : *len_ = 0
+	else
+		*ptr_ = s->data
+		*len_ = FB_USTRSIZE( s )
+	end if
+end sub
+
+private function hgIsSep( byval c as FB_UCHAR, byval gram as long ) as long
+	if( gram = FB_PATH_WIN32 ) then
+		return iif( (c = 92) orelse (c = 47), 1, 0 )
+	end if
+	return iif( c = 47, 1, 0 )
+end function
+
+private function hgFold( byval c as FB_UCHAR, byval gram as long ) as FB_UCHAR
+	if( gram = FB_PATH_WIN32 ) then return tkrt_UStrToUpper( c )
+	return c
+end function
+
+private function hgHasEscape( byval gram as long ) as long
+	return iif( gram <> FB_PATH_WIN32, 1, 0 )
+end function
+
+'' Length of the character class starting at p[at] (which is "["), including
+'' both brackets -- or 0 if it is malformed.
+private function hgClassLen( byval p as FB_UCHAR ptr, byval plen as integer, _
+                             byval at_ as integer, byval gram as long ) as long
+	dim as integer i = at_ + 1
+
+	if( i < plen ) then
+		if( (p[i] = 33) orelse (p[i] = 94) ) then i += 1     '' '!' or '^'
+	end if
+
+	'' a ']' immediately after the (optional) negation is a LITERAL ']'
+	if( i < plen ) then
+		if( p[i] = 93 ) then i += 1
+	end if
+
+	while( i < plen )
+		if( (hgHasEscape( gram ) <> 0) andalso (p[i] = 92) andalso (i + 1 < plen) ) then
+			i += 2
+			continue while
+		end if
+
+		if( p[i] = 93 ) then return i - at_ + 1
+
+		i += 1
+	wend
+
+	return 0
+end function
+
+'' Does `c` match the class occupying p[at .. at+clen-1]?
+private function hgClassMatch( byval p as FB_UCHAR ptr, byval at_ as integer, _
+                               byval clen as long, byval c as FB_UCHAR, _
+                               byval gram as long ) as long
+	dim as integer i = at_ + 1
+	dim as integer end_ = at_ + clen - 1        '' index of the closing ']'
+	dim as long neg = 0, hit = 0
+	dim as FB_UCHAR fc = hgFold( c, gram )
+	dim as FB_UCHAR lo = any, hi = any, flo = any, fhi = any
+
+	if( i < end_ ) then
+		if( (p[i] = 33) orelse (p[i] = 94) ) then
+			neg = 1
+			i += 1
+		end if
+	end if
+
+	while( i < end_ )
+		if( (hgHasEscape( gram ) <> 0) andalso (p[i] = 92) andalso (i + 1 < end_) ) then i += 1
+
+		lo = p[i]
+
+		'' a range, but only when the '-' is not the last thing in the class --
+		'' "[a-]" matches 'a' or '-'
+		if( i + 2 < end_ ) then
+			if( p[i + 1] = 45 ) then
+				hi = p[i + 2]
+				flo = hgFold( lo, gram )
+				fhi = hgFold( hi, gram )
+				if( (fc >= flo) andalso (fc <= fhi) ) then hit = 1
+				i += 3
+				continue while
+			end if
+		end if
+
+		if( hgFold( lo, gram ) = fc ) then hit = 1
+
+		i += 1
+	wend
+
+	if( neg <> 0 ) then return iif( hit = 0, 1, 0 )
+	return hit
+end function
+
+'' One component. "*" and "?" never cross a separator here because a component
+'' contains none by construction.
+''
+'' "**" INSIDE a component collapses to "*": "a**b" is a single star, not a
+'' third kind of wildcard. Only a component that is EXACTLY "**" spans
+'' components, and that is decided by the caller.
+private function hMatchComp( byval p as FB_UCHAR ptr, byval plen as integer, _
+                             byval s as FB_UCHAR ptr, byval slen as integer, _
+                             byval gram as long ) as long
+	dim as integer pi = 0, si = 0
+	dim as integer star = -1, ss = 0
+	dim as long clen = any
+	dim as FB_UCHAR pc = any
+	dim as long matched = any
+
+	while( si < slen )
+		clen = 0
+		matched = 0
+
+		if( pi < plen ) then
+			if( p[pi] = 91 ) then clen = hgClassLen( p, plen, pi, gram )   '' '['
+		end if
+
+		if( clen > 0 ) then
+			if( hgClassMatch( p, pi, clen, s[si], gram ) <> 0 ) then
+				pi += clen
+				si += 1
+				matched = 1
+			end if
+		elseif( pi < plen ) then
+			pc = p[pi]
+
+			if( (hgHasEscape( gram ) <> 0) andalso (pc = 92) andalso (pi + 1 < plen) ) then
+				pc = p[pi + 1]
+				if( hgFold( pc, gram ) = hgFold( s[si], gram ) ) then
+					pi += 2
+					si += 1
+					matched = 1
+				end if
+			elseif( pc = 63 ) then          '' '?'
+				pi += 1
+				si += 1
+				matched = 1
+			elseif( pc = 42 ) then          '' '*'
+				'' collapse a run of stars: "**" here is just "*"
+				while( pi < plen )
+					if( p[pi] <> 42 ) then exit while
+					pi += 1
+				wend
+				star = pi                   '' pattern position AFTER the star
+				ss = si
+				matched = 1
+			elseif( hgFold( pc, gram ) = hgFold( s[si], gram ) ) then
+				pi += 1
+				si += 1
+				matched = 1
+			end if
+		end if
+
+		if( matched <> 0 ) then continue while
+
+		'' mismatch: backtrack to just after the last star, having it eat one
+		'' more character. THE SINGLE SAVED POSITION is what keeps this linear
+		'' instead of exponential.
+		if( star >= 0 ) then
+			ss += 1
+			si = ss
+			pi = star
+			continue while
+		end if
+
+		return 0
+	wend
+
+	'' trailing stars may match nothing
+	while( pi < plen )
+		if( p[pi] <> 42 ) then exit while
+		pi += 1
+	wend
+
+	return iif( pi = plen, 1, 0 )
+end function
+
+'' Split into components. Returns the count, or -1 if there are too many.
+'' *leading receives 1 when the input starts with a separator, so an absolute
+'' pattern cannot match a relative path.
+private function hgSplit( byval s as FB_UCHAR ptr, byval slen as integer, byval gram as long, _
+                          byval off as integer ptr, byval len_ as integer ptr, _
+                          byval leading as long ptr ) as long
+	dim as integer i = 0, start = any
+	dim as long n = 0
+
+	*leading = 0
+	if( slen > 0 ) then
+		if( hgIsSep( s[0], gram ) <> 0 ) then *leading = 1
+	end if
+
+	while( i < slen )
+		while( i < slen )
+			if( hgIsSep( s[i], gram ) = 0 ) then exit while
+			i += 1
+		wend
+
+		if( i >= slen ) then exit while
+
+		start = i
+		while( i < slen )
+			if( hgIsSep( s[i], gram ) <> 0 ) then exit while
+			i += 1
+		wend
+
+		if( n >= FB_GLOB_MAXCOMP ) then return -1
+
+		off[n] = start
+		len_[n] = i - start
+		n += 1
+	wend
+
+	return n
+end function
+
+private function hgIsDoubleStar( byval p as FB_UCHAR ptr, byval off as integer, byval len_ as integer ) as long
+	if( len_ <> 2 ) then return 0
+	return iif( (p[off] = 42) andalso (p[off + 1] = 42), 1, 0 )
+end function
+
+'' The component list. A "**" component matches ZERO OR MORE components -- so a
+'' pattern of the form a, doublestar, c matching the path a/c is not a special
+'' case, it is what zero means. Same one-saved-position backtracking as
+'' hMatchComp, one level up.
+private function hMatchComps( byval p as FB_UCHAR ptr, byval poff as integer ptr, _
+                              byval plen as integer ptr, byval np as long, _
+                              byval s as FB_UCHAR ptr, byval soff as integer ptr, _
+                              byval slen as integer ptr, byval ns as long, _
+                              byval gram as long ) as long
+	dim as long pi = 0, si = 0
+	dim as long star = -1, ss = 0
+
+	while( si < ns )
+		if( pi < np ) then
+			if( hgIsDoubleStar( p, poff[pi], plen[pi] ) <> 0 ) then
+				pi += 1
+				star = pi               '' position after the "**"
+				ss = si
+				continue while
+			end if
+		end if
+
+		if( pi < np ) then
+			if( hMatchComp( p + poff[pi], plen[pi], s + soff[si], slen[si], gram ) <> 0 ) then
+				pi += 1
+				si += 1
+				continue while
+			end if
+		end if
+
+		if( star >= 0 ) then
+			ss += 1
+			si = ss
+			pi = star
+			continue while
+		end if
+
+		return 0
+	wend
+
+	'' a trailing "**" may match nothing at all
+	while( pi < np )
+		if( hgIsDoubleStar( p, poff[pi], plen[pi] ) = 0 ) then exit while
+		pi += 1
+	wend
+
+	return iif( pi = np, 1, 0 )
+end function
+
+extern "rtlib"
+
+'' Whole-string match: there is no implicit "*" at either end.
+function tkort_UStrFsMatchPattern alias "fb_UStrFsMatchPattern" _
+	( byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval gram as long ) as long
+
+	dim as FB_UCHAR ptr ss = any, ps = any
+	dim as integer sl = any, pl = any
+	dim as integer soff( 0 to FB_GLOB_MAXCOMP - 1 ) = any, slen( 0 to FB_GLOB_MAXCOMP - 1 ) = any
+	dim as integer poff( 0 to FB_GLOB_MAXCOMP - 1 ) = any, plen( 0 to FB_GLOB_MAXCOMP - 1 ) = any
+	dim as long ns = any, np = any, sLead = any, pLead = any
+
+	hUArg( s, @ss, @sl )
+	hUArg( pat, @ps, @pl )
+
+	ns = hgSplit( ss, sl, gram, @soff(0), @slen(0), @sLead )
+	np = hgSplit( ps, pl, gram, @poff(0), @plen(0), @pLead )
+
+	if( (ns < 0) orelse (np < 0) ) then return 0
+
+	'' an absolute pattern does not match a relative path, or vice versa
+	if( sLead <> pLead ) then return 0
+
+	'' THE EMPTY STRING IS ONE EMPTY COMPONENT, NOT ZERO COMPONENTS, on both
+	'' sides. Splitting "" yields no components, and a zero-component subject
+	'' could then never match the one-component pattern "*" -- but "*" matching
+	'' the empty string is what fnmatch and Python's fnmatch both do.
+	''
+	'' Promoting it to one empty component gets that from the ordinary rules
+	'' instead of from a special case: hMatchComp( "*", "" ) succeeds through
+	'' its trailing-star path. It does NOT make a two-component pattern such as
+	'' a-slash-star match "", because that is two pattern components against one
+	'' subject component.
+	if( ns = 0 ) then
+		soff(0) = 0 : slen(0) = 0 : ns = 1
+	end if
+
+	if( np = 0 ) then
+		poff(0) = 0 : plen(0) = 0 : np = 1
+	end if
+
+	return hMatchComps( ps, @poff(0), @plen(0), np, ss, @soff(0), @slen(0), ns, gram )
+end function
+
+'' Offset of the first wildcard, or -1. Glob uses it to find the walk root, so
+'' that "C:\dev\src\*.bas" walks src and not the whole volume.
+''
+'' An escaped wildcard is NOT a wildcard, on the platform that has escapes.
+function tkort_UStrFsPatternWildcardAt alias "fb_UStrFsPatternWildcardAt" _
+	( byval pat as FBUSTRING ptr, byval gram as long ) as integer
+
+	dim as FB_UCHAR ptr p = any
+	dim as integer len_ = any, i = any
+
+	hUArg( pat, @p, @len_ )
+
+	i = 0
+	while( i < len_ )
+		if( (hgHasEscape( gram ) <> 0) andalso (p[i] = 92) andalso (i + 1 < len_) ) then
+			i += 2
+			continue while
+		end if
+
+		if( (p[i] = 42) orelse (p[i] = 63) ) then return i
+
+		'' a '[' only counts if it actually opens a well-formed class --
+		'' otherwise it is a literal and must not drag the walk root up to its
+		'' parent
+		if( p[i] = 91 ) then
+			if( hgClassLen( p, len_, i, gram ) > 0 ) then return i
+		end if
+
+		i += 1
+	wend
+
+	return -1
+end function
+
+'' Does the pattern contain a "**" component? Glob uses this to decide between a
+'' recursive walk and a single ReadDir, so that a non-recursive pattern never
+'' engages the walk machinery at all.
+function tkort_UStrFsPatternIsRecursive alias "fb_UStrFsPatternIsRecursive" _
+	( byval pat as FBUSTRING ptr, byval gram as long ) as long
+
+	dim as FB_UCHAR ptr p = any
+	dim as integer len_ = any
+	dim as integer off( 0 to FB_GLOB_MAXCOMP - 1 ) = any, clen( 0 to FB_GLOB_MAXCOMP - 1 ) = any
+	dim as long n = any, i = any, lead = any
+
+	hUArg( pat, @p, @len_ )
+
+	n = hgSplit( p, len_, gram, @off(0), @clen(0), @lead )
+	if( n < 0 ) then return 0
+
+	for i = 0 to n - 1
+		if( hgIsDoubleStar( p, off(i), clen(i) ) <> 0 ) then return 1
+	next
+
+	return 0
+end function
+
+end extern

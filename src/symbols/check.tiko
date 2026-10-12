@@ -1,0 +1,1500 @@
+'' check.tiko -- expression typing. See check.ti for the measured promotion rules and
+'' for why each of them is not what a C programmer would guess.
+
+#import "std/containers"
+#include once "symbols/check.ti"
+#include once "symbols/mangle.ti"
+#include once "support/irtext.ti"
+
+namespace Tko.Check
+
+type Ctx
+    as Tko.AstArena ptr         ast
+    as Tko.SymbolTable ptr      syms
+    as Tko.TypeContext ptr      types
+    as Tko.Interner ptr         names
+    as Tko.DiagnosticEngine ptr diags
+    as Tko.SemanticInfo ptr     info
+    as Stats ptr                st
+    '' How deep the CONST-initialiser chain is. 'const A = B' takes its type from B,
+    '' so a circular pair would recurse until the stack ran out; a compiler must not
+    '' fall over on input fbc merely rejects.
+    as long                     constDepth
+    '' THE UNTYPED MEMO -- see TypeOf_ (audit F-36).
+    as long                     typeDepth
+    as ulong                    memoEpoch
+    as containers.Array( of ulong )     memoEp
+    as containers.Array( of ulong )     memoVer
+end type
+
+const CONST_DEPTH_MAX as long = 64
+
+'' ------------------------------------------------------------------- classes
+
+declare function ExprIntrinsicType_ _
+    ( byref c as Ctx, byref nm as string, byval cp as Tko.ListPayload ptr ) as Tko.TypeId
+declare sub NoteUntypedName_( byref c as Ctx, byval id as Tko.NodeId )
+declare function UntypedLeaf_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+declare function IsUnsignedInt_( byval b as Tko.BuiltinType ) as boolean
+declare function IsPointerSized_ _
+    ( byval b as Tko.BuiltinType, byref types as Tko.TypeContext ) as boolean
+declare function PointerCost_ _
+    ( byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
+      byval srcP as boolean, byval dstP as boolean, _
+      byref types as Tko.TypeContext, byval overloaded as boolean ) as long
+
+private function IsFloat_( byval b as Tko.BuiltinType ) as boolean
+    return (b = Tko.TY_SINGLE) orelse (b = Tko.TY_DOUBLE)
+end function
+
+private function IsInt_( byval b as Tko.BuiltinType ) as boolean
+    select case b
+    case Tko.TY_BYTE, Tko.TY_UBYTE, Tko.TY_SHORT, Tko.TY_USHORT, _
+         Tko.TY_LONG, Tko.TY_ULONG, Tko.TY_INTEGER, Tko.TY_UINTEGER, _
+         Tko.TY_LONGINT, Tko.TY_ULONGINT
+        return true
+    end select
+    return false
+end function
+
+'' The 64-bit UNSIGNED types, and only those, make an integer result UINTEGER.
+'' 'ulong + ulong' is INTEGER: signed 64 holds every unsigned 32 value, so nothing
+'' forces the result unsigned.
+private function IsUnsigned64_( byval b as Tko.BuiltinType ) as boolean
+    return (b = Tko.TY_UINTEGER) orelse (b = Tko.TY_ULONGINT)
+end function
+
+private function IsStringy_( byval b as Tko.BuiltinType ) as boolean
+    select case b
+    case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_USTRING
+        return true
+    end select
+    return false
+end function
+
+'' 'zstring * N' IS AN ARRAY of TY_ZSTRING rather than a builtin of its own, and so are
+'' 'wstring * N', 'string * N' (TY_FIXSTR) and 'ustring * N' (TY_FIXUSTR). Every one of
+'' them fell out at BinaryResult's builtin-only guard, so 'z + z' and 'w + w' had no
+'' type at all and every use of one declined -- 36 corpus declines were a single macro
+'' putting a fixed-string concatenation in a SELECT CASE subject.
+private function StrFlavourOf_ _
+    ( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as Tko.TypeId
+    dim as Tko.TypeId el = FixedStringElem( t, types )
+    if el = Tko.TYPE_NONE then return t
+    select case types.BuiltinOf( el )
+    case Tko.TY_FIXSTR  : return types.Builtin( Tko.TY_STRING )
+    case Tko.TY_FIXUSTR : return types.Builtin( Tko.TY_USTRING )
+    end select
+    return el
+end function
+
+'' THE RESULT OF A CONCATENATION IS WIDE WHEN EITHER OPERAND IS. Measured with fbc:
+'' 'z + z', 'f + f' and 'z & z' are STRING, while 'w + w', 'w & w', '*pw + *pw' and
+'' even 'w & 5' are WSTRING. The narrow answer was returned for all of them, which put
+'' a wide value through the narrow runtime.
+''
+'' Mixing the two WIDE flavours -- a wstring with a ustring -- is not measured against
+'' anything, so it has no answer here rather than a guessed one.
+private function ConcatResult_ _
+    ( byref types as Tko.TypeContext, byval lb as Tko.BuiltinType, _
+      byval rb as Tko.BuiltinType ) as Tko.TypeId
+    dim as boolean lw = (lb = Tko.TY_WSTRING)
+    dim as boolean rw = (rb = Tko.TY_WSTRING)
+    dim as boolean lu = (lb = Tko.TY_USTRING)
+    dim as boolean ru = (rb = Tko.TY_USTRING)
+    if (lu orelse ru) andalso (lw orelse rw) then return Tko.TYPE_NONE
+    if lu orelse ru then return types.Builtin( Tko.TY_USTRING )
+    if lw orelse rw then return types.Builtin( Tko.TY_WSTRING )
+    return types.Builtin( Tko.TY_STRING )
+end function
+
+'' ------------------------------------------------------------ operator classes
+
+private function IsComparison_( byval op as Tko.TokenKind ) as boolean
+    select case op
+    case Tko.TK_EQ, Tko.TK_NE, Tko.TK_LT, Tko.TK_GT, Tko.TK_LE, Tko.TK_GE
+        return true
+    end select
+    return false
+end function
+
+'' AND, OR, XOR, EQV, IMP: bitwise on integers, logical on booleans.
+private function IsBitwise_( byval op as Tko.TokenKind ) as boolean
+    select case op
+    case Tko.KW_AND, Tko.KW_OR, Tko.KW_XOR, Tko.KW_EQV, Tko.KW_IMP
+        return true
+    end select
+    return false
+end function
+
+'' ANDALSO and ORELSE are NOT the bitwise operators with short-circuiting bolted on.
+'' They are BOOLEAN when both sides are and INTEGER in every other case -- never
+'' UINTEGER, even for 'uinteger andalso uinteger', where AND would give UINTEGER.
+'' They also reject nothing except a string operand.
+private function IsShortCircuit_( byval op as Tko.TokenKind ) as boolean
+    return (op = Tko.KW_ANDALSO) orelse (op = Tko.KW_ORELSE)
+end function
+
+'' The operators whose result is an INTEGER even when handed floats: '\', MOD, SHL,
+'' SHR. They convert first and are not the same operator as '/'.
+private function IsIntegerOp_( byval op as Tko.TokenKind ) as boolean
+    select case op
+    case Tko.TK_BACKSLASH, Tko.KW_MOD, Tko.KW_SHL, Tko.KW_SHR
+        return true
+    end select
+    return false
+end function
+
+private function IsArith_( byval op as Tko.TokenKind ) as boolean
+    select case op
+    case Tko.TK_PLUS, Tko.TK_MINUS, Tko.TK_STAR
+        return true
+    end select
+    return false
+end function
+
+
+'' ------------------------------------------------------------------ promotion
+
+'' The integer result of a numeric pair: UINTEGER when either side is 64-bit
+'' unsigned, INTEGER otherwise. Nothing narrower is ever produced.
+'' Integer arithmetic promotes to at least INTEGER and then takes the WIDEST operand,
+'' with the result unsigned only when an operand OF THAT WIDTH is unsigned.
+''
+'' On win64 that collapses to "INTEGER, or UINTEGER if either side is an 8-byte
+'' unsigned", because INTEGER is already the widest integer there -- which is why the
+'' rule read that way for as long as win64 was the only target. On win32 INTEGER is four
+'' bytes and the difference shows in 726 of the gate's 3,596 rows: 'byte + longint' is
+'' LONGINT there and INTEGER here.
+'' The width an operand contributes. A FLOAT contributes nothing: '\' and 'mod' convert
+'' it to the default integer type rather than to one its size suggests, so
+'' 'byte \ double' is INTEGER and not LONGINT -- measured, and the difference only
+'' shows on win32 where those two are not the same type.
+private function IntWidth_ _
+    ( byval b as Tko.BuiltinType, byref types as Tko.TypeContext ) as long
+    if IsInt_( b ) = false then return 0
+    return types.Layout( types.Builtin( b ) ).size
+end function
+
+private function IntResult_ _
+    ( byval lb as Tko.BuiltinType, byval rb as Tko.BuiltinType, _
+      byref types as Tko.TypeContext ) as Tko.TypeId
+
+    dim as long iw = IntWidth_( Tko.TY_INTEGER, types )
+    dim as long lw = IntWidth_( lb, types )
+    dim as long rw = IntWidth_( rb, types )
+    dim as long w = iw
+    if lw > w then w = lw
+    if rw > w then w = rw
+
+    dim as boolean uns = false
+    if (lw = w) andalso IsUnsignedInt_( lb ) then uns = true
+    if (rw = w) andalso IsUnsignedInt_( rb ) then uns = true
+
+    if w = iw then
+        return types.Builtin( iif( uns, Tko.TY_UINTEGER, Tko.TY_INTEGER ) )
+    end if
+    return types.Builtin( iif( uns, Tko.TY_ULONGINT, Tko.TY_LONGINT ) )
+end function
+
+'' The binary-operator result table, in its own file at the 1500-line cap. Included
+'' HERE because it reads the operator-class predicates and the integer-promotion
+'' helpers above.
+#include once "symbols/binresult.tiko"
+
+
+
+'' ----------------------------------------------------------- overload resolution
+
+'' fbc's own preference order among the builtin types, which is NOT size order:
+'' INTEGER sits before LONGINT even though both are 64-bit, and an argument of type
+'' LONG offered 'integer' and 'longint' picks INTEGER. Rank is used only to break
+'' ties within a conversion class, and to tell widening from narrowing.
+private function Rank_( byval b as Tko.BuiltinType ) as long
+    select case b
+    case Tko.TY_BYTE     : return 1
+    case Tko.TY_UBYTE    : return 2
+    case Tko.TY_SHORT    : return 3
+    case Tko.TY_USHORT   : return 4
+    case Tko.TY_LONG     : return 5
+    case Tko.TY_ULONG    : return 6
+    case Tko.TY_INTEGER  : return 7
+    case Tko.TY_UINTEGER : return 8
+    case Tko.TY_LONGINT  : return 9
+    case Tko.TY_ULONGINT : return 10
+    case Tko.TY_SINGLE   : return 11
+    case Tko.TY_DOUBLE   : return 12
+    end select
+    return 0
+end function
+
+private function IsUnsignedInt_( byval b as Tko.BuiltinType ) as boolean
+    select case b
+    case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG, Tko.TY_UINTEGER, Tko.TY_ULONGINT
+        return true
+    end select
+    return false
+end function
+
+'' The pointer half of conversion costing, in its own file at the 1500-line cap.
+#include once "symbols/convcost.tiko"
+#include once "symbols/checkbase.tiko"
+
+'' 'zstring * 8' as the string type it IS, or TYPE_NONE.
+''
+'' A fixed-length string is modelled as an ARRAY of the string element, which is what
+'' it is and which makes its layout fall out of the array rule. Nothing else is: fbc
+'' REFUSES a bare 'zstring' array -- "Expected pointer" -- so an array whose element is
+'' the zstring or wstring builtin can only be a fixed-length string, never an array of
+'' them. 'zstring * 4 z(0 to 7)' nests, and it is the INNER array that is the string.
+function FixedStringElem _
+    ( byval t as Tko.TypeId, byref types as Tko.TypeContext ) as Tko.TypeId
+
+    if t = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    if types.Kind( t ) <> Tko.TK_ARRAY then return Tko.TYPE_NONE
+    dim as Tko.TypeId e = types.Inner( t )
+    if types.Kind( e ) <> Tko.TK_BUILTIN then return Tko.TYPE_NONE
+    select case types.BuiltinOf( e )
+    '' TY_FIXUSTR IS THE 'ustring * N' ELEMENT, and it was missing -- so a fixed
+    '' ustring was not a fixed string at all here, StrFlavourOf_'s TY_FIXUSTR arm
+    '' could never be reached, and every 'ustring * N' argument cost CONV_NONE
+    '' against a 'ustring' parameter. The call then bound to nothing and came out
+    '' UNTYPED, so whatever consumed it declined. The narrow twin was listed and
+    '' worked, which is what kept this invisible.
+    '' NOT TY_USTRING (T23): an array of ustring is an ARRAY ('ustring * N' is TY_FIXUSTR). Listed,
+    '' 'ubound( us )' came out untyped and 'a( ) as ustring' was refused as a parameter.
+    case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_FIXSTR, Tko.TY_FIXUSTR
+        return e
+    end select
+    return Tko.TYPE_NONE
+end function
+
+
+'' WHICH STRING PARAMETER A STRING ARGUMENT PREFERS: 0 is best, 3 worst, and -1 when
+'' either side is not one of the four string builtins.
+''
+'' Measured pairwise against fbc over every ordered pair of { string, zstring, wstring,
+'' ustring } and every source, then read off as four total orders. Nothing about them
+'' is symmetric: a ZSTRING source puts 'string' first and a STRING source puts
+'' 'zstring' first.
+private function StringPref_ _
+    ( byval srcB as Tko.BuiltinType, byval dstB as Tko.BuiltinType ) as long
+
+    if IsStringy_( srcB ) = false then return -1
+    if IsStringy_( dstB ) = false then return -1
+    dim as long order( 0 to 3 )
+    select case srcB
+    case Tko.TY_STRING
+        order(0) = Tko.TY_ZSTRING : order(1) = Tko.TY_STRING
+        order(2) = Tko.TY_USTRING : order(3) = Tko.TY_WSTRING
+    case Tko.TY_ZSTRING
+        order(0) = Tko.TY_STRING  : order(1) = Tko.TY_USTRING
+        order(2) = Tko.TY_ZSTRING : order(3) = Tko.TY_WSTRING
+    case Tko.TY_WSTRING
+        order(0) = Tko.TY_WSTRING : order(1) = Tko.TY_USTRING
+        order(2) = Tko.TY_STRING  : order(3) = Tko.TY_ZSTRING
+    case else
+        order(0) = Tko.TY_ZSTRING : order(1) = Tko.TY_USTRING
+        order(2) = Tko.TY_STRING  : order(3) = Tko.TY_WSTRING
+    end select
+    for i as long = 0 to 3
+        if order( i ) = dstB then return i
+    next
+    return -1
+end function
+
+#include once "symbols/checkconv.tiko"
+
+'' ------------------------------------------------------------------ assignment
+
+'' A pointer converts to and from an integer of POINTER WIDTH, with a warning, and to
+'' nothing narrower. Written against the target layout rather than against 64, so it
+'' stays right on a target where a pointer is not 8 bytes.
+private function IsPointerSized_ _
+    ( byval b as Tko.BuiltinType, byref types as Tko.TypeContext ) as boolean
+
+    if IsInt_( b ) = false then return false
+    return types.Layout( types.Builtin( b ) ).size = (types.target.pointerBits \ 8)
+end function
+
+function AssignableTo _
+    ( byval src as Tko.TypeId, byval dst as Tko.TypeId, _
+      byref types as Tko.TypeContext ) as AssignKind
+
+    if (src = Tko.TYPE_NONE) orelse (dst = Tko.TYPE_NONE) then return ASSIGN_OK
+    if src = dst then return ASSIGN_OK
+
+    dim as boolean srcPtr = (types.Kind( src ) = Tko.TK_POINTER)
+    dim as boolean dstPtr = (types.Kind( dst ) = Tko.TK_POINTER)
+
+    '' Pointer to pointer: silent when the pointees agree, or when either side is
+    '' ANY PTR, which is the universal one. Between two DIFFERENT concrete pointees
+    '' fbc allows it but warns -- 'long ptr = zstring ptr' is accepted with a
+    '' complaint, and treating that as clean would hide a real behaviour difference.
+    if srcPtr andalso dstPtr then
+        dim as Tko.TypeId sp2 = types.Inner( src )
+        dim as Tko.TypeId dp2 = types.Inner( dst )
+        if sp2 = dp2 then return ASSIGN_OK
+        if (types.Kind( sp2 ) = Tko.TK_BUILTIN) andalso _
+           (types.BuiltinOf( sp2 ) = Tko.TY_ANY) then return ASSIGN_OK
+        if (types.Kind( dp2 ) = Tko.TK_BUILTIN) andalso _
+           (types.BuiltinOf( dp2 ) = Tko.TY_ANY) then return ASSIGN_OK
+        return ASSIGN_WARN
+    end if
+
+    if srcPtr orelse dstPtr then
+        dim as Tko.TypeId other = iif( srcPtr, dst, src )
+        if types.Kind( other ) <> Tko.TK_BUILTIN then return ASSIGN_REJECT
+        if IsPointerSized_( types.BuiltinOf( other ), types ) then return ASSIGN_WARN
+        return ASSIGN_REJECT
+    end if
+
+    if (types.Kind( src ) <> Tko.TK_BUILTIN) orelse _
+       (types.Kind( dst ) <> Tko.TK_BUILTIN) then
+        return ASSIGN_OK        '' UDTs need overloaded LET; not decided here
+    end if
+
+    dim as Tko.BuiltinType sb = types.BuiltinOf( src )
+    dim as Tko.BuiltinType db = types.BuiltinOf( dst )
+
+    '' A string assigns to a string and to nothing else, in either direction.
+    if IsStringy_( sb ) orelse IsStringy_( db ) then
+        if IsStringy_( sb ) andalso IsStringy_( db ) then return ASSIGN_OK
+        return ASSIGN_REJECT
+    end if
+
+    '' Everything numeric, BOOLEAN included, assigns to everything numeric. Narrowing
+    '' is accepted silently -- there is no truncation warning to reproduce.
+    return ASSIGN_OK
+end function
+
+'' --------------------------------------------------------------------- typing
+
+'' The symbol of a field of a UDT, by name. The UDT's members live in the scope its
+'' declaring symbol opened, which is reached from the type through the scope the type
+'' was declared in -- the same pair that makes two namespaces' 'Vec' distinct types.
+private function FieldOf_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval nm as Tko.InternId ) as Tko.SymbolId
+
+    if (t = Tko.TYPE_NONE) orelse (nm = 0) then return Tko.SYMBOL_NONE
+    dim as Tko.InternId litNm = nm
+    '' 'x.constructor( )' AND 'x.destructor( )' NAME THE STRUCTORS, which are
+    '' declared under '__ctor' and '__dtor'. Measured, fbc emits '_ZN1TC1Ev( &X )'
+    '' and '_ZN1TD1Ev( &X )' -- an ordinary explicit call. The mapping existed
+    '' only on the 'procptr( T.M )' path, so the spelled-out call found no member
+    '' at all and its callee stayed unbound.
+    select case Tko.Text.LowerAscii( c.names->Spelling( nm ) )
+    case "constructor"
+        nm = c.names->Fold( c.names->GetString( "__ctor" ) )
+    case "destructor"
+        nm = c.names->Fold( c.names->GetString( "__dtor" ) )
+    end select
+    '' CONST IS TRANSPARENT TO A FIELD LOOKUP. 'byref x as const T' gives x a QUALIFIED
+    '' type, which failed the kind test outright -- so 'x.n' over a const reference was
+    '' untyped and every read through one declined, while the same line without the
+    '' const worked. That is the signature of every copy constructor in the corpus.
+    t = c.types->Unqualify( t )
+    select case c.types->Kind( t )
+    case Tko.TK_UDT, Tko.TK_FORWARD
+    case else
+        return Tko.SYMBOL_NONE
+    end select
+    dim as Tko.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
+    '' The UDT whose scope holds the field, so the TYPE-name class.
+    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Tko.SYMBOL_NONE
+    if s->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
+    '' ...UNLESS THE TYPE HAS A FIELD OF THAT NAME. 'as long constructor' is a legal field,
+    '' and 't.constructor' is then that field -- measured, fbc-modern 1.20 stores into it and
+    '' reads it back. Mapped regardless, the statement bound to no structor at all and was
+    '' dropped from the program without a word (T93).
+    if litNm <> nm then
+        dim as Tko.SymbolId lit = c.syms->LookupLocal( s->inner, litNm )
+        dim as Tko.Symbol ptr ls = c.syms->SymbolAt( lit )
+        if ls <> 0 then
+            if ls->kind = cast( ubyte, Tko.SYM_FIELD ) then return lit
+        end if
+    end if
+    dim as Tko.SymbolId found = c.syms->LookupLocal( s->inner, nm )
+    if found <> Tko.SYMBOL_NONE then return found
+
+    '' AN INHERITED MEMBER. 'extends T' is a field named 'base' at offset 0 -- see the
+    '' parser -- so a name this type does not hold is looked for in that field's type,
+    '' and so on up the chain. Single inheritance, so there is one chain and no
+    '' ambiguity to resolve.
+    ''
+    '' 'base' itself is not looked through, or a type would find its own base field by
+    '' searching for it, which terminates but says the wrong thing.
+    dim as Tko.InternId baseNm = c.names->GetString( "base" )
+    if nm <> baseNm then
+        dim as Tko.SymbolId bf = c.syms->LookupLocal( s->inner, baseNm )
+        if bf <> Tko.SYMBOL_NONE then
+            dim as Tko.Symbol ptr b = c.syms->SymbolAt( bf )
+            if (b <> 0) andalso (b->type_ <> Tko.TYPE_NONE) andalso (b->type_ <> t) then
+                dim as Tko.SymbolId up = FieldOf_( c, b->type_, litNm )
+                if up <> Tko.SYMBOL_NONE then return up
+            end if
+        end if
+    end if
+
+    '' AN INSTANTIATION FALLS BACK TO ITS GENERIC for anything its own scope does not
+    '' hold. Instantiating a generic gives each argument list its own type with its own
+    '' FIELDS -- which is the whole point, and what makes 'a.value' work at all -- but
+    '' the MEMBERS are not instantiated yet: a member body needs its own AST nodes per
+    '' instantiation, because SemanticInfo is keyed by NodeId and two instantiations
+    '' sharing a body would fight over the same node's type.
+    ''
+    '' Without this fallback, giving instantiations real types made 'a.Push( v )' stop
+    '' binding where it used to bind -- 72 calls in one corpus file. It bound to the
+    '' GENERIC's single member before and it binds to the same one now: no more wrong
+    '' than it was, and the fields are right where they were not. Stated plainly
+    '' because it IS wrong for two instantiations at different types, and the fix is
+    '' instantiating the bodies, not widening this.
+    dim as Tko.NodeId gnode = cast( Tko.NodeId, s->payload )
+    if gnode = Tko.NODE_NONE then return Tko.SYMBOL_NONE
+    if c.ast->Kind( gnode ) <> Tko.N_TYPE then return Tko.SYMBOL_NONE
+    dim as Tko.StmtPayload ptr gp = _
+        @c.ast->stmts[cast( long, c.ast->nodes[cast( long, gnode )].data )]
+    if gp->b = Tko.NODE_NONE then return Tko.SYMBOL_NONE      '' not a generic
+    if gp->name = 0 then return Tko.SYMBOL_NONE
+    if gp->name = tn then return Tko.SYMBOL_NONE              '' it IS the generic
+    '' By the SYMBOL recorded on the node, not by name: the instantiation lives in the
+    '' GLOBAL scope while its generic sits in a module or namespace scope below it, so
+    '' a name lookup from here walks the wrong way and finds nothing.
+    dim as Tko.Symbol ptr gsym = c.syms->SymbolAt( c.info->RefOf( gnode ) )
+    if gsym = 0 then return Tko.SYMBOL_NONE
+    if gsym->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
+    return c.syms->LookupLocal( gsym->inner, nm )
+end function
+
+private function StmtOf _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
+    return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+end function
+
+#include once "symbols/tuplenames.tiko"
+
+'' A var-length STRING or USTRING -- the two builtins that carry a descriptor. Not the
+'' fixed flavours, which are arrays and are handled beside them.
+private function IsVarLenStrBuiltin_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
+    dim as Tko.BuiltinType b = c.types->BuiltinOf( u )
+    return (b = Tko.TY_STRING) orelse (b = Tko.TY_USTRING)
+end function
+
+'' ...and its complement: the BARE zstring/wstring, which is what dereferencing a
+'' 'zstring ptr' gives. It is neither a var-length string nor an array, so both of the
+'' subscript branches at N_INDEX missed it.
+private function IsBareCharStrBuiltin_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
+    dim as Tko.BuiltinType b = c.types->BuiltinOf( u )
+    return (b = Tko.TY_ZSTRING) orelse (b = Tko.TY_WSTRING)
+end function
+
+declare function MainArgvType_( byref c as Ctx, byval s as Tko.Symbol ptr ) as Tko.TypeId
+declare function TypeOf_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+
+'' An integer literal is INTEGER -- pointer-sized, not LONG -- UNLESS IT CARRIES A
+'' SUFFIX, which this ignored entirely. Measured against fbc, one probe:
+''
+''     2      INTEGER   8 signed        2u     UINTEGER  8 unsigned
+''     2%     INTEGER   8 signed        2ul    ULONG     4 unsigned
+''     2L 2&  LONG      4 signed        2ull   ULONGINT  8 unsigned
+''     2LL    LONGINT   8 signed
+''
+'' Answering INTEGER for all of them is not a rounding error. 'Some( 2L )' against
+'' 'dim o as Optional( of long )' inferred T = INTEGER, so the call returned a
+'' 16-byte Optional( of integer ) into an 8-byte slot and clang refused the module:
+'' "'%t19' defined with type '[16 x i8]' but expected '[8 x i8]'". Eighteen corpus
+'' files would not build, and every one of them was this.
+''
+'' THE CONSTANT FOLDER ALREADY KNEW -- its literal widths and signedness beside each other
+'' in constfold.tiko, with the same measurements written above them. Only the TYPE
+'' question was never asked.
+function DecimalLitUnsigned( byref lp as Tko.LiteralPayload ) as boolean
+    '' THE LITERAL MODEL's answer (lexer/littype.tiko) for an UNSUFFIXED literal, either target.
+    if cast( Tko.NumSuffix, lp.suffix ) <> Tko.NSUF_NONE then return false
+    return Tko.LiteralClassUnsigned( Tko.LiteralClassOf( lp.suffix, lp.radix, lp.intValue, false, true ) )
+end function
+
+'' A literal class as the builtin it is (lexer/littype.tiko).
+function LitClassBuiltin( byref types as Tko.TypeContext, byval lc as long ) as Tko.TypeId
+    select case lc
+    case Tko.LC_UINTEGER : return types.Builtin( Tko.TY_UINTEGER )
+    case Tko.LC_LONG     : return types.Builtin( Tko.TY_LONG )
+    case Tko.LC_ULONG    : return types.Builtin( Tko.TY_ULONG )
+    case Tko.LC_LONGINT  : return types.Builtin( Tko.TY_LONGINT )
+    case Tko.LC_ULONGINT : return types.Builtin( Tko.TY_ULONGINT )
+    case Tko.LC_SINGLE   : return types.Builtin( Tko.TY_SINGLE )
+    case Tko.LC_DOUBLE   : return types.Builtin( Tko.TY_DOUBLE )
+    end select
+    return types.Builtin( Tko.TY_INTEGER )
+end function
+
+private function LiteralType_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+
+    select case c.ast->Kind( id )
+    case Tko.N_INT_LIT
+        dim as Tko.LiteralPayload ptr lp = _
+            @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
+        '' THE LITERAL MODEL (lexer/littype.tiko) -- suffix first, then by magnitude and radix, as
+        '' fbc's lexer types it. Typed INTEGER always, 's < 3000000000' over 'dim s as integer =
+        '' -1' was TRUE and '3000000000 \ -2' negative, where fbc reads the literal unsigned.
+        return LitClassBuiltin( *c.types, Tko.LiteralClassOf( lp->suffix, lp->radix, lp->intValue, false, c.types->target.pointerBits = 64 ) )
+    case Tko.N_FLOAT_LIT
+        '' THE SUFFIX TYPES IT, exactly as it does for an integer literal one arm
+        '' above. '1.0f' and '1.0!' are SINGLE and were read as DOUBLE, so an
+        '' overload set with both picked the double one: fbc answers 'single single
+        '' double' for 'u( 1.0f ), u( 1.0! ), u( 1.0 )' and tiko answered double
+        '' three times. The lexer already records NSUF_SINGLE; nothing read it.
+        dim as Tko.LiteralPayload ptr fp = _
+            @c.ast->literals[cast( long, c.ast->nodes[cast( long, id )].data )]
+        return LitClassBuiltin( *c.types, Tko.LiteralClassOf( fp->suffix, fp->radix, 0, true, true ) )
+    case Tko.N_STRING_LIT, Tko.N_STRCAT
+        return c.types->Builtin( Tko.TY_STRING )
+    end select
+    return Tko.TYPE_NONE
+end function
+
+'' OVERLOAD RESOLUTION lives in its own file: choosing between candidates is one
+'' subject and a long one, and check.tiko reached the 1500-line cap. Included HERE for
+'' the same reason the intrinsic tables are -- it reads Ctx and calls TypeOf_, both of
+'' which have to exist first. Nothing in it changed in the move.
+
+'' The intrinsic tables live in their own file: one subject, and a long one. It is
+'' included HERE rather than at the top because it reads Ctx and calls TypeOf_, both
+'' of which have to exist first.
+'' Defined below and used by the intrinsic tables included here: a UDT member by name,
+'' folded, procedures included.
+'' UdtMemberSym_ is declared in checkbase.tiko, above.
+
+declare function UdtCastsToUStr_( byref c as Ctx, byval t as Tko.TypeId ) as boolean   '' udtcastu.tiko, below
+#include once "symbols/overload.tiko"
+#include once "symbols/checkdecide.tiko"
+#include once "symbols/intrinsics.tiko"
+#include once "symbols/udtcastu.tiko"
+
+'' THE '__fbinvoke' OF A CLOSURE TYPE, or nothing when this is not one. Resolve
+'' declares it in the type's own scope precisely so a CALL can find the procedure
+'' from the OBJECT, which is all the call site has.
+private function ClosureInvokeOf_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
+    dim as Tko.SymbolId tsid = _
+        c.syms->LookupLocalTyped( cast( Tko.ScopeId, c.types->DeclScopeOf( u ) ), _
+                                  c.types->NameOf( u ), true )
+    dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
+    if ts = 0 then return Tko.SYMBOL_NONE
+    if ts->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
+    return c.syms->LookupLocal( ts->inner, _
+        c.names->Fold( c.names->GetString( "__fbinvoke" ) ) )
+end function
+
+declare function TypeOfUncached_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+
+'' A NODE FOUND UNTYPED STAYS UNTYPED within one outermost question, until a SetType or
+'' SetRef anywhere (SemanticInfo.version). 'f( f( ... f( zz ) ... ) )' re-typed every
+'' argument per overload attempt: 2x per level, 24 levels took 89 s (audit F-36).
+function TypeOf_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+
+    if id = Tko.NODE_NONE then return Tko.TYPE_NONE
+    dim as Tko.TypeId known = c.info->TypeOf_( id )
+    if known <> Tko.TYPE_NONE then return known
+    dim as long n = cast( long, id )
+    if c.typeDepth = 0 then c.memoEpoch += 1
+    if n < c.memoEp.Count then
+        if (c.memoEp[n] = c.memoEpoch) andalso (c.memoVer[n] = c.info->version) then
+            return Tko.TYPE_NONE
+        end if
+    end if
+    c.typeDepth += 1
+    dim as Tko.TypeId t = TypeOfUncached_( c, id )
+    c.typeDepth -= 1
+    if t = Tko.TYPE_NONE then
+        while c.memoEp.Count <= n : c.memoEp.Push( 0 ) : c.memoVer.Push( 0 ) : wend
+        c.memoEp[n] = c.memoEpoch
+        c.memoVer[n] = c.info->version
+    end if
+    return t
+end function
+
+private function TypeOfUncached_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+
+    if id = Tko.NODE_NONE then return Tko.TYPE_NONE
+    dim as Tko.TypeId known = c.info->TypeOf_( id )
+    if known <> Tko.TYPE_NONE then return known
+
+    dim as Tko.NodeKind k = c.ast->Kind( id )
+    dim as Tko.TypeId t = Tko.TYPE_NONE
+
+    select case k
+    case Tko.N_INT_LIT, Tko.N_FLOAT_LIT, Tko.N_STRING_LIT, Tko.N_STRCAT
+        t = LiteralType_( c, id )
+
+    '' 'typeof( EXPR )' USED AS A TYPE, anywhere -- 'sizeof( typeof( *p ) )' is what
+    '' quirk/typeof.bas is about. Resolve types the BARE-NAME form and leaves this
+    '' one, because an expression has no type until here; the DECLARATION path already
+    '' finished the job for 'dim x as typeof( EXPR )' and nothing did for any other
+    '' position, so the sizeof came out untyped and its statement declined.
+    case Tko.N_TYPEREF
+        dim as Tko.StmtPayload ptr trp = StmtOf( c, id )
+        if cast( Tko.TokenKind, trp->op ) = Tko.KW_TYPEOF then
+            if trp->b <> Tko.NODE_NONE then
+                t = TypeOf_( c, trp->b )
+                '' A REFERENCE is transparent, as it is in an expression.
+                if t <> Tko.TYPE_NONE then
+                    if c.types->Kind( t ) = Tko.TK_REFERENCE then
+                        t = c.types->Inner( t )
+                    end if
+                end if
+            end if
+        end if
+
+    case Tko.N_IDENT
+        dim as Tko.SymbolId sid = ParenlessMethodOf_( c, c.info->RefOf( id ), id )
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+        if s <> 0 then t = s->type_ : if (s->kind = cast( ubyte, Tko.SYM_PROC )) andalso c.types->IsDynArray( t ) then t = Tko.TYPE_NONE   '' an ARRAY RESULT is not the procedure's own type: the callee of 'f( )' must not read as an array being subscripted
+
+        '' A REFERENCE IS TRANSPARENT IN AN EXPRESSION. 'byref n as integer' makes the
+        '' SYMBOL a reference-to-integer, because the slot has to hold an address, but
+        '' 'n' in an expression is an INTEGER: fbc types 'k = n' as an integer
+        '' assignment and so must this, or every use of a byref parameter converts
+        '' through a pointer on its way to a value.
+        if t <> Tko.TYPE_NONE then
+            if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Inner( t )
+        end if
+        if (t = Tko.TYPE_NONE) andalso (s <> 0) then t = MainArgvType_( c, s )   '' T80
+        '' 'const K = 7' declares no type of its own, so the symbol carries none and
+        '' every use of K was untyped -- which made the whole enclosing statement
+        '' decline. Its type is its INITIALISER's, measured: K is INTEGER, 'const D =
+        '' 2.5' is DOUBLE, and 'const S = "hi"' is ZSTRING * 3.
+        ''
+        '' Computed on DEMAND rather than when the declaration is walked, because a use
+        '' can be typed before the declaration is reached and TypeOf_ memoises: an
+        '' early use would cache TYPE_NONE and never look again.
+        if (t = Tko.TYPE_NONE) andalso (s <> 0) then
+            if (s->kind = cast( ubyte, Tko.SYM_CONSTANT )) andalso (s->payload <> 0) then
+                dim as Tko.NodeId item = cast( Tko.NodeId, s->payload )
+                if c.ast->Kind( item ) = Tko.N_VAR_ITEM then
+                    if c.constDepth < CONST_DEPTH_MAX then
+                        c.constDepth += 1
+                        dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
+                        t = TypeOf_( c, ip->b )
+                        c.constDepth -= 1
+                        if t <> Tko.TYPE_NONE then s->type_ = t
+                    end if
+                end if
+            end if
+        end if
+
+        '' 'var v = expr' -- an INFERRED variable, and its type is its INITIALISER's.
+        '' There was no inference path at all: ResolveTypeRef on a 'var' item sees
+        '' NODE_NONE, returns TYPE_NONE, and BindDeclType bails, so the symbol stayed
+        '' untyped for ever. 937 corpus stores landed in a slot MIR could only type as
+        '' 'void', which is the largest single verifier failure in the tree.
+        ''
+        '' Measured against fbc, the rule is exactly "the expression's type", with no
+        '' decay of its own: 5 is INTEGER, 1.5 DOUBLE, false BOOLEAN, '@i' INTEGER PTR,
+        '' a UDT value its UDT, and 'var v = ci' over a CONST INTEGER keeps the CONST.
+        '' The one exception is a string LITERAL, whose own type is ZSTRING * N and
+        '' which makes a STRING here.
+        ''
+        '' Lazily and on demand, for the same reason the constant above is: a use can
+        '' be typed before the declaration is walked, and TypeOf_ memoises, so binding
+        '' this eagerly would cache TYPE_NONE against the early use and never revisit.
+        if (t = Tko.TYPE_NONE) andalso (s <> 0) then
+            if (s->kind = cast( ubyte, Tko.SYM_VARIABLE )) andalso (s->payload <> 0) then
+                dim as Tko.NodeId item = cast( Tko.NodeId, s->payload )
+                if c.ast->Kind( item ) = Tko.N_VAR_ITEM then
+                    dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
+                    '' ONLY an inferred one. A 'dim as T x' whose T did not resolve
+                    '' must stay untyped: taking the initialiser's type there would
+                    '' paper over an unresolved type name with a plausible answer.
+                    if (ip->a = Tko.NODE_NONE) andalso (ip->b <> Tko.NODE_NONE) then
+                        if c.constDepth < CONST_DEPTH_MAX then
+                            c.constDepth += 1
+                            dim as Tko.TypeId vt = TypeOf_( c, ip->b )
+                            c.constDepth -= 1
+                            if c.ast->Kind( ip->b ) = Tko.N_STRING_LIT then
+                                vt = c.types->Builtin( Tko.TY_STRING )
+                            end if
+                            if vt <> Tko.TYPE_NONE then
+                                t = vt
+                                s->type_ = vt
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
+
+    case Tko.N_TUPLE
+        '' 'type<P>( 5, 6 )' -- THE ANONYMOUS UDT LITERAL. The parser puts the written
+        '' type in the list's TARGET, and that IS the expression's type; an ordinary
+        '' tuple has no target and is left alone here, so the tuple feature is
+        '' untouched.
+        dim as Tko.ListPayload ptr tl = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if tl->target <> Tko.NODE_NONE then
+            if c.ast->Kind( tl->target ) = Tko.N_TYPEREF then
+                t = c.info->TypeOf_( tl->target )
+            end if
+        elseif tl->count > 0 then
+            '' A BARE TUPLE LITERAL -- '(1, 2)' -- HAS A TYPE, and this is the first
+            '' pass that can know it: the synthetic UDT a tuple desugars into is keyed
+            '' by its ELEMENT TYPES, and Resolve, which builds the one for a written
+            '' tuple TYPE, has no expression types to key it by.
+            ''
+            '' Without it every tuple literal was untyped, so 'let (a, b) = (1, 2)'
+            '' found no elements to destructure and declined -- while the same
+            '' statement with a CALL on the right worked, because a call has a result
+            '' type. tuple/destructure.bas is half literals.
+            ''
+            '' ComputeUdtLayouts runs AFTER Check and walks symbols, so a type declared
+            '' here is laid out with every other.
+            dim as containers.Array( of ulong ) tets
+            dim as boolean allTyped = true
+            for i as long = 0 to tl->count - 1
+                dim as Tko.TypeId et = _
+                    TypeOf_( c, cast( Tko.NodeId, c.ast->children[tl->first + i] ) )
+                if et = Tko.TYPE_NONE then
+                    allTyped = false
+                    exit for
+                end if
+                tets.Push( cast( ulong, c.types->Unqualify( et ) ) )
+            next
+            if allTyped then
+                t = Tko.TupleUdtFor( *c.syms, *c.types, *c.names, tets, c.ast->Loc( id ) )
+                Tko.Mangle.RegisterTuple( *c.types, *c.names, t, tets )
+            end if
+        end if
+
+    case Tko.N_PAREN
+        '' A parenthesised expression is a LIST node, not a statement node: its
+        '' single child is in the shared child pool. Reading it through the stmt
+        '' pool indexes a different array entirely, which is a segfault, not a
+        '' wrong answer.
+        dim as Tko.ListPayload ptr lp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if lp->count > 0 then
+            t = TypeOf_( c, cast( Tko.NodeId, c.ast->children[lp->first] ) )
+        end if
+
+    case Tko.N_UNARY
+        dim as Tko.UnaryPayload ptr up = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Tko.TypeId inner = TypeOf_( c, up->operand )
+        dim as Tko.TokenKind op = cast( Tko.TokenKind, up->op )
+
+        '' A USER-DEFINED UNARY OPERATOR, for the same reason the binary one comes
+        '' first: '-d' over a UDT is a call, and the fallback below hands back the
+        '' operand's own type as if the minus were free.
+        dim as Tko.SymbolId uuop = UserUnaryOp_( c, op, inner )
+        if uuop <> Tko.SYMBOL_NONE then
+            dim as Tko.Symbol ptr uus = c.syms->SymbolAt( uuop )
+            if uus <> 0 then
+                c.info->SetRef( id, uuop )
+                t = uus->type_
+                exit select
+            end if
+        end if
+
+        '' A UDT WITH NO UNARY OPERATOR BUT A NUMERIC 'operator cast' IS ITS CAST.
+        '' Measured: '-v' emits '_ZN3UDTcvu7INTEGEREv( &V )' and negates the RESULT, and
+        '' the type of the whole expression is the operator's return type. Without this,
+        '' BinaryResult was asked to add a UDT to itself, answered nothing, and the
+        '' expression lowered to no instruction at all -- while 'v + 1' beside it worked,
+        '' because the BINARY case has had this since the operator was implemented.
+        if inner <> Tko.TYPE_NONE then
+            if c.types->Kind( c.types->Unqualify( inner ) ) = Tko.TK_UDT then
+                dim as Tko.TypeId nct = UdtCastResultOf_( c, inner, false )
+                if nct <> Tko.TYPE_NONE then inner = nct
+            end if
+        end if
+
+        '' A BARE ZSTRING OR WSTRING UNDER A UNARY OPERATOR IS ITS FIRST CHARACTER,
+        '' the same decay the binary operators do against a number -- except that a
+        '' unary has no other operand to trigger it, and asking BinaryResult with the
+        '' SAME type on both sides asks the one question fbc answers with error 20:
+        '' '*p and *p' and '*p - *p' are both rejected while 'not *p' and '- *p' are
+        '' both INTEGER. Measured, and run over "abc": 'not *p' is -98 and '- *p' is
+        '' -97, with fbc writing '~(int64)*PW$0' for the wide one.
+        if inner <> Tko.TYPE_NONE then
+            dim as boolean unaryOp = (op = Tko.KW_NOT) orelse _
+                                     (op = Tko.TK_MINUS) orelse (op = Tko.TK_PLUS)
+            if unaryOp andalso IsBareCharStrBuiltin_( c, inner ) then
+                dim as Tko.BuiltinType ib = _
+                    c.types->BuiltinOf( c.types->Unqualify( inner ) )
+                if ib = Tko.TY_WSTRING then
+                    inner = c.types->Builtin( Tko.TY_USHORT )
+                else
+                    inner = c.types->Builtin( Tko.TY_UBYTE )
+                end if
+            end if
+        end if
+
+        if inner <> Tko.TYPE_NONE then
+            if op = Tko.KW_NOT then
+                '' NOT keeps BOOLEAN boolean and widens everything else, exactly as
+                '' the binary bitwise operators do.
+                if c.types->BuiltinOf( inner ) = Tko.TY_BOOLEAN then
+                    t = inner
+                else
+                    t = BinaryResult( Tko.KW_AND, inner, inner, *c.types )
+                end if
+            elseif (op = Tko.TK_MINUS) orelse (op = Tko.TK_PLUS) then
+                '' '-s' is no concatenation: a string has no sign (fbc's 20).
+                t = BinaryResult( Tko.TK_MINUS, inner, inner, *c.types )
+                if (t <> Tko.TYPE_NONE) andalso (c.types->Kind( inner ) = Tko.TK_POINTER) then t = Tko.TYPE_NONE
+                '' NEGATION IS SIGNED: '-u' is -12 for u = 12 at every unsigned width, measured;
+                '' the 64-bit two printed 18446744073709551604.
+                if (op = Tko.TK_MINUS) andalso (t <> Tko.TYPE_NONE) then
+                    if c.types->Kind( t ) = Tko.TK_BUILTIN then
+                        select case c.types->BuiltinOf( t )
+                        case Tko.TY_UINTEGER : t = c.types->Builtin( Tko.TY_INTEGER )
+                        case Tko.TY_ULONGINT : t = c.types->Builtin( Tko.TY_LONGINT )
+                        end select
+                    end if
+                end if
+            else
+                t = inner
+            end if
+        end if
+
+    case Tko.N_BINARY
+        dim as Tko.BinaryPayload ptr bp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Tko.TypeId lt = TypeOf_( c, bp->lhs )
+        dim as Tko.TypeId rt = TypeOf_( c, bp->rhs )
+        dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
+
+        '' 'a IS T' -- the RTTI type test. Its right operand is a TYPE, so none of the
+        '' operand pairing below applies to it, and its result is LONG whatever the two
+        '' sides are: measured with '#print typeof( a is Dog )'.
+        if op = Tko.KW_IS then
+            t = c.types->Builtin( Tko.TY_LONG )
+            '' RECORDED HERE, because the rest of this case has to be skipped and the
+            '' bookkeeping at the end of the function is what SetType would otherwise
+            '' do -- a bare 'return' leaves the node untyped in the table.
+            c.info->SetType( id, t )
+            c.st->typed += 1
+            return t
+        end if
+
+        '' A USER-DEFINED OPERATOR COMES FIRST WHEN AN OPERAND IS A UDT. Without it
+        '' 'x - y' over two UDTs went down the builtin path -- and a UDT with an
+        '' 'operator cast' to a number then SUBTRACTED THE RAW AGGREGATES as integers,
+        '' emitting code, verifying, and never calling the operator that was written.
+        dim as Tko.SymbolId uop = Tko.SYMBOL_NONE : dim as long uopSeen = 0
+        if IsUdtOperand_( c, lt ) orelse IsUdtOperand_( c, rt ) then
+            uop = UserBinaryOp_( c, op, lt, rt, uopSeen )
+            if uop <> Tko.SYMBOL_NONE then
+                dim as Tko.Symbol ptr us = c.syms->SymbolAt( uop )
+                if us <> 0 then
+                    t = us->type_
+                    c.info->SetRef( id, uop )
+                end if
+            end if
+        end if
+        if uop <> Tko.SYMBOL_NONE then exit select
+
+        '' ...AND WITH NO USER OPERATOR, A UDT OPERAND IS ITS 'operator cast' -- see
+        '' UdtOperandBinaryType_.
+        dim as Tko.TypeId ct = UdtOperandBinaryType_( c, op, lt, rt )
+        if ct <> Tko.TYPE_NONE then
+            c.info->SetType( id, ct )
+            c.st->typed += 1
+            return ct
+        end if
+
+        t = BinaryResult( op, lt, rt, *c.types )
+        if (t = Tko.TYPE_NONE) andalso (lt <> Tko.TYPE_NONE) andalso _
+           (rt <> Tko.TYPE_NONE) then
+            '' Both operands are known and the combination is still not allowed --
+            '' that is a real operand-type error rather than a gap in this pass.
+            if (c.types->Kind( lt ) = Tko.TK_BUILTIN) andalso (c.types->Kind( rt ) = Tko.TK_BUILTIN) then
+                c.st->badOperands += 1
+            end if
+            if uopSeen = 1 then UnviableUserOp_( c, id, op, lt, rt )   '' fbc's 20 -- udtcastu.tiko
+        end if
+
+    case Tko.N_MEMBER
+        '' 'x.f' needs the BASE's type before the field means anything, which is why
+        '' Resolve deliberately left member names alone: it runs before any expression
+        '' has a type. With the base typed, the field is an ordinary lookup in the
+        '' UDT's own scope.
+        '' EXCEPT a QUALIFIED NAME -- 'ns.counter', '..x'. Resolve bound those to the
+        '' symbol itself, because a namespace is not a value and has no type to wait
+        '' for. Its type is the symbol's, and without this the member came back
+        '' untyped: LowerAddr already had the same shortcut, so 'ns.v = 3' STORED
+        '' correctly while 'print ns.v' declined -- a write that worked and a read
+        '' that did not, from one missing case.
+        dim as Tko.SymbolId qsid = c.info->RefOf( id )
+        if qsid <> Tko.SYMBOL_NONE then
+            dim as Tko.Symbol ptr qs = c.syms->SymbolAt( qsid )
+            if qs <> 0 then
+                '' A CONSTANT OR ENUM MEMBER counts too, and only the VARIABLE case
+                '' was here. 'NS.SOME_ENUM_MEMBER' got a REFERENCE and no TYPE, so
+                '' every use of one was untyped -- 'error( FB.FB_RTERROR_... )' and
+                '' 'dim as long n = FB.X' alike, which is how the runtime headers name
+                '' every constant they export.
+                select case cast( Tko.SymbolKind, qs->kind )
+                case Tko.SYM_VARIABLE, Tko.SYM_CONSTANT, Tko.SYM_ENUMCONST
+                    t = qs->type_
+                    '' AN ENUM MEMBER WITH NO TYPE OF ITS OWN is an INTEGER, which is
+                    '' what fbc gives one: the members carry values, and only the enum
+                    '' TYPE carries a name.
+                    if (t = Tko.TYPE_NONE) andalso _
+                       (qs->kind = cast( ubyte, Tko.SYM_ENUMCONST )) then
+                        t = c.types->Builtin( Tko.TY_INTEGER )
+                    end if
+                    exit select
+                '' A NAMESPACE-QUALIFIED TYPE NAME -- 'NS.U' -- is the TYPE, and it
+                '' is the BASE of the member access above it: 'NS.U.val' is the
+                '' static member of NS.U. Left untyped, the outer access had no base
+                '' type to look a field up in, so a static member one namespace deep
+                '' resolved to nothing while the same member on a top-level type
+                '' worked. The N_CALL path already draws the type off a UDT symbol
+                '' the same way, for 'P( 3 ).v'.
+                '' ...AND A TYPE ALIAS, which was not: 'type BoxL as Box( of long )'
+                '' inside NS left 'sizeof( NS.BoxL )' untyped, and the PRINT around it
+                '' vanished without a word. fb/filesystem.bi's FB.FsResultUStr is one.
+                case Tko.SYM_UDT, Tko.SYM_ENUM, Tko.SYM_TYPEDEF
+                    t = qs->type_
+                    exit select
+                '' A NAMESPACE-QUALIFIED PROCEDURE NAMED WITHOUT PARENTHESES IS A
+                '' CALL, and its type is its RESULT -- which is what a SYM_PROC's
+                '' 'type_' holds and what the BARE form already uses.
+                '' 'CpuClock.IsSupported' is how fb/chrono.bi's own test asks, and
+                '' fbc emits 'boolean vr$0 = _ZN2NS11ISSUPPORTEDEv( )' for it --
+                '' the same call the parenthesised spelling makes. Left untyped, the
+                '' member was a value of no type and the statement declined, while
+                '' 'NS.IsSupported( )' beside it lowered.
+                case Tko.SYM_PROC
+                    t = c.syms->SymbolAt( ParenlessMethodOf_( c, qsid, id ) )->type_
+                    exit select
+                end select
+            end if
+        end if
+
+        dim as Tko.BinaryPayload ptr mp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Tko.TypeId bt = TypeOf_( c, mp->lhs )
+        '' 'p->f' and 'p.f' on a pointer both reach through it, and CONST is
+        '' transparent on the way: 'byref x as const T' and 'byval p as const T ptr'
+        '' both wrap the UDT in a qualifier that the kind test refuses outright, so
+        '' 'x.n' over one was UNTYPED and every read through it declined. That is the
+        '' signature of every copy constructor in the corpus.
+        if bt <> Tko.TYPE_NONE then
+            bt = c.types->Unqualify( bt )
+            if c.types->Kind( bt ) = Tko.TK_REFERENCE then
+                bt = c.types->Unqualify( c.types->Inner( bt ) )
+            end if
+            if c.types->Kind( bt ) = Tko.TK_POINTER then
+                bt = c.types->Unqualify( c.types->Inner( bt ) )
+            end if
+        end if
+        '' 'p->v' OVER A UDT IS A CALL to that UDT's global 'operator ->', and the
+        '' field is then looked up in WHAT IT RETURNS. fb/sharedptr.bi and
+        '' fb/comptr.bi both declare one; without this every arrow on a smart pointer
+        '' was an untyped member access, and an untyped member access is a statement
+        '' that lowers to nothing.
+        ''
+        '' Only when the base has no field of that name itself: a UDT may declare both.
+        if (bt <> Tko.TYPE_NONE) andalso _
+           ((c.ast->nodes[cast( long, id )].flags and Tko.NF_ARROW) <> 0) then
+            if c.types->Kind( bt ) = Tko.TK_UDT then
+                dim as boolean haveOwn = false
+                if c.ast->Kind( mp->rhs ) = Tko.N_IDENT then
+                    dim as Tko.IdentPayload ptr ap0 = _
+                        @c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )]
+                    haveOwn = (FieldOf_( c, bt, ap0->name ) <> Tko.SYMBOL_NONE)
+                end if
+                if haveOwn = false then
+                    dim as Tko.SymbolId aop = ArrowOperatorFor( _
+                        *c.types, *c.syms, *c.names, *c.ast, *c.info, bt )
+                    if aop <> Tko.SYMBOL_NONE then
+                        dim as Tko.TypeId art = ArrowResultType( *c.types, *c.syms, aop )
+                        if art <> Tko.TYPE_NONE then bt = art
+                    end if
+                end if
+            end if
+        end if
+
+        '' A NESTED ENUM REACHED THROUGH AN INSTANCE. 'x.E.I' over a type holding
+        '' 'enum E' has an ENUM-typed base for its second step, and the field lookup
+        '' below answers only for a UDT -- so the member was unbound, the expression
+        '' untyped, and the PRINT around it declined. Resolve's own 'E.elem' case
+        '' cannot reach it: there the base is an IDENT bound to the enum symbol,
+        '' and here it is a member access whose type only Check knows.
+        ''
+        '' Measured: fbc folds 'print x.E.I, x.E.J' to 'fb_PrintLongint( 0, 0ll, 2 )' and '( 0, 1ll, 1 )'.
+        if EnumValueBase_( c, mp->lhs, bt ) then return Tko.TYPE_NONE    '' not through a VALUE: fbc's 265
+        if (bt <> Tko.TYPE_NONE) andalso (c.ast->Kind( mp->rhs ) = Tko.N_IDENT) then
+            if c.types->Kind( bt ) = Tko.TK_ENUM then
+                dim as Tko.IdentPayload ptr eip = _
+                    @c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )]
+                dim as Tko.ScopeId eds = cast( Tko.ScopeId, c.types->DeclScopeOf( bt ) )
+                dim as Tko.InternId etn = c.types->NameOf( bt )
+                dim as Tko.SymbolId ets = c.syms->LookupLocalTyped( eds, etn, true )
+                if ets = Tko.SYMBOL_NONE then ets = c.syms->LookupTyped( eds, etn, true )
+                dim as Tko.Symbol ptr esy = c.syms->SymbolAt( ets )
+                if esy <> 0 then
+                    if esy->inner <> Tko.SCOPE_NONE then
+                        dim as Tko.SymbolId ems = _
+                            c.syms->LookupLocal( esy->inner, eip->name )
+                        if ems <> Tko.SYMBOL_NONE then
+                            c.info->SetRef( id, ems )
+                            c.info->SetRef( mp->rhs, ems )
+                            dim as Tko.Symbol ptr emy = c.syms->SymbolAt( ems )
+                            t = emy->type_
+                            if t = Tko.TYPE_NONE then
+                                t = c.types->Builtin( Tko.TY_INTEGER )
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
+
+        if (bt <> Tko.TYPE_NONE) andalso (c.ast->Kind( mp->rhs ) = Tko.N_IDENT) then
+            dim as Tko.IdentPayload ptr ip = _
+                @c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )]
+            dim as Tko.SymbolId fs = FieldOf_( c, bt, ip->name )
+            if fs = Tko.SYMBOL_NONE then fs = TupleNamedField_( c, bt, mp->lhs, mp->rhs )   '' 'r.tl' -- tuplenames.tiko
+            '' A PROPERTY OVERLOAD SET'S HEAD MAY BE THE SETTER, and a setter has no
+            '' result type -- so 'f.bar' READ came out untyped and the statement
+            '' declined. See PropertyReadAccessor_.
+            if fs <> Tko.SYMBOL_NONE then fs = ParenlessMethodOf_( c, PropertyReadAccessor_( c, fs ), id )
+            if fs <> Tko.SYMBOL_NONE then
+                dim as Tko.Symbol ptr f = c.syms->SymbolAt( fs )
+                if f <> 0 then
+                    '' Recorded on the MEMBER node so lowering can find the field
+                    '' without repeating the lookup.
+                    c.info->SetRef( id, fs )
+                    c.info->SetRef( mp->rhs, fs )
+                    t = f->type_
+                    '' A BITFIELD READ IS UINTEGER, measured: 'sizeof( x.a )' is 8 for 'short
+                    '' a :4', and 'x.b - 20' over 12 is 18446744073709551608. See lowerbf.tiko.
+                    '' A BOOLEAN one is a signed BYTE: 'sizeof' 1, 'x.a - 2' is -3, 'print' -1.
+                    if (f->flags and Tko.SYMF_BITFIELD) <> 0 then
+                        dim as Tko.TypeId bft = c.types->Unqualify( f->type_ )
+                        dim as boolean bfb = (c.types->Kind( bft ) = Tko.TK_BUILTIN) andalso _
+                            (c.types->BuiltinOf( bft ) = Tko.TY_BOOLEAN)
+                        t = c.types->Builtin( iif( bfb, Tko.TY_BYTE, Tko.TY_UINTEGER ) )
+                    end if
+                end if
+            end if
+        end if
+        if (t <> Tko.TYPE_NONE) andalso (c.types->Kind( t ) = Tko.TK_REFERENCE) then t = c.types->Inner( t )   '' 'SomeUDT.ri', 'ns.ri': transparent, as a bare name is (dim/byref2.bas)
+
+    case Tko.N_INTRINSIC
+        '' 'threadcall f( a )' IS A THREAD HANDLE -- 'any ptr', which is what
+        '' 'dim as any ptr t = threadcall f( 1 )' declares and what fb_ThreadCall
+        '' returns. Every other intrinsic reaching here in expression position takes
+        '' its type from its own lowering and needs none.
+        dim as Tko.StmtPayload ptr tsp = StmtOf( c, id )
+        if cast( Tko.TokenKind, tsp->op ) = Tko.KW_THREADCALL then
+            t = c.types->Pointer_( c.types->Builtin( Tko.TY_ANY ) )
+        end if
+        '' 'input( n [, [#]f] )' AND 'winput( ... )' IN EXPRESSION POSITION are a STRING
+        '' and a wide one -- bit 8 of 'extra' is what the parser marks the expression
+        '' form with. Untyped, 'dim as string d = input( 2, #1 )' had nothing to
+        '' initialise from and declined, while the wide half lowered because its
+        '' consumer is structural. fbc: 'FBSTRING* vr$4 = fb_FileStrInput( 2ll, 1 );'.
+        if (tsp->extra and 8) <> 0 then
+            select case cast( Tko.TokenKind, tsp->op )
+            case Tko.KW_INPUT
+                t = c.types->Builtin( Tko.TY_STRING )
+            case Tko.KW_WINPUT
+                t = c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, 1 )
+            end select
+        end if
+
+        '' THE FILE INTRINSICS THAT YIELD AN ERROR CODE. Each is the SAME node in
+        '' statement and expression position -- the lowering of both is one function --
+        '' so the type is unconditional and a statement's is simply never read.
+        '' Measured with '#print typeof( ... )' on fbc, all four LONG:
+        ''
+        ''     close( 1 )                        LONG
+        ''     open( "" for input as #1 )        LONG
+        ''     get( #1, 1, d )                   LONG
+        ''     put( #1, 1, d )                   LONG
+        select case cast( Tko.TokenKind, tsp->op )
+        case Tko.KW_CLOSE, Tko.KW_OPEN, Tko.KW_GET, Tko.KW_PUT
+            t = c.types->Builtin( Tko.TY_LONG )
+        end select
+
+    case Tko.N_CALL
+        '' The callee's symbol was bound by Resolve; the overloads hang off it in a
+        '' chain. Score every candidate against the arguments and take the unique
+        '' cheapest -- a tie is an ambiguous call, not a silent pick.
+        dim as Tko.ListPayload ptr cp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        '' Indexing and calling share a spelling, so the callee's TYPE decides which
+        '' this is. An array subscript yields the ELEMENT type; without this the whole
+        '' expression is untyped and every use of a(i) falls back to nothing.
+        dim as Tko.TypeId ct = TypeOf_( c, cp->target )
+        if (ct <> Tko.TYPE_NONE) andalso (c.types->Kind( ct ) = Tko.TK_ARRAY) then
+            t = c.types->Inner( ct )
+        else
+            '' A conversion intrinsic is a KEYWORD, so nothing was ever bound and the
+            '' callee lookup below finds nothing. Its result is a measured table.
+            t = IntrinsicCallType_( c, cp )
+            '' The builtin kept beside a user overload: the CALL's copied binding goes too (lowering reads it first).
+            if (t <> Tko.TYPE_NONE) andalso (c.info->RefOf( cp->target ) = Tko.SYMBOL_NONE) then c.info->SetRef( id, Tko.SYMBOL_NONE )
+            if t = Tko.TYPE_NONE then
+                dim as Tko.SymbolId callee = CallChainStart_( c, c.info->RefOf( cp->target ) )
+                '' 'P( 3 )' IS AN OBJECT OF TYPE P. The callee is bound to the UDT
+                '' rather than to a procedure, so overload resolution had nothing to
+                '' work with and the expression came out UNTYPED -- which is what made
+                '' 'P( 3 ).v' decline while the same member on a FUNCTION's returned
+                '' temporary worked. fb/chrono.bi writes most of its assertions this
+                '' way: 'DateTime( 2025, 1, 31 ).AddMonths( 0 ).Ticks'.
+                dim as Tko.Symbol ptr cs2 = c.syms->SymbolAt( callee )
+                if cs2 <> 0 then
+                    '' ...OR A TYPEDEF FOR ONE. 'type Alias as T' is a SYM_TYPEDEF, so
+                    '' 'Alias( ).a' left the call untyped and the '.a' on it had nothing
+                    '' to offset from -- while 'T( ).a' and 'type<Alias>( ).a' beside it
+                    '' both worked.
+                    dim as boolean udtCallee = (cs2->kind = cast( ubyte, Tko.SYM_UDT ))
+                    if cs2->kind = cast( ubyte, Tko.SYM_TYPEDEF ) then
+                        '' THE TYPEDEF'S OWN TYPE IS A TK_TYPEDEF PLACEHOLDER, not the
+                        '' UDT -- so what says this names an object is the type the
+                        '' NAME resolves to, which is already in hand.
+                        if ct <> Tko.TYPE_NONE then
+                            udtCallee = _
+                                (c.types->Kind( c.types->Unqualify( ct ) ) = Tko.TK_UDT)
+                        end if
+                    end if
+                    if udtCallee then
+                        t = cs2->type_
+                        if t <> Tko.TYPE_NONE then
+                            if c.types->Kind( c.types->Unqualify( t ) ) <> Tko.TK_UDT then
+                                t = ct
+                            end if
+                        else
+                            t = ct
+                        end if
+                    end if
+                end if
+                if (t = Tko.TYPE_NONE) andalso (callee <> Tko.SYMBOL_NONE) then
+                    t = ResolveCall_( c, id, callee, cp->first, cp->count )
+                end if
+            end if
+        end if
+
+        '' 'c( 5 )' OVER A CLOSURE OBJECT IS A CALL TO ITS '__fbinvoke'. FreeBASIC
+        '' has no call operator, so nothing else would look for one -- and fbc
+        '' emits exactly that: '__FBINVOKE( &C, 5 )'. The receiver is written by
+        '' lowering, so only the RESULT TYPE is settled here.
+        if t = Tko.TYPE_NONE then
+            dim as Tko.SymbolId civ = ClosureInvokeOf_( c, ct )
+            if civ <> Tko.SYMBOL_NONE then
+                '' THE RESULT TYPE COMES OFF THE PROCEDURE'S OWN MODULE-LEVEL SYMBOL,
+                '' which Collect declared for the hoisted lambda like any other. The
+                '' '__fbinvoke' name in the type's scope is a second name for the
+                '' same N_PROC and carries no type of its own.
+                dim as Tko.Symbol ptr ips = c.syms->SymbolAt( _
+                    cast( Tko.SymbolId, c.syms->SymbolAt( civ )->payload ) )
+                if ips <> 0 then
+                    t = ips->type_
+                    if t = Tko.TYPE_NONE then t = c.types->Builtin( Tko.TY_VOID )
+                end if
+            end if
+        end if
+
+        '' A CALL THROUGH A PROCEDURE POINTER IS THE PROCEDURE'S RESULT TYPE. The
+        '' callee is a VARIABLE, so the overload machinery above has no procedure to
+        '' score and the expression came out untyped -- which is why 'print f( 1 )'
+        '' declined while 'dim as long v = f( 1 )' beside it lowered: the DIM takes
+        '' its type from the variable and PRINT has only the expression's.
+        ''
+        '' ASKED LAST, after everything above has had its go. ResolveCall_ BINDS the
+        '' call as well as typing it, so answering ahead of it left 133 calls in
+        '' win/shldisp.bi with no callee -- a COM interface is a TYPE FULL OF
+        '' FUNCTION POINTERS, and every one of them goes through here.
+        if t = Tko.TYPE_NONE then
+            dim as Tko.TypeId pct = ct
+            if pct <> Tko.TYPE_NONE then
+                if c.types->Kind( pct ) = Tko.TK_REFERENCE then
+                    pct = c.types->Inner( pct )
+                end if
+                pct = c.types->Unqualify( pct )
+                if c.types->Kind( pct ) = Tko.TK_POINTER then
+                    pct = c.types->Unqualify( c.types->Inner( pct ) )
+                end if
+                if c.types->Kind( pct ) = Tko.TK_PROC then
+                    t = c.types->Inner( pct )
+                    '' A BYREF RESULT IS THE REFERENT to everything above the call.
+                    '' The reference is a LOWERING fact -- the call yields a pointer
+                    '' and the consumer reads through it -- and LowerCallParts still
+                    '' reads it off the SIGNATURE. Left on the expression's type,
+                    '' 'print pick( a, b )' had a reference to print.
+                    if c.types->Kind( t ) = Tko.TK_REFERENCE then
+                        t = c.types->Inner( t )
+                    end if
+                end if
+            end if
+        end if
+
+    case Tko.N_CLOSURE
+        '' A CAPTURING LAMBDA'S OBJECT. Resolve built the type, because only it can
+        '' see the captures' own scope; the node already carries it.
+        t = c.info->TypeOf_( id )
+
+    case Tko.N_NEW
+        '' 'new T' IS A POINTER TO T, whatever else it is. Resolve typed the target as
+        '' a type reference; this turns it into the pointer the expression yields.
+        dim as Tko.ListPayload ptr np = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if np->target <> Tko.NODE_NONE then
+            dim as Tko.TypeId nt = c.info->TypeOf_( np->target )
+            if nt <> Tko.TYPE_NONE then t = c.types->Pointer_( nt )
+        end if
+
+    case Tko.N_INDEX
+        '' 'p[i]' -- A POINTER SUBSCRIPT, which had no case at all, so it was untyped
+        '' and everything built on it was too. LowerSwap grew a private workaround for
+        '' exactly this; with assignment now declining rather than storing into a void
+        '' slot, 'p[i] = 5' declined outright -- 432 statements in one corpus file.
+        ''
+        '' In -lang fb '[ ]' is only ever pointer indexing, so the type is the pointee.
+        dim as Tko.ListPayload ptr xp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if xp->target <> Tko.NODE_NONE then
+            dim as Tko.TypeId pt = TypeOf_( c, xp->target )
+            if pt <> Tko.TYPE_NONE then
+                if c.types->Kind( pt ) = Tko.TK_POINTER then
+                    t = c.types->Inner( pt )
+                elseif IsVarLenStrBuiltin_( c, pt ) then
+                    '' A VAR-LENGTH STRING SUBSCRIPTED IS ITS CHARACTER, exactly as a
+                    '' fixed one is, and UNSIGNED for the same reason: a sign
+                    '' extension would turn a wide character above 0x7FFF negative.
+                    '' Measured, fbc writes '(int32)*(uint8*)(...)' for a string and
+                    '' '(int32)*(uint16*)(...)' for a ustring.
+                    ''
+                    '' Only the ARRAY spelling had a case, so 's[i]' over a plain
+                    '' string was UNTYPED -- and an untyped target is what makes an
+                    '' assignment decline rather than store somewhere wrong.
+                    dim as Tko.BuiltinType sb = _
+                        c.types->BuiltinOf( c.types->Unqualify( pt ) )
+                    if (sb = Tko.TY_USTRING) orelse (sb = Tko.TY_FIXUSTR) then
+                        t = c.types->Builtin( Tko.TY_USHORT )
+                    else
+                        t = c.types->Builtin( Tko.TY_UBYTE )
+                    end if
+                elseif IsBareCharStrBuiltin_( c, pt ) then
+                    '' ...AND THE BARE ZSTRING/WSTRING, which is neither of the two
+                    '' above: it is what '*pz' over a 'zstring ptr' has, and it is a
+                    '' TK_BUILTIN, so the var-len test (TY_STRING/TY_USTRING only) and
+                    '' the array test both missed it and '(*pz)[0]' was UNTYPED. A
+                    '' SELECT CASE over it then had nothing to switch on and declined.
+                    '' Measured, fbc: '(*pz)[0]' is UBYTE and '(*pw)[0]' is USHORT,
+                    '' and it writes '*(uint8*)PZ$0' / '*(uint16*)PW$0'.
+                    dim as Tko.BuiltinType wb = _
+                        c.types->BuiltinOf( c.types->Unqualify( pt ) )
+                    if wb = Tko.TY_WSTRING then
+                        t = c.types->Builtin( Tko.TY_USHORT )
+                    else
+                        t = c.types->Builtin( Tko.TY_UBYTE )
+                    end if
+                elseif c.types->Kind( pt ) = Tko.TK_ARRAY then
+                    '' A FIXED-LENGTH STRING SUBSCRIPTED IS ITS CHARACTER, and an
+                    '' UNSIGNED one: fbc writes '(int32)*(uint16*)(...)' for a wstring
+                    '' and '(int32)*(uint8*)(...)' for a zstring. Signedness is the
+                    '' point -- a sign extension would turn a wide character above
+                    '' 0x7FFF negative.
+                    dim as Tko.TypeId el = c.types->Inner( pt )
+                    if el <> Tko.TYPE_NONE then
+                        if c.types->Kind( el ) = Tko.TK_BUILTIN then
+                            select case c.types->BuiltinOf( el )
+                            '' ...AND TY_FIXSTR, which is what 'string * N' is an
+                            '' array OF. It fell to the default below and came out
+                            '' with the element's own type, so 's[ 0 ]' over one was
+                            '' a fixstr rather than a character -- and the assignment
+                            '' through it declined while the read printed nothing.
+                            '' Measured: fbc subscripts it exactly as it does a
+                            '' zstring, '*(uint8*)ONE$0', and prints the result with
+                            '' fb_PrintUByte.
+                            case Tko.TY_ZSTRING, Tko.TY_FIXSTR
+                                t = c.types->Builtin( Tko.TY_UBYTE )
+                            case Tko.TY_WSTRING, Tko.TY_FIXUSTR
+                                t = c.types->Builtin( Tko.TY_USHORT )
+                            case else           : t = el
+                            end select
+                        else
+                            t = el
+                        end if
+                    end if
+                elseif c.types->Kind( pt ) = Tko.TK_UDT then
+                    '' 'a[ i ]' OVER A UDT IS ITS 'operator []', which is how every
+                    '' container in the runtime headers is read and written. Untyped,
+                    '' the assignment through one declined -- 'a[ 1 ] = 99' is what a
+                    '' container is FOR -- and so did every expression built on it.
+                    ''
+                    '' A BYREF result is a REFERENCE to the element; the element's own
+                    '' type is what the expression has, exactly as a byref parameter's
+                    '' use does.
+                    dim as Tko.SymbolId ixs = IndexOperatorFor_( c, pt, iif( xp->count > 0, cast( Tko.NodeId, c.ast->children[xp->first] ), Tko.NODE_NONE ) )
+                    if ixs <> Tko.SYMBOL_NONE then
+                        dim as Tko.Symbol ptr ixsym = c.syms->SymbolAt( ixs )
+                        if ixsym <> 0 then
+                            t = ixsym->type_
+                            if t <> Tko.TYPE_NONE then
+                                if c.types->Kind( t ) = Tko.TK_REFERENCE then
+                                    t = c.types->Inner( t )
+                                end if
+                            end if
+                            c.info->SetRef( id, ixs )
+                        end if
+                    end if
+                end if
+            end if
+        end if
+
+    case Tko.N_DEREF
+        '' Built by MakeUnary, so the payload is a UNARY, not a statement.
+        dim as Tko.UnaryPayload ptr dp = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Tko.TypeId inner = TypeOf_( c, dp->operand )
+        if inner <> Tko.TYPE_NONE then
+            if c.types->Kind( inner ) = Tko.TK_POINTER then t = c.types->Inner( inner )
+        end if
+        '' '*p' OVER A UDT IS A USER OPERATOR, not a dereference. fb/sharedptr.bi and
+        '' fb/comptr.bi both declare 'operator *' byref over their handle, which is the
+        '' checked-free way to reach the object -- and it is spelled with the SAME token
+        '' as a pointer dereference, so it arrives here rather than at the unary case.
+        '' Untyped, every use of one declined.
+        if t = Tko.TYPE_NONE then
+            dim as Tko.SymbolId dop = UserUnaryOp_( c, Tko.TK_STAR, inner )
+            if dop <> Tko.SYMBOL_NONE then
+                c.info->SetRef( id, dop )
+                dim as Tko.Symbol ptr ds = c.syms->SymbolAt( dop )
+                if ds <> 0 then
+                    t = c.types->Unqualify( ds->type_ )
+                    if c.types->Kind( t ) = Tko.TK_REFERENCE then
+                        t = c.types->Unqualify( c.types->Inner( t ) )
+                    end if
+                end if
+            end if
+        end if
+
+    case Tko.N_ADDROF
+        dim as Tko.UnaryPayload ptr ap = _
+            @c.ast->unaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        '' '@mysub' AND '@myfunc' -- A PROCEDURE has no type of its own on its
+        '' symbol: that slot holds its RETURN type. So the operand of '@f' came
+        '' back typed LONG and 'var v = @f' inferred 'long ptr', while '@s' over a
+        '' SUB came back untyped and inferred nothing. Measured: fbc says
+        '' 'typeof( @f )' is 'FUNCTION(AS LONG) AS LONG' and 'typeof( @s )' is
+        '' 'SUB()' -- the procedure type itself, which is already a pointer in
+        '' FreeBASIC and so is NOT wrapped again.
+        ''
+        '' ASKED FIRST, before the operand is typed at all: a FUNCTION answers that
+        '' question with the wrong thing rather than declining, which is why only
+        '' the SUB half of this was ever noticed. 'var v = <lambda>' then 'v( 5 )'
+        '' is the shape -- generics/lambda.bas and six more.
+        dim as Tko.SymbolId psid = c.info->RefOf( ap->operand )
+        dim as Tko.Symbol ptr psym = c.syms->SymbolAt( psid )
+        '' '@x.f' over a BYREF PROPERTY GETTER is its answer's address, 'integer ptr' (checkbase.tiko).
+        if (psym <> 0) andalso (psym->kind = cast( ubyte, Tko.SYM_PROC )) then
+            if ByrefPropOperand_( c, ap->operand, psym ) = false then t = ProcTypeOfSymbol_( c, psid )
+        end if
+        if t = Tko.TYPE_NONE then
+            dim as Tko.TypeId inner = TypeOf_( c, ap->operand )
+            '' A UDT MAY OVERLOAD '@'. 'operator foo.@ ( ) as integer ptr' makes '@f'
+            '' a CALL whose result is that pointer, not the object's own address --
+            '' measured, fbc emits 'int64* vr$2 = _ZN3FOOadEv( &F$0 );' and prints the
+            '' field the operator points at, 999, where taking the address of the
+            '' object would have read the one before it, 111. Typed as 'foo ptr' here
+            '' and stored as '@f' in lowering, it was WRONG rather than declined.
+            dim as Tko.SymbolId aop = UdtMemberSym_( c, inner, "@" )
+            if aop <> Tko.SYMBOL_NONE then
+                dim as Tko.Symbol ptr aos = c.syms->SymbolAt( aop )
+                if aos <> 0 then
+                    if (aos->kind = cast( ubyte, Tko.SYM_PROC )) andalso _
+                       (aos->type_ <> Tko.TYPE_NONE) then
+                        t = aos->type_
+                    end if
+                end if
+            end if
+            if (t = Tko.TYPE_NONE) andalso (inner <> Tko.TYPE_NONE) then
+                t = AddrOfType_( c, ap->operand, inner )
+            end if
+        end if
+    end select
+
+    if t <> Tko.TYPE_NONE then
+        c.info->SetType( id, t )
+        c.st->typed += 1
+    else
+        c.st->untyped += 1
+    end if
+    return t
+end function
+'' The two INFERENCE REPAIR passes -- an unused 'var', and a 'typeof' whose operand
+'' only Check can type -- split out at the 1500-line cap and INCLUDED here, inside
+'' the same namespace. Nothing moved changed in the move.
+#include once "symbols/checkinfer.tiko"
+
+
+#include once "symbols/checkeach.tiko"
+
+#include once "symbols/checkwalk.tiko"
+
+function Run _
+    ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
+      byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
+      byref info as Tko.SemanticInfo, byref st as Stats ) as long
+
+    dim as Ctx c
+    c.ast = @ast
+    c.syms = @syms
+    c.types = @types
+    c.names = @names
+    c.diags = @diags
+    c.info = @info
+    c.st = @st
+    '' TWICE, AND THE FIRST ONE IS THE POINT. A variable declared 'as typeof( EXPR )'
+    '' gets its type here and nowhere else -- Resolve handles only the bare-name form --
+    '' and every REFERENCE to that variable is typed by the walk, which caches. Running
+    '' this only afterwards typed the symbol correctly and left every USE of it
+    '' untyped, so 'str( n1v )' declined while 'str( n2v )' beside it worked. The
+    '' second pass stays because a typeof whose operand needs the walk resolves then.
+    RecordUdtBases_( c )
+    InferUnusedVarTypes_( c )
+    if CompleteClosureFields_( c ) > 0 then InferUnusedVarTypes_( c )
+    InferForEachVarTypes_( c )
+    CheckForEach_( c )
+    WalkAll( c )
+    InferUnusedVarTypes_( c )
+    return st.badOperands
+end function
+
+#include once "symbols/checkdump.tiko"
+
+end namespace

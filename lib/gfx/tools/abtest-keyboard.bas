@@ -38,7 +38,7 @@
 '' key is down. Actual key-down reporting is left to the author's interactive
 '' pass.
 
-#include once "../core/keyboard.bi"
+#include once "../core/keyboard.ti"
 #include once "abtest.bi"
 #ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"

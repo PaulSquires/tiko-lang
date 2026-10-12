@@ -958,13 +958,13 @@ Any change to inc/file.bi, inc/dir.bi or the runtime's existing file routines.
 
 pkg/std/fs/fserror.tiko FsError, the codes, the result aliases pkg/std/fs/fspath.tiko the path family pkg/std/fs/fsinfo.tiko FileInfo, Stat, the resolvers pkg/std/fs/fsdir.tiko  DirEntry, the iterators, ReadDir, WalkDir pkg/std/fs/fsops.tiko  whole-file, bulk, atomic, temp pkg/std/fs/fsglob.tiko MatchPattern, Glob pkg/std/fs/fslink.tiko links, permissions, SetTimes, CopyOptions pkg/std/fs/fsvolume.tiko DiskSpace, VolumeInfo pkg/std/fs/fsadvanced.tiko FileLock, MemoryMappedFile, FileWatcher pkg/std/fs/fs.tiko     the umbrella
 
-lib/rt/src/fs/path.bas     the path algebra: pure, portable, ONE copy,
+lib/rt/src/fs/path.tiko     the path algebra: pure, portable, ONE copy,
 
 ```freebasic
 both grammars always compiled
 ```
 
-lib/rt/src/fs/glob.bas     the matcher: pure, portable, ITERATIVE lib/rt/src/fs/text.bas     the BOM and encoding rules, portable lib/rt/src/fs/errmsg.bas   the message table lib/rt/src/fs/dirent.bas   record-to-USTRING accessors, ABI size hooks lib/rt/src/fs/{error,stat,dir,ops,link,volume,lock,mmap,watch}.bas   each split by platform with #if
+lib/rt/src/fs/glob.tiko     the matcher: pure, portable, ITERATIVE lib/rt/src/fs/text.tiko     the BOM and encoding rules, portable lib/rt/src/fs/errmsg.tiko   the message table lib/rt/src/fs/dirent.tiko   record-to-USTRING accessors, ABI size hooks lib/rt/src/fs/{error,stat,dir,ops,link,volume,lock,mmap,watch}.bas   each split by platform with #if
 
 THE UNIT IS FB_UCHAR (UTF-16), NOT FB_WCHAR, which is 4 bytes on Linux -- building the kernel on it would silently change the path encoding depending on the host. Every struct crossing the C/FB boundary uses FIXED-WIDTH fields for the same reason: 'unsigned long' is 4 bytes on Windows and 8 on Linux while FreeBASIC's ULONG is 32-bit everywhere, and getting that wrong shifts every field after it.
 

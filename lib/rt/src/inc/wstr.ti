@@ -1,0 +1,107 @@
+#ifndef __TKORT_WSTR_BI__
+#define __TKORT_WSTR_BI__
+
+'' wstr.ti -- the wide-character primitives, as macros.
+''
+'' fb_unicode.h declares these as `static __inline__`, and 21 of the 38 inline
+'' helpers in the whole runtime live there. RFC-0004 section 3.3 names this the
+'' single most likely place for FreeBASIC to lose, because fbc has no inliner and
+'' every one of them would otherwise become a real call inside a per-character
+'' loop.
+''
+'' So they are #macro here, which is the mitigation that RFC-0003 section 5.2
+'' specifies and the only one fully under our control.
+''
+'' PROVENANCE NOTE. These are written from the DECLARATIONS -- name, signature
+'' and the contract the name states -- not by transcribing the inline bodies out
+'' of the header. A one-line `static __inline__` body is closer to implementation
+'' than to interface, and PROVENANCE.md's permission covers "interfaces, layouts,
+'' macro contracts". The differentials are what check the result, which is the
+'' project's method everywhere else.
+
+#include once "inc/descriptors.ti"
+
+'' A wide character is 2 bytes on Windows and 4 on Linux -- never assume, and
+'' never reinterpret a buffer as UTF-16 (RFC-0003 section 5.5).
+
+'' ===========================================================================
+'' THE RULE FOR READING A CHARACTER OUT OF A `wstring ptr`
+''
+'' `p[i]` is a wstring EXPRESSION, not a number, and what happens next depends
+'' entirely on how it is consumed:
+''
+''     cast( long, p[i] )          0, SILENTLY
+''     p[i] <> q[j]                compares wstring expressions, not characters
+''     dim as ulong c = p[i]       CORRECT -- the assignment converts
+''     return p[i]                 CORRECT -- the return converts
+''     f( p[i] ) as a numeric arg  error 58, the one honest failure
+''
+'' So the form that LOOKS most careful is wrong, the natural comparison is
+'' wrong, and only the form with no cast at all reports anything.
+''
+'' ALWAYS READ THROUGH A `dim as ulong` LOCAL. This bit FOUR TIMES in the
+'' strw batch alone -- fb_WstrFill2 returned NULs, fb_WstrInstrRev and
+'' fb_WstrInstrRevAny returned 0 for every input, and both one-character trim
+'' fast paths stripped nothing. Three of the four were caught only because the
+'' differential disagreed; a fifth instance in a test helper printed 0000 on
+'' BOTH sides and PASSED.
+'' ===========================================================================
+#define TKORT_WCHAR_SIZE (sizeof(wstring) )
+
+'' Characters between two pointers into the same buffer.
+#define FB_WSTR_CALCDIFF( ini, end ) _
+	( cast( integer, cast( ubyte ptr, end ) - cast( ubyte ptr, ini ) ) \ TKORT_WCHAR_SIZE )
+
+'' Allocate room for `chars` characters plus the terminator.
+''
+'' Plain malloc, because the caller frees the result through fb_WstrDelete, which
+'' is still fbc's C and frees with free(). Anything cleverer here is a heap bug.
+#define FB_WSTR_ALLOCTEMP( chars ) _
+	cptr( wstring ptr, allocate( ((chars) + 1) * TKORT_WCHAR_SIZE ) )
+
+#define FB_WSTR_DEL( s )    deallocate( s )
+#define FB_WSTR_LEN( s )    cast( integer, wcslen( s ) )
+
+'' Copy `chars` characters and terminate.
+''
+'' NOTE WHERE THE TERMINATOR LANDS WHEN NOTHING IS COPIED. fbc's fb_wstr_Copy
+'' advances its cursor only on the copying path, so a NULL source or a
+'' non-positive count writes the terminator at dst[0] -- it does NOT write one at
+'' dst[chars] and leave chars characters of whatever was there. Callers rely on
+'' this to clear a destination by copying nothing into it.
+#macro FB_WSTR_COPY( dst, src, chars )
+	scope
+		dim as wstring ptr __wc_d = (dst)
+		if( ((src) <> 0) andalso ((chars) > 0) ) then
+			memcpy( __wc_d, (src), (chars) * TKORT_WCHAR_SIZE )
+			__wc_d += (chars)
+		end if
+		__wc_d[0] = 0
+	end scope
+#endmacro
+
+'' Copy WITHOUT terminating, for building a string in pieces. fbc spells this
+'' fb_wstr_Move, which is a misleading name inherited from its return value
+'' rather than from any overlap safety: it is a memcpy, not a memmove, and the
+'' MID statement is the only caller that needs the non-terminating form.
+#macro FB_WSTR_MOVE( dst, src, chars )
+	if( (chars) > 0 ) then memcpy( dst, src, (chars) * TKORT_WCHAR_SIZE )
+#endmacro
+
+'' Fill `chars` characters and terminate. Per-character, not memset: a wide unit
+'' is 2 or 4 bytes and memset writes one byte pattern.
+#macro FB_WSTR_FILL( dst, c, chars )
+	scope
+		dim as wstring ptr __wf_d = (dst)
+		for __wf_i as integer = 0 to (chars) - 1
+			__wf_d[__wf_i] = (c)
+		next
+		if( (chars) > 0 ) then
+			__wf_d[(chars)] = 0
+		else
+			__wf_d[0] = 0
+		end if
+	end scope
+#endmacro
+
+#endif '' __TKORT_WSTR_BI__

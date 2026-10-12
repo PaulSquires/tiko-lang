@@ -163,7 +163,7 @@ declare void fb_End(i32 $0)
 verify: ok
 lowered: 13 functions, 15 blocks, 74 insts, 1 statements not lowered, 0 scope imbalance
   inside N_AMBIGUOUS 1
-  skip-site src\mir\lower.bas:862 1
+  skip-site src\mir\lower.tiko:862 1
 tests/diagnostics/src/proc-definition-shapes.bas(21,1): error TKO0732: 'f1' returns 'any', which is not a value
      |
   21 | function f1( ) as any

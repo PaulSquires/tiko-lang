@@ -15,7 +15,7 @@
 '' `filled` flag indexed relative to the clip box, so an off-centre circle that
 '' hangs off an edge is where an indexing error shows up.
 
-#include once "../raster/circle.bi"
+#include once "../raster/circle.ti"
 #include once "abtest.bi"
 #include once "crt/string.bi"
 #ifdef ABTEST_HAS_GFXLIB2

@@ -1,0 +1,73 @@
+'' macrotaken.tiko -- a '#define' over a name that already means something (T62). #included
+'' by pp.tiko ahead of macro.tiko, which calls it.
+
+namespace Tko
+
+'' A NAME THAT ALREADY MEANS SOMETHING -- fbc's error 4, "Duplicated definition", for a
+'' '#define' or a '#macro' (T62). Measured on fbc-modern 1.20, 2026-10-02: every reserved
+'' word, intrinsics and type names included, unless '#undef' freed it first; a type,
+'' const, enum member, variable or procedure declared above at module level -- not one
+'' in a namespace, a procedure or a TYPE; and the predeclared procedures, 'kill' and
+'' 'sleep'. tiko took all of them, and a use of the keyword then fell out of its
+'' statement: '#define FIELD( a, b ) a##b' made 'print "x"; FIELD( w, 2 )' print 'x'
+'' and no line break. Reported, and the macro still defined, so a '#macro' body is read
+'' to its '#endmacro' as before. TRUE and FALSE stay redefinable (see PpDefine). '#undef'
+'' of a declared name frees it, as it frees a keyword: win/shlwapi.bi writes
+'' '#undef StrNCat' over crt/string.bi's strncat and then '#define StrNCat StrNCatA'. A
+'' predeclared procedure stays taken.
+private sub TakenName_( byref e as PpEngine, byref t as Token, byval id as InternId )
+    dim as string what
+    if Tk( t ) <> TK_IDENT then
+        '' Not under a '#lang' already refused (TKO0317): 'qb' reserves fewer words, and
+        '' fbc's own lex-numlit-qb.bas defines 'typeof' there.
+        dim as boolean refused = false
+        if e.outp <> 0 then refused = e.outp->langRefused
+        if (DereservedId_( e, Tk( t ) ) = INTERN_NONE) andalso (refused = false) then what = "a reserved word"
+    else
+        dim as long ix = cast( long, e.names->Fold( id ) )
+        dim as ulong mark_ = 0
+        if ix < e.topDeclared.Count then mark_ = e.topDeclared[ix]
+        '' A MODULE re-exports what its own headers declare -- a facade is nothing else
+        '' (sys/windows: '#define ABC ..ABC') -- and fbc compiles no module to object.
+        dim as boolean inModule = (e.cfg->moduleFiles <> 0)
+        if (mark_ = 1) andalso (inModule = false) then what = "already declared"
+        '' ...OR DECLARED IN A NAMESPACE A MODULE-LEVEL 'using' IMPORTED ABOVE: fbc's error 4
+        '' as well -- 'using FB' then '#define LOG_TRACE( m )' over FB's LOG_TRACE. tiko took
+        '' it, and every bare LOG_TRACE after it then compiled where fbc says error 42.
+        if (len( what ) = 0) andalso (inModule = false) andalso (ix < e.nsMemberOf.Count) then
+            dim as string ofs = e.nsMemberOf[ix]
+            if len( ofs ) > 0 then
+                dim as long a = 2
+                while a <= len( ofs )
+                    dim as long b = instr( a, ofs, "|" )
+                    if b = 0 then exit while
+                    dim as string ns = mid( ofs, a, b - a )
+                    if instr( e.usingPaths, "|" & ns & "|" ) > 0 then
+                        what = "already declared, in namespace '" & ns & "' that a 'using' imports"
+                        exit while
+                    end if
+                    a = b + 1
+                wend
+            end if
+        end if
+        '' ...but '#undef sleep' does not free a predeclared procedure: fbc still says error 4.
+        dim as boolean free_ = inModule
+        if (len( what ) = 0) andalso (free_ = false) andalso (len( e.cfg->preludeProcs ) > 0) then
+            dim as string sp = "|" & Text.LowerAscii( e.names->Spelling( id ) ) & "|"
+            if instr( e.cfg->preludeProcs, sp ) > 0 then what = "a predeclared procedure"
+        end if
+    end if
+    if len( what ) > 0 then Report( e, TKO0371, t.loc, e.names->Spelling( id ), what )
+end sub
+
+'' '#undef name' OF A DECLARED NAME: fbc removes the symbol, and a '#define' may then take it.
+private sub FreeTakenName_( byref e as PpEngine, byval id as InternId )
+    if id = INTERN_NONE then return
+    dim as long ix = cast( long, e.names->Fold( id ) )
+    while e.topDeclared.Count <= ix
+        e.topDeclared.Push( 0 )
+    wend
+    e.topDeclared[ix] = 2
+end sub
+
+end namespace

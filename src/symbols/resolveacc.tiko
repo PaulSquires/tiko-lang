@@ -1,0 +1,31 @@
+'' resolveacc.tiko -- the three AST accessors the resolve walk uses.
+''
+'' Split out of resolve.tiko at the 1500-line lint cap. Each returns a pointer INTO an
+'' arena, which is exactly why no caller may hold one across anything that can grow
+'' that arena -- see the note on N_BINARY in resolve.tiko.
+
+#import "std/containers"
+#include once "symbols/resolvectx.ti"
+
+namespace Tko.Resolve
+
+
+function StmtOf _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
+    if id = Tko.NODE_NONE then return 0
+    return @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+end function
+
+function ListOf _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.ListPayload ptr
+    if id = Tko.NODE_NONE then return 0
+    return @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+end function
+
+function IdentNameOf _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.InternId
+    if c.ast->Kind( id ) <> Tko.N_IDENT then return Tko.INTERN_NONE
+    return c.ast->idents[cast( long, c.ast->nodes[cast( long, id )].data )].name
+end function
+
+end namespace

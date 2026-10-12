@@ -1,11 +1,11 @@
 '' descriptors-layout.bas -- S1's acceptance test.
 ''
-'' The #assert blocks inside config.bi and descriptors.bi do the real work; this
+'' The #assert blocks inside config.ti and descriptors.ti do the real work; this
 '' module exists so that build/test.sh compiles them for every target and every
 '' threading mode. A layout invariant that is only checked on win64 is checked on
 '' the one target where every platform distinction collapses.
 
-#include once "inc/descriptors.bi"
+#include once "inc/descriptors.ti"
 
 extern "rtlib"
 	'' Referenced so nothing is dead-stripped before the asserts are evaluated.

@@ -1,0 +1,39 @@
+'' anyptrderef.tiko -- DEREFERENCING AN 'any ptr' (T31).
+''
+'' Included from latesweeps2.tiko, below typelitstr.tiko, in the same namespace and over the
+'' same Ctx.
+''
+'' An 'any ptr' has no pointee type, so there is nothing to read or write through it. fbc
+'' refuses '*a' and 'a[ i ]' over one in every position -- an initialiser, an assignment
+'' target, a print item, an argument, '@( *a )', 'sizeof( *a )', and the outer '*' of '**pa'
+'' over an 'any ptr ptr' -- error 71, "Incomplete type", measured on fbc-modern 1.20,
+'' 2026-10-02. tiko took all of them: 'dim v as long = *a' read garbage, '*a = 7' wrote
+'' nothing, and a print item took the rest of its statement with it. A typed pointer made
+'' from it -- 'cptr( long ptr, a )', 'dim lp as long ptr = a' -- is the way through, and is
+'' untouched, as is '*pa' itself, which reads an 'any ptr'.
+private function PointsAtAny_ ( byref c as Ctx, byval e as NodeId ) as boolean
+    if e = NODE_NONE then return false
+    dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( e ) )
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( t ) <> TK_POINTER then return false
+    dim as TypeId pt = c.types->Unqualify( c.types->Inner( t ) )
+    if c.types->Kind( pt ) <> TK_BUILTIN then return false
+    return (c.types->BuiltinOf( pt ) = TY_ANY)
+end function
+
+private sub CheckAnyPtrDeref_ ( byref c as Ctx )
+    dim as long total = c.ast->Count( )
+    for n as long = 1 to total - 1
+        dim as NodeId id = cast( NodeId, n )
+        dim as NodeId operand = NODE_NONE
+        select case c.ast->Kind( id )
+        case N_DEREF
+            operand = c.ast->unaries[cast( long, c.ast->nodes[n].data )].operand
+        case N_INDEX
+            operand = c.ast->lists[cast( long, c.ast->nodes[n].data )].target
+        case else
+            continue for
+        end select
+        if PointsAtAny_( c, operand ) then c.diags->Report( TKO0933, PointRange( c.ast->Loc( id ) ) )
+    next
+end sub

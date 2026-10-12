@@ -1,0 +1,52 @@
+'' tempdescv.tiko -- fb_StrAllocTempDescV (str_tempdescv.o).
+''
+'' Wraps an EXISTING descriptor in a pool descriptor: same data pointer, same
+'' size, and the length taken through FB_STRSIZE so the source's temp bit is
+'' masked off rather than copied.
+''
+'' The result therefore has a CLEAR temp bit while pointing at data it does not
+'' own -- the same shape as tempdesc.tiko's Z and F forms, and the same reason
+'' fb_hStrDelTemp has to decide the two ownership questions separately.
+''
+'' Contrast fb_StrAllocTempResult (tempres.tiko), which sets the bit and takes the
+'' data. The two differ by one `or FB_TEMPSTRBIT` and by whether the source is
+'' cleared, and they are otherwise identical.
+
+#include once "inc/descriptors.ti"
+#include once "inc/ctx.ti"
+
+extern "rtlib"
+	declare function fb_hStrAllocTempDesc alias "fb_hStrAllocTempDesc" ( ) as FBSTRING ptr
+	declare sub fb_StrLock alias "fb_StrLock" ( )
+	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+end extern
+
+#ifdef ENABLE_MT
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+extern "rtlib"
+
+function tkort_StrAllocTempDescV alias "fb_StrAllocTempDescV" _
+	( byval s as FBSTRING ptr ) as FBSTRING ptr
+
+	STRLOCK()
+	dim as FBSTRING ptr dsc = fb_hStrAllocTempDesc( )
+	STRUNLOCK()
+
+	if( dsc = 0 ) then return TKORT_NULLSTR( )
+
+	dsc->data = s->data
+	'' FB_STRSIZE, so the source's temp bit is NOT inherited.
+	dsc->len = FB_STRSIZE( s )
+	dsc->size = s->size
+
+	return dsc
+
+end function
+
+end extern

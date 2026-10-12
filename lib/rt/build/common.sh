@@ -195,9 +195,9 @@ rt_check_tools( ) {
     # pipes into wc or grep, so a missing one does not fail -- it reports ZERO
     # symbols, and the empty-object check then names a real source file:
     #
-    #   build: mem/mem.bas compiles to an object with NO GLOBAL SYMBOLS on linux-x86_64.
+    #   build: mem/mem.tiko compiles to an object with NO GLOBAL SYMBOLS on linux-x86_64.
     #
-    # mem.bas defines two. Measured under WSL, where llvm-nm is spelled llvm-nm-19
+    # mem.tiko defines two. Measured under WSL, where llvm-nm is spelled llvm-nm-19
     # and the fallback is a Windows path that does not exist there. A tool that did
     # not run is worth an error rather than a believable number.
     [ -x "$TKORT_NM" ]  || rt_die "llvm-nm not found at $TKORT_NM (set TKORT_NM)"

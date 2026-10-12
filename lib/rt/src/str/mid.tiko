@@ -1,0 +1,88 @@
+'' mid.tiko -- fb_StrMid, the MID() function.
+''
+'' Separate module because fbc keeps it in its own archive member (str_mid.o),
+'' and gate.sh replaces MEMBERS, not symbols: a module holding two entry points
+'' can only be merged if fbc's corresponding member holds exactly the same two.
+'' fb_SPACE was left out of this batch for that reason alone -- it lives in
+'' str_misc.o beside fb_UStrAsc, fb_UStrLset, fb_UStrRset and fb_UStrSwap, so
+'' owning it means owning four ustring entry points that have not been probed.
+'' Member granularity, not symbol granularity, is what sizes a batch.
+''
+'' MEASURED, NOT ASSUMED (PROBE-30/31 against fbc's own runtime, on "abcdef"):
+''
+''     (1,3) -> "abc"      (3,2) -> "cd"      (6,99) -> "f"     (1,99) -> "abcdef"
+''     (0,3) -> empty      (-1,3) -> empty    (7,3)  -> empty   (2,0)  -> empty
+''     (2,-1) -> "bcdef"   (2,-5) -> "bcdef"
+''
+''   1. START IS 1-BASED, and 0 is NOT the first character -- it is empty, the
+''      same answer as a negative start or a start past the end.
+''   2. ANY NEGATIVE LENGTH MEANS "TO THE END", not -1 alone. fbc's codegen
+''      passes -1 when the third argument is omitted; the runtime accepts the
+''      whole negative half-line, and a `= -1` test here would be a latent
+''      difference rather than an equivalent one.
+''   3. A LENGTH RUNNING PAST THE END IS CLAMPED, not an error.
+''   4. AN EMPTY RESULT IS THE SHARED EMPTY DESCRIPTOR (&__fb_ctx.null_desc),
+''      identical to the one fb_TRIM and fb_LEFT return -- PROBE-32.
+''   5. IT CONSUMES A TEMPORARY OPERAND. Screened from fbc's object first
+''      (str_mid.o lists fb_hStrDelTemp_NoLock), then confirmed by running it.
+''
+'' Note fbc's str_mid.o depends on memcpy directly rather than on fb_hStrCopy,
+'' which the other slice members use. Immaterial to the contract; noted so that
+'' the undefined-symbol screen is not mistaken for a mismatch later.
+
+#include once "inc/descriptors.ti"
+#include once "inc/ctx.ti"
+
+extern "rtlib"
+	declare function fb_hStrAllocTemp alias "fb_hStrAllocTemp" _
+		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" _
+		( byval s as FBSTRING ptr ) as long
+	declare sub fb_hStrCopy alias "fb_hStrCopy" _
+		( byval dst as zstring ptr, byval src as zstring ptr, byval bytes as integer )
+end extern
+
+extern "rtlib"
+
+function tkort_StrMid alias "fb_StrMid" _
+	( _
+		byval s as FBSTRING ptr, byval start as integer, byval length as integer _
+	) as FBSTRING ptr
+
+	if( s = 0 ) then return TKORT_NULLSTR( )
+
+	dim as zstring ptr p = s->data
+	dim as integer n = FB_STRSIZE( s )
+
+	'' Every degenerate case releases the operand and answers with the shared
+	'' empty. An early `return TKORT_NULLSTR( )` that skipped the release would
+	'' strand a pool slot per call -- the exact shape of bugs 12 through 15,
+	'' which surfaced as a segfault three subsystems away.
+	if( (p = 0) orelse (n <= 0) orelse (start < 1) orelse (start > n) orelse (length = 0) ) then
+		tkrt_DelTemp( s )
+		return TKORT_NULLSTR( )
+	end if
+
+	'' 1-based; `start` is known to be within 1..n here.
+	dim as integer avail = n - start + 1
+
+	'' ANY negative length means "to the end", not -1 alone (PROBE-31).
+	dim as integer take = length
+	if( (take < 0) orelse (take > avail) ) then take = avail
+
+	dim as FBSTRING ptr r = fb_hStrAllocTemp( 0, take )
+	if( r = 0 ) then
+		tkrt_DelTemp( s )
+		return TKORT_NULLSTR( )
+	end if
+
+	fb_hStrCopy( r->data, @p[start - 1], take )
+
+	'' After the copy, never before.
+	tkrt_DelTemp( s )
+
+	return r
+
+end function
+
+end extern

@@ -63,8 +63,8 @@ lowered: 3 functions, 5 blocks, 25 insts, 5 statements not lowered, 0 scope imba
   unlowered N_DELETE_STMT 1
   inside N_DELETE_STMT 1
   inside N_VAR 4
-  skip-site src\mir\lowerstore.bas:1171 4
-  skip-site src\mir\lowerctl.bas:207 1
+  skip-site src\mir\lowerstore.tiko:1171 4
+  skip-site src\mir\lowerctl.tiko:207 1
 tests/diagnostics/src/static-string-init.bas(32,12): error TKO0629: 'delete' takes a pointer
      |
   32 |     delete n

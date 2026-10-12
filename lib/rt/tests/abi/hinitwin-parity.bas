@@ -60,14 +60,14 @@ print "  fb_hInit and fb_hEnd are ADDRESS ONLY -- see the header"
 '' construction, and every field in it is whatever the console layer last put
 '' there -- a handle value, a window rect that depends on the terminal. The
 '' LAYOUT is what matters and that is asserted at compile time in
-'' src/init/hinitwin.bas, where a wrong offset is an error rather than a
+'' src/init/hinitwin.tiko, where a wrong offset is an error rather than a
 '' difference in output.
 print "  (__fb_con's layout is #assert'd in the module, not printed here)"
 
 #else
 
 print "-- resolution"
-print "  win32/hinit.o is EMPTY-ON linux-x86_64; see hinitposix.bas"
+print "  win32/hinit.o is EMPTY-ON linux-x86_64; see hinitposix.tiko"
 
 #endif
 

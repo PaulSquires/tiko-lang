@@ -1,0 +1,413 @@
+'' conreadline.tiko -- fb_ConReadLine, the interactive line editor behind INPUT.
+'' One symbol, one fbc member (con_readline.o), portable.
+''
+'' THIS IS THE LAST OF con_readline.o AND THE ONLY BLOCKING ENTRY POINT LEFT IN
+'' THE PORT. It spins on fb_KeyHit until a key arrives, so nothing in a test
+'' harness may call it -- see tests/abi/conreadline-parity.bas, which proves its
+'' address and says so.
+''
+'' THE EDITOR IS A CURSOR PLUS A STRING, AND THE CURSOR IS THE HARD PART. The
+'' string edits are three fb_StrMid calls; the cursor is a (column, row) pair on
+'' a console that wraps, scrolls, and is one-based in both axes. DoAdjust is the
+'' whole of that arithmetic and every key handler goes through it.
+''
+'' DoAdjust CONVERTS TO ZERO-BASED, MOVES, AND CONVERTS BACK -- the -1/+1 pairs
+'' at each end are not slack. In between, a NEGATIVE column is folded back onto
+'' the previous rows by adding `cols` and dividing, which is why the expression
+'' reads `*x = -*x + cols` rather than a plain modulo: C's % on a negative
+'' operand yields a negative remainder, and this arithmetic must not.
+''
+'' DoMove IS DoAdjust PLUS ONE SPECIAL CASE, and the case is scrolling. Landing
+'' exactly one row past the bottom at column 1 means the line filled the screen,
+'' so instead of locating off-screen it locates to the LAST cell and prints a
+'' newline -- letting the console scroll rather than trying to compute the
+'' scrolled position. Every other landing is a plain fb_Locate.
+''
+'' THE SOFT CURSOR IS DRAWN AND ERASED BY HAND. With soft_cursor set the editor
+'' prints chr(255) at the cursor, and on the NEXT pass overwrites it with
+'' whatever character the string holds there -- or a space past the end. That is
+'' why the erase reads result.data[pos] and needs the NULL check: at the first
+'' keystroke the descriptor is still empty.
+''
+'' A KEYSTROKE IS ONE OR TWO BYTES, AND THE SECOND ONE IS THE KEY. fb_Inkey
+'' returns a two-byte string for an extended key, whose FIRST byte is
+'' FB_EXT_CHAR (255) and whose second identifies the key; a one-byte string is
+'' the character itself. FB_MAKE_EXT_KEY packs the pair the other way round --
+'' the identifying byte moves to bits 8..15 and 255 sits in the low byte -- so
+'' the constants below are `(c shl 8) or 255` and NOT the two bytes in the order
+'' Inkey returned them.
+''
+'' TAB EXPANDS TO THE NEXT MULTIPLE OF EIGHT **FROM pos**, not from the column.
+'' A line scrolled or wrapped therefore tabs to a stop that need not line up
+'' with anything on screen. fbc's, reproduced.
+''
+'' ESC DELETES THE WHOLE LINE by setting delete_char_count to the full length,
+'' which is the same code path as backspace with a bigger count -- there is no
+'' separate clear.
+''
+'' THE CURSOR IS TURNED OFF AROUND EVERY EDIT, purely for speed, and turned back
+'' on at the bottom of the loop. A caller that watched the cursor state mid-edit
+'' would see it flicker; fbc's comment says "speed-up" and that is the whole
+'' reason.
+''
+'' AND THE LOOP EXITS ON CR **OR** LF, not on either alone -- a terminal that
+'' sends only one of them still terminates the line.
+''
+'' fb_StrAllocTempResult HANDS THE CALLER THE DESCRIPTOR ITSELF. `result` is a
+'' local FBSTRING built up in place; the return converts it into a temp the
+'' caller will delete, rather than copying it. Returning @result would hand back
+'' a pointer to a dead stack frame.
+
+#include once "inc/descriptors.ti"
+#include once "inc/iolock.ti"
+#include once "inc/print.ti"
+#include once "inc/sysbind.ti"
+
+'' FB_EXT_CHAR is (char)255, and FB_MAKE_EXT_KEY puts the identifying byte ABOVE
+'' it -- see the file header on why this is not the byte order Inkey returns.
+const FB_EXT_CHAR_ = 255
+#define TKORT_EXT_KEY( c ) (((c) shl 8) or FB_EXT_CHAR_)
+
+'' fb_event.h, in its own order.
+const KEY_HOME_  = TKORT_EXT_KEY( 71 )    '' 'G'
+const KEY_UP_    = TKORT_EXT_KEY( 72 )    '' 'H'
+const KEY_LEFT_  = TKORT_EXT_KEY( 75 )    '' 'K'
+const KEY_RIGHT_ = TKORT_EXT_KEY( 77 )    '' 'M'
+const KEY_END_   = TKORT_EXT_KEY( 79 )    '' 'O'
+const KEY_DOWN_  = TKORT_EXT_KEY( 80 )    '' 'P'
+const KEY_DEL_   = TKORT_EXT_KEY( 83 )    '' 'S'
+
+extern "rtlib"   '' FBCALL: all of these are decorated on win32.
+	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as long ptr, byval rows as long ptr )
+	declare sub tkrt_GetXY alias "fb_GetXY" ( byval col as long ptr, byval row as long ptr )
+	declare function tkrt_Locate alias "fb_Locate" _
+		( byval row as long, byval col as long, byval cursor as long, _
+		  byval top_ as long, byval bot as long ) as long
+	declare function tkrt_KeyHit alias "fb_KeyHit" ( ) as long
+	declare sub tkrt_Delay alias "fb_Delay" ( byval msecs as ulong )
+	declare function tkrt_Inkey alias "fb_Inkey" ( ) as FBSTRING ptr
+	declare sub tkrt_Beep alias "fb_Beep" ( )
+	declare sub tkrt_PrintFixString alias "fb_PrintFixString" _
+		( byval fnum as long, byval s as zstring ptr, byval mask as long )
+	declare function tkrt_StrMid alias "fb_StrMid" _
+		( byval s as FBSTRING ptr, byval start_ as integer, byval length_ as integer ) as FBSTRING ptr
+	declare function tkrt_StrAssign alias "fb_StrAssign" _
+		( byval dst as any ptr, byval dst_size as integer, _
+		  byval src as any ptr, byval src_size as integer, byval fill_rem as long ) as any ptr
+	declare function tkrt_StrConcatAssign alias "fb_StrConcatAssign" _
+		( byval dst as any ptr, byval dst_size as integer, _
+		  byval src as any ptr, byval src_size as integer, byval fill_rem as long ) as any ptr
+	declare function tkrt_StrFill1 alias "fb_StrFill1" _
+		( byval cnt as integer, byval fchar as long ) as FBSTRING ptr
+	declare function tkrt_StrAllocTempDescF alias "fb_StrAllocTempDescF" _
+		( byval s as zstring ptr, byval str_size as integer ) as FBSTRING ptr
+	declare function tkrt_StrAllocTempResult alias "fb_StrAllocTempResult" _
+		( byval src as FBSTRING ptr ) as FBSTRING ptr
+end extern
+
+extern "c"   '' NON-FBCALL: both are declared plain in fb_console.h and
+             '' fb_string.h, and the win32 archive agrees.
+	declare sub tkrt_PrintBufferEx alias "fb_PrintBufferEx" _
+		( byval buffer as any ptr, byval length_ as uinteger, byval mask as long )
+	declare function tkrt_hStrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+end extern
+
+'' THE CURSOR ARITHMETIC. One-based in, one-based out; zero-based in between --
+'' see the file header on why the negative-column fold is written the way it is.
+private sub tkort_DoAdjust _
+	( byval x as long ptr, byval y as long ptr, byval dx as long, byval dy as long, _
+	  byval cols as long, byval rows as long )
+
+	*x -= 1
+	*y -= 1
+
+	*x += dx
+	if( *x < 0 ) then
+		'' NOT a modulo: C's % on a negative left operand yields a negative
+		'' remainder, and the column must come back positive.
+		*x = -*x + cols
+		*y -= *x \ cols
+		*x = cols - (*x mod cols)
+	end if
+	*y += *x \ cols
+	*x = *x mod cols
+	*y += dy
+
+	*x += 1
+	*y += 1
+end sub
+
+'' DoAdjust, then either locate or scroll -- see the file header.
+private sub tkort_DoMove _
+	( byval x as long ptr, byval y as long ptr, byval dx as long, byval dy as long, _
+	  byval cols as long, byval rows as long )
+
+	tkort_DoAdjust( x, y, dx, dy, cols, rows )
+	if( (*y = (rows + 1)) andalso (*x = 1) ) then
+		'' One row past the bottom, at the left margin: the line filled the
+		'' screen. Park on the last cell and let a newline do the scrolling.
+		tkrt_Locate( rows, cols, -1, 0, 0 )
+		tkrt_PrintBufferEx( @TKORT_NEWLINE, TKORT_NEWLINE_LEN, 0 )
+	else
+		tkrt_Locate( *y, *x, -1, 0, 0 )
+	end if
+end sub
+
+extern "rtlib"   '' FBCALL: fb_console.h declares it with FBCALL and the win32
+                 '' archive decorates it.
+
+function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as long ) as FBSTRING ptr
+
+	'' A LOCAL DESCRIPTOR, built in place and handed over at the end -- see the
+	'' file header on why the return is not @result.
+	dim as FBSTRING result_
+	result_.data = 0
+	result_.len = 0
+	result_.size = 0
+
+	dim as long current_x = any, current_y = any
+	dim as long cols = any, rows = any
+	dim as integer pos_ = any, len_ = any, tmp_buffer_len = 0
+	dim as long cursor_visible = any
+	dim as long k = 0
+	dim as zstring * 12 tmp_buffer
+
+	tkrt_GetSize( @cols, @rows )
+
+	'' LOCATE WITH ROW AND COLUMN 0 IS A QUERY, and bit 16 of what it returns is
+	'' the cursor's visibility. The same call with cursor = FALSE then hides it.
+	cursor_visible = iif( (tkrt_Locate( 0, 0, -1, 0, 0 ) and &h10000) <> 0, -1, 0 )
+	tkrt_Locate( 0, 0, 0, 0, 0 )
+
+	pos_ = 0
+	len_ = 0
+	'' A ZERO-LENGTH PRINT, which settles any deferred scroll before the editor
+	'' starts reading the cursor position.
+	tkrt_PrintBufferEx( 0, 0, 0 )
+
+	'' The cursor is visible during INPUT unless the caller is drawing its own.
+	tkrt_Locate( 0, 0, iif( soft_cursor = 0, -1, 0 ), 0, 0 )
+
+	do
+		dim as integer delete_char_count = 0
+		dim as long add_char = 0
+		dim as FBSTRING ptr s = any
+
+		tkrt_GetXY( @current_x, @current_y )
+
+		if( soft_cursor <> 0 ) then
+			'' chr(255) as the cursor glyph, erased on the next pass.
+			dim as zstring * 2 cur_mark
+			cur_mark[0] = 255
+			cur_mark[1] = 0
+			tkrt_PrintFixString( 0, @cur_mark, 0 )
+			tkrt_Locate( current_y, current_x, 0, 0, 0 )
+		end if
+
+		'' BLOCKS HERE. 25 ms per poll, releasing the time slice -- and the
+		'' reason nothing in a harness may call this function.
+		while( tkrt_KeyHit( ) = 0 )
+			tkrt_Delay( 25 )
+		wend
+
+		s = tkrt_Inkey( )
+		if( s->data <> 0 ) then
+			'' TWO BYTES MEANS AN EXTENDED KEY, and it is the SECOND that
+			'' identifies it -- see the file header on the byte order.
+			if( FB_STRSIZE( s ) = 2 ) then
+				k = TKORT_EXT_KEY( cptr( ubyte ptr, s->data )[1] )
+			else
+				k = cptr( ubyte ptr, s->data )[0]
+			end if
+			tkrt_hStrDelTemp( s )
+		else
+			k = 0
+			continue do
+		end if
+
+		if( soft_cursor <> 0 ) then
+			'' Erase the soft cursor with whatever the string holds there. The
+			'' NULL check matters: at the first keystroke the descriptor is
+			'' still empty.
+			dim as zstring * 2 mask_
+			if( (result_.data <> 0) andalso (pos_ < len_) ) then
+				mask_[0] = cptr( ubyte ptr, result_.data )[pos_]
+			else
+				mask_[0] = 32
+			end if
+			mask_[1] = 0
+			tkrt_PrintFixString( 0, @mask_, 0 )
+			tkrt_Locate( current_y, current_x, 0, 0, 0 )
+		end if
+
+		select case k
+		case 8      '' Backspace
+			if( pos_ <> 0 ) then
+				tkort_DoMove( @current_x, @current_y, -1, 0, cols, rows )
+				pos_ -= 1
+				delete_char_count = 1
+			end if
+
+		case 9      '' TAB -- to the next multiple of eight FROM pos, not from
+			        '' the column. See the file header.
+			tmp_buffer_len = ((pos_ + 8) \ 8 * 8) - pos_
+			memset( @tmp_buffer, 32, tmp_buffer_len )
+			add_char = -1
+
+		case 27     '' ESC -- delete the whole line through the backspace path.
+			tkort_DoMove( @current_x, @current_y, -pos_, 0, cols, rows )
+			pos_ = 0
+			delete_char_count = len_
+
+		case KEY_DEL_
+			if( len_ <> pos_ ) then
+				delete_char_count = 1
+			else
+				'' AT END OF LINE, DELETE BEEPS. Backspace at the start does
+				'' not -- the asymmetry is fbc's.
+				tkrt_Beep( )
+			end if
+
+		case KEY_LEFT_
+			if( pos_ <> 0 ) then
+				tkort_DoMove( @current_x, @current_y, -1, 0, cols, rows )
+				pos_ -= 1
+			end if
+
+		case KEY_RIGHT_
+			if( pos_ <> len_ ) then
+				tkort_DoMove( @current_x, @current_y, 1, 0, cols, rows )
+				pos_ += 1
+			end if
+
+		case KEY_HOME_
+			tkort_DoMove( @current_x, @current_y, -pos_, 0, cols, rows )
+			pos_ = 0
+
+		case KEY_END_
+			tkort_DoMove( @current_x, @current_y, len_ - pos_, 0, cols, rows )
+			pos_ = len_
+
+		case KEY_UP_
+			'' UP AND DOWN MOVE BY A WHOLE SCREEN WIDTH, because a long input
+			'' line is one logical line wrapped -- there is nothing else to move
+			'' to.
+			if( pos_ >= cast( integer, cols ) ) then
+				tkort_DoMove( @current_x, @current_y, -cols, 0, cols, rows )
+				pos_ -= cols
+			end if
+
+		case KEY_DOWN_
+			if( (pos_ + cols) <= len_ ) then
+				tkort_DoMove( @current_x, @current_y, cols, 0, cols, rows )
+				pos_ += cols
+			end if
+
+		case else
+			'' 32..255. Note the upper bound: a byte can be no more than 255, so
+			'' the test is really "is it printable", and every extended key has
+			'' already been turned into a value above 255 by TKORT_EXT_KEY.
+			if( (k >= 32) andalso (k <= 255) ) then
+				tmp_buffer[0] = cast( ubyte, k )
+				tmp_buffer_len = 1
+				add_char = -1
+			end if
+		end select
+
+		if( (delete_char_count <> 0) orelse (add_char <> 0) ) then
+			'' Cursor off during output, purely for speed.
+			tkrt_Locate( 0, 0, 0, 0, 0 )
+		end if
+
+		if( delete_char_count <> 0 ) then
+			dim as FBSTRING ptr str_fill = any
+			dim as FBSTRING ptr str_left = tkrt_StrMid( @result_, 1, pos_ )
+			dim as FBSTRING ptr str_right = tkrt_StrMid( @result_, _
+				pos_ + 1 + delete_char_count, len_ - pos_ - delete_char_count )
+			tkrt_StrAssign( @result_, -1, str_left, -1, 0 )
+			tkrt_StrConcatAssign( @result_, -1, str_right, -1, 0 )
+			len_ -= delete_char_count
+
+			TKORT_IOLOCK()
+
+			tkrt_PrintBufferEx( cptr( ubyte ptr, result_.data ) + pos_, len_ - pos_, 0 )
+
+			'' THE DELETED CELLS ARE PAINTED OVER WITH SPACES rather than being
+			'' cleared -- there is no erase-to-end-of-line here, so the tail has
+			'' to be blanked explicitly or the old characters stay on screen.
+			str_fill = tkrt_StrFill1( delete_char_count, 32 )
+			tkrt_PrintBufferEx( str_fill->data, delete_char_count, 0 )
+			tkrt_hStrDelTemp( str_fill )
+
+			tkrt_Locate( current_y, current_x, -1, 0, 0 )
+
+			TKORT_IOUNLOCK()
+		end if
+
+		if( add_char <> 0 ) then
+			tmp_buffer[tmp_buffer_len] = 0
+		end if
+
+		if( add_char <> 0 ) then
+			dim as long old_x = current_x, old_y = current_y
+			'' + 1: fb_StrAllocTempDescF takes the buffer SIZE, terminator
+			'' included, not the length.
+			dim as FBSTRING ptr str_add = tkrt_StrAllocTempDescF( @tmp_buffer, tmp_buffer_len + 1 )
+			dim as FBSTRING ptr str_left = tkrt_StrMid( @result_, 1, pos_ )
+			dim as FBSTRING ptr str_right = tkrt_StrMid( @result_, pos_ + 1, len_ - pos_ )
+			tkrt_StrAssign( @result_, -1, str_left, -1, 0 )
+			tkrt_StrConcatAssign( @result_, -1, str_add, -1, 0 )
+			tkrt_StrConcatAssign( @result_, -1, str_right, -1, 0 )
+			len_ += tmp_buffer_len
+
+			TKORT_IOLOCK()
+
+			tkrt_PrintBufferEx( cptr( ubyte ptr, result_.data ) + pos_, len_ - pos_, 0 )
+
+			tkrt_GetXY( @current_x, @current_y )
+
+			'' WHERE THE CURSOR ENDS UP DEPENDS ON WHETHER THE PRINT SCROLLED.
+			'' Appending at the end is easy: step forward by what was inserted.
+			'' Inserting in the middle reprints the tail, and if that tail ran
+			'' off the bottom the screen scrolled under the cursor -- so the
+			'' position is recovered by stepping BACK from where the print
+			'' ended, not forward from where it began. DoAdjust is used to ask
+			'' where the tail would have landed without moving anything.
+			if( pos_ = (len_ - tmp_buffer_len) ) then
+				current_x = old_x : current_y = old_y
+				tkort_DoMove( @current_x, @current_y, tmp_buffer_len, 0, cols, rows )
+			else
+				dim as long tmp_x_2 = old_x, tmp_y_2 = old_y
+				tkort_DoAdjust( @tmp_x_2, @tmp_y_2, len_ - pos_, 0, cols, rows )
+				if( (tmp_y_2 > (rows + 1)) orelse _
+				    ((tmp_y_2 = (rows + 1)) andalso (tmp_x_2 > 1)) ) then
+					tkort_DoMove( @current_x, @current_y, _
+					              -(len_ - pos_ - tmp_buffer_len), 0, cols, rows )
+				else
+					current_x = old_x : current_y = old_y
+					tkort_DoMove( @current_x, @current_y, tmp_buffer_len, 0, cols, rows )
+				end if
+			end if
+			pos_ += tmp_buffer_len
+
+			TKORT_IOUNLOCK()
+		end if
+
+		tkrt_Locate( 0, 0, iif( soft_cursor = 0, -1, 0 ), 0, 0 )
+
+	loop while( (k <> 13) andalso (k <> 10) )
+
+	TKORT_IOLOCK()
+
+	'' Leave the cursor at the end of what was typed, wherever that is.
+	tkrt_GetXY( @current_x, @current_y )
+	tkort_DoMove( @current_x, @current_y, len_ - pos_, 0, cols, rows )
+
+	tkrt_Locate( 0, 0, cursor_visible, 0, 0 )
+
+	TKORT_IOUNLOCK()
+
+	return tkrt_StrAllocTempResult( @result_ )
+end function
+
+end extern

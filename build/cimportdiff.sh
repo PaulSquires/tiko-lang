@@ -48,7 +48,7 @@
 #   TIKO-DEEPER     both skip a record, tiko at a later member than fbc-modern's first
 #                   refusal, because the earlier one is a shape tiko handles.
 #   LAYOUT-REFUSED  a record tiko lays out differently from clang, refused by tiko's own
-#                   layout check (driver/cimportverify.bas), and whatever held it by value.
+#                   layout check (driver/cimportverify.tiko), and whatever held it by value.
 #                   fbc-modern writes it and then fails its own check (error 390): SysV's
 #                   bit-fields that share a storage unit with the next member -- probe.h's
 #                   probe_bits on linux-x86_64.

@@ -6,11 +6,11 @@
 '' literal, so this program never depends on a literal parser -- its own or fbc's --
 '' and a row means exactly "given these 64 bits, tiko-lang writes this text".
 ''
-'' Compiled against src/support/fbstr.bas directly rather than going through bin/tiko.exe:
+'' Compiled against src/support/fbstr.tiko directly rather than going through bin/tiko.exe:
 '' the formatter has no command-line surface yet, and a gate that can only run once the
 '' driver exposes one is a gate that does not run.
 
-#include once "support/fbstr.bi"
+#include once "support/fbstr.ti"
 
 dim as string truthPath = command( 1 )
 if len( truthPath ) = 0 then

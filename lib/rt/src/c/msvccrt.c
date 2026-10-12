@@ -121,7 +121,7 @@ __declspec(allocate(".CRT$XTZ")) tkort_pvfv tkort_xt_z[] = { 0 };
 ** .dtors forwards over gcc's layout: the unnumbered, then .ctors.NNNNN sorted, where
 ** NNNNN is 65535 minus the number.
 **
-** codegen/llvmstructors.bas lays the .CRT$X fragments out the same way -- unnumbered
+** codegen/llvmstructors.tiko lays the .CRT$X fragments out the same way -- unnumbered
 ** in .CRT$XCU / .CRT$XTX, numbered after them in .CRT$XCV / .CRT$XTY plus 65535 minus
 ** the number -- so the same two walks give the same order, module order included.
 ** tiko ran every fragment forwards, so fbc's own concurrency/sched.bas -- whose first
@@ -441,7 +441,7 @@ int __cdecl fileno( void *stream )
 ** wchar_t IS 16 BITS on this target, and the counts are in CHARACTERS, not bytes.
 ** Declared with the compiler's own __WCHAR_TYPE__ and __SIZE_TYPE__ so the definitions
 ** match clang's builtin signatures exactly; the header warning is silenced for the
-** same reason fprintf's is. tiko-rt itself never calls these -- see ustr/prim.bas. */
+** same reason fprintf's is. tiko-rt itself never calls these -- see ustr/prim.tiko. */
 typedef __WCHAR_TYPE__ tkort_wchar;
 void * __cdecl memmove( void *dst, void const *src, __SIZE_TYPE__ n );
 void * __cdecl memcpy( void *dst, void const *src, __SIZE_TYPE__ n );

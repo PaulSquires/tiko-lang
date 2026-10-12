@@ -12,8 +12,8 @@
 # accepting a golden, or re-reading a failure each paid it for nothing.
 #
 # What counts as a dependency is deliberately COARSE: for the compiler, anything under
-# src/ plus the source list and build.sh; for the runner, anything under tools/. A .bi
-# is included by whatever includes it and 23 of the .bas files under src/ are #included
+# src/ plus the source list and build.sh; for the runner, anything under tools/. A .ti
+# is included by whatever includes it and 23 of the .tiko files under src/ are #included
 # rather than compiled, so per-file dependency tracking is not something a timestamp
 # can do honestly -- and being wrong in that direction means NOT rebuilding, which is
 # the expensive kind of wrong.

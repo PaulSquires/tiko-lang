@@ -1,0 +1,417 @@
+'' types.tiko -- a C type as FreeBASIC type text. See import.ti.
+''
+'' "" with 'why' set when the type has no FreeBASIC spelling; the caller then skips the
+'' declaration and records 'why' in the ledger. Never a guess: a type that is NEARLY right
+'' moves a different number of bytes at each end of a call, and nothing reports it.
+
+#import "std/containers"
+#include once "cimport/import.ti"
+
+namespace Tko.CImport
+
+'' CXTypeKind -- Index.h:2885-3032. Only what this file reads.
+const CXType_Void = 2, CXType_Bool = 3, CXType_Char_U = 4, CXType_UChar = 5
+const CXType_Char16 = 6, CXType_Char32 = 7, CXType_UShort = 8, CXType_UInt = 9
+const CXType_ULong = 10, CXType_ULongLong = 11, CXType_UInt128 = 12, CXType_Char_S = 13
+const CXType_SChar = 14, CXType_WChar = 15, CXType_Short = 16, CXType_Int = 17
+const CXType_Long = 18, CXType_LongLong = 19, CXType_Int128 = 20, CXType_Float = 21
+const CXType_Double = 22, CXType_LongDouble = 23, CXType_NullPtr = 24
+const CXType_Float128 = 30, CXType_Half = 31, CXType_Float16 = 32
+const CXType_BFloat16 = 39, CXType_Ibm128 = 40
+const CXType_Complex = 100, CXType_Pointer = 101, CXType_BlockPointer = 102
+const CXType_Record = 105, CXType_Enum = 106, CXType_Typedef = 107
+const CXType_FunctionNoProto = 110, CXType_FunctionProto = 111
+const CXType_ConstantArray = 112, CXType_Vector = 113, CXType_IncompleteArray = 114
+const CXType_VariableArray = 115, CXType_Elaborated = 119, CXType_Atomic = 177
+
+'' CXCallingConv -- Index.h:3045-3083.
+const CXCallingConv_Default = 0, CXCallingConv_C = 1, CXCallingConv_AAPCS = 6
+const CXCallingConv_AAPCS_VFP = 7, CXCallingConv_Win64 = 10, CXCallingConv_X86_64SysV = 11
+
+function CursorUsr( byref x as CImp, byval c as CXCursor ) as string
+    return ClangText( *x.api, x.api->getCursorUSR( c ) )
+end function
+
+'' A cursor's C name -- and "" for an UNNAMED tag. clang 16 and later do not spell an unnamed
+'' struct as "": they spell it 'struct (unnamed at C:\...\corecrt.h:463:3)', so every "is
+'' this record unnamed?" test in the importer answered no, and one record was emitted under
+'' that description as its name. No C identifier contains '(', so the test is exact.
+function CursorName( byref x as CImp, byval c as CXCursor ) as string
+    dim as string s = ClangText( *x.api, x.api->getCursorSpelling( c ) )
+    if instr( s, "(unnamed " ) > 0 then return ""
+    if instr( s, "(anonymous " ) > 0 then return ""
+    return s
+end function
+
+'' ELABORATED IS A WRAPPER, not a type: clang 16 and later wrap every 'struct S' and every
+'' typedef reference in one. Named-type is what is inside it -- never the canonical type,
+'' which would throw the typedef away and turn LPCWSTR into 'const ushort ptr'.
+function Unwrap( byref x as CImp, byval t as CXType ) as CXType
+    dim as long guard = 0
+    while (t.kind = CXType_Elaborated) andalso (guard < 16)
+        t = x.api->Type_getNamedType( t )
+        guard += 1
+    wend
+    return t
+end function
+
+'' A builtin whose FreeBASIC spelling is fixed, checked against clang's own size: a
+'' mapping that disagrees about the width is refused rather than trusted.
+private function Builtin_( byref x as CImp, byval t as CXType, byref why as string ) as string
+    dim as string r
+    dim as long want = 0
+    select case t.kind
+    case CXType_Void                       : return "any"
+    case CXType_Bool                       : r = "boolean"  : want = 1
+    case CXType_Char_S, CXType_SChar       : r = "byte"     : want = 1
+    case CXType_Char_U, CXType_UChar       : r = "ubyte"    : want = 1
+    case CXType_Short                      : r = "short"    : want = 2
+    case CXType_UShort, CXType_Char16      : r = "ushort"   : want = 2
+    case CXType_Int                        : r = "long"     : want = 4
+    case CXType_UInt, CXType_Char32        : r = "ulong"    : want = 4
+    case CXType_LongLong                   : r = "longint"  : want = 8
+    case CXType_ULongLong                  : r = "ulongint" : want = 8
+    case CXType_Float                      : r = "single"   : want = 4
+    case CXType_Double                     : r = "double"   : want = 8
+    case CXType_Long, CXType_ULong
+        '' 'long' IS 4 BYTES ON win64 AND 8 ON LINUX, and crt/long.bi's clong/culong say
+        '' so -- the one alias whose width is the target's, which is why it is not
+        '' spelled out as long or integer here. crt/long.bi carries no no-redistribution
+        '' notice (0015 §2.4).
+        x.needsCLong = true
+        if t.kind = CXType_Long then return "clong"
+        return "culong"
+    case CXType_WChar
+        '' C++ only in practice -- C's wchar_t is a typedef -- but it is two bytes on
+        '' Windows and four on Linux either way.
+        dim as longint wsz = x.api->Type_getSizeOf( t )
+        if wsz = 2 then return "ushort"
+        if wsz = 4 then return "long"
+        why = "wchar_t is " & wsz & " bytes, which has no FreeBASIC equivalent"
+        return ""
+    '' THE REASONS ARE fbc-modern's WORDS, so the two importers' ledgers can be diffed.
+    case CXType_LongDouble
+        dim as longint ldsz = x.api->Type_getSizeOf( t )
+        if ldsz = 8 then return "double"
+        why = "long double is " & ldsz & " bytes here; FreeBASIC has no 80-bit type"
+        return ""
+    case CXType_Int128, CXType_UInt128
+        why = "__int128 has no FreeBASIC equivalent"
+        return ""
+    case CXType_Float128, CXType_Ibm128, CXType_Half, CXType_Float16, CXType_BFloat16
+        why = "extended/reduced float types have no FreeBASIC equivalent"
+        return ""
+    case CXType_Atomic
+        why = "_Atomic can change size and alignment and has no FreeBASIC equivalent"
+        return ""
+    case 0, 1       '' Invalid, Unexposed
+        why = "clang does not expose this type (" & ClangText( *x.api, x.api->getTypeSpelling( t ) ) & ")"
+        return ""
+    case else
+        why = "no FreeBASIC type for C type '" & ClangText( *x.api, x.api->getTypeSpelling( t ) ) & "'"
+        return ""
+    end select
+    dim as longint got = x.api->Type_getSizeOf( t )
+    if got <> want then
+        why = "'" & r & "' is " & want & " bytes but clang says " & got
+        return ""
+    end if
+    return r
+end function
+
+'' The FreeBASIC name of whatever a type REFERS TO -- a typedef, a record or an enum --
+'' through its declaration's USR, which is what pass 1 named.
+private function DeclUsrOf_( byref x as CImp, byval t as CXType ) as long
+    dim as CXCursor d = x.api->getTypeDeclaration( t )
+    dim as string usr = CursorUsr( x, d )
+    if len( usr ) = 0 then return -1
+    return UsrId( x, usr )
+end function
+
+'' A record REACHED THROUGH A POINTER. Three answers:
+''
+''   already emitted, or the record being emitted now    its name
+''   never defined anywhere                              any -- the opaque handle C meant
+''   skipped EARLIER                                     its name: FreeBASIC takes a pointer
+''                                                       to a type it never saw as a forward
+''                                                       reference ('PEVENTSFORLOGFILE as
+''                                                       _EVENTSFORLOGFILE ptr', fbc-modern)
+''   defined LATER in the file                           a forward alias, 'Name__ptr'
+''
+'' The last is how FreeBASIC accepts a reference to a record defined further down: only
+'' through a pointer typedef, which is hoisted above every declaration. The alias is
+'' resolved at the end -- to 'Name ptr' if the record arrived, to 'any ptr' if it was
+'' skipped when its turn came. 'const' on the pointee is not carried by the alias;
+'' fbc-modern drops it the same way.
+private function PtrToRecord_( byref x as CImp, byval pt as CXType, byval constPointee as boolean, _
+                               byref why as string, byref wholeText as string ) as boolean
+    dim as long id = DeclUsrOf_( x, pt )
+    if id < 0 then return false
+    dim as ubyte st = UsrState( x, id )
+    dim as string nm = UsrFbName( x, id )
+    dim as CXCursor d = x.api->getTypeDeclaration( pt )
+    dim as boolean self_ = (len( x.curRecordUsr ) > 0) andalso (CursorUsr( x, d ) = x.curRecordUsr)
+    if ((st and (US_EMITTED or US_REFUSED)) <> 0) orelse self_ then
+        if len( nm ) = 0 then
+            why = "unnamed record cannot be referred to"
+            return true
+        end if
+        wholeText = iif( constPointee, "const ", "" ) & nm & " ptr"
+        return true
+    end if
+    if (st and US_DEFINED) = 0 then
+        wholeText = iif( constPointee, "const ", "" ) & "any ptr"
+        return true
+    end if
+    if len( nm ) = 0 then
+        why = "unnamed record cannot be referred to"
+        return true
+    end if
+    if (st and US_FWD) = 0 then
+        UsrSet( x, id, US_FWD )
+        x.fwdUsr.Push( CursorUsr( x, d ) )
+        x.fwdLines.Push( nm )          '' resolved to its final text in import.tiko
+    end if
+    wholeText = nm & "__ptr"
+    return true
+end function
+
+'' A typedef's own text is its FreeBASIC name only once that name has been written. A PUN --
+'' 'typedef struct X X;', or the typedef that named an anonymous record -- wrote no line of
+'' its own: its name is the record's, and it is written when the record is. fbc-modern walks
+'' through it the same way, which is why windows.h's LPUNKNOWN is 'IUnknown__ptr'.
+private function TypedefWritten_( byref x as CImp, byval t as CXType ) as boolean
+    dim as long id = DeclUsrOf_( x, t )
+    if id < 0 then return false
+    if (UsrState( x, id ) and US_EMITTED) = 0 then return false
+    dim as CXType u = Unwrap( x, x.api->getTypedefDeclUnderlyingType( x.api->getTypeDeclaration( t ) ) )
+    if (u.kind = CXType_Record) orelse (u.kind = CXType_Enum) then
+        dim as long rid = DeclUsrOf_( x, u )
+        if (rid >= 0) andalso (UsrFbName( x, rid ) = UsrFbName( x, id )) then return false
+    end if
+    return true
+end function
+
+'' What a chain of typedefs not yet written stands for: the first written typedef, or the
+'' type at the end -- a record, when the pointer needs its forward-alias rule.
+private function UnwrittenTypedefs_( byref x as CImp, byval t as CXType ) as CXType
+    dim as long guard = 0
+    while (t.kind = CXType_Typedef) andalso (guard < 32)
+        if TypedefWritten_( x, t ) then exit while
+        dim as CXCursor d = x.api->getTypeDeclaration( t )
+        t = Unwrap( x, x.api->getTypedefDeclUnderlyingType( d ) )
+        guard += 1
+    wend
+    return t
+end function
+
+function TypeText( byref x as CImp, byval t0 as CXType, byref why as string ) as string
+    dim as CXType t = Unwrap( x, t0 )
+
+    select case t.kind
+    case CXType_Typedef
+        '' A TYPEDEF IS ITS NAME ONLY ONCE THAT NAME IS WRITTEN. One still to come -- deferred,
+        '' skipped, or a compiler builtin such as __builtin_va_list -- is what it stands for:
+        '' windows.h's VARIANTARG, used before it is written, is 'tagVARIANT' as fbc-modern
+        '' writes it, not a name the file does not declare yet.
+        if TypedefWritten_( x, t ) then
+            dim as string nm = UsrFbName( x, DeclUsrOf_( x, t ) )
+            if len( nm ) then return nm
+        end if
+        dim as CXCursor d = x.api->getTypeDeclaration( t )
+        return TypeText( x, x.api->getTypedefDeclUnderlyingType( d ), why )
+
+    case CXType_Record
+        dim as long id = DeclUsrOf_( x, t )
+        if id < 0 then
+            why = "a record clang does not name"
+            return ""
+        end if
+        dim as ubyte st = UsrState( x, id )
+        dim as string nm = UsrFbName( x, id )
+        if (st and US_REFUSED) <> 0 then
+            why = "uses '" & nm & "', which was skipped"
+            return ""
+        end if
+        if len( nm ) = 0 then
+            why = "unnamed record cannot be referred to"
+            return ""
+        end if
+        '' Declared and never defined: the opaque type, which FreeBASIC spells ANY.
+        if (st and US_DEFINED) = 0 then return "any"
+        return nm
+
+    case CXType_Enum
+        dim as long id = DeclUsrOf_( x, t )
+        dim as string nm
+        if id >= 0 then nm = UsrFbName( x, id )
+        if len( nm ) then return nm
+        '' An anonymous enum used as a type is its underlying integer.
+        return TypeText( x, x.api->getEnumDeclIntegerType( x.api->getTypeDeclaration( t ) ), why )
+
+    case CXType_Pointer
+        dim as CXType pt = x.api->getPointeeType( t )
+        dim as boolean constPointee = (x.api->isConstQualifiedType( pt ) <> 0)
+        dim as boolean constSelf = (x.api->isConstQualifiedType( t ) <> 0)
+        dim as CXType pu = Unwrap( x, pt )
+
+        '' A POINTER TO A FUNCTION IS THE FUNCTION'S OWN SIGNATURE -- FreeBASIC's procedure
+        '' types are already pointers, so no 'ptr' is added.
+        if (pu.kind = CXType_FunctionProto) orelse (pu.kind = CXType_FunctionNoProto) then
+            return FnTypeText( x, pu, why )
+        end if
+
+        '' A POINTER THROUGH TYPEDEFS NOT YET WRITTEN follows them to what they name:
+        '' COM's 'typedef struct IUnknown IUnknown;' comes first, the vtable's 'IUnknown
+        '' *This' next and the record last, so the pointer has nothing to name yet but a
+        '' forward alias. A typedef already written stops the walk -- its name is the better
+        '' one: windows.h's 'BEM_REFERENCE *' is 'BEM_REFERENCE ptr', where resolving to the
+        '' record wrote 'any ptr'. wchar_t is a typedef too, and is a wide string.
+        dim as boolean wide = false
+        if pu.kind = CXType_Typedef then
+            wide = (ClangText( *x.api, x.api->getTypedefName( pu ) ) = "wchar_t")
+            if wide = false then
+                dim as CXType rt = UnwrittenTypedefs_( x, pu )
+                if rt.kind = CXType_Record then pu = rt
+            end if
+        end if
+
+        dim as string inner
+        select case pu.kind
+        case CXType_Void
+            inner = "any"
+        case CXType_Char_S, CXType_Char_U
+            '' 'char *' is a C string. 'unsigned char *' and 'signed char *' are bytes.
+            inner = "zstring"
+        case CXType_WChar
+            inner = "wstring"
+        case CXType_Typedef
+            if wide then inner = "wstring" else inner = TypeText( x, pt, why )
+        case CXType_Record
+            dim as string whole
+            if PtrToRecord_( x, pu, constPointee, why, whole ) then
+                if len( why ) then return ""
+                '' A CONST POINTER TO A RECORD keeps its const where it has a spelling -- on
+                '' 'Name ptr' -- and not on a forward alias, where fbc-modern drops it too.
+                if constSelf andalso (right( whole, 5 ) <> "__ptr") andalso (right( whole, 4 ) = " ptr") then
+                    return left( whole, len( whole ) - 4 ) & " const ptr"
+                end if
+                return whole
+            end if
+            inner = TypeText( x, pt, why )
+        case else
+            inner = TypeText( x, pt, why )
+        end select
+        if len( inner ) = 0 then return ""
+        dim as string r = inner
+        '' A CONST POINTEE THAT IS ITSELF A POINTER is const on ITS 'ptr', and its text says
+        '' so already: 'const char *const *' is 'const zstring const ptr ptr'. A 'const '
+        '' in front as well wrote 'const const zstring const ptr ptr' -- sqlite3's xCreate.
+        if constPointee then
+            if right( r, 10 ) = " const ptr" then
+            elseif right( r, 4 ) = " ptr" then
+                r = left( r, len( r ) - 4 ) & " const ptr"
+            else
+                r = "const " & r
+            end if
+        end if
+        if constSelf then r &= " const ptr" else r &= " ptr"
+        '' FreeBASIC's pointer indirection stops at eight levels. Deeper never occurs in a
+        '' real header, but truncating silently would be worse than refusing.
+        dim as long lv = 0, at = instr( r, " ptr" )
+        while at > 0
+            lv += 1
+            at = instr( at + 4, r, " ptr" )
+        wend
+        if lv > 8 then
+            why = "pointer indirection deeper than FreeBASIC's 8 levels"
+            return ""
+        end if
+        return r
+
+    case CXType_FunctionProto, CXType_FunctionNoProto
+        return FnTypeText( x, t, why )
+
+    case CXType_ConstantArray, CXType_IncompleteArray, CXType_VariableArray
+        '' An array TYPE on its own has no FreeBASIC spelling: FreeBASIC has no array
+        '' typedef. A field or a global carries the dimensions itself (records.tiko,
+        '' decls.tiko) and a parameter is a pointer (ParamTypeText); everywhere else it is
+        '' refused.
+        why = "FreeBASIC has no array typedef; declare the array at its use"
+        return ""
+    end select
+
+    return Builtin_( x, t, why )
+end function
+
+'' A PARAMETER'S TYPE drops a const on the pointer itself: 'const IID *const riid' is 'byval
+'' as const IID ptr'. A BYVAL copy has no use for it, and fbc-modern writes it this way; the
+'' top-level const is always the last ' const ptr' in the text.
+''
+'' AN ARRAY PARAMETER IS A POINTER. C adjusts 'T a[]' and 'T a[4]' to 'T *a', and clang
+'' still reports the array type here. fbc-modern refuses every such function -- windows.h
+'' loses ReadFileScatter to it -- and tiko declares the pointer C actually passes.
+function ParamTypeText( byref x as CImp, byval t as CXType, byref why as string ) as string
+    dim as CXType u = Unwrap( x, t )
+    if (u.kind = CXType_ConstantArray) orelse (u.kind = CXType_IncompleteArray) orelse _
+       (u.kind = CXType_VariableArray) then
+        dim as CXType et = x.api->getElementType( u )
+        dim as string es = TypeText( x, et, why )
+        if len( es ) = 0 then return ""
+        if x.api->isConstQualifiedType( et ) andalso (left( es, 6 ) <> "const ") then es = "const " & es
+        return es & " ptr"
+    end if
+    dim as string s = TypeText( x, t, why )
+    if right( s, 10 ) = " const ptr" then s = left( s, len( s ) - 10 ) & " ptr"
+    return s
+end function
+
+'' A FUNCTION TYPE -- a pointer to one, or a typedef of one -- as a FreeBASIC procedure
+'' type. Parameters are unnamed, because a function TYPE carries no names: fbc-modern and
+'' tiko both write 'function cdecl( byval as const any ptr, ... ) as long'.
+''
+'' ONE CALLING CONVENTION ON x86-64. Default, C, Win64 and SysV all mean the target's one
+'' convention and all are written CDECL; anything else -- stdcall, fastcall, vectorcall,
+'' pascal -- is refused rather than approximated, because on x86-64 pascal still reverses
+'' the arguments.
+function FnTypeText( byref x as CImp, byval t as CXType, byref why as string ) as string
+    dim as long cc = x.api->getFunctionTypeCallingConv( t )
+    select case cc
+    case CXCallingConv_Default, CXCallingConv_C, CXCallingConv_Win64, CXCallingConv_X86_64SysV, _
+         CXCallingConv_AAPCS, CXCallingConv_AAPCS_VFP
+    case 2 : why = "__stdcall is an x86-only convention and 32-bit x86 is not a target" : return ""
+    case 3 : why = "__fastcall is an x86-only convention and 32-bit x86 is not a target" : return ""
+    case 4 : why = "__thiscall is an x86-only convention and 32-bit x86 is not a target" : return ""
+    case 5 : why = "the pascal convention is x86-only and 32-bit x86 is not a target" : return ""
+    case 12 : why = "__vectorcall has no FreeBASIC spelling" : return ""
+    case else
+        why = "calling convention " & cc & " has no FreeBASIC spelling"
+        return ""
+    end select
+
+    dim as string ps
+    dim as long n = x.api->getNumArgTypes( t )
+    for i as long = 0 to n - 1
+        dim as string pt = ParamTypeText( x, x.api->getArgType( t, i ), why )
+        if len( pt ) = 0 then return ""
+        if i > 0 then ps &= ", "
+        ps &= "byval as " & pt
+    next
+    if x.api->isFunctionTypeVariadic( t ) then
+        if n <= 0 then
+            why = "a variadic function pointer with no named parameter has no FreeBASIC spelling"
+            return ""
+        end if
+        ps &= ", ..."
+    end if
+
+    dim as CXType rt = x.api->getResultType( t )
+    if Unwrap( x, rt ).kind = CXType_Void then
+        return "sub cdecl( " & ps & " )"
+    end if
+    dim as string rs = TypeText( x, rt, why )
+    if len( rs ) = 0 then return ""
+    return "function cdecl( " & ps & " ) as " & rs
+end function
+
+end namespace

@@ -1,0 +1,587 @@
+'' gfx.tiko -- the graphics statements' own coordinate grammar.
+''
+'' '(x,y)-(x,y)' is not an expression. It was parsed as one -- a BINARY MINUS of two
+'' tuples -- and 'step(1,2)' as a CALL to a procedure named 'step', which is faithful to
+'' nothing: the tree said subtract where the source said "from here to there", and no
+'' lowering could recover the difference between a relative point and a negated one.
+''
+'' The shape, common to LINE, PSET, PRESET, CIRCLE, PAINT, VIEW, WINDOW, DRAW, GET and
+'' the graphics PUT:
+''
+''     STATEMENT [target,] [STEP](x,y)[-[STEP](x,y)] [, option ...]
+''
+'' A LEADING TARGET IS AMBIGUOUS WITH A FIRST COORDINATE and is decided by lookahead:
+'' the target form is an expression followed by a COMMA and then a '(' or STEP, which no
+'' coordinate can be.
+''
+'' What each statement stores is a FIXED CHILD ORDER with N_ELIDED for an absent slot,
+'' so lowering reads positions rather than re-deriving a shape. The STEP bits, the
+'' B/BF selector and SCREEN live in 'extra'. See docs/language/graphics-abi.md for the
+'' measured call each becomes.
+
+namespace Tko.Parse
+
+'' Forward declarations: the statement parser calls the option and finish helpers,
+'' which are defined below it because they are the detail rather than the shape.
+declare sub GfxTrailing _
+    ( byref p as Tko.ParserState, byval k as Tko.TokenKind, _
+      byref sp as Tko.StmtPayload, byref items as Tko.NodeIdVec )
+declare sub GfxFinish _
+    ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
+      byref items as Tko.NodeIdVec )
+declare function GfxBoxWord( byref p as Tko.ParserState ) as ushort
+declare function GfxPutMode( byref p as Tko.ParserState ) as ushort
+declare function GfxPoint _
+    ( byref p as Tko.ParserState, byref items as Tko.NodeIdVec, _
+      byref stepped as boolean ) as boolean
+declare function GfxTarget _
+    ( byref p as Tko.ParserState, byval needPoint as boolean = true ) as Tko.NodeId
+declare function GfxNone( byref p as Tko.ParserState ) as Tko.NodeId
+declare function GfxOption _
+    ( byref p as Tko.ParserState, byref outv as Tko.NodeId ) as boolean
+declare sub GfxPad _
+    ( byref p as Tko.ParserState, byref items as Tko.NodeIdVec, byval want as long )
+declare function GfxWordIs( byref p as Tko.ParserState, byref want as string ) as boolean
+
+'' 'extra' on a graphics N_INTRINSIC.
+''
+'' The two STEP bits follow fbc's own two-point convention -- bit 0 is the SECOND point
+'' and bit 1 the FIRST -- so lowering passes them straight through for LINE, GET and PUT
+'' rather than translating. The one-point statements use bit 0 for their single STEP,
+'' which is the same bit fbc uses there too.
+'' BITS 0 AND 1 ARE LINE'S OWN, and are not free here: LINE is two unrelated statements
+'' sharing a keyword, and bit 0 already means LINE INPUT while bit 1 means the graphics
+'' form. Reusing either would have made 'line input' and 'line (0,0)-step(1,1)' the same
+'' statement to the dispatcher.
+const GFX_STEP2     as ushort = &h0004
+const GFX_STEP1     as ushort = &h0008
+const GFX_BOX       as ushort = &h0010   '' LINE ... , B
+const GFX_BOXFILL   as ushort = &h0020   '' LINE ... , BF
+const GFX_FILL      as ushort = &h0040   '' CIRCLE ... , F
+const GFX_SCREEN    as ushort = &h0080   '' VIEW SCREEN / WINDOW SCREEN
+const GFX_NOSTART   as ushort = &h0100   '' 'line -(x,y)': the start point was omitted
+const GFX_HASTARGET as ushort = &h0200
+const GFX_PAL_GET   as ushort = &h0400   '' PALETTE GET
+const GFX_PAL_USING as ushort = &h0800   '' PALETTE USING
+'' DRAW STRING -- a different statement from DRAW, sharing the keyword. Bit 12 and
+'' up are PUT's blend mode and nothing else uses them, so DRAW may have one: the two
+'' statements can never both be this node.
+const GFX_DRAWSTR   as ushort = &h1000
+'' VIEW PRINT -- the console's text window, not the graphics viewport. Bit 13, for the
+'' same reason DRAW STRING may have bit 12: a VIEW is never a PUT.
+const GFX_VIEWPRINT as ushort = &h2000
+'' PUT's mode occupies bits 12..15: the code itself plus a bit saying one was written,
+'' because 0 is TRANS and cannot double as "absent".
+const GFX_PUTMODE_SHIFT as long = 12
+'' DRAW STRING's method, the same m+1 code in bits 16..19: bit 12 is DRAWSTR itself.
+'' 'extra' is a ulong, so the bits above PUT's are there to be had.
+const GFX_DSMODE_SHIFT as long = 16
+
+'' One '(x, y)', with an optional STEP in front of it. Returns false when there is no
+'' coordinate here at all.
+function GfxPoint _
+    ( byref p as Tko.ParserState, byref items as Tko.NodeIdVec, _
+      byref stepped as boolean ) as boolean
+
+    stepped = false
+    if Peek( p ) = Tko.KW_STEP then
+        Advance( p )
+        stepped = true
+    end if
+    if Accept( p, Tko.TK_LPAREN ) = false then return false
+    items.Push( cast( ulong, Expression( p ) ) )
+    Expect( p, Tko.TK_COMMA, "," )
+    items.Push( cast( ulong, Expression( p ) ) )
+    Expect( p, Tko.TK_RPAREN, ")" )
+    return true
+end function
+
+'' Does a coordinate start here? '(' or STEP, and nothing else.
+private function AtGfxPoint( byref p as Tko.ParserState ) as boolean
+    return (Peek( p ) = Tko.TK_LPAREN) orelse (Peek( p ) = Tko.KW_STEP)
+end function
+
+'' A LEADING TARGET, if there is one.
+''
+'' 'line buffer, (10,10)-(20,20)' and 'line (10,10)-(20,20)' both start with something
+'' that could be an expression, so the decision is lookahead: an expression, then a
+'' COMMA, then a coordinate. Speculative, and the cursor goes back when it is not one.
+'' 'needPoint' is false for DRAW ALONE. Every other graphics statement is followed by a
+'' COORDINATE, and requiring one is what tells 'circle pp, (x,y)' -- a target -- from
+'' 'circle (x,y)' -- no target, and the expression the target parse just read is really
+'' the point. DRAW has no coordinates at all: it is 'draw [target,] <string>', so the
+'' comma is the whole signal, and demanding a point after it backtracked EVERY targeted
+'' DRAW into a malformed statement. gfx/image-expr.bas writes seven of them.
+private function GfxTarget _
+    ( byref p as Tko.ParserState, byval needPoint as boolean = true ) as Tko.NodeId
+
+    if AtGfxPoint( p ) then return Tko.NODE_NONE
+    if (Peek( p ) = Tko.TK_EOL) orelse AtEnd( p ) then return Tko.NODE_NONE
+    dim as long save = p.pos
+    dim as Tko.NodeId e = Expression( p )
+    if e <> Tko.NODE_NONE then
+        if Accept( p, Tko.TK_COMMA ) then
+            if needPoint = false then return e
+            if AtGfxPoint( p ) then return e
+        end if
+    end if
+    p.pos = save
+    return Tko.NODE_NONE
+end function
+
+'' An elided slot: a child that stands for an argument nobody wrote.
+private function GfxNone( byref p as Tko.ParserState ) as Tko.NodeId
+    return NewNodeAt( p, Tko.N_ELIDED, Cur( p ).loc, 0 )
+end function
+
+'' The next comma-separated option, or NOTHING when it was elided or the line ended.
+'' Returns false once there are no more commas to read.
+function GfxOption _
+    ( byref p as Tko.ParserState, byref outv as Tko.NodeId ) as boolean
+
+    outv = Tko.NODE_NONE
+    if Accept( p, Tko.TK_COMMA ) = false then return false
+    '' Hoisted: mixing a comparison with a boolean in one 'orelse' chain is fbc
+    '' warning 38.
+    dim as boolean done_ = (Peek( p ) = Tko.TK_COMMA) orelse (Peek( p ) = Tko.TK_EOL)
+    if done_ = false then done_ = AtEnd( p )
+    if done_ then return true
+    outv = Expression( p )
+    return true
+end function
+
+'' Fill 'items' up to 'want' entries with elided slots.
+sub GfxPad _
+    ( byref p as Tko.ParserState, byref items as Tko.NodeIdVec, byval want as long )
+    while items.Count < want
+        items.Push( cast( ulong, GfxNone( p ) ) )
+    wend
+end sub
+
+'' The whole of a coordinate-syntax graphics statement. 'k' is the keyword, and it
+'' decides how many points there are and what the trailing options mean.
+function ParseGfxStmt _
+    ( byref p as Tko.ParserState, byref t as Tko.Token, _
+      byval k as Tko.TokenKind, byref sp as Tko.StmtPayload ) as boolean
+
+    dim as Tko.NodeIdVec items
+
+    '' 'VIEW PRINT [top TO bottom]' IS NOT THE GRAPHICS VIEW -- see LowerGfxView. Read
+    '' as one, PRINT ended the coordinate grammar at once, the rest of the line was
+    '' discarded, and the statement lowered as a graphics VIEW reset.
+    if (k = Tko.KW_VIEW) andalso (Peek( p ) = Tko.KW_PRINT) then
+        Advance( p )
+        sp.extra or= GFX_VIEWPRINT
+        dim as boolean vpBare = (Peek( p ) = Tko.TK_EOL) orelse (Peek( p ) = Tko.TK_EOF)
+        if vpBare = false then
+            items.Push( cast( ulong, Expression( p ) ) )
+            Expect( p, Tko.KW_TO, "to" )
+            items.Push( cast( ulong, Expression( p ) ) )
+        end if
+        GfxPad( p, items, 2 )
+        GfxFinish( p, sp, items )
+        return true
+    end if
+
+    '' VIEW and WINDOW take an optional SCREEN before anything else.
+    if (k = Tko.KW_VIEW) orelse (k = Tko.KW_WINDOW) then
+        if Peek( p ) = Tko.KW_SCREEN then
+            Advance( p )
+            sp.extra or= GFX_SCREEN
+        end if
+    end if
+
+    '' 'DRAW STRING' IS NOT 'DRAW'. It takes a COORDINATE and a text, where DRAW
+    '' takes a command string and no coordinates at all -- and it goes to a
+    '' different runtime entry point. Measured:
+    ''
+    ''   draw string (1,2), "a", 7
+    ''     fb_GfxDrawString( 0, 1.0f, 2.0f, 4, vr, 7u, 0, 0, 0, 0, 0 )
+    ''   draw string step(1,2), "a", 7          ...the flag is 5
+    ''   draw string (1,2), "a"                 ...it is -2147483644, the
+    ''                                            NO-COLOUR sign bit over 4
+    ''   draw string img, (0,0), "z", 3         ...the target is the image
+    ''
+    '' Read as plain DRAW, 'string' was taken for the command expression and the
+    '' statement never lowered.
+    dim as boolean drawStr = false
+    if k = Tko.KW_DRAW then
+        if Peek( p ) = Tko.KW_STRING then
+            Advance( p )
+            drawStr = true
+            sp.extra or= GFX_DRAWSTR
+        end if
+    end if
+
+    dim as boolean wantPoint = (k <> Tko.KW_DRAW)
+    if drawStr then wantPoint = true
+    sp.a = GfxTarget( p, wantPoint )
+    if sp.a <> Tko.NODE_NONE then sp.extra or= GFX_HASTARGET
+
+    '' DRAW STRING: [target,] [STEP] (x,y), text [, colour [, font [, method
+    '' [, alpha|blender [, parameter]]]]]. Five slots to the font, so an omitted colour
+    '' or font is an elided child rather than a short list; then PUT's method words,
+    '' and the one or two values a method takes in slots 5 and 6.
+    if drawStr then
+        dim as boolean ds1 = false
+        if GfxPoint( p, items, ds1 ) = false then return false
+        if ds1 then sp.extra or= GFX_STEP1
+        if Accept( p, Tko.TK_COMMA ) then
+            items.Push( cast( ulong, Expression( p ) ) )
+        end if
+        GfxPad( p, items, 3 )
+        dim as Tko.NodeId dsOpt = Tko.NODE_NONE
+        while GfxOption( p, dsOpt )
+            if dsOpt = Tko.NODE_NONE then
+                items.Push( cast( ulong, GfxNone( p ) ) )
+            else
+                items.Push( cast( ulong, dsOpt ) )
+            end if
+            if items.Count >= 5 then exit while
+        wend
+        GfxPad( p, items, 5 )
+        '' THE METHOD is a word, read as PUT reads it. It was not read at all: the
+        '' gfxlib2 A/B gate's 'draw string ( 4, 16 ), "Ag~", &hFFFFFF, , PSET' was
+        '' TKO0420 at the method.
+        if Accept( p, Tko.TK_COMMA ) then
+            sp.extra or= cast( ulong, GfxPutMode( p ) ) shl GFX_DSMODE_SHIFT
+            if GfxOption( p, dsOpt ) then
+                items.Push( cast( ulong, iif( dsOpt = Tko.NODE_NONE, GfxNone( p ), dsOpt ) ) )
+            end if
+            if GfxOption( p, dsOpt ) then
+                GfxPad( p, items, 6 )
+                items.Push( cast( ulong, iif( dsOpt = Tko.NODE_NONE, GfxNone( p ), dsOpt ) ) )
+            end if
+        end if
+        GfxFinish( p, sp, items )
+        return true
+    end if
+
+    '' DRAW is the odd one: a target and then a STRING, no coordinates at all.
+    if k = Tko.KW_DRAW then
+        if (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false) then
+            items.Push( cast( ulong, Expression( p ) ) )
+        end if
+        GfxPad( p, items, 1 )
+        GfxFinish( p, sp, items )
+        return true
+    end if
+
+    dim as boolean twoPoints = (k = Tko.KW_LINE) orelse (k = Tko.KW_VIEW) orelse _
+                               (k = Tko.KW_WINDOW)
+    dim as boolean s1 = false, s2 = false
+
+    '' 'line -(20,20)' -- the start point omitted entirely. Measured: fbc emits x1 = y1
+    '' = 0.0f WITH the first-point-relative bit set, so it means "from where we are".
+    if twoPoints andalso (Peek( p ) = Tko.TK_MINUS) then
+        sp.extra or= GFX_NOSTART
+        items.Push( cast( ulong, GfxNone( p ) ) )
+        items.Push( cast( ulong, GfxNone( p ) ) )
+    else
+        if GfxPoint( p, items, s1 ) = false then
+            '' No coordinates at all: 'view' and 'window' on their own are legal and
+            '' mean "reset", and every slot is elided.
+            GfxPad( p, items, iif( twoPoints, 4, 2 ) )
+            GfxTrailing( p, k, sp, items )
+            GfxFinish( p, sp, items )
+            return true
+        end if
+        if s1 then sp.extra or= GFX_STEP1
+    end if
+
+    if twoPoints then
+        if Accept( p, Tko.TK_MINUS ) then
+            if GfxPoint( p, items, s2 ) then
+                if s2 then sp.extra or= GFX_STEP2
+            else
+                GfxPad( p, items, 4 )
+            end if
+        else
+            GfxPad( p, items, 4 )
+        end if
+    end if
+
+    GfxTrailing( p, k, sp, items )
+    GfxFinish( p, sp, items )
+    return true
+end function
+
+'' The comma-separated options after the coordinates. Each statement has its own list,
+'' and every one of them is positional with an elided slot where nothing was written.
+sub GfxTrailing _
+    ( byref p as Tko.ParserState, byval k as Tko.TokenKind, _
+      byref sp as Tko.StmtPayload, byref items as Tko.NodeIdVec )
+
+    dim as Tko.NodeId o = Tko.NODE_NONE
+
+    select case k
+    case Tko.KW_LINE
+        '' colour, then B or BF, then the line style.
+        if GfxOption( p, o ) then
+            items.Push( cast( ulong, iif( o = Tko.NODE_NONE, GfxNone( p ), o ) ) )
+        end if
+        GfxPad( p, items, 5 )
+        '' 'B' and 'BF' arrive as IDENTIFIERS -- neither is a keyword -- so the option
+        '' is read as an expression and recognised by its spelling.
+        if Accept( p, Tko.TK_COMMA ) then
+            dim as ushort box = GfxBoxWord( p )
+            sp.extra or= box
+        end if
+        if GfxOption( p, o ) then
+            items.Push( cast( ulong, iif( o = Tko.NODE_NONE, GfxNone( p ), o ) ) )
+        end if
+        GfxPad( p, items, 6 )
+
+    case Tko.KW_PSET, Tko.KW_PRESET
+        if GfxOption( p, o ) then
+            items.Push( cast( ulong, iif( o = Tko.NODE_NONE, GfxNone( p ), o ) ) )
+        end if
+        GfxPad( p, items, 3 )
+
+    case Tko.KW_CIRCLE
+        '' radius, colour, start, end, aspect, then F.
+        for i as long = 0 to 4
+            if GfxOption( p, o ) = false then exit for
+            items.Push( cast( ulong, iif( o = Tko.NODE_NONE, GfxNone( p ), o ) ) )
+        next
+        GfxPad( p, items, 7 )
+        if Accept( p, Tko.TK_COMMA ) then
+            if GfxWordIs( p, "f" ) then sp.extra or= GFX_FILL
+        end if
+
+    case Tko.KW_PAINT
+        '' fill colour or pattern, then the border colour.
+        for i as long = 0 to 1
+            if GfxOption( p, o ) = false then exit for
+            items.Push( cast( ulong, iif( o = Tko.NODE_NONE, GfxNone( p ), o ) ) )
+        next
+        GfxPad( p, items, 4 )
+
+    case Tko.KW_VIEW
+        '' fill colour, then the border colour.
+        for i as long = 0 to 1
+            if GfxOption( p, o ) = false then exit for
+            items.Push( cast( ulong, iif( o = Tko.NODE_NONE, GfxNone( p ), o ) ) )
+        next
+        GfxPad( p, items, 6 )
+
+    case else
+        '' WINDOW has no options at all.
+    end select
+end sub
+
+'' The graphics GET and PUT, which share a keyword with the FILE statements. The caller
+'' has already decided which this is.
+''
+''   GET [target,] [STEP](x1,y1)-[STEP](x2,y2), destination
+''   PUT [target,] [STEP](x,y), source [, mode [, alpha]]
+function ParseGfxGetPut _
+    ( byref p as Tko.ParserState, byval isPut as boolean, _
+      byref sp as Tko.StmtPayload ) as boolean
+
+    dim as Tko.NodeIdVec items
+    sp.a = GfxTarget( p )
+    if sp.a <> Tko.NODE_NONE then sp.extra or= GFX_HASTARGET
+
+    dim as boolean s1 = false, s2 = false
+    if GfxPoint( p, items, s1 ) = false then return false
+    if s1 then sp.extra or= GFX_STEP1
+
+    if isPut = false then
+        Expect( p, Tko.TK_MINUS, "-" )
+        if GfxPoint( p, items, s2 ) then
+            if s2 then sp.extra or= GFX_STEP2
+        else
+            GfxPad( p, items, 4 )
+        end if
+    end if
+
+    '' The buffer: GET's destination, PUT's source.
+    dim as Tko.NodeId o = Tko.NODE_NONE
+    if GfxOption( p, o ) then
+        items.Push( cast( ulong, iif( o = Tko.NODE_NONE, GfxNone( p ), o ) ) )
+    end if
+    GfxPad( p, items, iif( isPut, 3, 5 ) )
+
+    if isPut then
+        '' A SOURCE AREA, '(x1,y1)-[STEP](x2,y2)', may follow the source. Measured:
+        ''
+        ''   put (1,2), a, (3,4)-(5,6), pset     fb_GfxPut( 0, 1f, 2f, A, 3, 4, 5, 6, 0, 1, ...
+        ''   put (1,2), a, (3,4)-step(5,6)       ... A, 3, 4, 5, 6, 1, 5, ...
+        ''
+        '' -- the STEP is the second-point bit, as GET's is, and 'step(3,4)-(5,6)' is
+        '' error 17: the first corner takes none. Left unread, the area and the mode
+        '' after it were discarded and the PUT blended the whole image with XOR.
+        dim as Tko.NodeIdVec area
+        if (Peek( p ) = Tko.TK_COMMA) andalso NextTokIs_( p, Tko.TK_LPAREN ) then
+            Advance( p )
+            dim as boolean a1 = false, a2 = false
+            GfxPoint( p, area, a1 )
+            Expect( p, Tko.TK_MINUS, "-" )
+            if GfxPoint( p, area, a2 ) then
+                if a2 then sp.extra or= GFX_STEP2
+            end if
+        end if
+        '' THE MODE IS A WORD, not a number: fbc rejects 'put ..., 1'. Some of them are
+        '' keywords and some are not, so it is read either way and matched by spelling.
+        if Accept( p, Tko.TK_COMMA ) then
+            '' A MODE IS A WORD, NOT A STRING. 'put (0,0), image, "xor"' is fbc's
+            '' error 17, "Syntax error, found 'xor'" -- the quotes are the whole
+            '' mistake, and six corpus files exist to assert it. GfxPutMode answers 0
+            '' for anything it does not recognise, which reads as "no mode written",
+            '' so the literal was silently ignored and the PUT blended as TRANS.
+            if Peek( p ) = Tko.TK_STRING_LIT then
+                p.diags->Report( Tko.TKO0648, Tko.PointRange( Cur( p ).loc ) )
+                '' ONE ERROR, as fbc gives: the literal is left unread, and without
+                '' this it drew a second, TKO0420, on the same token.
+                p.silent = true
+            end if
+            sp.extra or= GfxPutMode( p ) shl 12
+            '' ALPHA and CUSTOM each take one more argument -- a blend level and a
+            '' procedure pointer -- and they go in the same slot because no form has
+            '' both.
+            if GfxOption( p, o ) then
+                items.Push( cast( ulong, iif( o = Tko.NODE_NONE, GfxNone( p ), o ) ) )
+            end if
+            '' ...AND CUSTOM TAKES A SECOND, the blender's user parameter. Measured:
+            '' 'put (1,2), a, custom, @cb, @k' passes &K$0 as fb_GfxPut's last argument.
+            if GfxOption( p, o ) then
+                GfxPad( p, items, 4 )
+                items.Push( cast( ulong, iif( o = Tko.NODE_NONE, GfxNone( p ), o ) ) )
+            end if
+        end if
+        GfxPad( p, items, 4 )
+        '' Slots 5 to 8, and only when written, so a PUT without an area keeps the four
+        '' children every existing dump shows.
+        if area.Count > 0 then
+            GfxPad( p, items, 5 )
+            for i as long = 0 to area.Count - 1
+                items.Push( area[i] )
+            next
+            GfxPad( p, items, 9 )
+        end if
+    end if
+
+    GfxFinish( p, sp, items )
+    return true
+end function
+
+'' PUT's blend mode, as the number fbc passes. Measured, and it is NOT dense: ALPHA
+'' WITH A VALUE is mode 9 rather than 6, and 7 is unused.
+''
+'' Bit 15 of the returned value says a mode word was actually written, so an omitted
+'' one can default to XOR without 0 -- TRANS -- meaning "nothing here".
+function GfxPutMode( byref p as Tko.ParserState ) as ushort
+    dim as string w = ""
+    if Peek( p ) = Tko.TK_IDENT then
+        w = Tko.Text.LowerAscii( _
+            p.names->Spelling( cast( Tko.InternId, Cur( p ).literal ) ) )
+    elseif Tko.IsKeywordKind( Peek( p ) ) then
+        w = Tko.Text.LowerAscii( Tko.TokenKindText( Peek( p ) ) )
+    else
+        return 0
+    end if
+    dim as long m = -1
+    select case w
+    case "trans"  : m = 0
+    case "pset"   : m = 1
+    case "preset" : m = 2
+    case "and"    : m = 3
+    case "or"     : m = 4
+    case "xor"    : m = 5
+    case "alpha"  : m = 6
+    case "add"    : m = 7
+    case "custom" : m = 8
+    end select
+    if m < 0 then return 0
+    Advance( p )
+    '' ENCODED AS m+1 IN FOUR BITS, with 0 meaning 'no mode written'.
+    '' It used to be 'm or &h8' -- a three-bit value with the fourth bit as the
+    '' present flag -- which cannot hold 8. CUSTOM is 8, so 'm or &h8' was 8,
+    '' and the reader's 'm and 7' turned it back into 0: every
+    '' 'put ..., custom, @cb' blended as TRANS. ADD is 7 and did not fit
+    '' either once CUSTOM had taken the flag bit's value.
+    return cast( ushort, m + 1 )
+end function
+
+'' PALETTE, in its three forms:
+''   PALETTE [n [, r [, g [, b]]]]
+''   PALETTE GET n, r [, g [, b]]      -- the outputs are BYREF
+''   PALETTE USING array
+function ParseGfxPalette _
+    ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload ) as boolean
+
+    dim as Tko.NodeIdVec items
+    if GfxWordIs( p, "get" ) then
+        sp.extra or= GFX_PAL_GET
+    end if
+    '' 'PALETTE GET USING array' IS A FOURTH FORM, not a GET with a stray word: it has
+    '' its own entry point, fb_GfxPaletteGetUsing. Testing GET and USING as
+    '' alternatives left the USING unread, so the array was parsed as GET's index.
+    if Peek( p ) = Tko.KW_USING then
+        Advance( p )
+        sp.extra or= GFX_PAL_USING
+    end if
+
+    dim as long want = iif( (sp.extra and GFX_PAL_USING) <> 0, 1, 4 )
+    if (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false) then
+        items.Push( cast( ulong, Expression( p ) ) )
+        dim as Tko.NodeId o = Tko.NODE_NONE
+        while items.Count < want
+            if GfxOption( p, o ) = false then exit while
+            items.Push( cast( ulong, iif( o = Tko.NODE_NONE, GfxNone( p ), o ) ) )
+        wend
+    end if
+    GfxPad( p, items, want )
+    GfxFinish( p, sp, items )
+    return true
+end function
+
+'' 'B' or 'BF' after a LINE's colour. Neither is a keyword, so this reads the identifier
+'' and compares its spelling; anything else is left where it is.
+function GfxBoxWord( byref p as Tko.ParserState ) as ushort
+    if Peek( p ) <> Tko.TK_IDENT then return 0
+    dim as string w = Tko.Text.LowerAscii( _
+        p.names->Spelling( cast( Tko.InternId, Cur( p ).literal ) ) )
+    if w = "b" then
+        Advance( p )
+        return GFX_BOX
+    end if
+    if w = "bf" then
+        Advance( p )
+        return GFX_BOXFILL
+    end if
+    return 0
+end function
+
+'' The identifier at the cursor, compared case-insensitively and consumed on a match.
+function GfxWordIs( byref p as Tko.ParserState, byref want as string ) as boolean
+    dim as string w = ""
+    if Peek( p ) = Tko.TK_IDENT then
+        w = Tko.Text.LowerAscii( _
+            p.names->Spelling( cast( Tko.InternId, Cur( p ).literal ) ) )
+    elseif Tko.IsKeywordKind( Peek( p ) ) then
+        '' A KEYWORD TOO. 'palette get' is the one that needed it: GET is a keyword, so
+        '' an identifier-only test never saw it and every PALETTE GET declined.
+        w = Tko.Text.LowerAscii( Tko.TokenKindText( Peek( p ) ) )
+    else
+        return false
+    end if
+    if w <> want then return false
+    Advance( p )
+    return true
+end function
+
+'' Move the collected children into the shared pool.
+sub GfxFinish _
+    ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
+      byref items as Tko.NodeIdVec )
+
+    sp.first = p.ast->children.Count
+    sp.count = items.Count
+    for i as long = 0 to items.Count - 1
+        p.ast->children.Push( items[i] )
+    next
+end sub
+
+end namespace

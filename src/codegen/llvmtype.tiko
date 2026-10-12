@@ -1,0 +1,124 @@
+'' llvmtype.tiko -- see the header for why each of these is what it is.
+
+#import "std/containers"
+#include once "codegen/llvmtype.ti"
+
+namespace Tko.Codegen
+
+using Tko.Mir
+
+function AggType( byval sizeBytes as long ) as string
+    '' A ZERO-BYTE aggregate is still a type LLVM must be able to name. '[0 x i8]' is
+    '' legal and is what an empty UDT is; refusing it here would decline a program
+    '' fbc accepts.
+    dim as long n = sizeBytes
+    if n < 0 then n = 0
+    return "[" & str( n ) & " x i8]"
+end function
+
+function LlvmType _
+    ( byval t as MirType, byval aggSize as long ) as string
+
+    select case t
+    case MT_VOID : return "void"
+    case MT_I8   : return "i8"
+    case MT_I16  : return "i16"
+    case MT_I32  : return "i32"
+    case MT_I64  : return "i64"
+    case MT_F32  : return "float"
+    case MT_F64  : return "double"
+    '' OPAQUE. Typed pointers were removed in LLVM 17 and are not accepted by the
+    '' clang 18 minimum this backend targets, so there is only one pointer type and
+    '' nothing to derive it from.
+    case MT_PTR  : return "ptr"
+    case MT_AGG  : return AggType( aggSize )
+    end select
+    return "void"
+end function
+
+function LlvmFloatConst _
+    ( byval v as double, byval isSingle as boolean ) as string
+
+    dim as double d = v
+    '' A SINGLE is ROUNDED THROUGH 'single' FIRST. LLVM requires the hex form of a
+    '' 'float' constant to be a double that is exactly representable as a float; the
+    '' bits of the original double are not, and it rejects them. Rounding here is the
+    '' same rounding the target does.
+    if isSingle then d = cast( double, cast( single, v ) )
+    dim as ulongint bits = 0
+    '' The BIT PATTERN, not a reinterpretation of the number: memcpy through a pointer
+    '' is the one spelling that cannot be optimised into a conversion.
+    dim as any ptr src = @d
+    dim as any ptr dst = @bits
+    for i as long = 0 to 7
+        cast( ubyte ptr, dst )[i] = cast( ubyte ptr, src )[i]
+    next
+    dim as string h = hex( bits, 16 )
+    return "0x" & h
+end function
+
+function LlvmPairType( byval t0 as MirType, byval t1 as MirType ) as string
+    return "{ " & LlvmType( t0 ) & ", " & LlvmType( t1 ) & " }"
+end function
+
+'' MIR compares into an INTEGER; LLVM compares into an i1.
+function CmpPred _
+    ( byval op as MirOp, byref isFloat as boolean ) as string
+
+    isFloat = true
+    select case op
+    '' ORDERED, EXCEPT FOR '<>'. That is C's rule and fbc emits C: 'a == b' is false
+    '' when either operand is NaN, and 'a <> b' is TRUE. Spelling the second one 'one'
+    '' rather than 'une' would make 'x <> x' false for a NaN, which is the one case
+    '' the ordered/unordered distinction exists for.
+    case M_FCMP_EQ : return "oeq"
+    case M_FCMP_NE : return "une"
+    case M_FCMP_LT : return "olt"
+    case M_FCMP_GT : return "ogt"
+    case M_FCMP_LE : return "ole"
+    case M_FCMP_GE : return "oge"
+    end select
+    isFloat = false
+    select case op
+    case M_ICMP_EQ  : return "eq"
+    case M_ICMP_NE  : return "ne"
+    case M_ICMP_SLT : return "slt"
+    case M_ICMP_SGT : return "sgt"
+    case M_ICMP_SLE : return "sle"
+    case M_ICMP_SGE : return "sge"
+    case M_ICMP_ULT : return "ult"
+    case M_ICMP_UGT : return "ugt"
+    case M_ICMP_ULE : return "ule"
+    case M_ICMP_UGE : return "uge"
+    end select
+    return ""
+end function
+
+'' The LLVM intrinsic a math opcode becomes, without its type suffix.
+function MathIntrinsic( byval op as MirOp ) as string
+    select case op
+    case M_FLOOR     : return "llvm.floor"
+    case M_SQRT      : return "llvm.sqrt"
+    case M_SIN       : return "llvm.sin"
+    case M_COS       : return "llvm.cos"
+    case M_LOG       : return "llvm.log"
+    case M_EXP       : return "llvm.exp"
+    case M_FABS      : return "llvm.fabs"
+    case M_NEARBYINT : return "llvm.nearbyint"
+    end select
+    return ""
+end function
+
+'' NO INTRINSIC EXISTS for these four, so they are ordinary libm calls -- which is
+'' what fbc emits for them too, with no builtin prefix at all.
+function LibmName( byval op as MirOp ) as string
+    select case op
+    case M_TAN  : return "tan"
+    case M_ASIN : return "asin"
+    case M_ACOS : return "acos"
+    case M_ATAN : return "atan"
+    end select
+    return ""
+end function
+
+end namespace

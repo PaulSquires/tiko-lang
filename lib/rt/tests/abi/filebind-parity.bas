@@ -1,4 +1,4 @@
-'' filebind-parity.bas -- proves src/inc/file.bi's layout against fbc's runtime.
+'' filebind-parity.bas -- proves src/inc/file.ti's layout against fbc's runtime.
 ''
 '' NO ENTRY POINT USES THAT BINDING YET, which is exactly why this exists. A
 '' wrong FB_FILE offset is not a compile error and not a crash: FB_FILE_TO_HANDLE

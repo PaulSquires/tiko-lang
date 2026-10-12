@@ -195,7 +195,7 @@ next
 print "  lb="; lbound( p ); " ub="; ubound( p ); "  values: "; kept
 
 print "-- REDIM PRESERVE on a never-allocated array is a plain REDIM"
-'' realloc(NULL) is the path str/core.bas was bitten by at -O2, so it is kept
+'' realloc(NULL) is the path str/core.tiko was bitten by at -O2, so it is kept
 '' off this one entirely.
 dim as long fresh_()
 redim preserve fresh_( 2 to 6 )

@@ -1,0 +1,71 @@
+'' intern.ti -- string interning.
+''
+'' Every identifier, keyword, type name, mangled name and file path in the compiler is
+'' an InternId: a 32-bit handle. Comparison is an integer compare, storage is shared,
+'' and the hot path allocates nothing on a hit (docs/plan/14 section 2).
+''
+'' Case-insensitivity is handled by a SECOND id -- the ASCII-folded spelling -- so
+'' lookup compares integers while the original spelling survives for diagnostics.
+''
+'' Invariants:
+''   - Ids are stable for the interner's lifetime and are assigned in first-seen
+''     order. Nothing that reaches compiler output may depend on id ORDER, only on
+''     id equality (docs/plan/14 section 3).
+''   - Id 0 is INTERN_NONE and is never returned by Get( ).
+''   - The stored bytes are NUL-terminated as a convenience for C interop; the NUL is
+''     not counted in Length( ).
+
+#ifndef __TKO_INTERN_BI__
+#define __TKO_INTERN_BI__
+
+#include once "tko.ti"
+#include once "support/arena.ti"
+
+namespace Tko
+
+    type InternEntry
+        as ubyte ptr bytes
+        as long      length
+        as ulong     hash
+        as InternId  folded        '' 0 until first requested, then cached
+    end type
+
+    type EntryVec as containers.Array( of InternEntry )
+    type SlotVec  as containers.Array( of ulong )
+
+    type Interner
+        as ByteArena store
+        as EntryVec  entries       '' index = id - 1
+        as SlotVec   slots         '' open addressing; 0 = empty, else an id
+        as long      mask
+        as long      occupied
+
+        declare constructor( )
+
+        declare function Get( byval p as const ubyte ptr, byval n as long ) as InternId
+        declare function GetString( byval s as string ) as InternId
+
+        '' Named Spelling, not Text, so it cannot be confused with the Tko.Text
+        '' namespace at a call site inside a member body.
+        declare function Spelling( byval id as InternId ) as string
+        declare function Bytes( byval id as InternId ) as const ubyte ptr
+        declare function Length( byval id as InternId ) as long
+
+        '' The id of this id's ASCII-lowercased spelling. Folding a folded id
+        '' returns it unchanged, so Fold( ) is idempotent and cheap to call twice.
+        declare function Fold( byval id as InternId ) as InternId
+
+        declare function Count( ) as long
+        declare function BytesUsed( ) as longint
+
+        private:
+        declare sub Rehash( byval newSlots as long )
+    end type
+
+    '' FNV-1a, 32-bit. Fixed by decision: the hash may be replaced only deliberately,
+    '' because determinism of anything derived from it is a project requirement.
+    declare function HashBytes( byval p as const ubyte ptr, byval n as long ) as ulong
+
+end namespace
+
+#endif

@@ -43,7 +43,7 @@ lowered: 3 functions, 3 blocks, 16 insts, 2 statements not lowered, 0 scope imba
   unlowered N_INTRINSIC 2
   inside N_INTRINSIC 2
   unlowered intrinsic KW_SWAP 2
-  skip-site src\mir\lowerctl.bas:206 2
+  skip-site src\mir\lowerctl.tiko:206 2
 tests/diagnostics/src/swap-and-shared-init.bas(26,13): error TKO0642: 'swap' needs two variables, not a literal or a constant
      |
   26 |     swap a, 0

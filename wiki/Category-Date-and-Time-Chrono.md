@@ -744,12 +744,12 @@ hour makes the general case ambiguous.
 
 ```freebasic
 pkg/std/chrono/                 the whole FB surface -- one #import
-lib/rt/src/inc/chrono.bi        the tick representation and its constants
-lib/rt/src/chrono/core.bas      civil<->tick kernel, calendar primitives
-lib/rt/src/chrono/iso.bas       ISO 8601 emit and strict parse
-lib/rt/src/chrono/pattern.bas   pattern formatter and parser, invariant
-lib/rt/src/chrono/clock.bas     wall, monotonic and CPU clocks
-lib/rt/src/chrono/zone.bas      offsets, DST, locale formatting
+lib/rt/src/inc/chrono.ti        the tick representation and its constants
+lib/rt/src/chrono/core.tiko      civil<->tick kernel, calendar primitives
+lib/rt/src/chrono/iso.tiko       ISO 8601 emit and strict parse
+lib/rt/src/chrono/pattern.tiko   pattern formatter and parser, invariant
+lib/rt/src/chrono/clock.tiko     wall, monotonic and CPU clocks
+lib/rt/src/chrono/zone.tiko      offsets, DST, locale formatting
 ```
 
 The kernel in core.bas is PURE: no OS calls, no allocation, no locale, no static state. Everything platform-specific is in clock.bas and zone.bas, which is what makes the civil<->tick conversion testable exhaustively.

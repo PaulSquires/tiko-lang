@@ -18,9 +18,9 @@
 ''
 '' The cursor check is the reason this file exists as more than four digests.
 
-#include once "../raster/cls.bi"
-#include once "../raster/line.bi"
-#include once "../raster/box.bi"
+#include once "../raster/cls.ti"
+#include once "../raster/line.ti"
+#include once "../raster/box.ti"
 #include once "abtest.bi"
 #include once "crt/string.bi"
 #ifdef ABTEST_HAS_GFXLIB2

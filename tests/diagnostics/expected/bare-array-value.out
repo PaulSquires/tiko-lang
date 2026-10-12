@@ -82,7 +82,7 @@ lowered: 3 functions, 3 blocks, 54 insts, 2 statements not lowered, 0 scope imba
   inside N_INTRINSIC 2
   unlowered intrinsic KW_PRINT 1
   unlowered intrinsic KW_DRAW 1
-  skip-site src\mir\lowerctl.bas:206 2
+  skip-site src\mir\lowerctl.tiko:206 2
 tests/diagnostics/src/bare-array-value.bas(25,11): error TKO0649: an array name without a subscript is not a value
      |
   25 |     print a

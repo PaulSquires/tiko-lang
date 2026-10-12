@@ -439,9 +439,9 @@ tree, not something spawn introduced.  A generic PROCEDURE is fine.
 
 ## Implementation
 
-Both statements are desugared in tiko's parser (src/parser/spawn.bas, src/parser/selchan.bas) into ordinary statements that the rest of the compiler already lowers.  'spawn' builds the argument frame itself and hands a plain thunk straight to fb_Spawn, where fbc goes through a generic frame type and a virtual Invoke; the observable behaviour is the same -- the arguments are copied at the spawn, and the frame is destroyed and freed afterwards.  'select channel' becomes the calls into the generics of std/tasks' select.tiko -- the calls fbc builds into fb/select.bi's.
+Both statements are desugared in tiko's parser (src/parser/spawn.tiko, src/parser/selchan.tiko) into ordinary statements that the rest of the compiler already lowers.  'spawn' builds the argument frame itself and hands a plain thunk straight to fb_Spawn, where fbc goes through a generic frame type and a virtual Invoke; the observable behaviour is the same -- the arguments are copied at the spawn, and the frame is destroyed and freed afterwards.  'select channel' becomes the calls into the generics of std/tasks' select.tiko -- the calls fbc builds into fb/select.bi's.
 
-The runtime side is tiko-rt's, written in FreeBASIC: the park/unpark layer (lib/rt/src/thread/park.bas), the scheduler (sched.bas) and the process-wide claim lock (claimlock.bas).  fbc has these in C because a process-wide singleton cannot be built from a HEADER -- a 'dim shared' in a .bi included by two modules gives two of them.  In a runtime module that reason does not apply.
+The runtime side is tiko-rt's, written in FreeBASIC: the park/unpark layer (lib/rt/src/thread/park.tiko), the scheduler (sched.bas) and the process-wide claim lock (claimlock.bas).  fbc has these in C because a process-wide singleton cannot be built from a HEADER -- a 'dim shared' in a .bi included by two modules gives two of them.  In a runtime module that reason does not apply.
 
 Channel, select, WaitGroup, Context and the directional views are ordinary FreeBASIC in the std/tasks module (pkg/std/tasks/, ported from fbc's fb/*.bi headers) -- written on generics with no compiler privileges.
 

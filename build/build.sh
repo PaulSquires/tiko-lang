@@ -171,7 +171,7 @@ fi
 # runtime initialises the command line before any module constructor runs.
 SOURCES=$(grep -v '^[[:space:]]*#' "$ROOT/build/sources.txt" | grep -v '^[[:space:]]*$')
 MAIN=$(echo "$SOURCES" | head -1)
-MAINMOD=$(basename "$MAIN" .bas)
+MAINMOD=$(basename "$MAIN" .tiko)
 
 mkdir -p "$ROOT/bin" "$ROOT/build/obj/$CFG"
 
@@ -196,7 +196,7 @@ compile_units( ) {
     export STAGE0 cu_dir cu_main cu_flags INCOPT
     ( cd "$ROOT" && xargs -P "$JOBS" -I{} sh -c '
         f="{}"; n=$(echo "$f" | tr "/." "__")
-        m=""; [ "$(basename "$f" .bas)" = "$cu_main" ] && m="-m $cu_main"
+        m=""; [ "$(basename "$f" .tiko)" = "$cu_main" ] && m="-m $cu_main"
         "$STAGE0" -c "$f" $m -i src $INCOPT $cu_flags -o "$cu_dir/$n.o" > "$cu_dir/$n.log" 2>&1
         exit 0' < "$cu_dir/units.txt" )
     OBJS=""
@@ -214,7 +214,7 @@ compile_units( ) {
     [ "$cu_fail" = "0" ] || exit 1
 }
 
-# THE EDITOR'S DLL, bin/tikoParser.dll (src/api; contract src/api/tikoparser.bi): the
+# THE EDITOR'S DLL, bin/tikoParser.dll (src/api; contract src/api/tikoparser.ti): the
 # compiler's own sources less the main module, plus the entry points. Built INSTEAD of the
 # compiler, so bin/tiko and the build stamp are not touched. NEVER WITH -exx: a failed
 # runtime check ends the PROCESS, and in a DLL the process is the editor. fbc writes the
@@ -225,7 +225,7 @@ compile_units( ) {
 # which holds the DLL open, and the compiler that was just built is still good.
 build_dll( ) {
     DLLFLAGS=$(echo "$FLAGS" | sed 's/-exx//')
-    # '-mt' SAID, not inferred: tikoparser.bas starts a thread, and fbc marks the object
+    # '-mt' SAID, not inferred: tikoparser.tiko starts a thread, and fbc marks the object
     # that does as needing the threaded runtime. One call over every source made the whole
     # link threaded; units compiled apart left the others unmarked and fbc warned (20,
     # mixed multithreading). Saying it gives the same link and no warning.
@@ -233,10 +233,10 @@ build_dll( ) {
     LIBSRC=$(echo "$SOURCES" | tail -n +2)
     echo "build: tikoParser.dll [$CFG] with $STAGE0"
     if [ "$SEEDED" = "1" ]; then
-        ( cd "$ROOT" && "$STAGE0" -dll $LIBSRC src/api/tikoparser.bas -i src $DLLFLAGS \
+        ( cd "$ROOT" && "$STAGE0" -dll $LIBSRC src/api/tikoparser.tiko -i src $DLLFLAGS \
             -o "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
     else
-        compile_units "$ROOT/build/obj/$CFG-dll" "" "$DLLFLAGS" $LIBSRC src/api/tikoparser.bas
+        compile_units "$ROOT/build/obj/$CFG-dll" "" "$DLLFLAGS" $LIBSRC src/api/tikoparser.tiko
         ( cd "$ROOT" && "$STAGE0" -dll $OBJS $DLLFLAGS -x "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
     fi
     [ "$HOSTWIN" = "1" ] || return 0
@@ -262,7 +262,7 @@ if [ "$DLL" = "1" ]; then
 fi
 
 echo "build: tiko-lang [$CFG] with $STAGE0"
-# ...and the same for the compiler OFF WINDOWS, where driver/main.bas starts its big-stack
+# ...and the same for the compiler OFF WINDOWS, where driver/main.tiko starts its big-stack
 # thread with threadcreate (Windows uses CreateThread, which fbc does not see).
 CFLAGS_="$FLAGS"
 [ "$HOSTWIN" = "1" ] || CFLAGS_="$FLAGS -mt"
@@ -278,7 +278,7 @@ fi
 
 if [ "$TESTRUNNER" = "1" ]; then
     echo "build: tiko-test [$CFG]"
-    ( cd "$ROOT" && "$STAGE0" tools/tiko-test/tikotest.bas -i src $INCOPT $FLAGS -mt $OUTOPT "bin/tiko-test$EXT" )
+    ( cd "$ROOT" && "$STAGE0" tools/tiko-test/tikotest.tiko -i src $INCOPT $FLAGS -mt $OUTOPT "bin/tiko-test$EXT" )
 fi
 
 # WHAT bin/ NOW HOLDS, for anything that needs to know whether it is the right thing.

@@ -209,7 +209,7 @@ fbc reports the first on the header of the generic being expanded and stops. tik
 
 ## How It Works
 
-FBC-Modern captures a generic's body as a token chain and replays it through its parser once per distinct type-argument list, at module level. tiko's implementation is its own -- `src/symbols/generic.bas` and `src/symbols/genericinfer.bas` -- and it is measured against fbc's behaviour, not built from fbc's design: see TESTS.
+FBC-Modern captures a generic's body as a token chain and replays it through its parser once per distinct type-argument list, at module level. tiko's implementation is its own -- `src/symbols/generic.tiko` and `src/symbols/genericinfer.tiko` -- and it is measured against fbc's behaviour, not built from fbc's design: see TESTS.
 
 ## Names AND Linkage
 

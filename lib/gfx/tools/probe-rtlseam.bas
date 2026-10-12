@@ -19,7 +19,7 @@
 '' PRINT is routed into the framebuffer while a graphics screen is open, so all
 '' reporting happens after SCREEN 0.
 
-#include once "../abi/rtlseam.bi"
+#include once "../abi/rtlseam.ti"
 #include once "fbgfx.bi"
 
 using TkoAbi

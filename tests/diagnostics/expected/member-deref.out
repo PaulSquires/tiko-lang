@@ -75,7 +75,7 @@ lowered: 4 functions, 4 blocks, 47 insts, 3 statements not lowered, 0 scope imba
   unlowered N_INTRINSIC 3
   inside N_INTRINSIC 3
   unlowered intrinsic KW_PRINT 3
-  skip-site src\mir\lowerctl.bas:206 3
+  skip-site src\mir\lowerctl.tiko:206 3
 tests/diagnostics/src/member-deref.bas(31,12): error TKO0630: '.' reaches a member of a value; this is a pointer, so use '->'
      |
   31 |     print p.i

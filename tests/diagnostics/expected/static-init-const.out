@@ -432,9 +432,9 @@ verify: ok
 lowered: 23 functions, 31 blocks, 173 insts, 54 statements not lowered, 0 scope imbalance
   inside ? 2
   inside N_VAR 52
-  skip-site src\mir\lowerstore.bas:1151 34
-  skip-site src\mir\lowerstore.bas:1131 18
-  skip-site src\mir\lowermodinit.bas:76 2
+  skip-site src\mir\lowerstore.tiko:1151 34
+  skip-site src\mir\lowerstore.tiko:1131 18
+  skip-site src\mir\lowermodinit.tiko:76 2
 tests/diagnostics/src/static-init-const.bas(98,20): error TKO0725: 'e21' has static storage and must be initialised from a constant, not a variable
      |
   98 |     static as long e21 = iif( 1, gx, 2 )

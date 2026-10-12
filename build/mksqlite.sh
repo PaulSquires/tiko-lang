@@ -34,7 +34,7 @@
 # THE MSVC OBJECT MUST NAME NO LIBRARIES. clang's MSVC mode embeds /DEFAULTLIB
 # directives -- libcmt and oldnames by default, and uuid from a pragma in the Windows
 # headers. tiko links windows-x86_64 with -nostdlib against ucrtbase and kernel32 only,
-# precisely so that a reader needs no Visual Studio (toolchain.bas, LinkExe), and a
+# precisely so that a reader needs no Visual Studio (toolchain.tiko, LinkExe), and a
 # directive would reach straight back into one. -fms-omit-default-lib drops the CRT
 # ones, WIN32_LEAN_AND_MEAN keeps the header that adds uuid out, and
 # -fno-stack-protector avoids __security_cookie, which only VC's runtime defines.

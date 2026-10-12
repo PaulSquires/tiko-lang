@@ -1,0 +1,305 @@
+'' misc.tiko -- the portable leftovers: the I18N flag, the ustring array
+'' destructors, ENVIRON and the DATE/TIME string parsers. Ten symbols across four
+'' fbc members, none of them platform-split.
+''
+'' THEY ARE ONE FILE BECAUSE THEY ARE ONE BATCH, NOT BECAUSE THEY BELONG
+'' TOGETHER. tiko-rt names objects after their SOURCE PATH while fbc names them
+'' after the basename, so a tiko-rt object may replace several fbc members --
+'' what the gate matches on is the SYMBOL, and every one of these members is
+'' covered completely.
+''
+'' oop_object.o IS NOT HERE, AND CANNOT BE. It exports __fb_ZTS6Object, OBJECT's
+'' RTTI record -- and fbc emits `@__fb_ZTS6Object = external global` into EVERY
+'' module it compiles, including one whose entire text is `dim shared as long q`.
+'' A FreeBASIC module that defines it therefore emits both the compiler's
+'' declaration and its own definition, and clang rejects the file with
+'' "redefinition of global". The name is reserved by the compiler, so this member
+'' joins atomic.o and profile_cycles.o as one FreeBASIC cannot express.
+''
+'' fb_ArrayDestructUStr RUNS IN REVERSE, as every destructor loop in FreeBASIC
+'' does, and only frees the buffer when there is one -- the descriptors
+'' themselves live inside the array's own block and are freed with it.
+''
+'' fb_ArrayUStrErase FREES THE ARRAY ONLY IF IT IS DYNAMIC. A fixed-length array
+'' lives in its declaring scope's storage, so releasing it here would free
+'' something the allocator never handed out.
+
+#include once "inc/descriptors.ti"
+#include once "inc/ctx.ti"
+#include once "inc/sysbind.ti"
+
+'' --------------------------------------------------------------------- I18N
+
+'' TRUE by default, matching fbc: the flag turns internationalised DATE/TIME
+'' formatting OFF, and a runtime that started with it off would format
+'' differently from every other build until something set it.
+dim shared as long tkort_intl_on = 1
+
+extern "rtlib"
+
+sub tkort_I18nSet alias "fb_I18nSet" ( byval on_off as long )
+	tkort_intl_on = iif( on_off <> 0, 1, 0 )
+end sub
+
+function tkort_I18nGet alias "fb_I18nGet" ( ) as long
+	return tkort_intl_on
+end function
+
+end extern
+
+'' ------------------------------------------------------- ustring array dtors
+
+extern "rtlib"
+	declare function tkrt_ArrayLen alias "fb_ArrayLen" ( byval a as FBARRAY ptr ) as uinteger
+	declare sub tkrt_UStrDelete alias "fb_UStrDelete" ( byval s as FBUSTRING ptr )
+	declare sub tkrt_ArrayErase alias "fb_ArrayErase" ( byval a as FBARRAY ptr )
+end extern
+
+'' NOT FBCALL in fbc either: this is the scope-exit hook the compiler emits a
+'' direct call to.
+extern "c"   '' NON-FBCALL: a compiler-emitted scope-exit hook.
+
+sub tkort_hArrayDtorUStr alias "fb_hArrayDtorUStr" _
+	( byval a as FBARRAY ptr, byval dtor as any ptr, byval keep_idx as uinteger )
+
+	dim as uinteger elements = any
+	dim as FBUSTRING ptr this_ = any
+
+	'' `dtor` is named and unused: a ustring has no user destructor, and the
+	'' signature is shared with the object and string versions.
+	scope : dim as any ptr unused_ = dtor : end scope
+
+	if( a = 0 ) then exit sub
+	'' `base_ptr` is fb_array.h's `ptr`: the LOWEST-BOUND address, which is what
+	'' the element walk must start from. `index_ptr` is the biased pointer the
+	'' generated code indexes through and is NOT the allocation.
+	if( a->base_ptr = 0 ) then exit sub
+
+	elements = tkrt_ArrayLen( a )
+
+	'' dtors run in REVERSE order, as everywhere else in FB
+	this_ = cptr( FBUSTRING ptr, a->base_ptr ) + (elements - 1)
+
+	while( elements > keep_idx )
+		if( this_->data <> 0 ) then tkrt_UStrDelete( this_ )
+		this_ -= 1
+		elements -= 1
+	wend
+end sub
+
+end extern
+
+extern "rtlib"
+
+sub tkort_ArrayDestructUStr alias "fb_ArrayDestructUStr" ( byval a as FBARRAY ptr )
+	tkort_hArrayDtorUStr( a, 0, 0 )
+end sub
+
+sub tkort_ArrayUStrErase alias "fb_ArrayUStrErase" ( byval a as FBARRAY ptr )
+	tkort_ArrayDestructUStr( a )
+
+	'' only free the memory if it is not a fixed-length array
+	if( a <> 0 ) then
+		if( (a->flags and FBARRAY_FLAGS_FIXED_LEN) = 0 ) then tkrt_ArrayErase( a )
+	end if
+end sub
+
+end extern
+
+'' ------------------------------------------------------------------ ENVIRON
+
+extern "c"   '' NON-FBCALL: libc and the internal temp-descriptor helpers.
+	declare function c_getenv alias "getenv" ( byval n as zstring ptr ) as zstring ptr
+	declare function c_strlen alias "strlen" ( byval s as zstring ptr ) as uinteger
+	#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+		'' _putenv, not putenv: MSVCRT spells it with the underscore, and the
+		'' unprefixed name is not exported at all.
+		declare function c_putenv alias "_putenv" ( byval s as zstring ptr ) as long
+	#else
+		declare function c_putenv alias "putenv" ( byval s as zstring ptr ) as long
+	#endif
+	declare function tkrt_StrAllocTempNoLock alias "fb_hStrAllocTemp_NoLock" _
+		( byval s as FBSTRING ptr, byval len_ as integer ) as FBSTRING ptr
+	declare sub tkrt_StrCopy alias "fb_hStrCopy" _
+		( byval dst as zstring ptr, byval src as zstring ptr, byval len_ as integer )
+	declare sub tkrt_StrDelTempNoLock alias "fb_hStrDelTemp_NoLock" ( byval s as FBSTRING ptr )
+	declare sub tkrt_StrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr )
+	declare sub fb_StrLock alias "fb_StrLock" ( )
+	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+end extern
+
+#ifdef ENABLE_MT
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+extern "rtlib"
+
+function tkort_GetEnviron alias "fb_GetEnviron" ( byval varname as FBSTRING ptr ) as FBSTRING ptr
+	dim as FBSTRING ptr dst = any
+	dim as zstring ptr tmp = 0
+	dim as integer len_ = any
+
+	if( varname <> 0 ) then
+		if( varname->data <> 0 ) then tmp = c_getenv( varname->data )
+	end if
+
+	STRLOCK()
+
+	if( tmp <> 0 ) then
+		'' strlen, NOT a hand-rolled loop over tmp[i]: indexing a `zstring ptr`
+		'' yields a one-character STRING EXPRESSION, and the comparison that
+		'' looks like a byte test is a string conversion. The same mistake in
+		'' fs/errmsg.tiko produced a correct LENGTH and NUL contents.
+		len_ = cast( integer, c_strlen( tmp ) )
+
+		dst = tkrt_StrAllocTempNoLock( 0, len_ )
+		if( dst <> 0 ) then
+			tkrt_StrCopy( dst->data, tmp, len_ )
+		else
+			dst = TKORT_NULLSTR()
+		end if
+	else
+		dst = TKORT_NULLSTR()
+	end if
+
+	'' The ARGUMENT is deleted, not the result: a temp passed in is ours to
+	'' release, and it must happen inside the same lock as the allocation or the
+	'' pool can be handed the slot twice.
+	tkrt_StrDelTempNoLock( varname )
+
+	STRUNLOCK()
+
+	return dst
+end function
+
+function tkort_SetEnviron alias "fb_SetEnviron" ( byval s as FBSTRING ptr ) as long
+	dim as long res = 0
+
+	if( s <> 0 ) then
+		if( s->data <> 0 ) then res = c_putenv( s->data )
+	end if
+
+	tkrt_StrDelTemp( s )
+
+	return res
+end function
+
+end extern
+
+'' ------------------------------------------------- DATE/TIME string parsing
+''
+'' The grammar itself lives in fbc's time_parsedate.o and time_parsetime.o, which
+'' tiko-rt does not own; this member is only the two-part combination and the two
+'' one-part wrappers over it.
+''
+'' EITHER ORDER IS ACCEPTED -- "date time" and "time date" both parse -- and
+'' whatever is left over must be nothing but whitespace, so a trailing token
+'' makes the whole parse fail rather than being ignored.
+
+extern "c"   '' NON-FBCALL: the two grammar halves, declared plain in fb_datetime.h.
+	declare function tkrt_hDateParse alias "fb_hDateParse" _
+		( byval text as zstring ptr, byval text_len as uinteger, _
+		  byval pDay as long ptr, byval pMonth as long ptr, byval pYear as long ptr, _
+		  byval length_ as uinteger ptr ) as long
+	declare function tkrt_hTimeParse alias "fb_hTimeParse" _
+		( byval text as zstring ptr, byval text_len as uinteger, _
+		  byval pHour as long ptr, byval pMinute as long ptr, byval pSecond as long ptr, _
+		  byval length_ as uinteger ptr ) as long
+end extern
+
+private function hIsSpace( byval c as ubyte ) as long
+	'' The C isspace set, spelled out: space, tab, newline, vertical tab, form
+	'' feed, carriage return. NOT the locale's, which would make the parse
+	'' depend on setlocale.
+	if( c = 32 ) then return 1
+	if( (c >= 9) andalso (c <= 13) ) then return 1
+	return 0
+end function
+
+extern "rtlib"
+
+function tkort_DateTimeParse alias "fb_DateTimeParse" _
+	( byval s as FBSTRING ptr, _
+	  byval pDay as long ptr, byval pMonth as long ptr, byval pYear as long ptr, _
+	  byval pHour as long ptr, byval pMinute as long ptr, byval pSecond as long ptr, _
+	  byval want_date as long, byval want_time as long ) as long
+
+	dim as ubyte ptr text = any
+	dim as uinteger text_len = any, length_ = any
+	dim as long result = 0
+
+	if( s = 0 ) then return 0
+
+	text = cptr( ubyte ptr, s->data )
+	text_len = FB_STRSIZE( s )
+
+	if( text = 0 ) then return 0
+
+	if( tkrt_hDateParse( cptr( zstring ptr, text ), text_len, pDay, pMonth, pYear, @length_ ) <> 0 ) then
+		text += length_
+		text_len -= length_
+
+		while( hIsSpace( *text ) <> 0 )
+			text += 1 : text_len -= 1
+		wend
+		if( *text = 44 ) then                        '' an optional comma
+			text += 1 : text_len -= 1
+		end if
+
+		if( tkrt_hTimeParse( cptr( zstring ptr, text ), text_len, pHour, pMinute, pSecond, @length_ ) <> 0 ) then
+			text += length_
+			text_len -= length_
+			result = 1
+		elseif( want_time = 0 ) then
+			result = 1
+		end if
+
+	elseif( tkrt_hTimeParse( cptr( zstring ptr, text ), text_len, pHour, pMinute, pSecond, @length_ ) <> 0 ) then
+		text += length_
+		text_len -= length_
+
+		while( hIsSpace( *text ) <> 0 )
+			text += 1 : text_len -= 1
+		wend
+		if( *text = 44 ) then
+			text += 1 : text_len -= 1
+		end if
+
+		if( tkrt_hDateParse( cptr( zstring ptr, text ), text_len, pDay, pMonth, pYear, @length_ ) <> 0 ) then
+			text += length_
+			text_len -= length_
+			result = 1
+		elseif( want_date = 0 ) then
+			result = 1
+		end if
+	end if
+
+	if( result <> 0 ) then
+		'' whatever is left must be whitespace and nothing else
+		while( *text <> 0 )
+			if( hIsSpace( *text ) = 0 ) then
+				result = 0
+				exit while
+			end if
+			text += 1
+		wend
+	end if
+
+	return result
+end function
+
+function tkort_DateParse alias "fb_DateParse" _
+	( byval s as FBSTRING ptr, byval pDay as long ptr, byval pMonth as long ptr, byval pYear as long ptr ) as long
+	return tkort_DateTimeParse( s, pDay, pMonth, pYear, 0, 0, 0, 1, 0 )
+end function
+
+function tkort_TimeParse alias "fb_TimeParse" _
+	( byval s as FBSTRING ptr, byval pHour as long ptr, byval pMinute as long ptr, byval pSecond as long ptr ) as long
+	return tkort_DateTimeParse( s, 0, 0, 0, pHour, pMinute, pSecond, 0, 1 )
+end function
+
+end extern

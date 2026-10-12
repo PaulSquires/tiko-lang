@@ -1,0 +1,630 @@
+'' volume.tiko -- volumes and free space. Three entry points over one fbc member,
+'' split by platform, and THIS IS THE WORST PORTABILITY SEAM IN THE MODULE.
+''
+'' On Windows "enumerate the drives" means something precise. On Linux there are
+'' no drives -- there are MOUNT POINTS, and enumerating them means reading
+'' /proc/self/mountinfo, which lists dozens of pseudo-filesystems (proc, sysfs,
+'' cgroup, tmpfs, overlays) that nobody asking "what disks are there" wants.
+''
+'' THE POSIX RULE, and it is a judgement call: report mounted filesystems whose
+'' SOURCE IS A DEVICE NODE -- a path starting with "/". That filters the
+'' pseudo-filesystems without hardcoding a list of them. It will occasionally
+'' omit something a caller wanted (a network mount, a tmpfs genuinely used as
+'' storage), and a caller who needs the unfiltered list reads
+'' /proc/self/mountinfo. Returning FS_UNSUPPORTED on POSIX instead was rejected:
+'' "what filesystems are mounted and how full are they" is a real question with
+'' a real answer here, and a documented approximation beats no answer.
+''
+'' SetThreadErrorMode( SEM_FAILCRITICALERRORS ) IS NOT OPTIONAL ON WINDOWS.
+'' Without it, probing a drive with no media -- an empty optical drive, an
+'' unmapped network letter -- pops a SYSTEM MODAL DIALOG. In a console program.
+'' On a machine nobody is sitting at. SetThreadErrorMode rather than
+'' SetErrorMode because the latter is process-global and would silently change
+'' behaviour for every other thread; the old mode is restored either way.
+''
+'' AVAILABLE IS NOT FREE, and a program deciding whether a write will fit must
+'' use AVAILABLE: FreeBytes counts space this caller may not be permitted to
+'' consume, because of a quota on Windows and root's reserved blocks on ext4.
+'' Where there is no quota the two are equal -- which is exactly why the
+'' distinction is invisible on a developer machine and bites in production.
+''
+'' GetVolumePathNameW SUCCEEDS ON A PATH THAT DOES NOT EXIST: it only parses,
+'' and happily reports the volume a missing file WOULD live on. POSIX statvfs
+'' fails with ENOENT in the same situation, so the Windows side checks existence
+'' explicitly or the two platforms would disagree about whether
+'' GetDiskSpace( "C:\nope" ) is an error.
+
+#include once "inc/descriptors.ti"
+#include once "inc/fsdefs.ti"
+#include once "inc/fserror.ti"
+#include once "inc/fspath.ti"
+#include once "inc/sysbind.ti"
+
+extern "rtlib"
+	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as long
+end extern
+
+private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
+	static as FB_UCHAR empty_(0 to 0) = { 0 }
+	if( s = 0 ) then
+		*ptr_ = @empty_(0) : *len_ = 0
+	elseif( s->data = 0 ) then
+		*ptr_ = @empty_(0) : *len_ = 0
+	else
+		*ptr_ = s->data
+		*len_ = FB_USTRSIZE( s )
+	end if
+end sub
+
+#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+
+'' ---------------------------------------------------------- Windows backend
+
+const INVALID_HANDLE_VALUE_    = -1
+const INVALID_FILE_ATTRIBUTES_ = &hFFFFFFFFul
+const MAX_PATH_                = 260
+const SEM_FAILCRITICALERRORS_  = &h0001ul
+const FILE_READ_ATTRIBUTES_    = &h00000080ul
+const FILE_SHARE_READ_         = &h00000001ul
+const FILE_SHARE_WRITE_        = &h00000002ul
+const FILE_SHARE_DELETE_       = &h00000004ul
+const OPEN_EXISTING_           = 3
+const FILE_FLAG_BACKUP_SEMANTICS_ = &h02000000ul
+const FILE_READ_ONLY_VOLUME_      = &h00080000ul
+const FILE_SUPPORTS_REPARSE_POINTS_ = &h00000080ul
+
+'' FileCaseSensitiveInfo is gated behind a high NTDDI_VERSION in the SDK
+'' headers. 23 IS THE VALUE WINDOWS EXPECTS AT RUNTIME and does not depend on
+'' which header gates were open at compile time -- the enumerator's position is
+'' fixed by the OS ABI. A system too old to know it fails the query cleanly,
+'' which is the fallback below.
+const FileCaseSensitiveInfo_ = 23
+const FILE_CS_FLAG_CASE_SENSITIVE_DIR_ = &h00000001ul
+
+extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
+	declare function w_SetThreadErrorMode stdcall alias "SetThreadErrorMode" _
+		( byval mode_ as ulong, byval old as ulong ptr ) as long
+	declare function w_GetFileAttributesW stdcall alias "GetFileAttributesW" ( byval n as wstring ptr ) as ulong
+	declare function w_GetVolumePathNameW stdcall alias "GetVolumePathNameW" _
+		( byval n as wstring ptr, byval buf as wstring ptr, byval cap as ulong ) as long
+	declare function w_GetDiskFreeSpaceExW stdcall alias "GetDiskFreeSpaceExW" _
+		( byval n as wstring ptr, byval avail as ulongint ptr, byval total as ulongint ptr, _
+		  byval freeb as ulongint ptr ) as long
+	declare function w_GetVolumeInformationW stdcall alias "GetVolumeInformationW" _
+		( byval root as wstring ptr, byval name_ as wstring ptr, byval namecap as ulong, _
+		  byval serial as ulong ptr, byval maxcomp as ulong ptr, byval flags as ulong ptr, _
+		  byval fstype as wstring ptr, byval fscap as ulong ) as long
+	declare function w_GetLogicalDriveStringsW stdcall alias "GetLogicalDriveStringsW" _
+		( byval cap as ulong, byval buf as wstring ptr ) as ulong
+	declare function w_CreateFileW stdcall alias "CreateFileW" _
+		( byval n as wstring ptr, byval acc as ulong, byval share as ulong, byval sa as any ptr, _
+		  byval disp as ulong, byval flags as ulong, byval templ as any ptr ) as any ptr
+	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as long
+	declare function w_GetFileInformationByHandleEx stdcall alias "GetFileInformationByHandleEx" _
+		( byval h as any ptr, byval cls as long, byval info as any ptr, byval n as ulong ) as long
+end extern
+
+private function hFsWide( byval p as FBUSTRING ptr ) as wstring ptr
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any
+	dim as FB_UCHAR ptr w = any
+
+	hUArg( p, @s, @len_ )
+	w = malloc( (len_ + 1) * sizeof( FB_UCHAR ) )
+	if( w = 0 ) then return 0
+	if( len_ > 0 ) then memcpy( w, s, len_ * sizeof( FB_UCHAR ) )
+	w[len_] = 0
+	return cptr( wstring ptr, w )
+end function
+
+private function hWLen( byval w as FB_UCHAR ptr ) as long
+	dim as long n = 0
+	while( w[n] <> 0 )
+		n += 1
+	wend
+	return n
+end function
+
+'' Checked with GetFileAttributesW rather than a full stat: the question is only
+'' whether the path resolves at all.
+private function hExistsWide( byval w as wstring ptr ) as long
+	return iif( w_GetFileAttributesW( w ) <> INVALID_FILE_ATTRIBUTES_, 1, 0 )
+end function
+
+private function hPushErrorMode( ) as ulong
+	dim as ulong old = 0
+	w_SetThreadErrorMode( SEM_FAILCRITICALERRORS_, @old )
+	return old
+end function
+
+private sub hPopErrorMode( byval old as ulong )
+	w_SetThreadErrorMode( old, 0 )
+end sub
+
+private sub hCopyField( byval src as FB_UCHAR ptr, byval dst as FB_UCHAR ptr, _
+                        byval cap as long, byval outlen as long ptr )
+	dim as long n = hWLen( src )
+	if( n > cap - 1 ) then n = cap - 1
+	if( n > 0 ) then memcpy( dst, src, n * sizeof( FB_UCHAR ) )
+	*outlen = n
+end sub
+
+'' Fills root/name/fstype/flags for the volume holding `w`. The caller has
+'' already pushed the error mode.
+private function hVolumeInfoWide( byval w as wstring ptr, byval out_ as FB_FSVOLUME ptr ) as long
+	dim as FB_UCHAR root( 0 to MAX_PATH_ + 1 ) = any
+	dim as FB_UCHAR name_( 0 to MAX_PATH_ + 1 ) = any
+	dim as FB_UCHAR fstype( 0 to MAX_PATH_ + 1 ) = any
+	dim as ulong maxcomp = 0, flags = 0, csi = 0
+	dim as any ptr hd = any
+
+	memset( out_, 0, sizeof( FB_FSVOLUME ) )
+
+	'' the same existence requirement as DiskSpace, and for the same
+	'' cross-platform reason
+	if( hExistsWide( w ) = 0 ) then return FB_FS_NOT_FOUND
+
+	if( w_GetVolumePathNameW( w, cptr( wstring ptr, @root(0) ), MAX_PATH_ + 1 ) = 0 ) then
+		return tkrt_FsMapOsError( )
+	end if
+
+	name_(0) = 0
+	fstype(0) = 0
+
+	if( w_GetVolumeInformationW( cptr( wstring ptr, @root(0) ), _
+	        cptr( wstring ptr, @name_(0) ), MAX_PATH_ + 1, 0, _
+	        @maxcomp, @flags, cptr( wstring ptr, @fstype(0) ), MAX_PATH_ + 1 ) = 0 ) then
+		return tkrt_FsMapOsError( )
+	end if
+
+	hCopyField( @root(0), @out_->root(0), FB_FS_MAXPATH, @out_->rootlen )
+
+	'' Name and FsType are EMPTY rather than absent when the platform declines
+	'' to report them, which is common for network shares.
+	hCopyField( @name_(0), @out_->name(0), FB_FS_MAXNAME, @out_->namelen )
+	hCopyField( @fstype(0), @out_->fstype(0), FB_FS_MAXNAME, @out_->fstypelen )
+
+	out_->maxcomp = maxcomp
+
+	if( (flags and FILE_READ_ONLY_VOLUME_) <> 0 ) then out_->flags or= FB_FSVOL_READONLY
+
+	'' CASE SENSITIVITY IS NOT FILE_CASE_SENSITIVE_SEARCH, and using that flag
+	'' is the trap this field exists to avoid. NTFS SETS it -- it describes what
+	'' the FILESYSTEM can do -- but Win32 path resolution is case-INSENSITIVE on
+	'' NTFS regardless, so "a.tmp" and "A.tmp" collide. Reporting the flag would
+	'' tell every caller the opposite of what they will observe.
+	''
+	'' The real answer is PER-DIRECTORY and is FileCaseSensitiveInfo, which is
+	'' what WSL toggles. Windows before 10 1803 does not support the query at
+	'' all; there the answer is simply FALSE, which is the correct Win32
+	'' behaviour on those systems.
+	hd = w_CreateFileW( cptr( wstring ptr, @root(0) ), FILE_READ_ATTRIBUTES_, _
+		FILE_SHARE_READ_ or FILE_SHARE_WRITE_ or FILE_SHARE_DELETE_, _
+		0, OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_, 0 )
+
+	if( cast( integer, hd ) <> INVALID_HANDLE_VALUE_ ) then
+		csi = 0
+		if( w_GetFileInformationByHandleEx( hd, FileCaseSensitiveInfo_, @csi, sizeof( ulong ) ) <> 0 ) then
+			if( (csi and FILE_CS_FLAG_CASE_SENSITIVE_DIR_) <> 0 ) then out_->flags or= FB_FSVOL_CASESENS
+		end if
+		w_CloseHandle( hd )
+	end if
+
+	if( (flags and FILE_SUPPORTS_REPARSE_POINTS_) <> 0 ) then out_->flags or= FB_FSVOL_LINKS
+
+	return FB_FS_OK
+end function
+
+extern "rtlib"
+
+function tkort_UStrFsDiskSpace alias "fb_UStrFsDiskSpace" _
+	( byval p as FBUSTRING ptr, byval out_ as FB_FSSPACE ptr ) as long
+
+	dim as wstring ptr w = any
+	dim as FB_UCHAR root( 0 to MAX_PATH_ + 1 ) = any
+	dim as ulongint avail = any, total = any, freeb = any
+	dim as ulong old = any
+	dim as long r = FB_FS_OK
+
+	memset( out_, 0, sizeof( FB_FSSPACE ) )
+
+	w = hFsWide( p )
+	if( w = 0 ) then return FB_FS_UNKNOWN
+
+	old = hPushErrorMode( )
+
+	if( hExistsWide( w ) = 0 ) then
+		r = FB_FS_NOT_FOUND
+	elseif( w_GetVolumePathNameW( w, cptr( wstring ptr, @root(0) ), MAX_PATH_ + 1 ) = 0 ) then
+		r = tkrt_FsMapOsError( )
+	elseif( w_GetDiskFreeSpaceExW( cptr( wstring ptr, @root(0) ), @avail, @total, @freeb ) = 0 ) then
+		r = tkrt_FsMapOsError( )
+	else
+		out_->total     = total
+		out_->freebytes = freeb
+		out_->avail     = avail
+	end if
+
+	hPopErrorMode( old )
+	free( w )
+	return r
+end function
+
+function tkort_UStrFsVolumeInfo alias "fb_UStrFsVolumeInfo" _
+	( byval p as FBUSTRING ptr, byval out_ as FB_FSVOLUME ptr ) as long
+
+	dim as wstring ptr w = any
+	dim as ulong old = any
+	dim as long r = any
+
+	w = hFsWide( p )
+	if( w = 0 ) then return FB_FS_UNKNOWN
+
+	old = hPushErrorMode( )
+	r = hVolumeInfoWide( w, out_ )
+	hPopErrorMode( old )
+
+	free( w )
+	return r
+end function
+
+'' Index-based cursor, so the FB layer can loop without the C side allocating.
+''
+'' ONLY DRIVES THAT ACTUALLY ANSWER ARE COUNTED. An empty optical drive or an
+'' unmapped network letter appears in GetLogicalDriveStringsW but fails
+'' GetVolumeInformationW, and reporting it would give a caller a volume it cannot
+'' use. Re-walking the list per index is quadratic over at most 26 drives, which
+'' is not worth caching away.
+function tkort_FsVolumeEnum alias "fb_FsVolumeEnum" _
+	( byval index_ as long, byval out_ as FB_FSVOLUME ptr ) as long
+
+	dim as FB_UCHAR drives( 0 to 511 ) = any
+	dim as ulong n = any, old = any
+	dim as FB_UCHAR ptr d = any
+	dim as long seen = 0, r = FB_FS_EXHAUSTED
+	dim as FB_FSVOLUME tmp = any
+
+	old = hPushErrorMode( )
+
+	n = w_GetLogicalDriveStringsW( 511, cptr( wstring ptr, @drives(0) ) )
+	if( (n = 0) orelse (n > 511) ) then
+		hPopErrorMode( old )
+		return iif( n = 0, tkrt_FsMapOsError( ), FB_FS_UNKNOWN )
+	end if
+
+	'' the buffer is a run of NUL-terminated strings ending in a double NUL
+	d = @drives(0)
+	while( *d <> 0 )
+		if( hVolumeInfoWide( cptr( wstring ptr, d ), @tmp ) = FB_FS_OK ) then
+			if( seen = index_ ) then
+				*out_ = tmp
+				r = FB_FS_OK
+				exit while
+			end if
+			seen += 1
+		end if
+		d += hWLen( d ) + 1
+	wend
+
+	hPopErrorMode( old )
+	return r
+end function
+
+end extern
+
+#else
+
+'' ------------------------------------------------------------ POSIX backend
+
+const ST_RDONLY_ = 1
+
+'' struct statvfs on linux-x86_64: f_bsize 0, f_frsize 8, f_blocks 16,
+'' f_bfree 24, f_bavail 32, f_files 40, f_ffree 48, f_favail 56, f_fsid 64,
+'' f_flag 72, f_namemax 80. All unsigned long.
+const STATVFS_SIZE_     = 112
+const STATVFS_BSIZE_    = 0
+const STATVFS_FRSIZE_   = 8
+const STATVFS_BLOCKS_   = 16
+const STATVFS_BFREE_    = 24
+const STATVFS_BAVAIL_   = 32
+const STATVFS_FLAG_     = 72
+const STATVFS_NAMEMAX_  = 80
+
+const MOUNTINFO_LINE = 4096
+
+type statvfs_
+	as ubyte raw( 0 to STATVFS_SIZE_ - 1 )
+end type
+
+extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
+	declare function u_statvfs alias "statvfs" ( byval p as zstring ptr, byval st as statvfs_ ptr ) as long
+	declare function u_realpath alias "realpath" ( byval p as zstring ptr, byval resolved as zstring ptr ) as zstring ptr
+	declare function u_fopen alias "fopen" ( byval p as zstring ptr, byval mode_ as zstring ptr ) as any ptr
+	declare function u_fgets alias "fgets" ( byval buf as zstring ptr, byval n as long, byval f as any ptr ) as zstring ptr
+	declare function u_fclose alias "fclose" ( byval f as any ptr ) as long
+	declare function u_strlen alias "strlen" ( byval s as zstring ptr ) as uinteger
+	declare function u_strncmp alias "strncmp" ( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as long
+	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
+		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
+	declare function u_utf8to16 alias "fb_hUtf8ToUtf16" _
+		( byval src as zstring ptr, byval bytes as integer, byval dst as FB_UCHAR ptr, byval cap as integer ) as integer
+end extern
+
+private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
+	dim as FB_UCHAR ptr s = any
+	dim as integer len_ = any, cap = any, n = any
+	dim as zstring ptr b = any
+
+	hUArg( p, @s, @len_ )
+	cap = len_ * 3 + 1
+	b = malloc( cap )
+	if( b = 0 ) then return 0
+	n = u_utf16to8( s, len_, b, cap - 1 )
+	if( n < 0 ) then n = 0
+	b[n] = 0
+	return b
+end function
+
+'' Copy a narrow string into one of FB_FSVOLUME's UTF-16 fields.
+private function hSetField( byval src as zstring ptr, byval dst as FB_UCHAR ptr, byval cap as long ) as long
+	dim as integer n = any
+
+	if( src = 0 ) then return 0
+	if( src[0] = 0 ) then return 0
+
+	n = u_utf8to16( src, cast( integer, u_strlen( src ) ), dst, cap - 1 )
+	if( n < 0 ) then n = 0
+	return n
+end function
+
+'' One parsed line of /proc/self/mountinfo.
+''
+'' The format is: id parent major:minor root mountpoint options
+'' [optional fields...] "-" fstype source superoptions
+''
+'' The optional-field run is VARIABLE LENGTH and terminated by a literal "-",
+'' which is why this scans for the separator rather than counting fields.
+private function hParseMountInfo( byval ln as zstring ptr, byval mountpoint as zstring ptr ptr, _
+                                  byval fstype as zstring ptr ptr, byval source as zstring ptr ptr ) as long
+	dim as zstring ptr p = ln, tok = any
+	dim as long fld = 0
+
+	*mountpoint = 0
+	*fstype = 0
+	*source = 0
+
+	do
+		while( *p = 32 )
+			p += 1
+		wend
+		if( *p = 0 ) then exit do
+
+		tok = p
+		while( (*p <> 0) andalso (*p <> 32) andalso (*p <> 10) )
+			p += 1
+		wend
+		if( *p <> 0 ) then
+			*p = 0
+			p += 1
+		end if
+
+		fld += 1
+
+		if( fld = 5 ) then *mountpoint = tok
+
+		if( (fld >= 7) andalso (tok[0] = 45) andalso (tok[1] = 0) ) then    '' '-'
+			'' fstype and source are the next two
+			while( *p = 32 )
+				p += 1
+			wend
+			tok = p
+			while( (*p <> 0) andalso (*p <> 32) andalso (*p <> 10) )
+				p += 1
+			wend
+			if( *p <> 0 ) then
+				*p = 0
+				p += 1
+			end if
+			*fstype = tok
+
+			while( *p = 32 )
+				p += 1
+			wend
+			tok = p
+			while( (*p <> 0) andalso (*p <> 32) andalso (*p <> 10) )
+				p += 1
+			wend
+			if( *p <> 0 ) then
+				*p = 0
+				p += 1
+			end if
+			*source = tok
+
+			exit do
+		end if
+	loop
+
+	if( *mountpoint = 0 ) then return 0
+	if( *fstype = 0 ) then return 0
+	if( *source = 0 ) then return 0
+	return 1
+end function
+
+'' Is this a real block-device-backed filesystem, or a pseudo one?
+private function hIsRealMount( byval source as zstring ptr ) as long
+	if( source = 0 ) then return 0
+	return iif( source[0] = 47, 1, 0 )
+end function
+
+private sub hFillVolume( byval mountpoint as zstring ptr, byval fstype as zstring ptr, _
+                         byval out_ as FB_FSVOLUME ptr )
+	dim as statvfs_ st = any
+
+	memset( out_, 0, sizeof( FB_FSVOLUME ) )
+
+	out_->rootlen   = hSetField( mountpoint, @out_->root(0), FB_FS_MAXPATH )
+	out_->fstypelen = hSetField( fstype, @out_->fstype(0), FB_FS_MAXNAME )
+
+	'' There is no portable volume LABEL on Linux -- it lives in
+	'' filesystem-specific superblock fields that reading would mean linking
+	'' blkid. Reported EMPTY, which the contract already allows.
+	out_->namelen = 0
+
+	if( u_statvfs( mountpoint, @st ) = 0 ) then
+		out_->maxcomp = cast( ulong, *cptr( ulongint ptr, @st.raw(STATVFS_NAMEMAX_) ) )
+		if( (*cptr( ulongint ptr, @st.raw(STATVFS_FLAG_) ) and ST_RDONLY_) <> 0 ) then
+			out_->flags or= FB_FSVOL_READONLY
+		end if
+	end if
+
+	'' POSIX filesystems are case-sensitive except for the ones that are not,
+	'' and there is no portable probe -- so this reports the common truth and a
+	'' caller who must be sure does an actual create-and-test.
+	out_->flags or= FB_FSVOL_CASESENS
+
+	'' BEST EFFORT, and asymmetric on purpose: a FALSE here is reliable, a TRUE
+	'' is not a guarantee. The FAT family and ISO 9660 genuinely cannot hold a
+	'' symlink; everything else is assumed able, and a caller that is wrong
+	'' finds out from CreateSymlink's FS_UNSUPPORTED.
+	if( (u_strncmp( fstype, @"vfat", 4 ) <> 0) andalso _
+	    (u_strncmp( fstype, @"msdos", 5 ) <> 0) andalso _
+	    (u_strncmp( fstype, @"exfat", 5 ) <> 0) andalso _
+	    (u_strncmp( fstype, @"iso9660", 7 ) <> 0) ) then
+		out_->flags or= FB_FSVOL_LINKS
+	end if
+end sub
+
+extern "rtlib"
+
+function tkort_UStrFsDiskSpace alias "fb_UStrFsDiskSpace" _
+	( byval p as FBUSTRING ptr, byval out_ as FB_FSSPACE ptr ) as long
+
+	dim as zstring ptr path_ = any
+	dim as statvfs_ st = any
+	dim as ulongint unit = any
+	dim as long r = FB_FS_OK
+
+	memset( out_, 0, sizeof( FB_FSSPACE ) )
+
+	path_ = hFsNarrow( p )
+	if( path_ = 0 ) then return FB_FS_UNKNOWN
+
+	if( u_statvfs( path_, @st ) <> 0 ) then
+		r = tkrt_FsMapOsError( )
+	else
+		'' f_frsize, not f_bsize: the former is the fragment size the block
+		'' counts are expressed in, and the two differ on real filesystems.
+		unit = *cptr( ulongint ptr, @st.raw(STATVFS_FRSIZE_) )
+		if( unit = 0 ) then unit = *cptr( ulongint ptr, @st.raw(STATVFS_BSIZE_) )
+
+		out_->total     = *cptr( ulongint ptr, @st.raw(STATVFS_BLOCKS_) ) * unit
+		out_->freebytes = *cptr( ulongint ptr, @st.raw(STATVFS_BFREE_) ) * unit
+
+		'' f_bavail, not f_bfree -- see the file header.
+		out_->avail     = *cptr( ulongint ptr, @st.raw(STATVFS_BAVAIL_) ) * unit
+	end if
+
+	free( path_ )
+	return r
+end function
+
+'' The mount point holding `path`: the longest mountinfo mount point that is a
+'' prefix of it. Windows gets this from GetVolumePathNameW; here it has to be
+'' worked out, because statvfs reports the filesystem but not where it is
+'' attached.
+function tkort_UStrFsVolumeInfo alias "fb_UStrFsVolumeInfo" _
+	( byval p as FBUSTRING ptr, byval out_ as FB_FSVOLUME ptr ) as long
+
+	dim as zstring ptr path_ = any, res = any, mp = any, fs = any, src = any
+	dim as any ptr f = any
+	dim as zstring * MOUNTINFO_LINE ln = any
+	dim as zstring * MOUNTINFO_LINE bestmp = any
+	dim as zstring * 256 bestfs = any
+	dim as uinteger bestlen = 0, mplen = any
+	dim as long found = 0, e = any, i = any
+
+	memset( out_, 0, sizeof( FB_FSVOLUME ) )
+
+	path_ = hFsNarrow( p )
+	if( path_ = 0 ) then return FB_FS_UNKNOWN
+
+	'' resolve first, so a path reached through a symlink is attributed to the
+	'' volume it really lives on
+	res = u_realpath( path_, 0 )
+	if( res = 0 ) then
+		e = tkrt_FsMapOsError( )
+		free( path_ )
+		return e
+	end if
+
+	free( path_ )
+
+	f = u_fopen( @"/proc/self/mountinfo", @"r" )
+	if( f = 0 ) then
+		free( res )
+		return FB_FS_UNSUPPORTED
+	end if
+
+	while( u_fgets( @ln, MOUNTINFO_LINE, f ) <> 0 )
+		if( hParseMountInfo( @ln, @mp, @fs, @src ) = 0 ) then continue while
+
+		mplen = u_strlen( mp )
+
+		if( u_strncmp( res, mp, mplen ) <> 0 ) then continue while
+
+		'' a prefix must end on a component boundary: "/var" must not match
+		'' "/vary"
+		if( mplen > 1 ) then
+			if( (res[mplen] <> 0) andalso (res[mplen] <> 47) ) then continue while
+		end if
+
+		if( mplen >= bestlen ) then
+			bestlen = mplen
+			bestmp = *mp
+			bestfs = *fs
+			found = 1
+		end if
+	wend
+
+	u_fclose( f )
+	free( res )
+
+	if( found = 0 ) then return FB_FS_NOT_FOUND
+
+	hFillVolume( @bestmp, @bestfs, out_ )
+	return FB_FS_OK
+end function
+
+function tkort_FsVolumeEnum alias "fb_FsVolumeEnum" _
+	( byval index_ as long, byval out_ as FB_FSVOLUME ptr ) as long
+
+	dim as any ptr f = any
+	dim as zstring * MOUNTINFO_LINE ln = any
+	dim as zstring ptr mp = any, fs = any, src = any
+	dim as long seen = 0, r = FB_FS_EXHAUSTED
+
+	f = u_fopen( @"/proc/self/mountinfo", @"r" )
+	if( f = 0 ) then return FB_FS_UNSUPPORTED
+
+	while( u_fgets( @ln, MOUNTINFO_LINE, f ) <> 0 )
+		if( hParseMountInfo( @ln, @mp, @fs, @src ) = 0 ) then continue while
+
+		'' the pseudo-filesystem filter
+		if( hIsRealMount( src ) = 0 ) then continue while
+
+		if( seen = index_ ) then
+			hFillVolume( mp, fs, out_ )
+			r = FB_FS_OK
+			exit while
+		end if
+
+		seen += 1
+	wend
+
+	u_fclose( f )
+	return r
+end function
+
+end extern
+
+#endif

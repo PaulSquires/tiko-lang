@@ -231,7 +231,7 @@ BEGIN {
     printf "           (%.1f s of --check; %d diagnostics -- tiko rejects part of the corpus)\n", fes, feerr
     a = astb / astt
     printf "AST        %8.2f bytes/token                    budget <= 40       %s\n", a, verdict(a,40,0)
-    printf "\nself-compile: %d modules, %.2f MB of .bas, %.2f MB read\n", selfn, mb(selfb), mb(selfread)
+    printf "\nself-compile: %d modules, %.2f MB of .tiko, %.2f MB read\n", selfn, mb(selfb), mb(selfread)
     printf "  parse    %8.2f s\n", selfpar
     printf "  frontend %8.2f s                              budget <= 10 s     %s\n", selffe/1000.0, verdict(selffe/1000.0,10,0)
     printf "  AST      %8.2f bytes/token                    budget <= 40       %s\n", selfastb/selfastt, verdict(selfastb/selfastt,40,0)

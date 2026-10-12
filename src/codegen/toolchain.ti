@@ -1,0 +1,117 @@
+'' toolchain.ti -- running clang and the linker.
+''
+'' docs/plan/10 section 5. tiko-lang emits textual LLVM IR and hands it to a real clang;
+'' this is the only file that knows how either external tool is spelled.
+''
+'' WHY AN EXTERNAL CLANG AT ALL is decision D1: emitting IR and shelling out costs a
+'' process per translation unit and buys a code generator, an optimiser and every
+'' target LLVM supports, none of which this project could write. The cost is that the
+'' toolchain must be FOUND, and that a missing one is a diagnostic rather than a crash.
+
+#ifndef __TKO_TOOLCHAIN_BI__
+#define __TKO_TOOLCHAIN_BI__
+
+#include once "tko.ti"
+#include once "codegen/target.ti"
+#include once "support/spawn.ti"
+
+namespace Tko.Codegen
+
+    type ToolPaths
+        as string clangExe
+        '' THE ARCHIVER, for '-lib'. Taken from clang's own directory rather than
+        '' searched for: llvm-ar ships beside clang, and a stray 'ar' off PATH is as
+        '' likely to be a foreign toolchain's as the matching one -- the same
+        '' reasoning FindTools already applies to clang itself.
+        as string arExe
+        '' THE RESOURCE COMPILER, for a '.rc' input. llvm-rc, beside clang, for the
+        '' same reason as llvm-ar -- and because it keeps the toolchain to the one
+        '' external install it already documents. fbc reaches for GoRC.exe out of
+        '' its own bin/, which is a tool tiko does not ship and has no claim on.
+        as string rcExe
+        '' Where libfb lives, IN SEARCH ORDER. A list, not one path: a runtime may be
+        '' partial and resolve the rest from one behind it.
+        as containers.Array( of string ) libPaths
+        '' THE USER'S LIBRARIES, in order, emitted as -l<name>. '-l' put them in a
+        '' list that nothing read until 2026-09-06, so 'tiko -l foo prog.bas' left
+        '' foo out of the link and said nothing; '#inclib' was discarded by the
+        '' preprocessor for the same span. Both arrive here now.
+        as containers.Array( of string ) libs
+        '' '#foreignlib' results: exact paths, named as files. Kept apart from
+        '' 'libs' because those go through '-l' and these deliberately do not.
+        as containers.Array( of string ) libFiles
+        '' Strip the symbol table at the link. True unless '-g' was given, which is
+        '' fbc's own rule and the first thing '-g' has ever done here: it was parsed
+        '' into a field nothing read.
+        as boolean stripSymbols
+        '' '-mt': link libfbmt.a rather than libfb.a. Both are built and both have
+        '' always shipped; nothing named the second one until 2026-09-07, so '-mt'
+        '' selected the single-threaded runtime in silence.
+        as boolean threadSafe
+        '' '-s gui': link the executable for the WINDOWS subsystem rather than the console
+        '' one. Ignored for a DLL and off Windows, where there is no subsystem to pick.
+        as boolean guiSubsystem
+        '' '-O<n>': handed to clang when the IR is compiled. It was parsed into DriverOptions
+        '' and read by nothing, so '-O2' produced a byte-identical executable to '-O0' --
+        '' measured over the whole of tiko-lang. 0 passes no flag at all.
+        as long optLevel
+        '' Build a DLL rather than an executable, and where to write the import
+        '' library that goes with it.
+        as boolean buildDll
+        as string  implibPath
+        '' '-pic': -fPIC on an ELF target without a '-dll' (CompileIr).
+        as boolean pic
+        '' '-v': print every tool command before running it, which '--help' has always
+        '' said '-v' does and which it did not.
+        as boolean verbose
+        as boolean found
+        as string why              '' when found is false
+    end type
+
+    '' In order: an explicit option, the environment, then the conventional places.
+    '' docs/plan/12 section 4 gives the same order for every external tool, so that
+    '' one override works the same way everywhere.
+    declare function FindTools _
+        ( byref clangOpt as string, byref libOpt as containers.Array( of string ) ) as ToolPaths
+
+    '' A RESOURCE SCRIPT TO A '.res'. Windows only: there is no such thing to link
+    '' into an ELF binary, and a '.rc' passed with a Linux target is a mistake worth
+    '' reporting rather than a file to ignore.
+    declare function CompileRc _
+        ( byref t as ToolPaths, byref rcPath as string, _
+          byref resPath as string ) as long
+
+    '' OBJECTS TO A STATIC LIBRARY -- fbc's '-lib'. No link runs: an archive is not
+    '' linked, it is collected, and every unresolved symbol in it stays unresolved
+    '' until something links against it.
+    declare function ArchiveLib _
+        ( byref t as ToolPaths, byref objs as Tko.StrVec, _
+          byref outPath as string ) as long
+
+    '' '.ll' to '.o'. Returns the process exit code; 0 is success.
+    declare function CompileIr _
+        ( byref t as ToolPaths, byref target as TargetDescription, _
+          byref irPath as string, byref objPath as string, _
+          byval keepTemps as boolean ) as long
+    '' CompileIr's command, started and not waited for: the caller waits (Spawn.Wait), then
+    '' deletes the '.ll' and checks the object.
+    declare function StartCompileIr _
+        ( byref t as ToolPaths, byref target as TargetDescription, _
+          byref irPath as string, byref objPath as string ) as Tko.Spawn.Proc
+
+    '' '.ll' to '.s' -- '--emit-asm'. The same compile, 'clang -S' in place of '-c'.
+    declare function CompileIrAsm _
+        ( byref t as ToolPaths, byref target as TargetDescription, _
+          byref irPath as string, byref asmPath as string, _
+          byval keepTemps as boolean ) as long
+
+    '' ObjectS to an executable -- plural, and it always was in this comment.
+    '' It took ONE path until 2026-09-04, which is why a program could never be
+    '' built from more than one module.
+    declare function LinkExe _
+        ( byref t as ToolPaths, byref target as TargetDescription, _
+          byref objs as Tko.StrVec, byref outPath as string ) as long
+
+end namespace
+
+#endif

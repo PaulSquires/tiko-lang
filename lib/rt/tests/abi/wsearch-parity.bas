@@ -6,7 +6,7 @@
 '' loop decrements its index with no lower bound and reads memory IN FRONT of the
 '' buffer; tiko-rt reproduces the ANSWER without performing the read, by treating
 '' a negative index as a non-match. The two agree here, which is what the
-'' divergence note in src/strw/trimex.bas claims and what this pins.
+'' divergence note in src/strw/trimex.tiko claims and what this pins.
 ''
 '' Also pinned: INSTRREVW has THREE clamps, not two. A start past the END of the
 '' source becomes 0 -- search nothing -- while a start merely past the last

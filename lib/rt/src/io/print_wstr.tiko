@@ -1,0 +1,136 @@
+'' print_wstr.tiko -- the wide PRINT family: six entry points over three fbc
+'' members.
+''
+'' The same shape as src/io/print.tiko at wide width, with ONE REAL DIFFERENCE
+'' that is easy to miss and impossible to share:
+''
+''   THE WRAP THRESHOLD IS NOT THE SAME. The narrow pad starts a new line when
+''   the next tab stop would exceed the handle's WIDTH; the wide one when it
+''   would exceed WIDTH - FB_TAB_WIDTH. Everything either side of that test --
+''   the tab-stop arithmetic, the newline-instead-of-spaces rule, the width of 0
+''   meaning "no limit" -- is identical, which is exactly what makes the
+''   difference easy to lose in a shared helper.
+''
+'' Reproduced as fbc has it. A wstring PRINT therefore wraps one tab stop earlier
+'' than a string PRINT on the same handle.
+
+#include once "inc/descriptors.ti"
+#include once "inc/file.ti"
+#include once "inc/print.ti"
+#include once "inc/wstr.ti"
+
+#ifdef ENABLE_MT
+	extern "rtlib"
+		declare sub fb_Lock alias "fb_Lock" ( )
+		declare sub fb_Unlock alias "fb_Unlock" ( )
+	end extern
+	#define IOLOCK()   fb_Lock()
+	#define IOUNLOCK() fb_Unlock()
+#else
+	#define IOLOCK()
+	#define IOUNLOCK()
+#endif
+
+extern "c"   '' NON-FBCALL: the wide device-layer writer and its initialiser.
+	declare function tkrt_PrintBufferWstrEx alias "fb_hFilePrintBufferWstrEx" _
+		( byval h as FB_FILE ptr, byval s as wstring ptr, byval length as uinteger ) as long
+	declare sub tkrt_DevScrnInitWriteWstr alias "fb_DevScrnInit_WriteWstr" ( )
+end extern
+
+
+extern "c"   '' NON-FBCALL: the handle-taking forms, per fb_print.h.
+
+declare sub tkort_PrintPadWstrEx alias "fb_PrintPadWstrEx" _
+	( byval h as FB_FILE ptr, byval mask as long )
+declare sub tkort_PrintVoidWstrEx alias "fb_PrintVoidWstrEx" _
+	( byval h as FB_FILE ptr, byval mask as long )
+
+private sub hPrintWstrEx _
+	( byval h as FB_FILE ptr, byval s as wstring ptr, byval length as uinteger, byval mask as long )
+	'' One lock round both, for the reason src/io/print.tiko gives.
+	IOLOCK()
+	if( length <> 0 ) then tkrt_PrintBufferWstrEx( h, s, length )
+	tkort_PrintVoidWstrEx( h, mask )
+	IOUNLOCK()
+end sub
+
+sub tkort_PrintWstrEx alias "fb_PrintWstrEx" _
+	( byval h as FB_FILE ptr, byval s as wstring ptr, byval mask as long )
+	if( s = 0 ) then
+		tkort_PrintVoidWstrEx( h, mask )
+	else
+		hPrintWstrEx( h, s, FB_WSTR_LEN( s ), mask )
+	end if
+end sub
+
+sub tkort_PrintVoidWstrEx alias "fb_PrintVoidWstrEx" _
+	( byval h as FB_FILE ptr, byval mask as long )
+	if( (mask and FB_PRINT_BIN_NEWLINE) <> 0 ) then
+		tkrt_PrintBufferWstrEx( h, TKORT_WBIN_NEWLINE, TKORT_WBIN_NEWLINE_LEN )
+	elseif( (mask and FB_PRINT_NEWLINE) <> 0 ) then
+		tkrt_PrintBufferWstrEx( h, TKORT_WNEWLINE, TKORT_WNEWLINE_LEN )
+	elseif( (mask and FB_PRINT_PAD) <> 0 ) then
+		tkort_PrintPadWstrEx( h, mask and (not FB_PRINT_HLMASK) )
+	end if
+end sub
+
+private sub hPadWstrTo _
+	( byval h as FB_FILE ptr, byval current_x as long, byval new_x as long )
+
+	if( new_x <= current_x ) then
+		tkrt_PrintBufferWstrEx( h, TKORT_WNEWLINE, TKORT_WNEWLINE_LEN )
+	else
+		dim as wstring * (FB_TAB_WIDTH + 1) spaces
+		dim as integer count = new_x - current_x
+		'' Filled per character, not memset: a wide unit is 2 or 4 bytes.
+		for i as integer = 0 to count - 1
+			spaces[i] = 32
+		next
+		spaces[count] = 0
+		tkrt_PrintBufferWstrEx( h, @spaces, count )
+	end if
+
+end sub
+
+sub tkort_PrintPadWstrEx alias "fb_PrintPadWstrEx" _
+	( byval h as FB_FILE ptr, byval mask as long )
+
+	tkrt_DevScrnInitWriteWstr( )
+
+	dim as FB_FILE ptr t = tkort_HandleDeref( h )
+	if( t = 0 ) then exit sub
+
+	dim as long old_x = cast( long, t->line_length ) + 1
+	dim as long new_x = old_x + FB_TAB_WIDTH - 1
+	new_x = (new_x \ FB_TAB_WIDTH) * FB_TAB_WIDTH + 1
+
+	'' THE ASYMMETRY: width - FB_TAB_WIDTH here, plain width on the narrow side.
+	'' A wstring PRINT wraps one tab stop earlier than a string PRINT on the
+	'' same handle. Reproduced, not harmonised.
+	if( t->width <> 0 ) then
+		dim as long dev_width = cast( long, t->width )
+		if( new_x > (dev_width - FB_TAB_WIDTH) ) then new_x = 1
+	end if
+
+	hPadWstrTo( h, old_x, new_x )
+
+end sub
+
+end extern
+
+extern "rtlib"
+
+sub tkort_PrintWstr alias "fb_PrintWstr" _
+	( byval fnum as long, byval s as wstring ptr, byval mask as long )
+	tkort_PrintWstrEx( TKORT_FILE_TO_HANDLE( fnum ), s, mask )
+end sub
+
+sub tkort_PrintVoidWstr alias "fb_PrintVoidWstr" ( byval fnum as long, byval mask as long )
+	tkort_PrintVoidWstrEx( TKORT_FILE_TO_HANDLE( fnum ), mask )
+end sub
+
+sub tkort_PrintPadWstr alias "fb_PrintPadWstr" ( byval fnum as long, byval mask as long )
+	tkort_PrintPadWstrEx( TKORT_FILE_TO_HANDLE( fnum ), mask )
+end sub
+
+end extern

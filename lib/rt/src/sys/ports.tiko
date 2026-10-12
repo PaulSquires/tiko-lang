@@ -1,0 +1,132 @@
+'' ports.tiko -- fb_hIn and fb_hOut, the INP and OUT statements' back end. Two
+'' symbols, one fbc member (win32/sys_portio.o on win64, unix/sys_portio.o on
+'' linux-x86_64).
+''
+'' LINUX SINCE 2026-09-19 (decision 0015, D15). Until then this file was empty
+'' there and fbc's own member came from lib/linux-x86_64-fb/. The permission
+'' check is here; the two instructions are src/c/portinsn.c -- the measurement
+'' below, that -gen llvm cannot emit them, still stands.
+''
+'' NAMED ports.tiko RATHER THAN portio.bas ON PURPOSE. The build flattens
+'' src/sys/portio.bas to sys_portio.o, which is fbc's OWN member name, and
+'' gate.sh merges by deleting fbc members that collide. On win32 and linux this
+'' file is EMPTY -- so the merge would have deleted fbc's real sys_portio.o and
+'' put an empty object in its place, silently removing fb_hIn and fb_hOut from
+'' the archive on the two targets that still need fbc's versions. build.sh
+'' refuses the collision by name; the rename is the fix.
+''
+'' ---------------------------------------------------------------------------
+'' WIN32 AND LINUX CANNOT BE DONE, AND THIS TIME THAT IS MEASURED RATHER THAN
+'' INHERITED FROM A TABLE.
+''
+'' The hinit.o batch found the "stays in C" classification wrong because the
+'' inline asm it cited was behind a #if arm that no target in R3 compiles. That
+'' made every remaining Class A entry worth re-checking rather than trusting.
+'' sys_portio.o was re-checked the same way, and it comes out the OTHER way:
+''
+''   win32   HOST_X86 is defined, so fb_hIn/fb_hOut really do contain
+''             __asm__ volatile ("inb %1, %0" : "=a" (value) : "d" (port))
+''           and the outb counterpart. The shipped object proves the arm is live
+''           -- it carries the whole driver-installation machinery
+''           (OpenSCManager, CreateService, DeviceIoControl, the 5,632-byte
+''           fbportio.sys blob as `fbportio_driver`), which only exists inside
+''           that same #ifdef.
+''   linux   `#if defined HOST_X86 || defined HOST_X86_64` -- x86-64 satisfies
+''           the second half, so the asm is live there too.
+''   win64   HOST_X86 is NOT defined, so the member falls through to the #else
+''           arm: two one-line stubs that report ILLEGALFUNCTIONCALL. The object
+''           confirms it -- fb_hIn is 0x20 bytes and the ONLY thing it imports
+''           is fb_ErrorSetNum. No driver, no service handles, no blob.
+''
+'' AND -gen llvm REALLY DOES REJECT INLINE ASM. Probed rather than assumed,
+'' because the whole point of re-checking is not to trade one inherited belief
+'' for another:
+''
+''     asmprobe.bas(9) error 374: Inline ASM is not supported by -gen llvm;
+''     compile this module with -gen gas64 or -gen gcc
+''
+'' There is no API alternative to the instruction, either. The driver does not
+'' PERFORM the I/O -- IOCTL_GRANT_IOPM edits the process's I/O permission bitmap
+'' so that a user-mode `inb` stops faulting. The instruction is the mechanism,
+'' not an optimisation of one.
+''
+'' So win32 keeps three symbols in C (fb_hIn, fb_hOut, fbportio_driver) and
+'' linux keeps two. That is the correct answer for those targets, and it is
+'' recorded here so the next re-check reads the measurement instead of repeating
+'' it.
+''
+'' ---------------------------------------------------------------------------
+'' THE win64 STUBS ARE NOT A DEGRADED PORT -- they are what fbc ships. INP and
+'' OUT are unavailable in every 64-bit Windows build of FreeBASIC, and the
+'' program is told so through the normal error path rather than by a crash.
+''
+'' THE SIGNS DIFFER, DELIBERATELY. fb_hIn NEGATES the error number and fb_hOut
+'' does not. fb_hIn's return value is the BYTE READ, so it has no spare
+'' encoding for failure -- a negative result is the out-of-band signal, and 0..255
+'' stays a valid reading. fb_hOut has nothing to return but a status, so the
+'' error number is the result. Copying one line to the other would give INP a
+'' plausible reading of 1 on a machine that cannot do port I/O at all.
+''
+'' NEITHER IS FBCALL. fb_system.h declares both plainly, and fbc's own win32
+'' object names them `_fb_hIn` / `_fb_hOut` -- the C leading underscore with no
+'' @N suffix, which is what settles it.
+
+#include once "inc/rterror.ti"
+
+#if defined( __FB_WIN32__ )
+
+extern "rtlib"   '' FBCALL.
+	declare function tkrt_ErrorSetNum4 alias "fb_ErrorSetNum" ( byval e as long ) as long
+end extern
+
+extern "c"   '' NON-FBCALL: fb_system.h declares both plainly.
+
+function tkort_hIn alias "fb_hIn" ( byval port as ushort ) as long
+	return -tkrt_ErrorSetNum4( FB_RTERROR_ILLEGALFUNCTIONCALL )
+end function
+
+function tkort_hOut alias "fb_hOut" _
+	( byval port as ushort, byval value_ as ubyte ) as long
+	return tkrt_ErrorSetNum4( FB_RTERROR_ILLEGALFUNCTIONCALL )
+end function
+
+end extern
+
+#else
+
+'' LINUX. fbc's unix/sys_portio.c, read for its contract (reading is permitted --
+'' lib/rt/PROVENANCE.md): no permission is NOPRIVILEGES, negated for fb_hIn for
+'' the reason given above; with it, the instruction and FB_RTERROR_OK. has_perm
+'' is set once, in fb_hInit, from ioperm( 0, &h400, 1 ) -- so it is FALSE for any
+'' process that is not root, which is the usual case.
+
+#include once "inc/console.ti"
+
+extern "rtlib"   '' FBCALL.
+	declare function tkrt_ErrorSetNum4 alias "fb_ErrorSetNum" ( byval e as long ) as long
+end extern
+
+extern "c"   '' NON-FBCALL: src/c/portinsn.c, and fb_system.h's two below.
+
+declare function tkort_inb( byval port as ushort ) as ubyte
+declare sub tkort_outb( byval port as ushort, byval value_ as ubyte )
+
+function tkort_hIn alias "fb_hIn" ( byval port as ushort ) as long
+	if( TKORT_CON_L( TKORT_CON_HASPERM ) = 0 ) then
+		return -tkrt_ErrorSetNum4( FB_RTERROR_NOPRIVILEGES )
+	end if
+	return tkort_inb( port )
+end function
+
+function tkort_hOut alias "fb_hOut" _
+	( byval port as ushort, byval value_ as ubyte ) as long
+	if( TKORT_CON_L( TKORT_CON_HASPERM ) = 0 ) then
+		return tkrt_ErrorSetNum4( FB_RTERROR_NOPRIVILEGES )
+	end if
+	tkort_outb( port, value_ )
+	return FB_RTERROR_OK
+end function
+
+end extern
+
+#endif

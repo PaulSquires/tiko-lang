@@ -46,7 +46,7 @@
 '' capacity. They differ only at that boundary, and reproducing a buffer overrun
 '' to match is not worth doing.
 
-#include once "../core/lzw.bi"
+#include once "../core/lzw.ti"
 #include once "crt/string.bi"
 #include once "abtest.bi"
 #ifdef ABTEST_HAS_GFXLIB2

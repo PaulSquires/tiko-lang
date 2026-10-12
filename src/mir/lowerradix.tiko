@@ -1,0 +1,263 @@
+'' lowerradix.tiko -- hex, oct and bin with their wide twins, and space and string.
+''
+'' Split out of lowersub.tiko at the 1500-line cap and INCLUDED from it, inside the same
+'' namespace. The move brought one change with it -- a FLOAT argument, see the width
+'' select in LowerRadixCall_ -- and nothing else.
+
+'' hex / oct / bin / space / string -- the NUMBER-TO-STRING family.
+''
+'' None of these existed, and their absence was SILENT: 'dim as string h = hex( 123 )'
+'' allocated h, called nothing, and reported "0 statements not lowered". Most of
+'' iif.bas's remaining declines were waiting on this one name.
+''
+'' Measured from fbc, and none of it is guessable:
+''
+''   hex( b )          fb_HEX_b( (uint8)B )        FOUR WIDTHS, by the argument's SIZE
+''   hex( sh )         fb_HEX_s( (uint16)SH )
+''   hex( l )          fb_HEX_i( (uint32)L )       LONG is 32-bit, so _i and not _l
+''   hex( q )          fb_HEX_l( (uint64)Q )
+''   hex( l, 4 )       fb_HEXEx_i( (uint32)L, 4 )  a DIFFERENT ENTRY POINT, mixed case
+''   space( n )        fb_SPACE( n )
+''   string( n, 65 )   fb_StrFill1( n, 65 )        a CHARACTER CODE
+''   string( n, "x" )  fb_StrFill2( n, vr )        a DESCRIPTOR -- two entry points
+''
+'' The SIGNED-TO-UNSIGNED CAST is not cosmetic: it is what makes 'hex( -1 )' on a LONG
+'' come out FFFFFFFF rather than sign-extending to sixteen digits. INTEGER is 64-bit on
+'' win64 and 32-bit on win32, so the width is decided from the type's own SIZE here
+'' rather than from its spelling.
+'' 'wantWide' SELECTS WHICH HALF OF THE FAMILY THE CALLER WILL ACCEPT. The narrow
+'' names yield an FBSTRING descriptor and the wide ones a bare uint16*, so a caller in
+'' a wide context must not be handed a descriptor and vice versa -- and both halves are
+'' spelled as an ordinary call, so only the NAME says which this is.
+function LowerRadixCall_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+      byval wantWide as boolean = false ) as boolean
+
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    if (cp->count < 1) orelse (cp->count > 2) then return false
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a1 = Tko.NODE_NONE
+    if cp->count = 2 then a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+
+    '' SPACE and STRING first: their argument is a COUNT, not a value to render, and
+    '' neither takes a width.
+    if nm = "space" then
+        if cp->count <> 1 then return false
+        dim as MirValue n0 = LowerNumArg_( c, a0, MT_I64 )
+        if n0.kind = cast( ubyte, MV_NONE ) then return false
+        dim as containers.Array( of ulong ) sa
+        sa.Push( cast( ulong, n0.kind ) ) : sa.Push( cast( ulong, n0.id ) )
+        outv = EmitRtl( c, RTL_STR_SPACE, sa )
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    '' 'wstring( n, ch )' IS THE WIDE HALF, with its own two entry points -- measured,
+    '' fb_WstrFill1 and fb_WstrFill2, returning a bare uint16* rather than a
+    '' descriptor. Only the narrow name was recognised, so every wide one declined.
+    if (nm = "string") orelse (nm = "wstring") then
+        if cp->count <> 2 then return false
+        dim as boolean fillWide = (nm = "wstring")
+        '' THE FILL FIRST: string( G( 1 ), G( 2 ) + 64 ) and string( G( 1 ), GStr( 2 ) )
+        '' are both 21 to fbc.
+        dim as boolean isStr = (c.ast->Kind( a1 ) = Tko.N_STRING_LIT)
+        if isStr = false then isStr = IsStringType( c, c.info->TypeOf_( a1 ) )
+        '' ...AND A WIDE CONCATENATION IS A WIDE FILL, though Check types every '&' STRING:
+        '' 'wstring( 3, w & "x" )' took the numeric branch and declined -- fbc prints WWW.
+        if fillWide then isStr = IsWideString_( c, c.info->TypeOf_( a1 ) ) orelse ConcatHasWideTerm_( c, a1 )
+        dim as MirValue fv
+        if isStr then
+            if fillWide then
+                if WideOperand_( c, a1, fv ) = false then return false
+            elseif StrDescriptorOf_( c, a1, fv ) = false then
+                return false
+            end if
+        else
+            fv = LowerNumArg_( c, a1, MT_I32 )
+            if fv.kind = cast( ubyte, MV_NONE ) then return false
+        end if
+        dim as MirValue n0 = LowerNumArg_( c, a0, MT_I64 )
+        if n0.kind = cast( ubyte, MV_NONE ) then return false
+        dim as containers.Array( of ulong ) sa
+        sa.Push( cast( ulong, n0.kind ) ) : sa.Push( cast( ulong, n0.id ) )
+        sa.Push( cast( ulong, fv.kind ) ) : sa.Push( cast( ulong, fv.id ) )
+        if isStr then
+            outv = EmitRtl( c, iif( fillWide, RTL_WSTR_FILL2, RTL_STR_FILL2 ), sa )
+        else
+            outv = EmitRtl( c, iif( fillWide, RTL_WSTR_FILL1, RTL_STR_FILL1 ), sa )
+        end if
+        return (outv.kind <> cast( ubyte, MV_NONE ))
+    end if
+
+    '' EACH OF THE THREE HAS A WIDE TWIN, and its runtime name is not the narrow one
+    '' with a letter changed: 'whex( b )' is fb_WstrHex_b, mixed case, where the narrow
+    '' one is the shouted fb_HEX_b. The result is a uint16*, so the callers that want a
+    '' descriptor cannot have one -- which is why the wide family is recognised here
+    '' and its result handed back as the bare pointer it is.
+    dim as long fam = -1
+    dim as boolean wide = false
+    select case nm
+    case "hex" : fam = 0
+    case "oct" : fam = 1
+    case "bin" : fam = 2
+    case "whex" : fam = 0 : wide = true
+    case "woct" : fam = 1 : wide = true
+    case "wbin" : fam = 2 : wide = true
+    case else  : return false
+    end select
+    if wide <> wantWide then return false
+
+    '' THE WIDTH, from the argument's own size. A type tiko-lang cannot size at all would
+    '' otherwise silently become a 64-bit render.
+    dim as Tko.TypeId at = c.info->TypeOf_( a0 )
+    if at = Tko.TYPE_NONE then return false
+    dim as MirType amt = LowerType( at, *c.types )
+    dim as long w = -1
+    select case amt
+    case MT_I8  : w = 0
+    case MT_I16 : w = 1
+    case MT_I32 : w = 2
+    case MT_I64 : w = 3
+    '' A POINTER IS ITS OWN CASE, not a 64-bit integer that happens to be the same
+    '' size: fbc calls fb_HEX_p, which takes the pointer. Without it every
+    '' 'hex( p )' declined -- and inside a CU_ASSERT that took the whole call with it.
+    case MT_PTR : w = 4
+    '' A FLOAT ROUNDS TO AN INTEGER FIRST, at the width fbc picks by its PRECISION --
+    '' measured, fbc's own C:
+    ''
+    ''   hex( d )      fb_HEX_l( fb_D2UL( D ) )           fb_D2UL is (uint64)nearbyint( v )
+    ''   hex( f )      fb_HEX_i( (uint32)fb_F2L( F ) )    fb_F2L is (int64)nearbyintf( v )
+    ''   oct( f, 6 )   fb_OCTEx_i( (uint32)fb_F2L( F ), 6 )
+    ''
+    '' so a DOUBLE is the 64-bit entry point and a SINGLE the 32-bit one, and both round
+    '' halves to even: hex( 2.5 ) is 2, hex( -1.5 ) FFFFFFFFFFFFFFFE, hex( 1e19 )
+    '' 8AC7230489E80000, hex( -1! ) FFFFFFFF, hex( 3e9! ) B2D05E00. Declined before, so
+    '' 'print hex( d )' printed nothing -- and a USING-imported 'hex( double )', which fbc
+    '' hides behind the builtin, lost the call altogether.
+    case MT_F64 : w = 3
+    case MT_F32 : w = 2
+    case else   : return false
+    end select
+
+    '' FIVE widths per family, not four: the POINTER is one of them, so the stride
+    '' changed with it. Leaving it at four made 'hex( p )' collide with 'oct( byte )'.
+    dim as RtlId r = RTL_NONE
+    if wide then
+        if a1 = Tko.NODE_NONE then
+            select case fam * 5 + w
+            case 0 : r = RTL_WHEX_B
+            case 1 : r = RTL_WHEX_S
+            case 2 : r = RTL_WHEX_I
+            case 3 : r = RTL_WHEX_L
+            case 4 : r = RTL_WHEX_P
+            case 5 : r = RTL_WOCT_B
+            case 6 : r = RTL_WOCT_S
+            case 7 : r = RTL_WOCT_I
+            case 8 : r = RTL_WOCT_L
+            case 9 : r = RTL_WOCT_P
+            case 10 : r = RTL_WBIN_B
+            case 11 : r = RTL_WBIN_S
+            case 12 : r = RTL_WBIN_I
+            case 13 : r = RTL_WBIN_L
+            case else : r = RTL_WBIN_P
+            end select
+        else
+            select case fam * 5 + w
+            case 0 : r = RTL_WHEXEX_B
+            case 1 : r = RTL_WHEXEX_S
+            case 2 : r = RTL_WHEXEX_I
+            case 3 : r = RTL_WHEXEX_L
+            case 4 : r = RTL_WHEXEX_P
+            case 5 : r = RTL_WOCTEX_B
+            case 6 : r = RTL_WOCTEX_S
+            case 7 : r = RTL_WOCTEX_I
+            case 8 : r = RTL_WOCTEX_L
+            case 9 : r = RTL_WOCTEX_P
+            case 10 : r = RTL_WBINEX_B
+            case 11 : r = RTL_WBINEX_S
+            case 12 : r = RTL_WBINEX_I
+            case 13 : r = RTL_WBINEX_L
+            case else : r = RTL_WBINEX_P
+            end select
+        end if
+    elseif a1 = Tko.NODE_NONE then
+        select case fam * 5 + w
+        case 0 : r = RTL_HEX_B
+        case 1 : r = RTL_HEX_S
+        case 2 : r = RTL_HEX_I
+        case 3 : r = RTL_HEX_L
+        case 4 : r = RTL_HEX_P
+        case 5 : r = RTL_OCT_B
+        case 6 : r = RTL_OCT_S
+        case 7 : r = RTL_OCT_I
+        case 8 : r = RTL_OCT_L
+        case 9 : r = RTL_OCT_P
+        case 10 : r = RTL_BIN_B
+        case 11 : r = RTL_BIN_S
+        case 12 : r = RTL_BIN_I
+        case 13 : r = RTL_BIN_L
+        case else : r = RTL_BIN_P
+        end select
+    else
+        select case fam * 5 + w
+        case 0 : r = RTL_HEXEX_B
+        case 1 : r = RTL_HEXEX_S
+        case 2 : r = RTL_HEXEX_I
+        case 3 : r = RTL_HEXEX_L
+        case 4 : r = RTL_HEXEX_P
+        case 5 : r = RTL_OCTEX_B
+        case 6 : r = RTL_OCTEX_S
+        case 7 : r = RTL_OCTEX_I
+        case 8 : r = RTL_OCTEX_L
+        case 9 : r = RTL_OCTEX_P
+        case 10 : r = RTL_BINEX_B
+        case 11 : r = RTL_BINEX_S
+        case 12 : r = RTL_BINEX_I
+        case 13 : r = RTL_BINEX_L
+        case else : r = RTL_BINEX_P
+        end select
+    end if
+
+    '' THE DIGIT COUNT FIRST: hex( G( 1 ), G( 2 ) ) is 21 to fbc, oct the same.
+    dim as MirValue n1
+    if a1 <> Tko.NODE_NONE then
+        n1 = LowerNumArg_( c, a1, MT_I32 )
+        if n1.kind = cast( ubyte, MV_NONE ) then return false
+    end if
+    dim as MirValue v0 = LowerExpr( c, a0 )
+    if v0.kind = cast( ubyte, MV_NONE ) then return false
+    if amt = MT_F64 then
+        v0 = Coerce( c, v0, MT_I64, false, true )         '' fb_D2UL, as culngint( d ) is
+    elseif amt = MT_F32 then
+        v0 = Coerce( c, v0, MT_I64 )                      '' fb_F2L ...
+        if v0.kind = cast( ubyte, MV_NONE ) then return false
+        v0 = Coerce( c, v0, MT_I32 )                      '' ... then (uint32)
+    else
+        v0 = Coerce( c, v0, amt, true )
+    end if
+    if v0.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as containers.Array( of ulong ) args
+    args.Push( cast( ulong, v0.kind ) ) : args.Push( cast( ulong, v0.id ) )
+    if a1 <> Tko.NODE_NONE then
+        args.Push( cast( ulong, n1.kind ) ) : args.Push( cast( ulong, n1.id ) )
+    end if
+
+    '' THE WIDE HALF RETURNS AN ALLOCATION THE CALLER OWNS. Measured:
+    '' 's = whex( 42 )' into a narrow string is 'vr = fb_WstrHex_l( 42 );
+    '' fb_WstrAssignToA( &S, -1, vr, 0 ); fb_WstrDelete( vr )', and EmitRtl alone
+    '' dropped the pointer -- so every whex, woct and wbin leaked one temporary.
+    '' The narrow half hands back a temp DESCRIPTOR and is released elsewhere; only
+    '' the wide one goes through here.
+    if wide then return WideConcatStep_( c, args, r, outv )
+
+    outv = EmitRtl( c, r, args )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function

@@ -40,7 +40,7 @@
 '' EVENT is a union, so the bytes outside the active member are whatever the
 '' poster left there and are not part of the contract.
 
-#include once "../core/events.bi"
+#include once "../core/events.ti"
 #include once "abtest.bi"
 #include once "crt/string.bi"
 #ifdef ABTEST_HAS_GFXLIB2

@@ -1,0 +1,200 @@
+'' entry/info.ti -- SCREENINFO, IMAGEINFO, IMAGECONVERTROW.
+''
+'' Derived from: gfx_screeninfo.c (fb_GfxScreenInfo32/64),
+'' gfx_image_info.c (fb_GfxImageInfo32/64), gfx_image_convert.c
+'' (fb_GfxImageConvertRow), win32/gfx_win32.c (fb_hScreenInfo).
+'' LGPL-2.1-or-later with the static-linking exception.
+''
+'' EACH OF THE FIRST TWO IS A PAIR, split on the width of its outputs: `long`
+'' arguments reach the 32 form and `integer` ones the 64 form. Both are here
+'' because tiko's prelude overloads on exactly that, and a program that passes
+'' INTEGERs would otherwise have its 8-byte slots half written.
+''
+'' SCREENINFO WITH NO SCREEN OPEN DESCRIBES THE DESKTOP -- its width, height,
+'' depth and refresh rate, in physical pixels -- with bpp and pitch 0 and an
+'' empty driver name. With one open it describes the screen, and the refresh
+'' rate is still the desktop's: gfxlib2's windowed drivers never set their own.
+''
+'' THE DRIVER NAME IS "GDI", which is what presents the frame here. gfxlib2 on
+'' the same machine answers "Direct2D", the driver it picked; a program that
+'' compares the name against a driver it asked for with SCREENCONTROL
+'' SET_DRIVER_NAME gets the truthful answer rather than an echo.
+
+#pragma once
+
+namespace TkoGfx
+
+const DRIVER_NAME = "GDI"
+
+'' Write `s` into a caller's STRING, gfxlib2's way: fb_hStrDelTemp first, and
+'' the write only when that answers non-zero. A TEMPORARY descriptor -- what fbc
+'' passes for an omitted `driver` argument -- is released and NOT written, since
+'' nothing would ever read it. Anything else is assigned through the runtime,
+'' which owns the string's memory.
+private sub StrOutUnlessTemp( byval dst as any ptr, byref s as string )
+    if dst = 0 then exit sub
+    if RtlStrDelTemp( dst ) = 0 then exit sub
+    dim as zstring * 260 z = left( s, 259 )
+    fb_StrAssign_( dst, -1, @z, 0, 0 )
+end sub
+
+'' SCREENINFO's seven answers, at full width.
+private sub ScreenInfoAll( byref w as integer, byref h as integer, _
+        byref depth as integer, byref bpp as integer, byref pitch as integer, _
+        byref rate as integer, byref drv as string )
+    if TheScreen.isOpen = 0 then
+        dim as long dw, dh, dd, dr
+        DesktopInfo( dw, dh, dd, dr )
+        w = dw : h = dh : depth = dd : rate = dr
+        bpp = 0 : pitch = 0
+        drv = ""
+        exit sub
+    end if
+    w     = TheScreen.present.w
+    h     = TheScreen.present.h
+    depth = TheScreen.depth
+    bpp   = TheScreen.present.bpp
+    pitch = TheScreen.present.pitch
+    rate  = TheScreen.refresh
+    drv   = DRIVER_NAME
+end sub
+
+'' IMAGEINFO's answers at full width. Returns the runtime error.
+''
+'' TWO HEADER FORMS, and the old one is not the new one's first word: a `type`
+'' of 7 is the 32-byte header IMAGECREATE writes; any other non-zero first word
+'' is QB's packed 4-byte header -- bpp in bits 0..2, width in 3..15, height in
+'' 16..31 -- with the pixels right after it and no pitch padding. 0 is not an
+'' image at all, and every output then reads -1 with a null data pointer.
+private function ImageInfoAll( byval img as any ptr, _
+        byref w as integer, byref h as integer, byref bpp as integer, _
+        byref pitch as integer, byref dat as any ptr, byref size as integer ) as long
+
+    dim as TkoAbi.PUT_HEADER ptr hd = img
+    if (hd = 0) orelse (hd->htype = 0) then
+        w = -1 : h = -1 : bpp = -1 : pitch = -1 : size = -1
+        dat = 0
+        return FB_RTERROR_ILLEGALFUNCTIONCALL
+    end if
+
+    dim as integer hsize
+    if hd->htype = TkoAbi.PUT_HEADER_NEW then
+        bpp   = hd->bpp
+        w     = hd->width
+        h     = hd->height
+        pitch = hd->pitch
+        hsize = sizeof( TkoAbi.PUT_HEADER )
+    else
+        bpp   = hd->htype and 7
+        w     = (hd->htype shr 3) and &h1FFF
+        h     = (hd->htype shr 16) and &hFFFF
+        pitch = w * bpp
+        hsize = 4
+    end if
+    dat  = cptr( ubyte ptr, img ) + hsize
+    size = hsize + pitch * h
+    return 0
+end function
+
+end namespace
+
+extern "c"
+
+'' SCREENINFO [w] [, h] [, depth] [, bpp] [, pitch] [, rate] [, driver] -- LONG outputs.
+sub TkoGfxScreenInfo32 alias "fb_GfxScreenInfo32" ( _
+        byval pw as long ptr, byval ph as long ptr, byval pd as long ptr, _
+        byval pb as long ptr, byval pp as long ptr, byval pr as long ptr, _
+        byval driver as any ptr )
+    dim as integer w, h, d, b, p, r
+    dim as string drv
+    TkoGfx.ScreenInfoAll( w, h, d, b, p, r, drv )
+    TkoGfx.StrOutUnlessTemp( driver, drv )
+    *pw = w : *ph = h : *pd = d : *pb = b : *pp = p : *pr = r
+end sub
+
+'' The same with INTEGER outputs.
+sub TkoGfxScreenInfo64 alias "fb_GfxScreenInfo64" ( _
+        byval pw as longint ptr, byval ph as longint ptr, byval pd as longint ptr, _
+        byval pb as longint ptr, byval pp as longint ptr, byval pr as longint ptr, _
+        byval driver as any ptr )
+    dim as integer w, h, d, b, p, r
+    dim as string drv
+    TkoGfx.ScreenInfoAll( w, h, d, b, p, r, drv )
+    TkoGfx.StrOutUnlessTemp( driver, drv )
+    *pw = w : *ph = h : *pd = d : *pb = b : *pp = p : *pr = r
+end sub
+
+'' IMAGEINFO img [, w] [, h] [, bpp] [, pitch] [, pixdata] [, size] -- LONG
+'' outputs. Returns, and sets, the runtime error.
+function TkoGfxImageInfo32 alias "fb_GfxImageInfo32" ( byval img as any ptr, _
+        byval pw as long ptr, byval ph as long ptr, byval pb as long ptr, _
+        byval pp as long ptr, byval pdat as any ptr ptr, byval ps as long ptr ) as long
+    dim as integer w, h, b, p, s
+    dim as any ptr dat
+    dim as long res = TkoGfx.ImageInfoAll( img, w, h, b, p, dat, s )
+    *pw = w : *ph = h : *pb = b : *pp = p : *pdat = dat : *ps = s
+    RtlErrorSetNum( res )
+    return res
+end function
+
+function TkoGfxImageInfo64 alias "fb_GfxImageInfo64" ( byval img as any ptr, _
+        byval pw as longint ptr, byval ph as longint ptr, byval pb as longint ptr, _
+        byval pp as longint ptr, byval pdat as any ptr ptr, byval ps as longint ptr ) as long
+    dim as integer w, h, b, p, s
+    dim as any ptr dat
+    dim as long res = TkoGfx.ImageInfoAll( img, w, h, b, p, dat, s )
+    *pw = w : *ph = h : *pb = b : *pp = p : *pdat = dat : *ps = s
+    RtlErrorSetNum( res )
+    return res
+end function
+
+'' IMAGECONVERTROW src, src_bpp, dst, dst_bpp, width [, isrgb]
+''
+'' The depths are BITS. The DESTINATION's is only read for its byte width, so 24
+'' and 32 both write 32-bit pixels. An 8-bit or smaller source goes through the
+'' SCREEN's palette and colour mask, which gfxlib2 reads without checking for a
+'' screen -- it faults with none open. Here that is a no-op instead. A pair
+'' with no converter (to 8 bits from anything wider, for one) does nothing, as
+'' in the C.
+sub TkoGfxImageConvertRow alias "fb_GfxImageConvertRow" ( _
+        byval src as any ptr, byval src_bpp as long, _
+        byval dst as any ptr, byval dst_bpp as long, _
+        byval w as long, byval isrgb as long )
+
+    dim as long dbytes = (dst_bpp + 7) \ 8
+
+    if src_bpp <= 8 then
+        dim as TkoGfx.GfxPalette ptr pal = TkoGfx.PaletteCurrent( )
+        if pal = 0 then exit sub
+        select case dbytes
+        case 1
+            dim as ulong mask
+            select case TkoGfx.TheScreen.depth
+            case 16    : mask = &hFFFF
+            case 32    : mask = &hFFFFFFFFul
+            case else  : mask = (1 shl TkoGfx.TheScreen.depth) - 1
+            end select
+            TkoGfx.Convert8to8( src, dst, w, mask )
+        case 2
+            TkoGfx.Convert8to16( src, dst, w, *pal )
+        case 3, 4
+            TkoGfx.Convert8to32( src, dst, w, *pal )
+        end select
+    elseif src_bpp = 24 then
+        select case dbytes
+        case 2
+            if isrgb <> 0 then TkoGfx.Convert24to16( src, dst, w ) else TkoGfx.Convert24bgrto16( src, dst, w )
+        case 3, 4
+            if isrgb <> 0 then TkoGfx.Convert24to32( src, dst, w ) else TkoGfx.Convert24bgrto32( src, dst, w )
+        end select
+    elseif src_bpp = 32 then
+        select case dbytes
+        case 2
+            if isrgb <> 0 then TkoGfx.Convert32to16( src, dst, w ) else TkoGfx.Convert32bgrto16( src, dst, w )
+        case 3, 4
+            if isrgb <> 0 then TkoGfx.Convert32to32( src, dst, w ) else TkoGfx.Convert32bgrto32( src, dst, w )
+        end select
+    end if
+end sub
+
+end extern

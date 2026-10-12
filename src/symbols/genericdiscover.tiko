@@ -1,0 +1,86 @@
+'' genericdiscover.tiko -- the DISCOVERY pass over a unit that declares a generic.
+''
+'' Split out of generic.tiko at the 1500-line lint cap and included from it at the same
+'' place, inside namespace Tko.Resolve.
+
+'' Does this unit DECLARE a generic at all? The parser records the token range of every
+'' one it sees and of nothing else shaped like a type, so the table answers it without
+'' a walk -- and the answer decides whether Resolve pays for a second pass.
+'' A UNIT WITH GENERICS IS WALKED TWICE.
+''
+'' Instantiating a generic member re-parses it, and parsing appends to the arena's
+'' payload vectors -- so it can only happen when NO payload pointer is live, which means
+'' with the walk fully unwound. But a member cannot be instantiated after the walk
+'' either: the call site that needs it is IN the walk, and 'a.Put( )' would have bound
+'' to the generic's own member before the instantiation existed.
+''
+'' So: one pass to find out which instantiations the unit asks for, the instantiation
+'' itself with the stack empty, then the real pass, which now sees every instantiated
+'' member. The first pass is DISCOVERY ONLY -- its diagnostics are rolled back, or every
+'' error in a file using a generic would be reported twice. Files with no generic at all
+'' pay nothing: the second walk never happens.
+sub DiscoverInstantiations_ _
+    ( byref c as Ctx, byref ast as Tko.AstArena, byval root as Tko.NodeId, _
+      byref diags as Tko.DiagnosticEngine, byref info as Tko.SemanticInfo )
+
+    if HasGenericDecl_( c ) = false then return
+
+    dim as long dpend = diags.pending.Count
+    dim as long derr = diags.errors
+    dim as long dwarn = diags.warnings
+    dim as long dsupp = diags.suppressedCount
+    dim as long uwalk = c.syms->usingAt.Count
+    WalkStmt( c, root, Tko.SCOPE_GLOBAL )
+    dim as long uinst = c.syms->usingAt.Count
+    '' ...ALL BUT TKO0829. A field chain that is too deep is found HERE, while the outer
+    '' instantiation is made; the real pass then finds it cached and never asks again.
+    dim as Tko.DiagVec deep
+    for i as long = dpend to diags.pending.Count - 1
+        if diags.pending[i].id = Tko.TKO0829 then deep.Push( diags.pending[i] )
+    next
+    while diags.pending.Count > dpend
+        diags.pending.Pop( )
+    wend
+    diags.errors = derr
+    diags.warnings = dwarn
+    diags.suppressedCount = dsupp
+    '' ...AND WHAT REMEMBERS A REPORT IS ROLLED BACK WITH IT. The once-per-node lists
+    '' of resolvertl.tiko and resolvetype.tiko outlived the discovery pass, so the real
+    '' pass took every report as made: in a unit declaring a generic, 'sub Run( )' and
+    '' 'dim b as Box' were reported nowhere.
+    c.rtlSeen.Clear( )
+    c.genArgSeen.Clear( )
+    DeferCrossingReset_( c )
+    for i as long = 0 to deep.Count - 1
+        diags.pending.Push( deep[i] )
+        diags.errors += 1
+        c.genArgSeen.Push( cast( ulong, deep[i].range.first ) )
+    next
+    InstantiatePending_( c )
+    InstantiatePendingProcs_( c )
+    '' ...AND SO ARE THE WALK'S USINGS. A 'using ns' is visible from where it stands because
+    '' the real walk registers it on reaching it; registered here, every one in the unit was
+    '' live from the first statement of the real pass, so 'print Foo( ) : using ns' bound Foo
+    '' (fbc: error 42) -- but only in a unit declaring a generic. Removed AFTER the
+    '' instantiation, which sees them as the real pass's own InstantiatePending_ does; the
+    '' ones an instantiated body registers itself (from uinst on) stay, as it is not walked again.
+    for i as long = uinst - 1 to uwalk step -1
+        c.syms->usingAt.Remove( i )
+        c.syms->usingInner.Remove( i )
+    next
+    info.Resize( ast.Count( ) )
+end sub
+
+function HasGenericDecl_( byref c as Ctx ) as boolean
+    for i as long = 0 to c.ast->tokenRanges.Count - 3 step 3
+        dim as Tko.NodeId n = cast( Tko.NodeId, c.ast->tokenRanges[i] )
+        if c.ast->Kind( n ) = Tko.N_TYPE then return true
+        '' A GENERIC PROCEDURE counts too, and it need not be inside a generic type --
+        '' 'function Ok( of T, E )( ... )' is one on its own, and fb/result.bi is
+        '' nothing but those.
+        if c.ast->Kind( n ) = Tko.N_PROC then
+            if (StmtOf( c, n )->extra and Tko.PF_GENERIC_PROC) <> 0 then return true
+        end if
+    next
+    return false
+end function

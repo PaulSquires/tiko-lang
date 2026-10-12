@@ -1,0 +1,1500 @@
+'' expr.tiko -- see expr.ti.  Also carries the AST arena and its dump.
+
+#import "std/containers"
+#include once "parser/expr.ti"
+#include once "support/text.ti"
+#include once "pp/pp.ti"
+namespace Tko
+
+'' ---------------------------------------------------------------- node metadata
+
+dim shared as zstring ptr nodeNames( 0 to N_KIND_COUNT - 1 )
+dim shared as ubyte       nodeCats( 0 to N_KIND_COUNT - 1 )
+dim shared as boolean     nodeTablesReady = false
+
+private sub InitNodeTables( )
+    if nodeTablesReady then return
+    for i as long = 0 to N_KIND_COUNT - 1
+        nodeNames(i) = @"?"
+        nodeCats(i) = 0
+    next
+    #macro NODE( n_name, n_cat )
+        nodeNames(n_name) = @#n_name
+        nodeCats(n_name) = cast( ubyte, n_cat )
+    #endmacro
+    TKO_NODE_LIST( NODE )
+    #undef NODE
+    nodeTablesReady = true
+end sub
+
+function CallConvOf( byval procFlags as ushort ) as CallConv
+    if (procFlags and PF_CDECL) <> 0 then return CC_CDECL
+    if (procFlags and PF_STDCALL) <> 0 then return CC_STDCALL
+    if (procFlags and PF_PASCAL) <> 0 then return CC_PASCAL
+    return CC_NONE
+end function
+
+function CallConvName( byval c as CallConv ) as string
+    select case c
+    case CC_CDECL   : return "cdecl"
+    case CC_STDCALL : return "stdcall"
+    case CC_PASCAL  : return "pascal"
+    end select
+    return ""
+end function
+
+function NodeKindName( byval k as NodeKind ) as string
+    InitNodeTables( )
+    dim as boolean bad = (k < 0) orelse (k >= N_KIND_COUNT)
+    if bad then return "?"
+    return *nodeNames(k)
+end function
+
+function NodeKindCategory( byval k as NodeKind ) as NodeCategory
+    InitNodeTables( )
+    dim as boolean bad = (k < 0) orelse (k >= N_KIND_COUNT)
+    if bad then return NCAT_EXPR
+    return cast( NodeCategory, nodeCats(k) )
+end function
+
+'' -------------------------------------------------------------------- the arena
+
+constructor AstArena( )
+    '' Index 0 is a permanent sentinel so NodeId 0 can mean "none".
+    dim as AstNode z
+    z.kind = cast( ushort, N_NONE )
+    z.flags = 0
+    z.loc = LOC_NONE
+    z.data = 0
+    this.nodes.Push( z )
+end constructor
+
+function AstArena.Kind( byval id as NodeId ) as NodeKind
+    if id = NODE_NONE then return N_NONE
+    if cast( long, id ) >= this.nodes.Count then return N_NONE
+    return cast( NodeKind, this.nodes[cast( long, id )].kind )
+end function
+
+function AstArena.Loc( byval id as NodeId ) as SourceLoc
+    if id = NODE_NONE then return LOC_NONE
+    if cast( long, id ) >= this.nodes.Count then return LOC_NONE
+    return this.nodes[cast( long, id )].loc
+end function
+
+function AstArena.Count( ) as long
+    return this.nodes.Count - 1
+end function
+
+sub AstArena.RecordTokens _
+    ( byval id as NodeId, byval firstTok as long, byval lastTok as long )
+    if id = NODE_NONE then return
+    if lastTok < firstTok then return
+    this.tokenRanges.Push( cast( ulong, id ) )
+    this.tokenRanges.Push( cast( ulong, firstTok ) )
+    this.tokenRanges.Push( cast( ulong, lastTok ) )
+end sub
+
+'' Scanned BACKWARDS, so a node recorded twice reads as its most recent range. That
+'' does not happen today; it is the safe direction if it ever does.
+sub AstArena.RecordCallTypeArgs _
+    ( byval id as NodeId, byval firstArg as long, byval argCount as long )
+    if id = NODE_NONE then return
+    if argCount <= 0 then return
+    this.callTypeArgs.Push( cast( ulong, id ) )
+    this.callTypeArgs.Push( cast( ulong, firstArg ) )
+    this.callTypeArgs.Push( cast( ulong, argCount ) )
+end sub
+
+function AstArena.CallTypeArgsOf _
+    ( byval id as NodeId, byref firstArg as long, byref argCount as long ) as boolean
+    if id = NODE_NONE then return false
+    for i as long = this.callTypeArgs.Count - 3 to 0 step -3
+        if cast( NodeId, this.callTypeArgs[i] ) = id then
+            firstArg = cast( long, this.callTypeArgs[i + 1] )
+            argCount = cast( long, this.callTypeArgs[i + 2] )
+            return true
+        end if
+    next
+    return false
+end function
+
+function AstArena.TokensOf _
+    ( byval id as NodeId, byref firstTok as long, byref lastTok as long ) as boolean
+    if id = NODE_NONE then return false
+    for i as long = this.tokenRanges.Count - 3 to 0 step -3
+        if cast( NodeId, this.tokenRanges[i] ) = id then
+            firstTok = cast( long, this.tokenRanges[i + 1] )
+            lastTok = cast( long, this.tokenRanges[i + 2] )
+            return true
+        end if
+    next
+    return false
+end function
+
+private function NewNode _
+    ( byref a as AstArena, byval kind as NodeKind, byval loc as SourceLoc, _
+      byval payload as ulong ) as NodeId
+
+    dim as AstNode n
+    n.kind = cast( ushort, kind )
+    n.flags = 0
+    n.loc = loc
+    n.data = payload
+    a.nodes.Push( n )
+    return cast( NodeId, a.nodes.Count - 1 )
+end function
+
+'' --------------------------------------------------------------- infix lookup
+
+dim shared as ubyte   infixPrecTb( 0 to TK_KIND_COUNT - 1 )
+dim shared as boolean infixReady = false
+
+function InfixPrec( byval k as TokenKind ) as long
+    if infixReady = false then
+        for i as long = 0 to TK_KIND_COUNT - 1
+            infixPrecTb(i) = 0
+        next
+        #macro BINOP( b_kind, b_prec )
+            infixPrecTb(b_kind) = cast( ubyte, b_prec )
+        #endmacro
+        TKO_BINOP_LIST( BINOP )
+        #undef BINOP
+        infixReady = true
+    end if
+    dim as boolean bad = (k < 0) orelse (k >= TK_KIND_COUNT)
+    if bad then return 0
+    return infixPrecTb(k)
+end function
+
+end namespace
+
+namespace Tko.Parse
+
+'' -------------------------------------------------------------- token helpers
+
+function HasTok( byref p as Tko.ParserState, byval want as long ) as boolean
+    if want < 0 then return false
+    if p.stream <> 0 then
+        return Tko.PpEnsure( *cast( Tko.PpStream ptr, p.stream ), want )
+    end if
+    return (want < p.toks->Count)
+end function
+
+function Peek( byref p as Tko.ParserState ) as Tko.TokenKind
+    if HasTok( p, p.pos ) = false then return Tko.TK_EOF
+    return cast( Tko.TokenKind, p.toks->At( p.pos ).kind )
+end function
+
+function Cur( byref p as Tko.ParserState ) as Tko.Token
+    dim as Tko.Token t
+    if HasTok( p, p.pos ) then t = p.toks->At( p.pos )
+    return t
+end function
+
+sub Advance( byref p as Tko.ParserState )
+    if HasTok( p, p.pos ) then p.pos += 1
+end sub
+
+function Accept( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
+    if Peek( p ) <> k then return false
+    Advance( p )
+    return true
+end function
+
+function ErrorNode _
+    ( byref p as Tko.ParserState, byval id as Tko.DiagId, byval a0 as string = "" ) as Tko.NodeId
+
+    dim as Tko.Token t = Cur( p )
+    '' One diagnostic per statement: the rest of a broken expression is noise
+    '' (docs/plan/04 section 8).
+    if p.silent = false then
+        dim as Tko.SourceRange r
+        r.first = t.loc
+        r.last = t.loc
+        p.diags->Report( id, r, a0 )
+        p.silent = true
+    end if
+    p.errors += 1
+    return Tko.NewNode( *p.ast, Tko.N_ERROR, t.loc, 0 )
+end function
+
+function Expect _
+    ( byref p as Tko.ParserState, byval k as Tko.TokenKind, byval what as string ) as boolean
+
+    if Accept( p, k ) then return true
+    ErrorNode( p, Tko.TKO0401, what )
+    return false
+end function
+
+'' ------------------------------------------------------------------- builders
+
+private function MakeLiteral _
+    ( byref p as Tko.ParserState, byref t as Tko.Token, byval kind as Tko.NodeKind, _
+      byref pool as Tko.LiteralVec ) as Tko.NodeId
+
+    dim as Tko.LiteralPayload lp
+    if cast( long, t.literal ) < pool.Count then
+        dim as Tko.Literal ptr src = @pool[cast( long, t.literal )]
+        lp.intValue = src->intValue
+        lp.fltValue = src->fltValue
+        lp.strFile = src->textFile
+        lp.strOffset = src->textOffset
+        lp.strLength = src->textLength
+        lp.strKind = src->strKind
+        lp.strWide = src->strWide
+        lp.suffix = src->suffix
+        lp.radix = src->radix
+    end if
+    p.ast->literals.Push( lp )
+    return Tko.NewNode( *p.ast, kind, t.loc, p.ast->literals.Count - 1 )
+end function
+
+'' One token as the node it IS -- a literal for a literal, an identifier otherwise.
+''
+'' DATA's items were built with MakeIdent unconditionally, and MakeIdent reads
+'' 't.literal' as an INTERN ID. On a literal token that field is an index into the
+'' LITERAL POOL, so 'data 1, "two", three' dumped as N_IDENT 'cushort', N_IDENT
+'' 'cva_arg' -- whichever keywords happened to sit at those interner slots. It was
+'' invisible because nothing lowers DATA yet, and it shifted the moment an unrelated
+'' change altered how many literals the preprocessor interns first.
+function MakeTokenNode _
+    ( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.NodeId
+
+    select case cast( Tko.TokenKind, t.kind )
+    case Tko.TK_INT_LIT    : return MakeLiteral( p, t, Tko.N_INT_LIT, *p.litPool )
+    case Tko.TK_FLOAT_LIT  : return MakeLiteral( p, t, Tko.N_FLOAT_LIT, *p.litPool )
+    case Tko.TK_STRING_LIT : return MakeLiteral( p, t, Tko.N_STRING_LIT, *p.litPool )
+    end select
+    return MakeIdent( p, t )
+end function
+
+'' '<n>' AFTER 'cint' OR 'cuint': the width-specific conversion keyword it stands for,
+'' or 0 when what follows is not one. The cursor is left PAST the '<n>' only when it
+'' answers -- a bare 'cint' followed by a comparison must parse as it always did.
+private function SizedConvKeyword_ _
+    ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as Tko.TokenKind
+
+    if HasTok( p, p.pos + 1 ) = false then return cast( Tko.TokenKind, 0 )
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_LT then
+        return cast( Tko.TokenKind, 0 )
+    end if
+    if HasTok( p, p.pos + 3 ) = false then return cast( Tko.TokenKind, 0 )
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) <> Tko.TK_INT_LIT then
+        return cast( Tko.TokenKind, 0 )
+    end if
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 3 ).kind ) <> Tko.TK_GT then
+        return cast( Tko.TokenKind, 0 )
+    end if
+
+    '' A TOKEN'S 'literal' IS A POOL INDEX, not the value.
+    dim as longint wv = -1
+    dim as long li = cast( long, p.toks->At( p.pos + 2 ).literal )
+    if li < p.litPool->Count then wv = (*p.litPool)[li].intValue
+
+    dim as boolean uns = (k = Tko.KW_CUINT)
+    dim as Tko.TokenKind wk = cast( Tko.TokenKind, 0 )
+    select case wv
+    case 8  : wk = iif( uns, Tko.KW_CUBYTE,    Tko.KW_CBYTE )
+    case 16 : wk = iif( uns, Tko.KW_CUSHORT,   Tko.KW_CSHORT )
+    case 32 : wk = iif( uns, Tko.KW_CULNG,     Tko.KW_CLNG )
+    case 64 : wk = iif( uns, Tko.KW_CULNGINT,  Tko.KW_CLNGINT )
+    end select
+    if wk = cast( Tko.TokenKind, 0 ) then return wk
+
+    Advance( p )        '' the conversion keyword
+    Advance( p )        '' '<'
+    Advance( p )        '' the width
+    Advance( p )        '' '>'
+    return wk
+end function
+
+'' 'cvi<N>' and 'mki<N>', by the same rule and with the same care as the CINT form
+'' above: the whole '< N >' is consumed only when all three tokens are there and the
+'' width is one fbc accepts. 'cvi < 16' with no '>' after it IS a comparison over an
+'' unbound name and must keep parsing as one, and 'cvi<8>' is fbc's error 310 -- a
+'' width nothing here rounds up.
+private function SizedCvKeyword_ _
+    ( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as Tko.TokenKind
+
+    if HasTok( p, p.pos + 1 ) = false then return cast( Tko.TokenKind, 0 )
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_LT then
+        return cast( Tko.TokenKind, 0 )
+    end if
+    if HasTok( p, p.pos + 3 ) = false then return cast( Tko.TokenKind, 0 )
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) <> Tko.TK_INT_LIT then
+        return cast( Tko.TokenKind, 0 )
+    end if
+    if cast( Tko.TokenKind, p.toks->At( p.pos + 3 ).kind ) <> Tko.TK_GT then
+        return cast( Tko.TokenKind, 0 )
+    end if
+
+    '' A TOKEN'S 'literal' IS A POOL INDEX, not the value.
+    dim as longint wv = -1
+    dim as long li = cast( long, p.toks->At( p.pos + 2 ).literal )
+    if li < p.litPool->Count then wv = (*p.litPool)[li].intValue
+
+    dim as boolean isMk = (k = Tko.KW_MKI)
+    dim as Tko.TokenKind wk = cast( Tko.TokenKind, 0 )
+    select case wv
+    case 16 : wk = iif( isMk, Tko.KW_MKSHORT,   Tko.KW_CVSHORT )
+    case 32 : wk = iif( isMk, Tko.KW_MKL,       Tko.KW_CVL )
+    case 64 : wk = iif( isMk, Tko.KW_MKLONGINT, Tko.KW_CVLONGINT )
+    end select
+    if wk = cast( Tko.TokenKind, 0 ) then return wk
+
+    Advance( p )        '' the intrinsic keyword
+    Advance( p )        '' '<'
+    Advance( p )        '' the width
+    Advance( p )        '' '>'
+    return wk
+end function
+
+#include once "parser/makeident.tiko"
+
+'' NF_CALL_TARGET on a name that is called, addressed or assigned -- see nodes.ti.
+'' '(g)( 1 )' calls the name inside the parentheses, so that name is marked too.
+sub MarkCallTarget_( byref p as Tko.ParserState, byval n as Tko.NodeId )
+    if n = Tko.NODE_NONE then return
+    dim as Tko.NodeKind k = p.ast->Kind( n )
+    if k = Tko.N_PAREN then
+        dim as Tko.ListPayload ptr pl = @p.ast->lists[cast( long, p.ast->nodes[cast( long, n )].data )]
+        if pl->count > 0 then MarkCallTarget_( p, cast( Tko.NodeId, p.ast->children[pl->first] ) )
+    end if
+    if (k = Tko.N_IDENT) orelse (k = Tko.N_MEMBER) then p.ast->nodes[cast( long, n )].flags or= Tko.NF_CALL_TARGET
+end sub
+private function MakeUnary _
+    ( byref p as Tko.ParserState, byval op as Tko.TokenKind, byval loc as Tko.SourceLoc, _
+      byval operand as Tko.NodeId, byval kind as Tko.NodeKind = Tko.N_UNARY ) as Tko.NodeId
+
+    dim as Tko.UnaryPayload up
+    up.op = cast( ushort, op )
+    up.operand = operand
+    if kind = Tko.N_ADDROF then MarkCallTarget_( p, operand )
+    p.ast->unaries.Push( up )
+    return Tko.NewNode( *p.ast, kind, loc, p.ast->unaries.Count - 1 )
+end function
+
+'' '@name' built from an interned NAME rather than from a token. The hoisted-lambda
+'' site has a name it generated and no token to make one from.
+function MakeAddrOfName _
+    ( byref p as Tko.ParserState, byval nm as Tko.InternId, _
+      byval loc as Tko.SourceLoc, byval spellOff as long, _
+      byval spellLen as long ) as Tko.NodeId
+
+    dim as Tko.IdentPayload ip
+    ip.name = nm
+    ip.spellOffset = spellOff
+    ip.spellLength = spellLen
+    p.ast->idents.Push( ip )
+    dim as Tko.NodeId lid = _
+        NewNode( *p.ast, Tko.N_IDENT, loc, p.ast->idents.Count - 1 )
+    return MakeUnary( p, Tko.TK_AT, loc, lid, Tko.N_ADDROF )
+end function
+
+private function MakeBinary _
+    ( byref p as Tko.ParserState, byval op as Tko.TokenKind, byval loc as Tko.SourceLoc, _
+      byval lhs as Tko.NodeId, byval rhs as Tko.NodeId ) as Tko.NodeId
+
+    dim as Tko.BinaryPayload bp
+    bp.op = cast( ushort, op )
+    bp.lhs = lhs
+    bp.rhs = rhs
+    p.ast->binaries.Push( bp )
+    return Tko.NewNode( *p.ast, Tko.N_BINARY, loc, p.ast->binaries.Count - 1 )
+end function
+
+'' Children are appended to the shared pool, so a list node allocates nothing of
+'' its own (docs/plan/05 section 1).
+function MakeList _
+    ( byref p as Tko.ParserState, byval kind as Tko.NodeKind, byval loc as Tko.SourceLoc, _
+      byval target as Tko.NodeId, byref items as Tko.NodeIdVec ) as Tko.NodeId
+
+    dim as Tko.ListPayload lp
+    lp.target = target
+    lp.first = p.ast->children.Count
+    lp.count = items.Count
+    for i as long = 0 to items.Count - 1
+        p.ast->children.Push( items[i] )
+    next
+    p.ast->lists.Push( lp )
+    '' A CALLED NAME, and one an argument names as a SYMBOL: no paren-less read -- NF_CALL_TARGET.
+    if kind = Tko.N_CALL then
+        MarkCallTarget_( p, target )
+        MarkSymbolArgs_( p, target, items )     '' 'procptr( f )' ... -- parserend.tiko
+    end if
+    return Tko.NewNode( *p.ast, kind, loc, p.ast->lists.Count - 1 )
+end function
+
+'' A general statement/declaration node.
+function MakeStmt _
+    ( byref p as Tko.ParserState, byval kind as Tko.NodeKind, byval loc as Tko.SourceLoc, _
+      byref sp as Tko.StmtPayload ) as Tko.NodeId
+
+    p.ast->stmts.Push( sp )
+    return Tko.NewNode( *p.ast, kind, loc, p.ast->stmts.Count - 1 )
+end function
+
+function NewNodeAt _
+    ( byref p as Tko.ParserState, byval kind as Tko.NodeKind, byval loc as Tko.SourceLoc, _
+      byval payload as ulong ) as Tko.NodeId
+    return Tko.NewNode( *p.ast, kind, loc, payload )
+end function
+
+'' ------------------------------------------------------------------- the parser
+
+declare function Primary( byref p as Tko.ParserState ) as Tko.NodeId
+declare function PostfixChain _
+    ( byref p as Tko.ParserState, byval base_ as Tko.NodeId ) as Tko.NodeId
+'' Declared rather than included: TypeRef lives in parser.ti, which sits ABOVE this
+'' file. Including it here would make the dependency circular and would be caught by
+'' build/lint.sh; the declaration keeps the edge one-way.
+declare function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
+
+'' 'cast( T, e )', 'cptr( T, e )', 'sizeof( T )', 'len( T )'.
+''
+'' CAST and CPTR always name a type first. SIZEOF and LEN accept EITHER a type or an
+'' expression -- 'len( s )' is the common case -- so the type is taken only when the
+'' argument unambiguously opens one: a type keyword, or a name followed by PTR. That
+'' keeps every existing 'len( someString )' parsing exactly as it did, without
+'' consulting the symbol table, which this layer may not do.
+declare function IsGenericArgs( byref p as Tko.ParserState ) as boolean
+
+private function TypeArgCall _
+    ( byref p as Tko.ParserState, byref t as Tko.Token, _
+      byval k as Tko.TokenKind ) as Tko.NodeId
+
+    dim as Tko.NodeId callee = MakeIdent( p, t )
+    Advance( p )                                  '' the intrinsic name
+    Advance( p )                                  '' '('
+
+    dim as Tko.NodeIdVec items
+
+    '' 'cva_arg( list, TYPE )' PUTS THE TYPE SECOND, alone among these. The first
+    '' argument is an ordinary expression naming the cursor and the second is a type
+    '' reference, so neither the always-a-type rule nor the looks-like-a-type guess
+    '' below fits it. Without this the type came through as an N_IDENT -- 'integer'
+    '' read as a name that binds to nothing -- and the call could be neither typed nor
+    '' lowered. The statement-position form was already parsed correctly, which is why
+    '' this only ever showed up in an initialiser.
+    '' 'procptr( f, sub( ) )' PUTS A PROCEDURE TYPE SECOND. The first argument names
+    '' the procedure and the second says WHICH OVERLOAD -- measured, fbc emits
+    '' '&_Z1Sv' for 'sub( )' and '&_Z1Sa' for 'sub( byval as byte )'.
+    ''
+    '' Read as an expression it came out as an EMPTY typeref: 'sub( )' is not a lambda
+    '' -- a lambda has a body and this has a ')' -- and nothing else in the expression
+    '' parser reads a procedure signature. So the second argument is parsed as a TYPE
+    '' when it starts with SUB or FUNCTION, and as an expression otherwise, which is
+    '' what 'procptr( T.m, VIRTUAL )' needs.
+    if k = Tko.KW_PROCPTR then
+        dim as boolean savedPP = p.inProcPtrArg
+        p.inProcPtrArg = true
+        items.Push( cast( ulong, Expression( p ) ) )
+        p.inProcPtrArg = savedPP
+        if Accept( p, Tko.TK_COMMA ) then
+            dim as Tko.TokenKind sk2 = Peek( p )
+            if (sk2 = Tko.KW_SUB) orelse (sk2 = Tko.KW_FUNCTION) then
+                items.Push( cast( ulong, TypeRef( p ) ) )
+            else
+                items.Push( cast( ulong, TypeofArgExpression( p ) ) )
+            end if
+        end if
+        Expect( p, Tko.TK_RPAREN, ")" )
+        return PostfixChain( p, MakeList( p, Tko.N_CALL, t.loc, callee, items ) )
+    end if
+
+    if k = Tko.KW_CVA_ARG then
+        items.Push( cast( ulong, Expression( p ) ) )
+        Expect( p, Tko.TK_COMMA, "," )
+        items.Push( cast( ulong, TypeRef( p ) ) )
+        Expect( p, Tko.TK_RPAREN, ")" )
+        return PostfixChain( p, MakeList( p, Tko.N_CALL, t.loc, callee, items ) )
+    end if
+
+    if Peek( p ) <> Tko.TK_RPAREN then
+        dim as boolean always = (k = Tko.KW_CAST) orelse (k = Tko.KW_CPTR)
+        dim as boolean looksLikeType = Tko.IsTypeKeyword( Peek( p ) )
+        '' ...AND 'typeof( e )' IS A TYPE wherever one is allowed, which is what
+        '' 'sizeof( typeof( *p ) )' is asking for. It is not a type KEYWORD, so the
+        '' test above said no and the argument was parsed as an EXPRESSION -- a call
+        '' to something named 'typeof', which binds to nothing, so the sizeof came out
+        '' untyped and the statement holding it declined. TypeRef already reads the
+        '' form: 'dim as typeof( x ) y' worked the whole time.
+        if Peek( p ) = Tko.KW_TYPEOF then looksLikeType = true
+        '' 'UNSIGNED' IS THE FIRST WORD OF A TWO-WORD TYPE NAME, so it belongs on the
+        '' list too: 'sizeof( unsigned integer )' and 'len( unsigned integer<16> )'
+        '' were read as expressions and failed at the second word --
+        '' "expected ')'". numbers/integer_n.bas runs its whole unsigned half
+        '' through both spellings.
+        '' ...BUT 'string(' AND 'wstring(' ARE CALLS, not types. Both spellings name a
+        '' TYPE and an INTRINSIC, and the '(' is what tells them apart -- which is
+        '' exactly what quirk/len-sizeof.bas says beside the line that needs it:
+        '' "Relies on disambiguation from len(string) via the '(' in 'string('".
+        '' Read as a type, 'len( string( 3, "a" ) )' left '3, "a" )' behind and the
+        '' whole expression was a parse error.
+        if looksLikeType then
+            dim as Tko.TokenKind sk = Peek( p )
+            if (sk = Tko.KW_STRING) orelse (sk = Tko.KW_WSTRING) then
+                if HasTok( p, p.pos + 1 ) then
+                    if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = _
+                       Tko.TK_LPAREN then
+                        looksLikeType = false
+                    end if
+                end if
+            end if
+        end if
+        '' ...AND A GENERIC INSTANTIATION IS A TYPE NAME. 'sizeof( Box( of long ) )'
+        '' was read as an EXPRESSION, so the '( of long )' was dropped on the floor
+        '' and only the bare name 'box' survived -- the TEMPLATE, which has no size,
+        '' so the sizeof came out untyped and its statement declined. Measured: fbc
+        '' accepts it and folds the whole comparison away.
+        ''
+        '' The '( of' lookahead is the same one TypeRef uses, and it consults no
+        '' symbol table -- which this layer may not do.
+        if (looksLikeType = false) andalso (Peek( p ) = Tko.TK_IDENT) then
+            dim as long savedGp = p.pos
+            Advance( p )
+            '' A QUALIFIED GENERIC is a type too: 'sizeof( NS.Cell( of short ) )' is 2 to fbc,
+            '' and only the unqualified name was looked past, so the dotted one parsed as a
+            '' CALL, had no type, and the statement declined. So did 'sizeof( FB.Array( of
+            '' string ) )' -- 80 to fbc -- while an alias of the same type worked.
+            while (Peek( p ) = Tko.TK_DOT) andalso HasTok( p, p.pos + 1 )
+                if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_IDENT then exit while
+                Advance( p )
+                Advance( p )
+            wend
+            looksLikeType = IsGenericArgs( p )
+            p.pos = savedGp
+        end if
+        if (looksLikeType = false) andalso (Peek( p ) = Tko.TK_IDENT) then
+            if HasTok( p, p.pos + 1 ) then
+                dim as Tko.TokenKind n = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+                looksLikeType = (n = Tko.KW_PTR) orelse (n = Tko.KW_POINTER)
+            end if
+        end if
+
+        if always orelse looksLikeType then
+            items.Push( cast( ulong, TypeRef( p ) ) )
+        else
+            items.Push( cast( ulong, Expression( p ) ) )
+        end if
+
+        while Accept( p, Tko.TK_COMMA )
+            items.Push( cast( ulong, Expression( p ) ) )
+        wend
+    end if
+    Expect( p, Tko.TK_RPAREN, ")" )
+    return PostfixChain( p, MakeList( p, Tko.N_CALL, t.loc, callee, items ) )
+end function
+
+'' One argument, or the ABSENCE of one. FreeBASIC lets a call leave an argument out and
+'' take the parameter's default -- 'f( 1, , 3 )', 'locate ,,0', 'screenres( w, h, 32, ,
+'' fb.GFX_NULL )' -- and the empty slot still COUNTS, so it is a node rather than a gap
+'' in the list.
+function ArgOrElided _
+    ( byref p as Tko.ParserState, byval closer as Tko.TokenKind, byval tyOk as boolean = true ) as Tko.NodeId
+
+    dim as Tko.TokenKind k = Peek( p )
+    if (k = Tko.TK_COMMA) orelse (k = closer) orelse (k = Tko.TK_EOL) then
+        return NewNodeAt( p, Tko.N_ELIDED, Cur( p ).loc, 0 )
+    end if
+
+    '' 'f( byval x )' OVERRIDES A BYREF PARAMETER for this one argument: the value goes
+    '' where the address would have. It is the marker-keyword shape again -- the word
+    '' was read as an ordinary identifier and the expression after it then had nowhere
+    '' to go, so 'u( byval @i )' was 'expected )' pointing at the '@'.
+    ''
+    '' Only BYVAL. Measured: 'u( byref i )' is fbc's error 1, argument count mismatch,
+    '' which is what reading 'byref' as a name looks like from inside fbc too.
+    if k = Tko.KW_BYVAL then
+        dim as Tko.Token bt = Cur( p )
+        Advance( p )
+        return MakeUnary( p, Tko.KW_BYVAL, bt.loc, Expression( p ) )
+    end if
+    if tyOk then return TypeofArgExpression( p ) else return Expression( p )  '' see TypeofArgCallee
+end function
+
+'' Five string intrinsics take a SET of characters rather than a substring, and mark
+'' it with ANY: 'instr( s, any "ab" )' finds the first a-or-b. It is not an operator
+'' and not a keyword argument -- it is a marker on ONE argument of ONE of five names.
+''
+'' Measured against fbc: INSTR, INSTRREV, TRIM, LTRIM and RTRIM accept it, MID does
+'' not; it may sit on a variable or a parenthesised expression as readily as a literal;
+'' and it is rejected in FIRST position -- 'instr( any "ab", "b" )' is error 9, as is
+'' 'trim( any "b" )'. So the rule is 'the last argument, and not the only one'.
+''
+'' 14 corpus files, the largest single parse-gap cluster, and every one of them said
+'' 'expected )' -- invisible in a table keyed on the diagnostic.
+private function AllowsAnyArg _
+    ( byref p as Tko.ParserState, byval callee as Tko.NodeId ) as boolean
+
+    if callee = Tko.NODE_NONE then return false
+    dim as Tko.AstNode ptr n = @p.ast->nodes[cast( long, callee )]
+    if cast( Tko.NodeKind, n->kind ) <> Tko.N_IDENT then return false
+    dim as string nm = p.names->Spelling( p.ast->idents[cast( long, n->data )].name )
+    select case nm
+    case "instr", "instrrev", "trim", "ltrim", "rtrim"
+        return true
+    end select
+    return false
+end function
+
+'' Is this call 'procptr( ... )'? Its SECOND argument is a PROCEDURE TYPE, written to
+'' pick between overloads -- 'procptr( T.constructor, sub( byval as integer ) )'. Read
+'' as an expression it came out as a CALL to something named 'sub', which nothing could
+'' match against a signature, so the overload was chosen by taking the first: a silently
+'' WRONG function address rather than a decline.
+private function IsProcPtrCallee_ _
+    ( byref p as Tko.ParserState, byval callee as Tko.NodeId ) as boolean
+
+    if callee = Tko.NODE_NONE then return false
+    dim as Tko.AstNode ptr n = @p.ast->nodes[cast( long, callee )]
+    if cast( Tko.NodeKind, n->kind ) <> Tko.N_IDENT then return false
+    dim as string nm = Tko.Text.LowerAscii( _
+        p.names->Spelling( p.ast->idents[cast( long, n->data )].name ) )
+    return (nm = "procptr")
+end function
+
+'' Is the '(' at the cursor the start of '( of T, U )'?
+private function IsGenericArgs( byref p as Tko.ParserState ) as boolean
+    if Peek( p ) <> Tko.TK_LPAREN then return false
+    if HasTok( p, p.pos + 1 ) = false then return false
+    dim as Tko.Token nx = p.toks->At( p.pos + 1 )
+    if cast( Tko.TokenKind, nx.kind ) <> Tko.TK_IDENT then return false
+    return (p.names->Spelling( cast( Tko.InternId, nx.literal ) ) = "of")
+end function
+
+'' Consume a balanced parenthesised group, cursor on the '('.
+private sub SkipBalanced( byref p as Tko.ParserState )
+    dim as long depth = 0
+    do
+        dim as Tko.TokenKind k = Peek( p )
+        if k = Tko.TK_LPAREN then depth += 1
+        if k = Tko.TK_RPAREN then depth -= 1
+        Advance( p )
+        if depth <= 0 then exit do
+        '' AtEnd lives in parser.tiko, ABOVE this file, so the guard is the token kind
+        '' itself rather than a call that would make the dependency circular.
+        if Peek( p ) = Tko.TK_EOF then exit do
+    loop
+end sub
+
+'' Postfix chain: calls, indexing and member access, all tighter than any operator.
+function PostfixChain _
+    ( byref p as Tko.ParserState, byval base_ as Tko.NodeId ) as Tko.NodeId
+
+    dim as Tko.NodeId result = base_
+    '' The type arguments of a pending '( of ... )', waiting for the call they belong to.
+    dim as Tko.NodeIdVec typeArgs
+    do
+        dim as Tko.TokenKind k = Peek( p )
+        dim as Tko.Token t = Cur( p )
+
+        select case k
+        case Tko.TK_LPAREN, Tko.TK_LBRACKET
+            '' 'Box( of long )' is a GENERIC INSTANTIATION, not a call with two
+            '' arguments named 'of' and 'long'. Taking it as a call parsed 'of' as an
+            '' expression and then wanted a ')' where the type argument was -- 37 corpus
+            '' files failed there, three of them RUNTIME HEADERS, so everything that
+            '' includes fb/currency.bi, fb/fserror.bi or fb/mathtext.bi failed too.
+            ''
+            '' 'of' is CONTEXTUAL -- not a keyword -- so it is recognised by spelling,
+            '' exactly as 'each' and 'defer' are.
+            ''
+            '' THE ARGUMENTS ARE KEPT. They used to be consumed and discarded, which was
+            '' fine while nothing could instantiate anything -- but a GENERIC PROCEDURE
+            '' is always called with them written out ('Ok( of Decimal, FinanceError )
+            '' ( v )' is how every runtime header spells it), so they are the whole of
+            '' the instantiation's input and throwing them away threw the call away.
+            ''
+            '' They are recorded against the CALL NODE, which is built on the next turn
+            '' of this loop -- so 'typeArgs' is carried across rather than attached here.
+            if (k = Tko.TK_LPAREN) andalso IsGenericArgs( p ) then
+                Advance( p )
+                Advance( p )              '' past '(' and 'of'
+                do
+                    typeArgs.Push( cast( ulong, TypeRef( p ) ) )
+                    if Accept( p, Tko.TK_COMMA ) = false then exit do
+                loop
+                Expect( p, Tko.TK_RPAREN, ")" )
+                continue do
+            end if
+
+            dim as Tko.TokenKind closer = Tko.TK_RPAREN
+            dim as Tko.NodeKind kind = Tko.N_CALL
+            if k = Tko.TK_LBRACKET then
+                closer = Tko.TK_RBRACKET
+                kind = Tko.N_INDEX
+            end if
+            Advance( p )
+
+            dim as boolean anyOk = (kind = Tko.N_CALL) andalso AllowsAnyArg( p, result )
+            dim as boolean ppOk = (kind = Tko.N_CALL) andalso IsProcPtrCallee_( p, result )
+
+            dim as Tko.NodeIdVec items
+            if Peek( p ) <> closer then
+                do
+                    '' 'any' only on the LAST argument and never on the first, so the
+                    '' marker is taken only when something precedes it -- and what
+                    '' follows the argument has to be the closer, which the loop's own
+                    '' exit already enforces for the last one.
+                    dim as boolean wantSig = false
+                    if ppOk andalso (items.Count = 1) then
+                        wantSig = (Peek( p ) = Tko.KW_SUB) orelse _
+                                  (Peek( p ) = Tko.KW_FUNCTION)
+                    end if
+                    if wantSig then
+                        items.Push( cast( ulong, TypeRef( p ) ) )
+                    elseif anyOk andalso (items.Count > 0) andalso (Peek( p ) = Tko.KW_ANY) then
+                        dim as Tko.Token anyTok = Cur( p )
+                        Advance( p )
+                        items.Push( cast( ulong, MakeUnary( p, Tko.KW_ANY, anyTok.loc, _
+                                                            Expression( p ) ) ) )
+                    else
+                        items.Push( cast( ulong, ArgOrElided( p, closer, TypeofArgCallee( p, result ) ) ) )
+                    end if
+                    if Accept( p, Tko.TK_COMMA ) = false then exit do
+                loop
+            end if
+            Expect( p, closer, iif( closer = Tko.TK_RPAREN, ")", "]" ) )
+            result = FoldConstIif_( p, MakeList( p, kind, t.loc, result, items ) )   '' declconst.tiko
+
+            '' THE PENDING TYPE ARGUMENTS BELONG TO THIS CALL. Cleared afterwards, so a
+            '' second call in the same postfix chain does not inherit them.
+            if typeArgs.Count > 0 then
+                dim as long taFirst = p.ast->children.Count
+                dim as long taCount = typeArgs.Count
+                for i as long = 0 to taCount - 1
+                    p.ast->children.Push( typeArgs[i] )
+                next
+                p.ast->RecordCallTypeArgs( result, taFirst, taCount )
+                while typeArgs.Count > 0
+                    typeArgs.Pop( )
+                wend
+            end if
+
+        case Tko.TK_DOT, Tko.TK_ARROW
+            Advance( p )
+            '' 'x->*pi' AND 'x->***pppi' -- A RUN OF DEREFERENCES BETWEEN THE ARROW AND
+            '' THE MEMBER NAME, which is what a POINTER field is read through. Measured,
+            '' fbc: 'x->*pi' is '*(int64*)*(int64**)&TMP$2$0' -- the field of what the
+            '' arrow returns, dereferenced -- and 'x->***pppi' is three of them. Without
+            '' this the '*' stood where the member name belonged and the whole
+            '' expression was TKO0402.
+            dim as long arrowDerefs = 0
+            if k = Tko.TK_ARROW then
+                while Peek( p ) = Tko.TK_STAR
+                    Advance( p )
+                    arrowDerefs += 1
+                wend
+            end if
+            dim as Tko.Token nameTok = Cur( p )
+            dim as boolean isName = (Peek( p ) = Tko.TK_IDENT) orelse _
+                                    Tko.IsKeywordKind( Peek( p ) )
+
+            '' 'procptr( T.+= )' AND 'procptr( T.[] )' NAME A MEMBER BY ITS OPERATOR
+            '' TOKEN. The name is the token table's TEXT column, exactly as
+            '' ReadOperatorName takes it for the DECLARATION, so the two agree without
+            '' either knowing about the other -- and '[]' is two tokens and one name
+            '' there as well.
+            ''
+            '' Only inside a procptr argument: an operator after a dot is a syntax
+            '' error anywhere else, and it should stay one.
+            dim as Tko.InternId opNm = 0
+            if (isName = false) andalso p.inProcPtrArg then
+                dim as string ops = Tko.TokenKindText( Peek( p ) )
+                if len( ops ) > 0 then
+                    Advance( p )
+                    if (ops = "[") andalso (Peek( p ) = Tko.TK_RBRACKET) then
+                        ops = "[]"
+                        Advance( p )
+                    end if
+                    opNm = p.names->Fold( p.names->GetString( ops ) )
+                end if
+            end if
+
+            if (isName = false) andalso (opNm = 0) then
+                result = ErrorNode( p, Tko.TKO0402 )
+                exit do
+            end if
+            dim as Tko.NodeId member
+            if opNm <> 0 then
+                dim as Tko.IdentPayload oip
+                oip.name = opNm
+                dim as Tko.FileId odf
+                oip.spellOffset = p.src->LocOffset( nameTok.loc, odf )
+                oip.spellLength = cast( long, nameTok.length )
+                p.ast->idents.Push( oip )
+                member = NewNode( *p.ast, Tko.N_IDENT, nameTok.loc, _
+                                  p.ast->idents.Count - 1 )
+            else
+                Advance( p )
+                member = MakeIdent( p, nameTok )
+            end if
+            result = MakeBinary( p, k, t.loc, result, member )
+            p.ast->nodes[cast( long, result )].kind = cast( ushort, Tko.N_MEMBER )
+            if k = Tko.TK_ARROW then
+                p.ast->nodes[cast( long, result )].flags or= Tko.NF_ARROW
+            end if
+            '' ...and the derefs wrap the ACCESS, innermost first.
+            for di as long = 1 to arrowDerefs
+                result = MakeUnary( p, Tko.TK_STAR, t.loc, result, Tko.N_DEREF )
+            next
+
+        case else
+            exit do
+        end select
+    loop
+    return result
+end function
+
+'' Prefix position: unary operators and primaries.
+private function Prefix( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.TokenKind k = Peek( p )
+    dim as Tko.Token t = Cur( p )
+
+    select case k
+    case Tko.TK_MINUS, Tko.TK_PLUS
+        Advance( p )
+        '' Unary sign binds looser than '^': -2 ^ 2 is -4.
+        dim as Tko.NodeId operand = Expression( p, Tko.PREC_SIGN )
+        return MakeUnary( p, k, t.loc, operand )
+
+    case Tko.KW_NOT
+        Advance( p )
+        '' NOT is looser than the relationals and tighter than AND.
+        dim as Tko.NodeId operand = Expression( p, Tko.PREC_NOT )
+        return MakeUnary( p, k, t.loc, operand )
+
+    '' '@' AND '*' TAKE THE TIGHTEST OPERAND THERE IS -- a primary and its postfix chain
+    '' -- and no binary operator, '^' included. At PREC_SIGN they took the '^' in:
+    '' '*p ^ 2' was '*(p ^ 2)', which typed as nothing and was dropped, where fbc's
+    '' cDerefExpression and cAddrOfExpression parse a highest-precedence expression
+    '' and '(*p) ^ 2' is 9.
+    case Tko.TK_AT
+        Advance( p )
+        dim as Tko.NodeId operand = Expression( p, Tko.PREC_POSTFIX )
+        return MakeUnary( p, k, t.loc, operand, Tko.N_ADDROF )
+
+    case Tko.TK_STAR
+        Advance( p )
+        dim as Tko.NodeId operand = Expression( p, Tko.PREC_POSTFIX )
+        return MakeUnary( p, k, t.loc, operand, Tko.N_DEREF )
+
+    case Tko.KW_BYVAL
+        '' 'byval x' IS AN EXPRESSION PREFIX, not only an argument marker. It says the
+        '' VALUE is wanted where an address would otherwise be taken, and the one place
+        '' that matters outside a call is a BYREF RESULT: 'function = byval pi' stores
+        '' the pointer's value rather than its address.
+        ''
+        '' It was recognised only in the argument parser, so everywhere else the word
+        '' lexed as a bare identifier and THE OPERAND WAS SILENTLY DROPPED -- the tree
+        '' held 'N_IDENT byval' with 'pi' nowhere in it.
+        Advance( p )
+        dim as Tko.NodeId bvOperand = Expression( p, Tko.PREC_SIGN )
+        return MakeUnary( p, k, t.loc, bvOperand )
+    end select
+
+    return Primary( p )
+end function
+
+function Primary( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.TokenKind k = Peek( p )
+    dim as Tko.Token t = Cur( p )
+
+    select case k
+    case Tko.TK_INT_LIT
+        Advance( p )
+        return MakeLiteral( p, t, Tko.N_INT_LIT, *p.litPool )
+
+    case Tko.TK_FLOAT_LIT
+        Advance( p )
+        return MakeLiteral( p, t, Tko.N_FLOAT_LIT, *p.litPool )
+
+    case Tko.TK_STRING_LIT
+        Advance( p )
+        dim as Tko.NodeId first_ = MakeLiteral( p, t, Tko.N_STRING_LIT, *p.litPool )
+        '' Adjacent string literals concatenate at COMPILE time, as in C:
+        '' 'print "a" "b" "c"' prints "abc". This is what makes a macro body like
+        '' '"CU_ASSERT(" #a ")"' work, and missing it accounted for 567 of the
+        '' corpus's parse errors.
+        if Peek( p ) <> Tko.TK_STRING_LIT then return first_
+        dim as Tko.NodeIdVec pieces
+        pieces.Push( cast( ulong, first_ ) )
+        while Peek( p ) = Tko.TK_STRING_LIT
+            dim as Tko.Token nt = Cur( p )
+            Advance( p )
+            pieces.Push( cast( ulong, MakeLiteral( p, nt, Tko.N_STRING_LIT, *p.litPool ) ) )
+        wend
+        return MakeList( p, Tko.N_STRCAT, t.loc, Tko.NODE_NONE, pieces )
+
+    case Tko.TK_IDENT
+        Advance( p )
+        return PostfixChain( p, MakeIdent( p, t ) )
+
+    case Tko.KW_INPUT, Tko.KW_WINPUT
+        '' 'input( n [, [#]f] )' IN EXPRESSION POSITION -- n characters read from a
+        '' file, or from the console with no channel. It is a different construct from
+        '' the INPUT STATEMENT, which reads variables, and only the statement form
+        '' existed: the expression form was 'expected an expression' at the '#' and the
+        '' whole enclosing statement declined. Measured:
+        ''
+        ''     input( 2, #1 )   fb_FileStrInput ( 2ll, 1 )
+        ''     input( 2 )       fb_FileStrInput ( 2ll, 0 )
+        ''     winput( 2, #1 )  fb_FileWstrInput( 2ll, 1 )
+        ''
+        '' The node is the same N_INTRINSIC the statement form builds, with bit 8 in
+        '' 'extra' to say which -- 'a' the count and 'b' the channel.
+        Advance( p )
+        dim as Tko.StmtPayload inp
+        inp.op = cast( ushort, k )
+        inp.extra = 8
+        if Accept( p, Tko.TK_LPAREN ) = false then
+            return ErrorNode( p, Tko.TKO0401 )
+        end if
+        inp.a = Expression( p )
+        if Accept( p, Tko.TK_COMMA ) then
+            Accept( p, Tko.TK_HASH )
+            inp.b = Expression( p )
+        end if
+        if Accept( p, Tko.TK_RPAREN ) = false then
+            return ErrorNode( p, Tko.TKO0401 )
+        end if
+        return MakeStmt( p, Tko.N_INTRINSIC, t.loc, inp )
+
+    case Tko.KW_THREADCALL
+        '' 'threadcall' IN EXPRESSION POSITION -- 't = threadcall w( 1 )'. It was
+        '' registered as a STATEMENT intrinsic and nothing else, so the expression
+        '' parser fell through to the identifier path: the callee and its whole
+        '' argument list were DROPPED and the initialiser was left as the bare name
+        '' 'threadcall'. Every real use in the corpus is this position.
+        ''
+        '' The node built here is EXACTLY the one the statement form builds -- an
+        '' N_INTRINSIC whose single child is the call -- so one lowering serves both,
+        '' the way OPEN, GET, PUT and CLOSE already do.
+        Advance( p )
+        dim as Tko.StmtPayload tcp
+        tcp.op = cast( ushort, Tko.KW_THREADCALL )
+        dim as Tko.NodeId tcCall = Expression( p, Tko.PREC_POSTFIX )
+        tcp.first = p.ast->children.Count
+        tcp.count = 1
+        p.ast->children.Push( cast( ulong, tcCall ) )
+        return MakeStmt( p, Tko.N_INTRINSIC, t.loc, tcp )
+
+    case Tko.KW_NEW
+        '' 'new T', 'new T( args )', 'new T[ n ]'.
+        ''
+        '' NEW is classed as an OPERATOR in the keyword table, so Primary had no case
+        '' for it and it fell through to the identifier path: 'p = new T' parsed as the
+        '' plain identifier 'new' with the TYPE DROPPED ENTIRELY, and every allocation
+        '' in the corpus lowered to nothing.
+        ''
+        '' The node is a LIST whose target is the TYPE and whose children are the
+        '' constructor arguments. The ARRAY form marks the node NF_ARRAY and puts the
+        '' element count in child 0 -- fbc accepts no constructor arguments there, so
+        '' the two uses of the child list never collide.
+        '' PLACEMENT NEW -- 'new( p ) T', 'new( p ) T( args )', 'new( p ) T[ n ]'.
+        '' The parenthesis comes BEFORE the type, and with no lookahead for it TypeRef
+        '' ate the '(' and then reported 'expected )' at the type name that followed:
+        '' pointers/new-delete.bas and structs/udt-upcast-3.bas both died outright.
+        '' Worse, 'new( buf ) T' with no constructor arguments produced an N_NEW with
+        '' NO TARGET AND NO CHILDREN, no diagnostic and no decline -- the allocation
+        '' simply vanished.
+        Advance( p )
+        dim as Tko.NodeId nplace = Tko.NODE_NONE
+        if Peek( p ) = Tko.TK_LPAREN then
+            Advance( p )
+            nplace = Expression( p )
+            Expect( p, Tko.TK_RPAREN, ")" )
+        end if
+        dim as Tko.NodeId nty = TypeRef( p )
+        dim as Tko.NodeIdVec nargs
+        if nplace <> Tko.NODE_NONE then nargs.Push( cast( ulong, nplace ) )
+        dim as boolean nIsArray = false, nNoInit = false
+        if Peek( p ) = Tko.TK_LBRACKET then
+            Advance( p )
+            nIsArray = true
+            nargs.Push( cast( ulong, Expression( p ) ) )
+            Expect( p, Tko.TK_RBRACKET, "]" )
+            '' '{ any }' LEAVES THE ARRAY UNINITIALISED -- the array form only: 'new U
+            '' {any}' is fbc's error 3. It was left on the line and never honoured.
+            if Accept( p, Tko.TK_LBRACE ) then
+                Expect( p, Tko.KW_ANY, "any" )
+                Expect( p, Tko.TK_RBRACE, "}" )
+                nNoInit = true
+            end if
+        elseif Peek( p ) = Tko.TK_LPAREN then
+            Advance( p )
+            '' 'new T( any )' -- ONE OBJECT, UNINITIALISED: fbc mallocs it (or calls T's 'operator
+            '' new') and runs nothing on it (overload/op_new_delete.bas). 'any' declined here.
+            if Peek( p ) = Tko.KW_ANY then
+                Advance( p )
+                nNoInit = true
+            elseif Peek( p ) <> Tko.TK_RPAREN then
+                do
+                    nargs.Push( cast( ulong, Expression( p ) ) )
+                    if Accept( p, Tko.TK_COMMA ) = false then exit do
+                loop
+            end if
+            Expect( p, Tko.TK_RPAREN, ")" )
+        end if
+        dim as Tko.NodeId nn = MakeList( p, Tko.N_NEW, t.loc, nty, nargs )
+        if nIsArray then p.ast->nodes[cast( long, nn )].flags or= Tko.NF_ARRAY
+        if nNoInit then p.ast->nodes[cast( long, nn )].flags or= Tko.NF_NOINIT
+        if nplace <> Tko.NODE_NONE then
+            p.ast->nodes[cast( long, nn )].flags or= Tko.NF_PLACEMENT
+        end if
+        return nn
+
+    case Tko.KW_TYPE
+        '' 'type<P>( 5, 6 )' -- THE ANONYMOUS UDT LITERAL, and 'type( 5, 6 )' with the
+        '' type taken from context. 789 corpus lines and 36 in the runtime headers
+        '' write one.
+        ''
+        '' It was not recognised at all, and the failure was SILENT: the expression
+        '' parser read 'type<P>( 5, 6 )' as '(type < P) > (5, 6)' -- two comparisons
+        '' over a name that binds to nothing -- so 'dim as GUID g = type<GUID>( ... )'
+        '' produced a boolean-shaped tree where an object belonged, and declined three
+        '' passes later with nothing pointing back here.
+        ''
+        '' Measured: it is EXACTLY the parenthesised field list with the type written
+        '' out. fbc emits the same field stores and the same tail memset for
+        '' 'type<P>( 5, 6 )' as for '( 5, 6 )', so the node built here is the same
+        '' N_TUPLE -- with the type reference in the list's TARGET, which the bare form
+        '' leaves empty.
+        dim as Tko.NodeId litType = Tko.NODE_NONE
+        dim as long save_ = p.pos
+        Advance( p )                                  '' 'type'
+        if Peek( p ) = Tko.TK_LT then
+            Advance( p )
+            litType = TypeRef( p )
+            if Accept( p, Tko.TK_GT ) = false then
+                '' Not a literal after all -- put the cursor back and let the ordinary
+                '' paths have it, rather than consuming tokens on a guess.
+                p.pos = save_
+                return ErrorNode( p, Tko.TKO0402 )
+            end if
+        end if
+        '' 'type<T>expr' -- THE PAREN-LESS FORM, and it is one expression, not a list.
+        '' Measured: 'x = type<integer>1' and 'x = (type<integer>4)' are accepted and are
+        '' exactly the one-argument parenthesised form; 'type<integer>' with nothing after
+        '' it is fbc error 9, 'type<integer>()' is error 9 too, and 'type<integer>1, 2' is
+        '' error 3 -- so exactly one, and it is not scalar-only: 'q = type<t1>z' over a
+        '' UDT compiles clean.
+        ''
+        '' It reported "expected a member name" at the token after the '>' and consumed
+        '' nothing, so nine of structs/anon-param.bas's lines were a hard error rather
+        '' than a decline.
+        '' 'type<T>' WITH NOTHING AFTER IT IS THE DEFAULT CONSTRUCTION of T, and it
+        '' is the same thing as 'type<T>( )'. The note above is a correct measurement
+        '' of an INCOMPLETE rule: it was taken over INTEGER, which has no
+        '' constructor. Measured again, one type with a default constructor and one
+        '' without:
+        ''
+        ''     type A : declare constructor( ) : end type
+        ''     function fa( ) as A : return type<A> : end function     accepted
+        ''     type B : v as integer : end type
+        ''     function fb( ) as B : return type<B> : end function     error 9
+        ''
+        '' -- which is exactly the rule the EMPTY PARENTHESISED form already follows,
+        '' and fbc constructs straight into the hidden result pointer:
+        '' '_ZN1TC1Ev( tmp$2$1 ); return tmp$2$1'. The paren-less operand parse below
+        '' claimed it, found no expression, and reported TKO0400 with an N_ERROR in
+        '' the list -- so pp/typeof-no-dtors.bas was a hard error rather than a
+        '' decline.
+        ''
+        '' END OF THE STATEMENT is the test, because that is the whole difference:
+        '' 'type<integer>1' has an operand and this has none.
+        if (litType <> Tko.NODE_NONE) andalso _
+           ((Peek( p ) = Tko.TK_EOL) orelse (Peek( p ) = Tko.TK_EOF)) then
+            dim as Tko.NodeIdVec noItems
+            dim as Tko.NodeId en = MakeList( p, Tko.N_TUPLE, t.loc, litType, noItems )
+            p.ast->nodes[cast( long, en )].flags or= Tko.NF_TYPE_LITERAL
+            return en
+        end if
+        if (Peek( p ) <> Tko.TK_LPAREN) andalso (litType <> Tko.NODE_NONE) then
+            dim as Tko.NodeIdVec oneItem
+            '' PREC_SIGN, measured: 'type<integer>2^3' is 8 -- the POWER binds INTO
+            '' the operand -- while 'type<integer>1 * 2' is 2 and 'type<integer>2 shl 1'
+            '' is 4, so multiplication and shift do not. A unary minus binds in too:
+            '' 'type<integer>-1' is -1.
+            oneItem.Push( cast( ulong, Expression( p, Tko.PREC_SIGN ) ) )
+            dim as Tko.NodeId bn = MakeList( p, Tko.N_TUPLE, t.loc, litType, oneItem )
+            p.ast->nodes[cast( long, bn )].flags or= Tko.NF_TYPE_LITERAL
+            return PostfixChain( p, bn )
+        end if
+        if Peek( p ) <> Tko.TK_LPAREN then
+            p.pos = save_
+            return ErrorNode( p, Tko.TKO0402 )
+        end if
+        Advance( p )                                  '' '('
+        dim as Tko.NodeIdVec titems
+        if Peek( p ) <> Tko.TK_RPAREN then
+            do
+                titems.Push( cast( ulong, Expression( p ) ) )
+                if Accept( p, Tko.TK_COMMA ) = false then exit do
+            loop
+        end if
+        Expect( p, Tko.TK_RPAREN, ")" )
+        dim as Tko.NodeId tn = MakeList( p, Tko.N_TUPLE, t.loc, litType, titems )
+        p.ast->nodes[cast( long, tn )].flags or= Tko.NF_HAS_COMMA
+        p.ast->nodes[cast( long, tn )].flags or= Tko.NF_TYPE_LITERAL
+        return PostfixChain( p, tn )
+
+    case Tko.TK_LPAREN
+        '' '(a)' is a parenthesised expression; '(a, b)' is a tuple. Purely
+        '' syntactic, so the parser decides (docs/plan/04 section 3.3).
+        Advance( p )
+        dim as Tko.NodeIdVec items
+        dim as boolean sawComma = false
+        if Peek( p ) <> Tko.TK_RPAREN then
+            do
+                '' AN OMITTED ELEMENT IS A NODE, not a gap -- 'let( a, , b ) = f( )'
+                '' names the FIRST and THIRD elements, and fbc reads it that way:
+                '' 'A = *(int32*)TMP; B = *(int32*)((uint8*)TMP + 8)'. Expression( )
+                '' made an N_ERROR for the empty slot, silently, and the whole
+                '' destructuring then declined.
+                items.Push( cast( ulong, ArgOrElided( p, Tko.TK_RPAREN, false ) ) )  '' '( typeof( x ) )' is fbc's 9
+                if Accept( p, Tko.TK_COMMA ) = false then exit do
+                sawComma = true
+            loop
+        end if
+        Expect( p, Tko.TK_RPAREN, ")" )
+
+        dim as Tko.NodeId n = 0
+        if sawComma then
+            n = MakeList( p, Tko.N_TUPLE, t.loc, Tko.NODE_NONE, items )
+            p.ast->nodes[cast( long, n )].flags or= Tko.NF_HAS_COMMA
+        else
+            n = MakeList( p, Tko.N_PAREN, t.loc, Tko.NODE_NONE, items )
+        end if
+        return PostfixChain( p, n )
+
+    case Tko.TK_LBRACE
+        Advance( p )
+        dim as Tko.NodeIdVec items
+        if Peek( p ) <> Tko.TK_RBRACE then
+            do
+                items.Push( cast( ulong, Expression( p ) ) )
+                if Accept( p, Tko.TK_COMMA ) = false then exit do
+            loop
+        end if
+        Expect( p, Tko.TK_RBRACE, "}" )
+        return MakeList( p, Tko.N_INITIALIZER, t.loc, Tko.NODE_NONE, items )
+    end select
+
+    '' CAST, CPTR, SIZEOF and LEN take a TYPE where an expression would otherwise
+    '' go, and a type is not an expression: 'cptr( double ptr, @u )' stops dead at
+    '' 'ptr'. The resulting TKO0401 then desynchronises the parse badly enough to
+    '' swallow an 'end namespace' several hundred lines later, so this is not a
+    '' cosmetic gap. Which four accept a type was measured against fbc -- TYPEOF is
+    '' deliberately absent, because fbc does not accept it in expression position.
+    '' 'if open( "x", for output, as #1 ) <> 0' -- OPEN yields its error code. The
+    '' clause keywords ('for output', 'as #1') are not expressions, so a generic call
+    '' parse chokes on the first one; it needs the statement's own clause reader,
+    '' stopped at the closing paren instead of at end of line.
+    if k = Tko.KW_OPEN then
+        return OpenExprCall( p )
+    end if
+
+    '' 'get( #f, 1, b )' yields the error code, and the '#channel' marker is not an
+    '' expression either -- see GetPutExprCall. Only with a '(' immediately after, so
+    '' the STATEMENT form is untouched.
+    if (k = Tko.KW_GET) orelse (k = Tko.KW_PUT) then
+        if HasTok( p, p.pos + 1 ) then
+            if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_LPAREN then
+                return GetPutExprCall( p )
+            end if
+        end if
+    end if
+
+    '' 'close( n )' yields the error code too, and 'close #1' as a STATEMENT is the
+    '' same keyword -- so, as with GET, only the form with a '(' immediately after is
+    '' taken here and the statement form is untouched.
+    if k = Tko.KW_CLOSE then
+        if HasTok( p, p.pos + 1 ) then
+            if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_LPAREN then
+                return CloseExprCall( p )
+            end if
+        end if
+    end if
+
+    '' An ANONYMOUS procedure is a VALUE: 'f = function( byval x as long ) as long
+    '' ... end function'. fb/sort.bi writes one, so every corpus file that includes
+    '' it failed at the header rather than at anything of its own -- four of them.
+    ''
+    '' Measured against fbc: the FUNCTION and the SUB form are both accepted, in an
+    '' initialiser, as a call argument, and all on one line separated by colons; the
+    '' body may reference an enclosing local's TYPE but fbc does not capture values.
+    '' Distinguished from a call to something named 'function' by the '(' that must
+    '' follow immediately -- a lambda always has a parameter list, even an empty one.
+    if (k = Tko.KW_FUNCTION) orelse (k = Tko.KW_SUB) then
+        dim as Tko.NodeId lam = TryLambdaExpr( p )
+        if lam <> Tko.NODE_NONE then return PostfixChain( p, lam )
+    end if
+
+    '' TYPEOF belongs with them in '#assert' and a call argument only: '#assert typeof( p ) =
+    '' typeof( any ptr )', 'peek( typeof( b ), pb )'. Where a plain value is wanted fbc refuses
+    '' it (error 9) -- see TypeKeywordCalled and TypeofArgExpression.
+    if (k = Tko.KW_CAST) orelse (k = Tko.KW_CPTR) orelse _
+       (k = Tko.KW_SIZEOF) orelse (k = Tko.KW_LEN) orelse ((k = Tko.KW_TYPEOF) andalso p.typeofOk) orelse _
+       (k = Tko.KW_CVA_ARG) orelse (k = Tko.KW_PROCPTR) then
+        if HasTok( p, p.pos + 1 ) then
+            if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_LPAREN then
+                return TypeArgCall( p, t, k )
+            end if
+        end if
+    end if
+
+    '' '.field' with nothing before it is the WITH shorthand: inside 'with expr' it
+    '' means 'expr.field'. The base is supplied by the enclosing WITH, which this
+    '' layer does not track -- it records a member access with NO base and leaves
+    '' binding to the phase that knows which WITH is open.
+    '' '..x' is the GLOBAL-SCOPE prefix -- inside a namespace it names the x at file
+    '' scope rather than the one in view. It lexes as two separate TK_DOTs, so the
+    '' WITH-shorthand branch below saw a dot followed by a dot, found no identifier,
+    '' and reported 'expected an expression'.
+    ''
+    '' Measured: fbc accepts '..x', '..f( )', a chain '..a.b.v', an assignment target,
+    '' and the prefix at module level where it means nothing extra.
+    if k = Tko.TK_DOT then
+        dim as boolean twoDots = false
+        if HasTok( p, p.pos + 1 ) then
+            twoDots = (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_DOT)
+        end if
+        if twoDots then
+            Advance( p )
+            Advance( p )
+            dim as Tko.NodeId base_ = NewNodeAt( p, Tko.N_GLOBALSCOPE, t.loc, 0 )
+            if (Peek( p ) = Tko.TK_IDENT) orelse Tko.IsKeywordKind( Peek( p ) ) then
+                dim as Tko.Token nameTok = Cur( p )
+                Advance( p )
+                dim as Tko.NodeId member = MakeIdent( p, nameTok )
+                dim as Tko.NodeId n = MakeBinary( p, Tko.TK_DOT, t.loc, base_, member )
+                p.ast->nodes[cast( long, n )].kind = cast( ushort, Tko.N_MEMBER )
+                return PostfixChain( p, n )
+            end if
+            return base_
+        end if
+    end if
+
+    if k = Tko.TK_DOT then
+        if HasTok( p, p.pos + 1 ) then
+            dim as Tko.TokenKind nk = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+            if (nk = Tko.TK_IDENT) orelse Tko.IsKeywordKind( nk ) then
+                Advance( p )
+                dim as Tko.Token nameTok = Cur( p )
+                Advance( p )
+                dim as Tko.NodeId member = MakeIdent( p, nameTok )
+                dim as Tko.NodeId n = MakeBinary( p, Tko.TK_DOT, t.loc, _
+                                                  Tko.NODE_NONE, member )
+                p.ast->nodes[cast( long, n )].kind = cast( ushort, Tko.N_MEMBER )
+                return PostfixChain( p, n )
+            end if
+        end if
+    end if
+
+    '' 'cint<n>( x )' AND 'cuint<n>( x )' -- THE SIZED CONVERSION SPELLINGS, which are
+    '' ALIASES for the width-specific ones and not conversions of their own. Measured
+    '' with '#print typeof': 'cint<16>( 1 )' is SHORT and 'cuint<8>( 1 )' is UBYTE, so
+    '' the same table the sized TYPE spellings use answers both.
+    ''
+    '' Nothing parsed them: 'cint<32>( -1 )' came out as '(cint < 32) > (-1)', two
+    '' comparisons over an unbound name, and numbers/integer_n.bas is written entirely
+    '' in terms of them.
+    if (k = Tko.KW_CINT) orelse (k = Tko.KW_CUINT) then
+        dim as Tko.TokenKind wk = SizedConvKeyword_( p, k )
+        if wk <> cast( Tko.TokenKind, 0 ) then
+            dim as Tko.Token wt = t
+            wt.kind = cast( ushort, wk )
+            return PostfixChain( p, MakeIdent( p, wt ) )
+        end if
+    end if
+
+    '' 'cvi<16>( s )' and 'mki<32>( n )' -- the same shape over the CV/MK family, and
+    '' these two are the ONLY members that have it: 'cvs<32>' is fbc's error 6. The
+    '' width names an entry point the compiler already reaches by another spelling --
+    '' measured, 'cvi<16>' is fb_CVSHORT, 'cvi<32>' is fb_CVL and 'cvi<64>' is
+    '' fb_CVLONGINT -- so rewriting the KEYWORD is the whole implementation.
+    ''
+    '' Without it the angle brackets parsed as RELATIONAL OPERATORS, '(cvi < 16) >
+    '' (s)', which is a well-formed expression that means nothing: fourteen statements
+    '' in string/mkcv.bas declined with no syntax error to say why.
+    if (k = Tko.KW_CVI) orelse (k = Tko.KW_MKI) then
+        dim as Tko.TokenKind ck = SizedCvKeyword_( p, k )
+        if ck <> cast( Tko.TokenKind, 0 ) then
+            dim as Tko.Token ct = t
+            ct.kind = cast( ushort, ck )
+            return PostfixChain( p, MakeIdent( p, ct ) )
+        end if
+    end if
+
+    '' A keyword in primary position is usually an intrinsic call -- see TypeKeywordCalled.
+    if TypeKeywordCalled( p, k ) then return ErrorNode( p, Tko.TKO0400 )
+    if Tko.IsKeywordKind( k ) then
+        '' A BARE 'base' IN AN EXPRESSION -- 'print base' -- is fbc error 120, the same
+        '' as at statement start (see the statement dispatch). Only '.' and '(' follow it.
+        if k = Tko.KW_BASE then
+            if HasTok( p, p.pos + 1 ) then
+                dim as Tko.TokenKind bk = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+                if (bk <> Tko.TK_DOT) andalso (bk <> Tko.TK_LPAREN) then
+                    p.diags->Report( Tko.TKO0735, Tko.PointRange( t.loc ) )
+                end if
+            end if
+        end if
+        Advance( p )
+        return PostfixChain( p, MakeIdent( p, t ) )
+    end if
+
+    return ErrorNode( p, Tko.TKO0400 )
+end function
+
+'' 'seed' is a LEFT OPERAND already parsed -- see ParenGroupOperand_ in parserend.tiko.
+function Expression _
+    ( byref p as Tko.ParserState, byval minPrec as long = 1, _
+      byval seed as Tko.NodeId = Tko.NODE_NONE ) as Tko.NodeId
+
+    p.depth += 1
+    if p.depth > Tko.PARSE_MAX_DEPTH then
+        p.depth -= 1
+        return ErrorNode( p, Tko.TKO0403, str( Tko.PARSE_MAX_DEPTH ) )
+    end if
+
+    dim as Tko.NodeId left = seed
+    if left = Tko.NODE_NONE then left = Prefix( p )
+
+    dim as long chain = 0
+    do
+        dim as Tko.TokenKind k = Peek( p )
+        dim as long prec = Tko.InfixPrec( k )
+        if prec = 0 then exit do
+        if prec < minPrec then exit do
+        chain += 1   '' PAST PARSE_MAX_CHAIN in one chain: refused -- ChainTooLong_, parserend.tiko
+        if chain > Tko.PARSE_MAX_CHAIN then ChainTooLong_( p ) : exit do
+
+        dim as Tko.Token opTok = Cur( p )
+        Advance( p )
+        '' Every FreeBASIC binary operator is LEFT-associative, so the right side
+        '' is parsed at one level tighter. There is no right-associative case --
+        '' not even '^' (docs/language/precedence.md).
+        '' 'a IS T' TAKES A TYPE ON THE RIGHT, not an expression: 'Sq( of integer )'
+        '' is a generic instantiation and 'Dog' is a type name, neither of which the
+        '' expression parser can be asked for. It goes in the ordinary binary node's
+        '' right slot as an N_TYPEREF, which is the same shape 'cast( T, x )' and
+        '' 'type<T>( ... )' already put in an argument and a callee.
+        dim as Tko.NodeId right
+        if k = Tko.KW_IS then
+            right = TypeRef( p )
+        else
+            right = Expression( p, prec + 1 )
+        end if
+        left = MakeBinary( p, k, opTok.loc, left, right )
+    loop
+
+    p.depth -= 1
+    return left
+end function
+
+function OneExpression( byref p as Tko.ParserState ) as Tko.NodeId
+    p.silent = false
+    dim as Tko.NodeId n = Expression( p )
+    '' Trailing junk means the expression was not what the user meant.
+    dim as Tko.TokenKind k = Peek( p )
+    dim as boolean atEnd = (k = Tko.TK_EOF) orelse (k = Tko.TK_EOL)
+    if atEnd = false then n = ErrorNode( p, Tko.TKO0404 )
+    return n
+end function
+
+end namespace
+
+namespace Tko.Parse
+
+'' ----------------------------------------------------------------------- dump
+'' Byte-stable for identical input: this is a golden-test artefact.
+
+private sub DumpNode _
+    ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
+      byref names as Tko.Interner, byval id as Tko.NodeId, byval indent as long, _
+      byref outp as string )
+
+    if id = Tko.NODE_NONE then return
+    dim as Tko.AstNode ptr n = @ast.nodes[cast( long, id )]
+    dim as Tko.NodeKind k = cast( Tko.NodeKind, n->kind )
+    dim as Tko.DecodedLoc d = src.Decode( n->loc )
+
+    dim as string row = space( indent * 2 ) & Tko.NodeKindName( k )
+
+    select case k
+    case Tko.N_INT_LIT
+        dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( long, n->data )]
+        row += " " & str( lp->intValue ) & " radix=" & lp->radix
+    case Tko.N_FLOAT_LIT
+        dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( long, n->data )]
+        row += " " & str( lp->fltValue )
+    case Tko.N_STRING_LIT
+        dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( long, n->data )]
+        row += " len=" & lp->strLength & " kind=" & lp->strKind
+    case Tko.N_IDENT
+        dim as Tko.IdentPayload ptr ip = @ast.idents[cast( long, n->data )]
+        row += " '" & names.Spelling( ip->name ) & "'"
+    case Tko.N_UNARY, Tko.N_ADDROF, Tko.N_DEREF
+        dim as Tko.UnaryPayload ptr up = @ast.unaries[cast( long, n->data )]
+        row += " " & Tko.TokenKindText( cast( Tko.TokenKind, up->op ) )
+    case Tko.N_BINARY, Tko.N_MEMBER
+        dim as Tko.BinaryPayload ptr bp = @ast.binaries[cast( long, n->data )]
+        row += " " & Tko.TokenKindText( cast( Tko.TokenKind, bp->op ) )
+    case Tko.N_INTRINSIC
+        dim as Tko.StmtPayload ptr ip = @ast.stmts[cast( long, n->data )]
+        '' TokenKindText, matching the statement dumper: one shape printed one way.
+        if ip->op <> 0 then
+            dim as string ot = Tko.TokenKindText( cast( Tko.TokenKind, ip->op ) )
+            if len( ot ) > 0 then row += " [" & ot & "]"
+        end if
+    end select
+
+    row += " <" & d.lineNo & ":" & d.column & ">"
+    outp += row & chr( 10 )
+
+    select case k
+    case Tko.N_UNARY, Tko.N_ADDROF, Tko.N_DEREF
+        dim as Tko.UnaryPayload ptr up = @ast.unaries[cast( long, n->data )]
+        DumpNode( ast, src, names, up->operand, indent + 1, outp )
+    case Tko.N_BINARY, Tko.N_MEMBER
+        dim as Tko.BinaryPayload ptr bp = @ast.binaries[cast( long, n->data )]
+        DumpNode( ast, src, names, bp->lhs, indent + 1, outp )
+        DumpNode( ast, src, names, bp->rhs, indent + 1, outp )
+    case Tko.N_INTRINSIC
+        '' An intrinsic can appear INSIDE an expression -- 'open( ... )' yields its
+        '' error code. It carries a statement payload, so without this the expression
+        '' printer stops at the bare row and every child is invisible to a golden,
+        '' which is precisely how a construct that parsed but dropped its arguments
+        '' would look.
+        dim as Tko.StmtPayload ptr ip = @ast.stmts[cast( long, n->data )]
+        DumpNode( ast, src, names, ip->a, indent + 1, outp )
+        DumpNode( ast, src, names, ip->b, indent + 1, outp )
+        DumpNode( ast, src, names, ip->c, indent + 1, outp )
+        for i as long = 0 to ip->count - 1
+            DumpNode( ast, src, names, _
+                      cast( Tko.NodeId, ast.children[ip->first + i] ), indent + 1, outp )
+        next
+    case Tko.N_CALL, Tko.N_INDEX, Tko.N_PAREN, Tko.N_TUPLE, Tko.N_INITIALIZER, Tko.N_STRCAT
+        dim as Tko.ListPayload ptr lp = @ast.lists[cast( long, n->data )]
+        if lp->target <> Tko.NODE_NONE then
+            DumpNode( ast, src, names, lp->target, indent + 1, outp )
+        end if
+        for i as long = 0 to lp->count - 1
+            dim as Tko.NodeId child = cast( Tko.NodeId, ast.children[lp->first + i] )
+            DumpNode( ast, src, names, child, indent + 1, outp )
+        next
+    end select
+end sub
+
+function Dump _
+    ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, _
+      byref names as Tko.Interner, byval root as Tko.NodeId ) as string
+
+    dim as string outp = ""
+    DumpNode( ast, src, names, root, 0, outp )
+    return outp
+end function
+
+end namespace

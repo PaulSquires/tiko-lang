@@ -15,7 +15,7 @@
 #   1. stage1 LOWERS EVERY STATEMENT of every module, and every module verifies. A
 #      build reports no decline, so a statement tiko gives up on vanishes from the
 #      compiler it is building and nothing says so. That is not hypothetical:
-#      'Tko.TKO_VERSION_SUFFIX' in cmdline.bas declined twice, and the self-built
+#      'Tko.TKO_VERSION_SUFFIX' in cmdline.tiko declined twice, and the self-built
 #      compiler's --version lost its suffix and its whole target line.
 #   2. stage2 AND stage3 ARE BYTE-IDENTICAL FILES. Nothing is zeroed and nothing is
 #      masked: the link is reproducible (HANDOFF 8m). stage1 == stage2 too, below:
@@ -121,7 +121,7 @@ fi
 if [ -z "$TKO_BOOT_LIBDIRS" ]; then
     case "$TARGET" in
         windows-x86_64) TKO_BOOT_LIBDIRS="$ROOT/toolchains/tiko-windows/lib/windows-x86_64" ;;
-        # MinGW needs its CRT objects beside the runtime; see cmdline.bas.
+        # MinGW needs its CRT objects beside the runtime; see cmdline.tiko.
         win64)        TKO_BOOT_LIBDIRS="$ROOT/toolchains/tiko-windows/lib/win64"
                       [ -d "$ROOT/toolchains/tiko-windows/lib/win64-fb" ] && TKO_BOOT_LIBDIRS="$TKO_BOOT_LIBDIRS $ROOT/toolchains/tiko-windows/lib/win64-fb" ;;
         linux-x86_64) TKO_BOOT_LIBDIRS="$ROOT/lib/rt/lib/linux-x86_64" ;;
@@ -144,7 +144,7 @@ export TKO_PKG
 
 SOURCES=$(grep -v '^[[:space:]]*#' build/sources.txt | grep -v '^[[:space:]]*$')
 NMOD=$(echo "$SOURCES" | wc -l | tr -d ' ')
-MAINMOD=$(basename "$(echo "$SOURCES" | head -1)" .bas)
+MAINMOD=$(basename "$(echo "$SOURCES" | head -1)" .tiko)
 
 OUT="$ROOT/build/.bootstrap"
 rm -rf "$OUT"
@@ -220,7 +220,7 @@ else
 fi
 
 # ------------------------------------------ 3. stage3 builds a working program
-cat > "$OUT/hello/hello.bas" <<'EOF'
+cat > "$OUT/hello/hello.tiko" <<'EOF'
 namespace Boot
     const WHO as string = "stage3"
 end namespace
@@ -230,13 +230,13 @@ end function
 dim as string s = "hello from " & Boot.WHO
 print s; Twice( 21 ); " "; len( s )
 EOF
-"$OUT/stage3/tiko$EXT" "$OUT/hello/hello.bas" -target "$TARGET" $LIBP -o "$OUT/hello/hello3$EXT" \
-    > "$OUT/hello/build3.log" 2>&1 || { cat "$OUT/hello/build3.log" >&2; fail "stage3 could not build hello.bas"; }
+"$OUT/stage3/tiko$EXT" "$OUT/hello/hello.tiko" -target "$TARGET" $LIBP -o "$OUT/hello/hello3$EXT" \
+    > "$OUT/hello/build3.log" 2>&1 || { cat "$OUT/hello/build3.log" >&2; fail "stage3 could not build hello.tiko"; }
 "$OUT/hello/hello3$EXT" > "$OUT/hello/out3.txt" 2>&1 || fail "stage3's hello did not run"
-( cd "$OUT/hello" && "$TKO_SEED" hello.bas -target "$SEED_TARGET" $LIBP -o "hello0$EXT" > build0.log 2>&1 ) || fail "the seed could not build hello.bas"
+( cd "$OUT/hello" && "$TKO_SEED" hello.tiko -target "$SEED_TARGET" $LIBP -o "hello0$EXT" > build0.log 2>&1 ) || fail "the seed could not build hello.tiko"
 "$OUT/hello/hello0$EXT" > "$OUT/hello/out0.txt" 2>&1 || fail "the seed's hello did not run"
 cmp -s "$OUT/hello/out0.txt" "$OUT/hello/out3.txt" || fail "stage3's hello prints '$(cat "$OUT/hello/out3.txt")', the seed's '$(cat "$OUT/hello/out0.txt")'"
-say "stage3  builds hello.bas, and it prints what the seed's build prints"
+say "stage3  builds hello.tiko, and it prints what the seed's build prints"
 
 # ------------------------------------------------- 4. the suite, both ways
 if [ "$GATE" = "1" ]; then

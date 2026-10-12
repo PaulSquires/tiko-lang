@@ -3,7 +3,7 @@
 '' NEEDS-GEN-LLVM -- reserved names.
 ''
 '' Same thirty forwards as the narrow side, over the shared core in
-'' inc/radix-core.bi instantiated at wide width. The two differences the
+'' inc/radix-core.ti instantiated at wide width. The two differences the
 '' instantiation makes are both asserted here: the result is a plain malloc the
 '' caller frees, and FAILURE RETURNS NULL rather than a shared empty descriptor.
 ''

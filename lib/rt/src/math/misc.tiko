@@ -1,0 +1,153 @@
+'' misc.tiko -- SGN, FIX, FRAC, the CVn bit-casts and the integer log10:
+'' fifteen entry points over five fbc members.
+''
+'' All pure functions over registers -- no allocation, no descriptors, no OS
+'' state. The only thing here that can go wrong is a rule, and there are three:
+''
+''   SGN OF NaN IS -1, not 0. The test is `x = 0` then `x > 0`, and NaN fails
+''   both, so it falls to the negative arm. FIX and FRAC inherit it.
+''
+''   THE CVn CASTS CHECK BOTH SIZES and return 0 when either disagrees, rather
+''   than reinterpreting whatever fits. On these targets they always agree, so
+''   the guard is dead code that must still be there -- it is what makes the
+''   function total.
+''
+''   IntLog10 RETURNS -1 FOR ZERO, not 0. The chain of comparisons ends without
+''   a match and falls through, which is what the callers in the numeric
+''   formatters expect.
+
+#include once "inc/descriptors.ti"
+#include once "inc/sysbind.ti"
+
+extern "rtlib"
+
+'' ------------------------------------------------------------------- SGN
+
+function tkort_SGNb alias "fb_SGNb" ( byval x as byte ) as long
+	if( x = 0 ) then return 0
+	if( x > 0 ) then return 1
+	return -1
+end function
+
+function tkort_SGNi alias "fb_SGNi" ( byval x as long ) as long
+	if( x = 0 ) then return 0
+	if( x > 0 ) then return 1
+	return -1
+end function
+
+function tkort_SGNl alias "fb_SGNl" ( byval x as longint ) as long
+	if( x = 0 ) then return 0
+	if( x > 0 ) then return 1
+	return -1
+end function
+
+'' NaN reaches the last arm: it is neither equal to nor greater than zero.
+function tkort_SGNSingle alias "fb_SGNSingle" ( byval x as single ) as long
+	if( x = 0.0 ) then return 0
+	if( x > 0.0 ) then return 1
+	return -1
+end function
+
+function tkort_SGNDouble alias "fb_SGNDouble" ( byval x as double ) as long
+	if( x = 0.0 ) then return 0
+	if( x > 0.0 ) then return 1
+	return -1
+end function
+
+'' ------------------------------------------------------------ FIX and FRAC
+''
+'' FIX truncates TOWARDS ZERO, which is floor(abs(x)) * sgn(x) rather than
+'' floor(x) -- they differ for every negative non-integer. FRAC is then the
+'' remainder, and carries the sign of its argument.
+
+function tkort_FIXSingle alias "fb_FIXSingle" ( byval x as single ) as single
+	return cast( single, floor( abs( cast( double, x ) ) ) * tkort_SGNSingle( x ) )
+end function
+
+function tkort_FIXDouble alias "fb_FIXDouble" ( byval x as double ) as double
+	return floor( abs( x ) ) * tkort_SGNDouble( x )
+end function
+
+function tkort_FRACf alias "fb_FRACf" ( byval x as single ) as single
+	return x - tkort_FIXSingle( x )
+end function
+
+function tkort_FRACd alias "fb_FRACd" ( byval x as double ) as double
+	return x - tkort_FIXDouble( x )
+end function
+
+'' ------------------------------------------------------------- the CVn casts
+''
+'' Bit reinterpretation between an integer and a float of the same width. The
+'' size guard is fbc's and is kept: it returns 0 if the two types are not the
+'' same width, which on these targets never happens.
+
+function tkort_CVDFROMLONGINT alias "fb_CVDFROMLONGINT" ( byval ll as longint ) as double
+	if( (sizeof( longint ) <> 8) orelse (sizeof( double ) <> 8) ) then return 0.0
+	dim as double d = any
+	memcpy( @d, @ll, 8 )
+	return d
+end function
+
+function tkort_CVLONGINTFROMD alias "fb_CVLONGINTFROMD" ( byval d as double ) as longint
+	if( (sizeof( longint ) <> 8) orelse (sizeof( double ) <> 8) ) then return 0
+	dim as longint ll = any
+	memcpy( @ll, @d, 8 )
+	return ll
+end function
+
+function tkort_CVLFROMS alias "fb_CVLFROMS" ( byval f as single ) as long
+	if( (sizeof( long ) <> 4) orelse (sizeof( single ) <> 4) ) then return 0
+	dim as long l = any
+	memcpy( @l, @f, 4 )
+	return l
+end function
+
+function tkort_CVSFROML alias "fb_CVSFROML" ( byval l as long ) as single
+	if( (sizeof( long ) <> 4) orelse (sizeof( single ) <> 4) ) then return 0.0
+	dim as single f = any
+	memcpy( @f, @l, 4 )
+	return f
+end function
+
+'' -------------------------------------------------------------- IntLog10
+''
+'' A comparison chain, not a division loop or a call to log10 -- the callers are
+'' the numeric formatters and this sits on their hot path.
+''
+'' RETURNS -1 FOR ZERO. The chain simply runs out.
+
+function tkort_IntLog10_32 alias "fb_IntLog10_32" ( byval x as ulong ) as long
+	if( x >= 1000000000ul ) then return 9
+	if( x >= 100000000ul ) then return 8
+	if( x >= 10000000ul ) then return 7
+	if( x >= 1000000ul ) then return 6
+	if( x >= 100000ul ) then return 5
+	if( x >= 10000ul ) then return 4
+	if( x >= 1000ul ) then return 3
+	if( x >= 100ul ) then return 2
+	if( x >= 10ul ) then return 1
+	if( x >= 1ul ) then return 0
+	return -1
+end function
+
+'' The 64-bit form checks the high half FIRST and hands anything that fits in 32
+'' bits to the routine above -- so the common case costs one test rather than ten.
+function tkort_IntLog10_64 alias "fb_IntLog10_64" ( byval x as ulongint ) as long
+	if( (x and &hffffffff00000000ull) <> 0 ) then
+		if( x >= 10000000000000000000ull ) then return 19
+		if( x >= 1000000000000000000ull ) then return 18
+		if( x >= 100000000000000000ull ) then return 17
+		if( x >= 10000000000000000ull ) then return 16
+		if( x >= 1000000000000000ull ) then return 15
+		if( x >= 100000000000000ull ) then return 14
+		if( x >= 10000000000000ull ) then return 13
+		if( x >= 1000000000000ull ) then return 12
+		if( x >= 100000000000ull ) then return 11
+		if( x >= 10000000000ull ) then return 10
+		return 9
+	end if
+	return tkort_IntLog10_32( cast( ulong, x ) )
+end function
+
+end extern

@@ -17,7 +17,7 @@
 ''
 '' Only modes with a palette are tested -- PALETTE is a no-op above 8bpp.
 
-#include once "../core/palette.bi"
+#include once "../core/palette.ti"
 #include once "abtest.bi"
 #ifdef ABTEST_HAS_GFXLIB2
 #include once "fbgfx.bi"
@@ -89,7 +89,7 @@ dim as long bs(...) = { 0, 128, 31, 3, 1, 2, 32, 51, 204, 252, 9, 50 }
 
 '' ---- every supported mode's generated defaults, not just the sampled ones ----
 ''
-'' This is what keeps core/palette-data.bi honest: 2692 entries extracted from
+'' This is what keeps core/palette-data.ti honest: 2692 entries extracted from
 '' gfxlib2 rather than transcribed, re-read from the reference every run.
 ''
 '' It covers ALL 17 supported modes deliberately. An earlier version checked only

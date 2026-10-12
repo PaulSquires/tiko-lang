@@ -1,0 +1,81 @@
+'' plan.ti -- from a subcommand's arguments and tiko.toml to the classic command lines that
+'' build each target (tiko-build RFC-0001 §5; PLAN B2).
+''
+'' A TARGET is a [target.<name>] of the nearest tiko.toml at or above the current directory,
+'' or the IMPLICIT target: the roots on the command line (RFC B4). A PROFILE is a set of
+'' compiler flags: 'debug' and 'release' are built in, a manifest's [profile.<name>] overrides
+'' one key by key or declares another, and 'inherits' starts from a parent's. Manifest targets
+'' build under 'debug' unless '--profile' says otherwise (B10); the implicit target takes a
+'' profile only when one is asked for, so 'tiko build a.tiko' stays 'tiko a.tiko'.
+
+#pragma once
+
+#include once "tko.ti"
+#include once "driver/driver.ti"
+#include once "driver/manifest.ti"
+
+namespace Tko.Build
+
+    type BuildArgs
+        as string  verb
+        as Tko.StrVec words      '' the arguments that are not options: roots or target names
+        as Tko.StrVec extra      '' --options, split
+        as string  target        '' -target
+        as string  outPath       '' -o (the implicit target only)
+        as string  diagFile
+        as string  profile
+        as boolean hasProfile
+        as string  manifest      '' --manifest: tiko.toml or its directory, else the nearest
+        as boolean json
+        as boolean verbose
+        as long    jobs          '' -j: the job budget (TKO_JOBS for this build); 0 = default
+        as Tko.StrVec runArgs    '' 'tiko run': what follows '--', for the program
+    end type
+
+    '' One target, ready: what it builds from, its flags, and the classic command line.
+    type TargetPlan
+        as string  name
+        as string  kind          '' exe, dll or lib
+        as string  profile       '' "" for an implicit target built with none
+        as string  artifact
+        as Tko.StrVec roots      '' main first, then the sources
+        as Tko.StrVec resources
+        as Tko.StrVec defines    '' NAME=value, the target's own
+        as Tko.StrVec flags      '' the profile's, the target's 'options', then --options
+        as Tko.StrVec dargs      '' the whole command line for Driver.Run
+        '' copy_to: directories the artefact is copied into after a build that succeeded,
+        '' relative to the current directory as every other path here is.
+        as Tko.StrVec copyTo
+    end type
+
+    '' The directory of the nearest tiko.toml at or above the current one, spelled relative to
+    '' it ("." for here, ".." above); "" when there is none.
+    declare function FindManifestDir( ) as string
+
+    declare function ProfileExists( byref m as Tko.Modules.Manifest, byref name_ as string ) as boolean
+    '' 'debug' and 'release', then the manifest's other profiles, in file order.
+    declare sub ProfileNames( byref m as Tko.Modules.Manifest, byref outv as Tko.StrVec )
+    '' The flags a profile stands for (TKO0163 unknown, TKO0164 an 'inherits' cycle).
+    declare function ProfileFlags _
+        ( byref m as Tko.Modules.Manifest, byref name_ as string, byref flags as Tko.StrVec, _
+          byref diags as Tko.DiagnosticEngine ) as boolean
+
+    declare function PlanTarget _
+        ( byref a as BuildArgs, byref m as Tko.Modules.Manifest, byref mdir as string, _
+          byref tname as string, byref profile as string, byref p as TargetPlan, _
+          byref diags as Tko.DiagnosticEngine ) as boolean
+    declare function PlanImplicit _
+        ( byref a as BuildArgs, byref m as Tko.Modules.Manifest, byref p as TargetPlan, _
+          byref diags as Tko.DiagnosticEngine ) as boolean
+
+    '' Where a manifest target writes under a profile: 'output', else out/<profile>/<file>.
+    declare function TargetOutput _
+        ( byref a as BuildArgs, byref m as Tko.Modules.Manifest, byref mdir as string, _
+          byref tname as string, byref profile as string, byref diags as Tko.DiagnosticEngine ) as string
+
+    '' A path from tiko.toml's directory, spelled from the current one.
+    declare function Rel( byref dir_ as string, byref p as string ) as string
+    declare function BaseName( byref p as string ) as string
+    declare function Stem( byref p as string ) as string
+
+end namespace

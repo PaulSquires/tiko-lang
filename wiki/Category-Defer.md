@@ -166,7 +166,7 @@ tests/diagnostics/defer-goto-errors.test, defer-bare.test and defer-label.test h
 
 ## Implementation
 
-tiko's implementation is its own. The parser recognises the contextual keyword (`src/parser/parser.bas`), and the MIR lowering (`src/mir/lower.bas`) registers the deferred statement in the same per-scope cleanup list that local destructors are registered in, so reverse order and the interleaving with destructors come from that one list. Its run-time behaviour matches fbc's on fbc's own DEFER programs -- see Tests.
+tiko's implementation is its own. The parser recognises the contextual keyword (`src/parser/parser.tiko`), and the MIR lowering (`src/mir/lower.tiko`) registers the deferred statement in the same per-scope cleanup list that local destructors are registered in, so reverse order and the interleaving with destructors come from that one list. Its run-time behaviour matches fbc's on fbc's own DEFER programs -- see Tests.
 
 ## Tests
 

@@ -1,0 +1,99 @@
+'' mem.tiko -- fb_MemSwap and fb_MemCopyClear.
+''
+'' NOTE ON WHAT IS *NOT* HERE. Both docs/plan/11-runtime.md section 4 and this
+'' project's own RFC-0001 listed "fb_MemAlloc / fb_MemFree / fb_MemRealloc" as
+'' the memory surface. **Those functions do not exist.** fbc-int/memory.bi shows
+'' FreeBASIC's ALLOCATE, CALLOCATE and DEALLOCATE are declared with
+'' `alias "malloc" / "calloc" / "free"` -- they are libc directly, with no
+'' runtime function in between, and nothing named fb_MemAlloc appears in any
+'' header or in nm over the shipped archives.
+''
+'' The real FBCALL memory surface is the two entry points below (fb_system.h).
+'' Recorded here because a list of functions to implement that do not exist is
+'' the kind of error that survives a long time.
+''
+'' Semantics established by PROBE-10 -- calling the C runtime and reading the
+'' bytes back, not by reading its source (PROVENANCE.md):
+''
+''   fb_MemCopyClear( dst, 8, src, 3 )  ->  11 12 13 00 00 00 00 00
+''   fb_MemCopyClear( dst, 4, src, 8 )  ->  11 12 13 14 AA AA AA AA
+''   fb_MemCopyClear( dst, 8, src, 8 )  ->  11 12 13 14 15 16 17 18
+''   fb_MemSwap( dst, src, 4 )          ->  exactly 4 bytes exchanged
+''
+'' So: copy min(dstlen, srclen); zero-fill the REMAINDER of dst when the source
+'' is shorter; never write past dstlen when it is longer.
+''
+'' NOTE ON THE ALIAS. Every entry point is defined under a tkort_ identifier and
+'' ALIASed to its fb_ name. That is not style: fbc RESERVES the fb_* names in its
+'' rtlLookupTB() table, so `sub fb_MemSwap(...)` is error 4, "Duplicated
+'' definition". PROBE-11 confirmed the alias costs nothing at the ABI --
+'' decoration comes out byte-identical to fbc's own archive on all three
+'' targets, _fb_MemSwap@12 on win32 included.
+
+#include once "inc/descriptors.ti"
+
+extern "rtlib"
+
+'' Exchange `bytes` bytes between two buffers, which the caller guarantees do
+'' not overlap (SWAP's operands are distinct variables).
+''
+'' Chunked through a stack buffer so the three moves are memcpy calls, which
+'' libc implements far better than a byte loop would. FB_LOCALBUFF-sized rather
+'' than one big alloca: this is called for UDT SWAP, where the operand can be
+'' large, and a variable-length stack allocation in a runtime entry point is a
+'' stack-overflow waiting for a big UDT.
+sub tkort_MemSwap alias "fb_MemSwap" ( byval dst as ubyte ptr, byval src as ubyte ptr, byval bytes as integer )
+
+	if( (dst = 0) orelse (src = 0) orelse (bytes <= 0) ) then
+		exit sub
+	end if
+
+	const CHUNK as integer = 512
+	dim as ubyte tmp( 0 to CHUNK - 1 )
+	dim as integer remaining = bytes
+	dim as integer n = any
+
+	while( remaining > 0 )
+		n = remaining
+		if( n > CHUNK ) then n = CHUNK
+
+		memcpy( @tmp(0), src, n )
+		memcpy( src, dst, n )
+		memcpy( dst, @tmp(0), n )
+
+		src += n
+		dst += n
+		remaining -= n
+	wend
+
+end sub
+
+'' Copy src into dst, truncating if src is longer and ZERO-FILLING the tail of
+'' dst if it is shorter. This is what makes a fixed-length assignment leave no
+'' residue from whatever the destination held before.
+sub tkort_MemCopyClear alias "fb_MemCopyClear" _
+	( _
+		byval dst as ubyte ptr, byval dstlen as uinteger, _
+		byval src as ubyte ptr, byval srclen as uinteger _
+	)
+
+	if( (dst = 0) orelse (dstlen = 0) ) then
+		exit sub
+	end if
+
+	if( (src = 0) orelse (srclen = 0) ) then
+		'' Nothing to copy is not nothing to do: the whole destination clears.
+		memset( dst, 0, dstlen )
+		exit sub
+	end if
+
+	if( srclen >= dstlen ) then
+		memcpy( dst, src, dstlen )
+	else
+		memcpy( dst, src, srclen )
+		memset( dst + srclen, 0, dstlen - srclen )
+	end if
+
+end sub
+
+end extern

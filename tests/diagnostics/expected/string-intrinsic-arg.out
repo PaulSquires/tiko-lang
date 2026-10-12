@@ -66,7 +66,7 @@ lowered: 3 functions, 3 blocks, 31 insts, 6 statements not lowered, 0 scope imba
   unlowered N_INTRINSIC 6
   inside N_INTRINSIC 6
   unlowered intrinsic KW_PRINT 6
-  skip-site src\mir\lowerctl.bas:207 6
+  skip-site src\mir\lowerctl.tiko:207 6
 tests/diagnostics/src/string-intrinsic-arg.bas(25,18): error TKO0626: 'lcase' takes a string
      |
   25 |     print lcase( 0 )

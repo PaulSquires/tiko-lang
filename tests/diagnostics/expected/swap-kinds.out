@@ -154,7 +154,7 @@ lowered: 1 functions, 1 blocks, 117 insts, 4 statements not lowered, 0 scope imb
   unlowered N_INTRINSIC 4
   inside N_INTRINSIC 4
   unlowered intrinsic KW_SWAP 4
-  skip-site src\mir\lowerctl.bas:206 4
+  skip-site src\mir\lowerctl.tiko:206 4
 tests/diagnostics/src/swap-kinds.bas(42,1): error TKO0759: 'swap' needs two operands of the same kind
      |
   42 | swap s1, i1

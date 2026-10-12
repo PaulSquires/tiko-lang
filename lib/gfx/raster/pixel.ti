@@ -1,0 +1,65 @@
+'' pixel.ti -- PSET / POINT for 32bpp.
+''
+'' Derived from: gfx_pset.c, gfx_point.c, gfx_core.c (fb_hPutPixel4 /
+'' fb_hGetPixel4). LGPL-2.1-or-later with the static-linking exception.
+''
+'' CLIPPING IS THE CALLER'S JOB IN gfxlib2, and it is here too. fb_hPutPixel4 is
+'' literally `((unsigned int *)ctx->line[y])[x] = color;` -- no bounds check at
+'' all -- and fb_GfxPset tests the viewport before calling it. Matching that
+'' split matters: it is why a PSET one pixel outside the view is a no-op rather
+'' than a crash, and why the inner loops of LINE and CIRCLE can be tight.
+''
+'' The gfxlib2 clip test is
+''     x <  view_x  ||  y <  view_y  ||
+''     x >= view_x + view_w  ||  y >= view_y + view_h
+'' which is the same box as our INCLUSIVE clip_x2 = view_x + view_w - 1.
+
+#pragma once
+
+#include once "../core/surface.ti"
+#include once "../core/dirty.ti"
+
+namespace TkoGfx
+
+'' Is (x,y) inside the clip box?
+private function PixelVisible( _
+        byref s as Surface, byval x as long, byval y as long ) as long
+    if x < s.clip_x1 then return 0
+    if y < s.clip_y1 then return 0
+    if x > s.clip_x2 then return 0
+    if y > s.clip_y2 then return 0
+    return 1
+end function
+
+'' Unclipped write. Matches fb_hPutPixel4 exactly, including the absence of a
+'' bounds check. Only call this having already clipped.
+private sub PutPixel32( _
+        byref s as Surface, byval x as long, byval y as long, byval col as ulong )
+    dim as ulong ptr row = cptr( ulong ptr, SurfaceRowAddr( s, y ) )
+    row[x] = col
+end sub
+
+'' Unclipped read. Matches fb_hGetPixel4.
+private function GetPixel32( _
+        byref s as Surface, byval x as long, byval y as long ) as ulong
+    dim as ulong ptr row = cptr( ulong ptr, SurfaceRowAddr( s, y ) )
+    return row[x]
+end function
+
+'' PSET: clip, then write.
+private sub PSet32( _
+        byref s as Surface, byval x as long, byval y as long, byval col as ulong )
+    if PixelVisible( s, x, y ) then
+        PutPixel32( s, x, y, col )
+        DirtyMark( s, y, 1 )
+    end if
+end sub
+
+'' POINT: gfxlib2 returns -1 for a coordinate outside the viewport.
+private function Point32( _
+        byref s as Surface, byval x as long, byval y as long ) as long
+    if PixelVisible( s, x, y ) = 0 then return -1
+    return cast( long, GetPixel32( s, x, y ) )
+end function
+
+end namespace

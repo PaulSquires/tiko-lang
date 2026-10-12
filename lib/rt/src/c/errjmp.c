@@ -41,7 +41,7 @@ extern void _longjmp( void *env, int val );
 #endif
 
 /* DOES NOT RETURN. The buffer belongs to the error context -- see
-** src/inc/descriptors.bi -- because a '__declspec(thread)' here would want
+** src/inc/descriptors.ti -- because a '__declspec(thread)' here would want
 ** '_tls_index' and tiko links no CRT startup to define it. */
 void fb_ErrorJmpGoAt( void *env )
 {

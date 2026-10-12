@@ -16,46 +16,46 @@ foundation.
 ## What is here
 
 ```
-abi/rtlabi.bi             the FB mirrors of the runtime structs
-abi/rtlctx.bi             reaching __fb_ctx.hooks / .exit_gfxlib2
-abi/rtlctx-offsets.bi     GENERATED -- the two offsets, do not edit
-abi/rtlseam.bi            runtime services we call INTO (TLS, lock, error)
-core/hooks.bi             installing/clearing the console hook table
-core/surface.bi           a drawable: pixels, pitch, bpp, clip box, dirty
-core/dirty.bi             which scanlines changed since the last present
-core/viewport.bi          VIEW, WINDOW, PMAP and the coordinate transform
-core/mode.bi              the legacy SCREEN 1..21 mode table
-core/palette.bi           PALETTE and PALETTE GET
-core/palette-data.bi      GENERATED -- 2692 default palette entries
-core/image.bi             IMAGECREATE / IMAGEINFO and the 32-byte header
-raster/put.bi             the ten PUT blend modes, 32bpp
-core/bsave.bi             the raw BSAVE / BLOAD block format
-core/bmp.bi               BMP output for BSAVE (the abtest-bmp kernels)
-entry/bmpio.bi            BLOAD / BSAVE: BMP in and out, screen and palette forms
-core/control.bi           SCREENCONTROL getters and SCREENINFO
-core/font-data.bi         GENERATED -- 9728 bytes of console font
-core/vgaport.bi           the VGA DAC behind INP and OUT
-core/cells.bi             the character-cell plane behind SCREEN()
-core/lzw.bi               the 12-bit LZW codec (fb_hEncode / fb_hDecode)
-core/events.bi            the event ring behind SCREENEVENT
-core/keyboard.bi          the key ring behind INKEY/GETKEY/KEYHIT, and MULTIKEY
-driver/window.bi          the Win32 window, its thread and message pump
-driver/mouse.bi           the pointer state behind GETMOUSE and SETMOUSE
-raster/text.bi            console text rendering on a graphics screen
-raster/blit.bi            the 21 device blitters and their dispatch
-raster/pixel.bi           PSET / POINT, 32bpp
-raster/line.bi            LINE, 8/16/32bpp, with the 16-bit style mask
-raster/box.bi             LINE B / BF, 8/16/32bpp, with the 16-bit style mask
-raster/circle.bi          CIRCLE, 32bpp: ellipse, aspect, arcs, fill
-raster/paint.bi           PAINT, 32bpp, solid and PATTERN fill
-raster/draw.bi            DRAW, the turtle command language
-raster/cls.bi             CLS, modes 0 and 1
-raster/pixelfmt.bi        8 / 16 / 32 bpp pixel paths, monomorphised
-raster/color.bi           COLOR, default branch, all three depths
-raster/convert.bi         the row converters behind the blitter table
-driver/driver.bi          the presenter interface and its registry
-driver/mem.bi             NULL and MEM drivers (MEM records what it presents)
-driver/gdi.bi             the Win32 GDI blit path
+abi/rtlabi.ti             the FB mirrors of the runtime structs
+abi/rtlctx.ti             reaching __fb_ctx.hooks / .exit_gfxlib2
+abi/rtlctx-offsets.ti     GENERATED -- the two offsets, do not edit
+abi/rtlseam.ti            runtime services we call INTO (TLS, lock, error)
+core/hooks.ti             installing/clearing the console hook table
+core/surface.ti           a drawable: pixels, pitch, bpp, clip box, dirty
+core/dirty.ti             which scanlines changed since the last present
+core/viewport.ti          VIEW, WINDOW, PMAP and the coordinate transform
+core/mode.ti              the legacy SCREEN 1..21 mode table
+core/palette.ti           PALETTE and PALETTE GET
+core/palette-data.ti      GENERATED -- 2692 default palette entries
+core/image.ti             IMAGECREATE / IMAGEINFO and the 32-byte header
+raster/put.ti             the ten PUT blend modes, 32bpp
+core/bsave.ti             the raw BSAVE / BLOAD block format
+core/bmp.ti               BMP output for BSAVE (the abtest-bmp kernels)
+entry/bmpio.ti            BLOAD / BSAVE: BMP in and out, screen and palette forms
+core/control.ti           SCREENCONTROL getters and SCREENINFO
+core/font-data.ti         GENERATED -- 9728 bytes of console font
+core/vgaport.ti           the VGA DAC behind INP and OUT
+core/cells.ti             the character-cell plane behind SCREEN()
+core/lzw.ti               the 12-bit LZW codec (fb_hEncode / fb_hDecode)
+core/events.ti            the event ring behind SCREENEVENT
+core/keyboard.ti          the key ring behind INKEY/GETKEY/KEYHIT, and MULTIKEY
+driver/window.ti          the Win32 window, its thread and message pump
+driver/mouse.ti           the pointer state behind GETMOUSE and SETMOUSE
+raster/text.ti            console text rendering on a graphics screen
+raster/blit.ti            the 21 device blitters and their dispatch
+raster/pixel.ti           PSET / POINT, 32bpp
+raster/line.ti            LINE, 8/16/32bpp, with the 16-bit style mask
+raster/box.ti             LINE B / BF, 8/16/32bpp, with the 16-bit style mask
+raster/circle.ti          CIRCLE, 32bpp: ellipse, aspect, arcs, fill
+raster/paint.ti           PAINT, 32bpp, solid and PATTERN fill
+raster/draw.ti            DRAW, the turtle command language
+raster/cls.ti             CLS, modes 0 and 1
+raster/pixelfmt.ti        8 / 16 / 32 bpp pixel paths, monomorphised
+raster/color.ti           COLOR, default branch, all three depths
+raster/convert.ti         the row converters behind the blitter table
+driver/driver.ti          the presenter interface and its registry
+driver/mem.ti             NULL and MEM drivers (MEM records what it presents)
+driver/gdi.ti             the Win32 GDI blit path
 abi/offsets/win64.txt     checked-in golden layout, measured
 abi/offsets/win32.txt     "
 tools/probe-rtlabi.c      C probe -- measures the REAL runtime
@@ -63,7 +63,7 @@ tools/probe-fbabi.bas     FB probe -- measures OUR MIRROR
 tools/probe-rtlctx.bas    behavioural check that the offsets are real
 tools/probe-rtlseam.bas   behavioural check that we share gfxlib2's context
 tools/probe-hooks.bas     end-to-end check of hook install + exit teardown
-tools/gen-rtlctx.sh       regenerates abi/rtlctx-offsets.bi
+tools/gen-rtlctx.sh       regenerates abi/rtlctx-offsets.ti
 tools/abtest-line.bas     34 LINE cases, pixel-compared to gfxlib2
 tools/abtest-box.bas      42 B/BF cases, pixel-compared to gfxlib2
 tools/abtest.sh           runs every abtest-* in all four configurations
@@ -134,7 +134,7 @@ that asserts all 28.
 
 ### The TLS seam
 
-`abi/rtlseam.bi` claims the runtime's graphics TLS slot with
+`abi/rtlseam.ti` claims the runtime's graphics TLS slot with
 `fb_TlsGetCtx( FB_TLSKEY_GFX, sizeof( FB_GFXCTX ), @destructor )` -- the FB
 spelling of gfxlib2's `FB_TLSGETCTX(GFX)`. It must hand back **the same block
 gfxlib2 uses**, so the check opens a 320x200x32 screen, draws, and reads the
@@ -155,7 +155,7 @@ only reading known geometry catches it.
 
 ### Taking the console over, and giving it back
 
-`core/hooks.bi` installs and clears the 28-entry table, and sets the
+`core/hooks.ti` installs and clears the 28-entry table, and sets the
 `exit_gfxlib2` teardown callback. Checked by consequence, not inspection:
 install a table whose `printbuffproc` captures, then require that the captured
 line **does not** reach stdout, the visible line **does**, and a sentinel file
@@ -261,7 +261,7 @@ not assumed.
   cannot yet be pinned to the runtime it is supposed to be guarding. Until it can, these numbers
   describe the MinGW-built runtime that the A/B harness actually links against, which is the right
   target for phases 1–5 and the wrong one thereafter.
-- ~~The FB-side mirror does not exist yet.~~ **Done.** `abi/rtlabi.bi` mirrors `FBSTRING`,
+- ~~The FB-side mirror does not exist yet.~~ **Done.** `abi/rtlabi.ti` mirrors `FBSTRING`,
   `FBARRAY`, `FBARRAYDIM`, `EVENT`, `PUT_HEADER`, `FB_HOOKSTB`, `FB_GFXCTX`, `FBGFX`,
   `GFXDRIVER` and `GFX_CHAR_CELL`, and is **byte-identical to the C on both targets** --
   136 lines of offsets and sizes, zero differences. Five fields are renamed because their C
@@ -301,7 +301,7 @@ abtest: win32-mt -- ...
 45-degree diagonals, reversed endpoints, single points, axis-aligned lines,
 every clip edge, both corners, fully-outside, and eight tie cases.
 
-`raster/line.bi` follows `fb_GfxDrawLine` step for step rather than a textbook
+`raster/line.ti` follows `fb_GfxDrawLine` step for step rather than a textbook
 Bresenham, because the formulations differ by a pixel on ties: `d` starts at
 `(dx >= dy) ? dy*2 - dx : dy - dx*2`, `dx`/`dy` are captured *before* clipping,
 and the loop ends one step *past* the endpoint. The 16-bit style mask (2026-10-06)
@@ -322,7 +322,7 @@ before believing it.
 
 ### Boxes
 
-`raster/box.bi` covers `LINE B` and `LINE BF`, shared with `VIEW` as in gfxlib2.
+`raster/box.ti` covers `LINE B` and `LINE BF`, shared with `VIEW` as in gfxlib2.
 **42 cases pass**, and the ones that matter are the per-edge gating: each edge is
 drawn only if *its own* coordinate is in view, so a box hanging off the bottom
 draws its top and sides and **no bottom** -- not a bottom clamped up to the clip
@@ -378,7 +378,7 @@ a mechanism you can point at in the disassembly.
 
 ## Dirty scanlines, and the driver
 
-`core/dirty.bi` is a byte per scanline. Producers mark the row **range** a
+`core/dirty.ti` is a byte per scanline. Producers mark the row **range** a
 primitive touched, once per primitive -- so it costs nothing in the inner loops
 -- and the presenter blits first..last and clears.
 
@@ -392,7 +392,7 @@ Two details copied deliberately rather than improved on:
   large blit beats several small ones anyway.
 
 This one is **A/B-able against the real thing**: `__fb_gfx->dirty` is reachable
-through `abi/rtlctx.bi`, so `abtest-dirty.bas` draws to the SCREEN with gfxlib2,
+through `abi/rtlctx.ti`, so `abtest-dirty.bas` draws to the SCREEN with gfxlib2,
 reads its span, then draws the same case through ours and compares. **12 cases,
 spans identical**, including the case that proves an image target marks nothing.
 Making the box mark one row instead of its full height fails exactly the three
@@ -415,14 +415,14 @@ presentation path checkable with no window, no display server and no human:
 gfxlib2 has no equivalent, which is part of why its dirty handling is only
 checkable by eye.
 
-**Owed:** `driver/mem.bi` uses `dim shared` for the two driver records and the
+**Owed:** `driver/mem.ti` uses `dim shared` for the two driver records and the
 present log. `build/lint.sh` rule 2 still scans only `src`, so it does not fire
 here -- this is the allowlist debt already noted above, and these are the first
 three entries it will need.
 
 ## The GDI presenter
 
-`driver/gdi.bi` is split in two on purpose:
+`driver/gdi.ti` is split in two on purpose:
 
 | | testable? |
 | --- | --- |
@@ -466,7 +466,7 @@ none, because it reads as evidence the case was considered.
 
 ## Phase 3 -- CIRCLE
 
-`raster/circle.bi` covers the full ellipse with aspect and fill. **62 cases pass**
+`raster/circle.ti` covers the full ellipse with aspect and fill. **62 cases pass**
 across all four configurations: consecutive integer radii (which walk the
 decision variable through every phase), fractional radii, off-centre and clipped
 positions, and an aspect sweep covering both branches plus the exact 1.0
@@ -549,7 +549,7 @@ hides a divergence is worse than one that fails on it.
 
 ## PAINT
 
-`raster/paint.bi` is a span flood fill: extend left and right to the border,
+`raster/paint.ti` is a span flood fill: extend left and right to the border,
 record the run, queue the rows above and below. **15 scenes pass** -- concave
 shapes, interior islands, nested boundaries, a circle boundary, a comb, a
 one-pixel gap the fill must escape through, and the degenerate seeds.
@@ -581,7 +581,7 @@ the suite fail, or write it down as unverified.
 
 ## DRAW
 
-`raster/draw.bi` implements the turtle language: `B N C S A TA M P` and the eight
+`raster/draw.ti` implements the turtle language: `B N C S A TA M P` and the eight
 direction letters. **51 command strings pass**, covering the parser (redundant
 signs like `R++5`, malformed input that must stop cleanly mid-string, lowercase),
 the state machine, and the drawing.
@@ -625,7 +625,7 @@ running it, rather than trusting a chained exit code.
 
 ## VIEW, WINDOW, PMAP
 
-`core/viewport.bi`. **369 cases pass** -- nine VIEW/WINDOW combinations crossed
+`core/viewport.ti`. **369 cases pass** -- nine VIEW/WINDOW combinations crossed
 with a grid of logical coordinates, plus every PMAP function over ten probes.
 
 Pixel placement and PMAP are checked **separately**, because they are observable
@@ -673,7 +673,7 @@ The bound is verified to still catch genuine errors: swapping `view_w` for
 
 ## CLS, and multi-bpp
 
-`raster/cls.bi` -- **8 cases**. `raster/pixelfmt.bi` generates the 8, 16 and
+`raster/cls.ti` -- **8 cases**. `raster/pixelfmt.ti` generates the 8, 16 and
 32 bpp pixel paths from one macro -- **42 cases**.
 
 **16bpp is a conversion, not a mask.** `fb_hFixColor` truncates for 8bpp
@@ -748,7 +748,7 @@ about masks would have produced that.
 
 ## COLOR
 
-`raster/color.bi` -- **42 cases** across 8, 16 and 32 bpp. Two halves are checked
+`raster/color.ti` -- **42 cases** across 8, 16 and 32 bpp. Two halves are checked
 separately, because either can be wrong alone: the **return value** (the previous
 pair) and **what was actually stored** (observed through the next return).
 
@@ -774,7 +774,7 @@ echoed back.
 
 ## The SCREEN mode table, and PALETTE
 
-`core/mode.bi` -- **106 checks** over `SCREEN 1..21`, every row verified against
+`core/mode.ti` -- **106 checks** over `SCREEN 1..21`, every row verified against
 what `SCREEN n` actually opens (geometry from `SCREENINFO`, text dimensions from
 `WIDTH`, and whether the mode opens at all).
 
@@ -788,7 +788,7 @@ one in is caught.
 
 ### PALETTE -- three things that look like bugs
 
-`core/palette.bi` -- **180 cases across 6 modes**.
+`core/palette.ti` -- **180 cases across 6 modes**.
 
 1. **Red is the LOW byte.** Entries are `r or (g shl 8) or (b shl 16)`, the
    opposite of the `&hRRGGBB` convention every other colour here uses. Storing
@@ -807,7 +807,7 @@ one in is caught.
 **2692 RGB triples.** Hand-copying that many is precisely the task that yields
 one wrong entry nobody notices for a year, so `tools/gen-palettes.bas` opens each
 mode and reads them back out of gfxlib2 through `PALETTE GET`. The generated
-`core/palette-data.bi` is checked in so the build needs no extraction step, and
+`core/palette-data.ti` is checked in so the build needs no extraction step, and
 the A/B re-reads every entry from the reference on each run.
 
 For the CGA and EGA modes the extracted table already has the mode's colour
@@ -859,7 +859,7 @@ loop bound `(x2 and not 7) shr 3` depends on it.
 The 24-entry blitter table is internal and only observable through a window, but
 **`IMAGECONVERTROW` exposes the same converters** as a public statement. So the
 conversion logic is verified even though the blitter that dispatches it is not --
-`raster/convert.bi`, **9 cases**.
+`raster/convert.ti`, **9 cases**.
 
 **`isrgb` picks between a swap and a copy**, and both are called "32 to 32":
 
@@ -918,7 +918,7 @@ Phase 3 is complete except for one item that **cannot be verified from here**:
 
 ## Cross-library buffer interchange
 
-`core/image.bi` + `tools/abtest-image.bas`, **144 checks**. This is the test D2
+`core/image.ti` + `tools/abtest-image.bas`, **144 checks**. This is the test D2
 exists for: everything else compares pixels drawn into two separate buffers,
 this hands **one buffer between the two libraries**.
 
@@ -967,7 +967,7 @@ and passed. A name audit over all 103 public functions now reports clean.
 
 ## The PUT blend modes
 
-`raster/put.bi` -- **10 cases**, both sides blending the *same* source into the
+`raster/put.ti` -- **10 cases**, both sides blending the *same* source into the
 *same* destination content so the comparison is of the blend rather than of two
 separately drawn scenes.
 
@@ -1026,7 +1026,7 @@ in src and dst so a swapped argument order shows up.
 
 ## BSAVE / BLOAD -- file-format interchange
 
-`core/bsave.bi` -- **28 checks**. `abtest-image.bas` hands a buffer between the
+`core/bsave.ti` -- **28 checks**. `abtest-image.bas` hands a buffer between the
 libraries in memory; this does it through a **file**, which is the stronger
 claim: a file written by one has to be readable by the other, and by a future
 version of either.
@@ -1045,7 +1045,7 @@ very first case (`gfxlib2=&h01 tko=&h00` at byte 1).
 That is the same shape as the pitch bug in `abtest-image.bas`: a self-consistent
 wrong value is invisible to any test that only round-trips through itself.
 
-**The BMP path landed 2026-09-21**, in `entry/bmpio.bi`: BLOAD of 1, 4, 8, 16, 24
+**The BMP path landed 2026-09-21**, in `entry/bmpio.ti`: BLOAD of 1, 4, 8, 16, 24
 and 32-bit BMPs (bitfields, top-down, OS/2 and V3 headers) onto screens, images
 and bare buffers, the screen forms of both formats, and the caller's palette.
 `tools/abrun-bloadsave.sh` compiles one program with fbc and with tiko and diffs
@@ -1080,7 +1080,7 @@ be caught rather than silently copying everything.
 
 ## BMP output
 
-`core/bmp.bi` -- **11 checks**, and they are **whole-file byte comparisons**, not
+`core/bmp.ti` -- **11 checks**, and they are **whole-file byte comparisons**, not
 round trips. A round trip through our own reader passes on any self-consistent
 layout; that hole hid the 4-vs-16 pitch bug and the big-endian BSAVE size. The
 file matches gfxlib2's byte for byte or it does not.
@@ -1119,7 +1119,7 @@ same string failed -- an invisible byte. Paths in generated code now use
 
 ## SCREENCONTROL
 
-`core/control.bi` -- **164 checks across 12 modes**. SCREENCONTROL is a mapping
+`core/control.ti` -- **164 checks across 12 modes**. SCREENCONTROL is a mapping
 from selector number to state field, and a mapping is only tested by covering
 every entry: one transposed pair is invisible until somebody uses the other one.
 Transposing `depth` and `bpp` fails 20 of 164.
@@ -1157,7 +1157,7 @@ run would have shipped it.
 
 ## Console text
 
-`raster/text.bi` -- **42 cases** across all three font heights. The fonts are
+`raster/text.ti` -- **42 cases** across all three font heights. The fonts are
 **extracted by rendering**, not transcribed: `gen-fonts.bas` prints every
 character and reads the bits back, 9728 bytes for 256 characters at 8, 14 and 16
 rows.
@@ -1208,7 +1208,7 @@ wrong rule gets baked in, and it is one character out of 224.
 
 ## The VGA DAC ports
 
-`core/vgaport.bi` -- **406 checks**. On a graphics screen `INP` and `OUT` are
+`core/vgaport.ti` -- **406 checks**. On a graphics screen `INP` and `OUT` are
 redirected into the library through the `inproc`/`outproc` hooks and emulate the
 VGA colour DAC: `3C7`/`3C8` set the index, `3C9` carries R then G then B, `3DA`
 returns 8 after waiting for vsync.
@@ -1321,7 +1321,7 @@ Only its effect on the palette is comparable.
 
 ## The character-cell plane
 
-`core/cells.bi` -- **542 checks**. A graphics screen keeps a parallel plane of
+`core/cells.ti` -- **542 checks**. A graphics screen keeps a parallel plane of
 character cells, one per text position *per page*, recording what character was
 printed and in what colours. It is not derivable from pixels: two characters can
 paint identical pixels, and a cell survives being drawn over.
@@ -1372,7 +1372,7 @@ work page fails 5.
 
 ## LZW
 
-`core/lzw.bi` -- **807 checks**, and the streams are **byte-identical** to
+`core/lzw.ti` -- **807 checks**, and the streams are **byte-identical** to
 gfxlib2's, not merely equivalent.
 
 **What it is actually for.** Not a user feature, and no FB statement reaches it.
@@ -1462,7 +1462,7 @@ exactly the symbol that *does* exist and the mistake reads as a missing library.
 
 ## The window and the message pump
 
-`driver/window.bi` -- the last large structural piece, and the first thing here
+`driver/window.ti` -- the last large structural piece, and the first thing here
 that cannot be A/B tested: gfxlib2's window and ours cannot coexist in one
 process, both wanting the same framebuffer and the same focus. So
 `probe-window.bas` verifies against **the real window instead** -- it opens one,
@@ -1514,7 +1514,7 @@ needs its positive twin or it asserts nothing.**
 
 ## The event ring
 
-`core/events.bi` -- **59 checks**, a genuine A/B: `fb_hPostEvent` is an exported
+`core/events.ti` -- **59 checks**, a genuine A/B: `fb_hPostEvent` is an exported
 symbol, so events are pushed into gfxlib2's own ring and into ours in lockstep
 and the reads compared.
 
@@ -1533,7 +1533,7 @@ Three behaviours are not the obvious ones:
 
 ## The blitter table
 
-`raster/blit.bi` -- **170 comparisons**, all four configurations. A blitter
+`raster/blit.ti` -- **170 comparisons**, all four configurations. A blitter
 converts the whole framebuffer into a *device* format whose depth differs from
 the mode's; it is the presenter's fallback, and on these three targets it rarely
 runs, because every modern display is 32bpp.
@@ -1631,7 +1631,7 @@ the MMX path, so the exemption cannot go stale and silently cover everything.
 
 ## The pointer
 
-`driver/mouse.bi` -- **65 checks**, by moving the **real cursor** with
+`driver/mouse.ti` -- **65 checks**, by moving the **real cursor** with
 `SetCursorPos` and reading it back through both implementations.
 
 The two sides cannot run at once — only one window can be under the pointer — so
@@ -1713,7 +1713,7 @@ Two fixes, both replacing an assumption with a check:
 
 ## The keyboard
 
-`core/keyboard.bi` -- **113 checks**, a real A/B: `fb_hPostKey` is exported and
+`core/keyboard.ti` -- **113 checks**, a real A/B: `fb_hPostKey` is exported and
 is exactly what the driver calls when a key arrives, so keys go into gfxlib2's
 own ring and ours in lockstep.
 
@@ -1789,7 +1789,7 @@ archive's.
 
 ### The surface that is owed, measured
 
-`tiko-lang/src/mir/rtl.bi` names **32 `RTL_GFX` entry points with full signatures** — that table
+`tiko-lang/src/mir/rtl.ti` names **32 `RTL_GFX` entry points with full signatures** — that table
 IS the ABI this library owes, and it is narrower than fbc's 172 exports. `fb_GfxScreen( l, l, l, l,
 l ) as l` is the one a `SCREEN` statement reaches, and it is what a graphics program fails on
 today:
@@ -1798,7 +1798,7 @@ today:
 test2.exe.1.o : error LNK2019: unresolved external symbol fb_GfxScreen
 ```
 
-The pieces it needs exist — `driver/window.bi`'s `WindowOpen`/`WindowClose`, `core/mode.bi`'s
-`ModeTable` and `ModeSupported`, `core/surface.bi`, `core/hooks.bi`'s install/clear — so this is
+The pieces it needs exist — `driver/window.ti`'s `WindowOpen`/`WindowClose`, `core/mode.ti`'s
+`ModeTable` and `ModeSupported`, `core/surface.ti`, `core/hooks.ti`'s install/clear — so this is
 integration rather than new invention. **No entry point is stubbed.** One that links and does
 nothing turns a loud failure into a silent one, which is the harder bug of the two.

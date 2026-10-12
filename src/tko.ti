@@ -1,0 +1,78 @@
+'' tko.ti -- common definitions shared by every tiko-lang module.
+''
+'' This is the only header every translation unit includes. Keep it small: version
+'' identity, exit codes, and the handful of scalar typedefs the whole compiler agrees on.
+'' Anything with behaviour belongs in its own subsystem header.
+
+#ifndef __TKO_BI__
+#define __TKO_BI__
+
+#include once "crt.bi"
+
+'' fb/array.bi, NOT containers.bi -- because Array is all tiko-lang uses, and no
+'' longer because it had to be. containers.bi pulls in fb/hash.bi, whose HashOf
+'' overloads were not PRIVATE, and including it from more than one module of a
+'' multi-module program then produced duplicate symbols at link time. FIXED UPSTREAM
+'' (fbc-modern ada30911) and re-measured 2026-09-20: four modules sharing one
+'' containers.bi header, using Map, Set, OrderedMap and OrderedSet, link and run. So a
+'' Map may be introduced where one is worth having -- on a measurement, not on
+'' principle. docs/internals/known-toolchain-issues.md section 1 has the probe.
+
+namespace Tko
+
+    '' ---------------------------------------------------------------- identity
+
+    const TKO_VERSION_MAJOR  as long = 0
+    const TKO_VERSION_MINOR  as long = 1
+    const TKO_VERSION_PATCH  as long = 0
+    const TKO_VERSION_SUFFIX as string = "-dev"
+
+    '' The fbc release whose language and runtime ABI tiko-lang targets. Reported as
+    '' __FB_VERSION__ so existing '#if __FB_VERSION__ >= ...' guards keep working;
+    '' tiko-lang's own identity is __TKO_VERSION__. See docs/plan/03 section 6.3.
+    const TKO_FBC_COMPAT as string = "1.20.0"
+
+    '' --------------------------------------------------------------- exit codes
+    '' docs/plan/12 section 3. Code 4 is reserved for internal compiler errors so
+    '' CI can treat an ICE as a P0 regardless of test outcome.
+
+    enum ExitCode
+        EXIT_OK          = 0
+        EXIT_USER_ERROR  = 1
+        EXIT_CMDLINE     = 2
+        EXIT_NO_TOOLCHAIN= 3
+        EXIT_ICE         = 4
+        EXIT_TOOL_FAILED = 5
+        '' A 'tiko build' child compiling one root died (TKO0167); tiko-build RFC-0001 §4.2.
+        EXIT_CHILD_CRASHED = 6
+    end enum
+
+    '' -------------------------------------------------------------- scalar ids
+    '' Handles, not pointers. 0 always means "none" so a zeroed record is empty.
+
+    type InternId as ulong
+    type FileId   as ulong
+
+    const INTERN_NONE as InternId = 0
+    const FILE_NONE   as FileId   = 0
+
+    '' Byte buffers are the substrate for source text, emitted output and arena
+    '' storage. Aliased because of the HOST compiler, not because of the language:
+    '' fbc-modern instantiates a generic in 'dim as FB.Array( of ubyte ) buf' but not
+    '' in the name-first field spelling these headers use -- there it adds the field
+    '' under whatever name re-parsing the generic's body left in hFieldId's static
+    '' buffer. tiko-lang takes both spellings; see
+    '' docs/internals/phase-7-generic-type-field.md.
+    type ByteBuf as containers.Array( of ubyte )
+
+    '' Lives here rather than in driver/options.ti because the preprocessor needs it
+    '' and may not depend on the driver.
+    type StrVec as containers.Array( of string )
+
+    '' FileIds, as a list: a module unit's files (ADR 0017), which are not contiguous once
+    '' a program's roots are loaded ahead of them.
+    type FileIdVec as containers.Array( of ulong )
+
+end namespace
+
+#endif

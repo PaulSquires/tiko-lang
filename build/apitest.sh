@@ -25,7 +25,7 @@ DLL=bin/tikoParser.dll
 . "$ROOT/build/defaultseed.sh"
 SEEDCC=${TKO_SEED:-$(default_seed "$ROOT" 1)} || {
     echo "apitest: no seed compiler -- seed/fetch-seed.sh, or TKO_SEED" >&2; exit 3; }
-TKO_INCLUDE="$ROOT/inc" "$SEEDCC" tools/tkpdump/tkpdump.bas -i src -o bin/tkpdump.exe
+TKO_INCLUDE="$ROOT/inc" "$SEEDCC" tools/tkpdump/tkpdump.tiko -i src -o bin/tkpdump.exe
 H=bin/tkpdump.exe
 FAIL=0
 check( ) {  # check <label> <expected-substring> <command...>
@@ -79,8 +79,8 @@ cp "$H" "$DLL" "$HOST/"
 STDINC=$(cygpath -w "$ROOT/toolchains/tiko-windows/inc")
 printf '#import "std/strings"
 print strings.Reverse( "tiko" )
-' > "$HOST/usestd.bas"
-out=$(TKP_INCDIR="$STDINC" TKP_PKGDIR=$(cygpath -w "$ROOT/pkg") "$HOST/tkpdump.exe" "$HOST/tikoParser.dll" "$HOST/usestd.bas" dump 2>&1)
+' > "$HOST/usestd.tiko"
+out=$(TKP_INCDIR="$STDINC" TKP_PKGDIR=$(cygpath -w "$ROOT/pkg") "$HOST/tkpdump.exe" "$HOST/tikoParser.dll" "$HOST/usestd.tiko" dump 2>&1)
 if echo "$out" | grep -qE "k13 strings" && echo "$out" | grep -qF "diags: 0"; then
     echo "ok    #import std/strings through pkgDir"
 else
@@ -92,7 +92,7 @@ if [ -n "$ALIAS" ] && [ "$( echo "$out" | grep -cE "k2 Replace as u?string  @[0-
 else
     echo "FAIL  strings.Replace as a member of strings (alias record '$ALIAS')"; echo "$out" | grep -E "k13 strings|Replace" | sed 's/^/      /'; FAIL=1
 fi
-out=$(TKP_INCDIR="$STDINC" "$HOST/tkpdump.exe" "$HOST/tikoParser.dll" "$HOST/usestd.bas" dump 2>&1)
+out=$(TKP_INCDIR="$STDINC" "$HOST/tkpdump.exe" "$HOST/tikoParser.dll" "$HOST/usestd.tiko" dump 2>&1)
 if echo "$out" | grep -qE "k13 strings"; then
     echo "FAIL  std/strings resolved with no pkgDir -- this check proves nothing"; FAIL=1
 else

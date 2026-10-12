@@ -1,0 +1,94 @@
+'' self.tiko -- the calling thread's FBTHREAD, the main thread's, and the atomic
+'' flag update. Four symbols over one fbc member; one exists only in the MT
+'' archive.
+''
+'' THE MAIN THREAD HAS NO FBTHREAD OF ITS OWN, because nobody called
+'' fb_ThreadCreate for it. fb_AllocateMainFBThread makes one -- and makes it in
+'' the SAME allocation as the TLS context, by asking fb_TlsGetCtx for a block
+'' big enough for both and pointing self_ just past the context. One allocation
+'' instead of two, and it is freed by the ordinary TLS teardown rather than by a
+'' special case. The context's own destructor stays NULL, which is why nothing
+'' tries to free the FBTHREAD separately.
+''
+'' fb_AtomicSetThreadFlags USES A MUTEX, DELIBERATELY.
+''
+'' The C version prefers __sync_fetch_and_or or InterlockedOr and falls back to
+'' a mutex on toolchains that have neither. FreeBASIC has no atomics at all --
+'' fbc's own atomic.c says so in as many words -- and neither builtin is
+'' reachable as a call: __sync_* is a compiler intrinsic with no symbol, and
+'' InterlockedOr is a macro in the Windows headers. So tiko-rt takes the path
+'' fbc itself ships for that case, on both platforms.
+''
+'' It is CORRECT rather than merely acceptable: every read and every write of
+'' the flags word in the whole runtime goes through this function, so the mutex
+'' is a complete critical section rather than a partial one. What it costs is
+'' speed, on a call that runs twice in the life of a thread -- once at exit and
+'' once if it is detached.
+''
+'' Without ENABLE_MT there is nothing to serialise and the update is a plain
+'' read-modify-write, exactly as in fbc.
+
+#include once "inc/thread.ti"
+#include once "inc/sysbind.ti"
+
+#ifdef ENABLE_MT
+	dim shared as FBMUTEX ptr tkort_threadFlagMutex
+#endif
+
+extern "rtlib"
+
+function tkort_ThreadSelf alias "fb_ThreadSelf" ( ) as FBTHREAD ptr
+	dim as FB_FBTHREADCTX ptr ctx = TKORT_TLSGET_FBTHREAD()
+	if( ctx = 0 ) then return 0
+	return ctx->self_
+end function
+
+end extern
+
+extern "c"   '' NON-FBCALL: internal, declared plain in fb_private_thread.h.
+
+sub tkort_AllocateMainFBThread alias "fb_AllocateMainFBThread" ( )
+	'' ONE ALLOCATION FOR TWO OBJECTS -- see the file header. The length asked
+	'' for is the context PLUS an FBTHREAD, and self_ points at the tail.
+	dim as FB_FBTHREADCTX ptr ctx = cptr( FB_FBTHREADCTX ptr, _
+		fb_TlsGetCtx( FB_TLSKEY_FBTHREAD, sizeof( FB_FBTHREADCTX ) + sizeof( FBTHREAD ), 0 ) )
+
+	if( ctx <> 0 ) then
+		ctx->self_ = cptr( FBTHREAD ptr, ctx + 1 )
+		memset( ctx->self_, 0, sizeof( FBTHREAD ) )
+		ctx->self_->flags = FBTHREAD_MAIN
+	end if
+
+#ifdef ENABLE_MT
+	tkort_threadFlagMutex = fb_MutexCreate( )
+#endif
+end sub
+
+#ifdef ENABLE_MT
+sub tkort_CloseAtomicFBThreadFlagMutex alias "fb_CloseAtomicFBThreadFlagMutex" ( )
+	fb_MutexDestroy( tkort_threadFlagMutex )
+	tkort_threadFlagMutex = 0
+end sub
+#endif
+
+'' Defined even in the single-threaded archive, because thread/core.tiko's
+'' threadproc calls it there too.
+function tkort_AtomicSetThreadFlags alias "fb_AtomicSetThreadFlags" _
+	( byval threadFlags as long ptr, byval newFlag as long ) as long
+
+	dim as long before = any
+
+#ifdef ENABLE_MT
+	fb_MutexLock( tkort_threadFlagMutex )
+	before = *threadFlags
+	*threadFlags or= newFlag
+	fb_MutexUnlock( tkort_threadFlagMutex )
+#else
+	before = *threadFlags
+	*threadFlags or= newFlag
+#endif
+
+	return before
+end function
+
+end extern

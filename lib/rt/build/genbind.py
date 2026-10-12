@@ -1,6 +1,6 @@
 """genbind.py -- tiko-rt's C library binding, cut from a whole -cimport binding.
 
-    python lib/rt/build/genbind.py <full.bi> <src-dir> <target> <out.bi>
+    python lib/rt/build/genbind.py <full.bi> <src-dir> <target> <out.ti>
 
 The importer's binding of the C library headers (lib/rt/build/sysbind.h) declares some
 fifteen hundred things; tiko-rt calls about a hundred. This keeps what the runtime's own
@@ -19,12 +19,12 @@ import sys
 NOT_HERE = {"jmp_buf", "longjmp", "setjmp", "_setjmp", "stdin", "stdout", "stderr",
             "errno", "_errno", "__errno_location", "__iob_func", "__acrt_iob_func"}
 
-HEADER = """'' {target}.bi -- tiko-rt's C library binding for {target}. GENERATED: do not edit.
+HEADER = """'' {target}.ti -- tiko-rt's C library binding for {target}. GENERATED: do not edit.
 ''
 '' Made by lib/rt/build/genbind.sh: tiko's own C importer (-cimport, decision 0016) over
 '' lib/rt/build/sysbind.h against {origin}, cut by lib/rt/build/genbind.py
 '' to the declarations tiko-rt's sources name and what those need. Regenerate after the
-'' runtime starts using another C function; lib/rt/src/inc/sysbind.bi holds the rest.
+'' runtime starts using another C function; lib/rt/src/inc/sysbind.ti holds the rest.
 
 #pragma once
 """
@@ -87,7 +87,7 @@ def own_names(src_dir):
     own = set()
     for dp, dn, fn in os.walk(src_dir):
         for f in fn:
-            if not (f.endswith(".bas") or f.endswith(".bi")):
+            if not (f.endswith(".tiko") or f.endswith(".ti")):
                 continue
             if os.path.abspath(dp).replace("\\", "/").endswith("inc/sysbind"):
                 continue
@@ -102,7 +102,7 @@ def used_names(src_dir):
     used = set()
     for dp, dn, fn in os.walk(src_dir):
         for f in fn:
-            if not (f.endswith(".bas") or f.endswith(".bi")):
+            if not (f.endswith(".tiko") or f.endswith(".ti")):
                 continue
             if os.path.abspath(dp).replace("\\", "/").endswith("inc/sysbind"):
                 continue

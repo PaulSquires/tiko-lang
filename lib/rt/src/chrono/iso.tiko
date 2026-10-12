@@ -1,0 +1,810 @@
+'' iso.tiko -- ISO 8601 / RFC 3339 emission and strict parsing.
+'' Eight entry points over one fbc member.
+''
+'' NO sprintf ANYWHERE, and that is a correctness requirement rather than a
+'' preference: a "%f" picking up a comma decimal point under a European locale
+'' would make this output locale-dependent. Every digit here is emitted by
+'' hand, so the bytes are the same under every locale on every target.
+''
+'' EMISSION IS CANONICAL AND SINGLE-VALUED -- one input produces exactly one
+'' string. All of ISO 8601's variety is accepted on INPUT only.
+''
+'' THE TWO FRACTION RULES ARE OPPOSITE, ON PURPOSE. A timestamp's fraction is
+'' either absent (when zero) or exactly seven digits, never trimmed, because
+'' fixed width is what makes the strings sort lexicographically -- the property
+'' that matters in a log or a database key. A DURATION's fraction IS trimmed of
+'' trailing zeros, because durations are not sorted as strings and fixed width
+'' buys nothing. Making the two consistent would break one of them.
+''
+'' A SHORT BUFFER RETURNS 0 AND WRITES NOTHING AT ALL -- not a truncated
+'' string. An out-of-range input returns 0 but DOES write a terminator. The two
+'' failures are distinguishable by the caller only through that terminator, so
+'' the difference is deliberate and must be preserved.
+
+#include once "inc/chrono.ti"
+
+extern "rtlib"
+	declare sub tkrt_DtCivilFromDays alias "fb_DtCivilFromDays" _
+		( byval days as long, byval year as long ptr, _
+		  byval month as long ptr, byval day_ as long ptr )
+	declare function tkrt_DtIsValidTicks alias "fb_DtIsValidTicks" ( byval ticks as longint ) as long
+	declare function tkrt_DtDaysFromCivil alias "fb_DtDaysFromCivil" _
+		( byval year as long, byval month as long, byval day_ as long ) as long
+	declare function tkrt_DtIsValidDate alias "fb_DtIsValidDate" _
+		( byval year as long, byval month as long, byval day_ as long ) as long
+	declare function tkrt_DtIsoWeeksInYear alias "fb_DtIsoWeeksInYear" ( byval year as long ) as long
+	declare function tkrt_DtDayOfWeek alias "fb_DtDayOfWeek" ( byval days as long ) as long
+	declare function tkrt_DtDaysInYear alias "fb_DtDaysInYear" ( byval year as long ) as long
+end extern
+
+'' ------------------------------------------------------------------ emit
+
+private function hPut2( byval buf as ubyte ptr, byval v as long ) as long
+	buf[0] = 48 + ((v \ 10) mod 10)
+	buf[1] = 48 + (v mod 10)
+	return 2
+end function
+
+private function hPut4( byval buf as ubyte ptr, byval v as long ) as long
+	buf[0] = 48 + ((v \ 1000) mod 10)
+	buf[1] = 48 + ((v \ 100) mod 10)
+	buf[2] = 48 + ((v \ 10) mod 10)
+	buf[3] = 48 + (v mod 10)
+	return 4
+end function
+
+'' Exactly seven digits, zero-padded, never trimmed -- see the header.
+private function hPut7( byval buf as ubyte ptr, byval v as longint ) as long
+	dim as long i = any
+	for i = 6 to 0 step -1
+		buf[i] = 48 + cast( long, v mod 10 )
+		v \= 10
+	next
+	return 7
+end function
+
+'' Z for UTC, +/-HH:MM otherwise, and NOTHING AT ALL when unspecified -- the
+'' three cases are distinct and the empty one is not an error.
+private function hPutOffset( byval buf as ubyte ptr, byval offMin as long ) as long
+	dim as long n = 0, a = any
+
+	if( offMin = DT_ISO_OFFSET_UNSPECIFIED ) then return 0
+	if( offMin = 0 ) then
+		buf[0] = 90                     '' 'Z'
+		return 1
+	end if
+
+	if( offMin < 0 ) then buf[n] = 45 else buf[n] = 43    '' '-' / '+'
+	n += 1
+	if( offMin < 0 ) then a = -offMin else a = offMin
+	n += hPut2( buf + n, a \ 60 )
+	buf[n] = 58 : n += 1                '' ':'
+	n += hPut2( buf + n, a mod 60 )
+	return n
+end function
+
+extern "rtlib"
+
+function tkort_DtIsoFormatDate alias "fb_DtIsoFormatDate" _
+	( byval days as long, byval buf as ubyte ptr, byval buflen as long ) as long
+
+	dim as long y = any, mo = any, d = any, n = 0
+
+	'' Too short: nothing is written, not even a terminator.
+	if( buf = 0 ) then return 0
+	if( buflen < 11 ) then return 0
+	'' Out of range: a terminator IS written. See the header.
+	if( (days < FB_DT_MIN_DAYS) orelse (days > FB_DT_MAX_DAYS) ) then
+		buf[0] = 0
+		return 0
+	end if
+
+	tkrt_DtCivilFromDays( days, @y, @mo, @d )
+	n += hPut4( buf + n, y )
+	buf[n] = 45 : n += 1                '' '-'
+	n += hPut2( buf + n, mo )
+	buf[n] = 45 : n += 1
+	n += hPut2( buf + n, d )
+	buf[n] = 0
+	return n
+end function
+
+function tkort_DtIsoFormatTime alias "fb_DtIsoFormatTime" _
+	( byval tod as longint, byval buf as ubyte ptr, byval buflen as long ) as long
+
+	dim as longint sub_ = any
+	dim as long n = 0
+
+	if( buf = 0 ) then return 0
+	if( buflen < 17 ) then return 0
+	if( (tod < 0) orelse (tod >= FB_DT_TICKS_PER_DAY) ) then
+		buf[0] = 0
+		return 0
+	end if
+
+	n += hPut2( buf + n, cast( long, tod \ FB_DT_TICKS_PER_HOUR ) )
+	buf[n] = 58 : n += 1                '' ':'
+	n += hPut2( buf + n, cast( long, tod \ FB_DT_TICKS_PER_MINUTE mod 60 ) )
+	buf[n] = 58 : n += 1
+	n += hPut2( buf + n, cast( long, tod \ FB_DT_TICKS_PER_SECOND mod 60 ) )
+
+	'' Omitted ENTIRELY when zero; otherwise exactly seven digits.
+	sub_ = tod mod FB_DT_TICKS_PER_SECOND
+	if( sub_ <> 0 ) then
+		buf[n] = 46 : n += 1            '' '.'
+		n += hPut7( buf + n, sub_ )
+	end if
+	buf[n] = 0
+	return n
+end function
+
+function tkort_DtIsoFormat alias "fb_DtIsoFormat" _
+	( byval ticks as longint, byval offMin as long, _
+	  byval buf as ubyte ptr, byval buflen as long ) as long
+
+	dim as long n = any
+
+	if( buf = 0 ) then return 0
+	if( buflen < 34 ) then return 0
+	if( tkrt_DtIsValidTicks( ticks ) = 0 ) then
+		buf[0] = 0
+		return 0
+	end if
+
+	n = tkort_DtIsoFormatDate( cast( long, ticks \ FB_DT_TICKS_PER_DAY ), buf, buflen )
+	if( n = 0 ) then return 0
+	buf[n] = 84 : n += 1                '' 'T'
+	'' buflen - n, not buflen: the remaining room shrinks, and the time
+	'' formatter's own 17-byte minimum is checked against what is LEFT.
+	n += tkort_DtIsoFormatTime( ticks mod FB_DT_TICKS_PER_DAY, buf + n, buflen - n )
+	n += hPutOffset( buf + n, offMin )
+	buf[n] = 0
+	return n
+end function
+
+'' ISO 8601 duration. THE FRACTION IS TRIMMED HERE and not in the timestamp
+'' forms -- see the header. Components that are zero are omitted entirely,
+'' except that a duration of zero is "PT0S" rather than a bare "P".
+function tkort_DtIsoFormatDuration alias "fb_DtIsoFormatDuration" _
+	( byval ticks as longint, byval buf as ubyte ptr, byval buflen as long ) as long
+
+	dim as longint days = any, h = any, m = any, s = any, sub_ = any, v = any
+	dim as long n = 0, i = any, k = any, j = any
+	dim as ubyte fracv(0 to 7)
+	dim as ubyte tmp(0 to 23)
+
+	if( buf = 0 ) then return 0
+	if( buflen < 40 ) then return 0
+	'' The sentinel is rejected; every other value, including negatives, is a
+	'' duration.
+	if( ticks = FB_DT_INVALID_TICKS ) then
+		buf[0] = 0
+		return 0
+	end if
+
+	if( ticks < 0 ) then
+		buf[n] = 45 : n += 1            '' '-'
+		ticks = -ticks
+	end if
+	buf[n] = 80 : n += 1                '' 'P'
+
+	days = ticks \ FB_DT_TICKS_PER_DAY
+	ticks mod= FB_DT_TICKS_PER_DAY
+	h = ticks \ FB_DT_TICKS_PER_HOUR
+	ticks mod= FB_DT_TICKS_PER_HOUR
+	m = ticks \ FB_DT_TICKS_PER_MINUTE
+	ticks mod= FB_DT_TICKS_PER_MINUTE
+	s = ticks \ FB_DT_TICKS_PER_SECOND
+	sub_ = ticks mod FB_DT_TICKS_PER_SECOND
+
+	if( days <> 0 ) then
+		k = 0
+		v = days
+		while( v > 0 )
+			tmp(k) = 48 + cast( long, v mod 10 ) : k += 1
+			v \= 10
+		wend
+		while( k > 0 )
+			k -= 1
+			buf[n] = tmp(k) : n += 1
+		wend
+		buf[n] = 68 : n += 1            '' 'D'
+	end if
+
+	'' The 'T' separator appears only if there is a time component at all.
+	if( (h <> 0) orelse (m <> 0) orelse (s <> 0) orelse (sub_ <> 0) ) then
+		buf[n] = 84 : n += 1            '' 'T'
+
+		if( h <> 0 ) then
+			k = 0
+			v = h
+			while( v > 0 )
+				tmp(k) = 48 + cast( long, v mod 10 ) : k += 1
+				v \= 10
+			wend
+			while( k > 0 )
+				k -= 1
+				buf[n] = tmp(k) : n += 1
+			wend
+			buf[n] = 72 : n += 1        '' 'H'
+		end if
+
+		'' Minutes and seconds are AT MOST TWO DIGITS and are not
+		'' zero-padded: 5 minutes is "5M", not "05M". Hours and days can be
+		'' any width, which is why only they get the digit loop.
+		if( m <> 0 ) then
+			if( m >= 10 ) then
+				buf[n] = 48 + cast( long, m \ 10 ) : n += 1
+			end if
+			buf[n] = 48 + cast( long, m mod 10 ) : n += 1
+			buf[n] = 77 : n += 1        '' 'M'
+		end if
+
+		if( (s <> 0) orelse (sub_ <> 0) ) then
+			if( s >= 10 ) then
+				buf[n] = 48 + cast( long, s \ 10 ) : n += 1
+			end if
+			buf[n] = 48 + cast( long, s mod 10 ) : n += 1
+			if( sub_ <> 0 ) then
+				hPut7( @fracv(0), sub_ )
+				'' Trim trailing zeros, but never past the first digit.
+				i = 7
+				while( (i > 1) andalso (fracv(i - 1) = 48) )
+					i -= 1
+				wend
+				buf[n] = 46 : n += 1    '' '.'
+				for j = 0 to i - 1
+					buf[n] = fracv(j) : n += 1
+				next
+			end if
+			buf[n] = 83 : n += 1        '' 'S'
+		end if
+	end if
+
+	'' A bare "P" is not a duration; zero is "PT0S". The sign is DISCARDED
+	'' here, so -0 formats as PT0S and not -PT0S.
+	if( (n = 1) orelse ((n = 2) andalso (buf[0] = 45)) ) then
+		n = 0
+		buf[n] = 80 : n += 1            '' 'P'
+		buf[n] = 84 : n += 1            '' 'T'
+		buf[n] = 48 : n += 1            '' '0'
+		buf[n] = 83 : n += 1            '' 'S'
+	end if
+
+	buf[n] = 0
+	return n
+end function
+
+end extern
+
+'' ----------------------------------------------------------------- parse
+''
+'' PARSING IS STRICT. The caller states the grammar and gets a failure if the
+'' input does not match it: no locale, no guessing, no partial acceptance, and
+'' TRAILING CHARACTERS ARE AN ERROR. The lenient, locale-guessing parser in the
+'' time_parse* family is a separate thing and is not built on.
+''
+'' EVERY ENTRY POINT WRITES ITS SENTINEL BEFORE VALIDATING ANYTHING, so a
+'' caller that ignores the return code never reads a stale value. The date form
+'' uses -1 and the tick forms use FB_DT_INVALID_TICKS -- two different
+'' sentinels, because 0 and -1 are both legitimate day numbers... 0 is
+'' 0001-01-01, and -1 is not representable, which is what makes it usable.
+
+type FB_DTSCAN
+	as ubyte ptr p
+	as ubyte ptr end_
+end type
+
+private function hIsDigit( byval c as ulong ) as long
+	if( (c >= 48) andalso (c <= 57) ) then return 1
+	return 0
+end function
+
+private function hRemaining( byval sc as FB_DTSCAN ptr ) as long
+	return cast( long, sc->end_ - sc->p )
+end function
+
+'' Counts digits at the cursor WITHOUT consuming them -- the lookahead that
+'' distinguishes YYYY-DDD from YYYY-MM-DD, and HHMM from HH.
+''
+'' The locals here avoid two FreeBASIC keywords: `ndig` rather than `run` and
+'' `fracv` rather than `frac`, since RUN is a statement and FRAC is a function.
+'' Both clash the same misleading way -- the error lands on the first USE and
+'' reads "argument count mismatch" or "expected '('", never "that is a keyword".
+'' The old note follows.
+'' The local holding the digit lookahead is `ndig`, not `run`: RUN is a statement,
+'' and the clash reports as "argument count mismatch" at the first USE rather
+'' than as a keyword error at the declaration.
+private function hDigitRun( byval sc as FB_DTSCAN ptr ) as long
+	dim as ubyte ptr q = sc->p
+	while( q < sc->end_ )
+		if( hIsDigit( *q ) = 0 ) then exit while
+		q += 1
+	wend
+	return cast( long, q - sc->p )
+end function
+
+'' Exactly n digits. Fails if fewer are present, and consumes NOTHING on
+'' failure -- callers depend on the cursor being untouched.
+private function hFixed( byval sc as FB_DTSCAN ptr, byval n as long, byval out_ as long ptr ) as long
+	dim as long v = 0, i = any
+	if( hRemaining( sc ) < n ) then return 1
+	for i = 0 to n - 1
+		if( hIsDigit( sc->p[i] ) = 0 ) then return 1
+		v = v * 10 + (sc->p[i] - 48)
+	next
+	sc->p += n
+	*out_ = v
+	return 0
+end function
+
+'' ISO week date -> days. Week 1 is the week containing 4 JANUARY, by
+'' definition -- not the first Monday, and not the week containing 1 January.
+private function hDaysFromIsoWeek( byval isoYear as long, byval week as long, _
+                                   byval dow as long, byval out_ as long ptr ) as long
+	dim as long jan4 = any, week1Monday = any
+
+	if( (isoYear < FB_DT_MIN_YEAR) orelse (isoYear > FB_DT_MAX_YEAR) ) then return 1
+	if( (week < 1) orelse (week > tkrt_DtIsoWeeksInYear( isoYear )) ) then return 1
+	if( (dow < 1) orelse (dow > 7) ) then return 1
+
+	jan4 = tkrt_DtDaysFromCivil( isoYear, 1, 4 )
+	week1Monday = jan4 - (tkrt_DtDayOfWeek( jan4 ) - 1)
+
+	*out_ = week1Monday + (week - 1) * 7 + (dow - 1)
+	'' A valid week in a valid year can still fall outside the day range at
+	'' the very ends of the calendar.
+	if( (*out_ < FB_DT_MIN_DAYS) orelse (*out_ > FB_DT_MAX_DAYS) ) then return 1
+	return 0
+end function
+
+'' A date in any of the four accepted shapes: YYYY-MM-DD, YYYY-DDD (ordinal),
+'' YYYY-Www-D (week date), and the basic forms YYYYMMDD / YYYYDDD / YYYYWwwD.
+'' The shape is decided by LOOKAHEAD, not by trying and backtracking.
+private function hScanDate( byval sc as FB_DTSCAN ptr, byval out_days as long ptr ) as long
+	dim as long y = any, mo = any, d = any, ndig = any, wk = any, dow = any, doy = any
+	dim as ulong c = any
+
+	if( hFixed( sc, 4, @y ) ) then return 1
+	if( (y < FB_DT_MIN_YEAR) orelse (y > FB_DT_MAX_YEAR) ) then return 1
+
+	if( hRemaining( sc ) > 0 ) then
+		c = *sc->p
+		if( c = 45 ) then                       '' '-'  extended format
+			sc->p += 1
+			if( hRemaining( sc ) > 0 ) then
+				c = *sc->p
+				if( (c = 87) orelse (c = 119) ) then    '' 'W' / 'w'
+					sc->p += 1
+					if( hFixed( sc, 2, @wk ) ) then return 1
+					if( hRemaining( sc ) = 0 ) then return 1
+					c = *sc->p
+					if( c <> 45 ) then return 1
+					sc->p += 1
+					if( hFixed( sc, 1, @dow ) ) then return 1
+					return hDaysFromIsoWeek( y, wk, dow, out_days )
+				end if
+			end if
+
+			'' Three digits means an ORDINAL date; two means a month.
+			ndig = hDigitRun( sc )
+			if( ndig = 3 ) then
+				if( hFixed( sc, 3, @doy ) ) then return 1
+				if( (doy < 1) orelse (doy > tkrt_DtDaysInYear( y )) ) then return 1
+				*out_days = tkrt_DtDaysFromCivil( y, 1, 1 ) + doy - 1
+				return 0
+			end if
+
+			if( hFixed( sc, 2, @mo ) ) then return 1
+			if( hRemaining( sc ) = 0 ) then return 1
+			c = *sc->p
+			if( c <> 45 ) then return 1
+			sc->p += 1
+			if( hFixed( sc, 2, @d ) ) then return 1
+			if( tkrt_DtIsValidDate( y, mo, d ) = 0 ) then return 1
+			*out_days = tkrt_DtDaysFromCivil( y, mo, d )
+			return 0
+		end if
+	end if
+
+	if( hRemaining( sc ) > 0 ) then
+		c = *sc->p
+		if( (c = 87) orelse (c = 119) ) then     '' basic week date YYYYWwwD
+			sc->p += 1
+			if( hFixed( sc, 2, @wk ) ) then return 1
+			if( hFixed( sc, 1, @dow ) ) then return 1
+			return hDaysFromIsoWeek( y, wk, dow, out_days )
+		end if
+	end if
+
+	'' Basic format: four more digits is YYYYMMDD, three is YYYYDDD.
+	ndig = hDigitRun( sc )
+	if( ndig = 4 ) then
+		if( hFixed( sc, 2, @mo ) ) then return 1
+		if( hFixed( sc, 2, @d ) ) then return 1
+		if( tkrt_DtIsValidDate( y, mo, d ) = 0 ) then return 1
+		*out_days = tkrt_DtDaysFromCivil( y, mo, d )
+		return 0
+	end if
+	if( ndig = 3 ) then
+		if( hFixed( sc, 3, @doy ) ) then return 1
+		if( (doy < 1) orelse (doy > tkrt_DtDaysInYear( y )) ) then return 1
+		*out_days = tkrt_DtDaysFromCivil( y, 1, 1 ) + doy - 1
+		return 0
+	end if
+	return 1
+end function
+
+'' A time of day, returning ticks-of-day.
+private function hScanTime( byval sc as FB_DTSCAN ptr, byval out_tod as longint ptr ) as long
+	dim as long h = any, m = 0, s = 0, extended = any, ndig = any, i = any
+	dim as longint sub_ = 0
+	dim as ulong c = any
+
+	if( hFixed( sc, 2, @h ) ) then return 1
+
+	extended = 0
+	if( hRemaining( sc ) > 0 ) then
+		c = *sc->p
+		if( c = 58 ) then extended = 1          '' ':'
+	end if
+
+	if( extended <> 0 ) then
+		sc->p += 1
+		if( hFixed( sc, 2, @m ) ) then return 1
+		if( hRemaining( sc ) > 0 ) then
+			c = *sc->p
+			if( c = 58 ) then
+				sc->p += 1
+				if( hFixed( sc, 2, @s ) ) then return 1
+			end if
+		end if
+	else
+		'' Basic format: minutes and seconds are optional, and each is taken
+		'' only when a FULL pair of digits is present.
+		ndig = hDigitRun( sc )
+		if( ndig >= 2 ) then
+			if( hFixed( sc, 2, @m ) ) then return 1
+			ndig = hDigitRun( sc )
+			if( ndig >= 2 ) then
+				if( hFixed( sc, 2, @s ) ) then return 1
+			end if
+		end if
+	end if
+
+	'' The fraction accepts '.' OR ',' -- the comma is ISO 8601's preferred
+	'' form and appears in European data.
+	if( hRemaining( sc ) > 0 ) then
+		c = *sc->p
+		if( (c = 46) orelse (c = 44) ) then
+			i = 0
+			sc->p += 1
+			if( hRemaining( sc ) = 0 ) then return 1
+			if( hIsDigit( *sc->p ) = 0 ) then return 1
+			'' Seven digits are significant; ANYTHING BEYOND IS TRUNCATED
+			'' rather than rejected, so nanosecond timestamps out of Go or
+			'' Rust still parse.
+			while( hRemaining( sc ) > 0 )
+				if( hIsDigit( *sc->p ) = 0 ) then exit while
+				if( i < 7 ) then sub_ = sub_ * 10 + (*sc->p - 48)
+				i += 1
+				sc->p += 1
+			wend
+			'' And fewer than seven are scaled UP, so ".5" is half a second.
+			while( i < 7 )
+				sub_ *= 10
+				i += 1
+			wend
+		end if
+	end if
+
+	'' 24:00 IS LEGAL ISO 8601 AND IS REJECTED HERE. It denotes the next
+	'' day's 00:00, and silently accepting it would put a time-of-day of
+	'' exactly one day into a field that must hold less than one. Leap
+	'' seconds are out of scope, so :60 goes the same way.
+	if( h > 23 ) then return 1
+	if( m > 59 ) then return 1
+	if( s > 59 ) then return 1
+
+	*out_tod = cast( longint, h ) * FB_DT_TICKS_PER_HOUR _
+	         + cast( longint, m ) * FB_DT_TICKS_PER_MINUTE _
+	         + cast( longint, s ) * FB_DT_TICKS_PER_SECOND _
+	         + sub_
+	return 0
+end function
+
+'' Z, +/-HH:MM, +/-HHMM, or nothing.
+''
+'' ABSENT IS NOT AN ERROR: it yields DT_ISO_OFFSET_UNSPECIFIED and success. So
+'' does a character that is not a sign -- the cursor is left where it was, and
+'' the caller's trailing-garbage check is what rejects it. Returning failure
+'' here would reject a bare local timestamp.
+private function hScanOffset( byval sc as FB_DTSCAN ptr, byval out_off as long ptr ) as long
+	dim as long sign_ = any, hh = any, mm = 0
+	dim as ulong c = any
+
+	if( hRemaining( sc ) = 0 ) then
+		*out_off = DT_ISO_OFFSET_UNSPECIFIED
+		return 0
+	end if
+
+	c = *sc->p
+	if( (c = 90) orelse (c = 122) ) then        '' 'Z' / 'z'
+		sc->p += 1
+		*out_off = 0
+		return 0
+	end if
+
+	if( (c <> 43) andalso (c <> 45) ) then      '' not '+' or '-'
+		*out_off = DT_ISO_OFFSET_UNSPECIFIED
+		return 0
+	end if
+
+	if( c = 45 ) then sign_ = -1 else sign_ = 1
+	sc->p += 1
+	if( hFixed( sc, 2, @hh ) ) then return 1
+
+	if( hRemaining( sc ) > 0 ) then
+		c = *sc->p
+		if( c = 58 ) then
+			sc->p += 1
+			if( hFixed( sc, 2, @mm ) ) then return 1
+		elseif( hDigitRun( sc ) >= 2 ) then
+			if( hFixed( sc, 2, @mm ) ) then return 1
+		end if
+	end if
+
+	if( mm > 59 ) then return 1
+	*out_off = sign_ * (hh * 60 + mm)
+	'' +/- 18:00 is the real-world limit; hh itself is never range-checked,
+	'' so this is what rejects "+99:00".
+	if( *out_off < -DT_ISO_OFFSET_LIMIT ) then return 1
+	if( *out_off > DT_ISO_OFFSET_LIMIT ) then return 1
+	return 0
+end function
+
+'' Leading and trailing ASCII whitespace only. Interior whitespace, other than
+'' the one RFC 3339 space separator, stays an error.
+private sub hTrim( byval sc as FB_DTSCAN ptr )
+	dim as ulong c = any
+	while( sc->p < sc->end_ )
+		c = *sc->p
+		if( (c <> 32) andalso (c <> 9) andalso (c <> 13) andalso (c <> 10) ) then exit while
+		sc->p += 1
+	wend
+	while( sc->end_ > sc->p )
+		c = sc->end_[-1]
+		if( (c <> 32) andalso (c <> 9) andalso (c <> 13) andalso (c <> 10) ) then exit while
+		sc->end_ -= 1
+	wend
+end sub
+
+extern "rtlib"
+
+'' RETURNS 0 ON SUCCESS, 1 ON FAILURE -- the C convention throughout this file.
+function tkort_DtIsoParse alias "fb_DtIsoParse" _
+	( byval s as ubyte ptr, byval length as long, _
+	  byval out_ticks as longint ptr, byval out_off as long ptr ) as long
+
+	dim as FB_DTSCAN sc = any
+	dim as long days = 0, off = DT_ISO_OFFSET_UNSPECIFIED
+	dim as longint tod = 0, ticks = any
+	dim as ulong c = any
+
+	if( out_ticks <> 0 ) then *out_ticks = FB_DT_INVALID_TICKS
+	if( out_off <> 0 ) then *out_off = DT_ISO_OFFSET_UNSPECIFIED
+	if( s = 0 ) then return 1
+	if( length <= 0 ) then return 1
+
+	sc.p = s
+	sc.end_ = s + length
+	hTrim( @sc )
+	if( hRemaining( @sc ) = 0 ) then return 1
+
+	if( hScanDate( @sc, @days ) ) then return 1
+
+	if( hRemaining( @sc ) > 0 ) then
+		c = *sc.p
+		'' 'T', 't', or -- per RFC 3339 section 5.6 -- a single SPACE, which
+		'' is what every SQL database emits.
+		if( (c = 84) orelse (c = 116) orelse (c = 32) ) then
+			sc.p += 1
+			if( hScanTime( @sc, @tod ) ) then return 1
+			if( hScanOffset( @sc, @off ) ) then return 1
+		else
+			return 1
+		end if
+	end if
+
+	'' Trailing garbage is an error. This is also what rejects the offsets
+	'' hScanOffset declines to consume.
+	if( hRemaining( @sc ) <> 0 ) then return 1
+
+	'' THE OFFSET IS REPORTED, NOT APPLIED. ticks stay as written, and the
+	'' caller decides whether to shift them.
+	ticks = cast( longint, days ) * FB_DT_TICKS_PER_DAY + tod
+	if( tkrt_DtIsValidTicks( ticks ) = 0 ) then return 1
+
+	if( out_ticks <> 0 ) then *out_ticks = ticks
+	if( out_off <> 0 ) then *out_off = off
+	return 0
+end function
+
+'' -1 as the sentinel, not FB_DT_INVALID_TICKS: this one outputs DAYS, and 0 is
+'' a legitimate day (0001-01-01) while -1 is not representable.
+function tkort_DtIsoParseDate alias "fb_DtIsoParseDate" _
+	( byval s as ubyte ptr, byval length as long, byval out_days as long ptr ) as long
+
+	dim as FB_DTSCAN sc = any
+	dim as long days = 0
+
+	if( out_days <> 0 ) then *out_days = -1
+	if( s = 0 ) then return 1
+	if( length <= 0 ) then return 1
+
+	sc.p = s
+	sc.end_ = s + length
+	hTrim( @sc )
+	if( hRemaining( @sc ) = 0 ) then return 1
+	if( hScanDate( @sc, @days ) ) then return 1
+	if( hRemaining( @sc ) <> 0 ) then return 1
+
+	if( out_days <> 0 ) then *out_days = days
+	return 0
+end function
+
+function tkort_DtIsoParseTime alias "fb_DtIsoParseTime" _
+	( byval s as ubyte ptr, byval length as long, byval out_tod as longint ptr ) as long
+
+	dim as FB_DTSCAN sc = any
+	dim as longint tod = 0
+
+	if( out_tod <> 0 ) then *out_tod = FB_DT_INVALID_TICKS
+	if( s = 0 ) then return 1
+	if( length <= 0 ) then return 1
+
+	sc.p = s
+	sc.end_ = s + length
+	hTrim( @sc )
+	if( hRemaining( @sc ) = 0 ) then return 1
+	if( hScanTime( @sc, @tod ) ) then return 1
+	'' No offset is scanned here: a time-of-day carries no zone, so "12:00Z"
+	'' is trailing garbage and fails.
+	if( hRemaining( @sc ) <> 0 ) then return 1
+
+	if( out_tod <> 0 ) then *out_tod = tod
+	return 0
+end function
+
+
+'' ISO 8601 duration.
+''
+'' YEARS AND MONTHS ARE REJECTED. A duration here is a fixed span of ticks and
+'' a month has no fixed length, so accepting "P1M" would mean inventing one.
+'' WEEKS ARE ACCEPTED and become exactly 7 days.
+''
+'' 'M' MEANS TWO DIFFERENT THINGS depending on where it appears: months before
+'' the 'T' (rejected) and minutes after it (accepted). That is the entire
+'' reason the scanner tracks inTime, and getting it backwards would silently
+'' turn "PT5M" into five months.
+''
+'' A FRACTION IS LEGAL ONLY ON SECONDS, and only inside the time part. "P1.5D"
+'' is an error rather than 36 hours.
+function tkort_DtIsoParseDuration alias "fb_DtIsoParseDuration" _
+	( byval s as ubyte ptr, byval length as long, byval out_ticks as longint ptr ) as long
+
+	dim as FB_DTSCAN sc = any
+	dim as longint total = 0, v = any, fracv = any
+	dim as long neg = 0, inTime = 0, sawAny = 0, nd = any, hasFrac = any, i = any
+	dim as ulong c = any, unit = any
+
+	if( out_ticks <> 0 ) then *out_ticks = FB_DT_INVALID_TICKS
+	if( s = 0 ) then return 1
+	if( length <= 0 ) then return 1
+
+	sc.p = s
+	sc.end_ = s + length
+	hTrim( @sc )
+	if( hRemaining( @sc ) = 0 ) then return 1
+
+	'' A leading sign is outside the 'P', not inside it.
+	c = *sc.p
+	if( c = 45 ) then
+		neg = 1
+		sc.p += 1
+	elseif( c = 43 ) then
+		sc.p += 1
+	end if
+
+	if( hRemaining( @sc ) = 0 ) then return 1
+	c = *sc.p
+	if( (c <> 80) andalso (c <> 112) ) then return 1        '' 'P' / 'p'
+	sc.p += 1
+
+	while( hRemaining( @sc ) > 0 )
+		v = 0 : fracv = 0 : nd = 0 : hasFrac = 0
+
+		c = *sc.p
+		if( (c = 84) orelse (c = 116) ) then                '' 'T' / 't'
+			inTime = 1
+			sc.p += 1
+			continue while
+		end if
+
+		while( hRemaining( @sc ) > 0 )
+			if( hIsDigit( *sc.p ) = 0 ) then exit while
+			'' Bounded so a long digit ndig cannot overflow the tick
+			'' multiply below. The limit is on the VALUE, not the digit
+			'' count, so "P0000000000001D" is still legal.
+			if( v > 1000000000000ll ) then return 1
+			v = v * 10 + (*sc.p - 48)
+			nd += 1
+			sc.p += 1
+		wend
+		if( nd = 0 ) then return 1
+
+		if( hRemaining( @sc ) > 0 ) then
+			c = *sc.p
+			if( (c = 46) orelse (c = 44) ) then
+				i = 0
+				sc.p += 1
+				if( hRemaining( @sc ) = 0 ) then return 1
+				if( hIsDigit( *sc.p ) = 0 ) then return 1
+				hasFrac = 1
+				while( hRemaining( @sc ) > 0 )
+					if( hIsDigit( *sc.p ) = 0 ) then exit while
+					if( i < 7 ) then fracv = fracv * 10 + (*sc.p - 48)
+					i += 1
+					sc.p += 1
+				wend
+				while( i < 7 )
+					fracv *= 10
+					i += 1
+				wend
+			end if
+		end if
+
+		if( hRemaining( @sc ) = 0 ) then return 1
+		unit = *sc.p
+		sc.p += 1
+
+		'' The fraction check comes BEFORE the unit switch, so "P1.5Y" fails
+		'' on the fraction rather than on the year.
+		if( hasFrac <> 0 ) then
+			if( (inTime = 0) orelse ((unit <> 83) andalso (unit <> 115)) ) then return 1
+		end if
+
+		select case unit
+		case 87, 119                            '' 'W' -- weeks, 7 days each
+			if( inTime <> 0 ) then return 1
+			total += v * 7ll * FB_DT_TICKS_PER_DAY
+		case 68, 100                            '' 'D'
+			if( inTime <> 0 ) then return 1
+			total += v * FB_DT_TICKS_PER_DAY
+		case 72, 104                            '' 'H'
+			if( inTime = 0 ) then return 1
+			total += v * FB_DT_TICKS_PER_HOUR
+		case 83, 115                            '' 'S'
+			if( inTime = 0 ) then return 1
+			total += v * FB_DT_TICKS_PER_SECOND + fracv
+		case 77, 109                            '' 'M' -- minutes ONLY in time
+			if( inTime = 0 ) then return 1
+			total += v * FB_DT_TICKS_PER_MINUTE
+		case 89, 121                            '' 'Y' -- never a fixed span
+			return 1
+		case else
+			return 1
+		end select
+		sawAny = 1
+	wend
+
+	'' A bare "P" is an error, unlike on the emit side where zero becomes PT0S.
+	if( sawAny = 0 ) then return 1
+
+	if( out_ticks <> 0 ) then
+		if( neg <> 0 ) then *out_ticks = -total else *out_ticks = total
+	end if
+	return 0
+end function
+
+end extern

@@ -1,0 +1,866 @@
+'' lowereach.tiko -- FOR EACH.
+''
+'' Split out of lowerctl.tiko, which is at its size limit. FOR EACH is three loops that
+'' share one statement: the RFC-0002 iterator protocol over a user collection, a counted
+'' loop over an array, and a counted loop over a var-len string's characters.
+
+#import "std/containers"
+#include once "lowerctx.ti"
+
+namespace Tko.Mir
+
+using Tko
+
+declare function MemberNamed_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
+
+'' FOR EACH over a USER COLLECTION -- the RFC-0002 iterator protocol.
+''
+'' STRUCTURAL, not nominal: a collection is anything with GetIterator( ), and an
+'' iterator is anything with IsValid( ), Value( ) and MoveNext( ). Nothing is declared
+'' to implement anything.
+''
+'' The desugaring is measured, and it is the one the corpus test writes out:
+''
+''     __it = c.GetIterator( )
+''     goto test
+''   body:  x = __it.Value( ) : BODY
+''   cont:  __it.MoveNext( )              <-- CONTINUE FOR lands here
+''   test:  if __it.IsValid( ) goto body
+''   exit:
+''
+'' TEST LAST, reached by a jump over the body, so an empty collection runs the body no
+'' times and MoveNext is not called before the first element.
+'' THE LOOP VARIABLE'S STRING KIND DECIDES, NOT THE ELEMENT'S. 'for each w as ustring in
+'' words' over a 'string' array initialised the ustring with fb_StrInit -- narrow bytes in
+'' a UTF-16 descriptor, so "ab" read back as one CJK unit, and three words hashed to three
+'' keys where fbc makes two (tiko-book T15). fbc converts, as 'dim as ustring u = s' already
+'' did here. Measured on fbc-modern 1.20, 2026-09-30: the same kind is a copy, narrow into
+'' ustring converts from UTF-8, and ustring into narrow converts back.
+private sub EachStrInit_ _
+    ( byref c as Ctx, byref dst as MirValue, byref src as MirValue, _
+      byval srcIsU as boolean, byval dstIsU as boolean )
+
+    dim as containers.Array( of ulong ) args
+    if srcIsU = dstIsU then
+        PushStrArg( args, dst )
+        PushStrArg( args, src )
+        args.Push( cast( ulong, MV_CONST_INT ) )
+        args.Push( 0 )
+        EmitRtl( c, iif( dstIsU, RTL_USTR_INIT, RTL_STR_INIT ), args )
+        return
+    end if
+    '' The converters take bare pointers with a size each, as lowerstrargs.tiko passes them.
+    args.Push( cast( ulong, dst.kind ) ) : args.Push( cast( ulong, dst.id ) )
+    PushStrLen_( c, args, -1 )
+    args.Push( cast( ulong, src.kind ) ) : args.Push( cast( ulong, src.id ) )
+    PushStrLen_( c, args, -1 )
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )   '' fill_rem
+    args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 1 )   '' is_init: dst is fresh
+    EmitRtl( c, iif( dstIsU, RTL_USTR_FROM_A, RTL_USTR_TO_A ), args )
+end sub
+
+function LowerForEachIter _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
+      byval seqE as Tko.NodeId, byval at as Tko.TypeId ) as boolean
+
+    dim as Tko.SymbolId getIt = MemberNamed_( c, at, "getiterator" )
+    if getIt = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( getIt )
+    if gs = 0 then return false
+    dim as Tko.TypeId itT = gs->type_
+    if itT = Tko.TYPE_NONE then return false
+    if c.types->Kind( itT ) <> Tko.TK_UDT then return false
+
+    '' All three, before anything is emitted. A collection that satisfies only part of
+    '' the protocol is not iterable, and finding that out half way through would leave
+    '' a call and a block behind.
+    dim as Tko.SymbolId isValid = MemberNamed_( c, itT, "isvalid" )
+    dim as Tko.SymbolId valueOf = MemberNamed_( c, itT, "value" )
+    dim as Tko.SymbolId moveNext = MemberNamed_( c, itT, "movenext" )
+    if isValid = Tko.SYMBOL_NONE then return false
+    if valueOf = Tko.SYMBOL_NONE then return false
+    if moveNext = Tko.SYMBOL_NONE then return false
+
+    dim as Tko.Symbol ptr vs2 = c.syms->SymbolAt( valueOf )
+    if vs2 = 0 then return false
+    dim as Tko.TypeId elT = vs2->type_
+    dim as MirType emt = LowerType( elT, *c.types )
+    if emt = MT_VOID then return false
+
+    '' The LOOP VARIABLE takes the element type when its own was not written.
+    dim as Tko.SymbolId vsid = c.info->RefOf( sp->a )
+    if vsid = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr vsym = c.syms->SymbolAt( vsid )
+    if vsym = 0 then return false
+    if vsym->type_ = Tko.TYPE_NONE then vsym->type_ = elT
+    dim as MirValue vaddr = LowerAddr( c, sp->a )
+    if vaddr.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirValue cAddr = LowerAddr( c, seqE )
+    if cAddr.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' The ITERATOR, in a temporary of its own. GetIterator returns it by value, so the
+    '' call's result is stored into that temporary and every later call takes its
+    '' address as the receiver.
+    dim as long islot = NewTempLocal( c, MT_AGG, SizeOfType( c, itT ) )
+    if islot < 0 then return false
+    dim as MirValue iaddr
+    iaddr.kind = cast( ubyte, MV_LOCAL )
+    iaddr.ty = cast( ubyte, MT_PTR )
+    iaddr.id = islot
+
+    '' ...UNLESS THE CALL ALREADY MADE ONE WITH A DESTRUCTOR, and then that temporary IS the
+    '' iterator. It was stored bitwise into the slot above, MoveNext ran on the copy -- a
+    '' 'cur = MakeRow( )' in it released buffers the temporary still pointed at -- and the
+    '' statement-end flush destroyed the TEMPORARY after the loop: a double free, and the
+    '' copy was never destroyed. fbc builds the iterator once and destroys it after the
+    '' loop, which is exactly the life the temporary already has (tests/mir
+    '' foreach-iterator-owner; fbsqlite's 'for each person in outer_').
+    dim as long gmark = c.udtTemps.Count
+    dim as MirValue got = EmitMemberCall( c, getIt, cAddr, MT_AGG )
+    if got.kind = cast( ubyte, MV_NONE ) then return false
+    if c.udtTemps.Count > gmark then
+        iaddr.id = cast( long, c.udtTemps[c.udtTemps.Count - 1] )
+    else
+        dim as MirInst st0
+        st0.op = cast( ushort, M_STORE )
+        st0.ty = cast( ubyte, MT_VOID )
+        st0.a = iaddr
+        st0.b = got
+        Emit( c, st0 )
+    end if
+
+    dim as long bodyB = NewBlock( c, "each.body" )
+    dim as long contB = NewBlock( c, "each.cont" )
+    dim as long testB = NewBlock( c, "each.test" )
+    dim as long exitB = NewBlock( c, "each.exit" )
+    Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
+
+    c.curBlock = bodyB
+    '' A BYREF Value( ) HANDS BACK A POINTER, and the element is what it points at.
+    ''
+    '' RFC-0002's iterator protocol allows either -- fb/array.bi, set.bi, map.bi and
+    '' their siblings all declare 'function Value( ) byref as T' so the caller can
+    '' write through it -- and this asked for the ELEMENT's type regardless, so the
+    '' returned ADDRESS was stored into the loop variable. Measured on a header-free
+    '' iterator over three longs: fbc prints 3, 6, 9 and tiko printed three
+    '' consecutive addresses four bytes apart. It lowered, it verified, and the loop
+    '' ran the right number of times.
+    '' THE BODY'S SCOPE OPENS BEFORE THE ELEMENT IS BOUND, which is what makes the
+    '' element's destructor run once per iteration and run on 'exit for' too. The
+    '' array path already does this; the iterator path bound the element OUTSIDE
+    '' any scope and registered no cleanup at all.
+    c.breakTo.Push( exitB )
+    c.contTo.Push( contB )
+    c.loopScope.Push( c.scopeMark.Count )
+    c.loopKind.Push( cast( long, Tko.KW_FOR ) )
+    PushScope( c, cast( ulong, sp->b ) or SCOPE_KEY_OPT )
+
+    '' VALUE( ) RETURNS BY VALUE, so its result lands in an sret temporary that the
+    '' call registers for destruction. Registered where? In the ENCLOSING scope,
+    '' because nothing here marked the list -- so a collection of a counted type ran
+    '' four constructors and ONE destructor, and the loop leaked an object per
+    '' iteration. The slot is the same one every time round, so the mark is taken
+    '' here and released as soon as the element has been copied out of it: exactly
+    '' what a loop HEAD does with a condition's temporaries.
+    dim as long umark = c.udtTemps.Count
+
+    dim as boolean vByref = false
+    dim as Tko.NodeId vpn = cast( Tko.NodeId, vs2->payload )
+    if vpn <> Tko.NODE_NONE then
+        vByref = ((c.ast->nodes[cast( long, vpn )].flags and Tko.NF_BYREF) <> 0)
+    end if
+    '' A BYREF LOOP VARIABLE BINDS WHAT Value( ) HANDED BACK. Its type is a
+    '' REFERENCE, so its slot holds an ADDRESS and the body reads and writes
+    '' through it -- 'for each byref v as long in bl' then '+= 100' changes the
+    '' collection, which is the whole point of a byref Value( ).
+    ''
+    '' Storing the loaded ELEMENT into it instead writes through whatever the slot
+    '' happened to hold: the corpus segfaulted there.
+    dim as Tko.TypeId lvt = Tko.TYPE_NONE
+    dim as Tko.Symbol ptr lvs = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+    if lvs <> 0 then lvt = lvs->type_
+    dim as boolean varIsRef = false
+    if lvt <> Tko.TYPE_NONE then
+        varIsRef = (c.types->Kind( lvt ) = Tko.TK_REFERENCE)
+    end if
+    if varIsRef then
+        dim as MirValue rp
+        if vByref then
+            rp = EmitMemberCall( c, valueOf, iaddr, MT_PTR )
+        else
+            '' Value( ) returns BY VALUE, so the only address there is belongs to
+            '' the sret temporary -- which lives exactly as long as the iteration
+            '' that made it. Binding it is honest; writing through it changes a
+            '' copy, which is what a byval Value( ) can offer.
+            dim as MirValue tmpv = EmitMemberCall( c, valueOf, iaddr, emt )
+            if tmpv.kind = cast( ubyte, MV_NONE ) then return false
+            if c.udtTemps.Count > umark then
+                rp.kind = cast( ubyte, MV_LOCAL )
+                rp.ty = cast( ubyte, MT_PTR )
+                rp.id = cast( long, c.udtTemps[c.udtTemps.Count - 1] )
+            end if
+        end if
+        if rp.kind = cast( ubyte, MV_NONE ) then return false
+        dim as long rslot = LocalFor( c, c.info->RefOf( sp->a ) )
+        if rslot < 0 then return false
+        dim as MirValue rsa
+        rsa.kind = cast( ubyte, MV_LOCAL )
+        rsa.ty = cast( ubyte, MT_PTR )
+        rsa.id = rslot
+        dim as MirInst rst
+        rst.op = cast( ushort, M_STORE )
+        rst.ty = cast( ubyte, MT_VOID )
+        rst.a = rsa
+        rst.b = rp
+        Emit( c, rst )
+        ReleaseUdtTemps_( c, umark )
+        LowerBlock( c, sp->b )
+        CloseScope( c )
+        c.loopScope.Pop( )
+        c.loopKind.Pop( )
+        c.breakTo.Pop( )
+        c.contTo.Pop( )
+        Terminate( c, MTERM_BR, contB, -1, NoVal( ) )
+
+        c.curBlock = contB
+        EmitMemberCall( c, moveNext, iaddr, MT_VOID )
+        Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
+
+        c.curBlock = testB
+        dim as MirValue rok = EmitMemberCall( c, isValid, iaddr, MT_I8 )
+        if rok.kind = cast( ubyte, MV_NONE ) then return false
+        Terminate( c, MTERM_CONDBR, bodyB, exitB, rok )
+        c.curBlock = exitB
+        return true
+    end if
+
+    '' A STRING ELEMENT IS INITIALISED from what Value( ) hands back, the way the array
+    '' path initialises one from the element. A string FUNCTION returns a pointer to a
+    '' TEMPORARY descriptor -- 'call ptr' -- and this asked for the element type's
+    '' MirType, an aggregate with no size of its own, and then STORED it. At module level
+    '' that was IR clang refused ('%t11' defined with type '[0 x i8]' but expected
+    '' '[24 x i8]'); inside a procedure every element came out EMPTY. Measured over
+    '' fb/channel.bi's Channel( of string ) and over a plain iterator whose Value( )
+    '' returns a string: fbc prints each item, tiko printed '[]' -- and the goroutines
+    '' tutorial's worker pool and pipeline, which walk a Channel( of string ), crashed.
+    ''
+    '' fb_StrInit takes a temporary source's buffer and copies anything else, so the one
+    '' call serves a byref Value( ) too, whose result is the element's own descriptor.
+    '' The loop variable is released at the bottom of every iteration and on 'exit for',
+    '' by the body's scope. The rest is the tail every path here ends with.
+    dim as boolean vIsStr = IsStringType( c, elT )
+    if lvt <> Tko.TYPE_NONE then vIsStr = vIsStr andalso IsStringType( c, lvt )
+    if vIsStr then
+        if vaddr.kind <> cast( ubyte, MV_LOCAL ) then return false
+        dim as MirValue sv = EmitMemberCall( c, valueOf, iaddr, MT_PTR )
+        if sv.kind = cast( ubyte, MV_NONE ) then return false
+        EachStrInit_( c, vaddr, sv, IsUStringType( c, elT ), _
+                      iif( lvt <> Tko.TYPE_NONE, IsUStringType( c, lvt ), IsUStringType( c, elT ) ) )
+        c.cleanupNode.Push( 0 )
+        c.cleanupSlot.Push( vaddr.id )
+        c.cleanupType.Push( 0 )
+        ReleaseUdtTemps_( c, umark )
+        LowerBlock( c, sp->b )
+        CloseScope( c )
+        c.loopScope.Pop( )
+        c.loopKind.Pop( )
+        c.breakTo.Pop( )
+        c.contTo.Pop( )
+        Terminate( c, MTERM_BR, contB, -1, NoVal( ) )
+
+        c.curBlock = contB
+        EmitMemberCall( c, moveNext, iaddr, MT_VOID )
+        Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
+
+        c.curBlock = testB
+        dim as MirValue sok = EmitMemberCall( c, isValid, iaddr, MT_I8 )
+        if sok.kind = cast( ubyte, MV_NONE ) then return false
+        Terminate( c, MTERM_CONDBR, bodyB, exitB, sok )
+        c.curBlock = exitB
+        return true
+    end if
+
+    dim as MirValue ev
+    dim as MirValue evp
+    if vByref then
+        evp = EmitMemberCall( c, valueOf, iaddr, MT_PTR )
+        if evp.kind = cast( ubyte, MV_NONE ) then return false
+        '' THE ELEMENT'S SIZE TRAVELS WITH THE LOAD: what Value( ) handed back is a
+        '' POINTER in a temp, and a temp has no storage for the emitter to size an
+        '' aggregate from. Without it, 'for each v in c' over a collection of a
+        '' 24-byte element loaded '[0 x i8]' and clang refused the module.
+        ev = LowerExprLoad( c, evp, emt, SizeOfType( c, elT ) )
+    else
+        ev = EmitMemberCall( c, valueOf, iaddr, emt )
+    end if
+    if ev.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' AN AGGREGATE ELEMENT IS COPY-CONSTRUCTED, not stored. A load and a store is a
+    '' SHALLOW copy: a tuple half that is a string would share its buffer with the
+    '' temporary and then be freed twice, and a counted type would never see its
+    '' copy constructor at all. Measured against fbc over a collection yielding
+    '' '(Counted, long)': fbc runs 12 constructors and 12 destructors across four
+    '' iterations, tiko-lang ran 16 and 5.
+    ''
+    '' THE SOURCE IS THE SRET TEMPORARY, which is on the udtTemps list this call
+    '' just pushed to. A type with no destructor pushes nothing and needs no copy
+    '' constructor either, so the plain store below still serves it.
+    dim as boolean bound = false
+    if (emt = MT_AGG) andalso (c.udtTemps.Count > umark) andalso _
+       (vaddr.kind = cast( ubyte, MV_LOCAL )) then
+        dim as MirValue sa
+        sa.kind = cast( ubyte, MV_LOCAL )
+        sa.ty = cast( ubyte, MT_PTR )
+        sa.id = cast( long, c.udtTemps[c.udtTemps.Count - 1] )
+        dim as Tko.SymbolId cc = CopyCtorOf_( c, elT )
+        if cc <> Tko.SYMBOL_NONE then
+            dim as containers.Array( of ulong ) cargs
+            cargs.Push( cast( ulong, sa.kind ) )
+            cargs.Push( cast( ulong, sa.id ) )
+            EmitStructorCall( c, cc, -1, @vaddr, @cargs )
+            bound = true
+        elseif NeedsLetBody_( c, elT ) then
+            CallImplicitCopy_( c, elT, vaddr, sa )
+            bound = true
+        end if
+    end if
+
+    '' ...AND A BYREF Value( ) HANDS BACK THE ELEMENT ITSELF, which a non-byref loop
+    '' variable copy-constructs from. Measured over an iterator whose Value( ) is 'byref
+    '' as Tracker': fbc prints 'T copy item1 / got item1 / T dtor item1' each time round.
+    '' The load-and-store below made the loop variable share the iterator's buffers and
+    '' nothing destroyed it per iteration -- fbsqlite's 'for each person in outer_' over a
+    '' Statement (a Row holds a Map and arrays) was 0xC0000374.
+    dim as boolean byrefAgg = (emt = MT_AGG)
+    dim as boolean varLocal = (vaddr.kind = cast( ubyte, MV_LOCAL ))
+    if (bound = false) andalso vByref andalso byrefAgg andalso varLocal then
+        dim as Tko.SymbolId bcc = CopyCtorOf_( c, elT )
+        if bcc <> Tko.SYMBOL_NONE then
+            dim as containers.Array( of ulong ) bargs
+            bargs.Push( cast( ulong, evp.kind ) )
+            bargs.Push( cast( ulong, evp.id ) )
+            EmitStructorCall( c, bcc, -1, @vaddr, @bargs )
+            bound = true
+        elseif NeedsLetBody_( c, elT ) then
+            CallImplicitCopy_( c, elT, vaddr, evp )
+            bound = true
+        end if
+    end if
+
+    if bound = false then
+        dim as MirInst stv
+        stv.op = cast( ushort, M_STORE )
+        stv.ty = cast( ubyte, MT_VOID )
+        stv.a = vaddr
+        stv.b = ev
+        Emit( c, stv )
+    end if
+
+    ReleaseUdtTemps_( c, umark )
+
+    if bound then
+        dim as Tko.SymbolId edt = _
+            StructorWithArity( c, StructorOf( c, elT, "__dtor" ), 0 )
+        if edt <> Tko.SYMBOL_NONE then
+            c.cleanupNode.Push( cast( ulong, edt ) )
+            c.cleanupSlot.Push( vaddr.id )
+            c.cleanupType.Push( 0 )
+        elseif TypeNeedsDtor_( c, elT ) then
+            c.cleanupNode.Push( CLEANUP_IMPLICIT_DTOR )
+            c.cleanupSlot.Push( vaddr.id )
+            c.cleanupType.Push( cast( ulong, elT ) )
+        end if
+    end if
+
+    '' CONTINUE FOR lands on the MoveNext block, not on the test, which is what makes
+    '' 'continue for' advance the iterator instead of spinning on the same element.
+    LowerBlock( c, sp->b )
+    CloseScope( c )
+    c.loopScope.Pop( )
+    c.loopKind.Pop( )
+    c.breakTo.Pop( )
+    c.contTo.Pop( )
+    Terminate( c, MTERM_BR, contB, -1, NoVal( ) )
+
+    c.curBlock = contB
+    EmitMemberCall( c, moveNext, iaddr, MT_VOID )
+    Terminate( c, MTERM_BR, testB, -1, NoVal( ) )
+
+    c.curBlock = testB
+    dim as MirValue ok = EmitMemberCall( c, isValid, iaddr, MT_I8 )
+    if ok.kind = cast( ubyte, MV_NONE ) then return false
+    Terminate( c, MTERM_CONDBR, bodyB, exitB, ok )
+
+    c.curBlock = exitB
+    return true
+end function
+
+'' A member of a UDT by name, folded. Returns nothing when the type has no such member,
+'' which is how the protocol is tested: structurally, one name at a time.
+private function MemberNamed_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
+
+    if t = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    dim as Tko.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return Tko.SYMBOL_NONE
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s = 0 then return Tko.SYMBOL_NONE
+    if s->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
+    return c.syms->LookupLocal( s->inner, c.names->Fold( c.names->GetString( nm ) ) )
+end function
+
+
+'' A FIXED-LENGTH string -- 'string * N', 'zstring * N', 'wstring * N', 'ustring * N'.
+'' All four are spelled as an ARRAY of a character builtin, which is exactly why the
+'' array path would otherwise take them and walk their declared size.
+private function IsFixedStrType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) <> Tko.TK_ARRAY then return false
+    dim as Tko.TypeId el = c.types->Inner( u )
+    if el = Tko.TYPE_NONE then return false
+    if c.types->Kind( el ) <> Tko.TK_BUILTIN then return false
+    select case c.types->BuiltinOf( el )
+    case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_FIXSTR, Tko.TY_FIXUSTR
+        return true
+    end select
+    return false
+end function
+
+'' THE THREE SEQUENCE SHAPES share one loop, so they are described rather than
+'' emitted: each source computes a base pointer, a start, a limit and an element
+'' description, and EachEmit_ turns those into the blocks. Writing the skeleton out
+'' three times is how the element-width bug the verifier caught got in.
+type EachSeq
+    as MirValue     base_
+    as MirValue     startV
+    as MirValue     limitV
+    as long         cmpOp
+    as long         esz
+    as long         emt
+    as Tko.TypeId   elT
+    as boolean      elIsStr
+    as boolean      elIsU
+    as boolean      elIsAgg
+end type
+
+'' The counted loop itself, for every sequence that has a base and two bounds.
+''
+'' Measured from fbc: the bounds and the induction variable are hoisted BEFORE the
+'' loop, then 'goto test' first so an empty sequence runs the body no times, and the
+'' element is bound at the top of the body.
+''
+''     TMP_i = start; goto test
+''   body:  V = *(base + TMP_i*esz);  <user body>
+''   step:  TMP_i = TMP_i + 1
+''   test:  if TMP_i <cmp> limit goto body
+private function EachEmit_ _
+    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byref vaddr as MirValue, _
+      byref sq as EachSeq ) as boolean
+
+    dim as MirType offTy = MT_I64
+    if c.types->target.pointerBits = 32 then offTy = MT_I32
+
+    '' The induction variable, in a temporary of its own -- the loop VARIABLE holds the
+    '' element, not the index.
+    dim as long islot = NewTempLocal( c, offTy, iif( offTy = MT_I32, 4, 8 ) )
+    if islot < 0 then return false
+    dim as MirValue iaddr
+    iaddr.kind = cast( ubyte, MV_LOCAL )
+    iaddr.ty = cast( ubyte, MT_PTR )
+    iaddr.id = islot
+    dim as MirInst st0
+    st0.op = cast( ushort, M_STORE )
+    st0.ty = cast( ubyte, MT_VOID )
+    st0.a = iaddr
+    st0.b = sq.startV
+    Emit( c, st0 )
+
+    dim as long headB = NewBlock( c, "each.head" )
+    dim as long bodyB = NewBlock( c, "each.body" )
+    dim as long stepB = NewBlock( c, "each.step" )
+    dim as long exitB = NewBlock( c, "each.exit" )
+    Terminate( c, MTERM_BR, headB, -1, NoVal( ) )
+
+    '' TEST FIRST, so an empty sequence runs the body no times.
+    c.curBlock = headB
+    dim as MirValue ix = LowerExprLoad( c, iaddr, offTy )
+    dim as MirInst cmp
+    cmp.op = cast( ushort, sq.cmpOp )
+    cmp.ty = cast( ubyte, MT_I8 )
+    cmp.a = ix
+    cmp.b = sq.limitV
+    dim as MirValue cond = Emit( c, cmp )
+    Terminate( c, MTERM_CONDBR, bodyB, exitB, cond )
+
+    '' THE ELEMENT'S ADDRESS, at the top of the body.
+    c.curBlock = bodyB
+    dim as MirValue ix2 = LowerExprLoad( c, iaddr, offTy )
+    dim as MirValue off = ix2
+    if sq.esz <> 1 then
+        dim as MirInst mul
+        mul.op = cast( ushort, M_MUL )
+        mul.ty = cast( ubyte, offTy )
+        mul.a = ix2
+        mul.b = ConstInt( c, sq.esz, offTy )
+        off = Emit( c, mul )
+    end if
+    dim as MirInst pa
+    pa.op = cast( ushort, M_PTR_ADD )
+    pa.ty = cast( ubyte, MT_PTR )
+    pa.a = sq.base_
+    pa.b = off
+    dim as MirValue ea = Emit( c, pa )
+    if ea.kind = cast( ubyte, MV_NONE ) then return false
+
+    '' The body's SCOPE is pushed before the element is bound, because a var-len STRING
+    '' loop variable is copy-constructed into and has to be released once per iteration
+    '' -- which is what the scope's own cleanup does, and what makes 'exit for' out of
+    '' the middle release it too.
+    c.breakTo.Push( exitB )
+    c.contTo.Push( stepB )
+    c.loopScope.Push( c.scopeMark.Count )
+    c.loopKind.Push( cast( long, Tko.KW_FOR ) )
+    PushScope( c, cast( ulong, sp->b ) or SCOPE_KEY_OPT )
+
+    '' A BYREF LOOP VARIABLE IS BOUND, not filled. Its type is a REFERENCE -- see
+    '' resolve.bas -- so its slot holds the ELEMENT'S ADDRESS and every read and
+    '' write in the body goes through it, which is how 'for each byref v in a'
+    '' modifies the array. Measured: fbc leaves the array 10, 50 after 'v *= 10'
+    '' and tiko-lang left it 1, 5 -- it multiplied a copy and threw it away.
+    ''
+    '' Copy-constructing into it would store an element where a pointer belongs and
+    '' register a destructor for something the loop does not own.
+    dim as boolean boundByref = false
+    '' THE SYMBOL'S type, not the expression's: a reference is TRANSPARENT in an
+    '' expression, so TypeOf_ answers with the REFERENT's type and the test never
+    '' fired.
+    dim as Tko.TypeId vrt = Tko.TYPE_NONE
+    dim as Tko.Symbol ptr vrs = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+    if vrs <> 0 then vrt = vrs->type_
+    if vrt <> Tko.TYPE_NONE then
+        if c.types->Kind( vrt ) = Tko.TK_REFERENCE then
+            dim as long vslot = LocalFor( c, c.info->RefOf( sp->a ) )
+            if vslot < 0 then return false
+            dim as MirValue vsa
+            vsa.kind = cast( ubyte, MV_LOCAL )
+            vsa.ty = cast( ubyte, MT_PTR )
+            vsa.id = vslot
+            dim as MirInst bst
+            bst.op = cast( ushort, M_STORE )
+            bst.ty = cast( ubyte, MT_VOID )
+            bst.a = vsa
+            bst.b = ea
+            Emit( c, bst )
+            boundByref = true
+        end if
+    end if
+
+    if boundByref then
+    elseif sq.elIsStr then
+        '' A STRING ELEMENT IS COPY-CONSTRUCTED, not stored: the loop variable is its
+        '' own descriptor owning its own data, so writing to it does not write into the
+        '' array. Measured -- fbc emits fb_StrInit from the element's ADDRESS and
+        '' fb_StrDelete at the bottom of each iteration.
+        if vaddr.kind <> cast( ubyte, MV_LOCAL ) then return false
+        dim as Tko.TypeId evt = c.info->TypeOf_( sp->a )
+        EachStrInit_( c, vaddr, ea, sq.elIsU, _
+                      iif( evt <> Tko.TYPE_NONE, IsUStringType( c, evt ), sq.elIsU ) )
+        c.cleanupNode.Push( 0 )
+        c.cleanupSlot.Push( vaddr.id )
+        c.cleanupType.Push( 0 )
+    elseif sq.elIsAgg then
+        '' AN AGGREGATE ELEMENT IS COPY-CONSTRUCTED, once per iteration, through the
+        '' element type's own copy constructor when it has one. A load and a store
+        '' would be a SHALLOW copy: a tuple half that is a string would share its
+        '' buffer with the array and then be freed twice.
+        ''
+        '' ...and DESTROYED at the bottom of each iteration, registered with the body's
+        '' scope so 'exit for' out of the middle destroys it too. Measured against fbc:
+        '' a collection of a counted type runs one constructor and one destructor per
+        '' element, and the corpus asserts the two totals are equal.
+        if vaddr.kind <> cast( ubyte, MV_LOCAL ) then return false
+        dim as Tko.SymbolId cc = CopyCtorOf_( c, sq.elT )
+        if cc <> Tko.SYMBOL_NONE then
+            dim as containers.Array( of ulong ) cargs
+            cargs.Push( cast( ulong, ea.kind ) )
+            cargs.Push( cast( ulong, ea.id ) )
+            EmitStructorCall( c, cc, -1, @vaddr, @cargs )
+        elseif NeedsLetBody_( c, sq.elT ) then
+            CallImplicitCopy_( c, sq.elT, vaddr, ea )
+        else
+            '' A PLAIN RECORD IS LOADED WHOLE -- WITH ITS SIZE (T28). Without it the load
+            '' was '[0 x i8]', the store into the loop variable wanted '[8 x i8]', and
+            '' clang refused 'for each p as Point in pts' on both targets while the
+            '' byref form, which copies nothing, compiled. fbc runs it.
+            dim as MirValue whole = LowerExprLoad( c, ea, MT_AGG, SizeOfType( c, sq.elT ) )
+            if whole.kind = cast( ubyte, MV_NONE ) then return false
+            StoreThrough( c, vaddr, whole )
+        end if
+        dim as Tko.SymbolId edt = _
+            StructorWithArity( c, StructorOf( c, sq.elT, "__dtor" ), 0 )
+        if edt <> Tko.SYMBOL_NONE then
+            c.cleanupNode.Push( cast( ulong, edt ) )
+            c.cleanupSlot.Push( vaddr.id )
+            c.cleanupType.Push( 0 )
+        elseif TypeNeedsDtor_( c, sq.elT ) then
+            c.cleanupNode.Push( CLEANUP_IMPLICIT_DTOR )
+            c.cleanupSlot.Push( vaddr.id )
+            c.cleanupType.Push( cast( ulong, sq.elT ) )
+        end if
+    else
+        dim as MirValue ev = LowerExprLoad( c, ea, cast( MirType, sq.emt ) )
+        '' 'for each v as double in b' where b holds LONGs: the element is loaded at the
+        '' ARRAY's width and has to be converted to the LOOP VARIABLE's before it is
+        '' stored. The store went out un-coerced, so an i32 landed in an f64 slot --
+        '' which the verifier caught, and which would have been a wrong VALUE, not just
+        '' a wrong width, had it reached a backend.
+        dim as MirType vmt = LowerType( c.info->TypeOf_( sp->a ), *c.types )
+        if (vmt <> MT_VOID) andalso (vmt <> cast( MirType, sq.emt )) then
+            '' A STRING'S CHARACTERS ARE UNSIGNED -- measured, fbc declares the loop
+            '' variable 'uint8'. Sign-extending them instead makes every byte above 127
+            '' sum as a negative number.
+            dim as boolean uns = true
+            if sq.elT <> Tko.TYPE_NONE then uns = IsUnsignedType( c, sq.elT )
+            ev = Coerce( c, ev, vmt, uns )
+            if ev.kind = cast( ubyte, MV_NONE ) then return false
+        end if
+        dim as MirInst stv
+        stv.op = cast( ushort, M_STORE )
+        stv.ty = cast( ubyte, MT_VOID )
+        stv.a = vaddr
+        stv.b = ev
+        Emit( c, stv )
+    end if
+
+    LowerBlock( c, sp->b )
+    CloseScope( c )
+    c.loopScope.Pop( )
+    c.loopKind.Pop( )
+    c.breakTo.Pop( )
+    c.contTo.Pop( )
+    Terminate( c, MTERM_BR, stepB, -1, NoVal( ) )
+
+    c.curBlock = stepB
+    dim as MirValue ix3 = LowerExprLoad( c, iaddr, offTy )
+    dim as MirInst add_
+    add_.op = cast( ushort, M_ADD )
+    add_.ty = cast( ubyte, offTy )
+    add_.a = ix3
+    add_.b = ConstInt( c, 1, offTy )
+    dim as MirValue nxt = Emit( c, add_ )
+    dim as MirInst st1
+    st1.op = cast( ushort, M_STORE )
+    st1.ty = cast( ubyte, MT_VOID )
+    st1.a = iaddr
+    st1.b = nxt
+    Emit( c, st1 )
+    Terminate( c, MTERM_BR, headB, -1, NoVal( ) )
+
+    c.curBlock = exitB
+    return true
+end function
+
+'' The LOOP VARIABLE's address, with its type taken from the element when the source
+'' wrote no 'as' clause and nothing earlier supplied one.
+private function EachVarAddr_ _
+    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byval elT as Tko.TypeId, _
+      byref outv as MirValue ) as boolean
+
+    dim as Tko.SymbolId vs = c.info->RefOf( sp->a )
+    if vs = Tko.SYMBOL_NONE then return false
+    dim as Tko.Symbol ptr vsym = c.syms->SymbolAt( vs )
+    if vsym = 0 then return false
+    if vsym->type_ = Tko.TYPE_NONE then vsym->type_ = elT
+    if vsym->type_ = Tko.TYPE_NONE then return false
+    outv = LowerAddr( c, sp->a )
+    return (outv.kind <> cast( ubyte, MV_NONE ))
+end function
+
+'' FOR EACH over a VAR-LENGTH STRING, character by character.
+''
+'' Measured from fbc: the DATA POINTER and the LENGTH are both hoisted once, before the
+'' loop, and the limit is 'len - 1' compared with '<='. An EMPTY string needs no special
+'' case -- its limit is -1 and the test-first skeleton runs the body no times.
+''
+'' A FIXED-LENGTH string is NOT this loop and is not lowered as one: a 'zstring * N'
+'' carries no length, and RFC-0003 walks it to its terminating NUL rather than to its
+'' declared size. Walking N bytes would read past the string's contents and produce
+'' plausible garbage, so it declines instead.
+''
+'' The WIDE flavour declines as well. fb_UStrLen answers in CHARACTERS and the element
+'' is two bytes, so it is the same loop with two constants changed -- but that is a
+'' measurement that has not been made, and a stride guessed wrong reads half of each
+'' character.
+private function LowerForEachStr_ _
+    ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byval seqE as Tko.NodeId, _
+      byval at as Tko.TypeId ) as boolean
+
+    if IsUStringType( c, at ) then return false
+
+    dim as MirType offTy = MT_I64
+    if c.types->target.pointerBits = 32 then offTy = MT_I32
+
+    '' The descriptor, once: the data pointer is its first field and the length comes
+    '' from the runtime, and both are read BEFORE the loop, exactly as fbc reads them.
+    dim as MirValue da
+    if StrDescriptorOf_( c, seqE, da ) = false then da = LowerAddr( c, seqE )
+    if da.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as EachSeq sq
+    sq.base_ = LowerExprLoad( c, da, MT_PTR )
+    if sq.base_.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as containers.Array( of ulong ) largs
+    PushStrArg( largs, da )
+    dim as MirValue slen = EmitRtl( c, RTL_STR_LEN, largs )
+    if slen.kind = cast( ubyte, MV_NONE ) then return false
+    slen = Coerce( c, slen, offTy, false )
+    if slen.kind = cast( ubyte, MV_NONE ) then return false
+    dim as MirInst sub_
+    sub_.op = cast( ushort, M_SUB )
+    sub_.ty = cast( ubyte, offTy )
+    sub_.a = slen
+    sub_.b = ConstInt( c, 1, offTy )
+    sq.limitV = Emit( c, sub_ )
+    if sq.limitV.kind = cast( ubyte, MV_NONE ) then return false
+
+    sq.startV = ConstInt( c, 0, offTy )
+    sq.cmpOp = cast( long, M_ICMP_SLE )
+    sq.esz = 1
+    sq.emt = cast( long, MT_I8 )
+    sq.elT = Tko.TYPE_NONE
+
+    dim as MirValue vaddr
+    if EachVarAddr_( c, sp, Tko.TYPE_NONE, vaddr ) = false then return false
+    return EachEmit_( c, sp, vaddr, sq )
+end function
+
+'' FOR EACH over an ARRAY.
+''
+'' An ordinary counted loop over the array's own bounds. A NONZERO lbound keeps the
+'' counter in the array's own range and lets the ADDRESS carry the bias, which is what
+'' the ordinary subscript path already does.
+''
+'' A DYNAMIC array's bounds are read from its descriptor with fb_ArrayLBound /
+'' fb_ArrayUBound, ONCE before the loop, which is what fbc does.
+''
+'' An AGGREGATE element -- a UDT or a tuple -- is copy-constructed and destroyed once
+'' per iteration through the element type's own operators, which is a different binding
+'' from a load and a store; EachEmit_ has that arm.
+function LowerForEachArray _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    if sp->count <> 1 then return false
+    if sp->a = Tko.NODE_NONE then return false
+    dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->children[sp->first] )
+
+    dim as Tko.TypeId at = c.info->TypeOf_( seqE )
+    if at = Tko.TYPE_NONE then return false
+
+    '' A USER COLLECTION, not an array: the RFC-0002 iterator protocol. Tried first
+    '' because a UDT can never be the array form, so there is nothing to fall back to.
+    if c.types->Kind( at ) = Tko.TK_UDT then
+        return LowerForEachIter( c, id, sp, seqE, at )
+    end if
+
+    '' A VAR-LENGTH STRING is not an array at all -- it is a descriptor -- so it never
+    '' reached the array path and declined without ever being looked at.
+    dim as Tko.TypeId uat = c.types->Unqualify( at )
+    if IsStringType( c, uat ) then
+        return LowerForEachStr_( c, sp, seqE, uat )
+    end if
+
+    if c.types->Kind( at ) <> Tko.TK_ARRAY then return false
+
+    '' 'zstring * 8' is spelled as an ARRAY of a character element, so it would walk its
+    '' DECLARED SIZE here -- past the string's own contents, with plausible garbage for
+    '' the tail. fbc rejects it outright.
+    if IsFixedStrType_( c, at ) then return false
+
+    '' A DYNAMIC array has no compile-time bounds at all: they are read from its
+    '' descriptor, ONCE before the loop. Everything after this differs only in where the
+    '' base and the two bounds come from.
+    dim as boolean isDyn = c.types->IsDynArray( at )
+    dim as long total = 0
+    if isDyn then
+        '' fbc rejects FOR EACH over a multi-dimensional array outright (error 344),
+        '' so a written rank above one is not something to lower.
+        if c.types->DynRank( at ) > 1 then return false
+    else
+        '' ONE DIMENSION only, and the rank comes from the RETAINED BOUNDS rather than
+        '' from a field -- the same rule ArrayStrides uses, so a type whose bounds were
+        '' dropped cannot produce a plausible loop over the wrong extent.
+        dim as boolean known0 = false
+        c.types->ArrayBound( at, 0, false, known0 )
+        if known0 = false then return false
+        dim as boolean known1 = false
+        c.types->ArrayBound( at, 1, false, known1 )
+        if known1 then return false
+        total = c.types->ElemCount( at )
+        if total <= 0 then return false
+    end if
+
+    dim as EachSeq sq
+    sq.elT = c.types->Inner( at )
+    sq.emt = cast( long, LowerType( sq.elT, *c.types ) )
+    sq.elIsStr = IsStringType( c, sq.elT )
+    sq.elIsU = IsUStringType( c, sq.elT )
+    '' A UDT OR TUPLE ELEMENT is bound by a copy, not by a load and a store -- see
+    '' EachEmit_. Anything else aggregate-shaped is not something with a copy to make,
+    '' so it still declines rather than being memcpy'd on a guess.
+    sq.elIsAgg = (sq.elIsStr = false) andalso _
+                 (sq.emt = cast( long, MT_AGG )) andalso _
+                 (c.types->Kind( sq.elT ) = Tko.TK_UDT)
+    if (sq.elIsStr = false) andalso (sq.elIsAgg = false) then
+        if (sq.emt = cast( long, MT_VOID )) orelse (sq.emt = cast( long, MT_AGG )) then
+            return false
+        end if
+    end if
+    sq.esz = SizeOfType( c, sq.elT )
+    if sq.esz <= 0 then return false
+
+    dim as MirValue vaddr
+    if EachVarAddr_( c, sp, sq.elT, vaddr ) = false then return false
+
+    dim as MirValue seqAddr = LowerAddr( c, seqE )
+    if seqAddr.kind = cast( ubyte, MV_NONE ) then return false
+
+    dim as MirType offTy = MT_I64
+    if c.types->target.pointerBits = 32 then offTy = MT_I32
+
+    '' A fixed array is addressed from its own storage and counts 0 .. total - 1. A
+    '' dynamic one is addressed through DATA -- which the runtime has already biased by
+    '' the lbounds, so no lbound is subtracted here -- and counts LBOUND .. UBOUND, both
+    '' read once, before the loop.
+    sq.base_ = seqAddr
+    sq.startV = ConstInt( c, 0, offTy )
+    sq.limitV = ConstInt( c, total, offTy )
+    sq.cmpOp = cast( long, M_ICMP_SLT )
+    if isDyn then
+        dim as containers.Array( of ulong ) la
+        la.Push( cast( ulong, seqAddr.kind ) ) : la.Push( cast( ulong, seqAddr.id ) )
+        la.Push( cast( ulong, MV_CONST_INT ) ) : la.Push( 1 )
+        sq.startV = EmitRtl( c, RTL_ARRAY_LBOUND, la )
+        dim as containers.Array( of ulong ) ua
+        ua.Push( cast( ulong, seqAddr.kind ) ) : ua.Push( cast( ulong, seqAddr.id ) )
+        ua.Push( cast( ulong, MV_CONST_INT ) ) : ua.Push( 1 )
+        sq.limitV = EmitRtl( c, RTL_ARRAY_UBOUND, ua )
+        if (sq.startV.kind = cast( ubyte, MV_NONE )) orelse _
+           (sq.limitV.kind = cast( ubyte, MV_NONE )) then
+            return false
+        end if
+        sq.base_ = DynArrayDataPtr( c, seqAddr )
+        if sq.base_.kind = cast( ubyte, MV_NONE ) then return false
+        sq.cmpOp = cast( long, M_ICMP_SLE )
+    end if
+
+    return EachEmit_( c, sp, vaddr, sq )
+end function
+
+end namespace

@@ -1,0 +1,1150 @@
+'' entry/console.ti -- the console hooks, so PRINT lands on a graphics screen.
+''
+'' ORIGINAL WORK. Part of libtkogfx: LGPL-2.1-or-later with the static-linking
+'' exception.
+''
+'' The runtime routes PRINT, LOCATE, CLS, COLOR, POS, CSRLIN, WIDTH and
+'' SCREEN(r,c) through __fb_ctx.hooks when they are set. Opening a graphics
+'' screen installs this table; SCREEN 0 clears it.
+''
+'' PARTIAL INSTALLATION IS SAFE, AND THAT IS WHY THIS FILE IS NOT ALL 28 HOOKS.
+'' tiko-rt's inc/ctx.ti says it plainly -- "when a slot is NULL the console
+'' implementation runs instead" -- and lib/rt/src/io/hookprint.tiko is the
+'' pattern: read the slot, call it if set, otherwise call the console. So a
+'' table with eleven slots filled and seventeen null leaves the rest behaving
+'' exactly as they did before this file existed. Filling a slot badly is a
+'' regression; leaving it null is not.
+''
+'' WHAT IS INSTALLED, and each is here because the internals it needs are
+'' already compared against gfxlib2:
+''
+''     printbuff   raster/text.ti   gated by tools/abtest-print.bas
+''     cls         raster/cls.ti    gated by tools/abtest-cls.bas
+''     locate, getx, gety, getxy, getsize, readxy, width
+''                 core/cells.ti    gated by tools/abtest-cells.bas
+''     color       raster/color.ti  gated by tools/abtest-color.bas
+''     pagecopy, pageset
+''                 entry/page.ti    FLIP and SCREENSET themselves, see below
+''
+''     printbuff's caret   the one-byte chr(255) form, gated by gate-entry
+''     printbuffw          converted to ASCII by the runtime, then the same
+''                         path -- gated by gate-entry
+''
+''     inkey, getkey, keyhit, multikey, readstr, lineinput
+''                 core/keyboard.ti gated by tools/abtest-keyboard.bas, plus the
+''                 editing loop below, which is new
+''
+'' HOW INPUT ACTUALLY GETS THERE, because it is not the obvious route and a
+'' wrong guess about it cost a wasted diagnosis.
+''
+'' `INPUT s` reaches fb_ConsoleInput, which asks fb_IsRedirected FIRST. If the
+'' console is redirected it deletes the prompt and does a file INPUT on channel
+'' 0 -- the real stdin, no hooks involved. Only when it is NOT redirected does
+'' it call fb_LineInput, which is what consults lineinputproc.
+''
+'' So `isredirproc` is load-bearing for INPUT, and with it null the runtime
+'' answered from the OS: a program whose stdin was a file read the file. That
+'' looked exactly like a runtime defect and was reported as one; it was this
+'' file's omission. tiko-rt consults every hook it should.
+''
+'' readstrproc is installed as well, and is the path INPUT takes from a real
+'' channel rather than from the console.
+''
+'' WHAT IS STILL LEFT NULL: posteventproc, and only that. It belongs to the
+'' event queue rather than to the console. Twenty-seven of the 28 slots are
+'' filled.
+''
+'' The port internals are gated but nothing routes them yet; the wide LINE INPUT
+'' needs the wstring editing loop that the narrow one above is only half of.
+''
+'' THE CALLBACKS ARE CDECL. core/hooks.ti says why at length: the runtime's hook
+'' typedefs carry no FBCALL even though the entry points that consult them do.
+
+#pragma once
+
+namespace TkoGfx
+
+'' PRINT's mask, from lib/rt/src/inc/print.ti rather than guessed.
+const FB_PRINT_NEWLINE = &h00000001
+const FB_PRINT_PAD     = &h00000002
+
+type ConsoleState
+    cp        as CellPlane
+    cols      as long
+    rows      as long
+    fidx      as long          '' font index for the open mode
+    fh        as long          '' font height in pixels
+    row       as long          '' 0-based cursor
+    col       as long
+    fg        as ulong
+    bg        as ulong
+    viewtop   as long          '' VIEW PRINT region, 0-based inclusive
+    viewbot   as long
+    live      as long
+end type
+
+dim shared as ConsoleState TheCon
+
+'' Repaint one cell from the plane. Every write goes through here so the glyph
+'' and the cell can never disagree -- SCREEN(r,c) reads the plane, the window
+'' shows the glyph, and a program that compares them is entitled to agreement.
+private sub ConDrawCell( byval c as long, byval r as long )
+    if (c < 0) orelse (r < 0) orelse (c >= TheCon.cols) orelse (r >= TheCon.rows) then exit sub
+    dim as CharCell ptr cell = CellAt( TheCon.cp, TheScreen.work_page, c, r )
+    if cell = 0 then exit sub
+    DrawGlyph( ScreenCtx.surf, c * FONT_WIDTH, r * TheCon.fh, _
+               cell->ch, TheCon.fidx, cell->fg, cell->bg )
+end sub
+
+'' ------------------------------------------------------------------ the caret
+''
+'' TWO SHAPES, BOTH TAKEN FROM gfxlib2 rather than chosen (D1 -- derived work,
+'' attribution rather than a firewall):
+''
+''   UNDERLINE  gfx_print.c's console-write hook treats a ONE-BYTE buffer whose
+''              byte is 255 as a caret: it draws a single row of fg_color across
+''              the bottom pixel row of the cell instead of the glyph for 255.
+''              That is how the runtime's own line editor shows a cursor, and it
+''              is what gfxlib2's LINE INPUT displays, because gfx_lineinp.c
+''              delegates to fb_ConReadLine.
+''
+''   BLOCK      gfx_readstr.c prints chr(219) -- the solid block -- at the
+''              cursor and moves back over it. That is what the READSTR hook
+''              shows; see the editing loop for why a program almost never
+''              reaches it.
+''
+'' IT DOES NOT BLINK, in either library. The note that used to stand where the
+'' editing loop is said a caret was "a timer and a determinism problem"; that
+'' was a guess about gfxlib2 and it was wrong. Both shapes are steady, which is
+'' why the underline can be A/B compared like any other pixel.
+const CARET_UNDER = 255
+const CARET_BLOCK = 219
+
+'' One row of fg across the bottom of the cell. PSetAny, not PutPixel: the caret
+'' is clipped by the viewport exactly as a glyph is, because gfxlib2 draws it
+'' through the same clipped put_pixel the glyph renderer uses.
+private sub ConDrawUnderline( byval c as long, byval r as long )
+    if (c < 0) orelse (r < 0) orelse (c >= TheCon.cols) orelse (r >= TheCon.rows) then exit sub
+    dim as long py = r * TheCon.fh + TheCon.fh - 1
+    for x as integer = 0 to FONT_WIDTH - 1
+        PSetAny( ScreenCtx.surf, c * FONT_WIDTH + x, py, TheCon.fg )
+    next
+end sub
+
+'' Scroll the VIEW PRINT region up one row, plane and pixels together.
+''
+'' The pixels are moved rather than redrawn from the plane: a redraw would be
+'' correct too and is O(cells) instead of O(bytes), but it would also repaint
+'' any pixel a program drew INTO the text area with LINE or PSET, which gfxlib2
+'' does not do -- its scroll is a memmove of the framebuffer.
+private sub ConScroll( )
+    dim as long top = TheCon.viewtop
+    dim as long bot = TheCon.viewbot
+    if bot <= top then exit sub
+
+    '' cells
+    for r as integer = top to bot - 1
+        for c as integer = 0 to TheCon.cols - 1
+            dim as CharCell ptr dst = CellAt( TheCon.cp, TheScreen.work_page, c, r )
+            dim as CharCell ptr src = CellAt( TheCon.cp, TheScreen.work_page, c, r + 1 )
+            if (dst <> 0) andalso (src <> 0) then *dst = *src
+        next
+    next
+    for c as integer = 0 to TheCon.cols - 1
+        dim as CharCell ptr dst = CellAt( TheCon.cp, TheScreen.work_page, c, bot )
+        if dst <> 0 then
+            dst->ch = 32
+            dst->fg = TheCon.fg
+            dst->bg = TheCon.bg
+        end if
+    next
+
+    '' pixels
+    dim as long y0 = top * TheCon.fh
+    dim as long y1 = (bot + 1) * TheCon.fh - 1
+    dim as long rowbytes = ScreenCtx.surf.w * ScreenCtx.surf.bpp
+    for y as integer = y0 to y1 - TheCon.fh
+        memcpy( SurfaceRowAddr( ScreenCtx.surf, y ), _
+                SurfaceRowAddr( ScreenCtx.surf, y + TheCon.fh ), rowbytes )
+    next
+    for y as integer = y1 - TheCon.fh + 1 to y1
+        memset( SurfaceRowAddr( ScreenCtx.surf, y ), 0, rowbytes )
+    next
+    DirtyMarkSpan( ScreenCtx.surf, y0, y1 )
+
+    '' the blanked row has to be painted in the CURRENT background, which is not
+    '' necessarily 0 -- memset above only clears to black.
+    for c as integer = 0 to TheCon.cols - 1
+        ConDrawCell( c, bot )
+    next
+end sub
+
+private sub ConNewline( )
+    TheCon.col = 0
+    TheCon.row += 1
+    if TheCon.row > TheCon.viewbot then
+        TheCon.row = TheCon.viewbot
+        ConScroll( )
+    end if
+end sub
+
+'' One character, with the control codes PRINT interprets before the glyph
+'' renderer ever sees them. tools/abtest-print.bas excludes 0..31 for exactly
+'' this reason: they never reach a glyph.
+private sub ConPutChar( byval ch as long )
+    select case ch
+    case 7          '' bell -- audible only, and this library makes no sound
+        exit sub
+    case 8          '' backspace
+        if TheCon.col > 0 then TheCon.col -= 1
+        exit sub
+    case 9          '' tab -- to the next eight-column stop
+        dim as long n = 8 - (TheCon.col mod 8)
+        for i as integer = 1 to n
+            ConPutChar( 32 )
+        next
+        exit sub
+    case 10         '' line feed
+        ConNewline( )
+        exit sub
+    case 13         '' carriage return
+        TheCon.col = 0
+        exit sub
+    end select
+
+    if TheCon.col >= TheCon.cols then ConNewline( )
+
+    dim as CharCell ptr cell = CellAt( TheCon.cp, TheScreen.work_page, TheCon.col, TheCon.row )
+    if cell <> 0 then
+        cell->ch = ch and &hFF
+        cell->fg = TheCon.fg
+        cell->bg = TheCon.bg
+    end if
+    ConDrawCell( TheCon.col, TheCon.row )
+    TheCon.col += 1
+end sub
+
+'' PRINT of a lone chr(255): the caret shape, and the cell still says 255.
+''
+'' THE PLANE IS WRITTEN EITHER WAY. gfxlib2's hook draws the underline instead
+'' of the glyph but still stores the byte in the character cell, so SCREEN(r,c)
+'' reports 255 and the cursor advances one column -- only the pixels differ.
+'' Storing something else here would make the two disagree about a cell whose
+'' pixels this library had just drawn.
+private sub ConPutCaretCell( )
+    if TheCon.col >= TheCon.cols then ConNewline( )
+
+    dim as CharCell ptr cell = CellAt( TheCon.cp, TheScreen.work_page, TheCon.col, TheCon.row )
+    if cell <> 0 then
+        cell->ch = 255
+        cell->fg = TheCon.fg
+        cell->bg = TheCon.bg
+    end if
+    ConDrawUnderline( TheCon.col, TheCon.row )
+    TheCon.col += 1
+end sub
+
+'' WHERE A CARET IS RECOGNISED: per WRITE, not per PRINT.
+''
+'' gfxlib2 does not decide this itself. The runtime's tty layer accumulates
+'' printable characters into a run, flushes that run whenever it has to move the
+'' cursor, and hands each piece to the graphics library; the raw writer splits a
+'' run again at the right border. The caret test is applied to what arrives --
+'' one byte, value 255 -- so the SAME PRINT can be a glyph or a caret depending
+'' on where the run breaks.
+''
+'' MEASURED, because the buffer-level rule was wrong in three of eleven gate
+'' cases:
+''
+''   print chr(255);                one write   -> caret
+''   print "A" + chr(255);          one write   -> glyph (blank)
+''   locate 2,8 : print "A"+chr(255)   splits at the border -> caret
+''   print chr(13) + chr(255);      CR flushes  -> caret
+''   print chr(255) + chr(13);      CR flushes  -> caret
+''
+'' A TAB DOES NOT END A RUN -- it expands to spaces INSIDE it, which is why it is
+'' not in the flush list. At eight columns a tab stop always coincides with the
+'' border so the two are indistinguishable here; on a wider screen they are not,
+'' and the run is what the tty layer actually does.
+private sub ConPrintRun( byref run_ as string )
+    dim as long n = len( run_ )
+    dim as long i = 0
+
+    while i < n
+        if TheCon.col >= TheCon.cols then ConNewline( )
+        dim as long room = TheCon.cols - TheCon.col
+        dim as long take = n - i
+        if take > room then take = room
+
+        if (take = 1) andalso (run_[i] = 255) then
+            ConPutCaretCell( )
+        else
+            for k as integer = 0 to take - 1
+                ConPutChar( run_[i + k] )
+            next
+        end if
+        i += take
+    wend
+end sub
+
+private sub ConPrintTty( byval p as ubyte ptr, byval n as long )
+    dim as string run_
+    dim as long simcol = TheCon.col     '' where the pending run stands, tracked
+                                        '' across it rather than after each write
+
+    for i as integer = 0 to n - 1
+        dim as long ch = p[i]
+        select case ch
+        case 7                          '' bell: no output and no flush
+        case 8, 10, 13                  '' these MOVE the cursor, so the run ends
+            ConPrintRun( run_ )
+            run_ = ""
+            ConPutChar( ch )
+            simcol = TheCon.col
+        case 9                          '' tab: spaces into the run
+            dim as long k = 8 - (simcol mod 8)
+            run_ += space( k )
+            simcol = (simcol + k) mod TheCon.cols
+        case else
+            run_ += chr( ch )
+            simcol = (simcol + 1) mod TheCon.cols
+        end select
+    next
+
+    ConPrintRun( run_ )
+end sub
+
+'' THE WHOLE OF PRINT'S BODY, so the wide hook can reach it too.
+''
+'' Both printbuff and printbuffw end here: gfxlib2's wide hook converts to ASCII
+'' and calls its narrow one, and the mask -- the PAD and NEWLINE bits -- is
+'' applied once, after whatever text there was.
+private sub ConPrintNarrow( byval p as ubyte ptr, byval n as long, byval mask as long )
+    if (p <> 0) andalso (n > 0) then ConPrintTty( p, n )
+
+    '' PAD is what `PRINT x,` asks for: advance to the next 14-column zone.
+    if (mask and FB_PRINT_PAD) <> 0 then
+        dim as long k = 14 - (TheCon.col mod 14)
+        for i as integer = 1 to k
+            ConPutChar( 32 )
+        next
+    end if
+
+    if (mask and FB_PRINT_NEWLINE) <> 0 then ConNewline( )
+end sub
+
+'' HOW LONG A wstring IS, counted here.
+''
+'' fb_wstr_Len is a `static __inline__` in the runtime's header and the archive
+'' exports no symbol for it, so binding it compiles, archives, and then fails to
+'' link. tiko-rt's src/io/conprintw.tiko hit exactly that and counts its own.
+private function WideLen( byval s as wstring ptr ) as long
+    if s = 0 then return 0
+    dim as long n = 0
+    while s[n] <> 0
+        n += 1
+    wend
+    return n
+end function
+
+'' ------------------------------------------------------------- the keyboard
+''
+'' THE RING IS THE WINDOW'S, not the console's. driver/window.ti fills it from
+'' WM_CHAR on the pump thread; everything here reads it under the same lock. A
+'' ring of its own here would need the window to know about the console, which
+'' is the dependency this library is arranged to avoid.
+private function ConKeyGet( ) as long
+    if TheScreen.isOpen = 0 then return 0
+    WindowLock( TheScreen.wnd )
+    dim as long c = KeyGet( TheScreen.wnd.keys )
+    WindowUnlock( TheScreen.wnd )
+    return c
+end function
+
+private function ConKeyHit( ) as long
+    if TheScreen.isOpen = 0 then return 0
+    WindowLock( TheScreen.wnd )
+    dim as long n = KeyHit( TheScreen.wnd.keys )
+    WindowUnlock( TheScreen.wnd )
+    return n
+end function
+
+'' DID ANY KEY ARRIVE? Reading the flag CLEARS it, and taking a key off the ring
+'' clears it too -- core/keyboard.ti owns both rules. It exists so SLEEP can tell
+'' that input happened without consuming the key, which is what makes a keystroke
+'' that cut a sleep short still readable by the INKEY after it.
+private function ConKeyChanged( ) as long
+    if TheScreen.isOpen = 0 then return 0
+    WindowLock( TheScreen.wnd )
+    dim as long r = KeyBufferChanged( TheScreen.wnd.keys )
+    WindowUnlock( TheScreen.wnd )
+    return r
+end function
+
+'' Block until a key arrives, or until the window closes.
+''
+'' THE WINDOW-CLOSED TEST IS NOT OPTIONAL. Without it, closing the window while
+'' a program sits in INPUT leaves that program spinning on a pump that has
+'' stopped, with no way out but the task manager. Returning 0 lets the editing
+'' loop give up and the program continue to its own end.
+private function ConKeyWait( ) as long
+    do
+        dim as long c = ConKeyGet( )
+        if c <> 0 then return c
+        if WindowWasClosed( TheScreen.wnd ) then return 0
+        WinSleep( 5 )
+    loop
+end function
+
+'' ---------------------------------------------------------- the editing loop
+''
+'' Shared by INPUT and LINE INPUT, which differ in what they do with the string
+'' and not in how they collect it.
+''
+'' THERE IS A CURSOR WITHIN THE LINE. Left, Right, Home, End and Delete move and
+'' edit at it; a character typed mid-line INSERTS rather than overwriting, which
+'' is what every other BASIC console does. Insert-mode toggling is not
+'' implemented -- there is one mode and it inserts.
+''
+'' THERE IS A CARET NOW, and it is steady rather than blinking -- see the caret
+'' section above for where both shapes come from. It is shown while the loop is
+'' BLOCKED on a key and hidden the moment one arrives, so no edit ever has to
+'' work around it.
+''
+'' IT IS PIXELS ONLY. The caret is never written to the cell plane, so
+'' SCREEN(r,c) reports the character underneath it and hiding the caret is one
+'' ConDrawCell -- a repaint from the plane that is already correct. gfxlib2
+'' prints its block caret through PRINT and therefore does put it in the cell,
+'' then overprints it; the end state is the same and this route cannot leave a
+'' 219 behind if the loop exits early.
+''
+'' THE SHAPE DIFFERS BY HOOK, because it differs by hook in gfxlib2: readstr
+'' shows a block, and lineinput shows an underline because gfxlib2 hands that
+'' one to the runtime's editor, which draws its caret by printing chr(255).
+''
+'' WHICH ONE A PROGRAM SEES: the underline, nearly always. `INPUT s` on a
+'' graphics screen does NOT reach readstr -- fb_ConsoleInput asks isredir, is
+'' told no, and calls fb_LineInput, so both INPUT and LINE INPUT come through
+'' the lineinput hook. readstr is the channel path, and the block belongs to
+'' it.
+''
+'' WRAPPING AND SCROLLING BOTH WORK, and the second was doubted without cause.
+''
+'' This comment used to claim that a line long enough to scroll the console
+'' while being edited would be redrawn a row too low, because the recorded
+'' start row goes stale. That was READ OUT OF THE CODE AND NEVER REPRODUCED.
+'' tools/smoke-entry.bas now edits a line that scrolls the region twice -- it
+'' starts on the bottom row, which reaches a scroll in ten characters -- and
+'' the line lands where it should, both the row it starts on and the row it
+'' wraps onto.
+''
+'' THE REASON IT WORKS is that every keystroke redraws the WHOLE line from the
+'' start rather than appending to it. A stale start row makes the redraw write
+'' lower, which scrolls again, and the line settles where the writing ends up.
+'' The state that matters is rebuilt from `acc` each time, so there is nothing
+'' for a stale row to corrupt.
+''
+'' A scroll counter and a retrying redraw were written to fix this and are NOT
+'' here: with them removed the checks still pass, and with them present an
+'' injected fault in either could not be detected. Complexity that cannot be
+'' shown to do anything is complexity that cannot be maintained.
+private sub ConCaretHide( byref cr as long, byref cc as long )
+    if cr < 0 then exit sub
+    ConDrawCell( cc, cr )
+    cr = -1
+    cc = -1
+end sub
+
+private sub ConCaretShow( byval style as long, byref cr as long, byref cc as long )
+    ConCaretHide( cr, cc )
+
+    dim as long r = TheCon.row
+    dim as long c = TheCon.col
+    if (r < 0) orelse (c < 0) orelse (r >= TheCon.rows) orelse (c >= TheCon.cols) then exit sub
+
+    if style = CARET_UNDER then
+        ConDrawUnderline( c, r )
+    else
+        DrawGlyph( ScreenCtx.surf, c * FONT_WIDTH, r * TheCon.fh, _
+                   style, TheCon.fidx, TheCon.fg, TheCon.bg )
+    end if
+    cr = r
+    cc = c
+end sub
+
+private sub ConEditPlace( byval startrow as long, byval startcol as long, byval idx as long )
+    dim as long flat = startrow * TheCon.cols + startcol + idx
+    dim as long r = flat \ TheCon.cols
+    dim as long c = flat mod TheCon.cols
+    if r > TheCon.viewbot then r = TheCon.viewbot
+    TheCon.row = r
+    TheCon.col = c
+end sub
+
+'' Repaint the line and one cell past its end, so a character that was deleted
+'' leaves no ghost, then put the cursor back where the caller is editing.
+private sub ConEditRedraw( byref acc as string, byval startrow as long, _
+        byval startcol as long, byval idx as long )
+    ConEditPlace( startrow, startcol, 0 )
+    for i as integer = 0 to len( acc ) - 1
+        ConPutChar( acc[i] )
+    next
+    ConPutChar( 32 )
+    ConEditPlace( startrow, startcol, idx )
+end sub
+
+private function ConEditLine( byval caret as long ) as string
+    dim as string acc
+    dim as long idx = 0
+    dim as long startrow = TheCon.row
+    dim as long startcol = TheCon.col
+    dim as long cr = -1, cc = -1
+
+    do
+        '' Shown only across the WAIT. Every edit below redraws from the plane,
+        '' so a caret left up would be repainted over rather than erased -- and
+        '' on a cursor move, which redraws nothing, it would simply stay.
+        ConCaretShow( caret, cr, cc )
+        dim as long c = ConKeyWait( )
+        ConCaretHide( cr, cc )
+        if c = 0 then exit do              '' the window went away
+
+        if KeyIsExtended( c ) then
+            select case KeyScancode( c )
+            case SC_LEFT_
+                if idx > 0 then idx -= 1
+            case SC_RIGHT_
+                if idx < len( acc ) then idx += 1
+            case SC_HOME_
+                idx = 0
+            case SC_END_
+                idx = len( acc )
+            case SC_DELETE_
+                '' Forward delete: the character UNDER the cursor goes and the
+                '' cursor stays put, which is the half that tells Delete from
+                '' Backspace.
+                if idx < len( acc ) then
+                    acc = left( acc, idx ) + mid( acc, idx + 2 )
+                    ConEditRedraw( acc, startrow, startcol, idx )
+                end if
+            case else
+                '' Every other extended key is swallowed rather than inserted.
+                '' An arrow that fell through to the printable branch would put
+                '' chr(255) in the string.
+            end select
+            ConEditPlace( startrow, startcol, idx )
+
+        else
+            select case c
+            case 13                            '' Enter
+                ConEditPlace( startrow, startcol, len( acc ) )
+                ConNewline( )
+                exit do
+            case 8                             '' Backspace deletes BEHIND
+                if idx > 0 then
+                    acc = left( acc, idx - 1 ) + mid( acc, idx + 1 )
+                    idx -= 1
+                    ConEditRedraw( acc, startrow, startcol, idx )
+                end if
+            case is >= 32
+                acc = left( acc, idx ) + chr( c ) + mid( acc, idx + 1 )
+                idx += 1
+                ConEditRedraw( acc, startrow, startcol, idx )
+            end select
+        end if
+    loop
+
+    return acc
+end function
+
+end namespace
+
+'' ---------------------------------------------------------------- the hooks
+''
+'' extern "c" for the same reason the entry points are: these are called through
+'' function pointers the runtime holds, with no name mangling involved, and
+'' saying so is clearer than relying on a convention that no longer varies.
+'' THE RUNTIME OWNS STRING ASSIGNMENT, and LINE INPUT into a var-len STRING has
+'' to go through it: the destination is an FBSTRING the runtime allocated and
+'' will free, so writing bytes into it from here would corrupt the heap. It is
+'' declared rather than reimplemented for the same reason the library binds
+'' libc rather than shipping one.
+extern "rtlib"
+    '' VIEW PRINT keeps its rows in the RUNTIME's console state, not here.
+    '' fb_ConsoleViewEx stores them and then calls fb_ViewUpdate, which is the
+    '' hook -- and the hook takes no arguments, so the only way to learn what
+    '' the new region is, is to ask. Both accessors are exported.
+    declare function fb_ConsoleGetTopRow_ alias "fb_ConsoleGetTopRow" ( ) as long
+    declare function fb_ConsoleGetBotRow_ alias "fb_ConsoleGetBotRow" ( ) as long
+
+    declare function fb_StrAssign_ alias "fb_StrAssign" ( _
+        byval dst as any ptr, byval dst_size as integer, _
+        byval src as any ptr, byval src_size as integer, _
+        byval fill_rem as long ) as any ptr
+end extern
+
+'' NOT FBCALL, unlike everything above. fb_unicode.h declares fb_wstr_ConvToA
+'' plain, and tiko-rt's src/strw/conv.tiko says so where it defines it. On win32
+'' that is the difference between cdecl and stdcall, which is a corrupted stack
+'' rather than a wrong answer.
+extern "c"
+    declare function fb_wstr_ConvToA_ alias "fb_wstr_ConvToA" ( _
+        byval dst as zstring ptr, byval dst_chars as integer, _
+        byval src as wstring ptr ) as integer
+
+    '' THE RUNTIME OWNS THE OTHER DIRECTION TOO. `line input` into a WSTRING has
+    '' to end in the runtime's converter for the same reason the narrow one ends
+    '' in fb_StrAssign: the destination's rules -- the capacity, the terminator,
+    '' what a capacity of zero means -- belong to whoever defined the type.
+    ''
+    '' src_size IS ZERO HERE, NOT -1, and the difference is a heap corruption.
+    '' -1 is FB_STRSIZEVARLEN, which tells the runtime the source is a TEMP
+    '' FBSTRING and to DELETE it when it is done; the string this library passes
+    '' belongs to an FB local that fbc will free itself. Zero means "a plain
+    '' zstring, measure it with strlen", which is what a strptr( ) is.
+    declare function fb_WstrAssignFromA_ alias "fb_WstrAssignFromA" ( _
+        byval dst as wstring ptr, byval dst_chars as integer, _
+        byval src as any ptr, byval src_size as integer ) as wstring ptr
+end extern
+
+extern "c"
+
+sub TkoConPrintBuff cdecl ( byval buffer as const any ptr, _
+        byval length as uinteger, byval mask as long )
+    if TkoGfx.TheCon.live = 0 then exit sub
+
+    '' SIGNED, and the lint is right to insist. `length` is uinteger, so an empty
+    '' buffer makes `length - 1` wrap to the largest uinteger and the loop walks
+    '' off the end of memory. PRINT with an empty string is an ordinary thing to
+    '' write -- `print ""` and `print ;` both reach here with length 0.
+    dim as ubyte ptr p = cptr( ubyte ptr, buffer )
+    dim as integer n = cast( integer, length )
+    TkoGfx.ConPrintNarrow( p, cast( long, n ), mask )
+end sub
+
+'' PRINT of a WSTRING. Sixteen console slots were filled before this one and
+'' every list of what was missing left it out, so a program that printed a wide
+'' string on a graphics screen had it go to the RUNTIME's console -- a null slot
+'' falls back, and the fallback writes somewhere else entirely.
+''
+'' UNICODE IS CONVERTED AWAY, and that is the reference's decision rather than a
+'' shortcut here: gfx_print_wstr.c converts to ASCII with fb_wstr_ConvToA and
+'' calls the narrow path, because the console fonts are 256 CP437 glyphs and
+'' there is nothing else to draw with. Anything the conversion cannot represent
+'' is the runtime's business, not this library's -- so it is BOUND, not
+'' reimplemented.
+''
+'' `len` BYTES ARE PRINTED, whatever the conversion reports back. That is the
+'' reference's shape too, and the two only disagree when a character converts to
+'' more or fewer bytes than one; gate-entry compares that rather than assuming
+'' it.
+sub TkoConPrintBuffW cdecl ( byval buffer as const any ptr, _
+        byval length as uinteger, byval mask as long )
+    if TkoGfx.TheCon.live = 0 then exit sub
+
+    dim as integer n = cast( integer, length )
+    if (buffer = 0) orelse (n <= 0) then
+        '' THE MASK STILL APPLIES with nothing to print: `print wstr("")` is a
+        '' newline and reaches here with a length of zero.
+        TkoGfx.ConPrintNarrow( 0, 0, mask )
+        exit sub
+    end if
+
+    '' The conversion writes a terminator past dst_chars, so the buffer is one
+    '' byte longer than the count asked for.
+    dim as ubyte ptr tmp = callocate( n + 1 )
+    if tmp = 0 then exit sub
+    fb_wstr_ConvToA_( cptr( zstring ptr, tmp ), n, cptr( wstring ptr, buffer ) )
+    TkoGfx.ConPrintNarrow( tmp, cast( long, n ), mask )
+    deallocate( tmp )
+end sub
+
+sub TkoConCls cdecl ( byval mode as long )
+    if TkoGfx.TheCon.live = 0 then exit sub
+
+    '' Mode 2 is the TEXT VIEW; 0 and 1 clear the graphics viewport, which
+    '' raster/cls.ti already does and tools/abtest-cls.bas already gates. Only
+    '' the text case belongs here.
+    if mode <> 2 then
+        dim as single cx, cy
+        TkoGfx.ClsAny( TkoGfx.ScreenCtx.surf, TkoGfx.ScreenCtx.vp, mode, _
+                       TkoGfx.TheCon.bg, cx, cy )
+    end if
+
+    for r as integer = TkoGfx.TheCon.viewtop to TkoGfx.TheCon.viewbot
+        for c as integer = 0 to TkoGfx.TheCon.cols - 1
+            dim as TkoGfx.CharCell ptr cell = TkoGfx.CellAt( TkoGfx.TheCon.cp, TkoGfx.TheScreen.work_page, c, r )
+            if cell <> 0 then
+                cell->ch = 32
+                cell->fg = TkoGfx.TheCon.fg
+                cell->bg = TkoGfx.TheCon.bg
+            end if
+        next
+    next
+    '' CLEARING THE TEXT MEANS ERASING THE GLYPHS, not just the cells. Measured:
+    '' gfxlib2's CLS 2 leaves the screen blank, so the cells it blanked are
+    '' repainted in their background rather than left showing the old character.
+    '' Clearing the plane alone passed every pixel case that did not use CLS 2
+    '' and failed exactly that one.
+    for r as integer = TkoGfx.TheCon.viewtop to TkoGfx.TheCon.viewbot
+        for c as integer = 0 to TkoGfx.TheCon.cols - 1
+            TkoGfx.ConDrawCell( c, r )
+        next
+    next
+
+    TkoGfx.TheCon.row = TkoGfx.TheCon.viewtop
+    TkoGfx.TheCon.col = 0
+end sub
+
+'' LOCATE row, col, cursor -- 1-based, and 0 means "leave this one alone".
+'' Returns the PREVIOUS position packed as (row shl 8) or col, which is the
+'' form fbc's own console hook returns.
+function TkoConLocate cdecl ( byval row as long, byval col as long, _
+        byval cursor as long ) as long
+    if TkoGfx.TheCon.live = 0 then return 0
+    dim as long prev = ((TkoGfx.TheCon.row + 1) shl 8) or (TkoGfx.TheCon.col + 1)
+
+    if row > 0 then
+        dim as long r = row - 1
+        if r < TkoGfx.TheCon.viewtop then r = TkoGfx.TheCon.viewtop
+        if r > TkoGfx.TheCon.viewbot then r = TkoGfx.TheCon.viewbot
+        TkoGfx.TheCon.row = r
+    end if
+    if col > 0 then
+        dim as long c = col - 1
+        if c < 0 then c = 0
+        if c >= TkoGfx.TheCon.cols then c = TkoGfx.TheCon.cols - 1
+        TkoGfx.TheCon.col = c
+    end if
+    scope : dim as long ignored = cursor : end scope
+    return prev
+end function
+
+function TkoConGetX cdecl ( ) as long
+    if TkoGfx.TheCon.live = 0 then return 1
+    return TkoGfx.TheCon.col + 1
+end function
+
+function TkoConGetY cdecl ( ) as long
+    if TkoGfx.TheCon.live = 0 then return 1
+    return TkoGfx.TheCon.row + 1
+end function
+
+sub TkoConGetXY cdecl ( byval col as long ptr, byval row as long ptr )
+    if col <> 0 then *col = TkoConGetX( )
+    if row <> 0 then *row = TkoConGetY( )
+end sub
+
+sub TkoConGetSize cdecl ( byval cols as long ptr, byval rows as long ptr )
+    if cols <> 0 then *cols = TkoGfx.TheCon.cols
+    if rows <> 0 then *rows = TkoGfx.TheCon.rows
+end sub
+
+'' SCREEN( row, col [, colorflag] ) -- 1-based, straight out of the cell plane.
+'' core/cells.ti does the depth-dependent attribute packing and
+'' tools/abtest-cells.bas compares it against gfxlib2.
+function TkoConReadXY cdecl ( byval col as long, byval row as long, _
+        byval colorflag as long ) as ulong
+    if TkoGfx.TheCon.live = 0 then return 0
+    return cast( ulong, TkoGfx.CellReadXY( TkoGfx.TheCon.cp, TkoGfx.TheScreen.work_page, _
+                        TkoGfx.ScreenCtx.surf.bpp * 8, col, row, colorflag ) )
+end function
+
+'' WIDTH cols, rows -- a QUERY here, never a resize.
+''
+'' gfxlib2 answers WIDTH on a graphics screen with the geometry the MODE has;
+'' changing it would mean reopening the screen at a different character size,
+'' which SCREEN is for. The packed return is (rows shl 16) or cols.
+function TkoConWidth cdecl ( byval cols as long, byval rows as long ) as long
+    if TkoGfx.TheCon.live = 0 then return 0
+    scope : dim as long ignored = cols + rows : end scope
+    return (TkoGfx.TheCon.rows shl 16) or TkoGfx.TheCon.cols
+end function
+
+function TkoConColor cdecl ( byval fc as ulong, byval bc as ulong, _
+        byval flags as long ) as ulong
+    if TkoGfx.TheCon.live = 0 then return 0
+
+    '' raster/color.ti owns the legacy rules and their depth dependence, and
+    '' tools/abtest-color.bas compares them against gfxlib2. This only mirrors
+    '' the result into the text attributes so the next PRINT uses it.
+    dim as ulong prev = TkoGfx.Color32( TkoGfx.ScreenCtx.draw, _
+                            TkoGfx.ScreenCtx.surf.bpp * 8, fc, bc, flags )
+    TkoGfx.TheCon.fg = TkoGfx.ScreenCtx.draw.fg_color
+    TkoGfx.TheCon.bg = TkoGfx.ScreenCtx.draw.bg_color
+    return prev
+end function
+
+'' PCOPY AND THE QB FORM OF SCREEN REACH THE PAGES THROUGH THESE TWO SLOTS, and
+'' they are the same routines FLIP and SCREENSET call by name: gfxlib2 installs
+'' fb_GfxPageCopy -- which is fb_GfxFlip under another name -- and fb_GfxPageSet.
+'' entry/page.ti defines both. They are declared here because the table is
+'' built here, and that file comes after this one.
+declare function TkoGfxFlip alias "fb_GfxFlip" _
+    ( byval from_page as long, byval to_page as long ) as long
+declare function TkoGfxPageSet alias "fb_GfxPageSet" _
+    ( byval work_page as long, byval visible_page as long ) as long
+
+'' LINE INPUT into a WSTRING.
+''
+'' NO WIDE INPUT EXISTS, and that is the reference's position rather than this
+'' library's shortfall: gfx_lineinp_wstr.c carries a "!!!FIXME!!! no support for
+'' unicode input" comment, collects the line with the SAME narrow editor its
+'' narrow form uses, and converts the result up. Anything a keyboard produces
+'' that ASCII cannot hold is lost in both libraries, identically.
+''
+'' THE ARGUMENTS ARE NOT THE NARROW ONES. There is no fillrem -- a wstring
+'' destination has no space-padded fixed form to fill -- and `dst_len` is
+'' MAX_CHARS, a count of characters rather than of bytes, which fbc emits as the
+'' declared size: `dim as wstring * 16` passes 16. Measured, not assumed.
+function TkoConLineInputW cdecl ( byval text_ as wstring ptr, _
+        byval dst as wstring ptr, byval max_chars as integer, _
+        byval addquestion as long, byval addnewline as long ) as long
+
+    if TkoGfx.TheCon.live = 0 then return 0
+
+    '' The prompt goes through the same conversion PRINT of a wstring does, and
+    '' is drawn here rather than by the runtime for the same reason the narrow
+    '' prompt is: the runtime's console printer is what these hooks displaced.
+    if text_ <> 0 then
+        dim as integer n = TkoGfx.WideLen( text_ )
+        if n > 0 then
+            dim as ubyte ptr tmp = callocate( n + 1 )
+            if tmp <> 0 then
+                fb_wstr_ConvToA_( cptr( zstring ptr, tmp ), n, text_ )
+                for i as integer = 0 to n - 1
+                    TkoGfx.ConPutChar( tmp[i] )
+                next
+                deallocate( tmp )
+            end if
+        end if
+        if addquestion <> 0 then
+            TkoGfx.ConPutChar( asc( "?" ) )
+            TkoGfx.ConPutChar( 32 )
+        end if
+    end if
+
+    dim as string acc = TkoGfx.ConEditLine( TkoGfx.CARET_UNDER )
+    if addnewline = 0 then
+        '' ConEditLine already advanced on Enter; undo it when the caller asked
+        '' for the cursor to stay put. Same as the narrow form.
+        if TkoGfx.TheCon.row > TkoGfx.TheCon.viewtop then TkoGfx.TheCon.row -= 1
+    end if
+
+    if dst <> 0 then
+        '' AN EMPTY LINE PASSES A NULL, AND THAT IS FINE -- measured, not
+        '' assumed. strptr of an empty var-len string is NULL, and the runtime's
+        '' setup macro turns a NULL source into a zero-length one and empties
+        '' the destination. A guard substituting a pointer to "" was written
+        '' here first and removed: with it deliberately taken out the smoke
+        '' check still passed, so it was doing nothing.
+        fb_WstrAssignFromA_( dst, max_chars, strptr( acc ), 0 )
+    end if
+
+    RtlErrorSetNum( TkoAbi.FB_RTERROR_OK )
+    return TkoAbi.FB_RTERROR_OK
+end function
+
+end extern
+
+namespace TkoGfx
+
+extern "c"
+
+'' INKEY returns a pointer to a static the runtime immediately copies. The
+'' string has to OUTLIVE the call and may be one or two characters, which is
+'' what KeyInkeyStr decides -- an extended key is two, and abtest-keyboard
+'' compares that encoding against gfxlib2.
+dim shared as zstring * 8 InkeyChars
+dim shared as TkoAbi.FBSTRING InkeyStr
+
+function TkoConInkey cdecl ( ) as TkoAbi.FBSTRING ptr
+    InkeyChars = ""
+    dim as string t
+    if TkoGfx.TheCon.live <> 0 then
+        dim as long c = TkoGfx.ConKeyGet( )
+        if c <> 0 then t = TkoGfx.KeyInkeyStr( c )
+    end if
+    if len( t ) > 0 then InkeyChars = t
+
+    '' A STATIC DESCRIPTOR OVER A STATIC BUFFER. The runtime returns this pointer
+    '' to the caller unchanged, so it has to outlive the call; and `len` carries
+    '' no temp bit, because a temp descriptor is one the runtime would free.
+    InkeyStr.dat  = @InkeyChars
+    InkeyStr.len  = len( t )
+    InkeyStr.size = 8
+    return @InkeyStr
+end function
+
+'' GETKEY blocks. It returns the CODE, not the string.
+function TkoConGetKey cdecl ( ) as long
+    if TkoGfx.TheCon.live = 0 then return 0
+    return TkoGfx.ConKeyWait( )
+end function
+
+function TkoConKeyHit cdecl ( ) as long
+    if TkoGfx.TheCon.live = 0 then return 0
+    return TkoGfx.ConKeyHit( )
+end function
+
+'' MULTIKEY asks whether a scancode is HELD, which the window tracks from
+'' WM_KEYDOWN and WM_KEYUP rather than from the ring.
+function TkoConMultikey cdecl ( byval scancode as long ) as long
+    if TkoGfx.TheCon.live = 0 then return 0
+    TkoGfx.WindowLock( TkoGfx.TheScreen.wnd )
+    dim as long r = TkoGfx.KeyMultikey( TkoGfx.TheScreen.wnd.ktab, scancode )
+    TkoGfx.WindowUnlock( TkoGfx.TheScreen.wnd )
+    return r
+end function
+
+'' SLEEP, and the 100 ms boundary is the whole of it.
+''
+'' THREE REGIMES, taken from gfx_sleep.c and identical in the runtime's own
+'' console version (tiko-rt src/dt/wallclock.tiko), which is what makes the two
+'' comparable at all:
+''
+''   -1        wait forever, polling every 50 ms
+''   >= 100    poll in 50 ms steps while more than 50 remain, then sleep the
+''             remainder -- so a keystroke can cut it short
+''   < 100     no polling at all. A console check costs more than the sleep it
+''             would interrupt, so SLEEP 50 cannot be interrupted and SLEEP 100
+''             can. That asymmetry is deliberate in the reference and is
+''             reproduced rather than smoothed over.
+''
+'' WHAT INSTALLING THIS ACTUALLY CHANGES: which buffer is polled. With the slot
+'' null the runtime polls its CONSOLE input, so a key typed into the graphics
+'' window would not cut a sleep short -- the sleep and the keyboard would be
+'' looking at different places. tools/smoke.sh measures exactly that.
+''
+'' THE CLOSED WINDOW IS AN EXIT, which the reference does not have: `sleep` with
+'' no argument on a window the user has closed waits forever there, and the only
+'' way out is the task manager. Same decision as ConKeyWait, made for the same
+'' reason and noted here because it is a deliberate difference rather than an
+'' accident.
+sub TkoConSleep cdecl ( byval msecs as long )
+    if TkoGfx.TheCon.live = 0 then
+        if msecs > 0 then WinSleep( msecs )
+        exit sub
+    end if
+
+    if msecs = -1 then
+        do
+            if TkoGfx.ConKeyChanged( ) <> 0 then exit sub
+            if TkoGfx.WindowWasClosed( TkoGfx.TheScreen.wnd ) then exit sub
+            WinSleep( 50 )
+        loop
+    end if
+
+    dim as long remaining = msecs
+    if remaining >= 100 then
+        while remaining > 50
+            if TkoGfx.ConKeyChanged( ) <> 0 then exit sub
+            if TkoGfx.WindowWasClosed( TkoGfx.TheScreen.wnd ) then exit sub
+            WinSleep( 50 )
+            remaining -= 50
+        wend
+    end if
+
+    '' The remainder, and the whole of a short sleep. A negative value that is
+    '' not -1 falls through to here and sleeps for nothing, as both references do.
+    if remaining > 0 then WinSleep( remaining )
+end sub
+
+'' INPUT's collector. The runtime asks for at most `length_` bytes and takes the
+'' returned pointer; returning NULL is how the console reports end-of-input, and
+'' a closed window is exactly that.
+'' IS THE CONSOLE REDIRECTED? NO, WHILE A GRAPHICS SCREEN IS OPEN.
+''
+'' THIS IS THE HOOK THAT MAKES `INPUT` WORK, and leaving it null is what broke
+'' it. fb_ConsoleInput asks fb_IsRedirected first and, when the answer is yes,
+'' deletes the prompt unread and does a FILE INPUT on channel 0 -- it reads the
+'' real stdin and never touches the keyboard. With this slot null the runtime
+'' answered from the OS, so a program whose stdin happened to be a file or a
+'' pipe read that instead of the window.
+''
+'' A graphics screen is not redirected by definition: PRINT goes to the window
+'' whatever the shell did with the handles, so INPUT has to read the window too.
+'' Answering 0 for both directions is what makes the pair consistent.
+'' VIEW PRINT changed the text region.
+''
+'' THE HOOK TAKES NO ARGUMENTS, so this reads the rows back out of the runtime
+'' rather than being told them. fb_ConsoleViewEx has already stored and
+'' validated them by the time it calls here -- it clamps to the size our own
+'' getsize hook reported, and refuses an inverted or out-of-range pair -- so
+'' there is nothing left to check that has not been checked.
+''
+'' The rows come back 0-BASED, which is what TheCon.viewtop and viewbot are;
+'' fb_ConsoleView's arguments are 1-based and the conversion happens on the
+'' runtime's side. Doing it again here would move the region up a row.
+''
+'' WHAT THE REGION IS FOR: ConScroll only moves rows between viewtop and
+'' viewbot, and ConNewline only scrolls when the cursor passes viewbot. Both
+'' already honoured the pair; nothing set it until now.
+sub TkoConViewUpdate cdecl ( )
+    if TkoGfx.TheCon.live = 0 then exit sub
+
+    dim as long t = fb_ConsoleGetTopRow_( )
+    dim as long b = fb_ConsoleGetBotRow_( )
+
+    '' A defensive clamp, not a validation: the runtime sized the region against
+    '' what getsize reported, and getsize reports our geometry, so these should
+    '' already be in range. If they ever are not, a region outside the cell
+    '' plane would scroll memory that is not there.
+    if t < 0 then t = 0
+    if b > TkoGfx.TheCon.rows - 1 then b = TkoGfx.TheCon.rows - 1
+    if b < t then b = t
+
+    TkoGfx.TheCon.viewtop = t
+    TkoGfx.TheCon.viewbot = b
+
+    '' The cursor can be left outside the new region by a VIEW PRINT that moves
+    '' it -- fb_ConsoleViewEx calls LOCATE afterwards, but only when it is asked
+    '' to set the cursor. Pulling it in here means no path leaves it outside.
+    if TkoGfx.TheCon.row < t then TkoGfx.TheCon.row = t
+    if TkoGfx.TheCon.row > b then TkoGfx.TheCon.row = b
+end sub
+
+function TkoConIsRedir cdecl ( byval is_input as long ) as long
+    scope : dim as long ignored = is_input : end scope
+    if TkoGfx.TheCon.live = 0 then return 0
+    return 0
+end function
+
+function TkoConReadStr cdecl ( byval buffer as zstring ptr, _
+        byval length_ as integer ) as zstring ptr
+    if (TkoGfx.TheCon.live = 0) orelse (buffer = 0) orelse (length_ <= 0) then return 0
+
+    '' INPUT's caret is the block, which is what gfxlib2's readstr draws.
+    dim as string acc = TkoGfx.ConEditLine( TkoGfx.CARET_BLOCK )
+    if TkoGfx.WindowWasClosed( TkoGfx.TheScreen.wnd ) andalso (len( acc ) = 0) then return 0
+
+    dim as long n = len( acc )
+    if n > length_ - 1 then n = length_ - 1
+    if n > 0 then memcpy( buffer, strptr( acc ), n )
+    buffer[n] = 0
+    return buffer
+end function
+
+'' LINE INPUT. The prompt is printed here rather than by the runtime, because
+'' the runtime's console printer is exactly what the hooks displaced.
+''
+'' `fillrem` asks for the destination to be padded with spaces, which is what a
+'' FIXED-LENGTH string target needs; `dst_len` is that target's size.
+function TkoConLineInput cdecl ( byval text_ as TkoAbi.FBSTRING ptr, _
+        byval dst as any ptr, byval dst_len as integer, _
+        byval fillrem as long, byval addquestion as long, _
+        byval addnewline as long ) as long
+
+    if TkoGfx.TheCon.live = 0 then return 0
+
+    dim as string prompt = TkoGfx.StrFromDescriptor( text_ )
+    if len( prompt ) > 0 then
+        for i as integer = 0 to len( prompt ) - 1
+            TkoGfx.ConPutChar( prompt[i] )
+        next
+    end if
+    if addquestion <> 0 then
+        TkoGfx.ConPutChar( asc( "?" ) )
+        TkoGfx.ConPutChar( 32 )
+    end if
+
+    '' LINE INPUT's caret is the underline: gfxlib2 hands this to the
+    '' runtime's editor, which draws one by printing chr(255).
+    dim as string acc = TkoGfx.ConEditLine( TkoGfx.CARET_UNDER )
+    if addnewline = 0 then
+        '' ConEditLine already advanced on Enter; undo it when the caller asked
+        '' for the cursor to stay put.
+        if TkoGfx.TheCon.row > TkoGfx.TheCon.viewtop then TkoGfx.TheCon.row -= 1
+    end if
+
+    '' dst_len IS NOT A BYTE COUNT WHEN IT IS NEGATIVE. Measured: `line input s`
+    '' into an ordinary var-len STRING emits dst_len = -1, which means "the
+    '' destination is an FBSTRING, assign it"; a positive value is the size of a
+    '' fixed-length STRING * N or a ZSTRING. Treating -1 as a length silently
+    '' wrote nothing at all, which is how this first presented.
+    ''
+    '' fb_StrAssign handles both, including the fillrem padding a fixed-length
+    '' destination wants -- which is why the branch below only chooses the
+    '' arguments and never copies bytes itself.
+    if dst <> 0 then
+        dim as zstring ptr src = iif( len( acc ) > 0, strptr( acc ), cptr( zstring ptr, @"" ) )
+        fb_StrAssign_( dst, dst_len, src, 0, fillrem )
+    end if
+    return 0
+end function
+
+end extern
+
+declare sub ConsoleShutdownIfLive( )
+
+'' Build the console for the mode that is open and install the table. Called by
+'' SCREEN; the matching teardown is ConsoleShutdown.
+private sub ConsoleStart( byval mode as long )
+    ConsoleShutdownIfLive( )
+
+    dim as long fidx = FontIndexForMode( mode )
+    if fidx < 0 then fidx = 0
+    TheCon.fidx = fidx
+    TheCon.fh   = FontHeight(fidx)
+    TheCon.cols = ScreenCtx.surf.w \ FONT_WIDTH
+    TheCon.rows = ScreenCtx.surf.h \ TheCon.fh
+    if (TheCon.cols <= 0) orelse (TheCon.rows <= 0) then exit sub
+
+    TheCon.fg = ScreenCtx.draw.fg_color
+    TheCon.bg = ScreenCtx.draw.bg_color
+    TheCon.row = 0
+    TheCon.col = 0
+    TheCon.viewtop = 0
+    TheCon.viewbot = TheCon.rows - 1
+
+    if CellsReset( TheCon.cp, TheCon.cols, TheCon.rows, TheScreen.num_pages, 0, _
+                   TheCon.fg, TheCon.bg ) = 0 then exit sub
+
+    dim as TkoAbi.FB_HOOKSTB tb
+    tb.clsproc        = @TkoConCls
+    tb.colorproc      = @TkoConColor
+    tb.locateproc     = @TkoConLocate
+    tb.widthproc      = @TkoConWidth
+    tb.getxproc       = @TkoConGetX
+    tb.getyproc       = @TkoConGetY
+    tb.getxyproc      = @TkoConGetXY
+    tb.getsizeproc    = @TkoConGetSize
+    tb.printbuffproc  = @TkoConPrintBuff
+    tb.printbuffwproc = @TkoConPrintBuffW
+    tb.readxyproc     = @TkoConReadXY
+    tb.pagecopyproc   = @TkoGfxFlip
+    tb.pagesetproc    = @TkoGfxPageSet
+    tb.inkeyproc      = @TkoConInkey
+    tb.getkeyproc     = @TkoConGetKey
+    tb.keyhitproc     = @TkoConKeyHit
+    tb.multikeyproc   = @TkoConMultikey
+    tb.sleepproc      = @TkoConSleep
+
+    '' INP and OUT, which are entry/ports.ti's. Installed here for the same
+    '' reason the mouse pair is: the table is built here and goes in whole.
+    tb.inproc         = @TkoGfxIn
+    tb.outproc        = @TkoGfxOut
+    tb.readstrproc    = @TkoConReadStr
+    tb.lineinputproc  = @TkoConLineInput
+    tb.lineinputwproc = @TkoConLineInputW
+    tb.isredirproc    = @TkoConIsRedir
+    tb.viewupdateproc = @TkoConViewUpdate
+
+    '' THE POINTER, which is entry/mouse.ti's. Installed here because the table
+    '' is built here and goes in whole; both slots or neither, for the reason
+    '' that file gives.
+    tb.getmouseproc   = @TkoGfxGetMouse
+    tb.setmouseproc   = @TkoGfxSetMouse
+
+    HooksInstall( @tb )
+    TheCon.live = 1
+end sub
+
+private sub ConsoleShutdownIfLive( )
+    if TheCon.live = 0 then exit sub
+    HooksClear( )
+    CellsFree( TheCon.cp )
+    TheCon.live = 0
+end sub
+
+end namespace

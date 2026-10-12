@@ -1,0 +1,122 @@
+'' declempty.tiko -- AN EMPTY TYPE, UNION OR ENUM. Included by decl.tiko, INSIDE namespace
+'' Tko.Parse, just above ParseAggregateBody.
+''
+'' Measured on fbc-modern 1.20, 2026-09-28: error 256, "An ENUM, TYPE or UNION cannot be empty",
+'' on the 'end' line of a TYPE or UNION with no data field --
+''
+''     type T : end type                   a TYPE with only methods, a constructor, an operator,
+''     a 'static as long s', a 'const' or fields an '#if 0' removed
+''     union : end union                   inside a TYPE, and then the TYPE around it as well
+''
+'' -- and of an ENUM with no member. 'extends' is a field (ParseAggregateBody adds 'base'), so
+'' 'type T extends object' with only methods is fbc's, and so is a 'redim a( any ) as long'
+'' member, which is a field parsed as an N_VAR. tiko accepted every empty one.
+''
+'' ONLY AT ITS OWN 'end'. A named 'type' nested in a UNION is fbc's 17 and 19, and the UNION's
+'' 'end union' closed it here -- a TYPE with nothing in it, but not an empty one.
+private function EndsHere_ ( byref p as Tko.ParserState, byval what as Tko.TokenKind ) as boolean
+    if Peek( p ) <> Tko.KW_END then return false
+    if HasTok( p, p.pos + 1 ) = false then return false
+    return (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = what)
+end function
+
+'' Does this member list hold a field, directly or through an anonymous union or type.
+private function AggHasField_ ( byref p as Tko.ParserState, byval first as long, byval count as long ) as boolean
+    for i as long = first to first + count - 1
+        dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->children[i] )
+        if m = Tko.NODE_NONE then continue for
+        select case p.ast->nodes[cast( long, m )].kind
+        case Tko.N_FIELD
+            return true
+        case Tko.N_VAR
+            if p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )].op = cast( ushort, Tko.KW_REDIM ) then return true
+        case Tko.N_TYPE
+            dim as Tko.StmtPayload ptr mp = @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+            if AggHasField_( p, mp->first, mp->count ) then return true
+        end select
+    next
+    return false
+end function
+
+'' Is this node the bare word 'any'.
+private function IsAnyWord_ ( byref p as Tko.ParserState, byval n as Tko.NodeId ) as boolean
+    if (n = Tko.NODE_NONE) orelse (p.ast->nodes[cast( long, n )].kind <> Tko.N_IDENT) then return false
+    return lcase( p.names->Spelling( p.ast->idents[cast( long, p.ast->nodes[cast( long, n )].data )].name ) ) = "any"
+end function
+
+'' TWO RULES ABOUT A MEMBER, asked of every body from here. Measured on fbc-modern 1.20,
+'' 2026-09-29:
+''
+''     array(any) as integer => 1            error 75, "Var-len arrays cannot be initialized"
+''     as integer array(any) = { 1, 2 }      ...either spelling, dim/dynamic-field-init-1..2
+''     b(any) as integer = any               fine, and so is a FIXED array field's initializer
+''
+''     union : i as integer : static x as integer : end union     inside a TYPE, error 156,
+''     "Static variable declared in anonymous UDT" -- a 'type' in a UNION the same way
+''     (dim/member-var-in-anon-1..2). A named type's static member is fbc's.
+''
+'' tiko accepted both. A dynamic field's bounds are each the word 'any'; its initializer is in
+'' 'c', or in 'b' for the type-first spelling.
+private sub AggMemberCheck_ ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byval isUnion as boolean )
+    if p.silent then return
+    for i as long = sp.first to sp.first + sp.count - 1
+        dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->children[i] )
+        if m = Tko.NODE_NONE then continue for
+        dim as Tko.StmtPayload ptr mp = @p.ast->stmts[cast( long, p.ast->nodes[cast( long, m )].data )]
+        select case p.ast->nodes[cast( long, m )].kind
+        case Tko.N_VAR
+            if (sp.name = 0) andalso (mp->op = cast( ushort, Tko.KW_STATIC )) then
+                p.diags->Report( Tko.TKO0884, Tko.PointRange( p.ast->Loc( m ) ), iif( isUnion, "UNION", "TYPE" ) )
+            end if
+        case Tko.N_FIELD
+            '' A 'redim' FIELD IS VAR-LEN TOO: 'redim a( 0 to 1 ) as integer => { 1, 2 }' is fbc's 75.
+            if mp->op = cast( ushort, Tko.KW_REDIM ) then
+                dim as Tko.NodeId rini = mp->c
+                if rini = Tko.NODE_NONE then rini = mp->b
+                if (rini <> Tko.NODE_NONE) andalso (IsAnyWord_( p, rini ) = false) then
+                    p.diags->Report( Tko.TKO0612, Tko.PointRange( p.ast->Loc( m ) ), p.names->Spelling( mp->name ) )
+                end if
+                continue for
+            end if
+            if (mp->count < 1) orelse (mp->op <> cast( ushort, Tko.KW_DIM )) then continue for
+            dim as boolean dyn = true
+            for j as long = mp->first to mp->first + mp->count - 1
+                '' LOW/HIGH PAIRS, and '(any)' has no low bound: an empty slot is skipped.
+                dim as Tko.NodeId bj = cast( Tko.NodeId, p.ast->children[j] )
+                if (bj <> Tko.NODE_NONE) andalso (IsAnyWord_( p, bj ) = false) then dyn = false
+            next
+            if dyn = false then continue for
+            dim as Tko.NodeId ini = mp->c
+            if ini = Tko.NODE_NONE then ini = mp->b
+            if (ini = Tko.NODE_NONE) orelse IsAnyWord_( p, ini ) then continue for
+            p.diags->Report( Tko.TKO0612, Tko.PointRange( p.ast->Loc( m ) ), p.names->Spelling( mp->name ) )
+        end select
+    next
+end sub
+
+'' '#pragma reserve (asm) name' INSIDE A BLOCK -- fbc's error 96, "Illegal inside a compound
+'' statement or scoped block", measured on fbc-modern 1.20, 2026-09-30 (pp/pragma-reserve-9);
+'' the plain '#pragma reserve name' there is fine. The preprocessor records where each one
+'' was, and it streams: a block's own statement loop has just made it read the lines it
+'' skipped, so any record past the block's start is inside it. Older ones are dropped.
+sub AsmReserveInBlock_( byref p as Tko.ParserState, byval blockAt as Tko.SourceLoc )
+    if p.stream = 0 then return
+    dim as Tko.PpStream ptr st = cast( Tko.PpStream ptr, p.stream )
+    if st->outp = 0 then return
+    dim as long n = st->outp->asmReserveAt.Count
+    for i as long = p.asmSeen to n - 1
+        dim as Tko.SourceLoc at_ = cast( Tko.SourceLoc, st->outp->asmReserveAt[i] )
+        if (cast( ulong, at_ ) >= cast( ulong, blockAt )) andalso (p.silent = false) then
+            p.diags->Report( Tko.TKO0920, Tko.PointRange( at_ ) )
+        end if
+    next
+    p.asmSeen = n
+end sub
+
+'' Asked with the member list pushed and the 'end' as the current token.
+private sub EmptyAggCheck_ ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byval isUnion as boolean )
+    AggMemberCheck_( p, sp, isUnion )
+    if EndsHere_( p, iif( isUnion, Tko.KW_UNION, Tko.KW_TYPE ) ) = false then return
+    if AggHasField_( p, sp.first, sp.count ) then return
+    p.diags->Report( Tko.TKO0876, Tko.PointRange( Cur( p ).loc ), iif( isUnion, "UNION", "TYPE" ) )
+end sub
