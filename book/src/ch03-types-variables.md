@@ -156,9 +156,9 @@ Converting a float to an integer is where tiko surprises people who come from C:
 **It rounds. C truncates.** `cint( 2.6 )` is 3, not 2 — and a plain assignment into an integer
 variable rounds in exactly the same way.
 
-Worse for anyone porting code: it rounds *half to even*, so `cint( 2.5 )` is 2 while `cint( 3.5 )`
-is 4. That is the right default for statistics and the wrong one for a C program being translated
-line by line.
+And a half goes to the *even* neighbour: `cint( 2.5 )` is 2 while `cint( 3.5 )` is 4. That is
+C's `lrint( )`, not its `round( )`, which takes halves away from zero and gives 3 and 4 — the
+answer most people expect.
 
 When you want C's behaviour, say so: **`fix( )` truncates towards zero**. `int( )` is a third
 answer again — it rounds towards minus infinity, so it and `fix( )` agree on positive numbers and
