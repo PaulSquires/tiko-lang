@@ -157,13 +157,6 @@ Name one explicitly with `-target`:
 tiko hello.tiko -target windows-x86_64 -o hello
 ```
 
-```admonish note
-Despite the name, `windows-x86_64` **does not need Visual Studio** — neither to compile nor to run.
-tiko links it with `-nostdlib` against `ucrtbase.dll` and `kernel32.dll`, both of which are parts
-of Windows. A hello-world executable therefore depends only on components every Windows machine
-already has.
-```
-
 Targets are not interchangeable at link time: an object file or static library built for one will
 not link into a program for the other. Chapter 29 covers what each target links and
 how to ship the result.
