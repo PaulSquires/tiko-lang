@@ -1,0 +1,5 @@
+#module "ext"
+
+public function E( ) as long
+    return 7
+end function

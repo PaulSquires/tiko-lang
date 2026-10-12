@@ -1,0 +1,13 @@
+'' 'tiko metadata' WITH AN ERROR IN THE GRAPH (exit 1) still reports what is known: the
+'' modules that resolved -- 'empty' has no source, and 'ext', found after it, keeps its own
+'' files -- the search paths, and each unit's defines and include directories. An editor's
+'' project is often half-written.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.bmb/cache
+'' CLEAN: build/.bmb
+'' ARGS: metadata -target win64-msvc --manifest tests/driver/src/build-metabroken
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: "modules":[{"chain":"empty","package":"empty","dir":"tests/driver/src/build-metabroken/lib/empty","files":[],"imports":[]}
+'' EXPECT-OUT: {"chain":"ext","package":"ext","dir":"tests/driver/src/build-metabroken/lib/ext","files":["tests/driver/src/build-metabroken/lib/ext/ext.tiko"],"imports":[]}
+'' EXPECT-OUT: "searchPaths":{"roots":["tests/driver/src/build-metabroken/lib"]
+'' EXPECT-OUT: "defines":["GREETING=1"],"includes":["tests/driver/src/build-metabroken/lib"

@@ -15,6 +15,45 @@ function Rel( byref dir_ as string, byref p as string ) as string
     return dir_ & "/" & p
 end function
 
+'' THE PATHS IN A MANIFEST'S 'options' (RFC §5: every path is relative to tiko.toml): the
+'' value of each option whose argument is a directory, a file or a path, in either spelling
+'' ('-i lib', '--pkg-dir=pkg'), and every input among them. '-' (standard output) is not a
+'' path. The command line's --options are not passed here: they are relative to where they
+'' were typed, which is the current directory.
+private sub RebasePaths_( byref dir_ as string, byref v as Tko.StrVec )
+    Tko.InitOptTable( )
+    dim as long i = 0
+    while i < v.Count
+        dim as string w = v[i]
+        if left( w, 1 ) <> "-" then
+            v[i] = Rel( dir_, w )
+            i += 1
+            continue while
+        end if
+        dim as string spell = w, val_ = ""
+        dim as long eq = instr( w, "=" )
+        if eq > 0 then
+            spell = left( w, eq - 1 )
+            val_ = mid( w, eq + 1 )
+        end if
+        for k as long = 1 to Tko.OPT_COUNT - 1
+            dim as Tko.OptInfo ptr info = Tko.OptInfoOf( cast( Tko.OptId, k ) )
+            if *info->spelling <> spell then continue for
+            if info->kind <> Tko.OPTK_VALUE then exit for
+            dim as string an = *info->argName
+            dim as boolean isPath = (an = "dir") orelse (an = "file") orelse (an = "path")
+            if eq > 0 then
+                if isPath andalso (val_ <> "-") then v[i] = spell & "=" & Rel( dir_, val_ )
+            elseif i + 1 < v.Count then
+                i += 1
+                if isPath andalso (v[i] <> "-") then v[i] = Rel( dir_, v[i] )
+            end if
+            exit for
+        next
+        i += 1
+    wend
+end sub
+
 function BaseName( byref p as string ) as string
     for i as long = len( p ) to 1 step -1
         dim as string ch = mid( p, i, 1 )
@@ -143,7 +182,14 @@ function ProfileFlags _
     if dbg = 1 then flags.Push( "-g" )
     if (errs <> chr( 1 )) andalso (len( errs ) > 0) then flags.Push( "-" & errs )
     if opt >= 0 then flags.Push( "-O" & opt )
-    if opts <> chr( 1 ) then SplitLf_( opts, flags )
+    if opts <> chr( 1 ) then
+        dim as Tko.StrVec mo
+        SplitLf_( opts, mo )
+        RebasePaths_( m.dir_, mo )
+        for each x as string in mo
+            flags.Push( x )
+        next
+    end if
     return true
 end function
 
@@ -250,6 +296,7 @@ function PlanTarget _
     next
     if ProfileFlags( m, profile, p.flags, diags ) = false then ok = false
     if ok = false then return false
+    RebasePaths_( mdir, topts )
     for each x as string in topts
         p.flags.Push( x )
     next

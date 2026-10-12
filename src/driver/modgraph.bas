@@ -86,6 +86,8 @@ private sub ExpandNode_ _
     g.fileFirst.Push( cast( ulong, g.fileIds.Count ) )
     if files.Count = 0 then
         ctx.diags.Report( Tko.TKO0147, Tko.PointRange( cast( Tko.SourceLoc, g.firstLoc[n] ) ), dir_ )
+        '' Its count too, or every later node's files are read from the wrong place.
+        g.fileCount.Push( 0 )
         return
     end if
     for each nm as string in files
@@ -226,7 +228,12 @@ end function
 
 function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long ) as long
     dim as ModGraph g
-    if BuildGraph( ctx, rootCount, false, g ) = false then return Tko.EXIT_USER_ERROR
+    dim as boolean built = BuildGraph( ctx, rootCount, false, g )
+    '' 'tiko metadata' HEARS WHAT IS KNOWN EVEN WHEN THE GRAPH HAS AN ERROR: the search
+    '' paths, include directories and defines come from the command line, and every module
+    '' that did resolve is listed -- in the order it was found, there being no build order.
+    '' An editor's project is often half-written; what is missing is what the error names.
+    if (built = false) andalso (ctx.build = 0) then return Tko.EXIT_USER_ERROR
     if ctx.build <> 0 then
         dim as Tko.StrVec roots
         dim as string pkg
@@ -234,9 +241,15 @@ function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long )
         Tko.Build.OnSearch( ctx.build, roots, pkg, ctx.options.includePaths, ctx.options.defines )
     end if
     dim as Tko.IdVec order
-    for each o as ulong in g.order
-        order.Push( o )
-    next
+    if built then
+        for each o as ulong in g.order
+            order.Push( o )
+        next
+    else
+        for k as long = 0 to g.fileCount.Count - 1
+            order.Push( cast( ulong, k ) )
+        next
+    end if
     dim as long width_ = 0
     for k as long = 0 to g.chains.Count - 1
         if len( g.chains[k] ) > width_ then width_ = len( g.chains[k] )
@@ -281,7 +294,7 @@ function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as long )
         end if
         print ln
     next
-    return Tko.EXIT_OK
+    return iif( built, Tko.EXIT_OK, Tko.EXIT_USER_ERROR )
 end function
 
 end namespace

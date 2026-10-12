@@ -1,0 +1,11 @@
+# build-metabroken: a graph with an error in it -- an import of nothing, and one of a module
+# directory with no source -- still reports what IS known to 'tiko metadata'.
+[package]
+name = "broken"
+
+[target.app]
+main = "src/main.tiko"
+options = ["-i", "lib"]
+
+[target.app.defines]
+GREETING = "1"

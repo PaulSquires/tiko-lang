@@ -1,0 +1,12 @@
+'' 'tiko metadata' REPORTS A MANIFEST'S OPTION PATHS AGAINST tiko.toml (RFC-0001 §5): the
+'' target's '-i lib', a profile's '-p libs' and '--pkg-dir=mypkg'; a '-d' value is no path.
+'' The module '-i' reaches resolves with tiko run from the repository root.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.bmr/cache
+'' CLEAN: build/.bmr
+'' ARGS: metadata -target win64-msvc --manifest tests/driver/src/build-relopt
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: "flags":["-g","-exx","-O0","-i","tests/driver/src/build-relopt/lib"
+'' EXPECT-OUT: {"name":"dev","flags":["-g","-exx","-O0","-p","tests/driver/src/build-relopt/libs","--pkg-dir=tests/driver/src/build-relopt/mypkg","-d","X=1"]}
+'' EXPECT-OUT: "modules":[{"chain":"ext","package":"ext","dir":"tests/driver/src/build-relopt/lib/ext"
+'' EXPECT-OUT: "searchPaths":{"roots":["tests/driver/src/build-relopt/lib"

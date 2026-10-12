@@ -1,0 +1,11 @@
+'' A MANIFEST'S PATHS ARE RELATIVE TO tiko.toml (RFC-0001 §5), its options' too: the target's
+'' '-i lib' finds lib/ext with tiko run from the repository root, not from the package.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.brel/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.brel
+'' COPY: tests/driver/src/build-relopt => build/.brel/pkg
+'' ARGS: build -target win64-msvc --manifest build/.brel/pkg
+'' EXPECT-EXIT: 0
+'' RUN: build/.brel/pkg/out/debug/app.exe
+'' EXPECT-RUN-OUT: ext says 7

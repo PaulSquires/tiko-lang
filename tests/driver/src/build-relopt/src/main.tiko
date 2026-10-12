@@ -1,0 +1,2 @@
+#import "ext"
+print "ext says " & ext.E( )

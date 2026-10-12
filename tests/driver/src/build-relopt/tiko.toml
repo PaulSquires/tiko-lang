@@ -1,0 +1,15 @@
+# build-relopt: a target's -i and a profile's -p are relative to tiko.toml, not to the directory
+# tiko runs in (RFC-0001 section 5). The tests run from the repository root.
+[package]
+name = "relopt"
+
+[target.app]
+main = "src/main.tiko"
+options = ["-i", "lib"]
+
+[target.app.defines]
+GREETING = "1"
+
+[profile.dev]
+inherits = "debug"
+options = ["-p", "libs", "--pkg-dir=mypkg", "-d", "X=1"]
