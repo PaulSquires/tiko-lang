@@ -1,6 +1,6 @@
 '' AN IMPORT WITHOUT 'public' DOES NOT LEAK (RFC-0002 §6): acme.plain imports acme.core, and a
 '' program importing plain does not reach core through it.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i tests/modules/src/reexp/libs tests/modules/src/reexp/app3/main.bas -o tests/diagnostics/noleak.exe
+'' ARGS: -target windows-x86_64 -i tests/modules/src/reexp/libs tests/modules/src/reexp/app3/main.bas -o tests/diagnostics/noleak.exe
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: error TKO0745: the namespace 'plain' has no member named 'core'

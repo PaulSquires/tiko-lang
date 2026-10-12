@@ -1,8 +1,8 @@
 '' MID statement into a string*N passes the 64-bit tagged length (audit Phase 4, Batch 0).
 '' See the source's header.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/mid-fixstr.bas -o tests/codegen/midfixstr.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/mid-fixstr.bas -o tests/codegen/midfixstr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/midfixstr.exe
 '' EXPECT-RUN-EXIT: 0

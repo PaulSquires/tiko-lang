@@ -5,13 +5,13 @@
 '' covers a root that imports it too).
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-2dir/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.mct-2dir
 '' CLEAN: build/.mct-2dir/one
 '' CLEAN: build/.mct-2dir/two
-'' STEP: -c -target win64-msvc -i tests/modules/src/mixed/libs tests/modules/src/mixed/app/a.bas -o build/.mct-2dir/one/a.o
-'' STEP: -c -target win64-msvc -i tests/modules/src/mixed/libs tests/modules/src/mixed/app/b.bas -o build/.mct-2dir/two/b.o
-'' ARGS: -m plain -target win64-msvc tests/modules/src/mixed/app/plain.bas build/.mct-2dir/one/a.o build/.mct-2dir/two/b.o -o build/.mct-2dir/app.exe
+'' STEP: -c -target windows-x86_64 -i tests/modules/src/mixed/libs tests/modules/src/mixed/app/a.bas -o build/.mct-2dir/one/a.o
+'' STEP: -c -target windows-x86_64 -i tests/modules/src/mixed/libs tests/modules/src/mixed/app/b.bas -o build/.mct-2dir/two/b.o
+'' ARGS: -m plain -target windows-x86_64 tests/modules/src/mixed/app/plain.bas build/.mct-2dir/one/a.o build/.mct-2dir/two/b.o -o build/.mct-2dir/app.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: duplicate symbol
 '' RUN: build/.mct-2dir/app.exe

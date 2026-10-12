@@ -32,6 +32,6 @@
 '' EXPECT-OUT: declare function print_ cdecl alias "print" ( byval s as const zstring ptr ) as long
 '' EXPECT-OUT: mod_ as long
 '' EXPECT-OUT[win64]: type mode_t2 as ulong
-'' EXPECT-OUT[win64-msvc]: type mode_t2 as long
+'' EXPECT-OUT[windows-x86_64]: type mode_t2 as long
 '' EXPECT-OUT[linux-x86_64]: type mode_t2 as ulong
 '' EXPECT-NOT: error TKO

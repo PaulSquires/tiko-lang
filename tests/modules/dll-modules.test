@@ -2,8 +2,8 @@
 '' object, and exporting only what the root marks 'export' -- SHOUT -- never a name from a
 '' module's object, here the header code std/strings fronts.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc -dll tests/modules/src/libout/api.bas -o tests/modules/dllmodules.dll
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc -dll tests/modules/src/libout/api.bas -o tests/modules/dllmodules.dll
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE-HAS: tests/modules/dllmodules.dll :: SHOUT
 '' EXPECT-FILE-NOT-HAS: tests/modules/dllmodules.dll :: _ZN2FB6CSVROWC1Ev

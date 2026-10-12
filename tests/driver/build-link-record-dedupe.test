@@ -1,12 +1,12 @@
 '' THE '.link' RECORD NAMES A LIBRARY ONCE (link-format 2), by the link line's own rule: on
-'' win64-msvc the name is case-folded and '.dll' dropped, so 'kernel32', 'KERNEL32.dll' (twice,
+'' windows-x86_64 the name is case-folded and '.dll' dropped, so 'kernel32', 'KERNEL32.dll' (twice,
 '' from two declares) and 'Kernel32.DLL' are one entry, under the first spelling. AfxNova's
 '' DWM header alone asked for dwmapi.dll 31 times, and the record listed all 31.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.lrd/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.lrd
-'' ARGS: build -target win64-msvc tests/driver/src/link-record-libs.tiko -o build/.lrd/app.exe
+'' ARGS: build -target windows-x86_64 tests/driver/src/link-record-libs.tiko -o build/.lrd/app.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE-HAS: build/.lrd/app.exe.link :: link-format 2\n
 '' EXPECT-FILE-HAS: build/.lrd/app.exe.link :: \nlib kernel32\n

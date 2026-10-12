@@ -2,7 +2,7 @@
 '' declare's own 'lib' clause does. See the source's header; fbc-modern builds the same
 '' program and prints -1.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/extern-block-lib.bas -o tests/driver/externblocklib.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/extern-block-lib.bas -o tests/driver/externblocklib.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/externblocklib.exe

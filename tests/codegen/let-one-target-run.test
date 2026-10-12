@@ -1,8 +1,8 @@
 '' 'let( foo ) = f( )' -- ONE name in a multiple assignment takes the UDT's FIRST field (fbc's
 '' expressions/mult-assign.bas). tiko built an N_PAREN, assigned the whole UDT and declined. Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/let-one-target.bas -o tests/codegen/letonetarget.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/let-one-target.bas -o tests/codegen/letonetarget.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/letonetarget.exe
 '' EXPECT-RUN-EXIT: 0

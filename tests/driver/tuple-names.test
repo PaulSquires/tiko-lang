@@ -6,8 +6,8 @@
 ''
 '' RUN, because a name bound to the wrong element compiles and prints the wrong number.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/tuple-names.bas -o tests/driver/tuplenames.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/tuple-names.bas -o tests/driver/tuplenames.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/tuplenames.exe
 '' RUN: tests/driver/tuplenames.exe

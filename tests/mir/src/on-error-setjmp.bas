@@ -7,7 +7,7 @@
 '' the frame that installs the handler; the runtime longjmps into it.
 ''
 '' WHAT THE VALUES ARE IS NOT ASSERTED HERE, and that is deliberate. Measured
-'' 2026-09-20 on this program, win64-msvc:
+'' 2026-09-20 on this program, windows-x86_64:
 ''
 ''     tiko -O0    a=10 b=20 c=30 d=40   the values the code wrote
 ''     tiko -O1+   a=1  b=2  c=3  d=4    the values as of the ON ERROR

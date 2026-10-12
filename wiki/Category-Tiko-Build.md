@@ -33,7 +33,7 @@ The subcommand must be the first word. A later `build` is a file name.
 | `--profile <p>` | the [profile](#profiles); `debug` when a manifest is in force |
 | `--manifest <path>` | `tiko.toml`, or the directory holding it. Without it, the nearest `tiko.toml` at or above the current directory, if any |
 | `--options "<flags>"` | compiler flags appended to every file of the build, relative to the current directory; they enter every cache key |
-| `-target <t>` | `win64-msvc` (Windows' default) or `linux-x86_64` |
+| `-target <t>` | `windows-x86_64` (Windows' default) or `linux-x86_64` |
 | `-j <n>` | how many files compile at once; `TKO_JOBS` for this build and the processes it starts |
 | `--no-cache` | nothing read from or written to the cache, modules or main files |
 | `--message-format json` | the [event stream](#the-json-event-stream) on standard output; `text`, the default, is the console rendering |

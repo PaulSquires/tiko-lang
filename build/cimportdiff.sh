@@ -11,7 +11,7 @@
 # WHAT RUNS WHERE. Freestanding headers -- ours and fbc-modern's own test headers, which
 # need nothing past <stddef.h> -- are imported for BOTH 64-bit targets on either host.
 # sqlite3.h and the C library need the target's system headers, so they run for the HOST
-# target only; windows.h on Windows. win64-msvc is not here: fbc-modern cannot import for
+# target only; windows.h on Windows. windows-x86_64 is not here: fbc-modern cannot import for
 # it, and its oracle is clang's own layout (build/cimportlayout.sh).
 #
 # A DIFFERENCE IS NOT AUTOMATICALLY A DEFECT. Each class below was run down to its cause,

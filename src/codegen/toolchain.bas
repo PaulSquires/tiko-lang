@@ -318,7 +318,7 @@ function LinkExe _
     '' both, on both Windows targets. lld's msvc output is 2.5% larger (168,448
     '' against 164,352) and its gnu output smaller (681,472 against 731,044).
     ''
-    '' THIS DOES NOT MAKE win64-msvc SELF-CONTAINED. clang still adds
+    '' THIS DOES NOT MAKE windows-x86_64 SELF-CONTAINED. clang still adds
     '' '-defaultlib:libcmt' and '-defaultlib:oldnames', and libcmt.lib,
     '' vcruntime.lib and oldnames.lib come from Visual Studio. Linking msvcrt.dll
     '' instead -- we ship an import library for it -- is a decision about which CRT
@@ -343,7 +343,7 @@ function LinkExe _
     '' four bytes at offset 128, with every other byte of 4,178,432 identical. The MinGW
     '' driver takes --no-insert-timestamp and writes zero; lld-link takes /Brepro and
     '' writes a hash of the image instead. ELF carries no link time at all.
-    if target.id = TARGET_WIN64_MSVC then
+    if target.id = TARGET_WINDOWS_X86_64 then
         cmd += " -Xlinker /Brepro"
     elseif target.objFormat = OBJ_COFF then
         cmd += " -Wl,--no-insert-timestamp"
@@ -368,13 +368,13 @@ function LinkExe _
     '' AND THE MinGW TARGET IS NEITHER. '-target win64' links through clang's MinGW
     '' driver, which runs lld in its GNU-ld frontend, and that refused the lld-link
     '' spellings above: "unknown argument: -implib:libdl.dll.a". Every win64 '-dll'
-    '' failed, which only win64-msvc's test could have caught, and it does not build
+    '' failed, which only windows-x86_64's test could have caught, and it does not build
     '' that target. fbc's own line ('fbc -dll -v'): ld --dll -e DllMainCRTStartup over
     '' dllcrt2.o crtbegin.o fbrt0.o, then dlltool from a .def for libdl.dll.a. Here
     '' clang's '-shared' is the --dll AND the dllcrt2.o AND the DllMainCRTStartup entry,
     '' and --out-implib writes the import library in the same step dlltool took.
     if t.buildDll then
-        if target.id = TARGET_WIN64_MSVC then
+        if target.id = TARGET_WINDOWS_X86_64 then
             cmd += " -Xlinker -dll"
             if len( t.implibPath ) > 0 then
                 cmd += " -Xlinker " & Q( "-implib:" & t.implibPath )
@@ -407,12 +407,12 @@ function LinkExe _
     '' NOT ON THE MSVC TARGET. '-s' is a gnu-linker flag, and MSVC keeps debug data
     '' in a separate PDB rather than in the image -- stripping the msvc output
     '' changes nothing, measured.
-    if (target.id <> TARGET_WIN64_MSVC) andalso t.stripSymbols then
+    if (target.id <> TARGET_WINDOWS_X86_64) andalso t.stripSymbols then
         cmd += " -s"
     end if
     '' '-g' ON THE MSVC TARGET: lld-link drops .debug_* unless told to keep them, and
     '' the line tables are DWARF (llvmdebug.bi), not a PDB.
-    if (target.id = TARGET_WIN64_MSVC) andalso (t.stripSymbols = false) then
+    if (target.id = TARGET_WINDOWS_X86_64) andalso (t.stripSymbols = false) then
         cmd += " -Xlinker -debug:dwarf"
     end if
     '' DROP WHAT NOTHING REACHES, a section at a time -- CompileIr gives each procedure and
@@ -427,7 +427,7 @@ function LinkExe _
     '' procedures with identical code into one, and two such procedures' addresses then
     '' compare equal -- fbc's ld does no folding, so a program comparing procptrs must not
     '' see it here. The MinGW frontend folds nothing unless asked.
-    if target.id = TARGET_WIN64_MSVC then
+    if target.id = TARGET_WINDOWS_X86_64 then
         cmd += " -Xlinker -opt:ref -Xlinker -opt:noicf"
     else
         cmd += " -Wl,--gc-sections"
@@ -441,7 +441,7 @@ function LinkExe _
     '' startup in crt2.o serves both subsystems and needs only the flag.
     dim as boolean wantGui = t.guiSubsystem andalso (t.buildDll = false)
     if wantGui then
-        if target.id = TARGET_WIN64_MSVC then
+        if target.id = TARGET_WINDOWS_X86_64 then
             cmd += " -Xlinker -subsystem:windows -Xlinker -entry:mainCRTStartup"
         elseif target.objFormat = OBJ_COFF then
             cmd += " -Wl,--subsystem,windows"
@@ -464,9 +464,9 @@ function LinkExe _
     ''
     '' FROM THE LIBRARY SEARCH, first match, like the CRT objects -B finds. It is
     '' tiko-rt's own since 2026-10-09 (lib/rt/src/c/fbrt0.c), in lib/<target>/ beside
-    '' libfb.a, which the search reaches before lib/<target>-fb/. NOT on win64-msvc, where
+    '' libfb.a, which the search reaches before lib/<target>-fb/. NOT on windows-x86_64, where
     '' tiko-rt's msvcinit.c does the same job, pulled in by /INCLUDE:tkort_msvc_init_ below.
-    if target.id <> TARGET_WIN64_MSVC then
+    if target.id <> TARGET_WINDOWS_X86_64 then
         dim as string rt0 = "fbrt0.o"
         if t.buildDll andalso (target.objFormat <> OBJ_COFF) then rt0 = "fbrt0pic.o"
         for i as long = 0 to t.libPaths.Count - 1
@@ -517,9 +517,9 @@ function LinkExe _
     '' convention. The two Windows targets do not agree on what '-l greet' means:
     ''
     ''     win64        -lgreet  ->  libgreet.a     found
-    ''     win64-msvc   -lgreet  ->  greet.lib      LNK1181, cannot open input file
+    ''     windows-x86_64   -lgreet  ->  greet.lib      LNK1181, cannot open input file
     ''
-    '' A FreeBASIC library is called libgreet.a. Since win64-msvc became the default
+    '' A FreeBASIC library is called libgreet.a. Since windows-x86_64 became the default
     '' target, taking '-l' at face value there would have made every FB-named library
     '' -- including every one tiko itself produces -- unfindable by the name the
     '' source uses. So on that target the FB-conventional name is looked for in the
@@ -566,7 +566,7 @@ function LinkExe _
         ''   - without Visual Studio it found OUR import library and linked, quietly
         ''     importing half the C library from msvcrt.dll and half from ucrtbase.dll --
         ''     two heaps, and a strdup freed by the other one's free.
-        if target.id = TARGET_WIN64_MSVC then
+        if target.id = TARGET_WINDOWS_X86_64 then
             if lcase( t.libs[i] ) = "msvcrt" then continue for
         end if
         dim as string named = ""
@@ -579,7 +579,7 @@ function LinkExe _
         '' lib<name>.dll.a IS WHAT fbc's OWN -dll PRODUCES, so a tiko program calling
         '' an fbc-built DLL finds it by the name the source uses. Without this the
         '' link asked lld-link for '<name>.lib' and stopped there.
-        if target.id = TARGET_WIN64_MSVC then
+        if target.id = TARGET_WINDOWS_X86_64 then
             for k as long = 0 to t.libPaths.Count - 1
                 dim as string dllImp = t.libPaths[k] & "/lib" & t.libs[i] & ".dll.a"
                 dim as string statLib = t.libPaths[k] & "/lib" & t.libs[i] & ".a"
@@ -666,7 +666,7 @@ function LinkExe _
     '' THE SYSTEM LIBRARIES THE RUNTIME REACHES INTO, and they are not the same set on
     '' the two platforms. Neither list is guessable; each was found by linking and
     '' reading what was still undefined.
-    if target.id = TARGET_WIN64_MSVC then
+    if target.id = TARGET_WINDOWS_X86_64 then
         '' THE MICROSOFT ABI. Not a variant of the MinGW branch below -- it shares none
         '' of it. There is no crt2.o to point '-B' at, because the UCRT supplies the
         '' startup; clang's own msvc driver finds it.

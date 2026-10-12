@@ -1,8 +1,8 @@
 '' 'swap f2( ).a, f2( ).b' over bitfields lowers each base ONCE -- f2 runs twice, as fbc's; tiko read
 '' and wrote each side through a fresh lowering (swap/sidefx.bas).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/bitfield-swap-base-once.bas -o tests/codegen/bitfieldswapbaseonce.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/bitfield-swap-base-once.bas -o tests/codegen/bitfieldswapbaseonce.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/bitfieldswapbaseonce.exe
 '' EXPECT-RUN-EXIT: 0

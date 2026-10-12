@@ -44,7 +44,7 @@ build/pdf.sh                     # the PDF edition, from the same src/
 Useful variants:
 
 ```bash
-tools/check-listings.sh ch01 --target win64-msvc
+tools/check-listings.sh ch01 --target windows-x86_64
 build/pdf.sh --chapter 01 --png
 ```
 

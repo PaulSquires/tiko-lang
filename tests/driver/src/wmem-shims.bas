@@ -1,4 +1,4 @@
-'' THE WIDE MEMORY FAMILY LINKS ON win64-msvc. wmemmove, wmemcpy, wmemset, wmemcmp and
+'' THE WIDE MEMORY FAMILY LINKS ON windows-x86_64. wmemmove, wmemcpy, wmemset, wmemcmp and
 '' wmemchr are inline in the UCRT headers and exported by nothing, so crt/wchar.bi's
 '' declarations reached the link undefined -- AfxNova's DWSTRING calls wmemmove, and
 '' PsCalendar stopped there. tiko-rt's msvccrt.c defines them. fbc-modern prints:

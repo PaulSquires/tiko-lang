@@ -3,7 +3,7 @@
 '' external ones caused. Internal is only half of it: an internal function nothing
 '' calls would be dropped, so the ctor/dtor tables must still name them.
 '' TEST: cli
-'' ARGS: -target win64-msvc --emit-ir tests/driver/src/global-init-b.bas -o tests/driver/globalinit.ll
+'' ARGS: -target windows-x86_64 --emit-ir tests/driver/src/global-init-b.bas -o tests/driver/globalinit.ll
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/globalinit.ll
 '' EXPECT-FILE-HAS: tests/driver/globalinit.ll :: define internal void @"_GLOBAL__I"()

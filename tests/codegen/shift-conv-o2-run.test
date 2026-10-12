@@ -2,8 +2,8 @@
 '' of range or of NaN, give the x86 answer fbc gives -- LLVM makes both poison, so -O2
 '' printed register contents. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc -O2 tests/codegen/src/shift-conv-o2.bas -o tests/codegen/shiftconvo2.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -O2 tests/codegen/src/shift-conv-o2.bas -o tests/codegen/shiftconvo2.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/shiftconvo2.exe
 '' EXPECT-RUN-EXIT: 0

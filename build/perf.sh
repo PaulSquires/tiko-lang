@@ -41,7 +41,7 @@ if [ -d "$TKOINC" ]; then TKO_INCLUDE="$TKOINC"; export TKO_INCLUDE; fi
 # THE DEV TREE HAS NO lib/<target>: the import libraries are a package step, not a build
 # one, so a link from bin/ needs the packaged toolchain's copy pointed at explicitly.
 LIBP=""
-[ -d toolchains/tiko-windows/lib/win64-msvc ] && LIBP="-p toolchains/tiko-windows/lib/win64-msvc"
+[ -d toolchains/tiko-windows/lib/windows-x86_64 ] && LIBP="-p toolchains/tiko-windows/lib/windows-x86_64"
 
 FBC=${TKO_FBC:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}
 

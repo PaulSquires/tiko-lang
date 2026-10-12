@@ -1,8 +1,8 @@
 '' AN IMPORT BELONGS TO THE FILE THAT WRITES IT (M22): both files of rep import util, each
 '' for itself, and use it in a body and a parameter type.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/modules/src/perfile/main.bas -o tests/modules/perfile.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/modules/src/perfile/main.bas -o tests/modules/perfile.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/perfile.exe
 '' EXPECT-RUN-OUT:  6 10

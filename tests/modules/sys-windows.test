@@ -6,8 +6,8 @@
 '' win.CreateWindow, the header's macro, called with win.SE_DEBUG_NAME in its arguments,
 '' linked against user32 and run.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/syswin/main.bas -o tests/modules/syswin.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/syswin/main.bas -o tests/modules/syswin.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/syswin.exe
 '' EXPECT-RUN-OUT: 30 1 2 -1

@@ -262,7 +262,7 @@ function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
     cfg.defines = @ctx.options.defines
     cfg.targetIsWindows = Tko.TargetIsWindows( ctx.options.target )
     cfg.targetIs64 = Tko.TargetIs64( ctx.options.target )
-    cfg.targetIsMsvc = (ctx.options.target = Tko.TARGET_WIN64_MSVC)
+    cfg.targetIsMsvc = (ctx.options.target = Tko.TARGET_WINDOWS_X86_64)
     cfg.threadSafe = ctx.options.threadSafe
     cfg.errFlags = ctx.options.errFlags
     cfg.debugInfo = ctx.options.debugInfo

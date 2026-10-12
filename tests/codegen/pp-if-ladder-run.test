@@ -3,8 +3,8 @@
 '' division, and an unsigned decimal literal above the longint range as unsigned. Each
 '' line is a branch fbc takes. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/pp-if-ladder.bas -o tests/codegen/ppifladder.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/pp-if-ladder.bas -o tests/codegen/ppifladder.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ppifladder.exe
 '' EXPECT-RUN-EXIT: 0

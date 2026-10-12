@@ -1,7 +1,7 @@
 '' A STRING CAST REACHING A STRING PARAMETER OF ITS OWN WIDTH beats one changing width: over { byref const wstring, byref const string } a 'byref as zstring' cast picks string and a 'byref as wstring' one wstring (fbc's structs/implicit-cast.bas). tiko called it ambiguous. Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/strcast-same-width-overload.bas -o tests/codegen/strcastsamewidthoverload.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/strcast-same-width-overload.bas -o tests/codegen/strcastsamewidthoverload.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/strcastsamewidthoverload.exe
 '' EXPECT-RUN-EXIT: 0

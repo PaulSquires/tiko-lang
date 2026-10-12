@@ -1,8 +1,8 @@
 '' A FLOAT FOR COUNTER WITH NO 'step' ADVANCES BY 1. The implicit step was ConstInt( 1 ) on an f64,
 '' which went out as 'const f64 0': every such loop ran forever. Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/for-float-step.bas -o tests/codegen/forfloatstep.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/for-float-step.bas -o tests/codegen/forfloatstep.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/forfloatstep.exe
 '' EXPECT-RUN-EXIT: 0

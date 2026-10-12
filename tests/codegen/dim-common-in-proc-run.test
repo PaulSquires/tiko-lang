@@ -1,8 +1,8 @@
 '' In a procedure, 'dim a( 3 to 3 )' beside a COMMON 'a( )' of its own namespace resizes the common;
 '' in another namespace it declares a local (namespace/redim-3.bas, dim/redim.bas commonDim).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/dim-common-in-proc.bas -o tests/codegen/dimcommoninproc.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/dim-common-in-proc.bas -o tests/codegen/dimcommoninproc.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/dimcommoninproc.exe
 '' EXPECT-RUN-EXIT: 0

@@ -35,8 +35,8 @@ end function
 '' The one hint that fixes each target's commonest failure: a header clang could not find.
 function NotFoundHint( byref ctx as Tko.CompilerContext ) as string
     select case ctx.options.target
-    case Tko.TARGET_WIN64_MSVC
-        return "win64-msvc imports against the installed MSVC and Windows SDK headers; " & _
+    case Tko.TARGET_WINDOWS_X86_64
+        return "windows-x86_64 imports against the installed MSVC and Windows SDK headers; " & _
                "install Visual Studio Build Tools with the Windows SDK, or name the directory with -cinclude"
     case Tko.TARGET_WIN64
         return "win64 imports against MinGW-w64's headers; put its gcc on PATH, " & _

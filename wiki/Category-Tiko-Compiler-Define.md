@@ -2,7 +2,7 @@
 
 # __TIKO_COMPILER__
 
-tiko defines `__TIKO_COMPILER__`, always `1`. Stock fbc and FBC-Modern do not define it. Measured on win64-msvc on 2026-09-24, beside fbc-modern 1.20:
+tiko defines `__TIKO_COMPILER__`, always `1`. Stock fbc and FBC-Modern do not define it. Measured on windows-x86_64 on 2026-09-24, beside fbc-modern 1.20:
 
 ```freebasic
 #ifdef __TIKO_COMPILER__

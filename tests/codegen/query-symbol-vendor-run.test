@@ -5,8 +5,8 @@
 '' vector's capacity. All 357 asserts pass since FB_SYMBCLASS_KEYWORD (line 84) and
 '' FB_SYMBCLASS_FWDREF (line 116) are answered (afc9d179).
 '' TEST: cli
-'' ARGS: -target win64-msvc -m fbc-tests tests/vendor/fbc-tests/fbc-tests.bas tests/vendor/fbc-tests/fbc-int/query-symbol.bas -o tests/codegen/qsymvendor.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -m fbc-tests tests/vendor/fbc-tests/fbc-tests.bas tests/vendor/fbc-tests/fbc-int/query-symbol.bas -o tests/codegen/qsymvendor.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0770

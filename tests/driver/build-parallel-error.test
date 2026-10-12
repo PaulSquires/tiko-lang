@@ -3,9 +3,9 @@
 '' unit order as a serial build would.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bpe/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.bpe
-'' ARGS: build -target win64-msvc tests/driver/src/build-err/good.tiko tests/driver/src/build-err/bad.tiko -o build/.bpe/app.exe -j 4
+'' ARGS: build -target windows-x86_64 tests/driver/src/build-err/good.tiko tests/driver/src/build-err/bad.tiko -o build/.bpe/app.exe -j 4
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: bad.tiko(3,11): error TKO0743: 'nosuchname' is not declared
 '' EXPECT-MAX-DIAG: 1

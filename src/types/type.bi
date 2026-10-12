@@ -187,10 +187,10 @@ namespace Tko
         '' same type layout as TARGET_WIN64 -- what differs is the TRIPLE clang is
         '' given and the LINK LINE that follows from it. It is a separate target and
         '' not a flag on win64 because the runtime archive is a different file:
-        '' lib/win64-msvc/libfb.a, built for the UCRT, whose imports are
+        '' lib/windows-x86_64/libfb.a, built for the UCRT, whose imports are
         '' __acrt_iob_func and _stricmp where the MinGW one has __iob_func and
         '' strcasecmp. Mixing them links and then fails at runtime.
-        TARGET_WIN64_MSVC
+        TARGET_WINDOWS_X86_64
     end enum
 
     '' Target facts, injected. The frontend never hard-codes a size.
@@ -210,7 +210,7 @@ namespace Tko
         '' Windows or not. Only cva_list needs it so far, and only for its MANGLING,
         '' which is target-dependent in a way no width explains -- see BuiltinCode.
         as boolean isWindows
-        '' THE C LIBRARY, NOT THE PLATFORM. win64-msvc links ucrtbase and win64 links
+        '' THE C LIBRARY, NOT THE PLATFORM. windows-x86_64 links ucrtbase and win64 links
         '' MinGW's msvcrt, and they do not export the same setjmp: the UCRT has
         '' '__intrinsic_setjmp' and not '_setjmp', MinGW the other way round. isWindows
         '' is true for both, so LowerOnError_ needs this one to tell them apart.

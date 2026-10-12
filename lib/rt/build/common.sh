@@ -13,7 +13,7 @@ RT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 # THE COMPILER THAT BUILDS tiko-rt is tiko (bootstrap plan, phases R and X,
 # 2026-10-10): the tree's own bin/tiko -- build/package.sh builds it first -- or
 # TKORT_TIKO. Measured when it changed: the tiko-built archives define exactly the
-# global symbols the fbc-built ones did, on win64-msvc, win64 and linux-x86_64.
+# global symbols the fbc-built ones did, on windows-x86_64, win64 and linux-x86_64.
 #
 # fbc and fbc-modern's tree are the ORACLE scripts' business, and live in oracle.sh:
 # nothing that builds tiko-rt reads them.
@@ -62,15 +62,15 @@ RT_TARGETS="win64 linux-x86_64"
 
 # BUILD-ONLY TARGETS. Buildable, and deliberately NOT in RT_TARGETS, because
 # RT_TARGETS is what gate.sh, symbols.sh and diff.sh validate against -- leaving
-# win64-msvc out of it is what makes those three refuse it with the message they
+# windows-x86_64 out of it is what makes those three refuse it with the message they
 # already have, rather than accepting it and failing somewhere less obvious.
 #
-# win64-msvc is the Microsoft ABI (docs/tiko-rt/RFC-0006). It CANNOT be gated:
+# windows-x86_64 is the Microsoft ABI (docs/tiko-rt/RFC-0006). It CANNOT be gated:
 # the gate works by dropping this archive into fbc's own MinGW link line, and an
 # MSVC-ABI archive cannot link there. RFC-0006 section 5 is the open question of
 # what replaces that, and until it is answered this target is built and not
 # validated. Nothing should be shipped from it.
-RT_BUILD_ONLY_TARGETS="win64-msvc"
+RT_BUILD_ONLY_TARGETS="windows-x86_64"
 
 # Include path: tiko-rt's own src/, then tiko-lang's inc/ (phase H, 2026-10-10), which
 # supplies crt/long.bi -- the only header lint lets through. It was fbc-modern's src/inc
@@ -115,14 +115,14 @@ rt_target_triple( ) {
     esac
 }
 
-# THE ABI DEFINE THE SOURCES SEE. fbc compiles win64-msvc AS win64 (it has no
+# THE ABI DEFINE THE SOURCES SEE. fbc compiles windows-x86_64 AS win64 (it has no
 # MSVC target), so __FB_WIN64__ is defined either way and no built-in symbol
 # tells the two ABIs apart. The sources need to: UCRT spells the stdio stream
 # accessor __acrt_iob_func where MinGW spells it __iob_func, and there is no
 # __mingw_sprintf at all. Same mechanism as -d ENABLE_MT.
 rt_abi_define( ) {
     case "$1" in
-        *-msvc) echo "-d TKORT_MSVC" ;;
+        windows-x86_64) echo "-d TKORT_MSVC" ;;
         *)      echo "" ;;
     esac
 }
@@ -135,7 +135,7 @@ rt_abi_define( ) {
 # So the IR needs no editing -- only the assemble step changes.
 rt_clang_triple( ) {
     case "$1" in
-        win64-msvc) echo "x86_64-pc-windows-msvc" ;;
+        windows-x86_64) echo "x86_64-pc-windows-msvc" ;;
         *)          echo "" ;;
     esac
 }
@@ -155,7 +155,7 @@ rt_opt_level( ) {
         # THE ONLY PLACE SIZE CAN BE ASKED FOR ON THIS PATH, because this script
         # calls clang itself. fbc cannot be asked: '-O s' reaches clang as '-O0',
         # measured 2026-09-17, so the targets below where fbc drives the whole
-        # compile keep '-O 2' and only win64-msvc gets a smaller archive.
+        # compile keep '-O 2' and only windows-x86_64 gets a smaller archive.
         MinSizeRel)     echo s ;;
         *)              echo 0 ;;
     esac

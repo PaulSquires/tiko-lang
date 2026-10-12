@@ -27,10 +27,10 @@
 '' EXPECT-OUT: function probe_printf : int (const char *, ...) args 1 variadic 1 cc 1
 '' EXPECT-OUT: function probe_walk : void (struct probe_pair, probe_opaque *) args 2 variadic 0 cc 1
 '' EXPECT-OUT: var probe_counter : long
-'' EXPECT-OUT[win64-msvc]: target   x86_64-pc-windows-msvc
-'' EXPECT-OUT[win64-msvc]: struct probe_bits : struct probe_bits size 8 align 4
-'' EXPECT-OUT[win64-msvc]:     field next : unsigned char @bit 32 width -
-'' EXPECT-OUT[win64-msvc]: underlying int
+'' EXPECT-OUT[windows-x86_64]: target   x86_64-pc-windows-msvc
+'' EXPECT-OUT[windows-x86_64]: struct probe_bits : struct probe_bits size 8 align 4
+'' EXPECT-OUT[windows-x86_64]:     field next : unsigned char @bit 32 width -
+'' EXPECT-OUT[windows-x86_64]: underlying int
 '' EXPECT-OUT[win64]: target   x86_64-w64-windows-gnu
 '' EXPECT-OUT[win64]: struct probe_bits : struct probe_bits size 8 align 4
 '' EXPECT-OUT[win64]:     field next : unsigned char @bit 32 width -

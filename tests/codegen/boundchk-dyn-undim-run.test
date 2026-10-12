@@ -3,8 +3,8 @@
 '' index 0 and read through a null pointer: the first version of the T21 fix did exactly
 '' that and crashed. fb_ArrayDimensionChk runs first and catches it.
 '' TEST: cli
-'' ARGS: -exx -target win64-msvc tests/codegen/src/boundchk-dyn-undim.bas -o tests/codegen/boundchkdynundim.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -exx -target windows-x86_64 tests/codegen/src/boundchk-dyn-undim.bas -o tests/codegen/boundchkdynundim.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/boundchkdynundim.exe
 '' RUN: tests/codegen/boundchkdynundim.exe

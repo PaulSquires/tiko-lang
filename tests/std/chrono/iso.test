@@ -1,8 +1,8 @@
 '' tests/vendor/fbc-tests/chrono/iso.bas ported to the std modules (build/stdtests.py, generated).
 '' Expected: what tests/std/baseline/chrono/iso.txt recorded for the original.
 '' TEST: cli
-'' ARGS: -target win64-msvc -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/chrono/iso.bas -o tests/std/chrono/iso.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/chrono/iso.bas -o tests/std/chrono/iso.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/chrono/iso.exe
 '' EXPECT-RUN-OUT: 300270    300270         0  fbc_tests.chrono.iso                          12

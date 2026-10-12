@@ -1,7 +1,7 @@
 '' tests/vendor/fbc-tests/generics/container-result.bas ported to the std modules (build/stdtests.py, generated).
 '' Expected: what tests/std/baseline/generics/container-result.txt recorded for the original.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/std/generics/container-result.bas -o tests/std/generics/container-result.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/std/generics/container-result.bas -o tests/std/generics/container-result.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/generics/container-result.exe

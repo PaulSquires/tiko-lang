@@ -9,10 +9,10 @@ Text inputs, a checkbox, a radio group and a select, wired into a TuiFocusRing w
 ## Build and run
 
 ```freebasic
-tiko form.tiko        ' win64-msvc on Windows, linux-x86_64 on Linux
+tiko form.tiko        ' windows-x86_64 on Windows, linux-x86_64 on Linux
 ```
 
-Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for win64-msvc and win64, and compiles it for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: it is interactive). fbc builds it clean at `-w all`.
+Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for windows-x86_64 and win64, and compiles it for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: it is interactive). fbc builds it clean at `-w all`.
 
 ## What to notice
 
@@ -30,7 +30,7 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 '' in any shipped FreeBASIC module: a widget that carries a closure. RFC-0007
 '' section 4, and probes #4-#8 in README.md.
 ''
-'' Build (win64-msvc or linux-x86_64):
+'' Build (windows-x86_64 or linux-x86_64):
 ''     tiko form.tiko
 
 #import "std/numeric"

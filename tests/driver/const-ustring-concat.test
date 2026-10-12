@@ -5,8 +5,8 @@
 '' UTF-16 term (src/mir/lowerterm.bas). fbc-modern 1.20 has no 'const as ustring' (error
 '' 24), so there is no differential; the expected text is the concatenation itself.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/const-ustring-concat.bas -o tests/driver/constustrconcat.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/const-ustring-concat.bas -o tests/driver/constustrconcat.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/constustrconcat.exe
 '' RUN: tests/driver/constustrconcat.exe

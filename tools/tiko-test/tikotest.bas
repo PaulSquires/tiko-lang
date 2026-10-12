@@ -608,11 +608,11 @@ function TargetGolden_ _
 end function
 
 '' CAN THIS HOST RUN WHAT A BUILD FOR tgt PRODUCES? Both Windows targets' programs run on
-'' Windows (win64 links MinGW's CRT, win64-msvc the UCRT; both are PE executables), and
+'' Windows (win64 links MinGW's CRT, windows-x86_64 the UCRT; both are PE executables), and
 '' linux-x86_64's on Linux. Anything else would need an emulator, and is skipped.
 function IsHostTarget_( byval tgt as string ) as boolean
     #ifdef __FB_WIN32__
-        return (tgt = "win64") orelse (tgt = "win64-msvc")
+        return (tgt = "win64") orelse (tgt = "windows-x86_64")
     #else
         return (tgt = "linux-x86_64")
     #endif
@@ -632,7 +632,7 @@ function WithTarget_( byval tgt as string, byval rest as string ) as string
 end function
 
 '' THE TARGET A RUN ACTUALLY BUILT FOR: the LAST '-target' on its command line, since a
-'' later one wins (tests/driver's tests name win64-msvc in ARGS over the runner's win64).
+'' later one wins (tests/driver's tests name windows-x86_64 in ARGS over the runner's win64).
 '' Deciding whether to RUN from the runner's own target would start a linux-x86_64
 '' program on Windows the day a test named that target in ARGS.
 function BuiltTarget_( byval tgt as string, byval args as string ) as string

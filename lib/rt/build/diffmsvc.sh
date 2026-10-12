@@ -17,7 +17,7 @@
 #
 #   reference   fbc, its own stock MinGW runtime, exactly as diff.sh's is
 #   subject     the same source through fbc -gen llvm -r, retargeted to
-#               x86_64-pc-windows-msvc, linked against lib/win64-msvc/libfb.a
+#               x86_64-pc-windows-msvc, linked against lib/windows-x86_64/libfb.a
 #
 # and the two outputs must be byte-identical. What that measures is the whole of
 # the ABI change at once: UCRT against MinGW's stdio, __acrt_iob_func against
@@ -130,8 +130,8 @@ case "$(uname -s)" in
     *) rt_die "win64 host only -- there is no MSVC ABI to compare against here" ;;
 esac
 
-LIB="$RT_ROOT/lib/win64-msvc/libfb.a"
-[ -f "$LIB" ] || rt_die "no archive at $LIB -- run build/build.sh $CFG win64-msvc first"
+LIB="$RT_ROOT/lib/windows-x86_64/libfb.a"
+[ -f "$LIB" ] || rt_die "no archive at $LIB -- run build/build.sh $CFG windows-x86_64 first"
 
 # AND IT MUST BE THE CONFIGURATION THIS RUN WAS ASKED FOR. lib/<target>/ holds
 # ONE archive that every configuration overwrites, so without this check
@@ -139,14 +139,14 @@ LIB="$RT_ROOT/lib/win64-msvc/libfb.a"
 rt_check_cfg_stamp( ) {
     _stamp="$1/.config"
     if [ ! -f "$_stamp" ]; then
-        rt_die "no .config beside $1 -- rebuild with build/build.sh $CFG win64-msvc"
+        rt_die "no .config beside $1 -- rebuild with build/build.sh $CFG windows-x86_64"
     fi
     _have=$(cat "$_stamp")
     if [ "$_have" != "$CFG" ]; then
-        rt_die "the archives in $1 were built [$_have], not [$CFG] -- run build/build.sh $CFG win64-msvc"
+        rt_die "the archives in $1 were built [$_have], not [$CFG] -- run build/build.sh $CFG windows-x86_64"
     fi
 }
-rt_check_cfg_stamp "$RT_ROOT/lib/win64-msvc"
+rt_check_cfg_stamp "$RT_ROOT/lib/windows-x86_64"
 
 # AND THE MT ARCHIVE, which is a DIFFERENT BUILD of the same sources rather than
 # the same objects with a flag: ENABLE_MT changes what the TLS table is, whether
@@ -154,12 +154,12 @@ rt_check_cfg_stamp "$RT_ROOT/lib/win64-msvc"
 # test linked against the st archive would report that TLS is not per-thread and
 # would be measuring the wrong library, which is the mistake diff.sh's own header
 # records having made.
-MTLIB="$RT_ROOT/lib/win64-msvc/libfbmt.a"
+MTLIB="$RT_ROOT/lib/windows-x86_64/libfbmt.a"
 
 # THE IMPORT LIBRARIES that stand in for the CRT at the link below -- gatemsvc.sh's
 # variable and default, and refused for gatemsvc.sh's reason: without them every
 # link fails on memset and reads as an ABI difference.
-IMPLIBS=${TKORT_MSVC_IMPLIBS:-$(cd "$(dirname "$0")/../../.." && pwd)/toolchains/tiko-windows/lib/win64-msvc}
+IMPLIBS=${TKORT_MSVC_IMPLIBS:-$(cd "$(dirname "$0")/../../.." && pwd)/toolchains/tiko-windows/lib/windows-x86_64}
 [ -f "$IMPLIBS/ucrtbase.lib" ] || rt_die "no ucrtbase.lib in $IMPLIBS -- run build/implibs.sh build --out <dir>"
 IMPLIBS=$(cygpath -m "$IMPLIBS")
 
@@ -310,7 +310,7 @@ for src in $(ls "$RT_ROOT"/tests/abi/*.bas 2>/dev/null | sort); do
     unset rrc src_rc
 done
 
-echo "diffmsvc: win64-msvc [$CFG] -- $ident identical, $differ differing, $skip skipped, $bothnz exited non-zero on BOTH sides"
+echo "diffmsvc: windows-x86_64 [$CFG] -- $ident identical, $differ differing, $skip skipped, $bothnz exited non-zero on BOTH sides"
 
 # A SKIP IS A HARNESS FAILURE, not a neutral outcome -- diff.sh says so and the
 # same applies here. A differing result is a real one and fails the run.

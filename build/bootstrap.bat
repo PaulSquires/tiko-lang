@@ -32,7 +32,7 @@ pushd "%ROOT%"
 set "ROOT=%CD%"
 
 set "OPT="
-set "TARGET=win64-msvc"
+set "TARGET=windows-x86_64"
 set "STAGE1="
 set "GATE=0"
 :argloop
@@ -70,13 +70,21 @@ if not exist "%TKO_BOOT_INC%\" (
     popd & exit /b 3
 )
 
+rem THE SEED'S NAME FOR THE TARGET. windows-x86_64 was win64-msvc until 2026-10-12, and a seed
+rem from before then knows only the old name -- for -target and for its lib\ directory.
+rem The seed is asked: the second line of --version names its default target (bootstrap.sh).
+set "SEED_TARGET=%TARGET%"
+set "SEED_DEFAULT="
+for /f "tokens=2 delims=, " %%a in ('call "%TKO_SEED%" --version 2^>nul ^| findstr /b /c:"target "') do set "SEED_DEFAULT=%%a"
+if /i "%TARGET%"=="windows-x86_64" if /i "%SEED_DEFAULT%"=="win64-msvc" set "SEED_TARGET=win64-msvc"
+
 rem The seed's runtime and import libraries, and for win64 the MinGW runtime where it has one.
 if "%TKO_BOOT_LIBDIRS%"=="" (
-    set "TKO_BOOT_LIBDIRS=%SEEDDIR%lib\%TARGET%"
-    if exist "%SEEDDIR%lib\%TARGET%-fb\" set "TKO_BOOT_LIBDIRS=%SEEDDIR%lib\%TARGET% %SEEDDIR%lib\%TARGET%-fb"
+    set "TKO_BOOT_LIBDIRS=%SEEDDIR%lib\%SEED_TARGET%"
+    if exist "%SEEDDIR%lib\%SEED_TARGET%-fb\" set "TKO_BOOT_LIBDIRS=%SEEDDIR%lib\%SEED_TARGET% %SEEDDIR%lib\%SEED_TARGET%-fb"
 )
 if "%TKO_BOOT_LIBDIRS%"=="" (
-    if /i "%TARGET%"=="win64-msvc" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64-msvc"
+    if /i "%TARGET%"=="windows-x86_64" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\windows-x86_64"
     rem MinGW needs its CRT objects beside the runtime; see cmdline.bas.
     if /i "%TARGET%"=="win64" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64"
     if /i "%TARGET%"=="win64" if exist "%ROOT%\toolchains\tiko-windows\lib\win64-fb\" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64 %ROOT%\toolchains\tiko-windows\lib\win64-fb"
@@ -127,7 +135,7 @@ if not "%STAGE1%"=="" (
     goto stage1done
 )
 rem stage1 BY THE SEED, with stage2's own command; --gate's runner is the seed's too.
-call :buildstage "%TKO_SEED%" stage1
+call :buildstage "%TKO_SEED%" stage1 %SEED_TARGET%
 if errorlevel 1 goto fail
 if not "%GATE%"=="1" goto stage1done
 call "%ROOT%\build\build.bat" Debug --test-runner --no-dll > "%OUT%\runner.log" 2>&1
@@ -147,9 +155,9 @@ if not "%NDEC%"=="0" ( set "WHY=%NDEC% modules have statements stage1 does not l
 echo bootstrap: stage1  lowers every statement of all %NMOD% modules; all verify
 
 rem ------------------------------------------------------------ stage2, stage3
-call :buildstage "%S1%" stage2
+call :buildstage "%S1%" stage2 %TARGET%
 if errorlevel 1 goto fail
-call :buildstage "%OUT%\stage2\tiko.exe" stage3
+call :buildstage "%OUT%\stage2\tiko.exe" stage3 %TARGET%
 if errorlevel 1 goto fail
 
 rem ------------------------------------------------------------- 2. fixpoint
@@ -180,7 +188,7 @@ if errorlevel 1 ( type "%OUT%\hello\build3.log" 1>&2 & set "WHY=stage3 could not
 "%OUT%\hello\hello3.exe" > "%OUT%\hello\out3.txt" 2>&1
 if errorlevel 1 ( set "WHY=stage3's hello did not run" & goto fail )
 pushd "%OUT%\hello"
-"%TKO_SEED%" hello.bas -target %TARGET% %LIBP% -o hello0.exe > build0.log 2>&1
+"%TKO_SEED%" hello.bas -target %SEED_TARGET% %LIBP% -o hello0.exe > build0.log 2>&1
 set "RC=%ERRORLEVEL%"
 popd
 if not "%RC%"=="0" ( set "WHY=the reference compiler could not build hello.bas" & goto fail )
@@ -221,11 +229,11 @@ echo bootstrap: FAILED -- %WHY% 1>&2
 popd
 exit /b 1
 
-rem %1 = the compiler, %2 = the stage it builds
+rem %1 = the compiler, %2 = the stage it builds, %3 = its name for the target
 :buildstage
 rem Each stage compiles the std modules itself, into a cache of its own (bootstrap.sh).
 set "TKO_MODCACHE=%OUT%\%~2.modcache"
-"%~1" %SOURCES% -m %MAINMOD% -i src -target %TARGET% %OPT% %LIBP% -o "%OUT%\%~2\tiko.exe" > "%OUT%\%~2.log" 2>&1
+"%~1" %SOURCES% -m %MAINMOD% -i src -target %~3 %OPT% %LIBP% -o "%OUT%\%~2\tiko.exe" > "%OUT%\%~2.log" 2>&1
 if errorlevel 1 ( type "%OUT%\%~2.log" 1>&2 & set "WHY=%~2 did not build" & exit /b 1 )
 if not exist "%OUT%\%~2\tiko.exe" ( set "WHY=%~2 reported success and wrote no compiler" & exit /b 1 )
 for %%z in ("%OUT%\%~2.log") do if %%~zz gtr 0 ( type "%OUT%\%~2.log" 1>&2 & set "WHY=%~2's build printed diagnostics" & exit /b 1 )

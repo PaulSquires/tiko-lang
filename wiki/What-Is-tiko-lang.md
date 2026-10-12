@@ -31,7 +31,7 @@ tiko is honest about where it stops:
 
 | Target | |
 | --- | --- |
-| `win64-msvc` | The default on Windows. Links against `ucrtbase.dll` and needs no Visual Studio. The only target with graphics. |
+| `windows-x86_64` | The default on Windows. Links against `ucrtbase.dll` and needs no Visual Studio. The only target with graphics. |
 | `linux-x86_64` | The default on Linux. |
 | `win64` | The legacy MinGW ABI, kept for now for objects built by fbc. |
 
@@ -47,7 +47,7 @@ One consequence is useful. tiko still compiles FreeBASIC 1.20 code (`#lang "fb"`
 
 The repository's `README.md` and `HANDOFF.md` carry the measured state, every figure dated. Among them:
 
-- tiko compiles itself to a byte-identical fixpoint on win64-msvc and linux-x86_64 (2026-09-21).
+- tiko compiles itself to a byte-identical fixpoint on windows-x86_64 and linux-x86_64 (2026-09-21).
 - Every in-scope run program in fbc's own test corpus prints what fbc's build prints (2026-09-20).
 - 495 of the 631 fbcunit suites that build under both compilers give fbc's results (2026-09-20).
 

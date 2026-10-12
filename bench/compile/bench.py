@@ -227,7 +227,7 @@ def main():
         tree = os.path.abspath(a.tree)
         with open(os.path.join(tree, "build", "sources.txt")) as f:
             srcs = [l.strip() for l in f if l.strip() and not l.strip().startswith("#")]
-        cases.append(("selfhost", tree, srcs + ["-m", "main", "-i", "src", "-target", "win64-msvc",
+        cases.append(("selfhost", tree, srcs + ["-m", "main", "-i", "src", "-target", "windows-x86_64",
                       "-o", os.path.join(work, "selfhost.exe")], {}, None))
 
     if a.cases:

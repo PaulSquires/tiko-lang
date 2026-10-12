@@ -3,8 +3,8 @@
 '' temporary, and a defer registered again by a backward goto. Each destructor and defer
 '' runs exactly as fbc runs it. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/cleanup-trace.bas -o tests/codegen/cleanuptrace.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/cleanup-trace.bas -o tests/codegen/cleanuptrace.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/cleanuptrace.exe
 '' EXPECT-RUN-EXIT: 0

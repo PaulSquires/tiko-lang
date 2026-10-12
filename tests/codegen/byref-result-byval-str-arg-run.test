@@ -1,8 +1,8 @@
 '' A byval string argument outlives the call when the result is BYREF: 'g( byval s as string ) byref
 '' as string' returns its own copy, which fbc deletes at the end of the statement (temp-strings.bas).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/byref-result-byval-str-arg.bas -o tests/codegen/byrefresultbyvalstrarg.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/byref-result-byval-str-arg.bas -o tests/codegen/byrefresultbyvalstrarg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/byrefresultbyvalstrarg.exe
 '' EXPECT-RUN-EXIT: 0

@@ -3,8 +3,8 @@
 '' call, so 'modr( a( 1 ) )' wrote a temporary and a( 1 ) kept 'q' where fbc prints 'qX'.
 '' Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/strarg-element.bas -o tests/codegen/strargelem.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/strarg-element.bas -o tests/codegen/strargelem.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/strargelem.exe
 '' EXPECT-RUN-EXIT: 0

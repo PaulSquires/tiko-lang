@@ -1,8 +1,8 @@
 '' gfx: fb_hPixelSetAlpha4 is exported and blends as gfxlib2's does (gfx/blender-alpha4.bas).
 '' See the source's header.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/gfx-pixel-set-alpha4.bas -o tests/codegen/gfxpixelsetalpha4.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/gfx-pixel-set-alpha4.bas -o tests/codegen/gfxpixelsetalpha4.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/gfxpixelsetalpha4.exe

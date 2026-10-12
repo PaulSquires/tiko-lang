@@ -1251,7 +1251,7 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     '' whose entries are 88 bytes apart where that header's FILE is 48. The SHAPE
     '' differs, not just the name.
     ''
-    '' tiko-lang defaults to win64-msvc and defined nothing, so every crt header took
+    '' tiko-lang defaults to windows-x86_64 and defined nothing, so every crt header took
     '' the MinGW half: 512 of the corpus link failures build/linkscan.sh reports are
     '' 'undefined symbol: __iob_func', one for every file that reaches stdout or
     '' stderr through fbcunit.

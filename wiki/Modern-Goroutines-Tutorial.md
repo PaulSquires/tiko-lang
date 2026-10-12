@@ -25,7 +25,7 @@ one specifies. When you finish here, read that.
 
 Every program in this tutorial was compiled and run. The outputs shown are real
 program output, not illustrations — from fbc's build. Under tiko, measured
-2026-09-24 on win64-msvc:
+2026-09-24 on windows-x86_64:
 
 * **The same output as fbc's build:** every program, ex01–ex07 and ex09–ex19, up to
   what varies from run to run under either compiler: the interleaving of

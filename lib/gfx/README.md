@@ -1767,11 +1767,11 @@ pass.
 ## Build, 2026-09-05
 
 ```
-build/build.sh [Debug|Release|RelWithDebInfo]      win64-msvc only
+build/build.sh [Debug|Release|RelWithDebInfo]      windows-x86_64 only
 ```
 
-**win64-msvc is the only target and that is the point.** tiko emits the Microsoft ABI on Windows
-(`TARGET_WIN64_MSVC`), and there is no MSVC `libfbgfx` to fall back to — fbc's is MinGW, so it
+**windows-x86_64 is the only target and that is the point.** tiko emits the Microsoft ABI on Windows
+(`TARGET_WINDOWS_X86_64`), and there is no MSVC `libfbgfx` to fall back to — fbc's is MinGW, so it
 cannot go into an MSVC binary at all. That absence is why `lib/rt/build/gatemsvc.sh` excludes
 `gfx/` and `fbc-int/gfx`, and why 22 of the 26 unresolved symbols in its first full link were
 `fb_Gfx*`.

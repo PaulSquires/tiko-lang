@@ -2,8 +2,8 @@
 '' rewrites the shared token, so a backtracking parse now reads the flagged '=' as the '>'
 '' it was (audit F-72, PAR-11).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/sized-int-split-ge.bas -o tests/codegen/sizedintsplitge.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/sized-int-split-ge.bas -o tests/codegen/sizedintsplitge.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/sizedintsplitge.exe
 '' EXPECT-RUN-EXIT: 0

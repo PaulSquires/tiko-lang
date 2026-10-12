@@ -1,8 +1,8 @@
 '' A UDT AS poke's VALUE AND AS bit/bitset/bitreset's BIT NUMBER runs its numeric cast. tiko
 '' lowered the object and emitted a hole. Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/udt-numarg4.bas -o tests/codegen/udtnumarg4.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/udt-numarg4.bas -o tests/codegen/udtnumarg4.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/udtnumarg4.exe
 '' EXPECT-RUN-EXIT: 0

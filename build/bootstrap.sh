@@ -100,17 +100,27 @@ fi
 [ -d "$TKO_BOOT_INC" ] || { echo "bootstrap: no header directory $TKO_BOOT_INC (set TKO_BOOT_INC)" >&2; exit 3; }
 
 if [ -z "$TARGET" ]; then
-    if [ "$HOSTWIN" = "1" ]; then TARGET="win64-msvc"; else TARGET="linux-x86_64"; fi
+    if [ "$HOSTWIN" = "1" ]; then TARGET="windows-x86_64"; else TARGET="linux-x86_64"; fi
+fi
+# THE SEED'S NAME FOR THE TARGET. windows-x86_64 was win64-msvc until 2026-10-12, and a
+# seed from before then knows only the old name -- for -target and for its lib/ directory.
+# The seed is asked: the second line of --version names its default target. Its lib/ is
+# no answer, since a toolchain may carry both directories. Every later stage is this
+# tree's compiler and is given $TARGET.
+SEED_TARGET=$TARGET
+if [ "$TARGET" = "windows-x86_64" ] && \
+   [ "$("$TKO_SEED" --version 2>/dev/null | sed -n 's/^target \([^,]*\),.*/\1/p')" = "win64-msvc" ]; then
+    SEED_TARGET=win64-msvc
 fi
 if [ -z "$TKO_BOOT_LIBDIRS" ]; then
     # The seed's runtime and import libraries, and for win64 the MinGW runtime beside
     # them where the seed ships one.
-    TKO_BOOT_LIBDIRS="$SEEDDIR/lib/$TARGET"
-    [ -d "$SEEDDIR/lib/$TARGET-fb" ] && TKO_BOOT_LIBDIRS="$TKO_BOOT_LIBDIRS $SEEDDIR/lib/$TARGET-fb"
+    TKO_BOOT_LIBDIRS="$SEEDDIR/lib/$SEED_TARGET"
+    [ -d "$SEEDDIR/lib/$SEED_TARGET-fb" ] && TKO_BOOT_LIBDIRS="$TKO_BOOT_LIBDIRS $SEEDDIR/lib/$SEED_TARGET-fb"
 fi
 if [ -z "$TKO_BOOT_LIBDIRS" ]; then
     case "$TARGET" in
-        win64-msvc)   TKO_BOOT_LIBDIRS="$ROOT/toolchains/tiko-windows/lib/win64-msvc" ;;
+        windows-x86_64) TKO_BOOT_LIBDIRS="$ROOT/toolchains/tiko-windows/lib/windows-x86_64" ;;
         # MinGW needs its CRT objects beside the runtime; see cmdline.bas.
         win64)        TKO_BOOT_LIBDIRS="$ROOT/toolchains/tiko-windows/lib/win64"
                       [ -d "$ROOT/toolchains/tiko-windows/lib/win64-fb" ] && TKO_BOOT_LIBDIRS="$TKO_BOOT_LIBDIRS $ROOT/toolchains/tiko-windows/lib/win64-fb" ;;
@@ -149,11 +159,11 @@ say "target $TARGET ${OPT:--O0}, $NMOD modules, headers $TKO_BOOT_INC"
 
 # ------------------------------------------------------------------ stages
 build_stage( ) {
-    # $1 = the compiler, $2 = the stage it builds
+    # $1 = the compiler, $2 = the stage it builds, $3 = its name for the target
     ts=$(now)
     # EACH STAGE COMPILES THE std MODULES ITSELF, into a cache of its own: one shared cache
     # would hand stage2 the objects stage1 made, and stage2 == stage3 would not cover them.
-    TKO_MODCACHE="$OUT/$2.modcache" "$1" $SOURCES -m "$MAINMOD" -i src -target "$TARGET" $OPT $LIBP -o "$OUT/$2/tiko$EXT" \
+    TKO_MODCACHE="$OUT/$2.modcache" "$1" $SOURCES -m "$MAINMOD" -i src -target "$3" $OPT $LIBP -o "$OUT/$2/tiko$EXT" \
         > "$OUT/$2.log" 2>&1 || { cat "$OUT/$2.log" >&2; fail "$2 did not build"; }
     [ -f "$OUT/$2/tiko$EXT" ] || fail "$2 reported success and wrote no compiler"
     # A build that says nothing is the only acceptable one: a warning in the
@@ -173,7 +183,7 @@ if [ -n "$STAGE1" ]; then
     say "stage1  $STAGE1"
 else
     # stage1 BY THE SEED, with stage2's own command -- see the header.
-    build_stage "$TKO_SEED" stage1
+    build_stage "$TKO_SEED" stage1 "$SEED_TARGET"
     if [ "$GATE" = "1" ]; then
         # --gate runs the suite, which needs a runner: the seed builds that too.
         sh build/build.sh Debug --test-runner --no-dll > "$OUT/runner.log" 2>&1 || { cat "$OUT/runner.log" >&2; fail "the seed could not build the test runner"; }
@@ -194,8 +204,8 @@ NDEC=$(grep '^lowered:' "$OUT/lowered.txt" | grep -vc ' 0 statements not lowered
 say "stage1  lowers every statement of all $NMOD modules; all verify"
 
 # ------------------------------------------------------------ stage2, stage3
-build_stage "$S1" stage2
-build_stage "$OUT/stage2/tiko$EXT" stage3
+build_stage "$S1" stage2 "$TARGET"
+build_stage "$OUT/stage2/tiko$EXT" stage3 "$TARGET"
 
 # ------------------------------------------------------------- 2. fixpoint
 cmp -s "$OUT/stage2/tiko$EXT" "$OUT/stage3/tiko$EXT" || fail "stage2 and stage3 differ"
@@ -223,7 +233,7 @@ EOF
 "$OUT/stage3/tiko$EXT" "$OUT/hello/hello.bas" -target "$TARGET" $LIBP -o "$OUT/hello/hello3$EXT" \
     > "$OUT/hello/build3.log" 2>&1 || { cat "$OUT/hello/build3.log" >&2; fail "stage3 could not build hello.bas"; }
 "$OUT/hello/hello3$EXT" > "$OUT/hello/out3.txt" 2>&1 || fail "stage3's hello did not run"
-( cd "$OUT/hello" && "$TKO_SEED" hello.bas -target "$TARGET" $LIBP -o "hello0$EXT" > build0.log 2>&1 ) || fail "the seed could not build hello.bas"
+( cd "$OUT/hello" && "$TKO_SEED" hello.bas -target "$SEED_TARGET" $LIBP -o "hello0$EXT" > build0.log 2>&1 ) || fail "the seed could not build hello.bas"
 "$OUT/hello/hello0$EXT" > "$OUT/hello/out0.txt" 2>&1 || fail "the seed's hello did not run"
 cmp -s "$OUT/hello/out0.txt" "$OUT/hello/out3.txt" || fail "stage3's hello prints '$(cat "$OUT/hello/out3.txt")', the seed's '$(cat "$OUT/hello/out0.txt")'"
 say "stage3  builds hello.bas, and it prints what the seed's build prints"

@@ -186,7 +186,7 @@ the glob — `-g '*.txt'` — or the shell expands it before tsearch sees it.)
 On Windows:
 
 ```text
-{{#include ../examples/ch31/searchtests.win64-msvc.out}}
+{{#include ../examples/ch31/searchtests.windows-x86_64.out}}
 ```
 
 On Linux the same suites run in another order (Chapter 18):

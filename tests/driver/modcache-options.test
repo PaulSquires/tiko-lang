@@ -2,11 +2,11 @@
 '' misses on both modules, on the options line.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-opt/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.mct-opt
 '' COPY: tests/driver/src/modcache => build/.mct-opt
-'' STEP: -v -target win64-msvc -i build/.mct-opt/libs build/.mct-opt/app/main.bas -o build/.mct-opt/app.exe
-'' ARGS: -g -v -target win64-msvc -i build/.mct-opt/libs build/.mct-opt/app/main.bas -o build/.mct-opt/app.exe
+'' STEP: -v -target windows-x86_64 -i build/.mct-opt/libs build/.mct-opt/app/main.bas -o build/.mct-opt/app.exe
+'' ARGS: -g -v -target windows-x86_64 -i build/.mct-opt/libs build/.mct-opt/app/main.bas -o build/.mct-opt/app.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: module acme.leaf: miss (options
 '' EXPECT-OUT: module acme.middle: miss (options

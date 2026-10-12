@@ -3,13 +3,13 @@
 '' so, and -v says the link is up to date. The program still runs.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.blkc/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.blkc
 '' CLEAN: build/.blk
 '' COPY: tests/driver/src/unitcache => build/.blk/src
-'' STEP: build -target win64-msvc build/.blk/src/a.tiko build/.blk/src/b.tiko -o build/.blk/app.exe
-'' STEP: build -target win64-msvc build/.blk/src/a.tiko build/.blk/src/b.tiko -o build/.blk/app.exe
-'' ARGS: build -target win64-msvc build/.blk/src/a.tiko build/.blk/src/b.tiko -o build/.blk/app.exe -v
+'' STEP: build -target windows-x86_64 build/.blk/src/a.tiko build/.blk/src/b.tiko -o build/.blk/app.exe
+'' STEP: build -target windows-x86_64 build/.blk/src/a.tiko build/.blk/src/b.tiko -o build/.blk/app.exe
+'' ARGS: build -target windows-x86_64 build/.blk/src/a.tiko build/.blk/src/b.tiko -o build/.blk/app.exe -v
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: link: build/.blk/app.exe is up to date
 '' RUN: build/.blk/app.exe

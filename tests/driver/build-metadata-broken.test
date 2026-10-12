@@ -5,7 +5,7 @@
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bmb/cache
 '' CLEAN: build/.bmb
-'' ARGS: metadata -target win64-msvc --manifest tests/driver/src/build-metabroken
+'' ARGS: metadata -target windows-x86_64 --manifest tests/driver/src/build-metabroken
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: "modules":[{"chain":"empty","package":"empty","dir":"tests/driver/src/build-metabroken/lib/empty","files":[],"imports":[]}
 '' EXPECT-OUT: {"chain":"ext","package":"ext","dir":"tests/driver/src/build-metabroken/lib/ext","files":["tests/driver/src/build-metabroken/lib/ext/ext.tiko"],"imports":[]}

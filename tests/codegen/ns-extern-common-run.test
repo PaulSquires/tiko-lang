@@ -2,8 +2,8 @@
 '' _ZN2N12V$E, and a common by NAME$: two namespaces each with 'extern v : dim v' were
 '' one variable, 'print N1.v, N2.v' giving '2 2'. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/ns-extern-common.bas -o tests/codegen/nsexterncommon.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/ns-extern-common.bas -o tests/codegen/nsexterncommon.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/nsexterncommon.exe
 '' EXPECT-RUN-EXIT: 0

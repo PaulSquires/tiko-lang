@@ -1,8 +1,8 @@
 '' UNDER -e A FAILED REDIM IS A RUNTIME ERROR -- 'redim a( 1 to -5 )' stops with error 1,
 '' illegal function call, at its line, exit 1, as fbc does. tiko carried on (audit F-71).
 '' TEST: cli
-'' ARGS: -e -target win64-msvc tests/codegen/src/redim-e-check.bas -o tests/codegen/redimecheck.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -e -target windows-x86_64 tests/codegen/src/redim-e-check.bas -o tests/codegen/redimecheck.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/redimecheck.exe
 '' EXPECT-RUN-EXIT: 1

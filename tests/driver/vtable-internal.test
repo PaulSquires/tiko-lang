@@ -3,7 +3,7 @@
 '' strong ones caused. The one record that must stay EXTERNAL is Object's, which lives
 '' in the runtime and is only referenced; a D's chain reaches it through B's.
 '' TEST: cli
-'' ARGS: -target win64-msvc --emit-ir -i tests/driver/src tests/driver/src/vtable-two-b.bas -o tests/driver/vtabletwo.ll
+'' ARGS: -target windows-x86_64 --emit-ir -i tests/driver/src tests/driver/src/vtable-two-b.bas -o tests/driver/vtabletwo.ll
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/vtabletwo.ll
 '' EXPECT-FILE-HAS: tests/driver/vtabletwo.ll :: @"_ZTSN1BE" = internal global

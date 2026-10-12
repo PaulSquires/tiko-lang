@@ -2,8 +2,8 @@
 '' name -- clang: "no such file or directory: 'winmm'", TKO0116 -- where fbc-modern
 '' links it and the program prints ok. It now joins '#inclib''s list.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/foreignlib-system.bas -o tests/driver/foreignlibsystem.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/foreignlib-system.bas -o tests/driver/foreignlibsystem.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/foreignlibsystem.exe
 '' EXPECT-FILE-HAS: tests/driver/foreignlibsystem.exe :: WINMM.dll

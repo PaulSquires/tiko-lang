@@ -3,8 +3,8 @@
 '' exported macros, qualified -- and FB_FSKIND_DIR, a header #define, now a public constant
 '' that 'using fs' makes bare.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/fs.bas -o tests/modules/stdfs.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/fs.bas -o tests/modules/stdfs.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdfs.exe
 '' EXPECT-RUN-OUT: -1 false

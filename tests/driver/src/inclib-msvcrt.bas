@@ -1,4 +1,4 @@
-'' '#inclib "msvcrt"' IS crt.bi's REQUEST FOR THE C RUNTIME, and on win64-msvc the C
+'' '#inclib "msvcrt"' IS crt.bi's REQUEST FOR THE C RUNTIME, and on windows-x86_64 the C
 '' runtime is ucrtbase.dll, which every link on that target already names. Written out
 '' here rather than by including crt.bi, so the test does not depend on the toolchain's
 '' headers.

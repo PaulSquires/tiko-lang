@@ -3,8 +3,8 @@
 '' TEST: cli
 '' No --allow-unlowered: every statement of tkCore, gdiplus and tkGui lowers. tkGui's 25
 '' declines ('lpti->cbSize = 64' through TOOLINFOW) went with f74deb39.
-'' ARGS: -target win64-msvc tests/modules/src/pkgtkl/main.tiko -o tests/modules/pkgtkl.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/modules/src/pkgtkl/main.tiko -o tests/modules/pkgtkl.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/pkgtkl.exe

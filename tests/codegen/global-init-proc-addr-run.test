@@ -5,8 +5,8 @@
 '' was dropped as unreferenced. Four modules of tiko-rt are this shape. Output identical
 '' to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/global-init-proc-addr/main.bas tests/codegen/src/global-init-proc-addr/other.bas -o tests/codegen/globalinitprocaddr.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/global-init-proc-addr/main.bas tests/codegen/src/global-init-proc-addr/other.bas -o tests/codegen/globalinitprocaddr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: undefined value
 '' EXPECT-FILE: tests/codegen/globalinitprocaddr.exe

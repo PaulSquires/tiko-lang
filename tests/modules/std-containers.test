@@ -3,8 +3,8 @@
 '' generic Contains and HashOf -- and, under 'using', a Map keyed by a user type that hashes
 '' itself through containers.Hashable, the hook that replaced re-opening namespace FB.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/containers.bas -o tests/modules/stdcontainers.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/containers.bas -o tests/modules/stdcontainers.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdcontainers.exe
 '' EXPECT-RUN-OUT: 1 2 3 6

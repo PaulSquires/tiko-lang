@@ -1,7 +1,7 @@
 '' procedures: a body may retype a 'byref as any' parameter; a literal passes its bytes (functions/void_param.bas)
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/byref-any-param.bas -o tests/codegen/byrefanyparam.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/byref-any-param.bas -o tests/codegen/byrefanyparam.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/byrefanyparam.exe
 '' EXPECT-RUN-EXIT: 0

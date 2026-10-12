@@ -3,7 +3,7 @@
 '' declared, where fbc-modern 1.20 prints 8 on win64 -- as it does for the size of a
 '' variable of the type, which already worked. See src/symbols/exprtypename.bas.
 '' TEST: cli
-'' ARGS: --dump-ir -target win64-msvc tests/mir/src/cva-sizeof-name.bas
+'' ARGS: --dump-ir -target windows-x86_64 tests/mir/src/cva-sizeof-name.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0743
 '' EXPECT-OUT: store @named, %

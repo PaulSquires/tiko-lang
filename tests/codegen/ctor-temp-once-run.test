@@ -4,8 +4,8 @@
 '' used to make a second object over the first one's buffer and free it twice. Output
 '' identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/ctor-temp-once.bas -o tests/codegen/ctortemponce.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/ctor-temp-once.bas -o tests/codegen/ctortemponce.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ctortemponce.exe
 '' EXPECT-RUN-EXIT: 0

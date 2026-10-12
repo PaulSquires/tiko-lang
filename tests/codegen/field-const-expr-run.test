@@ -2,8 +2,8 @@
 '' 'field = ( 1 )', 'field = 1 + 0' and 'field = PK * 2' were ignored and the type laid
 '' out unpacked. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/field-const-expr.bas -o tests/codegen/fieldconstexpr.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/field-const-expr.bas -o tests/codegen/fieldconstexpr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/fieldconstexpr.exe
 '' EXPECT-RUN-EXIT: 0

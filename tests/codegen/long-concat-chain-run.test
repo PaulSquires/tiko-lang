@@ -2,8 +2,8 @@
 '' cap refused it, set where the 64 MB compile thread ran out; the thread now RESERVES 1 GB,
 '' committed only as deep as the recursion goes (audit Phase 5).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/long-concat-chain.bas -o tests/codegen/longconcatchain.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/long-concat-chain.bas -o tests/codegen/longconcatchain.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/longconcatchain.exe
 '' EXPECT-RUN-EXIT: 0

@@ -22,11 +22,11 @@ GFX=$( cd "$HERE/.." && pwd )
 
 : "${TIKO:=$( cd "$GFX/../.." && pwd )/bin/tiko.exe}"
 
-TKOGFX="$GFX/lib/win64-msvc/libtkogfx.a"
-LIBFB="$GFX/../rt/lib/win64-msvc/libfb.a"
-# The import libraries tiko's own win64-msvc link resolves the CRT and Win32
+TKOGFX="$GFX/lib/windows-x86_64/libtkogfx.a"
+LIBFB="$GFX/../rt/lib/windows-x86_64/libfb.a"
+# The import libraries tiko's own windows-x86_64 link resolves the CRT and Win32
 # through (build/implibs.sh builds them). See the subject link below.
-: "${MSVC_IMPLIBS:=$( cd "$GFX/../.." && pwd )/toolchains/tiko-windows/lib/win64-msvc}"
+: "${MSVC_IMPLIBS:=$( cd "$GFX/../.." && pwd )/toolchains/tiko-windows/lib/windows-x86_64}"
 
 [ -x "$TIKO" ] || { echo "smoke: no $TIKO -- run build/build.sh" >&2 ; exit 3 ; }
 for f in "$TKOGFX" "$LIBFB"; do
@@ -44,8 +44,8 @@ name=smoke-entry
 # An unresolved fb_Gfx* here is the useful failure: it names an entry point the
 # library still does not export, from a program that legitimately uses it. The -p
 # directories come first, so the tree's libtkogfx and tiko-rt are the ones linked.
-if ! "$TIKO" "$src" -target win64-msvc -p "$( cygpath -m "$GFX/lib/win64-msvc" )" \
-         -p "$( cygpath -m "$GFX/../rt/lib/win64-msvc" )" -p "$( cygpath -m "$MSVC_IMPLIBS" )" \
+if ! "$TIKO" "$src" -target windows-x86_64 -p "$( cygpath -m "$GFX/lib/windows-x86_64" )" \
+         -p "$( cygpath -m "$GFX/../rt/lib/windows-x86_64" )" -p "$( cygpath -m "$MSVC_IMPLIBS" )" \
          -o "$TMP/$name.exe" > "$TMP/$name.log" 2>&1 || [ ! -f "$TMP/$name.exe" ]; then
     echo "smoke: DOES NOT BUILD, see below; an entry point it still needs:" >&2
     sed -n '1,10p' "$TMP/$name.log" >&2
@@ -76,7 +76,7 @@ if ! tr -d '\r' < "$TMP/$name.out" | grep -qx ' 1             2             3   
     echo "smoke: FAILED -- SCREEN 0 kept the graphics screen's WIDTH; the zoned line wrapped" >&2
     exit 1
 fi
-echo "smoke: ok -- win64-msvc, entry points reached through fb_Gfx*"
+echo "smoke: ok -- windows-x86_64, entry points reached through fb_Gfx*"
 
 [ "$1" = "--keep" ] && echo "smoke: build products left in $TMP"
 exit 0

@@ -6,16 +6,16 @@
 '' ENV: TKO_MODCACHE=
 '' ENV: LOCALAPPDATA=build/.mct-default/user
 '' ENV: XDG_CACHE_HOME=build/.mct-default/user
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.mct-default
 '' COPY: tests/driver/src/modcache => build/.mct-default
-'' STEP: -v -target win64-msvc -i build/.mct-default/libs build/.mct-default/app/main.bas -o build/.mct-default/app.exe
+'' STEP: -v -target windows-x86_64 -i build/.mct-default/libs build/.mct-default/app/main.bas -o build/.mct-default/app.exe
 '' STEP-OUT: module acme.leaf: miss (new)
-'' STEP: -v -target win64-msvc -i build/.mct-default/libs build/.mct-default/app/main.bas -o build/.mct-default/app.exe
+'' STEP: -v -target windows-x86_64 -i build/.mct-default/libs build/.mct-default/app/main.bas -o build/.mct-default/app.exe
 '' STEP-OUT: module acme.leaf: hit
 '' STEP-OUT: module acme.middle: hit
 '' CLEAN: build/.mct-default/user/tiko
-'' ARGS: -v -target win64-msvc -i build/.mct-default/libs build/.mct-default/app/main.bas -o build/.mct-default/app.exe
+'' ARGS: -v -target windows-x86_64 -i build/.mct-default/libs build/.mct-default/app/main.bas -o build/.mct-default/app.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: module acme.leaf: miss (new)
 '' EXPECT-OUT: module acme.middle: miss (new)

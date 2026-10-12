@@ -2,7 +2,7 @@
 '' a note at the import naming the alias -- '#import "std/strings"' then 'std.replace'. No
 '' note for a name no import spells. ADR 0017; RFC-0002 §2.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i tests/modules/src/iface/libs tests/diagnostics/src/modules/alias/segment.bas -o tests/diagnostics/aliassegment.exe
+'' ARGS: -target windows-x86_64 -i tests/modules/src/iface/libs tests/diagnostics/src/modules/alias/segment.bas -o tests/diagnostics/aliassegment.exe
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: segment.bas(5,7): error TKO0743: 'net' is not declared
 '' EXPECT-OUT: segment.bas(3,1): note: did you mean 'http'? '#import "acme/net/http"' binds the name 'http'

@@ -4,8 +4,8 @@
 '' backslash line join; '$"""'; an empty block; tokens after the closer; a block in a
 '' '#define'; a stringised block, which spells back as one escaped line; a const; a ustring.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/block-strings.bas -o tests/driver/blockstrings.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/block-strings.bas -o tests/driver/blockstrings.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/blockstrings.exe
 '' RUN: tests/driver/blockstrings.exe

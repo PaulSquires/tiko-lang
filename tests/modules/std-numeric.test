@@ -3,8 +3,8 @@
 '' const; NaN -- and under 'using numeric' Vec3d and mathint's macro-made AddChecked, whose
 '' Optional result the interface had to qualify in every expansion of the macro.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/numeric.bas -o tests/modules/stdnumeric.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/numeric.bas -o tests/modules/stdnumeric.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdnumeric.exe
 '' EXPECT-RUN-OUT: 5 5 106

@@ -9,7 +9,7 @@ costs.
 | `sieve` | integer loops, array indexing, a 10 MB heap array | 0.66–0.67 s | 0.67 s |
 | `mandel` | floating point in a tight loop | 0.78 s | 0.73 s |
 
-Measured 2026-09-26 on Windows 11, win64-msvc, the packaged toolchain at `a7b9e8fb`, clang 21.1.0,
+Measured 2026-09-26 on Windows 11, windows-x86_64, the packaged toolchain at `a7b9e8fb`, clang 21.1.0,
 three runs each, back to back; each program times its own work and prints the time. Both outputs agree
 (`664579` and `395558420`). **Linux has not been measured.** Two micro-benchmarks are a start,
 not a verdict: the plan is the full Benchmarks Game set, on both targets, against C, Rust, Go and

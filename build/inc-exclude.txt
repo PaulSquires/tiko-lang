@@ -13,7 +13,7 @@
 # A PATH may name a directory below the top (crt/dos). A second word 'unreachable' marks an
 # entry that shipped headers DO include, but only under a platform tiko never defines --
 # crt/stdio.bi's '#elseif defined(__FB_DOS__)' and the like. Measured 2026-10-10: tiko
-# defines __FB_WIN32__ (win64, win64-msvc) or __FB_LINUX__ + __FB_UNIX__ (linux-x86_64),
+# defines __FB_WIN32__ (win64, windows-x86_64) or __FB_LINUX__ + __FB_UNIX__ (linux-x86_64),
 # never __FB_DOS__, __FB_ANDROID__ or __FB_FREEBSD__, and every such include sits in one of
 # those branches (or stdio.bi's other-Unix fallback, after __FB_LINUX__). The guard skips
 # these; everything else it still checks.

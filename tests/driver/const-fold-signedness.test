@@ -1,7 +1,7 @@
 '' A folded constant's width and signedness, built to an executable. See the source's
 '' header for the output fbc prints; build/goldenrun.sh runs the result beside fbc's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/const-fold-signedness.bas -o tests/driver/constfoldsignedness.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/const-fold-signedness.bas -o tests/driver/constfoldsignedness.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/constfoldsignedness.exe

@@ -20,7 +20,7 @@ the executable.
 
 ```admonish info title="On Windows"
 The compiler is `tiko.exe` at the root. Beside it, `inc\` holds the headers and
-`lib\win64-msvc` the libraries.
+`lib\windows-x86_64` the libraries.
 ```
 
 ```admonish info title="On Linux"
@@ -148,17 +148,17 @@ tiko builds for two targets, and the default is the machine you are on.
 
 | Target | What it is | Default on |
 |---|---|---|
-| `win64-msvc` | Microsoft's ABI, linked against `ucrtbase.dll` | Windows |
+| `windows-x86_64` | Microsoft's ABI, linked against `ucrtbase.dll` | Windows |
 | `linux-x86_64` | The System V ABI, linked against the system's C library | Linux |
 
 Name one explicitly with `-target`:
 
 ```bash
-tiko hello.tiko -target win64-msvc -o hello
+tiko hello.tiko -target windows-x86_64 -o hello
 ```
 
 ```admonish note
-Despite the name, `win64-msvc` **does not need Visual Studio** — neither to compile nor to run.
+Despite the name, `windows-x86_64` **does not need Visual Studio** — neither to compile nor to run.
 tiko links it with `-nostdlib` against `ucrtbase.dll` and `kernel32.dll`, both of which are parts
 of Windows. A hello-world executable therefore depends only on components every Windows machine
 already has.
@@ -257,7 +257,7 @@ Chapter 18 comes back to both, together with testing and the debugger.
 - Source files are `.tiko`; headers you write are `.ti`.
 - `tiko hello.tiko -o hello` compiles and links in one step; `-c` stops at the object file and `-v`
   shows every command.
-- Two targets: `win64-msvc` (the Windows default, and no Visual Studio needed) and
+- Two targets: `windows-x86_64` (the Windows default, and no Visual Studio needed) and
   `linux-x86_64` (the Linux default). Objects from different targets do not link together.
 - Diagnostics carry stable `TKOnnnn` identifiers; `--diagnostics-format gnu` suits tools, and
   `-Werror` suits discipline.

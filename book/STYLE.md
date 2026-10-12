@@ -18,7 +18,7 @@ reference, so the two cannot drift.
 The order is not negotiable, because it is what makes the book true:
 
 1. Write the listing and its expected output.
-2. Run the harness. Green on win64-msvc **and** linux-x86_64.
+2. Run the harness. Green on windows-x86_64 **and** linux-x86_64.
 3. Then write the prose, describing what you just watched happen.
 
 **When a listing fails, the compiler is wrong until proven otherwise.** File the defect, mark the

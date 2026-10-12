@@ -3,8 +3,8 @@
 '' element (lof 0), nread stayed 0 and 'get #f, 1, dyn()' left the array zero.
 '' Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/file-getput-amount.bas -o tests/codegen/filegetputamount.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/file-getput-amount.bas -o tests/codegen/filegetputamount.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/filegetputamount.exe
 '' EXPECT-RUN-EXIT: 0

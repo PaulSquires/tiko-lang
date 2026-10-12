@@ -5,8 +5,8 @@
 '' is a procedure pointer. The same lambda in a plain sub was always fine. Output
 '' identical to fbc-modern's. See symbols/tmpllocal.bas.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/lambda-var-in-generic.bas -o tests/codegen/lambdavaringeneric.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/lambda-var-in-generic.bas -o tests/codegen/lambdavaringeneric.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/lambdavaringeneric.exe
 '' RUN: tests/codegen/lambdavaringeneric.exe

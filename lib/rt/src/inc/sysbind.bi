@@ -11,7 +11,7 @@
 '' redistributed -- the reason a toolchain could not be published (0015 §2.4). crt/long.bi,
 '' which carries no such notice, is the one fbc header the binding still names.
 ''
-'' win64-msvc builds from the win64 binding -- fbc compiles it AS win64 -- with the streams
+'' windows-x86_64 builds from the win64 binding -- fbc compiles it AS win64 -- with the streams
 '' re-pointed below, as they always were. No Microsoft-derived text is committed.
 ''
 '' THE RESIDUE is written here, from measurement, not taken from any header:
@@ -52,7 +52,7 @@ extern "C"   '' NON-FBCALL: the C library, not rtlib entry points.
 		'' __acrt_iob_func( n ) -- the Windows SDK's corecrt_wstdio.h defines stdout as
 		'' __acrt_iob_func( 1 ) -- and its FILE is not MinGW's 48 bytes, so the stream
 		'' is taken from the call and never by indexing an array. TKORT_MSVC comes from
-		'' build.sh: fbc compiles win64-msvc as win64, and nothing else tells them apart.
+		'' build.sh: fbc compiles windows-x86_64 as win64, and nothing else tells them apart.
 		declare function tkrt_acrt_iob alias "__acrt_iob_func" ( byval ix as ulong ) as FILE ptr
 		#define stdin  tkrt_acrt_iob( 0 )
 		#define stdout tkrt_acrt_iob( 1 )

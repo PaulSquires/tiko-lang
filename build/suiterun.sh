@@ -17,7 +17,7 @@
 # share a directory. That cost an hour; hence two directories and a comment.
 #
 # tiko is given its OWN headers, not fbc-modern's: the crt bindings differ per target and
-# tiko's win64-msvc stdio.bi is the one that matches what it links against.
+# tiko's windows-x86_64 stdio.bi is the one that matches what it links against.
 set -u
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
@@ -46,7 +46,7 @@ WK=${SUITERUN_WK:-${TMPDIR:-/tmp}/suiterun}
 RUNTIMEOUT=${RUNTIMEOUT:-180}
 
 export TKO_INCLUDE="$ROOT/toolchains/tiko-windows/inc"
-export TKO_LIBPATH="$ROOT/toolchains/tiko-windows/lib/win64-msvc"
+export TKO_LIBPATH="$ROOT/toolchains/tiko-windows/lib/windows-x86_64"
 
 mkdir -p "$WK/fb" "$WK/tk" "$WK/o"
 if [ ! -f "$WK/fb/libfbcunit.a" ] ; then

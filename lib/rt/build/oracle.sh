@@ -56,10 +56,10 @@ rt_reflib( ) {
 
 # THE TARGET NAME fbc IS GIVEN. fbc has no MSVC target -- its -target table is
 # win64, win32, x86_64-w64-mingw32 and linux-x86_64, and every msvc spelling is
-# its error 81 -- so win64-msvc compiles as win64 and is retargeted afterwards.
+# its error 81 -- so windows-x86_64 compiles as win64 and is retargeted afterwards.
 rt_fbc_target( ) {
     case "$1" in
-        win64-msvc) echo "win64" ;;
+        windows-x86_64) echo "win64" ;;
         *)          echo "$1" ;;
     esac
 }

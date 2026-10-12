@@ -16,7 +16,7 @@ If it is `#lang "fb"` code, that is the aim: the same accept/reject decision as 
 Yes, once. The repository holds the compiler's source, not a prebuilt toolchain. `bash build/package.sh --verify` builds one for your host. It needs the seed -- the earlier tiko release `sh seed/fetch-seed.sh` fetches -- to compile tiko, and clang to run it. See [Quick Start](Quick-Start).
 
 **Which targets are supported?**
-- `win64-msvc`: the default on Windows, and it needs no Visual Studio.
+- `windows-x86_64`: the default on Windows, and it needs no Visual Studio.
 - `win64`: the legacy MinGW ABI, kept for now for objects built by fbc.
 - `linux-x86_64`: the default on Linux.
 

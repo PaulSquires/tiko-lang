@@ -1,5 +1,5 @@
 /* msext.h -- what the MSVC headers are written with. Freestanding.
-   Under MS extensions -- win64-msvc -- an anonymous member may be a NAMED record or a
+   Under MS extensions -- windows-x86_64 -- an anonymous member may be a NAMED record or a
    typedef of one, written with no member name; winuser.h's tagMOUSEHOOKSTRUCTEX and
    objidl.h's _userSTGMEDIUM are both. To C they declare nothing, and to the gnu targets
    they are a warning and a smaller record. */

@@ -9,10 +9,10 @@ Two columns, braille history plots, gradient meters per core, a scrolling proces
 ## Build and run
 
 ```freebasic
-tiko dashboard.tiko        ' win64-msvc on Windows, linux-x86_64 on Linux
+tiko dashboard.tiko        ' windows-x86_64 on Windows, linux-x86_64 on Linux
 ```
 
-Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for win64-msvc and win64, and compiles it for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: it is interactive). fbc builds it clean at `-w all`.
+Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for windows-x86_64 and win64, and compiles it for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: it is interactive). fbc builds it clean at `-w all`.
 
 ## What to notice
 
@@ -32,7 +32,7 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 '' scrollbar, and a status bar. RFC-0008 section 7 maps every element to the
 '' widget that draws it.
 ''
-'' Build (win64-msvc or linux-x86_64):
+'' Build (windows-x86_64 or linux-x86_64):
 ''     tiko dashboard.tiko
 ''
 '' Keys: up/down move the process selection, q or Esc quits. The data is

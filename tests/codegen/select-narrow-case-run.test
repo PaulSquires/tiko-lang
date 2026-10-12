@@ -3,8 +3,8 @@
 '' the same signedness: over 'dim as short s = -2', 'case 65534' became -2 and matched.
 '' Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/select-narrow-case.bas -o tests/codegen/selectnarrowcase.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/select-narrow-case.bas -o tests/codegen/selectnarrowcase.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/selectnarrowcase.exe
 '' EXPECT-RUN-EXIT: 0

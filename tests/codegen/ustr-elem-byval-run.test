@@ -1,7 +1,7 @@
 '' T65, RUN: output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/ustr-elem-byval.bas -o tests/codegen/ustrelem.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/ustr-elem-byval.bas -o tests/codegen/ustrelem.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ustrelem.exe
 '' EXPECT-RUN-OUT: ABCD

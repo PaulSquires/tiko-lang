@@ -19,14 +19,14 @@
 ''
 '' THIS REPLACES fbc's MEMBER; it does not stub out a working one. Until now the
 '' win64 and linux targets linked fbc's copy from lib/<target>-fb/ -- the same
-'' NULL -- and win64-msvc, which has no fbc archive, failed to LINK any program
+'' NULL -- and windows-x86_64, which has no fbc archive, failed to LINK any program
 '' that used THREADCALL. The compiler warns at every use (TKO0797), so the
 '' difference from a working THREADCALL is said at compile time rather than
 '' discovered as a thread that never ran.
 ''
 '' THE ARGUMENTS ARE NOT READ. A real implementation marshals them through
 '' libffi, and there is no libffi here for any target -- none at all for
-'' win64-msvc. When there is, this is the file that changes, and TKO0797 goes.
+'' windows-x86_64. When there is, this is the file that changes, and TKO0797 goes.
 ''
 '' VARIADIC, SO extern "c". fbc declares it FBCALL, which is nothing on x86-64,
 '' so the symbol is the plain name either way; a '...' needs cdecl in FreeBASIC.

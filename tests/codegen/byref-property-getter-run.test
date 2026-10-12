@@ -1,8 +1,8 @@
 '' A BYREF PROPERTY GETTER: 'x.f' reads through the returned address, '@x.f' is that
 '' address (functions/return-byref.bas properties). tiko printed the address itself.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/byref-property-getter.bas -o tests/codegen/byrefpropertygetter.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/byref-property-getter.bas -o tests/codegen/byrefpropertygetter.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/byrefpropertygetter.exe
 '' EXPECT-RUN-EXIT: 0

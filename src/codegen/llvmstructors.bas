@@ -40,7 +40,7 @@
 ''   linux-x86_64   .init_array / .fini_array.NNNNN (the number): as declared.
 ''   win64          .ctors / .dtors.NNNNN (65535 minus the number). LLVM reverses the
 ''                  .ctors/.dtors list, so it is written reversed to cancel that.
-''   win64-msvc     .CRT$XCV / .CRT$XTY + (65535 minus the number) -- after the
+''   windows-x86_64     .CRT$XCV / .CRT$XTY + (65535 minus the number) -- after the
 ''                  unnumbered .CRT$XCU / .CRT$XTX, which is where mingw's sorted
 ''                  .ctors.* sit relative to .ctors. tiko-rt's start-up walks .CRT$XC*
 ''                  backwards and .CRT$XT* forwards (lib/rt/src/c/msvccrt.c), as
@@ -212,13 +212,13 @@ private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as s
                 dflt.Push( fi )
                 continue for
             end if
-            '' WRITABLE, except on win64-msvc. The linker merges a section by name AND
+            '' WRITABLE, except on windows-x86_64. The linker merges a section by name AND
             '' flags, and a read-only '.ctors.65434' did not join mingw's writable
             '' .ctors between __CTOR_LIST__ and __CTOR_END__, so it never ran; clang
             '' marks its own .ctors.NNNNN writable. The .CRT$X fragments are read-only,
             '' as tiko-rt's own brackets are.
             dim as string gn = "@__tko_" & iif( isCtor, "ctor.", "dtor." ) & str( nused )
-            dim as string gk = iif( e.tgt->id = Tko.TARGET_WIN64_MSVC, "constant", "global" )
+            dim as string gk = iif( e.tgt->id = Tko.TARGET_WINDOWS_X86_64, "constant", "global" )
             r += gn & " = internal " & gk & " ptr " & GlobalName( e, f->name ) & _
                  ", section """ & StructorSection_( e, isCtor, f->structorPrio ) & _
                  """, align 8" & chr( 10 )
@@ -272,7 +272,7 @@ private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as s
             r += "  call void " & ModSym_( "__tko_modinit$", ch ) & "()" & nl
         next
         r += "  ret void" & nl & "}" & nl
-        dim as string gk = iif( e.tgt->id = Tko.TARGET_WIN64_MSVC, "constant", "global" )
+        dim as string gk = iif( e.tgt->id = Tko.TARGET_WINDOWS_X86_64, "constant", "global" )
         r += "@__tko_ctor.modinit = internal " & gk & " ptr " & ModSym_( "__tko_initall", "" ) & _
              ", section " & chr( 34 ) & StructorSection_( e, true, 65534 ) & chr( 34 ) & ", align 8" & nl
         r += "@__tko_dtor.modfini = internal " & gk & " ptr " & ModSym_( "__tko_modfini_drain", "" ) & _

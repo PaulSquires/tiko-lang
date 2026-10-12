@@ -2,8 +2,8 @@
 '' passed the narrow literal where UTF-16 belongs, so CDispInvoke's 'Put( "Pattern" )' named no
 '' property (DISP_E_UNKNOWNNAME). Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/setter-wide-index.bas -o tests/codegen/setterwideindex.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/setter-wide-index.bas -o tests/codegen/setterwideindex.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/setterwideindex.exe
 '' EXPECT-RUN-EXIT: 0

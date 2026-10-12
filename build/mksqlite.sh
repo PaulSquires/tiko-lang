@@ -3,7 +3,7 @@
 #
 #   build/mksqlite.sh <target> <lib-dir>
 #
-#   <target>   win64-msvc | linux-x86_64
+#   <target>   windows-x86_64 | linux-x86_64
 #   <lib-dir>  where libsqlite3.a is written -- package.sh passes $OUT/lib/<target>
 #
 #   TKO_SQLITE  the fbsqlite repository (default: ../sqlite beside this repository),
@@ -18,7 +18,7 @@
 # ever resolved on -target win64, through the MinGW libsqlite3.a fbc-modern's tree
 # carries in lib/win64-fb. Measured 2026-10-01:
 #
-#   win64-msvc     lld-link: could not open 'sqlite3.lib' -- the default target could
+#   windows-x86_64     lld-link: could not open 'sqlite3.lib' -- the default target could
 #                  not link a single database program
 #   linux-x86_64   no fbsqlite headers and no SQLite library in the toolchain at all,
 #                  because fbc-modern-linux carries neither
@@ -29,11 +29,11 @@
 # WHY NOT COPY THE MinGW ARCHIVE: it carries MinGW CRT dependencies, and those must
 # not be within reach of an MSVC -l -- the wrong runtime would resolve them. LinkExe
 # resolves lib<name>.a in a search path before it asks lld-link for <name>.lib, so a
-# COFF archive named libsqlite3.a in lib/win64-msvc is found -- the way libfbcunit.a is.
+# COFF archive named libsqlite3.a in lib/windows-x86_64 is found -- the way libfbcunit.a is.
 #
 # THE MSVC OBJECT MUST NAME NO LIBRARIES. clang's MSVC mode embeds /DEFAULTLIB
 # directives -- libcmt and oldnames by default, and uuid from a pragma in the Windows
-# headers. tiko links win64-msvc with -nostdlib against ucrtbase and kernel32 only,
+# headers. tiko links windows-x86_64 with -nostdlib against ucrtbase and kernel32 only,
 # precisely so that a reader needs no Visual Studio (toolchain.bas, LinkExe), and a
 # directive would reach straight back into one. -fms-omit-default-lib drops the CRT
 # ones, WIN32_LEAN_AND_MEAN keeps the header that adds uuid out, and
@@ -45,8 +45,8 @@
 # failed only fbsqlite's two FTS5 assertions. So the archive must define FTS5 symbols.
 set -eu
 
-target=${1:?usage: mksqlite.sh <win64-msvc|linux-x86_64> <lib-dir>}
-libdir=${2:?usage: mksqlite.sh <win64-msvc|linux-x86_64> <lib-dir>}
+target=${1:?usage: mksqlite.sh <windows-x86_64|linux-x86_64> <lib-dir>}
+libdir=${2:?usage: mksqlite.sh <windows-x86_64|linux-x86_64> <lib-dir>}
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 SQLITE=${TKO_SQLITE:-$ROOT/../sqlite}
@@ -72,7 +72,7 @@ NM=$( command -v llvm-nm 2>/dev/null || command -v nm 2>/dev/null || echo "$LLVM
 OBJDUMP=$( command -v llvm-objdump 2>/dev/null || echo "$LLVM_BIN/llvm-objdump.exe" )
 
 case "$target" in
-    win64-msvc)
+    windows-x86_64)
         TFLAGS="--target=x86_64-pc-windows-msvc -fms-omit-default-lib -fno-stack-protector -DWIN32_LEAN_AND_MEAN" ;;
     linux-x86_64)
         TFLAGS="-fPIC" ;;
@@ -94,7 +94,7 @@ trap 'rm -rf "$tmp"' EXIT
 "$CC" $OPTS $TFLAGS -c "$SRC" -o "$tmp/sqlite3.o" >"$tmp/log" 2>&1 \
     || fail "compile failed: $( grep -m1 -i error "$tmp/log" | cut -c1-140 )"
 
-if [ "$target" = "win64-msvc" ] && [ -x "$OBJDUMP" ]; then
+if [ "$target" = "windows-x86_64" ] && [ -x "$OBJDUMP" ]; then
     if "$OBJDUMP" -h "$tmp/sqlite3.o" 2>/dev/null | grep -q drectve; then
         fail "the object still names a default library (.drectve) -- it would need Visual Studio"
     fi

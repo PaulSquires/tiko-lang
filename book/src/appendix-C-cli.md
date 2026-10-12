@@ -101,7 +101,7 @@ A subcommand is the first word on the command line. It builds a project from its
 
 | Option | What it does |
 |---|---|
-| `-target ‹name›` | win64-msvc (the Windows default) or linux-x86_64 |
+| `-target ‹name›` | windows-x86_64 (the Windows default) or linux-x86_64 |
 | `-m64` | 64-bit target (the only supported width) |
 | `-m32` | rejected: 32-bit is not supported (x86-64 only) |
 | `-s ‹console|gui›` | Windows subsystem of an executable; console is the default |

@@ -1,8 +1,8 @@
 '' A VIRTUAL call with a byref result is read through, as a direct one is: 'xa.f1( )' over
 '' 'byref as const integer' printed the address (virtual/compatible-override.bas).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/virtual-byref-result-read.bas -o tests/codegen/virtualbyrefresultread.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/virtual-byref-result-read.bas -o tests/codegen/virtualbyrefresultread.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/virtualbyrefresultread.exe
 '' EXPECT-RUN-EXIT: 0

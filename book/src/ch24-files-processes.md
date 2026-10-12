@@ -104,7 +104,7 @@ touching the disk:
 On Windows:
 
 ```text
-{{#include ../examples/ch24/paths.win64-msvc.out}}
+{{#include ../examples/ch24/paths.windows-x86_64.out}}
 ```
 
 On Linux:
@@ -137,7 +137,7 @@ whole name.
 On Windows:
 
 ```text
-{{#include ../examples/ch24/pathescape.win64-msvc.out}}
+{{#include ../examples/ch24/pathescape.windows-x86_64.out}}
 ```
 
 On Linux:

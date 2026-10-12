@@ -1,8 +1,8 @@
 '' gfx: PALETTE [GET] USING entry counts, negative entries, a UDT's pointer cast, and the 32/64 choice (gfx/palette.bas).
 '' See the source's header.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/gfx-palette-using.bas -o tests/codegen/gfxpaletteusing.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/gfx-palette-using.bas -o tests/codegen/gfxpaletteusing.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/gfxpaletteusing.exe

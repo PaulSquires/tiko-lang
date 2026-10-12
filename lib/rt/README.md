@@ -4,7 +4,7 @@ The FreeBASIC runtime library, written in FreeBASIC.
 
 API- and ABI-compatible with fbc-modern's `libfb`, for use by the
 [tiko](../tiko-lang) compiler. Built by tiko itself (the tree's `bin/tiko`) since
-2026-10-10, where it was FBC-Modern's `-gen llvm`; targets **win64-msvc, win64 and
+2026-10-10, where it was FBC-Modern's `-gen llvm`; targets **windows-x86_64, win64 and
 linux-x86_64**.
 
 > **Status: decision spike.** This exists to answer one question — *would a

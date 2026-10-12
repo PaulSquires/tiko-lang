@@ -16,7 +16,7 @@
 '' (see its header). A DRIVER TEST BECAUSE IT HAS TO LINK -- the failure was clang's; the
 '' source is a goldenrun.sh differential too.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/driver/src/iif-in-concat.bas -o tests/driver/iifinconcat.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/driver/src/iif-in-concat.bas -o tests/driver/iifinconcat.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/iifinconcat.exe

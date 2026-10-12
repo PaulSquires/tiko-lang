@@ -17,7 +17,7 @@
 '' the runtime because it REPLACES the bundled search -- and the '.' entry is added
 '' even then, which is the other half of what this pins.
 '' TEST: cli
-'' ARGS: -target win64-msvc -lib tests/codegen/src/export.bas -o tests/driver/libcwdprobe.a
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -lib tests/codegen/src/export.bas -o tests/driver/libcwdprobe.a
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/libcwdprobe.a

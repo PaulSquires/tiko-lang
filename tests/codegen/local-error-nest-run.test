@@ -2,8 +2,8 @@
 '' the caller's handler -- fbc-modern's output. tiko jumped to the procedure's handler, in a
 '' frame that had returned, and crashed.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/local-error-nest.bas -o tests/codegen/localerrnest.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/local-error-nest.bas -o tests/codegen/localerrnest.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/localerrnest.exe
 '' EXPECT-RUN-OUT: close: 1

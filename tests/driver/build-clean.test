@@ -2,10 +2,10 @@
 '' its link beside it (B5).
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bcl/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.bcl
-'' STEP: build -target win64-msvc tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bcl/app.exe
-'' ARGS: clean -target win64-msvc tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bcl/app.exe --message-format json
+'' STEP: build -target windows-x86_64 tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bcl/app.exe
+'' ARGS: clean -target windows-x86_64 tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bcl/app.exe --message-format json
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: {"event":"clean","target":"main","path":"build/.bcl/app.exe","removed":true}
 '' EXPECT-NO-FILE: build/.bcl/app.exe

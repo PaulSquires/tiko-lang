@@ -3,8 +3,8 @@
 '' exit (fbc's structs/obj_shared_array_ini.bas, obj_global_with_temp.bas). tiko declined it.
 '' Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/shared-array-ctor-list.bas -o tests/codegen/sharedarrayctorlist.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/shared-array-ctor-list.bas -o tests/codegen/sharedarrayctorlist.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/sharedarrayctorlist.exe
 '' EXPECT-RUN-EXIT: 0

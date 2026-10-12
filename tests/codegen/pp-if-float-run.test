@@ -1,8 +1,8 @@
 '' RUN: '#if' compares floats and divides with '/' as fbc does. Output identical to
 '' fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/pp-if-float.bas -o tests/codegen/ppiffloat.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/pp-if-float.bas -o tests/codegen/ppiffloat.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ppiffloat.exe
 '' EXPECT-RUN-EXIT: 0

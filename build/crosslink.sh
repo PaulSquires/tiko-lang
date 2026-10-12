@@ -13,7 +13,7 @@
 # every case here needs fbc invoked as well, and a suite that shells out to a
 # second compiler is a different kind of thing from one that compares text.
 #
-# WIN64, NOT THE DEFAULT TARGET. tiko-lang defaults to win64-msvc and fbc is a
+# WIN64, NOT THE DEFAULT TARGET. tiko-lang defaults to windows-x86_64 and fbc is a
 # MinGW toolchain, so their objects cannot meet there -- different CRT, different
 # startup. '-target win64' is the MinGW ABI and is the only place this test has
 # any meaning. That is a real limit on the result, not a detail of the harness:

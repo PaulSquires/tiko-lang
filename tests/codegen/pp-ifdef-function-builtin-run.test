@@ -1,8 +1,8 @@
 '' '#ifdef' and 'defined( )' over the builtins: fbc takes the true branch for '__FUNCTION__'
 '' and '__FUNCTION_NQ__' too, which the parser and not a macro expands; tiko took neither.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/pp-ifdef-function-builtin.bas -o tests/codegen/ppifdeffunctionbuiltin.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/pp-ifdef-function-builtin.bas -o tests/codegen/ppifdeffunctionbuiltin.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ppifdeffunctionbuiltin.exe
 '' EXPECT-RUN-EXIT: 0

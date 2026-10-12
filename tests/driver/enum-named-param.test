@@ -7,7 +7,7 @@
 '' A DRIVER TEST BECAUSE IT HAS TO LINK: the failure was clang's. The source is also a
 '' goldenrun.sh differential -- built and run by fbc and by tiko, byte-identical.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/driver/src/enum-named-param.bas -o tests/driver/enumnamedparam.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/driver/src/enum-named-param.bas -o tests/driver/enumnamedparam.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/enumnamedparam.exe

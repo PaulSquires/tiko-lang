@@ -4,7 +4,7 @@
 ** what calls fb_hRtInit before main and fb_hRtExit after it.  RFC-0003 records
 ** that object as staying C and as NOT being an archive member: fbc names it on
 ** the link line itself.  A program linked against tiko-rt's archive alone --
-** which is what the win64-msvc target produces, since fbc cannot link an MSVC
+** which is what the windows-x86_64 target produces, since fbc cannot link an MSVC
 ** object -- therefore never calls either one.
 **
 ** MEASURED, and it is not a subtle failure once you look for it:

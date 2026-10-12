@@ -16,7 +16,7 @@
 # THE TWO BUILDS ARE NOT THE SAME ABI, and they cannot be:
 #
 #   reference  fbc -gen llvm, MinGW, links libfbgfx.a  -- gfxlib2's answers
-#   subject    tiko, win64-msvc, links the tree's libtkogfx.a + tiko-rt
+#   subject    tiko, windows-x86_64, links the tree's libtkogfx.a + tiko-rt
 #
 # gfxlib2 ships only as a MinGW archive and libtkogfx only as an MSVC one, so
 # there is no configuration in which both are linkable. That is the same
@@ -39,11 +39,11 @@ GFX=$( cd "$HERE/.." && pwd )
 FBC_REF=${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
 : "${TIKO:=$( cd "$GFX/../.." && pwd )/bin/tiko.exe}"
 
-TKOGFX="$GFX/lib/win64-msvc/libtkogfx.a"
-LIBFB="$GFX/../rt/lib/win64-msvc/libfb.a"
-# The import libraries tiko's own win64-msvc link resolves the CRT and Win32
+TKOGFX="$GFX/lib/windows-x86_64/libtkogfx.a"
+LIBFB="$GFX/../rt/lib/windows-x86_64/libfb.a"
+# The import libraries tiko's own windows-x86_64 link resolves the CRT and Win32
 # through (build/implibs.sh builds them). See the subject link below.
-: "${MSVC_IMPLIBS:=$( cd "$GFX/../.." && pwd )/toolchains/tiko-windows/lib/win64-msvc}"
+: "${MSVC_IMPLIBS:=$( cd "$GFX/../.." && pwd )/toolchains/tiko-windows/lib/windows-x86_64}"
 
 [ -x "$FBC_REF" ] || { echo "gate-entry: SKIPPED -- no oracle fbc at $FBC_REF (TKO_ORACLE_FBC)" ; exit 0 ; }
 [ -x "$TIKO" ] || { echo "gate-entry: no $TIKO -- run build/build.sh" >&2 ; exit 3 ; }
@@ -80,8 +80,8 @@ fi
 # An unresolved fb_Gfx* names an entry point a legitimate program needs and the
 # library does not export. The -p directories come first, so the tree's libtkogfx and
 # tiko-rt are the ones linked.
-if ! "$TIKO" "$src" -target win64-msvc -p "$( cygpath -m "$GFX/lib/win64-msvc" )" \
-         -p "$( cygpath -m "$GFX/../rt/lib/win64-msvc" )" -p "$( cygpath -m "$MSVC_IMPLIBS" )" \
+if ! "$TIKO" "$src" -target windows-x86_64 -p "$( cygpath -m "$GFX/lib/windows-x86_64" )" \
+         -p "$( cygpath -m "$GFX/../rt/lib/windows-x86_64" )" -p "$( cygpath -m "$MSVC_IMPLIBS" )" \
          -o "$TMP/sub.exe" > "$TMP/sub.log" 2>&1 || [ ! -f "$TMP/sub.exe" ]; then
     echo "gate-entry: the SUBJECT does not build:" >&2
     sed -n '1,10p' "$TMP/sub.log" >&2

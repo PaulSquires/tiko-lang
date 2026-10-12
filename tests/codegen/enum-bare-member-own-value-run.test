@@ -1,8 +1,8 @@
 '' A bare enum member keeps ITS enum's value: an 'explicit' enum's member of the same name set
 '' it -- 'print B' gave 6 where fbc gives 2 (namespace/enum-decls.bas).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/enum-bare-member-own-value.bas -o tests/codegen/enumbarememberownvalue.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/enum-bare-member-own-value.bas -o tests/codegen/enumbarememberownvalue.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/enumbarememberownvalue.exe
 '' EXPECT-RUN-EXIT: 0

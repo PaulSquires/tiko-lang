@@ -8,7 +8,7 @@
 '' Needs clang and lld, as every test that links does. The symbol is defined nowhere, so
 '' the link fails whatever runtime the machine has.
 '' TEST: cli
-'' ARGS: -target win64-msvc -o build/.diagfile-link.exe --diagnostics-file build/.diagfile-link.tsv tests/driver/src/diagfile-link.bas
+'' ARGS: -target windows-x86_64 -o build/.diagfile-link.exe --diagnostics-file build/.diagfile-link.tsv tests/driver/src/diagfile-link.bas
 '' EXPECT-EXIT: 5
 '' EXPECT-OUT: error TKO0116: link failed (exit
 '' EXPECT-FILE-HAS: build/.diagfile-link.tsv :: tiko-diagnostics\t1\nerror\tTKO0116\t\t0\t0\t0\t0\tlink failed (exit

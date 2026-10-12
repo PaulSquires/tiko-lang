@@ -1,8 +1,8 @@
 '' gfx: VIEW's fill and border colours -- border outside the view under a full-screen clip, fill clears the view and recentres the cursor, both converted and masked for the depth.
 '' See the source's header.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/gfx-view-colours.bas -o tests/codegen/gfxviewcolours.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/gfx-view-colours.bas -o tests/codegen/gfxviewcolours.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/gfxviewcolours.exe

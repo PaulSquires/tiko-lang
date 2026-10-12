@@ -2,8 +2,8 @@
 '' does when the call spans lines with '_'; nested and #macro forms too. tiko answered for
 '' the line of the macro name (audit LEX16).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/pp-line-multiline-call.bas -o tests/codegen/pplinemultilinecall.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/pp-line-multiline-call.bas -o tests/codegen/pplinemultilinecall.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/pplinemultilinecall.exe
 '' EXPECT-RUN-EXIT: 0

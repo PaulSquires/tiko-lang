@@ -2,8 +2,8 @@
 '' FBOPTION_PROCPUBLIC does -- Helper in a.bas is a.bas's own, and b.bas's Helper links
 '' beside it. tiko kept the pragma's macro and ignored its meaning, so the two collided.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/pragma-private/a.bas tests/codegen/src/pragma-private/b.bas -o tests/codegen/pragmapriv.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/pragma-private/a.bas tests/codegen/src/pragma-private/b.bas -o tests/codegen/pragmapriv.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/pragmapriv.exe
 '' EXPECT-RUN-EXIT: 0

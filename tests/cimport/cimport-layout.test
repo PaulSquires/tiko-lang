@@ -20,5 +20,5 @@
 '' EXPECT-OUT[linux-x86_64]: struct    lay_holds_bits              field 'b': uses 'lay_bits', which was skipped
 '' EXPECT-OUT[win64]: type lay_bits field = 4
 '' EXPECT-OUT[win64]: type lay_holds_bits field = 4
-'' EXPECT-OUT[win64-msvc]: type lay_bits field = 4
-'' EXPECT-OUT[win64-msvc]: type lay_holds_bits field = 4
+'' EXPECT-OUT[windows-x86_64]: type lay_bits field = 4
+'' EXPECT-OUT[windows-x86_64]: type lay_holds_bits field = 4

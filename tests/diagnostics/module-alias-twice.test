@@ -1,6 +1,6 @@
 '' TKO0862: ONE ALIAS BOUND BY TWO IMPORTS in one file -- 'x' names acme.text.esc, and then
 '' acme.net.http (ADR 0017; RFC-0002 §2).
 '' TEST: cli
-'' ARGS: -target win64-msvc -i tests/modules/src/iface/libs tests/diagnostics/src/modules/alias/twice.bas -o tests/diagnostics/aliastwice.exe
+'' ARGS: -target windows-x86_64 -i tests/modules/src/iface/libs tests/diagnostics/src/modules/alias/twice.bas -o tests/diagnostics/aliastwice.exe
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: twice.bas(3,1): error TKO0862: alias 'x' is already bound in this file (by '#import "acme/text/esc"')

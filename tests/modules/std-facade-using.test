@@ -2,8 +2,8 @@
 '' 'using' never reaches (RFC-0009 §4), and the bare call was TKO0743; since 2026-10-10 it is
 '' a real module, and its public procedures are names like any module's.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/using.bas -o tests/modules/stdusing.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/using.bas -o tests/modules/stdusing.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdusing.exe
 '' EXPECT-RUN-OUT: zb

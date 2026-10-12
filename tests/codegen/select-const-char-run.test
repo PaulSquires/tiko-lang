@@ -2,8 +2,8 @@
 '' code, 250 included. tiko compared the rest of the string against each case as text.
 '' Expected output is fbc-modern's (fbc's compound/select_const.bas, zstringDeref).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/select-const-char.bas -o tests/codegen/selectconstchar.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/select-const-char.bas -o tests/codegen/selectconstchar.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/selectconstchar.exe
 '' EXPECT-RUN-EXIT: 0

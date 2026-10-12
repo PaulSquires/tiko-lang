@@ -6,8 +6,8 @@
 '' a rendered number, and beside a type that also casts to long. Output identical to
 '' fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/print-udt-ustr-cast.bas -o tests/codegen/printudtustrcast.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/print-udt-ustr-cast.bas -o tests/codegen/printudtustrcast.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/printudtustrcast.exe
 '' RUN: tests/codegen/printudtustrcast.exe

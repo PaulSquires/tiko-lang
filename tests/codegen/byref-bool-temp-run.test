@@ -1,8 +1,8 @@
 '' AN RVALUE FOR A 'byref as boolean' PARAMETER is converted to boolean, not truncated: 256, 512
 '' and 0.5 are true. Expected output is fbc-modern's (fbc's boolean/boolean_args.bas).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/byref-bool-temp.bas -o tests/codegen/byrefbooltemp.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/byref-bool-temp.bas -o tests/codegen/byrefbooltemp.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/byrefbooltemp.exe
 '' EXPECT-RUN-EXIT: 0

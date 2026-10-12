@@ -2,8 +2,8 @@
 '' __FUNCTION__, __FUNCTION_NQ__ and __FB_QUERY_SYMBOL__, which the parser and not a macro
 '' expands, and __FB_MIN_VERSION__.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/pp-ifdef-builtin-table.bas -o tests/codegen/ppifdefbuiltintable.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/pp-ifdef-builtin-table.bas -o tests/codegen/ppifdefbuiltintable.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ppifdefbuiltintable.exe
 '' EXPECT-RUN-EXIT: 0

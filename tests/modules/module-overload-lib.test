@@ -6,8 +6,8 @@
 '' MODULE'S GLOBAL OPERATOR IS NO MEMBER in an importer: 'operator len' there counted a
 '' receiver and named v23len, where the module defined v13len.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i tests/modules/src/overlib/libs tests/modules/src/overlib/app/main.bas -o tests/modules/overlib.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i tests/modules/src/overlib/libs tests/modules/src/overlib/app/main.bas -o tests/modules/overlib.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/overlib.exe
 '' EXPECT-RUN-OUT:  1 2-1-1

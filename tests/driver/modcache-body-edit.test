@@ -5,12 +5,12 @@
 '' is, so an edit that moves one changes the interface too.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-body/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.mct-body
 '' COPY: tests/driver/src/modcache => build/.mct-body
-'' STEP: -v -target win64-msvc -i build/.mct-body/libs build/.mct-body/app/main.bas -o build/.mct-body/app.exe
+'' STEP: -v -target windows-x86_64 -i build/.mct-body/libs build/.mct-body/app/main.bas -o build/.mct-body/app.exe
 '' WRITE: build/.mct-body/libs/acme/leaf/leaf.bas :: '' The bottom of the module-cache fixture: acme.middle imports it, main imports acme.middle.\n#module "leaf"\n#include once "../../../inc/leafcfg.bi"\npublic function Seed( ) as long\n    return LEAF_BASE + 1\nend function\n
-'' ARGS: -v -target win64-msvc -i build/.mct-body/libs build/.mct-body/app/main.bas -o build/.mct-body/app.exe
+'' ARGS: -v -target windows-x86_64 -i build/.mct-body/libs build/.mct-body/app/main.bas -o build/.mct-body/app.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: module acme.leaf: miss (source leaf.bas
 '' EXPECT-OUT: module acme.middle: hit

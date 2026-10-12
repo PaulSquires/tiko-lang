@@ -1,4 +1,4 @@
-'' Every stdio function the UCRT defines inline, called through crt.bi. On win64-msvc each
+'' Every stdio function the UCRT defines inline, called through crt.bi. On windows-x86_64 each
 '' was "undefined symbol" at the link until tiko-rt defined it (lib/rt/src/c/msvccrt.c).
 '' The output is fbc-modern's for the same program, except vsnprintf's truncation: tiko
 '' follows the UCRT's C99 vsnprintf, as its snprintf already did.

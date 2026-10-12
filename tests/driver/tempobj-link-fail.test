@@ -2,8 +2,8 @@
 '' resolve 'nolink', and 'tempobj.exe.1.o' and '.2.o' used to stay behind -- 92 were found
 '' in src/driver (audit F-74).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/tempobj/a.bas tests/driver/src/tempobj/c.bas -o tests/driver/src/tempobj/tempobj.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/tempobj/a.bas tests/driver/src/tempobj/c.bas -o tests/driver/src/tempobj/tempobj.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 5
 '' EXPECT-NO-FILE: tests/driver/src/tempobj/tempobj.exe.1.o
 '' EXPECT-NO-FILE: tests/driver/src/tempobj/tempobj.exe.2.o

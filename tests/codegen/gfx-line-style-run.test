@@ -1,8 +1,8 @@
 '' gfx: LINE's 16-bit style mask, every direction, clipped and not, plus styled LINE B, at 8/16/32 bpp (gfx/line.bas).
 '' See the source's header.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/gfx-line-style.bas -o tests/codegen/gfxlinestyle.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/gfx-line-style.bas -o tests/codegen/gfxlinestyle.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/gfxlinestyle.exe

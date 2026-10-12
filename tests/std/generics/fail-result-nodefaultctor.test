@@ -1,7 +1,7 @@
 '' tests/vendor/fbc-tests/generics/fail-result-nodefaultctor.bas ported to the std modules (build/stdtests.py, generated).
 '' Expected: what tests/std/baseline/generics/fail-result-nodefaultctor.txt recorded for the original.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/std/generics/fail-result-nodefaultctor.bas -o tests/std/generics/fail-result-nodefaultctor.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/std/generics/fail-result-nodefaultctor.bas -o tests/std/generics/fail-result-nodefaultctor.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: error TKO0657

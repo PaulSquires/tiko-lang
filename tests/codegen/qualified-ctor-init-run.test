@@ -4,8 +4,8 @@
 '' out, so an object that hands '@this' away pointed it at a dead slot: FB.AsyncSink's worker,
 '' through std/logs, hung the program. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/qualified-ctor-init.bas -o tests/codegen/qualifiedctorinit.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/qualified-ctor-init.bas -o tests/codegen/qualifiedctorinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/qualifiedctorinit.exe
 '' RUN: tests/codegen/qualifiedctorinit.exe

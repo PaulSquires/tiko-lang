@@ -3,8 +3,8 @@
 '' and dropped the statement (TKO0994) -- CDispInvoke's 'pDisp.Put( "Pattern" ) = ".is"'. Expected
 '' output is fbc-modern's, temporaries destroyed after each call.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/setter-ctor-conv.bas -o tests/codegen/setterctorconv.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/setter-ctor-conv.bas -o tests/codegen/setterctorconv.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/setterctorconv.exe
 '' EXPECT-RUN-EXIT: 0

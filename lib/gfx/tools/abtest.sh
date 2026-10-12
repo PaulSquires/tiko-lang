@@ -16,7 +16,7 @@
 #
 # THE MSVC CONFIGURATION
 #
-# libtkogfx's shipping target is win64-msvc, and that is the one configuration
+# libtkogfx's shipping target is windows-x86_64, and that is the one configuration
 # the in-process A/B cannot reach: gfxlib2 is a MinGW archive (libfbgfx.a) and
 # an MSVC-ABI binary cannot link it. There is no shim -- the two CRTs disagree
 # about FILE, about errno, about argument validation.
@@ -39,11 +39,11 @@ GFX=$( cd "$HERE/.." && pwd )
 : "${FBC:=${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}"
 : "${CLANG:=$( command -v clang 2>/dev/null || echo "/c/Program Files/LLVM/bin/clang.exe" )}"
 
-TKOGFX_MSVC="$GFX/lib/win64-msvc/libtkogfx.a"
-LIBFB_MSVC="$GFX/../rt/lib/win64-msvc/libfb.a"
-# The import libraries tiko's own win64-msvc link resolves the CRT and Win32
-# through (build/implibs.sh builds them). See the win64-msvc link below.
-: "${MSVC_IMPLIBS:=$( cd "$GFX/../.." && pwd )/toolchains/tiko-windows/lib/win64-msvc}"
+TKOGFX_MSVC="$GFX/lib/windows-x86_64/libtkogfx.a"
+LIBFB_MSVC="$GFX/../rt/lib/windows-x86_64/libfb.a"
+# The import libraries tiko's own windows-x86_64 link resolves the CRT and Win32
+# through (build/implibs.sh builds them). See the windows-x86_64 link below.
+: "${MSVC_IMPLIBS:=$( cd "$GFX/../.." && pwd )/toolchains/tiko-windows/lib/windows-x86_64}"
 
 keep=0
 record=0
@@ -160,22 +160,22 @@ for src in "$HERE"/abtest-*.bas "$HERE"/probe-driver.bas "$HERE"/probe-gdi.bas "
     fi
 done
 
-# ---------------------------------------------------------------- win64-msvc
+# ---------------------------------------------------------------- windows-x86_64
 #
 # fbc stops at the .ll (-r) and clang is given the triple we want; the .ll is
 # not edited, because clang --target overrides the module own triple line. Same
 # two-step as lib/rt/build/diffmsvc.sh, and for the same reason.
 if [ ! -x "$CLANG" ]; then
-    echo "abtest: no clang at $CLANG -- win64-msvc NOT RUN (set CLANG)" >&2
+    echo "abtest: no clang at $CLANG -- windows-x86_64 NOT RUN (set CLANG)" >&2
     status=1
 elif [ ! -f "$TKOGFX_MSVC" ]; then
-    echo "abtest: no $TKOGFX_MSVC -- win64-msvc NOT RUN (run build/build.sh)" >&2
+    echo "abtest: no $TKOGFX_MSVC -- windows-x86_64 NOT RUN (run build/build.sh)" >&2
     status=1
 elif [ ! -f "$LIBFB_MSVC" ]; then
-    echo "abtest: no $LIBFB_MSVC -- win64-msvc NOT RUN (build tiko-rt for win64-msvc)" >&2
+    echo "abtest: no $LIBFB_MSVC -- windows-x86_64 NOT RUN (build tiko-rt for windows-x86_64)" >&2
     status=1
 elif [ ! -f "$MSVC_IMPLIBS/ucrtbase.lib" ]; then
-    echo "abtest: no ucrtbase.lib in $MSVC_IMPLIBS -- win64-msvc NOT RUN (run build/implibs.sh build --out <dir>)" >&2
+    echo "abtest: no ucrtbase.lib in $MSVC_IMPLIBS -- windows-x86_64 NOT RUN (run build/implibs.sh build --out <dir>)" >&2
     status=1
 else
     ran=0
@@ -199,25 +199,25 @@ else
 
         if ! "$FBC" -c "$src" -m "$name" -target win64 -gen llvm -r $role \
                  -o "$obj" > "$log" 2>&1; then
-            echo "abtest: $name/win64-msvc -- FAILED TO EMIT IR" >&2
+            echo "abtest: $name/windows-x86_64 -- FAILED TO EMIT IR" >&2
             sed -n '1,8p' "$log" >&2
             exit 1
         fi
         if [ ! -f "$ll" ]; then
-            echo "abtest: $name/win64-msvc -- fbc emitted no .ll" >&2
+            echo "abtest: $name/windows-x86_64 -- fbc emitted no .ll" >&2
             exit 1
         fi
 
         if ! "$CLANG" --target=x86_64-pc-windows-msvc -march=x86-64 -O2 \
                  -Wno-override-module "$ll" -c -o "$obj" >> "$log" 2>&1; then
-            echo "abtest: $name/win64-msvc -- DOES NOT ASSEMBLE FOR MSVC, see $log" >&2
+            echo "abtest: $name/windows-x86_64 -- DOES NOT ASSEMBLE FOR MSVC, see $log" >&2
             exit 1
         fi
 
         # An unresolved fb_Gfx* here is not a build accident: it means the
         # source still calls gfxlib2 in-process, so the manifest is wrong.
         #
-        # THE LINK tiko ITSELF DOES for win64-msvc (src/codegen/toolchain.bas):
+        # THE LINK tiko ITSELF DOES for windows-x86_64 (src/codegen/toolchain.bas):
         # lld, '-nostdlib' so no Visual Studio CRT, ucrtbase.dll plus tiko-rt's
         # msvccrt.o in its place, and kernel32 named because '-nostdlib' drops
         # it. NOT -llegacy_stdio_definitions -- msvccrt.o defines sprintf, and
@@ -227,7 +227,7 @@ else
                  -nostdlib "-L$( cygpath -m "$MSVC_IMPLIBS" )" -lucrtbase -lkernel32 \
                  -lwinspool -lgdi32 -luser32 -ladvapi32 -lwinmm -lmsimg32 -lversion -limm32 -lws2_32 \
                  -Xlinker /INCLUDE:tkort_msvc_init_ >> "$log" 2>&1; then
-            echo "abtest: $name/win64-msvc -- DOES NOT LINK, still needs:" >&2
+            echo "abtest: $name/windows-x86_64 -- DOES NOT LINK, still needs:" >&2
             grep -o 'undefined symbol: [A-Za-z0-9_@$]*' "$log" \
                 | sed 's/undefined symbol: /    /' | sort -u >&2
             exit 1
@@ -238,9 +238,9 @@ else
             # they say what MSVC did NOT check. Printing only the PASS line
             # would hide exactly the thing worth seeing.
             grep -E "SKIPPED|SEEDED|KNOWN|: PASS" "$TMP/$name-msvc.out" |
-                sed "s/^/abtest: win64-msvc -- /"
+                sed "s/^/abtest: windows-x86_64 -- /"
         else
-            echo "abtest: $name/win64-msvc -- FAILED" >&2
+            echo "abtest: $name/windows-x86_64 -- FAILED" >&2
             cat "$TMP/$name-msvc.out" >&2
             exit 1
         fi
@@ -248,7 +248,7 @@ else
 
     ran=$( manifest | awk '$2 == "native" || $2 == "split" { n++ } END { print n + 0 }' )
     bound=$( manifest | awk '$2 == "mingw-only" { n++ } END { print n + 0 }' )
-    echo "abtest: win64-msvc -- $ran source(s) ran, $bound still gfxlib2-bound (msvc-manifest.txt)"
+    echo "abtest: windows-x86_64 -- $ran source(s) ran, $bound still gfxlib2-bound (msvc-manifest.txt)"
 fi
 
 [ "$keep" = 1 ] && echo "abtest: build products left in $TMP"

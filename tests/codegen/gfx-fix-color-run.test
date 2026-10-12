@@ -1,8 +1,8 @@
 '' gfx: a written colour is converted for the target depth (fb_hFixColor: 16 bpp packs RGB565) by PSET, LINE, CIRCLE, PAINT, DRAW STRING and DRAW; PAINT's omitted border is the fill colour.
 '' See the source's header.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/gfx-fix-color.bas -o tests/codegen/gfxfixcolor.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/gfx-fix-color.bas -o tests/codegen/gfxfixcolor.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/gfxfixcolor.exe

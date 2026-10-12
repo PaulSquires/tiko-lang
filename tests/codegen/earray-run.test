@@ -1,7 +1,7 @@
 '' T64, RUN: -earray alone checks array bounds, as fbc-modern does: runtime error 6.
 '' TEST: cli
-'' ARGS: -target win64-msvc -earray tests/codegen/src/errparts/bounds.bas -o tests/codegen/earray.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -earray tests/codegen/src/errparts/bounds.bas -o tests/codegen/earray.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/earray.exe
 '' EXPECT-RUN-EXIT: 6

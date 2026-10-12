@@ -2,8 +2,8 @@
 '' structs/udt-ops-check.bi). tiko read 0 for every one and took every branch. Expected output is
 '' fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/pp-enum-if.bas -o tests/codegen/ppenumif.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/pp-enum-if.bas -o tests/codegen/ppenumif.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ppenumif.exe
 '' EXPECT-RUN-EXIT: 0

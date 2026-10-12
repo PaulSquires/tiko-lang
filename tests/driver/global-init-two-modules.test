@@ -7,8 +7,8 @@
 '' then leave both strings unconstructed, so 'a then b' is the half the link cannot
 '' show. global-init-internal.test pins the registration in IR.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/global-init-a.bas tests/driver/src/global-init-b.bas -o tests/driver/globalinit.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/global-init-a.bas tests/driver/src/global-init-b.bas -o tests/driver/globalinit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: duplicate symbol
 '' EXPECT-FILE: tests/driver/globalinit.exe

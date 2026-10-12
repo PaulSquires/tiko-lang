@@ -10,14 +10,14 @@
 # prints sizeof, _Alignof and offsetof for every record the manifest names, clang compiles
 # and runs it, and the output must equal the manifest's own numbers.
 #
-# For win64-msvc it is the only oracle there is: fbc-modern cannot import for that target.
+# For windows-x86_64 it is the only oracle there is: fbc-modern cannot import for that target.
 # Bit-fields are not here -- C has no offsetof for one -- and neither is a record C cannot
 # spell; the manifest check covers both.
 set -u
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 case "$(uname -s)" in
-    MINGW*|MSYS*|CYGWIN*) TARGETS="win64-msvc win64"; TKO=${TKO:-$ROOT/bin/tiko.exe}; PY=${PYTHON:-python}; EXE=.exe ;;
+    MINGW*|MSYS*|CYGWIN*) TARGETS="windows-x86_64 win64"; TKO=${TKO:-$ROOT/bin/tiko.exe}; PY=${PYTHON:-python}; EXE=.exe ;;
     *) TARGETS="linux-x86_64"; TKO=${TKO:-$ROOT/bin/tiko}; PY=${PYTHON:-python3}; EXE= ;;
 esac
 case "$TKO" in /*) ;; *) TKO=$ROOT/$TKO ;; esac   # the script changes directory
@@ -28,7 +28,7 @@ trap 'rm -rf "$WK"' EXIT
 
 triple() {
     case "$1" in
-        win64-msvc) echo x86_64-pc-windows-msvc ;;
+        windows-x86_64) echo x86_64-pc-windows-msvc ;;
         win64) echo x86_64-w64-windows-gnu ;;
         linux-x86_64) echo x86_64-pc-linux-gnu ;;
     esac

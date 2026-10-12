@@ -3,7 +3,7 @@
 '' object, nothing compiled.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bmd/cache
-'' ARGS: metadata -target win64-msvc --manifest tests/driver/src/build-pkg
+'' ARGS: metadata -target windows-x86_64 --manifest tests/driver/src/build-pkg
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: {"format":1,"package":{"name":"demo","manifest":"tests/driver/src/build-pkg/tiko.toml","root":"tests/driver/src/build-pkg"}
 '' EXPECT-OUT: {"name":"debug","flags":["-g","-exx","-O0"]}

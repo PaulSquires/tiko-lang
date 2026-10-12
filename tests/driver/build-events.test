@@ -3,9 +3,9 @@
 '' cache is new, so the module and both roots miss; paths are as given on the command line.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bev/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.bev
-'' ARGS: build -target win64-msvc tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bev/app.exe --message-format json
+'' ARGS: build -target windows-x86_64 tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bev/app.exe --message-format json
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: {"event":"build-start","format":1,"target":"main","profile":"","roots":["tests/driver/src/build-b1/main.tiko","tests/driver/src/build-b1/other.tiko"]}
 '' EXPECT-OUT: {"event":"plan","units":3}

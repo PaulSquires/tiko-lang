@@ -62,17 +62,17 @@ end function
 ''
 '' It was TARGET_WIN64, and that made 'tiko test.bas' the one invocation that could
 '' not use graphics. libtkogfx IS tiko's graphics library -- fbc's libfbgfx is not a
-'' substitute and is not reached for -- and lib/gfx builds it for win64-msvc alone,
+'' substitute and is not reached for -- and lib/gfx builds it for windows-x86_64 alone,
 '' the ABI it was written against. So the default target was the target with no
 '' graphics archive, and a SCREEN program answered 'undefined reference to
-'' fb_GfxScreen' unless the user knew to pass -target win64-msvc.
+'' fb_GfxScreen' unless the user knew to pass -target windows-x86_64.
 ''
 '' NOTHING ELSE ABOUT THE TWO DIFFERS. Same machine, same calling convention, same
 '' type layout, same object format -- x86-64 Windows is one ABI and the CRT is what
 '' changes. What follows the triple is the link line.
 ''
 '' AND IT NEEDS NOTHING BEHIND IT. Measured 2026-09-06: a program built for
-'' win64-msvc against lib/win64-msvc alone -- no fbc directory, and fbc has no MSVC
+'' windows-x86_64 against lib/windows-x86_64 alone -- no fbc directory, and fbc has no MSVC
 '' target to supply one -- linked and ran. tiko-rt's MSVC archive carries no MinGW
 '' imports (build/abidelta.sh; gatemsvc.sh at 3,922,073 assertions), where win64
 '' still needs fbc's libfb behind it for fb_AtomicCasLong. The default is now the
@@ -82,7 +82,7 @@ end function
 '' lib/win64 and lib/win64-fb for it.
 function HostTarget( ) as TargetId
     #ifdef __FB_WIN32__
-        return TARGET_WIN64_MSVC
+        return TARGET_WINDOWS_X86_64
     #else
         return TARGET_LINUX_X86_64
     #endif
@@ -91,7 +91,7 @@ end function
 function TargetName( byval t as TargetId ) as string
     select case t
     case TARGET_LINUX_X86_64    : return "linux-x86_64"
-    case TARGET_WIN64_MSVC      : return "win64-msvc"
+    case TARGET_WINDOWS_X86_64  : return "windows-x86_64"
     end select
     return "win64"
 end function
@@ -100,7 +100,7 @@ function TargetFromName( byval nm as string, byref ok as boolean ) as TargetId
     ok = true
     dim as string s = Text.LowerAscii( nm )
     if s = "win64" then return TARGET_WIN64
-    if s = "win64-msvc" then return TARGET_WIN64_MSVC
+    if s = "windows-x86_64" then return TARGET_WINDOWS_X86_64
     if s = "linux-x86_64" then return TARGET_LINUX_X86_64
     ok = false
     return HostTarget( )
@@ -144,7 +144,7 @@ function TargetLayoutFor( byval t as TargetId ) as TargetLayout
         r.cvaListBytes = 8
         r.cvaListAlign = 8
         r.isWindows = true
-        r.isMsvc = (t = TARGET_WIN64_MSVC)
+        r.isMsvc = (t = TARGET_WINDOWS_X86_64)
     end select
     return r
 end function

@@ -2,10 +2,10 @@
 '' the build with exit 5, after the artefact itself was written.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bcf/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.bcf
 '' COPY: tests/driver/src/build-copyto => build/.bcf/pkg
 '' COPY: tests/diagnostics/src/build-copyto-bad.toml => build/.bcf/pkg/tiko.toml
-'' ARGS: build -target win64-msvc --manifest build/.bcf/pkg
+'' ARGS: build -target windows-x86_64 --manifest build/.bcf/pkg
 '' EXPECT-EXIT: 5
 '' EXPECT-OUT: error TKO0171: could not copy 'build/.bcf/pkg/out/debug/app.exe' to 'build/.bcf/pkg/main.tiko/app.exe'

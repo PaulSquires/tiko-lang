@@ -2,10 +2,10 @@
 '' '-i lib' finds lib/ext with tiko run from the repository root, not from the package.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.brel/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.brel
 '' COPY: tests/driver/src/build-relopt => build/.brel/pkg
-'' ARGS: build -target win64-msvc --manifest build/.brel/pkg
+'' ARGS: build -target windows-x86_64 --manifest build/.brel/pkg
 '' EXPECT-EXIT: 0
 '' RUN: build/.brel/pkg/out/debug/app.exe
 '' EXPECT-RUN-OUT: ext says 7

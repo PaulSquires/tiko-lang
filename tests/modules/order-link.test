@@ -6,8 +6,8 @@
 '' importer reads the module's interface, in the module's order, and takes it too. 1197 is
 '' every term right; the second call's shared counter makes it 1198.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i tests/modules/src/fwd/libs tests/modules/src/fwd/app/main.bas -o tests/modules/orderlink.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i tests/modules/src/fwd/libs tests/modules/src/fwd/app/main.bas -o tests/modules/orderlink.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/orderlink.exe
 '' EXPECT-RUN-OUT:  1197

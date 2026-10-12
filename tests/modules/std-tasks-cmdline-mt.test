@@ -1,8 +1,8 @@
 '' T75, RUN: '#import "std/tasks"' then '#cmdline "-mt"' builds the module with -mt as
 '' well: the root's header is read for '#cmdline' before any import is built.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdtasks-mt/cmdline.bas -o tests/modules/stdtaskscmdline.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdtasks-mt/cmdline.bas -o tests/modules/stdtaskscmdline.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdtaskscmdline.exe
 '' EXPECT-RUN-OUT:  14

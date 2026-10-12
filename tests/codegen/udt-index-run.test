@@ -1,8 +1,8 @@
 '' A UDT SUBSCRIPT runs its numeric cast, read and write. tiko multiplied the object and the
 '' emitter had no operand. Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/udt-index.bas -o tests/codegen/udtindex.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/udt-index.bas -o tests/codegen/udtindex.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/udtindex.exe
 '' EXPECT-RUN-EXIT: 0

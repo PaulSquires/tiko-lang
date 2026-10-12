@@ -1,8 +1,8 @@
 '' 'redim o( 1 to 3 ) as T' builds each element with T's DEFAULT constructor, not the first one
 '' declared -- 'constructor( array() as integer )' first crashed udt-array-ops-1.bas.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/redim-element-default-ctor.bas -o tests/codegen/redimelementdefaultctor.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/redim-element-default-ctor.bas -o tests/codegen/redimelementdefaultctor.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/redimelementdefaultctor.exe
 '' EXPECT-RUN-EXIT: 0

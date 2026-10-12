@@ -1,1 +1,1 @@
-targets: win64-msvc
+targets: windows-x86_64

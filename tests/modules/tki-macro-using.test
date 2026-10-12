@@ -4,8 +4,8 @@
 '' importer reported TKO0808 at the second (fb/mathint.bi's checked arithmetic, std/numeric,
 '' 2026-10-10).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/modules/src/tkimacro/main.bas -o tests/modules/tkimacro.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/modules/src/tkimacro/main.bas -o tests/modules/tkimacro.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/tkimacro.exe
 '' EXPECT-RUN-OUT: 4 2.5

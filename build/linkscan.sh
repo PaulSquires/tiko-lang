@@ -47,8 +47,8 @@ fi
 # bare './bin/tiko.exe prog.bas -o prog.exe' fails on ucrtbase.lib. The toolchain's own
 # directory is where they are; TKO_LIBPATH is the supported way to say so.
 if [ -z "$TKO_LIBPATH" ]; then
-    if [ -d toolchains/tiko-windows/lib/win64-msvc ]; then
-        TKO_LIBPATH="$PWD/toolchains/tiko-windows/lib/win64-msvc"
+    if [ -d toolchains/tiko-windows/lib/windows-x86_64 ]; then
+        TKO_LIBPATH="$PWD/toolchains/tiko-windows/lib/windows-x86_64"
         export TKO_LIBPATH
     fi
 fi

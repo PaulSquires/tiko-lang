@@ -4,12 +4,12 @@
 '' with no clock beside it still stores and hits, so the cache itself is on.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-clock/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.mct-clock
 '' COPY: tests/modules/src/clock => build/.mct-clock
-'' STEP: -v -target win64-msvc -i build/.mct-clock/libs build/.mct-clock/app/main.bas -o build/.mct-clock/app.exe
+'' STEP: -v -target windows-x86_64 -i build/.mct-clock/libs build/.mct-clock/app/main.bas -o build/.mct-clock/app.exe
 '' STEP-OUT: module acme.stamp: not stored
-'' ARGS: -v -target win64-msvc -i build/.mct-clock/libs build/.mct-clock/app/main.bas -o build/.mct-clock/app.exe
+'' ARGS: -v -target windows-x86_64 -i build/.mct-clock/libs build/.mct-clock/app/main.bas -o build/.mct-clock/app.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: module acme.plain: hit
 '' EXPECT-OUT: module acme.stamp: miss (new)

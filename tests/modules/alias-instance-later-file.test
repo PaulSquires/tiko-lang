@@ -7,8 +7,8 @@
 '' in the order that always worked. ModuleTypedefsFirst_ now runs before discovery as well
 '' (src/symbols/resolve.bas). pkg/db/sqlite's csv.tiko, which sorts before sqlite.tiko, meets it too.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/modules/src/aliasinst/main.bas -o tests/modules/aliasinst.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/modules/src/aliasinst/main.bas -o tests/modules/aliasinst.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/aliasinst.exe
 '' EXPECT-RUN-OUT:  1 1 early

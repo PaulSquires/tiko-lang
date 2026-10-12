@@ -33,7 +33,7 @@ private function NoSymbol_( byref x as CImp, byval c as CXCursor ) as boolean
     if x.api->Cursor_getStorageClass( c ) = CX_SC_Static then return true
     if x.api->Cursor_isFunctionInlined( c ) = 0 then return false
     '' ...EXCEPT THE stdio FUNCTIONS THE UCRT DEFINES INLINE AND tiko-rt PROVIDES. On
-    '' win64-msvc 'printf' after '#cinclude once "stdio.h"' was TKO0743, not declared: the
+    '' windows-x86_64 'printf' after '#cinclude once "stdio.h"' was TKO0743, not declared: the
     '' SDK's stdio.h defines the whole family in the header, over __stdio_common_*, with no
     '' symbol in ucrtbase.dll. lib/rt/src/c/msvccrt.c defines each of these; glibc and
     '' MinGW export every one anyway, so there is no target in which the name is unlinkable.

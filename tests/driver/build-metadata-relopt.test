@@ -4,7 +4,7 @@
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bmr/cache
 '' CLEAN: build/.bmr
-'' ARGS: metadata -target win64-msvc --manifest tests/driver/src/build-relopt
+'' ARGS: metadata -target windows-x86_64 --manifest tests/driver/src/build-relopt
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: "flags":["-g","-exx","-O0","-i","tests/driver/src/build-relopt/lib"
 '' EXPECT-OUT: {"name":"dev","flags":["-g","-exx","-O0","-p","tests/driver/src/build-relopt/libs","--pkg-dir=tests/driver/src/build-relopt/mypkg","-d","X=1"]}

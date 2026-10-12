@@ -14,8 +14,8 @@
 '' pins the spelling itself, and the two programs' output was compared byte for byte
 '' against fbc by hand.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/externdef-main.bas tests/driver/src/externdef-def.bas tests/driver/src/externdef-use.bas -o tests/driver/externdef.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/externdef-main.bas tests/driver/src/externdef-def.bas tests/driver/src/externdef-use.bas -o tests/driver/externdef.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/externdef.exe
 '' EXPECT-NOT: undefined symbol

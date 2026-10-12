@@ -1,8 +1,8 @@
 '' Bitfield field initialisers run in the implicit constructor, through the unit -- and an
 '' uninitialised bitfield beside them is cleared the same way, as fbc's '& -8' (structs/ctor_bitfield.bas).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/bitfield-field-initialisers.bas -o tests/codegen/bitfieldfieldinitialisers.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/bitfield-field-initialisers.bas -o tests/codegen/bitfieldfieldinitialisers.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/bitfieldfieldinitialisers.exe
 '' EXPECT-RUN-EXIT: 0

@@ -5,9 +5,9 @@
 '' run on this program; the constant and the type's members stay static, and sizeof is
 '' unchanged.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.nml
-'' ARGS: -target win64-msvc tests/driver/src/namespace-member-len.bas -o build/.nml/nml.exe
+'' ARGS: -target windows-x86_64 tests/driver/src/namespace-member-len.bas -o build/.nml/nml.exe
 '' EXPECT-EXIT: 0
 '' RUN: build/.nml/nml.exe
 '' EXPECT-RUN-OUT:  5 3 4 7 8

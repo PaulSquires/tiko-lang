@@ -3,11 +3,11 @@
 '' top-level code runs first: it is a module constructor, a is main.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.uch/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.uch
 '' COPY: tests/driver/src/unitcache => build/.uch/src
-'' STEP: build -target win64-msvc build/.uch/src/a.tiko build/.uch/src/b.tiko -o build/.uch/app.exe
-'' ARGS: build -target win64-msvc build/.uch/src/a.tiko build/.uch/src/b.tiko -o build/.uch/app.exe -v
+'' STEP: build -target windows-x86_64 build/.uch/src/a.tiko build/.uch/src/b.tiko -o build/.uch/app.exe
+'' ARGS: build -target windows-x86_64 build/.uch/src/a.tiko build/.uch/src/b.tiko -o build/.uch/app.exe -v
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: unit build/.uch/src/a.tiko: hit
 '' EXPECT-OUT: unit build/.uch/src/b.tiko: hit

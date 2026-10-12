@@ -2,7 +2,7 @@
 '' the object, and -x writes nothing.
 '' TEST: cli
 '' CLEAN: build/.xoc
-'' ARGS: -target win64-msvc -c tests/driver/src/build-run.tiko -o build/.xoc/obj.o -x build/.xoc/x.o
+'' ARGS: -target windows-x86_64 -c tests/driver/src/build-run.tiko -o build/.xoc/obj.o -x build/.xoc/x.o
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: build/.xoc/obj.o
 '' EXPECT-NO-FILE: build/.xoc/x.o

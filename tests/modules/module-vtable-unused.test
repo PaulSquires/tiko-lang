@@ -3,8 +3,8 @@
 '' Query is in Handler's table and in Special's, and each table declared it -- clang refused
 '' the second 'declare' as a redefinition (fbx/webview2's event handlers).
 '' TEST: cli
-'' ARGS: -target win64-msvc -i tests/modules/src/vtunused/libs tests/modules/src/vtunused/main.bas -o tests/modules/vtunused.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i tests/modules/src/vtunused/libs tests/modules/src/vtunused/main.bas -o tests/modules/vtunused.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/vtunused.exe
 '' EXPECT-RUN-OUT: ok

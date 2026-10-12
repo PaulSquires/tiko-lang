@@ -1,5 +1,5 @@
 #!/bin/sh
-# implibs.sh -- win64-msvc's import libraries from COMMITTED .def files, not from fbc.
+# implibs.sh -- windows-x86_64's import libraries from COMMITTED .def files, not from fbc.
 #
 #   build/implibs.sh build  [--defs lib/implib] --out <lib dir>
 #   build/implibs.sh export --from <dir of lib*.dll.a> [--to lib/implib]
@@ -11,7 +11,7 @@
 # the default target's import libraries no longer need fbc's tree to exist.
 #
 # Why it matters, measured 2026-09-06: without them clang's msvc driver passes
-# -libpath for an installed Visual Studio and Windows SDK, so win64-msvc linked only
+# -libpath for an installed Visual Studio and Windows SDK, so windows-x86_64 linked only
 # on a machine with both. Why the format: lld-link reads a GNU import archive, but an
 # MSVC short import is a quarter the size (kernel32: 1.5 MB against 365 KB). Why the
 # DATA split is the hard part, and how it was got wrong twice: build/mkmsvcdef.py.

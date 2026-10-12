@@ -3,7 +3,7 @@
 '' carried neither, so 'tiko -c mod.bas' then 'tiko app.bas mod.o' failed to link
 '' what the module had bound. See src/codegen/objinfo.bi.
 '' TEST: cli
-'' ARGS: -target win64-msvc -c tests/driver/src/foreignlib-object.bas -o tests/driver/foreignlibobject.o
+'' ARGS: -target windows-x86_64 -c tests/driver/src/foreignlib-object.bas -o tests/driver/foreignlibobject.o
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/foreignlibobject.o
 '' EXPECT-FILE-HAS: tests/driver/foreignlibobject.o :: .fbctinf

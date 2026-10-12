@@ -5,8 +5,8 @@
 '' a BACKWARD jump ran nothing for what was defined after its label. Output identical to
 '' fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/goto-cleanup.bas -o tests/codegen/gotocleanup.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/goto-cleanup.bas -o tests/codegen/gotocleanup.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/gotocleanup.exe
 '' EXPECT-RUN-EXIT: 0

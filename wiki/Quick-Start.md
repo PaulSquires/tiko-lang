@@ -32,7 +32,7 @@ toolchains/tiko-linux/bin/tiko hello.tiko
 ./hello
 ```
 
-No flags are needed. tiko finds its headers and libraries relative to its own executable, and the default target is the host's: `win64-msvc` on Windows, `linux-x86_64` on Linux.
+No flags are needed. tiko finds its headers and libraries relative to its own executable, and the default target is the host's: `windows-x86_64` on Windows, `linux-x86_64` on Linux.
 
 ## A first tour
 

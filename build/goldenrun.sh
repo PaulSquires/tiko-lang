@@ -53,7 +53,7 @@ FBC=${FBC:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc
 TKO=${TKO:-$ROOT/bin/tiko.exe}
 WK=${TMPDIR:-/tmp}/goldenrun.$$
 mkdir -p "$WK"
-export TKO_LIBPATH="$ROOT/toolchains/tiko-windows/lib/win64-msvc"
+export TKO_LIBPATH="$ROOT/toolchains/tiko-windows/lib/windows-x86_64"
 
 RUNTIMEOUT=${RUNTIMEOUT:-10}
 EXPLAINED=" errfuncname print-pointer any-init bsave-string-desc builtins byval-to-byref cva field-init-any noconv-lvalue on-error-setjmp peek print-using procptr-intrinsic static-addr-init static-init-reloc "

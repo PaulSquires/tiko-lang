@@ -21,7 +21,7 @@ cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
-        TARGETS="win64-msvc win64"; TKO=${TKO:-$ROOT/bin/tiko.exe}; EXE=.exe
+        TARGETS="windows-x86_64 win64"; TKO=${TKO:-$ROOT/bin/tiko.exe}; EXE=.exe
         INC=${TKO_E2E_INC:-$ROOT/toolchains/tiko-windows/inc}
         SQL=${SQLITE_SRC:-/c/dev/sqlite/vendor/sqlite3} ;;
     *)
@@ -39,14 +39,14 @@ export TKO_INCLUDE="$INC"
 
 libdirs() {
     case "$1" in
-        win64-msvc)   echo "-p $ROOT/toolchains/tiko-windows/lib/win64-msvc" ;;
+        windows-x86_64)   echo "-p $ROOT/toolchains/tiko-windows/lib/windows-x86_64" ;;
         win64)        echo "-p $ROOT/toolchains/tiko-windows/lib/win64 -p $ROOT/toolchains/tiko-windows/lib/win64-fb" ;;
         linux-x86_64) echo "-p $ROOT/lib/rt/lib/linux-x86_64" ;;
     esac
 }
 triple() {
     case "$1" in
-        win64-msvc) echo x86_64-pc-windows-msvc ;;
+        windows-x86_64) echo x86_64-pc-windows-msvc ;;
         win64) echo x86_64-w64-windows-gnu ;;
         linux-x86_64) echo x86_64-pc-linux-gnu ;;
     esac

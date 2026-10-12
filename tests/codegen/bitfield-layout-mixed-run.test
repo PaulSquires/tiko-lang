@@ -2,8 +2,8 @@
 '' as ushort' after two ubyte bitfields went into an 8-bit unit (5 bytes, d = 1023 read 255);
 '' a union bitfield reserves its whole unit. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/bitfield-layout-mixed.bas -o tests/codegen/bitfieldlayoutmixed.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/bitfield-layout-mixed.bas -o tests/codegen/bitfieldlayoutmixed.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/bitfieldlayoutmixed.exe
 '' EXPECT-RUN-EXIT: 0

@@ -3,8 +3,8 @@
 '' temporary ('5: 0: []'), and it leaked. 'byval': it went through fb_UStrAssignToA and the
 '' callee read a narrow string as UTF-16. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/ustring-concat-arg.bas -o tests/codegen/ustringconcatarg.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/ustring-concat-arg.bas -o tests/codegen/ustringconcatarg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ustringconcatarg.exe
 '' EXPECT-RUN-EXIT: 0

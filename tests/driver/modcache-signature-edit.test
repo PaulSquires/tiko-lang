@@ -2,12 +2,12 @@
 '' so acme.middle's key -- which holds the interface hash of its closure -- changed too.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-sig/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.mct-sig
 '' COPY: tests/driver/src/modcache => build/.mct-sig
-'' STEP: -v -target win64-msvc -i build/.mct-sig/libs build/.mct-sig/app/main.bas -o build/.mct-sig/app.exe
+'' STEP: -v -target windows-x86_64 -i build/.mct-sig/libs build/.mct-sig/app/main.bas -o build/.mct-sig/app.exe
 '' WRITE: build/.mct-sig/libs/acme/leaf/leaf.bas :: '' The bottom of the module-cache fixture: acme.middle imports it, main imports acme.middle.\n#module "leaf"\n#include once "../../../inc/leafcfg.bi"\npublic function Seed( byval k as long = 3 ) as long\n    return LEAF_BASE * k\nend function\n
-'' ARGS: -v -target win64-msvc -i build/.mct-sig/libs build/.mct-sig/app/main.bas -o build/.mct-sig/app.exe
+'' ARGS: -v -target windows-x86_64 -i build/.mct-sig/libs build/.mct-sig/app/main.bas -o build/.mct-sig/app.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: module acme.leaf: miss (source leaf.bas
 '' EXPECT-OUT: module acme.middle: miss (iface acme.leaf

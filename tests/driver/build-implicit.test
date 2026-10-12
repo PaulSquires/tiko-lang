@@ -3,9 +3,9 @@
 '' 'tiko main.tiko other.tiko' makes, imported module included.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bim/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.bim
-'' ARGS: build -target win64-msvc tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bim/app.exe
+'' ARGS: build -target windows-x86_64 tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bim/app.exe
 '' EXPECT-EXIT: 0
 '' RUN: build/.bim/app.exe
 '' EXPECT-RUN-OUT: main: 42

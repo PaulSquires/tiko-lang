@@ -1,8 +1,8 @@
 '' tests/vendor/fbc-tests/chrono/clocks.bas ported to the std modules (build/stdtests.py, generated).
 '' Expected: what tests/std/baseline/chrono/clocks.txt recorded for the original.
 '' TEST: cli
-'' ARGS: -target win64-msvc -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/chrono/clocks.bas -o tests/std/chrono/clocks.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/chrono/clocks.bas -o tests/std/chrono/clocks.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/chrono/clocks.exe
 '' EXPECT-RUN-OUT: 1073      1073         0  fbc_tests.chrono.clocks                       10

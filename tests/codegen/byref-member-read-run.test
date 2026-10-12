@@ -2,8 +2,8 @@
 '' their referent's type in an expression (fbc's dim/byref2.bas); tiko left them references --
 '' '+' was TKO0820 and a comparison went to clang as a pointer. Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/byref-member-read.bas -o tests/codegen/byrefmemberread.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/byref-member-read.bas -o tests/codegen/byrefmemberread.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/byrefmemberread.exe
 '' EXPECT-RUN-EXIT: 0

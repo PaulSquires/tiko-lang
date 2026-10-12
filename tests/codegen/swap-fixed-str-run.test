@@ -3,8 +3,8 @@
 '' the padding came back as a NUL and stale bytes and the copy ran into the next local.
 '' Output identical to fbc-modern's, guard variables included.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/swap-fixed-str.bas -o tests/codegen/swapfixstr.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/swap-fixed-str.bas -o tests/codegen/swapfixstr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/swapfixstr.exe
 '' EXPECT-RUN-EXIT: 0

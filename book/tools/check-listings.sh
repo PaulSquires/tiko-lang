@@ -2,7 +2,7 @@
 # check-listings.sh -- compile and run every listing in the book, on every target.
 #
 #   tools/check-listings.sh                    both targets, all chapters
-#   tools/check-listings.sh --target win64-msvc
+#   tools/check-listings.sh --target windows-x86_64
 #   tools/check-listings.sh ch01 ch05          only those chapters
 #   tools/check-listings.sh --list             show what would run
 #
@@ -15,7 +15,7 @@
 # A file whose first directive is #module belongs to a module directory and is built
 # through the listing that imports it.
 #   name.meta   key: value lines --
-#                 targets: win64-msvc          restrict to one target
+#                 targets: windows-x86_64          restrict to one target
 #                 expect: compile-error TKO0413
 #                 modules: a.bas b.bas         extra sources in the same directory
 #                 forward: ch15                records a use-before-define
@@ -68,7 +68,7 @@ WIN_ROOT="$(yaml_get windows root)";  WIN_EXE="$(yaml_get windows exe)"
 LIN_ROOT="$(yaml_get linux root)";    LIN_EXE="$(yaml_get linux exe)"
 WSL_DISTRO="$(yaml_get linux wsl_distro)"
 
-targets=(win64-msvc linux-x86_64)
+targets=(windows-x86_64 linux-x86_64)
 chapters=(); list_only=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -123,7 +123,7 @@ assert_manifest "linux" "$(cygpath -u "${LIN_ROOT/\/mnt\/c/C:}" 2>/dev/null || e
 
 for t in "${targets[@]}"; do
   case "$t" in
-    win64-msvc)
+    windows-x86_64)
       [[ -x "$win_tiko" ]] || { echo "check-listings: no tiko at $win_tiko" >&2; exit 2; }
       assert_pin "$win_tiko" "$("$win_tiko" --version 2>&1 | head -1)" ;;
     linux-x86_64)
@@ -206,7 +206,7 @@ for f in "${listings[@]}"; do
     if [[ -n "$prebuild" ]]; then
       IFS=';' read -ra pre_cmds <<< "$prebuild"
       for pc in "${pre_cmds[@]}"; do
-        if [[ "$t" == win64-msvc ]]; then
+        if [[ "$t" == windows-x86_64 ]]; then
           ( cd "$dir" && eval "\"$win_tiko\" $pc" ) >> "$log" 2>&1 || pre_ok=0
         else
           wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$lin_tiko' $pc" >> "$log" 2>&1 || pre_ok=0
@@ -221,14 +221,14 @@ for f in "${listings[@]}"; do
     [[ -n "$output" ]] && rm -f "$dir/$output"
     if [[ -n "$project" ]]; then
       # A project builds where its tiko.toml is, into its own out/debug.
-      if [[ "$t" == win64-msvc ]]; then
+      if [[ "$t" == windows-x86_64 ]]; then
         exe="$dir/out/debug/$project.exe"; rm -f "$exe"
         ( cd "$dir" && "$win_tiko" build "$project" ) >> "$log" 2>&1; crc=$?
       else
         exe="$dir/out/debug/$project"; rm -f "$exe"
         wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$lin_tiko' build $project" >> "$log" 2>&1; crc=$?
       fi
-    elif [[ "$t" == win64-msvc ]]; then
+    elif [[ "$t" == windows-x86_64 ]]; then
       exe="$outdir/$name.exe"; rm -f "$exe"
       if [[ "$cwd" == listing ]]; then
         ( cd "$dir" && "$win_tiko" "${local_srcs[@]}" -o "$(cygpath -m "$root/$exe")" ) >> "$log" 2>&1; crc=$?
@@ -260,7 +260,7 @@ for f in "${listings[@]}"; do
     fi
 
     args=""; [[ -f "$base.args" ]] && args="$(head -1 "$base.args")"
-    if [[ "$t" == win64-msvc ]]; then
+    if [[ "$t" == windows-x86_64 ]]; then
       # Run from the listing's own directory, so a program can open a data file that sits
       # beside it -- which is where a reader would keep it, and how they would run it.
       if [[ -f "$base.stdin" ]]; then

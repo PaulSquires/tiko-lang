@@ -12,8 +12,8 @@
 '' The '.res' is an intermediate and is deleted after the link, so only the exe is
 '' asserted here. The '.rc' is the user's and is never touched.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/res.bas tests/driver/src/res.rc -o tests/driver/res.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/res.bas tests/driver/src/res.rc -o tests/driver/res.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/res.exe
 '' EXPECT-NO-FILE: tests/driver/src/res.res

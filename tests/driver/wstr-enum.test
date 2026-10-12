@@ -8,8 +8,8 @@
 '' RUN, because the failure was a missing line: nothing in a dump or a link shows it.
 '' The source is also a goldenrun.sh differential -- byte-identical to fbc's build.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/wstr-enum.bas -o tests/driver/wstrenum.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/wstr-enum.bas -o tests/driver/wstrenum.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/wstrenum.exe
 '' RUN: tests/driver/wstrenum.exe

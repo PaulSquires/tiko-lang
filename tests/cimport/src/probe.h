@@ -1,7 +1,7 @@
 /* probe.h -- the shapes the libclang probe reports, using FREESTANDING headers only.
  *
  * stddef.h and stdint.h come from clang's own resource directory, never from a C
- * library, so this header parses for win64-msvc, win64 and linux-x86_64 on any host
+ * library, so this header parses for windows-x86_64, win64 and linux-x86_64 on any host
  * with no SDK, MinGW or sysroot installed. That is what lets tests/cimport run every
  * target from one machine. */
 #include <stddef.h>

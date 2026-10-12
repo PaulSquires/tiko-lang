@@ -2,7 +2,7 @@
 '' util, so neither 'util.Pair' nor 'util.Twice' names anything there, though a.bas, a
 '' file of the same module, imported it -- and the note says where it did.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/diagnostics/src/modules/perfile/main.bas -o tests/diagnostics/perfile.exe
+'' ARGS: -target windows-x86_64 tests/diagnostics/src/modules/perfile/main.bas -o tests/diagnostics/perfile.exe
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: b.bas(3,14): error TKO0808: the type 'util.pair' is not declared
 '' EXPECT-OUT: b.bas(4,12): error TKO0743: 'util' is not declared

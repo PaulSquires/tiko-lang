@@ -5,8 +5,8 @@
 '' and the parameter was TKO0636. 'ustring * N' is TY_FIXUSTR. Output identical to
 '' fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/ustring-array.bas -o tests/codegen/ustringarray.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/ustring-array.bas -o tests/codegen/ustringarray.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/ustringarray.exe
 '' RUN: tests/codegen/ustringarray.exe

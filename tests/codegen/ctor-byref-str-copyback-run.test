@@ -3,8 +3,8 @@
 '' for both the explicit 'K( z )' and the conversion 'dim as K k3 = z'. tiko dropped the
 '' temporary and printed [orig] (audit F-71, LOW-13).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/ctor-byref-str-copyback.bas -o tests/codegen/ctorbyrefstrcopyback.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/ctor-byref-str-copyback.bas -o tests/codegen/ctorbyrefstrcopyback.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ctorbyrefstrcopyback.exe
 '' EXPECT-RUN-EXIT: 0

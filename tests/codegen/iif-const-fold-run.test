@@ -2,8 +2,8 @@
 '' and number arms are fine then, the type is the arm's, and the other arm is not
 '' evaluated (audit F-70). Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/iif-const-fold.bas -o tests/codegen/iifconstfold.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/iif-const-fold.bas -o tests/codegen/iifconstfold.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/iifconstfold.exe
 '' EXPECT-RUN-EXIT: 0

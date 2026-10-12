@@ -2,8 +2,8 @@
 '' initialiser and a byval argument run [cast][ctor] (a 'double' cast into 'byval as long').
 '' Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/convchain-num.bas -o tests/codegen/convchainnum.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/convchain-num.bas -o tests/codegen/convchainnum.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/convchainnum.exe
 '' EXPECT-RUN-EXIT: 0

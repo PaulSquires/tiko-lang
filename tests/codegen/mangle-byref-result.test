@@ -2,7 +2,7 @@
 '' substitution candidate -- fbc's names, measured on its object. Registering 'R<T>' as
 '' well shifted every later back-reference by one (audit F-55, SYM-9).
 '' TEST: cli
-'' ARGS: --dump-mangle -target win64-msvc tests/codegen/src/mangle-byref-result.bas
+'' ARGS: --dump-mangle -target windows-x86_64 tests/codegen/src/mangle-byref-result.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: _ZN2NS2A1EPFRNS_1QERS0_E
 '' EXPECT-OUT: _ZN2NS2A2EPFRiRiE

@@ -4,11 +4,11 @@
 '' root beside them hits.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.ucn/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.ucn
 '' COPY: tests/driver/src/unitcache => build/.ucn/src
-'' STEP: build -target win64-msvc build/.ucn/src/a.tiko build/.ucn/src/b.tiko build/.ucn/src/clock.tiko build/.ucn/src/warn.tiko -o build/.ucn/app.exe
-'' ARGS: build -target win64-msvc build/.ucn/src/a.tiko build/.ucn/src/b.tiko build/.ucn/src/clock.tiko build/.ucn/src/warn.tiko -o build/.ucn/app.exe -v
+'' STEP: build -target windows-x86_64 build/.ucn/src/a.tiko build/.ucn/src/b.tiko build/.ucn/src/clock.tiko build/.ucn/src/warn.tiko -o build/.ucn/app.exe
+'' ARGS: build -target windows-x86_64 build/.ucn/src/a.tiko build/.ucn/src/b.tiko build/.ucn/src/clock.tiko build/.ucn/src/warn.tiko -o build/.ucn/app.exe -v
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: unit build/.ucn/src/a.tiko: hit
 '' EXPECT-OUT: unit build/.ucn/src/clock.tiko: miss (new)

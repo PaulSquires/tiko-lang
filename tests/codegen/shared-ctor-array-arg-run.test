@@ -2,8 +2,8 @@
 '' by descriptor is built in the module initialiser like any other (fbc's structs/obj_global_with_temp3.bas);
 '' tiko built nothing and the program faulted on g. Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/shared-ctor-array-arg.bas -o tests/codegen/sharedctorarrayarg.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/shared-ctor-array-arg.bas -o tests/codegen/sharedctorarrayarg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/sharedctorarrayarg.exe
 '' EXPECT-RUN-EXIT: 0

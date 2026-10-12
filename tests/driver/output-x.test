@@ -2,9 +2,9 @@
 '' extension added -- over -o, and the last one winning. 'fbc a.bas -o a.o -x app.exe' writes
 '' app.exe and no a.o; 'fbc a.bas -x one.exe -x two.exe' writes two.exe.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.xo
-'' ARGS: -target win64-msvc tests/driver/src/build-run.tiko -o build/.xo/o.exe -x build/.xo/one.exe -x build/.xo/two.exe
+'' ARGS: -target windows-x86_64 tests/driver/src/build-run.tiko -o build/.xo/o.exe -x build/.xo/one.exe -x build/.xo/two.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: build/.xo/two.exe
 '' EXPECT-NO-FILE: build/.xo/one.exe

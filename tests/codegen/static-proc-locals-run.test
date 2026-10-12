@@ -2,8 +2,8 @@
 '' grows (fbc semantics). tiko swallowed the trailing STATIC and every call started over -- silently.
 '' Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/static-proc-locals.bas -o tests/codegen/staticproclocals.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/static-proc-locals.bas -o tests/codegen/staticproclocals.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/staticproclocals.exe
 '' EXPECT-RUN-EXIT: 0

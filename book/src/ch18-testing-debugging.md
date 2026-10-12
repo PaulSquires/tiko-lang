@@ -80,7 +80,7 @@ which is the change you wanted to hear about.
 summary the other way round:
 
 ```text
-{{#include ../examples/ch18/stacktests.win64-msvc.out}}
+{{#include ../examples/ch18/stacktests.windows-x86_64.out}}
 ```
 
 Each `SUITE` registers itself with a module constructor, and module constructors run in the order
@@ -205,7 +205,7 @@ or read the element out of the full listing.
 ````
 
 ```admonish info title="On Windows"
-On win64-msvc the DWARF is placed inside the `.exe`; tiko asks the linker for that itself under
+On windows-x86_64 the DWARF is placed inside the `.exe`; tiko asks the linker for that itself under
 `-g` (`-debug:dwarf`). No `.pdb` is written and no CodeView is emitted, so Visual Studio and
 WinDbg cannot read a tiko program's variables. lldb, and `lldb-dap` for editors, are in the same
 LLVM `bin` directory as clang.

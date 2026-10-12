@@ -40,7 +40,7 @@ type CImportOptions
     as string     csysroot       '' -csysroot
     as Tko.StrVec copts          '' -copt: passed to clang verbatim
     as boolean    noMacros       '' -cnomacros
-    as string     targetName     '' "win64-msvc", "win64", "linux-x86_64"
+    as string     targetName     '' "windows-x86_64", "win64", "linux-x86_64"
     as string     triple         '' TargetFor( t ).triple
     as boolean    isWindows
     as string     clangExe       '' the toolchain's clang; libclang is looked for beside it

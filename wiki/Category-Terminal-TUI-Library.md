@@ -53,7 +53,7 @@ It ships ALONGSIDE the legacy console and changes none of it. SCREEN, LOCATE, CO
 
 LIBRARY ONLY. Every line is FreeBASIC. No compiler change, no new runtime C -- the terminal is driven by declaring Win32 and libc entry points from FB.
 
-TARGETS: tiko's three, all x86-64 -- win64-msvc (the default on Windows), win64 and linux-x86_64. There is no 32-bit target.
+TARGETS: tiko's three, all x86-64 -- windows-x86_64 (the default on Windows), win64 and linux-x86_64. There is no 32-bit target.
 
 ## What You Get
 
@@ -98,12 +98,12 @@ examples/dashboard.tiko   the btop-style screen this module was measured
 Build and run:
 
 ```freebasic
-tiko examples/hello.tiko        ' win64-msvc on Windows, linux-x86_64 on Linux
+tiko examples/hello.tiko        ' windows-x86_64 on Windows, linux-x86_64 on Linux
 ```
 
 With a packaged toolchain no -i and no -p are needed: the modules and the runtime are in it. Run them from a REAL TERMINAL -- redirected output is rejected with an honest error rather than a dashboard drawn into a pipe.
 
-tiko builds all three with no diagnostics for win64-msvc and win64, and compiles them for linux-x86_64 with `-c` -- measured 2026-09-24 at origin/master 50c71751; they were built, not run, because they need a real terminal. fbc builds all three.
+tiko builds all three with no diagnostics for windows-x86_64 and win64, and compiles them for linux-x86_64 with `-c` -- measured 2026-09-24 at origin/master 50c71751; they were built, not run, because they need a real terminal. fbc builds all three.
 
 Read dashboard.tiko if you read only one. Everything in this document appears in it.
 
@@ -765,7 +765,7 @@ Of that, View( ) building the frame is about 1.17 ms and Render( ) diffing and e
 
 The byte counts are IDENTICAL on both platforms for the same input, which is a stronger determinism check than any single-platform test.
 
-tiko builds and runs the same bench program (measured 2026-09-24 at origin/master 50c71751, win64-msvc, default options on both sides). Its build writes the same bytes as fbc's -- 833,656 over the sixty changing frames, none over sixty unchanged ones -- and on the machine that measured both it took about 4.2 ms per changing frame where fbc's build took about 2.7 ms.
+tiko builds and runs the same bench program (measured 2026-09-24 at origin/master 50c71751, windows-x86_64, default options on both sides). Its build writes the same bytes as fbc's -- 833,656 over the sixty changing frames, none over sixty unchanged ones -- and on the machine that measured both it took about 4.2 ms per changing frame where fbc's build took about 2.7 ms.
 
 ## Testing Your Own Application
 
@@ -893,7 +893,7 @@ The suites are fbc's fbcunit suites for this module, written against fbc; they a
 
 ## Examples
 
-Three complete, working programs, in `docs/tui/examples/` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern). fbc builds each clean at `-w all`. tiko builds all three with no diagnostics for win64-msvc and win64, and compiles them for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: they need a real terminal).
+Three complete, working programs, in `docs/tui/examples/` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern). fbc builds each clean at `-w all`. tiko builds all three with no diagnostics for windows-x86_64 and win64, and compiles them for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: they need a real terminal).
 
 - [hello.tiko](Modern-Tui-Example-Hello) — the smallest complete program: one box, a keypress counter, a clean exit.
 - [form.tiko](Modern-Tui-Example-Form) — focus traversal across text inputs, a checkbox, a radio group and a select, with a confirm dialog on submit.

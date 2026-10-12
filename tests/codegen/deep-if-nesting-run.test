@@ -2,8 +2,8 @@
 '' steps, under the parser's own 1,024-block limit, so 'v' was 'not declared' from about
 '' 300 deep (audit Phase 5). fbc itself crashes at 250.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/deep-if-nesting.bas -o tests/codegen/deepifnesting.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/deep-if-nesting.bas -o tests/codegen/deepifnesting.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/deepifnesting.exe
 '' EXPECT-RUN-EXIT: 0

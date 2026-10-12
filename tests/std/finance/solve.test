@@ -1,8 +1,8 @@
 '' tests/vendor/fbc-tests/finance/solve.bas ported to the std modules (build/stdtests.py, generated).
 '' Expected: what tests/std/baseline/finance/solve.txt recorded for the original.
 '' TEST: cli
-'' ARGS: -target win64-msvc -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/finance/solve.bas -o tests/std/finance/solve.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/finance/solve.bas -o tests/std/finance/solve.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/finance/solve.exe
 '' EXPECT-RUN-OUT: 88        88         0  fbc_tests.finance.solve                        9

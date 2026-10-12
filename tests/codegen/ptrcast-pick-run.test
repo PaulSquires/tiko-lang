@@ -2,8 +2,8 @@
 '' overload -- for a declaration, an assignment, a byval argument and a condition. tiko took
 '' the first pointer overload every time. Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/ptrcast-pick.bas -o tests/codegen/ptrcastpick.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/ptrcast-pick.bas -o tests/codegen/ptrcastpick.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ptrcastpick.exe
 '' EXPECT-RUN-EXIT: 0

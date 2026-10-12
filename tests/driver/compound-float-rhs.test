@@ -2,7 +2,7 @@
 '' source's header for the measured C and the output fbc prints; build/goldenrun.sh runs
 '' the result beside fbc's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/compound-float-rhs.bas -o tests/driver/compoundfloatrhs.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/compound-float-rhs.bas -o tests/driver/compoundfloatrhs.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/compoundfloatrhs.exe

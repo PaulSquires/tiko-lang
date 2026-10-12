@@ -1,8 +1,8 @@
 '' A UDT AS A FOR BOUND OR STEP runs its numeric cast, the one the counter's kind meets. tiko
 '' lowered the UDT itself: 'for i = a to a + 1' started at 0. Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/for-udt-bounds.bas -o tests/codegen/forudtbounds.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/for-udt-bounds.bas -o tests/codegen/forudtbounds.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/forudtbounds.exe
 '' EXPECT-RUN-EXIT: 0

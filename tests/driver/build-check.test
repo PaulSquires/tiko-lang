@@ -2,9 +2,9 @@
 '' nothing written -- no object, no link, no lock. Here, the one error, exit 1, and no exe.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bck/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.bck
-'' ARGS: check -target win64-msvc tests/driver/src/build-err/good.tiko tests/driver/src/build-err/bad.tiko -o build/.bck/app.exe
+'' ARGS: check -target windows-x86_64 tests/driver/src/build-err/good.tiko tests/driver/src/build-err/bad.tiko -o build/.bck/app.exe
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: bad.tiko(3,11): error TKO0743: 'nosuchname' is not declared
 '' EXPECT-MAX-DIAG: 1

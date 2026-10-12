@@ -29,7 +29,7 @@
 #   win64    -target win64, the MinGW ABI, is NOT PACKAGED (the author's order,
 #            2026-10-10; decision Q2): no lib/win64, no MinGW runtime. The compiler
 #            still accepts the target -- build tiko-rt for it (lib/rt/build/build.sh
-#            Release win64) and link with a MinGW-w64 on PATH. win64-msvc, the
+#            Release win64) and link with a MinGW-w64 on PATH. windows-x86_64, the
 #            default, and linux-x86_64 need nothing of the kind.
 #
 # Neither is a packaging bug. Both are written into MANIFEST.txt so that a
@@ -110,10 +110,10 @@ esac
 # packaged on Windows at all, which is also why no libtkogfx ever reached a
 # toolchain: the script never got as far as copying one.
 #
-# WIN64-MSVC IS THE DEFAULT and is listed first. It is the only target lib/gfx
+# WINDOWS-X86_64 IS THE DEFAULT and is listed first. It is the only target lib/gfx
 # builds, so it is the only one where a SCREEN program links; and it is the ONE
 # target that needs nothing behind it. That is measured, 2026-09-06: a program
-# built for win64-msvc against lib/win64-msvc alone -- no fbc directory, none to
+# built for windows-x86_64 against lib/windows-x86_64 alone -- no fbc directory, none to
 # have -- linked and ran. tiko-rt's MSVC archive carries no MinGW imports
 # (build/abidelta.sh, and gatemsvc.sh at 3,922,073 assertions). win64 needed fbc's
 # libfb behind it until decision 0015 (D15); now it needs only fbc's CRT behind it.
@@ -123,9 +123,9 @@ esac
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         HOST=windows; EXT=".exe"; BINSUB=""
-        TARGETS="win64-msvc"
+        TARGETS="windows-x86_64"
         # The compiler's own default on this host -- HostTarget( ), src/types/type.bas.
-        DEFTARGET=win64-msvc
+        DEFTARGET=windows-x86_64
         CLANG_DEFAULT='C:\Program Files\LLVM\bin\clang.exe'
         ;;
     Linux)
@@ -138,12 +138,12 @@ case "$(uname -s)" in
     *)  die "unsupported host '$(uname -s)' -- this packages Windows or Linux" ;;
 esac
 
-# WHICH TARGETS HAVE A GRAPHICS LIBRARY. win64-msvc alone, and lib/gfx/build
+# WHICH TARGETS HAVE A GRAPHICS LIBRARY. windows-x86_64 alone, and lib/gfx/build
 # says why: tiko emits the Microsoft ABI for it and there is no MSVC libfbgfx
 # anywhere to fall back on, so that is the target the library was written for.
 # Kept as a list rather than a test so that the day a second one appears, this
 # is the line that changes.
-GFX_TARGETS="win64-msvc"
+GFX_TARGETS="windows-x86_64"
 
 gfx_has_target( ) {
     for __g in $GFX_TARGETS; do [ "$1" = "$__g" ] && return 0; done
@@ -405,7 +405,7 @@ for t in $TARGETS; do
         [ -f "$ROOT/lib/rt/lib/$t/$_rt0" ] && cp -f "$ROOT/lib/rt/lib/$t/$_rt0" "$OUT/lib/$t/"
     done
     case $t in
-        *-msvc) ;;
+        windows-x86_64) ;;
         *) [ -f "$OUT/lib/$t/fbrt0.o" ] || \
                die "no fbrt0.o for $t -- lib/rt/build/build.sh builds it beside libfb.a" ;;
     esac
@@ -450,7 +450,7 @@ done
 #
 # WITHOUT THESE THE DEFAULT TARGET DEPENDS ON VISUAL STUDIO. Measured 2026-09-06:
 # clang's msvc driver passes -libpath for VS 2022 Community and Windows SDK
-# 10.0.26100 out of its own knowledge of the machine, so win64-msvc linked here and
+# 10.0.26100 out of its own knowledge of the machine, so windows-x86_64 linked here and
 # would not link on a machine without them. A toolchain whose default target needs
 # an unrelated install is not one that can be handed to anyone.
 #
@@ -463,8 +463,8 @@ done
 # could not be built would be the wrong trade. The manifest records what happened.
 IMPLIB_STATE="not applicable on this host"
 if [ "$HOST" = "windows" ]; then
-    note "msvc import libraries -> lib/win64-msvc/  (from lib/implib/)"
-    if IMPLIB_OUT=$( sh "$ROOT/build/implibs.sh" build --out "$OUT/lib/win64-msvc" 2>&1 ); then
+    note "msvc import libraries -> lib/windows-x86_64/  (from lib/implib/)"
+    if IMPLIB_OUT=$( sh "$ROOT/build/implibs.sh" build --out "$OUT/lib/windows-x86_64" 2>&1 ); then
         IMPLIB_STATE=$( echo "$IMPLIB_OUT" | sed -n 's/^implibs: //p' | tail -1 | sed 's/ -> .*//' )
         note "$IMPLIB_STATE"
     else
@@ -535,7 +535,7 @@ cp -f "$FBCU/readme.txt" "$FBCU/license.txt" "$FBCU/lgpl-2.1.txt" "$OUT/src/fbcu
 # THE DATABASE LIBRARY SHIPS ON EVERY TARGET, not only the one fbc-modern's tree
 # happens to cover (T11). fbsqlite is the SQLite wrapper the book's Chapter 27 and
 # its ledger capstone use: three headers, and '#inclib "sqlite3"'. Until this step,
-# win64-msvc -- the default target -- failed to link it ('could not open
+# windows-x86_64 -- the default target -- failed to link it ('could not open
 # sqlite3.lib'), and tiko-linux had neither the headers nor a library, because
 # fbc-modern-linux carries neither.
 #
@@ -896,7 +896,7 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
         say "                  lib/rt in tiko-lang, and it links with a MinGW-w64"
         say "                  on PATH."
         say
-        say "lib/win64-msvc/*.lib   MSVC-format import libraries for the Windows"
+        say "lib/windows-x86_64/*.lib   MSVC-format import libraries for the Windows"
         say "                  DLLs, built from tiko-lang's lib/implib/*.def by"
         say "                  build/implibs.sh -- the MSVC linker looks for"
         say "                  <name>.lib and would otherwise fall back on an"
@@ -929,11 +929,11 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     done
     say
     if [ "$HOST" = "windows" ]; then
-        say "GRAPHICS IS win64-msvc ONLY. libtkogfx is built for the Microsoft ABI"
+        say "GRAPHICS IS windows-x86_64 ONLY. libtkogfx is built for the Microsoft ABI"
         say "and there is no MinGW build of it, so a SCREEN or PSET program links"
         say "on the default target and nowhere else. That is why it is the default."
     else
-        say "NO GRAPHICS ON THIS HOST. libtkogfx is built for win64-msvc only, so a"
+        say "NO GRAPHICS ON THIS HOST. libtkogfx is built for windows-x86_64 only, so a"
         say "SCREEN or PSET program does not link here: fb_Gfx* are undefined."
     fi
     say

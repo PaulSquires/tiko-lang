@@ -1,4 +1,4 @@
-'' A '.dll' LIBRARY NAME ON THE MinGW TARGET links as its stem, as on win64-msvc:
+'' A '.dll' LIBRARY NAME ON THE MinGW TARGET links as its stem, as on windows-x86_64:
 '' '-luser32', which finds libuser32.dll.a and libuser32.a alike. '-luser32.dll' found
 '' only the first, which fbc's MinGW tree carries and a stock MinGW-w64 does not.
 '' SKIPPED since 2026-10-10: -target win64 (the MinGW ABI) is no longer packaged, so the

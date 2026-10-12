@@ -2,8 +2,8 @@
 '' tiko-rt's own src/c/msvcinit.c does the same job there, pulled in by
 '' /INCLUDE:tkort_msvc_init_. The gnu half of this rule is link-fbrt0.test.
 '' TEST: cli
-'' ARGS: -v -target win64-msvc -mt tests/driver/src/mt-startup.bas -o tests/driver/mtstartupmsvc.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -v -target windows-x86_64 -mt tests/driver/src/mt-startup.bas -o tests/driver/mtstartupmsvc.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: /INCLUDE:tkort_msvc_init_
 '' EXPECT-NOT: fbrt0

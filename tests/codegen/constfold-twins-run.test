@@ -3,8 +3,8 @@
 '' the same expression at run time. Folding must agree with execution. Output identical to
 '' fbc-modern's, at -O0 and -O2.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/constfold-twins.bas -o tests/codegen/constfoldtwins.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/constfold-twins.bas -o tests/codegen/constfoldtwins.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/constfoldtwins.exe
 '' EXPECT-RUN-EXIT: 0

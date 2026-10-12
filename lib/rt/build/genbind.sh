@@ -11,12 +11,12 @@
 #
 # RUN IT AFTER THE RUNTIME STARTS USING ANOTHER C FUNCTION, and commit the result: the
 # binding is generated but CHECKED IN, so a build needs no libclang and a review sees every
-# declaration the runtime depends on. win64-msvc builds from win64.bi (fbc compiles it AS
+# declaration the runtime depends on. windows-x86_64 builds from win64.bi (fbc compiles it AS
 # win64); inc/sysbind.bi holds the streams, errno and jmp_buf no importer can carry.
 #
 # PROVED EQUIVALENT to fbc's crt/*.bi when it replaced them (2026-09-24): every runtime
 # object built from it was byte-identical to the one built from crt/ on win64, and on
-# win64-msvc and linux-x86_64 differed only in fbc's local label numbers, the COFF
+# windows-x86_64 and linux-x86_64 differed only in fbc's local label numbers, the COFF
 # timestamp and alignment padding.
 set -eu
 cd "$(dirname "$0")/.."

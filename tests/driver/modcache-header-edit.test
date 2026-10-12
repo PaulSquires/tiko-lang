@@ -2,12 +2,12 @@
 '' re-checked on every hit; the key itself did not change, so the reason is a file it read.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-hdr/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.mct-hdr
 '' COPY: tests/driver/src/modcache => build/.mct-hdr
-'' STEP: -v -target win64-msvc -i build/.mct-hdr/libs build/.mct-hdr/app/main.bas -o build/.mct-hdr/app.exe
+'' STEP: -v -target windows-x86_64 -i build/.mct-hdr/libs build/.mct-hdr/app/main.bas -o build/.mct-hdr/app.exe
 '' WRITE: build/.mct-hdr/inc/leafcfg.bi :: const LEAF_BASE = 100\n
-'' ARGS: -v -target win64-msvc -i build/.mct-hdr/libs build/.mct-hdr/app/main.bas -o build/.mct-hdr/app.exe
+'' ARGS: -v -target windows-x86_64 -i build/.mct-hdr/libs build/.mct-hdr/app/main.bas -o build/.mct-hdr/app.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: module acme.leaf: miss (a file it read changed)
 '' RUN: build/.mct-hdr/app.exe

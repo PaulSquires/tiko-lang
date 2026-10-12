@@ -2,12 +2,12 @@
 '' was '<stem>.res' beside the '.rc', so a '.res' of the user's own of that name was
 '' overwritten and then deleted with the build's temporaries (audit F-74, CG-16).
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.rc-own
 '' COPY: tests/driver/src/res.rc => build/.rc-own/res.rc
 '' COPY: tests/driver/src/res.bas => build/.rc-own/res.bas
 '' WRITE: build/.rc-own/res.res :: USERS OWN
-'' ARGS: -target win64-msvc build/.rc-own/res.bas build/.rc-own/res.rc -o build/.rc-own/res.exe
+'' ARGS: -target windows-x86_64 build/.rc-own/res.bas build/.rc-own/res.rc -o build/.rc-own/res.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE-HAS: build/.rc-own/res.res :: USERS OWN
 '' EXPECT-NO-FILE: build/.rc-own/res.exe.rc1.res

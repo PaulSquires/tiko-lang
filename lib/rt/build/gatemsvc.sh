@@ -13,7 +13,7 @@
 #
 #   fbc -c -gen llvm -r -z msvc   per module, emitting the msvc triple
 #   clang --target=...-msvc       per module, to a COFF object
-#   clang, linked against         lib/win64-msvc/libfbmt.a
+#   clang, linked against         lib/windows-x86_64/libfbmt.a
 #
 # and then RUN. RFC-0008 sections 15 to 17 are the measurements that got here.
 #
@@ -35,7 +35,7 @@
 
 # TKORT_GATE_OPTIONAL=1 turns every REFUSAL into a SKIP. Everything this script dies on
 # is an environment gap -- no fbc that understands '-z msvc', no clang, no import
-# libraries, no win64-msvc archive of the right configuration -- and none of them is a
+# libraries, no windows-x86_64 archive of the right configuration -- and none of them is a
 # regression in tiko-lang. check-all sets it for the same reason crosslink.sh skips
 # rather than failing when the toolchain has not been packaged: a gate that fails for
 # the wrong reason gets ignored, and then it fails for the right reason and is ignored
@@ -83,7 +83,7 @@ fi
 # build/package.sh builds them there, from lib/implib/ (build/implibs.sh).
 # REFUSED rather than skipped: without them the link fails on memset, which reads as an
 # ABI difference -- exactly the misdiagnosis this script's header warns about.
-IMPLIBS=${TKORT_MSVC_IMPLIBS:-$(cd "$(dirname "$0")/../../.." && pwd)/toolchains/tiko-windows/lib/win64-msvc}
+IMPLIBS=${TKORT_MSVC_IMPLIBS:-$(cd "$(dirname "$0")/../../.." && pwd)/toolchains/tiko-windows/lib/windows-x86_64}
 [ -f "$IMPLIBS/ucrtbase.lib" ] || rt_die "no ucrtbase.lib in $IMPLIBS -- run build/implibs.sh build --out <dir>"
 IMPLIBS=$(cygpath -m "$IMPLIBS")
 
@@ -91,12 +91,12 @@ CLANGX=${CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}
 ARX=${TKORT_AR_MSVC:-"C:/Program Files/LLVM/bin/llvm-ar.exe"}
 
 # ---------------------------------------------------------------- the archive
-LIB="$RT_ROOT/lib/win64-msvc/libfbmt.a"
-[ -f "$LIB" ] || rt_die "no archive at $LIB -- run build/build.sh $CFG win64-msvc first"
-STAMP="$RT_ROOT/lib/win64-msvc/.config"
-[ -f "$STAMP" ] || rt_die "no .config beside $LIB -- rebuild with build/build.sh $CFG win64-msvc"
+LIB="$RT_ROOT/lib/windows-x86_64/libfbmt.a"
+[ -f "$LIB" ] || rt_die "no archive at $LIB -- run build/build.sh $CFG windows-x86_64 first"
+STAMP="$RT_ROOT/lib/windows-x86_64/.config"
+[ -f "$STAMP" ] || rt_die "no .config beside $LIB -- rebuild with build/build.sh $CFG windows-x86_64"
 HAVE=$(cat "$STAMP")
-[ "$HAVE" = "$CFG" ] || rt_die "the win64-msvc archives were built [$HAVE], not [$CFG]"
+[ "$HAVE" = "$CFG" ] || rt_die "the windows-x86_64 archives were built [$HAVE], not [$CFG]"
 
 W="$RT_ROOT/obj/gatemsvc"
 rm -rf "$W"; mkdir -p "$W/cu" "$W/t"
@@ -259,7 +259,7 @@ echo "gatemsvc: failing suites:"
 sed -n '/SUMMARY/,$p' "$W/run.out" | awk '$3+0>0' | sed 's/^/    /'
 
 if [ "$FAILED" = "0" ] && [ "$bad" = "0" ]; then
-    echo "gatemsvc: PASS -- win64-msvc [$CFG], $ok modules, 0 assertion failures"
+    echo "gatemsvc: PASS -- windows-x86_64 [$CFG], $ok modules, 0 assertion failures"
     exit 0
 fi
 echo "gatemsvc: FAIL -- $FAILED assertion failures, $bad modules unbuilt (exit=$rc)" >&2

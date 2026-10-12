@@ -60,8 +60,8 @@ fi
 # See linkscan.sh: the development tree has no lib/<target>, so the toolchain's own
 # directory has to be named.
 if [ -z "$TKO_LIBPATH" ]; then
-    if [ -d toolchains/tiko-windows/lib/win64-msvc ]; then
-        TKO_LIBPATH="$PWD/toolchains/tiko-windows/lib/win64-msvc"
+    if [ -d toolchains/tiko-windows/lib/windows-x86_64 ]; then
+        TKO_LIBPATH="$PWD/toolchains/tiko-windows/lib/windows-x86_64"
         export TKO_LIBPATH
     fi
 fi

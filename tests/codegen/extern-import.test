@@ -5,7 +5,7 @@
 '' now, it reads &h1234, and a write and an '@' go through the DLL's own storage (measured
 '' 2026-10-03). A plain 'extern' is unchanged. See src/codegen/llvmglobal.bas.
 '' TEST: cli
-'' ARGS: --emit-ir -target win64-msvc tests/codegen/src/extern-import.bas
+'' ARGS: --emit-ir -target windows-x86_64 tests/codegen/src/extern-import.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: @"MyDll_Data" = external dllimport global i32
 '' EXPECT-OUT: @"Plain_Data" = external global i32

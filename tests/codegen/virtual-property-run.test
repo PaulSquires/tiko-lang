@@ -4,8 +4,8 @@
 '' them held B's. They now ask VirtualSlotOf_, as a method call does. Output identical to
 '' fbc-modern's; the previous compiler differed on four of the five lines.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/virtual-property.bas -o tests/codegen/virtualproperty.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/virtual-property.bas -o tests/codegen/virtualproperty.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/virtualproperty.exe
 '' RUN: tests/codegen/virtualproperty.exe

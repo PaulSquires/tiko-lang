@@ -6,8 +6,8 @@
 '' in the same order, so its call to 'Peek( byval p as Widget ptr )' named Peek(void*), which
 '' nothing defines (fbx/adodb's event sink).
 '' TEST: cli
-'' ARGS: -target win64-msvc -i tests/modules/src/aliaslater/libs tests/modules/src/aliaslater/main.bas -o tests/modules/aliaslater.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i tests/modules/src/aliaslater/libs tests/modules/src/aliaslater/main.bas -o tests/modules/aliaslater.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/aliaslater.exe
 '' EXPECT-RUN-OUT:  42

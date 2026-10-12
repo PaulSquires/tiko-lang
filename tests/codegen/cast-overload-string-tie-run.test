@@ -2,8 +2,8 @@
 '' binds the string overload, as fbc does -- byref or byval string, long or double, and an
 '' integer parameter too. tiko called them ambiguous, TKO0660 (audit F-55, SYM-11).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/cast-overload-string-tie.bas -o tests/codegen/castoverloadstringtie.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/cast-overload-string-tie.bas -o tests/codegen/castoverloadstringtie.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/castoverloadstringtie.exe
 '' EXPECT-RUN-EXIT: 0

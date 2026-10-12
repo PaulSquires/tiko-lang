@@ -1,9 +1,9 @@
-'' win64-msvc: the unnumbered in the LLVM list as declared, the numbered in .CRT$XCV /
+'' windows-x86_64: the unnumbered in the LLVM list as declared, the numbered in .CRT$XCV /
 '' .CRT$XTY plus 65535 minus the number. tiko-rt walks .CRT$XC* backwards and .CRT$XT*
 '' forwards (lib/rt/src/c/msvccrt.c), which is fbc's order. A written 65535 is
 '' unnumbered. See the source.
 '' TEST: cli
-'' ARGS: -target win64-msvc --emit-ir tests/codegen/src/structor-order.bas
+'' ARGS: -target windows-x86_64 --emit-ir tests/codegen/src/structor-order.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: internal constant ptr @"P200", section ".CRT$XCV65335", align 8
 '' EXPECT-OUT: internal constant ptr @"P101", section ".CRT$XCV65434", align 8

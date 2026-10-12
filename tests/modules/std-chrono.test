@@ -3,8 +3,8 @@
 '' and constructor, the nested namespace WallClock -- and, under 'using chrono', the tick
 '' constants, public now.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/chrono.bas -o tests/modules/stdchrono.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/chrono.bas -o tests/modules/stdchrono.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdchrono.exe
 '' EXPECT-RUN-OUT: 2026 9 28 1

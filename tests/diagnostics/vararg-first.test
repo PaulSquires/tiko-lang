@@ -4,7 +4,7 @@
 '' and reported nothing from. Line 27, a non-static member declaration, is accepted: its
 '' hidden THIS comes first. The rule has no target in it; linux-x86_64 gives the same.
 '' TEST: cli
-'' ARGS: --dump-ir -target win64-msvc tests/diagnostics/src/vararg-first.bas
+'' ARGS: --dump-ir -target windows-x86_64 tests/diagnostics/src/vararg-first.bas
 '' EXPECT-EXIT: 1
 '' EXPECT-MAX-DIAG: 15
 '' EXPECT-OUT: vararg-first.bas(5,24): error TKO0782: '...' cannot be the first parameter

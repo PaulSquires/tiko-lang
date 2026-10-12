@@ -5,13 +5,13 @@
 '' the source in upper case and must hit both modules.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-case/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.mct-case
 '' COPY: tests/driver/src/modcache => build/.mct-case
-'' STEP: -v -target win64-msvc -i build/.mct-case/libs build/.mct-case/app/main.bas -o build/.mct-case/app.exe
+'' STEP: -v -target windows-x86_64 -i build/.mct-case/libs build/.mct-case/app/main.bas -o build/.mct-case/app.exe
 '' STEP-OUT: module acme.leaf: miss (new)
 '' STEP-OUT: module acme.middle: miss (new)
-'' ARGS: -v -target win64-msvc -i BUILD/.MCT-CASE/LIBS BUILD/.MCT-CASE/APP/MAIN.BAS -o build/.mct-case/app.exe
+'' ARGS: -v -target windows-x86_64 -i BUILD/.MCT-CASE/LIBS BUILD/.MCT-CASE/APP/MAIN.BAS -o build/.mct-case/app.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: module acme.leaf: hit
 '' EXPECT-OUT: module acme.middle: hit

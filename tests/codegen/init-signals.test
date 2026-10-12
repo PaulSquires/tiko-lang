@@ -3,8 +3,8 @@
 '' the process died with 0xC0000094 (audit F-59).
 '' TEST: cli
 '' RUN-LANE: no      -- '5 \ 0' is undefined behaviour the optimiser may fold
-'' ARGS: -e -target win64-msvc tests/codegen/src/init-signals.bas -o tests/codegen/initsignals.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -e -target windows-x86_64 tests/codegen/src/init-signals.bas -o tests/codegen/initsignals.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/initsignals.exe
 '' EXPECT-RUN-EXIT: 11

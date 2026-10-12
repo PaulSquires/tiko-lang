@@ -2,10 +2,10 @@
 '' runs at -O2 -- and adds '-d FAST=1'; the target writes out/fast/.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bpf/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.bpf
 '' COPY: tests/driver/src/build-pkg => build/.bpf/pkg
-'' ARGS: build tool -target win64-msvc --manifest build/.bpf/pkg --profile fast -v
+'' ARGS: build tool -target windows-x86_64 --manifest build/.bpf/pkg --profile fast -v
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: -O2
 '' RUN: build/.bpf/pkg/out/fast/tool.exe

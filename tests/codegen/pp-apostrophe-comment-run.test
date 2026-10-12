@@ -1,8 +1,8 @@
 '' A "'" in a macro's arguments is a comment again in the statement it expands to.
 '' See the source's header.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/pp-apostrophe-comment.bas -o tests/codegen/ppapostrophecomment.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/pp-apostrophe-comment.bas -o tests/codegen/ppapostrophecomment.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ppapostrophecomment.exe
 '' EXPECT-RUN-EXIT: 0

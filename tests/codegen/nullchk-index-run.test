@@ -3,8 +3,8 @@
 '' at any index. A zstring/wstring ptr index is not checked, by fbc or tiko. tiko
 '' segfaulted. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -exx -target win64-msvc tests/codegen/src/nullchk-index.bas -o tests/codegen/nullchkindex.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -exx -target windows-x86_64 tests/codegen/src/nullchk-index.bas -o tests/codegen/nullchkindex.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/nullchkindex.exe
 '' RUN: tests/codegen/nullchkindex.exe

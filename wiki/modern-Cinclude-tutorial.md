@@ -2,7 +2,7 @@
 
 # #cinclude Tutorial
 
-> **In tiko.** tiko imports C headers itself, through libclang loaded at first use, for win64-msvc (the Windows default), win64 and linux-x86_64 (decision 0016, `docs/architecture/decisions/0016-cinclude.md`). It has `-cinclude`, `-cimport`, `-cimport-out`, `-cimport-manifest`, `-cdefine`, `-csysroot`, `-copt`, `-cnomacros`, `-cnoverify`, `-cnocache` and `-ccachedir`; FBC-Modern's `-cprobe`, `-cimport-split`, `-cimport-indir` (with `-cimport-outdir`, `-cimport-recurse`, `-cimport-force` and `-cimport-prefix`) and `-cverbose` are `TKO0100: unknown option` to tiko. Commands written `tiko` below were run with tiko and gave what FBC-Modern's `fbc` gives; those left as `fbc` are FBC-Modern's, and tiko has no equivalent. Measured 2026-09-24 at origin/master 50c71751.
+> **In tiko.** tiko imports C headers itself, through libclang loaded at first use, for windows-x86_64 (the Windows default), win64 and linux-x86_64 (decision 0016, `docs/architecture/decisions/0016-cinclude.md`). It has `-cinclude`, `-cimport`, `-cimport-out`, `-cimport-manifest`, `-cdefine`, `-csysroot`, `-copt`, `-cnomacros`, `-cnoverify`, `-cnocache` and `-ccachedir`; FBC-Modern's `-cprobe`, `-cimport-split`, `-cimport-indir` (with `-cimport-outdir`, `-cimport-recurse`, `-cimport-force` and `-cimport-prefix`) and `-cverbose` are `TKO0100: unknown option` to tiko. Commands written `tiko` below were run with tiko and gave what FBC-Modern's `fbc` gives; those left as `fbc` are FBC-Modern's, and tiko has no equivalent. Measured 2026-09-24 at origin/master 50c71751.
 
 > 📘 **Reference:** [#cinclude](modern-Cinclude)
 
@@ -105,7 +105,7 @@ That check is not theoretical. `tagVARIANT` from `windows.h` was once imported a
 
 ## Part 3 — Tutorial: SQLite, end to end
 
-*The commands below are tiko's, measured 2026-09-24 at origin/master 50c71751 with SQLite's own `sqlite3.h` in `vendor/`, except in Steps 6 and 7, which are FBC-Modern's. `#inclib "sqlite3"` needs a library the linker can use: on tiko's default target, win64-msvc, an import library (`libsqlite3.dll.a`) links, but a MinGW-built static `libsqlite3.a` does not (`lld-link: error: undefined symbol: ___chkstk_ms`); `-target win64` links the static one.*
+*The commands below are tiko's, measured 2026-09-24 at origin/master 50c71751 with SQLite's own `sqlite3.h` in `vendor/`, except in Steps 6 and 7, which are FBC-Modern's. `#inclib "sqlite3"` needs a library the linker can use: on tiko's default target, windows-x86_64, an import library (`libsqlite3.dll.a`) links, but a MinGW-built static `libsqlite3.a` does not (`lld-link: error: undefined symbol: ___chkstk_ms`); `-target win64` links the static one.*
 
 ### Step 1 — check the path works
 
@@ -315,7 +315,7 @@ Much less renaming happens than you would expect, though — `POINT`, `INPUT`, `
 
 `-cverbose` tells you what happened, including **why** the cache missed.
 
-With tiko, measured 2026-09-24 at origin/master 50c71751: a program that `#cinclude`s `windows.h` built in 18.7 s cold and 0.6 s warm on win64-msvc, about 43,000 declarations. Its cache key has the running `tiko` in place of the fbc build. tiko has no `-cverbose`; `-cnocache` bypasses the cache and `-ccachedir` moves it.
+With tiko, measured 2026-09-24 at origin/master 50c71751: a program that `#cinclude`s `windows.h` built in 18.7 s cold and 0.6 s warm on windows-x86_64, about 43,000 declarations. Its cache key has the running `tiko` in place of the fbc build. tiko has no `-cverbose`; `-cnocache` bypasses the cache and `-ccachedir` moves it.
 
 ---
 
@@ -380,7 +380,7 @@ It is the same trap `#foreignlib` was written to close, still open on the header
 
 ## Part 6 — Worked examples in the repository
 
-They are in FBC-Modern's repository, not tiko-lang's, and both check their own results. Copied out and built with tiko, measured 2026-09-24 at origin/master 50c71751, `winapi_window.bas` prints `winapi ok -- the window manager called into FreeBASIC 3 times` on win64-msvc and win64, and `sqlite_query.bas` prints `sqlite ok -- 3.53.4, 3 rows through a FreeBASIC callback, 2 through a statement` with `-target win64` — the lines FBC-Modern's `fbc` builds print. On win64-msvc `sqlite_query.bas` does not link: its vendored `sqlite3_windows_x86_64.a` is a MinGW archive (`lld-link: error: undefined symbol: ___chkstk_ms`, `TKO0116`).
+They are in FBC-Modern's repository, not tiko-lang's, and both check their own results. Copied out and built with tiko, measured 2026-09-24 at origin/master 50c71751, `winapi_window.bas` prints `winapi ok -- the window manager called into FreeBASIC 3 times` on windows-x86_64 and win64, and `sqlite_query.bas` prints `sqlite ok -- 3.53.4, 3 rows through a FreeBASIC callback, 2 through a statement` with `-target win64` — the lines FBC-Modern's `fbc` builds print. On windows-x86_64 `sqlite_query.bas` does not link: its vendored `sqlite3_windows_x86_64.a` is a MinGW archive (`lld-link: error: undefined symbol: ___chkstk_ms`, `TKO0116`).
 
 | | |
 | --- | --- |

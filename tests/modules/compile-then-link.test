@@ -5,14 +5,14 @@
 '' leaves their objects where the records say.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-cl/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.mct-cl
 '' CLEAN: build/.mct-cl/obj
-'' STEP: -v -c -m main -target win64-msvc -i tests/modules/src/iface/libs tests/modules/src/iface/app/main.bas -o build/.mct-cl/obj/main.o
+'' STEP: -v -c -m main -target windows-x86_64 -i tests/modules/src/iface/libs tests/modules/src/iface/app/main.bas -o build/.mct-cl/obj/main.o
 '' STEP-OUT: module acme.net.http: miss
-'' STEP: -v -c -m main -target win64-msvc -i tests/modules/src/iface/libs tests/modules/src/iface/app/main.bas -o build/.mct-cl/obj/main.o
+'' STEP: -v -c -m main -target windows-x86_64 -i tests/modules/src/iface/libs tests/modules/src/iface/app/main.bas -o build/.mct-cl/obj/main.o
 '' STEP-OUT: module acme.net.http: hit
-'' ARGS: -target win64-msvc build/.mct-cl/obj/main.o -o build/.mct-cl/obj/main.exe
+'' ARGS: -target windows-x86_64 build/.mct-cl/obj/main.o -o build/.mct-cl/obj/main.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: build/.mct-cl/obj/acme.net.http.o
 '' EXPECT-FILE: build/.mct-cl/obj/acme.text.esc.o

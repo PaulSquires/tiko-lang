@@ -5,8 +5,8 @@
 '' function, a string result, an aggregate result, and a call between the address and the
 '' definition. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/addr-before-def.bas -o tests/codegen/addrbeforedef.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/addr-before-def.bas -o tests/codegen/addrbeforedef.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: verify:
 '' EXPECT-FILE: tests/codegen/addrbeforedef.exe

@@ -2,7 +2,7 @@
 '' and linked instead, and x.ll was an EXECUTABLE. The PE stub's text is what an image has
 '' and a module does not.
 '' TEST: cli
-'' ARGS: -target win64-msvc --emit-ir tests/driver/src/emit-file.bas -o tests/driver/emitfile.ll
+'' ARGS: -target windows-x86_64 --emit-ir tests/driver/src/emit-file.bas -o tests/driver/emitfile.ll
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/emitfile.ll
 '' EXPECT-FILE-HAS: tests/driver/emitfile.ll :: target triple = "x86_64-pc-windows-msvc"

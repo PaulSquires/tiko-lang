@@ -23,7 +23,7 @@ Each target has its own triple:
 
 | Target | clang triple |
 | --- | --- |
-| `win64-msvc` (default on Windows) | `x86_64-pc-windows-msvc` |
+| `windows-x86_64` (default on Windows) | `x86_64-pc-windows-msvc` |
 | `linux-x86_64` (default on Linux) | `x86_64-pc-linux-gnu` |
 
 ## What you need: clang
@@ -60,7 +60,7 @@ tiko's output is compared with fbc's, run for run. The figures below are dated i
 - **Programs.** All 68 in-scope `COMPILE_AND_RUN_OK` programs in fbc's own test corpus print what fbc's build prints (`build/runscan.sh`, 2026-09-20).
 - **fbcunit suites.** 631 of fbc's suites build under both compilers, and 495 give the same results table (`build/suiterun.sh`, 2026-09-20).
 - **Fuzzing.** 2,000 generated programs all print what fbc's build prints (2026-09-20).
-- **Self-hosting.** tiko compiles itself to a byte-identical fixpoint on win64-msvc and linux-x86_64, at `-O0` and `-O2` (`build/bootstrap.sh`, 2026-09-21).
+- **Self-hosting.** tiko compiles itself to a byte-identical fixpoint on windows-x86_64 and linux-x86_64, at `-O0` and `-O2` (`build/bootstrap.sh`, 2026-09-21).
 - **Codegen coverage.** `build/icescan.sh` compiles all 2,709 corpus files to objects and reports anything the emitter or clang refuses: 21 failures in 12 files at the last run (§9c).
 
 ---

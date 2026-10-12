@@ -1,7 +1,7 @@
 '' A DERIVED UDT POINTER CASTS TO 'any ptr ptr' AND 'any ptr ptr ptr' -- a vtable read -- where 'long ptr ptr' is fbc's error 302 (pointers/procptr-low-level-delegate.bas). tiko refused every depth past one (TKO0627). Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/derived-ptr-to-anyptrptr.bas -o tests/codegen/derivedptrtoanyptrptr.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/derived-ptr-to-anyptrptr.bas -o tests/codegen/derivedptrtoanyptrptr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/derivedptrtoanyptrptr.exe
 '' EXPECT-RUN-EXIT: 0

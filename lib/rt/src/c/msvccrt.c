@@ -3,7 +3,7 @@
 ** MSVC-ONLY, and empty everywhere else: the gnu targets get all of this from
 ** fbc's crt2.o and libmingwex.a, which are on their link line already.
 **
-** WHY THIS EXISTS.  Before it, a win64-msvc link needed Visual Studio on the
+** WHY THIS EXISTS.  Before it, a windows-x86_64 link needed Visual Studio on the
 ** machine doing the compiling -- not the SDK, VC Tools specifically, for
 ** libcmt.lib, libvcruntime.lib, oldnames.lib and legacy_stdio_definitions.lib.
 ** Measured 2026-09-06: those four are the only reason clang reached into

@@ -1,7 +1,7 @@
 #!/bin/sh
 # abrun-bloadsave.sh -- compile abrun-bloadsave.bas with fbc-modern and with tiko,
 # run both, and diff their output. Install the libtkogfx.a under test into
-# toolchains/tiko-windows/lib/win64-msvc first.
+# toolchains/tiko-windows/lib/windows-x86_64 first.
 #
 # ORIGINAL WORK. Part of libtkogfx (LGPL-2.1-or-later with the static-linking
 # exception).
@@ -14,7 +14,7 @@ OUT=$( mktemp -d )
 cp "$HERE/abrun-bloadsave.bas" "$OUT/"
 cd "$OUT"
 "$FBC" abrun-bloadsave.bas -x ref.exe
-"$TIKO" -i "$TL/toolchains/tiko-windows/inc" -p "$TL/toolchains/tiko-windows/lib/win64-msvc" \
+"$TIKO" -i "$TL/toolchains/tiko-windows/inc" -p "$TL/toolchains/tiko-windows/lib/windows-x86_64" \
     abrun-bloadsave.bas -o sub.exe
 ./ref.exe > ref.txt
 ./sub.exe > sub.txt

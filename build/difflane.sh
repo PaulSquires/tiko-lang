@@ -30,7 +30,7 @@ TKO="$ROOT/bin/tiko$EXT"
 PY=$(command -v python || command -v python3)
 [ -n "$PY" ] || { echo "difflane: needs python" >&2; exit 3; }
 
-export TKO_LIBPATH=${TKO_LIBPATH:-$ROOT/toolchains/tiko-windows/lib/win64-msvc}
+export TKO_LIBPATH=${TKO_LIBPATH:-$ROOT/toolchains/tiko-windows/lib/windows-x86_64}
 first=${1:-1}
 count=${2:-200}
 W="$ROOT/build/.difflane"

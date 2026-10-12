@@ -1,6 +1,6 @@
-# lib/implib -- win64-msvc's import libraries, as source
+# lib/implib -- windows-x86_64's import libraries, as source
 
-`build/package.sh` turns these into `lib/win64-msvc/*.lib` in a toolchain with
+`build/package.sh` turns these into `lib/windows-x86_64/*.lib` in a toolchain with
 `build/implibs.sh build`: one `llvm-dlltool` run per `.def`, and `static/*.lib` copied
 through. Nothing outside this directory is read, so the default target's import
 libraries need no fbc and no MinGW tree.

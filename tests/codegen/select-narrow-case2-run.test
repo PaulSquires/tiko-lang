@@ -1,8 +1,8 @@
 '' RUN: the unsigned and ranged forms of the same rule -- a ushort or ubyte subject
 '' against ulong values, 'is', 'to' and a variable. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/select-narrow-case2.bas -o tests/codegen/selectnarrowcase2.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/select-narrow-case2.bas -o tests/codegen/selectnarrowcase2.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/selectnarrowcase2.exe
 '' EXPECT-RUN-EXIT: 0

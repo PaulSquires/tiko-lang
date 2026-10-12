@@ -2,8 +2,8 @@
 '' unicode escape, which left the whole literal undecoded with both slashes in it.
 '' Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/escaped-backslash-u.bas -o tests/codegen/escapedbackslashu.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/escaped-backslash-u.bas -o tests/codegen/escapedbackslashu.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/escapedbackslashu.exe
 '' EXPECT-RUN-EXIT: 0

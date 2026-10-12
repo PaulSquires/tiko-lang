@@ -3,7 +3,7 @@
 '' The output's directory does not exist, so the '.ll' beside it cannot be created. Needs
 '' clang to be FOUND (FindTools runs first), not to run.
 '' TEST: cli
-'' ARGS: -target win64-msvc -o build/.diagfile-no-such-dir/x.exe --diagnostics-file build/.diagfile-irwrite.tsv tests/source/plain.bas
+'' ARGS: -target windows-x86_64 -o build/.diagfile-no-such-dir/x.exe --diagnostics-file build/.diagfile-irwrite.tsv tests/source/plain.bas
 '' EXPECT-EXIT: 5
 '' EXPECT-OUT: error TKO0112: cannot write intermediate file
 '' EXPECT-FILE-HAS: build/.diagfile-irwrite.tsv :: \nerror\tTKO0112\t\t0\t0\t0\t0\tcannot write intermediate file '

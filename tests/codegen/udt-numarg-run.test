@@ -1,8 +1,8 @@
 '' A UDT AS A STRING INTRINSIC'S COUNT OR POSITION: space, string, left, right, mid and ucase's
 '' mode run its numeric cast. tiko dropped each statement. Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/udt-numarg.bas -o tests/codegen/udtnumarg.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/udt-numarg.bas -o tests/codegen/udtnumarg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/udtnumarg.exe
 '' EXPECT-RUN-EXIT: 0

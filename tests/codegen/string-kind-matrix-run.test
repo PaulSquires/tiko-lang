@@ -3,8 +3,8 @@
 '' with a literal, itself and a concatenation on every kind. Output identical to
 '' fbc-modern's; the guards prove nothing was overrun.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/string-kind-matrix.bas -o tests/codegen/stringkindmatrix.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/string-kind-matrix.bas -o tests/codegen/stringkindmatrix.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/stringkindmatrix.exe
 '' EXPECT-RUN-EXIT: 0

@@ -1,8 +1,8 @@
 '' A UDT AS asc's POSITION, a 'mid( ) =' position, a REDIM bound and a PRINT USING item runs its
 '' numeric cast. tiko declined the first three and clang refused the last. Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/udt-numarg2.bas -o tests/codegen/udtnumarg2.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/udt-numarg2.bas -o tests/codegen/udtnumarg2.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/udtnumarg2.exe
 '' EXPECT-RUN-EXIT: 0

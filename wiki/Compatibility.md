@@ -46,7 +46,7 @@ Each of these is a diagnostic, not a silent difference:
 
 **The same on both sides.** `print len`, `print asc`, `print abs` with no operand are refused by both (fbc error 6, tiko `TKO0872`), and so are `print len( )`, `print sqr( )`, `print chr( )` (fbc error 9, tiko `TKO0801`). A `pascal` procedure gets its arguments in the same order from both compilers. A suspicious pointer assignment (`byte ptr` from `integer ptr`) draws fbc's warning 4 and tiko's `TKO0830` on the same line.
 
-**Graphics links on `win64-msvc` only.** libtkogfx is built for that ABI alone.
+**Graphics links on `windows-x86_64` only.** libtkogfx is built for that ABI alone.
 
 ## What is the same
 
@@ -68,7 +68,7 @@ These figures were taken on earlier dates, against **FBC-Modern's** `fbc` (a sup
 
 - fbc's own test corpus is vendored (2,709 `.bas` files, re-counted 2026-09-30) and run differentially: programs, fbcunit suites and the test sources are each built by both compilers and compared.
 - 2,000 generated programs print what fbc's build prints (measured earlier against FBC-Modern's fbc, not re-run).
-- tiko compiles itself to a byte-identical fixpoint on win64-msvc and linux-x86_64 (2026-09-21, not re-run).
+- tiko compiles itself to a byte-identical fixpoint on windows-x86_64 and linux-x86_64 (2026-09-21, not re-run).
 
 ## Licensing
 

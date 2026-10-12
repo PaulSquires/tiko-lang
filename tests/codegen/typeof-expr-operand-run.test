@@ -3,8 +3,8 @@
 '' 'dim as typeof( l * 1000000000 ) y = 3000000000' kept -1294967296 (audit F-56).
 '' Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/typeof-expr-operand.bas -o tests/codegen/typeofexproperand.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/typeof-expr-operand.bas -o tests/codegen/typeofexproperand.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/typeofexproperand.exe
 '' EXPECT-RUN-EXIT: 0

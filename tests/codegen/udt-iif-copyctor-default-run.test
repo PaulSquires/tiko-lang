@@ -1,7 +1,7 @@
 '' structs: iif copies an lvalue arm with a copy ctor that has defaulted trailing params (structs/temp-var-dtors.bas)
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/udt-iif-copyctor-default.bas -o tests/codegen/udtiifcopyctordefault.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/udt-iif-copyctor-default.bas -o tests/codegen/udtiifcopyctordefault.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/udtiifcopyctordefault.exe
 '' EXPECT-RUN-EXIT: 0

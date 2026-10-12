@@ -7,7 +7,7 @@
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.dpo/cache
 '' CLEAN: build/.dpo
-'' ARGS: -v --dump-ir -target win64-msvc tests/modules/src/stdfacade/containers.bas
+'' ARGS: -v --dump-ir -target windows-x86_64 tests/modules/src/stdfacade/containers.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: module std.containers: miss
 '' EXPECT-OUT: /m.

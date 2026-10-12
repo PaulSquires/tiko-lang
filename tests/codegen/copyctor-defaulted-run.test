@@ -2,8 +2,8 @@
 '' the overload and run it; a byval argument does not, because fbc's copy-constructor fact
 '' counts only a one-parameter one, so the type stays trivial. Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/copyctor-defaulted.bas -o tests/codegen/copyctordefaulted.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/copyctor-defaulted.bas -o tests/codegen/copyctordefaulted.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/copyctordefaulted.exe
 '' EXPECT-RUN-EXIT: 0

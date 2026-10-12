@@ -1,8 +1,8 @@
 '' A folded '2.5 ^ 2.5' equals the same pow at run time: the compiler's worker thread ran msvcrt's
 '' x87 pow at 53-bit precision, one ulp off the program's (optimizations/consteval.bas).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/pow-fold-matches-runtime.bas -o tests/codegen/powfoldmatchesruntime.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/pow-fold-matches-runtime.bas -o tests/codegen/powfoldmatchesruntime.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/powfoldmatchesruntime.exe
 '' EXPECT-RUN-EXIT: 0

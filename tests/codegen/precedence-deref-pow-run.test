@@ -2,8 +2,8 @@
 '' EQV and IMP are ONE level, so '0 imp -1 xor -1' is 0. A broad precedence table beside
 '' them. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/precedence-deref-pow.bas -o tests/codegen/precedencederefpow.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/precedence-deref-pow.bas -o tests/codegen/precedencederefpow.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/precedencederefpow.exe
 '' EXPECT-RUN-EXIT: 0

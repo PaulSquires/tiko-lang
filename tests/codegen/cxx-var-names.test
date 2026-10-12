@@ -2,7 +2,7 @@
 '' -- measured on fbc's object: _Z4cppv, _Z6CamelV, _Z4arrv, and _ZN2cn3nsvE in a
 '' namespace. tiko gave fbc's own 'CPPV$' and '_ZN2cn4NSV$E' (audit F-55, SYM-10).
 '' TEST: cli
-'' ARGS: --emit-ir -target win64-msvc tests/codegen/src/cxx-var-names.bas
+'' ARGS: --emit-ir -target windows-x86_64 tests/codegen/src/cxx-var-names.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: @"_Z4cppv"
 '' EXPECT-OUT: @"_Z6CamelV"

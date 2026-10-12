@@ -2,11 +2,11 @@
 '' still compiles every root.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.uco/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.uco
 '' COPY: tests/driver/src/unitcache => build/.uco/src
-'' STEP: build -target win64-msvc build/.uco/src/a.tiko build/.uco/src/b.tiko -o build/.uco/app.exe --no-cache
-'' ARGS: build -target win64-msvc build/.uco/src/a.tiko build/.uco/src/b.tiko -o build/.uco/app.exe --no-cache --message-format json
+'' STEP: build -target windows-x86_64 build/.uco/src/a.tiko build/.uco/src/b.tiko -o build/.uco/app.exe --no-cache
+'' ARGS: build -target windows-x86_64 build/.uco/src/a.tiko build/.uco/src/b.tiko -o build/.uco/app.exe --no-cache --message-format json
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: {"event":"unit","kind":"root","unit":"build/.uco/src/a.tiko","status":"compiled"}
 '' EXPECT-NOT: "status":"hit"

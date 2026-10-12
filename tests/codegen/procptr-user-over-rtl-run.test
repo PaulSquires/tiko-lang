@@ -2,8 +2,8 @@
 '' registers a TEST named val that way, and tiko handed the runner fb_VAL's address: an access
 '' violation (fbc's functions/fixstr_arg.bas). Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/procptr-user-over-rtl.bas -o tests/codegen/procptruseroverrtl.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/procptr-user-over-rtl.bas -o tests/codegen/procptruseroverrtl.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/procptruseroverrtl.exe
 '' EXPECT-RUN-EXIT: 0

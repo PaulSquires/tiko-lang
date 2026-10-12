@@ -35,10 +35,10 @@ CFG=${1:-Release}
 rt_cfg_flags "$CFG" >/dev/null || rt_die "unknown configuration '$CFG'"
 
 GNU="$RT_ROOT/lib/win64/libfb.a"
-MSVC="$RT_ROOT/lib/win64-msvc/libfb.a"
+MSVC="$RT_ROOT/lib/windows-x86_64/libfb.a"
 
 for a in "$GNU" "$MSVC"; do
-    [ -f "$a" ] || rt_die "no archive at $a -- run build.sh $CFG win64 and build.sh $CFG win64-msvc first"
+    [ -f "$a" ] || rt_die "no archive at $a -- run build.sh $CFG win64 and build.sh $CFG windows-x86_64 first"
 done
 
 # AND BOTH MUST BE THE SAME CONFIGURATION AS EACH OTHER AND AS THIS RUN.
@@ -50,7 +50,7 @@ done
 # inlining. The header above says this script refuses to build anything itself
 # for that reason; refusing to build is only half of it -- it also has to refuse
 # to READ two archives that do not belong together.
-for d in "$RT_ROOT/lib/win64" "$RT_ROOT/lib/win64-msvc"; do
+for d in "$RT_ROOT/lib/win64" "$RT_ROOT/lib/windows-x86_64"; do
     [ -f "$d/.config" ] || rt_die "no .config beside $d/libfb.a -- rebuild it with build/build.sh $CFG"
     have=$(cat "$d/.config")
     [ "$have" = "$CFG" ] || rt_die "$d was built [$have], not [$CFG] -- the two sides must match, and match this run"

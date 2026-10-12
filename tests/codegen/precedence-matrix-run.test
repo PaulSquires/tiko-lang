@@ -3,8 +3,8 @@
 '' pair again inside '#if', with values that tell the groupings apart. Pairs fbc refuses
 '' are left out. Output identical to fbc-modern's, at -O0 and -O2.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/precedence-matrix.bas -o tests/codegen/precedencematrix.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/precedence-matrix.bas -o tests/codegen/precedencematrix.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/precedencematrix.exe
 '' EXPECT-RUN-EXIT: 0

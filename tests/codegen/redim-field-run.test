@@ -2,8 +2,8 @@
 '' '( any )' leaves it unsized and '( 4 )' starts at 0 (fbc's fbc-int/array.bas). tiko made it a
 '' variable of the type's scope with no storage, and indexing it faulted. Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/redim-field.bas -o tests/codegen/redimfield.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/redim-field.bas -o tests/codegen/redimfield.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/redimfield.exe
 '' EXPECT-RUN-EXIT: 0

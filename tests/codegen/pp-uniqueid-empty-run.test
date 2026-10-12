@@ -1,8 +1,8 @@
 '' __FB_UNIQUEID__ with no stack -- never pushed, or popped back to empty -- expands to nothing
 '' (pp/macro-uniqueid.bas); tiko opened a stack and named an id.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/pp-uniqueid-empty.bas -o tests/codegen/ppuniqueidempty.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/pp-uniqueid-empty.bas -o tests/codegen/ppuniqueidempty.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ppuniqueidempty.exe
 '' EXPECT-RUN-EXIT: 0

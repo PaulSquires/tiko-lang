@@ -1,8 +1,8 @@
 '' 'f( ).a += 1' over a BITFIELD evaluates f( ) once, as fbc does: the probe, the read and the store
 '' each lowered the base, so it ran three times (expressions/selfbops.bas).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/bitfield-compound-base-once.bas -o tests/codegen/bitfieldcompoundbaseonce.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/bitfield-compound-base-once.bas -o tests/codegen/bitfieldcompoundbaseonce.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/bitfieldcompoundbaseonce.exe
 '' EXPECT-RUN-EXIT: 0

@@ -1,6 +1,6 @@
 '' A DLL ON THE MinGW TARGET, and its import library. '-target win64' links through
 '' clang's MinGW driver, which runs lld in its GNU-ld frontend; the lld-LINK spellings
-'' dll-output.test holds win64-msvc to ('-dll', '-implib:') made it fail with "unknown
+'' dll-output.test holds windows-x86_64 to ('-dll', '-implib:') made it fail with "unknown
 '' argument: -implib:libtmpdllw64.dll.a", so no win64 DLL had ever linked. fbc's line
 '' ('fbc -dll -v') is ld --dll -e DllMainCRTStartup over dllcrt2.o crtbegin.o fbrt0.o,
 '' then dlltool for the import library; clang's '-shared' is the first three and
@@ -9,7 +9,7 @@
 '' A REAL LINK, against the packaged tree: -p puts tiko-rt's archives in front of the
 '' -fb directory TKO_LIBPATH names, the order the compiler gives itself. The DLL this
 '' builds was loaded -- by programs built by fbc, tiko -target win64 and tiko -target
-'' win64-msvc, through dylibload and through the import library -- when this was
+'' windows-x86_64, through dylibload and through the import library -- when this was
 '' fixed (HANDOFF section 7); the runner cannot run it.
 '' SINCE 2026-10-10 THE OBJECT IS TIKO-RT'S OWN (lib/rt/src/c/fbrt0.c), packaged beside
 '' libfb.a in lib/win64/, and the -fb directory no longer carries fbc's.

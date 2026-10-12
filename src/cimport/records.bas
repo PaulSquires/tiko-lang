@@ -61,7 +61,7 @@ private function CollectField_ cdecl ( byval c as CXCursor, byval client as any 
 end function
 
 '' A RECORD'S FIELDS AS ITS LAYOUT HAS THEM -- the implicit ones included. Under MS
-'' extensions, which win64-msvc's headers are written for, 'MOUSEHOOKSTRUCT
+'' extensions, which windows-x86_64's headers are written for, 'MOUSEHOOKSTRUCT
 '' DUMMYSTRUCTNAME;' with the name macro'd away is an anonymous member of a NAMED type,
 '' and so is a tagged 'struct _STGMEDIUM_UNION { ... };' with no member name. clang
 '' gives each an unnamed field that visitChildren never shows, and the record lost

@@ -2,8 +2,8 @@
 '' unsigned decimals 2^31..2^32-1, NOT and AND keeping unsigned, the ^ operator above negation, the C*
 '' conversions, and single precision. Expected output is fbc-modern's; tiko refused 17 of these lines.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/pp-literal-types.bas -o tests/codegen/ppliteraltypes.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/pp-literal-types.bas -o tests/codegen/ppliteraltypes.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ppliteraltypes.exe
 '' EXPECT-RUN-EXIT: 0

@@ -7,8 +7,8 @@
 '' 'SlotAt( 2 ) => 5' -- the arrow is never a comparison -- assigns. Warning lines and
 '' output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/byref-result-eq-arg.bas -o tests/codegen/byrefresulteqarg.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/byref-result-eq-arg.bas -o tests/codegen/byrefresulteqarg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: byref-result-eq-arg.bas(28,1): warning TKO0931
 '' EXPECT-OUT: byref-result-eq-arg.bas(29,1): warning TKO0931

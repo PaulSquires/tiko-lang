@@ -66,13 +66,13 @@ function TargetFor( byval t as TargetId ) as TargetDescription
         d.dataLayout = DL_LINUX64
         d.objFormat = OBJ_ELF
         d.abi = ABI_SYSV_AMD64
-    case TARGET_WIN64_MSVC
+    case TARGET_WINDOWS_X86_64
         '' THE MICROSOFT ABI, AND THE OBJECTION THAT BLOCKED IT IS GONE.
         ''
         '' The comment above records why this target was withdrawn: the msvc triple
         '' produced objects that could not link against anything, because tiko-rt's
         '' win64 archive imported __mingw_sprintf and __iob_func. That was measured and
-        '' it was true. It is no longer: lib/win64-msvc/libfb.a has NO MinGW-shaped
+        '' it was true. It is no longer: lib/windows-x86_64/libfb.a has NO MinGW-shaped
         '' imports at all -- build/abidelta.sh holds the whole difference to nine
         '' declared renames and two startup hooks -- and fbc's own suite runs against it
         '' at 3,922,073 assertions, 0 failures (build/gatemsvc.sh). docs/tiko-rt

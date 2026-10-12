@@ -4,8 +4,8 @@
 '' REM after '.' or '->' is now a member name, and a type-first field takes REM back from
 '' the comment. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/keyword-field-names.bas -o tests/codegen/keywordfields.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/keyword-field-names.bas -o tests/codegen/keywordfields.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/keywordfields.exe
 '' RUN: tests/codegen/keywordfields.exe

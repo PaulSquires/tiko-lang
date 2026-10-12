@@ -3,7 +3,7 @@
 '' std/containers was TKO0992 and 'containers.array' undeclared -- and tiko's own source
 '' imports std/containers (2026-10-10), so the gate and bootstrap could not lower it.
 '' TEST: cli
-'' ARGS: --dump-ir -target win64-msvc tests/modules/src/stdfacade/containers.bas
+'' ARGS: --dump-ir -target windows-x86_64 tests/modules/src/stdfacade/containers.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: 0 statements not lowered
 '' EXPECT-NOT: TKO0992

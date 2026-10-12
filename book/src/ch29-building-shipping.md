@@ -12,7 +12,7 @@ tiko builds for two targets, chosen with `-target`:
 
 | Target | Builds | Default on |
 |---|---|---|
-| `win64-msvc` | a Windows x86-64 executable, linked against Microsoft's Universal C Runtime | Windows |
+| `windows-x86_64` | a Windows x86-64 executable, linked against Microsoft's Universal C Runtime | Windows |
 | `linux-x86_64` | a Linux x86-64 executable, linked against the system's C library | Linux |
 
 The compiler turns tiko into LLVM's intermediate form and hands it to **clang**, which produces
@@ -340,7 +340,7 @@ An editor's build task, a language server and a CI script read these instead of 
 
 ## Shipping
 
-A program built for `win64-msvc` needs only what every supported Windows already has:
+A program built for `windows-x86_64` needs only what every supported Windows already has:
 
 ```text
 DLL Name: ucrtbase.dll
@@ -374,7 +374,7 @@ and that licence's conditions apply.
 
 ## Summary
 
-- `-target win64-msvc` (Windows' default) or `linux-x86_64`. `TKO_CLANG`, `TKO_LIBPATH` and
+- `-target windows-x86_64` (Windows' default) or `linux-x86_64`. `TKO_CLANG`, `TKO_LIBPATH` and
   `TKO_INCLUDE` point the compiler at other tools, runtimes and headers.
 - `-c` compiles to an object file; the first file named is main unless `-m` says otherwise; the
   other modules' top levels run first, as constructors.
@@ -392,7 +392,7 @@ and that licence's conditions apply.
   `tiko run` builds and runs, `tiko check` reports without writing. Paths in it are relative to
   it. Profiles `debug` (the default) and `release`, and your own, set the options. A second build
   compiles only what changed.
-- A `win64-msvc` program needs only `ucrtbase.dll` and `KERNEL32.dll`. The runtime's licence
+- A `windows-x86_64` program needs only `ucrtbase.dll` and `KERNEL32.dll`. The runtime's licence
   lets a compiled program be distributed on any terms.
 
 ## Exercises

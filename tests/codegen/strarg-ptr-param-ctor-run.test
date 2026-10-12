@@ -3,8 +3,8 @@
 '' T( s ) over a zstring ptr constructor was an operand with no kind (TKO0993). Expected output is
 '' fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/strarg-ptr-param-ctor.bas -o tests/codegen/strargptrparamctor.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/strarg-ptr-param-ctor.bas -o tests/codegen/strargptrparamctor.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/strargptrparamctor.exe
 '' EXPECT-RUN-EXIT: 0

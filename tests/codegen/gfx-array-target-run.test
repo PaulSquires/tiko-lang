@@ -3,8 +3,8 @@
 '' (fbc's gfx/image-expr.bas). tiko declined every one. Output identical to fbc-modern's, on a
 '' GFX_NULL screen.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/gfx-array-target.bas -o tests/codegen/gfxarraytarget.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/gfx-array-target.bas -o tests/codegen/gfxarraytarget.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/gfxarraytarget.exe

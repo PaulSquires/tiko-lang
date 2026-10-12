@@ -3,8 +3,8 @@
 '' destructor passed the loaded aggregate where the setter takes a pointer, and clang refused the
 '' module. A trivial byval W is unchanged; the setter's own changes never reach 'vv'. fbc-modern's output.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/setter-byval-copy.bas -o tests/codegen/setterbyvalcopy.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/setter-byval-copy.bas -o tests/codegen/setterbyvalcopy.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/setterbyvalcopy.exe
 '' EXPECT-RUN-EXIT: 0

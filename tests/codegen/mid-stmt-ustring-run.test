@@ -7,8 +7,8 @@
 '' its UTF-16 bytes were written as narrow text, and into a wstring it passes its data
 '' pointer, where it was dropped. Output byte-identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/mid-stmt-ustring.bas -o tests/codegen/midstmtustring.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/mid-stmt-ustring.bas -o tests/codegen/midstmtustring.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/midstmtustring.exe
 '' RUN: tests/codegen/midstmtustring.exe

@@ -2,8 +2,8 @@
 '' 'x.a - 2' is -3, and 'if x.a = -1' is taken. It read 1, typed UINTEGER.
 '' Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/bitfield-boolean.bas -o tests/codegen/bitfieldboolean.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/bitfield-boolean.bas -o tests/codegen/bitfieldboolean.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/bitfieldboolean.exe
 '' EXPECT-RUN-EXIT: 0

@@ -30,7 +30,7 @@ ROOT=$(pwd)
 EXT=; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) EXT=.exe ;; esac
 TKO=${TKO:-$ROOT/bin/tiko$EXT}
 case "$EXT" in
-    .exe) TC=$ROOT/toolchains/tiko-windows; LIBT=win64-msvc ;;
+    .exe) TC=$ROOT/toolchains/tiko-windows; LIBT=windows-x86_64 ;;
     *)    TC=$ROOT/toolchains/tiko-linux;   LIBT=linux-x86_64 ;;
 esac
 export TKO_LIBPATH="$TC/lib/$LIBT"

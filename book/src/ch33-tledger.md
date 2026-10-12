@@ -312,7 +312,7 @@ screens on it.
 ## Shipping
 
 `db/sqlite` links **SQLite itself** into the program. `sqlite3api.bi` says `#inclib "sqlite3"`, and
-the toolchain ships `libsqlite3.a` for both win64-msvc and linux-x86_64. `tledger` is one
+the toolchain ships `libsqlite3.a` for both windows-x86_64 and linux-x86_64. `tledger` is one
 executable with no database server and no shared library to install. Copy it, and it runs. The
 ledger is one ordinary file, which can be backed up by copying it while the program is not
 running, or at any time with `BackupTo`.

@@ -453,7 +453,7 @@ tiko's own suite pins the lowering of 'spawn': tests/mir/spawn.test, and tests/m
 
 The library is measured with fbc's own fbcunit suites, built by both compilers with -mt and the results compared: all three concurrency/ suites print what fbc's builds print (HANDOFF section 9f, 2026-09-21).
 
-The programs in the [Goroutines Tutorial](Modern-Goroutines-Tutorial), built with 'tiko -mt' and run beside fbc's builds (measured 2026-09-24 at origin/master 50c71751, win64-msvc), all print what fbc's builds print, the example at the top of this page among them, up to what depends on timing: ex01's elapsed seconds, which worker takes which job in ex07, ex10's hit count before its deadline, and ex15's lost updates, which are random by design.  Re-measured on 2026-09-24 after two fixes: a SendChan or RecvChan parameter built from a Channel argument under spawn, and 'for each' over a Channel( of string ).
+The programs in the [Goroutines Tutorial](Modern-Goroutines-Tutorial), built with 'tiko -mt' and run beside fbc's builds (measured 2026-09-24 at origin/master 50c71751, windows-x86_64), all print what fbc's builds print, the example at the top of this page among them, up to what depends on timing: ex01's elapsed seconds, which worker takes which job in ex07, ex10's hit count before its deadline, and ex15's lost updates, which are random by design.  Re-measured on 2026-09-24 after two fixes: a SendChan or RecvChan parameter built from a Channel argument under spawn, and 'for each' over a Channel( of string ).
 
 Build a program that uses this module with a packaged toolchain -- no -i, no -p, because the modules and the runtime are in it:
 

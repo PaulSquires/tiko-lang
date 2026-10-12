@@ -130,7 +130,7 @@ measurement. `crt/long.bi`, which carries no such notice, is the one fbc header 
 named. `build/lint.sh` refuses any other `crt/` include, and `windows.bi`.
 
 The switch was proved, not assumed: every runtime object built from the new binding was
-byte-identical to the one built from `crt/` on win64, and on win64-msvc and linux-x86_64
+byte-identical to the one built from `crt/` on win64, and on windows-x86_64 and linux-x86_64
 differed only in fbc's local label numbers, the COFF timestamp and alignment padding.
 
 ## How a behaviour gets established

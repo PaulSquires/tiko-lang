@@ -1,8 +1,8 @@
 '' 'function = wstr( "lit" )' out of a 'byref as wstring' function returns the WIDE literal's
 '' address -- fbc stores L"also good". tiko stored the narrow bytes (functions/return-byref.bas f8).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/byref-wstr-literal-result.bas -o tests/codegen/byrefwstrliteralresult.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/byref-wstr-literal-result.bas -o tests/codegen/byrefwstrliteralresult.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/byrefwstrliteralresult.exe
 '' EXPECT-RUN-EXIT: 0

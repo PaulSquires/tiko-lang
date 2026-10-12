@@ -30,7 +30,7 @@ shift 2; FLAGS="$*"
 TKO=${TKO:-$ROOT/bin/tiko.exe}
 FBC=${FBC:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}
 export TKO_INCLUDE=${TKO_INCLUDE:-$ROOT/toolchains/tiko-windows/inc}
-export TKO_LIBPATH=${TKO_LIBPATH:-$ROOT/toolchains/tiko-windows/lib/win64-msvc}
+export TKO_LIBPATH=${TKO_LIBPATH:-$ROOT/toolchains/tiko-windows/lib/windows-x86_64}
 TAG=$(printf %s "$FLAGS" | tr -c 'A-Za-z0-9' '_')
 W=${FUZZ_WORK:-$ROOT/build/obj/fuzz/$FIRST$TAG}
 rm -rf "$W"; mkdir -p "$W"; cd "$W" || exit 3

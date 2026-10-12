@@ -125,7 +125,7 @@ LGPL-2.1-or-later with the static-linking exception: a program tiko compiles may
 same `fb_Gfx*` entry points, so it is a drop-in replacement. Its A/B tests (`lib/gfx/tools`) run
 drawing primitives through both libraries and compare what they drew. It is
 derived from FreeBASIC's `gfxlib2`, under the same LGPL licence and exception. It is built for
-win64-msvc only, which is why graphics programs build on Windows only (Appendix D).
+windows-x86_64 only, which is why graphics programs build on Windows only (Appendix D).
 
 ## Self-hosting
 
@@ -143,7 +143,7 @@ statement the compiler declines would otherwise vanish from the compiler it is b
 as well as a fixpoint; that stage3 compiles a program that prints what stage0's build of it prints;
 and, with `--gate`, that the test suite fails against stage2 exactly what it fails against stage1.
 
-At the commit this book is pinned to, on Windows (win64-msvc, `-O0`), the run takes about five
+At the commit this book is pinned to, on Windows (windows-x86_64, `-O0`), the run takes about five
 minutes: fbc-modern builds stage1 in 150 seconds; stage1 lowers every statement of all 121 of
 the compiler's modules and every one verifies; stage1 builds stage2 in 99 seconds and stage2
 builds stage3 in 39; stage2 and stage3 are the same 5,162,496 bytes, with the same SHA-256; and

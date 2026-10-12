@@ -8,8 +8,8 @@
 '' A goldenrun.sh differential: built and run by fbc-modern 1.20 and by tiko, the two
 '' outputs are byte-identical (measured 2026-10-10).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/let-same-type-cast.bas -o tests/driver/letsametypecast.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/let-same-type-cast.bas -o tests/driver/letsametypecast.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/letsametypecast.exe
 '' RUN: tests/driver/letsametypecast.exe

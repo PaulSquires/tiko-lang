@@ -4,8 +4,8 @@
 '' answered 'rect' through a Rect ptr. And the fields were constructed before the base.
 '' Output identical to fbc-modern's for the same program.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/base-call-vptr.bas -o tests/codegen/basecallvptr.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/base-call-vptr.bas -o tests/codegen/basecallvptr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/basecallvptr.exe
 '' RUN: tests/codegen/basecallvptr.exe

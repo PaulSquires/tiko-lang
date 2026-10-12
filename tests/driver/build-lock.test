@@ -1,9 +1,9 @@
 '' TKO0166: ONE 'tiko build' OF AN OUTPUT AT A TIME (tiko-build RFC-0001 §7, PLAN B1). The
 '' program holds build/.blk/app.exe's lock and runs that build, which refuses and exits 1.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.blk
-'' ARGS: -target win64-msvc tests/driver/src/build-lock-holder.bas -o build/.blk/holder.exe
+'' ARGS: -target windows-x86_64 tests/driver/src/build-lock-holder.bas -o build/.blk/holder.exe
 '' EXPECT-EXIT: 0
 '' RUN: build/.blk/holder.exe
 '' EXPECT-RUN-OUT: error TKO0166: another build of 'build/.blk/app.exe' is running

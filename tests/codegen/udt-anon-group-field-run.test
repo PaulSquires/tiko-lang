@@ -1,7 +1,7 @@
 '' structs: an anonymous union/type's own 'field = N' (structs/anon-align.bas, anonPadding)
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/udt-anon-group-field.bas -o tests/codegen/udtanongroupfield.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/udt-anon-group-field.bas -o tests/codegen/udtanongroupfield.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/udtanongroupfield.exe
 '' EXPECT-RUN-EXIT: 0

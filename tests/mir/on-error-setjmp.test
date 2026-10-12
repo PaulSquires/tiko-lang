@@ -12,7 +12,7 @@
 '' throw happened. This asserts the four instructions that make that work; the
 '' src file records what the VALUES do, and why they are not asserted.
 ''
-'' THE SPELLING OF setjmp FOLLOWS THE C LIBRARY, not the platform: win64-msvc
+'' THE SPELLING OF setjmp FOLLOWS THE C LIBRARY, not the platform: windows-x86_64
 '' links ucrtbase, which exports '__intrinsic_setjmp' and not '_setjmp', and
 '' win64 links MinGW's msvcrt, which is the other way round. '_setjmp' is a
 '' substring of both, so one assertion covers every target.

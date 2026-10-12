@@ -2,8 +2,8 @@
 '' initialiser, an assignment, an argument, byref-ness included -- as fbc does. Check records the
 '' choice and types '@f' by it; lowering reads it (overload re-pick refactor, Phase 1).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/procaddr-target-overload.bas -o tests/codegen/procaddrtargetoverload.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/procaddr-target-overload.bas -o tests/codegen/procaddrtargetoverload.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/procaddrtargetoverload.exe
 '' EXPECT-RUN-EXIT: 0

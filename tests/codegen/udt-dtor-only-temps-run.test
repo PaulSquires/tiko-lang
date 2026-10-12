@@ -1,7 +1,7 @@
 '' structs: destructor-only temporaries -- assignment of a literal and a hidden-pointer result (structs/temp-var-dtors.bas)
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/udt-dtor-only-temps.bas -o tests/codegen/udtdtoronlytemps.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/udt-dtor-only-temps.bas -o tests/codegen/udtdtoronlytemps.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/udtdtoronlytemps.exe
 '' EXPECT-RUN-EXIT: 0

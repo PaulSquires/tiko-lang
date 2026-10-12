@@ -1,6 +1,6 @@
 '' TKO0919 ACROSS LEVELS (T58): a using in a sub and one at module level that both supply
 '' a name are one set, as fbc's error 255 says -- the inner one does not win.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/diagnostics/src/using-ambiguous-levels.bas -o tests/diagnostics/usingamb.exe
+'' ARGS: -target windows-x86_64 tests/diagnostics/src/using-ambiguous-levels.bas -o tests/diagnostics/usingamb.exe
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: using-ambiguous-levels.bas(10,11): error TKO0919: 'only' is ambiguous: more than one USING in effect declares it; qualify it

@@ -3,8 +3,8 @@
 '' from it. Its interface used to include every header the module included, so main
 '' compiled one.bi too and the link refused Counter.Bump, defined twice.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i tests/modules/src/onetu/libs tests/modules/src/onetu/app/main.bas -o tests/modules/ifaceunneeded.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i tests/modules/src/onetu/libs tests/modules/src/onetu/app/main.bas -o tests/modules/ifaceunneeded.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/ifaceunneeded.exe

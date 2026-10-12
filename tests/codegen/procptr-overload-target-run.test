@@ -3,8 +3,8 @@
 '' was always the first overload's, so 'p( 1.5 )' through a 'sub( byval as double )'
 '' ran the LONG body with a double's bits. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/procptr-overload-target.bas -o tests/codegen/procptrovl.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/procptr-overload-target.bas -o tests/codegen/procptrovl.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/procptrovl.exe
 '' EXPECT-RUN-EXIT: 0

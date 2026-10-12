@@ -3,8 +3,8 @@
 '' them by position, silently shifting later values, in shared, static and module-level forms.
 '' Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/init-nested-align.bas -o tests/codegen/initnestedalign.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/init-nested-align.bas -o tests/codegen/initnestedalign.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/initnestedalign.exe
 '' EXPECT-RUN-EXIT: 0

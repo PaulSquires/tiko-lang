@@ -3,8 +3,8 @@
 '' for '=' -- where tiko filled the field and never called it (fbc's compound/with.bas,
 '' structs/temp-var-dtors.bas). Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/typelit-dest-ctor.bas -o tests/codegen/typelitdestctor.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/typelit-dest-ctor.bas -o tests/codegen/typelitdestctor.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/typelitdestctor.exe
 '' EXPECT-RUN-EXIT: 0

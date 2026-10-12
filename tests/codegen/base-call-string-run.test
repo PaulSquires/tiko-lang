@@ -5,8 +5,8 @@
 '' PushCtorArgs_, as every other constructor call does. Also covers the wstring and byref
 '' UDT arguments that path rerouted. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/base-call-string.bas -o tests/codegen/basecallstring.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/base-call-string.bas -o tests/codegen/basecallstring.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/basecallstring.exe
 '' RUN: tests/codegen/basecallstring.exe

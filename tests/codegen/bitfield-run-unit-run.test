@@ -3,8 +3,8 @@
 '' every access goes through the RUN's unit -- 'ulong a:5, ushort b:12' read b = 4095 as 127.
 '' Sizes, offsets and values identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/bitfield-run-unit.bas -o tests/codegen/bitfieldrununit.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/bitfield-run-unit.bas -o tests/codegen/bitfieldrununit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/bitfieldrununit.exe
 '' EXPECT-RUN-EXIT: 0

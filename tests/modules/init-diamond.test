@@ -5,8 +5,8 @@
 '' the modules' in reverse, d's 'destructor' sub before its global's. b's 'constructor
 '' 101' keeps its FreeBASIC meaning and runs before everything.
 '' TEST: cli
-'' ARGS: -target win64-msvc -i tests/modules/src/init/libs tests/modules/src/init/app/main.bas -o tests/modules/initdiamond.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -i tests/modules/src/init/libs tests/modules/src/init/app/main.bas -o tests/modules/initdiamond.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/initdiamond.exe
 '' EXPECT-RUN-OUT: B:101

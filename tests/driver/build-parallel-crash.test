@@ -3,11 +3,11 @@
 '' unit is not compiled again here, and nothing is linked.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bpc/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' ENV: TKO_TEST_CHILD_EXIT=99
 '' CLEAN: build/.bpc
 '' COPY: tests/driver/src/unitcache => build/.bpc/src
-'' ARGS: build -target win64-msvc build/.bpc/src/a.tiko build/.bpc/src/b.tiko -o build/.bpc/app.exe -j 4
+'' ARGS: build -target windows-x86_64 build/.bpc/src/a.tiko build/.bpc/src/b.tiko -o build/.bpc/app.exe -j 4
 '' EXPECT-EXIT: 6
 '' EXPECT-OUT: error TKO0167: compiling 'build/.bpc/src/a.tiko' crashed with exit code 99
 '' EXPECT-NO-FILE: build/.bpc/app.exe

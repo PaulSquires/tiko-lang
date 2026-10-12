@@ -1,8 +1,8 @@
 '' Which 'operator cast' a string context calls, by fbc's score against the context's target (castpick.bas).
 '' See the source's header.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/udt-cast-pick-string.bas -o tests/codegen/udtcastpickstring.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/udt-cast-pick-string.bas -o tests/codegen/udtcastpickstring.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/udtcastpickstring.exe

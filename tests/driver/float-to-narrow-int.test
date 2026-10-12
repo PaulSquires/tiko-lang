@@ -3,7 +3,7 @@
 '' same. The runner cannot run the result, so this asserts the IR reaches clang and
 '' links -- tests/mir/float-to-narrow-int.test asserts its shape.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/float-to-narrow-int.bas -o tests/driver/floatnarrowint.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/float-to-narrow-int.bas -o tests/driver/floatnarrowint.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/floatnarrowint.exe

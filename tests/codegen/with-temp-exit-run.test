@@ -3,8 +3,8 @@
 '' WITH. It stayed on the statement's list and died only when the WITH fell out of the
 '' bottom, so every early exit leaked it. Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/with-temp-exit.bas -o tests/codegen/withtempexit.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/with-temp-exit.bas -o tests/codegen/withtempexit.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/withtempexit.exe
 '' EXPECT-RUN-EXIT: 0

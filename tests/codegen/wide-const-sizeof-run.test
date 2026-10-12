@@ -1,8 +1,8 @@
 '' sizeof of a wide constant -- wstr( "hello" ), a const over it, a type's const -- is
 '' (chars + 1) * wchar, 12 on Windows (quirk/len-sizeof-udt-member.bas).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/wide-const-sizeof.bas -o tests/codegen/wideconstsizeof.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/wide-const-sizeof.bas -o tests/codegen/wideconstsizeof.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/wideconstsizeof.exe
 '' EXPECT-RUN-EXIT: 0

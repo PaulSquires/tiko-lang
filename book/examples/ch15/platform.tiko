@@ -5,5 +5,5 @@ print "platform: "; PLATFORM
 print "pointers:"; POINTER_BITS; " bits"
 print "a path:   logs"; PATH_SEP; "today.txt"
 #ifdef __FB_MSVC__
-print "target:   win64-msvc"
+print "target:   windows-x86_64"
 #endif

@@ -7,7 +7,7 @@
 '' '-v' ECHOES THE LINK LINE, which is what makes this assertable: nothing else a test
 '' can see says which objects were linked. The runner does not RUN the executable;
 '' the crash itself was measured by hand (docs/architecture/decisions/0015 is where
-'' the investigation started), and win64-msvc's counterpart is link-fbrt0-msvc.test.
+'' the investigation started), and windows-x86_64's counterpart is link-fbrt0-msvc.test.
 ''
 '' TKO_LIBPATH IS THE -fb DIRECTORY, and -p puts tiko-rt's in front of it: the order
 '' the packaged compiler gives itself.

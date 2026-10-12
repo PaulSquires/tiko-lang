@@ -6,8 +6,8 @@
 '' and so it does for a property getter, 'o.Name', which came back empty the same way.
 '' RUN, because the IR verifies either way.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/str-byref-qualified-const.bas -o tests/driver/strbyrefqconst.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/str-byref-qualified-const.bas -o tests/driver/strbyrefqconst.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/strbyrefqconst.exe
 '' RUN: tests/driver/strbyrefqconst.exe

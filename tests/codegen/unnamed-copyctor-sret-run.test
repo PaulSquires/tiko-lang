@@ -1,8 +1,8 @@
 '' A copy constructor declared with an UNNAMED parameter -- 'constructor( byref as UDT )' -- still
 '' makes the type's results hidden-pointer returns, copy-constructed (structs/ctor_byval.bas).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/unnamed-copyctor-sret.bas -o tests/codegen/unnamedcopyctorsret.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/unnamed-copyctor-sret.bas -o tests/codegen/unnamedcopyctorsret.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/unnamedcopyctorsret.exe
 '' EXPECT-RUN-EXIT: 0

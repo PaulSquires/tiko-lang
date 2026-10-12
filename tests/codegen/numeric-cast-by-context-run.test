@@ -3,8 +3,8 @@
 '' (unary, intrinsics, two UDTs). fbc's choices, measured in both declaration orders; tiko
 '' always took DOUBLE: 'x + 1' was 4 and 'dim as long k = x' 3 (overload re-pick refactor).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/numeric-cast-by-context.bas -o tests/codegen/numericcastbycontext.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/numeric-cast-by-context.bas -o tests/codegen/numericcastbycontext.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/numericcastbycontext.exe
 '' EXPECT-RUN-EXIT: 0

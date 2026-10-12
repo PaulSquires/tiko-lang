@@ -2,14 +2,14 @@
 '' directory was emptied -- the exe and its '.link' record with it -- links again.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.blrc/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.blrc
 '' CLEAN: build/.blr
 '' COPY: tests/driver/src/unitcache => build/.blrs
-'' STEP: build -target win64-msvc build/.blrs/a.tiko build/.blrs/b.tiko -o build/.blr/app.exe
-'' STEP: build -target win64-msvc build/.blrs/a.tiko build/.blrs/b.tiko -o build/.blr/app.exe
+'' STEP: build -target windows-x86_64 build/.blrs/a.tiko build/.blrs/b.tiko -o build/.blr/app.exe
+'' STEP: build -target windows-x86_64 build/.blrs/a.tiko build/.blrs/b.tiko -o build/.blr/app.exe
 '' CLEAN: build/.blr
-'' ARGS: build -target win64-msvc build/.blrs/a.tiko build/.blrs/b.tiko -o build/.blr/app.exe -v
+'' ARGS: build -target windows-x86_64 build/.blrs/a.tiko build/.blrs/b.tiko -o build/.blr/app.exe -v
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: is up to date
 '' RUN: build/.blr/app.exe

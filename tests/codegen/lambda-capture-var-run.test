@@ -1,8 +1,8 @@
 '' T74, RUN: capturing a 'var' compiles and runs, and prints what fbc-modern's build of
 '' the same file prints. tiko reached clang with a 'void' receiver (TKO0113).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/lambda-capture-var.bas -o tests/codegen/lambdacapvar.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/lambda-capture-var.bas -o tests/codegen/lambdacapvar.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/lambdacapvar.exe
 '' EXPECT-RUN-OUT:  7

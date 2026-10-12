@@ -3,7 +3,7 @@
 '' that build meanwhile. The build must refuse (TKO0166) and exit 1. The compiler is the
 '' tree's bin/tiko.exe, run from the repository root, as the test runner runs it.
 open "build/.blk/app.exe.build.lock" for binary lock read write as #1
-dim as long rc = shell( "bin" & chr( 92 ) & "tiko.exe build -target win64-msvc " & _
+dim as long rc = shell( "bin" & chr( 92 ) & "tiko.exe build -target windows-x86_64 " & _
     "tests/driver/src/build-b1/other.tiko -o build/.blk/app.exe" )
 print "rc="; rc
 close #1

@@ -7,8 +7,8 @@
 '' second static starts at 10 too -- module two declares Cnt's constructor, module one
 '' defines it -- and each module's static is its own object, counted by its own guard.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/static-guard-a.bas tests/driver/src/static-guard-b.bas -o tests/driver/staticguard.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/static-guard-a.bas tests/driver/src/static-guard-b.bas -o tests/driver/staticguard.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: duplicate symbol
 '' EXPECT-FILE: tests/driver/staticguard.exe

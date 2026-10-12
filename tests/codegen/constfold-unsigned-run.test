@@ -3,8 +3,8 @@
 '' an integer wraps, and 'asc'/'len' of an escaped literal read its decoded text.
 '' Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/constfold-unsigned.bas -o tests/codegen/constfoldunsigned.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/constfold-unsigned.bas -o tests/codegen/constfoldunsigned.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/constfoldunsigned.exe
 '' EXPECT-RUN-EXIT: 0

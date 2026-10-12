@@ -54,7 +54,7 @@ compile_src( ) {
     # is tiko-rt's. The paths below are all absolute, so nothing else moves.
     cd "$RT_ROOT/src" || rtw_die "no directory $RT_ROOT/src"
 
-    # ONE STEP: tiko targets win64-msvc itself, and its per-function sections come
+    # ONE STEP: tiko targets windows-x86_64 itself, and its per-function sections come
     # from tiko's own clang line. (fbc could not be asked for the Microsoft ABI, so the
     # fbc-built archives took '-gen llvm -r' and then clang with the triple; that path
     # went with fbc, 2026-10-10.)
@@ -226,13 +226,13 @@ build_one( ) {
     [ -z "$_loses" ] || rt_die "rename the source, or define those symbols too"
     while read -r _k _src _o _sym; do
         [ "$_k" = "EMPTY" ] || continue
-        # THE PLATFORM, NOT THE ABI. win64-msvc is win64 with a different
+        # THE PLATFORM, NOT THE ABI. windows-x86_64 is win64 with a different
         # calling-convention-free ABI: the same files are empty on it for
         # the same reasons, and hinitposix.bas is empty on both because
         # neither is POSIX. Matching the full target name instead would
-        # mean adding "win64-msvc" to every EMPTY-ON line in the tree, and
+        # mean adding "windows-x86_64" to every EMPTY-ON line in the tree, and
         # again to each one for any later ABI variant.
-        __base=${target%-msvc}
+        case $target in windows-x86_64) __base=win64 ;; *) __base=$target ;; esac
         if grep -qE "EMPTY-ON:.*($target|$__base)" "$RT_ROOT/src/$_src" 2>/dev/null; then
             : # declared empty for this target
         else
@@ -255,7 +255,7 @@ build_one( ) {
     # 2026-09-05 and so there was no C path here at all; the six members the gate
     # still takes from fbc are what made one necessary.
     #
-    # CLANG, WITH THE SAME TRIPLE THE FreeBASIC MODULES GOT. For win64-msvc that
+    # CLANG, WITH THE SAME TRIPLE THE FreeBASIC MODULES GOT. For windows-x86_64 that
     # is the whole point: the FB half is retargeted at its assemble step above,
     # and a C object built for the gnu triple beside it would be the one thing in
     # the archive with the wrong ABI.
@@ -275,11 +275,11 @@ build_one( ) {
         ctgt=$(rt_clang_triple "$target")
         [ -n "$ctgt" ] || ctgt=$(rt_target_triple "$target")
         # THE SAME ABI DEFINE THE FreeBASIC MODULES GET, spelled -D rather than -d.
-        # A C file has no more way than a .bas one to tell win64 from win64-msvc:
+        # A C file has no more way than a .bas one to tell win64 from windows-x86_64:
         # fbc compiles both AS win64 and clang defines _MSC_VER for the msvc
         # triple only by accident of which headers it reaches for.
         cabi=""
-        case "$target" in *-msvc) cabi="-D TKORT_MSVC" ;; esac
+        case "$target" in windows-x86_64) cabi="-D TKORT_MSVC" ;; esac
         if ! "$CLANG" --target="$ctgt" -O2 -g -std=c99 -Wall -Wextra $cabi $cpic \
                 -c "$csrc" -o "$cobj"; then
             rt_die "$target/$thread: $(basename "$csrc") failed to compile"
@@ -342,14 +342,14 @@ build_one( ) {
 
 # THE STARTUP OBJECT, fbrt0.o, for a gnu target: src/c/fbrt0.c says what it is and
 # why it is a loose file in lib/<target>/ rather than a member. A Linux shared library
-# links fbrt0pic.o, as fbc's does. win64-msvc has msvcinit.c instead and gets none --
+# links fbrt0pic.o, as fbc's does. windows-x86_64 has msvcinit.c instead and gets none --
 # and any left there by an older build is removed, since the driver would not name
 # it but a reader of the directory might believe it.
 build_rt0( ) {
     _t=$1
     _dir="$RT_ROOT/lib/$_t"
     case $_t in
-        *-msvc) rm -f "$_dir/fbrt0.o" "$_dir/fbrt0pic.o"; return 0 ;;
+        windows-x86_64) rm -f "$_dir/fbrt0.o" "$_dir/fbrt0pic.o"; return 0 ;;
     esac
     _tri=$(rt_clang_triple "$_t")
     [ -n "$_tri" ] || _tri=$(rt_target_triple "$_t")

@@ -3,8 +3,8 @@
 '' modules have a public Foo. Each file's bare Foo is its own using's: 42 and 7. The files are
 '' read as one unit, so b.tiko saw a.tiko's using as well and its Foo was TKO0919.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/modules/src/usingfile/ok.tiko -o tests/modules/usingfile-ok.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/modules/src/usingfile/ok.tiko -o tests/modules/usingfile-ok.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/usingfile-ok.exe
 '' EXPECT-RUN-OUT:  42             7

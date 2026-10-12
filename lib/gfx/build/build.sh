@@ -3,8 +3,8 @@
 #
 #   build/build.sh [Debug|Release|RelWithDebInfo] [target ...]
 #
-# WIN64-MSVC IS THE ONLY TARGET, and that is the point rather than a limitation.
-# tiko emits the Microsoft ABI on Windows (TARGET_WIN64_MSVC, added 2026-09-05)
+# WINDOWS-X86_64 IS THE ONLY TARGET, and that is the point rather than a limitation.
+# tiko emits the Microsoft ABI on Windows (TARGET_WINDOWS_X86_64, added 2026-09-05)
 # and there is no MSVC libfbgfx anywhere to fall back to: fbc's is MinGW, so it
 # cannot go into an MSVC binary at all. That absence is why build/gatemsvc.sh in
 # lib/rt excludes gfx/ and fbc-int/gfx, and why 22 of the 26 unresolved symbols
@@ -19,7 +19,7 @@
 # link. See "WHAT IS NOT HERE" below.
 #
 # THE COMPILER IS TIKO (bootstrap plan, phase G, 2026-10-10): the tree's bin/tiko, or
-# TKOGFX_TIKO, which targets win64-msvc itself -- one step, no clang retarget. Measured
+# TKOGFX_TIKO, which targets windows-x86_64 itself -- one step, no clang retarget. Measured
 # when it changed: the same 368 functions and the same 83 public symbols as fbc's build.
 # An fbc builds it only as the ORACLE, when TKO_ORACLE_FBC names one -- to tell a
 # library difference from a compiler difference; nothing shipped is built that way. That
@@ -45,7 +45,7 @@ case "$CFG" in
     *) die "unknown configuration '$CFG' (Debug, Release, RelWithDebInfo, MinSizeRel)" ;;
 esac
 shift 2>/dev/null || true
-TARGETS=${*:-win64-msvc}
+TARGETS=${*:-windows-x86_64}
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) ;;
@@ -83,7 +83,7 @@ case "$CFG" in
 esac
 
 for target in $TARGETS; do
-    [ "$target" = "win64-msvc" ] || die "unsupported target '$target' (win64-msvc)"
+    [ "$target" = "windows-x86_64" ] || die "unsupported target '$target' (windows-x86_64)"
 
     OBJDIR="$GFX_ROOT/obj/$target/$CFG"
     LIBDIR="$GFX_ROOT/lib/$target"
@@ -113,7 +113,7 @@ for target in $TARGETS; do
         # --keep-temps leaves all.o.ll, which the function count below reads, as fbc's
         # -r left all.ll.
         ( cd "$OBJDIR" && "$TIKO" -c "$GFX_ROOT/src/all.bas" -m __tkogfx_lib $GFXINC \
-            -target win64-msvc -mt "-O$TOPT" --keep-temps -o "$OBJDIR/all.o" ) > "$OBJDIR/tiko.log" 2>&1 \
+            -target windows-x86_64 -mt "-O$TOPT" --keep-temps -o "$OBJDIR/all.o" ) > "$OBJDIR/tiko.log" 2>&1 \
             || { sed 's/^/    /' "$OBJDIR/tiko.log" >&2; die "tiko failed -- see $OBJDIR/tiko.log"; }
         [ -f "$OBJDIR/all.o" ] || die "tiko produced no object -- see $OBJDIR/tiko.log"
         mv -f "$OBJDIR/all.o.ll" "$OBJDIR/all.ll"

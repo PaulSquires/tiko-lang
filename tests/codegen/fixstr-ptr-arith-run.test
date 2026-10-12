@@ -1,8 +1,8 @@
 '' Pointer arithmetic and indexing over '@' of a 'zstring * N' / 'wstring * N' step by the
 '' character, as fbc does. See the source.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/fixstr-ptr-arith.bas -o tests/codegen/fixstrptr.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/fixstr-ptr-arith.bas -o tests/codegen/fixstrptr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/fixstrptr.exe
 '' EXPECT-RUN-OUT:  3

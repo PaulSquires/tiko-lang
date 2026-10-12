@@ -3,8 +3,8 @@
 '' each declaration's type as it finishes it. It was TKO0308. The two WRONG lines must
 '' not print: 'long ptr' is not 'long', nor 'long' 'integer'.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/pp-typeof-var.bas -o tests/codegen/pptypeof.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/pp-typeof-var.bas -o tests/codegen/pptypeof.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/pptypeof.exe
 '' EXPECT-RUN-EXIT: 0

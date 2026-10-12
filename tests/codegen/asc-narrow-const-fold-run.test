@@ -1,8 +1,8 @@
 '' 'asc( S, n )' over a NARROW constant folds too, past an embedded NUL: a NUL inside the literal does not stop it
 '' (string/asc.bas); the runtime stopped at the NUL.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/asc-narrow-const-fold.bas -o tests/codegen/ascnarrowconstfold.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/asc-narrow-const-fold.bas -o tests/codegen/ascnarrowconstfold.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ascnarrowconstfold.exe
 '' EXPECT-RUN-EXIT: 0

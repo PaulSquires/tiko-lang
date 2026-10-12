@@ -1,8 +1,8 @@
 '' tests/vendor/fbc-tests/string/fbstr_extract.bas ported to the std modules (build/stdtests.py, generated).
 '' Expected: what tests/std/baseline/string/fbstr_extract.txt recorded for the original.
 '' TEST: cli
-'' ARGS: -target win64-msvc -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/string/fbstr_extract.bas -o tests/std/string/fbstr_extract.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/string/fbstr_extract.bas -o tests/std/string/fbstr_extract.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/string/fbstr_extract.exe
 '' EXPECT-RUN-OUT: 186       186         0  fbc_tests.string_.fbstr_extract               14

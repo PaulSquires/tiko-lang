@@ -1,8 +1,8 @@
 '' T80, RUN: __FB_ARGC__ is 1 with no arguments and __FB_ARGV__[0] names the program,
 '' as under fbc-modern. Both were 'not declared' (TKO0743).
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/fb-argc.bas -o tests/codegen/fbargc.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/fb-argc.bas -o tests/codegen/fbargc.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/fbargc.exe
 '' EXPECT-RUN-OUT:  1

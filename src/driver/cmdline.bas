@@ -112,7 +112,7 @@ function VersionText( ) as string
 
     dim as string arch = "x86_64"
     '' THE DEFAULT TARGET, asked rather than repeated. This said "win64" as a
-    '' literal, so it kept saying so after the default became win64-msvc -- a
+    '' literal, so it kept saying so after the default became windows-x86_64 -- a
     '' version banner that names the wrong ABI is worse than one that names none.
     dim as string os_ = Tko.TargetName( Tko.HostTarget( ) )
 
@@ -265,7 +265,7 @@ private sub AppendBundledLibDirs_( byref opts as Tko.DriverOptions )
         '' link names it only if a library path has it. TKO_LIBPATH=lib/linux-x86_64
         '' alone linked no fbrt0.o, so fb_hRtInit and fb_hRtExit never ran: no
         '' locale, no "Aborting due to runtime error" on stderr, and nothing said so.
-        '' win64-msvc has no sibling and needs none -- msvcinit.c does that job.
+        '' windows-x86_64 has no sibling and needs none -- msvcinit.c does that job.
         dim as ustring dir_ = env_
         do while (len( dir_ ) > 1) andalso _
                  ((right( dir_, 1 ) = "/") orelse (right( dir_, 1 ) = "\"))

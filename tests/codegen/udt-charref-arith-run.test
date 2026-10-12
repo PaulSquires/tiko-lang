@@ -2,8 +2,8 @@
 '' (fbc's character class is integer); beside a string it is still the string. tiko concatenated
 '' or failed to lower. Expected output is fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/udt-charref-arith.bas -o tests/codegen/udtcharrefarith.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/udt-charref-arith.bas -o tests/codegen/udtcharrefarith.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/udtcharrefarith.exe
 '' EXPECT-RUN-EXIT: 0

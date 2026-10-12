@@ -359,11 +359,11 @@ def test_for(rel, base, has_mod2):
          "'' Expected: what tests/std/baseline/%s/%s.txt recorded for the original." % (area, name),
          "'' TEST: cli"]
     if mode == "SUITE":
-        t.append("'' ARGS: -target win64-msvc -mt -i toolchains/tiko-windows/inc %s %s%s -o %s"
+        t.append("'' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc %s %s%s -o %s"
                  % (DRIVER, src, extra, exe))
     else:
-        t.append("'' ARGS: -target win64-msvc -i toolchains/tiko-windows/inc %s%s -o %s" % (src, extra, exe))
-    t.append("'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc")
+        t.append("'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc %s%s -o %s" % (src, extra, exe))
+    t.append("'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64")
     t.append("'' EXPECT-EXIT: %s" % kv["build"])
     if mode == "COMPILE_ONLY_FAIL":
         for ln in body.split("\n"):

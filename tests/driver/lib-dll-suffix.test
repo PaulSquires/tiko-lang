@@ -2,7 +2,7 @@
 '' before the name reaches lld-link as '-l', so it finds name.lib. See the source's
 '' header; fbc-modern builds the same program and prints -1.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/driver/src/lib-dll-suffix.bas -o tests/driver/libdllsuffix.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/driver/src/lib-dll-suffix.bas -o tests/driver/libdllsuffix.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/libdllsuffix.exe

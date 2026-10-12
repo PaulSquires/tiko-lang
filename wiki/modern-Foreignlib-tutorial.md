@@ -15,7 +15,7 @@ in released FreeBASIC.
 
 Every build command and every compiler message in this tutorial was run with tiko
 on Windows, 2026-09-24 (origin/master 50c71751), for tiko's default target,
-win64-msvc, unless the command says `-target win64`. Where output depends on your
+windows-x86_64, unless the command says `-target win64`. Where output depends on your
 machine, it says so.
 
 ---
@@ -81,7 +81,7 @@ runs.
 
 And look at `a.exe`, the one with no `-p`. It linked — because the tiko toolchain
 ships a `lib\win64-fb\libsqlite3.a` for the `win64` target, and the bare name
-found it. *(On tiko's default target, win64-msvc, the same three commands without
+found it. *(On tiko's default target, windows-x86_64, the same three commands without
 `-target win64` give a different answer: `a.exe` does not link —
 `lld-link: error: could not open 'sqlite3.lib': no such file or directory` — nor
 does `b.exe`, because `libsqlite3.a` is a MinGW archive (`undefined symbol:
@@ -151,7 +151,7 @@ duplicated once per target:
 ```
 
 (Under tiko the `__FB_64BIT__` test can only go one way -- its targets,
-win64-msvc and linux-x86_64, are both 64-bit -- so the `foo32` branch is
+windows-x86_64 and linux-x86_64, are both 64-bit -- so the `foo32` branch is
 there for portability to stock fbc, not because this compiler can reach it.)
 
 Three copies of one line, differing in one token — times every function in the
@@ -395,7 +395,7 @@ copy C:\dev\sqlite\lib\win64\libsqlite3.a  C:\dev\myapp\vendor\sqlite\lib\sqlite
 ```
 
 Rebuild -- for the MinGW-ABI `win64` target, because `libsqlite3.a` is a MinGW
-archive. On tiko's default target, win64-msvc, it does not link:
+archive. On tiko's default target, windows-x86_64, it does not link:
 `lld-link: error: undefined symbol: ___chkstk_ms`.
 
 ```bash
@@ -423,7 +423,7 @@ The base name in the directive is *identical* in both versions. There is no
 second path, no second `#ifdef` branch, no renaming.
 
 And the difference is now visible where it should be — in the executable. Both
-builds are for `-target win64`; the win64-msvc `dynamic` build is 24,576 bytes:
+builds are for `-target win64`; the windows-x86_64 `dynamic` build is 24,576 bytes:
 
 | | size | needs `sqlite3.dll`? |
 | --- | --- | --- |
@@ -493,7 +493,7 @@ with every extension eligible for `<kind>` tried at each step.
 | `<ext>` dynamic | Windows `.dll.a` `.lib` `.dll` · macOS `.dylib` · elsewhere `.so` |
 
 tiko's targets only ever produce `windows` or `linux`, and `x86_64`. Measured
-2026-09-24 at origin/master 50c71751, the paths it tries for win64-msvc,
+2026-09-24 at origin/master 50c71751, the paths it tries for windows-x86_64,
 `-target win64` and `-target linux-x86_64` follow this table exactly.
 
 So a cross-platform `lib\` folder looks like this, and needs no source change:

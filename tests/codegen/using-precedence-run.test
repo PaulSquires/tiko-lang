@@ -3,8 +3,8 @@
 '' the using answers only when the chain has nothing. tiko took the nearer using first.
 '' Output identical to fbc-modern's.
 '' TEST: cli
-'' ARGS: -target win64-msvc tests/codegen/src/using-precedence.bas -o tests/codegen/usingprec.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ARGS: -target windows-x86_64 tests/codegen/src/using-precedence.bas -o tests/codegen/usingprec.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/usingprec.exe
 '' EXPECT-RUN-EXIT: 0

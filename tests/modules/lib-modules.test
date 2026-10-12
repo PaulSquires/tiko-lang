@@ -7,11 +7,11 @@
 '' constructor among it.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-lib/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' CLEAN: build/.mct-lib
-'' STEP: -v -target win64-msvc -i toolchains/tiko-windows/inc -lib tests/modules/src/libout/api.bas -o tests/modules/libmodules.a
+'' STEP: -v -target windows-x86_64 -i toolchains/tiko-windows/inc -lib tests/modules/src/libout/api.bas -o tests/modules/libmodules.a
 '' STEP-OUT: module std.strings: miss
-'' ARGS: -v -target win64-msvc -i toolchains/tiko-windows/inc -lib tests/modules/src/libout/api.bas -o tests/modules/libmodules.a
+'' ARGS: -v -target windows-x86_64 -i toolchains/tiko-windows/inc -lib tests/modules/src/libout/api.bas -o tests/modules/libmodules.a
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: module std.strings: hit
 '' EXPECT-FILE-HAS: tests/modules/libmodules.a :: std.strings.o

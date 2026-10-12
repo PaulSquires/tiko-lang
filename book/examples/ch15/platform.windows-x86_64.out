@@ -1,4 +1,4 @@
 platform: Windows
 pointers: 64 bits
 a path:   logs\today.txt
-target:   win64-msvc
+target:   windows-x86_64

@@ -45,14 +45,14 @@ bash build/lint.sh
 # a regression, and a gate that fails for the wrong reason gets ignored.
 bash build/crosslink.sh
 
-# THE MICROSOFT-ABI GATE, and it was missing from here entirely -- win64-msvc is the
+# THE MICROSOFT-ABI GATE, and it was missing from here entirely -- windows-x86_64 is the
 # DEFAULT Windows target, so the one configuration most users get was the one nothing
 # ran fbc's suite against. It lives under lib/rt/build rather than tools/gen, so the
 # glob above was never going to find it.
 #
 # OPTIONAL, exactly as crosslink.sh is: it needs an fbc built from source that
 # understands '-z msvc' (the prebuilt toolchain predates it), clang, the generated
-# import libraries and a win64-msvc archive of this configuration. Each of those is an
+# import libraries and a windows-x86_64 archive of this configuration. Each of those is an
 # environment gap rather than a regression, and TKORT_GATE_OPTIONAL turns the refusal
 # into a SKIP that says which one is missing.
 #
