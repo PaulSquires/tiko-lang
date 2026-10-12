@@ -1,0 +1,10 @@
+# A target's key written after the last table header -- here an editor's [profile.editor] --
+# belongs to that profile, as TOML says; the message names the table it should be in.
+[package]
+name = "kp"
+
+[target.app]
+main = "main.tiko"
+
+[profile.editor]
+copy_to = ["dist"]

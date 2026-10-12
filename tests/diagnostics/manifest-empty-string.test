@@ -1,0 +1,6 @@
+'' AN EMPTY STRING IN AN ARRAY names nothing, and the elements travel joined by LF, where it
+'' vanished: 'copy_to = [""]' copied nowhere without a word. TKO0144, pointing at ".".
+'' TEST: cli
+'' ARGS: metadata --manifest tests/diagnostics/src/manifest-empty-string
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0144: malformed tiko.toml: tests/diagnostics/src/manifest-empty-string/tiko.toml(7): an empty string in an array names nothing (tiko.toml's own directory is ".")

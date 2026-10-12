@@ -1,0 +1,7 @@
+# copy_to = [""] copied nowhere and said nothing: an empty string in an array is refused.
+[package]
+name = "es"
+
+[target.app]
+main = "main.tiko"
+copy_to = [""]

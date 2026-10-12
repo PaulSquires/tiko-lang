@@ -170,6 +170,13 @@ private function Value_( byref c as TomlCursor_, byref v as string, byref kind a
                 c.err_ = "only arrays of strings are in the subset tiko reads"
                 return false
             end if
+            '' AN EMPTY STRING NAMES NOTHING -- no file, no library, no option, no directory --
+            '' and the elements travel joined by LF, where it would vanish: 'copy_to = [""]'
+            '' copied nowhere and said nothing. The directory of tiko.toml itself is ".".
+            if len( one_ ) = 0 then
+                c.err_ = "an empty string in an array names nothing (tiko.toml's own directory is ""."")"
+                return false
+            end if
             v &= iif( n > 0, chr( 10 ), "" ) & one_
             n += 1
             Ws_( a )
@@ -309,6 +316,9 @@ private function BuildKey_ _
         case "subsystem" : want = "s" : allowed = "gui|console"
         case "main", "output" : want = "s"
         case "sources", "resources", "libs", "libpaths", "options", "copy_to" : want = "a"
+        case "inherits", "errors", "opt", "debug"
+            return "unknown key '" & k & "' in [" & table_ & "]: it is a [profile.<name>] key, " & _
+                   "and a key belongs to the table header above it"
         case else
             return "unknown key '" & k & "' in [" & table_ & "]"
         end select
@@ -319,6 +329,11 @@ private function BuildKey_ _
         case "opt"      : want = "i" : allowed = "0|1|2|3"
         case "debug"    : want = "b"
         case "options"  : want = "a"
+        '' A TARGET'S KEY UNDER A PROFILE, the usual way: written after the last table header
+        '' of the file -- an editor's [profile.editor], say -- where TOML gives it to that table.
+        case "main", "output", "kind", "subsystem", "sources", "resources", "libs", "libpaths", "copy_to"
+            return "unknown key '" & k & "' in [" & table_ & "]: it is a [target.<name>] key, " & _
+                   "and a key belongs to the table header above it"
         case else
             return "unknown key '" & k & "' in [" & table_ & "]"
         end select

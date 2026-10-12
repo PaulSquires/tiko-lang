@@ -1,0 +1,7 @@
+'' A [target.x] key under a [profile.x] header is TKO0144 that says which table it belongs to:
+'' a key goes to the table header above it, so one written after the editor's managed block
+'' landed in [profile.editor] and read as an unknown key with no hint why.
+'' TEST: cli
+'' ARGS: metadata --manifest tests/diagnostics/src/manifest-key-in-profile
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0144: malformed tiko.toml: tests/diagnostics/src/manifest-key-in-profile/tiko.toml(10): unknown key 'copy_to' in [profile.editor]: it is a [target.<name>] key, and a key belongs to the table header above it
