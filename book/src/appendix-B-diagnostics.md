@@ -530,4 +530,4 @@ Text like ‹arg1› marks where the compiler substitutes a name, type or path.
 | `TKO0994` | error | internal compiler error: this statement was not compiled (‹arg1› in this module); the build stops rather than leave it out |
 | `TKO0995` | warning | internal compiler error: this statement was not compiled (‹arg1› in this module) and is left out of the build |
 
-<!-- 482 rows, generated 2026-10-12 from src/diag/diagids.bi at 45e2e809 -->
+<!-- 482 rows, generated 2026-10-12 from src/diag/diagids.bi at 4495592c -->

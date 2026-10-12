@@ -1,6 +1,6 @@
 '' Exercise 21-1: a scratch file that deletes itself.
 type ScratchFile
-    declare constructor( byref path as ustring )
+    declare constructor( byref fileName as ustring )
     declare destructor( )
     declare function Path( ) as ustring
 private:
@@ -9,8 +9,8 @@ private:
     dim name_ as ustring
 end type
 
-constructor ScratchFile( byref path as ustring )
-    name_ = path
+constructor ScratchFile( byref fileName as ustring )
+    name_ = fileName
     dim as int32 f = freefile( )
     open name_ for output as #f
     print #f, "scratch"
