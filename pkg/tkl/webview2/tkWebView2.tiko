@@ -11,6 +11,17 @@
 #include once "win/objidl.bi"
 #include once "win/oaidl.bi"
 
+#ifndef __tk_IUnknown_INTERFACE_DEFINED__
+#define __tk_IUnknown_INTERFACE_DEFINED__
+PUBLIC TYPE tk_IUnknown AS tk_IUnknown_
+PUBLIC TYPE tk_IUnknown_ EXTENDS OBJECT
+	DECLARE ABSTRACT FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
+	DECLARE ABSTRACT FUNCTION AddRef () AS ULONG
+	DECLARE ABSTRACT FUNCTION Release () AS ULONG
+END TYPE
+PUBLIC TYPE tk_LPUNKNOWN AS tk_IUnknown PTR
+#endif
+
 PUBLIC TYPE EventRegistrationToken
    value AS __int64
 END TYPE
