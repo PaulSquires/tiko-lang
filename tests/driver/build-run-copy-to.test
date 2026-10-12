@@ -1,0 +1,12 @@
+'' 'tiko run' RUNS THE FIRST copy_to COPY: the program reads app.ini from its own directory, and
+'' only dist/ has one -- the original in out/debug/ would fail to open it.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.brc/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.brc
+'' COPY: tests/driver/src/build-copyto => build/.brc/pkg
+'' ARGS: run -target win64-msvc --manifest build/.brc/pkg --message-format json
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: build/.brc/pkg/dist/app.exe","args":[]}
+'' EXPECT-OUT: ini:colour=blue
+'' EXPECT-OUT: {"event":"run-end","exit":0}

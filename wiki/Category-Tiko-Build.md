@@ -11,7 +11,7 @@ The book's [Building and Shipping](https://tiko-lang.net/book/ch29-building-ship
 | Command | Does |
 |---|---|
 | `tiko build [targets]` | builds the named targets of `tiko.toml`, or all of them, into `out/<profile>/` |
-| `tiko run [target] [-- args]` | builds one `exe` target, then runs it with the arguments after `--`; exits with the program's exit code |
+| `tiko run [target] [-- args]` | builds one `exe` target, then runs it -- its first `copy_to` copy when it has one -- with the arguments after `--`; exits with the program's exit code |
 | `tiko check [targets]` | every error and warning a build would give, through lowering; writes nothing |
 | `tiko clean [targets]` | removes what a `tiko build` with the same profile would write |
 | `tiko metadata` | prints the project as one JSON object: targets, profiles, modules, search paths; compiles nothing |
@@ -172,7 +172,7 @@ end	<errors>	<warnings>	<exitcode>
 | `unit` | `kind` (`module`, `root`), `unit` (a module chain or a file), `status` | each, in build order |
 | `artifact` | `kind` (`exe`, `dll`, `lib`), `path` | a file the build wrote |
 | `build-end` | `target`, `errors`, `warnings`, `exit`, `ms` | each target, last. With no `target` when the command failed before any target was built |
-| `run` | `path` (absolute), `args` | `tiko run`, before the program starts. Until `run-end`, standard output is the program's own |
+| `run` | `path` (absolute: the first `copy_to` copy, else the artefact), `args` | `tiko run`, before the program starts. Until `run-end`, standard output is the program's own |
 | `run-end` | `exit` | the program's exit code |
 | `copy` | `target`, `from`, `path`, `copied` (true/false) | each `copy_to` directory, after a build that succeeded; `copied` is false when the copy there was already current |
 | `clean` | `target`, `path`, `removed` (true/false) | `tiko clean`: the artefact, then each `copy_to` copy |

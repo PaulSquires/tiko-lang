@@ -363,7 +363,10 @@ private function Run_ _
     dim as long rc = Build_( a, m, mdir, plans, ctx, obs )
     if rc <> Tko.EXIT_OK then return rc
 
+    '' THE FIRST copy_to COPY, when the target has one: it is the one beside the DLLs and data
+    '' files the program needs, so it is what double-clicking it in that directory would run.
     dim as string exe = Tko.Modules.AbsPath( p.artifact )
+    if p.copyTo.Count > 0 then exe = Tko.Modules.AbsPath( CopyPath_( p.copyTo[0], p.artifact ) )
     dim as string argline = ""
     for each x as string in a.runArgs
         argline &= " " & Tko.Spawn.QuoteArg( x )
