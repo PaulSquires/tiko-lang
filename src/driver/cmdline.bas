@@ -130,7 +130,18 @@ function HelpText( byval category as string = "" ) as string
     dim as boolean filtered = (len( want ) > 0)
 
     dim as string outp = ""
-    outp += "usage: tiko [options] <inputs...>" & chr( 10 ) & chr( 10 )
+    outp += "usage: tiko [options] <inputs...>" & chr( 10 )
+    outp += "       tiko <subcommand> [options] [<targets or roots...>]" & chr( 10 ) & chr( 10 )
+    '' THE SUBCOMMANDS (src/build), listed so a tool can ask: tiko-editor-tiko looks for
+    '' 'tiko build' here before it builds through it (tiko-build PLAN B6).
+    if filtered = false then
+        outp += "Subcommands:" & chr( 10 )
+        outp += "  tiko build    build the targets of tiko.toml, or the roots given -- cached" & chr( 10 )
+        outp += "  tiko clean    remove what 'tiko build' would write" & chr( 10 )
+        outp += "  tiko metadata print the project as JSON: targets, profiles, modules" & chr( 10 )
+        outp += "  tiko run, tiko check  reserved, not implemented in this build" & chr( 10 )
+        outp += "  (their options: --profile, --manifest, --options, --message-format, --no-cache)" & chr( 10 ) & chr( 10 )
+    end if
 
     for c as long = Tko.OPTCAT_GENERAL to Tko.OPTCAT_DEVEL
         dim as string catName = Tko.CategoryName( cast( Tko.OptCategory, c ) )

@@ -2,6 +2,8 @@
 '' ARGS: --help
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: usage: tiko [options] <inputs...>
+'' EXPECT-OUT: Subcommands:
+'' EXPECT-OUT: tiko build    build the targets of tiko.toml
 '' EXPECT-OUT: win64-msvc (the Windows default), win64 or linux-x86_64
 '' EXPECT-NOT: RESUME support
 '' EXPECT-OUT: Diagnostics:
