@@ -2,7 +2,7 @@
 '' WORD is accepted and thrown away, and this is the only thing that says so.
 '' tests/vendor/fbc-tests/warnings/suffix-fb.bas is 1330 lines whose whole subject is
 '' this warning; it emits 544 of them under fbc-modern win64 with '-w all', and this
-'' build emits 464 of those and nothing fbc does not.
+'' build emits 514 of those and nothing fbc does not.
 ''
 '' MEASURED (fbc-modern win64, 'fbc64 -w all -c'), and every line below is one of them:
 ''
@@ -27,11 +27,10 @@
 ''   ScOpE% / End% Scope%                   the SOURCE spelling is echoed back, case
 ''                                          and all
 ''
-'' NOT covered here because it is not covered at all -- see pp.bas WarnIgnoredSuffix:
-'' suffixes on ordinary identifiers ('dim as string s$' warns in fbc), on words a
-'' DIRECTIVE eats ('#include%', '#line%', '#pragma msbitfields%'), and on contextual
-'' words that are not reserved ('put ...,,trans%'). 'dim a as string$' is the one
-'' deliberate under-warn inside the covered set.
+'' Identifiers are suffix-ignored-ident.test. NOT covered at all -- see pp.tiko
+'' WarnIgnoredSuffix: words a DIRECTIVE eats ('#include%', '#line%', '#pragma
+'' msbitfields%'). 'dim a as string$' is the one deliberate under-warn inside the
+'' covered set.
 '' TEST: cli
 '' ARGS: --dump-ir %s
 '' EXPECT-EXIT: 0

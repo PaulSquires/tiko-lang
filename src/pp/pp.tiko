@@ -794,7 +794,8 @@ private sub DereserveKw_( byref e as PpEngine, byval k as TokenKind )
 end sub
 
 '' fbc's warning 44 (TKO0206). The rule implemented here is exactly the one the
-'' measurement supports: A RESERVED WORD THAT REACHES THE PARSER CARRYING A SUFFIX.
+'' measurement supports: A RESERVED WORD OR AN IDENTIFIER THAT REACHES THE PARSER
+'' CARRYING A SUFFIX -- identifiers less three silent forms, see IdentSuffixSilent_.
 ''
 '' Why here and not in the lexer: the lexer sees every token in the file, including the
 '' ones in a false '#if' branch, and fbc warns about none of those (measured). A token
@@ -805,22 +806,16 @@ end sub
 '' where every diagnostic in a macro body already points and is not this one's to move.
 ''
 '' NOT covered, and deliberately so rather than guessed at:
-''   - suffixes on ORDINARY IDENTIFIERS. 'dim a$' is legal and silent; 'n%' naming an
-''     'n as integer' warns. Telling those apart is a name-resolution question and
-''     there is nothing here to answer it with.
 ''   - suffixes on words consumed by a DIRECTIVE and never emitted -- '#include%',
 ''     '#line%', '#pragma msbitfields%'. Those need a call per directive, not one rule.
-''   - suffixes on CONTEXTUAL words that are not reserved: 'open ... for binary as% #1'
-''     warns on 'as' (reserved, covered) but 'put #1,,x,,trans%' does not reach a
-''     keyword at all.
 
 '' THE CLASSIC '$' SPELLINGS. 'CHR$', 'MID$', 'STR$' and their family are not CHR with
 '' a suffix -- the '$' is part of a second, accepted name for the intrinsic, and fbc
 '' warns about none of them. suffix-fb.bas says so itself: 26 of them under one
 '' 'WARN( 0 )' (its lines 1022-1047 after the '#line 1000'), immediately followed by
 '' 'WARN( 4 )' over 'wchr$ wstr$ wstring$ bin$', which are NOT in the family and do
-'' warn. Sixteen of the 26 are keywords here; the rest lex as identifiers and never
-'' reach this code.
+'' warn. Sixteen of the 26 are keywords here; the rest lex as identifiers and are
+'' IsClassicDollarSpelling's.
 ''
 '' KNOWN SHORTFALL, ONE SITE. 'STRING$' is in the family as a FUNCTION and out of it as
 '' a TYPE: measured, 'print string$( 3, 65 )' is silent and 'dim a as string$' is
@@ -859,55 +854,30 @@ private function InAccessReadWrite( byref e as PpEngine, byval k as TokenKind ) 
     return (cast( TokenKind, e.outp->tokens[n - 2].kind ) = KW_ACCESS)
 end function
 
-private sub WarnIgnoredSuffix( byref e as PpEngine, byref t as Token )
-    if (t.flags and TF_HAS_SUFFIX) = 0 then return
-    dim as TokenKind kind = Tk( t )
-    '' A KEYWORD ONLY, and the SHORTFALL IS DELIBERATE.
-    ''
-    '' The note that used to be here said an ordinary identifier cannot be covered
-    '' because 'dim a$' is legal and silent and telling a legal suffix from an ignored
-    '' one needs name resolution. THAT IS MEASURABLY WRONG: in '#lang "fb"' there is no
-    '' legal one. Every spelling warns, and the declaration form is an error as well --
-    ''
-    ''     dim as string s : print s$        1 warning
-    ''     dim as integer n : print n%       1 warning
-    ''     dim n% as integer : print n%      2 warnings, BOTH sites
-    ''     dim a$ : a$ = "x" : print a$      3 warnings AND 2 errors
-    ''     print left%( s, 2 )               1 warning -- a PRELUDE function here, not
-    ''                                       a keyword, which is why left/right/space
-    ''                                       are in the shortfall
-    ''
-    '' Dropping this test was TRIED. It takes suffix-fb.bas from 464 of fbc's 544 sites
-    '' to 526 -- and introduces TEN FALSE POSITIVES, which is the one thing this rule
-    '' may not do. Two more sub-rules stand between here and the identifier form, and
-    '' the second is why it is not merely more work:
-    ''
-    ''   1. THE CLASSIC '$' NAMES ALSO LEX AS IDENTIFIERS. inkey$, space$, left$ and
-    ''      command$ are prelude functions here, so IsClassicDollarName below never
-    ''      sees them. Fixable: match the SPELLING rather than the token kind.
-    ''   2. 'type T%' IS SILENT AND 'type ALIAS% as integer' WARNS -- measured, one
-    ''      line apart. A UDT declaration head and a typedef head are the same two
-    ''      tokens; what separates them is whether 'as' FOLLOWS the name. EmitTok
-    ''      looks BACKWARD at what it has already emitted, the way InAccessReadWrite
-    ''      does, and has no lookahead at all. That one site is suffix-fb.bas(337).
-    ''
-    '' So the gap is not 'needs name resolution'; it is one token of lookahead this
-    '' layer does not have. 464 with zero false positives beats 526 with one.
-    if IsKeywordKind( kind ) = false then return
+'' IsClassicDollarName's family BY SPELLING, for the ten that are prelude functions
+'' here (inkey$, left$, hex$...). All 26 are listed so a word moving between keyword
+'' and prelude cannot start a false positive. Only '$': 'left%( s, 2 )' warns.
+private function IsClassicDollarSpelling( byref folded as string ) as boolean
+    select case folded
+    case "chr", "str", "string", "mks", "mkd", "mkl", "mki", "mkshort", "mklongint", _
+         "ltrim", "rtrim", "mid", "lcase", "ucase", "trim", "input", "inkey", _
+         "space", "oct", "hex", "left", "right", "time", "date", "environ", "command"
+        return true
+    end select
+    return false
+end function
 
-    dim as ushort sufBits = (t.flags and TF_SUFFIX_MASK) shr TF_SUFFIX_SHIFT
-    if cast( SuffixChar, sufBits ) = SUFC_DOLLAR then
-        if IsClassicDollarName( kind ) then return
-    end if
-    if InAccessReadWrite( e, kind ) then return
-
-    '' What fbc quotes is the SOURCE TEXT, case preserved. Read the span, and accept it
-    '' only when it still spells this token -- a macro-expanded or pasted token had its
-    '' loc repointed at the use site, exactly as SpellOf documents, and the span there
-    '' is the invocation's text. The fallback is the canonical spelling plus the
-    '' recorded suffix character.
+'' What fbc quotes is the SOURCE TEXT, case preserved: the span, when it still spells
+'' this token -- a macro-expanded or pasted one had its loc repointed at the use site
+'' (see SpellOf). The fallback is the canonical spelling plus the suffix character.
+private sub ReportIgnoredSuffix_( byref e as PpEngine, byref t as Token )
     dim as string suffix = SuffixCharText( t.flags )
-    dim as string canon = Text.LowerAscii( TokenKindText( Tk( t ) ) )
+    dim as string canon
+    if Tk( t ) = TK_IDENT then
+        canon = Text.LowerAscii( e.names->Spelling( t.ident ) )
+    else
+        canon = Text.LowerAscii( TokenKindText( Tk( t ) ) )
+    end if
     dim as DecodedLoc d = e.src->Decode( t.loc )
     dim as SourceFile ptr f = e.src->FileAt( d.file )
     dim as string spell = canon & suffix
@@ -920,6 +890,54 @@ private sub WarnIgnoredSuffix( byref e as PpEngine, byref t as Token )
     end if
 
     Report( e, TKO0206, t.loc, spell )
+end sub
+
+'' A SUFFIXED IDENTIFIER. In '#lang "fb"' a suffix never types anything, so every
+'' spelling warns -- measured with fbc-modern 1.20:
+''
+''     dim as string s : print s$        1 warning
+''     dim as integer n : print n%       1 warning
+''     dim as int32 count%               1 warning; tiko said nothing until this
+''     dim n% as integer : print n%      2 warnings, BOTH sites
+''     print left%( s, 2 )               1 warning
+'' Four silent forms, each measured: the classic '$' names; the name after 'using'
+'' ('using% ns%' is one warning, suffix-fb.bas(109)); the name after 'type' ('type T%',
+'' line 337, and 'type MyInt% as integer' -- 'type ALIAS% as' warns only because
+'' 'alias' is a keyword); and a FIELD name, 'i$ as integer' or 'as integer i$', which
+'' fbc rejects with error 17 and no warning (quirk/field-suffix-1/2.bas; TKO0741 here).
+'' suffix-fb.bas: 464 of fbc's 544 sites -> 514, and still no site fbc lacks. The
+'' rest are DIRECTIVE words and 'string$' as a type.
+private function IdentSuffixSilent_( byref e as PpEngine, byref t as Token ) as boolean
+    if cast( SuffixChar, (t.flags and TF_SUFFIX_MASK) shr TF_SUFFIX_SHIFT ) = SUFC_DOLLAR then
+        if IsClassicDollarSpelling( Text.LowerAscii( e.names->Spelling( t.ident ) ) ) then return true
+    end if
+    dim as long n = e.outp->tokens.Count
+    dim as long head = n
+    while (head > 0) andalso (cast( TokenKind, e.outp->tokens[head - 1].kind ) <> TK_EOL)
+        head -= 1
+    wend
+    dim as Token nx
+    if head = n then return PeekTok( e, nx ) andalso cbool( Tk( nx ) = KW_AS )
+    if cast( TokenKind, e.outp->tokens[head].kind ) = KW_AS then return true
+    dim as TokenKind prev = cast( TokenKind, e.outp->tokens[n - 1].kind )
+    return (prev = KW_USING) orelse (prev = KW_TYPE)
+end function
+
+private sub WarnIgnoredSuffix( byref e as PpEngine, byref t as Token )
+    dim as TokenKind kind = Tk( t )
+    if (t.flags and TF_HAS_SUFFIX) = 0 then return
+    if kind = TK_IDENT then
+        if IdentSuffixSilent_( e, t ) = false then ReportIgnoredSuffix_( e, t )
+        return
+    end if
+    if IsKeywordKind( kind ) = false then return
+
+    dim as ushort sufBits = (t.flags and TF_SUFFIX_MASK) shr TF_SUFFIX_SHIFT
+    if cast( SuffixChar, sufBits ) = SUFC_DOLLAR then
+        if IsClassicDollarName( kind ) then return
+    end if
+    if InAccessReadWrite( e, kind ) then return
+    ReportIgnoredSuffix_( e, t )
 end sub
 
 private sub EmitTok( byref e as PpEngine, byref t as Token )

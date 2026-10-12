@@ -1,0 +1,49 @@
+'' fbc's WARNING 44 on an IDENTIFIER -- TKO0206. In '#lang "fb"' a suffix never gives
+'' a variable its type, so beside an explicit type it is thrown away, and at every use
+'' too. tiko said nothing about any of these until 2026-10-12, so 'dim as int32 n%'
+'' compiled silently where fbc warns. (suffix-ignored.test covers reserved words.)
+''
+'' MEASURED (fbc-modern win64, 'fbc64 -w all'), and every line below is one of them:
+''
+''   dim as int32 count% / count% = 3       one warning each site
+''   dim as string s : print s$             one
+''   print left%( s, 1 )                    one -- a prelude function, not a keyword
+''   print left$( s, 1 ), hex$( 255 )       NOTHING -- the classic '$' names
+''   type Pt% ... end type                  NOTHING -- the name after 'type'
+''   type MyInt% as integer                 NOTHING -- the alias form too
+''   using Foo%                             NOTHING -- the name after 'using'
+'' TEST: cli
+'' ARGS: --dump-ir %s
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: suffix ignored in 'count%'
+'' EXPECT-OUT: suffix ignored in 'Total%'
+'' EXPECT-OUT: suffix ignored in 's$'
+'' EXPECT-OUT: suffix ignored in 'left%'
+'' EXPECT-NOT: suffix ignored in 'left$'
+'' EXPECT-NOT: suffix ignored in 'hex$'
+'' EXPECT-NOT: suffix ignored in 'inkey$'
+'' EXPECT-NOT: suffix ignored in 'Pt%'
+'' EXPECT-NOT: suffix ignored in 'MyInt%'
+'' EXPECT-NOT: suffix ignored in 'Foo%'
+
+type Pt%
+    x as long
+end type
+type MyInt% as integer
+
+namespace Foo
+    dim as integer v = 1
+end namespace
+using Foo%
+
+dim as int32 count%
+count% = 3
+dim as integer total = 1
+Total% = 2
+dim as string s = "abc"
+print s$
+print left%( s, 1 )
+print left$( s, 1 ), hex$( 255 ), inkey$
+dim as MyInt q = count
+dim as Pt p
+print q, p.x, v, total
