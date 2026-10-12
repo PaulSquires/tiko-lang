@@ -26,7 +26,7 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 ```freebasic
 '' examples/hello.tiko -- the smallest complete TUI program.
 ''
-'' Build (win64-msvc, win64 or linux-x86_64):
+'' Build (win64-msvc or linux-x86_64):
 ''     tiko hello.tiko
 ''
 '' Run it from a real terminal. Redirected output is rejected with an honest

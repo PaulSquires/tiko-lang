@@ -30,7 +30,7 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 '' in any shipped FreeBASIC module: a widget that carries a closure. RFC-0007
 '' section 4, and probes #4-#8 in README.md.
 ''
-'' Build (win64-msvc, win64 or linux-x86_64):
+'' Build (win64-msvc or linux-x86_64):
 ''     tiko form.tiko
 
 #import "std/numeric"

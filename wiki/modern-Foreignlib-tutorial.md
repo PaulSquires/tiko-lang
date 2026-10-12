@@ -151,7 +151,7 @@ duplicated once per target:
 ```
 
 (Under tiko the `__FB_64BIT__` test can only go one way -- its targets,
-win64-msvc, win64 and linux-x86_64, are all 64-bit -- so the `foo32` branch is
+win64-msvc and linux-x86_64, are both 64-bit -- so the `foo32` branch is
 there for portability to stock fbc, not because this compiler can reach it.)
 
 Three copies of one line, differing in one token — times every function in the

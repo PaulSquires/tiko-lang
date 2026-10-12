@@ -32,7 +32,7 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 '' scrollbar, and a status bar. RFC-0008 section 7 maps every element to the
 '' widget that draws it.
 ''
-'' Build (win64-msvc, win64 or linux-x86_64):
+'' Build (win64-msvc or linux-x86_64):
 ''     tiko dashboard.tiko
 ''
 '' Keys: up/down move the process selection, q or Esc quits. The data is
