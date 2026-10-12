@@ -1,0 +1,23 @@
+'' AN ENUM CONSTANT PASSED BYREF IS A TEMPORARY HOLDING ITS VALUE. AddrOfVar refused a
+'' 'const' but not an enum member, so LowerAddr minted a frame slot named after the
+'' member -- 'local i64 e_b; call void PU(@e_b)' -- that nothing ever stored to: the
+'' callee read 0, and through a generic container's 'byref v as T' Push, stack garbage.
+'' fbc passes a temporary, as for a literal. Output measured with fbc-modern 1.20
+'' (2026-10-11); fbc warns 5 (implicit conversion) at PD, tiko does not.
+'' TEST: cli
+'' ARGS: -target win64-msvc tests/mir/src/enum-const-byref-run.bas -o tests/mir/enumconstbyrefrun.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/mir/enumconstbyrefrun.exe
+'' RUN: tests/mir/enumconstbyrefrun.exe
+'' EXPECT-RUN-OUT: ulong:6
+'' EXPECT-RUN-OUT: long: 6
+'' EXPECT-RUN-OUT: integer: 6
+'' EXPECT-RUN-OUT: enum: 6
+'' EXPECT-RUN-OUT: byte: 5
+'' EXPECT-RUN-OUT: double: 6
+'' EXPECT-RUN-OUT: long: 6
+'' EXPECT-RUN-OUT: long: 41
+'' EXPECT-RUN-OUT: bumped: 105
+'' EXPECT-RUN-OUT: after: 5
+'' EXPECT-RUN-OUT: box:56 2

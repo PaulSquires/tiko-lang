@@ -1294,6 +1294,11 @@ function AddrOfVar( byref c as Ctx, byval sid as Tko.SymbolId ) as MirValue
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( sid )
     if cs <> 0 then
         if cs->kind = cast( ubyte, Tko.SYM_CONSTANT ) then return v
+        '' ...AND NEITHER HAS AN ENUM MEMBER. Given a slot here, 'PU( E_B )' over
+        '' 'byref v as ulong' passed '@e_b', a frame slot nothing ever stored to: the callee
+        '' read 0, and a generic container's byref Push read stack garbage. Declined, the
+        '' byref argument takes ByrefTemp_ -- the temporary fbc builds, as for a literal.
+        if cs->kind = cast( ubyte, Tko.SYM_ENUMCONST ) then return v
         '' A REFERENCE DOES have storage now -- a slot holding the address it aliases,
         '' the same shape a byref parameter has -- and the load that turns that slot
         '' into the referent's address is at the end of this function, where every
