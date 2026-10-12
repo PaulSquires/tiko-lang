@@ -256,7 +256,20 @@ function PlanTarget _
     for each x as string in a.extra
         p.flags.Push( x )
     next
-    p.artifact = TargetOutput( a, m, mdir, tname, profile, diags )
+    '' A '-dll' OR '-lib' AMONG THE FLAGS DECIDES THE KIND, as it does for the implicit target:
+    '' an editor's build configuration can make a DLL of a target the manifest calls an exe,
+    '' and the artefact must then be named as one (x.dll, not x.exe).
+    for each x as string in p.flags
+        if (x = "-dll") orelse (x = "-dylib") then p.kind = "dll"
+        if x = "-lib" then p.kind = "lib"
+    next
+    dim as string out_ = TargetKey_( m, tname, "output" )
+    if len( out_ ) > 0 then
+        p.artifact = Rel( mdir, out_ )
+    else
+        dim as string nm = DefaultName_( tname, p.kind, a.target, diags )
+        if len( nm ) > 0 then p.artifact = Rel( mdir, "out/" & profile & "/" & nm )
+    end if
     if len( p.artifact ) = 0 then return false
 
     for each x as string in p.flags

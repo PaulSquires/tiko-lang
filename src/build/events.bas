@@ -76,6 +76,12 @@ sub OnUnit _
                   JsonStr( unitName ) & ",""status"":" & JsonStr( status ) )
 end sub
 
+sub OnPlan( byval obs as any ptr, byval units as long )
+    if obs = 0 then return
+    dim as Observer ptr o = obs
+    EmitLine( *o, """event"":""plan"",""units"":" & units )
+end sub
+
 sub OnArtifact( byval obs as any ptr, byref kind as string, byref path_ as string )
     if obs = 0 then return
     dim as Observer ptr o = obs

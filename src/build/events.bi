@@ -36,6 +36,9 @@ namespace Tko.Build
     '' root, so a root is always compiled).
     declare sub OnUnit _
         ( byval obs as any ptr, byref kind as string, byref unitName as string, byref status as string )
+    '' How many units the build has -- modules and roots -- once the module graph is known,
+    '' before the first unit event: {"event":"plan","units":N}.
+    declare sub OnPlan( byval obs as any ptr, byval units as long )
     '' 'kind' is "exe", "dll", "lib" or "obj"; the path as the link wrote it.
     declare sub OnArtifact( byval obs as any ptr, byref kind as string, byref path_ as string )
     '' The run's totals, from DiagOut.Finish -- once per run, the '#cmdline' restart included.

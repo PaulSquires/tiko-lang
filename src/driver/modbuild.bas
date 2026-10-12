@@ -90,6 +90,9 @@ function BuildImports _
 
     dim as ModGraph g
     if BuildGraph( ctx, rootCount, true, g ) = false then return false
+    '' HOW MANY UNITS THIS BUILD HAS, now that the graph says: every module and every root.
+    '' A 'tiko build' tells its caller, for a progress count (src/build/events.bi).
+    if scanOnly = false then Tko.Build.OnPlan( ctx.build, g.chains.Count + rootCount )
     if g.chains.Count = 0 then return true
 
     '' --emit-ir AND --emit-asm name one file per root, and where each module's IR would go

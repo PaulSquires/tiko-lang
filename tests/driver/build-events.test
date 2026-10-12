@@ -8,6 +8,7 @@
 '' ARGS: build -target win64-msvc tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bev/app.exe --message-format json
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: {"event":"build-start","format":1,"target":"main","profile":"","roots":["tests/driver/src/build-b1/main.tiko","tests/driver/src/build-b1/other.tiko"]}
+'' EXPECT-OUT: {"event":"plan","units":3}
 '' EXPECT-OUT: {"event":"unit","kind":"module","unit":"main.util","status":"miss"}
 '' EXPECT-OUT: {"event":"unit","kind":"root","unit":"tests/driver/src/build-b1/main.tiko","status":"miss"}
 '' EXPECT-OUT: {"event":"unit","kind":"root","unit":"tests/driver/src/build-b1/other.tiko","status":"miss"}
