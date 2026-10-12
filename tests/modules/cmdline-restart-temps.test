@@ -1,0 +1,16 @@
+'' A '#cmdline' RESTART LEAVES NO INTERMEDIATE OBJECT. The '#cmdline' follows a statement,
+'' so the header pre-scan (T75) misses it: pass one builds acme/twice into '<exe>.<id>.o',
+'' the unit's own pass restarts, and the restarted pass takes the module from the cache.
+'' Pass one's object was never deleted -- app.exe.80.o beside the program, eight of them
+'' for a one-file program importing std and tkl (2026-10-12). 80 is the module source's
+'' file id in this fixture; a fresh cache makes pass one miss, as a first build does.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.mct-cmdline/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' CLEAN: build/.mct-cmdline
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc -i tests/modules/src/cmdlinetemps/libs tests/modules/src/cmdlinetemps/app/main.bas -o build/.mct-cmdline/app.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.mct-cmdline/app.exe
+'' EXPECT-NO-FILE: build/.mct-cmdline/app.exe.80.o
+'' RUN: build/.mct-cmdline/app.exe
+'' EXPECT-RUN-OUT:  42

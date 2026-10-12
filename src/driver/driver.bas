@@ -545,6 +545,19 @@ function DrainObjects( byref ctx as Tko.CompilerContext ) as long
     return fail
 end function
 
+'' AN INTERMEDIATE OBJECT GOES WHATEVER HAPPENED -- a link, a failure, or a '#cmdline'
+'' restart. The restart was the gap: pass one built the imported modules into
+'' '<exe>.<n>.o', the restarted pass took them from the module cache, and nothing
+'' deleted pass one's -- eight objects beside a one-file program that imports
+'' std and tkl (2026-10-12). The caller drains first: an object still being written
+'' cannot be deleted.
+private sub KillTemps_( byref ctx as Tko.CompilerContext, byref tempObjs as Tko.StrVec )
+    if ctx.options.keepTemps then exit sub
+    for each t as string in tempObjs
+        dim as long kr = kill( t )   '' the function form: one already gone is no error
+    next
+end sub
+
 function BuildFromIr _
     ( byref ctx as Tko.CompilerContext, byref irText as string, _
       byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as long
@@ -1064,13 +1077,18 @@ function Run _
             Tko.PpRun( ctx.sources, cast( Tko.FileId, 1 ), ctx.names, ctx.keywords, _
                        ctx.diags, hcfg, hpr )
             ctx.diags.RollBack( hp0, he0, hw0, hs0 )
-            if hpr.cmdlineArgs.Count > 0 then return RestartWith_( args, hpr.cmdlineArgs, restartDepth, buildOut )
+            if hpr.cmdlineArgs.Count > 0 then
+                KillTemps_( ctx, tempObjs )
+                return RestartWith_( args, hpr.cmdlineArgs, restartDepth, buildOut )
+            end if
         end if
         if builds then
             dim as double tImp = timer
             dim as boolean impOk = Tko.Modules.BuildImports( ctx, srcCount, linkObjs, tempObjs, toolExit )
             ctx.timing.importSecs += timer - tImp
             if impOk = false then
+                DrainObjects( ctx )
+                KillTemps_( ctx, tempObjs )
                 ctx.diags.Flush( )
                 return Tko.DiagOut.Finish( ctx, iif( toolExit <> Tko.EXIT_OK, toolExit, Tko.EXIT_USER_ERROR ) )
             end if
@@ -1139,6 +1157,7 @@ function Run _
                 '' The restart rebuilds every object, under the same names: none of this
                 '' pass's may still be being written.
                 DrainObjects( ctx )
+                KillTemps_( ctx, tempObjs )
                 return RestartWith_( args, restartArgs, restartDepth, buildOut )
             end if
             Tko.UnitCache.Report( ctx, ucs, i, Tko.UnitCache.After( ctx, ucs, i, ukey, um, linkObjs ) )
@@ -1217,11 +1236,7 @@ function Run _
         '' AN INTERMEDIATE OBJECT GOES WHATEVER HAPPENED. LinkAll and ArchiveAll removed them
         '' only on success, so a failed link, a failed second module or a frontend error
         '' left 'main.exe.1.o' behind -- 92 of them were found in src/driver (audit F-74).
-        if ctx.options.keepTemps = false then
-            for each t as string in tempObjs
-                dim as long kr = kill( t )   '' the function form: one already gone is no error
-            next
-        end if
+        KillTemps_( ctx, tempObjs )
 
     elseif ctx.options.dumpAst orelse ctx.options.parseOnly then
         dim as longint nodes = 0
