@@ -366,11 +366,11 @@ reads the diagnostics file to list errors and warnings and underline them in the
 the debugger described above, and completes names after an `#import`.
 
 **tiko-lsp** is a language server: a standalone program any editor that speaks the Language
-Server Protocol can start — VS Code, Neovim, Helix, Zed, Sublime Text. It reads tiko with its own
-lexer and parser, and gives the editor diagnostics as you type, hover, go-to-definition, find
-references, rename, completion — including `alias.` completion after an `#import` — signature
-help, semantic colouring and formatting. It never runs the compiler; the build's own diagnostics
-still come from tiko.
+Server Protocol can start, with ready-made support for VS Code, Sublime Text, Neovim and Zed. It
+reads tiko with its own lexer and parser, and gives the editor diagnostics as you type, hover,
+go-to-definition, find references, rename, completion — including `alias.` completion after an
+`#import` — signature help, semantic colouring and formatting. It never runs the compiler; the
+build's own diagnostics still come from tiko.
 
 ## What it costs
 

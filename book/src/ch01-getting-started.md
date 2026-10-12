@@ -242,8 +242,8 @@ two tools exist and both are worth the five minutes:
 - **tiko-editor** is a Windows IDE for tiko: build configurations, a formatter, jump-to-error from
   the build output, and a debugger.
 - **tiko-lsp** is a language server that speaks LSP 3.17 over stdio, which gives diagnostics,
-  go-to-definition, completion, rename and formatting in any editor that speaks LSP. Its README
-  has ready-made configuration for Zed, Neovim and Helix. A tree-sitter grammar,
+  go-to-definition, completion, rename and formatting in any editor that speaks LSP. It ships
+  ready-made support for VS Code, Sublime Text, Neovim and Zed. A tree-sitter grammar,
   `tree-sitter-tiko`, provides highlighting for editors that want one.
 
 Chapter 18 comes back to both, together with testing and the debugger.
