@@ -51,8 +51,8 @@
         declare function waitpid_ alias "waitpid" ( byval pid as long, byval status as long ptr, _
                                                     byval options as long ) as long
         declare function sysconf_ alias "sysconf" ( byval name_ as long ) as clong
-        declare function open_ alias "open" ( byval p as zstring ptr, byval flags as long, ... ) as long
-        declare function dup2_ alias "dup2" ( byval a as long, byval b as long ) as long
+        declare function sp_open_ alias "open" ( byval p as zstring ptr, byval flags as long, ... ) as long
+        declare function sp_dup2_ alias "dup2" ( byval a as long, byval b as long ) as long
     end extern
     const SC_NPROCESSORS_ONLN_ as long = 84   '' glibc and musl agree
 #endif
@@ -167,10 +167,10 @@ function Start( byref exe as string, byref args as string, byval quiet as boolea
     if pid = 0 then
         '' ...or /dev/null, for a child whose output nobody reads (O_WRONLY).
         if quiet then
-            dim as long fd = open_( "/dev/null", 1 )
+            dim as long fd = sp_open_( "/dev/null", 1 )
             if fd >= 0 then
-                dup2_( fd, 1 )
-                dup2_( fd, 2 )
+                sp_dup2_( fd, 1 )
+                sp_dup2_( fd, 2 )
             end if
         end if
         execvp_( argv[0], argv )
