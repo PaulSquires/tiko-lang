@@ -1,0 +1,9 @@
+# One program, built from main.tiko and the module it imports.
+[package]
+name = "greeter"
+
+[target.greeter]
+main = "main.tiko"
+
+[target.greeter.defines]
+TIMES = "2"

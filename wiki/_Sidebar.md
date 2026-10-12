@@ -45,6 +45,7 @@
 - [Terminal TUI Library](Category-Terminal-TUI-Library)
 - [Goroutines and Channels](Category-Goroutines-and-Channels)
 - [LLVM Backend](Category-LLVM-Backend)
+- [tiko build](Category-Tiko-Build)
 - [__TIKO_COMPILER__](Category-Tiko-Compiler-Define)
 
 ### FreeBASIC manual

@@ -74,6 +74,10 @@ How arguments are parsed
 """
 
 
+# '  tiko build    build the targets of tiko.toml ...' in HelpText's Subcommands block.
+SUB_RE = re.compile(r'outp \+= "  tiko (\w+)\s+([^"]+)" & chr')
+
+
 def main() -> int:
     here = pathlib.Path(__file__).resolve().parent.parent
     ap = argparse.ArgumentParser()
@@ -98,6 +102,24 @@ def main() -> int:
         PREAMBLE,
         "",
     ]
+
+    # THE SUBCOMMANDS -- tiko build, run, check, clean, metadata -- are words, not options,
+    # so they are not in the table; they are read from the --help text that lists them.
+    subs = SUB_RE.findall(pinlib.read_source(pin, "src/driver/cmdline.bas"))
+    if subs:
+        lines += [
+            "## Subcommands {#app-cli-subcommands}",
+            "",
+            "A subcommand is the first word on the command line. It builds a project from its "
+            "`tiko.toml`, as Chapter 29 shows; every other command line is the compiler driver "
+            "described by the rest of this appendix.",
+            "",
+            "| Command | What it does |",
+            "|---|---|",
+        ]
+        for word, text in subs:
+            lines.append(f"| `tiko {word}` | {text.replace('|', chr(92) + '|')} |")
+        lines.append("")
 
     # A category the compiler grew and this script does not know about must never be
     # dropped silently: a whole option family went missing that way once.

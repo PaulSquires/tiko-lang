@@ -343,6 +343,8 @@ private function Clean_ _
         if Lock_( p, lk, ctx.diags ) = false then return Tko.EXIT_USER_ERROR
         dim as boolean had = fs.IsFile( p.artifact )
         if had then kill( p.artifact )
+        '' ...and the record of its link (B5), which says what the deleted artefact was made of.
+        if fs.IsFile( p.artifact & ".link" ) then kill( p.artifact & ".link" )
         ReleaseLock( lk )
         EmitLine( obs, """event"":""clean"",""target"":" & JsonStr( p.name ) & ",""path"":" & _
                        JsonStr( p.artifact ) & ",""removed"":" & iif( had, "true", "false" ) )

@@ -38,6 +38,7 @@ The language and its standard library first, then the compatibility reference: t
 - [Terminal TUI Library](Category-Terminal-TUI-Library) — 257 pages
 - [Goroutines and Channels](Category-Goroutines-and-Channels) — 13 pages
 - [LLVM Backend](Category-LLVM-Backend) — 1 pages
+- [tiko build](Category-Tiko-Build) — 1 pages
 - [__TIKO_COMPILER__](Category-Tiko-Compiler-Define) — 1 pages
 
 ## Compatibility reference (the FreeBASIC manual)

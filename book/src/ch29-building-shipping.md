@@ -229,6 +229,99 @@ it counts only in the **first** source file named on the command line; anywhere 
 `TKO0334` and ignored. Every listing in this book that needs an option carries it this way.
 `__FB_ERR__`, `__FB_MT__` and `__FB_DEBUG__` let the code see what it was given.
 
+## Projects
+
+The command lines in this chapter grow with the program. Every file, every option and the name
+of the output are typed again for each build, and the compiler starts from nothing each time. A
+**project** writes them down once, in the `tiko.toml` that Chapter 14 used for packages, and
+**`tiko build`** reads it.
+
+```toml
+{{#include ../examples/ch29/project/tiko.toml}}
+```
+
+```tiko
+{{#include ../examples/ch29/project/main.tiko}}
+```
+
+```tiko
+{{#include ../examples/ch29/project/text/text.tiko}}
+```
+
+`tiko run -- tiko`, in the project's directory:
+
+```text
+{{#include ../examples/ch29/project/main.out}}
+```
+
+**`[target.greeter]`** declares a **target**: something the project builds, here an executable
+called `greeter` whose main file is `main.tiko`. **`tiko build`**, run in the directory that
+holds `tiko.toml`, builds every target the file declares. It takes no file names, because the
+target names them, and no `-o`: the program is written to `out/debug/greeter.exe` on Windows and
+`out/debug/greeter` on Linux, beside `tiko.toml`. The module that `main.tiko` imports is found
+and compiled as in Chapter 14. **`[target.greeter.defines]`** passes `TIMES` as though
+`-d TIMES=2` had been typed, which is why the greeting appears twice. `tiko build greeter` builds
+the one target by name.
+
+**`tiko run`** builds the project's one executable target and runs it. Everything after `--` goes
+to the program, so `tiko run -- tiko` greets `tiko`, and the exit code is the program's. A project
+with more than one executable says which: `tiko run greeter -- tiko`.
+
+A target takes these keys:
+
+| Key | Does |
+|---|---|
+| `main` | the main file, which owns the program's top-level code; required |
+| `sources` | more files compiled with it, as though named after it on the command line |
+| `kind` | `"exe"`, the default, `"dll"` or `"lib"` — `-dll` and `-lib` |
+| `options` | any further compiler options, `["-mt"]` |
+| `libs`, `libpaths` | libraries to link and where to look — `-l` and `-p` |
+| `resources` | `.rc` files, on Windows |
+| `subsystem` | `"gui"` or `"console"` — `-s` |
+| `output` | where to write the result, instead of `out/<profile>/<name>` |
+
+**Every path in `tiko.toml` is relative to `tiko.toml`**, an `-i` or `-p` inside `options`
+included, so the project builds the same whatever directory the command is typed in.
+
+### Profiles
+
+The `debug` in `out/debug` is the **profile**: a named set of compiler options. `tiko build`
+uses `debug`, which is `-g -exx -O0`, a checked build, and so does `tiko run`. `--profile release`
+builds with `-O2` instead, into `out/release`, and the program above then prints
+`release build`. Both are built in; a `[profile.name]` table changes one or declares another:
+
+```toml
+[profile.fast]
+inherits = "release"
+options  = ["-mt"]
+```
+
+`inherits` starts from another profile; `opt` sets the optimiser level (`0` to `3`), `errors` the
+checks (`"e"`, `"ex"`, `"exx"` or `""`), `debug` whether `-g` is given, and `options` adds the
+rest. Each profile has its own directory under `out`, so a debug build and a release build of the
+same project sit side by side.
+
+### What it does not do twice
+
+`tiko build` remembers what it compiled. Each main file, with its options, is stored in the same
+cache that holds compiled modules (Chapter 14), and a second `tiko build` with nothing changed
+compiles nothing; a third does not even link. A change to one file recompiles that file. A
+change inside a module's procedures recompiles that module, but not the files that import it,
+because what they see of it — its public declarations — is unchanged. Files that miss are
+compiled in parallel; `-j 4` sets how many at once.
+
+**`tiko check`** reports every error and warning a build would, and writes nothing — no program,
+no objects. A file the last build compiled cleanly is not looked at again, so after a build a
+check is quick. It is what an editor runs on save. **`tiko clean`** removes the program a build
+of the same profile wrote.
+
+```admonish note title="For editors and tools"
+`tiko build --message-format json` reports a build as one JSON object per line — each file
+compiled or found in the cache, each program written, the totals at the end — and
+`tiko metadata` prints the whole project, targets, profiles and modules, without compiling.
+An editor's build task, a language server and a CI script read these instead of `tiko.toml`.
+```
+
 ## Shipping
 
 A program built for `win64-msvc` needs only what every supported Windows already has:
@@ -277,6 +370,10 @@ and that licence's conditions apply.
   resources.
 - `-exx` and `-g` for checked builds, `-O2`/`-O3` for release; `#cmdline` keeps the options in
   the source.
+- A project's `tiko.toml` declares its targets; `tiko build` builds them into `out/<profile>`,
+  `tiko run` builds and runs, `tiko check` reports without writing. Paths in it are relative to
+  it. Profiles `debug` (the default) and `release`, and your own, set the options. A second build
+  compiles only what changed.
 - A `win64-msvc` program needs only `ucrtbase.dll` and `KERNEL32.dll`. The runtime's licence
   lets a compiled program be distributed on any terms.
 
@@ -292,3 +389,6 @@ and that licence's conditions apply.
    each platform say?
 5. Add an `ICON` line to `strings.rc` with an `.ico` file of your own, and check that Explorer
    shows it for the executable.
+6. Turn the static-library example into a project: a `[target.mathlib]` with `kind = "lib"`, and
+   a `[target.use-static]` that links it with `libs` and `libpaths`. Which target must
+   `tiko build` build first, and how do you make sure it does?

@@ -27,6 +27,11 @@
 #                                              listing links. Implies cwd: listing; a source
 #                                              named here is not a listing of its own
 #                 env: LD_LIBRARY_PATH=.       set for the run, on every target
+#                 project: greeter             the listing is the main file of a project:
+#                                              `tiko build greeter` runs in its directory,
+#                                              beside its tiko.toml, and the program run is
+#                                              out/debug/greeter -- what `tiko run` runs.
+#                                              Implies cwd: listing
 #                 blocked: T13 linux-x86_64    a known compiler/toolchain defect, and
 #                                              where it bites; reported BLOCKED, not FAIL.
 #                                              The listing is NEVER weakened to pass --
@@ -172,7 +177,9 @@ for f in "${listings[@]}"; do
   cwd="$(meta_get "$meta" cwd)"
   prebuild="$(meta_get "$meta" prebuild)"
   runenv="$(meta_get "$meta" env)"
+  project="$(meta_get "$meta" project)"
   [[ -n "$prebuild" ]] && cwd=listing
+  [[ -n "$project" ]] && cwd=listing
   blocked_item="${blocked%% *}"; blocked_where="${blocked#* }"
   srcs=("$f"); for m in $modules; do srcs+=("$dir/$m"); done
   local_srcs=(); for s in "${srcs[@]}"; do local_srcs+=("$(basename "$s")"); done
@@ -205,7 +212,16 @@ for f in "${listings[@]}"; do
       continue
     fi
 
-    if [[ "$t" == win64-msvc ]]; then
+    if [[ -n "$project" ]]; then
+      # A project builds where its tiko.toml is, into its own out/debug.
+      if [[ "$t" == win64-msvc ]]; then
+        exe="$dir/out/debug/$project.exe"; rm -f "$exe"
+        ( cd "$dir" && "$win_tiko" build "$project" ) >> "$log" 2>&1; crc=$?
+      else
+        exe="$dir/out/debug/$project"; rm -f "$exe"
+        wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$lin_tiko' build $project" >> "$log" 2>&1; crc=$?
+      fi
+    elif [[ "$t" == win64-msvc ]]; then
       exe="$outdir/$name.exe"; rm -f "$exe"
       if [[ "$cwd" == listing ]]; then
         ( cd "$dir" && "$win_tiko" "${local_srcs[@]}" -o "$(cygpath -m "$root/$exe")" ) >> "$log" 2>&1; crc=$?
