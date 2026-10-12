@@ -24,7 +24,6 @@ Each target has its own triple:
 | Target | clang triple |
 | --- | --- |
 | `win64-msvc` (default on Windows) | `x86_64-pc-windows-msvc` |
-| `win64` (MinGW ABI) | `x86_64-w64-windows-gnu` |
 | `linux-x86_64` (default on Linux) | `x86_64-pc-linux-gnu` |
 
 ## What you need: clang

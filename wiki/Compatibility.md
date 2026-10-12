@@ -46,16 +46,12 @@ Each of these is a diagnostic, not a silent difference:
 
 **The same on both sides.** `print len`, `print asc`, `print abs` with no operand are refused by both (fbc error 6, tiko `TKO0872`), and so are `print len( )`, `print sqr( )`, `print chr( )` (fbc error 9, tiko `TKO0801`). A `pascal` procedure gets its arguments in the same order from both compilers. A suspicious pointer assignment (`byte ptr` from `integer ptr`) draws fbc's warning 4 and tiko's `TKO0830` on the same line.
 
-**Graphics links on `win64-msvc` only.** libtkogfx is built for that ABI alone. A `SCREEN` program links for `win64-msvc`, and for `win64` the link stops with an undefined `fb_GfxScreen`.
-
-## Working with fbc-built code
-
-**Interoperating with fbc-built objects** is proven for `-target win64`, the ABI fbc builds for. `build/crosslink.sh` compiles one function of each shape that can disagree (an integer, a double, and a string descriptor) with each compiler and links them in both directions. Against fbc 1.20 all 3 cases pass: an fbc object linked into a tiko program, a tiko object into an fbc program, and both halves in one program. An existing MinGW-built `.a` may not link against `win64-msvc`.
+**Graphics links on `win64-msvc` only.** libtkogfx is built for that ABI alone.
 
 ## What is the same
 
 - **Symbol names** are byte-identical to fbc's. A probe with a namespaced procedure, overloads, a UDT with two constructors, a destructor, a method taking a string, a property, an `operator let`, a static function, virtual methods, a free function with `zstring ptr` and `wstring ptr` parameters, and a global operator exports 13 external symbols under fbc. tiko exports the same 13 under the same names, among them `_ZN2NS2PT4MOVEEiR8FBSTRING`, `_ZN2NS3SUMEii`, `_ZN2NS3SUMEdd`, `_ZN2NS3SUMEPNS_2PTERi` and `_ZplRN2NS2PTES1_`. tiko also exports three implicit members that fbc keeps file-local: the default constructors of a polymorphic base and of a type derived from it (`_ZN4ROOTC1Ev`, `_ZN3KIDC1Ev`), and the base's implicit `operator let` (`_ZN4ROOTaSERKS_`). A global in a namespace is file-local in both.
-- **The runtime ABI** is `libfb`'s: its `FBSTRING` descriptor and the calling convention of its `fb_*` functions. tiko links tiko-rt, a reimplementation of that ABI in FreeBASIC. The cross-link test above exercises the string descriptor.
+- **The runtime ABI** is `libfb`'s: its `FBSTRING` descriptor and the calling convention of its `fb_*` functions. tiko links tiko-rt, a reimplementation of that ABI in FreeBASIC.
 - **The headers** are the ones fbc ships. Of the 1,698 files in fbc 1.20's `inc/`, 1,685 are identical in tiko's toolchain (ignoring line endings). 13 differ: `crt/locale.bi`, `crt/win32/stdio.bi`, `fbc-int/string.bi`, and `win/_mingw.bi`, `commctrl.bi`, `excpt.bi`, `richedit.bi`, `secext.bi`, `shtypes.bi`, `wincrypt.bi`, `windef.bi`, `winioctl.bi` and `winuser.bi`. The toolchain adds about 2,500 files of its own, among them AfxNova; the standard library ships beside `inc/` as modules, in `pkg/std/`.
 - **Namespacing.** The standard libraries are modules behind an `#import`, so nothing becomes a keyword. `each`, `in` and `spawn` stay usable as ordinary variable names in tiko, and so does `defer` as a *variable*: one program that declares all four and prints them prints `1 2 3 4` under both compilers.
 
