@@ -30,7 +30,7 @@ Each target has its own triple:
 
 **clang 18 or newer, installed by you.** Nothing is bundled.
 
-tiko does **not** search `PATH`. It runs `C:\Program Files\LLVM\bin\clang.exe` on Windows and `/usr/bin/clang` on Linux, or whatever `TKO_CLANG` names. It takes `llvm-ar` and `llvm-rc` from the same directory. The link uses lld; on Linux it falls back to the system `ld` when there is no `ld.lld` beside clang or in `/usr/bin`.
+tiko runs whatever `TKO_CLANG` names. Without it, tiko runs `C:\Program Files\LLVM\bin\clang.exe` on Windows and `/usr/bin/clang` on Linux, and searches `PATH` only when that file is absent. It takes `llvm-ar` and `llvm-rc` from the same directory. The link uses lld; on Linux it falls back to the system `ld` when there is no `ld.lld` beside clang or in `/usr/bin`.
 
 If clang is not there, tiko says so and stops:
 
