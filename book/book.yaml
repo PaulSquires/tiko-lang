@@ -14,12 +14,12 @@ pin:
   windows:
     root: "../toolchains/tiko-windows"      # relative to this book directory
     exe: "tiko.exe"
-    commit: "9a3a1fa7"
+    commit: "8eaa0716"
     packaged: "2026-10-12"
   linux:
     root: "../toolchains/tiko-linux"        # same path, reached through WSL
     exe: "bin/tiko"
-    commit: "9a3a1fa7"
+    commit: "8eaa0716"
     packaged: "2026-10-12"
     wsl_distro: "Ubuntu"
   targets: [windows-x86_64, linux-x86_64]
