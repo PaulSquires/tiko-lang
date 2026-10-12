@@ -1,0 +1,16 @@
+'' THE ROOTS THAT MISS ARE COMPILED BY PARALLEL CHILDREN (tiko-build B4): with -j 4 and a new
+'' cache, both roots go to child tikos, which store them; this build links the entries. -v
+'' says so; the program runs.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.bpj/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.bpj
+'' COPY: tests/driver/src/unitcache => build/.bpj/src
+'' ARGS: build -target win64-msvc build/.bpj/src/a.tiko build/.bpj/src/b.tiko -o build/.bpj/app.exe -j 4 -v
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: unit build/.bpj/src/a.tiko: compiled by a parallel job
+'' EXPECT-OUT: unit build/.bpj/src/b.tiko: compiled by a parallel job
+'' RUN: build/.bpj/app.exe
+'' EXPECT-RUN-OUT: b top
+'' EXPECT-RUN-OUT: a top
+'' EXPECT-RUN-OUT: b says 7

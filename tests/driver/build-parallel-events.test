@@ -1,0 +1,20 @@
+'' UNIT EVENTS IN UNIT ORDER AT -j 4 (tiko-build B4, RFC B9): build-parallel-events and
+'' build-serial-events expect the same sequence. At -j 4 the children finish in any order,
+'' and clock.tiko and warn.tiko -- which no child may store (the clock, a warning) -- are
+'' compiled by the build itself afterwards. clock.tiko comes FIRST, so a's and b's events,
+'' ready as soon as their children finish, must wait for it: clock, a, b, warn.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.bse4/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.bse4
+'' COPY: tests/driver/src/unitcache => build/.bse4/src
+'' ARGS: build -target win64-msvc build/.bse4/src/clock.tiko build/.bse4/src/a.tiko build/.bse4/src/b.tiko build/.bse4/src/warn.tiko -o build/.bse4/app.exe -j 4 --message-format json
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT-SEQ: {"event":"plan","units":4}
+'' EXPECT-OUT-SEQ: {"event":"unit","kind":"root","unit":"build/.bse4/src/clock.tiko","status":"miss"}
+'' EXPECT-OUT-SEQ: {"event":"unit","kind":"root","unit":"build/.bse4/src/a.tiko","status":"miss"}
+'' EXPECT-OUT-SEQ: {"event":"unit","kind":"root","unit":"build/.bse4/src/b.tiko","status":"miss"}
+'' EXPECT-OUT-SEQ: {"event":"unit","kind":"root","unit":"build/.bse4/src/warn.tiko","status":"miss"}
+'' EXPECT-OUT-SEQ: {"event":"artifact","kind":"exe","path":"build/.bse4/app.exe"}
+'' EXPECT-OUT: warning TKO0312
+'' EXPECT-MAX-DIAG: 1

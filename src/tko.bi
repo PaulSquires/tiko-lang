@@ -43,6 +43,8 @@ namespace Tko
         EXIT_NO_TOOLCHAIN= 3
         EXIT_ICE         = 4
         EXIT_TOOL_FAILED = 5
+        '' A 'tiko build' child compiling one root died (TKO0167); tiko-build RFC-0001 §4.2.
+        EXIT_CHILD_CRASHED = 6
     end enum
 
     '' -------------------------------------------------------------- scalar ids

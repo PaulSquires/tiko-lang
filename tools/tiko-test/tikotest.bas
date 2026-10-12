@@ -106,6 +106,9 @@ type TestCase
     as long   maxDiag
     as boolean haveMaxDiag
     as Array( of string ) expectOut
+    '' EXPECT-OUT-SEQ: substrings that must appear IN THIS ORDER, each after the previous
+    '' one's match -- an event stream's order, which EXPECT-OUT (anywhere) cannot assert.
+    as Array( of string ) expectSeq
     as Array( of string ) expectNot
     as Array( of string ) env      '' NAME=value, set for this test's run only
     '' FILES THE RUN IS EXPECTED TO PRODUCE, or to leave alone. Paths are
@@ -360,6 +363,8 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
                 tc.expectOut.Push( mid( ln, 12, rb - 12 ) & chr( 9 ) & _
                                    Trim_( mid( ln, rb + 2 ) ) )
             end if
+        elseif StartsWith( ln, "EXPECT-OUT-SEQ:" ) then
+            tc.expectSeq.Push( Trim_( mid( ln, 16 ) ) )
         elseif StartsWith( ln, "EXPECT-OUT:" ) then
             tc.expectOut.Push( chr( 9 ) & Trim_( mid( ln, 12 ) ) )
         elseif StartsWith( ln, "EXPECT-MAX-DIAG:" ) then
@@ -871,6 +876,15 @@ function CheckOne_ _
     '' warning) are the test's flags' business, as the goldens are.
     if len( opts.runArgs ) > 0 then return true
 
+    dim as long seqAt = 1
+    for each want as string in tc.expectSeq
+        dim as long hit = instr( seqAt, outText, want )
+        if hit = 0 then
+            why = "output does not contain, after the previous EXPECT-OUT-SEQ match: " & want
+            return false
+        end if
+        seqAt = hit + len( want )
+    next
     for each want as string in tc.expectOut
         dim as long tab_ = instr( want, chr( 9 ) )
         dim as string forTgt = left( want, tab_ - 1 )

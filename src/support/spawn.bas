@@ -29,11 +29,19 @@
             ( byval h as any ptr, byval code as ulong ptr ) as long
         declare function CloseHandle_ alias "CloseHandle" ( byval h as any ptr ) as long
         declare function GetStdHandle_ alias "GetStdHandle" ( byval n as ulong ) as any ptr
+        declare function CreateFileW_ alias "CreateFileW" ( byval name_ as wstring ptr, _
+            byval access_ as ulong, byval share as ulong, byval sec as any ptr, _
+            byval disp as ulong, byval flags as ulong, byval tmpl as any ptr ) as any ptr
         declare function MultiByteToWideChar_ alias "MultiByteToWideChar" ( byval cp as ulong, _
             byval flags as ulong, byval src as zstring ptr, byval srcLen as long, _
             byval dst as wstring ptr, byval dstLen as long ) as long
     end extern
     const STARTF_USESTDHANDLES_ as ulong = &h100
+    type SECURITY_ATTRIBUTES_
+        as ulong    nLength
+        as any ptr  lpSecurityDescriptor
+        as long     bInheritHandle
+    end type
 #else
     extern "c"
         declare function fork_ alias "fork" ( ) as long
@@ -43,6 +51,8 @@
         declare function waitpid_ alias "waitpid" ( byval pid as long, byval status as long ptr, _
                                                     byval options as long ) as long
         declare function sysconf_ alias "sysconf" ( byval name_ as long ) as clong
+        declare function open_ alias "open" ( byval p as zstring ptr, byval flags as long, ... ) as long
+        declare function dup2_ alias "dup2" ( byval a as long, byval b as long ) as long
     end extern
     const SC_NPROCESSORS_ONLN_ as long = 84   '' glibc and musl agree
 #endif
@@ -89,7 +99,26 @@ sub SplitArgs( byref cmdline as string, byref out_ as Tko.StrVec )
     wend
 end sub
 
-function Start( byref exe as string, byref args as string ) as Proc
+function QuoteArg( byref s as string ) as string
+    dim as string r = """"
+    dim as long bs = 0
+    for i as long = 0 to len( s ) - 1
+        dim as ubyte ch = s[i]
+        if ch = 92 then
+            bs += 1
+        elseif ch = 34 then
+            r += string( bs * 2 + 1, 92 ) & """"
+            bs = 0
+        else
+            if bs > 0 then r += string( bs, 92 )
+            bs = 0
+            r += chr( ch )
+        end if
+    next
+    return r & string( bs * 2, 92 ) & """"
+end function
+
+function Start( byref exe as string, byref args as string, byval quiet as boolean = false ) as Proc
 #ifdef __FB_WIN32__
     dim as string cmd = """" & exe & """ " & args
     dim as long need = MultiByteToWideChar_( 65001, 0, strptr( cmd ), len( cmd ), 0, 0 )
@@ -104,9 +133,25 @@ function Start( byref exe as string, byref args as string ) as Proc
     si.hStdInput = GetStdHandle_( &hFFFFFFF6ul )
     si.hStdOutput = GetStdHandle_( &hFFFFFFF5ul )
     si.hStdError = GetStdHandle_( &hFFFFFFF4ul )
+    '' ...OR NUL, for a child whose output nobody reads: an inheritable handle on the NUL
+    '' device, GENERIC_WRITE, shared, OPEN_EXISTING, closed here once the child holds it.
+    dim as any ptr hNul = 0
+    if quiet then
+        dim as SECURITY_ATTRIBUTES_ sa
+        sa.nLength = sizeof( SECURITY_ATTRIBUTES_ )
+        sa.bInheritHandle = 1
+        hNul = CreateFileW_( "NUL", &h40000000ul, 3, @sa, 3, 0, 0 )
+        if hNul <> cast( any ptr, -1 ) then
+            si.hStdOutput = hNul
+            si.hStdError = hNul
+        else
+            hNul = 0
+        end if
+    end if
     dim as PROCESS_INFORMATION_ pi
     dim as long ok = CreateProcessW_( 0, w, 0, 0, 1, 0, 0, 0, @si, @pi )
     deallocate( w )
+    if hNul then CloseHandle_( hNul )
     if ok = 0 then return 0
     CloseHandle_( pi.hThread )
     return cast( Proc, pi.hProcess )
@@ -120,6 +165,14 @@ function Start( byref exe as string, byref args as string ) as Proc
     next
     dim as long pid = fork_( )
     if pid = 0 then
+        '' ...or /dev/null, for a child whose output nobody reads (O_WRONLY).
+        if quiet then
+            dim as long fd = open_( "/dev/null", 1 )
+            if fd >= 0 then
+                dup2_( fd, 1 )
+                dup2_( fd, 2 )
+            end if
+        end if
         execvp_( argv[0], argv )
         exit__( 127 )
     end if

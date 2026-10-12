@@ -1,0 +1,4 @@
+'' build-parallel-error's broken root: 'nosuchname' is undeclared (TKO0743).
+public sub Bad( )
+    print nosuchname
+end sub

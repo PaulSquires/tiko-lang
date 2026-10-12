@@ -152,6 +152,7 @@ namespace Tko
     OPT( OPT_KEEPTEMPS, "--keep-temps",   OPTK_FLAG, OPTCAT_DEVEL, "",        "retain intermediate files" )
     OPT( OPT_STATS,     "--stats",        OPTK_FLAG, OPTCAT_DEVEL, "",        "report counts and memory use" )
     OPT( OPT_TIMEPASS,  "--time-passes",  OPTK_FLAG, OPTCAT_DEVEL, "",        "report wall time per phase" )
+    OPT( OPT_BUILDONLY, "--build-only-unit", OPTK_VALUE, OPTCAT_DEVEL, "n",   "internal to 'tiko build': compile root n alone into the cache, and link nothing" )
     OPT( OPT_SUBSET,    "--bootstrap-subset-check", OPTK_FLAG, OPTCAT_DEVEL, "", "reject constructs outside the self-hosting subset" )
 
 #endmacro
@@ -275,6 +276,7 @@ namespace Tko
         as DiagColorMode     colorMode
         as DiagOutputFormat  diagFormat
         as string  diagFile          '' --diagnostics-file; "" = none
+        as long    buildOnlyUnit     '' --build-only-unit: a 'tiko build' child's one root; 0 = all
         as string  pkgDir            '' --pkg-dir; "" = TKO_PKG, else beside the executable
         as StrVec  ignoredDiags
 

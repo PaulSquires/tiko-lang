@@ -21,6 +21,16 @@
 
 namespace Tko.UnitCache
 
+    '' What the probe found of each root, and what became of a child's (RunChildren).
+    enum UnitState
+        UNIT_UNKNOWN = 0     '' no probe ran
+        UNIT_HIT             '' cached before this build
+        UNIT_MISS            '' not cached, and no child built it
+        UNIT_CHILD           '' a child compiled it, and the cache holds it now
+        UNIT_REDO            '' a child ran and stored nothing (errors, warnings, the clock)
+        UNIT_CRASHED         '' its child died: TKO0167, and it is not compiled again here
+    end enum
+
     type Store
         as string     root       '' the pool; "" when this run caches no unit
         as string     args       '' the key's 'args' line
@@ -29,6 +39,14 @@ namespace Tko.UnitCache
         as Tko.StrVec objs
         as Tko.StrVec libs
         as Tko.StrVec deps
+        '' THE PROBE (RunChildren), indexed by unit: its state, key and -- for a hit -- the
+        '' entry's object and libraries, so TryHit does not look again. Empty when no probe ran.
+        as Tko.IdVec  state
+        as Tko.StrVec pkey
+        as Tko.StrVec pobj
+        as Tko.StrVec plibs
+        '' Unit events are sent in unit order: 1 .. emitted have been (Report).
+        as long       emitted
     end type
 
     '' What the run held before a unit compiled, so After( ) can say what it added.
@@ -58,5 +76,20 @@ namespace Tko.UnitCache
           byref m as Mark, byref linkObjs as Tko.StrVec ) as string
     '' Once the objects exist and before the link deletes them.
     declare sub Commit( byref ctx as Tko.CompilerContext, byref s as Store )
+
+    '' THE ROOTS THAT MISS, COMPILED IN PARALLEL (tiko-build B4): when the cache is on, the
+    '' run links, and the job budget (Spawn.DefaultJobs: -j, TKO_JOBS, the processors) is
+    '' over one, every root is probed; two or more misses are handed to child tikos -- this
+    '' run's own command line plus '--build-only-unit <i>', output discarded -- that compile
+    '' one root each into the cache. The unit loop then runs as it always has: the children's
+    '' units hit, and what no child could store (an error, a warning, the clock) compiles here
+    '' and reports here, in unit order, exactly as a serial build would. Returns a tool exit
+    '' code: EXIT_CHILD_CRASHED when a child died (TKO0167), else EXIT_OK.
+    declare function RunChildren _
+        ( byref ctx as Tko.CompilerContext, byref s as Store, byref args as Tko.StrVec, _
+          byval srcCount as long ) as long
+    '' Unit i's event, in order: once per unit, "miss" for one a child compiled.
+    declare sub Report( byref ctx as Tko.CompilerContext, byref s as Store, byval i as long, byref status as string )
+    declare function Crashed( byref s as Store, byval i as long ) as boolean
 
 end namespace

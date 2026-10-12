@@ -126,22 +126,7 @@ end function
 '' they pair up, and a quote inside is escaped. '"' & s & '"' broke on 'C:\libs\':
 '' the closing quote was escaped and the next argument swallowed (audit F-49).
 private function Q( byref s as string ) as string
-    dim as string r = """"
-    dim as long bs = 0
-    for i as long = 0 to len( s ) - 1
-        dim as ubyte ch = s[i]
-        if ch = 92 then
-            bs += 1
-        elseif ch = 34 then
-            r += string( bs * 2 + 1, 92 ) & """"
-            bs = 0
-        else
-            if bs > 0 then r += string( bs, 92 )
-            bs = 0
-            r += chr( ch )
-        end if
-    next
-    return r & string( bs * 2, 92 ) & """"
+    return Tko.Spawn.QuoteArg( s )
 end function
 
 '' True the first time 'key' is offered, false after. 'seen' starts as chr( 0 ) and

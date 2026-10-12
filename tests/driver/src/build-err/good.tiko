@@ -1,0 +1,3 @@
+'' build-parallel-error's clean root.
+declare sub Bad( )
+print "good"

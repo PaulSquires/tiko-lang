@@ -1111,12 +1111,18 @@ function Run _
         dim as boolean ucLinks = wantsOutput andalso (ctx.options.compileOnly = false) andalso _
             (scanning = false) andalso (ctx.options.emitIr = false) andalso (ctx.options.emitAsm = false)
         Tko.UnitCache.Open( ctx, args, restartDepth, ucLinks, ucs )
+        '' ...AND COMPILES THE ONES THAT MISS IN PARALLEL CHILDREN first (tiko-build B4).
+        dim as long ucRc = Tko.UnitCache.RunChildren( ctx, ucs, args, srcCount )
+        if (ucRc <> Tko.EXIT_OK) andalso (toolExit = Tko.EXIT_OK) then toolExit = ucRc
         for i as long = 1 to srcCount
             '' PAST THE ERROR CAP no further unit is compiled.
             if ctx.diags.Stopped( ) then exit for
+            '' A 'tiko build' CHILD compiles its one root; a root whose child died is not retried.
+            if (ctx.options.buildOnlyUnit > 0) andalso (i <> ctx.options.buildOnlyUnit) then continue for
+            if Tko.UnitCache.Crashed( ucs, i ) then continue for
             dim as string ukey
             if Tko.UnitCache.TryHit( ctx, ucs, i, ukey, linkObjs, tempObjs ) then
-                Tko.Build.OnUnit( ctx.build, "root", ctx.sources.PathOf( cast( Tko.FileId, i ) ), "hit" )
+                Tko.UnitCache.Report( ctx, ucs, i, "hit" )
                 continue for
             end if
             dim as Tko.UnitCache.Mark um
@@ -1134,8 +1140,7 @@ function Run _
                 DrainObjects( ctx )
                 return RestartWith_( args, restartArgs, restartDepth, buildOut )
             end if
-            Tko.Build.OnUnit( ctx.build, "root", ctx.sources.PathOf( cast( Tko.FileId, i ) ), _
-                              Tko.UnitCache.After( ctx, ucs, i, ukey, um, linkObjs ) )
+            Tko.UnitCache.Report( ctx, ucs, i, Tko.UnitCache.After( ctx, ucs, i, ukey, um, linkObjs ) )
         next
         '' EVERY OBJECT EXISTS BEFORE ANYTHING READS ONE, and a clang that failed is reported
         '' now, as the first failure, exactly as it was when it ran inline.
@@ -1168,7 +1173,9 @@ function Run _
         '' with an '-o' they printed the layout and then failed the link, TKO0102.
         dim as boolean emitStops = ctx.options.emitIr orelse ctx.options.emitAsm orelse _
                                    ctx.options.dumpUdt orelse ctx.options.dumpVtable
-        dim as boolean linkWanted = wantsOutput andalso (emitStops = false)
+        '' A 'tiko build' child links nothing: its root is in the cache for its parent's link.
+        dim as boolean childOnly = (ctx.options.buildOnlyUnit > 0)
+        dim as boolean linkWanted = wantsOutput andalso (emitStops = false) andalso (childOnly = false)
         dim as boolean notCompileOnly = (ctx.options.compileOnly = false)
         dim as boolean toolsOk = (toolExit = Tko.EXIT_OK)
         dim as boolean frontendOk = (FrontendFailed_( ctx ) = false)

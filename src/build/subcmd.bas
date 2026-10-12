@@ -35,7 +35,7 @@ private function ParseArgs_ _
     while i < args.Count
         dim as string w = args[i]
         select case w
-        case "-target", "-o", "--options", "--message-format", "--diagnostics-file", "--profile", "--format", "--manifest"
+        case "-target", "-o", "--options", "--message-format", "--diagnostics-file", "--profile", "--format", "--manifest", "-j"
             if i + 1 >= args.Count then
                 diags.ReportGlobal( Tko.TKO0101, w )
                 return false
@@ -49,6 +49,12 @@ private function ParseArgs_ _
             case "--options"         : Tko.Spawn.SplitArgs( v, a.extra )
             case "--profile"         : a.profile = v : a.hasProfile = true
             case "--manifest"        : a.manifest = v
+            case "-j"
+                a.jobs = valint( v )
+                if a.jobs < 1 then
+                    diags.ReportGlobal( Tko.TKO0106, v, w )
+                    ok = false
+                end if
             '' 'metadata --format json' (RFC §8.2): the one format there is.
             case "--format"
                 if v <> "json" then
@@ -372,6 +378,14 @@ function Entry( byref args as Tko.StrVec ) as long
     dim as BuildArgs a
     dim as boolean ok = ParseArgs_( args, a, ctx.diags )
     obs.json = a.json
+    '' -j IS THE JOB BUDGET, for this build and the processes it starts: TKO_JOBS, which
+    '' Spawn.DefaultJobs reads for clang and the unit cache's children alike. A variable
+    '' and not a temporary: on Linux setenviron is putenv, which keeps the pointer.
+    dim as string jobsEnv
+    if a.jobs > 0 then
+        jobsEnv = "TKO_JOBS=" & a.jobs
+        setenviron( jobsEnv )
+    end if
     ctx.options.diagFile = a.diagFile
     if Tko.DiagOut.Start( ctx ) = false then ok = false
 

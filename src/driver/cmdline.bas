@@ -140,7 +140,7 @@ function HelpText( byval category as string = "" ) as string
         outp += "  tiko clean    remove what 'tiko build' would write" & chr( 10 )
         outp += "  tiko metadata print the project as JSON: targets, profiles, modules" & chr( 10 )
         outp += "  tiko run, tiko check  reserved, not implemented in this build" & chr( 10 )
-        outp += "  (their options: --profile, --manifest, --options, --message-format, --no-cache)" & chr( 10 ) & chr( 10 )
+        outp += "  (their options: --profile, --manifest, --options, -j, --message-format, --no-cache)" & chr( 10 ) & chr( 10 )
     end if
 
     for c as long = Tko.OPTCAT_GENERAL to Tko.OPTCAT_DEVEL
@@ -456,6 +456,7 @@ function Parse _
 
         case Tko.OPT_INCLUDE  : opts.includePaths.Push( value )
         case Tko.OPT_PKGDIR   : opts.pkgDir = value
+        case Tko.OPT_BUILDONLY : opts.buildOnlyUnit = valint( value )
         case Tko.OPT_DEFINE   : opts.defines.Push( value )
         case Tko.OPT_LIBPATH  : opts.libPaths.Push( value )
         case Tko.OPT_MAINMOD  : opts.mainModule = value

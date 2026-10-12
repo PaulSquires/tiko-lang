@@ -28,6 +28,7 @@ namespace Tko.Build
         as string  manifest      '' --manifest: tiko.toml or its directory, else the nearest
         as boolean json
         as boolean verbose
+        as long    jobs          '' -j: the job budget (TKO_JOBS for this build); 0 = default
     end type
 
     '' One target, ready: what it builds from, its flags, and the classic command line.

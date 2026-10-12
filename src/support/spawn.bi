@@ -26,8 +26,15 @@ namespace Tko.Spawn
     '' A started process; 0 when it could not be started.
     type Proc as longint
 
-    '' 'exe' and 'args' are UTF-8. 'exe' is quoted here; 'args' must already be.
-    declare function Start( byref exe as string, byref args as string ) as Proc
+    '' 'exe' and 'args' are UTF-8. 'exe' is quoted here; 'args' must already be. 'quiet'
+    '' sends the child's stdout and stderr to NUL (/dev/null): a 'tiko build' child whose
+    '' diagnostics the parent reports itself (driver/unitcache.bas).
+    declare function Start( byref exe as string, byref args as string, byval quiet as boolean = false ) as Proc
+
+    '' One argument quoted as the child will parse it -- the Windows rules, which SplitArgs
+    '' applies off Windows too: backslashes are literal except before a quote, where they
+    '' pair up, and a quote inside is escaped.
+    declare function QuoteArg( byref s as string ) as string
 
     '' Waits for it and returns its exit code, or -1 when it could not be waited for (or was
     '' never started). Each Proc is waited for exactly once.

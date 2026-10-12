@@ -1,0 +1,11 @@
+'' A COMPILE ERROR UNDER -j IS REPORTED ONCE (tiko-build B4): the child that hit it is silent
+'' and stores nothing, and the build compiles that root itself, reporting the error in
+'' unit order as a serial build would.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.bpe/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.bpe
+'' ARGS: build -target win64-msvc tests/driver/src/build-err/good.tiko tests/driver/src/build-err/bad.tiko -o build/.bpe/app.exe -j 4
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: bad.tiko(3,11): error TKO0743: 'nosuchname' is not declared
+'' EXPECT-MAX-DIAG: 1
