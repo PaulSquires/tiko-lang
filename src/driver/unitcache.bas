@@ -24,6 +24,33 @@ private function Chain_( byref ctx as Tko.CompilerContext, byval i as long ) as 
     return "unit-" & Tko.DiskCache.Hash( p )
 end function
 
+'' THE REST OF THE COMMAND LINE, in order: what the option lines of a key do not name still
+'' reaches it. Not the inputs (each unit keys its own source; a link keys its objects), and
+'' not what cannot reach an object or a link: the output, the diagnostics file, -v, the
+'' console's colour, a child's unit.
+private function ArgsLine_( byref ctx as Tko.CompilerContext, byref args as Tko.StrVec ) as string
+    dim as string r = ""
+    dim as long k = 0
+    while k < args.Count
+        dim as string w = args[k]
+        k += 1
+        if (w = "-o") orelse (w = "--diagnostics-file") orelse (w = "--build-only-unit") then
+            k += 1
+            continue while
+        end if
+        '' ...nor --frontend-only: a check keys a unit as the build that stored it did.
+        if (w = "-v") orelse (w = "--time-passes") orelse (left( w, 8 ) = "--color=") then continue while
+        if w = "--frontend-only" then continue while
+        dim as boolean isInput = false
+        for each x as string in ctx.options.inputs
+            if x = w then isInput = true
+        next
+        if isInput then continue while
+        r &= " " & w
+    wend
+    return r
+end function
+
 sub Open _
     ( byref ctx as Tko.CompilerContext, byref args as Tko.StrVec, byval restartDepth as long, _
       byval eligible as boolean, byref s as Store )
@@ -38,26 +65,8 @@ sub Open _
     if isChild andalso (valint( environ( "TKO_TEST_CHILD_EXIT" ) ) <> 0) then end valint( environ( "TKO_TEST_CHILD_EXIT" ) )
     if Tko.DiskCache.CompilerStamp( ) = "" then return
     s.root = Tko.Modules.ModuleCacheRoot( ctx )
-    '' THE REST OF THE COMMAND LINE, in order: what the option lines of the key do not name
-    '' still reaches it. Not the inputs (each unit keys its own source), and not what cannot
-    '' reach an object: the output, the diagnostics file, -v, the console's colour.
-    s.args = ""
-    dim as long k = 0
-    while k < args.Count
-        dim as string w = args[k]
-        k += 1
-        if (w = "-o") orelse (w = "--diagnostics-file") orelse (w = "--build-only-unit") then
-            k += 1
-            continue while
-        end if
-        if (w = "-v") orelse (w = "--time-passes") orelse (left( w, 8 ) = "--color=") then continue while
-        dim as boolean isInput = false
-        for each x as string in ctx.options.inputs
-            if x = w then isInput = true
-        next
-        if isInput then continue while
-        s.args &= " " & w
-    wend
+    s.args = ArgsLine_( ctx, args )
+    s.lookupOnly = ctx.options.frontendOnly
 end sub
 
 function TryHit _
@@ -112,6 +121,7 @@ function After _
       byref m as Mark, byref linkObjs as Tko.StrVec ) as string
 
     if len( key ) = 0 then return "compiled"
+    if s.lookupOnly then return "checked"
     dim as string why = ""
     if ctx.diags.ErrorCount( ) <> m.errs0 then
         why = "it has errors"
@@ -196,6 +206,7 @@ function RunChildren _
     '' beside the output at once (modbuild.bas ArchiveMemberPath).
     if ctx.options.buildOnlyUnit > 0 then return Tko.EXIT_OK
     if ctx.options.outKind = Tko.OUT_STATICLIB then return Tko.EXIT_OK
+    if s.lookupOnly then return Tko.EXIT_OK
     dim as long jobs = Tko.Spawn.DefaultJobs( )
     if (jobs < 2) orelse (srcCount < 2) then return Tko.EXIT_OK
     dim as string exe = Tko.Platform.SelfPath( )
@@ -274,5 +285,59 @@ function RunChildren _
     wend
     return rc
 end function
+
+
+'' ---- A LINK THAT HAS NOTHING NEW (tiko-build B5, RFC 6.4) -----------------------------------
+''
+'' '<output>.link' beside the artefact records what its last link was made of: the compiler,
+'' the command line less its inputs, and every object and library file with its size and
+'' write time -- a root just compiled has a new time, a cache hit the entry's own -- and,
+'' last, the artefact as it was left. A 'tiko build' whose link would read the same skips it;
+'' anything that differs, the artefact deleted or touched included, links. A classic run
+'' never skips: "" is no signature.
+function LinkSignature _
+    ( byref ctx as Tko.CompilerContext, byref args as Tko.StrVec, byref linkObjs as Tko.StrVec ) as string
+    if (ctx.build = 0) orelse (len( ctx.options.outputPath ) = 0) then return ""
+    dim as string stamp_ = Tko.DiskCache.CompilerStamp( )
+    if len( stamp_ ) = 0 then return ""
+    dim as string nl = chr( 10 )
+    dim as string sig = "link-format 1" & nl & "tiko " & stamp_ & nl & "args" & ArgsLine_( ctx, args ) & nl
+    for each o as string in linkObjs
+        sig &= "obj " & Tko.DiskCache.Stamp( o ) & chr( 9 ) & Tko.Modules.AbsPath( o ) & nl
+    next
+    for each l as string in ctx.options.pragmaLibs
+        sig &= "lib " & l & nl
+    next
+    for each l as string in ctx.options.pragmaLibPaths
+        sig &= "libpath " & l & nl
+    next
+    for each l as string in ctx.options.pragmaLibFiles
+        sig &= "libfile " & Tko.DiskCache.Stamp( l ) & chr( 9 ) & l & nl
+    next
+    sig &= "mt " & iif( ctx.options.threadSafe, 1, 0 ) & nl
+    return sig
+end function
+
+function LinkUpToDate( byref ctx as Tko.CompilerContext, byref sig as string ) as boolean
+    if len( sig ) = 0 then return false
+    dim as string art = Tko.DiskCache.Stamp( ctx.options.outputPath )
+    if len( art ) = 0 then return false
+    dim as string had
+    if Tko.DiskCache.ReadAll( ctx.options.outputPath & ".link", had ) = false then return false
+    return had = sig & "artifact " & art & chr( 10 )
+end function
+
+sub LinkRecord( byref ctx as Tko.CompilerContext, byref sig as string, byval linked as boolean )
+    if len( sig ) = 0 then return
+    dim as string rec = ctx.options.outputPath & ".link"
+    if fs.IsFile( rec ) then kill( rec )
+    if linked = false then return
+    dim as string art = Tko.DiskCache.Stamp( ctx.options.outputPath )
+    if len( art ) = 0 then return
+    dim as long fh = freefile
+    if open( rec for output as #fh ) <> 0 then return
+    print #fh, sig & "artifact " & art & chr( 10 );
+    close #fh
+end sub
 
 end namespace

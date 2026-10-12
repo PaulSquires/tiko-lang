@@ -1108,6 +1108,7 @@ function Run _
         dim as double tFrontStart = timer
         '' A 'tiko build' CACHES ITS ROOTS (unitcache.bi) when the run links.
         dim as Tko.UnitCache.Store ucs
+        '' ...AND 'tiko check' READS IT: a hit is a root with nothing to report (unitcache.bi).
         dim as boolean ucLinks = wantsOutput andalso (ctx.options.compileOnly = false) andalso _
             (scanning = false) andalso (ctx.options.emitIr = false) andalso (ctx.options.emitAsm = false)
         Tko.UnitCache.Open( ctx, args, restartDepth, ucLinks, ucs )
@@ -1173,8 +1174,9 @@ function Run _
         '' with an '-o' they printed the layout and then failed the link, TKO0102.
         dim as boolean emitStops = ctx.options.emitIr orelse ctx.options.emitAsm orelse _
                                    ctx.options.dumpUdt orelse ctx.options.dumpVtable
-        '' A 'tiko build' child links nothing: its root is in the cache for its parent's link.
-        dim as boolean childOnly = (ctx.options.buildOnlyUnit > 0)
+        '' A 'tiko build' child links nothing -- its root is in the cache for its parent's link --
+        '' and neither does 'tiko check' (--frontend-only).
+        dim as boolean childOnly = (ctx.options.buildOnlyUnit > 0) orelse ctx.options.frontendOnly
         dim as boolean linkWanted = wantsOutput andalso (emitStops = false) andalso (childOnly = false)
         dim as boolean notCompileOnly = (ctx.options.compileOnly = false)
         dim as boolean toolsOk = (toolExit = Tko.EXIT_OK)
@@ -1196,7 +1198,14 @@ function Run _
                     toolExit = ArchiveAll( ctx, linkObjs, tempObjs )
                 else
                     dim as double tLink = timer
-                    toolExit = LinkAll( ctx, linkObjs, ltd, tempObjs )
+                    '' ...NOT AGAIN, under 'tiko build', when nothing it reads changed (unitcache.bi).
+                    dim as string lsig = Tko.UnitCache.LinkSignature( ctx, args, linkObjs )
+                    if Tko.UnitCache.LinkUpToDate( ctx, lsig ) then
+                        if ctx.options.verbose then print "link: " & ctx.options.outputPath & " is up to date"
+                    else
+                        toolExit = LinkAll( ctx, linkObjs, ltd, tempObjs )
+                        Tko.UnitCache.LinkRecord( ctx, lsig, toolExit = Tko.EXIT_OK )
+                    end if
                     ctx.timing.Add( Tko.PH_LINK, tLink )
                 end if
                 if toolExit = Tko.EXIT_OK then

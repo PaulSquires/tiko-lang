@@ -1,0 +1,6 @@
+'' TKO0168 and TKO0170 (tiko-build B5): 'tiko run' runs an exe -- a library is refused before it
+'' is built -- and one target; build-pkg has two and none is named.
+'' TEST: cli
+'' ARGS: run --manifest tests/driver/src/build-pkg
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0170: 'tiko run' runs one target; name one of: app, tool

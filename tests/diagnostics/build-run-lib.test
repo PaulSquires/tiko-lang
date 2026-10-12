@@ -1,0 +1,6 @@
+'' TKO0168 (tiko-build B5): a library is not run, and is not built first either.
+'' TEST: cli
+'' ARGS: run tests/driver/src/build-run.tiko --options "-lib"
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0168: 'tiko run' needs an exe target; 'build-run' is a lib
+'' EXPECT-NO-FILE: tests/driver/src/libbuild-run.a

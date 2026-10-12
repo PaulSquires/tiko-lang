@@ -29,6 +29,7 @@ namespace Tko.Build
         as boolean json
         as boolean verbose
         as long    jobs          '' -j: the job budget (TKO_JOBS for this build); 0 = default
+        as Tko.StrVec runArgs    '' 'tiko run': what follows '--', for the program
     end type
 
     '' One target, ready: what it builds from, its flags, and the classic command line.

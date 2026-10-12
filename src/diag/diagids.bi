@@ -96,6 +96,8 @@
     DIAG( TKO0164, SEV_ERROR,   "profile '%0' inherits itself: %1" )
     DIAG( TKO0165, SEV_ERROR,   "targets '%0' and '%1' write the same output '%2'" )
     DIAG( TKO0167, SEV_ERROR,   "compiling '%0' crashed with exit code %1" )
+    DIAG( TKO0168, SEV_ERROR,   "'tiko run' needs an exe target; '%0' is a %1" )
+    DIAG( TKO0170, SEV_ERROR,   "'tiko run' runs one target; name one of: %0" )
     DIAG( TKO0169, SEV_NOTE,    "'%0' is not cached: %1" )
     DIAG( TKO0166, SEV_ERROR,   "another build of '%0' is running (it holds %1)" )
     DIAG( TKO0153, SEV_ERROR,   "'%0' was compiled against module object '%1', which is not there; compile it again with -c" )

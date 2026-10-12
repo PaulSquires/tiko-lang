@@ -1,0 +1,3 @@
+'' build-run's program: it prints its two arguments and exits 7.
+print "args:"; command( 1 ); "|"; command( 2 )
+end 7

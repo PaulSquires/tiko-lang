@@ -469,6 +469,9 @@ function CompileUnit _
         '' produces the file that was asked for. 'tiko foo.bas -o foo.exe' is
         '' the spelling that matters and it used to report "not implemented".
         dim as boolean doCodegen = ctx.options.emitIr orelse ctx.options.emitAsm orelse wantsOutput
+        '' 'tiko check' (--frontend-only): every diagnostic up to here, and no code -- a module
+        '' unit too, which then has no object and is not stored, while its interface is.
+        if ctx.options.frontendOnly then doCodegen = false
         '' NOT AFTER AN ERROR. A compile that reported one produces no object
         '' either way -- the driver exits EXIT_USER_ERROR -- so running the
         '' emitter over a module the frontend already declined buys nothing

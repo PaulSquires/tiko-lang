@@ -47,6 +47,11 @@ namespace Tko.UnitCache
         as Tko.StrVec plibs
         '' Unit events are sent in unit order: 1 .. emitted have been (Report).
         as long       emitted
+        '' 'tiko check' (--frontend-only): the cache is READ and never written. A hit was
+        '' stored only by a build that compiled the unit with no error and no warning, and a
+        '' check reports a subset of what a build does -- so a hit is a unit the check would
+        '' find nothing in, and it is not looked at again.
+        as boolean    lookupOnly
     end type
 
     '' What the run held before a unit compiled, so After( ) can say what it added.
@@ -91,5 +96,13 @@ namespace Tko.UnitCache
     '' Unit i's event, in order: once per unit, "miss" for one a child compiled.
     declare sub Report( byref ctx as Tko.CompilerContext, byref s as Store, byval i as long, byref status as string )
     declare function Crashed( byref s as Store, byval i as long ) as boolean
+
+    '' THE LINK, skipped when nothing it reads has changed (tiko-build B5): its signature --
+    '' "" outside a 'tiko build' -- whether '<output>.link' holds it with the artefact as it is,
+    '' and the record written after a link that succeeded (removed otherwise).
+    declare function LinkSignature _
+        ( byref ctx as Tko.CompilerContext, byref args as Tko.StrVec, byref linkObjs as Tko.StrVec ) as string
+    declare function LinkUpToDate( byref ctx as Tko.CompilerContext, byref sig as string ) as boolean
+    declare sub LinkRecord( byref ctx as Tko.CompilerContext, byref sig as string, byval linked as boolean )
 
 end namespace

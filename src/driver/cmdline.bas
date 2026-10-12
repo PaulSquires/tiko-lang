@@ -139,7 +139,8 @@ function HelpText( byval category as string = "" ) as string
         outp += "  tiko build    build the targets of tiko.toml, or the roots given -- cached" & chr( 10 )
         outp += "  tiko clean    remove what 'tiko build' would write" & chr( 10 )
         outp += "  tiko metadata print the project as JSON: targets, profiles, modules" & chr( 10 )
-        outp += "  tiko run, tiko check  reserved, not implemented in this build" & chr( 10 )
+        outp += "  tiko run      build one exe target, then run it with the arguments after --" & chr( 10 )
+        outp += "  tiko check    every diagnostic a build would give, through lowering; nothing written" & chr( 10 )
         outp += "  (their options: --profile, --manifest, --options, -j, --message-format, --no-cache)" & chr( 10 ) & chr( 10 )
     end if
 
@@ -642,6 +643,7 @@ function Parse _
         case Tko.OPT_MANGLE    : opts.dumpMangle = true
         case Tko.OPT_PRINTGRAPH : opts.printGraph = true
         case Tko.OPT_EMITTKI   : opts.emitTki = true
+        case Tko.OPT_FRONTEND : opts.frontendOnly = true
         case Tko.OPT_NOMODCACHE : opts.noModuleCache = true
         case Tko.OPT_CLEANMODCACHE : opts.cleanModuleCache = true
         case Tko.OPT_CHECK     : opts.checkOnly = true

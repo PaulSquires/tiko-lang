@@ -34,6 +34,17 @@ private function ParseArgs_ _
     dim as long i = 1
     while i < args.Count
         dim as string w = args[i]
+        '' '--' ENDS tiko's arguments: the rest are the program's, for 'tiko run' only.
+        if w = "--" then
+            if a.verb <> "run" then
+                diags.ReportGlobal( Tko.TKO0154, "--", "tiko " & a.verb )
+                ok = false
+            end if
+            for k as long = i + 1 to args.Count - 1
+                a.runArgs.Push( args[k] )
+            next
+            exit while
+        end if
         select case w
         case "-target", "-o", "--options", "--message-format", "--diagnostics-file", "--profile", "--format", "--manifest", "-j"
             if i + 1 >= args.Count then
@@ -234,9 +245,13 @@ private function PlanOne_ _
     return PlanTarget( a, m, mdir, n, iif( a.hasProfile, a.profile, "debug" ), p, diags )
 end function
 
+'' 'tiko build', and 'tiko check' (checkOnly): the same plans and the same runs, with
+'' --frontend-only -- every diagnostic through lowering, nothing written, so no lock and no
+'' output directory either.
 private function Build_ _
     ( byref a as BuildArgs, byref m as Tko.Modules.Manifest, byref mdir as string, _
-      byref plans as Tko.StrVec, byref ctx as Tko.CompilerContext, byref obs as Observer ) as long
+      byref plans as Tko.StrVec, byref ctx as Tko.CompilerContext, byref obs as Observer, _
+      byval checkOnly as boolean = false ) as long
 
     dim as long rc = Tko.EXIT_OK
     dim as Tko.StrVec diagParts
@@ -254,12 +269,16 @@ private function Build_ _
             rc = Tko.EXIT_CMDLINE
             exit for
         end if
-        dim as string outDir = Tko.Modules.DirOfFile( p.artifact )
-        if (len( outDir ) > 0) andalso (fs.IsDir( outDir ) = false) then fs.CreateDirAll( outDir )
         dim as BuildLock lk
-        if Lock_( p, lk, ctx.diags ) = false then
-            rc = Tko.EXIT_USER_ERROR
-            exit for
+        if checkOnly then
+            p.dargs.Push( "--frontend-only" )
+        else
+            dim as string outDir = Tko.Modules.DirOfFile( p.artifact )
+            if (len( outDir ) > 0) andalso (fs.IsDir( outDir ) = false) then fs.CreateDirAll( outDir )
+            if Lock_( p, lk, ctx.diags ) = false then
+                rc = Tko.EXIT_USER_ERROR
+                exit for
+            end if
         end if
         obs.finished = false
         BuildStart_( obs, p )
@@ -271,6 +290,46 @@ private function Build_ _
     next
     if diagParts.Count > 0 then MergeDiagFiles_( a.diagFile, diagParts, rc )
     return rc
+end function
+
+'' 'tiko run' (RFC 4): ONE target, an exe, built, then run with the arguments after '--'; its
+'' exit code is the program's. The path is made absolute: CreateProcess searches the directory
+'' of the running executable -- tiko's -- before the current one for a bare name.
+private function Run_ _
+    ( byref a as BuildArgs, byref m as Tko.Modules.Manifest, byref mdir as string, _
+      byref plans as Tko.StrVec, byref ctx as Tko.CompilerContext, byref obs as Observer ) as long
+
+    if plans.Count <> 1 then
+        dim as string list_ = ""
+        for each n as string in plans
+            list_ &= iif( len( list_ ) > 0, ", ", "" ) & n
+        next
+        ctx.diags.ReportGlobal( Tko.TKO0170, list_ )
+        return Tko.EXIT_CMDLINE
+    end if
+    dim as TargetPlan p
+    if PlanOne_( a, m, mdir, plans[0], p, ctx.diags ) = false then return Tko.EXIT_CMDLINE
+    if p.kind <> "exe" then
+        ctx.diags.ReportGlobal( Tko.TKO0168, p.name, p.kind )
+        return Tko.EXIT_CMDLINE
+    end if
+    dim as long rc = Build_( a, m, mdir, plans, ctx, obs )
+    if rc <> Tko.EXIT_OK then return rc
+
+    dim as string exe = Tko.Modules.AbsPath( p.artifact )
+    dim as string argline = ""
+    for each x as string in a.runArgs
+        argline &= " " & Tko.Spawn.QuoteArg( x )
+    next
+    EmitLine( obs, """event"":""run"",""path"":" & JsonStr( exe ) & ",""args"":" & JsonArr( a.runArgs ) )
+    dim as Tko.Spawn.Proc pr = Tko.Spawn.Start( exe, mid( argline, 2 ) )
+    if pr = 0 then
+        ctx.diags.ReportGlobal( Tko.TKO0111, "could not start " & exe )
+        return Tko.EXIT_TOOL_FAILED
+    end if
+    dim as long prc = Tko.Spawn.Wait( pr )
+    EmitLine( obs, """event"":""run-end"",""exit"":" & prc )
+    return prc
 end function
 
 private function Clean_ _
@@ -442,6 +501,10 @@ function Entry( byref args as Tko.StrVec ) as long
         select case a.verb
         case "build"
             rc = Build_( a, m, mdir, plans, ctx, obs )
+        case "check"
+            rc = Build_( a, m, mdir, plans, ctx, obs, true )
+        case "run"
+            rc = Run_( a, m, mdir, plans, ctx, obs )
         case "clean"
             rc = Clean_( a, m, mdir, plans, ctx, obs )
         case "metadata"
@@ -457,7 +520,7 @@ function Entry( byref args as Tko.StrVec ) as long
     if ran = false then rc = Tko.DiagOut.Finish( ctx, rc )
     '' ...and one raised after a run -- a later target's busy lock -- still reaches the console.
     if ran then ctx.diags.Flush( )
-    if (a.verb = "build") andalso (ran = false) then
+    if ((a.verb = "build") orelse (a.verb = "check") orelse (a.verb = "run")) andalso (ran = false) then
         obs.errors = ctx.diags.ErrorCount( )
         obs.warnings = ctx.diags.WarningCount( )
         EmitLine( obs, """event"":""build-end"",""errors"":" & obs.errors & ",""warnings"":" & _

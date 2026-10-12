@@ -1,0 +1,15 @@
+'' 'tiko check' READS THE BUILD'S CACHE (tiko-build B5): a root that hits was stored by a build
+'' that compiled it with no error and no warning, so the check has nothing to find in it and
+'' skips it; an edited root misses and is checked. Nothing is stored by the check.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.bcc/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.bcc
+'' COPY: tests/driver/src/unitcache => build/.bcc/src
+'' STEP: build -target win64-msvc build/.bcc/src/a.tiko build/.bcc/src/b.tiko -o build/.bcc/app.exe
+'' WRITE: build/.bcc/src/a.tiko :: '' edited\ndeclare sub FromB( )\nprint "a top edited"\nFromB( )\n
+'' ARGS: check -target win64-msvc build/.bcc/src/a.tiko build/.bcc/src/b.tiko -o build/.bcc/app.exe --message-format json
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT-SEQ: {"event":"unit","kind":"root","unit":"build/.bcc/src/a.tiko","status":"checked"}
+'' EXPECT-OUT-SEQ: {"event":"unit","kind":"root","unit":"build/.bcc/src/b.tiko","status":"hit"}
+'' EXPECT-NOT: "event":"artifact"

@@ -1,7 +1,0 @@
-'' THE FIVE WORDS ARE RESERVED FROM B1 (tiko-build RFC-0001 §4.1): 'run' answers TKO0992
-'' until its phase rather than compiling a file named 'run'; with no roots, 'build' is
-'' TKO0102 rather than a compile of a file named 'build'.
-'' TEST: cli
-'' ARGS: run tests/driver/src/build-b1/main.tiko
-'' EXPECT-EXIT: 1
-'' EXPECT-OUT: error TKO0992: not implemented in this build: tiko run

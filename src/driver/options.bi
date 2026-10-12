@@ -54,6 +54,7 @@ namespace Tko
     '' ...and the interface an importer of a module reads (RFC-0004).
     OPT( OPT_EMITTKI,   "--emit-tki",     OPTK_FLAG, OPTCAT_GENERAL, "",     "print the interface of the module directory given, and stop" )
     '' ...and the cache the modules a program imports are built into (RFC-0005 §4).
+    OPT( OPT_FRONTEND,  "--frontend-only", OPTK_FLAG, OPTCAT_GENERAL, "",    "report every diagnostic a build would, through lowering; write no object, link nothing ('tiko check')" )
     OPT( OPT_NOMODCACHE, "--no-module-cache", OPTK_FLAG, OPTCAT_GENERAL, "",  "build imported modules without reading or writing the module cache" )
     OPT( OPT_CLEANMODCACHE, "--clean-module-cache", OPTK_FLAG, OPTCAT_GENERAL, "",  "empty the module cache and stop" )
 
@@ -277,6 +278,7 @@ namespace Tko
         as DiagOutputFormat  diagFormat
         as string  diagFile          '' --diagnostics-file; "" = none
         as long    buildOnlyUnit     '' --build-only-unit: a 'tiko build' child's one root; 0 = all
+        as boolean frontendOnly      '' --frontend-only: 'tiko check' -- every unit to the end of lowering, no code
         as string  pkgDir            '' --pkg-dir; "" = TKO_PKG, else beside the executable
         as StrVec  ignoredDiags
 
