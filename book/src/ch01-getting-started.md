@@ -19,13 +19,12 @@ Moving the directory later is fine — the compiler finds its own headers and li
 the executable.
 
 ```admonish info title="On Windows"
-The compiler is `tiko.exe` at the root. Beside it, `inc\` holds the headers and `lib\` holds one
-directory per target: `lib\win64-msvc`, `lib\win64` and `lib\win64-fb`.
+The compiler is `tiko.exe` at the root. Beside it, `inc\` holds the headers and
+`lib\win64-msvc` the libraries.
 ```
 
 ```admonish info title="On Linux"
-The compiler is `bin/tiko`, with headers under `include/freebasic` and libraries in
-`lib/linux-x86_64`.
+The compiler is `bin/tiko`, with headers under `inc/` and libraries in `lib/linux-x86_64`.
 ```
 
 Check that it runs:
@@ -145,18 +144,17 @@ every target — no guessing whether `int` is 32 or 64 bits today. Chapter 3 lis
 
 ## Choosing a target
 
-One installation builds for three targets, and the default depends on the machine you are on.
+tiko builds for two targets, and the default is the machine you are on.
 
-| Target | What it is | When to choose it |
+| Target | What it is | Default on |
 |---|---|---|
-| `win64-msvc` | The Windows default. Microsoft's ABI, linked against `ucrtbase.dll` | Nearly always, on Windows |
-| `win64` | The MinGW ABI | Linking against libraries or objects built with MinGW |
-| `linux-x86_64` | The Linux default | On Linux |
+| `win64-msvc` | Microsoft's ABI, linked against `ucrtbase.dll` | Windows |
+| `linux-x86_64` | The System V ABI, linked against the system's C library | Linux |
 
-Select one with `-target`:
+Name one explicitly with `-target`:
 
 ```bash
-tiko hello.tiko -target win64 -o hello
+tiko hello.tiko -target win64-msvc -o hello
 ```
 
 ```admonish note
@@ -166,9 +164,8 @@ of Windows. A hello-world executable therefore depends only on components every 
 already has.
 ```
 
-Targets are not interchangeable at link time. An object file or static library built for `win64`
-will not link into a `win64-msvc` program: the two use different C runtimes and different name
-decorations. Pick one per project and stay there. Chapter 29 covers what each target links and
+Targets are not interchangeable at link time: an object file or static library built for one will
+not link into a program for the other. Chapter 29 covers what each target links and
 how to ship the result.
 
 ## Reading a diagnostic
@@ -260,8 +257,8 @@ Chapter 18 comes back to both, together with testing and the debugger.
 - Source files are `.tiko`; headers you write are `.ti`.
 - `tiko hello.tiko -o hello` compiles and links in one step; `-c` stops at the object file and `-v`
   shows every command.
-- Three targets: `win64-msvc` (the Windows default, and no Visual Studio needed), `win64` (MinGW),
-  `linux-x86_64`. Objects from different targets do not link together.
+- Two targets: `win64-msvc` (the Windows default, and no Visual Studio needed) and
+  `linux-x86_64` (the Linux default). Objects from different targets do not link together.
 - Diagnostics carry stable `TKOnnnn` identifiers; `--diagnostics-format gnu` suits tools, and
   `-Werror` suits discipline.
 - Build with `-exx` while you learn, and let a listing carry its own options with `#cmdline`.

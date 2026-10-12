@@ -10,7 +10,7 @@ Environment variables
 |---|---|
 | `TKO_CLANG` | Full path to `clang`. tiko does **not** search `PATH`; without this it looks only at `C:\Program Files\LLVM\bin\clang.exe` on Windows or `/usr/bin/clang` on Linux. `llvm-ar` and `llvm-rc` are taken from the same directory. |
 | `TKO_INCLUDE` | Replaces the default include directory (`<exe>/inc`). `-i` paths are searched first either way. |
-| `TKO_LIBPATH` | Replaces the bundled library directories (`<exe>/lib/<target>` and `<target>-fb`). `-p` paths and `#libpath` are searched first either way. |
+| `TKO_LIBPATH` | Replaces the bundled library directory (`<exe>/lib/<target>`). `-p` paths and `#libpath` are searched first either way. |
 
 Exit codes
 
