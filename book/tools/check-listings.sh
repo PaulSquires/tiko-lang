@@ -32,6 +32,10 @@
 #                                              beside its tiko.toml, and the program run is
 #                                              out/debug/greeter -- what `tiko run` runs.
 #                                              Implies cwd: listing
+#                 output: renamed.exe          the listing names its own program (a -x in its
+#                                              #cmdline, which wins over the harness's -o):
+#                                              that file, in the listing's directory, is run.
+#                                              Implies cwd: listing
 #                 blocked: T13 linux-x86_64    a known compiler/toolchain defect, and
 #                                              where it bites; reported BLOCKED, not FAIL.
 #                                              The listing is NEVER weakened to pass --
@@ -178,6 +182,8 @@ for f in "${listings[@]}"; do
   prebuild="$(meta_get "$meta" prebuild)"
   runenv="$(meta_get "$meta" env)"
   project="$(meta_get "$meta" project)"
+  output="$(meta_get "$meta" output)"
+  [[ -n "$output" ]] && cwd=listing
   [[ -n "$prebuild" ]] && cwd=listing
   [[ -n "$project" ]] && cwd=listing
   blocked_item="${blocked%% *}"; blocked_where="${blocked#* }"
@@ -212,6 +218,7 @@ for f in "${listings[@]}"; do
       continue
     fi
 
+    [[ -n "$output" ]] && rm -f "$dir/$output"
     if [[ -n "$project" ]]; then
       # A project builds where its tiko.toml is, into its own out/debug.
       if [[ "$t" == win64-msvc ]]; then
@@ -237,6 +244,8 @@ for f in "${listings[@]}"; do
       fi
     fi
 
+    # The listing's own -x named the program: that is the file to run.
+    [[ -n "$output" ]] && exe="$dir/$output"
     if [[ -n "$expect" ]]; then           # this listing must NOT compile
       want_id="${expect#compile-error }"
       if (( crc == 0 )); then results+=("FAIL"); note="compiled, but expected $want_id"

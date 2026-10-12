@@ -229,6 +229,22 @@ it counts only in the **first** source file named on the command line; anywhere 
 `TKO0334` and ignored. Every listing in this book that needs an option carries it this way.
 `__FB_ERR__`, `__FB_MT__` and `__FB_DEBUG__` let the code see what it was given.
 
+**`-x name`** names the program, as `-o` does: `tiko hello.tiko -x greeter.exe` writes
+`greeter.exe`. The name is used exactly as written, so give the extension yourself. Where the two
+meet, `-x` wins over `-o`, and of several `-x` the last one counts. With `-c` it is ignored, and
+each object file keeps its own name. In `#cmdline` it lets the source name its own program:
+
+```tiko
+{{#include ../examples/ch29/named.tiko}}
+```
+
+```text
+{{#include ../examples/ch29/named.out}}
+```
+
+`tiko named.tiko` writes `renamed.exe`. So does `tiko named.tiko -x other.exe`: like every
+option, the one in the source wins over the command line's.
+
 ## Projects
 
 The command lines in this chapter grow with the program. Every file, every option and the name
@@ -370,6 +386,8 @@ and that licence's conditions apply.
   resources.
 - `-exx` and `-g` for checked builds, `-O2`/`-O3` for release; `#cmdline` keeps the options in
   the source.
+- `-x name` names the program exactly, over `-o`; the last `-x` wins, and one in `#cmdline` wins
+  over the command line's.
 - A project's `tiko.toml` declares its targets; `tiko build` builds them into `out/<profile>`,
   `tiko run` builds and runs, `tiko check` reports without writing. Paths in it are relative to
   it. Profiles `debug` (the default) and `release`, and your own, set the options. A second build

@@ -1,0 +1,5 @@
+'' The source names its own program. -x in #cmdline wins over any -o
+'' or -x on the command line, so 'tiko named.tiko' writes renamed.exe.
+#cmdline "-x renamed.exe"
+
+print "built as renamed.exe"

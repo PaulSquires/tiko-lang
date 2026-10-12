@@ -92,14 +92,14 @@ parameters, usable in module-level code only), an empty `__FB_BUILD_SHA1__`, eve
 ## Command-line options
 
 The options that mean the same thing in both compilers: `-c`, `-d`, `-dll`, `-dylib`, `-e`, `-ex`,
-`-exx`, `-g`, `-i`, `-l`, `-lib`, `-m`, `-mt`, `-p`, `-s`, `-v`, and FBC-Modern's `-maxinstdepth`,
+`-exx`, `-g`, `-i`, `-l`, `-lib`, `-m`, `-mt`, `-p`, `-s`, `-v`, `-x`, and FBC-Modern's `-maxinstdepth`,
 `-cinclude`, `-cdefine` and `-cimport` (with `-cimport-out`). `-z` is accepted and ignored.
 
 Those spelled differently:
 
 | fbc | tiko |
 |---|---|
-| `-x file` | `-o file` (fbc's `-o` names an object file) |
+| `-o file` after a source: that source's object file | `-o file` names the program too, when there is no `-x` |
 | `-O 2` | `-O2`, the level joined to the option |
 | `-w all`, `-w pedantic` | `-Werror`, `-Wno-TKOnnnn` |
 | `-maxerr n` | `-fmax-errors n` |
