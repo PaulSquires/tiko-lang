@@ -1,0 +1,14 @@
+'' -x AS fbc HAS IT (fbc-modern 1.20, measured): the linked output's path, as written -- no
+'' extension added -- over -o, and the last one winning. 'fbc a.bas -o a.o -x app.exe' writes
+'' app.exe and no a.o; 'fbc a.bas -x one.exe -x two.exe' writes two.exe.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.xo
+'' ARGS: -target win64-msvc tests/driver/src/build-run.tiko -o build/.xo/o.exe -x build/.xo/one.exe -x build/.xo/two.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.xo/two.exe
+'' EXPECT-NO-FILE: build/.xo/one.exe
+'' EXPECT-NO-FILE: build/.xo/o.exe
+'' RUN: build/.xo/two.exe
+'' EXPECT-RUN-EXIT: 7
+'' EXPECT-RUN-OUT: args:|

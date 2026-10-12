@@ -1,0 +1,3 @@
+'' -x as fbc's: the program's path comes from the source's own #cmdline, over the command line's.
+#cmdline "-x build/.xcmd/fromcmd.exe"
+print "from #cmdline"

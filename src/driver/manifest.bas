@@ -308,7 +308,7 @@ private function BuildKey_ _
         case "kind"      : want = "s" : allowed = "exe|dll|lib"
         case "subsystem" : want = "s" : allowed = "gui|console"
         case "main", "output" : want = "s"
-        case "sources", "resources", "libs", "libpaths", "options" : want = "a"
+        case "sources", "resources", "libs", "libpaths", "options", "copy_to" : want = "a"
         case else
             return "unknown key '" & k & "' in [" & table_ & "]"
         end select

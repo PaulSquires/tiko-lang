@@ -1,0 +1,7 @@
+'' build-copyto's program: it reads the file that sits beside it in dist/.
+dim as long f = freefile( )
+open exepath( ) & "/app.ini" for input as #f
+dim as string s
+line input #f, s
+close #f
+print "ini:"; s

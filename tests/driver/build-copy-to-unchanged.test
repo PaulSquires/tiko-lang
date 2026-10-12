@@ -1,0 +1,12 @@
+'' A BUILD WITH NOTHING NEW COPIES NOTHING: the copy in dist/ has the artefact's size and is no
+'' older, so it is left alone ("copied":false) -- the link was skipped too.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.bcu/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.bcu
+'' COPY: tests/driver/src/build-copyto => build/.bcu/pkg
+'' STEP: build -target win64-msvc --manifest build/.bcu/pkg
+'' STEP: build -target win64-msvc --manifest build/.bcu/pkg
+'' ARGS: build -target win64-msvc --manifest build/.bcu/pkg --message-format json
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: {"event":"copy","target":"app","from":"build/.bcu/pkg/out/debug/app.exe","path":"build/.bcu/pkg/dist/app.exe","copied":false}

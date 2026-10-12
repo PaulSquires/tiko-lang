@@ -1,0 +1,5 @@
+'' -x with nothing after it is the missing-argument error (fbc: error 81).
+'' TEST: cli
+'' ARGS: tests/driver/src/build-run.tiko -x
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0101: option '-x' requires an argument

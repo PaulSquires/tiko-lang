@@ -1,0 +1,7 @@
+# build-copyto: the program is copied beside its support files (copy_to) after each build.
+[package]
+name = "copyto"
+
+[target.app]
+main = "main.tiko"
+copy_to = ["dist"]

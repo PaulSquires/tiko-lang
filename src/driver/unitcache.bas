@@ -34,7 +34,7 @@ private function ArgsLine_( byref ctx as Tko.CompilerContext, byref args as Tko.
     while k < args.Count
         dim as string w = args[k]
         k += 1
-        if (w = "-o") orelse (w = "--diagnostics-file") orelse (w = "--build-only-unit") then
+        if (w = "-o") orelse (w = "-x") orelse (w = "--diagnostics-file") orelse (w = "--build-only-unit") then
             k += 1
             continue while
         end if

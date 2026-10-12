@@ -39,7 +39,7 @@ The subcommand must be the first word. A later `build` is a file name.
 | `--message-format json` | the [event stream](#the-json-event-stream) on standard output; `text`, the default, is the console rendering |
 | `--diagnostics-file <path>` | every diagnostic as tab-separated records too ([below](#diagnostics)) |
 | `--format json` | `tiko metadata`'s one format |
-| `-o <path>` | the output of a build with no manifest |
+| `-o <path>`, `-x <path>` | the output of a build with no manifest |
 | `-v` | each cache hit and miss, with the reason, and every tool command; not with `--message-format json` |
 | `--color=always\|never\|auto` | the console's colour, as for the driver |
 | `--` | ends tiko's arguments; the rest go to the program. `tiko run` only (`TKO0154` elsewhere) |
@@ -93,6 +93,17 @@ options  = ["-mt"]
 | `resources` | array | `.rc` files |
 | `subsystem` | string | `"gui"` or `"console"`: `-s` |
 | `output` | string | the artefact's path, instead of `out/<profile>/<file>` |
+| `copy_to` | array | directories the artefact is copied into after each build that succeeds |
+
+A `-x` in `options` names the artefact as fbc's `-x` does ([Compiler Option: -x](Compiler-Option-X)), relative to `tiko.toml`, and wins over `output`.
+
+**`copy_to`** puts the program beside the DLLs and data files it needs. After a build that succeeds, the artefact is copied into each directory, which is made when missing; `out/<profile>/` keeps the original, which the link check reads. A copy that is already there with the same size and no older is left alone, so an unchanged build writes nothing. A DLL is copied alone, without its import library. `tiko clean` removes the copies too, and nothing else in those directories. A copy that cannot be written is `TKO0171`, exit 5.
+
+```toml
+[target.app]
+main    = "src/main.tiko"
+copy_to = ["dist"]       # dist/ holds app.ini and sqlite3.dll
+```
 
 `[target.<name>.defines]` holds `NAME = "value"` pairs, each a `-d NAME=value` for that target's files. A module directory is never a root: modules are reached through `#import` (`TKO0161`). Two targets writing one file is `TKO0165`.
 
@@ -163,7 +174,8 @@ end	<errors>	<warnings>	<exitcode>
 | `build-end` | `target`, `errors`, `warnings`, `exit`, `ms` | each target, last. With no `target` when the command failed before any target was built |
 | `run` | `path` (absolute), `args` | `tiko run`, before the program starts. Until `run-end`, standard output is the program's own |
 | `run-end` | `exit` | the program's exit code |
-| `clean` | `target`, `path`, `removed` (true/false) | `tiko clean`, per target |
+| `copy` | `target`, `from`, `path`, `copied` (true/false) | each `copy_to` directory, after a build that succeeded; `copied` is false when the copy there was already current |
+| `clean` | `target`, `path`, `removed` (true/false) | `tiko clean`: the artefact, then each `copy_to` copy |
 
 | `status` | Means |
 |---|---|
@@ -199,7 +211,7 @@ end	<errors>	<warnings>	<exitcode>
 |---|---|
 | `package` | the package's name, manifest and directory; `null` without a manifest |
 | `profiles` | every profile and the flags it stands for |
-| `targets` | each target: kind, `main`, roots, resources, defines, the flags of the profile in force, and its output under every profile. `implicit` is true for the target of a build with no manifest |
+| `targets` | each target: kind, `main`, roots, resources, defines, the flags of the profile in force, `copyTo`, and its output under every profile. `implicit` is true for the target of a build with no manifest |
 | `modules` | every module the roots import, directly or not: its chain, package, directory, files and the chains it imports |
 | `searchPaths` | the `-i` roots imports are searched in, and the toolchain's `pkg` |
 | `units` | each root: its target, its `-d` defines and its include directories, the `compile_commands.json` of a tiko project |
@@ -215,7 +227,7 @@ Paths are relative to the current directory, as for the build; run it in the man
 | 2 | the command line or `tiko.toml` is wrong (`TKO0144`, `TKO0160`–`TKO0165`, …) |
 | 3 | no usable toolchain |
 | 4 | an internal compiler error |
-| 5 | a tool failed: clang, the linker, or `tiko run` could not start the program |
+| 5 | a tool failed: clang, the linker, or `tiko run` could not start the program; or a `copy_to` copy failed (`TKO0171`) |
 | 6 | a child compile crashed (`TKO0167`) |
 
 `tiko run` exits with the program's code once the build succeeds.
@@ -303,6 +315,7 @@ The [tiko language server](https://github.com/PaulSquires/tiko-lsp), given `init
 | `TKO0168` | 'tiko run' needs an exe target; '…' is a … |
 | `TKO0169` | note: '…' is not cached: … (`-v` only) |
 | `TKO0170` | 'tiko run' runs one target; name one of: … |
+| `TKO0171` | could not copy '…' to '…' |
 
 ---
 

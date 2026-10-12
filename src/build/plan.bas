@@ -253,6 +253,16 @@ private sub Tail_( byref a as BuildArgs, byref p as TargetPlan )
     if a.verbose then p.dargs.Push( "-v" )
 end sub
 
+'' The value of the last '-x' (or '-x=') among the flags, "" when there is none.
+private function ExeOutFlag_( byref flags as Tko.StrVec ) as string
+    dim as string r = ""
+    for k as long = 0 to flags.Count - 1
+        if (flags[k] = "-x") andalso (k + 1 < flags.Count) then r = flags[k + 1]
+        if left( flags[k], 3 ) = "-x=" then r = mid( flags[k], 4 )
+    next
+    return r
+end function
+
 function PlanTarget _
     ( byref a as BuildArgs, byref m as Tko.Modules.Manifest, byref mdir as string, _
       byref tname as string, byref profile as string, byref p as TargetPlan, _
@@ -262,7 +272,7 @@ function PlanTarget _
     p.profile = profile
     p.kind = "exe"
     dim as string main_, subsys
-    dim as Tko.StrVec sources, libs, libpaths, topts
+    dim as Tko.StrVec sources, libs, libpaths, topts, copies
     for k as long = 0 to m.tgtName.Count - 1
         if m.tgtName[k] <> tname then continue for
         dim as string v = m.tgtVal[k]
@@ -275,6 +285,7 @@ function PlanTarget _
         case "libs"      : SplitLf_( v, libs )
         case "libpaths"  : SplitLf_( v, libpaths )
         case "options"   : SplitLf_( v, topts )
+        case "copy_to"   : SplitLf_( v, copies )
         case "define"    : p.defines.Push( v )
         end select
     next
@@ -317,7 +328,14 @@ function PlanTarget _
         dim as string nm = DefaultName_( tname, p.kind, a.target, diags )
         if len( nm ) > 0 then p.artifact = Rel( mdir, "out/" & profile & "/" & nm )
     end if
+    '' ...AND A '-x' AMONG THE FLAGS is where it goes after all: the driver gives -x the last
+    '' word over -o (Cmdline.Parse), so the plan must, or the events name a file never written.
+    dim as string xOut = ExeOutFlag_( p.flags )
+    if len( xOut ) > 0 then p.artifact = xOut
     if len( p.artifact ) = 0 then return false
+    for each c as string in copies
+        p.copyTo.Push( Rel( mdir, c ) )
+    next
 
     for each x as string in p.flags
         p.dargs.Push( x )
@@ -378,7 +396,9 @@ function PlanImplicit _
         if len( a.target ) > 0 then d.Push( "-target" ) : d.Push( a.target )
         dim as Tko.DriverOptions o
         if Tko.Cmdline.Parse( d, o, diags ) = false then return false
-        p.artifact = Tko.Driver.DefaultOutput( o )
+        '' A '-x' among them names it; otherwise the driver's own default does.
+        p.artifact = o.outputPath
+        if len( p.artifact ) = 0 then p.artifact = Tko.Driver.DefaultOutput( o )
     end if
     Tail_( a, p )
     return true

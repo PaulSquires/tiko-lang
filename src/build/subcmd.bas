@@ -46,7 +46,7 @@ private function ParseArgs_ _
             exit while
         end if
         select case w
-        case "-target", "-o", "--options", "--message-format", "--diagnostics-file", "--profile", "--format", "--manifest", "-j"
+        case "-target", "-o", "-x", "--options", "--message-format", "--diagnostics-file", "--profile", "--format", "--manifest", "-j"
             if i + 1 >= args.Count then
                 diags.ReportGlobal( Tko.TKO0101, w )
                 return false
@@ -55,7 +55,7 @@ private function ParseArgs_ _
             i += 2
             select case w
             case "-target"           : a.target = v
-            case "-o"                : a.outPath = v
+            case "-o", "-x"          : a.outPath = v
             case "--diagnostics-file" : a.diagFile = v
             case "--options"         : Tko.Spawn.SplitArgs( v, a.extra )
             case "--profile"         : a.profile = v : a.hasProfile = true
@@ -204,6 +204,49 @@ private sub BuildStart_( byref obs as Observer, byref p as TargetPlan )
                    JsonArr( p.roots ) )
 end sub
 
+'' WHERE A COPY GOES: the artefact's file name in a copy_to directory.
+private function CopyPath_( byref dir_ as string, byref artifact as string ) as string
+    dim as string d = dir_
+    if (right( d, 1 ) = "/") orelse (right( d, 1 ) = "\") then d = left( d, len( d ) - 1 )
+    return d & "/" & BaseName( artifact )
+end function
+
+'' copy_to (tiko.toml): after a build that succeeded, the artefact copied into each directory --
+'' made when missing -- so the program runs beside the DLLs and data files it needs, while
+'' out/<profile>/ keeps the original the link check reads. A copy already there with the same
+'' size and no older is left alone, so an unchanged build writes nothing. A DLL goes alone:
+'' its import library is for the linker, not the program. A failure is TKO0171, exit 5.
+private function CopyTo_ _
+    ( byref p as TargetPlan, byref obs as Observer, byval wordy as boolean, _
+      byref diags as Tko.DiagnosticEngine ) as long
+
+    for each dir_ as string in p.copyTo
+        dim as string dst = CopyPath_( dir_, p.artifact )
+        if Tko.Modules.AbsPath( dst ) = Tko.Modules.AbsPath( p.artifact ) then continue for
+        if fs.IsDir( dir_ ) = false then fs.CreateDirAll( dir_ )
+        dim as boolean same = false
+        dim as fs.FsResultInfo rs = fs.Stat( p.artifact )
+        dim as fs.FsResultInfo rd = fs.Stat( dst )
+        if rs.IsOk( ) andalso rd.IsOk( ) then
+            dim as fs.FileInfo fsrc = rs.Value( )
+            dim as fs.FileInfo fdst = rd.Value( )
+            same = (fsrc.Size( ) = fdst.Size( )) andalso (fsrc.ModifiedUtc( ) <= fdst.ModifiedUtc( ))
+        end if
+        if same = false then
+            dim as fs.FsResultBool r = fs.CopyFile( p.artifact, dst, true )
+            if r.IsOk( ) = false then
+                diags.ReportGlobal( Tko.TKO0171, p.artifact, dst )
+                return Tko.EXIT_TOOL_FAILED
+            end if
+            if wordy then print "copy: " & p.artifact & " -> " & dst
+        end if
+        EmitLine( obs, """event"":""copy"",""target"":" & JsonStr( p.name ) & ",""from"":" & _
+                       JsonStr( p.artifact ) & ",""path"":" & JsonStr( dst ) & ",""copied"":" & _
+                       iif( same, "false", "true" ) )
+    next
+    return Tko.EXIT_OK
+end function
+
 private sub BuildEnd_( byref obs as Observer, byref p as TargetPlan, byval rc as long )
     EmitLine( obs, """event"":""build-end"",""target"":" & JsonStr( p.name ) & ",""errors"":" & _
                    obs.errors & ",""warnings"":" & obs.warnings & ",""exit"":" & rc & ",""ms"":" & _
@@ -283,6 +326,10 @@ private function Build_ _
         obs.finished = false
         BuildStart_( obs, p )
         rc = Tko.Driver.Run( p.dargs, 0, 0, @obs )
+        if (rc = Tko.EXIT_OK) andalso (checkOnly = false) then
+            rc = CopyTo_( p, obs, a.verbose, ctx.diags )
+            if rc <> Tko.EXIT_OK then ctx.diags.Flush( )
+        end if
         ReleaseLock( lk )
         BuildEnd_( obs, p, rc )
         '' FAIL FAST (RFC B14): no target starts after one fails.
@@ -348,6 +395,15 @@ private function Clean_ _
         ReleaseLock( lk )
         EmitLine( obs, """event"":""clean"",""target"":" & JsonStr( p.name ) & ",""path"":" & _
                        JsonStr( p.artifact ) & ",""removed"":" & iif( had, "true", "false" ) )
+        '' ...and its copies (copy_to), each its own event.
+        for each dir_ as string in p.copyTo
+            dim as string dst = CopyPath_( dir_, p.artifact )
+            if Tko.Modules.AbsPath( dst ) = Tko.Modules.AbsPath( p.artifact ) then continue for
+            dim as boolean hadCopy = fs.IsFile( dst )
+            if hadCopy then kill( dst )
+            EmitLine( obs, """event"":""clean"",""target"":" & JsonStr( p.name ) & ",""path"":" & _
+                           JsonStr( dst ) & ",""removed"":" & iif( hadCopy, "true", "false" ) )
+        next
     next
     return Tko.EXIT_OK
 end function
@@ -388,6 +444,7 @@ private function Metadata_ _
               ",""implicit"":" & iif( len( n ) = 0, "true", "false" ) & ",""main"":" & JsonStr( p.roots[0] ) & _
               ",""roots"":" & JsonArr( p.roots ) & ",""resources"":" & JsonArr( p.resources ) & _
               ",""defines"":" & JsonArr( p.defines ) & ",""flags"":" & JsonArr( p.flags ) & _
+              ",""copyTo"":" & JsonArr( p.copyTo ) & _
               ",""outputs"":{" & outs & "}}"
         '' THE GRAPH RUN: the target's flags and roots, its target triple, '--print-graph'.
         dim as Tko.StrVec g

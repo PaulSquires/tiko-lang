@@ -17,7 +17,7 @@ Each of these is a diagnostic, not a silent difference:
 | `#lang "qb"`, `"fblite"`, `"deprecated"` | accepted | `TKO0317: unsupported language mode 'qb'; tiko-lang implements "fb" only` |
 | `GOSUB` | error 146 in `-lang fb` (it is valid only in `fblite` and `qb`) | `TKO0409: 'GOSUB' is not available in the fb dialect` |
 | inline `ASM` | compiles | `TKO0407: inline assembly is not supported; compile that module with fbc` |
-| `-lang`, `-gen`, `-x` | accepted | `TKO0100: unknown option` |
+| `-lang`, `-gen` | accepted | `TKO0100: unknown option` |
 | `-m32`, `-target win32` | | `TKO0104`, `TKO0103`: x86-64 only |
 
 `GOSUB` is the one row where the two compilers agree in `-lang fb`: both refuse it. Code that asks for another dialect is what tiko refuses.

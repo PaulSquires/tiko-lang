@@ -1,0 +1,15 @@
+'' copy_to (tiko.toml): after the build, the program is copied into dist/, beside the file it
+'' reads at run time; out/debug/ keeps the original. A copy event names each.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.bct/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.bct
+'' COPY: tests/driver/src/build-copyto => build/.bct/pkg
+'' ARGS: build -target win64-msvc --manifest build/.bct/pkg --message-format json
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: {"event":"artifact","kind":"exe","path":"build/.bct/pkg/out/debug/app.exe"}
+'' EXPECT-OUT: {"event":"copy","target":"app","from":"build/.bct/pkg/out/debug/app.exe","path":"build/.bct/pkg/dist/app.exe","copied":true}
+'' EXPECT-FILE: build/.bct/pkg/out/debug/app.exe
+'' EXPECT-FILE: build/.bct/pkg/dist/app.exe
+'' RUN: build/.bct/pkg/dist/app.exe
+'' EXPECT-RUN-OUT: ini:colour=blue

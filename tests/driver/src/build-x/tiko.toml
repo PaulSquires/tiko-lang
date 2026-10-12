@@ -1,0 +1,8 @@
+# build-x: a target whose options name its output with fbc's -x; see build-x-option.test.
+[package]
+name = "copyto"
+
+[target.app]
+main = "main.tiko"
+options = ["-x", "bin/named.exe"]
+copy_to = ["dist"]

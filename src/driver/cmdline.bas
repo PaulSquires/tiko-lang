@@ -53,6 +53,7 @@ end function
 
 constructor DriverOptions( )
     this.outputPath = ""
+    this.exeOutputPath = ""
     this.targetName = ""
     this.target = Tko.HostTarget( )
     this.widthOverride = 0
@@ -468,6 +469,7 @@ function Parse _
             '' The input it follows, or "" when it came before every input.
             opts.outputFor.Push( iif( opts.inputs.Count > 0, opts.inputs[opts.inputs.Count - 1], "" ) )
             opts.outputFor.Push( value )
+        case Tko.OPT_EXEOUT   : opts.exeOutputPath = value
         case Tko.OPT_COMPILE  : opts.compileOnly = true
         '' -dylib IS -dll. fbc's own help says 'Same as -dylib' and the two set one
         '' flag there too; the second spelling exists for the platforms where the
@@ -685,6 +687,14 @@ function Parse _
         ok = false
     end if
     opts.targetName = Tko.TargetName( opts.target )
+
+    '' -x AS fbc HAS IT, measured on fbc-modern 1.20: the exe, DLL or library is written to
+    '' the path as given -- no extension added -- wherever on the line it stands, the last one
+    '' winning, and over any -o; with -c it is ignored and each object keeps its own name.
+    if (len( opts.exeOutputPath ) > 0) andalso (opts.compileOnly = false) then
+        opts.outputPath = opts.exeOutputPath
+    end if
+
     if opts.pic andalso Tko.TargetIsWindows( opts.target ) then
         diags.ReportGlobal( Tko.TKO0123, opts.targetName )
         ok = false

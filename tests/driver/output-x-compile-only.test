@@ -1,0 +1,8 @@
+'' -x IS IGNORED WITH -c, as fbc ignores it: 'fbc -c a.bas -x zz.o' writes a.o. Here -o names
+'' the object, and -x writes nothing.
+'' TEST: cli
+'' CLEAN: build/.xoc
+'' ARGS: -target win64-msvc -c tests/driver/src/build-run.tiko -o build/.xoc/obj.o -x build/.xoc/x.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.xoc/obj.o
+'' EXPECT-NO-FILE: build/.xoc/x.o

@@ -75,6 +75,7 @@ namespace Tko
     OPT( OPT_LIB,       "-l",         OPTK_VALUE, OPTCAT_INPUT,   "name",     "link against a library" )
 
     OPT( OPT_OUTPUT,    "-o",         OPTK_VALUE, OPTCAT_OUTPUT,  "file",     "output path" )
+    OPT( OPT_EXEOUT,    "-x",         OPTK_VALUE, OPTCAT_OUTPUT,  "file",     "the linked output's path, as fbc's -x: over -o, the last one winning; ignored with -c" )
     OPT( OPT_COMPILE,   "-c",         OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "compile only; do not link" )
     OPT( OPT_DLL,       "-dll",       OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "build a DLL rather than an executable" )
     OPT( OPT_DYLIB,     "-dylib",     OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "same as -dll" )
@@ -222,6 +223,9 @@ namespace Tko
         as StrVec  defines
 
         as string  outputPath
+        '' -x, fbc's name for the linked output: the last one given, applied to outputPath
+        '' once the command line is read (Cmdline.Parse), and not at all with -c.
+        as string  exeOutputPath
         '' WHICH INPUT EACH '-o' FOLLOWED, as pairs (input, output): fbc's '-o' names the
         '' output of the source BEFORE it, so 'fbc -c a.bas -o a1.o b.bas -o b1.o' writes
         '' both, and 'fbc -c a.bas b.bas -o ab.o' writes a.o and ab.o (audit F-47).

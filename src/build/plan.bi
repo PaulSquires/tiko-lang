@@ -43,6 +43,9 @@ namespace Tko.Build
         as Tko.StrVec defines    '' NAME=value, the target's own
         as Tko.StrVec flags      '' the profile's, the target's 'options', then --options
         as Tko.StrVec dargs      '' the whole command line for Driver.Run
+        '' copy_to: directories the artefact is copied into after a build that succeeded,
+        '' relative to the current directory as every other path here is.
+        as Tko.StrVec copyTo
     end type
 
     '' The directory of the nearest tiko.toml at or above the current one, spelled relative to

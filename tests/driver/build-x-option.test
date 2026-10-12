@@ -1,0 +1,14 @@
+'' A '-x' in a target's options is where the program goes, relative to tiko.toml like every
+'' path there: the plan follows it, so the artifact event and the copy name the file written.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.bxo/cache
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64-msvc
+'' CLEAN: build/.bxo
+'' COPY: tests/driver/src/build-copyto => build/.bxo/pkg
+'' COPY: tests/driver/src/build-x/tiko.toml => build/.bxo/pkg/tiko.toml
+'' ARGS: build -target win64-msvc --manifest build/.bxo/pkg --message-format json
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: {"event":"artifact","kind":"exe","path":"build/.bxo/pkg/bin/named.exe"}
+'' EXPECT-OUT: {"event":"copy","target":"app","from":"build/.bxo/pkg/bin/named.exe","path":"build/.bxo/pkg/dist/named.exe","copied":true}
+'' EXPECT-FILE: build/.bxo/pkg/bin/named.exe
+'' EXPECT-NO-FILE: build/.bxo/pkg/out/debug/app.exe

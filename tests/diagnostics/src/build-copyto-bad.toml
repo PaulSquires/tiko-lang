@@ -1,0 +1,7 @@
+# build-copy-to-fails: copy_to names a FILE (main.tiko), which no copy can go into.
+[package]
+name = "copyto"
+
+[target.app]
+main = "main.tiko"
+copy_to = ["main.tiko"]
