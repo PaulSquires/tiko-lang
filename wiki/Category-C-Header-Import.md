@@ -194,7 +194,21 @@ The prefix is parsed **before each header** and contributes nothing to the outpu
 
 The first four are part of the **cache key**, so the same header imported with different options gives different entries and they cannot be confused for one another.
 
-tiko has `-cinclude`, `-cdefine`, `-csysroot`, `-copt`, `-cnomacros`, `-cnoverify`, `-cimport-manifest`, `-ccachedir` and `-cnocache`. `-cimport-split`, `-cimport-indir`, `-cimport-outdir`, `-cimport-recurse`, `-cimport-force`, `-cverbose` and `-cprobe` are FBC-Modern's only; tiko reports each as `TKO0100: unknown option` (measured 2026-09-24 at origin/master 50c71751). In tiko every option is part of the cache key, not only the first four (decision 0016 §5).
+tiko has `-cinclude`, `-cdefine`, `-csysroot`, `-copt`, `-cnomacros`, `-cnoverify`, `-cimport-manifest`, `-ccachedir`, `-cnocache` and `--print-cincludes` (below). `-cimport-split`, `-cimport-indir`, `-cimport-outdir`, `-cimport-recurse`, `-cimport-force`, `-cverbose` and `-cprobe` are FBC-Modern's only; tiko reports each as `TKO0100: unknown option` (measured 2026-09-24 at origin/master 50c71751). In tiko every option is part of the cache key, not only the first four (decision 0016 §5).
+
+### Where each binding is: `--print-cincludes`
+
+A tool with its own parser — the [tiko language server](https://github.com/PaulSquires/tiko-lsp) — cannot read a C header, but it can read the binding tiko makes of it. `tiko --print-cincludes file.tiko` preprocesses the file (and what it `#include`s), imports each `#cinclude` exactly as a build does — the same cache, the same delta chain, `#cmdline` honoured — and prints one JSON object:
+
+```
+{"format":1,"cincludes":[
+  {"file":"C:\\app\\main.tiko","line":2,"header":"raylib\\raylib.h",
+   "binding":"C:\\Users\\me\\AppData\\Local\\tiko\\cimport\\1f692a7e84a065a7\\binding.bi"},
+  {"file":"C:\\app\\main.tiko","line":3,"header":"missing.h","binding":"",
+   "error":"unable to import C header missing.h: ..."}]}
+```
+
+`file` is the file that wrote the directive — an `#include`d `.bi` names itself — and `line` is 1-based. A header that cannot be imported has `binding` empty and an `error`, and its diagnostic still goes to standard error; the exit code is 1 then, but the JSON is printed either way. Under `-cnocache` the binding exists only in memory, so there is no file to name: `binding` is empty and `error` says so. Nothing is parsed, and `#import` is passed over (tiko-lang `tests/cimport/print-cincludes*.test`).
 
 ## What comes across
 
@@ -329,19 +343,13 @@ print mylib_add( 2, 3 )
 
 The declarations come out of the header for the target being built, and the right library file is chosen for that same target. A cross-platform binding stops being a maintenance problem in two directions at once.
 
-> ⚠️ **They do not resolve paths the same way, and this is a wart.**
+> **Both resolve beside the file that names them — in tiko.**
 >
 > `#foreignlib` resolves its library **relative to the file containing the directive** — that is [the whole reason it exists](modern-Foreignlib), because `#libpath` is relative to the compiler's working directory and therefore unusable in a shipped binding.
 >
-> `#cinclude` does **not** do this. The header is resolved by **Clang**, against Clang's own include search: the compiler's working directory plus any `-cinclude` directories. So in the layout above, `#cinclude once "mylib.h"` needs
+> tiko's `#cinclude` looks for a quoted header in the **working directory**, then **beside the file that wrote the directive**, then in each `-cinclude` directory — C's own rule for `#include "x"`, with the working directory kept first so nothing that resolved before resolves differently. So `#cinclude "vendor/mylib.h"` inside `mylib.ti` finds `mylib/vendor/mylib.h` from any working directory, and the layout above needs no `-cinclude` (tiko-lang 43b53006, 2026-10-13; `tests/cimport/cinclude-beside.test`). It mattered first for the editor, whose scanner runs in the editor's own folder: raylib's header was `TKO0336` there and none of its names reached completion.
 >
-> ```
-> tiko app.tiko -cinclude mylib/vendor
-> ```
->
-> and a bare `#cinclude "vendor/mylib.h"` inside `mylib.ti` resolves against wherever the user happened to stand, not against `mylib.ti`. It is the same trap `#foreignlib` was built to close, still open on the header side.
->
-> Until that changes, a vendored binding has to say which include directory it needs — in its README, or in a `Makefile`. There is no spelling inside the `.ti` that works from every working directory.
+> FBC-Modern does **not** do this: its header is resolved against the working directory and `-cinclude` only, so a binding written for both still has to say which include directory it needs.
 
 There is **no `lib MYLIB` clause**, and there cannot be — the declarations are generated rather than written. It is not needed: a `#foreignlib` contributes its libraries to the link whether or not any declaration names it, exactly as [`#inclib`](Inclib) does. The bound name exists for hand-written declarations that want it.
 
@@ -446,7 +454,7 @@ sqlite3_exec( db, @"select name from part;", @OnRow, 0, 0 )
 sqlite3_close( db )
 ```
 
-Naming the header through the folder — `#cinclude once "vendor/sqlite3.h"` — needs no `-cinclude` **when tiko is run from the directory that contains `vendor/`**, which is how FBC-Modern's shipped example is built. From anywhere else it needs `-cinclude path/to`, the directory that *contains* `vendor/`, because the path is resolved against the working directory and the `-cinclude` directories and not against the file that wrote it. (`-cinclude path/to/vendor` does not do it: the directive already names `vendor/`, and both compilers report the header missing — tiko `TKO0336: unable to import C header vendor/sqlite3.h`, FBC-Modern's `fbc` `error 385`.)
+Naming the header through the folder — `#cinclude once "vendor/sqlite3.h"` — needs no `-cinclude` **when the compiler is run from the directory that contains `vendor/`**, which is how FBC-Modern's shipped example is built. tiko also finds it from anywhere else when `vendor/` sits beside the source, because it looks beside the file that wrote the directive too (since 43b53006); FBC-Modern then needs `-cinclude path/to`, the directory that *contains* `vendor/`. (`-cinclude path/to/vendor` does not do it: the directive already names `vendor/`, and both compilers report the header missing — tiko `TKO0336: unable to import C header vendor/sqlite3.h`, FBC-Modern's `fbc` `error 385`.)
 
 Both examples build with tiko, measured 2026-09-24 at origin/master 50c71751: the first on windows-x86_64 and win64, the second with `-target win64` and `-cinclude vendor`, since a `sqlite3_windows_x86_64.a` built by MinGW does not link on windows-x86_64 (`lld-link: error: undefined symbol: ___chkstk_ms`, `TKO0116`).
 

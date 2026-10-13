@@ -17,6 +17,7 @@
 #include once "driver/cicache.ti"
 #include once "cimport/import.ti"
 #include once "codegen/toolchain.ti"
+#include once "build/events.ti"
 
 namespace Tko.CImportDriver
 
@@ -36,6 +37,14 @@ type CIncludeSession_
     as Tko.StrVec  unitDirs        '' the folder of each file that wrote a #cinclude
     as string      unitState
     as string      unitText        '' every binding this unit has entered, in order
+    '' EVERY #cinclude MET, in order, for --print-cincludes: where it stands, what it named,
+    '' and the binding file it got -- "" with the reason when it got none.
+    as Tko.StrVec  recFile
+    as containers.Array( of long ) recLine
+    as Tko.StrVec  recHeader
+    as Tko.StrVec  recBinding
+    as Tko.StrVec  recError
+    as string      lastWhy         '' the failure the import just reported, in one line
 end type
 
 sub FreeSession( byval p as any ptr )
@@ -97,13 +106,10 @@ private sub ReportFailure_ _
     end select
 end sub
 
-private function Hook_ cdecl _
-    ( byval ctxp as any ptr, byref header as string, byval unicode as boolean, _
+private function Import_ _
+    ( byval ctx as Tko.CompilerContext ptr, byval s as CIncludeSession_ ptr, _
+      byref header as string, byval unicode as boolean, _
       byval root as Tko.FileId, byval at as Tko.SourceLoc ) as Tko.FileId
-
-    dim as Tko.CompilerContext ptr ctx = ctxp
-    if ctx->cinclude = 0 then ctx->cinclude = new CIncludeSession_
-    dim as CIncludeSession_ ptr s = ctx->cinclude
 
     if s->unitRoot <> root then
         s->unitRoot = root
@@ -127,6 +133,7 @@ private function Hook_ cdecl _
     end if
     if s->api.ok = false then
         ctx->diags.Report( Tko.TKO0335, Tko.PointRange( at ), s->api.why )
+        s->lastWhy = s->api.why
         return Tko.FILE_NONE
     end if
 
@@ -207,6 +214,9 @@ private function Hook_ cdecl _
         dim as long irc = ImportChecked( *ctx, s->api, io, res, s->unitText )
         if irc <> 0 then
             ReportFailure_( *ctx, irc, res, header, at )
+            s->lastWhy = "unable to import C header " & header
+            if len( res.why ) then s->lastWhy &= ": " & res.why
+            if res.clangDiags.Count > 0 then s->lastWhy &= ": " & res.clangDiags[0]
             return Tko.FILE_NONE
         end if
         dim as Tko.FileId fid = Tko.FILE_NONE
@@ -236,6 +246,55 @@ private function Hook_ cdecl _
     s->unitState = s->states[hit]
     s->unitText &= s->texts[hit]
     return cast( Tko.FileId, s->fileIds[hit] )
+end function
+
+private function Hook_ cdecl _
+    ( byval ctxp as any ptr, byref header as string, byval unicode as boolean, _
+      byval root as Tko.FileId, byval at as Tko.SourceLoc ) as Tko.FileId
+
+    dim as Tko.CompilerContext ptr ctx = ctxp
+    if ctx->cinclude = 0 then ctx->cinclude = new CIncludeSession_
+    dim as CIncludeSession_ ptr s = ctx->cinclude
+    s->lastWhy = ""
+    dim as Tko.FileId fid = Import_( ctx, s, header, unicode, root, at )
+
+    '' THE RECORD, whatever happened. A binding made from memory (no cache directory:
+    '' -cnocache, or no %LOCALAPPDATA%) has no file a tool could open, so it is reported
+    '' as none, with the reason, rather than as its bare in-memory name.
+    dim as Tko.DecodedLoc d = ctx->sources.Decode( at )
+    dim as string bpath = "", why = s->lastWhy
+    if fid <> Tko.FILE_NONE then
+        if ctx->sources.FileAt( fid )->isVirtual then
+            why = "no binding cache directory: the binding exists only in memory"
+        else
+            bpath = ctx->sources.AbsPathOf( fid )
+        end if
+    elseif len( why ) = 0 then
+        why = "unable to import C header " & header
+    end if
+    s->recFile.Push( ctx->sources.AbsPathOf( d.file ) )
+    s->recLine.Push( d.physLine )
+    s->recHeader.Push( header )
+    s->recBinding.Push( bpath )
+    s->recError.Push( why )
+    return fid
+end function
+
+function PrintJson( byref ctx as Tko.CompilerContext ) as string
+    dim as string o = "{""format"":1,""cincludes"":["
+    dim as CIncludeSession_ ptr s = ctx.cinclude
+    if s <> 0 then
+        for i as long = 0 to s->recFile.Count - 1
+            if i > 0 then o &= ","
+            o &= "{""file"":" & Tko.Build.JsonStr( s->recFile[i] ) & _
+                 ",""line"":" & s->recLine[i] & _
+                 ",""header"":" & Tko.Build.JsonStr( s->recHeader[i] ) & _
+                 ",""binding"":" & Tko.Build.JsonStr( s->recBinding[i] )
+            if len( s->recError[i] ) then o &= ",""error"":" & Tko.Build.JsonStr( s->recError[i] )
+            o &= "}"
+        next
+    end if
+    return o & "]}"
 end function
 
 sub ConfigureHook( byref cfg as Tko.PpConfig, byref ctx as Tko.CompilerContext )

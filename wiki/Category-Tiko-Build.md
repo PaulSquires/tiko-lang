@@ -296,7 +296,7 @@ Copy the matcher into a `tiko check` task to get the same list without building.
 }
 ```
 
-The [tiko language server](https://github.com/PaulSquires/tiko-lsp), given `initializationOptions.compilerPath`, runs `tiko metadata` to learn where a project's imports resolve and answers `tiko/metadata` with its targets.
+The [tiko language server](https://github.com/PaulSquires/tiko-lsp), given `initializationOptions.compilerPath`, runs `tiko metadata` to learn where a project's imports resolve and answers `tiko/metadata` with its targets. It also runs `tiko --print-cincludes` on each file that has a `#cinclude`, and indexes the bindings it names (see [C Header Import](Category-C-Header-Import)).
 
 ## Diagnostics of these commands
 

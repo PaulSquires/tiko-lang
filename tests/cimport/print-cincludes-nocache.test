@@ -1,0 +1,5 @@
+'' --print-cincludes under -cnocache: the binding exists only in memory, so there is no file
+'' a tool could open -- reported as none, with the reason, never as its bare in-memory name.
+'' TEST: cli
+'' ARGS: --print-cincludes -cnocache tests/cimport/src/cinclude-opaque.bas
+'' EXPECT-OUT: "header":"tests/cimport/src/ci/opaque1.h","binding":"","error":"no binding cache directory

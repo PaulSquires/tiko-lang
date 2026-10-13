@@ -18,4 +18,10 @@ declare sub ConfigureHook( byref cfg as Tko.PpConfig, byref ctx as Tko.CompilerC
 '' The session hung on CompilerContext.cinclude, freed with the context.
 declare sub FreeSession( byval p as any ptr )
 
+'' --print-cincludes: every #cinclude this run met, as one JSON object --
+'' {"format":1,"cincludes":[{"file","line","header","binding"[,"error"]}...]}. 'file' is the
+'' absolute path of the file that wrote the directive, 'binding' the absolute path of the
+'' binding it got, "" with 'error' when it got none.
+declare function PrintJson( byref ctx as Tko.CompilerContext ) as string
+
 end namespace

@@ -646,6 +646,7 @@ function Parse _
         case Tko.OPT_RESOLVE   : opts.resolveOnly = true
         case Tko.OPT_MANGLE    : opts.dumpMangle = true
         case Tko.OPT_PRINTGRAPH : opts.printGraph = true
+        case Tko.OPT_PRINTCINC : opts.printCIncludes = true
         case Tko.OPT_EMITTKI   : opts.emitTki = true
         case Tko.OPT_FRONTEND : opts.frontendOnly = true
         case Tko.OPT_NOMODCACHE : opts.noModuleCache = true

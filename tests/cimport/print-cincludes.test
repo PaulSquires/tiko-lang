@@ -1,0 +1,17 @@
+'' --print-cincludes: EVERY #cinclude THE INPUT REACHES, with the binding file it got, as one
+'' JSON object -- for tiko-lsp, which has its own parser and indexes each binding as an
+'' #include. 'file' is the file that wrote the directive (printcinc.bi for the included
+'' one), a repeat names the same binding, and a header that cannot be imported has no
+'' binding and says why; the JSON is printed all the same, and the exit is the import's.
+'' TEST: cli
+'' CLEAN: build/.pci
+'' ARGS: --print-cincludes -ccachedir build/.pci/cache tests/cimport/src/printcinc/main.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: {"format":1,"cincludes":[{"file":
+'' EXPECT-OUT: main.bas","line":3,"header":"tests/cimport/src/ci/a.h","binding":"
+'' EXPECT-OUT: main.bas","line":4,"header":"tests/cimport/src/ci/b.h","binding":"
+'' EXPECT-OUT: main.bas","line":5,"header":"tests/cimport/src/ci/a.h","binding":"
+'' EXPECT-OUT: printcinc.bi","line":2,"header":"../sub/beside.h","binding":"
+'' EXPECT-OUT: main.bas","line":7,"header":"tests/cimport/src/ci/no-such-header.h","binding":"","error":"unable to import C header tests/cimport/src/ci/no-such-header.h
+'' EXPECT-OUT: binding.bi"}
+'' EXPECT-OUT: error TKO0336

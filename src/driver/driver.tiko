@@ -219,6 +219,7 @@ private function AnotherModeWasAsked_( byref o as Tko.DriverOptions ) as boolean
     if o.dumpIr orelse o.emitIr orelse o.emitAsm orelse o.dumpUdt then return true
     if o.dumpVtable orelse o.ppOnly orelse o.dumpTokens orelse o.dumpAst then return true
     if o.parseExpr orelse o.parseOnly orelse o.printGraph orelse o.emitTki then return true
+    if o.printCIncludes then return true
     return false
 end function
 
@@ -926,6 +927,36 @@ function Run _
         dim as long grc = Tko.Modules.PrintGraph( ctx, ctx.sources.Count( ) )
         ctx.diags.Flush( )
         return Tko.DiagOut.Finish( ctx, grc )
+    end if
+
+    '' ---- where each #cinclude's binding is, printed and nothing else -------
+    '' For a tool with its own parser (tiko-lsp), which indexes each binding as an
+    '' #include. The PREPROCESSOR ALONE, so the hook imports exactly as a build does --
+    '' the same disk cache, the same delta chain -- and nothing is parsed. '#import' is
+    '' passed over without a word (importsBuilt with no importFn): the interfaces cost a
+    '' module build and can only matter to an '#if' around a #cinclude. '#cmdline' restarts
+    '' as a compile's does, because its -cinclude and -cdefine change what is imported.
+    if ctx.options.printCIncludes then
+        dim as long nroots = ctx.sources.Count( )
+        for i as long = 1 to nroots
+            dim as Tko.PpResult r
+            dim as Tko.PpConfig cfg = MakePpConfig( ctx )
+            cfg.cmdlineIgnored = (i > 1)
+            cfg.importsBuilt = true
+            cfg.importFn = 0
+            Tko.PpRun( ctx.sources, cast( Tko.FileId, i ), ctx.names, ctx.keywords, _
+                       ctx.diags, cfg, r )
+            if (i = 1) andalso (restartDepth = 0) andalso (r.cmdlineArgs.Count > 0) then
+                dim as Tko.StrVec again
+                for k as long = 0 to r.cmdlineArgs.Count - 1
+                    again.Push( r.cmdlineArgs[k] )
+                next
+                return RestartWith_( args, again, restartDepth, buildOut )
+            end if
+        next
+        print Tko.CImportDriver.PrintJson( ctx )
+        ctx.diags.Flush( )
+        return Tko.DiagOut.Finish( ctx, iif( ctx.diags.ErrorCount( ) > 0, Tko.EXIT_USER_ERROR, Tko.EXIT_OK ) )
     end if
 
     '' ---- what this build can do -------------------------------------------

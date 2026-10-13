@@ -144,6 +144,8 @@ namespace Tko
     OPT( OPT_CNOVERIFY, "-cnoverify",     OPTK_FLAG,  OPTCAT_CIMPORT, "",     "do not check tiko's layout of each imported record against clang's" )
     OPT( OPT_CNOCACHE,  "-cnocache",      OPTK_FLAG,  OPTCAT_CIMPORT, "",     "#cinclude neither reads nor writes the binding cache" )
     OPT( OPT_CCACHEDIR, "-ccachedir",     OPTK_VALUE, OPTCAT_CIMPORT, "dir",  "where #cinclude keeps its bindings (default: the user's cache directory)" )
+    '' ...and where each one's binding is, for a tool with its own parser (tiko-lsp).
+    OPT( OPT_PRINTCINC, "--print-cincludes", OPTK_FLAG, OPTCAT_CIMPORT, "", "import each #cinclude the inputs reach, print where its binding is as JSON, and stop" )
     OPT( OPT_VTABLE,    "--dump-vtable",  OPTK_FLAG, OPTCAT_DEVEL, "",        "print each UDT's virtual method table" )
     OPT( OPT_RTL,       "--dump-rtl",     OPTK_FLAG, OPTCAT_DEVEL, "",        "print the runtime inventory and stop" )
     OPT( OPT_PARSEEXPR, "--parse-expr",   OPTK_FLAG, OPTCAT_DEVEL, "",        "parse each line as one expression and dump it" )
@@ -194,6 +196,8 @@ namespace Tko
         as long    userIncludeCount
         '' --print-graph: resolve the imports, print the build order, stop.
         as boolean printGraph
+        '' --print-cincludes: preprocess, import each #cinclude, print its binding's path.
+        as boolean printCIncludes
         '' --emit-tki: check the module directory given, print its interface, stop.
         as boolean emitTki
         '' --no-module-cache: the imports are built every time, and nothing is stored.

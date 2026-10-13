@@ -1,0 +1,8 @@
+'' --print-cincludes HONOURS '#cmdline' as a compile does: a.h is found only through the
+'' -cinclude the directive adds, so without the restart it would be TKO0336.
+'' TEST: cli
+'' CLEAN: build/.pcc
+'' ARGS: --print-cincludes -ccachedir build/.pcc tests/cimport/src/printcinc/cmdline.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: cmdline.bas","line":3,"header":"a.h","binding":"
+'' EXPECT-NOT: "error"
