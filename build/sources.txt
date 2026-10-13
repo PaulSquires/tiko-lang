@@ -97,6 +97,7 @@ src/codegen/llvmrefs.tiko
 src/codegen/llvmemit.tiko
 src/codegen/toolchain.tiko
 src/codegen/objinfo.tiko
+src/codegen/dllimplib.tiko
 src/driver/cmdline.tiko
 src/driver/driver.tiko
 src/driver/phasetime.tiko

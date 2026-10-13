@@ -1,0 +1,18 @@
+'' '#foreignlib NAME dynamic' THAT FINDS ONLY A .dll (book work item T98). lld-link cannot
+'' link a DLL -- 'bad file type. Did you specify a DLL instead of an import library?' --
+'' so on windows-x86_64 the link makes the import library from the DLL's own export table
+'' (codegen/dllimplib) and llvm-dlltool, then deletes it with the objects. The DLL here is
+'' built by the first step; its import library, libgreet.dll.a, is not a name '#foreignlib'
+'' tries for "greet" (no 'lib' prefix is added), so the .dll is what it finds.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' CLEAN: build/.dlb
+'' COPY: tests/driver/src/dllbare => build/.dlb/src
+'' STEP: -target windows-x86_64 -dll build/.dlb/src/greet.bas -o build/.dlb/src/greet.dll
+'' ARGS: -target windows-x86_64 build/.dlb/src/app.bas -o build/.dlb/src/app.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.dlb/src/app.exe
+'' EXPECT-FILE-HAS: build/.dlb/src/app.exe :: greet.dll
+'' EXPECT-NO-FILE: build/.dlb/src/app.exe.implib0.lib
+'' RUN: build/.dlb/src/app.exe
+'' EXPECT-RUN-OUT: 5

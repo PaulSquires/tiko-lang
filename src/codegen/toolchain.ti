@@ -29,6 +29,9 @@ namespace Tko.Codegen
         '' external install it already documents. fbc reaches for GoRC.exe out of
         '' its own bin/, which is a tool tiko does not ship and has no claim on.
         as string rcExe
+        '' llvm-dlltool, beside clang as well: the import library for a DLL that
+        '' '#foreignlib' found without one (MakeImportLib, book work item T98).
+        as string dlltoolExe
         '' Where libfb lives, IN SEARCH ORDER. A list, not one path: a runtime may be
         '' partial and resolve the rest from one behind it.
         as containers.Array( of string ) libPaths
@@ -114,6 +117,12 @@ namespace Tko.Codegen
     declare function LinkExe _
         ( byref t as ToolPaths, byref target as TargetDescription, _
           byref objs as Tko.StrVec, byref outPath as string ) as long
+
+    '' An import library 'outLib' from the .def 'defFile', for the DLL the .def names in its
+    '' LIBRARY line: llvm-dlltool, x86-64. 0, or the tool's exit code; -1 when there is no
+    '' llvm-dlltool beside clang.
+    declare function MakeImportLib _
+        ( byref t as ToolPaths, byref defFile as string, byref outLib as string ) as long
 
 end namespace
 

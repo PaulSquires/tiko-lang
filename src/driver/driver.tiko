@@ -22,6 +22,7 @@
 #include once "codegen/abi.ti"
 #include once "codegen/toolchain.ti"
 #include once "codegen/objinfo.ti"
+#include once "codegen/dllimplib.ti"
 #include once "codegen/llvmemit.ti"
 #include once "mir/rtl.ti"
 #include once "driver/cimportmode.ti"
@@ -660,8 +661,38 @@ private function LinkAll _
     for i as long = 0 to ctx.options.pragmaLibs.Count - 1
         tools.libs.Push( ctx.options.pragmaLibs[i] )
     next
+    '' A '.dll' THAT '#foreignlib' FOUND WITHOUT AN IMPORT LIBRARY (T98). lld-link refuses
+    '' a DLL -- 'bad file type' -- so on windows-x86_64 the import library is made here,
+    '' from the DLL's own export table, beside the output like the objects, and deleted
+    '' with them. The MinGW target keeps the file: GNU-style links take a DLL as it is.
     for i as long = 0 to ctx.options.pragmaLibFiles.Count - 1
-        tools.libFiles.Push( ctx.options.pragmaLibFiles[i] )
+        dim as string lf = ctx.options.pragmaLibFiles[i]
+        if (ctx.options.target = Tko.TARGET_WINDOWS_X86_64) andalso _
+           (len( lf ) > 4) andalso (lcase( right( lf, 4 ) ) = ".dll") then
+            dim as string why
+            dim as string defText = Tko.Codegen.DllDefText( lf, why )
+            if len( defText ) = 0 then
+                return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0172, lf, why )
+            end if
+            dim as string defFile = ctx.options.outputPath & ".implib" & i & ".def"
+            dim as string implib = ctx.options.outputPath & ".implib" & i & ".lib"
+            dim as long fh = freefile
+            if open( defFile for output as #fh ) <> 0 then
+                return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0172, lf, "'" & defFile & "' cannot be written" )
+            end if
+            print #fh, defText;
+            close #fh
+            keep.Push( defFile )
+            dim as long drc = Tko.Codegen.MakeImportLib( tools, defFile, implib )
+            if drc <> 0 then
+                return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0172, lf, _
+                    iif( drc = -1, "there is no llvm-dlltool beside clang, at '" & tools.dlltoolExe & "'", _
+                                   "llvm-dlltool failed (exit " & drc & ")" ) )
+            end if
+            keep.Push( implib )
+            lf = implib
+        end if
+        tools.libFiles.Push( lf )
     next
     for i as long = 0 to ctx.options.linkerOpts.Count - 1
         tools.linkerOpts.Push( ctx.options.linkerOpts[i] )

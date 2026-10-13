@@ -93,12 +93,15 @@ function FindTools _
     next
     dim as string arName = "llvm-ar"
     dim as string rcName = "llvm-rc"
+    dim as string dlltoolName = "llvm-dlltool"
     #ifdef __FB_WIN32__
         arName += ".exe"
         rcName += ".exe"
+        dlltoolName += ".exe"
     #endif
     t.arExe = left( t.clangExe, cut_ ) & arName
     t.rcExe = left( t.clangExe, cut_ ) & rcName
+    t.dlltoolExe = left( t.clangExe, cut_ ) & dlltoolName
 
     if FileExists_( t.clangExe ) = false then
         t.why = "clang not found at '" & t.clangExe & "'" & _
@@ -175,6 +178,14 @@ private function Exec_ _
         end if
     #endif
     return exec( exe, args )
+end function
+
+'' AN IMPORT LIBRARY FOR A DLL THAT CAME WITHOUT ONE (T98; see dllimplib.ti). The .def
+'' names the DLL, so no -D: its LIBRARY line is the name the program will load.
+function MakeImportLib _
+    ( byref t as ToolPaths, byref defFile as string, byref outLib as string ) as long
+    if FileExists_( t.dlltoolExe ) = false then return -1
+    return Exec_( t, t.dlltoolExe, "-m i386:x86-64 -d " & Q( defFile ) & " -l " & Q( outLib ) )
 end function
 
 '' A '.rc' TO A '.res', which lld-link consumes directly -- no separate cvtres

@@ -1,0 +1,36 @@
+'' dllimplib.ti -- an import library for a DLL that came without one (book work item T98).
+''
+'' lld-link cannot link a .dll: it links the import library that names the DLL's exports.
+'' A '#foreignlib NAME dynamic' spec may still find only the DLL -- SQLite's Windows
+'' download is sqlite3.dll and a .def with no LIBRARY line, and nothing else -- and that
+'' file went to the linker as it was: 'bad file type. Did you specify a DLL instead of an
+'' import library?'. On windows-x86_64 the link now makes the import library itself: this
+'' file reads the DLL's export table into the text of a .def, and toolchain.tiko's
+'' MakeImportLib hands that to llvm-dlltool, which ships beside clang.
+''
+'' THE DLL IS NAMED AS IT NAMES ITSELF -- the name in its export directory, which is the
+'' name it was built as -- and not by the file's name. That is the counterpart of a
+'' soname: a copy renamed for the link ('sqlite3_windows_x86_64.dll', for '#foreignlib's
+'' target tags) still makes a program that loads 'sqlite3.dll'. A DLL with no name there
+'' is named by its file.
+''
+'' DATA OR CODE, per export: an export whose address lies in a section that holds no code
+'' is written 'DATA', as build/mkmsvcdef.py decides for the toolchain's own import
+'' libraries -- a data export has no call thunk. A forwarder (an address inside the export
+'' directory itself) is code. Exports with no name, by ordinal only, are left out: no C
+'' declaration can name them.
+
+#ifndef __TKO_DLLIMPLIB_BI__
+#define __TKO_DLLIMPLIB_BI__
+
+#include once "tko.ti"
+
+namespace Tko.Codegen
+
+    '' The text of a .def for 'dll': 'LIBRARY <name>', 'EXPORTS', one line per named
+    '' export. "" with 'why' set when the file is not a 64-bit x86-64 DLL with exports.
+    declare function DllDefText( byref dll as string, byref why as string ) as string
+
+end namespace
+
+#endif

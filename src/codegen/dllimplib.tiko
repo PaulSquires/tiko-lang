@@ -1,0 +1,146 @@
+'' dllimplib.tiko -- a DLL's export table, as a .def. See dllimplib.ti.
+
+#import "std/containers"
+#include once "codegen/dllimplib.ti"
+
+namespace Tko.Codegen
+
+private function U16_( byref b as string, byval at_ as longint ) as longint
+    if (at_ < 0) orelse (at_ + 2 > len( b )) then return 0
+    return b[at_] or (clngint( b[at_ + 1] ) shl 8)
+end function
+
+private function U32_( byref b as string, byval at_ as longint ) as longint
+    if (at_ < 0) orelse (at_ + 4 > len( b )) then return 0
+    return b[at_] or (clngint( b[at_ + 1] ) shl 8) or _
+           (clngint( b[at_ + 2] ) shl 16) or (clngint( b[at_ + 3] ) shl 24)
+end function
+
+'' The NUL-terminated text at file offset 'at_', or "" when it runs off the end.
+private function CStr_( byref b as string, byval at_ as longint ) as string
+    if (at_ < 0) orelse (at_ >= len( b )) then return ""
+    dim as longint e = at_
+    do while (e < len( b )) andalso (b[e] <> 0)
+        e += 1
+    loop
+    if e >= len( b ) then return ""
+    return mid( b, at_ + 1, e - at_ )
+end function
+
+'' The section table, read once: virtual address, extent, file offset, characteristics.
+type PeSection_
+    as longint va, extent, raw, chars
+end type
+
+'' The section holding 'rva', or -1.
+private function SectionOf_( byref secs as containers.Array( of PeSection_ ), byval rva as longint ) as long
+    for i as long = 0 to secs.Count - 1
+        if (rva >= secs[i].va) andalso (rva < secs[i].va + secs[i].extent) then return i
+    next
+    return -1
+end function
+
+private function OffsetOf_( byref secs as containers.Array( of PeSection_ ), byval rva as longint ) as longint
+    dim as long s = SectionOf_( secs, rva )
+    if s < 0 then return -1
+    return secs[s].raw + (rva - secs[s].va)
+end function
+
+private function BaseName_( byref p as string ) as string
+    for i as long = len( p ) to 1 step -1
+        dim as string ch = mid( p, i, 1 )
+        if (ch = "/") orelse (ch = "\") then return mid( p, i + 1 )
+    next
+    return p
+end function
+
+function DllDefText( byref dll as string, byref why as string ) as string
+    dim as string b
+    dim as long fh = freefile
+    if open( dll for binary access read as #fh ) <> 0 then
+        why = "it cannot be opened"
+        return ""
+    end if
+    if lof( fh ) > 0 then
+        b = space( lof( fh ) )
+        get #fh, , b
+    end if
+    close #fh
+
+    if U16_( b, 0 ) <> &h5A4D then
+        why = "it is not a Windows DLL (no 'MZ' header)"
+        return ""
+    end if
+    dim as longint pe = U32_( b, &h3C )
+    if U32_( b, pe ) <> &h4550 then
+        why = "it is not a Windows DLL (no 'PE' header)"
+        return ""
+    end if
+    dim as longint coff = pe + 4
+    if U16_( b, coff ) <> &h8664 then
+        why = "it is not a 64-bit x86-64 DLL (machine &h" & hex( U16_( b, coff ), 4 ) & ")"
+        return ""
+    end if
+    dim as longint nsec = U16_( b, coff + 2 )
+    dim as longint optsz = U16_( b, coff + 16 )
+    dim as longint opt = coff + 20
+    '' PE32+, the 64-bit optional header: the data directories start at 112, and the
+    '' first of them is the export table.
+    if (U16_( b, opt ) <> &h20B) orelse (U32_( b, opt + 108 ) < 1) then
+        why = "it has no PE32+ export directory"
+        return ""
+    end if
+    dim as longint expRva = U32_( b, opt + 112 )
+    dim as longint expSize = U32_( b, opt + 116 )
+    if expRva = 0 then
+        why = "it exports nothing"
+        return ""
+    end if
+
+    dim as containers.Array( of PeSection_ ) secs
+    for i as longint = 0 to nsec - 1
+        dim as longint h = opt + optsz + i * 40
+        dim as PeSection_ s
+        s.va = U32_( b, h + 12 )
+        s.extent = U32_( b, h + 8 )
+        if U32_( b, h + 16 ) > s.extent then s.extent = U32_( b, h + 16 )
+        s.raw = U32_( b, h + 20 )
+        s.chars = U32_( b, h + 36 )
+        secs.Push( s )
+    next
+
+    dim as longint ed = OffsetOf_( secs, expRva )
+    if ed < 0 then
+        why = "its export directory lies outside every section"
+        return ""
+    end if
+    dim as string name_ = CStr_( b, OffsetOf_( secs, U32_( b, ed + 12 ) ) )
+    if len( name_ ) = 0 then name_ = BaseName_( dll )
+    dim as longint nNames = U32_( b, ed + 24 )
+    dim as longint funcs = OffsetOf_( secs, U32_( b, ed + 28 ) )
+    dim as longint names = OffsetOf_( secs, U32_( b, ed + 32 ) )
+    dim as longint ords = OffsetOf_( secs, U32_( b, ed + 36 ) )
+    if (nNames = 0) orelse (funcs < 0) orelse (names < 0) orelse (ords < 0) then
+        why = "it exports nothing by name"
+        return ""
+    end if
+
+    dim as string nl = chr( 10 )
+    dim as string def_ = "LIBRARY """ & name_ & """" & nl & "EXPORTS" & nl
+    for i as longint = 0 to nNames - 1
+        dim as string sym = CStr_( b, OffsetOf_( secs, U32_( b, names + i * 4 ) ) )
+        if len( sym ) = 0 then continue for
+        dim as longint frva = U32_( b, funcs + U16_( b, ords + i * 2 ) * 4 )
+        dim as boolean forwarder = (frva >= expRva) andalso (frva < expRva + expSize)
+        dim as boolean isData = false
+        if forwarder = false then
+            dim as long s = SectionOf_( secs, frva )
+            '' IMAGE_SCN_CNT_CODE or IMAGE_SCN_MEM_EXECUTE: code.
+            if (s >= 0) andalso ((secs[s].chars and (&h20 or &h20000000)) = 0) then isData = true
+        end if
+        def_ &= "  " & sym & iif( isData, " DATA", "" ) & nl
+    next
+    return def_
+end function
+
+end namespace
