@@ -3,4 +3,4 @@
 declare function strnlen cdecl alias "strnlen" _
     ( byval s as const zstring ptr, byval maxlen as uinteger ) as uinteger
 
-print strnlen( "hello", 3 ); strnlen( "hello", 99 )
+print strnlen( "hello", 3 ); " "; strnlen( "hello", 99 )
