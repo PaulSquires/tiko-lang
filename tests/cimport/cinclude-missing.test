@@ -5,4 +5,4 @@
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: cinclude-missing.bas(3,1): error TKO0336: unable to import C header tests/cimport/src/ci/no-such.h
 '' EXPECT-OUT: note: clang: tiko-cimport.c:1:10: fatal error: 'tests/cimport/src/ci/no-such.h' file not found
-'' EXPECT-OUT: note: a header is found by the path given, then in each -cinclude directory
+'' EXPECT-OUT: note: a header is found by the path given, then beside the file that names it, then in each -cinclude directory

@@ -1,0 +1,11 @@
+'' A MEMBER OF AN ANONYMOUS ENUM is in the scan. It has no enum scope, so its only copy is
+'' the enclosing scope's -- the one the scan drops for a NAMED enum as a duplicate -- and
+'' raylib's KEY_ESCAPE, a #cinclude binding's anonymous enum member, never reached the
+'' editor's completion. A named enum's members stay listed once, under the enum.
+'' TEST: cli
+'' ARGS: --dump-scan tests/api/src/scananonenum.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: enumval ANON_A  @0:7:5  parent=-1
+'' EXPECT-OUT: enumval ANON_B  @0:8:5  parent=-1
+'' EXPECT-OUT: enumval APPLE as Fruit  @0:4:5  parent=0
+'' EXPECT-OUT: enumval IN_BOX  @0:12:9  parent=

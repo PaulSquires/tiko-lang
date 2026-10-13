@@ -33,6 +33,7 @@ type CIncludeSession_
     as Tko.FileId  unitRoot
     as Tko.StrVec  unitHeaders
     as containers.Array( of long ) unitFiles
+    as Tko.StrVec  unitDirs        '' the folder of each file that wrote a #cinclude
     as string      unitState
     as string      unitText        '' every binding this unit has entered, in order
 end type
@@ -42,13 +43,17 @@ sub FreeSession( byval p as any ptr )
 end sub
 
 '' WHAT MAKES TWO IMPORTS THE SAME: the headers in order (a delta is keyed by the whole
-'' chain), the target, UNICODE, and every option that reaches clang or the importer.
+'' chain), the folders they are looked for in, the target, UNICODE, and every option that
+'' reaches clang or the importer.
 private function Key_ _
     ( byref ctx as Tko.CompilerContext, byref headers as Tko.StrVec, _
-      byval unicode as boolean ) as string
+      byref dirs as Tko.StrVec, byval unicode as boolean ) as string
     dim as string k = Tko.TargetName( ctx.options.target ) & chr( 10 ) & unicode & chr( 10 )
     for i as long = 0 to headers.Count - 1
         k &= "h " & headers[i] & chr( 10 )
+    next
+    for i as long = 0 to dirs.Count - 1
+        k &= "q " & dirs[i] & chr( 10 )
     next
     for i as long = 0 to ctx.options.cIncludes.Count - 1
         k &= "I " & ctx.options.cIncludes[i] & chr( 10 )
@@ -85,7 +90,8 @@ private sub ReportFailure_ _
         next
         if res.namedNotFound then
             ctx.diags.AddNote( Tko.TKO0900, rng, _
-                "a header is found by the path given, then in each -cinclude directory" )
+                "a header is found by the path given, then beside the file that names it, " & _
+                "then in each -cinclude directory" )
         end if
         if res.notFound then ctx.diags.AddNote( Tko.TKO0900, rng, NotFoundHint( ctx ) )
     end select
@@ -103,6 +109,7 @@ private function Hook_ cdecl _
         s->unitRoot = root
         s->unitHeaders.Clear( )
         s->unitFiles.Clear( )
+        s->unitDirs.Clear( )
         s->unitState = ""
         s->unitText = ""
     end if
@@ -128,7 +135,29 @@ private function Hook_ cdecl _
         chain.Push( s->unitHeaders[i] )
     next
     chain.Push( header )
-    dim as string key = Key_( *ctx, chain, unicode )
+    '' A QUOTED HEADER IS LOOKED FOR BESIDE THE FILE THAT NAMES IT, as C's '#include "x"'
+    '' is and as '#include' and '#foreignlib' are here -- not only in the working
+    '' directory. tikoParser.dll runs inside the EDITOR, whose working directory is its
+    '' own: '#cinclude "raylib\include\raylib.h"' imported under 'tiko build', run from
+    '' the source's folder, and was TKO0336 to the editor's scan, so not one raylib name
+    '' reached completion. The folder goes to clang as -iquote, after the working
+    '' directory, so nothing that resolved before resolves differently; the header stays as
+    '' written, because a binding's text holds no absolute path.
+    dim as Tko.StrVec dirs
+    for i as long = 0 to s->unitDirs.Count - 1
+        dirs.Push( s->unitDirs[i] )
+    next
+    dim as string srcPath = ctx->sources.AbsPathOf( ctx->sources.Decode( at ).file )
+    dim as long sl = instrrev( srcPath, any "/\" )
+    if sl > 1 then
+        dim as string sd = left( srcPath, sl - 1 )
+        dim as boolean seen = false
+        for i as long = 0 to dirs.Count - 1
+            if dirs[i] = sd then seen = true
+        next
+        if seen = false then dirs.Push( sd )
+    end if
+    dim as string key = Key_( *ctx, chain, dirs, unicode )
 
     dim as long hit = -1
     for i as long = 0 to s->keys.Count - 1
@@ -163,6 +192,9 @@ private function Hook_ cdecl _
             io.headers.Push( chain[i] )
         next
         FillOptions( *ctx, s->clangExe, io )
+        for i as long = 0 to dirs.Count - 1
+            io.copts.Push( "-iquote" & dirs[i] )
+        next
         '' UNICODE ON THE FREEBASIC SIDE IS UNICODE ON THE C SIDE: '#define UNICODE' then
         '' '#cinclude "windows.h"' is how windows.bi has always been driven, and it
         '' selects MessageBoxW behind MessageBox.
@@ -196,6 +228,10 @@ private function Hook_ cdecl _
     end if
 
     s->unitHeaders.Push( header )
+    s->unitDirs.Clear( )
+    for i as long = 0 to dirs.Count - 1
+        s->unitDirs.Push( dirs[i] )
+    next
     s->unitFiles.Push( s->fileIds[hit] )
     s->unitState = s->states[hit]
     s->unitText &= s->texts[hit]

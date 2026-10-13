@@ -326,6 +326,14 @@ private sub AddThis_ _
     if udtRec >= 0 then h.r->syms[r].typeText = h.r->syms[udtRec].name
 end sub
 
+'' A member of an ANONYMOUS enum: its type is the name Resolve generates for one, fbc's
+'' 'TMP$<n>', which no source can spell.
+private function AnonEnumMember_( byref h as Harvest_, byval s as Tko.Symbol ptr ) as boolean
+    if s->type_ = Tko.TYPE_NONE then return false
+    if h.ctx->types.Kind( s->type_ ) <> Tko.TK_ENUM then return false
+    return lcase( left( Spell_( h, h.ctx->types.NameOf( s->type_ ) ), 4 ) ) = "tmp$"
+end function
+
 private sub HarvestSymbol_ _
     ( byref h as Harvest_, byval sid as Tko.SymbolId, byval sc as long )
 
@@ -339,9 +347,17 @@ private sub HarvestSymbol_ _
 
     '' AN ENUM'S CONSTANT IS DECLARED TWICE: in the enum's own scope, and again in the
     '' enclosing one when the name is free. The enum's copy is the one with an owner.
+    '' AN ANONYMOUS ENUM has no scope, so the enclosing copy is its member's ONLY one --
+    '' and every C enum a #cinclude binding writes is anonymous ('type KeyboardKey as
+    '' long' then 'enum ... end enum'), so raylib's KEY_ESCAPE and every FLAG_* were
+    '' missing from the scan, and from the editor's completion with it.
+    dim as boolean anonMember = false
     if sk = Tko.SYM_ENUMCONST then
-        if scp->owner = Tko.SYMBOL_NONE then return
-        if cast( Tko.SymbolKind, h.syms->SymbolAt( scp->owner )->kind ) <> Tko.SYM_ENUM then return
+        anonMember = AnonEnumMember_( h, s )
+        if anonMember = false then
+            if scp->owner = Tko.SYMBOL_NONE then return
+            if cast( Tko.SymbolKind, h.syms->SymbolAt( scp->owner )->kind ) <> Tko.SYM_ENUM then return
+        end if
     end if
     '' 'extends T' IS A FIELD NAMED 'base'; it is the type's parent, not a member.
     if sk = Tko.SYM_FIELD then
@@ -394,7 +410,9 @@ private sub HarvestSymbol_ _
         if bt <> Tko.TYPE_NONE then h.r->syms[ri].typeText = TypeText_( h, bt, ignore )
     case Tko.SYM_ENUM, Tko.SYM_NAMESPACE
     case else
-        h.r->syms[ri].typeText = TypeText_( h, s->type_, fl )
+        '' An anonymous enum's member has no type a host could look up: 'TMP$<n>' is not
+        '' a name, so it gets none.
+        if anonMember = false then h.r->syms[ri].typeText = TypeText_( h, s->type_, fl )
     end select
 
     if (s->flags and Tko.SYMF_SHARED) <> 0 then fl or= SF_SHARED

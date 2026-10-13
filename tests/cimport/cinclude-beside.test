@@ -1,0 +1,6 @@
+'' A QUOTED #cinclude HEADER IS FOUND BESIDE THE FILE THAT NAMES IT, not only in the
+'' working directory: the editor's scanner runs in the editor's own folder, and raylib's
+'' '#cinclude "raylib\include\raylib.h"' was TKO0336 there.
+'' TEST: cli
+'' ARGS: --dump-ir -cnocache tests/cimport/src/sub/cinclude-beside.bas
+'' EXPECT-EXIT: 0
