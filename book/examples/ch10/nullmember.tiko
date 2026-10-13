@@ -8,6 +8,6 @@ type Point
     x as int32
 end type
 
-dim as Point ptr p = 0
+dim as Point ptr p = nullptr
 print p->x
 print "not reached"

@@ -14,14 +14,14 @@ function Push( byval head as Node ptr, byval v as int32 ) as Node ptr
     return n
 end function
 
-dim as Node ptr head = 0
+dim as Node ptr head = nullptr
 for i as int32 = 1 to 5
     head = Push( head, i * i )
 next
 
 print "the list:";
 dim as Node ptr p = head
-do while p <> 0
+do while p <> nullptr
     print p->value;
     p = p->next_
 loop
@@ -29,7 +29,7 @@ print
 
 '' Free every node. Read next_ BEFORE deleting the node it is in.
 dim as int32 freed = 0
-do while head <> 0
+do while head <> nullptr
     dim as Node ptr after = head->next_
     delete head
     head = after

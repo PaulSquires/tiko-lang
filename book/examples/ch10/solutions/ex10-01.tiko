@@ -15,7 +15,7 @@ sub AddItem( byref b as IntBuffer, byval v as int32 )
         dim as int32 newCap = iif( b.capacity = 0, 4, b.capacity * 2 )
         dim as int32 ptr grown = reallocate( b.items, _
                                              newCap * sizeof( int32 ) )
-        if grown = 0 then
+        if grown = nullptr then
             print "out of memory"
             end 1
         end if
@@ -29,7 +29,7 @@ end sub
 
 sub Release( byref b as IntBuffer )
     deallocate( b.items )
-    b.items = 0
+    b.items = nullptr
     b.count = 0
     b.capacity = 0
 end sub
@@ -42,4 +42,4 @@ next
 print "count"; b.count; ", capacity"; b.capacity
 print "first"; b.items[0]; ", last"; b.items[b.count - 1]
 Release( b )
-print "released: items is null: "; cbool( b.items = 0 )
+print "released: items is null: "; cbool( b.items = nullptr )

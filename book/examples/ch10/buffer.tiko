@@ -2,7 +2,7 @@
 
 '' allocate returns raw memory: uninitialised, and yours to free.
 dim as int32 ptr p = allocate( 4 * sizeof( int32 ) )
-if p = 0 then
+if p = nullptr then
     print "out of memory"
     end 1
 end if
@@ -13,7 +13,7 @@ print "allocated:"; p[0]; p[1]; p[2]; p[3]
 '' reallocate grows (or shrinks) a block, keeping its contents. It
 '' may MOVE the block, so the old pointer must not be used again.
 dim as int32 ptr grown = reallocate( p, 6 * sizeof( int32 ) )
-if grown = 0 then
+if grown = nullptr then
     deallocate( p )             '' on failure the old block survives
     end 1
 end if
@@ -21,7 +21,7 @@ p = grown
 p[4] = 50 : p[5] = 60
 print "reallocated:"; p[0]; p[3]; " and new"; p[4]; p[5]
 deallocate( p )
-p = 0                           '' so nothing can use it by mistake
+p = nullptr                     '' so nothing can use it by mistake
 
 '' callocate zeroes the memory it returns.
 dim as int32 ptr z = callocate( 4, sizeof( int32 ) )
@@ -32,5 +32,5 @@ clear( *z, 255, 4 * sizeof( int32 ) )
 print "after clear( 255 ): "; z[0]; " "; z[3]
 deallocate( z )
 
-deallocate( 0 )                 '' freeing null does nothing, safely
+deallocate( nullptr )           '' freeing null does nothing, safely
 print "done"

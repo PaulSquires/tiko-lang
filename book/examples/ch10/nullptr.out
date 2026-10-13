@@ -1,0 +1,7 @@
+0 is an integer, so it picks the integer overload:
+  Show( integer )
+nullptr is a pointer:
+  Show( any ptr )
+var from 0, then var from nullptr:
+  Show( integer )
+  Show( any ptr )

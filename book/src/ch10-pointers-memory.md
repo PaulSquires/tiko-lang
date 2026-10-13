@@ -28,10 +28,29 @@ shared pointers. Learn the raw form first, because every one of those tools is b
 | `@n` or `varptr( n )` | the address of `n` |
 | `*p` | the value at `p` — readable and writable |
 | `p->x` | field `x` of the type at `p`; the same as `( *p ).x` |
-| `0` | the null pointer: an address of nothing |
+| `nullptr` | the null pointer: an address of nothing |
 
 Writing through `*p` changed `n`, because `p` holds `n`'s address — there is one value and two ways
 to reach it. That sharing is the whole point of a pointer, and the source of every pointer bug.
+
+### nullptr, not 0
+
+`0` works as a null pointer too: `p = 0` and `if p = 0` are legal, and existing code is full of
+them. But `0` is an integer, and wherever the compiler has to choose a type for it, it chooses an
+integer's:
+
+```tiko
+{{#include ../examples/ch10/nullptr.tiko}}
+```
+
+```text
+{{#include ../examples/ch10/nullptr.out}}
+```
+
+`nullptr` is an `any ptr` whose value is 0, so it converts to every pointer type — typed pointers,
+`zstring ptr`, procedure pointers — and an overload, `var` and a generic all see a pointer. Against
+two *pointer* overloads it matches both equally and the call is an error; `cptr( zstring ptr,
+nullptr )` names the one you mean. This book writes `nullptr` everywhere.
 
 ## Arithmetic counts elements
 
@@ -123,20 +142,20 @@ to a const int32" — and the rule falls out.
 
 | Call | Gives |
 |---|---|
-| `allocate( bytes )` | uninitialised memory, or 0 if there is none |
+| `allocate( bytes )` | uninitialised memory, or `nullptr` if there is none |
 | `callocate( count, size )` | the same, zeroed |
 | `reallocate( p, bytes )` | the block resized, contents kept — **possibly at a new address** |
-| `deallocate( p )` | the memory back; `deallocate( 0 )` does nothing |
+| `deallocate( p )` | the memory back; `deallocate( nullptr )` does nothing |
 | `clear( dest, byte, count )` | `count` bytes at `dest` set to `byte` |
 
 Three habits are in that listing, and each prevents a class of bug:
 
-- **Check for 0.** Allocation can fail, and a null pointer used as a buffer fails much later and
+- **Check for null.** Allocation can fail, and a null pointer used as a buffer fails much later and
   much less clearly.
-- **Keep `reallocate`'s result in a new variable.** On failure it returns 0 *and leaves the old
+- **Keep `reallocate`'s result in a new variable.** On failure it returns null *and leaves the old
   block alone*; writing the result straight over the only pointer you had leaks that block.
-- **Set the pointer to 0 after `deallocate`.** A freed pointer still holds an address, and using it
-  is the worst kind of bug: it usually works.
+- **Set the pointer to `nullptr` after `deallocate`.** A freed pointer still holds an address, and
+  using it is the worst kind of bug: it usually works.
 
 `clear` sets **bytes**, so `clear( *z, 255, … )` makes each `int32` −1, not 255. It is for zeroing
 and for byte buffers, not for filling an array with a value.
@@ -156,12 +175,13 @@ way out of the block:
 {{#include ../examples/ch10/deferfree.out}}
 ```
 
-- **Write the `defer` on the line after the `allocate`**, before the check for 0. `deallocate( 0 )`
-  does nothing, so the failure path is covered too, and the pair cannot drift apart.
+- **Write the `defer` on the line after the `allocate`**, before the check for null.
+  `deallocate( nullptr )` does nothing, so the failure path is covered too, and the pair cannot
+  drift apart.
 - **A deferred statement reads its variables when it runs**, at the end of the block, not when the
   `defer` line is reached. That is why `Collect` can store `reallocate`'s result in `items` and
   still free the right block. It also means a block you free early by hand needs its pointer set to
-  0 afterwards, or the `defer` frees it a second time.
+  `nullptr` afterwards, or the `defer` frees it a second time.
 - **Allocate and defer in the procedure's own body**, never inside an `if`. Chapter 5's pitfall
   applies with full force: the block is freed at `end if`, and the pointer still holds its address.
 
@@ -317,13 +337,16 @@ needs that in mind.
 
 ## Summary
 
-- `T ptr` is an address; `@` takes one, `*` follows it, `->` reaches a field, and 0 is null.
+- `T ptr` is an address; `@` takes one, `*` follows it, `->` reaches a field, and `nullptr` is
+  null.
+- **Write `nullptr`, not `0`.** Both are null, but `0` is an integer to an overload, `var` and a
+  generic.
 - **Pointer arithmetic counts elements**: `p + 1` moves `sizeof( T )` bytes. Step in bytes through a
   `uint8 ptr`.
 - `any ptr` converts to and from every pointer type; between typed pointers use `cptr` or `cast`.
 - **An `any ptr` is not dereferenced** (`TKO0933`); convert it to a typed pointer first.
 - `const T ptr` cannot write through; `T const ptr` cannot be moved.
-- `allocate`/`callocate`/`reallocate`/`deallocate`: **check for 0, keep `reallocate`'s result
+- `allocate`/`callocate`/`reallocate`/`deallocate`: **check for null, keep `reallocate`'s result
   separately, null the pointer after freeing.** `clear` sets bytes.
 - **`defer deallocate( p )` on the line after the `allocate`** frees on every way out. It reads `p`
   when it runs, so it follows a `reallocate`.
@@ -334,7 +357,7 @@ needs that in mind.
 - **`strptr` of an empty string is null**, and any `strptr` is valid only until the string changes.
 - `peek`/`poke` read and write a stated type at an address. The targets are little-endian.
 - **`-exx` traps `*p`, `p->x` and `p[i]` through null** with runtime error 7. Still test a pointer
-  that may be 0 before you follow it.
+  that may be null before you follow it.
 
 ## Exercises
 

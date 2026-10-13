@@ -3,10 +3,11 @@
 dim as ustring full = "hi"
 dim as ustring empty_ = ""
 
-print "strptr( full )   is null: "; cbool( strptr( full ) = 0 )
-print "strptr( empty_ ) is null: "; cbool( strptr( empty_ ) = 0 )
+print "strptr( full )   is null: "; cbool( strptr( full ) = nullptr )
+print "strptr( empty_ ) is null: "; cbool( strptr( empty_ ) = nullptr )
 
 '' Emptying a string by assignment releases its characters too.
 dim as ustring was = "something"
 was = ""
-print "after was = """", strptr is null: "; cbool( strptr( was ) = 0 )
+print "after was = """", strptr is null: "; _
+      cbool( strptr( was ) = nullptr )

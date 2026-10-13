@@ -20,6 +20,6 @@ dim as Point ptr pp = @pt
 pp->x = 30
 print "pt.x ="; pt.x; ", and (*pp).y ="; ( *pp ).y
 
-'' Zero is the null pointer: it points at nothing.
-dim as int32 ptr nothing_ = 0
-print "nothing_ is null: "; cbool( nothing_ = 0 )
+'' nullptr is the null pointer: it points at nothing.
+dim as int32 ptr nothing_ = nullptr
+print "nothing_ is null: "; cbool( nothing_ = nullptr )

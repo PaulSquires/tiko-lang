@@ -10,9 +10,9 @@ type Node
 end type
 
 function Reverse( byval head as Node ptr ) as Node ptr
-    dim as Node ptr done_ = 0
+    dim as Node ptr done_ = nullptr
     dim as Node ptr cur = head
-    do while cur <> 0
+    do while cur <> nullptr
         dim as Node ptr after = cur->next_   '' save it first
         cur->next_ = done_
         done_ = cur
@@ -23,7 +23,7 @@ end function
 
 sub Show( byref label as ustring, byval p as Node ptr )
     print label;
-    do while p <> 0
+    do while p <> nullptr
         print p->value;
         p = p->next_
     loop
@@ -31,11 +31,11 @@ sub Show( byref label as ustring, byval p as Node ptr )
 end sub
 
 '' Build 1 -> 2 -> 3 -> 4 by appending at the tail.
-dim as Node ptr head = 0, tail = 0
+dim as Node ptr head = nullptr, tail = nullptr
 for i as int32 = 1 to 4
     dim as Node ptr n = new Node
     n->value = i
-    if head = 0 then head = n else tail->next_ = n
+    if head = nullptr then head = n else tail->next_ = n
     tail = n
 next
 
@@ -46,7 +46,7 @@ Show( "after: ", head )
 '' Reversing an empty list, or a single node, must also work.
 Show( "empty: ", Reverse( 0 ) )
 
-do while head <> 0
+do while head <> nullptr
     dim as Node ptr after = head->next_
     delete head
     head = after

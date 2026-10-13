@@ -7,7 +7,7 @@ function SumOfSquares( byval n as int32 ) as int64
 
     dim as int64 ptr squares = allocate( n * sizeof( int64 ) )
     defer deallocate( squares )         '' runs on every return below
-    if squares = 0 then return -1       '' deallocate( 0 ) does nothing
+    if squares = nullptr then return -1 '' freeing null does nothing
 
     for i as int32 = 0 to n - 1
         squares[i] = cast( int64, i + 1 ) * ( i + 1 )
@@ -23,14 +23,14 @@ function Collect( byval count as int32, byref slots as int32 ) as int32
     slots = 2
     dim as int32 ptr items = allocate( slots * sizeof( int32 ) )
     defer deallocate( items )
-    if items = 0 then return -1
+    if items = nullptr then return -1
 
     for i as int32 = 0 to count - 1
         if i = slots then
             dim as int32 wanted = slots * 2
             dim as int32 ptr grown = _
                 reallocate( items, wanted * sizeof( int32 ) )
-            if grown = 0 then return -1 '' items untouched, still freed
+            if grown = nullptr then return -1 '' items still freed
             items = grown
             slots = wanted
         end if

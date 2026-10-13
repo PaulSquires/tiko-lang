@@ -1,6 +1,6 @@
 '' nullcheck.tiko -- following a null pointer, under -exx.
 #cmdline "-exx"
 
-dim as int32 ptr p = 0
+dim as int32 ptr p = nullptr
 print *p
 print "not reached"

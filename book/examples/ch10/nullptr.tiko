@@ -1,0 +1,21 @@
+'' nullptr.tiko -- the null pointer, spelled as a pointer.
+
+sub Show overload ( byval n as integer )
+    print "  Show( integer )"
+end sub
+
+sub Show overload ( byval p as any ptr )
+    print "  Show( any ptr )"
+end sub
+
+print "0 is an integer, so it picks the integer overload:"
+Show( 0 )
+print "nullptr is a pointer:"
+Show( nullptr )
+
+'' var takes the type of what it is given.
+var a = 0
+var b = nullptr
+print "var from 0, then var from nullptr:"
+Show( a )
+Show( b )
