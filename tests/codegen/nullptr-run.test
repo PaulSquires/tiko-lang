@@ -1,0 +1,25 @@
+'' RUN: 'nullptr', the predeclared null pointer (docs/tiko-nullptr RFC). It is an 'any ptr',
+'' so it picks a pointer overload where 0 picks the integer one, makes 'var' a pointer,
+'' infers T in a generic, assigns to and compares with typed, string, procedure and UDT
+'' pointers without a warning, works as a default argument and in a const, and prints 0.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -w all tests/codegen/src/nullptr.tiko -o tests/codegen/nullptr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: warning
+'' EXPECT-FILE: tests/codegen/nullptr.exe
+'' RUN: tests/codegen/nullptr.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: F integer
+'' EXPECT-RUN-OUT: F any ptr
+'' EXPECT-RUN-OUT: H integer
+'' EXPECT-RUN-OUT: H zstring ptr
+'' EXPECT-RUN-OUT: var size 8 typeof size 8
+'' EXPECT-RUN-OUT: typed null truetruetruetrue
+'' EXPECT-RUN-OUT: head is false
+'' EXPECT-RUN-OUT: not null true
+'' EXPECT-RUN-OUT: 0 still works true
+'' EXPECT-RUN-OUT: const chain true
+'' EXPECT-RUN-OUT: default null true
+'' EXPECT-RUN-OUT: print 0
+'' EXPECT-RUN-OUT: generic size 8 true

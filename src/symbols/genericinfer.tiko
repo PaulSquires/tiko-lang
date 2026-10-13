@@ -97,6 +97,13 @@ private function InferArgType_ _
         '' 'true' AND 'false' are builtin BOOLEAN constants: 'Show( true )' inferred nothing
         '' and was refused, where fbc-modern makes T BOOLEAN (audit F-55).
         if okKind = false then okKind = ((sy->flags and Tko.SYMF_BUILTIN) <> 0) andalso (sy->type_ = c.types->Builtin( Tko.TY_BOOLEAN ))
+        '' A POINTER-TYPED CONSTANT infers as a variable of its type would: 'Echo( nullptr )'
+        '' makes T 'any ptr', and 'const NP as zstring ptr = 0' then 'Echo( NP )' a 'zstring
+        '' ptr' -- both TKO0809 before (docs/tiko-nullptr RFC §5.4). Only a pointer: what an
+        '' integer constant should infer was not measured, and it is not changed here.
+        if (okKind = false) andalso (sy->kind = cast( ubyte, Tko.SYM_CONSTANT )) andalso (sy->type_ <> Tko.TYPE_NONE) then
+            okKind = (c.types->Kind( c.types->Unqualify( sy->type_ ) ) = Tko.TK_POINTER)
+        end if
         if okKind = false then return Tko.TYPE_NONE
         dim as Tko.TypeId t = sy->type_
         '' A 'VAR' HAS NO TYPE YET -- Check gives it one, and Check has not run -- so

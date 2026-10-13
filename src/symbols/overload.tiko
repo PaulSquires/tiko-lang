@@ -1340,7 +1340,7 @@ private function ResolveCall_ _
         next
         if tieTyped orelse UdtCastTie_( c, argT ) then   '' two casts, two overloads: T42, checkbase.tiko
             c.diags->Report( Tko.TKO0660, Tko.PointRange( c.ast->Loc( id ) ), _
-                             c.names->Spelling( c.syms->SymbolAt( callee )->name ) )
+                             c.names->Spelling( c.syms->SymbolAt( callee )->name ) ) : NullptrTieNote_( c, argFirst, argCount )
         end if
         return Tko.TYPE_NONE
     end if

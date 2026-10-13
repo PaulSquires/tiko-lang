@@ -286,6 +286,13 @@ private function PreludeText( ) as string
     t += "type uint64 as ulongint" & chr( 10 )
     t += "type float32 as single" & chr( 10 )
     t += "type float64 as double" & chr( 10 )
+    t += "" & chr( 10 )
+    t += "'' NULLPTR, tiko's own: a null pointer that is a POINTER, so an overload, 'var' and a" & chr( 10 )
+    t += "'' generic see one -- '0' is an integer to all three (docs/tiko-nullptr RFC). A" & chr( 10 )
+    t += "'' constant rather than a keyword for the reason the typedefs above are: fbc's own" & chr( 10 )
+    t += "'' virtual/fbrtti.bi has a field called nullptr, and whatever a program declares" & chr( 10 )
+    t += "'' by that name -- module-level, local, parameter or field -- replaces this one." & chr( 10 )
+    t += "const nullptr as any ptr = 0" & chr( 10 )
     return t
 end function
 

@@ -1,0 +1,21 @@
+'' RUN: 'nullptr' is a predeclared constant, not a keyword, so whatever a program declares
+'' by that name -- a field (fbc's virtual/fbrtti.bi has one), a namespace member, a local,
+'' a parameter, a FOR counter, a 'var' in a scope -- replaces it there, with no
+'' diagnostic, and the prelude's is back outside (docs/tiko-nullptr RFC §5.1, Q4).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -w all tests/codegen/src/nullptr-shadow.tiko -o tests/codegen/nullptrshadow.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: warning
+'' EXPECT-NOT: error
+'' EXPECT-FILE: tests/codegen/nullptrshadow.exe
+'' RUN: tests/codegen/nullptrshadow.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: field ok 1
+'' EXPECT-RUN-OUT: namespace 2
+'' EXPECT-RUN-OUT: local 3
+'' EXPECT-RUN-OUT: param 4
+'' EXPECT-RUN-OUT: counter 1
+'' EXPECT-RUN-OUT: counter 2
+'' EXPECT-RUN-OUT: scope 9
+'' EXPECT-RUN-OUT: outside true

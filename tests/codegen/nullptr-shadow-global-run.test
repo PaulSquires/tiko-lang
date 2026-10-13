@@ -1,0 +1,12 @@
+'' RUN: a module-level 'dim shared as int32 nullptr' replaces the prelude's constant for
+'' the whole module, procedures included (docs/tiko-nullptr RFC §5.1).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -w all tests/codegen/src/nullptr-shadow-global.tiko -o tests/codegen/nullptrshadowglobal.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: warning
+'' EXPECT-NOT: error
+'' EXPECT-FILE: tests/codegen/nullptrshadowglobal.exe
+'' RUN: tests/codegen/nullptrshadowglobal.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: shared 11

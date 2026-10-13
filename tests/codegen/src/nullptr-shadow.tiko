@@ -1,0 +1,38 @@
+'' Whatever a program declares called nullptr replaces the prelude's, at every level.
+type Rtti
+    nullptr as any ptr          '' fbc's own virtual/fbrtti.bi has this field
+    id as int32
+end type
+
+namespace N
+    const nullptr = 2
+end namespace
+
+sub AsLocal( )
+    dim as int32 nullptr = 3
+    print "local"; nullptr
+end sub
+
+sub AsParam( byval nullptr as int32 )
+    print "param"; nullptr
+end sub
+
+sub AsCounter( )
+    for nullptr as int32 = 1 to 2
+        print "counter"; nullptr
+    next
+end sub
+
+dim as Rtti r
+r.id = 1
+print "field ok"; r.id
+print "namespace"; N.nullptr
+AsLocal( )
+AsParam( 4 )
+AsCounter( )
+scope
+    var nullptr = 9
+    print "scope"; nullptr
+end scope
+dim as int32 ptr p = nullptr
+print "outside "; cbool( p = nullptr )

@@ -1,0 +1,21 @@
+'' 'nullptr' at the edges (docs/tiko-nullptr RFC): two POINTER overloads tie on it, as C++'s
+'' do and as fbc's error 98 does for 'cast( any ptr, 0 )' -- TKO0660 plus a note naming
+'' 'cptr( T ptr, nullptr )' (TKO0969). Into an integer it is TKO0968, fbc's warning 5.
+'' TEST: cli
+'' ARGS: --dump-ir %s
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: (18,2): error TKO0660: the call to 'g' matches more than one overload
+'' EXPECT-OUT: (18,4): note: 'nullptr' converts to every pointer type equally; name the one meant, as 'cptr( T ptr, nullptr )'
+'' EXPECT-OUT: (20,16): warning TKO0968: implicit conversion: a 'integer' from a 'any ptr'
+'' EXPECT-NOT: (19,
+'' EXPECT-NOT: (21,
+sub G overload ( byval a as long ptr )
+end sub
+sub G overload ( byval a as zstring ptr )
+end sub
+dim as long ptr lp
+
+G( nullptr )
+G( cptr( zstring ptr, nullptr ) )
+dim as integer n = nullptr
+G( lp )

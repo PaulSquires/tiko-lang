@@ -1,0 +1,6 @@
+'' A module-level declaration replaces the prelude's nullptr for the whole module.
+dim shared as int32 nullptr = 11
+sub Show( )
+    print "shared"; nullptr
+end sub
+Show( )

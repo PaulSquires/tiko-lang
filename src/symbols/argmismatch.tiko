@@ -405,3 +405,24 @@ private sub ReportArgMismatch_ _
         end if
     next
 end sub
+
+'' ...AND 'nullptr' AT A CALL THAT TIES. 'nullptr' is an 'any ptr', which converts to every
+'' pointer type equally, so two pointer overloads tie on it -- TKO0660, as fbc's error 98
+'' is for 'cast( any ptr, 0 )' and as C++ is for its own nullptr. The error is right; this
+'' names the fix (docs/tiko-nullptr RFC §5.3). Any symbol called nullptr of type 'any ptr'
+'' qualifies: a program's own 'const nullptr as any ptr = 0' means the same thing.
+private sub NullptrTieNote_ _
+    ( byref c as Ctx, byval argFirst as long, byval argCount as long )
+    dim as Tko.InternId nm = c.names->Fold( c.names->GetString( "nullptr" ) )
+    for i as long = 0 to argCount - 1
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + i] )
+        if c.ast->Kind( a ) <> Tko.N_IDENT then continue for
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
+        if s = 0 then continue for
+        if s->name <> nm then continue for
+        dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( a ) )
+        if c.types->Kind( t ) <> Tko.TK_POINTER then continue for
+        c.diags->AddNote( Tko.TKO0969, Tko.PointRange( c.ast->Loc( a ) ) )
+        exit sub
+    next
+end sub

@@ -1,0 +1,58 @@
+'' nullptr: a predeclared 'const nullptr as any ptr = 0' (docs/tiko-nullptr RFC).
+type Node
+    nxt as Node ptr
+    v as int32
+end type
+
+sub F overload ( byval n as integer )
+    print "F integer"
+end sub
+sub F overload ( byval p as any ptr )
+    print "F any ptr"
+end sub
+
+sub H overload ( byval n as integer )
+    print "H integer"
+end sub
+sub H overload ( byval z as zstring ptr )
+    print "H zstring ptr"
+end sub
+
+sub Take( byval z as zstring ptr = nullptr )
+    print "default null "; cbool( z = nullptr )
+end sub
+
+function Echo( of T )( byval x as T ) as T
+    return x
+end function
+
+F( 0 )
+F( nullptr )
+H( 0 )
+H( nullptr )
+
+var v = nullptr
+print "var size"; sizeof( v ); " typeof size"; sizeof( typeof( nullptr ) )
+
+dim as int32 ptr ip = nullptr
+dim as zstring ptr zp = nullptr
+dim as sub( ) fp = nullptr
+dim as Node ptr head = nullptr
+print "typed null "; cbool( ip = nullptr ); cbool( zp = nullptr ); _
+      cbool( fp = nullptr ); cbool( head = nullptr )
+if head then print "head set" else print "head is false"
+
+dim as int32 x = 5
+ip = @x
+print "not null "; cbool( ip <> nullptr )
+ip = 0
+print "0 still works "; cbool( ip = nullptr )
+
+const NP2 as any ptr = nullptr
+print "const chain "; cbool( NP2 = nullptr )
+Take( )
+print "print "; nullptr
+
+var e = Echo( nullptr )
+dim as zstring ptr ez = Echo( nullptr )
+print "generic size"; sizeof( e ); " "; cbool( ez = nullptr )
