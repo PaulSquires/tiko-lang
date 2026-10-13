@@ -28,6 +28,9 @@
 '' the macro becomes '#define GetMessage GetMessageW', so unsuffixed Win32 code works as
 '' written.
 ''
+'' A STRUCT-VALUED MACRO -- raylib's 'CLITERAL(Color){ 200, 200, 200, 255 }' -- has its
+'' fields probed one by one and becomes '#define LIGHTGRAY type<Color>(...)'; see below.
+''
 '' NOT IMPORTED, deliberately: function-like macros (a C expression compiler is the only
 '' honest translation, and a nearly-right one is worse than none); NULL (FreeBASIC's own
 '' crt headers define it); anything spelled __x or _X (the implementation's); a value that
@@ -122,12 +125,20 @@ end sub
 
 '' ---------------------------------------------------------------- one probe parse
 
+'' What a probe parse reads back: a macro's value, its expansion as a string, or one field
+'' of a record-valued macro.
+enum ProbeMode_
+    PM_VALUE = 0
+    PM_ALIAS
+    PM_FIELD
+end enum
+
 type Probe_
     as CImp ptr x
-    as string prefix              '' '__tko_probe_' or '__tko_alias_'
+    as string prefix              '' '__tko_probe_', '__tko_alias_' or '__tko_field_'
     as string ptr values          '' index -> text, "" when nothing usable
     as long n
-    as boolean aliasMode
+    as ProbeMode_ mode
 end type
 
 private function ProbeIndex_( byref nm as string, byref prefix as string ) as long
@@ -186,6 +197,72 @@ private function ValueText_( byref x as CImp, byval vd as CXCursor ) as string
     return r
 end function
 
+'' ---------------------------------------------------------------- record-valued macros
+''
+'' raylib spells its colours as compound literals:
+''
+''     #define LIGHTGRAY  CLITERAL(Color){ 200, 200, 200, 255 }
+''
+'' clang_Cursor_Evaluate has no answer for a struct, so the value probe comes back empty --
+'' but its TYPE says it is a record. Each field is then asked for on its own, a third
+'' parse with one probe per field,
+''
+''     __auto_type __tko_field_9 = (LIGHTGRAY).a;
+''
+'' so clang folds the initialiser -- designators, omitted fields, arithmetic -- and nothing
+'' here reads the braces. The result is fbc's own spelling of a record constant:
+''
+''     #define LIGHTGRAY type<Color>(200, 200, 200, 255)
+''
+'' ONLY A FLAT STRUCT OF NUMBERS: a union, a bit field, an anonymous member, or a field that
+'' is a record, an array or a pointer has no positional type<>( ) spelling this can promise
+'' is right, and is ledgered instead.
+
+const RECORD_ = "!record "       '' values( i ): "!record <usr><TAB><field><TAB>..."
+const NORECORD_ = "!norecord "   '' values( i ): "!norecord <why>"
+
+type FieldScan_
+    as CImp ptr x
+    as string names               '' TAB-separated C field names, in declaration order
+    as string why                 '' "" while every field is usable
+end type
+
+private function FieldScanVisit_ cdecl ( byval c as CXCursor, byval client as any ptr ) as long
+    dim as FieldScan_ ptr s = client
+    dim as CImp ptr xp = s->x
+    if len( s->why ) > 0 then return CXVisit_Continue
+    dim as string nm = CursorName( *xp, c )
+    if len( nm ) = 0 then
+        s->why = "a struct value with an anonymous member"
+    elseif xp->api->Cursor_isBitField( c ) then
+        s->why = "a struct value with bit field '" & nm & "'"
+    else
+        dim as long k = xp->api->getCanonicalType( xp->api->getCursorType( c ) ).kind
+        '' Bool through LongDouble are clang's arithmetic kinds (Index.h:2926-2948).
+        if ((k < 3) orelse (k > 23)) andalso (k <> 106) then
+            s->why = "a struct value whose field '" & nm & "' is not a number"
+        else
+            s->names &= chr( 9 ) & nm
+        end if
+    end if
+    return CXVisit_Continue
+end function
+
+'' What a value probe that did not evaluate holds, when its type is a struct: RECORD_ and
+'' how to ask for its fields, NORECORD_ and why not -- or "" when it is no record at all.
+private function RecordShape_( byref x as CImp, byval vd as CXCursor ) as string
+    dim as CXType vt = x.api->getCanonicalType( x.api->getCursorType( vd ) )
+    if vt.kind <> 105 then return ""      '' CXType_Record
+    dim as CXCursor rd = x.api->getTypeDeclaration( vt )
+    if x.api->getCursorKind( rd ) <> CXCursor_StructDecl then return NORECORD_ & "a union value"
+    dim as FieldScan_ s
+    s.x = @x
+    x.api->Type_visitFields( vt, @FieldScanVisit_, @s )
+    if len( s.why ) > 0 then return NORECORD_ & s.why
+    if len( s.names ) = 0 then return NORECORD_ & "a struct value with no fields"
+    return RECORD_ & CursorUsr( x, rd ) & s.names
+end function
+
 private function ProbeVisit_ cdecl _
     ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as long
     dim as Probe_ ptr p = client
@@ -193,7 +270,8 @@ private function ProbeVisit_ cdecl _
     if xp->api->getCursorKind( c ) <> CXCursor_VarDecl then return CXChildVisit_Continue
     dim as long i = ProbeIndex_( CursorName( *xp, c ), p->prefix )
     if (i < 0) orelse (i >= p->n) then return CXChildVisit_Continue
-    if p->aliasMode then
+    select case p->mode
+    case PM_ALIAS
         dim as any ptr ev = xp->api->Cursor_Evaluate( c )
         if ev <> 0 then
             if xp->api->EvalResult_getKind( ev ) = CXEval_StrLiteral then
@@ -202,9 +280,16 @@ private function ProbeVisit_ cdecl _
             end if
             xp->api->EvalResult_dispose( ev )
         end if
-    else
+    case PM_FIELD
+        '' The field's own type is the target, so an unsigned value needs no 'ull' -- one
+        '' that fits a LONGINT reads back the same without it.
+        dim as string r = ValueText_( *xp, c )
+        if (right( r, 3 ) = "ull") andalso (len( r ) - 3 < 19) then r = left( r, len( r ) - 3 )
+        p->values[i] = r
+    case else
         p->values[i] = ValueText_( *xp, c )
-    end if
+        if len( p->values[i] ) = 0 then p->values[i] = RecordShape_( *xp, c )
+    end select
     return CXChildVisit_Continue
 end function
 
@@ -213,7 +298,7 @@ end function
 '' again; returns false only when an error cannot be pinned on a probe.
 private function ProbeParse_( byref x as CImp, lines() as string, live() as boolean, _
                               byval n as long, byref prelude as string, byref prefix as string, _
-                              byval aliasMode as boolean, values() as string ) as boolean
+                              byval mode as ProbeMode_, values() as string ) as boolean
     dim as string unitName = "tiko-cimport-macros.c"
     dim as long baseLine = 1
     for i as long = 1 to len( x.unitText )
@@ -280,7 +365,7 @@ private function ProbeParse_( byref x as CImp, lines() as string, live() as bool
             p.prefix = prefix
             p.values = @values( 0 )
             p.n = n
-            p.aliasMode = aliasMode
+            p.mode = mode
             x.api->visitChildren( x.api->getTranslationUnitCursor( tu ), @ProbeVisit_, @p )
             x.api->disposeTranslationUnit( tu )
             x.api->disposeIndex( idx )
@@ -307,6 +392,35 @@ private function IsIdent_( byref s as string ) as boolean
     return true
 end function
 
+'' A record-valued macro as 'type<Name>(v, ...)' from its RECORD_ shape and the field
+'' probes from 'first' on -- or "" and why not.
+private function RecordValue_( byref x as CImp, byref shape as string, fvals() as string, _
+                               byval first as long, byref why as string ) as string
+    dim as string f = mid( shape, len( RECORD_ ) + 1 ) & chr( 9 )
+    dim as long st = instr( f, chr( 9 ) )
+    dim as long u = UsrId( x, left( f, st - 1 ) )
+    if ((UsrState( x, u ) and US_EMITTED) = 0) orelse ((UsrState( x, u ) and US_OPAQUE) <> 0) then
+        why = "a struct value whose type was not imported"
+        return ""
+    end if
+    dim as string r = "type<" & UsrFbName( x, u ) & ">("
+    dim as long k = first
+    do
+        dim as long en = instr( st + 1, f, chr( 9 ) )
+        if en = 0 then exit do
+        dim as string v = fvals( k )
+        if (len( v ) = 0) orelse (v = NONFINITE_) then
+            why = "a struct value whose field '" & mid( f, st + 1, en - st - 1 ) & "' has no constant FreeBASIC value"
+            return ""
+        end if
+        if k > first then r &= ", "
+        r &= v
+        k += 1
+        st = en
+    loop
+    return r & ")"
+end function
+
 sub MacroPass( byref x as CImp )
     dim as long n = x.macroNames.Count
     if n = 0 then return
@@ -324,7 +438,7 @@ sub MacroPass( byref x as CImp )
         next
     elseif x.opts->macroValState = -1 then
         return
-    elseif ProbeParse_( x, lines(), live(), n, chr( 10 ), "__tko_probe_", false, values() ) = false then
+    elseif ProbeParse_( x, lines(), live(), n, chr( 10 ), "__tko_probe_", PM_VALUE, values() ) = false then
         '' An error no probe explains: the constants are left out rather than guessed.
         x.opts->macroValState = -1
         return
@@ -335,6 +449,47 @@ sub MacroPass( byref x as CImp )
         next
     end if
 
+    '' THE FIELDS OF THE RECORD-VALUED ONES, one probe each, macro by macro.
+    dim as Tko.StrVec flines
+    dim as long fidx( 0 to n - 1 )             '' macro -> its first field probe
+    for i as long = 0 to n - 1
+        fidx( i ) = flines.Count
+        if left( values( i ), len( RECORD_ ) ) <> RECORD_ then continue for
+        dim as string f = values( i ) & chr( 9 )
+        dim as long st = instr( f, chr( 9 ) )
+        do
+            dim as long en = instr( st + 1, f, chr( 9 ) )
+            if en = 0 then exit do
+            flines.Push( "__auto_type __tko_field_" & flines.Count & " = (" & x.macroNames[i] & _
+                         ")." & mid( f, st + 1, en - st - 1 ) & ";" )
+            st = en
+        loop
+    next
+    dim as long nf = flines.Count
+    dim as string fvals( 0 to iif( nf > 0, nf - 1, 0 ) )
+    if nf > 0 then
+        if (x.opts->macroFldState = 1) andalso (x.opts->macroFlds.Count = nf) then
+            for k as long = 0 to nf - 1
+                fvals( k ) = x.opts->macroFlds[k]
+            next
+        elseif x.opts->macroFldState = 0 then
+            dim as string fl( 0 to nf - 1 )
+            dim as boolean flive( 0 to nf - 1 )
+            for k as long = 0 to nf - 1
+                fl( k ) = flines[k]
+                flive( k ) = true
+            next
+            if ProbeParse_( x, fl(), flive(), nf, chr( 10 ), "__tko_field_", PM_FIELD, fvals() ) then
+                x.opts->macroFldState = 1
+                for k as long = 0 to nf - 1
+                    x.opts->macroFlds.Push( fvals( k ) )
+                next
+            else
+                x.opts->macroFldState = -1
+            end if
+        end if
+    end if
+
     '' THE CONSTANTS, in definition order. A constant's name is a VALUE name and is claimed
     '' like one; a renamed constant is renamed for the user, since a CONST is not a symbol
     '' the linker sees.
@@ -342,6 +497,20 @@ sub MacroPass( byref x as CImp )
         if len( values( i ) ) = 0 then continue for
         if values( i ) = NONFINITE_ then
             Skip( x, "define", x.macroNames[i], "value is infinity or NaN, which has no FreeBASIC literal" )
+            continue for
+        end if
+        if left( values( i ), len( NORECORD_ ) ) = NORECORD_ then
+            Skip( x, "define", x.macroNames[i], mid( values( i ), len( NORECORD_ ) + 1 ) )
+            continue for
+        end if
+        if left( values( i ), len( RECORD_ ) ) = RECORD_ then
+            dim as string why
+            dim as string v = RecordValue_( x, values( i ), fvals(), fidx( i ), why )
+            if len( v ) = 0 then
+                Skip( x, "define", x.macroNames[i], why )
+            else
+                x.decls.Push( "#define " & NameClaim( x, NS_VALUE, x.macroNames[i], RK_CONST ) & " " & v )
+            end if
             continue for
         end if
         dim as string nm = NameClaim( x, NS_VALUE, x.macroNames[i], RK_CONST )
@@ -370,7 +539,7 @@ sub MacroPass( byref x as CImp )
         next
     elseif x.opts->macroExpState = -1 then
         return
-    elseif ProbeParse_( x, alines(), alive(), n, prelude, "__tko_alias_", true, exps() ) = false then
+    elseif ProbeParse_( x, alines(), alive(), n, prelude, "__tko_alias_", PM_ALIAS, exps() ) = false then
         x.opts->macroExpState = -1
         return
     else

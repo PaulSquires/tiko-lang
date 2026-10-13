@@ -58,6 +58,8 @@ type CImportOptions
     as Tko.StrVec macroValues
     as long       macroExpState
     as Tko.StrVec macroExps
+    as long       macroFldState  '' the fields of record-valued macros, the same way
+    as Tko.StrVec macroFlds
 end type
 
 type CImportResult

@@ -1,0 +1,14 @@
+'' A struct-valued macro -- raylib's 'CLITERAL(Color){ 200, 200, 200, 255 }' -- becomes
+'' '#define NAME type<T>(...)' from one clang probe per field: designators, omitted fields
+'' and arithmetic are folded by clang, not read from the braces. What has no positional
+'' type<>( ) spelling is ledgered, not dropped without a word.
+'' TEST: cli
+'' ARGS: -cimport tests/cimport/src/recmac.h -cimport-out -
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: #define LIGHTGRAY type<Color>(200, 200, 200, 255)
+'' EXPECT-OUT: #define HALF_UP type<Vec2>(0, 0.5)
+'' EXPECT-OUT: #define NEG_PAIR type<Pair>(-3, 1099511627776)
+'' EXPECT-OUT: NUM_ONE                     a union value
+'' EXPECT-OUT: OUTER0                      a struct value whose field 'at' is not a number
+'' EXPECT-OUT: BITS1                       a struct value with bit field 'k'
+'' EXPECT-OUT: NAMED                       a struct value whose field 's' is not a number

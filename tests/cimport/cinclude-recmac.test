@@ -1,0 +1,5 @@
+'' A struct-valued macro from #cinclude is usable as a value: initialiser, argument,
+'' member access.
+'' TEST: cli
+'' ARGS: --dump-ir -cnocache tests/cimport/src/cinclude-recmac.bas
+'' EXPECT-EXIT: 0
