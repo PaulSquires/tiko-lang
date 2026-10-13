@@ -46,6 +46,16 @@ typedef unsigned long long tkort_u64;
 typedef unsigned long long tkort_size;
 typedef void ( __cdecl *tkort_pvfv )( void );
 
+/* EVERY SHIM OF A UCRT-HEADER INLINE IS WEAK. MSVC compiles those inlines into each
+** object that calls them, as COMDAT copies the linker may pick any one of -- so a
+** static MSVC library brings its own sprintf. Ours was a strong definition, and a
+** strong definition beside a COMDAT one is a duplicate: linking raylib's static
+** raylib.lib stopped on 'duplicate symbol: sprintf' (and fprintf, snprintf, sscanf)
+** between its rcore.obj and this file. Weak, the library's copy wins where there is
+** one and ours is used where there is not -- both measured with lld, including a
+** program whose only reference to this archive member is a weak name. */
+#define TKORT_UCRT_INLINE __attribute__(( weak ))
+
 /* ---------------------------------------------------------- ucrtbase.dll */
 
 int    __cdecl _configure_narrow_argv( int mode );
@@ -208,7 +218,7 @@ int __cdecl atexit( tkort_pvfv fn )
     return _crt_atexit( fn );
 }
 
-int __cdecl sprintf( char *buffer, char const *format, ... )
+TKORT_UCRT_INLINE int __cdecl sprintf( char *buffer, char const *format, ... )
 {
     int result;
     char *arglist;
@@ -250,7 +260,7 @@ int __cdecl sprintf( char *buffer, char const *format, ... )
 */
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wbuiltin-requires-header"
-int __cdecl fprintf( struct _iobuf *stream, char const *format, ... )
+TKORT_UCRT_INLINE int __cdecl fprintf( struct _iobuf *stream, char const *format, ... )
 {
     int result;
     char *arglist;
@@ -279,7 +289,7 @@ int __cdecl fprintf( struct _iobuf *stream, char const *format, ... )
 **
 ** BOTH CLAMP a negative result to -1, which sprintf above does too.
 */
-int __cdecl snprintf( char *buffer, tkort_size count, char const *format, ... )
+TKORT_UCRT_INLINE int __cdecl snprintf( char *buffer, tkort_size count, char const *format, ... )
 {
     int result;
     char *arglist;
@@ -290,7 +300,7 @@ int __cdecl snprintf( char *buffer, tkort_size count, char const *format, ... )
     return result < 0 ? -1 : result;
 }
 
-int __cdecl vsprintf( char *buffer, char const *format, char *arglist )
+TKORT_UCRT_INLINE int __cdecl vsprintf( char *buffer, char const *format, char *arglist )
 {
     int result;
     /* 1 is _CRT_INTERNAL_PRINTF_LEGACY_VSPRINTF_NULL_TERMINATION, as sprintf uses. */
@@ -331,17 +341,17 @@ int __cdecl __stdio_common_vsscanf( tkort_u64 options, char const *buffer,
 /* Builtins every one, declared without <stdio.h> -- see fprintf above. */
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wbuiltin-requires-header"
-int __cdecl vfprintf( struct _iobuf *stream, char const *format, char *arglist )
+TKORT_UCRT_INLINE int __cdecl vfprintf( struct _iobuf *stream, char const *format, char *arglist )
 {
     return __stdio_common_vfprintf( 0ull, stream, format, 0, arglist );
 }
 
-int __cdecl vprintf( char const *format, char *arglist )
+TKORT_UCRT_INLINE int __cdecl vprintf( char const *format, char *arglist )
 {
     return __stdio_common_vfprintf( 0ull, __acrt_iob_func( 1 ), format, 0, arglist );
 }
 
-int __cdecl printf( char const *format, ... )
+TKORT_UCRT_INLINE int __cdecl printf( char const *format, ... )
 {
     int result;
     char *arglist;
@@ -351,29 +361,29 @@ int __cdecl printf( char const *format, ... )
     return result;
 }
 
-int __cdecl vsnprintf( char *buffer, tkort_size count, char const *format, char *arglist )
+TKORT_UCRT_INLINE int __cdecl vsnprintf( char *buffer, tkort_size count, char const *format, char *arglist )
 {
     /* 2 is _CRT_INTERNAL_PRINTF_STANDARD_SNPRINTF_BEHAVIOR, as snprintf uses. */
     int result = __stdio_common_vsprintf( 2ull, buffer, count, format, 0, arglist );
     return result < 0 ? -1 : result;
 }
 
-int __cdecl vfscanf( struct _iobuf *stream, char const *format, char *arglist )
+TKORT_UCRT_INLINE int __cdecl vfscanf( struct _iobuf *stream, char const *format, char *arglist )
 {
     return __stdio_common_vfscanf( 0ull, stream, format, 0, arglist );
 }
 
-int __cdecl vscanf( char const *format, char *arglist )
+TKORT_UCRT_INLINE int __cdecl vscanf( char const *format, char *arglist )
 {
     return __stdio_common_vfscanf( 0ull, __acrt_iob_func( 0 ), format, 0, arglist );
 }
 
-int __cdecl vsscanf( char const *buffer, char const *format, char *arglist )
+TKORT_UCRT_INLINE int __cdecl vsscanf( char const *buffer, char const *format, char *arglist )
 {
     return __stdio_common_vsscanf( 0ull, buffer, (tkort_size)-1, format, 0, arglist );
 }
 
-int __cdecl fscanf( struct _iobuf *stream, char const *format, ... )
+TKORT_UCRT_INLINE int __cdecl fscanf( struct _iobuf *stream, char const *format, ... )
 {
     int result;
     char *arglist;
@@ -383,7 +393,7 @@ int __cdecl fscanf( struct _iobuf *stream, char const *format, ... )
     return result;
 }
 
-int __cdecl scanf( char const *format, ... )
+TKORT_UCRT_INLINE int __cdecl scanf( char const *format, ... )
 {
     int result;
     char *arglist;
@@ -393,7 +403,7 @@ int __cdecl scanf( char const *format, ... )
     return result;
 }
 
-int __cdecl sscanf( char const *buffer, char const *format, ... )
+TKORT_UCRT_INLINE int __cdecl sscanf( char const *buffer, char const *format, ... )
 {
     int result;
     char *arglist;
@@ -412,7 +422,7 @@ int __cdecl sscanf( char const *buffer, char const *format, ... )
 **
 ** fb/core.bas reaches it through FB.HPOW10.
 */
-float __cdecl hypotf( float x, float y )
+TKORT_UCRT_INLINE float __cdecl hypotf( float x, float y )
 {
     return _hypotf( x, y );
 }
@@ -449,17 +459,17 @@ int    __cdecl memcmp( void const *a, void const *b, __SIZE_TYPE__ n );
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wbuiltin-requires-header"
-tkort_wchar * __cdecl wmemmove( tkort_wchar *dst, tkort_wchar const *src, __SIZE_TYPE__ n )
+TKORT_UCRT_INLINE tkort_wchar * __cdecl wmemmove( tkort_wchar *dst, tkort_wchar const *src, __SIZE_TYPE__ n )
 {
     return (tkort_wchar *)memmove( dst, src, n * sizeof( tkort_wchar ) );
 }
 
-tkort_wchar * __cdecl wmemcpy( tkort_wchar *dst, tkort_wchar const *src, __SIZE_TYPE__ n )
+TKORT_UCRT_INLINE tkort_wchar * __cdecl wmemcpy( tkort_wchar *dst, tkort_wchar const *src, __SIZE_TYPE__ n )
 {
     return (tkort_wchar *)memcpy( dst, src, n * sizeof( tkort_wchar ) );
 }
 
-tkort_wchar * __cdecl wmemset( tkort_wchar *dst, tkort_wchar c, __SIZE_TYPE__ n )
+TKORT_UCRT_INLINE tkort_wchar * __cdecl wmemset( tkort_wchar *dst, tkort_wchar c, __SIZE_TYPE__ n )
 {
     __SIZE_TYPE__ i;
     for( i = 0; i < n; i++ ) dst[i] = c;
@@ -468,7 +478,7 @@ tkort_wchar * __cdecl wmemset( tkort_wchar *dst, tkort_wchar c, __SIZE_TYPE__ n 
 
 /* ORDERED BY CODE UNIT VALUE, not by memcmp's byte order: a little-endian byte
 ** compare would rank 0x0100 below 0x00FF. */
-int __cdecl wmemcmp( tkort_wchar const *a, tkort_wchar const *b, __SIZE_TYPE__ n )
+TKORT_UCRT_INLINE int __cdecl wmemcmp( tkort_wchar const *a, tkort_wchar const *b, __SIZE_TYPE__ n )
 {
     __SIZE_TYPE__ i;
     for( i = 0; i < n; i++ ) {
@@ -477,7 +487,7 @@ int __cdecl wmemcmp( tkort_wchar const *a, tkort_wchar const *b, __SIZE_TYPE__ n
     return 0;
 }
 
-tkort_wchar * __cdecl wmemchr( tkort_wchar const *s, tkort_wchar c, __SIZE_TYPE__ n )
+TKORT_UCRT_INLINE tkort_wchar * __cdecl wmemchr( tkort_wchar const *s, tkort_wchar c, __SIZE_TYPE__ n )
 {
     __SIZE_TYPE__ i;
     for( i = 0; i < n; i++ ) {
@@ -488,12 +498,12 @@ tkort_wchar * __cdecl wmemchr( tkort_wchar const *s, tkort_wchar c, __SIZE_TYPE_
 #pragma clang diagnostic pop
 
 /* time_t IS 64-BIT on x64, so these are renames rather than conversions. */
-long long __cdecl time( long long *dest )
+TKORT_UCRT_INLINE long long __cdecl time( long long *dest )
 {
     return _time64( dest );
 }
 
-void * __cdecl localtime( long long const *src )
+TKORT_UCRT_INLINE void * __cdecl localtime( long long const *src )
 {
     return _localtime64( src );
 }
@@ -518,7 +528,7 @@ void * __cdecl localtime( long long const *src )
 ** and sets nothing; handed both halves it sets exactly that flag, all five tested. */
 int __cdecl fesetexceptflag( unsigned long const *flagp, int excepts );
 
-int __cdecl feraiseexcept( int excepts )
+TKORT_UCRT_INLINE int __cdecl feraiseexcept( int excepts )
 {
     unsigned long e = (unsigned long)( excepts & 0x1f );
     unsigned long flags = e | ( e << 24 );
