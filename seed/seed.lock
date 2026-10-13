@@ -16,13 +16,13 @@
 # later than it reaches the language. Advance this file at release points, together with
 # seed/chain.txt.
 #
-# PINNED: seed-2, published 2026-10-10 (UTC) -- the first seed built with no fbc anywhere:
-# its compiler by seed-1, its runtime and graphics library by that compiler, its headers,
-# import libraries and notices from this tree. Both archives are the toolchains package.sh
-# --verify produced from 8941332c, unchanged but for lib/win64-fb; the release notes list
-# what was verified. seed-1 (bc4dbc6b, built by fbc) is the release before it -- chain.txt.
+# PINNED: seed-4, published 2026-10-13 (UTC), built by seed-3 with no fbc. Both archives are
+# the toolchains package.sh --verify produced from 90d2c6e7 -- byte for byte release
+# toolchain-90d2c6e7's -- the first whose compiler zero-extends an unsigned static-array
+# subscript. Bootstrapped from each archive: stage1 == stage2 == stage3 on both hosts; the
+# release notes list the rest. The seeds before it are in chain.txt.
 # build/defaultseed.sh prefers seed/cache/<host> -- where fetch-seed.sh unpacks this -- over
 # any locally packaged toolchain.
 
-windows  seed-3  tiko-seed-windows-x86_64-a04bae1f.zip  85ecab00d024f648924dee923bafee01e74f67d11e9f8624097aea9bfeb53605  a04bae1f0d7f69d0a8ec017fef794e4d12a6200a
-linux    seed-3  tiko-seed-linux-x86_64-a04bae1f.tar.gz  4b2c4f66a8254fb42381537c4790a3bdfa83d55bd5bf2a5a228be86dcc42d5b4  a04bae1f0d7f69d0a8ec017fef794e4d12a6200a
+windows  seed-4  tiko-seed-windows-x86_64-90d2c6e7.zip  52fbcc524198e45e4684838934b84cf2cd0ed89d5d67ee63dc87c6af7ea7dee2  90d2c6e736b791b4657e7ef5baa0044b63718aa5
+linux    seed-4  tiko-seed-linux-x86_64-90d2c6e7.tar.gz  424bbf9632fce3bfc3077b7107c80842300afeb1fdad22b7c8cea817ce45df09  90d2c6e736b791b4657e7ef5baa0044b63718aa5
