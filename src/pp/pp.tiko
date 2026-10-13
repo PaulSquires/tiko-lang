@@ -1161,6 +1161,7 @@ declare sub PpModEndFile( byref e as PpEngine )
 declare function PpModRefuse( byref e as PpEngine, byref what as string, byval at as SourceLoc ) as boolean
 declare sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as FileId )
 declare function PpModQualifiedMacro( byref e as PpEngine, byref t as Token ) as boolean
+declare sub PpModCIncludeHeader( byref e as PpEngine, byval at as SourceLoc, byval got as FileId )
 
 end namespace
 
@@ -1313,6 +1314,7 @@ private function PpStep( byref e as PpEngine ) as boolean
             PpDirective( e, t )
             continue do
         end if
+        if (k = KW_PUBLIC) andalso atLineStart andalso PpModPublicCInclude( e, t ) then continue do  '' T101
 
         '' ---- inside a false #if branch nothing else matters
         if Emitting( e ) = false then

@@ -774,6 +774,12 @@ private function RequiredHeaders_ _
     for k as long = 0 to headers.Count - 1
         need.Push( seed )
     next
+    '' 'public #cinclude' (T101): those travel whatever the interface names.
+    if pr <> 0 then
+        for each r as ulong in pr->modHdrPublic
+            if r < cast( ulong, need.Count ) then need[r] = 1
+        next
+    end if
     if every = false then
         for id as long = 1 to w.ast->Count( )
             dim as Tko.NodeId nd = cast( Tko.NodeId, id )

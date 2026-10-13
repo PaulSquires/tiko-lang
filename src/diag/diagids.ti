@@ -187,6 +187,7 @@
     DIAG( TKO0337, SEV_ERROR,   "the binding generated for %0 does not compile; this is a bug in the C importer" )
     DIAG( TKO0338, SEV_ERROR,   "%0 defines '%1', which an earlier #cinclude in this unit left opaque; #cinclude %0 first" )
     DIAG( TKO0339, SEV_WARNING, "#cinclude could not write its cache entry under '%0'; the binding is used from memory" )
+    DIAG( TKO0340, SEV_ERROR,   "'public #cinclude' needs the binding cache, which -cnocache turns off: %0 is not a file an importer can include" )
     '' '#module', '#import', '#export' (ADR 0017, src/pp/ppmodule.tiko).
     DIAG( TKO0360, SEV_ERROR,   "'#module' must be the first directive in the file" )
     DIAG( TKO0361, SEV_ERROR,   "'#module ""%0""' does not match its directory '%1'" )

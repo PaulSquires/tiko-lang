@@ -589,6 +589,20 @@ type Failure
     as string why
 end type
 
+'' A FILE'S BYTES, whole, for EXPECT-FILE-HAS and EXPECT-FILE-NOT-HAS: an archive or an
+'' executable is binary, so it is searched as bytes. False when it cannot be opened.
+function ReadBytes_( byval p as string, byref b as string ) as boolean
+    b = ""
+    dim as long f = freefile
+    if open( p for binary access read as #f ) <> 0 then return false
+    if lof( f ) > 0 then
+        b = space( lof( f ) )
+        get #f, 1, b
+    end if
+    close #f
+    return true
+end function
+
 '' DOES THIS FILE EXIST. An open-for-input probe rather than a length test: a
 '' zero-byte golden is a legitimate expectation and must not read as absent.
 function FileExists_( byval p as string ) as boolean
@@ -950,14 +964,11 @@ function CheckOne_ _
             why = "did not create: " & hpath
             return false
         end if
-        dim as long hf = freefile
-        if open( hpath for binary access read as #hf ) <> 0 then
+        dim as string blob
+        if ReadBytes_( hpath, blob ) = false then
             why = "cannot read: " & hpath
             return false
         end if
-        dim as string blob = space( lof( hf ) )
-        if len( blob ) > 0 then get #hf, 1, blob
-        close #hf
         if instr( blob, hwant ) = 0 then
             why = hpath & " does not contain: " & hwant
             return false
@@ -978,14 +989,11 @@ function CheckOne_ _
             why = "did not create: " & npath
             return false
         end if
-        dim as long nf = freefile
-        if open( npath for binary access read as #nf ) <> 0 then
+        dim as string nblob
+        if ReadBytes_( npath, nblob ) = false then
             why = "cannot read: " & npath
             return false
         end if
-        dim as string nblob = space( lof( nf ) )
-        if len( nblob ) > 0 then get #nf, 1, nblob
-        close #nf
         if instr( nblob, nwant ) > 0 then
             why = npath & " contains: " & nwant
             return false

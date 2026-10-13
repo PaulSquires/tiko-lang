@@ -305,6 +305,9 @@ namespace Tko
         '' from does not travel with it (RFC-0004 §3).
         as IdVec       modHdrFile
         as IdVec       modHdrRoot
+        '' THE HEADERS A 'public #cinclude' NAMED, as indices into modHeaders: they travel
+        '' with the interface always, which is what 'public' asks for (T101).
+        as IdVec       modHdrPublic
         '' EVERY FILE THE UNIT LEXED, in first-read order, repeats allowed: what a module's
         '' cache entry depends on besides its sources (RFC-0005 §4).
         as FileIdVec   filesRead

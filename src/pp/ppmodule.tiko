@@ -121,6 +121,53 @@ sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as Fil
     e.outp->modHdrRoot.Push( cast( ulong, root ) )
 end sub
 
+'' 'public #cinclude "x.h"' AT THE START OF A LINE (book work item T101): 'public' is consumed
+'' and the directive runs with cincPublic set. False, touching nothing, for anything else --
+'' 'public' starting an ordinary declaration included.
+function PpModPublicCInclude( byref e as PpEngine, byref t as Token ) as boolean
+    if Tk( t ) <> KW_PUBLIC then return false
+    dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
+    if f->pos + 2 > f->toks->Count - 1 then return false
+    if Tk( f->toks->At( f->pos + 1 ) ) <> TK_HASH then return false
+    dim as Token w = f->toks->At( f->pos + 2 )
+    if Text.LowerAscii( SpellOf( e, w ) ) <> "cinclude" then return false
+    Advance( e )
+    dim as Token h
+    PeekTok( e, h )
+    Advance( e )
+    e.modst.cincPublic = true
+    PpDirective( e, h )
+    e.modst.cincPublic = false
+    return true
+end function
+
+'' A #cinclude'S BINDING, in a module: noted as a header of the unit, as '#include' notes one,
+'' and with 'public', marked to travel with the interface always. 'public' outside a module's
+'' own file is TKO0369; a public binding with no file an importer could read -- '-cnocache'
+'' keeps it in memory -- is TKO0340.
+sub PpModCIncludeHeader( byref e as PpEngine, byval at as SourceLoc, byval got as FileId )
+    dim as DecodedLoc d = e.src->Decode( at )
+    PpModNoteHeader( e, d.file, got )
+    if e.modst.cincPublic = false then return
+    dim as string p = e.src->AbsPathOf( got )
+    dim as long k = -1
+    for i as long = 0 to e.outp->modHeaders.Count - 1
+        if e.outp->modHeaders[i] = p then k = i
+    next
+    if (e.modst.isModuleFile = false) orelse (k < 0) then
+        Report( e, TKO0369, at, "'public #cinclude'" )
+        return
+    end if
+    if fs.IsFile( p ) = false then
+        Report( e, TKO0340, at, p )
+        return
+    end if
+    for each r as ulong in e.outp->modHdrPublic
+        if r = cast( ulong, k ) then return
+    next
+    e.outp->modHdrPublic.Push( cast( ulong, k ) )
+end sub
+
 '' Reading for an '#import': a module's interface, or a header it includes (RFC-0004 §5).
 private function PpModInIface_( byref e as PpEngine ) as boolean
     if e.frames.Count = 0 then return false

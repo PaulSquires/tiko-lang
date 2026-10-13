@@ -239,6 +239,9 @@ private sub PpCInclude( byref e as PpEngine, byval at as SourceLoc, byref word a
     dim as PpCImportFn fn = e.cfg->cimportFn
     dim as FileId got = fn( e.cfg->cimportCtx, header, unicode, e.rootFile, at )
     if got = FILE_NONE then return
+    '' IN A MODULE, A BINDING IS A HEADER LIKE ANY OTHER (T101): its interface carries it when
+    '' a public declaration names something from it, and always after 'public #cinclude'.
+    PpModCIncludeHeader( e, at, got )
     if PpAlreadyOnce( e, got ) then return
     e.onceFiles.Push( cast( ulong, got ) )
     e.outp->includeCount += 1

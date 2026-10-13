@@ -17,6 +17,9 @@ type PpModState
     '' by the first directive that is not one the header may contain (RFC-0001 §3).
     as boolean   headerClosed
     as boolean   isModuleFile
+    '' 'public #cinclude' (book work item T101): set while that one directive runs, so its
+    '' binding is carried by the module's interface whatever the interface names from it.
+    as boolean   cincPublic
     '' TKO0992 is said once per unit, not once per directive.
     as boolean   reportedNotImpl
     '' The first name that the condition about to be pushed consulted and that is not
