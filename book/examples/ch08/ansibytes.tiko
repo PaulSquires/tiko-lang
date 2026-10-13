@@ -4,10 +4,8 @@
 '' program that wrote Latin-1; the other is UTF-8. Converting each to
 '' ustring shows what the difference costs.
 
-dim as string latin1 = chr( &h63 ) & chr( &h61 ) & chr( &h66 ) & _
-                       chr( &hE9 )
-dim as string utf8   = chr( &h63 ) & chr( &h61 ) & chr( &h66 ) & _
-                       chr( &hC3 ) & chr( &hA9 )
+dim as string latin1 = chr( &h63, &h61, &h66, &hE9 )
+dim as string utf8   = chr( &h63, &h61, &h66, &hC3, &hA9 )
 
 dim as ustring fromLatin1 = latin1
 dim as ustring fromUtf8   = utf8

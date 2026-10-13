@@ -2,16 +2,13 @@
 ''
 '' The text is built from explicit bytes so that nothing here depends
 '' on how this file was saved: these ARE the UTF-8 bytes for the two
-'' strings, written out one at a time.
+'' strings, listed one by one.
 
 '' "cafe" with an e-acute: 63 61 66 C3 A9
-dim as string cafeBytes = chr( &h63 ) & chr( &h61 ) & chr( &h66 ) & _
-                          chr( &hC3 ) & chr( &hA9 )
+dim as string cafeBytes = chr( &h63, &h61, &h66, &hC3, &hA9 )
 
 '' "a", U+1F600 GRINNING FACE, "b": 61 F0 9F 98 80 62
-dim as string faceBytes = chr( &h61 ) & _
-                          chr( &hF0 ) & chr( &h9F ) & chr( &h98 ) & _
-                          chr( &h80 ) & chr( &h62 )
+dim as string faceBytes = chr( &h61, &hF0, &h9F, &h98, &h80, &h62 )
 
 dim as ustring cafe = cafeBytes
 dim as ustring face = faceBytes
