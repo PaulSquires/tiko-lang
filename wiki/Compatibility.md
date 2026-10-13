@@ -46,7 +46,17 @@ Each of these is a diagnostic, not a silent difference:
 
 **A virtual call's object is evaluated once.** fbc evaluates the object expression of a VIRTUAL method call TWICE: `getP( )->VM( )` calls `getP` twice (probed: 2 calls). tiko evaluates it once (1 call). A program whose object expression has a side effect prints differently.
 
-**The same on both sides.** `print len`, `print asc`, `print abs` with no operand are refused by both (fbc error 6, tiko `TKO0872`), and so are `print len( )`, `print sqr( )`, `print chr( )` (fbc error 9, tiko `TKO0801`). A `pascal` procedure gets its arguments in the same order from both compilers. A suspicious pointer assignment (`byte ptr` from `integer ptr`) draws fbc's warning 4 and tiko's `TKO0830` on the same line. A pointer stored into a pointer-sized integer (`dim as integer n = p`, `n += p`, `return p` from a function `as integer`) draws fbc's warning 5 and tiko's `TKO0968` on the same line; across the vendored fbc suite the 10 lines tiko warns about are all fbc warning 5 lines (2026-10-12).
+**The same on both sides.** `print len`, `print asc`, `print abs` with no operand are refused by both (fbc error 6, tiko `TKO0872`), and so are `print len( )`, `print sqr( )`, `print chr( )` (fbc error 9, tiko `TKO0801`). A `pascal` procedure gets its arguments in the same order from both compilers.
+
+**Pointer conversions get the same answer from both compilers** (measured 2026-10-12 and 2026-10-13):
+
+- A suspicious pointer assignment (`byte ptr` from `integer ptr`) draws fbc's warning 4 and tiko's `TKO0830` on the same line.
+- A pointer stored into a pointer-sized integer (`dim as integer n = p`, `n += p`, `return p` from a function `as integer`) draws fbc's warning 5 and tiko's `TKO0968` on the same line. So does a pointer *constant* — `nullptr`, `cptr( any ptr, 0 )` — stored into a narrower integer or a `boolean`.
+- A run-time pointer stored into a narrower integer or a `boolean` is refused by both: `bo = p` and `return p` from a function `as long` or `as boolean` (fbc error 181, tiko `TKO0910`), `dim as boolean b = p` (fbc 24, tiko `TKO0910`), `TakeBool( p )` (fbc 24, tiko `TKO0698`) and `cbool( p )` (fbc 20, tiko `TKO0890`). `cbool( nullptr )` is accepted by both.
+- A pointer in a compound assignment other than `+=` and `-=` is refused by both — `n *= p`, `n mod= p`, `n shl= p`, `p and= 2` and the rest (fbc error 20, tiko `TKO0820`), as the plain operator already was.
+- A pointer passed for a number or `boolean` parameter, byval or byref, draws fbc's warning 2 and tiko's `TKO0970` on the same line.
+
+Across the vendored fbc suite, every line tiko gives `TKO0968` (22) or `TKO0970` (24) is one where fbc gives warning 5 or warning 2.
 
 **Graphics links on `windows-x86_64` only.** libtkogfx is built for that ABI alone.
 
