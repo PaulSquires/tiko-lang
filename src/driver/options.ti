@@ -73,6 +73,9 @@ namespace Tko
     OPT( OPT_DEFINE,    "-d",         OPTK_VALUE, OPTCAT_INPUT,   "name=val", "define a preprocessor symbol" )
     OPT( OPT_LIBPATH,   "-p",         OPTK_VALUE, OPTCAT_INPUT,   "dir",      "add a library search path" )
     OPT( OPT_LIB,       "-l",         OPTK_VALUE, OPTCAT_INPUT,   "name",     "link against a library" )
+    '' fbc's -Wl, measured: the value is split at commas, each piece goes to the linker as
+    '' one argument, after everything else, and repeated -Wl options accumulate.
+    OPT( OPT_LINKOPT,   "-Wl",        OPTK_VALUE, OPTCAT_OUTPUT,  "a,b,c",    "pass options to the linker, split at commas, as fbc's -Wl" )
 
     OPT( OPT_OUTPUT,    "-o",         OPTK_VALUE, OPTCAT_OUTPUT,  "file",     "output path" )
     OPT( OPT_EXEOUT,    "-x",         OPTK_VALUE, OPTCAT_OUTPUT,  "file",     "the linked output's path, as fbc's -x: over -o, the last one winning; ignored with -c" )
@@ -224,6 +227,8 @@ namespace Tko
         '' link line rather than through '-l', which is the point of the feature:
         '' the binding said which file, so the linker does no searching of its own.
         as StrVec  pragmaLibFiles
+        '' '-Wl a,b': each comma-separated piece, in order, for the end of the link line.
+        as StrVec  linkerOpts
         as StrVec  defines
 
         as string  outputPath

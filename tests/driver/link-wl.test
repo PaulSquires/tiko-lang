@@ -1,0 +1,13 @@
+'' -Wl, as fbc has it: the value is split at commas, each piece reaches the linker as one
+'' argument (here through clang's -Xlinker), after the runtime and the system libraries,
+'' and repeated -Wl options accumulate -- measured on fbc-modern 2026-10-13 with -v. The
+'' first piece is real: lld-link's /STACK, read back below as the program runs. On Linux
+'' the same option carries '-rpath,$ORIGIN' (book work item T99).
+'' TEST: cli
+'' ARGS: -v -target windows-x86_64 tests/driver/src/link-wl.bas -o tests/driver/linkwl.exe -Wl /STACK:8388608,/NXCOMPAT -Wl /DYNAMICBASE
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: -Xlinker /INCLUDE:tkort_msvc_init_ -Xlinker "/STACK:8388608" -Xlinker "/NXCOMPAT" -Xlinker "/DYNAMICBASE"
+'' EXPECT-FILE: tests/driver/linkwl.exe
+'' RUN: tests/driver/linkwl.exe
+'' EXPECT-RUN-OUT: linked

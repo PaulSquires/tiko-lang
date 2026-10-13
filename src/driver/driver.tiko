@@ -663,6 +663,9 @@ private function LinkAll _
     for i as long = 0 to ctx.options.pragmaLibFiles.Count - 1
         tools.libFiles.Push( ctx.options.pragmaLibFiles[i] )
     next
+    for i as long = 0 to ctx.options.linkerOpts.Count - 1
+        tools.linkerOpts.Push( ctx.options.linkerOpts[i] )
+    next
 
     '' fbc's RULE, read and then measured: strip unless '-g'. This is also the
     '' first effect '-g' has ever had -- OPT_DEBUG set a field that nothing read.

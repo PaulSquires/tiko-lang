@@ -465,6 +465,16 @@ function Parse _
         case Tko.OPT_LIBPATH  : opts.libPaths.Push( value )
         case Tko.OPT_MAINMOD  : opts.mainModule = value
         case Tko.OPT_LIB      : opts.libs.Push( value )
+        case Tko.OPT_LINKOPT
+            '' fbc splits at commas and drops nothing else; an empty piece passes nothing.
+            dim as long st = 1
+            do
+                dim as long cm = instr( st, value, "," )
+                dim as string piece = iif( cm = 0, mid( value, st ), mid( value, st, cm - st ) )
+                if len( piece ) > 0 then opts.linkerOpts.Push( piece )
+                if cm = 0 then exit do
+                st = cm + 1
+            loop
 
         case Tko.OPT_OUTPUT
             opts.outputPath = value
