@@ -4,7 +4,7 @@
 
 > 📘 **Start with:** [Using C Libraries](Using-C-Libraries-Tutorial), the ideas these steps rely on.
 >
-> 📖 **In the book:** [Chapter 29, raylib](https://tiko-lang.net/book/ch29-c-libraries.html#raylib). Measured with raylib 6.0 and tiko at `56860273` (2026-10-13), on Windows and Linux.
+> 📖 **In the book:** [Chapter 29, raylib](https://tiko-lang.net/book/ch29-c-libraries.html#raylib). Measured with raylib 6.0 and tiko at `90d2c6e7` (2026-10-13), on Windows and Linux.
 
 [raylib](https://www.raylib.com) is a library for making games. It has one header and 600 functions with plain names, and nothing to set up before your first window. It covers 2D and 3D drawing, textures, fonts, keyboard, mouse, gamepads and sound. raylib publishes ready-built packages for both of tiko's platforms, so nothing has to be compiled.
 
