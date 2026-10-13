@@ -9,11 +9,11 @@ end type
 
 dim as Node a, b, c
 a.value = 1 : b.value = 2 : c.value = 3
-a.next_ = @b : b.next_ = @c : c.next_ = 0
+a.next_ = @b : b.next_ = @c : c.next_ = nullptr
 
 dim as Node ptr p = @a
 print "the list:";
-do while p <> 0
+do while p <> nullptr
     print p->value;
     p = p->next_
 loop

@@ -5,4 +5,4 @@
 '' A real program would create a window here. This one shows that it
 '' was started without a console, and writes to its standard output,
 '' which still works when something has redirected it.
-print "has a console window: "; cbool( GetConsoleWindow( ) <> 0 )
+print "has a console window: "; cbool( GetConsoleWindow( ) <> nullptr )

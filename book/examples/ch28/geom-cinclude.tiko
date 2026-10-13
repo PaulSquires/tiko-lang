@@ -12,4 +12,4 @@ print *geom_version( ); ", major version"; GEOM_VERSION_MAJOR
 dim pts( 0 to 2 ) as geom_point = _
     { ( 0, 0 ), ( 4, 0 ), ( 4, 3 ) }
 print "distance:"; geom_distance( pts( 0 ), pts( 2 ) )
-geom_each( @pts( 0 ), 3, @Visit, 0 )
+geom_each( @pts( 0 ), 3, @Visit, nullptr )

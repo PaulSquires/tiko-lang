@@ -5,6 +5,7 @@
 const IDS_GREETING = 101
 
 dim as wstring * 64 buf
-var n = LoadStringW( GetModuleHandle( 0 ), IDS_GREETING, @buf, 64 )
+var n = LoadStringW( GetModuleHandle( nullptr ), IDS_GREETING, _
+                     @buf, 64 )
 dim as ustring text = buf
 print "string"; IDS_GREETING; ","; n; " characters: "; text

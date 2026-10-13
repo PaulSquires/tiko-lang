@@ -20,7 +20,7 @@ dim tests( ... ) as int32 = { 7, 8, 19, 1 }
 for i as int32 = 0 to ubound( tests )
     dim as int32 ptr hit = bsearch( @tests( i ), @primes( 0 ), 8, _
                                     sizeof( int32 ), @ByValue )
-    if hit <> 0 then
+    if hit <> nullptr then
         print tests( i ); " found at index"; hit - @primes( 0 )
     else
         print tests( i ); " not found"

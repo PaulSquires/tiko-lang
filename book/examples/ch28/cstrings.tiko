@@ -16,7 +16,7 @@ print "length from C: "; strlen( strptr( s ) )
 '' Out of C: a pointer into memory the C side owns. '*p' copies the
 '' characters into a tiko string at once.
 dim as zstring ptr eq = strchr( strptr( s ), asc( "=" ) )
-if eq <> 0 then
+if eq <> nullptr then
     dim as string rest = *( eq + 1 )
     print "after '=': "; rest
 end if

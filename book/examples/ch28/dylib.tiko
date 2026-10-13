@@ -8,18 +8,18 @@
 type MathFn as function cdecl( byval x as float64 ) as float64
 
 dim as any ptr lib_ = dylibload( LIBNAME )
-if lib_ = 0 then
+if lib_ = nullptr then
     print "could not load the library"
     end 1
 end if
 
-'' dylibsymbol returns an address, or 0 when there is no such name.
+'' dylibsymbol returns an address, or nullptr for a name it lacks.
 dim as MathFn cosine = dylibsymbol( lib_, "cos" )
 dim as MathFn missing = dylibsymbol( lib_, "no_such_function" )
-print "found cos: "; cbool( cosine <> 0 ); _
-      ", found no_such_function: "; cbool( missing <> 0 )
+print "found cos: "; cbool( cosine <> nullptr ); _
+      ", found no_such_function: "; cbool( missing <> nullptr )
 
-if cosine <> 0 then
+if cosine <> nullptr then
     print "cos( 0 ) ="; cosine( 0.0 )
     print "cos( pi ) ="; cosine( atn( 1 ) * 4 )
 end if

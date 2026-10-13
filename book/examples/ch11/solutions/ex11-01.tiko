@@ -22,7 +22,7 @@ end constructor
 sub IntStack.CopyFrom( byref other as const IntStack )
     count_ = other.count_
     cap_ = other.count_
-    items_ = 0
+    items_ = nullptr
     if cap_ > 0 then
         items_ = allocate( cap_ * sizeof( int32 ) )
         for i as int32 = 0 to count_ - 1
@@ -50,7 +50,7 @@ sub IntStack.Push( byval v as int32 )
         dim as int32 newCap = iif( cap_ = 0, 4, cap_ * 2 )
         dim as int32 ptr grown = reallocate( items_, _
                                              newCap * sizeof( int32 ) )
-        if grown = 0 then end 1
+        if grown = nullptr then end 1
         items_ = grown
         cap_ = newCap
     end if

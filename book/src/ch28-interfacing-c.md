@@ -342,9 +342,9 @@ four functions and the constant `GEOM_VERSION_MAJOR` come from the header. `#for
 does the linking; the two do separate jobs.
 
 What comes across: structs and unions, enums, `typedef`s, functions (variadic ones included),
-function pointer types, global variables, and `#define`s that are constants. What does not:
-macros with parameters, which are C code rather than declarations; C++ headers; and `NULL`,
-which is `0`. Every name keeps its C spelling through `alias`, and a name that would collide with
+function pointer types, global variables, and `#define`s that are constants. What does not: macros
+with parameters, which are C code rather than declarations; C++ headers; and `NULL`, which is `0` —
+write `nullptr`. Every name keeps its C spelling through `alias`, and a name that would collide with
 a tiko keyword gets an underscore — `out` becomes `out_`.
 
 **The layout is checked, not trusted.** The importer writes tiko declarations and lets tiko lay
@@ -408,11 +408,11 @@ Both suffixed forms are always there.
 ```
 
 A library linked at build time must be present for the program to start. **`dylibload( name )`**
-opens a shared library while the program runs and returns a handle, or 0 if it cannot. A program
-can then decide what to do when a plugin or an optional library is missing.
+opens a shared library while the program runs and returns a handle, or `nullptr` if it cannot. A
+program can then decide what to do when a plugin or an optional library is missing.
 **`dylibsymbol( handle, "name" )`** finds a function or variable by name and returns its address,
-or 0; assigning it to a function pointer of the right type makes it callable. **`dylibfree`**
-closes the library, after which every address taken from it is invalid.
+or `nullptr`; assigning it to a function pointer of the right type makes it callable.
+**`dylibfree`** closes the library, after which every address taken from it is invalid.
 
 The names differ by platform: `name.dll` on Windows, `libname.so` (often with a version, as in
 `libm.so.6`) on Linux. The listing loads the C runtime's maths library on each — `ucrtbase.dll`
