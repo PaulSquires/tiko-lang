@@ -1,0 +1,16 @@
+'' A SUBSCRIPT OF AN UNSIGNED TYPE NARROWER THAN THE INDEX is zero-extended, as fbc does:
+'' tbl( b ) with a ubyte 158 is element 158. A static array's subscript went through the
+'' untyped Coerce, which sign-extended -- element -98, out of bounds under -exx and a
+'' silent read below the array without it (dynamic arrays and pointer indexing already
+'' passed the subscript's type). tiko-rt's instr indexes its Boyer-Moore table by a ubyte,
+'' so on text with bytes >= 128 it read stack garbage as shifts and skipped matches; that
+'' is what made tiko-test's EXPECT-FILE-HAS fail intermittently on an executable.
+'' TEST: cli
+'' ARGS: -exx -target windows-x86_64 tests/driver/src/array-index-unsigned.bas -o tests/driver/arrayindexunsigned.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/arrayindexunsigned.exe
+'' RUN: tests/driver/arrayindexunsigned.exe
+'' EXPECT-RUN-OUT: ubyte 7 7 7
+'' EXPECT-RUN-OUT: ushort 5
+'' EXPECT-RUN-OUT: 2-d 9

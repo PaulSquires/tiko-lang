@@ -1184,7 +1184,11 @@ function LowerArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         dim as MirValue iv
         if IsUdtValue_( c, ix ) then iv = LowerNumArg_( c, ix, offTy ) else iv = LowerExpr( c, ix )
         if iv.kind = cast( ubyte, MV_NONE ) then return none_
-        if IsUdtValue_( c, ix ) = false then iv = Coerce( c, iv, offTy )
+        '' WIDENED BY THE SUBSCRIPT'S OWN SIGNEDNESS, as LowerPtrIndex and LowerDynArrayIndex
+        '' already did: the untyped Coerce sign-extended, so a ubyte 158 indexed element -98 --
+        '' out of bounds under -exx, and without it a silent read below the array. tiko-rt's
+        '' instr (Boyer-Moore, bm_bc( chText )) then skipped matches on text with bytes >= 128.
+        if IsUdtValue_( c, ix ) = false then iv = CoerceTy( c, iv, offTy, c.info->TypeOf_( ix ) )
 
         '' -exx: CHECK THE SUBSCRIPT BEFORE IT BECOMES AN ADDRESS.
         if (c.errFlags and 8) <> 0 then EmitBoundsCheck_( c, id, sp->target, at, k, iv, offTy )
