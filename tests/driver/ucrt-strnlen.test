@@ -1,0 +1,13 @@
+'' strnlen is a ucrtbase.dll export, and the windows-x86_64 import library must carry it
+'' (lib/implib/ucrtbase.def, a local addition: mingw-w64's list leaves it out because its
+'' libmingwex supplies one). Without it a Visual C++ static library that calls strnlen --
+'' SDL3's SDL3-static.lib -- stopped on 'undefined symbol: __declspec(dllimport) strnlen'.
+'' Book work item T100.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/driver/src/ucrt-strnlen.bas -o tests/driver/ucrtstrnlen.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/ucrtstrnlen.exe
+'' EXPECT-FILE-HAS: tests/driver/ucrtstrnlen.exe :: ucrtbase.dll
+'' RUN: tests/driver/ucrtstrnlen.exe
+'' EXPECT-RUN-OUT: 3 5

@@ -14,6 +14,10 @@ libraries need no fbc and no MinGW tree.
 Measured 2026-10-10: `build` reproduced all 843 libraries of the toolchain that
 `mkmsvcimplibs.sh` had generated, byte for byte.
 
+**Local additions**, kept by hand -- a re-export must keep them: `strnlen` in `ucrtbase.def`
+and `ucrt.def` (2026-10-13). mingw-w64 leaves it out because its libmingwex supplies one; tiko
+links no libmingwex, so a Visual C++ static library that calls it (SDL3's) could not link.
+
 **A new Windows library**: write its `.def` by hand, or run
 `build/implibs.sh export --from <dir of lib*.dll.a>` again and read the diff.
 
