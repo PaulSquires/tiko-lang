@@ -120,7 +120,8 @@ def main() -> int:
         "A name in tiko is one of five things, and they follow different rules. A **reserved "
         "word** is never a name. A **runtime name** may not be reused at module level. A "
         "**contextual word** is a keyword only where its statement expects it. A **fixed-width "
-        "type name** is predeclared and may be replaced. Everything else is free. The rules "
+        "type name**, like the constant `nullptr`, is predeclared and may be replaced. "
+        "Everything else is free. The rules "
         "below were measured by compiling each word in each position with tiko and with "
         "fbc-modern 1.20, and the two give the same answer for every word in every position.",
         "",
@@ -211,6 +212,13 @@ def main() -> int:
         a, b = FIXED_WIDTH[i], FIXED_WIDTH[i + 1]
         L.append(f"| `{a[0]}` | `{a[1]}` | `{b[0]}` | `{b[1]}` |")
     L += [
+        "",
+        "## The predeclared constant {#app-kw-nullptr}",
+        "",
+        "tiko predeclares one constant that fbc does not have, `const nullptr as any ptr = 0`: "
+        "the null pointer, as a pointer (Chapter 10). It is replaced on the same terms as the "
+        "type names above, so a program's own `nullptr` — fbc's own test suite has a field by "
+        "that name — compiles unchanged.",
         "",
         "## Operator precedence {#app-precedence}",
         "",

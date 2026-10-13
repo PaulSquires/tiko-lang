@@ -79,4 +79,4 @@ A solution is one way to do the exercise, not the only one. Several build on a c
 | 33.1 | Capstone: a TUI Ledger | Print the spending in each category over the whole ledger, the largest first. | `ch33/solutions/ex33-01.tiko` |
 | 33.2 | Capstone: a TUI Ledger | Accept a quick-entry line, `date;payee;category;amount`, and check it with `ParseTxn`. | `ch33/solutions/ex33-02.tiko` |
 
-<!-- 70 solutions of 161 exercises, generated 2026-10-12 -->
+<!-- 70 solutions of 161 exercises, generated 2026-10-13 -->

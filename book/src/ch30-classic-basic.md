@@ -184,11 +184,15 @@ caller, and it ends wherever a `return` happens to be. Exercise 1 rewrites the l
 ```
 
 ```text
+suffix.bas(2,5): warning TKO0206: suffix ignored in 'count%'
+suffix.bas(3,1): warning TKO0206: suffix ignored in 'count%'
+suffix.bas(4,7): warning TKO0206: suffix ignored in 'count%'
 suffix.bas(2,5): error TKO0320: 'count' has no type; tiko-lang implements
 #lang "fb" only, where default types and suffixes are not valid
 ```
 
-(Again one line.)
+(Again one line.) The warnings are each `%` being thrown away; the error is what stops the build,
+because without its suffix `count` has no type at all.
 
 In the old dialects a **suffix** gave a variable its type — `%` an integer, `&` a long, `!` a
 single, `#` a double, `$` a string — and `defint`, `deflng`, `defsng`, `defdbl` and `defstr` set a

@@ -133,8 +133,9 @@ implicit.tiko(5,1): error TKO0743: 'totl' is not declared
 
 ```admonish note
 A type-suffix sigil does not give a variable a type: `dim count%` is error `TKO0320`. Next to an
-explicit type, as in `dim as int32 count%`, the suffix is accepted and ignored: the type comes
-from `as int32`. Write `dim as int32 count`. Chapter 30 covers code that still relies on suffixes.
+explicit type, as in `dim as int32 count%`, the suffix is ignored, with warning `TKO0206`: the
+type comes from `as int32`. Write `dim as int32 count`. Chapter 30 covers code that still relies
+on suffixes.
 ```
 
 ## One type becoming another
