@@ -165,7 +165,7 @@ private sub CheckPtrAssign_ _
     if byrefResult andalso (c.ast->Kind( sp->a ) = N_FUNCRESULT) then return
     select case sp->op
     case cast( ushort, TK_EQ ), cast( ushort, TK_PLUSEQ ), cast( ushort, TK_MINUSEQ )
-        IntFromPtrWarn_( c, id, lt, rt )
+        IntFromPtrWarn_( c, id, lt, rt, sp->b )
     end select
 end sub
 
@@ -187,7 +187,7 @@ private sub CheckPtrInit_ ( byref c as Ctx, byval id as NodeId )
         return
     end if
     PtrWarn_( c, id, lt, rt, ip->b )
-    IntFromPtrWarn_( c, id, lt, rt )
+    IntFromPtrWarn_( c, id, lt, rt, ip->b )
 end sub
 
 private sub CheckPtrFloatAssign_ ( byref c as Ctx, byval id as NodeId )
@@ -512,6 +512,17 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
                 end if
             end if
         end if
+        '' A RUN-TIME POINTER FOR A BOOLEAN is fbc's 24, as the assignment is its 181
+        '' (declshape.tiko PtrIntNarrow_): 'TakeBool( p )' compiled. A NARROW INTEGER is
+        '' argmismatch.tiko's already (AmNumeric_ leaves boolean out), and asking it here too
+        '' reported 'TakeByte( p )' twice.
+        if bad = false then
+            dim as TypeId bpu = c.types->Unqualify( pt )
+            if c.types->Kind( bpu ) = TK_REFERENCE then bpu = c.types->Unqualify( c.types->Inner( bpu ) )
+            if c.types->Kind( bpu ) = TK_BUILTIN then
+                if c.types->BuiltinOf( bpu ) = TY_BOOLEAN then bad = PtrIntNarrow_( c, pt, at, arg )
+            end if
+        end if
         if bad then
             c.diags->Report( TKO0698, PointRange( c.ast->Loc( arg ) ) )
             return
@@ -521,6 +532,8 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         '' fits is TKO0632 already -- fbc's 99, with no warning beside it.
         dim as boolean ovl = ((callee->flags and SYMF_OVERLOAD) <> 0) orelse (callee->nextOverload <> SYMBOL_NONE)
         if (ovl = false) andalso (c.types->Kind( c.types->Unqualify( pt ) ) = TK_POINTER) then PtrArgWarn_( c, arg, pt, at )
+        '' ...AND A POINTER FOR A NUMBER OR A BOOLEAN, fbc's warning 2 (ptrwarn.tiko ScalarArgWarn_).
+        if ovl = false then ScalarArgWarn_( c, arg, pt, at )
 
         '' A CONST VALUE CANNOT BIND TO A NON-CONST BYREF -- fbc error 181. Measured over
         '' a UDT and an integer: 'byref x as T' given a 'const T' is refused, while

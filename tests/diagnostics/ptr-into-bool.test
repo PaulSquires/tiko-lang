@@ -1,0 +1,51 @@
+'' A POINTER INTO A BOOLEAN, measured on fbc-modern 1.20 (2026-10-13): a run-time pointer is
+'' fbc's 181 ('bo = p', 'return p'), 24 ('dim as boolean b = p', 'TakeBool( p )') and 20
+'' ('cbool( p )') -- TKO0910, TKO0698 and TKO0890 here; tiko compiled all five. A pointer
+'' CONSTANT (nullptr, 'cptr( any ptr, 0 )') is fbc's warning 5 only -- TKO0968 -- into a
+'' boolean and into a narrow integer alike ('by = nullptr' was a false TKO0910 before), and
+'' 'cbool( nullptr )' is silent. 'return p' from a function 'as long' is 181 too.
+'' TEST: cli
+'' ARGS: --dump-ir %s
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: (37,5): error TKO0910: a pointer does not fit in a 'boolean'
+'' EXPECT-OUT: (40,5): error TKO0910: a pointer does not fit in a 'long'
+'' EXPECT-OUT: (42,1): error TKO0910: a pointer does not fit in a 'boolean'
+'' EXPECT-OUT: (43,16): error TKO0910: a pointer does not fit in a 'boolean'
+'' EXPECT-OUT: (44,11): error TKO0698: this argument does not convert to the parameter's type
+'' EXPECT-OUT: (45,11): error TKO0890: 'cbool' cannot convert a 'long ptr'
+'' EXPECT-OUT: (46,1): warning TKO0968: implicit conversion: a 'boolean' from a 'any ptr'
+'' EXPECT-OUT: (47,1): warning TKO0968: implicit conversion: a 'byte' from a 'any ptr'
+'' EXPECT-OUT: (48,1): warning TKO0968: implicit conversion: a 'long' from a 'any ptr'
+'' EXPECT-OUT: (49,1): warning TKO0968: implicit conversion: a 'boolean' from a 'any ptr'
+'' EXPECT-NOT: (31,
+'' EXPECT-NOT: (32,
+'' EXPECT-NOT: (33,
+'' EXPECT-NOT: (34,
+'' EXPECT-NOT: (35,
+'' EXPECT-NOT: (36,
+'' EXPECT-NOT: (38,
+'' EXPECT-NOT: (39,
+'' EXPECT-NOT: (41,
+'' EXPECT-NOT: (50,
+'' EXPECT-NOT: (51,
+dim shared as long ptr lp
+dim as boolean bo
+dim as byte by
+dim as long l
+sub TakeBool( byval x as boolean ) : end sub
+function RetB( ) as boolean
+    return lp
+end function
+function RetL( ) as long
+    return lp
+end function
+bo = lp
+dim as boolean b2 = lp
+TakeBool( lp )
+bo = cbool( lp )
+bo = nullptr
+by = nullptr
+l = nullptr
+bo = cptr( any ptr, 0 )
+bo = cbool( nullptr )
+bo = ( lp <> nullptr )

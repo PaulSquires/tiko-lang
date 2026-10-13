@@ -1,0 +1,42 @@
+'' A POINTER IN A COMPOUND ASSIGNMENT OTHER THAN '+=' / '-=' -- fbc's error 20, measured on
+'' fbc-modern 1.20 (2026-10-13), and TKO0820 here, as the binary operator already was. Over an
+'' integer target with a pointer value, and over a pointer target with a number. tiko
+'' compiled every one. 'n += p' stays TKO0968 (fbc's warning 5); 'p += 2' and 'p -= 2' are
+'' pointer arithmetic and silent.
+'' TEST: cli
+'' ARGS: --dump-ir %s
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: (28,1): error TKO0820: no operator '*' takes these operand types
+'' EXPECT-OUT: (29,1): error TKO0820: no operator '/' takes these operand types
+'' EXPECT-OUT: (30,1): error TKO0820: no operator '\' takes these operand types
+'' EXPECT-OUT: (31,1): error TKO0820: no operator 'mod' takes these operand types
+'' EXPECT-OUT: (32,1): error TKO0820: no operator 'and' takes these operand types
+'' EXPECT-OUT: (33,1): error TKO0820: no operator 'or' takes these operand types
+'' EXPECT-OUT: (34,1): error TKO0820: no operator 'xor' takes these operand types
+'' EXPECT-OUT: (35,1): error TKO0820: no operator 'shl' takes these operand types
+'' EXPECT-OUT: (36,1): error TKO0820: no operator 'shr' takes these operand types
+'' EXPECT-OUT: (37,1): error TKO0820: no operator '^' takes these operand types
+'' EXPECT-OUT: (38,1): error TKO0820: no operator '*' takes these operand types
+'' EXPECT-OUT: (39,1): error TKO0820: no operator 'and' takes these operand types
+'' EXPECT-OUT: (40,1): error TKO0820: no operator 'shl' takes these operand types
+'' EXPECT-NOT: (26,
+'' EXPECT-NOT: (27,
+'' EXPECT-NOT: (41,
+'' EXPECT-NOT: (42,
+dim as long ptr lp
+dim as integer n
+n *= lp
+n /= lp
+n \= lp
+n mod= lp
+n and= lp
+n or= lp
+n xor= lp
+n shl= lp
+n shr= lp
+n ^= lp
+lp *= 2
+lp and= 2
+lp shl= 1
+lp += 2
+lp -= 2

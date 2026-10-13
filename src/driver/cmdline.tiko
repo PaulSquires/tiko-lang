@@ -356,6 +356,7 @@ private function FbcWarnLevel_( byval d as Tko.DiagId ) as long
     select case d
     case Tko.TKO0830 : return 2      '' warning 4,  suspicious pointer assignment
     case Tko.TKO0968 : return 1      '' warning 5,  implicit conversion (pointer to integer)
+    case Tko.TKO0970 : return 2      '' warning 2,  passing pointer to scalar
     case Tko.TKO0833 : return 2      '' warning 3,  passing different pointer types
     case Tko.TKO0205 : return 2      '' warning 8,  literal number too big, truncated
     case Tko.TKO0206 : return 1      '' warning 44, suffix ignored

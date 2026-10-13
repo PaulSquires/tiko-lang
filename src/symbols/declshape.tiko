@@ -249,6 +249,11 @@ end sub
 ''     dim a as integer = @i  /  as ulongint  /  as any ptr           fine
 ''
 '' dim/global-init-nonptrsizedint-from-offset writes the first. A float is TKO0670's.
+''
+'' ...AND A BOOLEAN, of any width: 'bo = p', 'dim as boolean b = p' and 'return p' from a
+'' function 'as boolean' are fbc's 181 / 24 / 181 (2026-10-13), and tiko took all three.
+'' A POINTER CONSTANT is fbc's warning 5 only, into any of these -- 'by = NP' with 'const NP
+'' as any ptr = 0', so 'by = nullptr' too -- and is TKO0968's, not this error's.
 private function PtrIntNarrow_ ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId, byval rhs as NodeId ) as boolean
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return false
     '' ONLY A RUN-TIME POINTER: an address, a variable or a field. 'b = cptr( any ptr, 0 )' is a
@@ -261,7 +266,12 @@ private function PtrIntNarrow_ ( byref c as Ctx, byval lt as TypeId, byval rt as
     next
     if rhs = NODE_NONE then return false
     select case c.ast->Kind( rhs )
-    case N_ADDROF, N_IDENT, N_MEMBER
+    case N_ADDROF, N_MEMBER
+    case N_IDENT
+        dim as Symbol ptr rs = c.syms->SymbolAt( c.info->RefOf( rhs ) )
+        if rs <> 0 then
+            if rs->kind = cast( ubyte, SYM_CONSTANT ) then return false
+        end if
     case else
         return false
     end select
@@ -272,6 +282,8 @@ private function PtrIntNarrow_ ( byref c as Ctx, byval lt as TypeId, byval rt as
     select case c.types->BuiltinOf( lu )
     case TY_BYTE, TY_UBYTE, TY_SHORT, TY_USHORT, TY_LONG, TY_ULONG, TY_INTEGER, TY_UINTEGER, TY_LONGINT, TY_ULONGINT
         return (c.types->Layout( lu ).size * 8) <> c.types->target.pointerBits
+    case TY_BOOLEAN
+        return true
     end select
     return false
 end function

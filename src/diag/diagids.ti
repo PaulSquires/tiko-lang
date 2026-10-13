@@ -829,6 +829,8 @@
     '' fbc's warning 5, "Implicit conversion": a pointer stored into a pointer-sized integer
     '' -- see IntFromPtrWarn_ in symbols/ptrwarn.tiko.
     DIAG( TKO0968, SEV_WARNING, "implicit conversion: a '%0' from a '%1'; cast( ) it if that is meant" )
+    '' fbc's warning 2, "Passing pointer to scalar" -- see ScalarArgWarn_ in symbols/ptrwarn.tiko.
+    DIAG( TKO0970, SEV_WARNING, "passing a '%1' for a '%0' parameter; cast( ) it if that is meant" )
     DIAG( TKO0965, SEV_ERROR,   "'%0' has a field with a constructor, which an initializer list cannot fill" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )

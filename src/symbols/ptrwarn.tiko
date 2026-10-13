@@ -301,9 +301,15 @@ end sub
 ''   dim as integer n = p, arr( 0 ) = p
 ''   'return p' and 'function = p' from a function 'as integer'
 ''
-'' A NARROWER integer is fbc's warning 5 AND error 181, and TKO0910 here, which says more;
-'' so only a POINTER-SIZED integer warns. tiko said nothing about any of it.
-private sub IntFromPtrWarn_ ( byref c as Ctx, byval at_ as NodeId, byval lt as TypeId, byval rt as TypeId )
+'' A NARROWER integer, or a BOOLEAN, is fbc's warning 5 AND an error for a run-time pointer
+'' -- TKO0910 here, which says more (declshape.tiko PtrIntNarrow_) -- but warning 5 ALONE for
+'' a pointer CONSTANT: 'by = NP', 'bo = nullptr' (2026-10-13). So those warn when 'rn' is
+'' not refused. tiko said nothing about any of it.
+declare function PtrIntNarrow_ ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId, byval rhs as NodeId ) as boolean
+
+private sub IntFromPtrWarn_ _
+    ( byref c as Ctx, byval at_ as NodeId, byval lt as TypeId, byval rt as TypeId, _
+      byval rn as NodeId = NODE_NONE )
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
     dim as TypeId lu = c.types->Unqualify( lt ), ru = c.types->Unqualify( rt )
     if c.types->Kind( lu ) = TK_REFERENCE then return
@@ -311,10 +317,16 @@ private sub IntFromPtrWarn_ ( byref c as Ctx, byval at_ as NodeId, byval lt as T
     if c.types->Kind( ru ) <> TK_POINTER then return
     if c.types->Kind( lu ) <> TK_BUILTIN then return
     select case c.types->BuiltinOf( lu )
-    case TY_INTEGER, TY_UINTEGER, TY_LONG, TY_ULONG, TY_LONGINT, TY_ULONGINT
+    case TY_BYTE, TY_UBYTE, TY_SHORT, TY_USHORT, TY_LONG, TY_ULONG, _
+         TY_INTEGER, TY_UINTEGER, TY_LONGINT, TY_ULONGINT, TY_BOOLEAN
     case else : return
     end select
-    if PwIntSize_( c, lu ) <> c.types->target.pointerBits \ 8 then return
+    dim as boolean narrow = (c.types->BuiltinOf( lu ) = TY_BOOLEAN)
+    if narrow = false then narrow = (PwIntSize_( c, lu ) <> c.types->target.pointerBits \ 8)
+    if narrow then
+        if rn = NODE_NONE then return
+        if PtrIntNarrow_( c, lt, rt, rn ) then return     '' TKO0910's
+    end if
     c.diags->Report( TKO0968, PointRange( c.ast->Loc( at_ ) ), c.types->Name( lt ), c.types->Name( rt ) )
 end sub
 
@@ -346,6 +358,30 @@ private sub PtrArgWarn_ ( byref c as Ctx, byval arg as NodeId, byval pt as TypeI
     c.diags->Report( TKO0833, PointRange( c.ast->Loc( arg ) ), c.types->Name( pt ), c.types->Name( au ) )
 end sub
 
+'' ...AND A POINTER FOR A NUMBER OR A BOOLEAN is fbc's WARNING 2, "Passing pointer to scalar".
+'' Measured on fbc-modern 1.20, 2026-10-13, over a 'byval x as' integer, uinteger, longint,
+'' long, byte, double and boolean parameter, and a 'byref x as integer' one: a pointer
+'' variable, '@p', 'any ptr', a pointer constant and 'cptr( any ptr, 0 )' each warn, every
+'' one of them; '0' and 'cint( p )' do not. Where fbc ALSO refuses (a run-time pointer for a
+'' narrow integer, a float or a boolean) the error is reported instead and this never runs.
+private sub ScalarArgWarn_ ( byref c as Ctx, byval arg as NodeId, byval pt as TypeId, byval at as TypeId )
+    if (pt = TYPE_NONE) orelse (at = TYPE_NONE) then return
+    if c.ast->Kind( arg ) = N_UNARY then
+        if cast( TokenKind, c.ast->unaries[cast( long, c.ast->nodes[cast( long, arg )].data )].op ) = KW_BYVAL then return
+    end if
+    dim as TypeId pu = c.types->Unqualify( pt ), au = c.types->Unqualify( at )
+    if c.types->Kind( pu ) = TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
+    if c.types->Kind( au ) = TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
+    if c.types->Kind( au ) <> TK_POINTER then return
+    if c.types->Kind( pu ) <> TK_BUILTIN then return
+    select case c.types->BuiltinOf( pu )
+    case TY_BYTE, TY_UBYTE, TY_SHORT, TY_USHORT, TY_LONG, TY_ULONG, TY_INTEGER, TY_UINTEGER, _
+         TY_LONGINT, TY_ULONGINT, TY_SINGLE, TY_DOUBLE, TY_BOOLEAN
+    case else : return
+    end select
+    c.diags->Report( TKO0970, PointRange( c.ast->Loc( arg ) ), c.types->Name( pu ), c.types->Name( au ) )
+end sub
+
 '' 'return expr' in a function declared 'as T ptr'. A byref result returns an address and
 '' is not this question.
 declare sub JudgeConversion_ _
@@ -360,7 +396,15 @@ private sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultTy
     if TypeLitTextBad_( c, resultType, e, false ) then return  '' tupleconv.tiko (T30)
     if TupleConvBad_( c, resultType, e, 0 ) then return  '' tupleconv.tiko
     PtrWarn_( c, id, resultType, c.info->TypeOf_( e ), e )
-    if byrefResult = false then IntFromPtrWarn_( c, id, resultType, c.info->TypeOf_( e ) )
+    '' 'return p' from a function 'as long' or 'as boolean' is fbc's 181, as 'l = p' is
+    '' (TKO0910, declshape.tiko); tiko returned the pointer truncated.
+    if byrefResult = false then
+        if PtrIntNarrow_( c, resultType, c.info->TypeOf_( e ), e ) then
+            c.diags->Report( TKO0910, PointRange( c.ast->Loc( id ) ), c.types->Name( c.types->Unqualify( resultType ) ) )
+        else
+            IntFromPtrWarn_( c, id, resultType, c.info->TypeOf_( e ), e )
+        end if
+    end if
     '' ...AND AS AN ASSIGNMENT'S VALUE IS: 'return 1.5' from a pointer function, 'return p'
     '' from a double one and 'return 5' from a UDT one are fbc's 181, as 'r = v' is.
     PtrFloatPair_( c, e, resultType, c.info->TypeOf_( e ) )

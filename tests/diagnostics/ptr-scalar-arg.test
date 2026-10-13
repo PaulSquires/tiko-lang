@@ -1,0 +1,41 @@
+'' fbc's WARNING 2, "Passing pointer to scalar" -- TKO0970. A pointer for a number or a boolean
+'' parameter, byval or byref, measured on fbc-modern 1.20 (2026-10-13): a pointer variable,
+'' an any ptr, '@p', a pointer constant and 'cptr( any ptr, 0 )' each warn; '0' and 'cint( p )'
+'' do not. Where fbc also refuses, so does tiko (TKO0698), and that is the report.
+'' TEST: cli
+'' ARGS: --dump-ir %s
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: (32,10): warning TKO0970: passing a 'long ptr' for a 'integer' parameter
+'' EXPECT-OUT: (33,10): warning TKO0970: passing a 'any ptr' for a 'integer' parameter
+'' EXPECT-OUT: (34,10): warning TKO0970: passing a 'long ptr ptr' for a 'integer' parameter
+'' EXPECT-OUT: (35,10): warning TKO0970: passing a 'any ptr' for a 'integer' parameter
+'' EXPECT-OUT: (36,11): warning TKO0970: passing a 'long ptr' for a 'uinteger' parameter
+'' EXPECT-OUT: (37,9): warning TKO0970: passing a 'long ptr' for a 'longint' parameter
+'' EXPECT-OUT: (38,13): warning TKO0970: passing a 'long ptr' for a 'integer' parameter
+'' EXPECT-OUT: (39,14): warning TKO0970: passing a 'long ptr' for a 'integer' parameter
+'' EXPECT-NOT: (25,
+'' EXPECT-NOT: (26,
+'' EXPECT-NOT: (27,
+'' EXPECT-NOT: (28,
+'' EXPECT-NOT: (29,
+'' EXPECT-NOT: (30,
+'' EXPECT-NOT: (31,
+'' EXPECT-NOT: (40,
+'' EXPECT-NOT: (41,
+dim as long ptr lp
+dim as any ptr ap
+sub TakeInt( byval x as integer ) : end sub
+sub TakeUInt( byval x as uinteger ) : end sub
+sub TakeLL( byval x as longint ) : end sub
+sub TakeRefInt( byref x as integer ) : end sub
+sub TakeInt2( byval a as integer, byval x as integer ) : end sub
+TakeInt( lp )
+TakeInt( ap )
+TakeInt( @lp )
+TakeInt( nullptr )
+TakeUInt( lp )
+TakeLL( lp )
+TakeRefInt( lp )
+TakeInt2( 1, lp )
+TakeInt( 0 )
+TakeInt( cint( lp ) )

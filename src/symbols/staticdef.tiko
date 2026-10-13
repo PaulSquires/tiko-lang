@@ -301,6 +301,17 @@ private sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
         CheckUdtExactCast_( c, id, cast( NodeId, c.ast->children[lp->first + 1] ), want, nm )
         return
     end if
+    '' 'cbool( p )' OVER A RUN-TIME POINTER is fbc's 20, as clng and the rest are below; a
+    '' pointer CONSTANT -- 'cbool( nullptr )', 'cbool( cptr( any ptr, 0 ) )' -- is silent in
+    '' fbc too (2026-10-13). The same split as 'bo = p' (declshape.tiko PtrIntNarrow_).
+    if (nm = "cbool") andalso (lp->count = 1) andalso (c.info->RefOf( lp->target ) = SYMBOL_NONE) then
+        dim as NodeId barg = cast( NodeId, c.ast->children[lp->first] )
+        dim as TypeId bt = c.info->TypeOf_( barg )
+        if PtrIntNarrow_( c, c.types->Builtin( TY_BOOLEAN ), bt, barg ) then
+            c.diags->Report( TKO0890, PointRange( c.ast->Loc( id ) ), nm, c.types->Name( c.types->Unqualify( bt ) ) )
+            return
+        end if
+    end if
     if want = TY_NONE then
         CheckMathIntrinsic_( c, id, lp, nm )
         CheckUdtRadixChr_( c, id, lp, nm )

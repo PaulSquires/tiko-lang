@@ -733,6 +733,34 @@ private function CompoundSelfName_( byval op as TokenKind ) as string
     return ""
 end function
 
+'' A POINTER IN A COMPOUND ASSIGNMENT OTHER THAN '+=' AND '-=' -- fbc's error 20, as the
+'' binary operator is (TKO0820 here). Measured on fbc-modern 1.20, 2026-10-13: 'n *= p', '/=',
+'' '\=', 'mod=', 'and=', 'or=', 'xor=', 'shl=', 'shr=' and '^=' over an integer target, and
+'' 'p *= 2', 'p and= 2', 'p shl= 1' over a pointer one; tiko compiled every one. Not '&=',
+'' which concatenates, nor 'imp=' / 'eqv=', which were not measured; a UDT side is
+'' CheckUdtCompound_'s.
+private sub CheckPtrCompound_ ( byref c as Ctx, byval id as NodeId )
+    if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
+    select case cast( TokenKind, sp->op )
+    case TK_STAREQ, TK_SLASHEQ, TK_BSLASHEQ, TK_CARETEQ, KW_AND, KW_OR, KW_XOR, KW_MOD, KW_SHL, KW_SHR
+    case else
+        return
+    end select
+    if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
+    dim as TypeId lt = c.types->Unqualify( c.info->TypeOf_( sp->a ) )
+    dim as TypeId rt = c.types->Unqualify( c.info->TypeOf_( sp->b ) )
+    if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    if c.types->Kind( lt ) = TK_REFERENCE then lt = c.types->Unqualify( c.types->Inner( lt ) )
+    if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+    dim as TypeKind lk = c.types->Kind( lt ), rk = c.types->Kind( rt )
+    if (lk <> TK_POINTER) andalso (rk <> TK_POINTER) then return
+    if (lk <> TK_POINTER) andalso (lk <> TK_BUILTIN) then return
+    if (rk <> TK_POINTER) andalso (rk <> TK_BUILTIN) then return
+    dim as string selfNm = CompoundSelfName_( cast( TokenKind, sp->op ) )
+    Report0820_( c, id, left( selfNm, len( selfNm ) - 1 ) )
+end sub
+
 private sub CheckUdtCompound_ ( byref c as Ctx, byval id as NodeId )
     if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
     if c.info->RefOf( id ) <> SYMBOL_NONE then return
