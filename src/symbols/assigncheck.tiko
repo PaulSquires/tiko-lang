@@ -126,7 +126,8 @@ private function ThisObjectTarget_( byref c as Ctx, byval n as NodeId ) as boole
 end function
 
 private sub CheckPtrAssign_ _
-    ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE )
+    ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE, _
+      byval byrefResult as boolean = false )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
     if sp->op = 0 then return
@@ -159,6 +160,13 @@ private sub CheckPtrAssign_ _
     end if
     '' Only a plain '=': 'p += 1' is pointer arithmetic, not a conversion.
     if sp->op = cast( ushort, TK_EQ ) then PtrWarn_( c, id, lt, rt, sp->b )
+    '' ...but 'n += p' and 'n -= p' store a pointer too (ptrwarn.tiko IntFromPtrWarn_). A
+    '' BYREF result takes an address: 'function = @a' (functions/return-byref.bas).
+    if byrefResult andalso (c.ast->Kind( sp->a ) = N_FUNCRESULT) then return
+    select case sp->op
+    case cast( ushort, TK_EQ ), cast( ushort, TK_PLUSEQ ), cast( ushort, TK_MINUSEQ )
+        IntFromPtrWarn_( c, id, lt, rt )
+    end select
 end sub
 
 private sub CheckPtrInit_ ( byref c as Ctx, byval id as NodeId )
@@ -179,6 +187,7 @@ private sub CheckPtrInit_ ( byref c as Ctx, byval id as NodeId )
         return
     end if
     PtrWarn_( c, id, lt, rt, ip->b )
+    IntFromPtrWarn_( c, id, lt, rt )
 end sub
 
 private sub CheckPtrFloatAssign_ ( byref c as Ctx, byval id as NodeId )

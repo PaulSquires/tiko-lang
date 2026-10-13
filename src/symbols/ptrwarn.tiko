@@ -289,6 +289,35 @@ private sub PtrWarn_ _
     c.diags->Report( TKO0830, PointRange( c.ast->Loc( at_ ) ), c.types->Name( lt ), c.types->Name( rt ) )
 end sub
 
+'' ...AND THE OTHER DIRECTION is fbc's WARNING 5, "Implicit conversion": a POINTER stored
+'' into an INTEGER. Measured on fbc-modern 1.20, 2026-10-12 (docs/tiko-nullptr RFC §5.5):
+''
+''   WARNED                                      NOT WARNED
+''   integer, uinteger, longint, ulongint        cast( integer, p ), cint( p )
+''     = an any ptr, long ptr, zstring ptr,      'if n = p' -- a comparison
+''     a procedure pointer                       'var v = p', 'n = p - q' (an integer)
+''   n = @x, n = p + 1, n = iif( c, p, q )
+''   n += p, n -= p                              'n *= p' and the rest: fbc's error 20
+''   dim as integer n = p, arr( 0 ) = p
+''   'return p' and 'function = p' from a function 'as integer'
+''
+'' A NARROWER integer is fbc's warning 5 AND error 181, and TKO0910 here, which says more;
+'' so only a POINTER-SIZED integer warns. tiko said nothing about any of it.
+private sub IntFromPtrWarn_ ( byref c as Ctx, byval at_ as NodeId, byval lt as TypeId, byval rt as TypeId )
+    if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
+    dim as TypeId lu = c.types->Unqualify( lt ), ru = c.types->Unqualify( rt )
+    if c.types->Kind( lu ) = TK_REFERENCE then return
+    if c.types->Kind( ru ) = TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
+    if c.types->Kind( ru ) <> TK_POINTER then return
+    if c.types->Kind( lu ) <> TK_BUILTIN then return
+    select case c.types->BuiltinOf( lu )
+    case TY_INTEGER, TY_UINTEGER, TY_LONG, TY_ULONG, TY_LONGINT, TY_ULONGINT
+    case else : return
+    end select
+    if PwIntSize_( c, lu ) <> c.types->target.pointerBits \ 8 then return
+    c.diags->Report( TKO0968, PointRange( c.ast->Loc( at_ ) ), c.types->Name( lt ), c.types->Name( rt ) )
+end sub
+
 '' ...AND THE SAME QUESTION AT A CALL ARGUMENT is fbc's WARNING 3, "Passing different pointer
 '' types" -- the same compatibility rule, measured on fbc-modern 1.20, 2026-09-26, over a
 '' 'byval p as long ptr', 'A ptr', 'zstring ptr', 'A ptr ptr' and 'sub( )' parameter:
@@ -323,7 +352,7 @@ declare sub JudgeConversion_ _
     ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId, _
       byval byAssign as boolean )
 
-private sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId )
+private sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId, byval byrefResult as boolean = false )
     if resultType = TYPE_NONE then return
     if c.types->Kind( resultType ) = TK_REFERENCE then return
     dim as NodeId e = c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )].a
@@ -331,6 +360,7 @@ private sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultTy
     if TypeLitTextBad_( c, resultType, e, false ) then return  '' tupleconv.tiko (T30)
     if TupleConvBad_( c, resultType, e, 0 ) then return  '' tupleconv.tiko
     PtrWarn_( c, id, resultType, c.info->TypeOf_( e ), e )
+    if byrefResult = false then IntFromPtrWarn_( c, id, resultType, c.info->TypeOf_( e ) )
     '' ...AND AS AN ASSIGNMENT'S VALUE IS: 'return 1.5' from a pointer function, 'return p'
     '' from a double one and 'return 5' from a UDT one are fbc's 181, as 'r = v' is.
     PtrFloatPair_( c, e, resultType, c.info->TypeOf_( e ) )

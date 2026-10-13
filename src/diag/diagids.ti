@@ -826,6 +826,9 @@
     '' fbc's error 24, "Invalid data types": LINE INPUT reads a LINE, so its destination is a
     '' string of some kind. tiko accepted a number and wrote a string descriptor over it.
     DIAG( TKO0967, SEV_ERROR,   "'line input' reads into a string, and this is a '%0'" )
+    '' fbc's warning 5, "Implicit conversion": a pointer stored into a pointer-sized integer
+    '' -- see IntFromPtrWarn_ in symbols/ptrwarn.tiko.
+    DIAG( TKO0968, SEV_WARNING, "implicit conversion: a '%0' from a '%1'; cast( ) it if that is meant" )
     DIAG( TKO0965, SEV_ERROR,   "'%0' has a field with a constructor, which an initializer list cannot fill" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )

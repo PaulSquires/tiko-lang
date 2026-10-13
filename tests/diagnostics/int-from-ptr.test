@@ -1,0 +1,70 @@
+'' fbc's WARNING 5, "Implicit conversion" -- TKO0968: a pointer stored into a pointer-sized
+'' integer. tiko said nothing about any of these until 2026-10-12 (docs/tiko-nullptr RFC
+'' §5.5, the fix landed ahead of 'nullptr' because 'dim as integer n = nullptr' would hit it).
+''
+'' MEASURED (fbc-modern win64, 'fbc64 -w all'), and every line below is one of them:
+''
+''   n = ap / lp / zp / fp, u = lp, ll = lp     one warning each
+''   n = @x, n = lp + 1, n += lp, n -= lp       one each
+''   dim as integer n2 = lp, arr( 0 ) = lp      one each
+''   return lp / function = ap  'as integer'    one each
+''   cast( integer, lp ), cint( lp )            NOTHING
+''   if n = lp, var v = lp, n = lp - lp         NOTHING
+''   function = byval pa, 'byref as integer'    NOTHING -- a byref result takes an address
+'' TEST: cli
+'' ARGS: --dump-ir %s
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: (48,1): warning TKO0968: implicit conversion: a 'integer' from a 'any ptr'
+'' EXPECT-OUT: (49,1): warning TKO0968: implicit conversion: a 'integer' from a 'long ptr'
+'' EXPECT-OUT: (50,1): warning TKO0968: implicit conversion: a 'integer' from a 'zstring ptr'
+'' EXPECT-OUT: (51,1): warning TKO0968
+'' EXPECT-OUT: (52,1): warning TKO0968: implicit conversion: a 'uinteger' from a 'long ptr'
+'' EXPECT-OUT: (53,1): warning TKO0968: implicit conversion: a 'longint' from a 'long ptr'
+'' EXPECT-OUT: (54,1): warning TKO0968: implicit conversion: a 'integer' from a 'integer ptr'
+'' EXPECT-OUT: (55,1): warning TKO0968
+'' EXPECT-OUT: (56,1): warning TKO0968
+'' EXPECT-OUT: (57,1): warning TKO0968
+'' EXPECT-OUT: (58,16): warning TKO0968
+'' EXPECT-OUT: (59,1): warning TKO0968
+'' EXPECT-OUT: (60,32): warning TKO0968
+'' EXPECT-OUT: (61,32): warning TKO0968
+'' EXPECT-NOT: (62,
+'' EXPECT-NOT: (63,
+'' EXPECT-NOT: (64,
+'' EXPECT-NOT: (65,
+'' EXPECT-NOT: (66,
+'' EXPECT-NOT: (67,
+'' EXPECT-NOT: (68,
+'' EXPECT-NOT: (69,
+'' EXPECT-NOT: (70,
+dim shared as any ptr ap
+dim shared as long ptr lp
+dim as zstring ptr zp
+dim as sub( ) fp
+dim as integer n, arr( 3 )
+dim as uinteger u
+dim as longint ll
+dim shared as integer a
+n = ap
+n = lp
+n = zp
+n = fp
+u = lp
+ll = lp
+n = @n
+n = lp + 1
+n += lp
+n -= lp
+dim as integer n2 = lp
+arr( 0 ) = lp
+function RetLp( ) as integer : return lp : end function
+function SetAp( ) as integer : function = ap : end function
+n = cast( integer, lp )
+n = cint( lp )
+if n = lp then n = 1
+var v = lp
+n = lp - lp
+function ByrefA( ) byref as integer
+    dim as integer ptr pa = @a
+    function = byval pa
+end function
