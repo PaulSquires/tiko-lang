@@ -14,3 +14,8 @@ out/
 # Chapter 28 vendors a prebuilt C library per target (rebuilt by its build.sh).
 !examples/ch28/geom/*.a
 !examples/ch28/geom/*.lib
+# Chapter 29's libraries are downloaded and built by examples/ch29/fetch-libs.sh,
+# never committed: vendor/, and the runtime libraries it copies beside the listings.
+examples/ch29/vendor/*/
+examples/ch29/vendor/.downloads/
+examples/ch29/*.so.*

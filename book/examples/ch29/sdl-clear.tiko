@@ -1,0 +1,90 @@
+'' SDL's example renderer/01-clear: a window whose colour cycles, built
+'' on SDL3's main callbacks. A number on the command line stops it
+'' after that many frames instead of when the window is closed.
+'' ANCHOR: all
+'' ANCHOR: link
+#cmdline "-cinclude vendor/sdl3/include -cdefine SDL_MAIN_HANDLED"
+#cinclude once "SDL3/SDL.h"
+#cinclude once "SDL3/SDL_main.h"
+#foreignlib SDL3 dynamic "vendor/sdl3/SDL3"
+'' ANCHOR_END: link
+
+'' ANCHOR: state
+'' Everything the callbacks share, reached through SDL's appstate.
+type AppState
+    window as SDL_Window ptr
+    renderer as SDL_Renderer ptr
+    frames as int32
+    maxFrames as int32
+end type
+'' ANCHOR_END: state
+
+'' ANCHOR: init
+function AppInit cdecl( byval appstate as any ptr ptr, _
+        byval argc as int32, byval argv as zstring ptr ptr ) _
+        as SDL_AppResult
+    SDL_SetAppMetadata( "Example Renderer Clear", "1.0", _
+        "com.example.renderer-clear" )
+    if SDL_Init( SDL_INIT_VIDEO ) = false then
+        print "Couldn't initialize SDL: "; *SDL_GetError( )
+        return SDL_APP_FAILURE
+    end if
+    var st = new AppState
+    st->maxFrames = valint( command( 1 ) )   '' 0: until closed
+    *appstate = st
+    if SDL_CreateWindowAndRenderer( "examples/renderer/clear", _
+            640, 480, SDL_WINDOW_RESIZABLE, _
+            @st->window, @st->renderer ) = false then
+        print "Couldn't create window/renderer: "; *SDL_GetError( )
+        return SDL_APP_FAILURE
+    end if
+    SDL_SetRenderLogicalPresentation( st->renderer, 640, 480, _
+        SDL_LOGICAL_PRESENTATION_LETTERBOX )
+    return SDL_APP_CONTINUE
+end function
+'' ANCHOR_END: init
+
+'' ANCHOR: event
+function AppEvent cdecl( byval appstate as any ptr, _
+        byval event as SDL_Event ptr ) as SDL_AppResult
+    if event->type = SDL_EVENT_QUIT then return SDL_APP_SUCCESS
+    return SDL_APP_CONTINUE
+end function
+'' ANCHOR_END: event
+
+'' ANCHOR: iterate
+function AppIterate cdecl( byval appstate as any ptr ) as SDL_AppResult
+    var st = cast( AppState ptr, appstate )
+    var now = SDL_GetTicks( ) / 1000.0
+    var red = 0.5 + 0.5 * SDL_sin( now )
+    var green = 0.5 + 0.5 * SDL_sin( now + SDL_PI_D * 2 / 3 )
+    var blue = 0.5 + 0.5 * SDL_sin( now + SDL_PI_D * 4 / 3 )
+    SDL_SetRenderDrawColorFloat( st->renderer, red, green, blue, _
+        SDL_ALPHA_OPAQUE_FLOAT )
+    SDL_RenderClear( st->renderer )
+    SDL_RenderPresent( st->renderer )
+    st->frames += 1
+    if st->frames = st->maxFrames then return SDL_APP_SUCCESS
+    return SDL_APP_CONTINUE
+end function
+'' ANCHOR_END: iterate
+
+'' ANCHOR: quit
+sub AppQuit cdecl( byval appstate as any ptr, _
+        byval result as SDL_AppResult )
+    var st = cast( AppState ptr, appstate )
+    if st <> nullptr then
+        print "drew "; str( st->frames ); " frames"
+        delete st
+    end if
+end sub
+'' ANCHOR_END: quit
+
+'' ANCHOR: enter
+'' SDL calls AppInit once, then AppEvent and AppIterate until one of
+'' them returns something other than SDL_APP_CONTINUE, then AppQuit.
+var rc = SDL_EnterAppMainCallbacks( 0, nullptr, @AppInit, _
+    @AppIterate, @AppEvent, @AppQuit )
+end rc
+'' ANCHOR_END: enter
+'' ANCHOR_END: all

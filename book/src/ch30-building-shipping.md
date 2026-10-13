@@ -23,19 +23,19 @@ runtime library, the code behind `print`, strings and files, comes with the comp
 for the headers.
 
 ```tiko
-{{#include ../examples/ch29/target.tiko}}
+{{#include ../examples/ch30/target.tiko}}
 ```
 
 On Windows:
 
 ```text
-{{#include ../examples/ch29/target.out}}
+{{#include ../examples/ch30/target.out}}
 ```
 
 On Linux:
 
 ```text
-{{#include ../examples/ch29/target.linux-x86_64.out}}
+{{#include ../examples/ch30/target.linux-x86_64.out}}
 ```
 
 The predefined symbols are how a program adapts to its target: `__FB_WIN32__` and `__FB_LINUX__`
@@ -46,15 +46,15 @@ functions that do not exist on the other platform.
 ## Separate compilation
 
 ```tiko
-{{#include ../examples/ch29/separate/greet.tiko}}
+{{#include ../examples/ch30/separate/greet.tiko}}
 ```
 
 ```tiko
-{{#include ../examples/ch29/separate/main.tiko}}
+{{#include ../examples/ch30/separate/main.tiko}}
 ```
 
 ```text
-{{#include ../examples/ch29/separate/main.out}}
+{{#include ../examples/ch30/separate/main.out}}
 ```
 
 **`tiko -c greet.tiko`** compiles without linking and writes `greet.o`, an **object file**.
@@ -79,15 +79,15 @@ leave it for the final command, as `main.tiko` is here.
 ## Static libraries
 
 ```tiko
-{{#include ../examples/ch29/static/mathlib.tiko}}
+{{#include ../examples/ch30/static/mathlib.tiko}}
 ```
 
 ```tiko
-{{#include ../examples/ch29/static/use-static.tiko}}
+{{#include ../examples/ch30/static/use-static.tiko}}
 ```
 
 ```text
-{{#include ../examples/ch29/static/use-static.out}}
+{{#include ../examples/ch30/static/use-static.out}}
 ```
 
 **`tiko -lib mathlib.tiko`** compiles the file and packs the result into a **static library**,
@@ -103,15 +103,15 @@ includes. The linker searched the current directory for `libmathlib.a`; `-p dir`
 ## Shared libraries
 
 ```tiko
-{{#include ../examples/ch29/shared/mathlib.tiko}}
+{{#include ../examples/ch30/shared/mathlib.tiko}}
 ```
 
 ```tiko
-{{#include ../examples/ch29/shared/use-shared.tiko}}
+{{#include ../examples/ch30/shared/use-shared.tiko}}
 ```
 
 ```text
-{{#include ../examples/ch29/shared/use-shared.out}}
+{{#include ../examples/ch30/shared/use-shared.out}}
 ```
 
 **`tiko -dll mathlib.tiko`** (or `-dylib`) builds a **shared library**: one file that every
@@ -146,11 +146,11 @@ reaches the DLL's own copy. On Linux, `extern import` compiles as a plain `exter
 ## Windows programs
 
 ```tiko
-{{#include ../examples/ch29/gui.tiko}}
+{{#include ../examples/ch30/gui.tiko}}
 ```
 
 ```text
-{{#include ../examples/ch29/gui.out}}
+{{#include ../examples/ch30/gui.out}}
 ```
 
 A Windows executable belongs to a **subsystem**. The **console** subsystem, the default, gets a
@@ -163,15 +163,15 @@ redirected it, as the book's test harness does here. On Linux there is no such d
 ### Resources
 
 ```text
-{{#include ../examples/ch29/resources/strings.rc}}
+{{#include ../examples/ch30/resources/strings.rc}}
 ```
 
 ```tiko
-{{#include ../examples/ch29/resources/strings.tiko}}
+{{#include ../examples/ch30/resources/strings.tiko}}
 ```
 
 ```text
-{{#include ../examples/ch29/resources/strings.out}}
+{{#include ../examples/ch30/resources/strings.out}}
 ```
 
 A Windows executable can carry **resources** inside it: icons, version information, dialog
@@ -186,11 +186,11 @@ the result in. The program reads a string table entry back with the Windows func
 The same source can be built for finding bugs or for speed.
 
 ```tiko
-{{#include ../examples/ch29/checked.tiko}}
+{{#include ../examples/ch30/checked.tiko}}
 ```
 
 ```text
-{{#include ../examples/ch29/checked.out}}
+{{#include ../examples/ch30/checked.out}}
 ```
 
 (The program ends with exit code 6.)
@@ -214,11 +214,11 @@ where a wrong answer costs more than speed buys, ship checked.
 ### Build settings in the source
 
 ```tiko
-{{#include ../examples/ch29/profile.tiko}}
+{{#include ../examples/ch30/profile.tiko}}
 ```
 
 ```text
-{{#include ../examples/ch29/profile.out}}
+{{#include ../examples/ch30/profile.out}}
 ```
 
 **`#cmdline "options"`** puts compiler options in the source file, so the file alone says how it
@@ -235,11 +235,11 @@ meet, `-x` wins over `-o`, and of several `-x` the last one counts. With `-c` it
 each object file keeps its own name. In `#cmdline` it lets the source name its own program:
 
 ```tiko
-{{#include ../examples/ch29/named.tiko}}
+{{#include ../examples/ch30/named.tiko}}
 ```
 
 ```text
-{{#include ../examples/ch29/named.out}}
+{{#include ../examples/ch30/named.out}}
 ```
 
 `tiko named.tiko` writes `renamed.exe`. So does `tiko named.tiko -x other.exe`: like every
@@ -253,21 +253,21 @@ of the output are typed again for each build, and the compiler starts from nothi
 **`tiko build`** reads it.
 
 ```toml
-{{#include ../examples/ch29/project/tiko.toml}}
+{{#include ../examples/ch30/project/tiko.toml}}
 ```
 
 ```tiko
-{{#include ../examples/ch29/project/main.tiko}}
+{{#include ../examples/ch30/project/main.tiko}}
 ```
 
 ```tiko
-{{#include ../examples/ch29/project/text/text.tiko}}
+{{#include ../examples/ch30/project/text/text.tiko}}
 ```
 
 `tiko run -- tiko`, in the project's directory:
 
 ```text
-{{#include ../examples/ch29/project/main.out}}
+{{#include ../examples/ch30/project/main.out}}
 ```
 
 **`[target.greeter]`** declares a **target**: something the project builds, here an executable
@@ -398,9 +398,9 @@ and that licence's conditions apply.
 ## Exercises
 
 1. Build a static library with `Gcd` and an `Lcm` built on it, and use it to find the smallest
-   number that every number from 1 to 20 divides. {solution="ex29-01"}
+   number that every number from 1 to 20 divides. {solution="ex30-01"}
 2. Write a program that reports, from the predefined symbols, whether it was built with error
-   checking, with the thread-safe runtime, and against which C runtime. {solution="ex29-02"}
+   checking, with the thread-safe runtime, and against which C runtime. {solution="ex30-02"}
 3. Write `mathlib.ti`, a header with the two declarations, and change both clients to include it
    instead of declaring the functions themselves.
 4. Build `use-shared.tiko`, then delete `mathlib.dll` (or `libmathlib.so`) and run it. What does

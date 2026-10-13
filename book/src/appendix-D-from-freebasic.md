@@ -26,7 +26,7 @@ The features of the older dialects are refused by **both** compilers in `-lang f
 one error 146, "Only valid in -lang deprecated or fblite or qb", and tiko `TKO0409` (`TKO0944` for a
 line number):
 
-| Construct | Write instead (Chapter 30) |
+| Construct | Write instead (Chapter 31) |
 |---|---|
 | `gosub` / `return`, `on k gosub` | a `sub` |
 | line numbers, `10 print 1` | a label, `here:` |

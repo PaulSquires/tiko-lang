@@ -145,9 +145,9 @@ You can also name the folder in the directive itself and drop the flag:
 tiko app.tiko
 ```
 
-That is what FBC-Modern's shipped SQLite example does — but it works only while tiko is run **from the directory containing `vendor/`**. Build it from elsewhere and you are back to `-cinclude`, because the path is resolved against the working directory, not against the file that wrote it.
+That is what FBC-Modern's shipped SQLite example does. With FBC-Modern it works only while the compiler runs **from the directory containing `vendor/`**. tiko, since 2026-10-13, also looks **beside the file that wrote the directive**, so it builds from anywhere.
 
-> ⚠️ `#cinclude` resolves the header against the **compiler's working directory** and the `-cinclude` directories — **not** against the file that contains the directive. This is unlike [`#foreignlib`](modern-Foreignlib), and it is a known wart; see [Part 5](#part-5--using-it-with-foreignlib).
+> ℹ️ tiko's `#cinclude` searches for a quoted header under the **working directory** first, then **beside the file containing the directive**, then in the `-cinclude` directories. A header that includes others with angle brackets still needs `-cinclude`. See [Part 5](#part-5--using-it-with-foreignlib) and [Using C Libraries](Using-C-Libraries-Tutorial).
 
 ### Step 3 — write the program
 
@@ -362,19 +362,11 @@ and the using code needs neither a `Declare` nor an `#ifdef`:
 print mylib_add( 2, 3 )
 ```
 
-### The wart
-
-The two do **not** resolve paths the same way, and you will hit this.
+### Where each looks
 
 `#foreignlib` resolves its library relative to **the file containing the directive** — that is [the entire reason it exists](modern-Foreignlib), because `#libpath` is relative to the working directory and therefore unusable in a shipped binding.
 
-`#cinclude` does not do this. Clang resolves the header, against the working directory plus the `-cinclude` directories. So `mylib.ti` above still cannot say where its own header is; the build has to:
-
-```
-tiko app.tiko -cinclude mylib/vendor
-```
-
-It is the same trap `#foreignlib` was written to close, still open on the header side. Until that changes, a vendored binding has to state the include directory it needs somewhere outside the `.ti` — a README, a makefile, a build script.
+`#cinclude`, in tiko since 2026-10-13, looks for a quoted header under the working directory first, then **beside the file containing the directive**, then in the `-cinclude` directories. So `mylib.ti` above can name its own header relative to itself, and the build needs no `-cinclude`, unless the header includes others with angle brackets. FBC-Modern looks only in the working directory and `-cinclude`, so a binding meant for both still has to state the include directory it needs.
 
 ---
 

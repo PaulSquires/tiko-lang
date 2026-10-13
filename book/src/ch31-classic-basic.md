@@ -18,7 +18,7 @@ language; `fblite` and `qb`, which keep QuickBASIC's rules; and `deprecated`, an
 `fb`. tiko implements **`fb` only**. Asking for another is refused:
 
 ```tiko
-{{#include ../examples/ch30/dialect.bas}}
+{{#include ../examples/ch31/dialect.bas}}
 ```
 
 ```text
@@ -34,11 +34,11 @@ it. Code written for `qb` or `fblite` has to be brought over, and most of this c
 ## Inline data: data, read and restore
 
 ```tiko
-{{#include ../examples/ch30/quiz-data.bas}}
+{{#include ../examples/ch31/quiz-data.bas}}
 ```
 
 ```text
-{{#include ../examples/ch30/quiz-data.out}}
+{{#include ../examples/ch31/quiz-data.out}}
 ```
 
 **`data`** statements hold a list of constant values — numbers and strings — anywhere in the
@@ -61,11 +61,11 @@ compiler checks.
 ## Computed jumps
 
 ```tiko
-{{#include ../examples/ch30/menu.bas}}
+{{#include ../examples/ch31/menu.bas}}
 ```
 
 ```text
-{{#include ../examples/ch30/menu.out}}
+{{#include ../examples/ch31/menu.out}}
 ```
 
 **`goto label`** jumps to a label in the same procedure, and **`on n goto a, b, c`** jumps to the
@@ -80,11 +80,11 @@ the next line, which is how `menu.bas` catches choices 0 and 4.
 ## Classic dates and times
 
 ```tiko
-{{#include ../examples/ch30/classic-dates.bas}}
+{{#include ../examples/ch31/classic-dates.bas}}
 ```
 
 ```text
-{{#include ../examples/ch30/classic-dates.out}}
+{{#include ../examples/ch31/classic-dates.out}}
 ```
 
 The classic date functions keep a date as a **`double`**: the whole part counts days from
@@ -120,15 +120,15 @@ counts from Monday, and `DateTime.FromSerial` and `.Serial( )` convert between t
 ## common and chain
 
 ```tiko
-{{#include ../examples/ch30/common.bas}}
+{{#include ../examples/ch31/common.bas}}
 ```
 
 ```tiko
-{{#include ../examples/ch30/common-hit.bas}}
+{{#include ../examples/ch31/common-hit.bas}}
 ```
 
 ```text
-{{#include ../examples/ch30/common.out}}
+{{#include ../examples/ch31/common.out}}
 ```
 
 **`common shared`** declares a variable that every module of a program can share, by writing the
@@ -138,11 +138,11 @@ use one `hits`. In new code, declare the variable once with `dim shared` in one 
 agrees on its type.
 
 ```tiko
-{{#include ../examples/ch30/chain/parent.bas}}
+{{#include ../examples/ch31/chain/parent.bas}}
 ```
 
 ```text
-{{#include ../examples/ch30/chain/parent.out}}
+{{#include ../examples/ch31/chain/parent.out}}
 ```
 
 **`chain`** runs another program, waits for it to finish and returns its exit code, or -1 when
@@ -167,7 +167,7 @@ reports and the replacement.
 | `10 print "x"` | `TKO0944: a line number is not available in the fb dialect` | labels: `start:` |
 
 ```tiko
-{{#include ../examples/ch30/gosub.bas}}
+{{#include ../examples/ch31/gosub.bas}}
 ```
 
 ```text
@@ -180,7 +180,7 @@ caller, and it ends wherever a `return` happens to be. Exercise 1 rewrites the l
 `sub`: the variable the subroutine changed becomes a `byref` parameter.
 
 ```tiko
-{{#include ../examples/ch30/suffix.bas}}
+{{#include ../examples/ch31/suffix.bas}}
 ```
 
 ```text
@@ -200,7 +200,7 @@ type for every name starting with given letters. In `fb` every variable is decla
 type, before it is used; a typo then becomes an error instead of a new, empty variable.
 
 ```tiko
-{{#include ../examples/ch30/asm.bas}}
+{{#include ../examples/ch31/asm.bas}}
 ```
 
 ```text
@@ -221,7 +221,7 @@ printer, the **`option`** statements (`option explicit`, `option base`), `on n g
 `#include` a file, and give arrays explicit bounds.
 
 ```tiko
-{{#include ../examples/ch30/let.bas}}
+{{#include ../examples/ch31/let.bas}}
 ```
 
 ```text
@@ -243,7 +243,7 @@ A QuickBASIC or `fblite` program comes across in the same few steps, most of the
    explicit bounds.
 5. **Replace `on error … resume` with structured handling**, where the error is caught by the code
    that can do something about it.
-6. **Compile with `-exx`** (Chapter 29) and run the program's tests, so an index out of bounds
+6. **Compile with `-exx`** (Chapter 30) and run the program's tests, so an index out of bounds
    stops the program at the line that caused it.
 
 Then, when the program works, the modern forms in this chapter's notes — arrays for `data`,
@@ -272,9 +272,9 @@ Then, when the program works, the modern forms in this chapter's notes — array
 
 ## Exercises
 
-1. Rewrite `gosub.bas` without `gosub`, so that it compiles. {solution="ex30-01"}
+1. Rewrite `gosub.bas` without `gosub`, so that it compiles. {solution="ex31-01"}
 2. Read a price list from `data` statements until a sentinel item `"END"`, printing each line and
-   the total. {solution="ex30-02"}
+   the total. {solution="ex31-02"}
 3. Rewrite `menu.bas` with `select case`. Which version makes it easier to see that every branch
    ends?
 4. Rewrite `quiz-data.bas` so the questions live in an array of a `type` with two fields,

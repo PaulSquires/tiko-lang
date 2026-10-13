@@ -15,7 +15,7 @@ The language and its standard library first, then the compatibility reference: t
 - [Defer](Category-Defer) — 1 pages
 - [Lambdas](Category-Lambdas) — 1 pages
 - [Block Strings](Category-Block-Strings) — 1 pages
-- [Foreign Library Linking](Category-Foreign-Library-Linking) — 2 pages
+- [Foreign Library Linking](Category-Foreign-Library-Linking) — 3 pages
 - [C Header Import](Category-C-Header-Import) — 2 pages
 - [UString](Category-UString) — 1 pages
 - [Fixed-Width Types](Category-Fixed-Width-Types) — 1 pages
@@ -81,7 +81,7 @@ The language and its standard library first, then the compatibility reference: t
 - [Compiler Internals](Category-Compiler-Internals) — 38 pages
 - [Hacking on FreeBASIC](Category-Hacking-on-FreeBASIC) — 1 pages
 - [FreeBASIC dialects and QBASIC](Category-FreeBASIC-dialects-and-QBASIC) — 3 pages
-- [Tutorials](Category-Tutorials) — 218 pages
+- [Tutorials](Category-Tutorials) — 223 pages
 - [FAQs](Category-FAQs) — 7 pages
 - [Miscellaneous](Category-Miscellaneous) — 5 pages
 - [Reference](Category-Reference) — 22 pages

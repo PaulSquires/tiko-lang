@@ -158,7 +158,7 @@ tiko hello.tiko -target windows-x86_64 -o hello
 ```
 
 Targets are not interchangeable at link time: an object file or static library built for one will
-not link into a program for the other. Chapter 29 covers what each target links and
+not link into a program for the other. Chapter 30 covers what each target links and
 how to ship the result.
 
 ## Reading a diagnostic

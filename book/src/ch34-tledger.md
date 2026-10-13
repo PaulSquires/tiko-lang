@@ -35,7 +35,7 @@ tledger [--import file.csv]... [--list | --report] ledger.db
 ## The layout
 
 ```text
-ch33/
+ch34/
     tiko.toml           the package
     ledger/ledger.tiko  the data: model, storage, import, report -- and all of the SQL
     ui/ui.tiko          the screens: a TuiApp
@@ -45,7 +45,7 @@ ch33/
     bank.csv, bad.csv   a bank export, and one with mistakes in it
 ```
 
-The split follows the rule from Chapter 31, with one more reason behind it. **`ledger` is the
+The split follows the rule from Chapter 32, with one more reason behind it. **`ledger` is the
 only file that imports `db/sqlite`, and nothing from SQLite is public**: the rest of the program
 sees transactions and totals, never a `Database` or a `Row`. Swapping SQLite for something else
 would change one file.
@@ -53,11 +53,11 @@ would change one file.
 ## The model
 
 ```tiko
-{{#include ../examples/ch33/ledger/ledger.tiko:head}}
+{{#include ../examples/ch34/ledger/ledger.tiko:head}}
 ```
 
 ```tiko
-{{#include ../examples/ch33/ledger/ledger.tiko:model}}
+{{#include ../examples/ch34/ledger/ledger.tiko:model}}
 ```
 
 A `Txn` holds its money as a **`Decimal`**, never as a `float64`. `0.1 + 0.2` is not `0.3` in
@@ -69,7 +69,7 @@ report fills, so the screens and the program can write it without repeating its 
 ### One check for every way in
 
 ```tiko
-{{#include ../examples/ch33/ledger/ledger.tiko:parse}}
+{{#include ../examples/ch34/ledger/ledger.tiko:parse}}
 ```
 
 Text becomes a transaction in **one place**. The import calls `ParseTxn` for each line of the
@@ -82,7 +82,7 @@ the text had. Categories are folded to lower case, so `Food` and `food` are one 
 ## Storage
 
 ```tiko
-{{#include ../examples/ch33/ledger/ledger.tiko:open}}
+{{#include ../examples/ch34/ledger/ledger.tiko:open}}
 ```
 
 The module keeps **one database for the whole program**, in a module variable:
@@ -100,7 +100,7 @@ variable, and its type, inside the module.
 ### The schema, and migrations
 
 ```tiko
-{{#include ../examples/ch33/ledger/ledger.tiko:schema}}
+{{#include ../examples/ch34/ledger/ledger.tiko:schema}}
 ```
 
 A program that keeps data outlives the first version of its schema. **Migrations** are how it
@@ -120,17 +120,17 @@ Version 2 here added an index. Adding a column next year is a version 3 that say
 that has already run it.
 
 ```tiko
-{{#include ../examples/ch33/schema.tiko}}
+{{#include ../examples/ch34/schema.tiko}}
 ```
 
 ```text
-{{#include ../examples/ch33/schema.out}}
+{{#include ../examples/ch34/schema.out}}
 ```
 
 ### Rows in and out
 
 ```tiko
-{{#include ../examples/ch33/ledger/ledger.tiko:store}}
+{{#include ../examples/ch34/ledger/ledger.tiko:store}}
 ```
 
 Two storage decisions are deliberate:
@@ -148,7 +148,7 @@ Nothing is pasted into SQL.
 ## Importing a bank's CSV
 
 ```tiko
-{{#include ../examples/ch33/ledger/ledger.tiko:import}}
+{{#include ../examples/ch34/ledger/ledger.tiko:import}}
 ```
 
 `sqlite.ImportCsv` (Chapter 27) does the reading: quoted fields such as `"Smith, Jones & Co"`,
@@ -159,13 +159,13 @@ back, and the ledger is exactly as it was. `rowid` numbers the staged rows from 
 was line 1 of the file, so a row's line number is its `rowid` plus 1.
 
 ```text
-{{#include ../examples/ch33/bank.csv}}
+{{#include ../examples/ch34/bank.csv}}
 ```
 
 ## The report
 
 ```tiko
-{{#include ../examples/ch33/ledger/ledger.tiko:report}}
+{{#include ../examples/ch34/ledger/ledger.tiko:report}}
 ```
 
 `MonthlyReport` reads every transaction and adds it to its month, as income or as spending.
@@ -181,11 +181,11 @@ person their own money, and wrong for a book whose output must be the same on ev
 ## The screens
 
 ```tiko
-{{#include ../examples/ch33/ui/ui.tiko:head}}
+{{#include ../examples/ch34/ui/ui.tiko:head}}
 ```
 
 ```tiko
-{{#include ../examples/ch33/ui/ui.tiko:app}}
+{{#include ../examples/ch34/ui/ui.tiko:app}}
 ```
 
 `LedgerApp` is a `TuiApp` (Chapter 27): `Init`, `Update` and `View`. Its fields are **everything
@@ -197,7 +197,7 @@ below.
 ### Update
 
 ```tiko
-{{#include ../examples/ch33/ui/ui.tiko:update}}
+{{#include ../examples/ch34/ui/ui.tiko:update}}
 ```
 
 F1, F2 and F3 work everywhere. Esc goes back to the list, or quits from the list. On the list, Up
@@ -220,13 +220,13 @@ reloaded and the new row is selected.
 ### View
 
 ```tiko
-{{#include ../examples/ch33/ui/ui.tiko:view}}
+{{#include ../examples/ch34/ui/ui.tiko:view}}
 ```
 
 Three bands: the page tabs, the page, and a status line. Each page is a procedure:
 
 ```tiko
-{{#include ../examples/ch33/ui/ui.tiko:list}}
+{{#include ../examples/ch34/ui/ui.tiko:list}}
 ```
 
 **A table leaves no gap between its columns**, so the widths leave one: the date is 10 characters
@@ -234,11 +234,11 @@ in a column of 11, and the category starts with a space. Amounts are right-align
 `MoneyCell`, so their decimal points line up.
 
 ```tiko
-{{#include ../examples/ch33/ui/ui.tiko:entry}}
+{{#include ../examples/ch34/ui/ui.tiko:entry}}
 ```
 
 ```tiko
-{{#include ../examples/ch33/ui/ui.tiko:reportview}}
+{{#include ../examples/ch34/ui/ui.tiko:reportview}}
 ```
 
 ### Testing the screens without a terminal
@@ -248,11 +248,11 @@ and the state changes only through `Update`. So a test can feed `Update` the key
 press, render with `TuiRenderOnce`, and print the screen:
 
 ```tiko
-{{#include ../examples/ch33/screens.tiko}}
+{{#include ../examples/ch34/screens.tiko}}
 ```
 
 ```text
-{{#include ../examples/ch33/screens.out}}
+{{#include ../examples/ch34/screens.out}}
 ```
 
 The first frame is the list, three rows down. The second is the form after a first attempt with
@@ -263,7 +263,7 @@ is the report, which now includes the coffee.
 ## The program
 
 ```tiko
-{{#include ../examples/ch33/tledger.tiko}}
+{{#include ../examples/ch34/tledger.tiko}}
 ```
 
 The program reads like the specification: arguments, opening the ledger, each import in order
@@ -275,13 +275,13 @@ the migrations, so a new file needs no separate set-up step.
 Run from the chapter's directory as `tledger --import bank.csv --report :memory:`:
 
 ```text
-{{#include ../examples/ch33/tledger.out}}
+{{#include ../examples/ch34/tledger.out}}
 ```
 
 A file with mistakes is refused whole, with a reason for each line, and the exit code is 1:
 
 ```text
-{{#include ../examples/ch33/bad.csv}}
+{{#include ../examples/ch34/bad.csv}}
 ```
 
 ```text
@@ -351,9 +351,9 @@ sources, one file per platform. SQLite does not need it, because the toolchain a
 ## Exercises
 
 1. Print the spending in each category over the whole ledger, the largest first.
-   {solution="ex33-01"}
+   {solution="ex34-01"}
 2. Accept a quick-entry line, `date;payee;category;amount`, and check it with `ParseTxn`.
-   {solution="ex33-02"}
+   {solution="ex34-02"}
 3. Add a migration, version 3, that adds a `note` column, and a fifth field to the form for it.
    Open a version 2 file and check that it is upgraded and keeps its rows.
 4. Refuse an import line that is already in the ledger (same date, payee and amount), so that

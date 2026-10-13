@@ -1,0 +1,53 @@
+'' Insert and query with prepared statements: the values travel as
+'' parameters, never as text pasted into the SQL. Linked statically.
+'' ANCHOR: all
+'' ANCHOR: link
+#cinclude once "vendor/sqlite/sqlite3.h"
+#foreignlib SQLITE static "vendor/sqlite/sqlite3-static"
+'' ANCHOR_END: link
+
+sub Check( byval rc as int32, byval db as sqlite3 ptr )
+    if rc <> SQLITE_OK andalso rc <> SQLITE_DONE then
+        print "SQLite error "; rc; ": "; *sqlite3_errmsg( db )
+        end 1
+    end if
+end sub
+
+print "SQLite "; *sqlite3_libversion( )
+
+dim db as sqlite3 ptr
+Check( sqlite3_open( ":memory:", @db ), db )
+Check( sqlite3_exec( db, "create table city( name text, pop int )", _
+    nullptr, nullptr, nullptr ), db )
+
+'' ANCHOR: insert
+dim names( 0 to 2 ) as string = _
+    { "St. John's", "Gander", "Corner Brook" }
+dim pops( 0 to 2 ) as int32 = { 110525, 11880, 19316 }
+
+dim ins as sqlite3_stmt ptr
+Check( sqlite3_prepare_v2( db, "insert into city values( ?, ? )", _
+    -1, @ins, nullptr ), db )
+for i as int32 = 0 to 2
+    '' -1: the text ends at its zero byte. nullptr (SQLITE_STATIC):
+    '' the string outlives the statement's use of it.
+    Check( sqlite3_bind_text( ins, 1, names( i ), -1, nullptr ), db )
+    Check( sqlite3_bind_int( ins, 2, pops( i ) ), db )
+    Check( sqlite3_step( ins ), db )
+    sqlite3_reset( ins )
+next
+sqlite3_finalize( ins )
+'' ANCHOR_END: insert
+
+dim sel as sqlite3_stmt ptr
+Check( sqlite3_prepare_v2( db, _
+    "select name, pop from city where pop > ? order by pop desc", _
+    -1, @sel, nullptr ), db )
+sqlite3_bind_int( sel, 1, 15000 )
+do while sqlite3_step( sel ) = SQLITE_ROW
+    print *cast( zstring ptr, sqlite3_column_text( sel, 0 ) ); ": "; _
+        str( sqlite3_column_int( sel, 1 ) )
+loop
+sqlite3_finalize( sel )
+sqlite3_close( db )
+'' ANCHOR_END: all

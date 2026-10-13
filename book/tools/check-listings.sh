@@ -263,10 +263,12 @@ for f in "${listings[@]}"; do
     if [[ "$t" == windows-x86_64 ]]; then
       # Run from the listing's own directory, so a program can open a data file that sits
       # beside it -- which is where a reader would keep it, and how they would run it.
+      # One quoted eval: the .args line is parsed once, as a shell would, so a '*' inside
+      # quotes reaches the program instead of being expanded against the directory.
       if [[ -f "$base.stdin" ]]; then
-        got="$(cd "$dir" && eval $runenv "$root/$exe" $args < "$root/$base.stdin" 2>&1)"
+        got="$(cd "$dir" && eval "$runenv \"\$root/\$exe\" $args" < "$root/$base.stdin" 2>&1)"
       else
-        got="$(cd "$dir" && eval $runenv "$root/$exe" $args 2>&1)"
+        got="$(cd "$dir" && eval "$runenv \"\$root/\$exe\" $args" 2>&1)"
       fi
     else
       if [[ -f "$base.stdin" ]]; then

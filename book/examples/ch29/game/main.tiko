@@ -1,0 +1,34 @@
+'' raylib's example core_input_keys: move a ball with the arrow keys.
+'' A number on the command line stops it after that many frames.
+'' ANCHOR: all
+#include once "raylib.ti"
+
+const ScreenWidth = 800
+const ScreenHeight = 450
+dim maxFrames as int32 = valint( command( 1 ) )  '' 0: until closed
+
+SetTraceLogLevel( LOG_WARNING )
+InitWindow( ScreenWidth, ScreenHeight, _
+    "raylib [core] example - keyboard input" )
+dim ball as Vector2 = type( ScreenWidth / 2, ScreenHeight / 2 )
+SetTargetFPS( 60 )
+
+dim frames as int32 = 0
+do until WindowShouldClose( )
+    if IsKeyDown( KEY_RIGHT ) then ball.x += 2
+    if IsKeyDown( KEY_LEFT ) then ball.x -= 2
+    if IsKeyDown( KEY_UP ) then ball.y -= 2
+    if IsKeyDown( KEY_DOWN ) then ball.y += 2
+
+    BeginDrawing( )
+    ClearBackground( RAYWHITE )
+    DrawText( "move the ball with arrow keys", 10, 10, 20, DARKGRAY )
+    DrawCircleV( ball, 50, MAROON )
+    EndDrawing( )
+    frames += 1
+    if frames = maxFrames then exit do
+loop
+CloseWindow( )
+print "ball at "; str( ball.x ); ", "; str( ball.y ); _
+    " after "; str( frames ); " frames"
+'' ANCHOR_END: all

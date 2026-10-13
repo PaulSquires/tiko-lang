@@ -1,0 +1,46 @@
+'' The same program, linked to GLFW's shared library: glfw3.dll on
+'' Windows, libglfw.so.3 on Linux.
+'' ANCHOR: all
+'' ANCHOR: link
+#cinclude once "vendor/glfw/include/GLFW/glfw3.h"
+#ifdef __FB_WIN32__
+    #foreignlib GLFW dynamic "vendor/glfw/glfw3dll", "system:opengl32"
+#else
+    #foreignlib GLFW dynamic "vendor/glfw/glfw3dll", "system:GL"
+#endif
+'' ANCHOR_END: link
+
+'' GLFW reports every error here, as it happens.
+sub OnError cdecl( byval code as int32, _
+        byval description as const zstring ptr )
+    print "GLFW error "; hex( code ); ": "; *description
+end sub
+
+dim maxFrames as int32 = valint( command( 1 ) )  '' 0: until closed
+
+glfwSetErrorCallback( @OnError )
+if glfwInit( ) = GLFW_FALSE then end 1
+
+dim win as GLFWwindow ptr = _
+    glfwCreateWindow( 640, 480, "Hello World", nullptr, nullptr )
+if win = nullptr then
+    glfwTerminate( )
+    end 1
+end if
+glfwMakeContextCurrent( win )
+
+dim frames as int32 = 0
+do until glfwWindowShouldClose( win )
+    glClear( GL_COLOR_BUFFER_BIT )
+    glfwSwapBuffers( win )
+    glfwPollEvents( )
+    frames += 1
+    if frames = maxFrames then exit do
+loop
+glfwTerminate( )
+
+dim as int32 major, minor, revision
+glfwGetVersion( @major, @minor, @revision )
+print "GLFW "; str( major ); "."; str( minor ); "."; str( revision ); _
+    ": drew "; str( frames ); " frames"
+'' ANCHOR_END: all

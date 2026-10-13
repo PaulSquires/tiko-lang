@@ -1,7 +1,7 @@
 # Capstone: a Concurrent Pipeline
 
 The second capstone is **`thash`**, which finds duplicate files. It walks a directory tree, reads
-every file, hashes the contents, and reports the files whose contents are the same. Chapter 31's
+every file, hashes the contents, and reports the files whose contents are the same. Chapter 32's
 tool did one thing after another; this one does several things at once. Walking the tree, reading
 files and hashing them become **stages** that run as goroutines, joined by channels (Chapter 22).
 The work is what the earlier chapters showed: `fs.WalkDir` and `fs.ReadAllBytes` (Chapter 24), a
@@ -50,7 +50,7 @@ The program is one file, `thash.tiko`, shown here a section at a time. `sample/`
 files, seven of which are copies of each other:
 
 ```text
-ch32/
+ch33/
     thash.tiko
     sample/archive/2025/IMG_0042.img     copy of photos/lighthouse.img
     sample/archive/2025/readme.txt       copy of docs/readme.txt
@@ -66,14 +66,14 @@ ch32/
 ## The records
 
 ```tiko
-{{#include ../examples/ch32/thash.tiko:head}}
+{{#include ../examples/ch33/thash.tiko:head}}
 ```
 
 Every concurrent listing starts like this. `#import "std/tasks"` comes first, then `#cmdline "-mt"`
 so that the program links the thread-safe runtime. The import also brings `select channel`.
 
 ```tiko
-{{#include ../examples/ch32/thash.tiko:types}}
+{{#include ../examples/ch33/thash.tiko:types}}
 ```
 
 `Options` is the command line, already interpreted. `FileHash` is the message that travels from
@@ -84,7 +84,7 @@ collector must hear about every file, or it could not count the failures.
 ## Stage 1: walking the tree
 
 ```tiko
-{{#include ../examples/ch32/thash.tiko:walk}}
+{{#include ../examples/ch33/thash.tiko:walk}}
 ```
 
 `Walk` sends each file's path into `paths`. It does not use a plain `paths.Send( p )`, because a
@@ -103,7 +103,7 @@ choice wherever a stage only calls `Send` or `Receive`, as the hashers do.
 ## Stage 2: hashing, N at a time
 
 ```tiko
-{{#include ../examples/ch32/thash.tiko:hash}}
+{{#include ../examples/ch33/thash.tiko:hash}}
 ```
 
 Several `Hasher` goroutines run the same loop over the same `paths` channel, and each path goes to
@@ -134,11 +134,11 @@ A channel's capacity is how far its sender may get ahead of its receiver. When t
 memory with work that nobody has started yet.
 
 ```tiko
-{{#include ../examples/ch32/backpressure.tiko}}
+{{#include ../examples/ch33/backpressure.tiko}}
 ```
 
 ```text
-{{#include ../examples/ch32/backpressure.out}}
+{{#include ../examples/ch33/backpressure.out}}
 ```
 
 The producer wants to send six values, and the channel has room for two. For the first 200
@@ -158,11 +158,11 @@ milliseconds. Every stage that might wait has a `case receive from ctx.Done( )` 
 work.
 
 ```tiko
-{{#include ../examples/ch32/stopearly.tiko}}
+{{#include ../examples/ch33/stopearly.tiko}}
 ```
 
 ```text
-{{#include ../examples/ch32/stopearly.out}}
+{{#include ../examples/ch33/stopearly.out}}
 ```
 
 The producer would send a million values. The channel has no buffer, so each send is a handover
@@ -174,7 +174,7 @@ here, and `deadline exceeded` when a timeout ran out.
 ## Stage 3: collecting
 
 ```tiko
-{{#include ../examples/ch32/thash.tiko:main}}
+{{#include ../examples/ch33/thash.tiko:main}}
 ```
 
 The main program is the last stage. It parses the command line and sets up the logger with
@@ -198,7 +198,7 @@ The records arrive in whatever order the hashers finish, and that order changes 
 Nothing in the report depends on it:
 
 ```tiko
-{{#include ../examples/ch32/thash.tiko:report}}
+{{#include ../examples/ch33/thash.tiko:report}}
 ```
 
 Each group's paths are sorted. Each group is named by its first path, and the groups are printed
@@ -207,10 +207,10 @@ in sorted order of that name. The totals are sums, which come out the same in an
 appears in the report.
 
 `ParseArgs` reads `command( n )` until it comes back empty, and refuses anything it does not
-understand. `DisplayPath` is the same as Chapter 31's:
+understand. `DisplayPath` is the same as Chapter 32's:
 
 ```tiko
-{{#include ../examples/ch32/thash.tiko:parse}}
+{{#include ../examples/ch33/thash.tiko:parse}}
 ```
 
 ## Running it
@@ -218,7 +218,7 @@ understand. `DisplayPath` is the same as Chapter 31's:
 Run from the chapter's directory as `thash -j 4 sample`:
 
 ```text
-{{#include ../examples/ch32/thash.out}}
+{{#include ../examples/ch33/thash.out}}
 ```
 
 The output is the same with `-j 1` and with `-j 8`, on Windows and on Linux: the harness runs it on
@@ -288,10 +288,10 @@ and the reason the report says plainly that it is incomplete.
 ## Exercises
 
 1. Write `SameBytes( a, b )`, which compares two files byte by byte, and check it on the groups
-   that `thash` reports for `sample/`. {solution="ex32-01"}
+   that `thash` reports for `sample/`. {solution="ex33-01"}
 2. Start two walkers, one for `sample/docs` and one for `sample/photos`, both sending to a single
    channel, and print every file name they find in sorted order. Who closes the channel?
-   {solution="ex32-02"}
+   {solution="ex33-02"}
 3. Group the files by size first, and hash only the files whose size is shared by another file.
    Print how many files that skipped.
 4. Add `-min bytes`, which ignores files smaller than the given size, and decide whether the

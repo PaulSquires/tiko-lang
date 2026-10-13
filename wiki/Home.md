@@ -22,6 +22,8 @@ tiko is a compiled, statically typed programming language for building fast, sel
 | [Goroutines Tutorial](Modern-Goroutines-Tutorial) | Concurrency from the first `spawn` to cancellation |
 | [C Header Import Tutorial](modern-Cinclude-tutorial) | Use a C library with `#cinclude` and no binding layer |
 | [Foreign Library Linking Tutorial](modern-Foreignlib-tutorial) | Link a library that ships inside your own source tree |
+| [Using C Libraries Tutorial](Using-C-Libraries-Tutorial) | From download to running program: static or dynamic, vendored or installed |
+| [SQLite](SQLite-Tutorial) · [raylib](Raylib-Tutorial) · [GLFW](GLFW-Tutorial) · [SDL3](SDL3-Tutorial) | The four most common C libraries, step by step, on Windows and Linux |
 
 ## The book
 

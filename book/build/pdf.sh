@@ -33,6 +33,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 mkdir -p out out/src
+# A chapter's images are src/img/..., which typst resolves beside out/book.typ.
+if [[ -d src/img ]]; then rm -rf out/img; cp -r src/img out/img; fi
 
 # ---------------------------------------------------------------- generated inputs
 "$PYTHON" tools/gen_syntax.py --check || { echo "pdf.sh: regenerating syntax"; "$PYTHON" tools/gen_syntax.py; }

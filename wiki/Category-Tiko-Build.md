@@ -4,7 +4,7 @@
 
 `tiko build`, `tiko run`, `tiko check`, `tiko clean` and `tiko metadata` build a project the way an editor, a terminal and a CI job all can: from a `tiko.toml`, with every compiled file cached, the misses compiled in parallel, and a line-per-event JSON stream for tools. They are subcommands of the one `tiko` executable. Everything else on a `tiko` command line is the classic compiler driver, unchanged: `tiko main.tiko util.tiko -o app.exe` still compiles every file every time.
 
-The book's [Building and Shipping](https://tiko-lang.net/book/ch29-building-shipping.html) chapter teaches this with a worked project; this page is the reference, and its [JSON stream](#the-json-event-stream) and [metadata](#tiko-metadata) sections are the contract editors code against.
+The book's [Building and Shipping](https://tiko-lang.net/book/ch30-building-shipping.html) chapter teaches this with a worked project; this page is the reference, and its [JSON stream](#the-json-event-stream) and [metadata](#tiko-metadata) sections are the contract editors code against.
 
 ## The commands
 

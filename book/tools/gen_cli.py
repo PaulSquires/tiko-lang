@@ -111,7 +111,7 @@ def main() -> int:
             "## Subcommands {#app-cli-subcommands}",
             "",
             "A subcommand is the first word on the command line. It builds a project from its "
-            "`tiko.toml`, as Chapter 29 shows; every other command line is the compiler driver "
+            "`tiko.toml`, as Chapter 30 shows; every other command line is the compiler driver "
             "described by the rest of this appendix.",
             "",
             "| Command | What it does |",

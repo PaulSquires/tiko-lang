@@ -45,17 +45,18 @@
 # Systems Programming
 
 - [28. Interfacing with C](ch28-interfacing-c.md)
-- [29. Building and Shipping](ch29-building-shipping.md)
+- [29. Using C Libraries](ch29-c-libraries.md)
+- [30. Building and Shipping](ch30-building-shipping.md)
 
 # Legacy
 
-- [30. Classic BASIC and Compatibility](ch30-classic-basic.md)
+- [31. Classic BASIC and Compatibility](ch31-classic-basic.md)
 
 # Projects
 
-- [31. Capstone: a CLI Search Tool](ch31-tsearch.md)
-- [32. Capstone: a Concurrent Pipeline](ch32-thash.md)
-- [33. Capstone: a TUI Ledger](ch33-tledger.md)
+- [32. Capstone: a CLI Search Tool](ch32-tsearch.md)
+- [33. Capstone: a Concurrent Pipeline](ch33-thash.md)
+- [34. Capstone: a TUI Ledger](ch34-tledger.md)
 
 # Appendices
 

@@ -79,15 +79,16 @@ parts:
   - name: "Systems Programming"
     chapters:
       - { n: 28, file: src/ch28-interfacing-c.md,       status: drafted }
-      - { n: 29, file: src/ch29-building-shipping.md,   status: drafted }
+      - { n: 29, file: src/ch29-c-libraries.md,         status: drafted }
+      - { n: 30, file: src/ch30-building-shipping.md,   status: drafted }
   - name: "Legacy"
     chapters:
-      - { n: 30, file: src/ch30-classic-basic.md,       status: drafted }
+      - { n: 31, file: src/ch31-classic-basic.md,       status: drafted }
   - name: "Projects"
     chapters:
-      - { n: 31, file: src/ch31-tsearch.md,             status: drafted }
-      - { n: 32, file: src/ch32-thash.md,               status: drafted }
-      - { n: 33, file: src/ch33-tledger.md,             status: drafted }
+      - { n: 32, file: src/ch32-tsearch.md,             status: drafted }
+      - { n: 33, file: src/ch33-thash.md,               status: drafted }
+      - { n: 34, file: src/ch34-tledger.md,             status: drafted }
 
 appendices:
   - { id: A, file: src/appendix-A-keywords.md,   status: generated, generated: true }

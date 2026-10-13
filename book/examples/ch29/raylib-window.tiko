@@ -1,0 +1,39 @@
+'' raylib's first example, core_basic_window: open a window and draw a
+'' line of text until it is closed. A number on the command line stops
+'' it after that many frames instead.
+'' ANCHOR: all
+'' ANCHOR: link
+#cinclude once "vendor/raylib/raylib.h"
+#ifdef __FB_WIN32__
+    #foreignlib RAYLIB static "vendor/raylib/raylib", _
+        "system:winmm", "system:gdi32", "system:user32", _
+        "system:shell32"
+#else
+    #foreignlib RAYLIB static "vendor/raylib/raylib", _
+        "system:GL", "system:m", "system:pthread", "system:dl", _
+        "system:rt", "system:X11"
+#endif
+'' ANCHOR_END: link
+
+const ScreenWidth = 800
+const ScreenHeight = 450
+dim maxFrames as int32 = valint( command( 1 ) )  '' 0: until closed
+
+SetTraceLogLevel( LOG_WARNING )   '' raylib logs to stdout otherwise
+InitWindow( ScreenWidth, ScreenHeight, _
+    "raylib [core] example - basic window" )
+SetTargetFPS( 60 )
+
+dim frames as int32 = 0
+do until WindowShouldClose( )
+    BeginDrawing( )
+    ClearBackground( RAYWHITE )
+    DrawText( "Congrats! You created your first window!", _
+        190, 200, 20, LIGHTGRAY )
+    EndDrawing( )
+    frames += 1
+    if frames = maxFrames then exit do
+loop
+CloseWindow( )
+print "drew "; str( frames ); " frames"
+'' ANCHOR_END: all

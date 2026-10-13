@@ -1,0 +1,8 @@
+# A program that uses raylib without saying where raylib is: the
+# -i below names the folder of bindings, relative to this file.
+[package]
+name = "game"
+
+[target.game]
+main    = "main.tiko"
+options = ["-i", "../vendor"]

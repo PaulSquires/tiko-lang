@@ -1,0 +1,41 @@
+'' SQLite's "SQLite In 5 Minutes Or Less" program: run one SQL string
+'' against a database and print each row the callback is given.
+'' ANCHOR: all
+'' ANCHOR: link
+#cinclude once "vendor/sqlite/sqlite3.h"
+#foreignlib SQLITE dynamic "vendor/sqlite/sqlite3"
+'' ANCHOR_END: link
+
+'' Called once for each row of the result.
+function Callback cdecl( byval notUsed as any ptr, _
+        byval argc as int32, byval argv as zstring ptr ptr, _
+        byval colName as zstring ptr ptr ) as int32
+    for i as int32 = 0 to argc - 1
+        dim value as ustring = "NULL"
+        if argv[i] <> nullptr then value = *argv[i]
+        print *colName[i]; " = "; value
+    next
+    print
+    return 0
+end function
+
+if command( 2 ) = "" then
+    print "Usage: sqlite-quick DATABASE SQL-STATEMENT"
+    end 1
+end if
+
+dim db as sqlite3 ptr
+if sqlite3_open( command( 1 ), @db ) <> SQLITE_OK then
+    print "Can't open database: "; *sqlite3_errmsg( db )
+    sqlite3_close( db )
+    end 1
+end if
+
+dim errMsg as zstring ptr
+if sqlite3_exec( db, command( 2 ), @Callback, nullptr, @errMsg ) _
+        <> SQLITE_OK then
+    print "SQL error: "; *errMsg
+    sqlite3_free( errMsg )
+end if
+sqlite3_close( db )
+'' ANCHOR_END: all

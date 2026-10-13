@@ -1,0 +1,17 @@
+'' raylib.ti -- raylib 6.0 for tiko: its header, and the library to
+'' link, in one file a program includes. Both paths are relative to
+'' this file, so the folder it sits in can live anywhere: inside one
+'' project, or in a single place that every program shares.
+#pragma once
+
+#cinclude once "raylib/raylib.h"
+
+#ifdef __FB_WIN32__
+    #foreignlib RAYLIB static "raylib/raylib", _
+        "system:winmm", "system:gdi32", "system:user32", _
+        "system:shell32"
+#else
+    #foreignlib RAYLIB static "raylib/raylib", _
+        "system:GL", "system:m", "system:pthread", "system:dl", _
+        "system:rt", "system:X11"
+#endif

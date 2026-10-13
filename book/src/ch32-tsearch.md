@@ -29,7 +29,7 @@ tsearch [-i] [-n] [-l] [-g glob] pattern [path ...]
 ## The layout
 
 ```text
-ch31/
+ch32/
     tiko.toml           the package
     search/search.tiko  the module: everything that can be tested on its own
     tsearch.tiko        the program: the command line, the output, the exit code
@@ -50,20 +50,20 @@ can call each one directly and check what it returns. The program is what is lef
 `solutions/` reach the module as `"../search"` — a relative import may not leave its package:
 
 ```text
-{{#include ../examples/ch31/tiko.toml}}
+{{#include ../examples/ch32/tiko.toml}}
 ```
 
 ## The module
 
 ```tiko
-{{#include ../examples/ch31/search/search.tiko:head}}
+{{#include ../examples/ch32/search/search.tiko:head}}
 ```
 
 The module uses `std/fs` for the file system and `std/containers` for its arrays, and declares two
 **public** types:
 
 ```tiko
-{{#include ../examples/ch31/search/search.tiko:types}}
+{{#include ../examples/ch32/search/search.tiko:types}}
 ```
 
 `Options` is everything the command line said, already interpreted: the program builds one, and
@@ -73,7 +73,7 @@ passed between the procedures, which keeps each procedure testable with values a
 ### Parsing the arguments
 
 ```tiko
-{{#include ../examples/ch31/search/search.tiko:parse}}
+{{#include ../examples/ch32/search/search.tiko:parse}}
 ```
 
 `ParseArgs` reads an array rather than calling `command( n )` itself, so a test can hand it any
@@ -86,7 +86,7 @@ is the pattern and the rest are roots, with `.` as the default.
 ### Matching
 
 ```tiko
-{{#include ../examples/ch31/search/search.tiko:match}}
+{{#include ../examples/ch32/search/search.tiko:match}}
 ```
 
 A case-insensitive match compares both strings in lower case. For a `ustring`, **`lcase` folds the
@@ -97,7 +97,7 @@ it is obviously correct, which is the right first version.
 ### Finding the files
 
 ```tiko
-{{#include ../examples/ch31/search/search.tiko:find}}
+{{#include ../examples/ch32/search/search.tiko:find}}
 ```
 
 A root that is a file is searched as it is. A directory is walked with **`fs.WalkDir`**
@@ -113,7 +113,7 @@ between runs on the same files is a tool whose output cannot be compared.
 ### Searching a file
 
 ```tiko
-{{#include ../examples/ch31/search/search.tiko:searchfile}}
+{{#include ../examples/ch32/search/search.tiko:searchfile}}
 ```
 
 `fs.ReadAllLines` returns a **`Result`** (Chapter 17): the number of lines, or an **`FsError`** that
@@ -122,7 +122,7 @@ learns about a failure in the same value that carries success, and cannot forget
 no error number to check separately and no runtime error to trap.
 
 ```tiko
-{{#include ../examples/ch31/search/search.tiko:display}}
+{{#include ../examples/ch32/search/search.tiko:display}}
 ```
 
 `DisplayPath` is the last piece of the "same output everywhere" promise: Windows writes `\` between
@@ -131,7 +131,7 @@ path components, and the tool prints `/` on both.
 ## The program
 
 ```tiko
-{{#include ../examples/ch31/tsearch.tiko}}
+{{#include ../examples/ch32/tsearch.tiko}}
 ```
 
 The program reads like the specification. It collects the arguments — `command( 1 )` onward, until
@@ -153,7 +153,7 @@ matched.
 Run from the chapter's directory as `tsearch -n -i fox sample`:
 
 ```text
-{{#include ../examples/ch31/tsearch.out}}
+{{#include ../examples/ch32/tsearch.out}}
 ```
 
 A few more runs, on either platform, with the exit code after each:
@@ -180,19 +180,19 @@ the glob — `-g '*.txt'` — or the shell expands it before tsearch sees it.)
 ## Testing
 
 ```tiko
-{{#include ../examples/ch31/searchtests.tiko}}
+{{#include ../examples/ch32/searchtests.tiko}}
 ```
 
 On Windows:
 
 ```text
-{{#include ../examples/ch31/searchtests.windows-x86_64.out}}
+{{#include ../examples/ch32/searchtests.windows-x86_64.out}}
 ```
 
 On Linux the same suites run in another order (Chapter 18):
 
 ```text
-{{#include ../examples/ch31/searchtests.out}}
+{{#include ../examples/ch32/searchtests.out}}
 ```
 
 The tests are a program of their own, built with fbcunit (Chapter 18), that imports the module just
@@ -231,9 +231,9 @@ comparing its output and exit code with what they should be.
 ## Exercises
 
 1. Write a program that uses the `search` module to print how many lines match in each file, as
-   `path: count`. {solution="ex31-01"}
+   `path: count`. {solution="ex32-01"}
 2. Add whole-word matching, so that `dog` matches `the lazy dog.` and `hot-dog` but not `dogma` or
-   `underdog`. {solution="ex31-02"}
+   `underdog`. {solution="ex32-02"}
 3. Add a `-c` option that prints only the number of matching lines in each file, with tests for its
    parsing.
 4. Add `-v`, which prints the lines that do *not* match. Which other options does it interact with,

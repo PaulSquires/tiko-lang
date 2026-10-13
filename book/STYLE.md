@@ -80,7 +80,7 @@ The house style, matching tiko-lang's own README:
 | Flags | in the listing, as `#cmdline "-exx"` — a listing reproduces on its own |
 
 **Never in an example:** line numbers, `goto`, `gosub`, `data`/`read`, `dim shared` globals,
-`wend`, `screen` graphics, type-suffix sigils. Those belong to Chapter 30, where they are the
+`wend`, `screen` graphics, type-suffix sigils. Those belong to Chapter 31, where they are the
 subject.
 
 A listing is a whole program. If the prose needs a fragment, use an anchor — never paste.
@@ -199,7 +199,7 @@ The brand plan (`C:\dev\docs\tiko-brand\README.md`) governs this, and it is wort
 because it is easy to drift:
 
 **tiko is a compiled, statically typed language for building fast, self-contained programs.** Not
-"a modern BASIC", not "a BASIC dialect". FreeBASIC appears in Chapter 30, Appendix D and the
+"a modern BASIC", not "a BASIC dialect". FreeBASIC appears in Chapter 31, Appendix D and the
 licences — nowhere else, and never in an opening.
 
 When the lineage does come up, own it as a decision: the syntax comes from the most readable

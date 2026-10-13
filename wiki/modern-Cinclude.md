@@ -330,19 +330,13 @@ print mylib_add( 2, 3 )
 
 The declarations come out of the header for the target being built, and the right library file is chosen for that same target. A cross-platform binding stops being a maintenance problem in two directions at once.
 
-> ⚠️ **They do not resolve paths the same way, and this is a wart.**
+> ℹ️ **How each finds its file.**
 >
 > `#foreignlib` resolves its library **relative to the file containing the directive** — that is [the whole reason it exists](modern-Foreignlib), because `#libpath` is relative to the compiler's working directory and therefore unusable in a shipped binding.
 >
-> `#cinclude` does **not** do this. The header is resolved by **Clang**, against Clang's own include search: the compiler's working directory plus any `-cinclude` directories. So in the layout above, `#cinclude once "mylib.h"` needs
+> In tiko, since 2026-10-13, `#cinclude` looks for a quoted header under the **working directory** first, then **beside the file containing the directive**, then in each `-cinclude` directory. So `#cinclude once "vendor/mylib.h"` inside `mylib.ti` works from any working directory, with no `-cinclude`. Two limits remain. A header that includes others with **angle brackets** (`#include <mylib/other.h>`) still needs its include directory given with `-cinclude`. And because the working directory is searched first, a same-named header there wins over the one beside the file.
 >
-> ```
-> tiko app.tiko -cinclude mylib/vendor
-> ```
->
-> and a bare `#cinclude "vendor/mylib.h"` inside `mylib.ti` resolves against wherever the user happened to stand, not against `mylib.ti`. It is the same trap `#foreignlib` was built to close, still open on the header side.
->
-> Until that changes, a vendored binding has to say which include directory it needs — in its README, or in a `Makefile`. There is no spelling inside the `.ti` that works from every working directory.
+> FBC-Modern does **not** look beside the file. There, the header is resolved against the working directory and `-cinclude` only, so a binding meant for both compilers still has to say which include directory it needs.
 
 There is **no `lib MYLIB` clause**, and there cannot be — the declarations are generated rather than written. It is not needed: a `#foreignlib` contributes its libraries to the link whether or not any declaration names it, exactly as [`#inclib`](Inclib) does. The bound name exists for hand-written declarations that want it.
 
