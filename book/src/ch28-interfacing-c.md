@@ -351,12 +351,17 @@ a tiko keyword gets an underscore — `out` becomes `out_`.
 out each struct, then compares every size, alignment and field offset against clang's. A struct
 whose layout disagrees is left out rather than imported wrong.
 
+A quoted header is looked for in two places: first under the directory the compiler runs in, then
+beside the file that says `#cinclude`. So this listing compiles from any directory, as
+`#foreignlib`'s path does. A header that includes others with angle brackets, as in
+`#include <lib/other.h>`, is a different matter: clang looks for those only in the directories
+given with `-cinclude`, and in the system's own.
+
 ```admonish danger title="Pitfall"
-**`#cinclude` finds its header from the directory the compiler runs in**, not from the file that
-says `#cinclude`. This listing compiles from its own directory; run from anywhere else, it fails
-with `TKO0336: unable to import C header geom/geom.h`. `#foreignlib` was built to avoid exactly
-this, and the header side does not have the fix yet. Compile from the project's directory, or give
-the header's directory with `-cinclude`.
+**A header under the working directory wins over the one beside the file.** If the directory you
+compile from happens to hold a `geom/geom.h` of its own, an older copy or another library's, that
+is the header `#cinclude` imports, and nothing says so. `#include` searches the other way round,
+beside the file first. Keep a vendored header's path specific to its library.
 ```
 
 `#cinclude` needs **libclang**, which comes with the LLVM installation tiko already uses; a program
@@ -452,7 +457,8 @@ A tiko program can be the library: `tiko -dll plugin.tiko` builds a DLL or share
 - `#inclib`, `#libpath`, `-l`, `-p` link installed libraries. `#foreignlib name static|dynamic
   "path"` links one inside the project, relative to the declaring file, picked per platform.
 - `#cinclude "header.h"` turns a C header into declarations through clang, layout-checked; the
-  header is found from the working directory or `-cinclude`.
+  header is found under the working directory, then beside the file, then in `-cinclude`
+  directories.
 - `dylibload`, `dylibsymbol` and `dylibfree` load a library while the program runs.
 
 ## Exercises

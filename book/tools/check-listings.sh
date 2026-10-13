@@ -20,8 +20,8 @@
 #                 modules: a.bas b.bas         extra sources in the same directory
 #                 forward: ch15                records a use-before-define
 #                 cwd: listing                 compile in the listing's own directory, as a
-#                                              reader would -- for #cinclude, whose header
-#                                              clang resolves against the working directory
+#                                              reader would -- for a #cmdline -cinclude, which
+#                                              is relative to the working directory
 #                 prebuild: -lib a.tiko        tiko commands run first, in the listing's
 #                                              directory, ';' between them -- a library the
 #                                              listing links. Implies cwd: listing; a source
