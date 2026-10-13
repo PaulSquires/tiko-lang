@@ -6,7 +6,7 @@ The reference is the official **fbc 1.20.0**, built from FreeBASIC's master bran
 
 The **diagnostic text** is tiko's own. Every message has a stable `TKOnnnn` id. fbc's error numbers survive only where a program can see them, through `ERR`.
 
-**What fbc 1.20 does not have is not a compatibility difference.** Generics, tuples, collection initializers, `defer`, lambdas, `ustring`, the fixed-width type names, `spawn` and channels, `#cinclude` and `#import` are tiko's own. Code that uses them does not compile under fbc 1.20. `dim a as int8` is fbc error 14, and `defer x` is error 42. The [Feature Index](Feature-Index) lists them. This page is about the code that both compilers accept, or one of them should.
+**What fbc 1.20 does not have is not a compatibility difference.** Generics, tuples, collection initializers, `defer`, lambdas, `ustring`, the fixed-width type names, `nullptr`, `spawn` and channels, `#cinclude` and `#import` are tiko's own. Code that uses them does not compile under fbc 1.20. `dim a as int8` is fbc error 14, and `defer x` is error 42. The [Feature Index](Feature-Index) lists them. This page is about the code that both compilers accept, or one of them should.
 
 ## What does not compile under tiko
 
@@ -28,6 +28,8 @@ Each of these is a diagnostic, not a silent difference:
 
 **tiko declares ten fixed-width type names that fbc does not have:** `int8`, `uint8`, `int16`, `uint16`, `int32`, `uint32`, `int64`, `uint64`, `float32` and `float64`, typedefs for `byte` through `double`. They are not keywords. A program's own declaration of one of the names replaces tiko's with no diagnostic, so code that already uses them compiles and prints the same under both compilers: `win/basetsd.bi`'s `type INT32 as long`, a `type uint8 as integer`, a variable called `float32`. See [Fixed-Width Types](Category-Fixed-Width-Types).
 
+**tiko predeclares `nullptr`, which fbc does not have:** `const nullptr as any ptr = 0` (measured 2026-10-12). It is not a keyword. A program's own declaration of the name replaces tiko's with no diagnostic, whether it is a field, a namespace member, a local, a parameter, a `for` counter or a module-level name, so code that already uses it compiles and runs the same under both compilers. fbc's own `virtual/fbrtti.bi` has a field called `nullptr`. Code that uses tiko's `nullptr` needs `const nullptr as any ptr = 0` under `#ifndef __TIKO_COMPILER__` to compile under fbc. A generic infers its type argument from a pointer-typed constant in tiko (`Echo( nullptr )` makes `T` an `any ptr`); fbc-modern refuses the same call with error 58. See [Nullptr](Category-Nullptr).
+
 **`defer` is a contextual keyword in tiko and an ordinary name in fbc 1.20.** It is the keyword only when a name, a keyword other than `as`, or the end of the statement follows. Everywhere else it stays usable as an identifier, and both compilers agree: a sub named `defer` is CALLED by `defer( 5 )`, `defer 5` and `defer -1`, and an array or a UDT named `defer` is used as one (`defer( 1 ) = 3`, `defer.field_ = 4`). Where the keyword applies, fbc 1.20 has no such statement:
 - `defer print "out"` runs at the end of the scope under tiko. fbc says error 42, "Variable not declared".
 - `defer x` is `TKO0874` under tiko, and a bare `defer` is `TKO0828`. fbc says error 42 for both.
@@ -44,7 +46,7 @@ Each of these is a diagnostic, not a silent difference:
 
 **A virtual call's object is evaluated once.** fbc evaluates the object expression of a VIRTUAL method call TWICE: `getP( )->VM( )` calls `getP` twice (probed: 2 calls). tiko evaluates it once (1 call). A program whose object expression has a side effect prints differently.
 
-**The same on both sides.** `print len`, `print asc`, `print abs` with no operand are refused by both (fbc error 6, tiko `TKO0872`), and so are `print len( )`, `print sqr( )`, `print chr( )` (fbc error 9, tiko `TKO0801`). A `pascal` procedure gets its arguments in the same order from both compilers. A suspicious pointer assignment (`byte ptr` from `integer ptr`) draws fbc's warning 4 and tiko's `TKO0830` on the same line.
+**The same on both sides.** `print len`, `print asc`, `print abs` with no operand are refused by both (fbc error 6, tiko `TKO0872`), and so are `print len( )`, `print sqr( )`, `print chr( )` (fbc error 9, tiko `TKO0801`). A `pascal` procedure gets its arguments in the same order from both compilers. A suspicious pointer assignment (`byte ptr` from `integer ptr`) draws fbc's warning 4 and tiko's `TKO0830` on the same line. A pointer stored into a pointer-sized integer (`dim as integer n = p`, `n += p`, `return p` from a function `as integer`) draws fbc's warning 5 and tiko's `TKO0968` on the same line; across the vendored fbc suite the 10 lines tiko warns about are all fbc warning 5 lines (2026-10-12).
 
 **Graphics links on `windows-x86_64` only.** libtkogfx is built for that ABI alone.
 

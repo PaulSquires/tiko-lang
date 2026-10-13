@@ -40,7 +40,7 @@ Every listing in the book is a real program, compiled and run on Windows and Lin
 
 ## The language
 
-[Generics](Category-Generics) · [Iterator Protocol](Category-Iterators) · [For Each](Category-For-Each) · [Tuples](Category-Tuples) · [Array Results](Category-Array-Results) · [Collection Initializers](Category-Collection-Initializers) · [Defer](Category-Defer) · [Lambdas](Category-Lambdas) · [Block Strings](Category-Block-Strings) · [UString](Category-UString) · [Fixed-Width Types](Category-Fixed-Width-Types) · [Goroutines and Channels](Category-Goroutines-and-Channels)
+[Generics](Category-Generics) · [Iterator Protocol](Category-Iterators) · [For Each](Category-For-Each) · [Tuples](Category-Tuples) · [Array Results](Category-Array-Results) · [Collection Initializers](Category-Collection-Initializers) · [Defer](Category-Defer) · [Lambdas](Category-Lambdas) · [Block Strings](Category-Block-Strings) · [UString](Category-UString) · [Fixed-Width Types](Category-Fixed-Width-Types) · [Nullptr](Category-Nullptr) · [Goroutines and Channels](Category-Goroutines-and-Channels)
 
 ## The standard library
 

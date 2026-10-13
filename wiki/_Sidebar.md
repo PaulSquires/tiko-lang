@@ -26,6 +26,7 @@
 - [Foreign Library Linking](Category-Foreign-Library-Linking)
 - [UString](Category-UString)
 - [Fixed-Width Types](Category-Fixed-Width-Types)
+- [Nullptr](Category-Nullptr)
 - [String Library](Category-String-Library)
 - [Array](Category-Array)
 - [Map](Category-Map)

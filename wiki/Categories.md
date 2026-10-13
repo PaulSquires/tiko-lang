@@ -19,6 +19,7 @@ The language and its standard library first, then the compatibility reference: t
 - [C Header Import](Category-C-Header-Import) — 2 pages
 - [UString](Category-UString) — 1 pages
 - [Fixed-Width Types](Category-Fixed-Width-Types) — 1 pages
+- [Nullptr](Category-Nullptr) — 1 pages
 - [String Library](Category-String-Library) — 39 pages
 - [Array](Category-Array) — 22 pages
 - [Map](Category-Map) — 15 pages

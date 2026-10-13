@@ -1230,6 +1230,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Normalize](Modern-Math-Normalize) — *Math Library*
 - [Notes on making FB releases](Notes-on-Making-Fb-Releases) — *Compiler Internals*
 - [Now](Now) — *Date and Time Functions*
+- [Nullptr](Category-Nullptr) — *Nullptr*
 - [Numeric Types](Numeric-Types) — *Tutorials*
 
 ## O
