@@ -1,4 +1,4 @@
-scopes: 3  symbols: 8  (builtin: 229)
+scopes: 3  symbols: 8  (builtin: 230)
 scope 1 global parent=0 (4)
     const     'true' builtin
     const     'false' builtin
