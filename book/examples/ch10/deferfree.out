@@ -1,0 +1,6 @@
+Sum of squares through a scratch buffer
+  n = 0:  0
+  n = 3:  14
+  n = 10: 385
+Collect 5 squares, starting with 2 slots
+  total 30 in 8 slots

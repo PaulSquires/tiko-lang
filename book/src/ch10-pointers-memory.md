@@ -9,7 +9,7 @@ buffer shared between two parts of a program. A **pointer** is the address of a 
 comes the responsibility the compiler was carrying for you: knowing that the address is valid, and
 giving the memory back.
 
-Chapter 20 shows the tools that carry most of that responsibility again — destructors, `defer`,
+Chapter 21 shows the tools that carry most of that responsibility again — destructors, `defer`,
 shared pointers. Learn the raw form first, because every one of those tools is built on it.
 
 ## An address, and what lives at it
@@ -140,6 +140,30 @@ Three habits are in that listing, and each prevents a class of bug:
 
 `clear` sets **bytes**, so `clear( *z, 255, … )` makes each `int32` −1, not 255. It is for zeroing
 and for byte buffers, not for filling an array with a value.
+
+### Freeing on every way out
+
+Those habits make each call correct. They do not make the procedure correct: a procedure with three
+`return`s after its `allocate` needs three `deallocate`s, and the fourth `return` someone adds later
+leaks. `defer`, from Chapter 5, writes the release once, beside the allocation, and runs it on every
+way out of the block:
+
+```tiko
+{{#include ../examples/ch10/deferfree.tiko}}
+```
+
+```text
+{{#include ../examples/ch10/deferfree.out}}
+```
+
+- **Write the `defer` on the line after the `allocate`**, before the check for 0. `deallocate( 0 )`
+  does nothing, so the failure path is covered too, and the pair cannot drift apart.
+- **A deferred statement reads its variables when it runs**, at the end of the block, not when the
+  `defer` line is reached. That is why `Collect` can store `reallocate`'s result in `items` and
+  still free the right block. It also means a block you free early by hand needs its pointer set to
+  0 afterwards, or the `defer` frees it a second time.
+- **Allocate and defer in the procedure's own body**, never inside an `if`. Chapter 5's pitfall
+  applies with full force: the block is freed at `end if`, and the pointer still holds its address.
 
 ## Typed allocation
 
@@ -288,8 +312,8 @@ needs that in mind.
   one `new[]` of a thousand.
 - **A linked list scatters its nodes** across memory, so walking it misses the cache where an array
   would not. Use one when you need constant-time insertion in the middle, not by default.
-- **Memory you allocate is memory you must free.** Every exit path, including errors. Chapter 20
-  makes that automatic; here it is your job.
+- **Memory you allocate is memory you must free.** Every exit path, including errors. `defer`
+  covers the paths out of one procedure; Chapter 21 covers memory that outlives it.
 
 ## Summary
 
@@ -301,6 +325,8 @@ needs that in mind.
 - `const T ptr` cannot write through; `T const ptr` cannot be moved.
 - `allocate`/`callocate`/`reallocate`/`deallocate`: **check for 0, keep `reallocate`'s result
   separately, null the pointer after freeing.** `clear` sets bytes.
+- **`defer deallocate( p )` on the line after the `allocate`** frees on every way out. It reads `p`
+  when it runs, so it follows a `reallocate`.
 - `new`/`delete` and `new[]`/`delete[]` allocate typed and zeroed memory — **pair each family with
   its own release**. `new T( a, b )` fills a constructor-less type's fields in order.
 - **Read a node's link before deleting the node.**

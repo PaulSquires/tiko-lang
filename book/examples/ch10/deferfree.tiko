@@ -1,0 +1,53 @@
+'' deferfree.tiko -- defer pairs each allocate with its deallocate.
+
+'' The sum of the squares 1, 4, 9 ... of the first n numbers, built in
+'' a scratch buffer. Every return after the allocate frees it.
+function SumOfSquares( byval n as int32 ) as int64
+    if n < 1 then return 0              '' nothing allocated yet
+
+    dim as int64 ptr squares = allocate( n * sizeof( int64 ) )
+    defer deallocate( squares )         '' runs on every return below
+    if squares = 0 then return -1       '' deallocate( 0 ) does nothing
+
+    for i as int32 = 0 to n - 1
+        squares[i] = cast( int64, i + 1 ) * ( i + 1 )
+    next
+    dim as int64 total = 0
+    for i as int32 = 0 to n - 1 : total += squares[i] : next
+    return total
+end function
+
+'' A deferred statement reads its variables when it RUNS, not when it
+'' is written: when reallocate moves the block, defer frees the new one.
+function Collect( byval count as int32, byref slots as int32 ) as int32
+    slots = 2
+    dim as int32 ptr items = allocate( slots * sizeof( int32 ) )
+    defer deallocate( items )
+    if items = 0 then return -1
+
+    for i as int32 = 0 to count - 1
+        if i = slots then
+            dim as int32 wanted = slots * 2
+            dim as int32 ptr grown = _
+                reallocate( items, wanted * sizeof( int32 ) )
+            if grown = 0 then return -1 '' items untouched, still freed
+            items = grown
+            slots = wanted
+        end if
+        items[i] = i * i
+    next
+
+    dim as int32 total = 0
+    for i as int32 = 0 to count - 1 : total += items[i] : next
+    return total
+end function
+
+print "Sum of squares through a scratch buffer"
+print "  n = 0:  " & SumOfSquares( 0 )
+print "  n = 3:  " & SumOfSquares( 3 )
+print "  n = 10: " & SumOfSquares( 10 )
+
+dim as int32 slots
+dim as int32 total = Collect( 5, slots )
+print "Collect 5 squares, starting with 2 slots"
+print "  total " & total & " in " & slots & " slots"
