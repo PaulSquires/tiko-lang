@@ -26,7 +26,7 @@ translated into tiko, so you can put them beside the library's documentation and
 together.
 
 Every listing in this chapter was compiled and run on both platforms, against exactly the
-versions in the table, except one that a Status callout explains.
+versions in the table.
 
 ## Before you start
 
@@ -109,9 +109,6 @@ Measured on the programs in this chapter, each linked both ways, in kilobytes of
 | `raylib-window` | 608 | 27 + 1,905 | 996 | 35 + 2,100 |
 | `glfw-window` | 227 | 29 + 234 | 331 | 35 + 353 |
 | `sdl-clear` | 2,745 | 29 + 2,848 | 3,604 | 40 + 4,096 |
-
-(The static SDL program on Windows does not link yet, for a reason the SDL section explains; its
-size was measured with the missing piece supplied by hand.)
 
 The second figure in each dynamic column is the shared library that has to travel with the
 program. A static program is smaller than the program plus its library, because the linker copies
@@ -780,15 +777,8 @@ libraries, found by the method from *A static library brings its dependencies wi
 ```
 
 On Linux the static library needs nothing more: SDL finds the window system and the sound
-system while the program runs, rather than linking them.
-
-```admonish warning title="Status in this version"
-On Windows, `sdl-static` does not link yet: `lld-link: error: undefined symbol:
-__declspec(dllimport) strnlen`. `strnlen` is a C runtime function that `ucrtbase.dll` exports,
-but the toolchain's import library for it leaves that one function out (T100). A Visual C++
-static library that calls it cannot be linked until the import library is fixed. Link SDL
-dynamically on Windows until then. The same listing links and runs on Linux.
-```
+system while the program runs, rather than linking them. On both platforms the program now runs
+with no `SDL3.dll` or `libSDL3.so.0` beside it.
 
 ## A binding header
 

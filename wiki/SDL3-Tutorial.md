@@ -4,7 +4,7 @@
 
 > 📘 **Start with:** [Using C Libraries](Using-C-Libraries-Tutorial), the ideas these steps rely on.
 >
-> 📖 **In the book:** [Chapter 29, SDL3](https://tiko-lang.net/book/ch29-c-libraries.html#sdl3). Measured with SDL 3.4.18 and tiko at `e23b4080` (2026-10-13), on Windows and Linux.
+> 📖 **In the book:** [Chapter 29, SDL3](https://tiko-lang.net/book/ch29-c-libraries.html#sdl3). Measured with SDL 3.4.18 and tiko at `4d822d3b` (2026-10-13), on Windows and Linux.
 
 [SDL](https://libsdl.org), the *Simple DirectMedia Layer*, is the broadest of the common game libraries. It covers windows, a 2D renderer, a GPU interface, audio, gamepads, cameras, file dialogs, threads and timers, on desktop and mobile alike. SDL3 is its current version.
 
@@ -214,8 +214,6 @@ Copy `build/Release/SDL3-static.lib` (13 MB) to `vendor/sdl3/SDL3-static_windows
 
 Linked statically, SDL needs five Windows libraries: `cfgmgr32`, `ole32`, `oleaut32`, `setupapi` and `shell32`. They were found by linking without any and reading the `undefined symbol` errors. `SetupDiGetClassDevsA` is in `setupapi`, `CoInitializeEx` in `ole32`, and so on, as Microsoft's documentation for each function says.
 
-> ⚠️ **Not yet on Windows.** With tiko at `e23b4080`, static SDL still fails on Windows with `undefined symbol: __declspec(dllimport) strnlen`. `strnlen` is a C runtime function that `ucrtbase.dll` exports, but tiko's import library for the C runtime leaves it out. This is a known toolchain defect. Link SDL dynamically on Windows until it is fixed.
-
 **Linux.** `vendor/sdl3/SDL3-static_linux_x86_64.a` from step 3 links with nothing more. SDL loads the window system and the sound system while the program runs. The program is 3.6 MB, with no `.so` to ship.
 
 ## 6. Installing SDL for every program
@@ -238,7 +236,7 @@ Linked statically, SDL needs five Windows libraries: `cfgmgr32`, `ole32`, `oleau
 | `TKO0336: unable to import C header` with `'SDL3/SDL_stdinc.h' file not found` | add `-cinclude` for SDL's `include` folder |
 | `'sdl_init' is not declared` after a `TKO0336` | the header failed to import; fix the first error |
 | `undefined symbol: ... SetupDiGetClassDevsA` (and others) linking statically | add the five system libraries in step 5 |
-| `undefined symbol: __declspec(dllimport) strnlen` | the known toolchain defect in step 5; link dynamically on Windows for now |
+| `undefined symbol: __declspec(dllimport) strnlen` | your tiko toolchain predates the fix to its C runtime import library; update tiko |
 | `Couldn't initialize SDL: No available video device` on Linux | no display SDL can use: check `DISPLAY`/`WAYLAND_DISPLAY`, install the X11 or Wayland development packages before building SDL, or use `SDL_VIDEO_DRIVER=dummy` |
 | `warning TKO0833` at `SDL_EnterAppMainCallbacks` | a callback's parameters differ from SDL's type; make them match |
 
