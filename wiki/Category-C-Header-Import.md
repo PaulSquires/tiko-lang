@@ -389,6 +389,26 @@ So for this purpose `system:` is *worse* than `#inclib`: identical behaviour, bu
 
 > If you need a genuinely guaranteed dynamic link, neither directive gives you one today. The mechanism exists in GNU `ld` — `-Bdynamic` / `-Bstatic` — but it is **positional** (passing it through `-Wl` lands it after the `-l` it was meant to constrain, where it does nothing) and **sticky** (it also changes resolution for every following library, the C runtime included). Honouring it would mean bracketing the one `-l` and restoring the previous mode, and it is `ld`-specific.
 
+## In a module: `public #cinclude`
+
+A `#cinclude` in a [module](Category-Modularizing) imports the header into the module, and its names stay the module's own: a program that imports the module does not see them. Written **`public #cinclude "x.h"`** (tiko, since 2026-10-13), the binding travels with the module's interface instead, and an importer sees the header's functions, types, `#define` constants and struct macros exactly as if it had `#cinclude`d the header itself: bare, not qualified by the module's name, because preprocessor names have no namespace.
+
+```freebasic
+'' modules/raylib/raylib.tiko
+#module "raylib"
+public #cinclude once "../../vendor/raylib/raylib.h"
+#foreignlib RAYLIB static "../../vendor/raylib/raylib", "system:winmm", _
+    "system:gdi32", "system:user32", "system:shell32"
+```
+
+```freebasic
+'' a program
+#import "raylib"
+InitWindow( 800, 450, "raylib" )
+```
+
+The module's `#foreignlib` links the library into every program that imports it. A plain `#cinclude`'s binding also travels when one of the module's public declarations names one of its types. `public #cinclude` outside a module file is `TKO0369`; with `-cnocache`, which leaves the binding in memory rather than in a file an importer can include, it is `TKO0340`. A module cannot use `#cmdline` (`TKO0366`), so a header that needs `-cinclude` is better kept in a binding header. See [Using C Libraries](Using-C-Libraries-Tutorial).
+
 ## Names
 
 The C name is kept wherever FreeBASIC allows it, and every change is recorded in a ledger at the top of the generated file, with its reason.

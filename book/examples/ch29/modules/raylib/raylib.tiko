@@ -1,0 +1,17 @@
+'' raylib as a module. 'public #cinclude' makes raylib.h's names the
+'' names of every program that imports the module, and the module's
+'' own #foreignlib links the library into each of them. Both paths are
+'' relative to this file.
+#module "raylib"
+
+public #cinclude once "../../vendor/raylib/raylib.h"
+
+#ifdef __FB_WIN32__
+    #foreignlib RAYLIB static "../../vendor/raylib/raylib", _
+        "system:winmm", "system:gdi32", "system:user32", _
+        "system:shell32"
+#else
+    #foreignlib RAYLIB static "../../vendor/raylib/raylib", _
+        "system:GL", "system:m", "system:pthread", "system:dl", _
+        "system:rt", "system:X11"
+#endif

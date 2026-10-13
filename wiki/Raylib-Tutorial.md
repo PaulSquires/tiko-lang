@@ -4,7 +4,7 @@
 
 > 📘 **Start with:** [Using C Libraries](Using-C-Libraries-Tutorial), the ideas these steps rely on.
 >
-> 📖 **In the book:** [Chapter 29, raylib](https://tiko-lang.net/book/ch29-c-libraries.html#raylib). Measured with raylib 6.0 and tiko at `4d822d3b` (2026-10-13), on Windows and Linux.
+> 📖 **In the book:** [Chapter 29, raylib](https://tiko-lang.net/book/ch29-c-libraries.html#raylib). Measured with raylib 6.0 and tiko at `56860273` (2026-10-13), on Windows and Linux.
 
 [raylib](https://www.raylib.com) is a library for making games. It has one header and 600 functions with plain names, and nothing to set up before your first window. It covers 2D and 3D drawing, textures, fonts, keyboard, mouse, gamepads and sound. raylib publishes ready-built packages for both of tiko's platforms, so nothing has to be compiled.
 
@@ -237,7 +237,92 @@ Programs then need no paths:
 #foreignlib RAYLIB dynamic "system:raylib"
 ```
 
-## 8. Troubleshooting
+## 8. A binding module
+
+Instead of a header, raylib can be a **module** that programs `#import`. The module says `public #cinclude`, which makes raylib's names the names of every program that imports it:
+
+```freebasic
+'' raylib as a module. 'public #cinclude' makes raylib.h's names the
+'' names of every program that imports the module, and the module's
+'' own #foreignlib links the library into each of them. Both paths are
+'' relative to this file.
+#module "raylib"
+
+public #cinclude once "../../vendor/raylib/raylib.h"
+
+#ifdef __FB_WIN32__
+    #foreignlib RAYLIB static "../../vendor/raylib/raylib", _
+        "system:winmm", "system:gdi32", "system:user32", _
+        "system:shell32"
+#else
+    #foreignlib RAYLIB static "../../vendor/raylib/raylib", _
+        "system:GL", "system:m", "system:pthread", "system:dl", _
+        "system:rt", "system:X11"
+#endif
+```
+
+```toml
+# A program that imports raylib as a module: the -i below names the
+# folder that holds module folders, relative to this file.
+[package]
+name = "modgame"
+
+[target.modgame]
+main    = "main.tiko"
+options = ["-i", "../modules"]
+```
+
+```freebasic
+'' raylib's core_basic_window once more, through the raylib module:
+'' one #import, and every raylib name is the program's own.
+'' A number on the command line stops it after that many frames.
+#import "raylib"
+
+dim maxFrames as int32 = valint( command( 1 ) )  '' 0: until closed
+
+SetTraceLogLevel( LOG_WARNING )
+InitWindow( 800, 450, "raylib [core] example - basic window" )
+SetTargetFPS( 60 )
+
+dim frames as int32 = 0
+do until WindowShouldClose( )
+    BeginDrawing( )
+    ClearBackground( RAYWHITE )
+    DrawText( "Congrats! You created your first window!", _
+        190, 200, 20, LIGHTGRAY )
+    EndDrawing( )
+    frames += 1
+    if frames = maxFrames then exit do
+loop
+CloseWindow( )
+print "drew "; str( frames ); " frames"
+```
+
+```bash
+cd modgame
+tiko build modgame
+./out/debug/modgame 60
+```
+
+```
+drew 60 frames
+```
+
+The names are bare (`InitWindow`, not `raylib.InitWindow`), as `#cinclude` makes them, because a C header's `#define`s and struct macros cannot live in a namespace. To install the module for every program, put its folder in a directory named by `TKO_PATH` (`set TKO_PATH=C:\tiko-modules` on Windows, `export TKO_PATH=~/tiko-modules` on Linux) and give the module's paths to its own library files.
+
+## 9. Linux: finding `libraylib.so.600` without `LD_LIBRARY_PATH`
+
+Record the program's own directory as an **rpath**:
+
+```freebasic
+#cmdline "-x raylib-rpath -Wl -rpath,$ORIGIN"
+#cinclude once "vendor/raylib/raylib.h"
+#foreignlib RAYLIB dynamic "vendor/raylib/raylibdll"
+```
+
+The program then finds `libraylib.so.600` beside it wherever it is copied. In a shell, quote the option: `tiko raylib-dll.tiko -Wl '-rpath,$ORIGIN'`.
+
+## 10. Troubleshooting
 
 | Problem | Fix |
 |---|---|

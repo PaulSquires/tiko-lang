@@ -4,7 +4,7 @@
 
 > 📘 **Start with:** [Using C Libraries](Using-C-Libraries-Tutorial), the ideas these steps rely on.
 >
-> 📖 **In the book:** [Chapter 29, GLFW](https://tiko-lang.net/book/ch29-c-libraries.html#glfw). Measured with GLFW 3.5.1 and tiko at `4d822d3b` (2026-10-13), on Windows and Linux.
+> 📖 **In the book:** [Chapter 29, GLFW](https://tiko-lang.net/book/ch29-c-libraries.html#glfw). Measured with GLFW 3.5.1 and tiko at `56860273` (2026-10-13), on Windows and Linux.
 
 [GLFW](https://www.glfw.org) does a small job well. It opens windows, gives each one an **OpenGL context** (the surface OpenGL draws on) or a Vulkan surface, and reports keyboard, mouse, gamepad and window events. It draws nothing itself; that is OpenGL's job. Use GLFW when you want to write the graphics code yourself.
 

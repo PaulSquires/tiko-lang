@@ -4,7 +4,7 @@
 
 > 📘 **Start with:** [Using C Libraries](Using-C-Libraries-Tutorial), the ideas these steps rely on.
 >
-> 📖 **In the book:** [Chapter 29, SQLite](https://tiko-lang.net/book/ch29-c-libraries.html#sqlite). Measured with SQLite 3.54.0 and tiko at `4d822d3b` (2026-10-13), on Windows and Linux.
+> 📖 **In the book:** [Chapter 29, SQLite](https://tiko-lang.net/book/ch29-c-libraries.html#sqlite). Measured with SQLite 3.54.0 and tiko at `56860273` (2026-10-13), on Windows and Linux.
 
 [SQLite](https://sqlite.org) is a complete SQL database in a library. There is no server, and a database is one ordinary file. This tutorial uses SQLite's own C interface from tiko, linked dynamically and statically, kept inside a project or installed for the whole machine.
 
@@ -33,7 +33,7 @@ myapp/
   libsqlite3.so.0                               (Linux: the .so, beside the program)
   vendor/sqlite/
     sqlite3.h
-    sqlite3_windows_x86_64.lib                  import library for sqlite3.dll
+    sqlite3_windows_x86_64.dll                  sqlite3.dll, renamed: tiko makes its import library
     sqlite3-static_windows_x86_64.lib           static library
     sqlite3_linux_x86_64.so                     shared library
     sqlite3-static_linux_x86_64.a               static library
@@ -45,7 +45,14 @@ You only need the files for the platforms and the kind of link you use.
 
 **The header.** Copy `sqlite3.h` from the amalgamation zip into `vendor/sqlite/`.
 
-**For dynamic linking.** The DLL zip contains `sqlite3.dll` and `sqlite3.def`, a list of the DLL's functions, but **no import library**, and the linker needs one. `llvm-dlltool`, which comes with LLVM, makes it from the `.def`:
+**For dynamic linking.** The DLL zip contains `sqlite3.dll` and `sqlite3.def`, a list of the DLL's functions, but **no import library**. You don't need to make one:
+
+1. Copy `sqlite3.dll` to `vendor/sqlite/sqlite3_windows_x86_64.dll`.
+2. Copy `sqlite3.dll` again, unrenamed, next to where your program will be.
+
+When `#foreignlib SQLITE dynamic "vendor/sqlite/sqlite3"` finds only the `.dll`, tiko reads the DLL's exports and makes the import library while linking (run with `-v` to see the `llvm-dlltool` command). The import library names the DLL **as the DLL names itself**, `sqlite3.dll`, not by the renamed file, so the program loads the copy beside it.
+
+**Or make the import library yourself**, to keep one in the project. `llvm-dlltool`, which comes with LLVM, makes it from the `.def`:
 
 ```bash
 llvm-dlltool -m i386:x86-64 -d sqlite3.def -D sqlite3.dll -l vendor/sqlite/sqlite3_windows_x86_64.lib
@@ -56,11 +63,9 @@ llvm-dlltool -m i386:x86-64 -d sqlite3.def -D sqlite3.dll -l vendor/sqlite/sqlit
 - `-D sqlite3.dll`: **the DLL the program will load.** Don't leave this out (see below).
 - `-l ...`: the file to write
 
-Copy `sqlite3.dll` next to where your program will be.
+A `.lib` with one of the names `#foreignlib` tries is found before the `.dll`, so when both are there, yours is used.
 
 > ⚠️ **Without a DLL name, the program cannot start.** `sqlite3.def` has no `LIBRARY` line, so an import library made without `-D` (for example with `llvm-lib /def:sqlite3.def`) records an **empty** DLL name. Everything links, and then the program dies on start with code `-1073741515`. Check with `llvm-readobj --coff-imports program.exe`: a `Name:` line with nothing after it is the problem.
-
-> ⚠️ **Don't point `#foreignlib` at the `.dll` itself.** If `vendor/sqlite/` contains only `sqlite3_windows_x86_64.dll`, `#foreignlib ... dynamic` currently picks it and the link fails with `bad file type. Did you specify a DLL instead of an import library?`. Make the import library as above.
 
 **For static linking.** Compile the amalgamation and archive it. This needs the Visual Studio Build Tools, for the C runtime headers, and takes about 20 seconds (`sqlite3.c` is 9.6 MB of C):
 
@@ -175,6 +180,8 @@ two = 20
 | `*sqlite3_errmsg( db )` | a `const char *` from C; `*` copies the text into a tiko string |
 | `sqlite3_free( errMsg )` | SQLite allocated the message, so SQLite frees it |
 
+> 💡 **No `LD_LIBRARY_PATH` needed:** add `#cmdline "-Wl -rpath,$ORIGIN"` (inside `#ifdef __FB_LINUX__`), and the program looks for `libsqlite3.so.0` beside itself first.
+
 > ⚠️ **On Linux, forgetting `LD_LIBRARY_PATH` may not fail.** Ubuntu has its own `libsqlite3.so.0` installed, and the program will quietly use that, an older version (3.45.1 on Ubuntu 24.04). Ask SQLite: `select sqlite_version()`.
 
 ## 6. The program, linked statically
@@ -275,7 +282,7 @@ This links the distribution's SQLite, which is 3.45.1 on Ubuntu 24.04. For a new
 |---|---|
 | `TKO0336: unable to import C header vendor/sqlite/sqlite3.h` | check the path; on Windows install the Visual Studio Build Tools |
 | `TKO0329: #foreignlib found no matching library file` | the file names in the list are what tiko looked for; rename yours to match |
-| `bad file type. Did you specify a DLL instead of an import library?` | make an import library with `llvm-dlltool` (step 3) |
+| `TKO0172: cannot make an import library for '...': it is not a 64-bit x86-64 DLL` | that is `sqlite-dll-win-x86`, the 32-bit download; take `win-x64` |
 | the program exits at once with `-1073741515` | `sqlite3.dll` is not beside the program, or the import library was made without `-D sqlite3.dll` |
 | `error while loading shared libraries: libsqlite3.so.0` | `LD_LIBRARY_PATH=.` or install SQLite |
 | wrong SQLite version reported on Linux | the system's copy was loaded; use `LD_LIBRARY_PATH=.` |

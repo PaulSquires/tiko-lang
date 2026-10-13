@@ -1,0 +1,8 @@
+# A program that imports raylib as a module: the -i below names the
+# folder that holds module folders, relative to this file.
+[package]
+name = "modgame"
+
+[target.modgame]
+main    = "main.tiko"
+options = ["-i", "../modules"]

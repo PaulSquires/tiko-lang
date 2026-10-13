@@ -62,11 +62,13 @@ windows() {
   "$llvm/clang.exe" -c -O2 -o "$dl/sqlite3.obj" "$s/sqlite3.c"
   "$llvm/llvm-lib.exe" /out:vendor/sqlite/sqlite3-static_$target.lib "$dl/sqlite3.obj"
   # Dynamic: the DLL zip has sqlite3.dll and sqlite3.def but no import
-  # library, so make one. -D names the DLL the program will load.
+  # library. #foreignlib makes one from the DLL itself when it links, so the
+  # DLL goes into vendor/ under its target-tagged name, and beside the
+  # program under its own.
   a="$(unpack "$(fetch https://sqlite.org/2026/sqlite-dll-win-x64-$SQLITE_VER.zip \
       a548a9b5d8f695e669f71bcc4669fdc8b3e1eb79995761c81a9128262126f71c)")"
-  "$llvm/llvm-dlltool.exe" -m i386:x86-64 -d "$a/sqlite3.def" -D sqlite3.dll \
-      -l vendor/sqlite/sqlite3_$target.lib
+  rm -f vendor/sqlite/sqlite3_$target.lib
+  cp "$a/sqlite3.dll" vendor/sqlite/sqlite3_$target.dll
   cp "$a/sqlite3.dll" .
 
   echo "== raylib $RAYLIB_VER"

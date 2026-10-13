@@ -72,8 +72,8 @@ in. You cannot tell them apart by the name, only by the size and by the package'
 raylib's `raylib.lib` is 5 MB of code, its `raylibdll.lib` 400 KB of names.
 
 The linker never reads a `.dll`. To link with a DLL, you link with its import library, and the
-DLL is used only when the program runs. If a package ships a DLL without one, you make one; the
-SQLite section shows how.
+DLL is used only when the program runs. If a package ships a DLL without one, `#foreignlib` makes
+one for you when the program links; the SQLite section shows it.
 
 ### Choosing the right package
 
@@ -140,26 +140,35 @@ That is why a Linux package carries the same library under three names, such as
 `libraylib.so`, `libraylib.so.600` and `libraylib.so.6.0.0`: the first is for the linker, the
 second is the soname the program will ask for, and the third is the real file.
 
-For a library installed on the system, nothing more is needed. For one inside your project, run
-the program with the project's directory on `LD_LIBRARY_PATH`:
+For a library installed on the system, nothing more is needed. For one inside your project, there
+are two ways to say where it is. The quick one is to run the program with the project's directory
+on `LD_LIBRARY_PATH`:
 
 ```bash
 LD_LIBRARY_PATH=. ./sqlite-quick
 ```
 
-````admonish warning title="Status in this version"
-A Linux program usually solves this with an **rpath**: a directory recorded in the program, often
-`$ORIGIN`, meaning "beside me". tiko has no way to give the linker one yet, and no option that
-passes arguments to the linker unchanged, as fbc's `-Wl` does (T99). Until it does, a program
-linked with a library inside its project needs `LD_LIBRARY_PATH` or a small launch script, kept
-beside the program as, say, `run-game`, that sets it:
+The lasting one is an **rpath**: a directory recorded inside the program, which the loader searches
+before the system's own directories. The usual value is `$ORIGIN`, which the loader reads as "the
+directory this program is in", so a program and its `.so` files can be copied anywhere together.
+It is given to the linker, through tiko's **`-Wl`** option, which passes its value to the linker
+unchanged, split at commas, as fbc's `-Wl` does:
 
-```bash
-#!/bin/sh
-here="$(dirname "$(readlink -f "$0")")"
-LD_LIBRARY_PATH="$here${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" exec "$here/game" "$@"
+```tiko
+{{#include ../examples/ch29/raylib-rpath.tiko:link}}
 ```
-````
+
+This listing is `raylib-dll` with one more line. It runs with no `LD_LIBRARY_PATH` at all:
+
+```text
+{{#include ../examples/ch29/raylib-rpath.out}}
+```
+
+Typed in a shell, `$ORIGIN` must be in single quotes, or the shell replaces it with an empty
+variable before tiko sees it: `tiko game.tiko -Wl '-rpath,$ORIGIN'`. In a `#cmdline`, as here, and
+in a `tiko.toml`'s `options`, no shell is involved and it needs no quoting. On Windows, where a
+program looks beside itself anyway, `-Wl` passes options to `lld-link` instead: `-Wl /STACK:8388608`
+reserves an 8 MB stack.
 
 ```admonish danger title="Pitfall"
 **On Linux, a missing library is not always an error.** Ubuntu has `libsqlite3.so.0` installed
@@ -167,8 +176,9 @@ for its own use. A program linked with the SQLite 3.54.0 in this chapter's proje
 same soname, so run without `LD_LIBRARY_PATH` it starts without complaint, using the system's
 copy, an older version, and nothing says so. The same program prints `SQLite 3.54.0` with
 `LD_LIBRARY_PATH=.` and `SQLite 3.45.1` without it. A program that depends on a newer feature
-fails much later, and somewhere that looks unrelated. When it matters which copy is loaded, check
-it the way the listings here do: ask the library for its version.
+fails much later, and somewhere that looks unrelated. An rpath of `$ORIGIN` puts your copy first;
+and when it matters which copy is loaded, check it the way the listings here do: ask the library
+for its version.
 ```
 
 ### A static library brings its dependencies with it
@@ -311,8 +321,35 @@ program directly, which makes a static library easy to build yourself.
 ### Windows: the dynamic library
 
 The DLL zip has `sqlite3.dll` and `sqlite3.def`, a text file that lists every function the DLL
-exports, but **no import library**. Make one from the `.def` with `llvm-dlltool`, which comes
-with LLVM:
+exports, but **no import library**. You do not have to make one. Put the DLL into the project
+under its target-tagged name, and the original beside the program:
+
+```text
+vendor/sqlite/sqlite3_windows_x86_64.dll     the DLL, for the link
+sqlite3.dll                                  the same file, for the program to load
+```
+
+When `#foreignlib SQLITE dynamic "vendor/sqlite/sqlite3"` finds only a `.dll`, the link reads the
+DLL's own table of exports and makes the import library from it, with `llvm-dlltool` from the
+LLVM installation tiko already uses, then deletes it with the other intermediate files. Run with
+`-v`, the `llvm-dlltool` command is printed before the link.
+
+The import library names the DLL **as the DLL names itself**, the name it was built with,
+`sqlite3.dll`, and not by the name of the file it was read from. That is the Windows counterpart
+of a soname: the copy in `vendor/` can carry its target tag, and the program still loads
+`sqlite3.dll`. A DLL that is not 64-bit x86-64 is `TKO0172`, with the reason:
+
+```text
+error TKO0172: cannot make an import library for 'lib/w32_windows_x86_64.dll':
+it is not a 64-bit x86-64 DLL (machine &h014C)
+```
+
+(One line on the screen, its path shortened here.) That is the 32-bit download, taken by mistake.
+
+### Windows: an import library of your own
+
+To keep an import library in the project instead, so the link does not make one each time, make
+it from the `.def` with `llvm-dlltool`:
 
 ```bash
 llvm-dlltool -m i386:x86-64 -d sqlite3.def -D sqlite3.dll \
@@ -333,13 +370,8 @@ nothing. `llvm-readobj --coff-imports` on the `.exe` shows it, an import block w
 `.def`.
 ````
 
-```admonish warning title="Status in this version"
-`#foreignlib … dynamic` will match a bare `sqlite3.dll` if there is no import library beside it,
-and hands it to the linker, which refuses: `lld-link: error: sqlite/sqlite3.dll: bad file type.
-Did you specify a DLL instead of an import library?` (T98). Make the import library as above.
-```
-
-Put `sqlite3.dll` beside the program.
+A `.lib` beside the DLL under one of the names `#foreignlib` tries is found before the `.dll`, so
+when both are there, the import library you made is the one that is linked.
 
 ### Windows: the static library
 
@@ -831,12 +863,46 @@ Then every project that uses raylib writes `#include once "raylib.ti"` and adds
 line. For a library linked dynamically, its DLL still has to be found when the program runs:
 copy it beside each program, or add its folder to `PATH`.
 
-```admonish warning title="Status in this version"
-A **module** would be the natural home for a binding: installed once on `TKO_PATH`, imported with
-`#import "raylib"`. But the C names that a `#cinclude` brings into a module are not public, so a
-program that imports the module can reach none of them, by bare name or as `raylib.InitWindow`
-(`TKO0745`). Until that is decided (T101), a binding is a header.
+### A binding module
+
+A binding can also be a **module**, which Chapter 14 introduced: a directory a program `#import`s.
+A module's names are its own unless it marks them `public`, and that is true of a `#cinclude`
+inside one too. Written as **`public #cinclude`**, the header's names travel with the module, and
+every program that imports it sees them exactly as if it had read the header itself:
+
+```tiko
+{{#include ../examples/ch29/modules/raylib/raylib.tiko}}
 ```
+
+```toml
+{{#include ../examples/ch29/modgame/tiko.toml}}
+```
+
+```tiko
+{{#include ../examples/ch29/modgame/main.tiko:all}}
+```
+
+`tiko build modgame`, then `out/debug/modgame 60`:
+
+```text
+{{#include ../examples/ch29/modgame/main.out}}
+```
+
+The program writes `#import "raylib"` and nothing else: `InitWindow`, the `LOG_WARNING` constant
+and the `RAYWHITE` macro come from the module, and the module's `#foreignlib` links the library
+into the program. The names are bare, as a `#cinclude` would make them, not `raylib.InitWindow`,
+because a C header's `#define`s and struct macros are preprocessor names, which no namespace can
+hold.
+
+A plain `#cinclude` in a module stays private: the module can use a C library to do its work
+without handing the whole C interface to everyone who imports it. `public #cinclude` outside a
+module file is `TKO0369`, and with `-cnocache`, which keeps the binding in memory rather than in a
+file an importer could read, it is `TKO0340`.
+
+To install a binding module for every program, put its folder in one directory and name that
+directory in **`TKO_PATH`**, the list of directories `#import` searches, separated by `;` on
+Windows and `:` on Linux. A module's `#cmdline` is refused (`TKO0366`), so a library whose
+headers need `-cinclude`, as SDL's do, is still best kept as a binding header.
 
 ## When something goes wrong
 
@@ -847,7 +913,7 @@ Every failure in this table happened while this chapter was being written.
 | `TKO0336: unable to import C header`, and a clang note `file not found` | clang cannot find the header, or a header it includes | check the path; for `#include <…>` inside the header, add `-cinclude` |
 | the same, with a note about the Windows SDK | the Visual Studio Build Tools are missing | install them, with the Windows SDK |
 | `TKO0329: #foreignlib found no matching library file`, with a list of names tried | no file has any of the names in the list | rename the library to one of them, usually with its target tag |
-| `lld-link: error: … bad file type. Did you specify a DLL instead of an import library?` | `#foreignlib` matched a `.dll` (T98) | make an import library |
+| `TKO0172: cannot make an import library for '…': it is not a 64-bit x86-64 DLL` | the DLL is the 32-bit build | download the 64-bit package |
 | `undefined symbol: …` when linking statically | a system library the static library needs is not linked | add it as `"system:name"`; see *A static library brings its dependencies with it* |
 | the program exits at once, code `-1073741515` (`0xC0000135`) | Windows cannot find a DLL, or the import library names none | put the DLL beside the program; check the import library has the DLL's name |
 | `error while loading shared libraries: libX.so.N` and exit 127 | Linux cannot find the `.so` | `LD_LIBRARY_PATH=.`, or install the library |
@@ -874,8 +940,8 @@ Every failure in this table happened while this chapter was being written.
 - Linked **statically**, the library's code is copied into the program, which then needs nothing
   else, but links the system libraries the static library calls, each as `"system:name"`.
 - Linked **dynamically**, the program is small and the library file must be found when it starts:
-  beside the `.exe` on Windows, on `LD_LIBRARY_PATH` or in the system's directories on Linux.
-  tiko cannot yet record an rpath (T99).
+  beside the `.exe` on Windows; on Linux, in the system's directories, on `LD_LIBRARY_PATH`, or
+  in an rpath: `-Wl -rpath,$ORIGIN` records "beside the program".
 - A Linux program asks for a library by its **soname**; a missing library may silently be
   replaced by the system's own copy.
 - A **vendored** library lives in the project. Name its link-time files with target tags,
@@ -883,15 +949,16 @@ Every failure in this table happened while this chapter was being written.
   platforms. Never rename the runtime files.
 - An **installed** library on Linux needs no paths: `#cinclude once "x.h"` and `"system:x"`. On
   Windows, make a shared folder and point at it with `-i`.
-- **SQLite**: compile the amalgamation for a static library; make an import library from
-  `sqlite3.def` with `llvm-dlltool -D sqlite3.dll`.
+- **SQLite**: compile the amalgamation for a static library. Its DLL needs no import library:
+  `#foreignlib` makes one from a `.dll`, naming the DLL as the DLL names itself.
 - **raylib**: prebuilt for both platforms; quiet it with `SetTraceLogLevel`.
 - **GLFW**: `lib-vc2022/glfw3.lib` on Windows, built from source on Linux; a program that calls
   OpenGL links OpenGL itself.
 - **SDL3**: its `include` directory goes to `-cinclude`; `SDL_MAIN_HANDLED` and
   `SDL_EnterAppMainCallbacks` run the main callbacks; `appstate` replaces globals.
 - A **binding header** holds a library's `#cinclude` and `#foreignlib` lines, relative to itself,
-  so programs include one file and need not know where the library is.
+  so programs include one file and need not know where the library is. A **binding module** does
+  the same with `public #cinclude`, and is installed for every program through `TKO_PATH`.
 
 ## Exercises
 

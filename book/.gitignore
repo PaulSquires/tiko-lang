@@ -19,3 +19,4 @@ out/
 examples/ch29/vendor/*/
 examples/ch29/vendor/.downloads/
 examples/ch29/*.so.*
+examples/ch29/raylib-rpath

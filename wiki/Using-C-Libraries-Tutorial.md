@@ -4,7 +4,7 @@
 
 > 📘 **Step by step, one library each:** [SQLite](SQLite-Tutorial) · [raylib](Raylib-Tutorial) · [GLFW](GLFW-Tutorial) · [SDL3](SDL3-Tutorial)
 >
-> 📖 **In the book:** [Chapter 29, Using C Libraries](https://tiko-lang.net/book/ch29-c-libraries.html) covers the same ground in one chapter. Every program on these pages is one of its listings, compiled and run on Windows and Linux with tiko at `4d822d3b` (2026-10-13).
+> 📖 **In the book:** [Chapter 29, Using C Libraries](https://tiko-lang.net/book/ch29-c-libraries.html) covers the same ground in one chapter. Every program on these pages is one of its listings, compiled and run on Windows and Linux with tiko at `56860273` (2026-10-13).
 
 Most of the code a program might want already exists as a C library: databases, graphics, sound, compression, networking. tiko uses a C library directly. [`#cinclude`](modern-Cinclude) reads the library's own header, so you write no declarations, and [`#foreignlib`](Category-Foreign-Library-Linking) links the library's file. This page covers what is the same for every library. The four tutorials above then take one library each from its download page to a running program.
 
@@ -37,6 +37,8 @@ the directory with -cinclude
 
 On Windows, a static library and an import library are both `.lib`. The package's documentation, or the file size, tells you which is which: raylib's static `raylib.lib` is 5 MB, and its import library `raylibdll.lib` is 400 KB.
 
+**A DLL with no import library is fine.** When `#foreignlib ... dynamic` finds only a `.dll`, tiko reads the DLL's table of exports and makes the import library itself while linking, naming the DLL as the DLL names itself. The [SQLite tutorial](SQLite-Tutorial#3-lay-it-out-windows) uses that.
+
 **Choose the right download.** tiko builds 64-bit programs only, so skip anything marked `win32`, `x86`, `i386` or `i686`. On Windows, take the package built for **Visual C++** (`msvc`, `VC`, `vc2022`), because tiko's Windows target follows Visual C++'s conventions and uses its C runtime. The `mingw` packages are for a different toolchain.
 
 ## 3. Static or dynamic?
@@ -60,17 +62,15 @@ All four libraries in these tutorials allow both. Check the licence of any other
   error while loading shared libraries: libraylib.so.600: cannot open shared object file: No such file or directory
   ```
 
-  For a library kept inside your project, run with `LD_LIBRARY_PATH=. ./program`, or use a launch script:
+  For a library kept inside your project, run with `LD_LIBRARY_PATH=. ./program` for a quick test. To make it last, record an **rpath** in the program: a directory the loader searches before the system's. `$ORIGIN` means "the directory this program is in", and tiko's `-Wl` option hands it to the linker:
 
-  ```bash
-  #!/bin/sh
-  here="$(dirname "$(readlink -f "$0")")"
-  LD_LIBRARY_PATH="$here${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" exec "$here/game" "$@"
+  ```freebasic
+  #cmdline "-Wl -rpath,$ORIGIN"
   ```
 
-> ⚠️ **tiko cannot record an rpath yet** (the usual Linux answer, `$ORIGIN`, meaning "beside me"). It has no option to pass arguments to the linker. Until it does, use `LD_LIBRARY_PATH` or the script above.
+  The program and its `.so` files can then be copied anywhere together. `-Wl` passes its value to the linker as fbc's does, split at commas. In a shell, single-quote it so the shell leaves `$ORIGIN` alone: `tiko game.tiko -Wl '-rpath,$ORIGIN'`. In `#cmdline` or in `tiko.toml`'s `options`, no quoting is needed. Put `#cmdline` lines that only make sense on Linux inside `#ifdef __FB_LINUX__`: on Windows, `-Wl` talks to `lld-link`, which has no `-rpath`.
 
-> ⚠️ **A missing library is not always an error on Linux.** If the system has its own copy under the same soname, the program silently loads that one. A program linked with SQLite 3.54.0 prints `SQLite 3.54.0` with `LD_LIBRARY_PATH=.` and `SQLite 3.45.1` without it, because Ubuntu 24.04 ships 3.45.1. Ask the library for its version when it matters.
+> ⚠️ **A missing library is not always an error on Linux.** If the system has its own copy under the same soname, the program silently loads that one. A program linked with SQLite 3.54.0 prints `SQLite 3.54.0` with `LD_LIBRARY_PATH=.` and `SQLite 3.45.1` without it, because Ubuntu 24.04 ships 3.45.1. An rpath of `$ORIGIN` puts your copy first. Ask the library for its version when it matters.
 
 ### Static linking means linking the library's dependencies too
 
@@ -168,7 +168,31 @@ options = ["-i", "../vendor"]
 
 To share the bindings between every program on the machine, put `raylib.ti` and its `raylib/` folder in `C:\tiko-libs`, and use `options = ["-i", "C:/tiko-libs"]` in each `tiko.toml` (or `-i C:\tiko-libs` on the command line). The [raylib tutorial](Raylib-Tutorial#7-one-copy-for-every-program) shows the whole project.
 
-> ℹ️ A **module** would be the natural way to package a binding. Today, though, the C names a `#cinclude` brings into a module are not public, so a program importing the module cannot reach them. A binding is a header for now.
+### Or a binding module
+
+A binding can also be a **module**. Inside a module, write **`public #cinclude`**: the header's names then travel with the module, and every program that `#import`s it sees them as if it had read the header itself. A plain `#cinclude` in a module stays private.
+
+```freebasic
+'' raylib as a module. 'public #cinclude' makes raylib.h's names the
+'' names of every program that imports the module, and the module's
+'' own #foreignlib links the library into each of them. Both paths are
+'' relative to this file.
+#module "raylib"
+
+public #cinclude once "../../vendor/raylib/raylib.h"
+
+#ifdef __FB_WIN32__
+    #foreignlib RAYLIB static "../../vendor/raylib/raylib", _
+        "system:winmm", "system:gdi32", "system:user32", _
+        "system:shell32"
+#else
+    #foreignlib RAYLIB static "../../vendor/raylib/raylib", _
+        "system:GL", "system:m", "system:pthread", "system:dl", _
+        "system:rt", "system:X11"
+#endif
+```
+
+A program then needs one line, `#import "raylib"`. Install the module for every program by putting its folder in a directory named in **`TKO_PATH`** (`;`-separated on Windows, `:` on Linux). A module may not use `#cmdline`, so a library whose headers need `-cinclude` (SDL3's do) is still best kept as a binding header. The [raylib tutorial](Raylib-Tutorial#8-a-binding-module) has the whole project.
 
 ## 6. When it goes wrong
 
@@ -177,11 +201,11 @@ To share the bindings between every program on the machine, put `raylib.ti` and 
 | `TKO0336: unable to import C header` + clang `file not found` | the header, or one it includes, is not found | check the path; add `-cinclude <dir>` for `<...>` includes |
 | the same + a note about the Windows SDK | no Visual Studio Build Tools | install them with the Windows SDK |
 | `TKO0329: #foreignlib found no matching library file` + a list | no file has any of the listed names | rename the file to one of them, with its target tag |
-| `lld-link: ... bad file type. Did you specify a DLL instead of an import library?` | `#foreignlib ... dynamic` matched a bare `.dll` (a known tiko defect) | make an import library (see [SQLite](SQLite-Tutorial#3-lay-it-out-windows)) |
+| `TKO0172: cannot make an import library for '...': it is not a 64-bit x86-64 DLL` | a `.dll` with no import library was linked, and it is the 32-bit build | download the 64-bit package |
 | `undefined symbol: ...` when linking statically | a system library the static library needs is missing | add `"system:name"` (section 3) |
 | program exits at once, code `-1073741515` | Windows cannot find the DLL, or the import library has no DLL name | put the DLL beside the `.exe`; check the import library |
-| `error while loading shared libraries`, exit 127 | Linux cannot find the `.so` | `LD_LIBRARY_PATH=.`, a launch script, or install it |
-| the program reports an older library version | Linux loaded the system's copy | `LD_LIBRARY_PATH=.` |
+| `error while loading shared libraries`, exit 127 | Linux cannot find the `.so` | `-Wl -rpath,$ORIGIN`, `LD_LIBRARY_PATH=.`, or install it |
+| the program reports an older library version | Linux loaded the system's copy | `-Wl -rpath,$ORIGIN` |
 | `warning TKO0833: passing different pointer types` at a callback | your callback's parameters differ from the C type | match the header exactly, since a wrong callback reads garbage |
 | a library floods the console | it logs to standard output | lower its log level (raylib: `SetTraceLogLevel( LOG_WARNING )`) |
 

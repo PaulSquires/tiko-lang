@@ -50,6 +50,12 @@ matches, the error lists every path that was tried.
 
 ## Remarks
 
+- **A `.dll` with no import library** (tiko, windows-x86_64, since 2026-10-13). When a `dynamic` spec
+  matches only a `.dll`, the link reads the DLL's export table, writes a `.def` naming the DLL as
+  its export directory names it (the name it was built as, not the file's), and makes the import
+  library with `llvm-dlltool` from clang's LLVM directory; it is deleted with the objects. An
+  export in a section with no code is written `DATA`. A file that is not a 64-bit x86-64 DLL is
+  `TKO0172`. A `.dll.a` or `.lib` with a matching name is found first and used as it is.
 - A `#foreignlib` contributes its libraries to the link whether or not any
   declaration names it, exactly as [`#inclib`](Inclib) does.
 - **`static` / `dynamic` is ignored for a `"system:"` spec.** The resolver hands

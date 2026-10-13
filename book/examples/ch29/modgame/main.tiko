@@ -1,0 +1,25 @@
+'' raylib's core_basic_window once more, through the raylib module:
+'' one #import, and every raylib name is the program's own.
+'' A number on the command line stops it after that many frames.
+'' ANCHOR: all
+#import "raylib"
+
+dim maxFrames as int32 = valint( command( 1 ) )  '' 0: until closed
+
+SetTraceLogLevel( LOG_WARNING )
+InitWindow( 800, 450, "raylib [core] example - basic window" )
+SetTargetFPS( 60 )
+
+dim frames as int32 = 0
+do until WindowShouldClose( )
+    BeginDrawing( )
+    ClearBackground( RAYWHITE )
+    DrawText( "Congrats! You created your first window!", _
+        190, 200, 20, LIGHTGRAY )
+    EndDrawing( )
+    frames += 1
+    if frames = maxFrames then exit do
+loop
+CloseWindow( )
+print "drew "; str( frames ); " frames"
+'' ANCHOR_END: all

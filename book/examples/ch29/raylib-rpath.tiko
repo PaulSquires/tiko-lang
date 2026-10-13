@@ -1,0 +1,32 @@
+'' The dynamic raylib program, with its own directory recorded in it as
+'' an rpath: Linux finds libraylib.so.600 beside it, with no
+'' LD_LIBRARY_PATH. Windows looks beside a program already.
+'' ANCHOR: all
+'' ANCHOR: link
+#cmdline "-x raylib-rpath -Wl -rpath,$ORIGIN"
+#cinclude once "vendor/raylib/raylib.h"
+#foreignlib RAYLIB dynamic "vendor/raylib/raylibdll"
+'' ANCHOR_END: link
+
+const ScreenWidth = 800
+const ScreenHeight = 450
+dim maxFrames as int32 = valint( command( 1 ) )  '' 0: until closed
+
+SetTraceLogLevel( LOG_WARNING )   '' raylib logs to stdout otherwise
+InitWindow( ScreenWidth, ScreenHeight, _
+    "raylib [core] example - basic window" )
+SetTargetFPS( 60 )
+
+dim frames as int32 = 0
+do until WindowShouldClose( )
+    BeginDrawing( )
+    ClearBackground( RAYWHITE )
+    DrawText( "Congrats! You created your first window!", _
+        190, 200, 20, LIGHTGRAY )
+    EndDrawing( )
+    frames += 1
+    if frames = maxFrames then exit do
+loop
+CloseWindow( )
+print "drew "; str( frames ); " frames"
+'' ANCHOR_END: all

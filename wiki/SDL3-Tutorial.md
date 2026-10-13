@@ -4,7 +4,7 @@
 
 > 📘 **Start with:** [Using C Libraries](Using-C-Libraries-Tutorial), the ideas these steps rely on.
 >
-> 📖 **In the book:** [Chapter 29, SDL3](https://tiko-lang.net/book/ch29-c-libraries.html#sdl3). Measured with SDL 3.4.18 and tiko at `4d822d3b` (2026-10-13), on Windows and Linux.
+> 📖 **In the book:** [Chapter 29, SDL3](https://tiko-lang.net/book/ch29-c-libraries.html#sdl3). Measured with SDL 3.4.18 and tiko at `56860273` (2026-10-13), on Windows and Linux.
 
 [SDL](https://libsdl.org), the *Simple DirectMedia Layer*, is the broadest of the common game libraries. It covers windows, a 2D renderer, a GPU interface, audio, gamepads, cameras, file dialogs, threads and timers, on desktop and mobile alike. SDL3 is its current version.
 
@@ -226,6 +226,8 @@ Linked statically, SDL needs five Windows libraries: `cfgmgr32`, `ole32`, `oleau
 #cinclude once "SDL3/SDL_main.h"
 #foreignlib SDL3 dynamic "system:SDL3"
 ```
+
+**Linux, without `LD_LIBRARY_PATH`:** add `-Wl -rpath,$ORIGIN` to the link (in `#cmdline` inside `#ifdef __FB_LINUX__`, or in `tiko.toml`'s `options`), and the program finds `libSDL3.so.0` beside itself.
 
 **Windows:** keep `vendor/sdl3/` in a shared folder such as `C:\tiko-libs\sdl3`, and give every project `-cinclude C:/tiko-libs/sdl3/include` and `-cdefine SDL_MAIN_HANDLED` in its `tiko.toml`. Point `#foreignlib` at the shared folder with an absolute path, or in a [binding header](Using-C-Libraries-Tutorial#5-a-binding-header). Copy `SDL3.dll` beside each program or put its folder on `PATH`.
 
