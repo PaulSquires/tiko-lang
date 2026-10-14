@@ -3,9 +3,9 @@ SUMMARY
 
  Asserts    Passed    Failed  Suite                                      Tests
 --------  --------  --------  --------------------------------------  --------
-       7         7         0  arguments                                      2
-       4         4         0  matching                                       2
-       8         8         0  files                                          3
+       8         8         0  arguments                                      3
+       5         5         0  matching                                       3
+       9         9         0  files                                          4
 --------  --------  --------  --------------------------------------  --------
-      19        19         0  Total                                          7
+      22        22         0  Total                                         10
 

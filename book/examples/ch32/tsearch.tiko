@@ -5,6 +5,9 @@
 '' Exit code: 0 if anything matched, 1 if nothing did, 2 on an error.
 #import "./search"
 #import "std/containers"
+#ifdef __FB_WIN32__
+#import "sys/windows" as win
+#endif
 #include once "fbio.bi"
 
 const EXIT_FOUND = 0, EXIT_NONE = 1, EXIT_ERROR = 2
@@ -16,13 +19,29 @@ sub Complain( byref message as ustring )
     close #f
 end sub
 
-'' The arguments, without the program's own name.
+'' Colour only when a person is watching; never into a pipe or a file.
+'' A Windows console draws escape sequences only once it is asked to,
+'' and one that cannot be asked gets plain text.
+function ColourWanted( ) as boolean
+    if IsRedirected( ) then return false
+    #ifdef __FB_WIN32__
+    '' ENABLE_VIRTUAL_TERMINAL_PROCESSING, which windows.bi lacks
+    const VT_PROCESSING = &h0004
+    var h = win.GetStdHandle( win.STD_OUTPUT_HANDLE )
+    dim as ulong mode
+    if win.GetConsoleMode( h, @mode ) = 0 then return false
+    return win.SetConsoleMode( h, mode or VT_PROCESSING ) <> 0
+    #else
+    return true
+    #endif
+end function
+
+'' The arguments, without the program's own name. An empty one is
+'' still an argument, and ParseArgs decides what it means.
 dim args as containers.Array( of ustring )
-dim as int32 n = 1
-do while len( command( n ) ) > 0
+for n as int32 = 1 to __FB_ARGC__ - 1
     args.Push( command( n ) )
-    n += 1
-loop
+next
 
 dim opts as search.Options
 var problem = search.ParseArgs( args, opts )
@@ -33,8 +52,7 @@ if len( problem ) > 0 then
     end EXIT_ERROR
 end if
 
-'' Colour only when a person is watching; never into a pipe or a file.
-dim as boolean colour = ( IsRedirected( ) = false )
+dim as boolean colour = ColourWanted( )
 
 dim as int32 matched = 0, failures = 0
 for each root in opts.roots
@@ -49,14 +67,15 @@ for each root in opts.roots
         dim hits as containers.Array( of search.Hit )
         var got = search.SearchFile( path, opts, hits )
         if got.IsOk( ) = false then
-            Complain( search.DisplayPath( path ) & ": " & _
-                      got.Failure( ).Message( ) )
+            Complain( path & ": " & got.Failure( ).Message( ) )
             failures += 1
             continue for
         end if
         if hits.Count( ) = 0 then continue for
         matched += hits.Count( )
-        var shown = search.DisplayPath( path )
+        '' The file name, in magenta when a person is watching.
+        dim as ustring shown = path
+        if colour then shown = !"\27[35m" & path & !"\27[0m"
         if opts.filesOnly then
             print shown
             continue for
@@ -64,11 +83,7 @@ for each root in opts.roots
         for each h in hits
             dim as ustring where_ = shown & ":"
             if opts.lineNumbers then where_ &= h.lineNo & ":"
-            if colour then
-                print !"\27[35m"; where_; !"\27[0m"; h.text
-            else
-                print where_; h.text
-            end if
+            print where_; h.text
         next
     next
 next

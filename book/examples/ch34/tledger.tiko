@@ -4,7 +4,8 @@
 ''
 '' With --list or --report it prints and exits; otherwise it opens the
 '' interactive screens. Exit code: 0, 1 if an import was refused, 2 for
-'' a bad command line or a ledger that cannot be opened.
+'' a bad command line, a ledger that cannot be opened, or no terminal
+'' for the screens.
 #import "./ledger"
 #import "./ui"
 #import "std/tui"
@@ -21,20 +22,20 @@ sub PrintReport( )
     dim months as ledger.MonthMap
     var why = ledger.MonthlyReport( months )
     if len( why ) > 0 then Complain( why ) : return
-    print "Month  "; ui.RightIn( "Income", 13 ); _
-          ui.RightIn( "Spending", 12 ); ui.RightIn( "Net", 12 )
+    print "Month  "; ui.RightIn( "Income", 15 ); _
+          ui.RightIn( "Spending", 15 ); ui.RightIn( "Net", 15 )
     dim total as ledger.MonthTotals
     for each m in months
         var mt = m.value
-        print m.key; ui.MoneyCell( mt.income, 13 ); _
-              ui.MoneyCell( mt.spending, 12 ); _
-              ui.MoneyCell( mt.income + mt.spending, 12 )
+        print m.key; ui.MoneyCell( mt.income, 15 ); _
+              ui.MoneyCell( mt.spending, 15 ); _
+              ui.MoneyCell( mt.income + mt.spending, 15 )
         total.income = total.income + mt.income
         total.spending = total.spending + mt.spending
     next
-    print "total  "; ui.MoneyCell( total.income, 13 ); _
-          ui.MoneyCell( total.spending, 12 ); _
-          ui.MoneyCell( total.income + total.spending, 12 )
+    print "total  "; ui.MoneyCell( total.income, 15 ); _
+          ui.MoneyCell( total.spending, 15 ); _
+          ui.MoneyCell( total.income + total.spending, 15 )
 end sub
 
 dim imports as containers.Array( of ustring )
@@ -50,7 +51,12 @@ do while len( command( i ) ) > 0
             end 2
         end if
         imports.Push( command( i ) )
-    case "--list", "--report" : mode = a
+    case "--list", "--report"
+        if len( mode ) > 0 andalso mode <> a then
+            Complain( "--list and --report cannot be combined" )
+            end 2
+        end if
+        mode = a
     case else
         if left( a, 1 ) = "-" orelse len( path ) > 0 then
             Complain( "usage: tledger [--import file.csv]... " & _
@@ -77,7 +83,9 @@ for each f in imports
         Complain( f & ": nothing imported" )
         status = 1
     else
-        print "imported"; added; " transactions from "; f
+        print "imported"; added; _
+              iif( added = 1, " transaction", " transactions" ); _
+              " from "; f
     end if
 next
 
@@ -86,10 +94,8 @@ case "--list"
     dim txns as ui.TxnArray
     ledger.ListTxns( txns )
     for each t in txns
-        print t.day.ToIsoUString( ); "  "; _
-              left( t.payee & space( 28 ), 28 ); _
-              left( t.category & space( 10 ), 10 ); _
-              ui.MoneyCell( t.amount, 11 )
+        print t.day.ToIsoUString( ); "  "; ui.LeftIn( t.payee, 28 ); _
+              ui.LeftIn( t.category, 12 ); ui.MoneyCell( t.amount, 15 )
     next
 case "--report"
     PrintReport( )

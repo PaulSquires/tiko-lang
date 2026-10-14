@@ -24,24 +24,30 @@ end type
 
 '' ANCHOR: display
 '' A path as tsearch prints it: '/' between components everywhere.
-public function DisplayPath( byref path as ustring ) as ustring
+'' Only Windows separates them with '\'; on Linux a '\' is part of
+'' a file name, and stays as it is.
+function DisplayPath( byref path as ustring ) as ustring
     dim as ustring p = path
+    #ifdef __FB_WIN32__
     for i as int32 = 0 to len( p ) - 1
         if p[ i ] = asc( "\" ) then p[ i ] = asc( "/" )
     next
+    #endif
     return p
 end function
 '' ANCHOR_END: display
 
 '' ANCHOR: parse
 '' Read the arguments into opts. Returns "" when they make sense, and
-'' otherwise what is wrong with them, for the usage message.
+'' otherwise what is wrong with them, for the usage message. An empty
+'' argument is refused: it is almost always a variable left unset.
 public function ParseArgs _
     ( byref args as containers.Array( of ustring ), _
       byref opts as Options ) as ustring
     dim as int32 i = 0
     do while i < args.Count( )
         var a = args[ i ]
+        if len( a ) = 0 then return "an argument is empty"
         select case a
         case "-i" : opts.ignoreCase = true
         case "-n" : opts.lineNumbers = true
@@ -49,6 +55,7 @@ public function ParseArgs _
         case "-g"
             i += 1
             if i >= args.Count( ) then return "-g needs a pattern"
+            if len( args[ i ] ) = 0 then return "-g needs a pattern"
             opts.nameGlob = args[ i ]
         case else
             if left( a, 1 ) = "-" then return "unknown option " & a
@@ -67,7 +74,8 @@ end function
 '' ANCHOR_END: parse
 
 '' ANCHOR: match
-'' Does line contain pattern? lcase folds Unicode text, not only ASCII.
+'' Does line contain pattern? lcase lowers every letter that has a
+'' single lower-case form, not only A to Z.
 public function LineMatches( byref line_ as ustring, _
                              byref pattern as ustring, _
                              byval ignoreCase as boolean ) as boolean
@@ -79,32 +87,44 @@ end function
 '' ANCHOR_END: match
 
 '' ANCHOR: find
-'' Every file under root whose name matches nameGlob, sorted so the
-'' output does not depend on the order the file system returns. What
-'' could not be read goes into problems, one message each.
+'' Does a file name match the -g glob? The POSIX grammar, on every
+'' platform, so the answer is the same on Windows and Linux.
+function NameMatches( byref nm as ustring, _
+                      byref nameGlob as ustring ) as boolean
+    if len( nameGlob ) = 0 then return true
+    return fs.MatchPattern( nm, nameGlob, fs.FB_PATH_POSIX )
+end function
+
+'' Appends to files every file under root whose name matches nameGlob,
+'' as display paths in sorted order, so the output depends neither on
+'' the order the file system returns them nor on the platform. Returns
+'' how many it appended. What could not be read goes into problems,
+'' one message each, naming the path that failed.
 public function FindFiles _
     ( byref root as ustring, byref nameGlob as ustring, _
       byref files as containers.Array( of ustring ), _
       byref problems as containers.Array( of ustring ) ) as int32
+    dim found as containers.Array( of ustring )
     if fs.IsFile( root ) then
-        files.Push( root )
-        return 1
-    end if
-    for each r in fs.WalkDir( root )
-        if r.IsOk( ) = false then
-            problems.Push( DisplayPath( root ) & ": " & _
-                           r.Failure( ).Message( ) )
-        elseif r.Value( ).IsFile( ) then
-            var nm = r.Value( ).Name( )
-            if len( nameGlob ) = 0 then
-                files.Push( r.Value( ).Path( ) )
-            elseif fs.MatchPattern( nm, nameGlob ) then
-                files.Push( r.Value( ).Path( ) )
+        found.Push( DisplayPath( root ) )
+    else
+        for each r in fs.WalkDir( root )
+            if r.IsOk( ) = false then
+                var e = r.Failure( )
+                problems.Push( DisplayPath( e.Path( ) ) & ": " & _
+                               e.Message( ) )
+            elseif r.Value( ).IsFile( ) then
+                if NameMatches( r.Value( ).Name( ), nameGlob ) then
+                    found.Push( DisplayPath( r.Value( ).Path( ) ) )
+                end if
             end if
-        end if
+        next
+    end if
+    containers.Sort( found )
+    for each f in found
+        files.Push( f )
     next
-    containers.Sort( files )
-    return files.Count( )
+    return found.Count( )
 end function
 '' ANCHOR_END: find
 

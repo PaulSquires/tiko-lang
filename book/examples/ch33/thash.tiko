@@ -26,28 +26,43 @@ type FileHash
 end type
 '' ANCHOR_END: types
 
-'' A path as thash prints it: '/' between components everywhere.
+'' ANCHOR: display
+'' A path as thash prints it: '/' between components everywhere. Only
+'' Windows writes '\' there; on Linux it is an ordinary file-name
+'' character and is left alone.
 function DisplayPath( byref path as ustring ) as ustring
     dim as ustring p = path
+    #ifdef __FB_WIN32__
     for i as int32 = 0 to len( p ) - 1
         if p[ i ] = asc( "\" ) then p[ i ] = asc( "/" )
     next
+    #endif
     return p
 end function
+'' ANCHOR_END: display
 
 '' ANCHOR: parse
-'' Read the command line into opts; "" if it makes sense, else why not.
-function ParseArgs( byref opts as Options ) as ustring
+'' Read the argc - 1 arguments into opts; "" if they make sense, else
+'' why not.
+function ParseArgs( byval argc as int32, byref opts as Options ) _
+        as ustring
     dim as int32 i = 1
-    do while len( command( i ) ) > 0
+    do while i < argc
         dim as ustring a = command( i )
         select case a
         case "-j", "-t"
             i += 1
-            dim as int32 n = valint( command( i ) )
-            if n < 1 then return a & " needs a number above 0"
-            if a = "-j" then opts.workers = n else opts.timeoutMs = n
+            var n = numeric.TryParseLong( command( i ) )
+            if n.HasValue( ) = false orelse n.Value( ) < 1 then
+                return a & " needs a whole number above 0"
+            end if
+            if a = "-j" then
+                opts.workers = n.Value( )
+            else
+                opts.timeoutMs = n.Value( )
+            end if
         case "-v" : opts.verbose = true
+        case "" : return "an empty argument"
         case else
             if left( a, 1 ) = "-" then return "unknown option " & a
             if len( opts.root ) > 0 then return "only one directory"
@@ -151,7 +166,7 @@ sub Report( byref byHash as containers.Map _
         print group.Count( ); " copies of"; size; " bytes, ";
         print "hash "; lcase( hex( headHash[ h ], 16 ) )
         for each p in group
-            print "    "; DisplayPath( p )
+            print "    "; p
         next
         wasted += size * ( group.Count( ) - 1 )
     next
@@ -161,7 +176,7 @@ end sub
 
 '' ANCHOR: main
 dim opts as Options
-var problem = ParseArgs( opts )
+var problem = ParseArgs( __FB_ARGC__, opts )
 if len( problem ) > 0 then
     dim as int32 e = freefile( )
     open err for output as #e
@@ -210,7 +225,7 @@ for each fh in results
     if len( fh.problem ) > 0 then
         unreadable += 1
     else
-        byHash[ fh.hash ].Push( fh.path )
+        byHash[ fh.hash ].Push( DisplayPath( fh.path ) )
         bytesOf[ fh.hash ] = fh.size
         sizes.Add( fh.size )
         total += fh.size
@@ -219,14 +234,22 @@ next
 var stopped = ctx.Err( )
 ctx.Cancel( )
 
-print sizes.Count( ); " files,"; total; " bytes; smallest"; _
-      sizes.MinValue( ); ", largest"; sizes.MaxValue( ); ", mean"; _
-      numeric.Round( sizes.Mean( ), 1 )
+'' With no sizes there is no smallest, largest or mean to print.
+print sizes.Count( ); " files,"; total; " bytes";
+if sizes.Count( ) > 0 then
+    print "; smallest"; sizes.MinValue( ); ", largest"; _
+          sizes.MaxValue( ); ", mean"; numeric.Round( sizes.Mean( ), 1 )
+else
+    print
+end if
 Report( byHash, bytesOf )
-if unreadable > 0 then print unreadable; " files could not be read"
+if unreadable > 0 then
+    print unreadable; " files could not be read"
+end if
 if len( stopped ) > 0 then print "stopped early ("; stopped; ")"
 if opts.verbose then
-    lg.Info( ).AddInt( "ms", clock.ElapsedMilliseconds( ) ).Msg( "done" )
+    lg.Info( ).AddInt( "ms", clock.ElapsedMilliseconds( ) ) _
+              .Msg( "done" )
 end if
 end iif( unreadable > 0 orelse len( stopped ) > 0, 1, 0 )
 '' ANCHOR_END: main

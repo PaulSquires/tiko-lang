@@ -1,4 +1,4 @@
-'' Exercise 33-2: a quick-entry line, "date;payee;category;amount",
+'' Exercise 34-2: a quick-entry line, "date;payee;category;amount",
 '' checked by the same ParseTxn the import and the form use.
 #import "../ledger"
 #import "../ui"
@@ -14,11 +14,13 @@ function QuickEntry( byref line_ as ustring, byref t as ledger.Txn ) _
         f( k ) = mid( line_, at_, semi - at_ )
         at_ = semi + 1
     next
+    if instr( f( 3 ), ";" ) > 0 then return "expected four fields"
     return ledger.ParseTxn( f( 0 ), f( 1 ), f( 2 ), f( 3 ), t )
 end function
 
 dim as ustring tries( ... ) = { "2026-04-02;Corner Cafe;Food;-4.75", _
                                 "2026-04-02;Corner Cafe", _
+                                "2026-04-02;Corner Cafe;food;-4.75;x", _
                                 "2026-04-02;Corner Cafe;food;4,75" }
 for i as int32 = 0 to ubound( tries )
     dim t as ledger.Txn

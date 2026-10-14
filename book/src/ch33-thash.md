@@ -20,7 +20,7 @@ thash [-j workers] [-t ms] [-v] directory
   group gives its size and hash, then its paths in sorted order. The groups come in order of their
   first path, and a total says how many bytes the extra copies take.
 - Print a line of statistics first: how many files, how many bytes, and the smallest, largest and
-  mean sizes.
+  mean sizes. When no file was read, the line stops at the two counts.
 - **`-j`** sets how many files are hashed at once (default 4). **`-t ms`** stops after that many
   milliseconds and reports what was done so far. **`-v`** logs every file as it is hashed, and the
   time the run took.
@@ -47,7 +47,8 @@ channel is closed exactly once, by whoever knows that nothing more will be sent.
 what lets each loop end by itself.
 
 The program is one file, `thash.tiko`, shown here a section at a time. `sample/` holds nine small
-files, seven of which are copies of each other:
+files. Seven of them form three groups of copies: three of one image, two of a readme and two of
+some notes. The other two are unique:
 
 ```text
 ch33/
@@ -96,9 +97,10 @@ end of `paths` either way.
 
 `paths` is declared as a whole `tasks.Channel`, not a `SendChan`. **A `select` case needs the
 channel itself.** The helpers behind `select channel` are written for `Channel( of T )`, so a
-`SendChan` or `RecvChan` view of it does not fit, and the compiler says it cannot infer their type
-arguments. fbc-modern refuses the same code in the same way. The narrower types are still the right
-choice wherever a stage only calls `Send` or `Receive`, as the hashers do.
+`SendChan` or `RecvChan` view of it does not fit. Declare `paths` as a `SendChan` here and the
+compiler stops at the `select channel` line with `TKO0809: cannot infer the type arguments of
+'selectcommitsend'`. The narrower types are still the right choice wherever a stage only calls
+`Send` or `Receive`, as the hashers do.
 
 ## Stage 2: hashing, N at a time
 
@@ -109,12 +111,13 @@ choice wherever a stage only calls `Send` or `Receive`, as the hashers do.
 Several `Hasher` goroutines run the same loop over the same `paths` channel, and each path goes to
 exactly one of them: whichever is free first. That is the whole of the **fan-out**. Each hasher
 reads a file whole with `fs.ReadAllBytes` and hashes the bytes with **`containers.HashBytes`**,
-a 64-bit FNV-1a hash, the one `HashOf` uses when a `Map` has string keys. The result goes into `results`, which all
-of the hashers send to. That is the **fan-in**.
+a 64-bit FNV-1a hash, the one `HashOf` uses when a `Map` has string keys. The result goes into
+`results`, which all of the hashers send to. That is the **fan-in**.
 
 When `paths` is closed and empty, `Receive` returns false, the loop ends, and the hasher calls
-`wg->Done( )`. The `WaitGroup` was given one `Add( )` per hasher before any of them started.
-`CloseWhenDone` waits for the count to reach zero and only then closes `results`. A hasher also
+`wg->Done( )`. The main program calls `wg.Add( )` for each hasher just before spawning it, and
+spawns `CloseWhenDone` only after the last one, so the count is complete before anyone waits on
+it. `CloseWhenDone` waits for the count to reach zero and only then closes `results`. A hasher also
 checks the context before each file, so a stopped run does not read every file left in the
 channel's buffer.
 
@@ -124,8 +127,11 @@ The hashers log through one `Logger`, passed to each of them as a pointer. **A l
 between threads.** Each record is built by the thread that calls `Warn( )` or `Debug( )`. A sink
 takes one lock for the whole of a write, so two goroutines logging at the same moment produce two
 whole lines, never one line with the other's text inside it (Chapter 27). With `-v`, the logger's
-`MinLevel` is `LOG_DEBUG` and every file produces a line. Without it, the level is `LOG_WARN`:
-the `Debug( )` calls are a single comparison, and only failures are written.
+`MinLevel` is `LOG_DEBUG` and every file produces a line. Without it, the level is `LOG_WARN`,
+and only failures are written. A `Debug( )` record is then switched off by one comparison, and
+nothing is formatted or locked. Its arguments are still evaluated, though: `DisplayPath( p )`
+still builds a string, and `AddText`, `AddInt` and `Msg` are still called, each returning at
+once. A call cannot avoid working out what it is passed.
 
 ## Back-pressure
 
@@ -154,8 +160,8 @@ than pile up finished work.
 
 A **`Context`** carries the decision to stop. `tasks.WithCancel` makes one that stops when its
 `Cancel( )` is called. `tasks.WithTimeout` makes one that also stops by itself after a number of
-milliseconds. Every stage that might wait has a `case receive from ctx.Done( )` beside its real
-work.
+milliseconds. A stage that could be left waiting for ever once the others stop puts a
+`case receive from ctx.Done( )` beside its real work.
 
 ```tiko
 {{#include ../examples/ch33/stopearly.tiko}}
@@ -171,6 +177,15 @@ producer is waiting in its `select` for a fourth handover that will never come, 
 and it stops, having sent exactly three. `ctx.Err( )` says why a context stopped: `cancelled`
 here, and `deadline exceeded` when a timeout ran out.
 
+In `thash`, only the walker needs that `select`. When the run stops, the hashers stop taking paths,
+so a walker waiting on a full `paths` would wait for ever. The other stages wait without one: a
+hasher in a plain `paths.Receive` and `results.Send`, and `CloseWhenDone` in `wg->Wait( )`. Each
+of those waits is sure to end, because of who closes what. The walker closes `paths` whether or
+not it was stopped, which ends every `Receive`. The collector keeps receiving until `results`
+closes, so no `Send` waits long. Every hasher calls `Done( )` once its loop ends, which releases
+`Wait( )`. A hasher checks the context only before each file, so that a stopped run reads no
+more of them.
+
 ## Stage 3: collecting
 
 ```tiko
@@ -182,8 +197,9 @@ The main program is the last stage. It parses the command line and sets up the l
 asked for one. It creates the channels and the `WaitGroup`, starts the `Stopwatch`, and spawns
 everything. Then it collects:
 
-- **`byHash`**, a `Map` from hash to the paths with that hash. `byHash[ h ]` creates an empty array
-  the first time a hash is seen, so `.Push( fh.path )` works for the first path and every later one.
+- **`byHash`**, a `Map` from hash to the paths with that hash, already passed through
+  `DisplayPath`. `byHash[ h ]` creates an empty array the first time a hash is seen, so `.Push( )`
+  works for the first path and every later one.
 - **`bytesOf`**, the size that goes with each hash.
 - **`sizes`**, a `numeric.RunningStats` (Chapter 26), which keeps the count, minimum, maximum and
   mean in constant space, one value at a time.
@@ -191,6 +207,12 @@ everything. Then it collects:
 After the loop, `ctx.Err( )` says whether the deadline cut the run short. It is read **before**
 `ctx.Cancel( )`, which every context gets when it is finished with, and which would otherwise
 change the answer to `cancelled`.
+
+The statistics line prints the smallest, largest and mean sizes only when there are some. With no
+sizes at all, from an empty directory or one where nothing could be read, `RunningStats` has none
+to give: it answers NaN, which would print as a different string on each target. The line stops at
+`0 files, 0 bytes` instead, and the exit code is still 0 for an empty directory and 1 when files
+could not be read.
 
 ### Turning arrival order into stable output
 
@@ -206,8 +228,22 @@ in sorted order of that name. The totals are sums, which come out the same in an
 `Stopwatch` time differs on every run, so it is logged only with `-v`, on stderr, and never
 appears in the report.
 
-`ParseArgs` reads `command( n )` until it comes back empty, and refuses anything it does not
-understand. `DisplayPath` is the same as Chapter 32's:
+The paths being sorted are the ones that are printed. The collector stores each one as
+`DisplayPath` gives it, so the order cannot depend on the target. Sorting the raw paths would let
+it: `/` sorts before the digits and `\` after them, so on Windows `s2\a0.txt` would come before
+`s2\a\z.txt`, and on Linux `s2/a/z.txt` before `s2/a0.txt`. `DisplayPath` is the same as Chapter
+32's. It turns `\` into `/` only on Windows, because on Linux `\` is an ordinary character in a
+file name:
+
+```tiko
+{{#include ../examples/ch33/thash.tiko:display}}
+```
+
+`ParseArgs` reads every argument. The main program passes it `__FB_ARGC__`, which exists only at
+the main module's top level (Chapter 24). It refuses an unknown option, a second directory, an
+empty argument, and a `-j` or `-t` without a whole number above 0 after it.
+`numeric.TryParseLong` (Chapter 26) takes the whole text or nothing, where `valint( "2x" )` would
+quietly give 2:
 
 ```tiko
 {{#include ../examples/ch33/thash.tiko:parse}}
@@ -246,7 +282,7 @@ WARN   access denied  path=sample/docs/plans.txt
 exit 1
 ```
 
-On a larger tree of seven thousand files, `-t 20` stops part of the way through:
+On a larger tree of several thousand files, `-t 20` stops part of the way through:
 
 ```text
 $ thash -t 20 tests
@@ -260,8 +296,10 @@ and the reason the report says plainly that it is incomplete.
 
 ## What it costs
 
-- **Every file is read whole**, so each hasher holds one file in memory, and N hashers hold N
-  files. For large files, read and hash in fixed-size blocks instead.
+- **Every file is read whole.** `fs.ReadAllBytes` reads the file into one buffer and then copies
+  it into the `Array`, so for a moment a hasher holds the file twice, and N hashers up to 2N
+  files. An `Array`'s count is a 32-bit `long`, so a file of 2 GiB or more cannot be read this way
+  at all. For large files, read and hash in fixed-size blocks instead.
 - **Equal hashes are evidence, not proof.** Two different files with the same 64-bit FNV-1a hash
   are very unlikely, but possible, and FNV is not designed to resist someone making a collision on
   purpose. A tool that deletes copies must compare the bytes first (Exercise 1).
@@ -278,12 +316,13 @@ and the reason the report says plainly that it is incomplete.
 - Several goroutines receiving from one channel is a fan-out; several sending to one channel is a
   fan-in.
 - A channel's capacity limits how far a sender can get ahead: back-pressure.
-- A `Context` stops a pipeline. Put `case receive from ctx.Done( )` beside every wait, and read
-  `ctx.Err( )` to learn why it stopped. A `select` case needs a whole `Channel`, not a
-  `SendChan` or `RecvChan`.
+- A `Context` stops a pipeline. A stage that could wait for ever once the others stop puts
+  `case receive from ctx.Done( )` beside that wait; a wait that the close discipline is sure to
+  end does not need one. Read `ctx.Err( )` to learn why it stopped. A `select` case needs a whole `Channel`,
+  not a `SendChan` or `RecvChan` (`TKO0809`).
 - A `Logger` can be shared between goroutines; each record is written whole.
-- Output that arrives in no fixed order becomes stable by sorting it and by keeping times and other
-  run-dependent values out of it.
+- Output that arrives in no fixed order becomes stable by sorting it in the form it is printed in,
+  and by keeping times and other run-dependent values out of it.
 
 ## Exercises
 

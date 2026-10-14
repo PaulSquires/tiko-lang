@@ -32,6 +32,15 @@ SUITE( arguments )
         CU_ASSERT_EQUAL( search.ParseArgs( Args3( "fox", "-g", "" ), _
                                            o3 ), "-g needs a pattern" )
     END_TEST
+
+    TEST( refuses_an_empty_argument )
+        dim o as search.Options
+        dim a as containers.Array( of ustring )
+        a.Push( "fox" )
+        a.Push( "" )
+        CU_ASSERT_EQUAL( search.ParseArgs( a, o ), _
+                         "an argument is empty" )
+    END_TEST
 END_SUITE
 
 SUITE( matching )
@@ -45,6 +54,12 @@ SUITE( matching )
         CU_ASSERT( search.LineMatches( !"STRA\u00DFE UND \u00C4RGER", _
                                        !"\u00E4rger", true ) )
     END_TEST
+
+    TEST( folding_is_one_letter_at_a_time )
+        '' Lower case is not case folding: SS does not become sharp s.
+        CU_ASSERT( search.LineMatches( "STRASSE", !"stra\u00DFe", _
+                                       true ) = false )
+    END_TEST
 END_SUITE
 
 SUITE( files )
@@ -56,9 +71,15 @@ SUITE( files )
                                            problems ), 3 )
         CU_ASSERT_EQUAL( search.FindFiles( "sample", "*.txt", txt, _
                                            problems ), 2 )
-        CU_ASSERT_EQUAL( search.DisplayPath( txt[ 0 ] ), _
-                         "sample/notes/todo.txt" )
+        CU_ASSERT_EQUAL( txt[ 0 ], "sample/notes/todo.txt" )
         CU_ASSERT_EQUAL( problems.Count( ), 0 )
+    END_TEST
+
+    TEST( globs_match_case_on_every_platform )
+        dim upper as containers.Array( of ustring )
+        dim problems as containers.Array( of ustring )
+        CU_ASSERT_EQUAL( search.FindFiles( "sample", "*.TXT", upper, _
+                                           problems ), 0 )
     END_TEST
 
     TEST( reports_line_numbers )

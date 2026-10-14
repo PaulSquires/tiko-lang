@@ -39,7 +39,13 @@ public function ParseTxn _
     ( byref day as ustring, byref payee as ustring, _
       byref category as ustring, byref amount as ustring, _
       byref t as Txn ) as ustring
-    if chrono.LocalDate.TryParseIso( day, t.day ) = false then
+    '' TryParseIso also reads the compact 20260105. A ledger keeps one
+    '' spelling, so the dashes are required.
+    dim as boolean dashed = len( day ) = 10 andalso _
+                            mid( day, 5, 1 ) = "-" andalso _
+                            mid( day, 8, 1 ) = "-"
+    if dashed = false orelse _
+       chrono.LocalDate.TryParseIso( day, t.day ) = false then
         return "'" & day & "' is not a date (YYYY-MM-DD)"
     end if
     t.payee = trim( payee )
@@ -79,31 +85,42 @@ function SchemaStep( byval v as int32 ) as ustring
     return ""
 end function
 
+'' The version the file is at, in v: "" or why it cannot be read --
+'' "file is not a database", for a file that is something else.
+function ReadVersion( byref v as int32 ) as ustring
+    var r = db.QueryScalar( "pragma user_version" )
+    if r.IsOk( ) = false then return r.Failure( ).Message( )
+    v = r.Value( ).Value( ).AsInt64( )
+    return ""
+end function
+
 public function SchemaVersion( ) as int32
-    var v = db.QueryScalar( "pragma user_version" )
-    if v.IsOk( ) = false then return -1
-    return v.Value( ).Value( ).AsInt64( )
+    dim as int32 v = -1
+    ReadVersion( v )
+    return v
 end function
 
 '' Bring the schema up to date, one transaction per step, so a failure
 '' leaves the database at the last version that completed.
 function Migrate( ) as ustring
-    var current = SchemaVersion( )
+    dim as int32 current
+    var why = ReadVersion( current )
+    if len( why ) > 0 then return why
     if current > LATEST_SCHEMA then
-        return "the database is from a newer tledger (schema" & _
+        return "the database is from a newer tledger (schema " & _
                str( current ) & ")"
     end if
     for v as int32 = current + 1 to LATEST_SCHEMA
+        '' A Transaction that is left without a Commit rolls back.
         dim t as sqlite.Transaction
-        t.Begin( db )
-        var r = db.Execute( SchemaStep( v ) )
+        var r = t.Begin( db )
+        if r.IsOk( ) then r = db.Execute( SchemaStep( v ) )
         if r.IsOk( ) then r = db.Execute( "pragma user_version = " & v )
+        if r.IsOk( ) then r = t.Commit( )
         if r.IsOk( ) = false then
-            t.Rollback( )
-            return "schema step" & str( v ) & ": " & _
+            return "schema step " & str( v ) & ": " & _
                    r.Failure( ).Message( )
         end if
-        t.Commit( )
     next
     return ""
 end function
@@ -163,19 +180,11 @@ end function
 '' ANCHOR_END: store
 
 '' ANCHOR: import
-'' Load a bank's CSV export (date,payee,category,amount). All or
-'' nothing: one bad line and no line is kept, so the file can be fixed
-'' and loaded again without making duplicates. Returns the number of
-'' rows added; problems get one message per bad line.
-public function ImportCsv _
+'' Check every staged row and insert the good ones, in one transaction
+'' that is committed only if every row was good.
+function AddStaged _
     ( byref path as ustring, _
       byref problems as containers.Array( of ustring ) ) as int32
-    db.Execute( "drop table if exists import_raw" )
-    var loaded = sqlite.ImportCsv( db, "import_raw", path )
-    if loaded.IsOk( ) = false then
-        problems.Push( path & ": " & loaded.Failure( ).Message( ) )
-        return 0
-    end if
     var rows = db.Query( "select rowid, * from import_raw " & _
                          "order by rowid" )
     if rows.IsOk( ) = false then
@@ -185,29 +194,58 @@ public function ImportCsv _
 
     dim as int32 added = 0
     dim tr as sqlite.Transaction
-    tr.Begin( db )
+    var begun = tr.Begin( db )
+    if begun.IsOk( ) = false then
+        problems.Push( path & ": " & begun.Failure( ).Message( ) )
+        return 0
+    end if
     for each r in rows.Value( )
+        var day = r[ "date" ].AsText( )
+        var payee = r[ "payee" ].AsText( )
+        var category = r[ "category" ].AsText( )
+        var amount = r[ "amount" ].AsText( )
+        '' A blank line -- most often the last one -- is a record with
+        '' every field empty. It is not a mistake, and adds nothing.
+        if len( day & payee & category & amount ) = 0 then continue for
         dim t as Txn
-        var why = ParseTxn( r[ "date" ].AsText( ), _
-                            r[ "payee" ].AsText( ), _
-                            r[ "category" ].AsText( ), _
-                            r[ "amount" ].AsText( ), t )
+        var why = ParseTxn( day, payee, category, amount, t )
         if len( why ) = 0 then why = Insert( t )
         if len( why ) > 0 then
-            '' rowid 1 is the line after the header: line 2 of the file.
-            dim as longint lineNo = r[ "rowid" ].AsInt64( ) + 1
-            problems.Push( path & ":" & str( lineNo ) & ": " & why )
+            '' rowid 1 is the record after the header, so the record's
+            '' number in the file is its rowid plus 1.
+            dim as longint recNo = r[ "rowid" ].AsInt64( ) + 1
+            problems.Push( path & ":" & str( recNo ) & ": " & why )
         else
             added += 1
         end if
     next
-    if problems.Count( ) > 0 then
-        tr.Rollback( )
-        added = 0
-    else
-        tr.Commit( )
+    if problems.Count( ) > 0 then return 0     '' tr rolls back
+    var done = tr.Commit( )
+    if done.IsOk( ) = false then
+        problems.Push( path & ": " & done.Failure( ).Message( ) )
+        return 0
     end if
-    db.Execute( "drop table import_raw" )
+    return added
+end function
+
+'' Load a bank's CSV export (date,payee,category,amount). All or
+'' nothing: one bad record and no record is kept, so the file can be
+'' fixed and loaded again without making duplicates. Returns the number
+'' of rows added; problems get one message per bad record.
+public function ImportCsv _
+    ( byref path as ustring, _
+      byref problems as containers.Array( of ustring ) ) as int32
+    db.Execute( "drop table if exists import_raw" )
+    dim as int32 added = 0
+    var loaded = sqlite.ImportCsv( db, "import_raw", path )
+    if loaded.IsOk( ) = false then
+        problems.Push( path & ": " & loaded.Failure( ).Message( ) )
+    elseif loaded.Value( ) > 0 then
+        added = AddStaged( path, problems )
+    end if
+    '' A file with no records -- a header alone, or nothing at all --
+    '' adds nothing. An empty one does not even make the table.
+    db.Execute( "drop table if exists import_raw" )
     return added
 end function
 '' ANCHOR_END: import
@@ -215,10 +253,8 @@ end function
 '' ANCHOR: report
 '' Income and spending per month, keyed "YYYY-MM". An OrderedMap keeps
 '' its keys sorted, so the months come out in calendar order.
-public function MonthlyReport( byref months as MonthMap ) as ustring
-    dim txns as containers.Array( of Txn )
-    var why = ListTxns( txns )
-    if len( why ) > 0 then return why
+public sub SumByMonth( byref txns as containers.Array( of Txn ), _
+                       byref months as MonthMap )
     for each t in txns
         var key = left( t.day.ToIsoUString( ), 7 )
         if t.amount.IsNegative( ) then
@@ -227,7 +263,14 @@ public function MonthlyReport( byref months as MonthMap ) as ustring
             months[ key ].income = months[ key ].income + t.amount
         end if
     next
-    return ""
+end sub
+
+'' The report over the whole ledger: "" or why it could not be read.
+public function MonthlyReport( byref months as MonthMap ) as ustring
+    dim txns as containers.Array( of Txn )
+    var why = ListTxns( txns )
+    if len( why ) = 0 then SumByMonth( txns, months )
+    return why
 end function
 
 '' Money as the reports print it. Every field is set, so the text is
@@ -237,7 +280,7 @@ public function FormatMoney( byref d as money.Decimal ) as ustring
     mf.Symbol = "$"
     mf.DecimalPoint = "."
     mf.ThousandsSep = ","
-    mf.Grouping = "3"
+    mf.Grouping = "3;0"             '' threes, repeated: 1,234,567
     mf.FracDigits = 2
     mf.SymbolPrecedes = true
     mf.SpaceBySymbol = false

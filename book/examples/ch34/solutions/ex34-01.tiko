@@ -1,4 +1,4 @@
-'' Exercise 33-1: spending by category, largest first, over the
+'' Exercise 34-1: spending by category, largest first, over the
 '' whole ledger.
 #import "../ledger"
 #import "../ui"

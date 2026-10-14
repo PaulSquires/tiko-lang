@@ -1,4 +1,4 @@
-'' Exercise 31-1: how many lines match in each file, as 'path: count'.
+'' Exercise 32-1: how many lines match in each file, as 'path: count'.
 #import "../search"
 #import "std/containers"
 
@@ -10,6 +10,6 @@ search.FindFiles( "../sample", "", files, problems )
 for each path in files
     dim hits as containers.Array( of search.Hit )
     if search.SearchFile( path, opts, hits ).IsOk( ) then
-        print search.DisplayPath( path ); ":"; hits.Count( )
+        print path; ":"; hits.Count( )
     end if
 next

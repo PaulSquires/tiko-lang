@@ -1,10 +1,14 @@
-'' Exercise 31-2: match whole words, so 'dog' does not match 'dogma'.
+'' Exercise 32-2: match whole words, so 'dog' does not match 'dogma'.
 #import "../search"
 
+'' One byte of the UTF-8 text. Every byte of a character outside
+'' ASCII is 128 or more and counts as part of a word, so 'dog' is not
+'' a whole word of a German compound that ends in it. The price:
+'' punctuation outside ASCII, such as a long dash, joins words too.
 function IsWordChar( byval c as int32 ) as boolean
     select case c
     case asc( "a" ) to asc( "z" ), asc( "A" ) to asc( "Z" ), _
-         asc( "0" ) to asc( "9" ), asc( "_" )
+         asc( "0" ) to asc( "9" ), asc( "_" ), 128 to 255
         return true
     end select
     return false
@@ -36,7 +40,8 @@ end function
 
 dim tests( ... ) as ustring = { "the lazy dog.", "dogma", _
                                 "hot-dog stand", "Dog days", _
-                                "underdog" }
+                                "underdog", !"dog\u00E9", _
+                                !"Sch\u00E4dog" }
 for i as int32 = 0 to ubound( tests )
     print left( tests( i ) & space( 16 ), 16 ); _
           "substring: "; _

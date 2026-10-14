@@ -1,5 +1,6 @@
-'' Exercise 32-2: two walkers, one per directory, feeding one channel.
-'' The last one to finish closes it -- a WaitGroup decides which.
+'' Exercise 33-2: two walkers, one per directory, feeding one channel.
+'' Neither walker closes it: a third goroutine, CloseWhenDone, waits on
+'' the WaitGroup until both have finished, and then closes it.
 #import "std/tasks"
 #cmdline "-mt"
 #import "std/fs"

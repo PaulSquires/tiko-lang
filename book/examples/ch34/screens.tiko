@@ -28,6 +28,14 @@ sub TypeText( byref app as ui.LedgerApp, byref s as ustring )
     next
 end sub
 
+'' A paste comes as one event carrying all of the text.
+sub Paste( byref app as ui.LedgerApp, byref s as ustring )
+    dim as tui.TuiEvent e
+    e.kind = tui.TUIEVENT_PASTE
+    e.text = s
+    app.Update( e )
+end sub
+
 ledger.OpenLedger( ":memory:" )
 dim problems as containers.Array( of ustring )
 ledger.ImportCsv( "bank.csv", problems )
@@ -42,10 +50,11 @@ next
 tui.TuiRenderOnce( app, scr )
 Dump( scr )
 
-'' F2, then a line typed into the form -- with a date that is wrong.
+'' F2, then a line typed into the form -- with a date that is wrong --
+'' and the payee pasted.
 Press( app, tui.TUIKEY_F2 )
 TypeText( app, "2026-03-32" ) : Press( app, tui.TUIKEY_TAB )
-TypeText( app, "Corner Cafe" ) : Press( app, tui.TUIKEY_TAB )
+Paste( app, "Corner Cafe" ) : Press( app, tui.TUIKEY_TAB )
 TypeText( app, "Food" ) : Press( app, tui.TUIKEY_TAB )
 TypeText( app, "-4.75" )
 Press( app, tui.TUIKEY_ENTER )
