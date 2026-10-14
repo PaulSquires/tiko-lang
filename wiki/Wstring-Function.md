@@ -19,7 +19,7 @@ Declare Function WString ( ByVal count As Integer, ByRef ch As Const WString ) A
 
 ## Description
 
-`WString` generates a temporary [`WString`](Wstring) filled with `count` copies of a [Unicode](Unicode) character. This string can be printed or assigned to a previously [`Dim`](Dim)ed [`WString`](Wstring).
+`WString` generates a temporary [`WString`](Wstring) filled with `count` copies of a Unicode character. This string can be printed or assigned to a previously [`Dim`](Dim)ed [`WString`](Wstring).
 
 ## Return Value
 
@@ -47,7 +47,7 @@ result = WString( count, ch )
 
 ### Differences from QB
 
-- QBasic does not support [Unicode](Unicode)
+- QBasic does not support Unicode
 
 ### See also
 

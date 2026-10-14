@@ -51,7 +51,6 @@ This operator can be overloaded for user-defined types as a member [`Operator`](
 - [`Operator = (Equal)`](Operator-Equal)
 - [`Operator Let (Assignment)`](Operator-Let-Assign)
 - [`Swap`](Swap)
-- [Coercion and Conversion](Coercion-and-Conversion)
 
 ## Examples
 

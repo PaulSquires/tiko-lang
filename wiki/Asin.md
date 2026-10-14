@@ -16,7 +16,7 @@ Declare Function Asin ( ByVal number As Double ) As Double
 
 ## Description
 
-`Asin` returns the arcsine of the argument `number` as a [`Double`](Double) within the range of -[Pi](Different-Ways-Angles-Are-Measured)/2 to [Pi](Different-Ways-Angles-Are-Measured)/2. The arcsine is the inverse of the [`Sin`](Sin) function. The returned angle is measured in [radians](Different-Ways-Angles-Are-Measured) (not [degrees](Different-Ways-Angles-Are-Measured)).
+`Asin` returns the arcsine of the argument `number` as a [`Double`](Double) within the range of -Pi/2 to Pi/2. The arcsine is the inverse of the [`Sin`](Sin) function. The returned angle is measured in radians (not degrees).
 
  `Asin` can be overloaded as operator to accept user-defined types.
 
@@ -41,7 +41,6 @@ The arcsine of `number`, in radians, in the range \[-Pi/2..Pi/2\].
 ### See also
 
 - [`Sin`](Sin)
-- [A Brief Introduction To Trigonometry](A-Brief-Introduction-to-Trigonometry)
 
 ## Examples
 

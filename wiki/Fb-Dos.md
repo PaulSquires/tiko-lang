@@ -25,7 +25,6 @@ Define without a value created at compile time if compiling for the DOS target. 
 - [`__FB_LINUX__`](Fb-Linux)
 - [`__FB_WIN32__`](Fb-Win32)
 - [`__FB_PCOS__`](Fb-Pcos)
-- [`DOS related FAQ`](Dos-Related-Faq)
 - [Compiler Option: -target](Compiler-Option-Target)
 
 ## Examples

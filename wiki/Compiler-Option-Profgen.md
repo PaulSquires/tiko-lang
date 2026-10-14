@@ -31,8 +31,6 @@ Version
 See also
 
 - [Compiler Option: -profile](Compiler-Option-Profile)
-- [Profiling with fb's profiler](Profiling-with-Fb-S-Profiler)
-- [Profiling for gmon/gprof](Profiling-for-Gmon-Gprof)
 - [Using the Command Line](Quick-Start#compile-a-program)
 
 ---

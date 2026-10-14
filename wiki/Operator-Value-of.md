@@ -55,7 +55,6 @@ or
 
 - [`Operator @ (Address Of)`](Operator-Address-of)
 - [`Operator [] (Pointer Index)`](Operator-Pointer-Index)
-- [Pointers](Pointers)
 
 ## Examples
 

@@ -137,7 +137,7 @@ Print "See the ""word"" contained in double quotes."
  String literals can contain escape sequences if the string literal is prefixed by the [`! Operator`](Operator-Escaped-String-Literal) (Escaped String Literal). See [Escape Sequences](Escape-Sequences) for a list of accepted escape sequences.  
  `Print !"Hello\nWorld!"`
 
- By default, string literals are non-escaped unless [`Option Escape`](Option-Escape) was used in the source in which case all string literals following are by default escaped.
+ By default, string literals are non-escaped unless `Option Escape` was used in the source in which case all string literals following are by default escaped.
 
  A string may be explicitly specified as non-escaped when prefixed by the [`$ Operator`](Operator-Escaped-String-Literal) (Non-Escaped String Literal).  
  `Print $"C:\temp"`

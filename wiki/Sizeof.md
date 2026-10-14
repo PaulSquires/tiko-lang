@@ -12,7 +12,7 @@ SizeOf ( variable | DataType )
 
 ## Description
 
-The `SizeOf` operator returns an [`Integer`](Integer) value: the number of bytes taken up by a `variable` or [`DataType`](Data-Types) (including the data fields of a UDT).
+The `SizeOf` operator returns an [`Integer`](Integer) value: the number of bytes taken up by a `variable` or `DataType` (including the data fields of a UDT).
 
  When used with fixed-length strings (including fixed-length [`ZString`](Zstring)s and [`WString`](Wstring)s) it will return the number of bytes they use, and when used with variable-length strings, it will return the size of the string descriptor.  
  (it is equal to [`Len`](Len) only when used with fixed-length strings of STRING\*N type)

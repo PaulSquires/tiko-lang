@@ -28,7 +28,7 @@ Declare Operator Delete ( buf As Any Ptr )
 
 The built in operators like `=`, `+`, and `cast` have predefined behaviors when used in expressions. These operators can be overloaded to do something other than predefined operations when at least one of the arguments to the operator is a [`Type`](Type-Udt), [`Class`](Class), [`Enum`](Enum), or [`Union`](Union) data type.
 
- Operators are just functions. The operator '+' has functionality like `Function Plus( A as DataType, B as DataType ) as DataType`. See *[Operator Overloading](Operator-Overloading)* for more information. Operators can be overloaded to accept different data types as parameters. The [`Cast`](Operator-Cast) Operator is the only operator (or function) that can be declared multiple times when only the return type differs, but not the same as the [`Type`](Type-Udt), [`Class`](Class), or [`Union`](Union) it is declared in (for not explicit usage, the compiler may decide which cast overload to call based on how the object is used).
+ Operators are just functions. The operator '+' has functionality like `Function Plus( A as DataType, B as DataType ) as DataType`. See *Operator Overloading* for more information. Operators can be overloaded to accept different data types as parameters. The [`Cast`](Operator-Cast) Operator is the only operator (or function) that can be declared multiple times when only the return type differs, but not the same as the [`Type`](Type-Udt), [`Class`](Class), or [`Union`](Union) it is declared in (for not explicit usage, the compiler may decide which cast overload to call based on how the object is used).
 
  Non-static operator members are declared inside the [`Type`](Type-Udt), [`Class`](Class), or [`Union`](Union). Global operators are declared outside. All operator definitions (procedure bodies) must appear outside.
 
@@ -55,7 +55,6 @@ The built in operators like `=`, `+`, and `cast` have predefined behaviors when 
 - [`Class`](Class)
 - [`Union`](Union)
 - [`Type`](Type-Udt)
-- [Coercion and Conversion](Coercion-and-Conversion)
 
 ## Examples
 

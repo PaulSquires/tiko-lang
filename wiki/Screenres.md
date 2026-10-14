@@ -43,7 +43,7 @@ Declare Function ScreenRes ( ByVal width As Long, ByVal height As Long, ByVal de
 
  *graphic mode flags*
 
-`GFX_NULL`: Starts a QB-on-GUI graphics mode. It creates a graphics buffer but not a window. User must implement the window, the events manager and refresh the screen as needed. This mode allows to mix FreeBASIC drawing functions with API-driven windows. Alternatively, it allows to process graphics (for example files) without making it visible on the screen, even in a purely console application. This flag overrides all other mode flags. See an [Example of GFX_NULL](Gfx-Null) in Windows.  
+`GFX_NULL`: Starts a QB-on-GUI graphics mode. It creates a graphics buffer but not a window. User must implement the window, the events manager and refresh the screen as needed. This mode allows to mix FreeBASIC drawing functions with API-driven windows. Alternatively, it allows to process graphics (for example files) without making it visible on the screen, even in a purely console application. This flag overrides all other mode flags. See an Example of GFX_NULL in Windows.  
  `GFX_OPENGL`: Initializes OpenGL to draw in a dumb window. FreeBASIC graphic functions can't be used. The screen is not automatically updated, [`Flip`](Flip) must be used. This option provides a portable way to initialize the OpenGL Library.  
  If none of the above options is specified, FreeBASIC enters the QB-only graphics mode: it creates a buffer and a dumb window and sets a thread that automatically updates the screen and manages keyboard and mouse. The FreeBASIC drawing functions can be used.
 
@@ -120,7 +120,6 @@ result = ScreenRes( width, height [, [depth] [, [num_pages] [, [flags] [, refres
 - [`ScreenCopy`](Screencopy)
 - [`ScreenInfo`](Screeninfo)
 - [`ScreenGLProc`](Screenglproc)
-- [`Internal pixel formats`](Internal-Graphics-Formats)
 - `FaqPggfxlib2`
 
 ## Examples

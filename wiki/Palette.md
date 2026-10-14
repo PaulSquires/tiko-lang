@@ -68,7 +68,6 @@ Form 1 and 3 are for backward compatibility with QB; form 2 is meant to ease pal
 - [`Screen (Graphics)`](Screen-Graphics)
 - [`Color`](Color)
 - [`Using`](Using-Namespaces)
-- [Internal Pixel Formats](Internal-Graphics-Formats)
 - [Default Palettes](Default-Palettes)
 
 ## Examples

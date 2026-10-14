@@ -28,7 +28,7 @@ A `String` is an array of characters.
  Fixed length strings are not terminated with a `NULL` character, to prevent the redundant character complicating data layout in user-defined [`Type`](Type-Udt)s.
  **Note**: Dereferencing a pointer to a fixed length string can lead to an extension of the string by some pollution, or even to an outright crash (because there is no `NULL` terminal character).
 
- String variable names need not end in a dollar sign `$` as in other dialects of BASIC. In *[lang fb](Freebasic-Dialects)* variable suffixes, including the dollar sign, are disallowed entirely.
+ String variable names need not end in a dollar sign `$` as in other dialects of BASIC. In *lang fb* variable suffixes, including the dollar sign, are disallowed entirely.
 
 ## Remarks
 

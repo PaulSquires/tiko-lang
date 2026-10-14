@@ -50,7 +50,6 @@ The value of the ascii code returned.
 - [`Input()`](Input-2)
 - [`MultiKey`](Multikey)
 - [Keyboard scancodes](Dos-Keyboard-Scancodes)
-- [Keyboard Input](Keyboard-Input)
 
 ## Examples
 

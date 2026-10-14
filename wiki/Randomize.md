@@ -21,7 +21,7 @@ Sets the random seed that helps [`Rnd`](Rnd) generate random numbers, and select
  The constants for `algorithm` are defined in `fbprng.bi`. In the *[-lang fb](Compiler-Option-Lang)* dialect, these constants are part of the `FB` [`Namespace`](Namespace).  
  Valid values for `algorithm` are:
 
-`FB_RND_AUTO (0)` - Default for current [language dialect](Freebasic-Dialects). This is algorithm `FB_RND_MTWIST (3)` in the *[-lang fb](Compiler-Option-Lang)* dialect, `FB_RND_QB (4)` in the *[-lang qb](Compiler-Option-Lang)* dialect and `FB_RND_CRT (1)` in the *[-lang fblite](Compiler-Option-Lang)* dialect.  
+`FB_RND_AUTO (0)` - Default for current language dialect. This is algorithm `FB_RND_MTWIST (3)` in the *[-lang fb](Compiler-Option-Lang)* dialect, `FB_RND_QB (4)` in the *[-lang qb](Compiler-Option-Lang)* dialect and `FB_RND_CRT (1)` in the *[-lang fblite](Compiler-Option-Lang)* dialect.  
  `FB_RND_CRT (1)` - Uses the C runtime library's `rand()` function. This will give different results depending on the platform.  
  `FB_RND_FAST (2)` - Uses a fast implementation. This should be stable across all platforms, and provides 32-bit granularity, reasonable degree of randomness.  
  `FB_RND_MTWIST (3)` - Uses the Mersenne Twister. This should be stable across all platforms, provides 32-bit granularity, and gives a high degree of randomness.  
@@ -57,7 +57,6 @@ Sets the random seed that helps [`Rnd`](Rnd) generate random numbers, and select
 ### See also
 
 - [`Rnd`](Rnd)
-- [Language dialects](Freebasic-Dialects)
 
 ## Examples
 

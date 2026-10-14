@@ -24,8 +24,6 @@ Intrinsic define set to an integer to indicate the profiling method.
 ### See also
 
 - [Compiler Option: -profgen](Compiler-Option-Profgen)
-- [Profiling for gmon/gprof](Profiling-for-Gmon-Gprof)
-- [Profiling with fb's profiler](Profiling-with-Fb-S-Profiler)
 
 ## Examples
 

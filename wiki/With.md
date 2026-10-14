@@ -33,7 +33,7 @@ The `With...End With` block allows the omission of the name of a variable of a u
 ### Dialect Differences
 
 - Not available in the *[-lang qb](Compiler-Option-Lang)* dialect unless referenced with the alias `__With`.
-  In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, variables declared inside a `With`..`End With` block have a function-wide [scope](Variable-Scope) as in QB.  
+  In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, variables declared inside a `With`..`End With` block have a function-wide scope as in QB.  
   In the *[-lang fb](Compiler-Option-Lang)* and *[-lang deprecated](Compiler-Option-Lang)* dialects, variables declared inside a `With`..`End With` block are visible only inside the block, and can't be accessed outside it.
 
 ### Differences from QB

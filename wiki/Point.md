@@ -70,7 +70,6 @@ the type of screen coordinate to return: one of the values `0`, `1`, `2`, `3`
 - [`Color`](Color)
 - [`View (Graphics)`](View-Graphics)
 - [`Window`](Window)
-- [`Internal pixel formats`](Internal-Graphics-Formats)
 
 ## Examples
 

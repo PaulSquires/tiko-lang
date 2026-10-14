@@ -29,9 +29,6 @@ Adds a library search path to the linker's list of search paths as if it had bee
 - [`#inclib`](Inclib)
 - [`#include`](procedures-Include)
 - [Compiler Option: -p](Compiler-Option-P)
-- [`#Cmdline`](Cmdline)
-- [Static Libraries](Static-Libraries)
-- [Shared Libraries](Shared-Libraries)
 
 ## Examples
 

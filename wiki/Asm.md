@@ -17,7 +17,7 @@ Asm architecture-dependent instructions
 
 The `Asm` block is used to insert specific machine-code instructions in a program in order to perform operations that cannot be carried out using the features of the language or to hand-optimize performance-sensitive sections of code.
 
- The current FreeBASIC compiler currently only produces code for Intel [80x86](X86-Microprocessor-Architecture)-based machines; however, in the future, the compiler might be ported to a platform which does not support the same instruction set. Therefore, `Asm` blocks should only be used when necessary, and a FreeBASIC-only alternative should be provided if possible.
+ The current FreeBASIC compiler currently only produces code for Intel 80x86-based machines; however, in the future, the compiler might be ported to a platform which does not support the same instruction set. Therefore, `Asm` blocks should only be used when necessary, and a FreeBASIC-only alternative should be provided if possible.
 
  The return value of a function may be set by using the [`Function`](procedures-Function) keyword within brackets as shown in the example below.
 

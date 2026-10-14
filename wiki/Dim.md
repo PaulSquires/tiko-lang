@@ -21,11 +21,11 @@ Dim scalar_symbol As DataType = expression | Any
 
 Declares a variable by name and reserves memory to accommodate it.
 
- Variables must be declared before they can be used in the *[-lang fb](Compiler-Option-Lang)* dialect or when using [`Option Explicit`](Option-Explicit) in the other dialects. Only in the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects variables may be used without first declaring them, in such a case they are called implicit variables.
+ Variables must be declared before they can be used in the *[-lang fb](Compiler-Option-Lang)* dialect or when using `Option Explicit` in the other dialects. Only in the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects variables may be used without first declaring them, in such a case they are called implicit variables.
 
  `Dim` can be used to declare and assign variables of any of the supported data types, user defined types, or enumerations.
 
- Depending on where and how a variable or array is declared can change how it is allocated in memory. See *[Storage Classes](Storage-Classes)*.
+ Depending on where and how a variable or array is declared can change how it is allocated in memory. See *Storage Classes*.
 
  More than one variable may be declared in a single `Dim` statement by separating each variable declaration with a comma.
 
@@ -55,7 +55,7 @@ Dim px As Double Ptr = @x
 
 ### Explicit Variables with Implicit Data Types
 
- In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, even if the variable is declared explicitly, it will be given a default data type if the data type is not explicitly given either by name or by type suffix. The default data type is [`Single`](Single) in the *[-lang qb](Compiler-Option-Lang)* dialect and [`Integer`](Integer) in the *[-lang fblite](Compiler-Option-Lang)* dialect. The default data type can be changed throughout a source listing by use of the `Def###` statements. (for example, [`DefInt`](Defint), [`DefStr`](Defstr), [`DefSng`](Defsng))
+ In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, even if the variable is declared explicitly, it will be given a default data type if the data type is not explicitly given either by name or by type suffix. The default data type is [`Single`](Single) in the *[-lang qb](Compiler-Option-Lang)* dialect and [`Integer`](Integer) in the *[-lang fblite](Compiler-Option-Lang)* dialect. The default data type can be changed throughout a source listing by use of the `Def###` statements. (for example, `DefInt`, `DefStr`, `DefSng`)
 
 ```freebasic
 '' Compile with -lang qb
@@ -81,7 +81,7 @@ Dim I, J, X, Y, T$, D As Double
 
 ### Arrays
 
- As with most BASIC dialects, FreeBASIC supports arrays with indexes ranging from a lower bound to an upper bound. In the syntaxes shown, `lbound` refers to the lower bound, or the smallest index. `ubound` refers to the upper bound, or the largest index. If a lower bound is not specified, it is assumed to be zero by default, unless [`Option Base`](Option-Base) is used.
+ As with most BASIC dialects, FreeBASIC supports arrays with indexes ranging from a lower bound to an upper bound. In the syntaxes shown, `lbound` refers to the lower bound, or the smallest index. `ubound` refers to the upper bound, or the largest index. If a lower bound is not specified, it is assumed to be zero by default, unless `Option Base` is used.
 
 ```freebasic
 Const upperbound = 10
@@ -110,7 +110,7 @@ Dim array(1 To 2, 6, 3 To 5) As Single
 '' and the third, 3 to 5.
 ```
 
- For more information on arrays see [Arrays Overview](programmer-s-guide-Arrays).
+ For more information on arrays see Arrays Overview.
 
  If the values used with `Dim` to declare the dimensions of an array are all constants, the array will be created fixed length (of [`Static`](Option-Static) size, unless [`Option Dynamic`](Option-Dynamic) is specified), while using one or more variables to declare the dimensions of an array makes it variable length, even if [`Option Static`](Option-Static) is in effect.
 
@@ -120,7 +120,7 @@ Dim array(1 To 2, 6, 3 To 5) As Single
 
  The upper bound can be an ellipsis ([`...`](Ellipsis), 3 dots). This will cause to upper bound to be set automatically based on the number of elements found in the initializer. When ellipsis is used in this manner, an initializer must be used, and it may not be `Any`. See the [Ellipsis](Ellipsis) page for a short example.
 
- See also *[Fixed-Length Arrays](Fixed-Length-Arrays)* and *[Variable-Length Arrays](Variable-Length-Arrays)*.
+ See also *Fixed-Length Arrays* and *Variable-Length Arrays*.
 
 ### Initializers
 
@@ -196,8 +196,8 @@ Dim dblVariable#
 
 - In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, variables have procedure scope if the variable is defined inside a procedure, and for the entire module if the variable is defined with `Dim Shared`.
   In the *[-lang qb](Compiler-Option-Lang)* dialect, variables cannot be initialised. In the *[-lang fblite](Compiler-Option-Lang)* dialect, the variable is initialised with a default value at the start of the procedure/module, and assigned its initial value if/when the `Dim` statement is executed at runtime.  
-  In the *[-lang fb](Compiler-Option-Lang)* and *[-lang deprecated](Compiler-Option-Lang)* dialects, variables declared inside compound block statements ([`For..Next`](For-Next), [`While..Wend`](While-Wend-or-While-End-While), [`Do..Loop`](Do-Loop), [`If..Then`](If-Then), [`Select..End Select`](procedures-Select-Case), [`With..End With`](With), [`Scope..End Scope`](Scope-End-Scope)) have local working [scopes](Variable-Scope), and are visible only within these blocks. To access duplicated symbols defined as global outside these blocks, add one or preferably two dot(s) as prefix: `.SomeSymbol` or preferably `..SomeSymbol` (or only `..SomeSymbol` if inside a [With..End With](With) block).  
-  In the *[-lang fb](Compiler-Option-Lang)* dialect, `Option` statements (e.g. [`Option Base`](Option-Base), [`Option Dynamic`](Option-Dynamic)), metacommands(e.g. [`$Static`](Static)) and `Def###` statements (e.g. [`DefInt`](Defint)) are not allowed.
+  In the *[-lang fb](Compiler-Option-Lang)* and *[-lang deprecated](Compiler-Option-Lang)* dialects, variables declared inside compound block statements ([`For..Next`](For-Next), [`While..Wend`](While-Wend-or-While-End-While), [`Do..Loop`](Do-Loop), [`If..Then`](If-Then), [`Select..End Select`](procedures-Select-Case), [`With..End With`](With), [`Scope..End Scope`](Scope-End-Scope)) have local working scopes, and are visible only within these blocks. To access duplicated symbols defined as global outside these blocks, add one or preferably two dot(s) as prefix: `.SomeSymbol` or preferably `..SomeSymbol` (or only `..SomeSymbol` if inside a [With..End With](With) block).  
+  In the *[-lang fb](Compiler-Option-Lang)* dialect, `Option` statements (e.g. `Option Base`, [`Option Dynamic`](Option-Dynamic)), metacommands(e.g. [`$Static`](Static)) and `Def###` statements (e.g. `DefInt`) are not allowed.
 
 ### Differences from QB
 
@@ -222,7 +222,6 @@ Dim dblVariable#
 - [`UBound`](Ubound)
 - [`... (Ellipsis)`](Ellipsis)
 - [`Any`](Any)
-- [Pointers to Procedures](Pointers-to-Procedures)
 
 ## Examples
 

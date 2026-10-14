@@ -64,7 +64,6 @@ See also
 - [`ScreenCopy`](Screencopy)
 - [`ScreenInfo`](Screeninfo)
 - [`ScreenGLProc`](Screenglproc)
-- [`Internal pixel formats`](Internal-Graphics-Formats)
 
 ---
 

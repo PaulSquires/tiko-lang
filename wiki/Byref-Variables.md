@@ -24,7 +24,7 @@ Declares a reference (by name) to a variable.
  A reference is an entity that is a way to access data located in memory. A reference is not the data itself but only information about its location. A reference can be thought of as a pointer that is implicitly dereferenced. In many cases, it can be used as an alternative to pointer.
 
  A reference must always be initialized with a variable when it is created.  
- [DataType](Data-Types) must be the same type as that of the variable, or a compatible type (for example one from the types of its Bases in case of inheritance):
+ DataType must be the same type as that of the variable, or a compatible type (for example one from the types of its Bases in case of inheritance):
 
 For example, a base type reference referring to a derived type object allows to activate polymorphism when a virtual method is called on it, similarly to a base type pointer referring to a derived type object. One can do the same operations through such a reference as one can do with a dereferenced pointer of same type (but for both not the same operations as using directly the derived type instance).
 

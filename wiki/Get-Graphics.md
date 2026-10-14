@@ -21,11 +21,11 @@ Get [source,] [STEP](x1, y1) - [STEP](x2, y2), dest
 
 ## Description
 
-`Get` copies a rectangular portion of the current work page specified by the co-ordinates (`x1`, `y1`) and (`x2`, `y2`), which represent the upper-left and lower-right corners of the rectangle, respectively. `STEP` specifies that the upper-left co-ordinates are relative to the current graphics pen location, and/or that the lower-right co-ordinates are relative to the upper-left co-ordinates. The new image buffer is formatted to match the current screen mode [pixel format](Internal-Graphics-Formats).
+`Get` copies a rectangular portion of the current work page specified by the co-ordinates (`x1`, `y1`) and (`x2`, `y2`), which represent the upper-left and lower-right corners of the rectangle, respectively. `STEP` specifies that the upper-left co-ordinates are relative to the current graphics pen location, and/or that the lower-right co-ordinates are relative to the upper-left co-ordinates. The new image buffer is formatted to match the current screen mode pixel format.
 
- `dest` can be an address, an [array](programmer-s-guide-Arrays) (name not followed by empty parentheses), or a reference to the first element in an [array](programmer-s-guide-Arrays) that will receive the new image buffer. This memory must be sufficiently allocated to hold the image buffer (the number of bytes required varies with the [-lang dialect](Compiler-Option-Lang) used to compile the program). Valid image buffers can be created simply by using preferably the [`ImageCreate`](Imagecreate) statement.
+ `dest` can be an address, an array (name not followed by empty parentheses), or a reference to the first element in an array that will receive the new image buffer. This memory must be sufficiently allocated to hold the image buffer (the number of bytes required varies with the [-lang dialect](Compiler-Option-Lang) used to compile the program). Valid image buffers can be created simply by using preferably the [`ImageCreate`](Imagecreate) statement.
 
- `source` can be an address, an [array](programmer-s-guide-Arrays) (name not followed by empty parentheses), or a reference to the first element in an [array](programmer-s-guide-Arrays) that holds an image buffer to retrieve a portion of. `x1`, `y1`, `x2`, `y2`, `Step` and `dest` have the same meaning in this case.
+ `source` can be an address, an array (name not followed by empty parentheses), or a reference to the first element in an array that holds an image buffer to retrieve a portion of. `x1`, `y1`, `x2`, `y2`, `Step` and `dest` have the same meaning in this case.
 
  The co-ordinates of the rectangle are affected by the most recent [`Window`](Window) and [`View (Graphics)`](View-Graphics) statements, and must both be within the current clipping region set by [`View (Graphics)`](View-Graphics) (or within the default viewport), otherwise an illegal function call runtime error will be triggered, and the function will have no effect.
 
@@ -56,7 +56,6 @@ Get [source,] [STEP](x1, y1) - [STEP](x2, y2), dest
 - [`Screen (Graphics)`](Screen-Graphics)
 - [`Window`](Window)
 - [`View (Graphics)`](View-Graphics)
-- [Internal graphics formats](Internal-Graphics-Formats)
 
 ## Examples
 

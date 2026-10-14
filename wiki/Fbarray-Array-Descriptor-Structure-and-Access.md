@@ -256,7 +256,6 @@ Sleep
 
 ### See also
 
-- [Arrays](programmer-s-guide-Arrays)
 - [`Arraylen`](Arraylen)
 - [`Arraysize`](Arraysize)
 

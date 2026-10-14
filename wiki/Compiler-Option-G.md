@@ -12,7 +12,7 @@ Description
 
 The `-g` compiler option inserts debugging symbols into output files, to use with GDB-compatible debuggers.
 
- The intrinsic macro [`__FB_DEBUG__`](Fb-Debug) is set to non-zero (-1) if the option was specified, and set to zero (0) otherwise.
+ The intrinsic macro `__FB_DEBUG__` is set to non-zero (-1) if the option was specified, and set to zero (0) otherwise.
 
  [`Assert`](Assert) and [`AssertWarn`](Assertwarn) macros are enabled.
 
@@ -22,7 +22,6 @@ The `-g` compiler option inserts debugging symbols into output files, to use wit
 
 See also
 
-- [`__FB_DEBUG__`](Fb-Debug)
 - [`__FB_ERR__`](Fb-Err)
 - [`Assert`](Assert)
 - [`AssertWarn`](Assertwarn)

@@ -47,7 +47,6 @@ Declares a variable whose type is implied from the initializer expression
 - [`Static`](procedures-Static)
 - [`Byref (Variables)`](Byref-Variables)
 - [`UBound`](Ubound)
-- [Pointers to Procedures](Pointers-to-Procedures)
 
 ## Examples
 

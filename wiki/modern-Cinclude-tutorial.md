@@ -68,7 +68,7 @@ toupper( 'a' ) is A
 
 `strlen` and `toupper` are not declared anywhere in your program. They came from `string.h` and `ctype.h`.
 
-`once` works as it does for [`#include`](Include): the header is read only the first time the directive is reached.
+`once` works as it does for `#include`: the header is read only the first time the directive is reached.
 
 If you see `TKO0335: #cinclude needs libclang`, tiko could not find libclang. Check that LLVM is installed, or set the `TKO_LIBCLANG` environment variable to the full path of the libclang library.
 
@@ -572,7 +572,6 @@ The names stay bare (`Shape`, not `shapes.Shape`), because a C header's names do
 - [#cinclude](modern-Cinclude), the reference page
 - [#foreignlib Tutorial](modern-Foreignlib-tutorial), linking the library's code
 - [Using C Libraries](Using-C-Libraries-Tutorial), with step-by-step tutorials for [SQLite](SQLite-Tutorial), [raylib](Raylib-Tutorial), [GLFW](GLFW-Tutorial) and [SDL3](SDL3-Tutorial)
-- [`#include`](Include) · [`Declare`](Declare) · [`Alias`](Alias-Modifier) · [`Extern`](Extern)
 
 ---
 

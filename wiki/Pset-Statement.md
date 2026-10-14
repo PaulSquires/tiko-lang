@@ -38,7 +38,6 @@ PSet [target ,] [STEP] (x, y) [,color]
 - [`PReset`](Preset)
 - [`View (Graphics)`](View-Graphics)
 - [`Window`](Window)
-- [`Internal pixel formats`](Internal-Graphics-Formats)
 
 ## Examples
 

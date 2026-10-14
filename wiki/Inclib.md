@@ -25,8 +25,6 @@ Includes a library in the linking process as if the user specified [`-l libname`
 - [`#include`](procedures-Include)
 - [Compiler Option: -l](Compiler-Option-L)
 - [Compiler Option: -p](Compiler-Option-P)
-- [Static Libraries](Static-Libraries)
-- [Shared Libraries](Shared-Libraries)
 
 ## Examples
 

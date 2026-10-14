@@ -18,7 +18,7 @@ Option( "literal-text" )
 
 `Option()` allows the programmer to specify additional attributes or characteristics. Enclosing the string into quotes and parentheses is required in the syntax. Unrecognized options are ignored.
 
- `Option` can also be used as a statement to specify other compile time options. See [Compiler Switches](Compiler-Switches).
+ `Option` can also be used as a statement to specify other compile time options. See Compiler Switches.
 
  Individual options are explained below.
 
@@ -31,7 +31,6 @@ Option( "literal-text" )
 ### See also
 
 - [Compiler Option: -fpu](Compiler-Option-Fpu)
-- [Compiler Switches](Compiler-Switches)
 
 ---
 

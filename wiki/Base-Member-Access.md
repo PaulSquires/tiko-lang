@@ -41,7 +41,6 @@ Base [ .Base ... ] .member
 - [`Extends`](Extends)
 - [`Extends Zstring`](Extends-Zstring)
 - [`Extends Wstring`](Extends-Wstring)
-- [`Option Base`](Option-Base)
 
 ## Examples
 

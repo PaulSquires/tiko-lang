@@ -34,10 +34,6 @@ result = Now
 
 - Did not exist in QB. This function appeared in PDS and VBDOS
 
-### See also
-
-- [Date Serials](Date-Serials)
-
 ## Examples
 
 ```freebasic

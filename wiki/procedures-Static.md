@@ -23,7 +23,7 @@ End Sub|Function
 
 ## Description
 
-Specifies [static storage](Storage-Classes) for variables, objects and arrays; they are allocated at program startup and deallocated upon exit. Objects are constructed once when they are defined, and destructed upon program exit.
+Specifies static storage for variables, objects and arrays; they are allocated at program startup and deallocated upon exit. Objects are constructed once when they are defined, and destructed upon program exit.
 
  When declaring static arrays, only [numeric literals](Literals), [Constants](Const) or [Enumerations](Enum) may be used as subscript range values. Static variable-length arrays must be declared empty (no subscript range list) and resized using [`ReDim`](Redim) before used.
 
@@ -31,7 +31,7 @@ Specifies [static storage](Storage-Classes) for variables, objects and arrays; t
 
  A static variable may only be initialised with a constant value: its starting value is set at the start of the program before any code is run, and so it cannot depend on any variables or functions in it.
 
- When used at procedure definition level (forbidden at declaration line level), `Static` specifies [static storage](Storage-Classes) for all local variables, objects and arrays, except temporary types and internal variables (objects not explicitly declared).
+ When used at procedure definition level (forbidden at declaration line level), `Static` specifies static storage for all local variables, objects and arrays, except temporary types and internal variables (objects not explicitly declared).
 
  At module-level variable declaration only, the modifier [`Shared`](Shared) may be used with the keyword `Static` to make module-level static variables visible inside procedures.
 
@@ -57,8 +57,6 @@ Specifies [static storage](Storage-Classes) for variables, objects and arrays; t
 - [`Sub (Module)`](Sub), [`Function (Module)`](procedures-Function)
 - [`Sub (Member)`](Sub-Member), [`Function (Member)`](Function-Member)
 - [`Option Static`](Option-Static)
-- [`Storage Classes`](Storage-Classes)
-- [Pointers to Procedures](Pointers-to-Procedures)
 
 ## Examples
 

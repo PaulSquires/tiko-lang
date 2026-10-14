@@ -62,7 +62,6 @@ Using `#pragma reserve symbol` statement allows the compiler to output an error 
 ### See also
 
 - [`#pragma`](Pragma)
-- [Preprocessor Overview](programmer-s-guide-Preprocessor)
 
 ## Examples
 

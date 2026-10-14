@@ -16,7 +16,7 @@ Declare Function Acos ( ByVal number As Double ) As Double
 
 ## Description
 
-`Acos` returns the arccosine of the argument `number` as a [`Double`](Double) within the range of 0 to [Pi](Different-Ways-Angles-Are-Measured). The arccosine is the inverse of the [`Cos`](Cos) function. The returned angle is measured in [radians](Different-Ways-Angles-Are-Measured) (not [degrees](Different-Ways-Angles-Are-Measured)).
+`Acos` returns the arccosine of the argument `number` as a [`Double`](Double) within the range of 0 to Pi. The arccosine is the inverse of the [`Cos`](Cos) function. The returned angle is measured in radians (not degrees).
 
  `Acos` can be overloaded as operator to accept user-defined types.
 
@@ -41,7 +41,6 @@ The arccosine of `number`, in radians, in the range \[0..Pi\].
 ### See also
 
 - [`Cos`](Cos)
-- [A Brief Introduction To Trigonometry](A-Brief-Introduction-to-Trigonometry)
 
 ## Examples
 

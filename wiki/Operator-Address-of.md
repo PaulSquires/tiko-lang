@@ -48,7 +48,6 @@ Returns the address of the right-hand side (`rhs`) operand.
 - [`VarPtr`](Operator-Varptr-Variable-Pointer)
 - [`ProcPtr`](Operator-Procptr-Procedure-Pointer-and-Vtable-Index)
 - [`Operator * (Value Of)`](Operator-Value-of)
-- [Pointers](Pointers)
 
 ## Examples
 

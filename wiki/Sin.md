@@ -16,7 +16,7 @@ Declare Function Sin ( ByVal angle As Double ) As Double
 
 ## Description
 
-The argument `angle` is measured in [radians](Different-Ways-Angles-Are-Measured) (not [degrees](Different-Ways-Angles-Are-Measured)).
+The argument `angle` is measured in radians (not degrees).
 
  The value returned by this function is undefined for values of `angle` with an absolute value of `2 ^ 63` or greater.
 
@@ -41,7 +41,6 @@ Returns the sine of the argument `angle` as a [`Double`](Double) within the rang
 - [`Asin`](Asin)
 - [`Cos`](Cos)
 - [`Tan`](Tan)
-- [A Brief Introduction To Trigonometry](A-Brief-Introduction-to-Trigonometry)
 
 ## Examples
 

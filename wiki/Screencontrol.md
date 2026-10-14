@@ -24,7 +24,7 @@ Declare Sub ScreenControl ( ByVal what As Const Long, ByRef param As String)
 ## Description
 
 This function can be used to set or get internal GfxLib states. The `what` parameter specifies which operation to perform. On operations that set states, the `param*` parameters must contain the values to be set. On operations that get states, `param*` will hold the values returned by GfxLib when the function returns.  
- The meaning of the `param*` parameters depend on the `what` parameter, whose possible values are defined as constants in `fbgfx.bi`. In *[lang fb](Freebasic-Dialects)*, they are set to be stored in the `FB` [`Namespace`](Namespace).  
+ The meaning of the `param*` parameters depend on the `what` parameter, whose possible values are defined as constants in `fbgfx.bi`. In *lang fb*, they are set to be stored in the `FB` [`Namespace`](Namespace).  
  Below is a list of the supported `what` constants - and their values as defined at time of writing - along with the parameters associated with them.
 
  *Supported operations*

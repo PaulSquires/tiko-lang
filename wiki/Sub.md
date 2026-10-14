@@ -53,7 +53,7 @@ A subroutine is a block of code which may be called at any time from a program. 
 
  The second syntax defines either a constructor or destructor using the [`Constructor`](Constructor-Module) and [`Destructor`](Destructor-Module) keywords, respectively. Constructor subroutines are executed before the first line of code in the module, while destructors execute on module exit. Note the public access specifier and empty parameter list for both constructors and destructors.
 
- **Warning for 64-bit compiler only:** See the [Identifier Rules](Identifier-Rules) page for the choice of user procedure identifier names (and specially the 'Platform Differences' paragraph).
+ **Warning for 64-bit compiler only:** See the Identifier Rules page for the choice of user procedure identifier names (and specially the 'Platform Differences' paragraph).
 
 ## Remarks
 

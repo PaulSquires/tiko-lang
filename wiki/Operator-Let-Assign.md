@@ -53,7 +53,6 @@ When the operator `Let` (assign) is defined for copy assignment, its parameter (
 - [`Operator Let() (Assignment)`](Operator-Let-Assignment)
 - [`Operator =[>] (Assignment)`](Operator-Assign)
 - [`Operator = (Equal)`](Operator-Equal)
-- [Coercion and Conversion](Coercion-and-Conversion)
 
 ## Examples
 

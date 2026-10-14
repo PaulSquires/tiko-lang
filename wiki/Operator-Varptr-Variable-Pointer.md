@@ -38,7 +38,6 @@ Returns the address of a variable or object.
 
 ### See also
 
-- [Pointers](Pointers)
 - [`Peek`](Poke)
 - [`Poke`](Poke)
 

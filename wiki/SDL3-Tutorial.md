@@ -1,4 +1,4 @@
-[Home](Home) › [Tutorials](Category-Tutorials) › [Using C Libraries](Using-C-Libraries-Tutorial) › **SDL3**
+[Home](Home) › [Using C Libraries](Using-C-Libraries-Tutorial) › **SDL3**
 
 # SDL3 Tutorial
 
@@ -246,4 +246,4 @@ Linked statically, SDL needs five Windows libraries: `cfgmgr32`, `ole32`, `oleau
 
 **Back:** [GLFW](GLFW-Tutorial) · [raylib](Raylib-Tutorial) · [SQLite](SQLite-Tutorial) · [Using C Libraries](Using-C-Libraries-Tutorial)
 
-[Home](Home) · [Tutorials](Category-Tutorials)
+[Home](Home)

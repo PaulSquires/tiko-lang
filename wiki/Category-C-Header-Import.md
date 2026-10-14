@@ -29,7 +29,7 @@ sqlite3_open( @":memory:", @db )
 
 That is the whole binding. No `.bi` file, no `Declare`, no struct copied out by hand.
 
-`once` means what it means for [`#include`](Include).
+`once` means what it means for `#include`.
 
 ## Parameters
 
@@ -244,7 +244,7 @@ Every declaration carries `alias "<exact C name>"`, so a rename never changes th
 
 ## Remarks
 
-- The generated binding is **cached**, so the expensive half runs once per configuration and the cheap half — parsing tiko text — runs per compilation, exactly as [`#include`](Include) does today. The key is the header chain, every option, `UNICODE`, the target, libclang and its resource directory, the working directory, the running `tiko` by size and time, and what clang's header detection reads (`-csysroot`, `CPATH`, `C_INCLUDE_PATH`, `INCLUDE`, `VCToolsInstallDir`, `WindowsSdkDir`); every file clang read is re-checked on each hit, so editing any header in the tree invalidates it. A program that `#cinclude`s `windows.h` built in 18.7 s cold and 0.6 s warm with tiko on windows-x86_64.
+- The generated binding is **cached**, so the expensive half runs once per configuration and the cheap half — parsing tiko text — runs per compilation, exactly as `#include` does today. The key is the header chain, every option, `UNICODE`, the target, libclang and its resource directory, the working directory, the running `tiko` by size and time, and what clang's header detection reads (`-csysroot`, `CPATH`, `C_INCLUDE_PATH`, `INCLUDE`, `VCToolsInstallDir`, `WindowsSdkDir`); every file clang read is re-checked on each hit, so editing any header in the tree invalidates it. A program that `#cinclude`s `windows.h` built in 18.7 s cold and 0.6 s warm with tiko on windows-x86_64.
 - tiko's import of `windows.h` has 42,945 declarations on windows-x86_64 — 2,887 records, every one checked against a clang-compiled program — with no record refused.
 - Over-alignment (`__declspec(align(16))`) has no tiko spelling. C's tail padding is written out so `SizeOf` and every member offset are right, and the affected records are reported by name — but a local or array element is 8-byte aligned where C promises 16.
 
@@ -252,7 +252,6 @@ Every declaration carries `alias "<exact C name>"`, so a rename never changes th
 
 - [#cinclude Tutorial](modern-Cinclude-tutorial) — start here
 - [`#foreignlib`](modern-Foreignlib) — linking a library shipped inside your own source tree, the other half of binding to a C library
-- [`#include`](Include) · [`#inclib`](Inclib) · [`#libpath`](Libpath)
 - [`Alias`](Alias-Modifier) · [`Extern`](Extern) · [`Declare`](Declare)
 - [`DyLibLoad`](Dylibload) — how libclang is loaded
 - [Compiler Option: -gen](Compiler-Option-Gen)

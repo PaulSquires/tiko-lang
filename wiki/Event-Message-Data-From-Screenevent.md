@@ -66,7 +66,7 @@ The `fbgfx.bi` header file contains a definition of the `EVENT` user data type, 
 
 ### Dialect Differences
 
-- In *[lang fb](Freebasic-Dialects)*, the structure and constants are stored in the `FB` [`Namespace`](Namespace). This is not the case in other dialects.
+- In *lang fb*, the structure and constants are stored in the `FB` [`Namespace`](Namespace). This is not the case in other dialects.
 
 ### Differences from QB
 
@@ -75,9 +75,7 @@ The `fbgfx.bi` header file contains a definition of the `EVENT` user data type, 
 ### See also
 
 - [`ScreenEvent`](Screenevent)
-- [Event Handling](Event-Handling)
 - [Keyboard scancodes](Dos-Keyboard-Scancodes)
-- [Keyboard Input](Keyboard-Input)
 
 ## Examples
 

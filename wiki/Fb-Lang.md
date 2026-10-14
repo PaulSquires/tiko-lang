@@ -37,7 +37,6 @@ Returns a lower case string with one of the following values:
 - [`#lang`](procedures-Lang)
 - [Compiler Option: -lang](Compiler-Option-Lang)
 - [Compiler Option: -forcelang](Compiler-Option-Forcelang)
-- [Compiler Dialects](Freebasic-Dialects)
 
 ## Examples
 

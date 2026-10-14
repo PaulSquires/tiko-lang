@@ -32,7 +32,7 @@ The `priority` attribute, an integer between 101 and 65535, can be used to force
 
  The module constructor feature exposes a low-level link-time feature of the build and run-time environment. Accessing global static objects having constructors from module constructors should be avoided due to variations in execution order on different build systems.
 
- **Warning for 64-bit compiler only:** See the [Identifier Rules](Identifier-Rules) page for the choice of user procedure identifier names (and specially the 'Platform Differences' paragraph).
+ **Warning for 64-bit compiler only:** See the Identifier Rules page for the choice of user procedure identifier names (and specially the 'Platform Differences' paragraph).
 
 ## Remarks
 

@@ -23,7 +23,6 @@ Platform Differences
 See also
 
 - [`__FB_OUT_DLL__`](Fb-Out-Dll)
-- [Shared Libraries](Shared-Libraries)
 - [Using the Command Line](Quick-Start#compile-a-program)
 - [Compiler Option: -dll](Compiler-Option-Dll)
 

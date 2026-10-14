@@ -28,12 +28,9 @@ If the *[-forcelang](Compiler-Option-Forcelang)* option was not given on the com
 
 ### See also
 
-- [`$Lang`](Lang)
 - [`__FB_LANG__`](Fb-Lang)
 - [Compiler Option: -lang](Compiler-Option-Lang)
 - [Compiler Option: -forcelang](Compiler-Option-Forcelang)
-- [FreeBASIC Dialects](Freebasic-Dialects)
-- [`#Cmdline`](Cmdline)
 
 ## Examples
 

@@ -14,7 +14,7 @@ $"text"
 
 This operator explicitly indicates that the string literal following it (wrapped in double quotes) should not be processed for escape sequences. This a preprocessor operator and can only be used with string literals at compile time.
 
- The default behavior for string literals is that they not be processed for escape sequences. However, [`Option Escape`](Option-Escape) in the *[-lang fblite](Compiler-Option-Lang)* dialect can be used to override this default behaviour causing all strings to be processed for escape sequences.
+ The default behavior for string literals is that they not be processed for escape sequences. However, `Option Escape` in the *[-lang fblite](Compiler-Option-Lang)* dialect can be used to override this default behaviour causing all strings to be processed for escape sequences.
 
  Use the [! Operator (Escaped String Literal)](Operator-Escaped-String-Literal) to explicitly indicate that a string should be processed for escape sequences.
 
@@ -27,7 +27,6 @@ This operator explicitly indicates that the string literal following it (wrapped
 ### See also
 
 - [Operator ! (Escaped String Literal)](Operator-Escaped-String-Literal)
-- [`Option Escape`](Option-Escape)
 - [Preprocessor](Preprocessor)
 - [Literals](Literals)
 - [Escape Sequences](Escape-Sequences)

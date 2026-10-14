@@ -32,8 +32,6 @@ when `#pragma profile = true`, then profiling code is generated
 ### See also
 
 - [Compiler Option: -profgen](Compiler-Option-Profgen)
-- [Profiling for gmon/gprof](Profiling-for-Gmon-Gprof)
-- [Profiling with fb's profiler](Profiling-with-Fb-S-Profiler)
 - [#pragma](Pragma)
 
 ## Examples

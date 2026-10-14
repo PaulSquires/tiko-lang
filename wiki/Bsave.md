@@ -23,7 +23,7 @@ Declare Function BSave ( ByRef filename As Const String, ByVal source As Any Ptr
 ## Description
 
 `BSave` is used for saving arbitrary data from memory into a file, using a file format specific to FB, or saving images into a standard BMP image file, replacing an existing file if necessary.  
- `BSave` must be called only if a graphics mode is initialized, else the program crashes (see [`BLOAD/BSAVE text mode work-around`](Bload-Bsave-Text-Mode-Work-Around) to work in text mode).
+ `BSave` must be called only if a graphics mode is initialized, else the program crashes (see `BLOAD/BSAVE text mode work-around` to work in text mode).
 
  `BSave` outputs a *total* of `size` bytes of arbitrary data located at `source` to a specified file. If `source` is null (`0`), then `BSave` outputs a *maximum* of `size` bytes from the current work page's pixel buffer, which is structured in the current screen mode's internal pixel format. (This data is not compatible with the image buffer format as it has no header.) For 8-bit images, palette information is obtained from `pal` if present and non-null, or if `pal` omitted or null (`0`), from the current screen palette.
 

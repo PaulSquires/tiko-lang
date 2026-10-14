@@ -36,7 +36,7 @@ Screen [ mode ] [, [ colormode ] [, [ active_page ] [, [ visible_page ]]]]
 
  In OpenGL modes a dumb window or fullscreen resolution is set, one or more buffers in standard memory are created, and the OS's OpenGL library is initialized. From here only OpenGL commands can be used; QB-like and console commands are forbidden. This allows to initialize OpenGL in a portable way; you can then also use [`ScreenControl`](Screencontrol) to properly customize the GL pixel format to be used before `Screen` is called or to retrieve the list of supported OpenGL extensions after a mode has been set, and [`ScreenGLProc`](Screenglproc) to obtain extension function pointers.
 
- Any buffer that is created in standard memory uses one of three supported internal pixel formats, depending on the desired color depth; see [Internal pixel formats](Internal-Graphics-Formats) for details.
+ Any buffer that is created in standard memory uses one of three supported internal pixel formats, depending on the desired color depth; see Internal pixel formats for details.
 
  If `Screen` fails to set the required mode, an "Illegal function call" error is issued and the screen pointer is set to `0`. Thus `Screen` failures can be detected using standard [`On Error`](On-Error) processing or retrieving the screen pointer with [`ScreenPtr`](Screenptr).
 
@@ -133,7 +133,6 @@ The default BASIC screen mode (`Screen 0`) is text based.
 - [`ScreenCopy`](Screencopy)
 - [`ScreenInfo`](Screeninfo)
 - [`ScreenGLProc`](Screenglproc)
-- [`Internal pixel formats`](Internal-Graphics-Formats)
 
 ## Examples
 

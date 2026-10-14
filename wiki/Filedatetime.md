@@ -16,11 +16,11 @@ Declare Function FileDateTime ( ByVal filename As ZString Ptr ) As Double
 
 ## Description
 
-Returns the file's last modified date and time as [Date Serial](Date-Serials).
+Returns the file's last modified date and time as Date Serial.
 
 ## Return Value
 
-Returns a [Date Serial](Date-Serials).
+Returns a Date Serial.
 
 ## Remarks
 
@@ -48,10 +48,6 @@ result = FileDateTime( filename )
 ### Differences from QB
 
 - New to FreeBASIC
-
-### See also
-
-- [Date Serials](Date-Serials)
 
 ## Examples
 

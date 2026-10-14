@@ -40,7 +40,7 @@ Instructs the compiler to link with the `libfbrt[mt].a` library instead of the `
 
 **-z nocmdline**
 
-Instructs the compiler to ignore all [`Cmdline`](Cmdline) directives in source file and take control from the real compiler command line only.
+Instructs the compiler to ignore all `Cmdline` directives in source file and take control from the real compiler command line only.
 
 **-z retinflts**
 

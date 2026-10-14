@@ -130,7 +130,7 @@ End Sub
 
 Error codes
 
-See [Runtime Error Codes](Runtime-Error-Codes) for a listing of runtime error numbers and their associated meaning.
+See Runtime Error Codes for a listing of runtime error numbers and their associated meaning.
 
  No user error code range is defined. If [`Error`](Error) is used to set an error code it is wise to use high values to avoid collisions with the list of built-in error codes. (This built-in list may be expanded later.)
 
@@ -313,7 +313,6 @@ End
 See also
 
 - [Error Handling Functions](Error-Handling-Functions)
-- [Runtime Error Codes](Runtime-Error-Codes)
 
 ---
 

@@ -37,7 +37,7 @@ If a function is defined with this clause in a DLL, it is added to the public ex
 
 ## Examples
 
-See the examples on the [Shared Libraries](Shared-Libraries) page.
+See the examples on the Shared Libraries page.
 
 ---
 

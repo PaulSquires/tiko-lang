@@ -439,8 +439,7 @@ The [#cinclude Tutorial](modern-Cinclude-tutorial#12-sharing-a-binding) shows th
 - [#foreignlib](modern-Foreignlib), the reference page
 - [#cinclude Tutorial](modern-Cinclude-tutorial), declaring a library's functions from its header
 - [Using C Libraries](Using-C-Libraries-Tutorial), with step-by-step tutorials for [SQLite](SQLite-Tutorial), [raylib](Raylib-Tutorial), [GLFW](GLFW-Tutorial) and [SDL3](SDL3-Tutorial)
-- [`#inclib`](Inclib) · [`#libpath`](Libpath) · [`#cmdline`](Cmdline)
-- [Static Libraries](Static-Libraries) · [Shared Libraries](Shared-Libraries)
+- [`#inclib`](Inclib) · [`#libpath`](Libpath) · `#cmdline`
 
 ---
 

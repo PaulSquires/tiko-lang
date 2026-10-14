@@ -21,7 +21,7 @@ Execution jumps to a subroutine marked by a line label. Always use [`Return`](Re
 ### Dialect Differences
 
 - Only available in the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects.
-  `GoSub` support is disabled by default in the *[-lang fblite](Compiler-Option-Lang)* unless the [`Option Gosub`](Option-Gosub) statement is used.
+  `GoSub` support is disabled by default in the *[-lang fblite](Compiler-Option-Lang)* unless the `Option Gosub` statement is used.
 
 ### Differences from QB
 
@@ -33,8 +33,6 @@ Execution jumps to a subroutine marked by a line label. Always use [`Return`](Re
 - [`Return (From Gosub)`](Return-From-Gosub)
 - [`Sub`](Sub)
 - [`Function`](procedures-Function)
-- [`Option Gosub`](Option-Gosub)
-- [`Labels`](Labels)
 
 ## Examples
 

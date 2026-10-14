@@ -17,7 +17,7 @@ Cast( datatype, expression )
 
 ## Description
 
-Converts `expression` into a different [`datatype`](Data-Types). Useful to be used in macros when [`datatype`](Data-Types) is unknown and also when converting to [Type Alias](Type-Alias).
+Converts `expression` into a different `datatype`. Useful to be used in macros when `datatype` is unknown and also when converting to [Type Alias](Type-Alias).
 
  This is a general form of conversion operators such as [`CInt`](Cint) or [`CDbl`](Cdbl).  
  `Cast` is more versatile because it can be used on built-in types that have a built-in [`Cast Operator`](Operator), but don't have a built-in keyword for it: e.g. `Cast( Byte, boolean )`.  
@@ -46,7 +46,6 @@ Converts `expression` into a different [`datatype`](Data-Types). Useful to be us
 - [`CPtr`](Cptr)
 - [`CInt`](Cint)
 - [`TypeOf`](Typeof)
-- [Coercion and Conversion](Coercion-and-Conversion)
 
 ## Examples
 

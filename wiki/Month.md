@@ -20,7 +20,7 @@ The compiler will not recognize this function unless `vbcompat.bi` is included.
 
 ## Return Value
 
-Returns the month number from a variable containing a date in [Date Serial](Date-Serials) format.
+Returns the month number from a variable containing a date in Date Serial format.
 
  The month values are in the range 1-12 being 1 for January and 12 for December.
 
@@ -37,10 +37,6 @@ result = Month( date_serial )
 ### Differences from QB
 
 - Did not exist in QB. This function appeared in PDS and VBDOS
-
-### See also
-
-- [Date Serials](Date-Serials)
 
 ## Examples
 

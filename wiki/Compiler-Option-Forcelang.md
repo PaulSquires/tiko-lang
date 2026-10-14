@@ -20,7 +20,7 @@ The `-forcelang` compiler option changes the way source code is interpreted, and
 
  The intrinsic macro [`__FB_LANG__`](Fb-Lang) is set to the string name of the dialect specified on the command line, or `"fb"` by default.
 
- To learn more about the differences between each of these language dialects, see [Compiler Dialects](Freebasic-Dialects).
+ To learn more about the differences between each of these language dialects, see Compiler Dialects.
 
  **fb**
 
@@ -43,7 +43,6 @@ See also
 - [`#lang`](procedures-Lang)
 - [`__FB_LANG__`](Fb-Lang)
 - [Compiler Option: -lang](Compiler-Option-Lang)
-- [Compiler Dialects](Freebasic-Dialects)
 - [Using the Command Line](Quick-Start#compile-a-program)
 
 ---

@@ -62,7 +62,7 @@ A [`Pointer`](Pointer-Ptr) to the function or variable in the library.
 
 ## Examples
 
-See the dynamic loading example on the [Shared Libraries](Shared-Libraries) page.
+See the dynamic loading example on the Shared Libraries page.
 
 ---
 

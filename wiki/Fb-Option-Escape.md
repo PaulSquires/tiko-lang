@@ -14,7 +14,7 @@ __FB_OPTION_ESCAPE__
 
 Indicates if by default, string literals are processed for escape characters when not explicitly prefixed with the [$ Operator](Operator-Non-Escaped-String-Literal) for non-escaped strings, or the [! Operator](Operator-Escaped-String-Literal) for escaped strings.
 
- The default method for processing string literals is set by usage of the *[-lang](Compiler-Option-Lang)* command line option during compilation or usage of [`Option Escape`](Option-Escape) in the source file.
+ The default method for processing string literals is set by usage of the *[-lang](Compiler-Option-Lang)* command line option during compilation or usage of `Option Escape` in the source file.
 
  `__FB_OPTION_ESCAPE__` returns zero (0) if the option has not been set. Returns non-zero (-1) if the option has been set.
 
@@ -23,10 +23,6 @@ Indicates if by default, string literals are processed for escape characters whe
 ### Differences from QB
 
 - New to FreeBASIC
-
-### See also
-
-- [`Option Escape`](Option-Escape)
 
 ## Examples
 

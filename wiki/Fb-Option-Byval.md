@@ -16,7 +16,7 @@ Indicates if parameters to a [`Function`](procedures-Function) or [`Sub`](Sub) a
 
  `__FB_OPTION_BYVAL__` is set to non-zero (-1) if by default parameters are passed value, and zero (0) if by default parameters are passed by reference.
 
- The default for passing parameters by reference or by value is determined by the *[-lang](Compiler-Option-Lang)* command line option used during compilation or usage of [`Option ByVal`](Option-Byval) in the source file.
+ The default for passing parameters by reference or by value is determined by the *[-lang](Compiler-Option-Lang)* command line option used during compilation or usage of `Option ByVal` in the source file.
 
 ## Remarks
 
@@ -28,7 +28,6 @@ Indicates if parameters to a [`Function`](procedures-Function) or [`Sub`](Sub) a
 
 - [`ByVal`](Byval)
 - [`ByRef`](Byref-Parameters)
-- [`Option ByVal`](Option-Byval)
 
 ## Examples
 

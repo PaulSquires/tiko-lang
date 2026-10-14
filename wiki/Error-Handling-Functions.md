@@ -59,7 +59,6 @@ Resumes execution at the line after where the error occurred.
 See also
 
 - [Error Handling](Error-Handling)
-- [Runtime Error Codes](Runtime-Error-Codes)
 
 ---
 

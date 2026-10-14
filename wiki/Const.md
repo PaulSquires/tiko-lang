@@ -13,10 +13,10 @@ Const [AS DataType] symbolname1 = value1 [, symbolname2 = value2, ...]
 
 ## Description
 
-Declares non-modifiable constant data that can be integer or decimal (floating-point) numbers or strings. The constant type will be inferred if [`DataType`](Data-Types) isn't explicitly given.
+Declares non-modifiable constant data that can be integer or decimal (floating-point) numbers or strings. The constant type will be inferred if `DataType` isn't explicitly given.
 
- Specifying [`String * Size`](String), [`Zstring * Size`](Zstring) or [`Wstring * Size`](Wstring) as [`DataType`](Data-Types) is not allowed.  
- Specifying [`String`](String) as [`DataType`](Data-Types) is tolerated but without effect because the resulting type is always a [`Zstring * Size`](Zstring).
+ Specifying [`String * Size`](String), [`Zstring * Size`](Zstring) or [`Wstring * Size`](Wstring) as `DataType` is not allowed.  
+ Specifying [`String`](String) as `DataType` is tolerated but without effect because the resulting type is always a [`Zstring * Size`](Zstring).
 
  Constants follow visibility rules similar to those of variables for Namespace blocks, Type blocks, and compound block statements.
 
@@ -24,7 +24,7 @@ Declares non-modifiable constant data that can be integer or decimal (floating-p
 
 ### Differences from QB
 
-- QB does not support the [`As`](As) [`datatype`](Data-Types) syntax.
+- QB does not support the [`As`](As) `datatype` syntax.
 
 ### See also
 

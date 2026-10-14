@@ -14,7 +14,7 @@ End Type|Union
 
 ## Description
 
-`Field` can be used to pack [`Types`](Type-Udt) or [`Unions`](Union) more tightly than [the default layout](Structure-Packing-Field-Alignment). The most commonly used value is `Field = 1`, which causes the `Type` or `Union` to be packed as tightly as possible, without any padding bytes being added between the fields or at the end of the `Type`. `Field` can only be used to decrease field alignment, but it cannot be used to increase it. In order to add padding bytes, a `Union` with appropriate members could be used instead.
+`Field` can be used to pack [`Types`](Type-Udt) or [`Unions`](Union) more tightly than the default layout. The most commonly used value is `Field = 1`, which causes the `Type` or `Union` to be packed as tightly as possible, without any padding bytes being added between the fields or at the end of the `Type`. `Field` can only be used to decrease field alignment, but it cannot be used to increase it. In order to add padding bytes, a `Union` with appropriate members could be used instead.
 
 ## Remarks
 
@@ -30,7 +30,6 @@ End Type|Union
 
 - [`Type`](Type-Udt)
 - [`Union`](Union)
-- [Structure packing/field alignment](Structure-Packing-Field-Alignment)
 
 ## Examples
 

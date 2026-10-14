@@ -23,7 +23,7 @@ Branches to different labels depending on the value of *expression*. An expressi
 ### Dialect Differences
 
 - Only available in the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects.
-  `On Gosub` support is disabled by default in the *[-lang fblite](Compiler-Option-Lang)* unless the [`Option Gosub`](Option-Gosub) statement is used.
+  `On Gosub` support is disabled by default in the *[-lang fblite](Compiler-Option-Lang)* unless the `Option Gosub` statement is used.
 
 ### Differences from QB
 
@@ -35,8 +35,6 @@ Branches to different labels depending on the value of *expression*. An expressi
 - [`On...Goto`](On-Goto)
 - [`GoSub`](Gosub)
 - [`Return (From Gosub)`](Return-From-Gosub)
-- [`Option Gosub`](Option-Gosub)
-- [`Labels`](Labels)
 
 ## Examples
 

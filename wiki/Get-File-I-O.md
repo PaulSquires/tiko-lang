@@ -76,7 +76,6 @@ varres = Get (#filenum, position, data [, [amount] [, bytesread ] ] )
 - [`Binary`](Binary)
 - [`Random`](Random)
 - [`FreeFile`](Freefile)
-- [`File I/O methods comparison`](File-I-O-with-Freebasic)
 
 ## Examples
 

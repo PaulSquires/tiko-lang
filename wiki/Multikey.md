@@ -54,7 +54,6 @@ Returns `-1` if the key for the specified [scan code](Dos-Keyboard-Scancodes) is
 - [`Inkey`](Inkey)
 - [`Event`](Event-Message-Data-From-Screenevent)
 - [`ScreenEvent`](Screenevent)
-- [Keyboard Input](Keyboard-Input)
 
 ## Examples
 

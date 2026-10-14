@@ -8,7 +8,7 @@ Get or set the run-time error number
 
 The `Err()` function returns the FreeBASIC run-time error number (a 32 bit [`Long`](Long)) which can be set by the built-in statements and functions, or by the program through `Err = number` or [`Error`](Error). Unlike [`Error`](Error), `Err = number` sets the error number without invoking an error handler.
 
- See [Runtime Error Codes](Runtime-Error-Codes) for a listing of the predefined runtime error numbers and their associated meaning. The program may use additional custom error numbers.
+ See Runtime Error Codes for a listing of the predefined runtime error numbers and their associated meaning. The program may use additional custom error numbers.
 
  `Err` can always be used, even if QB-like error handling is not enabled. `Err` is reset by [`Resume`](Resume) and [`Resume Next`](Resume-Next).
 
@@ -38,7 +38,6 @@ Err = number
 - [`On Error`](On-Error)
 - [`Error`](Error)
 - [Error Handling](Error-Handling)
-- [Runtime Error Codes](Runtime-Error-Codes)
 
 ## Examples
 

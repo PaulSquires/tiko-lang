@@ -14,7 +14,7 @@ ByRef param As datatype
 
 Passes a variable by reference, that is its address, to a subroutine or function. When a variable is passed by reference, the contents of the variable can be changed by the target subroutine or function.
 
- In *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, `ByRef` is the default parameter passing convention, unless [`Option ByVal`](Option-Byval) is in effect.
+ In *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, `ByRef` is the default parameter passing convention, unless `Option ByVal` is in effect.
 
  Opposite of [`ByVal`](Byval).
 
@@ -41,7 +41,6 @@ Passes a variable by reference, that is its address, to a subroutine or function
 
 ### See also
 
-- [Passing Arguments to Procedures](Passing-Arguments-to-Procedures)
 - [`Declare`](Declare)
 - [`ByVal`](Byval)
 - [`Byref (Function Results)`](Byref-Function-Results)

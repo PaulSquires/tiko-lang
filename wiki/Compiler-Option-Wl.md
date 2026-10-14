@@ -2,7 +2,7 @@
 
 # Compiler Option: -Wl
 
-> **In tiko:** the value is split at commas, each piece reaches the linker as one argument after everything else on the link line, and repeated `-Wl` options accumulate. It works in [`#cmdline`](Cmdline) and in `tiko.toml`'s `options`. tiko links through clang, so each piece is passed as `-Xlinker <piece>`, and the linker is `lld-link` on windows-x86_64 (`-Wl /STACK:8388608`) and the system linker on linux-x86_64 (`-Wl -rpath,$ORIGIN`, which lets a program find a `.so` beside itself; quote it in a shell: `-Wl '-rpath,$ORIGIN'`). See [Using C Libraries](Using-C-Libraries-Tutorial).
+> **In tiko:** the value is split at commas, each piece reaches the linker as one argument after everything else on the link line, and repeated `-Wl` options accumulate. It works in `#cmdline` and in `tiko.toml`'s `options`. tiko links through clang, so each piece is passed as `-Xlinker <piece>`, and the linker is `lld-link` on windows-x86_64 (`-Wl /STACK:8388608`) and the system linker on linux-x86_64 (`-Wl -rpath,$ORIGIN`, which lets a program find a `.so` beside itself; quote it in a shell: `-Wl '-rpath,$ORIGIN'`). See [Using C Libraries](Using-C-Libraries-Tutorial).
 
 Pass options to linker
 

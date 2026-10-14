@@ -25,7 +25,6 @@ Sets the next-data-to-read pointer to the first element of the first [`Data`](Da
 
 - [`Data`](Data)
 - [`Read`](Read)
-- [`Labels`](Labels)
 
 ## Examples
 

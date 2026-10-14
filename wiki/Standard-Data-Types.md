@@ -121,7 +121,6 @@ Super class providing run-time type information
 See also
 
 - [Variable types and limits](Standard-Data-Type-Limits)
-- [Pointers to Procedures](Pointers-to-Procedures)
 
 ---
 

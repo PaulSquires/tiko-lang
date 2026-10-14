@@ -81,14 +81,6 @@
 - [Intrinsic Defines](Category-Intrinsic-Defines)
 - [Miscellaneous Keywords](Category-Miscellaneous-Keywords)
 - [Modularizing](Category-Modularizing)
-- [Compiler](Category-Compiler)
-- [Compiler Options](Category-Compiler-Options)
-- [Compiler Switches](Category-Compiler-Switches)
-- [FreeBASIC dialects and QBASIC](Category-FreeBASIC-dialects-and-QBASIC)
-- [Tutorials](Category-Tutorials)
-- [FAQs](Category-FAQs)
-- [Miscellaneous](Category-Miscellaneous)
-- [Reference](Category-Reference)
 
 ---
 

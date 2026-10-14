@@ -29,7 +29,6 @@ In procedure definitions (forbidden at declaration line level), `Public` specifi
 
 - [`Public:`](Public-Access-Control) (Access Control)
 - [`Private`](Private)
-- [`Option Private`](Option-Private)
 - [`Sub`](Sub)
 - [`Function`](procedures-Function)
 

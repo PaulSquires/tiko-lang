@@ -33,7 +33,7 @@ Circle [target,] [STEP] (x,y), radius[, [color][, [start][, [end][, [aspect][, F
 
  The `Step` option specifies that `x` and `y` are offsets relative to the current graphics cursor position.
 
- `start` and `end` are angles are in [radians](Radian-System-of-Measuring-Angles). These can range `-2*PI` to `2*PI`, where `PI` is the constant π, approximately `3.141593`; if you specify a negative angle, its value is changed sign and a line is drawn from the center up to that point in the arc. `end` angle can be less than `start`. If you do not specify `start` and `end`, a full circle/ellipse is drawn; if you you specify `start` but not `end`, `end` is assumed to be `2*PI`; if you specify `end` but not `start`, `start` is assumed to be `0.0`.
+ `start` and `end` are angles are in radians. These can range `-2*PI` to `2*PI`, where `PI` is the constant π, approximately `3.141593`; if you specify a negative angle, its value is changed sign and a line is drawn from the center up to that point in the arc. `end` angle can be less than `start`. If you do not specify `start` and `end`, a full circle/ellipse is drawn; if you you specify `start` but not `end`, `end` is assumed to be `2*PI`; if you specify `end` but not `start`, `start` is assumed to be `0.0`.
 
  `aspect` is the aspect ratio, or the ratio of the y radius over the x radius. If omitted, the default for [`ScreenRes`](Screenres) modes is `1.0`, while for [`Screen (Graphics)`](Screen-Graphics) modes the default value is the value required to draw a perfect circle on the screen, keeping the pixel aspect ratio in mind. This value can be calculated as follows:
 

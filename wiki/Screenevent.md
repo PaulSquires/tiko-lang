@@ -58,9 +58,7 @@ Returns `-1` if there are pending events to be retrieved, `0` otherwise.
 - [`Inkey`](Inkey)
 - [`MultiKey`](Multikey)
 - [`GetMouse`](Getmouse)
-- [Event Handling](Event-Handling)
 - [Keyboard scancodes](Dos-Keyboard-Scancodes)
-- [Keyboard Input](Keyboard-Input)
 
 ## Examples
 

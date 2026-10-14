@@ -38,7 +38,6 @@ End {Sub | Function}
 ### See also
 
 - [`Asm`](Asm)
-- [`Calling Conventions`](Calling-Conventions)
 - [`Function`](procedures-Function)
 - [`Sub`](Sub)
 - [`cdecl`](Cdecl)

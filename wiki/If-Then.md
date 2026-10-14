@@ -44,7 +44,7 @@ In the *[-lang fb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-La
 
 ### Dialect Differences
 
-- In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, variables declared inside an `If`..`Then` block have a procedure-wide [scope](Variable-Scope) as in QB
+- In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, variables declared inside an `If`..`Then` block have a procedure-wide scope as in QB
   In the *[-lang fb](Compiler-Option-Lang)* and *[-lang deprecated](Compiler-Option-Lang)* dialects, variables declared inside an `If`..`Then` block are visible only inside the block, and cannot be accessed outside it. To access duplicated symbols defined as global outside this block, add one or preferably two dot(s) as prefix: `.SomeSymbol` or preferably `..SomeSymbol` (or only `..SomeSymbol` if inside a [With..End With](With) block).  
   In the *[-lang qb](Compiler-Option-Lang)* dialect, if there is a new line or a single-line comment (`'`) directly after THEN, then the IF will be multi-line. A colon, a [`Rem`](Rem) or any other statement will result in a single-line IF.  
   In the *[-lang fb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, if there is a new line, a single-line comment (`'`), a colon (`:`), or a [`Rem`](Rem) statement directly after THEN, then the IF will be multi-line. Any other statement will result in a single-line IF.

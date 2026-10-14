@@ -20,7 +20,7 @@ The compiler will not recognize this function unless `vbcompat.bi` is included.
 
 ## Return Value
 
-Returns the minute from a variable containing a date in [Date Serial](Date-Serials) format.
+Returns the minute from a variable containing a date in Date Serial format.
 
 ## Remarks
 
@@ -35,10 +35,6 @@ result = Minute( date_serial )
 ### Differences from QB
 
 - Did not exist in QB. This function appeared in PDS and VBDOS
-
-### See also
-
-- [Date Serials](Date-Serials)
 
 ## Examples
 

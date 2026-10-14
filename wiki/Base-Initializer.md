@@ -36,7 +36,6 @@ The `Base` initializer can be used at the top of constructors of derived UDTs. I
 - [`Extends`](Extends)
 - [`Extends Zstring`](Extends-Zstring)
 - [`Extends Wstring`](Extends-Wstring)
-- [`Option Base`](Option-Base)
 
 ## Examples
 

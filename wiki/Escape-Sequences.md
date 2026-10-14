@@ -35,7 +35,6 @@ See also
 
 - [Operator ! (Escaped String)](Operator-Escaped-String-Literal)
 - [Operator $ (Non-Escaped String)](Operator-Non-Escaped-String-Literal)
-- [`Option Escape`](Option-Escape)
 - [`String`](String)
 - [`Chr`](Chr)
 - [Literals](Literals)

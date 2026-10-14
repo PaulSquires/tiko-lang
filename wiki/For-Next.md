@@ -51,7 +51,7 @@ A `For...Next` loop initializes `iterator` to `startvalue`, then executes the `s
 ### Dialect Differences
 
 - In the *[-lang fb](Compiler-Option-Lang)* and *[-lang deprecated](Compiler-Option-Lang)* dialects, variables declared inside a `For`..`Next` block are visible only inside the block, and cannot be accessed outside it. To access duplicated symbols defined as global outside this block, add one or preferably two dot(s) as prefix: `.SomeSymbol` or preferably `..SomeSymbol` (or only `..SomeSymbol` if inside a [With..End With](With) block).
-  In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, variables declared inside a `For`..`Next` block (including the counter if declared, and any temporary variables used to hold `endvalue` or *`stepvalue`*), have a procedure-wide [scope](Variable-Scope) as in QB
+  In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, variables declared inside a `For`..`Next` block (including the counter if declared, and any temporary variables used to hold `endvalue` or *`stepvalue`*), have a procedure-wide scope as in QB
 
 ### Differences from QB
 

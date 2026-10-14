@@ -1,4 +1,4 @@
-[Home](Home) › [Tutorials](Category-Tutorials) › [Using C Libraries](Using-C-Libraries-Tutorial) › **GLFW**
+[Home](Home) › [Using C Libraries](Using-C-Libraries-Tutorial) › **GLFW**
 
 # GLFW Tutorial
 
@@ -186,4 +186,4 @@ On Windows, `opengl32.dll` exports only the functions of OpenGL 1.1, from 1997, 
 
 **Next:** [SDL3](SDL3-Tutorial) · **Back:** [raylib](Raylib-Tutorial) · [SQLite](SQLite-Tutorial)
 
-[Home](Home) · [Tutorials](Category-Tutorials)
+[Home](Home)

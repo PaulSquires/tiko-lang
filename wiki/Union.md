@@ -69,7 +69,6 @@ The main structure (Type/Union) must be always named, the other (nested) structu
 ### See also
 
 - [`Type`](Type-Udt)
-- [Coercion and Conversion](Coercion-and-Conversion)
 
 ## Examples
 

@@ -127,7 +127,6 @@ Both paths are relative to `mylib.ti`, and the using code needs no `declare` and
 - [Using C Libraries](Using-C-Libraries-Tutorial), from download to running program for four real libraries
 - [`#inclib`](Inclib) · [`#libpath`](Libpath) · [`Lib`](Lib)
 - [Compiler Option: -l](Compiler-Option-L) · [Compiler Option: -p](Compiler-Option-P)
-- [Static Libraries](Static-Libraries) · [Shared Libraries](Shared-Libraries)
 
 ## Examples
 

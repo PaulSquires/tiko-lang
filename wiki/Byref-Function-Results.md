@@ -30,7 +30,6 @@ Causes the function result to be returned by reference, rather than by value. A 
 
 ### See also
 
-- [Returning values](Returning-Values)
 - [`Byref (Parameters)`](Byref-Parameters)
 - [`Byref (Variables)`](Byref-Variables)
 

@@ -59,7 +59,7 @@ Multiple checks can be made in each `Case`, by separating them by a comma (`,`).
 
 - `Select Case As Const` did not exist in QB.
   in an "`expr1 TO expr2`" case, QB would always evaluate both expressions, even if `expr1` was higher than the original expression.  
-  In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, variables declared inside a `Select`..`End Select` block have a function-wide [scope](Variable-Scope) as in QB.  
+  In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, variables declared inside a `Select`..`End Select` block have a function-wide scope as in QB.  
   In the *[-lang fb](Compiler-Option-Lang)* and *[-lang deprecated](Compiler-Option-Lang)* dialects, variables declared inside a `Select`..`End Select` block are visible only inside the block, and can't be accessed outside it. To access duplicated symbols defined as global outside this block, add one or preferably two dot(s) as prefix: `.SomeSymbol` or preferably `..SomeSymbol` (or only `..SomeSymbol` if inside a [With..End With](With) block).
 
 ### See also

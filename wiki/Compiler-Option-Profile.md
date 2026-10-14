@@ -15,7 +15,6 @@ The `-profile` compiler option enables profiling code generation for gmon/gprof.
 See also
 
 - [Compiler Option: -profgen](Compiler-Option-Profgen)
-- [Profiling for gmon/gprof](Profiling-for-Gmon-Gprof)
 - [Using the Command Line](Quick-Start#compile-a-program)
 
 ---

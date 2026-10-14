@@ -67,7 +67,7 @@ In the first usage, `Open()` returns a 32 bit [`Long`](Long) value: zero (`0`) o
 
 ### See also
 
-- [`Err`](Err) (and [a list of error codes](Runtime-Error-Codes))
+- [`Err`](Err) (and a list of error codes)
   [`Close`](Close)  
   [`FreeFile`](Freefile)  
   [`Open Cons`](Open-Cons), [`Open Err`](Open-Err), [`Open Pipe`](Open-Pipe), [`Open Lpt`](Open-Lpt), [`Open Com`](Open-Com), [`Open Scrn`](Open-Scrn)

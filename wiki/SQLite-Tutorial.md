@@ -1,4 +1,4 @@
-[Home](Home) › [Tutorials](Category-Tutorials) › [Using C Libraries](Using-C-Libraries-Tutorial) › **SQLite**
+[Home](Home) › [Using C Libraries](Using-C-Libraries-Tutorial) › **SQLite**
 
 # SQLite Tutorial
 
@@ -291,4 +291,4 @@ This links the distribution's SQLite, which is 3.45.1 on Ubuntu 24.04. For a new
 
 **Next:** [raylib](Raylib-Tutorial) · [GLFW](GLFW-Tutorial) · [SDL3](SDL3-Tutorial)
 
-[Home](Home) · [Tutorials](Category-Tutorials)
+[Home](Home)

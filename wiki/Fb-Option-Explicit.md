@@ -12,7 +12,7 @@ __FB_OPTION_EXPLICIT__
 
 ## Description
 
-`__FB_OPTION_EXPLICIT__` indicates if [`Option Explicit`](Option-Explicit) has been used previously in the source.
+`__FB_OPTION_EXPLICIT__` indicates if `Option Explicit` has been used previously in the source.
 
  Returns zero (0) if the option has not been set. Returns non-zero (-1) if the option has been set.
 
@@ -25,7 +25,6 @@ __FB_OPTION_EXPLICIT__
 ### See also
 
 - [`Dim`](Dim)
-- [`Option Explicit`](Option-Explicit)
 
 ## Examples
 

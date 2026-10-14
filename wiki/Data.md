@@ -23,7 +23,7 @@ Data constant_expression1 [,constant_expression2]...
 
  The "`Restore label`" statement makes the first `Data` item after the `label` the next item to be read, allowing the user to choose specific sections of data to read.
 
- `Data` is normally used to initialize variables. FreeBASIC also allows the initialization of static variables when they are [`Dim`](Dim)ensioned - see [Variable Initializers](Variable-Initializers) for more information.
+ `Data` is normally used to initialize variables. FreeBASIC also allows the initialization of static variables when they are [`Dim`](Dim)ensioned - see Variable Initializers for more information.
 
 ## Remarks
 

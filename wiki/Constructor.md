@@ -65,7 +65,6 @@ A copy `Constructor` can not declare its parameter (the object to clone) by valu
 - [`New Expression`](Operator-New-Expression)
 - [`Destructor`](Destructor)
 - [`Type`](Type-Udt)
-- [Coercion and Conversion](Coercion-and-Conversion)
 
 ## Examples
 

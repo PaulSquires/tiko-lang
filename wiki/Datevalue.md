@@ -24,7 +24,7 @@ The date string must be in the format set in the regional settings of the Operat
 
 ## Return Value
 
-Returns a [Date Serial](Date-Serials) from a date string.
+Returns a Date Serial from a date string.
 
 ## Remarks
 
@@ -42,7 +42,6 @@ result = DateValue( date_string )
 
 ### See also
 
-- [Date Serials](Date-Serials)
 - [`DateSerial`](Dateserial)
 - [`TimeValue`](Timevalue)
 

@@ -120,5 +120,4 @@ A variadic constructor is not a default constructor: `dim as T x` still needs on
 ## See Also
 
 - [strings.Format](Category-Format), which takes its arguments this way
-- [Variadic Arguments](Variadic-Arguments), the C-style `...`
 - [Feature Index](Feature-Index)

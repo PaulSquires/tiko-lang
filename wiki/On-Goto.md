@@ -27,7 +27,6 @@ Branches to different labels depending on the value of *expression*. An expressi
 - [`Select Case`](procedures-Select-Case)
 - [`On...Gosub`](On-Gosub)
 - [`Goto`](Goto)
-- [`Labels`](Labels)
 
 ## Examples
 

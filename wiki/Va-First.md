@@ -12,7 +12,7 @@ pointer_variable = va_first()
 
 ## Description
 
-The `va_first` function provides an untyped [pointer](Pointers) value that points to the first variable argument passed to a function.
+The `va_first` function provides an untyped pointer value that points to the first variable argument passed to a function.
 
  Not supported when using [`-gen gcc`](Compiler-Option-Gen). Use [`Cva_List`](Cva-List) variadic argument list type for cross platform compatibility.
 

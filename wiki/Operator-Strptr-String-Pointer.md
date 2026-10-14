@@ -47,7 +47,6 @@ Returns a `ZString/WString Ptr` to a string/wstring's character data (null value
 - [`SAdd`](Sadd)
 - [`VarPtr`](Operator-Varptr-Variable-Pointer)
 - [`ProcPtr`](Operator-Procptr-Procedure-Pointer-and-Vtable-Index)
-- [Pointers](Pointers)
 
 ## Examples
 

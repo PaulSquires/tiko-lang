@@ -28,7 +28,7 @@ The `While` statement will cause the following set of statements in the `stateme
 
 ### Dialect Differences
 
-- In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, variables declared inside a `While`..`Wend` loop have a function-wide [scope](Variable-Scope) as in QB
+- In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, variables declared inside a `While`..`Wend` loop have a function-wide scope as in QB
   In the *[-lang fb](Compiler-Option-Lang)* and *[-lang deprecated](Compiler-Option-Lang)* dialects, variables declared inside a `While`..`Wend` block are visible only inside the block, and can't be accessed outside it. To access duplicated symbols defined as global outside this block, add one or preferably two dot(s) as prefix: `.SomeSymbol` or preferably `..SomeSymbol` (or only `..SomeSymbol` if inside a [With..End With](With) block).
 
 ### Differences from QB

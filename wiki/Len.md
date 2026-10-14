@@ -21,7 +21,7 @@ Declare Function Len ( datatype ) As Integer
 
 ## Description
 
-`Len` returns the length of an expression or the size of a [DataType](Data-Types), in bytes.
+`Len` returns the length of an expression or the size of a DataType, in bytes.
 
  In the first form, if `expression` is of type [`String`](String), [`WString`](Wstring) or [`ZString`](Zstring), the length of the string in characters will be returned. If the expression is of a user defined type, an `Operator Len` compatible with that data type is called. Otherwise, the size of the `expression`'s data type in bytes is returned.
 
@@ -36,7 +36,7 @@ Declare Function Len ( datatype ) As Integer
 
 ## Return Value
 
-Returns the size of an expression or [DataType](Data-Types) (including the data fields of a UDT) in bytes.
+Returns the size of an expression or DataType (including the data fields of a UDT) in bytes.
 
 ## Remarks
 

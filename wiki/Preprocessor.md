@@ -120,7 +120,7 @@ Sets compiling options.
 
 Reserves symbol name.
 
-**[#Cmdline](Cmdline)**
+**#Cmdline**
 
 Sets compiler command options from source.
 
@@ -146,7 +146,7 @@ Sets the current line number and file name.
 
 ***Metacommands***
 
-**['$Include](Include)**
+**'$Include**
 
 Alternate form of the [#include](procedures-Include) directive.
 
@@ -158,7 +158,7 @@ Alternate form of the [Option Dynamic](Option-Dynamic) statement.
 
 Alternate form of the [Option Static](Option-Static) statement.
 
-**['$Lang](Lang)**
+**'$Lang**
 
 Alternate form of the [#lang](procedures-Lang) directive.
 

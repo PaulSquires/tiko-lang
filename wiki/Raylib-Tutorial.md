@@ -1,4 +1,4 @@
-[Home](Home) › [Tutorials](Category-Tutorials) › [Using C Libraries](Using-C-Libraries-Tutorial) › **raylib**
+[Home](Home) › [Using C Libraries](Using-C-Libraries-Tutorial) › **raylib**
 
 # raylib Tutorial
 
@@ -335,4 +335,4 @@ The program then finds `libraylib.so.600` beside it wherever it is copied. In a 
 
 **Next:** [GLFW](GLFW-Tutorial) · [SDL3](SDL3-Tutorial) · **Back:** [SQLite](SQLite-Tutorial)
 
-[Home](Home) · [Tutorials](Category-Tutorials)
+[Home](Home)

@@ -10,9 +10,9 @@ Syntax
 
 Description
 
-The `-edebug` compiler option defines the intrinsic macro [`__FB_DEBUG__`](Fb-Debug) to enable user debug code.
+The `-edebug` compiler option defines the intrinsic macro `__FB_DEBUG__` to enable user debug code.
 
- The intrinsic macro [`__FB_DEBUG__`](Fb-Debug) is set to non-zero (-1) if the option was specified, and set to zero (0) otherwise.
+ The intrinsic macro `__FB_DEBUG__` is set to non-zero (-1) if the option was specified, and set to zero (0) otherwise.
 
  `-edebug` is automatically implied by the [`-g`](Compiler-Option-G) option.
 
@@ -23,7 +23,6 @@ Version
 
 See also
 
-- [`__FB_DEBUG__`](Fb-Debug)
 - [`__FB_ERR__`](Fb-Err)
 - [Compiler Option: -eassert](Compiler-Option-Eassert)
 - [Compiler Option: -debuginfo](Compiler-Option-Edebuginfo)

@@ -65,7 +65,6 @@ result = ImageInfo( image , width , height [, [ bypp ] [, [ pitch ] [ , [ pixdat
 - [`ImageConvertRow`](Imageconvertrow)
 - [`Get (Graphics)`](Get-Graphics)
 - [`Put (Graphics)`](Put-Graphics)
-- [Internal pixel formats](Internal-Graphics-Formats)
 
 ## Examples
 

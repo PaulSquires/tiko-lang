@@ -53,7 +53,6 @@ If the image could not be created, NULL (`0`) is returned, otherwise, the addres
 - [`ImageDestroy`](Imagedestroy)
 - [`ImageInfo`](Imageinfo)
 - [`Get (Graphics)`](Get-Graphics)
-- [Internal pixel formats](Internal-Graphics-Formats)
 
 ## Examples
 

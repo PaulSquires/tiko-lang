@@ -22,7 +22,7 @@ The time string must be in the format `"23:59:59"` or `"11:59:59PM"`
 
 ## Return Value
 
-Returns a [Date Serial](Date-Serials) from a time string.
+Returns a Date Serial from a time string.
 
 ## Remarks
 
@@ -40,7 +40,6 @@ result = TimeValue( timestring )
 
 ### See also
 
-- [Date Serials](Date-Serials)
 - [`DateSerial`](Dateserial)
 - [`TimeValue`](Timevalue)
 - [`DateValue`](Datevalue)

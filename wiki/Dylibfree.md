@@ -44,7 +44,7 @@ Declare Sub DyLibFree ( ByVal libhandle As Any Pointer )
 
 ## Examples
 
-See the dynamic loading example on the [Shared Libraries](Shared-Libraries) page.
+See the dynamic loading example on the Shared Libraries page.
 
 ---
 

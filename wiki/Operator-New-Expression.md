@@ -34,7 +34,7 @@ The `New Expression` operator dynamically allocates memory and constructs a spec
 
 ## Return Value
 
-A pointer of type [datatype](Data-Types) to the newly allocated data, or null pointer if the memory allocation failed.
+A pointer of type datatype to the newly allocated data, or null pointer if the memory allocation failed.
 
 ## Remarks
 

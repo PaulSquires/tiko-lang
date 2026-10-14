@@ -43,7 +43,7 @@ Declare Function Screen ( ByVal row As Long, ByVal column As Long, ByVal colorfl
 
 ## Return Value
 
-The [ASCII](Table-of-Ascii-Characters) or color attribute of the character.
+The ASCII or color attribute of the character.
 
 ## Remarks
 

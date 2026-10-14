@@ -1,4 +1,4 @@
-[Home](Home) › [Tutorials](Category-Tutorials) › **Using C Libraries**
+[Home](Home) › **Using C Libraries**
 
 # Using C Libraries Tutorial
 
@@ -220,4 +220,4 @@ A program then needs one line, `#import "raylib"`. Install the module for every 
 
 ---
 
-[Home](Home) · [Tutorials](Category-Tutorials)
+[Home](Home)

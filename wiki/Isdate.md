@@ -24,7 +24,7 @@ Date strings must be in the format set in the regional settings of the OS to be 
 
 ## Return Value
 
-Returns non-zero (-1) if the date string can be converted to a [Date Serial](Date-Serials), otherwise returns zero (0).
+Returns non-zero (-1) if the date string can be converted to a Date Serial, otherwise returns zero (0).
 
 ## Remarks
 
@@ -42,7 +42,6 @@ result = IsDate( stringdate )
 
 ### See also
 
-- [Date Serials](Date-Serials)
 - [`DateSerial`](Dateserial)
 - [`TimeValue`](Timevalue)
 - [`DateValue`](Datevalue)

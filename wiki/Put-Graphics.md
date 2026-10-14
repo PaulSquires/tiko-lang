@@ -40,11 +40,11 @@ Depending on the method used, the existing pixel values in the destination buffe
 
 The pixel format of an image buffer must be compatible with the current graphics mode color depth; that is, if you acquire an image using [`Get`](Get-Graphics) and you later change screen mode via the [`Screen (Graphics)`](Screen-Graphics) statement, the image data may not be valid in the new graphics mode, and you may not be able to draw it on the screen. You should note however that you will always be able to draw image buffers onto other image buffers via `Put` as long as these buffers were created with the same depth.
 
- The `AND`, `OR` and `XOR` methods produce different results depending on the current color depth, as pixels are stored in different formats; see [Internal pixel formats](Internal-Graphics-Formats) for details.
+ The `AND`, `OR` and `XOR` methods produce different results depending on the current color depth, as pixels are stored in different formats; see Internal pixel formats for details.
 
 **Mask Color**
 
-The `TRANS`, `ALPHA` and `ADD` methods do not draw pixels in the source image that use the mask color. The mask color depends on target (being it an image buffer or the screen) depth: in depths up to 8 bpp (paletted modes) it is equal to color index `0`, while in hi/truecolor depths (16 and 32 bpp) it is equal to magenta, which is `RGB(255, 0, 255)`. Note that in 32 bpp modes the alpha value of a color does not affect the identification of the transparent color; only the lower 24 bits are used to identify it. See [Internal pixel formats](Internal-Graphics-Formats) for details.
+The `TRANS`, `ALPHA` and `ADD` methods do not draw pixels in the source image that use the mask color. The mask color depends on target (being it an image buffer or the screen) depth: in depths up to 8 bpp (paletted modes) it is equal to color index `0`, while in hi/truecolor depths (16 and 32 bpp) it is equal to magenta, which is `RGB(255, 0, 255)`. Note that in 32 bpp modes the alpha value of a color does not affect the identification of the transparent color; only the lower 24 bits are used to identify it. See Internal pixel formats for details.
 
 **Alpha drawing**
 
@@ -83,7 +83,6 @@ The `CUSTOM` method uses a user-defined function to calculate the final pixel va
 - [`Get (Graphics)`](Get-Graphics)
 - [`ImageCreate`](Imagecreate)
 - [`Alpha`](Alpha)
-- [Internal pixel formats](Internal-Graphics-Formats)
 
 ## Examples
 

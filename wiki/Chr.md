@@ -16,11 +16,11 @@ Declare Function Chr ( ByVal ch As Integer [, ... ] ) As String
 
 ## Description
 
-`Chr` returns a string containing the character(s) represented by the [ASCII](Table-of-Ascii-Characters) values passed to it.
+`Chr` returns a string containing the character(s) represented by the ASCII values passed to it.
 
  When `Chr` is used with numerical constants or literals, the result is evaluated at compile-time, so it can be used in variable initializers.
 
- [`Asc`](Asc) performs the opposite function, returning the [ASCII](Table-of-Ascii-Characters) code of a character represented by a string.
+ [`Asc`](Asc) performs the opposite function, returning the ASCII code of a character represented by a string.
 
 ## Return Value
 
@@ -45,7 +45,6 @@ Returns a string containing the character(s).
 
 ### See also
 
-- [ASCII Character Codes](Table-of-Ascii-Characters)
 - [`WChr`](Wchr)
 - [`Asc`](Asc)
 - [`Str`](Str)

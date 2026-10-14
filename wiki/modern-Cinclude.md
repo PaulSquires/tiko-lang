@@ -36,7 +36,7 @@ That is the whole binding. There is no `.ti` file to write, no `declare`, and no
 | | |
 |---|---|
 | `public` | Only in a module file. The header's names become names of every program that imports the module. Without it, a `#cinclude` in a module is private to the module. |
-| `once` | Optional. Include the binding only the first time the directive is reached, as for [`#include`](Include). |
+| `once` | Optional. Include the binding only the first time the directive is reached, as for `#include`. |
 | `"header.h"` | The header, spelled as in C. |
 
 `public #cinclude` outside a module file is `TKO0369: 'public #cinclude' is allowed only in a module file`.
@@ -51,7 +51,7 @@ A quoted header is looked for:
 
 Headers that the header itself includes with angle brackets (`#include <lib/other.h>`) are found only in the `-cinclude` directories and in clang's system include directories.
 
-A `-cinclude` directory on the command line or in [`#cmdline`](Cmdline) is relative to the working directory. In `tiko.toml`'s `options` it is relative to `tiko.toml`.
+A `-cinclude` directory on the command line or in `#cmdline` is relative to the working directory. In `tiko.toml`'s `options` it is relative to `tiko.toml`.
 
 Because the working directory is searched first, a header there of the same name wins over the one beside the file. Give vendored headers a specific path, such as `"vendor/sqlite/sqlite3.h"`.
 
@@ -242,7 +242,6 @@ For a library installed on the system, name it with `system:`, or with [`#inclib
 - [#cinclude Tutorial](modern-Cinclude-tutorial), start here
 - [`#foreignlib`](modern-Foreignlib) and its [tutorial](modern-Foreignlib-tutorial), the linkage half
 - [Using C Libraries](Using-C-Libraries-Tutorial), from download to running program for four real libraries
-- [`#include`](Include) · [`#inclib`](Inclib) · [`#libpath`](Libpath)
 - [`Alias`](Alias-Modifier) · [`Extern`](Extern) · [`Declare`](Declare)
 - [`DyLibLoad`](Dylibload)
 

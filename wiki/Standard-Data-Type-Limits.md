@@ -63,7 +63,6 @@ Standard variable types and limits.
 
 See also
 
-[Usage of suffixes for variables](Identifier-Rules)  
  [Usage of suffixes for literals / numbers](Literals)
 
 ---

@@ -19,7 +19,7 @@ Declare Function BLoad ( ByRef filename As Const String, ByVal dest As Any Ptr =
 ## Description
 
 `BLoad` can be used to load image data or any other data from a file created with [`BSave`](Bsave), and store that data in an array or paste it to the screen. If `dest` is absent or null (`0`), the image data is pasted to the current graphics screen work page. Otherwise it is loaded as image data to the address given by `dest`.  
- `BLoad` must be called only if a graphics mode is initialized, else the program crashes (see [`BLOAD/BSAVE text mode work-around`](Bload-Bsave-Text-Mode-Work-Around) to work in text mode).
+ `BLoad` must be called only if a graphics mode is initialized, else the program crashes (see `BLOAD/BSAVE text mode work-around` to work in text mode).
 
  `BLoad` can load 3 different types of files:
 
@@ -66,7 +66,6 @@ Returns zero (`0`) if successful, or a non-zero error code to indicate a failure
 - [`Palette`](Palette)
 - [`ImageCreate`](Imagecreate)
 - [`ImageDestroy`](Imagedestroy)
-- [Internal Graphics Formats](Internal-Graphics-Formats)
 
 ## Examples
 

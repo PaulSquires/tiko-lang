@@ -91,7 +91,6 @@ The main structure (Type/Union) must be always named, the other (nested) structu
 - [`Extends Wstring`](Extends-Wstring)
 - [`With`](With)
 - [`Standard Data Type Limits`](Standard-Data-Type-Limits)
-- [Coercion and Conversion](Coercion-and-Conversion)
 
 ## Examples
 

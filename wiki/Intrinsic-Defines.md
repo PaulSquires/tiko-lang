@@ -178,7 +178,7 @@ True (`-1`) if the `"-s gui"` switch was used, false (`0`) otherwise.
 
 Defined if compiling a module with an entry point.
 
-**[\_\_FB_DEBUG\_\_](Fb-Debug)**
+**\_\_FB_DEBUG\_\_**
 
 True (`-1`) if the `"-g"` switch was used, false (`0`) otherwise.
 

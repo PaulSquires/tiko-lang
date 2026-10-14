@@ -15,7 +15,6 @@ The `-export` compiler option exports symbols for dynamic linkage.
 See also
 
 - [`Export`](Export)
-- [Shared Libraries](Shared-Libraries)
 - [Using the Command Line](Quick-Start#compile-a-program)
 
 ---

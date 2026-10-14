@@ -16,7 +16,7 @@ Declare Function Atn ( ByVal number As Double ) As Double
 
 ## Description
 
-`Atn` returns the arctangent of the argument `number` as a [`Double`](Double) within the range of -[Pi](Different-Ways-Angles-Are-Measured)/2 to [Pi](Different-Ways-Angles-Are-Measured)/2. The arctangent is the inverse of the [`Tan`](Tan) function. The returned angle is measured in [radians](Different-Ways-Angles-Are-Measured) (not [degrees](Different-Ways-Angles-Are-Measured)).
+`Atn` returns the arctangent of the argument `number` as a [`Double`](Double) within the range of -Pi/2 to Pi/2. The arctangent is the inverse of the [`Tan`](Tan) function. The returned angle is measured in radians (not degrees).
 
  `Atn` can be overloaded as operator to accept user-defined types.
 
@@ -38,7 +38,6 @@ The angle, in radians, whose tangent is `number`, in the range \[-Pi/2..Pi/2\].
 
 - [`Tan`](Tan)
 - [`Atan2`](Atan2)
-- [A Brief Introduction To Trigonometry](A-Brief-Introduction-to-Trigonometry)
 
 ## Examples
 

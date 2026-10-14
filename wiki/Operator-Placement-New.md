@@ -39,7 +39,7 @@ The `Placement New` operator constructs a specified data type at the specified m
 
 ## Return Value
 
-A pointer of type [`datatype`](Data-Types) to the newly constructed data.
+A pointer of type `datatype` to the newly constructed data.
 
 ## Remarks
 

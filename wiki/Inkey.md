@@ -56,7 +56,6 @@ The first character found in the keyboard buffer, or an empty string (`"``"`) if
 - [`Input()`](Input-2)
 - [`MultiKey`](Multikey)
 - [Keyboard scancodes](Dos-Keyboard-Scancodes)
-- [Keyboard Input](Keyboard-Input)
 
 ## Examples
 

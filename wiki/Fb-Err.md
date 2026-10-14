@@ -50,7 +50,6 @@ __FB_ERR__
 ### See also
 
 - [`__FB_MT__`](Fb-Mt)
-- [`__FB_DEBUG__`](Fb-Debug)
 - [Compiler Option: -e](Compiler-Option-E)
 - [Compiler Option: -ex](Compiler-Option-Ex)
 - [Compiler Option: -exx](Compiler-Option-Exx)

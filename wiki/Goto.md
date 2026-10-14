@@ -36,7 +36,6 @@ Jumps code execution to a line label.
 - [`GoSub`](Gosub)
 - [`Sub`](Sub)
 - [`Function`](procedures-Function)
-- [`Labels`](Labels)
 
 ## Examples
 

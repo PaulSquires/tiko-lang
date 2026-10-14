@@ -24,7 +24,6 @@ __FB_MT__
 
 ### See also
 
-- [`__FB_DEBUG__`](Fb-Debug)
 - [Compiler Option: -mt](Compiler-Option-Mt)
 
 ## Examples

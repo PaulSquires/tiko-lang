@@ -37,9 +37,7 @@ On [Local] Error Goto label
 - [`Error`](Error)
 - [`Local`](Local)
 - [`Err`](Err)
-- [`Runtime Error Codes`](Runtime-Error-Codes)
 - [`Error Handling`](Error-Handling)
-- [`Labels`](Labels)
 
 ## Examples
 

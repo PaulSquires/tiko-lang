@@ -26,7 +26,6 @@ See also
 
 - [`#include`](procedures-Include)
 - [Compiler Option: -include](Compiler-Option-Include)
-- [Header Files](Header-Files-Bi)
 - [Using the Command Line](Quick-Start#compile-a-program)
 
 ---

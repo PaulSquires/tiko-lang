@@ -61,7 +61,7 @@ The compiler will not recognize this function unless `vbcompat.bi` or `datetime.
 
 ## Return Value
 
-Return an integer representing the `interval` in the [Date Serial](Date-Serials).
+Return an integer representing the `interval` in the Date Serial.
 
 ## Remarks
 
@@ -76,10 +76,6 @@ result = DatePart( interval, date_serial, first_dayofWeek [, first_week_of_year 
 ### Differences from QB
 
 - Did not exist in QB. This function appeared in Visual Basic.
-
-### See also
-
-- [Date Serials](Date-Serials)
 
 ## Examples
 

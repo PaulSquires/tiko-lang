@@ -48,7 +48,6 @@ lhs [ rhs ] = value
 
 ### See also
 
-- [Pointer Arithmetic](Pointer-Arithmetic)
 - [`Operator * (Value Of)`](Operator-Value-of)
 - [`Operator [] (String Index)`](Operator-String-Index)
 - [`Operator () (Array Index)`](Operator-Array-Index)

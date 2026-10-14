@@ -27,27 +27,7 @@ List of FreeBASIC keywords sorted by the function they perform.
 
 ***Compiler switches***
 
-- [DefByte](Defbyte)
-- [DefDbl](Defdbl)
-- [DefInt](Defint)
-- [DefLng](Deflng)
-- [DefLongInt](Deflongint)
-- [DefShort](Defshort)
-- [DefSng](Defsng)
-- [DefStr](Defstr)
-- [DefUByte](Defubyte)
-- [DefUInt](Defuint)
-- [Defulongint](Defulongint)
-- [DefUShort](Defushort)
-- [Option Base](Option-Base)
-- [Option ByVal](Option-Byval)
 - [Option Dynamic](Option-Dynamic)
-- [Option Escape](Option-Escape)
-- [Option Explicit](Option-Explicit)
-- [Option Gosub](Option-Gosub)
-- [Option Nogosub](Option-Nogosub)
-- [Option NoKeyword](Option-Nokeyword)
-- [Option Private](Option-Private)
 - [Option Static](Option-Static)
 
 ***Console***
@@ -343,8 +323,6 @@ List of FreeBASIC keywords sorted by the function they perform.
 
 - [$Dynamic](Dynamic)
 - [$Static](Static)
-- [$Include](Include)
-- [$Lang](Lang)
 
 ***Miscellaneous***
 
@@ -456,7 +434,6 @@ List of FreeBASIC keywords sorted by the function they perform.
 - [\_\_FB_BUILD_SHA1\_\_](Fb-Build-Sha1)
 - [\_\_FB_CYGWIN\_\_](Fb-Cygwin)
 - [\_\_FB_DARWIN\_\_](Fb-Darwin)
-- [\_\_FB_DEBUG\_\_](Fb-Debug)
 - [\_\_FB_DOS\_\_](Fb-Dos)
 - [\_\_FB_ERR\_\_](Fb-Err)
 - [\_\_FB_EVAL\_\_](Fb-Eval)
@@ -520,7 +497,6 @@ List of FreeBASIC keywords sorted by the function they perform.
 ***Preprocessor***
 
 - [#assert](procedures-Assert)
-- [#Cmdline](Cmdline)
 - [#define](Define)
 - [#else](procedures-Else)
 - [#elseif](procedures-Elseif)

@@ -40,7 +40,6 @@ ByVal param As datatype
 
 ### See also
 
-- [Passing Arguments to Procedures](Passing-Arguments-to-Procedures)
 - [`Declare`](Declare)
 - [`ByRef`](Byref-Parameters)
 

@@ -52,7 +52,7 @@ The [`Pointer`](Pointer-Ptr) handle of the library loaded. Zero on error
 
 ## Examples
 
-See the dynamic loading example on the [Shared Libraries](Shared-Libraries) page.
+See the dynamic loading example on the Shared Libraries page.
 
 ---
 

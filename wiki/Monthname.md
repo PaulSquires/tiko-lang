@@ -39,10 +39,6 @@ result = MonthName( month_number [, abreviate ] )
 
 - Did not exist in QB. This function appeared in Visual Basic.
 
-### See also
-
-- [Date Serials](Date-Serials)
-
 ## Examples
 
 ```freebasic

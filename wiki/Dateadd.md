@@ -36,7 +36,7 @@ Interval is specified as follows:
 
 ## Return Value
 
-Returns a [Date Serial](Date-Serials) corresponding to the received `date_serial` plus the `number` of `intervals`.
+Returns a Date Serial corresponding to the received `date_serial` plus the `number` of `intervals`.
 
 ## Remarks
 
@@ -51,10 +51,6 @@ result = DateAdd( interval, number, date_serial )
 ### Differences from QB
 
 - Did not exist in QB. This function appeared in Visual Basic.
-
-### See also
-
-- [Date Serials](Date-Serials)
 
 ## Examples
 

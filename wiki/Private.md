@@ -22,7 +22,7 @@ In procedure definitions (forbidden at declaration line level), `Private` specif
 
  The compiler removes the `Private` procedures that are not called, but this does not currently work for `Private` procedures that are only called by other `Private` procedures that are not called themselves, because the first one appears as being called.
 
- The [`Option Private`](Option-Private) statement allows procedures to be defined with internal linkage by default.
+ The `Option Private` statement allows procedures to be defined with internal linkage by default.
 
 ## Remarks
 
@@ -34,7 +34,6 @@ In procedure definitions (forbidden at declaration line level), `Private` specif
 
 - [`Private:`](Private-Access-Control) (Access Control)
 - [`Public`](Public)
-- [`Option Private`](Option-Private)
 - [`Sub`](Sub)
 - [`Function`](procedures-Function)
 

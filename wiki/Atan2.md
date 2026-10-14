@@ -12,7 +12,7 @@ Declare Function Atan2 ( ByVal y As Double, ByVal x As Double ) As Double
 
 ## Description
 
-`ATan2` returns the arctangent of the ratio `y/x` as a [`Double`](Double) within the range of -[Pi](Different-Ways-Angles-Are-Measured) to [Pi](Different-Ways-Angles-Are-Measured). The arctangent is the inverse of the [`Tan`](Tan) function. The returned angle is measured in [radians](Different-Ways-Angles-Are-Measured) (not [degrees](Different-Ways-Angles-Are-Measured)).
+`ATan2` returns the arctangent of the ratio `y/x` as a [`Double`](Double) within the range of -Pi to Pi. The arctangent is the inverse of the [`Tan`](Tan) function. The returned angle is measured in radians (not degrees).
 
  `ATan2` cannot be overloaded as operator to accept user-defined types.
 
@@ -38,7 +38,6 @@ The angle whose tangent is `y/x`, in radians, in the range \[-Pi..Pi\].
 
 - [`Tan`](Tan)
 - [`Atn`](Atn)
-- [A Brief Introduction To Trigonometry](A-Brief-Introduction-to-Trigonometry)
 
 ## Examples
 

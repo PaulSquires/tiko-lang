@@ -24,7 +24,7 @@ Declare Function TimeSerial ( ByVal hour As Long, ByVal minute As Long, ByVal se
 
 ## Return Value
 
-Returns a [date serial](Date-Serials) containing the time formed by the values in the `hours`, `minutes` and `seconds` parameters.The date serial returned has no integer part.
+Returns a date serial containing the time formed by the values in the `hours`, `minutes` and `seconds` parameters.The date serial returned has no integer part.
 
 ## Remarks
 
@@ -42,7 +42,6 @@ result = TimeSerial( hours, minutes, seconds )
 
 ### See also
 
-- [Date Serials](Date-Serials)
 - [`DateSerial`](Dateserial)
 - [`TimeValue`](Timevalue)
 - [`DateValue`](Datevalue)

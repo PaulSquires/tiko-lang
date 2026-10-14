@@ -25,7 +25,7 @@ Operator typename.Cast () [ ByRef ] As datatype [ Export ]
 
 ## Description
 
-Converts an `expression` (a `typename` variable) into a different [`datatype`](Data-Types).
+Converts an `expression` (a `typename` variable) into a different `datatype`.
 
  `Cast` [`Operator`](Operator) must be declared inside the [`Type`](Type-Udt), [`Class`](Class), or [`Union`](Union).  
  As all non-static member procedures, it has passed a hidden [`This`](This) parameter.
@@ -33,7 +33,7 @@ Converts an `expression` (a `typename` variable) into a different [`datatype`](D
  The `Cast` [`Operator`](Operator) is the only operator (or function) that can be declared multiple times when only the return type differs, but not the same as the [`Type`](Type-Udt), [`Class`](Class), or [`Union`](Union) they are declared in.
 
  The `Cast` [`Operator`](Operator) allows conversions that can also be used on the right-hand side of expressions of construction (with initializer) and assignment (see example 1 below).  
- In addition to its explicit form usage `Cast( datatype, expression )`, the `Cast` [`Operator`](Operator) allows also implicit conversion into [`datatype`](Data-Types) (see same example 1 below). For this not explicit usage, the compiler may decide which cast overload to call based on how the object is used (for example on the Print keyword, the compiler calls the `Cast() As String` operator if defined).
+ In addition to its explicit form usage `Cast( datatype, expression )`, the `Cast` [`Operator`](Operator) allows also implicit conversion into `datatype` (see same example 1 below). For this not explicit usage, the compiler may decide which cast overload to call based on how the object is used (for example on the Print keyword, the compiler calls the `Cast() As String` operator if defined).
 
  **Note:** The overloaded `Cast` [`Operator`](Operator) can convert only a UDT instance (not a built-in type variable) because it can be overloaded only as a member [`Operator`](Operator) (not as a global operator).
  To convert a built-in type variable into a UDT (not working syntax: `Cast( UDT, built_in_type_variable )`), the best way into the UDT is to define a constructor or/and a Let operator, otherwise to use a `Cast` [`Operator`](Operator) but with return by reference (by an assignment: `Cast( built_in_datatype, UDT_instance ) = built_in_type_variable`).  
@@ -64,7 +64,6 @@ Converts an `expression` (a `typename` variable) into a different [`datatype`](D
 - [`CPtr`](Cptr)
 - [`CInt`](Cint)
 - [`TypeOf`](Typeof)
-- [Coercion and Conversion](Coercion-and-Conversion)
 
 ## Examples
 

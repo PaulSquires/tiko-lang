@@ -14,7 +14,7 @@ Explicitly indicates that a string literal should be processed for escape sequen
 
 This operator explicitly indicates that the string literal following it (wrapped in double quotes) should be processed for escape sequences. This a preprocessor operator and can only be used with string literals at compile time.
 
- The default behavior for string literals is that they not be processed for escape sequences. [`Option Escape`](Option-Escape) can be used in the *[-lang fblite](Compiler-Option-Lang)* dialect to override this default behaviour causing all strings to be processed for escape sequences.
+ The default behavior for string literals is that they not be processed for escape sequences. `Option Escape` can be used in the *[-lang fblite](Compiler-Option-Lang)* dialect to override this default behaviour causing all strings to be processed for escape sequences.
 
  Use the [$ Operator (Non-Escaped String Literal)](Operator-Non-Escaped-String-Literal) operator to explicitly indicate that a string should not be processed for escape sequences.
 
@@ -27,7 +27,6 @@ This operator explicitly indicates that the string literal following it (wrapped
 ### See also
 
 - [Operator $ (Non-Escaped String Literal)](Operator-Non-Escaped-String-Literal)
-- [`Option Escape`](Option-Escape)
 - [Preprocessor](Preprocessor)
 - [Literals](Literals)
 - [Escape Sequences](Escape-Sequences)

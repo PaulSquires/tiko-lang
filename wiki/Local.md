@@ -25,7 +25,6 @@ The `Local` clause in an [`On Error`](On-Error) construction allows to define an
 ### See also
 
 - [`On Error`](On-Error)
-- [`Labels`](Labels)
 
 ## Examples
 

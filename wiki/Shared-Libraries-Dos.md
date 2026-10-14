@@ -257,7 +257,6 @@ End Sub
 
 See also
 
-- [Shared Libraries](Shared-Libraries)
 - [`#inclib`](Inclib)
 - [`#include`](procedures-Include)
 - [Compiler Option: -dll](Compiler-Option-Dll)

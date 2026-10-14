@@ -63,7 +63,7 @@ Notice if you do an arithmetical subtraction of two date serials you get the dif
 
 ## Return Value
 
-Returns a [`LongInt`](Longint) corresponding to the number of `interval`s found between two [Date Serials](Date-Serials).
+Returns a [`LongInt`](Longint) corresponding to the number of `interval`s found between two Date Serials.
 
  If `date_serial1` > `date_serial2`, the result is negative.
 
@@ -80,10 +80,6 @@ result = DateDiff( interval, date_serial1, date_serial2 [, firstdayofWeek [, fir
 ### Differences from QB
 
 - Did not exist in QB. This function appeared in Visual Basic.
-
-### See also
-
-- [Date Serials](Date-Serials)
 
 ## Examples
 

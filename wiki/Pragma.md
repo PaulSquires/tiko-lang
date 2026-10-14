@@ -35,8 +35,6 @@ Allows the setting of compiler options inside the source code.
 
 - [`#Pragma Reserve`](Pragma-Reserve)
 - [`#include`](procedures-Include)
-- [`#Cmdline`](Cmdline)
-- [Preprocessor Overview](programmer-s-guide-Preprocessor)
 
 ## Examples
 

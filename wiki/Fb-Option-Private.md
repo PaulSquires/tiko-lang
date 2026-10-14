@@ -14,7 +14,7 @@ __FB_OPTION_PRIVATE__
 
 Indicates if by default [`Function`](procedures-Function)'s and [`Sub`](Sub)'s have module scope or global scope when not explicitly specified with [`Private`](Private) or [`Public`](Public).
 
- The default scope specifier for functions and subs is set by usage of the *[-lang](Compiler-Option-Lang)* command line option during compilation or usage of [`Option Private`](Option-Private) in the source file.
+ The default scope specifier for functions and subs is set by usage of the *[-lang](Compiler-Option-Lang)* command line option during compilation or usage of `Option Private` in the source file.
 
  Default scope of procedures can be changed during compilation with [`#Pragma Private`](Pragma).
 
@@ -28,7 +28,6 @@ Indicates if by default [`Function`](procedures-Function)'s and [`Sub`](Sub)'s h
 
 ### See also
 
-- [`Option Private`](Option-Private)
 - [`Private`](Private)
 - [`Public`](Public)
 

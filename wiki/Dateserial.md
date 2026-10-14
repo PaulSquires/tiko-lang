@@ -22,7 +22,7 @@ The compiler will not recognize this function unless `vbcompat.bi` or `datetime.
 
 ## Return Value
 
-Returns a [date serial](Date-Serials) containing the date formed by the values in the `year`, `month` and `day` parameters.The date serial returned has no decimal part.
+Returns a date serial containing the date formed by the values in the `year`, `month` and `day` parameters.The date serial returned has no decimal part.
 
 ## Remarks
 
@@ -40,7 +40,6 @@ result = DateSerial( year, month, day )
 
 ### See also
 
-- [Date Serials](Date-Serials)
 - [`DateSerial`](Dateserial)
 - [`TimeValue`](Timevalue)
 - [`DateValue`](Datevalue)

@@ -8,7 +8,7 @@ Description
 
 Here follows a list of hardware keyboard scancodes accepted by the [`MultiKey`](Multikey) function. These are equal to DOS scancodes, and are guaranteed to be always recognized on all platforms.
 
- These constants are also defined in the `fbgfx.bi` include file you can use in your programs. If you are using the *[lang fb](Freebasic-Dialects)* dialect then everything inside `fbgfx.bi` is enclosed in the `FB` [`Namespace`](Namespace). To use these constants in *[lang fb](Freebasic-Dialects)*, either prepend "`FB.`" to the constant name, or put "`Using FB`" after the [`#include`](procedures-Include) line.  
+ These constants are also defined in the `fbgfx.bi` include file you can use in your programs. If you are using the *lang fb* dialect then everything inside `fbgfx.bi` is enclosed in the `FB` [`Namespace`](Namespace). To use these constants in *lang fb*, either prepend "`FB.`" to the constant name, or put "`Using FB`" after the [`#include`](procedures-Include) line.  
  The hexadecimal code is not required and provided only for reference.
 
 ```freebasic
