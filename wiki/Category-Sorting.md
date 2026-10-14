@@ -19,7 +19,9 @@ dim q as LinkedList( of ustring )
 SortList( q )
 ```
 
-Two sorts, and the difference is the one C++ draws between std::sort and std::stable_sort.
+There are two kinds of sort here, and they differ only in what happens to elements that compare **equal**. A **stable** sort -- `StableSort`, `StableSortBy` and both list sorts -- keeps equal elements in the order they were in before. An **unstable** sort -- `Sort` and `SortBy` -- puts them in some order, and does not promise which.
+
+For plain numbers that makes no difference: two 5s look the same whichever comes first. It matters when you sort records by one field. Sort people by surname with `StableSortBy`, and two people called Smith stay in the order they already had -- by first name, say, if the list was sorted that way before. With `SortBy` they may swap. The unstable sorts work in place and allocate nothing, so use them unless that order matters; see *Which One* below.
 
 ## Procedures
 
