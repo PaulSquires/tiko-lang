@@ -827,10 +827,6 @@ Stated so you can plan around it rather than discover it:
 
 The module's ten suites run in tiko-lang's test suite: tests/std/tui/ holds tuiapp, tuibuffer, tuicore, tuidraw, tuiform, tuiinput, tuilayout, tuiterm, tuiwidget and tuiwidth. tests/diagnostics/override-unused-generic.test pins the compiler fix that made the module build at all.
 
-## Dialects
-
--lang fb. The module is namespaced, uses abstract types with `override` throughout, and needs tiko-lang's generics, `ustring`, `Result`, `Optional` and capturing lambdas.
-
 ## API reference
 
 One page per entry, 253 in all:
