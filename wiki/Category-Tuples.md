@@ -459,8 +459,6 @@ link-compatible name passes.
 
 `errors/tuple-foreach-errors.bas`, beside it, covers the 'for each (k, v)' diagnostics. AS and BYREF on the list form get a file each: they are rejected while the binding is still being read, before the FOR compound is pushed, so the error skip leaves the following 'next' orphaned and suppresses every later diagnostic in the same file.
 
-fblite/tuple.bas, qb/tuple.bas and deprecated/tuple.bas run the destructuring forms in three other dialects. They are outside tiko's scope, which is `#lang "fb"` only.
-
 Under tiko: basic, identity, literal, dtor, destructure, equality, equality-overload and for-each build and run with exit 0; no-regress.bas compiles; and the two-module tuple-mm-main.bas + tuple-mm-a.bas builds and runs clean when both files are given to one `tiko` invocation (see IMPLEMENTATION for separate compilation). tiko's own suite: `tests/types/tuple-type.test` and eight `tests/mir/tuple-*.test` files.
 
 ---
