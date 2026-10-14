@@ -3,7 +3,7 @@
 '' std/logs holds one process-wide default logger, so any procedure,
 '' in any module, can log without being handed a logger.
 sub SaveSettings( byref path as ustring )
-    logs.DefaultLogger( ).Info( ).Str( "path", path ).Msg( "saved" )
+    logs.DefaultLogger( ).Info( ).AddText( "path", path ).Msg( "saved" )
 end sub
 
 dim tr as logs.TextRenderer

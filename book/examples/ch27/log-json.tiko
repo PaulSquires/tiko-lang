@@ -6,9 +6,9 @@ dim file_ as logs.FileSink = logs.FileSink( "orders.log", @js )
 
 dim lg as logs.Logger
 lg.AddSink( @file_ )
-lg.Info( ).Str( "user", "quinn" ).Int_( "items", 3 ) _
+lg.Info( ).AddText( "user", "quinn" ).AddInt( "items", 3 ) _
           .Msg( "order placed" )
-lg.Error( ).Str( "card", "visa" ).Msg( "payment declined" )
+lg.Error( ).AddText( "card", "visa" ).Msg( "payment declined" )
 file_.Close( )
 
 '' Each line starts with the time, which differs on every run, so this

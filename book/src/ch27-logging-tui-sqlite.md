@@ -33,7 +33,7 @@ Every record has a **level**, from least to most severe: `LOG_TRACE`, `LOG_DEBUG
 `LOG_WARN`, `LOG_ERROR` and `LOG_FATAL` (10 to 60, ten apart so a program can define its own in
 between), plus `LOG_OFF`. **`MinLevel`** discards everything below it, and a discarded record is
 never built — its fields are not converted, and nothing is allocated. Its arguments are still
-evaluated, though: `lg.Trace( ).Str( "dump", Expensive( ) )` calls `Expensive` whatever the level.
+evaluated, though: `lg.Trace( ).AddText( "dump", Expensive( ) )` calls `Expensive` whatever the level.
 
 `LOG_FATAL` is a severity and nothing more. It does not end the program; a library that called
 `end` on its host's behalf would be a bad library. Write the `end` yourself.
@@ -46,7 +46,7 @@ name is not a level — a typo in a setting does not silently switch logging off
 
 `lg.Info( "message" )` logs a line. For anything with data in it, **`lg.Warn( )`** without a
 message starts a record, each **field** method adds a name and a value, and **`Msg( "text" )`**
-finishes and sends it: `Str`, `Int_`, `UInt`, `Dbl`, `Bool`, `Ptr_`, and `Time` and `Span` for
+finishes and sends it: `AddText`, `AddInt`, `AddUInt`, `AddFloat`, `AddBool`, `AddPtr`, and `AddTime` and `AddSpan` for
 Chapter 25's `Instant` and `TimeSpan`. The values keep their types all the way to the renderer, so a
 JSON renderer writes `3` and not `"3"`. A record that is never finished is never sent: forgetting
 `Msg( )` costs a missing line, which is noticed, rather than a stray one.
@@ -267,7 +267,7 @@ every function, and all of them are reached as `money.`.
 ## Summary
 
 - `#import "std/logs"`: a `Logger` with `MinLevel` and sinks; `Info( "text" )`, or
-  `Warn( ).Str( … ).Int_( … ).Msg( "text" )` for fields; `WithField` for a child logger.
+  `Warn( ).AddText( … ).AddInt( … ).Msg( "text" )` for fields; `WithField` for a child logger.
 - Sinks: `ConsoleSink` (stderr by default), `FileSink` with rotation, `AsyncSink`; renderers:
   `TextRenderer`, `JsonRenderer`. The logger does not own its sinks.
 - `LogInit`, `DefaultLogger( )` and `LogShutdown` for the one program-wide logger, which

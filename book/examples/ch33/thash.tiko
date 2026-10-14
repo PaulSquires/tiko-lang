@@ -99,7 +99,7 @@ sub Hasher( byval ctx as tasks.Context, _
         var got = fs.ReadAllBytes( p, bytes )
         if got.IsOk( ) = false then
             fh.problem = got.Failure( ).Message( )
-            lg->Warn( ).Str( "path", DisplayPath( p ) ) _
+            lg->Warn( ).AddText( "path", DisplayPath( p ) ) _
                        .Msg( fh.problem )
         else
             fh.size = got.Value( )
@@ -108,8 +108,8 @@ sub Hasher( byval ctx as tasks.Context, _
             else
                 fh.hash = containers.HashBytes( @bytes[ 0 ], fh.size )
             end if
-            lg->Debug( ).Str( "path", DisplayPath( p ) ) _
-                        .Int_( "bytes", fh.size ).Msg( "hashed" )
+            lg->Debug( ).AddText( "path", DisplayPath( p ) ) _
+                        .AddInt( "bytes", fh.size ).Msg( "hashed" )
         end if
         results.Send( fh )
     loop
@@ -226,7 +226,7 @@ Report( byHash, bytesOf )
 if unreadable > 0 then print unreadable; " files could not be read"
 if len( stopped ) > 0 then print "stopped early ("; stopped; ")"
 if opts.verbose then
-    lg.Info( ).Int_( "ms", clock.ElapsedMilliseconds( ) ).Msg( "done" )
+    lg.Info( ).AddInt( "ms", clock.ElapsedMilliseconds( ) ).Msg( "done" )
 end if
 end iif( unreadable > 0 orelse len( stopped ) > 0, 1, 0 )
 '' ANCHOR_END: main
