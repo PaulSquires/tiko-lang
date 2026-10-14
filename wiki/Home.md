@@ -42,13 +42,13 @@ Every listing in the book is a real program, compiled and run on Windows and Lin
 
 ## The language
 
-[Generics](Category-Generics) · [Iterator Protocol](Category-Iterators) · [For Each](Category-For-Each) · [Tuples](Category-Tuples) · [Array Results](Category-Array-Results) · [Collection Initializers](Category-Collection-Initializers) · [Defer](Category-Defer) · [Lambdas](Category-Lambdas) · [Block Strings](Category-Block-Strings) · [UString](Category-UString) · [Fixed-Width Types](Category-Fixed-Width-Types) · [Nullptr](Category-Nullptr) · [Goroutines and Channels](Category-Goroutines-and-Channels)
+[Generics](Category-Generics) · [Iterator Protocol](Category-Iterators) · [For Each](Category-For-Each) · [Tuples](Category-Tuples) · [Array Results](Category-Array-Results) · [Collection Initializers](Category-Collection-Initializers) · [Defer](Category-Defer) · [Lambdas](Category-Lambdas) · [Block Strings](Category-Block-Strings) · [Typed Variadics](Category-Typed-Variadics) · [UString](Category-UString) · [Fixed-Width Types](Category-Fixed-Width-Types) · [Nullptr](Category-Nullptr) · [Goroutines and Channels](Category-Goroutines-and-Channels)
 
 ## The standard library
 
 **Collections and algorithms:** [Array](Category-Array) · [Map](Category-Map) · [Set](Category-Set) · [LinkedList](Category-LinkedList) · [OrderedMap and OrderedSet](Category-OrderedMap) · [Sorting](Category-Sorting)
 
-**Values and text:** [Optional](Category-Optional) · [Result](Category-Result) · [SharedPtr and WeakPtr](Category-Smart-Pointers) · [String Library](Category-String-Library)
+**Values and text:** [Optional](Category-Optional) · [Result](Category-Result) · [SharedPtr and WeakPtr](Category-Smart-Pointers) · [String Library](Category-String-Library) · [Format](Category-Format)
 
 **System and numbers:** [Chrono Date and Time](Category-Date-and-Time-Chrono) · [Filesystem Library](Category-Filesystem) · [Math Library](Category-Math-Library) · [Finance](Category-Finance) · [Logging](Category-Logging) · [Terminal TUI Library](Category-Terminal-TUI-Library)
 

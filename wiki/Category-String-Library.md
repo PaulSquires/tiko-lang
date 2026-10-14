@@ -20,6 +20,8 @@ dim rows as Array( of CsvRow ) = SplitCsv( text )  ' RFC 4180, quotes and all
 print rows[ 0 ].fields[ 1 ]
 ```
 
+Building text from values with a layout -- a width, a number of decimals, hexadecimal -- is [Format](Category-Format), in the same module.
+
 ## Why It Exists
 
 The built-in string intrinsics include LEFT, RIGHT, MID, INSTR, INSTRREV, TRIM, UCASE, LCASE, SPACE and STRING, but none of them replaces, splits, joins or pads, and none works with a set of characters. Every program that needs those writes them again, usually with a 'redim preserve' loop that is quadratic.

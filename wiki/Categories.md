@@ -15,12 +15,14 @@ The language and its standard library first, then the compatibility reference: t
 - [Defer](Category-Defer) — 1 pages
 - [Lambdas](Category-Lambdas) — 1 pages
 - [Block Strings](Category-Block-Strings) — 1 pages
+- [Typed Variadics](Category-Typed-Variadics) — 1 pages
 - [Foreign Library Linking](Category-Foreign-Library-Linking) — 3 pages
 - [C Header Import](Category-C-Header-Import) — 2 pages
 - [UString](Category-UString) — 1 pages
 - [Fixed-Width Types](Category-Fixed-Width-Types) — 1 pages
 - [Nullptr](Category-Nullptr) — 1 pages
 - [String Library](Category-String-Library) — 39 pages
+- [Format](Category-Format) — 1 pages
 - [Array](Category-Array) — 22 pages
 - [Map](Category-Map) — 15 pages
 - [Set](Category-Set) — 11 pages
