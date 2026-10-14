@@ -2,6 +2,18 @@
 
 # OrderedMap
 
+An **OrderedMap** is a [map](Category-Map) that keeps its keys in sorted order. Like any map it stores pairs -- a **key** and the **value** that goes with it -- each key appears at most once, and you find a value by its key. The difference shows when you walk through it: an OrderedMap always hands its entries back from the smallest key to the largest, whatever order they were put in.
+
+Think of a printed dictionary: the words are kept in alphabetical order, so you can read it from A to Z, turn to the first or the last word, or find the words just before and just after one that is not in it.
+
+Those last questions are what an OrderedMap can answer and an ordinary Map cannot: the smallest key (`TryFirst`), the largest (`TryLast`), the largest key at or below a given one (`TryFloor`) and the smallest at or above it (`TryCeiling`). A key only has to support `<`.
+
+**OrderedSet** is the same idea for a [set](Category-Set): values with no duplicates, kept in sorted order. Both are described on this page.
+
+Keeping things sorted has a cost: each operation takes a little longer as the container grows, where a Map's or a Set's stays about the same. So use an ordinary Map or Set unless you need the order -- see *Which One To Use* below.
+
+The example below stores ages by name and prints them alphabetically, then records a number in an OrderedSet:
+
 ```freebasic
 #import "std/containers"
 using containers
