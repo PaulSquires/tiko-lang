@@ -125,10 +125,6 @@ OPEN ... ENCODING is honoured. A file opened with ENCODING "utf8", "utf16" or "u
 
 LINE INPUT # has no line-length limit in either case.
 
-## Dialects
-
-USTRING is available in -lang fb, fblite and deprecated. It is not a keyword in -lang qb, matching how ZSTRING and WSTRING are gated.
-
 ## What Is Supported
 
 Everything below is implemented and covered by tests (tests/ustring\_\*.bas and tests/ustr\_\*.c -- see tests/BASELINE.md).
@@ -139,7 +135,7 @@ Language -- VAR inference, SELECT CASE, IIF, BYREF/BYVAL parameters with copy-ba
 
 I/O -- PRINT, WRITE, PRINT #, WRITE #, LINE INPUT, LINE INPUT #, INPUT, INPUT #, PRINT USING, PUT/GET, OPEN ... ENCODING, READ/DATA, DRAW STRING.
 
-The FB.\* string library serves USTRING too -- see [String Library](Category-String-Library).
+The package `std/strings` library serves USTRING too -- see [String Library](Category-String-Library).
 
 ## Constants
 
