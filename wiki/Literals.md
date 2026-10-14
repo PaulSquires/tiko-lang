@@ -1,4 +1,4 @@
-[Home](Home) › [Language Documentation](Category-Language-Documentation) › **Literals**
+[Home](Home) › **Literals**
 
 # Literals
 
@@ -166,10 +166,6 @@ See also
 - [`Const`](Const)
 - [`Standard Data Types`](Standard-Data-Types)
 - [`Table with variable types overview, limits and suffixes`](Standard-Data-Type-Limits)
-
----
-
-**Category:** [Language Documentation](Category-Language-Documentation)
 
 ---
 

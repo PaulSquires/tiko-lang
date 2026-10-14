@@ -1,4 +1,4 @@
-[Home](Home) › [Language Documentation](Category-Language-Documentation) › **Escape Sequences**
+[Home](Home) › **Escape Sequences**
 
 # Escape Sequences
 
@@ -39,10 +39,6 @@ See also
 - [`String`](String)
 - [`Chr`](Chr)
 - [Literals](Literals)
-
----
-
-**Category:** [Language Documentation](Category-Language-Documentation)
 
 ---
 

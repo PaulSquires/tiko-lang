@@ -1,4 +1,4 @@
-[Home](Home) › [Programmer's Guide](Category-Programmer-s-Guide) › **Asm**
+[Home](Home) › **Asm**
 
 # Asm
 
@@ -116,7 +116,6 @@ Print "4 + 5 ="; AddFive(i)
 
 ---
 
-**Category:** [Programmer's Guide](Category-Programmer-s-Guide)  
 **Kind:** keyword
 
 ---

@@ -1,4 +1,4 @@
-[Home](Home) › [Language Documentation](Category-Language-Documentation) › **Functional Keyword List**
+[Home](Home) › **Functional Keyword List**
 
 # Functional Keyword List
 
@@ -715,10 +715,6 @@ List of FreeBASIC keywords sorted by the function they perform.
 - [Stick](Stick)
 - [Strig](Strig)
 - [WInput](Winput)
-
----
-
-**Category:** [Language Documentation](Category-Language-Documentation)
 
 ---
 

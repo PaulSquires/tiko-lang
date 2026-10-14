@@ -1,4 +1,4 @@
-[Home](Home) › [Programmer's Guide](Category-Programmer-s-Guide) › **Programmer's Guide**
+[Home](Home) › **Programmer's Guide**
 
 # Programmer's Guide
 
@@ -163,10 +163,6 @@ FreeBASIC programmer's guide.
 [Emulate a TLS (Thread Local Storage) and a TP (Thread Pooling) feature](Emulate-a-Tls-Thread-Local-Storage-and-a-Tp-Thread-Pooling-Feature)
 
 NOTE: Existing CatPg pages should be recreated as ProPg pages providing a general overview to the grouping of keywords.
-
----
-
-**Category:** [Programmer's Guide](Category-Programmer-s-Guide)
 
 ---
 

@@ -1,4 +1,4 @@
-[Home](Home) › [Programmer's Guide](Category-Programmer-s-Guide) › **Type (Temporary)**
+[Home](Home) › **Type (Temporary)**
 
 # Type (Temporary)
 
@@ -162,7 +162,6 @@ test( Type<U>( 1 ) )
 
 ---
 
-**Category:** [Programmer's Guide](Category-Programmer-s-Guide)  
 **Kind:** keyword
 
 ---

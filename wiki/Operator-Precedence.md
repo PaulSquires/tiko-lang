@@ -1,4 +1,4 @@
-[Home](Home) › [Language Documentation](Category-Language-Documentation) › **Operator Precedence**
+[Home](Home) › **Operator Precedence**
 
 # Operator Precedence
 
@@ -132,10 +132,6 @@ For expressions where the operator precedence may be ambiguous, it is recommende
 See also
 
 - [Operators](Operators)
-
----
-
-**Category:** [Language Documentation](Category-Language-Documentation)
 
 ---
 

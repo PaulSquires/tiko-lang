@@ -1,4 +1,4 @@
-[Home](Home) › [Programmer's Guide](Category-Programmer-s-Guide) › **Shared Libraries - DOS**
+[Home](Home) › **Shared Libraries - DOS**
 
 # Shared Libraries - DOS
 
@@ -262,10 +262,6 @@ See also
 - [`#include`](procedures-Include)
 - [Compiler Option: -dll](Compiler-Option-Dll)
 - [Compiler Option: -dylib](Compiler-Option-Dylib)
-
----
-
-**Category:** [Programmer's Guide](Category-Programmer-s-Guide)
 
 ---
 

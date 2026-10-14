@@ -1,4 +1,4 @@
-[Home](Home) › [Language Documentation](Category-Language-Documentation) › **Alphabetical Keywords List**
+[Home](Home) › **Alphabetical Keywords List**
 
 # Alphabetical Keywords List
 
@@ -704,10 +704,6 @@ Alphabetical listing of keywords, macros and procedures.
 ***Z***
 
 - [ZString](Zstring)
-
----
-
-**Category:** [Language Documentation](Category-Language-Documentation)
 
 ---
 

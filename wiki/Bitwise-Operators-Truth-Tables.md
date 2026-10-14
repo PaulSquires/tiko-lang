@@ -1,4 +1,4 @@
-[Home](Home) › [Language Documentation](Category-Language-Documentation) › **Bitwise Operators Truth Tables**
+[Home](Home) › **Bitwise Operators Truth Tables**
 
 # Bitwise Operators Truth Tables
 
@@ -70,10 +70,6 @@ Bits in the result are set if the corresponding bits in the right-hand side oper
 | Rhs | 0 | 1 |
 | --- | --- | --- |
 | Result | 1 | 0 |
-
----
-
-**Category:** [Language Documentation](Category-Language-Documentation)
 
 ---
 

@@ -1,4 +1,4 @@
-[Home](Home) › [Language Documentation](Category-Language-Documentation) › **Standard Data Type Limits**
+[Home](Home) › **Standard Data Type Limits**
 
 # Standard Data Type Limits
 
@@ -65,10 +65,6 @@ See also
 
 [Usage of suffixes for variables](Identifier-Rules)  
  [Usage of suffixes for literals / numbers](Literals)
-
----
-
-**Category:** [Language Documentation](Category-Language-Documentation)
 
 ---
 

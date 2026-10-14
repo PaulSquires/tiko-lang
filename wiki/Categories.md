@@ -46,8 +46,6 @@ The language and its standard library first, then the compatibility reference: t
 
 ## Compatibility reference (the FreeBASIC manual)
 
-- [Language Documentation](Category-Language-Documentation) — 8 pages
-- [Programmer's Guide](Category-Programmer-s-Guide) — 4 pages
 - [Variable Declarations](Category-Variable-Declarations) — 8 pages
 - [Standard Data Types](Category-Standard-Data-Types) — 21 pages
 - [User Defined Types](Category-User-Defined-Types) — 27 pages

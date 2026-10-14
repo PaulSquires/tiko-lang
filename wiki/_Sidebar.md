@@ -53,8 +53,6 @@
 
 ### FreeBASIC manual
 
-- [Language Documentation](Category-Language-Documentation)
-- [Programmer's Guide](Category-Programmer-s-Guide)
 - [Variable Declarations](Category-Variable-Declarations)
 - [Standard Data Types](Category-Standard-Data-Types)
 - [User Defined Types](Category-User-Defined-Types)

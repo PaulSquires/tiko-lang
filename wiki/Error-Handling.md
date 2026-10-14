@@ -1,4 +1,4 @@
-[Home](Home) › [Language Documentation](Category-Language-Documentation) › **Error Handling**
+[Home](Home) › **Error Handling**
 
 # Error Handling
 
@@ -314,10 +314,6 @@ See also
 
 - [Error Handling Functions](Error-Handling-Functions)
 - [Runtime Error Codes](Runtime-Error-Codes)
-
----
-
-**Category:** [Language Documentation](Category-Language-Documentation)
 
 ---
 
