@@ -665,6 +665,23 @@ Advisory, whole-file:
 
 timeoutMs below 0 waits indefinitely, 0 tries once, and above 0 gives up with FS_IN_USE. The destructor releases.
 
+Only one cooperating process at a time gets past `Acquire`. The lock file is created if it does not exist:
+
+```freebasic
+#import "std/fs"
+using fs
+
+dim lk as FileLock
+dim r as FsResultBool = lk.Acquire( "app.lock", true, 2000 )   ' exclusive; wait up to 2 s
+if r.IsOk( ) then
+    print "got the lock"
+    ' ... the part only one cooperating process may run at a time ...
+    lk.Release( )
+else
+    print "busy: "; r.Failure( ).Message( )
+end if
+```
+
 FileLock holds a whole file against other processes. It is a different tool from the LOCK and UNLOCK statements, which lock byte ranges of a file already open on a file number.
 
 **It is advisory everywhere, and that is the contract.** Windows LockFileEx is mandatory -- the kernel enforces it against every process. POSIX flock is advisory -- it binds only processes that also ask. The only promise both platforms can keep is the weaker one, so **all participants must use this API**. Code written against the Windows behaviour silently protects nothing on Linux.
@@ -678,6 +695,24 @@ FileLock holds a whole file against other processes. It is a different tool from
 .Size( )                    uint64
 .IsOpen( )
 .Flush( )                   FsResultBool
+```
+
+Count the lines of a file by reading the mapped bytes in place, without copying the file into memory:
+
+```freebasic
+#import "std/fs"
+using fs
+
+dim mm as MemoryMappedFile
+if mm.Open( "data.txt" ).IsOk( ) then             ' read-only; Open( p, TRUE ) to write
+    dim as uint8 ptr bytes = mm.Data( )
+    dim as longint lines = 0
+    for i as longint = 0 to mm.Size( ) - 1
+        if bytes[i] = 10 then lines += 1           ' count line feeds, no copy made
+    next
+    print lines; " lines"
+    mm.Close( )
+end if
 ```
 
 Data( ) is a raw pointer, which is the point -- the alternative is a copy, and a copy is ReadAllBytes. Three things no library can protect you from:
@@ -709,6 +744,32 @@ FsChangeKind:
 ```text
 FS_CHANGE_CREATED  FS_CHANGE_DELETED  FS_CHANGE_MODIFIED
 FS_CHANGE_RENAMED_FROM  FS_CHANGE_RENAMED_TO  FS_CHANGE_OVERFLOW
+```
+
+Report what happens in a folder until a key is pressed. Each Poll refills the array with the changes since the last one:
+
+```freebasic
+#import "std/containers"
+#import "std/fs"
+using fs, containers
+
+dim w as FileWatcher
+if w.Start( "C:\dev\inbox" ).IsOk( ) then
+    dim changes as Array( of FsChange )
+    do
+        if w.Poll( changes, 1000 ).IsOk( ) then      ' wait up to 1 s; refills changes
+            for each c in changes
+                select case c.Kind( )
+                case FS_CHANGE_CREATED  : print "new:     "; c.Path( )
+                case FS_CHANGE_MODIFIED : print "changed: "; c.Path( )
+                case FS_CHANGE_DELETED  : print "gone:    "; c.Path( )
+                case FS_CHANGE_OVERFLOW : print "too many changes -- rescan the folder"
+                end select
+            next
+        end if
+    loop until len( inkey ) > 0                       ' any key stops watching
+    w.Stop( )
+end if
 ```
 
 **Polling, not callbacks.** A callback fires on the watcher's own thread, so every user immediately needs a queue and a lock and most get the threading wrong. Poll puts the events on your thread.
