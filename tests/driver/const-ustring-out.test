@@ -1,0 +1,20 @@
+'' A 'const as ustring' FOR AN ENTRY POINT THAT TAKES AN FBUSTRING DESCRIPTOR: 'write',
+'' 'print using', and a 'wstring * N' destination (fb_UStrAssignToW). UStrOutOperand_
+'' asked the constant for an address, got none, and each statement was dropped: TKO0994.
+'' The constant is now copied like an rvalue, into a ustring temporary initialised from
+'' its text (src/mir/lowerstrargs.tiko). fbc-modern 1.20 has no 'const as ustring'
+'' (error 24), so there is no differential.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/driver/src/const-ustring-out.bas -o tests/driver/constustrout.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/constustrout.exe
+'' RUN: tests/driver/constustrout.exe
+'' EXPECT-RUN-OUT: hi 2-1
+'' EXPECT-RUN-OUT: ns
+'' EXPECT-RUN-OUT: nshi
+'' EXPECT-RUN-OUT: "hi",1
+'' EXPECT-RUN-OUT: "ns"
+'' EXPECT-RUN-OUT: [hi]
+'' EXPECT-RUN-OUT: hi ns
+'' EXPECT-RUN-EXIT: 0

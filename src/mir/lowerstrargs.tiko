@@ -768,6 +768,18 @@ function UStrOutOperand_ _
     '' A UDT CASTING TO A USTRING passes the cast's own descriptor, as PRINT does (T50).
     if UdtCastIsUStr_( c, it ) then return StrDescriptorOf_( c, it, outv )
     if IsUStringType( c, c.info->TypeOf_( it ) ) = false then return false
+    '' A 'const as ustring' HAS NO ADDRESS: it is copied like an rvalue, into a temporary
+    '' initialised from its text as 'dim w as ustring = G' is. LowerAddr answered NONE,
+    '' and 'write G', 'print using "&"; G' and 'w = G' over a 'wstring * N' were dropped.
+    if IsConstNameRef_( c, it ) then
+        dim as long cs = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        if cs < 0 then return false
+        c.f->locals[cs].frontendType = ut
+        if LowerStringInit( c, cs, it, it ) = false then return false
+        outv.kind = cast( ubyte, MV_LOCAL ) : outv.ty = cast( ubyte, MT_PTR ) : outv.id = cs
+        outSlot = cs
+        return true
+    end if
     outv = LowerAddr( c, it )
     return (outv.kind <> cast( ubyte, MV_NONE ))
 end function
