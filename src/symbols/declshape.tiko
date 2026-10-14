@@ -451,8 +451,32 @@ private sub CheckUdtCallNoCtor_ ( byref c as Ctx, byval id as NodeId )
     if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
     if ts = 0 then return
-    if (ts->kind <> cast( ubyte, SYM_UDT )) andalso (ts->kind <> cast( ubyte, SYM_TYPEDEF )) then return
-    dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( id ) )
+    dim as TypeId t = TYPE_NONE
+    select case cast( SymbolKind, ts->kind )
+    case SYM_UDT, SYM_TYPEDEF
+        t = c.types->Unqualify( c.info->TypeOf_( id ) )
+    '' ...AND A VALUE THAT SHARES ITS NAME WITH THE TYPE: 'dim u as U' then 'U( 3 )', where
+    '' the name binds to the variable. CheckCalledExpr_ leaves a name a type shares to the
+    '' type's constructor, so with no constructor nothing reported it and lowering stopped
+    '' with TKO0994; fbc's error 72. An ARRAY of that name is subscripted, and is fine.
+    case SYM_VARIABLE, SYM_PARAMETER
+        if (ts->flags and SYMF_REDIM) <> 0 then return
+        dim as NodeId dn = cast( NodeId, ts->payload )
+        if (dn > 0) andalso (dn <= c.ast->Count( )) then
+            if (c.ast->nodes[cast( long, dn )].flags and NF_ARRAY) <> 0 then return
+        end if
+        if ts->type_ <> TYPE_NONE then
+            dim as TypeId vt = c.types->Unqualify( ts->type_ )
+            if c.types->Kind( vt ) = TK_REFERENCE then vt = c.types->Unqualify( c.types->Inner( vt ) )
+            if (c.types->Kind( vt ) = TK_ARRAY) orelse c.types->IsDynArray( vt ) then return
+        end if
+        dim as Symbol ptr tys = c.syms->SymbolAt( c.syms->LookupTyped( ts->parent, ts->name, true ) )
+        if tys = 0 then return
+        if (tys->kind <> cast( ubyte, SYM_UDT )) andalso (tys->kind <> cast( ubyte, SYM_TYPEDEF )) then return
+        if tys->type_ <> TYPE_NONE then t = c.types->Unqualify( tys->type_ )
+    case else
+        return
+    end select
     if (t = TYPE_NONE) orelse (c.types->Kind( t ) <> TK_UDT) then return
     dim as InternId tn = c.types->NameOf( t )
     if tn = 0 then return

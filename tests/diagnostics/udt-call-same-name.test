@@ -1,0 +1,8 @@
+'' 'U( 3 )' WHERE A VARIABLE SHARES THE NAME OF A TYPE WITH NO CONSTRUCTOR -- 'dim u as U'.
+'' The name binds to the variable, which is no array, and the type has nothing to call, so
+'' it is TKO0917 (fbc's error 72). Lowering stopped with TKO0994 before. An array of the
+'' type's name is subscripted and is fine.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/udt-call-same-name.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/udt-call-same-name.out
