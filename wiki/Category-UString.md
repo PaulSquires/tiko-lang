@@ -141,9 +141,9 @@ I/O -- PRINT, WRITE, PRINT #, WRITE #, LINE INPUT, LINE INPUT #, INPUT, INPUT #,
 
 The FB.\* string library serves USTRING too -- see [String Library](Category-String-Library).
 
-## Known Gap
+## Constants
 
-CONST u AS USTRING = "abc" is NOT supported. DIM AS USTRING u = "abc" works, and the literal is already a compile-time pool constant, so nothing is lost at runtime.
+`CONST G AS USTRING = "hé"` declares a ustring constant. It reads as a USTRING everywhere a ustring variable does: PRINT, WRITE and PRINT USING, the string intrinsics, a BYVAL or BYREF USTRING argument, and a WSTRING destination. `LEN( G )` counts UTF-16 units, so it is 2 here, not the 3 bytes the source spells it in.
 
 ---
 
