@@ -34,21 +34,23 @@ An amount held in a `DOUBLE` is one rounding away from a penny that does not rec
 | add | one instruction | software multi-precision |
 | the type it already is | VB6/VBA `Currency`, COM `CY`, SQL Server `money` | .NET `System.Decimal`, COM `DECIMAL`, SQL Server `decimal(28,s)` |
 
-USE `Currency` WHEN FOUR PLACES IS ENOUGH. It is the cheaper type by a wide margin and this category does not deprecate it. Use `Decimal` when four places is the thing standing in the way -- FX rates quoted to six or eight, per-unit costs, per-mille rates, interest accrual, tax tables. `DecimalFromCurrency( c )` and `d.ToCurrency( )` convert between them.
+**Use `Currency` when four places is enough.** It is the cheaper type by a wide margin and this category does not deprecate it. Use `Decimal` when four places is the thing standing in the way -- FX rates quoted to six or eight, per-unit costs, per-mille rates, interest accrual, tax tables. `DecimalFromCurrency( c )` and `d.ToCurrency( )` convert between them.
 
-NEITHER IS A NEW REPRESENTATION. Both are shapes that Windows, COM and SQL Server have used for decades: `win\wtypes.bi` declares `tagCY` at line 326 and `tagDEC` at line 329. Each type here has the matching layout, so the interop boundary is a REINTERPRET rather than a conversion.
+**Neither is a new representation.** Both are shapes that Windows, COM and SQL Server have used for decades: `win\wtypes.bi` declares `tagCY` at line 326 and `tagDEC` at line 329. Each type here has the matching layout, so the interop boundary is a reinterpret rather than a conversion.
 
-NO ARITHMETIC IS DELEGATED TO OleAut32. This compiler ships and gates on linux-x86_64, so the arithmetic is implemented in tiko and `VarCy*`, `VarDec*` and .NET itself are TEST ORACLES rather than dependencies. Both types behave identically on every target.
+**No arithmetic is delegated to OleAut32.** This compiler ships and gates on linux-x86_64, so the arithmetic is implemented in tiko and `VarCy*`, `VarDec*` and .NET itself are test oracles rather than dependencies. Both types behave identically on every target.
 
-ONE SET OF RULES, NOT TWO. The two types deliberately agree on everything they can:
+**One set of rules, not two.** The two types deliberately agree on everything they can:
 
 - **Construction is by free function, not constructor.** A one-argument constructor taking `LONGINT` would also accept a `DOUBLE` through implicit conversion, so `Currency( 19.99 )` would have compiled and stored 19. Naming every conversion means the inexact one cannot be reached by accident.
 - **Half-to-even is the default,** because half-up biases every tie the same way and across a million lines that is real money. The mode names match: `CUR_HALF_EVEN` / `DEC_HALF_EVEN` and their six siblings.
-- **Overflow is `Invalid`, it is infectious, and `Invalid = Invalid` is FALSE** -- the same rule `std/chrono` uses for `DateTime`. Test with `IsValid( )`. A default-constructed value is ZERO and VALID.
-- **Text is exact both ways,** with no `DOUBLE` anywhere in the path, and parsing is STRICT: the whole string must be consumed, and more than the type's decimal places is an ERROR rather than a truncation.
-- **`Apportion` splits a total so the parts sum EXACTLY to it.** Largest-remainder, in both types.
+- **Overflow is `Invalid`, it is infectious, and `Invalid = Invalid` is FALSE** -- the same rule `std/chrono` uses for `DateTime`. Test with `IsValid( )`. A default-constructed value is zero and valid.
+- **Text is exact both ways,** with no `DOUBLE` anywhere in the path, and parsing is strict: the whole string must be consumed, and more than the type's decimal places is an error rather than a truncation.
+- **`Apportion` splits a total so the parts sum exactly to it.** Largest-remainder, in both types.
 
-======================== std/money: currency.tiko ========================
+### Currency
+
+Defined in `currency.tiko`.
 
 ```freebasic
 dim as Currency price = CurrencyParse( "19.99" ).Value( )
@@ -56,42 +58,42 @@ dim as Currency line_ = price * 3            ' EXACT
 print line_.ToString( )                      ' 59.9700
 ```
 
-A LONGINT SCALED BY 10,000.  Fifteen digits left of the point, four to the right, every value in range exactly representable.
+**A LONGINT scaled by 10,000.** Fifteen digits left of the point, four to the right, every value in range exactly representable.
 
-```freebasic
+```text
 range        -922,337,203,685,477.5808 .. +922,337,203,685,477.5807
 resolution   0.0001 exactly, everywhere
 size         8 bytes
 ```
 
-This IS the VB6/VBA Currency type, the COM CY / VT_CY type, and SQL Server's money.  'CY' is already declared in win\\wtypes.bi:326 as a union whose int64 member is exactly this field, so the interop boundary is a REINTERPRET.
+This is the VB6/VBA Currency type, the COM CY / VT_CY type, and SQL Server's money. `CY` is already declared in `win\wtypes.bi`, line 326, as a union whose int64 member is exactly this field, so the interop boundary is a reinterpret.
 
-THE COST, UP FRONT: FOUR DECIMAL PLACES, FIXED.  FX rates are quoted to 6 or 8, per-unit costs and per-mille rates often need more, and a Currency cannot hold them.  CurrencyAccum covers the case that actually loses money; it does not cover storage.  If you need to STORE more than four places, this is the wrong type.
+**The cost, up front: four decimal places, fixed.** FX rates are quoted to 6 or 8, per-unit costs and per-mille rates often need more, and a Currency cannot hold them. CurrencyAccum covers the case that actually loses money; it does not cover storage. If you need to *store* more than four places, this is the wrong type.
 
-CONSTRUCTION IS BY FREE FUNCTION, NOT CONSTRUCTOR
+#### Construction is by free function
 
-```freebasic
+```text
 CurrencyFromInt( n )         CurrencyFromRaw( scaled )
 CurrencyFromParts( w, tt )   CurrencyFromDouble( d )
 CurrencyParse( s ) -> Optional( of Currency )
 ```
 
-A one-argument constructor taking LONGINT would also accept a DOUBLE through implicit conversion, so 'Currency( 19.99 )' would have compiled and stored 19.  Naming every conversion means the inexact one cannot be reached by accident.
+A one-argument constructor taking LONGINT would also accept a DOUBLE through implicit conversion, so `Currency( 19.99 )` would have compiled and stored 19. Naming every conversion means the inexact one cannot be reached by accident.
 
-ARITHMETIC
+#### Arithmetic
 
-```freebasic
+```text
 a + b, a - b        EXACT, overflow-checked
 a * n  (integer)    EXACT, overflow-checked
-a * x  (float64)     rounded half-to-even
+a * x  (float64)    rounded half-to-even
 a / n  (integer)    rounded HALF-TO-EVEN, not truncated
 a / b  (Currency)   DOUBLE -- a ratio is not an amount
 a MOD b, -a, comparisons
 ```
 
-'Currency \* Currency' DOES NOT EXIST: money times money is not money.
+**`Currency * Currency` does not exist**: money times money is not money.
 
-DIVISION ROUNDS, IT DOES NOT TRUNCATE:
+**Division rounds; it does not truncate:**
 
 ```freebasic
 Currency(1) / 3     ' 0.3333
@@ -100,11 +102,11 @@ Currency(2) / 3     ' 0.6667      -- truncation would give 0.6666
 
 Truncation biases every result downward, systematically, across a ledger.
 
-OVERFLOW IS 'Invalid', INFECTIOUS, AND 'Invalid = Invalid' IS FALSE -- the same rule as DateTime.  Test with IsValid( ).  A default-constructed Currency is ZERO and VALID: zero is the meaningful default for money.
+**Overflow is `Invalid`, it is infectious, and `Invalid = Invalid` is FALSE** -- the same rule as DateTime. Test with `IsValid( )`. A default-constructed Currency is zero and valid: zero is the meaningful default for money.
 
-ROUNDING AND APPORTIONING
+#### Rounding and apportioning
 
-```freebasic
+```text
 c.Round( digits )                    half-to-even, digits 0..4
 c.RoundMode( digits, mode )          CUR_HALF_EVEN CUR_HALF_UP
                                      CUR_HALF_DOWN CUR_UP CUR_DOWN
@@ -114,13 +116,13 @@ c.Floor( ) c.Ceiling( ) c.Truncate( ) c.AbsValue( ) c.Sign( )
 Apportion( total, weights( ), result( ) )
 ```
 
-Apportion is the most useful function here.  Splitting 100.00 three ways gives 33.3333 each, whose sum is 99.9999.  Every accounting system has to decide where the missing unit goes, and doing it ad hoc is how a reconciliation fails.  Largest-remainder: THE PARTS ALWAYS SUM TO THE TOTAL, EXACTLY.
+Apportion is the most useful function here. Splitting 100.00 three ways gives 33.3333 each, whose sum is 99.9999. Every accounting system has to decide where the missing unit goes, and doing it ad hoc is how a reconciliation fails. Largest-remainder: **the parts always sum to the total, exactly.**
 
-```freebasic
+```text
 33.3334 + 33.3333 + 33.3333 = 100.0000
 ```
 
-ACCUMULATING BELOW 0.0001
+#### Accumulating below 0.0001
 
 ```freebasic
 dim acc as CurrencyAccum
@@ -131,15 +133,19 @@ next
 dim as Currency tax = acc.Total( )        ' quantised ONCE
 ```
 
-versus the version that loses money, which rounds at every line.  The accumulator carries eight extra decimal places in a 128-bit value. AddScaled( c, num, den ) is the exact form; Add( c ) is exact addition.
+versus the version that loses money, which rounds at every line. The accumulator carries eight extra decimal places in a 128-bit value. `AddScaled( c, num, den )` is the exact form; `Add( c )` is exact addition.
 
-TEXT is exact both ways -- no DOUBLE anywhere in the path.  ToString always prints four decimals, invariant separator, no grouping.  MORE THAN FOUR DECIMAL PLACES ON INPUT IS AN ERROR, NOT A TRUNCATION:
+#### Text
+
+Text is exact both ways -- no DOUBLE anywhere in the path. ToString always prints four decimals, invariant separator, no grouping. **More than four decimal places on input is an error, not a truncation:**
 
 ```freebasic
 CurrencyParse( "1.23456" )      ' empty -- not silently 1.2345
 ```
 
-======================== std/money: decimal.tiko ========================
+### Decimal
+
+Defined in `decimal.tiko`.
 
 ```freebasic
 dim as Decimal price = DecimalParse( "19.99" ).Value( )
@@ -148,9 +154,9 @@ dim as Decimal rate  = DecimalParse( "0.0825" ).Value( )
 print ( line_ * rate ).ToString( )           ' 4.947525  EXACT, six places
 ```
 
-A 96-BIT INTEGER, A SCALE, AND A SIGN.  The value is `( -1 ^ sign ) * mantissa / 10 ^ scale`, with mantissa in 0 .. 2^96-1 and scale in 0 .. 28.
+**A 96-bit integer, a scale, and a sign.** The value is `( -1 ^ sign ) * mantissa / 10 ^ scale`, with mantissa in 0 .. 2^96-1 and scale in 0 .. 28.
 
-```freebasic
+```text
 range        -79,228,162,514,264,337,593,543,950,335
               .. +79,228,162,514,264,337,593,543,950,335
 precision    28-29 significant decimal digits
@@ -158,18 +164,18 @@ smallest     0.0000000000000000000000000001   (1e-28)
 size         16 bytes
 ```
 
-This IS the .NET System.Decimal of C# and VB.NET, the COM DECIMAL / VT_DECIMAL type, and SQL Server's decimal(28,s).  win\wtypes.bi:329 declares 'tagDEC' and money.Decimal has the same sixteen bytes in the same order, so the interop boundary is a REINTERPRET rather than a conversion.
+This is the .NET System.Decimal of C# and VB.NET, the COM DECIMAL / VT_DECIMAL type, and SQL Server's decimal(28,s). `win\wtypes.bi` declares `tagDEC` at line 329, and money.Decimal has the same sixteen bytes in the same order, so the interop boundary is a reinterpret rather than a conversion.
 
-WHY, GIVEN Currency ALREADY EXISTS.  Currency is four decimal places, fixed, in eight bytes, and its own source says up front that this is its central limitation.  FX rates quoted to six or eight places, per-unit costs, per-mille rates and interest accrual all need more.
+**Why, given Currency already exists?** Currency is four decimal places, fixed, in eight bytes, and its own source says up front that this is its central limitation. FX rates quoted to six or eight places, per-unit costs, per-mille rates and interest accrual all need more.
 
-```freebasic
+```text
 Currency    +-922,337,203,685,477.5807      4 places, always      8 bytes
 Decimal     +-7.9228162514264337e28         0..28, per value     16 bytes
 ```
 
-The cost is size and speed: Currency's add is one instruction, Decimal's is software multi-precision.  IF FOUR PLACES IS ENOUGH, USE Currency -- Decimal does not deprecate it, and `DecimalFromCurrency( c )` / `d.ToCurrency( )` convert between them.
+The cost is size and speed: Currency's add is one instruction, Decimal's is software multi-precision. **If four places is enough, use Currency** -- Decimal does not deprecate it, and `DecimalFromCurrency( c )` / `d.ToCurrency( )` convert between them.
 
-THE SCALE IS PART OF THE VALUE, NOT PART OF THE FORMATTING.  1.10 and 1.1 are EQUAL, print DIFFERENTLY, and report different scales -- exactly as in .NET.  That is what lets a price read back from a file print the way it was written.
+**The scale is part of the value, not part of the formatting.** 1.10 and 1.1 are equal, print differently, and report different scales -- exactly as in .NET. That is what lets a price read back from a file print the way it was written.
 
 ```freebasic
 DecimalParse( "1.10" ).Value( ).ToString( )       ' 1.10
@@ -178,9 +184,9 @@ DecimalParse( "1.10" ).Value( ) = _
     DecimalParse( "1.1" ).Value( )                ' TRUE
 ```
 
-CONSTRUCTION IS BY FREE FUNCTION, NOT CONSTRUCTOR
+#### Construction is by free function
 
-```freebasic
+```text
 DecimalZero( )      DecimalOne( )        DecimalMinusOne( )
 DecimalMinValue( )  DecimalMaxValue( )   DecimalInvalid( )
 DecimalFromInt( n )                   DecimalFromUInt( u )
@@ -189,11 +195,11 @@ DecimalFromDouble( d )                DecimalFromCurrency( c )
 DecimalParse( s ) -> Optional( of Decimal )
 ```
 
-A one-argument constructor taking LONGINT would also accept a DOUBLE through implicit conversion, so 'Decimal( 19.99 )' would have compiled and stored 19.  Naming every conversion means the inexact one cannot be reached by accident.
+A one-argument constructor taking LONGINT would also accept a DOUBLE through implicit conversion, so `Decimal( 19.99 )` would have compiled and stored 19. Naming every conversion means the inexact one cannot be reached by accident.
 
-ARITHMETIC
+#### Arithmetic
 
-```freebasic
+```text
 a + b, a - b        EXACT.  Scale = max( scale a, scale b ).
 -a                  EXACT
 a * b               EXACT at scale a + scale b
@@ -203,11 +209,11 @@ a MOD b             EXACT.  Sign follows the DIVIDEND.
 a <op> n            n as LONGINT, on either side, for + - * /
 ```
 
-UNLIKE Currency, 'Decimal \* Decimal' AND 'Decimal / Decimal' EXIST.  Currency is an AMOUNT and money times money has the wrong units; Decimal is a NUMBER that happens to be decimal -- which is what .NET's type is -- and rates, factors and ratios are its ordinary business.  There is deliberately NO Decimal-and-DOUBLE operator: a DOUBLE is inexact, and DecimalFromDouble has to be written out so that it can be seen.
+**Unlike Currency, `Decimal * Decimal` and `Decimal / Decimal` exist.** Currency is an *amount* and money times money has the wrong units; Decimal is a *number* that happens to be decimal -- which is what .NET's type is -- and rates, factors and ratios are its ordinary business. There is deliberately no Decimal-and-DOUBLE operator: a DOUBLE is inexact, and DecimalFromDouble has to be written out so that it can be seen.
 
-DIVISION ROUNDS, IT DOES NOT TRUNCATE:
+**Division rounds; it does not truncate:**
 
-```freebasic
+```text
 1 / 3       0.3333333333333333333333333333
 2 / 3       0.6666666666666666666666666667      ' truncation gives ...6666
 1 / 4       0.25            ' the expansion terminates, so it stops there
@@ -215,17 +221,17 @@ DIVISION ROUNDS, IT DOES NOT TRUNCATE:
 1 / 0       Invalid         ' not a trap and not a wrong number
 ```
 
-OVERFLOW IS 'Invalid', INFECTIOUS, AND 'Invalid = Invalid' IS FALSE -- the same rule as Currency and DateTime.  Test with IsValid( ).  Every ordering comparison against an Invalid is FALSE, and DecimalCompare returns -2, which is no ordering at all.  A default-constructed Decimal is ZERO and VALID.
+**Overflow is `Invalid`, it is infectious, and `Invalid = Invalid` is FALSE** -- the same rule as Currency and DateTime. Test with `IsValid( )`. Every ordering comparison against an Invalid is FALSE, and DecimalCompare returns -2, which is no ordering at all. A default-constructed Decimal is zero and valid.
 
-MEMBERS
+#### Members
 
-```freebasic
+```text
 IsValid( ) IsZero( ) IsNegative( ) Sign( ) Scale( )
 Lo( ) Mid( ) Hi( )                     ' the three mantissa limbs
 ToString( )                            ' exact, EXACTLY 'scale' decimals
 ToStringFixed( digits )                ' Rescale then ToString
 ToDouble( )                            ' BOUNDED, named
-ToLongInt( ) -> Optional( of int64 ) ' truncates; None if it will not fit
+ToLongInt( ) -> Optional( of int64 )   ' truncates; None if it will not fit
 ToCurrency( )                          ' half-to-even to four places
 Round( digits )                        ' half-to-even, 0..28
 RoundMode( digits, mode )              ' DEC_HALF_EVEN DEC_HALF_UP
@@ -238,13 +244,15 @@ DecimalCompare( a, b )                 ' -1 0 +1, and -2 for Invalid
 DecimalApportion( total, scale, weights( ), result( ) )
 ```
 
-ROUND NEVER INCREASES THE SCALE, exactly as .NET's decimal.Round does; Rescale is the one that grows it.
+**Round never increases the scale**, exactly as .NET's decimal.Round does; Rescale is the one that grows it.
 
-Apportion is the most useful function here.  Splitting 100.00 three ways gives 33.33 each, whose sum is 99.99.  Every accounting system has to decide where the missing cent goes, and doing it ad hoc is how a reconciliation fails.  Largest-remainder: THE PARTS ALWAYS SUM TO THE TOTAL, EXACTLY -- 33.34 + 33.33 + 33.33 = 100.00.
+Apportion is the most useful function here. Splitting 100.00 three ways gives 33.33 each, whose sum is 99.99. Every accounting system has to decide where the missing cent goes, and doing it ad hoc is how a reconciliation fails. Largest-remainder: **the parts always sum to the total, exactly** -- 33.34 + 33.33 + 33.33 = 100.00.
 
-There is NO DecimalAccum.  Currency needed one because rounding at every line loses money at four places; Decimal has twenty-eight and its addition is exact, so the accumulator is just '+'.
+There is no DecimalAccum. Currency needed one because rounding at every line loses money at four places; Decimal has twenty-eight and its addition is exact, so the accumulator is just `+`.
 
-TEXT IS EXACT BOTH WAYS -- no DOUBLE anywhere in the parse or the print.  PARSING IS STRICT: the whole string must be consumed, and MORE THAN 28 DECIMAL PLACES IS AN ERROR RATHER THAN A TRUNCATION.
+#### Text
+
+Text is exact both ways -- no DOUBLE anywhere in the parse or the print. **Parsing is strict**: the whole string must be consumed, and more than 28 decimal places is an error rather than a truncation.
 
 ```freebasic
 DecimalParse( "12abc" )      ' empty -- not a prefix parse
@@ -253,7 +261,9 @@ DecimalParse( "0.000000000000000000000000000001" )
                              ' empty -- 29 places, not a silent 28
 ```
 
-VERIFIED AGAINST .NET ITSELF.  The point of naming an existing type is that an oracle already exists.  24,000 random operand pairs across '+', '-', '\*', '/' and 'MOD': 23,283 IDENTICAL to .NET, value and scale.  The 717 that differ are two deliberate classes -- 657 MOD cases where .NET pre-rounds or throws and this returns the exact remainder (checked against arbitrary precision: THIS IS EXACT IN ALL 657 AND .NET IN 2), and 60 multiplications that underflow to zero, where both answers are zero and only the reported scale differs.  3,000 unary cases -- Round at every digit count, Floor, Ceiling, Truncate, Compare, Abs, Negate, ToString -- are IDENTICAL with zero divergences.
+#### Verified against .NET
+
+The point of naming an existing type is that an oracle already exists. 24,000 random operand pairs across `+`, `-`, `*`, `/` and `MOD`: 23,283 identical to .NET, value and scale. The 717 that differ are two deliberate classes -- 657 MOD cases where .NET pre-rounds or throws and this returns the exact remainder (checked against arbitrary precision: this is exact in all 657, and .NET in 2), and 60 multiplications that underflow to zero, where both answers are zero and only the reported scale differs. 3,000 unary cases -- Round at every digit count, Floor, Ceiling, Truncate, Compare, Abs, Negate, ToString -- are identical, with zero divergences.
 
 
 ---
@@ -362,8 +372,9 @@ value lands on exactly salvage.
 
 ### Verification
 
-The suites are fbcunit suites for these headers, vendored in tiko-lang at
-`tests/vendor/fbc-tests/finance/`.
+The suites are fbcunit suites, vendored in tiko-lang at `tests/vendor/fbc-tests/finance/` and
+run against the module from `tests/std/finance/`: deprec, flows, loan, loanextra, portfolio,
+rates, solve and tvm.
 
 Where an oracle exists it is named: the IRS MACRS 200%-declining-balance five-year
 schedule is reproduced **exactly**; ISDA's 30/360 and 30E/360 rules are applied including
