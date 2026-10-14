@@ -1,0 +1,26 @@
+'' A UDT whose 'operator cast' yields text, into a type constructible from several text
+'' types: fbc's pick and value, every line measured. The cast's exact type wins, then fbc's
+'' own order (symbols/structpick.tiko TextCastRank_); tiko scored string, zstring and ustring
+'' alike, the tie read as "no pick", and lowering took the chain's first constructor -- an
+'' EMPTY ustring when that was the ustring one, an internal compiler error (TKO0994) when it
+'' was a boolean one. Also: a ustring or wstring cast CONVERTED into a byval string (was
+'' TKO0994), a text cast into 'byref as const zstring' (was the UDT's own bytes, so empty),
+'' and a 'zstring ptr' cast into 'byval as const zstring ptr' (was TKO0698).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/udt-text-cast-ctor-pick.bas -o tests/codegen/udttextcastctorpick.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/udttextcastctorpick.exe
+'' RUN: tests/codegen/udttextcastctorpick.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: T1s=3[s1]
+'' EXPECT-RUN-OUT: F1=[s1]
+'' EXPECT-RUN-OUT: T2s=5[s1]
+'' EXPECT-RUN-OUT: T2u=4[u2]
+'' EXPECT-RUN-OUT: T3u=7[u2]
+'' EXPECT-RUN-OUT: T3z=7[z]
+'' EXPECT-RUN-OUT: T4z=10[z]
+'' EXPECT-RUN-OUT: T4w=8[w]
+'' EXPECT-RUN-OUT: T5u=12[u2]
+'' EXPECT-RUN-OUT: T5w=12[w]
+'' EXPECT-RUN-OUT: T6p=14[p]

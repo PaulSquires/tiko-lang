@@ -1,0 +1,11 @@
+'' TKO0660, fbc's 98: a UDT whose text cast reaches two constructors of the parameter's type
+'' equally -- a string cast over { ustring, wstring }, a ustring cast over { string, wstring }.
+'' tiko accepted both and lowering took the chain's first constructor. A string cast over
+'' { string, wstring } picks string and is not reported. Lines identical to fbc-modern's
+'' errors. See DecideCtorConvArgs_ in symbols/checkdecide.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/udt-text-cast-ctor-tie.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-text-cast-ctor-tie.bas(40,5): error TKO0660
+'' EXPECT-OUT: udt-text-cast-ctor-tie.bas(41,5): error TKO0660
+'' EXPECT-MAX-DIAG: 2

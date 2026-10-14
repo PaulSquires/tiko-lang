@@ -145,6 +145,39 @@ function UdtHasStrCast _
     return false
 end function
 
+'' WHAT A TEXT CAST COSTS INTO A TEXT PARAMETER, past the user conversion itself: 0 for the
+'' identical type, more the further fbc ranks the pair. Measured on fbc-modern -- a UDT casting
+'' to each of the four, passed to a type constructible from every subset of them:
+''
+''     cast yields   preference                              (= is a tie: fbc's 98)
+''     string        string < zstring < ustring = wstring
+''     ustring       ustring < zstring < string = wstring
+''     wstring       wstring < string = ustring = zstring
+''     zstring       zstring < string < ustring < wstring
+''
+'' It was the WIDTH alone, with ustring counted narrow: string and ustring tied, the tie
+'' read as "no pick", and lowering then took the first constructor in the chain -- the
+'' ustring one with an EMPTY value when it was declared first, an internal compiler error
+'' (TKO0994) when a boolean one was.
+private function TextCastRank_ _
+    ( byref types as Tko.TypeContext, byval rt as Tko.TypeId, byval p as Tko.TypeId ) as long
+
+    dim as Tko.BuiltinType a = types.BuiltinOf( rt ), b = types.BuiltinOf( p )
+    if a = b then return 0
+    select case a
+    case Tko.TY_STRING, Tko.TY_USTRING
+        if b = Tko.TY_ZSTRING then return 1
+        return 2
+    case Tko.TY_ZSTRING
+        select case b
+        case Tko.TY_STRING  : return 1
+        case Tko.TY_USTRING : return 2
+        end select
+        return 3
+    end select
+    return 2
+end function
+
 '' StructorCastCost's POINTER arm: CONV_USERDEF for a cast on 'a' yielding exactly 'p' -- a typed
 '' pointer, never 'any ptr' -- and CONV_NONE otherwise. See StructorCastCost.
 private function PtrCastCtorCost_ _
@@ -165,6 +198,11 @@ private function PtrCastCtorCost_ _
         if rt <> Tko.TYPE_NONE then
             if types.Kind( rt ) = Tko.TK_REFERENCE then rt = types.Unqualify( types.Inner( rt ) )
             if rt = p then return CONV_USERDEF
+            '' ...or the same pointee under a 'const' the parameter adds: fbc passes a 'zstring ptr'
+            '' cast to 'constructor( byval as const zstring ptr )', and tiko refused it (TKO0698).
+            if (types.Kind( rt ) = Tko.TK_POINTER) andalso (types.Unqualify( types.Inner( rt ) ) = pe) then
+                if types.IsConst( types.Inner( rt ) ) = false then return CONV_USERDEF + CONV_CONST_ADD
+            end if
         end if
         cur = cs->nextOverload
     wend
@@ -223,7 +261,7 @@ function StructorCastCost _
             if byrefRes andalso (types.Kind( rt ) = Tko.TK_POINTER) then rt = types.Unqualify( types.Inner( rt ) )
             dim as long rk = StrKind_( types, rt )
             if rk <> 0 then
-                dim as long cost = CONV_USERDEF + iif( rk = StrKind_( types, p ), 0, 1 )
+                dim as long cost = CONV_USERDEF + TextCastRank_( types, rt, p )
                 if cost < best then best = cost
             end if
         end if
@@ -234,11 +272,13 @@ end function
 
 '' THE CONSTRUCTOR (or 'let') OVERLOAD FOR A SET OF ARGUMENT TYPES, from the chain at
 '' 'first_'; NONE for no viable one, and NONE for a tie -- an ambiguous construction, not
-'' a silent pick.
+'' a silent pick. 'tiesOut', when given, receives how many other candidates tied the winner
+'' -- non-zero only for that ambiguous NONE.
 function PickStructor _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
       byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
-      byval first_ as Tko.SymbolId, byref argT as containers.Array( of ulong ) ) as Tko.SymbolId
+      byval first_ as Tko.SymbolId, byref argT as containers.Array( of ulong ), _
+      byval tiesOut as long ptr = 0 ) as Tko.SymbolId
 
     dim as Tko.SymbolId best = Tko.SYMBOL_NONE
     dim as long bestCost = CONV_NONE
@@ -319,6 +359,7 @@ function PickStructor _
         end if
         cur = s->nextOverload
     wend
+    if tiesOut <> 0 then *tiesOut = iif( best = Tko.SYMBOL_NONE, 0, ties )
     if ties > 0 then return Tko.SYMBOL_NONE
     return best
 end function

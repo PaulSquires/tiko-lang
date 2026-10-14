@@ -420,6 +420,13 @@ function DirectUdtCtor_( byref c as Ctx, byval pt as Tko.TypeId, byval at as Tko
     return false
 end function
 
+'' Is 't' the 'zstring' character type itself -- what a 'byref as zstring' parameter has?
+private function IsZStrBuiltin_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    if c.types->Kind( t ) <> Tko.TK_BUILTIN then return false
+    return (c.types->BuiltinOf( t ) = Tko.TY_ZSTRING)
+end function
+
 private function UdtConvTemp_ _
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue, byref outSlot as long, byref outType as Tko.TypeId, _
@@ -624,6 +631,21 @@ private function UdtConvTemp_ _
         dim as MirValue cself = LowerAddr( c, argNode )
         if cself.kind = cast( ubyte, MV_NONE ) then return false
         av = EmitMemberCall( c, chainCast, cself, MT_PTR )
+    elseif byrefP andalso (c.types->Kind( au ) = Tko.TK_UDT) andalso IsZStrBuiltin_( c, cpu ) then
+        '' A UDT FOR A 'byref as zstring' PARAMETER, through its text cast: the characters of a
+        '' narrow temporary built from it, as PtrStrArg_ does for 'zstring ptr' -- the same ABI.
+        '' Measured on fbc-modern, casts to string, ustring and 'byref as zstring' into
+        '' 'constructor( byref as const zstring )' all pass the converted text; tiko passed the
+        '' UDT's own address and the constructor read its bytes as characters (an empty string).
+        dim as long zslot = -1
+        dim as MirValue zt
+        dim as Tko.TypeId zst = c.types->Builtin( Tko.TY_STRING )
+        if ByvalStrTemp_( c, argNode, zst, zt, zslot ) = false then return false
+        if zslot >= 0 then
+            c.f->locals[zslot].frontendType = zst
+            c.strTemps.Push( cast( ulong, zslot ) )
+        end if
+        av = LowerExprLoad( c, zt, MT_PTR )
     elseif byrefP then
         '' A NARROW ARGUMENT FOR A USTRING PARAMETER IS A CONVERSION -- UStrParamArgTemp_.
         if UStrParamArgTemp_( c, argNode, cpt, av ) = false then
@@ -688,6 +710,20 @@ private function UdtConvTemp_ _
             av = CoerceTy( c, av, nmt, c.syms->SymbolAt( numCast )->type_, cpt )
             if av.kind = cast( ubyte, MV_NONE ) then return false
             chainCast = numCast   '' converted: no second coercion below
+        elseif (c.types->Kind( au ) = Tko.TK_UDT) andalso IsStringType( c, cpu ) then
+            '' ...AND A BYVAL STRING PARAMETER through the argument's text cast, CONVERTED: the
+            '' chain arm above takes only a cast yielding the parameter's own type. Measured on
+            '' fbc-modern, a UDT casting to 'ustring' or 'byref as wstring' into 'constructor(
+            '' byval as string )' runs the cast and builds the string from it; tiko lowered the
+            '' UDT's own bytes as the string, declined, and stopped with TKO0994. The temporary
+            '' is the one 'dim as string s = u' assigns, so every cast width reaches its entry.
+            dim as long tslot = -1
+            if ByvalStrTemp_( c, argNode, cpu, av, tslot ) = false then return false
+            if tslot >= 0 then
+                c.f->locals[tslot].frontendType = cpu
+                c.strTemps.Push( cast( ulong, tslot ) )
+            end if
+            chainCast = StructorOf( c, au, "cast" )   '' converted: no second coercion below
         else
             av = LowerExpr( c, argNode )
         end if

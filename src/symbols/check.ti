@@ -223,7 +223,8 @@ namespace Tko.Check
     declare function PickStructor _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
-          byval first_ as Tko.SymbolId, byref argT as containers.Array( of ulong ) ) as Tko.SymbolId
+          byval first_ as Tko.SymbolId, byref argT as containers.Array( of ulong ), _
+          byval tiesOut as long ptr = 0 ) as Tko.SymbolId
 
     '' WHICH 'operator cast' A STRING CONTEXT CALLS -- one rule, scored as fbc scores it
     '' (castpick.tiko). CR_*: what a cast yields; CT_*: the target a context asks with;

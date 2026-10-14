@@ -303,6 +303,79 @@ private sub DecideCtorCalls_( byref c as Ctx )
     next
 end sub
 
+'' Does UDT 'at' declare an 'operator cast' yielding 'pt' itself?
+private function UdtCastsTo_( byref c as Ctx, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as boolean
+    dim as Tko.SymbolId cur = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, at, "cast" )
+    dim as long guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
+        if cs = 0 then exit while
+        dim as Tko.TypeId rt = c.types->Unqualify( cs->type_ )
+        if rt <> Tko.TYPE_NONE then
+            if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+            if rt = pt then return true
+        end if
+        cur = cs->nextOverload
+    wend
+    return false
+end function
+
+'' A UDT ARGUMENT THAT REACHES TWO OF THE PARAMETER TYPE'S CONSTRUCTORS EQUALLY -- fbc's 98,
+'' measured over a type casting to 'string' and a parameter type built from 'byref as ustring'
+'' or 'byref as wstring' (structpick.tiko TextCastRank_ has the table). The argument was
+'' accepted, and lowering, given no single pick, took the first constructor in the chain: the
+'' wrong one, with an empty value, or an internal compiler error (TKO0994) where it could not
+'' lower that one at all. A cast on the argument yielding the parameter's type itself is a
+'' different conversion and is left to its own rules.
+private sub DecideCtorConvArgs_( byref c as Ctx )
+    for i as long = 1 to c.ast->Count( )
+        dim as Tko.NodeId n = cast( Tko.NodeId, i )
+        if c.ast->Kind( n ) <> Tko.N_CALL then continue for
+        dim as Tko.ListPayload ptr cp = @c.ast->lists[cast( long, c.ast->nodes[cast( long, n )].data )]
+        if (cp->target = Tko.NODE_NONE) orelse (cp->count <= 0) then continue for
+        dim as Tko.SymbolId callee = c.info->RefOf( n )
+        if callee = Tko.SYMBOL_NONE then callee = c.info->RefOf( cp->target )
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( callee )
+        if s = 0 then continue for
+        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then continue for
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then continue for
+        dim as Tko.StmtPayload ptr pp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, pn )].data )]
+        if (pp->extra and Tko.PF_GENERIC_PROC) <> 0 then continue for
+        dim as long ai = 0
+        for k as long = 0 to pp->count - 1
+            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
+            if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+            if ai >= cp->count then exit for
+            dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + ai] )
+            ai += 1
+            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0 then continue for
+            dim as Tko.NodeId pta = c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )].a
+            if pta = Tko.NODE_NONE then continue for
+            dim as Tko.TypeId pt = c.types->Unqualify( TypeOf_( c, pta ) )
+            if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
+            if c.types->Kind( pt ) <> Tko.TK_UDT then continue for
+            dim as Tko.TypeId at = TypeOf_( c, a )
+            if at = Tko.TYPE_NONE then continue for
+            at = c.types->Unqualify( at )
+            if c.types->Kind( at ) = Tko.TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
+            if c.types->Kind( at ) <> Tko.TK_UDT then continue for
+            if c.types->BaseDistance( at, pt ) >= 0 then continue for
+            if UdtCastsTo_( c, at, pt ) then continue for
+            dim as Tko.SymbolId first_ = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, pt, "__ctor" )
+            if first_ = Tko.SYMBOL_NONE then continue for
+            dim as containers.Array( of ulong ) argT
+            argT.Push( cast( ulong, at ) )
+            dim as long ties = 0
+            Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT, @ties )
+            if ties > 0 then
+                c.diags->Report( Tko.TKO0660, Tko.PointRange( c.ast->Loc( a ) ), c.names->Spelling( c.types->NameOf( pt ) ) )
+            end if
+        next
+    next
+end sub
+
 '' A UDT ARGUMENT WHOSE POINTER CASTS BOTH REACH AN 'any ptr' PARAMETER -- fbc's 98, measured over
 '' casts to 'long ptr' and 'double ptr' and 'sub tk( byval p as any ptr )'. The initialiser and
 '' assignment forms are latesweeps2.tiko's (PtrCastFit); a call's argument was accepted and the
