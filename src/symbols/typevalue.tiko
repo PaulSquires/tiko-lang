@@ -18,17 +18,28 @@
 '' an assignment's two sides, a binary operand, a PRINT item and a declaration's
 '' initialiser. A type name is legal as the subject of a member ('T.K', 'E.A'), as the
 '' operand of sizeof/len/typeof, in a cast and in 'new' -- none of which is one of these.
-'' The right-hand side of 'o IS T' names a type and is skipped.
-private function IsTypeNameValue_ ( byref c as Ctx, byval n as NodeId ) as boolean
+'' 'o IS T' names a type on purpose, and either side may be one: skipped whole.
+''
+'' A UDT NAME CAN BE A VALUE: 'var f1 = foo' over a type with a constructor builds one
+'' (fbc's dim/auto_var2.bas). So a name that resolves to a UDT is refused only as an
+'' assignment's TARGET -- 'U = 5' -- and everywhere else is left to the rules that judge
+'' a UDT value. A typedef of a scalar, and an enum, have no value anywhere.
+private function IsTypeNameValue_ ( byref c as Ctx, byval n as NodeId, _
+                                    byval asTarget as boolean = false ) as boolean
     if n = NODE_NONE then return false
     if c.ast->Kind( n ) <> N_IDENT then return false
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
     if s = 0 then return false
     select case cast( SymbolKind, s->kind )
     case SYM_UDT, SYM_TYPEDEF, SYM_ENUM
-        return true
+    case else
+        return false
     end select
-    return false
+    if asTarget then return true
+    if s->kind = cast( ubyte, SYM_ENUM ) then return true
+    dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( n ) )
+    if t = TYPE_NONE then return false
+    return (c.types->Kind( t ) <> TK_UDT)
 end function
 
 private sub ReportTypeNameValue_ ( byref c as Ctx, byval n as NodeId )
@@ -43,13 +54,13 @@ private sub CheckTypeNameValue_ ( byref c as Ctx, byval id as NodeId, byval k as
     case N_AMBIGUOUS
         dim as StmtPayload ptr sp = _
             @c.ast->stmts[cast( long, c.ast->nodes[cast( long, id )].data )]
-        if IsTypeNameValue_( c, sp->a ) then ReportTypeNameValue_( c, sp->a ) : return
+        if IsTypeNameValue_( c, sp->a, (c.info->AmbiguousOf( id ) = AMB_ASSIGN) ) then ReportTypeNameValue_( c, sp->a ) : return
         if IsTypeNameValue_( c, sp->b ) then ReportTypeNameValue_( c, sp->b )
     case N_BINARY
         dim as BinaryPayload ptr bp = _
             @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-        if IsTypeNameValue_( c, bp->lhs ) then ReportTypeNameValue_( c, bp->lhs ) : return
         if cast( TokenKind, bp->op ) = KW_IS then return
+        if IsTypeNameValue_( c, bp->lhs ) then ReportTypeNameValue_( c, bp->lhs ) : return
         if IsTypeNameValue_( c, bp->rhs ) then ReportTypeNameValue_( c, bp->rhs )
     case N_INTRINSIC
         dim as StmtPayload ptr sp = _

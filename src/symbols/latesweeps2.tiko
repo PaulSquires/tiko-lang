@@ -465,6 +465,15 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     '' A TYPE WITH NO MEMBERS AT ALL: 'x.foo' over a long, or a pointer to one -- fbc's error
     '' 265, "Symbol not a CLASS". tiko stopped with TKO0994, having nothing to lower.
     if c.types->Kind( bu ) = TK_BUILTIN then
+        '' '->' and '.' over a POINTER are TKO0631's and TKO0630's, reported already; only a
+        '' '.' over a value is this rule's. A COMPILER-MADE name ('$dt1', '$fe1' -- the
+        '' temporaries destructuring reads '_1' and '_2' off) is not the user's to fix: the
+        '' destructure itself was reported, as TKO0826.
+        if op <> TK_DOT then return
+        if c.types->Kind( c.types->Unqualify( ValueType_( c, bt ) ) ) = TK_POINTER then return
+        if c.ast->Kind( mp->lhs ) = N_IDENT then
+            if left( c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->lhs )].data )].name ), 1 ) = "$" then return
+        end if
         dim as string lnm = c.types->Name( bu )
         dim as NodeId ln = mp->lhs
         if c.ast->Kind( ln ) = N_CALL then
