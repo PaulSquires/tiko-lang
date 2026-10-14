@@ -1,0 +1,10 @@
+'' TKO0660 for a PACKED argument: a UDT casting only to 'double', packed into a typed variadic
+'' of a type with several numeric constructors, reaches them all equally (fbc's 98 for the
+'' same argument to a plain parameter). The check skipped array parameters, so a packed one
+'' went unreported and lowering took a constructor and crashed. Spelled with its own cast it is
+'' fine. See CtorTieArg_ in symbols/checkdecide.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/typed-variadic-ctor-tie.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: typed-variadic-ctor-tie.tiko(29,10): error TKO0660
+'' EXPECT-MAX-DIAG: 1

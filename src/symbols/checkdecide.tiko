@@ -327,6 +327,28 @@ private function UdtCastsTo_( byref c as Ctx, byval at as Tko.TypeId, byval pt a
     return false
 end function
 
+'' One argument 'a' for a parameter of UDT 'pt': TKO0660 when two of pt's constructors take it
+'' equally -- see DecideCtorConvArgs_.
+private sub CtorTieArg_( byref c as Ctx, byval a as Tko.NodeId, byval pt as Tko.TypeId )
+    if c.types->Kind( pt ) <> Tko.TK_UDT then exit sub
+    dim as Tko.TypeId at = TypeOf_( c, a )
+    if at = Tko.TYPE_NONE then exit sub
+    at = c.types->Unqualify( at )
+    if c.types->Kind( at ) = Tko.TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
+    if c.types->Kind( at ) <> Tko.TK_UDT then exit sub
+    if c.types->BaseDistance( at, pt ) >= 0 then exit sub
+    if UdtCastsTo_( c, at, pt ) then exit sub
+    dim as Tko.SymbolId first_ = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, pt, "__ctor" )
+    if first_ = Tko.SYMBOL_NONE then exit sub
+    dim as containers.Array( of ulong ) argT
+    argT.Push( cast( ulong, at ) )
+    dim as long ties = 0
+    Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT, @ties )
+    if ties > 0 then
+        c.diags->Report( Tko.TKO0660, Tko.PointRange( c.ast->Loc( a ) ), c.names->Spelling( c.types->NameOf( pt ) ) )
+    end if
+end sub
+
 '' A UDT ARGUMENT THAT REACHES TWO OF THE PARAMETER TYPE'S CONSTRUCTORS EQUALLY -- fbc's 98,
 '' measured over a type casting to 'string' and a parameter type built from 'byref as ustring'
 '' or 'byref as wstring' (structpick.tiko TextCastRank_ has the table). The argument was
@@ -356,28 +378,23 @@ private sub DecideCtorConvArgs_( byref c as Ctx )
             if ai >= cp->count then exit for
             dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + ai] )
             ai += 1
-            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0 then continue for
             dim as Tko.NodeId pta = c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )].a
             if pta = Tko.NODE_NONE then continue for
             dim as Tko.TypeId pt = c.types->Unqualify( TypeOf_( c, pta ) )
             if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
-            if c.types->Kind( pt ) <> Tko.TK_UDT then continue for
-            dim as Tko.TypeId at = TypeOf_( c, a )
-            if at = Tko.TYPE_NONE then continue for
-            at = c.types->Unqualify( at )
-            if c.types->Kind( at ) = Tko.TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
-            if c.types->Kind( at ) <> Tko.TK_UDT then continue for
-            if c.types->BaseDistance( at, pt ) >= 0 then continue for
-            if UdtCastsTo_( c, at, pt ) then continue for
-            dim as Tko.SymbolId first_ = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, pt, "__ctor" )
-            if first_ = Tko.SYMBOL_NONE then continue for
-            dim as containers.Array( of ulong ) argT
-            argT.Push( cast( ulong, at ) )
-            dim as long ties = 0
-            Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT, @ties )
-            if ties > 0 then
-                c.diags->Report( Tko.TKO0660, Tko.PointRange( c.ast->Loc( a ) ), c.names->Spelling( c.types->NameOf( pt ) ) )
+            '' A TYPED VARIADIC that packs: every argument from here on is an element of pt -- the
+            '' FormatArg a UDT casting only to a number ties on (docs/tiko-params/RFC-0001).
+            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_VARIADIC) <> 0 then
+                dim as boolean spread = (cp->count = ai) andalso IsArrayArgShape_( c, a )
+                if spread = false then
+                    for v as long = ai - 1 to cp->count - 1
+                        CtorTieArg_( c, cast( Tko.NodeId, c.ast->children[cp->first + v] ), pt )
+                    next
+                end if
+                exit for
             end if
+            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_ARRAY) <> 0 then continue for
+            CtorTieArg_( c, a, pt )
         next
     next
 end sub

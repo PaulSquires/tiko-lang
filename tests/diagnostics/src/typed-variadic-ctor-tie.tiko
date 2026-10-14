@@ -1,0 +1,30 @@
+'' A UDT that casts only to a number, packed into a typed variadic whose element type has
+'' several numeric constructors: the cast reaches them all equally -- TKO0660, as for an
+'' ordinary argument -- where lowering used to take one and the program crashed.
+
+type Temp
+    as double c
+    declare operator cast( ) as double
+end type
+operator Temp.cast( ) as double
+    return c
+end operator
+
+type Arg
+    as long kind
+    declare constructor( byval v as longint )
+    declare constructor( byval v as long )
+    declare constructor( byval v as double )
+    declare constructor( byref v as const string )
+end type
+constructor Arg( byval v as longint ) : kind = 1 : end constructor
+constructor Arg( byval v as long ) : kind = 2 : end constructor
+constructor Arg( byval v as double ) : kind = 3 : end constructor
+constructor Arg( byref v as const string ) : kind = 4 : end constructor
+
+sub Take( xs() as const Arg ... )
+end sub
+
+dim as Temp t = ( 1.5 )
+Take( 1, t )
+Take( cast( double, t ) )
