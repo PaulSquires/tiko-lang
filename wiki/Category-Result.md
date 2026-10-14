@@ -2,6 +2,16 @@
 
 # Result
 
+A **Result** is the answer from something that can fail. It holds exactly one of two things: the **value** you asked for, or a **reason** why it could not be produced -- never both, and never neither. A `Result( of int32, ustring )` holds either a number or a piece of text saying what went wrong.
+
+Think of taking a coat to a tailor: it comes back either altered, or with a note pinned to it -- "fabric too thin to take in". Either way you get something back, and when the alteration is missing, the note says why.
+
+You make a successful one with `Ok( ... )( value )` and a failed one with `Fail( ... )( reason )`. Whoever receives it asks `IsOk( )`, then reads `Value( )` on success or `Failure( )` on failure; `ValueOr( fallback )` gives the value, or the fallback when you do not need to know why. Because the reason travels inside the return value, a failure cannot be mistaken for a value.
+
+Use a Result when the caller needs to know *why* something failed -- a file that would not open, text that would not parse. When "there is nothing" needs no explanation, use an [Optional](Category-Optional) instead.
+
+The example below parses text into a number, and prints either the number or the reason it could not:
+
 ```freebasic
 #import "std/outcome"
 using outcome
