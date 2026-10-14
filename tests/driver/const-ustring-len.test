@@ -1,0 +1,14 @@
+'' THE LENGTH OF A 'const as ustring' IS ITS UTF-16 UNITS. 'len' folded a constant to its
+'' text's length, which is the source's UTF-8 BYTES: 'len( G )' over 'const G as ustring =
+'' "hé"' was 3 where 'dim v as ustring = "hé"' has 2 -- alone, in a chain, and through a
+'' namespace or a type (src/mir/lowerstr.tiko). A narrow constant still folds. fbc-modern
+'' 1.20 has no 'const as ustring' (error 24), so there is no differential.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/driver/src/const-ustring-len.bas -o tests/driver/constustrlen.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/constustrlen.exe
+'' RUN: tests/driver/constustrlen.exe
+'' EXPECT-RUN-OUT:  2 2 2 4 2 2
+'' EXPECT-RUN-OUT:  2 3
+'' EXPECT-RUN-EXIT: 0

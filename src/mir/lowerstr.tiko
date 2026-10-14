@@ -980,6 +980,9 @@ private function LowerStaticMemberLen_ _
 
     '' A STRING CONSTANT MEASURES ITS TEXT. It has no storage of its own, so the size
     '' its type would give is the size of whatever the initialiser was written as.
+    '' ...EXCEPT THE LENGTH OF A 'const as ustring', which is UTF-16 units, not the text's
+    '' UTF-8 bytes: declined, so the ordinary path measures its ustring temporary.
+    if (isSizeof = false) andalso IsUStringType( c, c.info->TypeOf_( a ) ) then return false
     dim as string ct
     if ConstStringTextOf_( c, a, ct, 1 ) then
         dim as longint n = len( ct )
@@ -1253,8 +1256,18 @@ function LowerLen _
             outv = ConstInt( c, len( StringLitText_( c, a, true ) ), MT_I64 )
             return (outv.kind <> cast( ubyte, MV_NONE ))
         end if
+        '' ...BUT NOT A 'const as ustring', alone or in a chain: its text is the source's
+        '' UTF-8 BYTES, and a ustring's length is its UTF-16 units -- 'len( G )' over
+        '' 'const G as ustring = "hé"' folded to 3 where 'dim v as ustring = "hé"' has 2.
+        '' It is measured below, over the ustring temporary StrDescriptorOf_ builds.
+        dim as boolean constU = IsUStringType( c, at )
+        if (constU = false) andalso (c.ast->Kind( a ) = Tko.N_BINARY) then
+            dim as containers.Array( of ulong ) cuterms
+            FlattenConcat( c, a, cuterms )
+            if cuterms.Count > 1 then constU = ConcatTermsAreU_( c, cuterms )
+        end if
         dim as string lct
-        if ConstStringTextOf_( c, a, lct, 1 ) then
+        if (constU = false) andalso ConstStringTextOf_( c, a, lct, 1 ) then
             outv = ConstInt( c, len( lct ), MT_I64 )
             return (outv.kind <> cast( ubyte, MV_NONE ))
         end if
