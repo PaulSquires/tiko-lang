@@ -13,6 +13,10 @@ library (pkg/: std, db, sys, tkl) and its own tests (tests/, except
 tests/vendor/). It also covers the tiko / tiko.exe binaries built from them, and
 the copies of pkg/ shipped under toolchains/.
 
+pkg/ adds a linking exception, the same one tiko-rt carries: a program that
+imports its packages can be distributed under terms of its author's choice.
+See pkg/LICENSE.
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
