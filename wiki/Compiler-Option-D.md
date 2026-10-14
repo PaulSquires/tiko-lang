@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -d**
+[Home](Home) › **Compiler Option: -d**
 
 # Compiler Option: -d
 
@@ -32,10 +32,6 @@ See also
 - [#macro](Macro-Endmacro)
 - [Intrinsic Defines](Intrinsic-Defines)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

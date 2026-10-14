@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -Wl**
+[Home](Home) › **Compiler Option: -Wl**
 
 # Compiler Option: -Wl
 
@@ -25,10 +25,6 @@ See also
 - [Compiler Option: -Wa](Compiler-Option-Wa)
 - [Compiler Option: -Wc](Compiler-Option-Wc)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

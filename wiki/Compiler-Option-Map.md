@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -map**
+[Home](Home) › **Compiler Option: -map**
 
 # Compiler Option: -map
 
@@ -21,10 +21,6 @@ The `-map` compiler option saves the a map file of the executable made.
 See also
 
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

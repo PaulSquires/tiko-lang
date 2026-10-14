@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -nodeflibs**
+[Home](Home) › **Compiler Option: -nodeflibs**
 
 # Compiler Option: -nodeflibs
 
@@ -15,10 +15,6 @@ The `-nodeflibs` compiler option causes default libraries not to be used when li
 See also
 
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -lang**
+[Home](Home) › **Compiler Option: -lang**
 
 # Compiler Option: -lang
 
@@ -47,10 +47,6 @@ See also
 - [Compiler Option: -forcelang](Compiler-Option-Forcelang)
 - [Compiler Dialects](Freebasic-Dialects)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

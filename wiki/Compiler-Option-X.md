@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -x**
+[Home](Home) › **Compiler Option: -x**
 
 # Compiler Option: -x
 
@@ -23,10 +23,6 @@ The `-x` compiler option set the executable or library name, with extension. Def
 See also
 
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

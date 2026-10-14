@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -dll**
+[Home](Home) › **Compiler Option: -dll**
 
 # Compiler Option: -dll
 
@@ -27,10 +27,6 @@ See also
 - [`__FB_OUT_DLL__`](Fb-Out-Dll)
 - [Shared Libraries](Shared-Libraries)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

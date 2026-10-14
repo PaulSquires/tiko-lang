@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -mt**
+[Home](Home) › **Compiler Option: -mt**
 
 # Compiler Option: -mt
 
@@ -18,10 +18,6 @@ See also
 
 - [`__FB_MT__`](Fb-Mt)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

@@ -81,7 +81,6 @@
 - [Intrinsic Defines](Category-Intrinsic-Defines)
 - [Miscellaneous Keywords](Category-Miscellaneous-Keywords)
 - [Modularizing](Category-Modularizing)
-- [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 - [Compiler](Category-Compiler)
 - [Compiler Options](Category-Compiler-Options)
 - [Compiler Switches](Category-Compiler-Switches)

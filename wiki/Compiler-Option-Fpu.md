@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -fpu**
+[Home](Home) › **Compiler Option: -fpu**
 
 # Compiler Option: -fpu
 
@@ -35,10 +35,6 @@ See also
 - [Using the Command Line](Quick-Start#compile-a-program)
 - [`Option()`](Option)
 - [`__FB_FPU__`](Fb-Fpu)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

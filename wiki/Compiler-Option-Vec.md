@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -vec**
+[Home](Home) › **Compiler Option: -vec**
 
 # Compiler Option: -vec
 
@@ -30,10 +30,6 @@ See also
 
 - [Using the Command Line](Quick-Start#compile-a-program)
 - [Compiler option -fpu](Compiler-Option-Fpu)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

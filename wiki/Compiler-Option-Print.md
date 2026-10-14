@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -print**
+[Home](Home) › **Compiler Option: -print**
 
 # Compiler Option: -print
 
@@ -39,10 +39,6 @@ See also
 - [Using the Command Line](Quick-Start#compile-a-program)
 - [`__FB_BUILD_SHA1__`](Fb-Build-Sha1)
 - [`__FB_BUILD_FORK_ID__`](Fb-Build-Fork-Id)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

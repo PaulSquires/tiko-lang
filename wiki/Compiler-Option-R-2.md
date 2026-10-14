@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -R**
+[Home](Home) › **Compiler Option: -R**
 
 # Compiler Option: -R
 
@@ -20,10 +20,6 @@ See also
 - [Compiler Option: -r](Compiler-Option-R)
 - [Compiler Option: -gen](Compiler-Option-Gen)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -arch**
+[Home](Home) › **Compiler Option: -arch**
 
 # Compiler Option: -arch
 
@@ -35,10 +35,6 @@ See also
 
 - [Using the Command Line](Quick-Start#compile-a-program)
 - [-target](Compiler-Option-Target)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -profgen**
+[Home](Home) › **Compiler Option: -profgen**
 
 # Compiler Option: -profgen
 
@@ -34,10 +34,6 @@ See also
 - [Profiling with fb's profiler](Profiling-with-Fb-S-Profiler)
 - [Profiling for gmon/gprof](Profiling-for-Gmon-Gprof)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

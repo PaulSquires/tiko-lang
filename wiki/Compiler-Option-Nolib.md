@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -nolib**
+[Home](Home) › **Compiler Option: -nolib**
 
 # Compiler Option: -nolib
 
@@ -42,10 +42,6 @@ See also
 
 - [Compiler Option: -nodeflibs](Compiler-Option-Nodeflibs)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

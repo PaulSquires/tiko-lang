@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -buildprefix**
+[Home](Home) › **Compiler Option: -buildprefix**
 
 # Compiler Option: -buildprefix
 
@@ -112,10 +112,6 @@ See also
 - [-prefix](Compiler-Option-Prefix)
 - [-target](Compiler-Option-Target)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

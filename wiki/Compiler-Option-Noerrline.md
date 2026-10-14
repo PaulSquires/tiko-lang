@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -noerrline**
+[Home](Home) › **Compiler Option: -noerrline**
 
 # Compiler Option: -noerrline
 
@@ -15,10 +15,6 @@ The `-noerrline` compiler option causes reported errors to not show the place in
 See also
 
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

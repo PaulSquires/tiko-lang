@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -target**
+[Home](Home) › **Compiler Option: -target**
 
 # Compiler Option: -target
 
@@ -43,10 +43,6 @@ See also
 - [-buildprefix](Compiler-Option-Buildprefix)
 - [-prefix](Compiler-Option-Prefix)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

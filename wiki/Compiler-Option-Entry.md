@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -entry**
+[Home](Home) › **Compiler Option: -entry**
 
 # Compiler Option: -entry
 
@@ -116,10 +116,6 @@ See also
 
 - [Compiler Option: -m](Compiler-Option-M)
 - [Executables](Executables)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

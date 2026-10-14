@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Error Messages**
+[Home](Home) › **Compiler Error Messages**
 
 # Compiler Error Messages
 
@@ -405,10 +405,6 @@ The error messages stop the compilation after 10 errors (see the -maxerr command
 These errors occur after the source has been compiled into assembler, they come from the auxiliary programs FB requires to compile a source into an executable: the linker, the assembler and (for Windows programs) the resource compiler.
 
  If an IDE or a make utility are been used, additional errors can arise. These errors are outside the scope of this help.
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

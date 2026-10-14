@@ -74,7 +74,6 @@ The language and its standard library first, then the compatibility reference: t
 - [Intrinsic Defines](Category-Intrinsic-Defines) — 81 pages
 - [Miscellaneous Keywords](Category-Miscellaneous-Keywords) — 36 pages
 - [Modularizing](Category-Modularizing) — 13 pages
-- [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) — 74 pages
 - [Compiler](Category-Compiler) — 5 pages
 - [Compiler Options](Category-Compiler-Options) — 3 pages
 - [Compiler Switches](Category-Compiler-Switches) — 23 pages

@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -export**
+[Home](Home) › **Compiler Option: -export**
 
 # Compiler Option: -export
 
@@ -17,10 +17,6 @@ See also
 - [`Export`](Export)
 - [Shared Libraries](Shared-Libraries)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

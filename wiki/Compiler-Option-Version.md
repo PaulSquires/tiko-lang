@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -version**
+[Home](Home) › **Compiler Option: -version**
 
 # Compiler Option: -version
 
@@ -15,10 +15,6 @@ The `-version` compiler option makes the compiler show its version and exit. Any
 See also
 
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

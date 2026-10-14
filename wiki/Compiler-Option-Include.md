@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -include**
+[Home](Home) › **Compiler Option: -include**
 
 # Compiler Option: -include
 
@@ -28,10 +28,6 @@ See also
 - [Compiler Option: -i](Compiler-Option-I)
 - [Header Files](Header-Files-Bi)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

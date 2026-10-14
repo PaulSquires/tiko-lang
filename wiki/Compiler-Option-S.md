@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -s**
+[Home](Home) › **Compiler Option: -s**
 
 # Compiler Option: -s
 
@@ -28,10 +28,6 @@ See also
 
 - [`__FB_GUI__`](Fb-Gui)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

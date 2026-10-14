@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -strip**
+[Home](Home) › **Compiler Option: -strip**
 
 # Compiler Option: -strip
 
@@ -23,10 +23,6 @@ See also
 
 - [-nostrip](Compiler-Option-Nostrip)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

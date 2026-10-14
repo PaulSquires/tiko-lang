@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -profile**
+[Home](Home) › **Compiler Option: -profile**
 
 # Compiler Option: -profile
 
@@ -17,10 +17,6 @@ See also
 - [Compiler Option: -profgen](Compiler-Option-Profgen)
 - [Profiling for gmon/gprof](Profiling-for-Gmon-Gprof)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

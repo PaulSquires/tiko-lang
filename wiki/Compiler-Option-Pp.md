@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -pp**
+[Home](Home) › **Compiler Option: -pp**
 
 # Compiler Option: -pp
 
@@ -17,10 +17,6 @@ See also
 
 - [Using the Command Line](Quick-Start#compile-a-program)
 - [Preprocessor commands](Preprocessor)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

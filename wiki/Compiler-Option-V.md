@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -v**
+[Home](Home) › **Compiler Option: -v**
 
 # Compiler Option: -v
 
@@ -15,10 +15,6 @@ The `-v` compiler option activates verbose mode. In this mode the compiler shows
 See also
 
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -fpmode**
+[Home](Home) › **Compiler Option: -fpmode**
 
 # Compiler Option: -fpmode
 
@@ -37,10 +37,6 @@ See also
 - [Using the Command Line](Quick-Start#compile-a-program)
 - [Compiler Option: -fpu](Compiler-Option-Fpu)
 - [`__FB_FPMODE__`](Fb-Fpmode)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

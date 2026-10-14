@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Debugging**
+[Home](Home) › **Debugging**
 
 # Debugging
 
@@ -54,10 +54,6 @@ The debugger is in the `bin\win32` or `bin\dos` directories (the **GDB**.EXE fil
   - Use `r` again to restart the application when it finishes.
   - Type `q` to quit.
   - Type `help` to see a list of commands, there are many others.
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -l**
+[Home](Home) › **Compiler Option: -l**
 
 # Compiler Option: -l
 
@@ -23,10 +23,6 @@ See also
 - [`#inclib`](Inclib)
 - [Compiler Option: -p](Compiler-Option-P)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

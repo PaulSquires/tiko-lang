@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -sysroot**
+[Home](Home) › **Compiler Option: -sysroot**
 
 # Compiler Option: -sysroot
 
@@ -29,10 +29,6 @@ See also
 
 - [`#libpath`](Libpath)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

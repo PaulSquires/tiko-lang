@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -pic**
+[Home](Home) › **Compiler Option: -pic**
 
 # Compiler Option: -pic
 
@@ -19,10 +19,6 @@ The `-pic` compiler option tells the compiler to generate position-independent c
 See also
 
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

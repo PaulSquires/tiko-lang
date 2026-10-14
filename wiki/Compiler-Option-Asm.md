@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -asm**
+[Home](Home) › **Compiler Option: -asm**
 
 # Compiler Option: -asm
 
@@ -52,10 +52,6 @@ See also
 
 - [\_\_FB_ASM\_\_](Fb-Asm)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

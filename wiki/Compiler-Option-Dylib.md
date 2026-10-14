@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -dylib**
+[Home](Home) › **Compiler Option: -dylib**
 
 # Compiler Option: -dylib
 
@@ -26,10 +26,6 @@ See also
 - [Shared Libraries](Shared-Libraries)
 - [Using the Command Line](Quick-Start#compile-a-program)
 - [Compiler Option: -dll](Compiler-Option-Dll)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

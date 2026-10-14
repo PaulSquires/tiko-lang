@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -b**
+[Home](Home) › **Compiler Option: -b**
 
 # Compiler Option: -b
 
@@ -28,10 +28,6 @@ See also
 
 - [Compiler Option: -a](Compiler-Option-a)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -gen**
+[Home](Home) › **Compiler Option: -gen**
 
 # Compiler Option: -gen
 
@@ -41,10 +41,6 @@ The compiler will emit LLVM IR code to a `.ll` file which will then be compiled 
 See also
 
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

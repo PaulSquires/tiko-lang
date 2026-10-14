@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -lib**
+[Home](Home) › **Compiler Option: -lib**
 
 # Compiler Option: -lib
 
@@ -19,10 +19,6 @@ See also
 - [`__FB_OUT_LIB__`](Fb-Out-Lib)
 - [Static Libraries](Static-Libraries)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

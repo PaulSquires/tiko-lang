@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -earray**
+[Home](Home) › **Compiler Option: -earray**
 
 # Compiler Option: -earray
 
@@ -25,10 +25,6 @@ See also
 - [Compiler Option: -exx](Compiler-Option-Exx)
 - [Error Handling](Error-Handling)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

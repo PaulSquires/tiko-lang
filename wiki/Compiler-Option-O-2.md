@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -O**
+[Home](Home) › **Compiler Option: -O**
 
 # Compiler Option: -O
 
@@ -22,10 +22,6 @@ See also
 
 - [Compiler Option: -gen gcc](Compiler-Option-Gen)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

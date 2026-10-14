@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -eunwind**
+[Home](Home) › **Compiler Option: -eunwind**
 
 # Compiler Option: -eunwind
 
@@ -19,10 +19,6 @@ See also
 
 - [`__FB_ERR__`](Fb-Err)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -noobjinfo**
+[Home](Home) › **Compiler Option: -noobjinfo**
 
 # Compiler Option: -noobjinfo
 
@@ -18,10 +18,6 @@ Version
 See also
 
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

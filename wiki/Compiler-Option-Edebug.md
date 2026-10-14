@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -edebug**
+[Home](Home) › **Compiler Option: -edebug**
 
 # Compiler Option: -edebug
 
@@ -30,10 +30,6 @@ See also
 - [Compiler Option: -g](Compiler-Option-G)
 - [Debugging](Debugging)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 

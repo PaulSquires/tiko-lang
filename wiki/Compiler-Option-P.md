@@ -1,4 +1,4 @@
-[Home](Home) › [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) › **Compiler Option: -p**
+[Home](Home) › **Compiler Option: -p**
 
 # Compiler Option: -p
 
@@ -22,10 +22,6 @@ See also
 
 - [`#libpath`](Libpath)
 - [Using the Command Line](Quick-Start#compile-a-program)
-
----
-
-**Category:** [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler)
 
 ---
 
