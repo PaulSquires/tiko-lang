@@ -23,8 +23,8 @@ A format string written as a literal is **checked when the program is compiled**
 `print` and `&` join values with each value's default text, and nothing else. A width, an alignment, a fixed number of decimals, hexadecimal, a sign -- each is a separate function call, and the layout of a line disappears into them:
 
 ```freebasic
-dim as long n = 7
-dim as double secs = 1.2345
+dim as int32 n = 7
+dim as float64 secs = 1.2345
 print "item " & right( "    " & n, 4 ) & ": " & str( cint( secs * 100 ) / 100 ) & "s"
 print strings.Format( "item {:>4}: {:.2f}s", n, secs )
 ```
