@@ -1,0 +1,6 @@
+Sum( 10, 20, 30 ) = 60
+Sum( 7 )          = 7
+Sum( )            = 0
+three: 3 values, sum 6
+none: 0 values, sum 0
+week: 7 values, sum 35

@@ -1,0 +1,32 @@
+'' typedvariadic.tiko -- any number of arguments, every one typed.
+''
+'' The '...' after the type makes nums an array parameter that the
+'' caller fills with a plain list. Each argument is converted to
+'' int32 exactly as it would be for an ordinary int32 parameter.
+
+function Sum( nums() as const int32 ... ) as int64
+    dim as int64 total = 0
+    for i as int32 = lbound( nums ) to ubound( nums )
+        total += nums( i )
+    next
+    return total
+end function
+
+'' Fixed parameters come first; the variadic is always the last.
+sub Report( byref title as const ustring, _
+            nums() as const int32 ... )
+    print title; ":"; ubound( nums ) - lbound( nums ) + 1; _
+          " values, sum"; Sum( nums( ) )
+end sub
+
+print "Sum( 10, 20, 30 ) ="; Sum( 10, 20, 30 )
+print "Sum( 7 )          ="; Sum( 7 )
+print "Sum( )            ="; Sum( )
+
+Report( "three", 1, 2, 3 )
+Report( "none" )
+
+'' A whole array of the element type IS the list -- nothing is
+'' copied, and no count has to be passed alongside it.
+dim as int32 week( 0 to 6 ) = { 3, 5, 2, 8, 6, 4, 7 }
+Report( "week", week( ) )

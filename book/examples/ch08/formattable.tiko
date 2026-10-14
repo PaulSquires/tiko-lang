@@ -1,0 +1,14 @@
+'' formattable.tiko -- columns that line up, whatever the values.
+#import "std/strings"
+
+dim as ustring item( 0 to 2 ) = { "tea", "biscuits", "jam" }
+dim as int32 qty( 0 to 2 ) = { 2, 12, 1 }
+dim as float64 price( 0 to 2 ) = { 3.5, 0.25, 4.75 }
+
+'' The width can come from a value: {:{}} takes it from the next one.
+dim as int32 w = 10
+print strings.Format( "{:<{}}{:>5}{:>9}", "item", w, "qty", "each" )
+for i as int32 = 0 to 2
+    print strings.Format( "{:<{}}{:>5}{:>9.2f}", _
+                          item( i ), w, qty( i ), price( i ) )
+next

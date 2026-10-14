@@ -159,7 +159,8 @@ the sign, which is why printed positive numbers appear with a leading space thro
 `hex( 255, 4 )` is `00FF`.
 
 `print using` lays out a line against a picture: `###.##` is a number with two decimals, `&` is a
-string. It is the quickest way to get a column to line up.
+string. It is the quickest way to get a column to line up. For a line that mixes widths, bases and
+decimals, `strings.Format`, later in this chapter, says it in one place.
 
 ```admonish danger title="Pitfall"
 **`val( )` cannot fail.** It reads as far as it can and returns what it got, so `val( "42abc" )` is
@@ -269,6 +270,109 @@ asked for `.Count( )` and `[ i ]`, which is all you need to walk it.
 property is worth knowing, because it tells you what `Split` does with the awkward cases: `"a,,c"`
 is three fields with an empty one in the middle, and `"a,"` is two.
 
+## Laying out a line
+
+`str`, `hex` and `print using` each do one job. A line that wants a name padded to a width, a
+number in hexadecimal and a price to two decimals becomes three calls glued with `&`, and the shape
+of the line disappears into them. `strings.Format` takes the shape as one string — a **format
+string** — and the values to put in it:
+
+```tiko
+{{#include ../examples/ch08/format.tiko}}
+```
+
+```text
+{{#include ../examples/ch08/format.out}}
+```
+
+Each `{}` is replaced by the next value. `{0}`, `{1}` and so on name a value by position, counting
+from 0, so the same value can appear twice or the order can change; a format string uses one style
+or the other, never both. `{{` and `}}` are literal braces. Values left over are not an error.
+
+After a `:` comes the **spec**, a run of optional fields in a fixed order:
+
+| Field | Meaning |
+|---|---|
+| fill and align | `<` left, `>` right, `^` centre, padded with the fill character — a space unless one is written before the alignment, as in `{:*^9}` |
+| sign | `+` puts a sign on every number |
+| `#` | `0x`, `0b` or `0` before a hexadecimal, binary or octal number |
+| `0` | pads a number with zeros after its sign: `{:+06}` |
+| width | the least number of characters |
+| `.precision` | digits after the point for a float; the most characters taken from a string |
+| type | `d`, `b`, `o`, `x`, `X` and `c` for integers; `f`, `e`, `g` and `a` for floats; `s` for text |
+
+Numbers align right and everything else left unless the spec says otherwise. A `boolean` is the
+word `true` or `false`, or `1` and `0` under `d`.
+
+The spec language is C++'s `std::format`, so a format string written for one reads the same in the
+other.
+
+**A float with no type is printed as the shortest text that reads back as the same value.** That
+is why `0.1 + 0.2` appears with its last digit, `0.30000000000000004`: the sum is not `0.3`, and
+`Format` does not hide that. Give it a precision — `{:.2f}` — when a reader wants two decimals.
+
+A width can come from a value as well, with `{:{}}`. That is what makes a table line up when the
+widest entry is known only at run time:
+
+```tiko
+{{#include ../examples/ch08/formattable.tiko}}
+```
+
+```text
+{{#include ../examples/ch08/formattable.out}}
+```
+
+### Checked when it compiles
+
+A format string written as a literal is read by the compiler, and checked against the values that
+follow it:
+
+```tiko
+{{#include ../examples/ch08/formatcheck.tiko}}
+```
+
+```text
+formatcheck.tiko(6,30): error TKO0851: format string: no argument 1 (1 given)
+     |
+   6 | print strings.Format( "{} of {} done", done )   '' error: one value
+     |                              ^
+```
+
+The caret is on the field that has no value. Every way a format string can be wrong has its own id,
+`TKO0847` to `TKO0858` in Appendix B: a `{` with no `}`, a spec that does not parse, a type the value
+cannot take — `{:x}` on text, `{:f}` on an integer — and a precision on an integer, among others.
+
+````admonish danger title="Pitfall"
+**A format string held in a variable is checked only when it runs — and a bad one stops the
+program.**
+
+The compiler can read a literal. It cannot read a variable, so a format string that arrives in one
+— built by concatenation, loaded from a file — is not checked until `Format` meets it. `Format`
+then treats it as the bug it would have been in a literal: it writes the reason and the offset to
+the error output and stops the program with runtime error 1, which Chapter 17 explains.
+
+That is right for a format string the program wrote. It is wrong for one that came from outside,
+where a mistake is somebody else's and the program should carry on.
+````
+
+### Format strings that are data
+
+A format string read from a translation file or a user's settings is data, and a bad one is not a
+bug in the program. `strings.TryFormat` returns the text or the reason, and never stops anything:
+
+```tiko
+{{#include ../examples/ch08/tryformat.tiko}}
+```
+
+```text
+{{#include ../examples/ch08/tryformat.out}}
+```
+
+The answer is a `Result` — Chapter 17's type for a value or the reason there isn't one. `IsOk( )`
+says which, `Value( )` is the text, and `Failure( )` carries a `message`, an `offset` into the
+format string counted from 0, and a `code` to test against. `TryFormat` takes a plain `ustring`, so
+even a literal passed to it is left for run time.
+
 ## Reading a table
 
 ```tiko
@@ -345,6 +449,8 @@ form`. Give the type an `operator cast( ) as ustring` — Chapter 12 — and it 
   once, not inside a loop.
 - **`instr` is a scan.** Finding *n* things in a long string costs *n* scans unless you carry the
   position forward with `instr( start, s, x )`.
+- **`Format` reads its format string on every call**, and copies each text value it is given. In a
+  loop over millions of lines that is measurable; for a report it is not.
 
 ## Summary
 
@@ -368,6 +474,12 @@ form`. Give the type an `operator cast( ) as ustring` — Chapter 12 — and it 
   have.
 - `#import "std/strings"` adds ~45 operations including `Split`/`Join`, `Replace`, the `Pad*`
   family, `Between` and the CSV parsers. `Join( Split( s, d ), d )` is `s`.
+- **`strings.Format` lays out a line from a format string**: `{}` or `{n}` for each value, then
+  `:` and a spec — fill, alignment, sign, width, precision, type. A float with no type is the
+  shortest text that reads back exactly.
+- **A literal format string is checked when the program compiles** (`TKO0847` to `TKO0858`). One held
+  in a variable is checked when it runs, and a bad one stops the program; for format strings that
+  are data, `TryFormat` returns a `Result` instead.
 - **CSV is not a `Split` problem** — use `SplitCsv` or `SplitCsvRow`, which understand quoting.
 - `mk*`/`cv*` pack numbers into bytes; `lset`/`rset` align in a fixed-length string; `strptr`/`sadd`
   reach the characters for C.
@@ -387,3 +499,6 @@ form`. Give the type an `operator cast( ) as ustring` — Chapter 12 — and it 
    check?
 5. Read a CSV line with `SplitCsvRow`, then split the same line on commas with `Split`, and print
    both field counts. Construct a line where they differ.
+6. Print a multiplication table for 1 to 12 with `strings.Format`, every column right-aligned.
+   Then make the column width depend on the largest product, so the table still lines up for 1 to
+   99.

@@ -1,0 +1,6 @@
+'' formatcheck.tiko -- a literal format string is checked when the
+'' program is compiled.
+#import "std/strings"
+
+dim as int32 done = 3
+print strings.Format( "{} of {} done", done )   '' error: one value

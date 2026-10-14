@@ -258,6 +258,89 @@ assigns through the result as written.)
 
 ## Any number of arguments
 
+A `Sum` that adds two numbers is easy, and so is one that adds three. A `Sum` that adds however
+many it is given is the one you actually want, and overloads cannot get there: there would have to
+be one per count. An array parameter can, but then every caller builds an array before every call.
+
+A **typed variadic** is the array parameter with the caller's convenience:
+
+```tiko
+{{#include ../examples/ch06/typedvariadic.tiko}}
+```
+
+```text
+{{#include ../examples/ch06/typedvariadic.out}}
+```
+
+`nums() as const int32 ...` is an array parameter with `...` after its type. The caller writes a
+plain list. The compiler converts each argument to `int32`, exactly as it would for an ordinary
+`int32` parameter, and packs them into a temporary array that lives until the end of the
+statement. Inside, `nums` is an ordinary array: `lbound` is 0, and `ubound` is -1 when nothing was
+passed, so the loop above needs no special case for `Sum( )`.
+
+Fixed parameters come first and the variadic is always last — anywhere else is `TKO0973`. It takes
+no default value (`TKO0974`), because no arguments already means an empty array.
+
+**A whole array of the element type is the list itself.** `Report( "week", week( ) )` passes
+`week` as it stands: nothing is copied and no count travels alongside it, because the array
+carries its own bounds. That is the form to use when the values are already in an array, or when
+the list is built while the program runs.
+
+Every argument is checked, which is the whole difference from the C mechanism further down:
+
+```tiko
+{{#include ../examples/ch06/variadictyped.tiko}}
+```
+
+```text
+variadictyped.tiko(11,15): error TKO0698: this argument does not convert to the parameter's type
+     |
+  11 | print Sum( 1, "two", 3 )    '' error: "two" is no int32
+     |               ^
+```
+
+It is the same error a non-converting argument to an ordinary parameter gets, at the argument
+that caused it.
+
+An overload that takes its arguments without packing them always wins over one that needs to:
+
+```tiko
+{{#include ../examples/ch06/variadicpick.tiko}}
+```
+
+```text
+{{#include ../examples/ch06/variadicpick.out}}
+```
+
+So adding a variadic overload never changes which procedure an existing call runs. Among
+candidates that all pack, each packed argument is scored like any other argument.
+
+````admonish danger title="Pitfall"
+**A packed list is a copy; a spread array is the caller's own.** Without `const`, a variadic
+procedure may write to its array, and where the writes land depends on how it was called:
+
+```tiko
+{{#include ../examples/ch06/variadicalias.tiko}}
+```
+
+```text
+{{#include ../examples/ch06/variadicalias.out}}
+```
+
+`Bump( a, b )` changed a temporary, which disappeared at the end of the statement; `a` and `b` are
+untouched. `Bump( both( ) )` changed `both`. The procedure is the same and the call looks almost
+the same, and the two do different things without a word from the compiler.
+
+**Declare the variadic `const`** unless writing to the caller's array is the point. Then the
+question cannot arise.
+````
+
+The element type can be one of your own, and the conversion then goes through that type's
+constructors — Chapter 11. That is how `strings.Format` in Chapter 8 takes values of every type in
+one list: its element type has a constructor for each.
+
+### C's `...`
+
 ```tiko
 {{#include ../examples/ch06/varargs.tiko}}
 ```
@@ -266,7 +349,7 @@ assigns through the result as written.)
 {{#include ../examples/ch06/varargs.out}}
 ```
 
-`...` as the last parameter accepts any number of further arguments. It is C's mechanism, with C's
+A bare `...` as the last parameter, with no name and no type, is C's mechanism, with C's
 consequences: the procedure must be `cdecl`, there is no type checking, and the count is recorded
 nowhere — `SumOf` is *told* how many to read because there is no other way for it to find out.
 Reading one argument too many reads whatever happened to be next.
@@ -274,9 +357,9 @@ Reading one argument too many reads whatever happened to be next.
 Declaring the procedure without `cdecl` is refused: `TKO0781: '...' needs a 'cdecl' procedure, and
 this one is 'stdcall'`.
 
-Variadics exist mainly so that C libraries can be called; `printf` is the reason the machinery is
-there. In tiko code, prefer an overload, an optional parameter or an array. Chapter 28 covers
-`cva_list` in full, alongside the rest of C interoperation.
+C's variadics exist so that C libraries can be called; `printf` is the reason the machinery is
+there. In tiko code, use a typed variadic. Chapter 28 covers `cva_list` in full, alongside the rest
+of C interoperation.
 
 ## Procedures as values
 
@@ -312,6 +395,8 @@ The costs worth knowing are the ones you choose:
 - **`byref` on a small value** adds an indirection to save copying eight bytes. It is a loss.
 - **A procedure pointer cannot be inlined**, because the target is not known until it runs. A direct
   call can be.
+- **A packed variadic call builds a temporary array**, every call. Passing an array you already
+  have costs nothing extra.
 - **`static` locals make a procedure stateful**, which is a correctness cost before it is ever a
   performance one.
 
@@ -331,7 +416,12 @@ The costs worth knowing are the ones you choose:
 - `static` locals persist between calls and are shared by every level of a recursion.
 - **Assigning to a one-argument `byref` function result needs `( f( x ) ) = v` or a `dim byref`
   name** — the bare form parses as an equality test, and `TKO0931` warns that it did.
-- `...` needs `cdecl` and does no type checking.
+- **A typed variadic, `nums() as const T ...`**, takes any number of arguments, each converted to
+  `T` and checked; the procedure sees an ordinary array. A whole array of `T` is the list itself,
+  with no copy.
+- An overload that needs no packing beats one that does. **A packed list is a copy and a spread
+  array is the caller's own** — declare the variadic `const`.
+- C's bare `...` needs `cdecl` and does no type checking; it is for calling C.
 - Procedure pointers hold any procedure of a matching shape; `@P` and `procptr( P )` are the same.
 - The costs you choose: a `byval` copy of something large, a `byref` indirection to save eight
   bytes, a procedure pointer that cannot be inlined, and a `static` that makes a procedure
@@ -352,3 +442,6 @@ The costs worth knowing are the ones you choose:
 5. Take `Tabulate` from `callbacks.tiko` and add a third operation without touching `Tabulate`. Then
    do the same with an overload instead of a procedure pointer. Which change would you rather
    review?
+6. Write `Average( xs() as const float64 ... )`. Decide what `Average( )` should return, and make
+   it do that. Then pass it a whole `int32` array: why is that refused, when `Average( 1, 2, 3 )`
+   with `int32` arguments is not?

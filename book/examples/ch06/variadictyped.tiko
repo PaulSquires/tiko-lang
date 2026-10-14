@@ -1,0 +1,11 @@
+'' variadictyped.tiko -- every packed argument is checked.
+
+function Sum( nums() as const int32 ... ) as int64
+    dim as int64 total = 0
+    for i as int32 = lbound( nums ) to ubound( nums )
+        total += nums( i )
+    next
+    return total
+end function
+
+print Sum( 1, "two", 3 )    '' error: "two" is no int32

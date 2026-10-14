@@ -1,0 +1,13 @@
+'' variadicpick.tiko -- an exact match beats a packed one.
+
+sub Show overload ( byval n as int32 )
+    print "one int32:"; n
+end sub
+
+sub Show overload ( nums() as const int32 ... )
+    print "a list of"; ubound( nums ) - lbound( nums ) + 1
+end sub
+
+Show( 5 )            '' the plain overload: no packing needed
+Show( 5, 6 )         '' only the list can take two
+Show( )              '' ... or none

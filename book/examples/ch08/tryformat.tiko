@@ -1,0 +1,19 @@
+'' tryformat.tiko -- a format string that is data, not code.
+#import "std/strings"
+#import "std/outcome"
+
+sub Render( byref template as const ustring )
+    var r = strings.TryFormat( template, "Quinn", 3 )
+    if r.IsOk( ) then
+        print "ok:      "; r.Value( )
+    else
+        print "refused: "; r.Failure( ).message; _
+              " (offset"; r.Failure( ).offset; ")"
+    end if
+end sub
+
+'' Templates as they might arrive from a translation file.
+Render( "{} has {} messages" )
+Render( "{1} messages for {0}" )
+Render( "{} has {} messages, {}" )
+Render( "{:d} has {} messages" )

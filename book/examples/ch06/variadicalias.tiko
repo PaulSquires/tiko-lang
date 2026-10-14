@@ -1,0 +1,16 @@
+'' variadicalias.tiko -- a packed list is a copy; a spread array
+'' is the caller's own.
+
+sub Bump( nums() as int32 ... )      '' no const: it may write
+    for i as int32 = lbound( nums ) to ubound( nums )
+        nums( i ) += 100
+    next
+end sub
+
+dim as int32 a = 1, b = 2
+Bump( a, b )                         '' packed into a temporary
+print "after Bump( a, b ):    "; a; b
+
+dim as int32 both( 0 to 1 ) = { 1, 2 }
+Bump( both( ) )                      '' the array itself
+print "after Bump( both( ) ): "; both( 0 ); both( 1 )

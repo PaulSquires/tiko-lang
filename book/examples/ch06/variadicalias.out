@@ -1,0 +1,2 @@
+after Bump( a, b ):     1 2
+after Bump( both( ) ):  101 102

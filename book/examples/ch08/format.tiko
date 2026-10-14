@@ -1,0 +1,25 @@
+'' format.tiko -- text laid out by a format string.
+#import "std/strings"
+
+dim as ustring who = "Quinn"
+dim as int32 n = 42
+dim as float64 x = 3.14159265358979
+
+'' {} takes the next value; {n} takes value n, counting from 0.
+print strings.Format( "Hello, {}!", who )
+print strings.Format( "{1} before {0}", "b", "a" )
+
+'' Fill, alignment and width, after a ':'.
+print strings.Format( "[{:>6}] [{:<6}] [{:^6}]", n, n, n )
+print strings.Format( "[{:*^9}] [{:.3}]", "hi", who )
+
+'' Integers in other bases, a sign, zero padding.
+print strings.Format( "{:x} {:#x} {:08b} {:+}", 255, 255, 5, n )
+print strings.Format( "[{:+06}] [{:c}]", n, 65 )
+
+'' Floats: fixed, exponent, and the default -- the shortest text
+'' that reads back as the same value.
+print strings.Format( "{:.2f} {:e} {}", x, x, 0.1 + 0.2 )
+
+print strings.Format( "{} {:d}", true, true )
+print strings.Format( "{{}} is a literal pair of braces" )
