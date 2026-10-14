@@ -113,7 +113,7 @@ app.tiko(7,26): error TKO0854: format string: 'x' is no presentation type for te
 | `TKO0857` | a `{}` width or precision whose value is not an integer |
 | `TKO0858` | `L` -- locale formatting is not supported |
 
-The check needs the format string's text and the values' types, so it does not apply to a format string held in a variable, to an escaped literal (`!"..."`), to a list passed as an array, or to a value that is itself a `strings.FormatArg`.
+The check needs the format string's text and the values' types, so it does not apply to a format string held in a variable, to a list passed as an array, or to a value that is itself a `strings.FormatArg`. An escaped literal (`!"..."`) is checked like any other, the caret on the escape that produced the character at fault -- except one whose escapes make bytes that are not UTF-8, which is left for run time.
 
 **Otherwise `Format` refuses it when it runs**: the reason and the offset go to stderr, then run-time error 1 stops the program. An `on error` handler can still take it.
 

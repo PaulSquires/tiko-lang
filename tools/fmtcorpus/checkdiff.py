@@ -10,7 +10,9 @@ diagnostic.
 The arguments never make a VALUE refusal (a negative width, 'c' out of range, a null zstring
 ptr, a Formattable's '!'), which the compiler cannot see and which would hide a later field's
 refusal from the run-time side; nor is a FormatArg passed as itself. So the two must agree
-exactly. The same seed always writes the same cases. Exit 0 when nothing differs.
+exactly. About a third of the literals are ESCAPED ('!"..."'), some characters spelled as
+escapes and some escapes added, so the compiler's caret must survive decoding. The same seed
+always writes the same cases. Exit 0 when nothing differs.
 """
 import os
 import random
@@ -77,6 +79,30 @@ def field(manual):
     return f
 
 
+BS = chr(92)
+
+
+def escape_text(text):
+    """An escaped literal's body with the same value as 'text' -- some characters spelled as
+    escapes, some escapes added -- so the compiler must decode it to place its caret."""
+    out = ""
+    for ch in text:
+        r = R.random()
+        if ord(ch) < 128 and r < 0.12:
+            out += BS + "x%02x" % ord(ch)
+        elif ord(ch) < 128 and r < 0.2:
+            out += BS + "%03d" % ord(ch)
+        elif ord(ch) < 128 and r < 0.25:
+            out += BS + "&h%02x" % ord(ch)
+        elif ch == "é" and r < 0.5:
+            out += BS + "u00e9"
+        else:
+            out += BS + BS if ch == BS else ch
+        if R.random() < 0.06:
+            out += R.choice([BS + "n", BS + "t", BS + BS, BS + "u00e9", BS + "U0001F600", BS + "&z"])
+    return out
+
+
 def case():
     manual = R.random() < 0.3
     parts = []
@@ -84,7 +110,11 @@ def case():
         parts.append(field(manual) if R.random() < 0.7 else R.choice(TEXT))
     if R.random() < 0.03:
         parts.insert(R.randint(0, len(parts)), "}")
-    lit = '"' + "".join(parts).replace('"', '""') + '"'
+    text = "".join(parts)
+    if R.random() < 0.3:
+        lit = '!"' + escape_text(text).replace('"', '""') + '"'
+    else:
+        lit = '"' + text.replace('"', '""') + '"'
     a = ", ".join(R.choice(ARGS) for _ in range(R.randint(0, 5)))
     return dict(line=0, lit=lit, args=a, code="OK", off=0, run=False)
 

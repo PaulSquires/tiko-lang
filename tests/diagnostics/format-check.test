@@ -83,9 +83,28 @@
 '' EXPECT-OUT: format-check.tiko(143,26): error TKO0857: format string:
 '' EXPECT-OUT: format-check.tiko(144,27): error TKO0857: format string:
 '' EXPECT-OUT: format-check.tiko(145,26): error TKO0857: format string:
-'' EXPECT-OUT: format-check.tiko(154,27): error TKO0854: format string:
-'' EXPECT-OUT: format-check.tiko(155,28): error TKO0854: format string:
-'' EXPECT-OUT: format-check.tiko(156,30): error TKO0854: format string:
-'' EXPECT-OUT: format-check.tiko(157,31): error TKO0854: format string:
-'' EXPECT-OUT: format-check.tiko(158,26): error TKO0854: format string:
-'' EXPECT-MAX-DIAG: 82
+'' EXPECT-OUT: format-check.tiko(154,29): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(155,33): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(156,29): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(157,29): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(158,31): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(159,36): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(160,30): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(161,35): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(162,29): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(163,30): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(164,33): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(165,37): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(166,37): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(167,34): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(169,27): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(172,27): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(173,25): error TKO0847: format string:
+'' EXPECT-OUT: format-check.tiko(174,34): error TKO0851: format string:
+'' EXPECT-OUT: format-check.tiko(175,31): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(176,27): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(177,28): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(178,30): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(179,31): error TKO0854: format string:
+'' EXPECT-OUT: format-check.tiko(180,26): error TKO0854: format string:
+'' EXPECT-MAX-DIAG: 101

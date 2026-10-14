@@ -19,8 +19,8 @@
 '' NOT CHECKED, because the answer is a run-time fact: a value ('{:c}' out of range, a negative
 '' dynamic width, a null zstring ptr); a Formattable's spec, which is its own language; anything
 '' after an argument whose kind is not known (a FormatArg passed as itself); a spread array; a
-'' format string that is not a literal; an escaped literal ('!"..."'), whose escapes would have to
-'' be decoded to map an offset back to its column.
+'' format string that is not a literal; a literal whose run-time value cannot be reproduced
+'' exactly (FcLiteral_: bytes that are not UTF-8, a short unicode escape).
 
 #import "std/containers"
 #include once "symbols/check.ti"
@@ -439,42 +439,137 @@ private function FcStdStringsType_ _
     return false
 end function
 
-'' The literal's value as UTF-16 code units, each with the source offset its text begins at.
-'' False for a literal whose escapes would have to be decoded first.
+'' The literal's value as UTF-16 code units, each with the source offset its text begins at --
+'' the value the run time holds, which is what the library's offsets count. Measured, for every
+'' kind: '""' is one quote, '$"..."' included. An ESCAPED literal decodes its escapes with the
+'' compiler's own rule (Tko.Text.EscapeByteAt), and a NUL from one ends it. With no '\u' in it
+'' the result is BYTES, read as UTF-8; with one it is WIDE: each byte escape is one unit of its
+'' own value ('!"é\233"' is two E9s), '\u' takes four hex digits and '\U' eight. False when
+'' the value cannot be reproduced exactly -- bytes that are not UTF-8 (the run time makes them
+'' U+FFFD), a short '\u' -- and the string is then not checked.
 private function FcLiteral_ _
     ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, byval lit as Tko.NodeId, _
       byref s as FcState_, byref file as Tko.FileId, byref base_ as long ) as boolean
 
     dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( long, ast.nodes[cast( long, lit )].data )]
-    if lp->strKind = cast( ubyte, Tko.STRK_ESCAPED ) then return false
     file = cast( Tko.FileId, lp->strFile )
     base_ = lp->strOffset
     s.srcEnd = lp->strLength
     dim as Tko.SourceFile ptr f = src.FileAt( file )
     if f = 0 then return false
     if (lp->strOffset + lp->strLength) > f->text.Count then return false
-    dim as boolean plain = (lp->strKind = cast( ubyte, Tko.STRK_PLAIN ))
+    dim as boolean u8 = (f->encoding <> Tko.Text.ENC_BYTES)
+
+    '' The body with '""' collapsed, and each byte's source offset.
+    dim as string body
+    dim as containers.Array( of long ) bodyAt
+    dim as long k = 0
+    while k < lp->strLength
+        dim as ubyte ch = f->text[lp->strOffset + k]
+        body &= chr( ch )
+        bodyAt.Push( k )
+        if (ch = 34) andalso (k + 1 < lp->strLength) andalso (f->text[lp->strOffset + k + 1] = 34) then k += 1
+        k += 1
+    wend
+
+    '' ITEMS: a byte still to be read as UTF-8 (unit -1, the byte in itB), or a finished unit.
+    dim as containers.Array( of long ) itB, itU, itAt
+    dim as boolean escaped = (lp->strKind = cast( ubyte, Tko.STRK_ESCAPED ))
+    dim as boolean wide = false
+    if escaped then
+        '' PAIR BY PAIR, so the 'u' after an escaped backslash is text (LitHasUnicodeEscape_).
+        dim as long q = 0
+        while q < len( body ) - 1
+            if body[q] = 92 then
+                if (body[q + 1] = 117) orelse (body[q + 1] = 85) then wide = true
+                q += 1
+            end if
+            q += 1
+        wend
+    end if
+    dim as long p = 1                                 '' 1-based, as EscapeByteAt counts
+    while p <= len( body )
+        dim as long ch = body[p - 1]
+        if (escaped = false) orelse (ch <> 92) then
+            itB.Push( ch ) : itU.Push( -1 ) : itAt.Push( bodyAt[p - 1] )
+            p += 1
+            continue while
+        end if
+        dim as long at = bodyAt[p - 1]
+        dim as long nx = 0
+        if p < len( body ) then nx = body[p]
+        if wide andalso ((nx = 117) orelse (nx = 85)) then
+            dim as long nd = iif( nx = 85, 8, 4 )
+            if p + 1 + nd > len( body ) then return false
+            dim as ulong uv = 0
+            for d as long = 0 to nd - 1
+                dim as long hc = body[p + 1 + d]
+                dim as long dv = -1
+                if (hc >= 48) andalso (hc <= 57) then dv = hc - 48
+                if (hc >= 97) andalso (hc <= 102) then dv = hc - 87
+                if (hc >= 65) andalso (hc <= 70) then dv = hc - 55
+                if dv < 0 then return false
+                uv = uv * 16 + dv
+            next
+            if uv > &h10FFFF then return false
+            if uv > 65535 then
+                itB.Push( 0 ) : itU.Push( &hD800 + ((uv - &h10000) shr 10) ) : itAt.Push( at )
+                itB.Push( 0 ) : itU.Push( &hDC00 + ((uv - &h10000) and &h3FF) ) : itAt.Push( at )
+            else
+                itB.Push( 0 ) : itU.Push( uv ) : itAt.Push( at )
+            end if
+            p += 2 + nd
+            continue while
+        end if
+        dim as long bi = p
+        dim as long bv = Tko.Text.EscapeByteAt( body, bi )
+        p = bi
+        if bv = 0 then exit while                    '' a NUL ends the literal
+        if bv > 0 then
+            if wide then
+                itB.Push( 0 ) : itU.Push( bv ) : itAt.Push( at )
+            else
+                itB.Push( bv ) : itU.Push( -1 ) : itAt.Push( at )
+            end if
+        end if
+    wend
+
+    '' The bytes read as UTF-8 -- strictly: anything else is not reproduced.
     dim as long i = 0
-    while i < lp->strLength
-        dim as long at = i
-        dim as ulong b = f->text[lp->strOffset + i]
+    while i < itB.Count
+        if itU[i] >= 0 then
+            s.u.Push( itU[i] ) : s.srcAt.Push( itAt[i] )
+            i += 1
+            continue while
+        end if
+        dim as long at = itAt[i]
+        dim as ulong b = itB[i]
         dim as ulong cp = b
         dim as long more = 0
-        if b >= &hF0 then
-            cp = b and &h07 : more = 3
-        elseif b >= &hE0 then
-            cp = b and &h0F : more = 2
-        elseif b >= &hC0 then
-            cp = b and &h1F : more = 1
+        if b >= &h80 then
+            if u8 = false then return false
+            if (b >= &hC2) andalso (b <= &hDF) then
+                cp = b and &h1F : more = 1
+            elseif (b >= &hE0) andalso (b <= &hEF) then
+                cp = b and &h0F : more = 2
+            elseif (b >= &hF0) andalso (b <= &hF4) then
+                cp = b and &h07 : more = 3
+            else
+                return false
+            end if
         end if
+        dim as long need = more
         i += 1
-        while (more > 0) andalso (i < lp->strLength)
-            cp = (cp shl 6) or (f->text[lp->strOffset + i] and &h3F)
+        while more > 0
+            if (i >= itB.Count) orelse (itU[i] >= 0) then return false
+            dim as ulong cb = itB[i]
+            if (cb and &hC0) <> &h80 then return false
+            cp = (cp shl 6) or (cb and &h3F)
             i += 1
             more -= 1
         wend
-        '' '""' INSIDE A PLAIN LITERAL IS ONE QUOTE.
-        if plain andalso (b = 34) andalso (i < lp->strLength) andalso (f->text[lp->strOffset + i] = 34) then i += 1
+        if (need = 2) andalso ((cp < &h800) orelse ((cp >= &hD800) andalso (cp <= &hDFFF))) then return false
+        if (need = 3) andalso ((cp < &h10000) orelse (cp > &h10FFFF)) then return false
         if cp >= &h10000 then
             s.u.Push( &hD800 + ((cp - &h10000) shr 10) ) : s.srcAt.Push( at )
             s.u.Push( &hDC00 + ((cp - &h10000) and &h3FF) ) : s.srcAt.Push( at )

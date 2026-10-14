@@ -6,8 +6,8 @@
 # Split at the LAST two "|". The literal is tiko source -- "...", $"..." or !"..." -- and the arguments are expressions over
 # the prelude in gen.py. The expectation is strings.TryFormat's: OK, or the FormatErrorCode name
 # without its FE_ and the 0-based offset in UTF-16 units. 'run' marks a refusal the compiler
-# cannot see -- a value's, a Formattable's, an argument whose kind is not known, an escaped
-# literal -- and must stay silent on. gen.py writes the run-time test and the compile-time test
+# cannot see -- a value's, a Formattable's, an argument whose kind is not known, a literal whose
+# escapes make bytes that are not UTF-8 -- and must stay silent on. gen.py writes the run-time test and the compile-time test
 # from this file; edit here, then run it.
 #
 # ---------------------------------------------------------------- accepted
@@ -128,7 +128,30 @@ $"raw\{}" | 1 | OK
 "{:!}" | m | CUSTOM 1 run
 "{:s}" | fa | BAD_TYPE 2 run
 "{} {:q}" | fa, 1 | BAD_TYPE 5 run
-!"\t{:q}" | 1 | BAD_TYPE 3 run
+!"\233{:q}" | 1 | BAD_TYPE 3 run
+# ---------------------------------------------------------------- escaped literals: the offset in the VALUE
+!"\t{:q}" | 1 | BAD_TYPE 3
+!"a\nb\n{:q}" | 1 | BAD_TYPE 6
+!"\\{:q}" | 1 | BAD_TYPE 3
+!"\"{:q}\"" | 1 | BAD_TYPE 3
+!"q""q{:q}" | 1 | BAD_TYPE 5
+!"\x41\&h42{:q}" | 1 | BAD_TYPE 4
+!"\&z{:q}" | 1 | BAD_TYPE 3
+!"\195\169{:q}" | 1 | BAD_TYPE 3
+!"\é{:q}" | 1 | BAD_TYPE 3
+!"é\n{:q}" | 1 | BAD_TYPE 4
+!"\u00e9{:q}" | 1 | BAD_TYPE 3
+!"\U0001F600{:q}" | 1 | BAD_TYPE 4
+!"\u00e9\233{:q}" | 1 | BAD_TYPE 4
+!"\\u00e9{:q}" | 1 | BAD_TYPE 8
+!"x\0{:q}" | 1 | OK
+!"{:q}\0" | 1 | BAD_TYPE 2
+!"{\x7d" | 1 | OK
+!"\123\125" | 1 | OK
+!"{:\x71}" | 1 | BAD_TYPE 2
+!"\x7b" | 1 | UNMATCHED_OPEN 0
+!"{} {\x7d {}" | 1, 2 | MISSING_ARG 6
+$"a""b{:q}" | 1 | BAD_TYPE 5
 # ---------------------------------------------------------------- the offset in UTF-16 units
 "é{:q}" | 1 | BAD_TYPE 3
 "😀{:q}" | 1 | BAD_TYPE 4

@@ -124,25 +124,147 @@ def runtime_test(cases):
     return "\n".join(out) + "\n"
 
 
+def _radix(body, i, radix, maxd):
+    v = d = 0
+    while d < maxd and i < len(body):
+        k = body[i]
+        dv = -1
+        if 48 <= k <= 57:
+            dv = k - 48
+        elif 97 <= k <= 122:
+            dv = k - 87
+        elif 65 <= k <= 90:
+            dv = k - 55
+        if dv < 0 or dv >= radix:
+            break
+        v = v * radix + dv
+        i += 1
+        d += 1
+    return min(v, 255), i
+
+
+def _escape(body, i):
+    """support/text.tiko EscapeByteAt over a byte list, i at the backslash: (byte or -1, next i)."""
+    i += 1
+    if i >= len(body):
+        return 92, i
+    c = body[i]
+    named = {97: 7, 98: 8, 102: 12, 110: 10, 114: 13, 116: 9, 118: 11, 92: 92, 34: 34, 39: 39}
+    if c in named:
+        return named[c], i + 1
+    if 48 <= c <= 57:
+        v = d = 0
+        while d < 3 and i < len(body) and 48 <= body[i] <= 57:
+            v = v * 10 + body[i] - 48
+            i += 1
+            d += 1
+        return min(v, 255), i
+    if c in (120, 88):
+        return _radix(body, i + 1, 16, 2)
+    if c == 38:
+        if i + 1 < len(body):
+            r = body[i + 1]
+            if r in (104, 72):
+                return _radix(body, i + 2, 16, 2)
+            if r in (111, 79):
+                return _radix(body, i + 2, 8, 3)
+            if r in (98, 66):
+                return _radix(body, i + 2, 2, 8)
+        return -1, i + 1
+    return c, i + 1
+
+
+def value_units(lit):
+    """The literal's run-time value as (unit, raw source char index) pairs -- formatcheck.tiko
+    FcLiteral_'s rules -- or None where that cannot be reproduced."""
+    prefix = 1 if lit[0] in "$!" else 0
+    raw = lit[prefix + 1:-1]
+    escaped = lit[0] == "!"
+    body, at = [], []                  # bytes after '""' collapses, each with its raw char index
+    k = 0
+    while k < len(raw):
+        for b in raw[k].encode("utf-8"):
+            body.append(b)
+            at.append(k)
+        k += 2 if raw[k] == '"' and raw[k + 1:k + 2] == '"' else 1
+    wide = False
+    if escaped:
+        q = 0
+        while q < len(body) - 1:
+            if body[q] == 92:
+                if body[q + 1] in (117, 85):
+                    wide = True
+                q += 1
+            q += 1
+    items = []                         # (byte or None, unit or None, char index)
+    p = 0
+    while p < len(body):
+        if not escaped or body[p] != 92:
+            items.append((body[p], None, at[p]))
+            p += 1
+            continue
+        nx = body[p + 1] if p + 1 < len(body) else 0
+        if wide and nx in (117, 85):
+            nd = 8 if nx == 85 else 4
+            digits = bytes(body[p + 2:p + 2 + nd]).decode("latin-1")
+            if len(digits) < nd or any(ch not in "0123456789abcdefABCDEF" for ch in digits):
+                return None
+            uv = int(digits, 16)
+            if uv > 0x10FFFF:
+                return None
+            if uv > 0xFFFF:
+                items.append((None, 0xD800 + ((uv - 0x10000) >> 10), at[p]))
+                items.append((None, 0xDC00 + ((uv - 0x10000) & 0x3FF), at[p]))
+            else:
+                items.append((None, uv, at[p]))
+            p += 2 + nd
+            continue
+        bv, np_ = _escape(body, p)
+        if bv == 0:
+            break
+        if bv > 0:
+            items.append((None, bv, at[p]) if wide else (bv, None, at[p]))
+        p = np_
+    out = []
+    i = 0
+    while i < len(items):
+        b, u, a = items[i]
+        if u is not None:
+            out.append((u, a))
+            i += 1
+            continue
+        n = 0 if b < 0x80 else 1 if 0xC2 <= b <= 0xDF else 2 if 0xE0 <= b <= 0xEF else 3 if 0xF0 <= b <= 0xF4 else -1
+        if n < 0:
+            return None
+        seq = [b]
+        for _ in range(n):
+            i += 1
+            if i >= len(items) or items[i][1] is not None or (items[i][0] & 0xC0) != 0x80:
+                return None
+            seq.append(items[i][0])
+        i += 1
+        try:
+            cp = ord(bytes(seq).decode("utf-8"))
+        except UnicodeDecodeError:
+            return None
+        if cp > 0xFFFF:
+            out += [(0xD800 + ((cp - 0x10000) >> 10), a), (0xDC00 + ((cp - 0x10000) & 0x3FF), a)]
+        else:
+            out.append((cp, a))
+    return out
+
+
 def column(lit, off):
-    """The 1-based column, in the generated line, of value offset 'off' of literal 'lit'."""
+    """The 1-based column, in the generated line, of value offset 'off' of literal 'lit': the
+    character its unit came from, or the closing quote past the last."""
     start = len("print strings.Format( ")
     prefix = 1 if lit[0] in "$!" else 0
-    body = lit[prefix + 1:-1]
-    plain = prefix == 0
-    units = 0
-    col = start + prefix + 2          # the first character after the quote
-    k = 0
-    while k < len(body):
-        if units >= off:
-            return col
-        ch = body[k]
-        units += 2 if ord(ch) >= 0x10000 else 1
-        k += 2 if (plain and ch == '"' and body[k + 1:k + 2] == '"') else 1
-        # Display columns, as the compiler's diagnostics count them (support/text.tiko
-        # DisplayWidth): an East Asian wide character is two.
-        col += 2 if (plain and ch == '"') or unicodedata.east_asian_width(ch) in "WF" else 1
-    return col
+    raw = lit[prefix + 1:-1]
+    units = value_units(lit)
+    k = units[off][1] if off < len(units) else len(raw)
+    # Display columns, as the compiler's diagnostics count them (support/text.tiko
+    # DisplayWidth): an East Asian wide character is two.
+    return start + prefix + 2 + sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in raw[:k])
 
 
 def compile_test(cases):
@@ -152,6 +274,7 @@ def compile_test(cases):
     for c in cases:
         src.append("print " + call("Format", c))
         if c["code"] != "OK" and not c["run"]:
+            assert value_units(c["lit"]) is not None, ("the compiler cannot check this literal: mark it run", c)
             expects.append("format-check.tiko(%d,%d): error %s: format string:"
                            % (len(src), column(c["lit"], c["off"]), TKO[c["code"]]))
     test = ["'' TKO0847..TKO0858: a LITERAL format string std/strings' Format would refuse at run time,",

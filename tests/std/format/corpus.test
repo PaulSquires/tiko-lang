@@ -8,4 +8,4 @@
 '' EXPECT-FILE: tests/std/format/corpus.exe
 '' RUN: tests/std/format/corpus.exe
 '' EXPECT-RUN-EXIT: 0
-'' EXPECT-RUN-OUT: corpus: 117 passed, 0 failed
+'' EXPECT-RUN-OUT: corpus: 139 passed, 0 failed
