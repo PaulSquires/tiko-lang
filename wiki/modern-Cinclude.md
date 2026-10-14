@@ -68,9 +68,15 @@ A record whose layout disagrees is **refused**. It is left out of the binding, a
 ''     struct    A16                         tiko lays it out in 20 bytes aligned to 4, clang in 32 aligned to 16; member 'v' is at bit 32 in tiko's layout and bit 128 in clang's
 ```
 
-A record that holds the refused one by value is refused with it (`field 'v': uses 'V4', which was skipped`). A use of a refused record is `TKO0808: the type '...' is not declared`, so a program never reads a struct through a wrong layout.
+A record that holds the refused one by value is refused with it (`field 'v': uses 'V4', which was skipped`).
 
-> ⚠️ A function in the header that takes a **pointer** to a refused record is kept, and its declaration then names a type that is not there. The binding itself fails to compile, with `TKO0808` reported against the cached binding file, even in a program that never calls that function.
+A refused record is an **incomplete type**: usable through a pointer, not by value, which is also all C can do with a type it has not seen defined. A function that takes a pointer to it is kept, and so is a field that points to it, with the record's name. A variable of the record itself is
+
+```
+error TKO0810: 'a16' is an incomplete type: nothing declares it, so only a pointer to it may be used here
+```
+
+so a program never reads a struct through a wrong layout. In the binding, the record is introduced by an alias of its own, `type A16__fwd as A16`, among the forward references at the top.
 
 `-cnoverify` turns the check off. There is no good reason to use it.
 

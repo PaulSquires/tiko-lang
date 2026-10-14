@@ -456,7 +456,7 @@ Two things to notice:
 
 ## 10. tiko checks every struct
 
-For every struct and union it imports, tiko works out the size and the position of each field **itself**, and compares that with what clang says. If the two do not agree, tiko leaves the struct out and lists it, with both layouts, under *declarations were skipped*. Using the struct is then an error (`TKO0808: the type '...' is not declared`) instead of a program that quietly reads the wrong bytes.
+For every struct and union it imports, tiko works out the size and the position of each field **itself**, and compares that with what clang says. If the two do not agree, tiko leaves the struct out and lists it, with both layouts, under *declarations were skipped*. You can still pass pointers to it, but a variable of the struct itself is an error (`TKO0810: '...' is an incomplete type`) instead of a program that quietly reads the wrong bytes.
 
 This check is the reason `#cinclude` is safer than a hand-written binding: nothing checks a hand-written `type` against C. `-cnoverify` turns the check off. There is no good reason to use it.
 
@@ -547,7 +547,7 @@ The names stay bare (`Shape`, not `shapes.Shape`), because a C header's names do
 | `TKO0336: unable to import C header` + `file not found` | the header, or one it includes, is not where tiko looked | check the path; add `-cinclude` for `<...>` includes (section 7) |
 | the same + a note about the Windows SDK | Visual Studio Build Tools are not installed | install them, with the Windows SDK |
 | `TKO0743: '...' is not declared` for a name in the header | a function-like or string macro, a `static inline` function, or a renamed name | look at the binding with `-cimport` (sections 5 and 8) |
-| `TKO0808: the type '...' is not declared` for a struct in the header | the struct was skipped | read the reason at the top of the binding |
+| `TKO0808: the type '...' is not declared` or `TKO0810: '...' is an incomplete type` for a struct in the header | the struct was skipped | read the reason at the top of the binding |
 | `warning TKO0833` at a callback | your callback's parameters differ from the C type | match the C type exactly (section 6) |
 | `undefined symbol` when linking | the header was read, but the library was not linked | add a `#foreignlib` line ([#foreignlib Tutorial](modern-Foreignlib-tutorial)) |
 
