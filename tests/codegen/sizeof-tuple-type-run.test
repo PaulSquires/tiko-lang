@@ -1,0 +1,15 @@
+'' RUN: 'sizeof( (int32, string) )' and 'len( (int32, string) )' name a TUPLE TYPE. With a type
+'' keyword, PTR or 'name as T' inside, the operand went to the expression parser, came out
+'' untyped, and the build stopped at TKO0994. Each size here matches the typedef'd type's,
+'' and the expression operands that also hold a type keyword stay expressions.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/sizeof-tuple-type.bas -o tests/codegen/sizeoftupletype.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/sizeoftupletype.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 32 32 32
+'' EXPECT-RUN-OUT: 32 32
+'' EXPECT-RUN-OUT: 32 24
+'' EXPECT-RUN-OUT: 32 8 32
+'' EXPECT-RUN-OUT: 3 16

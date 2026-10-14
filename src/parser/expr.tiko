@@ -454,10 +454,10 @@ declare function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
 ''
 '' CAST and CPTR always name a type first. SIZEOF and LEN accept EITHER a type or an
 '' expression -- 'len( s )' is the common case -- so the type is taken only when the
-'' argument unambiguously opens one: a type keyword, or a name followed by PTR. That
-'' keeps every existing 'len( someString )' parsing exactly as it did, without
-'' consulting the symbol table, which this layer may not do.
+'' argument unambiguously opens one: a type keyword, a name followed by PTR, a generic,
+'' a tuple type (TypeArgIsTupleType, in typeref.tiko). No symbol table is consulted.
 declare function IsGenericArgs( byref p as Tko.ParserState ) as boolean
+declare function TypeArgIsTupleType( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
 
 private function TypeArgCall _
     ( byref p as Tko.ParserState, byref t as Tko.Token, _
@@ -572,7 +572,7 @@ private function TypeArgCall _
             end if
         end if
 
-        if always orelse looksLikeType then
+        if always orelse looksLikeType orelse TypeArgIsTupleType( p, k ) then
             items.Push( cast( ulong, TypeRef( p ) ) )
         else
             items.Push( cast( ulong, Expression( p ) ) )

@@ -793,3 +793,52 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
 
     return n
 end function
+
+'' 'sizeof( (int32, string) )' AND 'len( (int32, string) )' NAME A TUPLE TYPE. The
+'' argument opens with '(' as a grouped expression or a tuple LITERAL does, so it went to
+'' the expression parser, which cannot read a type keyword, PTR or 'name as T' there: the
+'' statement came out untyped and the build stopped at TKO0994. A tuple of bare names --
+'' '(int32, int32)', '(a, b)' -- was always fine that way: Check types a name, a type's
+'' or a variable's, so it is left there.
+''
+'' So the operand is a type when its group has a comma at its own level, holds something
+'' no expression can (a type keyword, PTR, POINTER or AS), and parses as a type that ends
+'' exactly at the intrinsic's ')'. The parse is speculative and silent, and the cursor
+'' goes back either way: the caller parses it again, for real, so its diagnostics count.
+'' 'len( string( 3, "a" ) )' and 'sizeof( (cast( integer, a ), b) )' hold a type keyword
+'' too, and fail the parse, so they stay expressions.
+function TypeArgIsTupleType( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
+    if (k <> Tko.KW_SIZEOF) andalso (k <> Tko.KW_LEN) then return false
+    if Peek( p ) <> Tko.TK_LPAREN then return false
+    dim as long depth = 0, i = p.pos
+    dim as boolean comma = false, typeWord = false
+    while HasTok( p, i )
+        dim as Tko.TokenKind tk = cast( Tko.TokenKind, p.toks->At( i ).kind )
+        select case tk
+        case Tko.TK_LPAREN : depth += 1
+        case Tko.TK_RPAREN
+            depth -= 1
+            if depth = 0 then exit while
+        case Tko.TK_COMMA : if depth = 1 then comma = true
+        case Tko.TK_EOL, Tko.TK_EOF : return false
+        case Tko.KW_PTR, Tko.KW_POINTER, Tko.KW_AS : typeWord = true
+        case else : if Tko.IsTypeKeyword( tk ) then typeWord = true
+        end select
+        i += 1
+    wend
+    if (comma = false) orelse (typeWord = false) then return false
+    dim as long save = p.pos
+    dim as boolean savedSilent = p.silent
+    dim as long savedErrors = p.errors
+    dim as long pendMark = p.varargPending.Count
+    p.silent = true
+    dim as Tko.NodeId n = TypeRef( p )
+    dim as boolean landed = (n <> Tko.NODE_NONE) andalso (Peek( p ) = Tko.TK_RPAREN)
+    p.silent = savedSilent
+    p.errors = savedErrors
+    p.pos = save
+    while p.varargPending.Count > pendMark
+        p.varargPending.Pop( )
+    wend
+    return landed
+end function

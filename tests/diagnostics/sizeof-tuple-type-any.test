@@ -1,0 +1,7 @@
+'' A tuple type written inside SIZEOF is parsed as a type, so its elements are checked:
+'' an 'any' element is TKO0823, not an internal error.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/sizeof-tuple-type-any.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: sizeof-tuple-type-any.bas(2,16): error TKO0823: a tuple element cannot be 'any' or a fixed-length string
+'' EXPECT-NOT: TKO0994
