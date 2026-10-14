@@ -471,6 +471,16 @@ function ByvalStrTemp_ _
             end if
         end if
         if IsUStringType( c, pt ) andalso IsUStringType( c, uat ) then
+            '' A 'const as ustring' HAS NO ADDRESS: the temporary is initialised from its
+            '' text, as 'dim w as ustring = G' is -- fb_UStrInit from a UTF-16 literal.
+            '' LowerAddr answered NONE and 'P( G )' was dropped (TKO0994).
+            if IsConstNameRef_( c, argNode ) then
+                c.f->locals[slot].frontendType = c.types->Builtin( Tko.TY_USTRING )
+                if LowerStringInit( c, slot, argNode, argNode ) = false then return false
+                outSlot = slot
+                outa = dst
+                return true
+            end if
             dim as MirValue usrc
             '' A CALL RESULT HAS NO ADDRESS: its value IS the descriptor pointer, and
             '' fb_UStrAssign consumes it -- see the caller in lowercall.tiko. So is a

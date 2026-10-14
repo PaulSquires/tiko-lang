@@ -1,0 +1,16 @@
+'' A 'const as ustring' FOR A 'byval as ustring' PARAMETER. ByvalStrTemp_'s ustring arm
+'' asked the constant for an address, got none, and 'P( G )' was dropped: TKO0994. The
+'' temporary is now initialised from the constant's text, as 'dim w as ustring = G' is
+'' (src/mir/lowerstrargs.tiko) -- a procedure, a function, a constructor and a method.
+'' fbc-modern 1.20 has no 'const as ustring' (error 24), so there is no differential.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/driver/src/const-ustring-byval.bas -o tests/driver/constustrbyval.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/constustrbyval.exe
+'' RUN: tests/driver/constustrbyval.exe
+'' EXPECT-RUN-OUT: hi 2
+'' EXPECT-RUN-OUT: ns 2
+'' EXPECT-RUN-OUT: hi!
+'' EXPECT-RUN-OUT: hi|hi
+'' EXPECT-RUN-EXIT: 0
