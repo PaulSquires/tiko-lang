@@ -19,7 +19,7 @@ print Max( 3, 9 )               '' T inferred as INTEGER
 print Max( of float64 )( 1.5, 2.5 )
 ```
 
-A generic is declared once and compiled once per distinct type-argument list. There is no textual substitution, no macro, and no separate template language: the body is captured as tokens at declaration and replayed through the real parser at instantiation, so the code inside a generic is ordinary FreeBASIC and is diagnosed as such.
+A generic is declared once and compiled once per distinct type-argument list. There is no textual substitution, no macro, and no separate template language: the body is captured as tokens at declaration and replayed through the real parser at instantiation, so the code inside a generic is ordinary tiko-lang and is diagnosed as such.
 
 FOR EACH, the iterator protocol and the standard containers are all built on top of it.
 
