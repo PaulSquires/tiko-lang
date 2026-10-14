@@ -16,10 +16,10 @@ A function may return a **dynamic array**. Write the result type as `T( )`. No `
 ## What 'return' Takes
 
 ```freebasic
-function squares( byval n as long ) as long( )
-    dim r( ) as long
+function squares( byval n as int32 ) as int32( )
+    dim r( ) as int32
     redim r( 0 to n - 1 )
-    for k as long = 0 to n - 1 : r( k ) = k * k : next
+    for k as int32 = 0 to n - 1 : r( k ) = k * k : next
     return r                          ' a local array: MOVED out
 end function
 
@@ -27,7 +27,7 @@ function names( ) as string( )
     return { "alpha", "beta" }        ' a flat brace list, any element type
 end function
 
-function again( ) as long( )
+function again( ) as int32( )
     return squares( 4 )               ' a call that returns an array
 end function
 ```
