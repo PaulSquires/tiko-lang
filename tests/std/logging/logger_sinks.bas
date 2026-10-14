@@ -104,7 +104,7 @@ end type
 sub ThreadBody( byval p as any ptr )
 	dim as ThreadArg ptr a = cast( ThreadArg ptr, p )
 	for i as long = 1 to PER_THREAD
-		a->lg->Info( ).Int_( "tid", a->tid ).Int_( "i", i ).Msg( "tick" )
+		a->lg->Info( ).AddInt( "tid", a->tid ).AddInt( "i", i ).Msg( "tick" )
 	next
 end sub
 
@@ -145,14 +145,14 @@ SUITE( fbc_tests.logging.logger_sinks )
 		g_valuebuilds = 0
 
 		'' four chained fields on a disabled level
-		lg.Trace( ).Str( "a", "1" ).Int_( "b", 2 ).Bool( "c", TRUE ).Dbl( "d", 4.0 ).Msg( "no" )
-		lg.Debug( ).Str( "a", "1" ).Msg( "also no" )
+		lg.Trace( ).AddText( "a", "1" ).AddInt( "b", 2 ).AddBool( "c", TRUE ).AddFloat( "d", 4.0 ).Msg( "no" )
+		lg.Debug( ).AddText( "a", "1" ).Msg( "also no" )
 
 		CU_ASSERT_EQUAL( cap.Count( ), 0 )
 		CU_ASSERT_EQUAL( g_valuebuilds, 0 )
 
 		'' ... and the same chain at an ENABLED level does build and does emit
-		lg.Info( ).Val( "a", CountedValue( "1" ) ).Msg( "yes" )
+		lg.Info( ).AddValue( "a", CountedValue( "1" ) ).Msg( "yes" )
 		CU_ASSERT_EQUAL( cap.Count( ), 1 )
 		CU_ASSERT_EQUAL( g_valuebuilds, 1 )
 	END_TEST
@@ -167,7 +167,7 @@ SUITE( fbc_tests.logging.logger_sinks )
 
 		scope
 			dim e as LogEvent = lg.Info( )
-			e.Str( "user", "quinn" )
+			e.AddText( "user", "quinn" )
 		end scope                          '' destroyed uncommitted
 		CU_ASSERT_EQUAL( cap.Count( ), 0 )
 
@@ -193,8 +193,8 @@ SUITE( fbc_tests.logging.logger_sinks )
 
 		cap.Reset( )
 		dim as Instant inst = Instant.ParseIso( "2026-08-12T23:06:34.3614985Z" )
-		lg.Warn( ).Str( "s", "x" ).Int_( "i", -1 ).UInt( "u", 2ull ) _
-		          .Dbl( "d", 0.5 ).Bool( "b", FALSE ).Time( "t", inst ) _
+		lg.Warn( ).AddText( "s", "x" ).AddInt( "i", -1 ).AddUInt( "u", 2ull ) _
+		          .AddFloat( "d", 0.5 ).AddBool( "b", FALSE ).AddTime( "t", inst ) _
 		          .Msg( "all kinds" )
 		CU_ASSERT_EQUAL( cap.Count( ), 1 )
 		CU_ASSERT_EQUAL( cap.LineAt( 0 ), _
@@ -211,7 +211,7 @@ SUITE( fbc_tests.logging.logger_sinks )
 		lg.AddSink( @cap )
 
 		dim as long target = 7
-		lg.Info( ).Ptr_( "p", @target ).Msg( "addr" )
+		lg.Info( ).AddPtr( "p", @target ).Msg( "addr" )
 		CU_ASSERT_EQUAL( cap.Count( ), 1 )
 
 		'' the address itself is machine-dependent, so what is asserted is that
@@ -221,21 +221,21 @@ SUITE( fbc_tests.logging.logger_sinks )
 		CU_ASSERT_TRUE( instr( cap.LineAt( 0 ), "p=null" ) = 0 )
 
 		cap.Reset( )
-		lg.Info( ).Ptr_( "p", 0 ).Msg( "nul" )
+		lg.Info( ).AddPtr( "p", 0 ).Msg( "nul" )
 		CU_ASSERT_EQUAL( cap.Count( ), 1 )
 		CU_ASSERT_TRUE( instr( cap.LineAt( 0 ), "p=" ) > 0 )
 
 		'' a TimeSpan field, which renders through the same path as Time
 		cap.Reset( )
-		lg.Info( ).Span( "took", TimeSpan.FromMilliseconds( 1500 ) ).Msg( "done" )
+		lg.Info( ).AddSpan( "took", TimeSpan.FromMilliseconds( 1500 ) ).Msg( "done" )
 		CU_ASSERT_EQUAL( cap.Count( ), 1 )
 		CU_ASSERT_TRUE( instr( cap.LineAt( 0 ), "took=" ) > 0 )
 		CU_ASSERT_TRUE( instr( cap.LineAt( 0 ), "done" ) > 0 )
 
 		'' and both compose into one chain with the rest
 		cap.Reset( )
-		lg.Info( ).Str( "s", "x" ).Ptr_( "p", @target ) _
-		          .Span( "d", TimeSpan.FromSeconds( 2 ) ).Msg( "mixed" )
+		lg.Info( ).AddText( "s", "x" ).AddPtr( "p", @target ) _
+		          .AddSpan( "d", TimeSpan.FromSeconds( 2 ) ).Msg( "mixed" )
 		CU_ASSERT_EQUAL( cap.Count( ), 1 )
 		CU_ASSERT_TRUE( instr( cap.LineAt( 0 ), "s=x" ) > 0 )
 		CU_ASSERT_TRUE( instr( cap.LineAt( 0 ), "p=" ) > 0 )
@@ -244,7 +244,7 @@ SUITE( fbc_tests.logging.logger_sinks )
 		'' a suppressed level must not evaluate the chain into the sink at all
 		cap.Reset( )
 		lg.MinLevel = LOG_INFO
-		lg.Debug( ).Ptr_( "p", @target ).Span( "d", TimeSpan.FromSeconds( 1 ) ).Msg( "no" )
+		lg.Debug( ).AddPtr( "p", @target ).AddSpan( "d", TimeSpan.FromSeconds( 1 ) ).Msg( "no" )
 		CU_ASSERT_EQUAL( cap.Count( ), 0 )
 	END_TEST
 
@@ -298,7 +298,7 @@ SUITE( fbc_tests.logging.logger_sinks )
 
 		'' inherited fields come FIRST, call-site fields last, so "most
 		'' specific last" is available to any renderer wanting last-wins
-		child.Info( ).Int_( "rows", 42 ).Msg( "query" )
+		child.Info( ).AddInt( "rows", 42 ).Msg( "query" )
 		CU_ASSERT_EQUAL( cap.LineAt( 0 ), !"INFO   query  component=db rows=42\n" )
 
 		'' a grandchild accumulates, and its parent still does not

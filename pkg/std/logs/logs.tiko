@@ -8,7 +8,7 @@
 ''     dim lg  as Logger
 ''     lg.AddSink( @con )
 ''     lg.Info( "server started" )
-''     lg.Warn( ).Str( "user", u ).Int( "attempts", n ).Msg( "login failed" )
+''     lg.Warn( ).AddText( "user", u ).AddInt( "attempts", n ).Msg( "login failed" )
 ''
 '' Specified in C:\dev\docs\logging\. Mirrors std/containers' containers.tiko and
 '' std/fs' fs.tiko: one #import gets the whole module.

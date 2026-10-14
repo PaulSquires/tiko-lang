@@ -272,14 +272,8 @@ end function
 
 '' ============================================================== value text
 ''
-'' A FREE FUNCTION, NOT A MEMBER, and that is not a style choice. A builder
-'' method named Str shadows the intrinsic STR( ) inside its own type's member
-'' bodies:
-''
-''     error 58: Type mismatch, at parameter 1 (k) of STR()
-''
-'' LogEvent.Str is worth keeping -- it is the obvious name and callers are
-'' unaffected -- so the conversions live out here where STR( ) still resolves.
+'' FREE FUNCTIONS, NOT MEMBERS: renderers and sinks turn a LogValue into text
+'' with no LogEvent in hand, and STR( ) resolves to the intrinsic out here.
 public declare function LogValueToText( byref v as LogValue ) as ustring
 public declare function LogDoubleText( byval d as double ) as string
 

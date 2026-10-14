@@ -29,7 +29,7 @@ libraries in `inc/fb`; that directory is gone, and its code lives here.
   then `Replace( s, "a", "b" )`. Two modules that both export a name -- `strings.Contains` and
   `containers.Contains` -- need qualifying when both are `using`ed (TKO0919).
 - **Macros are exported and used qualified**: `logs.LogInfo( "started" )`,
-  `logs.LogEventWarn( Str( "path", p ), "write failed" )`, and std/fs's `JoinPath`, `DirName`,
+  `logs.LogEventWarn( AddText( "path", p ), "write failed" )`, and std/fs's `JoinPath`, `DirName`,
   `BaseName`, `Extension`, `IsAbsolute`, `Separator`. `using` never makes a macro bare.
 - **A key type for `Map` or `Set`** extends `containers.Hashable` and overrides its
   `HashOf( )`; it needs `=` too (and `OrderedMap`/`OrderedSet` need only `<`). Built-in types
@@ -52,6 +52,7 @@ when unset); a module never sees its importer's `-d`, so it is set in a `tiko.to
 | `FB_LOG_INFO( m )` and the other `FB_LOG_*` macros | `logs.LogInfo( m )`, `logs.LogEventWarn( f, m )`, ... |
 | `FB_LOG_IMPLEMENT( )` in one module | nothing: the default logger is std/logs' own |
 | `FB_LOG_MIN_LEVEL` | `LOG_MIN_LEVEL`, std/logs' setting |
+| LogEvent's `.Str( )`, `.Int_( )`, `.UInt( )`, `.Dbl( )`, `.Bool( )`, `.Ptr_( )`, `.Time( )`, `.Span( )`, `.Val( )`, `.Err( )` | `.AddText( )`, `.AddInt( )`, `.AddUInt( )`, `.AddFloat( )`, `.AddBool( )`, `.AddPtr( )`, `.AddTime( )`, `.AddSpan( )`, `.AddValue( )`, `.AddError( )` |
 | `#include once "fb/sharedptr.bi"` | `#import "std/memory"` |
 | `#include once "fbsqlite.bi"` + `using SQLite` | `#import "db/sqlite"` + `using sqlite` |
 | ComPtr (`fb/comptr.bi`) | no longer supported |

@@ -4,7 +4,7 @@
 ''     #import "std/logs"
 ''
 ''     logs.LogInfo( "server started" )
-''     logs.LogEventWarn( Str( "path", p ).Int_( "code", c ), "write failed" )
+''     logs.LogEventWarn( AddText( "path", p ).AddInt( "code", c ), "write failed" )
 ''
 ''     ...  INFO   server started  (C:\src\main.bas:12 MAIN)
 ''

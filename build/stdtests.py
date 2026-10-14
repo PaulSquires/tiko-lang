@@ -138,8 +138,17 @@ PATCHES = {
 # CONTAINS IS TWO NAMES NOW. Under 'using FB' strings' Contains and containers' generic
 # Contains( of T ) were one overload set in one namespace; as two modules, a bare call under
 # both 'using's is TKO0919 (ambiguous), which is the module rule, so the port qualifies it.
+#
+# THE LOGEVENT FIELD METHODS ARE Add<kind> in std/logs -- AddText, AddInt, ... -- where
+# fb/logging.bi spelled them Str, Int_, UInt, Dbl, Bool, Ptr_, Time, Span and Val. The
+# old names collided with keywords and intrinsics; see pkg/std/logs/logger.tiko.
 RPATCHES = {
     "string/fbstr_search.bas": [(r"(?<![.\w])Contains\(", "strings.Contains(")],
+    "logging/logger_sinks.bas": [(r"\.Str\(", ".AddText("), (r"\.Int_\(", ".AddInt("),
+                                 (r"\.UInt\(", ".AddUInt("), (r"\.Dbl\(", ".AddFloat("),
+                                 (r"\.Bool\(", ".AddBool("), (r"\.Ptr_\(", ".AddPtr("),
+                                 (r"\.Time\(", ".AddTime("), (r"\.Span\(", ".AddSpan("),
+                                 (r"\.Val\(", ".AddValue(")],
 }
 
 RX_INC = re.compile(r'^\s*#include(?:\s+once)?\s+"(fb/[\w]+\.bi|containers\.bi)"[^\n]*\n?', re.I | re.M)

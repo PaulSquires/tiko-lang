@@ -21,7 +21,7 @@ using containers
 ''     lg.AddSink( @con )
 ''
 ''     lg.Info( "server started" )
-''     lg.Warn( ).Str( "user", u ).Int_( "attempts", n ).Msg( "login failed" )
+''     lg.Warn( ).AddText( "user", u ).AddInt( "attempts", n ).Msg( "login failed" )
 ''
 '' ---------------------------------------------------------------------------
 '' THE EVENT LIVES ON THE CALLER'S STACK
@@ -62,17 +62,17 @@ public type LogEvent
     declare constructor( )
     declare destructor( )
 
-    declare function Str  ( byref k as ustring, byref v as ustring  ) byref as LogEvent
-    declare function Int_ ( byref k as ustring, byval v as longint  ) byref as LogEvent
-    declare function UInt ( byref k as ustring, byval v as ulongint ) byref as LogEvent
-    declare function Dbl  ( byref k as ustring, byval v as double   ) byref as LogEvent
-    declare function Bool ( byref k as ustring, byval v as boolean  ) byref as LogEvent
-    declare function Ptr_ ( byref k as ustring, byval v as any ptr  ) byref as LogEvent
-    declare function Time ( byref k as ustring, byref v as Instant  ) byref as LogEvent
-    declare function Span ( byref k as ustring, byref v as TimeSpan ) byref as LogEvent
-    declare function Val ( byref k as ustring, byref v as LogValue ) byref as LogEvent
+    declare function AddText  ( byref k as ustring, byref v as ustring  ) byref as LogEvent
+    declare function AddInt   ( byref k as ustring, byval v as longint  ) byref as LogEvent
+    declare function AddUInt  ( byref k as ustring, byval v as ulongint ) byref as LogEvent
+    declare function AddFloat ( byref k as ustring, byval v as double   ) byref as LogEvent
+    declare function AddBool  ( byref k as ustring, byval v as boolean  ) byref as LogEvent
+    declare function AddPtr   ( byref k as ustring, byval v as any ptr  ) byref as LogEvent
+    declare function AddTime  ( byref k as ustring, byref v as Instant  ) byref as LogEvent
+    declare function AddSpan  ( byref k as ustring, byref v as TimeSpan ) byref as LogEvent
+    declare function AddValue ( byref k as ustring, byref v as LogValue ) byref as LogEvent
 
-    declare function Err  ( byref v as FsError ) byref as LogEvent
+    declare function AddError ( byref v as FsError ) byref as LogEvent
     declare function Site ( byref f as ustring, byval l as long, byref fn as ustring ) byref as LogEvent
 
     declare sub Msg( byref m as ustring )
@@ -185,16 +185,17 @@ function Logger_.SinkCount( ) as long
     return this.m_sinks.Count( )
 end function
 
-'' NOT `With`: WITH is a FreeBASIC STATEMENT and the name is rejected outright
-'' (error 4). NOT `Int` either, and not `Ptr` -- same error. RFC-0002 sections 3
-'' and 5 amended.
+'' NOT `With`: WITH is a statement and the name is refused outright (TKO0600).
 ''
-'' MEASURED, because it is not obvious and phase 0 guessed wrong twice: as a
-'' member of a UDT inside a namespace, `Str`, `Val`, `Error`, `Time`, `Log`,
-'' `Bool`, `Dbl`, `Span`, `Msg` and `Send` ALL WORK. Being an intrinsic function
-'' is not enough to block a member name; being a keyword or a statement is. So
-'' `Error_` and `Val_` were renamed back to `Error` and `Val`, and RFC-0002
-'' section 1's claim that ERROR had to be spelled `Error_` was simply wrong.
+'' THE FIELD METHODS ARE NAMED Add<kind> -- AddText, AddInt, AddUInt, AddFloat,
+'' AddBool, AddPtr, AddTime, AddSpan, AddValue, AddError -- so that none of them
+'' collides with the language. Their first names did: INT and PTR are keywords
+'' (TKO0600), which forced `Int_` and `Ptr_`; STR, VAL, TIME and ERR are
+'' intrinsics, and a member named Str shadowed STR( ) inside the type's own
+'' member bodies. A type name is no better: the fixed-width names are typedefs,
+'' so a member called Int64 would shadow the type the same way. The level
+'' methods -- Error, Log and the rest -- keep their names: being an intrinsic is
+'' not enough to block a member name, only being a keyword or a statement is.
 ''
 '' RFC-0002 section 5. Returns a NEW Logger by value carrying the parent's
 '' level, sinks and inherited fields PLUS the new one. The parent is untouched
@@ -288,54 +289,54 @@ end constructor
 destructor LogEvent( )
 end destructor
 
-function LogEvent.Val( byref k as ustring, byref v as LogValue ) byref as LogEvent
+function LogEvent.AddValue( byref k as ustring, byref v as LogValue ) byref as LogEvent
     if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, v ) )
     return this
 end function
 
-function LogEvent.Str( byref k as ustring, byref v as ustring ) byref as LogEvent
+function LogEvent.AddText( byref k as ustring, byref v as ustring ) byref as LogEvent
     if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
     return this
 end function
 
-function LogEvent.Int_( byref k as ustring, byval v as longint ) byref as LogEvent
+function LogEvent.AddInt( byref k as ustring, byval v as longint ) byref as LogEvent
     if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
     return this
 end function
 
-function LogEvent.UInt( byref k as ustring, byval v as ulongint ) byref as LogEvent
+function LogEvent.AddUInt( byref k as ustring, byval v as ulongint ) byref as LogEvent
     if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
     return this
 end function
 
-function LogEvent.Dbl( byref k as ustring, byval v as double ) byref as LogEvent
+function LogEvent.AddFloat( byref k as ustring, byval v as double ) byref as LogEvent
     if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
     return this
 end function
 
-function LogEvent.Bool( byref k as ustring, byval v as boolean ) byref as LogEvent
+function LogEvent.AddBool( byref k as ustring, byval v as boolean ) byref as LogEvent
     if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
     return this
 end function
 
-function LogEvent.Ptr_( byref k as ustring, byval v as any ptr ) byref as LogEvent
+function LogEvent.AddPtr( byref k as ustring, byval v as any ptr ) byref as LogEvent
     if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
     return this
 end function
 
-function LogEvent.Time( byref k as ustring, byref v as Instant ) byref as LogEvent
+function LogEvent.AddTime( byref k as ustring, byref v as Instant ) byref as LogEvent
     if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
     return this
 end function
 
-function LogEvent.Span( byref k as ustring, byref v as TimeSpan ) byref as LogEvent
+function LogEvent.AddSpan( byref k as ustring, byref v as TimeSpan ) byref as LogEvent
     if( this.m_enabled ) then this.m_rec.fields.Push( LogField( k, LogValue( v ) ) )
     return this
 end function
 
 '' Two fields from one call, so that a failed file operation logs consistently
 '' everywhere instead of each call site inventing its own key names.
-function LogEvent.Err( byref v as FsError ) byref as LogEvent
+function LogEvent.AddError( byref v as FsError ) byref as LogEvent
     if( this.m_enabled ) then
         this.m_rec.fields.Push( LogField( "error", LogValue( v.Message( ) ) ) )
         this.m_rec.fields.Push( LogField( "error.code", LogValue( clngint( v.Code( ) ) ) ) )
