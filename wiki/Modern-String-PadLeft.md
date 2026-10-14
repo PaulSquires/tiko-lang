@@ -20,9 +20,9 @@ PadLeft( s, width [, pad] )
 #import "std/strings"
 using strings
 
-print PadLeft( "FreeBasic", 12, "*" )    '' ***FreeBasic
+print PadLeft( "tiko-lang", 12, "*" )    '' ***tiko-lang
 print PadLeft( "42", 5, "0" )            '' 00042
-print PadLeft( "FreeBasic", 4, "*" )     '' Free -- truncated, keeping the left
+print PadLeft( "tiko-lang", 4, "*" )     '' tiko -- truncated, keeping the left
 ```
 
 ---

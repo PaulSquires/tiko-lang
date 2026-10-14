@@ -20,12 +20,12 @@ PadRight( s, width [, pad] )
 #import "std/strings"
 using strings
 
-print PadRight( "FreeBasic", 12, "*" )    '' FreeBasic***
-print PadRight( "FreeBasic", 12 )         '' FreeBasic    (spaces)
+print PadRight( "tiko-lang", 12, "*" )    '' tiko-lang***
+print PadRight( "tiko-lang", 12 )         '' tiko-lang    (spaces)
 
 '' The result is ALWAYS exactly `width` -- longer input is truncated,
 '' which is what makes a column line up whatever is in it
-print PadRight( "FreeBasic", 4, "*" )     '' Free
+print PadRight( "tiko-lang", 4, "*" )     '' tiko
 ```
 
 ---

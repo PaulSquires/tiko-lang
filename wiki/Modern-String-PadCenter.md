@@ -20,7 +20,7 @@ PadCenter( s, width [, pad] )
 #import "std/strings"
 using strings
 
-print PadCenter( "FreeBasic", 13, "*" )    '' **FreeBasic**
+print PadCenter( "tiko-lang", 13, "*" )    '' **tiko-lang**
 
 '' The odd unit goes on the RIGHT: one character in a field of four
 '' gets one pad before and two after
