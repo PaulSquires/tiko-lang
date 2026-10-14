@@ -152,29 +152,6 @@ An opaque handle, `typedef struct sqlite3 sqlite3;` with no definition, becomes 
 
 C's `int` arrives as `long` (32 bits, the same type as `int32`), `long long` as `longint`, `double` as `double`, `char *` as `zstring ptr`, `void *` as `any ptr`, and `char name[16]` as `zstring * 16`. Where C's types differ by platform, so does the binding: C's `long` is 32 bits on Windows and 64 on Linux, and a binding that uses it includes `crt/long.bi`.
 
-## The A/W names, and `#define UNICODE`
-
-On Windows, more than a thousand names are **macros standing for another name**:
-
-```c
-#define GetMessage  GetMessageW    /* or GetMessageA */
-```
-
-They are imported as tiko `#define`s, so unsuffixed Win32 code works as written. **Which one you get is decided in your source:**
-
-```freebasic
-#define UNICODE
-#cinclude once "windows.h"     '' GetMessage -> GetMessageW
-```
-
-```freebasic
-#cinclude once "windows.h"     '' GetMessage -> GetMessageA
-```
-
-The suffixed names, `GetMessageA` and `GetMessageW`, are real functions and are always there. The define only decides what the unsuffixed name means. From the `-cimport` command line, where there is no source to carry a `#define`, use `-cdefine UNICODE`.
-
-> **Two aliases cannot share a name.** `commdlg.h` has a struct `CHOOSECOLOR` and a function `ChooseColor`, each with an A/W macro. In C those are two names; in tiko, where names ignore case, they are one. The alias is dropped and the skipped list says why. The suffixed names (`ChooseColorW`, `CHOOSECOLORW`) still work.
-
 ## Calling conventions
 
 An imported function or function pointer carries the convention the header states **for the target being built**. On x86-64 there is one C calling convention, so `windows.h`'s `WINAPI` comes across as `cdecl`.
