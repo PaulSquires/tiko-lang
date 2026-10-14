@@ -166,6 +166,9 @@ print "bag "; b1.total; b1.n; b2.total; b2.n; b3.n; b4.total; Bag.Count( 4, 5 );
 var pb = new Bag( 7, 8 )
 print "new "; pb->total; pb->n
 delete pb
+'' A member of a temporary: 'Bag( ).n' was an internal error -- the empty call found no
+'' constructor by arity (VariadicOnlyCtor_).
+print "temp "; Bag( ).n; Bag( 4, 5 ).total
 
 dim as function( xs() as const long ... ) as long fp = @AddUp
 print "pointer "; fp( 1, 2, 3, 4 ); fp( ); fp( arr( ) )

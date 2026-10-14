@@ -3,7 +3,7 @@
 '' OVERLOADED procedure; a non-packing overload winning; fixed and defaulted parameters
 '' before the variadic; string, ustring and UDT elements, each constructed once and destroyed
 '' once at the end of the statement; instance, static and virtual members; constructors
-'' ('dim .. = T( .. )', 'new', the empty and the spread forms); procedure pointers; generics.
+'' ('dim .. = T( .. )', 'new', a temporary's member, the empty and the spread forms); procedure pointers; generics.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -exx tests/codegen/src/typed-variadic.tiko -o tests/codegen/typedvariadic.exe
 '' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
@@ -31,5 +31,6 @@
 '' EXPECT-RUN-OUT: virtual  1006 1000 1004
 '' EXPECT-RUN-OUT: bag  36 5 9 1 0 15 2 0
 '' EXPECT-RUN-OUT: new  15 2
+'' EXPECT-RUN-OUT: temp  0 9
 '' EXPECT-RUN-OUT: pointer  10 0 15
 '' EXPECT-RUN-OUT: generic  3 2 2

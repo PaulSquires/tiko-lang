@@ -1106,6 +1106,7 @@ function EmitTypeCtorInto_ _
     end if
     if (ctor = Tko.SYMBOL_NONE) andalso (ctPicked = false) then
         ctor = StructorWithArity( c, StructorOf( c, t, "__ctor" ), cp->count )
+        if (ctor = Tko.SYMBOL_NONE) andalso (cp->count = 0) then ctor = VariadicOnlyCtor_( c, t )   '' 'T( )' (lowercall.tiko)
     end if
 
     '' 'UDT( )' WITH NO WRITTEN CONSTRUCTOR runs the SYNTHESISED one. fbc accepts the

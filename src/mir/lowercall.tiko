@@ -139,6 +139,22 @@ function PackTypedVariadic_ _
     return true
 end function
 
+'' 'T( )' WRITTEN, OVER A TYPED VARIADIC CONSTRUCTOR and no other that takes nothing: that
+'' one, which PushCtorArgs_ gives an empty pack. EmitTypeCtorInto_ picks a zero-argument call
+'' by arity, where it takes one parameter, so 'Bag( ).n' found no constructor and the
+'' statement was dropped (TKO0994). Only for the WRITTEN call: implicit construction never
+'' packs (docs/tiko-params/RFC-0001 section 5.1).
+function VariadicOnlyCtor_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    dim as Tko.SymbolId vc = StructorOf( c, t, "__ctor" )
+    while vc <> Tko.SYMBOL_NONE
+        if (ParamCountOf( c, vc ) = 1) andalso ParamIsVariadic_( c, vc, 0 ) then return vc
+        dim as Tko.Symbol ptr vs = c.syms->SymbolAt( vc )
+        if vs = 0 then exit while
+        vc = vs->nextOverload
+    wend
+    return Tko.SYMBOL_NONE
+end function
+
 '' 'dim as T x = T( a, b, c )' OVER A TYPED VARIADIC CONSTRUCTOR: the arguments through
 '' PushCtorArgs_, which packs them, then the constructor into the slot (or selfv). The
 '' value-first path in LowerCtorInit lowers every argument before the pick and has no
