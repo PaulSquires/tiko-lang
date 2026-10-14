@@ -31,17 +31,21 @@ WriteAtomic( "config.ini", "[main]" & chr( 10 ) )
 
 ## Why It Exists
 
-The built-in filesystem surface is OPEN/GET/PUT, KILL, NAME, MKDIR, RMDIR, CHDIR, CURDIR, DIR/DIRNEXT, FileExists, FileLen, FileAttr, FileDateTime and FileCopy. Against that, every mainstream language ships a path algebra, a stat record, a reentrant directory iterator, a recursive walk and whole-file read and write. The built-in surface has none of them.
+std/fs is tiko's filesystem library: paths, file information, directories and whole files, behind one import and with the same behaviour on windows-x86_64 and linux-x86_64.
 
-Three concrete defects, not a wish list:
+A COMPLETE PATH TOOLKIT. Paths are ordinary strings, and free functions take them apart and put them together: PathJoin, PathSplit, PathParent, PathFileName, PathStem, PathExtension, PathChangeExtension, PathNormalize, PathRelativeTo, PathEquals and more. Drive letters, UNC shares, `\\?\` prefixes and trailing separators are handled, so no program has to slice a path by hand.
 
-There is NO PATH MANIPULATION AT ALL. The entire path layer is one internal function that flips slashes. No join, split, normalize, extension, parent, absolute or relative-to. Every program hand-rolls it, and every hand-rolled version is wrong on UNC paths and trailing separators.
+EVERYTHING ABOUT A FILE IN ONE CALL. Stat( p ) returns one FileInfo: whether it exists, which of the four kinds it is (file, directory, symbolic link or other), its size, its modified, created and accessed times, and its read-only and hidden flags -- all read together, in one call. LStat( p ) does the same without following a symbolic link.
 
-DIR/DIRNEXT IS A PER-THREAD GLOBAL. One cursor per thread, so two interleaved directory scans silently corrupt each other. Recursion therefore requires collecting a whole level into an array before descending -- a workaround for a library defect, not a design.
+DIRECTORIES YOU WALK WITH FOR EACH. ReadDir lists one directory and WalkDir a whole tree, and both plug straight into FOR EACH. Every walk keeps its own position, so two scans can run side by side or one inside the other. ListDir gives an eager, sortable listing when you want to change entries as you go.
 
-FOUR CALLS TO LEARN FOUR FACTS. FileExists + FileAttr + FileLen + FileDateTime are four separate traversals of the same path with four separate race windows, and FileLen opens the file so it fails outright on a directory.
+WHOLE FILES IN ONE LINE. ReadAllText, ReadAllLines and ReadAllBytes read a file; WriteAllText and WriteAllBytes write one; WriteAtomic replaces it so that a reader sees the old file or the new one, never a half-written one.
 
-This library ships ALONGSIDE all of that. Nothing in inc/file.bi, inc/dir.bi or the runtime's existing file routines changed, and nothing here depends on them. A program using DIR compiles and behaves exactly as before; the only new consequence is that a better option now sits next to it.
+ERRORS YOU CANNOT IGNORE BY ACCIDENT. Every call that can fail returns a Result( of T, FsError ) carrying a code, a message and the path involved, and a default-constructed Result is a failure. Calls that cannot fail return their value directly, so the signature alone says which is which.
+
+UNICODE PATHS EVERYWHERE. Every entry point takes a USTRING, and STRING, ZSTRING and WSTRING convert to it, so names in any language work on both platforms.
+
+And beyond those: copying, moving and removing files and whole trees (CopyFile, CopyDir, MoveFile, CreateDirAll, RemoveDirAll), temporary files and directories created safely, glob patterns, links and permissions, volumes, advisory file locks, memory-mapped files and directory watching.
 
 NO COMPILER SUPPORT IS INVOLVED. This is a library: the runtime half is in tiko-rt (lib/rt/src/fs/), the tiko types in the std/fs module (pkg/std/fs/). Nothing here is a keyword, and Stat, ReadDir, CopyFile and the rest stay available as your own identifiers: nothing is added to a program until it imports std/fs, and the bare names only after 'using fs'.
 
