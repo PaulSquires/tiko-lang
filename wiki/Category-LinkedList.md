@@ -2,6 +2,14 @@
 
 # LinkedList
 
+A **linked list** is a sequence of values, like an [array](Category-Array), stored a different way. An array keeps its elements side by side in one block of memory. A linked list keeps each element in its own small piece of memory, a *node*, and every node holds a link to the next one -- and, in this list, to the previous one as well.
+
+Think of a train: you can couple a carriage onto either end without touching the others, and you get from one carriage to the next by walking through. What you cannot do is jump straight to carriage 37 -- you count your way there.
+
+That trade is the point. Adding or removing at either end is quick however long the list is -- `PushFront`, `PushBack`, `PopFront` and `PopBack` -- which makes a LinkedList a natural **queue** (first in, first out) or **stack** (last in, first out). There is no `[ i ]` to reach an element by its position; you walk the list with `for each`.
+
+The example below builds a two-item list from both ends, takes the front item off, and prints what is left:
+
 ```freebasic
 #import "std/containers"
 using containers
