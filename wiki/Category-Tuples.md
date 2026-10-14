@@ -57,6 +57,13 @@ print p._1, p._2
 
 Layout is the layout of the equivalent hand-written TYPE -- same size, same offsets, same alignment -- because a tuple IS an ordinary UDT underneath. A STRING element is constructed, copied and destroyed exactly as a STRING field is.
 
+SIZEOF, LEN and TYPEOF take a tuple type written inline, or one named by a typedef:
+
+```freebasic
+type P as (int32, string)
+print sizeof( (int32, string) ), sizeof( P )      ' 32 32 on windows-x86_64
+```
+
 ## Element Names
 
 An element may carry a name. The name is checked for duplicates within the declaration.
@@ -262,16 +269,8 @@ Arity 0 is not spellable either -- '()' has no use without a unit type.
 ## What Is NOT Spellable
 
 ```freebasic
-print sizeof( (int32, string) )       ' not supported: the build stops (TKO0994)
 const c as (int32, int32) = 0          ' error TKO0748
 type Derived extends (int32, int32)    ' error TKO0824
-```
-
-SIZEOF and LEN of a tuple type written inline are not supported: the build stops with `TKO0994`. TYPEOF of one works. Use a typedef:
-
-```freebasic
-type P as (int32, string)
-print sizeof( P )
 ```
 
 EXTENDS is excluded because a tuple has no vtable, no RTTI and no identity to inherit; CONST is excluded because there is nothing a tuple constant could be initialised from. tiko reports `TKO0748` for a tuple constant and `TKO0824` for EXTENDS. 'expr IS T' is excluded too: a tuple has no run-time type information, and IS reports `TKO0799`.
@@ -361,7 +360,7 @@ tiko reports:
 - destructuring with too few or too many targets, and `var (a, b)` of the wrong arity (`TKO0825`), over a UDT or a scalar (`TKO0826`), and `var (a) = 1` (`TKO0821`). `let ( a, b ) = udt` is FreeBASIC's multiple assignment, which takes a UDT's fields in order, and is accepted;
 - `<`, `>`, `<=` and `>=` on tuples, and `=` or `<>` between two DIFFERENT tuple types -- `(int32, int32)` against `(float64, float64)`, against the literal `(1, 2)`, which is `(integer, integer)`, or against a scalar (`TKO0720`). One tuple type on both sides compares.
 
-SIZEOF and LEN of a tuple type written inline stop the build with `TKO0994`; a typedef of the type works. `print` of a tuple is `TKO0871`, an initialiser with more elements than the tuple is `TKO0618`, and `expr is` a tuple type is `TKO0799`.
+`print` of a tuple is `TKO0871`, an initialiser with more elements than the tuple is `TKO0618`, and `expr is` a tuple type is `TKO0799`.
 
 A tuple element whose value is of ANOTHER type is converted by the element type's own `operator let`, over an element that has already been constructed -- `return ( wszKLID, bRes )` out of a function `as (DVARIANT, BOOLEAN)` takes DVARIANT's `let` from a wstring. Without a `let` that takes the value, tiko refuses the element with `TKO0831`. A `let` from a `int32` takes a `float64` and not a string; a constructor from the value's type is not enough. A plain type -- no constructor, no string field, no `extends object` -- takes a number without one. A string element does not take a number, nor a number element a string.
 
