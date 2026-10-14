@@ -48,6 +48,7 @@ src/mir/lowerstrconst.tiko
 src/mir/lowersub.tiko
 src/mir/lowerustr.tiko
 src/mir/lowerstrdesc.tiko
+src/mir/lowerstrlen.tiko
 src/mir/lowerswap.tiko
 src/mir/lowerwstr.tiko
 src/mir/lowerwstru.tiko
