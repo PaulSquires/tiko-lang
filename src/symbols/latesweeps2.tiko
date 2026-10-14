@@ -451,6 +451,10 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     '' and tiko printed nothing for each. A parenless name may be a namespace path, and is not.
     case SYM_PROC
         if c.ast->Kind( mp->lhs ) <> N_CALL then return
+    '' ...AND A TYPE NAME: 'U.nope( )', 'm.foo' over 'type m as long', 'E.nope' over an enum.
+    '' A member that exists was bound by Check and returned above, so what reaches here is
+    '' missing; fbc's error 42 over a type name. tiko stopped with TKO0994 instead.
+    case SYM_UDT, SYM_TYPEDEF, SYM_ENUM
     case else
         return
     end select
@@ -458,6 +462,33 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     if bt = TYPE_NONE then return
     dim as TypeId bu = ValueType_( c, bt )
     if c.types->Kind( bu ) = TK_POINTER then bu = c.types->Unqualify( c.types->Inner( bu ) )
+    '' A TYPE WITH NO MEMBERS AT ALL: 'x.foo' over a long, or a pointer to one -- fbc's error
+    '' 265, "Symbol not a CLASS". tiko stopped with TKO0994, having nothing to lower.
+    if c.types->Kind( bu ) = TK_BUILTIN then
+        dim as string lnm = c.types->Name( bu )
+        dim as NodeId ln = mp->lhs
+        if c.ast->Kind( ln ) = N_CALL then
+            ln = c.ast->lists[cast( long, c.ast->nodes[cast( long, ln )].data )].target
+        end if
+        if (ln <> NODE_NONE) andalso (c.ast->Kind( ln ) = N_IDENT) then
+            lnm = c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, ln )].data )].name )
+        end if
+        c.diags->Report( TKO0972, PointRange( c.ast->Loc( mp->rhs ) ), lnm, _
+            c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )].name ), _
+            c.types->Name( bu ) )
+        return
+    end if
+    '' AN ENUM'S members are its names, and Check binds every one that exists: 'E.nope'
+    '' through the enum's own name is missing. A VALUE of an enum type is TKO0835's.
+    if c.types->Kind( bu ) = TK_ENUM then
+        select case cast( SymbolKind, bs->kind )
+        case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD, SYM_PROC
+            return
+        end select
+        c.diags->Report( TKO0739, PointRange( c.ast->Loc( mp->rhs ) ), c.types->Name( bu ), _
+            c.names->Spelling( c.ast->idents[cast( long, c.ast->nodes[cast( long, mp->rhs )].data )].name ) )
+        return
+    end if
     '' A TUPLE's members are '_1' to '_n' and nothing else -- see TupleMemberBad_.
     if c.types->Kind( bu ) = TK_TUPLE then TupleMemberBad_( c, bu, mp->lhs, mp->rhs ) : return
     if c.types->Kind( bu ) <> TK_UDT then return

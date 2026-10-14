@@ -1,0 +1,67 @@
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local i32 x
+  local agg t size 16
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr x
+    %5 = call.rtl ptr memset(@x, 0, 4)
+    %6 = alloca ptr t
+    %7 = call.rtl ptr memset(@t, 0, 16)
+    %8 = const i32 0
+    call.rtl void fb_End(%8)
+    %9 = load @$tmp0
+    ret %9
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 1 functions, 1 blocks, 12 insts, 7 statements not lowered, 0 scope imbalance
+  unlowered N_FOREACH 1
+  unlowered N_INTRINSIC 2
+  inside N_AMBIGUOUS 4
+  inside N_FOREACH 1
+  inside N_INTRINSIC 2
+  unlowered intrinsic KW_PRINT 2
+  amb call-unbound 4
+  skip-site lowercall.tiko:165 4
+  skip-site src/mir/lowerctl.tiko:219 3
+  amb-unbound-shape N_MEMBER 4
+  amb member-base-typed 4
+  amb-member-name foo
+  amb-member-name foo
+  amb-member-name foo
+  amb-member-name pairs
+tests/diagnostics/src/member-of-no-members.bas(20,1): error TKO0606: '(long, longint)' cannot be walked by 'for each': it has no GetIterator( )
+     |
+  20 | for each (d, f) in t
+     | ^
+tests/diagnostics/src/member-of-no-members.bas(12,3): error TKO0972: 'm' has no member named 'foo': a 'long' has no members
+     |
+  12 | m.foo( )
+     |   ^
+tests/diagnostics/src/member-of-no-members.bas(13,3): error TKO0972: 'x' has no member named 'foo': a 'long' has no members
+     |
+  13 | x.foo( )
+     |   ^
+tests/diagnostics/src/member-of-no-members.bas(14,9): error TKO0972: 'x' has no member named 'foo': a 'long' has no members
+     |
+  14 | print x.foo
+     |         ^
+tests/diagnostics/src/member-of-no-members.bas(15,3): error TKO0739: 'u' has no member named 'foo'
+     |
+  15 | U.foo( )
+     |   ^
+tests/diagnostics/src/member-of-no-members.bas(16,9): error TKO0739: 'e' has no member named 'foo'
+     |
+  16 | print E.foo
+     |         ^
+tests/diagnostics/src/member-of-no-members.bas(17,4): error TKO0739: '(long, longint)' has no member named 'pairs'
+     |
+  17 | t2.Pairs( )
+     |    ^
