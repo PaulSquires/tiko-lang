@@ -28,6 +28,41 @@ print s.UseCount( )                           ' 1
                                               ' here, exactly once
 ```
 
+## Shared And Weak, In Plain Terms
+
+An object made with `new` lives until something deletes it. When several parts of a program use the same object, someone has to decide who deletes it, and when -- delete it too early and the others are left holding a pointer to nothing; never delete it and the memory is lost. Smart pointers make that decision for you. There are two kinds, and they answer two different questions.
+
+**`SharedPtr` -- "I need this object to stay alive."** A SharedPtr is a handle that *owns* the object, together with every other SharedPtr to it. Copying one makes another owner, and each owner is counted (`UseCount( )`). The object lives as long as at least one SharedPtr to it exists; when the last one goes away, the object is destroyed automatically, exactly once. Nobody has to remember to delete it.
+
+**`WeakPtr` -- "I want to reach this object, if it is still around."** A WeakPtr remembers the object but is *not* an owner: it is not counted, and it does not keep the object alive. Because the object may already be gone, you cannot use a WeakPtr directly. You ask it with `Lock( )`, which hands back a SharedPtr while the object exists -- holding the object alive for as long as you use it -- or a null one if it has been destroyed. `Expired( )` asks the same question without the handle.
+
+Think of a meeting room. Everyone inside is a SharedPtr: the lights stay on while anyone is in the room, and the last one out switches them off. A WeakPtr is knowing the room number: you can look in to see whether the meeting is still on, and if it is, walk in and join it -- but knowing the number never kept the lights on.
+
+### Why You Need The Weak One
+
+Shared ownership has one trap: a **cycle**. If a parent holds a SharedPtr to its child and the child holds a SharedPtr back to its parent, each one keeps the other alive. When the rest of the program lets go of both, their counts never reach zero, so neither is ever destroyed -- the memory is simply lost, and nothing warns you.
+
+The cure is to make one direction weak, usually the one that points back:
+
+```freebasic
+type TreeNode
+    as ustring                  name
+    as SharedPtr( of TreeNode ) child     ' owns: keeps the child alive
+    as WeakPtr( of TreeNode )   parent    ' only refers back: keeps nothing alive
+end type
+```
+
+Now the parent owns the child, the child can still find its parent through `parent.Lock( )`, and when the program lets go of the parent both are destroyed. Written with two SharedPtrs, the same pair is never destroyed at all. A WeakPtr also suits anything that wants to *refer* to an object without deciding how long it lives -- a cache, or a list of things to notify.
+
+| | SharedPtr | WeakPtr |
+| --- | --- | --- |
+| Keeps the object alive | yes | no |
+| Counted by `UseCount( )` | yes | no |
+| Use the object | directly: `s->name` | `Lock( )` first, then check `IsNull( )` |
+| After the object is destroyed | -- (a SharedPtr is the reason it still exists) | `Expired( )` is true, `Lock( )` is null |
+
+The rule of thumb: use a SharedPtr when this code needs the object to stay alive, and a WeakPtr when it only needs to reach the object if it still exists. Whenever two objects point at each other, make one of the two links weak. [Cycles, AND What Weakptr Is For](#cycles-and-what-weakptr-is-for) below has the details.
+
 ## Why It Exists
 
 A raw pointer has no way to say "this object is owned jointly". Every heap object reached through one has exactly one owner by convention, and the convention lives in a comment:
