@@ -43,6 +43,9 @@ Each of these is a diagnostic, not a silent difference:
 | Program | fbc 1.20 | tiko |
 | --- | --- | --- |
 | `#define run 5` -- a name fbc's runtime predeclares | `error 4: Duplicated definition` | accepted: `print run` prints 5 |
+| `F( 5 )` where `F` is overloaded, one overload takes `byref w as const W`, and `W` has `constructor( byval n as long )` | `error 99: No matching overloaded function` | accepted: the constructor builds a temporary `W` and that overload runs |
+
+The constructor case is the one form fbc leaves out. Both compilers accept the same call when the overload takes `byval w as W` or `byref w as W`, and when `F` is not overloaded at all. tiko applies the conversion to `byref ... as const` too.
 
 **A virtual call's object is evaluated once.** fbc evaluates the object expression of a VIRTUAL method call TWICE: `getP( )->VM( )` calls `getP` twice (probed: 2 calls). tiko evaluates it once (1 call). A program whose object expression has a side effect prints differently.
 
