@@ -26,10 +26,11 @@ from them, including those shipped under toolchains/.
 
 Full text: COPYING.
 
-tiko-lang is not a copy of fbc. It is a separate compiler, written from scratch
-in FreeBASIC. From 2026-09-05 its developers have been permitted to READ fbc's
-compiler sources, which are GPL-2.0-or-later. Transliterating them is still not
-permitted; lib/rt/PROVENANCE.md records both rules.
+tiko-lang is not a copy of fbc. It is a separate compiler, written from scratch,
+and written in tiko: it compiles itself. From 2026-09-05 its developers have
+been permitted to READ fbc's compiler sources, which are GPL-2.0-or-later.
+Transliterating them is still not permitted; lib/rt/PROVENANCE.md records both
+rules.
 
 
 2. THE RUNTIME AND GRAPHICS LIBRARIES  --  GNU LGPL, version 2.1 or later,
@@ -75,7 +76,9 @@ wiki/          the FreeBASIC manual, reproduced under the GNU FDL 1.3 with no
 -----------------------------------
 
 build/package.sh assembles toolchains/tiko-*/, which also redistributes
-fbc-modern's inc/ headers and, under lib/<target>-fb/, fbc's own binaries and
-third-party archives. Its licences/ directory holds the notices for all of it.
+FreeBASIC's headers in inc/, fbcunit (LGPL-2.1-or-later), SQLite (public domain)
+and, on Windows, import libraries built from export lists derived from
+mingw-w64's (ZPL 2.1). It carries no fbc binaries. Its licences/ directory holds
+the notices for all of it.
 The toolchain contains LGPL binaries, so distributing it carries the obligation
 to offer their source.
