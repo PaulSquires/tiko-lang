@@ -1,0 +1,227 @@
+#module "strings"
+#import "std/containers"
+#import "std/outcome"
+using containers
+'' std/strings -- Format: C++ std::format for tiko
+''
+''     #import "std/strings"
+''
+''     dim as ustring who = "Quinn"
+''     print strings.Format( "Hello, {}!", who )              '' Hello, Quinn!
+''     print strings.Format( "{1} before {0}", "b", "a" )      '' a before b
+''     print strings.Format( "[{:>8}]", 42 )                   '' [      42]
+''     print strings.Format( "{:#010x}", 255 )                 '' 0x000000ff
+''     print strings.Format( "{:*^9}", "hi" )                  '' ***hi****
+''
+'' The grammar, the format-spec mini-language and the output are C++20 std::format's, wherever
+'' tiko has the type. The design, every deviation and why: docs/tiko-strings/RFC-0002-format.md.
+''
+'' ---------------------------------------------------------------------------
+'' THE FORMAT STRING
+''
+''     replacement-field  ::=  '{' [arg-id] [':' format-spec] '}'
+''     format-spec        ::=  [[fill] align] [sign] ['#'] ['0'] [width] ['.' precision] [type]
+''     width, precision   ::=  digits | '{' [arg-id] '}'
+''
+'' '{{' and '}}' are literal braces. '{}' takes the next argument, '{n}' argument n (from 0);
+'' a format string uses one style or the other, never both. Extra arguments are not an error.
+''
+'' ---------------------------------------------------------------------------
+'' THE ARGUMENTS
+''
+'' Any number, packed by the typed variadic 'args( ) as const FormatArg ...' -- each value is
+'' converted to a FormatArg by its constructors, so the caller writes plain values:
+''
+''     integers (signed and unsigned, any width), enums     d b B o x X c
+''     single, double                                         (shortest round trip by default)
+''     boolean                                                "true" / "false", or as 1 / 0
+''     string, ustring, wstring, literals, zstring ptr        s ?
+''     any pointer                                            p P   ("0x" + hex)
+''
+'' A whole 'FormatArg' array may be passed instead of the list -- built at run time.
+''
+'' ---------------------------------------------------------------------------
+'' ERRORS
+''
+'' A format string that does not parse, or names an argument that is not there, is a BUG in the
+'' program, and Format / FormatTo / FormattedSize stop it: the reason and the offset go to
+'' stderr, then run-time error 1 (an 'on error' handler can still take it). TryFormat is for
+'' format strings that are DATA -- a template read from a file -- and returns the error instead.
+''
+'' WIDTH COUNTS CODE POINTS: a surrogate pair is one. C++ counts "estimated display width",
+'' where an East Asian wide character is two; that needs a width table this library does not
+'' carry. The fill character is one code point too.
+
+#if __FB_LANG__ <> "fb"
+    #error "std/strings requires -lang fb"
+#endif
+
+'' ---------------------------------------------------------------------------
+'' FormatArg -- one argument, type-erased, as C++'s basic_format_arg
+
+public enum FormatArgKind
+    FAK_NONE = 0
+    FAK_INT
+    FAK_UINT
+    FAK_SINGLE
+    FAK_DOUBLE
+    FAK_BOOL
+    FAK_STR
+    FAK_PTR
+end enum
+
+public type FormatArg
+    as long kind          '' FormatArgKind
+    as longint i          '' FAK_INT, FAK_BOOL (0 / 1)
+    as ulongint u         '' FAK_UINT, FAK_PTR
+    as double d           '' FAK_SINGLE, FAK_DOUBLE
+    as ustring s          '' FAK_STR -- an owned copy, so a temporary argument cannot dangle
+
+    declare constructor( )
+    declare constructor( byval v as longint )
+    declare constructor( byval v as long )
+    declare constructor( byval v as ulongint )
+    declare constructor( byval v as ulong )
+    declare constructor( byval v as double )
+    declare constructor( byval v as single )
+    declare constructor( byval v as boolean )
+    declare constructor( byref v as const ustring )
+    declare constructor( byref v as const string )
+    declare constructor( byref v as const wstring )
+    declare constructor( byval v as const zstring ptr )
+    declare constructor( byval v as const any ptr )
+end type
+
+constructor FormatArg( )
+    kind = FAK_NONE
+end constructor
+constructor FormatArg( byval v as longint )
+    kind = FAK_INT : i = v
+end constructor
+constructor FormatArg( byval v as long )
+    kind = FAK_INT : i = v
+end constructor
+constructor FormatArg( byval v as ulongint )
+    kind = FAK_UINT : u = v
+end constructor
+constructor FormatArg( byval v as ulong )
+    kind = FAK_UINT : u = v
+end constructor
+constructor FormatArg( byval v as double )
+    kind = FAK_DOUBLE : d = v
+end constructor
+constructor FormatArg( byval v as single )
+    kind = FAK_SINGLE : d = v
+end constructor
+constructor FormatArg( byval v as boolean )
+    kind = FAK_BOOL : i = iif( v, 1, 0 )
+end constructor
+constructor FormatArg( byref v as const ustring )
+    kind = FAK_STR : s = v
+end constructor
+constructor FormatArg( byref v as const string )
+    kind = FAK_STR : s = v
+end constructor
+constructor FormatArg( byref v as const wstring )
+    kind = FAK_STR : s = v
+end constructor
+'' A C STRING, as C++ formats a 'const char*': the characters, not the address -- except under
+'' 'p', so the address is kept too ('i' = 1). A NULL one ('i' = 2) is a format error as text.
+constructor FormatArg( byval v as const zstring ptr )
+    kind = FAK_STR : u = cast( ulongint, v )
+    if v = 0 then
+        i = 2
+    else
+        i = 1 : s = *v
+    end if
+end constructor
+constructor FormatArg( byval v as const any ptr )
+    kind = FAK_PTR : u = cast( ulongint, v )
+end constructor
+
+'' ---------------------------------------------------------------------------
+'' FormatString -- the format string's own type. A ustring, and a constructor from one; it
+'' exists so the compiler can recognise a format string where one is passed.
+
+public type FormatString
+    as ustring text
+    declare constructor( byref s as const ustring )
+end type
+
+constructor FormatString( byref s as const ustring )
+    text = s
+end constructor
+
+'' ---------------------------------------------------------------------------
+'' FormatError -- why a format string was refused, and where
+
+public enum FormatErrorCode
+    FE_NONE = 0
+    FE_UNMATCHED_OPEN       '' '{' with no '}'
+    FE_UNMATCHED_CLOSE      '' a '}' that closes nothing and is not '}}'
+    FE_BAD_ARG_ID           '' an argument id that is not a number, or has a leading zero
+    FE_MIXED_INDEXING       '' '{}' and '{n}' in one format string
+    FE_MISSING_ARG          '' an argument id past the last argument
+    FE_BAD_SPEC             '' a format spec that does not parse
+    FE_BAD_FILL             '' '{' or '}' as the fill character
+    FE_BAD_TYPE             '' a presentation type this argument cannot take
+    FE_BAD_MODIFIER         '' a sign, '#' or '0' this argument or type cannot take
+    FE_PRECISION            '' a precision on an argument that takes none
+    FE_DYNAMIC_NOT_INT      '' a '{}' width or precision whose argument is not an integer
+    FE_DYNAMIC_NEGATIVE     '' ... or is negative
+    FE_LOCALE               '' 'L' -- locale formatting is not supported
+    FE_CHAR_RANGE           '' 'c' over a value that is no Unicode code point
+    FE_NULL_CSTRING         '' a null zstring ptr formatted as a string
+end enum
+
+public type FormatError
+    as long code          '' FormatErrorCode
+    as integer offset     '' 0-based, in UTF-16 code units of the format string
+    as ustring message
+end type
+
+'' ---------------------------------------------------------------------------
+'' The public entry points
+
+'' The arguments formatted into the format string.
+public function Format( byref fmt as const FormatString, args() as const FormatArg ... ) as ustring
+    dim as ustring r
+    dim as FormatError e
+    if FormatInto_( fmt.text, args( ), r, e ) = false then FormatFatal_( "Format", fmt.text, e )
+    return r
+end function
+
+'' The same, APPENDED to dest -- C++'s format_to.
+public sub FormatTo( byref dest as ustring, byref fmt as const FormatString, args() as const FormatArg ... )
+    dim as FormatError e
+    if FormatInto_( fmt.text, args( ), dest, e ) = false then FormatFatal_( "FormatTo", fmt.text, e )
+end sub
+
+'' The length the result would have, in UTF-16 code units -- C++'s formatted_size.
+public function FormattedSize( byref fmt as const FormatString, args() as const FormatArg ... ) as integer
+    dim as ustring r
+    dim as FormatError e
+    if FormatInto_( fmt.text, args( ), r, e ) = false then FormatFatal_( "FormattedSize", fmt.text, e )
+    return len( r )
+end function
+
+'' The text, or the reason the format string was refused -- for a format string that is data.
+public function TryFormat( byref fmt as const FormatString, args() as const FormatArg ... ) _
+    as outcome.Result( of ustring, FormatError )
+
+    dim as ustring r
+    dim as FormatError e
+    if FormatInto_( fmt.text, args( ), r, e ) then
+        return outcome.Ok( of ustring, FormatError )( r )
+    end if
+    return outcome.Fail( of ustring, FormatError )( e )
+end function
+
+'' A REFUSED FORMAT STRING IS FATAL: the reason to stderr, then run-time error 1.
+private sub FormatFatal_( byref who as const string, byref f as const ustring, byref e as const FormatError )
+    dim as long fh = freefile
+    open err for output as #fh
+    print #fh, "strings." & who & ": " & e.message & " at offset " & e.offset & " in """ & f & """"
+    close #fh
+    error( 1 )
+end sub

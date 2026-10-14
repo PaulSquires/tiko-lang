@@ -1,0 +1,481 @@
+#module "strings"
+#import "std/containers"
+#import "std/outcome"
+using containers
+'' std/strings -- Format's engine: the format string, the format spec, and every argument kind
+'' but the floating-point ones (formatfloat.tiko). The public face is format.tiko.
+''
+'' Measured against C++20 std::format (clang++ 18, MSVC STL), one case at a time; the
+'' differential harness that keeps them in step is tools/fmtdiff. Offsets are 0-based UTF-16
+'' code units of the format string.
+
+'' The parsed format spec of one replacement field.
+type FmtSpec_
+    as ustring fill = " "
+    as long align         '' 0 none, else '<' '>' '^'
+    as long sign          '' 0 none, else '+' '-' ' '
+    as boolean alt        '' '#'
+    as boolean zero       '' '0'
+    as long width = -1
+    as long prec = -1
+    as long ty            '' 0 none, else the presentation character
+    as integer at         '' where the spec began, for the reports that name it
+end type
+
+private function FmtFail_ _
+    ( byref e as FormatError, byval code as long, byval offset as integer, _
+      byref msg as const string ) as boolean
+    e.code = code
+    e.offset = offset
+    e.message = msg
+    return false
+end function
+
+private function IsDigit_( byval c as ulong ) as boolean
+    return (c >= 48) andalso (c <= 57)
+end function
+
+'' The code point at f[j], and how many code units it takes (1, or 2 for a surrogate pair).
+private function CodePointAt_( byref f as const ustring, byval j as integer, byref units as long ) as ulong
+    dim as ulong c = f[j]
+    units = 1
+    if (c >= &hD800) andalso (c <= &hDBFF) andalso (j + 1 < len( f )) then
+        dim as ulong c2 = f[j + 1]
+        if (c2 >= &hDC00) andalso (c2 <= &hDFFF) then
+            units = 2
+            return &h10000 + ((c - &hD800) shl 10) + (c2 - &hDC00)
+        end if
+    end if
+    return c
+end function
+
+'' Code points in s: a surrogate pair is one.
+private function CodePoints_( byref s as const ustring ) as integer
+    dim as integer n = 0, j = 0, k = len( s )
+    while j < k
+        dim as long units
+        CodePointAt_( s, j, units )
+        j += units
+        n += 1
+    wend
+    return n
+end function
+
+'' The first 'count' code points of s.
+private function TakeCodePoints_( byref s as const ustring, byval count as integer ) as ustring
+    dim as integer j = 0, k = len( s ), taken = 0
+    while (j < k) andalso (taken < count)
+        dim as long units
+        CodePointAt_( s, j, units )
+        j += units
+        taken += 1
+    wend
+    return left( s, j )
+end function
+
+'' One code point as text.
+private function CodePointText_( byval cp as ulong ) as ustring
+    if cp < &h10000 then return wchr( cp )
+    dim as ulong v = cp - &h10000
+    return wchr( &hD800 + (v shr 10), &hDC00 + (v and &h3FF) )
+end function
+
+'' 'text' padded to the spec's width with its fill -- 'defAlign' when the spec names none.
+'' Centred, the odd unit of padding goes to the RIGHT, as C++'s does.
+private sub PadInto_( byref outp as ustring, byref text as const ustring, byref sp as const FmtSpec_, byval defAlign as long )
+    dim as integer cps = CodePoints_( text )
+    if (sp.width < 0) orelse (sp.width <= cps) then
+        outp &= text
+        return
+    end if
+    dim as integer pad = sp.width - cps
+    dim as long al = sp.align
+    if al = 0 then al = defAlign
+    dim as integer lpad = 0, rpad = 0
+    select case al
+    case 62 : lpad = pad                    '' '>'
+    case 94 : lpad = pad \ 2 : rpad = pad - lpad   '' '^'
+    case else : rpad = pad                  '' '<'
+    end select
+    for k as integer = 1 to lpad : outp &= sp.fill : next
+    outp &= text
+    for k as integer = 1 to rpad : outp &= sp.fill : next
+end sub
+
+'' ---------------------------------------------------------------------------
+'' The spec
+
+'' A dynamic width or precision -- '{}' or '{n}' inside the spec -- at f[j] = '{'. Takes the
+'' next automatic argument or argument n, which must be a non-negative integer.
+private function DynamicValue_ _
+    ( byref f as const ustring, byref j as integer, args() as const FormatArg, _
+      byref mode as long, byref nextAuto as long, byref value as long, byref e as FormatError ) as boolean
+
+    dim as integer n = len( f )
+    dim as integer at = j
+    j += 1
+    dim as long idx = 0
+    if (j < n) andalso IsDigit_( f[j] ) then
+        if (f[j] = 48) andalso (j + 1 < n) andalso IsDigit_( f[j + 1] ) then return FmtFail_( e, FE_BAD_ARG_ID, j, "an argument id has no leading zero" )
+        while (j < n) andalso IsDigit_( f[j] )
+            if idx > 99999999 then return FmtFail_( e, FE_BAD_ARG_ID, j, "argument id out of range" )
+            idx = idx * 10 + (f[j] - 48)
+            j += 1
+        wend
+        if mode = 1 then return FmtFail_( e, FE_MIXED_INDEXING, at, "cannot switch from automatic to manual argument indexing" )
+        mode = 2
+    else
+        if mode = 2 then return FmtFail_( e, FE_MIXED_INDEXING, at, "cannot switch from manual to automatic argument indexing" )
+        mode = 1
+        idx = nextAuto
+        nextAuto += 1
+    end if
+    if (j >= n) orelse (f[j] <> 125) then return FmtFail_( e, FE_BAD_SPEC, j, "a dynamic width or precision is '{}' or '{n}'" )
+    j += 1
+    dim as long count = ubound( args ) - lbound( args ) + 1
+    if idx >= count then return FmtFail_( e, FE_MISSING_ARG, at, "no argument " & idx & " (" & count & " given)" )
+    dim as long ai = lbound( args ) + idx
+    select case args( ai ).kind
+    case FAK_INT
+        if args( ai ).i < 0 then return FmtFail_( e, FE_DYNAMIC_NEGATIVE, at, "a dynamic width or precision is negative" )
+        if args( ai ).i > &h7FFFFFFF then return FmtFail_( e, FE_DYNAMIC_NEGATIVE, at, "a dynamic width or precision is too large" )
+        value = args( ai ).i
+    case FAK_UINT
+        if args( ai ).u > &h7FFFFFFF then return FmtFail_( e, FE_DYNAMIC_NEGATIVE, at, "a dynamic width or precision is too large" )
+        value = args( ai ).u
+    case else
+        return FmtFail_( e, FE_DYNAMIC_NOT_INT, at, "a dynamic width or precision must be an integer" )
+    end select
+    return true
+end function
+
+'' A run of digits at f[j], as a width or precision.
+private function SpecNumber_( byref f as const ustring, byref j as integer, byref value as long, byref e as FormatError ) as boolean
+    dim as integer n = len( f )
+    value = 0
+    while (j < n) andalso IsDigit_( f[j] )
+        if value > 99999999 then return FmtFail_( e, FE_BAD_SPEC, j, "a width or precision is too large" )
+        value = value * 10 + (f[j] - 48)
+        j += 1
+    wend
+    return true
+end function
+
+'' The spec from f[j] -- just past ':' -- to its closing '}', which j is left ON.
+private function ParseSpec_ _
+    ( byref f as const ustring, byref j as integer, args() as const FormatArg, _
+      byref mode as long, byref nextAuto as long, byref sp as FmtSpec_, byref e as FormatError ) as boolean
+
+    dim as integer n = len( f )
+    sp.at = j
+    if j >= n then return FmtFail_( e, FE_UNMATCHED_OPEN, j, "'{' has no '}'" )
+
+    '' [[fill] align]
+    dim as long units
+    dim as ulong cp = CodePointAt_( f, j, units )
+    dim as boolean aligned = false
+    if j + units < n then
+        dim as ulong nx = f[j + units]
+        if (nx = 60) orelse (nx = 62) orelse (nx = 94) then
+            if (cp = 123) orelse (cp = 125) then return FmtFail_( e, FE_BAD_FILL, j, "'{' and '}' cannot be the fill character" )
+            sp.fill = mid( f, j + 1, units )
+            sp.align = nx
+            j += units + 1
+            aligned = true
+        end if
+    end if
+    if (aligned = false) andalso (j < n) then
+        if (f[j] = 60) orelse (f[j] = 62) orelse (f[j] = 94) then
+            sp.align = f[j]
+            j += 1
+        end if
+    end if
+    '' [sign] ['#'] ['0']
+    if (j < n) andalso ((f[j] = 43) orelse (f[j] = 45) orelse (f[j] = 32)) then
+        sp.sign = f[j]
+        j += 1
+    end if
+    if (j < n) andalso (f[j] = 35) then
+        sp.alt = true
+        j += 1
+    end if
+    if (j < n) andalso (f[j] = 48) then
+        sp.zero = true
+        j += 1
+    end if
+    '' [width]
+    if (j < n) andalso IsDigit_( f[j] ) then
+        if SpecNumber_( f, j, sp.width, e ) = false then return false
+    elseif (j < n) andalso (f[j] = 123) then
+        if DynamicValue_( f, j, args( ), mode, nextAuto, sp.width, e ) = false then return false
+    end if
+    '' ['.' precision]
+    if (j < n) andalso (f[j] = 46) then
+        j += 1
+        if (j < n) andalso IsDigit_( f[j] ) then
+            if SpecNumber_( f, j, sp.prec, e ) = false then return false
+        elseif (j < n) andalso (f[j] = 123) then
+            if DynamicValue_( f, j, args( ), mode, nextAuto, sp.prec, e ) = false then return false
+        else
+            return FmtFail_( e, FE_BAD_SPEC, j, "'.' is followed by a precision" )
+        end if
+    end if
+    '' ['L'] -- no locales in v1.
+    if (j < n) andalso (f[j] = 76) then return FmtFail_( e, FE_LOCALE, j, "'L' (locale) is not supported" )
+    '' [type]
+    if (j < n) andalso (f[j] <> 125) then
+        sp.ty = f[j]
+        j += 1
+    end if
+    if j >= n then return FmtFail_( e, FE_UNMATCHED_OPEN, j, "'{' has no '}'" )
+    if f[j] <> 125 then return FmtFail_( e, FE_BAD_SPEC, j, "the format spec does not end here" )
+    return true
+end function
+
+'' ---------------------------------------------------------------------------
+'' The argument kinds
+
+'' The digits of 'mag' in 'base', lower or upper case.
+private function Digits_( byval mag as ulongint, byval base_ as long, byval upper as boolean ) as ustring
+    if mag = 0 then return "0"
+    dim as string buf = space( 64 )
+    dim as integer k = 64
+    dim as string dg = iif( upper, "0123456789ABCDEF", "0123456789abcdef" )
+    while mag > 0
+        k -= 1
+        buf[k] = dg[cast( long, mag mod base_ )]
+        mag \= base_
+    wend
+    return mid( buf, k + 1 )
+end function
+
+'' An integer -- the magnitude and its sign -- under its presentation type.
+private function FmtInteger_ _
+    ( byval neg as boolean, byval mag as ulongint, byref sp as const FmtSpec_, _
+      byref outp as ustring, byref e as FormatError ) as boolean
+
+    if sp.prec >= 0 then return FmtFail_( e, FE_PRECISION, sp.at, "an integer takes no precision" )
+    dim as long base_ = 10
+    dim as boolean upper = false
+    dim as string prefix
+    select case sp.ty
+    case 0, 100                 '' d
+    case 98 : base_ = 2  : if sp.alt then prefix = "0b"          '' b
+    case 66 : base_ = 2  : upper = true : if sp.alt then prefix = "0B"   '' B
+    case 111 : base_ = 8 : if sp.alt andalso (mag <> 0) then prefix = "0"   '' o
+    case 120 : base_ = 16 : if sp.alt then prefix = "0x"        '' x
+    case 88 : base_ = 16 : upper = true : if sp.alt then prefix = "0X"   '' X
+    case 99                     '' c -- the code point, as text: no sign, '#' or '0'
+        if (sp.sign <> 0) orelse sp.alt then return FmtFail_( e, FE_BAD_MODIFIER, sp.at, "'c' takes no sign or '#'" )
+        if sp.zero then return FmtFail_( e, FE_BAD_MODIFIER, sp.at, "'c' takes no '0'" )
+        if neg orelse (mag > &h10FFFF) orelse ((mag >= &hD800) andalso (mag <= &hDFFF)) then
+            return FmtFail_( e, FE_CHAR_RANGE, sp.at, "'c' needs a Unicode code point" )
+        end if
+        PadInto_( outp, CodePointText_( mag ), sp, 60 )
+        return true
+    case else
+        return FmtFail_( e, FE_BAD_TYPE, sp.at, "'" & chr( sp.ty ) & "' is no presentation type for an integer" )
+    end select
+    dim as string signs
+    if neg then
+        signs = "-"
+    elseif sp.sign = 43 then
+        signs = "+"
+    elseif sp.sign = 32 then
+        signs = " "
+    end if
+    dim as ustring digits = Digits_( mag, base_, upper )
+    '' '0' PADS AFTER THE SIGN AND THE PREFIX -- and only when no alignment is written.
+    if sp.zero andalso (sp.align = 0) andalso (sp.width > 0) then
+        dim as integer body = len( signs ) + len( prefix ) + len( digits )
+        outp &= signs & prefix
+        for k as integer = 1 to sp.width - body : outp &= "0" : next
+        outp &= digits
+        return true
+    end if
+    PadInto_( outp, signs & prefix & digits, sp, 62 )
+    return true
+end function
+
+'' A string, quoted and escaped for '?' (C++23's debug format).
+private function Escaped_( byref s as const ustring ) as ustring
+    dim as ustring r = """"
+    dim as integer j = 0, k = len( s )
+    while j < k
+        dim as long units
+        dim as ulong cp = CodePointAt_( s, j, units )
+        select case cp
+        case 9 : r &= "\t"
+        case 10 : r &= "\n"
+        case 13 : r &= "\r"
+        case 34 : r &= "\"""
+        case 92 : r &= "\\"
+        case is < 32, 127 to 159 : r &= "\u{" & lcase( hex( cp ) ) & "}"
+        case &hD800 to &hDFFF : r &= "\x{" & lcase( hex( cp ) ) & "}"    '' a lone surrogate
+        case else : r &= mid( s, j + 1, units )
+        end select
+        j += units
+    wend
+    return r & """"
+end function
+
+'' Text -- a string, or a boolean's word -- under 's' (or '?' for a string).
+private function FmtText_ _
+    ( byref text as const ustring, byval allowDebug as boolean, byref sp as const FmtSpec_, _
+      byref outp as ustring, byref e as FormatError ) as boolean
+
+    if (sp.sign <> 0) orelse sp.alt then return FmtFail_( e, FE_BAD_MODIFIER, sp.at, "text takes no sign or '#'" )
+    if sp.zero then return FmtFail_( e, FE_BAD_MODIFIER, sp.at, "text takes no '0'" )
+    dim as ustring t
+    select case sp.ty
+    case 0, 115 : t = text                      '' s
+    case 63                                     '' ?
+        if allowDebug = false then return FmtFail_( e, FE_BAD_TYPE, sp.at, "'?' is no presentation type here" )
+        t = Escaped_( text )
+    case else
+        return FmtFail_( e, FE_BAD_TYPE, sp.at, "'" & chr( sp.ty ) & "' is no presentation type for text" )
+    end select
+    if sp.prec >= 0 then
+        if allowDebug = false then return FmtFail_( e, FE_PRECISION, sp.at, "a boolean takes no precision" )
+        t = TakeCodePoints_( t, sp.prec )
+    end if
+    PadInto_( outp, t, sp, 60 )
+    return true
+end function
+
+'' A pointer: "0x" and its lower-case hex ('p'), or "0X" and upper ('P').
+private function FmtPointer_ _
+    ( byval addr as ulongint, byref sp as const FmtSpec_, byref outp as ustring, byref e as FormatError ) as boolean
+
+    if (sp.sign <> 0) orelse sp.alt then return FmtFail_( e, FE_BAD_MODIFIER, sp.at, "a pointer takes no sign or '#'" )
+    if sp.prec >= 0 then return FmtFail_( e, FE_PRECISION, sp.at, "a pointer takes no precision" )
+    dim as boolean upper = false
+    select case sp.ty
+    case 0, 112
+    case 80 : upper = true
+    case else
+        return FmtFail_( e, FE_BAD_TYPE, sp.at, "'" & chr( sp.ty ) & "' is no presentation type for a pointer" )
+    end select
+    dim as string prefix = iif( upper, "0X", "0x" )
+    dim as ustring digits = Digits_( addr, 16, upper )
+    if sp.zero andalso (sp.align = 0) andalso (sp.width > 0) then
+        outp &= prefix
+        for k as integer = 1 to sp.width - len( prefix ) - len( digits ) : outp &= "0" : next
+        outp &= digits
+        return true
+    end if
+    PadInto_( outp, prefix & digits, sp, 62 )
+    return true
+end function
+
+'' One argument under its spec.
+private function FormatOne_ _
+    ( byref a as const FormatArg, byref sp as const FmtSpec_, byref outp as ustring, byref e as FormatError ) as boolean
+
+    select case a.kind
+    case FAK_INT
+        dim as boolean neg = (a.i < 0)
+        dim as ulongint mag
+        if neg then mag = cast( ulongint, -(a.i + 1) ) + 1 else mag = a.i
+        return FmtInteger_( neg, mag, sp, outp, e )
+    case FAK_UINT
+        return FmtInteger_( false, a.u, sp, outp, e )
+    case FAK_BOOL
+        select case sp.ty
+        case 0, 115
+            return FmtText_( iif( a.i <> 0, "true", "false" ), false, sp, outp, e )
+        case 99
+            return FmtFail_( e, FE_BAD_TYPE, sp.at, "'c' is no presentation type for a boolean" )
+        case else
+            return FmtInteger_( false, a.i, sp, outp, e )
+        end select
+    case FAK_STR
+        '' A C string under 'p' is its address; a NULL one is no text.
+        if (sp.ty = 112) orelse (sp.ty = 80) then
+            if a.i <> 0 then return FmtPointer_( a.u, sp, outp, e )
+        end if
+        if a.i = 2 then return FmtFail_( e, FE_NULL_CSTRING, sp.at, "a null zstring ptr is no text" )
+        return FmtText_( a.s, true, sp, outp, e )
+    case FAK_PTR
+        return FmtPointer_( a.u, sp, outp, e )
+    case FAK_SINGLE, FAK_DOUBLE
+        return FmtFloat_( a.d, (a.kind = FAK_SINGLE), sp, outp, e )
+    end select
+    return FmtFail_( e, FE_MISSING_ARG, sp.at, "an empty FormatArg" )
+end function
+
+'' ---------------------------------------------------------------------------
+'' The format string
+
+'' f formatted with args, APPENDED to outp. False, with e saying why, when f is refused.
+private function FormatInto_ _
+    ( byref f as const ustring, args() as const FormatArg, byref outp as ustring, _
+      byref e as FormatError ) as boolean
+
+    dim as integer n = len( f )
+    dim as long count = ubound( args ) - lbound( args ) + 1
+    dim as long mode = 0            '' 0 not yet known, 1 automatic, 2 manual
+    dim as long nextAuto = 0
+    dim as integer i = 0, runStart = 0
+    while i < n
+        dim as ulong c = f[i]
+        if c = 123 then                                     '' '{'
+            if i > runStart then outp &= mid( f, runStart + 1, i - runStart )
+            if (i + 1 < n) andalso (f[i + 1] = 123) then
+                outp &= "{"
+                i += 2
+                runStart = i
+                continue while
+            end if
+            dim as integer j = i + 1
+            if j >= n then return FmtFail_( e, FE_UNMATCHED_OPEN, i, "'{' has no '}'" )
+            dim as long idx = 0
+            if IsDigit_( f[j] ) then
+                if (f[j] = 48) andalso (j + 1 < n) andalso IsDigit_( f[j + 1] ) then
+                    return FmtFail_( e, FE_BAD_ARG_ID, j, "an argument id has no leading zero" )
+                end if
+                while (j < n) andalso IsDigit_( f[j] )
+                    if idx > 99999999 then return FmtFail_( e, FE_BAD_ARG_ID, j, "argument id out of range" )
+                    idx = idx * 10 + (f[j] - 48)
+                    j += 1
+                wend
+                if mode = 1 then return FmtFail_( e, FE_MIXED_INDEXING, i, "cannot switch from automatic to manual argument indexing" )
+                mode = 2
+            else
+                if (f[j] <> 58) andalso (f[j] <> 125) then
+                    return FmtFail_( e, FE_BAD_ARG_ID, j, "a replacement field is '{', an argument id, a ':' spec, then '}'" )
+                end if
+                if mode = 2 then return FmtFail_( e, FE_MIXED_INDEXING, i, "cannot switch from manual to automatic argument indexing" )
+                mode = 1
+                idx = nextAuto
+                nextAuto += 1
+            end if
+            if j >= n then return FmtFail_( e, FE_UNMATCHED_OPEN, i, "'{' has no '}'" )
+            dim as FmtSpec_ sp
+            sp.at = j
+            if f[j] = 58 then
+                j += 1
+                if ParseSpec_( f, j, args( ), mode, nextAuto, sp, e ) = false then return false
+            elseif f[j] <> 125 then
+                return FmtFail_( e, FE_BAD_ARG_ID, j, "a replacement field is '{', an argument id, a ':' spec, then '}'" )
+            end if
+            if idx >= count then return FmtFail_( e, FE_MISSING_ARG, i, "no argument " & idx & " (" & count & " given)" )
+            if FormatOne_( args( lbound( args ) + idx ), sp, outp, e ) = false then return false
+            i = j + 1
+            runStart = i
+        elseif c = 125 then                                 '' '}'
+            if (i + 1 < n) andalso (f[i + 1] = 125) then
+                if i > runStart then outp &= mid( f, runStart + 1, i - runStart )
+                outp &= "}"
+                i += 2
+                runStart = i
+                continue while
+            end if
+            return FmtFail_( e, FE_UNMATCHED_CLOSE, i, "'}' closes nothing; a literal one is '}}'" )
+        else
+            i += 1
+        end if
+    wend
+    if n > runStart then outp &= mid( f, runStart + 1, n - runStart )
+    return true
+end function

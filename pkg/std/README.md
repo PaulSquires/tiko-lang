@@ -12,7 +12,7 @@ libraries in `inc/fb`; that directory is gone, and its code lives here.
 
 | Module | Holds | Needs |
 |---|---|---|
-| `std/strings` | string algorithms: `Split`, `Join`, `Replace`, `Tally`, `PadLeft`, CSV, … | |
+| `std/strings` | string algorithms: `Split`, `Join`, `Replace`, `Tally`, `PadLeft`, CSV, …; `Format` (C++ `std::format`) | |
 | `std/fs` | paths, directories, files, globs, links, volumes, and `std/path`'s old names | |
 | `std/containers` | `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap`, `OrderedSet`, `Sort`, `HashOf`, `Hashable` | |
 | `std/chrono` | `DateTime`, `LocalDate`, `TimeSpan`, `Instant`, `Stopwatch`, `WallClock`, the `DT_` constants | |

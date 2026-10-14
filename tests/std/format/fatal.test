@@ -1,0 +1,11 @@
+'' A refused format string in strings.Format stops the program: the reason and its offset on
+'' stderr, then run-time error 1 -- nothing after the call runs.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/std/format/fatal.tiko -o tests/std/format/fatal.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/std/format/fatal.exe
+'' RUN: tests/std/format/fatal.exe
+'' EXPECT-RUN-EXIT: 1
+'' EXPECT-RUN-OUT: before
+'' EXPECT-RUN-OUT: strings.Format: no argument 2 (2 given) at offset 12 in "x={} y={} z={}"

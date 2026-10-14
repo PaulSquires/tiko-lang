@@ -1,0 +1,168 @@
+'' std/strings Format -- every feature, every error with its exact code and offset.
+'' The C++ agreement itself is fmtdiff's (tools/fmtdiff); this pins tiko's own surface: the
+'' argument types tiko has and C++ does not, the four string types, code-point widths, the
+'' deliberate deviations ('L' refused, 'c' as a code point), and the error reports.
+#import "std/strings"
+#import "std/outcome"
+
+dim shared as long nPass, nFail
+
+sub Check( byref got as const ustring, byref want as const ustring, byref what as const string )
+    if got = want then
+        nPass += 1
+    else
+        nFail += 1
+        print "FAIL "; what; ": got ["; got; "] want ["; want; "]"
+    end if
+end sub
+
+'' A refused format string: its code and its offset.
+sub CheckErr( byref r as outcome.Result( of ustring, strings.FormatError ), _
+              byval code as long, byval offset as integer, byref what as const string )
+    if r.IsOk( ) then
+        nFail += 1
+        print "FAIL "; what; ": accepted as ["; r.Value( ); "]"
+    elseif (r.Failure( ).code <> code) orelse (r.Failure( ).offset <> offset) then
+        nFail += 1
+        print "FAIL "; what; ": code "; r.Failure( ).code; " at "; r.Failure( ).offset; _
+              " ("; r.Failure( ).message; "), want code "; code; " at "; offset
+    else
+        nPass += 1
+    end if
+end sub
+
+enum Colour
+    RED = 1, GREEN = 7
+end enum
+
+'' ------------------------------------------------------------------ positional
+dim as ustring who = "Quinn"
+Check( strings.Format( "Hello, {}!", who ), "Hello, Quinn!", "auto" )
+Check( strings.Format( "{1} before {0}", "b", "a" ), "a before b", "manual" )
+Check( strings.Format( "{0}{0}{1}", "x", "y" ), "xxy", "repeat" )
+Check( strings.Format( "{{}} {{{}}}", 5 ), "{} {5}", "escapes" )
+Check( strings.Format( "no fields" ), "no fields", "no fields" )
+Check( strings.Format( "" ), "", "empty" )
+Check( strings.Format( "{} {}", 1, 2, 3 ), "1 2", "extra arguments are not an error" )
+Check( strings.Format( "{:}", 9 ), "9", "empty spec" )
+
+'' ------------------------------------------------------------------ integers
+dim as byte b8 = -5
+dim as ubyte u8 = 250
+dim as short s16 = -300
+dim as ushort u16 = 60000
+dim as integer ni = -7
+dim as uinteger nu = 7
+dim as longint big = -9223372036854775807 - 1
+dim as ulongint ubig = 18446744073709551615ull
+Check( strings.Format( "{} {} {} {} {} {}", b8, u8, s16, u16, ni, nu ), "-5 250 -300 60000 -7 7", "every width" )
+Check( strings.Format( "{} {:x}", big, big ), "-9223372036854775808 -8000000000000000", "longint min" )
+Check( strings.Format( "{} {:X}", ubig, ubig ), "18446744073709551615 FFFFFFFFFFFFFFFF", "ulongint max" )
+Check( strings.Format( "{:b} {:#b} {:#B} {:o} {:#o} {:#o} {:#x} {:#X}", 5, 5, 5, 8, 8, 0, 255, 255 ), _
+       "101 0b101 0B101 10 010 0 0xff 0XFF", "radixes and '#'" )
+Check( strings.Format( "[{:+}] [{: }] [{:-}] [{:+}]", 5, 5, 5, -5 ), "[+5] [ 5] [5] [-5]", "sign" )
+Check( strings.Format( "[{:08}] [{:#010x}] [{:<08}] [{:+06}]", -42, 42, -42, 42 ), _
+       "[-0000042] [0x0000002a] [-42     ] [+00042]", "'0' pads after sign and prefix, not with an align" )
+Check( strings.Format( "[{:5}] [{:<5}] [{:^5}] [{:*>5}]", 42, 42, 42, 42 ), "[   42] [42   ] [ 42  ] [***42]", "align" )
+Check( strings.Format( "{} {}", RED, GREEN ), "1 7", "enums" )
+Check( strings.Format( "{:c}{:c}", 72, 105 ), "Hi", "'c'" )
+Check( strings.Format( "{:c}", &hE9 ), wchr( &hE9 ), "'c' past 127 is a code point" )
+Check( strings.Format( "{:c}", &h1F600 ), wchr( &hD83D, &hDE00 ), "'c' past the BMP" )
+Check( strings.Format( "[{:3c}]", 65 ), "[A  ]", "'c' aligns left" )
+
+'' ------------------------------------------------------------------ booleans
+Check( strings.Format( "{} {} {:5}| {:>6} {:d} {:#x}", true, false, true, false, true, true ), _
+       "true false true |  false 1 0x1", "booleans" )
+
+'' ------------------------------------------------------------------ strings, all four types
+dim as string sn = "narrow"
+dim as wstring * 8 sw = "wide"
+dim as zstring * 8 sz = "zed"
+dim as ustring su = "caf" & wchr( &hE9 )
+Check( strings.Format( "{} {} {} {} {}", sn, sw, sz, su, "lit" ), "narrow wide zed caf" & wchr( &hE9 ) & " lit", "string types" )
+Check( strings.Format( "[{:6}] [{:>6}] [{:^7}] [{:.2}] [{:6.2}]", "abc", "abc", "abc", "abc", "abc" ), _
+       "[abc   ] [   abc] [  abc  ] [ab] [ab    ]", "string spec" )
+Check( strings.Format( "[{:6}]", su ), "[caf" & wchr( &hE9 ) & "  ]", "width counts code points" )
+Check( strings.Format( "[{:.3}]", wchr( &hD83D, &hDE00 ) & "abc" ), "[" & wchr( &hD83D, &hDE00 ) & "ab]", _
+       "precision counts code points, never splits a pair" )
+Check( strings.Format( "[{:" & wchr( &hE9 ) & "^5}]", "x" ), "[" & wchr( &hE9, &hE9 ) & "x" & wchr( &hE9, &hE9 ) & "]", _
+       "a non-ASCII fill" )
+Check( strings.Format( "[{:" & wchr( &hD83D, &hDE00 ) & ">3}]", "x" ), _
+       "[" & wchr( &hD83D, &hDE00, &hD83D, &hDE00 ) & "x]", "an astral fill is one code point" )
+Check( strings.Format( "{:?}", "a" & chr( 9 ) & "b""c\" & chr( 1 ) ), """a\tb\""c\\\u{1}""", "'?' escapes" )
+dim as zstring ptr cz = @sz
+Check( strings.Format( "{}", cz ), "zed", "a zstring ptr is text" )
+
+'' ------------------------------------------------------------------ pointers
+dim as any ptr p = cast( any ptr, &hDEAD )
+dim as long ptr lp = cast( long ptr, &hBEEF )
+Check( strings.Format( "{} {:P} {} [{:10}] [{:010}]", p, p, lp, p, p ), _
+       "0xdead 0XDEAD 0xbeef [    0xdead] [0x0000dead]", "pointers" )
+Check( strings.Format( "{}", cast( any ptr, 0 ) ), "0x0", "null pointer" )
+
+'' ------------------------------------------------------------------ floating point
+Check( strings.Format( "{} {} {} {} {}", 0.1 + 0.2, 100000.0, 1e21, 0.0001, -0.0 ), _
+       "0.30000000000000004 1e+05 1e+21 1e-04 -0", "shortest round trip" )
+Check( strings.Format( "{} {}", 0.1!, 16777216! ), "0.1 16777216", "single" )
+Check( strings.Format( "{:.3f} {:e} {:g} {:a} {:.2a}", 3.14159, 3.14159, 3.14159, 3.14159, 3.14159 ), _
+       "3.142 3.141590e+00 3.14159 1.921f9f01b866ep+1 1.92p+1", "presentations" )
+Check( strings.Format( "{:.0f} {:.0f} {:.1f} {:.0a}", 2.5, 3.5, 0.25, 1.5 ), "2 4 0.2 2p+0", "ties to even" )
+Check( strings.Format( "{:#} {:#.0f} {:#g}", 1.0, 3.0, 1.0 ), "1. 3. 1.00000", "'#'" )
+Check( strings.Format( "[{:010.2f}] [{:+.1f}] [{:^9.1f}]", -3.14159, 2.0, 2.0 ), "[-000003.14] [+2.0] [   2.0   ]", "float spec" )
+dim as ulongint infb = &h7FF0000000000000ull, nanb = &hFFF8000000000000ull
+dim as double inf_ = *cast( double ptr, @infb ), nnan = *cast( double ptr, @nanb )
+Check( strings.Format( "{} {} {:E} [{:06}]", inf_, nnan, inf_, inf_ ), "inf -nan INF [   inf]", "inf and nan" )
+
+'' ------------------------------------------------------------------ dynamic width and precision
+Check( strings.Format( "[{:{}}] [{:.{}f}] [{:>{}.{}}]", 7, 4, 3.14159, 2, "abcdef", 5, 3 ), _
+       "[   7] [3.14] [  abc]", "dynamic, automatic" )
+Check( strings.Format( "[{0:{1}}] [{0:<{2}}]", 7, 3, 4 ), "[  7] [7   ]", "dynamic, manual" )
+
+'' ------------------------------------------------------------------ many arguments, and a spread array
+Check( strings.Format( "{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, _
+                       "a", "b", "c", "d", "e", "f", "g", "h", "i", "j" ), "0123456789abcdefghij", "twenty arguments" )
+dim as strings.FormatArg parts( 0 to 2 ) = { strings.FormatArg( "x" ), strings.FormatArg( 1 ), strings.FormatArg( 2.5 ) }
+Check( strings.Format( "{}-{}-{}", parts( ) ), "x-1-2.5", "a FormatArg array, spread" )
+
+'' ------------------------------------------------------------------ FormatTo, FormattedSize, TryFormat
+dim as ustring acc = "["
+strings.FormatTo( acc, "{}+{}", 1, 2 )
+strings.FormatTo( acc, "={}]", 3 )
+Check( acc, "[1+2=3]", "FormatTo appends" )
+Check( str( strings.FormattedSize( "{:>10}", "x" ) ), "10", "FormattedSize" )
+Check( str( strings.FormattedSize( "{}", wchr( &hD83D, &hDE00 ) ) ), "2", "FormattedSize counts code units" )
+dim as outcome.Result( of ustring, strings.FormatError ) ok_ = strings.TryFormat( "{:>4}", 7 )
+if ok_.IsOk( ) then Check( ok_.Value( ), "   7", "TryFormat, accepted" ) else Check( "ERR", "   7", "TryFormat, accepted" )
+
+'' ------------------------------------------------------------------ every error, its code and its offset
+CheckErr( strings.TryFormat( "abc {", 1 ), strings.FE_UNMATCHED_OPEN, 4, "unclosed '{'" )
+CheckErr( strings.TryFormat( "a } b", 1 ), strings.FE_UNMATCHED_CLOSE, 2, "stray '}'" )
+CheckErr( strings.TryFormat( "{x}", 1 ), strings.FE_BAD_ARG_ID, 1, "a name as argument id" )
+CheckErr( strings.TryFormat( "{01}", 1, 2 ), strings.FE_BAD_ARG_ID, 1, "a leading zero" )
+CheckErr( strings.TryFormat( "{ }", 1 ), strings.FE_BAD_ARG_ID, 1, "a space in the field" )
+CheckErr( strings.TryFormat( "{} {0}", 1 ), strings.FE_MIXED_INDEXING, 3, "auto then manual" )
+CheckErr( strings.TryFormat( "{0} {}", 1 ), strings.FE_MIXED_INDEXING, 4, "manual then auto" )
+CheckErr( strings.TryFormat( "{:{1}}", 1, 2 ), strings.FE_MIXED_INDEXING, 2, "auto field, manual width" )
+CheckErr( strings.TryFormat( "{} {} {}", 1, 2 ), strings.FE_MISSING_ARG, 6, "a third of two" )
+CheckErr( strings.TryFormat( "{5}", 1 ), strings.FE_MISSING_ARG, 0, "argument 5 of one" )
+CheckErr( strings.TryFormat( "{:dd}", 1 ), strings.FE_BAD_SPEC, 3, "two types" )
+CheckErr( strings.TryFormat( "{:.}", 1.0 ), strings.FE_BAD_SPEC, 3, "a '.' with no precision" )
+CheckErr( strings.TryFormat( "{:{<5}", 1 ), strings.FE_BAD_FILL, 2, "'{' as fill" )
+CheckErr( strings.TryFormat( "{:x}", "s" ), strings.FE_BAD_TYPE, 2, "'x' on text" )
+CheckErr( strings.TryFormat( "{:f}", 1 ), strings.FE_BAD_TYPE, 2, "'f' on an integer" )
+CheckErr( strings.TryFormat( "{:d}", 1.5 ), strings.FE_BAD_TYPE, 2, "'d' on a double" )
+CheckErr( strings.TryFormat( "{:c}", true ), strings.FE_BAD_TYPE, 2, "'c' on a boolean" )
+CheckErr( strings.TryFormat( "{:+}", "s" ), strings.FE_BAD_MODIFIER, 2, "a sign on text" )
+CheckErr( strings.TryFormat( "{:#}", cast( any ptr, 1 ) ), strings.FE_BAD_MODIFIER, 2, "'#' on a pointer" )
+CheckErr( strings.TryFormat( "{:0c}", 65 ), strings.FE_BAD_MODIFIER, 2, "'0' with 'c'" )
+CheckErr( strings.TryFormat( "{:.2}", 7 ), strings.FE_PRECISION, 2, "a precision on an integer" )
+CheckErr( strings.TryFormat( "{:.2}", true ), strings.FE_PRECISION, 2, "a precision on a boolean" )
+CheckErr( strings.TryFormat( "{:{}}", 1, "w" ), strings.FE_DYNAMIC_NOT_INT, 2, "a text width" )
+CheckErr( strings.TryFormat( "{:{}}", 1, -3 ), strings.FE_DYNAMIC_NEGATIVE, 2, "a negative width" )
+CheckErr( strings.TryFormat( "{:L}", 1 ), strings.FE_LOCALE, 2, "'L'" )
+CheckErr( strings.TryFormat( "{:c}", -1 ), strings.FE_CHAR_RANGE, 2, "'c' of -1" )
+CheckErr( strings.TryFormat( "{:c}", &hD800 ), strings.FE_CHAR_RANGE, 2, "'c' of a surrogate" )
+dim as zstring ptr nz = 0
+CheckErr( strings.TryFormat( "{}", nz ), strings.FE_NULL_CSTRING, 1, "a null zstring ptr" )
+
+print "format: "; nPass; " passed,"; nFail; " failed"

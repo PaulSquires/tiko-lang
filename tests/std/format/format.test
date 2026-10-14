@@ -1,0 +1,11 @@
+'' std/strings Format: every feature, every error code with its exact offset, and the argument
+'' types tiko has (docs/tiko-strings/RFC-0002-format.md). The agreement with C++ std::format
+'' is tools/fmtdiff's, run separately: it needs clang++ with <format>.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/std/format/format.tiko -o tests/std/format/format.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/std/format/format.exe
+'' RUN: tests/std/format/format.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: format:  74 passed, 0 failed

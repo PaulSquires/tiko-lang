@@ -1,0 +1,6 @@
+'' A refused format string in Format is a bug in the program: the reason and the offset go to
+'' stderr, then run-time error 1 stops it. Nothing after the call runs.
+#import "std/strings"
+print "before"
+print strings.Format( "x={} y={} z={}", 1, 2 )
+print "not reached"

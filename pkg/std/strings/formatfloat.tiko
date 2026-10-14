@@ -1,0 +1,249 @@
+#module "strings"
+#import "std/containers"
+#import "std/outcome"
+using containers
+'' std/strings -- Format's floating-point arm: single and double under a e f g and their upper
+'' case twins, and the shortest round-trip form a bare '{}' gives.
+''
+'' Measured against C++20 std::format (clang++ 18, MSVC STL):
+''
+''     {}          the SHORTEST digits that read back as the same value, written fixed or
+''                 scientific, whichever is SHORTER (fixed on a tie) -- C++'s plain to_chars.
+''                 1e+05 for 100000, 1e-04 for 0.0001, 1234567 for 1234567, -0 for -0.0.
+''     {:.p}       %.pg -- general, p significant digits.
+''     e f g       %e %f %g; precision 6 when none is written; '#' keeps the point (and, for
+''                 g, the trailing zeros).
+''     a           hex, WITHOUT the "0x": 1p+0, 1.921f9f01b866ep+1, 0.0000000000001p-1022.
+''                 The shortest hex digits by default; a precision rounds them half to even.
+''     inf, nan    lower case, upper for A E F G; a NaN keeps its sign (-nan); '0' never pads
+''                 them -- C++ right-aligns them with spaces.
+''
+'' The decimal forms are snprintf's, which is correctly rounded on every target tiko runs on
+'' (the UCRT and glibc); the shortest search reads candidates back with strtod.
+
+extern "c"
+    declare function fmt_strtod_ alias "strtod" ( byval as const zstring ptr, byval as zstring ptr ptr ) as double
+#if defined( __FB_WIN32__ ) and defined( __FB_64BIT__ )
+    declare function fmt_vsprintf_ alias "__stdio_common_vsprintf" ( byval opts as ulongint, byval buf as zstring ptr, _
+        byval count as uinteger, byval fmt as const zstring ptr, byval locale as any ptr, byval args as any ptr ) as long
+#else
+    declare function fmt_snprintf_ alias "snprintf" ( byval as zstring ptr, byval as uinteger, byval as const zstring ptr, ... ) as long
+#endif
+end extern
+
+'' ONE DOUBLE UNDER A printf CONVERSION with an explicit precision ('*'), CORRECTLY ROUNDED.
+''
+'' THE RUNTIME'S snprintf IS NOT, on Windows: the UCRT rounds an exact tie half AWAY from zero
+'' unless the caller passes _CRT_INTERNAL_PRINTF_STANDARD_ROUNDING (1 shl 5), which MSVC's own
+'' startup sets for C programs and tiko's runtime shim does not -- '%.0f' of 2.5 is "3" there,
+'' "2" in C++ (measured; fmtdiff found it as '{:.0}' of -2.5f). The shim keeps the legacy
+'' rounding fbc's runtime has, so Format asks the UCRT directly, with
+'' STANDARD_SNPRINTF_BEHAVIOR (1 shl 1) as snprintf does. Its va_list on x86-64 Windows is a
+'' pointer to 8-byte slots, so the two arguments -- the precision, then the double -- are an
+'' array. glibc's snprintf is correctly rounded already.
+private function Printf_( byref conv as const string, byval prec as long, byval v as double ) as string
+    dim as string fz = conv
+    dim as string buf = space( prec + 400 )
+#if defined( __FB_WIN32__ ) and defined( __FB_64BIT__ )
+    dim as ulongint slots( 0 to 1 )
+    slots( 0 ) = prec
+    slots( 1 ) = *cast( ulongint ptr, @v )
+    dim as long n = fmt_vsprintf_( 2ull or 32ull, strptr( buf ), len( buf ), strptr( fz ), 0, @slots( 0 ) )
+#else
+    dim as long n = fmt_snprintf_( strptr( buf ), len( buf ), strptr( fz ), prec, v )
+#endif
+    if n < 0 then return ""
+    return left( buf, n )
+end function
+
+'' THE SHORTEST DIGITS that read back as v -- as a double, or as a single when 'isSingle' -- in
+'' 'digits' (no point, no trailing zeros) and the decimal exponent of the first one, 'e10':
+'' v = d.ddd x 10^e10.
+private sub ShortestDigits_( byval v as double, byval isSingle as boolean, byref digits as string, byref e10 as long )
+    dim as long maxp = iif( isSingle, 9, 17 )
+    dim as string s
+    for p as long = 1 to maxp
+        s = Printf_( "%.*e", p - 1, v )
+        dim as double back = fmt_strtod_( strptr( s ), 0 )
+        if isSingle then
+            if cast( single, back ) = cast( single, v ) then exit for
+        else
+            if back = v then exit for
+        end if
+    next
+    '' "d.ddde+XX" -- or "de+XX", with no point, for one digit: mid( ) with a length of -1
+    '' would read to the END of the string.
+    dim as long epos = instr( s, "e" )
+    digits = left( s, 1 )
+    if epos > 3 then digits &= mid( s, 3, epos - 3 )
+    e10 = valint( mid( s, epos + 1 ) )
+    while (len( digits ) > 1) andalso (right( digits, 1 ) = "0")
+        digits = left( digits, len( digits ) - 1 )
+    wend
+end sub
+
+'' C++'s plain to_chars: the shortest digits, fixed or scientific -- whichever is shorter. '#'
+'' then adds the point if there is none, AFTER the choice: '{:#}' of 0.0001 is "1.e-04" (the
+'' scientific form was the shorter without its point), measured -- fmtdiff seed 10.
+private function ShortestText_( byval v as double, byval isSingle as boolean, byval alt as boolean ) as string
+    dim as string r
+    if v = 0 then
+        r = "0"
+    else
+        dim as string digits
+        dim as long e10
+        ShortestDigits_( v, isSingle, digits, e10 )
+        dim as long k = len( digits )
+        '' scientific: d[.ddd]e+XX
+        dim as string sci = left( digits, 1 )
+        if k > 1 then sci &= "." & mid( digits, 2 )
+        dim as long ae = abs( e10 )
+        sci &= "e" & iif( e10 < 0, "-", "+" ) & iif( ae < 10, "0", "" ) & ae
+        '' fixed
+        dim as string fix_
+        if e10 >= 0 then
+            if k - 1 <= e10 then
+                '' AN INTEGRAL VALUE IS WRITTEN WITH ITS EXACT DIGITS, as printf's %.0f -- not the
+                '' shortest digits padded with zeros: 142675296256 for that single, which the
+                '' shortest digits would spell 142675300000 (measured, fmtdiff seed 4).
+                fix_ = Printf_( "%.*f", 0, v )
+            else
+                fix_ = left( digits, e10 + 1 ) & "." & mid( digits, e10 + 2 )
+            end if
+        else
+            fix_ = "0." & string( -e10 - 1, "0" ) & digits
+        end if
+        r = iif( len( sci ) < len( fix_ ), sci, fix_ )
+    end if
+    if alt andalso (instr( r, "." ) = 0) then
+        dim as long ep = instr( r, "e" )
+        if ep > 0 then r = left( r, ep - 1 ) & "." & mid( r, ep ) else r &= "."
+    end if
+    return r
+end function
+
+'' The 'a' form, from the bits: [lead].[hex digits]p[sign][exponent], no "0x". 'prec' < 0 keeps
+'' the shortest digits; otherwise they are rounded, half to even, to exactly 'prec'.
+private function HexText_( byval v as double, byval isSingle as boolean, byval prec as long, byval alt as boolean ) as string
+    dim as ulongint mant
+    dim as long ndig, ex, lead
+    if isSingle then
+        dim as single sv = v
+        dim as ulong b = *cast( ulong ptr, @sv )
+        dim as long be = (b shr 23) and &hFF
+        mant = cast( ulongint, b and &h7FFFFF ) shl 1     '' 23 bits -> 6 hex digits
+        ndig = 6
+        if be = 0 then
+            lead = 0 : ex = iif( mant = 0, 0, -126 )
+        else
+            lead = 1 : ex = be - 127
+        end if
+    else
+        dim as ulongint b = *cast( ulongint ptr, @v )
+        dim as long be = (b shr 52) and &h7FF
+        mant = b and &hFFFFFFFFFFFFFull
+        ndig = 13
+        if be = 0 then
+            lead = 0 : ex = iif( mant = 0, 0, -1022 )
+        else
+            lead = 1 : ex = be - 1023
+        end if
+    end if
+    dim as string hd
+    if prec < 0 then
+        hd = right( string( ndig, "0" ) & lcase( hex( mant ) ), ndig )
+        while (len( hd ) > 0) andalso (right( hd, 1 ) = "0")
+            hd = left( hd, len( hd ) - 1 )
+        wend
+    elseif prec >= ndig then
+        hd = right( string( ndig, "0" ) & lcase( hex( mant ) ), ndig ) & string( prec - ndig, "0" )
+    elseif prec = 0 then
+        '' NO DIGIT KEPT: the tie is decided by the LEAD digit's parity -- 1.8p+0 is 2p+0.
+        dim as ulongint half0 = 1ull shl (ndig * 4 - 1)
+        if (mant > half0) orelse ((mant = half0) andalso ((lead and 1) = 1)) then lead += 1
+    else
+        dim as long drop = (ndig - prec) * 4
+        dim as ulongint keep = mant shr drop
+        dim as ulongint remv = mant and ((1ull shl drop) - 1)
+        dim as ulongint half = 1ull shl (drop - 1)
+        if (remv > half) orelse ((remv = half) andalso ((keep and 1) = 1)) then keep += 1
+        if keep >= (1ull shl (prec * 4)) then     '' carried into the lead digit
+            lead += 1
+            keep = 0
+        end if
+        hd = right( string( prec, "0" ) & lcase( hex( keep ) ), prec )
+    end if
+    dim as string r = str( lead )
+    if len( hd ) > 0 then
+        r &= "." & hd
+    elseif alt then
+        r &= "."
+    end if
+    return r & "p" & iif( ex < 0, "-", "+" ) & abs( ex )
+end function
+
+'' A single or double under its spec.
+private function FmtFloat_ _
+    ( byval d as double, byval isSingle as boolean, byref sp as const FmtSpec_, _
+      byref outp as ustring, byref e as FormatError ) as boolean
+
+    dim as boolean upper = false
+    select case sp.ty
+    case 0, 97, 101, 102, 103                 '' a e f g
+    case 65, 69, 70, 71 : upper = true        '' A E F G
+    case else
+        return FmtFail_( e, FE_BAD_TYPE, sp.at, "'" & chr( sp.ty ) & "' is no presentation type for a floating-point value" )
+    end select
+
+    dim as ulongint bits = *cast( ulongint ptr, @d )
+    dim as boolean neg = ((bits shr 63) <> 0)
+    dim as double av = abs( d )
+    dim as string signs
+    if neg then
+        signs = "-"
+    elseif sp.sign = 43 then
+        signs = "+"
+    elseif sp.sign = 32 then
+        signs = " "
+    end if
+
+    '' INF AND NAN -- never zero-padded.
+    dim as long be = (bits shr 52) and &h7FF
+    if be = &h7FF then
+        dim as string w = iif( (bits and &hFFFFFFFFFFFFFull) = 0, "inf", "nan" )
+        if upper then w = ucase( w )
+        PadInto_( outp, signs & w, sp, 62 )
+        return true
+    end if
+
+    dim as string body
+    dim as string hashf = iif( sp.alt, "#", "" )
+    select case sp.ty
+    case 0
+        if sp.prec < 0 then
+            body = ShortestText_( av, isSingle, sp.alt )
+        else
+            '' GENERAL WITH A PRECISION, and '#' only KEEPS THE POINT: the trailing zeros go, which
+            '' is where this differs from 'g' -- '{:#.17}' of 100000 is "100000." (measured).
+            body = Printf_( "%.*g", iif( sp.prec = 0, 1, sp.prec ), av )
+            if sp.alt andalso (instr( body, "." ) = 0) then
+                dim as long ep = instr( body, "e" )
+                if ep > 0 then body = left( body, ep - 1 ) & "." & mid( body, ep ) else body &= "."
+            end if
+        end if
+    case 101, 69 : body = Printf_( "%" & hashf & ".*e", iif( sp.prec < 0, 6, sp.prec ), av )
+    case 102, 70 : body = Printf_( "%" & hashf & ".*f", iif( sp.prec < 0, 6, sp.prec ), av )
+    case 103, 71 : body = Printf_( "%" & hashf & ".*g", iif( sp.prec < 0, 6, iif( sp.prec = 0, 1, sp.prec ) ), av )
+    case 97, 65 : body = HexText_( av, isSingle, sp.prec, sp.alt )
+    end select
+    if upper then body = ucase( body )
+
+    if sp.zero andalso (sp.align = 0) andalso (sp.width > 0) then
+        outp &= signs
+        for k as integer = 1 to sp.width - len( signs ) - len( body ) : outp &= "0" : next
+        outp &= body
+        return true
+    end if
+    PadInto_( outp, signs & body, sp, 62 )
+    return true
+end function

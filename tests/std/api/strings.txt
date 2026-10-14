@@ -11,6 +11,14 @@ EndsWith EndsWith
 Escape Escape
 Extract Extract
 ExtractChars ExtractChars
+Format Format
+FormatArg FormatArg
+FormatArgKind FormatArgKind
+FormatError FormatError
+FormatErrorCode FormatErrorCode
+FormatString FormatString
+FormattedSize FormattedSize
+FormatTo FormatTo
 InsertAt InsertAt
 InstrChars InstrChars
 IsBlank IsBlank
@@ -39,6 +47,7 @@ SplitCsvRow SplitCsvRow
 StartsWith StartsWith
 Tally Tally
 TallyChars TallyChars
+TryFormat TryFormat
 Unescape Unescape
 Unwrap Unwrap
 VerifySet VerifySet
