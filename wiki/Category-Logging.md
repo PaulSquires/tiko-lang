@@ -370,16 +370,6 @@ function DebugSink.DroppedCount( ) as uint64 : return 0 : end function
 
 std/logs declares none of the handful of Win32 functions it needs itself: it resolves them at run time with DYLIBLOAD / DYLIBSYMBOL. Declaring GetStdHandle at module level would clash with windows.bi in every program that includes it -- and most programs that want a logger are Win32 programs.
 
-## Measured And Not Measured
-
-Asserted: a filtered call performs no sink write **and** no value construction; four threads × 10,000 records through one sink produce an exact line count with no line containing a fragment of another; the text output is byte-exact with colour forced both ways.
-
-Not measured: throughput. There is no benchmark, so "a lock per sink is cheap enough" is an argument, not a number.
-
-Not observed: ConsoleSink's own serialisation. The thread test drives a capture sink built on the identical mutex-around-render-and-emit pattern; seeing the shipped sink's writes would need a child process with redirected stderr.
-
-Not exercised by any test: the Windows **console** path. Under the harness stderr is redirected, so every run took the not-a-console branch -- WriteConsoleW, the VT-mode enable and the wide encoding have been run by hand only.
-
 ## Tests
 
 logging/logrecord.bas and logger_sinks.bas -- 23 tests, 155 assertions, one block per numbered rule of the design they cover, named after that rule so a failure names what it broke.
