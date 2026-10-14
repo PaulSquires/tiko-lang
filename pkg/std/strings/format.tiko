@@ -37,6 +37,12 @@ using containers
 ''     boolean                                                "true" / "false", or as 1 / 0
 ''     string, ustring, wstring, literals, zstring ptr        s ?
 ''     any pointer                                            p P   ("0x" + hex)
+''     a type with 'operator cast( ) as string' (or ustring)  s ?   -- as its text
+''     a type extending strings.Formattable                   its own spec (FormatWith)
+''
+'' A type that casts only to a NUMBER is ambiguous here (TKO0660): a cast followed by any
+'' numeric conversion ranks alike, and the identical pair is refused, as fbc does. Cast it
+'' yourself -- 'Format( "{:.2f}", cast( double, t ) )' -- or give it a Formattable.
 ''
 '' A whole 'FormatArg' array may be passed instead of the list -- built at run time.
 ''
@@ -68,7 +74,39 @@ public enum FormatArgKind
     FAK_BOOL
     FAK_STR
     FAK_PTR
+    FAK_CUSTOM            '' a Formattable -- its FormatWith decides
 end enum
+
+'' ---------------------------------------------------------------------------
+'' Formattable -- a type that formats ITSELF, as a C++ formatter<T> specialisation does.
+''
+''     type Money extends strings.Formattable
+''         cents as longint
+''         declare function FormatWith( byref spec as const ustring, _
+''             byref ctx as strings.FormatContext ) as ustring override
+''     end type
+''
+'' FormatWith receives the SPEC TEXT after ':' -- "" for '{}' -- with every nested '{}' or '{n}'
+'' already replaced by its (integer) argument, and returns the field's text. The spec is the
+'' type's own: '{:%Y-%m-%d}' means whatever the type says it means. A spec it cannot take is
+'' reported with ctx.SetError( "why" ), which becomes FE_CUSTOM at the spec's offset. For a type
+'' that only wants width and alignment, FormatStandard applies the standard text spec.
+
+public type FormatContext
+    as long argIndex      '' which argument is being formatted
+    as boolean failed
+    as ustring message
+    declare sub SetError( byref msg as const ustring )
+end type
+
+sub FormatContext.SetError( byref msg as const ustring )
+    failed = true
+    message = msg
+end sub
+
+public type Formattable extends object
+    declare abstract function FormatWith( byref spec as const ustring, byref ctx as FormatContext ) as ustring
+end type
 
 public type FormatArg
     as long kind          '' FormatArgKind
@@ -76,6 +114,7 @@ public type FormatArg
     as ulongint u         '' FAK_UINT, FAK_PTR
     as double d           '' FAK_SINGLE, FAK_DOUBLE
     as ustring s          '' FAK_STR -- an owned copy, so a temporary argument cannot dangle
+    as any ptr obj        '' FAK_CUSTOM -- BORROWED: an argument lives to the end of its statement
 
     declare constructor( )
     declare constructor( byval v as longint )
@@ -90,6 +129,7 @@ public type FormatArg
     declare constructor( byref v as const wstring )
     declare constructor( byval v as const zstring ptr )
     declare constructor( byval v as const any ptr )
+    declare constructor( byref v as const Formattable )
 end type
 
 constructor FormatArg( )
@@ -138,6 +178,9 @@ end constructor
 constructor FormatArg( byval v as const any ptr )
     kind = FAK_PTR : u = cast( ulongint, v )
 end constructor
+constructor FormatArg( byref v as const Formattable )
+    kind = FAK_CUSTOM : obj = cast( any ptr, @v )   '' read only: FormatWith is called through it
+end constructor
 
 '' ---------------------------------------------------------------------------
 '' FormatString -- the format string's own type. A ustring, and a constructor from one; it
@@ -172,6 +215,7 @@ public enum FormatErrorCode
     FE_LOCALE               '' 'L' -- locale formatting is not supported
     FE_CHAR_RANGE           '' 'c' over a value that is no Unicode code point
     FE_NULL_CSTRING         '' a null zstring ptr formatted as a string
+    FE_CUSTOM               '' a Formattable refused its spec (FormatContext.SetError)
 end enum
 
 public type FormatError
@@ -215,6 +259,19 @@ public function TryFormat( byref fmt as const FormatString, args() as const Form
         return outcome.Ok( of ustring, FormatError )( r )
     end if
     return outcome.Fail( of ustring, FormatError )( e )
+end function
+
+'' THE STANDARD TEXT SPEC applied to 'text' -- fill, align, width, precision, 's' and '?' -- for a
+'' Formattable that only wants those. A spec that is no text spec is reported through ctx.
+public function FormatStandard( byref text as const ustring, byref spec as const ustring, _
+                                byref ctx as FormatContext ) as ustring
+    dim as ustring r
+    dim as FormatError e
+    if FormatTextSpec_( text, spec, r, e ) = false then
+        ctx.SetError( e.message )
+        return ""
+    end if
+    return r
 end function
 
 '' A REFUSED FORMAT STRING IS FATAL: the reason to stderr, then run-time error 1.

@@ -35,6 +35,39 @@ enum Colour
     RED = 1, GREEN = 7
 end enum
 
+'' A type that casts to text, and one that formats itself.
+type Pt
+    as long x, y
+    declare operator cast( ) as string
+end type
+operator Pt.cast( ) as string
+    return "(" & x & "," & y & ")"
+end operator
+type UPt
+    as long x
+    declare operator cast( ) as ustring
+end type
+operator UPt.cast( ) as ustring
+    return "u" & wchr( &hE9 ) & x
+end operator
+type Money extends strings.Formattable
+    as longint cents
+    declare function FormatWith( byref spec as const ustring, byref ctx as strings.FormatContext ) as ustring override
+end type
+function Money.FormatWith( byref spec as const ustring, byref ctx as strings.FormatContext ) as ustring
+    if spec = "raw" then return str( cents )
+    if left( spec, 1 ) = "!" then
+        ctx.SetError( "Money takes no '!'" )
+        return ""
+    end if
+    return strings.FormatStandard( "$" & ( cents \ 100 ) & "." & right( "0" & ( cents mod 100 ), 2 ), spec, ctx )
+end function
+function MkMoney( byval c as longint ) as Money
+    dim as Money m
+    m.cents = c
+    return m
+end function
+
 '' ------------------------------------------------------------------ positional
 dim as ustring who = "Quinn"
 Check( strings.Format( "Hello, {}!", who ), "Hello, Quinn!", "auto" )
@@ -164,5 +197,20 @@ CheckErr( strings.TryFormat( "{:c}", -1 ), strings.FE_CHAR_RANGE, 2, "'c' of -1"
 CheckErr( strings.TryFormat( "{:c}", &hD800 ), strings.FE_CHAR_RANGE, 2, "'c' of a surrogate" )
 dim as zstring ptr nz = 0
 CheckErr( strings.TryFormat( "{}", nz ), strings.FE_NULL_CSTRING, 1, "a null zstring ptr" )
+
+
+'' ------------------------------------------------------------------ user types
+dim as Pt pt_ = ( 1, 2 )
+dim as UPt up3 = ( 3 )
+Check( strings.Format( "[{}] [{:>8}] [{:.3}] [{}]", pt_, pt_, pt_, up3 ), "[(1,2)] [   (1,2)] [(1,] [u" & wchr( &hE9 ) & "3]", "a cast to text" )
+dim as Money mny
+mny.cents = 12345
+Check( strings.Format( "[{}] [{:>9}] [{:raw}] [{:*^{}}]", mny, mny, mny, mny, 11 ), _
+       "[$123.45] [  $123.45] [12345] [**$123.45**]", "Formattable: its spec, nested width resolved" )
+Check( strings.Format( "{} and {}", MkMoney( 5 ), MkMoney( 250 ) ), "$0.05 and $2.50", "Formattable temporaries" )
+dim as strings.FormatArg mparts( 0 to 1 ) = { strings.FormatArg( mny ), strings.FormatArg( 7 ) }
+Check( strings.Format( "{} / {}", mparts( ) ), "$123.45 / 7", "a Formattable in a spread array" )
+CheckErr( strings.TryFormat( "x{:!}", mny ), strings.FE_CUSTOM, 2, "Formattable refuses its spec" )
+CheckErr( strings.TryFormat( "{:x}", mny ), strings.FE_CUSTOM, 1, "FormatStandard refuses a non-text spec" )
 
 print "format: "; nPass; " passed,"; nFail; " failed"

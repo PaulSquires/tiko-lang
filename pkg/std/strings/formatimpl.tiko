@@ -404,6 +404,52 @@ private function FormatOne_ _
     return FmtFail_( e, FE_MISSING_ARG, sp.at, "an empty FormatArg" )
 end function
 
+'' A FORMATTABLE'S FIELD, from f[j] -- ':' or '}' -- to the '}' that j is left on: the spec text
+'' with each nested '{}' / '{n}' replaced by its integer argument, then FormatWith.
+private function FormatCustom_ _
+    ( byref f as const ustring, byref j as integer, args() as const FormatArg, _
+      byref mode as long, byref nextAuto as long, byval idx as long, _
+      byref outp as ustring, byref e as FormatError ) as boolean
+
+    dim as integer n = len( f )
+    dim as integer at = j
+    dim as ustring spec
+    if f[j] = 58 then
+        j += 1
+        while j < n
+            if f[j] = 125 then exit while
+            if f[j] = 123 then
+                dim as long dv
+                if DynamicValue_( f, j, args( ), mode, nextAuto, dv, e ) = false then return false
+                spec &= str( dv )
+            else
+                spec &= mid( f, j + 1, 1 )
+                j += 1
+            end if
+        wend
+        if j >= n then return FmtFail_( e, FE_UNMATCHED_OPEN, at, "'{' has no '}'" )
+    end if
+    dim as FormatContext ctx
+    ctx.argIndex = idx
+    dim as ustring text = cast( Formattable ptr, args( lbound( args ) + idx ).obj )->FormatWith( spec, ctx )
+    if ctx.failed then return FmtFail_( e, FE_CUSTOM, at, ctx.message )
+    outp &= text
+    return true
+end function
+
+'' FormatStandard's work: 'spec' -- a spec's text, without its braces -- as a TEXT spec over 'text'.
+private function FormatTextSpec_ _
+    ( byref text as const ustring, byref spec as const ustring, byref outp as ustring, byref e as FormatError ) as boolean
+
+    dim as ustring f = spec & "}"
+    dim as integer j = 0
+    dim as long mode = 0, nextAuto = 0
+    dim as FormatArg none_( )
+    dim as FmtSpec_ sp
+    if ParseSpec_( f, j, none_( ), mode, nextAuto, sp, e ) = false then return false
+    return FmtText_( text, true, sp, outp, e )
+end function
+
 '' ---------------------------------------------------------------------------
 '' The format string
 
@@ -453,14 +499,20 @@ private function FormatInto_ _
             if j >= n then return FmtFail_( e, FE_UNMATCHED_OPEN, i, "'{' has no '}'" )
             dim as FmtSpec_ sp
             sp.at = j
-            if f[j] = 58 then
-                j += 1
-                if ParseSpec_( f, j, args( ), mode, nextAuto, sp, e ) = false then return false
-            elseif f[j] <> 125 then
+            if (f[j] <> 58) andalso (f[j] <> 125) then
                 return FmtFail_( e, FE_BAD_ARG_ID, j, "a replacement field is '{', an argument id, a ':' spec, then '}'" )
             end if
             if idx >= count then return FmtFail_( e, FE_MISSING_ARG, i, "no argument " & idx & " (" & count & " given)" )
-            if FormatOne_( args( lbound( args ) + idx ), sp, outp, e ) = false then return false
+            if args( lbound( args ) + idx ).kind = FAK_CUSTOM then
+                '' A FORMATTABLE TAKES ITS SPEC AS TEXT -- its own language, nested '{}' resolved.
+                if FormatCustom_( f, j, args( ), mode, nextAuto, idx, outp, e ) = false then return false
+            else
+                if f[j] = 58 then
+                    j += 1
+                    if ParseSpec_( f, j, args( ), mode, nextAuto, sp, e ) = false then return false
+                end if
+                if FormatOne_( args( lbound( args ) + idx ), sp, outp, e ) = false then return false
+            end if
             i = j + 1
             runStart = i
         elseif c = 125 then                                 '' '}'

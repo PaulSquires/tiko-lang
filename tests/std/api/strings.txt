@@ -14,9 +14,12 @@ ExtractChars ExtractChars
 Format Format
 FormatArg FormatArg
 FormatArgKind FormatArgKind
+FormatContext FormatContext
 FormatError FormatError
 FormatErrorCode FormatErrorCode
+FormatStandard FormatStandard
 FormatString FormatString
+Formattable Formattable
 FormattedSize FormattedSize
 FormatTo FormatTo
 InsertAt InsertAt
