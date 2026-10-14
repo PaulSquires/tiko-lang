@@ -1,0 +1,6 @@
+'' A record the layout check refused is an incomplete type: a pointer to it compiles (see
+'' cinclude-refused), a variable of it is TKO0810.
+'' TEST: cli
+'' ARGS: --dump-ir -cnocache tests/cimport/src/cinclude-refused-value.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: cinclude-refused-value.bas(3,8): error TKO0810: 'ref_over' is an incomplete type

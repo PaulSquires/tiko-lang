@@ -122,8 +122,9 @@ private function Assemble_( byref x as CImp, byval nfiles as long ) as string
 
     '' FORWARD POINTER ALIASES, hoisted above everything that uses one: FreeBASIC accepts a
     '' reference to a record defined further down only through a pointer typedef. Each is
-    '' resolved now that the walk is over -- to the record if it arrived, to ANY PTR if it
-    '' was skipped.
+    '' resolved now that the walk is over -- to the record if it arrived; to the record as
+    '' an INCOMPLETE type if it was skipped, introduced by an alias of its own (see
+    '' PtrToRecord_ in types.tiko); to ANY PTR otherwise.
     if x.fwdLines.Count > 0 then
         parts.Push( "'' forward references" & nl )
         for i as long = 0 to x.fwdLines.Count - 1
@@ -131,6 +132,9 @@ private function Assemble_( byref x as CImp, byval nfiles as long ) as string
             dim as string nm = x.fwdLines[i]
             dim as ubyte st = UsrState( x, id )
             if ((st and US_EMITTED) <> 0) andalso ((st and US_OPAQUE) = 0) then
+                parts.Push( "type " & nm & "__ptr as " & nm & " ptr" & nl )
+            elseif (st and US_REFUSED) <> 0 then
+                parts.Push( "type " & nm & "__fwd as " & nm & nl )
                 parts.Push( "type " & nm & "__ptr as " & nm & " ptr" & nl )
             else
                 parts.Push( "type " & nm & "__ptr as any ptr" & nl )

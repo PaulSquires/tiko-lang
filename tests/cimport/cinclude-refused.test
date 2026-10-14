@@ -1,0 +1,9 @@
+'' A FUNCTION TAKING A POINTER TO A RECORD THE LAYOUT CHECK REFUSED broke the whole binding:
+'' the function was kept, its parameter named a type nothing declared, and every program
+'' that #cinclude'd the header stopped at TKO0808 in the cached binding. A refused record
+'' reached through a pointer is now introduced as an incomplete type. See src/refused.h.
+'' TEST: cli
+'' ARGS: --dump-ir -cnocache tests/cimport/src/cinclude-refused.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-NOT: error TKO

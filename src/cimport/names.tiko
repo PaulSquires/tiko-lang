@@ -181,9 +181,10 @@ end sub
 '' THE FREEBASIC NAME FOR A C NAME, claimed in the given namespace. Reserved words take a
 '' trailing '_'; a name already taken there, compared without case, takes '_2', '_3' ...
 '' in the order the names were met -- 'size_t' and 'SIZE_T' are one name to FreeBASIC, so
-'' the second becomes SIZE_T_2. Every change goes in the ledger with its reason.
+'' the second becomes SIZE_T_2. Every change goes in the ledger with its reason -- unless
+'' 'ledger' is false, for a name claimed by a declaration that will write nothing.
 function NameClaim( byref x as CImp, byval ns as CImpNs, byref cname as string, _
-                    byval rk as CImpRenameKind ) as string
+                    byval rk as CImpRenameKind, byval ledger as boolean = true ) as string
     dim as string cand = cname
     dim as long why = -1
     dim as boolean reserved
@@ -204,7 +205,7 @@ function NameClaim( byref x as CImp, byval ns as CImpNs, byref cname as string, 
         if why < 0 then why = 1
     end if
     Take_( x, ns, cand )
-    if why >= 0 then Ledger_( x, rk, cname, cand, why )
+    if (why >= 0) andalso ledger then Ledger_( x, rk, cname, cand, why )
     return cand
 end function
 

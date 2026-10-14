@@ -152,11 +152,13 @@ private function Pass1_ cdecl _
         '' A STATIC OR INLINE FUNCTION CLAIMS ITS NAME TOO, though nothing is emitted for
         '' it: fbc-modern's does, which is why windows.h's '#define InterlockedIncrement
         '' _InterlockedIncrement' cannot become an alias -- the inline InterlockedIncrement
-        '' holds the name.
+        '' holds the name. But it is not LEDGERED: a rename of a function that is never
+        '' written lists a name no binding declares (the UCRT's inline 'time' as 'time_').
         dim as long id = UsrId( *xp, CursorUsr( *xp, c ) )
         if (UsrState( *xp, id ) and US_NAMED) = 0 then
-            UsrSetName( *xp, id, NameClaim( *xp, NS_VALUE, CursorName( *xp, c ), RK_PROC ) )
-            if NoSymbol_( *xp, c ) = false then NoteDecl( *xp, CursorName( *xp, c ), id )
+            dim as boolean noSym = NoSymbol_( *xp, c )
+            UsrSetName( *xp, id, NameClaim( *xp, NS_VALUE, CursorName( *xp, c ), RK_PROC, noSym = false ) )
+            if noSym = false then NoteDecl( *xp, CursorName( *xp, c ), id )
         end if
     case CXCursor_VarDecl
         if xp->api->Cursor_getStorageClass( c ) <> CX_SC_Static then

@@ -165,7 +165,7 @@ declare function NameReservedType( byref n as string ) as boolean
 declare function NameReservedValue( byref n as string ) as boolean
 declare function NameReservedField( byref n as string ) as boolean
 declare function NameClaim( byref x as CImp, byval ns as CImpNs, byref cname as string, _
-                            byval rk as CImpRenameKind ) as string
+                            byval rk as CImpRenameKind, byval ledger as boolean = true ) as string
 declare function NameField( byref cname as string, byval isArray as boolean ) as string
 declare function NameParam( byref cname as string ) as string
 declare function UsrId( byref x as CImp, byref usr as string ) as long

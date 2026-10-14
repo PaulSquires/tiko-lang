@@ -128,21 +128,32 @@ private function DeclUsrOf_( byref x as CImp, byval t as CXType ) as long
     return UsrId( x, usr )
 end function
 
-'' A record REACHED THROUGH A POINTER. Three answers:
+'' A record REACHED THROUGH A POINTER. Four answers:
 ''
 ''   already emitted, or the record being emitted now    its name
 ''   never defined anywhere                              any -- the opaque handle C meant
-''   skipped EARLIER                                     its name: FreeBASIC takes a pointer
-''                                                       to a type it never saw as a forward
-''                                                       reference ('PEVENTSFORLOGFILE as
-''                                                       _EVENTSFORLOGFILE ptr', fbc-modern)
+''   skipped EARLIER                                     its name, as an INCOMPLETE type
 ''   defined LATER in the file                           a forward alias, 'Name__ptr'
 ''
 '' The last is how FreeBASIC accepts a reference to a record defined further down: only
 '' through a pointer typedef, which is hoisted above every declaration. The alias is
-'' resolved at the end -- to 'Name ptr' if the record arrived, to 'any ptr' if it was
-'' skipped when its turn came. 'const' on the pointee is not carried by the alias;
-'' fbc-modern drops it the same way.
+'' resolved at the end -- to 'Name ptr' if the record arrived or was skipped, to 'any ptr'
+'' otherwise. 'const' on the pointee is not carried by the alias; fbc-modern drops it the
+'' same way.
+''
+'' A SKIPPED RECORD IS AN INCOMPLETE TYPE: usable through a pointer, refused by value --
+'' which is what C can do with it too. But 'Name ptr' alone, for a Name nothing declares,
+'' is TKO0808; tiko knows such a name only once an alias names it. So a skipped record
+'' reached through a pointer gets a forward alias too, and import.tiko writes it as
+'' 'type Name__fwd as Name', the alias that introduces Name. Without it, a function taking
+'' a pointer to a record the layout check refused broke the whole binding.
+private sub NeedFwd_( byref x as CImp, byval id as long, byref usr as string, byref nm as string )
+    if (UsrState( x, id ) and US_FWD) <> 0 then return
+    UsrSet( x, id, US_FWD )
+    x.fwdUsr.Push( usr )
+    x.fwdLines.Push( nm )          '' resolved to its final text in import.tiko
+end sub
+
 private function PtrToRecord_( byref x as CImp, byval pt as CXType, byval constPointee as boolean, _
                                byref why as string, byref wholeText as string ) as boolean
     dim as long id = DeclUsrOf_( x, pt )
@@ -156,6 +167,7 @@ private function PtrToRecord_( byref x as CImp, byval pt as CXType, byval constP
             why = "unnamed record cannot be referred to"
             return true
         end if
+        if ((st and US_EMITTED) = 0) andalso (self_ = false) then NeedFwd_( x, id, CursorUsr( x, d ), nm )
         wholeText = iif( constPointee, "const ", "" ) & nm & " ptr"
         return true
     end if
@@ -167,11 +179,7 @@ private function PtrToRecord_( byref x as CImp, byval pt as CXType, byval constP
         why = "unnamed record cannot be referred to"
         return true
     end if
-    if (st and US_FWD) = 0 then
-        UsrSet( x, id, US_FWD )
-        x.fwdUsr.Push( CursorUsr( x, d ) )
-        x.fwdLines.Push( nm )          '' resolved to its final text in import.tiko
-    end if
+    NeedFwd_( x, id, CursorUsr( x, d ), nm )
     wholeText = nm & "__ptr"
     return true
 end function
