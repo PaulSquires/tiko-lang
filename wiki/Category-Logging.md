@@ -2,6 +2,12 @@
 
 # Logging
 
+**Logging** is a program keeping a running diary of what it does. As it works, it writes short records -- "server started", "user ada logged in", "could not open config.ini" -- each stamped with the time and marked with how important it is. Nobody reads the diary while things go well. When something goes wrong, often on a machine you cannot sit at, it is how you find out what happened and in what order.
+
+A log record is more than a PRINT. It carries a **level** -- from TRACE, for fine detail, up to FATAL -- so you can switch the noisy ones off without touching the code. It carries **fields**, named values such as `user=ada` or `attempts=3`, that a person can read and a tool can search. And it goes to a **sink**: the console, a file, or anywhere else you choose, without the code that logs needing to know which.
+
+std/logs is tiko's logging library. A **Logger** takes your records and passes them to the sinks you attach to it:
+
 ```freebasic
 #import "std/logs"
 using logs
@@ -18,25 +24,19 @@ lg.Warn( ).Str( "user", u ).Int_( "attempts", n ).Msg( "login failed" )
 ' 2026-08-12T23:06:34.361Z  WARN   login failed  user=quinn attempts=3
 ```
 
-Without this module, a program that logs grows a WriteLog( ) that opens a file, appends a line and closes it: no level, no timestamp, no structure, no rotation, and no lock. This module replaces that. It ships ALONGSIDE PRINT, PRINT #, OPEN and ERR and changes none of them.
-
-LIBRARY ONLY. Every line is tiko -- no compiler change, and unlike std/fs, not one line of C in the runtime.
+It is a library and nothing else: every line of it is tiko, with no compiler change.
 
 ## What You Get
 
-```freebasic
-A LEVEL on every record, and one comparison to filter it out.
-A TIMESTAMP taken for you: UTC, RFC-3339, sub-second -- plus a monotonic
-  reading, so records still order correctly when the wall clock jumps.
-TYPED FIELDS. 'attempts' stays a number all the way to the sink, so the
-  JSON renderer (phase 2) can emit 3 rather than "3".
-A PLUGGABLE SINK, so a library can log without knowing the destination.
-THREAD-SAFE WRITES. One mutex per sink, held across the whole write.
-CHILD LOGGERS carrying inherited fields.
-A CALL THAT CANNOT FAIL. No Result, no raise, ever.
-```
+- **A level on every record**, and one comparison to filter it out.
+- **A timestamp taken for you**: UTC, RFC 3339, sub-second -- plus a monotonic reading, so records still order correctly when the wall clock jumps.
+- **Typed fields.** `attempts` stays a number all the way to the sink, so the JSON renderer writes `3`, not `"3"`.
+- **A pluggable sink**, so a library can log without knowing the destination.
+- **Thread-safe writes.** One mutex per sink, held across the whole write.
+- **Child loggers** carrying inherited fields.
+- **A call that cannot fail.** No Result, no raise, ever.
 
-And one thing you do not get, which is the reason to read the next section: a format string. Fields arrive through a CHAINED BUILDER.
+And one thing you do not get, which is the reason to read the next section: a format string. Fields arrive through a **chained builder**.
 
 ## The Call Site
 
@@ -50,68 +50,60 @@ lg.Warn( ).Str( "user", u ) _                     ' the builder
           .Msg( "login failed" )
 ```
 
-Each field method returns BYREF to the same event; .Msg( ) is the only method that commits. .Send( ) commits with the message already set or empty.
+Each field method returns BYREF to the same event; `.Msg( )` is the only method that commits. `.Send( )` commits with the message already set, or empty.
 
-THE EVENT LIVES ON THE CALLER'S STACK. lg.Info( ) returns a LogEvent by value and the chain runs on that temporary, which is what makes this thread-safe with no thread-local storage -- and tiko has none user code can reach.
+**The event lives on the caller's stack.** `lg.Info( )` returns a LogEvent by value and the chain runs on that temporary, which is what makes this thread-safe with no thread-local storage -- and tiko has none user code can reach.
 
-AN EVENT THAT IS NEVER COMMITTED EMITS NOTHING. The destructor does not auto-send. A forgotten .Msg( ) is a missing line, which you notice; the alternative is a line you never asked for, which you do not.
+**An event that is never committed emits nothing.** The destructor does not auto-send. A forgotten `.Msg( )` is a missing line, which you notice; the alternative is a line you never asked for, which you do not.
 
-A DISABLED LEVEL BUILDS NOTHING. Not "builds it and throws it away" -- the field methods return immediately, no LogField is constructed and no array grows. Asserted, not asserted-by-eye: the test counts value constructions, not output.
+**A disabled level builds nothing.** Not "builds it and throws it away" -- the field methods return immediately, no LogField is constructed and no array grows. This is asserted, not checked by eye: the test counts value constructions, not output.
 
-What it does NOT avoid is EVALUATING THE ARGUMENTS.
+What it does not avoid is **evaluating the arguments**:
 
 ```freebasic
 lg.Trace( ).Str( "dump", ExpensiveDump( ) ).Msg( "state" )
 ```
 
-ExpensiveDump( ) runs whether trace is on or not. That is irreducible at run time in a language with no lazy arguments, and it is what the phase-5 macro layer exists to delete.
+ExpensiveDump( ) runs whether trace is on or not. That is irreducible at run time in a language with no lazy arguments, and it is what the [logging macros](#the-default-logger-and-the-macros) remove at compile time.
 
 ## Levels
 
-```freebasic
+```text
 LOG_TRACE = 10    LOG_DEBUG = 20    LOG_INFO  = 30
 LOG_WARN  = 40    LOG_ERROR = 50    LOG_FATAL = 60    LOG_OFF = 1000
 ```
 
-SPACED BY TEN so you can define your own level between two of these and have every comparison, filter and renderer keep working. Only Go's log/slog gets this right among the mainstream designs.
+**Spaced by ten** so you can define your own level between two of these and have every comparison, filter and renderer keep working. Only Go's log/slog gets this right among the mainstream designs.
 
-LOG_FATAL DOES NOT TERMINATE ANYTHING. It is a severity. spdlog and logrus do terminate, so someone will expect it; a library that calls END on behalf of its host is not a library. Write the two statements.
+**LOG_FATAL does not terminate anything.** It is a severity. spdlog and logrus do terminate, so someone will expect it; a library that calls END on behalf of its host is not a library. Write the two statements.
 
-```freebasic
+```text
 LevelName( lv ) as ustring              "WARN"; an unnamed level gives "40"
 LevelNameShort( lv ) as ustring         "WRN"
 LevelFromName( s, byref out ) as boolean  "warn" / "WRN" / "40", any case
 LevelToSyslog( lv ) as int32            RFC 5424 severity
 ```
 
-LevelFromName leaves the out-parameter ALONE when it fails -- a typo in an environment variable must not silently turn logging off.
+LevelFromName leaves the out-parameter alone when it fails -- a typo in an environment variable must not silently turn logging off.
 
-## Fields AND Values
+## Fields And Values
 
 A field is a name and a LogValue: a tag plus a union, nine tags, closed.
 
-```freebasic
+```text
 LK_NULL  LK_BOOL  LK_INT  LK_UINT  LK_DBL
 LK_STR   LK_PTR   LK_INSTANT  LK_TIMESPAN
 ```
 
-The set is CLOSED so a renderer can SELECT CASE over it with no 'case else' meaning "I do not know what this is". Adding a tenth is a change to every renderer in the same commit.
+The set is **closed** so a renderer can SELECT CASE over it with no `case else` meaning "I do not know what this is". Adding a tenth is a change to every renderer in the same commit.
 
-The obvious layout does not compile:
-
-```freebasic
-union
-    s as ustring        ' error 161: Var-len strings cannot be part of
-end union               '            UNION's or nested TYPE's
-```
-
-so the ustring sits OUTSIDE the union and EVERY LogValue carries a string descriptor whether or not it is a string. sizeof( LogValue ) = 40 on win64, the same for an integer field as for a string one. That is the price of the string case, it is paid by every field, and it is why the event reserves its field array in one go rather than growing it per push.
+The ustring sits **outside** the union, so every LogValue carries a string descriptor whether or not it is a string: `sizeof( LogValue )` is 40 on windows-x86_64, the same for an integer field as for a string one. That is the price of the string case, it is paid by every field, and it is why the event reserves its field array in one go rather than growing it per push.
 
 ## Members
 
-Logger:
+### Logger
 
-```freebasic
+```text
 MinLevel as LogLevel                  property, get and set
 Name as ustring                       property, get and set; the component
 Enabled( lv ) as boolean              one comparison, no lock
@@ -129,25 +121,29 @@ Emit( r as LogRecord )                a finished record, to the sinks
 Flush( )                              reaches every attached sink
 ```
 
-LogEvent -- every one returns BYREF to the same event:
+### LogEvent
 
-```freebasic
+Every one returns BYREF to the same event:
+
+```text
 Str( k, v as ustring )        Int_( k, v as int64 )
-UInt( k, v as uint64 )      Dbl( k, v as float64 )
+UInt( k, v as uint64 )        Dbl( k, v as float64 )
 Bool( k, v as boolean )       Ptr_( k, v as any ptr )
 Time( k, v as Instant )       Span( k, v as TimeSpan )
 Val( k, v as LogValue )       any tag, built by hand
 
 Err( v as FsError )           expands to error, error.code and error.os
-Site( file, line, func )      what the phase-5 macros will fill in
+Site( file, line, func )      the call site; the logging macros fill it in
 
 Msg( m )                      sets the message and commits
 Send( )                       commits
 ```
 
-TextRenderer -- four public fields, set them directly:
+### TextRenderer
 
-```freebasic
+Four public fields; set them directly:
+
+```text
 stamp as TextStamp        TS_ISO_UTC (default), TS_ISO_LOCAL, TS_TIME_ONLY,
                           TS_MONO, TS_NONE
 colour as boolean         FALSE; THE SINK sets this, see below
@@ -157,9 +153,9 @@ levelwide as boolean      TRUE; pads the level to 5 for column alignment
 Render( r, byref outbuf as ustring )    APPENDS, and does not clear
 ```
 
-ConsoleSink:
+### ConsoleSink
 
-```freebasic
+```text
 ConsoleSink( )                              stderr, own TextRenderer
 ConsoleSink( target )                       CT_STDERR or CT_STDOUT
 ConsoleSink( target, r as Renderer ptr )    your renderer, not owned
@@ -170,7 +166,7 @@ Colour as boolean         property; overrides the auto-detection
 IsConsole as boolean      property; FALSE when redirected
 ```
 
-STDERR BY DEFAULT. Logs are diagnostics, not output: a program whose stdout is piped into another must not have its log lines land in the pipe.
+**Stderr by default.** Logs are diagnostics, not output: a program whose stdout is piped into another must not have its log lines land in the pipe.
 
 ## Child Loggers
 
@@ -180,15 +176,15 @@ db.Info( ).Int_( "rows", 42 ).Msg( "query complete" )
 ' INFO   query complete  component=db rows=42
 ```
 
-Returns a NEW Logger by value carrying the parent's level, sinks and inherited fields plus the new one. The parent is untouched and the child does not alias it.
+Returns a **new** Logger by value carrying the parent's level, sinks and inherited fields plus the new one. The parent is untouched and the child does not alias it.
 
-INHERITED FIELDS COME FIRST, call-site fields last, so "most specific last" is available to any renderer that wants last-wins. A duplicate key is KEPT, not merged -- hiding one would hide the parent/child collision that produced it.
+**Inherited fields come first**, call-site fields last, so "most specific last" is available to any renderer that wants last-wins. A duplicate key is kept, not merged -- hiding one would hide the parent/child collision that produced it.
 
-A CHILD IS A SNAPSHOT. Raising the parent's MinLevel afterwards does not raise the child's, and a sink added to the parent later does not reach the child. That is the right default for what WithField is for: a subsystem that captures its logger once at startup.
+**A child is a snapshot.** Raising the parent's MinLevel afterwards does not raise the child's, and a sink added to the parent later does not reach the child. That is the right default for what WithField is for: a subsystem that captures its logger once at startup.
 
-Ambient per-thread context -- Serilog's LogContext, Logback's MDC, Python's contextvars -- is NOT provided and is not merely unimplemented. It needs user-reachable thread-local storage, and tiko has none: fb_thread.h serves a CLOSED enum of seven runtime-owned keys.
+Ambient per-thread context -- Serilog's LogContext, Logback's MDC, Python's contextvars -- is not provided, and not merely unimplemented. It needs user-reachable thread-local storage, and tiko has none: the runtime's thread-local slots are a closed set of seven runtime-owned keys.
 
-## Sinks AND Locking
+## Sinks And Locking
 
 ```freebasic
 type Sink extends object
@@ -200,90 +196,156 @@ type Sink extends object
 end type
 ```
 
-Write takes the RECORD, not rendered text, so a sink picks its own renderer and the phase-6 AsyncSink can defer rendering to its worker thread. Close must be IDEMPOTENT. DroppedCount never resets.
+Write takes the **record**, not rendered text, so a sink picks its own renderer and AsyncSink can defer rendering to its worker thread. Close must be idempotent. DroppedCount never resets.
 
-ONE MUTEX PER SINK, HELD ACROSS THE WHOLE WRITE. Not per-logger -- that would not protect a sink shared by a parent and its child -- and not global, which would make every log call in the process contend on one thing.
+**One mutex per sink, held across the whole write.** Not per logger -- that would not protect a sink shared by a parent and its child -- and not global, which would make every log call in the process contend on one thing.
 
-The rule this enforces: A RECORD RENDERS AND WRITES AS ONE UNIT, and no record ever appears inside another. PRINT # gives no such guarantee -- two threads on one file handle interleave INSIDE a line, and nothing reports it. That silent corruption is the single worst property of every hand-rolled logger, and it is why locking is a phase-1 item rather than a refinement.
+The rule this enforces: **a record renders and writes as one unit**, and no record ever appears inside another. Two threads writing to one file handle with PRINT # can interleave inside a line, and nothing reports it. That silent corruption is the single worst property of every hand-rolled logger, and it is why locking is built in rather than left to you.
 
-A SINK MUST NOT LOG. Nothing enforces it; a sink that logs to itself re-enters a held mutex.
+**A sink must not log.** Nothing enforces it; a sink that logs to itself re-enters a held mutex.
 
-THE LOGGER DOES NOT OWN ITS SINKS -- AddSink stores a pointer. A sink must outlive every logger holding it, which is what makes copying a Logger cheap and obviously not a duplicated file handle. A module-level 'dim shared' sink is the simplest way to say that.
+**The logger does not own its sinks** -- AddSink stores a pointer. A sink must outlive every logger holding it, which is what makes copying a Logger cheap and obviously not a duplicated file handle. A module-level sink is the simplest way to say that.
 
-AddSink, RemoveSink and ClearSinks are CONFIGURATION-TIME operations and are not safe against concurrent logging. Locking the sink list would put an acquisition on every log call to protect against something that happens at startup.
+AddSink, RemoveSink and ClearSinks are configuration-time operations and are not safe against concurrent logging. Locking the sink list would put an acquisition on every log call to protect against something that happens at startup.
 
-## Encoding AND Colour
+## Encoding And Colour
 
-Renderers produce ustring. SINKS PRODUCE BYTES, and own the encoding:
+Renderers produce ustring. **Sinks produce bytes, and own the encoding:**
+
+| Destination | Encoding |
+| --- | --- |
+| Windows, console | wide text via WriteConsoleW, bypassing the console code page -- CP437 would otherwise mangle every non-ASCII character in a record |
+| Windows, redirected | UTF-8 |
+| POSIX | UTF-8 |
+
+The renderer emits colour but **never decides whether to** -- it does not know where the bytes are going, and a file full of `ESC[32m` is the standard way this is got wrong. ConsoleSink decides, from three tests in this order:
+
+1. `NO_COLOR` set to anything non-empty -- off (see no-color.org).
+2. The destination is not a character device -- off (redirected).
+3. Enabling VT processing failed -- off (old Windows).
+
+Set the Colour property afterwards to override all three, for a CI system that wants colour in a captured stream.
+
+Colour wraps **the level word only**, never the message or the fields, which may contain arbitrary text including escape sequences of their own.
+
+## More Sinks And Renderers
+
+### FileSink And Rotation
 
 ```freebasic
-Windows, console          wide text via WriteConsoleW, bypassing the console
-                          code page -- CP437 would otherwise mangle every
-                          non-ASCII character in a record
-Windows, redirected       UTF-8
-POSIX                     UTF-8
+dim as FileSink app = FileSink( "logs/app.log" )
+app.policy     = RP_SIZE          ' RP_NONE (default), RP_SIZE, RP_DAILY, RP_BOTH
+app.maxbytes   = 10 * 1024 * 1024 ' default 10 MiB
+app.maxbackups = 5                ' default 5; 0 keeps every backup
+app.flushevery = TRUE             ' default TRUE
 ```
 
-The renderer emits colour but NEVER DECIDES WHETHER TO -- it does not know where the bytes are going, and a file full of ESC\[32m is the standard way this is got wrong. ConsoleSink decides, from three tests in this order:
+- The file is UTF-8 with no BOM, and is appended to -- never truncated.
+- `app.log` is always the live file. Rotation renames it to `app.1.log` (shifting `app.1` to `app.2`, and so on) and deletes past `maxbackups`.
+- Size rotation checks **before** each record, so a file may pass `maxbytes` by one record, and a record is never split. Daily rotation uses the record's local day; a clock stepped back does not rotate.
+- **The directory must exist.** The sink never creates one; if it cannot open, every record is a counted drop and the error handler is told.
+- A rotation that fails -- a backup held open elsewhere -- is counted in `RotateFailures( )`; the sink keeps writing to the live file and tries again after another `maxbytes` or day.
+- Also: `Path`, `BackupPath( n )`, `IsOpen`, `Flush( )` (to the disk) and `Close( )`.
+
+`FileSink( path, @renderer )` takes a renderer of your own, such as a JsonRenderer.
+
+### AsyncSink
+
+Wraps any other sink, so that logging never waits on the disk:
 
 ```freebasic
-1. NO_COLOR set to anything non-empty        -> off  (no-color.org)
-2. the destination is not a character device -> off  (redirected)
-3. enabling VT processing failed             -> off  (old Windows)
+dim as AsyncSink queue = AsyncSink( @app )   ' a queue of 4096 records by default
+queue.policy = OP_BLOCK                      ' the default
+lg.AddSink( @queue )
+' ...
+queue.Close( )                               ' REQUIRED -- see below
 ```
 
-Set the Colour property afterwards to override all three, for a CI system that wants colour into a captured stream.
+The caller copies the record into a queue and returns; one worker thread writes records **in order**, keeping the timestamps taken on the calling thread. When the queue is full:
 
-Colour wraps THE LEVEL WORD ONLY, never the message or the fields, which may contain arbitrary text including escape sequences of their own.
+| Policy | What happens |
+| --- | --- |
+| `OP_BLOCK` (default) | the caller waits for room; nothing is lost |
+| `OP_DROP_NEWEST` | the incoming record is dropped, counted and reported |
+| `OP_DROP_OLDEST` | the oldest queued record is dropped, counted and reported |
 
-## What Cannot Fail
+**A clean shutdown loses nothing:** `Close( )` stops accepting, lets the worker drain the queue, then flushes and closes the inner sink. `Flush( )` drains without stopping. **An unclean exit loses what is queued** -- that is what asynchronous means; use a synchronous sink if you need the last line before a crash. `QueueDepth( )` shows the backlog.
 
-No function that emits a record returns a Result, and none can raise.
+### JsonRenderer
 
-This DELIBERATELY BREAKS the convention the rest of this library follows. std/fs returns Result( of T, FsError ) from everything fallible and is right to. The caller of a log function has nothing useful to do with a failure -- the most common context for a log call is already inside an error path -- and a Result that every call site ignores is worse than no Result, because it looks checked.
+Writes one JSON object per line, for log tools to read:
 
-Every mainstream logging library guarantees the same thing, and three of them grew a SECOND, out-of-band channel to report that the first one broke: Serilog's SelfLog, Logback's StatusManager, spdlog's err_handler. DroppedCount is this module's version; the OnLogError handler that goes with it is phase 4.
-
-Silent failure was rejected outright. A log file that has been dead since Tuesday and says nothing about it is the worst failure mode this module could have.
-
-## The Three Renamed Members
-
-Three, and all three are the language rather than taste. Each was MEASURED as a member of a UDT inside a namespace, which is the context that decides it:
-
-```freebasic
-Int_        INT is a keyword                    error 4
-Ptr_        PTR is a keyword                    error 4
-WithField   WITH is a statement, so 'With' is   error 4
+```text
+TextRenderer:  2026-10-03T14:02:11.482Z  WARN   db  login failed  user=quinn attempts=3
+JsonRenderer:  {"time":"2026-10-03T14:02:11.4823311Z","level":"WARN","logger":"db","msg":"login failed","user":"quinn","attempts":3}
 ```
 
-And these are FINE, which is not obvious, since several of them are intrinsics:
+Its fields: `timekey`, `levelkey`, `namekey`, `msgkey`, `monokey` and `sitekey` rename the reserved keys; `levelnum` writes `30` instead of `"INFO"`; `showmono` and `showsite` add the monotonic reading and the call site. Control characters, `"`, `\` and U+2028/9 are escaped; an integer beyond ±2⁵³ is written as a string; NaN and ±Infinity are strings; a key used twice becomes `key#2`, and a field may never take a reserved key's name. Every line is valid JSON.
+
+## The Default Logger And The Macros
+
+One process-wide logger, for code that should not own one:
 
 ```freebasic
+#import "std/logs"
+using logs
+
+dim as FileSink app = FileSink( "logs/app.log" )
+
+LogInit( @app, LOG_DEBUG )              ' attach a sink, set the level
+DefaultLogger( ).Info( "from anywhere" )
+
+logs.LogInfo( "service starting" )
+logs.LogEventWarn( Str( "path", p ).Int_( "code", c ), "write failed" )
+
+LogShutdown( )                          ' flush and close every sink -- call it last
+```
+
+- std/logs is a module, compiled once, so `DefaultLogger( )` exists **once per program** however many files import it.
+- Before `LogInit` it has no sinks: a library that logs early is silent.
+- The **`FB_LOG`** environment variable (`debug`, `WRN`, `40`, ...) overrides the level `LogInit` is given; an unreadable value is ignored.
+- `LogShutdown` is not automatic. With an AsyncSink it is what keeps the last records.
+
+The macros `logs.LogTrace` ... `logs.LogFatal( m )` and `logs.LogEventTrace` ... `logs.LogEventFatal( fields, m )` log to the default logger and record **where they are written** -- file, line and procedure -- which `showsite` prints. They are exported macros, so they are written qualified.
+
+**Below `LOG_MIN_LEVEL` a macro expands to nothing**, its arguments included -- which is how a trace call costs nothing at all in a release build. Set it in your project's tiko.toml under `[defines]`: a module never sees its importer's `-d` options. A level that is compiled in but switched off at run time still evaluates its message argument.
+
+## When Logging Fails
+
+No function that emits a record returns a Result, and none can raise. This **deliberately breaks** the convention the rest of the standard library follows: std/fs returns `Result( of T, FsError )` from everything fallible, and is right to. The caller of a log function has nothing useful to do with a failure -- the most common context for a log call is already inside an error path -- and a Result that every call site ignores is worse than no Result, because it looks checked.
+
+Silent failure was rejected outright, though: a log file that has been dead since Tuesday and says nothing about it is the worst failure mode this module could have. Mainstream logging libraries reached the same answer, and several grew a second, out-of-band channel to report that the first one broke -- Serilog's SelfLog, Logback's StatusManager, spdlog's err_handler. This module's version:
+
+- every sink counts what it could not write in **`DroppedCount( )`**, which never resets;
+- **`SetLogErrorHandler( @MyHandler )`** installs one process-wide handler, a `LogErrorHandler`: `sub( byref sinkname as ustring, byref reason as ustring, byval oscode as long )`. It is called outside the sink's lock, so it may log; at most once a second per sink, with the number of reports held back; and anything it leaves in ERR is undone;
+- the default, `LogDefaultErrorHandler`, prints one line to stderr;
+- `SetLogErrorHandler( 0 )` silences reporting, and the counters still count.
+
+## Three Renamed Members
+
+Three member names are spelled differently from what you might expect, and all three are the language rather than taste:
+
+| Member | Why |
+| --- | --- |
+| `Int_` | INT is a keyword (TKO0600) |
+| `Ptr_` | PTR is a keyword (TKO0600) |
+| `WithField` | WITH is a statement, so `With` is refused (TKO0600) |
+
+And these are **fine**, which is not obvious, since several of them are intrinsics:
+
+```text
 Str    Val    Error    Time    Log    Bool    Dbl    Span    Msg    Send
 ```
 
-So it is lg.Error( "boom" ), not lg.Error\_( ), and .Val( k, v ) for a LogValue built by hand. Being an intrinsic function is not enough to block a member name; being a KEYWORD or a STATEMENT is.
+So it is `lg.Error( "boom" )`, not `lg.Error_( )`, and `.Val( k, v )` for a LogValue built by hand. Being an intrinsic function is not enough to block a member name; being a keyword or a statement is.
 
-Note that Str SHADOWS the intrinsic STR( ) inside its own type's member bodies -- error 58 if you call STR( ) there. That is why LogValueToText is a free function and not a member.
+Note that the `Str` member **shadows** the intrinsic `STR( )` inside its own type's member bodies: a call to `STR( )` there reaches the member instead. That is why LogValueToText is a free function and not a member.
 
-One more, for anyone deriving from these types: 'type Logger as Logger\_' makes Logger an INCOMPLETE type inside the module, so a member returning a logger by value is declared 'as Logger\_'. Callers write 'dim as Logger'.
+One more, for anyone deriving from these types: `type Logger as Logger_` makes Logger an incomplete type inside the module, so a member returning a logger by value is declared `as Logger_`. Callers write `dim as Logger`.
 
-## NOT In This Phase
+## Not Provided
 
-Phase 1 ships the record, the logger, the builder, TextRenderer and ConsoleSink. Still to come, in order:
-
-```freebasic
-2   JsonRenderer -- one JSON object per line, with the eleven rules
-3   FileSink, size and daily rotation
-4   OnLogError, and the process-wide default logger logs.DefaultLogger( )
-5   logs.LogInfo( m ) and friends -- __FILE__/__LINE__/__FUNCTION__ and
-    compile-time elision below LOG_MIN_LEVEL
-6   AsyncSink over tasks.Channel, with an explicit overflow policy
-```
-
-THE PROCESS-WIDE DEFAULT LOGGER IS logs.DefaultLogger( ). std/logs is a module, compiled once, so its 'dim shared' default logger exists ONCE PER PROGRAM however many files import it. logs.LogInit( @sink, level ) gives it a sink, logs.LogShutdown( ) flushes and closes it, and logs.LogInfo( m ) and the other five level macros write to it. LOG_MIN_LEVEL, which compiles calls below a level away, goes in a tiko.toml's [defines]: a module never sees its importer's -d.
-
-DECLINED, not deferred: OS-native sinks (OutputDebugString, Windows Event Log, syslog), printf-style format strings, sampling and rate limiting, file-based configuration, and a logger hierarchy resolved by dotted name.
+Each was considered and declined: OS-native sinks (OutputDebugString, the Windows Event Log, syslog), printf-style format strings, sampling and rate limiting, file-based configuration, and a logger hierarchy resolved by dotted name. The next section shows how little an OS-native sink takes.
 
 ## Writing Your Own Sink
 
@@ -316,27 +378,29 @@ sub DebugSink.Close( ) : end sub
 function DebugSink.DroppedCount( ) as uint64 : return 0 : end function
 ```
 
-Note that std/logs declares none of the handful of Win32 functions it needs: it resolves them at run time with DYLIBLOAD / DYLIBSYMBOL. Declaring GetStdHandle globally would make any program that includes windows.bi fail with error 4 -- and most programs that want a logger are Win32 programs.
+`Write` must not fail and must not log, and it takes its own lock for the whole write when more than one thread can reach it.
 
-## Measured AND NOT Measured
+std/logs declares none of the handful of Win32 functions it needs itself: it resolves them at run time with DYLIBLOAD / DYLIBSYMBOL. Declaring GetStdHandle at module level would clash with windows.bi in every program that includes it -- and most programs that want a logger are Win32 programs.
 
-Asserted: a filtered call performs no sink write AND no value construction; four threads x 10,000 records through one sink produce an exact line count with no line containing a fragment of another; the text output is byte-exact with colour forced both ways.
+## Measured And Not Measured
 
-NOT measured: throughput. There is no benchmark, so "a lock per sink is cheap enough" is an argument, not a number.
+Asserted: a filtered call performs no sink write **and** no value construction; four threads × 10,000 records through one sink produce an exact line count with no line containing a fragment of another; the text output is byte-exact with colour forced both ways.
 
-NOT observed: ConsoleSink's own serialisation. The thread test drives a capture sink built on the identical mutex-around-render-and-emit pattern; seeing the shipped sink's writes would need a child process with redirected stderr.
+Not measured: throughput. There is no benchmark, so "a lock per sink is cheap enough" is an argument, not a number.
 
-NOT exercised by any test: the Windows CONSOLE path. Under the harness stderr is redirected, so every run took the not-a-tty branch -- WriteConsoleW, the VT-mode enable and the wide encoding have been run by hand only.
+Not observed: ConsoleSink's own serialisation. The thread test drives a capture sink built on the identical mutex-around-render-and-emit pattern; seeing the shipped sink's writes would need a child process with redirected stderr.
+
+Not exercised by any test: the Windows **console** path. Under the harness stderr is redirected, so every run took the not-a-console branch -- WriteConsoleW, the VT-mode enable and the wide encoding have been run by hand only.
 
 ## Tests
 
-logging/logrecord.bas and logger_sinks.bas -- 23 tests, 155 assertions, one block per numbered rule of the design it covers, named after that rule so a failure names what it broke.
+logging/logrecord.bas and logger_sinks.bas -- 23 tests, 155 assertions, one block per numbered rule of the design they cover, named after that rule so a failure names what it broke.
 
-logrecord.bas pins the value layer: all nine constructors round-tripping both TAG and VALUE (a constructor that sets the right tag and loses the value would pass any test that only read the text), sizeof( LogValue ) = 40, the tag numbers themselves so that inserting a tag in the middle fails here rather than silently changing what an old record means, the level spacing, parsing that leaves its out-parameter alone on failure, and the three non-finite doubles built at run time so the compiler cannot fold them away.
+logrecord.bas pins the value layer: all nine constructors round-tripping both tag and value (a constructor that sets the right tag and loses the value would pass any test that only read the text), `sizeof( LogValue ) = 40`, the tag numbers themselves -- so that inserting a tag in the middle fails here rather than silently changing what an old record means -- the level spacing, parsing that leaves its out-parameter alone on failure, and the three non-finite doubles built at run time so the compiler cannot fold them away.
 
-logger_sinks.bas pins the four phase-1 gates, plus what only commits, the parent/child field order and snapshot semantics, and field quoting.
+logger_sinks.bas pins four guarantees -- a filtered event builds no record; two sinks receive the same record, and removing one leaves the other alone; the text output is byte-exact with colour on and off; and four threads to one sink give an exact line count with no line torn -- plus what only commits, the parent/child field order and snapshot semantics, and field quoting.
 
-See also: [Date and Time](Category-Date-and-Time-Chrono) (Instant, TimeSpan, WallClock, Stopwatch), [Filesystem](Category-Filesystem), [Result](Category-Result) (the convention this module breaks), [Goroutines and Channels](Category-Goroutines-and-Channels) (tasks.Channel).
+See also: [Date and Time](Category-Date-and-Time-Chrono) (Instant, TimeSpan, WallClock, Stopwatch), [Filesystem](Category-Filesystem), [Result](Category-Result) (the convention this module breaks), [Goroutines and Channels](Category-Goroutines-and-Channels).
 
 ## API reference
 
