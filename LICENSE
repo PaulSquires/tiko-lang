@@ -2,17 +2,16 @@ tiko-lang -- a FreeBASIC-compatible compiler
 Copyright (C) 2026 Paul Squires
 
 tiko-lang is licensed IN PARTS. The part a file belongs to decides its licence.
-Decision 0015 (docs/architecture/decisions/0015-runtime-independence.md)
-records why.
 
 
 1. THE COMPILER  --  GNU GPL, version 2 or later
 ------------------------------------------------
 
 Everything in this repository that sections 2 to 4 do not name. That is the
-compiler (src/), its tools and build scripts (tools/, build/) and its own tests
-(tests/, except tests/vendor/). It also covers the tiko / tiko.exe binaries built
-from them, including those shipped under toolchains/.
+compiler (src/), its tools and build scripts (tools/, build/), the package
+library (pkg/: std, db, sys, tkl) and its own tests (tests/, except
+tests/vendor/). It also covers the tiko / tiko.exe binaries built from them, and
+the copies of pkg/ shipped under toolchains/.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -50,8 +49,7 @@ Full text: COPYING.LGPL-2.1.
 3. THE DOCUMENTATION  --  GNU FDL, version 1.3 or later
 -------------------------------------------------------
 
-docs/, HANDOFF.md, the README files, and the wiki/ pages marked as tiko-lang
-extensions.
+The README files and the wiki/ pages marked as tiko-lang extensions.
 
     Permission is granted to copy, distribute and/or modify this document
     under the terms of the GNU Free Documentation License, Version 1.3

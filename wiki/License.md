@@ -22,9 +22,10 @@ tiko-lang is its own compiler, written from scratch, and written in tiko. It is 
 | Part | Licence |
 |---|---|
 | The compiler (`src/`, `tools/`, `build/`, and its own `tests/`) and the `tiko` binaries built from it | **GNU GPL v2 or later** (`COPYING`) |
+| The package library (`pkg/`: std, db, sys, tkl), in the repository and in the toolchains | **GNU GPL v2 or later** (`COPYING`) |
 | The runtime, **tiko-rt** (`lib/rt/`), a derivative of fbc's `libfb` | **GNU LGPL v2.1 or later, with a static-linking exception** (`lib/rt/LICENSE`, `COPYING.LGPL-2.1`) |
 | The graphics library, **libtkogfx** (`lib/gfx/`), a derivative of fbc's `gfxlib2` | **LGPL v2.1 or later, same exception** (`lib/gfx/LICENSE`) |
-| tiko's documentation (`docs/`, the READMEs, and the tiko pages here) | **GNU FDL 1.3 or later** |
+| tiko's documentation (the READMEs and the tiko pages here) | **GNU FDL 1.3 or later** |
 
 **Your programs are yours.** Both libraries extend fbc's static-linking exception to themselves, so a program compiled by tiko and linked against them can be distributed on any terms you choose.
 
