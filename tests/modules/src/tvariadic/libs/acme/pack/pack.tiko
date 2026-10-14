@@ -1,0 +1,33 @@
+'' Typed variadics through a module interface: the interface is text, so 'args( ) as T ...'
+'' is written into it and re-parsed by the importer, which then packs its own calls.
+#module "pack"
+public type Arg
+    as long kind
+    as ustring s
+    declare constructor( byval v as longint )
+    declare constructor( byref v as const ustring )
+end type
+constructor Arg( byval v as longint ) : kind = 1 : s = str( v ) : end constructor
+constructor Arg( byref v as const ustring ) : kind = 3 : s = v : end constructor
+
+public function Fmt( byref f as const ustring, args() as const Arg ... ) as ustring
+    dim as ustring r = f
+    for i as integer = lbound( args ) to ubound( args )
+        r &= "|" & args( i ).kind & ":" & args( i ).s
+    next
+    return r
+end function
+
+public function AddUp( nums() as const long ... ) as long
+    dim as long t
+    for i as integer = lbound( nums ) to ubound( nums ) : t += nums( i ) : next
+    return t
+end function
+
+public type Bag
+    as long total
+    declare constructor( xs() as const long ... )
+end type
+constructor Bag( xs() as const long ... )
+    for i as integer = lbound( xs ) to ubound( xs ) : total += xs( i ) : next
+end constructor

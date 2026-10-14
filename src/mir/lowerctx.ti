@@ -1199,7 +1199,7 @@ declare function EmitRtl _
     declare function LowerBareProcCall_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, _
           byref outv as MirValue ) as boolean
-    declare function IsVariadicProc( byref c as Ctx, byval callee as Tko.SymbolId ) as boolean
+    declare function CtorInitVariadic_( byref c as Ctx, byval ctor as Tko.SymbolId, byval slot as long, byval selfv as MirValue ptr, byval cp as Tko.ListPayload ptr ) as boolean : declare function IsVariadicProc( byref c as Ctx, byval callee as Tko.SymbolId ) as boolean : declare function ParamIsVariadic_( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as boolean : declare function PackedElemsInit_( byref c as Ctx, byref base_ as MirValue, byval el as Tko.TypeId, byval first as long, byval n as long ) as boolean : declare function IsWholeArrayArg_( byref c as Ctx, byval argNode as Tko.NodeId ) as boolean : declare function PackTypedVariadic_( byref c as Ctx, byval callee as Tko.SymbolId, byval pidx as long, byval first as long, byval n as long, byref outv as MirValue, byval elWant as Tko.TypeId = Tko.TYPE_NONE ) as boolean   '' typed variadics: lowerparam / lowerarrinit / lowercall
     declare function ParamDefaultAt _
         ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as long ) as Tko.NodeId
     declare function PtrCallDecl_ _

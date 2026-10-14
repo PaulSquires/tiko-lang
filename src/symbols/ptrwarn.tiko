@@ -72,6 +72,7 @@ end function
 private function PwProcMatch_ ( byref c as Ctx, byval a as TypeId, byval b as TypeId, byval depth as long ) as boolean
     if c.types->IsPascal( a ) <> c.types->IsPascal( b ) then return false
     if c.types->IsVariadic( a ) <> c.types->IsVariadic( b ) then return false
+    if c.types->IsTypedVariadic( a ) <> c.types->IsTypedVariadic( b ) then return false
     dim as long n = c.types->ProcParamCount( a )
     if n <> c.types->ProcParamCount( b ) then return false
     if PwMatch_( c, PwResult_( c, c.types->Inner( a ) ), PwResult_( c, c.types->Inner( b ) ), depth + 1 ) = false then return false

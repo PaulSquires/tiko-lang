@@ -514,7 +514,26 @@ private sub CheckProcPtrArgs_ ( byref c as Ctx, byval id as NodeId )
     if c.types->Kind( sig ) <> TK_PROC then return
 
     dim as long np = c.types->ProcParamCount( sig )
-    if lp->count > np then
+    '' A TYPED VARIADIC POINTER packs every argument past the fixed ones, unless one whole
+    '' array is spread: those are judged against its ELEMENT type, never counted.
+    dim as long tvFrom = -1
+    dim as TypeId tvElem = TYPE_NONE
+    if c.types->IsTypedVariadic( sig ) andalso (np > 0) then
+        tvFrom = np - 1
+        tvElem = c.types->Unqualify( c.types->ProcParam( sig, np - 1 ) )
+        if c.types->Kind( tvElem ) = TK_REFERENCE then tvElem = c.types->Unqualify( c.types->Inner( tvElem ) )
+        tvElem = c.types->Inner( tvElem )
+        if lp->count = np then
+            dim as NodeId sa = cast( NodeId, c.ast->children[lp->first + np - 1] )
+            if c.ast->Kind( sa ) = N_CALL then
+                dim as ListPayload ptr sl = @c.ast->lists[cast( long, c.ast->nodes[cast( long, sa )].data )]
+                if (sl->count = 0) andalso (sl->target <> NODE_NONE) then
+                    if c.types->Kind( c.types->Unqualify( c.info->TypeOf_( sl->target ) ) ) = TK_ARRAY then tvFrom = -1
+                end if
+            end if
+        end if
+    end if
+    if (lp->count > np) andalso (tvFrom < 0) then
         if c.types->IsVariadic( sig ) = false then
             c.diags->Report( TKO0773, PointRange( c.ast->Loc( id ) ), _
                              str( lp->count ), str( np ) )
@@ -526,6 +545,13 @@ private sub CheckProcPtrArgs_ ( byref c as Ctx, byval id as NodeId )
     '' handed the callee a string descriptor's address as the number.
     for i as long = 0 to lp->count - 1
         dim as NodeId warg = cast( NodeId, c.ast->children[lp->first + i] )
+        if (tvFrom >= 0) andalso (i >= tvFrom) then
+            if (c.ast->Kind( warg ) = N_ELIDED) orelse ProcPtrArgBad_( c, tvElem, warg ) then
+                c.diags->Report( TKO0698, PointRange( c.ast->Loc( warg ) ) )
+                return
+            end if
+            continue for
+        end if
         if c.ast->Kind( warg ) = N_ELIDED then continue for
         if ProcPtrArgBad_( c, c.types->ProcParam( sig, i ), warg ) then
             c.diags->Report( TKO0698, PointRange( c.ast->Loc( warg ) ) )
@@ -535,6 +561,7 @@ private sub CheckProcPtrArgs_ ( byref c as Ctx, byval id as NodeId )
     dim as NodeId decl = NODE_NONE
     dim as boolean declAsked = false
     for i as long = 0 to np - 1
+        if c.types->IsTypedVariadic( sig ) andalso (i = np - 1) then exit for   '' packs none
         if i < lp->count then
             dim as NodeId arg = cast( NodeId, c.ast->children[lp->first + i] )
             if c.ast->Kind( arg ) <> N_ELIDED then continue for
@@ -597,6 +624,7 @@ private function FirstRequiredMissing_ _
         if prp->op = cast( ushort, TK_ELLIPSIS ) then continue for
         k += 1
         if k <= given then continue for
+        if (c.ast->nodes[cast( long, prm )].flags and NF_VARIADIC) <> 0 then continue for   '' packs none
         if prp->b = NODE_NONE then return k
     next
     return 0
@@ -679,9 +707,12 @@ private sub CheckDirectCallArgs_ ( byref c as Ctx, byval id as NodeId )
 
     dim as long np = 0
     dim as boolean variadic = false
+    '' A TYPED VARIADIC takes any number of arguments too, and none at all.
+    dim as boolean typedVar = false
     for i as long = 0 to pp->count - 1
         dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> N_PARAM then continue for
+        if (c.ast->nodes[cast( long, prm )].flags and NF_VARIADIC) <> 0 then typedVar = true
         if c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )].op = _
            cast( ushort, TK_ELLIPSIS ) then
             variadic = true
@@ -689,6 +720,7 @@ private sub CheckDirectCallArgs_ ( byref c as Ctx, byval id as NodeId )
             np += 1
         end if
     next
+    if typedVar then variadic = true
     dim as string shown = c.names->Spelling( nm )
 
     if lp->count > np then
@@ -724,6 +756,7 @@ private sub CheckDirectCallArgs_ ( byref c as Ctx, byval id as NodeId )
         end if
         dim as NodeId prm = ProcDeclParam_( c.ast, decl, i )
         if prm = NODE_NONE then return
+        if (c.ast->nodes[cast( long, prm )].flags and NF_VARIADIC) <> 0 then return
         if c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )].b = NODE_NONE then
             c.diags->Report( TKO0776, PointRange( c.ast->Loc( id ) ), str( i + 1 ), shown )
             return

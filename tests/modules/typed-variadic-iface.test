@@ -1,0 +1,13 @@
+'' A TYPED VARIADIC THROUGH A MODULE INTERFACE. The interface is source text, so the '...'
+'' after an array parameter is written into it and re-parsed by the importer; a call in
+'' the importing module packs its arguments as a call inside the module would -- a free
+'' function, one over a UDT element with converting constructors, and a constructor.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/tvariadic/libs tests/modules/src/tvariadic/app/main.tiko -o tests/modules/tvariadic.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/modules/tvariadic.exe
+'' RUN: tests/modules/tvariadic.exe
+'' EXPECT-RUN-OUT: hi|3:Quinn|1:42
+'' EXPECT-RUN-OUT:  6 0
+'' EXPECT-RUN-OUT:  9

@@ -137,6 +137,11 @@ namespace Tko
     '' call through the pointer must know, so it is part of the type. Not of the mangled
     '' name: fbc writes a pascal and a cdecl procedure-pointer parameter identically.
     const TF_PASCAL   as ushort = &h0008
+    '' A PROCEDURE TYPE WHOSE LAST PARAMETER IS A TYPED VARIADIC -- 'args( ) as T ...'
+    '' (docs/tiko-params/RFC-0001). The ABI is the array parameter's, so the flag changes
+    '' nothing about the call but how its arguments are written: a call through the
+    '' pointer packs them, as a direct call does.
+    const TF_TYPED_VARIADIC as ushort = &h0010
 
     type TypeInfo
         as ubyte    kind
@@ -345,7 +350,8 @@ namespace Tko
         declare function Unqualify( byval t as TypeId ) as TypeId
         declare function ProcType _
             ( byval ret as TypeId, byref params as TypeIdVec2, _
-              byval variadic as boolean = false, byval pascal_ as boolean = false ) as TypeId
+              byval variadic as boolean = false, byval pascal_ as boolean = false, _
+              byval typedVar as boolean = false ) as TypeId
 
         declare function Kind( byval t as TypeId ) as TypeKind
         declare function BuiltinOf( byval t as TypeId ) as BuiltinType
@@ -359,6 +365,7 @@ namespace Tko
         declare function IsVariadic( byval t as TypeId ) as boolean
         '' A procedure type written 'pascal' -- see TF_PASCAL.
         declare function IsPascal( byval t as TypeId ) as boolean
+        declare function IsTypedVariadic( byval t as TypeId ) as boolean
 
         declare function Layout( byval t as TypeId ) as TypeLayout
         declare function Name( byval t as TypeId ) as string

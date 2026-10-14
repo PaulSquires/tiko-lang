@@ -98,6 +98,19 @@ private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
     end if
 
     if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
+    '' A TYPED VARIADIC -- 'args( ) as T ...' (docs/tiko-params/RFC-0001). fbc 1.20 has no
+    '' such spelling: it is error 7 there, as it was TKO0401 here, so no program means
+    '' anything else by it. Without the '( )' it is refused rather than guessed at.
+    if Peek( p ) = Tko.TK_ELLIPSIS then
+        if (flags and Tko.NF_ARRAY) <> 0 then
+            Advance( p )
+            flags or= Tko.NF_VARIADIC
+        elseif sp.a <> Tko.NODE_NONE then
+            p.diags->Report( Tko.TKO0424, Tko.PointRange( Cur( p ).loc ), _
+                             iif( sp.name <> 0, p.names->Spelling( sp.name ), "args" ) )
+            Advance( p )
+        end if
+    end if
     '' 'byval i as integer => 456' -- '=>' is an exact synonym for '=' here too.
     ''
     '' TWO SIDE-EFFECTING CALLS IN ONE 'orelse' DO NOT BEHAVE. Written as
@@ -211,6 +224,21 @@ sub ParseParamList( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
     for i as long = 0 to params.Count - 1
         p.ast->children.Push( params[i] )
     next
+    '' A TYPED VARIADIC IS THE LAST PARAMETER AND HAS NO DEFAULT -- what the arguments past
+    '' the fixed ones pack into, so nothing can follow it and nothing is left to default.
+    '' One per list falls out of the first rule; so does a C '...' after one.
+    if p.silent = false then
+        for i as long = 0 to params.Count - 1
+            dim as Tko.NodeId vn = cast( Tko.NodeId, params[i] )
+            if p.ast->Kind( vn ) <> Tko.N_PARAM then continue for
+            if (p.ast->nodes[cast( long, vn )].flags and Tko.NF_VARIADIC) = 0 then continue for
+            if i < params.Count - 1 then
+                p.diags->Report( Tko.TKO0973, Tko.PointRange( p.ast->Loc( vn ) ) )
+            elseif p.ast->stmts[cast( long, p.ast->nodes[cast( long, vn )].data )].b <> Tko.NODE_NONE then
+                p.diags->Report( Tko.TKO0974, Tko.PointRange( p.ast->Loc( vn ) ) )
+            end if
+        next
+    end if
 end sub
 
 '' A PROPERTY'S SHAPE -- fbc's errors 190, 191 and 213. A GETTER, which has a result,

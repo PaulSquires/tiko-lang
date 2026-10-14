@@ -1,0 +1,12 @@
+'' A ustring array initialised from an ALL-NARROW concatenation -- '{ bs & "!" }' over a string
+'' bs -- folds narrow and transcodes once, as an assignment does (LowerNarrowChainToU_). The
+'' element initialiser tried only the ustring chain, declined, and stopped the build (TKO0994).
+'' Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/ustr-array-narrow-chain.bas -o tests/codegen/ustrarraynarrowchain.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/ustrarraynarrowchain.exe
+'' RUN: tests/codegen/ustrarraynarrowchain.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: A:bytes!|x|bytesbytes|10

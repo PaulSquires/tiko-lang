@@ -88,6 +88,71 @@ function ArrayDescArg_ _
     return SynthFixedArrayDesc( c, base_, at, outv )
 end function
 
+'' IS THIS ARGUMENT A WHOLE ARRAY -- 'v( )', or a call returning an array? The one-argument
+'' form of a typed variadic that is SPREAD rather than packed: Check's IsArrayArgShape_.
+function IsWholeArrayArg_( byref c as Ctx, byval argNode as Tko.NodeId ) as boolean
+    if argNode = Tko.NODE_NONE then return false
+    dim as Tko.TypeId rt = c.info->TypeOf_( argNode )
+    if rt <> Tko.TYPE_NONE then
+        if c.types->IsDynArray( c.types->Unqualify( rt ) ) then return true
+    end if
+    if c.ast->Kind( argNode ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr lp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, argNode )].data )]
+    if (lp->count <> 0) orelse (lp->target = Tko.NODE_NONE) then return false
+    dim as Tko.TypeId at = c.info->TypeOf_( lp->target )
+    if at = Tko.TYPE_NONE then return false
+    return (c.types->Kind( c.types->Unqualify( at ) ) = Tko.TK_ARRAY)
+end function
+
+'' A TYPED VARIADIC, PACKED (docs/tiko-params/RFC-0001 section 5): the 'n' arguments from
+'' children[first] built into a temporary DYNAMIC array of the parameter's element type --
+'' redimmed to 0 .. n - 1 and initialised in place, element by element, in argument order --
+'' and its descriptor passed. n = 0 passes the empty descriptor. The temporary is a statement
+'' temporary: erased at the end of the statement, which destroys its elements, as every
+'' other argument temporary lives exactly that long.
+function PackTypedVariadic_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval pidx as long, _
+      byval first as long, byval n as long, byref outv as MirValue, _
+      byval elWant as Tko.TypeId = Tko.TYPE_NONE ) as boolean
+
+    '' Through a POINTER there is no callee symbol: the caller passes the element type.
+    dim as Tko.TypeId el = elWant
+    if el = Tko.TYPE_NONE then el = ParamTypeAt( c, callee, pidx )
+    if el = Tko.TYPE_NONE then return false
+    el = c.types->Unqualify( el )
+    dim as Tko.TypeId rt = c.types->DynArrayOf( el, 1 )
+    dim as long slot = NewTempLocal( c, MT_AGG, DescBytesFor( c, 1 ) )
+    if slot < 0 then return false
+    dim as MirValue desc
+    desc.kind = cast( ubyte, MV_LOCAL ) : desc.ty = cast( ubyte, MT_PTR ) : desc.id = slot
+    InitDynArrayDesc( c, desc, rt )
+    if n > 0 then
+        if EmitRedimConst_( c, desc, rt, n ) = false then return false
+        dim as MirValue base_ = DynArrayDataPtr( c, desc )
+        if base_.kind = cast( ubyte, MV_NONE ) then return false
+        if PackedElemsInit_( c, base_, el, first, n ) = false then return false
+    end if
+    c.udtTemps.Push( cast( ulong, slot ) )
+    c.udtTempTypes.Push( cast( ulong, rt ) )
+    outv = desc
+    return true
+end function
+
+'' 'dim as T x = T( a, b, c )' OVER A TYPED VARIADIC CONSTRUCTOR: the arguments through
+'' PushCtorArgs_, which packs them, then the constructor into the slot (or selfv). The
+'' value-first path in LowerCtorInit lowers every argument before the pick and has no
+'' place for a packed array.
+function CtorInitVariadic_ _
+    ( byref c as Ctx, byval ctor as Tko.SymbolId, byval slot as long, _
+      byval selfv as MirValue ptr, byval cp as Tko.ListPayload ptr ) as boolean
+
+    dim as containers.Array( of ulong ) args
+    if PushCtorArgs_( c, ctor, cp->first, cp->count, args ) = false then return false
+    EmitStructorCall( c, ctor, slot, selfv, @args )
+    return true
+end function
+
 #include once "mir/lowerbyref.tiko"
 
 
@@ -314,6 +379,25 @@ function LowerCallParts _
     dim as Tko.NodeId ptrDecl = PtrCallDecl_( c, viaPointer, calleeSigT, calleeNode, nparams )
     dim as long slots = argCount
     if (nparams > slots) andalso (IsVariadicProc( c, callee ) = false) then slots = nparams
+    '' A TYPED VARIADIC, unless SPREAD: one slot, the packed array -- PackTypedVariadic_.
+    dim as long tvAt = -1
+    dim as Tko.TypeId tvEl = Tko.TYPE_NONE   '' through a pointer, the element type off the signature
+    dim as boolean tvHere = (viaPointer = false) andalso (nparams > 0)
+    if tvHere then tvHere = ParamIsVariadic_( c, callee, nparams - 1 + pbase )
+    if viaPointer andalso (nparams > 0) andalso c.types->IsTypedVariadic( calleeSigT ) then
+        tvEl = c.types->Unqualify( c.types->ProcParam( calleeSigT, nparams - 1 + pbase ) )
+        if c.types->Kind( tvEl ) = Tko.TK_REFERENCE then tvEl = c.types->Unqualify( c.types->Inner( tvEl ) )
+        tvEl = c.types->Inner( tvEl )
+        tvHere = (tvEl <> Tko.TYPE_NONE)
+    end if
+    if tvHere then
+        dim as boolean tvSpread = false
+        if argCount = nparams then tvSpread = IsWholeArrayArg_( c, cast( Tko.NodeId, c.ast->children[argFirst + nparams - 1] ) )
+        if tvSpread = false then
+            tvAt = nparams - 1
+            slots = nparams
+        end if
+    end if
 
     '' ARGUMENTS ARE EVALUATED RIGHT TO LEFT, AND THE RECEIVER LAST. Measured over a
     '' 'G( n )' that records its own call, one probe per shape:
@@ -334,6 +418,14 @@ function LowerCallParts _
     if l2r then self_ = ReceiverOf( c, calleeNode, callee )
     for i as long = iif( l2r, 0, slots - 1 ) to iif( l2r, slots - 1, 0 ) step iif( l2r, 1, -1 )
         segFrom[i] = cast( ulong, c.udtTemps.Count )
+        if i = tvAt then
+            dim as MirValue tvv
+            dim as long tvn = argCount - tvAt
+            if tvn < 0 then tvn = 0
+            if PackTypedVariadic_( c, callee, i + pbase, argFirst + tvAt, tvn, tvv, tvEl ) = false then return CallFailed_( c, v, __LINE__ )
+            slotKind[i] = cast( ulong, tvv.kind ) : slotId[i] = cast( ulong, tvv.id )
+            continue for
+        end if
         '' AN ELIDED ARGUMENT TAKES THE DEFAULT TOO. 'locate , 10' is the shape that
         '' says the two are one rule and not two.
         dim as Tko.NodeId argNode = Tko.NODE_NONE
@@ -392,7 +484,15 @@ function LowerCallParts _
         '' A BYDESC ARRAY PARAMETER takes a descriptor pointer, whichever way the
         '' parameter was spelled: the array-ness is the type's, not the passing mode's.
         dim as MirValue adv
-        if ArrayDescArg_( c, argNode, ParamIsArray( c, callee, i + pbase ), adv ) then
+        '' ...and through a POINTER the signature says so: an array parameter is a reference
+        '' to a dynamic array there (ProcTypeParamType_), and the callee symbol is a variable.
+        dim as boolean arrParam = ParamIsArray( c, callee, i + pbase )
+        if viaPointer andalso (calleeSigT <> Tko.TYPE_NONE) then
+            dim as Tko.TypeId spt = c.types->Unqualify( c.types->ProcParam( calleeSigT, i + pbase ) )
+            if c.types->Kind( spt ) = Tko.TK_REFERENCE then spt = c.types->Unqualify( c.types->Inner( spt ) )
+            arrParam = c.types->IsDynArray( spt )
+        end if
+        if ArrayDescArg_( c, argNode, arrParam, adv ) then
             slotKind[i] = cast( ulong, adv.kind )
             slotId[i] = cast( ulong, adv.id )
             continue for

@@ -1,0 +1,13 @@
+'' Arguments a typed variadic cannot pack (docs/tiko-params/RFC-0001), each reported at the
+'' argument: a string for a long element, an elided argument, an array among elements, and
+'' the same through a procedure pointer -- TKO0698; a spread array of another element type --
+'' TKO0687. The two last calls are well formed.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/typed-variadic-args.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: typed-variadic-args.tiko(11,17): error TKO0698
+'' EXPECT-OUT: typed-variadic-args.tiko(12,17): error TKO0698
+'' EXPECT-OUT: typed-variadic-args.tiko(13,20): error TKO0698
+'' EXPECT-OUT: typed-variadic-args.tiko(14,16): error TKO0687
+'' EXPECT-OUT: typed-variadic-args.tiko(15,14): error TKO0698
+'' EXPECT-MAX-DIAG: 5

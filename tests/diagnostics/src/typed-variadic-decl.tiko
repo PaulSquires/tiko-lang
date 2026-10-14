@@ -1,0 +1,24 @@
+'' Declaration rules of a typed variadic (docs/tiko-params/RFC-0001).
+
+sub NoParens( x as long ... )
+end sub
+
+sub NotLast( xs() as long ..., byval y as long )
+end sub
+
+sub WithDefault( xs() as long ... = 0 )
+end sub
+
+type PtrNotLast as sub( () as long ..., byval as long )
+
+declare function DeclOnly( xs() as long ... ) as long
+function DeclOnly( xs() as long ) as long
+    return 0
+end function
+
+declare sub DefOnly( xs() as long )
+sub DefOnly( xs() as long ... )
+end sub
+
+sub Fine( byval a as long, xs() as const long ... )
+end sub

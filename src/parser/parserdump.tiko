@@ -79,7 +79,7 @@ private sub DumpAny _
         end if
     end if
     if (n->flags and Tko.NF_IS_UNION) <> 0 then row += " union"
-    if (n->flags and Tko.NF_SINGLE_LINE) <> 0 then row += " single-line"
+    if (n->flags and Tko.NF_SINGLE_LINE) <> 0 then row += iif( k = Tko.N_PARAM, " variadic", " single-line" )
 
     '' Member visibility lives in 'extra', not in the node flags, so it needs its own
     '' line here -- and without one a 'private:' label is invisible in the dump, which

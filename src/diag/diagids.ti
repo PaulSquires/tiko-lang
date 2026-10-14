@@ -237,6 +237,9 @@
     '' inc/fb gone (2026-10-10) there is nowhere else for it to come from but a program's own
     '' namespace FB stand-in. Reported where the 'FB' it was given does not resolve.
     DIAG( TKO0423, SEV_ERROR,   "'%0' needs '#import ""std/tasks""' in this file (and -mt)" )
+    '' A TYPED VARIADIC IS AN ARRAY PARAMETER -- docs/tiko-params/RFC-0001 -- so 'x as T ...'
+    '' without the '( )' is refused rather than read as a C ellipsis after a parameter.
+    DIAG( TKO0424, SEV_ERROR,   "a typed variadic parameter is an array parameter: write '%0( ) as T ...'" )
 
     '' ------------------------------------------------------------------ semantic
     DIAG( TKO0600, SEV_ERROR,   "'%0' is already declared in this scope" )
@@ -839,6 +842,11 @@
     '' fbc's error 265, "Symbol not a CLASS", over a member of something that has none --
     '' 'x.foo' over a long, 'm.foo( )' over 'type m as long'. See CheckMemberExists_.
     DIAG( TKO0972, SEV_ERROR,   "'%0' has no member named '%1': a '%2' has no members" )
+    '' TYPED VARIADICS (tiko-only; docs/tiko-params/RFC-0001), parser/declparam.tiko (0973, 0974) and
+    '' symbols/defcheck.tiko (0975).
+    DIAG( TKO0973, SEV_ERROR,   "a typed variadic parameter ('...') must be the last parameter" )
+    DIAG( TKO0974, SEV_ERROR,   "a typed variadic parameter ('...') takes no default value" )
+    DIAG( TKO0975, SEV_ERROR,   "'%0' is declared with a typed variadic last parameter ('...') in one place and without it in another" )
     DIAG( TKO0965, SEV_ERROR,   "'%0' has a field with a constructor, which an initializer list cannot fill" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )

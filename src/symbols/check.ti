@@ -83,6 +83,10 @@ namespace Tko.Check
     '' casts to integer, fbc picks the DOUBLE overload, so the second step still ranks.
     const CONV_USERDEF  as long = 200000
     const CONV_NONE     as long = 999999
+    '' A TYPED VARIADIC'S EXPANSION, added once to a candidate that PACKS its arguments, so one
+    '' that matches without packing always wins (docs/tiko-params/RFC-0001). Above CONV_NONE on
+    '' purpose: it is added to a viable total, never compared with a single conversion.
+    const CONV_EXPANDED as long = 5000000
 
     '' The POINTER tiers, measured in tests/types/expected/fbc-ptr.txt.
     ''

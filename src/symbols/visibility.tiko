@@ -613,6 +613,15 @@ private sub CheckBydescArgs_ _
             end if
         end if
         if (c.ast->nodes[cast( long, prm )].flags and NF_ARRAY) = 0 then continue for
+        '' A TYPED VARIADIC IS JUDGED HERE ONLY WHEN SPREAD -- one argument, a whole array.
+        '' Packed arguments are elements, and ResolveCall_ (overloadvar.tiko) judged them.
+        if (c.ast->nodes[cast( long, prm )].flags and NF_VARIADIC) <> 0 then
+            dim as boolean spreadArg = (lp->count = ai) andalso WholeArraySpelling_( c, arg )
+            if (spreadArg = false) andalso (lp->count = ai) andalso (c.info->TypeOf_( arg ) <> TYPE_NONE) then
+                spreadArg = (c.types->Kind( c.types->Unqualify( c.info->TypeOf_( arg ) ) ) = TK_ARRAY)
+            end if
+            if spreadArg = false then exit for
+        end if
         '' 'a( )' IS THE WHOLE-ARRAY SPELLING and is recognised by its SHAPE, not by its
         '' type: an empty subscript list over an array variable types as the ELEMENT
         '' here, so a type test alone refused dim/shared-array-1.bas and -2.bas, which

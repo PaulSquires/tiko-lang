@@ -1,8 +1,87 @@
 '' overloadstr.tiko -- A CONSTANT STRING ARGUMENT, COSTED AS THE LITERAL IT IS.
 ''
-'' Included from overload.tiko, just above ResolveCall_, for the 1500-line lint cap: the
-'' width of a constant string argument, which string parameters that width is asked of,
+'' Included from overload.tiko, just above ResolveCall_, for the 1500-line lint cap: whether
+'' a concatenation is a ustring or a wide one (moved here unchanged), the width of a constant
+'' string argument, which string parameters that width is asked of,
 '' and what a CONST string costs against a byval one.
+
+'' Whether a string concatenation has a USTRING term anywhere in it -- see ResolveCall_.
+'' A '+' counts only where it is itself a string operation; 'u & (n + 1)' has none.
+private function ConcatHasUString_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    '' A PARENTHESISED CHAIN IS LOOKED INTO. Measured, '#print typeof( ucase( "x" & ( u &
+    '' "y" ) ) )' is USTRING; typed STRING, 'print' of it went to fb_PrintString.
+    if c.ast->Kind( id ) = Tko.N_PAREN then
+        dim as Tko.ListPayload ptr pp = _
+            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+        if pp->count <> 1 then return false
+        return ConcatHasUString_( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
+    end if
+    dim as Tko.TypeId t = TypeOf_( c, id )
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return UdtCastsToUStr_( c, u )   '' a UDT term casting to a ustring (T50)
+    dim as Tko.BuiltinType bt = c.types->BuiltinOf( u )
+    if bt = Tko.TY_USTRING then return true
+    if c.ast->Kind( id ) <> Tko.N_BINARY then return false
+    if bt <> Tko.TY_STRING then return false
+    dim as Tko.BinaryPayload ptr bp = _
+        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+    dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
+    if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return false
+    if ConcatHasUString_( c, bp->lhs ) then return true
+    return ConcatHasUString_( c, bp->rhs )
+end function
+
+'' Whether an UNTYPED '+' or '&' concatenation has a term whose UDT casts to WSTRING and
+'' to no other string -- see ResolveCall_. AfxNova's DWSTRING concatenates that way,
+'' through 'cast( ) byref as const wstring', and Check leaves the result untyped because
+'' lowering decides the width per term. fbc types it: measured, '#print typeof( a + " 2026" )'
+'' over such a type is WSTRING * 1, and 'mk( a + " 2027" )' calls the wstring overload
+'' of 'mk' even with a 'byval n as long' one declared first.
+private function ConcatHasWideCastTerm_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    dim as Tko.TypeId t = TypeOf_( c, id )
+    if c.ast->Kind( id ) = Tko.N_BINARY then
+        '' A TYPED binary is some other operation -- a user 'operator +' among them.
+        if t <> Tko.TYPE_NONE then return false
+        dim as Tko.BinaryPayload ptr bp = _
+            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
+        dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
+        if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return false
+        if ConcatHasWideCastTerm_( c, bp->lhs ) then return true
+        return ConcatHasWideCastTerm_( c, bp->rhs )
+    end if
+    if t = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) <> Tko.TK_UDT then return false
+    dim as boolean hasWide = false
+    dim as Tko.SymbolId cs = UdtMemberSym_( c, u, "cast" )
+    while cs <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cs )
+        if cse = 0 then exit while
+        if cse->type_ <> Tko.TYPE_NONE then
+            dim as Tko.TypeId ru = c.types->Unqualify( cse->type_ )
+            if c.types->Kind( ru ) = Tko.TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
+            if c.types->Kind( ru ) = Tko.TK_BUILTIN then
+                select case c.types->BuiltinOf( ru )
+                case Tko.TY_WSTRING
+                    hasWide = true
+                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_USTRING
+                    return false
+                end select
+            end if
+        end if
+        cs = cse->nextOverload
+    wend
+    return hasWide
+end function
 
 '' A CONSTANT STRING ARGUMENT, and its width: 1 narrow, 2 wide, 3 a numeric literal (a
 '' constant with no width, which '&' may join to a string), 0 anything else.

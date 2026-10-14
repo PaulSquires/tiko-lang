@@ -1,0 +1,172 @@
+'' TYPED VARIADICS -- 'args( ) as T ...' (docs/tiko-params/RFC-0001). The arguments past the
+'' fixed parameters are packed into an array of T, each converted as for a 'byref as const T'
+'' parameter (constructors included); one whole array is spread instead. Every line below is
+'' checked by typed-variadic-run.test.
+
+dim shared as long nCtor, nCopy, nDtor
+
+type FArg
+    as long kind
+    as ustring s
+    declare constructor( byval v as longint )
+    declare constructor( byval v as double )
+    declare constructor( byref v as const ustring )
+    declare constructor( byref v as const string )
+end type
+constructor FArg( byval v as longint ) : kind = 1 : s = str( v ) : end constructor
+constructor FArg( byval v as double ) : kind = 2 : s = str( v ) : end constructor
+constructor FArg( byref v as const ustring ) : kind = 3 : s = v : end constructor
+constructor FArg( byref v as const string ) : kind = 4 : s = v : end constructor
+
+type Counted
+    as long v
+    as string pad
+    declare constructor( byval x as long )
+    declare constructor( byref o as const Counted )
+    declare destructor( )
+end type
+constructor Counted( byval x as long ) : v = x : pad = "p" & x : nCtor += 1 : end constructor
+constructor Counted( byref o as const Counted ) : v = o.v : pad = o.pad : nCopy += 1 : end constructor
+destructor Counted( ) : nDtor += 1 : end destructor
+
+'' ---------------------------------------------------------------- free procedures
+
+function AddUp( nums() as const long ... ) as long
+    dim as long t
+    for i as integer = lbound( nums ) to ubound( nums )
+        t += nums( i )
+    next
+    return t
+end function
+
+function Bounds( nums() as const long ... ) as string
+    return lbound( nums ) & ".." & ubound( nums )
+end function
+
+function Fmt overload( byref f as const ustring, args() as const FArg ... ) as ustring
+    dim as ustring r = f
+    for i as integer = lbound( args ) to ubound( args )
+        r &= "|" & args( i ).kind & ":" & args( i ).s
+    next
+    return r
+end function
+function Fmt overload( byval n as long ) as ustring
+    return "plain " & n
+end function
+
+sub Pick overload( byval a as long )
+    print "pick-long"; a
+end sub
+sub Pick overload( xs() as const long ... )
+    print "pick-var"; ubound( xs ) + 1
+end sub
+
+sub Fixed( byval a as long, byval b as long = 5, xs() as const long ... )
+    dim as long t = a * 100 + b * 10
+    for i as integer = 0 to ubound( xs ) : t += xs( i ) : next
+    print "fixed"; t
+end sub
+
+sub Words( xs() as const string ... )
+    dim as string r
+    for i as integer = 0 to ubound( xs ) : r &= "[" & xs( i ) & "]" : next
+    print "words "; r
+end sub
+
+function Join( xs() as const ustring ... ) as ustring
+    dim as ustring r
+    for i as integer = 0 to ubound( xs ) : r &= xs( i ) & ";" : next
+    return r
+end function
+
+function SumCounted( xs() as const Counted ... ) as long
+    dim as long t
+    for i as integer = 0 to ubound( xs ) : t += xs( i ).v : next
+    return t
+end function
+
+function MkCounted( byval x as long ) as Counted
+    return Counted( x )
+end function
+
+function CountOf( of T )( xs() as const T ... ) as long
+    return ubound( xs ) - lbound( xs ) + 1
+end function
+
+'' ---------------------------------------------------------------- members
+
+type Shape extends object
+    as long tag
+    declare virtual function Total( xs() as const long ... ) as long
+end type
+function Shape.Total( xs() as const long ... ) as long
+    return -1
+end function
+type Circle extends Shape
+    declare function Total( xs() as const long ... ) as long override
+end type
+function Circle.Total( xs() as const long ... ) as long
+    dim as long t = 1000
+    for i as integer = 0 to ubound( xs ) : t += xs( i ) : next
+    return t
+end function
+
+type Bag
+    as long total, n
+    declare constructor( xs() as const long ... )
+    declare sub Add( xs() as const long ... )
+    declare static function Count( xs() as const long ... ) as long
+end type
+constructor Bag( xs() as const long ... )
+    n = ubound( xs ) - lbound( xs ) + 1
+    for i as integer = lbound( xs ) to ubound( xs ) : total += xs( i ) : next
+end constructor
+sub Bag.Add( xs() as const long ... )
+    for i as integer = 0 to ubound( xs ) : total += xs( i ) : n += 1 : next
+end sub
+function Bag.Count( xs() as const long ... ) as long
+    return ubound( xs ) - lbound( xs ) + 1
+end function
+
+'' ---------------------------------------------------------------- calls
+
+dim as string bs = "bytes"
+dim as ustring who = "Quinn"
+dim as long arr( 0 to 2 ) = { 4, 5, 6 }
+
+print "addup "; AddUp( 1, 2, 3 ); AddUp( 7 ); AddUp( ); AddUp( arr( ) ); AddUp( 1.6, 2 )
+print "bounds "; Bounds( ); " "; Bounds( 9, 9 )
+print Fmt( "hello", who )
+print Fmt( "mixed", 42, 2.5, bs, "lit", bs & "!" )
+print Fmt( "none" )
+print Fmt( 7 )
+dim as FArg pre( 0 to 1 ) = { FArg( "x" ), FArg( 9 ) }
+print Fmt( "spread", pre( ) )
+Pick( 1 )
+Pick( 1, 2 )
+Pick( )
+Fixed( 1 )
+Fixed( 1, 2 )
+Fixed( 1, 2, 3, 4 )
+Words( "a", bs, bs & "!", "z" )
+print "join "; Join( "a", bs, bs & "!", who )
+print "counted "; SumCounted( 1, 2, 3 ); " ctor="; nCtor; " copy="; nCopy; " dtor="; nDtor
+print "counted "; SumCounted( Counted( 5 ), MkCounted( 6 ) ); " ctor="; nCtor; " copy="; nCopy; " dtor="; nDtor
+
+dim as Circle k
+dim as Shape ptr ps = @k
+print "virtual "; ps->Total( 1, 2, 3 ); k.Total( ); k.Total( 4 )
+
+dim as Bag b1 = Bag( 1, 2, 3 )
+dim as Bag b2 = Bag( 9 )
+dim as Bag b3 = Bag( )
+dim as Bag b4 = Bag( arr( ) )
+b1.Add( 10, 20 )
+print "bag "; b1.total; b1.n; b2.total; b2.n; b3.n; b4.total; Bag.Count( 4, 5 ); Bag.Count( )
+var pb = new Bag( 7, 8 )
+print "new "; pb->total; pb->n
+delete pb
+
+dim as function( xs() as const long ... ) as long fp = @AddUp
+print "pointer "; fp( 1, 2, 3, 4 ); fp( ); fp( arr( ) )
+print "generic "; CountOf( of long )( 1, 2, 3 ); CountOf( of string )( "a", "b" ); CountOf( 1.5, 2.5 )

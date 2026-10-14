@@ -1,0 +1,2 @@
+sub S( byval k as long, nums() as const long ... )
+end sub

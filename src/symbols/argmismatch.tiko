@@ -309,6 +309,8 @@ private function AmBadPair_ _
     return false
 end function
 
+declare function PackedArgCost_( byref c as Ctx, byval an as Tko.NodeId, byval prm as Tko.NodeId, byval at as Tko.TypeId, byval pt as Tko.TypeId, byval overloaded as boolean ) as long   '' overloadvar.tiko
+declare function TypedVariadicSpread_( byref c as Ctx, byval nFixed as long, byval argFirst as long, byval argCount as long ) as boolean
 declare function UserConvCost_ _
     ( byref c as Ctx, byval from_ as Tko.TypeId, byval to_ as Tko.TypeId, _
       byval depth as long = 0, byval overloaded as boolean = false ) as long
@@ -368,6 +370,21 @@ private sub ReportArgMismatch_ _
         if ai >= argT.Count then exit for
         dim as Tko.StmtPayload ptr sp = StmtOf( c, prm )
         if sp->op = cast( ushort, Tko.TK_ELLIPSIS ) then exit for
+        '' A TYPED VARIADIC THAT IS PACKED: the first argument that is no element (overloadvar.tiko).
+        if ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_VARIADIC) <> 0) andalso _
+           (TypedVariadicSpread_( c, ai, argFirst, argCount ) = false) then
+            dim as Tko.TypeId vpt = c.info->TypeOf_( sp->a )
+            for k as long = ai to argCount - 1
+                dim as Tko.TypeId vat = Tko.TYPE_NONE
+                if k < argT.Count then vat = cast( Tko.TypeId, argT[k] )
+                dim as Tko.NodeId van = cast( Tko.NodeId, c.ast->children[argFirst + k] )
+                if PackedArgCost_( c, van, prm, vat, vpt, false ) >= CONV_NONE then
+                    c.diags->Report( Tko.TKO0698, Tko.PointRange( c.ast->Loc( van ) ) )
+                    exit sub
+                end if
+            next
+            exit sub
+        end if
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + ai] )
         dim as Tko.TypeId at = cast( Tko.TypeId, argT[ai] )
         ai += 1

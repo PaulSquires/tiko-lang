@@ -364,5 +364,15 @@ private sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
             c.diags->AddNote( TKO0901, PointRange( c.ast->Loc( decl ) ) )
             return
         end if
+        '' ...AND THE SAME '...': a typed variadic is the same signature as the array parameter
+        '' it is (it mangles alike), but a call packs only through the declaration that says so.
+        dim as NodeId vpa = DefParamAt_( c, dp, i ), vpb = DefParamAt_( c, sp, i )
+        if (vpa <> NODE_NONE) andalso (vpb <> NODE_NONE) then
+            if ((c.ast->nodes[cast( long, vpa )].flags xor c.ast->nodes[cast( long, vpb )].flags) and NF_VARIADIC) <> 0 then
+                c.diags->Report( TKO0975, PointRange( c.ast->Loc( id ) ), DefName_( c, sp ) )
+                c.diags->AddNote( TKO0901, PointRange( c.ast->Loc( decl ) ) )
+                return
+            end if
+        end if
     next
 end sub

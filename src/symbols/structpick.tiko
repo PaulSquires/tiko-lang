@@ -294,17 +294,31 @@ function PickStructor _
             for i as long = 0 to pp->count - 1
                 if ast.Kind( cast( Tko.NodeId, ast.children[pp->first + i] ) ) = Tko.N_PARAM then np += 1
             next
+            '' A TYPED VARIADIC LAST PARAMETER takes any number of arguments past the fixed
+            '' ones, each costed against its element type (docs/tiko-params/RFC-0001). This
+            '' sees TYPES only, so a spread 'T( a( ) )' and a one-element 'T( x )' cost alike
+            '' and pick the same constructor; lowering, which has the nodes, tells them apart.
+            dim as Tko.NodeId tvp = Tko.NODE_NONE
+            for i as long = pp->count - 1 to 0 step -1
+                dim as Tko.NodeId lp_ = cast( Tko.NodeId, ast.children[pp->first + i] )
+                if ast.Kind( lp_ ) <> Tko.N_PARAM then continue for
+                if (ast.nodes[cast( long, lp_ )].flags and Tko.NF_VARIADIC) <> 0 then tvp = lp_
+                exit for
+            next
+            if tvp <> Tko.NODE_NONE then np -= 1
             '' A CONSTRUCTOR WITH DEFAULTED TRAILING PARAMETERS IS VIABLE FOR THE SHORTER
             '' CALL. 'constructor( byval c as long, byval os as long = 0 )' answers 'A( 5 )'
             '' -- measured, fbc emits '_ZN1AC1Eii( &A1, 5, 0 )' -- and exact arity alone
             '' found none, so 'dim as A a1 = A( 5 )' default-constructed and then copied.
             dim as boolean arityOk = (np = argT.Count)
+            if (tvp <> Tko.NODE_NONE) andalso (argT.Count >= np) then arityOk = true
             if (arityOk = false) andalso (np > argT.Count) then
                 arityOk = true
                 dim as long sd = 0
                 for i as long = 0 to pp->count - 1
                     dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
                     if ast.Kind( prm ) <> Tko.N_PARAM then continue for
+                    if prm = tvp then exit for
                     if sd >= argT.Count then
                         if SpStmt_( ast, prm )->b = Tko.NODE_NONE then
                             arityOk = false
@@ -321,6 +335,7 @@ function PickStructor _
                 for i as long = 0 to pp->count - 1
                     dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
                     if ast.Kind( prm ) <> Tko.N_PARAM then continue for
+                    if prm = tvp then exit for   '' packed below
                     '' The defaulted tail costs nothing: there is no argument to convert.
                     if ai >= argT.Count then exit for
                     dim as Tko.TypeId at2 = cast( Tko.TypeId, argT[ai] )
@@ -346,8 +361,29 @@ function PickStructor _
                     end if
                     total += cost
                 next
+                if viable andalso (tvp <> Tko.NODE_NONE) then
+                    dim as Tko.TypeId vpt = info.TypeOf_( SpStmt_( ast, tvp )->a )
+                    dim as boolean spread = (argT.Count = ai + 1)
+                    for k as long = ai to argT.Count - 1
+                        dim as Tko.TypeId vat = cast( Tko.TypeId, argT[k] )
+                        if vat <> Tko.TYPE_NONE then
+                            if types.Kind( vat ) = Tko.TK_ARRAY then vat = types.Inner( vat ) else spread = false
+                        end if
+                        dim as long vc = ConversionCost( vat, vpt, types )
+                        if vc >= CONV_NONE then vc = StructorUserConvCost( ast, syms, types, names, info, vat, vpt )
+                        if vc >= CONV_NONE then vc = StructorCastCost( ast, syms, types, names, vat, vpt )
+                        if vc >= CONV_NONE then
+                            viable = false
+                            exit for
+                        end if
+                        total += vc
+                    next
+                    if viable andalso (spread = false) then total += CONV_EXPANDED
+                end if
                 if viable then
-                    if total < bestCost then
+                    '' THE FIRST VIABLE CANDIDATE IS KEPT WHATEVER IT COSTS, as in ResolveCall_: a
+                    '' packed typed variadic's total is above CONV_NONE by design (CONV_EXPANDED).
+                    if (best = Tko.SYMBOL_NONE) orelse (total < bestCost) then
                         bestCost = total
                         best = cur
                         ties = 0

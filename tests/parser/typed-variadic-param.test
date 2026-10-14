@@ -1,0 +1,7 @@
+'' A typed variadic parameter parses as an array parameter marked 'variadic'
+'' (docs/tiko-params/RFC-0001).
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/typed-variadic-param.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: N_PARAM 'nums' array variadic
+'' EXPECT-OUT: N_PARAM 'k'

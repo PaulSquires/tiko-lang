@@ -1,0 +1,17 @@
+'' Arguments a typed variadic cannot pack (docs/tiko-params/RFC-0001).
+
+function AddUp( nums() as const long ... ) as long
+    return 0
+end function
+
+dim as long arr( 0 to 1 )
+dim as double dd( 0 to 1 )
+dim as function( xs() as const long ... ) as long fp = @AddUp
+
+print AddUp( 1, "x" )
+print AddUp( 1, , 2 )
+print AddUp( 1, arr( ) )
+print AddUp( dd( ) )
+print fp( 1, "y" )
+print AddUp( 1, 2, 3 )
+print fp( 4, 5 )

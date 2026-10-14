@@ -1,0 +1,6 @@
+#import "acme/pack"
+dim as ustring who = "Quinn"
+print pack.Fmt( "hi", who, 42 )
+print pack.AddUp( 1, 2, 3 ); pack.AddUp( )
+dim as pack.Bag b = pack.Bag( 4, 5 )
+print b.total

@@ -708,6 +708,8 @@ function LowerCtorInit _
             preT.Push( cast( ulong, CtorArgTypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) ) )
         next
         dim as Tko.SymbolId pre = PickCtor( c, ctors, preT )
+        '' A TYPED VARIADIC CONSTRUCTOR packs its arguments -- CtorInitVariadic_ (lowercall.tiko).
+        if pre <> Tko.SYMBOL_NONE then if ParamIsVariadic_( c, pre, ParamCountOf( c, pre ) - 1 ) then return CtorInitVariadic_( c, pre, slot, selfv, cp )
         if pre = Tko.SYMBOL_NONE then
             if ImplicitCopyCall_( c, slot, t, cp, selfv ) then return true
         end if
@@ -1164,6 +1166,18 @@ function PushCtorArgs_ _
     for i as long = 0 to count - 1
         dim as Tko.NodeId ae = cast( Tko.NodeId, c.ast->children[first_ + i] )
 
+        '' A TYPED VARIADIC takes every argument from here on, packed -- unless it is ONE
+        '' whole array, which is spread and passed below like any array argument.
+        if ParamIsVariadic_( c, ctor, pi ) then
+            if (count - i <> 1) orelse (IsWholeArrayArg_( c, ae ) = false) then
+                dim as MirValue tvv
+                if PackTypedVariadic_( c, ctor, pi, first_ + i, count - i, tvv ) = false then return false
+                args.Push( cast( ulong, tvv.kind ) ) : args.Push( cast( ulong, tvv.id ) )
+                pi += 1
+                exit for
+            end if
+        end if
+
         '' AN ARRAY ARGUMENT TAKES A DESCRIPTOR, in a constructor call as much as in
         '' any other. Measured: fbc builds a static descriptor for a fixed-length
         '' array and passes its address --
@@ -1231,6 +1245,14 @@ function PushCtorArgs_ _
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if seen2 >= pi then
             dim as Tko.StmtPayload ptr dp = StmtOf( c, prm )
+            '' ...and a typed variadic no argument reached is the EMPTY pack.
+            if (c.ast->nodes[cast( long, prm )].flags and Tko.NF_VARIADIC) <> 0 then
+                dim as MirValue tve
+                if PackTypedVariadic_( c, ctor, seen2, 0, 0, tve ) = false then return false
+                args.Push( cast( ulong, tve.kind ) ) : args.Push( cast( ulong, tve.id ) )
+                seen2 += 1
+                continue for
+            end if
             if dp->b = Tko.NODE_NONE then return false
             dim as Tko.TypeId dt = c.info->TypeOf_( dp->a )
             dim as MirValue dv

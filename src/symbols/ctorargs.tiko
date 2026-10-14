@@ -110,7 +110,8 @@ private function CheckCtorArity_ _
             dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
             if c.ast->Kind( prm ) <> N_PARAM then continue for
             dim as StmtPayload ptr psp = @c.ast->stmts[cast( long, c.ast->nodes[cast( long, prm )].data )]
-            if psp->op = cast( ushort, TK_ELLIPSIS ) then
+            '' ...a TYPED variadic ('args( ) as T ...') takes any count, none included.
+            if (psp->op = cast( ushort, TK_ELLIPSIS )) orelse ((c.ast->nodes[cast( long, prm )].flags and NF_VARIADIC) <> 0) then
                 variadic = true
                 continue for
             end if

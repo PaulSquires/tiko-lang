@@ -1,0 +1,12 @@
+'' A whole array -- fixed or dynamic -- passed through a procedure pointer to an array
+'' parameter takes a descriptor, as a direct call's does. Lowering asked the callee SYMBOL
+'' whether the parameter is an array, and through a pointer that symbol is a variable, so
+'' the call declined (TKO0994); the signature answers. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/procptr-array-arg.bas -o tests/codegen/procptrarrayarg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/procptrarrayarg.exe
+'' RUN: tests/codegen/procptrarrayarg.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: P: 15 30

@@ -378,7 +378,10 @@ private function UStrElemInit_ _
     FlattenConcat( c, e, terms )
     if terms.Count <> 1 then
         ZeroStrDescriptor( c, dst )
-        return LowerUStrChain( c, dst, true, terms, true )
+        if LowerUStrChain( c, dst, true, terms, true ) then return true
+        '' AN ALL-NARROW CHAIN folds narrow and transcodes once, as an assignment's does
+        '' (LowerStringAssignTo_): '{ bs & "!" }' into a ustring array declined (TKO0994).
+        return LowerNarrowChainToU_( c, dst, terms, true )
     end if
     dim as Tko.NodeId t0 = cast( Tko.NodeId, terms[0] )
     dim as long tf0 = StrTermFlavour_( c, t0 )
@@ -439,6 +442,54 @@ private function LowerStrArrayInit_ _
             if UStrElemInit_( c, ea, e ) = false then return false
         elseif StrInitFrom_( c, ea, e ) = false then
             return false
+        end if
+    next
+    return true
+end function
+
+'' THE ELEMENTS OF A PACKED TYPED VARIADIC (docs/tiko-params/RFC-0001): 'n' argument nodes
+'' from children[first], each initialised in place at base_ + k * sizeof( el ), as the
+'' element of a brace initialiser is -- fb_StrInit / fb_UStrInit for a string, construction
+'' for a UDT (a converting constructor included), a coerced store for a scalar. A
+'' fixed-length string element is not taken: the caller declines.
+function PackedElemsInit_ _
+    ( byref c as Ctx, byref base_ as MirValue, byval el as Tko.TypeId, _
+      byval first as long, byval n as long ) as boolean
+
+    el = c.types->Unqualify( el )
+    dim as long esz = SizeOfType( c, el )   '' a UDT's layout is not the TypeContext's
+    if esz <= 0 then return false
+    dim as longint fen
+    dim as long fek = StrSwapKind_( c, el, fen )
+    if (fek >= 1) andalso (fek <= 4) then return false
+    dim as boolean isStr = IsStringType( c, el )
+    dim as MirType emt = LowerType( el, *c.types )
+    if (isStr = false) andalso (emt = MT_AGG) andalso (c.types->Kind( el ) <> Tko.TK_UDT) then return false
+    if emt = MT_VOID then return false
+    for k as long = 0 to n - 1
+        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[first + k] )
+        dim as MirInst fa
+        fa.op = cast( ushort, M_FIELD_ADDR ) : fa.ty = cast( ubyte, MT_PTR )
+        fa.a = base_ : fa.imm = k * esz
+        dim as MirValue ea = Emit( c, fa )
+        if ea.kind = cast( ubyte, MV_NONE ) then return false
+        if isStr then
+            if IsUStringType( c, el ) then
+                if UStrElemInit_( c, ea, e ) = false then return false
+            elseif StrInitFrom_( c, ea, e ) = false then
+                return false
+            end if
+        elseif emt = MT_AGG then
+            if LowerUdtElemInit_( c, ea, el, e ) = false then return false
+        else
+            dim as boolean udtNum = IsUdtValue_( c, e ) andalso (emt <> MT_PTR)
+            dim as MirValue ev
+            if udtNum then ev = LowerNumArg_( c, e, emt ) else ev = LowerExpr( c, e )
+            if ev.kind = cast( ubyte, MV_NONE ) then return false
+            dim as MirInst st
+            st.op = cast( ushort, M_STORE ) : st.ty = cast( ubyte, MT_VOID ) : st.a = ea
+            if udtNum then st.b = ev else st.b = CoerceTy( c, ev, emt, c.info->TypeOf_( e ), el )
+            Emit( c, st )
         end if
     next
     return true

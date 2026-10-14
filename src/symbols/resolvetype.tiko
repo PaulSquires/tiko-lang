@@ -375,6 +375,7 @@ function ResolveTypeRefAt_ _
         end if
         dim as Tko.TypeIdVec2 ps
         dim as boolean pVariadic = false
+        dim as boolean pTyped = false   '' a typed variadic last parameter -- TF_TYPED_VARIADIC
         dim as boolean pAnyNone = false
         for i as long = 0 to sp->count - 1
             dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
@@ -395,11 +396,12 @@ function ResolveTypeRefAt_ _
             if pp->b <> Tko.NODE_NONE then WalkExpr( c, pp->b, scope_ )
             dim as Tko.TypeId pt = ProcTypeParamType_( c, prm, scope_ )
             if pt = Tko.TYPE_NONE then pAnyNone = true
+            pTyped = ((c.ast->nodes[cast( long, prm )].flags and Tko.NF_VARIADIC) <> 0)
             ps.Push( cast( ulong, pt ) )
         next
         dim as Tko.TypeId pf = _
             c.types->Pointer_( c.types->ProcType( ret, ps, pVariadic, _
-                                                  (sp->extra and Tko.PF_PASCAL) <> 0 ) )
+                                                  (sp->extra and Tko.PF_PASCAL) <> 0, pTyped ) )
         '' A RESULT THAT NAMED SOMETHING NOT DECLARED YET leaves the procedure type
         '' with NO result, and nothing downstream can tell that apart from 'sub'.
         '' win/windef.bi writes 'type LRESULT as LONG_PTR' sixteen lines before it

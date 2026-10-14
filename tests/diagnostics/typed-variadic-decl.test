@@ -1,0 +1,14 @@
+'' The declaration rules of a typed variadic (docs/tiko-params/RFC-0001): '...' after a
+'' non-array parameter (TKO0424), one that is not the last parameter -- in a procedure and
+'' in a procedure type (TKO0973) -- one with a default (TKO0974), and a declaration and its
+'' definition that disagree on it (TKO0975). The last procedure is well formed.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/typed-variadic-decl.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: typed-variadic-decl.tiko(3,25): error TKO0424
+'' EXPECT-OUT: typed-variadic-decl.tiko(6,14): error TKO0973
+'' EXPECT-OUT: typed-variadic-decl.tiko(9,18): error TKO0974
+'' EXPECT-OUT: typed-variadic-decl.tiko(12,25): error TKO0973
+'' EXPECT-OUT: typed-variadic-decl.tiko(15,1): error TKO0975
+'' EXPECT-OUT: typed-variadic-decl.tiko(20,1): error TKO0975
+'' EXPECT-MAX-DIAG: 6

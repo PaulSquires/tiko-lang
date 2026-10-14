@@ -1,0 +1,35 @@
+'' TYPED VARIADICS (docs/tiko-params/RFC-0001), run end to end: packing none, one and many;
+'' spreading a whole array; element conversion through constructors, including into an
+'' OVERLOADED procedure; a non-packing overload winning; fixed and defaulted parameters
+'' before the variadic; string, ustring and UDT elements, each constructed once and destroyed
+'' once at the end of the statement; instance, static and virtual members; constructors
+'' ('dim .. = T( .. )', 'new', the empty and the spread forms); procedure pointers; generics.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -exx tests/codegen/src/typed-variadic.tiko -o tests/codegen/typedvariadic.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/typedvariadic.exe
+'' RUN: tests/codegen/typedvariadic.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: addup  6 7 0 15 4
+'' EXPECT-RUN-OUT: bounds 0..-1 0..1
+'' EXPECT-RUN-OUT: hello|3:Quinn
+'' EXPECT-RUN-OUT: mixed|1:42|2:2.5|4:bytes|4:lit|4:bytes!
+'' EXPECT-RUN-OUT: none
+'' EXPECT-RUN-OUT: plain 7
+'' EXPECT-RUN-OUT: spread|4:x|1:9
+'' EXPECT-RUN-OUT: pick-long 1
+'' EXPECT-RUN-OUT: pick-var 2
+'' EXPECT-RUN-OUT: pick-var 0
+'' EXPECT-RUN-OUT: fixed 150
+'' EXPECT-RUN-OUT: fixed 120
+'' EXPECT-RUN-OUT: fixed 127
+'' EXPECT-RUN-OUT: words [a][bytes][bytes!][z]
+'' EXPECT-RUN-OUT: join a;bytes;bytes!;Quinn;
+'' EXPECT-RUN-OUT: counted  6 ctor= 3 copy= 0 dtor= 3
+'' EXPECT-RUN-OUT: counted  11 ctor= 5 copy= 1 dtor= 6
+'' EXPECT-RUN-OUT: virtual  1006 1000 1004
+'' EXPECT-RUN-OUT: bag  36 5 9 1 0 15 2 0
+'' EXPECT-RUN-OUT: new  15 2
+'' EXPECT-RUN-OUT: pointer  10 0 15
+'' EXPECT-RUN-OUT: generic  3 2 2

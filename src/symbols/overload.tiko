@@ -704,85 +704,8 @@ private function BareTypeLiteral_ _
     return (lp->target = Tko.NODE_NONE)
 end function
 
-'' Whether a string concatenation has a USTRING term anywhere in it -- see ResolveCall_.
-'' A '+' counts only where it is itself a string operation; 'u & (n + 1)' has none.
-private function ConcatHasUString_ _
-    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
-
-    if id = Tko.NODE_NONE then return false
-    '' A PARENTHESISED CHAIN IS LOOKED INTO. Measured, '#print typeof( ucase( "x" & ( u &
-    '' "y" ) ) )' is USTRING; typed STRING, 'print' of it went to fb_PrintString.
-    if c.ast->Kind( id ) = Tko.N_PAREN then
-        dim as Tko.ListPayload ptr pp = _
-            @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
-        if pp->count <> 1 then return false
-        return ConcatHasUString_( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
-    end if
-    dim as Tko.TypeId t = TypeOf_( c, id )
-    if t = Tko.TYPE_NONE then return false
-    dim as Tko.TypeId u = c.types->Unqualify( t )
-    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
-    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return UdtCastsToUStr_( c, u )   '' a UDT term casting to a ustring (T50)
-    dim as Tko.BuiltinType bt = c.types->BuiltinOf( u )
-    if bt = Tko.TY_USTRING then return true
-    if c.ast->Kind( id ) <> Tko.N_BINARY then return false
-    if bt <> Tko.TY_STRING then return false
-    dim as Tko.BinaryPayload ptr bp = _
-        @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-    dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
-    if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return false
-    if ConcatHasUString_( c, bp->lhs ) then return true
-    return ConcatHasUString_( c, bp->rhs )
-end function
-
-'' Whether an UNTYPED '+' or '&' concatenation has a term whose UDT casts to WSTRING and
-'' to no other string -- see ResolveCall_. AfxNova's DWSTRING concatenates that way,
-'' through 'cast( ) byref as const wstring', and Check leaves the result untyped because
-'' lowering decides the width per term. fbc types it: measured, '#print typeof( a + " 2026" )'
-'' over such a type is WSTRING * 1, and 'mk( a + " 2027" )' calls the wstring overload
-'' of 'mk' even with a 'byval n as long' one declared first.
-private function ConcatHasWideCastTerm_ _
-    ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
-
-    if id = Tko.NODE_NONE then return false
-    dim as Tko.TypeId t = TypeOf_( c, id )
-    if c.ast->Kind( id ) = Tko.N_BINARY then
-        '' A TYPED binary is some other operation -- a user 'operator +' among them.
-        if t <> Tko.TYPE_NONE then return false
-        dim as Tko.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( long, c.ast->nodes[cast( long, id )].data )]
-        dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
-        if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return false
-        if ConcatHasWideCastTerm_( c, bp->lhs ) then return true
-        return ConcatHasWideCastTerm_( c, bp->rhs )
-    end if
-    if t = Tko.TYPE_NONE then return false
-    dim as Tko.TypeId u = c.types->Unqualify( t )
-    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
-    if c.types->Kind( u ) <> Tko.TK_UDT then return false
-    dim as boolean hasWide = false
-    dim as Tko.SymbolId cs = UdtMemberSym_( c, u, "cast" )
-    while cs <> Tko.SYMBOL_NONE
-        dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cs )
-        if cse = 0 then exit while
-        if cse->type_ <> Tko.TYPE_NONE then
-            dim as Tko.TypeId ru = c.types->Unqualify( cse->type_ )
-            if c.types->Kind( ru ) = Tko.TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
-            if c.types->Kind( ru ) = Tko.TK_BUILTIN then
-                select case c.types->BuiltinOf( ru )
-                case Tko.TY_WSTRING
-                    hasWide = true
-                case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_USTRING
-                    return false
-                end select
-            end if
-        end if
-        cs = cse->nextOverload
-    wend
-    return hasWide
-end function
-
 #include once "symbols/overloadstr.tiko"
+#include once "symbols/overloadvar.tiko"
 
 private function ResolveCall_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval callee as Tko.SymbolId, _
@@ -902,16 +825,24 @@ private function ResolveCall_ _
                     np += 1
                 end if
             next
-            dim as boolean arityOk = (np = argT.Count)
-            if variadic then
-                if argT.Count >= np then arityOk = true
-            elseif argT.Count < np then
+            '' A TYPED VARIADIC that is not spread takes any number of arguments past the
+            '' fixed ones -- overloadvar.tiko.
+            dim as Tko.NodeId tvPrm = TypedVariadicParam_( c, pp )
+            dim as boolean expandTV = false
+            if tvPrm <> Tko.NODE_NONE then expandTV = (TypedVariadicSpread_( c, np - 1, argFirst, argT.Count ) = false)
+            dim as long npA = iif( expandTV, np - 1, np )
+            dim as boolean arityOk = (npA = argT.Count)
+            if variadic orelse expandTV then
+                if argT.Count >= npA then arityOk = true
+            end if
+            if (variadic = false) andalso (arityOk = false) andalso (argT.Count < npA) then
                 '' Every parameter the call did not reach must have a default.
                 arityOk = true
                 dim as long seen = 0
                 for i as long = 0 to pp->count - 1
                     dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
                     if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+                    if expandTV andalso (prm = tvPrm) then exit for
                     if seen >= argT.Count then
                         if StmtOf( c, prm )->b = Tko.NODE_NONE then
                             arityOk = false
@@ -930,6 +861,7 @@ private function ResolveCall_ _
                     if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                     dim as Tko.StmtPayload ptr sp2 = StmtOf( c, prm )
                     if sp2->op = cast( ushort, Tko.TK_ELLIPSIS ) then continue for
+                    if expandTV andalso (prm = tvPrm) then exit for   '' packed below
                     '' Past the written arguments, or an elided one: the default
                     '' stands and there is nothing to convert. An elided argument
                     '' whose parameter has NO default is not viable -- 'locate , 10'
@@ -1182,6 +1114,11 @@ private function ResolveCall_ _
                     end if
                     total += cost
                 next
+                if viable andalso expandTV then
+                    dim as Tko.NodeId tvBad
+                    dim as long tvCost = PackedArgsCost_( c, tvPrm, argFirst, ai, argT, overloaded, tvBad )
+                    if tvCost < 0 then viable = false else total += tvCost + CONV_EXPANDED
+                end if
                 if viable then
                     '' THE FIRST VIABLE CANDIDATE IS KEPT WHATEVER IT COSTS. Viability is
                     '' decided per argument above; seeding the best with CONV_NONE made the SUM
