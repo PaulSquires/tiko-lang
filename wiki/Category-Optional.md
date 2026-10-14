@@ -2,6 +2,16 @@
 
 # Optional
 
+An **Optional** is a box that either holds one value or is empty. It is how a function says "here is your answer -- or there is none" without inventing a special value, such as 0 or -1, to mean *nothing*.
+
+Think of a parcel locker: when you open it there is either a parcel inside or there is not, and you can tell which before you reach in. An empty locker is never mistaken for a parcel.
+
+You make a full one with `Some( value )` and an empty one with `None( of T )( )`. Whoever receives it asks `HasValue( )` before taking the value out with `Value( )`, or uses `ValueOr( fallback )`, which gives back the value if there is one and the fallback if not. Because being empty is part of the type, a real value of 0 or -1 can never be confused with "no answer" -- see [Zero Is A Value](#zero-is-a-value).
+
+Use an Optional for a result that may simply be missing: a lookup that finds nothing, a setting that was never given. When the caller also needs to know *why* there is no value, use a [Result](Category-Result) instead.
+
+The example below looks up a year by name. A known name gives a value; an unknown one gives an empty Optional, and `ValueOr` supplies -1 in its place:
+
 ```freebasic
 #import "std/outcome"
 using outcome
