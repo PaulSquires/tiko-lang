@@ -314,25 +314,6 @@ Every declaration carries `alias "<exact C name>"`, so a rename never changes th
 ## Examples
 
 ```freebasic
-'' A real window from windows.h, with no binding file. The WINDOW MANAGER
-'' calls WndProc -- so the convention, the widths and the return type all
-'' come from the C header, and nothing here restates them.
-
-#cinclude once "windows.h"
-
-function WndProc ( byval hwnd as HWND, byval msg as UINT, _
-                   byval wp as WPARAM, byval lp as LPARAM ) as LRESULT
-	if( msg = WM_DESTROY ) then
-		PostQuitMessage( 0 )
-		return 0
-	end if
-	return DefWindowProcW( hwnd, msg, wp, lp )
-end function
-```
-
-> **No calling convention, and none is needed.** `windows.h` declares `WNDPROC` as `WINAPI`, the SDK defines `WINAPI` away on 64-bit Windows — x86-64 Windows has one calling convention — so the imported typedef reads `cdecl`. On 64-bit Windows `cdecl` and `stdcall` describe the same call, and tiko treats `cdecl`, `stdcall` and `stdcall_ms` as interchangeable on a 64-bit target, so this assigns cleanly whether you write `cdecl`, `stdcall`, or nothing at all. `pascal` is excluded and still warns — it reverses the argument order, on x86-64 as anywhere else.
-
-```freebasic
 '' A third-party library, header and all.
 
 #cinclude once "sqlite3.h"
@@ -353,7 +334,7 @@ sqlite3_close( db )
 
 Naming the header through the folder — `#cinclude once "vendor/sqlite3.h"` — needs no `-cinclude` **when the compiler is run from the directory that contains `vendor/`**. tiko also finds it from anywhere else when `vendor/` sits beside the source, because it looks beside the file that wrote the directive too. (`-cinclude path/to/vendor` does not do it: the directive already names `vendor/`, and tiko reports the header missing — `TKO0336: unable to import C header vendor/sqlite3.h`.)
 
-Both examples build with tiko on windows-x86_64, the second with `-cinclude vendor`. Its library must be built for windows-x86_64: a `sqlite3_windows_x86_64.a` built by MinGW does not link there (`lld-link: error: undefined symbol: ___chkstk_ms`, `TKO0116`).
+The example builds with tiko on windows-x86_64 with `-cinclude vendor`. Its library must be built for windows-x86_64: a `sqlite3_windows_x86_64.a` built by MinGW does not link there (`lld-link: error: undefined symbol: ___chkstk_ms`, `TKO0116`).
 
 ## Pages in this category
 
