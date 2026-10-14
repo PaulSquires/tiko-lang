@@ -1,11 +1,11 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.Dbl**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.AddInt**
 
-# LogEvent.Dbl
+# LogEvent.AddInt
 
 ## Syntax
 
 ```freebasic
-Dbl( k, v as float64 )
+AddInt( k, v as int64 )
 ```
 
 ## Examples
@@ -18,7 +18,7 @@ dim con as ConsoleSink
 dim lg as Logger
 lg.AddSink( @con )
 
-lg.Info( ).Dbl( "elapsed_s", 1.25 ).Dbl( "ratio", 0.1 + 0.2 ).Msg( "done" )
+lg.Info( ).AddInt( "rows", 1200 ).AddInt( "skipped", -3 ).Msg( "loaded" )
 ```
 
 ---

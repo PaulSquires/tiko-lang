@@ -1,11 +1,11 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.Str**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.AddText**
 
-# LogEvent.Str
+# LogEvent.AddText
 
 ## Syntax
 
 ```freebasic
-Str( k, v as ustring )
+AddText( k, v as ustring )
 ```
 
 ## Examples
@@ -18,7 +18,7 @@ dim con as ConsoleSink
 dim lg as Logger
 lg.AddSink( @con )
 
-lg.Info( ).Str( "file", "data.csv" ).Str( "mode", "read" ).Msg( "opened" )
+lg.Info( ).AddText( "file", "data.csv" ).AddText( "mode", "read" ).Msg( "opened" )
 
 '' Every field method returns BYREF to the same event, which is what
 '' makes the chain work -- and the event lives on the CALLER'S STACK,

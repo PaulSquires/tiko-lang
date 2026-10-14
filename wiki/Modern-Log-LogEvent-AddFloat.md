@@ -1,11 +1,11 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.Bool**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.AddFloat**
 
-# LogEvent.Bool
+# LogEvent.AddFloat
 
 ## Syntax
 
 ```freebasic
-Bool( k, v as boolean )
+AddFloat( k, v as float64 )
 ```
 
 ## Examples
@@ -18,7 +18,7 @@ dim con as ConsoleSink
 dim lg as Logger
 lg.AddSink( @con )
 
-lg.Info( ).Bool( "cached", true ).Bool( "stale", false ).Msg( "served" )
+lg.Info( ).AddFloat( "elapsed_s", 1.25 ).AddFloat( "ratio", 0.1 + 0.2 ).Msg( "done" )
 ```
 
 ---

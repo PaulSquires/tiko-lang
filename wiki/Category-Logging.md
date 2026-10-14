@@ -20,7 +20,7 @@ lg.AddSink( @con )
 
 lg.Info( "server started" )
 
-lg.Warn( ).Str( "user", u ).Int_( "attempts", n ).Msg( "login failed" )
+lg.Warn( ).AddText( "user", "quinn" ).AddInt( "attempts", 3 ).Msg( "login failed" )
 ' 2026-08-12T23:06:34.361Z  WARN   login failed  user=quinn attempts=3
 ```
 
@@ -45,8 +45,8 @@ Two forms. Use the first unless you have something to capture.
 ```freebasic
 lg.Info( "server started" )                       ' one line, no fields
 
-lg.Warn( ).Str( "user", u ) _                     ' the builder
-          .Int_( "attempts", n ) _
+lg.Warn( ).AddText( "user", u ) _                     ' the builder
+          .AddInt( "attempts", n ) _
           .Msg( "login failed" )
 ```
 
@@ -61,7 +61,7 @@ Each field method returns BYREF to the same event; `.Msg( )` is the only method 
 What it does not avoid is **evaluating the arguments**:
 
 ```freebasic
-lg.Trace( ).Str( "dump", ExpensiveDump( ) ).Msg( "state" )
+lg.Trace( ).AddText( "dump", ExpensiveDump( ) ).Msg( "state" )
 ```
 
 ExpensiveDump( ) runs whether trace is on or not. That is irreducible at run time in a language with no lazy arguments, and it is what the [logging macros](#the-default-logger-and-the-macros) remove at compile time.
@@ -126,13 +126,13 @@ Flush( )                              reaches every attached sink
 Every one returns BYREF to the same event:
 
 ```text
-Str( k, v as ustring )        Int_( k, v as int64 )
-UInt( k, v as uint64 )        Dbl( k, v as float64 )
-Bool( k, v as boolean )       Ptr_( k, v as any ptr )
-Time( k, v as Instant )       Span( k, v as TimeSpan )
-Val( k, v as LogValue )       any tag, built by hand
+AddText( k, v as ustring )    AddInt( k, v as int64 )
+AddUInt( k, v as uint64 )     AddFloat( k, v as float64 )
+AddBool( k, v as boolean )    AddPtr( k, v as any ptr )
+AddTime( k, v as Instant )    AddSpan( k, v as TimeSpan )
+AddValue( k, v as LogValue )  any tag, built by hand
 
-Err( v as FsError )           expands to error, error.code and error.os
+AddError( v as FsError )      expands to error, error.code and error.os
 Site( file, line, func )      the call site; the logging macros fill it in
 
 Msg( m )                      sets the message and commits
@@ -172,7 +172,7 @@ IsConsole as boolean      property; FALSE when redirected
 
 ```freebasic
 dim as Logger db = lg.WithField( "component", LogValue( "db" ) )
-db.Info( ).Int_( "rows", 42 ).Msg( "query complete" )
+db.Info( ).AddInt( "rows", 42 ).Msg( "query complete" )
 ' INFO   query complete  component=db rows=42
 ```
 
@@ -296,7 +296,7 @@ LogInit( @app, LOG_DEBUG )              ' attach a sink, set the level
 DefaultLogger( ).Info( "from anywhere" )
 
 logs.LogInfo( "service starting" )
-logs.LogEventWarn( Str( "path", p ).Int_( "code", c ), "write failed" )
+logs.LogEventWarn( AddText( "path", "data.csv" ).AddInt( "code", 2 ), "write failed" )
 
 LogShutdown( )                          ' flush and close every sink -- call it last
 ```
@@ -321,25 +321,17 @@ Silent failure was rejected outright, though: a log file that has been dead sinc
 - the default, `LogDefaultErrorHandler`, prints one line to stderr;
 - `SetLogErrorHandler( 0 )` silences reporting, and the counters still count.
 
-## Three Renamed Members
+## Member Names
 
-Three member names are spelled differently from what you might expect, and all three are the language rather than taste:
+Every field method is named `Add` plus the kind of value it adds -- AddText, AddInt, AddUInt, AddFloat, AddBool, AddPtr, AddTime, AddSpan, AddValue, AddError -- so a call reads as a sentence and no name looks like a built-in:
 
-| Member | Why |
-| --- | --- |
-| `Int_` | INT is a keyword (TKO0600) |
-| `Ptr_` | PTR is a keyword (TKO0600) |
-| `WithField` | WITH is a statement, so `With` is refused (TKO0600) |
-
-And these are **fine**, which is not obvious, since several of them are intrinsics:
-
-```text
-Str    Val    Error    Time    Log    Bool    Dbl    Span    Msg    Send
+```freebasic
+lg.Warn( ).AddText( "user", u ).AddInt( "attempts", n ).Msg( "login failed" )
 ```
 
-So it is `lg.Error( "boom" )`, not `lg.Error_( )`, and `.Val( k, v )` for a LogValue built by hand. Being an intrinsic function is not enough to block a member name; being a keyword or a statement is.
+The kind stays in the name on purpose: AddInt and AddFloat decide whether the JSON renderer writes `3` or `3.0`, so that choice is visible at the call site rather than left to overload resolution.
 
-Note that the `Str` member **shadows** the intrinsic `STR( )` inside its own type's member bodies: a call to `STR( )` there reaches the member instead. That is why LogValueToText is a free function and not a member.
+The logger's own level methods keep their plain names -- `lg.Error( "boom" )`, `lg.Log( lv )` -- because being an intrinsic is not enough to block a member name; only a keyword or a statement is. WithField is the one exception for that reason: WITH is a statement, so a member called `With` is refused (TKO0600).
 
 One more, for anyone deriving from these types: `type Logger as Logger_` makes Logger an incomplete type inside the module, so a member returning a logger by value is declared `as Logger_`. Callers write `dim as Logger`.
 
@@ -406,7 +398,7 @@ See also: [Date and Time](Category-Date-and-Time-Chrono) (Instant, TimeSpan, Wal
 
 One page per entry, 32 in all:
 
-[AddSink](Modern-Log-AddSink) · [ClearSinks](Modern-Log-ClearSinks) · [Debug](Modern-Log-Debug) · [Emit](Modern-Log-Emit) · [Enabled](Modern-Log-Enabled) · [Error](Modern-Log-Error) · [Fatal](Modern-Log-Fatal) · [Flush](Modern-Log-Flush) · [Info](Modern-Log-Info) · [LevelFromName](Modern-Log-LevelFromName) · [LevelName](Modern-Log-LevelName) · [LevelNameShort](Modern-Log-LevelNameShort) · [LevelToSyslog](Modern-Log-LevelToSyslog) · [Log](Modern-Log-Log) · [LogEvent.Bool](Modern-Log-LogEvent-Bool) · [LogEvent.Close](Modern-Log-LogEvent-Close) · [LogEvent.ConsoleSink](Modern-Log-LogEvent-ConsoleSink) · [LogEvent.Dbl](Modern-Log-LogEvent-Dbl) · [LogEvent.DroppedCount](Modern-Log-LogEvent-DroppedCount) · [LogEvent.Err](Modern-Log-LogEvent-Err) · [LogEvent.Flush](Modern-Log-LogEvent-Flush) · [LogEvent.Int_](Modern-Log-LogEvent-Int) · [LogEvent.Msg](Modern-Log-LogEvent-Msg) · [LogEvent.Ptr_](Modern-Log-LogEvent-Ptr) · [LogEvent.Render](Modern-Log-LogEvent-Render) · [LogEvent.Send](Modern-Log-LogEvent-Send) · [LogEvent.Site](Modern-Log-LogEvent-Site) · [LogEvent.Span](Modern-Log-LogEvent-Span) · [LogEvent.Str](Modern-Log-LogEvent-Str) · [LogEvent.Time](Modern-Log-LogEvent-Time) · [LogEvent.UInt](Modern-Log-LogEvent-UInt) · [LogEvent.Val](Modern-Log-LogEvent-Val) · [LogEvent.Write](Modern-Log-LogEvent-Write) · [MinLevel](Modern-Log-MinLevel) · [Name](Modern-Log-Name) · [RemoveSink](Modern-Log-RemoveSink) · [SinkCount](Modern-Log-SinkCount) · [Trace](Modern-Log-Trace) · [Warn](Modern-Log-Warn) · [WithField](Modern-Log-WithField) · [WithName](Modern-Log-WithName)
+[AddSink](Modern-Log-AddSink) · [ClearSinks](Modern-Log-ClearSinks) · [Debug](Modern-Log-Debug) · [Emit](Modern-Log-Emit) · [Enabled](Modern-Log-Enabled) · [Error](Modern-Log-Error) · [Fatal](Modern-Log-Fatal) · [Flush](Modern-Log-Flush) · [Info](Modern-Log-Info) · [LevelFromName](Modern-Log-LevelFromName) · [LevelName](Modern-Log-LevelName) · [LevelNameShort](Modern-Log-LevelNameShort) · [LevelToSyslog](Modern-Log-LevelToSyslog) · [Log](Modern-Log-Log) · [LogEvent.AddBool](Modern-Log-LogEvent-AddBool) · [LogEvent.Close](Modern-Log-LogEvent-Close) · [LogEvent.ConsoleSink](Modern-Log-LogEvent-ConsoleSink) · [LogEvent.AddFloat](Modern-Log-LogEvent-AddFloat) · [LogEvent.DroppedCount](Modern-Log-LogEvent-DroppedCount) · [LogEvent.AddError](Modern-Log-LogEvent-AddError) · [LogEvent.Flush](Modern-Log-LogEvent-Flush) · [LogEvent.AddInt](Modern-Log-LogEvent-AddInt) · [LogEvent.Msg](Modern-Log-LogEvent-Msg) · [LogEvent.AddPtr](Modern-Log-LogEvent-AddPtr) · [LogEvent.Render](Modern-Log-LogEvent-Render) · [LogEvent.Send](Modern-Log-LogEvent-Send) · [LogEvent.Site](Modern-Log-LogEvent-Site) · [LogEvent.AddSpan](Modern-Log-LogEvent-AddSpan) · [LogEvent.AddText](Modern-Log-LogEvent-AddText) · [LogEvent.AddTime](Modern-Log-LogEvent-AddTime) · [LogEvent.AddUInt](Modern-Log-LogEvent-AddUInt) · [LogEvent.AddValue](Modern-Log-LogEvent-AddValue) · [LogEvent.Write](Modern-Log-LogEvent-Write) · [MinLevel](Modern-Log-MinLevel) · [Name](Modern-Log-Name) · [RemoveSink](Modern-Log-RemoveSink) · [SinkCount](Modern-Log-SinkCount) · [Trace](Modern-Log-Trace) · [Warn](Modern-Log-Warn) · [WithField](Modern-Log-WithField) · [WithName](Modern-Log-WithName)
 
 ---
 

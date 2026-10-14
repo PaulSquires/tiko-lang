@@ -1,11 +1,11 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.Span**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.AddSpan**
 
-# LogEvent.Span
+# LogEvent.AddSpan
 
 ## Syntax
 
 ```freebasic
-Span( k, v as TimeSpan )
+AddSpan( k, v as TimeSpan )
 ```
 
 ## Examples
@@ -21,7 +21,7 @@ dim lg as Logger
 lg.AddSink( @con )
 
 dim as TimeSpan took = TimeSpan.FromMilliseconds( 1500 )
-lg.Info( ).Span( "took", took ).Msg( "finished" )
+lg.Info( ).AddSpan( "took", took ).Msg( "finished" )
 ```
 
 ---

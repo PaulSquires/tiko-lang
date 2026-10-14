@@ -31,10 +31,10 @@ lg.AddSink( @con )
 lg.Trace( "a message, logged immediately" )
 
 '' Or build a record with fields, committed by Msg( )
-lg.Trace( ).Str( "user", "ada" ).Int_( "attempt", 2 ).Msg( "with fields" )
+lg.Trace( ).AddText( "user", "ada" ).AddInt( "attempt", 2 ).Msg( "with fields" )
 
 '' Nothing is emitted by an event that is never committed
-lg.Trace( ).Str( "user", "grace" )
+lg.Trace( ).AddText( "user", "grace" )
 print "done"
 ```
 

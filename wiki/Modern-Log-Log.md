@@ -35,7 +35,7 @@ lg.Log( LOG_INFO, "starting" )
 lg.Info( "started" )
 
 '' Each also has a no-argument form returning a LogEvent to add fields to
-lg.Log( LOG_WARN ).Str( "disk", "C:" ).Msg( "almost full" )
+lg.Log( LOG_WARN ).AddText( "disk", "C:" ).Msg( "almost full" )
 ```
 
 ---

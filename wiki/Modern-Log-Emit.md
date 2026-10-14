@@ -26,7 +26,7 @@ lg.AddSink( @con )
 
 '' Emit hands a FINISHED record to every sink. It is what .Msg( ) and
 '' .Send( ) call underneath, and it is the only place a Logger does I/O.
-lg.Info( ).Str( "stage", "startup" ).Msg( "ready" )
+lg.Info( ).AddText( "stage", "startup" ).Msg( "ready" )
 
 '' A record can also be built and emitted directly
 dim r as LogRecord

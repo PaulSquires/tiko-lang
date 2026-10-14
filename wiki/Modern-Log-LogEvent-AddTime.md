@@ -1,11 +1,11 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.Time**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.AddTime**
 
-# LogEvent.Time
+# LogEvent.AddTime
 
 ## Syntax
 
 ```freebasic
-Time( k, v as Instant )
+AddTime( k, v as Instant )
 ```
 
 ## Examples
@@ -23,7 +23,7 @@ lg.AddSink( @con )
 '' Instant has no Now( ) -- the clock lives in SystemClock; an Instant
 '' is built from a count, here a Unix timestamp
 dim as Instant at = Instant.FromUnixSeconds( 1767225600 )
-lg.Info( ).Time( "at", at ).Msg( "stamped" )
+lg.Info( ).AddTime( "at", at ).Msg( "stamped" )
 ```
 
 ---

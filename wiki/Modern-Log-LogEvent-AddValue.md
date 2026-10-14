@@ -1,13 +1,13 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.Val**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.AddValue**
 
-# LogEvent.Val
+# LogEvent.AddValue
 
 any tag, built by hand
 
 ## Syntax
 
 ```freebasic
-Val( k, v as LogValue )
+AddValue( k, v as LogValue )
 ```
 
 ## Notes
@@ -27,7 +27,7 @@ lg.AddSink( @con )
 '' The escape hatch: any tag, built by hand. LogValue has a constructor
 '' per supported type, so this is what the typed methods call underneath.
 dim v as LogValue = LogValue( 42ll )
-lg.Info( ).Val( "answer", v ).Msg( "computed" )
+lg.Info( ).AddValue( "answer", v ).Msg( "computed" )
 ```
 
 ---

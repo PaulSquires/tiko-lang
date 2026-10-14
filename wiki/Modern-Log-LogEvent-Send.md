@@ -26,7 +26,7 @@ lg.AddSink( @con )
 
 '' Send( ) commits WITHOUT a message, for a record that is entirely
 '' fields
-lg.Info( ).Str( "event", "heartbeat" ).Int_( "seq", 1 ).Send( )
+lg.Info( ).AddText( "event", "heartbeat" ).AddInt( "seq", 1 ).Send( )
 
 '' Msg( m ) is Send( ) with the message set first
 ```

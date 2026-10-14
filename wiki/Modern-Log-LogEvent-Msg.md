@@ -25,12 +25,12 @@ dim lg as Logger
 lg.AddSink( @con )
 
 '' Msg( ) sets the message AND COMMITS. It is the end of the chain.
-lg.Info( ).Str( "user", "ada" ).Msg( "login ok" )
+lg.Info( ).AddText( "user", "ada" ).Msg( "login ok" )
 
 '' AN EVENT THAT IS NEVER COMMITTED EMITS NOTHING. The destructor does
 '' not auto-send: a forgotten Msg( ) shows up as a missing line, which
 '' is noticed, rather than as a line appearing from nowhere.
-lg.Info( ).Str( "user", "grace" )      '' never sent
+lg.Info( ).AddText( "user", "grace" )      '' never sent
 ```
 
 ---

@@ -1050,24 +1050,24 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [LOF](Lof) — *File I/O Functions*
 - [Log](Log) — *Mathematical Functions*
 - [Log](Modern-Log-Log) — *Logging*
-- [LogEvent.Bool](Modern-Log-LogEvent-Bool) — *Logging*
+- [LogEvent.AddBool](Modern-Log-LogEvent-AddBool) — *Logging*
+- [LogEvent.AddError](Modern-Log-LogEvent-AddError) — *Logging*
+- [LogEvent.AddFloat](Modern-Log-LogEvent-AddFloat) — *Logging*
+- [LogEvent.AddInt](Modern-Log-LogEvent-AddInt) — *Logging*
+- [LogEvent.AddPtr](Modern-Log-LogEvent-AddPtr) — *Logging*
+- [LogEvent.AddSpan](Modern-Log-LogEvent-AddSpan) — *Logging*
+- [LogEvent.AddText](Modern-Log-LogEvent-AddText) — *Logging*
+- [LogEvent.AddTime](Modern-Log-LogEvent-AddTime) — *Logging*
+- [LogEvent.AddUInt](Modern-Log-LogEvent-AddUInt) — *Logging*
+- [LogEvent.AddValue](Modern-Log-LogEvent-AddValue) — *Logging*
 - [LogEvent.Close](Modern-Log-LogEvent-Close) — *Logging*
 - [LogEvent.ConsoleSink](Modern-Log-LogEvent-ConsoleSink) — *Logging*
-- [LogEvent.Dbl](Modern-Log-LogEvent-Dbl) — *Logging*
 - [LogEvent.DroppedCount](Modern-Log-LogEvent-DroppedCount) — *Logging*
-- [LogEvent.Err](Modern-Log-LogEvent-Err) — *Logging*
 - [LogEvent.Flush](Modern-Log-LogEvent-Flush) — *Logging*
-- [LogEvent.Int_](Modern-Log-LogEvent-Int) — *Logging*
 - [LogEvent.Msg](Modern-Log-LogEvent-Msg) — *Logging*
-- [LogEvent.Ptr_](Modern-Log-LogEvent-Ptr) — *Logging*
 - [LogEvent.Render](Modern-Log-LogEvent-Render) — *Logging*
 - [LogEvent.Send](Modern-Log-LogEvent-Send) — *Logging*
 - [LogEvent.Site](Modern-Log-LogEvent-Site) — *Logging*
-- [LogEvent.Span](Modern-Log-LogEvent-Span) — *Logging*
-- [LogEvent.Str](Modern-Log-LogEvent-Str) — *Logging*
-- [LogEvent.Time](Modern-Log-LogEvent-Time) — *Logging*
-- [LogEvent.UInt](Modern-Log-LogEvent-UInt) — *Logging*
-- [LogEvent.Val](Modern-Log-LogEvent-Val) — *Logging*
 - [LogEvent.Write](Modern-Log-LogEvent-Write) — *Logging*
 - [Logging](Category-Logging) — *Logging*
 - [Logical Operators](Logical-Operators) — *Operators*

@@ -1,11 +1,11 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.Ptr_**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.AddPtr**
 
-# LogEvent.Ptr_
+# LogEvent.AddPtr
 
 ## Syntax
 
 ```freebasic
-Ptr_( k, v as any ptr )
+AddPtr( k, v as any ptr )
 ```
 
 ## Examples
@@ -20,9 +20,7 @@ lg.AddSink( @con )
 
 dim as int32 target = 42
 
-'' Spelled Ptr_ WITH A TRAILING UNDERSCORE, because PTR is a tiko
-'' keyword -- the same reason as Int_
-lg.Info( ).Ptr_( "addr", @target ).Msg( "tracking" )
+lg.Info( ).AddPtr( "addr", @target ).Msg( "tracking" )
 ```
 
 ---

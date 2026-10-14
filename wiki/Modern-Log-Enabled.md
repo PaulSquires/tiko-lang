@@ -33,7 +33,7 @@ print lg.Enabled( LOG_DEBUG )    '' false -- below MinLevel
 
 '' The point of it: skip work that would be discarded
 if lg.Enabled( LOG_DEBUG ) then
-    lg.Debug( ).Str( "dump", "something expensive to build" ).Msg( "state" )
+    lg.Debug( ).AddText( "dump", "something expensive to build" ).Msg( "state" )
 end if
 ```
 

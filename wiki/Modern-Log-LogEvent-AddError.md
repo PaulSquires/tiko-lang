@@ -1,13 +1,13 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.Err**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.AddError**
 
-# LogEvent.Err
+# LogEvent.AddError
 
 expands to error, error.code and error.os
 
 ## Syntax
 
 ```freebasic
-Err( v as FsError )
+AddError( v as FsError )
 ```
 
 ## Notes
@@ -34,7 +34,7 @@ lg.AddSink( @con )
 '' FsError's fields are read-only accessors -- Code( ), OsCode( ),
 '' Path( ) -- so one is built through its constructor, not assigned to
 dim e as FsError = FsError( FS_NOT_FOUND, 2, "CreateFileW", "data.csv" )
-lg.Error( ).Err( e ).Msg( "open failed" )
+lg.Error( ).AddError( e ).Msg( "open failed" )
 ```
 
 ---

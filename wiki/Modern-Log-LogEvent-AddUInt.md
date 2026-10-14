@@ -1,11 +1,11 @@
-[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.UInt**
+[Home](Home) › [Logging](Category-Logging) › [Logging](Category-Logging) › **LogEvent.AddUInt**
 
-# LogEvent.UInt
+# LogEvent.AddUInt
 
 ## Syntax
 
 ```freebasic
-UInt( k, v as uint64 )
+AddUInt( k, v as uint64 )
 ```
 
 ## Examples
@@ -20,7 +20,7 @@ lg.AddSink( @con )
 
 '' Unsigned, so a value above LongInt's range keeps its magnitude
 '' instead of appearing as a negative number
-lg.Info( ).UInt( "bytes", 18446744073709551615ull ).Msg( "counted" )
+lg.Info( ).AddUInt( "bytes", 18446744073709551615ull ).Msg( "counted" )
 ```
 
 ---
