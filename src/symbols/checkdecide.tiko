@@ -260,8 +260,14 @@ private sub DecideCtorCall_( byref c as Ctx, byval id as Tko.NodeId, byval cp as
     if c.types->Kind( t ) <> Tko.TK_UDT then return
     dim as containers.Array( of ulong ) argT
     for i as long = 0 to cp->count - 1
-        dim as Tko.TypeId at = TypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) )
+        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+        dim as Tko.TypeId at = TypeOf_( c, an )
         if at = Tko.TYPE_NONE then return
+        '' A CONCATENATION IS THE WIDEST OF ITS TERMS, as ResolveCall_ types it for an overload.
+        if c.ast->Kind( an ) = Tko.N_BINARY then
+            if ConcatHasWideStr_( c, an ) then at = c.types->Builtin( Tko.TY_WSTRING )
+            if ConcatHasUString_( c, an ) then at = c.types->Builtin( Tko.TY_USTRING )
+        end if
         argT.Push( cast( ulong, at ) )
     next
     dim as Tko.SymbolId first_ = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, t, "__ctor" )

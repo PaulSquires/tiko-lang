@@ -1,0 +1,22 @@
+'' A concatenation with a ustring term picks 'constructor( byref as const ustring )' over the
+'' string one, as fbc does (lines measured) -- as an argument, in 'T( ... )', an initialiser
+'' and 'new'. Check types '&' narrow and only ResolveCall_ widened it for a pick, so every
+'' constructor pick ran the string constructor. CtorArgTypeOf_ and DecideCtorCall_ widen it.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/ctor-concat-ustring-pick.bas -o tests/codegen/ctorconcatustringpick.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/ctorconcatustringpick.exe
+'' RUN: tests/codegen/ctorconcatustringpick.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: arg-ul=5[x!]
+'' EXPECT-RUN-OUT: arg-fl=5[fn!]
+'' EXPECT-RUN-OUT: arg-su=5[bx]
+'' EXPECT-RUN-OUT: arg-u=5[x]
+'' EXPECT-RUN-OUT: arg-sl=6[b!]
+'' EXPECT-RUN-OUT: arg-lit=6[lit]
+'' EXPECT-RUN-OUT: call=5[x!]
+'' EXPECT-RUN-OUT: init=5[x?]
+'' EXPECT-RUN-OUT: init-call=5[fn#]
+'' EXPECT-RUN-OUT: init-s=6[b?]
+'' EXPECT-RUN-OUT: new=5[bx]

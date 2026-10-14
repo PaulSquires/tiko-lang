@@ -784,7 +784,7 @@ declare function EmitRtl _
     '' argument? See NarrowStrCtorParamConverts_.
     declare function NarrowStrCtorParamConverts_ _
         ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
-    declare function NarrowStrArg_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function NarrowStrArg_( byref c as Ctx, byval e as Tko.NodeId ) as boolean : declare function ConcatHasUStrTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean   '' lowerstrargs.tiko
     declare function RuntimeEntryCallee_ _
         ( byref c as Ctx, byval callee as Tko.SymbolId ) as boolean
     declare function StrArgOwnDescriptor_ _

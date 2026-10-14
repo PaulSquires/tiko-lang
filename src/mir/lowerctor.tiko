@@ -318,7 +318,13 @@ function LowerConvCtorInit_ _
         if (TermIsWide_( c, init_ ) orelse ConcatHasWideTerm_( c, init_ )) = false then return false
         it = c.types->Builtin( Tko.TY_WSTRING )  '' an untyped WIDE expression: 'return a + s'
     end if
-    if LitHasUnicodeEscape_( c, init_ ) then it = CtorArgTypeOf_( c, init_ )
+    '' ...and a CONCATENATION is the widest of its terms (CtorArgTypeOf_): measured on fbc-modern,
+    '' 'dim as T x = u & "?"' over T( byref as const ustring ) and T( byref as const string ) runs
+    '' the ustring one, and tiko ran the string one.
+    if LitHasUnicodeEscape_( c, init_ ) orelse (c.ast->Kind( init_ ) = Tko.N_BINARY) then
+        dim as Tko.TypeId it2 = CtorArgTypeOf_( c, init_ )
+        if it2 <> Tko.TYPE_NONE then it = it2
+    end if
     '' The same type is a COPY, which the caller has already handled -- and a paren
     '' initialiser list is field stores, not a conversion.
     if c.types->Unqualify( it ) = c.types->Unqualify( t ) then return false

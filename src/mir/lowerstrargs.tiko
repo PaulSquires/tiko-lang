@@ -18,7 +18,7 @@
 ''
 '' A 'ustring * N' source is deliberately NOT narrow here: FixedUStrArgTemp_ owns it,
 '' and it copies in, calls, copies back and deletes.
-private function ConcatHasUStrTerm_ _
+function ConcatHasUStrTerm_ _
     ( byref c as Ctx, byval e as Tko.NodeId ) as boolean
 
     if e = Tko.NODE_NONE then return false

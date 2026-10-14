@@ -498,7 +498,7 @@ function LowerNew_ _
         dim as boolean ctTyped = true
         for i as long = 0 to argCount - 1
             dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[argFirst + i] )
-            dim as Tko.TypeId at3 = c.info->TypeOf_( an )
+            dim as Tko.TypeId at3 = CtorArgTypeOf_( c, an )   '' a concatenation is its widest term
             if at3 = Tko.TYPE_NONE then
                 ctTyped = false
                 exit for

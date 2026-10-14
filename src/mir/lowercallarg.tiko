@@ -144,11 +144,25 @@ end function
 '' POINTER, over { string, const wstring } the const wstring -- explicit 'H( a )', implicit
 '' 'dim as H h = a' and a byval argument the same. The literal took the STRING one and drew
 '' as '?'. 'WSTRING * 1' is the type wstr( ) already has, which matched fbc on every path.
+''
+'' ...AND A CONCATENATION IS THE WIDEST OF ITS TERMS, as ResolveCall_ (overload.tiko) already
+'' types one for an ordinary overload set: Check keeps '&' narrow because lowering decides the
+'' width per term. Measured on fbc-modern, 'u & "!"', 'getu( ) & "!"' and 's & u' choose
+'' 'constructor( byref as const ustring )' over the string one; tiko chose the string one.
 function CtorArgTypeOf_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
     if LitHasUnicodeEscape_( c, e ) then
         return c.types->ArrayOf( c.types->Builtin( Tko.TY_WSTRING ), 1, 1 )
     end if
-    return c.info->TypeOf_( e )
+    dim as Tko.TypeId t = c.info->TypeOf_( e )
+    if (c.ast->Kind( e ) = Tko.N_BINARY) andalso (c.info->RefOf( e ) = Tko.SYMBOL_NONE) then
+        dim as boolean narrowT = IsStringType( c, t )
+        if narrowT then narrowT = (IsUStringType( c, t ) = false)
+        if narrowT then
+            if ConcatHasWideTerm_( c, e ) then t = c.types->Builtin( Tko.TY_WSTRING )
+            if ConcatHasUStrTerm_( c, e ) then t = c.types->Builtin( Tko.TY_USTRING )
+        end if
+    end if
+    return t
 end function
 
 '' 'operator cast( ) as <the parameter's own type>', declared on the ARGUMENT'S type.
