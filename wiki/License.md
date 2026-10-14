@@ -30,10 +30,9 @@ tiko-lang is its own compiler, written from scratch in FreeBASIC. It is not a co
 
 **The packaged toolchains carry third-party components.**
 
-- They redistribute fbc-modern's headers in `inc/`.
-- For the `win64` and `linux-x86_64` targets they also ship fbc's own runtime binaries under `lib/<target>-fb/`: the `fbrt*.o` startup objects and `libfbgfx`. For `win64` that directory also holds libffi and the MinGW-w64 and gcc runtime libraries.
-- All of it is unmodified.
-- Each toolchain's `licences/` holds tiko's notices and FreeBASIC's. It holds no separate notice for the MinGW-w64, gcc or libffi archives.
+- `inc/` holds FreeBASIC's headers (`crt/`, `win/`, `fbgfx.bi` and the rest) beside tiko's own, a few third-party bindings (`GL/`, `clang-c.bi`, `llvm-c.bi`, `ffi.bi` and others) and, on Windows, AfxNova. FreeBASIC's headers keep FreeBASIC's terms. 146 of them carry a no-redistribution notice, and the FreeBASIC project has given its permission to ship them.
+- `lib/<target>/` holds only tiko's own libraries: tiko-rt (with its own startup object), fbcunit and SQLite, which is public domain, and on Windows libtkogfx. The Windows toolchain adds import libraries for the Windows DLLs, built from export lists derived from mingw-w64's import libraries (ZPL 2.1, with parts in the public domain).
+- Each toolchain's `licences/` holds tiko's notices, FreeBASIC's and fbcunit's, and on Windows mingw-w64's (`COPYING.MinGW-w64-runtime.txt`).
 - clang is not bundled.
 
 ## Where these pages came from
