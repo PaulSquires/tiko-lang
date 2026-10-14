@@ -194,6 +194,53 @@ private function CtorArgsOnAddr_ _
         av.ty = cast( ubyte, LowerType( cast( Tko.TypeId, argT[ai] ), *c.types ) )
         av.id = argId[ai]
         dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+        '' A NARROW STRING FOR A USTRING PARAMETER IS CONVERTED, into a USTRING temporary
+        '' made from the narrow one -- fb_UStrAssignFromA, the call the declaration path
+        '' makes through UStrParamArgTemp_. The argument loop above built its temporary at
+        '' the ARGUMENT's type, because the pick needs the types, so 'dim shared as T g =
+        '' T( "logs/app.log" )' over 'constructor( byref p as ustring )' passed a narrow
+        '' descriptor the constructor read as UTF-16: std/logs' FileSink created a file
+        '' named with the path's bytes as CJK characters.
+        scope
+            dim as Tko.TypeId pu = c.types->Unqualify( pt )
+            if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
+            dim as Tko.TypeId au = c.types->Unqualify( cast( Tko.TypeId, argT[ai] ) )
+            dim as boolean narrowArg = IsStringType( c, au ) andalso (IsUStringType( c, au ) = false)
+            '' ...AND A WIDE ONE, through fb_WstrToUStr: 'T( wstr( "x" ) )' handed the wide
+            '' literal itself where an FBUSTRING* belongs, and the field came out empty.
+            dim as boolean wideArg = IsWideString_( c, au )
+            if IsUStringType( c, pu ) andalso (narrowArg orelse wideArg) then
+                dim as long us = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+                if us < 0 then return false
+                dim as MirValue ud
+                ud.kind = cast( ubyte, MV_LOCAL ) : ud.ty = cast( ubyte, MT_PTR ) : ud.id = us
+                ZeroStrDescriptor( c, ud )
+                dim as containers.Array( of ulong ) uargs
+                uargs.Push( cast( ulong, ud.kind ) ) : uargs.Push( cast( ulong, ud.id ) )
+                PushStrLen_( c, uargs, -1 )
+                if wideArg then
+                    dim as containers.Array( of ulong ) wa
+                    wa.Push( cast( ulong, av.kind ) ) : wa.Push( cast( ulong, av.id ) )
+                    dim as MirValue uv = EmitRtl( c, RTL_WSTR_TO_USTR, wa )
+                    if uv.kind = cast( ubyte, MV_NONE ) then return false
+                    uargs.Push( cast( ulong, uv.kind ) ) : uargs.Push( cast( ulong, uv.id ) )
+                    PushStrLen_( c, uargs, -1 )
+                    uargs.Push( cast( ulong, MV_CONST_INT ) ) : uargs.Push( 0 )
+                    EmitRtl( c, RTL_USTR_ASSIGN, uargs )
+                else
+                    uargs.Push( cast( ulong, av.kind ) ) : uargs.Push( cast( ulong, av.id ) )
+                    PushStrLen_( c, uargs, -1 )
+                    uargs.Push( cast( ulong, MV_CONST_INT ) ) : uargs.Push( 0 )
+                    uargs.Push( cast( ulong, MV_CONST_INT ) ) : uargs.Push( 0 )
+                    EmitRtl( c, RTL_USTR_FROM_A, uargs )
+                end if
+                strTemps.Push( cast( ulong, us ) )
+                strTempTypes.Push( cast( ulong, c.types->Builtin( Tko.TY_USTRING ) ) )
+                cargs.Push( cast( ulong, ud.kind ) ) : cargs.Push( cast( ulong, ud.id ) )
+                ai += 1
+                continue for
+            end if
+        end scope
         '' A BYREF PARAMETER TAKES AN ADDRESS, and this loop coerced every argument to
         '' the parameter's MIR type instead -- which for a UDT is the AGGREGATE, so the
         '' loaded value went out where the address belongs. See ByrefAggTempOf_ for the

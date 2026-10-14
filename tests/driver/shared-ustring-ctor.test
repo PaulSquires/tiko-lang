@@ -1,0 +1,21 @@
+'' A STRING ARGUMENT FOR A USTRING CONSTRUCTOR PARAMETER IN A 'dim shared' INITIALISER.
+'' CtorArgsOnAddr_ built each string argument's temporary at the ARGUMENT's type, before the
+'' constructor was picked, so 'dim shared as T a = T( "x" )' over 'constructor( byref p as
+'' ustring )' passed a narrow descriptor the constructor read as UTF-16 -- std/logs'
+'' FileSink created its file under a name of CJK characters -- and a wide argument passed
+'' the wide literal itself, leaving the field empty. Both are now converted after the pick
+'' (src/mir/lowerfieldinit.tiko). A module-level 'dim' took the declaration path and was
+'' already right; it is here as the control.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/driver/src/shared-ustring-ctor.bas -o tests/driver/sharedustrctor.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/sharedustrctor.exe
+'' RUN: tests/driver/sharedustrctor.exe
+'' EXPECT-RUN-OUT: shared-init
+'' EXPECT-RUN-OUT: wide
+'' EXPECT-RUN-OUT: conv
+'' EXPECT-RUN-OUT: byval
+'' EXPECT-RUN-OUT: narrow|ustr| 7
+'' EXPECT-RUN-OUT: module-dim 11
+'' EXPECT-RUN-EXIT: 0
