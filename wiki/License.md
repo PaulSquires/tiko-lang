@@ -11,13 +11,13 @@ The upstream manual lives at <https://www.freebasic.net/wiki/DocToc>. These page
 
 ## The tiko pages
 
-These pages document the tiko language, its standard library and its toolchain. They are licensed under the **GNU Free Documentation License**.
+These pages document the tiko language, its standard library and its toolchain. They are licensed under the **GNU Free Documentation License, version 1.3 or later**, with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts.
 
 Copyright © Paul Squires, [PlanetSquires Software](https://www.planetsquires.com).
 
 ## The compiler itself
 
-tiko-lang is its own compiler, written from scratch in FreeBASIC. It is not a copy of fbc, and it is licensed **in parts**. The repository's `LICENSE` is the map.
+tiko-lang is its own compiler, written from scratch, and written in tiko. It is not a copy of fbc, and it is licensed **in parts**. The repository's `LICENSE` is the map.
 
 | Part | Licence |
 |---|---|
@@ -31,7 +31,7 @@ tiko-lang is its own compiler, written from scratch in FreeBASIC. It is not a co
 **The packaged toolchains carry third-party components.**
 
 - `inc/` holds FreeBASIC's headers (`crt/`, `win/`, `fbgfx.bi` and the rest) beside tiko's own, a few third-party bindings (`GL/`, `clang-c.bi`, `llvm-c.bi`, `ffi.bi` and others) and, on Windows, AfxNova. FreeBASIC's headers keep FreeBASIC's terms. 146 of them carry a no-redistribution notice, and the FreeBASIC project has given its permission to ship them.
-- `lib/<target>/` holds only tiko's own libraries: tiko-rt (with its own startup object), fbcunit and SQLite, which is public domain, and on Windows libtkogfx. The Windows toolchain adds import libraries for the Windows DLLs, built from export lists derived from mingw-w64's import libraries (ZPL 2.1, with parts in the public domain).
+- `lib/<target>/` holds no fbc binaries: tiko-rt (on Linux with its own startup object), on Windows libtkogfx, fbcunit (LGPL 2.1 or later) and SQLite, which is public domain. The Windows toolchain adds import libraries for the Windows DLLs, built from export lists derived from mingw-w64's import libraries (ZPL 2.1, with parts in the public domain).
 - Each toolchain's `licences/` holds tiko's notices, FreeBASIC's and fbcunit's, and on Windows mingw-w64's (`COPYING.MinGW-w64-runtime.txt`).
 - clang is not bundled.
 
