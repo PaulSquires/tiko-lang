@@ -2,6 +2,16 @@
 
 # Array
 
+An **Array** is a list of values kept in order, one after another, that you reach by position: the first element is `v[ 0 ]`, the second `v[ 1 ]`, and so on. It **grows** as you use it -- `Push` adds a value at the end and `Insert` puts one anywhere -- and it finds the room itself, so you never have to say up front how many elements there will be.
+
+Think of a numbered list on a page: every line has a number, you can read line 3 directly, and you can keep adding lines at the bottom.
+
+That makes Array the container to reach for first whenever you need things in order. Reading or changing an element by its position is instant, and adding at the end is quick. Inserting or removing near the front of a long Array is slower, because everything after that point moves along by one; if your program does that a lot, a [LinkedList](Category-LinkedList) may suit it better.
+
+Every element has the same type: an `Array( of ustring )` holds strings, an `Array( of int32 )` holds numbers.
+
+The example below builds a list of three names, reads one back by its position, and prints them all:
+
 ```freebasic
 #import "std/containers"
 using containers
