@@ -146,21 +146,9 @@ A generic PROCEDURE is instantiated only where it is called, so the requirement 
 
 src/tests/generics/fail-container-nosort.bas pins the diagnostic.
 
-## Two Compiler Bugs This Header Found
+## Known Limitation
 
-Both were pre-existing, both were fixed rather than worked around, and both are regression-tested. They are recorded here because this header is what walked into them.
-
-1. A GENERIC FUNCTION WHOSE BODY CONTAINED A LAMBDA did not compile. The body capture in hCaptureProcBody counted no block nesting at all, on the stated reasoning that "procedures cannot nest in FreeBASIC" -- true until this compiler added lambdas. It ended the capture at the lambda's END FUNCTION. A generic SUB was unaffected, because its terminator is END SUB.
-
-The mirror image was also true and had nothing to do with generics: hCaptureLambdaBody counted EVERY SUB|FUNCTION, so a procedure-pointer declaration inside a lambda body raised the nesting depth and never lowered it -- error 351, Unterminated lambda body.
-
-Both now ask lambdaOpensHere, which answers structurally rather than by counting keywords. src/tests/generics/lambda-in-generic.bas.
-
-2. A PROCEDURE POINTER AS A TYPE ARGUMENT, spelled inside a generic body, was a use-after-free. The anonymous PROC symbol describing a procptr type is scoped to where it was spelled -- correct for a DIM, because such a type may name locals in its own signature. A type argument outlives its call site: the instantiation's body is not replayed until the next module-level statement boundary, by which time the scope has closed and the symbol node has been recycled. The parameter came out as whatever now occupied it -- 'unknown type name label$6' from the C backend, or error 17 and a segfault when the slot held a proc. Being a use-after-free it also sometimes worked.
-
-Generic instantiation now re-interns a procptr type argument at global scope before binding it. src/tests/generics/generic-procptr-typearg.bas.
-
-One limitation surfaced by the first fix is still open: a CAPTURING lambda cannot name the enclosing generic's T in its own parameter list. It was unreachable before, because the body never got as far as being replayed. It does not affect this header -- every lambda here is non-capturing -- and src/tests/generics/fail-lambda-capture-typaram.bas pins it.
+A CAPTURING lambda cannot name the enclosing generic's T in its own parameter list. It does not affect this header -- every lambda here is non-capturing -- and src/tests/generics/fail-lambda-capture-typaram.bas pins it.
 
 ## Tests
 

@@ -15,11 +15,11 @@ print query
 
 ## Why It Exists
 
-A line ends a statement in tiko, so an ordinary string literal never crosses one. Before block strings, several lines of text meant one literal per line, glued with `&`, `chr( 10 )` and a `_` continuation on every line. SQL, JSON, HTML, shader source and usage text are the cases where that hurts most. A block string is the text as it would appear in a file, indented to match the code around it.
+A line ends a statement in tiko, so an ordinary string literal never crosses one. Without block strings, several lines of text mean one literal per line, glued with `&`, `chr( 10 )` and a `_` continuation on every line. SQL, JSON, HTML, shader source and usage text are the cases where that hurts most. A block string is the text as it would appear in a file, indented to match the code around it.
 
 ## Rules
 
-**It opens** with `"""` that ends its line: nothing but spaces or tabs may follow it. That condition is what keeps old code meaning what it meant (see [Compatibility](#compatibility)).
+**It opens** with `"""` that ends its line: nothing but spaces or tabs may follow it. That condition is what lets every other run of quotes keep its ordinary meaning (see [Other Quote Sequences](#other-quote-sequences)).
 
 **It closes** at the first line that starts, after spaces and tabs, with `"""`. Anything after the closing `"""` is ordinary code, so the block can sit in the middle of an expression:
 
@@ -65,7 +65,7 @@ A block string can go anywhere a string literal can: an initializer, a `const`, 
 | `TKO0207` | No closing line before the end of the file. The rest of the file becomes the string. |
 | `TKO0208` | A non-blank line does not start with the closing line's indentation. |
 
-## Compatibility
+## Other Quote Sequences
 
 tiko reads `"""` followed by the end of the line as the start of a block string. Every other spelling keeps its ordinary meaning: `"""abc"""` is the five-character string `"abc"`, and `""""` is one quote.
 

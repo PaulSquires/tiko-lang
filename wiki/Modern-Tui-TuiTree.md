@@ -15,7 +15,7 @@ end type
 
 ## Description
 
-A collapsible tree with guides and its own scroll. Left collapses, right expands, and only visible nodes are counted for scrolling. Like TuiList and TuiTable it clamps in Render -- its earlier version clamped the offset downward only, so it could scroll up to reveal a selection but never down.
+A collapsible tree with guides and its own scroll. Left collapses, right expands, and only visible nodes are counted for scrolling. Like TuiList and TuiTable it clamps the offset in Render, in both directions, so it scrolls up or down to reveal a selection.
 
 ## Example
 

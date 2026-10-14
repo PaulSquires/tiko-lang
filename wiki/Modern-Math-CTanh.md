@@ -15,7 +15,7 @@ CTanh( byref z as Complex ) as Complex
 - **Routed through `CTan`** — `tanh z = -i·tan( iz )` — precisely so that it inherits `CTan`'s overflow guard instead of carrying a second copy of it. A large **real** part is the case that would otherwise be `inf/inf` here.
 - Both axes are answered directly, for the accuracy and the signed zeros.
 - Approaches ±1 for a large real part.
-- Spelled with the `C` prefix because, when this library was a header in namespace `FB`, a function of the unprefixed name shadowed the FreeBASIC intrinsic for every later header — measured, it broke what is now `random.tiko` — after which the intrinsic could not be called back. The name stayed when the header became `std/numeric`.
+- Spelled with the `C` prefix because, when this library was a header in namespace `FB`, a function of the unprefixed name shadowed the intrinsic for every later header — measured, it broke what is now `random.tiko` — after which the intrinsic could not be called back. The name stayed when the header became `std/numeric`.
 
 ## Examples
 

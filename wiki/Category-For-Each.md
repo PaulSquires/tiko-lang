@@ -14,7 +14,7 @@ The loop variable is declared by the statement, is scoped to the loop body, and 
 
 ## Why It Exists
 
-FreeBASIC's FOR counts. Every traversal is therefore an index loop:
+An ordinary FOR counts. A traversal written with it is an index loop:
 
 ```freebasic
 for i as int32 = lbound(arr) to ubound(arr)
@@ -24,7 +24,7 @@ next
 
 which is where 'lbound vs 0', 'ubound vs count-1' and the wrong index in a nested loop come from. FOR EACH removes the index.
 
-The existing OPERATOR FOR / NEXT / STEP protocol is untouched. It serves 'for i as T = a to b', which is a different statement. See doc/iterator-protocol.txt for why it does not cover collections.
+The OPERATOR FOR / NEXT / STEP protocol is separate. It serves 'for i as T = a to b', which is a different statement. See doc/iterator-protocol.txt for why it does not cover collections.
 
 ## The Forms
 
@@ -99,9 +99,9 @@ An array or a string becomes an ordinary FOR over a hidden counter with the elem
 
 lbound and ubound are read ONCE, at loop entry. Resizing the array inside the loop neither extends nor shortens it, and resizing a dynamic array during iteration may invalidate BYREF bindings. This is stated, not prevented -- it is the same as for the hand-written loop.
 
-## Backward Compatibility
+## 'each' AND 'in' As Names
 
-'each' and 'in' are NOT reserved words. Neither is in the keyword table, and both remain usable as variable, procedure, field and type names. These still compile, with their existing meaning:
+'each' and 'in' are NOT reserved words. Neither is in the keyword table, and both remain usable as variable, procedure, field and type names. These compile, with their ordinary meaning:
 
 ```freebasic
 for each as int32 = 1 to 3       '' 'each' is the counter
@@ -115,14 +115,14 @@ next
 dim in as int32 = 7
 ```
 
-One token of look-ahead separates the two forms with nothing left over. FreeBASIC's FOR requires a simple scalar counter --
+One token of look-ahead separates the two forms with nothing left over. An ordinary FOR requires a simple scalar counter --
 
 ```freebasic
 for each(0) = 1 to 3    error 52: Expected scalar counter
 for each.v  = 1 to 3    error 52: Expected scalar counter
 ```
 
--- so after 'for \<identifier>' the only tokens the old grammar accepts are AS and '=', and a FOR EACH's next token is always BYREF or an identifier.
+-- so after 'for \<identifier>' the only tokens an ordinary FOR accepts are AS and '=', and a FOR EACH's next token is always BYREF or an identifier.
 
 ## Diagnostics
 
@@ -180,7 +180,7 @@ default traversal order, and picking one silently would be worse.
 
 ## Tests
 
-tests/generics/for-each.bas exercises all of the above, plus the backward compatibility cases, nesting with itself and with FOR and WHILE, the iterator destructor running on EXIT FOR, and the collection being evaluated once. Five fail-tests and five golden diagnostic files cover the errors.
+tests/generics/for-each.bas exercises all of the above, plus the cases that use 'each' and 'in' as names, nesting with itself and with FOR and WHILE, the iterator destructor running on EXIT FOR, and the collection being evaluated once. Five fail-tests and five golden diagnostic files cover the errors.
 
 ## API reference
 

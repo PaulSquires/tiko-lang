@@ -31,7 +31,7 @@ WriteAtomic( "config.ini", "[main]" & chr( 10 ) )
 
 ## Why It Exists
 
-FreeBASIC's filesystem surface is the 1985 BASIC model plus a handful of additions: OPEN/GET/PUT, KILL, NAME, MKDIR, RMDIR, CHDIR, CURDIR, DIR/DIRNEXT, FileExists, FileLen, FileAttr, FileDateTime and FileCopy. Against that, every mainstream language ships a path algebra, a stat record, a reentrant directory iterator, a recursive walk and whole-file read and write. FreeBASIC ships none of them.
+The built-in filesystem surface is OPEN/GET/PUT, KILL, NAME, MKDIR, RMDIR, CHDIR, CURDIR, DIR/DIRNEXT, FileExists, FileLen, FileAttr, FileDateTime and FileCopy. Against that, every mainstream language ships a path algebra, a stat record, a reentrant directory iterator, a recursive walk and whole-file read and write. The built-in surface has none of them.
 
 Three concrete defects, not a wish list:
 
@@ -43,7 +43,7 @@ FOUR CALLS TO LEARN FOUR FACTS. FileExists + FileAttr + FileLen + FileDateTime a
 
 This library ships ALONGSIDE all of that. Nothing in inc/file.bi, inc/dir.bi or the runtime's existing file routines changed, and nothing here depends on them. A program using DIR compiles and behaves exactly as before; the only new consequence is that a better option now sits next to it.
 
-NO COMPILER SUPPORT IS INVOLVED. This is a library: the runtime half is in tiko-rt (lib/rt/src/fs/), the FreeBASIC types in the std/fs module (pkg/std/fs/). Nothing here is a keyword, and Stat, ReadDir, CopyFile and the rest stay available as your own identifiers: nothing is added to a program until it imports std/fs, and the bare names only after 'using fs'.
+NO COMPILER SUPPORT IS INVOLVED. This is a library: the runtime half is in tiko-rt (lib/rt/src/fs/), the tiko types in the std/fs module (pkg/std/fs/). Nothing here is a keyword, and Stat, ReadDir, CopyFile and the rest stay available as your own identifiers: nothing is added to a program until it imports std/fs, and the bare names only after 'using fs'.
 
 ## The Shape, In One Table
 
@@ -146,7 +146,7 @@ FsResultBool   FsResultLong   FsResultI64    FsResultUStr   FsResultStr
 FsResultInfo   FsResultULong  FsResultSpace  FsResultVol    DirEntryResult
 ```
 
-They are concrete typedefs rather than one generic alias because FreeBASIC has no generic typedef: 'type FsResult( of T ) as ...' is read as the opening of a generic TYPE BODY and does not compile.
+They are concrete typedefs rather than one generic alias because tiko has no generic typedef: 'type FsResult( of T ) as ...' is read as the opening of a generic TYPE BODY and does not compile.
 
 ## Strings -- Read This Once
 
@@ -663,7 +663,7 @@ survives POWER LOSS without an explicit directory sync           NO
 
 It writes to a temporary IN THE SAME DIRECTORY as the target -- not the system temp directory, which is often on another volume and would destroy the atomicity -- flushes it, then replaces. The temporary is cleaned up on every failure path.
 
-CreateTempFile and CreateTempDir CREATE the object and return its path. They do not hand back a name for you to create: that is the classic tmpnam race, where the window between choosing and creating is an attacker's opportunity. Creation is atomic and the names come from the platform CSPRNG, never from RND. NEITHER IS DELETED AUTOMATICALLY -- FreeBASIC has no scope guard that would make that reliable.
+CreateTempFile and CreateTempDir CREATE the object and return its path. They do not hand back a name for you to create: that is the classic tmpnam race, where the window between choosing and creating is an attacker's opportunity. Creation is atomic and the names come from the platform CSPRNG, never from RND. NEITHER IS DELETED AUTOMATICALLY.
 
 ## Glob
 
@@ -811,7 +811,7 @@ timeoutMs < 0 waits indefinitely, 0 tries once, > 0 gives up with
 FS_IN_USE. The destructor releases.
 ```
 
-This is NOT the legacy LOCK/UNLOCK, which lock byte ranges of a file already open on an FB file number and cannot express "hold this file against another process".
+This is NOT LOCK/UNLOCK, which lock byte ranges of a file already open on a file number and cannot express "hold this file against another process".
 
 IT IS ADVISORY EVERYWHERE, AND THAT IS THE CONTRACT. Windows LockFileEx is MANDATORY -- the kernel enforces it against every process. POSIX flock is ADVISORY -- it binds only processes that also ask. The only promise both platforms can keep is the weaker one, so ALL PARTICIPANTS MUST USE THIS API. Code written against the Windows behaviour silently protects nothing on Linux.
 
@@ -862,7 +862,7 @@ FS_CHANGE_CREATED  FS_CHANGE_DELETED  FS_CHANGE_MODIFIED
 FS_CHANGE_RENAMED_FROM  FS_CHANGE_RENAMED_TO  FS_CHANGE_OVERFLOW
 ```
 
-POLLING, NOT CALLBACKS. A callback fires on the watcher's own thread, so every user immediately needs a queue and a lock and most get the threading wrong. Poll puts the events on YOUR thread. FreeBASIC has no async model to deliver into anyway.
+POLLING, NOT CALLBACKS. A callback fires on the watcher's own thread, so every user immediately needs a queue and a lock and most get the threading wrong. Poll puts the events on YOUR thread.
 
 A TIMEOUT IS AN EMPTY SUCCESS, not a failure -- "nothing happened" and "the watch broke" are different answers.
 
@@ -898,10 +898,10 @@ Free space is a snapshot and is stale on return. A FileLock is ADVISORY even on 
 
 Each was considered and excluded.
 
-Async / overlapped / promise-based IO. FreeBASIC has no async model, and
+Async / overlapped / promise-based IO. Introducing an async model
 
 ```freebasic
-introducing one inside a filesystem library would be a language project
+inside a filesystem library would be a language project
 wearing a library's clothes.
 ```
 
@@ -915,7 +915,7 @@ boundary with the other. It remains additive later.
 A virtual filesystem abstraction. It needs an interface feature independent
 
 ```freebasic
-of inheritance, which FreeBASIC does not have.
+of inheritance, which tiko does not have.
 ```
 
 Archives and compression. Zip and tar are file FORMATS, not filesystem
@@ -956,7 +956,7 @@ both grammars always compiled
 
 lib/rt/src/fs/glob.tiko     the matcher: pure, portable, ITERATIVE lib/rt/src/fs/text.tiko     the BOM and encoding rules, portable lib/rt/src/fs/errmsg.tiko   the message table lib/rt/src/fs/dirent.tiko   record-to-USTRING accessors, ABI size hooks lib/rt/src/fs/{error,stat,dir,ops,link,volume,lock,mmap,watch}.bas   each split by platform with #if
 
-THE UNIT IS FB_UCHAR (UTF-16), NOT FB_WCHAR, which is 4 bytes on Linux -- building the kernel on it would silently change the path encoding depending on the host. Every struct crossing the C/FB boundary uses FIXED-WIDTH fields for the same reason: 'unsigned long' is 4 bytes on Windows and 8 on Linux while FreeBASIC's ULONG is 32-bit everywhere, and getting that wrong shifts every field after it.
+THE UNIT IS FB_UCHAR (UTF-16), NOT FB_WCHAR, which is 4 bytes on Linux -- building the kernel on it would silently change the path encoding depending on the host. Every struct crossing the C/tiko boundary uses FIXED-WIDTH fields for the same reason: 'unsigned long' is 4 bytes on Windows and 8 on Linux while tiko's ULONG is 32-bit everywhere, and getting that wrong shifts every field after it.
 
 The glob matcher is ITERATIVE, not recursive. A recursive matcher on a hostile pattern such as "a\*a\*a\*a\*a\*b" is exponential and will blow the stack.
 
@@ -969,8 +969,8 @@ tests/vendor/fbc-tests/filesystem/     nine fbcunit suites, vendored in tiko-lan
 ```freebasic
 fspath_core     one block per numbered path rule, every case run under
                 BOTH grammars regardless of host
-fserror_codes   the FB enum cross-checked against its C constants
-fsinfo_dir      Stat, the kinds, and the interleaved-scan test the legacy
+fserror_codes   the tiko enum cross-checked against its C constants
+fsinfo_dir      Stat, the kinds, and the interleaved-scan test the built-in
                 DIR cannot pass
 fsops_walk      the encoding rules, the bulk operations, the walk
 fsglob          one block per glob rule, plus the pathological pattern

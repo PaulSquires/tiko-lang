@@ -30,7 +30,7 @@ print s.UseCount( )                           ' 1
 
 ## Why It Exists
 
-FreeBASIC had no way to say "this object is owned jointly". Every heap object had exactly one owner by convention, and the convention lived in a comment:
+A raw pointer has no way to say "this object is owned jointly". Every heap object reached through one has exactly one owner by convention, and the convention lives in a comment:
 
 ```freebasic
 dim p as Node ptr = new Node        ' who deletes this?
@@ -158,7 +158,7 @@ declare constructor( of U )( byref rhs as SharedPtr( of U ) )
 
 THE BASE MUST HAVE A VIRTUAL DESTRUCTOR. C++'s shared_ptr does not require one, because its control block type-erases the deleter at construction time; that needs the address of an instantiated generic procedure, which is not expressible here. The surviving handle destroys through ITS OWN T, so destroying a Circle through a SharedPtr( of Shape ) is correct only if Shape's destructor is virtual. There are no constraints on type parameters, so this cannot be checked -- it is a contract, and breaking it is silent.
 
-The reinterpretation itself is safe: the control block is not generic, so there is one layout for every T, and FreeBASIC is single-inheritance, so a Circle pointer and its Shape subobject share an address with no adjustment to apply.
+The reinterpretation itself is safe: the control block is not generic, so there is one layout for every T, and tiko is single-inheritance, so a Circle pointer and its Shape subobject share an address with no adjustment to apply.
 
 ## The Arrow Needs A UDT
 
@@ -177,7 +177,7 @@ Neither '\*sp' nor 'sp->' checks for null: they compile to the same dereference 
 
 Ref( ) on a null SharedPtr raises FB_RTERROR_ILLEGALFUNCTIONCALL through the ordinary runtime-error path, so it is catchable by 'on error' and reports a line under -exx. With no handler the program aborts with 'runtime error 1' naming the line in sharedptr.tiko.
 
-Unlike Optional.Value( ), there is nothing sane to return afterwards -- a null handle owns no object, so no T exists anywhere to reference. A function-static blank would be worse than the fault: it would force T to be default- constructible for every use of SharedPtr, and a function-static UDT in FreeBASIC is constructed lazily and NEVER destroyed, so it would retain one T and its resources for the life of the program.
+Unlike Optional.Value( ), there is nothing sane to return afterwards -- a null handle owns no object, so no T exists anywhere to reference. A function-static blank would be worse than the fault: it would force T to be default- constructible for every use of SharedPtr, and a function-static UDT in tiko lives until the program ends, so it would retain one T and its resources for the life of the program.
 
 ## Every Copy Is A Real Refcount Operation
 
@@ -223,19 +223,19 @@ through generic instantiations has no coverage anywhere in this tree.
 
 ## Library Only
 
-The types are entirely FreeBASIC -- the std/memory module, pkg/std/memory/sharedptr.tiko.
+The types are entirely tiko -- the std/memory module, pkg/std/memory/sharedptr.tiko.
 
 Generic global UNARY operators -- '\*', '->', unary '-' and NOT -- are instantiated at their use sites. generics/global-unary-operators.bas -- each of those four beside a binary operator of the same spelling over a plain Box( of T ) -- builds and runs under tiko with exit 0, and tiko's own `tests/mir/generic-global-operator.test` covers '+', unary '\*' and '->'.
 
 ## Implementation Note
 
-The reference counts go through three runtime functions -- fb_AtomicFetchAddLong, fb_AtomicCasLong and fb_AtomicLoadLong, declared in inc/fbatomic.bi. In tiko they are tiko-rt's, in lib/rt/src/c/atomic.c: one of the few C files in a runtime otherwise written in FreeBASIC, because the language cannot spell an atomic operation. They use clang's \_\_atomic builtins and are sequentially consistent throughout.
+The reference counts go through three runtime functions -- fb_AtomicFetchAddLong, fb_AtomicCasLong and fb_AtomicLoadLong, declared in inc/fbatomic.bi. In tiko they are tiko-rt's, in lib/rt/src/c/atomic.c: one of the few C files in a runtime otherwise written in tiko, because the language cannot spell an atomic operation. They use clang's \_\_atomic builtins and are sequentially consistent throughout.
 
 These three deliberately do not offer the full C11 memory-order vocabulary. They are the smallest primitive set a reference count needs.
 
-The cost is a real call per operation, since they cannot inline into FB code. That is the trade: correct and portable now, faster later.
+The cost is a real call per operation, since they cannot inline into tiko code. That is the trade: correct and portable now, faster later.
 
-They are declared with C 'int', not C 'long'. C 'long' is 64-bit on LP64 and 32-bit on Windows, while FreeBASIC's LONG is 32-bit everywhere -- getting this wrong is invisible on win64 and silently corrupts the adjacent field on linux-x86_64.
+They are declared with C 'int', not C 'long'. C 'long' is 64-bit on LP64 and 32-bit on Windows, while tiko's LONG is 32-bit everywhere -- getting this wrong is invisible on win64 and silently corrupts the adjacent field on linux-x86_64.
 
 ## Tests
 

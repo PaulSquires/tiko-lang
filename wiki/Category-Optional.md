@@ -25,7 +25,7 @@ print Lookup( "nobody" ).ValueOr( unknown )      ' -1
 
 ## Why It Exists
 
-FreeBASIC had no way to say "a value that might not be there". Absence was encoded as 0, -1, NULL, an empty string, or an out-parameter boolean -- differently in every library, and indistinguishable from a legitimate result whenever the sentinel is itself a legal value:
+Without Optional there is no way to say "a value that might not be there". Absence is encoded as 0, -1, NULL, an empty string, or an out-parameter boolean -- differently in every library, and indistinguishable from a legitimate result whenever the sentinel is itself a legal value:
 
 ```freebasic
 function Find( ... ) as int32        ' is -1 "absent", or an index?
@@ -35,7 +35,7 @@ dim idx as int32 = IndexOf( v, x )    ' 0 could mean "found at 0"
                                      ' or "not found" -- depends on the API
 ```
 
-Optional puts the absence IN THE TYPE, where it has a name and cannot be confused with a value. It also removes the out-parameter form: 'TryGet( key, byref out ) as boolean' exists only because there was no way to return "a long, or nothing".
+Optional puts the absence IN THE TYPE, where it has a name and cannot be confused with a value. It also removes the out-parameter form: 'TryGet( key, byref out ) as boolean' is the shape a function takes only when it has no way to return "a long, or nothing".
 
 ## Members
 
@@ -197,7 +197,7 @@ Write the branch.
 
 ## Ownership AND Copying
 
-Copy and assignment are DEEP, because the T is stored by value and FreeBASIC's value semantics do the work. 'dim b = a' copies the flag and the T; assignment overwrites both. The two are independent afterwards in BOTH directions.
+Copy and assignment are DEEP, because the T is stored by value and tiko's value semantics do the work. 'dim b = a' copies the flag and the T; assignment overwrites both. The two are independent afterwards in BOTH directions.
 
 Clear( ) resets the slot rather than only clearing the flag, so a T holding a resource -- a string, a container -- releases it at the Clear( ) rather than at the Optional's own destruction.
 
@@ -209,7 +209,7 @@ Optional( of Optional( of T ) ) works and has three distinguishable states, whic
 
 Value( ) returns a reference to the stored slot even on the raising path, because a byref return must refer to something and the slot is always a real default-constructed object.
 
-It does NOT use the function-'static' blank that LinkedList.Front( ) uses. That pattern is correct there -- an empty list has no node to point at -- but it would be a leak here with a measured cause: a function-'static' UDT in FreeBASIC is constructed lazily on first call and is NEVER destroyed, so every instantiation of the member would retain one T, and its resources, for the lifetime of the program.
+It does NOT use the function-'static' blank that LinkedList.Front( ) uses. That pattern is correct there -- an empty list has no node to point at -- but it would be a leak here: a function-'static' UDT in tiko lives until the program ends, so every instantiation of the member would retain one T, and its resources, for the lifetime of the program.
 
 Source: pkg/std/outcome/optional.tiko
 

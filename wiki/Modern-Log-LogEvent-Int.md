@@ -18,7 +18,7 @@ dim con as ConsoleSink
 dim lg as Logger
 lg.AddSink( @con )
 
-'' Spelled Int_ WITH A TRAILING UNDERSCORE, because INT is a FreeBASIC
+'' Spelled Int_ WITH A TRAILING UNDERSCORE, because INT is a tiko
 '' keyword. Ptr_ is the same story.
 lg.Info( ).Int_( "rows", 1200 ).Int_( "skipped", -3 ).Msg( "loaded" )
 ```

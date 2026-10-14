@@ -18,7 +18,7 @@ end sub                              ' CloseHandle runs
 
 ## Why It Exists
 
-FreeBASIC has deterministic destructors, which handle cleanup well -- but only if you declare a type for every cleanup action. A one-off CloseHandle, DeleteObject, ReleaseDC or free in a procedure with four early exits gets written four times, or forgotten once. That is the most common resource-leak shape in Win32 code, and Win32 code is FreeBASIC's home ground.
+tiko has deterministic destructors, which handle cleanup well -- but only if you declare a type for every cleanup action. A one-off CloseHandle, DeleteObject, ReleaseDC or free in a procedure with four early exits gets written four times, or forgotten once. That is the most common resource-leak shape in Win32 code.
 
 DEFER is for the cleanup that does not justify a type.
 
@@ -98,7 +98,7 @@ Because that reads as if the jump skips the defer and it does not, crossing a DE
 error 349: Branch crossing a DEFER statement, to label: SKIP
 ```
 
-which is the same rule FreeBASIC already applies to jumping past a local with a constructor. What IS honoured is position: a defer placed after an early exit never runs on that exit, because it is outside the exit's statement window.
+which is the same rule tiko applies to jumping past a local with a constructor. What IS honoured is position: a defer placed after an early exit never runs on that exit, because it is outside the exit's statement window.
 
 ```freebasic
 sub f( )
@@ -118,9 +118,9 @@ There is no scope to exit, so nothing would ever run it.
 
 ## 'defer' IS A CONTEXTUAL KEYWORD
 
-It is NOT a reserved word. Making it one would break every existing program that uses 'defer' as a name, and a contextual keyword costs nothing to programs that do not use the feature.
+It is NOT a reserved word, so 'defer' remains usable as a name, and a contextual keyword costs nothing to programs that do not use the feature.
 
-It is read as the keyword only when the NEXT token begins a statement. So all of this still compiles and behaves exactly as before:
+It is read as the keyword only when the NEXT token begins a statement. So all of this compiles with its ordinary meaning:
 
 ```freebasic
 dim defer as int32 = 3
@@ -132,7 +132,7 @@ h.defer = 5
 x = defer( 6 )              ' a function named 'defer'
 ```
 
-THE ONE INCOMPATIBILITY: a PAREN-LESS call in statement position to a sub named 'defer', WHEN ITS ARGUMENT BEGINS WITH A NAME:
+THE ONE EXCEPTION: a PAREN-LESS call in statement position to a sub named 'defer', WHEN ITS ARGUMENT BEGINS WITH A NAME:
 
 ```freebasic
 defer x                     ' now a DEFER of the statement 'x'
@@ -164,11 +164,11 @@ tiko's parser recognises the contextual keyword (`src/parser/parser.tiko`), and 
 
 The DEFER tests are vendored in tiko-lang under `tests/vendor/fbc-tests/`.
 
-generics/defer.bas is exhaustive: reverse order, fallthrough off 'end scope' / 'end sub' / 'end function', every break path including 'exit for, for' and 'goto' out of three nested scopes, a loop body, defers in IF / SELECT / WITH arms, interleaving with destructors asserted in BOTH orders and on BOTH the fallthrough and break paths, a defer that is never reached, and backward compatibility for 'defer' as a variable, array, field and shared.
+generics/defer.bas is exhaustive: reverse order, fallthrough off 'end scope' / 'end sub' / 'end function', every break path including 'exit for, for' and 'goto' out of three nested scopes, a loop body, defers in IF / SELECT / WITH arms, interleaving with destructors asserted in BOTH orders and on BOTH the fallthrough and break paths, a defer that is never reached, and 'defer' as a variable, array, field and shared.
 
 Order is asserted by accumulating into a string and comparing the exact sequence. A defer that runs at the wrong time still runs, so only the sequence distinguishes right from wrong.
 
-generics/defer-identifier.bas covers 'defer' as a PROCEDURE name -- separate, because FreeBASIC refuses a local that shadows a module-level procedure of the same name.
+generics/defer-identifier.bas covers 'defer' as a PROCEDURE name, in a file of its own.
 
 errors/defer-errors.bas holds the golden output for all three diagnostics. tiko reports all three -- see Diagnostics.
 

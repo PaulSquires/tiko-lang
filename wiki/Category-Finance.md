@@ -22,7 +22,7 @@ and portfolio returns and risk.
 
 ## The money types
 
-FreeBASIC has no money type. Every program that holds an amount holds it in a `DOUBLE`, and `0.1 + 0.2 <> 0.3` in binary floating point -- so every one of them is one rounding away from a penny that does not reconcile. These two types are the answer, and which one you want is a single question: **is four decimal places enough?**
+An amount held in a `DOUBLE` is one rounding away from a penny that does not reconcile, because `0.1 + 0.2 <> 0.3` in binary floating point. These two types are the answer, and which one you want is a single question: **is four decimal places enough?**
 
 | | `Currency` | `Decimal` |
 |---|---|---|
@@ -36,13 +36,13 @@ FreeBASIC has no money type. Every program that holds an amount holds it in a `D
 
 USE `Currency` WHEN FOUR PLACES IS ENOUGH. It is the cheaper type by a wide margin and this category does not deprecate it. Use `Decimal` when four places is the thing standing in the way -- FX rates quoted to six or eight, per-unit costs, per-mille rates, interest accrual, tax tables. `DecimalFromCurrency( c )` and `d.ToCurrency( )` convert between them.
 
-NEITHER IS A NEW REPRESENTATION. Both are shapes that Windows, COM and SQL Server have used for decades and that FreeBASIC could already NAME and could not COMPUTE with: `win\wtypes.bi` declares `tagCY` at line 326 and `tagDEC` at line 329. Each type here has the matching layout, so the interop boundary is a REINTERPRET rather than a conversion.
+NEITHER IS A NEW REPRESENTATION. Both are shapes that Windows, COM and SQL Server have used for decades: `win\wtypes.bi` declares `tagCY` at line 326 and `tagDEC` at line 329. Each type here has the matching layout, so the interop boundary is a REINTERPRET rather than a conversion.
 
-NO ARITHMETIC IS DELEGATED TO OleAut32. AfxNova's `CDEC.inc` and `CInt96.inc` wrap `VarCyAdd` / `VarDecMul` and friends, which works and is Windows-only. This compiler ships and gates on linux-x86_64, so the arithmetic is implemented in FreeBASIC and `VarCy*`, `VarDec*` and .NET itself are TEST ORACLES rather than dependencies. Both types behave identically on every target.
+NO ARITHMETIC IS DELEGATED TO OleAut32. This compiler ships and gates on linux-x86_64, so the arithmetic is implemented in tiko and `VarCy*`, `VarDec*` and .NET itself are TEST ORACLES rather than dependencies. Both types behave identically on every target.
 
 ONE SET OF RULES, NOT TWO. The two types deliberately agree on everything they can:
 
-- **Construction is by free function, not constructor.** A one-argument constructor taking `LONGINT` would also accept a `DOUBLE` through FreeBASIC's implicit conversion, so `Currency( 19.99 )` would have compiled and stored 19. Naming every conversion means the inexact one cannot be reached by accident.
+- **Construction is by free function, not constructor.** A one-argument constructor taking `LONGINT` would also accept a `DOUBLE` through implicit conversion, so `Currency( 19.99 )` would have compiled and stored 19. Naming every conversion means the inexact one cannot be reached by accident.
 - **Half-to-even is the default,** because half-up biases every tie the same way and across a million lines that is real money. The mode names match: `CUR_HALF_EVEN` / `DEC_HALF_EVEN` and their six siblings.
 - **Overflow is `Invalid`, it is infectious, and `Invalid = Invalid` is FALSE** -- the same rule `std/chrono` uses for `DateTime`. Test with `IsValid( )`. A default-constructed value is ZERO and VALID.
 - **Text is exact both ways,** with no `DOUBLE` anywhere in the path, and parsing is STRICT: the whole string must be consumed, and more than the type's decimal places is an ERROR rather than a truncation.
@@ -158,7 +158,7 @@ smallest     0.0000000000000000000000000001   (1e-28)
 size         16 bytes
 ```
 
-This IS the .NET System.Decimal of C# and VB.NET, the COM DECIMAL / VT_DECIMAL type, and SQL Server's decimal(28,s).  win\wtypes.bi:329 has declared 'tagDEC' for twenty years and money.Decimal has the same sixteen bytes in the same order, so the interop boundary is a REINTERPRET rather than a conversion.
+This IS the .NET System.Decimal of C# and VB.NET, the COM DECIMAL / VT_DECIMAL type, and SQL Server's decimal(28,s).  win\wtypes.bi:329 declares 'tagDEC' and money.Decimal has the same sixteen bytes in the same order, so the interop boundary is a REINTERPRET rather than a conversion.
 
 WHY, GIVEN Currency ALREADY EXISTS.  Currency is four decimal places, fixed, in eight bytes, and its own source says up front that this is its central limitation.  FX rates quoted to six or eight places, per-unit costs, per-mille rates and interest accrual all need more.
 
@@ -260,10 +260,9 @@ VERIFIED AGAINST .NET ITSELF.  The point of naming an existing type is that an o
 
 ## The finance functions
 
-FreeBASIC has no financial function of any kind -- no payment, no present value, no rate
-conversion, no internal rate of return, no depreciation, no amortization schedule, and no
-day-count convention to express any of them in. Every program that needs one writes it,
-in `DOUBLE`, once per call site.
+Without this module, every program that needs a payment, a present value, a rate
+conversion, an internal rate of return, a depreciation or an amortization schedule writes
+it, in `DOUBLE`, once per call site.
 
 Here is what that costs. A $400,000 mortgage at 5.95% over thirty years, amortized the way
 everyone amortizes it -- compute the payment, round it to cents, round each period's

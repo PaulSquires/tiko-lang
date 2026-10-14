@@ -11,9 +11,7 @@ var i = foo( )
 print i( 1 )                 ' 20
 ```
 
-A function may return a **dynamic array**. Write the result type as `T( )`. No `#include`, no runtime support -- it is a language feature, and **not a tiko container**: what comes back is a classic FreeBASIC dynamic array, indexed with `i( 1 )`, measured with `ubound( i )`, passed to `a( ) as integer` parameters and erased at the end of its scope like any other.
-
-This is a tiko extension.
+A function may return a **dynamic array**. Write the result type as `T( )`. No `#include`, no runtime support -- it is a language feature, and **not a tiko container**: what comes back is an ordinary dynamic array, indexed with `i( 1 )`, measured with `ubound( i )`, passed to `a( ) as integer` parameters and erased at the end of its scope like any other.
 
 ## What 'return' Takes
 

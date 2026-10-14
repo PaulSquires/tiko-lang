@@ -25,7 +25,7 @@ A brace list fills one at the declaration: `dim m as Map( of ustring, long ) = {
 
 ## Why It Exists
 
-FreeBASIC had no hash map. The available answer was a COM Scripting.Dictionary from the Windows Script Runtime:
+Without a hash map in the language, the available answer is a COM Scripting.Dictionary from the Windows Script Runtime:
 
 ```freebasic
 Portability   Windows-only.  No dictionary on Linux or macOS builds.
@@ -162,13 +162,13 @@ next
 
 k and v each have their own type -- ustring and long here, not a pair and not each other.
 
-Pairs( ) is a second view over the same slots whose iterator yields a TUPLE, (TK, TV), which is what the destructuring form requires; iterating the map directly still yields a KeyValuePair. Two spellings rather than one because FreeBASIC CANNOT OVERLOAD ON THE RETURN TYPE ALONE -- the parser picks an overload bottom-up, before any expected type is known -- so MapIterator.Value( ) has to return one thing or the other, and changing it would break every kv.key / kv.value site.
+Pairs( ) is a second view over the same slots whose iterator yields a TUPLE, (TK, TV), which is what the destructuring form requires; iterating the map directly still yields a KeyValuePair. Two spellings rather than one because tiko CANNOT OVERLOAD ON THE RETURN TYPE ALONE -- the parser picks an overload bottom-up, before any expected type is known -- so MapIterator.Value( ) has to return one thing or the other, and changing it would break every kv.key / kv.value site.
 
 The view BORROWS the map. It does not own it, must not outlive it, and is invalidated by exactly what invalidates any map iterator (below). Writing to k or v changes nothing, for the same reason writing to kv.value does not.
 
 Cost: the tuple copies the key and the value a second time, on top of the copy the KeyValuePair already makes. For a Map( of string, ... ) that is two string copies per iteration rather than one.
 
-ITERATION ORDER IS UNSPECIFIED and changes across insertions. It is not randomised per process -- that is a hash-flooding defence FreeBASIC has no threat model for, and stability within one unmodified map is more useful when debugging.
+ITERATION ORDER IS UNSPECIFIED and changes across insertions. It is not randomised per process -- that is a hash-flooding defence tiko has no threat model for, and stability within one unmodified map is more useful when debugging.
 
 If you need the keys in order, containers.OrderedMap is the same interface over a red-black tree -- O(log n) instead of O(1), always sorted, and needing only '<' rather than a hash. See [OrderedMap](Category-OrderedMap).
 

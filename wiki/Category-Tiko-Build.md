@@ -2,7 +2,7 @@
 
 # tiko build
 
-`tiko build`, `tiko run`, `tiko check`, `tiko clean` and `tiko metadata` build a project the way an editor, a terminal and a CI job all can: from a `tiko.toml`, with every compiled file cached, the misses compiled in parallel, and a line-per-event JSON stream for tools. They are subcommands of the one `tiko` executable. Everything else on a `tiko` command line is the classic compiler driver, unchanged: `tiko main.tiko util.tiko -o app.exe` still compiles every file every time.
+`tiko build`, `tiko run`, `tiko check`, `tiko clean` and `tiko metadata` build a project the way an editor, a terminal and a CI job all can: from a `tiko.toml`, with every compiled file cached, the misses compiled in parallel, and a line-per-event JSON stream for tools. They are subcommands of the one `tiko` executable. Everything else on a `tiko` command line is the compiler driver: `tiko main.tiko util.tiko -o app.exe` compiles every file every time.
 
 The book's [Building and Shipping](https://tiko-lang.net/book/ch30-building-shipping.html) chapter teaches this with a worked project; this page is the reference, and its [JSON stream](#the-json-event-stream) and [metadata](#tiko-metadata) sections are the contract editors code against.
 
@@ -48,7 +48,7 @@ A word is a **target** when a manifest is in force and the word has no `.`, `/` 
 
 ### Without a manifest
 
-`tiko build a.tiko b.tiko` builds one implicit target from the files given, named after the first, with the classic driver's output (`a.exe`) unless `-o` names another. It gets the cache, the parallel compile and the link check below; no profile applies unless `--profile` names one. `tiko run a.tiko` and `tiko check a.tiko` work the same way.
+`tiko build a.tiko b.tiko` builds one implicit target from the files given, named after the first, with the compiler driver's output (`a.exe`) unless `-o` names another. It gets the cache, the parallel compile and the link check below; no profile applies unless `--profile` names one. `tiko run a.tiko` and `tiko check a.tiko` work the same way.
 
 ## The manifest
 

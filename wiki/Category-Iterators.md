@@ -4,13 +4,13 @@
 
 ## Why It Exists
 
-FreeBASIC already has an iteration protocol: OPERATOR FOR / OPERATOR NEXT / OPERATOR STEP, which serve
+OPERATOR FOR / OPERATOR NEXT / OPERATOR STEP form an iteration protocol of their own, which serves
 
 ```freebasic
 for i as T = a to b
 ```
 
-That is a RANGE protocol, and it is kept exactly as it is. It does not solve the collection problem, for three reasons:
+That is a RANGE protocol. It does not solve the collection problem, for three reasons:
 
 1. Seven declarations and seven definitions to iterate one type -- two
 
@@ -92,7 +92,7 @@ end function
 
 There is no Iterable interface to implement and nothing to inherit. A type is iterable because name lookup finds the members.
 
-This is deliberate. FreeBASIC has no interface feature independent of inheritance, so a nominal protocol would consume the type's single inheritance slot, add a vtable and a virtual call per element to types that are otherwise plain data, and force every existing collection to be modified. Structural matching costs one name lookup at compile time and produces a direct, inlinable call.
+This is deliberate. tiko has no interface feature independent of inheritance, so a nominal protocol would consume the type's single inheritance slot, add a vtable and a virtual call per element to types that are otherwise plain data, and force every existing collection to be modified. Structural matching costs one name lookup at compile time and produces a direct, inlinable call.
 
 The cost is that a type can conform by accident, and that a near-miss ('MoveNxt') reads as "not iterable" rather than "you misspelled it".
 
@@ -170,19 +170,19 @@ Note that Buf's GetIterator returns an instantiation of a DIFFERENT generic. Tha
 
 ## Iterators Are Ordinary Values
 
-An iterator has ordinary FreeBASIC lifetime. If it holds a resource, give it a destructor and the destructor runs when it goes out of scope -- including on EXIT FOR, on GOTO out of a loop, and while an error unwinds the scope. The protocol adds no lifetime rule of its own; it relies on the one the language already has.
+An iterator has ordinary tiko lifetime. If it holds a resource, give it a destructor and the destructor runs when it goes out of scope -- including on EXIT FOR, on GOTO out of a loop, and while an error unwinds the scope. The protocol adds no lifetime rule of its own; it relies on the one the language already has.
 
 This is why GetIterator returns BY VALUE rather than allocating. A typical iterator is a pointer and two integers and costs nothing.
 
 ## Coexistence
 
-OPERATOR FOR / NEXT / STEP is untouched, undeprecated and unchanged. A type may implement both protocols and they do not interfere: they are looked up separately and neither falls back to the other.
+OPERATOR FOR / NEXT / STEP is a fully supported protocol in its own right. A type may implement both protocols and they do not interfere: they are looked up separately and neither falls back to the other.
 
 A collection is even allowed to BE its own iterator (GetIterator returning itself by value). Convenient for one-shot generators, and an easy way to make an aliasing mistake -- two "independent" iterations would share one cursor.
 
 ## Known Limits
 
-- CONST OVERLOADING IS NOT AVAILABLE. FreeBASIC does not distinguish
+- CONST OVERLOADING IS NOT AVAILABLE. tiko does not distinguish
 
 ```freebasic
 overloads by constness alone:
@@ -192,7 +192,7 @@ overloads by constness alone:
     error 4: Duplicated definition
 
 So a type cannot supply a const and a non-const GetIterator pair. Declare
-the float32 GetIterator CONST -- it then serves const and non-const
+the single GetIterator CONST -- it then serves const and non-const
 collections alike, which is what a container wants anyway.
 ```
 
@@ -206,9 +206,9 @@ collection and not enough for a generic algorithms library.
 - The names GetIterator, IsValid, Value and MoveNext are NOT reserved words
 
 ```freebasic
-and are not in the keyword table. A type that has them today compiles and
-behaves exactly as before; the only new consequence is that it may now also
-be walkable.
+and are not in the keyword table. A type that has them compiles and
+behaves as it would without the protocol; the only consequence is that it
+may also be walkable.
 ```
 
 ## Conformance Suite

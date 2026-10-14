@@ -2,7 +2,7 @@
 
 # NextInt
 
-INCLUSIVE both ends, matching FB's TO
+INCLUSIVE both ends, matching tiko's TO
 
 ## Syntax
 
@@ -12,7 +12,7 @@ NextInt( lo, hi )
 
 ## Notes
 
-- INCLUSIVE both ends, matching FB's TO
+- INCLUSIVE both ends, matching tiko's TO
 
 ## Examples
 

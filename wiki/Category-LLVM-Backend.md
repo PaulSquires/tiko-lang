@@ -2,7 +2,7 @@
 
 # LLVM Backend
 
-tiko compiles each module to **textual LLVM IR** and runs `clang -c` on it to make an object. clang then drives the link. There is no other code generator: no C emission, no `gas` or `gas64`, and no fallback. So there is no `-gen` option, and `tiko -gen llvm hello.tiko` is refused:
+tiko compiles each module to **textual LLVM IR** and runs `clang -c` on it to make an object. clang then drives the link. There is no other code generator and no fallback. So there is no `-gen` option, and `tiko -gen llvm hello.tiko` is refused:
 
 ```
 tiko-lang: error TKO0100: unknown option '-gen'
@@ -46,7 +46,7 @@ Inline `ASM` is **refused**:
 error TKO0407: inline assembly is not supported; compile that module with fbc
 ```
 
-FreeBASIC's `ASM` is raw assembler text with direct symbol references. LLVM wants constraint strings and operands, and anything short of refusing it produces plausible-but-wrong code.
+An `ASM` block is raw assembler text with direct symbol references. LLVM wants constraint strings and operands, and anything short of refusing it produces plausible-but-wrong code.
 
 ## Optimisation and debug information
 

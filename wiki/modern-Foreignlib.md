@@ -102,7 +102,7 @@ Declaring the same name again with an **identical** set is allowed, which is wha
 - **A `.dll` with no import library** (windows-x86_64). When a `dynamic` spec matches only a `.dll`, tiko reads the DLL's export table and makes an import library for it while linking, with `llvm-dlltool` from clang's LLVM directory, and deletes it with the other intermediate files. The import library names the DLL as the DLL names itself, not by its file name, so a renamed copy in `vendor/` still loads the original beside the program. A file that is not a 64-bit x86-64 DLL is `TKO0172`. A `.dll.a` or `.lib` of a matching name is found first and used as it is.
 - **Separately compiled modules carry their own libraries.** The resolved library file and its absolute directory are recorded in the object file, so a module compiled with `-c` links correctly later, from any working directory.
 - **Running the program is up to you.** A dynamically linked program needs its DLL beside the `.exe` on Windows, and its `.so` on the loader's path on Linux (`LD_LIBRARY_PATH`, the system's library directories, or an rpath such as `#cmdline "-Wl -rpath,$ORIGIN"`). `#foreignlib` does not copy library files.
-- `#inclib` and `#libpath` keep working and can be used in the same program. `#libpath` is relative to the working directory, which is why a shipped binding uses `#foreignlib` instead.
+- `#inclib` and `#libpath` work alongside it and can be used in the same program. `#libpath` is relative to the working directory, which is why a shipped binding uses `#foreignlib` instead.
 
 ## Working with `#cinclude`
 

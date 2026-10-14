@@ -18,9 +18,9 @@ lg.Warn( ).Str( "user", u ).Int_( "attempts", n ).Msg( "login failed" )
 ' 2026-08-12T23:06:34.361Z  WARN   login failed  user=quinn attempts=3
 ```
 
-FreeBASIC has no logging facility at all -- not a weak one, none. PRINT, PRINT #, OPEN and ERR are the whole surface, so every program grows a WriteLog( ) that opens a file, appends a line and closes it: no level, no timestamp, no structure, no rotation, and no lock. This module replaces that. It ships ALONGSIDE the legacy surface and changes none of it.
+Without this module, a program that logs grows a WriteLog( ) that opens a file, appends a line and closes it: no level, no timestamp, no structure, no rotation, and no lock. This module replaces that. It ships ALONGSIDE PRINT, PRINT #, OPEN and ERR and changes none of them.
 
-LIBRARY ONLY. Every line is FreeBASIC -- no compiler change, and unlike std/fs, not one line of C in the runtime.
+LIBRARY ONLY. Every line is tiko -- no compiler change, and unlike std/fs, not one line of C in the runtime.
 
 ## What You Get
 
@@ -36,7 +36,7 @@ CHILD LOGGERS carrying inherited fields.
 A CALL THAT CANNOT FAIL. No Result, no raise, ever.
 ```
 
-And one thing you do not get, which is the reason to read the next section: FreeBASIC has no varargs, no variadic macros and no variadic generics, so fields arrive through a CHAINED BUILDER rather than a format string.
+And one thing you do not get, which is the reason to read the next section: a format string. Fields arrive through a CHAINED BUILDER.
 
 ## The Call Site
 
@@ -52,7 +52,7 @@ lg.Warn( ).Str( "user", u ) _                     ' the builder
 
 Each field method returns BYREF to the same event; .Msg( ) is the only method that commits. .Send( ) commits with the message already set or empty.
 
-THE EVENT LIVES ON THE CALLER'S STACK. lg.Info( ) returns a LogEvent by value and the chain runs on that temporary, which is what makes this thread-safe with no thread-local storage -- and FreeBASIC has none user code can reach.
+THE EVENT LIVES ON THE CALLER'S STACK. lg.Info( ) returns a LogEvent by value and the chain runs on that temporary, which is what makes this thread-safe with no thread-local storage -- and tiko has none user code can reach.
 
 AN EVENT THAT IS NEVER COMMITTED EMITS NOTHING. The destructor does not auto-send. A forgotten .Msg( ) is a missing line, which you notice; the alternative is a line you never asked for, which you do not.
 
@@ -186,7 +186,7 @@ INHERITED FIELDS COME FIRST, call-site fields last, so "most specific last" is a
 
 A CHILD IS A SNAPSHOT. Raising the parent's MinLevel afterwards does not raise the child's, and a sink added to the parent later does not reach the child. That is the right default for what WithField is for: a subsystem that captures its logger once at startup.
 
-Ambient per-thread context -- Serilog's LogContext, Logback's MDC, Python's contextvars -- is NOT provided and is not merely unimplemented. It needs user-reachable thread-local storage, and FreeBASIC has none: fb_thread.h serves a CLOSED enum of seven runtime-owned keys.
+Ambient per-thread context -- Serilog's LogContext, Logback's MDC, Python's contextvars -- is NOT provided and is not merely unimplemented. It needs user-reachable thread-local storage, and tiko has none: fb_thread.h serves a CLOSED enum of seven runtime-owned keys.
 
 ## Sinks AND Locking
 
@@ -204,7 +204,7 @@ Write takes the RECORD, not rendered text, so a sink picks its own renderer and 
 
 ONE MUTEX PER SINK, HELD ACROSS THE WHOLE WRITE. Not per-logger -- that would not protect a sink shared by a parent and its child -- and not global, which would make every log call in the process contend on one thing.
 
-The rule this enforces: A RECORD RENDERS AND WRITES AS ONE UNIT, and no record ever appears inside another. FreeBASIC's own PRINT # gives no such guarantee -- two threads on one file handle interleave INSIDE a line, and nothing reports it. That silent corruption is the single worst property of every hand-rolled FB logger, and it is why locking is a phase-1 item rather than a refinement.
+The rule this enforces: A RECORD RENDERS AND WRITES AS ONE UNIT, and no record ever appears inside another. PRINT # gives no such guarantee -- two threads on one file handle interleave INSIDE a line, and nothing reports it. That silent corruption is the single worst property of every hand-rolled logger, and it is why locking is a phase-1 item rather than a refinement.
 
 A SINK MUST NOT LOG. Nothing enforces it; a sink that logs to itself re-enters a held mutex.
 

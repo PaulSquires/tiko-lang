@@ -27,7 +27,7 @@ end if
 
 ## Why It Exists
 
-The error was not part of the return type. It lived in a global status code, did not participate in the type system, and was trivially ignored:
+Without Result, the error is not part of the return type. It lives in a global status code, does not participate in the type system, and is trivially ignored:
 
 ```freebasic
 dim v as int32 = Parse( s )           ' did it work?  ask err, maybe
@@ -188,13 +188,13 @@ A must-use diagnostic needs a compiler change and is not part of this. What the 
 
 ## Ownership AND Copying
 
-Copy and assignment are DEEP, because both slots are stored by value and FreeBASIC's value semantics do the work. The two Results are independent afterwards in BOTH directions, in either state.
+Copy and assignment are DEEP, because both slots are stored by value and tiko's value semantics do the work. The two Results are independent afterwards in BOTH directions, in either state.
 
 A Result( of T ptr, ... ) copies the POINTER. There are no smart pointers.
 
 ## A Naming Trap
 
-The failure field is named 'f', not the obvious 'e'. FreeBASIC identifiers are case-insensitive, so a field named 'e' IS the type parameter 'E', and the instantiation fails with a misleading
+The failure field is named 'f', not the obvious 'e'. tiko identifiers are case-insensitive, so a field named 'e' IS the type parameter 'E', and the instantiation fails with a misleading
 
 ```freebasic
 error 14: Expected identifier, found 'E'

@@ -16,7 +16,7 @@ A tuple is an anonymous aggregate spelled '(T, U)' in any type position and '(a,
 
 ## Why It Exists
 
-FreeBASIC could not return two values. Every function that needed to picked one of three workarounds, and all three are worse than the problem:
+Without tuples, a function that returns two values has to pick one of three workarounds, and all three are worse than the problem:
 
 ```freebasic
 declare sub MinMax1( a( ) as int32, byref lo as int32, byref hi as int32 )
@@ -68,7 +68,7 @@ print sizeof( (int32, string) ), sizeof( P )      ' 32 32 on windows-x86_64
 
 An element may carry a name. The name is checked for duplicates within the declaration.
 
-Under tiko the name also reaches its element:
+The name also reaches its element:
 
 ```freebasic
 function GetRect( ) as (tl as (x as int32, y as int32), br as (x as int32, y as int32))
@@ -199,7 +199,7 @@ THE RIGHT-HAND SIDE IS EVALUATED ONCE, and bound before any target is written, w
 (a, b) = (b, a)                      ' a and b are swapped
 ```
 
-Targets are assigned left to right. Overlap is NOT diagnosed: '(a, a) = f( )' assigns '\_1' then '\_2' to the same variable and leaves '\_2'. Detecting that in the presence of 'arr(i)' and '\*p' targets is not decidable, and FB does not diagnose aliasing assignments generally.
+Targets are assigned left to right. Overlap is NOT diagnosed: '(a, a) = f( )' assigns '\_1' then '\_2' to the same variable and leaves '\_2'. Detecting that in the presence of 'arr(i)' and '\*p' targets is not decidable.
 
 Arity must match EXACTLY in both directions: too many or too few targets is `TKO0825`, which says how many elements the tuple has and how many targets are written.
 
@@ -209,7 +209,7 @@ The right-hand side must be a tuple. A plain UDT is `TKO0826`:
 (n1, n2) = someUdt                   ' error TKO0826: a tuple is expected here
 ```
 
-LET IS UNCHANGED. 'LET(a, b) = anyUdt' still walks any UDT's fields in declaration order, still checks only the too-many direction, and now also accepts a tuple, since a tuple is a UDT. Positional unpacking of a NAMED type stays LET-only on purpose: reordering that type's fields silently changes what every unpack site means, and that is not a failure mode worth spreading. tiko implements only `#lang "fb"`, where both forms work.
+LET TAKES ANY UDT. 'LET(a, b) = anyUdt' walks any UDT's fields in declaration order, checks only the too-many direction, and accepts a tuple, since a tuple is a UDT. Positional unpacking of a NAMED type is LET-only on purpose: reordering that type's fields silently changes what every unpack site means, and that is not a failure mode worth spreading. tiko implements only `#lang "fb"`, where both forms work.
 
 ## FOR EACH (k, v)
 
@@ -262,7 +262,7 @@ if a < b orelse (a = b andalso c < d) then
 
 '(x)' is a grouped expression, permanently. There is no '(x,)'.
 
-This is not an oversight. '(a) = 5' is legal today, and 'Consume( (a) )' is the established idiom for forcing a byval copy at a byref parameter. A 1-tuple spelling would put a second meaning on '(x)' and add a trailing-comma escape to a language that has never needed one.
+This is not an oversight. '(a) = 5' is legal, and 'Consume( (a) )' is the idiom for forcing a byval copy at a byref parameter. A 1-tuple spelling would put a second meaning on '(x)' and add a trailing-comma escape to a language that does not need one.
 
 Arity 0 is not spellable either -- '()' has no use without a unit type.
 
@@ -301,9 +301,9 @@ Only the FIRST bad element in a list is reported; the rest are suppressed. Parsi
 
 There is no upper bound on arity.
 
-## Nothing That Compiles Today Changes Meaning
+## Parentheses Keep Their Other Meanings
 
-'(' already meant three things in FreeBASIC -- a grouped expression, a call argument list, an array subscript list -- and a comma is already legal inside one of them. Every one of these still compiles and still means what it meant:
+'(' has three other meanings -- a grouped expression, a call argument list, an array subscript list -- and a comma is legal inside one of them. Every one of these compiles with that meaning:
 
 ```freebasic
 (a) = 5                              ' parenthesised lvalue
@@ -334,7 +334,7 @@ print (a, b)             TKO0871: a tuple has no printable form
 
 ## Dialects
 
-tiko implements `#lang "fb"` only -- `#lang "qb"` is `TKO0317: unsupported language mode 'qb'` -- so under tiko the dialect question does not arise.
+tiko implements `#lang "fb"` only -- `#lang "qb"` is `TKO0317: unsupported language mode 'qb'` -- so tuples have no per-dialect rules.
 
 ## Separate Compilation
 
@@ -357,7 +357,7 @@ tiko reports:
 - a tuple constant (`TKO0748: a constant cannot have the type of 'c'`);
 - a 1-tuple (`TKO0821`), a duplicated element name (`TKO0822`), and an ANY or fixed-length-string element (`TKO0823`) -- only the first problem in a list reported;
 - `extends (int32, int32)` (`TKO0824`; a typedef of a tuple after `extends` compiles);
-- destructuring with too few or too many targets, and `var (a, b)` of the wrong arity (`TKO0825`), over a UDT or a scalar (`TKO0826`), and `var (a) = 1` (`TKO0821`). `let ( a, b ) = udt` is FreeBASIC's multiple assignment, which takes a UDT's fields in order, and is accepted;
+- destructuring with too few or too many targets, and `var (a, b)` of the wrong arity (`TKO0825`), over a UDT or a scalar (`TKO0826`), and `var (a) = 1` (`TKO0821`). `let ( a, b ) = udt` is the LET multiple assignment, which takes a UDT's fields in order, and is accepted;
 - `<`, `>`, `<=` and `>=` on tuples, and `=` or `<>` between two DIFFERENT tuple types -- `(int32, int32)` against `(float64, float64)`, against the literal `(1, 2)`, which is `(integer, integer)`, or against a scalar (`TKO0720`). One tuple type on both sides compares.
 
 `print` of a tuple is `TKO0871`, an initialiser with more elements than the tuple is `TKO0618`, and `expr is` a tuple type is `TKO0799`.
@@ -414,7 +414,7 @@ destructure.bas    both forms against all three shapes of right-hand side --
 variable, literal, call; field / array / deref targets;
 the swap; a call evaluated exactly once; per-element
 conversion; a STRING element surviving as an independent
-copy; a loop with no accumulation; and LET unchanged.
+copy; a loop with no accumulation; and the LET form.
 ```
 
 equality.bas       '=' and '<>' over scalar, STRING, pointer and nested
@@ -423,7 +423,7 @@ equality.bas       '=' and '<>' over scalar, STRING, pointer and nested
 elements; equality across two differently-named
 declarations; a NaN element -- 't = u' false AND 't <> u'
 true, which is what breaks if '<>' is built as 'not (=)';
-int16-circuit proven with a counting element type.
+short-circuit proven with a counting element type.
 ```
 
 equality-overload  a user-declared global 'operator =' wins. for-each.bas       'for each (k, v)' over a collection whose Value( ) returns
@@ -433,7 +433,7 @@ a tuple with a STRING element -- the shape a real map has,
 and the shape that found the TYPE-body crash above.
 ```
 
-no-regress.bas     COMPILE_ONLY: every line of the "nothing changes meaning"
+no-regress.bas     COMPILE_ONLY: every line of the "other meanings"
 
 ```freebasic
 list above. This file gates the literal.
@@ -451,7 +451,7 @@ link-compatible name passes.
 
 `errors/tuple-foreach-errors.bas`, beside it, covers the 'for each (k, v)' diagnostics. AS and BYREF on the list form get a file each: they are rejected while the binding is still being read, before the FOR compound is pushed, so the error skip leaves the following 'next' orphaned and suppresses every later diagnostic in the same file.
 
-fblite/tuple.bas, qb/tuple.bas and deprecated/tuple.bas run the destructuring forms in the three dialects that never had 'LET(a, b) ='. They are outside tiko's scope, which is `#lang "fb"` only.
+fblite/tuple.bas, qb/tuple.bas and deprecated/tuple.bas run the destructuring forms in three other dialects. They are outside tiko's scope, which is `#lang "fb"` only.
 
 Under tiko: basic, identity, literal, dtor, destructure, equality, equality-overload and for-each build and run with exit 0; no-regress.bas compiles; and the two-module tuple-mm-main.bas + tuple-mm-a.bas builds and runs clean when both files are given to one `tiko` invocation (see IMPLEMENTATION for separate compilation). tiko's own suite: `tests/types/tuple-type.test` and eight `tests/mir/tuple-*.test` files.
 

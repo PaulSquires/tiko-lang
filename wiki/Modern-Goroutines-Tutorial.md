@@ -2,7 +2,7 @@
 
 # Goroutines Tutorial
 
-**Who this is for:** a FreeBASIC programmer who has never written a thread.
+**Who this is for:** a tiko programmer who has never written a thread.
 No prior knowledge of concurrency, threads, locks or message passing is assumed.
 By the end you will be able to write a worker pool, a pipeline, a cancellable
 background scan, and a Win32 app that stays responsive — and you will know which
@@ -105,11 +105,11 @@ problem 3 (responsiveness), because those aren't about compute at all.
 
 ### Why not raw threads?
 
-FreeBASIC has always had threads. Its entire concurrency surface is four opaque
+tiko has built-in threads, and their entire surface is four opaque
 pointers: `ThreadCreate` returns an `any ptr`, and so do `MutexCreate` and
 `CondCreate`. There is no way to return a value from a thread, no message
 passing, no timed wait anywhere, and no way to wake one specific waiter. So
-every concurrent FreeBASIC program invents the same shared-global-plus-mutex
+every concurrent program written on them invents the same shared-global-plus-mutex
 protocol from scratch, and nothing checks any of it.
 
 Goroutines and channels replace that with two ideas:
@@ -216,7 +216,7 @@ next
 ```
 
 A design based on closures would have all ten goroutines share one `i`, and most
-of them would see `11`. (FreeBASIC's capturing lambdas build their closure on the
+of them would see `11`. (tiko's capturing lambdas build their closure on the
 **stack**, so handing one to another thread is a use-after-free that compiles
 cleanly. This is why lambdas cannot be spawned.)
 
@@ -225,7 +225,7 @@ cleanly. This is why lambdas cannot be spawned.)
 A goroutine here is **a work item on a thread pool**. It is not Go's goroutine,
 and the difference is not a matter of effort. Go can multiplex millions of
 goroutines onto a handful of OS threads because the Go runtime owns every
-blocking operation in the language. FreeBASIC programs call Win32 and libc
+blocking operation in the language. tiko programs call Win32 and libc
 directly; a fibre that called `Sleep` or `ReadFile` would freeze every other
 fibre sharing its carrier thread, silently.
 
@@ -305,7 +305,7 @@ print "words: " & words
 words: 5
 ```
 
-Compare that with the FreeBASIC you would otherwise write: a shared global for
+Compare that with what you would write without a channel: a shared global for
 the result, a shared boolean for "is it ready", a mutex, a condition variable,
 and a predicate loop — around twenty lines and three globals, none of them
 checked by anything. Above, the type of the answer is written once, in the type
@@ -330,7 +330,7 @@ scope.
 
 ### Naming: watch the reserved words
 
-FreeBASIC identifiers are case-insensitive and the language has a large keyword
+tiko identifiers are case-insensitive and the language has a large keyword
 list. `name`, `line`, `close`, `open`, `error`, `time`, `date`, `left`, `right`
 and friends are all statements. In this tutorial you will see `text_`, `out_`,
 `in_`, `line_`, `final_`, `left_` — the trailing underscore is a house habit for
@@ -1156,7 +1156,7 @@ version — same code, and `ctx.Err( )` then reads `"cancelled"`.
 
 ## 11. Errors in a goroutine
 
-**A FreeBASIC runtime error inside a goroutine does not propagate anywhere.** The
+**A runtime error inside a goroutine does not propagate anywhere.** The
 worker's error state is reset between work items so it cannot leak into the next
 goroutine — and nobody observes it. There is no `on error` in the caller that can
 see it, because there is no caller.
@@ -1508,7 +1508,7 @@ run of that exact program printed `304394`.
 
 `g_counter += 1` is not one operation. It is *read the value*, *add one*, *write
 it back*. Two goroutines that read `41` at the same time both write `42`, and one
-increment is gone. Nothing in FreeBASIC, the compiler, or this library will tell
+increment is gone. Nothing in the language, the compiler, or this library will tell
 you: a data race is silent, machine-dependent, and load-dependent, which is why
 it reliably passes your tests and fails on a customer's machine.
 
@@ -1579,7 +1579,7 @@ meaningful unit of work, not one integer.)
 
 ### If you genuinely need a mutex
 
-`MutexCreate` / `MutexLock` / `MutexUnlock` still exist and are orthogonal to all
+`MutexCreate` / `MutexLock` / `MutexUnlock` exist and are orthogonal to all
 of this. They are the right tool when the shared thing is a real resource with an
 identity — a log file, a cache, a hardware handle — rather than a value that
 could just as well be passed along. But reach for them second, not first.
@@ -1856,7 +1856,7 @@ In practice: `#import "std/tasks"` plus `-mt` covers everything.
 
 * **Cheap goroutines.** Thousands, not millions — see chapter 1.
 * **Data-race detection**, or `Send`/`Sync` markers. They need a type system
-  FreeBASIC does not have, and a marker the compiler cannot enforce is
+  tiko does not have, and a marker the compiler cannot enforce is
   documentation in a costume.
 * **Forced cancellation.** See chapter 10.
 * **A value returned from a goroutine.** Go has none either; the channel is the

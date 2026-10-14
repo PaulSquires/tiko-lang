@@ -51,9 +51,9 @@ G( cptr( zstring ptr, nullptr ) )   '' the fix
 
 ## Not a keyword
 
-`nullptr` is a constant, not a reserved word, for the same reason the [fixed-width type names](Category-Fixed-Width-Types) are typedefs: existing code already uses the name. Whatever a program declares called `nullptr` — a field, a namespace member, a local, a parameter, a `for` counter, a module-level variable — replaces tiko's there, with no diagnostic.
+`nullptr` is a constant, not a reserved word, for the same reason the [fixed-width type names](Category-Fixed-Width-Types) are typedefs: programs may use the name for their own declarations. Whatever a program declares called `nullptr` — a field, a namespace member, a local, a parameter, a `for` counter, a module-level variable — replaces tiko's there, with no diagnostic.
 
-`0` keeps every meaning it has: `p = 0` and `if p = 0` are still legal and silent.
+`0` keeps its meanings alongside it: `p = 0` and `if p = 0` are legal and silent.
 
 ## Into an integer
 

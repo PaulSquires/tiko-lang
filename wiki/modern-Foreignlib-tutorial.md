@@ -26,12 +26,12 @@ A library can be linked in two ways:
 
 On Windows, the linker does not read a DLL directly. It reads a small **import library** that lists what the DLL contains. Libraries you download usually come with one, and tiko can make one when they do not (section 11).
 
-## 2. The classic way, and where it falls short
+## 2. `#libpath` and `#inclib`, and where they fall short
 
 tiko has two simple directives for linking: `#libpath` names a folder to search, and `#inclib` names a library to look for there.
 
 ```freebasic
-'' Linking the classic way: a library name and a search directory.
+'' Linking with #libpath and #inclib: a library name and a search directory.
 #cinclude once "vendor/greet/greet.h"
 #libpath "vendor/greet"
 #inclib "greet"
@@ -50,7 +50,7 @@ There are two more problems:
 - **It does not say static or dynamic.** `#inclib "greet"` names a library, and the linker takes the first file it finds with that name. Nothing tells you which kind you got.
 - **It does not handle platforms.** A Windows `.lib` and a Linux `.so` are different files, and `#inclib` has no way of picking the right one for the platform you are building for.
 
-`#foreignlib` solves all three. `#inclib` and `#libpath` still work, and you can use them next to `#foreignlib` in the same program.
+`#foreignlib` solves all three. You can use `#inclib` and `#libpath` next to `#foreignlib` in the same program.
 
 ## 3. `#foreignlib` in one line
 

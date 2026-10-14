@@ -47,11 +47,11 @@ dim as HelloApp app
 dim as TuiRunResult r = TuiRun( app, TuiTermOptionsDefault( ) )
 ```
 
-FreeBASIC's console surface is SCREEN, LOCATE, COLOR, INKEY and GETMOUSE. That is sixteen colours, no key modifiers, no resize notification, no bracketed paste, and on Linux no mouse at all. Every FB program that wants a dashboard, a wizard or an interactive CLI grows its own LOCATE/PRINT scaffolding and stops at the same ceiling. This module replaces that ceiling.
+The built-in console statements are SCREEN, LOCATE, COLOR, INKEY and GETMOUSE. That is sixteen colours, no key modifiers, no resize notification, no bracketed paste, and on Linux no mouse at all. A program that builds a dashboard, a wizard or an interactive CLI on them grows its own LOCATE/PRINT scaffolding and stops at the same ceiling. This module replaces that ceiling.
 
-It ships ALONGSIDE the legacy console and changes none of it. SCREEN, LOCATE, COLOR and INKEY remain bit-for-bit what they were.
+It ships ALONGSIDE the built-in console statements and changes none of them. SCREEN, LOCATE, COLOR and INKEY behave exactly as they do without it.
 
-LIBRARY ONLY. Every line is FreeBASIC. No compiler change, no new runtime C -- the terminal is driven by declaring Win32 and libc entry points from FB.
+LIBRARY ONLY. Every line is tiko. No compiler change, no new runtime C -- the terminal is driven by declaring Win32 and libc entry points from tiko.
 
 TARGETS: tiko's three, all x86-64 -- windows-x86_64 (the default on Windows), win64 and linux-x86_64. There is no 32-bit target.
 
@@ -818,7 +818,7 @@ Every name belongs to the module and carries a Tui prefix, following the LogReco
 
 ## Naming Traps
 
-FreeBASIC is case-insensitive and has a large statement vocabulary, so several obvious names are unavailable. These are the ones that bite:
+tiko is case-insensitive and has a large statement vocabulary, so several obvious names are unavailable. These are the ones that bite:
 
 ```freebasic
 kind        collides with the abstract Kind( ) -- hence borderKind,

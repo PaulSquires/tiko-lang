@@ -26,8 +26,8 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 ```freebasic
 '' examples/form.tiko -- focus, input widgets, a modal, and CAPTURING LAMBDAS.
 ''
-'' This is the example that exercises the one design decision with no precedent
-'' in any shipped FreeBASIC module: a widget that carries a closure.
+'' This is the example that exercises the library's closure-carrying design:
+'' a widget that carries a closure.
 ''
 '' Build (windows-x86_64 or linux-x86_64):
 ''     tiko form.tiko

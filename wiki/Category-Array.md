@@ -24,7 +24,7 @@ A brace list fills one at the declaration: `dim v as Array( of ustring ) = { "ad
 
 ## Why It Exists
 
-FreeBASIC had no growable array. What existed was 'redim preserve', which reallocates and copies on EVERY call, so the idiomatic append is quadratic:
+'redim preserve' reallocates and copies on EVERY call, so appending with it is quadratic:
 
 ```freebasic
 redim preserve arr( 0 to ubound( arr ) + 1 )     ' O(n^2) over a loop
@@ -35,7 +35,7 @@ Array keeps a capacity separately from a count and only reallocates when the cap
 
 ## Indices Are ZERO-BASED
 
-A deliberate break with 'dim arr(1 to 10)' BASIC tradition. Count and index arithmetic are otherwise a permanent source of off-by-one, and every other language's growable array is zero-based. Stated loudly rather than hidden.
+Array indices start at zero, deliberately. Count and index arithmetic are otherwise a permanent source of off-by-one, and every other language's growable array is zero-based. Stated loudly rather than hidden.
 
 ## Members
 
@@ -76,7 +76,7 @@ warning 34(1): '=' parsed as equality operator in function argument,
                not assignment to BYREF function result
 ```
 
-That is a FreeBASIC rule about byref function results, not something this container can fix. At( ) is for reading and for passing byref; use a\[ 1 \] = 11 to write.
+That is a language rule about byref function results, not something this container can fix. At( ) is for reading and for passing byref; use a\[ 1 \] = 11 to write.
 
 ## WHY Sort, IndexOf AND Contains ARE NOT MEMBERS
 
@@ -132,7 +132,7 @@ Sorting is in its own file, with a comparer, a stable form and a LinkedList form
 
 The array owns its storage and cleans it up in its destructor.
 
-COPY AND ASSIGNMENT ARE DEEP. 'dim b = a' copies every element, invoking T's copy constructor; assignment destroys the old contents and deep-copies. That is the only rule consistent with FreeBASIC's value semantics for UDTs, and it is expensive -- there is no move constructor in the language to avoid it. Pass containers BYREF where it matters.
+COPY AND ASSIGNMENT ARE DEEP. 'dim b = a' copies every element, invoking T's copy constructor; assignment destroys the old contents and deep-copies. That is the only rule consistent with tiko's value semantics for UDTs, and it is expensive -- there is no move constructor in the language to avoid it. Pass containers BYREF where it matters.
 
 Containers of containers work: Array( of Array( of long ) ) copies correctly, because the inner array's copy constructor does the right thing.
 
@@ -156,7 +156,7 @@ next
 
 ## Implementation
 
-The elements live in an ordinary FreeBASIC dynamic array field, redim'd only when the capacity doubles. That lets the language do element construction, copying and destruction, so the deep copy, the assignment and the destructor all fall out for free and there is no manual memory to get wrong.
+The elements live in an ordinary dynamic array field, redim'd only when the capacity doubles. That lets the language do element construction, copying and destruction, so the deep copy, the assignment and the destructor all fall out for free and there is no manual memory to get wrong.
 
 Source: pkg/std/containers/array.tiko
 

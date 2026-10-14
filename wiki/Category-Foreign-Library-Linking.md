@@ -73,7 +73,7 @@ matches, the error lists every path that was tried.
 
 ## Working with `#cinclude`
 
-Binding to a C library is **two** jobs. `#foreignlib` does the linkage half — *where is the code?* — and [`#cinclude`](modern-Cinclude) does the header half: *what are these things?* It hands the library's own `.h` to Clang and turns it into FreeBASIC declarations for the target being built, so the `Declare` above is not written by hand at all.
+Binding to a C library is **two** jobs. `#foreignlib` does the linkage half — *where is the code?* — and [`#cinclude`](modern-Cinclude) does the header half: *what are these things?* It hands the library's own `.h` to Clang and turns it into tiko declarations for the target being built, so the `Declare` above is not written by hand at all.
 
 Together they let a binding ship **entirely inside your own source tree**:
 

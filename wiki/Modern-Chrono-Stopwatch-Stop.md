@@ -15,7 +15,7 @@ Stopwatch.Stop_
 using chrono
 
 '' Spelled Stop_ WITH A TRAILING UNDERSCORE, because STOP is a
-'' FreeBASIC statement
+'' tiko statement
 dim sw as Stopwatch
 
 sw.Start( )

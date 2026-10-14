@@ -16,7 +16,7 @@ end sub )
 
 ## Why They Exist
 
-FreeBASIC's function pointers capture nothing, so every callback API passes a handle for the callback to look its own state back up, and the caller keeps a side table keyed by that handle. The Ps\* control family shows it exactly:
+A procedure pointer captures nothing, so every callback API built on one passes a handle for the callback to look its own state back up, and the caller keeps a side table keyed by that handle. The Ps\* control family shows it exactly:
 
 ```freebasic
 type TooltipCallbackFunc as function( byval hListControl as HWND, ... )
@@ -55,7 +55,7 @@ CaptureList =  '[' ( (BYVAL|BYREF) Id (',' ...)* )? ']' .
 - The capture list sits between the keyword and the parameter list, where
 
 ```freebasic
-nothing may legally appear today.
+nothing else may legally appear.
 ```
 
 - A calling convention is allowed: 'function cdecl( ... )'. Not a nicety --
@@ -73,10 +73,8 @@ means, so a capture can be deleted without re-punctuating.
 - The body is ordinary statements; the one-line ': ... :' form works because
 
 ```freebasic
-':' is already the statement separator.
+':' is the statement separator.
 ```
-
-No compatibility risk: 'sub' and 'function' in expression position are a syntax error today (verified: "error 9: Expected expression, found 'function'").
 
 ## Every Capture States Its Mode
 
@@ -104,7 +102,7 @@ print a( 5 )                 ' 15, not 1004
 
 A struct with one field per capture and the body as its \_\_FBINVOKE method. The value of the expression is an object living in the ENCLOSING SCOPE -- no heap, no allocation, destroyed with the frame.
 
-It is synthesised as a GENERIC with one type parameter per capture, then instantiated with the captured variables' actual types. That is what lets a capture be of any type at all -- see ANYTHING CAN BE CAPTURED above -- and it also hands the member body to the generics machinery, which already replays member bodies once per instantiation.
+It is synthesised as a GENERIC with one type parameter per capture, then instantiated with the captured variables' actual types. That is what lets a capture be of any type at all -- see ANYTHING CAN BE CAPTURED below -- and it also hands the member body to the generics machinery, which already replays member bodies once per instantiation.
 
 Two closures over different variables have independent state, which is the case a single static thunk would get wrong.
 
@@ -132,7 +130,7 @@ dim src as Array( of int32 )
 var c = sub[ byref src ]( ) : src.Push( 9 ) : end sub
 ```
 
-A BYVAL capture of a container is a DEEP COPY taken when the lambda is evaluated, because that is what FreeBASIC's value semantics do.
+A BYVAL capture of a container is a DEEP COPY taken when the lambda is evaluated, because that is what tiko's value semantics do.
 
 This works because the closure is declared as a GENERIC over its capture types and then instantiated from the captured symbols' types directly -- so a capture's type is never written as text. Naming it was the first approach and could not express a container: a generic instantiation prints as its mangled internal name, which is not an identifier, and
 
@@ -150,7 +148,7 @@ failed with "error 14: Expected identifier, found '$'".
 dim byref as typeof( *this.__cap_total ) total = *this.__cap_total
 ```
 
-so the body is replayed UNCHANGED. The alternative -- rewriting every 'total' in the body to '\*this.\_\_cap_total' -- would also rewrite a LOCAL named 'total' declared inside the lambda, silently redirecting it. With a real declaration, FreeBASIC's own scoping decides, and a colliding local is a duplicate-definition error the author can see.
+so the body is replayed UNCHANGED. The alternative -- rewriting every 'total' in the body to '\*this.\_\_cap_total' -- would also rewrite a LOCAL named 'total' declared inside the lambda, silently redirecting it. With a real declaration, the language's own scoping decides, and a colliding local is a duplicate-definition error the author can see.
 
 ## Diagnostics
 

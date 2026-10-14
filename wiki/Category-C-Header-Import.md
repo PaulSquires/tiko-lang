@@ -15,9 +15,9 @@
 
 ## Description
 
-Uses a C library's **own header** in place of a hand-written FreeBASIC binding.
+Uses a C library's **own header** in place of a hand-written binding.
 
-The header is handed to **Clang**, and what comes back is converted into FreeBASIC declarations for the target being built — structs, unions, enums, typedefs, functions, function pointers, globals and object-like macros — which are then included at the point of the directive.
+The header is handed to **Clang**, and what comes back is converted into tiko declarations for the target being built — structs, unions, enums, typedefs, functions, function pointers, globals and object-like macros — which are then included at the point of the directive.
 
 ```freebasic
 #cinclude once "sqlite3.h"
@@ -40,7 +40,7 @@ That is the whole binding. No `.bi` file, no `Declare`, no struct copied out by 
 
 ## The layout is checked, not trusted
 
-The importer does **not** write Clang's offsets into the compiler's symbols. It emits FreeBASIC **text** and lets the compiler compute every size, alignment and member offset itself, so there are two independent answers to compare.
+The importer does **not** write Clang's offsets into the compiler's symbols. It emits tiko **text** and lets the compiler compute every size, alignment and member offset itself, so there are two independent answers to compare.
 
 > **A disagreement does not stop the build.** A record whose size, alignment or any member's bit offset disagrees is refused — left out of the binding, with the difference in the skip ledger — and the header is imported again without it; whatever holds it by value goes with it, and a pointer to it survives. Only a use of the refused record fails. For a `#pragma pack(1)` record held by one that is not packed, tiko's ledger reads `tiko lays it out in 16 bytes aligned to 4, clang in 12 aligned to 4; member 'p' is at bit 32 in tiko's layout and bit 8 in clang's` and `dim as lay_holds_packed4 h` is `TKO0808: the type 'lay_holds_packed4' is not declared`.
 
@@ -108,8 +108,8 @@ A tool with its own parser — the [tiko language server](https://github.com/Pau
 
 | | |
 | --- | --- |
-| structs, unions | layout verified, bit-fields included, anonymous members flattened or nested as FreeBASIC requires |
-| enums | as `type Color as uint32` plus a plain `Enum` block — never as a FreeBASIC `Enum`, which is 8 bytes where C says 4 |
+| structs, unions | layout verified, bit-fields included, anonymous members flattened or nested as tiko requires |
+| enums | as `type Color as uint32` plus a plain `Enum` block — never as a tiko `Enum`, which is 8 bytes where C says 4 |
 | typedefs | kept by name, so `LPCWSTR` stays `LPCWSTR` |
 | functions | including variadics, and the calling convention the header states **for the target being built** — see [Calling conventions](#calling-conventions) |
 | function pointers | with their real signatures, so a callback handed to C is type-checked |
@@ -127,7 +127,7 @@ About 1,100 Windows names are not functions but **macros standing for another na
 #define WNDCLASSEX  __MINGW_NAME_AW(WNDCLASSEX)
 ```
 
-They are object-like, so they are candidates, but they do not fold to a constant. They are imported as FreeBASIC `#define`s instead —
+They are object-like, so they are candidates, but they do not fold to a constant. They are imported as `#define`s instead —
 
 ```freebasic
 #define GetMessage GetMessageW
@@ -135,7 +135,7 @@ They are object-like, so they are candidates, but they do not fold to a constant
 
 — so unsuffixed Win32 code works as written, with nothing to rewrite.
 
-**Which one you get is decided on the FreeBASIC side**, exactly as it is with the shipped `windows.bi`:
+**Which one you get is decided in your own source**, exactly as it is with the shipped `windows.bi`:
 
 ```freebasic
 #define UNICODE
@@ -146,7 +146,7 @@ They are object-like, so they are candidates, but they do not fold to a constant
 #cinclude once "windows.h"     '' GetMessage -> GetMessageA
 ```
 
-Nothing is imposed, and there is one rule to remember rather than two. From the `-cimport` driver, where there is no FreeBASIC source to carry a `#define`, use `-cdefine UNICODE`.
+Nothing is imposed, and there is one rule to remember rather than two. From the `-cimport` driver, where there is no tiko source to carry a `#define`, use `-cdefine UNICODE`.
 
 The **suffixed** names are imported either way — `GetMessageA` and `GetMessageW` are real functions and always present. The define decides only what the unsuffixed name means.
 
@@ -168,15 +168,15 @@ wc.hInstance   = GetModuleHandle( 0 )
 RegisterClassEx( @wc )
 ```
 
-> **Two aliases cannot share a name.** `commdlg.h` has a struct `CHOOSECOLOR` *and* a function `ChooseColor`, and gives each an A/W macro. To C those are two names; to FreeBASIC, whose `#define` is case-insensitive, they are one. Emitting both is a duplicate definition, and emitting only the first is worse — a `#define` rewrites tokens before the parser sees them, so the loser's every use would silently expand to the winner's target. Both are dropped and the skip ledger says so; the suffixed names still work.
+> **Two aliases cannot share a name.** `commdlg.h` has a struct `CHOOSECOLOR` *and* a function `ChooseColor`, and gives each an A/W macro. To C those are two names; to tiko, whose `#define` is case-insensitive, they are one. Emitting both is a duplicate definition, and emitting only the first is worse — a `#define` rewrites tokens before the parser sees them, so the loser's every use would silently expand to the winner's target. Both are dropped and the skip ledger says so; the suffixed names still work.
 >
-> A related consequence: a name **you** have `#define`d is rewritten wherever it appears, a field declaration included. `windows.h` has a field literally named `Unicode` (in `_FPO_DATA`), so importing with `UNICODE` defined renames it to `Unicode_` — which is exactly what FreeBASIC's own hand-written binding does at `inc/win/winnt.bi`.
+> A related consequence: a name **you** have `#define`d is rewritten wherever it appears, a field declaration included. `windows.h` has a field literally named `Unicode` (in `_FPO_DATA`), so importing with `UNICODE` defined renames it to `Unicode_` — which is exactly what the hand-written binding at `inc/win/winnt.bi` does.
 
 ## Calling conventions
 
 An imported procedure or function pointer carries whatever convention the header states **for the target being built**, which is not always what the documentation says. `windows.h` declares `WNDPROC` as `WINAPI`; on 64-bit Windows the SDK defines `WINAPI` away, because x86-64 Windows has exactly one calling convention, so Clang reports the default and the imported typedef reads `cdecl`.
 
-FreeBASIC's own default on 64-bit Windows is `stdcall`. Both describe the same call.
+On 64-bit Windows `cdecl` and `stdcall` describe the same call.
 
 **tiko treats `cdecl`, `stdcall` and `stdcall_ms` as interchangeable on a 64-bit target**, so you do not have to write one to match an imported pointer:
 
@@ -189,16 +189,16 @@ function C         ( byval x as int32 ) as int32 : return x : end function
 
 `pascal` is **not** in that set and still warns. It is not a mangling or a register difference — it reverses the argument order, on x86-64 as anywhere else, so a `pascal` procedure called through a `cdecl` pointer with `(1, 2)` returns `21`.
 
-> The `cdecl`/`stdcall` distinction is real only on x86, and tiko has dropped 32-bit (`-m32` is `TKO0104: 32-bit targets are not supported; x86-64 only`), so a warning on that mismatch would have nothing to protect.
+> The `cdecl`/`stdcall` distinction is real only on x86, and tiko does not target 32-bit (`-m32` is `TKO0104: 32-bit targets are not supported; x86-64 only`), so a warning on that mismatch would have nothing to protect.
 >
 > tiko accepts all three without a warning. A `pascal` procedure draws the warning `TKO0830`, and through the imported `cdecl` pointer with `(1, 2)` it returns `21`, because tiko passes a `pascal` procedure's arguments in reverse. Measured through a function-pointer typedef imported with `#cinclude`, on windows-x86_64.
 
 ## What does not
 
 - **Function-like macros.** `#define MAKEINTRESOURCE(i) ((LPWSTR)((ULONG_PTR)(i)))` is an arbitrary token sequence with C's semantics, and translating one means writing a C expression compiler. There is no safe partial version: a macro that translates to *nearly* the right expression is worse than one that does not translate at all. Write the expansion yourself.
-- **`NULL`.** Dropped deliberately — FreeBASIC's own crt headers define it, and emitting it too would be a duplicate definition. Write `0`.
+- **`NULL`.** Dropped deliberately — the crt headers define it, and emitting it too would be a duplicate definition. Write `0`.
 - **C++.** C headers only.
-- **`int32 float64`**, and **infinity/NaN** as constant values. FreeBASIC has no spelling for either; both are skipped, with the reason in the ledger.
+- **`int32 float64`**, and **infinity/NaN** as constant values. tiko has no spelling for either; both are skipped, with the reason in the ledger.
 - **On windows-x86_64, the Universal CRT's inline functions.** The UCRT's `stdio.h` defines `printf` and its family in the header as inline functions (`_CRT_STDIO_INLINE`), with no symbol. The fourteen of the `printf` and `scanf` families (`printf`, `fprintf`, `sprintf`, `snprintf`, `scanf`, `fscanf`, `sscanf` and their `v` forms) come across all the same, because tiko's runtime defines each one; any other inline function in a UCRT header does not, and a call to it is `TKO0743: '...' is not declared`. `snprintf` and `vsnprintf` into a buffer too small return the length that was wanted (C99).
 
 ## Working with `#foreignlib`
@@ -288,19 +288,19 @@ The module's `#foreignlib` links the library into every program that imports it.
 
 ## Names
 
-The C name is kept wherever FreeBASIC allows it, and every change is recorded in a ledger at the top of the generated file, with its reason.
+The C name is kept wherever tiko allows it, and every change is recorded in a ledger at the top of the generated file, with its reason.
 
 - A **quirk word may name a type.** `POINT`, `INPUT`, `IMAGE`, `COLOR` and `DIR` are procedures the compiler already has, so they cannot name a procedure — but `type POINT as tagPOINT` is legal, and `POINT` stays `POINT`.
 - A **type and a procedure may share a name.** `INITCOMMONCONTROLSEX` the struct and `InitCommonControlsEx` the function coexist, as do POSIX's `struct stat` and `stat()`.
-- What genuinely collides gets a suffix: `size_t` and `SIZE_T` are one name to FreeBASIC, so the second becomes `SIZE_T_2`. C's `time()` collides with the [`Time`](Time) statement and becomes `time_`.
+- What genuinely collides gets a suffix: `size_t` and `SIZE_T` are one name to tiko, so the second becomes `SIZE_T_2`. C's `time()` collides with the [`Time`](Time) statement and becomes `time_`.
 
 Every declaration carries `alias "<exact C name>"`, so a rename never changes the symbol the linker sees. Constants are the exception — a `Const` is a compile-time value, not a symbol.
 
 ## Remarks
 
-- The generated binding is **cached**, so the expensive half runs once per configuration and the cheap half — parsing FreeBASIC text — runs per compilation, exactly as [`#include`](Include) does today. The key is the header chain, every option, `UNICODE`, the target, libclang and its resource directory, the working directory, the running `tiko` by size and time, and what clang's header detection reads (`-csysroot`, `CPATH`, `C_INCLUDE_PATH`, `INCLUDE`, `VCToolsInstallDir`, `WindowsSdkDir`); every file clang read is re-checked on each hit, so editing any header in the tree invalidates it. A program that `#cinclude`s `windows.h` built in 18.7 s cold and 0.6 s warm with tiko on windows-x86_64.
+- The generated binding is **cached**, so the expensive half runs once per configuration and the cheap half — parsing tiko text — runs per compilation, exactly as [`#include`](Include) does today. The key is the header chain, every option, `UNICODE`, the target, libclang and its resource directory, the working directory, the running `tiko` by size and time, and what clang's header detection reads (`-csysroot`, `CPATH`, `C_INCLUDE_PATH`, `INCLUDE`, `VCToolsInstallDir`, `WindowsSdkDir`); every file clang read is re-checked on each hit, so editing any header in the tree invalidates it. A program that `#cinclude`s `windows.h` built in 18.7 s cold and 0.6 s warm with tiko on windows-x86_64.
 - tiko's import of `windows.h` has 42,945 declarations on windows-x86_64 — 2,887 records, every one checked against a clang-compiled program — with no record refused.
-- Over-alignment (`__declspec(align(16))`) has no FreeBASIC spelling. C's tail padding is written out so `SizeOf` and every member offset are right, and the affected records are reported by name — but a local or array element is 8-byte aligned where C promises 16.
+- Over-alignment (`__declspec(align(16))`) has no tiko spelling. C's tail padding is written out so `SizeOf` and every member offset are right, and the affected records are reported by name — but a local or array element is 8-byte aligned where C promises 16.
 
 ### See also
 
@@ -330,7 +330,7 @@ function WndProc ( byval hwnd as HWND, byval msg as UINT, _
 end function
 ```
 
-> **No calling convention, and none is needed.** `windows.h` declares `WNDPROC` as `WINAPI`, the SDK defines `WINAPI` away on 64-bit Windows — x86-64 Windows has one calling convention — so the imported typedef reads `cdecl`, while FreeBASIC's own default on 64-bit Windows is `stdcall`. Those describe the same call, and tiko treats `cdecl`, `stdcall` and `stdcall_ms` as interchangeable on a 64-bit target, so this assigns cleanly whether you write `cdecl`, `stdcall`, or nothing at all. `pascal` is excluded and still warns — it reverses the argument order, on x86-64 as anywhere else.
+> **No calling convention, and none is needed.** `windows.h` declares `WNDPROC` as `WINAPI`, the SDK defines `WINAPI` away on 64-bit Windows — x86-64 Windows has one calling convention — so the imported typedef reads `cdecl`. On 64-bit Windows `cdecl` and `stdcall` describe the same call, and tiko treats `cdecl`, `stdcall` and `stdcall_ms` as interchangeable on a 64-bit target, so this assigns cleanly whether you write `cdecl`, `stdcall`, or nothing at all. `pascal` is excluded and still warns — it reverses the argument order, on x86-64 as anywhere else.
 
 ```freebasic
 '' A third-party library, header and all.

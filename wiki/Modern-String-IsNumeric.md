@@ -24,7 +24,7 @@ print IsNumeric( " -1.5e+3 " )    '' true -- surrounding whitespace is allowed
 print IsNumeric( "42" )           '' true
 print IsNumeric( "12abc" )        '' false -- trailing junk fails
 print IsNumeric( "" )             '' false -- at least one digit is required
-print IsNumeric( "&HFF" )         '' false -- radix literals are FB syntax, not numeric text
+print IsNumeric( "&HFF" )         '' false -- radix literals are tiko syntax, not numeric text
 ```
 
 ---

@@ -28,7 +28,7 @@ Requires -mt.  std/tasks refuses to compile without it (TKO0423) rather than lin
 
 ## Why It Exists
 
-FreeBASIC's concurrency surface is four opaque pointers.  ThreadCreate returns an ANY PTR; so do MutexCreate and CondCreate.  There is no way to return a value from a thread, no message passing, no timed wait anywhere, no semaphore, and no way to wake one specific waiter.  Every concurrent FreeBASIC program invents the same shared-global-plus-mutex protocol, per program, and nothing checks any of it.
+The built-in threading surface is four opaque pointers.  ThreadCreate returns an ANY PTR; so do MutexCreate and CondCreate.  It has no way to return a value from a thread, no message passing, no timed wait anywhere, no semaphore, and no way to wake one specific waiter.  Every concurrent program written on it invents the same shared-global-plus-mutex protocol, per program, and nothing checks any of it.
 
 ```freebasic
 ' before
@@ -67,7 +67,7 @@ sync.tiko                  WaitGroup, Context
 
 A goroutine is a work item on a thread pool.  It is NOT Go's goroutine, and the difference is not a matter of effort.
 
-Go's goroutines are stackful coroutines multiplexed onto OS threads, starting at a 2 KB growable stack, and millions of them are routine.  That works because the Go runtime owns every blocking operation in the language.  FreeBASIC programs call Win32 and libc directly, so a fibre that called Sleep or ReadFile would freeze every other fibre sharing its carrier thread, with no diagnostic -- and FreeBASIC's per-thread state (err(), the TLS context table, window ownership, COM apartments) is keyed to the OS thread, not the fibre.
+Go's goroutines are stackful coroutines multiplexed onto OS threads, starting at a 2 KB growable stack, and millions of them are routine.  That works because the Go runtime owns every blocking operation in the language.  tiko programs call Win32 and libc directly, so a fibre that called Sleep or ReadFile would freeze every other fibre sharing its carrier thread, with no diagnostic -- and tiko's per-thread state (err(), the TLS context table, window ownership, COM apartments) is keyed to the OS thread, not the fibre.
 
 So:
 
@@ -111,9 +111,9 @@ for i as int32 = 1 to 10
 next
 ```
 
-A closure-capturing design would share one i and most goroutines would see 11. FreeBASIC's capturing lambdas build their closure on the STACK, so handing one to another thread is a use-after-free that compiles cleanly.
+A closure-capturing design would share one i and most goroutines would see 11. tiko's capturing lambdas build their closure on the STACK, so handing one to another thread is a use-after-free that compiles cleanly.
 
-'spawn' is a CONTEXTUAL keyword.  Existing code that uses it as a variable, a field, an array or a SUB name keeps working.  The one break: a paren-less call in statement position to a SUB named 'spawn' -- 'spawn x' -- now parses as spawning x.  'spawn( x )' still calls it.
+'spawn' is a CONTEXTUAL keyword.  Code can use it as a variable, a field, an array or a SUB name.  The one exception: a paren-less call in statement position to a SUB named 'spawn' -- 'spawn x' -- parses as spawning x.  'spawn( x )' calls it.
 
 What can be spawned:
 
@@ -377,7 +377,7 @@ never control flow.
 waiters forever.
 ```
 
-\* A FreeBASIC runtime error inside a goroutine does not propagate.  The
+\* A runtime error inside a goroutine does not propagate.  The
 
 ```freebasic
 worker's error state is reset between items so it cannot leak into the next
@@ -396,7 +396,7 @@ concurrency ergonomic, not safe.
 \* Cheap goroutines.  Thousands, not millions -- see WHAT A GOROUTINE IS. \* Send/Sync markers, or any data-race detection.  They need a type system
 
 ```freebasic
-FreeBASIC does not have, and a marker the compiler cannot enforce is
+tiko does not have, and a marker the compiler cannot enforce is
 documentation in a costume.
 ```
 
@@ -441,9 +441,9 @@ tree, not something spawn introduced.  A generic PROCEDURE is fine.
 
 Both statements are desugared in tiko's parser (src/parser/spawn.tiko, src/parser/selchan.tiko) into ordinary statements that the rest of the compiler already lowers.  'spawn' builds the argument frame itself and hands a plain thunk straight to fb_Spawn; the arguments are copied at the spawn, and the frame is destroyed and freed afterwards.  'select channel' becomes the calls into the generics of std/tasks' select.tiko.
 
-The runtime side is tiko-rt's, written in FreeBASIC: the park/unpark layer (lib/rt/src/thread/park.tiko), the scheduler (sched.bas) and the process-wide claim lock (claimlock.bas).
+The runtime side is tiko-rt's, written in tiko: the park/unpark layer (lib/rt/src/thread/park.tiko), the scheduler (sched.bas) and the process-wide claim lock (claimlock.bas).
 
-Channel, select, WaitGroup, Context and the directional views are ordinary FreeBASIC in the std/tasks module (pkg/std/tasks/) -- written on generics with no compiler privileges.
+Channel, select, WaitGroup, Context and the directional views are ordinary tiko in the std/tasks module (pkg/std/tasks/) -- written on generics with no compiler privileges.
 
 ## Tests
 

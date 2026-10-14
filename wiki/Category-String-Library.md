@@ -22,7 +22,7 @@ print rows[ 0 ].fields[ 1 ]
 
 ## Why It Exists
 
-FreeBASIC ships LEFT, RIGHT, MID, INSTR, INSTRREV, TRIM, UCASE, LCASE, SPACE and STRING, and stops. There is no Replace, no Split, no Join, no pad, and no way to work with a set of characters. Every program that needs them writes them again, usually with a 'redim preserve' loop that is quadratic.
+The built-in string intrinsics include LEFT, RIGHT, MID, INSTR, INSTRREV, TRIM, UCASE, LCASE, SPACE and STRING, but none of them replaces, splits, joins or pads, and none works with a set of characters. Every program that needs those writes them again, usually with a 'redim preserve' loop that is quadratic.
 
 These 39 functions are the portable half of the AfxNova string library (AfxStr.inc and DWStrProcs.inc) -- two decades of use, but Windows-only, tied to WSTRING and DWSTRING, and in places built on COM -- plus the CSV pair, which comes from elsewhere and is described in its own section below.
 
@@ -53,7 +53,7 @@ The cost is that a pattern handed to the BYTE family is converted UTF-8 -> UTF-1
 
 ## Code Units, Positions, AND Case
 
-Positions and lengths count CODE UNITS, matching LEN, \[\] and INSTR. On the wide family an astral character is a surrogate pair and counts as 2. A search can never land mid-character -- a surrogate half cannot equal a BMP unit -- though MID can still split one, as it always could.
+Positions and lengths count CODE UNITS, matching LEN, \[\] and INSTR. On the wide family an astral character is a surrogate pair and counts as 2. A search can never land mid-character -- a surrogate half cannot equal a BMP unit -- though MID can split one.
 
 POSITIONS ARE 1-BASED, and 0 means "not found", matching INSTR. This is NOT the zero-based convention containers.Array uses. Strings and containers are different worlds and each keeps its own tradition.
 
@@ -244,7 +244,7 @@ ON THE BYTE FAMILY THIS IS EXACT FOR UTF-8, unlike the character-set functions. 
 
 [SplitCsvRow](Modern-String-SplitCsvRow) is the same parser over a single record, returning the Array( of T ) that Split returns -- a drop-in wherever the fields may be quoted. An empty result means malformed, on the same rule. Text holding more than one record answers the first; the rest is a table, and SplitCsv is what returns tables.
 
-COMPLEXITY IS O(n). The scan appends whole runs of ordinary characters with MID rather than one unit at a time. Per-character '&=' is what the obvious version does, and it is quadratic in the field length, because FreeBASIC strings do not over-allocate.
+COMPLEXITY IS O(n). The scan appends whole runs of ordinary characters with MID rather than one unit at a time. Per-character '&=' is what the obvious version does, and it is quadratic in the field length, because a tiko string grows one 32-byte granule at a time, not geometrically.
 
 Ported from the finara import engine (fnr\_CsvParse), itself ported from tracks. The cursor is the same; three things changed on the way in:
 
@@ -389,11 +389,11 @@ Excluded entirely, as Windows-only or COM-bound: locale and country names, month
 
 In tiko-rt the algorithms live in lib/rt/src/inc/ops-core.ti and are written ONCE, then instantiated twice -- lib/rt/src/str/ops.tiko at byte width, lib/rt/src/ustr/ops.tiko at 16-bit -- with ## token pasting. Two hand-maintained copies of a search loop drift, and the drift shows up as one width quietly disagreeing with the other on an edge case nobody tests twice.
 
-Reached from FreeBASIC through 'extern "C" declare ... alias' at the module's scope -- the pattern inc/string.bi already uses for FORMAT. Note that 'alias' alone is not enough inside a module: without the extern "C" the name is mangled through the module's chain, and a nested namespace does not inherit an enclosing extern either.
+Reached from tiko code through 'extern "C" declare ... alias' at the module's scope -- the pattern inc/string.bi already uses for FORMAT. Note that 'alias' alone is not enough inside a module: without the extern "C" the name is mangled through the module's chain, and a nested namespace does not inherit an enclosing extern either.
 
-Split, SplitChars, Join, SplitCsv and SplitCsvRow are the only ones with FreeBASIC bodies, because their result is an Array( of T ) that the runtime cannot build. They are public members of the module, compiled once with it, so any number of files in a program can import std/strings and still link. The runtime side returns field boundaries rather than strings, so a split is two linear passes instead of the ParseCount-then-Parse-in-a-loop shape, which rescans from the start for every field and is quadratic.
+Split, SplitChars, Join, SplitCsv and SplitCsvRow are the only ones with tiko bodies, because their result is an Array( of T ) that the runtime cannot build. They are public members of the module, compiled once with it, so any number of files in a program can import std/strings and still link. The runtime side returns field boundaries rather than strings, so a split is two linear passes instead of the ParseCount-then-Parse-in-a-loop shape, which rescans from the start for every field and is quadratic.
 
-## ONE FreeBASIC QUIRK WORTH KNOWING
+## ONE COMPILER QUIRK WORTH KNOWING
 
 LEN and SIZEOF do not honour a namespace qualifier on a function call that comes first in
 their operand:

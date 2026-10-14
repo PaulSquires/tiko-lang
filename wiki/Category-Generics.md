@@ -25,7 +25,7 @@ FOR EACH, the iterator protocol and the standard containers are all built on top
 
 ## Why It Exists
 
-Before this, a container that worked for more than one element type had to be written with macros, with ANY PTR, or once per type. All three lose something: a macro has no scope and reports errors at the expansion; ANY PTR discards the type and moves every mistake to run time; copies drift.
+Without generics, a container that works for more than one element type has to be written with macros, with ANY PTR, or once per type. All three lose something: a macro has no scope and reports errors at the expansion; ANY PTR discards the type and moves every mistake to run time; copies drift.
 
 A generic keeps the type. Box( of long ) and Box( of string ) are two distinct types, each fully checked, both written once.
 
@@ -160,7 +160,7 @@ end operator
 
 There is nowhere in 'a + b' to write type arguments, so they are inferred from the operand types, including through the nested position: an operand that is an instantiation of Box binds T from ITS argument list. Nothing is registered until an instantiation exists -- '+' for Box( of integer ) exists because somebody added two of them.
 
-Self-assignment operators (+=, -=, ...) must be members, as in plain FreeBASIC:
+Self-assignment operators (+=, -=, ...) must be members:
 
 ```freebasic
 operator += ( of T )( ... )     '' error 152: Operator must be a member function
@@ -297,7 +297,7 @@ wants the return type after the I...E list. Names are unique and stable,
 which is what is claimed.
 ```
 
-- A type parameter cannot be named K. Plain FreeBASIC already rejects a
+- A type parameter cannot be named K. tiko rejects a
 
 ```freebasic
 TYPEDEF named K used as a parameter type; this is not a generics rule, but

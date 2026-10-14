@@ -12,7 +12,7 @@ FloorDiv( byval a as T, byval b as T ) as T
 
 ## Notes
 
-- FreeBASIC's `\` truncates towards zero, matching C: `-7 \ 2` is -3. This gives -4.
+- The `\` operator truncates towards zero, matching C: `-7 \ 2` is -3. This gives -4.
 - It is the division that pairs with `FloorMod`, so that `FloorDiv( a, b ) * b + FloorMod( a, b )` is `a` for every sign combination.
 - `EuclidDiv` is the third convention, whose remainder is always non-negative.
 

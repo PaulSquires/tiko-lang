@@ -4,7 +4,7 @@
 
 ## Why It Exists
 
-FreeBASIC has three string types and none of them is a portable Unicode string:
+Besides USTRING, tiko has three string types, and none of them is a portable Unicode string:
 
 STRING          var-len, heap, byte-oriented. Dynamic, but it has no encoding
 
@@ -58,7 +58,7 @@ STRING / ZSTRING  <->  USTRING     UTF-8, on every target WSTRING           <-> 
 
 Malformed UTF-8 becomes U+FFFD rather than raising an error: a text editor must be able to open a damaged file, not refuse it.
 
-THE ONE BOUNDARY: arbitrary BINARY does not round-trip through a USTRING. Bytes that are not valid UTF-8 become U+FFFD and the originals are gone. Binary data belongs in STRING, which is unchanged and still available.
+THE ONE BOUNDARY: arbitrary BINARY does not round-trip through a USTRING. Bytes that are not valid UTF-8 become U+FFFD and the originals are gone. Binary data belongs in STRING.
 
 Note this differs from STRING <-> WSTRING, which goes through the C locale and is therefore codepage- and platform-dependent. A portable type cannot afford that.
 
@@ -72,7 +72,7 @@ dim as ustring c : c = wchr(233)      '' one character
 
 Simple case mapping over the BMP, from a generated table -- NOT towupper() or towlower(), which are locale-dependent and would make the same string fold differently depending on the user's locale and on which libc the program linked against.
 
-"Simple" means one code unit in, one out. Case changes that alter length (the German sharp s upper-casing to "SS") are not applied, matching every other FB string type. Astral characters have no simple case mapping and pass through unchanged.
+"Simple" means one code unit in, one out. Case changes that alter length (the German sharp s upper-casing to "SS") are not applied, matching every other string type. Astral characters have no simple case mapping and pass through unchanged.
 
 The table was built from Python's unicodedata and is committed as `src/rtlib/ustr_casetable.c`.
 

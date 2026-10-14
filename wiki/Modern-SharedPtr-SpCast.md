@@ -35,7 +35,7 @@ print b.UseCount( )          '' 2 -- one object, two handles, shared count
 
 '' THE BASE MUST HAVE A VIRTUAL DESTRUCTOR: the returned handle destroys
 '' through `delete cptr( Shape ptr, obj )`, and nothing here can check it.
-'' (The type is not called Base because BASE is a FreeBASIC keyword.)
+'' (The type is not called Base because BASE is a tiko keyword.)
 ```
 
 ---

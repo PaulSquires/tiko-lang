@@ -4,7 +4,7 @@
 
 ## The names
 
-Ten type names that say their width, each the same type as an older name:
+Ten type names that say their width, each the same type as another built-in name:
 
 | tiko | Same type as | Bytes | Range |
 |---|---|---|---|
@@ -23,7 +23,7 @@ The sizes are the same on every target.
 
 ## Why they exist
 
-FreeBASIC's names don't say how wide they are, and the same names mean different widths in C. `long` is 32 bits in FreeBASIC on every target, but in C it is 32 bits on Windows and 64 on Linux. The names above follow Go, Nim and C's `<stdint.h>` (`int32_t`), so the width is in the name.
+The names in the second column don't say how wide they are, and the same names mean different widths in C. `long` is 32 bits in tiko on every target, but in C it is 32 bits on Windows and 64 on Linux. The names above follow Go, Nim and C's `<stdint.h>` (`int32_t`), so the width is in the name.
 
 ```freebasic
 dim as uint8 red = 255
@@ -32,9 +32,9 @@ dim as float32 ratio = 1 / 3
 print red; total; ratio
 ```
 
-## They are the FreeBASIC types
+## They are the same types
 
-Each name is a typedef, not a new type: `int32` *is* `long`. Values mix freely with no conversion, a procedure that takes `long` accepts an `int32`, and an overload on `int64` is the overload on `longint`. The names leave no trace in the ABI, so a procedure's linker symbol is the one it gets with the FreeBASIC names:
+Each name is a typedef, not a new type: `int32` *is* `long`. Values mix freely with no conversion, a procedure that takes `long` accepts an `int32`, and an overload on `int64` is the overload on `longint`. The names leave no trace in the ABI, so a procedure's linker symbol is the one it gets with the names they stand for:
 
 ```freebasic
 namespace N
@@ -47,7 +47,7 @@ end namespace
 
 ## A program's own declaration wins
 
-The names are not keywords. tiko declares them for every program, but anything the program declares with the same name at module level replaces tiko's, with no diagnostic. Existing code already uses these names: `win/basetsd.bi` declares `type INT32 as long`. Such code still compiles:
+The names are not keywords. tiko declares them for every program, but anything the program declares with the same name at module level replaces tiko's, with no diagnostic. Some headers declare these names themselves: `win/basetsd.bi` declares `type INT32 as long`. Such code compiles:
 
 ```freebasic
 type INT32 as long                      '' the same type: nothing changes
@@ -59,16 +59,16 @@ end function
 print sizeof( INT32 ); sizeof( uint8 ); float32; uint16( 6 )
 ```
 
-This prints `4 8 5 7`. Because FreeBASIC ignores case, `INT32` and `int32` are the same name.
+This prints `4 8 5 7`. Because tiko ignores case, `INT32` and `int32` are the same name.
 
 **The program's declaration replaces the name throughout the program**, not just in its own file. `jpeglib.bi` declares `type INT32 as clong`, which is 8 bytes on Linux x86-64. A Linux program that includes it therefore gets an 8-byte `int32`.
 
 ## What is not included
 
-- **`integer` and `uinteger`** have no fixed-width name, because they are 4 bytes on a 32-bit target and 8 on a 64-bit one.
-- **`boolean`** stays as it is, and there is no `bool`. FreeBASIC ignores case, so `bool` would be `BOOL`, which `win/windef.bi` declares as a 4-byte `long`.
-- **Pointers** keep the FreeBASIC spelling: `int32 ptr`, `any ptr`.
-- **Strings** are unchanged: `string`, `zstring`, `wstring` and [`ustring`](Category-UString).
+- **`integer` and `uinteger`** have no fixed-width name: they are the width of a pointer on the target.
+- **`boolean`** stays as it is, and there is no `bool`. tiko ignores case, so `bool` would be `BOOL`, which `win/windef.bi` declares as a 4-byte `long`.
+- **Pointers** are spelled with `ptr`: `int32 ptr`, `any ptr`.
+- **Strings** keep their own names: `string`, `zstring`, `wstring` and [`ustring`](Category-UString).
 
 ---
 

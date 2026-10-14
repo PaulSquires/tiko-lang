@@ -22,11 +22,11 @@ print sw.ElapsedMilliseconds
 
 ## Why It Exists
 
-FreeBASIC's date and time surface is the VB6 model: a date is a serial DOUBLE, resolution is one second, there is no duration type, no timezone concept, no ISO 8601, and no monotonic clock. DateSerial( 2025, 13, 40 ) does not fail -- it normalizes, so a bad date and a good one are indistinguishable afterwards. TIMER is the wall clock, which jumps backwards on an NTP correction, so every program that measures elapsed time with it is quietly wrong twice a year and occasionally in between.
+In the built-in date and time surface a date is a serial DOUBLE, resolution is one second, there is no duration type, no timezone concept, no ISO 8601, and no monotonic clock. DateSerial( 2025, 13, 40 ) does not fail -- it normalizes, so a bad date and a good one are indistinguishable afterwards. TIMER is the wall clock, which jumps backwards on an NTP correction, so every program that measures elapsed time with it is quietly wrong twice a year and occasionally in between.
 
 This library ships ALONGSIDE all of that. Nothing in datetime.bi, vbcompat.bi, FORMAT or the runtime's existing date and time routines changed, and nothing here depends on them. The two meet at FromSerial / Serial, so a program migrates one function at a time. See migration.md for the member-by-member mapping.
 
-NO COMPILER SUPPORT IS INVOLVED. This is a library: the runtime half is in tiko-rt (lib/rt/src/chrono/), the FreeBASIC types in the std/chrono module (pkg/std/chrono/). Nothing here is a keyword, and DateTime, Instant, WallClock and the rest stay available as your own identifiers: nothing is added to a program until it imports std/chrono, and the bare names only after 'using chrono'.
+NO COMPILER SUPPORT IS INVOLVED. This is a library: the runtime half is in tiko-rt (lib/rt/src/chrono/), the tiko types in the std/chrono module (pkg/std/chrono/). Nothing here is a keyword, and DateTime, Instant, WallClock and the rest stay available as your own identifiers: nothing is added to a program until it imports std/chrono, and the bare names only after 'using chrono'.
 
 ## The Tick
 
@@ -62,7 +62,7 @@ TimeZoneInfo  the OS zone: offset at an instant, DST, names
 
 Roughly 260 members and 44 free operators.
 
-DECLARATION ORDER IS LOAD-BEARING. FreeBASIC cannot forward-declare a UDT well enough to return one BY VALUE, so a type may only return types defined above it: TimeSpan, LocalDate, LocalTime, Instant, DateTime. That is why the Instant -> DateTime direction is spelled DateTime.FromInstant rather than Instant.ToUtc, and why DateTime.ToInstant is a member while its inverse is not.
+DECLARATION ORDER IS LOAD-BEARING. tiko cannot forward-declare a UDT well enough to return one BY VALUE, so a type may only return types defined above it: TimeSpan, LocalDate, LocalTime, Instant, DateTime. That is why the Instant -> DateTime direction is spelled DateTime.FromInstant rather than Instant.ToUtc, and why DateTime.ToInstant is a member while its inverse is not.
 
 WHICH ONE TO USE. If it is a timestamp -- when something happened, when it expires, anything compared across machines -- use Instant. If a human wrote it down or will read it, and the offset matters, use DateTime. If it is a birthday or a due date, use LocalDate. Storing a wall-clock reading and hoping the offset is obvious is the bug this type split exists to prevent.
 
@@ -294,7 +294,7 @@ interop
 
 .FromUnixSeconds .FromUnixMilliseconds
 .UnixSeconds .UnixMilliseconds .UnixMicroseconds
-.FromSerial( float64 ) / .Serial            legacy datetime.bi
+.FromSerial( float64 ) / .Serial            datetime.bi serial
 .FromFileTime( int64 ) / .FileTime       Win32 FILETIME
 .FromOleDate( float64 ) / .OleDate          OLE automation date
 .FromJulianDay( float64 ) / .JulianDay / .JulianDayNumber
@@ -334,7 +334,7 @@ Stopwatch( ) / Stopwatch.StartNew
 .IsRunning .Elapsed -> TimeSpan .ElapsedMilliseconds .ElapsedTicks
 Stopwatch.Frequency .GetTimestamp .IsHighResolution
 
-'Stop_' has the trailing underscore because STOP is a FreeBASIC statement.
+'Stop_' has the trailing underscore because STOP is a tiko statement.
 ```
 
 CpuClock -- consumed processor time
@@ -402,7 +402,7 @@ START/END HELPERS KEEP THE OFFSET AND SET THE TIME. EndOfDay, EndOfMonth and End
 
 StartOfWeek takes the first day of the week and defaults to Monday. NextWeekday and PrevWeekday are STRICTLY later and strictly earlier: asking a Tuesday for the next Tuesday gives a week forward, not a no-op. A weekday outside 1..7 is Invalid, not clamped.
 
-DAY OF WEEK IS 1 = MONDAY, ISO 8601's numbering, which differs from datetime.bi's Weekday( ) where 1 = Sunday. The ISO week-number algorithm needs it, and two neighbouring conventions is one too many. This is the single most likely thing to trip a program moving over from the legacy surface.
+DAY OF WEEK IS 1 = MONDAY, ISO 8601's numbering, which differs from datetime.bi's Weekday( ) where 1 = Sunday. The ISO week-number algorithm needs it, and two neighbouring conventions is one too many. This is the single most likely thing to trip a program moving over from datetime.bi.
 
 ISO WEEK-YEAR IS NOT THE YEAR. 2025-12-29 is week 1 of ISO year 2026. Rendering IsoWeek beside Year instead of IsoWeekYear is the canonical bug in ISO week output, which is why both are exposed and neither is called "Week".
 
@@ -580,7 +580,7 @@ Stopwatch is the monotonic clock: how long since. It never jumps. It ACCUMULATES
 
 CpuClock is consumed processor time, which a SLEEP does not advance. That is the whole point of having it: it separates "the operation took 3 seconds" from "the operation used 3 seconds of CPU". Granularity is coarse -- about 15.6 ms on Windows -- so a short measurement reads as zero rather than as a small number.
 
-WallClock and CpuClock are NAMESPACES, not types, because FreeBASIC will not accept a TYPE with no data members. The call syntax is identical either way.
+WallClock and CpuClock are NAMESPACES, not types, because tiko will not accept a TYPE with no data members. The call syntax is identical either way.
 
 ## Locale Output, AND Why It Is Segregated
 
@@ -615,7 +615,7 @@ DateTime.MonthUName( 3 )          -> ustring
 
 Parsing is byte-oriented ASCII throughout; the ustring parse overloads convert to UTF-8 and run the same C parser, which is exact for every input the parser accepts.
 
-## Interop AND The Legacy Bridge
+## Interop AND The datetime.bi Bridge
 
 Six external epochs, each one addition away from the tick model:
 
@@ -624,7 +624,7 @@ Unix seconds/ms/us      Instant and DateTime, both directions
 Win32 FILETIME          .FileTime / .FromFileTime      1601-01-01
 OLE automation date     .OleDate / .FromOleDate        1899-12-30
 Julian day              .JulianDay / .JulianDayNumber / .FromJulianDay
-legacy serial float64   .Serial / .FromSerial          datetime.bi
+serial float64          .Serial / .FromSerial          datetime.bi
 
 dim as float64 serial = DateSerial( 2025, 3, 4 )
 dim as chrono.DateTime d = chrono.DateTime.FromSerial( serial )
@@ -682,7 +682,7 @@ TryParseIso refuses it, and TryParseExact makes you say which you meant.
 
 3. DAY OF WEEK IS 1 = MONDAY, not 1 = Sunday.
 
-4. THERE IS A DURATION TYPE. The legacy answer to "how far apart" is a
+4. THERE IS A DURATION TYPE. datetime.bi's answer to "how far apart" is a
 
 ```freebasic
 subtraction of two doubles giving fractional days, which loses what unit it
@@ -708,7 +708,7 @@ does not.
 with no way to say so. WallClock.Now( ) records the offset it was taken under.
 ```
 
-Nothing in datetime.bi changed, and both surfaces can be used in the same program. Where a legacy call has no equivalent here, migration.md says so instead of inventing one.
+Nothing in datetime.bi changed, and both surfaces can be used in the same program. Where a datetime.bi call has no equivalent here, migration.md says so instead of inventing one.
 
 AGAINST AfxNova's date and time helpers, the shape of the difference is the same, plus: nothing here is Windows-only or COM-bound, and the formatter is invariant by default with locale output as the opt-in rather than the reverse. comparison-matrix.md scores this library, datetime.bi, AfxNova, C#, java.time and NodaTime feature by feature.
 
@@ -743,7 +743,7 @@ ambiguous.
 ## Implementation
 
 ```freebasic
-pkg/std/chrono/                 the whole FB surface -- one #import
+pkg/std/chrono/                 the whole tiko surface -- one #import
 lib/rt/src/inc/chrono.ti        the tick representation and its constants
 lib/rt/src/chrono/core.tiko      civil<->tick kernel, calendar primitives
 lib/rt/src/chrono/iso.tiko       ISO 8601 emit and strict parse
@@ -754,7 +754,7 @@ lib/rt/src/chrono/zone.tiko      offsets, DST, locale formatting
 
 The kernel in core.bas is PURE: no OS calls, no allocation, no locale, no static state. Everything platform-specific is in clock.bas and zone.bas, which is what makes the civil<->tick conversion testable exhaustively.
 
-The FB side is a module of value types with no compiler support of any kind. Its C entry points are reached through 'extern "C" declare ... alias' -- the pattern inc/string.bi already uses. Note that 'alias' alone is not enough inside a module: without the extern "C" the name is mangled through the module's chain.
+The tiko side is a module of value types with no compiler support of any kind. Its C entry points are reached through 'extern "C" declare ... alias' -- the pattern inc/string.bi already uses. Note that 'alias' alone is not enough inside a module: without the extern "C" the name is mangled through the module's chain.
 
 clock.bas and zone.bas each hold BOTH platform halves, chosen by #if. tiko-rt's build has no per-target source selection, so the split is made inside the file.
 
@@ -773,7 +773,7 @@ tests/vendor/fbc-tests/chrono/zones.bas      offsets, DST, locale invariants
 tests/vendor/fbc-tests/chrono/utext.bas      the USTRING overloads
 ```
 
-These are fbcunit suites, vendored in tiko-lang. The older VB-style surface has 3 suites of its own in tests/vendor/fbc-tests/datetime/.
+These are fbcunit suites, vendored in tiko-lang. The datetime.bi surface has 3 suites of its own in tests/vendor/fbc-tests/datetime/.
 
 ASSERT YOUR TEST GENERATOR'S RANGE. Every fixed-seed sweep here originally drew its tick as 'clngint( ( seed shr 11 ) mod culngint( DT_MAX_TICKS ) )'. The shift leaves 53 bits, 2^53 is SMALLER than DT_MAX_TICKS, so the mod was a no-op and every "random" value landed in years 1-29. Five suites were affected and their coverage claims were overstated for four phases before it was caught. The correct form is 'clngint( seed mod culngint( DT_MAX_TICKS ) )'. Re-running found no implementation bugs -- the layers were right, the sweeps were just tiny.
 

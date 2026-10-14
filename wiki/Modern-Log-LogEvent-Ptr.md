@@ -20,7 +20,7 @@ lg.AddSink( @con )
 
 dim as int32 target = 42
 
-'' Spelled Ptr_ WITH A TRAILING UNDERSCORE, because PTR is a FreeBASIC
+'' Spelled Ptr_ WITH A TRAILING UNDERSCORE, because PTR is a tiko
 '' keyword -- the same reason as Int_
 lg.Info( ).Ptr_( "addr", @target ).Msg( "tracking" )
 ```

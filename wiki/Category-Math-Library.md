@@ -9,7 +9,7 @@
 using numeric, money
 ```
 
-FreeBASIC's numeric surface is QuickBASIC's plus ATAN2: ABS SGN SQR SIN COS TAN ASIN ACOS ATN ATAN2 EXP LOG INT FIX FRAC RND RANDOMIZE and the operators. No MIN, no MAX, no ROUND, no pi, no way to ask whether a DOUBLE is NaN, no money type, no complex numbers, no vectors, no statistics, and no way to tell a failed parse from a legitimate zero.
+The built-in numeric surface is ABS SGN SQR SIN COS TAN ASIN ACOS ATN ATAN2 EXP LOG INT FIX FRAC RND RANDOMIZE and the operators. No MIN, no MAX, no ROUND, no pi, no way to ask whether a DOUBLE is NaN, no money type, no complex numbers, no vectors, no statistics, and no way to tell a failed parse from a legitimate zero.
 
 These modules add those. Everything is a library behind an #import -- std/numeric, and std/money for the money types. NOTHING BECOMES A KEYWORD and nothing existing changes.
 
@@ -50,7 +50,7 @@ print val( str( 0.1+0.2 ) ) = 0.1+0.2   ' FALSE
 ->  ToString( d )
 ```
 
-None of these four are fixed in place.  '^', 'MOD', 'VAL', 'STR', 'RND' and 'RANDOMIZE' behave exactly as they always have, in every dialect.  Each defect gets a correct neighbour under a different name.
+None of these four are fixed in place.  '^', 'MOD', 'VAL', 'STR', 'RND' and 'RANDOMIZE' are left exactly as they are, in every dialect.  Each defect gets a correct neighbour under a different name.
 
 ## Nothing Becomes A Keyword
 
@@ -58,7 +58,7 @@ None of these four are fixed in place.  '^', 'MOD', 'VAL', 'STR', 'RND' and 'RAN
 dim as int32 min = 1, max = 2, round = 3, clamp = 4      ' still compiles
 ```
 
-Those four are the most obvious names here and all four are legal identifiers in FreeBASIC.  Twenty years of code uses them as variable names, so everything belongs to the module and 'using numeric' is your decision.  Your own local shadows the library cleanly and the qualified name still works:
+Those four are the most obvious names here and all four are legal identifiers in tiko.  Plenty of code uses them as variable names, so everything belongs to the module and 'using numeric' is your decision.  Your own local shadows the library cleanly and the qualified name still works:
 
 ```freebasic
 #import "std/numeric"
@@ -138,7 +138,7 @@ RoundHalfEven( x, digits )
 Floor( x )  Ceil( x )  Truncate( x )
 ```
 
-Floor and Ceil exist even though INT is floor: INT is floor and FIX is truncation, but the NAMES do not say so and half the FB code in existence uses INT believing it truncates.
+Floor and Ceil exist even though INT is floor: INT is floor and FIX is truncation, but the NAMES do not say so and code often uses INT believing it truncates.
 
 RoundHalfEven is what financial code wants -- half-up drifts upward across a ledger.  It is implemented rather than delegated to C's rint, because rint honours the CURRENT rounding mode and would stop being deterministic the moment fenv.tiko's rounding control is used.
 
@@ -274,7 +274,7 @@ All return Optional.  The WHOLE string must be consumed:
 "nan"/"inf" -> the value   "1.#INF"  -> the value
 ```
 
-FB's own PRINT spellings parse, so a program can read back what it wrote. Leniency is opted INTO, never out of:
+tiko's own PRINT spellings parse, so a program can read back what it wrote. Leniency is opted INTO, never out of:
 
 ```freebasic
 PARSE_TRIM  PARSE_ALLOW_TRAILING  PARSE_NO_SPECIAL
@@ -318,11 +318,11 @@ print r.NextInt( 1, 6 )                  ' inclusive both ends, UNBIASED
 print r.NextDouble( )                    ' [0, 1)
 ```
 
-RND and RANDOMIZE are untouched.  FB starts from a better place than most -- fbprng.bi already offers five algorithms behind 'RANDOMIZE seed, algorithm'. Three things are missing and the first is structural.
+RND and RANDOMIZE are untouched.  fbprng.bi already offers five algorithms behind 'RANDOMIZE seed, algorithm'. Three things are missing and the first is structural.
 
 RND IS ONE GLOBAL STREAM.  Two subsystems that both want reproducible randomness cannot have it; a test cannot seed its own generator without disturbing the program's.
 
-THERE IS NO UNBIASED INTEGER RANGE.  'int( rnd \* n )' is the universal FB idiom and it is biased.  Nobody notices, which is what makes it worth fixing.
+THERE IS NO UNBIASED INTEGER RANGE.  'int( rnd \* n )' is the usual idiom and it is biased.  Nobody notices, which is what makes it worth fixing.
 
 THERE ARE NO DISTRIBUTIONS AND NO SHUFFLE.
 
@@ -330,7 +330,7 @@ xoshiro256\*\*, four 64-bit words, so an Rng lives in a UDT without a pointer. A
 
 ```freebasic
 NextULongInt NextULong NextDouble NextDoubleRange NextSingle
-NextInt( lo, hi )        INCLUSIVE both ends, matching FB's TO
+NextInt( lo, hi )        INCLUSIVE both ends, matching tiko's TO
 NextBoolean NextBooleanP( p )
 NextNormal NextNormalP( mean, sd ) NextExponential( lambda )
 NextPoisson( lambda )
@@ -340,7 +340,7 @@ CryptoBytes( ptr, n )  CryptoULongInt( )  RngFromEntropy( )
 
 NextInt is unbiased by Lemire's multiply-and-reject: one multiply, no division in the common case.  NextDouble is \[0,1) with 53 bits of entropy; 1.0 is never returned.
 
-Shuffle is Fisher-Yates DESCENDING with an inclusive bound -- the form that produces every permutation with equal probability.  The other forms are subtly wrong and are what a hand-rolled FB shuffle usually is.
+Shuffle is Fisher-Yates DESCENDING with an inclusive bound -- the form that produces every permutation with equal probability.  The other forms are subtly wrong and are what a hand-rolled shuffle usually is.
 
 CryptoBytes IS A SEPARATE SURFACE AND NOT AN Rng.  No seed, no reproducibility, no state.  One type with two contradictory contracts would invite exactly the mistake this separation prevents.  RngFromEntropy( ) is the bridge.
 
@@ -395,7 +395,7 @@ Vec2f Vec3f Vec4f Mat4f Quatf               ' and the ...d doubles
 Vec2 Vec3 Vec4 Mat4 Quat                    ' aliases for the SINGLE forms
 ```
 
-CONCRETE TYPES, because 'Vec( of T, N )' is not expressible: FB generics take TYPE parameters only and there is no way to bind one to the value 3.
+CONCRETE TYPES, because 'Vec( of T, N )' is not expressible: generics take TYPE parameters only and there is no way to bind one to the value 3.
 
 TWO CONVENTIONS, STATED BECAUSE HALF OF ALL MATRIX BUGS ARE THESE:
 
@@ -444,7 +444,7 @@ CToString CToStringPolar
                   float64 with Complex, Complex with float64
 ```
 
-EVERY FUNCTION CARRIES A 'C' PREFIX.  Exp, Log, Sqr, Sin, Cos, Tan, Abs, Atn and Str are FreeBASIC intrinsics, and when this library was headers in namespace FB, a function of one of those names SHADOWED the intrinsic for every later header -- measured, it broke what is now random.tiko -- after which the intrinsic could not be called back.  The names stayed when the headers became std/numeric.  Given that the transcendentals must be prefixed, the prefix is applied UNIFORMLY: a mixed scheme would need the reader to know which of 'Sin' and 'Real' is an intrinsic in order to guess the spelling.  The TYPE is 'Complex', unprefixed.
+EVERY FUNCTION CARRIES A 'C' PREFIX.  Exp, Log, Sqr, Sin, Cos, Tan, Abs, Atn and Str are intrinsics, and when this library was headers in namespace FB, a function of one of those names SHADOWED the intrinsic for every later header -- measured, it broke what is now random.tiko -- after which the intrinsic could not be called back.  The names stayed when the headers became std/numeric.  Given that the transcendentals must be prefixed, the prefix is applied UNIFORMLY: a mixed scheme would need the reader to know which of 'Sin' and 'Real' is an intrinsic in order to guess the spelling.  The TYPE is 'Complex', unprefixed.
 
 'CStr' is a keyword, so AfxNova's CStr( z ) is CToString( z ) -- which also names what it is: the round-tripping form, not STR.
 
@@ -564,7 +564,7 @@ per call.
 library's and is strict; the last bit is the platform's.
 ```
 
-- Statistics take plain FB arrays, not the iterator protocol.
+- Statistics take plain arrays, not the iterator protocol.
 
 - Checked arithmetic is opt-in per call site.  It does not catch what you
 
@@ -581,7 +581,7 @@ DOUBLE on this target.
 - Nothing folds at compile time: Round( 2.5 ) on a literal is a run-time
 
 ```freebasic
-call, because FB's constant folding covers operators, not user functions.
+call, because constant folding covers operators, not user functions.
 ```
 
 - Every routine has MODULE-PRIVATE linkage, so each module including a

@@ -13,7 +13,7 @@ CSwap( byref a as Complex, byref b as Complex )
 ## Notes
 
 - A **sub**. Both arguments are modified.
-- FreeBASIC's `swap` statement does the same for two `Complex` variables; this exists so that the operation has a name in the same family as the rest.
+- The `swap` statement does the same for two `Complex` variables; this exists so that the operation has a name in the same family as the rest.
 
 ## Examples
 
