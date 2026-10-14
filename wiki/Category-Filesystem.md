@@ -73,7 +73,7 @@ Paths         Free functions over strings, Go-style. There is no Path type. Iter
 a directory.
 ```
 
-Platforms     win64 and linux-x86_64, both first-class.
+Platforms     windows-x86_64 and linux-x86_64, both first-class.
 
 One import pulls in everything:
 

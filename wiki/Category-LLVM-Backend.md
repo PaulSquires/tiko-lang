@@ -46,7 +46,7 @@ Inline `ASM` is **refused**:
 error TKO0407: inline assembly is not supported; compile that module with fbc
 ```
 
-FreeBASIC's `ASM` is raw assembler text with direct symbol references. LLVM wants constraint strings and operands, and anything short of refusing it produces plausible-but-wrong code. A module that needs inline assembly can be built with fbc and linked in. That works for `-target win64`, the ABI fbc builds for, where objects from the two compilers link both ways.
+FreeBASIC's `ASM` is raw assembler text with direct symbol references. LLVM wants constraint strings and operands, and anything short of refusing it produces plausible-but-wrong code. A module that needs inline assembly can be built with fbc and linked in.
 
 ## Optimisation and debug information
 

@@ -17,7 +17,6 @@ Yes, once. The repository holds the compiler's source, not a prebuilt toolchain.
 
 **Which targets are supported?**
 - `windows-x86_64`: the default on Windows, and it needs no Visual Studio.
-- `win64`: the legacy MinGW ABI, kept for now for objects built by fbc.
 - `linux-x86_64`: the default on Linux.
 
 x86-64 only: `-m32` and `-target win32` are refused. There is no macOS or ARM64 target.

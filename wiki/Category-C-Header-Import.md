@@ -2,7 +2,7 @@
 
 # C Header Import
 
-> **In tiko.** tiko imports C headers itself, through libclang loaded at first use and never linked, for windows-x86_64 (the Windows default), win64 and linux-x86_64. Its C-import options are `-cinclude`, `-cimport`, `-cimport-out` (`-` for standard output), `-cimport-manifest`, `-cdefine`, `-csysroot`, `-copt`, `-cnomacros`, `-cnoverify`, `-cnocache` and `-ccachedir`, plus the compiler-development option `--cimport-probe`. Measured on windows-x86_64 and win64.
+> **In tiko.** tiko imports C headers itself, through libclang loaded at first use and never linked, for windows-x86_64 (the Windows default) and linux-x86_64. Its C-import options are `-cinclude`, `-cimport`, `-cimport-out` (`-` for standard output), `-cimport-manifest`, `-cdefine`, `-csysroot`, `-copt`, `-cnomacros`, `-cnoverify`, `-cnocache` and `-ccachedir`, plus the compiler-development option `--cimport-probe`. Measured on windows-x86_64.
 
 > 📘 **Also in this category:** [#cinclude Tutorial](modern-Cinclude-tutorial)
 
@@ -50,7 +50,7 @@ The importer does **not** write Clang's offsets into the compiler's symbols. It 
 
 libclang **16 or newer** (`CLANG_MIN_MAJOR`, `src/cimport/clang.ti`). tiko loads it on first use through [`DyLibLoad`](Dylibload) and never links it, so tiko builds and runs without it, and only `#cinclude`, `-cimport` and `--cimport-probe` ask for it. It is looked for in `TKO_LIBCLANG` (alone, when that is set), then beside the clang tiko compiles with, then where the LLVM installer or a distribution puts it (`src/cimport/clang.tiko`). Every tiko build already needs an installed LLVM with clang 18 or newer, and that install ships libclang. When none opens, a `#cinclude` line is `TKO0335: #cinclude needs libclang: ...`, saying what was tried, and a program with no `#cinclude` still builds.
 
-Targets: **windows-x86_64** (tiko's default on Windows, imported against the installed MSVC and Windows SDK headers), **win64** and **linux-x86_64**.
+Targets: **windows-x86_64** (tiko's default on Windows, imported against the installed MSVC and Windows SDK headers) and **linux-x86_64**.
 
 ```
 tiko --cimport-probe stddef.h
@@ -174,9 +174,9 @@ RegisterClassEx( @wc )
 
 ## Calling conventions
 
-An imported procedure or function pointer carries whatever convention the header states **for the target being built**, which is not always what the documentation says. `windows.h` declares `WNDPROC` as `WINAPI`; on win64 the SDK defines `WINAPI` away, because x86-64 Windows has exactly one calling convention, so Clang reports the default and the imported typedef reads `cdecl`.
+An imported procedure or function pointer carries whatever convention the header states **for the target being built**, which is not always what the documentation says. `windows.h` declares `WNDPROC` as `WINAPI`; on 64-bit Windows the SDK defines `WINAPI` away, because x86-64 Windows has exactly one calling convention, so Clang reports the default and the imported typedef reads `cdecl`.
 
-FreeBASIC's own default on win64 is `stdcall`. Both describe the same call.
+FreeBASIC's own default on 64-bit Windows is `stdcall`. Both describe the same call.
 
 **tiko treats `cdecl`, `stdcall` and `stdcall_ms` as interchangeable on a 64-bit target**, so you do not have to write one to match an imported pointer:
 
@@ -298,8 +298,8 @@ Every declaration carries `alias "<exact C name>"`, so a rename never changes th
 
 ## Remarks
 
-- The generated binding is **cached**, so the expensive half runs once per configuration and the cheap half — parsing FreeBASIC text — runs per compilation, exactly as [`#include`](Include) does today. The key is the header chain, every option, `UNICODE`, the target, libclang and its resource directory, the working directory, the running `tiko` by size and time, and what clang's header detection reads (`-csysroot`, `CPATH`, `C_INCLUDE_PATH`, `INCLUDE`, `VCToolsInstallDir`, `WindowsSdkDir`, and the first `gcc` on `PATH` for win64); every file clang read is re-checked on each hit, so editing any header in the tree invalidates it. A program that `#cinclude`s `windows.h` built in 18.7 s cold and 0.6 s warm with tiko on windows-x86_64.
-- tiko's import of `windows.h` has 42,945 declarations on windows-x86_64 and 36,139 on win64 — 2,887 and 2,438 records, every one checked against a clang-compiled program — with no record refused.
+- The generated binding is **cached**, so the expensive half runs once per configuration and the cheap half — parsing FreeBASIC text — runs per compilation, exactly as [`#include`](Include) does today. The key is the header chain, every option, `UNICODE`, the target, libclang and its resource directory, the working directory, the running `tiko` by size and time, and what clang's header detection reads (`-csysroot`, `CPATH`, `C_INCLUDE_PATH`, `INCLUDE`, `VCToolsInstallDir`, `WindowsSdkDir`); every file clang read is re-checked on each hit, so editing any header in the tree invalidates it. A program that `#cinclude`s `windows.h` built in 18.7 s cold and 0.6 s warm with tiko on windows-x86_64.
+- tiko's import of `windows.h` has 42,945 declarations on windows-x86_64 — 2,887 records, every one checked against a clang-compiled program — with no record refused.
 - Over-alignment (`__declspec(align(16))`) has no FreeBASIC spelling. C's tail padding is written out so `SizeOf` and every member offset are right, and the affected records are reported by name — but a local or array element is 8-byte aligned where C promises 16.
 
 ### See also
@@ -330,7 +330,7 @@ function WndProc ( byval hwnd as HWND, byval msg as UINT, _
 end function
 ```
 
-> **No calling convention, and none is needed.** `windows.h` declares `WNDPROC` as `WINAPI`, the SDK defines `WINAPI` away on win64 — x86-64 Windows has one calling convention — so the imported typedef reads `cdecl`, while FreeBASIC's own default on win64 is `stdcall`. Those describe the same call, and tiko treats `cdecl`, `stdcall` and `stdcall_ms` as interchangeable on a 64-bit target, so this assigns cleanly whether you write `cdecl`, `stdcall`, or nothing at all. `pascal` is excluded and still warns — it reverses the argument order, on x86-64 as anywhere else.
+> **No calling convention, and none is needed.** `windows.h` declares `WNDPROC` as `WINAPI`, the SDK defines `WINAPI` away on 64-bit Windows — x86-64 Windows has one calling convention — so the imported typedef reads `cdecl`, while FreeBASIC's own default on 64-bit Windows is `stdcall`. Those describe the same call, and tiko treats `cdecl`, `stdcall` and `stdcall_ms` as interchangeable on a 64-bit target, so this assigns cleanly whether you write `cdecl`, `stdcall`, or nothing at all. `pascal` is excluded and still warns — it reverses the argument order, on x86-64 as anywhere else.
 
 ```freebasic
 '' A third-party library, header and all.
@@ -353,7 +353,7 @@ sqlite3_close( db )
 
 Naming the header through the folder — `#cinclude once "vendor/sqlite3.h"` — needs no `-cinclude` **when the compiler is run from the directory that contains `vendor/`**. tiko also finds it from anywhere else when `vendor/` sits beside the source, because it looks beside the file that wrote the directive too. (`-cinclude path/to/vendor` does not do it: the directive already names `vendor/`, and tiko reports the header missing — `TKO0336: unable to import C header vendor/sqlite3.h`.)
 
-Both examples build with tiko: the first on windows-x86_64 and win64, the second with `-target win64` and `-cinclude vendor`, since a `sqlite3_windows_x86_64.a` built by MinGW does not link on windows-x86_64 (`lld-link: error: undefined symbol: ___chkstk_ms`, `TKO0116`).
+Both examples build with tiko on windows-x86_64, the second with `-cinclude vendor`. Its library must be built for windows-x86_64: a `sqlite3_windows_x86_64.a` built by MinGW does not link there (`lld-link: error: undefined symbol: ___chkstk_ms`, `TKO0116`).
 
 ## Pages in this category
 
