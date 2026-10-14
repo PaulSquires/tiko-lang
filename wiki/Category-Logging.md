@@ -335,10 +335,6 @@ The logger's own level methods keep their plain names -- `lg.Error( "boom" )`, `
 
 One more, for anyone deriving from these types: `type Logger as Logger_` makes Logger an incomplete type inside the module, so a member returning a logger by value is declared `as Logger_`. Callers write `dim as Logger`.
 
-## Not Provided
-
-Each was considered and declined: OS-native sinks (OutputDebugString, the Windows Event Log, syslog), printf-style format strings, sampling and rate limiting, file-based configuration, and a logger hierarchy resolved by dotted name. The next section shows how little an OS-native sink takes.
-
 ## Writing Your Own Sink
 
 The interface is public, and this is the whole of the sink a Windows GUI program wants -- there is no console for ConsoleSink to write to:
