@@ -36,7 +36,7 @@ Each of these is a diagnostic, not a silent difference:
 - `defer q + 1` compiles under tiko with no diagnostic.
 - `defer:` is a label in both compilers.
 
-**A `"""` that ends its line opens a [block string](Category-Block-Strings) in tiko.** In fbc it is a string missing its closing quote: warning 12, and the value is one `"`. tiko reads every line up to one that starts with `"""` as the string's text instead, or reports `TKO0207` when none follows. This is the only spelling whose meaning changed: `"""abc"""` is still the five-character `"abc"` and `""""` is still one quote, in both compilers. No line of the vendored fbc suite (2,750 files), `pkg/` or `tests/` has a `"""` ending it.
+**A `"""` that ends its line opens a [block string](Category-Block-Strings) in tiko.** In fbc it is a string missing its closing quote: warning 12, and the value is one `"`. tiko reads every line up to one that starts with `"""` as the string's text instead, or reports `TKO0207` when none follows. This is the only spelling whose meaning changed: `"""abc"""` is still the five-character `"abc"` and `""""` is still one quote, in both compilers. No line of the vendored fbc suite (its 2,709 `.bas` files and 41 `.bi` files) or of `pkg/` opens one.
 
 **tiko accepts some programs that fbc rejects.** What was confirmed:
 

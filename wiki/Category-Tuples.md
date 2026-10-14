@@ -155,29 +155,15 @@ The literal is not converted -- it is BUILT AT the target type, each element con
 Arity is never inferred and never padded, in any direction:
 
 ```freebasic
-dim v as (int32, int32) = (1, 2, 3)    ' error 370
+dim v as (int32, int32) = (1, 2, 3)    ' error TKO0618: too many expressions
 ```
 
-THE ONE LIMITATION: a NESTED literal is not context-typed. The outer literal's elements are parsed before the outer target type has been applied, so an inner literal sees only whatever context was already open. Where the inner elements' natural types already fit this is invisible:
+A NESTED literal is context-typed too, each inner literal at its element's type:
 
 ```freebasic
 dim ok as ((float64, float64), int32) = ((1, 2), 3)      ' fine
+dim n as ((int32, string), int32) = ((1, "x"), 3)        ' fine
 ```
-
-Where they do not, it fails -- a string LITERAL is not a STRING:
-
-```freebasic
-dim n as ((int32, string), int32) = ((1, "x"), 3)       ' error
-```
-
-Build the inner tuple first:
-
-```freebasic
-dim inner as (int32, string) = (1, "x")
-dim n as ((int32, string), int32) = (inner, 3)
-```
-
-This is pinned by a golden test so it cannot change by accident. Lifting it would mean putting speculative state on the hottest parse path in the language, for a case with a one-line workaround.
 
 ## Destructuring
 
@@ -208,12 +194,12 @@ THE RIGHT-HAND SIDE IS EVALUATED ONCE, and bound before any target is written, w
 
 Targets are assigned left to right. Overlap is NOT diagnosed: '(a, a) = f( )' assigns '\_1' then '\_2' to the same variable and leaves '\_2'. Detecting that in the presence of 'arr(i)' and '\*p' targets is not decidable, and FB does not diagnose aliasing assignments generally.
 
-Arity must match EXACTLY in both directions -- too many targets is error 266, too few is error 370.
+Arity must match EXACTLY in both directions: too many or too few targets is `TKO0825`, which says how many elements the tuple has and how many targets are written.
 
-The right-hand side must be a tuple. A plain UDT is error 371:
+The right-hand side must be a tuple. A plain UDT is `TKO0826`:
 
 ```freebasic
-(n1, n2) = someUdt                   ' error 371: Expected a tuple
+(n1, n2) = someUdt                   ' error TKO0826: a tuple is expected here
 ```
 
 LET IS UNCHANGED. 'LET(a, b) = anyUdt' still walks any UDT's fields in declaration order, still checks only the too-many direction, and now also accepts a tuple, since a tuple is a UDT. Positional unpacking of a NAMED type stays LET-only on purpose: reordering that type's fields silently changes what every unpack site means, and that is not a failure mode worth spreading. tiko implements only `#lang "fb"`, where both forms work.
@@ -252,7 +238,7 @@ Both sides must be the SAME tuple type, which after structural interning is a po
 ```freebasic
 dim x1 as (int32, int32)
 dim x2 as (float64, float64)
-print (x1 = x2)                      ' error 20: Type mismatch
+print (x1 = x2)                      ' error TKO0720: no operator = compares this type
 ```
 
 Every element type must support '='. A UDT element without one fails with that UDT's own diagnostic, at the element.
@@ -276,25 +262,24 @@ Arity 0 is not spellable either -- '()' has no use without a unit type.
 ## What Is NOT Spellable
 
 ```freebasic
-print sizeof( (int32, string) )       ' error
-dim x as typeof( (int32, string) )    ' error
-const c as (int32, int32) = 0          ' error 14: Expected identifier
-type Derived extends (int32, int32)    ' error 14: Expected identifier
+print sizeof( (int32, string) )       ' not supported: the build stops (TKO0994)
+const c as (int32, int32) = 0          ' error TKO0748
+type Derived extends (int32, int32)    ' error TKO0824
 ```
 
-SIZEOF, LEN and TYPEOF decide "type or expression?" BEFORE parsing the argument, and then rely on being able to retry the same tokens as an expression if the type parse fails without consuming anything. The tuple arm cannot make that promise, and lookahead cannot rescue it: the lexer offers three tokens, and '( Foo ptr, long )' needs three just to reach the comma. Use a typedef:
+SIZEOF and LEN of a tuple type written inline are not supported: the build stops with `TKO0994`. TYPEOF of one works. Use a typedef:
 
 ```freebasic
 type P as (int32, string)
 print sizeof( P )
 ```
 
-EXTENDS is excluded because a tuple has no vtable, no RTTI and no identity to inherit; CONST is excluded because there is nothing a tuple constant could be initialised from. Both simply never opt in to the tuple type syntax, so they report the ordinary "expected identifier". 'expr IS T' is excluded too, and reports error 299.
+EXTENDS is excluded because a tuple has no vtable, no RTTI and no identity to inherit; CONST is excluded because there is nothing a tuple constant could be initialised from. tiko reports `TKO0748` for a tuple constant and `TKO0824` for EXTENDS. 'expr IS T' is excluded too: a tuple has no run-time type information, and IS reports `TKO0799`.
 
-PRINT of a whole tuple is a deliberate error 24, not an inherited one:
+PRINT of a whole tuple is a deliberate error, `TKO0871`:
 
 ```freebasic
-print t                              ' error 24: Invalid data types
+print t                              ' error TKO0871: no printable form
 print t._1, t._2                     ' say what you mean
 ```
 
@@ -304,13 +289,13 @@ An element-wise PRINT was considered and rejected -- 'print (a, b)' would then b
 
 Accepted: every scalar, STRING, USTRING, ANY PTR, ZSTRING PTR, function pointers, forward-referenced POINTERS, UDTs with constructors and destructors, and nested tuples.
 
-Rejected, with error 369:
+Rejected:
 
 ```freebasic
-ANY                     has no size; nothing could be stored
-STRING * n              the '* n' suffix has no positional spelling
-a dynamic array         a field cannot be one without a descriptor pairing
-a non-pointer forward reference     the type must be complete when interned
+ANY                     TKO0823: has no size; nothing could be stored
+STRING * n              TKO0823: the '* n' suffix has no positional spelling
+a dynamic array         TKO0401: a field cannot be one without a descriptor pairing
+a non-pointer forward reference     TKO0810: the type must be complete when interned
 ```
 
 Only the FIRST bad element in a list is reported; the rest are suppressed. Parsing continues past a bad element so the list is consumed, not so that every element gets its own message.
@@ -339,13 +324,13 @@ circle (10, 10), 5
 
 Call argument lists and subscript lists never reach the expression parser's paren handler at all, and the graphics quirks match their own '('. That leaves the grouped expression and the paren-less call, and both go through one function which parses the FIRST element before it has to decide anything -- so the fourth meaning is separated with NO lookahead and NO backtracking. A comma is a tuple only when the parens could not belong to a paren-less call, and only when the surrounding context is not demanding some other type.
 
-What changes is exactly the set of programs that were errors:
+A comma inside a grouped expression gives these forms their meaning:
 
 ```freebasic
-(a, b) = (1, 2)          was error 7    now destructuring
-Consume( (1, 2) )        was error 7    now one tuple argument
-if (a, b) = (c, d)       was error 7    now element-wise comparison
-print (a, b)             was error 7    now a deliberate error 24
+(a, b) = (1, 2)          destructuring
+Consume( (1, 2) )        one tuple argument
+if (a, b) = (c, d)       element-wise comparison
+print (a, b)             TKO0871: a tuple has no printable form
 ```
 
 ## Dialects
@@ -376,9 +361,7 @@ tiko reports:
 - destructuring with too few or too many targets, and `var (a, b)` of the wrong arity (`TKO0825`), over a UDT or a scalar (`TKO0826`), and `var (a) = 1` (`TKO0821`). `let ( a, b ) = udt` is FreeBASIC's multiple assignment, which takes a UDT's fields in order, and is accepted;
 - `<`, `>`, `<=` and `>=` on tuples, and `=` or `<>` between two DIFFERENT tuple types -- `(int32, int32)` against `(float64, float64)`, against the literal `(1, 2)`, which is `(integer, integer)`, or against a scalar (`TKO0720`). One tuple type on both sides compares.
 
-tiko compiles three cases with no diagnostic: SIZEOF and TYPEOF of a tuple type, and a nested tuple literal that is not context-typed.
-
-`print (a, b)` compiles too. SIZEOF and `print (a, b)` are silently left out of the program (`--dump-ir` reports them as not lowered).
+SIZEOF and LEN of a tuple type written inline stop the build with `TKO0994`; a typedef of the type works. `print` of a tuple is `TKO0871`, an initialiser with more elements than the tuple is `TKO0618`, and `expr is` a tuple type is `TKO0799`.
 
 A tuple element whose value is of ANOTHER type is converted by the element type's own `operator let`, over an element that has already been constructed -- `return ( wszKLID, bRes )` out of a function `as (DVARIANT, BOOLEAN)` takes DVARIANT's `let` from a wstring. Without a `let` that takes the value, tiko refuses the element with `TKO0831`. A `let` from a `int32` takes a `float64` and not a string; a constructor from the value's type is not enough. A plain type -- no constructor, no string field, no `extends object` -- takes a number without one. A string element does not take a number, nor a number element a string.
 
@@ -465,7 +448,7 @@ DIFFERENT element names and calls them. Only a
 link-compatible name passes.
 ```
 
-`tests/vendor/fbc-tests/errors/tuple-errors.bas` is the golden file for every diagnostic, and also PINS THE TWO DOCUMENTED LIMITATIONS -- 'sizeof( (long, string) )' and the nested literal -- so they cannot change by accident.
+`tests/vendor/fbc-tests/errors/tuple-errors.bas` collects the error cases.
 
 `errors/tuple-foreach-errors.bas`, beside it, covers the 'for each (k, v)' diagnostics. AS and BYREF on the list form get a file each: they are rejected while the binding is still being read, before the FOR compound is pushed, so the error skip leaves the following 'next' orphaned and suppresses every later diagnostic in the same file.
 
