@@ -33,20 +33,6 @@ next
 
 A brace list fills one at the declaration: `dim m as Map( of ustring, long ) = { {"a", 1}, {"b", 2} }` calls `Add( "a", 1 )` and `Add( "b", 2 )`. See [Collection Initializers](Category-Collection-Initializers).
 
-## Why It Exists
-
-Without a hash map in the language, the available answer is a COM Scripting.Dictionary from the Windows Script Runtime:
-
-```freebasic
-Portability   Windows-only.  No dictionary on Linux or macOS builds.
-Startup       CoInitialize / CoCreateInstance per instance.
-Types         Every key and value becomes a VARIANT.
-Errors        HRESULT, checked by hand.
-Speed         Late-bound IDispatch dispatch per lookup.
-```
-
-Nobody reaches for OLE automation to get a hash table by preference.
-
 ## READING vs WRITING -- READ THIS FIRST
 
 ```freebasic
