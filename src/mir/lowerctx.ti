@@ -1111,7 +1111,7 @@ declare function EmitRtl _
     declare function TyWidthBytes_( byval t as MirType ) as long
     declare function StrCatText_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as string ) as boolean
-    declare function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long
+    declare function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as long : declare function UStrIntrinArgIsU_( byref c as Ctx, byval a0 as Tko.NodeId ) as boolean : declare function IsUStrIntrinCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean   '' lowerustr.tiko
     '' A NUMBER rendered into a string chain: NARROW, never neutral. lowerterm.tiko.
     declare function IsRenderedNumberTerm_( byref c as Ctx, byval term as Tko.NodeId ) as boolean
     '' A UDT's 'operator cast' to zstring or string, else SYMBOL_NONE. lowerterm.tiko.

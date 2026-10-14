@@ -508,6 +508,27 @@ end function
 '' "z"' with w not v: fb_UStrAssign( v, w ), fb_StrToUStr( n ), fb_UStrConcatAssign, then
 '' ConcatAssign "z"; 'v = n & w': fb_UStrAssignFromA( v, n ), ConcatAssign w. The narrow
 '' digits concat-assigned unconverted read as UTF-16 -- '25' came out as U+3532.
+''
+'' ...AND EVERY OTHER NARROW TERM, the same way. Only the numbers were converted, so 'return
+'' k & right( "abc", 2 ) & sp' and 'v = 5 & bs & sp' over a narrow bs appended the narrow
+'' bytes as UTF-16 -- "bc" came out as U+6362. A one-character string survived by accident
+'' (its NUL made the second byte), which is why it went unseen. A WIDE term goes through
+'' fb_WstrToUStr, as a DWSTRING term already did; 'k & wstr( "w" ) & sp' declined (TKO0994).
+private function InPlaceTermNarrow_( byref c as Ctx, byval term as Tko.NodeId ) as boolean
+    dim as Tko.NodeId t2 = Unparen_( c, term )
+    dim as long tf = StrTermFlavour_( c, t2 )
+    if tf = STF_NARROW then return true
+    if tf <> STF_NEUTRAL then return false
+    '' A NEUTRAL term is a literal or a string constant, which follows the destination --
+    '' or an intrinsic call, which Check left untyped and which is narrow unless it is one
+    '' of the ustring twins.
+    if c.ast->Kind( t2 ) = Tko.N_STRING_LIT then return false
+    dim as string ct
+    if ConstStringTextOf_( c, t2, ct ) then return false
+    if c.ast->Kind( t2 ) <> Tko.N_CALL then return false
+    return (IsUStrIntrinCall_( c, t2 ) = false)
+end function
+
 function LowerUStrInPlaceWithNumbers_ _
     ( byref c as Ctx, byref dst as MirValue, byref terms as containers.Array( of ulong ) ) as boolean
 
@@ -530,7 +551,21 @@ function LowerUStrInPlaceWithNumbers_ _
             dim as MirValue uv = EmitRtl( c, RTL_STR_TO_USTR, cv )
             if uv.kind = cast( ubyte, MV_NONE ) then return false
             PushStrArg( args, uv )
-        elseif UdtTermWide_( c, c.info->TypeOf_( Unparen_( c, term ) ) ) then
+        elseif InPlaceTermNarrow_( c, term ) then
+            if i = 0 then
+                if EmitStrTerm( c, args, term, false ) = false then return false
+                args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+                args.Push( cast( ulong, MV_CONST_INT ) ) : args.Push( 0 )
+                EmitRtl( c, RTL_USTR_FROM_A, args )
+                continue for
+            end if
+            dim as containers.Array( of ulong ) ncv
+            if EmitStrTerm( c, ncv, term, false ) = false then return false
+            dim as MirValue nuv = EmitRtl( c, RTL_STR_TO_USTR, ncv )
+            if nuv.kind = cast( ubyte, MV_NONE ) then return false
+            PushStrArg( args, nuv )
+        elseif UdtTermWide_( c, c.info->TypeOf_( Unparen_( c, term ) ) ) orelse _
+               (StrTermFlavour_( c, term ) = STF_WIDE) then
             '' A UDT THAT CASTS TO A WSTRING (AfxNova's DWSTRING) is converted first, as
             '' PushChainTerm_ does for the fold: EmitStrTerm has no UTF-16 form for it, so
             '' 't = u & n & dws' declined here with 't = u' already emitted.

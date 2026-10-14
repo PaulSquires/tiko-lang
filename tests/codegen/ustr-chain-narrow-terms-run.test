@@ -1,0 +1,16 @@
+'' A ustring chain that renders a number, with a narrow or wide term beside it -- 'return k &
+'' right( "abc", 2 ) & sp', 'v = 5 & bs & sp' over a narrow bs, 'k & wstr( "wd" ) & sp'. Every
+'' term converts to UTF-16, as fbc does (lines measured). LowerUStrInPlaceWithNumbers_
+'' converted only the numbers: the narrow bytes were read as UTF-16 ("bc" as U+6362; a one-
+'' character term survived by accident), and a wide term stopped the build (TKO0994).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/ustr-chain-narrow-terms.bas -o tests/codegen/ustrchainnarrowterms.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/ustrchainnarrowterms.exe
+'' RUN: tests/codegen/ustrchainnarrowterms.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: A:7bytesS|7bcS|7UXVS|7xvS|7ABS
+'' EXPECT-RUN-OUT: B:755S|7wdS|7ABS7FF|S7bytesxy|7uxvS3.5
+'' EXPECT-RUN-OUT: V:5bytesS
+'' EXPECT-RUN-OUT: V:5bcS

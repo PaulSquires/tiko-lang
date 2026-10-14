@@ -23,6 +23,48 @@ namespace Tko.Mir
 declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref n as longint ) as long
 
+'' IS THIS FIRST ARGUMENT A USTRING, for choosing the USTRING twin of an intrinsic?
+'' A CONCATENATION WITH A USTRING TERM COUNTS. Check types '&' as STRING, so 'trim( "  " &
+'' u & "  " )' was sent to the narrow fb_TRIM over the USTRING temporary the chain builds.
+'' fbc types it USTRING and calls fb_UStrTrim. ...AND SO DOES A UDT WHOSE STRING CONVERSION
+'' IS A USTRING (T50): StrDescriptorOf_ hands back the cast's own UTF-16 descriptor, which
+'' the narrow twin misread.
+function UStrIntrinArgIsU_( byref c as Ctx, byval a0 as Tko.NodeId ) as boolean
+    if a0 = Tko.NODE_NONE then return false
+    if IsUStringType( c, c.info->TypeOf_( a0 ) ) then return true
+    if c.ast->Kind( a0 ) = Tko.N_BINARY then
+        dim as containers.Array( of ulong ) a0t
+        FlattenConcat( c, a0, a0t )
+        if a0t.Count > 1 then
+            if ConcatTermsAreU_( c, a0t ) then return true
+        end if
+    end if
+    return UdtCastIsUStr_( c, a0 )
+end function
+
+'' DOES THIS CALL RETURN A USTRING -- one LowerUStrIntrinB_ below takes? Check computes no
+'' type for an intrinsic call, so a chain classifying its terms cannot ask the type; the
+'' name and the first argument are what decide. Nothing is emitted.
+function IsUStrIntrinCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = _
+        @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
+    if cp->target = Tko.NODE_NONE then return false
+    if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
+    if cp->count < 1 then return false
+    if c.info->RefOf( cp->target ) <> Tko.SYMBOL_NONE then
+        if c.syms->SymbolAt( c.info->RefOf( cp->target ) )->kind = cast( ubyte, Tko.SYM_PROC ) then return false
+    end if
+    dim as Tko.IdentPayload ptr ip = _
+        @c.ast->idents[cast( long, c.ast->nodes[cast( long, cp->target )].data )]
+    select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    case "trim", "ltrim", "rtrim", "left", "right", "mid", "ucase", "lcase"
+    case else
+        return false
+    end select
+    return UStrIntrinArgIsU_( c, cast( Tko.NodeId, c.ast->children[cp->first] ) )
+end function
+
 '' One 'ucase( u )' / 'mid( u, 2, 3 )' / 'instr( u, v )' and the rest, over a USTRING
 '' first argument. Returns false for anything that is not one, so the narrow path keeps
 '' every case it already had.
@@ -41,21 +83,7 @@ function LowerUStrIntrinB_ _
 
     '' THE FIRST ARGUMENT DECIDES, exactly as it does for the wide family.
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
-    '' ...AND A CONCATENATION WITH A USTRING TERM COUNTS. Check types '&' as STRING, so
-    '' 'trim( "  " & u & "  " )' was sent to the narrow fb_TRIM over the USTRING temporary
-    '' the chain builds. fbc types it USTRING and calls fb_UStrTrim.
-    dim as boolean a0U = IsUStringType( c, c.info->TypeOf_( a0 ) )
-    if a0U = false then
-        if c.ast->Kind( a0 ) = Tko.N_BINARY then
-            dim as containers.Array( of ulong ) a0t
-            FlattenConcat( c, a0, a0t )
-            if a0t.Count > 1 then a0U = ConcatTermsAreU_( c, a0t )
-        end if
-    end if
-    '' ...AND SO DOES A UDT WHOSE STRING CONVERSION IS A USTRING (T50): StrDescriptorOf_
-    '' below hands back the cast's own UTF-16 descriptor, which the narrow twin misread.
-    if a0U = false then a0U = UdtCastIsUStr_( c, a0 )
-    if a0U = false then return false
+    if UStrIntrinArgIsU_( c, a0 ) = false then return false
 
     dim as Tko.NodeId a1 = Tko.NODE_NONE
     if cp->count >= 2 then a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
