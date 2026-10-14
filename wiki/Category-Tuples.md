@@ -12,7 +12,7 @@ dim q as (int32, ustring) = (3, "hi")
 print p = q                          ' true
 ```
 
-A tuple is an anonymous aggregate spelled '(T, U)' in any type position and '(a, b)' in any expression position. No '#include', no namespace, no runtime support -- it is a language feature.
+A tuple is an anonymous aggregate spelled '(T, U, ...)' in any type position and '(a, b, ...)' in any expression position. No '#include', no namespace, no runtime support -- it is a language feature.
 
 ## Why It Exists
 
@@ -46,6 +46,18 @@ declare sub h( byref p as (int32, int32) )
 ```
 
 Minimum arity is TWO. '(long)' is a syntax error, not a 1-tuple -- see NO 1-TUPLES below.
+
+There is no maximum. A tuple has as many elements as it is written with, and the return type, the literal and destructuring work the same at three elements as at two:
+
+```freebasic
+function foo( ) as (a as int32, b as int64, c as float64)
+    return (10, 20, 30.45)
+end function
+
+var (d, e, f) = foo( )
+
+print d, e, f                        ' prints: 10             20            30.45
+```
 
 The fields are named '\_1' through '\_N':
 
@@ -331,10 +343,6 @@ Consume( (1, 2) )        one tuple argument
 if (a, b) = (c, d)       element-wise comparison
 print (a, b)             TKO0871: a tuple has no printable form
 ```
-
-## Dialects
-
-tiko implements `#lang "fb"` only -- `#lang "qb"` is `TKO0317: unsupported language mode 'qb'` -- so tuples have no per-dialect rules.
 
 ## Separate Compilation
 
