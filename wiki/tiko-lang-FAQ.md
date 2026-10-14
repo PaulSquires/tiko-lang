@@ -22,7 +22,7 @@ Normally not. Toolchains are published ready-built as GitHub [Releases](https://
 x86-64 only: `-m32` and `-target win32` are refused. There is no macOS or ARM64 target.
 
 **Which backends?**
-One: tiko emits LLVM IR and runs clang. There is no `-gen` switch. clang 18 or newer must be installed; tiko looks for it at a fixed path or in `TKO_CLANG`, not on `PATH`. See [LLVM Backend](Category-LLVM-Backend).
+One: tiko emits LLVM IR and runs clang. There is no `-gen` switch. clang 18 or newer must be installed; tiko takes `TKO_CLANG` first, then the default install path, then `clang` on `PATH`. See [LLVM Backend](Category-LLVM-Backend).
 
 **Can I use inline `ASM`?**
 Not in tiko. It is refused with `TKO0407` rather than miscompiled.

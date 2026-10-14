@@ -1,34 +1,21 @@
 # Quick Start
 
-tiko is distributed as a **toolchain**: the compiler, its headers and its runtime libraries in one directory. Toolchains are build products, and the repository holds only their READMEs, so the first step is to package one for the machine you are on.
+tiko is distributed as a **toolchain**: the compiler, its headers, its runtime libraries and its packages in one directory. Toolchains are published ready-built, so getting started is a download, not a build.
 
 ## What you need
 
-- **clang 18 or newer.** It is not bundled. tiko does not search `PATH`: it runs `C:\Program Files\LLVM\bin\clang.exe` on Windows and `/usr/bin/clang` on Linux, or whatever `TKO_CLANG` names.
-- **To build the toolchain:** a **seed**, the earlier tiko release that `seed/seed.lock` pins. `sh seed/fetch-seed.sh` downloads it (through `gh` while the repository is private) and checks its SHA-256 before unpacking it into `seed/cache/`, where the build finds it. tiko builds tiko: no FreeBASIC compiler is involved.
-
-## Build a toolchain
-
-From Git Bash on Windows, or from Linux or WSL:
-
-```bash
-git clone https://github.com/PaulSquires/tiko-lang.git
-cd tiko-lang
-sh seed/fetch-seed.sh
-bash build/package.sh --verify
-```
-
-That builds the compiler, the runtime and the graphics library, and assembles `toolchains/tiko-windows/` or `toolchains/tiko-linux/`. It then compiles **and runs** a program per target and records the result in `MANIFEST.txt`.
+- **A toolchain.** Download the newest release titled *tiko toolchains* from [Releases](https://github.com/PaulSquires/tiko-lang/releases): `tiko-windows-x86_64-<commit>.zip` for Windows, `tiko-linux-x86_64-<commit>.tar.gz` for Linux. Unpack it anywhere; it holds one directory, `tiko-windows/` or `tiko-linux/`.
+- **clang 18 or newer.** It is not bundled: tiko uses it to compile and to link. tiko takes the first it finds of `TKO_CLANG`, then `C:\Program Files\LLVM\bin\clang.exe` on Windows or `/usr/bin/clang` on Linux, then `clang` on `PATH`.
 
 ## Compile a program
 
 ```bat
-toolchains\tiko-windows\tiko.exe hello.tiko
+tiko-windows\tiko.exe hello.tiko
 hello.exe
 ```
 
 ```bash
-toolchains/tiko-linux/bin/tiko hello.tiko
+tiko-linux/bin/tiko hello.tiko
 ./hello
 ```
 
@@ -80,6 +67,19 @@ grace
 working
 cleaned up
 ```
+
+## Building a toolchain from source
+
+Only needed to work on the compiler itself. From Git Bash on Windows, or from Linux or WSL:
+
+```bash
+git clone https://github.com/PaulSquires/tiko-lang.git
+cd tiko-lang
+sh seed/fetch-seed.sh
+bash build/package.sh --verify
+```
+
+tiko builds tiko: the build compiles it with a **seed**, the earlier tiko release that `seed/seed.lock` pins. `sh seed/fetch-seed.sh` downloads it (through `gh` while the repository is private) and checks its SHA-256 before unpacking it into `seed/cache/`. `package.sh` then builds the compiler, the runtime and the graphics library, and assembles `toolchains/tiko-windows/` or `toolchains/tiko-linux/`. It compiles **and runs** a program per target and records the result in `MANIFEST.txt`.
 
 ## Next
 
