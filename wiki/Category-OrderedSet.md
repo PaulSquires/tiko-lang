@@ -2,6 +2,18 @@
 
 # OrderedSet
 
+An **OrderedSet** is a [set](Category-Set) that keeps its values in sorted order. Like any set it holds each value at most once -- adding one that is already there changes nothing -- and you can add a value, take one out, and ask whether a value is in it. The difference shows when you walk through it: an OrderedSet always hands its values back from the smallest to the largest, whatever order they were added in.
+
+Think of the index at the back of a book: every term appears once, in alphabetical order, so you can read it from A to Z, see the first and the last term, or find the terms just before and just after one that is not listed.
+
+Those last questions are what an OrderedSet can answer and an ordinary Set cannot: the smallest value (`TryFirst`), the largest (`TryLast`), the largest value at or below a given one (`TryFloor`) and the smallest at or above it (`TryCeiling`). A value only has to support `<`.
+
+**OrderedMap** is the same idea for a [map](Category-Map): key and value pairs, kept in key order. Both are described on this page.
+
+Keeping things sorted has a cost: each operation takes a little longer as the container grows, where a Set's or a Map's stays about the same. So use an ordinary Set or Map unless you need the order -- see *Which One To Use* below.
+
+The example below stores ages by name in an OrderedMap and prints them alphabetically, then records a number in an OrderedSet:
+
 ```freebasic
 #import "std/containers"
 using containers
