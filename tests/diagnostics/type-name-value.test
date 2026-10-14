@@ -1,0 +1,7 @@
+'' A TYPE, TYPEDEF OR ENUM NAME WHERE A VALUE IS NEEDED is TKO0971 (fbc's error 42): an
+'' assignment's two sides, a compound assignment, a binary operand, a PRINT item and an
+'' initialiser. It compiled and ran before, assigning nothing. The type-name uses after it are legal.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/type-name-value.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/type-name-value.out

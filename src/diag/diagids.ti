@@ -833,6 +833,12 @@
     DIAG( TKO0968, SEV_WARNING, "implicit conversion: a '%0' from a '%1'; cast( ) it if that is meant" )
     '' fbc's warning 2, "Passing pointer to scalar" -- see ScalarArgWarn_ in symbols/ptrwarn.tiko.
     DIAG( TKO0970, SEV_WARNING, "passing a '%1' for a '%0' parameter; cast( ) it if that is meant" )
+    '' fbc's error 42, "Variable not declared", over a TYPE, TYPEDEF or ENUM name used as a
+    '' value -- 'm = 5' over 'type m as long'. See symbols/typevalue.tiko.
+    DIAG( TKO0971, SEV_ERROR,   "'%0' is a type, not a value" )
+    '' fbc's error 265, "Symbol not a CLASS", over a member of something that has none --
+    '' 'x.foo' over a long, 'm.foo( )' over 'type m as long'. See CheckMemberExists_.
+    DIAG( TKO0972, SEV_ERROR,   "'%0' has no member named '%1': a '%2' has no members" )
     DIAG( TKO0965, SEV_ERROR,   "'%0' has a field with a constructor, which an initializer list cannot fill" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )

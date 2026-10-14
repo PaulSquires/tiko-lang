@@ -1,0 +1,102 @@
+func i32 main(i32 $0, ptr $1) {
+  local i32 $tmp0
+  local i32 x
+  local i32 m
+  local i32 y
+  local agg $tmp4 size 4
+  local i64 e
+  local i32 z
+  entry0:
+    %1 = alloca ptr $tmp0
+    %2 = const i32 0
+    store @$tmp0, %2
+    %3 = const i32 0
+    call.rtl void fb_Init($0, $1, %3)
+    %4 = alloca ptr x
+    %5 = call.rtl ptr memset(@x, 0, 4)
+    %6 = alloca ptr m
+    %7 = const i64 5
+    %8 = trunc %7
+    store @m, %8
+    %9 = load @m
+    %10 = sext %9
+    %11 = const i64 1
+    %12 = add %10, %11
+    %13 = trunc %12
+    store @m, %13
+    %14 = load @m
+    call.rtl void fb_PrintInt(0, %14, 1)
+    %15 = alloca ptr y
+    %16 = load @m
+    store @y, %16
+    %17 = load @m
+    %18 = const i64 1
+    %19 = sext %17
+    %20 = add %19, %18
+    %21 = trunc %20
+    store @x, %21
+    %22 = alloca ptr $tmp4
+    %23 = call.rtl ptr memset(@$tmp4, 0, 4)
+    %24 = const i64 5
+    %25 = alloca ptr e
+    %26 = const i64 1
+    store @e, %26
+    %27 = const i64 4
+    call.rtl void fb_PrintLongint(0, %27, 2)
+    %28 = const i64 4
+    call.rtl void fb_PrintLongint(0, %28, 2)
+    %29 = const i64 3
+    call.rtl void fb_PrintLongint(0, %29, 2)
+    %30 = const i64 4
+    call.rtl void fb_PrintLongint(0, %30, 1)
+    %31 = alloca ptr z
+    %32 = const f64 2.7
+    %33 = nearbyint %32
+    %34 = fptosi %33
+    store @z, %34
+    %35 = const i32 0
+    call.rtl void fb_End(%35)
+    %36 = load @$tmp0
+    ret %36
+}
+declare void fb_Init(i32 $0, ptr $1, i32 $2)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
+declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
+declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
+declare void fb_End(i32 $0)
+verify: ok
+lowered: 1 functions, 1 blocks, 50 insts, 1 statements not lowered, 0 scope imbalance
+  inside N_AMBIGUOUS 1
+  skip-site src\mir\lowerutil.tiko:90 1
+tests/diagnostics/src/type-name-value.bas(12,1): error TKO0971: 'm' is a type, not a value
+     |
+  12 | m = 5
+     | ^
+tests/diagnostics/src/type-name-value.bas(13,1): error TKO0971: 'm' is a type, not a value
+     |
+  13 | m += 1
+     | ^
+tests/diagnostics/src/type-name-value.bas(14,7): error TKO0971: 'm' is a type, not a value
+     |
+  14 | print m
+     |       ^
+tests/diagnostics/src/type-name-value.bas(15,17): error TKO0971: 'm' is a type, not a value
+     |
+  15 | dim y as long = m
+     |                 ^
+tests/diagnostics/src/type-name-value.bas(16,5): error TKO0971: 'm' is a type, not a value
+     |
+  16 | x = m + 1
+     |     ^
+tests/diagnostics/src/type-name-value.bas(17,1): error TKO0971: 'u' is a type, not a value
+     |
+  17 | U = 5
+     | ^
+tests/diagnostics/src/type-name-value.bas(17,1): error TKO0738: no conversion between these two types
+     |
+  17 | U = 5
+     | ^
+tests/diagnostics/src/type-name-value.bas(18,1): error TKO0971: 'e' is a type, not a value
+     |
+  18 | E = 1
+     | ^

@@ -233,6 +233,7 @@ end sub
 '' because the parentheses already called g. tiko's parser has no types, so it built
 '' the call anyway and lowering declined it without a word.
 #include once "symbols/tmpllocal.tiko"   '' LocalInTemplate_ (T43)
+#include once "symbols/typevalue.tiko"   '' CheckTypeNameValue_
 private sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( long, c.ast->nodes[cast( long, id )].data )]
