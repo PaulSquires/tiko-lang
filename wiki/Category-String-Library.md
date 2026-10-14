@@ -55,7 +55,7 @@ Positions and lengths count CODE UNITS, matching LEN, \[\] and INSTR. On the wid
 
 POSITIONS ARE 1-BASED, and 0 means "not found", matching INSTR. This is NOT the zero-based convention containers.Array uses. Strings and containers are different worlds and each keeps its own tradition.
 
-A start below 1 is invalid and answers 0 (or "" for a function returning text) rather than clamping, so a position fed back in from a call that returned "not found" cannot silently restart the scan. AfxNova reads a negative start as counting from the right; that reading and this one claim the same range, so only one could survive, and consistency won.
+A start below 1 is invalid and answers 0 (or "" for a function returning text) rather than clamping, so a position fed back in from a call that returned "not found" cannot silently restart the scan.
 
 'ignoreCase' folds ASCII only on the byte family, because a STRING is a byte buffer with no declared encoding and folding above 127 would be guessing at a codepage. The wide family folds through the generated simple BMP table, so it gives the same answer on every machine and in every locale.
 
@@ -272,116 +272,6 @@ everything else, INCLUDING ALL NON-ASCII, passes through
 Non-ASCII is left alone deliberately: escaping it would make a ustring unreadable and reduce a UTF-8 STRING to a wall of hex, and the job is to neutralise what breaks quoting, not to force the text to ASCII.
 
 Unescape is the exact inverse. Unescape( Escape( s ) ) is s for every input, including one that already contains backslashes -- verified over every byte value 0..255. An unrecognised escape yields the escaped character ("\\q" -> "q"); a trailing lone backslash is kept, since nothing follows it to unquote.
-
-## WHERE THIS DIFFERS FROM AfxNova
-
-Eleven deliberate divergences. Everything else answers what AfxNova answers.
-
-1. Remove is a SINGLE PASS -- exactly Replace with an empty replacement.
-
-```freebasic
-AfxStrRemove restarts its search at position 1 after each deletion, so
-removals cascade: deleting "ab" from "aabb" leaves "" there, because the
-deletion creates a match that was not in the input. Here it leaves "ab".
-Also O(n) rather than O(n^2).
-```
-
-2. Reverse keeps surrogate pairs intact on the wide family. AfxStrReverse
-
-```freebasic
-swaps code units and produces invalid UTF-16 for any astral character.
-```
-
-3. Unwrap requires BOTH ends and removes ONE of each. AfxStrUnWrap uses
-
-```freebasic
-LTRIM/RTRIM with the delimiter, so it strips repeated occurrences and does
-not need a pair -- "'''x'''" loses all six quotes and "'x" loses its opener
-with nothing matching it. Stripping a delimiter that was never balanced is
-how a quoted field containing a quote gets silently mangled.
-```
-
-4. Shrink with an EMPTY mask returns the input unchanged. AfxStrShrink returns
-
-```freebasic
-the empty string, which reads like a guard clause that fell through to the
-wrong variable.
-```
-
-5. MCase starts a word after any NON-ALPHANUMERIC character. DWStrMCase tests
-
-```freebasic
-against a fixed punctuation list, so it capitalises after "." and "-" but
-not after "/", "_" or a tab -- gaps rather than decisions.
-```
-
-6. IsNumeric asks whether the string IS a number, with a real grammar.
-
-```freebasic
-AfxIsNumeric asks whether every character is drawn from "+-.0123456789",
-which makes "++--.." numeric; that is a character-set test, and RetainChars
-already does those. Radix literals (&H, &O, &B) are not accepted here.
-```
-
-7. Escape is BACKSLASH escaping. AfxNova's DWStrEscape escapes REGULAR
-
-```freebasic
-EXPRESSION metacharacters so a literal can be used as a pattern -- it is
-built on CRegExp, a COM class, and is only meaningful beside a regex engine.
-There is none here, so it would have had no consumer.
-```
-
-8. InsertAt with a position below 1 returns the string unchanged.
-
-```freebasic
-AfxStrInsert's comment says such a position appends; its code returns the
-string untouched. The code is followed, because appending on a negative
-index is the kind of silent success that hides a caller's off-by-one.
-```
-
-9. A negative start is NOT counted from the right. Positions below 1 are
-
-```freebasic
-invalid throughout, and the two readings claim the same range.
-```
-
-10. DeleteAt is one function. AfxStrClipMid and AfxStrDelete are the same
-
-```freebasic
-algorithm under two names.
-```
-
-11. Wrap and Unwrap take an EMPTY 'close' to mean "same as open", which
-
-```freebasic
-collapses AfxNova's three overloads into one function.
-```
-
-TWO MORE ARE AfxNova BUGS, found by the differential harness in tests/afxnova_differential.bas. Both are cases where the code contradicts its own comment, so "divergence" here means this library does what AfxNova documents and AfxNova does not.
-
-12. TallyChars does not double-count a repeated character in the set.
-
-```freebasic
-AfxStrTallyAny's dedup loop seeds its working copy with the whole match
-string and then tests INSTR( copy, <char> ) against ITSELF, so every
-character is always found and nothing is ever removed -- the loop is a
-no-op. Its comment promises "repeated characters in wszMatchStr will not
-increase the count"; TallyChars( "abacadabra", "aa" ) is 5 here and 10
-there.
-```
-
-13. ExtractChars returns the whole remainder on a miss, like Extract.
-
-```freebasic
-AfxStrExtractAny ends in an unconditional empty return, contradicting both
-its own comment ("If wszMatchStr is not present ... then all of wszMainStr
-is returned") and its sibling AfxStrExtract, which does return the
-remainder.
-```
-
-SplitCsv and SplitCsvRow have no AfxNova counterpart at all -- there is none to diverge from. See the CSV section above for where they do come from.
-
-Excluded entirely, as Windows-only or COM-bound: locale and country names, month and day names, LCMapStringEx casing, CryptBinaryToString, BSTR, environment access, PathName/PathScan, and the byte-size and time-interval formatters.
 
 ## Implementation
 
