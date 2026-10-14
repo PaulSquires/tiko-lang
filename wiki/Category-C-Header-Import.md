@@ -118,60 +118,6 @@ A tool with its own parser — the [tiko language server](https://github.com/Pau
 
 An opaque handle — `typedef struct sqlite3 sqlite3;` with no definition — becomes `type sqlite3 as any`, which is the opaque pointer C intended.
 
-## The A/W names, and `#define UNICODE`
-
-About 1,100 Windows names are not functions but **macros standing for another name**:
-
-```c
-#define GetMessage  __MINGW_NAME_AW(GetMessage)
-#define WNDCLASSEX  __MINGW_NAME_AW(WNDCLASSEX)
-```
-
-They are object-like, so they are candidates, but they do not fold to a constant. They are imported as `#define`s instead —
-
-```freebasic
-#define GetMessage GetMessageW
-```
-
-— so unsuffixed Win32 code works as written, with nothing to rewrite.
-
-**Which one you get is decided in your own source**, exactly as it is with the shipped `windows.bi`:
-
-```freebasic
-#define UNICODE
-#cinclude once "windows.h"     '' GetMessage -> GetMessageW
-```
-
-```freebasic
-#cinclude once "windows.h"     '' GetMessage -> GetMessageA
-```
-
-Nothing is imposed, and there is one rule to remember rather than two. From the `-cimport` driver, where there is no tiko source to carry a `#define`, use `-cdefine UNICODE`.
-
-The **suffixed** names are imported either way — `GetMessageA` and `GetMessageW` are real functions and always present. The define decides only what the unsuffixed name means.
-
-So this compiles, with no suffix and no calling convention anywhere:
-
-```freebasic
-#define UNICODE
-#cinclude once "windows.h"
-
-function WndProc ( byval h as HWND, byval m as UINT, _
-                   byval wp as WPARAM, byval lp as LPARAM ) as LRESULT
-	return DefWindowProc( h, m, wp, lp )
-end function
-
-dim as WNDCLASSEX wc
-wc.cbSize      = sizeof( WNDCLASSEX )
-wc.lpfnWndProc = @WndProc
-wc.hInstance   = GetModuleHandle( 0 )
-RegisterClassEx( @wc )
-```
-
-> **Two aliases cannot share a name.** `commdlg.h` has a struct `CHOOSECOLOR` *and* a function `ChooseColor`, and gives each an A/W macro. To C those are two names; to tiko, whose `#define` is case-insensitive, they are one. Emitting both is a duplicate definition, and emitting only the first is worse — a `#define` rewrites tokens before the parser sees them, so the loser's every use would silently expand to the winner's target. Both are dropped and the skip ledger says so; the suffixed names still work.
->
-> A related consequence: a name **you** have `#define`d is rewritten wherever it appears, a field declaration included. `windows.h` has a field literally named `Unicode` (in `_FPO_DATA`), so importing with `UNICODE` defined renames it to `Unicode_` — which is exactly what the hand-written binding at `inc/win/winnt.bi` does.
-
 ## Calling conventions
 
 An imported procedure or function pointer carries whatever convention the header states **for the target being built**, which is not always what the documentation says. `windows.h` declares `WNDPROC` as `WINAPI`; on 64-bit Windows the SDK defines `WINAPI` away, because x86-64 Windows has exactly one calling convention, so Clang reports the default and the imported typedef reads `cdecl`.
