@@ -2,6 +2,16 @@
 
 # Map
 
+A **map** -- also called a dictionary -- stores pairs: a **key**, and the **value** that goes with it. You find a value by its key, not by a position number. Each key appears at most once: `Put` replaces the value already stored under a key, and `Add` leaves it alone.
+
+Think of a phone book: you look up a name, the key, to find a number, the value. Every name is listed once, and nobody asks for "entry 37" -- you ask for "Ada".
+
+That makes a map the right tool whenever the question is *what goes with this?* -- an age by name, a count per word, a setting by its name. A `Map` keeps its entries in a hash table, so storing, finding and removing take about the same time however many entries it holds.
+
+Keys can be any built-in type -- numbers, strings -- or a type of your own that extends `containers.Hashable` (see [The Hash Contract](#the-hash-contract)). Values can be numbers, strings or your own types. The order a map hands its entries back in is not defined; if you need them sorted by key, use [OrderedMap](Category-OrderedMap).
+
+The example below stores ages by name:
+
 ```freebasic
 #import "std/containers"
 using containers
