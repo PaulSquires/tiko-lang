@@ -291,6 +291,14 @@ verify: ok
 lowered: 2 functions, 2 blocks, 269 insts, 7 statements not lowered, 0 scope imbalance
   inside N_VAR 7
   skip-site src\mir\lowervarinit.tiko:15 7
+tests/diagnostics/src/redim-shape.bas(20,7): warning TKO0206: suffix ignored in 'suffixed$'
+     |
+  20 | redim suffixed$( 0 to 1 )
+     |       ^
+tests/diagnostics/src/redim-shape.bas(26,7): warning TKO0206: suffix ignored in 'suffixOnly$'
+     |
+  26 | redim suffixOnly$
+     |       ^
 tests/diagnostics/src/redim-shape.bas(18,7): error TKO0751: a REDIM that declares 'undeclared' must write its type
      |
   18 | redim undeclared( 1 to 2 )
