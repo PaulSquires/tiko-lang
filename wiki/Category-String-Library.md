@@ -24,8 +24,6 @@ print rows[ 0 ].fields[ 1 ]
 
 The built-in string intrinsics include LEFT, RIGHT, MID, INSTR, INSTRREV, TRIM, UCASE, LCASE, SPACE and STRING, but none of them replaces, splits, joins or pads, and none works with a set of characters. Every program that needs those writes them again, usually with a 'redim preserve' loop that is quadratic.
 
-These 39 functions are the portable half of the AfxNova string library (AfxStr.inc and DWStrProcs.inc) -- two decades of use, but Windows-only, tied to WSTRING and DWSTRING, and in places built on COM -- plus the CSV pair, which comes from elsewhere and is described in its own section below.
-
 NOTHING HERE IS A KEYWORD. Replace, Contains, Split and the rest belong to the module: nothing is added to a program until it imports std/strings, and the bare names only after 'using strings', so they stay available as your own identifiers. The language is unchanged.
 
 ## All Four String Types
