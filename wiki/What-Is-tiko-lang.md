@@ -33,7 +33,6 @@ tiko is honest about where it stops:
 | --- | --- |
 | `windows-x86_64` | The default on Windows. Links against `ucrtbase.dll` and needs no Visual Studio. The only target with graphics. |
 | `linux-x86_64` | The default on Linux. |
-| `win64` | The legacy MinGW ABI. |
 
 x86-64 is the only architecture. `-m32` and `-target win32` are refused (`TKO0104`, `TKO0103`). There is **one backend**: LLVM IR through clang. See [LLVM Backend](Category-LLVM-Backend).
 
