@@ -1,0 +1,8 @@
+'' TKO0698, fbc's 58: the byref-parameter rule UdtArgBuilds_ relaxes (symbols/assigncheck.tiko)
+'' still refuses a UDT no constructor of the parameter's type takes -- unrelated, or derived
+'' from an unrelated base. Lines identical to fbc-modern's errors.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/udt-derived-ctor-arg-bad.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-derived-ctor-arg-bad.bas(22,7): error TKO0698
+'' EXPECT-OUT: udt-derived-ctor-arg-bad.bas(23,7): error TKO0698

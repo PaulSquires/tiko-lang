@@ -377,6 +377,21 @@ end sub
 '' parameter's, an argument whose type declares an 'operator cast' (fbc calls it), and a
 '' parameter type with a constructor or a 'let' of its own, which may build one from the
 '' argument. A tuple is its own rule.
+'' DOES ONE OF THE PARAMETER TYPE'S CONSTRUCTORS TAKE THE ARGUMENT? Then a byref parameter is
+'' handed a temporary built by it, and the two types are not judged as pointees. Measured on
+'' fbc-modern, a Circle (extends Shape) passed to 'byref as const Holder' over 'constructor(
+'' byref as const Shape )' runs that constructor; tiko compared Holder and Circle as pointers
+'' and refused it (TKO0698). A tie still counts: TKO0660 reports it (DecideCtorConvArgs_).
+private function UdtArgBuilds_ ( byref c as Ctx, byval pu as TypeId, byval au as TypeId ) as boolean
+    dim as SymbolId head = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, pu, "__ctor" )
+    if head = SYMBOL_NONE then return false
+    dim as containers.Array( of ulong ) one
+    one.Push( cast( ulong, au ) )
+    dim as long ties = 0
+    if Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, head, one, @ties ) <> SYMBOL_NONE then return true
+    return (ties > 0)
+end function
+
 private function UdtArgBad_ ( byref c as Ctx, byval pt as TypeId, byval at as TypeId ) as boolean
     dim as TypeId pu = c.types->Unqualify( pt )
     dim as TypeId au = c.types->Unqualify( at )
@@ -494,7 +509,9 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
             '' suite's own byval-to-byref test writes it.
             if (c.types->Kind( c.types->Unqualify( pt ) ) = TK_UDT) andalso _
                (c.types->Kind( c.types->Unqualify( at ) ) = TK_UDT) then
-                bad = PtrAssignBad_( c, c.types->Pointer_( pt ), c.types->Pointer_( at ) )
+                if UdtArgBuilds_( c, c.types->Unqualify( pt ), c.types->Unqualify( at ) ) = false then
+                    bad = PtrAssignBad_( c, c.types->Pointer_( pt ), c.types->Pointer_( at ) )
+                end if
             end if
             '' A FIXED USTRING for 'byref as wstring' or 'byref as zstring' is fbc's 58
             '' (fbc-modern 1.20, 2026-09-28): 'ustring * 8' is a UTF-8 buffer, and neither of

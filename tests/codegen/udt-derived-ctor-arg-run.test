@@ -1,0 +1,19 @@
+'' A derived value into a type built from its BASE -- 'constructor( byref as const Shape )'
+'' given a Circle, 'constructor( byref as const Plain )' a PlainKid -- through a byref
+'' const, a byref and a byval parameter. fbc-modern runs the constructor every time (lines
+'' measured); tiko judged the byref forms as pointees, Holder against Circle, and refused
+'' them (TKO0698). See UdtArgBuilds_ in symbols/assigncheck.tiko.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/udt-derived-ctor-arg.bas -o tests/codegen/udtderivedctorarg.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/udtderivedctorarg.exe
+'' RUN: tests/codegen/udtderivedctorarg.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: C shape:circle r=5 spec=x
+'' EXPECT-RUN-OUT: C plain:8
+'' EXPECT-RUN-OUT: R shape:circle r=5 spec=x
+'' EXPECT-RUN-OUT: R plain:8
+'' EXPECT-RUN-OUT: V shape:circle r=5 spec=x
+'' EXPECT-RUN-OUT: V plain:8
+'' EXPECT-RUN-OUT: C kind 1
