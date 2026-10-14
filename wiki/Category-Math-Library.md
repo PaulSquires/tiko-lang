@@ -52,7 +52,7 @@ print val( str( 0.1+0.2 ) ) = 0.1+0.2   ' FALSE
 
 Use `ToString( d )`.
 
-None of these four are fixed in place. `^`, `MOD`, `VAL`, `STR`, `RND` and `RANDOMIZE` are left exactly as they are, in every dialect. Each defect gets a correct neighbour under a different name.
+None of these four are fixed in place. `^`, `MOD`, `VAL`, `STR`, `RND` and `RANDOMIZE` are left exactly as they are. Each defect gets a correct neighbour under a different name.
 
 ## Nothing Becomes A Keyword
 
@@ -313,7 +313,7 @@ end type
 ToString( 1234567.891, f )      ' 1,234,567.89
 ```
 
-**Not** a format-string mini-language: FORMAT already has a picture syntax and a second incompatible one is worse than none. **Locale is explicit or absent** -- an implicitly locale-dependent number format is how a program writes a CSV its own importer cannot read on another machine.
+**Locale is explicit or absent** -- an implicitly locale-dependent number format is how a program writes a CSV its own importer cannot read on another machine.
 
 ## random.tiko
 
@@ -451,24 +451,24 @@ CToString CToStringPolar
 
 **Every function carries a `C` prefix.** Exp, Log, Sqr, Sin, Cos, Tan, Abs, Atn and Str are intrinsics, and when this library was headers in namespace FB, a function of one of those names **shadowed** the intrinsic for every later header -- measured, it broke what is now random.tiko -- after which the intrinsic could not be called back. The names stayed when the headers became std/numeric. Given that the transcendentals must be prefixed, the prefix is applied **uniformly**: a mixed scheme would need the reader to know which of `Sin` and `Real` is an intrinsic in order to guess the spelling. The **type** is `Complex`, unprefixed.
 
-`CStr` is a keyword, so AfxNova's `CStr( z )` is `CToString( z )` -- which also names what it is: the round-tripping form, not STR.
+`CStr` is a keyword, so the string form is `CToString( z )` -- which also names what it is: the round-tripping form, not STR.
 
-**DOUBLE only, and no macro.** Both source libraries are double-only, and with one element type the bodies are written once, plainly, and are greppable by name.
+**DOUBLE only, and no macro.** With one element type the bodies are written once, plainly, and are greppable by name.
 
 ### Sources
 
-**Breadth from AfxNova, numerics from .NET, both MIT.** AfxComplex.inc supplies the sec/csc/cot families, all twelve inverses, the hyperbolics, CNthRoot and CLogAbs. System.Numerics.Complex supplies Smith division, the scaled Abs, Asin_Internal, the stabilised Tan and the predicate set. **Neither is followed where it is beaten.**
+**Numerics from .NET, MIT.** System.Numerics.Complex supplies Smith division, the scaled Abs, Asin_Internal, the stabilised Tan and the predicate set. **It is not followed where it is beaten.**
 
 Two things the old vector header used to get wrong, and both are fixed:
 
-- **`/` was the naive `( ac + bd ) / ( c^2 + d^2 )`.** Its denominator overflows once |d| passes about 1.3e154, so `( 1e200 + 1e200i ) / ( 1e200 + 1e200i )` came back NaN instead of 1. Smith's formula divides through by the larger component first and has no range restriction. All **three** division overloads get it; AfxNova leaves its two mixed ones naive.
-- **CSqrt was the polar form**, `FromPolar( sqr(|z|), Arg(z)/2 )`. That is .NET Framework 4.7's, which .NET Core 3.0 replaced because it loses most of its significant digits near the negative real axis, where Arg is the difference of two nearly-equal quantities. AfxNova ships the same superseded code, so the replacement here beats **both** sources.
+- **`/` was the naive `( ac + bd ) / ( c^2 + d^2 )`.** Its denominator overflows once |d| passes about 1.3e154, so `( 1e200 + 1e200i ) / ( 1e200 + 1e200i )` came back NaN instead of 1. Smith's formula divides through by the larger component first and has no range restriction. All **three** division overloads get it.
+- **CSqrt was the polar form**, `FromPolar( sqr(|z|), Arg(z)/2 )`. That is .NET Framework 4.7's, which .NET Core 3.0 replaced because it loses most of its significant digits near the negative real axis, where Arg is the difference of two nearly-equal quantities.
 
 ### Nine axis fast paths
 
 Each was put there by a measured failure. A differential run against Python's cmath -- that is, against C99 -- over 3,030 (function, operand) pairs found eight defects, seven of them inherited and one in the platform:
 
-- `CSqrt( -4 - 0i )` returned +2i. Both sources test `imaginary == 0` and hand back the positive root for both sides of their own cut.
+- `CSqrt( -4 - 0i )` returned +2i. .NET tests `imaginary == 0` and hand back the positive root for both sides of their own cut.
 - CAsin and CAcos are NaN at exactly +-1: Asin_Internal divides by zero there, so .NET's own `Asin( 1 )` is NaN rather than PI/2.
 - .NET tests `imaginary < 0` where it has to test the **sign bit**. A negative zero is not less than zero, so .NET's `Asin( 2 - 0i )` has a **positive** imaginary part where C99 gives a negative one.
 - CAtanh beyond +-1 cannot be reached through CAtan: forming `1 + iz` adds +0.0 to -0.0, IEEE gives +0.0, and the bit that decides the side of the cut is gone before the logarithm sees it.
@@ -479,14 +479,14 @@ After the nine, 3,030 of 3,030 comparisons agree, signed zeros included, except 
 
 ### Semantics
 
-- **No ordering operators:** `<` on complex numbers has no meaning. AfxNova's CSgn returned a LONG by comparing real parts and then imaginary ones, which is such an ordering under another name; CSgn here returns z/|z|, the unit vector in z's direction, and `CZero( )` for zero. Porting code gets a compile error rather than a silently different number.
+- **No ordering operators:** `<` on complex numbers has no meaning. CSgn returns z/|z|, the unit vector in z's direction, and `CZero( )` for zero -- not a LONG from comparing real parts and then imaginary ones, which would be such an ordering under another name.
 - **The special values are functions**, not constants: `const as Complex N` cannot be initialised from 0.0/0.0, which is a compile-time division by zero. Same decision, same reason, as `NaN( )` in math.tiko.
 - **CIsNaN is not "either part is NaN".** One infinite part and one NaN is **infinite**, because the infinity already answers every question anyone asks of the number.
 
 Two things deliberately not done, stated rather than left to be discovered:
 
 - **No infinity recovery on `*`.** C99's `__muldc3` rescues `( inf + 0i ) * ( 2 + 0i )` from NaN with a branch on every multiply; .NET does not, and neither does this. Pinned by a test so that adding it later is a deliberate act.
-- **`CPow( 0, w )` is 0 for every w**, and `CPow( 0, 0 )` is 1. Those are .NET's answers and the last two are wrong -- 0 to a negative power is infinite. Kept for source compatibility with both sources, and pinned.
+- **`CPow( 0, w )` is 0 for every w**, and `CPow( 0, 0 )` is 1. Those are .NET's answers and the last two are wrong -- 0 to a negative power is infinite. Kept for compatibility with .NET, and pinned.
 
 The vendored test suites have no suite for this header, so there is no tiko result to report for it.
 
