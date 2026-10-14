@@ -33,51 +33,21 @@ WriteAtomic( "config.ini", "[main]" & chr( 10 ) )
 
 std/fs is tiko's filesystem library: paths, file information, directories and whole files, behind one import and with the same behaviour on windows-x86_64 and linux-x86_64.
 
-A COMPLETE PATH TOOLKIT. Paths are ordinary strings, and free functions take them apart and put them together: PathJoin, PathSplit, PathParent, PathFileName, PathStem, PathExtension, PathChangeExtension, PathNormalize, PathRelativeTo, PathEquals and more. Drive letters, UNC shares, `\\?\` prefixes and trailing separators are handled, so no program has to slice a path by hand.
+**A complete path toolkit.** Paths are ordinary strings, and free functions take them apart and put them together: PathJoin, PathSplit, PathParent, PathFileName, PathStem, PathExtension, PathChangeExtension, PathNormalize, PathRelativeTo, PathEquals and more. Drive letters, UNC shares, `\\?\` prefixes and trailing separators are handled, so no program has to slice a path by hand.
 
-EVERYTHING ABOUT A FILE IN ONE CALL. Stat( p ) returns one FileInfo: whether it exists, which of the four kinds it is (file, directory, symbolic link or other), its size, its modified, created and accessed times, and its read-only and hidden flags -- all read together, in one call. LStat( p ) does the same without following a symbolic link.
+**Everything about a file in one call.** Stat( p ) returns one FileInfo: whether it exists, which of the four kinds it is (file, directory, symbolic link or other), its size, its modified, created and accessed times, and its read-only and hidden flags -- all read together, in one call. LStat( p ) does the same without following a symbolic link.
 
-DIRECTORIES YOU WALK WITH FOR EACH. ReadDir lists one directory and WalkDir a whole tree, and both plug straight into FOR EACH. Every walk keeps its own position, so two scans can run side by side or one inside the other. ListDir gives an eager, sortable listing when you want to change entries as you go.
+**Directories you walk with FOR EACH.** ReadDir lists one directory and WalkDir a whole tree, and both plug straight into FOR EACH. Every walk keeps its own position, so two scans can run side by side or one inside the other. ListDir gives an eager, sortable listing when you want to change entries as you go.
 
-WHOLE FILES IN ONE LINE. ReadAllText, ReadAllLines and ReadAllBytes read a file; WriteAllText and WriteAllBytes write one; WriteAtomic replaces it so that a reader sees the old file or the new one, never a half-written one.
+**Whole files in one line.** ReadAllText, ReadAllLines and ReadAllBytes read a file; WriteAllText and WriteAllBytes write one; WriteAtomic replaces it so that a reader sees the old file or the new one, never a half-written one.
 
-ERRORS YOU CANNOT IGNORE BY ACCIDENT. Every call that can fail returns a Result( of T, FsError ) carrying a code, a message and the path involved, and a default-constructed Result is a failure. Calls that cannot fail return their value directly, so the signature alone says which is which.
+**Errors you cannot ignore by accident.** Every call that can fail returns a Result( of T, FsError ) carrying a code, a message and the path involved, and a default-constructed Result is a failure. Calls that cannot fail return their value directly, so the signature alone says which is which.
 
-UNICODE PATHS EVERYWHERE. Every entry point takes a USTRING, and STRING, ZSTRING and WSTRING convert to it, so names in any language work on both platforms.
+**Unicode paths everywhere.** Every entry point takes a USTRING, and STRING, ZSTRING and WSTRING convert to it, so names in any language work on both platforms.
 
 And beyond those: copying, moving and removing files and whole trees (CopyFile, CopyDir, MoveFile, CreateDirAll, RemoveDirAll), temporary files and directories created safely, glob patterns, links and permissions, volumes, advisory file locks, memory-mapped files and directory watching.
 
-NO COMPILER SUPPORT IS INVOLVED. This is a library: the runtime half is in tiko-rt (lib/rt/src/fs/), the tiko types in the std/fs module (pkg/std/fs/). Nothing here is a keyword, and Stat, ReadDir, CopyFile and the rest stay available as your own identifiers: nothing is added to a program until it imports std/fs, and the bare names only after 'using fs'.
-
-## The Shape, In One Table
-
-Module        Everything belongs to the module fs. Nothing is added to a
-
-```freebasic
-program until it imports std/fs, so a program with its own Stat
-or CopyFile is unaffected until it writes 'using fs'.
-```
-
-Errors        Every fallible call returns Result( of T, FsError ). No err( ),
-
-```freebasic
-no exceptions, no global status code.
-```
-
-Strings       USTRING is the kernel. STRING and WSTRING are accepted
-
-```freebasic
-everywhere by conversion; the path functions also RETURN the
-width they were given.
-```
-
-Paths         Free functions over strings, Go-style. There is no Path type. Iteration     Conforms to the structural iterator protocol, so FOR EACH walks
-
-```freebasic
-a directory.
-```
-
-Platforms     windows-x86_64 and linux-x86_64, both first-class.
+## Using It
 
 One import pulls in everything:
 
@@ -85,11 +55,15 @@ One import pulls in everything:
 #import "std/fs"
 ```
 
-A module is imported whole; there is no importing a part of it. Its files, in pkg/std/fs/, are fspath, fsinfo, fsdir, fsops, fsglob, fslink, fsvolume, fsadvanced and fserror. JoinPath, DirName, BaseName, Extension, IsAbsolute and Separator are exported MACROS, written qualified: 'fs.JoinPath( a, b )'.
+Everything belongs to the module `fs`, and a module is imported whole. Nothing is a keyword: Stat, ReadDir, CopyFile and the rest stay available as your own identifiers, because nothing is added to a program until it imports std/fs, and the bare names only after `using fs`. JoinPath, DirName, BaseName, Extension, IsAbsolute and Separator are exported macros, written qualified: `fs.JoinPath( a, b )`.
+
+There is no Path type: paths are strings, and the path functions are free functions over them. Directory iteration follows the structural iterator protocol, which is what lets FOR EACH walk a directory.
+
+This is a library, with no compiler support involved. The runtime half is in tiko-rt (lib/rt/src/fs/) and the tiko types in the std/fs module (pkg/std/fs/), whose files are fspath, fsinfo, fsdir, fsops, fsglob, fslink, fsvolume, fsadvanced and fserror.
 
 ## Errors
 
-EVERY FALLIBLE CALL RETURNS A Result. Every call that cannot fail returns its value directly. The split is visible in the signature, which is the point.
+**Every fallible call returns a Result.** Every call that cannot fail returns its value directly. The split is visible in the signature, which is the point.
 
 ```freebasic
 dim as FsResultUStr r = ReadAllText( "a.txt" )
@@ -100,13 +74,13 @@ else
 end if
 ```
 
-A DEFAULT-CONSTRUCTED RESULT IS A FAILURE, so a forgotten assignment reads as an error rather than as a silent success. Reading the wrong side --  Value( ) on a failure, Failure( ) on a success -- raises FB_RTERROR_ILLEGALFUNCTIONCALL. IsOk( ) is the guard and costs nothing.
+**A default-constructed Result is a failure**, so a forgotten assignment reads as an error rather than as a silent success. Reading the wrong side -- Value( ) on a failure, Failure( ) on a success -- raises FB_RTERROR_ILLEGALFUNCTIONCALL. IsOk( ) is the guard and costs nothing.
 
-There is no '?' operator and no must-use diagnostic. IGNORING A RESULT STAYS A CONVENTION. What the type buys is that the failure has a name and a shape, not that you are forced to look at it.
+There is no `?` operator and no must-use diagnostic, so ignoring a Result stays a convention. What the type buys is that the failure has a name and a shape, not that you are forced to look at it.
 
-FsError
+### FsError
 
-```freebasic
+```text
 .Code( )        FsErrorCode -- the portable code. Branch on this.
 .OsCode( )      GetLastError( ) / errno, VERBATIM and unmapped. Zero when
                 the library synthesised the error itself.
@@ -117,9 +91,11 @@ FsError
 .Message( )     a fixed English one-liner derived from Code( ).
 ```
 
-FsErrorCode -- sixteen codes plus FS_OK, closed on purpose
+### FsErrorCode
 
-```freebasic
+Sixteen codes plus FS_OK, closed on purpose:
+
+```text
 FS_OK                (never appears inside a failure)
 FS_NOT_FOUND         no such file or directory
 FS_ACCESS_DENIED     permission, or in use by policy
@@ -139,70 +115,70 @@ FS_UNSUPPORTED       the platform or filesystem cannot do this AT ALL
 FS_UNKNOWN           mapped to nothing; OsCode( ) is the real answer
 ```
 
-FS_UNSUPPORTED means THIS WILL NEVER WORK HERE, as distinct from FS_ACCESS_DENIED, which means try again with more privilege. A caller can branch on it once at startup instead of treating it as transient.
+**FS_UNSUPPORTED means this will never work here**, as distinct from FS_ACCESS_DENIED, which means try again with more privilege. A caller can branch on it once at startup instead of treating it as transient.
 
-Message( ) is NOT FormatMessageW and NOT strerror. Those are locale-dependent, vary between Windows builds and libc versions, and produce text no test could assert. It is a fixed table, so the same code gives the same words on every machine. For the OS's own wording, use OsCode( ) and ask the OS.
+Message( ) is not FormatMessageW and not strerror. Those are locale-dependent, vary between Windows builds and libc versions, and produce text no test could assert. It is a fixed table, so the same code gives the same words on every machine. For the OS's own wording, use OsCode( ) and ask the OS.
 
-The result aliases, one per returned type:
+### The Result Aliases
 
-```freebasic
+One per returned type:
+
+```text
 FsResultBool   FsResultLong   FsResultI64    FsResultUStr   FsResultStr
 FsResultInfo   FsResultULong  FsResultSpace  FsResultVol    DirEntryResult
 ```
 
-They are concrete typedefs rather than one generic alias because tiko has no generic typedef: 'type FsResult( of T ) as ...' is read as the opening of a generic TYPE BODY and does not compile.
+They are concrete typedefs rather than one generic alias because tiko has no generic typedef: `type FsResult( of T ) as ...` is read as the opening of a generic TYPE body and does not compile.
 
-## Strings -- Read This Once
+## Strings
 
-THE KERNEL IS USTRING. Every entry point takes USTRING, and all four string types reach it: STRING, ZSTRING and WSTRING convert implicitly.
+**The kernel is USTRING.** Every entry point takes USTRING, and all four string types reach it: STRING, ZSTRING and WSTRING convert implicitly.
 
-THE CONVERSION IS UTF-8, BOTH WAYS, ON BOTH PLATFORMS, AND IT IS LOSSY.
+**The conversion is UTF-8, both ways, on both platforms, and it is lossy:**
 
-```freebasic
+```text
 STRING  -> USTRING    decoded as UTF-8; invalid bytes become U+FFFD
 USTRING -> STRING     encoded as UTF-8
 ```
 
-It is not the ANSI codepage, and it does not fail. A lone &hE9 -- what a legacy Latin-1 or Windows codepage string holds for 'e-acute' -- becomes U+FFFD silently, with no error and no way to detect it afterwards. That path will not open, and the library does not pretend otherwise.
+It is not the ANSI codepage, and it does not fail. A lone &hE9 -- what a Latin-1 or Windows-codepage string holds for 'e-acute' -- becomes U+FFFD silently, with no error and no way to detect it afterwards. That path will not open, and the library does not pretend otherwise. So **a Windows program holding an ANSI-codepage path in a STRING cannot use it here**: decode it to USTRING yourself first.
 
-So: A WINDOWS PROGRAM HOLDING A LEGACY ANSI PATH IN A STRING CANNOT USE IT HERE. Decode it to USTRING yourself first.
+**Paths that came from the filesystem are USTRING, and should stay that way.** DirEntry.Name, ReadLink, CanonicalPath, CurrentDir and the rest return USTRING deliberately, and there are no STRING-returning versions -- adding them would offer a convenient, type-matching way to do the one thing this design exists to prevent. NTFS permits unpaired surrogates in file names; such a name does not survive a trip through STRING, which means afterwards you cannot open, delete or walk it.
 
-PATHS THAT CAME FROM THE FILESYSTEM ARE USTRING AND SHOULD STAY THAT WAY. DirEntry.Name, ReadLink, CanonicalPath, CurrentDir and the rest return USTRING deliberately, and there are no STRING-returning versions -- adding them would offer a convenient, type-matching way to do the one thing this design exists to prevent. NTFS permits unpaired surrogates in file names; such a name does not survive a trip through STRING, which means afterwards you cannot open, delete or walk it.
+The path functions are different, because they are pure string manipulation and nothing they touch came from the filesystem. They carry the full three-overload family and **return the width they were given**:
 
-The PATH functions are different, because they are pure string manipulation and nothing they touch came from the filesystem. They carry the full three-overload family and RETURN THE WIDTH THEY WERE GIVEN:
-
-```freebasic
+```text
 string, zstring  ->  string
 wstring, ustring ->  ustring
 ```
 
-so 'dim as string p = PathParent( someString )' involves no conversion at all.
+so `dim as string p = PathParent( someString )` involves no conversion at all.
 
 ## Paths
 
-PURE. No syscalls, no filesystem access, no locale. Whether a path names anything is Stat's question. Every function takes an optional final \`gram\` argument selecting the path grammar; it defaults to the host's and ordinary code never passes it. It exists so the Windows rules can be tested on Linux and the POSIX rules on Windows.
+**Pure.** No syscalls, no filesystem access, no locale. Whether a path names anything is Stat's question. Every function takes an optional final `gram` argument selecting the path grammar; it defaults to the host's and ordinary code never passes it. It exists so the Windows rules can be tested on Linux and the POSIX rules on Windows.
 
-Decompose
+### Decompose
 
-```freebasic
+```text
 PathRoot( p )            "C:\", "\\srv\share\", "/", "" -- see below
-PathParent( p )          "" for a root and for a float32 relative component
+PathParent( p )          "" for a root and for a single relative component
 PathFileName( p )        the leaf; "" for a root
 PathStem( p )            the leaf without its extension
-PathExtension( p )       ".bas", WITH the dot; "" when there is none
+PathExtension( p )       ".tiko", WITH the dot; "" when there is none
 PathSplit( p, comps )    fills an Array( of ustring ); returns the count
 ```
 
-Compose
+### Compose
 
-```freebasic
+```text
 PathJoin( a, b )         also 3- and 4-argument forms
 PathChangeExtension( p, ext )    ext with or without its dot; "" removes
 ```
 
-Transform
+### Transform
 
-```freebasic
+```text
 PathNormalize( p )       collapses '.', resolves '..' LEXICALLY, removes
                          duplicate separators and a trailing one
 PathToNative( p )        separators to native, duplicates collapsed, but
@@ -210,9 +186,9 @@ PathToNative( p )        separators to native, duplicates collapsed, but
 PathRelativeTo( p, base )        FsResultUStr
 ```
 
-Interrogate
+### Interrogate
 
-```freebasic
+```text
 PathIsAbsolute( p )      see the Windows note below
 PathIsRoot( p )          the whole path is exactly its root
 PathRootLen( p )         length of the root prefix, in code units
@@ -224,116 +200,59 @@ PathSeparator( )         "\" or "/"
 PathIsCaseSensitive( )   compile-time, per platform -- NOT per volume
 ```
 
-THE EIGHT WINDOWS PATH FORMS, because three of them are where hand-rolled path code dies:
+### The Eight Windows Path Forms
 
-```freebasic
-C:\dev\tiko            root "C:\"                  ABSOLUTE
-C:dev\tiko             root "C:"                   NOT absolute
-\dev\tiko              root "\"                    NOT absolute
-dev\tiko               root ""                     not absolute
-\\srv\share\dev        root "\\srv\share\"         absolute
-\\?\C:\dev             root "\\?\C:\"              absolute
-\\?\UNC\srv\share\dev  root "\\?\UNC\srv\share\"   absolute
-\\.\PhysicalDrive0     root "\\.\"                 absolute
-```
+Three of them are where hand-rolled path code goes wrong:
 
-DRIVE-RELATIVE "C:dev" IS NOT ABSOLUTE. It names a path relative to the PER-DRIVE current directory -- a DOS survival Windows still maintains. It is not "C:\\dev", and treating it as such is a real bug with real consequences. PathRoot tells them apart by the trailing separator: "C:" versus "C:\\".
+| Path | Root | Absolute? |
+| --- | --- | --- |
+| `C:\dev\tiko` | `C:\` | **yes** |
+| `C:dev\tiko` | `C:` | **no** |
+| `\dev\tiko` | `\` | **no** |
+| `dev\tiko` | (empty) | no |
+| `\\srv\share\dev` | `\\srv\share\` | yes |
+| `\\?\C:\dev` | `\\?\C:\` | yes |
+| `\\?\UNC\srv\share\dev` | `\\?\UNC\srv\share\` | yes |
+| `\\.\PhysicalDrive0` | `\\.\` | yes |
 
-ROOTED-NO-DRIVE "\\dev" IS NOT ABSOLUTE EITHER. It is on the current drive.
+**Drive-relative `C:dev` is not absolute.** It names a path relative to the per-drive current directory, which Windows still maintains. It is not `C:\dev`, and treating it as such is a real bug with real consequences. PathRoot tells them apart by the trailing separator: `C:` versus `C:\`.
 
-UNDER "\\\\?\\" THE OS DOES NO PARSING AT ALL. '.' and '..' are ORDINARY NAMES and '/' is not a separator, so PathNormalize deliberately leaves the interior of such a path alone -- collapsing it would change which file is named.
+**Rooted-no-drive `\dev` is not absolute either.** It is on the current drive.
 
-THE RULES, each of which has a defensible opposite:
+**Under `\\?\` the OS does no parsing at all.** `.` and `..` are ordinary names and `/` is not a separator, so PathNormalize deliberately leaves the interior of such a path alone -- collapsing it would change which file is named.
 
-1. PathJoin YIELDS b WHEN b IS ABSOLUTE OR ROOTED, discarding a. This matches
+### The Path Rules
 
-```freebasic
-Go, Python, Rust and .NET. It also makes PathJoin( base, userInput ) a
-SECURITY CONSIDERATION rather than a convenience -- if you need
-containment, check PathStartsWith afterwards.
-```
+Each of these has a defensible opposite:
 
-2. PathJoin inserts exactly one separator and never a leading one. An empty
+1. **PathJoin yields b when b is absolute or rooted**, discarding a. This matches Go, Python, Rust and .NET. It also makes `PathJoin( base, userInput )` a security consideration rather than a convenience -- if you need containment, check PathStartsWith afterwards.
+2. PathJoin inserts exactly one separator and never a leading one. An empty argument contributes nothing.
+3. **PathJoin does not normalize.** `PathJoin( "a/b", ".." )` is `"a/b/.."`. A join that quietly resolved `..` would be resolving it without knowing whether b is a symlink.
+4. `PathNormalize( "" )` is `"."`. A root normalizes to itself.
+5. **`..` clamps at a root** and never escapes it: `"/a/../.."` is `"/"`. A relative path has no root to clamp to, so leading `..` survive: `"a/../../b"` is `"../b"`.
+6. PathParent of a root is `""`, and of a single relative component is `""`. A trailing separator does not create a phantom empty component.
+7. PathFileName of a root is `""`.
+8. **The extension is the final `.` in the file name**, and only when that dot is neither the first character of the name nor the last:
 
-```freebasic
-argument contributes nothing.
-```
+   ```text
+   "a.tiko"      -> ".tiko"       "a.b.c"     -> ".c"
+   ".gitignore"  -> ""            "a."        -> ""
+   "C:\a.b\c"    -> ""
+   ```
 
-3. PathJoin DOES NOT NORMALIZE. Join( "a/b", ".." ) is "a/b/..". A join that
-
-```freebasic
-quietly resolved '..' would be resolving it without knowing whether b is a
-symlink.
-```
-
-4. PathNormalize( "" ) is ".". A root normalizes to itself. 5. '..' CLAMPS AT A ROOT and never escapes it: "/a/../.." is "/". A RELATIVE
-
-```freebasic
-path has no root to clamp to, so leading '..' survive: "a/../../b" is
-"../b".
-```
-
-6. PathParent of a root is "", and of a single relative component is "".
-
-```freebasic
-A trailing separator does not create a phantom empty component.
-```
-
-7. PathFileName of a root is "". 8. THE EXTENSION IS THE FINAL '.' IN THE FILE NAME, and only when that dot is
-
-```freebasic
-neither the first character of the name nor the last:
-
-    "a.bas"       -> ".bas"        "a.b.c"     -> ".c"
-    ".gitignore"  -> ""            "a."        -> ""
-    "C:\a.b\c"    -> ""
-
-A DOTFILE HAS NO EXTENSION -- it is a name. PathStem( ".gitignore" ) is
-".gitignore". Matches Python, Rust and Go.
-```
-
-9. PathChangeExtension takes the new extension with or without its dot; ""
-
-```freebasic
-removes the extension including the dot.
-```
-
-10. PathEquals compares NORMALIZED paths, case-insensitively under the Windows
-
-```freebasic
-grammar, treating '\' and '/' as equal there. It is a LEXICAL answer: two
-paths naming one file through a symlink compare UNEQUAL. CanonicalPath is
-the call that answers identity.
-```
-
-11. PathStartsWith compares WHOLE COMPONENTS. "C:\\abc" does not start with
-
-```freebasic
-"C:\ab". Anything else would make it useless for the containment check
-rule 1 sends you here for.
-```
-
-12. PathSplit NORMALIZES FIRST and does not include the root. PathRoot joined
-
-```freebasic
-with its components reconstructs PathNormalize exactly.
-```
-
-13. PathRelativeTo FAILS with FS_INVALID_PATH when the two have different
-
-```freebasic
-roots -- different drives, one absolute and one relative, UNC versus
-local. There is no relative path between C:\a and D:\b, and returning
-"..\..\D:\b" would be a fabrication. Two equal paths give ".".
-```
-
+   A dotfile has no extension -- it is a name. `PathStem( ".gitignore" )` is `".gitignore"`. This matches Python, Rust and Go.
+9. PathChangeExtension takes the new extension with or without its dot; `""` removes the extension including the dot.
+10. **PathEquals compares normalized paths**, case-insensitively under the Windows grammar, treating `\` and `/` as equal there. It is a lexical answer: two paths naming one file through a symlink compare unequal. CanonicalPath is the call that answers identity.
+11. **PathStartsWith compares whole components.** `C:\abc` does not start with `C:\ab`. Anything else would make it useless for the containment check rule 1 sends you here for.
+12. PathSplit normalizes first and does not include the root. PathRoot joined with its components reconstructs PathNormalize exactly.
+13. **PathRelativeTo fails with FS_INVALID_PATH when the two have different roots** -- different drives, one absolute and one relative, UNC versus local. There is no relative path between `C:\a` and `D:\b`, and returning `..\..\D:\b` would be a fabrication. Two equal paths give `"."`.
 14. NUL is never valid in a path and is rejected everywhere.
 
-NORMALIZE TO BUILD, CANONICALIZE TO COMPARE IDENTITY. PathNormalize resolves '..' lexically. If a/b is a symlink, a/b/.. is '/' to the OS but 'a' here. Both answers are correct for their question, and resolving properly would mean hitting the disk from a pure function -- making it fallible, slow, and dependent on whether the path exists yet, which is exactly wrong for something whose main use is BUILDING a path before creating it.
+**Normalize to build, canonicalize to compare identity.** PathNormalize resolves `..` lexically. If a/b is a symlink, a/b/.. is `/` to the OS but `a` here. Both answers are correct for their question, and resolving properly would mean hitting the disk from a pure function -- making it fallible, slow, and dependent on whether the path exists yet, which is exactly wrong for something whose main use is building a path before creating it.
 
 ## Metadata
 
-```freebasic
+```text
 Stat( p )       FsResultInfo -- FOLLOWS symbolic links
 LStat( p )      FsResultInfo -- does NOT follow
 
@@ -342,15 +261,15 @@ IsFile( p )     boolean -- follows links
 IsDir( p )      boolean -- follows links
 ```
 
-ABSENCE IS AN ERROR, NOT AN EMPTY SUCCESS. Stat and LStat fail with FS_NOT_FOUND, so FS_NOT_FOUND and FS_ACCESS_DENIED stay distinguishable. That is the whole argument for Result over Optional here.
+**Absence is an error, not an empty success.** Stat and LStat fail with FS_NOT_FOUND, so FS_NOT_FOUND and FS_ACCESS_DENIED stay distinguishable. That is the whole argument for Result over Optional here.
 
-THE THREE PREDICATES COLLAPSE EVERY FAILURE TO FALSE. Exists( p ) is false when p is absent AND when the directory above it denies access. That is a real loss of information and it is deliberate -- it is what makes them usable in an IF. Call Stat when you need the distinction.
+**The three predicates collapse every failure to false.** Exists( p ) is false when p is absent and also when the directory above it denies access. That is a real loss of information and it is deliberate -- it is what makes them usable in an IF. Call Stat when you need the distinction.
 
 There is deliberately no IsSymlink( p ) predicate: the answer depends on whether you followed, a two-valued result cannot say which it did, and LStat( p ) is one line away.
 
-FileInfo
+### FileInfo
 
-```freebasic
+```text
 .Exists( ) .IsFile( ) .IsDirectory( ) .IsSymlink( ) .IsOther( )
 .Size( )                        uint64
 .ModifiedUtc( )                 int64 -- ticks, see below
@@ -360,66 +279,65 @@ FileInfo
 .NativeAttributes( )            dwFileAttributes / st_mode
 ```
 
-THE FOUR KINDS ARE EXCLUSIVE AND EXHAUSTIVE. Exactly one of IsFile, IsDirectory, IsSymlink and IsOther is true whenever Exists is true, and none is when it is false. IsOther covers devices, FIFOs, sockets and Windows reparse points that are not name surrogates -- things a program should notice and refuse rather than treat as files.
+**The four kinds are exclusive and exhaustive.** Exactly one of IsFile, IsDirectory, IsSymlink and IsOther is true whenever Exists is true, and none is when it is false. IsOther covers devices, FIFOs, sockets and Windows reparse points that are not name surrogates -- things a program should notice and refuse rather than treat as files.
 
-IsSymlink IS ONLY EVER TRUE FROM LStat. Stat follows, so it reports what the link points at; a Stat result with IsSymlink true would be a contradiction.
+**IsSymlink is only ever true from LStat.** Stat follows, so it reports what the link points at; a Stat result with IsSymlink true would be a contradiction.
 
-TIMES ARE TICKS OF 100 ns SINCE 0001-01-01 UTC -- the same unit std/chrono uses, so the two libraries interoperate without conversion.
+**Times are ticks of 100 ns since 0001-01-01 UTC** -- the same unit std/chrono uses, so the two libraries interoperate without conversion.
 
-NOT EVERY PLATFORM HAS EVERY TIME, and the library says so rather than inventing one:
+Not every platform has every time, and the library says so rather than inventing one:
 
-```freebasic
-            Windows                 Linux
-Modified    always                  always
-Created     always                  statx birth time WHERE AVAILABLE
-Accessed    always                  always
-```
+| | Windows | Linux |
+| --- | --- | --- |
+| Modified | always | always |
+| Created | always | statx birth time, where available |
+| Accessed | always | always |
 
-HasCreated( ) and HasAccessed( ) report availability. When false the getter is exactly 0 and means nothing. There is no HasModified -- modification time is universal. st_ctime is the INODE CHANGE time, not a birth time, and is deliberately NOT reported as CreatedUtc.
+HasCreated( ) and HasAccessed( ) report availability. When false the getter is exactly 0 and means nothing. There is no HasModified -- modification time is universal. st_ctime is the inode change time, not a birth time, and is deliberately not reported as CreatedUtc.
 
-Access time is often STALE on both platforms -- NTFS LastAccess updates are frequently disabled and Linux mounts default to relatime -- so a program that branches on AccessedUtc is building on sand.
+Access time is often stale on both platforms -- NTFS LastAccess updates are frequently disabled and Linux mounts default to relatime -- so a program that branches on AccessedUtc is building on sand.
 
 IsReadOnly and IsHidden are the portable two, and they mean different things underneath:
 
-```freebasic
-            Windows                     Linux
-IsReadOnly  FILE_ATTRIBUTE_READONLY     no write bit for this user
-IsHidden    FILE_ATTRIBUTE_HIDDEN       the name begins with '.'
-```
+| | Windows | Linux |
+| --- | --- | --- |
+| IsReadOnly | FILE_ATTRIBUTE_READONLY | no write bit for this user |
+| IsHidden | FILE_ATTRIBUTE_HIDDEN | the name begins with `.` |
 
-A dotfile is hidden on Linux and NOT on Windows. That divergence is real.
+A dotfile is hidden on Linux and not on Windows. That divergence is real.
 
-Resolvers
+### Resolvers
 
-```freebasic
+```text
 AbsolutePath( p )     FsResultUStr
 CanonicalPath( p )    FsResultUStr
 CurrentDir( )         FsResultUStr
 SetCurrentDir( p )    FsResultBool
-
-                 AbsolutePath        CanonicalPath
-must exist       NO                  yes
-resolves links   no                  yes
-'..' semantics   lexical             filesystem
-use it to        build a path        compare identity
 ```
 
-AbsolutePath does not require the path to exist, which is the point -- the usual caller is about to create it. On Windows it delegates to GetFullPathNameW because "the relevant current directory" is not one thing: a drive-relative "C:foo" resolves against the per-drive current directory.
+| | AbsolutePath | CanonicalPath |
+| --- | --- | --- |
+| must exist | no | yes |
+| resolves links | no | yes |
+| `..` semantics | lexical | filesystem |
+| use it to | build a path | compare identity |
 
-CanonicalPath on Windows returns a "\\\\?\\"-prefixed path and STRIPS the prefix unless the result exceeds MAX_PATH, where removing it would produce a path the OS cannot open. So COMPARE CANONICAL PATHS WITH PathEquals, not with '='.
+AbsolutePath does not require the path to exist, which is the point -- the usual caller is about to create it. On Windows it delegates to GetFullPathNameW because "the relevant current directory" is not one thing: a drive-relative `C:foo` resolves against the per-drive current directory.
 
-SetCurrentDir changes a PROCESS-GLOBAL, so calling it from one thread races every other thread's relative paths. This library never calls it.
+CanonicalPath on Windows returns a `\\?\`-prefixed path and strips the prefix unless the result exceeds MAX_PATH, where removing it would produce a path the OS cannot open. So **compare canonical paths with PathEquals, not with `=`**.
+
+SetCurrentDir changes a process-global, so calling it from one thread races every other thread's relative paths. This library never calls it.
 
 ## Directories
 
-```freebasic
+```text
 ReadDir( p )                    one level
 WalkDir( p )                    recursive, pre-order
 WalkDir( p, opts )
 ListDir( p, entries )           eager; fills an Array( of DirEntry )
 ```
 
-EVERY ITERATOR OWNS ITS OWN HANDLE. Nesting, recursion, two concurrent scans on one thread and scans on many threads are all simply correct -- which is the whole reason this exists, since DIR/DIRNEXT cannot do any of it.
+**Every iterator owns its own handle.** Nesting, recursion, two concurrent scans on one thread and scans on many threads are all simply correct.
 
 ```freebasic
 for each r in ReadDir( "C:\dev" )
@@ -431,17 +349,17 @@ for each r in ReadDir( "C:\dev" )
 next
 ```
 
-THE ELEMENT IS A Result. The iterator protocol has three members and none of them is an error channel, but a scan can fail partway -- permission denied, a device that went away. Making the failure an ELEMENT puts it where the loop already looks. The cost is that every loop body unwraps; the alternative is a walk that lies about its coverage.
+**The element is a Result.** The iterator protocol has three members and none of them is an error channel, but a scan can fail partway -- permission denied, a device that went away. Making the failure an element puts it where the loop already looks. The cost is that every loop body unwraps; the alternative is a walk that lies about its coverage.
 
-Value( ) RETURNS BYREF, and the reference is INVALIDATED BY THE NEXT MoveNext. Copy the entry if you need to keep it.
+**Value( ) returns BYREF, and the reference is invalidated by the next MoveNext.** Copy the entry if you need to keep it.
 
-'.' AND '..' ARE NEVER YIELDED. Not as an option, not ever.
+`.` and `..` are never yielded -- not as an option, not ever.
 
-AN UNOPENABLE DIRECTORY YIELDS EXACTLY ONE ELEMENT -- the failure -- rather than looking like an empty directory.
+**An unopenable directory yields exactly one element** -- the failure -- rather than looking like an empty directory.
 
-DirEntry
+### DirEntry
 
-```freebasic
+```text
 .Name( )          the leaf
 .Path( )          the full path, directly usable
 .Depth( )         0 for the immediate children of the walk root
@@ -449,72 +367,43 @@ DirEntry
 .Info( )          FsResultInfo -- MAY cost a stat
 ```
 
-The kind predicates are FREE and are LStat-shaped: a symlink reports IsSymlink, not the kind of its target. Info( ) is free on Windows, where the enumeration record already carries size, times and attributes, and costs one lstat on Linux, where dirent carries neither.
+The kind predicates are free and LStat-shaped: a symlink reports IsSymlink, not the kind of its target. Info( ) is free on Windows, where the enumeration record already carries size, times and attributes, and costs one lstat on Linux, where dirent carries neither.
 
-WalkOptions            default
+### WalkOptions
 
-```freebasic
+```text
+                     default
 .FollowSymlinks      FALSE
 .YieldDirectories    TRUE
 .IncludeHidden       TRUE
 .StopOnError         FALSE
 .MaxDepth            0 = unbounded
+```
 
+```freebasic
 dim as WalkOptions o        ' constructed, so the TRUE defaults are set
 o.MaxDepth = 1
 for each r in WalkDir( root, o ) : ... : next
 ```
 
-THE WALK RULES:
+### The Walk Rules
 
-1. PRE-ORDER. A directory is yielded before its contents. 2. THE ROOT ITSELF IS NOT YIELDED. Its immediate children are at depth 0. 3. DIRECTORY SYMLINKS ARE NOT FOLLOWED by default, and neither are Windows
+1. **Pre-order.** A directory is yielded before its contents.
+2. **The root itself is not yielded.** Its immediate children are at depth 0.
+3. **Directory symlinks are not followed** by default, and neither are Windows junctions and mount points. This makes the traversal a tree by construction: no cycle is possible and no visited set is needed. It is also what makes RemoveDirAll safe.
+4. With FollowSymlinks a visited set becomes mandatory and is used. It is scoped to the current path, so a directory legitimately reachable twice by different routes is visited twice and only a genuine cycle is cut.
+5. **Hidden entries are included** by default. Excluding them would silently omit .git and every hidden system directory. Go, Rust and Python all include them.
+6. **Depth is unbounded** by default. MaxDepth = 1 yields only the immediate children.
+7. **An error yields an element and the walk continues.** The failing subtree is skipped; everything else is still visited. StopOnError makes the failure the last thing yielded -- it is still yielded.
+8. No directory handle is held across the descent; each level is listed and its handle closed. The walk cannot exhaust a handle limit.
 
-```freebasic
-junctions and mount points. This makes the traversal a tree BY
-CONSTRUCTION: no cycle is possible and no visited set is needed. It is
-also what makes RemoveDirAll safe.
-```
+**ListDir is eager and closes its handle before returning.** Use it for the two things the iterator cannot do: produce a sorted listing, and let you delete or rename entries while working through them. Mutating a directory's structure during iteration invalidates the iterator, and on Windows is explicitly undefined.
 
-4. With FollowSymlinks a visited set becomes mandatory and is used. It is
-
-```freebasic
-scoped to the CURRENT PATH, so a directory legitimately reachable twice by
-different routes is visited twice and only a genuine cycle is cut.
-```
-
-5. HIDDEN ENTRIES ARE INCLUDED by default. Excluding them would silently omit
-
-```freebasic
-.git and every hidden system directory. Go, Rust and Python all include
-them.
-```
-
-6. DEPTH IS UNBOUNDED by default. MaxDepth = 1 yields only the immediate
-
-```freebasic
-children.
-```
-
-7. AN ERROR YIELDS AN ELEMENT AND THE WALK CONTINUES. The failing subtree is
-
-```freebasic
-skipped; everything else is still visited. StopOnError makes the failure
-the LAST thing yielded -- it is still yielded.
-```
-
-8. No directory handle is held across the descent; each level is listed and
-
-```freebasic
-its handle closed. The walk cannot exhaust a handle limit.
-```
-
-ListDir is eager and CLOSES ITS HANDLE before returning. Use it for the two things the iterator cannot do: produce a sorted listing, and let you delete or rename entries while working through them. Mutating a directory's structure during iteration invalidates the iterator, and on Windows is explicitly undefined.
-
-Driving an iterator by hand
+### Driving An Iterator By Hand
 
 FOR EACH is the normal way, but the protocol types are public and can be driven directly -- which is what you want for two independent cursors over one directory, or to interleave two scans:
 
-```freebasic
+```text
 DirRange       what ReadDir returns; .GetIterator( ) as DirIterator
 WalkRange      what WalkDir returns; .GetIterator( ) as WalkIterator
 
@@ -522,7 +411,9 @@ DirIterator / WalkIterator
   .IsValid( )        still on an element?
   .Value( )          BYREF DirEntryResult -- see the warning above
   .MoveNext( )       advance
+```
 
+```freebasic
 dim as DirIterator a = ReadDir( "C:\dev" ).GetIterator( )
 while( a.IsValid( ) )
     if( a.Value( ).IsOk( ) ) then print a.Value( ).Value( ).Name( )
@@ -530,15 +421,15 @@ while( a.IsValid( ) )
 wend
 ```
 
-A FRESHLY RETURNED ITERATOR IS ALREADY ON THE FIRST ELEMENT. There is no before-the-first state and MoveNext is not called before the first Value.
+**A freshly returned iterator is already on the first element.** There is no before-the-first state, and MoveNext is not called before the first Value.
 
-THE HANDLE OPENS LAZILY, on the first IsValid or Value. A copy taken BEFORE first use is therefore harmless -- which is the copy FOR EACH makes at loop entry. A copy taken mid-scan shares one cursor and is a bug. The destructor closes the handle if one was opened, including on EXIT FOR and while an error unwinds the scope.
+**The handle opens lazily**, on the first IsValid or Value. A copy taken before first use is therefore harmless -- which is the copy FOR EACH makes at loop entry. A copy taken mid-scan shares one cursor and is a bug. The destructor closes the handle if one was opened, including on EXIT FOR and while an error unwinds the scope.
 
 ## File Operations
 
-Whole file
+### Whole File
 
-```freebasic
+```text
 ReadAllText( p )                 FsResultUStr
 ReadAllBytes( p, buf )           FsResultI64 -- fills Array( of uint8 )
 ReadAllLines( p, lines )         FsResultLong -- fills Array( of ustring )
@@ -547,9 +438,9 @@ WriteAllBytes( p, buf )          FsResultBool
 AppendAllText( p, s )            FsResultBool
 ```
 
-Directories
+### Creating And Removing Directories
 
-```freebasic
+```text
 CreateDir( p )        fails with FS_ALREADY_EXISTS if the target is there
 CreateDirAll( p )     mkdir -p; SUCCEEDS if it is already a directory
 RemoveDir( p )        FS_DIR_NOT_EMPTY on a populated directory
@@ -558,120 +449,90 @@ CopyDir( src, dst )   FsResultI64, the number created
 CopyDir( src, dst, opts )
 ```
 
-Files
+### Files
 
-```freebasic
+```text
 CopyFile( src, dst [, overwrite ] )      overwrite defaults FALSE
 MoveFile( src, dst [, overwrite ] )
 RemoveFile( p )
 ```
 
-Atomic
+### Atomic
 
-```freebasic
+```text
 ReplaceFile( target, replacement )
 WriteAtomic( p, s )
 ```
 
-Temp
+### Temporary Files
 
-```freebasic
+```text
 TempDir( )                       the system temp directory; creates nothing
 CreateTempFile( [ prefix ] )     CREATES it and returns the path
 CreateTempDir( [ prefix ] )      CREATES it and returns the path
 ```
 
-TEXT ENCODING, five rules:
+### Text Encoding
 
-1. A BOM IS HONOURED AND CONSUMED -- UTF-8, UTF-16LE and UTF-16BE. It is not
+Five rules:
 
-```freebasic
-part of the returned text.
-```
-
-2. NO BOM MEANS UTF-8. Not the ANSI codepage, not the console codepage, on
-
-```freebasic
-either platform -- a codepage default would make the same file read
-differently on two machines.
-```
-
-3. INVALID INPUT IS REPLACED, NOT REJECTED. ReadAllText on a binary file
-
-```freebasic
-SUCCEEDS and returns mojibake. If you need to know, read bytes.
-```
-
-4. WriteAllText WRITES UTF-8 WITH NO BOM. Write one via WriteAllBytes if you
-
-```freebasic
-need it.
-```
-
-5. ReadAllLines SPLITS ON \\n AND STRIPS A PRECEDING \\r, so CRLF, LF and a
-
-```freebasic
-mixed file give the same lines. A final newline does NOT produce a
-trailing empty line; an empty file gives zero lines. A LONE \r IS NOT A
-TERMINATOR -- classic Mac endings are not supported.
-```
+1. **A BOM is honoured and consumed** -- UTF-8, UTF-16LE and UTF-16BE. It is not part of the returned text.
+2. **No BOM means UTF-8.** Not the ANSI codepage, not the console codepage, on either platform -- a codepage default would make the same file read differently on two machines.
+3. **Invalid input is replaced, not rejected.** ReadAllText on a binary file succeeds and returns mojibake. If you need to know, read bytes.
+4. **WriteAllText writes UTF-8 with no BOM.** Write one via WriteAllBytes if you need it.
+5. **ReadAllLines splits on `\n` and strips a preceding `\r`**, so CRLF, LF and a mixed file give the same lines. A final newline does not produce a trailing empty line; an empty file gives zero lines. A lone `\r` is not a terminator -- classic Mac endings are not supported.
 
 Reading a directory is FS_IS_A_DIRECTORY on both platforms. A file too large to allocate is FS_NO_SPACE, not a truncation.
 
-CreateDirAll tolerates another process creating the same tree concurrently: an FS_ALREADY_EXISTS on an intermediate component is re-checked and accepted if what is there is a directory. A FILE in the way is FS_NOT_A_DIRECTORY.
+CreateDirAll tolerates another process creating the same tree concurrently: an FS_ALREADY_EXISTS on an intermediate component is re-checked and accepted if what is there is a directory. A file in the way is FS_NOT_A_DIRECTORY.
 
-REMOVEDIRALL, three rules, and the second is the most important destructive behaviour in the library:
+### RemoveDirAll
 
-1. It lists each level with ListDir rather than iterating, because deleting
+Three rules, and the second is the most important destructive behaviour in the library:
 
-```freebasic
-while enumerating is undefined.
-```
+1. It lists each level with ListDir rather than iterating, because deleting while enumerating is undefined.
+2. **A symlink to a directory is unlinked, never descended.** This is what stops a recursive delete of a tree containing a link to `C:\` from doing what it sounds like.
+3. The Windows read-only attribute is cleared before deleting, as `rm -rf` does. Without it the call fails partway through a checked-out repository.
 
-2. A SYMLINK TO A DIRECTORY IS UNLINKED, NEVER DESCENDED. This is what stops
+On failure it reports the first error and stops; it does not continue destructively past something it did not understand.
 
-```freebasic
-rm -rf on a tree containing a link to C:\ from doing what it sounds like.
-```
+### CopyDir
 
-3. The Windows read-only attribute is CLEARED before deleting, matching rm
+**CopyDir refuses when the destination is inside the source**, with FS_INVALID_PATH. Without that check `CopyDir( "a", "a\b" )` never terminates. The check is lexical, because the destination usually does not exist yet and CanonicalPath requires that it does.
 
-```freebasic
--rf. Without it the call fails partway through a checked-out repository.
-```
-
-On failure it reports the first error and STOPS; it does not continue destructively past something it did not understand.
-
-COPYDIR REFUSES WHEN THE DESTINATION IS INSIDE THE SOURCE, with FS_INVALID_PATH. Without that check CopyDir( "a", "a\\b" ) never terminates. The check is lexical, because the destination usually does not exist yet and CanonicalPath requires that it does.
-
-CopyOptions            default
-
-```freebasic
+```text
+CopyOptions          default
 .PreserveTimestamps  FALSE
 .PreservePermissions FALSE
 .CopySymlinksAsLinks TRUE
 .Overwrite           FALSE
 ```
 
-WITHOUT PreserveTimestamps THE BEHAVIOUR IS PLATFORM-DEFINED: Windows CopyFileW carries the source's last-write time across on its own, and the POSIX read/write loop creates a file with the current time. If you care, pass the option. PreservePermissions is the platform's OWN model on each side -- POSIX mode bits or Windows attributes -- not a translation between them.
+**Without PreserveTimestamps the behaviour is platform-defined:** Windows CopyFileW carries the source's last-write time across on its own, and the POSIX read/write loop creates a file with the current time. If you care, pass the option. PreservePermissions is the platform's own model on each side -- POSIX mode bits or Windows attributes -- not a translation between them.
 
-MOVEFILE HANDLES FS_CROSS_DEVICE, which NAME does not. On a cross-volume rename it copies then deletes. If the delete then fails the copy is NOT rolled back: the call reports the delete's error and the destination exists. Losing the destination to tidy up after a partial failure is worse than leaving both. The fallback is NOT atomic, and no API on either platform can make it so.
+### MoveFile
 
-WHAT WriteAtomic ACTUALLY GUARANTEES, because the word is routinely oversold:
+**MoveFile handles FS_CROSS_DEVICE.** On a cross-volume rename it copies, then deletes. If the delete then fails, the copy is not rolled back: the call reports the delete's error and the destination exists. Losing the destination to tidy up after a partial failure is worse than leaving both. The fallback is not atomic, and no API on either platform can make it so.
 
-```freebasic
-a reader sees the old file or the new one, never a partial       YES
-survives a crash mid-call                                        YES
-survives POWER LOSS without an explicit directory sync           NO
-```
+### WriteAtomic
 
-It writes to a temporary IN THE SAME DIRECTORY as the target -- not the system temp directory, which is often on another volume and would destroy the atomicity -- flushes it, then replaces. The temporary is cleaned up on every failure path.
+What it actually guarantees, because the word is routinely oversold:
 
-CreateTempFile and CreateTempDir CREATE the object and return its path. They do not hand back a name for you to create: that is the classic tmpnam race, where the window between choosing and creating is an attacker's opportunity. Creation is atomic and the names come from the platform CSPRNG, never from RND. NEITHER IS DELETED AUTOMATICALLY.
+| Guarantee | |
+| --- | --- |
+| a reader sees the old file or the new one, never a partial | **yes** |
+| survives a crash mid-call | **yes** |
+| survives power loss without an explicit directory sync | **no** |
+
+It writes to a temporary in the same directory as the target -- not the system temp directory, which is often on another volume and would destroy the atomicity -- flushes it, then replaces. The temporary is cleaned up on every failure path.
+
+### CreateTempFile And CreateTempDir
+
+They **create** the object and return its path. They do not hand back a name for you to create: that is the classic tmpnam race, where the window between choosing and creating is an attacker's opportunity. Creation is atomic and the names come from the platform CSPRNG, never from RND. **Neither is deleted automatically.**
 
 ## Glob
 
-```freebasic
+```text
 MatchPattern( s, pattern )    boolean. PURE -- no syscalls.
 Glob( pattern, results )      FsResultLong; fills Array( of ustring )
 GlobRoot( pattern )           the directory a pattern will be walked from
@@ -679,9 +540,9 @@ PatternWildcardAt( pattern )  offset of the first wildcard, or -1
 PatternIsRecursive( pattern ) does it contain a '**' component
 ```
 
-The grammar
+### The Grammar
 
-```freebasic
+```text
 ?           exactly one character, NOT a separator
 *           zero or more characters, NOT crossing a separator
 **          zero or more WHOLE COMPONENTS, including none
@@ -691,41 +552,27 @@ The grammar
 \x          a literal x -- POSIX ONLY
 ```
 
-1. '\*' DOES NOT CROSS A SEPARATOR. "a\*c" does not match "a/b/c". 2. '\*\*' is only special as a WHOLE COMPONENT. "a\*\*b" is a single '\*'. 3. '\*\*' MATCHES ZERO COMPONENTS, so "a/\*\*/c" matches "a/c". This is the
+### The Glob Rules
 
-```freebasic
-most-missed glob behaviour anywhere.
-```
+1. **`*` does not cross a separator.** `a*c` does not match `a/b/c`.
+2. `**` is only special as a whole component. `a**b` is a single `*`.
+3. **`**` matches zero components**, so `a/**/c` matches `a/c`. This is the most-missed glob behaviour anywhere.
+4. Case follows the grammar: insensitive on Windows, sensitive on POSIX.
+5. Separators are equivalent under the Windows grammar, so a pattern written with `/` matches a path written with `\`.
+6. **There is no escape character on Windows**, because `\` is the separator. A literal `[` is matched there by the class `[[]`.
+7. **A malformed class is a literal.** `[abc` matches those four characters. A glob that raised on a typo in a user-supplied pattern would be worse.
+8. Matching is whole-string. There is no implicit `*` at either end.
+9. The empty string is one empty component, so `*` matches `""`.
 
-4. Case follows the grammar: insensitive on Windows, sensitive on POSIX. 5. Separators are equivalent under the Windows grammar, so a pattern written
+Glob splits the pattern at the last component with no wildcard and walks from there, so `C:\dev\tiko\src\*.tiko` walks src and not the whole volume. A pattern without `**` does a single ReadDir and never engages the walk.
 
-```freebasic
-with '/' matches a path written with '\'.
-```
+**Results are not sorted** -- directory order is whatever the filesystem gives. **Errors during the walk are skipped:** this is the one place in the library that swallows one, because Glob returns an array and has nowhere to put a per-entry failure. It fails as a whole only when the walk root cannot be opened. If you need per-entry errors, use WalkDir with MatchPattern -- which is what Glob itself does.
 
-6. THERE IS NO ESCAPE CHARACTER ON WINDOWS, because '\\' is the separator. A
+**Hidden entries are matched.** Unlike a shell, `*` here matches a leading dot.
 
-```freebasic
-literal '[' is matched there by the class "[[]".
-```
+## Links And Permissions
 
-7. A MALFORMED CLASS IS A LITERAL. "\[abc" matches those four characters. A
-
-```freebasic
-glob that raised on a typo in a user-supplied pattern would be worse.
-```
-
-8. Matching is WHOLE-STRING. There is no implicit '\*' at either end. 9. The empty string is one empty component, so '\*' matches "".
-
-Glob splits the pattern at the last component with no wildcard and walks from there, so "C:\\dev\\tiko\\src\\\*.bas" walks src and not the whole volume. A pattern without '\*\*' does a single ReadDir and never engages the walk.
-
-RESULTS ARE NOT SORTED -- directory order is whatever the filesystem gives. ERRORS DURING THE WALK ARE SKIPPED: this is the one place in the library that swallows one, because Glob returns an array and has nowhere to put a per-entry failure. It fails as a whole only when the walk root cannot be opened. If you need per-entry errors, use WalkDir with MatchPattern -- which is what Glob itself does.
-
-HIDDEN ENTRIES ARE MATCHED. Unlike a shell, '\*' here matches a leading dot.
-
-## Links AND Permissions
-
-```freebasic
+```text
 CreateSymlink( target, lnk [, targetIsDir ] )    FsResultBool
 CreateHardLink( target, lnk )                    FsResultBool
 ReadLink( lnk )                                  FsResultUStr
@@ -733,17 +580,19 @@ IsLink( p )                                      boolean
 LinkCount( p )                                   FsResultULong
 ```
 
-ARGUMENT ORDER IS (target, link) -- the thing that EXISTS first, matching ln -s, symlink(2) and Python. It is the OPPOSITE of CreateSymbolicLinkW. Getting it backwards silently creates a dangling link pointing at the wrong place.
+**Argument order is (target, link)** -- the thing that exists first, matching `ln -s`, symlink(2) and Python. It is the opposite of CreateSymbolicLinkW. Getting it backwards silently creates a dangling link pointing at the wrong place.
 
-targetIsDir IS REQUIRED ON WINDOWS AND IGNORED ON POSIX. Windows encodes the target's kind IN THE LINK and needs it at creation time -- even when the target does not exist yet, which is exactly why it cannot be inferred. This is the ugliest portability seam in the library and it is not smoothable.
+**targetIsDir is required on Windows and ignored on POSIX.** Windows encodes the target's kind in the link and needs it at creation time -- even when the target does not exist yet, which is exactly why it cannot be inferred. This is the ugliest portability seam in the library and it is not smoothable.
 
-ON WINDOWS, CREATING A SYMLINK USUALLY NEEDS PRIVILEGE: expect FS_ACCESS_DENIED unless the process is elevated or Developer Mode is on.
+**On Windows, creating a symlink usually needs privilege:** expect FS_ACCESS_DENIED unless the process is elevated or Developer Mode is on.
 
-ReadLink returns the target AS STORED -- unresolved, possibly relative, possibly dangling. It does NOT canonicalize; conflating the two would make a dangling link unreadable. FS_INVALID_PATH when the path is not a link, on both platforms. Junctions are READABLE but not creatable.
+ReadLink returns the target as stored -- unresolved, possibly relative, possibly dangling. It does not canonicalize; conflating the two would make a dangling link unreadable. FS_INVALID_PATH when the path is not a link, on both platforms. Junctions are readable but not creatable.
 
-Permissions are THREE SEPARATE THINGS, not one
+### Permissions
 
-```freebasic
+Three separate things, not one:
+
+```text
 SetReadOnly( p, v )              portable
 SetHidden( p, v )                portable IN NAME ONLY
 GetPosixMode( p ) / SetPosixMode( p, mode )      FS_UNSUPPORTED on Windows
@@ -754,37 +603,37 @@ SetTimes( p, mtimeUtc [, atimeUtc ] )           0 leaves one alone
 
 The two platforms have no common core worth the name: POSIX has nine mode bits plus setuid/setgid/sticky, an owner and a group; Windows has attribute flags plus a full discretionary ACL. Mapping either onto the other produces something wrong in both directions.
 
-SetReadOnly is genuinely portable, but is NOT AN EXACT INVERSE on POSIX -- clearing restores the write bits subject to the current umask. Use GetPosixMode/SetPosixMode when you need exactness.
+SetReadOnly is genuinely portable, but **is not an exact inverse on POSIX** -- clearing restores the write bits subject to the current umask. Use GetPosixMode/SetPosixMode when you need exactness.
 
-SetHidden is portable in name only: on POSIX hiddenness is a NAMING convention, so honouring it would mean RENAMING the file behind your back. It returns FS_UNSUPPORTED there instead.
+SetHidden is portable in name only: on POSIX hiddenness is a naming convention, so honouring it would mean renaming the file behind your back. It returns FS_UNSUPPORTED there instead.
 
-THERE IS NO OWNER, GROUP OR ACL API. There is no portable subset beyond the read-only bit, and a partial ACL API is worse than none -- it invites code that looks portable and silently grants more than it meant to on one platform.
+**There is no owner, group or ACL API.** There is no portable subset beyond the read-only bit, and a partial ACL API is worse than none -- it invites code that looks portable and silently grants more than it meant to on one platform.
 
 ## Volumes
 
-```freebasic
+```text
 GetDiskSpace( p )      FsResultSpace
 GetVolumeInfo( p )     FsResultVol
 GetVolumes( vols )     FsResultLong; fills Array( of VolumeInfo )
 ```
 
-p is ANY PATH ON THE VOLUME, not a volume name. The path must exist.
+p is any path on the volume, not a volume name. The path must exist.
 
-DiskSpace
+### DiskSpace
 
-```freebasic
+```text
 .TotalBytes        capacity
 .FreeBytes         free, IGNORING quota -- for reporting
 .AvailableBytes    free TO THIS USER -- the one to branch on
 ```
 
-AVAILABLEBYTES IS THE ONE TO USE. FreeBytes counts space you may not be permitted to consume: reserved blocks on ext4, a per-user quota on either platform. Where there is no quota the two are equal, which is why the distinction is invisible on a developer machine and bites in production.
+**AvailableBytes is the one to use.** FreeBytes counts space you may not be permitted to consume: reserved blocks on ext4, a per-user quota on either platform. Where there is no quota the two are equal, which is why the distinction is invisible on a developer machine and bites in production.
 
 All three are snapshots and are stale on return. A program that checks free space and then writes is racing every other process on the machine; the write's FS_NO_SPACE is the real answer.
 
-VolumeInfo
+### VolumeInfo
 
-```freebasic
+```text
 .RootPath          "C:\", "/", "\\srv\share\"
 .Name              the label. MAY BE EMPTY -- always is on Linux
 .FileSystem        "NTFS", "ext4", "exFAT". May be empty.
@@ -794,34 +643,35 @@ VolumeInfo
 .SupportsLinks
 ```
 
-IsCaseSensitive IS PER-VOLUME and is NOT the same question as PathIsCaseSensitive( ), which is a compile-time per-platform constant. They disagree in two real cases: an NTFS directory with per-directory case sensitivity enabled (WSL sets this), and a case-insensitive filesystem mounted on Linux. Use PathIsCaseSensitive for LEXICAL comparison, which must be deterministic and must not do IO; use this one for "will these two names collide on this disk".
+**IsCaseSensitive is per-volume** and is not the same question as PathIsCaseSensitive( ), which is a compile-time per-platform constant. They disagree in two real cases: an NTFS directory with per-directory case sensitivity enabled (WSL sets this), and a case-insensitive filesystem mounted on Linux. Use PathIsCaseSensitive for lexical comparison, which must be deterministic and must not do IO; use this one for "will these two names collide on this disk".
 
-SupportsLinks is ASYMMETRIC: a FALSE is reliable, a TRUE is best-effort. Windows reports the filesystem's own flag; Linux has no portable probe, so everything but the FAT family and ISO 9660 is assumed able.
+**SupportsLinks is asymmetric:** a FALSE is reliable, a TRUE is best-effort. Windows reports the filesystem's own flag; Linux has no portable probe, so everything but the FAT family and ISO 9660 is assumed able.
 
 GetVolumes on Windows is the logical drives, skipping any reporting no media. On Linux there are no drives, only mount points, so it reads /proc/self/mountinfo and reports only filesystems backed by a real block device -- which filters proc, sysfs, cgroup and tmpfs. That is a judgement call: it will occasionally omit something you wanted, such as a network mount.
 
-## Locking, Mapping AND Watching
+## Locking, Mapping And Watching
 
 Three subsystems that share nothing but a file.
 
-FileLock -- advisory, whole-file
+### FileLock
 
-```freebasic
+Advisory, whole-file:
+
+```text
 .Acquire( p [, exclusive ] [, timeoutMs ] )    FsResultBool
 .Release( )
 .IsHeld( )
-
-timeoutMs < 0 waits indefinitely, 0 tries once, > 0 gives up with
-FS_IN_USE. The destructor releases.
 ```
 
-This is NOT LOCK/UNLOCK, which lock byte ranges of a file already open on a file number and cannot express "hold this file against another process".
+timeoutMs below 0 waits indefinitely, 0 tries once, and above 0 gives up with FS_IN_USE. The destructor releases.
 
-IT IS ADVISORY EVERYWHERE, AND THAT IS THE CONTRACT. Windows LockFileEx is MANDATORY -- the kernel enforces it against every process. POSIX flock is ADVISORY -- it binds only processes that also ask. The only promise both platforms can keep is the weaker one, so ALL PARTICIPANTS MUST USE THIS API. Code written against the Windows behaviour silently protects nothing on Linux.
+FileLock holds a whole file against other processes. It is a different tool from the LOCK and UNLOCK statements, which lock byte ranges of a file already open on a file number.
 
-MemoryMappedFile
+**It is advisory everywhere, and that is the contract.** Windows LockFileEx is mandatory -- the kernel enforces it against every process. POSIX flock is advisory -- it binds only processes that also ask. The only promise both platforms can keep is the weaker one, so **all participants must use this API**. Code written against the Windows behaviour silently protects nothing on Linux.
 
-```freebasic
+### MemoryMappedFile
+
+```text
 .Open( p [, writable ] )    FsResultBool
 .Close( )
 .Data( )                    uint8 ptr
@@ -830,165 +680,131 @@ MemoryMappedFile
 .Flush( )                   FsResultBool
 ```
 
-Data( ) is a RAW POINTER, which is the point -- the alternative is a copy, and a copy is ReadAllBytes. Three things no library can protect you from:
+Data( ) is a raw pointer, which is the point -- the alternative is a copy, and a copy is ReadAllBytes. Three things no library can protect you from:
 
-the pointer is INVALID after Close or destruction; ANOTHER PROCESS TRUNCATING THE FILE turns reads into a FAULT -- SIGBUS on
+- the pointer is **invalid after Close** or destruction;
+- **another process truncating the file turns reads into a fault** -- SIGBUS on POSIX, a structured exception on Windows -- not an error return, which is why mapping is not a drop-in replacement for reading;
+- mapping a file on a network share is permitted, and is a good way to hang.
 
-```freebasic
-POSIX, a structured exception on Windows -- not an error return, which is
-why mapping is not a drop-in replacement for reading;
-```
+**A zero-length file cannot be mapped** and reports FS_INVALID_PATH on both platforms, rather than handing back a pointer that cannot be dereferenced.
 
-mapping a file on a network share is permitted and is a good way to hang.
+### FileWatcher
 
-A ZERO-LENGTH FILE CANNOT BE MAPPED and reports FS_INVALID_PATH on both platforms, rather than handing back a pointer that cannot be dereferenced.
-
-FileWatcher
-
-```freebasic
+```text
 .Start( p [, recursive ] )              FsResultBool
 .Stop( )
 .IsWatching( )
 .Poll( changes, [ timeoutMs ] )         FsResultLong -- the count
 ```
 
-FsChange
+FsChange:
 
-```freebasic
+```text
 .Kind( )      FsChangeKind
 .Path( )      the FULL path, not a bare leaf
 ```
 
-FsChangeKind
+FsChangeKind:
 
-```freebasic
+```text
 FS_CHANGE_CREATED  FS_CHANGE_DELETED  FS_CHANGE_MODIFIED
 FS_CHANGE_RENAMED_FROM  FS_CHANGE_RENAMED_TO  FS_CHANGE_OVERFLOW
 ```
 
-POLLING, NOT CALLBACKS. A callback fires on the watcher's own thread, so every user immediately needs a queue and a lock and most get the threading wrong. Poll puts the events on YOUR thread.
+**Polling, not callbacks.** A callback fires on the watcher's own thread, so every user immediately needs a queue and a lock and most get the threading wrong. Poll puts the events on your thread.
 
-A TIMEOUT IS AN EMPTY SUCCESS, not a failure -- "nothing happened" and "the watch broke" are different answers.
+**A timeout is an empty success, not a failure** -- "nothing happened" and "the watch broke" are different answers.
 
-FS_CHANGE_OVERFLOW IS AN EVENT, NOT AN ERROR. Both platforms drop events under load, and every correct consumer must respond by RESCANNING. Modelling it as an error would let you ignore it.
+**FS_CHANGE_OVERFLOW is an event, not an error.** Both platforms drop events under load, and every correct consumer must respond by rescanning. Modelling it as an error would let you ignore it.
 
-RENAMES ARE TWO EVENTS. RENAMED_FROM and RENAMED_TO arrive as a pair, and a rename OUT of the watched tree produces only the first -- a single event carrying both paths could not represent that.
+**Renames are two events.** RENAMED_FROM and RENAMED_TO arrive as a pair, and a rename out of the watched tree produces only the first -- a single event carrying both paths could not represent that.
 
 A single change may produce more than one event: writing a new file yields both CREATED and MODIFIED on Windows. Do not assume a count.
 
 ## The Rules That Are Easy To Get Wrong
 
-A default-constructed FsResult is a FAILURE, not a success. Value( ) on a failure RAISES. IsOk( ) is the guard. Exists( ) is false for "denied" as well as "absent". Stat tells them apart. "C:dev" is NOT absolute. Neither is "\\dev". ".gitignore" has no extension; its stem is ".gitignore". PathJoin discards the left side when the right is absolute -- check
-
-```freebasic
-PathStartsWith if you need containment.
-```
-
-PathEquals is LEXICAL. Two paths naming one file compare unequal. PathNormalize resolves '..' lexically, which is not what the OS does through
-
-```freebasic
-a symlink.
-```
-
-Compare canonical paths with PathEquals, not '=' -- of the "\\\\?\\" prefix. The walk's element is a Result. Unwrap it, or you are not checking. Value( ) byref dies at the next MoveNext. Copy to keep. WalkDir does not follow directory symlinks unless you ask. RemoveDirAll unlinks a directory symlink; it does not descend it. A STRING path is UTF-8 and lossy. Legacy ANSI paths do not work. Paths that came from the filesystem are USTRING. Keep them that way. There is no auto "\\\\?\\" prefixing: paths over MAX_PATH are refused on
-
-```freebasic
-Windows, with FS_NAME_TOO_LONG and the native code preserved.
-```
-
-Free space is a snapshot and is stale on return. A FileLock is ADVISORY even on Windows, as far as this API promises.
+- A default-constructed FsResult is a **failure**, not a success.
+- Value( ) on a failure **raises**. IsOk( ) is the guard.
+- Exists( ) is false for "denied" as well as "absent". Stat tells them apart.
+- `C:dev` is **not** absolute. Neither is `\dev`.
+- `.gitignore` has no extension; its stem is `.gitignore`.
+- PathJoin **discards the left side** when the right is absolute -- check PathStartsWith if you need containment.
+- PathEquals is lexical. Two paths naming one file through a symlink compare unequal.
+- PathNormalize resolves `..` lexically, which is not what the OS does through a symlink.
+- Compare canonical paths with PathEquals, not `=` -- because of the `\\?\` prefix.
+- The walk's element is a Result. Unwrap it, or you are not checking.
+- Value( ) byref dies at the next MoveNext. Copy to keep.
+- WalkDir does not follow directory symlinks unless you ask.
+- RemoveDirAll **unlinks** a directory symlink; it does not descend it.
+- A STRING path is UTF-8 and lossy. ANSI-codepage paths do not work.
+- Paths that came from the filesystem are USTRING. Keep them that way.
+- There is no automatic `\\?\` prefixing: paths over MAX_PATH are refused on Windows, with FS_NAME_TOO_LONG and the native code preserved.
+- Free space is a snapshot and is stale on return.
+- A FileLock is **advisory**, even on Windows, as far as this API promises.
 
 ## What Is NOT Here
 
-Each was considered and excluded.
+Each was considered and excluded:
 
-Async / overlapped / promise-based IO. Introducing an async model
-
-```freebasic
-inside a filesystem library would be a language project
-wearing a library's clothes.
-```
-
-A Path value type. Free functions over strings, Go-style -- a Path type would
-
-```freebasic
-have to pick one of STRING and USTRING and force a conversion at every
-boundary with the other. It remains additive later.
-```
-
-A virtual filesystem abstraction. It needs an interface feature independent
-
-```freebasic
-of inheritance, which tiko does not have.
-```
-
-Archives and compression. Zip and tar are file FORMATS, not filesystem
-
-```freebasic
-operations, and share no code with this.
-```
-
-Recycle Bin / trash deletion. Shell APIs, COM-dependent, no POSIX
-
-```freebasic
-counterpart worth the name.
-```
-
-Extended attributes, alternate data streams, full ACLs. No portable subset
-
-```freebasic
-that means anything; NativeAttributes( ) is the escape hatch.
-```
-
-CreateJunction. Readable but not creatable -- CreateSymlink with
-
-```freebasic
-targetIsDir covers the portable need.
-```
-
-Any change to inc/file.bi, inc/dir.bi or the runtime's existing file routines.
+- **Async, overlapped or promise-based IO.** Introducing an async model inside a filesystem library would be a language project wearing a library's clothes.
+- **A Path value type.** Free functions over strings -- a Path type would have to pick one of STRING and USTRING and force a conversion at every boundary with the other. It remains additive later.
+- **A virtual filesystem abstraction.** It needs an interface feature independent of inheritance, which tiko does not have.
+- **Archives and compression.** Zip and tar are file formats, not filesystem operations, and share no code with this.
+- **Recycle Bin / trash deletion.** Shell APIs, COM-dependent, no POSIX counterpart worth the name.
+- **Extended attributes, alternate data streams, full ACLs.** No portable subset that means anything; NativeAttributes( ) is the escape hatch.
+- **CreateJunction.** Junctions are readable but not creatable -- CreateSymlink with targetIsDir covers the portable need.
 
 ## Implementation
 
-pkg/std/fs/fserror.tiko FsError, the codes, the result aliases pkg/std/fs/fspath.tiko the path family pkg/std/fs/fsinfo.tiko FileInfo, Stat, the resolvers pkg/std/fs/fsdir.tiko  DirEntry, the iterators, ReadDir, WalkDir pkg/std/fs/fsops.tiko  whole-file, bulk, atomic, temp pkg/std/fs/fsglob.tiko MatchPattern, Glob pkg/std/fs/fslink.tiko links, permissions, SetTimes, CopyOptions pkg/std/fs/fsvolume.tiko DiskSpace, VolumeInfo pkg/std/fs/fsadvanced.tiko FileLock, MemoryMappedFile, FileWatcher pkg/std/fs/fs.tiko     the umbrella
+The tiko side, in pkg/std/fs/:
 
-lib/rt/src/fs/path.tiko     the path algebra: pure, portable, ONE copy,
+| File | Holds |
+| --- | --- |
+| fserror.tiko | FsError, the codes, the result aliases |
+| fspath.tiko | the path family |
+| fsinfo.tiko | FileInfo, Stat, the resolvers |
+| fsdir.tiko | DirEntry, the iterators, ReadDir, WalkDir |
+| fsops.tiko | whole-file, bulk, atomic, temp |
+| fsglob.tiko | MatchPattern, Glob |
+| fslink.tiko | links, permissions, SetTimes, CopyOptions |
+| fsvolume.tiko | DiskSpace, VolumeInfo |
+| fsadvanced.tiko | FileLock, MemoryMappedFile, FileWatcher |
+| fs.tiko | the umbrella |
 
-```freebasic
-both grammars always compiled
-```
+The runtime side, in tiko-rt's lib/rt/src/fs/:
 
-lib/rt/src/fs/glob.tiko     the matcher: pure, portable, ITERATIVE lib/rt/src/fs/text.tiko     the BOM and encoding rules, portable lib/rt/src/fs/errmsg.tiko   the message table lib/rt/src/fs/dirent.tiko   record-to-USTRING accessors, ABI size hooks lib/rt/src/fs/{error,stat,dir,ops,link,volume,lock,mmap,watch}.bas   each split by platform with #if
+| File | Holds |
+| --- | --- |
+| path.tiko | the path algebra: pure, portable, one copy, both grammars always compiled |
+| glob.tiko | the matcher: pure, portable, iterative |
+| text.tiko | the BOM and encoding rules, portable |
+| errmsg.tiko | the message table |
+| dirent.tiko | record-to-USTRING accessors, ABI size hooks |
+| error, stat, dir, ops, link, volume, lock, mmap, watch (.tiko) | each split by platform with `#if` |
 
-THE UNIT IS FB_UCHAR (UTF-16), NOT FB_WCHAR, which is 4 bytes on Linux -- building the kernel on it would silently change the path encoding depending on the host. Every struct crossing the C/tiko boundary uses FIXED-WIDTH fields for the same reason: 'unsigned long' is 4 bytes on Windows and 8 on Linux while tiko's ULONG is 32-bit everywhere, and getting that wrong shifts every field after it.
+**The unit is FB_UCHAR (UTF-16), not FB_WCHAR**, which is 4 bytes on Linux -- building the kernel on it would silently change the path encoding depending on the host. Every struct crossing the C/tiko boundary uses fixed-width fields for the same reason: `unsigned long` is 4 bytes on Windows and 8 on Linux while tiko's ULONG is 32-bit everywhere, and getting that wrong shifts every field after it.
 
-The glob matcher is ITERATIVE, not recursive. A recursive matcher on a hostile pattern such as "a\*a\*a\*a\*a\*b" is exponential and will blow the stack.
+**The glob matcher is iterative, not recursive.** A recursive matcher on a hostile pattern such as `a*a*a*a*a*b` is exponential and will blow the stack.
 
-Platform code is split BY #if, one file per area. tiko-rt's build has no per-target source selection, so error, stat, dir, ops, link, volume, lock, mmap and watch each hold a Windows half and a POSIX half. The path and glob grammars are the exception -- they take the grammar as a PARAMETER so both are testable on either host.
+**Platform code is split by `#if`, one file per area.** tiko-rt's build has no per-target source selection, so error, stat, dir, ops, link, volume, lock, mmap and watch each hold a Windows half and a POSIX half. The path and glob grammars are the exception -- they take the grammar as a parameter, so both are testable on either host.
 
 ## Tests
 
-tests/vendor/fbc-tests/filesystem/     nine fbcunit suites, vendored in tiko-lang
+Nine fbcunit suites, vendored in tiko-lang at tests/vendor/fbc-tests/filesystem/:
 
-```freebasic
-fspath_core     one block per numbered path rule, every case run under
-                BOTH grammars regardless of host
-fserror_codes   the tiko enum cross-checked against its C constants
-fsinfo_dir      Stat, the kinds, and the interleaved-scan test the built-in
-                DIR cannot pass
-fsops_walk      the encoding rules, the bulk operations, the walk
-fsglob          one block per glob rule, plus the pathological pattern
-fslink          links, permissions, and the two destructive rules
-fsvolume        invariants, plus the one ground-truth check
-fsadvanced      locking, mapping, watching
-fsstrings       the whole STRING overload layer
-```
+| Suite | Covers |
+| --- | --- |
+| fspath_core | one block per numbered path rule, every case run under both grammars regardless of host |
+| fserror_codes | the tiko enum cross-checked against its C constants |
+| fsinfo_dir | Stat, the kinds, and the interleaved-scan test |
+| fsops_walk | the encoding rules, the bulk operations, the walk |
+| fsglob | one block per glob rule, plus the pathological pattern |
+| fslink | links, permissions, and the two destructive rules |
+| fsvolume | invariants, plus the one ground-truth check |
+| fsadvanced | locking, mapping, watching |
+| fsstrings | the whole STRING overload layer |
 
-The suites deliberately do NOT assert that a truncating writer faults a live mapping, nor cross-process lock exclusion.
-
-## Dialects
-
--lang fb only. The library uses namespaces, and std/fs says so with an #error in the other dialects rather than failing obscurely later.
+The suites deliberately do not assert that a truncating writer faults a live mapping, nor cross-process lock exclusion.
 
 ## API reference
 
