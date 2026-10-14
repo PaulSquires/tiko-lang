@@ -339,6 +339,14 @@ namespace Tko.Check
           byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
           byref info as Tko.SemanticInfo, byref st as Stats ) as long
 
+    '' A LITERAL FORMAT STRING passed to std/strings' Format -- or any procedure taking a
+    '' strings.FormatString and a typed variadic of strings.FormatArg -- checked against its
+    '' arguments' kinds (formatcheck.tiko; docs/tiko-strings/RFC-0002-format.md section 7.1).
+    declare sub CheckFormatStrings _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
+          byref info as Tko.SemanticInfo, byref src as Tko.SourceManager )
+
     '' One line per PRINT argument: the source line, and the type computed for it.
     '' That shape exists so tools/gen/check-promo.sh can put tiko-lang's answer next to
     '' fbc's for the same 3,920 combinations.

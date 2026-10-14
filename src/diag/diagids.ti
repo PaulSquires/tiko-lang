@@ -870,6 +870,22 @@
     '' neighbours (symbols/braceinit.tiko). tiko accepted the rest and dropped the list.
     DIAG( TKO0845, SEV_ERROR,   "'%0' is not an array, so it cannot take a '{ ... }' initializer" )
     DIAG( TKO0846, SEV_ERROR,   "a '{ ... }' list can only initialize an array, and nothing here is one" )
+    '' A LITERAL FORMAT STRING that std/strings' Format would refuse at run time, refused when
+    '' the program is compiled (symbols/formatcheck.tiko). One id per FormatErrorCode, in order:
+    '' FE_UNMATCHED_OPEN .. FE_LOCALE, less FE_DYNAMIC_NEGATIVE, a value's. %0 is the library's
+    '' own message; the caret is on the character its offset names.
+    DIAG( TKO0847, SEV_ERROR,   "format string: %0" )   '' FE_UNMATCHED_OPEN
+    DIAG( TKO0848, SEV_ERROR,   "format string: %0" )   '' FE_UNMATCHED_CLOSE
+    DIAG( TKO0849, SEV_ERROR,   "format string: %0" )   '' FE_BAD_ARG_ID
+    DIAG( TKO0850, SEV_ERROR,   "format string: %0" )   '' FE_MIXED_INDEXING
+    DIAG( TKO0851, SEV_ERROR,   "format string: %0" )   '' FE_MISSING_ARG
+    DIAG( TKO0852, SEV_ERROR,   "format string: %0" )   '' FE_BAD_SPEC
+    DIAG( TKO0853, SEV_ERROR,   "format string: %0" )   '' FE_BAD_FILL
+    DIAG( TKO0854, SEV_ERROR,   "format string: %0" )   '' FE_BAD_TYPE
+    DIAG( TKO0855, SEV_ERROR,   "format string: %0" )   '' FE_BAD_MODIFIER
+    DIAG( TKO0856, SEV_ERROR,   "format string: %0" )   '' FE_PRECISION
+    DIAG( TKO0857, SEV_ERROR,   "format string: %0" )   '' FE_DYNAMIC_NOT_INT
+    DIAG( TKO0858, SEV_ERROR,   "format string: %0" )   '' FE_LOCALE
     DIAG( TKO0840, SEV_ERROR,   "'%0' is not a local array of this procedure, so returning it would need a copy, which is not supported yet; return a local array or a brace list" )
     '' fbc's error 14 for 'extends (long, long)': a tuple written as a base -- decltype.tiko.
     DIAG( TKO0824, SEV_ERROR,   "a tuple cannot be a base type; name a type after 'extends'" )

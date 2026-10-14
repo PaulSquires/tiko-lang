@@ -1,0 +1,137 @@
+# tools/fmtcorpus/corpus.txt -- THE SHARED FORMAT-STRING CORPUS (docs/tiko-strings/RFC-0002-format.md
+# sections 7.1 and 9). One case a line:
+#
+#     <format literal> | <arguments> | <FE code> <offset> [run]
+#
+# Split at the LAST two "|". The literal is tiko source -- "...", $"..." or !"..." -- and the arguments are expressions over
+# the prelude in gen.py. The expectation is strings.TryFormat's: OK, or the FormatErrorCode name
+# without its FE_ and the 0-based offset in UTF-16 units. 'run' marks a refusal the compiler
+# cannot see -- a value's, a Formattable's, an argument whose kind is not known, an escaped
+# literal -- and must stay silent on. gen.py writes the run-time test and the compile-time test
+# from this file; edit here, then run it.
+#
+# ---------------------------------------------------------------- accepted
+"Hello, {}!" | who | OK
+"{1} before {0}" | "b", "a" | OK
+"{0}{0}{1}" | "x", "y" | OK
+"{{}} {{{}}}" | 5 | OK
+"no fields" | | OK
+"{} {}" | 1, 2, 3 | OK
+"{:d}{:b}{:B}{:o}{:x}{:X}{:c}" | 1, 2, 3, 4, 5, 6, 65 | OK
+"{:+#010x}" | i | OK
+"{:*^9}" | "hi" | OK
+"{:>10.3s}" | who | OK
+"{:?}" | who | OK
+"{:.3f} {:e} {:E} {:g} {:G} {:a} {:A} {:F}" | d, d, d, d, d, sg, sg, sg | OK
+"{:+08.2f}" | d | OK
+"{:p} {:P} {:010p}" | p, p, p | OK
+"{:p} {:s} {}" | z, z, z | OK
+"{} {:s} {:d} {:x} {:+} " | b, b, b, b, 5 | OK
+"{:+d}" | b | OK
+"{:{}.{}f}" | d, 9, 2 | OK
+"{0:{1}.{2}}" | who, 6, 2 | OK
+"{} {:x} {:o}" | ub, sh, ui | OK
+"{:d}" | col | OK
+"{:>8} {:s}" | nn, nn | OK
+"{} {:%Y!} {:{}}" | m, m, m, 4 | OK
+"{:é^7}" | 1 | OK
+"a""b{}" | 1 | OK
+$"raw\{}" | 1 | OK
+"{:😀<4}" | 1 | OK
+# ---------------------------------------------------------------- the format string
+"abc {" | 1 | UNMATCHED_OPEN 4
+"{" | 1 | UNMATCHED_OPEN 0
+"{0" | 1 | UNMATCHED_OPEN 0
+"{:" | 1 | UNMATCHED_OPEN 2
+"{:>5" | 1 | UNMATCHED_OPEN 4
+"{:5.2" | d | UNMATCHED_OPEN 5
+"{:{}" | 1, 2 | UNMATCHED_OPEN 4
+"a } b" | 1 | UNMATCHED_CLOSE 2
+"}" | | UNMATCHED_CLOSE 0
+"{}}" | 1 | UNMATCHED_CLOSE 2
+"{x}" | 1 | BAD_ARG_ID 1
+"{01}" | 1, 2 | BAD_ARG_ID 1
+"{ }" | 1 | BAD_ARG_ID 1
+"{0x}" | 1 | BAD_ARG_ID 2
+"{-1}" | 1 | BAD_ARG_ID 1
+"{:{01}}" | 1, 2 | BAD_ARG_ID 3
+"{999999999}" | 1 | MISSING_ARG 0
+"{} {0}" | 1 | MIXED_INDEXING 3
+"{0} {}" | 1 | MIXED_INDEXING 4
+"{:{1}}" | 1, 2 | MIXED_INDEXING 2
+"{0:{}}" | 1, 2 | MIXED_INDEXING 3
+"{} {} {}" | 1, 2 | MISSING_ARG 6
+"{5}" | 1 | MISSING_ARG 0
+"{}" | | MISSING_ARG 0
+"{:{}}" | 1 | MISSING_ARG 2
+"{0:.{3}}" | d | MISSING_ARG 4
+"x={} y={} z={}" | 1, 2 | MISSING_ARG 12
+# ---------------------------------------------------------------- the spec
+"{:dd}" | 1 | BAD_SPEC 3
+"{:.}" | d | BAD_SPEC 3
+"{:.x}" | d | BAD_SPEC 3
+"{:{x}}" | 1, 2 | BAD_SPEC 3
+"{:<<<}" | 1 | BAD_TYPE 2
+"{:+-}" | 1 | BAD_TYPE 2
+"{:##}" | 1 | BAD_TYPE 2
+"{:5 }" | 1 | BAD_TYPE 2
+"{:9999999999}" | 1 | BAD_SPEC 11
+"{:{<5}" | 1 | BAD_FILL 2
+"{:}^5}" | 1 | BAD_FILL 2
+"{:L}" | 1 | LOCALE 2
+"{:>8Ld}" | 1 | LOCALE 4
+# ---------------------------------------------------------------- a kind's types
+"{:x}" | "s" | BAD_TYPE 2
+"{:d}" | who | BAD_TYPE 2
+"{:c}" | nn | BAD_TYPE 2
+"{:f}" | 1 | BAD_TYPE 2
+"{:s}" | 1 | BAD_TYPE 2
+"{:?}" | 1 | BAD_TYPE 2
+"{:p}" | i | BAD_TYPE 2
+"{:d}" | d | BAD_TYPE 2
+"{:x}" | sg | BAD_TYPE 2
+"{:s}" | d | BAD_TYPE 2
+"{:c}" | b | BAD_TYPE 2
+"{:?}" | b | BAD_TYPE 2
+"{:f}" | b | BAD_TYPE 2
+"{:x}" | p | BAD_TYPE 2
+"{:s}" | p | BAD_TYPE 2
+"{:d}" | z | BAD_TYPE 2
+"{} {:>4} {:q}" | 1, 2, 3 | BAD_TYPE 11
+# ---------------------------------------------------------------- modifiers and precision
+"{:+}" | "s" | BAD_MODIFIER 2
+"{:#}" | who | BAD_MODIFIER 2
+"{:05}" | who | BAD_MODIFIER 2
+"{:#}" | p | BAD_MODIFIER 2
+"{: }" | p | BAD_MODIFIER 2
+"{:#p}" | z | BAD_MODIFIER 2
+"{:0c}" | 65 | BAD_MODIFIER 2
+"{:+c}" | 65 | BAD_MODIFIER 2
+"{:#}" | b | BAD_MODIFIER 2
+"{:.2}" | 7 | PRECISION 2
+"{:.2x}" | ui | PRECISION 2
+"{:.2}" | b | PRECISION 2
+"{:.2}" | p | PRECISION 2
+"{:.{}}" | 7, 2 | PRECISION 2
+# ---------------------------------------------------------------- dynamic width and precision
+"{:{}}" | 1, "w" | DYNAMIC_NOT_INT 2
+"{:{}}" | 1, d | DYNAMIC_NOT_INT 2
+"{:.{}}" | d, b | DYNAMIC_NOT_INT 3
+"{:{}}" | 1, p | DYNAMIC_NOT_INT 2
+"{0:{1}}" | 1, m | DYNAMIC_NOT_INT 3
+"{:{}}" | m, d | DYNAMIC_NOT_INT 2
+# ---------------------------------------------------------------- the compiler cannot see these
+"{:{}}" | 1, -3 | DYNAMIC_NEGATIVE 2 run
+"{:c}" | -1 | CHAR_RANGE 2 run
+"{:c}" | &hD800 | CHAR_RANGE 2 run
+"{}" | nz | NULL_CSTRING 1 run
+"{:!}" | m | CUSTOM 1 run
+"{:s}" | fa | BAD_TYPE 2 run
+"{} {:q}" | fa, 1 | BAD_TYPE 5 run
+!"\t{:q}" | 1 | BAD_TYPE 3 run
+# ---------------------------------------------------------------- the offset in UTF-16 units
+"é{:q}" | 1 | BAD_TYPE 3
+"😀{:q}" | 1 | BAD_TYPE 4
+"a""b{:q}" | 1 | BAD_TYPE 5
+$"raw {:q}" | 1 | BAD_TYPE 6
+"{:😀<4q}" | 1 | BAD_TYPE 2

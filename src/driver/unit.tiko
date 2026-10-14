@@ -368,6 +368,7 @@ function CompileUnit _
         Tko.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
                        info, cst )
         if ctx.diags.Stopped( ) then return false
+        Tko.Check.CheckFormatStrings( ast, syms, ctx.types, ctx.names, ctx.diags, info, ctx.sources )
         '' A name nothing declared, once Check has had its say -- fbc's 42. Not
         '' in a unit whose '#lang' was refused: there it may be an implicit one.
         if pr.langRefused = false then

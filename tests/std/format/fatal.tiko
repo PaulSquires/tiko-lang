@@ -1,6 +1,8 @@
 '' A refused format string in Format is a bug in the program: the reason and the offset go to
-'' stderr, then run-time error 1 stops it. Nothing after the call runs.
+'' stderr, then run-time error 1 stops it. Nothing after the call runs. Not a literal, which
+'' the compiler would refuse first (TKO0851).
 #import "std/strings"
+dim as ustring f = "x={} y={} z={}"
 print "before"
-print strings.Format( "x={} y={} z={}", 1, 2 )
+print strings.Format( f, 1, 2 )
 print "not reached"

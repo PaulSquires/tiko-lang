@@ -50,9 +50,14 @@ using containers
 '' ERRORS
 ''
 '' A format string that does not parse, or names an argument that is not there, is a BUG in the
-'' program, and Format / FormatTo / FormattedSize stop it: the reason and the offset go to
-'' stderr, then run-time error 1 (an 'on error' handler can still take it). TryFormat is for
-'' format strings that are DATA -- a template read from a file -- and returns the error instead.
+'' program. Written as a LITERAL, the compiler refuses it (TKO0847..TKO0858, the caret on the
+'' character at fault), as C++ refuses one at compile time. Any other format string Format /
+'' FormatTo / FormattedSize refuse when they run: the reason and the offset go to stderr, then
+'' run-time error 1 (an 'on error' handler can still take it).
+''
+'' TryFormat is for format strings that are DATA -- a template read from a file -- and returns
+'' the error instead. It takes a plain ustring, so a literal passed to it is not checked: C++'s
+'' runtime_format.
 ''
 '' WIDTH COUNTS CODE POINTS: a surrogate pair is one. C++ counts "estimated display width",
 '' where an East Asian wide character is two; that needs a width table this library does not
@@ -184,7 +189,10 @@ end constructor
 
 '' ---------------------------------------------------------------------------
 '' FormatString -- the format string's own type. A ustring, and a constructor from one; it
-'' exists so the compiler can recognise a format string where one is passed.
+'' exists so the compiler can recognise a format string where one is passed: a string LITERAL
+'' given to a FormatString parameter of a procedure whose last parameter is
+'' 'args( ) as const FormatArg ...' is checked against those arguments when the program is
+'' compiled. A procedure of your own with that shape is checked the same way.
 
 public type FormatString
     as ustring text
@@ -250,12 +258,12 @@ public function FormattedSize( byref fmt as const FormatString, args() as const 
 end function
 
 '' The text, or the reason the format string was refused -- for a format string that is data.
-public function TryFormat( byref fmt as const FormatString, args() as const FormatArg ... ) _
+public function TryFormat( byref fmt as const ustring, args() as const FormatArg ... ) _
     as outcome.Result( of ustring, FormatError )
 
     dim as ustring r
     dim as FormatError e
-    if FormatInto_( fmt.text, args( ), r, e ) then
+    if FormatInto_( fmt, args( ), r, e ) then
         return outcome.Ok( of ustring, FormatError )( r )
     end if
     return outcome.Fail( of ustring, FormatError )( e )

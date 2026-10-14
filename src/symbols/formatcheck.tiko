@@ -1,0 +1,610 @@
+'' formatcheck.tiko -- A LITERAL FORMAT STRING, CHECKED AGAINST ITS ARGUMENTS AT COMPILE TIME.
+''
+'' std/strings' Format (docs/tiko-strings/RFC-0002-format.md section 7.1) refuses a bad format
+'' string at RUN time; this refuses the same string when the program is compiled, as C++20's
+'' consteval format string does. The check is attached to the TYPE, not to a list of procedures:
+'' any call that passes a string literal to a parameter of type strings.FormatString, to a
+'' procedure whose last parameter is a typed variadic of strings.FormatArg, is checked -- so a
+'' user's own 'LogF( byref fmt as const strings.FormatString, args() as const strings.FormatArg ... )'
+'' gets it too.
+''
+'' THE PARSER IS THE LIBRARY'S, TRANSCRIBED (pkg/std/strings/formatimpl.tiko: FormatInto_,
+'' ParseSpec_, DynamicValue_ and the per-kind checks of FormatOne_), over the arguments' STATIC
+'' kinds: each packed argument's kind is the FormatArg constructor overload resolution picks for
+'' it, so the two can only disagree where that pick does. Every report carries the library's code
+'' (TKO0847..TKO0858 are FE_UNMATCHED_OPEN..FE_LOCALE, in order), its message and its offset, the
+'' caret placed on that character of the literal. One shared corpus drives both sides
+'' (tools/fmtcorpus), so they cannot drift apart unnoticed.
+''
+'' NOT CHECKED, because the answer is a run-time fact: a value ('{:c}' out of range, a negative
+'' dynamic width, a null zstring ptr); a Formattable's spec, which is its own language; anything
+'' after an argument whose kind is not known (a FormatArg passed as itself); a spread array; a
+'' format string that is not a literal; an escaped literal ('!"..."'), whose escapes would have to
+'' be decoded to map an offset back to its column.
+
+#import "std/containers"
+#include once "symbols/check.ti"
+
+namespace Tko.Check
+
+'' The kinds a packed argument formats as -- FormatArgKind, folded to what the checks tell apart.
+const FK_UNKNOWN = 0, FK_INT = 1, FK_BOOL = 2, FK_STR = 3, FK_CSTR = 4, FK_PTR = 5
+const FK_FLOAT = 6, FK_CUSTOM = 7
+
+'' The library's FormatErrorCode values, which the diagnostics follow one for one.
+const FE_UNMATCHED_OPEN = 1, FE_UNMATCHED_CLOSE = 2, FE_BAD_ARG_ID = 3, FE_MIXED_INDEXING = 4
+const FE_MISSING_ARG = 5, FE_BAD_SPEC = 6, FE_BAD_FILL = 7, FE_BAD_TYPE = 8, FE_BAD_MODIFIER = 9
+const FE_PRECISION = 10, FE_DYNAMIC_NOT_INT = 11, FE_LOCALE = 13
+
+type FcState_
+    '' The literal's value, in UTF-16 code units, and where each unit's text begins in the source.
+    as containers.Array( of ulong ) u
+    as containers.Array( of long )  srcAt
+    as long srcEnd                            '' the closing quote's offset, past the last unit
+    as containers.Array( of long )  kinds     '' FK_*, per packed argument
+    as long mode                              '' 0 not yet known, 1 automatic, 2 manual
+    as long nextAuto
+    '' The first refusal -- the library stops at its first, so this does too.
+    as long code
+    as long offset
+    as string message
+    '' An argument whose kind is not known was met: nothing after it can be judged.
+    as boolean unknown
+end type
+
+'' The parsed spec of one replacement field -- formatimpl.tiko's FmtSpec_, less the values.
+type FcSpec_
+    as long align
+    as long sign
+    as boolean alt
+    as boolean zero
+    as long prec = -1
+    as long ty
+    as long at
+end type
+
+private function FcFail_( byref s as FcState_, byval code as long, byval offset as long, byref msg as const string ) as boolean
+    s.code = code
+    s.offset = offset
+    s.message = msg
+    return false
+end function
+
+private function FcDigit_( byval ch as ulong ) as boolean
+    return (ch >= 48) andalso (ch <= 57)
+end function
+
+private function FcAt_( byref s as FcState_, byval j as long ) as ulong
+    return s.u[j]
+end function
+
+'' The kind an argument of type 'at' packs as: the FormatArg constructor that takes it, read by
+'' its parameter's type.
+private function FcKindOf_ _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
+      byval ctorFirst as Tko.SymbolId, byval at as Tko.TypeId ) as long
+
+    if at = Tko.TYPE_NONE then return FK_UNKNOWN
+    at = types.Unqualify( at )
+    if types.Kind( at ) = Tko.TK_REFERENCE then at = types.Unqualify( types.Inner( at ) )
+    dim as containers.Array( of ulong ) argT
+    argT.Push( cast( ulong, at ) )
+    dim as long ties = 0
+    dim as Tko.SymbolId pick = PickStructor( ast, syms, types, names, info, ctorFirst, argT, @ties )
+    if (pick = Tko.SYMBOL_NONE) orelse (ties > 0) then return FK_UNKNOWN
+    dim as Tko.Symbol ptr ps = syms.SymbolAt( pick )
+    if ps = 0 then return FK_UNKNOWN
+    dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
+    if (pn = Tko.NODE_NONE) orelse (ast.Kind( pn ) <> Tko.N_PROC) then return FK_UNKNOWN
+    dim as Tko.StmtPayload ptr pp = @ast.stmts[cast( long, ast.nodes[cast( long, pn )].data )]
+    for k as long = 0 to pp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + k] )
+        if ast.Kind( prm ) <> Tko.N_PARAM then continue for
+        dim as Tko.NodeId ptn = ast.stmts[cast( long, ast.nodes[cast( long, prm )].data )].a
+        if ptn = Tko.NODE_NONE then return FK_UNKNOWN
+        dim as Tko.TypeId pt = types.Unqualify( info.TypeOf_( ptn ) )
+        if types.Kind( pt ) = Tko.TK_REFERENCE then pt = types.Unqualify( types.Inner( pt ) )
+        select case types.Kind( pt )
+        case Tko.TK_BUILTIN
+            select case types.BuiltinOf( pt )
+            case Tko.TY_LONG, Tko.TY_LONGINT, Tko.TY_ULONG, Tko.TY_ULONGINT : return FK_INT
+            case Tko.TY_SINGLE, Tko.TY_DOUBLE : return FK_FLOAT
+            case Tko.TY_BOOLEAN : return FK_BOOL
+            case Tko.TY_STRING, Tko.TY_USTRING, Tko.TY_WSTRING : return FK_STR
+            end select
+        case Tko.TK_POINTER
+            dim as Tko.TypeId inner = types.Unqualify( types.Inner( pt ) )
+            if (types.Kind( inner ) = Tko.TK_BUILTIN) andalso (types.BuiltinOf( inner ) = Tko.TY_ZSTRING) then return FK_CSTR
+            return FK_PTR
+        case Tko.TK_UDT
+            if lcase( names.Spelling( types.NameOf( pt ) ) ) = "formattable" then return FK_CUSTOM
+        end select
+        return FK_UNKNOWN
+    next
+    return FK_UNKNOWN
+end function
+
+'' ---------------------------------------------------------------------------
+'' The parser -- formatimpl.tiko's, over kinds instead of values
+
+'' A dynamic width or precision at u[j] = '{' (DynamicValue_).
+private function FcDynamic_( byref s as FcState_, byref j as long ) as boolean
+    dim as long n = s.u.Count
+    dim as long at = j
+    j += 1
+    dim as long idx = 0
+    if (j < n) andalso FcDigit_( FcAt_( s, j ) ) then
+        if (FcAt_( s, j ) = 48) andalso (j + 1 < n) andalso FcDigit_( FcAt_( s, j + 1 ) ) then return FcFail_( s, FE_BAD_ARG_ID, j, "an argument id has no leading zero" )
+        while (j < n) andalso FcDigit_( FcAt_( s, j ) )
+            if idx > 99999999 then return FcFail_( s, FE_BAD_ARG_ID, j, "argument id out of range" )
+            idx = idx * 10 + (FcAt_( s, j ) - 48)
+            j += 1
+        wend
+        if s.mode = 1 then return FcFail_( s, FE_MIXED_INDEXING, at, "cannot switch from automatic to manual argument indexing" )
+        s.mode = 2
+    else
+        if s.mode = 2 then return FcFail_( s, FE_MIXED_INDEXING, at, "cannot switch from manual to automatic argument indexing" )
+        s.mode = 1
+        idx = s.nextAuto
+        s.nextAuto += 1
+    end if
+    if (j >= n) orelse (FcAt_( s, j ) <> 125) then return FcFail_( s, FE_BAD_SPEC, j, "a dynamic width or precision is '{}' or '{n}'" )
+    j += 1
+    dim as long count = s.kinds.Count
+    if idx >= count then return FcFail_( s, FE_MISSING_ARG, at, "no argument " & idx & " (" & count & " given)" )
+    select case s.kinds[idx]
+    case FK_INT, FK_UNKNOWN
+    case else
+        return FcFail_( s, FE_DYNAMIC_NOT_INT, at, "a dynamic width or precision must be an integer" )
+    end select
+    return true
+end function
+
+private function FcNumber_( byref s as FcState_, byref j as long ) as boolean
+    dim as long n = s.u.Count
+    dim as long value = 0
+    while (j < n) andalso FcDigit_( FcAt_( s, j ) )
+        if value > 99999999 then return FcFail_( s, FE_BAD_SPEC, j, "a width or precision is too large" )
+        value = value * 10 + (FcAt_( s, j ) - 48)
+        j += 1
+    wend
+    return true
+end function
+
+'' The spec from u[j] -- just past ':' -- to its closing '}', which j is left ON (ParseSpec_).
+private function FcSpec_( byref s as FcState_, byref j as long, byref sp as FcSpec_ ) as boolean
+    dim as long n = s.u.Count
+    sp.at = j
+    if j >= n then return FcFail_( s, FE_UNMATCHED_OPEN, j, "'{' has no '}'" )
+
+    '' [[fill] align]
+    dim as long units = 1
+    dim as ulong cp = FcAt_( s, j )
+    if (cp >= &hD800) andalso (cp <= &hDBFF) andalso (j + 1 < n) then
+        dim as ulong c2 = FcAt_( s, j + 1 )
+        if (c2 >= &hDC00) andalso (c2 <= &hDFFF) then units = 2
+    end if
+    dim as boolean aligned = false
+    if j + units < n then
+        dim as ulong nx = FcAt_( s, j + units )
+        if (nx = 60) orelse (nx = 62) orelse (nx = 94) then
+            if (cp = 123) orelse (cp = 125) then return FcFail_( s, FE_BAD_FILL, j, "'{' and '}' cannot be the fill character" )
+            sp.align = nx
+            j += units + 1
+            aligned = true
+        end if
+    end if
+    if (aligned = false) andalso (j < n) then
+        dim as ulong a = FcAt_( s, j )
+        if (a = 60) orelse (a = 62) orelse (a = 94) then
+            sp.align = a
+            j += 1
+        end if
+    end if
+    '' [sign] ['#'] ['0']
+    if j < n then
+        dim as ulong sg = FcAt_( s, j )
+        if (sg = 43) orelse (sg = 45) orelse (sg = 32) then
+            sp.sign = sg
+            j += 1
+        end if
+    end if
+    if (j < n) andalso (FcAt_( s, j ) = 35) then
+        sp.alt = true
+        j += 1
+    end if
+    if (j < n) andalso (FcAt_( s, j ) = 48) then
+        sp.zero = true
+        j += 1
+    end if
+    '' [width]
+    if (j < n) andalso FcDigit_( FcAt_( s, j ) ) then
+        if FcNumber_( s, j ) = false then return false
+    elseif (j < n) andalso (FcAt_( s, j ) = 123) then
+        if FcDynamic_( s, j ) = false then return false
+    end if
+    '' ['.' precision]
+    if (j < n) andalso (FcAt_( s, j ) = 46) then
+        j += 1
+        sp.prec = 0
+        if (j < n) andalso FcDigit_( FcAt_( s, j ) ) then
+            if FcNumber_( s, j ) = false then return false
+        elseif (j < n) andalso (FcAt_( s, j ) = 123) then
+            if FcDynamic_( s, j ) = false then return false
+        else
+            return FcFail_( s, FE_BAD_SPEC, j, "'.' is followed by a precision" )
+        end if
+    end if
+    if (j < n) andalso (FcAt_( s, j ) = 76) then return FcFail_( s, FE_LOCALE, j, "'L' (locale) is not supported" )
+    '' [type]
+    if (j < n) andalso (FcAt_( s, j ) <> 125) then
+        sp.ty = FcAt_( s, j )
+        j += 1
+    end if
+    if j >= n then return FcFail_( s, FE_UNMATCHED_OPEN, j, "'{' has no '}'" )
+    if FcAt_( s, j ) <> 125 then return FcFail_( s, FE_BAD_SPEC, j, "the format spec does not end here" )
+    return true
+end function
+
+private function FcTyName_( byval ty as long ) as string
+    return "'" & chr( ty ) & "'"
+end function
+
+'' FmtInteger_'s refusals.
+private function FcInteger_( byref s as FcState_, byref sp as const FcSpec_ ) as boolean
+    if sp.prec >= 0 then return FcFail_( s, FE_PRECISION, sp.at, "an integer takes no precision" )
+    select case sp.ty
+    case 0, 100, 98, 66, 111, 120, 88
+    case 99
+        if (sp.sign <> 0) orelse sp.alt then return FcFail_( s, FE_BAD_MODIFIER, sp.at, "'c' takes no sign or '#'" )
+        if sp.zero then return FcFail_( s, FE_BAD_MODIFIER, sp.at, "'c' takes no '0'" )
+    case else
+        return FcFail_( s, FE_BAD_TYPE, sp.at, FcTyName_( sp.ty ) & " is no presentation type for an integer" )
+    end select
+    return true
+end function
+
+'' FmtText_'s.
+private function FcText_( byref s as FcState_, byval allowDebug as boolean, byref sp as const FcSpec_ ) as boolean
+    if (sp.sign <> 0) orelse sp.alt then return FcFail_( s, FE_BAD_MODIFIER, sp.at, "text takes no sign or '#'" )
+    if sp.zero then return FcFail_( s, FE_BAD_MODIFIER, sp.at, "text takes no '0'" )
+    select case sp.ty
+    case 0, 115
+    case 63
+        if allowDebug = false then return FcFail_( s, FE_BAD_TYPE, sp.at, "'?' is no presentation type here" )
+    case else
+        return FcFail_( s, FE_BAD_TYPE, sp.at, FcTyName_( sp.ty ) & " is no presentation type for text" )
+    end select
+    if (sp.prec >= 0) andalso (allowDebug = false) then return FcFail_( s, FE_PRECISION, sp.at, "a boolean takes no precision" )
+    return true
+end function
+
+'' FmtPointer_'s.
+private function FcPointer_( byref s as FcState_, byref sp as const FcSpec_ ) as boolean
+    if (sp.sign <> 0) orelse sp.alt then return FcFail_( s, FE_BAD_MODIFIER, sp.at, "a pointer takes no sign or '#'" )
+    if sp.prec >= 0 then return FcFail_( s, FE_PRECISION, sp.at, "a pointer takes no precision" )
+    select case sp.ty
+    case 0, 112, 80
+    case else
+        return FcFail_( s, FE_BAD_TYPE, sp.at, FcTyName_( sp.ty ) & " is no presentation type for a pointer" )
+    end select
+    return true
+end function
+
+'' FormatOne_'s, by kind.
+private function FcOne_( byref s as FcState_, byval kind as long, byref sp as const FcSpec_ ) as boolean
+    select case kind
+    case FK_INT
+        return FcInteger_( s, sp )
+    case FK_BOOL
+        select case sp.ty
+        case 0, 115 : return FcText_( s, false, sp )
+        case 99 : return FcFail_( s, FE_BAD_TYPE, sp.at, "'c' is no presentation type for a boolean" )
+        case else : return FcInteger_( s, sp )
+        end select
+    case FK_STR
+        return FcText_( s, true, sp )
+    case FK_CSTR
+        if (sp.ty = 112) orelse (sp.ty = 80) then return FcPointer_( s, sp )
+        return FcText_( s, true, sp )
+    case FK_PTR
+        return FcPointer_( s, sp )
+    case FK_FLOAT
+        select case sp.ty
+        case 0, 97, 101, 102, 103, 65, 69, 70, 71
+        case else
+            return FcFail_( s, FE_BAD_TYPE, sp.at, FcTyName_( sp.ty ) & " is no presentation type for a floating-point value" )
+        end select
+    end select
+    return true
+end function
+
+'' A Formattable's field, from u[j] -- ':' or '}' -- to its '}' (FormatCustom_): only the nested
+'' '{}' are the library's; the rest of the spec is the type's own.
+private function FcCustom_( byref s as FcState_, byref j as long ) as boolean
+    dim as long n = s.u.Count
+    dim as long at = j
+    if FcAt_( s, j ) <> 58 then return true
+    j += 1
+    while j < n
+        if FcAt_( s, j ) = 125 then exit while
+        if FcAt_( s, j ) = 123 then
+            if FcDynamic_( s, j ) = false then return false
+        else
+            j += 1
+        end if
+    wend
+    if j >= n then return FcFail_( s, FE_UNMATCHED_OPEN, at, "'{' has no '}'" )
+    return true
+end function
+
+'' The whole format string (FormatInto_). False at the first refusal; true when it is accepted
+'' or cannot be judged further.
+private function FcString_( byref s as FcState_ ) as boolean
+    dim as long n = s.u.Count
+    dim as long count = s.kinds.Count
+    dim as long i = 0
+    while i < n
+        dim as ulong ch = FcAt_( s, i )
+        if ch = 123 then
+            if (i + 1 < n) andalso (FcAt_( s, i + 1 ) = 123) then
+                i += 2
+                continue while
+            end if
+            dim as long j = i + 1
+            if j >= n then return FcFail_( s, FE_UNMATCHED_OPEN, i, "'{' has no '}'" )
+            dim as long idx = 0
+            if FcDigit_( FcAt_( s, j ) ) then
+                if (FcAt_( s, j ) = 48) andalso (j + 1 < n) andalso FcDigit_( FcAt_( s, j + 1 ) ) then
+                    return FcFail_( s, FE_BAD_ARG_ID, j, "an argument id has no leading zero" )
+                end if
+                while (j < n) andalso FcDigit_( FcAt_( s, j ) )
+                    if idx > 99999999 then return FcFail_( s, FE_BAD_ARG_ID, j, "argument id out of range" )
+                    idx = idx * 10 + (FcAt_( s, j ) - 48)
+                    j += 1
+                wend
+                if s.mode = 1 then return FcFail_( s, FE_MIXED_INDEXING, i, "cannot switch from automatic to manual argument indexing" )
+                s.mode = 2
+            else
+                if (FcAt_( s, j ) <> 58) andalso (FcAt_( s, j ) <> 125) then
+                    return FcFail_( s, FE_BAD_ARG_ID, j, "a replacement field is '{', an argument id, a ':' spec, then '}'" )
+                end if
+                if s.mode = 2 then return FcFail_( s, FE_MIXED_INDEXING, i, "cannot switch from manual to automatic argument indexing" )
+                s.mode = 1
+                idx = s.nextAuto
+                s.nextAuto += 1
+            end if
+            if j >= n then return FcFail_( s, FE_UNMATCHED_OPEN, i, "'{' has no '}'" )
+            if (FcAt_( s, j ) <> 58) andalso (FcAt_( s, j ) <> 125) then
+                return FcFail_( s, FE_BAD_ARG_ID, j, "a replacement field is '{', an argument id, a ':' spec, then '}'" )
+            end if
+            if idx >= count then return FcFail_( s, FE_MISSING_ARG, i, "no argument " & idx & " (" & count & " given)" )
+            dim as long kind = s.kinds[idx]
+            if kind = FK_UNKNOWN then
+                '' A FormatArg as itself: a Formattable's spec, or a standard one -- not known here.
+                s.unknown = true
+                return true
+            elseif kind = FK_CUSTOM then
+                if FcCustom_( s, j ) = false then return false
+            else
+                dim as FcSpec_ sp
+                sp.at = j
+                if FcAt_( s, j ) = 58 then
+                    j += 1
+                    if FcSpec_( s, j, sp ) = false then return false
+                end if
+                if FcOne_( s, kind, sp ) = false then return false
+            end if
+            i = j + 1
+        elseif ch = 125 then
+            if (i + 1 < n) andalso (FcAt_( s, i + 1 ) = 125) then
+                i += 2
+                continue while
+            end if
+            return FcFail_( s, FE_UNMATCHED_CLOSE, i, "'}' closes nothing; a literal one is '}}'" )
+        else
+            i += 1
+        end if
+    wend
+    return true
+end function
+
+'' ---------------------------------------------------------------------------
+'' The call sites
+
+'' Is UDT 't' std/strings' type 'nm' -- declared in the interface namespace of module std.strings?
+private function FcStdStringsType_ _
+    ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
+      byval t as Tko.TypeId, byref nm as const string ) as boolean
+
+    if t = Tko.TYPE_NONE then return false
+    t = types.Unqualify( t )
+    if types.Kind( t ) = Tko.TK_REFERENCE then t = types.Unqualify( types.Inner( t ) )
+    if types.Kind( t ) <> Tko.TK_UDT then return false
+    if lcase( names.Spelling( types.NameOf( t ) ) ) <> nm then return false
+    dim as Tko.ScopeId cur = cast( Tko.ScopeId, types.DeclScopeOf( t ) )
+    dim as long guard = 0
+    while (cur <> Tko.SCOPE_NONE) andalso (guard < 64)
+        guard += 1
+        dim as Tko.SymScope ptr sc = syms.ScopeAt( cur )
+        if sc = 0 then exit while
+        for k as long = 0 to syms.importNs.Count - 1
+            if syms.importNs[k] = cast( ulong, sc->owner ) then
+                return lcase( syms.importChains[k] ) = "std.strings"
+            end if
+        next
+        cur = sc->parent
+    wend
+    return false
+end function
+
+'' The literal's value as UTF-16 code units, each with the source offset its text begins at.
+'' False for a literal whose escapes would have to be decoded first.
+private function FcLiteral_ _
+    ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, byval lit as Tko.NodeId, _
+      byref s as FcState_, byref file as Tko.FileId, byref base_ as long ) as boolean
+
+    dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( long, ast.nodes[cast( long, lit )].data )]
+    if lp->strKind = cast( ubyte, Tko.STRK_ESCAPED ) then return false
+    file = cast( Tko.FileId, lp->strFile )
+    base_ = lp->strOffset
+    s.srcEnd = lp->strLength
+    dim as Tko.SourceFile ptr f = src.FileAt( file )
+    if f = 0 then return false
+    if (lp->strOffset + lp->strLength) > f->text.Count then return false
+    dim as boolean plain = (lp->strKind = cast( ubyte, Tko.STRK_PLAIN ))
+    dim as long i = 0
+    while i < lp->strLength
+        dim as long at = i
+        dim as ulong b = f->text[lp->strOffset + i]
+        dim as ulong cp = b
+        dim as long more = 0
+        if b >= &hF0 then
+            cp = b and &h07 : more = 3
+        elseif b >= &hE0 then
+            cp = b and &h0F : more = 2
+        elseif b >= &hC0 then
+            cp = b and &h1F : more = 1
+        end if
+        i += 1
+        while (more > 0) andalso (i < lp->strLength)
+            cp = (cp shl 6) or (f->text[lp->strOffset + i] and &h3F)
+            i += 1
+            more -= 1
+        wend
+        '' '""' INSIDE A PLAIN LITERAL IS ONE QUOTE.
+        if plain andalso (b = 34) andalso (i < lp->strLength) andalso (f->text[lp->strOffset + i] = 34) then i += 1
+        if cp >= &h10000 then
+            s.u.Push( &hD800 + ((cp - &h10000) shr 10) ) : s.srcAt.Push( at )
+            s.u.Push( &hDC00 + ((cp - &h10000) and &h3FF) ) : s.srcAt.Push( at )
+        else
+            s.u.Push( cp ) : s.srcAt.Push( at )
+        end if
+    wend
+    return true
+end function
+
+private sub FcReport_ _
+    ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, byref diags as Tko.DiagnosticEngine, _
+      byval lit as Tko.NodeId, byref s as FcState_, byval file as Tko.FileId, byval base_ as long )
+
+    '' The caret on the offending character -- when the literal's text is in the file the node
+    '' is (a macro's or a block string's is not, and those point at the literal).
+    dim as Tko.SourceLoc at = ast.Loc( lit )
+    dim as Tko.FileId nodeFile
+    src.LocOffset( at, nodeFile )
+    if nodeFile = file then
+        dim as long k = s.offset
+        if k >= s.u.Count then
+            at = src.LocFor( file, base_ + s.srcEnd )
+        elseif k >= 0 then
+            at = src.LocFor( file, base_ + s.srcAt[k] )
+        end if
+    end if
+    dim as Tko.DiagId id
+    select case s.code
+    case FE_UNMATCHED_OPEN : id = Tko.TKO0847
+    case FE_UNMATCHED_CLOSE : id = Tko.TKO0848
+    case FE_BAD_ARG_ID : id = Tko.TKO0849
+    case FE_MIXED_INDEXING : id = Tko.TKO0850
+    case FE_MISSING_ARG : id = Tko.TKO0851
+    case FE_BAD_SPEC : id = Tko.TKO0852
+    case FE_BAD_FILL : id = Tko.TKO0853
+    case FE_BAD_TYPE : id = Tko.TKO0854
+    case FE_BAD_MODIFIER : id = Tko.TKO0855
+    case FE_PRECISION : id = Tko.TKO0856
+    case FE_DYNAMIC_NOT_INT : id = Tko.TKO0857
+    case FE_LOCALE : id = Tko.TKO0858
+    case else : exit sub
+    end select
+    diags.Report( id, Tko.PointRange( at ), s.message, str( s.offset ) )
+end sub
+
+'' Whether a packed argument is a whole array -- the spread form, one argument that IS the list.
+private function FcArrayArg_ _
+    ( byref ast as Tko.AstArena, byref types as Tko.TypeContext, byref info as Tko.SemanticInfo, _
+      byval e as Tko.NodeId ) as boolean
+
+    if (e = Tko.NODE_NONE) orelse (ast.Kind( e ) <> Tko.N_CALL) then return false
+    if types.IsDynArray( types.Unqualify( info.TypeOf_( e ) ) ) then return true
+    dim as Tko.ListPayload ptr lp = @ast.lists[cast( long, ast.nodes[cast( long, e )].data )]
+    if (lp->count <> 0) orelse (lp->target = Tko.NODE_NONE) then return false
+    dim as Tko.TypeId tt = info.TypeOf_( lp->target )
+    if tt = Tko.TYPE_NONE then return false
+    return types.Kind( types.Unqualify( tt ) ) = Tko.TK_ARRAY
+end function
+
+sub CheckFormatStrings _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
+      byref info as Tko.SemanticInfo, byref src as Tko.SourceManager )
+
+    '' Nothing to do in a unit that never imported std/strings.
+    dim as boolean imported = false
+    for k as long = 0 to syms.importChains.Count - 1
+        if lcase( syms.importChains[k] ) = "std.strings" then imported = true
+    next
+    if imported = false then exit sub
+
+    for i as long = 1 to ast.Count( )
+        dim as Tko.NodeId n = cast( Tko.NodeId, i )
+        if ast.Kind( n ) <> Tko.N_CALL then continue for
+        dim as Tko.ListPayload ptr cp = @ast.lists[cast( long, ast.nodes[cast( long, n )].data )]
+        if (cp->target = Tko.NODE_NONE) orelse (cp->count <= 0) then continue for
+        dim as Tko.SymbolId callee = info.RefOf( n )
+        if callee = Tko.SYMBOL_NONE then callee = info.RefOf( cp->target )
+        dim as Tko.Symbol ptr s = syms.SymbolAt( callee )
+        if s = 0 then continue for
+        if s->kind <> cast( ubyte, Tko.SYM_PROC ) then continue for
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        if (pn = Tko.NODE_NONE) orelse (ast.Kind( pn ) <> Tko.N_PROC) then continue for
+        dim as Tko.StmtPayload ptr pp = @ast.stmts[cast( long, ast.nodes[cast( long, pn )].data )]
+        if (pp->extra and Tko.PF_GENERIC_PROC) <> 0 then continue for
+
+        '' The FormatString parameter's argument, and the typed variadic of FormatArg.
+        dim as Tko.NodeId lit = Tko.NODE_NONE
+        dim as long varAt = -1
+        dim as Tko.TypeId argElem = Tko.TYPE_NONE
+        dim as long ai = 0
+        for k as long = 0 to pp->count - 1
+            dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + k] )
+            if ast.Kind( prm ) <> Tko.N_PARAM then continue for
+            dim as Tko.NodeId pta = ast.stmts[cast( long, ast.nodes[cast( long, prm )].data )].a
+            dim as Tko.TypeId pt = Tko.TYPE_NONE
+            if pta <> Tko.NODE_NONE then pt = info.TypeOf_( pta )
+            if (ast.nodes[cast( long, prm )].flags and Tko.NF_VARIADIC) <> 0 then
+                if FcStdStringsType_( syms, types, names, pt, "formatarg" ) then
+                    varAt = ai
+                    argElem = types.Unqualify( pt )
+                    if types.Kind( argElem ) = Tko.TK_REFERENCE then argElem = types.Unqualify( types.Inner( argElem ) )
+                end if
+                exit for
+            end if
+            if (ai < cp->count) andalso FcStdStringsType_( syms, types, names, pt, "formatstring" ) then
+                dim as Tko.NodeId a = cast( Tko.NodeId, ast.children[cp->first + ai] )
+                if (a <> Tko.NODE_NONE) andalso (ast.Kind( a ) = Tko.N_STRING_LIT) then lit = a
+            end if
+            ai += 1
+        next
+        if (lit = Tko.NODE_NONE) orelse (varAt < 0) then continue for
+        '' A spread: the list's length is a run-time fact.
+        if (cp->count = varAt + 1) andalso FcArrayArg_( ast, types, info, cast( Tko.NodeId, ast.children[cp->first + varAt] ) ) then continue for
+
+        dim as Tko.SymbolId ctorFirst = StructorNamed( syms, types, names, argElem, "__ctor" )
+        if ctorFirst = Tko.SYMBOL_NONE then continue for
+        dim as FcState_ st
+        for v as long = varAt to cp->count - 1
+            dim as Tko.NodeId a = cast( Tko.NodeId, ast.children[cp->first + v] )
+            dim as long kind = FK_UNKNOWN
+            if a <> Tko.NODE_NONE then kind = FcKindOf_( ast, syms, types, names, info, ctorFirst, info.TypeOf_( a ) )
+            st.kinds.Push( kind )
+        next
+        dim as Tko.FileId file
+        dim as long base_
+        if FcLiteral_( ast, src, lit, st, file, base_ ) = false then continue for
+        if FcString_( st ) = false then FcReport_( ast, src, diags, lit, st, file, base_ )
+    next
+end sub
+
+end namespace
