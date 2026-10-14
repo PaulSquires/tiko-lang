@@ -61,18 +61,18 @@ loads libclang, parses the header, prints the libclang it loaded, clang's versio
 ## The command-line form
 
 ```
-tiko -cimport windows.h -cimport-out windows_generated.ti
+tiko -cimport raylib.h -cimport-out raylib_generated.ti
 ```
 
-generates the binding as a **file** instead of including it — for reading, for checking into a repository, or for diffing across an SDK upgrade. The output is deterministic: the same headers and options give a byte-identical file on either operating system, so a diff means something changed in the header.
+generates the binding as a **file** instead of including it — for reading, for checking into a repository, or for diffing across a library upgrade. The output is deterministic: the same headers and options give a byte-identical file on either operating system, so a diff means something changed in the header.
 
 Several headers in one command share one binding, and shared types are declared exactly once:
 
 ```
-tiko -cimport windows.h -cimport commctrl.h -cimport-out win.ti
+tiko -cimport raylib.h -cimport raymath.h -cimport rlgl.h -cimport-out raylib.ti
 ```
 
-> On windows-x86_64: `windows.h` alone gives 42,945 declarations in 13 s, and two runs are byte-identical (across operating systems is not measured); with `commctrl.h` added, 45,851 declarations and `tagPOINT` declared once. `-cimport-out -` writes the binding to standard output. tiko imports a named record declared inside another (`sqlite3.h`'s `sqlite3_index_info`), an array parameter, and an anonymous member of an unnamed record.
+> On windows-x86_64, with raylib 6.0's headers: `raylib.h` alone gives 714 declarations in under a second, and two runs are byte-identical (across operating systems is not measured); with `raymath.h` and `rlgl.h` added, 1,273 declarations, and `Vector2`, `Vector3`, `Matrix` and `Color` are each declared once. `-cimport-out -` writes the binding to standard output. tiko imports a named record declared inside another (`sqlite3.h`'s `sqlite3_index_info`), an array parameter, and an anonymous member of an unnamed record.
 
 ## Options
 
