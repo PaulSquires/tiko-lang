@@ -281,28 +281,6 @@ Reached from tiko code through 'extern "C" declare ... alias' at the module's sc
 
 Split, SplitChars, Join, SplitCsv and SplitCsvRow are the only ones with tiko bodies, because their result is an Array( of T ) that the runtime cannot build. They are public members of the module, compiled once with it, so any number of files in a program can import std/strings and still link. The runtime side returns field boundaries rather than strings, so a split is two linear passes instead of the ParseCount-then-Parse-in-a-loop shape, which rescans from the start for every field and is quadratic.
 
-## ONE COMPILER QUIRK WORTH KNOWING
-
-LEN and SIZEOF do not honour a namespace qualifier on a function call that comes first in
-their operand:
-
-```freebasic
-print len( strings.Replace( s, "a", "b" ) )    ' error TKO0743: 'replace' is not declared
-```
-
-This is not specific to this library or to USTRING -- it fails identically on
-
-```freebasic
-namespace NS
-    function Twice( byref s as const string ) as string : ... : end function
-end namespace
-print len( NS.Twice( t ) )
-```
-
-The operand may be a TYPE, and 'strings.' may begin one, so the compiler reads the qualifier as a type's, finds no type, and parses what follows it UNQUALIFIED. With no 'Replace' in view that is TKO0743. With one in view it is worse: that one is called. Given a global 'function Twice' beside NS's, 'len( NS.Twice( t ) )' calls the global one. The qualifier holds when the call is not the first thing in the operand: '( NS.Twice( t ) )', '"x" & NS.Twice( t )' and 'cast( ... )' all reach NS's. It also holds for a qualified VARIABLE, so 'len( NS.v )' is NS's.
-
-tests/mir/len-ns-prefix.test and tests/diagnostics/len-ns-prefix.test hold it. The workarounds are ordinary: write 'using strings' and drop the qualifier, or assign the result first and take LEN of the variable, or put the call in parentheses. It is mentioned here only because the qualified spelling is the natural one to reach for before discovering 'using', and the error message points nowhere near the cause.
-
 ## Money Formatting
 
 `MoneyFormat`, from `std/money`, renders an amount the way the user's locale writes money. Assign a numeric value, set the properties you care about, read back the string.
@@ -330,10 +308,6 @@ Windows reads `GetLocaleInfoEx( LOCALE_NAME_USER_DEFAULT, ... )` and Linux reads
 On Linux it asks for `LC_MONETARY` alone. Widening it to `LC_ALL` would move `LC_NUMERIC` too, and `DecimalFromDouble` parses `snprintf( "%.14e" )` output -- under a German `LC_NUMERIC` every double assigned to a MoneyFormat would silently become an invalid Decimal. Formatting money must not change how the rest of the program reads numbers.
 
 The thirty layout combinations behind [MoneyCompose](Modern-String-MoneyCompose) were generated from glibc, not transcribed: thirty synthetic locales built with `localedef` and formatted with `strfmon(3)`, asserted one cell at a time.
-
-## Dialects
-
--lang fb only. The library uses namespaces, and Split returns a generic container. std/strings says so with #error rather than failing obscurely.
 
 ## API reference
 
