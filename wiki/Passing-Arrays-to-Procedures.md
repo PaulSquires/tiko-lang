@@ -79,8 +79,8 @@ For a fixed-length array, the descriptor is only used for passing the array to a
  **-** lbound
  **-** ubound
 
- **`(*)`**: Additional member field (an 'Uinteger') for fbc versions >= 1.08
- (see the include file `./inc/fbc-int/array.bi` for fbc versions >= 1.07)
+ **`(*)`**: Additional member field (an 'Uinteger')
+ (see the include file `./inc/fbc-int/array.bi`)
 
 For more information, see [Fbarray (Array Descriptor Structure And Access)](Fbarray-Array-Descriptor-Structure-and-Access).
 

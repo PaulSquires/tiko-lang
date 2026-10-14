@@ -32,5 +32,4 @@ print MoneyCompose( "1,234.50", "$", "-", false, 1, 3 )   '' 1,234.50 -$
 
 **Library:** [String Library](Category-String-Library)  
 **Category:** [String Library](Category-String-Library)  
-**Documented under:** Money Formatting  
-**Source:** `docs/string/string.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Money Formatting

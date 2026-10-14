@@ -18,7 +18,7 @@ See also
 - [Compiler Option: -r](Compiler-Option-R)
 - [Compiler Option: -m](Compiler-Option-M)
 - [Compiler Option: -o](Compiler-Option-O)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

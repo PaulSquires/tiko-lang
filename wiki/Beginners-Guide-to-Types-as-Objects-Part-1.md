@@ -252,7 +252,7 @@ Private:
 End Type
 ```
 
- Now try adding `Print *foo.p_x` to the main code and compile it. You'll get a message from fbc "`error 173: Illegal member access, found 'p_x' in 'Print *foo.p_x'`", showing that indeed the compiler is now enforcing the fact we made `p_x` private. When you use `private:` or `public:`, any members following that statement follow the rule. Here's a rather pointless example just to show the syntax:
+ Now try adding `Print *foo.p_x` to the main code and compile it. You'll get a message from the compiler "`error 173: Illegal member access, found 'p_x' in 'Print *foo.p_x'`", showing that indeed the compiler is now enforcing the fact we made `p_x` private. When you use `private:` or `public:`, any members following that statement follow the rule. Here's a rather pointless example just to show the syntax:
 
 ```freebasic
 Type bar

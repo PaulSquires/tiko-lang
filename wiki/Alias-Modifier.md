@@ -83,11 +83,6 @@ Declare Sub name ( param As datatype alias "modifier", ... )
 Declare Function name ( param As datatype alias "modifier", ... ) As datatype alias "modifier"
 ```
 
-### Version
-
-- Before fbc 1.10.0, the `[u]byte alias "char"` modifier was not supported.
-- Since fbc 1.06.0
-
 ### Differences from QB
 
 - In QB, `Alias` only worked with [`Declare`](Declare).

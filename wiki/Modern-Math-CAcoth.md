@@ -28,5 +28,4 @@ print CToString( CAcoth( CSet( 2, 0 ) ) )  '' 0.5493061443340549-0i   -- 1/2 is 
 
 **Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
-**Documented under:** Members  
-**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

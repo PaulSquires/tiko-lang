@@ -16,22 +16,22 @@ An executable file is one which can be executed (it can be run on the command-li
  On Windows, the file's extension must be one of a fixed set of executable file extensions, including **`'*.exe'`**.  
  On Unix systems, the file's "executable" flag must also be set.
 
- FreeBASIC consists of fbc (the command line compiler/linker), the runtime libraries, and FreeBASIC header files for third-party libraries.  
- In order to produce executables, fbc uses the GNU binutils (assembler, linker). When compiling for architectures other than 32bit x86, fbc depends on gcc to generate assembly.
+ FreeBASIC consists of the command line compiler/linker, the runtime libraries, and FreeBASIC header files for third-party libraries.  
+ In order to produce executables, the compiler uses the GNU binutils (assembler, linker). When compiling for architectures other than 32bit x86, the compiler depends on gcc to generate assembly.
 
- FreeBASIC provides the FreeBASIC compiler/linker program (fbc or fbc.exe), as well as the tools and libraries it uses:
+ FreeBASIC provides the FreeBASIC compiler/linker program, as well as the tools and libraries it uses:
 
-- fbc is a command line program that takes FreeBASIC source/include files (**`'*.bas'`**/**`'*.bi'`**) and object/library files (**`'*.o'`**/**`'*.a'`**), then compiles them into executables.
- - fbc is typically invoked by Integrated Development Environments (IDEs) or text editors, from a terminal or command prompt, or through build-systems such as makefiles.
- - fbc itself is not a graphical code editor or IDE!
+- The compiler is a command line program that takes FreeBASIC source/include files (**`'*.bas'`**/**`'*.bi'`**) and object/library files (**`'*.o'`**/**`'*.a'`**), then compiles them into executables.
+ - The compiler is typically invoked by Integrated Development Environments (IDEs) or text editors, from a terminal or command prompt, or through build-systems such as makefiles.
+ - The compiler itself is not a graphical code editor or IDE!
 
 By default, FreeBASIC programs are linked against various system and/or support libraries, depending on the platform.  
  Those include the DJGPP libraries used by FreeBASIC for DOS and the MinGW/GCC libraries used by FreeBASIC for Windows.
 
 Compiling an executable, in general
 
-fbc is a compiler that takes fbc source code and transforms it in to a file that can be loaded and executed (run) by the operating system.  
- fbc doesn't do this all on it's own. It uses some intermediate files and other tools to complete this transformation.
+The compiler takes source code and transforms it in to a file that can be loaded and executed (run) by the operating system.  
+ The compiler doesn't do this all on it's own. It uses some intermediate files and other tools to complete this transformation.
 
  *The "main" entry point of an executable*
 
@@ -42,21 +42,21 @@ An executable needs a starting point.
 
 `$ fbc program.bas module1.bas module2.bas`
 
-"program" becomes the main module because it is first, and fbc will generate an implicit "main" function that will be executed first when the executable is loaded.
+"program" becomes the main module because it is first, and the compiler will generate an implicit "main" function that will be executed first when the executable is loaded.
 
 This default can be overridden with the '-m module' option to specify a main module that is not the first source file given on the command line:
 
 `$ fbc -m program module1.bas module2.bas program.bas`
 
-The "-m program" option tells fbc to use "program.bas" as the main module, even though "program.bas" is not listed first.
+The "-m program" option tells the compiler to use "program.bas" as the main module, even though "program.bas" is not listed first.
 
-If no other option is given that will affect the compile process, this "main" function is generated implicitly by fbc.  
+If no other option is given that will affect the compile process, this "main" function is generated implicitly by the compiler.  
  There can be only one "main" function for an executable. It's not possible to have more than one "main" function.
 
 Compile process for an executable
 
-When fbc compiles basic source code, it translates the source in to another format that can be used by other tools that eventually create an executable.  
- By default, fbc will use these other tools automatically:
+When the compiler compiles basic source code, it translates the source in to another format that can be used by other tools that eventually create an executable.  
+ By default, the compiler will use these other tools automatically:
 
 ```freebasic
 '     .-------------------------------------.
@@ -94,7 +94,7 @@ When fbc compiles basic source code, it translates the source in to another form
 
 ```
 
-To see all the steps that fbc uses, specify '-v' on the command line to see the steps.  
+To see all the steps that the compiler uses, specify '-v' on the command line to see the steps.  
  For example, on win32:
 
 ```freebasic
@@ -157,7 +157,7 @@ Tools:
 
 *Options controlling compile / assemble / link stages*
 
-There are a few options that can control what fbc does with the intermediate files and at what point the process may be stopped early.
+There are a few options that can control what the compiler does with the intermediate files and at what point the process may be stopped early.
 
  -r, -rr, -c : stop the compile / assemble process sometime before the link stage
 
@@ -179,19 +179,15 @@ There are a few options that can control what fbc does with the intermediate fil
  -r, -rr, -c : override the default behaviour of creating an implicit "main" entry point, and no "main" function is created by default.
  To have a "main" entry point when using the -r, -rr, -c, options, then '-m module' option needs to be used to indicate which module should have an "main" function.
 
-*Note:*
-
-Before fbc version 1.09.0, `-gen gas64` generated a `.a64` file extension for assembler (instead of `.asm`).
-
 Execution order of the different modules
 
 An executable program needs a "main" point of entry (in the main module user code).  
- fbc may or may not create an implicit main function, depending on options or method of building an executable.  
+ The compiler may or may not create an implicit main function, depending on options or method of building an executable.  
  The module constructors of modules run before main, the module destructors of modules run after main.
 
  The module-level codes of other modules (than the main module) are put in implicit module constructors which are consequently executed before the module-level code of the main module.  
  But it would be good practice that module-level code only be in the main module.  
- More generally, all module constructors and module destructors should be noted with a big WARNING on their use. Because the corresponding code is run outside of user code, it's quite likely that fbc's error checking and some runtime facilities won't work as expected.
+ More generally, all module constructors and module destructors should be noted with a big WARNING on their use. Because the corresponding code is run outside of user code, it's quite likely that the compiler's error checking and some runtime facilities won't work as expected.
 
  A high level description of the start-up framework:
 
@@ -205,7 +201,7 @@ An executable program needs a "main" point of entry (in the main module user cod
 
 See also
 
-- [fbc command-line](Fbc-Command-Line)
+- [Compiling a program](Quick-Start#compile-a-program)
 - [Static Libraries](Static-Libraries)
 - [Shared Libraries (DLLs)](Shared-Libraries)
 - [Profiling with fb's profiler](Profiling-with-Fb-S-Profiler)

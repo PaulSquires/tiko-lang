@@ -24,22 +24,20 @@ toolchains\tiko-windows\tiko.exe -mt example.tiko
 one specifies. When you finish here, read that.
 
 Every program in this tutorial was compiled and run. The outputs shown are real
-program output, not illustrations — from fbc's build. Under tiko, measured
-2026-09-24 on windows-x86_64:
+program output, not illustrations. Under tiko, on windows-x86_64:
 
-* **The same output as fbc's build:** every program, ex01–ex07 and ex09–ex19, up to
-  what varies from run to run under either compiler: the interleaving of
+* **The output shown:** every program, ex01–ex07 and ex09–ex19, up to
+  what varies from run to run: the interleaving of
   concurrent lines, ex01's elapsed seconds, which worker takes which job in ex07,
   ex10's hit count before its deadline, and ex15's lost-update count, which is
   random by design.
 * ex08 is two procedures rather than a program; with the `#import` and
-  `using tasks` it needs, it compiles under both.
+  `using tasks` it needs, it compiles.
 
-The compiler messages quoted below are fbc's; tiko reports its own, with
-`TKOnnnn` ids, on the same programs: a `byref` parameter at a spawn site is
-TKO0812 (fbc's error 358), and a `RecvChan` or `SendChan` in a `select channel`
-case is TKO0809 (fbc's error 340), which names the `std/tasks` generic that
-could not be instantiated.
+tiko reports its compiler messages with `TKOnnnn` ids: a `byref` parameter at
+a spawn site is TKO0812, and a `RecvChan` or `SendChan` in a `select channel`
+case is TKO0809, which names the `std/tasks` generic that could not be
+instantiated.
 
 ---
 
@@ -788,7 +786,7 @@ Two honest caveats:
   compiler.
 * **`select channel` does not accept them.** Its cases require a real
   `Channel( of T )`; a `RecvChan` produces
-  `error 340: Unable to infer type arguments ... SelectAddRecv`. If a procedure
+  `TKO0809`. If a procedure
   needs to `select` over a channel, take the `Channel` (see chapter 10's
   `SearchFolder`).
 
@@ -1767,7 +1765,7 @@ Print this. Almost every bug in a first concurrent program is on it.
 * [ ] **`case else` and `case timeout` cannot coexist** — a compile error.
 * [ ] **`case receive v from ch` needs `v` already declared.**
 * [ ] **Cases require a real `Channel( of T )`,** not a `SendChan`/`RecvChan`.
-      Otherwise: `error 340: Unable to infer type arguments ... SelectAddRecv`.
+      Otherwise: `TKO0809`.
 * [ ] **Use `do ... loop`, not `for ... next`.** `exit for` out of a case body
       hits `error 105: Branch crossing local ... object definition`. `exit do`
       and `goto` are fine.
@@ -1934,16 +1932,9 @@ to one results channel. The most common shape you will write.
 
 * **[`goroutines.txt`](Category-Goroutines-and-Channels)** — the reference. Every rule, tersely.
   Read it now that the ideas have names.
-* **`../concurrency/`** — the RFCs. RFC-0005 is channels,
-  RFC-0004 is tasks and `select`, RFC-0003 is sync, RFC-0001 is the memory model.
-  Each records the rejected alternatives and why.
 * **`tests/mir/spawn.test`** in the tiko-lang tree — how `spawn` is lowered;
   `tests/mir/spawn-contextual.test` beside it keeps `spawn` usable as a name.
-  The library itself is measured with fbc's own suites, built by both compilers
-  with `-mt`: all three `concurrency/` suites print what fbc's builds print
-  (HANDOFF section 9f, 2026-09-21).
 
 ---
 
-**Category:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
-**Source:** `docs/goroutines/tutorial.md` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Category:** [Goroutines and Channels](Category-Goroutines-and-Channels)

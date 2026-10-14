@@ -76,15 +76,15 @@ FB Logo
 
 ***Using the FreeBASIC compiler***
 
-[Installing FreeBASIC](Installing) | [Requirements](Requirements)  
-[Running FreeBASIC](Running)  
-[Using the Command Line](Fbc-Command-Line) | [Command Line Options](Compiler-Options)
+[Installing FreeBASIC](Quick-Start#compile-a-program) | [Requirements](Quick-Start#compile-a-program)  
+[Running FreeBASIC](Quick-Start#compile-a-program)  
+[Using the Command Line](Quick-Start#compile-a-program) | [Command Line Options](Compiler-Options)
 
 [Debugging with FreeBASIC](Debugging)
 
 [Compiler Error Messages](Compiler-Error-Messages)  
-[Tools used by fbc](Tools-Used-by-Fbc)  
-[Installing gcc for -gen gcc](Installing-Gcc-for-Gen-Gcc)
+Tools used by the compiler  
+Installing gcc for -gen gcc
 
 ***FreeBASIC dialects and QBASIC***
 
@@ -96,7 +96,7 @@ FB Logo
 [Compiler FAQ](Frequently-Asked-Questions)  
 [Graphics Library FAQ](Frequently-Asked-Freebasic-Graphics-Library-Questions)  
 [Runtime Library FAQ](Frequently-Asked-Fb-Runtime-Library-Questions)  
-[Xbox port FAQ](Frequently-Asked-Questions-2)  
+Xbox port FAQ  
 [DOS related FAQ](Dos-Related-Faq)  
 [Windows related FAQ](Windows-Related-Faq)  
 [Linux related FAQ](Linux-Related-Faq)
@@ -114,9 +114,9 @@ FB Logo
 
 ***Hacking on FreeBASIC***
 
-[Developer's Table of Contents](Information-for-Hacking-on-Freebasic)
+Developer's Table of Contents
 
- This document last compiled : 2026.06.15 12:32:06 from https://www.freebasic.net/wiki/
+ This document compiled from https://www.freebasic.net/wiki/
 
 ---
 

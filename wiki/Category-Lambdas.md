@@ -121,7 +121,7 @@ end function
 
 A closure holding a BYREF capture must not outlive the frame that owns the captured variable. BYVAL capture is always safe. The explicit capture list is what makes the question visible; it does not answer it.
 
-The closure TYPE is hoisted to module level, so it outlives the scope that named it -- deviation D1, already carried by the generics work.
+The closure TYPE is hoisted to module level, so it outlives the scope that named it.
 
 ## Anything Can Be Captured
 
@@ -154,52 +154,33 @@ so the body is replayed UNCHANGED. The alternative -- rewriting every 'total' in
 
 ## Diagnostics
 
-fbc (FBC-Modern's `fbc64` 1.20.0) reports:
+tiko reports, one case per file:
 
-```freebasic
-error 352: Too many captures in a lambda capture list
-error 353: Every capture needs an explicit BYVAL or BYREF
-error 354: Captured variable not declared
-error 355: A capturing lambda cannot convert to a procedure pointer
-```
-
-and two that need EOF to arrive inside the lambda, so they are reachable only from genuinely truncated source:
-
-```freebasic
-error 350: Malformed lambda header, expected ')' or a result type
-error 351: Unterminated lambda body, expected END SUB or END FUNCTION
-```
-
-An 'end sub' that is merely the WRONG one is consumed as the lambda's own terminator, so it surfaces as the ENCLOSING procedure being unterminated rather than as a lambda diagnostic.
-
-tiko reports its own ids. Measured 2026-09-24 at origin/master 50c71751, one case per file:
-
-| fbc | tiko |
+| Case | tiko |
 | --- | --- |
-| 352 (33 captures) | no diagnostic -- tiko accepted all 33 |
-| 353 | `TKO0413: every lambda capture needs an explicit 'byval' or 'byref'` |
-| 354 | no diagnostic from the front end; the build then fails in clang on the IR tiko emitted (`TKO0113: clang failed`) |
-| 355 | `TKO0738: no conversion between these two types` |
-| 350 | `TKO0401: expected ')'` |
-| 351 | `TKO0405: expected 'end SUB'` |
+| 33 captures in one list | no diagnostic -- tiko accepted all 33 |
+| a capture with no explicit BYVAL or BYREF | `TKO0413: every lambda capture needs an explicit 'byval' or 'byref'` |
+| a captured variable that is not declared | no diagnostic from the front end; the build then fails in clang on the IR tiko emitted (`TKO0113: clang failed`) |
+| a capturing lambda converted to a procedure pointer | `TKO0738: no conversion between these two types` |
+| a malformed lambda header (source ends inside it) | `TKO0401: expected ')'` |
+| an unterminated lambda body (source ends inside it) | `TKO0405: expected 'end SUB'` |
 
 ## Implementation
 
-tiko's implementation is its own. `src/parser/lambda.tiko` reads the lambda, the closure type of a capturing lambda is built during name resolution (`src/symbols/resolvesynth.tiko`), and `src/mir/lowerclosure.tiko` builds the closure object -- one field per capture, holding the address for a BYREF capture and the value for a BYVAL one.
+`src/parser/lambda.tiko` reads the lambda, the closure type of a capturing lambda is built during name resolution (`src/symbols/resolvesynth.tiko`), and `src/mir/lowerclosure.tiko` builds the closure object -- one field per capture, holding the address for a BYREF capture and the value for a BYVAL one.
 
 ## Tests
 
-fbc's own lambda tests are vendored in tiko-lang under `tests/vendor/fbc-tests/generics/`.
+The lambda tests are vendored in tiko-lang under `tests/vendor/fbc-tests/generics/`.
 
 lambda.bas -- non-capturing: both forms, one-line and multi-line bodies, VAR inference, byref params and a byref return proven to be a reference, inline as an argument, returned from a function, at module level, nested lambdas, a procptr result type, EXIT inside a body, two lambdas staying distinct, interchangeability with @proc, and a real qsort comparator.
 
 lambda-capture.bas -- capturing: byref and byval, the byval snapshot, several captures of mixed mode, independent state, every call position including zero-argument and nested calls, the empty capture list, a capturing AND a non-capturing lambda through the same generic parameter, containers.ForEach, capturing a UDT both ways, and destructor balance showing that byval copies once and byref copies not at all.
 
-Under tiko, measured 2026-09-24 at origin/master 50c71751: lambda.bas, lambda-capture.bas and lambda-in-generic.bas build and run with exit 0 and the same output as fbc's builds, and the three-module lambda-mm-main.bas + lambda-mm-a.bas + lambda-mm-b.bas builds and runs clean. `build/runscan.sh` (2026-09-20) has every in-scope run program of the corpus byte-identical to fbc's builds. tiko's own suite: `tests/mir/lambda.test`, `lambda-capture.test`, `lambda-byref-arg.test`, `lambda-capture-generic.test`, `lambda-in-generic.test`, `closure-udt-result.test` and `generic-closure-arg.test`.
+Under tiko, lambda.bas, lambda-capture.bas and lambda-in-generic.bas build and run with exit 0, and the three-module lambda-mm-main.bas + lambda-mm-a.bas + lambda-mm-b.bas builds and runs clean. tiko's own suite: `tests/mir/lambda.test`, `lambda-capture.test`, `lambda-byref-arg.test`, `lambda-capture-generic.test`, `lambda-in-generic.test`, `closure-udt-result.test` and `generic-closure-arg.test`.
 
 ---
 
-**Source:** `docs/lambda/lambda.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

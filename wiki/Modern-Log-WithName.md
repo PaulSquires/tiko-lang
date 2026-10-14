@@ -32,5 +32,4 @@ print lg.Name                '' app -- the parent is untouched
 
 **Library:** [Logging](Category-Logging)  
 **Category:** [Logging](Category-Logging)  
-**Documented under:** Members  
-**Source:** `docs/logging/logging.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

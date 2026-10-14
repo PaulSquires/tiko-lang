@@ -42,5 +42,4 @@ print ch.IsClosed( )         '' true -- which tells the two apart
 
 **Library:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
 **Category:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
-**Documented under:** Members  
-**Source:** `docs/goroutines/goroutines.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

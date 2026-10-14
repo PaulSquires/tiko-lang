@@ -23,14 +23,9 @@ Allows the setting of compiler options inside the source code.
 
  **Push** saves the current value of the *option* onto a stack, then assigns the new *value* (or *True*) to it. **Pop** restores the *option* to its previous value, and removes it from the stack. This mechanism allows options to be changed for a certain part of source code, regardless of the setting used by the context, which is especially useful inside #include header files.
 
- **`constness`** pragma is added for testing fbc compiler. It will be removed in future at should not be relied upon.
+ **`constness`** pragma is added for testing the compiler. It will be removed in future at should not be relied upon.
 
 ## Remarks
-
-### Version
-
-- *#pragma private* and *#pragma profile* added in version 1.20.0
-- *#pragma lookup108* added in version 1.09.0, and to be removed in next minor release
 
 ### Differences from QB
 

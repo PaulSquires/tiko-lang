@@ -32,10 +32,6 @@ Reads a line of text from the keyboard and stores it in a string variable.
 
 ## Remarks
 
-### Version
-
-- Before fbc 1.10.0, the second syntax (with `maxlength` parameter) was not supported.
-
 ### Differences from QB
 
 - QBASIC only allowed literal strings for the prompt text. FreeBASIC allows any variable or constant string expression.

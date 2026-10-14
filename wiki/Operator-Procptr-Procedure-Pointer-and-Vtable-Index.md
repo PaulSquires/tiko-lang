@@ -50,11 +50,6 @@ Returns the address of any procedure (first syntax), or the index in the vtable 
 
 `result = ProcPtr ( identifier [, [virtual] [any|user_proctype] ] )`
 
-### Version
-
-- Before fbc 1.10.0, the member procedures/operators were not supported.
-- Before fbc 1.09.0, the second argument (the optional) was not supported.
-
 ### Dialect Differences
 
 - Not available in the *[-lang qb](Compiler-Option-Lang)* dialect unless referenced with the alias `__Procptr` (but does not support qualifier `virtual`).
@@ -121,25 +116,16 @@ Sub s( ByVal i As Integer )
 
 End Sub
 
-'----- since fbc 1.09.0, ProcPtr supports a second parameter (optional):
+'----- ProcPtr supports a second parameter (optional):
 
 Var s1 = ProcPtr( s, Sub() )
 
 Var s2 = ProcPtr( s, Sub( ByVal i As Integer ) )
 
-'----- before fbc 1.09.0, it was only possible with:
-
-'Dim s1 As Sub()
-
-'s1 = ProcPtr( s )
-
-'Dim s2 As Sub( Byval i As Integer)
-
-'s2 = ProcPtr( s )
 ```
 
 ```freebasic
-' Since fbc 1.10.0, ProcPtr supports the member procedures/operators with various syntaxes
+' ProcPtr supports the member procedures/operators with various syntaxes
 
 Type UDT Extends Object
 
@@ -263,7 +249,7 @@ Sleep
 ```
 
 ```freebasic
-' Since fbc 1.10.0, ProcPtr also allows to access the vtable index of a virtual/abstract member procedure/operator
+' ProcPtr also allows to access the vtable index of a virtual/abstract member procedure/operator
 
 Type Parent Extends Object
 

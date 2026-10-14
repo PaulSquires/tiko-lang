@@ -281,7 +281,7 @@ Phase 1 ships the record, the logger, the builder, TextRenderer and ConsoleSink.
 6   AsyncSink over tasks.Channel, with an explicit overflow policy
 ```
 
-THE PROCESS-WIDE DEFAULT LOGGER IS logs.DefaultLogger( ), and why it took a module is worth knowing: a 'dim shared' in a .bi included by two modules gave TWO of them, so a FreeBASIC header could not make a singleton, and the header-era library made the program define it once with FB_LOG_IMPLEMENT( ). std/logs is a module, compiled once, so its 'dim shared' default logger exists ONCE PER PROGRAM however many files import it, and the macro is gone. logs.LogInit( @sink, level ) gives it a sink, logs.LogShutdown( ) flushes and closes it, and logs.LogInfo( m ) and the other five level macros write to it. LOG_MIN_LEVEL, which compiles calls below a level away, goes in a tiko.toml's [defines]: a module never sees its importer's -d.
+THE PROCESS-WIDE DEFAULT LOGGER IS logs.DefaultLogger( ). std/logs is a module, compiled once, so its 'dim shared' default logger exists ONCE PER PROGRAM however many files import it. logs.LogInit( @sink, level ) gives it a sink, logs.LogShutdown( ) flushes and closes it, and logs.LogInfo( m ) and the other five level macros write to it. LOG_MIN_LEVEL, which compiles calls below a level away, goes in a tiko.toml's [defines]: a module never sees its importer's -d.
 
 DECLINED, not deferred: OS-native sinks (OutputDebugString, Windows Event Log, syslog), printf-style format strings, sampling and rate limiting, file-based configuration, and a logger hierarchy resolved by dotted name.
 
@@ -330,13 +330,13 @@ NOT exercised by any test: the Windows CONSOLE path. Under the harness stderr is
 
 ## Tests
 
-src/tests/logging/logrecord.bas and logger_sinks.bas -- 23 tests, 155 assertions, one block per numbered rule of the RFC it covers, named after that rule so a failure names what it broke.
+logging/logrecord.bas and logger_sinks.bas -- 23 tests, 155 assertions, one block per numbered rule of the design it covers, named after that rule so a failure names what it broke.
 
 logrecord.bas pins the value layer: all nine constructors round-tripping both TAG and VALUE (a constructor that sets the right tag and loses the value would pass any test that only read the text), sizeof( LogValue ) = 40, the tag numbers themselves so that inserting a tag in the middle fails here rather than silently changing what an old record means, the level spacing, parsing that leaves its out-parameter alone on failure, and the three non-finite doubles built at run time so the compiler cannot fold them away.
 
 logger_sinks.bas pins the four phase-1 gates, plus what only commits, the parent/child field order and snapshot semantics, and field quoting.
 
-See also: C:\\dev\\docs\\logging\\                  the RFCs: design and what was declined C:\\dev\\docs\\logging\\comparison-matrix.md   eight languages, FB, and AfxNova docs/datetime/datetime.txt            Instant, TimeSpan, WallClock, Stopwatch docs/filesystem/filesystem.txt        where phase 3's FileSink will live docs/result/result.txt                the convention this module breaks docs/goroutines/goroutines.txt        tasks.Channel, which phase 6 builds on
+See also: [Date and Time](Category-Date-and-Time-Chrono) (Instant, TimeSpan, WallClock, Stopwatch), [Filesystem](Category-Filesystem), [Result](Category-Result) (the convention this module breaks), [Goroutines and Channels](Category-Goroutines-and-Channels) (tasks.Channel).
 
 ## API reference
 
@@ -346,7 +346,6 @@ One page per entry, 32 in all:
 
 ---
 
-**Source:** `docs/logging/logging.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

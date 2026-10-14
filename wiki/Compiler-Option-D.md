@@ -31,7 +31,7 @@ See also
 - [#define](Define)
 - [#macro](Macro-Endmacro)
 - [Intrinsic Defines](Intrinsic-Defines)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

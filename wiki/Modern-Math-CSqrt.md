@@ -36,5 +36,4 @@ print CIsFinite( CSqrt( CSet( 1e308, 1e308 ) ) )  '' true   -- the rescale path
 
 **Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
-**Documented under:** Members  
-**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

@@ -13,7 +13,7 @@ print i( 1 )                 ' 20
 
 A function may return a **dynamic array**. Write the result type as `T( )`. No `#include`, no runtime support -- it is a language feature, and **not a tiko container**: what comes back is a classic FreeBASIC dynamic array, indexed with `i( 1 )`, measured with `ubound( i )`, passed to `a( ) as integer` parameters and erased at the end of its scope like any other.
 
-fbc rejects the spelling (error 3), so this is a tiko extension.
+This is a tiko extension.
 
 ## What 'return' Takes
 
@@ -60,12 +60,12 @@ A result is always **owned by the caller**, so none of these copies or leaks. Tw
 
 | Written | Why |
 | --- | --- |
-| `as integer( 3 )`, `as integer( any )` | only an empty `( )` means an array (TKO0836). It used to be swallowed and compile as a plain `integer` function |
+| `as integer( 3 )`, `as integer( any )` | only an empty `( )` means an array (TKO0836) |
 | `as function( ) as integer( )` | a procedure type cannot return an array (TKO0837) |
 | `return 5`, `return r` over a different element type | not something an array result can be built from (TKO0838) |
 | `var b = foo` | write the parentheses (TKO0841) |
 | `dim x as integer = foo( )`, `return foo( )` from an `integer` function, `TakesInt( foo( ) )` | an array converts to nothing else (TKO0842) |
-| `dim a( ) as integer = foo( )` | TKO0612, as fbc says of any initialised dynamic array. Use `var a = foo( )` |
+| `dim a( ) as integer = foo( )` | TKO0612. Use `var a = foo( )` |
 | `declare ... as integer( )` defined `as integer` | the result must agree with its declaration (TKO0793) |
 | `foo( )( 1 )` | not a procedure pointer (TKO0772). Assign the result to a variable first |
 

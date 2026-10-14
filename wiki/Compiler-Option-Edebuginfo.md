@@ -18,14 +18,13 @@ The `-edebuginfo` compiler inserts debugging symbols into output files, to use w
 
 Version
 
-- Since fbc 1.07.0
 
 See also
 
 - [`__FB_ERR__`](Fb-Err)
 - [Compiler Option: -g](Compiler-Option-G)
 - [Debugging](Debugging)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

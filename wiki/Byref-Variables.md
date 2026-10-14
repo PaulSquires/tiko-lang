@@ -36,10 +36,6 @@ NOTE: The arrays of references and the non-static reference fields for UDT are n
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.04.0
-
 ### Dialect Differences
 
 - Only supported in *[-lang fb](Compiler-Option-Lang)*, *[-lang fblite](Compiler-Option-Lang)* and *[-lang deprecated](Compiler-Option-Lang)* dialects.

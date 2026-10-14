@@ -40,10 +40,6 @@ When a new thread is created, a handle to the thread is returned by the creation
 result = ThreadSelf
 ```
 
-### Version
-
-- Since fbc 1.08.0
-
 ### Dialect Differences
 
 - Threading is not allowed in the *[-lang qb](Compiler-Option-Lang)* dialect.

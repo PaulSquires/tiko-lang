@@ -74,14 +74,12 @@ The language and its standard library first, then the compatibility reference: t
 - [Intrinsic Defines](Category-Intrinsic-Defines) — 81 pages
 - [Miscellaneous Keywords](Category-Miscellaneous-Keywords) — 36 pages
 - [Modularizing](Category-Modularizing) — 13 pages
-- [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) — 80 pages
+- [Using the FreeBASIC compiler](Category-Using-the-FreeBASIC-compiler) — 74 pages
 - [Compiler](Category-Compiler) — 5 pages
 - [Compiler Options](Category-Compiler-Options) — 3 pages
 - [Compiler Switches](Category-Compiler-Switches) — 23 pages
-- [Compiler Internals](Category-Compiler-Internals) — 38 pages
-- [Hacking on FreeBASIC](Category-Hacking-on-FreeBASIC) — 1 pages
 - [FreeBASIC dialects and QBASIC](Category-FreeBASIC-dialects-and-QBASIC) — 3 pages
 - [Tutorials](Category-Tutorials) — 223 pages
-- [FAQs](Category-FAQs) — 7 pages
-- [Miscellaneous](Category-Miscellaneous) — 5 pages
+- [FAQs](Category-FAQs) — 6 pages
+- [Miscellaneous](Category-Miscellaneous) — 9 pages
 - [Reference](Category-Reference) — 22 pages

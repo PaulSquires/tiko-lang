@@ -1,10 +1,10 @@
-[Home](Home) › [Compiler Internals](Category-Compiler-Internals) › **C Header Style Guide**
+[Home](Home) › [Miscellaneous](Category-Miscellaneous) › **C Header Style Guide**
 
 # C Header Style Guide
 
 About This Guide
 
- This guide is not a [C tutorial](http://www.cprogramming.com/tutorial.html#ctutorial) or a [step by step guide](C-Header-Translation-Tutorial) for converting headers. This is a style guide which represents the `ideal` header we would like to maintain. Currently not all of the headers under our control conform to this guide 100%, but work is in progress to do this and all new contributions should attempt to use these standards.
+ This guide is not a [C tutorial](http://www.cprogramming.com/tutorial.html#ctutorial) or a step by step guide for converting headers. This is a style guide which represents the `ideal` header we would like to maintain. Currently not all of the headers under our control conform to this guide 100%, but work is in progress to do this and all new contributions should attempt to use these standards.
 
 General
 
@@ -29,7 +29,7 @@ Dealing with constructs not supported by FreeBASIC
 
 ---
 
-**Category:** [Compiler Internals](Category-Compiler-Internals)
+**Category:** [Miscellaneous](Category-Miscellaneous)
 
 ---
 

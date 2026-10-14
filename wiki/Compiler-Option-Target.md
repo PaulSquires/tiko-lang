@@ -22,7 +22,7 @@ Examples:
 
 Description
 
-The `-target` compiler option can be used to create an executable for a platform which is different from the host on which the source code is being compiled and linked. Appropriate libraries and cross compilation tools (assembler, linker) must be installed for cross compilation to work (also see [FB and cross-compiling](Fb-and-Cross-Compiling)).
+The `-target` compiler option can be used to create an executable for a platform which is different from the host on which the source code is being compiled and linked. Appropriate libraries and cross compilation tools (assembler, linker) must be installed for cross compilation to work (also see FB and cross-compiling).
 
  If `-target <platform>` is given, the compiler will compile programs more or less as if they were compiled on the given platform. This affects which `__FB_*__` operating-system-specific symbol will be pre-defined, the default calling convention, the object and executable file format (e.g. ELF/COFF), the available runtime libraries and functions, etc.
 
@@ -30,22 +30,19 @@ The `-target` compiler option can be used to create an executable for a platform
 
 With a normal FB setup such as the FB-linux release:
 
-When using triplets they generally have the form os `<arch>-<vendor>-<os>` but can vary a lot between build systems or over time between different versions of a build system or toolchain. `fbc` also accepts the form `<arch>-<os>` and is fairly permissive in what will be accepted and typically will not throw an error if at least part of the gnu triplet is recognized
+When using triplets they generally have the form os `<arch>-<vendor>-<os>` but can vary a lot between build systems or over time between different versions of a build system or toolchain. The compiler also accepts the form `<arch>-<os>` and is fairly permissive in what will be accepted and typically will not throw an error if at least part of the gnu triplet is recognized
 
  For more details, see on page [`-buildprefix`](Compiler-Option-Buildprefix), the paragraph: "Detailed behavior if using `-buildprefix`, `-prefix`, `-target` command line options".
 
 Version
 
-- Before fbc 1.20.0, `android` was not recognized as a target
-  Before fbc 1.10.0, gnu triplets were not allowed in standalone builds, and '-target i386-pc-msdosdjgpp' and similar were not allowed.
 
 See also
 
 - [-arch](Compiler-Option-Arch)
 - [-buildprefix](Compiler-Option-Buildprefix)
 - [-prefix](Compiler-Option-Prefix)
-- [Using the Command Line](Fbc-Command-Line)
-- [FB and cross-compiling](Fb-and-Cross-Compiling)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

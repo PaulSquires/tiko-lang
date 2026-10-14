@@ -27,7 +27,7 @@ Platform Differences
 See also
 
 - [`__FB_GUI__`](Fb-Gui)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

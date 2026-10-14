@@ -50,7 +50,7 @@ matches, the error lists every path that was tried.
 
 ## Remarks
 
-- **A `.dll` with no import library** (tiko, windows-x86_64, since 2026-10-13). When a `dynamic` spec
+- **A `.dll` with no import library** (tiko, windows-x86_64). When a `dynamic` spec
   matches only a `.dll`, the link reads the DLL's export table, writes a `.def` naming the DLL as
   its export directory names it (the name it was built as, not the file's), and makes the import
   library with `llvm-dlltool` from clang's LLVM directory; it is deleted with the objects. An
@@ -87,7 +87,7 @@ Together they let a binding ship **entirely inside your own source tree**:
 
 with no `Declare` and no `#ifdef` anywhere in the using code.
 
-> ℹ️ **How each finds its file.** `#foreignlib` resolves its library relative to the **file containing the directive**, which is the whole reason it exists. `#cinclude` looks for a quoted header under the **working directory** first, then **beside the file containing the directive**, then in each `-cinclude` directory (tiko since 2026-10-13; FBC-Modern searches only the working directory and `-cinclude`). So `mylib.ti` can name `"vendor/mylib.h"` and build from anywhere. A header that includes others with angle brackets still needs its include directory given with `-cinclude`. Because the working directory is searched first, a same-named header there wins. See [Using C Libraries](Using-C-Libraries-Tutorial).
+> ℹ️ **How each finds its file.** `#foreignlib` resolves its library relative to the **file containing the directive**, which is the whole reason it exists. `#cinclude` looks for a quoted header under the **working directory** first, then **beside the file containing the directive**, then in each `-cinclude` directory. So `mylib.ti` can name `"vendor/mylib.h"` and build from anywhere. A header that includes others with angle brackets still needs its include directory given with `-cinclude`. Because the working directory is searched first, a same-named header there wins. See [Using C Libraries](Using-C-Libraries-Tutorial).
 
 ### See also
 
@@ -127,7 +127,6 @@ declare function mylib_add cdecl lib MYLIB alias "mylib_add" _
 
 ---
 
-**Source:** `docs/foreignlib/foreignlib.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

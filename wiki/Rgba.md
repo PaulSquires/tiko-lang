@@ -34,16 +34,6 @@ the combined color
 
 `result = RGBA(red, green, blue, alpha)`
 
-### Version
-
-- Before fbc 1.08.0:
-
-Syntax:
-
-`#define RGBA(r,g,b,a) ((CULng(r) Shl 16) Or (CULng(g) Shl 8) Or CULng(b) Or (CULng(a) Shl 24))`
-
-`RGBA` function returned an unsigned integer.
-
 ### Dialect Differences
 
 - Not available in the *[-lang qb](Compiler-Option-Lang)* dialect unless referenced with the alias `__Rgba`.

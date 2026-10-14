@@ -51,8 +51,7 @@ The main structure (Type/Union) must be always named, the other (nested) structu
  Similarly, when maintaining dynamic data manually through the use of pointers within a Type, it does usually not make sense to save the Type to a file, because the address stored in the pointer field will be written to file, not the actual memory it points to. Addresses are meaningful to a specific process only though, and cannot be shared that way.
 
  *Special note on fixed-length strings*
- Since fbc version 1.20.0, fixed-length string fields of `String * N` type no longer have extra null terminator at their end, making them compatible with QB strings inside Types, because they actually use just `N` bytes.  
- Before fbc version 1.20.0, fixed-length string fields of `String * N` type had an extra null terminator at their end, for compatibility with C strings, making them incompatible with QB strings inside Types, because they actually used up `N+1` bytes, instead of just `N` bytes. A possible work-around was to declare the field `As String * (N-1)`, though this will not work in future releases if the null terminator is removed. Another alternative was to use a [`Byte`](Byte) or [`UByte`](Ubyte) array with the proper size.
+ Fixed-length string fields of `String * N` type have no extra null terminator at their end, making them compatible with QB strings inside Types, because they actually use just `N` bytes.
 
  *Note on bitfields (*fieldname*:*bits*)*
  Bitfields can only be declared inside a type or a union, and allow to specify some very small objects of a given number of bits in length. Each field is accessed and manipulated as if it were an ordinary member of the structure.  
@@ -62,10 +61,6 @@ The main structure (Type/Union) must be always named, the other (nested) structu
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.10.0: Nested Named Type/Union capability added.
-
 ### Platform Differences
 
 - The default `Field` alignment parameter is 4 bytes for DOS and Linux targets.
@@ -73,15 +68,13 @@ The main structure (Type/Union) must be always named, the other (nested) structu
 
 ### Dialect Differences
 
-- Object-related features such as functions declared inside `Type` blocks are supported only with the *[-lang fb](Compiler-Option-Lang)* dialect since version 0.17b
+- Object-related features such as functions declared inside `Type` blocks are supported only with the *[-lang fb](Compiler-Option-Lang)* dialect
   In the *[-lang fb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, the default `Field` alignment parameter depends on the target platform.  
   With the *[-lang qb](Compiler-Option-Lang)* dialect the fields are aligned to byte boundaries by default, unless otherwise specified.  
   To force byte alignment use `FIELD=1`.
 
 ### Differences from QB
 
-- Since fbc version 1.20.0, fixed-length strings of STRING\*N type have no extra, redundant character on the end, which means they take same number of bytes than they do in QB.
-  Before fbc version 1.20.0, all fixed-length strings have an extra, redundant character on the end, which means they take up one more byte than they do in QB. For this reason, UDTs that use them are not compatible with QB when used for file I/O.
 
 ### See also
 
@@ -141,7 +134,7 @@ c = Type(255, 128, 64)  '' implicit typename
 And this is an example of a type working as an object:
 
 ```freebasic
-'' Example showing the problems with fixed length string fields in UDTs and fbc version < 1.20.0
+'' Example showing fixed length string fields in UDTs
 
 '' Suppose we have read a GIF header from a file
 

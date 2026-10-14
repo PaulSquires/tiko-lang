@@ -2,7 +2,7 @@
 
 # Compiler Options
 
-Command line compiler options for the fbc compiler:
+Command line compiler options for the compiler:
 
 [@< file >](Compiler-Option-File)
 
@@ -150,7 +150,7 @@ Command line compiler options for the fbc compiler:
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 - [`#Cmdline`](Cmdline)
 
 ---

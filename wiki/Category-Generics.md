@@ -21,7 +21,7 @@ print Max( of float64 )( 1.5, 2.5 )
 
 A generic is declared once and compiled once per distinct type-argument list. There is no textual substitution, no macro, and no separate template language: the body is captured as tokens at declaration and replayed through the real parser at instantiation, so the code inside a generic is ordinary FreeBASIC and is diagnosed as such.
 
-This is RFC-0001. FOR EACH (RFC-0003), the iterator protocol (RFC-0002) and the standard containers (RFC-0004) are all built on top of it.
+FOR EACH, the iterator protocol and the standard containers are all built on top of it.
 
 ## Why It Exists
 
@@ -195,21 +195,21 @@ end type
 
 Nesting a generic in its own type ARGUMENT list is fine and terminates: Box( of Box( of long ) ) resolves the inner instantiation before the outer body is replayed, so it costs no depth.
 
-Depth accrues only when one generic's BODY drives another instantiation. Under fbc the limit is '-maxinstdepth' (default 64); exceeding it is error 339, and a genuinely runaway self-instantiation is usually caught earlier by the forward-reference machinery, so the counter is a backstop.
+Depth accrues only when one generic's BODY drives another instantiation.
 
-tiko takes '-maxinstdepth' too, with the same default, and reports going past it as `TKO0829`. Measured 2026-09-25 against FBC-Modern's `fbc64`, one probe per shape, and tiko agrees on every one:
+tiko takes '-maxinstdepth' (default 64), and reports going past it as `TKO0829`:
 
 - **A field's type** is one deeper than the type that holds it: A3 holding a B3 holding a C3 is refused at `-maxinstdepth 2` and accepted at 3.
 - **A member or procedure body** is replayed at depth 1 however deep the instantiation that owns it. So what a body names is depth 2 -- refused at 1, accepted at 2 -- and a chain of bodies (A3's body naming B3, whose body names C3) is accepted at 2 as well.
 - **A type argument** costs nothing: `Box( of Box( of Box( of int32 ) ) )` is accepted at 1.
 
-fbc reports the first on the header of the generic being expanded and stops. tiko reports each one, on the line that asked for the instantiation.
+tiko reports each one, on the line that asked for the instantiation.
 
-**That rule never stops a runaway.** A member body that instantiates `R( of R( of T ) )` makes a deeper R whose own body does the same, and every body replays at depth 1. FBC-Modern's `fbc64` segfaults on it; tiko used to run until it was killed. tiko now also caps the real chain -- the one a body DOES extend -- at 256, or at the limit if that is higher, and reports `TKO0829` there. The runaway stops in about two seconds.
+**That rule never stops a runaway.** A member body that instantiates `R( of R( of T ) )` makes a deeper R whose own body does the same, and every body replays at depth 1. tiko also caps the real chain -- the one a body DOES extend -- at 256, or at the limit if that is higher, and reports `TKO0829` there. The runaway stops in about two seconds.
 
 ## How It Works
 
-FBC-Modern captures a generic's body as a token chain and replays it through its parser once per distinct type-argument list, at module level. tiko's implementation is its own -- `src/symbols/generic.tiko` and `src/symbols/genericinfer.tiko` -- and it is measured against fbc's behaviour, not built from fbc's design: see TESTS.
+tiko's implementation is in `src/symbols/generic.tiko` and `src/symbols/genericinfer.tiko`.
 
 ## Names AND Linkage
 
@@ -221,52 +221,28 @@ $3BoxIdE           ->  Box<double>
 $3BoxI3BoxIiEE     ->  Box<Box<int> >
 ```
 
-Two modules that both write Box( of long ) mean the same type, and each emits the members it reached. tiko emits every instantiated member 'linkonce_odr' in a COMDAT, so the linker keeps one copy. Measured 2026-09-24 at origin/master 50c71751: the member symbols carry the names above -- '_ZN3BoxIdE4SETVEd' for the SETV member of Box( of double ) -- exactly as fbc spells them, and two separately compiled modules that both instantiate Box( of long ) link and run. fbc keeps a private copy per module instead (see KNOWN LIMITS).
+Two modules that both write Box( of long ) mean the same type, and each emits the members it reached. tiko emits every instantiated member 'linkonce_odr' in a COMDAT, so the linker keeps one copy. The member symbols carry the names above -- '_ZN3BoxIdE4SETVEd' for the SETV member of Box( of double ) -- and two separately compiled modules that both instantiate Box( of long ) link and run.
 
 ## Diagnostics
 
-fbc (FBC-Modern's `fbc64` 1.20.0) reports:
+tiko reports these, one case per file:
 
-```freebasic
-error 333: Expected type parameter name
-error 334: Duplicated type parameter
-error 335: Generic used without a type argument list
-error 336: Wrong number of type arguments
-error 337: Type argument list given for something that is not generic
-error 338: Unbalanced block in generic body
-error 339: Generic instantiation too deep
-error 340: Unable to infer type arguments, specify them explicitly
-error 341: Type parameter list does not match the generic's declaration
-```
+| tiko |
+| --- |
+| `TKO0321: expected a type parameter name` |
+| `TKO0322: duplicated type parameter 't'` |
+| `TKO0815: 'box' is generic; write its type arguments, as 'box( of ... )'` |
+| `TKO0816: 'pair' takes 2 type argument(s), and 1 are written here` |
+| `TKO0405: expected 'end OPERATOR'` |
+| `TKO0829` -- see SELF-REFERENCE, NESTING AND DEPTH |
+| `TKO0809: cannot infer the type arguments of 'make'; write them, as 'make( of ... )( ... )'` |
+| `TKO0817: the type parameters written for 'stack.push' do not match its declaration, 'of t'` -- a renamed, extra, missing or reordered parameter |
 
-Everything else is an ordinary FreeBASIC diagnostic, reported from the replayed body and followed by the instantiation chain that reached it, so it is possible to see which type argument caused it:
+Inside a generic body tiko reports the offending line and column itself -- `TKO0743: 'nosuchvar' is not declared` at the line that says it -- but without the instantiation chain. An undeclared type named in a generic TYPE's field is `TKO0808` at the field, once the generic is instantiated. One body error it does not report at all: an unknown field written through 'this' in a member body compiles, and the statement using it is left out.
 
-```freebasic
-box.bas(13) error 14: Expected identifier, found 'Wdiget'
-  in instantiation of 'Box( of long )'
-  required from box.bas(18)
-```
+Across the 30 generics `fail-*.bas` files in `tests/vendor/fbc-tests/generics/`, tiko rejects 26 with a diagnostic, compiles 1 with no error, fails 2 only in code generation (an internal compiler error, TKO0993: `fail-container-nohash.bas` and `fail-container-nohash-set.bas`), and rejects `fail-instdepth.bas` with `TKO0829`. Each was compiled to an object. The 1 is `fail-lambda-capture-typaram`: a capturing lambda in a generic body that names T in its own parameter list, which tiko builds.
 
-tiko reports its own ids, and fewer of these. Measured 2026-09-24 at origin/master 50c71751, one case per file:
-
-| fbc | tiko |
-| --- | --- |
-| 333 | `TKO0321: expected a type parameter name` |
-| 334 | `TKO0322: duplicated type parameter 't'` |
-| 335 | `TKO0815: 'box' is generic; write its type arguments, as 'box( of ... )'` (2026-09-25) |
-| 336 | `TKO0816: 'pair' takes 2 type argument(s), and 1 are written here` (2026-09-25) |
-| 338 | `TKO0405: expected 'end OPERATOR'` |
-| 339 | `TKO0829` -- see SELF-REFERENCE, NESTING AND DEPTH |
-| 340 | `TKO0809: cannot infer the type arguments of 'make'; write them, as 'make( of ... )( ... )'` |
-| 341 | `TKO0817: the type parameters written for 'stack.push' do not match its declaration, 'of t'` -- a renamed, extra, missing or reordered parameter (2026-09-25) |
-
-(337 has no case: FBC-Modern declares the message but no code raises it.)
-
-Inside a generic body tiko reports the offending line and column itself -- `TKO0743: 'nosuchvar' is not declared` at the line that says it -- but without the instantiation chain. An undeclared type named in a generic TYPE's field ('Wdiget' above) is `TKO0808` at the field, once the generic is instantiated (2026-09-25). One body error it does not report at all: an unknown field written through 'this' in a member body (fbc's error 18) compiles, and the statement using it is left out.
-
-Across fbc's 30 generics `fail-*.bas` files, tiko rejects 26 with a diagnostic of its own, compiles 1 with no error, fails 2 only in code generation (an internal compiler error, TKO0993: `fail-container-nohash.bas` and `fail-container-nohash-set.bas`), and rejects `fail-instdepth.bas` with `TKO0829`, as fbc does with 339 (since 2026-09-25; before that, with `TKO0100` for its `#cmdline "-maxinstdepth 2"`). Measured 2026-09-25 by compiling each to an object; the 1 is `fail-lambda-capture-typaram`, which pins an FBC-Modern limitation rather than a language rule: a capturing lambda in a generic body cannot name T in its own parameter list there (error 59 on the closure's `__FBINVOKE`), and tiko builds it.
-
-A diagnostic raised inside an instantiated body -- `IndexOf` over a type with no `operator =` is array.tiko's own comparison failing -- is reported at the line in the generic that fails. fbc reports it too, on its own line numbering of the instantiation.
+A diagnostic raised inside an instantiated body -- `IndexOf` over a type with no `operator =` is array.tiko's own comparison failing -- is reported at the line in the generic that fails.
 
 ## Known Limits
 
@@ -292,16 +268,6 @@ library spells its variants SortBy, StableSort and SortList rather than
 overloading Sort.
 ```
 
-- Under fbc, a CAPTURING lambda cannot name the enclosing generic's type
-
-```freebasic
-parameter in its own parameter list -- error 59, at parameter 1 of
-__FBINVOKE; fail-lambda-capture-typaram.bas pins it. tiko ACCEPTS it and runs
-it correctly (measured 2026-09-24 at origin/master 50c71751: 'sub[ byref
-total ]( byval v as T )' inside 'Outer( of T )' stores 5 for a long and 2.5
-for a float64), so code that relies on this builds with tiko and not with fbc.
-```
-
 - typeof( T ) does not see through a type parameter. An ordinary TYPEDEF is
 
 ```freebasic
@@ -310,31 +276,18 @@ body cannot branch on what T is bound to. This is why the hash contract is
 an overloaded HashOf( ) rather than an #if dispatch.
 ```
 
-- fbc keeps one private copy of each instantiation per module. tiko does
+- Debug names. tiko's -g describes no types at all -- its --emit-ir output
 
 ```freebasic
-not: it emits every instantiated member 'linkonce_odr' in a COMDAT and the
-linker keeps one (measured 2026-09-24 at origin/master 50c71751 with
---emit-ir; two separately compiled modules instantiating Box( of int32 ) link
-and run). See NAMES AND LINKAGE.
+holds no DICompositeType -- and names each instantiated procedure by its
+mangled symbol, e.g. _ZN3BoxIiE4SETVEi.
 ```
 
-- Debug names. Under fbc every instantiation of Box reports as 'Box' to the
+- In a generic body, tiko reports the offending line and column itself,
 
 ```freebasic
-debugger, so GDB sees N distinct types sharing one name. tiko's -g describes
-no types at all -- measured 2026-09-24 at origin/master 50c71751, its
---emit-ir output holds no DICompositeType -- and names each instantiated
-procedure by its mangled symbol, e.g. _ZN3BoxIiE4SETVEi.
-```
-
-- Under fbc, in-body line numbers point at the body's opening line, not the
-
-```freebasic
-offending line inside it, and the instantiation chain supplies the detail.
-tiko reports the offending line and column itself, without the chain -- and
-some errors inside a generic body it does not report at all (see
-DIAGNOSTICS).
+without the instantiation chain -- and some errors inside a generic body it
+does not report at all (see DIAGNOSTICS).
 ```
 
 - Function-template return types are not mangled: '\_Z3IncIiEi' where Itanium
@@ -354,7 +307,7 @@ parameter T and a variable t are the same identifier.
 
 ## Tests
 
-fbc's `generics/` tests, vendored in tiko-lang at `tests/vendor/fbc-tests/generics/` -- 72 files at the vendored commit.
+The `generics/` tests, vendored in tiko-lang at `tests/vendor/fbc-tests/generics/` -- 72 files at the vendored commit.
 
 instantiate-type.bas        instantiation, identity, nesting, UDT arguments member-procs.bas            out-of-line bodies, both parameter orders member-operators.bas        operators, properties, FOR/STEP/NEXT global-operators.bas        generic global operators and their inference generic-procs.bas           explicit and inferred type arguments ctor-dtor.bas               construction, destruction, copy inheritance.bas             all three EXTENDS directions, virtual, RTTI recursive-generic.bas       self-reference through a pointer lambda-in-generic.bas       lambdas and generics in one body -- both token
 
@@ -377,15 +330,12 @@ differential stress against the hash versions
 
 sizeof-instantiation.bas    layout member-mangling.bas         mangled names are distinct and stable capture-boundary.bas        deferral to the statement boundary multimodule/                two modules instantiating the same generics fail-\*.bas                  one diagnostic per file, with golden output
 
-One caveat on member-mangling.bas: since instantiations became module-private, an exact-mangled-name link assertion is no longer expressible. The test still catches a COLLAPSE -- two instantiations sharing a name -- but would not catch a drift to a different, still-distinct scheme.
+The fail-*.bas results are under DIAGNOSTICS. tiko's own suite: 25 `tests/mir/generic-*.test` files, `tests/parser/generic-instantiation.test`, `tests/types/generic-union-layout.test`, `tests/types/generic-virtual-slots.test`, and three in `tests/diagnostics/`: `generic-member-missing.test`, `generic-infer.test` (the inference case) and `override-unused-generic.test`.
 
-Under tiko, measured 2026-09-24 at origin/master 50c71751: `build/runscan.sh` (2026-09-20) has every in-scope run program of the corpus -- generics/ included -- byte-identical to fbc's build, and the fail-*.bas results are under DIAGNOSTICS. tiko's own suite: 25 `tests/mir/generic-*.test` files, `tests/parser/generic-instantiation.test`, `tests/types/generic-union-layout.test`, `tests/types/generic-virtual-slots.test`, and three in `tests/diagnostics/`: `generic-member-missing.test`, `generic-infer.test` (the 340 case) and `override-unused-generic.test`.
-
-See also: docs/for_each/iterator-protocol.txt   the RFC-0002 contract docs/for_each/for-each.txt            RFC-0003 docs/array|map|set|linkedlist/        RFC-0004, written entirely in FB
+See also: [For Each](Category-For-Each), for the iterator protocol and FOR EACH; [Array](Category-Array), [Map](Category-Map), [Set](Category-Set) and [LinkedList](Category-LinkedList), the containers.
 
 ---
 
-**Source:** `docs/generics/generics.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

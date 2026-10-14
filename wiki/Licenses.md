@@ -4,7 +4,7 @@
 
 **Compiler**
 
-The FreeBASIC compiler (fbc) is released under the [GPL](Gnu-General-Public-License) license.
+The FreeBASIC compiler is released under the [GPL](Gnu-General-Public-License) license.
 
 **Libraries**
 

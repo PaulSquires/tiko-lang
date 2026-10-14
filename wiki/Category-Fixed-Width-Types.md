@@ -34,7 +34,7 @@ print red; total; ratio
 
 ## They are the FreeBASIC types
 
-Each name is a typedef, not a new type: `int32` *is* `long`. Values mix freely with no conversion, a procedure that takes `long` accepts an `int32`, and an overload on `int64` is the overload on `longint`. The names leave no trace in the ABI, so a procedure's linker symbol is the one fbc gives it with the FreeBASIC names:
+Each name is a typedef, not a new type: `int32` *is* `long`. Values mix freely with no conversion, a procedure that takes `long` accepts an `int32`, and an overload on `int64` is the overload on `longint`. The names leave no trace in the ABI, so a procedure's linker symbol is the one it gets with the FreeBASIC names:
 
 ```freebasic
 namespace N
@@ -42,13 +42,12 @@ namespace N
            byval d as uint64, byval e as float32, byval g as float64 )
     end sub
 end namespace
-'' _ZN1N1FEatiyfd under tiko, and under fbc with byte, ushort, long,
-'' ulongint, single and double
+'' _ZN1N1FEatiyfd under tiko
 ```
 
 ## A program's own declaration wins
 
-The names are not keywords. tiko declares them for every program, but anything the program declares with the same name at module level replaces tiko's, with no diagnostic. Existing code already uses these names: `win/basetsd.bi` declares `type INT32 as long`, and fbc's own tests have variables called `i32` and `bool`. Such code compiles exactly as it does under fbc:
+The names are not keywords. tiko declares them for every program, but anything the program declares with the same name at module level replaces tiko's, with no diagnostic. Existing code already uses these names: `win/basetsd.bi` declares `type INT32 as long`. Such code still compiles:
 
 ```freebasic
 type INT32 as long                      '' the same type: nothing changes
@@ -60,9 +59,9 @@ end function
 print sizeof( INT32 ); sizeof( uint8 ); float32; uint16( 6 )
 ```
 
-This prints `4 8 5 7`, as fbc does. Because FreeBASIC ignores case, `INT32` and `int32` are the same name.
+This prints `4 8 5 7`. Because FreeBASIC ignores case, `INT32` and `int32` are the same name.
 
-**The program's declaration replaces the name throughout the program**, not just in its own file. `jpeglib.bi` declares `type INT32 as clong`, which is 8 bytes on Linux x86-64. A Linux program that includes it therefore gets an 8-byte `int32`, as it would under fbc.
+**The program's declaration replaces the name throughout the program**, not just in its own file. `jpeglib.bi` declares `type INT32 as clong`, which is 8 bytes on Linux x86-64. A Linux program that includes it therefore gets an 8-byte `int32`.
 
 ## What is not included
 
@@ -70,27 +69,6 @@ This prints `4 8 5 7`, as fbc does. Because FreeBASIC ignores case, `INT32` and 
 - **`boolean`** stays as it is, and there is no `bool`. FreeBASIC ignores case, so `bool` would be `BOOL`, which `win/windef.bi` declares as a 4-byte `long`.
 - **Pointers** keep the FreeBASIC spelling: `int32 ptr`, `any ptr`.
 - **Strings** are unchanged: `string`, `zstring`, `wstring` and [`ustring`](Category-UString).
-
-## Sharing source with fbc
-
-fbc doesn't know these names. A file that has to compile under both compilers can declare them for fbc only:
-
-```freebasic
-#ifndef __TIKO_COMPILER__
-    type int8 as byte
-    type uint8 as ubyte
-    type int16 as short
-    type uint16 as ushort
-    type int32 as long
-    type uint32 as ulong
-    type int64 as longint
-    type uint64 as ulongint
-    type float32 as single
-    type float64 as double
-#endif
-```
-
-See [`__TIKO_COMPILER__`](Category-Tiko-Compiler-Define).
 
 ---
 

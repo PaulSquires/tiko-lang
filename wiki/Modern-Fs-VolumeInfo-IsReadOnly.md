@@ -26,5 +26,4 @@ print v.IsReadOnly           '' false for an ordinary working volume
 
 **Library:** [Filesystem Library](Category-Filesystem)  
 **Category:** [Filesystem](Category-Filesystem)  
-**Documented under:** Volumes  
-**Source:** `docs/filesystem/filesystem.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Volumes

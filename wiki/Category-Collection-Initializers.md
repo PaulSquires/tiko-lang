@@ -25,7 +25,7 @@ b.Push( 20 )
 b.Push( 30 )
 ```
 
-A brace list says the same in one line. Before this feature, tiko accepted `= { 10, 20, 30 }` on a container and silently threw the values away: `b.Count( )` was 0.
+A brace list says the same in one line.
 
 ## Rules
 
@@ -75,7 +75,7 @@ end sub
 dim t as Tally = { 1, 2 }                      ' ((100 * 2 + 1) * 2 + 2) = 404
 ```
 
-**Where it works.** A local `dim`, a module-level `dim`, a `static` local, a `dim shared` and a variable declared in a `namespace`. A `static` is filled once, the first time its declaration runs, like its construction. A `dim shared` or namespace variable is constructed in the module initializer, before the program's first statement, and filled right there. So its elements may name constants and other shared variables, but not a module-level `dim` without `shared`, which lives in the main program's frame (`TKO0668`, fbc's error 272 for any shared initializer).
+**Where it works.** A local `dim`, a module-level `dim`, a `static` local, a `dim shared` and a variable declared in a `namespace`. A `static` is filled once, the first time its declaration runs, like its construction. A `dim shared` or namespace variable is constructed in the module initializer, before the program's first statement, and filled right there. So its elements may name constants and other shared variables, but not a module-level `dim` without `shared`, which lives in the main program's frame (`TKO0668`).
 
 ```freebasic
 sub Count( )
@@ -89,7 +89,7 @@ An empty list `= { }` constructs the variable and calls nothing. Several declara
 
 **Not yet.** A static member's definition, `dim shared T.x as … = { … }`, is refused with `TKO0844`. Field initializers inside a `type`, `var`, and assignment `x = { … }` are not collection initializers.
 
-**Plain data is unchanged.** A type that needs no construction is not a collection, even with a `Push` method. Its initializer keeps its field-list meaning: `dim p as Pod = ( 7, 8 )`. A brace list on it, `dim p as Pod = { 7, 8 }`, is error `TKO0845`, as it is fbc's error 63: braces initialize an array or a collection, nothing else.
+**Plain data is unchanged.** A type that needs no construction is not a collection, even with a `Push` method. Its initializer keeps its field-list meaning: `dim p as Pod = ( 7, 8 )`. A brace list on it, `dim p as Pod = { 7, 8 }`, is error `TKO0845`: braces initialize an array or a collection, nothing else.
 
 ## Errors
 
@@ -102,7 +102,5 @@ An empty list `= { }` constructs the variable and calls nothing. Several declara
 | `TKO0775`, `TKO0698`, … | An element's call is wrong: the ordinary diagnostic for that call, at that element. `{ {1, 2} }` into an `Array( of integer )` passes two arguments to `Push`. |
 
 ## Compatibility
-
-fbc has no collection initializers. It refuses a brace list on any UDT with error 63, "Expected array", so no program that fbc accepts changes meaning.
 
 See [Compatibility](Compatibility).

@@ -16,10 +16,6 @@ Define created at compile time if the compilation target uses the PowerPC CPU ar
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.09.0
-
 ### Differences from QB
 
 - New to FreeBASIC

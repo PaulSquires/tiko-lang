@@ -94,7 +94,7 @@ End Sub
 
  `Byval`, or *By Value*, on the other hand makes a copy of the parameter, and any changes you make inside the sub or func are local and will not be reflected in the actual variable that was passed. The `Byval` parameter points to a copy of the variable not the actual variable itself.
 
- The default for FreeBASIC .17 is to pass parameters using `Byval`. In order to change a passed parameter, you need to specify the `Byref` qualifier. In this example, the subroutine updates the the department id of the employee type, so the parameter is qualified as `Byref` so that the subroutine can update the dept field of the type variable.  
+ The default is to pass parameters using `Byval`. In order to change a passed parameter, you need to specify the `Byref` qualifier. In this example, the subroutine updates the the department id of the employee type, so the parameter is qualified as `Byref` so that the subroutine can update the dept field of the type variable.  
  (Editors Note: Byval remains the default in the current version of FreeBASIC)
 
  On the other hand you may not need to update the type as in the following code fragment.

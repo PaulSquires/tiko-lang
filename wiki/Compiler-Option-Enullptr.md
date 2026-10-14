@@ -18,14 +18,13 @@ The `-enullptr` compiler option enables null-pointer error checking in run-time 
 
 Version
 
-- Since fbc 1.07.0
 
 See also
 
 - [`__FB_ERR__`](Fb-Err)
 - [Compiler Option: -exx](Compiler-Option-Exx)
 - [Error Handling](Error-Handling)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

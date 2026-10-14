@@ -2,7 +2,7 @@
 
 # Terminal TUI Library
 
-> 📘 **Working examples:** [hello.tiko](Modern-Tui-Example-Hello) · [form.tiko](Modern-Tui-Example-Form) · [dashboard.tiko](Modern-Tui-Example-Dashboard) — complete programs, in `docs/tui/examples/` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+> 📘 **Working examples:** [hello.tiko](Modern-Tui-Example-Hello) · [form.tiko](Modern-Tui-Example-Form) · [dashboard.tiko](Modern-Tui-Example-Dashboard) — complete programs.
 
 ```freebasic
 #import "std/numeric"
@@ -103,7 +103,7 @@ tiko examples/hello.tiko        ' windows-x86_64 on Windows, linux-x86_64 on Lin
 
 With a packaged toolchain no -i and no -p are needed: the modules and the runtime are in it. Run them from a REAL TERMINAL -- redirected output is rejected with an honest error rather than a dashboard drawn into a pipe.
 
-tiko builds all three with no diagnostics for windows-x86_64 and win64, and compiles them for linux-x86_64 with `-c` -- measured 2026-09-24 at origin/master 50c71751; they were built, not run, because they need a real terminal. fbc builds all three.
+tiko builds all three with no diagnostics for windows-x86_64 and win64, and compiles them for linux-x86_64 with `-c`; they were built, not run, because they need a real terminal.
 
 Read dashboard.tiko if you read only one. Everything in this document appears in it.
 
@@ -753,19 +753,7 @@ THE RIGHTMOST SAMPLE IS THE NEWEST. A history plot pushes and drops from the fro
 
 ## Performance
 
-Measured with fbc's build of the module's bench program at 200x50 -- 10,000 cells, a braille graph and fifty gradient meters, sixty frames:
-
-```freebasic
-win64            1.21 ms per frame
-linux-x86_64     comparable
-unchanged frame  0 bytes, always
-```
-
-Of that, View( ) building the frame is about 1.17 ms and Render( ) diffing and encoding about 0.44 ms -- the 10,000-cell compare is roughly a quarter of a frame. Cheap in absolute terms; not free.
-
-The byte counts are IDENTICAL on both platforms for the same input, which is a stronger determinism check than any single-platform test.
-
-tiko builds and runs the same bench program (measured 2026-09-24 at origin/master 50c71751, windows-x86_64, default options on both sides). Its build writes the same bytes as fbc's -- 833,656 over the sixty changing frames, none over sixty unchanged ones -- and on the machine that measured both it took about 4.2 ms per changing frame where fbc's build took about 2.7 ms.
+tiko builds and runs the module's bench program at 200x50 -- 10,000 cells, a braille graph and fifty gradient meters, sixty frames -- on windows-x86_64 with default options. Its build writes 833,656 bytes over the sixty changing frames, none over sixty unchanged ones, and took about 4.2 ms per changing frame.
 
 ## Testing Your Own Application
 
@@ -861,39 +849,18 @@ No images -- no sixel, no kitty graphics protocol.
 No terminfo parsing. Capabilities come from environment variables and
   the console API, not from a terminfo database.
 No accessibility layer.
-No async/thread bridge yet. RFC-0009 section 6 specifies a channel-based
-  input layer; it is deferred because its own first rule -- the terminal is
-  not thread-safe -- cannot be tested without a tty.
+No async/thread bridge yet. A channel-based input layer is deferred
+  because its own first rule -- the terminal is not thread-safe -- cannot
+  be tested without a tty.
 ```
-
-If you need one of these, the design documents under C:\dev\docs\tui record why each was declined or deferred, which is usually more useful than the fact.
-
-## Design Documents
-
-The full design record lives outside this repository, at C:\dev\docs\tui:
-
-```freebasic
-README.md                 the phase record, the probe table, the
-                          performance measurement, and the seven defects
-                          found by running it after it was called complete
-comparison-matrix.md      capability rows against Textual, Bubbletea,
-                          Ratatui, FTXUI, ncurses, notcurses and others
-ranked-gaps.md            what was built, in the order it was built, and
-                          what was declined
-rationale.md              why immediate mode, why no retained tree, why
-                          drawing cannot fail, why no theme singleton
-RFC-0001 .. RFC-0009      the nine specifications, one per layer
-```
-
-An RFC is not allowed to be quietly diverged from. When behaviour changes, the RFC is amended in the same commit.
 
 ## Tests
 
-The suites are fbc's fbcunit suites for this module, written against fbc; they are not part of tiko-lang. Built by both compilers and the results compared (suiterun, measured 2026-09-24 at origin/master 50c71751), all 10 match fbc's. tiko's own suite pins the fix that made the module build at all: tests/diagnostics/override-unused-generic.test.
+The module's fbcunit suites are not part of tiko-lang. tiko's own suite pins the fix that made the module build at all: tests/diagnostics/override-unused-generic.test.
 
 ## Examples
 
-Three complete, working programs, in `docs/tui/examples/` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern). fbc builds each clean at `-w all`. tiko builds all three with no diagnostics for windows-x86_64 and win64, and compiles them for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: they need a real terminal).
+Three complete, working programs. tiko builds all three with no diagnostics for windows-x86_64 and win64, and compiles them for linux-x86_64 with `-c` (built, not run: they need a real terminal).
 
 - [hello.tiko](Modern-Tui-Example-Hello) — the smallest complete program: one box, a keypress counter, a clean exit.
 - [form.tiko](Modern-Tui-Example-Form) — focus traversal across text inputs, a checkbox, a radio group and a select, with a confirm dialog on submit.
@@ -911,7 +878,6 @@ One page per entry, 253 in all:
 
 ---
 
-**Source:** `docs/tui/tui.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

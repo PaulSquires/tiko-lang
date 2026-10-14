@@ -87,7 +87,7 @@ Sleep
 See also
 
 - [Executables](Executables)
-- [fbc command-line](Fbc-Command-Line)
+- [Compiling a program](Quick-Start#compile-a-program)
 
 ---
 

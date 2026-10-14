@@ -24,10 +24,6 @@ Preprocessor conditional directive
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.20.0
-
 ### Differences from QB
 
 - New to Freebasic

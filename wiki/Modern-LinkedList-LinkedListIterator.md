@@ -12,7 +12,7 @@ LinkedListIterator( of T )
 
 ## Notes
 
-- The RFC-0002 protocol -- `IsValid`, `Value`, `MoveNext` -- which is what `for each` is rewritten into. Ordinary code names the type only when the loop has to stop early, resume, or interleave with another.
+- The iterator protocol -- `IsValid`, `Value`, `MoveNext` -- which is what `for each` is rewritten into. Ordinary code names the type only when the loop has to stop early, resume, or interleave with another.
 - **It stays valid across insertions and removals elsewhere in the list**, which is the property Array's iterator cannot offer and one of the two reasons this container exists.
 - It holds a node pointer, so removing the node it is sitting on does invalidate it.
 - `Value( )` is byref.
@@ -42,5 +42,4 @@ print q.Back( )              '' 30
 
 **Library:** [LinkedList](Category-LinkedList)  
 **Category:** [LinkedList](Category-LinkedList)  
-**Documented under:** Members  
-**Source:** `docs/linkedlist/linkedlist.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

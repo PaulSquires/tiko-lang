@@ -28,9 +28,9 @@ See also
 
 - [Freebasic FAQ](Frequently-Asked-Questions)
 - [Main Features](Most-Important-Features)
-- [Requirements](Requirements)
-- [Installing](Installing)
-- [Running](Running)
+- [Requirements](Quick-Start#compile-a-program)
+- [Installing](Quick-Start#compile-a-program)
+- [Running](Quick-Start#compile-a-program)
 
 ---
 

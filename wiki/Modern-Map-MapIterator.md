@@ -12,7 +12,7 @@ MapIterator( of TK, TV )
 
 ## Notes
 
-- The RFC-0002 protocol -- `IsValid`, `Value`, `MoveNext` -- which is what `for each` is rewritten into. Ordinary code names the type only when the loop has to stop early, resume, or interleave with another.
+- The iterator protocol -- `IsValid`, `Value`, `MoveNext` -- which is what `for each` is rewritten into. Ordinary code names the type only when the loop has to stop early, resume, or interleave with another.
 - Iteration yields a **KeyValuePair**, read through `.key` and `.value`.
 - Iteration order is unspecified, like the map's own.
 
@@ -40,5 +40,4 @@ next
 
 **Library:** [Map](Category-Map)  
 **Category:** [Map](Category-Map)  
-**Documented under:** Members  
-**Source:** `docs/map/map.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

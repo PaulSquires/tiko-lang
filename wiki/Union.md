@@ -53,13 +53,9 @@ The main structure (Type/Union) must be always named, the other (nested) structu
  If only the base is a `Union`, then it won't be affected by data elements from the derived UDT.  
  Since `Union` is not allowed to have complex data elements (i.e. UDTs with constructor/destructor, or dynamic strings), a derived Union can not be allowed to have (contain) a complex base.
 
- **Note:** Since fbc version 1.20.0, unions containing STRING\*N fields will initialize to spaces if the first field is a STRING\*N type, otherwise will initialize to zero (as for a STRING\*N field before fbc version 1.20.0).
+ **Note:** Unions containing STRING\*N fields will initialize to spaces if the first field is a STRING\*N type, otherwise will initialize to zero.
 
 ## Remarks
-
-### Version
-
-- Since fbc 1.10.0: Nested Named Type/Union capability added.
 
 ### Dialect Differences
 

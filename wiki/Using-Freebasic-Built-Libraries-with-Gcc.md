@@ -140,7 +140,7 @@ Next we compile our C test program. Notice the '-c' option for the `gcc` command
 
 `gcc -c test2.c -o test2.o`
 
-Lastly, we use `fbc` to perform the link step. We are not compiling any basic source files here, but we are going to use the smart linking capabilities of FreeBASIC such that the command line is fairly simple:
+Lastly, we use the compiler to perform the link step. We are not compiling any basic source files here, but we are going to use the smart linking capabilities of FreeBASIC such that the command line is fairly simple:
 
 `fbc test2.o -l mylib2`
 

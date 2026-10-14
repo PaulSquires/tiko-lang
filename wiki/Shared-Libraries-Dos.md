@@ -31,9 +31,9 @@ DXE3GEN
 
 `dxe3gen` is a utility which allows you to create files which contain dynamically loadable code (DXE). DXE is used as a synonym for \`dynamically loadable executable module'. See [dxe3gen](http://www.delorie.com/djgpp/doc/utils/utils_19.html).
 
- `dxe3gen` expects that `DXE_LD_LIBRARY_PATH` to be set. If the environment variable is not already set, fbc will set the variable to fbc's library path before invoking `dxe3gen`.
+ `dxe3gen` expects that `DXE_LD_LIBRARY_PATH` to be set. If the environment variable is not already set, the compiler will set the variable to the compiler's library path before invoking `dxe3gen`.
 
- In fbc standalone set-up, custom linker script `dxe.ld` is expected to be present in fbc's library path since `dxe3gen` will invoke `'ld'` linker to generate and executable, which in turn is converted to a `.DXE` file.
+ In the compiler's standalone set-up, custom linker script `dxe.ld` is expected to be present in the compiler's library path since `dxe3gen` will invoke `'ld'` linker to generate and executable, which in turn is converted to a `.DXE` file.
 
 Shared Library Using Run-time Dynamic Loading
 
@@ -47,7 +47,7 @@ In this first example, we use `d1.bas` source for the DXE and `m1.bas` for the t
 ```freebasic
 '' d1.bas - dynamic link library
 
-'' tell fbc to build a dynamic link library
+'' tell the compiler to build a dynamic link library
 
 #cmdline "-dll"
 
@@ -254,10 +254,6 @@ End Sub
 
 #endif
 ```
-
-Version
-
-- some support since fbc 1.06.0 with improved support in fbc 1.10.0
 
 See also
 

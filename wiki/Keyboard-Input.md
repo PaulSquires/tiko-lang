@@ -1,4 +1,4 @@
-[Home](Home) › [Compiler Internals](Category-Compiler-Internals) › **Keyboard Input**
+[Home](Home) › [Miscellaneous](Category-Miscellaneous) › **Keyboard Input**
 
 # Keyboard Input
 
@@ -79,7 +79,7 @@ As mentioned above, the fbdev driver gets its input from the same keyboard handl
 
 ---
 
-**Category:** [Compiler Internals](Category-Compiler-Internals)
+**Category:** [Miscellaneous](Category-Miscellaneous)
 
 ---
 

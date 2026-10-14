@@ -112,7 +112,7 @@ As for the arguments list, it should always be surrounded with parentheses even 
 **Specific syntax:**
 
 On the left-hand side of an assignment expression using the '=' symbol, the result of the function (returned by reference) must be enclosed in parentheses when the function calls one single argument, in order to solve the parsing ambiguity.  
- From fbc version 0.90, '=>' can be used for assignments, in place of '=', same as for initializers, allowing to avoid parsing ambiguity (without parentheses):
+ '=>' can be used for assignments, in place of '=', same as for initializers, allowing to avoid parsing ambiguity (without parentheses):
 
 ```freebasic
 Declare Function transitbyref( ByRef _s As String ) ByRef As String

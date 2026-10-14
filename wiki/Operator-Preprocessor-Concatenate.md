@@ -20,10 +20,6 @@ In macro/define's use '##\_' to escape line continuation character '\_' to allow
 
 ## Remarks
 
-### Version
-
-- Before fbc 1.08.0, '##\_' did not allow to escape line continuation character '\_'.
-
 ### Differences from QB
 
 - New to FreeBASIC

@@ -17,7 +17,7 @@ The `-mt` compiler option forces linking with thread-safe runtime library for mu
 See also
 
 - [`__FB_MT__`](Fb-Mt)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

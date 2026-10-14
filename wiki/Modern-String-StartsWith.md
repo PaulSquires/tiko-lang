@@ -30,5 +30,4 @@ print StartsWith( "Hello", "" )           '' true -- every string starts with ""
 
 **Library:** [String Library](Category-String-Library)  
 **Category:** [String Library](Category-String-Library)  
-**Documented under:** The Functions  
-**Source:** `docs/string/string.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** The Functions

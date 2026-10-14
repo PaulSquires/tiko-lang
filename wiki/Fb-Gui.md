@@ -18,10 +18,6 @@ __FB_GUI__
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.06.0
-
 ### Platform Differences
 
 - Supported on Windows and Cygwin only.

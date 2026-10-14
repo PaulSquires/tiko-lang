@@ -58,10 +58,6 @@ the image buffer to read from
 
 the type of screen coordinate to return: one of the values `0`, `1`, `2`, `3`
 
-### Version
-
- Before fbc 1.08.0, the return datatype was an [`Integer`](Integer).
-
 ### Differences from QB
 
 - `buffer` is new to FreeBASIC

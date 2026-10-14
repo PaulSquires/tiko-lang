@@ -24,7 +24,7 @@ See also
 - [Compiler Option: -m](Compiler-Option-M)
 - [Compiler Option: -gen](Compiler-Option-Gen)
 - [Compiler Option: -rr](Compiler-Option-Rr)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

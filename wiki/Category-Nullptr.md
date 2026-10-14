@@ -51,27 +51,15 @@ G( cptr( zstring ptr, nullptr ) )   '' the fix
 
 ## Not a keyword
 
-`nullptr` is a constant, not a reserved word, for the same reason the [fixed-width type names](Category-Fixed-Width-Types) are typedefs: existing code already uses the name. Whatever a program declares called `nullptr` — a field, a namespace member, a local, a parameter, a `for` counter, a module-level variable — replaces tiko's there, with no diagnostic. fbc's own test suite has a field by that name, and it compiles unchanged.
+`nullptr` is a constant, not a reserved word, for the same reason the [fixed-width type names](Category-Fixed-Width-Types) are typedefs: existing code already uses the name. Whatever a program declares called `nullptr` — a field, a namespace member, a local, a parameter, a `for` counter, a module-level variable — replaces tiko's there, with no diagnostic.
 
 `0` keeps every meaning it has: `p = 0` and `if p = 0` are still legal and silent.
 
 ## Into an integer
 
-Storing `nullptr` — or any pointer — into a pointer-sized integer is warning `TKO0968`, fbc's warning 5:
+Storing `nullptr` — or any pointer — into a pointer-sized integer is warning `TKO0968`:
 
 ```freebasic
 dim as integer n = nullptr          '' TKO0968: implicit conversion
 dim as integer m = cast( integer, nullptr )   '' silent
 ```
-
-## Writing for both compilers
-
-fbc has no `nullptr`. A header meant for both can supply it:
-
-```freebasic
-#ifndef __TIKO_COMPILER__
-const nullptr as any ptr = 0
-#endif
-```
-
-See [Compatibility](Compatibility).

@@ -20,7 +20,7 @@ The `-map` compiler option saves the a map file of the executable made.
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

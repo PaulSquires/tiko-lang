@@ -103,7 +103,7 @@ Back to top
 
  **What are the future plans with FB / ToDo list ?**
 
-You can find out what's planned for the future releases by directly looking at [fbc's todo.txt](http://sourceforge.net/p/fbc/code/ci/master/tree/todo.txt).
+You can find out what's planned for the future releases by directly looking at [the compiler's todo.txt](http://sourceforge.net/p/fbc/code/ci/master/tree/todo.txt).
 
 Back to top
 
@@ -159,7 +159,7 @@ QB had an Integrated Development Environment (IDE). FreeBASIC does not.
  **Can I have an offline version of the documentation?**
 
 This online Wiki is the official documentation for FB. Usually it is up-to-date with the latest improvements found in the development version of FB.  
- Offline versions of this wiki (in CHM, HTML and other formats) are available from the [Documentation directory at fbc's downloads site on SourceForge](http://sourceforge.net/projects/fbc/files/Documentation/).
+ Offline versions of this wiki (in CHM, HTML and other formats) are available from the [Documentation directory at the compiler's downloads site on SourceForge](http://sourceforge.net/projects/fbc/files/Documentation/).
 
 Back to top
 
@@ -187,7 +187,7 @@ This generally happens because you made an *[automatic](Storage-Classes)* fixed-
   defining the array with variable subscripts instead of numeric literals, [Constants](Const) or [Enums](Enum) (using [`Dim`](Dim)), or  
   defining the array with [`ReDim`](Redim)
 
-  reserve more memory for the program stack by using the `-t` [command-line option](Fbc-Command-Line) when compiling. The default is `-t 1024` (kilobytes) or `-t 2048` (kilobytes). Note: it's a bad idea to use very large values here.  
+  reserve more memory for the program stack by using the `-t` [command-line option](Quick-Start#compile-a-program) when compiling. The default is `-t 1024` (kilobytes) or `-t 2048` (kilobytes). Note: it's a bad idea to use very large values here.  
   create a *static* array by defining the array with [`Static`](procedures-Static) rather than [`Dim`](Dim) (only locally visible, but globally preserved)  
   define the array with [`Shared`](Shared) access using [`Dim`](Dim) (this makes the array fully global)  
   use [Pointers](Pointers) and [Memory Functions](Memory-Functions) like [`Allocate`](Allocate) and [`Deallocate`](Deallocate) to manage memory yourself - this is the preferred way for storing big buffers, but not for beginners.

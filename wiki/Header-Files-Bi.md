@@ -91,10 +91,6 @@ At the point in the source code where the header file is included, the optional 
 
 Version
 
-- Since fbc 1.10.0, `symbol.bi` and `fblimits.bi` are added.
-- Before fbc 1.10.0 (for fbc 1.08.0 and fbc 1.09.0), `fbprng.bi` was named `fbmath.bi`.
-- Since fbc 1.08.0, `array.bi` is added.
-- Before fbc 1.08.0, the standard `fbmath.bi` header did not exist.
 
 See also
 

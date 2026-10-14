@@ -14,12 +14,11 @@ The `-earraydims` compiler option enables the array dimensions checking. Enabled
 
 Version
 
-- Since fbc 1.20.0
 
 See also
 
 - [`__FB_ERR__`](Fb-Err)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

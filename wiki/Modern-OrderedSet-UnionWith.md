@@ -38,5 +38,4 @@ print                    '' 1 2 3 4 5 -- still in order
 
 **Library:** [OrderedMap and OrderedSet](Category-OrderedSet)  
 **Category:** [OrderedSet](Category-OrderedSet)  
-**Documented under:** Members  
-**Source:** `docs/ordered/ordered.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

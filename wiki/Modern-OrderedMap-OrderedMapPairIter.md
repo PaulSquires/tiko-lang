@@ -12,7 +12,7 @@ OrderedMapPairIter( of TK, TV )
 
 ## Notes
 
-- The RFC-0002 protocol -- `IsValid`, `Value`, `MoveNext` -- which is what `for each` is rewritten into. Ordinary code names the type only when the loop has to stop early, resume, or interleave with another.
+- The iterator protocol -- `IsValid`, `Value`, `MoveNext` -- which is what `for each` is rewritten into. Ordinary code names the type only when the loop has to stop early, resume, or interleave with another.
 - **In ascending key order**, which is the difference from the Map equivalents.
 - An in-order walk of the tree, so it is O(n) overall and O(log n) in stack.
 
@@ -39,5 +39,4 @@ next
 
 **Library:** [OrderedMap](Category-OrderedMap)  
 **Category:** [OrderedMap](Category-OrderedMap)  
-**Documented under:** Members  
-**Source:** `docs/ordered/ordered.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

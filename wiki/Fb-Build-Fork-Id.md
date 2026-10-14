@@ -12,15 +12,11 @@ __FB_BUILD_FORK_ID__
 
 ## Description
 
-Substituted by a string of the compiler's custom defined project fork identifier name if defined at fbc build time, or an empty string if it was not defined.
+Substituted by a string of the compiler's custom defined project fork identifier name if defined at the compiler's build time, or an empty string if it was not defined.
 
- This value is an empty string for releases made by the FreeBASIC Development Team. Community developers and experimenters may define this value when building their own fbc packages using the makefile to help users identify that fbc may be a special build and may have specific features not in the main release packages.
+ This value is an empty string for releases made by the FreeBASIC Development Team. Community developers and experimenters may define this value when building their own compiler packages using the makefile to help users identify that the compiler may be a special build and may have specific features not in the main release packages.
 
 ## Remarks
-
-### Version
-
-- Since fbc 1.20.0
 
 ### Differences from QB
 

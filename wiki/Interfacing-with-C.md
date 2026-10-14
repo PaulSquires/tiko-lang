@@ -12,7 +12,7 @@ What is a library
 
 Prerequisite
 
- This tutorial was written and tested with FreeBASIC 0.16b and the latest Current release of MinGW32 at the time. As a note Dev-cpp uses MinGW32 as it's compiler tool chain. You also get code::blocks with a mingw32 bundle.
+ As a note Dev-cpp uses MinGW32 as it's compiler tool chain. You also get code::blocks with a mingw32 bundle.
 
 Formal description of the task at hand
 

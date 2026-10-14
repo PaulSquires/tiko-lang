@@ -45,14 +45,6 @@ Sets the random seed that helps [`Rnd`](Rnd) generate random numbers, and select
 
 `Randomize [ seed ][, algorithm ]`
 
-### Version
-
-- Before fbc 1.10.0 (for fbc 1.08.0 and fbc 1.09.0), "fbprng.bi" was named "fbmath.bi".
-- Before fbc 1.08.0:
-
-The standard "fbmath.bi" header for available algorithms did not exist.  
- `Randomize` was not thread-safe.
-
 ### Dialect Differences
 
  The default algorithm used depends on the current dialect in use:

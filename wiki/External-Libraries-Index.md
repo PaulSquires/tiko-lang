@@ -2,7 +2,7 @@
 
 # External Libraries Index
 
-This is the list of external library bindings currently included in FreeBASIC. Visit the link shown for each individual library below to see more information. To obtain a needed external library or DLL, please visit the library's homepage. If you translated additional headers, or updated existing ones, please post them on the [FreeBASIC forum](http://www.freebasic.net/forum/) or submit them to the [fbc project's patch tracker](http://sourceforge.net/projects/fbc/)!
+This is the list of external library bindings currently included in FreeBASIC. Visit the link shown for each individual library below to see more information. To obtain a needed external library or DLL, please visit the library's homepage. If you translated additional headers, or updated existing ones, please post them on the [FreeBASIC forum](http://www.freebasic.net/forum/) or submit them to the [compiler project's patch tracker](http://sourceforge.net/projects/fbc/)!
 
  ***Graphical/test-based user interfaces***
 

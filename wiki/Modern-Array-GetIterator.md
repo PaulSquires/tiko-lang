@@ -17,7 +17,7 @@ using containers
 dim v as Array( of int32 )
 v.Push( 1 ) : v.Push( 2 ) : v.Push( 3 )
 
-'' The RFC-0002 protocol -- IsValid / Value / MoveNext -- which is what
+'' The iterator protocol -- IsValid / Value / MoveNext -- which is what
 '' `for each` is built on
 dim it as ArrayIterator( of int32 ) = v.GetIterator( )
 while it.IsValid( )
@@ -35,5 +35,4 @@ print v[ 0 ]             '' 99
 
 **Library:** [Array Container](Category-Array)  
 **Category:** [Array](Category-Array)  
-**Documented under:** Members  
-**Source:** `docs/array/array.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

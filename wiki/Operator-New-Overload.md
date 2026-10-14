@@ -451,7 +451,7 @@ Do
 Loop
 ```
 
-Output for fbc 32-bit (maximum dynamic data < 2 GB).  
+Output for the 32-bit compiler (maximum dynamic data < 2 GB).  
  Here, program is stopped because of memory allocation failed:
 
 ```freebasic
@@ -484,7 +484,7 @@ memory deallocation forced  &h020ED020      -103.00 MB    0.00 GB
 end program forced
 ```
 
-Output for fbc 64-bit (maximum dynamic data < virtual memory).  
+Output for the 64-bit compiler (maximum dynamic data < virtual memory).  
  Here, program is stopped because of total allocated memory size > 3 GB (adjustable threshold):
 
 ```freebasic

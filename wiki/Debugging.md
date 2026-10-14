@@ -28,7 +28,7 @@ The debugger is in the `bin\win32` or `bin\dos` directories (the **GDB**.EXE fil
 
   - Place a breakpoint in the first line using: `b main`.
   To place a breakpoint in a function called `func` use: `b FUNC`.  
-  Note: fbc exports variable/function names to UPPERCASE. GDB is case sensitive by default, but you can use the `set language pascal` command to change GDB to case-insensitive mode.
+  Note: the compiler exports variable/function names to UPPERCASE. GDB is case sensitive by default, but you can use the `set language pascal` command to change GDB to case-insensitive mode.
 
   Use GDB shortcuts to run your code or to step through it
 

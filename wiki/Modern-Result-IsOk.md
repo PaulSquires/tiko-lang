@@ -33,5 +33,4 @@ print bad.IsOk( )            '' false
 
 **Library:** [Result](Category-Result)  
 **Category:** [Result](Category-Result)  
-**Documented under:** Members  
-**Source:** `docs/result/result.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

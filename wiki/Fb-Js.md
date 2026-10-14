@@ -22,7 +22,6 @@ Define without a value created at compile time in the emscripten version of the 
 
 ### See also
 
-- [Compiling FB with Emscripten](Compiling-Fb-with-Emscripten)
 
 ## Examples
 

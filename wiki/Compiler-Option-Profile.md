@@ -16,7 +16,7 @@ See also
 
 - [Compiler Option: -profgen](Compiler-Option-Profgen)
 - [Profiling for gmon/gprof](Profiling-for-Gmon-Gprof)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

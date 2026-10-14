@@ -23,10 +23,6 @@ Counts the number of arguments in the argument list (`args...`) and returns the 
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.08.0
-
 ### Differences from QB
 
 - New to FreeBASIC

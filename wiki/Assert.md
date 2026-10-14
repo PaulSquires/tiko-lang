@@ -17,7 +17,7 @@ Debugging macro that halts program execution if an expression is evaluated to 0 
 
 ## Description
 
-The `Assert` macro is intended for use in debugging and works only if the [`-g`](Compiler-Option-Eassert) or [-eassert](Compiler-Option-Eassert)`option is specified on the`fbc`command line. In this case it prints an error message and stops the program execution if`*expression*`evaluates to`0
+The `Assert` macro is intended for use in debugging and works only if the [`-g`](Compiler-Option-Eassert) or [-eassert](Compiler-Option-Eassert)`option is specified on the`compiler`command line. In this case it prints an error message and stops the program execution if`*expression*`evaluates to`0
 
 ```freebasic
 .
@@ -27,7 +27,7 @@ Its normal use is to check the correct value of the variables or expressions dur
 If
 ```
 
-[-g](Compiler-Option-Eassert)`and -eassert` are not passed to fbc, the macro does not generate any code, and has no effect.
+[-g](Compiler-Option-Eassert)`and -eassert` are not passed to the compiler, the macro does not generate any code, and has no effect.
 
  Note: If an `Assert` fails while the program is in a graphics [`Screen (Graphics)`](Screen-Graphics), the error message will not be visible as it will be printed to the graphics screen, which will be closed immediately after.
 

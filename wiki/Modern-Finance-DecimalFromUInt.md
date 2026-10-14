@@ -25,5 +25,4 @@ print DecimalFromUInt( 18446744073709551615ull ).ToString( )
 
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
-**Documented under:** Nothing Becomes A Keyword  
-**Source:** `docs/decimal/decimal.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Nothing Becomes A Keyword

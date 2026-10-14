@@ -33,5 +33,4 @@ print mid( line_, SpanOf( 1, line_, " " ) + 1 )    '' indented
 
 **Library:** [String Library](Category-String-Library)  
 **Category:** [String Library](Category-String-Library)  
-**Documented under:** The Functions  
-**Source:** `docs/string/string.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** The Functions

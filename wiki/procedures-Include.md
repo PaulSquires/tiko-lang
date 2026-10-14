@@ -27,7 +27,7 @@ Preprocessor statement to include contents of another source file
 - Relative from the directory of the source file
   Relative from the current working directory  
   Relative from addition directories specified with the *[-i](Compiler-Option-I)* command line option  
-  The include folder of the FreeBASIC installation (`FreeBASIC\inc`, where `FreeBASIC` is the folder where the `fbc` executable is located)
+  The include folder of the FreeBASIC installation (`FreeBASIC\inc`, where `FreeBASIC` is the folder where the compiler executable is located)
 
 ## Remarks
 

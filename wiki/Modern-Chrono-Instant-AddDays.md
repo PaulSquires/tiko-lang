@@ -29,5 +29,4 @@ print d.AddDays( -13 ).ToIsoString( )            '' 2026-07-31T14:30:05.1230000
 
 **Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono)  
 **Category:** [Date and Time (Chrono)](Category-Date-and-Time-Chrono)  
-**Documented under:** The Members  
-**Source:** `docs/datetime/datetime.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** The Members

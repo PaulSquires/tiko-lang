@@ -14,11 +14,11 @@ FreeBASIC is a beta release compiler and development is ongoing. With each full 
 
 ***Requirements and Installation***
 
-Minimum hardware is listed on the *[Requirements](Requirements)* page. Visit our *[Installation](Installing)* page for setting up FreeBASIC on your computer.
+Minimum hardware is listed on the *[Requirements](Quick-Start#compile-a-program)* page. Visit our *[Installation](Quick-Start#compile-a-program)* page for setting up FreeBASIC on your computer.
 
 ***Running***
 
-FreeBASIC is a compiler and as such is not packaged with an IDE (Integrated Development Editor), although there are a few IDE's available. For information on using FreeBASIC without an IDE, see *[Running](Running)*.
+FreeBASIC is a compiler and as such is not packaged with an IDE (Integrated Development Editor), although there are a few IDE's available. For information on using FreeBASIC without an IDE, see *[Running](Quick-Start#compile-a-program)*.
 
 ***Compatibility with QuickBASIC***
 

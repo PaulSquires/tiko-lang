@@ -20,7 +20,6 @@ The `-t` compiler option sets the stack size in kilobytes (defaults to 1024 KByt
 
 Version
 
-- Before fbc 1.08.0, the default stack size for 64-bit targets was also 1024 KBytes.
 
 Platform Differences
 
@@ -28,7 +27,7 @@ Platform Differences
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

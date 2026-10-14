@@ -74,7 +74,7 @@ Dim As Integer a _
 
 **Warning:** When an erroneous code line is spread over a multiple lines block by using the '\_' line continuation character, the error message refers only to the last line of the block.
 
- **Note** for fbc version >= 1.08**:**
+ **Note:**
 
 In macro/define's use '##\_' to escape line continuation character '\_' to allow multiple lines of macro expanded code to be combined into a single statement.
 

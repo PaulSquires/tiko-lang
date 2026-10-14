@@ -29,16 +29,12 @@ The `-fpmode` compiler option specifies whether speed or precision is more impor
  **Note:**
 
 **-** for x86 and x86_64, default is `-fpu x87 -fpmode PRECISE`
- **-** `-fpmode FAST|PRECISE` controls code generation by fbc only
+ **-** `-fpmode FAST|PRECISE` controls code generation by the compiler only
  **-** for optimizing with '-gen gcc' backend, use '-Wc -ffast-math'
-
-Version
-
-- Before fbc-1.20.0, an error message would be displayed if `-fpmode FAST` was with anything but `-fpu SSE`.
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 - [Compiler Option: -fpu](Compiler-Option-Fpu)
 - [`__FB_FPMODE__`](Fb-Fpmode)
 

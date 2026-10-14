@@ -19,7 +19,7 @@ Preprocessor directive
 
 ## Description
 
-`#pragma reserved` statements are preprocessor directives that allow user to reserve symbol names by accessing to the internal symbol tables of the fbc compiler:
+`#pragma reserved` statements are preprocessor directives that allow user to reserve symbol names by accessing to the internal symbol tables of the compiler:
 
 **-** `#pragma reserve symbol`
 
@@ -38,26 +38,22 @@ statement will reserve an ASM symbol name in all ASM statements and blocks.
 Do both previous statements: this combined statement will reserve a global ASM symbol name and generate a warning if the reserved symbol is used for a module level procedure or shared variable in the global namespace.
 
 The primary objective with the two first syntaxes is to create a mechanism to help deal with some symbols causing compile errors or run-time crashes.  
- Some symbol names in fbc compiler are emitted as-is to the backend compilers (gcc, as, etc) where the symbol name is a reserved keyword by the backend compiler.  
+ Some symbol names in the compiler are emitted as-is to the backend compilers (gcc, as, etc) where the symbol name is a reserved keyword by the backend compiler.  
  There are typically two outcomes:
 
 **-** compilation error in the backend,
  **-** bad code generation in the backend (successful compile and unexpected run time crashes).
 
-Using `#pragma reserve symbol` statement allows the fbc compiler to output an error message dedicated to the illegal use of this symbol name in the current scope / namespace.  
- Using `#pragma reserve (extern) symbol` statement allows the fbc compiler to output a warning message dedicated to the illegal use of this symbol name for a module level procedure or shared variable in the global namespace.
+Using `#pragma reserve symbol` statement allows the compiler to output an error message dedicated to the illegal use of this symbol name in the current scope / namespace.  
+ Using `#pragma reserve (extern) symbol` statement allows the compiler to output a warning message dedicated to the illegal use of this symbol name for a module level procedure or shared variable in the global namespace.
 
  A closely related secondary objective with the third and forth syntax is ASM words used in ASM blocks and statements.  
- This allows to add new ASM instruction name in the fbc ASM keywords list (so not yet implicitly reserved by fbc).  
- Therefore, using `#pragma reserve (asm) symbol` or `#pragma reserve (asm, extern) symbol` or any `#pragma reserve (extern, asm) symbol` statement allows the fbc compiler to always emit an undecorated ASM instruction symbol name to the backend compiler.
+ This allows to add new ASM instruction name in the compiler's ASM keywords list (so not yet implicitly reserved by the compiler).  
+ Therefore, using `#pragma reserve (asm) symbol` or `#pragma reserve (asm, extern) symbol` or any `#pragma reserve (extern, asm) symbol` statement allows the compiler to always emit an undecorated ASM instruction symbol name to the backend compiler.
 
  **Note:** `#pragma reserve (extern)` and `#pragma reserve (asm) (and any combined syntax)` throw an error if used in any scope block or procedure.
 
 ## Remarks
-
-### Version
-
-- Since fbc 1.09.0
 
 ### Differences from QB
 
@@ -150,9 +146,9 @@ End Sub
 myName15()                         '' OK
 ```
 
-Suppose that 'xyz' is a new ASM instruction not yet entered in the fbc ASM keywords list (so not yet implicitly reserved by fbc), and this 'xyz' symbol is also used to define a global variable name:
+Suppose that 'xyz' is a new ASM instruction not yet entered in the compiler's ASM keywords list (so not yet implicitly reserved by the compiler), and this 'xyz' symbol is also used to define a global variable name:
 
-**-** thus fbc emits to the backend compiler a decorated 'xyz' symbol (`XYZ$`) in the inserted ASM block:
+**-** thus the compiler emits to the backend compiler a decorated 'xyz' symbol (`XYZ$`) in the inserted ASM block:
 
 ```freebasic
 '' for x86_64
@@ -202,7 +198,7 @@ PROC:
 '/
 ```
 
-**-** after reserving the 'xyz' ASM symbol, fbc now emits to the backend compiler an undecorated 'xyz' symbol (`xyz`) in the inserted ASM block:
+**-** after reserving the 'xyz' ASM symbol, the compiler now emits to the backend compiler an undecorated 'xyz' symbol (`xyz`) in the inserted ASM block:
 
 ```freebasic
 '' for x86_64

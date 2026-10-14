@@ -48,7 +48,7 @@ Fixed array        any lbound; the element type is the array's Dynamic array    
 array iterates zero times
 ```
 
-var-len STRING     one BYTE per iteration, not one character Any type satisfying the RFC-0002 iterator protocol -- it has
+var-len STRING     one BYTE per iteration, not one character Any type satisfying the iterator protocol -- it has
 
 ```freebasic
 GetIterator( ) returning a type with IsValid( ),
@@ -190,7 +190,6 @@ One page per entry, 4 in all:
 
 ---
 
-**Source:** `docs/for_each/for-each.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

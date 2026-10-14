@@ -594,7 +594,7 @@ ONLY lsShort IS A DISTINCT STYLE TODAY. Both backends branch on "is it short", s
 
 THIS IS THE ONLY PART OF THE LIBRARY WHOSE OUTPUT IS NOT REPRODUCIBLE, and it is deliberately in its own corner of the API with "Locale" in every name. Use it for text a human reads on that machine. Use the pattern formatter for anything that is written down, parsed later, compared, or sent anywhere.
 
-Its tests assert non-emptiness, valid UTF-8, ordering and distinctness, and nothing more -- exact-string assertions there would be either locale-pinned or dishonest. RFC-0007 section 3 says so outright.
+Its tests assert non-emptiness, valid UTF-8, ordering and distinctness, and nothing more -- exact-string assertions there would be either locale-pinned or dishonest.
 
 Locale output is also the only part of the library that is routinely non-ASCII, and so the only part where the USTRING overloads genuinely earn their place.
 
@@ -733,11 +733,11 @@ calendar abstraction to make room for others.
 A LENIENT PARSER. There is no equivalent of DateValue's guessing. If the
 input is not ISO 8601, name the pattern.
 
-AssumeLocal. RFC-0007 declares it; the shipped module has AssumeUtc,
-ToInstant and ToLocal but not AssumeLocal. Compose it as
+AssumeLocal. The shipped module has AssumeUtc, ToInstant and ToLocal but
+not AssumeLocal. Compose it as
 d.WithOffset( TimeZoneInfo.LocalOffset ).ToInstant( ) when the value is
-known to be present-day, and read RFC-0007 section 1 on why a fall-back
-hour makes the general case ambiguous.
+known to be present-day; a fall-back hour makes the general case
+ambiguous.
 ```
 
 ## Implementation
@@ -756,7 +756,7 @@ The kernel in core.bas is PURE: no OS calls, no allocation, no locale, no static
 
 The FB side is a module of value types with no compiler support of any kind. Its C entry points are reached through 'extern "C" declare ... alias' -- the pattern inc/string.bi already uses. Note that 'alias' alone is not enough inside a module: without the extern "C" the name is mangled through the module's chain.
 
-clock.bas and zone.bas each hold BOTH platform halves, chosen by #if. fbc keeps a win32/ and a unix/ copy of each and compiles one; tiko-rt's build has no per-target source selection, so the split is made inside the file.
+clock.bas and zone.bas each hold BOTH platform halves, chosen by #if. tiko-rt's build has no per-target source selection, so the split is made inside the file.
 
 zone.bas resolves GetTimeZoneInformationForYear, which needs Windows 7, through GetProcAddress rather than importing it, so the binary's minimum OS is not raised for one function. When it is absent the static fallback still answers correctly for the current year.
 
@@ -773,7 +773,7 @@ tests/vendor/fbc-tests/chrono/zones.bas      offsets, DST, locale invariants
 tests/vendor/fbc-tests/chrono/utext.bas      the USTRING overloads
 ```
 
-These are fbc's own fbcunit suites, vendored in tiko-lang. Under tiko all 8 of 8 match fbc (build/suiterun.sh, which builds each suite with both compilers and compares the results tables; measured 2026-09-24 at origin/master 50c71751), and so do all 3 suites for the older VB-style surface in tests/vendor/fbc-tests/datetime/.
+These are fbcunit suites, vendored in tiko-lang. The older VB-style surface has 3 suites of its own in tests/vendor/fbc-tests/datetime/.
 
 ASSERT YOUR TEST GENERATOR'S RANGE. Every fixed-seed sweep here originally drew its tick as 'clngint( ( seed shr 11 ) mod culngint( DT_MAX_TICKS ) )'. The shift leaves 53 bits, 2^53 is SMALLER than DT_MAX_TICKS, so the mod was a no-op and every "random" value landed in years 1-29. Five suites were affected and their coverage claims were overstated for four phases before it was caught. The correct form is 'clngint( seed mod culngint( DT_MAX_TICKS ) )'. Re-running found no implementation bugs -- the layers were right, the sweeps were just tiny.
 
@@ -789,7 +789,6 @@ One page per entry, 190 in all:
 
 ---
 
-**Source:** `docs/datetime/datetime.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

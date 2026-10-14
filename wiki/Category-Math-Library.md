@@ -67,7 +67,7 @@ dim as float64 e = 2.0
 print e, numeric.E              ' 2    2.718281828459045
 ```
 
-Because these modules add no keyword and no grammar, they cannot change any diagnostic fbc already produces.
+Because these modules add no keyword and no grammar, they cannot change any existing diagnostic.
 
 ========================== std/numeric: math.tiko ==========================
 
@@ -246,7 +246,7 @@ Both are decisions, not descriptions: the x86 instructions are undefined at zero
 
 The PORTABLE implementation is the contract.  Per-backend intrinsics would be an optimisation underneath a defined result, never the definition.
 
-NO 'INTEGER' / 'UINTEGER' OVERLOADS.  INTEGER is the same width as LONGINT on win64, so they add nothing -- and fbc RETYPES a negated literal (typeof(-17LL) is INTEGER, not LONGINT), which with both overloads present makes 'IPow( -2LL, 3LL )' error 98, Ambiguous call.  With only the LONGINT overload it resolves losslessly.
+NO 'INTEGER' / 'UINTEGER' OVERLOADS.  INTEGER is the same width as LONGINT on win64, so they add nothing.
 
 THE MONEY TYPES LIVE IN THEIR OWN CATEGORY.  `std/money`'s Currency and
 Decimal are documented under [Finance](Category-Finance) -- exact
@@ -480,7 +480,7 @@ TWO THINGS DELIBERATELY NOT DONE, stated rather than left to be discovered:
 - NO INFINITY RECOVERY ON '\*'.  C99's __muldc3 rescues ( inf + 0i ) \* ( 2 + 0i ) from NaN with a branch on every multiply; .NET does not, and neither does this.  Pinned by a test so that adding it later is a deliberate act.
 - CPow( 0, w ) IS 0 FOR EVERY w, and CPow( 0, 0 ) is 1.  Those are .NET's answers and the last two are wrong -- 0 to a negative power is infinite.  Kept for source compatibility with both sources, and pinned.
 
-Specified by RFC-0009-complex.md, which supersedes RFC-0007 s5.  tiko's vendored copy of fbc's suites has no suite for this header, so there is no tiko result to report for it.
+The vendored test suites have no suite for this header, so there is no tiko result to report for it.
 
 ========================= std/numeric: fenv.tiko =========================
 
@@ -500,7 +500,7 @@ FP_INVALID FP_DIVBYZERO FP_OVERFLOW FP_UNDERFLOW FP_INEXACT FP_ALL_EXCEPT
 
 ScopedRounding is a CONSTRUCTOR, not a factory: a factory returning by value builds a temporary, copies it, and then DESTROYS the temporary -- restoring the mode before the guarded region runs.
 
-THE HAZARD, STATED RATHER THAN HIDDEN.  The optimiser may move floating-point operations across a call, and moving one across a rounding-mode change silently produces the wrong answer.  C solves this with '#pragma STDC FENV_ACCESS'; fbc has no equivalent.  In practice fbc does not reorder across an external call it cannot see into, but that is an observation about today's compiler, not a guarantee.
+THE HAZARD, STATED RATHER THAN HIDDEN.  The optimiser may move floating-point operations across a call, and moving one across a rounding-mode change silently produces the wrong answer.  C solves this with '#pragma STDC FENV_ACCESS'.
 
 The rounding mode is per-thread on every supported platform.
 
@@ -591,15 +591,9 @@ header gets its own copy.  Costs size, not correctness -- the same trade
 generic instantiations already make in this tree.
 ```
 
-## Compiler Defects Found While Building This
-
-These headers were written and tested under fbc-modern, and building them found four defects in THAT compiler: one in its front end, which reassociated floating-point 'a + ( b + c )' into '( a + b ) + c' and so silently broke every compensated-summation algorithm, and three in its gas64 backend.  All four were fixed in fbc-modern.
-
-They are fbc-modern's record, not tiko's: tiko has its own front end and a single LLVM backend.  What tiko's builds of the math suites show is under Tests below.
-
 ## Tests
 
-tests/vendor/fbc-tests/math/ -- fbc's own fbcunit suites for these headers, vendored in tiko-lang.
+tests/vendor/fbc-tests/math/ -- fbcunit suites for these headers, vendored in tiko-lang.
 
 core.bas      constants, classification (EXHAUSTIVE over all 2^32 SINGLE bit
 
@@ -669,8 +663,6 @@ on fallthrough / EXIT / RETURN / nested scopes, each exception
 flag raised by what must raise it
 ```
 
-Under tiko, all 9 math suites that build under both compilers match fbc (build/suiterun.sh, which builds each suite with both compilers and compares the results tables; measured 2026-09-24 at origin/master 50c71751).
-
 Precision note, and it decides five assertions across two suites: code evaluated on the x87 with the precision control at 64-bit mantissa keeps an intermediate that is never stored in 80 bits.  C99 permits this (FLT_EVAL_METHOD = 2).
 
 This bites the tests that demonstrate a DEFECT rather than a result.  Each is the counter-example half of a pair -- the naive form getting it wrong, beside the library getting it right -- and each was written assuming the intermediate had been rounded to double.  In 80 bits the naive form quietly gets the RIGHT answer and stops demonstrating anything:
@@ -684,10 +676,8 @@ NOT VERIFIED, stated rather than implied:
 - No differential test against OleAut32 VarCy\* or .NET decimal was run for
 
 ```freebasic
-Currency; RFC-0003 s9 specifies it and it is owed.
+Currency; it is owed.
 ```
-
-See also: C:\\dev\\docs\\math\\README.md              the design and the build order C:\\dev\\docs\\math\\amendments.md          where the code diverged from the RFCs C:\\dev\\docs\\math\\comparison-matrix.md   what ten other languages provide
 
 ## API reference
 
@@ -697,7 +687,6 @@ One page per entry, 197 in all:
 
 ---
 
-**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

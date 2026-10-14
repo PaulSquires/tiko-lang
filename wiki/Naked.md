@@ -48,7 +48,7 @@ End {Sub | Function}
 ## Examples
 
 ```freebasic
-'' Naked cdecl function (for fbc 32-bit)
+'' Naked cdecl function (32-bit)
 
 Function subtract_c Naked cdecl _   '' parameters pushed onto call stack in reverse order of declaration
 
@@ -76,7 +76,7 @@ Print subtract_c( 5, 1 ) '' 5 - 1
 
 ''---------------------------------------------------------------------------------------------------------------------
 
-'' Naked stdcall function (for fbc 32-bit)
+'' Naked stdcall function (32-bit)
 
 Function subtract_s Naked stdcall _ '' parameters pushed onto call stack in reverse order of declaration
 
@@ -108,7 +108,7 @@ Print subtract_s( 5, 1 ) '' 5 - 1
 
 ''---------------------------------------------------------------------------------------------------------------------
 
-'' Naked pascal function (for fbc 32-bit)
+'' Naked pascal function (32-bit)
 
 Function subtract_p Naked pascal _  '' parameters pushed onto call stack in same order as declaration
 
@@ -140,7 +140,7 @@ Print subtract_p( 5, 1 ) '' 5 - 1
 ```
 
 ```freebasic
-'' Naked cdecl function (for fbc 32-bit)
+'' Naked cdecl function (32-bit)
 
 '' plus ecx register preserved in asm block by creating user stack
 

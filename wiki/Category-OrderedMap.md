@@ -158,34 +158,9 @@ else.
 
 Do not write through OrderedSet's iterator. Value( ) returns BYREF, matching Set, so 'for each byref x in s' compiles -- and assigning to x changes the key the tree is sorted by without moving the node. Remove and re-Add instead. The same hazard exists for Set, where it breaks the hash.
 
-## Measured
-
-These are FBC-Modern's figures, measured with its `fbc64` on win64 with the gas64 backend -- not with tiko. They show the shape of the trade, not tiko's speed. Random LONG keys. Each row doubles n.
-
-```freebasic
-n            Map insert   OrderedMap insert   Map find   OrderedMap find
-50,000            5 ms              10 ms         1 ms            6 ms
-100,000          11 ms              23 ms         2 ms           15 ms
-200,000          20 ms              53 ms         4 ms           43 ms
-400,000          43 ms             158 ms        12 ms          137 ms
-800,000          89 ms             476 ms        38 ms          373 ms
-```
-
-The hash map wins everywhere, by 2x at fifty thousand entries and by 5x at eight hundred thousand. The gap widens because the tree's constant degrades, not its complexity: every descent chases pointers across an allocation that long ago left cache, while the hash map touches one array. This is the number to look at before reaching for an ordered container by habit.
-
-What the tree gives back, on a 1,000,000-entry map:
-
-```freebasic
-black height                                            13
-100,000 TryFloor probes                                 81 ms
-TryFirst + TryLast                                       7 us
-```
-
-A black height of 13 at a million entries is the balance guarantee doing its job -- the theoretical floor is 20 nodes deep, and a degenerate tree would be a million. Map cannot answer any of these three at all: the nearest key either side of a probe, the smallest, and the largest each mean walking every slot.
-
 ## Tests
 
-fbc's generics/container-orderedmap.bas and container-orderedset.bas, vendored in tiko-lang at `tests/vendor/fbc-tests/generics/`.
+generics/container-orderedmap.bas and container-orderedset.bas, vendored in tiko-lang at `tests/vendor/fbc-tests/generics/`.
 
 Every declared member, every state, the indexer's insert-on-miss, deep copy and assignment independence in both directions, self-assignment, destructor balance with a counting type, four key types including one with '<' and no hash, both FOR EACH binding forms and the tuple destructuring view, and -- for the set -- all three algebra operations including every self-argument case.
 
@@ -210,9 +185,9 @@ at most 20. A degenerate tree would report about 1,000.
 
 The removal rebalance's four cases and their mirrors need specific tree shapes that no hand-written case reliably produces, so both suites end in a DIFFERENTIAL STRESS: 120 rounds x 1,500 random operations mirrored into Map or Set, with every answer compared, the invariants checked each round, and Floor/Ceiling cross-checked against a linear scan.
 
-Under tiko, measured 2026-09-24 at origin/master 50c71751: both files build and run with exit 0 and print what fbc's builds print -- `container-orderedmap: ok` and `container-orderedset: ok` -- invariant checks and differential stress included. Both are among the 68 in-scope run programs that `build/runscan.sh` (2026-09-20) found byte-identical to fbc's builds.
+Under tiko: both files build and run with exit 0 and print `container-orderedmap: ok` and `container-orderedset: ok` -- invariant checks and differential stress included.
 
-See also: docs/map/map.txt                  containers.Map( of TK, TV ) docs/set/set.txt                  containers.Set( of T ) docs/sort/sort.txt                sorting an Array or a LinkedList instead docs/generics/generics.txt        RFC-0001
+See also: [Map](Category-Map) (containers.Map( of TK, TV )), [Set](Category-Set) (containers.Set( of T )), [Sorting](Category-Sorting) (sorting an Array or a LinkedList instead).
 
 ## API reference
 
@@ -222,7 +197,6 @@ One page per entry, 17 in all:
 
 ---
 
-**Source:** `docs/ordered/ordered.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

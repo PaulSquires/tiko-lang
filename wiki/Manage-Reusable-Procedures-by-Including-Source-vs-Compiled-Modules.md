@@ -47,7 +47,7 @@ The compiler removes the Private procedures that are not called, but this does n
 
 See also
 
-- [fbc command-line](Fbc-Command-Line)
+- [Compiling a program](Quick-Start#compile-a-program)
 - [Source Files (.bas)](Source-Files-Bas)
 - [Header Files (.bi)](Header-Files-Bi)
 - [Using Prebuilt Libraries](Using-Prebuilt-Libraries)

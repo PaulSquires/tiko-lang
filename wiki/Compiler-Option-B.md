@@ -27,7 +27,7 @@ Note that the `-b` option was not needed for *file1.bas* or *file2.bas*.
 See also
 
 - [Compiler Option: -a](Compiler-Option-a)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

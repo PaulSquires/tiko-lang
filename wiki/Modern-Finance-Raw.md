@@ -35,5 +35,4 @@ print CurrencyFromRaw( c.Raw( ) ).ToString( )          '' 12.3400
 
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
-**Documented under:** Members  
-**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

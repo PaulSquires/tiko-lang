@@ -43,12 +43,6 @@ __FB_ERR__
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.20.0: *[-earraydims](Compiler-Option-Earraydims)* indication.
-  Since fbc 1.10.0: *[-eunwind](Compiler-Option-Eunwind)* indication.  
-  Since fbc 1.07.0: *[-earray](Compiler-Option-Earray)*, *[-enullptr](Compiler-Option-Enullptr)*, *[-elocation](Compiler-Option-Elocation)*, *[-edebug](Compiler-Option-Edebug)*, *[-edebuginfo](Compiler-Option-Edebuginfo)*, and *[-eassert](Compiler-Option-Eassert)* indications.
-
 ### Differences from QB
 
 - New to FreeBASIC

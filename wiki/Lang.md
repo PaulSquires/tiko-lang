@@ -21,7 +21,7 @@ If the *[-forcelang](Compiler-Option-Forcelang)* option was not given on the com
 
  This directive overrides the *[-lang](Compiler-Option-Lang)* option if it was given on the command line. However, if the *[-forcelang](Compiler-Option-Forcelang)* option was given on the command line, this directive will have no effect. A warning is issued, the directive is ignored, and compilation will continue. This allows the user to explicitly override `$Lang` metacommands.
 
- This metacommand was introduced in FreeBASIC version 0.20.0. Older versions of FB, and QuickBASIC, will treat it as a comment and silently ignore it.
+ QuickBASIC will treat it as a comment and silently ignore it.
 
 ## Remarks
 

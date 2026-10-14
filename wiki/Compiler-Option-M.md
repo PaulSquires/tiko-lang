@@ -34,7 +34,7 @@ See also
 - [`__FB_MAIN__`](Fb-Main)
 - [Compiler Option: -c](Compiler-Option-C)
 - [Compiler Option: -r](Compiler-Option-R)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

@@ -10,20 +10,19 @@ Syntax
 
 Description
 
-The `-nostrip` compiler option explicitly prevents fbc from passing the option to strip (remove) all symbols to the linker. Object modules and libraries will retain any symbols present after linking.
+The `-nostrip` compiler option explicitly prevents the compiler from passing the option to strip (remove) all symbols to the linker. Object modules and libraries will retain any symbols present after linking.
 
 Version
 
-- Since fbc 1.07.0
 
 Platform Differences
 
-- fbc strips all symbols by default on Dos and Windows platforms only
+- the compiler strips all symbols by default on Dos and Windows platforms only
 
 See also
 
 - [-strip](Compiler-Option-Strip)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

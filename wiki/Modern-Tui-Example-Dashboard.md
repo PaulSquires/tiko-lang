@@ -2,7 +2,7 @@
 
 # dashboard.tiko
 
-> **The btop-style screen, the module's success criterion.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/dashboard.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+> **The btop-style screen, the module's success criterion.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library).
 
 Two columns, braille history plots, gradient meters per core, a scrolling process table with a scrollbar, a status bar, mouse support and a 250 ms tick. This is the layout the module was measured against; if you read one example, read this one.
 
@@ -12,11 +12,11 @@ Two columns, braille history plots, gradient meters per core, a scrolling proces
 tiko dashboard.tiko        ' windows-x86_64 on Windows, linux-x86_64 on Linux
 ```
 
-Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for windows-x86_64 and win64, and compiles it for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: it is interactive). fbc builds it clean at `-w all`.
+Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for windows-x86_64 and win64, and compiles it for linux-x86_64 with `-c` (built, not run: it is interactive).
 
 ## What to notice
 
-- `Init` returns `TuiTick( 250 )`. NOTHING ELSE CAN ARM THE FIRST TICK -- TuiTick is one-shot and Update only re-arms it in response to a tick, so without this the graphs never move. Verified under a pty, with fbc's build: 15 redraws at 0.51, 0.76, 1.01 ... 4.01 s.
+- `Init` returns `TuiTick( 250 )`. NOTHING ELSE CAN ARM THE FIRST TICK -- TuiTick is one-shot and Update only re-arms it in response to a tick, so without this the graphs never move.
 - `opts.mouse = TRUE` is set explicitly. `TuiTermOptionsDefault( )` leaves the mouse OFF, so a program that forgets this line never sees a mouse event.
 - The whole layout is nested `TuiSplitH` and `TuiSplitV` calls, recomputed every frame. There is no layout tree and nothing to invalidate.
 - `procRect` is remembered by the view for mouse hit-testing -- the one piece of frame-to-frame state an immediate-mode application actually needs.
@@ -29,8 +29,7 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 ''
 '' The btop-style screen this module was measured against: a two-column layout,
 '' braille history plots, gradient meters, a scrolling process table with a
-'' scrollbar, and a status bar. RFC-0008 section 7 maps every element to the
-'' widget that draws it.
+'' scrollbar, and a status bar.
 ''
 '' Build (windows-x86_64 or linux-x86_64):
 ''     tiko dashboard.tiko
@@ -120,8 +119,7 @@ function DashApp.Init( ) as TuiCmd
 
 	'' ARM THE FIRST TICK. Nothing else can: TuiTick is one-shot and Update
 	'' only re-arms it in response to a tick, so without this the graphs never
-	'' move. RFC-0009 section 1 originally declared Init as a `sub`, which made
-	'' this impossible to express at all.
+	'' move.
 	return TuiTick( 250 )
 end function
 
@@ -147,7 +145,7 @@ function DashApp.Update( byref e as TuiEvent ) as TuiCmd
 
 	case TUIEVENT_TICK
 		Sample( )
-		'' TuiTick is ONE-SHOT: re-arm it. RFC-0009 section 5.
+		'' TuiTick is ONE-SHOT: re-arm it.
 		return TuiTick( 250 )
 
 	case TUIEVENT_MOUSE
@@ -180,7 +178,7 @@ end function
 
 '' ---------------------------------------------------------------------------
 '' Layout: nested splits, recomputed every frame. There is no layout tree and
-'' nothing to invalidate -- RFC-0006 section 4.
+'' nothing to invalidate.
 '' ---------------------------------------------------------------------------
 sub DashApp.View( byref f as TuiFrame )
 	dim as TuiConstraintArray outer
@@ -265,7 +263,7 @@ sub DashApp.ViewCpu( byref f as TuiFrame, byval a as TuiRect )
 		lbl.Render( f, cell[0] )
 
 		'' The gradient runs along the bar's FULL length, so a given position
-		'' keeps its colour as the value moves -- RFC-0008 section 3.
+		'' keeps its colour as the value moves.
 		dim as TuiMeter m
 		m.ratio = coreLoad( i )
 		m.from_ = TuiRgb( 80, 220, 120 )
@@ -417,8 +415,7 @@ end if
 
 **Library:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Other examples:** [hello.tiko](Modern-Tui-Example-Hello) · [form.tiko](Modern-Tui-Example-Form)
-  
-**Source:** `docs/tui/examples/dashboard.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+
 
 
 ---

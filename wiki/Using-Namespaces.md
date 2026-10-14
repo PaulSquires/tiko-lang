@@ -24,10 +24,6 @@ The `Using` command allows all symbols from a given namespace to be accessed wit
 
 ## Remarks
 
-### Version
-
-- Before fbc 1.09.0, if there is duplicated symbol in the global namespace (unnamed namespace), access to local symbol is captured by duplicated global symbol (in that case, full prefixing is required to access local symbol).
-
 ### Differences from QB
 
 - QB had the `Using` keyword, but for other purposes. Namespaces did not exist in QB.

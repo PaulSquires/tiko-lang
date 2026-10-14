@@ -36,10 +36,6 @@ Returns zero (0) for success or an error code if the end of file (file size) cou
 result = FileSetEof(fnum)
 ```
 
-### Version
-
-- Since fbc 1.08.0
-
 ### Differences from QB
 
 - New to FreeBASIC.

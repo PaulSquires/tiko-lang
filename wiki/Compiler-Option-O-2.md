@@ -21,7 +21,7 @@ Specifies the optimization level to be passed to GCC when using `-gen gcc`.
 See also
 
 - [Compiler Option: -gen gcc](Compiler-Option-Gen)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

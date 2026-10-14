@@ -143,7 +143,7 @@ See [Runtime Error Codes](Runtime-Error-Codes) for a listing of runtime error nu
 
  The optional [`Local`](Local) keyword (authorized only inside Sub/Function) was intended to be used to define an error handler only in the same procedure the *'On Local Error'* is in (for compatibility with PDS 7.1 and VB Dos 1.0 for example). In this case, FreeBASIC should have searched for the label in the current procedure only.  
  But presently, the [`Local`](Local) clause is ignored by the compiler, and the error handler can be either in the scope of the same procedure the *'On \[Local\] Error'* is in, or in the main part of the module (if defined before the procedure).  
- Exception when *[-gen gcc](Compiler-Option-Gen)* is used (or for the fbc 64-bit): the [`Local`](Local) clause seems to be rightly taken into account, but except inside a local scope!
+ Exception when *[-gen gcc](Compiler-Option-Gen)* is used (or for the 64-bit compiler): the [`Local`](Local) clause seems to be rightly taken into account, but except inside a local scope!
 
  *'On \[Local\] Error Goto label'* is not the best way to catch errors from a built-in procedure when a syntax in the form of a function is available. The return error code can be directly tested (using the returned error code from function inhibits the QuickBASIC-like error checking and statement *'On Error Goto'*).
 

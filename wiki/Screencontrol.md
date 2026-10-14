@@ -304,32 +304,6 @@ or,
 ScreenControl( what , param )
 ```
 
-### Version
-
-- Since fbc 1.20.0: `GET_X86_MMX_ENABLED`, `SET_X86_MMX_ENABLED`
-- Since fbc 1.10.0: 16 getters from `GET_SCANLINE_SIZE` to `GET_GL_SCALE` added.
-- Before fbc 1.08.0:
-
-Syntax:
-
-```freebasic
-Declare Sub ScreenControl ( ByVal what As Long, ByRef param1 As Integer = 0, ByRef param2 As Integer = 0, ByRef param3 As Integer = 0, ByRef param4 As Integer = 0 )
-
-Declare Sub ScreenControl ( ByVal what As Long, ByRef param As String =
-```
-
-""`)`
-
-Usage:
-
-```freebasic
-ScreenControl( what [, [ param1 ] [, [ param2 ] [, [ param3 ] [, [ param4 ]]]]] )
-
-or,
-
-ScreenControl( what [, param ] )
-```
-
 ### Dialect Differences
 
 - Not available in the *[-lang qb](Compiler-Option-Lang)* dialect unless referenced with the alias `__Screencontrol`.

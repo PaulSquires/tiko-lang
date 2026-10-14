@@ -91,7 +91,7 @@ The same rule the containers already carry, for the same reason: inference reads
 
 ## Empty Access Raises
 
-Value( ) on an empty Optional raises FB_RTERROR_ILLEGALFUNCTIONCALL through the ordinary fbc path. With no handler installed the program stops:
+Value( ) on an empty Optional raises FB_RTERROR_ILLEGALFUNCTIONCALL through the ordinary runtime-error path. With no handler installed the program stops:
 
 ```freebasic
 Aborting due to runtime error 1 (illegal function call) at line 92 of ...\pkg\std\outcome\optional.tiko()
@@ -229,7 +229,6 @@ One page per entry, 6 in all:
 
 ---
 
-**Source:** `docs/optional/optional.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

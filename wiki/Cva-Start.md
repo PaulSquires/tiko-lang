@@ -29,10 +29,6 @@ In a variadic procedure definition, `argument_list` is a variable having the [`C
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.07.0
-
 ### Dialect Differences
 
 - Not available in the *[-lang qb](Compiler-Option-Lang)* dialect unless referenced with the alias `__cva_start`.

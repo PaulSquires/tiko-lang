@@ -38,14 +38,6 @@ Returns the random number generated.
 
 `result = Rnd( seed )`
 
-### Version
-
-- Before fbc 1.10.0 (for fbc 1.08.0 and fbc 1.09.0), "fbprng.bi" was named "fbmath.bi".
-- Before fbc 1.08.0:
-
-`Rnd` was not thread-safe (many values temporarily returned in duplicate for a same thread).  
- The standard "fbmath.bi" header for available algorithms did not exist.
-
 ### Dialect Differences
 
  The default algorithm used depends on the current dialect in use:

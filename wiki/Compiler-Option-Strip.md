@@ -14,16 +14,15 @@ The `-strip` compiler option passes an option to the linker to strip (remove) al
 
 Version
 
-- Since fbc 1.07.0
 
 Platform Differences
 
-- fbc strips all symbols by default on Dos and Windows platforms only
+- The compiler strips all symbols by default on Dos and Windows platforms only
 
 See also
 
 - [-nostrip](Compiler-Option-Nostrip)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

@@ -18,7 +18,7 @@ See also
 - [Compiler Option: -ex](Compiler-Option-Ex)
 - [Compiler Option: -exx](Compiler-Option-Exx)
 - [Error Handling](Error-Handling)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

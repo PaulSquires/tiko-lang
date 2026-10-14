@@ -30,10 +30,6 @@ The `With...End With` block allows the omission of the name of a variable of a u
 
 ## Remarks
 
-### Version
-
-- Before fbc 1.10.0, temporary types (without any constructor) were not supported (because destruction of such temporary types was called immediately after the `With` statement).
-
 ### Dialect Differences
 
 - Not available in the *[-lang qb](Compiler-Option-Lang)* dialect unless referenced with the alias `__With`.

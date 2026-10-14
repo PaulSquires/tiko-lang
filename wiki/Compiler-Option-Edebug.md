@@ -20,7 +20,6 @@ The `-edebug` compiler option defines the intrinsic macro [`__FB_DEBUG__`](Fb-De
 
 Version
 
-- Since fbc 1.07.0
 
 See also
 
@@ -30,7 +29,7 @@ See also
 - [Compiler Option: -debuginfo](Compiler-Option-Edebuginfo)
 - [Compiler Option: -g](Compiler-Option-G)
 - [Debugging](Debugging)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

@@ -45,16 +45,6 @@ This library ships ALONGSIDE all of that. Nothing in inc/file.bi, inc/dir.bi or 
 
 NO COMPILER SUPPORT IS INVOLVED. This is a library: the runtime half is in tiko-rt (lib/rt/src/fs/), the FreeBASIC types in the std/fs module (pkg/std/fs/). Nothing here is a keyword, and Stat, ReadDir, CopyFile and the rest stay available as your own identifiers: nothing is added to a program until it imports std/fs, and the bare names only after 'using fs'.
 
-It is specified before it is implemented -- nine RFCs, one per area, each normative. Where the code and an RFC disagreed, the RFC was amended in the same change; several such corrections are recorded in them.
-
-THE SPECIFICATION IS NOT IN THIS REPOSITORY. It lives in
-
-```freebasic
-C:\dev\docs\filesystem\
-```
-
-along with rationale.md (why each thing is shaped this way), comparison- matrix.md and ranked-gaps.md (what it was measured against), and README.md (what shipped, how it was verified, and what is and is not verified). Every bare filename below refers to that directory.
-
 ## The Shape, In One Table
 
 Module        Everything belongs to the module fs. Nothing is added to a
@@ -906,7 +896,7 @@ Free space is a snapshot and is stale on return. A FileLock is ADVISORY even on 
 
 ## What Is NOT Here
 
-Each was considered and excluded; rationale.md argues them.
+Each was considered and excluded.
 
 Async / overlapped / promise-based IO. FreeBASIC has no async model, and
 
@@ -970,11 +960,11 @@ THE UNIT IS FB_UCHAR (UTF-16), NOT FB_WCHAR, which is 4 bytes on Linux -- buildi
 
 The glob matcher is ITERATIVE, not recursive. A recursive matcher on a hostile pattern such as "a\*a\*a\*a\*a\*b" is exponential and will blow the stack.
 
-Platform code is split BY #if, one file per area. fbc keeps the same filename in win32/ and unix/, but tiko-rt's build has no per-target source selection, so error, stat, dir, ops, link, volume, lock, mmap and watch each hold a Windows half and a POSIX half. The path and glob grammars are the exception -- they take the grammar as a PARAMETER so both are testable on either host.
+Platform code is split BY #if, one file per area. tiko-rt's build has no per-target source selection, so error, stat, dir, ops, link, volume, lock, mmap and watch each hold a Windows half and a POSIX half. The path and glob grammars are the exception -- they take the grammar as a PARAMETER so both are testable on either host.
 
 ## Tests
 
-tests/vendor/fbc-tests/filesystem/     fbc's own nine fbcunit suites, vendored in tiko-lang
+tests/vendor/fbc-tests/filesystem/     nine fbcunit suites, vendored in tiko-lang
 
 ```freebasic
 fspath_core     one block per numbered path rule, every case run under
@@ -990,9 +980,7 @@ fsadvanced      locking, mapping, watching
 fsstrings       the whole STRING overload layer
 ```
 
-Under tiko, all 9 match fbc (build/suiterun.sh, which builds each suite with both compilers and compares the results tables; measured 2026-09-24 at origin/master 50c71751).
-
-README.md records what is deliberately NOT asserted and why -- among them that a truncating writer faults a live mapping, and cross-process lock exclusion.
+The suites deliberately do NOT assert that a truncating writer faults a live mapping, nor cross-process lock exclusion.
 
 ## Dialects
 
@@ -1006,7 +994,6 @@ One page per entry, 139 in all:
 
 ---
 
-**Source:** `docs/filesystem/filesystem.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

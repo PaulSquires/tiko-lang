@@ -13,8 +13,7 @@ There are 3 types of fixed-length strings:
 
 **-** `String * size`
 
-since fbc version 1.20.0, total length of the string: '*size*' characters = '*size*' bytes `('size' useful characters)`  
- before fbc version 1.20.0, total length of the string: '*size*+1' characters = '*size*+1' bytes `('size' useful characters + '1' final null character)`
+total length of the string: '*size*' characters = '*size*' bytes `('size' useful characters)`
 
 **-** `ZString * size`
 
@@ -53,8 +52,6 @@ Example
 Size (in bytes) of different strings from all types above:
 
 ```freebasic
-'  Result depending on fbc version (before/since 1.20.0)
-
 Dim As String * 20 s20 = "FreeBASIC manual"
 
 Dim As ZString * 20 z20 = "FreeBASIC manual"
@@ -106,29 +103,7 @@ Print Using "    containing ## user characters of # byte(s) each"; Len(s); SizeO
 Sleep
 ```
 
- Note: For the fixed-length string type only (QB-style fixed-length string), the 'Len()' keyword always returns the declared constant number of characters, regardless of the number of characters assigned to it by user.  
- (hence the formula only for fixed-length string type before fbc version 1.20.0: `'user_characters_length = IIf(InStr(s, Chr(0)) > 0, InStr(s, Chr(0)) - 1, Len(s))'`)
-
- Output example before fbc version 1.20.0 and for win64 (a wstring character uses 2 bytes):
-
-```freebasic
-'FIXED-LENGTH STRING * 20': 21 bytes in total, 20 useful characters available
-	containing 16 user characters of 1 byte(s) each
-
-'FIXED-LENGTH ZSTRING * 20': 20 bytes in total, 19 useful characters available
-	containing 16 user characters of 1 byte(s) each
-'ZSTRING PTR': dereferencing pointer -> "FreeBASIC manual"
-	containing 16 user characters of 1 byte(s) each
-
-'FIXED-LENGTH WSTRING * 20': 40 bytes in total, 19 useful characters available
-	containing 16 user characters of 2 byte(s) each
-'WSTRING PTR': dereferencing pointer -> "FreeBASIC manual"
-	containing 16 user characters of 2 byte(s) each
-
-'STRING': 24 bytes in descriptor, memory allocated for 32 characters right now
-	containing 16 user characters of 1 byte(s) each
-
-```
+ Note: For the fixed-length string type only (QB-style fixed-length string), the 'Len()' keyword always returns the declared constant number of characters, regardless of the number of characters assigned to it by user.
 
 Implicit conversion from Zstring to Ubyte
 

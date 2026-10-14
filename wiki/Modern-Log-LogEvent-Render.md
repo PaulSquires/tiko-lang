@@ -40,5 +40,4 @@ print len( out_ ) > 0        '' -1 (true) -- the line was rendered
 
 **Library:** [Logging](Category-Logging)  
 **Category:** [Logging](Category-Logging)  
-**Documented under:** Members  
-**Source:** `docs/logging/logging.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

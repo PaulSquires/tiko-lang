@@ -10,11 +10,11 @@ Syntax
 
 Description
 
-The `-version` compiler option makes FBC show the compiler version and exit. Any other command-line options are ignored, and no compilation will be performed.
+The `-version` compiler option makes the compiler show its version and exit. Any other command-line options are ignored, and no compilation will be performed.
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

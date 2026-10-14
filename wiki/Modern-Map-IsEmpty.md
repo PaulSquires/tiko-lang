@@ -28,5 +28,4 @@ print ages.IsEmpty               '' true
 
 **Library:** [Map](Category-Map)  
 **Category:** [Map](Category-Map)  
-**Documented under:** Members  
-**Source:** `docs/map/map.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

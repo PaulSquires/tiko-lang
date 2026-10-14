@@ -18,7 +18,7 @@ See also
 
 - [`__FB_OUT_LIB__`](Fb-Out-Lib)
 - [Static Libraries](Static-Libraries)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

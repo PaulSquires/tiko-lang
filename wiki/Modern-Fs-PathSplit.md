@@ -44,5 +44,4 @@ print PathRoot( "C:\dev\src\main.tiko" )      '' C:\  -- the missing piece
 
 **Library:** [Filesystem Library](Category-Filesystem)  
 **Category:** [Filesystem](Category-Filesystem)  
-**Documented under:** Paths  
-**Source:** `docs/filesystem/filesystem.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Paths

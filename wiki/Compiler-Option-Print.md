@@ -17,11 +17,11 @@ The `-print` option can be used to query the compiler for certain information wh
 | option | effect |
 | --- | --- |
 | fblibdir | Prints the compiler's lib/ path |
-| host | Prints the host system on which fbc is running |
-| target | Prints the target system for which fbc is compiling (can be affected by the -target option) |
-| x | Prints the file name of the output executable or library that fbc will or would generate (named after the -x option), depending on other command line options |
-| sha-1 | Prints the source code revision sha-1 used to build the compiler if defined at fbc build time, or an empty string if it was not defined |
-| fork-id | Prints the custom defined project fork identifier name if defined at fbc build time, or an empty string if it was not defined |
+| host | Prints the host system on which the compiler is running |
+| target | Prints the target system for which the compiler is compiling (can be affected by the -target option) |
+| x | Prints the file name of the output executable or library that the compiler will or would generate (named after the -x option), depending on other command line options |
+| sha-1 | Prints the source code revision sha-1 used to build the compiler if defined at the compiler's build time, or an empty string if it was not defined |
+| fork-id | Prints the custom defined project fork identifier name if defined at the compiler's build time, or an empty string if it was not defined |
 
 Example
 
@@ -36,7 +36,7 @@ See also
 
 - [-x](Compiler-Option-X)
 - [-target](Compiler-Option-Target)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 - [`__FB_BUILD_SHA1__`](Fb-Build-Sha1)
 - [`__FB_BUILD_FORK_ID__`](Fb-Build-Fork-Id)
 

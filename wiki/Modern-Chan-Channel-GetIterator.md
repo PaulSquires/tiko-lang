@@ -14,7 +14,7 @@ GetIterator( ) as ChannelIterator( of T )
 
 - Iteration **consumes**: each step receives a value, and the loop ends when the channel is closed and drained -- the same condition that ends `while ch.Receive( v )`.
 - It blocks between values, so a `for each` over a channel that nobody closes never ends.
-- The RFC-0002 protocol -- `IsValid`, `Value`, `MoveNext` -- as used by every other iterable type here.
+- The iterator protocol -- `IsValid`, `Value`, `MoveNext` -- as used by every other iterable type here.
 
 ## Examples
 
@@ -40,5 +40,4 @@ print "drained"
 
 **Library:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
 **Category:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
-**Documented under:** Members  
-**Source:** `docs/goroutines/goroutines.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

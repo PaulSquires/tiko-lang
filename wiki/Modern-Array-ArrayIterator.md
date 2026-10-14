@@ -12,7 +12,7 @@ ArrayIterator( of T )
 
 ## Notes
 
-- The RFC-0002 protocol -- `IsValid`, `Value`, `MoveNext` -- which is what `for each` is rewritten into. Ordinary code names the type only when the loop has to stop early, resume, or interleave with another.
+- The iterator protocol -- `IsValid`, `Value`, `MoveNext` -- which is what `for each` is rewritten into. Ordinary code names the type only when the loop has to stop early, resume, or interleave with another.
 - `Value( )` returns **byref**, so `for each byref v in a` can modify elements in place.
 - It holds a **pointer** to the array, not a copy -- an iterator is created per loop and must not deep-copy the container.
 - It is invalidated by anything that reallocates the storage, which a `Push` past the capacity does.
@@ -42,5 +42,4 @@ print v[ 0 ]                 '' 99
 
 **Library:** [Array Container](Category-Array)  
 **Category:** [Array](Category-Array)  
-**Documented under:** Members  
-**Source:** `docs/array/array.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

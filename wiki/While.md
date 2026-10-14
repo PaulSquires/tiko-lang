@@ -23,10 +23,6 @@ While [condition]
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.20.0: `End While` equivalent to `Wend`
-
 ### Differences from QB
 
 - None, except for the `End While` syntax (equivalent to `Wend`) specific to FreeBASIC.

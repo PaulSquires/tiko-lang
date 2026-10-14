@@ -36,5 +36,4 @@ print "returned"
 
 **Library:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
 **Category:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
-**Documented under:** Waitgroup  
-**Source:** `docs/goroutines/goroutines.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Waitgroup

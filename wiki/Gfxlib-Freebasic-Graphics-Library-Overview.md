@@ -12,9 +12,9 @@ The libary named GfxLib is the built-in graphics library included in FreeBASIC. 
 
   Windows:
 
-  - **`Direct2D`** the default selection of FB GfxLib. For fbc built on WinXP + mingw.org (very old tool chain now), the **`Direct2D`** driver is disabled in the gfxlib.
+  - **`Direct2D`** the default selection of FB GfxLib. For the compiler built on WinXP + mingw.org (very old tool chain now), the **`Direct2D`** driver is disabled in the gfxlib.
   **`DirectX`** is fallback if **`Direct2D`** can't be initialized. May not be available on old Windows installations. [(gfxlib2/win32/gfx_driver_ddraw.c)](http://sourceforge.net/p/fbc/code/ci/master/tree/src/gfxlib2/win32/gfx_driver_ddraw.c)
-  **`GDI`** as last resort, the "safest" one, available in all Windows versions. Bug note: broken in FB versions 0.20 to 0.24 (crash), and minor problems 0.18.5, and 0.90.x and 1.xx ("banding effects", try extra SCREENUNLOCK), [(forum discussion: p=106600)](http://www.freebasic.net/forum/viewtopic.php?p=106600#106600) [(gfxlib2/win32/gfx_driver_gdi.c)](http://sourceforge.net/p/fbc/code/ci/master/tree/src/gfxlib2/win32/gfx_driver_gdi.c)
+  **`GDI`** as last resort, the "safest" one, available in all Windows versions.
   **`OpenGL`** [(gfxlib2/win32/gfx_driver_opengl.c)](http://sourceforge.net/p/fbc/code/ci/master/tree/src/gfxlib2/win32/gfx_driver_opengl.c)
 
   Linux & others:

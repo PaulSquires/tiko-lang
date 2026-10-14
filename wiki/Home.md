@@ -64,7 +64,7 @@ tiko's syntax comes from the most readable family of languages ever designed for
 
 | | |
 |---|---|
-| [Compatibility](Compatibility) | What differs from fbc, measured, and what is the same |
+| [Compatibility](Compatibility) | What differs, and what is the same |
 | [All Categories](Categories) | Every category, including the FreeBASIC manual's |
 | [Keyword Index](Keyword-Index) | Every keyword and page, A to Z |
 

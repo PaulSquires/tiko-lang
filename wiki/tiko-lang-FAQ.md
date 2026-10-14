@@ -6,11 +6,11 @@ A compiled, statically typed programming language, with its own compiler, type s
 **Is tiko a BASIC?**
 No. Its syntax comes from the most readable family of languages ever designed for people, and it keeps that readability on purpose: `end function` and `next` tell a reviewer which block just closed, with no brace counting and no indentation errors. Everything underneath is tiko's own. One consequence is that it still compiles FreeBASIC code, which is what [Compatibility](Compatibility) is about.
 
-**Is tiko a fork of fbc?**
-No. It is a separate compiler with its own frontend, its own typed IR and an LLVM backend. Where it accepts the same code as fbc, that is measured against fbc, program by program. See [What Is tiko](What-Is-tiko-lang).
+**Is tiko a fork of another compiler?**
+No. It is a separate compiler with its own frontend, its own typed IR and an LLVM backend. See [What Is tiko](What-Is-tiko-lang).
 
 **Will my existing FreeBASIC code compile?**
-If it is `#lang "fb"` code, that is the aim: the same accept/reject decision as fbc and the same behaviour. The known exceptions are listed on [Compatibility](Compatibility). They include `qb`/`fblite`/`deprecated` dialect code and inline `ASM`, each refused with a diagnostic. Code that must know it is being built by tiko tests `#ifdef __TIKO_COMPILER__`.
+If it is `#lang "fb"` code, that is the aim. The known exceptions are listed on [Compatibility](Compatibility). They include `qb`/`fblite`/`deprecated` dialect code and inline `ASM`, each refused with a diagnostic. Code that must know it is being built by tiko tests `#ifdef __TIKO_COMPILER__`.
 
 **Do I have to build anything?**
 Yes, once. The repository holds the compiler's source, not a prebuilt toolchain. `bash build/package.sh --verify` builds one for your host. It needs the seed -- the earlier tiko release `sh seed/fetch-seed.sh` fetches -- to compile tiko, and clang to run it. See [Quick Start](Quick-Start).
@@ -29,10 +29,10 @@ One: tiko emits LLVM IR and runs clang. There is no `-gen` switch. clang 18 or n
 Not in tiko. It is refused with `TKO0407` rather than miscompiled.
 
 **Are generics macros?**
-No. tiko builds one concrete type per distinct type-argument list, checked like any other type, and mangles it exactly as fbc does, so the symbols match fbc's byte for byte. See [Generics](Category-Generics).
+No. tiko builds one concrete type per distinct type-argument list, checked like any other type. See [Generics](Category-Generics).
 
 **Can I put constraints on a type parameter?**
-No. The language has none, in fbc or in tiko. This is why `IndexOf`/`Contains` and the whole sort library are free procedures rather than `Array` members.
+No. The language has none. This is why `IndexOf`/`Contains` and the whole sort library are free procedures rather than `Array` members.
 
 **Do the containers get special compiler treatment?**
 None at all. `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap` and `OrderedSet` are ordinary library code, written on top of generics, the iterator protocol and `for each`.
@@ -49,7 +49,7 @@ None at all. `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap` and `OrderedSet` 
 No. `std/chrono` ships alongside it, and the two meet at `FromSerial` / `Serial`.
 
 **Are goroutines as cheap as Go's?**
-No. `spawn` copies the call's arguments at the spawn point and queues the call for a pool of operating-system worker threads: tiko-rt's scheduler, `lib/rt/src/thread/sched.tiko`, which ports FBC-Modern's. No green threads run underneath.
+No. `spawn` copies the call's arguments at the spawn point and queues the call for a pool of operating-system worker threads: tiko-rt's scheduler, `lib/rt/src/thread/sched.tiko`. No green threads run underneath.
 
 **Where do I report a bug or send a patch?**
 <https://github.com/PaulSquires/tiko-lang/issues>

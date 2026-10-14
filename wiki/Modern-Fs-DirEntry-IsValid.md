@@ -28,7 +28,7 @@ CreateDir( PathJoin( dir_, "sub" ) )
 WriteAllText( PathJoin( dir_, "sub", "c.txt" ), "c" )
 
 '' The iterator protocol underneath `for each`: IsValid / Value /
-'' MoveNext, the same RFC-0002 shape the containers use
+'' MoveNext, the same shape the containers use
 dim it as DirIterator = ReadDir( dir_ ).GetIterator( )
 
 print it.IsValid( )          '' true -- there is an entry to read
@@ -45,5 +45,4 @@ RemoveDirAll( dir_ )
 
 **Library:** [Filesystem Library](Category-Filesystem)  
 **Category:** [Filesystem](Category-Filesystem)  
-**Documented under:** Directories  
-**Source:** `docs/filesystem/filesystem.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Directories

@@ -32,5 +32,4 @@ print InstrChars( 0, s, "=:" )       '' 0 -- a start below 1 answers 0
 
 **Library:** [String Library](Category-String-Library)  
 **Category:** [String Library](Category-String-Library)  
-**Documented under:** The Functions  
-**Source:** `docs/string/string.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** The Functions

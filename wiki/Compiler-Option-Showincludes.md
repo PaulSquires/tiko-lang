@@ -14,11 +14,10 @@ Tells the compiler to display the file names of loaded source code files, in for
 
 Version
 
-- Since fbc 1.02.0
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

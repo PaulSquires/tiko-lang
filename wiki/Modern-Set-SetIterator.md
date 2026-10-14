@@ -12,7 +12,7 @@ SetIterator( of T )
 
 ## Notes
 
-- The RFC-0002 protocol -- `IsValid`, `Value`, `MoveNext` -- which is what `for each` is rewritten into. Ordinary code names the type only when the loop has to stop early, resume, or interleave with another.
+- The iterator protocol -- `IsValid`, `Value`, `MoveNext` -- which is what `for each` is rewritten into. Ordinary code names the type only when the loop has to stop early, resume, or interleave with another.
 - `Value( )` is byref, but **do not modify an element through it** -- changing a value changes its hash, and the set would no longer find it.
 - Iteration order is unspecified.
 
@@ -40,5 +40,4 @@ print total                  '' 6
 
 **Library:** [Set](Category-Set)  
 **Category:** [Set](Category-Set)  
-**Documented under:** Members  
-**Source:** `docs/set/set.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

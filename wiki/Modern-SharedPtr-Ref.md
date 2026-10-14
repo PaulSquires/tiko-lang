@@ -34,5 +34,4 @@ print empty_.IsNull( )       '' true
 
 **Library:** [SharedPtr and WeakPtr](Category-Smart-Pointers)  
 **Category:** [Smart Pointers](Category-Smart-Pointers)  
-**Documented under:** Members  
-**Source:** `docs/sharedptr/sharedptr.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

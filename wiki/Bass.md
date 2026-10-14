@@ -15,7 +15,7 @@ Example
 ```freebasic
 #include Once "bass.bi"
 
-'' this mod file should be available in the fbc package:
+'' this mod file should be available in the FreeBASIC package:
 
 Const SOUND_FILE = "..\..\sound\data\dne_trtn.mod"
 

@@ -28,47 +28,38 @@ Specifies that the implementation of [`Cva_List`](Cva-List) variable argument li
 
 **-z no-thiscall**
 
-Instructs fbc to ignore [`__Thiscall`](Thiscall) directives in source files.
+Instructs the compiler to ignore [`__Thiscall`](Thiscall) directives in source files.
 
 **-z no-fastcall**
 
-Instructs fbc to ignore [`__Fastcall`](Fastcall) directives in source files.
+Instructs the compiler to ignore [`__Fastcall`](Fastcall) directives in source files.
 
 **-z fbrt**
 
-Instructs fbc to link with the `libfbrt[mt].a` library instead of the `libfb[mt].a` library rather than having to copy or move files around or have multiple development directories.
+Instructs the compiler to link with the `libfbrt[mt].a` library instead of the `libfb[mt].a` library rather than having to copy or move files around or have multiple development directories.
 
 **-z nocmdline**
 
-Instructs fbc to ignore all [`Cmdline`](Cmdline) directives in source file and take control from the real compiler command line only.
+Instructs the compiler to ignore all [`Cmdline`](Cmdline) directives in source file and take control from the real compiler command line only.
 
 **-z retinflts**
 
-Instructs fbc to enable returning some structures (types) in floating point registers.
+Instructs the compiler to enable returning some structures (types) in floating point registers.
 
 **-z nobuiltins**
 
-Instructs fbc to disable all builtin declarations and definitions except those that are strictly necessary to initialize the compiler to a working state when it can begin to parse user code. The user code must then supply all of the required declarations and definitions needed by fbc internals to allow compilation of user code to succeed. Note well that using this option requires knowledge of the internal workings of the compiler. For experimentation and development this allows declaring and defining nearly all fbc builtins in fb user code. The actual user code declarations required will depend on the contents of the user code to be compiled. fbc is expected to throw an error if the required supporting declarations or definitions have not been made before they are required by fbc itself while parsing the user source code (fbc may also crash instead).
+Instructs the compiler to disable all builtin declarations and definitions except those that are strictly necessary to initialize the compiler to a working state when it can begin to parse user code. The user code must then supply all of the required declarations and definitions needed by the compiler internals to allow compilation of user code to succeed. Note well that using this option requires knowledge of the internal workings of the compiler. For experimentation and development this allows declaring and defining nearly all compiler builtins in fb user code. The actual user code declarations required will depend on the contents of the user code to be compiled. The compiler is expected to throw an error if the required supporting declarations or definitions have not been made before they are required by the compiler itself while parsing the user source code (the compiler may also crash instead).
 
 **-z optabstract**
 
-Instructs fbc not to emit unused pure abstract types.
+Instructs the compiler not to emit unused pure abstract types.
 
 Version
 
-- Since fbc 1.20.0: `optabstract` compiler option
-- Since fbc 1.20.0: `nobuiltins` compiler option
-- Since fbc 1.10.0: `retinflts` compiler option
-- Since fbc 1.10.0: `no-fastcall` compiler option.
-- Since fbc 1.09.0: `nocmdline` compiler option
-- Since fbc 1.09.0: `fbrt` compiler option.
-- Since fbc 1.09.0: `no-thiscall` compiler option.
-- Since fbc 1.08.1: `valist-as-ptr` compiler option.
-- Since fbc 0.20.0: `gosub-setjmp` compiler option.
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

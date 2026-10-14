@@ -28,5 +28,4 @@ print DateTime.TryParseExact( "nonsense", "dd/MM/yyyy", d )      '' false
 
 **Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono)  
 **Category:** [Date and Time (Chrono)](Category-Date-and-Time-Chrono)  
-**Documented under:** The Members  
-**Source:** `docs/datetime/datetime.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** The Members

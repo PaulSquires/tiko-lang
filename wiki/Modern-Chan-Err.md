@@ -36,5 +36,4 @@ print c2.Err( )                        '' deadline exceeded
 
 **Library:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
 **Category:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
-**Documented under:** Context  
-**Source:** `docs/goroutines/goroutines.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Context

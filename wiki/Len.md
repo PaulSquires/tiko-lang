@@ -44,13 +44,6 @@ Returns the size of an expression or [DataType](Data-Types) (including the data 
 
 `result = Len( expression )`*or*`result = Len( DataType )`
 
-### Version
-
-- Before fbc 1.08.0:
-
-`Len` was not returning the size of the data fields of a UDT.  
- When a variable from a given namespace was accessed with the namespace's name prefix, the argument to `Len` had to be wrapped with parentheses to force it to be seen as an expression. For example `Len((namespace_name.variable))`.
-
 ### Dialect Differences
 
 - `Len` only allows expressions in the *[-lang qb](Compiler-Option-Lang)* dialect.

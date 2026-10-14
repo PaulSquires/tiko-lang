@@ -2,7 +2,7 @@
 
 # hello.tiko
 
-> **The smallest complete program.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/hello.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+> **The smallest complete program.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library).
 
 One centred box, a keypress counter and a clean exit. Ninety lines, and every part of the module's shape is in it: a TuiApp with Init/Update/View, a TuiBlock with titles on two sides, a centred layout that re-centres itself on resize, and the TuiRun result checked before anything is printed.
 
@@ -12,7 +12,7 @@ One centred box, a keypress counter and a clean exit. Ninety lines, and every pa
 tiko hello.tiko        ' windows-x86_64 on Windows, linux-x86_64 on Linux
 ```
 
-Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for windows-x86_64 and win64, and compiles it for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: it is interactive). fbc builds it clean at `-w all`.
+Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for windows-x86_64 and win64, and compiles it for linux-x86_64 with `-c` (built, not run: it is interactive).
 
 ## What to notice
 
@@ -108,7 +108,7 @@ dim as TuiRunResult r = TuiRun( app, opts )
 
 '' TuiRun has fully restored the terminal by the time it returns, so ordinary
 '' PRINT is safe again HERE and only here. Inside a session it is banned: on
-'' Linux a stray PRINT emits CSI 6n and can block. RFC-0002 section 7.
+'' Linux a stray PRINT emits CSI 6n and can block.
 if( r.IsOk( ) = false ) then
 	print "hello: " & r.Failure( ).Message( )
 	end 1
@@ -120,8 +120,7 @@ end r.Value( )
 
 **Library:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Other examples:** [form.tiko](Modern-Tui-Example-Form) · [dashboard.tiko](Modern-Tui-Example-Dashboard)
-  
-**Source:** `docs/tui/examples/hello.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+
 
 
 ---

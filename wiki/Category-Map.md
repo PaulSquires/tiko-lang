@@ -168,11 +168,9 @@ The view BORROWS the map. It does not own it, must not outlive it, and is invali
 
 Cost: the tuple copies the key and the value a second time, on top of the copy the KeyValuePair already makes. For a Map( of string, ... ) that is two string copies per iteration rather than one.
 
-See docs/tuples/RFC-0003-destructuring.md.
-
 ITERATION ORDER IS UNSPECIFIED and changes across insertions. It is not randomised per process -- that is a hash-flooding defence FreeBASIC has no threat model for, and stability within one unmodified map is more useful when debugging.
 
-If you need the keys in order, containers.OrderedMap is the same interface over a red-black tree -- O(log n) instead of O(1), always sorted, and needing only '<' rather than a hash. See docs/ordered/ordered.txt.
+If you need the keys in order, containers.OrderedMap is the same interface over a red-black tree -- O(log n) instead of O(1), always sorted, and needing only '<' rather than a hash. See [OrderedMap](Category-OrderedMap).
 
 Keys( ) and Values( ) are SNAPSHOTS, returned as Array( of K ) and Array( of V ). Changing them does not change the map.
 
@@ -215,11 +213,11 @@ next
 
 ## Tests
 
-src/tests/generics/container-map.bas is exhaustive: every member, empty / one / many states, the four readers and writers pinned against each other, the growth path, tombstones and churn, deep copy and assignment independence in both directions, destructor balance with a counting value type, key types including integers, doubles (with the +0.0 / -0.0 case), strings and a user type with its own HashOf, a value type that is itself a container, FOR EACH, and FOR EACH over Pairs( ) -- per-name types, writes not reaching the map, exit/continue, a removed entry, nesting, an empty map, a counting value type, and iteration after the rehashes 100 insertions force.
+generics/container-map.bas is exhaustive: every member, empty / one / many states, the four readers and writers pinned against each other, the growth path, tombstones and churn, deep copy and assignment independence in both directions, destructor balance with a counting value type, key types including integers, doubles (with the +0.0 / -0.0 case), strings and a user type with its own HashOf, a value type that is itself a container, FOR EACH, and FOR EACH over Pairs( ) -- per-name types, writes not reaching the map, exit/continue, a removed entry, nesting, an empty map, a counting value type, and iteration after the rehashes 100 insertions force.
 
 Complexity is ASSERTED, not assumed: 100k insertions must respect the 0.75 load factor, overwriting all 100k must not grow the table at all, and a 200-round add/remove churn must not let tombstones grow the capacity.
 
-src/tests/generics/fail-container-nohash.bas pins the missing-HashOf diagnostic.
+generics/fail-container-nohash.bas pins the missing-HashOf diagnostic.
 
 ## API reference
 
@@ -229,7 +227,6 @@ One page per entry, 14 in all:
 
 ---
 
-**Source:** `docs/map/map.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

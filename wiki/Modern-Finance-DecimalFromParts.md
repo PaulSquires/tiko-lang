@@ -32,5 +32,4 @@ print d.Lo( ); " "; d.Mid( ); " "; d.Hi( ); " "; d.Scale( ); " "; d.IsNegative( 
 
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
-**Documented under:** Nothing Becomes A Keyword  
-**Source:** `docs/decimal/decimal.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Nothing Becomes A Keyword

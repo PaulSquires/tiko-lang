@@ -175,7 +175,7 @@ Neither '\*sp' nor 'sp->' checks for null: they compile to the same dereference 
 
 ## NULL Access Raises
 
-Ref( ) on a null SharedPtr raises FB_RTERROR_ILLEGALFUNCTIONCALL through the ordinary fbc path, so it is catchable by 'on error' and reports a line under -exx. With no handler the program aborts with 'runtime error 1' naming the line in sharedptr.tiko.
+Ref( ) on a null SharedPtr raises FB_RTERROR_ILLEGALFUNCTIONCALL through the ordinary runtime-error path, so it is catchable by 'on error' and reports a line under -exx. With no handler the program aborts with 'runtime error 1' naming the line in sharedptr.tiko.
 
 Unlike Optional.Value( ), there is nothing sane to return afterwards -- a null handle owns no object, so no T exists anywhere to reference. A function-static blank would be worse than the fault: it would force T to be default- constructible for every use of SharedPtr, and a function-static UDT in FreeBASIC is constructed lazily and NEVER destroyed, so it would retain one T and its resources for the life of the program.
 
@@ -195,9 +195,9 @@ BYREF is correct for any parameter that only reads the handle. Take it BYVAL onl
 - NO UniquePtr. The language has no move constructor, so a non-copyable
 
 ```freebasic
-owning pointer could not be returned from a function -- RFC-0004 hit this
-exact wall with Thread, which is "non-copyable and therefore
-non-returnable". DEFER covers the scope-local case.
+owning pointer could not be returned from a function -- Thread hits this
+exact wall, being "non-copyable and therefore non-returnable". DEFER
+covers the scope-local case.
 ```
 
 - NO enable_shared_from_this. It needs CRTP -- 'type W extends
@@ -221,17 +221,17 @@ either a type-erased deleter or a second stored pointer.
 through generic instantiations has no coverage anywhere in this tree.
 ```
 
-## Library Only, With One Compiler Fix
+## Library Only
 
-The types are entirely FreeBASIC -- the std/memory module, pkg/std/memory/sharedptr.tiko, ported from fbc's fb/sharedptr.bi.
+The types are entirely FreeBASIC -- the std/memory module, pkg/std/memory/sharedptr.tiko.
 
-The one compiler change was FBC-Modern's: its generic global UNARY operators -- '\*', '->', unary '-' and NOT -- were never instantiated at their use sites, so none of them worked until it was fixed. tiko's generics are its own and need no such fix. Measured 2026-09-24 at origin/master 50c71751: fbc's generics/global-unary-operators.bas -- each of those four beside a binary operator of the same spelling over a plain Box( of T ) -- builds and runs under tiko with exit 0 and the same output as fbc's build, and tiko's own `tests/mir/generic-global-operator.test` covers '+', unary '\*' and '->'.
+Generic global UNARY operators -- '\*', '->', unary '-' and NOT -- are instantiated at their use sites. generics/global-unary-operators.bas -- each of those four beside a binary operator of the same spelling over a plain Box( of T ) -- builds and runs under tiko with exit 0, and tiko's own `tests/mir/generic-global-operator.test` covers '+', unary '\*' and '->'.
 
 ## Implementation Note
 
 The reference counts go through three runtime functions -- fb_AtomicFetchAddLong, fb_AtomicCasLong and fb_AtomicLoadLong, declared in inc/fbatomic.bi. In tiko they are tiko-rt's, in lib/rt/src/c/atomic.c: one of the few C files in a runtime otherwise written in FreeBASIC, because the language cannot spell an atomic operation. They use clang's \_\_atomic builtins and are sequentially consistent throughout.
 
-These three are deliberately not FBC-Modern's RFC-0002 (docs/concurrency/RFC-0002-atomics.md in its repository), which specifies FB.Atomic( of T ) with the full C11 memory-order vocabulary. They are the smallest primitive set a reference count needs.
+These three deliberately do not offer the full C11 memory-order vocabulary. They are the smallest primitive set a reference count needs.
 
 The cost is a real call per operation, since they cannot inline into FB code. That is the trade: correct and portable now, faster later.
 
@@ -239,7 +239,7 @@ They are declared with C 'int', not C 'long'. C 'long' is 64-bit on LP64 and 32-
 
 ## Tests
 
-fbc's own SharedPtr tests are vendored in tiko-lang under `tests/vendor/fbc-tests/`.
+The SharedPtr tests are vendored in tiko-lang under `tests/vendor/fbc-tests/`.
 
 generics/container-sharedptr.bas
 
@@ -278,7 +278,7 @@ SharedPtr in sight: unary '-', NOT, unary '*' and '->', each alongside a
 binary operator of the same spelling over the same type.
 ```
 
-Under tiko, measured 2026-09-24 at origin/master 50c71751, each against fbc's build of the same file: container-sharedptr.bas and global-unary-operators.bas build and run with exit 0 and the same output; sharedptr-mt.bas, built with -mt against fbcunit, passes 14 of 14 assertions under both; sharedptr-null-ref.bas aborts with 'runtime error 1 (illegal function call)' under both -- tiko names line 326 of fb/sharedptr.bi (of pkg/std/memory/sharedptr.tiko since the header became a module, re-measured 2026-10-10), the ERROR( ) inside Ref( ), where fbc names line 318, the first line of Ref( ); and fail-sharedptr-scalar-arrow.bas is refused by both, by tiko with `TKO0739: 'sharedptr' has no member named 'v'`.
+Under tiko: container-sharedptr.bas and global-unary-operators.bas build and run with exit 0; sharedptr-mt.bas, built with -mt against fbcunit, passes 14 of 14 assertions; sharedptr-null-ref.bas aborts with 'runtime error 1 (illegal function call)', naming the line of the ERROR( ) inside Ref( ) in pkg/std/memory/sharedptr.tiko; and fail-sharedptr-scalar-arrow.bas is refused with `TKO0739: 'sharedptr' has no member named 'v'`.
 
 ## API reference
 
@@ -288,7 +288,6 @@ One page per entry, 11 in all:
 
 ---
 
-**Source:** `docs/sharedptr/sharedptr.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

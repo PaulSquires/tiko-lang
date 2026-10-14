@@ -21,7 +21,7 @@ The `-maxerr` compiler option sets the maximum number of errors the compiler mus
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

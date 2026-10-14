@@ -140,7 +140,7 @@ A bottom-up merge sort over the node chain: O(n log n) worst case, O(1) extra me
 
 There is one list sort and it is the stable one. Introsort is not available here and the reason is structural: quicksort needs random access to reach its pivot and to scan inward from both ends, and a linked list gives neither.
 
-See docs/sort/sort.txt.
+See [Sorting](Category-Sorting).
 
 Source: pkg/std/containers/linkedlist.tiko
 
@@ -158,7 +158,6 @@ One page per entry, 13 in all:
 
 ---
 
-**Source:** `docs/linkedlist/linkedlist.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

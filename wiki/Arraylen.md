@@ -32,10 +32,6 @@ using FB
 result = ArrayLen(arrayname())
 ```
 
-### Version
-
-- Since fbc 1.09.0.
-
 ### Differences from QB
 
 - New to FreeBASIC.

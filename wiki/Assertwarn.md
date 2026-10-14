@@ -17,11 +17,11 @@ Debugging macro that prints a warning if an expression evaluates to 0.
 
 ## Description
 
-The `AssertWarn` macro is intended for use in debugging and works only if the `-g` option is selected in the FBC command line. In this case it prints a warning message if `expression` evaluates to `0`. It doesn't stop the program execution like [`Assert`](Assert) does.
+The `AssertWarn` macro is intended for use in debugging and works only if the `-g` option is selected in the compiler command line. In this case it prints a warning message if `expression` evaluates to `0`. It doesn't stop the program execution like [`Assert`](Assert) does.
 
  Its normal use is to check the correct value of the variables during debugging.
 
- If `-g` is not passed to fbc, the macro does not generate any code.
+ If `-g` is not passed to the compiler, the macro does not generate any code.
 
 ## Remarks
 

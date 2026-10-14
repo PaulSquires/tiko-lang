@@ -17,10 +17,6 @@ Intrinsic define set to an integer to indicate the profiling method.
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.20.0
-
 ### Differences from QB
 
 - New to FreeBASIC

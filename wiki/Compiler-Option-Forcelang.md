@@ -44,7 +44,7 @@ See also
 - [`__FB_LANG__`](Fb-Lang)
 - [Compiler Option: -lang](Compiler-Option-Lang)
 - [Compiler Dialects](Freebasic-Dialects)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

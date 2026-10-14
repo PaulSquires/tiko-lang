@@ -9,7 +9,7 @@ tiko has its own lexer, preprocessor, parser, type checker and typed IR. It emit
 The readable systems language: command-line tools, services, terminal UIs and native Windows applications, where Rust is more than the job needs and Go's garbage collector or binary size is unwelcome.
 
 - **Readable by design.** Code reads top to bottom as prose.
-- **Fast.** Native code through LLVM. The [benchmarks](https://github.com/PaulSquires/tiko-lang/blob/master/bench/README.md) give the measured numbers, each dated.
+- **Fast.** Native code through LLVM. The [benchmarks](https://github.com/PaulSquires/tiko-lang/blob/master/bench/README.md) give the measured numbers.
 - **Small and self-contained.** A hello world is a 23 KB executable that imports only `kernel32.dll` and `ucrtbase.dll`. You don't install a runtime and you don't need Visual Studio.
 - **No garbage collector.** Strings and containers free themselves at the end of their scope, and [`defer`](Category-Defer) covers everything else.
 - **Concurrency in the language.** [`spawn`, typed channels and `select channel`](Category-Goroutines-and-Channels).
@@ -33,23 +33,21 @@ tiko is honest about where it stops:
 | --- | --- |
 | `windows-x86_64` | The default on Windows. Links against `ucrtbase.dll` and needs no Visual Studio. The only target with graphics. |
 | `linux-x86_64` | The default on Linux. |
-| `win64` | The legacy MinGW ABI, kept for now for objects built by fbc. |
+| `win64` | The legacy MinGW ABI. |
 
 x86-64 is the only architecture. `-m32` and `-target win32` are refused (`TKO0104`, `TKO0103`). There is **one backend**: LLVM IR through clang. See [LLVM Backend](Category-LLVM-Backend).
 
 ## Where the syntax comes from
 
-tiko's syntax comes from the most readable family of languages ever designed for people. The language kept that readability and replaced everything underneath it: the compiler, the type system and the runtime are tiko's own. tiko is not a fork of fbc.
+tiko's syntax comes from the most readable family of languages ever designed for people. The language kept that readability and replaced everything underneath it: the compiler, the type system and the runtime are tiko's own.
 
-One consequence is useful. tiko still compiles FreeBASIC 1.20 code (`#lang "fb"`) and gives the same results, so existing programs can move over and mix freely with tiko code. [Compatibility](Compatibility) says exactly what is the same, what differs and what is refused, every claim measured against fbc.
+One consequence is useful. tiko still compiles FreeBASIC 1.20 code (`#lang "fb"`), so existing programs can move over and mix freely with tiko code. [Compatibility](Compatibility) says exactly what is the same, what differs and what is refused.
 
 ## Status
 
-The repository's `README.md` and `HANDOFF.md` carry the measured state, every figure dated. Among them:
+The repository's `README.md` and `HANDOFF.md` carry the measured state. Among them:
 
-- tiko compiles itself to a byte-identical fixpoint on windows-x86_64 and linux-x86_64 (2026-09-21).
-- Every in-scope run program in fbc's own test corpus prints what fbc's build prints (2026-09-20).
-- 495 of the 631 fbcunit suites that build under both compilers give fbc's results (2026-09-20).
+- tiko compiles itself to a byte-identical fixpoint on windows-x86_64 and linux-x86_64.
 
 tiko is pre-1.0, and there are no binary releases yet.
 

@@ -19,7 +19,7 @@ See also
 - [Compiler Option: -C](Compiler-Option-C-2)
 - [Compiler Option: -r](Compiler-Option-R)
 - [Compiler Option: -gen](Compiler-Option-Gen)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

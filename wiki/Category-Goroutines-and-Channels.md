@@ -439,21 +439,15 @@ tree, not something spawn introduced.  A generic PROCEDURE is fine.
 
 ## Implementation
 
-Both statements are desugared in tiko's parser (src/parser/spawn.tiko, src/parser/selchan.tiko) into ordinary statements that the rest of the compiler already lowers.  'spawn' builds the argument frame itself and hands a plain thunk straight to fb_Spawn, where fbc goes through a generic frame type and a virtual Invoke; the observable behaviour is the same -- the arguments are copied at the spawn, and the frame is destroyed and freed afterwards.  'select channel' becomes the calls into the generics of std/tasks' select.tiko -- the calls fbc builds into fb/select.bi's.
+Both statements are desugared in tiko's parser (src/parser/spawn.tiko, src/parser/selchan.tiko) into ordinary statements that the rest of the compiler already lowers.  'spawn' builds the argument frame itself and hands a plain thunk straight to fb_Spawn; the arguments are copied at the spawn, and the frame is destroyed and freed afterwards.  'select channel' becomes the calls into the generics of std/tasks' select.tiko.
 
-The runtime side is tiko-rt's, written in FreeBASIC: the park/unpark layer (lib/rt/src/thread/park.tiko), the scheduler (sched.bas) and the process-wide claim lock (claimlock.bas).  fbc has these in C because a process-wide singleton cannot be built from a HEADER -- a 'dim shared' in a .bi included by two modules gives two of them.  In a runtime module that reason does not apply.
+The runtime side is tiko-rt's, written in FreeBASIC: the park/unpark layer (lib/rt/src/thread/park.tiko), the scheduler (sched.bas) and the process-wide claim lock (claimlock.bas).
 
-Channel, select, WaitGroup, Context and the directional views are ordinary FreeBASIC in the std/tasks module (pkg/std/tasks/, ported from fbc's fb/*.bi headers) -- written on generics with no compiler privileges.
-
-Full design, with every rejected alternative and the reasons: C:\\dev\\docs\\goroutines\\.
+Channel, select, WaitGroup, Context and the directional views are ordinary FreeBASIC in the std/tasks module (pkg/std/tasks/) -- written on generics with no compiler privileges.
 
 ## Tests
 
-tiko's own suite pins the lowering of 'spawn': tests/mir/spawn.test, and tests/mir/spawn-contextual.test for 'spawn' used as an ordinary variable.  tests/diagnostics/spawn-byref.test holds the BYREF rule above to fbc's, line for line (TKO0812, fbc's 358).  For 'select channel', tests/driver/select-channel-link.test builds every case form and checks that it links, and tests/driver/select-channel-run.test builds a program that covers every case form, which build/goldenrun.sh runs beside fbc's build.  Neither is a test of the library itself.
-
-The library is measured with fbc's own fbcunit suites, built by both compilers with -mt and the results compared: all three concurrency/ suites print what fbc's builds print (HANDOFF section 9f, 2026-09-21).
-
-The programs in the [Goroutines Tutorial](Modern-Goroutines-Tutorial), built with 'tiko -mt' and run beside fbc's builds (measured 2026-09-24 at origin/master 50c71751, windows-x86_64), all print what fbc's builds print, the example at the top of this page among them, up to what depends on timing: ex01's elapsed seconds, which worker takes which job in ex07, ex10's hit count before its deadline, and ex15's lost updates, which are random by design.  Re-measured on 2026-09-24 after two fixes: a SendChan or RecvChan parameter built from a Channel argument under spawn, and 'for each' over a Channel( of string ).
+tiko's own suite pins the lowering of 'spawn': tests/mir/spawn.test, and tests/mir/spawn-contextual.test for 'spawn' used as an ordinary variable.  tests/diagnostics/spawn-byref.test holds the BYREF rule above (TKO0812).  For 'select channel', tests/driver/select-channel-link.test builds every case form and checks that it links, and tests/driver/select-channel-run.test builds a program that covers every case form, which build/goldenrun.sh runs.  Neither is a test of the library itself.
 
 Build a program that uses this module with a packaged toolchain -- no -i, no -p, because the modules and the runtime are in it:
 
@@ -474,7 +468,6 @@ One page per entry, 11 in all:
 
 ---
 
-**Source:** `docs/goroutines/goroutines.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

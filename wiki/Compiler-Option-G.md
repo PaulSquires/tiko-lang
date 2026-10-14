@@ -30,7 +30,7 @@ See also
 - [Compiler Option: -debug](Compiler-Option-Edebug)
 - [Compiler Option: -debuginfo](Compiler-Option-Edebuginfo)
 - [Debugging](Debugging)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

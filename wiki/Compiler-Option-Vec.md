@@ -28,7 +28,7 @@ The `-vec` compiler option enables multiple levels of optimizations by searching
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 - [Compiler option -fpu](Compiler-Option-Fpu)
 
 ---

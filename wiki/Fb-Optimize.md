@@ -16,10 +16,6 @@ Always defined and will have a value from 0 to 3 (0 by default) to indicate the 
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.09.0
-
 ### Differences from QB
 
 - Did not exist in QB

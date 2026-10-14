@@ -39,5 +39,4 @@ next                         '' fig / pear / banana
 
 **Library:** [Sorting](Category-Sorting)  
 **Category:** [Sorting](Category-Sorting)  
-**Documented under:** Procedures  
-**Source:** `docs/sort/sort.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Procedures

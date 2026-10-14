@@ -55,7 +55,7 @@ For each keyword, see the detailed syntax, precise description and examples in t
 
  Additional functionalities and tips for use:
 
-**-** Before, `New` did not signal if memory allocation was successful (program hangs). Problem solved from fbc rev 1.06, by returning a null pointer if `New` fails.
+**-** `New` returns a null pointer if memory allocation fails.
  **-** Even if the allocated memory size is requested for 0 Byte (`New predefined_datatype[0]`), a non null pointer is returned and its value should be used to then release the allocation.
  **-** For object destruction and memory deallocation, `Delete` must be called on a proper typed pointer (otherwise the object destructor will not be called or miscalled, and that may result in a memory leak or even a crash with `Delete[]`).
  **-** The user can also use this type of allocation for a simple pre-defined types (except for the fix-len strings), but this does not functionally add anything, except a simpler usage syntax for allocation.

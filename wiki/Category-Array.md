@@ -65,7 +65,7 @@ IndexOf( a, v ) as int32                  needs '=' on T; -1 if absent
 Contains( a, v ) as boolean               needs '=' on T
 ```
 
-Sorting is in sort.tiko, in the same std/containers module, documented in docs/sort/sort.txt.
+Sorting is in sort.tiko, in the same std/containers module, documented under [Sorting](Category-Sorting).
 
 ## At( ) IS FOR READING
 
@@ -126,7 +126,7 @@ Sort( ) is an introsort: quicksort, falling back to heapsort at a recursion dept
 
 Both move elements with SWAP, so a T holding a heap allocation is never copied.
 
-Sorting used to be a Shell sort declared here, in what is now array.tiko. It moved to its own file when it grew a comparer, a stable form and a LinkedList form; see docs/sort/sort.txt. Both files are std/containers, so '#import "std/containers"' brings in both.
+Sorting is in its own file, with a comparer, a stable form and a LinkedList form; see [Sorting](Category-Sorting). Both files are std/containers, so '#import "std/containers"' brings in both.
 
 ## Ownership AND Copying
 
@@ -158,8 +158,6 @@ next
 
 The elements live in an ordinary FreeBASIC dynamic array field, redim'd only when the capacity doubles. That lets the language do element construction, copying and destruction, so the deep copy, the assignment and the destructor all fall out for free and there is no manual memory to get wrong.
 
-RFC-0004 rejects "wrap the existing redim array" because it would inherit the O(n^2) append -- but that objection is about redim'ing per append, not about the storage.
-
 Source: pkg/std/containers/array.tiko
 
 ## Tests
@@ -178,7 +176,6 @@ One page per entry, 21 in all:
 
 ---
 
-**Source:** `docs/array/array.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

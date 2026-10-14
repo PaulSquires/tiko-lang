@@ -26,7 +26,7 @@ This operator returns a `ZString/WString Ptr` that points to the beginning of a 
 
  **Note:** For a variable length string, the operator returns a `ZString Const Ptr` (because returning by reference the string's characters pointer set in the string descriptor, this one is to be considered as read only). If the keyword [`Var`](Var) is used to declare/initialize a user pointer from `Operator Strptr`, this user pointer is also defined as read only (it can not be modified further).
 
- **Warning:** Since fbc version 1.20.0, dereferencing a zstring pointer to a fixed-length string of STRING\*N type (which no longer has an additional terminal null character as before) can lead to an extension of the string by some pollution, or even an outright crash.
+ **Warning:** Dereferencing a zstring pointer to a fixed-length string of STRING\*N type (which has no terminal null character) can lead to an extension of the string by some pollution, or even an outright crash.
 
 ## Return Value
 

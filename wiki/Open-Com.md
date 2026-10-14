@@ -100,8 +100,8 @@ All items except for the COM port are optional. The order of `baudrate`, `parity
  `"COM2:"` maps to `"/dev/ttyS1"`, etc  
  `"/dev/xyz:"` maps to `"/dev/xyz"`, etc  
  baud rate must be one of 50, 150, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 500000, 576000, 921600, 1000000, 1152000  
- in fbc >= 1.09.0, baud rate can also be one of 1500000, 2000000, 2500000, 3000000, 3500000, 4000000  
- the baud rates supported depend on the system where the fbc compiler itself was compiled and built
+ baud rate can also be one of 1500000, 2000000, 2500000, 3000000, 3500000, 4000000  
+ the baud rates supported depend on the system where the compiler itself was compiled and built
 
 - The DOS serial driver is experimental and can access COM ports 1 to 4
 
@@ -110,7 +110,7 @@ It uses the following base io and IRQ's as default:
  COM2 - &h2f8 - IRQ3  
  COM3 - &h3e8 - IRQ4  
  COM4 - &h2e8 - IRQ3  
- An alternate IRQ can be specified using the the `"IRn"` protocol option where `n` is `3` through `7` (first PIC). **Since fbc 1.10.0**, `n` can also be `8` through `15` (second PIC).  
+ An alternate IRQ can be specified using the the `"IRn"` protocol option where `n` is `3` through `7` (first PIC). `n` can also be `8` through `15` (second PIC).  
  Currently not supported: IRQ's on the slave PIC, alternate base I/O addresses, Timeouts and most errors as detected in QB, hardware flow control, FIFO's.  
  `"COM:"` maps to `"COM1:"`  
  baud rate must be between 50 and 115200

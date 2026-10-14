@@ -21,7 +21,7 @@ Dim variable As Cva_List
 
  The exact type and size of `Cva_List` varies depending on the target platform. This builtin type provides a layer of abstraction over the underlying mechanism for obtaining the values passed to a variadic procedure.
 
- fbc will select a default `Cva_List` type depending on [-target](Compiler-Option-Target), [-arch](Compiler-Option-Arch), and [-gen](Compiler-Option-Gen) command line options, as described in the following code.
+ The compiler will select a default `Cva_List` type depending on [-target](Compiler-Option-Target), [-arch](Compiler-Option-Arch), and [-gen](Compiler-Option-Gen) command line options, as described in the following code.
 
 ```freebasic
 #if (__FB_BACKEND__ = "gcc")
@@ -82,10 +82,6 @@ Dim variable As Cva_List
 ```
 
 ## Remarks
-
-### Version
-
-- Since fbc 1.07.0
 
 ### Platform Differences
 

@@ -35,5 +35,4 @@ print CurrencyInvalid( ).IsValid( )           '' false
 
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
-**Documented under:** Members  
-**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

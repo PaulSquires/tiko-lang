@@ -18,10 +18,6 @@ For `arm` and `aarch64` targets:
 
 ## Remarks
 
-### Version
-
-- `__FB_FPU__ = neon` added in fbc 1.20.0
-
 ### Differences from QB
 
 - New to FreeBASIC

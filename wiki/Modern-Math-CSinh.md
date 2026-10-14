@@ -34,5 +34,4 @@ print CToString( CSinh( -z ) )        '' 6.5481200409110025+7.61923172032141i   
 
 **Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
-**Documented under:** Members  
-**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

@@ -25,10 +25,6 @@ when `#pragma profile = true`, then profiling code is generated
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.20.0
-
 ### Differences from QB
 
 - New to FreeBASIC

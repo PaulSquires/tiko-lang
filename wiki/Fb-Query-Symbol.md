@@ -17,7 +17,7 @@ __FB_QUERY_SYMBOL__( what, sym )
 
 ## Description
 
-**`__FB_QUERY_SYMBOL__`** is a generic built-in macro for querying fbc symbol internals.
+**`__FB_QUERY_SYMBOL__`** is a generic built-in macro for querying compiler symbol internals.
 
  In the file `./inc/fbc-int/symbol.bi`, many convenient and specialized sub-macros with **`'is'`** as name prefix (**`'isXXXXX'`**) are also defined (where **`'XXXXX'`** stands for the kind of query).  
  They help the user to indirectly call the generic built-in macro **`__FB_QUERY_SYMBOL__`** without knowing the encoding of its first parameter and its return value, but passing the only `sym` parameter to those sub-macros which only return `-1` (for `True`) or `0` (for `False`).
@@ -34,7 +34,7 @@ in order to test whether a symbol matches an element of the considered family.
 
 ### Usage
 
- The `./inc/fbc-int/symbol.bi` header exposes internals of the fbc compiler through the built-in macro **`__FB_QUERY_SYMBOL__`**.
+ The `./inc/fbc-int/symbol.bi` header exposes internals of the compiler through the built-in macro **`__FB_QUERY_SYMBOL__`**.
 
  In addition, many convenient sub-macros with **`'is'`** as name prefix (also defined in the file `./inc/fbc-int/symbol.bi`) help the user to indirectly call the generic built-in macro **`__FB_QUERY_SYMBOL__`**:
 
@@ -51,11 +51,6 @@ Dim b As Boolean
 
 b = isXXXXX( sym )
 ```
-
-### Version
-
-- Since fbc 1.20.0 : **`__FB_QUERY_SYMBOL__`** extended to return mangled names
-- Since fbc 1.10.0
 
 ### Differences from QB
 

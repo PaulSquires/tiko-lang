@@ -36,5 +36,4 @@ print DecimalParse( "0.00000000000000000000000000001" ).HasValue( ) '' false
 
 **Library:** [Finance](Category-Finance)  
 **Category:** [Finance](Category-Finance)  
-**Documented under:** Nothing Becomes A Keyword  
-**Source:** `docs/decimal/decimal.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Nothing Becomes A Keyword

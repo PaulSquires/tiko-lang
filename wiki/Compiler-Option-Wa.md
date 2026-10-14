@@ -28,7 +28,7 @@ See also
 - [Compiler Option: -gen](Compiler-Option-Gen)
 - [Compiler Option: -Wc](Compiler-Option-Wc)
 - [Compiler Option: -Wl](Compiler-Option-Wl)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

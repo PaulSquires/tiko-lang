@@ -15,7 +15,7 @@ The `-pp` compiler option enables the preprocessor-only mode. The code is parsed
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 - [Preprocessor commands](Preprocessor)
 
 ---

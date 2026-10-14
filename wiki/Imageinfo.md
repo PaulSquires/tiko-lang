@@ -50,18 +50,6 @@ in the LONGINT (or INTEGER<64>) version of the function:
 result = ImageInfo( image , width , height [, [ bypp ] [, [ pitch ] [ , [ pixdata ] [, size ]]]] )
 ```
 
-### Version
-
-- Before fbc 1.08.0:
-
-Syntax:
-
-`Declare Function ImageInfo ( ByVal image As Any Ptr, ByRef width As Integer = 0, ByRef height As Integer = 0, ByRef bypp As Integer = 0, ByRef pitch As Integer = 0, ByRef pixdata As Any Ptr = 0, ByRef size As Integer = 0 ) As Long`
-
-Usage:
-
-`result = ImageInfo( image [, [ width ] [, [ height ] [, [ bypp ] [, [ pitch ] [, [ pixdata ] [, size ]]]]]] )`
-
 ### Dialect Differences
 
 - Not available in the *[-lang qb](Compiler-Option-Lang)* dialect unless referenced with the alias `__Imageinfo`.

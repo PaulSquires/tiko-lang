@@ -16,10 +16,6 @@ __FB_ASM__
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.02.0
-
 ### Differences from QB
 
 - New to FreeBASIC

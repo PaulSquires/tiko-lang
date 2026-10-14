@@ -16,10 +16,6 @@ Define created at compile time if the compilation target uses the X86 or X86_64 
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.08.0
-
 ### Differences from QB
 
 - New to FreeBASIC

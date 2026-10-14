@@ -29,13 +29,9 @@ For other datatypes produced, simple [`Literals`](Literals) (of Integers, Floati
 
 **-** non functional expression (i.e. side-effects),
  **-** needs to be evaluated (i.e. simplified, respecting the operator precedence) before passing it on,
- **-** used in a place where fbc would not allow an expression.
+ **-** used in a place where the compiler would not allow an expression.
 
 ## Remarks
-
-### Version
-
-- Since fbc 1.08.0
 
 ### Differences from QB
 

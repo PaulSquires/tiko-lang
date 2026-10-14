@@ -14,7 +14,7 @@ End Type|Union
 
 ## Description
 
-`Extends Zstring` declares `typename` to inherit properties and behaviors of a [`ZString`](Zstring). Purpose is to allow users to create custom string types (with i.e. dynamic memory management) that can integrate well in to existing fbc compiler built ins (good interoperability with fbc's [`ZString`](Zstring) type).
+`Extends Zstring` declares `typename` to inherit properties and behaviors of a [`ZString`](Zstring). Purpose is to allow users to create custom string types (with i.e. dynamic memory management) that can integrate well in to existing compiler built ins (good interoperability with the compiler's [`ZString`](Zstring) type).
 
  This declaration of such a UDT with a suitable [`Cast`](Operator-Cast) operator will instruct compiler to convert the UDT to a [`ZString`](Zstring) (in addition, other suitable operators as [`Let`](Operator-Let-Assign), [`[] (Pointer Index)`](Operator-Pointer-Index), [`Len`](Len), ..., can be also declared).
 
@@ -24,11 +24,6 @@ End Type|Union
  By declaring a type (directly or indirectly) as `Extends Zstring` (in addition to defining a suitable [`Cast`](Operator-Cast) operator only), this promotes it fully [`ZString`](Zstring) type compatible, even with [`StrPtr`](Operator-Strptr-String-Pointer)/[`SAdd`](Sadd), [`LSet`](Lset)/[`RSet`](Rset), and [`Select Case`](procedures-Select-Case).
 
 ## Remarks
-
-### Version
-
-- Before fbc 1.09.0, this promotion was not yet fully [`ZString`](Zstring) type compatible with the built in functions [`Val`](Val)/[`ValInt`](Valint)/[`ValLng`](Vallng)/[`ValUInt`](Valuint)/[`Valunlg`](Valulng) and [`Left`](Left)/[`Right`](Right).
-  Since fbc 1.07.0
 
 ### Dialect Differences
 
@@ -201,9 +196,7 @@ v[0] = Asc("-")
 
 Print "'" & v & "'", Len(v)
 
-Print "'" & Right(v, 5) & "'"        '' since fbc 1.09.0, 'Right' supports types with 'Extends Zstring'
-
-'Print "'" & Right(Str(v), 5) & "'"  '' before fbc 1.09.0, use this workaround (or: 'Right(Type<String>(v), 5)')
+Print "'" & Right(v, 5) & "'"        '' 'Right' supports types with 'Extends Zstring'
 
 Sleep
 ```

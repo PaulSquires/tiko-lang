@@ -12,7 +12,7 @@
 
  **WANTED TESTERS**
 
- The DOS version/target of FreeBASIC needs more testers. If you are interested in using FreeBASIC on DOS, please don't wait for future releases, give it a try now. Tests from running in DOS on both old and new PC's are welcome (graphics, file I/O, serial port, ...). If something doesn't work, please place a detailed bug report into the forum or bug Tracker. If all works well, you can write about your success as well. Make sure to test a recent version of FB (reports from FB older than 0.90 will be probably considered as obsolete and useless), and check this document **before** complaining about anything.
+ The DOS version/target of FreeBASIC needs more testers. If you are interested in using FreeBASIC on DOS, please don't wait for future releases, give it a try now. Tests from running in DOS on both old and new PC's are welcome (graphics, file I/O, serial port, ...). If something doesn't work, please place a detailed bug report into the forum or bug Tracker. If all works well, you can write about your success as well. Make sure to check this document **before** complaining about anything.
 
  **Limitations**
 
@@ -41,7 +41,7 @@
  **- 12. DEF SEG is missing in FB! How can I workaround this in my code?**
  **- 13. How can I rewrite QB's CALL INTERRUPT / access the DOS and BIOS interrupts?**
  **- 14. How can I rewrite QB's XMS/EMS handling?**
- **- 15. FBC gives me a 'cannot find lsupcxx' error!**
+ **- 15. The compiler gives me a 'cannot find lsupcxx' error!**
  **- 16. How can I use the serial or parallel port?**
  **- 17. How can I use a printer?**
  **- 18. How can I make a screenshot of a FreeBASIC program running in DOS?**
@@ -63,7 +63,7 @@ See also
 
  **1. FB is a 32-bit compiler - do I need a 32-bit DOS?**
 
-No, the DOS version of FreeBASIC uses a **DOS extender**, allowing you to execute 32-bit code on top of a 16 bit DOS kernel. You can use FreeDOS (16-bit), Enhanced-Dr-DOS, old closed Dr-DOS, or even MS-DOS down to version cca 4. You need at least 80386 CPU, see also [Requirements](Requirements).
+No, the DOS version of FreeBASIC uses a **DOS extender**, allowing you to execute 32-bit code on top of a 16 bit DOS kernel. You can use FreeDOS (16-bit), Enhanced-Dr-DOS, old closed Dr-DOS, or even MS-DOS down to version cca 4. You need at least 80386 CPU, see also [Requirements](Quick-Start#compile-a-program).
 
 **2. What about FreeDOS-32? Does/will FB work, is/will there be a version?**
 
@@ -75,7 +75,7 @@ You need a DPMI host (DPMI kernel, DPMI server), means the file "CWSDPMI.EXE" (c
 
 **4. Is there a possibility how to get rid of this CWSDPMI.EXE and CWSDPMI.SWP?**
 
-Yes, 2 possibilities. To get rid of CWSDPMI.EXE and create a standalone DOS executable embedding CWSDPMI, you need the CWSDPMI package and the "EXE2COFF.EXE" file. Using EXE2COFF, you remove the CWSDPMI.EXE loader (file loses 2 KiB of size, resulting in a "COFF" file without extension), and then glue the file "CWSDSTUB.EXE" before this COFF. The new executable is cca 21 KiB bigger than the original one, but it is standalone, no additional files are needed. To get rid of CWSDPMI.SWP, you can then edit your executable with CWSPARAM.EXE, and disable the swapping (occasionally also - incorrectly - referred as paging). Note, however, that this will limit the memory that can be allocated to the amount of physical memory that is installed in a system. This work can be done both with the FBC.EXE file and all executables created by FBC. The method is also described in the CWSDPMI docs in the package. Alternatively, you can use the **WDOSX** or **D3X** extender. They don't swap and create standalone executables. Since they run your executable in Ring 0, the crash handling of them is not very good and can cause freezers or reboots on bugs where other hosts exit the "civil" way with a register dump. Also, spawning might not work well / at all with WDOSX or D3X. Finally, you can use **HDPMI** . Download the "HXRT.ZIP" file (here: [japheth.de/HX.html](http://japheth.de/HX.html) [alternative links](http://www.xaver.me/drdoswiki/index.php?n=Main.HXDOScomplists#toc8)), extract "HDPMI32.EXE" (cca 34 KiB) and "HDPMI.TXT" (not required by the code, just for your information), and include it to your DOS startup ("HDPMI32 -r"). This will make HDPMI resident and prevent all FreeBASIC (also FreePASCAL and DJGPP) programs from both crying about missing DPMI and swapping. HDPMI can **not** (easily / yet) be included into your executables. Running an executable containing D3X, CWSDPMI or some DPMI host inside under HDPMI or other external host is fine - the built-in host will be simply skipped. Using DPMI is definitely required for FreeBASIC, since it can't generate 16-bit real mode code, and there is no other good way to execute 32-bit code in DOS.
+Yes, 2 possibilities. To get rid of CWSDPMI.EXE and create a standalone DOS executable embedding CWSDPMI, you need the CWSDPMI package and the "EXE2COFF.EXE" file. Using EXE2COFF, you remove the CWSDPMI.EXE loader (file loses 2 KiB of size, resulting in a "COFF" file without extension), and then glue the file "CWSDSTUB.EXE" before this COFF. The new executable is cca 21 KiB bigger than the original one, but it is standalone, no additional files are needed. To get rid of CWSDPMI.SWP, you can then edit your executable with CWSPARAM.EXE, and disable the swapping (occasionally also - incorrectly - referred as paging). Note, however, that this will limit the memory that can be allocated to the amount of physical memory that is installed in a system. This work can be done both with the FBC.EXE file and all executables created by the compiler. The method is also described in the CWSDPMI docs in the package. Alternatively, you can use the **WDOSX** or **D3X** extender. They don't swap and create standalone executables. Since they run your executable in Ring 0, the crash handling of them is not very good and can cause freezers or reboots on bugs where other hosts exit the "civil" way with a register dump. Also, spawning might not work well / at all with WDOSX or D3X. Finally, you can use **HDPMI** . Download the "HXRT.ZIP" file (here: [japheth.de/HX.html](http://japheth.de/HX.html) [alternative links](http://www.xaver.me/drdoswiki/index.php?n=Main.HXDOScomplists#toc8)), extract "HDPMI32.EXE" (cca 34 KiB) and "HDPMI.TXT" (not required by the code, just for your information), and include it to your DOS startup ("HDPMI32 -r"). This will make HDPMI resident and prevent all FreeBASIC (also FreePASCAL and DJGPP) programs from both crying about missing DPMI and swapping. HDPMI can **not** (easily / yet) be included into your executables. Running an executable containing D3X, CWSDPMI or some DPMI host inside under HDPMI or other external host is fine - the built-in host will be simply skipped. Using DPMI is definitely required for FreeBASIC, since it can't generate 16-bit real mode code, and there is no other good way to execute 32-bit code in DOS.
 
 **5. Can I use other DOS extenders, like DOS/4GW, Causeway, DOS/32A?**
 
@@ -213,13 +213,13 @@ Alternatively you can call INT's via inline ASM, 2 important things you have to 
 
 Depends why original code uses it. If it's just to bypass low memory limits, simply remove it and use "ordinary" FB's data types / memory handling features instead. If it is used for (sound) DMA, you are out of luck and have to redesign the code completely, about sound see FAQ 9. For DMA use preferably the low memory (should be no big problem, since the application code and most buffers are in DPMI memory instead), DMA in DPMI memory is possible but more difficult.
 
-**15. FBC gives me a 'cannot find lsupcxx' error!**
+**15. The compiler gives me a 'cannot find lsupcxx' error!**
 
-The source of this problem is the **libsupcxx.a** file in **LIB\\DOS\\** directory, having 9 characters in the name. Your fault is to have extracted the ZIP with long file names enabled, usually in Windows, and then using FB in DOS with no LFN support, resulting in this file looks **LIBSUP~1.A** and can't be found. Rename the file in **LIBSUPCX.A** (one **X** only) or extract the ZIP again in DOS. Note: changes in FB 0.18, retest needed.
+The source of this problem is the **libsupcxx.a** file in **LIB\\DOS\\** directory, having 9 characters in the name. Your fault is to have extracted the ZIP with long file names enabled, usually in Windows, and then using FB in DOS with no LFN support, resulting in this file looks **LIBSUP~1.A** and can't be found. Rename the file in **LIBSUPCX.A** (one **X** only) or extract the ZIP again in DOS.
 
 **16. How can I use the serial or parallel port?**
 
-The DOS INT14 is not very useful/efficient as it sends/reads a single char in each call. So it's better to use an external DOS32 comms library. /\* does someone know a good one ? \*/ FB up to 0.18.2 doesn't support OPEN COM on DOS target, coderJeff has an experimental library/driver available, included with FB since 0.18.3.
+The DOS INT14 is not very useful/efficient as it sends/reads a single char in each call. So it's better to use an external DOS32 comms library. /\* does someone know a good one ? \*/ coderJeff's library/driver supports OPEN COM on the DOS target.
 
 **17. How can I use a printer?**
 
@@ -265,7 +265,7 @@ This is true but there is no easy/fast way to fix. FB is a 32-bit HLL compiler, 
 
 **25. Compilation is very slow with FB!**
 
-Problem: "FBC takes 10 seconds to compile a "Hello world" program ! TurboBASIC / QBASIC / VBDOS / PowerBASIC do take < 1 second for the same job ..."
+Problem: "The compiler takes 10 seconds to compile a "Hello world" program ! TurboBASIC / QBASIC / VBDOS / PowerBASIC do take < 1 second for the same job ..."
 
  True, but this is "by design": FB compiles your sources in 3 steps, saving the intermediate files, as described in CompilerCmdLine, while many older compilers do just 1 pass in memory. This is related mostly to file I/O performance, see FAQ 27 below about possibilities of improvements, additionally a small improvement can be achieved here by making the DPMI host resident (**HDPMI32 -r** or **CWSDPMI -p** , see FAQ 4 above). Note that the delay is mostly "additive" , so it won't hurt too much with bigger projects.
 

@@ -123,7 +123,7 @@ The byref binding is allowed rather than blocked because the container cannot te
 
 ITERATION ORDER IS UNSPECIFIED and changes across insertions. It is not randomised per process.
 
-If you need the elements in order, containers.OrderedSet is the same interface over a red-black tree -- O(log n) instead of O(1), always sorted, and needing only '<' rather than a hash. See docs/ordered/ordered.txt.
+If you need the elements in order, containers.OrderedSet is the same interface over a red-black tree -- O(log n) instead of O(1), always sorted, and needing only '<' rather than a hash. See [OrderedSet](Category-OrderedSet).
 
 Items( ) is a SNAPSHOT, returned as Array( of T ). Changing it does not change the set -- which is the safe way to remove while "iterating":
 
@@ -173,7 +173,6 @@ One page per entry, 10 in all:
 
 ---
 
-**Source:** `docs/set/set.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

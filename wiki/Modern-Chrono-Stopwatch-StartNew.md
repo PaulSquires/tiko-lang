@@ -35,5 +35,4 @@ print sw.ElapsedMilliseconds >= 30            '' -1 (true)
 
 **Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono)  
 **Category:** [Date and Time (Chrono)](Category-Date-and-Time-Chrono)  
-**Documented under:** Members  
-**Source:** `docs/datetime/datetime.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

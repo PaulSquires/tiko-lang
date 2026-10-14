@@ -21,7 +21,7 @@ The `-a` compiler option adds a compiled object file to the linker's list. The "
 See also
 
 - [Compiler Option: -b](Compiler-Option-B)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

@@ -16,18 +16,17 @@ The `-elocation` compiler option enables full location reporting in run-time cod
 
  [`__FB_ERR__`](Fb-Err) can be used to determine in user source code if the `-elocation` option was specified or implied on the command line.
 
- *Note: the intent of this option is for a future fbc feature to optimize out some of the error tracking code associated with error location reporting. When implemented, only `-exx` or `-elocation` will enable the full error location reporting and will be optimized away otherwise.*
+ *Note: the intent of this option is for a future compiler feature to optimize out some of the error tracking code associated with error location reporting. When implemented, only `-exx` or `-elocation` will enable the full error location reporting and will be optimized away otherwise.*
 
 Version
 
-- Since fbc 1.07.0
 
 See also
 
 - [`__FB_ERR__`](Fb-Err)
 - [Compiler Option: -exx](Compiler-Option-Exx)
 - [Error Handling](Error-Handling)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

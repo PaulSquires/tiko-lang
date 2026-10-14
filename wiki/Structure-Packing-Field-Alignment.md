@@ -1,4 +1,4 @@
-[Home](Home) › [Compiler Internals](Category-Compiler-Internals) › **Structure packing/field alignment**
+[Home](Home) › [Miscellaneous](Category-Miscellaneous) › **Structure packing/field alignment**
 
 # Structure packing/field alignment
 
@@ -22,7 +22,7 @@ The compiler aligns fields by inserting padding bytes in front of them in order 
 
 ---
 
-**Category:** [Compiler Internals](Category-Compiler-Internals)
+**Category:** [Miscellaneous](Category-Miscellaneous)
 
 ---
 

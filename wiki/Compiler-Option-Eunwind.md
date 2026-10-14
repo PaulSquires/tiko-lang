@@ -14,12 +14,11 @@ The `-eunwind` compiler option turns on the code generation and link options to 
 
 Version
 
-- Since fbc 1.10.0
 
 See also
 
 - [`__FB_ERR__`](Fb-Err)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

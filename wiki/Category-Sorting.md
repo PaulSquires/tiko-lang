@@ -142,7 +142,7 @@ So the comparer form is SortBy rather than another Sort, and the list form is So
 
 Every member body of a generic is replayed for every instantiation, whether or not it is ever called. A member needing '<' on T would therefore make Array( of T ) fail to instantiate for every T without one -- Array( of Array( of long ) ) would not compile at all.
 
-A generic PROCEDURE is instantiated only where it is called, so the requirement lands on the call site that actually sorts. This is the same reason IndexOf and Contains are free procedures; see docs/generics/generics.txt, KNOWN LIMITS.
+A generic PROCEDURE is instantiated only where it is called, so the requirement lands on the call site that actually sorts. This is the same reason IndexOf and Contains are free procedures; see [Generics](Category-Generics).
 
 src/tests/generics/fail-container-nosort.bas pins the diagnostic.
 
@@ -204,7 +204,7 @@ afterwards.
 
 Element types: long, double, string, a UDT with a global '<', a counting UDT, and a nested Array( of Array( of long ) ) to confirm the outer container still instantiates.
 
-See also: docs/array/array.txt              containers.Array( of T ) docs/linkedlist/linkedlist.txt    containers.LinkedList( of T ) docs/lambda/lambda.txt            capturing and non-capturing lambdas docs/generics/generics.txt        RFC-0001, and the limits above
+See also: [Array](Category-Array) (containers.Array( of T )), [LinkedList](Category-LinkedList) (containers.LinkedList( of T )), [Lambdas](Category-Lambdas) (capturing and non-capturing lambdas), [Generics](Category-Generics) (the limits above).
 
 ## API reference
 
@@ -214,7 +214,6 @@ One page per entry, 8 in all:
 
 ---
 
-**Source:** `docs/sort/sort.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

@@ -139,15 +139,14 @@ Language -- VAR inference, SELECT CASE, IIF, BYREF/BYVAL parameters with copy-ba
 
 I/O -- PRINT, WRITE, PRINT #, WRITE #, LINE INPUT, LINE INPUT #, INPUT, INPUT #, PRINT USING, PUT/GET, OPEN ... ENCODING, READ/DATA, DRAW STRING.
 
-The FB.\* string library serves USTRING too -- see docs/string/string.txt.
+The FB.\* string library serves USTRING too -- see [String Library](Category-String-Library).
 
 ## Known Gap
 
-CONST u AS USTRING = "abc" is NOT supported. fbc's CONST accepts exactly one string type, FB_DATATYPE_STRING -- WSTRING is rejected too, so USTRING is no worse than the type it replaces, but it is worse than STRING. Supporting it means threading a literal symbol through symbReuseOrAddConst, the const value union and the expression path, all shared by every string type. That is a feature addition rather than part of this one, and it is recorded rather than bolted on. DIM AS USTRING u = "abc" works, and the literal is already a compile-time pool constant, so nothing is lost at runtime.
+CONST u AS USTRING = "abc" is NOT supported. DIM AS USTRING u = "abc" works, and the literal is already a compile-time pool constant, so nothing is lost at runtime.
 
 ---
 
-**Source:** `docs/ustring/ustring.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

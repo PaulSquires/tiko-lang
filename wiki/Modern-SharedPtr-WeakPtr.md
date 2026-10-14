@@ -48,5 +48,4 @@ print w.Lock( ).IsNull( )    '' true -- no dangling pointer handed back
 
 **Library:** [SharedPtr and WeakPtr](Category-Smart-Pointers)  
 **Category:** [Smart Pointers](Category-Smart-Pointers)  
-**Documented under:** Members  
-**Source:** `docs/sharedptr/sharedptr.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

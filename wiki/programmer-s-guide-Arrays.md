@@ -151,7 +151,7 @@ Remark:
 
 `( ( LBound( array ) = 0 ) AND ( UBound( array ) = -1 ) )`  
  OR:  
- `( @array( LBound( array ) ) = 0 )` - **Note:**No longer supported since fbc 1.20.0  
+ `( @array( LBound( array ) ) = 0 )` - **Note:**No longer supported  
  would allow to only know that the array is un-sized.
 
 Once the number of dimensions is determined, the information on the two boundaries of each dimension is safely accessible.

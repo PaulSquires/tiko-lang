@@ -35,16 +35,6 @@ The combined color.
 
 `result = RGB(red, green, blue)`
 
-### Version
-
-- Before fbc 1.08.0:
-
-Syntax:
-
-`#define RGB(r,g,b) ((CULng(r) Shl 16) Or (CULng(g) Shl 8) Or CULng(b) Or &hFF000000)`
-
-`RGB` function returned an unsigned integer.
-
 ### Dialect Differences
 
 - Not available in the *[-lang qb](Compiler-Option-Lang)* dialect unless referenced with the alias `__Rgb`.

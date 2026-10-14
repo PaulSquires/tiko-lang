@@ -2,9 +2,9 @@
 
 # form.tiko
 
-> **Focus traversal and a confirm dialog.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library). It lives at `docs/tui/examples/form.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+> **Focus traversal and a confirm dialog.** A complete, working program from [Terminal TUI Library](Category-Terminal-TUI-Library).
 
-Text inputs, a checkbox, a radio group and a select, wired into a TuiFocusRing with Tab and Shift+Tab, and a TuiMessageBox on submit. This is the example that found two real defects, both recorded in the docset README.
+Text inputs, a checkbox, a radio group and a select, wired into a TuiFocusRing with Tab and Shift+Tab, and a TuiMessageBox on submit.
 
 ## Build and run
 
@@ -12,11 +12,11 @@ Text inputs, a checkbox, a radio group and a select, wired into a TuiFocusRing w
 tiko form.tiko        ' windows-x86_64 on Windows, linux-x86_64 on Linux
 ```
 
-Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for windows-x86_64 and win64, and compiles it for linux-x86_64 with `-c` (measured 2026-09-24 at origin/master 50c71751; built, not run: it is interactive). fbc builds it clean at `-w all`.
+Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for windows-x86_64 and win64, and compiles it for linux-x86_64 with `-c` (built, not run: it is interactive).
 
 ## What to notice
 
-- EVERY FOCUSABLE WIDGET IS A FIELD OF THE APP, not a local in View. The focus ring holds `TuiWidget ptr` and a local dies at END SUB -- the first version of this program built its inputs as locals and could not Tab to any of them.
+- EVERY FOCUSABLE WIDGET IS A FIELD OF THE APP, not a local in View. The focus ring holds `TuiWidget ptr` and a local dies at END SUB.
 - Widget STATE structs are fields too, and the widgets point at them. The widget never allocates or frees them.
 - `normal` and `focused_` are set to visibly different styles. When they were equal the focus moved correctly and was invisible, which looks identical to broken.
 - The message box is drawn last, over everything, and consumes every event while it is up.
@@ -27,8 +27,7 @@ Run it from a REAL TERMINAL. Redirected output is rejected with an honest error 
 '' examples/form.tiko -- focus, input widgets, a modal, and CAPTURING LAMBDAS.
 ''
 '' This is the example that exercises the one design decision with no precedent
-'' in any shipped FreeBASIC module: a widget that carries a closure. RFC-0007
-'' section 4, and probes #4-#8 in README.md.
+'' in any shipped FreeBASIC module: a widget that carries a closure.
 ''
 '' Build (windows-x86_64 or linux-x86_64):
 ''     tiko form.tiko
@@ -47,9 +46,8 @@ using tui, numeric, outcome
 '' closure lives where `var` can hold it -- module level or a local scope --
 '' and the widget is BUILT THERE and handed to the app as a TuiWidget ptr.
 ''
-'' That is the practical shape of RFC-0007 section 4: the generic parameter is
-'' erased at the container boundary, so the app only ever sees TuiWidget ptr and
-'' never needs to name the closure type at all.
+'' The generic parameter is erased at the container boundary, so the app only
+'' ever sees TuiWidget ptr and never needs to name the closure type at all.
 '' ---------------------------------------------------------------------------
 dim shared as ustring gStatus
 dim shared as boolean gConfirm
@@ -68,8 +66,7 @@ sub BuildButtons( byref theme as TuiTheme )
 	end sub
 
 	'' The alias is how the anonymous type gets a name. Two DIFFERENT closures
-	'' give two DIFFERENT types -- and both are still TuiWidgets, which is the
-	'' whole point of RFC-0007 section 4.
+	'' give two DIFFERENT types -- and both are still TuiWidgets.
 	type ResetButton  as TuiButtonOf( of typeof( onReset ) )
 	type SubmitButton as TuiButtonOf( of typeof( onSubmit ) )
 
@@ -100,8 +97,7 @@ end sub
 '' TuiWidget ptr, and a widget constructed inside View dies at the end of it.
 ''
 '' So the focusable widgets are FIELDS of the app. Their state structs are
-'' still caller-owned exactly as RFC-0008 section 2 describes -- what changed
-'' is the lifetime of the widget, not of the state.
+'' still caller-owned -- what changed is the lifetime of the widget, not of the state.
 type FormApp extends TuiApp
 	as TuiTheme theme
 	as TuiTextInputState nameState, emailState
@@ -122,7 +118,7 @@ type FormApp extends TuiApp
 end type
 
 destructor FormApp( )
-	'' RFC-0007 section 2: whoever holds the pointers owns them.
+	'' whoever holds the pointers owns them.
 	for i as int32 = 0 to gFields.Count( ) - 1
 		if( gFields[i] <> 0 ) then delete gFields[i]
 	next
@@ -200,7 +196,7 @@ function FormApp.Init( ) as TuiCmd
 end function
 
 function FormApp.Update( byref e as TuiEvent ) as TuiCmd
-	'' A MODAL CONSUMES EVERYTHING IT DOES NOT USE -- RFC-0008 section 5.
+	'' A MODAL CONSUMES EVERYTHING IT DOES NOT USE.
 	if( gConfirm ) then
 		confirmBox.HandleEvent( e )
 		if( confirmBox.Accepted( ) ) then return TuiQuit( 0 )
@@ -214,7 +210,7 @@ function FormApp.Update( byref e as TuiEvent ) as TuiCmd
 	if( e.kind <> TUIEVENT_KEY ) then return TuiNone( )
 	if( e.key.code = TUIKEY_ESCAPE ) then return TuiQuit( 0 )
 
-	'' Dispatch order, RFC-0007 section 5: the focused widget FIRST.
+	'' Dispatch order: the focused widget FIRST.
 	dim as Optional( of TuiWidget ptr ) cur = ring.Current( )
 	if( cur.HasValue( ) ) then
 		if( cur.Value( )->HandleEvent( e ) ) then return TuiRedraw( )
@@ -275,7 +271,7 @@ sub FormApp.View( byref f as TuiFrame )
 	planGroup.Render( f, r[3] )
 
 	'' the two buttons -- both closure-backed, rendered through the SAME base
-	'' pointer, which is RFC-0007 section 4's whole claim
+	'' pointer
 	dim as TuiConstraintArray bc
 	bc.Push( TuiFill( ) )
 	bc.Push( TuiLength( 9 ) )
@@ -298,7 +294,7 @@ sub FormApp.View( byref f as TuiFrame )
 	st.Render( f, r[6] )
 
 	'' The modal draws into its own LAYER, so what is beneath survives
-	'' dismissal intact -- RFC-0003 section 4.
+	'' dismissal intact.
 	if( gConfirm ) then
 		confirmBox.Render( f, TuiCenter( f.Area( ), 36, 7 ) )
 	end if
@@ -320,8 +316,7 @@ end if
 
 **Library:** [Terminal TUI Library](Category-Terminal-TUI-Library)  
 **Other examples:** [hello.tiko](Modern-Tui-Example-Hello) · [dashboard.tiko](Modern-Tui-Example-Dashboard)
-  
-**Source:** `docs/tui/examples/form.bas` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+
 
 
 ---

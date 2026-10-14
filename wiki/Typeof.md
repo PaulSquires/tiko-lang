@@ -25,14 +25,6 @@ TypeOf ( variable | datatype )
 
 ## Remarks
 
-### Version
-
-- Before fbc 1.10.0, `TypeOf` was not returning the type of the non-static member procedures of a UDT.
-- Before fbc 1.08.0:
-
-`TypeOf` was not returning the type of the data fields of a UDT.  
- When a variable from a given namespace was accessed with the namespace's name prefix, the argument to `TypeOf` had to be wrapped with parentheses to force it to be seen as an expression. For example `Typeof((namespace_name.variable))`.
-
 ### Dialect Differences
 
 - Not available in the *[-lang qb](Compiler-Option-Lang)* dialect unless referenced with the alias `__Typeof`.

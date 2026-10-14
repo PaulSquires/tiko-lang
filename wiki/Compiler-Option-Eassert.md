@@ -18,7 +18,6 @@ The `-eassert` compiler option enables [`Assert`](Assert) and [`AssertWarn`](Ass
 
 Version
 
-- Since fbc 1.07.0
 
 See also
 
@@ -27,7 +26,7 @@ See also
 - [`AssertWarn`](Assertwarn)
 - [Compiler Option: -g](Compiler-Option-G)
 - [Debugging](Debugging)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

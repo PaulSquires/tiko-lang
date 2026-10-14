@@ -76,12 +76,6 @@
 - [Compiler Option: -z](Compiler-Option-Z)
 - [Compiler Option: @file](Compiler-Option-File)
 - [Debugging](Debugging)
-- [fbc command-line](Fbc-Command-Line)
-- [Installing](Installing)
-- [Installing gcc for -gen gcc](Installing-Gcc-for-Gen-Gcc)
-- [Requirements](Requirements)
-- [Running](Running)
-- [Tools used by fbc](Tools-Used-by-Fbc)
 
 ---
 

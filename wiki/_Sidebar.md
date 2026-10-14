@@ -85,8 +85,6 @@
 - [Compiler](Category-Compiler)
 - [Compiler Options](Category-Compiler-Options)
 - [Compiler Switches](Category-Compiler-Switches)
-- [Compiler Internals](Category-Compiler-Internals)
-- [Hacking on FreeBASIC](Category-Hacking-on-FreeBASIC)
 - [FreeBASIC dialects and QBASIC](Category-FreeBASIC-dialects-and-QBASIC)
 - [Tutorials](Category-Tutorials)
 - [FAQs](Category-FAQs)

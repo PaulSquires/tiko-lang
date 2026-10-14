@@ -18,7 +18,7 @@ The `-pic` compiler option tells the compiler to generate position-independent c
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

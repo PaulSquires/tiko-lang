@@ -14,7 +14,7 @@ The `-noerrline` compiler option causes reported errors to not show the place in
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

@@ -30,7 +30,7 @@ NOTHING HERE IS A KEYWORD. Replace, Contains, Split and the rest belong to the m
 
 ## All Four String Types
 
-Every function is declared three times -- STRING, WSTRING, USTRING -- and ZSTRING is served by the STRING overload through fbc's own conversion, which for bytes to bytes is exact and involves no locale. You never name which family you are in; the first argument decides.
+Every function is declared three times -- STRING, WSTRING, USTRING -- and ZSTRING is served by the STRING overload through the compiler's own conversion, which for bytes to bytes is exact and involves no locale. You never name which family you are in; the first argument decides.
 
 There is no dynamic ZSTRING or WSTRING, so a function cannot return the type it was handed:
 
@@ -41,7 +41,7 @@ wstring, ustring  ->  ustring       UTF-16 on every target
 
 A WSTRING in giving a USTRING out is the surprising one. It is also the only answer available: a fixed-length result would need a buffer the caller has not supplied. On Windows it costs nothing to use, because a ustring already is UTF-16.
 
-EVERY PARAMETER AFTER THE FIRST IS A USTRING, in all three overloads. That is forced, not preferred. fbc ranks an overload on all of its parameters, so with per-family types on the second one,
+EVERY PARAMETER AFTER THE FIRST IS A USTRING, in all three overloads. That is forced, not preferred. The compiler ranks an overload on all of its parameters, so with per-family types on the second one,
 
 ```freebasic
 Tally( someWstring, "abc" )        ' error 98: Ambiguous call
@@ -49,7 +49,7 @@ Tally( someWstring, "abc" )        ' error 98: Ambiguous call
 
 is an ambiguity rather than a choice. One shared type on the later parameters moves the whole decision onto the first.
 
-The cost is that a pattern handed to the BYTE family is converted UTF-8 -> UTF-16 -> UTF-8 on the way in. For an ASCII or UTF-8 pattern that is exact, and for a literal it costs nothing at run time -- fbc converts string literals to ustring at compile time. It does not survive a pattern of arbitrary non-UTF-8 bytes; searching binary for a raw byte sequence is outside what this library does, and USTRING draws the same line. The haystack is never converted, so byte positions in a STRING stay byte positions.
+The cost is that a pattern handed to the BYTE family is converted UTF-8 -> UTF-16 -> UTF-8 on the way in. For an ASCII or UTF-8 pattern that is exact, and for a literal it costs nothing at run time -- the compiler converts string literals to ustring at compile time. It does not survive a pattern of arbitrary non-UTF-8 bytes; searching binary for a raw byte sequence is outside what this library does, and USTRING draws the same line. The haystack is never converted, so byte positions in a STRING stay byte positions.
 
 ## Code Units, Positions, AND Case
 
@@ -387,7 +387,7 @@ Excluded entirely, as Windows-only or COM-bound: locale and country names, month
 
 ## Implementation
 
-In tiko-rt the algorithms live in lib/rt/src/inc/ops-core.ti and are written ONCE, then instantiated twice -- lib/rt/src/str/ops.tiko at byte width, lib/rt/src/ustr/ops.tiko at 16-bit -- with ## token pasting, the technique fbc's C runtime uses with str_ops_core.h. Two hand-maintained copies of a search loop drift, and the drift shows up as one width quietly disagreeing with the other on an edge case nobody tests twice.
+In tiko-rt the algorithms live in lib/rt/src/inc/ops-core.ti and are written ONCE, then instantiated twice -- lib/rt/src/str/ops.tiko at byte width, lib/rt/src/ustr/ops.tiko at 16-bit -- with ## token pasting. Two hand-maintained copies of a search loop drift, and the drift shows up as one width quietly disagreeing with the other on an edge case nobody tests twice.
 
 Reached from FreeBASIC through 'extern "C" declare ... alias' at the module's scope -- the pattern inc/string.bi already uses for FORMAT. Note that 'alias' alone is not enough inside a module: without the extern "C" the name is mangled through the module's chain, and a nested namespace does not inherit an enclosing extern either.
 
@@ -402,7 +402,7 @@ their operand:
 print len( strings.Replace( s, "a", "b" ) )    ' error TKO0743: 'replace' is not declared
 ```
 
-This is not specific to this library or to USTRING -- stock fbc 1.10.1 fails identically on
+This is not specific to this library or to USTRING -- it fails identically on
 
 ```freebasic
 namespace NS
@@ -411,9 +411,9 @@ end namespace
 print len( NS.Twice( t ) )
 ```
 
-The operand may be a TYPE, and 'strings.' may begin one, so the compiler reads the qualifier as a type's, finds no type, and parses what follows it UNQUALIFIED. With no 'Replace' in view that is error 42 under fbc and TKO0743 under tiko. With one in view it is worse: that one is called, and measured. Given a global 'function Twice' beside NS's, 'len( NS.Twice( t ) )' calls the global one. The qualifier holds when the call is not the first thing in the operand: '( NS.Twice( t ) )', '"x" & NS.Twice( t )' and 'cast( ... )' all reach NS's. It also holds for a qualified VARIABLE, so 'len( NS.v )' is NS's.
+The operand may be a TYPE, and 'strings.' may begin one, so the compiler reads the qualifier as a type's, finds no type, and parses what follows it UNQUALIFIED. With no 'Replace' in view that is TKO0743. With one in view it is worse: that one is called. Given a global 'function Twice' beside NS's, 'len( NS.Twice( t ) )' calls the global one. The qualifier holds when the call is not the first thing in the operand: '( NS.Twice( t ) )', '"x" & NS.Twice( t )' and 'cast( ... )' all reach NS's. It also holds for a qualified VARIABLE, so 'len( NS.v )' is NS's.
 
-tiko does the same (measured 2026-09-24 against fbc 1.20.0, FBC-Modern), and tests/mir/len-ns-prefix.test and tests/diagnostics/len-ns-prefix.test hold it there. The workarounds are ordinary: write 'using strings' and drop the qualifier, or assign the result first and take LEN of the variable, or put the call in parentheses. It is mentioned here only because the qualified spelling is the natural one to reach for before discovering 'using', and the error message points nowhere near the cause.
+tests/mir/len-ns-prefix.test and tests/diagnostics/len-ns-prefix.test hold it. The workarounds are ordinary: write 'using strings' and drop the qualifier, or assign the result first and take LEN of the variable, or put the call in parentheses. It is mentioned here only because the qualified spelling is the natural one to reach for before discovering 'using', and the error message points nowhere near the cause.
 
 ## Money Formatting
 
@@ -455,7 +455,6 @@ One page per entry, 46 in all:
 
 ---
 
-**Source:** `docs/string/string.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

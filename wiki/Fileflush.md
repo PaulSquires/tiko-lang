@@ -41,10 +41,6 @@ result = FileFlush( filenum )
 result = FileFlush( filenum, systembuffers )
 ```
 
-### Version
-
-- Since fbc 1.08.0
-
 ### Differences from QB
 
 - New to FreeBASIC.

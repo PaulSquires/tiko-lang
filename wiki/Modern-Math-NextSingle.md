@@ -32,5 +32,4 @@ print v >= 0.0 andalso v < 1.0                '' -1 (true)
 
 **Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
-**Documented under:** Members  
-**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

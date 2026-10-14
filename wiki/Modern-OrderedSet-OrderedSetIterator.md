@@ -12,7 +12,7 @@ OrderedSetIterator( of T )
 
 ## Notes
 
-- The RFC-0002 protocol -- `IsValid`, `Value`, `MoveNext` -- which is what `for each` is rewritten into. Ordinary code names the type only when the loop has to stop early, resume, or interleave with another.
+- The iterator protocol -- `IsValid`, `Value`, `MoveNext` -- which is what `for each` is rewritten into. Ordinary code names the type only when the loop has to stop early, resume, or interleave with another.
 - **In ascending order**, which is the difference from `SetIterator`.
 - An in-order tree walk.
 
@@ -37,5 +37,4 @@ print
 
 **Library:** [OrderedSet](Category-OrderedSet)  
 **Category:** [OrderedSet](Category-OrderedSet)  
-**Documented under:** Members  
-**Source:** `docs/ordered/ordered.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

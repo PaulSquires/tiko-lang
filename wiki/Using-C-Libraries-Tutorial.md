@@ -4,7 +4,7 @@
 
 > 📘 **Step by step, one library each:** [SQLite](SQLite-Tutorial) · [raylib](Raylib-Tutorial) · [GLFW](GLFW-Tutorial) · [SDL3](SDL3-Tutorial)
 >
-> 📖 **In the book:** [Chapter 29, Using C Libraries](https://tiko-lang.net/book/ch29-c-libraries.html) covers the same ground in one chapter. Every program on these pages is one of its listings, compiled and run on Windows and Linux with tiko at `90d2c6e7` (2026-10-13).
+> 📖 **In the book:** [Chapter 29, Using C Libraries](https://tiko-lang.net/book/ch29-c-libraries.html) covers the same ground in one chapter. Every program on these pages is one of its listings, compiled and run on Windows and Linux with tiko.
 
 Most of the code a program might want already exists as a C library: databases, graphics, sound, compression, networking. tiko uses a C library directly. [`#cinclude`](modern-Cinclude) reads the library's own header, so you write no declarations, and [`#foreignlib`](Category-Foreign-Library-Linking) links the library's file. This page covers what is the same for every library. The four tutorials above then take one library each from its download page to a running program.
 
@@ -68,7 +68,7 @@ All four libraries in these tutorials allow both. Check the licence of any other
   #cmdline "-Wl -rpath,$ORIGIN"
   ```
 
-  The program and its `.so` files can then be copied anywhere together. `-Wl` passes its value to the linker as fbc's does, split at commas. In a shell, single-quote it so the shell leaves `$ORIGIN` alone: `tiko game.tiko -Wl '-rpath,$ORIGIN'`. In `#cmdline` or in `tiko.toml`'s `options`, no quoting is needed. Put `#cmdline` lines that only make sense on Linux inside `#ifdef __FB_LINUX__`: on Windows, `-Wl` talks to `lld-link`, which has no `-rpath`.
+  The program and its `.so` files can then be copied anywhere together. `-Wl` passes its value to the linker, split at commas. In a shell, single-quote it so the shell leaves `$ORIGIN` alone: `tiko game.tiko -Wl '-rpath,$ORIGIN'`. In `#cmdline` or in `tiko.toml`'s `options`, no quoting is needed. Put `#cmdline` lines that only make sense on Linux inside `#ifdef __FB_LINUX__`: on Windows, `-Wl` talks to `lld-link`, which has no `-rpath`.
 
 > ⚠️ **A missing library is not always an error on Linux.** If the system has its own copy under the same soname, the program silently loads that one. A program linked with SQLite 3.54.0 prints `SQLite 3.54.0` with `LD_LIBRARY_PATH=.` and `SQLite 3.45.1` without it, because Ubuntu 24.04 ships 3.45.1. An rpath of `$ORIGIN` puts your copy first. Ask the library for its version when it matters.
 

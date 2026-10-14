@@ -33,5 +33,4 @@ print PatternWildcardAt( "src\main.tiko" ) '' -1
 
 **Library:** [Filesystem Library](Category-Filesystem)  
 **Category:** [Filesystem](Category-Filesystem)  
-**Documented under:** Glob  
-**Source:** `docs/filesystem/filesystem.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Glob

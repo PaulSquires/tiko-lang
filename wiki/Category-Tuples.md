@@ -73,7 +73,7 @@ print r.tl.x, r.tl.y                 ' 100  200
 print r._1._1, r._1._2               ' the same elements
 ```
 
-Under fbc a name is DOCUMENTATION and nothing else, so `r.tl` is error 18 there. Code that must compile under both uses `_1`..`_N`, or destructures:
+Code can also use `_1`..`_N`, or destructure:
 
 ```freebasic
 var (lo, hi) = MinMax( arr( ) )
@@ -101,7 +101,7 @@ What carries no names, so only `_1`..`_N` reach its elements:
 - a tuple LITERAL -- `(lo, hi)` does not name its elements after the variables;
 - a `for each` loop variable, an IIF or cast result, and a tuple written inside a generic template.
 
-An unknown name is still TKO0739, fbc's error 18.
+An unknown name is TKO0739.
 
 ## Identity Is Structural
 
@@ -313,7 +313,7 @@ a dynamic array         a field cannot be one without a descriptor pairing
 a non-pointer forward reference     the type must be complete when interned
 ```
 
-Only the FIRST bad element in a list is reported -- fbc's one-error-per- statement filter suppresses the rest. Parsing continues past a bad element so the list is consumed, not so that every element gets its own message.
+Only the FIRST bad element in a list is reported; the rest are suppressed. Parsing continues past a bad element so the list is consumed, not so that every element gets its own message.
 
 There is no upper bound on arity.
 
@@ -352,8 +352,6 @@ print (a, b)             was error 7    now a deliberate error 24
 
 tiko implements `#lang "fb"` only -- `#lang "qb"` is `TKO0317: unsupported language mode 'qb'` -- so under tiko the dialect question does not arise.
 
-Under fbc the whole feature is available in all four dialects, and nothing about it is dialect-gated. There, TUPLES DO NOT CROSS DIALECTS: '-lang qb' forces align = 1, so '(long, string)' has a different size, and possibly a different return classification, in QB than in fb -- while mangling to the SAME name. Linking a '-lang qb' object against a '-lang fb' one through a tuple-typed signature is silently wrong, and fbc documents this rather than enforcing it.
-
 ## Separate Compilation
 
 Two modules that both mention '(long, string)' must produce the same external symbol, or a tuple-returning function cannot be called across a module boundary. Nothing is shared between them and nothing is written to disk: each module RE-DERIVES the name from the element types alone.
@@ -370,47 +368,33 @@ So the two sides may spell the element names differently, or not at all, and sti
 
 ## Diagnostics
 
-fbc (FBC-Modern's `fbc64` 1.20.0) reports:
-
-```freebasic
-error 367: A tuple needs at least two elements
-error 368: Duplicated tuple element name
-error 369: Invalid tuple element type
-error 370: Tuple element count does not match
-error 371: Expected a tuple
-```
-
-and three pre-existing ones that a tuple can now reach: error 266 (too many elements, destructuring), error 24 (PRINT of a tuple), error 20 (comparing two different tuple types).
-
-tiko reports most of these. Measured 2026-09-25 against the twenty cases of fbc's own `errors/tuple-errors.bas` (vendored in tiko-lang under `tests/vendor/fbc-tests/`), one case per file, tiko rejects seventeen:
+tiko reports:
 - an unterminated element list, and `var (arr(1), b) = ...` (`TKO0401: expected ')'`);
 - a tuple constant (`TKO0748: a constant cannot have the type of 'c'`);
-- a 1-tuple (`TKO0821`), a duplicated element name (`TKO0822`), and an ANY or fixed-length-string element (`TKO0823`) -- the declaration errors 367, 368 and 369, only the first problem in a list reported, as fbc does;
-- `extends (int32, int32)` (`TKO0824`; a typedef of a tuple after `extends` compiles under both);
-- destructuring with too few or too many targets, and `var (a, b)` of the wrong arity (`TKO0825`), over a UDT or a scalar (`TKO0826`), and `var (a) = 1` (`TKO0821`). `let ( a, b ) = udt` is FreeBASIC's multiple assignment, which takes a UDT's fields in order, and is accepted by both;
+- a 1-tuple (`TKO0821`), a duplicated element name (`TKO0822`), and an ANY or fixed-length-string element (`TKO0823`) -- only the first problem in a list reported;
+- `extends (int32, int32)` (`TKO0824`; a typedef of a tuple after `extends` compiles);
+- destructuring with too few or too many targets, and `var (a, b)` of the wrong arity (`TKO0825`), over a UDT or a scalar (`TKO0826`), and `var (a) = 1` (`TKO0821`). `let ( a, b ) = udt` is FreeBASIC's multiple assignment, which takes a UDT's fields in order, and is accepted;
 - `<`, `>`, `<=` and `>=` on tuples, and `=` or `<>` between two DIFFERENT tuple types -- `(int32, int32)` against `(float64, float64)`, against the literal `(1, 2)`, which is `(integer, integer)`, or against a scalar (`TKO0720`). One tuple type on both sides compares.
 
-It compiles the other three with no diagnostic: SIZEOF and TYPEOF of a tuple type, and a nested tuple literal that is not context-typed. These are FBC-Modern's DOCUMENTED limitations, pinned in that file on purpose; tiko handles all three.
+tiko compiles three cases with no diagnostic: SIZEOF and TYPEOF of a tuple type, and a nested tuple literal that is not context-typed.
 
-`print (a, b)` compiles too. SIZEOF and `print (a, b)` are silently left out of the program (`--dump-ir` reports them as not lowered). Do not rely on tiko accepting any of fbc's rejections.
+`print (a, b)` compiles too. SIZEOF and `print (a, b)` are silently left out of the program (`--dump-ir` reports them as not lowered).
 
-A tuple element whose value is of ANOTHER type is converted by the element type's own `operator let`, over an element that has already been constructed -- `return ( wszKLID, bRes )` out of a function `as (DVARIANT, BOOLEAN)` takes DVARIANT's `let` from a wstring. Without a `let` that takes the value, fbc refuses the element -- error 24 in a declaration, 181 in an assignment or a `return` -- and so does tiko since 2026-09-25, with `TKO0831`. A `let` from a `int32` takes a `float64` and not a string; a constructor from the value's type is not enough. A plain type -- no constructor, no string field, no `extends object` -- takes a number without one. A string element does not take a number, nor a number element a string. Before 2026-09-25 tiko got this wrong for such elements, and dropped the whole initialiser of any tuple holding a type that `EXTENDS WSTRING` (fbx's DVARIANT and DWSTRING among them), so every element came back empty.
+A tuple element whose value is of ANOTHER type is converted by the element type's own `operator let`, over an element that has already been constructed -- `return ( wszKLID, bRes )` out of a function `as (DVARIANT, BOOLEAN)` takes DVARIANT's `let` from a wstring. Without a `let` that takes the value, tiko refuses the element with `TKO0831`. A `let` from a `int32` takes a `float64` and not a string; a constructor from the value's type is not enough. A plain type -- no constructor, no string field, no `extends object` -- takes a number without one. A string element does not take a number, nor a number element a string.
 
-A tuple VALUE of another tuple type is refused wherever fbc refuses it, which is everywhere, since two tuple types never convert. A `(int32, int32)` target given a `(integer, integer)` variable gets `TKO0738` in an initialiser, an assignment, a `return` or `function =` (fbc's 24 and 181). As an argument, byval or byref, it gets `TKO0698` (fbc's 58). As an element of a literal, as in `return (t, 3)`, it gets `TKO0831`. Before 2026-09-29 tiko accepted all of these and copied the bytes, so `(5, 6)` read back as `(5, 0)`. The fix is to declare the value at the target's type, `dim as (int32, int32) t = (5, 6)`, or to write the literal where it is used.
+A tuple VALUE of another tuple type is refused everywhere, since two tuple types never convert. A `(int32, int32)` target given a `(integer, integer)` variable gets `TKO0738` in an initialiser, an assignment, a `return` or `function =`. As an argument, byval or byref, it gets `TKO0698`. As an element of a literal, as in `return (t, 3)`, it gets `TKO0831`. The fix is to declare the value at the target's type, `dim as (int32, int32) t = (5, 6)`, or to write the literal where it is used.
 
-A comparison of two tuples of one type is an `integer`, -1 or 0, as under fbc: `print a = b`, `str( a = b )` and `-( a = b )` all work. Before 2026-09-25 tiko gave the comparison no type, and each of those was silently left out of the program; only `if a = b` and `r = ( a = b )` worked. A tuple compares only if every element does. A UDT element needs the operator written for that comparison, over two of itself: with only `operator =` declared for it, `=` works and `<>` is `TKO0720`, fbc's error 20, and an `operator cast` does not help. A nested tuple element is judged by its own elements.
+A comparison of two tuples of one type is an `integer`, -1 or 0: `print a = b`, `str( a = b )` and `-( a = b )` all work. A tuple compares only if every element does. A UDT element needs the operator written for that comparison, over two of itself: with only `operator =` declared for it, `=` works and `<>` is `TKO0720`, and an `operator cast` does not help. A nested tuple element is judged by its own elements.
 
 ## Implementation
 
-tiko's implementation is its own, in its type table and its MIR lowering; none of FBC-Modern's symbol-table or parser code is involved.
+tiko's implementation is in its type table and its MIR lowering.
 
-tiko mangles a tuple type as fbc does, as SEPARATE COMPILATION above says: an instantiation of 'FBTUPLE<N>', its element types the arguments. Measured 2026-09-24, every procedure and member name tiko emits for (long, long), (long, string), ((long, string), long), (Counted, long) and (integer, integer) is byte-identical to fbc's object file. Two separately compiled tiko modules sharing a namespaced procedure over '(Pt, long)', with Pt declared in a different order in each, link and run. So does a tiko module against an fbc-built one for -target win64. Before, tiko named a tuple by its own type-table indices ('8$TUP:6:6'), which are per-module numbers, and both of those links failed.
-
-The design documents are FBC-Modern's: C:\\dev\\docs\\tuple -- README.md and RFC-0001 through RFC-0004.
+tiko mangles a tuple type as SEPARATE COMPILATION above says: an instantiation of 'FBTUPLE<N>', its element types the arguments. Two separately compiled tiko modules sharing a namespaced procedure over '(Pt, long)', with Pt declared in a different order in each, link and run.
 
 ## Tests
 
-fbc's `tuple/` tests, vendored in tiko-lang at `tests/vendor/fbc-tests/tuple/`:
+The `tuple/` tests, vendored in tiko-lang at `tests/vendor/fbc-tests/tuple/`:
 
 basic.bas          every accepted element kind; '\_1'..\_N read and write; a
 
@@ -481,17 +465,16 @@ DIFFERENT element names and calls them. Only a
 link-compatible name passes.
 ```
 
-`tests/vendor/fbc-tests/errors/tuple-errors.bas` is fbc's golden file for every diagnostic, and also PINS THE TWO DOCUMENTED LIMITATIONS -- 'sizeof( (long, string) )' and the nested literal -- so they cannot change by accident.
+`tests/vendor/fbc-tests/errors/tuple-errors.bas` is the golden file for every diagnostic, and also PINS THE TWO DOCUMENTED LIMITATIONS -- 'sizeof( (long, string) )' and the nested literal -- so they cannot change by accident.
 
 `errors/tuple-foreach-errors.bas`, beside it, covers the 'for each (k, v)' diagnostics. AS and BYREF on the list form get a file each: they are rejected while the binding is still being read, before the FOR compound is pushed, so the error skip leaves the following 'next' orphaned and suppresses every later diagnostic in the same file.
 
-fbc's fblite/tuple.bas, qb/tuple.bas and deprecated/tuple.bas run the destructuring forms in the three dialects that never had 'LET(a, b) ='. They are outside tiko's scope, which is `#lang "fb"` only.
+fblite/tuple.bas, qb/tuple.bas and deprecated/tuple.bas run the destructuring forms in the three dialects that never had 'LET(a, b) ='. They are outside tiko's scope, which is `#lang "fb"` only.
 
-Under tiko, measured 2026-09-24 at origin/master 50c71751: basic, identity, literal, dtor, destructure, equality, equality-overload and for-each build and run with exit 0 and the same output as fbc's builds; no-regress.bas compiles; and the two-module tuple-mm-main.bas + tuple-mm-a.bas builds and runs clean when both files are given to one `tiko` invocation (see IMPLEMENTATION for separate compilation). `build/runscan.sh` (2026-09-20) has every in-scope run program of the corpus byte-identical to fbc's builds. tiko's own suite: `tests/types/tuple-type.test` and eight `tests/mir/tuple-*.test` files. What tiko does NOT yet match is the diagnostics -- see DIAGNOSTICS.
+Under tiko: basic, identity, literal, dtor, destructure, equality, equality-overload and for-each build and run with exit 0; no-regress.bas compiles; and the two-module tuple-mm-main.bas + tuple-mm-a.bas builds and runs clean when both files are given to one `tiko` invocation (see IMPLEMENTATION for separate compilation). tiko's own suite: `tests/types/tuple-type.test` and eight `tests/mir/tuple-*.test` files.
 
 ---
 
-**Source:** `docs/tuples/tuples.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

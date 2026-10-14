@@ -4,7 +4,7 @@
 
 Profiling can be used to analyze the performance of an application.
 
- Since fbc 1.20.0, FreeBASIC can use fb's profiler for analyzing the execution of an application. The profiler information is collected while the program is running.  
+ FreeBASIC can use fb's profiler for analyzing the execution of an application. The profiler information is collected while the program is running.  
  This profiling feature may give an easy to use tool to help novice and experienced users analyze their programs.
 
  Some of the capabilities of this profiler implemented through fb:
@@ -31,7 +31,7 @@ The fb's profiler offers two types of profiling:
 The performance of an application might be measured by how many times functions are called, how much time is spent executing those functions, and which functions are calling other functions.  
  This can help to identify functions that might be taking too long to execute or executed too many times and that might be worth reviewing for optimization.
 
- This feature is a reimplentation of Angelo Mottola's (lillo's) profiler from 2008, rewritten to fix some issues, and then some new features added on. This latest side quest started due to a desire to run some kind of profiling on the fbc compiler itself, and having no luck at all with gprof on windows. Years ago lillo's function call profiler was removed in favor of gmon/gprof.
+ This feature is a reimplentation of Angelo Mottola's (lillo's) profiler from 2008, rewritten to fix some issues, and then some new features added on.
 
  This tool is not suitable for high resolution timing profiling. However, it helps identify potential problem areas in a program, or gives a better understanding of procedures called as starting point for investigations.
 

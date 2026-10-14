@@ -21,7 +21,7 @@ As with most tutorials, this one too can be better explained with the use of an 
  *Editors Note:
 
 **-** The mouse functions will work with a graphics window as demonstrated in this tutorial.
- **-** They will work with console window however in Windows, Quick Edit mode must be turned off (this conflict between Quick Edit and FreeBASIC mouse is fixed from fbc version 1.08).*
+ **-** They will work with console window.*
 
  **THE SAMPLE PROGRAM DESCRIPTION**
 

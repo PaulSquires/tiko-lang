@@ -96,10 +96,6 @@ ScreenRes width, height [, [depth] [, [num_pages] [, [flags] [, refresh_rate ]]]
 result = ScreenRes( width, height [, [depth] [, [num_pages] [, [flags] [, refresh_rate ]]]] )
 ```
 
-### Version
-
- Since 1.20.0: `GFX_NO_X86_MMX`
-
 ### Platform Differences
 
 - In DOS, Windowing and OpenGL related switches are not available, and other issues, see [GfxLib overview](Gfxlib-Freebasic-Graphics-Library-Overview)

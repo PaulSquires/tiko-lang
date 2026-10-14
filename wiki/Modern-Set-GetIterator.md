@@ -19,7 +19,7 @@ for i as integer = 1 to 3
     seen.Add( i )
 next
 
-'' Value( ) is BYREF, and the RFC-0002 protocol is what `for each` uses
+'' Value( ) is BYREF
 dim it as SetIterator( of integer ) = seen.GetIterator( )
 dim as integer total
 while it.IsValid( )
@@ -33,5 +33,4 @@ print total                  '' 6
 
 **Library:** [Set](Category-Set)  
 **Category:** [Set](Category-Set)  
-**Documented under:** Members  
-**Source:** `docs/set/set.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

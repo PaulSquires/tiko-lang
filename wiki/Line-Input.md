@@ -33,10 +33,6 @@ Reads a line from an open text file (opened for [`Input`](Input-File-Mode) throu
 
 ## Remarks
 
-### Version
-
-- Before fbc 1.10.0, the second syntax (with `max_length` parameter) was not supported.
-
 ### Differences from QB
 
 - None

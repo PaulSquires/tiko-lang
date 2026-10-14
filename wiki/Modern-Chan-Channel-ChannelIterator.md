@@ -12,7 +12,7 @@ ChannelIterator( of T )
 
 ## Notes
 
-- The RFC-0002 protocol -- `IsValid`, `Value`, `MoveNext` -- which is what `for each` is rewritten into. Ordinary code names the type only when the loop has to stop early, resume, or interleave with another.
+- The iterator protocol -- `IsValid`, `Value`, `MoveNext` -- which is what `for each` is rewritten into. Ordinary code names the type only when the loop has to stop early, resume, or interleave with another.
 - Iteration **consumes**: each step receives a value, and the loop ends when the channel is closed and drained.
 - It **blocks** between values, so `for each` over a channel nobody closes never ends.
 - Requires `-mt`.
@@ -40,5 +40,4 @@ print "drained"
 
 **Library:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
 **Category:** [Goroutines and Channels](Category-Goroutines-and-Channels)  
-**Documented under:** Members  
-**Source:** `docs/goroutines/goroutines.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

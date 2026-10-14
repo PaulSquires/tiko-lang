@@ -30,5 +30,4 @@ print "[" & e.PopBack( ) & "]"       '' [] -- empty gives a blank T
 
 **Library:** [LinkedList](Category-LinkedList)  
 **Category:** [LinkedList](Category-LinkedList)  
-**Documented under:** Members  
-**Source:** `docs/linkedlist/linkedlist.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

@@ -39,5 +39,4 @@ next                     '' fig / pear / banana
 
 **Library:** [LinkedList](Category-LinkedList)  
 **Category:** [LinkedList](Category-LinkedList)  
-**Documented under:** Sorting  
-**Source:** `docs/linkedlist/linkedlist.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Sorting

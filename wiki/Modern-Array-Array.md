@@ -35,5 +35,4 @@ print v[ 0 ] & " " & w[ 0 ]      '' ada alan
 
 **Library:** [Array Container](Category-Array)  
 **Category:** [Array](Category-Array)  
-**Documented under:** Why Sort, Indexof And Contains Are Not Members  
-**Source:** `docs/array/array.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Why Sort, Indexof And Contains Are Not Members

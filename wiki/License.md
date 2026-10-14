@@ -11,7 +11,7 @@ The upstream manual lives at <https://www.freebasic.net/wiki/DocToc>. These page
 
 ## The tiko pages
 
-These pages document the tiko language, its standard library and its toolchain. They began as the documentation in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern) under `docs/`, and they are licensed under the **GNU Free Documentation License**.
+These pages document the tiko language, its standard library and its toolchain. They are licensed under the **GNU Free Documentation License**.
 
 Copyright © Paul Squires, [PlanetSquires Software](https://www.planetsquires.com).
 
@@ -26,7 +26,7 @@ tiko-lang is its own compiler, written from scratch in FreeBASIC. It is not a co
 | The graphics library, **libtkogfx** (`lib/gfx/`), a derivative of fbc's `gfxlib2` | **LGPL v2.1 or later, same exception** (`lib/gfx/LICENSE`) |
 | tiko's documentation (`docs/`, the READMEs, and the tiko pages here) | **GNU FDL 1.3 or later** |
 
-**Your programs are yours.** Both libraries extend fbc's static-linking exception to themselves, so a program compiled by tiko and linked against them can be distributed on any terms you choose, just as a program built with fbc can.
+**Your programs are yours.** Both libraries extend fbc's static-linking exception to themselves, so a program compiled by tiko and linked against them can be distributed on any terms you choose.
 
 **The packaged toolchains carry third-party components.**
 
@@ -38,4 +38,4 @@ tiko-lang is its own compiler, written from scratch in FreeBASIC. It is not a co
 
 ## Where these pages came from
 
-The FreeBASIC manual pages are a Markdown conversion of the official 1.20.0 manual, taken through the [HelpCenter](https://www.planetsquires.com/docs/) docset pipeline. The tiko pages began as FBC-Modern's feature documentation and were copied here on 2026-09-19. Both are edited here directly.
+The FreeBASIC manual pages are a Markdown conversion of the official 1.20.0 manual, taken through the [HelpCenter](https://www.planetsquires.com/docs/) docset pipeline. The tiko pages and the manual pages are both edited here directly.

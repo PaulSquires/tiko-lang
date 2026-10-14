@@ -12,11 +12,11 @@ Parameters
 
 `path`
 
-The directory, relative or absolute to where fbc is located.
+The directory, relative or absolute to where the compiler is located.
 
 Description
 
-The `-prefix` compiler option sets the compiler prefix (where the compiler finds the bin, lib, and inc directories); and defaults to the path where fbc resides, if this can be determined.
+The `-prefix` compiler option sets the compiler prefix (where the compiler finds the bin, lib, and inc directories); and defaults to the path where the compiler resides, if this can be determined.
 
  For more details, see on page [`-buildprefix`](Compiler-Option-Buildprefix), the paragraph: "Detailed behavior if using `-buildprefix`, `-prefix`, `-target` command line options".
 
@@ -24,7 +24,7 @@ See also
 
 - [-buildprefix](Compiler-Option-Buildprefix)
 - [-target](Compiler-Option-Target)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

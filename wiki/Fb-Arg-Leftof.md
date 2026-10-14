@@ -26,10 +26,6 @@ Returns the left token of the argument (`arg`), based on the separator (`sep`).
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.08.0
-
 ### Differences from QB
 
 - New to FreeBASIC

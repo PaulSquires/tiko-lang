@@ -43,10 +43,6 @@ result = CBool( string expression )
 result = CBool( user defined type )
 ```
 
-### Version
-
-- Since fbc 1.04.0
-
 ### Dialect Differences
 
 - Not available in the *[-lang qb](Compiler-Option-Lang)* dialect unless referenced with the alias `__Cbool`.

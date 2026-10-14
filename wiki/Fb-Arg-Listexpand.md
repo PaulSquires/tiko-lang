@@ -24,10 +24,6 @@ Expands to one or more 'macroname( .... )' depending on the value of `macroargco
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.20.0
-
 ### Differences from QB
 
 - New to FreeBASIC

@@ -16,10 +16,6 @@ Substituted by a string of the compiler's source SHA-1 revision. The value is se
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.07.1
-
 ### Differences from QB
 
 - New to FreeBASIC

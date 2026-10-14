@@ -37,5 +37,4 @@ print ToString( 1.0 / 3.0 )  '' 0.3333333333333333
 
 **Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
-**Documented under:** Nothing Becomes A Keyword  
-**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Nothing Becomes A Keyword

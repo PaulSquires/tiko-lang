@@ -6,20 +6,20 @@ Text files read by FreeBASIC and compiled into executable code.
 
  A source file is a text file that contains FreeBASIC language statements. A program might be made from just one source file or possibly hundreds. Source files are read by the compiler and compiled into object code. Object code is then linked to create an executable or can be stored for later use as a library.
 
- FreeBASIC by default, automatically takes care of compiling sources and linking object modules in to executables, so normally it is possible to make an executable program by just passing the names of the source files on the `fbc` command line. For example, assuming we had three source files that together made a program, we could create an executable for the program by running `fbc`, the FreeBASIC compiler on a command line as follows:  
+ FreeBASIC by default, automatically takes care of compiling sources and linking object modules in to executables, so normally it is possible to make an executable program by just passing the names of the source files on the compiler command line. For example, assuming we had three source files that together made a program, we could create an executable for the program by running `fbc`, the FreeBASIC compiler on a command line as follows:  
  `fbc myprog.bas tools.bas funcs.bas`
 
 Unicode support
 
 - Besides ASCII files with Unicode escape sequences (\\u), FreeBASIC can parse UTF-8, UTF-16LE, UTF-16BE, UTF-32LE and UTF-32BE source (.bas) or header (.bi) files as long as they were saved with Byte Order Mark (BOM), they can be freely mixed with other sources/headers in the same project (also with other ASCII files).
-  Unicode files must be saved with Byte Order Mark (BOM), otherwise fbc does not recognize them as Unicode.  
+  Unicode files must be saved with Byte Order Mark (BOM), otherwise the compiler does not recognize them as Unicode.  
   Literal strings can be typed in the original non-Latin alphabet, just use a text-editor that supports one of the Unicode formats listed above.
 
 **Note:** The most reliable cross-platform code is obtained by encoding without BOM in ASCII/UTF-8 characters.
 
 Implicit main()
 
-Some languages require a special `main()` procedure be defined as an entry point to the program which define the first statements that will be executed when the program starts. FreeBASIC allows executable statements in module level code and normally the first source file passed to fbc on the command line will be used as the "main" module. The main module can be explicitly named by passing *-m filename* on the command line, where *filename* is the name of the main module without the .bas extension.
+Some languages require a special `main()` procedure be defined as an entry point to the program which define the first statements that will be executed when the program starts. FreeBASIC allows executable statements in module level code and normally the first source file passed to the compiler on the command line will be used as the "main" module. The main module can be explicitly named by passing *-m filename* on the command line, where *filename* is the name of the main module without the .bas extension.
 
 ```freebasic
 '' sample.bas
@@ -49,7 +49,7 @@ A header file is a special kind of source file that typically only contains decl
 
 See also
 
-- [fbc command-line](Fbc-Command-Line)
+- [Compiling a program](Quick-Start#compile-a-program)
 - [Header Files (.bi)](Header-Files-Bi)
 
 ---

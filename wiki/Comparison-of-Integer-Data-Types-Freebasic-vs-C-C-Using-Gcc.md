@@ -9,9 +9,9 @@
 | 64bit win64 | 32 | 64 | 32 (LLP64) | 32 | 64 | 64 |
 | 64bit linux-x86_64 | 32 | 64 | 64 (LP64) | 32 | 64 | 64 |
 
- Some public symbols (like namespaces, and user defined type member procedures) will have data type information encoded in to the public name (also known as name mangling or name decoration). Specific mapping of data types between FreeBASIC and gcc is required when linking `fbc` compiled object modules with `gcc` compiled object modules.
+ Some public symbols (like namespaces, and user defined type member procedures) will have data type information encoded in to the public name (also known as name mangling or name decoration). Specific mapping of data types between FreeBASIC and gcc is required when linking object modules compiled by the compiler with `gcc` compiled object modules.
 
-| Target | fbc data type | c data type | bits |
+| Target | FB data type | c data type | bits |
 | --- | --- | --- | --- |
 | all | byte | signed char | 8 |
 | all | ubyte | unsigned char | 8 |

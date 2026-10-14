@@ -51,7 +51,7 @@ The x86 ASM backend ([-gen gas](Compiler-Option-Gen)) currently only supports `-
 See also
 
 - [\_\_FB_ASM\_\_](Fb-Asm)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

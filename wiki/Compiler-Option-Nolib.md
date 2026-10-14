@@ -37,13 +37,11 @@ For example, this could be used to specifically omit `libtinfo`.
 
 Version
 
-- Since fbc 1.20.0: `-nolib fbrt0.o`, `-nolib fbrt0pic.o`
-- Since fbc 1.10.0.
 
 See also
 
 - [Compiler Option: -nodeflibs](Compiler-Option-Nodeflibs)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

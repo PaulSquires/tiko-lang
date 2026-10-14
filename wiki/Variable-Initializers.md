@@ -106,7 +106,7 @@ Dynamic allocations with initializer:
  `or:`  
  `(7) Dim ByRef ref_udt_symbol As UdtName = *New UdtName( argument_list )`
 
- **tiko:** braces are not one of these forms. `Dim udt_symbol As UdtName = { ... }` is `TKO0845`, as it is fbc's error 63, and so is a brace list on a pre-built type such as `Dim d As Double = { 1.5 }`. The exception is a type that needs constructing and has an `Add`, `PushBack` or `Push` method: it takes a brace list as a [collection initializer](Category-Collection-Initializers), one call to that method per element.
+ **tiko:** braces are not one of these forms. `Dim udt_symbol As UdtName = { ... }` is `TKO0845`, and so is a brace list on a pre-built type such as `Dim d As Double = { 1.5 }`. The exception is a type that needs constructing and has an `Add`, `PushBack` or `Push` method: it takes a brace list as a [collection initializer](Category-Collection-Initializers), one call to that method per element.
 
 *Parameters*
 
@@ -154,7 +154,7 @@ But the most complex are the rules determining the existence of an implicit cons
 
 *Description*
 
-When a UDT has an implicit constructor (due to a string member, or a variable member with an initializer itself, or a data member with constructor, or UDT derived from [Object](Object), or since fbc version 1.20.0 containing a STRING\*N field plus another data type field) or an explicit constructor, then a simple initializer as `'= ( argument_list )'`, the first initializer syntax in the list (1), becomes not valid.  
+When a UDT has an implicit constructor (due to a string member, or a variable member with an initializer itself, or a data member with constructor, or UDT derived from [Object](Object), or containing a STRING\*N field plus another data type field) or an explicit constructor, then a simple initializer as `'= ( argument_list )'`, the first initializer syntax in the list (1), becomes not valid.  
  In that case, an advanced initialization can be applied by using a constructor matching the initialization expression of the last four syntaxes in the list (4 to 7).
 
  The simpler initializer syntax, the first in the list (1), can always be replaced by one of the last four initializer syntaxes in the list (4 to 7), but the contrary does not work.

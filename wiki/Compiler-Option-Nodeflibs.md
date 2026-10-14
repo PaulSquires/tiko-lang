@@ -14,7 +14,7 @@ The `-nodeflibs` compiler option causes default libraries not to be used when li
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

@@ -23,7 +23,7 @@ o.Value( ) = 43
 print o.Value( )             '' 43
 
 '' EMPTY ACCESS RAISES: Value( ) on an empty Optional raises
-'' FB_RTERROR_ILLEGALFUNCTIONCALL through the ordinary fbc path, so it is
+'' FB_RTERROR_ILLEGALFUNCTIONCALL through the ordinary runtime-error path, so it is
 '' catchable by `on error` and reports a line under -exx. Reading a value
 '' that is not there is a bug at the call site, not a condition to
 '' recover from. ValueOr( ) is the branch-free alternative.
@@ -33,5 +33,4 @@ print o.Value( )             '' 43
 
 **Library:** [Optional](Category-Optional)  
 **Category:** [Optional](Category-Optional)  
-**Documented under:** Members  
-**Source:** `docs/optional/optional.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

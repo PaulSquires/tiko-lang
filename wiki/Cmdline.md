@@ -16,15 +16,15 @@ Preprocessor directive
 
 ## Description
 
-`#cmdline` is a pre-processor directive that allows specifying [`compiler options`](Compiler-Options) from inside the first specified fb source file. The first source file is the first specified '.bas' file given on the shell or IDE command line invoking the fbc compiler. `#cmdline` directives specified in the first source file affect all source files subsequently compiled. `#cmdline` directives inside source files other than the first source file are ignored.
+`#cmdline` is a pre-processor directive that allows specifying [`compiler options`](Compiler-Options) from inside the first specified fb source file. The first source file is the first specified '.bas' file given on the shell or IDE command line invoking the compiler. `#cmdline` directives specified in the first source file affect all source files subsequently compiled. `#cmdline` directives inside source files other than the first source file are ignored.
 
  `#cmdline` is only allowed at module scope and can be conditionally processed with [`#if`](If) pre-processor statements. `#cmdline` statements must appear before any declarative or executable statements. Any `#cmdline` statements after the first declarative or executable statement are ignored.
 
  `#cmdline` directives are processed on the first pass of the the first '.bas' source file when they appear in the source file. If an invalid command line option is given in the `#cmdline` statment, compilation immediately aborts. `#cmdline` directives are ignored on the second pass of the source file even if a conditional [`#if`](If) would add something different on the second pass.
 
- At first fbc initializes as usual and begins parsing the fb source code using the options given from the shell or IDE's `fbc ...` command line. As `#cmdline` directives are processed, they are merged into the current compiler configuration. Depending on the command line options encountered, fbc can continue parsing, restart the parser, or restart fbc (for example: no restart after `#cmdline "-mt"`, restart the parser after `#cmdline "-gen gcc"`, restart the build after `#cmdline "-target win64"`).
+ At first the compiler initializes as usual and begins parsing the fb source code using the options given from the shell or IDE's `fbc ...` command line. As `#cmdline` directives are processed, they are merged into the current compiler configuration. Depending on the command line options encountered, the compiler can continue parsing, restart the parser, or restart the compiler (for example: no restart after `#cmdline "-mt"`, restart the parser after `#cmdline "-gen gcc"`, restart the build after `#cmdline "-target win64"`).
 
- fbc has no clever way to detect when all the `#cmdline` directives in source have been processed, so there are 2 pseudo command line options to instruct fbc what to next if it is necessary:
+ The compiler has no clever way to detect when all the `#cmdline` directives in source have been processed, so there are 2 pseudo command line options to instruct the compiler what to next if it is necessary:
 
 `#cmdline "-end"`
 
@@ -34,17 +34,13 @@ option to restart parser or build if needed.
 
 option to always restart build.
 
-If neither `#cmdline "-end"` nor `#cmdline "-restart"` were encountered, fbc continues processing to the end of the first source file and restarts only if necessary.
+If neither `#cmdline "-end"` nor `#cmdline "-restart"` were encountered, the compiler continues processing to the end of the first source file and restarts only if necessary.
 
- Adding [`-z nocmdline`](Compiler-Option-Z) in the shell/IDE command line option ignores `#cmdline` directives completely in source and allows user to override all source directives using the shell/IDE `fbc` compiler command line only.
+ Adding [`-z nocmdline`](Compiler-Option-Z) in the shell/IDE command line option ignores `#cmdline` directives completely in source and allows user to override all source directives using the shell/IDE compiler command line only.
 
  Adding [`-w all`](Compiler-Option-W) on the shell/IDE command line option allows to get warnings about ignored `#cmdline` directives.
 
 ## Remarks
-
-### Version
-
-- Since fbc 1.09.0
 
 ### Differences from QB
 
@@ -52,7 +48,7 @@ If neither `#cmdline "-end"` nor `#cmdline "-restart"` were encountered, fbc con
 
 ### See also
 
-- [fbc command-line](Fbc-Command-Line)
+- [Compiling a program](Quick-Start#compile-a-program)
 - [Compiler Options](Compiler-Options)
 - [Intrinsic Defines](Intrinsic-Defines)
 
@@ -69,7 +65,7 @@ Sleep
 ```
 
 When #cmdline is not processed (no 'invalid command-line option' error message is reported):  
- (fbc parser is active when checking for #cmdline, so it's expected that it follows sames rules as any other source code)
+ (the compiler parser is active when checking for #cmdline, so it's expected that it follows sames rules as any other source code)
 
 ```freebasic
 '' not processed in single line comments

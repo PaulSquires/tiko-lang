@@ -30,13 +30,12 @@ Standard variable types and limits.
 | Type | Character Size (in bytes) | Minimum Size (in characters) | Maximum Size (in characters), including terminating padding | Literal Suffix |
 | --- | --- | --- | --- | --- |
 | String | 1 | 0 | \[\*\*\]32bit: +2147483647, 64bit: +9223372036854775807 | $ |
-| String\*N | 1 | 1 | \[\*\*,\*\*\*\]+2147483647 | $ |
-| Zstring\*N | 1 | 1 | \[\*\*,\*\*\*\]+2147483647 | \[N/A\] |
-| Wstring\*N | \[\*\] | \[\*\]1 | \[\*,\*\*,\*\*\*\]+2147483647 | \[N/A\] |
+| String\*N | 1 | 1 | \[\*\*\]+2147483647 | $ |
+| Zstring\*N | 1 | 1 | \[\*\*\]+2147483647 | \[N/A\] |
+| Wstring\*N | \[\*\] | \[\*\]1 | \[\*,\*\*\]+2147483647 | \[N/A\] |
 
 \[\*\] *Unicode, or "wide", characters vary in both size and availability with platform.*  
- \[\*\*\] *All runtime library string procedures take and produce [`Integer`](Integer) values for sizes and positions. The actual maximum size will vary (smaller) with storage location and/or platform.*  
- \[\*\*\*\] *Before fbc version 1.20.0, fixed-length strings had the same maximum size limits as variable strings.*
+ \[\*\*\] *All runtime library string procedures take and produce [`Integer`](Integer) values for sizes and positions. The actual maximum size will vary (smaller) with storage location and/or platform.*
 
 ***Boolean Type***
 

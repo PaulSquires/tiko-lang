@@ -21,7 +21,7 @@ Returns a lower case string with one of the following values:
 | ''fb'' | FreeBASIC compatibility (default) |
 | ''qb'' | QBASIC compatibility |
 | ''fblite'' | FreeBASIC language compatibility, with a more QBASIC-compatible coding style |
-| ''deprecated'' | FBC version 0.16 compatibility |
+| ''deprecated'' | older compiler version compatibility |
 
 `__FB_LANG__` is always defined.
 

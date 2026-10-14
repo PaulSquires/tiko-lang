@@ -95,7 +95,7 @@ options  = ["-mt"]
 | `output` | string | the artefact's path, instead of `out/<profile>/<file>` |
 | `copy_to` | array | directories the artefact is copied into after each build that succeeds |
 
-A `-x` in `options` names the artefact as fbc's `-x` does ([Compiler Option: -x](Compiler-Option-X)), relative to `tiko.toml`, and wins over `output`.
+A `-x` in `options` names the artefact as `-x` does ([Compiler Option: -x](Compiler-Option-X)), relative to `tiko.toml`, and wins over `output`.
 
 **`copy_to`** puts the program beside the DLLs and data files it needs. After a build that succeeds, the artefact is copied into each directory, which is made when missing; `out/<profile>/` keeps the original, which the link check reads. A copy that is already there with the same size and no older is left alone, so an unchanged build writes nothing. A DLL is copied alone, without its import library. `tiko clean` removes the copies too, and nothing else in those directories. A copy that cannot be written is `TKO0171`, exit 5.
 

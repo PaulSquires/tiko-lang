@@ -30,5 +30,4 @@ print CToString( CLog10( CSet( -1, 0.0 ) ) )   '' 0+1.3643763538418412i   -- the
 
 **Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
-**Documented under:** Members  
-**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

@@ -20,19 +20,19 @@ The `-buildprefix` command line option overrides the internal buildprefix option
 
  *Detailed behavior if using `-buildprefix`, [`-prefix`](Compiler-Option-Prefix), [`-target`](Compiler-Option-Target) command line options*
 
-fbc's default options should work for native builds.  
+The compiler's default options should work for native builds.  
  When building for other platforms or developing and building with multiple tool chains, these command line options can help ease the needs of various non-native or uncommon compilations:
 
-**-** prefix may have been compiled in when fbc itself was compiled, in which case the default prefix is determined by fbc's build/makefile option 'ENABLE_PREFIX'
+**-** prefix may have been compiled in when the compiler itself was compiled, in which case the default prefix is determined by the compiler's build/makefile option 'ENABLE_PREFIX'
 
-If fbc was not compiled with 'ENABLE_PREFIX':
+If the compiler was not compiled with 'ENABLE_PREFIX':
 
-**-** standalone: prefix = \<fbc path>/
- **-** normal : prefix = \<fbc path>/../
+**-** standalone: prefix = \<compiler path>/
+ **-** normal : prefix = \<compiler path>/../
 
 **-** if the '-prefix \<path>' command line option given, overrides the default prefix
 
-**-** determined by target build for fbc itself by fbc's makefile
+**-** determined by target build for the compiler itself by the compiler's makefile
 
 **-** if the '-target \<target>' command line option given, overrides the default target
 
@@ -41,18 +41,18 @@ If fbc was not compiled with 'ENABLE_PREFIX':
 **-** if the '-buildprefix \<name>' command line option given, overrides the default build prefix
 
 **-** binary path: where tools are located (AS, LD, AR, etc)
- **-** include path: location of fbc's '\*.bi' files
- **-** library path: where fbc's libraries are located (static libraries and import libraries)
+ **-** include path: location of the compiler's '\*.bi' files
+ **-** library path: where the compiler's libraries are located (static libraries and import libraries)
  **-** toolname: the name of a specific tool, which may include the path for a specific location, or the name of the tool only if relying on PATH environment variable
 
-standalone fbc:
+standalone compiler:
 
 **-** binary path = \<prefix>/bin/\<target>/
  **-** toolname = \<binary path> + \<buildprefix> + \<tool name>\[.exe\]
  **-** include path = \<prefix>/inc
  **-** library path = \<prefix>/lib/\<target>
 
-normal fbc:
+normal compiler:
 
 **-** default binary path:
 
@@ -78,8 +78,8 @@ normal fbc:
  **-** 'LLC' overrides LLVM compiler
  **-** 'CLANG' overrides clang C compiler (currently never used)
  **-** 'DLLTOOL' overrides gnu dlltool (GAS)
- **-** 'GORC' overrides resource tool (if fbc was compiled with ENABLE_GORC)
- **-** 'WINDRES' overrides resource tool (if fbc was compiled without ENABLE_GORC)
+ **-** 'GORC' overrides resource tool (if the compiler was compiled with ENABLE_GORC)
+ **-** 'WINDRES' overrides resource tool (if the compiler was compiled without ENABLE_GORC)
  **-** 'CXBE' overrides xbox xbe generator tool
  **-** 'DXE3GEN' overrides djgpp DOS dll tool
  **-** 'EMAR' overrides emscripten archiver ool
@@ -88,7 +88,7 @@ normal fbc:
 The tool name prefix (stored in the binary path) is set by default with 'target' + '-'.  
  '-buildprefix \<name>' overrides the tool name prefix.
 
- When 'binary path' is set (internally in the fbc compiler), it includes the prefix of the tool name.
+ When 'binary path' is set (internally in the compiler), it includes the prefix of the tool name.
 
  For examples:
 
@@ -100,19 +100,18 @@ fbc -prefix /pppp/ -target tttt -buildprefix bbbbX source.bas
 
 gnu-AS invoked is: /pppp/bin/bbbbXas
 
-'-prefix' command line option controls top level path for fbc.  
+'-prefix' command line option controls top level path for the compiler.  
  '-target' command line option controls code generation and many related options including the default tool name prefix.  
  '-buildprefix' command line option overrides the default tool name prefix.
 
 Version
 
-- Since fbc 1.10.0
 
 See also
 
 - [-prefix](Compiler-Option-Prefix)
 - [-target](Compiler-Option-Target)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

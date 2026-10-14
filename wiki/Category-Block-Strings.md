@@ -67,6 +67,6 @@ A block string can go anywhere a string literal can: an initializer, a `const`, 
 
 ## Compatibility
 
-fbc has no block strings. In fbc, `"""` followed by the end of the line is a string that is missing its closing quote. fbc warns about it (warning 12) and the value is a single `"`. tiko reads the same text as the start of a block string. No real code was found written that way: the vendored fbc test suite, tiko's packages and its tests contain no such line. Every other spelling keeps its fbc meaning. `"""abc"""` is still the five-character string `"abc"`, and `""""` is still one quote.
+tiko reads `"""` followed by the end of the line as the start of a block string. Every other spelling keeps its ordinary meaning: `"""abc"""` is the five-character string `"abc"`, and `""""` is one quote.
 
 See [Compatibility](Compatibility).

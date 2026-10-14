@@ -16,10 +16,6 @@ Gives the False [`Boolean`](Boolean) value where used.
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.04.0
-
 ### Dialect Differences
 
 - Not available in the *[-lang qb](Compiler-Option-Lang)* dialect unless referenced with the alias `__False`.

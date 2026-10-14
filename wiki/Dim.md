@@ -124,7 +124,7 @@ Dim array(1 To 2, 6, 3 To 5) As Single
 
 ### Initializers
 
- Arrays, variables, strings, and user defined types (UDTs) are initialized to zero (or [`False`](False) for [`Boolean`](Boolean)) or null strings by default when they are created, except since fbc version 1.20.0 where fixed-length strings of STRING\*N type are padded with spaces (because such a string field no longer has terminal null character).
+ Arrays, variables, strings, and user defined types (UDTs) are initialized to zero (or [`False`](False) for [`Boolean`](Boolean)) or null strings by default when they are created, except fixed-length strings of STRING\*N type, which are padded with spaces (because such a string field has no terminal null character).
 
  To avoid the overhead of default variable initialization, the `Any` initializer can be used with `Dim` to tell the compiler to only reserve the place for the variable in memory but not initialize it, so the variable will contain garbage. In this case the programmer should not make assumptions about the initial values.
 
@@ -191,10 +191,6 @@ Dim sngVariable!
 
 Dim dblVariable#
 ```
-
-### Version
-
-- Since fbc version 1.20.0, fixed-length strings of STRING\*N type are initialized to space value (zero value previously).
 
 ### Dialect Differences
 

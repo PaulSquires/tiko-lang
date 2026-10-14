@@ -15,7 +15,7 @@ SizeOf ( variable | DataType )
 The `SizeOf` operator returns an [`Integer`](Integer) value: the number of bytes taken up by a `variable` or [`DataType`](Data-Types) (including the data fields of a UDT).
 
  When used with fixed-length strings (including fixed-length [`ZString`](Zstring)s and [`WString`](Wstring)s) it will return the number of bytes they use, and when used with variable-length strings, it will return the size of the string descriptor.  
- (it is equal to [`Len`](Len) only when used with fixed-length strings of STRING\*N type and this since fbc version 1.20.0)
+ (it is equal to [`Len`](Len) only when used with fixed-length strings of STRING\*N type)
 
  If there is both a user defined type and a variable visible with the same name in the current scope, the user defined type takes precedence over the variable. To ensure that the `SizeOf` takes the variable instead of the user defined type, wrap the argument to `SizeOf` with parentheses to force it to be seen as an expression. For example `Sizeof((variable))`.
 
@@ -25,13 +25,6 @@ The `SizeOf` operator returns an [`Integer`](Integer) value: the number of bytes
  Remark: When used with a dereferenced z/wstring pointer, `SizeOf` always returns the number of bytes taken up by one z/wstring character.
 
 ## Remarks
-
-### Version
-
-- Before fbc 1.08.0:
-
-`SizeOf` was not returning the size of the data fields of a UDT.  
- When a variable from a given namespace was accessed with the namespace's name prefix, the argument to `SizeOf` had to be wrapped with parentheses to force it to be seen as an expression. For example `Sizeof((namespace_name.variable))`.
 
 ### Dialect Differences
 

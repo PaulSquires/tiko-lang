@@ -25,7 +25,6 @@ operator =  ( byval x as float64,  byref z as Complex ) as boolean
 - **`^` is `CPow`.** `z ^ 2.0`, `z ^ w` and `2.0 ^ z` all resolve to it.
 - **`z = 3.0` means equal to the real number *and* on the real axis** — the imaginary part must be exactly zero. Either sign of zero counts, because `-0.0 = 0.0` as numbers.
 - **No `<` `>` `<=` `>=`.** There is no ordering on ℂ. The same reasoning declined lexicographic ordering on tuples.
-- Two global UDT operators do not chain through a temporary in fbc — `( a / b ) * b` is *error 3, Expected End-of-Line*. Split it across two locals.
 
 ## Examples
 
@@ -51,5 +50,4 @@ print CSet( 3, 1 ) = 3.0    '' false   -- equal real part, but not on the axis
 
 **Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
-**Documented under:** Members  
-**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

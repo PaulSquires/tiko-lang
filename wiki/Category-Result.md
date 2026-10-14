@@ -220,7 +220,6 @@ One page per entry, 9 in all:
 
 ---
 
-**Source:** `docs/result/result.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 
 ---

@@ -29,10 +29,6 @@ Type typename As symbol
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.10.0: Nesting of a Type Alias declaration inside a structure declaring a UDT (Type or Union) is allowed.
-
 ### Differences from QB
 
 - New to FreeBASIC

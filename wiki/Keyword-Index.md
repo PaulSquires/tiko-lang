@@ -53,7 +53,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Array Results](Category-Array-Results) — *Array Results*
 - [ArrayIterator](Modern-Array-ArrayIterator) — *Array*
 - [Arraylen](Arraylen) — *Array Functions*
-- [Arrays](Arrays) — *Compiler Internals*
 - [Arrays](programmer-s-guide-Arrays) — *Tutorials*
 - [Arraysize](Arraysize) — *Array Functions*
 - [As](As) — *Miscellaneous Keywords*
@@ -94,7 +93,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [BLoad](Bload) — *2D Drawing Functions*
 - [BLOAD/BSAVE text mode work-around](Bload-Bsave-Text-Mode-Work-Around) — *Reference*
 - [Boolean](Boolean) — *Standard Data Types*
-- [Bootstrapping fbc on a new system](Bootstrapping-Fbc-on-a-New-System) — *Compiler Internals*
 - [BSave](Bsave) — *2D Drawing Functions*
 - [Byref (Function Results)](Byref-Function-Results) — *Procedures*
 - [Byref (Parameters)](Byref-Parameters) — *Procedures*
@@ -106,8 +104,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 ## C
 
 - [#Cmdline](Cmdline) — *Compiler Options*
-- [C Header Style Guide](C-Header-Style-Guide) — *Compiler Internals*
-- [C Header Translation Tutorial](C-Header-Translation-Tutorial) — *Compiler Internals*
+- [C Header Style Guide](C-Header-Style-Guide) — *Miscellaneous*
 - [C Standard Library Functions](C-Standard-Library-Functions) — *Tutorials*
 - [CAbs](Modern-Math-CAbs) — *Math Library*
 - [caca](Caca) — *Tutorials*
@@ -293,12 +290,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Compiler Options](Compiler-Options) — *Compiler Options*
 - [Compiler Switches](Compiler-Switches) — *Compiler Switches*
 - [Compiling a Big QB program in FB](Compiling-a-Big-Qb-Program-in-Fb) — *Tutorials*
-- [Compiling a Development Version of FreeBASIC](Compiling-a-Development-Version-of-Freebasic) — *Compiler Internals*
-- [Compiling FB for DOS](Compiling-Fb-for-Dos) — *Compiler Internals*
-- [Compiling FB on Linux](Compiling-Fb-on-Linux) — *Compiler Internals*
-- [Compiling FB on Windows](Compiling-Fb-on-Windows) — *Compiler Internals*
-- [Compiling FB with Emscripten](Compiling-Fb-with-Emscripten) — *Compiler Internals*
-- [Compiling the test suite](Compiling-the-Test-Suite) — *Compiler Internals*
 - [Complex](Modern-Math-Complex) — *Math Library*
 - [Complex operators](Modern-Math-Complex-Operators) — *Math Library*
 - [Composition, Aggregation, Inheritance](Composition-Aggregation-Inheritance) — *Tutorials*
@@ -357,7 +348,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [CreateSymlink](Modern-Fs-CreateSymlink) — *Filesystem*
 - [CreateTempDir](Modern-Fs-CreateTempDir) — *Filesystem*
 - [CreateTempFile](Modern-Fs-CreateTempFile) — *Filesystem*
-- [Creating FB bindings for C libraries](Creating-Fb-Bindings-for-C-Libraries) — *Compiler Internals*
+- [Creating FB bindings for C libraries](Creating-Fb-Bindings-for-C-Libraries) — *Miscellaneous*
 - [CReciprocal](Modern-Math-CReciprocal) — *Math Library*
 - [Credits (in alphabetical order)](Credits-in-Alphabetical-Order) — *Compiler*
 - [Critical Sections](Critical-Sections) — *Tutorials*
@@ -435,7 +426,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Deallocate](Deallocate) — *Memory Functions*
 - [Debug](Modern-Log-Debug) — *Logging*
 - [Debugging](Debugging) — *Using the FreeBASIC compiler*
-- [Debugging FB](Debugging-Fb) — *Compiler Internals*
 - [Decimal](Modern-Finance-Decimal) — *Finance*
 - [DecimalApportion](Modern-Finance-DecimalApportion) — *Finance*
 - [DecimalCompare](Modern-Finance-DecimalCompare) — *Finance*
@@ -479,7 +469,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Different ways angles are measured](Different-Ways-Angles-Are-Measured) — *Tutorials*
 - [Dim](Dim) — *Variable Declarations*
 - [Dir](Dir) — *Operating System Functions*
-- [Directive parsing](Directive-Parsing) — *Compiler Internals*
 - [DirEntry.Depth](Modern-Fs-DirEntry-Depth) — *Filesystem*
 - [DirEntry.DirIterator](Modern-Fs-DirEntry-DirIterator) — *Filesystem*
 - [DirEntry.FollowSymlinks](Modern-Fs-DirEntry-FollowSymlinks) — *Filesystem*
@@ -592,16 +581,12 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [False](False) — *Intrinsic Defines*
 - [FastCGI](Fastcgi) — *Tutorials*
 - [Fatal](Modern-Log-Fatal) — *Logging*
-- [FB and cross-compiling](Fb-and-Cross-Compiling) — *Compiler Internals*
-- [FB build configuration options](Fb-Build-Configuration-Options) — *Compiler Internals*
 - [Fb_Memcopy](Fb-Memcopy) — *Memory Functions*
 - [fb_MemCopyClear](Fb-Memcopyclear) — *Memory Functions*
 - [Fb_Memmove](Fb-Memmove) — *Memory Functions*
 - [Fbarray (Array Descriptor Structure And Access)](Fbarray-Array-Descriptor-Structure-and-Access) — *Array Functions*
-- [fbc command-line](Fbc-Command-Line) — *Using the FreeBASIC compiler*
 - [FBgfx Image and Font Buffers](Fbgfx-Image-and-Font-Buffers) — *Tutorials*
 - [Field](Field) — *User Defined Types*
-- [File contexts](File-Contexts) — *Compiler Internals*
 - [File I/O Functions](File-I-O-Functions) — *File I/O Functions*
 - [File I/O with FreeBASIC](File-I-O-with-Freebasic) — *Tutorials*
 - [FileAttr](Fileattr) — *Operating System Functions*
@@ -668,7 +653,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Free alternative to the OpenGL Utility Toolkit](Free-Alternative-to-the-Opengl-Utility-Toolkit) — *Tutorials*
 - [FreeBASIC](Freebasic) — *Reference*
 - [FreeBASIC and QBasic](Freebasic-and-Qbasic) — *FreeBASIC dialects and QBASIC*
-- [FreeBASIC Build Options](Freebasic-Build-Options) — *Compiler Internals*
 - [FreeBASIC Dialects](Freebasic-Dialects) — *FreeBASIC dialects and QBASIC*
 - [FreeBASIC Manual](Freebasic-Manual) — *Reference*
 - [FreeBASIC Primer #1](Freebasic-Primer-1) — *Tutorials*
@@ -677,7 +661,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Freetype2](Freetype2) — *Tutorials*
 - [Frequently Asked FB Runtime Library Questions](Frequently-Asked-Fb-Runtime-Library-Questions) — *FAQs*
 - [Frequently Asked FreeBASIC Graphics Library Questions](Frequently-Asked-Freebasic-Graphics-Library-Questions) — *FAQs*
-- [Frequently Asked Questions](Frequently-Asked-Questions-2) — *FAQs*
 - [Frequently Asked Questions](Frequently-Asked-Questions) — *FAQs*
 - [Frexp](Modern-Math-Frexp) — *Math Library*
 - [From Pointers to References](From-Pointers-to-References) — *Tutorials*
@@ -698,7 +681,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 
 ## G
 
-- [GCC toolchain choice](Gcc-Toolchain-Choice) — *Compiler Internals*
 - [GCD](Modern-Math-GCD) — *Math Library*
 - [GD](Gd) — *Tutorials*
 - [GDBM, the GNU Database manager](Gdbm-the-Gnu-Database-Manager) — *Tutorials*
@@ -721,9 +703,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [GetRoundingMode](Modern-Math-GetRoundingMode) — *Math Library*
 - [gettext](Gettext) — *Tutorials*
 - [Getting help with FreeBASIC](Getting-Help-with-Freebasic) — *Compiler*
-- [Getting source code updates and recompiling FB](Getting-Source-Code-Updates-and-Recompiling-Fb) — *Compiler Internals*
 - [Getting Started](Getting-Started) — *Tutorials*
-- [Getting the source code](Getting-the-Source-Code) — *Compiler Internals*
 - [GetVolumeInfo](Modern-Fs-GetVolumeInfo) — *Filesystem*
 - [GetVolumes](Modern-Fs-GetVolumes) — *Filesystem*
 - [GetWin32Attributes](Modern-Fs-GetWin32Attributes) — *Filesystem*
@@ -735,7 +715,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Glob](Modern-Fs-Glob) — *Filesystem*
 - [GlobRoot](Modern-Fs-GlobRoot) — *Filesystem*
 - [Glossary](Glossary) — *Miscellaneous*
-- [Glossary - common terms used in fbc development](Glossary-Common-Terms-Used-in-Fbc-Development) — *Compiler Internals*
 - [GLUT, the OpenGL Utility Toolkit](Glut-the-Opengl-Utility-Toolkit) — *Tutorials*
 - [gmp, The GNU Multiple Precision Arithmetic Library](Gmp-the-Gnu-Multiple-Precision-Arithmetic-Library) — *Tutorials*
 - [GNU Aspell](Gnu-Aspell) — *Tutorials*
@@ -789,7 +768,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Infinity](Modern-Math-Infinity) — *Math Library*
 - [InfinityF](Modern-Math-InfinityF) — *Math Library*
 - [Info](Modern-Log-Info) — *Logging*
-- [Information for hacking on FreeBASIC](Information-for-Hacking-on-Freebasic) — *Hacking on FreeBASIC*
 - [Inheritance Polymorphism](Inheritance-Polymorphism) — *Tutorials*
 - [Inkey](Inkey) — *User Input (Runtime Library)*
 - [Inp](Inp) — *Miscellaneous Keywords*
@@ -799,8 +777,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Input()](Input-2) — *User Input (Runtime Library)*
 - [Insert](Modern-Array-Insert) — *Array*
 - [InsertAt](Modern-String-InsertAt) — *String Library*
-- [Installing](Installing) — *Using the FreeBASIC compiler*
-- [Installing gcc for -gen gcc](Installing-Gcc-for-Gen-Gcc) — *Using the FreeBASIC compiler*
 - [Instant.Add](Modern-Chrono-Instant-Add) — *Date and Time (Chrono)*
 - [Instant.AddCalendarDays](Modern-Chrono-Instant-AddCalendarDays) — *Date and Time (Chrono)*
 - [Instant.AddCalendarMonths](Modern-Chrono-Instant-AddCalendarMonths) — *Date and Time (Chrono)*
@@ -964,10 +940,9 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 
 ## K
 
-- [Keyboard Input](Keyboard-Input) — *Compiler Internals*
+- [Keyboard Input](Keyboard-Input) — *Miscellaneous*
 - [Keys](Modern-Map-Keys) — *Map*
 - [Kill](Kill) — *Operating System Functions*
-- [Known problems when compiling FB](Known-Problems-When-Compiling-Fb) — *Compiler Internals*
 
 ## L
 
@@ -992,7 +967,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [LevelName](Modern-Log-LevelName) — *Logging*
 - [LevelNameShort](Modern-Log-LevelNameShort) — *Logging*
 - [LevelToSyslog](Modern-Log-LevelToSyslog) — *Logging*
-- [Lexer & preprocessor](Lexer-Preprocessor) — *Compiler Internals*
 - [Lib](Lib) — *Procedures*
 - [libbzip2](Libbzip2) — *Tutorials*
 - [libffi](Libffi) — *Tutorials*
@@ -1112,7 +1086,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 ## M
 
 - [#Macro...#Endmacro](Macro-Endmacro) — *Preprocessor*
-- [Macros](Macros) — *Compiler Internals*
 - [Macros](programmer-s-guide-Macros) — *Tutorials*
 - [MakeShared](Modern-SharedPtr-MakeShared) — *Smart Pointers*
 - [MakeSharedFrom](Modern-SharedPtr-MakeSharedFrom) — *Smart Pointers*
@@ -1135,7 +1108,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Member Access Rights and Encapsulation](Member-Access-Rights-and-Encapsulation) — *Tutorials*
 - [Member Procedures](Member-Procedures) — *Tutorials*
 - [Memory Functions](Memory-Functions) — *Memory Functions*
-- [Memory management](Memory-Management) — *Compiler Internals*
 - [Memory Operators](Memory-Operators) — *Operators*
 - [MemoryMappedFile.Close](Modern-Fs-MemoryMappedFile-Close) — *Filesystem*
 - [MemoryMappedFile.Data](Modern-Fs-MemoryMappedFile-Data) — *Filesystem*
@@ -1226,9 +1198,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [NextULong](Modern-Math-NextULong) — *Math Library*
 - [NextULongInt](Modern-Math-NextULongInt) — *Math Library*
 - [None](Modern-Optional-None) — *Optional*
-- [Normal vs. Standalone FreeBASIC](Normal-vs-Standalone-Freebasic) — *Compiler Internals*
 - [Normalize](Modern-Math-Normalize) — *Math Library*
-- [Notes on making FB releases](Notes-on-Making-Fb-Releases) — *Compiler Internals*
 - [Now](Now) — *Date and Time Functions*
 - [Nullptr](Category-Nullptr) — *Nullptr*
 - [Numeric Types](Numeric-Types) — *Tutorials*
@@ -1237,7 +1207,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 
 - [Object](Object) — *Standard Data Types*
 - [OBJECT built-in and RTTI info](Object-Built-in-and-Rtti-Info) — *Tutorials*
-- [objinfo](Objinfo) — *Compiler Internals*
 - [Obsolete Keywords](Obsolete-Keywords) — *Miscellaneous*
 - [Oct](Oct) — *String Functions*
 - [ODE, the Open Dynamics Engine](Ode-the-Open-Dynamics-Engine) — *Tutorials*
@@ -1475,7 +1444,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Pset (Statement)](Pset-Statement) — *2D Drawing Functions*
 - [Public](Public) — *Modularizing*
 - [Public: (Access Control)](Public-Access-Control) — *User Defined Types*
-- [Purpose](Purpose) — *Compiler Internals*
 - [Push](Modern-Array-Push) — *Array*
 - [PushBack](Modern-LinkedList-PushBack) — *LinkedList*
 - [PushFront](Modern-LinkedList-PushFront) — *LinkedList*
@@ -1485,8 +1453,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 
 ## Q
 
-- [Quick overview of all modules](Quick-Overview-of-All-Modules) — *Compiler Internals*
-- [Quick overview of the call graph](Quick-Overview-of-the-Call-Graph) — *Compiler Internals*
 - [QuickLZ](Quicklz) — *Tutorials*
 
 ## R
@@ -1532,8 +1498,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Replace Recursion with Iteration](Replace-Recursion-with-Iteration) — *Tutorials*
 - [ReplaceChars](Modern-String-ReplaceChars) — *String Library*
 - [ReplaceFile](Modern-Fs-ReplaceFile) — *Filesystem*
-- [Representation of data types](Representation-of-Data-Types) — *Compiler Internals*
-- [Requirements](Requirements) — *Using the FreeBASIC compiler*
 - [Reserve](Modern-Array-Reserve) — *Array*
 - [Reserve](Modern-Map-Reserve) — *Map*
 - [Reserve](Modern-Set-Reserve) — *Set*
@@ -1564,7 +1528,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [RSet](Rset) — *String Functions*
 - [RTrim](Rtrim) — *String Functions*
 - [Run](Run) — *Operating System Functions*
-- [Running](Running) — *Using the FreeBASIC compiler*
 - [Runtime Error Codes](Runtime-Error-Codes) — *Miscellaneous*
 
 ## S
@@ -1593,7 +1556,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [Second](Second) — *Date and Time Functions*
 - [Seek (Function)](Seek-Function) — *File I/O Functions*
 - [Seek (Statement)](Seek-Statement) — *File I/O Functions*
-- [Select Case](Select-Case) — *Compiler Internals*
 - [Select Case](procedures-Select-Case) — *Control Flow Statements*
 - [SephKnows](Sephknows) — *Reference*
 - [Set](Category-Set) — *Set*
@@ -1695,7 +1657,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [String Library](Category-String-Library) — *String Library*
 - [String Operators](String-Operators) — *Operators*
 - [Strings (string, zstring, and wstring)](Strings-String-Zstring-and-Wstring) — *Tutorials*
-- [Structure packing/field alignment](Structure-Packing-Field-Alignment) — *Compiler Internals*
+- [Structure packing/field alignment](Structure-Packing-Field-Alignment) — *Miscellaneous*
 - [Sub](Sub) — *Procedures*
 - [Sub (Member)](Sub-Member) — *User Defined Types*
 - [Sub Pointer](Sub-Pointer) — *Standard Data Types*
@@ -1704,7 +1666,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [SubWrapping](Modern-Math-SubWrapping) — *Math Library*
 - [Sum](Modern-Math-Sum) — *Math Library*
 - [Swap](Swap) — *Memory Functions*
-- [Symbols](Symbols) — *Compiler Internals*
 - [System](System) — *Operating System Functions*
 
 ## T
@@ -1777,10 +1738,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 - [TinyPTC](Tinyptc) — *Tutorials*
 - [To](To) — *Miscellaneous Keywords*
 - [ToDouble](Modern-Finance-ToDouble) — *Finance*
-- [Tokens](Tokens) — *Compiler Internals*
 - [ToMatrix](Modern-Math-ToMatrix) — *Math Library*
-- [Tools used by fbc](Tools-Used-by-Fbc) — *Using the FreeBASIC compiler*
-- [Top level parsing process](Top-Level-Parsing-Process) — *Compiler Internals*
 - [ToString](Modern-Math-ToString) — *Math Library*
 - [Total](Modern-Finance-Total) — *Finance*
 - [Trace](Modern-Log-Trace) — *Logging*

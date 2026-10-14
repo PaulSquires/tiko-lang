@@ -29,5 +29,4 @@ print none_.ValueOr( fallback )    '' -1
 
 **Library:** [Optional](Category-Optional)  
 **Category:** [Optional](Category-Optional)  
-**Documented under:** Members  
-**Source:** `docs/optional/optional.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

@@ -21,10 +21,6 @@ Joins two token arguments together as one, similar to token pasting operator ([`
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.08.0
-
 ### Differences from QB
 
 - New to FreeBASIC
@@ -64,7 +60,7 @@ FreeBASIC
 
 #define   makename1( x )  PREFIX##x##SUFFIX
 
-'' this will work - can do this in older versions of fbc too
+'' this will work
 
 #define join( a, b ) a##b
 

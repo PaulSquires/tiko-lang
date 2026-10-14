@@ -16,10 +16,6 @@ Substituted with the quoted string containing the date (`YYYY-MM-DD`) the compil
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.07.1
-
 ### Differences from QB
 
 - New to FreeBASIC

@@ -16,8 +16,6 @@ The `-exx` compiler option adds error checking with [`Resume`](Resume) support, 
 
 Version
 
-- Before fbc 1.20.0, array dimensions were never checked.
-- Before fbc 1.10.0, stack overflow was never checked.
 
 See also
 
@@ -29,7 +27,7 @@ See also
 - [Compiler Option: -enullptr](Compiler-Option-Enullptr)
 - [Compiler Option: -ex](Compiler-Option-Ex)
 - [Error Handling](Error-Handling)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

@@ -26,10 +26,6 @@ The `While` statement will cause the following set of statements in the `stateme
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.20.0: `End While` equivalent to `Wend`
-
 ### Dialect Differences
 
 - In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, variables declared inside a `While`..`Wend` loop have a function-wide [scope](Variable-Scope) as in QB

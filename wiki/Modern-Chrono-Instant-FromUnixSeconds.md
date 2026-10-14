@@ -27,5 +27,4 @@ print Instant.FromUnixSeconds( -1 ).ToIsoString( )           '' 1969-12-31T23:59
 
 **Library:** [Chrono Date and Time](Category-Date-and-Time-Chrono)  
 **Category:** [Date and Time (Chrono)](Category-Date-and-Time-Chrono)  
-**Documented under:** The Members  
-**Source:** `docs/datetime/datetime.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** The Members

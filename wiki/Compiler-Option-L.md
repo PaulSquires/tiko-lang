@@ -22,7 +22,7 @@ See also
 
 - [`#inclib`](Inclib)
 - [Compiler Option: -p](Compiler-Option-P)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

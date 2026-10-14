@@ -38,10 +38,6 @@ When the operator `Let` (assign) is defined for copy assignment, its parameter (
 
 `lhs = rhs`*or*`lhs => rhs`
 
-### Version
-
-- Before fbc version 1.20.0, assigning one array was not supported.
-
 ### Dialect Differences
 
 - In the *[-lang qb](Compiler-Option-Lang)* and *[-lang fblite](Compiler-Option-Lang)* dialects, this operator cannot be overloaded.

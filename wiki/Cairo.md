@@ -58,7 +58,7 @@ Sleep
 cairo_destroy(c)
 ```
 
- *last reviewed: MrSwiss, 2018-05-05 -- changed: SizeOf(Integer) to SizeOf(ULong) reason: 32/64 compatibility*
+ *last reviewed: MrSwiss -- changed: SizeOf(Integer) to SizeOf(ULong) reason: 32/64 compatibility*
 
 ---
 

@@ -52,18 +52,6 @@ in the LONGINT (or INTEGER<64>) version of the sub:
 ScreenInfo w , h [, [ depth ] [, [ bpp ] [, [ pitch ] [, [ rate ] [, driver ]]]]]
 ```
 
-### Version
-
-- Before fbc 1.08.0:
-
-Syntax:
-
-`Declare Sub ScreenInfo ( ByRef w As Integer = 0, ByRef h As Integer = 0, ByRef depth As Integer = 0, ByRef bpp As Integer = 0, ByRef pitch As Integer = 0, ByRef rate As Integer = 0, ByRef driver As String = "``" )`
-
-Usage:
-
-`ScreenInfo [ w ] [, [ h ] [, [ depth ] [ , [ bpp ] [ , [ pitch ] [ , [ rate ] [, driver ]]]]]]`
-
 ### Dialect Differences
 
 - Not available in the *[-lang qb](Compiler-Option-Lang)* dialect unless referenced with the alias `__Screeninfo`.

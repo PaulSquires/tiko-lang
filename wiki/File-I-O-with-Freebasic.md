@@ -17,7 +17,7 @@ In FreeBASIC, there are 4 possible ways to perform file I/O:
 Example
 
 ```freebasic
-'==== File I/O example / 2018-05-18 ====
+'==== File I/O example ====
 
 Dim As String fileName = "test_123.tmp"
 

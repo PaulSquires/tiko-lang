@@ -27,14 +27,13 @@ Enable profiling code generation for gmon/gprof. After running an executable com
 
 Version
 
-- Since fbc 1.20.0
 
 See also
 
 - [Compiler Option: -profile](Compiler-Option-Profile)
 - [Profiling with fb's profiler](Profiling-with-Fb-S-Profiler)
 - [Profiling for gmon/gprof](Profiling-for-Gmon-Gprof)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

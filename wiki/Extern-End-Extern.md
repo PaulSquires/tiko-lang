@@ -24,7 +24,7 @@ End Extern
 
  `Extern "Windows-MS"` blocks are exactly like `Extern "Windows"` blocks but do not append the `"@N"` suffix to procedure names on Windows.
 
- `Extern "rtlib"` blocks combine the name decoration of `Extern "c"` and the default calling convention of fbc. When used in a namespace, the symbol respects the scope of the namespace, however, the name decoration (name mangling) links the symbol to a regular C library. This behaviour may be desired when declaring procedures that exist in the fb run-time library; where calling convention is based on the target, but we would like to have the compile time name respect the namespace.
+ `Extern "rtlib"` blocks combine the name decoration of `Extern "c"` and the default calling convention of the compiler. When used in a namespace, the symbol respects the scope of the namespace, however, the name decoration (name mangling) links the symbol to a regular C library. This behaviour may be desired when declaring procedures that exist in the fb run-time library; where calling convention is based on the target, but we would like to have the compile time name respect the namespace.
 
  `Lib "libname"` can be used to specify a library which will be linked in as if [`#Inclib "Libname"`](Inclib) or [`-l libname`](Compiler-Option-L) had been used. Additionally, all procedure declarations inside the **Extern** block will use the specified `Lib "libname"` as if it was specified as part of their declarations (but it can still be overridden with an explicit `Lib "libname"`).
 

@@ -21,10 +21,6 @@ Converts the argument to a string, similar to stringize operator (#) but can be 
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.08.0
-
 ### Differences from QB
 
 - New to FreeBASIC

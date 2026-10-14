@@ -33,5 +33,4 @@ print CImag( CAtan( CSet( 0, 1e-8 ) ) )        '' 1e-008   -- exactly 1e-8, wher
 
 **Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
-**Documented under:** Members  
-**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

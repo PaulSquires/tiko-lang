@@ -14,11 +14,10 @@ The `-noobjinfo` compiler option disables the writing/reading of compile-time li
 
 Version
 
-- Since fbc 1.06.0
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

@@ -14,11 +14,11 @@ Defines that provide information on the system.
 
 **Version Information**
 
-Defines that provide information on the `fbc` compiler version being used.
+Defines that provide information on the compiler version being used.
 
 **Command-line switches**
 
-Defines that provide information with the command-line switches used with `fbc`.
+Defines that provide information with the command-line switches used with the compiler.
 
 **Environment Information**
 
@@ -334,7 +334,7 @@ Joins two token arguments together as one.
 
 **[\_\_Fb_Query_Symbol\_\_](Fb-Query-Symbol)**
 
-Queries a `fbc`'s symbol internals.
+Queries the compiler's symbol internals.
 
 **[\_\_FB_QUOTE\_\_](Fb-Quote)**
 

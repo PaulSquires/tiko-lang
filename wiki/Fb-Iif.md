@@ -27,10 +27,6 @@ __FB_IIF__( compare-expr, true-expr, false-expr )
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.10.0
-
 ### Differences from QB
 
 - New to FreeBASIC

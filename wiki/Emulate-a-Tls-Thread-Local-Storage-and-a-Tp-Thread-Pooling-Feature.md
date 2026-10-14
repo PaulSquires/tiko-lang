@@ -29,12 +29,7 @@ A thread pool is a set of threads that can be used to run tasks based on user ne
 The principle of this TLS emulation for FreeBASIC is to use a static array for each requested TLS variable, where each thread has its own unique index (hidden) to access the array element.  
  This unique index relating to the thread is deduced from the thread handle value:
 
-**-** With fbc version >= 1.08, the thread handle value is simply returned from the 'Threadself()' function calling (new function) from any thread.
- **-** With fbc version < 1.08, the code is more twisted:
-
-- The thread handle value is only accessible from the 'ThreadCreate()' return in the parent (or main) thread when creating it.
- - There is no way to properly emulate the 'Threadself()' function, but only by a twisted method.
- - In the example below (for fbc version < 1.08), a 'Threadself()' function (returning by reference) value is initialized before each use by the thread (with its own thread handle), and all of this (initialization + use) protected by a mutex as for its corresponding 'ThreadCreate()'.
+**-** The thread handle value is simply returned from the 'Threadself()' function calling from any thread.
 
 In the below example, the TLS static variable is an integer which is used in a single and generic counting procedure ('counter()') with none passed parameter). This counting procedure is called by each thread (thus each thread counts independently of each other but by calling the same single counting procedure).  
  A single macro allows to define any TLS variable (except array) of any type.
@@ -2811,7 +2806,7 @@ Note: From a certain number of threads used, the gain in execution time becomes 
 
 'ThreadInitThenMultiStart' and 'ThreadPooling':
 
-From fbc 1.10.0, and in order to have a single structure (for 'ThreadInitThenMultiStart' or 'ThreadPooling'), the additional Type of data ('ThreadInitThenMultiStartData' or 'ThreadPoolingData') can be nested as is in its main Type, just above the declaration of its pointer.
+In order to have a single structure (for 'ThreadInitThenMultiStart' or 'ThreadPooling'), the additional Type of data ('ThreadInitThenMultiStartData' or 'ThreadPoolingData') can be nested as is in its main Type, just above the declaration of its pointer.
 
 'ThreadDispatching' versus 'ThreadPooling':
 
@@ -3178,7 +3173,7 @@ Sub ThreadPooling._Thread(ByVal p As Any Ptr)
 
         End If
 
-        'ReDim Preserve pThis->_pThread(UBound(pThis->_pThread) - 1)  '' bug in current fbc version 1.20
+        'ReDim Preserve pThis->_pThread(UBound(pThis->_pThread) - 1)
 
         With *pThis                                                   '' workaround for the bug
 

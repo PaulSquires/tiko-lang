@@ -23,10 +23,6 @@ Returns the argument from the argument list (`args...`) corresponding to the ind
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.08.0
-
 ### Differences from QB
 
 - New to FreeBASIC

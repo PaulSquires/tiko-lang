@@ -28,10 +28,6 @@ body
 
 ## Remarks
 
-### Version
-
-- Before fbc 1.08.0, the optional question mark (?) was not available.
-
 ### Differences from QB
 
 - New to FreeBASIC

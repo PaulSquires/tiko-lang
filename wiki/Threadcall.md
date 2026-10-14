@@ -30,7 +30,7 @@ When using **Threadcall**, parenthesis around the parameter list are required un
 **-** Presently when **Threadcall** involves to pass parameters to the thread, there is no guarantee that the corresponding data are still maintained after the end of the **Threadcall** statement and this until the thread is launched.
  **-** That can cause bad behavior:
 
-- see example below where the not displayed parameter `id` seems to be the consequence of a prematurely destroyed string argument (visible for a fbc version >= 1.00),
+- see example below where the not displayed parameter `id` seems to be the consequence of a prematurely destroyed string argument,
  - replace `id As String` with `id As Zstring` in the parameters declaration seems to workaround the problem when passing this parameter.
 
 **-** Therefore it is more advisable for the moment to use [`ThreadCreate`](Threadcreate) (100% safe) instead.

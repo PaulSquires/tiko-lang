@@ -255,7 +255,6 @@ DecimalParse( "0.000000000000000000000000000001" )
 
 VERIFIED AGAINST .NET ITSELF.  The point of naming an existing type is that an oracle already exists.  24,000 random operand pairs across '+', '-', '\*', '/' and 'MOD': 23,283 IDENTICAL to .NET, value and scale.  The 717 that differ are two deliberate classes -- 657 MOD cases where .NET pre-rounds or throws and this returns the exact remainder (checked against arbitrary precision: THIS IS EXACT IN ALL 657 AND .NET IN 2), and 60 multiplications that underflow to zero, where both answers are zero and only the reported scale differs.  3,000 unary cases -- Round at every digit count, Floor, Ceiling, Truncate, Compare, Abs, Negate, ToString -- are IDENTICAL with zero divergences.
 
-Full detail, including the six-target byte-identity run and what was NOT verified, is in `docs/decimal/decimal.txt`.
 
 ---
 
@@ -364,10 +363,8 @@ value lands on exactly salvage.
 
 ### Verification
 
-The suites are fbc's own fbcunit suites for these headers, vendored in tiko-lang at
-`tests/vendor/fbc-tests/finance/`. Under tiko **all 8 of 8 match fbc**
-(`build/suiterun.sh`, which builds each suite with both compilers and compares the
-results tables; measured 2026-09-24 at origin/master 50c71751).
+The suites are fbcunit suites for these headers, vendored in tiko-lang at
+`tests/vendor/fbc-tests/finance/`.
 
 Where an oracle exists it is named: the IRS MACRS 200%-declining-balance five-year
 schedule is reproduced **exactly**; ISDA's 30/360 and 30E/360 rules are applied including

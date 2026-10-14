@@ -21,7 +21,7 @@ The `-p` compiler option adds a path to search for libraries. By default, librar
 See also
 
 - [`#libpath`](Libpath)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

@@ -29,15 +29,6 @@ Function name [__Thiscall] [Overload] [Alias "alias"] ( parameters ) [ ByRef ] A
 
 ## Remarks
 
-### Version
-
-- Since fbc 1.10.0:
-
-**-** `Thiscall` calling convention is used as default for non-static member procedures under extern "c++" / win32 / x86.
- **-** `Thiscall` can also be explicitly specified for normal procedures and static member procedures to override the default calling convention.
-
-- Since fbc 1.08.0
-
 ### Differences from QB
 
 - New to FreeBASIC

@@ -1,4 +1,4 @@
-[Home](Home) › [Compiler Internals](Category-Compiler-Internals) › **Creating FB bindings for C libraries**
+[Home](Home) › [Miscellaneous](Category-Miscellaneous) › **Creating FB bindings for C libraries**
 
 # Creating FB bindings for C libraries
 
@@ -219,7 +219,7 @@ End Extern
 
 ---
 
-**Category:** [Compiler Internals](Category-Compiler-Internals)
+**Category:** [Miscellaneous](Category-Miscellaneous)
 
 ---
 

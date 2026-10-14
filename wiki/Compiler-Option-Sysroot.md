@@ -24,12 +24,11 @@ The `-sysroot` compiler option passes this directory location to the linker to i
 
 Version
 
-- Since fbc 1.20.0
 
 See also
 
 - [`#libpath`](Libpath)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

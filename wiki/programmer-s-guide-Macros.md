@@ -91,7 +91,7 @@ When the error is not obvious (type of error reported blurred), the only solutio
 
 **`Do`**
 
-**`1.`** call fbc on the source file, but with the '-pp' compile option (fbc command emitting only the pre-processed input file, without compiling),
+**`1.`** call the compiler on the source file, but with the '-pp' compile option (compiler command emitting only the pre-processed input file, without compiling),
  **`2.`** recover the pre-processed file,
  **`3.`** edit and compile directly from this pre-processed file,
  **`4.`** analyze the error, understand it, correct it, and compile again the pre-processed file thus modified,

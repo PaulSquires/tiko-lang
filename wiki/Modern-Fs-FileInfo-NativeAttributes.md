@@ -26,7 +26,7 @@ dim as ustring p = PathJoin( dir_, "f.txt" )
 WriteAllText( p, "hello" )
 
 '' The raw platform word: dwFileAttributes on Windows, st_mode on
-'' POSIX. For everything RFC-0007 has not portably abstracted.
+'' POSIX.
 dim info as FileInfo = Stat( p ).Value( )
 
 print info.NativeAttributes( ) > 0       '' -1 (true)
@@ -42,5 +42,4 @@ RemoveDirAll( dir_ )
 
 **Library:** [Filesystem Library](Category-Filesystem)  
 **Category:** [Filesystem](Category-Filesystem)  
-**Documented under:** Metadata  
-**Source:** `docs/filesystem/filesystem.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Metadata

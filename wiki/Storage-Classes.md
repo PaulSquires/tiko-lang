@@ -32,7 +32,7 @@ Static
 
 Platform Differences
 
-- In DOS and Windows platforms, the size of the program stack can be adjusted at compile-time using the `-t` [command-line switch](Fbc-Command-Line). In Linux platforms, the size of the program stack can be adjusted at load-time by modifying `/etc/security/limits.conf`, or on a per-thread basis using the shell builtin `ulimit`.
+- In DOS and Windows platforms, the size of the program stack can be adjusted at compile-time using the `-t` [command-line switch](Quick-Start#compile-a-program). In Linux platforms, the size of the program stack can be adjusted at load-time by modifying `/etc/security/limits.conf`, or on a per-thread basis using the shell builtin `ulimit`.
 
 Differences from QB
 

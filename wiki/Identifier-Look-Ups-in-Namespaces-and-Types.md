@@ -1195,8 +1195,6 @@ Sleep
 
 Version
 
-- Since fbc 1.09.0.
-- Before fbc 1.09.0, the priority hierarchy was poorly managed with inconsistencies.
 
 See also
 

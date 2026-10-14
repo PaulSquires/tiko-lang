@@ -18,7 +18,7 @@
 
  **Which IDEs are available for Windows?**
 
-At the moment three full featured IDEs have been developed specifically for FB: [FBIde](http://fbide.freebasic.net/) (not being updated, avoid using of old versions of FBC bundled with it), [FbEdit](http://fbedit.freebasic.net/) and [WinFBE Editor](https://www.freebasic.net/forum/viewtopic.php?f=8&t=25215). These IDEs require a minimum configuration -as path to the compiler- to work.  
+At the moment three full featured IDEs have been developed specifically for FB: [FBIde](http://fbide.freebasic.net/) (not being updated), [FbEdit](http://fbedit.freebasic.net/) and [WinFBE Editor](https://www.freebasic.net/forum/viewtopic.php?f=8&t=25215). These IDEs require a minimum configuration -as path to the compiler- to work.  
  You can also download [FBIde](http://fbide.freebasic.net/) and [FbEdit](http://fbedit.freebasic.net/) as bundles (Editor + Compiler) that install in a single operation. But the bundled version of the compiler may be out of date.  
  [WinFBE](http://www.freebasic.net/forum/viewtopic.php?f=8&t=25215) Editor (WinFBE_Suite) comes packaged with the latest FB Compiler. It is an all-in-one solution.  
  Commercial "general use" IDEs can be used with FreeBASIC but may require an extensive setup. They are handy for multi language programming, as they provide a unified user interface.  

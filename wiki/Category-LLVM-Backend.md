@@ -10,14 +10,14 @@ tiko-lang: error TKO0100: unknown option '-gen'
 
 ## What it is
 
-The IR comes from tiko's own pipeline, not from fbc's:
+The IR comes from tiko's own pipeline:
 
 1. the frontend builds a typed AST;
 2. lowering turns it into **MIR**, a typed IR over basic blocks with its own verifier;
 3. an **ABI pass** rewrites procedure signatures and calls for the target's C calling convention, one classifier for Win64 and one for SysV AMD64;
 4. the emitter writes the LLVM IR.
 
-`--emit-ir` writes that IR and stops: to standard output, or with `-o x.ll` to that file. `--emit-asm` runs `clang -S` on it and stops, writing `x.s`, or `<source>.s` with no `-o`. With several modules and one `-o`, each is `<name>.<n>.ll` (or `.s`). Before 2026-09-25 an `-o` turned either option into a full build, and `tiko --emit-ir x.tiko -o x.ll` wrote an executable named `x.ll`. `-v` echoes every clang invocation, and `--keep-temps` keeps the `.ll` files.
+`--emit-ir` writes that IR and stops: to standard output, or with `-o x.ll` to that file. `--emit-asm` runs `clang -S` on it and stops, writing `x.s`, or `<source>.s` with no `-o`. With several modules and one `-o`, each is `<name>.<n>.ll` (or `.s`). `-v` echoes every clang invocation, and `--keep-temps` keeps the `.ll` files.
 
 Each target has its own triple:
 
@@ -50,18 +50,13 @@ FreeBASIC's `ASM` is raw assembler text with direct symbol references. LLVM want
 
 ## Optimisation and debug information
 
-- **`-O0` to `-O3`** (written joined: `-O2`) are passed through to clang. fbc's corpus programs give the same output at all four levels (HANDOFF §9c, 2026-09-20).
+- **`-O0` to `-O3`** (written joined: `-O2`) are passed through to clang. The corpus programs give the same output at all four levels.
 - **`-g`** emits DWARF line tables. gdb breaks, steps and unwinds on both Windows targets and on Linux. Variables are not described yet.
 
 ## How it is verified
 
-tiko's output is compared with fbc's, run for run. The figures below are dated in the repository's `HANDOFF.md`.
-
-- **Programs.** All 68 in-scope `COMPILE_AND_RUN_OK` programs in fbc's own test corpus print what fbc's build prints (`build/runscan.sh`, 2026-09-20).
-- **fbcunit suites.** 631 of fbc's suites build under both compilers, and 495 give the same results table (`build/suiterun.sh`, 2026-09-20).
-- **Fuzzing.** 2,000 generated programs all print what fbc's build prints (2026-09-20).
-- **Self-hosting.** tiko compiles itself to a byte-identical fixpoint on windows-x86_64 and linux-x86_64, at `-O0` and `-O2` (`build/bootstrap.sh`, 2026-09-21).
-- **Codegen coverage.** `build/icescan.sh` compiles all 2,709 corpus files to objects and reports anything the emitter or clang refuses: 21 failures in 12 files at the last run (§9c).
+- **Self-hosting.** tiko compiles itself to a byte-identical fixpoint on windows-x86_64 and linux-x86_64, at `-O0` and `-O2` (`build/bootstrap.sh`).
+- **Codegen coverage.** `build/icescan.sh` compiles all 2,709 corpus files to objects and reports anything the emitter or clang refuses: 21 failures in 12 files at the last run.
 
 ---
 

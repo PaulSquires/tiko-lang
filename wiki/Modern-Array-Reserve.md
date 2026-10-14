@@ -37,5 +37,4 @@ print v.Capacity         '' 1024
 
 **Library:** [Array Container](Category-Array)  
 **Category:** [Array](Category-Array)  
-**Documented under:** Members  
-**Source:** `docs/array/array.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

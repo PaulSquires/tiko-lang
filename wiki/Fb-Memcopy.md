@@ -39,10 +39,6 @@ The starting address of destination memory is returned.
 
 `[result =] fb_memcopy( dst, src, bytes )`
 
-### Version
-
-- Since fbc 1.08.0
-
 ### Differences from QB
 
 - The behavior and usage is new to FreeBASIC.

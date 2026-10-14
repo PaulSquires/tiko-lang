@@ -16,7 +16,7 @@ See also
 
 - [`Export`](Export)
 - [Shared Libraries](Shared-Libraries)
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

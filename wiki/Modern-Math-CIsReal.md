@@ -30,5 +30,4 @@ print CIsReal( CSet( 3, 1e-320 ) )  '' false   -- subnormal, not absent
 
 **Library:** [Math Library](Category-Math-Library)  
 **Category:** [Math Library](Category-Math-Library)  
-**Documented under:** Members  
-**Source:** `docs/math/math.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
+**Documented under:** Members

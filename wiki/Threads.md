@@ -107,7 +107,7 @@ Several different threads can be created from the same [`Sub`](Sub), with differ
 
 Each running thread can be identified by its handle which is unique among all running threads.  
  When a new thread is created, a handle to the thread is returned by the creation function.  
- When the thread runs code, [`ThreadSelf`](Threadself) (from fbc version 1.08) allows to also return the handle of the thread (the implicit main thread also has its own unique handle).  
+ When the thread runs code, [`ThreadSelf`](Threadself) allows to also return the handle of the thread (the implicit main thread also has its own unique handle).  
  [`ThreadSelf`](Threadself) may be used to code some sort of TLS (Thread Local Storage) from the unique handle of each thread (including the implicit main thread). Therefore, a same global variable name may be defined, but with a stored value specific to the thread that accesses it. This allows generic procedures to be coded, but with parameters depending on the thread which executes them.
 
 Waiting for a thread end, otherwise detaching a thread

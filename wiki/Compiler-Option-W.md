@@ -52,7 +52,7 @@ Warn on useless suffixes in '-lang fb'.
 
 `Error`
 
-Report warnings as errors. Warnings cause the error count to increase, warning messages are displayed as "error warning...", compilation / assembly / linking aborts, and fbc exits with an error code.
+Report warnings as errors. Warnings cause the error count to increase, warning messages are displayed as "error warning...", compilation / assembly / linking aborts, and the compiler exits with an error code.
 
 `upcast`
 
@@ -68,17 +68,14 @@ The `-w` compiler option determines which compiler warnings, if any, are output.
 
  `-w none`, or a significantly high `level` value will have the effect of suppressing all warning messages.
 
- `fbc` does not issue warning or error if the warning name itself is not valid. For example `-w flarg`, is not a recognized name for a warning. The compiler silently ignores this to allow command lines with warnings added in new versions of `fbc` to also be used with older versions of `fbc` without complaint.
+ The compiler does not issue warning or error if the warning name itself is not valid. For example `-w flarg`, is not a recognized name for a warning. The compiler silently ignores this to allow command lines with warnings added in new versions of the compiler to also be used with older versions of the compiler without complaint.
 
 Version
 
-- Since fbc 1.10.0: '-w upcast' option
-- Since fbc 1.09.0: '-w error' option.
-- Before fbc 1.08.0, default warning level was 0 and some warnings had level of -1.
 
 See also
 
-- [Using the Command Line](Fbc-Command-Line)
+- [Using the Command Line](Quick-Start#compile-a-program)
 
 ---
 

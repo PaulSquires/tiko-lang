@@ -17,8 +17,8 @@
 
 List of operators/functions allowed in constant expressions
 
-fbc is not a scripting language and does not have a full feature macro processor on the front end.  
- Constant folding is an optimization in fbc that takes constant expressions, evaluates the constant expression at compile time and produces a single constant result.  
+The compiler is not a scripting language and does not have a full feature macro processor on the front end.  
+ Constant folding is an optimization in the compiler that takes constant expressions, evaluates the constant expression at compile time and produces a single constant result.  
  For constant folding to work, a compile time implementation of the operators/functions must be written.
 
  Only the following operators/functions with constant arguments can be used to constitute constant expressions:
