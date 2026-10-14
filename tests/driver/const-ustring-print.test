@@ -1,0 +1,22 @@
+'' A 'const as ustring' READ THROUGH A DESCRIPTOR. StrDescriptorOf_ built the constant's
+'' text a NARROW temporary descriptor, while every reader picked its entry point from the
+'' constant's USTRING type: 'print G' went to fb_PrintUStr and printed "hi" as the one
+'' UTF-16 unit U+6968; ucase, left, mid, a 'byref as const ustring' argument and 'NS.K'
+'' the same, and instr answered 0. The constant now gets a ustring temporary
+'' (src/mir/lowerstrdesc.tiko). fbc-modern 1.20 has no 'const as ustring' (error 24), so
+'' there is no differential; the expected text is the constant itself.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/driver/src/const-ustring-print.bas -o tests/driver/constustrprint.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/constustrprint.exe
+'' RUN: tests/driver/constustrprint.exe
+'' EXPECT-RUN-OUT: hi
+'' EXPECT-RUN-OUT: [hi]
+'' EXPECT-RUN-OUT: R:hi
+'' EXPECT-RUN-OUT: HI|hi
+'' EXPECT-RUN-OUT: ns
+'' EXPECT-RUN-OUT: h|i|i
+'' EXPECT-RUN-OUT:  2 2
+'' EXPECT-RUN-OUT: hi|hi|hi
+'' EXPECT-RUN-EXIT: 0

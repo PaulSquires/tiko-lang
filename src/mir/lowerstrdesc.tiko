@@ -59,6 +59,23 @@ function StrDescriptorOf_ _
     if c.ast->Kind( id ) = Tko.N_STRCAT then constish = true
     if constish then
         if ConstStringTextOf_( c, id, constText ) then
+            '' ...BUT A 'const as ustring' IS A USTRING, and every reader of this one picks
+            '' its entry point from that type -- 'print u' took fb_PrintUStr, 'ucase( u )'
+            '' fb_UStrUcase -- over the narrow descriptor built below, and read "hi" as
+            '' the single UTF-16 unit U+6968. It gets a USTRING temporary, initialised
+            '' the way 'dim w as ustring = u' is (fb_UStrInit from a UTF-16 literal), and
+            '' released with the statement's other string temporaries.
+            if IsUStringType( c, c.info->TypeOf_( id ) ) then
+                dim as long us = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+                if us < 0 then return false
+                c.f->locals[us].frontendType = c.types->Builtin( Tko.TY_USTRING )
+                if LowerStringInit( c, us, id, id ) = false then return false
+                c.strTemps.Push( cast( ulong, us ) )
+                outv.kind = cast( ubyte, MV_LOCAL )
+                outv.ty = cast( ubyte, MT_PTR )
+                outv.id = us
+                return true
+            end if
             dim as containers.Array( of ulong ) ca
             ca.Push( cast( ulong, MV_GLOBAL ) )
             ca.Push( cast( ulong, c.m->AddStringLiteral( constText, *c.names ) ) )
