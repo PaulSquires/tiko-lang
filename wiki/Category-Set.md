@@ -2,6 +2,16 @@
 
 # Set
 
+A **set** is a collection that holds each value at most once. You can add a value, take one out, and ask whether a value is in it -- that is what a set is for. Adding a value that is already there changes nothing, so a set never holds duplicates.
+
+Think of a guest list at a door: a name is either on the list or it is not, and writing it down a second time does not let that person in twice. The list has no meaningful order either; what matters is who is on it.
+
+That makes a set the right tool for questions like *have I seen this before?* and *which distinct values are there?* A `Set` keeps its elements in a hash table, so adding, removing and checking take about the same time however many elements it holds.
+
+The elements can be any built-in type -- numbers, strings -- or a type of your own that extends `containers.Hashable` (see [The Hash Contract](#the-hash-contract)). The order a set hands its elements back in is not defined; if you need them sorted, use [OrderedSet](Category-OrderedSet).
+
+The example below remembers which numbers it has already seen:
+
 ```freebasic
 #import "std/containers"
 using containers
