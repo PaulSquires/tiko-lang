@@ -474,7 +474,9 @@ function ByvalStrTemp_ _
             '' A 'const as ustring' HAS NO ADDRESS: the temporary is initialised from its
             '' text, as 'dim w as ustring = G' is -- fb_UStrInit from a UTF-16 literal.
             '' LowerAddr answered NONE and 'P( G )' was dropped (TKO0994).
-            if IsConstNameRef_( c, argNode ) then
+            '' (IsConstNameRef_ answers 'may be' for every bare name; the text confirms it.)
+            dim as string bct
+            if IsConstNameRef_( c, argNode ) andalso ConstStringTextOf_( c, argNode, bct ) then
                 c.f->locals[slot].frontendType = c.types->Builtin( Tko.TY_USTRING )
                 if LowerStringInit( c, slot, argNode, argNode ) = false then return false
                 outSlot = slot
@@ -771,7 +773,8 @@ function UStrOutOperand_ _
     '' A 'const as ustring' HAS NO ADDRESS: it is copied like an rvalue, into a temporary
     '' initialised from its text as 'dim w as ustring = G' is. LowerAddr answered NONE,
     '' and 'write G', 'print using "&"; G' and 'w = G' over a 'wstring * N' were dropped.
-    if IsConstNameRef_( c, it ) then
+    dim as string oct
+    if IsConstNameRef_( c, it ) andalso ConstStringTextOf_( c, it, oct ) then
         dim as long cs = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
         if cs < 0 then return false
         c.f->locals[cs].frontendType = ut
