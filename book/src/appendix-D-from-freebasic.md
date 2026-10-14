@@ -1,12 +1,12 @@
 # Appendix D: Coming from FreeBASIC {#app-from-freebasic}
 
-tiko compiles FreeBASIC. Its dialect is `#lang "fb"` as FBC-Modern implements it: FreeBASIC 1.20
-plus FBC-Modern's extensions, which are most of what Parts III to V of this book describe. The aim
+tiko compiles FreeBASIC. Its dialect is FreeBASIC 1.20's `#lang "fb"` plus tiko's extensions,
+which are most of what Parts III to V of this book describe. The aim
 is the **same accept/reject decision** as fbc and the **same observable behaviour**: what a program
 prints, returns and does. Existing code moves over, and mixes freely with tiko code in one program.
 
 This appendix is the list of what is different. Every row was measured on 2026-10-04 by compiling
-the same program with the toolchain this book is pinned to and with **fbc-modern 1.20** (Windows
+the same program with the toolchain this book is pinned to and with **fbc 1.20** (Windows
 unless a row says otherwise), and comparing what each did. Where the two agree, the appendix says
 so too, because "does tiko do this the same way?" is the question it exists to answer.
 
@@ -15,7 +15,7 @@ so too, because "does tiko do this the same way?" is the question it exists to a
 tiko implements one dialect, `fb`. A file that asks for another one is refused, not quietly
 compiled as `fb`:
 
-| Program | fbc-modern | tiko |
+| Program | fbc | tiko |
 |---|---|---|
 | `#lang "qb"`, `"fblite"`, `"deprecated"` | compiles in that dialect | `TKO0317`: unsupported language mode |
 | `'$lang: "qb"` | compiles as `qb` | `TKO0317` |
@@ -47,7 +47,7 @@ implement it: it warns, the procedure does not run, and the handle is 0.
 warning TKO0797: 'threadcall' is not supported: 'hello' will not run, and the thread handle is 0
 ```
 
-The fbc-modern build used for these measurements did not run the procedure either: it also
+The fbc build used for these measurements did not run the procedure either: it also
 returned a handle of 0, without a warning. Use `threadcreate` with a parameter block, or `spawn`
 (Chapter 22).
 
@@ -77,7 +77,7 @@ parameters, usable in module-level code only), an empty `__FB_BUILD_SHA1__`, eve
 
 **Different:**
 
-| Define | fbc-modern | tiko |
+| Define | fbc | tiko |
 |---|---|---|
 | `__TIKO_COMPILER__` | not defined | `1`: how a source tree asks "is this tiko?" |
 | `__TKO_VERSION__` | not defined | `"0.1.0-dev"` |
@@ -85,15 +85,16 @@ parameters, usable in module-level code only), an empty `__FB_BUILD_SHA1__`, eve
 | `__FB_BACKEND__` | `"gcc"` | `"llvm"` |
 | `__FB_GCC__` | `-1` | `0` |
 | `__FB_MIN_VERSION__( … )` | defined | not defined: `#if __FB_MIN_VERSION__( 1, 20, 0 )` is `TKO0308` |
-| `__FB_BUILD_FORK_ID__` | `"fbc-modern"` | `"tiko-lang"` |
+| `__FB_BUILD_FORK_ID__` | the fork id fbc was built with | `"tiko-lang"` |
 | `__FB_BUILD_DATE__`, `__FB_BUILD_DATE_ISO__` | the date fbc was built | the date tiko was built |
 | `__FB_QUERY_SYMBOL__( … )` | defined | not defined: it queries fbc's symbol table while preprocessing, and tiko preprocesses before any symbol exists |
 
 ## Command-line options
 
 The options that mean the same thing in both compilers: `-c`, `-d`, `-dll`, `-dylib`, `-e`, `-ex`,
-`-exx`, `-g`, `-i`, `-l`, `-lib`, `-m`, `-mt`, `-p`, `-s`, `-v`, `-x`, and FBC-Modern's `-maxinstdepth`,
-`-cinclude`, `-cdefine` and `-cimport` (with `-cimport-out`). `-z` is accepted and ignored.
+`-exx`, `-g`, `-i`, `-l`, `-lib`, `-m`, `-mt`, `-p`, `-s`, `-v`, `-x`, and the extension options
+`-maxinstdepth`, `-cinclude`, `-cdefine` and `-cimport` (with `-cimport-out`). `-z` is accepted and
+ignored.
 
 Those spelled differently:
 
@@ -163,7 +164,7 @@ The usual mistakes, side by side:
 ## What fbc 1.20 does not have
 
 Generics, `for each`, tuples, `defer`, lambdas, `ustring`, the fixed-width type names, `spawn` and
-channels, `#cinclude`, `#foreignlib`, `#import` and modules are FBC-Modern's or tiko's. Code that
-uses them does not compile under the official fbc 1.20, and that is not a compatibility difference:
+channels, `#cinclude`, `#foreignlib`, `#import` and modules are tiko's. Code that uses them does
+not compile under FreeBASIC's own fbc, and that is not a compatibility difference:
 it is the language this book teaches. A source tree that must build with both tests
 `#ifdef __TIKO_COMPILER__` and keeps the extensions on one side of it.
