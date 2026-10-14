@@ -2,479 +2,317 @@
 
 # #foreignlib Tutorial
 
-*A tutorial for FreeBASIC programmers meeting `#foreignlib` for the first time.*
+> 📘 **Reference:** [#foreignlib](modern-Foreignlib) · **Before this:** [#cinclude Tutorial](modern-Cinclude-tutorial)
 
-You already know how to link a C library from FreeBASIC. This tutorial starts
-from exactly that knowledge, shows you the three places it runs out, and then
-walks you through vendoring SQLite into your own project — first as a DLL, then
-as a static library.
-
-**You need:** the tiko toolchain (`toolchains\tiko-windows\tiko.exe`), clang, which
-tiko runs for every link, and about twenty minutes. `#foreignlib` does not exist
-in released FreeBASIC.
-
-Every build command and every compiler message in this tutorial was run with tiko
-on Windows, 2026-09-24 (origin/master 50c71751), for tiko's default target,
-windows-x86_64, unless the command says `-target win64`. Where output depends on your
-machine, it says so.
+This tutorial shows you how to link a C library into a tiko program with `#foreignlib`. You will build a tiny C library, link it as a shared library and then statically, keep it inside your project so the project builds from anywhere, and learn what to do when a link goes wrong. No earlier experience with linking is needed.
 
 ---
 
-## Part 1 — What you already know
+## 1. What linking is
 
-FreeBASIC gives you three constructs for linking, and each one is a thin cover
-over a command-line switch.
+Building a program that uses a C library takes two steps.
 
-| You write | the compiler does | You could have typed |
-| --- | --- | --- |
-| `#inclib "sqlite3"` | adds a library **name** to the link | `-l sqlite3` |
-| `#libpath "somedir"` | adds a **search directory** | `-p somedir` |
-| `declare … lib "sqlite3"` | adds a library name, same as `#inclib` | `-l sqlite3` |
+1. **Compiling.** tiko reads your source. It needs to know what the library's functions look like: their names, parameters and results. [`#cinclude`](modern-Cinclude-tutorial) gets that from the library's header.
+2. **Linking.** The *linker* joins your compiled code with the library's code into one program. It needs to know **which library file** to use. That is the job of `#foreignlib`.
 
-That is the whole model. **You name a library; the linker goes looking for it.**
+A library can be linked in two ways:
 
-Here is the smallest real program that uses it:
+| | Static | Dynamic (shared) |
+|---|---|---|
+| the library's code is | **copied into** your program | kept in a separate file, loaded when the program starts |
+| the file the linker reads | Windows: `.lib` · Linux: `.a` | Windows: an *import library* `.lib`, or the `.dll` · Linux: `.so` |
+| the file the program needs when it runs | nothing extra | Windows: the `.dll` · Linux: the `.so` |
+| your program is | one file | the program **plus** the library file |
 
-```freebasic
-'' old.tiko
-#inclib "sqlite3"
-declare function sqlite3_libversion cdecl alias "sqlite3_libversion" ( ) as zstring ptr
-print "sqlite " & *sqlite3_libversion( )
-```
+On Windows, the linker does not read a DLL directly. It reads a small **import library** that lists what the DLL contains. Libraries you download usually come with one, and tiko can make one when they do not (section 11).
 
-and the build:
+## 2. The classic way, and where it falls short
 
-```bash
-tiko old.tiko -p C:\dev\sqlite\lib\win64-dll
-```
-
-```
-sqlite 3.53.4
-```
-
-If you have written FreeBASIC bindings before, none of this is new. Hold on to
-one detail though: **the `-p` is not in the source file.** Nothing in `old.tiko`
-records where SQLite lives. That fact is the seed of all three problems below.
-
-### An experiment worth doing
-
-Build that same unchanged `old.tiko` three ways, for the MinGW-ABI `win64` target,
-and look at the sizes:
-
-```bash
-tiko -target win64 old.tiko -o a.exe                                  # no -p at all
-tiko -target win64 old.tiko -p C:\dev\sqlite\lib\win64     -o b.exe   # dir holding libsqlite3.a
-tiko -target win64 old.tiko -p C:\dev\sqlite\lib\win64-dll -o c.exe   # dir holding libsqlite3.dll.a
-```
-
-```
-1474560  a.exe
-1474560  b.exe
- 164864  c.exe
-```
-
-Three builds of one source file. Two of them baked the whole of SQLite into the
-executable; one of them produced a 165 KB executable that needs `sqlite3.dll` beside it
-at run time. **Nothing warned you which you got.** The only way to tell them
-apart is to look at the file size, or to delete the DLL and see which one still
-runs.
-
-And look at `a.exe`, the one with no `-p`. It linked — because the tiko toolchain
-ships a `lib\win64-fb\libsqlite3.a` for the `win64` target, and the bare name
-found it. *(On tiko's default target, windows-x86_64, the same three commands without
-`-target win64` give a different answer: `a.exe` does not link —
-`lld-link: error: could not open 'sqlite3.lib': no such file or directory` — nor
-does `b.exe`, because `libsqlite3.a` is a MinGW archive (`undefined symbol:
-___chkstk_ms`), and `c.exe` links at 23,552 bytes. Which outcome you get is a
-property of your installation and your target, not of your program — which is
-rather the point.)*
-
-Keep that experiment in mind. Everything `#foreignlib` does is aimed at it.
-
----
-
-## Part 2 — The three places it runs out
-
-### Gap 1 — you cannot ship a library with your code
-
-The natural way to distribute a binding is to put the library next to it:
-
-```
-mylib/
-   mylib.ti          <- #libpath "vendor" + #inclib "mylib"
-   vendor/libmylib.a
-```
-
-Try it. From the directory *above* `mylib`:
-
-```
-lld-link: error: could not open 'mylib.lib': no such file or directory
-```
-
-The archive is right there. The problem is that **`#libpath` is relative to the
-directory you ran the compiler from**, not to the file the directive is written in. So
-`#libpath "vendor"` means "a folder called vendor under wherever the user
-happened to be standing". There is no string you can put in that `.ti` that
-works from every working directory.
-
-The practical consequence is that FreeBASIC bindings do not ship libraries. They
-tell you to install one and pass a `-p`.
-
-### Gap 2 — `Lib` only takes a literal
-
-Vendors ship a library under a different name per platform -- `foo64.dll` on
-64-bit Windows, `foo32.dll` on 32-bit, `libfoo.so.1` on Linux -- and you have to
-select between them. The obvious fix:
+tiko has two simple directives for linking: `#libpath` names a folder to search, and `#inclib` names a library to look for there.
 
 ```freebasic
-const MYLIB = "foo64"
-declare function foo_init cdecl lib MYLIB alias "foo_init" ( ) as int32
+'' Linking the classic way: a library name and a search directory.
+#cinclude once "vendor/greet/greet.h"
+#libpath "vendor/greet"
+#inclib "greet"
 ```
 
+This works when you build from the project folder. But build the same file from any other folder and the link fails:
+
 ```
-error 17: Syntax error, found 'MYLIB'
+lld-link: error: could not open 'greet.lib': no such file or directory
 ```
 
-That is stock fbc 1.10.1. `Lib` requires a **string literal**. So the whole declaration has to be
-duplicated once per target:
+`#libpath "vendor/greet"` means *a folder called `vendor/greet` under the folder you are building in*, not under the source file. The library is right where the source says, but the linker looks in the wrong place.
+
+There are two more problems:
+
+- **It does not say static or dynamic.** `#inclib "greet"` names a library, and the linker takes the first file it finds with that name. Nothing tells you which kind you got.
+- **It does not handle platforms.** A Windows `.lib` and a Linux `.so` are different files, and `#inclib` has no way of picking the right one for the platform you are building for.
+
+`#foreignlib` solves all three. `#inclib` and `#libpath` still work, and you can use them next to `#foreignlib` in the same program.
+
+## 3. `#foreignlib` in one line
 
 ```freebasic
-#ifdef __FB_WIN32__
-  #ifdef __FB_64BIT__
-    declare function foo_init cdecl lib "foo64" alias "foo_init" ( ) as int32
-  #else
-    declare function foo_init cdecl lib "foo32" alias "foo_init" ( ) as int32
-  #endif
+#foreignlib GREET dynamic "vendor/greet/greet"
+```
+
+| Part | Meaning |
+|---|---|
+| `GREET` | a name for this library. You choose it. |
+| `dynamic` or `static` | **required**. Which kind of library to link. tiko never guesses. |
+| `"vendor/greet/greet"` | where the library file is, **relative to this source file**, without its ending |
+
+Three rules carry the whole directive:
+
+1. **The path is relative to the source file**, so the project builds from any folder.
+2. **You state the kind.** If no file of that kind is found, you get an error that lists every file tiko tried. tiko never falls back to the other kind.
+3. **You never write the platform.** For `"vendor/greet/greet"`, tiko looks for `greet_windows_x86_64.lib` on Windows and `greet_linux_x86_64.so` on Linux, among others (section 9). One line works on both.
+
+## 4. Build a tiny C library
+
+Create this layout:
+
+```
+greet-app/
+    hello.tiko
+    vendor/greet/greet.h
+    vendor/greet/greet.c
+```
+
+`vendor/greet/greet.h`:
+
+```c
+/* greet.h -- a tiny C library, for trying out #foreignlib */
+#ifndef GREET_H
+#define GREET_H
+
+/* On Windows, a DLL must say which functions it exports. */
+#if defined(_WIN32) && defined(GREET_DLL)
+#  define GREET_API __declspec(dllexport)
 #else
-  declare function foo_init cdecl lib "foo" alias "foo_init" ( ) as int32
+#  define GREET_API
+#endif
+
+GREET_API const char *greet_how(void);
+GREET_API int greet_add(int a, int b);
+
 #endif
 ```
 
-(Under tiko the `__FB_64BIT__` test can only go one way -- its targets,
-windows-x86_64 and linux-x86_64, are both 64-bit -- so the `foo32` branch is
-there for portability to stock fbc, not because this compiler can reach it.)
+`vendor/greet/greet.c`:
 
-Three copies of one line, differing in one token — times every function in the
-binding. This is why FreeBASIC binding headers are so bulky, and the copies
-drift apart over time.
+```c
+/* greet.c -- the code behind greet.h */
+#include "greet.h"
 
-*(Free Pascal has allowed a named constant here since the 1990s:
-`external MyLib name 'foo_init'`. It is the single biggest ergonomic difference
-between the two languages' bindings.)*
+const char *greet_how(void)
+{
+#ifdef GREET_DLL
+    return "from a shared library";
+#else
+    return "from a static library";
+#endif
+}
 
-### Gap 3 — nothing says static or dynamic
-
-That is the experiment from Part 1. `#inclib "sqlite3"` hands the linker a bare
-name, the linker takes whatever it finds first on the search path, and neither
-tiko nor the linker tells you which kind you ended up with.
-
----
-
-## Part 3 — `#foreignlib`, in terms of what you already know
-
-One new directive:
-
-```
-#foreignlib <NAME> (static|dynamic) "<spec>" [, "<spec>" ...]
+int greet_add(int a, int b)
+{
+    return a + b;
+}
 ```
 
-Mapped onto the model you know:
+`greet_how()` reports which way the library was built, so you can see which kind your program linked.
 
-| Classic | `#foreignlib` | What changed |
-| --- | --- | --- |
-| `#inclib "sqlite3"` | `#foreignlib SQLITE dynamic "system:sqlite3"` | nothing, this is the same `-lsqlite3` |
-| `#libpath "lib"` + `#inclib "sqlite3"` | `#foreignlib SQLITE dynamic "lib/sqlite3"` | the path is now relative to **this file** |
-| *(no equivalent)* | `static` / `dynamic` | you state the kind; a mismatch is an error |
-| *(no equivalent)* | `_windows_x86_64` suffixes | the compiler appends the target for you |
-| `lib "sqlite3"` | `lib SQLITE` | a **name**, not a literal |
+Now build the library both ways, from the `greet-app` folder. clang comes with LLVM, which tiko already needs.
 
-Three rules carry the whole design:
-
-1. **A spec is a file, not a name.** `"lib/sqlite3"` is a path, resolved
-   relative to the source file containing the directive, and the file that is
-   found is handed to the linker by exact filename. `"system:foo"` is the escape
-   hatch that means the old `-lfoo` behaviour -- though tiko does not honour
-   it yet: see [Spec forms](#spec-forms).
-2. **The kind is mandatory and is never guessed.** Ask for `static` when only a
-   `.dll.a` exists and you get an error listing every path tried — not a quiet
-   dynamic link.
-3. **The target suffix is never written down.** You write `"lib/sqlite3"`; the
-   compiler tries `sqlite3_windows_x86_64`, then `sqlite3_windows`, then
-   `sqlite3_x86_64`, then `sqlite3`, with the extensions that match the kind.
-
-And one thing that does **not** change: `#inclib` and `#libpath` still work
-exactly as before, are not deprecated, and can sit in the same file as a
-`#foreignlib`. You can migrate a binding one directive at a time.
-
----
-
-## Part 4 — Tutorial: vendor the SQLite DLL
-
-We are going to build a project that carries its own copy of SQLite, links it
-dynamically, and builds with a bare `tiko demo.tiko` from any directory.
-
-### Step 1 — make the vendor folder
+**On Windows:**
 
 ```bash
-mkdir C:\dev\myapp
-mkdir C:\dev\myapp\vendor\sqlite\lib
-mkdir C:\dev\myapp\vendor\sqlite\bin
+clang -shared -fuse-ld=lld -O2 -DGREET_DLL vendor/greet/greet.c -o greet.dll -Wl,/implib:vendor/greet/greet_windows_x86_64.lib
+clang -c -O2 vendor/greet/greet.c -o greet.obj
+llvm-lib /out:vendor/greet/greet-static_windows_x86_64.lib greet.obj
 ```
 
-### Step 2 — copy the library in, renamed to the convention
+The first command makes `greet.dll` in the project folder, next to where your program will be, and its import library in `vendor/greet`. The other two make the static library.
 
-You need two files for a dynamic link: the **import library** (what the linker
-reads) and the **DLL** (what the program loads at run time).
+**On Linux:**
 
 ```bash
-copy C:\dev\sqlite\lib\win64-dll\libsqlite3.dll.a  C:\dev\myapp\vendor\sqlite\lib\sqlite3_windows_x86_64.dll.a
-copy C:\dev\sqlite\bin\win64\sqlite3.dll           C:\dev\myapp\vendor\sqlite\bin\sqlite3.dll
+clang -shared -fPIC -O2 -DGREET_DLL vendor/greet/greet.c -Wl,-soname,libgreet.so -o vendor/greet/greet_linux_x86_64.so
+cp vendor/greet/greet_linux_x86_64.so libgreet.so
+clang -c -fPIC -O2 vendor/greet/greet.c -o greet.o
+ar rcs vendor/greet/greet-static_linux_x86_64.a greet.o
 ```
 
-Two things about that filename:
+`-Wl,-soname,libgreet.so` records the name the program will ask for when it starts, and the `cp` puts a file with that name next to the program (section 12).
 
-- **The `lib` prefix is gone.** `#foreignlib` uses the base name verbatim and
-  passes the linker an exact filename, so ld's `lib*.a` convention never
-  applies. Had you left it as `libsqlite3.dll.a`, the base name would be
-  `"lib/libsqlite3"`.
-- **`_windows_x86_64` is the target tag.** You never type it in source. It is
-  what will let the same source find a `.so` on Linux later.
+You now have:
 
-### Step 3 — write the linkage header
+```
+greet-app/
+    greet.dll                                  Windows: loaded when the program runs
+    libgreet.so                                Linux: loaded when the program runs
+    vendor/greet/greet.h
+    vendor/greet/greet_windows_x86_64.lib      Windows: import library
+    vendor/greet/greet-static_windows_x86_64.lib   Windows: static library
+    vendor/greet/greet_linux_x86_64.so         Linux: shared library
+    vendor/greet/greet-static_linux_x86_64.a   Linux: static library
+```
 
-`C:\dev\myapp\vendor\sqlite\linkage.ti`:
+The static library is called `greet-static` because on Windows a static library and an import library are both `.lib` files, so they cannot share a name.
+
+## 5. Link it dynamically
+
+`hello.tiko`:
 
 ```freebasic
-#pragma once
+'' hello.tiko -- link the greet library as a shared library.
+#cinclude once "vendor/greet/greet.h"
+#foreignlib GREET dynamic "vendor/greet/greet"
 
-#foreignlib SQLITELIB dynamic "lib/sqlite3"
+print "2 + 3 ="; greet_add( 2, 3 )
+print "greetings "; *greet_how( )
 ```
 
-That is the entire file. `"lib/sqlite3"` is relative to `linkage.ti` itself, so
-it keeps working no matter where the build runs from.
-
-### Step 4 — get a binding
-
-Copy the FreeBASIC SQLite binding in:
+Build and run it. On Windows:
 
 ```bash
-copy C:\dev\sqlite\inc\sqlite3api.bi  C:\dev\myapp\vendor\sqlite\sqlite3api.bi
+tiko hello.tiko
+./hello
 ```
 
-Open it and find its one linkage line, near the top:
+On Linux, tell the system to look for `libgreet.so` in the current folder (section 12 shows a better way):
+
+```bash
+tiko hello.tiko
+LD_LIBRARY_PATH=. ./hello
+```
+
+```
+2 + 3 = 5
+greetings from a shared library
+```
+
+There is no `-p`, no `-l` and no `#ifdef` anywhere. The program names the library once, and tiko picks the right file for the platform.
+
+### Build it from anywhere
+
+Go to the folder above `greet-app` and build again:
+
+```bash
+cd ..
+tiko greet-app/hello.tiko
+```
+
+It links, because the path in `#foreignlib` is relative to `hello.tiko`, not to where you are. The program is written next to its source, `greet-app/hello`, as always. You can move or copy the whole `greet-app` folder anywhere, and it still builds.
+
+## 6. Link it statically
+
+`hello-static.tiko` is the same program with one changed line:
 
 ```freebasic
-#inclib "sqlite3"
+'' hello-static.tiko -- link the greet library statically.
+#cinclude once "vendor/greet/greet.h"
+#foreignlib GREET static "vendor/greet/greet-static"
+
+print "2 + 3 ="; greet_add( 2, 3 )
+print "greetings "; *greet_how( )
 ```
 
-Replace that single line with:
+```bash
+tiko hello-static.tiko
+./hello-static
+```
+
+```
+2 + 3 = 5
+greetings from a static library
+```
+
+The library's code is now inside `hello-static` itself. Delete `greet.dll` or `libgreet.so` and it still runs.
+
+### Let the build choose
+
+A program can offer both, and let whoever builds it pick:
 
 ```freebasic
-#include once "linkage.ti"
+'' hello-choose.tiko -- the build picks: -d GREET_STATIC for static.
+#cinclude once "vendor/greet/greet.h"
+
+#ifdef GREET_STATIC
+    #foreignlib GREET static "vendor/greet/greet-static"
+#else
+    #foreignlib GREET dynamic "vendor/greet/greet"
+#endif
+
+print "greetings "; *greet_how( )
 ```
-
-**That is the whole migration.** All hundred-odd `declare` statements below it
-are untouched, because a `#foreignlib` contributes its library to the link
-whether or not any declaration names it — exactly like `#inclib` did.
-
-### Step 5 — write the program
-
-`C:\dev\myapp\demo.tiko`:
-
-```freebasic
-#include once "vendor/sqlite/sqlite3api.bi"
-
-print "sqlite " & *sqlite3_libversion( )
-
-dim as sqlite3 ptr db
-if( sqlite3_open_v2( ":memory:", @db, SQLITE_OPEN_READWRITE or SQLITE_OPEN_CREATE, 0 ) <> SQLITE_OK ) then
-	print "open failed: " & *sqlite3_errmsg( db )
-	end 1
-end if
-
-sqlite3_exec( db, "create table t( n integer )", 0, 0, 0 )
-sqlite3_exec( db, "insert into t values( 42 )", 0, 0, 0 )
-
-dim as sqlite3_stmt ptr st
-sqlite3_prepare_v2( db, "select n from t", -1, @st, 0 )
-while( sqlite3_step( st ) = SQLITE_ROW )
-	print "row: " & sqlite3_column_int( st, 0 )
-wend
-sqlite3_finalize( st )
-
-sqlite3_close_v2( db )
-```
-
-Notice what is *not* in this file: no library name, no path, no `#ifdef`,
-nothing about static or dynamic. It includes a binding and calls the API.
-
-### Step 6 — build
 
 ```bash
-cd C:\dev\myapp
-tiko demo.tiko
-```
-
-No `-p`. No `-l`. Then copy the DLL next to the executable and run:
-
-```bash
-copy vendor\sqlite\bin\sqlite3.dll .
-demo.exe
+tiko hello-choose.tiko
+./hello-choose
+tiko hello-choose.tiko -d GREET_STATIC
+./hello-choose
 ```
 
 ```
-sqlite 3.53.4
-row: 42
+greetings from a shared library
+greetings from a static library
 ```
 
-### Step 7 — prove the point
+On Linux, run the shared build with `LD_LIBRARY_PATH=.` in front, as in section 5.
 
-The reason for all of this is that the location no longer matters. Build the
-same file from the root of the drive:
+## 7. When no file matches
 
-```bash
-cd C:\
-tiko C:\dev\myapp\demo.tiko
-```
-
-It links — and the executable lands next to the source, as always. `#libpath`
-could not have done that.
-
-Move `C:\dev\myapp` anywhere — another drive, another machine, into a zip and
-out again — and it still links, because nothing outside the folder is named.
-
-### Step 8 — see a failure on purpose
-
-Rename the import library so nothing matches, and build again:
+Make a typing mistake in the path, `"vendor/greet/gret"`, and build:
 
 ```
-vendor/sqlite/linkage.ti(3,1): error TKO0329: #foreignlib found no matching library file: SQLITELIB dynamic lib/sqlite3; tried:     vendor/sqlite/lib/sqlite3_windows_x86_64.dll.a
-    vendor/sqlite/lib/sqlite3_windows_x86_64.lib
-    vendor/sqlite/lib/sqlite3_windows_x86_64.dll
-    vendor/sqlite/lib/sqlite3_windows.dll.a
-    vendor/sqlite/lib/sqlite3_windows.lib
-    vendor/sqlite/lib/sqlite3_windows.dll
-    vendor/sqlite/lib/sqlite3_x86_64.dll.a
-    vendor/sqlite/lib/sqlite3_x86_64.lib
-    vendor/sqlite/lib/sqlite3_x86_64.dll
-    vendor/sqlite/lib/sqlite3.dll.a
-    vendor/sqlite/lib/sqlite3.lib
-    vendor/sqlite/lib/sqlite3.dll
+hello.tiko(3,1): error TKO0329: #foreignlib found no matching library file: GREET dynamic vendor/greet/gret; tried:     vendor/greet/gret_windows_x86_64.dll.a
+    vendor/greet/gret_windows_x86_64.lib
+    vendor/greet/gret_windows_x86_64.dll
+    vendor/greet/gret_windows.dll.a
+    vendor/greet/gret_windows.lib
+    vendor/greet/gret_windows.dll
+    vendor/greet/gret_x86_64.dll.a
+    vendor/greet/gret_x86_64.lib
+    vendor/greet/gret_x86_64.dll
+    vendor/greet/gret.dll.a
+    vendor/greet/gret.lib
+    vendor/greet/gret.dll
 
      |
-   3 | #foreignlib SQLITELIB dynamic "lib/sqlite3"
+   3 | #foreignlib GREET dynamic "vendor/greet/gret"
      | ^
 ```
 
-The directive that failed, the line it is on, and every path that was tried, in
-order. Compare it with what you would have got before:
+The error names the directive, the line it is on, and **every file tiko tried, in order**. Compare the file names with the files you have, and the mistake is usually plain. That list is also the easiest way to find out what to call a library file.
+
+Asking for the wrong kind is the same error. On Linux, `#foreignlib GREET static "vendor/greet/greet"` finds only the `.so` there, which is not a static library:
 
 ```
-lld-link: error: could not open 'sqlite3.lib': no such file or directory
+error TKO0329: #foreignlib found no matching library file: GREET static vendor/greet/greet; tried:     vendor/greet/greet_linux_x86_64.a
+    vendor/greet/greet_linux.a
+    vendor/greet/greet_x86_64.a
+    vendor/greet/greet.a
 ```
 
-— from a subprocess, naming no directive, no file, and no directory searched.
+You do not quietly get a shared library instead.
 
-That listing is also the best documentation of the probe order there is. Read it
-top to bottom and you can see exactly what filename to give your library.
+## 8. The other errors
 
----
+| Error | Cause |
+|---|---|
+| `TKO0327: expected a name, STATIC or DYNAMIC, then a quoted spec after #foreignlib` | the directive is incomplete |
+| `TKO0328: expected STATIC or DYNAMIC after the #foreignlib name, X` | the kind is missing |
+| `TKO0329: #foreignlib found no matching library file` | no file has any of the names listed (section 7) |
+| `TKO0330: #foreignlib name already bound to a different library set, X` | the same name is used for two different libraries |
 
-## Part 5 — now link it statically
+Repeating a `#foreignlib` line exactly is allowed. That happens when two files include the same binding header.
 
-Here is the payoff. Go back to `linkage.ti` and change **one word**:
+## 9. How tiko picks the file
 
-```freebasic
-#foreignlib SQLITELIB static "lib/sqlite3"
-```
-
-Then put the static archive where the import library was:
-
-```bash
-copy C:\dev\sqlite\lib\win64\libsqlite3.a  C:\dev\myapp\vendor\sqlite\lib\sqlite3_windows_x86_64.a
-```
-
-Rebuild -- for the MinGW-ABI `win64` target, because `libsqlite3.a` is a MinGW
-archive. On tiko's default target, windows-x86_64, it does not link:
-`lld-link: error: undefined symbol: ___chkstk_ms`.
-
-```bash
-tiko -target win64 demo.tiko
-demo.exe
-```
-
-```
-sqlite 3.53.4
-row: 42
-```
-
-**Nothing else changed.** Not `demo.tiko`, not `sqlite3api.bi`. The `static`
-keyword alone moved the build from
-
-```
-lib\sqlite3_windows_x86_64.dll.a      (import lib, needs sqlite3.dll at run time)
-```
-to
-```
-lib\sqlite3_windows_x86_64.a          (whole library, baked into the exe)
-```
-
-The base name in the directive is *identical* in both versions. There is no
-second path, no second `#ifdef` branch, no renaming.
-
-And the difference is now visible where it should be — in the executable. Both
-builds are for `-target win64`; the windows-x86_64 `dynamic` build is 24,576 bytes:
-
-| | size | needs `sqlite3.dll`? |
-| --- | --- | --- |
-| `dynamic` | 165,888 bytes | yes, beside the exe |
-| `static` | 1,475,072 bytes | no |
-
-Delete `sqlite3.dll` from the folder and run both to confirm.
-
-### Supporting both from one source
-
-Real bindings offer the choice. Wrap the two lines in a conditional:
-
-```freebasic
-#pragma once
-
-#if defined( USE_STATIC_SQLITE )
-	#foreignlib SQLITELIB static  "lib/sqlite3"
-#else
-	#foreignlib SQLITELIB dynamic "lib/sqlite3"
-#endif
-```
-
-Keep **both** files in `lib\` and the caller picks at build time:
-
-```bash
-tiko -target win64 demo.tiko                      -o demo_dynamic.exe
-tiko -target win64 demo.tiko -d USE_STATIC_SQLITE -o demo_static.exe
-```
-
-One source file, two executables, one flag. That is the working example in
-`C:\dev\sqlite-test`.
-
-### Try getting it wrong
-
-Ask for `static` while only the `.dll.a` is present and you do **not** silently
-get a dynamic link — you get TKO0329 listing the eight static candidates it
-tried (`.a` and `.lib`, four name variants each). Compare with the classic
-model, where pointing `-p` at the wrong directory changed your executable from
-1.5 MB to 165 KB without a word.
-
-*(One honest wrinkle: on Windows, `.lib` is accepted under **both** kinds,
-because the extension genuinely does not distinguish a static archive from an
-import library. Nothing can fix that from inside the compiler.)*
-
----
-
-## Part 6 — reference
-
-### Probe order
-
-For `#foreignlib X <kind> "dir/base"`, most specific first:
+For `#foreignlib NAME kind "dir/base"`, tiko tries these names, most specific first:
 
 ```
 dir/base_<os>_<arch><ext>
@@ -483,140 +321,131 @@ dir/base_<arch><ext>
 dir/base<ext>
 ```
 
-with every extension eligible for `<kind>` tried at each step.
+| | Windows | Linux |
+|---|---|---|
+| `<os>` | `windows` | `linux` |
+| `<arch>` | `x86_64` | `x86_64` |
+| `<ext>` for `static` | `.a`, then `.lib` | `.a` |
+| `<ext>` for `dynamic` | `.dll.a`, then `.lib`, then `.dll` | `.so` |
 
-| | |
-| --- | --- |
-| `<os>` | `windows` `cygwin` `linux` `android` `darwin` `dos` `freebsd` `openbsd` `netbsd` `dragonfly` `solaris` |
-| `<arch>` | `x86` `x86_64` `arm` `aarch64` |
-| `<ext>` static | Windows `.a` `.lib` · elsewhere `.a` |
-| `<ext>` dynamic | Windows `.dll.a` `.lib` `.dll` · macOS `.dylib` · elsewhere `.so` |
+Every ending for the kind is tried at each step, and the first file that exists is used.
 
-tiko's targets only ever produce `windows` or `linux`, and `x86_64`. Measured
-2026-09-24 at origin/master 50c71751, the paths it tries for windows-x86_64,
-`-target win64` and `-target linux-x86_64` follow this table exactly.
+- **Name files with the platform tag** (`greet_windows_x86_64.lib`, `greet_linux_x86_64.so`) whenever files for more than one platform share a folder. Then each platform finds only its own files.
+- **No `lib` is added or removed.** The base name is used exactly as written. A file called `libgreet.a` is `"vendor/greet/libgreet"`.
+- **A path can also be absolute**, such as `"C:/libs/greet/greet"`.
 
-So a cross-platform `lib\` folder looks like this, and needs no source change:
+> ⚠️ **On Windows, `.lib` counts as both kinds.** A static library and an import library are both `.lib` files, and nothing in the name tells them apart. So `#foreignlib GREET static "vendor/greet/greet"` would accept `greet_windows_x86_64.lib`, the **import** library, and the program would quietly need `greet.dll` after all. Give the two different base names, as section 4 does with `greet` and `greet-static`.
 
-```
-lib/sqlite3_windows_x86_64.dll.a
-lib/sqlite3_windows_x86.dll.a
-lib/sqlite3_linux_x86_64.so
-lib/sqlite3_linux_aarch64.so
-```
+## 10. System libraries
 
-### Spec forms
-
-| Spec | Meaning |
-| --- | --- |
-| `"lib/foo"` | file, relative to the source file holding the directive |
-| `"C:/abs/lib/foo"` | file, absolute |
-| `"system:foo"` | hand `foo` to the linker as `-lfoo`; resolve no file |
-
-> **tiko honours `system:` since 2026-09-25.** Before that it handed the bare
-> name to clang as an input file, and `#foreignlib W static "system:winmm"`
-> failed the link with `clang: error: no such file or directory: 'winmm'`
-> (`TKO0116`). A `system:` name now goes to the linker exactly as `#inclib`'s
-> does.
-
-Several specs bind as one set, in link order — this is how a binding declares
-what it drags in with it:
+Libraries that are part of the operating system, or installed for every program on the machine, are named with `system:`:
 
 ```freebasic
-#foreignlib RAYLIB static "vendor/raylib", _
-            "system:winmm", "system:gdi32", "system:user32"
+#foreignlib WINMM dynamic "system:winmm"
 ```
 
-### Naming the binding in a declaration
+`"system:winmm"` hands the name to the linker, which searches its usual folders, exactly as `#inclib "winmm"` does. On Linux, `"system:m"` links the maths library, and a library installed by your package manager, such as `"system:sqlite3"`, is found the same way.
+
+> ⚠️ **The kind is not checked for `system:`.** tiko does not look for the file itself, so it cannot check that it is the kind you asked for. The linker takes whatever it finds.
+
+### Several libraries at once
+
+One `#foreignlib` can name several libraries. They are linked in the order given. This is how a static library brings along the system libraries it needs:
 
 ```freebasic
-declare function sqlite3_libversion cdecl lib SQLITELIB alias "sqlite3_libversion" ( ) as zstring ptr
+#foreignlib GREET static "vendor/greet/greet-static", "system:winmm"
 ```
 
-Note where `lib` goes: **after the calling convention, before `alias`**, not at
-the end of the line. That is FreeBASIC's existing grammar, unchanged.
+A static library is only its own code. If it calls other libraries, your program has to link them too. A library's documentation usually lists them. If it does not, link without them, and each `undefined symbol` error names a function you still need. The [Using C Libraries](Using-C-Libraries-Tutorial#static-linking-means-linking-the-librarys-dependencies-too) tutorial shows how to track them down.
 
-This is optional — the directive already did the linking — but it documents
-which library a declaration belongs to, and under fbc a typo becomes error 379
-instead of an undefined symbol at link time. tiko does not check the name yet:
-measured 2026-09-24 at origin/master 50c71751, a misspelt name compiles, and
-the program links, because the directive linked the library anyway.
+## 11. A DLL with no import library
 
-### The four new errors
+Some Windows libraries come as a `.dll` alone. That is fine. When a `dynamic` search finds only a `.dll`, tiko reads the list of functions inside it and makes the import library itself while linking.
 
-| fbc | tiko | |
-| --- | --- | --- |
-| 376 | TKO0328 | `expected STATIC or DYNAMIC after the #foreignlib name` |
-| 377 | TKO0329 | `#foreignlib found no matching library file` — lists every path tried |
-| 378 | TKO0330 | `#foreignlib name already bound to a different library set` |
-| 379 | — | `LIB names a #foreignlib that has not been declared` — tiko does not report this yet |
+To try it, keep only the DLL in `vendor/greet`, renamed with the platform tag:
 
-A directive with nothing after `#foreignlib` is fbc's error 17 and tiko's
-TKO0327. All measured 2026-09-24 at origin/master 50c71751.
+```
+greet-app/
+    greet.dll                                  beside the program, unchanged
+    vendor/greet/greet_windows_x86_64.dll      a copy, renamed
+```
 
-Declaring the same name twice with the *same* set is fine; with a different set
-it is error 378 (TKO0330), because that is a mistake rather than a rebind.
+`hello.tiko` builds and runs exactly as before. The import library records the DLL by the name the DLL gives itself, `greet.dll`, not by the renamed file, so the program loads the copy beside it.
 
-### Troubleshooting
+An import library or `.dll.a` with a matching name is found before the `.dll`, and then it is used as it is. A 32-bit DLL is refused with `TKO0172`, because tiko builds 64-bit programs only.
 
-**"It links, but the exe won't start."** Dynamic build, DLL not beside the
-executable. `#foreignlib` resolves the *import* library at link time and says
-nothing about deployment — copying the DLL is still your job.
+## 12. Running a program that uses a shared library
 
-**"TKO0329, but the file is right there."** Read the `tried:` list against
-your actual filename. Almost always a stray `lib` prefix, or the wrong kind:
-a `.dll.a` will never satisfy `static`.
+`#foreignlib` takes care of linking. Making sure the program can **find** the shared library when it starts is up to you.
 
-**"It worked in my project folder, not from the build script."** That should no
-longer happen — and if it does, check you are not still using `#libpath`
-somewhere, which *is* working-directory relative.
+**Windows** looks in the **program's own folder** first, then in the system folders and on `PATH`. Put the DLL beside the `.exe`. If it is missing, the program stops at once with exit code `-1073741515` (*DLL not found*). Keep the DLL's own name: it is recorded in the import library.
 
-**"I compiled a module with `-c` and its library is missing at the link."** Both
-compilers record the library in the object file: its file name, and the directory
-it was resolved in as an **absolute** path. Measured 2026-09-25: a module compiled
-with `-c` links in a later run from another working directory. This holds with
-fbc's object linked by tiko, and with tiko's object linked by fbc. Before
-2026-09-25 tiko recorded nothing, and the link left the module's symbols
-undefined. If the library is still missing, the object was built before its
-library moved: the recorded directory is where it WAS.
+**Linux** does **not** look beside the program. It looks in `LD_LIBRARY_PATH`, then in the system's library folders, for the name recorded with `-soname` (`libgreet.so` here). Without it, you see:
 
----
+```
+./hello: error while loading shared libraries: libgreet.so: cannot open shared object file: No such file or directory
+```
 
-## What this does not do
+`LD_LIBRARY_PATH=. ./hello` is fine for a quick test. To make the program look beside itself every time, record an *rpath* when you link. Add this at the top of `hello.tiko`:
 
-Deliberately, with reasons in
-[RFC-0005 §8](https://github.com/PaulSquires/tiko-lang):
+```freebasic
+#ifdef __FB_LINUX__
+    #cmdline "-Wl -rpath,$ORIGIN"
+#endif
+```
 
-- **No package fetching.** There is no manifest, no registry, no lockfile. This
-  declares how to link a library you already have.
-- **No runtime loading.** Use `DyLibLoad`/`DyLibSymbol`. A directive that
-  synthesised `LoadLibrary` calls would turn link errors into run-time errors.
-- **No DLL deployment.** Copying `sqlite3.dll` next to the exe is a
-  build-orchestration job.
-- **No rpath emission**, no `+whole-archive`-style modifiers, no macOS
-  frameworks.
+`$ORIGIN` means *the folder this program is in*, and `-Wl` passes the option to the linker. Now `./hello` runs with no `LD_LIBRARY_PATH`, from any folder, as long as `libgreet.so` is next to it. The `#ifdef` matters: Windows' linker has no `-rpath`.
 
----
+## 13. Naming the library in a declaration
 
-## Where to go next
+If you write a `declare` by hand, you can say which library it belongs to with `lib` and the name from `#foreignlib`:
 
-- [`#foreignlib`](modern-Foreignlib) — the reference page for this directive
-- [Foreign Library Linking](Category-Foreign-Library-Linking) — the category
-- [`#inclib`](Inclib) · [`#libpath`](Libpath) — the classic directives, unchanged
-- `docs/foreignlib/foreignlib.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern) — the same
-  reference as a plain-text file
-- `C:\dev\sqlite-test` — the complete worked example, both link modes
-- `C:\dev\docs\fb-rfcs\rfcs\0005-foreign-library-linkage.md` — the design, what was
-  refused and why
-- `C:\dev\docs\fb-rfcs\appendix\linkage-survey.md` — how Odin, Rust, Zig, Nim, Go,
-  D, Free Pascal and C/C++ handle the same problem, which is where the design
-  came from
+```freebasic
+'' A system library, and a declaration written by hand that says
+'' which library it belongs to.
+#foreignlib WINMM dynamic "system:winmm"
+
+declare function timeGetTime lib WINMM alias "timeGetTime" ( ) as uint32
+
+print "Windows has been running for"; timeGetTime( ) \ 60000; " minutes"
+```
+
+This is optional. A `#foreignlib` links its libraries whether or not any declaration names them, so the declarations that `#cinclude` makes need no `lib` at all. Treat `lib WINMM` as a note to the reader: tiko does not check the name, so a misspelt one is not an error.
+
+## 14. Sharing a binding
+
+Put the `#cinclude` and `#foreignlib` lines for a library in one `.ti` file, next to the library. Both paths in it are relative to that `.ti` file, so a program includes it with one line, and the folder works wherever it is:
+
+```freebasic
+'' greet.ti -- the greet library: its header, and the file to link.
+#pragma once
+
+#cinclude once "greet/greet.h"
+#foreignlib GREET dynamic "greet/greet"
+```
+
+The [#cinclude Tutorial](modern-Cinclude-tutorial#12-sharing-a-binding) shows this in full, and also how to make a binding a module with `public #cinclude`.
+
+**Compiling in pieces.** When you compile one file at a time with `-c` and link the objects later, each object file remembers the libraries its `#foreignlib` lines found, with their full paths. The final link includes them, even when it runs in another folder.
+
+## 15. What `#foreignlib` does not do
+
+- **It does not download anything.** It links a library you already have.
+- **It does not copy the DLL or `.so`** next to your program. That is still your job (section 12).
+- **It does not load libraries while the program runs.** For that, use [`DyLibLoad`](Dylibload) and [`DyLibSymbol`](Dylibsymbol).
+
+### See also
+
+- [#foreignlib](modern-Foreignlib), the reference page
+- [#cinclude Tutorial](modern-Cinclude-tutorial), declaring a library's functions from its header
+- [Using C Libraries](Using-C-Libraries-Tutorial), with step-by-step tutorials for [SQLite](SQLite-Tutorial), [raylib](Raylib-Tutorial), [GLFW](GLFW-Tutorial) and [SDL3](SDL3-Tutorial)
+- [`#inclib`](Inclib) · [`#libpath`](Libpath) · [`#cmdline`](Cmdline)
+- [Static Libraries](Static-Libraries) · [Shared Libraries](Shared-Libraries)
 
 ---
 
 **Category:** [Foreign Library Linking](Category-Foreign-Library-Linking)  
 **Kind:** tutorial
-
 
 ---
 

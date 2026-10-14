@@ -2,401 +2,582 @@
 
 # #cinclude Tutorial
 
-> **In tiko.** tiko imports C headers itself, through libclang loaded at first use, for windows-x86_64 (the Windows default), win64 and linux-x86_64 (decision 0016, `docs/architecture/decisions/0016-cinclude.md`). It has `-cinclude`, `-cimport`, `-cimport-out`, `-cimport-manifest`, `-cdefine`, `-csysroot`, `-copt`, `-cnomacros`, `-cnoverify`, `-cnocache` and `-ccachedir`; FBC-Modern's `-cprobe`, `-cimport-split`, `-cimport-indir` (with `-cimport-outdir`, `-cimport-recurse`, `-cimport-force` and `-cimport-prefix`) and `-cverbose` are `TKO0100: unknown option` to tiko. Commands written `tiko` below were run with tiko and gave what FBC-Modern's `fbc` gives; those left as `fbc` are FBC-Modern's, and tiko has no equivalent. Measured 2026-09-24 at origin/master 50c71751.
+> 📘 **Reference:** [#cinclude](modern-Cinclude) · **Next:** [#foreignlib Tutorial](modern-Foreignlib-tutorial)
 
-> 📘 **Reference:** [#cinclude](modern-Cinclude)
-
-This is the long way round. If you want the one-paragraph version, it is on the [reference page](modern-Cinclude).
+This tutorial shows you how to use a C library from tiko with `#cinclude`. You will call the C runtime, build a tiny C library of your own and use it, look at what tiko makes from a C header, hand a tiko function to C as a callback, and call the Windows API. No earlier experience with C libraries is needed.
 
 ---
 
-## Part 1 — What you already know
+## 1. Three words first
 
-To call a C library from FreeBASIC you write a **binding**: a `.bi` full of `Declare`s and `Type`s that restates, in FreeBASIC, what the library's `.h` says in C.
+**Header.** A C library describes itself in a *header*, a `.h` file. It lists the library's functions, the types they use, and its constants. It holds no code.
+
+**Library.** The code itself is in a *library* file: a `.lib` or `.dll` on Windows, a `.a` or `.so` on Linux.
+
+**Binding.** Before tiko can call a C function, it must know the function's name, its parameters and its result. A *binding* is the list of those declarations, written in tiko.
+
+You could write a binding by hand, with one `declare` for each function and one `type` for each struct. That works, but it is slow, and every line is a copy of something the header already says. A copy can be wrong: one `int32` where C has a 64-bit number, and every field after it is read from the wrong place, with no error to tell you.
+
+`#cinclude` does that job for you. It hands the library's **own header** to **clang**, a real C compiler, and turns what clang reports into tiko declarations. You write one line:
 
 ```freebasic
-#inclib "sqlite3"
+#cinclude once "shapes.h"
+```
+
+and every function, type and constant in `shapes.h` is ready to use.
+
+`#cinclude` only declares things. To link the library's code into your program, add a [`#foreignlib`](modern-Foreignlib) line, which section 4 shows. The [#foreignlib Tutorial](modern-Foreignlib-tutorial) covers linking in detail.
+
+## 2. What you need
+
+| | Windows | Linux |
+|---|---|---|
+| tiko and LLVM | as for any tiko program | as for any tiko program |
+| C headers | **Visual Studio Build Tools**, with *Desktop development with C++* and the Windows SDK | your distribution's C compiler (`build-essential` on Ubuntu) |
+
+`#cinclude` uses **libclang**, which comes with the LLVM install that tiko already needs. tiko loads it only when a program has a `#cinclude`, so programs without one never need it.
+
+On Windows, almost every C header includes the C runtime's own headers (`stdio.h`, `string.h` and the rest), and those come with Visual Studio. tiko itself does not need Visual Studio. Only `#cinclude` does.
+
+## 3. Your first `#cinclude`
+
+The C runtime library is always linked into a tiko program, so you can call it with nothing but its headers. Save this as `first.tiko`:
+
+```freebasic
+'' first.tiko -- call two functions from the C runtime library,
+'' declared by the C runtime's own headers.
+#cinclude once "string.h"
+#cinclude once "ctype.h"
+
+dim word as zstring * 32 = "tiko"
+print "strlen( word ) is "; str( strlen( word ) )
+print "toupper( 'a' ) is "; chr( toupper( asc( "a" ) ) )
+```
+
+Build it and run it:
+
+```bash
+tiko first.tiko
+./first
+```
+
+```
+strlen( word ) is 4
+toupper( 'a' ) is A
+```
+
+`strlen` and `toupper` are not declared anywhere in your program. They came from `string.h` and `ctype.h`.
+
+`once` works as it does for [`#include`](Include): the header is read only the first time the directive is reached.
+
+If you see `TKO0335: #cinclude needs libclang`, tiko could not find libclang. Check that LLVM is installed, or set the `TKO_LIBCLANG` environment variable to the full path of the libclang library.
+
+## 4. A C library of your own
+
+Now make a small C library and use it, the way you would use any library you download. Create this layout:
+
+```
+shapes-app/
+    shapes-demo.tiko
+    vendor/shapes/shapes.h
+    vendor/shapes/shapes.c
+```
+
+`vendor/shapes/shapes.h`, the header:
+
+```c
+/* shapes.h -- a tiny C library, for trying out #cinclude */
+#ifndef SHAPES_H
+#define SHAPES_H
+
+#define SHAPES_VERSION   3
+#define SHAPES_MAX_NAME  16
+
+typedef enum { SHAPE_CIRCLE, SHAPE_SQUARE } ShapeKind;
+
+typedef struct Shape {
+    ShapeKind kind;
+    double    size;                    /* radius or side */
+    char      name[SHAPES_MAX_NAME];
+} Shape;
+
+/* called once for each shape by shapes_each() */
+typedef void (*ShapeVisitor)(const Shape *shape, void *user);
+
+double shape_area(const Shape *shape);
+void   shapes_each(const Shape *list, int count, ShapeVisitor visit, void *user);
+
+/* a function-like macro: tiko does not import these */
+#define SHAPE_IS_ROUND(s) ((s)->kind == SHAPE_CIRCLE)
+
+#endif
+```
+
+`vendor/shapes/shapes.c`, the code:
+
+```c
+/* shapes.c -- the code behind shapes.h */
+#include "shapes.h"
+
+double shape_area(const Shape *shape)
+{
+    if (shape->kind == SHAPE_CIRCLE)
+        return 3.14159265358979 * shape->size * shape->size;
+    return shape->size * shape->size;
+}
+
+void shapes_each(const Shape *list, int count, ShapeVisitor visit, void *user)
+{
+    for (int i = 0; i < count; i++)
+        visit(&list[i], user);
+}
+```
+
+### Build the C library
+
+Compile `shapes.c` with clang and put the result in a *static library*, a file of compiled code that the linker copies into your program. Run these from `shapes-app`.
+
+On Windows:
+
+```bash
+clang -c -O2 vendor/shapes/shapes.c -o shapes.obj
+llvm-lib /out:vendor/shapes/shapes_windows_x86_64.lib shapes.obj
+```
+
+On Linux:
+
+```bash
+clang -c -O2 vendor/shapes/shapes.c -o shapes.o
+ar rcs vendor/shapes/shapes_linux_x86_64.a shapes.o
+```
+
+The `_windows_x86_64` and `_linux_x86_64` endings tell `#foreignlib` which platform each file is for. The [#foreignlib Tutorial](modern-Foreignlib-tutorial) explains them.
+
+### Use it from tiko
+
+`shapes-demo.tiko`:
+
+```freebasic
+'' shapes-demo.tiko -- use the shapes library through its own C header.
+#cinclude once "vendor/shapes/shapes.h"
+#foreignlib SHAPES static "vendor/shapes/shapes"
+
+'' shapes_each() calls this once for each shape in the list.
+sub ShowShape cdecl( byval shape as const Shape ptr, byval user as any ptr )
+    dim total as float64 ptr = user
+    dim area as float64 = shape_area( shape )
+    *total += area
+    print using "&: ##.##"; shape->name; area
+end sub
+
+print "shapes library, version "; str( SHAPES_VERSION )
+
+dim list( 0 to 2 ) as Shape
+list( 0 ).kind = SHAPE_CIRCLE : list( 0 ).size = 1 : list( 0 ).name = "unit circle"
+list( 1 ).kind = SHAPE_SQUARE : list( 1 ).size = 2 : list( 1 ).name = "square"
+list( 2 ).kind = SHAPE_CIRCLE : list( 2 ).size = 3 : list( 2 ).name = "big circle"
+
+dim total as float64
+shapes_each( @list( 0 ), 3, @ShowShape, @total )
+print using "total area: ##.##"; total
+print "one Shape takes "; str( sizeof( Shape ) ); " bytes"
+```
+
+```bash
+tiko shapes-demo.tiko
+./shapes-demo
+```
+
+```
+shapes library, version 3
+unit circle:  3.14
+square:  4.00
+big circle: 28.27
+total area: 35.42
+one Shape takes 32 bytes
+```
+
+**What each part does:**
+
+| Line | Why |
+|---|---|
+| `#cinclude once "vendor/shapes/shapes.h"` | reads the header. `Shape`, `ShapeKind`, `SHAPE_CIRCLE`, `SHAPES_VERSION`, `shape_area` and `shapes_each` all come from here. |
+| `#foreignlib SHAPES static "vendor/shapes/shapes"` | links the library file for the platform you build on. The path is relative to **this source file**. |
+| `sub ShowShape cdecl( ... )` | C calls this function, so its parameters must match C's `ShapeVisitor` type exactly (section 6). |
+| `list( 0 ).name = "unit circle"` | C's `char name[16]` is a `zstring * 16` in tiko, so a string can be assigned to it. |
+| `@list( 0 )` | C's `&list[0]`: the address of the first shape. |
+| `sizeof( Shape )` | 32 bytes, the same size C gives the struct. tiko checks that for every struct it imports (section 10). |
+
+You can build from any directory. `tiko shapes-app/shapes-demo.tiko` run from the folder above works too, because tiko also looks for the header beside the file that names it (section 7).
+
+## 5. Look at what tiko made
+
+`-cimport` writes the binding to a file instead of using it, so you can read it:
+
+```bash
+tiko -cimport vendor/shapes/shapes.h -cimport-out shapes_binding.ti
+```
+
+Use `-cimport-out -` to print it instead. For `shapes.h` you get:
+
+```freebasic
+'' Generated by tiko -cimport. Do not edit.
+''
+''   header      : vendor/shapes/shapes.h
+''   target      : windows-x86_64 (x86_64-pc-windows-msvc)
+''   clang       : 21
+''   importer    : schema 1
+''   C files read: 2
+''
+'' 7 declarations.
+
+#pragma once
 
 extern "C"
-	declare function sqlite3_open cdecl alias "sqlite3_open" _
-		( byval filename as const zstring ptr, byval db as any ptr ptr ) as int32
-	declare function sqlite3_close cdecl alias "sqlite3_close" _
-		( byval db as any ptr ) as int32
+
+type ShapeKind as long
+enum
+	SHAPE_CIRCLE = 0
+	SHAPE_SQUARE = 1
+end enum
+type Shape
+	kind as ShapeKind
+	size as double
+	name as zstring * 16
+end type
+type ShapeVisitor as sub cdecl( byval as const Shape ptr, byval as any ptr )
+declare function shape_area cdecl alias "shape_area" ( byval shape as const Shape ptr ) as double
+declare sub shapes_each cdecl alias "shapes_each" ( byval list as const Shape ptr, byval count as long, byval visit as ShapeVisitor, byval user as any ptr )
+const SHAPES_VERSION = 3
+const SHAPES_MAX_NAME = 16
+
 end extern
 ```
 
-This works, and FreeBASIC ships a lot of bindings written exactly this way.
+This is the binding you would otherwise have written by hand.
 
-### The problem is that it is a translation
+The binding is made **for the platform you build for**, from what clang reports there, so it can differ a little between platforms. On Linux the banner says `linux-x86_64`, and `ShapeKind` is a `ulong`, because that is the type the C compiler gives this enum there. Your code does not change.
 
-Every line above is a hand-made copy of something that already exists in `sqlite3.h`, and copies drift. Three ways, all of them silent:
+Here is how the common C types appear:
 
-**1. A struct is copied wrong.** Say the C is
+| C | tiko |
+|---|---|
+| `int`, `unsigned int` | `long`, `ulong` (32 bits, the same types as `int32` and `uint32`) |
+| `long long` | `longint` (64 bits, the same as `int64`) |
+| `double`, `float` | `double`, `single` (the same as `float64` and `float32`) |
+| `char *`, `const char *` | `zstring ptr`, `const zstring ptr` |
+| `char name[16]` | `name as zstring * 16` |
+| `void *` | `any ptr` |
+| `Shape *` | `Shape ptr` |
+| `size_t` | `size_t`, an unsigned 64-bit integer |
+| an enum | a 32-bit integer type, plus its values as constants |
+| an opaque handle (`typedef struct db db;`, never defined) | `type db as any`, so you only ever hold a `db ptr` |
 
-```c
-struct Rec { int id; long long stamp; char name[16]; };
-```
+Every function keeps its exact C name in an `alias "..."`, so the linker finds it even when tiko has to rename it (section 8).
 
-and the binding says
+## 6. Callbacks: when C calls your code
 
-```freebasic
-type Rec
-	id     as int32
-	stamp  as int32       '' <-- should be LONGINT
-	name   as zstring * 16
-end type
-```
-
-`stamp` is now 4 bytes where C says 8, so `name` is at the wrong offset and so is everything after it. Nothing warns you. The program reads plausible garbage — a timestamp that is nearly right, a name that is nearly there.
-
-**2. The header changes and the binding does not.** A new SDK adds a field to the middle of a struct. Your binding is now describing last year's memory layout.
-
-**3. The binding is written for one target and used on another.** `int32` is 4 bytes on win64 and 8 on linux-x86_64. `wchar_t` is 2 and 4. A binding that hard-codes either is right on exactly one of them.
-
-### An experiment worth doing
-
-Take any hand-written binding you have and check one struct against the header:
-
-```freebasic
-print sizeof( Rec )
-```
-
-against
+Some C functions take a *callback*, a function of yours that the library calls. `shapes_each` is one: it calls a `ShapeVisitor` once for each shape. The C type is
 
 ```c
-printf( "%zu\n", sizeof(struct Rec) );
+typedef void (*ShapeVisitor)(const Shape *shape, void *user);
 ```
 
-If they disagree, everything you have ever read through that type was wrong. There is no way to find out other than checking, because nothing in either language is looking.
-
----
-
-## Part 2 — `#cinclude`, in one line
+so your tiko function must be a `sub` with exactly these parameters:
 
 ```freebasic
-#cinclude once "sqlite3.h"
-#inclib "sqlite3"
+sub ShowShape cdecl( byval shape as const Shape ptr, byval user as any ptr )
 ```
 
-That is the binding. The header goes to **Clang** — a real C compiler, reading the real header, for the target you are building — and what comes back becomes FreeBASIC declarations.
+tiko compares your function with the imported type. If they differ, you get a warning, here for a callback that takes an `int32` where C passes a pointer:
+
+```
+warning TKO0833: passing different pointer types: a 'sub( as shape ptr, as int32 ) ptr' for a 'sub( as const shape ptr, as any ptr ) ptr' parameter
+```
+
+**Treat this warning as an error.** The program still builds, but C will hand your function values of the wrong type, and it will read garbage.
+
+The `void *user` parameter is how a callback gets at your data. `shapes-demo.tiko` passes `@total`, and the callback turns it back into a `float64 ptr`.
+
+About calling conventions: on 64-bit Windows and Linux there is only one way C calls a function, so you can write `cdecl` or leave the convention out. Both match. Do not write `pascal`: it reverses the order of the arguments, and tiko warns about it.
+
+## 7. Where tiko looks for a header
+
+For `#cinclude once "vendor/shapes/shapes.h"`, tiko looks:
+
+1. under the **working directory**, the folder you ran `tiko` in;
+2. **beside the file** that contains the `#cinclude`;
+3. in each folder named with `-cinclude`.
+
+If the header is not found, the error says what tiko tried:
+
+```
+error TKO0336: unable to import C header vendor/shapes/shape.h
+note: clang: tiko-cimport.c:1:10: fatal error: 'vendor/shapes/shape.h' file not found
+note: a header is found by the path given, then beside the file that names it, then in each -cinclude directory
+```
+
+### Headers that include other headers
+
+A library header often includes the library's other headers with angle brackets:
+
+```c
+#include <colors/rgb.h>
+```
+
+clang looks for those only in its include folders, so tell it where they are with `-cinclude`:
+
+```bash
+tiko app.tiko -cinclude vendor/colors/include
+```
+
+Without it, clang reports `'colors/rgb.h' file not found with <angled> include`.
+
+A `-cinclude` folder given on the command line, or in a `#cmdline` line, is relative to the **working directory**. To make a project build from anywhere, put it in the project's `tiko.toml`, where every path is relative to `tiko.toml` itself:
+
+```toml
+[package]
+name = "colors"
+
+[target.colors]
+main    = "app.tiko"
+options = ["-cinclude", "vendor/colors/include"]
+```
+
+and build with `tiko build`. See [tiko build](Category-Tiko-Build).
+
+> ⚠️ **A header under the working directory wins.** It is searched before the one beside the file. Give vendored headers a specific path (`vendor/shapes/shapes.h`, not just `shapes.h`), so that a stray file of the same name can never be picked up instead.
+
+## 8. What comes across, and what does not
+
+**Comes across:** structs and unions, enums, typedefs, functions (including ones with `...` arguments), function-pointer types, global variables, and *object-like* macros that are numbers, such as `#define SHAPES_VERSION 3`. clang works out each macro's value, so `#define BUFFER_SIZE (4 * 1024)` arrives as `const BUFFER_SIZE = 4096`.
+
+**Does not come across:**
+
+- **Function-like macros.** `SHAPE_IS_ROUND(s)` takes arguments, so it is a piece of C code rather than a value. tiko does not translate C code. Using it gives `TKO0743: 'shape_is_round' is not declared`. Write the test yourself:
+
+  ```freebasic
+  if shape->kind = SHAPE_CIRCLE then print "round"
+  ```
+
+- **Macros that are strings**, such as `#define GREETING "hello"`. Write the constant yourself.
+- **`static inline` functions.** They have no code in the library to link to.
+- **`NULL`.** Use tiko's `nullptr`.
+- **C++.** `#cinclude` reads C headers only.
+
+When a declaration cannot be expressed in tiko, it is left out, and the top of the binding says so. On Windows, `tiko -cimport math.h -cimport-out -` lists:
+
+```
+'' 5 declarations were skipped:
+''     define    INFINITY                    value is infinity or NaN, which has no FreeBASIC literal
+''     define    HUGE_VAL                    value is infinity or NaN, which has no FreeBASIC literal
+''     define    HUGE_VALF                   value is infinity or NaN, which has no FreeBASIC literal
+''     define    HUGE_VALL                   value is infinity or NaN, which has no FreeBASIC literal
+''     define    NAN                         value is infinity or NaN, which has no FreeBASIC literal
+```
+
+On Linux the list is longer, because there C's `long double` is an 80-bit number, and tiko has no type that size. Everything else in `math.h` is there.
+
+### Renamed names
+
+tiko does not tell upper and lower case apart, and it has words of its own, so now and then a C name has to change. The top of the binding lists every change. Importing `stdlib.h` gives:
+
+```
+'' 4 names were changed:
+''     procedure  exit -> exit_  (FreeBASIC reserved)
+''     procedure  _Exit -> _Exit_2  (case-insensitive collision)
+''     procedure  abs -> abs_  (FreeBASIC reserved)
+''     procedure  system -> system_  (FreeBASIC reserved)
+```
+
+`abs` is already a tiko function, so C's `abs()` is called `abs_()`:
 
 ```freebasic
-#cinclude once "sqlite3.h"
-#inclib "sqlite3"
+#cinclude once "stdlib.h"
+#cinclude once "math.h"
 
-dim as sqlite3 ptr db
-sqlite3_open( @":memory:", @db )
-sqlite3_close( db )
-```
-
-Nothing was translated by hand, so nothing can drift.
-
-### It checks itself
-
-This is the part that matters, and it is easy to miss.
-
-The importer does **not** take Clang's word for the layout and write those numbers into the compiler. It emits FreeBASIC **text**, and fbc computes every size, alignment and offset **itself**. So there are two independent answers, and they get compared. If they disagree you get an error naming the record and the first member that differs — at compile time, before your program exists.
-
-That check is not theoretical. `tagVARIANT` from `windows.h` was once imported as 16 bytes where the header says 24, with an entire nested struct missing. It **compiled**. Only the layout comparison caught it.
-
-*(tiko compares the same two answers, but a record that disagrees is refused — left out of the binding, with the difference in the skip ledger — rather than stopping the build; see [the reference](modern-Cinclude#the-layout-is-checked-not-trusted).)*
-
----
-
-## Part 3 — Tutorial: SQLite, end to end
-
-*The commands below are tiko's, measured 2026-09-24 at origin/master 50c71751 with SQLite's own `sqlite3.h` in `vendor/`, except in Steps 6 and 7, which are FBC-Modern's. `#inclib "sqlite3"` needs a library the linker can use: on tiko's default target, windows-x86_64, an import library (`libsqlite3.dll.a`) links, but a MinGW-built static `libsqlite3.a` does not (`lld-link: error: undefined symbol: ___chkstk_ms`); `-target win64` links the static one.*
-
-### Step 1 — check the path works
-
-```
-tiko --cimport-probe stddef.h
-```
-
-If that prints the libclang it loaded, clang's version and target, and the headers clang read, you are ready. If not, it says what it tried: install LLVM — libclang 16 or newer, and the clang 18 or newer every tiko build needs ships one — or set `TKO_LIBCLANG` to the library. `--cimport-probe` is a compiler-development option; FBC-Modern's `fbc -cprobe stddef.h` prints a census instead, and tiko has no `-cprobe`.
-
-> libclang is loaded on first use through [`DyLibLoad`](Dylibload). It is never linked. tiko builds and runs without it — you only need it if you actually import a header.
-
-### Step 2 — get the header where Clang can see it
-
-If SQLite is installed system-wide, `#cinclude once "sqlite3.h"` just works.
-
-If you are vendoring it — shipping the header inside your own tree — put it somewhere and name the directory on the command line:
-
-```
-myapp/
-    app.tiko
-    vendor/sqlite3.h
+print abs_( -5 ); cos_( 0.0 )
 ```
 
 ```
-tiko app.tiko -cinclude vendor
+ 5 1
 ```
 
-`-cinclude` is passed to Clang as `-I`.
+In the same way, `math.h`'s `sin`, `cos`, `exp`, `log` and a few others gain a `_`. The `alias` keeps the real name, `abs`, for the linker. In your own code you would normally use tiko's built-in `abs` and `cos`. The point is what happens to a library's names: when one is changed, the list at the top of the binding tells you its new spelling.
 
-You can also name the folder in the directive itself and drop the flag:
+## 9. The Windows API
+
+`windows.h` is just another header. This program asks Windows for the computer's name and the screen size, and counts the open windows with a callback:
 
 ```freebasic
-#cinclude once "vendor/sqlite3.h"
-```
+'' winapi.tiko -- a few Windows API calls, straight from windows.h.
+#define UNICODE
+#cinclude once "windows.h"
 
-```
-tiko app.tiko
-```
-
-That is what FBC-Modern's shipped SQLite example does. With FBC-Modern it works only while the compiler runs **from the directory containing `vendor/`**. tiko, since 2026-10-13, also looks **beside the file that wrote the directive**, so it builds from anywhere.
-
-> ℹ️ tiko's `#cinclude` searches for a quoted header under the **working directory** first, then **beside the file containing the directive**, then in the `-cinclude` directories. A header that includes others with angle brackets still needs `-cinclude`. See [Part 5](#part-5--using-it-with-foreignlib) and [Using C Libraries](Using-C-Libraries-Tutorial).
-
-### Step 3 — write the program
-
-```freebasic
-#cinclude once "sqlite3.h"
-#inclib "sqlite3"
-
-dim as sqlite3 ptr db
-
-if( sqlite3_open( @":memory:", @db ) <> SQLITE_OK ) then
-	print "open failed: "; *sqlite3_errmsg( db )
-	end 1
-end if
-
-dim as zstring ptr errmsg
-sqlite3_exec( db, @"create table part( name text, qty integer );", 0, 0, @errmsg )
-sqlite3_exec( db, @"insert into part values('bolt', 40);", 0, 0, @errmsg )
-
-sqlite3_close( db )
-print "ok"
-```
-
-`sqlite3`, `sqlite3_open`, `SQLITE_OK`, `sqlite3_errmsg` — none of them declared here. `sqlite3` itself is an **opaque handle** in C (`typedef struct sqlite3 sqlite3;`, never defined), and it arrives as `type sqlite3 as any`, which is the opaque pointer C intended.
-
-### Step 4 — hand C a FreeBASIC function
-
-This is the part a hand-written binding gets wrong most often, because the callback's calling convention and parameter widths have to match exactly and nothing checks them.
-
-`sqlite3_exec` takes `int (*)(void*, int, char**, char**)`. The importer turned that into a FreeBASIC procedure-pointer type with that exact shape, so the compiler will now check your function against it:
-
-```freebasic
-function OnRow ( byval user as any ptr, byval ncols as int32, _
-                       byval values as zstring ptr ptr, _
-                       byval names as zstring ptr ptr ) as int32
-	dim as int32 ptr count = user
-	*count += 1
-	print *names[0]; " = "; *values[0]
-	return 0                     '' 0 keeps going; anything else aborts
+'' EnumWindows() calls this once for each top-level window.
+function CountWindow( byval hwnd as HWND, byval lp as LPARAM ) as BOOL
+    dim count as int32 ptr = cast( int32 ptr, lp )
+    *count += 1
+    return TRUE
 end function
 
-dim as int32 rows
-sqlite3_exec( db, @"select name, qty from part;", @OnRow, @rows, @errmsg )
-print rows; " rows"
+dim buffer as wstring * 256
+dim size as DWORD = 256
+if GetComputerName( @buffer, @size ) then
+    dim computer as ustring = buffer
+    print "This computer is called "; computer
+end if
+
+print "The screen is"; GetSystemMetrics( SM_CXSCREEN ); " by"; _
+    GetSystemMetrics( SM_CYSCREEN ); " pixels"
+
+dim count as int32
+EnumWindows( @CountWindow, cast( LPARAM, @count ) )
+print "There are"; count; " top-level windows"
 ```
 
-### Step 5 — look at what you got
-
-```
-tiko -cimport sqlite3.h -cimport-out sqlite3_generated.ti -cinclude vendor
-```
-
-writes the binding to a file instead of including it. Open it. At the top is a banner recording the headers, the target, the Clang version and the census, then two **ledgers**: every name that had to be changed, with the reason, and every declaration that was skipped, with the reason. Nothing is dropped in silence.
-
-The output is **deterministic** — same headers, same options, byte-identical file, on either operating system — so you can check it in and `diff` it across an SDK upgrade to see exactly what changed. (With tiko two runs gave byte-identical files on Windows, measured 2026-09-24 at origin/master 50c71751; across operating systems is not measured.)
-
-### Step 6 — split it up, if you are going to read it
-
-*FBC-Modern's `fbc` only — tiko has no `-cimport-split` (`TKO0100`) and no equivalent.*
-
-A single file for `windows.h` is 2.8 MB. `-cimport-split` writes the same declarations as one file per C header, with an index that ties them together:
-
-```
-fbc -cimport windows.h -cimport-out win.bi -cimport-split bindings
+```bash
+tiko winapi.tiko
+./winapi
 ```
 
-147 parts, and `bindings\win.bi` to `#include`. The parts are fragments — the index carries the banner, the `extern` block and the forward aliases — so include the index, not a part.
-
-You will notice a few headers appear twice, numbered. That is not a bug: a C header's declarations straddle its own `#include`s, so `winnt.h` has declarations both before and after the `ktmtypes.h` it includes. Each part is one contiguous run, which is what makes the order still correct.
-
-### Step 7 — or convert a whole directory, if you are porting
-
-The steps above give you a binding to **use**. If instead you are **porting** a
-library — you want the shape of its whole header tree in FreeBASIC and you
-expect to finish it by hand — FBC-Modern's `fbc` has a mode for that (tiko has none of `-cimport-indir`, `-cimport-outdir`, `-cimport-recurse`, `-cimport-prefix`: each is `TKO0100`):
+The output depends on your computer, for example:
 
 ```
-fbc -cimport-indir vendor -cimport-outdir bi -cimport-recurse
+This computer is called MY-PC
+The screen is 1646 by 1029 pixels
+There are 445 top-level windows
 ```
 
-One `.bi` per `.h`, folders mirrored, each file carrying only its own header's
-declarations and `#include once` lines mirroring the C ones.
+Two things to notice:
 
-Two things to be clear about before you use it. **Nothing is verified** — the
-layout check needs fbc to lay the record out, and these files are never
-compiled. And **what did not convert is left in place**, commented out, behind
-one tag:
+- **`#define UNICODE` picks the wide functions.** Many Windows functions come in two versions, `GetComputerNameA` for 8-bit text and `GetComputerNameW` for UTF-16 text. `GetComputerName` is a name for one of them. With `#define UNICODE` before the `#cinclude` it means the `W` version, which takes a `wstring`. Without it, it means the `A` version, which takes a `zstring`. You can always call either one by its full name.
+- **`CountWindow` has no calling convention**, and needs none (section 6).
+
+## 10. tiko checks every struct
+
+For every struct and union it imports, tiko works out the size and the position of each field **itself**, and compares that with what clang says. If the two do not agree, tiko leaves the struct out and lists it, with both layouts, under *declarations were skipped*. Using the struct is then an error (`TKO0808: the type '...' is not declared`) instead of a program that quietly reads the wrong bytes.
+
+This check is the reason `#cinclude` is safer than a hand-written binding: nothing checks a hand-written `type` against C. `-cnoverify` turns the check off. There is no good reason to use it.
+
+## 11. Speed: the binding cache
+
+The first build that reads a big header takes a while. A program that includes `windows.h` takes a few seconds the first time. tiko then keeps the binding in a cache, and the next build takes well under a second.
+
+tiko notices changes by itself. Editing a header, changing a C option or upgrading clang makes it read the header again. Two options control the cache:
+
+- `-cnocache` reads the header again and leaves the cache alone;
+- `-ccachedir <dir>` keeps the cache in `<dir>` instead of your user cache folder.
+
+## 12. Sharing a binding
+
+### A binding header
+
+When several programs use one library, move the `#cinclude` and `#foreignlib` lines into a `.ti` file next to the library:
 
 ```freebasic
-'' >>> CIMPORT-TODO: function 'lensq' -- static: internal linkage, so there is no symbol to link against
-''     static __inline int lensq(struct Line l)
-```
-
-Search `CIMPORT-TODO` and you have your to-do list, in the order the header
-declared things. That is the whole point of the mode: not a binding, a map of
-the work.
-
-A header that does not parse as C on its own is **not** converted — it gets a
-`.bi` saying so. That is about 670 of the 1,668 mingw headers, most of which
-assume `windows.h` has been seen. `-cimport-prefix windows.h` parses a header
-in front of each one and converts most of them, but costs 4–5 headers a minute
-against 1,668 in 9.5 minutes without, so it suits a subdirectory rather than
-the whole tree.
-
----
-
-## Part 4 — The things that will surprise you
-
-### Function-like macros are not imported
-
-```c
-#define MAKEINTRESOURCE(i) ((LPWSTR)((ULONG_PTR)((WORD)(i))))
-#define IDC_ARROW          MAKEINTRESOURCE(32512)
-```
-
-Neither of those comes across. A macro body is an arbitrary token sequence with C's semantics — casts, the comma operator, `sizeof`, token pasting — and translating one means writing a C expression compiler. There is no safe partial version: a macro that translates to *nearly* the right expression is worse than one that does not translate at all.
-
-Write the expansion:
-
-```freebasic
-LoadCursorW( 0, cast( LPCWSTR, cast( ULONG_PTR, 32512 ) ) )
-```
-
-**Object-like** macros — `#define MAX_PATH 260`, every `WM_*`, every `SQLITE_*` — do come across, folded by Clang in the real header context.
-
-### The A/W names come across, and `#define UNICODE` picks
-
-`GetMessage`, `RegisterClassEx` and `CreateWindowEx` are macros standing for another name, and about 1,100 of them are imported as FreeBASIC `#define`s — so unsuffixed Win32 code works as written.
-
-Which variant you get follows the FreeBASIC side, the way the shipped `windows.bi` has always worked:
-
-```freebasic
-#define UNICODE
-#cinclude once "windows.h"     '' GetMessage -> GetMessageW
-```
-
-Leave the `#define` out and you get the ANSI API, exactly as C does. Both suffixed names are always present either way.
-
-### You do not have to write a calling convention
-
-An imported function pointer says whatever the header says for this target — often `cdecl`, because `WINAPI` and friends are defined away on win64. FreeBASIC's own default there is `stdcall`. On a 64-bit target those are the same call, and fbc treats `cdecl`, `stdcall` and `stdcall_ms` as interchangeable, so a plain
-
-```freebasic
-function MyCallback( byval a as int32 ) as int32
-```
-
-matches an imported `cdecl` pointer with no warning and no cast.
-
-`pascal` is the exception, and should be: it reverses the argument order, so it stays incompatible and still warns.
-
-*(In tiko: the assignment draws `TKO0830`, tiko's form of that warning, and the call through it with `(1, 2)` gets `21`, as FBC-Modern's build does. Measured 2026-09-25; before, it had no warning and got `12`.)*
-
-### `NULL` is not there
-
-FreeBASIC's own crt headers define it, so emitting it too would be a duplicate definition. Write `0`.
-
-### Names occasionally change, and the file says so
-
-FreeBASIC is case-insensitive and has words of its own. C's `time()` collides with the [`Time`](Time) statement and becomes `time_`; `size_t` and `SIZE_T` are one name, so the second becomes `SIZE_T_2`.
-
-Much less renaming happens than you would expect, though — `POINT`, `INPUT`, `COLOR` and `DIR` all keep their names as **types**, and a type and a procedure may share a name, so `INITCOMMONCONTROLSEX` and `InitCommonControlsEx` coexist. Every change is in the ledger with its reason, and every declaration carries `alias "<exact C name>"`, so the linker never sees a renamed symbol.
-
-### The first import of a big header is slow
-
-`windows.h` is about fifteen seconds cold and roughly 35,000 declarations. It is **cached** after that, keyed on the headers, the options, the target, the Clang version and the fbc build — so the expensive half runs once per configuration and the cheap half runs per compilation, exactly as `#include` does.
-
-`-cverbose` tells you what happened, including **why** the cache missed.
-
-With tiko, measured 2026-09-24 at origin/master 50c71751: a program that `#cinclude`s `windows.h` built in 18.7 s cold and 0.6 s warm on windows-x86_64, about 43,000 declarations. Its cache key has the running `tiko` in place of the fbc build. tiko has no `-cverbose`; `-cnocache` bypasses the cache and `-ccachedir` moves it.
-
----
-
-## Part 5 — Using it with `#foreignlib`
-
-Binding to a C library is two jobs, and there is a directive for each:
-
-| | answers | |
-| --- | --- | --- |
-| [`#cinclude`](modern-Cinclude) | *what are these things?* | the **header** half |
-| [`#foreignlib`](modern-Foreignlib) | *where is the code?* | the **linkage** half |
-
-Neither implies the other. `#cinclude` declares everything and links nothing; `#foreignlib` links a library and declares nothing.
-
-If the library is installed on the system, `#inclib` is all you need:
-
-```freebasic
-#cinclude once "sqlite3.h"
-#inclib "sqlite3"
-```
-
-If you are shipping the library **inside your own source tree**, `#foreignlib` resolves it relative to the declaring file and picks the per-target filename for you:
-
-```
-mylib/
-    mylib.ti
-    vendor/mylib.h
-    vendor/mylib_windows_x86_64.dll.a
-    vendor/mylib_linux_x86_64.so
-```
-
-```freebasic
-'' mylib/mylib.ti
+'' shapes.ti -- the shapes library for tiko: its header, and the
+'' library file to link. Both paths are relative to this file.
 #pragma once
 
-#cinclude once "mylib.h"
-#foreignlib MYLIB dynamic "vendor/mylib"
+#cinclude once "shapes/shapes.h"
+#foreignlib SHAPES static "shapes/shapes"
 ```
 
-and the using code needs neither a `Declare` nor an `#ifdef`:
+Saved as `vendor/shapes.ti`, a program needs one line:
 
 ```freebasic
-#include once "mylib/mylib.ti"
-print mylib_add( 2, 3 )
+#include once "shapes.ti"
+
+dim sq as Shape
+sq.kind = SHAPE_SQUARE
+sq.size = 5
+print "a 5 by 5 square has area"; shape_area( @sq )
 ```
 
-### Where each looks
+```bash
+tiko usebind.tiko -i vendor
+```
 
-`#foreignlib` resolves its library relative to **the file containing the directive** — that is [the entire reason it exists](modern-Foreignlib), because `#libpath` is relative to the working directory and therefore unusable in a shipped binding.
+```
+a 5 by 5 square has area 25
+```
 
-`#cinclude`, in tiko since 2026-10-13, looks for a quoted header under the working directory first, then **beside the file containing the directive**, then in the `-cinclude` directories. So `mylib.ti` above can name its own header relative to itself, and the build needs no `-cinclude`, unless the header includes others with angle brackets. FBC-Modern looks only in the working directory and `-cinclude`, so a binding meant for both still has to state the include directory it needs.
+`-i vendor` tells tiko where to find `shapes.ti`. Both paths inside `shapes.ti` are relative to `shapes.ti`, so the `vendor` folder can live anywhere.
 
----
+### A binding module
 
-## Part 6 — Worked examples in the repository
+A binding can also be a [module](https://tiko-lang.net/book/ch14-modules-packages.html). Inside a module, write **`public #cinclude`**, and every program that imports the module sees the header's names. A plain `#cinclude` inside a module keeps them private to the module.
 
-They are in FBC-Modern's repository, not tiko-lang's, and both check their own results. Copied out and built with tiko, measured 2026-09-24 at origin/master 50c71751, `winapi_window.bas` prints `winapi ok -- the window manager called into FreeBASIC 3 times` on windows-x86_64 and win64, and `sqlite_query.bas` prints `sqlite ok -- 3.53.4, 3 rows through a FreeBASIC callback, 2 through a statement` with `-target win64` — the lines FBC-Modern's `fbc` builds print. On windows-x86_64 `sqlite_query.bas` does not link: its vendored `sqlite3_windows_x86_64.a` is a MinGW archive (`lld-link: error: undefined symbol: ___chkstk_ms`, `TKO0116`).
+`modules/shapes/shapes.tiko`:
 
-| | |
-| --- | --- |
-| `examples/cimport/winapi_window.bas` | A real window from `windows.h`, with a `WNDPROC` the **window manager** calls back into FreeBASIC. Closes itself, so it runs unattended. |
-| `examples/cimport/sqlite_query.bas` | SQLite: opens a database, runs statements, and passes a FreeBASIC function to `sqlite3_exec` as a row callback. Header vendored in `examples/cimport/vendor`. |
+```freebasic
+'' The shapes library as a module. 'public #cinclude' hands the
+'' header's names to every program that imports this module.
+#module "shapes"
 
-The WinAPI one is worth reading for what it does **not** say. Its `WndProc` carries no calling convention at all — just `function WndProc( byval hwnd as HWND, ... )`, the way every Win32 programmer has always written it — and that is not an oversight.
+public #cinclude once "../../vendor/shapes/shapes.h"
+#foreignlib SHAPES static "../../vendor/shapes/shapes"
+```
 
-`windows.h` declares `WNDPROC` as `WINAPI`, which every tutorial ever written will tell you is `__stdcall`. On win64 it is neither: x86-64 Windows has one calling convention, the SDK defines `WINAPI` away, and Clang reports the default — so the imported typedef reads `cdecl`, while FreeBASIC's own default on win64 is `stdcall`. Two different words for the same call.
+```freebasic
+#import "shapes"
 
-fbc treats `cdecl`, `stdcall` and `stdcall_ms` as interchangeable on a 64-bit target for exactly that reason, so all three spellings assign cleanly. `pascal` is deliberately not in that set and still warns: it reverses the argument order, on x86-64 as anywhere else, so calling a `pascal` procedure through a `cdecl` pointer with `(1, 2)` really does hand you `21`, with FBC-Modern's `fbc` and with tiko alike, and both warn (tiko's is `TKO0830`; see [Part 4](#you-do-not-have-to-write-a-calling-convention)).
+dim sq as Shape
+sq.kind = SHAPE_SQUARE
+sq.size = 5
+print "area of a 5 by 5 square:"; shape_area( @sq )
+```
+
+```bash
+tiko usemod.tiko -i modules
+```
+
+```
+area of a 5 by 5 square: 25
+```
+
+The names stay bare (`Shape`, not `shapes.Shape`), because a C header's names do not belong to a namespace.
+
+## 13. When it goes wrong
+
+| What you see | Cause | Fix |
+|---|---|---|
+| `TKO0335: #cinclude needs libclang` | libclang was not found | install LLVM, or set `TKO_LIBCLANG` |
+| `TKO0336: unable to import C header` + `file not found` | the header, or one it includes, is not where tiko looked | check the path; add `-cinclude` for `<...>` includes (section 7) |
+| the same + a note about the Windows SDK | Visual Studio Build Tools are not installed | install them, with the Windows SDK |
+| `TKO0743: '...' is not declared` for a name in the header | a function-like or string macro, a `static inline` function, or a renamed name | look at the binding with `-cimport` (sections 5 and 8) |
+| `TKO0808: the type '...' is not declared` for a struct in the header | the struct was skipped | read the reason at the top of the binding |
+| `warning TKO0833` at a callback | your callback's parameters differ from the C type | match the C type exactly (section 6) |
+| `undefined symbol` when linking | the header was read, but the library was not linked | add a `#foreignlib` line ([#foreignlib Tutorial](modern-Foreignlib-tutorial)) |
+
+## 14. Options
+
+| Option | What it does |
+|---|---|
+| `-cinclude <dir>` | a folder clang searches for headers (clang's `-I`) |
+| `-cdefine <name>[=<value>]` | defines a C macro (clang's `-D`) |
+| `-csysroot <dir>` | the C sysroot (clang's `--sysroot`) |
+| `-copt <arg>` | passes one argument to clang unchanged |
+| `-cnomacros` | does not import macros as constants |
+| `-cnoverify` | does not check struct layouts (section 10) |
+| `-cnocache` | neither reads nor writes the binding cache |
+| `-ccachedir <dir>` | where the binding cache is kept |
+| `-cimport <header>` | writes a header's binding to a file; needs `-cimport-out` |
+| `-cimport-out <file>` | where `-cimport` writes; `-` for the screen |
+| `-cimport-manifest <file>` | writes clang's layout of every imported struct |
 
 ### See also
 
-- [#cinclude](modern-Cinclude) — the reference
-- [`#foreignlib`](modern-Foreignlib) · [#foreignlib Tutorial](modern-Foreignlib-tutorial)
-- [`#inclib`](Inclib) · [`#include`](Include)
-- [`Alias`](Alias-Modifier) · [`Declare`](Declare) · [`Extern`](Extern)
+- [#cinclude](modern-Cinclude), the reference page
+- [#foreignlib Tutorial](modern-Foreignlib-tutorial), linking the library's code
+- [Using C Libraries](Using-C-Libraries-Tutorial), with step-by-step tutorials for [SQLite](SQLite-Tutorial), [raylib](Raylib-Tutorial), [GLFW](GLFW-Tutorial) and [SDL3](SDL3-Tutorial)
+- [`#include`](Include) · [`Declare`](Declare) · [`Alias`](Alias-Modifier) · [`Extern`](Extern)
 
 ---
 
 **Category:** [C Header Import](Category-C-Header-Import)
 **Kind:** tutorial
-**Source:** `docs/cimport/cimport.txt` in the [FBC-Modern repository](https://github.com/PaulSquires/fbc-modern).
 
 ---
 
