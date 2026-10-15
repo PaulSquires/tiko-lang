@@ -175,6 +175,7 @@ type C2tEmit
     aliasDone as Tko.StrVec        '' 'type X__fwd as X' already written, by X
     as string indOverride          '' see emitdecl.tiko, BaseIndent_
     as boolean useOverride
+    renames as Tko.StrVec          '' the banner's rename list: 'kind  c -> tiko'
     as int32 decls                 '' declarations written
 end type
 '' Set up the importer state for one pass: names, the c2t spellings, what other files declare.
@@ -196,7 +197,7 @@ declare function Assemble( byref src as C2tSource, byref blocks as C2tBlockVec, 
                            byref outName as string, byref clangVersion as string, _
                            byref passes as Tko.StrVec, byref optText as string, _
                            byref preamble as string, byval externC as boolean, _
-                           byref todoCount as int32 ) as string
+                           byref renames as Tko.StrVec, byref todoCount as int32 ) as string
 
 '' c2t.tiko -- 'tiko c2t ...'. args[0] is "c2t". The process exit code: 0 translated with
 '' no TODO, 1 an error, 2 translated with at least one TODO.

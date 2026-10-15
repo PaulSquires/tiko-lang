@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/records.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-records
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/records.h --verify -o build/.c2t/compile-records/records.ti
+'' ARGS: -c build/.c2t/compile-records/records.ti -o build/.c2t/compile-records/records.o
+'' EXPECT-EXIT: 0

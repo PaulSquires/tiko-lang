@@ -1,0 +1,10 @@
+'' tiko c2t: --verify lays the translation out with tiko and refuses the records whose layout differs from clang's, and what holds them by value.
+'' Everything after the clang line is asserted byte for byte; the tiko and clang versions
+'' in the banner depend on the host, so only the lines around them are.
+'' TEST: cli
+'' CLEAN: build/.c2t/layout
+'' ARGS: c2t tests/c2t/src/layout.h --verify -o build/.c2t/layout/layout.ti
+'' EXPECT-EXIT: 2
+'' EXPECT-FILE-HAS: build/.c2t/layout/layout.ti :: '' layout.ti -- tiko header translated by c2t (tiko 
+'' EXPECT-FILE-HAS: build/.c2t/layout/layout.ti :: ) from the C header "layout.h"\n''   source sha256 : ab163efa756351b981dd3ad338fee63282b28f6f59e1f70088083b75b3560c2d\n''   clang         : 
+'' EXPECT-FILE-HAS: build/.c2t/layout/layout.ti :: ''   passes        : x86_64-pc-windows-msvc\n''   options       : --verify\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' 2 items need manual translation:\n''   line 19  layout.h:6  C2T-TODO(layout)  Mixed\n''   line 28  layout.h:8  C2T-TODO(refused-type)  Holds\n'' =============================================================================\n\n/' layout.h -- records tiko lays out differently from clang (MSVC bit-field rules), which\n   --verify refuses; what holds one by value goes with it, a pointer to one stays. '/\n#pragma once\n\n'' C2T-TODO(layout) layout.h:6 -- record 'Mixed': tiko's layout differs from clang's: tiko lays it out in 1 bytes aligned to 1, clang in 8 aligned to 4; member 'b' is at bit 3 in tiko's layout and bit 32 in clang's\n'' struct Mixed { char a : 3; int b : 5; };        /* MSVC starts a new unit at 'int' */\nextern "C"\n\ntype Plain\n    x : 3 as uint32\n    y : 5 as uint32\n    c as byte\nend type\n'' C2T-TODO(refused-type) layout.h:8 -- record 'Holds': field 'm': uses 'Mixed', which was skipped\n'' struct Holds { struct Mixed m; int n; };        /* holds a refused record by value */\ntype Mixed__fwd as Mixed\ndeclare sub take( byval m as Mixed ptr, byval p as Plain ptr )    /' a pointer to one is fine '/\n\nend extern\n

@@ -286,7 +286,7 @@ function Assemble( byref src as C2tSource, byref blocks as C2tBlockVec, _
                    byref outName as string, byref clangVersion as string, _
                    byref passes as Tko.StrVec, byref optText as string, _
                    byref preamble as string, byval externC as boolean, _
-                   byref todoCount as int32 ) as string
+                   byref renames as Tko.StrVec, byref todoCount as int32 ) as string
     dim as int32 nl = LineCount( src )
     dim as C2tIntVec startAt                   '' line -> block index + 1
     for l as int32 = 0 to nl
@@ -382,6 +382,21 @@ function Assemble( byref src as C2tSource, byref blocks as C2tBlockVec, _
     ban.Push( "''" )
     ban.Push( "'' Generated from C. Search for C2T-TODO and translate those parts by hand." )
     ban.Push( "''" )
+    '' THE NAMES tiko COULD NOT TAKE AS C WROTE THEM (RFC-0001 D19): a tiko word gets '_', a
+    '' second spelling of a case-folded name '_2'. C callers still reach them -- alias keeps
+    '' the symbol.
+    if renames.Count > 0 then
+        ban.Push( "'' Renamed:" )
+        for i as int32 = 0 to renames.Count - 1
+            dim as string rl = renames[i]
+            dim as int32 ar = instr( rl, " -> " )
+            dim as string cpart = trim( mid( rl, 12, ar - 12 ) )
+            dim as string fpart = mid( rl, ar + 4 )
+            dim as string why = iif( fpart = cpart & "_", "(tiko reserved word)", "(case-insensitive collision)" )
+            ban.Push( "''   " & rl & "   " & why )
+        next
+        ban.Push( "''" )
+    end if
     todoCount = todoAt.Count
     if todoCount = 0 then
         ban.Push( "'' Nothing needs manual translation." )

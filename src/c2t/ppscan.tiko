@@ -371,6 +371,15 @@ sub IdiomBlocks( byref src as C2tSource, byref dirs as C2tDirVec, _
                         "'' c2t: export macro " & nl & " (decoration, stripped where used)" )
                 skipTo = e
             end if
+        case DK_OTHER
+            '' #pragma pack IS CARRIED BY THE RECORDS: each one it affects says 'field = N',
+            '' from clang's own alignment (records.tiko), so the directive itself has nothing
+            '' left to do in tiko.
+            if (d.word = "pragma") andalso (Between_( src, d.tok1 + 2, d.tok1 + 2 ) = "pack") then
+                Idiom_( blocks, d.line1, d.line2, _
+                        "'' c2t: " & trim( LineText( src, d.line1 ) ) & _
+                        " -- carried by 'field = N' on each record it packs" )
+            end if
         case DK_DEFINE
             if InList_( decor, d.name_ ) then
                 Idiom_( blocks, d.line1, d.line2, _

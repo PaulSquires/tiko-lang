@@ -169,6 +169,11 @@ type CImp
     as Tko.StrVec c2tFwd
     as Tko.StrVec c2tTdName
     as Tko.StrVec c2tTdText
+    '' ...and for the record RecordEmit wrote last: the C source offset each member line came
+    '' from (-1 for a line C has no counterpart for), and the fields it renamed, as
+    '' 'record.cname -> fbname' -- c2t lays the record out by them and lists the renames.
+    as containers.Array( of int32 ) c2tRecOfs
+    as Tko.StrVec c2tRen
 end type
 
 '' ---- names.tiko

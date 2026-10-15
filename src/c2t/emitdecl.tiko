@@ -52,6 +52,12 @@ private sub Kids_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor, byref v 
     dll = k.dll
 end sub
 
+'' A NAME THE TRANSLATION CHANGED, for the banner (D19): kind, the C spelling, tiko's.
+private sub Ren_( byref e as C2tEmit, byref kind as string, byref cname as string, byref fb as string )
+    if fb = cname then return
+    e.renames.Push( kind & space( 11 - len( kind ) ) & cname & " -> " & fb )
+end sub
+
 private function Usr_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor ) as int32
     return Tko.CImport.UsrId( *e.x, Tko.CImport.CursorUsr( *e.x, c ) )
 end function
@@ -90,6 +96,17 @@ private function BaseIndent_( byref e as C2tEmit, byval l1 as int32 ) as string
     if e.useOverride then return e.indOverride
     return Indent_( LineText( *e.src, l1 ) )
 end function
+
+'' 's' split at its LFs, onto the end of v.
+private sub PushSplit_( byref v as Tko.StrVec, byref s as string )
+    dim as int32 a = 1
+    for i as int32 = 1 to len( s ) + 1
+        if (i > len( s )) orelse (s[i - 1] = 10) then
+            v.Push( mid( s, a, i - a ) )
+            a = i + 1
+        end if
+    next
+end sub
 
 '' ---------------------------------------------------------------- comments on a line
 
@@ -211,6 +228,7 @@ private function Function_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor,
     end select
 
     dim as string nm = FbName_( e, c )
+    Ren_( e, "procedure", cname, nm )
     dim as Tko.CImport.CXType rt = api->getCursorResultType( c )
     dim as boolean isSub = (Tko.CImport.Unwrap( *e.x, rt ).kind = TK_VOID)
     dim as string rs
@@ -237,6 +255,7 @@ private function Function_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor,
         end if
         dim as string pn = Tko.CImport.CursorName( *e.x, a )
         if len( pn ) then
+            Ren_( e, "parameter", cname & "." & pn, cname & "." & Tko.CImport.NameParam( pn ) )
             pt.Push( "byval " & Tko.CImport.NameParam( pn ) & " as " & ty )
         else
             pt.Push( "byval as " & ty )
@@ -346,6 +365,7 @@ private function Var_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor, byre
     dim as boolean dll
     Kids_( e, c, kids, dll )
     dim as string nm = FbName_( e, c )
+    Ren_( e, "variable", cname, nm )
     text = "extern " & iif( dll, "import ", "" ) & nm
     if len( dims ) then text &= "(" & dims & ")"
     if nm <> cname then text &= " alias """ & cname & """"
@@ -356,146 +376,118 @@ end function
 
 '' ---------------------------------------------------------------- records
 
-private function FieldText_( byref e as C2tEmit, byval f as Tko.CImport.CXCursor, byref why as string ) as string
-    dim as Tko.CImport.ClangApi ptr api = e.api
-    dim as string cname = Tko.CImport.CursorName( *e.x, f )
-    dim as Tko.CImport.CXType t = Tko.CImport.Unwrap( *e.x, api->getCursorType( f ) )
-    dim as string dims
-    dim as int64 n1 = -1
-    dim as int32 nd = 0
-    while t.kind = TK_CONSTARRAY
-        dim as int64 k = api->getNumElements( t )
-        if nd = 0 then n1 = k
-        if len( dims ) then dims &= ", "
-        dims &= "0 to " & (k - 1)
-        nd += 1
-        t = Tko.CImport.Unwrap( *e.x, api->getElementType( t ) )
+'' tiko's indentation for a line RecordEmit wrote with leading tabs: four spaces per level.
+private function Retab_( byref s as string, byref ind as string, byref depth as int32 ) as string
+    depth = 0
+    while (depth < len( s )) andalso (s[depth] = 9)
+        depth += 1
     wend
-    '' 'char name[16]' IS A STRING FIELD: zstring * 16.
-    if (nd = 1) andalso (t.kind = TK_CHAR_S) then
-        return Tko.CImport.NameField( cname, false ) & " as zstring * " & n1
-    end if
-    dim as string ty = Tko.CImport.TypeText( *e.x, t, why )
-    if len( ty ) = 0 then return ""
-    dim as string nm = Tko.CImport.NameField( cname, nd > 0 )
-    if nd > 0 then return nm & "(" & dims & ") as " & ty
-    return nm & " as " & ty
+    return ind & space( 4 * depth ) & mid( s, depth + 1 )
 end function
 
-'' A record P2 writes: every child a plain field, no bitfield, laid out at natural alignment.
-'' Anything else is P3's (records.tiko's analysis, layout-preserving).
+'' A record, through src/cimport's RecordEmit (D3): its members, bit-fields, anonymous and
+'' nested members, 'field = N' and every refusal are the importer's; the layout is c2t's.
+'' Each member line goes on the source line its member starts on, at that line's
+'' indentation, with that line's comments; comment and blank lines between stay where they
+'' are. Records C declared inside this one -- and the ones named for unnamed field types --
+'' come first, as RecordEmit orders them.
 private function Record_( byref e as C2tEmit, byval rc as Tko.CImport.CXCursor, byval l1 as int32, _
                           byval l2 as int32, byref recName as string, byref tail as string, _
                           byref text as string, byref reason as string, byref why as string ) as boolean
-    dim as Tko.CImport.ClangApi ptr api = e.api
-    dim as boolean isUnion = (api->getCursorKind( rc ) = CK_UNION)
-    dim as CurVec_ kids
-    dim as boolean dll
-    Kids_( e, rc, kids, dll )
-    dim as int64 maxAlign = 1
-    for i as int32 = 0 to kids.Count - 1
-        dim as int32 k = api->getCursorKind( kids[i] )
-        '' AN ATTRIBUTE IS NOT A MEMBER: 'packed' shows up as a child (Index.h's attribute
-        '' kinds, 400-439), and the alignment check below is what refuses it.
-        if (k >= CK_FIRSTATTR) andalso (k <= CK_LASTATTR) then continue for
-        if k <> CK_FIELD then
-            reason = "not-yet"
-            why = "record '" & recName & "' declares a nested or anonymous member -- c2t P3"
-            return false
-        end if
-        if api->Cursor_isBitField( kids[i] ) then
-            reason = "not-yet"
-            why = "record '" & recName & "' has a bit-field -- c2t P3"
-            return false
-        end if
-        dim as int64 al = api->Type_getAlignOf( api->getCursorType( kids[i] ) )
-        if al > maxAlign then maxAlign = al
-    next
-    dim as int64 ra = api->Type_getAlignOf( api->getCursorType( rc ) )
-    if (kids.Count = 0) orelse (ra <> maxAlign) then
-        reason = "not-yet"
-        why = "record '" & recName & "' is " & iif( kids.Count = 0, "empty", "packed or over-aligned" ) & " -- c2t P3"
+    dim as Tko.CImport.CImp ptr x = e.x
+    dim as int32 n0 = x->decls.Count
+    dim as int32 r0 = x->c2tRen.Count
+    if Tko.CImport.RecordEmit( *x, rc, recName, why ) = false then
+        x->curRecordUsr = ""
+        while x->c2tRen.Count > r0
+            x->c2tRen.Pop( )
+        wend
+        '' A RECORD THE LAYOUT CHECK REFUSED (--verify) says so in its reason.
+        reason = "refused-type"
+        for i as int32 = 0 to x->opts->refuseName.Count - 1
+            if lcase( x->opts->refuseName[i] ) = lcase( recName ) then reason = "layout"
+        next
+        why = "record '" & recName & "': " & why
         return false
     end if
-
-    '' Each field's text, and the source line it starts on. A pointer to the record itself
-    '' is 'Name ptr' (types.tiko's self-reference rule, through curRecordUsr).
-    dim as Tko.StrVec ft
-    dim as C2tIntVec fl
-    e.x->curRecordUsr = Tko.CImport.CursorUsr( *e.x, rc )
-    for i as int32 = 0 to kids.Count - 1
-        dim as int32 k = api->getCursorKind( kids[i] )
-        if (k >= CK_FIRSTATTR) andalso (k <= CK_LASTATTR) then continue for
-        dim as string s = FieldText_( e, kids[i], why )
-        if len( s ) = 0 then
-            e.x->curRecordUsr = ""
-            reason = "refused-type"
-            why = "record '" & recName & "' field '" & Tko.CImport.CursorName( *e.x, kids[i] ) & "': " & why
-            return false
-        end if
-        ft.Push( s )
-        fl.Push( LineOf_( e, Start_( e, kids[i] ) ) )
+    x->curRecordUsr = ""
+    '' ALREADY WRITTEN -- as a nested record of one before it: nothing more to say here.
+    if x->decls.Count = n0 then
+        text = ""
+        return true
+    end if
+    for i as int32 = r0 to x->c2tRen.Count - 1
+        e.renames.Push( "field      " & x->c2tRen[i] )
     next
-    e.x->curRecordUsr = ""
 
-    '' THE LAYOUT: header on the record's first line, one line per field at its own
-    '' indentation, 'end type' on the closing brace's line. A line without a field keeps its
-    '' comments, or stays blank.
     dim as string ind = BaseIndent_( e, l1 )
     dim as Tko.StrVec outL
-    dim as string kw = iif( isUnion, "union", "type" )
-    dim as int32 lastLine = l2
-    dim as int32 fi = 0
-    for m as int32 = l1 to lastLine
-        dim as string here
-        if m = l1 then
-            here = ind & kw & " " & recName
-            '' Fields on the header line itself ('struct S { int x; } S;') go below it.
-            dim as boolean any_ = false
-            while (fi < ft.Count) andalso (fl[fi] = m)
-                if any_ = false then outL.Push( Trail_( e, here, m ) )
-                any_ = true
-                outL.Push( ind & "    " & ft[fi] )
-                fi += 1
-            wend
-            if any_ = false then outL.Push( Trail_( e, here, m ) )
-            if m = lastLine then outL.Push( ind & "end " & kw & tail )
-            continue for
+    '' WHAT HAD TO COME FIRST: nested named records, records for unnamed field types.
+    for i as int32 = n0 to x->decls.Count - 2
+        dim as Tko.StrVec pl
+        PushSplit_( pl, x->decls[i] )
+        for j as int32 = 0 to pl.Count - 1
+            dim as int32 dd
+            outL.Push( Retab_( pl[j], ind, dd ) )
+        next
+    next
+
+    '' THIS RECORD: head, member lines, end -- each with the source line it belongs to.
+    dim as Tko.StrVec rl
+    PushSplit_( rl, x->decls[x->decls.Count - 1] )
+    dim as int32 nb = rl.Count - 2
+    dim as Tko.StrVec et
+    dim as C2tIntVec el
+    et.Push( rl[0] ) : el.Push( l1 )
+    dim as int32 prev = l1
+    for i as int32 = 0 to nb - 1
+        dim as int32 sl = prev
+        if (i < x->c2tRecOfs.Count) andalso (x->c2tRecOfs[i] >= 0) then sl = LineOf_( e, x->c2tRecOfs[i] )
+        if sl < prev then sl = prev
+        if sl > l2 then sl = l2
+        et.Push( rl[i + 1] ) : el.Push( sl )
+        prev = sl
+    next
+    et.Push( rl[rl.Count - 1] & tail ) : el.Push( l2 )
+
+    for i as int32 = 0 to et.Count - 1
+        '' THE GAP before this line: comment and blank lines stay; a line of code with no
+        '' member of its own ('{' alone) gives its comments to the line before.
+        if i > 0 then
+            for m as int32 = el[i - 1] + 1 to el[i] - 1
+                if CommentOnly_( e, m ) then
+                    dim as int32 cc, ce
+                    outL.Push( Indent_( LineText( *e.src, m ) ) & LineComments_( e, m, cc, ce ) )
+                elseif Blank_( e, m ) then
+                    outL.Push( "" )
+                else
+                    dim as int32 cc, ce
+                    dim as string cm = LineComments_( e, m, cc, ce )
+                    if len( cm ) andalso (outL.Count > 0) then outL[outL.Count - 1] &= " " & cm
+                end if
+            next
         end if
-        if m = lastLine then
-            while (fi < ft.Count) andalso (fl[fi] = m)
-                outL.Push( ind & "    " & ft[fi] )
-                fi += 1
-            wend
-            outL.Push( Trail_( e, ind & "end " & kw & tail, m ) )
-            continue for
-        end if
-        if (fi < ft.Count) andalso (fl[fi] = m) then
-            dim as string fin = Indent_( LineText( *e.src, m ) )
-            while (fi < ft.Count) andalso (fl[fi] = m)
-                dim as string s = fin & ft[fi]
-                fi += 1
-                if (fi >= ft.Count) orelse (fl[fi] <> m) then s = Trail_( e, s, m )
-                outL.Push( s )
-            wend
-        elseif CommentOnly_( e, m ) then
-            dim as int32 cc, ce
-            outL.Push( Indent_( LineText( *e.src, m ) ) & LineComments_( e, m, cc, ce ) )
-        elseif Blank_( e, m ) then
-            outL.Push( "" )
+        dim as string s
+        dim as int32 depth
+        if (i = 0) orelse (i = et.Count - 1) then
+            s = ind & et[i]
+        elseif (el[i] <> l1) andalso (el[i] <> l2) then
+            '' A MEMBER ON ITS OWN LINE keeps that line's indentation, nested blocks one
+            '' level deeper than their opening line.
+            dim as string raw = Retab_( et[i], "", depth )
+            s = Indent_( LineText( *e.src, el[i] ) ) & mid( raw, 4 * depth + 1 )
+            if (i > 1) andalso (el[i - 1] = el[i]) then s = Retab_( et[i], ind, depth )
         else
-            '' A LINE WITH CODE BUT NO FIELD START: '{' alone, or a field's second line.
-            '' Its comments go on the line before.
-            dim as int32 cc, ce
-            dim as string cm = LineComments_( e, m, cc, ce )
-            if len( cm ) andalso (outL.Count > 0) then outL[outL.Count - 1] &= " " & cm
+            s = Retab_( et[i], ind, depth )
         end if
+        '' THE LINE'S COMMENTS go after the last tiko line that belongs to it.
+        if (i = et.Count - 1) orelse (el[i + 1] <> el[i]) then s = Trail_( e, s, el[i] )
+        outL.Push( s )
     next
     for i as int32 = 0 to outL.Count - 1
         text &= outL[i]
         if i < outL.Count - 1 then text &= chr( 10 )
     next
-    Written_( e, rc )
     return true
 end function
 
@@ -525,6 +517,7 @@ private function Enum_( byref e as C2tEmit, byval ec as Tko.CImport.CXCursor, by
     for i as int32 = 0 to kids.Count - 1
         if api->getCursorKind( kids[i] ) <> CK_ENUMCONST then continue for
         dim as string s = FbName_( e, kids[i] )
+        Ren_( e, "constant", Tko.CImport.CursorName( *e.x, kids[i] ), s )
         '' A VALUE WHERE C WROTE ONE: clang's, until P4 translates the expression.
         dim as int32 a, b
         CursorSpan( *api, kids[i], a, b )
@@ -609,6 +602,7 @@ private function Typedef_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor, 
                            byref reason as string, byref why as string ) as boolean
     dim as Tko.CImport.ClangApi ptr api = e.api
     dim as string nm = FbName_( e, c )
+    Ren_( e, "type", Tko.CImport.CursorName( *e.x, c ), nm )
     dim as Tko.CImport.CXType u = Tko.CImport.Unwrap( *e.x, api->getTypedefDeclUnderlyingType( c ) )
     select case u.kind
     case TK_RECORD, TK_ENUM
@@ -694,6 +688,7 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
                              byref reason as string, byref why as string ) as boolean
     dim as Tko.CImport.ClangApi ptr api = e.api
     dim as int32 n0 = e.x->c2tFwd.Count
+    dim as int32 ren0 = e.renames.Count
     text = ""
 
     '' COMMENT LINES THE SPAN WAS WIDENED OVER (output.tiko, Widen_): a block comment that
@@ -767,6 +762,8 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
         '' THE NAME: the record's, or the typedef's that named an anonymous one. A typedef
         '' under ANOTHER name is written after the record as 'type Y as X'.
         dim as string nm = FbName_( e, d )
+        dim as string dcn = Tko.CImport.CursorName( *e.x, d )
+        if len( dcn ) then Ren_( e, "type", dcn, nm )
         dim as string tail
         for i as int32 = 0 to segIdx.Count - 1
             dim as C2tSegment s = p.segs[segIdx[i]]
@@ -833,6 +830,9 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
 
     if ok = false then
         Forget_( e, n0 )
+        while e.renames.Count > ren0
+            e.renames.Pop( )
+        wend
         return false
     end if
     '' THE ALIASES THIS DECLARATION NEEDS go above it, once each; a leading comment above both.
