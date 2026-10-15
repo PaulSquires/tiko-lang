@@ -4,7 +4,7 @@
 '' TEST: cli
 '' CLEAN: build/.c2t/skipped
 '' ARGS: c2t tests/c2t/src/skipped.h -o build/.c2t/skipped/skipped.ti
-'' EXPECT-EXIT: 2
+'' EXPECT-EXIT: 0
 '' EXPECT-FILE-HAS: build/.c2t/skipped/skipped.ti :: '' skipped.ti -- tiko header translated by c2t (tiko 
 '' EXPECT-FILE-HAS: build/.c2t/skipped/skipped.ti :: ) from the C header "skipped.h"\n''   source sha256 : 91bb1dcbc426648cc7f1b17cb9ec7a436a0b9edbcbf74b859486edabfe669790\n''   clang         : 
-'' EXPECT-FILE-HAS: build/.c2t/skipped/skipped.ti :: ''   passes        : x86_64-pc-windows-msvc\n''   options       : (none)\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' 1 item needs manual translation:\n''   line 22  skipped.h:8  C2T-TODO(unreached-branch)\n'' =============================================================================\n\n/' skipped.h -- branches this pass does not take. '/\n#pragma once\n\nextern "C"\n\n#ifdef TIKO_OS_WINDOWS\nextern win_only as int32\n#else\n'' C2T-TODO(unreached-branch) skipped.h:8 -- inactive for this pass; c2t sees no declarations in it\n'' int linux_only;\n#endif\n\n#if 0\n'' C2T-NOTE(if-0) skipped.h:12 -- inside '#if 0' in the C\n'' this text is not even C\n#endif\n\nend extern\n
+'' EXPECT-FILE-HAS: build/.c2t/skipped/skipped.ti :: ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu\n''   options       : (none)\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' Nothing needs manual translation.\n'' =============================================================================\n\n/' skipped.h -- branches this pass does not take. '/\n#pragma once\n\nextern "C"\n\n#ifdef TIKO_OS_WINDOWS\nextern win_only as int32\n#else\nextern linux_only as int32\n#endif\n\n#if 0\n'' C2T-NOTE(if-0) skipped.h:12 -- inside '#if 0' in the C\n'' this text is not even C\n#endif\n\nend extern\n

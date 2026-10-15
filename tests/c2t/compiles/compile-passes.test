@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/passes.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-passes
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/passes.h --pass -DWITH_EXTRAS --verify -o build/.c2t/compile-passes/passes.ti
+'' ARGS: -c build/.c2t/compile-passes/passes.ti -o build/.c2t/compile-passes/passes.o
+'' EXPECT-EXIT: 0

@@ -677,6 +677,10 @@ sub EmitInit( byref e as C2tEmit, byref api as Tko.CImport.ClangApi, byref x as 
         x.c2tTdName.Push( td( i ) )
         x.c2tTdText.Push( td( i + 1 ) )
     next
+    '' wchar_t IS THE TARGET'S: 2 bytes on Windows, 4 on Linux (a pointer to one is 'wstring
+    '' ptr' either way, types.tiko). The merge guards the difference.
+    x.c2tTdName.Push( "wchar_t" )
+    x.c2tTdText.Push( iif( io.isWindows, "uint16", "int32" ) )
     Tko.CImport.DeclPassNames( x )
     '' WHAT OTHER FILES DECLARE IS WRITTEN ALREADY -- by their own .ti, or mapped above.
     dim as CurVec_ top

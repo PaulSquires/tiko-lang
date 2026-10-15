@@ -55,7 +55,7 @@ private function ParseArgs_( byref args as Tko.StrVec, byref o as C2tOptions, by
     while i < args.Count
         dim as string w = args[i]
         select case w
-        case "-o", "-I", "-D", "-U", "--pass"
+        case "-o", "-I", "-D", "-U", "--pass", "--sysroot"
             if i + 1 >= args.Count then
                 ctx.diags.ReportGlobal( Tko.TKO0101, w )
                 return false
@@ -67,6 +67,7 @@ private function ParseArgs_( byref args as Tko.StrVec, byref o as C2tOptions, by
             case "-D"     : o.defines.Push( v )
             case "-U"     : o.undefs.Push( v )
             case "--pass" : o.passArgs.Push( v )
+            case "--sysroot" : o.sysroot = v
             end select
             if w <> "-o" then
                 if len( optText ) then optText &= " "
@@ -104,21 +105,25 @@ private function ParseArgs_( byref args as Tko.StrVec, byref o as C2tOptions, by
     return ok
 end function
 
-'' ONE TRANSLATION, start to finish: the clang pass, the idioms, the declarations, the file.
-'' The records in io.refuseName are refused with io.refuseWhy -- what --verify found last
-'' round. False, with the diagnostics reported, when clang could not parse the header.
-private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.CImport.ClangApi, _
-                             byref src as C2tSource, byref o as C2tOptions, _
-                             byref io as Tko.CImport.CImportOptions, byref optText as string, _
-                             byref outName as string, byref text as string, byref manifest as string, _
-                             byref asserts as string, byref todos as int32 ) as boolean
+'' ONE PASS, start to finish: the clang parse for its target and defines, the idioms, the
+'' declarations, the macros and conditionals. Its blocks and verdicts go to 'po' for the merge.
+'' False, with the diagnostics reported, when clang could not parse the header.
+private function TranslatePass_( byref ctx as Tko.CompilerContext, byref api as Tko.CImport.ClangApi, _
+                                 byref src as C2tSource, byref po_ as C2tOptions, _
+                                 byref io as Tko.CImport.CImportOptions, byref po as C2tPassOut ) as boolean
     dim as C2tPass p
-    if RunPass( api, src, o, io.triple, p ) = false then
-        ctx.diags.ReportGlobal( Tko.TKO0120, o.input_ )
+    if RunPass( api, src, po_, io.triple, p ) = false then
+        ctx.diags.ReportGlobal( Tko.TKO0120, po_.input_ & " (" & io.triple & ")" )
         dim as Tko.SourceRange none_
+        dim as boolean missing = false
         for i as int32 = 0 to p.clangDiags.Count - 1
             ctx.diags.AddNote( Tko.TKO0900, none_, "clang: " & p.clangDiags[i] )
+            if instr( p.clangDiags[i], "file not found" ) > 0 then missing = true
         next
+        if missing andalso (io.isWindows = false) andalso (len( po_.sysroot ) = 0) then
+            ctx.diags.AddNote( Tko.TKO0900, none_, _
+                "the Linux pass needs Linux's system headers: give --sysroot (on Windows, the WSL root, e.g. //wsl.localhost/Ubuntu)" )
+        end if
         return false
     end if
 
@@ -136,29 +141,105 @@ private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.
     MacroDirectives( e, p, dirs, blocks )
     ClosePass( api, p )
 
-    '' clong/culong live in crt/long.bi; extern "C" is placed here unless the header's own
-    '' __cplusplus block said where.
+    po.triple = io.triple
+    po.isWindows = io.isWindows
+    po.blocks = blocks
+    po.dirState = e.dirState
+    po.dirText = e.dirText
+    po.dirReason = e.dirReason
+    po.dirWhy = e.dirWhy
+    po.skipped = p.skipped
+    po.renames = e.renames
+    po.needsCLong = x.needsCLong
+    po.guarded = p.guarded
+    po.manifest = ""
+    for i as int32 = 0 to x.manifest.Count - 1
+        po.manifest &= x.manifest[i] & chr( 10 )
+    next
+    po.asserts = ""
+    for i as int32 = 0 to e.asserts.Count - 1
+        po.asserts &= e.asserts[i] & chr( 10 )
+    next
+    return true
+end function
+
+'' THE PASSES (D5): each target, Windows then Linux, plain and then once per --pass. Their
+'' outputs merged into one file (merge.tiko); text 'todos' as Assemble counts them.
+private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.CImport.ClangApi, _
+                             byref src as C2tSource, byref o as C2tOptions, byref optText as string, _
+                             byref outName as string, byref clangExe as string, _
+                             refuseName() as Tko.StrVec, refuseWhy() as Tko.StrVec, _
+                             byref outs as C2tPassOutVec, byref text as string, byref todos as int32 ) as boolean
+    dim as Tko.TargetId tg( 0 to 1 ) = { Tko.TARGET_WINDOWS_X86_64, Tko.TARGET_LINUX_X86_64 }
+    outs.Clear( )
+    for extraNo as int32 = 0 to o.passArgs.Count
+        for ti as int32 = 0 to 1
+            dim as C2tOptions po_ = o
+            po_.passArgs.Clear( )
+            if extraNo > 0 then po_.passArgs.Push( o.passArgs[extraNo - 1] )
+            dim as Tko.CImport.CImportOptions io
+            io.triple = Tko.Codegen.TargetFor( tg( ti ) ).triple
+            io.targetName = Tko.TargetName( tg( ti ) )
+            io.isWindows = Tko.TargetIsWindows( tg( ti ) )
+            io.clangExe = clangExe
+            for i as int32 = 0 to refuseName( ti ).Count - 1
+                io.refuseName.Push( refuseName( ti )[i] )
+                io.refuseWhy.Push( refuseWhy( ti )[i] )
+            next
+            dim as C2tPassOut po
+            if TranslatePass_( ctx, api, src, po_, io, po ) = false then return false
+            po.extraNo = extraNo
+            if extraNo > 0 then po.extra = o.passArgs[extraNo - 1]
+            outs.Push( po )
+        next
+    next
+
+    dim as C2tDirVec dirs
+    ScanDirectives( src, dirs )
+    dim as C2tBlockVec merged
+    MergePasses( src, dirs, outs, merged )
+
+    '' WHAT THE PASSES SHARE: renames once each, crt/long.bi when any pass needed clong, and
+    '' extern "C" placed here unless the header's own __cplusplus block said where.
+    dim as Tko.StrVec renames
+    dim as boolean needsCLong = false
+    for p as int32 = 0 to outs.Count - 1
+        if outs[p].needsCLong then needsCLong = true
+        for i as int32 = 0 to outs[p].renames.Count - 1
+            dim as boolean have = false
+            for j as int32 = 0 to renames.Count - 1
+                if renames[j] = outs[p].renames[i] then have = true
+            next
+            if have = false then renames.Push( outs[p].renames[i] )
+        next
+    next
     dim as string preamble
-    if x.needsCLong then preamble = "#include once " & chr( 34 ) & "crt/long.bi" & chr( 34 )
+    if needsCLong then preamble = "#include once " & chr( 34 ) & "crt/long.bi" & chr( 34 )
+    '' A GLOBAL -D IS THE CONFIGURATION TRANSLATED FOR: the file defines it too, so its own
+    '' conditionals select what was translated. A --pass's define is the user's to set.
+    for i as int32 = 0 to o.defines.Count - 1
+        dim as string d = o.defines[i]
+        dim as int32 eq = instr( d, "=" )
+        if len( preamble ) then preamble &= chr( 10 )
+        if eq > 0 then
+            preamble &= "#define " & left( d, eq - 1 ) & " " & mid( d, eq + 1 )
+        else
+            preamble &= "#define " & d & " 1"
+        end if
+    next
     dim as string externLine = "extern " & chr( 34 ) & "C" & chr( 34 )
     dim as boolean externC = true
-    for i as int32 = 0 to blocks.Count - 1
-        if (blocks[i].isTodo = false) andalso (blocks[i].text = externLine) then externC = false
+    for i as int32 = 0 to merged.Count - 1
+        if (merged[i].isTodo = false) andalso (merged[i].text = externLine) then externC = false
     next
 
     dim as Tko.StrVec passes
-    passes.Push( io.triple )
+    for p as int32 = 0 to outs.Count - 1
+        passes.Push( outs[p].triple & iif( len( outs[p].extra ) > 0, " " & outs[p].extra, "" ) )
+    next
     todos = 0
-    text = Assemble( src, blocks, outName, api.version, passes, optText, _
-                     preamble, externC, e.renames, todos )
-    manifest = ""
-    for i as int32 = 0 to x.manifest.Count - 1
-        manifest &= x.manifest[i] & chr( 10 )
-    next
-    asserts = ""
-    for i as int32 = 0 to e.asserts.Count - 1
-        asserts &= e.asserts[i] & chr( 10 )
-    next
+    text = Assemble( src, merged, outName, api.version, passes, optText, _
+                     preamble, externC, renames, todos )
     return true
 end function
 
@@ -182,44 +263,56 @@ private function Run_( byref args as Tko.StrVec, byref ctx as Tko.CompilerContex
         return 1
     end if
 
-    '' ONE PASS, for tiko's default target, until P5 adds the Linux pass and the merge.
-    dim as Tko.CImport.CImportOptions io
-    io.triple = Tko.Codegen.TargetFor( Tko.TARGET_WINDOWS_X86_64 ).triple
-    io.targetName = Tko.TargetName( Tko.TARGET_WINDOWS_X86_64 )
-    io.isWindows = true
-    io.clangExe = clangExe
-
     dim as string outPath = o.output_
     if len( outPath ) = 0 then outPath = DefaultOut_( o.input_ )
     dim as string outName = iif( outPath = "-", BaseName_( DefaultOut_( o.input_ ) ), BaseName_( outPath ) )
 
-    '' --verify (D17): THE TRANSLATION IS LAID OUT BY tiko's OWN FRONT END, in this process,
-    '' and every record compared with clang's layout -- driver/cimportverify.tiko, the check
-    '' #cinclude runs. A record that differs is refused, with the difference as its TODO's
-    '' reason, and the header translated again: what held it by value goes with it. The
-    '' layout is the pass's target's (the context takes the host's until told).
-    if o.verify then
-        ctx.options.target = Tko.TARGET_WINDOWS_X86_64
-        ctx.types.Attach( @ctx.names, Tko.TargetLayoutFor( ctx.options.target ) )
-    end if
-    dim as string text, manifest, asserts
+    '' --verify (D17), PER TARGET: the merged file is laid out by tiko's own front end for
+    '' each target, in this process (driver/cimportverify.tiko, the check #cinclude runs),
+    '' every record compared with that target's clang layout and every integer macro kept as
+    '' an expression asserted by tiko's preprocessor. A record that differs is refused in
+    '' that target's passes only -- the merge then guards it -- and the header translated
+    '' again. The base passes are what is checked: a --pass's records sit under a guard on
+    '' its define, which the check does not set.
+    dim as Tko.StrVec refuseName( 0 to 1 ), refuseWhy( 0 to 1 )
+    dim as Tko.TargetId tg( 0 to 1 ) = { Tko.TARGET_WINDOWS_X86_64, Tko.TARGET_LINUX_X86_64 }
+    dim as C2tPassOutVec outs
+    dim as string text
     dim as int32 todos
     for round as int32 = 1 to 4
-        if Translate_( ctx, api, src, o, io, optText, outName, text, manifest, asserts, todos ) = false then return 1
+        if Translate_( ctx, api, src, o, optText, outName, clangExe, refuseName(), refuseWhy(), _
+                       outs, text, todos ) = false then return 1
         if o.verify = false then exit for
-        dim as Tko.StrVec badName, badWhy
-        '' THE MACROS TOO: each integer one kept as an expression is asserted equal to clang's
-        '' value by tiko's preprocessor, in the text checked -- never in the file written.
-        dim as string checkText = text & chr( 10 ) & asserts
-        if Tko.CImportDriver.VerifyLayout( ctx, checkText, manifest, badName, badWhy ) = false then
-            ctx.diags.ReportGlobal( Tko.TKO0175, o.input_ )
-            return 1
-        end if
-        if badName.Count = 0 then exit for
-        for i as int32 = 0 to badName.Count - 1
-            io.refuseName.Push( badName[i] )
-            io.refuseWhy.Push( "tiko's layout differs from clang's: " & badWhy[i] )
+        dim as boolean grew = false
+        for ti as int32 = 0 to 1
+            dim as string manifest, asserts
+            for p as int32 = 0 to outs.Count - 1
+                if (outs[p].isWindows = Tko.TargetIsWindows( tg( ti ) )) andalso (outs[p].extraNo = 0) then
+                    manifest &= outs[p].manifest
+                    asserts &= outs[p].asserts
+                end if
+            next
+            ctx.options.target = tg( ti )
+            ctx.types.Attach( @ctx.names, Tko.TargetLayoutFor( tg( ti ) ) )
+            dim as Tko.StrVec badName, badWhy
+            if Tko.CImportDriver.VerifyLayout( ctx, text & chr( 10 ) & asserts, manifest, badName, badWhy ) = false then
+                ctx.diags.ReportGlobal( Tko.TKO0175, o.input_ & " (" & Tko.TargetName( tg( ti ) ) & ")" )
+                return 1
+            end if
+            for i as int32 = 0 to badName.Count - 1
+                dim as boolean have = false
+                for j as int32 = 0 to refuseName( ti ).Count - 1
+                    if lcase( refuseName( ti )[j] ) = lcase( badName[i] ) then have = true
+                next
+                if have = false then
+                    refuseName( ti ).Push( badName[i] )
+                    refuseWhy( ti ).Push( "tiko's layout differs from clang's on " & Tko.TargetName( tg( ti ) ) & _
+                                          ": " & badWhy[i] )
+                    grew = true
+                end if
+            next
         next
+        if grew = false then exit for
     next
 
     if WriteBytes_( outPath, text ) = false then

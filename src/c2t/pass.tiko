@@ -84,6 +84,9 @@ function RunPass( byref api as Tko.CImport.ClangApi, byref src as C2tSource, _
     for i as int32 = 0 to opts.passArgs.Count - 1
         Tko.Spawn.SplitArgs( opts.passArgs[i], av )
     next
+    '' A LINUX PASS ON ANOTHER HOST needs Linux's system headers: --sysroot names them (the WSL
+    '' root works: '//wsl.localhost/Ubuntu'). The Windows pass finds the SDK itself.
+    if (len( opts.sysroot ) > 0) andalso (instr( triple, "linux" ) > 0) then av.Push( "--sysroot=" & opts.sysroot )
     dim as zstring ptr argv( 0 to av.Count )
     for i as int32 = 0 to av.Count - 1
         argv( i ) = strptr( av[i] )

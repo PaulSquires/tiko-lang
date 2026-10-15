@@ -4,7 +4,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 
 /* ---- typedefs */
 typedef unsigned int  u32;          /* a scalar */
@@ -57,7 +56,7 @@ void opaque_use(Opaque *o, struct Later *l, Holder h);
 compare_fn pick(count_t n, native_t m, u32 flags);
 inline int inc(int v);
 int legacy();
-FILE *open_log(const char *path);              /* a system type: a TODO */
+max_align_t *aligned_block(void);             /* a system type: a TODO */
 void use_packed(Packed *p);                    /* a record left as a TODO: Packed ptr */
 
 _Static_assert(sizeof(u32) == 4, "u32");

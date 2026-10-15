@@ -1,0 +1,418 @@
+'' merge.tiko -- the passes as one file. See c2t.ti.
+''
+'' EVERY PASS TRANSLATES THE WHOLE HEADER (RFC-0001 D5): Windows and Linux by default, each
+'' again with every '--pass'. Their blocks line up by C line, because the text they come from
+'' is the same; what differs is what each pass sees and how it spells it. The merge walks the
+'' lines once:
+''
+''   no pass sees the line            one unreached-branch TODO (an inactive branch in every
+''                                    pass), or '#if 0''s NOTE
+''   every live pass writes the same  written once
+''   the passes write different text  each text under a guard naming its passes:
+''                                    '#if defined(TIKO_OS_WINDOWS)' / '#elseif ...' / '#endif'
+''   only some passes see it          under a guard too -- unless every #if around it is
+''                                    translated, in which case tiko's own #if already selects
+''                                    exactly what clang did (emitmacro.tiko checked that)
+''
+'' A guard is synthesised from what separates the passes: the target (TIKO_OS_WINDOWS,
+'' TIKO_OS_LINUX), a '--pass "-DFOO"' (defined(FOO)), or both. Passes no guard can describe are
+'' a guard-unstatable TODO.
+''
+'' DIRECTIVES FIRST. A conditional's directives take one verdict across the passes -- the
+'' passes that do not see it have no say -- and a group with one TODO directive in any pass, or
+'' inside a TODO group, is a TODO in all of them: an '#if' translated in one pass and quoted
+'' in another would leave the file unbalanced.
+
+#import "std/containers"
+#include once "c2t/c2t.ti"
+#include once "support/spawn.ti"
+
+namespace Tko.C2t
+
+private function GroupOf_( byref dirs as C2tDirVec, byval k as int32 ) as int32
+    select case dirs[k].kind
+    case DK_IF, DK_IFDEF, DK_IFNDEF : return k
+    case DK_ELIF, DK_ELSE, DK_ENDIF : return dirs[k].cond
+    end select
+    return -1
+end function
+
+private function Indent_( byref s as string ) as string
+    dim as int32 k = 0
+    while (k < len( s )) andalso ((s[k] = 32) orelse (s[k] = 9))
+        k += 1
+    wend
+    return left( s, k )
+end function
+
+'' ---------------------------------------------------------------- one verdict per directive
+
+private sub Verdicts_( byref dirs as C2tDirVec, byref outs as C2tPassOutVec, byref fs as C2tIntVec, _
+                       byref ft as Tko.StrVec, byref fr as Tko.StrVec, byref fw as Tko.StrVec )
+    dim as int32 n = dirs.Count
+    for k as int32 = 0 to n - 1
+        dim as int32 st = 0
+        dim as string tx, rs, wy
+        dim as boolean anyUnreached = false, anyLive = false, bad = false, seen = false
+        for p as int32 = 0 to outs.Count - 1
+            dim as int32 s = outs[p].dirState[k]
+            if (s = 2) andalso (outs[p].dirReason[k] = "unreached-branch") then
+                anyUnreached = true
+                continue for
+            end if
+            if s = 0 then continue for
+            anyLive = true
+            if s = 1 then
+                if seen andalso (tx <> outs[p].dirText[k]) then
+                    if bad = false then
+                        rs = "conditional"
+                        wy = "the passes translate it differently"
+                    end if
+                    bad = true
+                end if
+                tx = outs[p].dirText[k]
+                seen = true
+            else
+                if bad = false then
+                    rs = outs[p].dirReason[k]
+                    wy = outs[p].dirWhy[k]
+                end if
+                bad = true
+            end if
+        next
+        if bad then
+            st = 2
+        elseif seen then
+            st = 1
+        elseif anyUnreached andalso (anyLive = false) then
+            st = 2
+            rs = "unreached-branch"
+            wy = "inside a branch no pass takes"
+        end if
+        fs.Push( st ) : ft.Push( tx ) : fr.Push( rs ) : fw.Push( wy )
+    next
+
+    '' A GROUP IS TRANSLATED WHOLE, and only inside translated groups -- to a fixed point.
+    dim as boolean changed = true
+    while changed
+        changed = false
+        for g as int32 = 0 to n - 1
+            if GroupOf_( dirs, g ) <> g then continue for
+            dim as boolean todo = false
+            dim as string why
+            for k as int32 = g to n - 1
+                if GroupOf_( dirs, k ) <> g then continue for
+                if (fs[k] = 2) andalso (fr[k] <> "unreached-branch") then
+                    todo = true
+                    if len( why ) = 0 then why = fw[k]
+                end if
+                if k = dirs[g].endif_ then exit for
+            next
+            '' ...OR INSIDE ONE THAT IS: an enclosing group that is a TODO leaves tiko no #if
+            '' around this one, so this one cannot select what clang selected either.
+            if todo = false then
+                for h as int32 = 0 to n - 1
+                    if (h = g) orelse (GroupOf_( dirs, h ) <> h) orelse (dirs[h].endif_ < 0) then continue for
+                    if (dirs[h].line1 < dirs[g].line1) andalso (dirs[dirs[h].endif_].line1 > dirs[g].line1) then
+                        if (fs[h] = 2) andalso (fr[h] <> "unreached-branch") then
+                            todo = true
+                            why = "inside a conditional that stays a TODO"
+                            exit for
+                        end if
+                    end if
+                next
+            end if
+            if todo = false then continue for
+            for k as int32 = g to n - 1
+                if GroupOf_( dirs, k ) <> g then continue for
+                if (fs[k] = 1) orelse ((fs[k] = 2) andalso (fr[k] = "unreached-branch")) then
+                    if fs[k] = 1 then changed = true
+                    fs[k] = 2
+                    fr[k] = "conditional"
+                    fw[k] = why
+                end if
+                if k = dirs[g].endif_ then exit for
+            next
+        next
+    wend
+end sub
+
+'' ---------------------------------------------------------------- guards
+
+'' A --pass's one '-DNAME' or '-DNAME=v' (or '-D NAME'): NAME; "" for anything else.
+private function OneDefine_( byref extra as string ) as string
+    dim as Tko.StrVec a
+    Tko.Spawn.SplitArgs( extra, a )
+    dim as string d
+    if (a.Count = 1) andalso (left( a[0], 2 ) = "-D") then d = mid( a[0], 3 )
+    if (a.Count = 2) andalso (a[0] = "-D") then d = a[1]
+    dim as int32 eq = instr( d, "=" )
+    if eq > 0 then d = left( d, eq - 1 )
+    return d
+end function
+
+'' A tiko #if condition true for exactly the passes in 'mask', or "" when none can say it.
+private function Guard_( byref outs as C2tPassOutVec, byval mask as uint32 ) as string
+    dim as int32 n = outs.Count
+    dim as uint32 winM = 0, linM = 0
+    dim as int32 maxExtra = 0
+    for p as int32 = 0 to n - 1
+        if outs[p].isWindows then winM or= (1u shl p) else linM or= (1u shl p)
+        if outs[p].extraNo > maxExtra then maxExtra = outs[p].extraNo
+    next
+    '' THE CANDIDATES: each target, each --pass's define, the base passes (none of the defines),
+    '' and every target-and-define pair.
+    dim as Tko.StrVec expr
+    dim as containers.Array( of uint32 ) em
+    expr.Push( "defined(TIKO_OS_WINDOWS)" ) : em.Push( winM )
+    expr.Push( "defined(TIKO_OS_LINUX)" ) : em.Push( linM )
+    dim as Tko.StrVec dexpr
+    dim as containers.Array( of uint32 ) dm
+    dim as boolean allNamed = true
+    dim as string baseExpr
+    for k as int32 = 1 to maxExtra
+        dim as string nm, ex
+        dim as uint32 m = 0
+        for p as int32 = 0 to n - 1
+            if outs[p].extraNo = k then
+                m or= (1u shl p)
+                ex = outs[p].extra
+            end if
+        next
+        nm = OneDefine_( ex )
+        if len( nm ) = 0 then
+            allNamed = false
+            continue for
+        end if
+        dexpr.Push( "defined(" & nm & ")" ) : dm.Push( m )
+        if len( baseExpr ) then baseExpr &= " andalso "
+        baseExpr &= "(not defined(" & nm & "))"
+    next
+    if allNamed andalso (maxExtra > 0) then
+        dim as uint32 m = 0
+        for p as int32 = 0 to n - 1
+            if outs[p].extraNo = 0 then m or= (1u shl p)
+        next
+        dexpr.Push( "(" & baseExpr & ")" ) : dm.Push( m )
+    end if
+    for i as int32 = 0 to dexpr.Count - 1
+        expr.Push( dexpr[i] ) : em.Push( dm[i] )
+        expr.Push( "(defined(TIKO_OS_WINDOWS) andalso " & dexpr[i] & ")" ) : em.Push( winM and dm[i] )
+        expr.Push( "(defined(TIKO_OS_LINUX) andalso " & dexpr[i] & ")" ) : em.Push( linM and dm[i] )
+    next
+    for i as int32 = 0 to expr.Count - 1
+        if em[i] = mask then return expr[i]
+    next
+    return ""
+end function
+
+'' ---------------------------------------------------------------- the walk
+
+sub MergePasses( byref src as C2tSource, byref dirs as C2tDirVec, byref outs as C2tPassOutVec, _
+                 byref merged as C2tBlockVec )
+    dim as int32 np = outs.Count
+    dim as int32 nl = LineCount( src )
+    dim as uint32 full = (1u shl np) - 1
+
+    '' ---- the directives' verdicts, applied to every pass's blocks.
+    dim as C2tIntVec fs
+    dim as Tko.StrVec ft, fr, fw
+    Verdicts_( dirs, outs, fs, ft, fr, fw )
+    for p as int32 = 0 to np - 1
+        for b as int32 = 0 to outs[p].blocks.Count - 1
+            dim as int32 k = outs[p].blocks[b].dirNo - 1
+            if (k < 0) orelse (fs[k] = 0) then continue for
+            '' A PASS THAT DOES NOT SEE THE DIRECTIVE keeps it unreached: the merge must know
+            '' which passes write it, to guard it when no translated #if around it does.
+            if (outs[p].dirState[k] = 2) andalso (outs[p].dirReason[k] = "unreached-branch") then continue for
+            if fs[k] = 1 then
+                outs[p].blocks[b].isTodo = false
+                outs[p].blocks[b].text = ft[k]
+                outs[p].blocks[b].unreached = false
+                outs[p].blocks[b].isDecl = true
+            else
+                outs[p].blocks[b].isTodo = true
+                outs[p].blocks[b].reason = fr[k]
+                outs[p].blocks[b].why = fw[k]
+                outs[p].blocks[b].unreached = (fr[k] = "unreached-branch")
+            end if
+        next
+    next
+
+    '' ---- lines no translated #if encloses: one that only some passes see needs a guard.
+    dim as C2tIntVec underTodo
+    for l as int32 = 0 to nl
+        underTodo.Push( 0 )
+    next
+    for g as int32 = 0 to dirs.Count - 1
+        if (GroupOf_( dirs, g ) <> g) orelse (dirs[g].endif_ < 0) then continue for
+        '' ONLY A GROUP LEFT AS A TODO: an idiom's (the include guard, the __cplusplus block)
+        '' selects nothing that differs between the passes.
+        if (fs[g] <> 2) orelse (fr[g] = "unreached-branch") then continue for
+        for l as int32 = dirs[g].line2 + 1 to dirs[dirs[g].endif_].line1 - 1
+            underTodo[l] = 1
+        next
+    next
+
+    '' ---- which block of each pass covers each line.
+    dim as containers.Array( of C2tIntVec ) cover
+    for p as int32 = 0 to np - 1
+        dim as C2tIntVec cv
+        for l as int32 = 0 to nl
+            cv.Push( -1 )
+        next
+        for b as int32 = 0 to outs[p].blocks.Count - 1
+            for l as int32 = outs[p].blocks[b].line1 to outs[p].blocks[b].line2
+                cv[l] = b
+            next
+        next
+        cover.Push( cv )
+    next
+
+    dim as int32 l = 1
+    while l <= nl
+        dim as uint32 live = 0, starts = 0
+        for p as int32 = 0 to np - 1
+            dim as int32 c = cover[p][l]
+            if c < 0 then
+                live or= (1u shl p)
+            else
+                if outs[p].blocks[c].unreached = false then live or= (1u shl p)
+                if outs[p].blocks[c].line1 = l then starts or= (1u shl p)
+            end if
+        next
+
+        if live = 0 then
+            '' NO PASS SEES IT: one unreached block, cut where a pass starts to see the text.
+            dim as int32 q = -1
+            for p as int32 = 0 to np - 1
+                if starts and (1u shl p) then
+                    q = p
+                    exit for
+                end if
+            next
+            if q < 0 then
+                l += 1
+                continue while
+            end if
+            dim as C2tBlock b = outs[q].blocks[cover[q][l]]
+            for m as int32 = l + 1 to b.line2
+                dim as boolean anyLive = false
+                for p as int32 = 0 to np - 1
+                    dim as int32 c = cover[p][m]
+                    if (c < 0) orelse (outs[p].blocks[c].unreached = false) then anyLive = true
+                next
+                if anyLive then
+                    b.line2 = m - 1
+                    exit for
+                end if
+            next
+            merged.Push( b )
+            l = b.line2 + 1
+            continue while
+        end if
+
+        '' THE LIVE PASSES THAT WRITE SOMETHING HERE.
+        dim as uint32 cand = live and starts
+        if cand = 0 then
+            l += 1
+            continue while
+        end if
+        dim as int32 first = -1, e2 = l
+        dim as boolean disagree = false
+        for p as int32 = 0 to np - 1
+            if (cand and (1u shl p)) = 0 then continue for
+            dim as C2tBlock b = outs[p].blocks[cover[p][l]]
+            if first < 0 then
+                first = p
+                e2 = b.line2
+            elseif b.line2 <> e2 then
+                disagree = true
+                if b.line2 > e2 then e2 = b.line2
+            end if
+        next
+        dim as C2tBlock fb = outs[first].blocks[cover[first][l]]
+        if disagree then
+            fb.line2 = e2
+            fb.isTodo = true
+            fb.reason = "guard-unstatable"
+            fb.why = "the passes disagree on where this declaration ends"
+            merged.Push( fb )
+            l = e2 + 1
+            continue while
+        end if
+
+        '' THE TEXTS, grouped: each distinct one with the passes that write it.
+        dim as Tko.StrVec texts
+        dim as containers.Array( of uint32 ) masks
+        dim as C2tIntVec reps
+        for p as int32 = 0 to np - 1
+            if (cand and (1u shl p)) = 0 then continue for
+            dim as C2tBlock b = outs[p].blocks[cover[p][l]]
+            dim as string t = iif( b.isTodo, "!" & TodoText( src, b ), b.text )
+            dim as int32 at = -1
+            for i as int32 = 0 to texts.Count - 1
+                if texts[i] = t then at = i
+            next
+            if at < 0 then
+                texts.Push( t ) : masks.Push( 0 ) : reps.Push( p )
+                at = texts.Count - 1
+            end if
+            masks[at] or= (1u shl p)
+        next
+        dim as boolean wrap = (texts.Count > 1) orelse ((cand <> full) andalso (underTodo[l] <> 0))
+        if wrap = false then
+            merged.Push( fb )
+            l = fb.line2 + 1
+            continue while
+        end if
+
+        '' A GUARD PER TEXT.
+        dim as string ind = Indent_( LineText( src, l ) )
+        dim as string out_
+        dim as C2tBlock mb = fb
+        mb.isTodo = false
+        mb.unreached = false
+        mb.marks.Clear( )
+        dim as int32 lineNo = 0
+        dim as boolean ok = true
+        for i as int32 = 0 to texts.Count - 1
+            dim as string g = Guard_( outs, masks[i] )
+            if len( g ) = 0 then
+                ok = false
+                exit for
+            end if
+            out_ &= ind & iif( i = 0, "#if ", "#elseif " ) & g & chr( 10 )
+            lineNo += 1
+            dim as C2tBlock rb = outs[reps[i]].blocks[cover[reps[i]][l]]
+            if rb.isTodo then
+                mb.marks.Push( lineNo & chr( 9 ) & rb.reason & chr( 9 ) & rb.what & chr( 9 ) & rb.line1 )
+            else
+                for m as int32 = 0 to rb.marks.Count - 1
+                    dim as string mk = rb.marks[m]
+                    dim as int32 tb = instr( mk, chr( 9 ) )
+                    mb.marks.Push( (lineNo + valint( left( mk, tb - 1 ) )) & mid( mk, tb ) )
+                next
+                if rb.isDecl then mb.isDecl = true
+            end if
+            dim as string body = iif( rb.isTodo, TodoText( src, rb ), rb.text )
+            out_ &= body & chr( 10 )
+            for q as int32 = 1 to len( body )
+                if body[q - 1] = 10 then lineNo += 1
+            next
+            lineNo += 1
+        next
+        if ok = false then
+            fb.isTodo = true
+            fb.reason = "guard-unstatable"
+            fb.why = "the passes that write this cannot be told apart by a tiko #if"
+            merged.Push( fb )
+        else
+            mb.text = out_ & ind & "#endif"
+            merged.Push( mb )
+        end if
+        l = fb.line2 + 1
+    wend
+end sub
+
+end namespace

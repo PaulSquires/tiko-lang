@@ -438,6 +438,7 @@ private sub IfZeroNotes_( byref e as C2tEmit, byref blocks as C2tBlockVec, byval
         next
         blocks[b].isTodo = false
         blocks[b].text = t
+        blocks[b].unreached = true
     next
 end sub
 
@@ -484,6 +485,23 @@ sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDi
     env.lookup = @LookupDecl_
     env.typeLookup = @LookupType_
     Platform_( env, instr( p.triple, "windows" ) > 0 )
+    '' THE PASS'S OWN DEFINES (-D, --pass "-DFOO"): clang parsed with them, so the conditions
+    '' are judged with them -- and printed as the names they are, which a tiko program defines
+    '' the same way before it includes the file.
+    for i as int32 = 0 to p.args.Count - 1
+        dim as string a = p.args[i]
+        dim as string d
+        if (a = "-D") andalso (i + 1 < p.args.Count) then
+            d = p.args[i + 1]
+        elseif (left( a, 2 ) = "-D") andalso (len( a ) > 2) then
+            d = mid( a, 3 )
+        end if
+        if len( d ) = 0 then continue for
+        dim as int32 eq = instr( d, "=" )
+        dim as string nm = iif( eq > 0, left( d, eq - 1 ), d )
+        dim as string v = iif( eq > 0, mid( d, eq + 1 ), "1" )
+        CxEnvAdd( env, nm, nm, CXV_INT, true, vallng( v ) )
+    next
 
     '' CLANG'S VALUES, in one probe parse: every object-like macro with a body.
     dim as Tko.StrVec names, values
@@ -603,6 +621,7 @@ sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDi
         else
             blocks[b].reason = e.dirReason[k]
             blocks[b].why = e.dirWhy[k]
+            blocks[b].unreached = (e.dirReason[k] = "unreached-branch")
         end if
     next
 end sub

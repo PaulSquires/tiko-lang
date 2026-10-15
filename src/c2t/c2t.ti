@@ -92,6 +92,10 @@ type C2tBlock
     as boolean isTodo
     as boolean isDecl              '' a translated declaration (extern "C" opens before the first)
     as int32 dirNo                 '' the directive it holds alone, index + 1; 0 for none
+    as boolean unreached           '' C text this pass does not see: an inactive branch, '#if 0'
+    '' TODOs INSIDE a translated block's text -- a guarded merge (merge.tiko) can hold one:
+    '' each 'line-offset TAB reason TAB what TAB C-line', for the banner and the exit status.
+    marks as Tko.StrVec
     as string text             '' an idiom's replacement, LF-separated, "" for none
     as string reason           '' a TODO's reason, from the fixed vocabulary
     as string what             '' a TODO's subject, for the banner: names, a macro, a path
@@ -122,6 +126,28 @@ type C2tPass
     clangDiags as Tko.StrVec   '' clang's errors, when the header did not parse
 end type
 
+'' ---------------------------------------------------------------- one pass's result
+
+'' Everything one pass produced, kept for the merge (merge.tiko).
+type C2tPassOut
+    as string triple
+    as boolean isWindows
+    as int32 extraNo               '' 0 the base pass; k for the k-th --pass
+    as string extra                '' that --pass's clang arguments
+    blocks as C2tBlockVec
+    dirState as C2tIntVec
+    dirText as Tko.StrVec
+    dirReason as Tko.StrVec
+    dirWhy as Tko.StrVec
+    skipped as C2tIntVec
+    as string manifest
+    as string asserts
+    renames as Tko.StrVec
+    as boolean needsCLong
+    as boolean guarded
+end type
+type C2tPassOutVec as containers.Array( of C2tPassOut )
+
 '' ---------------------------------------------------------------- the run
 
 type C2tOptions
@@ -131,6 +157,7 @@ type C2tOptions
     defines as Tko.StrVec      '' -D
     undefs as Tko.StrVec       '' -U
     passArgs as Tko.StrVec     '' --pass, each one string of clang arguments
+    as string sysroot          '' --sysroot: the Linux passes' system headers, from a Windows host
     as boolean verify
 end type
 
@@ -282,6 +309,13 @@ declare sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p
                         byref e as C2tEmit, byref blocks as C2tBlockVec )
 '' 'preamble' goes after '#pragma once' (or first); 'externC' opens before the first
 '' translated declaration and closes at the end, when no __cplusplus block placed it.
+'' merge.tiko -- the passes' blocks as one file's: identical text once, differing text under a
+'' synthesised guard, C text no pass sees as one TODO.
+declare sub MergePasses( byref src as C2tSource, byref dirs as C2tDirVec, byref outs as C2tPassOutVec, _
+                         byref merged as C2tBlockVec )
+'' A TODO block's text: its header line and the C quoted beneath (output.tiko).
+declare function TodoText( byref src as C2tSource, byref b as C2tBlock ) as string
+
 declare function Assemble( byref src as C2tSource, byref blocks as C2tBlockVec, _
                            byref outName as string, byref clangVersion as string, _
                            byref passes as Tko.StrVec, byref optText as string, _

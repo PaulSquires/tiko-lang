@@ -229,6 +229,7 @@ sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p as C2tP
         b.line1 = m.l1
         b.line2 = m.l2
         b.isTodo = true
+        b.unreached = (m.reason = "unreached-branch")
         '' A DIRECTIVE ALONE IN ITS BLOCK can be replaced by emitmacro.tiko.
         if (j - i = 1) andalso (m.dir > 0) then b.dirNo = m.dir
         b.reason = m.reason
@@ -282,6 +283,15 @@ private sub PushLines_( byref v as Tko.StrVec, byref text as string )
     next
 end sub
 
+function TodoText( byref src as C2tSource, byref b as C2tBlock ) as string
+    dim as string t = Indent_( LineText( src, b.line1 ) ) & "'' C2T-TODO(" & b.reason & ") " & _
+                      src.name_ & ":" & b.line1 & " -- " & b.why
+    for k as int32 = b.line1 to b.line2
+        t &= chr( 10 ) & rtrim( "'' " & LineText( src, k ) )
+    next
+    return t
+end function
+
 private function Short_( byref s as string ) as string
     if len( s ) <= 60 then return s
     return left( s, 57 ) & "..."
@@ -302,7 +312,7 @@ function Assemble( byref src as C2tSource, byref blocks as C2tBlockVec, _
     next
 
     dim as Tko.StrVec body
-    dim as Tko.StrVec todoText
+    dim as Tko.StrVec todoList
     dim as C2tIntVec todoAt
     dim as boolean placed = (len( preamble ) = 0)
     dim as boolean opened = false
@@ -322,14 +332,10 @@ function Assemble( byref src as C2tSource, byref blocks as C2tBlockVec, _
         if bi >= 0 then
             dim as C2tBlock b = blocks[bi]
             if b.isTodo then
-                dim as string ind = Indent_( LineText( src, b.line1 ) )
                 todoAt.Push( body.Count )
-                todoText.Push( src.name_ & ":" & b.line1 & "  C2T-TODO(" & b.reason & ")" & _
+                todoList.Push( src.name_ & ":" & b.line1 & "  C2T-TODO(" & b.reason & ")" & _
                                iif( len( b.what ) > 0, "  " & Short_( b.what ), "" ) )
-                body.Push( ind & "'' C2T-TODO(" & b.reason & ") " & src.name_ & ":" & b.line1 & " -- " & b.why )
-                for k as int32 = b.line1 to b.line2
-                    body.Push( rtrim( "'' " & LineText( src, k ) ) )
-                next
+                PushLines_( body, TodoText( src, b ) )
             else
                 '' extern "C" OPENS BEFORE THE FIRST DECLARATION when no __cplusplus block
                 '' placed it (RFC-0001 §5.9), and closes at the end.
@@ -338,6 +344,21 @@ function Assemble( byref src as C2tSource, byref blocks as C2tBlockVec, _
                     body.Push( "" )
                     opened = true
                 end if
+                '' TODOs INSIDE THE TEXT (a guarded merge) count like any other.
+                for m as int32 = 0 to b.marks.Count - 1
+                    dim as Tko.StrVec f
+                    dim as string mk = b.marks[m] & chr( 9 )
+                    dim as int32 st = 1
+                    for q as int32 = 1 to len( mk )
+                        if mid( mk, q, 1 ) = chr( 9 ) then
+                            f.Push( mid( mk, st, q - st ) )
+                            st = q + 1
+                        end if
+                    next
+                    todoAt.Push( body.Count + valint( f[0] ) )
+                    todoList.Push( src.name_ & ":" & f[3] & "  C2T-TODO(" & f[1] & ")" & _
+                                   iif( len( f[2] ) > 0, "  " & Short_( f[2] ), "" ) )
+                next
                 PushLines_( body, b.text )
                 if (placed = false) andalso (b.text = "#pragma once") then
                     body.Push( "" )
@@ -412,7 +433,7 @@ function Assemble( byref src as C2tSource, byref blocks as C2tBlockVec, _
     '' rule and the blank line come before it.
     dim as int32 first = ban.Count + todoCount + 3
     for i as int32 = 0 to todoCount - 1
-        ban.Push( "''   line " & (first + todoAt[i]) & "  " & todoText[i] )
+        ban.Push( "''   line " & (first + todoAt[i]) & "  " & todoList[i] )
     next
     ban.Push( rule )
     ban.Push( "" )
