@@ -504,9 +504,9 @@ end sub
 function LowerWideToNarrowSlot _
     ( byref c as Ctx, byval slot as int32, byval dt as Tko.TypeId, _
       byval value as Tko.NodeId, byval isInit as boolean = false, _
-      byval selfv as MirValue ptr = 0 ) as boolean
+      byval selfv as MirValue ptr = nullptr ) as boolean
 
-    if (slot < 0) andalso (selfv = 0) then return false
+    if (slot < 0) andalso (selfv = nullptr) then return false
     if IsUStringType( c, dt ) then return false
     if ChainTouchesU_( c, value ) then return false
     dim as int64 dn = -1
@@ -536,7 +536,7 @@ function LowerWideToNarrowSlot _
     if src.kind = cast( uint8, MV_NONE ) then return false
 
     dim as MirValue dst
-    if selfv <> 0 then
+    if selfv <> nullptr then
         dst = *selfv
     else
         dst.kind = cast( uint8, MV_LOCAL )
@@ -583,7 +583,7 @@ function LitHasUnicodeEscape_( byref c as Ctx, byval e as Tko.NodeId ) as boolea
     '' 's = W' stored the characters of the spelling (wstring/len.bas). WideLitUnits_'s rule.
     if (c.ast->Kind( e ) = Tko.N_IDENT) orelse (c.ast->Kind( e ) = Tko.N_MEMBER) then
         dim as Tko.Symbol ptr ucs = c.syms->SymbolAt( c.info->RefOf( e ) )
-        if (ucs = 0) orelse (ucs->kind <> cast( uint8, Tko.SYM_CONSTANT )) orelse ((ucs->flags and Tko.SYMF_BUILTIN) <> 0) orelse (ucs->payload = 0) then return false
+        if (ucs = nullptr) orelse (ucs->kind <> cast( uint8, Tko.SYM_CONSTANT )) orelse ((ucs->flags and Tko.SYMF_BUILTIN) <> 0) orelse (ucs->payload = 0) then return false
         if c.ast->Kind( cast( Tko.NodeId, ucs->payload ) ) <> Tko.N_VAR_ITEM then return false
         return LitHasUnicodeEscape_( c, StmtOf( c, cast( Tko.NodeId, ucs->payload ) )->b )
     end if
@@ -593,7 +593,7 @@ function LitHasUnicodeEscape_( byref c as Ctx, byval e as Tko.NodeId ) as boolea
     if lp->strKind <> cast( uint8, Tko.STRK_ESCAPED ) then return false
     if lp->strLength < 2 then return false
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
-    if f = 0 then return false
+    if f = nullptr then return false
     if (lp->strOffset + lp->strLength) > f->text.Count then return false
     '' PAIR BY PAIR, so the 'u' after an escaped backslash is text -- see lowerstr.tiko.
     dim as int32 k = 0
@@ -1006,7 +1006,7 @@ private function WideLitUnits_ _
     '' directly, which is what the wide global holds anyway.
     if (c.ast->Kind( id ) = Tko.N_IDENT) orelse (c.ast->Kind( id ) = Tko.N_MEMBER) then
         dim as Tko.Symbol ptr wcs = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if wcs = 0 then return false
+        if wcs = nullptr then return false
         if wcs->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return false
         if (wcs->flags and Tko.SYMF_BUILTIN) <> 0 then return false
         if wcs->payload = 0 then return false
@@ -1058,7 +1058,7 @@ private function WideLitUnits_ _
         @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->strLength < 0 then return false
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
-    if f = 0 then return false
+    if f = nullptr then return false
     if (lp->strOffset + lp->strLength) > f->text.Count then return false
     '' A UTF-8 SOURCE DECODES ITS CHARACTERS -- see PushSourceUnit_.
     dim as boolean u8 = (f->encoding <> Tko.Text.ENC_BYTES)

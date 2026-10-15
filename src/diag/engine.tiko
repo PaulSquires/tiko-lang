@@ -19,7 +19,7 @@ dim shared as int32 stderrHandle = 0
 
 
 constructor DiagnosticEngine( )
-    this.sources = 0
+    this.sources = nullptr
     this.errors = 0
     this.warnings = 0
     this.suppressedCount = 0

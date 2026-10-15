@@ -13,7 +13,7 @@ private sub CheckModifierAgrees_ ( byref c as Ctx, byval id as NodeId )
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->b = NODE_NONE then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if s = 0 then return
+    if s = nullptr then return
     dim as NodeId decl = cast( NodeId, s->payload )
     if (decl = NODE_NONE) orelse (decl = id) then return
     if c.ast->Kind( decl ) <> N_PROC then return
@@ -168,7 +168,7 @@ private sub CheckIndexNeedsPointer_ ( byref c as Ctx, byval id as NodeId )
     case TK_POINTER, TK_ARRAY
         return
     case TK_UDT
-        if StructorOf_( c, u, "[]" ) <> 0 then return
+        if StructorOf_( c, u, "[]" ) <> nullptr then return
     case TK_BUILTIN
         select case c.types->BuiltinOf( u )
         case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR
@@ -317,7 +317,7 @@ private sub CheckGfxTarget_ ( byref c as Ctx, byval id as NodeId )
         dim as boolean anyPtr = false
         dim as Symbol ptr gcs = StructorOf_( c, u, "cast" )
         for guard as int32 = 0 to 63
-            if gcs = 0 then exit for
+            if gcs = nullptr then exit for
             dim as TypeId grt = c.types->Unqualify( gcs->type_ )
             if c.types->Kind( grt ) = TK_REFERENCE then grt = c.types->Unqualify( c.types->Inner( grt ) )
             if c.types->Kind( grt ) = TK_POINTER then
@@ -366,7 +366,7 @@ private sub CheckGfxTarget_ ( byref c as Ctx, byval id as NodeId )
                     if c.types->Kind( tt ) = TK_ARRAY then return
                 end if
                 dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( tl->target ) )
-                if ts <> 0 then
+                if ts <> nullptr then
                     if c.types->Kind( c.types->Unqualify( ts->type_ ) ) = TK_ARRAY then
                         return
                     end if
@@ -515,7 +515,7 @@ private sub CheckArrowOnValue_ ( byref c as Ctx, byval id as NodeId )
     dim as TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
     if c.types->Kind( u ) <> TK_UDT then return
-    if StructorOf_( c, u, "->" ) <> 0 then return
+    if StructorOf_( c, u, "->" ) <> nullptr then return
     '' A GLOBAL 'operator ->( byref x as UDT )' MAKES THE ARROW LEGAL TOO, and which one
     '' applies is overload choice this pass does not model -- so any procedure of that
     '' name anywhere is enough to decline. Four of this suite's MIR tests define one.
@@ -534,7 +534,7 @@ private sub CheckBaseCallAbstract_ ( byref c as Ctx, byval id as NodeId )
         c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->lhs )].data )].name
     if c.names->Fold( bn ) <> c.names->Fold( c.baseName ) then return
     dim as Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if ps = 0 then return
+    if ps = nullptr then return
     if ps->kind <> cast( uint8, SYM_PROC ) then return
     dim as NodeId decl = cast( NodeId, ps->payload )
     if (decl = NODE_NONE) orelse (c.ast->Kind( decl ) <> N_PROC) then return
@@ -569,7 +569,7 @@ private sub CheckEraseStructors_ ( byref c as Ctx, byval id as NodeId, byval her
         dim as NodeId arg = cast( NodeId, c.ast->children[sp->first + i] )
         if arg = NODE_NONE then continue for
         dim as Symbol ptr av = c.syms->SymbolAt( c.info->RefOf( arg ) )
-        if av = 0 then continue for
+        if av = nullptr then continue for
         if av->type_ = TYPE_NONE then continue for
         dim as TypeId u = c.types->Unqualify( av->type_ )
         if c.types->Kind( u ) <> TK_ARRAY then continue for
@@ -586,7 +586,7 @@ private sub CheckEraseStructors_ ( byref c as Ctx, byval id as NodeId, byval her
         '' (visibility/private-dtor-private-usage and its two siblings write 'destructor cdecl').
         dim as Symbol ptr ct = iif( c.types->IsDynArray( u ), cast( Symbol ptr, 0 ), StructorOf_( c, el, "__ctor" ) )
         dim as int32 guard = 0
-        while (ct <> 0) andalso (guard < 1000)
+        while (ct <> nullptr) andalso (guard < 1000)
             guard += 1
             dim as NodeId cd = cast( NodeId, ct->payload )
             if (cd <> NODE_NONE) andalso (c.ast->Kind( cd ) = N_PROC) then
@@ -604,7 +604,7 @@ private sub CheckEraseStructors_ ( byref c as Ctx, byval id as NodeId, byval her
             ct = c.syms->SymbolAt( ct->nextOverload )
         wend
         dim as Symbol ptr dt = StructorOf_( c, el, "__dtor" )
-        if dt <> 0 then
+        if dt <> nullptr then
             dim as NodeId dd = cast( NodeId, dt->payload )
             if (dd <> NODE_NONE) andalso (c.ast->Kind( dd ) = N_PROC) then
                 dim as StmtPayload ptr dp = _
@@ -695,10 +695,10 @@ private sub UdtArith_ ( byref c as Ctx, byval id as NodeId, byval bp as BinaryPa
         return
     end if
     if lUdt then
-        if StructorOf_( c, lt, "cast" ) <> 0 then return
+        if StructorOf_( c, lt, "cast" ) <> nullptr then return
     end if
     if rUdt then
-        if StructorOf_( c, rt, "cast" ) <> 0 then return
+        if StructorOf_( c, rt, "cast" ) <> nullptr then return
     end if
     Report0820_( c, id, _
                      lcase( TokenKindText( cast( TokenKind, bp->op ) ) ) )
@@ -769,7 +769,7 @@ private sub CheckUdtCompound_ ( byref c as Ctx, byval id as NodeId )
     if len( selfNm ) = 0 then return
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
     dim as Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-    if (ls <> 0) andalso (ls->kind = cast( uint8, SYM_PROC )) then return
+    if (ls <> nullptr) andalso (ls->kind = cast( uint8, SYM_PROC )) then return
     dim as TypeId lt = c.types->Unqualify( c.info->TypeOf_( sp->a ) )
     dim as TypeId rt = c.types->Unqualify( c.info->TypeOf_( sp->b ) )
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
@@ -780,13 +780,13 @@ private sub CheckUdtCompound_ ( byref c as Ctx, byval id as NodeId )
     dim as boolean lUdt = (c.types->Kind( lt ) = TK_UDT)
     dim as boolean rUdt = (c.types->Kind( rt ) = TK_UDT)
     if lUdt then
-        if StructorOf_( c, lt, selfNm ) <> 0 then return
-        if StructorOf_( c, lt, "let" ) <> 0 then
-            if StructorOf_( c, lt, "cast" ) <> 0 then return
+        if StructorOf_( c, lt, selfNm ) <> nullptr then return
+        if StructorOf_( c, lt, "let" ) <> nullptr then
+            if StructorOf_( c, lt, "cast" ) <> nullptr then return
             if ProcNamedAnywhere_( c, left( selfNm, len( selfNm ) - 1 ) ) then return
         end if
     elseif rUdt then
-        if StructorOf_( c, rt, "cast" ) <> 0 then return
+        if StructorOf_( c, rt, "cast" ) <> nullptr then return
     else
         return
     end if
@@ -842,7 +842,7 @@ private sub CheckUdtUnary_ ( byref c as Ctx, byval id as NodeId )
         if (c.types->Kind( t ) = TK_POINTER) andalso (up->op = KW_NOT) then return
     else
         if TupleLike_( c, t ) then return
-        if StructorOf_( c, t, "cast" ) <> 0 then return
+        if StructorOf_( c, t, "cast" ) <> nullptr then return
     end if
     Report0820_( c, id, _
                      lcase( TokenKindText( cast( TokenKind, up->op ) ) ) )
@@ -867,7 +867,7 @@ private function UdtHasCmpOp_ _
     for guard as int32 = 0 to 255
         if cur = SYMBOL_NONE then exit for
         dim as Symbol ptr os = c.syms->SymbolAt( cur )
-        if os = 0 then exit for
+        if os = nullptr then exit for
         dim as NodeId pn = cast( NodeId, os->payload )
         dim as boolean isOp = (os->kind = cast( uint8, SYM_PROC )) andalso (pn <> NODE_NONE)
         if isOp then isOp = (c.ast->Kind( pn ) = N_PROC)
@@ -901,15 +901,15 @@ private function TupleElemsCompare_ _
     dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return true
+    if s = nullptr then return true
     if s->inner = SCOPE_NONE then return true
     dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return true
+    if sc = nullptr then return true
     dim as SymbolId cur = sc->firstSym
     for guard as int32 = 0 to 9999
         if cur = SYMBOL_NONE then exit for
         dim as Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit for
+        if f = nullptr then exit for
         if f->kind = cast( uint8, SYM_FIELD ) then
             dim as TypeId ft = c.types->Unqualify( f->type_ )
             if TupleLike_( c, ft ) then
@@ -943,7 +943,7 @@ private function PlainUdtOperand_ ( byref c as Ctx, byval t as TypeId ) as boole
     if TupleLike_( c, t ) then return false
     if instr( c.names->Spelling( c.types->NameOf( t ) ), "<" ) > 0 then return false
     if c.types->BaseOf( t ) <> TYPE_NONE then return false
-    return (StructorOf_( c, t, "cast" ) <> 0)
+    return (StructorOf_( c, t, "cast" ) <> nullptr)
 end function
 
 '' What a UDT's casts offer: a number, a string (by value or a BYREF z/wstring), a BYREF z/wstring.
@@ -952,7 +952,7 @@ private sub UdtCastKinds_ _
     hasNum = false : hasStr = false : hasCharRef = false
     dim as Symbol ptr cs = StructorOf_( c, t, "cast" )
     for guard as int32 = 0 to 255
-        if cs = 0 then exit for
+        if cs = nullptr then exit for
         dim as TypeId rt = c.types->Unqualify( cs->type_ )
         dim as boolean byRes = false
         dim as NodeId pn = cast( NodeId, cs->payload )
@@ -1072,10 +1072,10 @@ private sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
     if ProcNamedAnywhere_( c, opnm ) then return
     '' A conversion operator on the UDT may turn it into something comparable.
     if lUdt then
-        if StructorOf_( c, lt, "cast" ) <> 0 then return
+        if StructorOf_( c, lt, "cast" ) <> nullptr then return
     end if
     if rUdt then
-        if StructorOf_( c, rt, "cast" ) <> 0 then return
+        if StructorOf_( c, rt, "cast" ) <> nullptr then return
     end if
     c.diags->Report( TKO0720, PointRange( c.ast->Loc( id ) ), opnm )
 end sub

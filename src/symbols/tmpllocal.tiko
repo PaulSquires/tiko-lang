@@ -14,14 +14,14 @@
 '' member's of a generic type -- rather than an instance's? Resolve's InTemplate_ asks the
 '' same of a scope; this one is here because that file is not included above.
 private function LocalInTemplate_ ( byref c as Ctx, byval s as Symbol ptr ) as boolean
-    if s = 0 then return false
+    if s = nullptr then return false
     dim as ScopeId sc = s->parent
     for d as int32 = 0 to 255
         if sc = SCOPE_NONE then return false
         dim as SymScope ptr ss = c.syms->ScopeAt( sc )
-        if ss = 0 then return false
+        if ss = nullptr then return false
         dim as Symbol ptr os = c.syms->SymbolAt( ss->owner )
-        if os <> 0 then
+        if os <> nullptr then
             if (os->flags and SYMF_GENERIC_INST) <> 0 then return false
             if os->kind = cast( uint8, SYM_UDT ) then
                 if instr( c.names->Spelling( os->name ), "<" ) > 0 then return false

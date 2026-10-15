@@ -138,7 +138,7 @@ end sub
 '' overload per type. Noted as its header is read, ahead of the body, and overwritten by
 '' the next procedure's parameter of the same name, as a variable's is.
 sub NoteParamType_( byref p as Tko.ParserState, byval n as Tko.NodeId )
-    if (p.stream = 0) orelse (n = Tko.NODE_NONE) then return
+    if (p.stream = nullptr) orelse (n = Tko.NODE_NONE) then return
     if p.ast->Kind( n ) <> Tko.N_PARAM then return
     dim as Tko.StmtPayload ptr sp = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )]
     if (sp->name = Tko.INTERN_NONE) orelse (sp->a = Tko.NODE_NONE) then return
@@ -150,7 +150,7 @@ end sub
 '' A DECLARATION JUST PARSED: each variable's type, each typedef's target, and each TYPE,
 '' UNION or ENUM name.
 private sub NoteTypes_( byref p as Tko.ParserState, byval n as Tko.NodeId )
-    if (p.stream = 0) orelse (n = Tko.NODE_NONE) then return
+    if (p.stream = nullptr) orelse (n = Tko.NODE_NONE) then return
     dim as Tko.PpStream ptr st = cast( Tko.PpStream ptr, p.stream )
     '' The payload is read only for the kinds that have one -- N_ERROR's data is 0 (F-72).
     if Tko.NodeKindCategory( p.ast->Kind( n ) ) <> Tko.NCAT_DECL then return

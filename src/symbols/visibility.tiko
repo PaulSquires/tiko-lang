@@ -33,12 +33,12 @@ namespace Tko.Vis
 private function OwningType_ _
     ( byref c as Ctx, byval s as Symbol ptr ) as TypeId
 
-    if s = 0 then return TYPE_NONE
+    if s = nullptr then return TYPE_NONE
     dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
-    if sc = 0 then return TYPE_NONE
+    if sc = nullptr then return TYPE_NONE
     if sc->kind <> cast( uint8, SCOPEK_TYPE ) then return TYPE_NONE
     dim as Symbol ptr owner = c.syms->SymbolAt( sc->owner )
-    if owner = 0 then return TYPE_NONE
+    if owner = nullptr then return TYPE_NONE
     if owner->kind <> cast( uint8, SYM_UDT ) then return TYPE_NONE
     return owner->type_
 end function
@@ -54,12 +54,12 @@ private function BaseOf_ ( byref c as Ctx, byval t as TypeId ) as TypeId
     dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return TYPE_NONE
+    if s = nullptr then return TYPE_NONE
     if s->inner = SCOPE_NONE then return TYPE_NONE
     dim as SymbolId bf = c.syms->LookupLocal( s->inner, c.baseName )
     if bf = SYMBOL_NONE then return TYPE_NONE
     dim as Symbol ptr b = c.syms->SymbolAt( bf )
-    if b = 0 then return TYPE_NONE
+    if b = nullptr then return TYPE_NONE
     if b->kind <> cast( uint8, SYM_FIELD ) then return TYPE_NONE
     return b->type_
 end function
@@ -146,7 +146,7 @@ private sub CheckMember_ _
     dim as SymbolId sid = AccessSymOf_( c, id )
     if sid = SYMBOL_NONE then return
     dim as Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return
+    if s = nullptr then return
     dim as boolean isPriv = ((s->flags and SYMF_MEMB_PRIVATE) <> 0)
     dim as boolean isProt = ((s->flags and SYMF_MEMB_PROTECTED) <> 0)
     if (isPriv = false) andalso (isProt = false) then return
@@ -211,7 +211,7 @@ private sub CheckMemberIsValue_ ( byref c as Ctx, byval id as NodeId )
     '' the qualified spelling. Reading only the type refused this suite's own
     '' static-member-len test and cpp/mangle-struct-fbc.bas, which fbc compiles.
     dim as Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
-    if bs <> 0 then
+    if bs <> nullptr then
         select case cast( SymbolKind, bs->kind )
         case SYM_UDT, SYM_TYPEDEF, SYM_NAMESPACE, SYM_ENUM
             return
@@ -223,7 +223,7 @@ private sub CheckMemberIsValue_ ( byref c as Ctx, byval id as NodeId )
     if c.types->Kind( bu ) = TK_POINTER then bu = c.types->Unqualify( c.types->Inner( bu ) )
     if c.types->Kind( bu ) <> TK_UDT then return
     dim as Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if ms = 0 then return
+    if ms = nullptr then return
     select case cast( SymbolKind, ms->kind )
     '' NOT AN ENUM: 'print u.E_' over a nested enum is accepted by fbc.
     case SYM_UDT, SYM_TYPEDEF
@@ -283,16 +283,16 @@ end sub
 private function StructorOf_ _
     ( byref c as Ctx, byval udt as TypeId, byref nm as string ) as Symbol ptr
 
-    if udt = TYPE_NONE then return 0
-    if c.types->Kind( udt ) <> TK_UDT then return 0
+    if udt = TYPE_NONE then return nullptr
+    if c.types->Kind( udt ) <> TK_UDT then return nullptr
     dim as InternId tn = c.types->NameOf( udt )
-    if tn = 0 then return 0
+    if tn = 0 then return nullptr
     dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( udt ) )
     dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return 0
-    if s->inner = SCOPE_NONE then return 0
+    if s = nullptr then return nullptr
+    if s->inner = SCOPE_NONE then return nullptr
     return c.syms->SymbolAt( c.syms->LookupLocal( s->inner, _
                                                   c.names->Fold( c.names->GetString( nm ) ) ) )
 end function
@@ -306,20 +306,20 @@ private function EnclosingTypeOf_ _
     while (cur <> SCOPE_NONE) andalso (guard < 1000)
         guard += 1
         dim as SymScope ptr sc = c.syms->ScopeAt( cur )
-        if sc = 0 then return TYPE_NONE
+        if sc = nullptr then return TYPE_NONE
         if sc->kind = cast( uint8, SCOPEK_TYPE ) then
             dim as Symbol ptr owner = c.syms->SymbolAt( sc->owner )
-            if owner = 0 then return TYPE_NONE
+            if owner = nullptr then return TYPE_NONE
             return owner->type_
         end if
         if sc->kind = cast( uint8, SCOPEK_PROC ) then
             dim as Symbol ptr pr = c.syms->SymbolAt( sc->owner )
-            if pr = 0 then return TYPE_NONE
+            if pr = nullptr then return TYPE_NONE
             dim as SymScope ptr ps = c.syms->ScopeAt( pr->parent )
-            if ps = 0 then return TYPE_NONE
+            if ps = nullptr then return TYPE_NONE
             if ps->kind <> cast( uint8, SCOPEK_TYPE ) then return TYPE_NONE
             dim as Symbol ptr owner2 = c.syms->SymbolAt( ps->owner )
-            if owner2 = 0 then return TYPE_NONE
+            if owner2 = nullptr then return TYPE_NONE
             return owner2->type_
         end if
         cur = sc->parent
@@ -386,11 +386,11 @@ private sub CheckOneStructor_ _
       byval here as TypeId, byval at as SourceLoc, byval vnm as InternId )
 
     dim as Symbol ptr st = StructorOf_( c, udt, nm )
-    if st = 0 then return
+    if st = nullptr then return
     dim as boolean sawDefault = false
     dim as Symbol ptr walk = st
     dim as int32 guard = 0
-    while (walk <> 0) andalso (guard < 1000)
+    while (walk <> nullptr) andalso (guard < 1000)
         guard += 1
         dim as int32 req = RequiredParams_( c, cast( NodeId, walk->payload ) )
         '' A DESTRUCTOR takes none by definition, and one whose declaration cannot be
@@ -522,7 +522,7 @@ private sub CheckSwapOperands_ ( byref c as Ctx, byval id as NodeId )
             return
         case N_IDENT
             dim as Symbol ptr s2 = c.syms->SymbolAt( c.info->RefOf( a2 ) )
-            if s2 = 0 then continue for
+            if s2 = nullptr then continue for
             dim as SymbolKind sk2 = cast( SymbolKind, s2->kind )
             if (sk2 <> SYM_CONSTANT) andalso (sk2 <> SYM_ENUMCONST) then continue for
             c.diags->Report( TKO0642, PointRange( c.ast->Loc( a2 ) ) )
@@ -536,7 +536,7 @@ end sub
 '' only the procedure's SIGNATURE wraps it in a Reference, so a reference is stripped
 '' when present rather than required. TYPE_NONE for anything that is not an array.
 private function WholeArrayType_ ( byref c as Ctx, byval s as Symbol ptr ) as TypeId
-    if s = 0 then return TYPE_NONE
+    if s = nullptr then return TYPE_NONE
     dim as TypeId t = c.types->Unqualify( s->type_ )
     select case cast( SymbolKind, s->kind )
     case SYM_VARIABLE
@@ -570,7 +570,7 @@ private function WholeArraySpelling_ ( byref c as Ctx, byval n as NodeId ) as bo
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
     if lp->count <> 0 then return false
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-    if ts = 0 then return false
+    if ts = nullptr then return false
     if ts->kind = cast( uint8, SYM_VARIABLE ) then return true
     return WholeArrayType_( c, ts ) <> TYPE_NONE
 end function
@@ -582,12 +582,12 @@ private sub CheckBydescArgs_ _
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->target = NODE_NONE then return
     dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if callee = 0 then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-    if callee = 0 then return
+    if callee = nullptr then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if callee = nullptr then return
     if callee->kind <> cast( uint8, SYM_PROC ) then return
     dim as Symbol ptr head = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
     dim as boolean inSet = (callee->nextOverload <> SYMBOL_NONE)
-    if head <> 0 then inSet = inSet orelse (head->nextOverload <> SYMBOL_NONE)
+    if head <> nullptr then inSet = inSet orelse (head->nextOverload <> SYMBOL_NONE)
     dim as NodeId decl = cast( NodeId, callee->payload )
     if decl = NODE_NONE then return
     if c.ast->Kind( decl ) <> N_PROC then return
@@ -637,7 +637,7 @@ private sub CheckBydescArgs_ _
             dim as Symbol ptr av = c.syms->SymbolAt( c.info->RefOf( wl->target ) )
             dim as StmtPayload ptr prp = _
                 @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
-            if (av <> 0) andalso (prp->a <> NODE_NONE) then
+            if (av <> nullptr) andalso (prp->a <> NODE_NONE) then
                 '' Through WholeArrayType_, so a forwarded PARAMETER is held to the same
                 '' element rule: fbc gives error 58 for 'a() as P1' passed on to
                 '' 'b() as P2', and for integer to double, exactly as for a variable.
@@ -685,7 +685,7 @@ private sub CheckAutoRef_ ( byref c as Ctx, byval id as NodeId )
     dim as NodeKind k = c.ast->Kind( id )
     if k = N_IDENT then
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if s = 0 then return
+        if s = nullptr then return
         if s->kind <> cast( uint8, SYM_VARIABLE ) then return
         if (s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or _
                           SYMF_COMMON)) <> 0 then return
@@ -759,7 +759,7 @@ private sub CheckSubscriptCount_ ( byref c as Ctx, byval id as NodeId )
     if lp->count = 0 then return
     if lp->target = NODE_NONE then return
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-    if ts = 0 then return
+    if ts = nullptr then return
     '' A FIELD ARRAY IS THE SAME QUESTION: 'x.arr(0, 0)' over 'arr(any) as integer' --
     '' and so is a BYDESC PARAMETER: 'array(1, 2)' over 'array(any) as integer' is fbc
     '' error 36 inside the procedure exactly as outside.
@@ -804,7 +804,7 @@ private sub CheckArraySubscript_ ( byref c as Ctx, byval id as NodeId )
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->target = NODE_NONE then return
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-    if ts = 0 then return
+    if ts = nullptr then return
     if ts->kind <> cast( uint8, SYM_VARIABLE ) then return
     '' ...AND ONLY AN ARRAY VARIABLE is subscripted. A PROCEDURE POINTER is called:
     '' AfxPath.inc's 'pPathCchRemoveBackslashEx( _wszPath, ... )' passes a 'wstring * N'
@@ -871,7 +871,7 @@ private sub CheckConstThisWrite_ _
     if throughThis = false then return
 
     dim as Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-    if fs = 0 then return
+    if fs = nullptr then return
     if fs->kind <> cast( uint8, SYM_FIELD ) then return
     if OwningType_( c, fs ) <> here then return
     c.diags->Report( TKO0664, PointRange( c.ast->Loc( sp->a ) ), _
@@ -909,7 +909,7 @@ private sub CheckConstThisCall_ _
     end select
 
     dim as Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( callee ) )
-    if ps = 0 then return
+    if ps = nullptr then return
     if ps->kind <> cast( uint8, SYM_PROC ) then return
     if OwningType_( c, ps ) <> here then return
     dim as NodeId decl = cast( NodeId, ps->payload )
@@ -956,7 +956,7 @@ private sub CheckExplicitStructor_ ( byref c as Ctx, byval id as NodeId )
     wend
     ot = c.types->Unqualify( ot )
     if c.types->Kind( ot ) <> TK_UDT then return
-    if (StructorOf_( c, ot, want ) <> 0) orelse StructorIsField_( c, ot, nm ) then return
+    if (StructorOf_( c, ot, want ) <> nullptr) orelse StructorIsField_( c, ot, nm ) then return
     c.diags->Report( TKO0666, PointRange( c.ast->Loc( mp->rhs ) ), nm )
 end sub
 
@@ -1148,7 +1148,7 @@ private sub Walk_ _
         innerConst = ((cpp->extra and PF_CONST) <> 0)
         if innerConst = false then
             dim as Symbol ptr dsym = c.syms->SymbolAt( c.info->RefOf( id ) )
-            if dsym <> 0 then
+            if dsym <> nullptr then
                 dim as NodeId ddecl = cast( NodeId, dsym->payload )
                 if (ddecl <> NODE_NONE) andalso (ddecl <> id) then
                     if c.ast->Kind( ddecl ) = N_PROC then
@@ -1336,7 +1336,7 @@ private function ScopeIsStatic_ _
     while (cur <> SCOPE_NONE) andalso (guard < 1000)
         guard += 1
         dim as SymScope ptr sc = c.syms->ScopeAt( cur )
-        if sc = 0 then return false
+        if sc = nullptr then return false
         '' A NAMESPACE gives its variables static storage; a plain MODULE does not.
         if sc->kind = cast( uint8, SCOPEK_NAMESPACE ) then return true
         if sc->kind = cast( uint8, SCOPEK_TYPE ) then return true
@@ -1385,14 +1385,14 @@ private sub CheckQualifiedStringInits_( byref c as Ctx )
             ((c.ast->nodes[n].flags and NF_QUALIFIED) <> 0)
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
         if qualified = false then
-            if s = 0 then continue for
+            if s = nullptr then continue for
             '' NOT THE SYMBOL'S OWN ITEM -- see above; that one is already reported.
             if cast( NodeId, s->payload ) = id then continue for
             if (s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN)) = 0 then
                 if ScopeIsStatic_( c, s->parent ) = false then continue for
             end if
         else
-            if s <> 0 then
+            if s <> nullptr then
                 if cast( NodeId, s->payload ) = id then continue for
             end if
         end if

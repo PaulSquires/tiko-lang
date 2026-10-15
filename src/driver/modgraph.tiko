@@ -233,8 +233,8 @@ function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as int32 
     '' paths, include directories and defines come from the command line, and every module
     '' that did resolve is listed -- in the order it was found, there being no build order.
     '' An editor's project is often half-written; what is missing is what the error names.
-    if (built = false) andalso (ctx.build = 0) then return Tko.EXIT_USER_ERROR
-    if ctx.build <> 0 then
+    if (built = false) andalso (ctx.build = nullptr) then return Tko.EXIT_USER_ERROR
+    if ctx.build <> nullptr then
         dim as Tko.StrVec roots
         dim as string pkg
         SearchPaths( ctx, roots, pkg )
@@ -276,7 +276,7 @@ function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as int32 
             deps[at] = c
         next
         '' 'tiko metadata' LISTENS INSTEAD (src/build): the module, its files and its imports.
-        if ctx.build <> 0 then
+        if ctx.build <> nullptr then
             dim as Tko.StrVec files
             for k as int32 = 0 to g.fileCount[n] - 1
                 files.Push( ctx.sources.PathOf( cast( Tko.FileId, g.fileIds[g.fileFirst[n] + k] ) ) )

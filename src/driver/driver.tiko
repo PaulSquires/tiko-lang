@@ -63,7 +63,7 @@ destructor CompilerContext( )
         if (rc = 0) andalso (this.objq.keepTemps = false) then kill( this.objq.irPaths[k] )
     next
     for each p as any ptr in this.ppLexed
-        if p <> 0 then delete cast( Tko.Lex.Result ptr, p )
+        if p <> nullptr then delete cast( Tko.Lex.Result ptr, p )
     next
     Tko.CImportDriver.FreeSession( this.cinclude )
 end destructor
@@ -760,7 +760,7 @@ private function RestartWith_ _
     for i as int32 = 0 to injected.Count - 1
         again.Push( injected[i] )
     next
-    return Run( again, depth + 1, 0, buildOut )
+    return Run( again, depth + 1, nullptr, buildOut )
 end function
 
 function DefaultOutput( byref o as Tko.DriverOptions ) as string
@@ -769,7 +769,7 @@ end function
 
 function Run _
     ( byref args as Tko.StrVec, byval restartDepth as int32 = 0, _
-      byval scanOut as any ptr = 0, byval buildOut as any ptr = 0 ) as int32
+      byval scanOut as any ptr = nullptr, byval buildOut as any ptr = nullptr ) as int32
 
     dim as float64 tRunStart = timer
     dim as Tko.CompilerContext ctx
@@ -806,13 +806,13 @@ function Run _
     '' THE EDITOR SCAN (src/driver/scan.tiko): into the caller's result when tikoParser.dll
     '' asked, into this one -- to be printed -- for '--dump-scan'.
     dim as Tko.Scan.ScanResult localScan
-    if scanOut <> 0 then
+    if scanOut <> nullptr then
         ctx.scan = scanOut
     elseif ctx.options.dumpScan then
         ctx.scan = @localScan
     end if
-    dim as boolean scanning = (ctx.scan <> 0)
-    dim as boolean scanQuiet = (scanOut <> 0)
+    dim as boolean scanning = (ctx.scan <> nullptr)
+    dim as boolean scanQuiet = (scanOut <> nullptr)
     ctx.diags.muted = scanQuiet
     '' A scan harvests the whole unit, so the error cap never stops one.
     ctx.diags.stopAtCap = (scanning = false)
@@ -977,7 +977,7 @@ function Run _
             dim as Tko.PpConfig cfg = MakePpConfig( ctx )
             cfg.cmdlineIgnored = (i > 1)
             cfg.importsBuilt = true
-            cfg.importFn = 0
+            cfg.importFn = nullptr
             Tko.PpRun( ctx.sources, cast( Tko.FileId, i ), ctx.names, ctx.keywords, _
                        ctx.diags, cfg, r )
             if (i = 1) andalso (restartDepth = 0) andalso (r.cmdlineArgs.Count > 0) then

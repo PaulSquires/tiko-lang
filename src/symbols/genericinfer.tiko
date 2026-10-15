@@ -33,7 +33,7 @@ private function ProcPtrTypeOfName_ _
     if nm = 0 then return Tko.TYPE_NONE
     dim as Tko.SymbolId sid = c.syms->Lookup( scope_, nm )
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( sid )
-    if sy = 0 then return Tko.TYPE_NONE
+    if sy = nullptr then return Tko.TYPE_NONE
     if sy->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.TYPE_NONE
     if sy->nextOverload <> Tko.SYMBOL_NONE then return Tko.TYPE_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, sy->payload )
@@ -81,7 +81,7 @@ private function InferArgType_ _
         dim as Tko.InternId nm = IdentNameOf( c, a )
         if nm = 0 then return Tko.TYPE_NONE
         dim as Tko.Symbol ptr sy = c.syms->SymbolAt( c.syms->Lookup( scope_, nm ) )
-        if sy = 0 then return Tko.TYPE_NONE
+        if sy = nullptr then return Tko.TYPE_NONE
         '' A PARAMETER too. Inside a macro-expanded 'AbsChecked( byval a as T )' the
         '' argument to 'Some( a )' IS the parameter, which is most of what the checked
         '' arithmetic family passes.
@@ -163,7 +163,7 @@ private function InferArgType_ _
         if c.ast->Kind( ctgt ) = Tko.N_MEMBER then
             dim as Tko.BinaryPayload ptr cqb = _
                 @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, ctgt )].data )]
-            dim as Tko.Symbol ptr cnss = 0
+            dim as Tko.Symbol ptr cnss = nullptr
             if c.ast->Kind( cqb->lhs ) = Tko.N_IDENT then
                 dim as Tko.SymbolId cnsid = c.info->RefOf( cqb->lhs )
                 if cnsid = Tko.SYMBOL_NONE then
@@ -172,7 +172,7 @@ private function InferArgType_ _
                 cnss = c.syms->SymbolAt( cnsid )
             end if
             dim as boolean cisNs = false
-            if cnss <> 0 then cisNs = (cnss->kind = cast( uint8, Tko.SYM_NAMESPACE ))
+            if cnss <> nullptr then cisNs = (cnss->kind = cast( uint8, Tko.SYM_NAMESPACE ))
             '' ...AND A METHOD CALL IS ITS METHOD'S RESULT. 'var c = ctx.Done( )' is
             '' what 'case receive from ctx.Done( )' desugars to (selchan.tiko), and a
             '' 'var' is typed from its initialiser here -- so this answering nothing
@@ -193,16 +193,16 @@ private function InferArgType_ _
                 dim as string mnm = c.names->Spelling( IdentNameOf( c, cqb->rhs ) )
                 dim as Tko.Symbol ptr mps = c.syms->SymbolAt( TypeMemberNamed_( c, mob, mnm ) )
                 dim as int32 mdepth = 0
-                while (mps = 0) andalso (mdepth < 16)
+                while (mps = nullptr) andalso (mdepth < 16)
                     mdepth += 1
                     dim as Tko.Symbol ptr mbs = c.syms->SymbolAt( TypeMemberNamed_( c, mob, "base" ) )
-                    if mbs = 0 then exit while
+                    if mbs = nullptr then exit while
                     if mbs->kind <> cast( uint8, Tko.SYM_FIELD ) then exit while
                     if mbs->type_ = Tko.TYPE_NONE then exit while
                     mob = c.types->Unqualify( mbs->type_ )
                     mps = c.syms->SymbolAt( TypeMemberNamed_( c, mob, mnm ) )
                 wend
-                if mps = 0 then return Tko.TYPE_NONE
+                if mps = nullptr then return Tko.TYPE_NONE
                 if mps->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.TYPE_NONE
                 if mps->nextOverload <> Tko.SYMBOL_NONE then return Tko.TYPE_NONE
                 dim as Tko.TypeId mrt = mps->type_
@@ -224,7 +224,7 @@ private function InferArgType_ _
         '' question in the other syntax.
         if cqual = false then
             dim as Tko.Symbol ptr avs = c.syms->SymbolAt( c.syms->Lookup( scope_, cn ) )
-            if avs <> 0 then
+            if avs <> nullptr then
                 dim as boolean avVar = (avs->kind = cast( uint8, Tko.SYM_VARIABLE ))
                 if avVar = false then
                     avVar = (avs->kind = cast( uint8, Tko.SYM_PARAMETER ))
@@ -290,7 +290,7 @@ private function InferArgType_ _
                 psid = c.syms->Lookup( cscope, cn )
             end if
             dim as Tko.Symbol ptr psy = c.syms->SymbolAt( psid )
-            if psy = 0 then return Tko.TYPE_NONE
+            if psy = nullptr then return Tko.TYPE_NONE
             if psy->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.TYPE_NONE
             if psy->nextOverload <> Tko.SYMBOL_NONE then
                 '' AN OVERLOAD SET WITH AN EXACT MATCH IS NOT A GUESS. Where one
@@ -318,7 +318,7 @@ private function InferArgType_ _
                 dim as Tko.SymbolId ocur = psid
                 while ocur <> Tko.SYMBOL_NONE
                     dim as Tko.Symbol ptr osy = c.syms->SymbolAt( ocur )
-                    if osy = 0 then exit while
+                    if osy = nullptr then exit while
                     dim as Tko.NodeId opn = cast( Tko.NodeId, osy->payload )
                     if (opn <> Tko.NODE_NONE) andalso (c.ast->Kind( opn ) = Tko.N_PROC) then
                         dim as Tko.StmtPayload ptr opp = StmtOf( c, opn )
@@ -403,7 +403,7 @@ private function InferArgType_ _
         case Tko.TK_UDT
             dim as Tko.SymbolId ix = TypeMemberNamed_( c, bu, "[]" )
             dim as Tko.Symbol ptr ixs = c.syms->SymbolAt( ix )
-            if ixs = 0 then return Tko.TYPE_NONE
+            if ixs = nullptr then return Tko.TYPE_NONE
             dim as Tko.TypeId rt2 = ixs->type_
             if rt2 = Tko.TYPE_NONE then return Tko.TYPE_NONE
             if c.types->Kind( rt2 ) = Tko.TK_REFERENCE then rt2 = c.types->Inner( rt2 )
@@ -426,7 +426,7 @@ private function InferArgType_ _
         if c.types->Kind( mbt ) = Tko.TK_POINTER then mbt = c.types->Unqualify( c.types->Inner( mbt ) )
         dim as Tko.Symbol ptr mfs = c.syms->SymbolAt( _
             TypeMemberNamed_( c, mbt, c.names->Spelling( IdentNameOf( c, mbp->rhs ) ) ) )
-        if mfs = 0 then return Tko.TYPE_NONE
+        if mfs = nullptr then return Tko.TYPE_NONE
         if mfs->kind <> cast( uint8, Tko.SYM_FIELD ) then return Tko.TYPE_NONE
         dim as Tko.TypeId mft = mfs->type_
         if mft = Tko.TYPE_NONE then return Tko.TYPE_NONE

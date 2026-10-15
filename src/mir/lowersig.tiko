@@ -49,7 +49,7 @@ sub SignatureFromProc _
     ( byref c as Ctx, byval f as MirFunction ptr, byval pn as Tko.NodeId, _
       byval withSret as boolean, byval withThis as boolean )
 
-    if f = 0 then return
+    if f = nullptr then return
     if withSret then
         f->AddParam( MT_PTR )
         f->hasSretParam = true
@@ -67,7 +67,7 @@ sub SignatureFromProc _
         if f->retSize <= 0 then
             dim as Tko.SymbolId rsid = c.info->RefOf( pn )
             dim as Tko.Symbol ptr rs = c.syms->SymbolAt( rsid )
-            if rs <> 0 then
+            if rs <> nullptr then
                 if rs->type_ <> Tko.TYPE_NONE then
                     f->retSize = SizeOfType( c, rs->type_ )
                     f->retClass = ClassifyEightbytes( c, rs->type_ )
@@ -76,7 +76,7 @@ sub SignatureFromProc _
         end if
     end if
     dim as Tko.StmtPayload ptr sp = StmtOf( c, pn )
-    if sp = 0 then return
+    if sp = nullptr then return
 
     for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
@@ -176,7 +176,7 @@ function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as int32
     dim as boolean sret = (rt <> Tko.TYPE_NONE) andalso UsesSretReturn( c, rt )
     if sret then rmt = MT_PTR
     dim as MirFunction ptr f = c.m->AddFunction( nm, rmt )
-    if f = 0 then return -1
+    if f = nullptr then return -1
     c.m->procSigByType[tkey] = c.m->functions.Count
     f->isDefinition = false
     if sret then
@@ -239,7 +239,7 @@ function DeclIndexFor_ _
             '' address came first, private or not (fbc-modern's fb/logerror.bi, 2026-10-03).
             '' The rebuild is the bottom of this function's, so the stub ends up exactly
             '' as a fresh declaration would; a real 'declare sub X( )' rebuilds to itself.
-            if (have->isDefinition = false) andalso (cs <> 0) andalso _
+            if (have->isDefinition = false) andalso (cs <> nullptr) andalso _
                (have->paramTys.Count = 0) andalso (cast( MirType, have->retTy ) = MT_VOID) then
                 have->retTy = cast( uint8, callTy )
                 if callTy = MT_AGG then
@@ -249,7 +249,7 @@ function DeclIndexFor_ _
                 SignatureFromProc( c, have, cast( Tko.NodeId, cs->payload ), withSret, withThis )
                 return i
             end if
-            if (have->isDefinition = false) andalso (cs <> 0) then
+            if (have->isDefinition = false) andalso (cs <> nullptr) then
                 dim as int32 wantN = 0
                 if withSret then wantN += 1
                 if withThis then wantN += 1
@@ -263,10 +263,10 @@ function DeclIndexFor_ _
         end if
     next
     dim as MirFunction ptr decl = c.m->AddFunction( cnm, callTy )
-    if decl = 0 then return -1
+    if decl = nullptr then return -1
     '' The return's SIZE, where it is an aggregate -- the ABI pass classifies by
     '' byte count and a declaration is where that number would otherwise be lost.
-    if (callTy = MT_AGG) andalso (cs <> 0) then
+    if (callTy = MT_AGG) andalso (cs <> nullptr) then
         decl->retSize = SizeOfType( c, cs->type_ )
         decl->retClass = ClassifyEightbytes( c, cs->type_ )
     end if
@@ -275,7 +275,7 @@ function DeclIndexFor_ _
     '' parameters are reported rather than re-derived: whether a hidden result
     '' pointer and a receiver were passed was decided by the CALL, and the
     '' declaration has to agree with the argument list it is built beside.
-    if cs <> 0 then
+    if cs <> nullptr then
         SignatureFromProc( c, decl, cast( Tko.NodeId, cs->payload ), withSret, withThis )
     end if
     return c.m->functions.Count - 1
@@ -297,7 +297,7 @@ function FuncAddrOf( byref c as Ctx, byval fsid as Tko.SymbolId, _
                      byval structor as boolean = false ) as MirValue
     dim as MirValue none_
     dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
-    if fs = 0 then return none_
+    if fs = nullptr then return none_
     if fs->kind <> cast( uint8, Tko.SYM_PROC ) then return none_
     dim as Tko.NodeId pn = cast( Tko.NodeId, fs->payload )
     if pn = Tko.NODE_NONE then return none_

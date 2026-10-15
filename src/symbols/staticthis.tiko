@@ -20,8 +20,8 @@
 private function StaticMemberProc_ ( byref c as Ctx, byval pn as NodeId ) as Symbol ptr
     dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
     dim as Symbol ptr ds = c.syms->SymbolAt( c.info->RefOf( pn ) )
-    if ds = 0 then return 0
-    if ds->kind <> cast( uint8, SYM_PROC ) then return 0
+    if ds = nullptr then return nullptr
+    if ds->kind <> cast( uint8, SYM_PROC ) then return nullptr
     dim as boolean isStatic = ((pp->extra and PF_STATIC) <> 0)
     dim as NodeId dn = cast( NodeId, ds->payload )
     if (dn <> NODE_NONE) andalso (c.ast->Kind( dn ) = N_PROC) then
@@ -35,9 +35,9 @@ private function StaticMemberProc_ ( byref c as Ctx, byval pn as NodeId ) as Sym
     end if
     '' A MEMBER: its symbol lives in a type's scope. A plain 'static sub' at module level
     '' has no object to miss.
-    if isStatic = false then return 0
+    if isStatic = false then return nullptr
     dim as SymScope ptr ps = c.syms->ScopeAt( ds->parent )
-    if (ps = 0) orelse (ps->kind <> cast( uint8, SCOPEK_TYPE )) then return 0
+    if (ps = nullptr) orelse (ps->kind <> cast( uint8, SCOPEK_TYPE )) then return nullptr
     return ds
 end function
 
@@ -51,7 +51,7 @@ private sub StaticThisRange_ _
         dim as string nm = lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[n].data )].name ) )
         if nm <> "this" then
             dim as Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( id ) )
-            if fs = 0 then continue for
+            if fs = nullptr then continue for
             if fs->kind <> cast( uint8, SYM_FIELD ) then continue for
             if (fs->flags and (SYMF_STATIC or SYMF_SHARED)) <> 0 then continue for
         end if
@@ -70,7 +70,7 @@ private sub StaticThisList_ _
         select case c.ast->Kind( ch )
         case N_PROC
             dim as Symbol ptr sm = StaticMemberProc_( c, ch )
-            if sm <> 0 then StaticThisRange_( c, prev + 1, cast( int32, ch ), sm, memberRhs )
+            if sm <> nullptr then StaticThisRange_( c, prev + 1, cast( int32, ch ), sm, memberRhs )
         case N_NAMESPACE, N_EXTERN_BLOCK
             dim as StmtPayload ptr np = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, ch )].data )]
             StaticThisList_( c, np->first, np->count, prev, memberRhs )

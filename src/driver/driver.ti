@@ -132,7 +132,7 @@ namespace Tko.Driver
     '' 'buildOut', when given, is the Tko.Build.Observer of a 'tiko build' (src/build).
     declare function Run _
         ( byref args as Tko.StrVec, byval restartDepth as int32 = 0, _
-          byval scanOut as any ptr = 0, byval buildOut as any ptr = 0 ) as int32
+          byval scanOut as any ptr = nullptr, byval buildOut as any ptr = nullptr ) as int32
 
     '' The output a run with these options writes when no '-o' names one, by fbc's rule.
     declare function DefaultOutput( byref o as Tko.DriverOptions ) as string

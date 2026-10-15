@@ -52,15 +52,15 @@ end function
 function FieldInitOf_ _
     ( byref c as Ctx, byval f as Tko.Symbol ptr ) as Tko.NodeId
 
-    if f = 0 then return Tko.NODE_NONE
+    if f = nullptr then return Tko.NODE_NONE
     '' A BITFIELD'S counts too: the prologue stores it through its unit (BitfieldMemberInit_). Its
     '' 'payload' is its WIDTH (resolve.bas), so its N_FIELD is found in the owning type's body.
     dim as Tko.NodeId n = cast( Tko.NodeId, f->payload )
     if (f->flags and Tko.SYMF_BITFIELD) <> 0 then
         dim as Tko.SymScope ptr fsc = c.syms->ScopeAt( f->parent )
-        if fsc = 0 then return Tko.NODE_NONE
+        if fsc = nullptr then return Tko.NODE_NONE
         dim as Tko.Symbol ptr ow = c.syms->SymbolAt( fsc->owner )
-        if ow = 0 then return Tko.NODE_NONE
+        if ow = nullptr then return Tko.NODE_NONE
         n = FieldNodeIn_( c, cast( Tko.NodeId, ow->declAt ), f->name, 0 )
     end if
     if n = Tko.NODE_NONE then return Tko.NODE_NONE
@@ -176,7 +176,7 @@ private function CtorArgsOnAddr_ _
     dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
     if pick = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
-    if ps = 0 then return false
+    if ps = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
     if pn = Tko.NODE_NONE then return false
 

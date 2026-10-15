@@ -102,7 +102,7 @@ function VerifyLayout _
     dim as Tko.PpResult pr
     dim as Tko.PpConfig cfg = Tko.Driver.MakePpConfig( ctx )
     '' A binding has no #cinclude of its own, and this runs INSIDE one.
-    cfg.cimportFn = 0
+    cfg.cimportFn = nullptr
     dim as Tko.PpStream st
     Tko.PpOpen( st, ctx.sources, id, ctx.names, ctx.keywords, ctx.diags, cfg, pr )
     dim as Tko.AstArena ast

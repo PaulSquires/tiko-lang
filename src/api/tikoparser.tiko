@@ -20,7 +20,7 @@ type U16Vec_ as containers.Array( of uint16 )
 '' A host's UTF-16 string as the UTF-8 tiko reads.
 private function Utf16ToUtf8_( byval w as wstring ptr ) as string
     dim as string o = ""
-    if w = 0 then return o
+    if w = nullptr then return o
     dim as uint16 ptr p = cast( uint16 ptr, w )
     dim as int32 i = 0
     while p[i] <> 0
@@ -170,24 +170,24 @@ private function DoScan_ _
 
     dim as Tko.StrVec args
     args.Push( "--dump-scan" )
-    if options <> 0 then
+    if options <> nullptr then
         for i as int32 = 0 to options->includeCount - 1
-            if options->includePaths = 0 then exit for
-            if options->includePaths[i] = 0 then continue for
+            if options->includePaths = nullptr then exit for
+            if options->includePaths[i] = nullptr then continue for
             args.Push( "-i" )
             args.Push( Utf16ToUtf8_( options->includePaths[i] ) )
         next
         '' THE PACKAGE TREE: in a DLL, tiko's own fallback -- beside the executable -- is the
         '' editor's folder, where no pkg/ is.
-        if options->pkgDir <> 0 then
+        if options->pkgDir <> nullptr then
             if len( *options->pkgDir ) > 0 then
                 args.Push( "--pkg-dir" )
                 args.Push( Utf16ToUtf8_( options->pkgDir ) )
             end if
         end if
         for i as int32 = 0 to options->defineCount - 1
-            if options->defines = 0 then exit for
-            if options->defines[i] = 0 then continue for
+            if options->defines = nullptr then exit for
+            if options->defines[i] = nullptr then continue for
             args.Push( "-d" )
             args.Push( Utf16ToUtf8_( options->defines[i] ) )
         next
@@ -203,7 +203,7 @@ private function DoScan_ _
     job.args = @args
     job.r = @r
     dim as any ptr th = threadcreate( @ScanOnBigStack_, @job, 64 * 1024 * 1024 )
-    if th = 0 then
+    if th = nullptr then
         Tko.Driver.Run( args, 0, @r )
     else
         threadwait( th )
@@ -220,9 +220,9 @@ function tikoparser_scan alias "TIKOPARSER_SCAN" _
     ( byval wszFile as wstring ptr, byval options as TKP_OPTIONS ptr, _
       byval ppResult as TKP_RESULT ptr ptr ) as int32 export
 
-    if ppResult = 0 then return TKP_E_BADARGS
-    *ppResult = 0
-    if options <> 0 then
+    if ppResult = nullptr then return TKP_E_BADARGS
+    *ppResult = nullptr
+    if options <> nullptr then
         if options->version <> TKP_VERSION then return TKP_E_VERSION
     end if
     dim as string f = Utf16ToUtf8_( wszFile )
@@ -234,10 +234,10 @@ function tikoparser_scan_text alias "TIKOPARSER_SCAN_TEXT" _
     ( byval pszText as zstring ptr, byval wszName as wstring ptr, _
       byval options as TKP_OPTIONS ptr, byval ppResult as TKP_RESULT ptr ptr ) as int32 export
 
-    if ppResult = 0 then return TKP_E_BADARGS
-    *ppResult = 0
-    if pszText = 0 then return TKP_E_BADARGS
-    if options <> 0 then
+    if ppResult = nullptr then return TKP_E_BADARGS
+    *ppResult = nullptr
+    if pszText = nullptr then return TKP_E_BADARGS
+    if options <> nullptr then
         if options->version <> TKP_VERSION then return TKP_E_VERSION
     end if
     dim as string f = Utf16ToUtf8_( wszName )
@@ -247,7 +247,7 @@ function tikoparser_scan_text alias "TIKOPARSER_SCAN_TEXT" _
 end function
 
 sub tikoparser_free alias "TIKOPARSER_FREE" ( byval pResult as TKP_RESULT ptr ) export
-    if pResult = 0 then return
+    if pResult = nullptr then return
     if pResult->symbols then deallocate( pResult->symbols )
     if pResult->fileOffsets then deallocate( pResult->fileOffsets )
     if pResult->diags then deallocate( pResult->diags )

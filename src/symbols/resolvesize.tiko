@@ -166,7 +166,7 @@ private function SlotsGroup_ _
 
     while idx < flds.Count
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[idx] ) )
-        if f = 0 then exit while
+        if f = nullptr then exit while
         dim as int32 fd = cast( int32, f->anonDepth )
         if fd < depth then exit while
 
@@ -210,10 +210,10 @@ private function SlotsOfUdt_ _
     ( byref c as Ctx, byval u as Tko.TypeId, byval rdepth as int32 ) as int32
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( UdtSymOf_( c, u ) )
-    if s = 0 then return -1
+    if s = nullptr then return -1
     if s->inner = Tko.SCOPE_NONE then return -1
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return -1
+    if sc = nullptr then return -1
 
     dim as containers.Array( of uint32 ) flds
     dim as Tko.SymbolId cur = sc->firstSym
@@ -221,7 +221,7 @@ private function SlotsOfUdt_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit while
+        if f = nullptr then exit while
         if f->kind = cast( uint8, Tko.SYM_FIELD ) then
             '' A BITFIELD is declined for layout everywhere else in this compiler; it
             '' is declined here too rather than counted as an ordinary member.

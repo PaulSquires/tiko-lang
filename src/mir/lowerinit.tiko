@@ -51,7 +51,7 @@ function InitCopyReturn_( byref c as Ctx, byval valueE as Tko.NodeId ) as boolea
     dim as containers.Array( of uint32 ) cargs
     cargs.Push( cast( uint32, src.kind ) )
     cargs.Push( cast( uint32, src.id ) )
-    EmitStructorCall( c, cc, c.resultSlot, 0, @cargs )
+    EmitStructorCall( c, cc, c.resultSlot, nullptr, @cargs )
     return true
 end function
 
@@ -72,7 +72,7 @@ function CallReturnsByref_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     if lp->target = Tko.NODE_NONE then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return false
@@ -469,7 +469,7 @@ function StaticMemberSym_ _
         end if
         first = false
         dim as Tko.Symbol ptr os = c.syms->SymbolAt( osid )
-        if os = 0 then return Tko.SYMBOL_NONE
+        if os = nullptr then return Tko.SYMBOL_NONE
         if os->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
         sc = os->inner
         if dot = 0 then exit do

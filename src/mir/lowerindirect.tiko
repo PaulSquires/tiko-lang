@@ -61,7 +61,7 @@ function ByvalUdtIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     '' only the sixteen-byte win64 rule putting a pointer back in the signature -- the
     '' golden caught it, the twelve-shape table above did not, because every
     '' object-derived type there was large enough for the ABI to hide the change.
-    if c.vts <> 0 then
+    if c.vts <> nullptr then
         if c.vts->Find( t ) >= 0 then return true
     end if
     '' A WRITTEN copy constructor, by SHAPE: the one-argument constructor whose

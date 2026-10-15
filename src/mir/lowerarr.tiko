@@ -88,7 +88,7 @@ function IsThisPointerIdent_ _
     if n = Tko.NODE_NONE then return false
     if c.ast->Kind( n ) <> Tko.N_IDENT then return false
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( c.info->RefOf( n ) )
-    if sy = 0 then return false
+    if sy = nullptr then return false
     if sy->kind <> cast( uint8, Tko.SYM_PARAMETER ) then return false
     if sy->name <> c.names->Fold( c.names->GetString( "this" ) ) then return false
     if sy->type_ = Tko.TYPE_NONE then return false
@@ -239,7 +239,7 @@ function LowerAddr _
     '' would be lowered here and again by the field path.
     dim as Tko.SymbolId bpg = iif( c.ast->Kind( id ) = Tko.N_MEMBER, c.info->RefOf( id ), Tko.SYMBOL_NONE )
     dim as Tko.Symbol ptr bps = iif( bpg <> Tko.SYMBOL_NONE, c.syms->SymbolAt( bpg ), cast( Tko.Symbol ptr, 0 ) )
-    dim as Tko.NodeId bpn = iif( bps <> 0, cast( Tko.NodeId, bps->payload ), Tko.NODE_NONE )
+    dim as Tko.NodeId bpn = iif( bps <> nullptr, cast( Tko.NodeId, bps->payload ), Tko.NODE_NONE )
     if (bpn <> Tko.NODE_NONE) andalso (c.ast->Kind( bpn ) = Tko.N_PROC) andalso ((c.ast->nodes[cast( int32, bpn )].flags and Tko.NF_BYREF) <> 0) then
         dim as boolean pw0 = c.propAddrWanted
         c.propAddrWanted = true
@@ -408,7 +408,7 @@ function LowerAddr _
         ''
         '' The signature's INNER type is what says byref, which is exactly the test
         '' LowerCallParts already makes for the indirect case.
-        if bcs <> 0 then
+        if bcs <> nullptr then
             if bcs->kind <> cast( uint8, Tko.SYM_PROC ) then
                 dim as Tko.TypeId sigT = c.types->Unqualify( bcs->type_ )
                 '' ...AND THROUGH A BYREF VARIABLE HOLDING ONE. 'dim byref p2 as
@@ -535,7 +535,7 @@ function LowerAddr _
         dim as Tko.SymbolId qsid = c.info->RefOf( id )
         if qsid <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr qs = c.syms->SymbolAt( qsid )
-            if qs <> 0 then
+            if qs <> nullptr then
                 if qs->kind = cast( uint8, Tko.SYM_VARIABLE ) then return AddrOfVar( c, qsid )
                 '' ...AND A QUALIFIED PROCEDURE'S ADDRESS IS ITS OWN. '@NS.Tramp' is
                 '' an N_MEMBER, so it fell through to the FIELD path below, found no
@@ -596,7 +596,7 @@ function LowerAddr _
                     '' pass has not run'. Six corpus files, all of which fbc compiles.
                     dim as Tko.Symbol ptr aos = c.syms->SymbolAt( aop )
                     dim as MirType armt = MT_PTR
-                    if aos <> 0 then
+                    if aos <> nullptr then
                         dim as Tko.NodeId apn = cast( Tko.NodeId, aos->payload )
                         dim as boolean aByref = false
                         if apn <> Tko.NODE_NONE then
@@ -625,7 +625,7 @@ function LowerAddr _
                     bt = art
                     dim as Tko.SymbolId afs = c.info->RefOf( id )
                     dim as Tko.Symbol ptr afsym = c.syms->SymbolAt( afs )
-                    if afsym = 0 then return v
+                    if afsym = nullptr then return v
                     if (afsym->flags and Tko.SYMF_BITFIELD) <> 0 then return v
                     dim as boolean afound = false
                     dim as int32 aoff = c.udts->FieldOffset( bt, afsym->name, afound )
@@ -656,12 +656,12 @@ function LowerAddr _
         '' 'call agg FREE_( )' into an eight-byte slot, clang refused the module, and the
         '' PRINT around it had already vanished. fbc prints 5.
         dim as boolean ptrResult = false
-        if bsy <> 0 then
+        if bsy <> nullptr then
             if bsy->type_ <> Tko.TYPE_NONE then
                 ptrResult = (c.types->Kind( c.types->Unqualify( bsy->type_ ) ) = Tko.TK_POINTER)
             end if
         end if
-        if (bsy <> 0) andalso (ptrResult = false) then
+        if (bsy <> nullptr) andalso (ptrResult = false) then
             if LowerBareProcCall_( c, mp->lhs, MT_AGG, base_ ) then
                 bt = c.types->Unqualify( bsy->type_ )
                 '' An SRET result IS the temporary's address already; anything
@@ -703,7 +703,7 @@ function LowerAddr _
         if base_.kind = cast( uint8, MV_NONE ) then return v
         dim as Tko.SymbolId fsym = c.info->RefOf( id )
         dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsym )
-        if fs = 0 then return v
+        if fs = nullptr then return v
 
         '' A BITFIELD HAS NO ADDRESS OF ITS OWN. Its declared type sizes the storage
         '' UNIT, not the field, so handing back the unit's address would let an
@@ -905,7 +905,7 @@ function LowerAddr _
     ''
     '' The sibling-CALL case already had this handled; the sibling-FIELD case did not.
     dim as Tko.Symbol ptr fsy = c.syms->SymbolAt( sid )
-    if fsy <> 0 then
+    if fsy <> nullptr then
         if fsy->kind = cast( uint8, Tko.SYM_FIELD ) then return AddrOfThisField( c, sid )
     end if
 
@@ -924,21 +924,21 @@ function AddrOfThisField( byref c as Ctx, byval fsid as Tko.SymbolId ) as MirVal
     dim as MirValue v
     if c.curProcSym = Tko.SYMBOL_NONE then return v
     dim as Tko.Symbol ptr me = c.syms->SymbolAt( c.curProcSym )
-    if me = 0 then return v
+    if me = nullptr then return v
     if me->inner = Tko.SCOPE_NONE then return v
 
     dim as Tko.SymbolId tsid = c.syms->LookupLocal( me->inner, _
         c.names->Fold( c.names->GetString( "this" ) ) )
     if tsid = Tko.SYMBOL_NONE then return v
     dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
-    if ts = 0 then return v
+    if ts = nullptr then return v
     if ts->type_ = Tko.TYPE_NONE then return v
     if c.types->Kind( ts->type_ ) <> Tko.TK_POINTER then return v
     dim as Tko.TypeId bt = c.types->Inner( ts->type_ )
     if bt = Tko.TYPE_NONE then return v
 
     dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
-    if fs = 0 then return v
+    if fs = nullptr then return v
     dim as boolean found = false
     dim as int32 off = c.udts->FieldOffset( bt, fs->name, found )
     if found = false then return v
@@ -1302,7 +1302,7 @@ private function UserOpTempAddr_ _
     dim as Tko.SymbolId op = c.info->RefOf( id )
     if op = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
-    if os = 0 then return false
+    if os = nullptr then return false
     if os->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.TypeId rt = os->type_
     if rt = Tko.TYPE_NONE then return false

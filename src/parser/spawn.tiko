@@ -129,7 +129,7 @@ function MakeSpawn_ _
     dim as uint32 shash = 0
     dim as Tko.DecodedLoc sd = p.src->Decode( t.loc )
     dim as Tko.SourceFile ptr sf = p.src->FileAt( sd.file )
-    if sf <> 0 then shash = sf->contentHash
+    if sf <> nullptr then shash = sf->contentHash
     dim as string tag = hex( shash ) & "_" & trim( str( p.lambdaSeq ) )
     p.lambdaSeq += 1
     dim as Tko.InternId frmNm = _
@@ -314,7 +314,7 @@ end function
 '' declare. The caller records what it built with it (TasksQual) so that, when FB resolves
 '' to nothing, the report is TKO0423 and not an undeclared 'fb'.
 function TasksNs( byref p as Tko.ParserState ) as string
-    if p.ifaceChains <> 0 then
+    if p.ifaceChains <> nullptr then
         for k as int32 = 0 to p.ifaceChains->Count - 1
             if (*p.ifaceChains)[k] = "std.tasks" then return "__tko_mod_std_tasks"
         next

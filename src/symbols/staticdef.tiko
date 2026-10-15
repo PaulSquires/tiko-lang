@@ -25,19 +25,19 @@ private sub CheckStaticMemberDef_ ( byref c as Ctx, byval id as NodeId )
         if (ip->ownerName = 0) orelse (ip->c <> NODE_NONE) then continue for
         if instr( c.names->Spelling( ip->ownerName ), "." ) > 0 then continue for
         dim as Symbol ptr os = c.syms->SymbolAt( c.syms->LookupTyped( c.info->ScopeOf( id ), ip->ownerName, true ) )
-        if (os = 0) orelse (os->kind <> cast( uint8, SYM_UDT )) then continue for
+        if (os = nullptr) orelse (os->kind <> cast( uint8, SYM_UDT )) then continue for
         '' The member, in the type or in what it extends.
-        dim as Symbol ptr ms = 0
+        dim as Symbol ptr ms = nullptr
         dim as TypeId ut = os->type_
         for guard as int32 = 0 to 31
             dim as Symbol ptr us = UdtSymbolOf_( c, ut )
-            if (us = 0) orelse (us->inner = SCOPE_NONE) then exit for
+            if (us = nullptr) orelse (us->inner = SCOPE_NONE) then exit for
             ms = c.syms->SymbolAt( c.syms->LookupLocalTyped( us->inner, ip->name, false ) )
-            if ms <> 0 then exit for
+            if ms <> nullptr then exit for
             ut = BaseOf_( c, ut )
             if ut = TYPE_NONE then exit for
         next
-        if ms = 0 then continue for
+        if ms = nullptr then continue for
         if (ms->flags and SYMF_STATIC) = 0 then continue for
         if ms->type_ = TYPE_NONE then continue for
         dim as boolean declByref = ((ms->flags and SYMF_BYREF) <> 0) orelse (c.types->Kind( ms->type_ ) = TK_REFERENCE)
@@ -136,7 +136,7 @@ private function MathArgIsNumber_ _
         if uo = SYMBOL_NONE then uo = c.syms->Lookup( scope_, c.names->Fold( c.names->GetString( nm ) ) )
         for guard as int32 = 0 to 63
             dim as Symbol ptr os = c.syms->SymbolAt( uo )
-            if os = 0 then exit for
+            if os = nullptr then exit for
             if os->payload <> 0 then
                 if c.ast->Kind( cast( NodeId, os->payload ) ) = N_PROC then
                     dim as int32 rk
@@ -161,7 +161,7 @@ private function MathArgIsNumber_ _
         end if
         dim as Symbol ptr cs = StructorOf_( c, at, "cast" )
         for guard as int32 = 0 to 63
-            if cs = 0 then exit for
+            if cs = nullptr then exit for
             dim as TypeId rt = c.types->Unqualify( cs->type_ )
             if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
             if c.types->Kind( rt ) = TK_ENUM then return true
@@ -269,9 +269,9 @@ private sub CheckUdtExactCast_ _
     if instr( c.names->Spelling( un ), "<" ) > 0 then return
     if BaseOf_( c, at ) <> TYPE_NONE then return
     dim as Symbol ptr cs = StructorOf_( c, at, "cast" )
-    if cs = 0 then return   '' no cast at all is another rule's
+    if cs = nullptr then return   '' no cast at all is another rule's
     for guard as int32 = 0 to 63
-        if cs = 0 then exit for
+        if cs = nullptr then exit for
         dim as TypeId rt = c.types->Unqualify( cs->type_ )
         if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
         if (c.types->Kind( rt ) = TK_BUILTIN) andalso (c.types->BuiltinOf( rt ) = want) then return
@@ -343,7 +343,7 @@ private sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
         if BaseOf_( c, at ) <> TYPE_NONE then return
         dim as Symbol ptr cs = StructorOf_( c, at, "cast" )
         for guard as int32 = 0 to 63
-            if cs = 0 then exit for
+            if cs = nullptr then exit for
             dim as TypeId rt = c.types->Unqualify( cs->type_ )
             if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
             if (c.types->Kind( rt ) = TK_BUILTIN) andalso (c.types->BuiltinOf( rt ) = want) then return
@@ -376,8 +376,8 @@ private sub CheckByrefResultCalls_ ( byref c as Ctx, byval total as int32 )
         dim as ListPayload ptr cp = @c.ast->lists[cast( int32, c.ast->nodes[i].data )]
         if cp->target = NODE_NONE then continue for
         dim as Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( cast( NodeId, i ) ) )
-        if ps = 0 then ps = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
-        if (ps = 0) orelse (ps->kind <> cast( uint8, SYM_PROC )) then continue for
+        if ps = nullptr then ps = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
+        if (ps = nullptr) orelse (ps->kind <> cast( uint8, SYM_PROC )) then continue for
         dim as NodeId pd = cast( NodeId, ps->payload )
         if (pd = NODE_NONE) orelse (c.ast->Kind( pd ) <> N_PROC) then continue for
         dim as StmtPayload ptr pdp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pd )].data )]

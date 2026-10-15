@@ -41,7 +41,7 @@ end function
 
 private function ValStr _
     ( byref f as MirFunction, byref v as MirValue, byref names as Tko.Interner, _
-      byval m as MirModule ptr = 0 ) as string
+      byval m as MirModule ptr = nullptr ) as string
 
     select case v.kind
     case MV_TEMP        : return "%" & str( v.id )
@@ -60,7 +60,7 @@ private function ValStr _
     case MV_GLOBAL
         '' Named, not numbered: a golden diff should not churn because an unrelated
         '' literal was added ahead of this one in the table.
-        if m <> 0 then
+        if m <> nullptr then
             if cast( int32, v.id ) < m->globals.Count then
                 return "@@" & names.Spelling( m->globals[cast( int32, v.id )].name )
             end if
@@ -309,7 +309,7 @@ function DumpModule _
     next
     for fi as int32 = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
-        if f = 0 then continue for
+        if f = nullptr then continue for
 
         if f->isModuleCtor then outp += "attribute constructor" & chr( 10 )
         if f->isModuleDtor then outp += "attribute destructor" & chr( 10 )

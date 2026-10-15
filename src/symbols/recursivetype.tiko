@@ -19,7 +19,7 @@ private sub RecursiveTypeRef_ _
     if c.ast->Kind( ta ) <> N_TYPEREF then return
     if (c.ast->nodes[cast( int32, ta )].flags and (NF_PTR or NF_PROC_TYPE)) <> 0 then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( ta ) )
-    if s = 0 then return
+    if s = nullptr then return
     if s->kind <> cast( uint8, SYM_UDT ) then return
     if cast( NodeId, s->payload ) <> self_ then return
     c.diags->Report( TKO0878, PointRange( c.ast->Loc( ta ) ), selfName )

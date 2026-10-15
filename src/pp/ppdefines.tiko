@@ -22,7 +22,7 @@ private sub PpDefineMore_( byref e as PpEngine )
     PpDefineValue( e, "__FB_BUILD_DATE_ISO__", """" & __DATE_ISO__ & """" )
     PpDefineValue( e, "__FB_BUILD_SHA1__", """""" )
     PpDefineValue( e, "__FB_BUILD_FORK_ID__", """tiko-lang""" )
-    if e.cfg <> 0 then
+    if e.cfg <> nullptr then
         PpDefineValue( e, "__FB_GUI__", iif( e.cfg->guiSubsystem, "-1", "0" ) )
         PpDefineValue( e, "__FB_OPTIMIZE__", str( e.cfg->optLevel ) )
         if e.cfg->isMainModule then PpDefineValue( e, "__FB_MAIN__", "" )

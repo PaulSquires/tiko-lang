@@ -278,7 +278,7 @@ function PpExpandBuiltin _
                     dim as Token at_ = args.flat[args.firsts[0] + ti]
                     if Tk( at_ ) = TK_FLOAT_LIT then iok = false
                     if Tk( at_ ) = TK_IDENT then
-                        if MacroFor( e, cast( InternId, at_.literal ) ) = 0 then iok = false
+                        if MacroFor( e, cast( InternId, at_.literal ) ) = nullptr then iok = false
                     end if
                 next
             end if
@@ -491,7 +491,7 @@ end function
 private function PrintSpell_( byref e as PpEngine, byref t as Token, byval depth as int32 ) as string
     if (Tk( t ) = TK_IDENT) andalso (depth < 32) then
         dim as PpMacro ptr m = MacroFor( e, cast( InternId, t.literal ) )
-        if m <> 0 then
+        if m <> nullptr then
             if (m->isFunc = false) andalso (m->builtin = PPB_NONE) then
                 dim as string r = ""
                 for k as int32 = 0 to m->body.Count - 1
@@ -518,7 +518,7 @@ function GapText_( byref e as PpEngine, byref a as Token, byref b as Token ) as 
     dim as int32 gapFrom = oa + cast( int32, a.length )
     if (ob <= gapFrom) orelse (ob - gapFrom > 256) then return " "
     dim as SourceFile ptr f = e.src->FileAt( fileA )
-    if f = 0 then return " "
+    if f = nullptr then return " "
     dim as string g = ""
     for k as int32 = gapFrom to ob - 1
         dim as uint8 ch = f->text[k]

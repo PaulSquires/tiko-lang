@@ -94,7 +94,7 @@ private function FcKindOf_ _
     dim as Tko.SymbolId pick = PickStructor( ast, syms, types, names, info, ctorFirst, argT, @ties )
     if (pick = Tko.SYMBOL_NONE) orelse (ties > 0) then return FK_UNKNOWN
     dim as Tko.Symbol ptr ps = syms.SymbolAt( pick )
-    if ps = 0 then return FK_UNKNOWN
+    if ps = nullptr then return FK_UNKNOWN
     dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
     if (pn = Tko.NODE_NONE) orelse (ast.Kind( pn ) <> Tko.N_PROC) then return FK_UNKNOWN
     dim as Tko.StmtPayload ptr pp = @ast.stmts[cast( int32, ast.nodes[cast( int32, pn )].data )]
@@ -428,7 +428,7 @@ private function FcStdStringsType_ _
     while (cur <> Tko.SCOPE_NONE) andalso (guard < 64)
         guard += 1
         dim as Tko.SymScope ptr sc = syms.ScopeAt( cur )
-        if sc = 0 then exit while
+        if sc = nullptr then exit while
         for k as int32 = 0 to syms.importNs.Count - 1
             if syms.importNs[k] = cast( uint32, sc->owner ) then
                 return lcase( syms.importChains[k] ) = "std.strings"
@@ -456,7 +456,7 @@ private function FcLiteral_ _
     base_ = lp->strOffset
     s.srcEnd = lp->strLength
     dim as Tko.SourceFile ptr f = src.FileAt( file )
-    if f = 0 then return false
+    if f = nullptr then return false
     if (lp->strOffset + lp->strLength) > f->text.Count then return false
     dim as boolean u8 = (f->encoding <> Tko.Text.ENC_BYTES)
 
@@ -650,7 +650,7 @@ sub CheckFormatStrings _
         dim as Tko.SymbolId callee = info.RefOf( n )
         if callee = Tko.SYMBOL_NONE then callee = info.RefOf( cp->target )
         dim as Tko.Symbol ptr s = syms.SymbolAt( callee )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then continue for
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn = Tko.NODE_NONE) orelse (ast.Kind( pn ) <> Tko.N_PROC) then continue for

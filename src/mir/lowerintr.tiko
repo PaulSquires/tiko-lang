@@ -119,10 +119,10 @@ function LowerError( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.DecodedLoc d = c.srcMgr->Decode( c.ast->Loc( id ) )
     dim as string fname = ""
     dim as Tko.SourceFile ptr sf = c.srcMgr->FileAt( d.file )
-    if sf <> 0 then fname = c.names->Spelling( sf->displayPath )
+    if sf <> nullptr then fname = c.names->Spelling( sf->displayPath )
     '' A MODULE'S GENERIC, compiled from the module's interface, is named by the source
     '' file its '#line' points at -- sharedptr.tiko, not std.memory.tki.
-    if sf <> 0 then
+    if sf <> nullptr then
         if sf->isVirtual andalso (d.shownName <> Tko.INTERN_NONE) then fname = c.srcMgr->ShownPathOf( d )
     end if
 
@@ -157,7 +157,7 @@ private function DtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolI
     '' TYPE, which is unique.
     for i as int32 = 1 to c.syms->Count( ) - 1
         dim as Tko.Symbol ptr us = c.syms->SymbolAt( cast( Tko.SymbolId, i ) )
-        if us = 0 then continue for
+        if us = nullptr then continue for
         if us->kind <> cast( uint8, Tko.SYM_UDT ) then continue for
         if us->type_ <> t then continue for
         if us->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE

@@ -24,7 +24,7 @@ private function InheritedMember_ _
         c.names->Fold( c.names->GetString( "this" ) ), false )
     if tsid = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
-    if ts = 0 then return false
+    if ts = nullptr then return false
     if ts->type_ = Tko.TYPE_NONE then return false
     if c.types->Kind( ts->type_ ) <> Tko.TK_POINTER then return false
     dim as Tko.TypeId t = c.types->Unqualify( c.types->Inner( ts->type_ ) )
@@ -40,13 +40,13 @@ private function InheritedMember_ _
         dim as Tko.SymbolId us = c.syms->LookupLocalTyped( ds, tn, true )
         if us = Tko.SYMBOL_NONE then us = c.syms->LookupTyped( ds, tn, true )
         dim as Tko.Symbol ptr usy = c.syms->SymbolAt( us )
-        if usy = 0 then return false
+        if usy = nullptr then return false
         if usy->inner = Tko.SCOPE_NONE then return false
 
         dim as Tko.SymbolId bf = c.syms->LookupLocal( usy->inner, baseNm )
         if bf = Tko.SYMBOL_NONE then return false
         dim as Tko.Symbol ptr b = c.syms->SymbolAt( bf )
-        if b = 0 then return false
+        if b = nullptr then return false
         if b->type_ = Tko.TYPE_NONE then return false
         dim as Tko.TypeId bt = c.types->Unqualify( b->type_ )
         if bt = t then return false
@@ -59,7 +59,7 @@ private function InheritedMember_ _
         dim as Tko.SymbolId bus = c.syms->LookupLocalTyped( bs, bn, true )
         if bus = Tko.SYMBOL_NONE then bus = c.syms->LookupTyped( bs, bn, true )
         dim as Tko.Symbol ptr busy = c.syms->SymbolAt( bus )
-        if busy = 0 then return false
+        if busy = nullptr then return false
         if busy->inner = Tko.SCOPE_NONE then return false
         dim as Tko.SymbolId hit = c.syms->LookupLocal( busy->inner, nm )
         if hit <> Tko.SYMBOL_NONE then

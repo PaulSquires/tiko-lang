@@ -128,7 +128,7 @@ end function
 '' them, and reporting at once made every one of those an error. SkipAt is where a
 '' statement is actually given up on, and it calls ReportBuiltinDecline.
 sub NoteBuiltinDecline( byref c as Ctx, byval calleeNode as Tko.NodeId )
-    if c.diags = 0 then exit sub
+    if c.diags = nullptr then exit sub
     if calleeNode = Tko.NODE_NONE then exit sub
     if c.ast->Kind( calleeNode ) <> Tko.N_IDENT then exit sub
     if c.info->RefOf( calleeNode ) <> Tko.SYMBOL_NONE then exit sub
@@ -147,7 +147,7 @@ end sub
 sub ReportBuiltinDecline( byref c as Ctx )
     dim as Tko.NodeId callee = cast( Tko.NodeId, c.badBuiltinNode )
     c.badBuiltinNode = 0
-    if (callee = Tko.NODE_NONE) orelse (c.diags = 0) then exit sub
+    if (callee = Tko.NODE_NONE) orelse (c.diags = nullptr) then exit sub
     for each seen as uint32 in c.st->badBuiltinCalls
         if seen = cast( uint32, callee ) then exit sub
     next
@@ -156,7 +156,7 @@ sub ReportBuiltinDecline( byref c as Ctx )
     '' statement was dropped: in 'tmp$ = space( 4 )' it was the undeclared tmp$, already
     '' TKO0743, and blaming 'space' as well was a false second error on the line.
     dim as Tko.DiagnosticEngine ptr de = cast( Tko.DiagnosticEngine ptr, c.diags )
-    if c.srcMgr <> 0 then
+    if c.srcMgr <> nullptr then
         dim as Tko.DecodedLoc bl = c.srcMgr->Decode( c.ast->Loc( callee ) )
         for i as int32 = 0 to de->pending.Count - 1
             if (de->pending[i].sev <> Tko.SEV_ERROR) orelse (de->pending[i].hasLocation = false) then continue for

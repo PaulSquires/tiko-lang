@@ -243,7 +243,7 @@ private function RaBuild_( byref c as Ctx, byref t as RaTree, byval id as Tko.No
             dim as Tko.SymbolId sid = c.info->RefOf( id )
             if sid <> Tko.SYMBOL_NONE then
                 dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-                if s <> 0 then
+                if s <> nullptr then
                     dim as boolean vk = (s->kind = cast( uint8, Tko.SYM_VARIABLE )) orelse _
                                         (s->kind = cast( uint8, Tko.SYM_PARAMETER ))
                     n.isVar = vk andalso ((s->flags and Tko.SYMF_BYREF) = 0)

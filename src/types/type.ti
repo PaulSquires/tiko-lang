@@ -306,7 +306,7 @@ namespace Tko
         declare function ArrayOf _
             ( byval elem as TypeId, byval rank as int32, _
               byval elems as int32 = 0, _
-              byval bounds as containers.Array( of int64 ) ptr = 0 ) as TypeId
+              byval bounds as containers.Array( of int64 ) ptr = nullptr ) as TypeId
         '' The declared bounds of one dimension. 'known' is false for an array whose
         '' bounds were not constant, in which case nothing may be folded.
         declare function ArrayBound _

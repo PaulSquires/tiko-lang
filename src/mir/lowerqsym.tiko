@@ -127,7 +127,7 @@ function LowerQuerySymbol_ _
     '' A NAME THAT IS ONLY A LABEL binds to nothing -- labels are declared under a key no
     '' written name reaches (DeclareLabel_, symbols/collectdecl.tiko) -- and fbc answers
     '' LABEL for it (fbc-int/query-symbol.bas). So one is looked for by that key.
-    if (sy = 0) andalso (c.ast->Kind( sn ) = Tko.N_IDENT) then
+    if (sy = nullptr) andalso (c.ast->Kind( sn ) = Tko.N_IDENT) then
         dim as Tko.InternId lk = c.names->GetString( "$label:" & _
             c.names->Spelling( c.names->Fold( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, sn )].data )].name ) ) )
         for i as int32 = 0 to c.syms->symbols.Count - 1
@@ -141,7 +141,7 @@ function LowerQuerySymbol_ _
 
     '' A NAME '#pragma reserve' TOOK has no symbol and is a class of its own: fbc answers
     '' FB_SYMBCLASS_RESERVED (fbc-int/query-symbol.bas). It was 0.
-    if (sy = 0) andalso (q = QSYM_SYMBCLASS) andalso (c.ast->Kind( sn ) = Tko.N_IDENT) then
+    if (sy = nullptr) andalso (q = QSYM_SYMBCLASS) andalso (c.ast->Kind( sn ) = Tko.N_IDENT) then
         dim as uint32 rn = cast( uint32, c.names->Fold( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, sn )].data )].name ) )
         for each r as uint32 in c.syms->reservedNames
             if r = rn then
@@ -154,7 +154,7 @@ function LowerQuerySymbol_ _
     '' A KEYWORD -- 'integer', 'string', 'print' -- is a class too, and so is a name only ever
     '' FORWARD-referenced ('type FWDREF as SYM_FWDREF'): fbc answers KEYWORD and FWDREF
     '' (fbc-int/query-symbol.bas). Both have no symbol here and answered 0.
-    if (sy = 0) andalso (q = QSYM_SYMBCLASS) andalso (c.ast->Kind( sn ) = Tko.N_IDENT) then
+    if (sy = nullptr) andalso (q = QSYM_SYMBCLASS) andalso (c.ast->Kind( sn ) = Tko.N_IDENT) then
         dim as Tko.InternId qn2 = c.ast->idents[cast( int32, c.ast->nodes[cast( int32, sn )].data )].name
         dim as string qup = ucase( c.names->Spelling( qn2 ) )
         for k as int32 = Tko.TK_KW_FIRST + 1 to Tko.TK_KW_LAST - 1
@@ -176,7 +176,7 @@ function LowerQuerySymbol_ _
     select case q
     case QSYM_EXISTS
         dim as int64 ev = 0
-        if sy <> 0 then ev = -1
+        if sy <> nullptr then ev = -1
         outv = ConstInt( c, ev, MT_I64 )
         return true
     case QSYM_SYMBCLASS
@@ -205,7 +205,7 @@ private function QSymConstOf_ _
 
     dim as Tko.SymbolId qs = c.info->RefOf( qn )
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( qs )
-    if sy <> 0 then
+    if sy <> nullptr then
         if sy->kind = cast( uint8, Tko.SYM_ENUMCONST ) then
             outv = cast( int64, sy->payload )
             return true
@@ -248,7 +248,7 @@ end function
 function QSymClassOf_ _
     ( byref c as Ctx, byval sy as Tko.Symbol ptr ) as int64
 
-    if sy = 0 then return 0
+    if sy = nullptr then return 0
     select case cast( Tko.SymbolKind, sy->kind )
     '' A PARAMETER READS AS A VARIABLE. Measured, and the corpus file says so in a
     '' comment of its own: telling one from the other needs SYMBATTRIB, which this
@@ -278,7 +278,7 @@ end function
 function QSymTypeOf_ _
     ( byref c as Ctx, byval sn as Tko.NodeId, byval sy as Tko.Symbol ptr ) as Tko.TypeId
 
-    if sy <> 0 then return sy->type_
+    if sy <> nullptr then return sy->type_
     return c.info->TypeOf_( sn )
 end function
 
@@ -287,7 +287,7 @@ function QSymEncodeType_ _
     ( byref c as Ctx, byval sy as Tko.Symbol ptr, byval t as Tko.TypeId ) as int64
 
     '' A NAMESPACE has no type of its own and answers _NAMESPC.
-    if sy <> 0 then
+    if sy <> nullptr then
         if sy->kind = cast( uint8, Tko.SYM_NAMESPACE ) then return QSYMDT_NAMESPC
     end if
     if t = Tko.TYPE_NONE then return QSYMDT_VOID

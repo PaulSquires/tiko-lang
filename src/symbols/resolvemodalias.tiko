@@ -31,7 +31,7 @@ private sub ModuleTypedefsFirst_( byref c as Ctx )
             dim as Tko.ScopeId here = c.info->ScopeOf( id )
             dim as Tko.SymbolId tsid = c.syms->LookupLocalTyped( here, tsp->name, true )
             dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
-            if ts = 0 then continue for
+            if ts = nullptr then continue for
             if ts->kind <> cast( uint8, Tko.SYM_TYPEDEF ) then continue for
             if Tko.ModSym.OrderFree( *c.syms, tsid ) = false then continue for
             dim as Tko.TypeId aliased = ResolveTypeRef( c, tsp->a, here )

@@ -223,7 +223,7 @@ private sub EmitMixedGlobal_ _
         mvals += "[" & str( g.size - at ) & " x i8] " & CString( mid( img, at + 1, g.size - at ) )
     end if
     dim as string mdbg = ""
-    if (e.dbg <> 0) andalso (g.isExternal = false) then
+    if (e.dbg <> nullptr) andalso (g.isExternal = false) then
         mdbg = DbgGlobal( *e.dbg, g.sym, e.names->Spelling( g.name ), g.isInternal )
     end if
     e.outp += nm & " = " & VarLinkage( e, g ) & "global <{ " & mtys & " }> <{ " & mvals & _
@@ -355,7 +355,7 @@ sub EmitVarGlobal _
     end if
 
     dim as string gdbg = ""
-    if (e.dbg <> 0) andalso (g.isExternal = false) then gdbg = DbgGlobal( *e.dbg, g.sym, e.names->Spelling( g.name ), g.isInternal )
+    if (e.dbg <> nullptr) andalso (g.isExternal = false) then gdbg = DbgGlobal( *e.dbg, g.sym, e.names->Spelling( g.name ), g.isInternal )
     e.outp += nm & " = " & VarLinkage( e, g ) & "global " & ty & " " & init_ & _
               ", align " & str( AlignOf( e, vt, g.size ) ) & gdbg & chr( 10 )
 end sub

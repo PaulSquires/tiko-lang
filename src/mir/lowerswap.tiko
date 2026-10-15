@@ -451,7 +451,7 @@ function LowerUdtIndexOp_ _
     '' ...AND ITS OWN RESULT SHAPE. The BYREF flag lives on the declaration, which is
     '' where lowercall.tiko reads it from for an ordinary call.
     dim as Tko.Symbol ptr ixsym = c.syms->SymbolAt( ixs )
-    if ixsym = 0 then return false
+    if ixsym = nullptr then return false
     dim as Tko.NodeId ixpn = cast( Tko.NodeId, ixsym->payload )
     if ixpn <> Tko.NODE_NONE then
         if (c.ast->nodes[cast( int32, ixpn )].flags and Tko.NF_BYREF) <> 0 then
@@ -527,7 +527,7 @@ function TypeCtorTypeOf_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
-    if s = 0 then return Tko.TYPE_NONE
+    if s = nullptr then return Tko.TYPE_NONE
     '' ...OR TO A TYPEDEF FOR ONE. 'type Alias as T' is a SYM_TYPEDEF whose own type is
     '' a TK_TYPEDEF placeholder, so both tests below refused it and 'Alias( ).a'
     '' declined -- while 'T( ).a' and 'type<Alias>( ).a' beside it lowered.
@@ -573,7 +573,7 @@ private function PushPropIndexArgs_ _
 
     if idxCount = 0 then return true
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( prop )
-    if s = 0 then return false
+    if s = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
@@ -628,7 +628,7 @@ private function PropIndexCost_ _
 
     if (idxCount = 0) andalso (valNode = Tko.NODE_NONE) then return Tko.Check.CONV_EXACT
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( prop )
-    if s = 0 then return Tko.Check.CONV_NONE
+    if s = nullptr then return Tko.Check.CONV_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return Tko.Check.CONV_NONE
     if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.Check.CONV_NONE
@@ -740,7 +740,7 @@ function PropertyAt_ _
     '' was a function.
     dim as Tko.SymbolId head = sid
     dim as Tko.Symbol ptr s0 = c.syms->SymbolAt( sid )
-    if s0 <> 0 then
+    if s0 <> nullptr then
         dim as Tko.SymbolId h = c.syms->LookupLocal( s0->parent, s0->name )
         if h <> Tko.SYMBOL_NONE then head = h
     end if
@@ -753,7 +753,7 @@ function PropertyAt_ _
     if want = 0 then
         cur = Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr rgs = c.syms->SymbolAt( c.info->RefOf( node ) )
-        if rgs <> 0 then
+        if rgs <> nullptr then
             if (rgs->kind = cast( uint8, Tko.SYM_PROC )) andalso (rgs->payload <> 0) then
                 dim as Tko.NodeId rgn = cast( Tko.NodeId, rgs->payload )
                 if c.ast->Kind( rgn ) = Tko.N_PROC then
@@ -767,7 +767,7 @@ function PropertyAt_ _
     dim as int32 ties = 0
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if s->kind = cast( uint8, Tko.SYM_PROC ) then
             dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
             if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
@@ -818,7 +818,7 @@ function PropertyAt_ _
     dim as boolean procBase = false
     if (c.ast->Kind( mp->lhs ) = Tko.N_IDENT) orelse (c.ast->Kind( mp->lhs ) = Tko.N_MEMBER) then
         dim as Tko.Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
-        if ls <> 0 then procBase = (ls->kind = cast( uint8, Tko.SYM_PROC ))
+        if ls <> nullptr then procBase = (ls->kind = cast( uint8, Tko.SYM_PROC ))
     end if
     if (bt <> Tko.TYPE_NONE) andalso (c.types->Kind( bt ) = Tko.TK_POINTER) then
         self_ = LowerExpr( c, mp->lhs )
@@ -852,7 +852,7 @@ function LowerUserBinaryOp_ _
     dim as Tko.SymbolId op = c.info->RefOf( id )
     if op = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
-    if os = 0 then return false
+    if os = nullptr then return false
     if os->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
     if pn = Tko.NODE_NONE then return false
@@ -981,7 +981,7 @@ function LowerCompoundUserOp_ _
     dim as Tko.SymbolId op = c.info->RefOf( sid )
     if op = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
-    if os = 0 then return false
+    if os = nullptr then return false
     if os->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
     if pn = Tko.NODE_NONE then return false
@@ -1117,7 +1117,7 @@ function LowerUserUnaryOpSym_ _
 
     if op = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
-    if os = 0 then return false
+    if os = nullptr then return false
     if os->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
     if pn = Tko.NODE_NONE then return false
@@ -1248,12 +1248,12 @@ private function OperandValue_ _
         end if
         '' A PAREN-LESS PROCEDURE IS A CALL, not an address: 'LocalDate.Invalid =
         '' LocalDate.Invalid' compared the procedure's CODE with itself and said true.
-        dim as Tko.Symbol ptr es = 0
+        dim as Tko.Symbol ptr es = nullptr
         if (c.ast->Kind( e ) = Tko.N_IDENT) orelse (c.ast->Kind( e ) = Tko.N_MEMBER) then
             es = c.syms->SymbolAt( c.info->RefOf( e ) )
         end if
         dim as MirValue pv
-        if es <> 0 then
+        if es <> nullptr then
             if es->kind = cast( uint8, Tko.SYM_PROC ) then pv = ByrefTemp_( c, e, pt )
         end if
         v = pv
@@ -1312,7 +1312,7 @@ function LowerPropertyGet_ _
     dim as Tko.SymbolId g = PropertyAt_( c, node, 0, self_, gFirst, gCount )
     if g = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( g )
-    if gs = 0 then return false
+    if gs = nullptr then return false
     '' The INDEX ARGUMENTS follow the receiver, in written order, coerced to the
     '' parameters the chosen overload declared -- measured, fbc emits
     '' '_ZN3FOO10BAR__get__Eu7INTEGER( &F$, 0ll )'.
@@ -1366,7 +1366,7 @@ function LowerPropertySet_ _
 
     '' The parameter's type, so the value is coerced the way the callee expects.
     dim as Tko.Symbol ptr ss = c.syms->SymbolAt( sset )
-    if ss = 0 then return false
+    if ss = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, ss->payload )
     if pn = Tko.NODE_NONE then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )

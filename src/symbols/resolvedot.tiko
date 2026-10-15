@@ -30,7 +30,7 @@ private function LookupDottedNamespace_ _
         while (root <> Tko.SCOPE_NONE) andalso (rg < 1024)
             rg += 1
             dim as Tko.SymScope ptr rs = c.syms->ScopeAt( root )
-            if rs = 0 then exit while
+            if rs = nullptr then exit while
             if rs->parent = Tko.SCOPE_GLOBAL then exit while
             if rs->parent = Tko.SCOPE_NONE then exit while
             root = rs->parent
@@ -56,7 +56,7 @@ private function LookupDottedNamespace_ _
             sid = c.syms->LookupLocal( sc, cid )
         end if
         dim as Tko.Symbol ptr sym = c.syms->SymbolAt( sid )
-        if sym = 0 then return Tko.SYMBOL_NONE
+        if sym = nullptr then return Tko.SYMBOL_NONE
         found = sid
         first_ = false
 
@@ -79,7 +79,7 @@ private function BaseScopeOf_ _
         c.syms->LookupLocal( sc, c.names->Fold( c.names->GetString( "base" ) ) )
     if bf = Tko.SYMBOL_NONE then return Tko.SCOPE_NONE
     dim as Tko.Symbol ptr b = c.syms->SymbolAt( bf )
-    if b = 0 then return Tko.SCOPE_NONE
+    if b = nullptr then return Tko.SCOPE_NONE
     if b->type_ = Tko.TYPE_NONE then return Tko.SCOPE_NONE
     dim as Tko.TypeId bt = c.types->Unqualify( b->type_ )
     if c.types->Kind( bt ) <> Tko.TK_UDT then return Tko.SCOPE_NONE
@@ -89,7 +89,7 @@ private function BaseScopeOf_ _
     dim as Tko.SymbolId us = c.syms->LookupLocalTyped( ds, tn, true )
     if us = Tko.SYMBOL_NONE then us = c.syms->LookupTyped( ds, tn, true )
     dim as Tko.Symbol ptr usy = c.syms->SymbolAt( us )
-    if usy = 0 then return Tko.SCOPE_NONE
+    if usy = nullptr then return Tko.SCOPE_NONE
     return cast( Tko.ScopeId, usy->inner )
 end function
 '' A possibly-dotted name -- 'UDT', 'ns.UDT', 'a.b.UDT' -- resolved to its symbol.
@@ -137,7 +137,7 @@ private function LookupDottedType_ _
             loop
         end if
         dim as Tko.Symbol ptr sym = c.syms->SymbolAt( sid )
-        if sym = 0 then return Tko.SYMBOL_NONE
+        if sym = nullptr then return Tko.SYMBOL_NONE
         found = sid
         first_ = false
 
@@ -171,7 +171,7 @@ private sub CheckStaticMemberVar_ _
     if (ownerName = 0) orelse (memberName = 0) then return
     dim as Tko.SymbolId osid = LookupDottedType_( c, scope_, ownerName )
     dim as Tko.Symbol ptr osym = c.syms->SymbolAt( osid )
-    if osym = 0 then return
+    if osym = nullptr then return
     if osym->kind <> cast( uint8, Tko.SYM_UDT ) then return
     if osym->inner = Tko.SCOPE_NONE then return
 
@@ -188,7 +188,7 @@ private sub CheckStaticMemberVar_ _
     loop
 
     dim as Tko.Symbol ptr msym = c.syms->SymbolAt( msid )
-    if msym <> 0 then
+    if msym <> nullptr then
         if (msym->flags and Tko.SYMF_STATIC) <> 0 then return
     end if
     c.diags->Report( Tko.TKO0661, Tko.PointRange( c.ast->Loc( item ) ), _

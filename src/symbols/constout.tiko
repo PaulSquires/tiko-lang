@@ -58,8 +58,8 @@ private function ThroughCall_ ( byref c as Ctx, byval n as NodeId ) as boolean
             dim as NodeId tg = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )].target
             if tg = NODE_NONE then return false
             dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( n ) )
-            if ts = 0 then ts = c.syms->SymbolAt( c.info->RefOf( tg ) )
-            if ts <> 0 then
+            if ts = nullptr then ts = c.syms->SymbolAt( c.info->RefOf( tg ) )
+            if ts <> nullptr then
                 if ts->kind = cast( uint8, SYM_PROC ) then return true
             end if
             n = tg
@@ -76,7 +76,7 @@ private sub CheckGetElemThroughCall_ ( byref c as Ctx, byval n as NodeId )
     dim as NodeId tg = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )].target
     if (tg = NODE_NONE) orelse (c.ast->Kind( tg ) <> N_MEMBER) then return
     dim as Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( tg ) )
-    if fs = 0 then return
+    if fs = nullptr then return
     if fs->kind <> cast( uint8, SYM_FIELD ) then return
     if ThroughCall_( c, c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, tg )].data )].lhs ) = false then return
     c.diags->Report( TKO0883, PointRange( c.ast->Loc( n ) ) )
@@ -155,9 +155,9 @@ private sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
     if c.info->AmbiguousOf( id ) <> AMB_CALL then return
     if sp->count < 1 then return
     dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if callee = 0 then callee = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+    if callee = nullptr then callee = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
     '' CLEAR is the runtime's and has no symbol: its first argument is the memory it fills.
-    if (callee = 0) andalso (sp->a <> NODE_NONE) then
+    if (callee = nullptr) andalso (sp->a <> NODE_NONE) then
         if lcase( SpellOf_( c, sp->a ) ) = "clear" then
             dim as NodeId a0 = cast( NodeId, c.ast->children[sp->first] )
             if (c.ast->Kind( a0 ) = N_IDENT) andalso ConstOut_( c, a0 ) then
@@ -166,7 +166,7 @@ private sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
         end if
         return
     end if
-    if callee = 0 then return
+    if callee = nullptr then return
     if callee->kind <> cast( uint8, SYM_PROC ) then return
     dim as NodeId decl = cast( NodeId, callee->payload )
     if (decl = NODE_NONE) orelse (c.ast->Kind( decl ) <> N_PROC) then return

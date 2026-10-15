@@ -328,7 +328,7 @@ function ParenlessProcTemp_ _
     dim as Tko.NodeKind k = c.ast->Kind( inner )
     if (k <> Tko.N_IDENT) andalso (k <> Tko.N_MEMBER) then return false
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( inner ) )
-    if ps = 0 then return false
+    if ps = nullptr then return false
     if ps->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     outa = ByrefTemp_( c, argNode, pt )
     return true
@@ -345,7 +345,7 @@ function HasUdtConvCtor_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         if ParamCountOf( c, cur ) = 1 then
             dim as Tko.TypeId cpt = ParamTypeAt( c, cur, 0 )
             if cpt <> Tko.TYPE_NONE then
@@ -392,7 +392,7 @@ function WideArgCharPtrCtor_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         if ParamCountOf( c, cur ) = 1 then
             dim as Tko.TypeId cpt = ParamTypeAt( c, cur, 0 )
             if cpt <> Tko.TYPE_NONE then
@@ -427,7 +427,7 @@ function WideCharOverload_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         if ParamCountOf( c, cur ) = 1 then
             dim as Tko.TypeId cpt = ParamTypeAt( c, cur, 0 )
             if cpt <> Tko.TYPE_NONE then
@@ -726,7 +726,7 @@ function CtorLitArgIsWide_ _
     dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
     if pick = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
-    if ps = 0 then return false
+    if ps = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
     if pn = Tko.NODE_NONE then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )

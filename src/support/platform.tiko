@@ -46,7 +46,7 @@ end function
 function IsTerminal( byval s as StdStream ) as boolean
 #ifdef __FB_WIN32__
     dim as any ptr h = HandleFor( s )
-    if h = 0 then return false
+    if h = nullptr then return false
     return (GetFileType( h ) = WIN_FILE_TYPE_CHAR)
 #else
     dim as int32 fd = 1
@@ -58,15 +58,15 @@ end function
 function SelfPath( ) as string
 #ifdef __FB_WIN32__
     '' FROM_ADDRESS (4) of this very function, UNCHANGED_REFCOUNT (2).
-    dim as any ptr hmod = 0
+    dim as any ptr hmod = nullptr
     if GetModuleHandleExW( 6, cast( any ptr, @SelfPath ), @hmod ) = 0 then return ""
     dim as wstring * 32768 wbuf
     dim as uint32 n = GetModuleFileNameW( hmod, @wbuf, 32768 )
     if (n = 0) orelse (n >= 32768) then return ""
-    dim as int32 need = WideCharToMultiByte( 65001, 0, @wbuf, -1, 0, 0, 0, 0 )
+    dim as int32 need = WideCharToMultiByte( 65001, 0, @wbuf, -1, nullptr, 0, nullptr, nullptr )
     if need <= 1 then return ""
     dim as string u8 = space( need - 1 )
-    WideCharToMultiByte( 65001, 0, @wbuf, -1, strptr( u8 ), need, 0, 0 )
+    WideCharToMultiByte( 65001, 0, @wbuf, -1, strptr( u8 ), need, nullptr, nullptr )
     return u8
 #else
     dim as zstring * 4097 buf
@@ -80,7 +80,7 @@ sub EnableAnsi( )
 #ifdef __FB_WIN32__
     for s as int32 = STREAM_OUT to STREAM_ERR
         dim as any ptr h = HandleFor( cast( StdStream, s ) )
-        if h <> 0 then
+        if h <> nullptr then
             dim as uint32 mode = 0
             if GetConsoleMode( h, @mode ) <> 0 then
                 SetConsoleMode( h, mode or WIN_ENABLE_VT )

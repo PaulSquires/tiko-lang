@@ -30,11 +30,11 @@ dim as StrVec args
     #inclib "shell32"
     dim as int32 wargc = 0
     dim as wstring ptr ptr wargv = W_CommandLineToArgvW_( W_GetCommandLineW_( ), @wargc )
-    if wargv <> 0 then
+    if wargv <> nullptr then
         for i as int32 = 1 to wargc - 1
-            dim as int32 need = W_WideCharToMultiByte_( 65001, 0, wargv[i], -1, 0, 0, 0, 0 )
+            dim as int32 need = W_WideCharToMultiByte_( 65001, 0, wargv[i], -1, nullptr, 0, nullptr, nullptr )
             dim as string u8 = space( iif( need > 0, need - 1, 0 ) )
-            if need > 1 then W_WideCharToMultiByte_( 65001, 0, wargv[i], -1, strptr( u8 ), need, 0, 0 )
+            if need > 1 then W_WideCharToMultiByte_( 65001, 0, wargv[i], -1, strptr( u8 ), need, nullptr, nullptr )
             if len( u8 ) > 0 then args.Push( u8 )   '' an EMPTY argument is skipped, as fbc skips it
         next
         W_LocalFree_( wargv )
@@ -83,13 +83,13 @@ job.args = @args
         RunOnBigStack_( p )
         return 0
     end function
-    dim as any ptr wth = CreateThread_( 0, BIG_STACK_, @BigStackEntry_, @job, &h00010000, 0 )
-    if wth = 0 then end Tko.Build.Entry( args )
+    dim as any ptr wth = CreateThread_( nullptr, BIG_STACK_, @BigStackEntry_, @job, &h00010000, nullptr )
+    if wth = nullptr then end Tko.Build.Entry( args )
     WaitForSingleObject_( wth, &hFFFFFFFFul )
     CloseHandle_( wth )
 #else
     dim as any ptr th = threadcreate( @RunOnBigStack_, @job, BIG_STACK_ )
-    if th = 0 then end Tko.Build.Entry( args )
+    if th = nullptr then end Tko.Build.Entry( args )
     threadwait( th )
 #endif
 end job.rc

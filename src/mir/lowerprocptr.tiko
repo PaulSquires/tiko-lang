@@ -54,7 +54,7 @@ function ProcAddrForWanted_ _
     end select
     if fnE = Tko.NODE_NONE then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( fnE ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     if s->nextOverload = Tko.SYMBOL_NONE then return false
     '' WHICH OVERLOAD IS CHECK'S, recorded on 'f' (checkdecide.tiko DecideProcAddr_) by the same
@@ -83,7 +83,7 @@ private function ProcPtrBySignature_ _
     if st = Tko.TYPE_NONE then
         if c.ast->Kind( sigN ) = Tko.N_IDENT then
             dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( c.info->RefOf( sigN ) )
-            if tsy <> 0 then
+            if tsy <> nullptr then
                 select case cast( Tko.SymbolKind, tsy->kind )
                 case Tko.SYM_TYPEDEF, Tko.SYM_UDT
                     st = c.types->Unqualify( tsy->type_ )
@@ -114,7 +114,7 @@ function ProcPickByType_ _
     dim as Tko.SymbolId cur = first_
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         if cs->kind = cast( uint8, Tko.SYM_PROC ) then
             dim as boolean ok = (ParamCountOf( c, cur ) = want)
             if ok then ok = SameProcResult_( c, cs->type_, wantRet )
@@ -233,7 +233,7 @@ function LowerProcPtr _
                 if c.ast->Kind( vmb->lhs ) = Tko.N_IDENT then
                     dim as Tko.SymbolId vts2 = c.info->RefOf( vmb->lhs )
                     dim as Tko.Symbol ptr vtsy = c.syms->SymbolAt( vts2 )
-                    if vtsy <> 0 then vot = c.types->Unqualify( vtsy->type_ )
+                    if vtsy <> nullptr then vot = c.types->Unqualify( vtsy->type_ )
                 end if
             end if
             if vot = Tko.TYPE_NONE then return false
@@ -241,8 +241,8 @@ function LowerProcPtr _
             if vps = Tko.SYMBOL_NONE then vps = c.info->RefOf( vmb->rhs )
             if vps = Tko.SYMBOL_NONE then return false
             dim as Tko.Symbol ptr vpsy = c.syms->SymbolAt( vps )
-            if vpsy = 0 then return false
-            if c.vts = 0 then return false
+            if vpsy = nullptr then return false
+            if c.vts = nullptr then return false
 
             '' THE DECLARATION ITSELF MUST SAY VIRTUAL OR ABSTRACT. A derived type's
             '' override written as a plain 'declare sub proc1( )' fills the base's slot
@@ -305,10 +305,10 @@ function LowerProcPtr _
     end if
     dim as boolean userBound = false
     dim as Tko.Symbol ptr ubs = c.syms->SymbolAt( usid )
-    if ubs <> 0 then userBound = (ubs->kind = cast( uint8, Tko.SYM_PROC )) andalso ((ubs->flags and Tko.SYMF_BUILTIN) = 0)
+    if ubs <> nullptr then userBound = (ubs->kind = cast( uint8, Tko.SYM_PROC )) andalso ((ubs->flags and Tko.SYMF_BUILTIN) = 0)
     if userBound then   '' ...and declared in the program, not the prelude's runtime declarations
         dim as Tko.SourceFile ptr usf = c.srcMgr->FileAt( c.srcMgr->Decode( ubs->loc ).file )
-        if (usf = 0) orelse usf->isVirtual then userBound = false
+        if (usf = nullptr) orelse usf->isVirtual then userBound = false
     end if
     if userBound andalso (lp->count = 1) andalso (c.info->RefOf( fnE ) = Tko.SYMBOL_NONE) then
         outv = FuncAddrOf( c, usid )
@@ -366,7 +366,7 @@ function LowerProcPtr _
     '' it as non-null and folded the test false (pointers/procptr-virtual.bas).
     scope
         dim as Tko.Symbol ptr aps = c.syms->SymbolAt( c.info->RefOf( fnE ) )
-        if aps <> 0 then
+        if aps <> nullptr then
             dim as Tko.NodeId apn = cast( Tko.NodeId, aps->payload )
             if (apn <> Tko.NODE_NONE) andalso (c.ast->Kind( apn ) = Tko.N_PROC) then
                 if (StmtOf( c, apn )->extra and Tko.PF_ABSTRACT) <> 0 then
@@ -387,7 +387,7 @@ end function
 '' The overload in sid's chain whose declaration comes first -- the arena is in source order.
 private function FirstDeclaredOf_( byref c as Ctx, byval sid as Tko.SymbolId ) as Tko.SymbolId
     dim as Tko.Symbol ptr hs = c.syms->SymbolAt( sid )
-    if hs = 0 then return sid
+    if hs = nullptr then return sid
     '' the chain from its HEAD, wherever the binding landed in it
     dim as Tko.SymbolId cur = c.syms->LookupLocal( hs->parent, hs->name )
     if cur = Tko.SYMBOL_NONE then cur = sid
@@ -396,7 +396,7 @@ private function FirstDeclaredOf_( byref c as Ctx, byval sid as Tko.SymbolId ) a
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         dim as int32 pn = cast( int32, s->payload )
         if (pn > 0) andalso (pn < bestAt) then
             if c.ast->Kind( cast( Tko.NodeId, pn ) ) = Tko.N_PROC then bestAt = pn : best = cur

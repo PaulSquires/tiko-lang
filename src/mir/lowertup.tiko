@@ -140,7 +140,7 @@ private function TupleUdtCmpOp_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
         guard += 1
         dim as Tko.Symbol ptr os = c.syms->SymbolAt( cur )
-        if os = 0 then exit while
+        if os = nullptr then exit while
         if os->kind = cast( uint8, Tko.SYM_PROC ) then
             dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
             dim as boolean isProc = (pn <> Tko.NODE_NONE)
@@ -245,7 +245,7 @@ function TupleElemCmp_ _
             return Emit( c, ccmp )
         end if
         dim as Tko.Symbol ptr ucs = c.syms->SymbolAt( ucmp )
-        if ucs = 0 then return none_
+        if ucs = nullptr then return none_
         dim as MirType urt = MT_I64
         if ucs->type_ <> Tko.TYPE_NONE then urt = LowerType( ucs->type_, *c.types )
         dim as containers.Array( of uint32 ) uargs
@@ -289,10 +289,10 @@ function TupleElems_ _
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     dim as Tko.SymbolId ts = UdtSymOf_( c, t )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->inner = Tko.SCOPE_NONE then return false
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
 
     dim as int32 n = 0
     dim as Tko.SymbolId cur = sc->firstSym
@@ -300,7 +300,7 @@ function TupleElems_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit while
+        if f = nullptr then exit while
         if f->kind = cast( uint8, Tko.SYM_FIELD ) then
             n += 1
             if c.names->Spelling( f->name ) <> ("_" & trim( str( n ) )) then return false
@@ -353,17 +353,17 @@ private function DestructureElems_ _
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     dim as Tko.SymbolId ts = UdtSymOf_( c, t )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->inner = Tko.SCOPE_NONE then return false
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
 
     dim as Tko.SymbolId cur = sc->firstSym
     dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit while
+        if f = nullptr then exit while
         if f->kind = cast( uint8, Tko.SYM_FIELD ) then
             dim as boolean found = false
             dim as int32 off = c.udts->FieldOffset( t, f->name, found )

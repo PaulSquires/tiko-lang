@@ -616,7 +616,7 @@ declare function EmitRtl _
     '' lowerctor.tiko
     declare function LowerConvCtorInit_ _
         ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
-          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
     '' A CONVERTING 'operator let' -- 'x = 5' over a UDT. See lowerctor.tiko.
     declare function LowerUserLetConv_ _
         ( byref c as Ctx, byval target as Tko.NodeId, byval t as Tko.TypeId, _
@@ -627,7 +627,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval valueE as Tko.NodeId, byval isReturn as boolean ) as boolean
     declare function LowerCtorInit _
         ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
-          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
     '' A STATIC LOCAL that needs constructing: the guard flag, the constructor and the
     '' atexit thunk fbc emits for one.
     declare function LowerStaticLocalInit_ _
@@ -804,7 +804,7 @@ declare function EmitRtl _
     '' The type a constructor ARGUMENT is chosen by -- see lowercallarg.tiko.
     declare function CtorArgTypeOf_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
     declare function WideLitChars_( byref c as Ctx, byval id as Tko.NodeId ) as int32
-    declare function UnionMemberSkip_( byref c as Ctx, byval t as Tko.TypeId, byval i as int32, byref thisPtr as MirValue ) as boolean : declare function EmitAllocCall_( byref c as Ctx, byval r as RtlId, byref args as containers.Array( of uint32 ) ) as MirValue : declare function LetViaCast_( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, byval atl as Tko.TypeId, byval avt as Tko.TypeId, byval dstp as MirValue ptr = 0 ) as boolean : declare function BareTypeNameTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outa as MirValue ) as boolean : declare function WideConstChars_( byref c as Ctx, byval e as Tko.NodeId ) as int32 : declare function StaticDynBoundsOnce_( byref c as Ctx, byval sid as Tko.SymbolId, byval ip as Tko.StmtPayload ptr ) as boolean : declare function StaticOnceBegin_( byref c as Ctx, byval g as int32, byval suffix as string ) as int32 : declare sub StaticOnceEnd_( byref c as Ctx, byval skipB as int32 )
+    declare function UnionMemberSkip_( byref c as Ctx, byval t as Tko.TypeId, byval i as int32, byref thisPtr as MirValue ) as boolean : declare function EmitAllocCall_( byref c as Ctx, byval r as RtlId, byref args as containers.Array( of uint32 ) ) as MirValue : declare function LetViaCast_( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, byval atl as Tko.TypeId, byval avt as Tko.TypeId, byval dstp as MirValue ptr = nullptr ) as boolean : declare function BareTypeNameTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outa as MirValue ) as boolean : declare function WideConstChars_( byref c as Ctx, byval e as Tko.NodeId ) as int32 : declare function StaticDynBoundsOnce_( byref c as Ctx, byval sid as Tko.SymbolId, byval ip as Tko.StmtPayload ptr ) as boolean : declare function StaticOnceBegin_( byref c as Ctx, byval g as int32, byval suffix as string ) as int32 : declare sub StaticOnceEnd_( byref c as Ctx, byval skipB as int32 )
     declare function Utf8WideLit_( byref c as Ctx, byval e as Tko.NodeId ) as boolean : declare function WideConstLitNode_( byref c as Ctx, byval e as Tko.NodeId, byval viaWstr as boolean = false ) as Tko.NodeId : declare function WideLitUnitAt_( byref c as Ctx, byval id as Tko.NodeId, byval k as int64 ) as int32
     declare function WideLitGlobal_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outChars as int32 ) as int32
@@ -814,7 +814,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval a0 as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerClosureAddr_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
-          byval dstv as MirValue ptr = 0 ) as boolean
+          byval dstv as MirValue ptr = nullptr ) as boolean
     declare function LowerClosure_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function ConstStringTextOf_ _
@@ -874,7 +874,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
           byval size_ as int32, byref outBytes as string, _
           byval vscope as Tko.ScopeId = Tko.SCOPE_NONE, _
-          byval relocs as containers.Array( of uint32 ) ptr = 0 ) as boolean
+          byval relocs as containers.Array( of uint32 ) ptr = nullptr ) as boolean
 
     '' 'type<T>( ... )' as a value or an address -- lowersub.tiko.
     '' An UPCAST initialiser: the base subobject of a derived value, sized to the
@@ -898,7 +898,7 @@ declare function EmitRtl _
     declare function LowerWideToNarrowSlot _
         ( byref c as Ctx, byval slot as int32, byval dt as Tko.TypeId, _
           byval value as Tko.NodeId, byval isInit as boolean = false, _
-          byval selfv as MirValue ptr = 0 ) as boolean
+          byval selfv as MirValue ptr = nullptr ) as boolean
     declare function IsStringIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function IsAggIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     declare function LowerAggIif_ _
@@ -910,10 +910,10 @@ declare function EmitRtl _
     '' is no slot -- a STATIC local's storage is a global.
     declare function LowerUdtArrayInit_ _
         ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
-          byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+          byval init as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
     declare function LowerUdtParenInit_ _
         ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
-          byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+          byval init as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
     declare function IsUnionType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function LowerZstrAssignTo _
         ( byref c as Ctx, byref dst as MirValue, byval n as int64, _
@@ -1004,7 +1004,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval pt as Tko.TypeId, byval at as Tko.TypeId ) as boolean
     declare function CharPtrCtorInit_ _
         ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
-          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
     '' The wide-character member of a one-argument 'let' or '+=' family -- lowerbyref.tiko.
     declare function WideCharOverload_ _
         ( byref c as Ctx, byval first_ as Tko.SymbolId ) as Tko.SymbolId
@@ -1059,7 +1059,7 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerArrayInit _
         ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
-          byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+          byval init as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
     declare function PrintRtlFor( byref c as Ctx, byval t as Tko.TypeId ) as RtlId
     declare function PrintOne _
         ( byref c as Ctx, byval it as Tko.NodeId, byval mask as int32, _
@@ -1267,7 +1267,7 @@ declare function EmitRtl _
     '' has: a pointer, not a local.
     declare sub EmitStructorCall _
         ( byref c as Ctx, byval sym as Tko.SymbolId, byval slot as int32, _
-          byval selfVal as MirValue ptr = 0, byval args as containers.Array( of uint32 ) ptr = 0 )
+          byval selfVal as MirValue ptr = nullptr, byval args as containers.Array( of uint32 ) ptr = nullptr )
     declare sub EmitCtorCall _
         ( byref c as Ctx, byval sym as Tko.SymbolId, byval slot as int32 )
     declare sub EmitDtorCall _

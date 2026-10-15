@@ -159,7 +159,7 @@ private sub PlaceGroup _
     while idx < flds.Count
         dim as SymbolId sid = cast( SymbolId, flds[idx] )
         dim as Symbol ptr f = syms.SymbolAt( sid )
-        if f = 0 then exit while
+        if f = nullptr then exit while
         dim as int32 fd = cast( int32, f->anonDepth )
         if fd < depth then exit while
 
@@ -413,12 +413,12 @@ private function LayOutOne _
       byref store as UdtLayouts ) as boolean
 
     dim as Symbol ptr s = syms.SymbolAt( sym )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->type_ = TYPE_NONE then return false
     if store.Find( s->type_ ) >= 0 then return true
 
     dim as SymScope ptr sc = syms.ScopeAt( s->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
 
     dim as UdtInfo u
     u.type_ = s->type_
@@ -437,7 +437,7 @@ private function LayOutOne _
     dim as SymbolId cur = sc->firstSym
     while cur <> SYMBOL_NONE
         dim as Symbol ptr f = syms.SymbolAt( cur )
-        if f = 0 then exit while
+        if f = nullptr then exit while
         if f->kind = cast( uint8, SYM_FIELD ) then
             dim as boolean notReady = (f->type_ = TYPE_NONE)
             '' A MEMBER WHOSE OWN TYPE IS A UDT THAT IS NOT LAID OUT YET. The rounds
@@ -492,7 +492,7 @@ function ComputeUdtLayouts _
 
     '' The name an 'extends' becomes a field under. Interned once here so FieldOffset,
     '' which has no interner and runs on every member access, can compare against it.
-    if syms.names <> 0 then store.baseName = syms.names->GetString( "base" )
+    if syms.names <> nullptr then store.baseName = syms.names->GetString( "base" )
 
     '' A UDT can contain another, so the order matters. Rather than sort the
     '' dependency graph, this repeats until nothing new is laid out: the number of
@@ -504,7 +504,7 @@ function ComputeUdtLayouts _
         for i as int32 = 1 to syms.Count( )
             dim as SymbolId sid = cast( SymbolId, i )
             dim as Symbol ptr s = syms.SymbolAt( sid )
-            if s = 0 then continue for
+            if s = nullptr then continue for
             if s->kind <> cast( uint8, SYM_UDT ) then continue for
             if s->type_ = TYPE_NONE then continue for
             if store.Find( s->type_ ) >= 0 then continue for
@@ -576,7 +576,7 @@ function DumpUdtLayouts _
     '' Every TYPEDEF that names a UDT, under its own spelling.
     for i as int32 = 1 to syms.Count( )
         dim as Symbol ptr s = syms.SymbolAt( cast( SymbolId, i ) )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if s->kind <> cast( uint8, SYM_TYPEDEF ) then continue for
         if s->type_ = TYPE_NONE then continue for
         dim as int32 at = store.Find( s->type_ )

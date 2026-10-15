@@ -38,14 +38,14 @@ private function PpLexFile( byref e as PpEngine, byval file as FileId ) as Token
     e.outp->filesRead.Push( cast( uint32, file ) )
     dim as int32 idx = cast( int32, file )
     while e.lexp->Count <= idx
-        e.lexp->Push( 0 )
+        e.lexp->Push( nullptr )
     wend
     while e.lexed.Count <= idx
-        e.lexed.Push( 0 )
+        e.lexed.Push( nullptr )
     wend
 
-    if (*e.lexp)[idx] <> 0 then return PpLangMeta_( e, (*e.lexp)[idx] )
-    if e.lexed[idx] <> 0 then return PpLangMeta_( e, e.lexed[idx] )
+    if (*e.lexp)[idx] <> nullptr then return PpLangMeta_( e, (*e.lexp)[idx] )
+    if e.lexed[idx] <> nullptr then return PpLangMeta_( e, e.lexed[idx] )
 
     dim as int32 before = e.diags->ErrorCount( ) + e.diags->WarningCount( )
     dim as Lex.Result ptr r = new Lex.Result
@@ -199,7 +199,7 @@ end sub
 '' The binding carries '#pragma once' itself, so a second #cinclude of one header in a
 '' unit is a no-op either way.
 private sub PpCInclude( byref e as PpEngine, byval at as SourceLoc, byref word as string )
-    if e.cfg->cimportFn = 0 then
+    if e.cfg->cimportFn = nullptr then
         if e.cfg->reportUnsupported then Report( e, TKO0310, at, word )
         SkipToEol( e )
         return
@@ -235,7 +235,7 @@ private sub PpCInclude( byref e as PpEngine, byval at as SourceLoc, byref word a
         return
     end if
 
-    dim as boolean unicode = (MacroFor( e, e.names->GetString( "unicode" ) ) <> 0)
+    dim as boolean unicode = (MacroFor( e, e.names->GetString( "unicode" ) ) <> nullptr)
     dim as PpCImportFn fn = e.cfg->cimportFn
     dim as FileId got = fn( e.cfg->cimportCtx, header, unicode, e.rootFile, at )
     if got = FILE_NONE then return
@@ -323,7 +323,7 @@ private sub PpExpandRestOfLine _
         if Tk( t ) = TK_IDENT then
             dim as InternId id = cast( InternId, t.literal )
             dim as PpMacro ptr m = MacroFor( e, id )
-            dim as boolean expandable = (m <> 0) andalso (IsHidden( e, id ) = false)
+            dim as boolean expandable = (m <> nullptr) andalso (IsHidden( e, id ) = false)
             if expandable then
                 if PpExpand( e, m, t ) then continue do
             end if
@@ -423,7 +423,7 @@ declare sub PpDefineValue _
 '' it private (PpResult.privateAt). It only redefined the macro, so 'sub Helper' under
 '' 'push( private, true )' stayed public and collided at the link (T59).
 private sub PragmaPrivateAt_( byref e as PpEngine, byval idx as int32, byval v as int32 )
-    if (idx <> 0) orelse (e.outp = 0) then return
+    if (idx <> 0) orelse (e.outp = nullptr) then return
     e.outp->privateAt.Push( cast( uint32, e.outp->tokens.Count ) )
     e.outp->privateAt.Push( iif( v <> 0, 1ul, 0ul ) )
 end sub
@@ -465,7 +465,7 @@ private sub PragmaOption _
         end if
         '' A NUMBER is its VALUE, read from the literal pool -- 't.literal' is the pool INDEX,
         '' which is 0 only for a file's first literal, so 'private = 0' read as true.
-        if (k = TK_INT_LIT) andalso (e.lits <> 0) then
+        if (k = TK_INT_LIT) andalso (e.lits <> nullptr) then
             dim as int32 li = cast( int32, t.literal )
             if (li >= 0) andalso (li < (*e.lits).Count) then v = iif( (*e.lits)[li].intValue = 0, 0, -1 )
         end if
@@ -544,7 +544,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         if PeekOnLine( e, t ) then
             if Tk( t ) = TK_IDENT then
                 dim as InternId wantId = cast( InternId, t.literal )
-                defined_ = (MacroFor( e, wantId ) <> 0) orelse IsDefinedBuiltin_( e, wantId )
+                defined_ = (MacroFor( e, wantId ) <> nullptr) orelse IsDefinedBuiltin_( e, wantId )
             '' A KEYWORD IS DEFINED, as 'defined( K )' already answers (ppexpr.tiko). Measured,
             '' fbc takes the true branch of '#ifdef K' for all 246 keywords that are tokens, and
             '' tiko took none: win/winnt.bi's '#ifndef BOOLEAN' guard declared a type BOOLEAN
@@ -588,7 +588,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
                     '' ...and the same pair here, so '#elseifndef' agrees with
                     '' '#ifndef' about what counts as defined.
                     dim as InternId wantId2 = cast( InternId, t.literal )
-                    d = (MacroFor( e, wantId2 ) <> 0) orelse IsDefinedBuiltin_( e, wantId2 )
+                    d = (MacroFor( e, wantId2 ) <> nullptr) orelse IsDefinedBuiltin_( e, wantId2 )
                 elseif IsKeywordKind( Tk( t ) ) then
                     d = true
                 end if
@@ -647,7 +647,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         if PeekOnLine( e, ut ) then
             if Tk( ut ) = TK_IDENT then
                 dim as PpMacro ptr um = MacroFor( e, cast( InternId, ut.literal ) )
-                passOn = (um = 0)
+                passOn = (um = nullptr)
                 if passOn = false then passOn = (um->isDefined = false)
             end if
         end if
@@ -838,11 +838,11 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
                         '' fbc still lets the source declare it. Measured: 'reserve foo'
                         '' then 'dim as integer foo' is error 4, and the parenthesised
                         '' forms are accepted.
-                        if ((modes and 2) <> 0) andalso (e.outp <> 0) then
+                        if ((modes and 2) <> 0) andalso (e.outp <> nullptr) then
                             e.outp->asmReserveAt.Push( cast( uint32, at ) )
                         end if
                         if (modes and 1) <> 0 then
-                            if e.outp <> 0 then
+                            if e.outp <> nullptr then
                                 e.outp->reservedNames.Push( cast( uint32, rid ) )
                             end if
                         end if
@@ -1219,7 +1219,7 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     '' is what made '-target linux-x86_64' produce a Windows environment.
     dim as boolean onWindows = true
     dim as boolean on64 = true
-    if e.cfg <> 0 then
+    if e.cfg <> nullptr then
         onWindows = e.cfg->targetIsWindows
         on64 = e.cfg->targetIs64
     end if
@@ -1258,7 +1258,7 @@ private sub PpDefineBuiltins( byref e as PpEngine )
     '' the MinGW half: 512 of the corpus link failures build/linkscan.sh reports are
     '' 'undefined symbol: __iob_func', one for every file that reaches stdout or
     '' stderr through fbcunit.
-    if e.cfg <> 0 then
+    if e.cfg <> nullptr then
         if e.cfg->targetIsMsvc then PpDefineValue( e, "__FB_MSVC__", "" )
     end if
 

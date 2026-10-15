@@ -14,7 +14,7 @@ sub ByteArena.Free( )
         deallocate( b )
     next
     this.blocks.Clear( )
-    this.cur = 0
+    this.cur = nullptr
     this.remaining = 0
     this.reserved = 0
     this.used = 0
@@ -41,7 +41,7 @@ function ByteArena.Alloc _
         if n + alignment > blockBytes then blockBytes = n + alignment
 
         dim as uint8 ptr blk = callocate( blockBytes )
-        if blk = 0 then
+        if blk = nullptr then
             print "tiko-lang: internal error: out of memory allocating "; blockBytes; " bytes"
             end EXIT_ICE
         end if

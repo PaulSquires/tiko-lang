@@ -202,9 +202,9 @@ end sub
 private function DeclScope_( byref w as TkiWriter_, byval n as Tko.NodeId ) as Tko.ScopeId
     dim as Tko.ScopeId sc = w.info->ScopeOf( n )
     dim as Tko.SymScope ptr os = w.syms->ScopeAt( sc )
-    if os = 0 then return sc
+    if os = nullptr then return sc
     dim as Tko.Symbol ptr ow = w.syms->SymbolAt( os->owner )
-    if ow = 0 then return sc
+    if ow = nullptr then return sc
     dim as Tko.StmtPayload ptr sp = @w.ast->stmts[cast( int32, w.ast->nodes[cast( int32, n )].data )]
     if ow->name = sp->name then return os->parent
     return sc
@@ -276,7 +276,7 @@ private function VarLinkName_( byref w as TkiWriter_, byval sc as Tko.ScopeId, b
     dim as Tko.SymbolId sid = w.syms->LookupLocal( sc, nm )
     while sid <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if s->kind = cast( uint8, Tko.SYM_VARIABLE ) then
             return Tko.Mangle.ModuleVarName( *w.syms, sid, w.ctx->names )
         end if
@@ -363,10 +363,10 @@ private sub Block_( byref w as TkiWriter_, byval s as int32, byval sc as Tko.Sco
         if Kind_( w, j ) <> Tko.TK_IDENT then continue for
         dim as Tko.SymbolId sid = w.syms->LookupLocal( inner, cast( Tko.InternId, (*w.toks)[j].literal ) )
         dim as Tko.Symbol ptr ns = w.syms->SymbolAt( sid )
-        while (ns <> 0) andalso (ns->kind <> cast( uint8, Tko.SYM_NAMESPACE ))
+        while (ns <> nullptr) andalso (ns->kind <> cast( uint8, Tko.SYM_NAMESPACE ))
             ns = w.syms->SymbolAt( ns->altClass )
         wend
-        if ns = 0 then return
+        if ns = nullptr then return
         inner = ns->inner
     next
     Chunk_( w, s, hEnd )
@@ -538,7 +538,7 @@ private function MacroBody_ _
                 end if
                 if done_ = false then
                     dim as Tko.Symbol ptr s = w.syms->SymbolAt( w.syms->LookupLocal( modScope, cast( Tko.InternId, t->literal ) ) )
-                    if s <> 0 then
+                    if s <> nullptr then
                         if (s->flags and Tko.SYMF_MODSRC) <> 0 then sp = ns & "." & sp
                     end if
                 end if
@@ -593,7 +593,7 @@ private function Encloses_ _
         guard += 1
         if inner = outer then return true
         dim as Tko.SymScope ptr s = w.syms->ScopeAt( inner )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         inner = s->parent
     wend
     return false
@@ -607,7 +607,7 @@ private function ImportSpace_( byref w as TkiWriter_, byval owner as Tko.SymbolI
         end if
     next
     dim as Tko.Symbol ptr o = w.syms->SymbolAt( owner )
-    if o = 0 then return ""
+    if o = nullptr then return ""
     dim as string low = Tko.Text.LowerAscii( w.ctx->names.Spelling( o->name ) )
     for k as int32 = 0 to w.aliases->Count - 1
         if (*w.aliases)[k] = low then return (*w.spaces)[k]
@@ -619,7 +619,7 @@ end function
 private function Qualifier_ _
     ( byref w as TkiWriter_, byval sid as Tko.SymbolId, byval from_ as Tko.ScopeId ) as string
     dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
-    if s = 0 then return ""
+    if s = nullptr then return ""
     select case cast( Tko.SymbolKind, s->kind )
     case Tko.SYM_UDT, Tko.SYM_ENUM, Tko.SYM_TYPEDEF, Tko.SYM_CONSTANT, Tko.SYM_ENUMCONST, _
          Tko.SYM_PROC, Tko.SYM_VARIABLE, Tko.SYM_NAMESPACE
@@ -632,14 +632,14 @@ private function Qualifier_ _
     while (sc <> Tko.SCOPE_NONE) andalso (guard < 64)
         guard += 1
         dim as Tko.SymScope ptr ss = w.syms->ScopeAt( sc )
-        if ss = 0 then return ""
+        if ss = nullptr then return ""
         dim as Tko.Symbol ptr ow = w.syms->SymbolAt( ss->owner )
         select case cast( Tko.ScopeKind, ss->kind )
         case Tko.SCOPEK_GLOBAL, Tko.SCOPEK_MODULE
             exit while
         case Tko.SCOPEK_NAMESPACE
             if Encloses_( w, sc, from_ ) then exit while
-            if ow = 0 then return ""
+            if ow = nullptr then return ""
             dim as string isp = ImportSpace_( w, ss->owner )
             if len( isp ) > 0 then return isp & iif( len( path ) > 0, ".", "" ) & path
             dim as string nm = w.ctx->names.Spelling( ow->name )
@@ -647,7 +647,7 @@ private function Qualifier_ _
         case Tko.SCOPEK_TYPE
             '' An enum's constant is also its enclosing scope's name; a type's member is not
             '' written qualified at all.
-            if ow = 0 then return ""
+            if ow = nullptr then return ""
             if ow->kind <> cast( uint8, Tko.SYM_ENUM ) then return ""
         case else
             return ""
@@ -769,13 +769,13 @@ private function RequiredHeaders_ _
     ( byref w as TkiWriter_, byref headers as Tko.StrVec, byval pr as Tko.PpResult ptr, _
       byval allOf as boolean ) as string
     dim as containers.Array( of uint8 ) need
-    dim as boolean every = allOf orelse (pr = 0)
+    dim as boolean every = allOf orelse (pr = nullptr)
     dim as uint8 seed = iif( every, 1, 0 )
     for k as int32 = 0 to headers.Count - 1
         need.Push( seed )
     next
     '' 'public #cinclude' (T101): those travel whatever the interface names.
-    if pr <> 0 then
+    if pr <> nullptr then
         for each r as uint32 in pr->modHdrPublic
             if r < cast( uint32, need.Count ) then need[r] = 1
         next
@@ -804,7 +804,7 @@ private function RequiredHeaders_ _
                 sid = w.syms->Lookup( look, w.ctx->names.Fold( nm ) )
             end if
             dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
-            if s = 0 then continue for
+            if s = nullptr then continue for
             dim as uint32 f = cast( uint32, w.ctx->sources.Decode( s->loc ).file )
             for k as int32 = 0 to pr->modHdrFile.Count - 1
                 if pr->modHdrFile[k] = f then
@@ -844,7 +844,7 @@ function WriteInterface _
     next
     for si as int32 = 1 to syms.Count( )
         dim as Tko.Symbol ptr ps = syms.SymbolAt( cast( Tko.SymbolId, si ) )
-        if ps = 0 then continue for
+        if ps = nullptr then continue for
         if ps->kind <> cast( uint8, Tko.SYM_PROC ) then continue for
         dim as int32 pn = cast( int32, ps->payload )
         if (pn > 0) andalso (pn <= ast.Count( )) then w.firstSight[pn] = 1
@@ -857,7 +857,7 @@ function WriteInterface _
     '' the same procedure type stands beside it.
     for si as int32 = 1 to syms.Count( )
         dim as Tko.Symbol ptr ps = syms.SymbolAt( cast( Tko.SymbolId, si ) )
-        if ps = 0 then continue for
+        if ps = nullptr then continue for
         if ps->kind <> cast( uint8, Tko.SYM_PROC ) then continue for
         dim as int32 pn = cast( int32, ps->payload )
         if (pn <= 0) orelse (pn > ast.Count( )) then continue for
@@ -869,7 +869,7 @@ function WriteInterface _
         while (oid <> Tko.SYMBOL_NONE) andalso (guard < 1000)
             guard += 1
             dim as Tko.Symbol ptr os = syms.SymbolAt( oid )
-            if os = 0 then exit while
+            if os = nullptr then exit while
             if (oid <> cast( Tko.SymbolId, si )) andalso (os->kind = cast( uint8, Tko.SYM_PROC )) _
                andalso (os->parent = ps->parent) andalso (os->type_ = ps->type_) then
                 dim as int32 on_ = cast( int32, os->payload )
@@ -899,7 +899,7 @@ function WriteInterface _
     Qualify_( w )
 
     dim as string macros = ""
-    if pr <> 0 then macros = ExportedMacros_( w, *pr )
+    if pr <> nullptr then macros = ExportedMacros_( w, *pr )
     '' The declarations first: which headers travel depends on what they wrote.
     w.text = "namespace " & InterfaceNamespace( ctx.modChain ) & !"\n"
     w.lineFile = 0

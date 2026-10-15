@@ -14,9 +14,9 @@ private function StructorIsField_ _
     dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->inner = SCOPE_NONE then return false
     dim as Symbol ptr f = c.syms->SymbolAt( c.syms->LookupLocal( s->inner, c.names->GetString( nm ) ) )
-    if f = 0 then return false
+    if f = nullptr then return false
     return (f->kind = cast( uint8, SYM_FIELD ))
 end function

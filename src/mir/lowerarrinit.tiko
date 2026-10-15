@@ -26,7 +26,7 @@ declare function StrSwapKind_ _
 declare function LowerFixStrArrayInit_ _
     ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
       byval init as Tko.NodeId, byval n as int64, byval isU as boolean, _
-      byval selfv as MirValue ptr = 0, byval isW as boolean = false ) as boolean
+      byval selfv as MirValue ptr = nullptr, byval isW as boolean = false ) as boolean
 
 declare sub FlattenInitLeaves_ _
     ( byref c as Ctx, byval init as Tko.NodeId, _
@@ -35,7 +35,7 @@ declare sub FlattenInitLeaves_ _
 
 declare function LowerStrArrayInit_ _
     ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId, byval selfv as MirValue ptr = 0, _
+      byval init as Tko.NodeId, byval selfv as MirValue ptr = nullptr, _
       byval isU as boolean = false ) as boolean
 
 '' THE LEAF EXPRESSIONS OF A NESTED BRACE INITIALISER, in row-major order: a nested
@@ -137,7 +137,7 @@ end function
 
 function LowerArrayInit _
     ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+      byval init as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
 
     if init = Tko.NODE_NONE then return false
     if c.ast->Kind( init ) <> Tko.N_INITIALIZER then return false
@@ -204,7 +204,7 @@ function LowerArrayInit _
     ArrayInitLeaves_( c, t, init, leaves, lidx )
 
     dim as MirValue base_
-    if selfv <> 0 then
+    if selfv <> nullptr then
         base_ = *selfv
     else
         base_.kind = cast( uint8, MV_LOCAL )
@@ -273,7 +273,7 @@ end function
 private function LowerFixStrArrayInit_ _
     ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
       byval init as Tko.NodeId, byval n as int64, byval isU as boolean, _
-      byval selfv as MirValue ptr = 0, byval isW as boolean = false ) as boolean
+      byval selfv as MirValue ptr = nullptr, byval isW as boolean = false ) as boolean
 
     dim as Tko.TypeId el = c.types->Inner( t )
     dim as int32 esz = SizeOfType( c, el )
@@ -287,7 +287,7 @@ private function LowerFixStrArrayInit_ _
     ArrayInitLeaves_( c, t, init, leaves, lidx )   '' a short row pads -- see ArrayInitLeaves_
 
     dim as MirValue base_
-    if selfv <> 0 then
+    if selfv <> nullptr then
         base_ = *selfv
     else
         base_.kind = cast( uint8, MV_LOCAL )
@@ -407,7 +407,7 @@ end function
 '' zeroed descriptor, which is the empty string -- fbc leaves it alone too.
 private function LowerStrArrayInit_ _
     ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId, byval selfv as MirValue ptr = 0, _
+      byval init as Tko.NodeId, byval selfv as MirValue ptr = nullptr, _
       byval isU as boolean = false ) as boolean
 
     dim as Tko.TypeId el = c.types->Inner( t )
@@ -418,7 +418,7 @@ private function LowerStrArrayInit_ _
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
 
     dim as MirValue base_
-    if selfv <> 0 then
+    if selfv <> nullptr then
         base_ = *selfv
     else
         base_.kind = cast( uint8, MV_LOCAL )
@@ -585,7 +585,7 @@ end function
 '' storage is a GLOBAL and has no slot.
 function LowerUdtArrayInit_ _
     ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
-      byval init as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+      byval init as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
 
     dim as Tko.TypeId el = c.types->Inner( t )
     '' THE ELEMENT'S SIZE, through SizeOfType rather than Layout( ).size: a UDT's
@@ -598,7 +598,7 @@ function LowerUdtArrayInit_ _
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
 
     dim as MirValue base_
-    if selfv <> 0 then
+    if selfv <> nullptr then
         base_ = *selfv
     else
         base_.kind = cast( uint8, MV_LOCAL )

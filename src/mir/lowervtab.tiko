@@ -58,12 +58,12 @@ private function BaseOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.TypeId
     dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return Tko.TYPE_NONE
+    if s = nullptr then return Tko.TYPE_NONE
     if s->inner = Tko.SCOPE_NONE then return Tko.TYPE_NONE
     dim as Tko.SymbolId bf = c.syms->LookupLocal( s->inner, c.vts->baseName )
     if bf = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
     dim as Tko.Symbol ptr b = c.syms->SymbolAt( bf )
-    if b = 0 then return Tko.TYPE_NONE
+    if b = nullptr then return Tko.TYPE_NONE
     if b->kind <> cast( uint8, Tko.SYM_FIELD ) then return Tko.TYPE_NONE
     return b->type_
 end function
@@ -170,14 +170,14 @@ function ImplicitDtorSlot_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval sl as Tko.VtSlot ptr ) as boolean
     if (sl->proc_ = Tko.SYMBOL_NONE) orelse (sl->decl = Tko.NODE_NONE) then return false
     dim as Tko.Symbol ptr ds = c.syms->SymbolAt( sl->proc_ )
-    if (ds = 0) orelse (c.names->Spelling( ds->name ) <> "__dtor") then return false
+    if (ds = nullptr) orelse (c.names->Spelling( ds->name ) <> "__dtor") then return false
     if StructorWithArity( c, StructorOf( c, t, "__dtor" ), 0 ) <> Tko.SYMBOL_NONE then return false
     return TypeNeedsDtor_( c, t )
 end function
 
 '' ...asked for before the synthesised structors are written, so the slot has a body to name.
 sub WantVirtualImplicitDtors_( byref c as Ctx )
-    if c.vts = 0 then return
+    if c.vts = nullptr then return
     for i as int32 = 0 to c.vts->types_.Count - 1
         dim as Tko.TypeId t = c.vts->types_[i].type_
         if IsObjectType_( c, t ) then continue for
@@ -190,7 +190,7 @@ end sub
 '' Every table the unit needs. Called once, after the procedures are lowered, so a
 '' slot's function has a name to be referred to by.
 sub EmitVTableGlobals( byref c as Ctx )
-    if c.vts = 0 then return
+    if c.vts = nullptr then return
     for i as int32 = 0 to c.vts->types_.Count - 1
         VtableGlobalOf_( c, c.vts->types_[i].type_ )
     next
@@ -240,7 +240,7 @@ end function
 function VirtualSlotOf_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval callee as Tko.SymbolId ) as int32
 
-    if c.vts = 0 then return -1
+    if c.vts = nullptr then return -1
     if callee = Tko.SYMBOL_NONE then return -1
 
     '' THE CALL SITE IS DECIDED BY THE 'virtual' KEYWORD ON THE BOUND DECLARATION, and
@@ -255,7 +255,7 @@ function VirtualSlotOf_ _
     '' So an override that does not repeat 'virtual' still overrides -- a call through a
     '' base pointer reaches it -- while a call that BINDS to it goes straight there.
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return -1
+    if cs = nullptr then return -1
     dim as Tko.NodeId cd = cast( Tko.NodeId, cs->payload )
     if cd = Tko.NODE_NONE then return -1
     if c.ast->Kind( cd ) <> Tko.N_PROC then return -1
@@ -308,12 +308,12 @@ function VirtualSlotOf_ _
         '' so its type is the type that method belongs to.
         if c.curProcSym = Tko.SYMBOL_NONE then return -1
         dim as Tko.Symbol ptr me = c.syms->SymbolAt( c.curProcSym )
-        if me = 0 then return -1
+        if me = nullptr then return -1
         dim as Tko.SymScope ptr owner = c.syms->ScopeAt( me->parent )
-        if owner = 0 then return -1
+        if owner = nullptr then return -1
         if owner->kind <> cast( uint8, Tko.SCOPEK_TYPE ) then return -1
         dim as Tko.Symbol ptr os = c.syms->SymbolAt( owner->owner )
-        if os = 0 then return -1
+        if os = nullptr then return -1
         rt = os->type_
     end if
 
@@ -361,9 +361,9 @@ function EmitVirtualDtor_ _
     ( byref c as Ctx, byval el as Tko.TypeId, byval dtor as Tko.SymbolId, _
       byref p as MirValue ) as boolean
 
-    if c.vts = 0 then return false
+    if c.vts = nullptr then return false
     dim as Tko.Symbol ptr ds = c.syms->SymbolAt( dtor )
-    if ds = 0 then return false
+    if ds = nullptr then return false
     dim as int32 slot = c.vts->SlotOf( c.types->Unqualify( el ), dtor, _
                                       cast( Tko.NodeId, ds->payload ) )
     if slot < 0 then return false
@@ -391,9 +391,9 @@ function EmitVirtualMember_ _
     ( byref c as Ctx, byval sym as Tko.SymbolId, byval el as Tko.TypeId, _
       byref selfp as MirValue, byval args as containers.Array( of uint32 ) ptr ) as boolean
 
-    if c.vts = 0 then return false
+    if c.vts = nullptr then return false
     dim as Tko.Symbol ptr ms = c.syms->SymbolAt( sym )
-    if ms = 0 then return false
+    if ms = nullptr then return false
     dim as Tko.NodeId md = cast( Tko.NodeId, ms->payload )
     if (md = Tko.NODE_NONE) orelse (c.ast->Kind( md ) <> Tko.N_PROC) then return false
     if (StmtOf( c, md )->extra and (Tko.PF_VIRTUAL or Tko.PF_ABSTRACT)) = 0 then return false

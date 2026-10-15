@@ -18,7 +18,7 @@ private function ReadsLater_ _
     select case c.ast->Kind( n )
     case N_IDENT
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
-        if s = 0 then return NODE_NONE
+        if s = nullptr then return NODE_NONE
         if s->kind <> cast( uint8, SYM_VARIABLE ) then return NODE_NONE
         if (s->flags and SYMF_MODSRC) = 0 then return NODE_NONE
         if s->declAt <= cast( uint32, item ) then return NODE_NONE
@@ -90,7 +90,7 @@ private sub ConstRefs_ _
             sid = c.syms->Lookup( scope_, c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )].name )
         end if
         dim as Symbol ptr s = c.syms->SymbolAt( sid )
-        if s = 0 then return
+        if s = nullptr then return
         if s->kind <> cast( uint8, SYM_CONSTANT ) then return
         if (s->flags and SYMF_MODSRC) = 0 then return
         outv.Push( cast( uint32, sid ) )
@@ -115,7 +115,7 @@ end sub
 
 private function ConstInit_( byref c as Ctx, byval sid as SymbolId ) as NodeId
     dim as Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return NODE_NONE
+    if s = nullptr then return NODE_NONE
     if s->payload = 0 then return NODE_NONE
     dim as NodeId item = cast( NodeId, s->payload )
     if c.ast->Kind( item ) <> N_VAR_ITEM then return NODE_NONE

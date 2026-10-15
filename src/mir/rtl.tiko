@@ -176,7 +176,7 @@ end function
 sub RtlSignature _
     ( byval f as MirFunction ptr, byval r as RtlId, byval is32 as boolean )
 
-    if f = 0 then return
+    if f = nullptr then return
     '' THE '.' IS NOT A PARAMETER. RtlArity is the LENGTH of the parameter string and
     '' counts it, which is right for the fixed-prefix check it was written for and
     '' wrong here: it produced a fifth, void parameter on fb_ThreadCall, whose real

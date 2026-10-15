@@ -62,7 +62,7 @@ function UserCastToStr_ _
     dim as Tko.SymbolId cs = UdtMemberNamed_( c, t, "cast" )
     if cs = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( cs )
-    if s = 0 then return false
+    if s = nullptr then return false
 
     '' FBC'S PICK FIRST (ScoredStrTerm_): a narrow or ustring winner is the cast; a wide one means
     '' this is not a narrow term at all. Only when the score decides nothing does the walk below.
@@ -154,7 +154,7 @@ function HasNarrowStrCast_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         dim as Tko.TypeId rt = c.types->Unqualify( cs->type_ )
         if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
         if c.types->Kind( rt ) = Tko.TK_POINTER then rt = c.types->Unqualify( c.types->Inner( rt ) )
@@ -192,10 +192,10 @@ function UserCastToWide_ _
     '' function), then copied to a temporary for an address, as UdtSelfAddr_ does; the
     '' call's own result slot is the one registered for destruction.
     dim as MirValue self_, brv
-    dim as Tko.Symbol ptr bs = 0
+    dim as Tko.Symbol ptr bs = nullptr
     dim as Tko.NodeKind ik = c.ast->Kind( id )
     if (ik = Tko.N_IDENT) orelse (ik = Tko.N_MEMBER) then bs = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if (bs <> 0) andalso (bs->kind = cast( uint8, Tko.SYM_PROC )) then
+    if (bs <> nullptr) andalso (bs->kind = cast( uint8, Tko.SYM_PROC )) then
         dim as int32 bsz = SizeOfType( c, c.types->Unqualify( c.info->TypeOf_( id ) ) )
         if bsz <= 0 then return false
         if LowerBareProcCall_( c, id, MT_AGG, brv ) = false then return false

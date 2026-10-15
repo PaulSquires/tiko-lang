@@ -51,7 +51,7 @@ private function Fields_ _
         dim as Tko.SourceFile ptr f = src.FileAt( a.file )
         '' A location the manager cannot place is written as none rather than as a
         '' guess -- an editor would open the wrong file, or line 0 of the right one.
-        if f <> 0 then
+        if f <> nullptr then
             path_ = src.AbsPathOf( a.file )
             l1 = a.physLine
             c1 = CharCol_( f, src.LineStart( a.file, a.physLine ), a.offset )

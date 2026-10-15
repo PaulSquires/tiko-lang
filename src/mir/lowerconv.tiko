@@ -56,7 +56,7 @@ private function ExtendsStrKind_ _
         dim as Tko.SymbolId bs = UdtMemberNamed_( c, cur, "base" )
         if bs = Tko.SYMBOL_NONE then return false
         dim as Tko.Symbol ptr bsy = c.syms->SymbolAt( bs )
-        if bsy = 0 then return false
+        if bsy = nullptr then return false
         cur = c.types->Unqualify( bsy->type_ )
     wend
     return false
@@ -171,7 +171,7 @@ private function ExactCastOverload_ _
     dim as Tko.SymbolId cur = UdtMemberNamed_( c, t, "cast" )
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
-        if cse = 0 then exit while
+        if cse = nullptr then exit while
         if cse->type_ <> Tko.TYPE_NONE then
             if c.types->Unqualify( cse->type_ ) = d then return cur
         end if
@@ -488,7 +488,7 @@ function LowerConvIntrinsic _
                 UserCastNumOverload_( c, c.types->Unqualify( c.info->TypeOf_( arg ) ), dstT )
             if ucs2 <> Tko.SYMBOL_NONE then
                 dim as Tko.Symbol ptr uss2 = c.syms->SymbolAt( ucs2 )
-                if uss2 <> 0 then srcU2 = IsUnsignedType( c, uss2->type_ )
+                if uss2 <> nullptr then srcU2 = IsUnsignedType( c, uss2->type_ )
             end if
             return Coerce( c, uv, uwant, srcU2, IsUnsignedType( c, dstT ) )
         end if

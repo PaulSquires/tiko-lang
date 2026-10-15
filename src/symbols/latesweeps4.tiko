@@ -82,7 +82,7 @@ private function ExprIsConstNum_ ( byref c as Ctx, byval id as NodeId ) as boole
         return ExprIsConstNum_( c, bp->rhs )
     case N_IDENT
         dim as Symbol ptr sy = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if sy = 0 then return false
+        if sy = nullptr then return false
         if sy->kind <> cast( uint8, SYM_CONSTANT ) then return false
         select case StrTermBt_( c, id )
         case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_NONE
@@ -138,7 +138,7 @@ function ExprIsConstStr_ ( byref c as Ctx, byval id as NodeId ) as boolean
         return ExprIsConstStr_( c, bp->rhs )
     case N_IDENT
         dim as Symbol ptr sy = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if sy = 0 then return false
+        if sy = nullptr then return false
         if (sy->flags and SYMF_FUNCNAME) <> 0 then return true
         if sy->kind <> cast( uint8, SYM_CONSTANT ) then return false
         select case StrTermBt_( c, id )
@@ -186,12 +186,12 @@ private function UdtHasNarrowStrCast_ ( byref c as Ctx, byval t as TypeId ) as b
     dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Symbol ptr sy = c.syms->SymbolAt( ts )
-    if sy = 0 then return true
+    if sy = nullptr then return true
     if sy->inner = SCOPE_NONE then return true
     dim as SymbolId cs = c.syms->LookupLocal( sy->inner, c.names->Fold( c.names->GetString( "cast" ) ) )
     while cs <> SYMBOL_NONE
         dim as Symbol ptr cse = c.syms->SymbolAt( cs )
-        if cse = 0 then exit while
+        if cse = nullptr then exit while
         if cse->type_ <> TYPE_NONE then
             dim as TypeId ru = c.types->Unqualify( cse->type_ )
             if c.types->Kind( ru ) = TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
@@ -259,7 +259,7 @@ private function UdtMayConvert_ ( byref c as Ctx, byval t as TypeId ) as boolean
     dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Symbol ptr sy = c.syms->SymbolAt( ts )
-    if sy = 0 then return true
+    if sy = nullptr then return true
     if sy->inner = SCOPE_NONE then return true
     if c.syms->LookupLocal( sy->inner, c.names->Fold( c.names->GetString( "cast" ) ) ) <> SYMBOL_NONE then return true
     return (c.syms->LookupLocal( sy->inner, c.names->Fold( c.names->GetString( "__ctor" ) ) ) <> SYMBOL_NONE)
@@ -433,7 +433,7 @@ private function AssertOperandType_ ( byref c as Ctx, byval n as NodeId ) as Typ
     if n = NODE_NONE then return TYPE_NONE
     if (c.ast->Kind( n ) = N_IDENT) orelse (c.ast->Kind( n ) = N_MEMBER) then
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
-        if s <> 0 then
+        if s <> nullptr then
             if ((s->kind = cast( uint8, SYM_UDT )) orelse (s->kind = cast( uint8, SYM_TYPEDEF ))) then return s->type_
         end if
     end if
@@ -457,7 +457,7 @@ private function AssertIntrinsic_ _
     '' A NAMED CONSTANT IS NOT READ: 'const s = "a"' is 'zstring * 2' to fbc's typeof and
     '' sizeof, and tiko types it otherwise -- fbc's const/const-decl.bas asserts exactly that.
     dim as Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( a ) )
-    if cs <> 0 then
+    if cs <> nullptr then
         if cs->kind = cast( uint8, SYM_CONSTANT ) then return false
     end if
     '' ...AND ONLY A TYPE, OR A NAME: an expression's type is not always fbc's --
@@ -470,7 +470,7 @@ private function AssertIntrinsic_ _
     isType = (c.ast->Kind( a ) = N_TYPEREF)
     if isType = false then
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
-        if s <> 0 then isType = ((s->kind = cast( uint8, SYM_UDT )) orelse (s->kind = cast( uint8, SYM_TYPEDEF )))
+        if s <> nullptr then isType = ((s->kind = cast( uint8, SYM_UDT )) orelse (s->kind = cast( uint8, SYM_TYPEDEF )))
     end if
     ot = AssertOperandType_( c, a )
     return (ot <> TYPE_NONE)
@@ -633,7 +633,7 @@ end sub
 private function PrintsViaCast_ ( byref c as Ctx, byval u as TypeId ) as boolean
     dim as Symbol ptr cs = StructorOf_( c, u, "cast" )
     for guard as int32 = 0 to 63
-        if cs = 0 then return false
+        if cs = nullptr then return false
         dim as TypeId rt = c.types->Unqualify( cs->type_ )
         if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
         dim as TypeId fe = Tko.Check.FixedStringElem( rt, *c.types )
@@ -657,15 +657,15 @@ function TupleSpelling_ ( byref c as Ctx, byval t as TypeId ) as string   '' tup
     dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Symbol ptr s = c.syms->SymbolAt( ts )
-    if (s = 0) orelse (s->inner = SCOPE_NONE) then return c.types->Name( t )
+    if (s = nullptr) orelse (s->inner = SCOPE_NONE) then return c.types->Name( t )
     dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return c.types->Name( t )
+    if sc = nullptr then return c.types->Name( t )
     dim as string r = ""
     dim as SymbolId cur = sc->firstSym
     for guard as int32 = 0 to 255
         if cur = SYMBOL_NONE then exit for
         dim as Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit for
+        if f = nullptr then exit for
         if f->kind = cast( uint8, SYM_FIELD ) then
             if len( r ) > 0 then r &= ", "
             dim as TypeId ft = c.types->Unqualify( f->type_ )
@@ -689,11 +689,11 @@ private function Unprintable_ ( byref c as Ctx, byval e as NodeId ) as TypeId
         dim as ListPayload ptr clp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
         if clp->target = NODE_NONE then return TYPE_NONE
         dim as Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( clp->target ) )
-        if cs = 0 then cs = c.syms->SymbolAt( c.info->RefOf( e ) )
+        if cs = nullptr then cs = c.syms->SymbolAt( c.info->RefOf( e ) )
         '' ...or a TYPE, whose call is its constructor: 'print Box( 7 )' (T27). fbc's 24 like the
         '' variable; tiko dropped the item AND the rest of the statement, newline included.
         '' ...an ELEMENT of an array, and 'iif( c, a, b )', an intrinsic bound to nothing.
-        if cs = 0 then
+        if cs = nullptr then
             if c.ast->Kind( clp->target ) <> N_IDENT then return TYPE_NONE
             if lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, clp->target )].data )].name ) ) <> "iif" then return TYPE_NONE
         elseif cs->kind = cast( uint8, SYM_UDT ) then
@@ -784,15 +784,15 @@ sub TupleMemberBad_ ( byref c as Ctx, byval t as TypeId, byval lhs as NodeId, by
     dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Symbol ptr s = c.syms->SymbolAt( ts )
-    if (s = 0) orelse (s->inner = SCOPE_NONE) then return
+    if (s = nullptr) orelse (s->inner = SCOPE_NONE) then return
     dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return
+    if sc = nullptr then return
     dim as int32 n = 0
     dim as SymbolId cur = sc->firstSym
     for guard as int32 = 0 to 255
         if cur = SYMBOL_NONE then exit for
         dim as Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit for
+        if f = nullptr then exit for
         if f->kind = cast( uint8, SYM_FIELD ) then n += 1
         cur = f->nextInScope
     next
@@ -825,7 +825,7 @@ end sub
 '' those are collected once per tree, and they are not asked.
 private function StmtCall_ ( byref c as Ctx, byval id as NodeId ) as boolean
     static as uint8 mark( )
-    static as any ptr forAst = 0
+    static as any ptr forAst = nullptr
     static as int32 forCount = -1
     static as uint32 forGen = 0
     dim as int32 n = c.ast->Count( )
@@ -865,8 +865,8 @@ private sub CheckSubAsValue_ ( byref c as Ctx, byval id as NodeId )
     if tgt = NODE_NONE then return
     if (c.ast->Kind( tgt ) <> N_IDENT) andalso (c.ast->Kind( tgt ) <> N_MEMBER) then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if s = 0 then s = c.syms->SymbolAt( c.info->RefOf( tgt ) )
-    if s = 0 then return
+    if s = nullptr then s = c.syms->SymbolAt( c.info->RefOf( tgt ) )
+    if s = nullptr then return
     dim as boolean isSub = false
     select case cast( SymbolKind, s->kind )
     case SYM_PROC
@@ -906,7 +906,7 @@ private function CtorHead4_ ( byref c as Ctx, byval udt as TypeId ) as SymbolId
     dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Symbol ptr tsy = c.syms->SymbolAt( ts )
-    if tsy = 0 then return SYMBOL_NONE
+    if tsy = nullptr then return SYMBOL_NONE
     if tsy->inner = SCOPE_NONE then return SYMBOL_NONE
     return c.syms->LookupLocal( tsy->inner, c.names->Fold( c.names->GetString( "__ctor" ) ) )
 end function
@@ -949,7 +949,7 @@ private function CtorsRefuseUStrZptr_ _
     while (walkId <> SYMBOL_NONE) andalso (guard < 1000)
         guard += 1
         dim as Symbol ptr walk = c.syms->SymbolAt( walkId )
-        if walk = 0 then return false
+        if walk = nullptr then return false
         dim as NodeId decl = cast( NodeId, walk->payload )
         if decl = NODE_NONE then return false
         if c.ast->Kind( decl ) <> N_PROC then return false
@@ -999,7 +999,7 @@ private sub CheckUStrCtorCall_ ( byref c as Ctx, byval id as NodeId )
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->target = NODE_NONE then return
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-    if ts = 0 then return
+    if ts = nullptr then return
     if ts->kind <> cast( uint8, SYM_UDT ) then return
     dim as TypeId udt = c.types->Unqualify( c.info->TypeOf_( id ) )
     if udt = TYPE_NONE then return
@@ -1080,7 +1080,7 @@ private function GenericProcOf4_ ( byref c as Ctx, byval tgt as NodeId ) as Node
     dim as SymbolId sid = c.info->RefOf( n )
     if sid = SYMBOL_NONE then sid = c.info->RefOf( tgt )
     dim as Symbol ptr sy = c.syms->SymbolAt( sid )
-    if sy = 0 then return NODE_NONE
+    if sy = nullptr then return NODE_NONE
     if sy->kind <> cast( uint8, SYM_PROC ) then return NODE_NONE
     dim as NodeId decl = cast( NodeId, sy->payload )
     if decl = NODE_NONE then return NODE_NONE
@@ -1145,14 +1145,14 @@ private function ArgInTemplate4_ ( byref c as Ctx, byval a as NodeId ) as boolea
     next
     if a = NODE_NONE then return false
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     dim as ScopeId sc = s->parent
     for d as int32 = 0 to 255
         if sc = SCOPE_NONE then return false
         dim as SymScope ptr ss = c.syms->ScopeAt( sc )
-        if ss = 0 then return false
+        if ss = nullptr then return false
         dim as Symbol ptr os = c.syms->SymbolAt( ss->owner )
-        if os <> 0 then
+        if os <> nullptr then
             if (os->flags and SYMF_GENERIC_INST) <> 0 then return false
             dim as NodeId dn = cast( NodeId, os->payload )
             if (dn > 0) andalso (cast( int32, dn ) <= c.ast->Count( )) then
@@ -1171,7 +1171,7 @@ end function
 
 private function InferMissed4_ ( byref c as Ctx, byval id as NodeId ) as boolean
     dim as Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if cs = 0 then return false
+    if cs = nullptr then return false
     if (cs->flags and SYMF_GENERIC_INST) <> 0 then return false
     if cs->kind <> cast( uint8, SYM_PROC ) then return false
     dim as NodeId cdn = cast( NodeId, cs->payload )
@@ -1277,7 +1277,7 @@ private function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId, byval a
     while hops < 16
         hops += 1
         dim as Symbol ptr sy = c.syms->SymbolAt( sid )
-        if sy = 0 then return ""
+        if sy = nullptr then return ""
         select case cast( SymbolKind, sy->kind )
         case SYM_TYPEDEF
             '' ...A LATER TYPEDEF IN THE CHAIN, as a UDT is: 'type T as FWD', a use, then 'type
@@ -1410,7 +1410,7 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
         dim as NodeId an = cast( NodeId, c.ast->children[lp->first] )
         dim as TypeId t = TYPE_NONE
         dim as Symbol ptr asy = c.syms->SymbolAt( c.info->RefOf( an ) )
-        if (asy <> 0) andalso ((asy->kind = cast( uint8, SYM_TYPEDEF )) orelse (asy->kind = cast( uint8, SYM_UDT ))) then
+        if (asy <> nullptr) andalso ((asy->kind = cast( uint8, SYM_TYPEDEF )) orelse (asy->kind = cast( uint8, SYM_UDT ))) then
             t = asy->type_
         end if
         if t = TYPE_NONE then continue for
@@ -1439,7 +1439,7 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
         elseif c.types->Kind( t ) = TK_UDT then
             dim as SymbolId usid = c.syms->LookupLocalTyped( cast( ScopeId, c.types->DeclScopeOf( t ) ), c.types->NameOf( t ), true )
             dim as Symbol ptr us = c.syms->SymbolAt( usid )
-            if us = 0 then continue for
+            if us = nullptr then continue for
             if (us->declAt = 0) orelse (cast( uint32, i ) >= us->declAt) then continue for
             if Tko.ModSym.OrderFree( *c.syms, usid ) then continue for
             c.diags->Report( TKO0811, PointRange( c.ast->Loc( dn ) ), c.names->Spelling( us->name ) )

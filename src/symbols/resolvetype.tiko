@@ -18,9 +18,9 @@ private function TemplateTypeParam_ _
     while (scope_ <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr sc = c.syms->ScopeAt( scope_ )
-        if sc = 0 then exit while
+        if sc = nullptr then exit while
         dim as Tko.Symbol ptr os = c.syms->SymbolAt( sc->owner )
-        if os <> 0 then
+        if os <> nullptr then
             if (os->flags and Tko.SYMF_GENERIC_INST) <> 0 then return false
             dim as Tko.NodeId dn = cast( Tko.NodeId, os->payload )
             dim as boolean isNode = (os->kind = cast( uint8, Tko.SYM_UDT )) orelse _
@@ -120,7 +120,7 @@ private function EnumPastValue_ _
       byval sid as Tko.SymbolId ) as Tko.SymbolId
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return sid
+    if s = nullptr then return sid
     select case cast( Tko.SymbolKind, s->kind )
     case Tko.SYM_VARIABLE, Tko.SYM_PARAMETER, Tko.SYM_CONSTANT
     case else
@@ -132,11 +132,11 @@ private function EnumPastValue_ _
         guard += 1
         dim as Tko.SymbolId got = c.syms->LookupLocal( sc, nm )
         dim as Tko.Symbol ptr gs = c.syms->SymbolAt( got )
-        if gs <> 0 then
+        if gs <> nullptr then
             if gs->kind = cast( uint8, Tko.SYM_ENUM ) then return got
         end if
         dim as Tko.SymScope ptr ss = c.syms->ScopeAt( sc )
-        if ss = 0 then exit while
+        if ss = nullptr then exit while
         sc = ss->parent
     wend
     return sid
@@ -150,7 +150,7 @@ private function LookupTypeAtPoint_ _
     if plain = Tko.SYMBOL_NONE then return plain
     if at = Tko.NODE_NONE then return plain
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( plain )
-    if ps = 0 then return plain
+    if ps = nullptr then return plain
     if ps->loc = Tko.LOC_NONE then return plain
     dim as Tko.SourceLoc rl = c.ast->Loc( at )
     if rl = Tko.LOC_NONE then return plain
@@ -164,11 +164,11 @@ private function LookupTypeAtPoint_ _
     dim as Tko.ScopeId sc = scope_
     while sc <> Tko.SCOPE_NONE
         dim as Tko.SymScope ptr s = c.syms->ScopeAt( sc )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         dim as Tko.SymbolId cand = c.syms->LookupLocalTyped( sc, nm, true )
         if cand <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cand )
-            if cs <> 0 then
+            if cs <> nullptr then
                 if cs->loc <> Tko.LOC_NONE then
                     dim as Tko.DecodedLoc dc = c.srcMgr->Decode( cs->loc )
                     dim as boolean below = (dc.file = dr.file) andalso _
@@ -259,7 +259,7 @@ private sub GenericArgsCheck_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval sid as Tko.SymbolId, byval given as int32 )
 
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( sid )
-    if gs = 0 then return
+    if gs = nullptr then return
     if gs->kind <> cast( uint8, Tko.SYM_UDT ) then return
     if (gs->flags and Tko.SYMF_GENERIC_INST) <> 0 then return
     dim as Tko.NodeId gn = cast( Tko.NodeId, gs->payload )
@@ -299,7 +299,7 @@ private function TypeofLitType_( byref c as Ctx, byval e as Tko.NodeId, byref ou
     if c.ast->Kind( e ) <> Tko.N_STRING_LIT then return false
     dim as Tko.LiteralPayload ptr lp = @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
-    if f = 0 then return false
+    if f = nullptr then return false
     if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return false
     dim as string txt
     dim as int32 i = 0
@@ -573,7 +573,7 @@ function ResolveTypeRefAt_ _
             '' meant.
             if tsid2 <> Tko.SYMBOL_NONE then c.info->SetRef( id, tsid2 )
             dim as Tko.Symbol ptr ts2 = c.syms->SymbolAt( tsid2 )
-            if ts2 <> 0 then
+            if ts2 <> nullptr then
                 '' A 'var' HAS NO TYPE YET. Its inference is Check's, and generic
                 '' instantiation runs HERE -- so
                 '' 'type BA as BoxOf( of typeof( onA ) )' over 'var onA = sub[...]'
@@ -705,7 +705,7 @@ function ResolveTypeRefAt_ _
                     if qsid = Tko.SYMBOL_NONE then qsid = c.syms->LookupInNamespaceTyped( sc, cid, true )
                 end if
                 dim as Tko.Symbol ptr qs = c.syms->SymbolAt( qsid )
-                if qs = 0 then
+                if qs = nullptr then
                     ok = false
                     exit while
                 end if
@@ -774,7 +774,7 @@ function ResolveTypeRefAt_ _
             '' FB::ARRAY::COUNT that was never emitted, and 'for each' over it lowered to nothing.
             '' 'of long' and a program's own earlier typedef worked. The ten prelude typedefs name
             '' builtins, so resolving one here cannot recurse.
-            if (ready = false) andalso (s->kind = cast( uint8, Tko.SYM_TYPEDEF )) andalso (c.srcMgr <> 0) then
+            if (ready = false) andalso (s->kind = cast( uint8, Tko.SYM_TYPEDEF )) andalso (c.srcMgr <> nullptr) then
                 if c.srcMgr->IsBuiltin( s->loc ) then
                     dim as Tko.NodeId pta = cast( Tko.NodeId, s->payload )
                     if (pta <> Tko.NODE_NONE) andalso (c.ast->Kind( pta ) = Tko.N_TYPEREF) then

@@ -31,14 +31,14 @@ function TakeLock( byref lk as BuildLock, byref path_ as string ) as LockResult
     lk.path_ = path_
     #ifdef __FB_WIN32__
         '' UTF-8 to UTF-16: the path may hold anything a source path holds.
-        dim as int32 n = W_MultiByteToWideChar_( 65001, 0, strptr( path_ ), -1, 0, 0 )
+        dim as int32 n = W_MultiByteToWideChar_( 65001, 0, strptr( path_ ), -1, nullptr, 0 )
         if n <= 0 then return LOCK_UNAVAILABLE
         dim as wstring ptr w = callocate( ( n + 1 ) * 2 )
         W_MultiByteToWideChar_( 65001, 0, strptr( path_ ), -1, w, n )
         '' GENERIC_WRITE, share NOTHING, CREATE_ALWAYS, FILE_FLAG_DELETE_ON_CLOSE. A second
         '' open while this handle lives is a sharing violation (32), or access denied (5)
         '' for a file already marked for deletion: both mean another build has it.
-        dim as any ptr h = W_CreateFileW_( w, &h40000000ul, 0, 0, 2, &h04000080ul, 0 )
+        dim as any ptr h = W_CreateFileW_( w, &h40000000ul, 0, nullptr, 2, &h04000080ul, nullptr )
         dim as uint32 le = W_GetLastError_( )
         deallocate( w )
         if h = cast( any ptr, -1 ) then

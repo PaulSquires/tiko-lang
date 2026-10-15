@@ -95,9 +95,9 @@ function AlignUdt_ _
     '' field symbol's anonDepth / anonOpen / anonUnionMask, as the layout reads them.
     dim as Tko.SymbolId usym = UdtSymOf_( c, t )
     dim as Tko.Symbol ptr us = c.syms->SymbolAt( usym )
-    if us = 0 then return false
+    if us = nullptr then return false
     dim as Tko.SymScope ptr usc = c.syms->ScopeAt( us->inner )
-    if usc = 0 then return false
+    if usc = nullptr then return false
     dim as Tko.SymbolId fcur = usc->firstSym
     dim as boolean isU( 0 to 16 )
     dim as int32 alt( 0 to 16 )
@@ -107,7 +107,7 @@ function AlignUdt_ _
         dim as Tko.TypeId ft = c.types->Unqualify( fld->type_ )
         dim as int32 fsz = SizeOfType( c, ft )
         '' The i-th FIELD symbol is the i-th laid-out field; a mismatch is not modelled.
-        dim as Tko.Symbol ptr fs = 0
+        dim as Tko.Symbol ptr fs = nullptr
         while fcur <> Tko.SYMBOL_NONE
             dim as Tko.Symbol ptr cand = c.syms->SymbolAt( fcur )
             fcur = cand->nextInScope
@@ -116,7 +116,7 @@ function AlignUdt_ _
                 exit while
             end if
         wend
-        if (fs = 0) orelse (fs->name <> fld->name) then return false
+        if (fs = nullptr) orelse (fs->name <> fld->name) then return false
         dim as int32 fd = fs->anonDepth
         if fd > 16 then return false
         dim as int32 firstNew = fd - fs->anonOpen + 1

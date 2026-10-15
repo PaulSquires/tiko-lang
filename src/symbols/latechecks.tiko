@@ -32,18 +32,18 @@ private sub CheckNestedStatics_( byref c as Ctx )
         if (mk <> SYM_FIELD) andalso (mk <> SYM_VARIABLE) then continue for
         if (s->flags and (SYMF_STATIC or SYMF_SHARED)) = 0 then continue for
         dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
-        if sc = 0 then continue for
+        if sc = nullptr then continue for
         if sc->kind <> cast( uint8, SCOPEK_TYPE ) then continue for
         '' The type's OWN declaring scope is what decides, not the field's.
         dim as Symbol ptr owner = c.syms->SymbolAt( sc->owner )
-        if owner = 0 then continue for
+        if owner = nullptr then continue for
         dim as boolean inProc = false
         dim as ScopeId cur = owner->parent
         dim as int32 guard = 0
         while (cur <> SCOPE_NONE) andalso (guard < 1000)
             guard += 1
             dim as SymScope ptr ps = c.syms->ScopeAt( cur )
-            if ps = 0 then exit while
+            if ps = nullptr then exit while
             '' A SCOPE BLOCK COUNTS THE SAME AS A PROCEDURE -- fbc error 264 for both,
             '' measured -- while a NAMESPACE, or nesting in another TYPE, is accepted.
             '' Only the procedure was tested, so 'scope : type T : static i ... : end
@@ -119,7 +119,7 @@ private sub CheckSharedRef_ ( byref c as Ctx, byval id as NodeId, byval vnm as I
     dim as NodeKind k = c.ast->Kind( id )
     if k = N_IDENT then
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if s = 0 then return
+        if s = nullptr then return
         if s->kind <> cast( uint8, SYM_VARIABLE ) then return
         if (s->flags and (SYMF_SHARED or SYMF_EXTERN or SYMF_COMMON)) <> 0 then return
         c.diags->Report( TKO0668, PointRange( c.ast->Loc( id ) ), _
@@ -179,7 +179,7 @@ private function IsBareArray_ ( byref c as Ctx, byval n as NodeId ) as boolean
     if n = NODE_NONE then return false
     if c.ast->Kind( n ) <> N_IDENT then return false
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, SYM_VARIABLE ) then return false
     if s->type_ = TYPE_NONE then return false
     dim as TypeId u = c.types->Unqualify( s->type_ )
@@ -247,7 +247,7 @@ private sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
     '' 'this', or a name a TYPE shares, which is its constructor ('T2( u )' beside 'dim t2').
     if (tk = N_IDENT) orelse (tk = N_MEMBER) then
         dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( tgt ) )
-        if vs = 0 then return
+        if vs = nullptr then return
         select case cast( SymbolKind, vs->kind )
         case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
         case else
@@ -258,7 +258,7 @@ private sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
         '' A TEMPLATE'S OWN LOCAL is judged in the instantiation (T43) -- see tmpllocal.tiko.
         if LocalInTemplate_( c, vs ) then return
         dim as Symbol ptr tys = c.syms->SymbolAt( c.syms->LookupTyped( vs->parent, vs->name, true ) )  '' may be vs itself
-        if (tys <> 0) andalso ((tys->kind = cast( uint8, SYM_UDT )) orelse (tys->kind = cast( uint8, SYM_TYPEDEF ))) then return
+        if (tys <> nullptr) andalso ((tys->kind = cast( uint8, SYM_UDT )) orelse (tys->kind = cast( uint8, SYM_TYPEDEF ))) then return
         dim as NodeId dn = cast( NodeId, vs->payload )
         if (dn > 0) andalso (dn <= c.ast->Count( )) then
             if (c.ast->nodes[cast( int32, dn )].flags and NF_ARRAY) <> 0 then return
@@ -293,7 +293,7 @@ private sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
         wend
         if c.ast->Kind( inner ) = N_IDENT then
             dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( inner ) )
-            if s <> 0 then bad = (s->kind = cast( uint8, SYM_PROC ))
+            if s <> nullptr then bad = (s->kind = cast( uint8, SYM_PROC ))
         end if
     end if
 
@@ -311,7 +311,7 @@ private sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
         if c.types->Kind( ct ) = TK_UDT then
             dim as Symbol ptr us = c.syms->SymbolAt( c.syms->LookupLocalTyped( _
                 cast( ScopeId, c.types->DeclScopeOf( ct ) ), c.types->NameOf( ct ), true ) )
-            if us <> 0 then
+            if us <> nullptr then
                 if us->inner <> SCOPE_NONE then
                     dim as SymbolId inv = c.syms->LookupLocal( us->inner, _
                         c.names->Fold( c.names->GetString( "__fbinvoke" ) ) )
@@ -375,7 +375,7 @@ private function NamedLvalue_ ( byref c as Ctx, byval n as NodeId ) as boolean
             sid = c.info->RefOf( c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )].rhs )
         end if
         dim as Symbol ptr s = c.syms->SymbolAt( sid )
-        if s = 0 then return false
+        if s = nullptr then return false
         select case cast( SymbolKind, s->kind )
         case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
             return true
@@ -385,7 +385,7 @@ private function NamedLvalue_ ( byref c as Ctx, byval n as NodeId ) as boolean
         dim as ListPayload ptr lp = _
             @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-        if s = 0 then return false
+        if s = nullptr then return false
         if s->kind <> cast( uint8, SYM_VARIABLE ) then return false
         if s->type_ = TYPE_NONE then return false
         dim as TypeId u = c.types->Unqualify( s->type_ )
@@ -400,7 +400,7 @@ private function UdtHasMember_ ( byref c as Ctx, byval u as TypeId, byref nm as 
     dim as TypeId b = u
     for guard as int32 = 0 to 16
         if b = TYPE_NONE then exit for
-        if StructorOf_( c, b, nm ) <> 0 then return true
+        if StructorOf_( c, b, nm ) <> nullptr then return true
         b = c.types->BaseOf( b )
     next
     return false
@@ -498,11 +498,11 @@ private sub CheckProcPtrArgs_ ( byref c as Ctx, byval id as NodeId )
     dim as NodeKind tk = c.ast->Kind( tgt )
     if (tk = N_IDENT) orelse (tk = N_MEMBER) then
         dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( tgt ) )
-        if ts <> 0 then
+        if ts <> nullptr then
             if ts->kind = cast( uint8, SYM_PROC ) then return
         end if
         dim as Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if cs <> 0 then
+        if cs <> nullptr then
             if cs->kind = cast( uint8, SYM_PROC ) then return
         end if
     end if
@@ -604,7 +604,7 @@ end sub
 private function FirstRequiredMissing_ _
     ( byref c as Ctx, byval sid as SymbolId, byval given as int32 ) as int32
     dim as Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return 0
+    if s = nullptr then return 0
     if s->kind <> cast( uint8, SYM_PROC ) then return 0
     dim as NodeId decl = cast( NodeId, s->payload )
     if decl = NODE_NONE then return 0
@@ -645,7 +645,7 @@ private sub CheckParenlessArgs_ ( byref c as Ctx, byval id as NodeId, byval k as
     end if
     dim as SymbolId sid = c.info->RefOf( nmN )
     dim as Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return
+    if s = nullptr then return
     if s->kind <> cast( uint8, SYM_PROC ) then return
     if s->nextOverload <> SYMBOL_NONE then
         if given > 0 then return
@@ -684,11 +684,11 @@ private sub CheckDirectCallArgs_ ( byref c as Ctx, byval id as NodeId )
 
     dim as Symbol ptr head = c.syms->SymbolAt( c.info->RefOf( tgt ) )
     dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if callee = 0 then callee = head
-    if callee = 0 then return
+    if callee = nullptr then callee = head
+    if callee = nullptr then return
     if callee->kind <> cast( uint8, SYM_PROC ) then return
     if callee->nextOverload <> SYMBOL_NONE then return
-    if head <> 0 then
+    if head <> nullptr then
         if head <> callee then return
     end if
     dim as NodeId decl = cast( NodeId, callee->payload )
@@ -820,10 +820,10 @@ private sub CheckVirtualNeedsObject_( byref c as Ctx )
             continue for
         end if
         dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
-        if sc = 0 then continue for
+        if sc = nullptr then continue for
         if sc->kind <> cast( uint8, SCOPEK_TYPE ) then continue for
         dim as Symbol ptr owner = c.syms->SymbolAt( sc->owner )
-        if owner = 0 then continue for
+        if owner = nullptr then continue for
         if owner->type_ = TYPE_NONE then continue for
         if ExtendsObject_( c, owner->type_ ) then continue for
         c.diags->Report( TKO0645, PointRange( c.ast->Loc( decl ) ), _
@@ -864,7 +864,7 @@ end function
 private function HasDefaultCtor_ ( byref c as Ctx, byval u as TypeId, byval isArray as boolean ) as boolean
     dim as Symbol ptr ct = StructorOf_( c, u, "__ctor" )
     '' NO CONSTRUCTOR AT ALL is fine: the implicit default one is always callable.
-    if ct = 0 then return true
+    if ct = nullptr then return true
     '' WHAT COUNTS AS DEFAULT IS STRICTER FOR A REDIM ('isArray'). fbc refuses two
     '' constructors that CAN be called with no argument: 'constructor( byval as integer
     '' = 0 )', merely defaulted, is error 173, and 'constructor stdcall( )' is 171 --
@@ -873,7 +873,7 @@ private function HasDefaultCtor_ ( byref c as Ctx, byval u as TypeId, byval isAr
     '' (structs/obj-array.bas, structs/extern-class-test.bas). A written 'cdecl' is cdecl.
     dim as Symbol ptr walk = ct
     dim as int32 g2 = 0
-    while (walk <> 0) andalso (g2 < 1000)
+    while (walk <> nullptr) andalso (g2 < 1000)
         g2 += 1
         dim as NodeId cd = cast( NodeId, walk->payload )
         dim as int32 req = RequiredParams_( c, cd )
@@ -936,7 +936,7 @@ private sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
             dim as boolean staticMember = false
             if (s->flags and SYMF_STATIC) <> 0 then
                 dim as SymScope ptr ms = c.syms->ScopeAt( s->parent )
-                if ms <> 0 then
+                if ms <> nullptr then
                     staticMember = (ms->kind = cast( uint8, SCOPEK_TYPE ))
                 end if
             end if
@@ -1004,10 +1004,10 @@ private sub CheckDynArrayInUnion_( byref c as Ctx )
         if inUnion = false then inUnion = (s->anonUnionMask <> 0)
         if inUnion = false then
             dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
-            if sc = 0 then continue for
+            if sc = nullptr then continue for
             if sc->kind <> cast( uint8, SCOPEK_TYPE ) then continue for
             dim as Symbol ptr owner = c.syms->SymbolAt( sc->owner )
-            if owner = 0 then continue for
+            if owner = nullptr then continue for
             inUnion = ((owner->flags and SYMF_UNION_KIND) <> 0)
         end if
         if inUnion = false then continue for
@@ -1044,7 +1044,7 @@ private sub CheckPrivateBaseStructor_( byref c as Ctx )
         '' the first in the chain that can be called with no argument.
         dim as Symbol ptr bc = StructorOf_( c, base_, "__ctor" )
         dim as int32 guard = 0
-        while (bc <> 0) andalso (guard < 1000)
+        while (bc <> nullptr) andalso (guard < 1000)
             guard += 1
             dim as int32 req = RequiredParams_( c, cast( NodeId, bc->payload ) )
             if req = 0 then
@@ -1062,7 +1062,7 @@ private sub CheckPrivateBaseStructor_( byref c as Ctx )
 
         '' ...AND THE DESTRUCTOR, which cannot be overloaded, so there is no chain.
         dim as Symbol ptr bd = StructorOf_( c, base_, "__dtor" )
-        if bd = 0 then continue for
+        if bd = nullptr then continue for
         if (bd->flags and SYMF_MEMB_PRIVATE) = 0 then continue for
         c.diags->Report( TKO0663, PointRange( s->loc ), c.names->Spelling( s->name ) )
     next
@@ -1245,7 +1245,7 @@ private sub CheckByrefBinding_( byref c as Ctx )
             dim as ListPayload ptr lp = _
                 @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
             dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-            if ts <> 0 then
+            if ts <> nullptr then
                 noAddress = (ts->kind = cast( uint8, SYM_PROC ))
                 '' ...UNLESS IT RETURNS BYREF. That result IS a reference, and binding
                 '' one to it is the whole point -- 'dim byref as long r = o.Value( )' in
@@ -1307,11 +1307,11 @@ private sub CheckCopyStructor_ _
       byval at as SourceLoc, byval vnm as InternId )
 
     dim as Symbol ptr st = StructorOf_( c, udt, "__ctor" )
-    if st = 0 then return
+    if st = nullptr then return
     dim as boolean sawCopy = false
     dim as Symbol ptr walk = st
     dim as int32 guard = 0
-    while (walk <> 0) andalso (guard < 1000)
+    while (walk <> nullptr) andalso (guard < 1000)
         guard += 1
         dim as NodeId decl = cast( NodeId, walk->payload )
         if (decl <> NODE_NONE) andalso (c.ast->Kind( decl ) = N_PROC) then
@@ -1374,7 +1374,7 @@ private function CtorChosenBy_ _
     dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Symbol ptr tsy = c.syms->SymbolAt( ts )
-    if tsy = 0 then return SYMBOL_NONE
+    if tsy = nullptr then return SYMBOL_NONE
     if tsy->inner = SCOPE_NONE then return SYMBOL_NONE
     dim as SymbolId headId = c.syms->LookupLocal( tsy->inner, _
         c.names->Fold( c.names->GetString( "__ctor" ) ) )
@@ -1462,7 +1462,7 @@ private sub CheckImplicitStructors_( byref c as Ctx )
 
         if chosenCtor <> SYMBOL_NONE then
             dim as Symbol ptr ccs = c.syms->SymbolAt( chosenCtor )
-            if ccs <> 0 then
+            if ccs <> nullptr then
                 if StructorReachable_( c, ccs, u, here ) = false then
                     c.diags->Report( TKO0633, PointRange( s->loc ), _
                                      c.names->Spelling( s->name ) )

@@ -17,7 +17,7 @@ private function BareMacroAtGlobal_( byref c as Ctx, byval scope_ as Tko.ScopeId
     while (scope_ <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr sc = c.syms->ScopeAt( scope_ )
-        if sc = 0 then exit while
+        if sc = nullptr then exit while
         select case sc->kind
         case Tko.SCOPEK_NAMESPACE, Tko.SCOPEK_TYPE
             return false
@@ -25,7 +25,7 @@ private function BareMacroAtGlobal_( byref c as Ctx, byval scope_ as Tko.ScopeId
             '' A QUALIFIED definition -- 'sub N.s', 'sub T.m' -- is its owner's: its scope
             '' chain does not pass through the type, so the N_PROC's flag says it instead.
             dim as Tko.Symbol ptr os = c.syms->SymbolAt( sc->owner )
-            if os <> 0 then
+            if os <> nullptr then
                 dim as Tko.NodeId dn = cast( Tko.NodeId, os->payload )
                 if (dn > 0) andalso (cast( int32, dn ) <= c.ast->Count( )) then
                     if c.ast->Kind( dn ) = Tko.N_PROC then
@@ -49,9 +49,9 @@ private function InTemplate_( byref c as Ctx, byval scope_ as Tko.ScopeId ) as b
     while (scope_ <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr sc = c.syms->ScopeAt( scope_ )
-        if sc = 0 then exit while
+        if sc = nullptr then exit while
         dim as Tko.Symbol ptr os = c.syms->SymbolAt( sc->owner )
-        if os <> 0 then
+        if os <> nullptr then
             if (os->flags and Tko.SYMF_GENERIC_INST) <> 0 then return false
             '' ...AND A TYPE INSTANCE, which that flag does not mark (it is the procedures'):
             '' named by its key, 'box<6>', and its re-parsed N_TYPE still holds the 'of' list
@@ -114,7 +114,7 @@ private function DeclaredBelow_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId, byval use as Tko.NodeId, _
       byval scope_ as Tko.ScopeId ) as boolean
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->declAt = 0 then return false
     if cast( uint32, use ) >= s->declAt then return false
     '' ...NOT IN A MODULE, whose declarations have no order (ADR 0017; RFC-0003 §5).
@@ -123,7 +123,7 @@ private function DeclaredBelow_ _
     while (scope_ <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr sc = c.syms->ScopeAt( scope_ )
-        if sc = 0 then exit while
+        if sc = nullptr then exit while
         if sc->owner = sid then return false
         scope_ = sc->parent
     wend
@@ -134,7 +134,7 @@ private function DeclaredBelow_ _
     '' concurrency/sched.bas, which fbc compiles. Same file, at or past the keyword.
     select case cast( Tko.SymbolKind, s->kind )
     case Tko.SYM_PROC, Tko.SYM_UDT, Tko.SYM_ENUM, Tko.SYM_NAMESPACE
-        if c.srcMgr <> 0 then
+        if c.srcMgr <> nullptr then
             dim as Tko.DecodedLoc dd = c.srcMgr->Decode( c.ast->Loc( cast( Tko.NodeId, s->declAt ) ) )
             dim as Tko.DecodedLoc du = c.srcMgr->Decode( c.ast->Loc( use ) )
             if (dd.file = du.file) andalso (du.offset >= dd.offset) then return false
@@ -195,7 +195,7 @@ private function ModuleLocalHidden_ _
     '' that rule could never fire and two diagnostics tests changed their answer.
     if c.inParamDefault then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, Tko.SYM_VARIABLE ) then return false
     '' SHARED, COMMON SHARED and EXTERN all give it module storage a procedure may name.
     '' A plain COMMON does not: fbc hides 'common n' exactly as it hides 'dim n'.
@@ -206,7 +206,7 @@ private function ModuleLocalHidden_ _
     '' DECLARED IN THE MODULE SCOPE ITSELF. A namespace's own variables are visible to its
     '' procedures, measured above, and a block scope's are not on a procedure's chain.
     dim as Tko.SymScope ptr ds = c.syms->ScopeAt( s->parent )
-    if ds = 0 then return false
+    if ds = nullptr then return false
     if ds->kind <> cast( uint8, Tko.SCOPEK_MODULE ) then return false
     '' ...AND USED FROM INSIDE A PROCEDURE: the first PROC scope on the way out says so,
     '' and reaching the module scope first says the use is at module level.
@@ -214,7 +214,7 @@ private function ModuleLocalHidden_ _
     for guard as int32 = 0 to 255
         if sc = Tko.SCOPE_NONE then return false
         dim as Tko.SymScope ptr ss = c.syms->ScopeAt( sc )
-        if ss = 0 then return false
+        if ss = nullptr then return false
         if ss->kind = cast( uint8, Tko.SCOPEK_PROC ) then return true
         if ss->kind = cast( uint8, Tko.SCOPEK_MODULE ) then return false
         sc = ss->parent
@@ -248,7 +248,7 @@ private function VisibleAbove_ _
             if VisibleValue_( c, got, use, scope_ ) then return got
         next
         dim as Tko.SymScope ptr ss = c.syms->ScopeAt( sc )
-        if ss = 0 then exit while
+        if ss = nullptr then exit while
         sc = ss->parent
     wend
     '' ...OR, WITH NO VALUE LEFT, A TYPE of that spelling -- LookupTyped's own fallback,
@@ -307,7 +307,7 @@ end sub
 '' only an earlier parameter (fbc's error 42) was accepted.
 function ParamDefaultScope_( byref c as Ctx, byval here as Tko.ScopeId ) as Tko.ScopeId
     dim as Tko.SymScope ptr hs = c.syms->ScopeAt( here )
-    if hs = 0 then return here
+    if hs = nullptr then return here
     if hs->kind <> cast( uint8, Tko.SCOPEK_PROC ) then return here
     if hs->parent = Tko.SCOPE_NONE then return here
     return hs->parent

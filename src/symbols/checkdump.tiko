@@ -89,7 +89,7 @@ function DumpDecisions _
         dim as Tko.SymbolId d = info.DecisionOf( n )
         if d = Tko.SYMBOL_NONE then continue for
         dim as Tko.Symbol ptr sp = syms.SymbolAt( d )
-        if sp = 0 then continue for
+        if sp = nullptr then continue for
         dim as Tko.DecodedLoc at = src.Decode( ast.Loc( n ) )
         dim as Tko.DecodedLoc dl = src.Decode( sp->loc )
         outp &= at.lineNo & ":" & at.column & " " & Tko.NodeKindName( ast.Kind( n ) ) & _

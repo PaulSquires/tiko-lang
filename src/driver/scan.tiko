@@ -133,7 +133,7 @@ private function NamedTypeText_( byref h as Harvest_, byval t as Tko.TypeId ) as
     if sid <> Tko.SYMBOL_NONE then
         dim as Tko.Symbol ptr s = h.syms->SymbolAt( sid )
         dim as int32 c
-        if s <> 0 then outs = CasedName_( h, s->loc, folded, c )
+        if s <> nullptr then outs = CasedName_( h, s->loc, folded, c )
     end if
     h.typeNamed( ti ) = true
     h.typeName( ti ) = outs
@@ -270,7 +270,7 @@ private sub OpenScope_( byref h as Harvest_, byval sc as int32 )
     h.scopeOk( sc ) = false
     h.scopeParent( sc ) = 0
     h.scopeLocal( sc ) = false
-    if scp = 0 then return
+    if scp = nullptr then return
     dim as int32 up = cast( int32, scp->parent )
     dim as boolean upOk = true
     if (up > 0) andalso (up < sc) then upOk = h.scopeOk( up )
@@ -338,7 +338,7 @@ private sub HarvestSymbol_ _
     ( byref h as Harvest_, byval sid as Tko.SymbolId, byval sc as int32 )
 
     dim as Tko.Symbol ptr s = h.syms->SymbolAt( sid )
-    if s = 0 then return
+    if s = nullptr then return
     if Skip_( h, sid, s ) then return
     dim as int32 kind = KindOf_( s )
     if kind = 0 then return
@@ -469,7 +469,7 @@ private sub HarvestSymbol_ _
     '' symbols under it. Its 'inner' is the module's interface namespace.
     if (sk = Tko.SYM_NAMESPACE) andalso (h.r->importing = false) andalso (s->inner <> Tko.SCOPE_NONE) then
         dim as Tko.SymScope ptr iscope = h.syms->ScopeAt( s->inner )
-        if iscope <> 0 then
+        if iscope <> nullptr then
             if h.syms->IsImportNs( iscope->owner ) then
                 for k as int32 = 0 to h.syms->importNs.Count - 1
                     if cast( Tko.SymbolId, h.syms->importNs[k] ) = iscope->owner then
@@ -548,7 +548,7 @@ private sub ExportTarget_( byref h as Harvest_, byref pr as Tko.PpResult, byval 
     dim as int32 n = cast( int32, pr.expBodyCount[k] )
     if (n <= 0) orelse ((n and 1) = 0) then return
     dim as Tko.ScopeId sc = Tko.ModSym.ModuleScope( *h.syms )
-    dim as Tko.Symbol ptr s = 0
+    dim as Tko.Symbol ptr s = nullptr
     for i as int32 = 0 to n - 1 step 2
         if cast( Tko.TokenKind, pr.expBody[f + i].kind ) <> Tko.TK_IDENT then return
         if i + 1 < n then
@@ -558,17 +558,17 @@ private sub ExportTarget_( byref h as Harvest_, byref pr as Tko.PpResult, byval 
         dim as Tko.SymbolId sid = h.syms->LookupLocal( sc, nm )
         if (sid = Tko.SYMBOL_NONE) andalso (i = 0) then sid = h.syms->LookupLocal( Tko.SCOPE_GLOBAL, nm )
         s = h.syms->SymbolAt( sid )
-        if s = 0 then return
+        if s = nullptr then return
         if i + 2 < n then
             '' A qualifier: the namespace, past any type of the same name.
-            while (s <> 0) andalso (s->kind <> cast( uint8, Tko.SYM_NAMESPACE ))
+            while (s <> nullptr) andalso (s->kind <> cast( uint8, Tko.SYM_NAMESPACE ))
                 s = h.syms->SymbolAt( s->altClass )
             wend
-            if s = 0 then return
+            if s = nullptr then return
             sc = s->inner
         end if
     next
-    if (s = 0) orelse (s->loc = Tko.LOC_NONE) then return
+    if (s = nullptr) orelse (s->loc = Tko.LOC_NONE) then return
     dim as Tko.DecodedLoc d = h.ctx->sources.Decode( s->loc )
     h.r->syms[ri].refFile = FileOf_( h, d )
     h.r->syms[ri].refLine = d.lineNo
@@ -597,7 +597,7 @@ private sub Harvest_Unit _
       byref macros as Tko.MacroInfoVec, byref pr as Tko.PpResult )
 
     dim as ScanResult ptr r = cast( ScanResult ptr, ctx.scan )
-    if r = 0 then return
+    if r = nullptr then return
     dim as Harvest_ h
     h.ctx = @ctx
     h.ast = @ast
@@ -683,7 +683,7 @@ end sub
 
 sub Finish( byref ctx as Tko.CompilerContext )
     dim as ScanResult ptr r = cast( ScanResult ptr, ctx.scan )
-    if r = 0 then return
+    if r = nullptr then return
     dim as int32 n = r->syms.Count
 
     '' Each alias takes its module's public top-level symbols.

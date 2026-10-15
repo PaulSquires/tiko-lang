@@ -51,7 +51,7 @@ private function TupleShapeOfRef_ _
         '' 'type Rect as (tl as ..., br as ...)' -- Resolve bound the name to the typedef,
         '' whose payload is the typeref it aliases (collect.tiko).
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( tr ) )
-        if s = 0 then return Tko.NODE_NONE
+        if s = nullptr then return Tko.NODE_NONE
         if s->kind <> cast( uint8, Tko.SYM_TYPEDEF ) then return Tko.NODE_NONE
         tr = cast( Tko.NodeId, s->payload )
     next
@@ -67,7 +67,7 @@ private function TupleDeclRef_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId, byval depth as int32 ) as Tko.NodeId
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return Tko.NODE_NONE
+    if s = nullptr then return Tko.NODE_NONE
     dim as Tko.NodeId dn = cast( Tko.NodeId, s->payload )
     if dn = Tko.NODE_NONE then return Tko.NODE_NONE
     select case cast( Tko.SymbolKind, s->kind )
@@ -116,12 +116,12 @@ function TupleShapeOf_ _
         return TupleDeclRef_( c, sid, depth )
     case Tko.N_MEMBER
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( c.info->RefOf( e ) )
-        if f = 0 then return Tko.NODE_NONE
+        if f = nullptr then return Tko.NODE_NONE
         '' An ELEMENT of a tuple: the element's own typeref in the base's shape.
         dim as Tko.SymScope ptr fsc = c.syms->ScopeAt( f->parent )
-        if (f->kind = cast( uint8, Tko.SYM_FIELD )) andalso (fsc <> 0) then
+        if (f->kind = cast( uint8, Tko.SYM_FIELD )) andalso (fsc <> nullptr) then
             dim as Tko.Symbol ptr owner = c.syms->SymbolAt( fsc->owner )
-            if owner <> 0 then
+            if owner <> nullptr then
                 if left( c.names->Spelling( owner->name ), 5 ) = "$tup:" then
                     dim as int32 k = valint( mid( c.names->Spelling( f->name ), 2 ) )
                     dim as Tko.NodeId bs = TupleShapeOf_( c, _

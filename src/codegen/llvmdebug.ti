@@ -70,7 +70,7 @@ namespace Tko.Codegen
 
     declare sub DbgBegin _
         ( byref d as DebugInfo, byval sm as Tko.SourceManager ptr, byref mainPath as string, _
-          byval fe as DebugFrontend ptr = 0 )
+          byval fe as DebugFrontend ptr = nullptr )
 
     '' Opens a subprogram and answers its metadata number. 'fileKey' is FileId + 1, and
     '' 0 means the module's own file. 'procSym' names it by its source spelling; 0 for

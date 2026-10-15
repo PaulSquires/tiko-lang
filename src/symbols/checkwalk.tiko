@@ -50,7 +50,7 @@ private sub CompoundUserOp_( byref c as Ctx, byval n as Tko.NodeId )
     dim as int32 uopSeen
     dim as Tko.SymbolId uop = UserBinaryOp_( c, bop, lt, rt, uopSeen )
     dim as Tko.Symbol ptr us = c.syms->SymbolAt( uop )
-    if us = 0 then return
+    if us = nullptr then return
     dim as Tko.TypeId ot = c.types->Unqualify( us->type_ )
     if ot = Tko.TYPE_NONE then return
     if lUdt then
@@ -135,7 +135,7 @@ private sub WalkAll( byref c as Ctx )
                     if calleeIsName then
                         dim as Tko.SymbolId ac = c.info->RefOf( asp->a )
                         dim as Tko.Symbol ptr acs = c.syms->SymbolAt( ac )
-                        if acs <> 0 then
+                        if acs <> nullptr then
                             '' Only when there is a choice to make: a single candidate
                             '' is already bound, and re-costing it could only take a
                             '' binding away.

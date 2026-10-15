@@ -76,7 +76,7 @@ function LocalFor _
     ( byref c as Ctx, byval sid as Tko.SymbolId ) as int32
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return -1
+    if s = nullptr then return -1
     '' By SYMBOL. Keying on the spelling merged two sibling-scope declarations of one
     '' name into a single slot, which then kept the FIRST declaration's MIR type --
     '' 974 of the corpus's verifier failures, and behind them a larger number of
@@ -159,7 +159,7 @@ end function
 '' Whether a symbol lives in MODULE storage rather than a frame.
 function IsSharedVar( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     '' EXTERN AND COMMON ARE MODULE STORAGE TOO. SYMF_SHARED alone made an 'extern X
     '' as T' a FRAME SLOT -- a zeroed local, with no reference to the real symbol
     '' emitted, so it LINKED. See HANDOFF 7c.
@@ -181,7 +181,7 @@ function IsSharedVar( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
     '' THE STORAGE ONLY. Hiding the unqualified name from a procedure is fbc's
     '' error 42 and belongs with the undeclared-name policy still owed.
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->parent )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     return (cast( Tko.ScopeKind, sc->kind ) = Tko.SCOPEK_NAMESPACE)
 end function
 
@@ -216,7 +216,7 @@ function StructorOf _
     '' The UDT, so the TYPE-name class.
     dim as Tko.SymbolId ts = c.syms->LookupTyped( ds, tn, true )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return Tko.SYMBOL_NONE
+    if s = nullptr then return Tko.SYMBOL_NONE
     if s->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     return c.syms->LookupLocal( s->inner, _
         c.names->Fold( c.names->GetString( which ) ) )
@@ -232,7 +232,7 @@ function StructorWithArity _
     dim as Tko.SymbolId cur = first_
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
             dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
@@ -274,10 +274,10 @@ end function
 '' the first argument, per the ABI, which is also how the mangled name reads.
 sub EmitStructorCall _
     ( byref c as Ctx, byval sym as Tko.SymbolId, byval slot as int32, _
-      byval selfVal as MirValue ptr = 0, byval args as containers.Array( of uint32 ) ptr = 0 )
+      byval selfVal as MirValue ptr = nullptr, byval args as containers.Array( of uint32 ) ptr = nullptr )
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
-    if s = 0 then return
+    if s = nullptr then return
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return
     if c.ast->Kind( pn ) <> Tko.N_PROC then return
@@ -286,7 +286,7 @@ sub EmitStructorCall _
     '' in hand, not a local whose address is the receiver. Passed through 'selfVal'
     '' rather than by widening every caller.
     dim as MirValue self_
-    if selfVal <> 0 then self_ = *selfVal
+    if selfVal <> nullptr then self_ = *selfVal
     if slot >= 0 then
         self_.kind = cast( uint8, MV_LOCAL )
         self_.ty = cast( uint8, MT_PTR )
@@ -308,7 +308,7 @@ sub EmitStructorCall _
     '' exactly that constructor (scratchpad afx/q1.bas).
     dim as containers.Array( of uint32 ) defv
     dim as int32 written = 0
-    if args <> 0 then written = args->Count \ 2
+    if args <> nullptr then written = args->Count \ 2
     dim as int32 declared = ParamCountOf( c, sym )
     for i as int32 = written to declared - 1
         dim as Tko.NodeId dv = ParamDefaultAt( c, sym, i )
@@ -366,7 +366,7 @@ sub EmitStructorCall _
     '' modelled at all, and 'new C( g )' emitted the call with its argument
     '' simply MISSING.
     dim as int32 nargs = 1
-    if args <> 0 then
+    if args <> nullptr then
         for i as int32 = 0 to args->Count - 1
             c.m->argPool.Push( (*args)[i] )
         next
@@ -460,7 +460,7 @@ function ReceiverOf _
     if target = Tko.NODE_NONE then return v
 
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return v
+    if cs = nullptr then return v
     '' ONLY A PROCEDURE HAS A RECEIVER. A FIELD whose type is a function pointer
     '' is called through, not called ON: 's.fn( 1, 2 )' loads the pointer out of
     '' 's' and calls it with two arguments, and there is no hidden THIS anywhere
@@ -475,7 +475,7 @@ function ReceiverOf _
     '' run, because what it actually reads is uninitialised.
     if cs->kind <> cast( uint8, Tko.SYM_PROC ) then return v
     dim as Tko.SymScope ptr owner = c.syms->ScopeAt( cs->parent )
-    if owner = 0 then return v
+    if owner = nullptr then return v
     if owner->kind <> cast( uint8, Tko.SCOPEK_TYPE ) then return v
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
@@ -489,7 +489,7 @@ function ReceiverOf _
     if c.ast->Kind( target ) <> Tko.N_MEMBER then
         if c.curProcSym = Tko.SYMBOL_NONE then return v
         dim as Tko.Symbol ptr me = c.syms->SymbolAt( c.curProcSym )
-        if me = 0 then return v
+        if me = nullptr then return v
         if me->inner = Tko.SCOPE_NONE then return v
         dim as Tko.SymbolId tsid = c.syms->LookupLocal( me->inner, _
             c.names->Fold( c.names->GetString( "this" ) ) )
@@ -548,7 +548,7 @@ function ReceiverOf _
                 dim as Tko.Symbol ptr aos = c.syms->SymbolAt( aop )
                 dim as MirType armt = MT_PTR
                 dim as Tko.TypeId aort = Tko.TYPE_NONE
-                if aos <> 0 then
+                if aos <> nullptr then
                     aort = aos->type_
                     dim as Tko.NodeId apn = cast( Tko.NodeId, aos->payload )
                     dim as boolean aByref = false
@@ -588,7 +588,7 @@ function ReceiverOf _
     '' the same base was already right; only a method or property call was not.
     if (c.ast->Kind( mb->lhs ) = Tko.N_IDENT) orelse (c.ast->Kind( mb->lhs ) = Tko.N_MEMBER) then
         dim as Tko.Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( mb->lhs ) )
-        if (ls <> 0) andalso (bt <> Tko.TYPE_NONE) then
+        if (ls <> nullptr) andalso (bt <> Tko.TYPE_NONE) then
             if ls->kind = cast( uint8, Tko.SYM_PROC ) then return ByrefTemp_( c, mb->lhs, bt )
         end if
     end if
@@ -655,7 +655,7 @@ function AddrWordOf_ _
     '' reads it. 'static fsng as fnsng = @proc' took the FIRST overload (overload/addressof.bas).
     if c.info->DecisionOf( opnd ) <> Tko.SYMBOL_NONE then osid = c.info->DecisionOf( opnd )
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( osid )
-    if sy = 0 then return false
+    if sy = nullptr then return false
     if sy->kind = cast( uint8, Tko.SYM_PROC ) then
         dim as Tko.NodeId pn = cast( Tko.NodeId, sy->payload )
         if pn = Tko.NODE_NONE then return false
@@ -776,7 +776,7 @@ private function GlobalRelocProc_ _
     if fn = Tko.NODE_NONE then return false
     if c.ast->Kind( fn ) <> Tko.N_IDENT then return false
     dim as Tko.Symbol ptr fs = c.syms->SymbolAt( iif( c.info->DecisionOf( fn ) <> Tko.SYMBOL_NONE, c.info->DecisionOf( fn ), c.info->RefOf( fn ) ) )
-    if fs = 0 then return false
+    if fs = nullptr then return false
     if fs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, fs->payload )
     if pn = Tko.NODE_NONE then return false
@@ -857,7 +857,7 @@ private function GlobalRelocInit_ _
     if c.info->DecisionOf( a ) <> Tko.SYMBOL_NONE then sid = c.info->DecisionOf( a )   '' the overload the target names (AddrWordOf_)
     if sid = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( sid )
-    if sy = 0 then return false
+    if sy = nullptr then return false
 
     '' A PROCEDURE'S ADDRESS is its NAME.
     if sy->kind = cast( uint8, Tko.SYM_PROC ) then
@@ -894,7 +894,7 @@ end function
 private function VarScopeOf_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId ) as Tko.ScopeId
     dim as Tko.Symbol ptr vs = c.syms->SymbolAt( sid )
-    if vs = 0 then return Tko.SCOPE_GLOBAL
+    if vs = nullptr then return Tko.SCOPE_GLOBAL
     if vs->parent = Tko.SCOPE_NONE then return Tko.SCOPE_GLOBAL
     return vs->parent
 end function
@@ -912,7 +912,7 @@ sub InitSharedGlobal _
     '' image was all zeros. InitDynArrayDesc writes it as the global's initial bytes.
     if g >= 0 then
         dim as Tko.Symbol ptr dgs = c.syms->SymbolAt( sid )
-        if dgs <> 0 then
+        if dgs <> nullptr then
             if c.types->IsDynArray( dgs->type_ ) then
                 dim as MirValue dgv
                 dgv.kind = cast( uint8, MV_GLOBAL ) : dgv.ty = cast( uint8, MT_PTR ) : dgv.id = g
@@ -930,7 +930,7 @@ sub InitSharedGlobal _
     '' before the procedure it belongs to was ever called.
     if (g >= 0) andalso IsSharedVar( c, sid ) then
         dim as Tko.Symbol ptr gs = c.syms->SymbolAt( sid )
-        if gs <> 0 then
+        if gs <> nullptr then
             dim as boolean wants = false
             if c.types->Kind( gs->type_ ) = Tko.TK_UDT then
                 wants = TypeNeedsInit_( c, gs->type_ ) orelse TypeNeedsDtor_( c, gs->type_ )
@@ -1188,7 +1188,7 @@ end function
 
 function ParamCountOf( byref c as Ctx, byval callee as Tko.SymbolId ) as int32
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return 0
+    if cs = nullptr then return 0
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return 0
     if c.ast->Kind( pn ) <> Tko.N_PROC then return 0
@@ -1205,7 +1205,7 @@ end function
 '' passed, and there are no defaults beyond it.
 function IsVariadicProc( byref c as Ctx, byval callee as Tko.SymbolId ) as boolean
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return false
+    if cs = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
@@ -1247,7 +1247,7 @@ function BindAliasStorage _
     '' won and it is a plain integer. Both were verify failures, and both are honest
     '' declines: there is no alias storage to bind.
     dim as Tko.Symbol ptr asym = c.syms->SymbolAt( sid )
-    if asym = 0 then return false
+    if asym = nullptr then return false
     if asym->type_ = Tko.TYPE_NONE then return false
     if c.types->Kind( asym->type_ ) <> Tko.TK_REFERENCE then return false
     dim as MirValue dst
@@ -1292,7 +1292,7 @@ function AddrOfVar( byref c as Ctx, byval sid as Tko.SymbolId ) as MirValue
     '' and without declining. Constants fold in LowerPredeclared; one that will not fold
     '' has to decline here rather than be given storage it never had.
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( sid )
-    if cs <> 0 then
+    if cs <> nullptr then
         if cs->kind = cast( uint8, Tko.SYM_CONSTANT ) then return v
         '' ...AND NEITHER HAS AN ENUM MEMBER. Given a slot here, 'PU( E_B )' over
         '' 'byref v as ulong' passed '@e_b', a frame slot nothing ever stored to: the callee
@@ -1333,7 +1333,7 @@ function AddrOfVar( byref c as Ctx, byval sid as Tko.SymbolId ) as MirValue
         '' load belongs here too -- this path returns before the one at the end of the
         '' function. Without it 'sb = 3' stored an i64 into a pointer slot, which the
         '' verifier caught: the store was clobbering the alias rather than the referent.
-        if cs <> 0 then
+        if cs <> nullptr then
             if cs->type_ <> Tko.TYPE_NONE then
                 if c.types->Kind( cs->type_ ) = Tko.TK_REFERENCE then
                     return LowerExprLoad( c, v, MT_PTR )
@@ -1361,7 +1361,7 @@ function AddrOfVar( byref c as Ctx, byval sid as Tko.SymbolId ) as MirValue
     '' Measured cost of the incoherence: 21,806 of the corpus's unlowered statements
     '' were one macro -- fbcunit's CU_ASSERT_ -- called with a BYREF argument, and the
     '' identical call with a byval one lowered.
-    if cs <> 0 then
+    if cs <> nullptr then
         if cs->type_ <> Tko.TYPE_NONE then
             if c.types->Kind( cs->type_ ) = Tko.TK_REFERENCE then
                 return LowerExprLoad( c, v, MT_PTR )

@@ -107,7 +107,7 @@ private function SameLiteral_ _
     ( byref e as PpEngine, byval a as uint32, byval b as uint32 ) as boolean
 
     if a = b then return true
-    if e.outp = 0 then return false
+    if e.outp = nullptr then return false
     dim as int32 ia = cast( int32, a )
     dim as int32 ib = cast( int32, b )
     if (ia < 0) orelse (ia >= (*e.lits).Count) then return false
@@ -127,7 +127,7 @@ private function SameLiteral_ _
     if la->textLength = 0 then return true
     dim as SourceFile ptr fa = e.src->FileAt( cast( FileId, la->textFile ) )
     dim as SourceFile ptr fb2 = e.src->FileAt( cast( FileId, lb->textFile ) )
-    if (fa = 0) orelse (fb2 = 0) then return false
+    if (fa = nullptr) orelse (fb2 = nullptr) then return false
     if (la->textOffset + la->textLength) > fa->text.Count then return false
     if (lb->textOffset + lb->textLength) > fb2->text.Count then return false
     return (memcmp( @fa->text[la->textOffset], @fb2->text[lb->textOffset], _
@@ -382,7 +382,7 @@ private sub PpUndef( byref e as PpEngine, byval at as SourceLoc )
     end if
     if Tk( t ) = TK_IDENT then
         dim as PpMacro ptr m = MacroFor( e, cast( InternId, t.literal ) )
-        if m <> 0 then PpModJournal( e, m ) : m->isDefined = false
+        if m <> nullptr then PpModJournal( e, m ) : m->isDefined = false
         FreeTakenName_( e, cast( InternId, t.literal ) )
     elseif IsKeywordKind( Tk( t ) ) then
         '' '#undef short'. fbc keeps keywords in the symbol table, so undefining one
@@ -519,7 +519,7 @@ private function PpReadArgs _
         if k = TK_IDENT then
             dim as InternId eid = cast( InternId, t.literal )
             dim as PpMacro ptr em = MacroFor( e, eid )
-            if (em <> 0) andalso (IsHidden( e, eid ) = false) then
+            if (em <> nullptr) andalso (IsHidden( e, eid ) = false) then
                 dim as boolean eager = true
                 if em->isFunc andalso em->optParens then
                     dim as Token nx
@@ -564,7 +564,7 @@ private function PpReadArgs _
         '' because deciding needs the token that follows the name.
         if k = TK_IDENT then
             dim as PpMacro ptr im = MacroFor( e, cast( InternId, t.literal ) )
-            if im <> 0 then
+            if im <> nullptr then
                 dim as boolean claims = im->isFunc andalso im->optParens
                 if claims then claims = (im->isVariadic = false)
                 if claims then claims = (im->params.Count > 1)
@@ -623,7 +623,7 @@ private function BuiltinValueArg_ _
         if Tk( t ) = TK_IDENT then
             dim as InternId id = cast( InternId, t.literal )
             dim as PpMacro ptr mm = MacroFor( e, id )
-            if (mm <> 0) andalso (IsHidden( e, id ) = false) then
+            if (mm <> nullptr) andalso (IsHidden( e, id ) = false) then
                 if PpExpand( e, mm, t ) then continue do
             end if
         end if
@@ -809,7 +809,7 @@ private function ExpandedArgText_ _
         if Tk( t ) = TK_IDENT then
             dim as InternId id = cast( InternId, t.literal )
             dim as PpMacro ptr mm = MacroFor( e, id )
-            if (mm <> 0) andalso (IsHidden( e, id ) = false) then
+            if (mm <> nullptr) andalso (IsHidden( e, id ) = false) then
                 dim as boolean trigSpace = ((t.flags and TF_SPACE_BEFORE) <> 0)
                 if PpExpand( e, mm, t ) then
                     if pendSet = false then
@@ -1020,7 +1020,7 @@ private function BuiltinIntArg_ _
         if Tk( t ) = TK_IDENT then
             dim as InternId id = cast( InternId, t.literal )
             dim as PpMacro ptr mm = MacroFor( e, id )
-            if (mm <> 0) andalso (IsHidden( e, id ) = false) then
+            if (mm <> nullptr) andalso (IsHidden( e, id ) = false) then
                 if PpExpand( e, mm, t ) then continue do
             end if
         end if

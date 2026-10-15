@@ -292,7 +292,7 @@ function StringLitText_ _
     '' The literal's OWN file, not the node's loc: a literal built by macro expansion is
     '' repointed at the use site for diagnostics, and its text does not live there.
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
-    if f = 0 then return ""
+    if f = nullptr then return ""
     if (lp->strOffset + lp->strLength) > f->text.Count then return ""
     '' '""' inside a literal is ONE quote -- measured: len( $"q""q" ) is 3. The lexer
     '' already refuses to end the literal there, but the span it records is the RAW
@@ -422,7 +422,7 @@ function LowerPredeclared _
 
     dim as MirValue v
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if s = 0 then return v
+    if s = nullptr then return v
     if (s->flags and Tko.SYMF_BUILTIN) <> 0 then
         return ConstInt( c, cast( int64, s->payload ), MT_I8 )
     end if
@@ -952,7 +952,7 @@ function LowerLen _
     '' IntrinsicCallType_ applies to the TYPE; an operator stays the intrinsic's.
     scope
         dim as Tko.Symbol ptr usym = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-        if usym <> 0 then
+        if usym <> nullptr then
             if usym->kind = cast( uint8, Tko.SYM_PROC ) then
                 dim as Tko.NodeId udecl = cast( Tko.NodeId, usym->payload )
                 dim as boolean uop = false
@@ -1003,7 +1003,7 @@ function LowerLen _
                     dim as MirValue lov
                     dim as MirType lrt = MT_I64
                     dim as Tko.Symbol ptr lps = c.syms->SymbolAt( lpick )
-                    if lps <> 0 then
+                    if lps <> nullptr then
                         if lps->type_ <> Tko.TYPE_NONE then lrt = LowerType( lps->type_, *c.types )
                     end if
                     if (lrt = MT_VOID) orelse (lrt = MT_AGG) then lrt = MT_I64
@@ -1037,14 +1037,14 @@ function LowerLen _
     '' 0, 8ll, 1 )' for a one-integer type.
     if (isSizeof) andalso (c.ast->Kind( a ) = Tko.N_IDENT) then
         dim as Tko.Symbol ptr asy = c.syms->SymbolAt( c.info->RefOf( a ) )
-        if asy <> 0 then
+        if asy <> nullptr then
             if asy->kind = cast( uint8, Tko.SYM_PROC ) then
                 '' THROUGH 'altClass', not a fresh lookup: an expression node inside a
                 '' procedure has no recorded scope -- Collect never walks a body -- so
                 '' there is nothing to look the name up FROM. The slot already holds
                 '' both classes and this is the link between them.
                 dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( asy->altClass )
-                if tsy <> 0 then
+                if tsy <> nullptr then
                     if tsy->type_ <> Tko.TYPE_NONE then
                         dim as int32 tsz = SizeOfType( c, tsy->type_ )
                         if tsz > 0 then

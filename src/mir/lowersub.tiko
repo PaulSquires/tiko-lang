@@ -947,7 +947,7 @@ function UserCastNumOverload_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval want as Tko.TypeId = Tko.TYPE_NONE ) as Tko.SymbolId
     dim as Tko.SymbolId pick = Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, t, want )
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
-    if ps = 0 then return Tko.SYMBOL_NONE
+    if ps = nullptr then return Tko.SYMBOL_NONE
     dim as MirType m2 = LowerType( c.types->Unqualify( ps->type_ ), *c.types )
     if (m2 = MT_VOID) orelse (m2 = MT_AGG) then return Tko.SYMBOL_NONE
     return pick
@@ -1002,7 +1002,7 @@ end function
 '' The string-cast walks look at pointer ones only when no other matched.
 function CastYieldsPtr_( byref c as Ctx, byval sym as Tko.SymbolId ) as boolean
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
-    if (s = 0) orelse (s->type_ = Tko.TYPE_NONE) then return false
+    if (s = nullptr) orelse (s->type_ = Tko.TYPE_NONE) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
         if (c.ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0 then return false
@@ -1070,7 +1070,7 @@ function UdtMemberNamed_ _
     dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return Tko.SYMBOL_NONE
+    if s = nullptr then return Tko.SYMBOL_NONE
     if s->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     return c.syms->LookupLocal( s->inner, c.names->Fold( c.names->GetString( nm ) ) )
 end function

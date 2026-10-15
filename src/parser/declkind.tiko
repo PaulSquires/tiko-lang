@@ -70,7 +70,7 @@ end function
 '' procedure is true to fbc, and false again after 'end sub'.
 private sub NoteDeclaredName_( byref p as Tko.ParserState, byval nm as Tko.InternId )
     if nm = Tko.INTERN_NONE then return
-    if p.stream = 0 then return
+    if p.stream = nullptr then return
     if p.aggDepth <> 0 then return
     if p.procDepth <> 0 then
         Tko.PpNoteLocalDeclared( *cast( Tko.PpStream ptr, p.stream ), nm, DeclKindHere_( p ) )

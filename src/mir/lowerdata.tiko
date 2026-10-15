@@ -141,7 +141,7 @@ private function BuildDataBlock_( byref c as Ctx, byval id as Tko.NodeId ) as in
             if c.ast->Kind( ao ) = Tko.N_IDENT then
                 dim as Tko.SymbolId asid = c.info->RefOf( ao )
                 dim as Tko.Symbol ptr asy = c.syms->SymbolAt( asid )
-                if asy <> 0 then
+                if asy <> nullptr then
                     if asy->kind = cast( uint8, Tko.SYM_VARIABLE ) then
                         '' SHARED or STATIC -- module lifetime, so the address is a
                         '' link-time constant. A plain local has none.
@@ -198,7 +198,7 @@ private function DataConstIsWide_( byref c as Ctx, byval e as Tko.NodeId ) as bo
     dim as Tko.NodeKind k = c.ast->Kind( e )
     if (k <> Tko.N_IDENT) andalso (k <> Tko.N_MEMBER) then return false
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( e ) )
-    if cs = 0 then return false
+    if cs = nullptr then return false
     if cs->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return false
     if cs->payload = 0 then return false
     dim as Tko.NodeId item = cast( Tko.NodeId, cs->payload )

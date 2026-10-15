@@ -128,7 +128,7 @@ private function AggSizeOfAddr _
     if immSize > 0 then return cast( int32, immSize )
     if v.kind = cast( uint8, MV_LOCAL ) then
         dim as int32 slot = cast( int32, v.id )
-        if e.f <> 0 then
+        if e.f <> nullptr then
             if (slot >= 0) andalso (slot < e.f->locals.Count) then
                 return e.f->locals[slot].size
             end if
@@ -142,7 +142,7 @@ private function AggSizeOfAddr _
 end function
 
 private function SlotSizeOf( byref e as EmitCtx, byval slot as int32 ) as int32
-    if e.f = 0 then return 0
+    if e.f = nullptr then return 0
     if (slot < 0) orelse (slot >= e.f->locals.Count) then return 0
     return e.f->locals[slot].size
 end function
@@ -250,7 +250,7 @@ private function ValStr( byref e as EmitCtx, byref v as MirValue ) as string
         '' this needs the emitter's current function rather than the value alone -- a
         '' block address is meaningless outside the function that owns the block, and
         '' LLVM spells that ownership in the operand.
-        if e.f = 0 then Ice( e, "a block address outside a function" )
+        if e.f = nullptr then Ice( e, "a block address outside a function" )
         return "blockaddress(" & GlobalName( e, e.f->name ) & ", %" & _
                BlockName( cast( int32, v.id ) ) & ")"
     end select
@@ -318,7 +318,7 @@ end function
 private sub Line( byref e as EmitCtx, byref t as string )
     '' EVERY body line carries a location under '-g', because the verifier refuses a
     '' call without one in a function that has a subprogram.
-    if e.dbg <> 0 then
+    if e.dbg <> nullptr then
         e.outp += "  " & t & DbgLocSuffix( *e.dbg, e.dbgLine ) & chr( 10 )
         return
     end if
@@ -426,14 +426,14 @@ private function CallArgs _
         '' variadic tail below already followed. The two cases are one rule and are
         '' now written once.
         dim as MirType pt = MT_I64
-        if (callee = 0) andalso (v.kind = cast( uint8, MV_TEMP )) then
+        if (callee = nullptr) andalso (v.kind = cast( uint8, MV_TEMP )) then
             dim as int32 tid0 = cast( int32, v.id )
             if (tid0 >= 0) andalso (tid0 < e.tempTy.Count) then
                 dim as MirType tt0 = cast( MirType, e.tempTy[tid0] )
                 if tt0 <> MT_VOID then pt = tt0
             end if
         end if
-        if callee <> 0 then
+        if callee <> nullptr then
             '' ...and so does the CALL, because LLVM matches the two and lowers from
             '' what the call says.
             if i = 0 then attr = SretAttr( e, callee )
@@ -465,7 +465,7 @@ private function CallArgs _
         '' same rule the type above already follows.
         dim as int32 asz = 0
         if pt = MT_AGG then
-            if callee <> 0 then
+            if callee <> nullptr then
                 if i < callee->paramAggs.Count then
                     asz = cast( int32, callee->paramAggs[i] )
                 end if
@@ -516,7 +516,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
                     dim as int32 ci2 = cast( int32, ins.callee )
                     if (ci2 >= 0) andalso (ci2 < e.m->functions.Count) then
                         dim as MirFunction ptr cf2 = e.m->functions[ci2]
-                        if cf2 <> 0 then asz = cf2->retSize
+                        if cf2 <> nullptr then asz = cf2->retSize
                     end if
                 end select
                 if rid < e.tempAggSize.Count then e.tempAggSize[rid] = asz
@@ -553,7 +553,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         if (rid >= 0) andalso (rid < e.allocaSlot.Count) then
             e.allocaSlot[rid] = slot
         end if
-        if (slot < 0) orelse (e.f = 0) then
+        if (slot < 0) orelse (e.f = nullptr) then
             Ice( e, "an alloca with no slot" )
             return
         end if
@@ -578,7 +578,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         if e.allocaPart <> 2 then
             Line( e, SlotName( slot ) & " = alloca " & LlvmType( st, sz ) & ", align " & str( sal ) )
         end if
-        if (e.dbg <> 0) andalso (e.allocaPart <> 1) then e.outp += DbgDeclare( *e.dbg, e.f->locals[slot].sym, _
+        if (e.dbg <> nullptr) andalso (e.allocaPart <> 1) then e.outp += DbgDeclare( *e.dbg, e.f->locals[slot].sym, _
             e.f->locals[slot].frontendType, (st = MT_PTR), SlotName( slot ) )
 
     case M_LOAD
@@ -785,7 +785,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         end if
 
     case M_CALL, M_CALL_RTL, M_CALL_IND
-        dim as MirFunction ptr cf = 0
+        dim as MirFunction ptr cf = nullptr
         dim as string target_
         if op = M_CALL_IND then
             target_ = ValStr( e, ins.a )
@@ -812,7 +812,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         '' recorded size is the same authority the argument rule above uses.
         if rt = MT_AGG then
             dim as int32 rsz2 = 0
-            if cf <> 0 then rsz2 = cast( int32, cf->retSize )
+            if cf <> nullptr then rsz2 = cast( int32, cf->retSize )
             if rsz2 <= 0 then
                 dim as int32 rti = cast( int32, ins.result )
                 if (rti >= 0) andalso (rti < e.tempAggSize.Count) then
@@ -827,7 +827,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         '' win64 that is what decides whether a float argument is duplicated into a
         '' general-purpose register as well as an XMM one.
         dim as string sig = ty
-        if cf <> 0 then
+        if cf <> nullptr then
             if cf->isVariadic then
                 sig = ty & " ("
                 for i as int32 = 0 to cf->paramTys.Count - 1
@@ -840,7 +840,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         end if
         '' A PAIR RETURN: the ABI pass left the destination slot in 'b', and both
         '' registers are written through it -- the first at 0, the second at 8.
-        if (cf <> 0) andalso (ins.b.kind = cast( uint8, MV_LOCAL )) then
+        if (cf <> nullptr) andalso (ins.b.kind = cast( uint8, MV_LOCAL )) then
             if cast( MirType, cf->retTy2 ) <> MT_VOID then
                 dim as MirType p0 = cast( MirType, cf->retTy )
                 dim as MirType p1 = cast( MirType, cf->retTy2 )
@@ -936,7 +936,7 @@ private sub EmitBlock _
     case MTERM_RET
         if b.cond.kind = cast( uint8, MV_NONE ) then
             Line( e, "ret void" )
-        elseif (e.f <> 0) andalso (b.ret2.kind <> cast( uint8, MV_NONE )) then
+        elseif (e.f <> nullptr) andalso (b.ret2.kind <> cast( uint8, MV_NONE )) then
             '' TWO REGISTERS, packed into the literal struct the signature declares.
             dim as string pty = LlvmPairType( cast( MirType, e.f->retTy ), _
                                               cast( MirType, e.f->retTy2 ) )
@@ -1042,7 +1042,7 @@ end function
 function ByvalAttr _
     ( byref e as EmitCtx, byval f as MirFunction ptr, byval i as int32 ) as string
 
-    if f = 0 then return ""
+    if f = nullptr then return ""
     if i >= f->paramAttrs.Count then return ""
     if f->paramAttrs[i] <> TKO_PA_BYVAL then return ""
     dim as int32 sz = 0
@@ -1155,7 +1155,7 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
     end if
     '' The subprogram goes after the attributes and the comdat, LLVM's order.
     dim as string dbgAttr = ""
-    if e.dbg <> 0 then
+    if e.dbg <> nullptr then
         dbgAttr = " !dbg !" & str( DbgSubprogram( *e.dbg, e.names->Spelling( f->name ), _
                                                   f->dbgFile, f->dbgLine, f->procSym ) )
         '' EVERY PROCEDURE OPENS ON LINE 0: its entry -- the slots, the parameter spills,
@@ -1186,8 +1186,8 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
         EmitBlock( e, f->blocks[bi], bi )
     next
     e.outp += "}" & chr( 10 ) & chr( 10 )
-    e.f = 0
-    if e.dbg <> 0 then e.dbg->curSp = -1
+    e.f = nullptr
+    if e.dbg <> nullptr then e.dbg->curSp = -1
 end sub
 
 #include once "codegen/llvmglobal.tiko"
@@ -1206,7 +1206,7 @@ end sub
 private function ModuleDeclares_( byref e as EmitCtx, byref nm as string ) as boolean
     for i as int32 = 0 to e.m->functions.Count - 1
         dim as MirFunction ptr f = e.m->functions[i]
-        if f = 0 then continue for
+        if f = nullptr then continue for
         if e.names->Spelling( f->name ) = nm then return true
     next
     return false
@@ -1231,13 +1231,13 @@ private function CalledNames_( byref body as string ) as string
     dim as int32 i = 0
     while i < n
         dim as uint8 ptr hit = MemChr_( base_ + i, 64, n - i )
-        if hit = 0 then exit while
+        if hit = nullptr then exit while
         i = cast( int32, hit - base_ )
         dim as int32 st = i + 1, en = 0
         if (st < n) andalso (base_[st] = 34) then
             '' '@"name"(' -- the name is what lies between the quotes.
             dim as uint8 ptr q = MemChr_( base_ + st + 1, 34, n - st - 1 )
-            if q <> 0 then
+            if q <> nullptr then
                 en = cast( int32, q - base_ )
                 st += 1
                 if (en + 1 < n) andalso (base_[en + 1] = 40) then
@@ -1372,7 +1372,7 @@ function EmitLlvm _
     '' an added runtime declaration.
     for fi as int32 = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
-        if f = 0 then continue for
+        if f = nullptr then continue for
         if f->isDefinition = false then continue for
         '' HOISTED, each one a boolean of its own: warning 38 is FreeBASIC objecting to
         '' a boolean beside a non-boolean in one 'andalso' chain, and the house rule is
@@ -1390,12 +1390,12 @@ function EmitLlvm _
     '' redundant one: everything it could say, the definition says.
     for fi as int32 = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
-        if f = 0 then continue for
+        if f = nullptr then continue for
         if f->isDefinition then continue for
         dim as boolean alsoDefined = false
         for gi as int32 = 0 to m.functions.Count - 1
             dim as MirFunction ptr g = m.functions[gi]
-            if g = 0 then continue for
+            if g = nullptr then continue for
             if g->isDefinition = false then continue for
             if g->name = f->name then
                 alsoDefined = true
@@ -1426,7 +1426,7 @@ function EmitLlvm _
     res.ok = true
     dim as string body_ = e.outp
     res.text = hdr & IntrinsicDecls( e, body_ ) & chr( 10 ) & body_
-    if e.dbg <> 0 then res.text += DbgFinish( dbg )
+    if e.dbg <> nullptr then res.text += DbgFinish( dbg )
     return res
 end function
 

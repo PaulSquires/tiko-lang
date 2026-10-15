@@ -104,7 +104,7 @@ if (len( dllPath ) = 0) orelse (len( file ) = 0) then
 end if
 
 dim as any ptr lib_ = dylibload( dllPath )
-if lib_ = 0 then
+if lib_ = nullptr then
     print "tkpdump: cannot load " & dllPath
     end 2
 end if
@@ -112,7 +112,7 @@ pVer = dylibsymbol( lib_, "TIKOPARSER_VERSION" )
 pScan = dylibsymbol( lib_, "TIKOPARSER_SCAN" )
 pText = dylibsymbol( lib_, "TIKOPARSER_SCAN_TEXT" )
 pFree = dylibsymbol( lib_, "TIKOPARSER_FREE" )
-if (pVer = 0) orelse (pScan = 0) orelse (pText = 0) orelse (pFree = 0) then
+if (pVer = nullptr) orelse (pScan = nullptr) orelse (pText = nullptr) orelse (pFree = nullptr) then
     print "tkpdump: an export is missing"
     end 2
 end if
@@ -135,9 +135,9 @@ dim as wstring * 1024 pkgW = environ( "TKP_PKGDIR" )
 if len( environ( "TKP_PKGDIR" ) ) > 0 then opts.pkgDir = @pkgW
 
 dim as wstring * 1024 fileW = file
-dim as TKP_RESULT ptr r = 0
+dim as TKP_RESULT ptr r = nullptr
 dim as int32 rc = pScan( @fileW, @opts, @r )
-if (rc <> TKP_OK) orelse (r = 0) then
+if (rc <> TKP_OK) orelse (r = nullptr) then
     print "tkpdump: scan returned " & rc
     end 1
 end if
@@ -152,9 +152,9 @@ case "text"
         if len( bytes ) > 0 then get #f, 1, bytes
         close #f
     end if
-    dim as TKP_RESULT ptr r2 = 0
+    dim as TKP_RESULT ptr r2 = nullptr
     dim as int32 rc2 = pText( strptr( bytes ), @fileW, @opts, @r2 )
-    if (rc2 <> TKP_OK) orelse (r2 = 0) then
+    if (rc2 <> TKP_OK) orelse (r2 = nullptr) then
         print "TEXT: scan_text returned " & rc2
         failures += 1
     elseif Fingerprint_( r ) <> Fingerprint_( r2 ) then
@@ -172,7 +172,7 @@ case "loop"
     dim as int32 ws0 = WorkingSetKb_( )
     dim as int32 hb0 = HeapBusyKb_( )
     for i as int32 = 2 to n
-        dim as TKP_RESULT ptr ri = 0
+        dim as TKP_RESULT ptr ri = nullptr
         pScan( @fileW, @opts, @ri )
         if Fingerprint_( ri ) <> want then
             print "LOOP: scan " & i & " differs from scan 1"

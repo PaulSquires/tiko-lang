@@ -35,7 +35,7 @@ private function DeferProcScope_ ( byref c as Ctx, byval s as Tko.ScopeId ) as T
     for guard as int32 = 0 to 4095
         if cur = Tko.SCOPE_NONE then exit for
         dim as Tko.SymScope ptr ss = c.syms->ScopeAt( cur )
-        if ss = 0 then exit for
+        if ss = nullptr then exit for
         if ss->kind <> Tko.SCOPEK_BLOCK then return cur
         cur = ss->parent
     next
@@ -49,7 +49,7 @@ private function DeferScopeHolds_ _
         if cur = Tko.SCOPE_NONE then exit for
         if cur = outer then return true
         dim as Tko.SymScope ptr ss = c.syms->ScopeAt( cur )
-        if ss = 0 then exit for
+        if ss = nullptr then exit for
         cur = ss->parent
     next
     return false

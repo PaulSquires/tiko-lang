@@ -39,7 +39,7 @@ private function TcNeedsCtor_ ( byref c as Ctx, byval t as TypeId, byval depth a
     if depth > 8 then return false
     t = c.types->Unqualify( t )
     if c.types->Kind( t ) <> TK_UDT then return false
-    if StructorOf_( c, t, "__ctor" ) <> 0 then return true
+    if StructorOf_( c, t, "__ctor" ) <> nullptr then return true
     dim as InternId tn = c.types->NameOf( t )
     if tn = 0 then return false
     if lcase( c.names->Spelling( tn ) ) = "object" then return true
@@ -47,14 +47,14 @@ private function TcNeedsCtor_ ( byref c as Ctx, byval t as TypeId, byval depth a
     dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Symbol ptr s = c.syms->SymbolAt( ts )
-    if (s = 0) orelse (s->inner = SCOPE_NONE) then return false
+    if (s = nullptr) orelse (s->inner = SCOPE_NONE) then return false
     dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     dim as SymbolId cur = sc->firstSym
     for guard as int32 = 0 to 9999
         if cur = SYMBOL_NONE then exit for
         dim as Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit for
+        if f = nullptr then exit for
         if f->kind = cast( uint8, SYM_FIELD ) then
             dim as TypeId ft = c.types->Unqualify( f->type_ )
             if c.types->IsDynArray( ft ) then return true
@@ -112,7 +112,7 @@ end function
 private function TcLetTakes_ ( byref c as Ctx, byval eu as TypeId, byval vu as TypeId ) as boolean
     dim as Symbol ptr ls = StructorOf_( c, eu, "let" )
     for guard as int32 = 0 to 255
-        if ls = 0 then exit for
+        if ls = nullptr then exit for
         dim as NodeId pn = cast( NodeId, ls->payload )
         if (pn <> NODE_NONE) andalso (c.ast->Kind( pn ) = N_PROC) then
             dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
@@ -155,7 +155,7 @@ private function TcTakes_ ( byref c as Ctx, byval et as TypeId, byval vt as Type
     '' A TYPE DECLARING 'let' CONVERTS THROUGH IT, whether or not it needs constructing:
     '' 'L' with only 'let( byval x as long )' takes a long and a double and refuses a
     '' string. Without one, only a type that needs constructing refuses.
-    if StructorOf_( c, eu, "let" ) <> 0 then return TcLetTakes_( c, eu, vu )
+    if StructorOf_( c, eu, "let" ) <> nullptr then return TcLetTakes_( c, eu, vu )
     return (TcNeedsCtor_( c, eu, 0 ) = false)
 end function
 
@@ -189,27 +189,27 @@ end function
 '' judged: 'type( ... )' over one is a constructor call.
 private function TlTextField_ _
     ( byref c as Ctx, byval t as TypeId, byval depth as int32, byval wantU as boolean ) as Symbol ptr
-    if depth > 8 then return 0
+    if depth > 8 then return nullptr
     t = c.types->Unqualify( t )
     if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
-    if c.types->Kind( t ) <> TK_UDT then return 0
-    if TcTuple_( c, t ) then return 0
-    if StructorOf_( c, t, "__ctor" ) <> 0 then return 0
-    if BaseOf_( c, t ) <> TYPE_NONE then return 0
+    if c.types->Kind( t ) <> TK_UDT then return nullptr
+    if TcTuple_( c, t ) then return nullptr
+    if StructorOf_( c, t, "__ctor" ) <> nullptr then return nullptr
+    if BaseOf_( c, t ) <> TYPE_NONE then return nullptr
     dim as InternId tn = c.types->NameOf( t )
-    if tn = 0 then return 0
+    if tn = 0 then return nullptr
     dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( t ) )
     dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Symbol ptr s = c.syms->SymbolAt( ts )
-    if (s = 0) orelse (s->inner = SCOPE_NONE) then return 0
+    if (s = nullptr) orelse (s->inner = SCOPE_NONE) then return nullptr
     dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return 0
+    if sc = nullptr then return nullptr
     dim as SymbolId cur = sc->firstSym
     for guard as int32 = 0 to 9999
         if cur = SYMBOL_NONE then exit for
         dim as Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit for
+        if f = nullptr then exit for
         if (f->kind = cast( uint8, SYM_FIELD )) andalso (f->type_ <> TYPE_NONE) then
             dim as TypeId ft = c.types->Unqualify( f->type_ )
             if c.types->Kind( ft ) = TK_BUILTIN then
@@ -217,12 +217,12 @@ private function TlTextField_ _
                 if wantU andalso (c.types->BuiltinOf( ft ) = TY_USTRING) then return f
             elseif c.types->Kind( ft ) = TK_UDT then
                 dim as Symbol ptr deeper = TlTextField_( c, ft, depth + 1, wantU )
-                if deeper <> 0 then return deeper
+                if deeper <> nullptr then return deeper
             end if
         end if
         cur = f->nextInScope
     next
-    return 0
+    return nullptr
 end function
 
 '' A non-empty 'type( ... )' with no type of its own -- Check types it as a tuple -- filling
@@ -243,8 +243,8 @@ private function TypeLitTextBad_ _
     if (lp->count = 0) orelse (lp->target <> NODE_NONE) then return false
     if TcTuple_( c, c.info->TypeOf_( rn ) ) = false then return false
     dim as Symbol ptr f = TlTextField_( c, dest, 0, true )
-    if f = 0 then return false
-    if isDim andalso (TlTextField_( c, dest, 0, false ) <> 0) then return false
+    if f = nullptr then return false
+    if isDim andalso (TlTextField_( c, dest, 0, false ) <> nullptr) then return false
     dim as TypeId du = c.types->Unqualify( dest )
     if c.types->Kind( du ) = TK_REFERENCE then du = c.types->Unqualify( c.types->Inner( du ) )
     c.diags->Report( TKO0929, PointRange( c.ast->Loc( rn ) ), c.types->Name( du ), c.names->Spelling( f->name ) )
@@ -273,15 +273,15 @@ private function TupleConvBad_ _
     dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Symbol ptr s = c.syms->SymbolAt( ts )
-    if (s = 0) orelse (s->inner = SCOPE_NONE) then return false
+    if (s = nullptr) orelse (s->inner = SCOPE_NONE) then return false
     dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     dim as containers.Array( of uint32 ) ets
     dim as SymbolId cur = sc->firstSym
     for guard as int32 = 0 to 9999
         if cur = SYMBOL_NONE then exit for
         dim as Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit for
+        if f = nullptr then exit for
         if f->kind = cast( uint8, SYM_FIELD ) then ets.Push( cast( uint32, f->type_ ) )
         cur = f->nextInScope
     next

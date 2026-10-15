@@ -67,7 +67,7 @@ function EmitStrTerm _
     '' would claim it and then ask a predeclared name for an address it has not got.
     if c.ast->Kind( term ) = Tko.N_IDENT then
         dim as Tko.Symbol ptr fns = c.syms->SymbolAt( c.info->RefOf( term ) )
-        if fns <> 0 then
+        if fns <> nullptr then
             if (fns->flags and Tko.SYMF_FUNCNAME) <> 0 then
                 dim as string fnText = Tko.Mangle.ProcNameOrMain( _
                     *c.syms, c.curProcSym, *c.names )
@@ -645,7 +645,7 @@ function NarrowCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.Sym
         cur = UdtMemberNamed_( c, t, "cast" )
         while cur <> Tko.SYMBOL_NONE
             dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cur )
-            if cse = 0 then exit while
+            if cse = nullptr then exit while
             if (pass = 0) andalso CastYieldsPtr_( c, cur ) then cur = cse->nextOverload : continue while   '' a pointer last
             if cse->type_ <> Tko.TYPE_NONE then
                 dim as Tko.TypeId inner = c.types->Unqualify( cse->type_ )
@@ -1287,7 +1287,7 @@ function LowerStrOperandOp_ _
     dim as Tko.SymbolId opsym = c.info->RefOf( id )
     if opsym = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr opsy = c.syms->SymbolAt( opsym )
-    if opsy = 0 then return false
+    if opsy = nullptr then return false
     if opsy->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     if IsStringType( c, opsy->type_ ) = false then return false
 
@@ -1376,7 +1376,7 @@ function PlainUtf8Text_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         if lp->strLength < 0 then return false
         if lp->strKind = cast( uint8, Tko.STRK_ESCAPED ) then return false
         dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
-        if f = 0 then return false
+        if f = nullptr then return false
         return (f->encoding <> Tko.Text.ENC_BYTES)
     case Tko.N_STRCAT
         dim as Tko.ListPayload ptr sp = _
@@ -1390,7 +1390,7 @@ function PlainUtf8Text_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         return true
     case Tko.N_IDENT, Tko.N_MEMBER
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if cs = 0 then return false
+        if cs = nullptr then return false
         if cs->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return false
         if cs->payload = 0 then return false
         dim as Tko.NodeId item = cast( Tko.NodeId, cs->payload )

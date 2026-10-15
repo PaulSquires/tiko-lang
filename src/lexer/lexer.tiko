@@ -1041,11 +1041,11 @@ sub Run _
     Tko.InitTokenTables( )
 
     dim as Tko.SourceFile ptr f = src.FileAt( file )
-    if f = 0 then return
+    if f = nullptr then return
 
     dim as Scanner s
     s.n = f->text.Count
-    s.p = 0
+    s.p = nullptr
     if s.n > 0 then s.p = @f->text[0]
     s.i = 0
     s.file = file
@@ -1268,7 +1268,7 @@ function Dump _
             '' come through macro expansion.
             dim as Tko.SourceFile ptr f = src.FileAt( cast( Tko.FileId, lit->textFile ) )
             dim as string payload = ""
-            if (lit->textLength > 0) andalso (f <> 0) then
+            if (lit->textLength > 0) andalso (f <> nullptr) then
                 payload = space( lit->textLength )
                 memcpy( strptr( payload ), @f->text[lit->textOffset], lit->textLength )
             end if

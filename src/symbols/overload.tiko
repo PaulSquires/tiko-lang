@@ -19,7 +19,7 @@ private function ProcParamTypeAt_ _
     ( byref c as Ctx, byval proc_ as Tko.SymbolId, byval idx as int32 ) as Tko.TypeId
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( proc_ )
-    if s = 0 then return Tko.TYPE_NONE
+    if s = nullptr then return Tko.TYPE_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
@@ -44,7 +44,7 @@ private function ProcParamCount_ _
     ( byref c as Ctx, byval proc_ as Tko.SymbolId ) as int32
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( proc_ )
-    if s = 0 then return -1
+    if s = nullptr then return -1
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return -1
     if c.ast->Kind( pn ) <> Tko.N_PROC then return -1
@@ -103,7 +103,7 @@ private function UserConvCost_ _
         while (cur <> Tko.SYMBOL_NONE) andalso (guard < 1000)
             guard += 1
             dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-            if s = 0 then exit while
+            if s = nullptr then exit while
             if ProcParamCount_( c, cur ) = 1 then
                 dim as Tko.TypeId pt = ProcParamTypeAt_( c, cur, 0 )
                 if pt <> Tko.TYPE_NONE then
@@ -149,7 +149,7 @@ private function UserConvCost_ _
         while (cur <> Tko.SYMBOL_NONE) andalso (guard < 1000)
             guard += 1
             dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-            if s = 0 then exit while
+            if s = nullptr then exit while
             dim as Tko.TypeId rt = s->type_
             if rt <> Tko.TYPE_NONE then
                 dim as Tko.TypeId ru = c.types->Unqualify( rt )
@@ -306,7 +306,7 @@ private function UdtOperatorNamed_ _
     dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( ts )
-    if sy = 0 then return Tko.SYMBOL_NONE
+    if sy = nullptr then return Tko.SYMBOL_NONE
     if sy->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     return c.syms->LookupLocal( sy->inner, c.names->Fold( c.names->GetString( nm ) ) )
 end function
@@ -379,13 +379,13 @@ private function UserBinaryOp_ _
             cast( Tko.ScopeId, c.types->DeclScopeOf( c.types->Unqualify( ot2 ) ) )
         if sc2 = Tko.SCOPE_NONE then continue for
         dim as Tko.SymScope ptr ss2 = c.syms->ScopeAt( sc2 )
-        if ss2 = 0 then continue for
+        if ss2 = nullptr then continue for
         dim as Tko.SymbolId m2 = ss2->firstSym
         dim as int32 g2 = 0
         while (m2 <> Tko.SYMBOL_NONE) andalso (g2 < 4096)
             g2 += 1
             dim as Tko.Symbol ptr ms2 = c.syms->SymbolAt( m2 )
-            if ms2 = 0 then exit while
+            if ms2 = nullptr then exit while
             if ms2->kind = cast( uint8, Tko.SYM_NAMESPACE ) then
                 if ms2->inner <> Tko.SCOPE_NONE then
                     dim as Tko.SymbolId h4 = _
@@ -439,7 +439,7 @@ private function UserBinaryOp_ _
         for mi as int32 = 0 to c.syms->scopes.Count - 1
             dim as Tko.ScopeId msc = cast( Tko.ScopeId, mi )
             dim as Tko.SymScope ptr ms3 = c.syms->ScopeAt( msc )
-            if ms3 = 0 then continue for
+            if ms3 = nullptr then continue for
             if ms3->kind <> cast( uint8, Tko.SCOPEK_MODULE ) then continue for
             dim as Tko.SymbolId h5 = c.syms->LookupLocal( msc, fold )
             if h5 = Tko.SYMBOL_NONE then continue for
@@ -459,7 +459,7 @@ private function UserBinaryOp_ _
         dim as Tko.SymbolId cur = cast( Tko.SymbolId, heads[hi] )
         while cur <> Tko.SYMBOL_NONE
             dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-            if s = 0 then exit while
+            if s = nullptr then exit while
             if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
             dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
             if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
@@ -531,7 +531,7 @@ private function UserBinaryOp_ _
                         '' here at all. Costing it either way let 'operator -( byref a
                         '' as D )' win the binary '-' and be called with one operand.
                         dim as Tko.SymScope ptr osc = c.syms->ScopeAt( s->parent )
-                        if osc <> 0 then
+                        if osc <> nullptr then
                             if osc->kind = cast( uint8, Tko.SCOPEK_TYPE ) then
                                 '' The receiver is the LEFT operand and is not costed:
                                 '' fbc only considers a member operator for its own type.
@@ -600,7 +600,7 @@ function UserUnaryOp_ _
         dim as Tko.SymbolId cur = cast( Tko.SymbolId, heads[hi] )
         while cur <> Tko.SYMBOL_NONE
             dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-            if s = 0 then exit while
+            if s = nullptr then exit while
             if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
             dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
             if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
@@ -617,7 +617,7 @@ function UserUnaryOp_ _
                     dim as int32 total = CONV_NONE
                     dim as Tko.SymScope ptr osc = c.syms->ScopeAt( s->parent )
                     dim as boolean member_ = false
-                    if osc <> 0 then
+                    if osc <> nullptr then
                         member_ = (osc->kind = cast( uint8, Tko.SCOPEK_TYPE ))
                     end if
                     if (np = 1) andalso (member_ = false) then
@@ -664,7 +664,7 @@ function SameProc_ _
     if a = b then return true
     dim as Tko.Symbol ptr sa = c.syms->SymbolAt( a )
     dim as Tko.Symbol ptr sb = c.syms->SymbolAt( b )
-    if (sa = 0) orelse (sb = 0) then return false
+    if (sa = nullptr) orelse (sb = nullptr) then return false
     dim as Tko.NodeId na = cast( Tko.NodeId, sa->payload )
     dim as Tko.NodeId nb = cast( Tko.NodeId, sb->payload )
     if (na = Tko.NODE_NONE) orelse (nb = Tko.NODE_NONE) then return false
@@ -679,7 +679,7 @@ function ProcHasBody_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     dim as Tko.NodeId n = cast( Tko.NodeId, s->payload )
     if n = Tko.NODE_NONE then return false
     if c.ast->Kind( n ) <> Tko.N_PROC then return false
@@ -766,7 +766,7 @@ private function ResolveCall_ _
     dim as Tko.SymbolId walk = callee
     while walk <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr ws = c.syms->SymbolAt( walk )
-        if ws = 0 then exit while
+        if ws = nullptr then exit while
         if ws->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         ncand += 1
         walk = ws->nextOverload
@@ -777,7 +777,7 @@ private function ResolveCall_ _
 
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
@@ -1202,7 +1202,7 @@ private function ResolveCall_ _
             while (ck <> Tko.SYMBOL_NONE) andalso (cg < 1000)
                 cg += 1
                 dim as Tko.Symbol ptr cs2 = c.syms->SymbolAt( ck )
-                if cs2 = 0 then exit while
+                if cs2 = nullptr then exit while
                 dim as Tko.NodeId cn = cast( Tko.NodeId, cs2->payload )
                 if (cn <> Tko.NODE_NONE) andalso (c.ast->Kind( cn ) = Tko.N_PROC) then
                     dim as Tko.StmtPayload ptr cpp = StmtOf( c, cn )
@@ -1310,7 +1310,7 @@ private function ResolveCall_ _
         c.info->SetType( a2, pt2 )
     next
     dim as Tko.Symbol ptr bs = c.syms->SymbolAt( best )
-    if bs = 0 then return Tko.TYPE_NONE
+    if bs = nullptr then return Tko.TYPE_NONE
     return bs->type_
 end function
 
@@ -1394,7 +1394,7 @@ function ArrowOperatorFor _
     '' parameter is compared rather than assumed.
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = syms.SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if s->kind = cast( uint8, Tko.SYM_PROC ) then
             dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
             if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
@@ -1427,7 +1427,7 @@ function ArrowResultType _
 
     if op = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
     dim as Tko.Symbol ptr s = syms.SymbolAt( op )
-    if s = 0 then return Tko.TYPE_NONE
+    if s = nullptr then return Tko.TYPE_NONE
     dim as Tko.TypeId rt = s->type_
     if rt = Tko.TYPE_NONE then return Tko.TYPE_NONE
     rt = types.Unqualify( rt )

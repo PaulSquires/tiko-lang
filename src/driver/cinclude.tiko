@@ -48,7 +48,7 @@ type CIncludeSession_
 end type
 
 sub FreeSession( byval p as any ptr )
-    if p <> 0 then delete cast( CIncludeSession_ ptr, p )
+    if p <> nullptr then delete cast( CIncludeSession_ ptr, p )
 end sub
 
 '' WHAT MAKES TWO IMPORTS THE SAME: the headers in order (a delta is keyed by the whole
@@ -253,7 +253,7 @@ private function Hook_ cdecl _
       byval root as Tko.FileId, byval at as Tko.SourceLoc ) as Tko.FileId
 
     dim as Tko.CompilerContext ptr ctx = ctxp
-    if ctx->cinclude = 0 then ctx->cinclude = new CIncludeSession_
+    if ctx->cinclude = nullptr then ctx->cinclude = new CIncludeSession_
     dim as CIncludeSession_ ptr s = ctx->cinclude
     s->lastWhy = ""
     dim as Tko.FileId fid = Import_( ctx, s, header, unicode, root, at )
@@ -283,7 +283,7 @@ end function
 function PrintJson( byref ctx as Tko.CompilerContext ) as string
     dim as string o = "{""format"":1,""cincludes"":["
     dim as CIncludeSession_ ptr s = ctx.cinclude
-    if s <> 0 then
+    if s <> nullptr then
         for i as int32 = 0 to s->recFile.Count - 1
             if i > 0 then o &= ","
             o &= "{""file"":" & Tko.Build.JsonStr( s->recFile[i] ) & _

@@ -102,7 +102,7 @@ private function NamespaceScopeOf_ _
         dim as SymbolId sid = _
             c.syms->LookupLocal( sc, c.names->Fold( c.names->GetString( comp ) ) )
         dim as Symbol ptr sym = c.syms->SymbolAt( sid )
-        if sym = 0 then return SCOPE_NONE
+        if sym = nullptr then return SCOPE_NONE
         '' ONLY A NAMESPACE. A TYPE's members are a different rule with a different error,
         '' and answering for one here would report the other's shape.
         if sym->kind <> cast( uint8, SYM_NAMESPACE ) then return SCOPE_NONE
@@ -193,7 +193,7 @@ private sub CheckStructorOutsideNamespace_( byref c as Ctx )
         if nsc = SCOPE_NONE then continue for
         dim as Symbol ptr ts = c.syms->SymbolAt( c.syms->LookupLocalTyped( nsc, _
             c.names->GetString( typeName ), true ) )
-        if ts = 0 then continue for
+        if ts = nullptr then continue for
         if ts->kind <> cast( uint8, SYM_UDT ) then continue for
         if ts->inner = SCOPE_NONE then continue for
         '' THE DEFINITION ITSELF PUTS A SYMBOL IN THE TYPE'S SCOPE -- Collect declares
@@ -204,7 +204,7 @@ private sub CheckStructorOutsideNamespace_( byref c as Ctx )
             c.syms->LookupLocal( ts->inner, c.names->Fold( c.names->GetString( want ) ) ) )
         dim as boolean declared = false
         dim as int32 guard = 0
-        while (ms <> 0) andalso (guard < 1000)
+        while (ms <> nullptr) andalso (guard < 1000)
             guard += 1
             dim as NodeId md = cast( NodeId, ms->payload )
             if (md <> NODE_NONE) andalso (md <> id) andalso (c.ast->Kind( md ) = N_PROC) then
@@ -254,13 +254,13 @@ private sub DefineQualifiedExterns_( byref c as Ctx )
                 dim as SymbolId osid = iif( first, c.syms->Lookup( sc, pn ), c.syms->LookupLocal( sc, pn ) )
                 first = false
                 dim as Symbol ptr os = c.syms->SymbolAt( osid )
-                if (os = 0) orelse (os->kind <> cast( uint8, SYM_NAMESPACE )) orelse (os->inner = SCOPE_NONE) then ok = false : exit while
+                if (os = nullptr) orelse (os->kind <> cast( uint8, SYM_NAMESPACE )) orelse (os->inner = SCOPE_NONE) then ok = false : exit while
                 sc = os->inner
                 at = dot + 1
             wend
             if ok = false then continue for
             dim as Symbol ptr vs = c.syms->SymbolAt( c.syms->LookupLocalTyped( sc, ip->name, false ) )
-            if (vs = 0) orelse (vs->kind <> cast( uint8, SYM_VARIABLE )) then continue for
+            if (vs = nullptr) orelse (vs->kind <> cast( uint8, SYM_VARIABLE )) then continue for
             if (vs->flags and SYMF_EXTERN) = 0 then continue for
             vs->flags = (vs->flags and not SYMF_EXTERN) or SYMF_SHARED or SYMF_EXTERN_DEF
             vs->payload = cast( int32, item )
@@ -366,7 +366,7 @@ private sub CheckOutsideNamespace_( byref c as Ctx )
                 bad = (sp->b = NODE_NONE)
             elseif isRedim then
                 bad = false
-            elseif hs <> 0 then
+            elseif hs <> nullptr then
                 bad = ((hs->flags and SYMF_EXTERN) = 0)
             end if
         end if
@@ -413,7 +413,7 @@ private sub CheckConstBounds_( byref c as Ctx )
             if lp->count < 1 then continue for
             dim as NodeId arr = cast( NodeId, c.ast->children[lp->first] )
             dim as Symbol ptr asym = c.syms->SymbolAt( c.info->RefOf( arr ) )
-            if asym = 0 then continue for
+            if asym = nullptr then continue for
             if c.types->IsDynArray( asym->type_ ) = false then continue for
             c.diags->Report( TKO0674, PointRange( c.ast->Loc( ip->b ) ) )
         next
@@ -438,7 +438,7 @@ end sub
 '' when the fact being reported is about the procedure as a whole.
 private sub ScanReturnStyles_ _
     ( byref c as Ctx, byval id as NodeId, byref sawReturn as boolean, _
-      byref sawAssign as boolean, byval valRet as NodeId ptr = 0 )
+      byref sawAssign as boolean, byval valRet as NodeId ptr = nullptr )
 
     if id = NODE_NONE then return
     dim as NodeKind k = c.ast->Kind( id )
@@ -447,7 +447,7 @@ private sub ScanReturnStyles_ _
     if k = N_PROC then return
     if k = N_RETURN then
         sawReturn = true
-        if valRet <> 0 then
+        if valRet <> nullptr then
             if (*valRet = NODE_NONE) andalso (c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )].a <> NODE_NONE) then *valRet = id
         end if
     end if
@@ -535,7 +535,7 @@ private sub CheckAliasAgrees_( byref c as Ctx )
         if sp->b = NODE_NONE then continue for
         if sp->aliasName = 0 then continue for
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         dim as NodeId decl = cast( NodeId, s->payload )
         if (decl = NODE_NONE) orelse (decl = id) then continue for
         if c.ast->Kind( decl ) <> N_PROC then continue for
@@ -563,7 +563,7 @@ private sub CheckReturnStyles_( byref c as Ctx )
         dim as TypeId rt = c.types->Unqualify( c.info->TypeOf_( sp->a ) )
         if rt = TYPE_NONE then continue for
         if c.types->Kind( rt ) <> TK_UDT then continue for
-        if StructorOf_( c, rt, "__ctor" ) = 0 then continue for
+        if StructorOf_( c, rt, "__ctor" ) = nullptr then continue for
         '' A BYREF RESULT IS EXEMPT -- see the header.
         if (c.ast->nodes[n].flags and NF_BYREF) <> 0 then continue for
 
@@ -841,7 +841,7 @@ private sub CheckDuplicateOverloads_( byref c as Ctx )
 
         dim as Symbol ptr o = c.syms->SymbolAt( s->nextOverload )
         dim as int32 guard = 0
-        while (o <> 0) andalso (guard < 1000)
+        while (o <> nullptr) andalso (guard < 1000)
             guard += 1
             '' THE SAME SCOPE ONLY. Two namespaces may each hold an 'f'.
             if o->parent = s->parent then
@@ -935,7 +935,7 @@ private sub CheckUnionInitGroups_( byref c as Ctx )
         dim as SymbolId tsid = c.syms->LookupLocalTyped( ds, c.types->NameOf( u ), true )
         if tsid = SYMBOL_NONE then tsid = c.syms->LookupTyped( ds, c.types->NameOf( u ), true )
         dim as Symbol ptr ts = c.syms->SymbolAt( tsid )
-        if ts = 0 then continue for
+        if ts = nullptr then continue for
         if (ts->flags and SYMF_UNION_KIND) = 0 then continue for
         if s->payload = 0 then continue for
         dim as NodeId item = cast( NodeId, s->payload )
@@ -971,7 +971,7 @@ end sub
 '' first redim wherever it was, and the redim check took a parameter's.
 private function RecordedRankAbove_ _
     ( byref c as Ctx, byval ts as Symbol ptr, byval sid as SymbolId, byval use as NodeId ) as int32
-    if (ts <> 0) andalso (ts->kind = cast( uint8, SYM_PARAMETER )) then return 0
+    if (ts <> nullptr) andalso (ts->kind = cast( uint8, SYM_PARAMETER )) then return 0
     for i as int32 = 0 to c.redimSym.Count - 1
         if c.redimSym[i] <> cast( uint32, sid ) then continue for
         if c.redimItem[i] >= cast( uint32, use ) then return 0
@@ -1011,15 +1011,15 @@ private sub CheckRedimRank_( byref c as Ctx )
             '' A DECLARING REDIM binds nothing on its item; its name is looked up (redimrank.tiko)
             '' -- and only a DYNAMIC array is taken, for its rank. A fixed one found that way is
             '' another rule's (TKO0600, TKO0723), which reported it already.
-            if (s = 0) andalso (tgt = item) then
+            if (s = nullptr) andalso (tgt = item) then
                 dim as Symbol ptr ls = c.syms->SymbolAt( c.syms->LookupTyped( c.info->ScopeOf( id ), ip->name, false ) )
-                if (ls <> 0) andalso (ls->type_ <> TYPE_NONE) then
+                if (ls <> nullptr) andalso (ls->type_ <> TYPE_NONE) then
                     if c.types->IsDynArray( c.types->Unqualify( ls->type_ ) ) then s = ls
                 end if
             end if
             dim as TypeId u = TYPE_NONE
             dim as string nm = ""
-            if s <> 0 then
+            if s <> nullptr then
                 if s->type_ = TYPE_NONE then continue for
                 u = c.types->Unqualify( s->type_ )
                 nm = c.names->Spelling( s->name )
@@ -1037,7 +1037,7 @@ private sub CheckRedimRank_( byref c as Ctx )
             '' 'redim a' OVER SOMETHING THAT IS NOT AN ARRAY -- fbc error 63 ("Expected
             '' array"), and 147 when bounds are written. Measured over an extern scalar.
             if c.types->Kind( u ) <> TK_ARRAY then
-                if s <> 0 then
+                if s <> nullptr then
                     c.diags->Report( TKO0695, PointRange( c.ast->Loc( item ) ), nm )
                 else
                     c.diags->Report( TKO0723, PointRange( c.ast->Loc( item ) ) )
@@ -1071,7 +1071,7 @@ private sub CheckRedimRank_( byref c as Ctx )
                     if c.redimItem[ri] = cast( uint32, item ) then isFirst = true
                 next
                 if isFirst then continue for
-                if (s <> 0) andalso (s->kind <> cast( uint8, SYM_PARAMETER )) then rank = RecordedRank_( c, c.info->RefOf( tgt ) )
+                if (s <> nullptr) andalso (s->kind <> cast( uint8, SYM_PARAMETER )) then rank = RecordedRank_( c, c.info->RefOf( tgt ) )
             end if
             if rank <= 0 then continue for
             if written <= 0 then continue for
@@ -1194,7 +1194,7 @@ private sub CheckStaticInitFromVar_( byref c as Ctx )
         if ip->b = NODE_NONE then continue for
         if c.ast->Kind( ip->b ) <> N_IDENT then continue for
         dim as Symbol ptr src = c.syms->SymbolAt( c.info->RefOf( ip->b ) )
-        if src = 0 then continue for
+        if src = nullptr then continue for
         if src->kind <> cast( uint8, SYM_VARIABLE ) then continue for
         '' A type-level static MEMBER ('var UDT.i = ...') is another rule; the type must
         '' be a scalar builtin or a fixed string here, which is what was measured.
@@ -1215,7 +1215,7 @@ private sub CheckSharedInBlock_( byref c as Ctx )
         if s->kind <> cast( uint8, SYM_VARIABLE ) then continue for
         if (s->flags and SYMF_SHARED) = 0 then continue for
         dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
-        if sc = 0 then continue for
+        if sc = nullptr then continue for
         if (sc->kind <> cast( uint8, SCOPEK_BLOCK )) andalso _
            (sc->kind <> cast( uint8, SCOPEK_PROC )) then continue for
         if s->payload = 0 then continue for

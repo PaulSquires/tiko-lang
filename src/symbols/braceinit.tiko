@@ -35,15 +35,15 @@ private function BrHoldsArray_ ( byref c as Ctx, byval t as TypeId, byval depth 
     if u = TYPE_NONE then return false
     if c.types->Kind( u ) <> TK_UDT then return false
     dim as Symbol ptr ts = UdtSymbolOf_( c, u )
-    if ts = 0 then return false
+    if ts = nullptr then return false
     if ts->inner = SCOPE_NONE then return false
     dim as SymScope ptr sc = c.syms->ScopeAt( ts->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     dim as SymbolId cur = sc->firstSym
     for guard as int32 = 0 to 9999
         if cur = SYMBOL_NONE then exit for
         dim as Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit for
+        if f = nullptr then exit for
         if (f->kind = cast( uint8, SYM_FIELD )) andalso (f->type_ <> TYPE_NONE) then
             dim as TypeId ft = c.types->Unqualify( f->type_ )
             if c.types->Kind( ft ) = TK_ARRAY then return true
@@ -151,9 +151,9 @@ end sub
 '' The symbol a declarator or a field node declared, by its payload.
 private function BrSymOf_ _
     ( byref c as Ctx, byref map as containers.Array( of uint32 ), byval n as NodeId ) as Symbol ptr
-    if cast( int32, n ) >= map.Count then return 0
+    if cast( int32, n ) >= map.Count then return nullptr
     dim as uint32 s = map[cast( int32, n )]
-    if s = 0 then return 0
+    if s = 0 then return nullptr
     return c.syms->SymbolAt( cast( SymbolId, s - 1 ) )
 end function
 
@@ -175,12 +175,12 @@ private sub BrWalk_ _
         dim as InternId nm = ip->name
         dim as Symbol ptr s = BrSymOf_( c, map, id )
         dim as TypeId t = TYPE_NONE
-        if s <> 0 then t = s->type_
+        if s <> nullptr then t = s->type_
         dim as int32 declDims = 0
         if bnds <> NODE_NONE then
             if c.ast->Kind( bnds ) = N_BLOCK then declDims = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, bnds )].data )].count
         end if
-        if (s <> 0) orelse isVar then BrDeclInit_( c, init, t, nm, isVar, declDims )
+        if (s <> nullptr) orelse isVar then BrDeclInit_( c, init, t, nm, isVar, declDims )
         '' ...AND AN ORDINARY INITIALIZER IS AN EXPRESSION like any other: 'f( { 1 } )'.
         if init <> NODE_NONE then
             select case c.ast->Kind( init )
@@ -193,7 +193,7 @@ private sub BrWalk_ _
         return
     case N_FIELD
         dim as Symbol ptr fs = BrSymOf_( c, map, id )
-        if fs = 0 then return
+        if fs = nullptr then return
         dim as StmtPayload ptr fp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         BrDeclInit_( c, fp->c, fs->type_, fp->name, false )
         return
@@ -225,7 +225,7 @@ private sub BrWalk_ _
                 dim as boolean toResult = (c.ast->Kind( ap->a ) = N_FUNCRESULT)
                 if (toResult = false) andalso (c.ast->Kind( ap->a ) = N_IDENT) then
                     dim as Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( ap->a ) )
-                    if ls <> 0 then toResult = (ls->kind = cast( uint8, SYM_PROC ))
+                    if ls <> nullptr then toResult = (ls->kind = cast( uint8, SYM_PROC ))
                 end if
                 if toResult then return
             end if

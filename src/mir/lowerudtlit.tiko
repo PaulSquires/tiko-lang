@@ -335,7 +335,7 @@ function LowerUdtParenInit_ _
     ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
       byval init as Tko.NodeId, byval selfv as MirValue ptr ) as boolean
 
-    if (slot < 0) andalso (selfv = 0) then return false
+    if (slot < 0) andalso (selfv = nullptr) then return false
     if t = Tko.TYPE_NONE then return false
     '' 'dim x as CONST T = ( 1 )' is the same field list: the qualifier said "not a UDT"
     '' and the int was stored over the aggregate (overload/byval-as-const.bas).
@@ -352,7 +352,7 @@ function LowerUdtParenInit_ _
 
     '' THE DESTINATION, once: the slot's address, or the one the caller handed over.
     dim as MirValue self_
-    if selfv <> 0 then
+    if selfv <> nullptr then
         self_ = *selfv
     else
         self_.kind = cast( uint8, MV_LOCAL )
@@ -360,8 +360,8 @@ function LowerUdtParenInit_ _
         self_.id = slot
     end if
     dim as int32 selfSlot = slot
-    dim as MirValue ptr selfAddr = 0
-    if selfv <> 0 then
+    dim as MirValue ptr selfAddr = nullptr
+    if selfv <> nullptr then
         selfSlot = -1
         selfAddr = @self_
     end if
@@ -1144,7 +1144,7 @@ function IsUnionType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return false
+    if s = nullptr then return false
     dim as Tko.NodeId n = cast( Tko.NodeId, s->payload )
     if n = Tko.NODE_NONE then return false
     if c.ast->Kind( n ) <> Tko.N_TYPE then return false
@@ -1239,7 +1239,7 @@ function FoldAggInit_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
       byval size_ as int32, byref outBytes as string, _
       byval vscope as Tko.ScopeId = Tko.SCOPE_NONE, _
-      byval relocs as containers.Array( of uint32 ) ptr = 0 ) as boolean
+      byval relocs as containers.Array( of uint32 ) ptr = nullptr ) as boolean
 
     if size_ <= 0 then return false
     if init = Tko.NODE_NONE then return false
@@ -1406,7 +1406,7 @@ function FoldAggInit_ _
         '' AN ADDRESS IN A POINTER FIELD IS A RELOCATION, when the caller can hold one:
         '' its bytes stay zero and RELOCS gets (offset, kind, ref) -- see AddrWordOf_.
         '' Without it '( @g, 5 )' declined as a whole and the global came out zeroed.
-        if (relocs <> 0) andalso (fmt = MT_PTR) then
+        if (relocs <> nullptr) andalso (fmt = MT_PTR) then
             dim as int32 rk
             dim as uint32 rr
             if AddrWordOf_( c, e, rk, rr ) then

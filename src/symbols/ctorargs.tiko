@@ -32,7 +32,7 @@ private sub CheckCtorArgsOf_ _
     if (h = "(") orelse (h = "$") orelse (h = "~") then return
     if instr( c.names->Spelling( tn ), "<" ) > 0 then return
     dim as Symbol ptr s = StructorOf_( c, t, "__ctor" )
-    if s = 0 then return
+    if s = nullptr then return
     if s->kind <> cast( uint8, SYM_PROC ) then return
     if (s->nextOverload <> SYMBOL_NONE) orelse ((s->flags and SYMF_OVERLOAD) <> 0) then return
     dim as NodeId decl = cast( NodeId, s->payload )
@@ -85,7 +85,7 @@ private function CheckCtorArity_ _
     if (h = "(") orelse (h = "$") orelse (h = "~") then return false
     if instr( c.names->Spelling( tn ), "<" ) > 0 then return false
     dim as Symbol ptr s = StructorOf_( c, t, "__ctor" )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, SYM_PROC ) then return false
 
     if argCount = 1 then
@@ -98,7 +98,7 @@ private function CheckCtorArity_ _
 
     dim as int32 candidates = 0, lo = 0, hi = 0
     dim as Symbol ptr cs = s
-    while cs <> 0
+    while cs <> nullptr
         if cs->kind <> cast( uint8, SYM_PROC ) then return false
         dim as NodeId decl = cast( NodeId, cs->payload )
         if (decl = NODE_NONE) orelse (c.ast->Kind( decl ) <> N_PROC) then return false
@@ -164,7 +164,7 @@ private sub CheckCtorCallArgs_ ( byref c as Ctx, byval id as NodeId, byval k as 
         tsid = c.info->RefOf( c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, tg )].data )].rhs )
     end if
     dim as Symbol ptr ts = c.syms->SymbolAt( tsid )
-    if ts = 0 then return
+    if ts = nullptr then return
     if (ts->kind <> cast( uint8, SYM_UDT )) andalso (ts->kind <> cast( uint8, SYM_TYPEDEF )) then return
     if CheckCtorArity_( c, c.info->TypeOf_( id ), lp->first, lp->count, id ) then return
     CheckCtorArgsOf_( c, c.info->TypeOf_( id ), lp->first, lp->count )

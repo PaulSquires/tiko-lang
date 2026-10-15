@@ -100,9 +100,9 @@ end sub
 '' was, and it streams: a block's own statement loop has just made it read the lines it
 '' skipped, so any record past the block's start is inside it. Older ones are dropped.
 sub AsmReserveInBlock_( byref p as Tko.ParserState, byval blockAt as Tko.SourceLoc )
-    if p.stream = 0 then return
+    if p.stream = nullptr then return
     dim as Tko.PpStream ptr st = cast( Tko.PpStream ptr, p.stream )
-    if st->outp = 0 then return
+    if st->outp = nullptr then return
     dim as int32 n = st->outp->asmReserveAt.Count
     for i as int32 = p.asmSeen to n - 1
         dim as Tko.SourceLoc at_ = cast( Tko.SourceLoc, st->outp->asmReserveAt[i] )

@@ -187,7 +187,7 @@ sub ReportUndeclared _
                     diags.Report( Tko.TKO0791, Tko.PointRange( ast.Loc( pa ) ) )
                 case Tko.N_IDENT, Tko.N_MEMBER
                     dim as Tko.Symbol ptr ps = syms.SymbolAt( info.RefOf( pa ) )
-                    if ps <> 0 then
+                    if ps <> nullptr then
                         if ps->kind <> cast( uint8, Tko.SYM_PROC ) then
                             diags.Report( Tko.TKO0785, Tko.PointRange( ast.Loc( pa ) ), _
                                           names.Spelling( ps->name ) )
@@ -200,7 +200,7 @@ sub ReportUndeclared _
                             @ast.binaries[cast( int32, ast.nodes[cast( int32, pa )].data )]
                         dim as Tko.Symbol ptr ts = syms.SymbolAt( info.RefOf( mb->lhs ) )
                         dim as string mn = IdentSpelled_( ast, names, mb->rhs )
-                        if (ts <> 0) andalso (len( mn ) > 0) then
+                        if (ts <> nullptr) andalso (len( mn ) > 0) then
                             if ts->kind = cast( uint8, Tko.SYM_UDT ) then
                                 diags.Report( Tko.TKO0739, Tko.PointRange( ast.Loc( pa ) ), _
                                               names.Spelling( ts->name ), mn )
@@ -277,7 +277,7 @@ sub ReportUndeclared _
         '' for 'fb_NoSuchThing( 1 )', while 'fb_StrLen' and 'fb_ArrayRedimEx' are
         '' predeclared. The test is the runtime table lowering calls through.
         if left( nm, 3 ) = "fb_" then
-            if isRtl = 0 then continue for
+            if isRtl = nullptr then continue for
             if isRtl( nm ) then continue for
         end if
         '' THE 'FB' A SPAWN OR A SELECT WAS GIVEN, unresolved: std/tasks is not imported, and

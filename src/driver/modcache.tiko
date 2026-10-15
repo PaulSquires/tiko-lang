@@ -411,7 +411,7 @@ function ModuleCacheDeps( byref ctx as Tko.CompilerContext, byref dl as string )
         next
         if own then continue for
         dim as Tko.SourceFile ptr sf = ctx.sources.FileAt( cast( Tko.FileId, f ) )
-        if sf = 0 then continue for
+        if sf = nullptr then continue for
         if sf->isVirtual then continue for
         dim as string p = ctx.sources.AbsPathOf( cast( Tko.FileId, f ) )
         dim as boolean dup = false

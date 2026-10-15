@@ -34,7 +34,7 @@ private function RealPath_( byref p as string ) as string
     return p
 #else
     dim as zstring * 4097 buf
-    if realpath( strptr( p ), @buf ) = 0 then return p
+    if realpath( strptr( p ), @buf ) = nullptr then return p
     return buf
 #endif
 end function
@@ -78,7 +78,7 @@ end sub
 private sub Sym_( byref api as ClangApi, byref cname as string, byval slot as any ptr ptr, _
                   byref missing as string )
     *slot = dylibsymbol( api.handle, cname )
-    if (*slot = 0) andalso (len( missing ) = 0) then missing = cname
+    if (*slot = nullptr) andalso (len( missing ) = 0) then missing = cname
 end sub
 
 '' "clang version 21.1.0 (...)", or "Ubuntu clang version 18.1.3 (1ubuntu1)": the major is
@@ -98,7 +98,7 @@ end function
 function ClangText( byref api as ClangApi, byval s as CXString ) as string
     dim as string r
     dim as zstring ptr z = api.getCString( s )
-    if z <> 0 then r = *z
+    if z <> nullptr then r = *z
     api.disposeString( s )
     return r
 end function
@@ -135,14 +135,14 @@ function ClangLoad( byref api as ClangApi, byref clangExe as string ) as boolean
     for i as int32 = 0 to n - 1
         if FileExists_( cand( i ) ) then
             api.handle = dylibload( cand( i ) )
-            if api.handle <> 0 then
+            if api.handle <> nullptr then
                 api.libPath = cand( i )
                 exit for
             end if
             tried_ &= " '" & cand( i ) & "' (would not open)"
         end if
     next
-    if api.handle = 0 then
+    if api.handle = nullptr then
         if len( environ( "TKO_LIBCLANG" ) ) then
             api.why = "TKO_LIBCLANG names '" & cand( 0 ) & "', which is not a libclang that opens"
         elseif len( tried_ ) then

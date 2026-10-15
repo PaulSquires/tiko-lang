@@ -240,7 +240,7 @@ function UsesSretReturn( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     dim as Tko.SymbolId cur = ctors
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if pn <> Tko.NODE_NONE then
             if c.ast->Kind( pn ) = Tko.N_PROC then
@@ -639,13 +639,13 @@ private function ThisFieldSym_ _
 
     if c.curProcSym = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
     dim as Tko.Symbol ptr me_ = c.syms->SymbolAt( c.curProcSym )
-    if me_ = 0 then return Tko.SYMBOL_NONE
+    if me_ = nullptr then return Tko.SYMBOL_NONE
     if me_->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     dim as Tko.SymbolId tsid = c.syms->LookupLocal( me_->inner, _
         c.names->Fold( c.names->GetString( "this" ) ) )
     if tsid = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
     dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
-    if ts = 0 then return Tko.SYMBOL_NONE
+    if ts = nullptr then return Tko.SYMBOL_NONE
     if ts->type_ = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
     if c.types->Kind( ts->type_ ) <> Tko.TK_POINTER then return Tko.SYMBOL_NONE
     dim as Tko.TypeId bt = c.types->Inner( ts->type_ )
@@ -680,7 +680,7 @@ private function RedimOne_ _
     '' A field goes to the ThisFieldSym_ path below.
     dim as Tko.Symbol ptr rrs = c.syms->SymbolAt( c.info->RefOf( item ) )
     dim as boolean rrDone = false
-    if (viaExpr = false) andalso (rrs <> 0) then
+    if (viaExpr = false) andalso (rrs <> nullptr) then
         select case cast( Tko.SymbolKind, rrs->kind )
         case Tko.SYM_VARIABLE, Tko.SYM_PARAMETER : sid = c.info->RefOf( item ) : rrDone = true
         case Tko.SYM_FIELD : rrDone = true
@@ -707,7 +707,7 @@ private function RedimOne_ _
             dim as Tko.SymbolId up = _
                 c.syms->LookupTyped( c.info->ScopeOf( id ), ip->name, false )
             dim as Tko.Symbol ptr us = c.syms->SymbolAt( up )
-            if us <> 0 then
+            if us <> nullptr then
                 if us->kind = cast( uint8, Tko.SYM_VARIABLE ) then sid = up
                 '' ...OR A PARAMETER. 'srcRows() as integer' is found by the procedure scope's
                 '' own lookup, so a REDIM at that level lowered and one inside an IF -- a scope
@@ -720,7 +720,7 @@ private function RedimOne_ _
     dim as Tko.Symbol ptr vs = c.syms->SymbolAt( sid )
     if viaExpr then
         '' already resolved above
-    elseif (vs <> 0) andalso c.types->IsDynArray( vs->type_ ) then
+    elseif (vs <> nullptr) andalso c.types->IsDynArray( vs->type_ ) then
         '' AddrOfVar, NOT LocalFor. 'redim shared a( 0 to 3 ) as integer' at module
         '' level declares a SHARED array, and LocalFor minted a frame slot for it
         '' beside the global it also has -- so the descriptor was written into the
@@ -751,7 +751,7 @@ private function RedimOne_ _
         '' The symbol carries its DECLARING item, so the question has an exact
         '' answer: this REDIM declares only if it IS that item.
         dim as boolean declares = (ip->a <> Tko.NODE_NONE)
-        if declares andalso (vs <> 0) andalso (vs->payload <> 0) then
+        if declares andalso (vs <> nullptr) andalso (vs->payload <> 0) then
             declares = (cast( Tko.NodeId, vs->payload ) = item)
         end if
         if declares then
@@ -775,7 +775,7 @@ private function RedimOne_ _
         dim as Tko.SymbolId fsid = ThisFieldSym_( c, ip->name )
         if fsid = Tko.SYMBOL_NONE then return false
         dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
-        if fs = 0 then return false
+        if fs = nullptr then return false
         if c.types->IsDynArray( fs->type_ ) = false then return false
         desc = AddrOfThisField( c, fsid )
         if desc.kind = cast( uint8, MV_NONE ) then return false
@@ -1211,7 +1211,7 @@ end function
 '' fb_ArrayRedimEx( THIS + off, 8, -1, 0, 2, 2, 6, 3, 12 ) (fbc-int/array.bas). The N_FIELD keeps
 '' its bounds as flat (lo, hi) children; op KW_REDIM is the parser's mark.
 sub RedimFieldInit_( byref c as Ctx, byref fa as MirValue, byval f as Tko.Symbol ptr )
-    if (f = 0) orelse (fa.kind = cast( uint8, MV_NONE )) then return
+    if (f = nullptr) orelse (fa.kind = cast( uint8, MV_NONE )) then return
     if c.types->IsDynArray( f->type_ ) = false then return
     dim as Tko.NodeId fn = cast( Tko.NodeId, f->payload )
     if (fn = Tko.NODE_NONE) orelse (c.ast->Kind( fn ) <> Tko.N_FIELD) then return

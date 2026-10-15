@@ -27,13 +27,13 @@ private function QualifiedStaticPath_ _
     if cur = id then return false
     if c.ast->Kind( cur ) <> Tko.N_IDENT then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cur ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     select case s->kind
     case cast( uint8, Tko.SYM_UDT ), cast( uint8, Tko.SYM_TYPEDEF ) : return true
     case cast( uint8, Tko.SYM_NAMESPACE )
         for k as int32 = guard - 1 to 0 step -1
             dim as Tko.Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( path_(k) ) )
-            if ms = 0 then return true
+            if ms = nullptr then return true
             if ms->kind = cast( uint8, Tko.SYM_NAMESPACE ) then continue for
             return (ms->kind <> cast( uint8, Tko.SYM_VARIABLE )) andalso (ms->kind <> cast( uint8, Tko.SYM_PARAMETER ))
         next

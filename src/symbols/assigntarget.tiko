@@ -26,7 +26,7 @@ private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
         '' 'foo = 1' OVER A BARE ENUM CONSTANT. Resolve refuses a bare CONST but an enum
         '' item reached this far, and the store went into the constant's slot.
         dim as Symbol ptr es = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-        if es = 0 then return
+        if es = nullptr then return
         dim as SymbolKind mk = cast( SymbolKind, es->kind )
         if mk = SYM_ENUMCONST then
             c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), _
@@ -81,7 +81,7 @@ private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
                 '' ...OR A TYPE THAT HOLDS AN ANONYMOUS UNION, which fbc refuses the same
                 '' way: a field inside one carries SYMF_UNION.
                 dim as boolean holdsUnion = false
-                if (us <> 0) andalso (us->inner <> SCOPE_NONE) then
+                if (us <> nullptr) andalso (us->inner <> SCOPE_NONE) then
                     for fi as int32 = 0 to c.syms->symbols.Count - 1
                         dim as Symbol ptr ff = @c.syms->symbols[fi]
                         if ff->parent <> us->inner then continue for
@@ -92,7 +92,7 @@ private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
                         end if
                     next
                 end if
-                if (us <> 0) andalso (((us->flags and SYMF_UNION_KIND) <> 0) orelse holdsUnion) then
+                if (us <> nullptr) andalso (((us->flags and SYMF_UNION_KIND) <> 0) orelse holdsUnion) then
                     c.diags->Report( TKO0718, PointRange( c.ast->Loc( sp->b ) ) )
                     return
                 end if
@@ -111,7 +111,7 @@ private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
                 c.diags->Report( TKO0652, PointRange( c.ast->Loc( el ) ) )
             case N_IDENT
                 dim as Symbol ptr es2 = c.syms->SymbolAt( c.info->RefOf( el ) )
-                if es2 = 0 then continue for
+                if es2 = nullptr then continue for
                 dim as SymbolKind ek = cast( SymbolKind, es2->kind )
                 '' ...AND A CONST VARIABLE, not only a named constant: 'let( i ) = x' over
                 '' a 'dim as const integer i' is fbc's 119 too, and let( ) writes it.
@@ -132,7 +132,7 @@ private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
         '' is all it can see -- a qualified one is not bound until Check -- so the
         '' qualified spelling reached lowering and stored into the constant's slot.
         dim as Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-        if ms = 0 then return
+        if ms = nullptr then return
         dim as SymbolKind mk = cast( SymbolKind, ms->kind )
         if (mk <> SYM_CONSTANT) andalso (mk <> SYM_ENUMCONST) then return
         c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), _

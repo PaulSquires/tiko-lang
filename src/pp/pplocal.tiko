@@ -3,13 +3,13 @@
 '' writes the same log.
 
 sub PpProcEnter( byref st as PpStream )
-    if st.engine = 0 then return
+    if st.engine = nullptr then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     e->procMarks.Push( e->localUndo.Count )
 end sub
 
 sub PpProcLeave( byref st as PpStream )
-    if st.engine = 0 then return
+    if st.engine = nullptr then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     if e->procMarks.Count = 0 then return
     dim as int32 mark = e->procMarks.Pop( )
@@ -28,7 +28,7 @@ sub PpProcLeave( byref st as PpStream )
 end sub
 
 sub PpNoteLocalDeclared( byref st as PpStream, byval nm as InternId, byval kind as int32 )
-    if (st.engine = 0) orelse (nm = INTERN_NONE) then return
+    if (st.engine = nullptr) orelse (nm = INTERN_NONE) then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     if e->procMarks.Count = 0 then return
     dim as int32 ix = cast( int32, nm )
@@ -49,7 +49,7 @@ end sub
 
 '' A STRING CONST: its text, by raw InternId, as "=text" ("" is none). A local one logs the old.
 sub PpNoteConstStr( byref st as PpStream, byval nm as InternId, byref txt as string, byval isLocal as boolean )
-    if (st.engine = 0) orelse (nm = INTERN_NONE) then return
+    if (st.engine = nullptr) orelse (nm = INTERN_NONE) then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     dim as int32 ix = cast( int32, nm )
     while e->constStr.Count <= ix

@@ -934,7 +934,7 @@ sub BeginCtorPrologue_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue, _
       byval callsBase as boolean )
     c.pendPrologueType = Tko.TYPE_NONE
-    c.pendPrologueFn = 0
+    c.pendPrologueFn = nullptr
     if callsBase = false then
         EmitCtorPrologue_( c, t, thisPtr, false )
         return
@@ -950,7 +950,7 @@ sub EmitPendingCtorPrologue_( byref c as Ctx )
     if c.pendPrologueFn <> c.f then return
     dim as Tko.TypeId t = c.pendPrologueType
     c.pendPrologueType = Tko.TYPE_NONE
-    c.pendPrologueFn = 0
+    c.pendPrologueFn = nullptr
     EmitCtorPrologue_( c, t, c.pendPrologueThis, true )
 end sub
 

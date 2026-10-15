@@ -69,7 +69,7 @@ function BitfieldParts _
     if c.ast->Kind( id ) <> Tko.N_MEMBER then return false
     dim as Tko.SymbolId fsym = c.info->RefOf( id )
     dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsym )
-    if fs = 0 then return false
+    if fs = nullptr then return false
     if (fs->flags and Tko.SYMF_BITFIELD) = 0 then return false
 
     dim as Tko.BinaryPayload ptr mp = _
@@ -161,7 +161,7 @@ private function BitfieldReadParts_ _
     '' 'x.a = true' and 'dim k as integer = x.a' gave 1, '( x.a = true )' gave 0 and 'if
     '' x.a = -1' was not taken; fbc says -1 to all three. The bit is negated.
     dim as Tko.Symbol ptr bfs = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if bfs <> 0 then
+    if bfs <> nullptr then
         dim as Tko.TypeId bft = c.types->Unqualify( bfs->type_ )
         if c.types->Kind( bft ) = Tko.TK_BUILTIN then
             if c.types->BuiltinOf( bft ) = Tko.TY_BOOLEAN then
@@ -347,7 +347,7 @@ end function
 function BitfieldMemberInit_ _
     ( byref c as Ctx, byref thisPtr as MirValue, byval t as Tko.TypeId, _
       byval f as Tko.Symbol ptr, byval init as Tko.NodeId ) as boolean
-    if (f = 0) orelse ((f->flags and Tko.SYMF_BITFIELD) = 0) then return false
+    if (f = nullptr) orelse ((f->flags and Tko.SYMF_BITFIELD) = 0) then return false
     dim as int32 ui = c.udts->Find( t )
     if ui < 0 then return false
     dim as int32 fi = -1

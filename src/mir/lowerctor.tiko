@@ -210,7 +210,7 @@ end function
 '' then had no value to build.
 function CharPtrCtorInit_ _
     ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
-      byval init_ as Tko.NodeId, byval selfv as MirValue ptr = 0 ) as boolean
+      byval init_ as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
 
     '' ...AND SO HAS ANY UNBOUND CALL. 'dim u4 as uzstr_t = wstr( u1 )' is the
     '' same shape as the iif this branch was written for: Check computes no
@@ -233,7 +233,7 @@ function CharPtrCtorInit_ _
     dim as Tko.TypeId sptfall = Tko.TYPE_NONE
     while sccur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr scs = c.syms->SymbolAt( sccur )
-        if scs = 0 then exit while
+        if scs = nullptr then exit while
         if ParamCountOf( c, sccur ) = 1 then
             dim as Tko.TypeId cpt = ParamTypeAt( c, sccur, 0 )
             if cpt <> Tko.TYPE_NONE then
@@ -342,7 +342,7 @@ function LowerConvCtorInit_ _
         return CharPtrCtorInit_( c, slot, t, init_, selfv )
     end if
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
-    if ps = 0 then return false
+    if ps = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
     if pn = Tko.NODE_NONE then return false
 
@@ -495,7 +495,7 @@ function LowerUserLetConv_ _
     end if
     if pick = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
-    if ps = 0 then return false
+    if ps = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
     if pn = Tko.NODE_NONE then return false
 
@@ -503,7 +503,7 @@ function LowerUserLetConv_ _
     dim as Tko.TypeId pt = Tko.TYPE_NONE
     dim as boolean ulByref = false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
-    if pp = 0 then return false
+    if pp = nullptr then return false
     for i as int32 = 0 to pp->count - 1
         dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
@@ -620,7 +620,7 @@ private function ImplicitCopyCall_ _
     dim as MirValue src = LowerAddr( c, a )
     if src.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue dst
-    if selfv <> 0 then
+    if selfv <> nullptr then
         dst = *selfv
     else
         dst.kind = cast( uint8, MV_LOCAL )
@@ -782,7 +782,7 @@ function LowerCtorInit _
     dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
     if pick = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )
-    if ps = 0 then return false
+    if ps = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
     if pn = Tko.NODE_NONE then return false
 
@@ -995,7 +995,7 @@ function LowerCtorInit _
     '' THE RECEIVER, which is a local slot in every case but one: a STATIC LOCAL lives
     '' in module storage, so its address is a global and there is no slot to name.
     dim as int32 first = c.m->argPool.Count \ 2
-    if selfv <> 0 then
+    if selfv <> nullptr then
         c.m->argPool.Push( cast( uint32, selfv->kind ) )
         c.m->argPool.Push( cast( uint32, selfv->id ) )
     else
@@ -1138,7 +1138,7 @@ function EmitTypeCtorInto_ _
     '' passes an INTEGER literal to a 'byval as longint', and handing the runtime the
     '' narrow value would put half a quantity in a 64-bit slot.
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( ctor )
-    if cs = 0 then return false
+    if cs = nullptr then return false
     dim as Tko.NodeId cn = cast( Tko.NodeId, cs->payload )
     if cn = Tko.NODE_NONE then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, cn )
@@ -1146,7 +1146,7 @@ function EmitTypeCtorInto_ _
     dim as containers.Array( of uint32 ) args
     if PushCtorArgs_( c, ctor, cp->first, cp->count, args ) = false then return false
 
-    EmitStructorCall( c, ctor, slot, 0, @args )
+    EmitStructorCall( c, ctor, slot, nullptr, @args )
     return true
 end function
 
@@ -1158,7 +1158,7 @@ function PushCtorArgs_ _
       byval count as int32, byref args as containers.Array( of uint32 ) ) as boolean
 
     dim as Tko.Symbol ptr cs2 = c.syms->SymbolAt( ctor )
-    if cs2 = 0 then return false
+    if cs2 = nullptr then return false
     dim as Tko.NodeId cn2 = cast( Tko.NodeId, cs2->payload )
     if cn2 = Tko.NODE_NONE then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, cn2 )
@@ -1419,13 +1419,13 @@ function LowerBaseCtorCall_ _
     '' a method whose type does not extend anything has no 'base' field.
     if c.curProcSym = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr me_ = c.syms->SymbolAt( c.curProcSym )
-    if me_ = 0 then return false
+    if me_ = nullptr then return false
     if me_->inner = Tko.SCOPE_NONE then return false
     dim as Tko.SymbolId tsid = c.syms->LookupLocal( me_->inner, _
         c.names->Fold( c.names->GetString( "this" ) ) )
     if tsid = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
-    if ts = 0 then return false
+    if ts = nullptr then return false
     if ts->type_ = Tko.TYPE_NONE then return false
     if c.types->Kind( ts->type_ ) <> Tko.TK_POINTER then return false
     dim as Tko.TypeId ot = c.types->Inner( ts->type_ )
@@ -1437,7 +1437,7 @@ function LowerBaseCtorCall_ _
         bsid = UdtMemberNamed_( c, ot, "base" )
         if bsid = Tko.SYMBOL_NONE then return false
         dim as Tko.Symbol ptr bs = c.syms->SymbolAt( bsid )
-        if bs = 0 then return false
+        if bs = nullptr then return false
         if bs->kind <> cast( uint8, Tko.SYM_FIELD ) then return false
         bt = bs->type_
         if bt = Tko.TYPE_NONE then return false

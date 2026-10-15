@@ -21,12 +21,12 @@ private sub RecordUdtBases_( byref c as Ctx )
         dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
         if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if s->inner = Tko.SCOPE_NONE then continue for
         dim as Tko.SymbolId bf = c.syms->LookupLocal( s->inner, baseNm )
         if bf = Tko.SYMBOL_NONE then continue for
         dim as Tko.Symbol ptr b = c.syms->SymbolAt( bf )
-        if b = 0 then continue for
+        if b = nullptr then continue for
         if b->type_ = Tko.TYPE_NONE then continue for
         '' A type is never its own base; a cycle here would be a parse error upstream,
         '' but BaseDistance's depth cap does not depend on that being true.
@@ -92,7 +92,7 @@ private function AddrOfType_ _
                 isLit = true
             case Tko.N_IDENT, Tko.N_MEMBER
                 dim as Tko.Symbol ptr ks = c.syms->SymbolAt( c.info->RefOf( lo ) )
-                if ks <> 0 then isLit = (ks->kind = cast( uint8, Tko.SYM_CONSTANT ))
+                if ks <> nullptr then isLit = (ks->kind = cast( uint8, Tko.SYM_CONSTANT ))
             end select
             if isLit then return c.types->Pointer_( c.types->Builtin( Tko.TY_ZSTRING ) )
         end if
@@ -100,7 +100,7 @@ private function AddrOfType_ _
 
     if c.ast->Kind( operand ) = Tko.N_IDENT then
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( operand ) )
-        if s <> 0 then
+        if s <> nullptr then
             if s->kind = cast( uint8, Tko.SYM_PARAMETER ) then
                 if s->name = c.names->Fold( c.names->GetString( "this" ) ) then
                     if c.types->Kind( c.types->Unqualify( inner ) ) = Tko.TK_POINTER then return inner
@@ -126,7 +126,7 @@ private function EnumValueBase_ _
     if c.types->Kind( u ) <> Tko.TK_ENUM then return false
     if c.ast->Kind( b ) <> Tko.N_IDENT then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( b ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     select case cast( Tko.SymbolKind, s->kind )
     case Tko.SYM_VARIABLE, Tko.SYM_PARAMETER
     case else
@@ -154,7 +154,7 @@ private function ThisArgType_ _
 
     if c.ast->Kind( a ) <> Tko.N_IDENT then return at
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
-    if s = 0 then return at
+    if s = nullptr then return at
     if s->kind <> cast( uint8, Tko.SYM_PARAMETER ) then return at
     if s->name <> c.names->Fold( c.names->GetString( "this" ) ) then return at
     dim as Tko.TypeId u = c.types->Unqualify( at )
@@ -180,7 +180,7 @@ private function ParenlessMethodOf_ _
     if sid = Tko.SYMBOL_NONE then return sid
     if (c.ast->nodes[cast( int32, id )].flags and Tko.NF_CALL_TARGET) <> 0 then return sid
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return sid
+    if s = nullptr then return sid
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then return sid
     if s->nextOverload = Tko.SYMBOL_NONE then return sid
 
@@ -191,7 +191,7 @@ private function ParenlessMethodOf_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
         if pn = Tko.NODE_NONE then return sid
         if c.ast->Kind( pn ) <> Tko.N_PROC then return sid
@@ -241,7 +241,7 @@ end function
 private function UdtShadowsIntrinsic_ _
     ( byref c as Ctx, byval bsym as Tko.Symbol ptr ) as boolean
 
-    if bsym = 0 then return false
+    if bsym = nullptr then return false
     if bsym->kind <> cast( uint8, Tko.SYM_UDT ) then return false
     if bsym->type_ = Tko.TYPE_NONE then return false
     return (c.types->Kind( c.types->Unqualify( bsym->type_ ) ) = Tko.TK_UDT)
@@ -279,7 +279,7 @@ private function UdtArgInert_ _
     for guard as int32 = 0 to 999
         if ck = Tko.SYMBOL_NONE then exit for
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( ck )
-        if cs = 0 then exit for
+        if cs = nullptr then exit for
         dim as Tko.NodeId cn = cast( Tko.NodeId, cs->payload )
         if (cn = Tko.NODE_NONE) orelse (c.ast->Kind( cn ) <> Tko.N_PROC) then return false
         dim as Tko.StmtPayload ptr cp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, cn )].data )]
@@ -366,7 +366,7 @@ function UdtCastTie_( byref c as Ctx, byref argT as containers.Array( of uint32 
             dim as Tko.SymbolId cs = UdtMemberSym_( c, a, "cast" )
             if cs = Tko.SYMBOL_NONE then return false
             dim as Tko.Symbol ptr s = c.syms->SymbolAt( cs )
-            if (s = 0) orelse (s->nextOverload = Tko.SYMBOL_NONE) then return false
+            if (s = nullptr) orelse (s->nextOverload = Tko.SYMBOL_NONE) then return false
             any_ = true
         case else
             return false

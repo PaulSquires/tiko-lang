@@ -56,7 +56,7 @@ private function ConstFoldsToInt_ _
         end select
         return true
     case Tko.N_IDENT
-        if p.stream = 0 then return false
+        if p.stream = nullptr then return false
         dim as Tko.InternId inm = _
             p.ast->idents[cast( int32, p.ast->nodes[cast( int32, e )].data )].name
         return Tko.PpNotedConst( *cast( Tko.PpStream ptr, p.stream ), inm, outv )
@@ -103,7 +103,7 @@ private function ConstStrText_( byref p as Tko.ParserState, byval v as Tko.NodeI
     if p.ast->Kind( v ) <> Tko.N_STRING_LIT then return false
     dim as Tko.LiteralPayload ptr lp = @p.ast->literals[cast( int32, p.ast->nodes[cast( int32, v )].data )]
     dim as Tko.SourceFile ptr f = p.src->FileAt( cast( Tko.FileId, lp->strFile ) )
-    if f = 0 then return false
+    if f = nullptr then return false
     if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return false
     tx = space( lp->strLength )
     for i as int32 = 0 to lp->strLength - 1
@@ -113,7 +113,7 @@ private function ConstStrText_( byref p as Tko.ParserState, byval v as Tko.NodeI
 end function
 
 private sub NoteConstStr_( byref p as Tko.ParserState, byval nm as Tko.InternId, byval v as Tko.NodeId )
-    if (v = Tko.NODE_NONE) orelse (p.stream = 0) then return
+    if (v = Tko.NODE_NONE) orelse (p.stream = nullptr) then return
     dim as string tx
     if ConstStrText_( p, v, tx ) = false then return
     Tko.PpNoteConstStr( *cast( Tko.PpStream ptr, p.stream ), nm, tx, cbool( p.procDepth <> 0 ) )

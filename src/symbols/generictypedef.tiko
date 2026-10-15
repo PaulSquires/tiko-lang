@@ -45,7 +45,7 @@ function ForwardTypedefTarget_ _
     ( byref c as Ctx, byval tsp as Tko.StmtPayload ptr, _
       byval here as Tko.ScopeId ) as Tko.TypeId
 
-    if tsp = 0 then return Tko.TYPE_NONE
+    if tsp = nullptr then return Tko.TYPE_NONE
     dim as Tko.NodeId an = tsp->a
     if an = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( an ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
@@ -67,7 +67,7 @@ function ForwardTypedefTarget_ _
     dim as Tko.SymbolId usid = c.syms->DeclareSym( here, ap->name, _
         Tko.SYM_UDT, c.ast->Loc( an ), fdup )
     dim as Tko.Symbol ptr us = c.syms->SymbolAt( usid )
-    if us = 0 then return Tko.TYPE_NONE
+    if us = nullptr then return Tko.TYPE_NONE
     us->type_ = c.types->NamedType( Tko.TK_FORWARD, ap->name, cast( uint32, here ) )
     return us->type_
 end function
@@ -81,12 +81,12 @@ end function
 function PreludeTypedefLost _
     ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId ) as boolean
 
-    if c.srcMgr = 0 then return false
+    if c.srcMgr = nullptr then return false
     if c.srcMgr->IsBuiltin( c.ast->Loc( id ) ) = false then return false
     dim as Tko.StmtPayload ptr tsp = StmtOf( c, id )
     if tsp->name = 0 then return false
     dim as Tko.Symbol ptr owner = c.syms->SymbolAt( c.syms->LookupLocal( here, tsp->name ) )
-    if owner = 0 then return false
+    if owner = nullptr then return false
     return c.srcMgr->IsBuiltin( owner->loc ) = false
 end function
 
@@ -107,7 +107,7 @@ end function
 '' again when it gets there; the backpatch skips a typedef that already has its type.
 '' Bounded, so 'type a as b : type b as a' stops.
 function ChaseTypedef_( byref c as Ctx, byval s as Tko.Symbol ptr ) as boolean
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, Tko.SYM_TYPEDEF ) then return false
     if c.typedefChase >= 16 then return false
     dim as Tko.NodeId tdn = cast( Tko.NodeId, s->declAt )
@@ -141,7 +141,7 @@ sub BackpatchTypedefs( byref c as Ctx )
             if tsp->name = 0 then continue for
             dim as Tko.Symbol ptr ts = _
                 c.syms->SymbolAt( c.syms->LookupLocalTyped( here, tsp->name, true ) )
-            if ts = 0 then continue for
+            if ts = nullptr then continue for
             if ts->kind <> cast( uint8, Tko.SYM_TYPEDEF ) then continue for
             dim as Tko.TypeId al = ResolveTypeRef( c, tsp->a, here )
             if (al = Tko.TYPE_NONE) orelse (al = ts->type_) then continue for
@@ -164,7 +164,7 @@ sub BackpatchTypedefs( byref c as Ctx )
             ProcResultType_( c, pn2, cast( Tko.ScopeId, c.pendResultProcScope[i] ) )
         if rt3 = Tko.TYPE_NONE then continue for
         dim as Tko.Symbol ptr rs2 = c.syms->SymbolAt( c.info->RefOf( pn2 ) )
-        if rs2 = 0 then continue for
+        if rs2 = nullptr then continue for
         if rs2->type_ = Tko.TYPE_NONE then rs2->type_ = rt3
     next
 

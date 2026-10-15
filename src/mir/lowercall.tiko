@@ -149,7 +149,7 @@ function VariadicOnlyCtor_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.Symbo
     while vc <> Tko.SYMBOL_NONE
         if (ParamCountOf( c, vc ) = 1) andalso ParamIsVariadic_( c, vc, 0 ) then return vc
         dim as Tko.Symbol ptr vs = c.syms->SymbolAt( vc )
-        if vs = 0 then exit while
+        if vs = nullptr then exit while
         vc = vs->nextOverload
     wend
     return Tko.SYMBOL_NONE
@@ -245,7 +245,7 @@ function LowerCallParts _
         NoteBuiltinDecline( c, calleeNode )  '' 'wait 1' is an error, not a dropped line
         return CallFailed_( c, v, __LINE__ )
     end if
-    if (cs = 0) andalso (exprCallee = false) then return CallFailed_( c, v, __LINE__ )
+    if (cs = nullptr) andalso (exprCallee = false) then return CallFailed_( c, v, __LINE__ )
 
     '' A CALL THROUGH A PROCEDURE POINTER. 'dim as sub( ) p = procptr( f ) : p( )'
     '' names a VARIABLE, not a procedure, so there is no function to look up and
@@ -353,7 +353,7 @@ function LowerCallParts _
     '' The callee returns BYREF and its referent is a UDT: the pointer is handed
     '' back raw, and a consumer that wants the OBJECT has to load through it.
     dim as boolean byrefUdtRef = false
-    if cs <> 0 then
+    if cs <> nullptr then
         dim as Tko.NodeId cpn = cast( Tko.NodeId, cs->payload )
         if cpn <> Tko.NODE_NONE then
             if (c.ast->nodes[cast( int32, cpn )].flags and Tko.NF_BYREF) <> 0 then
@@ -986,8 +986,8 @@ function LowerCallParts _
     '' A CALLEE WITH NO SYMBOL has no name and no declaration to read defaults from;
     '' it is called indirectly and nothing below this point applies to it.
     dim as Tko.InternId cnm = 0
-    if cs <> 0 then cnm = cs->name
-    if (cs <> 0) andalso (cs->payload <> 0) then
+    if cs <> nullptr then cnm = cs->name
+    if (cs <> nullptr) andalso (cs->payload <> 0) then
         cnm = c.names->GetString( Tko.Mangle.ProcName( _
             *c.ast, cast( Tko.NodeId, cs->payload ), *c.syms, *c.names, _
             *c.types, *c.info ) )
@@ -1016,7 +1016,7 @@ function LowerCallParts _
         '' THE SIGNATURE FIRST: through a pointer 'cs' is the VARIABLE holding it.
         if calleeSigT <> Tko.TYPE_NONE then
             srT = c.types->Inner( calleeSigT )
-        elseif cs <> 0 then
+        elseif cs <> nullptr then
             srT = cs->type_
         end if
         if srT <> Tko.TYPE_NONE then
@@ -1039,7 +1039,7 @@ function LowerCallParts _
                 dim as Tko.TypeId srt = c.types->Inner( calleeSigT )
                 byrefRet = (c.types->Kind( srt ) = Tko.TK_REFERENCE)
             end if
-        elseif cs <> 0 then
+        elseif cs <> nullptr then
             dim as Tko.NodeId cpn = cast( Tko.NodeId, cs->payload )
             if cpn <> Tko.NODE_NONE then
                 if c.ast->Kind( cpn ) = Tko.N_PROC then
@@ -1066,7 +1066,7 @@ function LowerCallParts _
         '' It only became reachable when the sret temporary stopped being pushed for
         '' a byref return: before that byrefRet was never computed here at all, and
         '' the arity mismatch meant the program did not link in the first place.
-        if cs <> 0 then
+        if cs <> nullptr then
             if c.types->Kind( cs->type_ ) = Tko.TK_UDT then
                 byrefRet = false
                 byrefUdtRef = true
@@ -1116,14 +1116,14 @@ function LowerCallParts _
                 '' AN AGGREGATE RETURN CARRIES ITS SIZE. An indirect call has no
                 '' callee for the emitter to ask, so 'call [0 x i8] %t79(...)' came
                 '' out unsized and was refused against the slot it was stored into.
-                if (callTy = MT_AGG) andalso (cs <> 0) then
+                if (callTy = MT_AGG) andalso (cs <> nullptr) then
                     vc.imm = SizeOfType( c, cs->type_ )
                 end if
                 '' ...AND ITS SIGNATURE, which a VIRTUAL call does know. PLUS ONE,
                 '' because 'callee' is a ulong whose zero is function 0: an
                 '' M_CALL_IND carrying no signature has to be distinguishable from
                 '' one that names the first function. See DeclIndexFor_.
-                if cs <> 0 then
+                if cs <> nullptr then
                     dim as int32 sidx = DeclIndexFor_( c, cnm, callTy, cs, _
                         (sretTmp.kind <> cast( uint8, MV_NONE )), _
                         (self_.kind <> cast( uint8, MV_NONE )) )
@@ -1175,7 +1175,7 @@ function LowerCallParts _
         ic.count = n
         '' ...and the same for a call THROUGH A PROCEDURE POINTER. See the virtual
         '' path above.
-        if (callTy = MT_AGG) andalso (cs <> 0) then
+        if (callTy = MT_AGG) andalso (cs <> nullptr) then
             ic.imm = SizeOfType( c, cs->type_ )
         end if
         '' ON EVERY CALL THROUGH A POINTER, not only one returning an aggregate -- see
@@ -1288,7 +1288,7 @@ function LowerBareProcCall_ _
     dim as Tko.SymbolId sid = c.info->RefOf( id )
     if sid = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     if s->type_ = Tko.TYPE_NONE then return false          '' a SUB has no value
 
@@ -1414,12 +1414,12 @@ private function ClosureInvokeSym_ _
         c.syms->LookupLocalTyped( cast( Tko.ScopeId, c.types->DeclScopeOf( u ) ), _
                                   c.types->NameOf( u ), true )
     dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
-    if ts = 0 then return Tko.SYMBOL_NONE
+    if ts = nullptr then return Tko.SYMBOL_NONE
     if ts->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     dim as Tko.SymbolId iv = c.syms->LookupLocal( ts->inner, _
         c.names->Fold( c.names->GetString( "__fbinvoke" ) ) )
     dim as Tko.Symbol ptr isy = c.syms->SymbolAt( iv )
-    if isy = 0 then return Tko.SYMBOL_NONE
+    if isy = nullptr then return Tko.SYMBOL_NONE
     '' Its payload IS the module-level symbol -- see BuildClosureType_.
     return cast( Tko.SymbolId, isy->payload )
 end function

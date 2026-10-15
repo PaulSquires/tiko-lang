@@ -71,7 +71,7 @@ end function
 private function AmNamedVar_( byref c as Ctx, byval a as Tko.NodeId ) as boolean
     if c.ast->Kind( a ) <> Tko.N_IDENT then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     return (s->kind = cast( uint8, Tko.SYM_VARIABLE )) orelse _
            (s->kind = cast( uint8, Tko.SYM_PARAMETER ))
 end function
@@ -160,7 +160,7 @@ private function AmFold_ _
     case Tko.N_IDENT
         '' A NAMED CONSTANT is its initialiser; a variable is not a constant.
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
-        if s = 0 then return AM_UNKNOWN
+        if s = nullptr then return AM_UNKNOWN
         if s->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return AM_NONCONST
         if (s->flags and Tko.SYMF_BUILTIN) <> 0 then return AM_UNKNOWN
         dim as Tko.NodeId item = cast( Tko.NodeId, s->payload )
@@ -354,7 +354,7 @@ private sub ReportArgMismatch_ _
 
     if c.info->AmbiguousOf( id ) = Tko.AMB_PROPERTY_SET then exit sub
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( callee )
-    if s = 0 then exit sub
+    if s = nullptr then exit sub
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit sub
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then exit sub
@@ -435,7 +435,7 @@ private sub NullptrTieNote_ _
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + i] )
         if c.ast->Kind( a ) <> Tko.N_IDENT then continue for
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if s->name <> nm then continue for
         dim as Tko.TypeId t = c.types->Unqualify( c.info->TypeOf_( a ) )
         if c.types->Kind( t ) <> Tko.TK_POINTER then continue for

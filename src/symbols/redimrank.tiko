@@ -34,7 +34,7 @@ function ItemRank _
         found = syms.LookupTyped( scope_, ip->name, false )
     end if
     dim as Symbol ptr s = syms.SymbolAt( found )
-    if s = 0 then return 0
+    if s = nullptr then return 0
     if s->type_ = TYPE_NONE then return 0
     dim as TypeId u = types.Unqualify( s->type_ )
     if types.IsDynArray( u ) = false then return 0

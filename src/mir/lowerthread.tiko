@@ -121,18 +121,18 @@ private function ThreadUdtFields_ _
       byref outFlds as containers.Array( of uint32 ) ) as boolean
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ThreadUdtSym_( c, t ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     '' A UNION IS REFUSED, and so is any packing: fbc tests 'symbGetUDTIsUnion' and
     '' 'symbGetUDTAlign( ) <> 0' before it looks at a single field.
     if (s->flags and Tko.SYMF_UNION_KIND) <> 0 then return false
     if c.types->Packing( t ) <> 0 then return false
 
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     dim as Tko.SymbolId cur = sc->firstSym
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit while
+        if f = nullptr then exit while
         if f->kind = cast( uint8, Tko.SYM_FIELD ) then
             '' ANY anonymous group -- see the header.
             if f->anonDepth <> 0 then return false
@@ -160,7 +160,7 @@ private function ThreadFieldCode_ _
       byval depth as int32 ) as int64
 
     ok = false
-    if fs = 0 then return 0
+    if fs = nullptr then return 0
     if (fs->flags and Tko.SYMF_BITFIELD) <> 0 then return 0
     return ThreadTypeCode_( c, fs->type_, ok, true, depth )
 end function
@@ -268,7 +268,7 @@ private function PushThreadDesc_ _
     args.Push( cast( uint32, flds.Count ) )
     for i as int32 = 0 to flds.Count - 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
-        if f = 0 then return false
+        if f = nullptr then return false
         dim as boolean fok = false
         dim as int64 fc = ThreadFieldCode_( c, f, fok, depth + 1 )
         if fok = false then return false
@@ -323,7 +323,7 @@ private function ThreadCalleeOf_ _
         dim as boolean rcOk = false
         if rc <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr rs = c.syms->SymbolAt( rc )
-            if rs <> 0 then
+            if rs <> nullptr then
                 rcOk = (rs->kind = cast( uint8, Tko.SYM_PROC ))
             end if
         end if
@@ -349,7 +349,7 @@ private function ThreadCalleeOf_ _
         dim as Tko.BinaryPayload ptr mb = _
             @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, it )].data )]
         dim as Tko.Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mb->lhs ) )
-        if bs = 0 then return Tko.SYMBOL_NONE
+        if bs = nullptr then return Tko.SYMBOL_NONE
         if bs->kind <> cast( uint8, Tko.SYM_NAMESPACE ) then return Tko.SYMBOL_NONE
         return c.info->RefOf( it )
     end if
@@ -368,7 +368,7 @@ function LowerThreadCall_ _
     dim as Tko.SymbolId callee = ThreadCalleeOf_( c, it, aFirst, aCount )
     if callee = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return false
+    if cs = nullptr then return false
     if cs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return false

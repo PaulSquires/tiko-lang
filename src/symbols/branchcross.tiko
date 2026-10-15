@@ -45,7 +45,7 @@ private function BxProcScope_ ( byref c as Ctx, byval s as ScopeId ) as ScopeId
     for guard as int32 = 0 to 4095
         if cur = SCOPE_NONE then exit for
         dim as SymScope ptr ss = c.syms->ScopeAt( cur )
-        if ss = 0 then exit for
+        if ss = nullptr then exit for
         if ss->kind <> SCOPEK_BLOCK then return cur
         cur = ss->parent
     next
@@ -59,7 +59,7 @@ private function BxHolds_ ( byref c as Ctx, byval outer as ScopeId, byval inner 
         if cur = SCOPE_NONE then exit for
         if cur = outer then return true
         dim as SymScope ptr ss = c.syms->ScopeAt( cur )
-        if ss = 0 then exit for
+        if ss = nullptr then exit for
         cur = ss->parent
     next
     return false
@@ -103,7 +103,7 @@ private function BxSelectTemp_ ( byref c as Ctx, byval e as NodeId ) as boolean
         return false
     case N_IDENT
         dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( u ) )
-        if vs <> 0 then
+        if vs <> nullptr then
             if vs->kind = cast( uint8, SYM_VARIABLE ) then return false
         end if
     end select
@@ -114,7 +114,7 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
     '' THE LABELS AND THE LOCAL DEFINITIONS, in node order, once per tree.
     static as int32 lab( ), vars( ), tmps( )
     static as int32 nLab, nVar, nTmp
-    static as any ptr forAst = 0
+    static as any ptr forAst = nullptr
     static as int32 forCount = -1
     static as uint32 forGen = 0
     dim as int32 n = c.ast->Count( )
@@ -171,7 +171,7 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
             if (it < 1) orelse (c.ast->Kind( it ) <> N_VAR_ITEM) then continue for
             dim as StmtPayload ptr ip = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, it )].data )]
             dim as Symbol ptr s = c.syms->SymbolAt( c.syms->LookupLocal( vscope, ip->name ) )
-            if s = 0 then continue for
+            if s = nullptr then continue for
             '' ONLY A DEFINITION: a REDIM of an array declared earlier defines nothing here.
             if cast( NodeId, s->payload ) <> it then continue for
             if BxNeedsCtor_( c, it, s ) = false then continue for

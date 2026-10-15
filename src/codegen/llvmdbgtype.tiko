@@ -16,10 +16,10 @@
 '' symbol). Names intern folded, so the source text is the only record of the case.
 private function SpellingOf_( byref d as DebugInfo, byval s as Tko.Symbol ptr ) as string
     dim as string folded = d.fe->names->Spelling( s->name )
-    if d.sm = 0 then return folded
+    if d.sm = nullptr then return folded
     dim as Tko.DecodedLoc dl = d.sm->Decode( s->loc )
     dim as Tko.SourceFile ptr sf = d.sm->FileAt( dl.file )
-    if sf = 0 then return folded
+    if sf = nullptr then return folded
     '' THE LOCATION IS THE DECLARATION'S, NOT ALWAYS THE NAME'S: a UDT's is its 'type',
     '' a parameter's its 'byval'. So the first identifier ON THAT LINE that folds to the
     '' name is taken, which the name always is.
@@ -81,17 +81,17 @@ private function NamedSym_( byref d as DebugInfo, byval t as Tko.TypeId ) as Tko
     dim as Tko.TypeContext ptr tc = d.fe->types
     dim as Tko.SymbolId sid = d.fe->syms->LookupLocalTyped( _
         cast( Tko.ScopeId, tc->DeclScopeOf( t ) ), tc->NameOf( t ), true )
-    if sid = Tko.SYMBOL_NONE then return 0
+    if sid = Tko.SYMBOL_NONE then return nullptr
     dim as Tko.Symbol ptr s = d.fe->syms->SymbolAt( sid )
-    if s = 0 then return 0
+    if s = nullptr then return nullptr
     if (s->kind <> cast( uint8, Tko.SYM_UDT )) andalso _
-       (s->kind <> cast( uint8, Tko.SYM_ENUM )) then return 0
+       (s->kind <> cast( uint8, Tko.SYM_ENUM )) then return nullptr
     return s
 end function
 
 private function TypeName_( byref d as DebugInfo, byval t as Tko.TypeId ) as string
     dim as Tko.Symbol ptr s = NamedSym_( d, t )
-    if s <> 0 then return SpellingOf_( d, s )
+    if s <> nullptr then return SpellingOf_( d, s )
     return d.fe->types->Name( t )
 end function
 
@@ -344,9 +344,9 @@ private function Udt_( byref d as DebugInfo, byval id as int32, byval t as Tko.T
     dim as Tko.Symbol ptr us = NamedSym_( d, t )
     dim as string nm = TypeName_( d, t )
     dim as int32 fl = d.mainFileId, ln = 0
-    if us <> 0 then DeclSite_( d, us, fl, ln )
+    if us <> nullptr then DeclSite_( d, us, fl, ln )
     dim as string tag = "DW_TAG_structure_type"
-    if us <> 0 then
+    if us <> nullptr then
         if (us->flags and Tko.SYMF_UNION_KIND) <> 0 then tag = "DW_TAG_union_type"
     end if
     dim as int32 ui = d.fe->udts->Find( t )
@@ -376,7 +376,7 @@ private function Udt_( byref d as DebugInfo, byval id as int32, byval t as Tko.T
                               str( fd->offset * 8 ) & ")" )
         else
             dim as string fnm = d.fe->names->Spelling( fd->name )
-            if us <> 0 then
+            if us <> nullptr then
                 dim as Tko.SymbolId fsid = d.fe->syms->LookupLocal( us->inner, fd->name )
                 if fsid <> Tko.SYMBOL_NONE then
                     fnm = SpellingOf_( d, d.fe->syms->SymbolAt( fsid ) )
@@ -407,14 +407,14 @@ private function Enum_( byref d as DebugInfo, byval id as int32, byval t as Tko.
     dim as Tko.Symbol ptr es = NamedSym_( d, t )
     dim as int32 fl = d.mainFileId, ln = 0
     dim as string ms = ""
-    if es <> 0 then
+    if es <> nullptr then
         DeclSite_( d, es, fl, ln )
         dim as Tko.SymScope ptr sc = d.fe->syms->ScopeAt( es->inner )
-        if sc <> 0 then
+        if sc <> nullptr then
             dim as Tko.SymbolId k = sc->firstSym
             while k <> Tko.SYMBOL_NONE
                 dim as Tko.Symbol ptr cs = d.fe->syms->SymbolAt( k )
-                if cs = 0 then exit while
+                if cs = nullptr then exit while
                 if cs->kind = cast( uint8, Tko.SYM_ENUMCONST ) then
                     dim as int32 en = NewNode_( d, "!DIEnumerator(name: " & _
                                                   MetaStr_( SpellingOf_( d, cs ) ) & _
@@ -449,7 +449,7 @@ end function
 '' The DI type of a TypeId: its node number, 0 for void, -1 for a type that cannot be
 '' described (a variable of one is simply left out).
 function DbgType( byref d as DebugInfo, byval t as Tko.TypeId ) as int32
-    if (d.fe = 0) orelse (t = Tko.TYPE_NONE) then return 0
+    if (d.fe = nullptr) orelse (t = Tko.TYPE_NONE) then return 0
     dim as Tko.TypeContext ptr tc = d.fe->types
     dim as int32 ti = cast( int32, t )
     if (ti < 0) orelse (ti >= tc->types.Count) then return -1

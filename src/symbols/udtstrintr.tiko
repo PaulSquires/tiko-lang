@@ -33,7 +33,7 @@ private function UdtTextCast_ ( byref c as Ctx, byval t as TypeId ) as BuiltinTy
     next
     dim as Symbol ptr cs = StructorOf_( c, t, "cast" )
     for guard as int32 = 0 to 63
-        if cs = 0 then exit for
+        if cs = nullptr then exit for
         dim as TypeId rt = c.types->Unqualify( cs->type_ )
         if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
         if c.types->Kind( rt ) = TK_POINTER then rt = c.types->Unqualify( c.types->Inner( rt ) )
@@ -57,7 +57,7 @@ private function UdtHasNumericCast_ ( byref c as Ctx, byval t as TypeId ) as boo
     if c.types->Kind( t ) <> TK_UDT then return false
     dim as Symbol ptr cs = StructorOf_( c, t, "cast" )
     for guard as int32 = 0 to 63
-        if cs = 0 then exit for
+        if cs = nullptr then exit for
         dim as TypeId rt = c.types->Unqualify( cs->type_ )
         if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
         if c.types->Kind( rt ) = TK_ENUM then return true

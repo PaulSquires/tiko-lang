@@ -67,7 +67,7 @@ private function ProcPtrDeclOf_ _
         else
             '' A NAME: a typedef's symbol keeps its own type reference.
             dim as Tko.Symbol ptr ts = syms->SymbolAt( info->RefOf( e ) )
-            if ts = 0 then return Tko.NODE_NONE
+            if ts = nullptr then return Tko.NODE_NONE
             if ts->kind <> cast( uint8, Tko.SYM_TYPEDEF ) then return Tko.NODE_NONE
             nx = cast( Tko.NodeId, ts->payload )
         end if
@@ -88,7 +88,7 @@ private function ProcPtrDeclOf_ _
             sid = info->RefOf( ast->binaries[dat].rhs )
         end if
         dim as Tko.Symbol ptr s = syms->SymbolAt( sid )
-        if s = 0 then return Tko.NODE_NONE
+        if s = nullptr then return Tko.NODE_NONE
         dim as Tko.NodeId dn = Tko.NODE_NONE
         select case cast( Tko.SymbolKind, s->kind )
         case Tko.SYM_PROC
@@ -113,9 +113,9 @@ private function ProcPtrDeclOf_ _
             '' A PARAMETER'S SYMBOL HOLDS NO NODE, so its procedure is asked for the
             '' parameter of that name.
             dim as Tko.SymScope ptr sc = syms->ScopeAt( s->parent )
-            if sc = 0 then return Tko.NODE_NONE
+            if sc = nullptr then return Tko.NODE_NONE
             dim as Tko.Symbol ptr os = syms->SymbolAt( sc->owner )
-            if os = 0 then return Tko.NODE_NONE
+            if os = nullptr then return Tko.NODE_NONE
             dn = cast( Tko.NodeId, os->payload )
             if dn = Tko.NODE_NONE then return Tko.NODE_NONE
             if ast->Kind( dn ) <> Tko.N_PROC then return Tko.NODE_NONE
@@ -151,7 +151,7 @@ private function ProcPtrDeclOf_ _
         if nx = Tko.NODE_NONE then
             '' AN ARRAY ELEMENT has the array's own declaration: 'fa( 0 )( 1 )'.
             dim as Tko.Symbol ptr ts = syms->SymbolAt( info->RefOf( tgt ) )
-            if ts <> 0 then
+            if ts <> nullptr then
                 if ts->type_ <> Tko.TYPE_NONE then
                     dim as Tko.TypeId tu = types->Unqualify( ts->type_ )
                     dim as boolean isArr = (types->Kind( tu ) = Tko.TK_ARRAY)

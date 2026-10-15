@@ -59,7 +59,7 @@ private function SpawnByrefParam_ _
     if (cnm = 0) andalso (sp->a <> Tko.NODE_NONE) then cnm = IdentNameOf( c, sp->a )
     if cnm = 0 then return false
     dim as Tko.Symbol ptr hs = c.syms->SymbolAt( c.syms->Lookup( scope_, cnm ) )
-    if hs = 0 then return false
+    if hs = nullptr then return false
     if hs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, hs->payload )
     if pn = Tko.NODE_NONE then return false
@@ -90,7 +90,7 @@ private function SpawnNotAProc_ _
     if sp->aliasName = 0 then return false
     dim as Tko.SymbolId sid = c.syms->Lookup( scope_, sp->aliasName )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind = cast( uint8, Tko.SYM_PROC ) then return false
     c.diags->Report( Tko.TKO0943, Tko.PointRange( c.ast->Loc( id ) ), _
                      c.names->Spelling( s->name ) )
@@ -116,7 +116,7 @@ private sub BuildSpawnFrame_ _
     dim as Tko.SymbolId cur = c.syms->Lookup( scope_, sp->aliasName )
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         if cs->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
         if pn <> Tko.NODE_NONE then
@@ -160,7 +160,7 @@ private sub BuildSpawnFrame_ _
     dim as Tko.SymbolId tsid = c.syms->DeclareSym( _
         Tko.SCOPE_GLOBAL, sp->name, Tko.SYM_UDT, at, dup )
     dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
-    if ts = 0 then return
+    if ts = nullptr then return
     dim as Tko.ScopeId tin = c.syms->OpenScope( _
         Tko.SCOPEK_TYPE, Tko.SCOPE_GLOBAL, tsid )
     ts->inner = tin
@@ -171,7 +171,7 @@ private sub BuildSpawnFrame_ _
         dim as boolean fdup = false
         dim as Tko.SymbolId fsid = c.syms->DeclareSym( tin, fnm, Tko.SYM_FIELD, at, fdup )
         dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
-        if fs <> 0 then fs->type_ = cast( Tko.TypeId, fTy[k] )
+        if fs <> nullptr then fs->type_ = cast( Tko.TypeId, fTy[k] )
     next
     c.info->SetType( id, ts->type_ )
 end sub
@@ -203,7 +203,7 @@ private sub BuildClosureType_ _
         '' error 354, as the TKO0743 every other undeclared name gets. Left silent, the
         '' error surfaced at some use in the body -- or, with none, as a 'void'
         '' parameter clang refused.
-        if cs = 0 then
+        if cs = nullptr then
             NoteUnbound_( c, cn, scope_ )
             return
         end if
@@ -227,7 +227,7 @@ private sub BuildClosureType_ _
     dim as Tko.SymbolId tsid = c.syms->DeclareSym( _
         Tko.SCOPE_GLOBAL, sp->name, Tko.SYM_UDT, at, dup )
     dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
-    if ts = 0 then return
+    if ts = nullptr then return
     dim as Tko.ScopeId tin = c.syms->OpenScope( _
         Tko.SCOPEK_TYPE, Tko.SCOPE_GLOBAL, tsid )
     ts->inner = tin
@@ -239,7 +239,7 @@ private sub BuildClosureType_ _
         dim as boolean fdup = false
         dim as Tko.SymbolId fsid = c.syms->DeclareSym( tin, fnm, Tko.SYM_FIELD, at, fdup )
         dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
-        if fs <> 0 then fs->type_ = cast( Tko.TypeId, fTy[k] )
+        if fs <> nullptr then fs->type_ = cast( Tko.TypeId, fTy[k] )
     next
 
     '' THE INVOKE PROCEDURE, reachable from the TYPE. Its own module-level symbol is
@@ -255,7 +255,7 @@ private sub BuildClosureType_ _
         '' that is what carries the type and the mangled name. Looked up from HERE
         '' because the lambda site's scope chain reaches the module and a later
         '' pass's does not.
-        if isy <> 0 then
+        if isy <> nullptr then
             isy->payload = cast( uint32, c.syms->Lookup( _
                 scope_, StmtOf( c, sp->a )->name ) )
         end if

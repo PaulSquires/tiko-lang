@@ -5,7 +5,7 @@
 
 private function IsGenericProcSym_( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return false
@@ -41,7 +41,7 @@ private function GenericOfSet_( byref c as Ctx, byval head as Tko.SymbolId ) as 
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         if IsGenericProcSym_( c, cur ) then
             if found = Tko.SYMBOL_NONE then found = cur
@@ -61,7 +61,7 @@ private function FirstOrdinaryOf_( byref c as Ctx, byval head as Tko.SymbolId ) 
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         if (IsGenericProcSym_( c, cur ) = false) andalso ((s->flags and Tko.SYMF_GENERIC_INST) = 0) then return cur
         cur = s->nextOverload

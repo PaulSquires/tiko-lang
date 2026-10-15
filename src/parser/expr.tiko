@@ -174,7 +174,7 @@ namespace Tko.Parse
 
 function HasTok( byref p as Tko.ParserState, byval want as int32 ) as boolean
     if want < 0 then return false
-    if p.stream <> 0 then
+    if p.stream <> nullptr then
         return Tko.PpEnsure( *cast( Tko.PpStream ptr, p.stream ), want )
     end if
     return (want < p.toks->Count)

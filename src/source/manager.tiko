@@ -22,7 +22,7 @@ end function
 '' -------------------------------------------------------------------- lifetime
 
 constructor SourceManager( )
-    this.names = 0
+    this.names = nullptr
     this.nextBase = 1               '' 0 stays reserved for LOC_NONE
 end constructor
 
@@ -42,9 +42,9 @@ function SourceManager.Count( ) as int32
 end function
 
 function SourceManager.FileAt( byval id as FileId ) as SourceFile ptr
-    if id = FILE_NONE then return 0
+    if id = FILE_NONE then return nullptr
     dim as int32 idx = cast( int32, id ) - 1
-    if idx >= this.files.Count then return 0
+    if idx >= this.files.Count then return nullptr
     return this.files[idx]
 end function
 
@@ -56,20 +56,20 @@ function SourceManager.IsBuiltin( byval loc as SourceLoc ) as boolean
     dim as FileId fid = FILE_NONE
     this.LocOffset( loc, fid )
     dim as SourceFile ptr f = this.FileAt( fid )
-    if f = 0 then return false
+    if f = nullptr then return false
     if this.builtinName = INTERN_NONE then this.builtinName = this.names->GetString( "<builtin>" )
     return (f->displayPath = this.builtinName)
 end function
 
 function SourceManager.PathOf( byval id as FileId ) as string
     dim as SourceFile ptr f = this.FileAt( id )
-    if f = 0 then return "<none>"
+    if f = nullptr then return "<none>"
     return this.names->Spelling( f->displayPath )
 end function
 
 function SourceManager.AbsPathOf( byval id as FileId ) as string
     dim as SourceFile ptr f = this.FileAt( id )
-    if f = 0 then return ""
+    if f = nullptr then return ""
     return this.names->Spelling( f->path )
 end function
 
@@ -140,7 +140,7 @@ function SourceManager.Adopt _
     f->isVirtual = isVirt
 
     dim as int32 rawCount = raw.Count
-    dim as const uint8 ptr rawPtr = 0
+    dim as const uint8 ptr rawPtr = nullptr
     if rawCount > 0 then rawPtr = @raw[0]
 
     f->encoding = Tko.Text.DetectEncoding( rawPtr, rawCount )
@@ -239,7 +239,7 @@ end function
 
 function SourceManager.LocFor( byval id as FileId, byval offset as int32 ) as SourceLoc
     dim as SourceFile ptr f = this.FileAt( id )
-    if f = 0 then return LOC_NONE
+    if f = nullptr then return LOC_NONE
     if offset < 0 then offset = 0
     if offset > f->text.Count then offset = f->text.Count
     return f->locBase + cast( SourceLoc, offset )
@@ -334,7 +334,7 @@ function SourceManager.Decode( byval loc as SourceLoc ) as DecodedLoc
         end if
     end if
 
-    dim as const uint8 ptr textBase = 0
+    dim as const uint8 ptr textBase = nullptr
     if f->text.Count > 0 then textBase = @f->text[0]
     d.column = Tko.Text.ColumnOf( textBase, f->lineStarts[lineIdx], off )
     return d
@@ -345,7 +345,7 @@ sub SourceManager.AddLineMark _
       byval shownName as InternId, byval hasName as boolean )
 
     dim as SourceFile ptr f = this.FileAt( id )
-    if f = 0 then return
+    if f = nullptr then return
 
     '' A '#line' with no string keeps the name in force rather than reverting to the
     '' file's own -- measured: after '#line 100 "fake.bas"', a bare '#line 5' still
@@ -387,13 +387,13 @@ end function
 
 function SourceManager.LineCount( byval id as FileId ) as int32
     dim as SourceFile ptr f = this.FileAt( id )
-    if f = 0 then return 0
+    if f = nullptr then return 0
     return f->lineStarts.Count
 end function
 
 function SourceManager.ContentLineCount( byval id as FileId ) as int32
     dim as SourceFile ptr f = this.FileAt( id )
-    if f = 0 then return 0
+    if f = nullptr then return 0
     dim as int32 n = f->lineStarts.Count
     dim as boolean endsWithEol = (f->text.Count > 0) andalso _
                                  (f->text[f->text.Count - 1] = 10)
@@ -403,7 +403,7 @@ end function
 
 function SourceManager.LineStart( byval id as FileId, byval lineNo as int32 ) as int32
     dim as SourceFile ptr f = this.FileAt( id )
-    if f = 0 then return 0
+    if f = nullptr then return 0
     dim as boolean bad = (lineNo < 1) orelse (lineNo > f->lineStarts.Count)
     if bad then return 0
     return f->lineStarts[lineNo - 1]
@@ -411,7 +411,7 @@ end function
 
 function SourceManager.LineLength( byval id as FileId, byval lineNo as int32 ) as int32
     dim as SourceFile ptr f = this.FileAt( id )
-    if f = 0 then return 0
+    if f = nullptr then return 0
     dim as boolean bad = (lineNo < 1) orelse (lineNo > f->lineStarts.Count)
     if bad then return 0
 
@@ -431,7 +431,7 @@ end function
 
 function SourceManager.LineText( byval id as FileId, byval lineNo as int32 ) as string
     dim as SourceFile ptr f = this.FileAt( id )
-    if f = 0 then return ""
+    if f = nullptr then return ""
     dim as int32 first = this.LineStart( id, lineNo )
     dim as int32 n = this.LineLength( id, lineNo )
     if n <= 0 then return ""

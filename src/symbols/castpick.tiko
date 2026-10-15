@@ -32,7 +32,7 @@ function CastResultClass _
       byval sym as Tko.SymbolId ) as int32
 
     dim as Tko.Symbol ptr s = syms.SymbolAt( sym )
-    if (s = 0) orelse (s->type_ = Tko.TYPE_NONE) then return CR_NONE
+    if (s = nullptr) orelse (s->type_ = Tko.TYPE_NONE) then return CR_NONE
     dim as boolean byrefRes = false
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
@@ -134,7 +134,7 @@ function StrCastPick _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         dim as int32 cls = CastResultClass( ast, syms, types, cur )
         dim as int32 sc = StrCastScore( target, cls )
         if sc > bestScore then
@@ -252,7 +252,7 @@ end function
 '' parameter of its own type, a plain one only a TYPE match.
 private function OvlResConst_( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byval sym as Tko.SymbolId ) as boolean
     dim as Tko.Symbol ptr s = syms.SymbolAt( sym )
-    if s = 0 then return false
+    if s = nullptr then return false
     dim as Tko.TypeId rt = s->type_
     if types.IsConst( rt ) then return true
     dim as Tko.TypeId ru = types.Unqualify( rt )
@@ -286,7 +286,7 @@ function IntrStrOvlPick _
         while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
             guard += 1
             dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
-            if cs = 0 then exit while
+            if cs = nullptr then exit while
             dim as int32 k = CastResultClass( ast, syms, types, cur )
             dim as int32 sc
             if k = pcls then

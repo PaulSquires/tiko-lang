@@ -11,7 +11,7 @@
 '' CheckSharedRef_.
 
 private sub CollInitSharedRefs_ ( byref c as Ctx, byval s as Symbol ptr )
-    if s = 0 then return
+    if s = nullptr then return
     if s->kind <> cast( uint8, SYM_VARIABLE ) then return
     if s->payload <= 0 then return
     dim as NodeId item = cast( NodeId, s->payload )
@@ -21,7 +21,7 @@ private sub CollInitSharedRefs_ ( byref c as Ctx, byval s as Symbol ptr )
     dim as boolean inModule = ((s->flags and SYMF_SHARED) <> 0)
     if inModule = false then
         dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
-        if sc <> 0 then inModule = (sc->kind = cast( uint8, SCOPEK_NAMESPACE ))
+        if sc <> nullptr then inModule = (sc->kind = cast( uint8, SCOPEK_NAMESPACE ))
     end if
     if inModule = false then return
     dim as ListPayload ptr bl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, blk )].data )]

@@ -60,7 +60,7 @@ sub Open _
     '' A 'tiko build', or one of its children (--build-only-unit), which runs as a classic
     '' compile but must store the root it was given.
     dim as boolean isChild = (ctx.options.buildOnlyUnit > 0)
-    if ((ctx.build = 0) andalso (isChild = false)) orelse (eligible = false) orelse (restartDepth > 0) then return
+    if ((ctx.build = nullptr) andalso (isChild = false)) orelse (eligible = false) orelse (restartDepth > 0) then return
     '' TKO_TEST_CHILD_EXIT: a child that dies with this code before it compiles anything, so
     '' a test can reach TKO0167 (tests/driver/build-parallel-crash). Read in a child only.
     if isChild andalso (valint( environ( "TKO_TEST_CHILD_EXIT" ) ) <> 0) then end valint( environ( "TKO_TEST_CHILD_EXIT" ) )
@@ -317,7 +317,7 @@ end function
 
 function LinkSignature _
     ( byref ctx as Tko.CompilerContext, byref args as Tko.StrVec, byref linkObjs as Tko.StrVec ) as string
-    if (ctx.build = 0) orelse (len( ctx.options.outputPath ) = 0) then return ""
+    if (ctx.build = nullptr) orelse (len( ctx.options.outputPath ) = 0) then return ""
     dim as string stamp_ = Tko.DiskCache.CompilerStamp( )
     if len( stamp_ ) = 0 then return ""
     dim as string nl = chr( 10 )

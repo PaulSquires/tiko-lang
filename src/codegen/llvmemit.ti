@@ -36,9 +36,9 @@ namespace Tko.Codegen
     '' 'mainPath' is the module's own.
     declare function EmitLlvm _
         ( byref m as Tko.Mir.MirModule, byref names as Tko.Interner, _
-          byref target as TargetDescription, byval sm as Tko.SourceManager ptr = 0, _
+          byref target as TargetDescription, byval sm as Tko.SourceManager ptr = nullptr, _
           byval debugInfo as boolean = false, byval mainPath as string = "", _
-          byval dfe as DebugFrontend ptr = 0 ) as EmitResult
+          byval dfe as DebugFrontend ptr = nullptr ) as EmitResult
 
 end namespace
 

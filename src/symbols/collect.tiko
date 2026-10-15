@@ -65,7 +65,7 @@ end function
 private function StmtOf _
     ( byref w as Walker, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
 
-    if id = Tko.NODE_NONE then return 0
+    if id = Tko.NODE_NONE then return nullptr
     dim as Tko.AstNode ptr n = @w.ast->nodes[cast( int32, id )]
     return @w.ast->stmts[cast( int32, n->data )]
 end function
@@ -73,7 +73,7 @@ end function
 private function ListOf _
     ( byref w as Walker, byval id as Tko.NodeId ) as Tko.ListPayload ptr
 
-    if id = Tko.NODE_NONE then return 0
+    if id = Tko.NODE_NONE then return nullptr
     dim as Tko.AstNode ptr n = @w.ast->nodes[cast( int32, id )]
     return @w.ast->lists[cast( int32, n->data )]
 end function
@@ -122,11 +122,11 @@ private function IsDynArrayItem_ _
     if cast( int32, item ) >= w.ast->nodes.Count then return false
     if (w.ast->nodes[cast( int32, item )].flags and Tko.NF_ARRAY) = 0 then return false
     dim as Tko.StmtPayload ptr ip = StmtOf( w, item )
-    if ip = 0 then return false
+    if ip = nullptr then return false
     if ip->c = Tko.NODE_NONE then return true
     if w.ast->Kind( ip->c ) <> Tko.N_BLOCK then return false
     dim as Tko.ListPayload ptr lp = ListOf( w, ip->c )
-    if lp = 0 then return false
+    if lp = nullptr then return false
     for i as int32 = 0 to lp->count - 1
         dim as Tko.NodeId d = cast( Tko.NodeId, w.ast->children[lp->first + i] )
         if w.ast->Kind( d ) <> Tko.N_IDENT then return false
@@ -171,7 +171,7 @@ private function LookupDottedOwner_ _
             sid = w.syms->LookupLocalTyped( sc, cid, true )
         end if
         dim as Tko.Symbol ptr sym = w.syms->SymbolAt( sid )
-        if sym = 0 then return Tko.SYMBOL_NONE
+        if sym = nullptr then return Tko.SYMBOL_NONE
         found = sid
         first_ = false
         if dot = 0 then exit while
@@ -192,7 +192,7 @@ private function Deferred_ _
     if w.syms->modFileCount = 0 then return false
     if w.ast->Kind( id ) <> Tko.N_PROC then return false
     dim as Tko.SymScope ptr sc = w.syms->ScopeAt( scope_ )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     dim as boolean level = (sc->kind = cast( uint8, Tko.SCOPEK_MODULE ))
     if level = false then level = (sc->kind = cast( uint8, Tko.SCOPEK_NAMESPACE ))
     if level = false then return false
@@ -295,7 +295,7 @@ sub WalkNode _
                 dim as Tko.SymbolId prevC = _
                     w.syms->LookupLocalTyped( scope_, ip->name, false )
                 dim as Tko.Symbol ptr pcs = w.syms->SymbolAt( prevC )
-                if pcs <> 0 then
+                if pcs <> nullptr then
                     if pcs->kind = cast( uint8, Tko.SYM_CONSTANT ) then
                         dim as Tko.NodeId prevItem = cast( Tko.NodeId, pcs->payload )
                         if SameDeclShape_( w, prevItem, item ) then
@@ -363,7 +363,7 @@ sub WalkNode _
                         dim as boolean inProc = false
                         for g as int32 = 0 to 63
                             dim as Tko.SymScope ptr ss = w.syms->ScopeAt( nsc )
-                            if ss = 0 then exit for
+                            if ss = nullptr then exit for
                             if (ss->kind <> cast( uint8, Tko.SCOPEK_PROC )) andalso (ss->kind <> cast( uint8, Tko.SCOPEK_BLOCK )) then exit for
                             if ss->kind = cast( uint8, Tko.SCOPEK_PROC ) then inProc = true
                             nsc = ss->parent
@@ -371,7 +371,7 @@ sub WalkNode _
                         if inProc andalso (nsc <> scope_) then prevK = w.syms->LookupLocalTyped( nsc, ip->name, false )
                     end if
                     dim as Tko.Symbol ptr pks = w.syms->SymbolAt( prevK )
-                    if pks <> 0 then
+                    if pks <> nullptr then
                         redimLike = ((pks->flags and Tko.SYMF_COMMON) <> 0)
                         '' ...AND THE NODE IS REWRITTEN TO SAY SO. 'DIM'ing a COMMON
                         '' works like a REDIM' is what dim-common-dynamic-1.bas says
@@ -417,7 +417,7 @@ sub WalkNode _
                 dim as Tko.SymbolId prevR = _
                     w.syms->LookupTyped( scope_, ip->name, false )
                 dim as Tko.Symbol ptr prs = w.syms->SymbolAt( prevR )
-                if prs <> 0 then
+                if prs <> nullptr then
                     if prs->kind = cast( uint8, Tko.SYM_VARIABLE ) then
                         dim as Tko.NodeId prevIt = cast( Tko.NodeId, prs->payload )
                         '' The BOUNDS are what a redim exists to change, so only the
@@ -471,7 +471,7 @@ sub WalkNode _
                 dim as Tko.SymbolId prev = _
                     w.syms->LookupLocalTyped( scope_, ip->name, false )
                 dim as Tko.Symbol ptr ps = w.syms->SymbolAt( prev )
-                if ps <> 0 then
+                if ps <> nullptr then
                     dim as boolean prevExtern = ((ps->flags and Tko.SYMF_EXTERN) <> 0)
                     dim as boolean mergeable = _
                         (ps->kind = cast( uint8, Tko.SYM_VARIABLE )) andalso _
@@ -507,7 +507,7 @@ sub WalkNode _
             end if
 
             dim as boolean kwConstInType = (sk <> Tko.SYM_VARIABLE) andalso _
-                (w.syms->ScopeAt( scope_ ) <> 0)
+                (w.syms->ScopeAt( scope_ ) <> nullptr)
             if kwConstInType then
                 kwConstInType = (w.syms->ScopeAt( scope_ )->kind = cast( uint8, Tko.SCOPEK_TYPE ))
             end if
@@ -525,7 +525,7 @@ sub WalkNode _
             '' value -- see MarkShadow_.
             MarkShadow_( w, sid, scope_, ip->name, sk, n->flags, item, ip )
             dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
-            if s <> 0 then
+            if s <> nullptr then
                 if (n->flags and Tko.NF_SHARED) <> 0 then s->flags or= Tko.SYMF_SHARED
                 if (n->flags and Tko.NF_STATIC) <> 0 then s->flags or= Tko.SYMF_STATIC
                 '' ...and from the ITEM as well, for a 'byref' written again after a
@@ -597,7 +597,7 @@ sub WalkNode _
         NoteDeclAt_( w, sid, id )
         dim as Tko.ScopeId inner = w.syms->OpenScope( Tko.SCOPEK_TYPE, scope_, sid )
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
-        if s <> 0 then
+        if s <> nullptr then
             s->inner = inner
             '' The layout needs the aggregate's KIND, and nothing else recorded it.
             if (n->flags and Tko.NF_IS_UNION) <> 0 then s->flags or= Tko.SYMF_UNION_KIND
@@ -665,7 +665,7 @@ sub WalkNode _
         '' Recorded for EVERY field, not only a union's: the layout needs the depth
         '' of a sequential anonymous group as much as an overlapping one.
         dim as Tko.Symbol ptr fs = w.syms->SymbolAt( fid )
-        if fs <> 0 then
+        if fs <> nullptr then
             '' THE FIELD'S OWN NODE, so a later pass can reach its typeref. A field
             '' whose type is 'typeof( EXPR )' cannot be typed before Check -- Resolve has
             '' no expression types -- and without a way back to the declaration there is
@@ -705,7 +705,7 @@ sub WalkNode _
         '' 'private:' / 'protected:' on a nested ENUM -- the parser put it on the
         '' declaration; the USE SITE needs it on the symbol.
         dim as Tko.Symbol ptr es = w.syms->SymbolAt( sid )
-        if es <> 0 then
+        if es <> nullptr then
             if (sp->extra and Tko.PF_MEMB_PRIVATE) <> 0 then
                 es->flags or= Tko.SYMF_MEMB_PRIVATE
             end if
@@ -736,7 +736,7 @@ sub WalkNode _
         '' explicit enum declares its constants ONLY in its own scope, so 'T.MYCONST' and
         '' a bare 'MYCONST' inside the type both resolved to nothing at all.
         w.enumExplicit = ((sp->extra and 1) <> 0)
-        if s <> 0 then
+        if s <> nullptr then
             s->inner = w.syms->OpenScope( Tko.SCOPEK_NAMESPACE, scope_, sid )
             w.enumScope = s->inner
             s->type_ = w.types->NamedType( Tko.TK_ENUM, sp->name, cast( uint32, scope_ ) )
@@ -761,7 +761,7 @@ sub WalkNode _
                 Declare_( w, w.enumScope, sp->name, Tko.SYM_ENUMCONST, w.ast->Loc( id ) )
             NoteDeclAt_( w, ecid, id )
             dim as Tko.Symbol ptr ecs = w.syms->SymbolAt( ecid )
-            if ecs <> 0 then ecs->flags or= EnumVisFlags_( w.enumVis )
+            if ecs <> nullptr then ecs->flags or= EnumVisFlags_( w.enumVis )
         end if
         '' UNQUALIFIED only when the name is still free. fbc does NOT reject an enum
         '' member that collides with something already declared alongside it: the
@@ -776,7 +776,7 @@ sub WalkNode _
             Declare_( w, scope_, sp->name, Tko.SYM_ENUMCONST, w.ast->Loc( id ) )
         NoteDeclAt_( w, eoid, id )
         dim as Tko.Symbol ptr eos = w.syms->SymbolAt( eoid )
-        if eos <> 0 then eos->flags or= EnumVisFlags_( w.enumVis )
+        if eos <> nullptr then eos->flags or= EnumVisFlags_( w.enumVis )
 
     case Tko.N_TYPEDEF
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
@@ -793,7 +793,7 @@ sub WalkNode _
         '' DEFINITION may not.
         dim as Tko.SymbolId prevT = w.syms->LookupLocalTyped( scope_, sp->name, true )
         dim as Tko.Symbol ptr pts = w.syms->SymbolAt( prevT )
-        if pts <> 0 then
+        if pts <> nullptr then
             if pts->kind = cast( uint8, Tko.SYM_TYPEDEF ) then
                 if SameTypeRef_( w, cast( Tko.NodeId, pts->payload ), sp->a ) then
                     for i as int32 = 0 to sp->count - 1
@@ -808,7 +808,7 @@ sub WalkNode _
                                             w.ast->Loc( id ) )
         NoteDeclAt_( w, tid, id )
         dim as Tko.Symbol ptr ts = w.syms->SymbolAt( tid )
-        if ts <> 0 then
+        if ts <> nullptr then
             ts->type_ = w.types->NamedType( Tko.TK_TYPEDEF, sp->name, cast( uint32, scope_ ) )
             '' The type reference, so a later identical typedef can be compared to it.
             ts->payload = cast( int32, sp->a )
@@ -898,7 +898,7 @@ sub WalkNode _
         SpreadOverloadFlag_( w, scope_, declName, id )
 
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
-        if s <> 0 then
+        if s <> nullptr then
             if sp->b = Tko.NODE_NONE then
                 s->flags or= Tko.SYMF_DECLARED
             else
@@ -962,13 +962,13 @@ sub WalkNode _
                 '' fbc calls it error 168, "Parent is not a class or UDT". Only a UDT
                 '' may own one, and this is the test that says so.
                 dim as boolean ownerIsUdt = false
-                if os <> 0 then
+                if os <> nullptr then
                     ownerIsUdt = (os->kind = cast( uint8, Tko.SYM_UDT ))
                 end if
                 '' Hoisted into one boolean: warning 38 fires on a mixed
                 '' boolean/non-boolean 'andalso' chain, and the house rule is to name
                 '' the condition rather than silence it.
-                dim as boolean haveOwner = (os <> 0)
+                dim as boolean haveOwner = (os <> nullptr)
                 dim as boolean badParent = haveOwner andalso isCtorDtor andalso _
                                            (ownerIsUdt = false)
                 if badParent then
@@ -1039,7 +1039,7 @@ sub WalkNode _
                 end if
             end if
             s = w.syms->SymbolAt( sid )
-            if s <> 0 then
+            if s <> nullptr then
                 if redeclared = false then BindCallConv( w, s, sp, id, (s->payload = 0) )
                 s->flags or= Tko.SYMF_DEFINED
                 '' 'private:' / 'protected:' -- a CONSTRUCTOR takes this branch and not
@@ -1098,11 +1098,11 @@ sub WalkNode _
         '' A REFUSED redeclaration keeps the first one's: pointing the symbol at a second
         '' parameter scope would detach the body the first one may already have.
         if redeclared then
-        elseif s <> 0 then
+        elseif s <> nullptr then
             s->inner = inner
         elseif scopeOwner <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr os = w.syms->SymbolAt( scopeOwner )
-            if os <> 0 then os->inner = inner
+            if os <> nullptr then os->inner = inner
         end if
         '' A member definition body may say 'this'. The receiver is implicit -- it is
         '' never written as a parameter -- so nothing else would ever declare it.
@@ -1140,7 +1140,7 @@ sub WalkNode _
         end if
         if pdup <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr pps = w.syms->SymbolAt( pdup )
-            if pps <> 0 then
+            if pps <> nullptr then
                 if pps->kind = cast( uint8, Tko.SYM_PARAMETER ) then
                     pps->payload = cast( int32, id )
                     pps->loc = w.ast->Loc( id )
@@ -1151,7 +1151,7 @@ sub WalkNode _
         '' A KEYWORD AS A DEFINITION'S PARAMETER NAME: all 247, measured as 'sub S( byval
         '' <kw> as long )', are fbc errors; tiko accepted 245. A DECLARE's parameters and a
         '' procedure TYPE's were not measured and are not asked.
-        if (w.inProcDecl = false) andalso (w.syms->ScopeAt( scope_ ) <> 0) then
+        if (w.inProcDecl = false) andalso (w.syms->ScopeAt( scope_ ) <> nullptr) then
             if w.syms->ScopeAt( scope_ )->kind = cast( uint8, Tko.SCOPEK_PROC ) then
                 if KeywordNameRejected_( w, scope_, sp->name, sp->rawName, true, w.ast->Loc( id ) ) then
                     w.duplicates += 1
@@ -1168,7 +1168,7 @@ sub WalkNode _
         dim as Tko.SymbolId psid = _
             Declare_( w, scope_, sp->name, Tko.SYM_PARAMETER, w.ast->Loc( id ) )
         dim as Tko.Symbol ptr pss = w.syms->SymbolAt( psid )
-        if pss <> 0 then pss->payload = cast( int32, id )
+        if pss <> nullptr then pss->payload = cast( int32, id )
 
     case Tko.N_UNDEF
         '' IN SOURCE ORDER, which this walk is: declarations before it are removable --
@@ -1203,16 +1203,16 @@ sub WalkNode _
         '' namespace in this scope, keep collecting into its existing scope.
         dim as Tko.SymbolId sid = w.syms->LookupLocal( scope_, sp->name )
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( sid )
-        dim as boolean reopen = (s <> 0) andalso (s->kind = cast( uint8, Tko.SYM_NAMESPACE ))
+        dim as boolean reopen = (s <> nullptr) andalso (s->kind = cast( uint8, Tko.SYM_NAMESPACE ))
         if reopen = false then
             sid = Declare_( w, scope_, KwTypeName_( w, sp->name, sp->rawName, Tko.SYM_NAMESPACE, w.ast->Loc( id ) ), Tko.SYM_NAMESPACE, w.ast->Loc( id ) )
             NoteDeclAt_( w, sid, id )
             s = w.syms->SymbolAt( sid )
-            if s <> 0 then
+            if s <> nullptr then
                 s->inner = w.syms->OpenScope( Tko.SCOPEK_NAMESPACE, scope_, sid )
             end if
         end if
-        if s <> 0 then
+        if s <> nullptr then
             '' 'namespace aaa alias "zzz"' REPLACES the namespace's name in every
             '' mangled symbol under it, and keeps the alias's CASE -- measured,
             '' '_ZN3zzz1FEv' where the plain form gives '_ZN3AAA1FEv'. Parsing the
@@ -1290,7 +1290,7 @@ function Run _
       byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
       byref types as Tko.TypeContext, byref diags as Tko.DiagnosticEngine, _
       byref info as Tko.SemanticInfo, _
-      byval src as Tko.SourceManager ptr = 0 ) as int32
+      byval src as Tko.SourceManager ptr = nullptr ) as int32
 
     dim as Walker w
     w.src = src
@@ -1349,7 +1349,7 @@ end function
 '' A scope whose declarations are module storage -- the module or a namespace in it.
 function ModuleLevel_( byref w as Walker, byval scope_ as Tko.ScopeId ) as boolean
     dim as Tko.SymScope ptr sc = w.syms->ScopeAt( scope_ )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     return (sc->kind = cast( uint8, Tko.SCOPEK_MODULE )) orelse (sc->kind = cast( uint8, Tko.SCOPEK_NAMESPACE ))
 end function
 

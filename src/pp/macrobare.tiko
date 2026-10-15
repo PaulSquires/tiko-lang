@@ -33,7 +33,7 @@ private sub PreExpandBareArgs_ _
         dim as Token t0 = args.flat[args.firsts[ai]]
         if Tk( t0 ) <> TK_IDENT then continue for
         dim as PpMacro ptr im = MacroFor( e, cast( InternId, t0.literal ) )
-        if im = 0 then continue for
+        if im = nullptr then continue for
         if (im->isFunc = false) orelse (im->optParens = false) then continue for
         if Tk( args.flat[args.firsts[ai] + 1] ) = TK_LPAREN then continue for
         anyBare = true
@@ -48,7 +48,7 @@ private sub PreExpandBareArgs_ _
             dim as Token t0 = args.flat[args.firsts[ai]]
             if Tk( t0 ) = TK_IDENT then
                 dim as PpMacro ptr im = MacroFor( e, cast( InternId, t0.literal ) )
-                if im <> 0 then
+                if im <> nullptr then
                     isBare = im->isFunc andalso im->optParens
                     if isBare then
                         isBare = (Tk( args.flat[args.firsts[ai] + 1] ) <> TK_LPAREN)

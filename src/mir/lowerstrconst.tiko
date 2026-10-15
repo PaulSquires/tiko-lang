@@ -243,7 +243,7 @@ function ConstStringTextOf_ _
         '' The constant's payload is its N_VAR_ITEM, whose 'b' is the initialiser --
         '' the same shape the integer folder reads, and read as the same pool.
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if cs = 0 then return false
+        if cs = nullptr then return false
         if cs->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return false
         if (cs->flags and Tko.SYMF_BUILTIN) <> 0 then return false
         if cs->payload = 0 then return false
@@ -268,7 +268,7 @@ function IsConstNameRef_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         return true
     case Tko.N_MEMBER
         dim as Tko.Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if ms = 0 then return false
+        if ms = nullptr then return false
         return (ms->kind = cast( uint8, Tko.SYM_CONSTANT ))
     end select
     return false
@@ -303,7 +303,7 @@ function LitOnlyChain_( byref c as Ctx, byval id as Tko.NodeId, byval depth as i
         return LitOnlyChain_( c, cast( Tko.NodeId, c.ast->children[wlp->first] ), depth + 1 )
     case Tko.N_IDENT, Tko.N_MEMBER
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if (cs = 0) orelse (cs->kind <> cast( uint8, Tko.SYM_CONSTANT )) orelse (cs->payload = 0) then return false
+        if (cs = nullptr) orelse (cs->kind <> cast( uint8, Tko.SYM_CONSTANT )) orelse (cs->payload = 0) then return false
         if (cs->flags and Tko.SYMF_BUILTIN) <> 0 then return false   '' 'true' / 'false': no initialiser node -- 'wstr( true )' read node -1
         dim as Tko.NodeId item = cast( Tko.NodeId, cs->payload )
         if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then return false

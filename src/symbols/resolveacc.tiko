@@ -12,13 +12,13 @@ namespace Tko.Resolve
 
 function StmtOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
-    if id = Tko.NODE_NONE then return 0
+    if id = Tko.NODE_NONE then return nullptr
     return @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
 end function
 
 function ListOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.ListPayload ptr
-    if id = Tko.NODE_NONE then return 0
+    if id = Tko.NODE_NONE then return nullptr
     return @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
 end function
 

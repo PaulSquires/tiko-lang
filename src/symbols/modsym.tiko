@@ -42,7 +42,7 @@ private function ModuleLevel_( byref syms as Tko.SymbolTable, byval sc as Tko.Sc
     dim as Tko.ScopeId cur = sc
     while cur <> Tko.SCOPE_NONE
         dim as Tko.SymScope ptr s = syms.ScopeAt( cur )
-        if s = 0 then return false
+        if s = nullptr then return false
         if s->kind = cast( uint8, Tko.SCOPEK_MODULE ) then return true
         if s->kind <> cast( uint8, Tko.SCOPEK_NAMESPACE ) then return false
         cur = s->parent
@@ -67,7 +67,7 @@ private sub MarkNamed_ _
     if nm = 0 then return
     for si as int32 = 1 to syms.Count( )
         dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, si ) )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if (s->parent = sc) andalso (s->name = nm) then s->flags or= f
     next
 end sub
@@ -111,9 +111,9 @@ private sub MarkWords_ _
         '' whose owner is the node's own name steps out once.
         dim as Tko.ScopeId sc = info.ScopeOf( id )
         dim as Tko.SymScope ptr os = syms.ScopeAt( sc )
-        if os <> 0 then
+        if os <> nullptr then
             dim as Tko.Symbol ptr ow = syms.SymbolAt( os->owner )
-            if ow <> 0 then
+            if ow <> nullptr then
                 if ow->name = sp->name then sc = os->parent
             end if
         end if
@@ -132,7 +132,7 @@ private sub MarkWords_ _
             dim as Tko.ScopeId inner = Tko.SCOPE_NONE
             if sp->name <> 0 then
                 dim as Tko.Symbol ptr es = syms.SymbolAt( syms.LookupLocal( sc, sp->name ) )
-                if es <> 0 then
+                if es <> nullptr then
                     if es->kind = cast( uint8, Tko.SYM_ENUM ) then inner = es->inner
                 end if
             end if
@@ -158,7 +158,7 @@ sub Mark _
 
     for si as int32 = 1 to syms.Count( )
         dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, si ) )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if ModuleLevel_( syms, s->parent ) = false then continue for
         if InUnit_( syms, src, s->loc ) = false then continue for
         s->flags or= Tko.SYMF_MODSRC
@@ -173,14 +173,14 @@ sub Mark _
 
     '' A PUBLIC NAME SPELLED LIKE ITS MODULE (M27): 'http.http' would name it, and an
     '' importer that wrote 'using http' could no longer tell the module from the name.
-    if (syms.selfChain.Count = 0) orelse (syms.names = 0) then return
+    if (syms.selfChain.Count = 0) orelse (syms.names = nullptr) then return
     dim as string self_ = syms.selfChain[syms.selfChain.Count - 1]
     for si as int32 = 1 to syms.Count( )
         dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, si ) )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if (s->flags and (Tko.SYMF_MODSRC or Tko.SYMF_PUBLIC)) <> (Tko.SYMF_MODSRC or Tko.SYMF_PUBLIC) then continue for
         dim as Tko.SymScope ptr ps = syms.ScopeAt( s->parent )
-        if ps = 0 then continue for
+        if ps = nullptr then continue for
         if ps->kind <> cast( uint8, Tko.SCOPEK_MODULE ) then continue for
         if Tko.Text.UpperAscii( syms.names->Spelling( s->name ) ) <> self_ then continue for
         diags.Report( Tko.TKO0870, Tko.PointRange( s->loc ), _
@@ -196,7 +196,7 @@ sub MarkImported _
     if ifaces.Count = 0 then return
     for si as int32 = 1 to syms.Count( )
         dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, si ) )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if ModuleLevel_( syms, s->parent ) = false then continue for
         if InFiles_( src, ifaces, s->loc ) = false then continue for
         s->flags or= Tko.SYMF_IMPORTED
@@ -207,7 +207,7 @@ end sub
 function ModuleScope( byref syms as Tko.SymbolTable ) as Tko.ScopeId
     for sc as int32 = 1 to syms.ScopeCount( )
         dim as Tko.SymScope ptr ss = syms.ScopeAt( cast( Tko.ScopeId, sc ) )
-        if ss = 0 then continue for
+        if ss = nullptr then continue for
         if ss->kind = cast( uint8, Tko.SCOPEK_MODULE ) then return cast( Tko.ScopeId, sc )
     next
     return Tko.SCOPE_GLOBAL
@@ -215,21 +215,21 @@ end function
 
 function OrderFree( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId ) as boolean
     dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     '' The module's own names, and in an importer the names its interface brought in: the
     '' interface is the module's text, in the module's order, which had none.
     const ORDERLESS = Tko.SYMF_MODSRC or Tko.SYMF_IMPORTED
     '' An enum's member, or a type's, goes with its owner.
     if (s->flags and ORDERLESS) = 0 then
         dim as Tko.SymScope ptr ps = syms.ScopeAt( s->parent )
-        if ps = 0 then return false
+        if ps = nullptr then return false
         select case ps->kind
         case cast( uint8, Tko.SCOPEK_TYPE )     '' an enum opens one too
         case else
             return false
         end select
         s = syms.SymbolAt( ps->owner )
-        if s = 0 then return false
+        if s = nullptr then return false
         if (s->flags and ORDERLESS) = 0 then return false
     end if
     if s->kind = cast( uint8, Tko.SYM_VARIABLE ) then
@@ -241,7 +241,7 @@ end function
 sub Inherit( byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId, byval from as Tko.SymbolId )
     dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
     dim as Tko.Symbol ptr f = syms.SymbolAt( from )
-    if (s = 0) orelse (f = 0) then return
+    if (s = nullptr) orelse (f = nullptr) then return
     s->flags or= (f->flags and Tko.SYMF_MODMASK)
 end sub
 
@@ -250,15 +250,15 @@ sub ProcLinkage _
       byref isPrivate as boolean, byref isExported as boolean, byref isHidden as boolean )
 
     dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
-    if s = 0 then return
+    if s = nullptr then return
     '' A MEMBER TAKES ITS TYPE'S VISIBILITY: a public type's methods are public, and a
     '' module-private type's hidden. 'private:' sections are access, not linkage.
     if (s->flags and Tko.SYMF_MODSRC) = 0 then
         dim as Tko.SymScope ptr ps = syms.ScopeAt( s->parent )
-        if ps = 0 then return
+        if ps = nullptr then return
         if ps->kind <> cast( uint8, Tko.SCOPEK_TYPE ) then return
         s = syms.SymbolAt( ps->owner )
-        if s = 0 then return
+        if s = nullptr then return
         if (s->flags and Tko.SYMF_MODSRC) = 0 then return
     end if
     if isPrivate then return
@@ -296,7 +296,7 @@ private function HiddenTypeIn_ _
         dim as Tko.ScopeId ds = cast( Tko.ScopeId, types.DeclScopeOf( t ) )
         dim as Tko.SymbolId ts = syms.LookupLocalTyped( ds, tn, true )
         dim as Tko.Symbol ptr ns = syms.SymbolAt( ts )
-        if ns = 0 then return Tko.SYMBOL_NONE
+        if ns = nullptr then return Tko.SYMBOL_NONE
         if (ns->flags and Tko.SYMF_MODSRC) = 0 then return Tko.SYMBOL_NONE
         if (ns->flags and Tko.SYMF_PUBLIC) <> 0 then return Tko.SYMBOL_NONE
         return ts
@@ -313,10 +313,10 @@ private function Exposed_ _
     what = syms.names->Spelling( s->name )
     if (s->flags and PUB) = PUB then return true
     dim as Tko.SymScope ptr ps = syms.ScopeAt( s->parent )
-    if ps = 0 then return false
+    if ps = nullptr then return false
     if ps->kind <> cast( uint8, Tko.SCOPEK_TYPE ) then return false
     dim as Tko.Symbol ptr ow = syms.SymbolAt( ps->owner )
-    if ow = 0 then return false
+    if ow = nullptr then return false
     if ow->kind <> cast( uint8, Tko.SYM_UDT ) then return false
     if (ow->flags and PUB) <> PUB then return false
     if (s->flags and (Tko.SYMF_MEMB_PRIVATE or Tko.SYMF_MEMB_PROTECTED)) <> 0 then return false
@@ -328,12 +328,12 @@ sub CheckPublicTypes _
     ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
       byref diags as Tko.DiagnosticEngine )
 
-    if (syms.modFileCount = 0) orelse (syms.names = 0) then return
+    if (syms.modFileCount = 0) orelse (syms.names = nullptr) then return
     dim as uint32 savePos = syms.usePos
     syms.usePos = Tko.USEPOS_LATEST
     for si as int32 = 1 to syms.Count( )
         dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, si ) )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if (s->flags and Tko.SYMF_GENERIC_INST) <> 0 then continue for
         select case s->kind
         case cast( uint8, Tko.SYM_PROC ), cast( uint8, Tko.SYM_VARIABLE ), _
@@ -353,10 +353,10 @@ sub CheckPublicTypes _
         '' A procedure's parameters are the symbols of the scope it opens.
         if (h = Tko.SYMBOL_NONE) andalso (s->kind = cast( uint8, Tko.SYM_PROC )) then
             dim as Tko.SymScope ptr ins = syms.ScopeAt( s->inner )
-            dim as Tko.SymbolId p = iif( ins = 0, Tko.SYMBOL_NONE, ins->firstSym )
+            dim as Tko.SymbolId p = iif( ins = nullptr, Tko.SYMBOL_NONE, ins->firstSym )
             while (p <> Tko.SYMBOL_NONE) andalso (h = Tko.SYMBOL_NONE)
                 dim as Tko.Symbol ptr ps = syms.SymbolAt( p )
-                if ps = 0 then exit while
+                if ps = nullptr then exit while
                 if ps->kind = cast( uint8, Tko.SYM_PARAMETER ) then
                     h = HiddenTypeIn_( syms, types, ps->type_, 0 )
                 end if

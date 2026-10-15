@@ -157,7 +157,7 @@ end function
 
 constructor TypeContext( )
     InitBuiltins( )
-    this.names = 0
+    this.names = nullptr
     this.target = DefaultTargetLayout( )
 
     '' Slot 0 is TYPE_NONE; the builtins then occupy 1..TY_BUILTIN_COUNT-1 in enum
@@ -317,7 +317,7 @@ end function
 function TypeContext.DynArrayOf _
     ( byval elem as TypeId, byval rank as int32 ) as TypeId
 
-    return this.ArrayOf( elem, -(rank + 1), 0, 0 )
+    return this.ArrayOf( elem, -(rank + 1), 0, nullptr )
 end function
 
 '' Whether a type is a dynamic array, and how many dimensions it was written with
@@ -352,7 +352,7 @@ function TypeContext.ArrayOf _
         if (t->kind = cast( uint8, TK_ARRAY )) andalso (t->inner = elem) andalso _
            (t->dims = rank) andalso (t->elems = elems) then
             dim as boolean same = true
-            if bounds = 0 then
+            if bounds = nullptr then
                 if t->count <> 0 then same = false
             else
                 if t->count <> bounds->Count then
@@ -375,7 +375,7 @@ function TypeContext.ArrayOf _
     n.elems = elems
     n.first = this.boundPool.Count
     n.count = 0
-    if bounds <> 0 then
+    if bounds <> nullptr then
         for j as int32 = 0 to bounds->Count - 1
             this.boundPool.Push( (*bounds)[j] )
         next
@@ -881,7 +881,7 @@ function TypeContext.Name( byval t as TypeId ) as string
         return prefix & "function( " & ps & " ) as " & this.Name( rt )
     case TK_UDT, TK_ENUM, TK_TYPEDEF, TK_FORWARD
         dim as InternId nm = this.types[cast( int32, t )].name
-        if (this.names <> 0) andalso (nm <> INTERN_NONE) then
+        if (this.names <> nullptr) andalso (nm <> INTERN_NONE) then
             return prefix & this.names->Spelling( nm )
         end if
         return prefix & "<udt>"

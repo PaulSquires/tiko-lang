@@ -204,7 +204,7 @@ private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as s
         dim as containers.Array( of int32 ) dflt
         for fi as int32 = 0 to m.functions.Count - 1
             dim as MirFunction ptr f = m.functions[fi]
-            if f = 0 then continue for
+            if f = nullptr then continue for
             dim as boolean want = iif( isCtor, f->isModuleCtor, f->isModuleDtor )
             if want = false then continue for
             dim as boolean unnumbered = (f->structorPrio = 0) orelse (f->structorPrio = 65535)

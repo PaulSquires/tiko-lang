@@ -52,12 +52,12 @@ private function ImplBaseOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.Typ
     if c.types->Kind( t ) <> Tko.TK_UDT then return Tko.TYPE_NONE
     dim as Tko.SymbolId ts = UdtSymOf_( c, t )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return Tko.TYPE_NONE
+    if s = nullptr then return Tko.TYPE_NONE
     if s->inner = Tko.SCOPE_NONE then return Tko.TYPE_NONE
     dim as Tko.SymbolId bf = c.syms->LookupLocal( s->inner, c.vts->baseName )
     if bf = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
     dim as Tko.Symbol ptr b = c.syms->SymbolAt( bf )
-    if b = 0 then return Tko.TYPE_NONE
+    if b = nullptr then return Tko.TYPE_NONE
     if b->kind <> cast( uint8, Tko.SYM_FIELD ) then return Tko.TYPE_NONE
     return b->type_
 end function
@@ -107,7 +107,7 @@ function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
 
     '' A TABLE MEANS A VPTR, and the vptr is stored by the constructor.
-    if c.vts <> 0 then
+    if c.vts <> nullptr then
         if c.vts->Find( t ) >= 0 then return true
     end if
     if StructorWithArity( c, StructorOf( c, t, "__ctor" ), 0 ) <> Tko.SYMBOL_NONE then
@@ -116,16 +116,16 @@ function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
 
     dim as Tko.SymbolId ts = UdtSymOf_( c, t )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->inner = Tko.SCOPE_NONE then return false
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     dim as Tko.SymbolId cur = sc->firstSym
     dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit while
+        if f = nullptr then exit while
         if f->kind = cast( uint8, Tko.SYM_FIELD ) then
             '' A DECLARED '= value' IS ITSELF WORK, whatever the field's type says.
             '' Without this an all-scalar UDT answered "nothing to initialise" and no
@@ -160,16 +160,16 @@ function TypeNeedsDtor_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
 
     dim as Tko.SymbolId ts = UdtSymOf_( c, t )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->inner = Tko.SCOPE_NONE then return false
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     dim as Tko.SymbolId cur = sc->firstSym
     dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit while
+        if f = nullptr then exit while
         if f->kind = cast( uint8, Tko.SYM_FIELD ) then
             if f->type_ <> t then
                 if TypeNeedsDtor_( c, f->type_ ) then return true
@@ -185,16 +185,16 @@ private function AnyFieldNeeds_ _
 
     dim as Tko.SymbolId ts = UdtSymOf_( c, t )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->inner = Tko.SCOPE_NONE then return false
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     dim as Tko.SymbolId cur = sc->firstSym
     dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit while
+        if f = nullptr then exit while
         if (f->kind = cast( uint8, Tko.SYM_FIELD )) andalso (f->type_ <> t) then
             if forDtor then
                 if TypeNeedsDtor_( c, f->type_ ) then return true
@@ -224,7 +224,7 @@ function NeedsCtorBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if t = Tko.TYPE_NONE then return false
     if IsObjectT_( c, t ) then return false
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
-    if c.vts <> 0 then
+    if c.vts <> nullptr then
         if c.vts->Find( t ) >= 0 then return true
     end if
     return AnyFieldNeeds_( c, t, false )
@@ -243,16 +243,16 @@ private sub FieldsInOrder_ _
 
     dim as Tko.SymbolId ts = UdtSymOf_( c, t )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return
+    if s = nullptr then return
     if s->inner = Tko.SCOPE_NONE then return
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return
+    if sc = nullptr then return
     dim as Tko.SymbolId cur = sc->firstSym
     dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit while
+        if f = nullptr then exit while
         '' THE BASE IS NOT A FIELD HERE. It is constructed by its own call, before
         '' everything else, and treating it as an ordinary member would run its
         '' initialisation twice.
@@ -463,7 +463,7 @@ sub EmitCtorPrologue_ _
     FieldsInOrder_( c, t, flds )
     for i as int32 = 0 to flds.Count - 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
-        if (f = 0) orelse UnionMemberSkip_( c, t, i, thisPtr ) then continue for   '' a UNION: zeroed, then its FIRST member's (lowermember.tiko)
+        if (f = nullptr) orelse UnionMemberSkip_( c, t, i, thisPtr ) then continue for   '' a UNION: zeroed, then its FIRST member's (lowermember.tiko)
         dim as Tko.NodeId fi = FieldInitOf_( c, f )
         '' '= ANY' IS THE WHOLE PROLOGUE SKIPPED FOR THIS FIELD -- no zero fill, no
         '' member constructor, no store, and not even the field.addr: fbc's constructor
@@ -567,7 +567,7 @@ sub EmitDtorEpilogue_ _
     FieldsInOrder_( c, t, flds )
     for i as int32 = flds.Count - 1 to 0 step -1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
-        if f = 0 then continue for
+        if f = nullptr then continue for
         if TypeNeedsDtor_( c, f->type_ ) = false then continue for
         DestroyMember_( c, FieldAddr_( c, thisPtr, t, f->name ), f->type_ )
     next
@@ -615,16 +615,16 @@ function HasDynArrayMember_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     dim as Tko.SymbolId ts = UdtSymOf_( c, t )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->inner = Tko.SCOPE_NONE then return false
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     dim as Tko.SymbolId cur = sc->firstSym
     dim as int32 guard = 0
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit while
+        if f = nullptr then exit while
         if (f->kind = cast( uint8, Tko.SYM_FIELD )) andalso (f->type_ <> t) then
             if HasDynArrayMember_( c, f->type_ ) then return true
         end if
@@ -1074,7 +1074,7 @@ sub EmitLetBody_ _
     FieldsInOrder_( c, t, flds )
     for i as int32 = 0 to flds.Count - 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cast( Tko.SymbolId, flds[i] ) )
-        if f = 0 then continue for
+        if f = nullptr then continue for
         CopyMember_( c, FieldAddr_( c, dst, t, f->name ), _
                      FieldAddr_( c, src, t, f->name ), f->type_ )
     next
@@ -1294,7 +1294,7 @@ private sub EmitOneImplicit_ _
     '' can have two entries, a declaration and a definition.
     dim as int32 at = c.m->FirstFunctionNamed( id )
     while at >= 0
-        if c.m->functions[at] = 0 then exit while
+        if c.m->functions[at] = nullptr then exit while
         if c.m->functions[at]->isDefinition then return
         at = c.m->functions[at]->nextSameName - 1
     wend
@@ -1458,7 +1458,7 @@ end sub
 '' is append-only and the index carries over, so each entry is visited once however many
 '' rounds it takes.
 sub EmitImplicitStructors( byref c as Ctx )
-    if (c.vts = 0) orelse (c.udts = 0) then return
+    if (c.vts = nullptr) orelse (c.udts = nullptr) then return
 
     WantVirtualImplicitDtors_( c ) : dim as int32 at = 0   '' lowervtab.tiko
     dim as int32 guard = 0

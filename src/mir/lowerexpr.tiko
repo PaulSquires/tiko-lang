@@ -91,10 +91,10 @@ private function LowerMainArg_ _
 
     if c.ast->Kind( id ) <> Tko.N_IDENT then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, Tko.SYM_VARIABLE ) then return false
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->parent )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     if sc->kind <> cast( uint8, Tko.SCOPEK_MODULE ) then return false
     dim as string nm = c.names->Spelling( s->name )
     dim as int32 which = -1
@@ -102,7 +102,7 @@ private function LowerMainArg_ _
     if nm = "__fb_argv__" then which = 1
     if which < 0 then return false
     dim as MirType mt = iif( which = 0, MT_I32, MT_PTR )
-    dim as boolean inMain = (c.f <> 0)
+    dim as boolean inMain = (c.f <> nullptr)
     if inMain then inMain = (c.f->isModuleCtor = false)
     if inMain then inMain = (c.curProcSym = Tko.SYMBOL_NONE)
     if inMain = false then
@@ -405,7 +405,7 @@ function LowerExpr _
         '' LITERAL'S OWN STORAGE: 'P$0 = (int8*)"abc"'.
         if IsConstNameRef_( c, litOp ) then
             dim as Tko.Symbol ptr acs = c.syms->SymbolAt( c.info->RefOf( litOp ) )
-            if acs <> 0 then
+            if acs <> nullptr then
                 if acs->kind = cast( uint8, Tko.SYM_CONSTANT ) then
                     dim as string actx
                     if ConstStringTextOf_( c, litOp, actx ) then
@@ -440,7 +440,7 @@ function LowerExpr _
             dim as Tko.NodeId nmA = Unparen_( c, ap2->operand )
             if c.ast->Kind( nmA ) = Tko.N_IDENT then
                 dim as Tko.Symbol ptr syA = c.syms->SymbolAt( c.info->RefOf( nmA ) )
-                if syA <> 0 then
+                if syA <> nullptr then
                     dim as boolean isParam = _
                         (syA->kind = cast( uint8, Tko.SYM_PARAMETER ))
                     dim as boolean isRef = false
@@ -494,7 +494,7 @@ function LowerExpr _
             dim as Tko.TypeId xt0 = c.info->TypeOf_( xp0->target )
             dim as Tko.SymbolId ixs0 = UdtMemberNamed_( c, xt0, "[]" )
             dim as Tko.Symbol ptr ixsy0 = c.syms->SymbolAt( ixs0 )
-            if ixsy0 = 0 then return v
+            if ixsy0 = nullptr then return v
             dim as MirType rmt = LowerType( ixsy0->type_, *c.types )
             if rmt = MT_VOID then return v
             '' AN AGGREGATE NEEDS ITS SIZE HERE. The address is the CALL'S RESULT, a
@@ -533,7 +533,7 @@ function LowerExpr _
                     dim as Tko.SymbolId ixs2 = UdtMemberNamed_( c, xt, "[]" )
                     if ixs2 <> Tko.SYMBOL_NONE then
                         dim as Tko.Symbol ptr ixsym = c.syms->SymbolAt( ixs2 )
-                        if ixsym <> 0 then
+                        if ixsym <> nullptr then
                             imt = LowerType( ixsym->type_, *c.types )
                         end if
                     end if
@@ -606,7 +606,7 @@ function LowerExpr _
         dim as Tko.SymbolId dop = c.info->RefOf( id )
         if dop <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr dos = c.syms->SymbolAt( dop )
-            if dos <> 0 then
+            if dos <> nullptr then
                 '' BYREF-NESS IS ON THE DECLARATION NODE'S FLAGS, which is where
                 '' LowerCall reads it too -- NF_BYREF on the N_PROC. NOT the
                 '' symbol's type: a procedure's symbol carries its RESULT type, and

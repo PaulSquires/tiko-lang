@@ -15,7 +15,7 @@
 '' The member procedure a reference binds to, when it needs a non-const THIS.
 private function NonConstMethod_ ( byref c as Ctx, byval sid as SymbolId ) as boolean
     dim as Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, SYM_PROC ) then return false
     dim as NodeId pn = cast( NodeId, s->payload )
     if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return false
@@ -28,7 +28,7 @@ private function NonConstMethod_ ( byref c as Ctx, byval sid as SymbolId ) as bo
     if (pp->extra and (PF_CONST or PF_STATIC)) <> 0 then return false
     '' A MEMBER: declared in a type's scope.
     dim as SymScope ptr ps = c.syms->ScopeAt( s->parent )
-    if ps = 0 then return false
+    if ps = nullptr then return false
     return (ps->kind = cast( uint8, SCOPEK_TYPE ))
 end function
 

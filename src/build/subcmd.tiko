@@ -325,7 +325,7 @@ private function Build_ _
         end if
         obs.finished = false
         BuildStart_( obs, p )
-        rc = Tko.Driver.Run( p.dargs, 0, 0, @obs )
+        rc = Tko.Driver.Run( p.dargs, 0, nullptr, @obs )
         if (rc = Tko.EXIT_OK) andalso (checkOnly = false) then
             rc = CopyTo_( p, obs, a.verbose, ctx.diags )
             if rc <> Tko.EXIT_OK then ctx.diags.Flush( )
@@ -463,7 +463,7 @@ private function Metadata_ _
         if len( a.target ) > 0 then g.Push( "-target" ) : g.Push( a.target )
         g.Push( "--print-graph" )
         obs.includesJson = "[]" : obs.definesJson = "[]"
-        dim as int32 grc = Tko.Driver.Run( g, 0, 0, @obs )
+        dim as int32 grc = Tko.Driver.Run( g, 0, nullptr, @obs )
         if grc <> Tko.EXIT_OK then rc = grc
         for each r as string in p.roots
             uj &= iif( len( uj ) > 0, ",", "" ) & "{""target"":" & JsonStr( p.name ) & ",""root"":" & JsonStr( r ) & _

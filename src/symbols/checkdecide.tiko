@@ -24,7 +24,7 @@ private function IndexOperatorFor_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         dim as Tko.TypeId cpt = ProcParamTypeAt_( c, cur, 0 )
         if cpt <> Tko.TYPE_NONE then
             dim as Tko.TypeId cpu = c.types->Unqualify( cpt )
@@ -61,7 +61,7 @@ function LenOperatorFor_( byref c as Ctx, byval lat as Tko.TypeId ) as Tko.Symbo
     while (lop <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr lsy = c.syms->SymbolAt( lop )
-        if lsy = 0 then exit while
+        if lsy = nullptr then exit while
         if lsy->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.TypeId lpu = c.types->Unqualify( ProcParamTypeAt_( c, lop, 0 ) )
         if c.types->Kind( lpu ) = Tko.TK_REFERENCE then lpu = c.types->Unqualify( c.types->Inner( lpu ) )
@@ -77,7 +77,7 @@ end function
 '' before it: TKO0632 where fbc calls it. Anything else starts where Resolve bound it.
 function CallChainStart_( byref c as Ctx, byval callee as Tko.SymbolId ) as Tko.SymbolId
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( callee )
-    if s = 0 then return callee
+    if s = nullptr then return callee
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then return callee
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return callee
@@ -92,7 +92,7 @@ declare function ProcTypeOfSymbol_( byref c as Ctx, byval sid as Tko.SymbolId ) 
 '' ONE PARAMETER'S BYREF FLAG off a procedure symbol, counting N_PARAMs (lowering's ParamIsByref).
 private function ProcParamByref_( byref c as Ctx, byval proc_ as Tko.SymbolId, byval idx as int32 ) as boolean
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( proc_ )
-    if s = 0 then return false
+    if s = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
@@ -129,12 +129,12 @@ end function
 '' Does this procedure take a 'this' -- a non-static member of a TYPE?
 private function ProcHasReceiver_( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return false
     if (StmtOf( c, pn )->extra and Tko.PF_STATIC) <> 0 then return false
     dim as Tko.SymScope ptr osc = c.syms->ScopeAt( s->parent )
-    return (osc <> 0) andalso (osc->kind = cast( uint8, Tko.SCOPEK_TYPE ))
+    return (osc <> nullptr) andalso (osc->kind = cast( uint8, Tko.SCOPEK_TYPE ))
 end function
 
 private sub DecideProcAddr_( byref c as Ctx, byval v as Tko.NodeId, byval wantT as Tko.TypeId )
@@ -153,7 +153,7 @@ private sub DecideProcAddr_( byref c as Ctx, byval v as Tko.NodeId, byval wantT 
     if fnE = Tko.NODE_NONE then return
     dim as Tko.SymbolId first_ = c.info->RefOf( fnE )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( first_ )
-    if s = 0 then return
+    if s = nullptr then return
     if (s->kind <> cast( uint8, Tko.SYM_PROC )) orelse (s->nextOverload = Tko.SYMBOL_NONE) then return
     dim as Tko.TypeId st = c.types->Unqualify( wantT )
     if c.types->Kind( st ) = Tko.TK_POINTER then st = c.types->Unqualify( c.types->Inner( st ) )
@@ -165,7 +165,7 @@ private sub DecideProcAddr_( byref c as Ctx, byval v as Tko.NodeId, byval wantT 
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         if cs->kind = cast( uint8, Tko.SYM_PROC ) then
             '' AN INSTANCE MEMBER'S TYPE STARTS WITH ITS RECEIVER (ProcTypeOfSymbol_), so the wanted
             '' signature is one longer than the declared parameters and they compare one place on:
@@ -221,7 +221,7 @@ private sub DecideProcAddrs_( byref c as Ctx )
                 if ip->b = Tko.NODE_NONE then continue for
                 if (c.ast->nodes[cast( int32, item )].flags and Tko.NF_QUALIFIED) <> 0 then continue for
                 dim as Tko.Symbol ptr vs = c.syms->SymbolAt( c.syms->LookupLocalTyped( c.info->ScopeOf( n ), ip->name, false ) )
-                if vs <> 0 then DecideProcAddr_( c, ip->b, vs->type_ )
+                if vs <> nullptr then DecideProcAddr_( c, ip->b, vs->type_ )
             next
         case Tko.N_AMBIGUOUS
             dim as Tko.StmtPayload ptr ap = StmtOf( c, n )
@@ -240,7 +240,7 @@ private sub DecideProcAddrs_( byref c as Ctx )
             dim as Tko.SymbolId cal = c.info->RefOf( n )
             if (cal = Tko.SYMBOL_NONE) andalso (lp->target <> Tko.NODE_NONE) then cal = c.info->RefOf( lp->target )
             dim as Tko.Symbol ptr cls = c.syms->SymbolAt( cal )
-            if cls <> 0 then
+            if cls <> nullptr then
                 if cls->kind = cast( uint8, Tko.SYM_PROC ) then
                     for k as int32 = 0 to lp->count - 1
                         DecideProcAddr_( c, cast( Tko.NodeId, c.ast->children[lp->first + k] ), ProcParamTypeAt_( c, cal, k ) )
@@ -297,7 +297,7 @@ private sub DecideCtorCalls_( byref c as Ctx )
         dim as Tko.ListPayload ptr cp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
         if cp->target = Tko.NODE_NONE then continue for
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if (s->kind <> cast( uint8, Tko.SYM_UDT )) andalso (s->kind <> cast( uint8, Tko.SYM_TYPEDEF )) then continue for
         dim as Tko.TypeId ct = c.types->Unqualify( c.info->TypeOf_( cp->target ) )
         if (ct = Tko.TYPE_NONE) orelse (c.types->Kind( ct ) <> Tko.TK_UDT) then
@@ -316,7 +316,7 @@ private function UdtCastsTo_( byref c as Ctx, byval at as Tko.TypeId, byval pt a
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         dim as Tko.TypeId rt = c.types->Unqualify( cs->type_ )
         if rt <> Tko.TYPE_NONE then
             if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
@@ -365,7 +365,7 @@ private sub DecideCtorConvArgs_( byref c as Ctx )
         dim as Tko.SymbolId callee = c.info->RefOf( n )
         if callee = Tko.SYMBOL_NONE then callee = c.info->RefOf( cp->target )
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( callee )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then continue for
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then continue for
@@ -411,7 +411,7 @@ private sub DecidePtrCastArgs_( byref c as Ctx )
         if (cp->target = Tko.NODE_NONE) orelse (cp->count <= 0) then continue for
         dim as Tko.SymbolId callee = c.info->RefOf( cp->target )
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( callee )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then continue for
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then continue for
@@ -448,7 +448,7 @@ private sub DecideByrefNumArgs_( byref c as Ctx )
         dim as Tko.SymbolId callee = c.info->RefOf( n )
         if callee = Tko.SYMBOL_NONE then callee = c.info->RefOf( cp->target )
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( callee )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then continue for
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then continue for

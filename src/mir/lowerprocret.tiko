@@ -62,17 +62,17 @@ function ProcIsStatic_ _
 
     if defn <> Tko.NODE_NONE then
         dim as Tko.StmtPayload ptr dp = StmtOf( c, defn )
-        if dp <> 0 then
+        if dp <> nullptr then
             if (dp->extra and Tko.PF_STATIC) <> 0 then return true
         end if
     end if
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
     dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
-    if psp = 0 then return false
+    if psp = nullptr then return false
     return ((psp->extra and Tko.PF_STATIC) <> 0)
 end function
 
@@ -84,7 +84,7 @@ function ProcCallConv_ _
 
     if pn = Tko.NODE_NONE then return TKO_CC_CDECL
     dim as Tko.StmtPayload ptr sp = StmtOf( c, pn )
-    if sp = 0 then return TKO_CC_CDECL
+    if sp = nullptr then return TKO_CC_CDECL
     if (sp->extra and Tko.PF_STDCALL) <> 0 then return TKO_CC_STDCALL
     if (sp->extra and Tko.PF_PASCAL) <> 0 then return TKO_CC_PASCAL
     return TKO_CC_CDECL
@@ -98,7 +98,7 @@ function CallIsPascal_ _
 
     if viaPointer then return c.types->IsPascal( sigT )
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return false
+    if cs = nullptr then return false
     if cs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return false
@@ -297,7 +297,7 @@ function UdtConvResult_ _
         end if
         if over = Tko.SYMBOL_NONE then return false
     end if
-    if isReturn then return LowerConvCtorInit_( c, c.resultSlot, rt, valueE, 0 )
+    if isReturn then return LowerConvCtorInit_( c, c.resultSlot, rt, valueE, nullptr )
     return LowerUserLetConv_( c, Tko.NODE_NONE, rt, valueE, c.resultSlot, true )
 end function
 
@@ -427,7 +427,7 @@ function BodyAssignsResult_ _
         return false
     end if
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    if sp = 0 then return false
+    if sp = nullptr then return false
     if BodyAssignsResult_( c, sp->b, depth + 1 ) then return true
     if BodyAssignsResult_( c, sp->c, depth + 1 ) then return true
     for i as int32 = 0 to sp->count - 1
@@ -460,7 +460,7 @@ function BodyReturnsValue_ _
         return false
     end if
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    if sp = 0 then return false
+    if sp = nullptr then return false
     if BodyReturnsValue_( c, sp->b, depth + 1 ) then return true
     if BodyReturnsValue_( c, sp->c, depth + 1 ) then return true
     for i as int32 = 0 to sp->count - 1
@@ -543,7 +543,7 @@ end function
 '' by the declaration -- TEST_CONST(void&) -- and every call names it so; the body went out as
 '' F(long long&) and nothing linked (functions/void_param.bas).
 function DeclForName_( byref c as Ctx, byval id as Tko.NodeId, byval s as Tko.Symbol ptr ) as Tko.NodeId
-    if s = 0 then return id
+    if s = nullptr then return id
     dim as Tko.NodeId dn = cast( Tko.NodeId, s->payload )
     if (dn = Tko.NODE_NONE) orelse (dn = id) orelse (c.ast->Kind( dn ) <> Tko.N_PROC) then return id
     dim as Tko.StmtPayload ptr dp = StmtOf( c, dn )

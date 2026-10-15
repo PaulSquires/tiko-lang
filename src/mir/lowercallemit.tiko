@@ -29,7 +29,7 @@ function EmitDirectCall_ _
 
     dim as MirValue none_
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
-    if s = 0 then return none_
+    if s = nullptr then return none_
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return none_
     if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
@@ -97,7 +97,7 @@ function MemberCallRetTy_ _
     ( byref c as Ctx, byval sym as Tko.SymbolId ) as MirType
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
-    if s = 0 then return MT_VOID
+    if s = nullptr then return MT_VOID
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return MT_VOID
     if c.ast->Kind( pn ) <> Tko.N_PROC then return MT_VOID
@@ -118,7 +118,7 @@ function EmitMemberCallArgs_ _
 
     dim as MirValue none_
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
-    if s = 0 then return none_
+    if s = nullptr then return none_
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return none_
     if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
@@ -189,7 +189,7 @@ function EmitMemberCallArgs_ _
     c.m->argPool.Push( cast( uint32, self_.kind ) )
     c.m->argPool.Push( cast( uint32, self_.id ) )
     nargs += 1
-    if args <> 0 then
+    if args <> nullptr then
         for i as int32 = 0 to args->Count - 1
             c.m->argPool.Push( (*args)[i] )
         next
@@ -247,20 +247,20 @@ function EmitMemberCall _
     '' A VIRTUAL ONE THROUGH THE RECEIVER'S VPTR -- 'operator cast' and 'operator @' are reached
     '' only through here, and '*pa' over an 'A ptr' to a B called A's (virtual/virtual.bas
     '' virtualOperators). The slot is the declaring type's, which every derived table keeps.
-    return EmitMemberCallArgs_( c, sym, self_, rt, 0, MemberVSlot_( c, sym ) )
+    return EmitMemberCallArgs_( c, sym, self_, rt, nullptr, MemberVSlot_( c, sym ) )
 end function
 
 function MemberVSlot_( byref c as Ctx, byval sym as Tko.SymbolId ) as int32
-    if c.vts = 0 then return -1
+    if c.vts = nullptr then return -1
     dim as Tko.Symbol ptr ms = c.syms->SymbolAt( sym )
-    if ms = 0 then return -1
+    if ms = nullptr then return -1
     dim as Tko.NodeId md = cast( Tko.NodeId, ms->payload )
     if (md = Tko.NODE_NONE) orelse (c.ast->Kind( md ) <> Tko.N_PROC) then return -1
     if (StmtOf( c, md )->extra and (Tko.PF_VIRTUAL or Tko.PF_ABSTRACT)) = 0 then return -1
     dim as Tko.SymScope ptr os = c.syms->ScopeAt( ms->parent )
-    if (os = 0) orelse (os->kind <> cast( uint8, Tko.SCOPEK_TYPE )) then return -1
+    if (os = nullptr) orelse (os->kind <> cast( uint8, Tko.SCOPEK_TYPE )) then return -1
     dim as Tko.Symbol ptr ow = c.syms->SymbolAt( os->owner )
-    if ow = 0 then return -1
+    if ow = nullptr then return -1
     return c.vts->SlotOf( c.types->Unqualify( ow->type_ ), sym, md )
 end function
 
@@ -312,7 +312,7 @@ end sub
 private function SoleGetter_( byref c as Ctx, byval member as Tko.NodeId ) as Tko.SymbolId
     dim as Tko.SymbolId sid = c.info->RefOf( member )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return Tko.SYMBOL_NONE
+    if s = nullptr then return Tko.SYMBOL_NONE
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return Tko.SYMBOL_NONE
@@ -384,7 +384,7 @@ function SretInPlaceInit_ _
             callee = c.info->RefOf( e )
             if callee = Tko.SYMBOL_NONE then return false
             dim as Tko.Symbol ptr bs = c.syms->SymbolAt( callee )
-            if bs = 0 then return false
+            if bs = nullptr then return false
             if bs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
             dim as Tko.NodeId bpn = cast( Tko.NodeId, bs->payload )
             if bpn = Tko.NODE_NONE then return false
@@ -401,7 +401,7 @@ function SretInPlaceInit_ _
     end select
     if callee = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return false
+    if cs = nullptr then return false
     if cs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return false
@@ -519,7 +519,7 @@ function UntypedCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.Type
     if callee = Tko.SYMBOL_NONE then callee = c.info->RefOf( lp->target )
     if callee = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return Tko.TYPE_NONE
+    if cs = nullptr then return Tko.TYPE_NONE
     if cs->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.TYPE_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return Tko.TYPE_NONE

@@ -27,7 +27,7 @@ private function FileOf_( byref api as ClangApi, byval c as CXCursor ) as string
     dim as any ptr f
     dim as uint32 ln, col, off
     api.getExpansionLocation( api.getCursorLocation( c ), @f, @ln, @col, @off )
-    if f = 0 then return ""
+    if f = nullptr then return ""
     return ClangText( api, api.getFileName( f ) )
 end function
 
@@ -158,7 +158,7 @@ function CImportProbe( byref clangExe as string, byref header as string, _
     dim as any ptr idx = api.createIndex( 0, 0 )
     dim as any ptr tu = api.parseTranslationUnit( idx, strptr( unitName ), @argv( 0 ), ac, @uf, 1, _
         CXTranslationUnit_DetailedPreprocessingRecord or CXTranslationUnit_SkipFunctionBodies )
-    if tu = 0 then
+    if tu = nullptr then
         print "cimport-probe: clang could not parse '" & header & "' at all"
         api.disposeIndex( idx )
         return 1

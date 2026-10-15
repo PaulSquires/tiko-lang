@@ -77,7 +77,7 @@ private function RuntimeEntryCallee_ _
 
     if callee = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr sym = c.syms->SymbolAt( callee )
-    if sym = 0 then return false
+    if sym = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, sym->payload )
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
@@ -92,7 +92,7 @@ private function RuntimeEntryCallee_ _
     '' callee never releases, every call with a literal leaked one slot: after 255 of
     '' them the pool was dry, and each later temporary string in the program came back
     '' empty. fbstr_pad's leak test failed, and its every later assertion with it.
-    if c.srcMgr <> 0 then
+    if c.srcMgr <> nullptr then
         if c.srcMgr->IsBuiltin( c.ast->Loc( pn ) ) = false then return false
     end if
     dim as string al = c.names->Spelling( sp->aliasName )
@@ -261,7 +261,7 @@ function StrArgOwnDescriptor_ _
         '' member that IS storage would lose a byref write silently, so anything else --
         '' including no symbol at all -- keeps passing its own descriptor.
         dim as Tko.Symbol ptr msy = c.syms->SymbolAt( c.info->RefOf( e ) )
-        if msy <> 0 then
+        if msy <> nullptr then
             select case msy->kind
             case cast( uint8, Tko.SYM_CONSTANT ), cast( uint8, Tko.SYM_PROC )
                 return false
@@ -299,7 +299,7 @@ function StrArgOwnDescriptor_ _
         '' This is the hazard THIS FUNCTION'S OWN HEADER describes, reached by the one
         '' shape the node kind cannot tell apart from a variable.
         dim as Tko.Symbol ptr vsy = c.syms->SymbolAt( c.info->RefOf( e ) )
-        if vsy = 0 then return false
+        if vsy = nullptr then return false
         select case vsy->kind
         case cast( uint8, Tko.SYM_VARIABLE ), cast( uint8, Tko.SYM_PARAMETER ), _
              cast( uint8, Tko.SYM_FIELD )
@@ -490,7 +490,7 @@ function ByvalStrTemp_ _
             '' the procedure's CODE address, and fb_UStrAssign read it as a descriptor.
             dim as Tko.Symbol ptr ups = c.syms->SymbolAt( c.info->RefOf( argNode ) )
             dim as boolean upc = false
-            if ups <> 0 then upc = (ups->kind = cast( uint8, Tko.SYM_PROC ))
+            if ups <> nullptr then upc = (ups->kind = cast( uint8, Tko.SYM_PROC ))
             '' ...BUT AN ARRAY ELEMENT IS AN N_CALL TOO -- 'w( 1 )' parses as one -- and it
             '' HAS an address: taking its value handed fb_UStrAssign the 24-byte
             '' descriptor itself, which clang refused (T65).
@@ -582,7 +582,7 @@ function UStrResultArgTemp_ _
         else
             if isU = false then return false
             dim as Tko.Symbol ptr ucs = c.syms->SymbolAt( c.info->RefOf( ucp->target ) )
-            if ucs = 0 then return false
+            if ucs = nullptr then return false
             if ucs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
             rv = LowerExpr( c, an )
         end if
@@ -596,7 +596,7 @@ function UStrResultArgTemp_ _
     case Tko.N_IDENT, Tko.N_MEMBER
         if isU = false then return false
         dim as Tko.Symbol ptr bps = c.syms->SymbolAt( c.info->RefOf( an ) )
-        if bps = 0 then return false
+        if bps = nullptr then return false
         if bps->kind <> cast( uint8, Tko.SYM_PROC ) then return false
         rv = LowerExpr( c, an )
     case Tko.N_INTRINSIC
@@ -859,7 +859,7 @@ sub UStrBackPush_ _
         exit sub
     end select
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( c.info->RefOf( ue ) )
-    if sy <> 0 then
+    if sy <> nullptr then
         select case sy->kind
         case cast( uint8, Tko.SYM_CONSTANT ), cast( uint8, Tko.SYM_PROC )
             exit sub

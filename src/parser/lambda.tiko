@@ -126,7 +126,7 @@ private function MakeClosure_ _
     dim as uint32 lhash = 0
     dim as Tko.DecodedLoc ld = p.src->Decode( t.loc )
     dim as Tko.SourceFile ptr lf = p.src->FileAt( ld.file )
-    if lf <> 0 then lhash = lf->contentHash
+    if lf <> nullptr then lhash = lf->contentHash
     dim as string tag = hex( lhash ) & "_" & trim( str( p.lambdaSeq ) )
     p.lambdaSeq += 1
     dim as Tko.InternId clsNm = _
@@ -342,7 +342,7 @@ private function LambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
     dim as uint32 lhash = 0
     dim as Tko.DecodedLoc ld = p.src->Decode( t.loc )
     dim as Tko.SourceFile ptr lf = p.src->FileAt( ld.file )
-    if lf <> 0 then lhash = lf->contentHash
+    if lf <> nullptr then lhash = lf->contentHash
     sp.name = p.names->GetString( "__tko_lambda_" & hex( lhash ) & "_" & _
                                   trim( str( p.lambdaSeq ) ) )
     p.lambdaSeq += 1

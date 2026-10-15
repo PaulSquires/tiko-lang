@@ -346,7 +346,7 @@ end function
 sub PpNoteConst _
     ( byref st as PpStream, byval nm as InternId, byval v as int64, _
       byval at as SourceLoc, byval isLocal as boolean )
-    if st.engine = 0 then return
+    if st.engine = nullptr then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     if InIfaceFile_( *e, at ) then return
     if isLocal then UndoLogConst_( *e, nm )   '' pplocal.tiko
@@ -370,14 +370,14 @@ end function
 '' from another one can copy it.
 function PpNotedConst _
     ( byref st as PpStream, byval nm as InternId, byref outv as int64 ) as boolean
-    if st.engine = 0 then return false
+    if st.engine = nullptr then return false
     return PpConstValue( *cast( PpEngine ptr, st.engine ), nm, outv )
 end function
 
 sub PpNoteType _
     ( byref st as PpStream, byval nm as InternId, byref key as string, _
       byval what as int32, byval at as SourceLoc )
-    if (st.engine = 0) orelse (nm = INTERN_NONE) then return
+    if (st.engine = nullptr) orelse (nm = INTERN_NONE) then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     if InIfaceFile_( *e, at ) then return
     dim as int32 ix = cast( int32, e->names->Fold( nm ) )
@@ -411,7 +411,7 @@ end sub
 sub PpNoteDeclared _
     ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc, byval kind as int32, _
       byval atTop as boolean, byval nsPath as string )
-    if st.engine = 0 then return
+    if st.engine = nullptr then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     if InIfaceFile_( *e, at ) then return
     MarkDeclared_( *e, nm, kind )
@@ -435,12 +435,12 @@ sub PpNoteDeclared _
 end sub
 
 sub PpSetNamespace( byref st as PpStream, byval path as string )
-    if st.engine = 0 then return
+    if st.engine = nullptr then return
     cast( PpEngine ptr, st.engine )->curNs = path
 end sub
 
 sub PpNoteUsingIn( byref st as PpStream, byval fromNs as string, byval path as string )
-    if (st.engine = 0) orelse (len( path ) = 0) then return
+    if (st.engine = nullptr) orelse (len( path ) = 0) then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     dim as string pr = fromNs & ">" & path
     if len( e->usingIn ) = 0 then e->usingIn = "|"
@@ -448,7 +448,7 @@ sub PpNoteUsingIn( byref st as PpStream, byval fromNs as string, byval path as s
 end sub
 
 sub PpNoteTypeNs( byref st as PpStream, byval nm as InternId, byval nsPath as string )
-    if (st.engine = 0) orelse (nm = INTERN_NONE) then return
+    if (st.engine = nullptr) orelse (nm = INTERN_NONE) then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     dim as int32 ix = cast( int32, e->names->Fold( nm ) )
     while e->typeNs.Count <= ix
@@ -459,22 +459,22 @@ sub PpNoteTypeNs( byref st as PpStream, byval nm as InternId, byval nsPath as st
 end sub
 
 sub PpNoteUsing( byref st as PpStream, byval path as string )
-    if (st.engine = 0) orelse (len( path ) = 0) then return
+    if (st.engine = nullptr) orelse (len( path ) = 0) then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     if len( e->usingPaths ) = 0 then e->usingPaths = "|"
     if instr( e->usingPaths, "|" & path & "|" ) = 0 then e->usingPaths += path & "|"
 end sub
 
 function PpHasDeclared( byref st as PpStream, byval nm as InternId ) as boolean
-    if st.engine = 0 then return false
+    if st.engine = nullptr then return false
     return IsDeclared_( *cast( PpEngine ptr, st.engine ), nm )
 end function
 
 private function MacroFor( byref e as PpEngine, byval id as InternId ) as PpMacro ptr
     dim as int32 slot = SlotOf( e, id )
-    if slot = 0 then return 0
+    if slot = 0 then return nullptr
     dim as PpMacro ptr m = @e.macros[slot - 1]
-    if m->isDefined = false then return 0
+    if m->isDefined = false then return nullptr
     return m
 end function
 
@@ -585,7 +585,7 @@ private sub PopFrame( byref e as PpEngine )
     if e.frames.IsEmpty( ) then return
     dim as PpFrame f = e.frames[e.frames.Count - 1]
     e.frames.Pop( )
-    if f.owned andalso (f.toks <> 0) then delete f.toks
+    if f.owned andalso (f.toks <> nullptr) then delete f.toks
 end sub
 
 '' ADJACENCY: the last token an expansion emits and the next token of the enclosing
@@ -881,7 +881,7 @@ private sub ReportIgnoredSuffix_( byref e as PpEngine, byref t as Token )
     dim as DecodedLoc d = e.src->Decode( t.loc )
     dim as SourceFile ptr f = e.src->FileAt( d.file )
     dim as string spell = canon & suffix
-    if (f <> 0) andalso (t.length = len( spell )) then
+    if (f <> nullptr) andalso (t.length = len( spell )) then
         if (d.offset + t.length) <= f->text.Count then
             dim as string s = space( t.length )
             memcpy( strptr( s ), @f->text[d.offset], t.length )
@@ -1016,7 +1016,7 @@ function PpSpell _
         dim as string folded = names.Spelling( cast( InternId, t.literal ) )
         dim as DecodedLoc d = src.Decode( t.loc )
         dim as SourceFile ptr f = src.FileAt( d.file )
-        if (f <> 0) andalso (t.length > 0) then
+        if (f <> nullptr) andalso (t.length > 0) then
             if (d.offset + t.length) <= f->text.Count then
                 dim as string s = space( t.length )
                 memcpy( strptr( s ), @f->text[d.offset], t.length )
@@ -1058,7 +1058,7 @@ function PpSpell _
         '' table's spelling is the right answer for it.
         dim as DecodedLoc kd = src.Decode( t.loc )
         dim as SourceFile ptr kf = src.FileAt( kd.file )
-        if (kf <> 0) andalso (t.length > 0) then
+        if (kf <> nullptr) andalso (t.length > 0) then
             if (kd.offset + t.length) <= kf->text.Count then
                 dim as string ks = space( t.length )
                 memcpy( strptr( ks ), @kf->text[kd.offset], t.length )
@@ -1082,7 +1082,7 @@ function PpSpell _
         if (li >= 0) andalso (li < lits.Count) then
             dim as Literal ptr lp = @lits[li]
             dim as SourceFile ptr lf = src.FileAt( cast( FileId, lp->textFile ) )
-            if (lf <> 0) andalso (lp->textLength > 0) then
+            if (lf <> nullptr) andalso (lp->textLength > 0) then
                 if (lp->textOffset + lp->textLength) <= lf->text.Count then
                     dim as string ls = space( lp->textLength )
                     memcpy( strptr( ls ), @lf->text[lp->textOffset], lp->textLength )
@@ -1122,7 +1122,7 @@ function PpSpell _
     '' Anything else: the exact source span at the token's location.
     dim as DecodedLoc d = src.Decode( t.loc )
     dim as SourceFile ptr f = src.FileAt( d.file )
-    if (f = 0) orelse (t.length = 0) then return ""
+    if (f = nullptr) orelse (t.length = 0) then return ""
     dim as string s = space( t.length )
     memcpy( strptr( s ), @f->text[d.offset], t.length )
     return s
@@ -1331,7 +1331,7 @@ private function PpStep( byref e as PpEngine ) as boolean
         if (k = TK_IDENT) andalso (inIface = false) then
             dim as InternId id = cast( InternId, t.literal )
             dim as PpMacro ptr m = MacroFor( e, id )
-            dim as boolean expandable = (m <> 0) andalso (IsHidden( e, id ) = false)
+            dim as boolean expandable = (m <> nullptr) andalso (IsHidden( e, id ) = false)
             if expandable then
                 if PpExpand( e, m, t ) then continue do
             end if
@@ -1362,12 +1362,12 @@ sub PpOpen _
     e->uniqueCounter = 0
 
     '' THE SHARED POOLS, OR THIS ENGINE'S OWN. Both or neither: see PpConfig.sharedLits.
-    if cfg.sharedLits <> 0 then
+    if cfg.sharedLits <> nullptr then
         e->lits = cfg.sharedLits
     else
         e->lits = @outp.literals
     end if
-    if cfg.sharedLexed <> 0 then
+    if cfg.sharedLexed <> nullptr then
         e->lexp = cfg.sharedLexed
         e->ownsLexed = false
     else
@@ -1387,7 +1387,7 @@ sub PpOpen _
     PpDefineFromCommandLine( *e )
 
     dim as TokenVec ptr rootToks = PpLexFile( *e, root )
-    if rootToks = 0 then
+    if rootToks = nullptr then
         PpFinish( *e )
         st.finished = true
         return
@@ -1396,7 +1396,7 @@ sub PpOpen _
 end sub
 
 function PpEnsure( byref st as PpStream, byval want as int32 ) as boolean
-    if st.engine = 0 then return false
+    if st.engine = nullptr then return false
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
 
     while st.outp->tokens.Count <= want
@@ -1412,7 +1412,7 @@ end function
 
 sub PpSnapshotMacros( byref st as PpStream, byref outp as MacroInfoVec )
     outp.Clear( )
-    if st.engine = 0 then return
+    if st.engine = nullptr then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     for i as int32 = 0 to e->macros.Count - 1
         dim as PpMacro ptr m = @e->macros[i]
@@ -1430,7 +1430,7 @@ sub PpSnapshotMacros( byref st as PpStream, byref outp as MacroInfoVec )
 end sub
 
 sub PpClose( byref st as PpStream )
-    if st.engine = 0 then return
+    if st.engine = nullptr then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     while e->frames.IsEmpty( ) = false
         PopFrame( *e )
@@ -1440,10 +1440,10 @@ sub PpClose( byref st as PpStream )
     '' only the files that lexed with a diagnostic, which are not shared. When it is
     '' not shared the two are the same array, so this frees each result exactly once.
     for each p as any ptr in e->lexed
-        if p <> 0 then delete cast( Lex.Result ptr, p )
+        if p <> nullptr then delete cast( Lex.Result ptr, p )
     next
     delete e
-    st.engine = 0
+    st.engine = nullptr
 end sub
 
 sub PpRun _

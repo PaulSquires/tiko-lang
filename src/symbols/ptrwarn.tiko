@@ -137,7 +137,7 @@ private function PwZero_ ( byref c as Ctx, byval n as NodeId, byval depth as int
         return PwZero_( c, up->operand, depth + 1 )
     case N_IDENT
         dim as Symbol ptr sy = c.syms->SymbolAt( c.info->RefOf( n ) )
-        if sy = 0 then return false
+        if sy = nullptr then return false
         if sy->kind <> cast( uint8, SYM_CONSTANT ) then return false
         dim as NodeId item = cast( NodeId, sy->payload )
         if item = NODE_NONE then return false
@@ -190,13 +190,13 @@ private function PwOverloadedAddr_ ( byref c as Ctx, byval n as NodeId ) as bool
     if o = NODE_NONE then return false
     dim as SymbolId sid = c.info->RefOf( o )
     dim as Symbol ptr sy = c.syms->SymbolAt( sid )
-    if sy = 0 then return false
+    if sy = nullptr then return false
     if sy->kind <> cast( uint8, SYM_PROC ) then return false
     if sy->nextOverload <> SYMBOL_NONE then return true
     '' A RUNTIME PROCEDURE tiko declares in its prelude carries tiko's approximation of
     '' fbc's prototype -- 'getmouse' over long where fbc's are integer -- and judging the
     '' user's pointer against it would be judging the prelude (warnings/rtl-prototypes.bas).
-    if c.diags->sources <> 0 then
+    if c.diags->sources <> nullptr then
         if c.diags->sources->IsBuiltin( sy->loc ) then return true
     end if
     for i as int32 = 0 to c.syms->symbols.Count - 1

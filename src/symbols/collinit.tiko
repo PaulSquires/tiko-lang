@@ -31,34 +31,34 @@ private function CiMember_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval nm as Tko.InternId, _
       byval depth as int32 ) as Tko.Symbol ptr
 
-    if depth > 8 then return 0
+    if depth > 8 then return nullptr
     t = c.types->Unqualify( t )
-    if c.types->Kind( t ) <> Tko.TK_UDT then return 0
+    if c.types->Kind( t ) <> Tko.TK_UDT then return nullptr
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( UdtSymOf_( c, t ) )
-    if s = 0 then return 0
-    if s->inner = Tko.SCOPE_NONE then return 0
+    if s = nullptr then return nullptr
+    if s->inner = Tko.SCOPE_NONE then return nullptr
     dim as Tko.Symbol ptr f = c.syms->SymbolAt( c.syms->LookupLocal( s->inner, nm ) )
-    if f <> 0 then return f
+    if f <> nullptr then return f
 
     dim as Tko.NodeId gnode = cast( Tko.NodeId, s->payload )
     if (gnode <> Tko.NODE_NONE) andalso (c.ast->Kind( gnode ) = Tko.N_TYPE) then
         dim as Tko.StmtPayload ptr gp = StmtOf( c, gnode )
         if (gp->b <> Tko.NODE_NONE) andalso (gp->name <> c.types->NameOf( t )) then
             dim as Tko.Symbol ptr gs = c.syms->SymbolAt( c.info->RefOf( gnode ) )
-            if gs <> 0 then
+            if gs <> nullptr then
                 if gs->inner <> Tko.SCOPE_NONE then
                     f = c.syms->SymbolAt( c.syms->LookupLocal( gs->inner, nm ) )
-                    if f <> 0 then return f
+                    if f <> nullptr then return f
                 end if
             end if
         end if
     end if
 
     dim as Tko.InternId baseNm = c.names->Fold( c.names->GetString( "base" ) )
-    if nm = baseNm then return 0
+    if nm = baseNm then return nullptr
     dim as Tko.Symbol ptr b = c.syms->SymbolAt( c.syms->LookupLocal( s->inner, baseNm ) )
-    if b = 0 then return 0
-    if (b->type_ = Tko.TYPE_NONE) orelse (b->type_ = t) then return 0
+    if b = nullptr then return nullptr
+    if (b->type_ = Tko.TYPE_NONE) orelse (b->type_ = t) then return nullptr
     return CiMember_( c, b->type_, nm, depth + 1 )
 end function
 
@@ -66,7 +66,7 @@ private function CiProc_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as boolean
     dim as Tko.Symbol ptr s = _
         CiMember_( c, t, c.names->Fold( c.names->GetString( nm ) ), 0 )
-    if s = 0 then return false
+    if s = nullptr then return false
     return s->kind = cast( uint8, Tko.SYM_PROC )
 end function
 
@@ -84,16 +84,16 @@ private function CiNeedsCtor_ _
     if tn = 0 then return false
     if lcase( c.names->Spelling( tn ) ) = "object" then return true
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( UdtSymOf_( c, t ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->inner = Tko.SCOPE_NONE then return false
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     dim as boolean needs = false
     dim as Tko.SymbolId cur = sc->firstSym
     for guard as int32 = 0 to 9999
         if cur = Tko.SYMBOL_NONE then exit for
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit for
+        if f = nullptr then exit for
         dim as boolean isField = (f->kind = cast( uint8, Tko.SYM_FIELD ))
         if isField andalso ((f->flags and (Tko.SYMF_STATIC or Tko.SYMF_SHARED)) = 0) then
             dim as Tko.TypeId ft = c.types->Unqualify( f->type_ )
@@ -237,11 +237,11 @@ private function CollInit_ _
     dim as Tko.Symbol ptr vs = c.syms->SymbolAt( c.syms->LookupLocal( here, ip->name ) )
     dim as boolean elsewhere = _
         ((c.ast->nodes[cast( int32, item )].flags and Tko.NF_QUALIFIED) <> 0)
-    if vs <> 0 then
+    if vs <> nullptr then
         if (vs->flags and (Tko.SYMF_EXTERN or Tko.SYMF_COMMON)) <> 0 then elsewhere = true
     end if
     dim as Tko.SymScope ptr hs = c.syms->ScopeAt( here )
-    if hs <> 0 then
+    if hs <> nullptr then
         if hs->kind = cast( uint8, Tko.SCOPEK_TYPE ) then elsewhere = true
     end if
     if elsewhere then

@@ -59,7 +59,7 @@ private function RtlGlobalChain_ ( byref c as Ctx, byval sc as Tko.ScopeId ) as 
     for guard as int32 = 0 to 255
         if sc = Tko.SCOPE_NONE then return false
         dim as Tko.SymScope ptr ss = c.syms->ScopeAt( sc )
-        if ss = 0 then return false
+        if ss = nullptr then return false
         select case ss->kind
         case Tko.SCOPEK_GLOBAL
             return true
@@ -79,7 +79,7 @@ private function RtlGlobalChain_ ( byref c as Ctx, byval sc as Tko.ScopeId ) as 
             '' PF_GENERIC_PROC, and names the instance by its key, 'g<23>'. fbc's own
             '' generics/lambda-in-generic.bas has 'byref out as T', and was TKO0813 here.
             dim as Tko.Symbol ptr os = c.syms->SymbolAt( ss->owner )
-            if os <> 0 then
+            if os <> nullptr then
                 if instr( c.names->Spelling( os->name ), "<" ) > 0 then return false
                 dim as Tko.NodeId opn = cast( Tko.NodeId, os->payload )
                 if (opn <> Tko.NODE_NONE) andalso (c.ast->Kind( opn ) = Tko.N_PROC) then
@@ -126,7 +126,7 @@ sub RtlNameClash_ ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.Sc
     end select
     '' The prelude declares these very names, and a #cinclude binding is unmeasured.
     dim as Tko.SourceFile ptr sf = c.srcMgr->FileAt( c.srcMgr->Decode( c.ast->Loc( id ) ).file )
-    if sf = 0 then return
+    if sf = nullptr then return
     if sf->isVirtual then return
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     select case k
@@ -151,7 +151,7 @@ sub RtlNameClash_ ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.Sc
         '' The procedure's OWN scope, when Collect gave it one, is not where it is declared.
         dim as Tko.ScopeId outer = here
         dim as Tko.SymScope ptr hs = c.syms->ScopeAt( here )
-        if hs <> 0 then
+        if hs <> nullptr then
             if hs->kind = cast( uint8, Tko.SCOPEK_PROC ) then outer = hs->parent
         end if
         '' A METHOD DEFINITION 'sub T.Run' is a member and so not this, nor its parameters.

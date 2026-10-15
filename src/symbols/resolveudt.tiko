@@ -76,14 +76,14 @@ private function BaseBringsStructors_ _
     if c.types->Kind( u ) <> Tko.TK_UDT then return false
     if c.names->Fold( c.types->NameOf( u ) ) = c.names->Fold( c.names->GetString( "object" ) ) then return true
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( UdtSymOfT_( c, u ) )
-    if (s = 0) orelse (s->inner = Tko.SCOPE_NONE) then return false
+    if (s = nullptr) orelse (s->inner = Tko.SCOPE_NONE) then return false
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    dim as Tko.SymbolId m = iif( sc <> 0, sc->firstSym, Tko.SYMBOL_NONE )
+    dim as Tko.SymbolId m = iif( sc <> nullptr, sc->firstSym, Tko.SYMBOL_NONE )
     dim as Tko.InternId ctorNm = c.names->Fold( c.names->GetString( "__ctor" ) )
     dim as Tko.InternId dtorNm = c.names->Fold( c.names->GetString( "__dtor" ) )
     while m <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr ms = c.syms->SymbolAt( m )
-        if ms = 0 then exit while
+        if ms = nullptr then exit while
         if ms->kind = cast( uint8, Tko.SYM_PROC ) then
             if (ms->name = ctorNm) orelse (ms->name = dtorNm) then return true
         elseif ms->kind = cast( uint8, Tko.SYM_FIELD ) then
@@ -100,17 +100,17 @@ function UdtHasProcs_ _
     if sid = Tko.SYMBOL_NONE then return false
     if depth > 16 then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->inner = Tko.SCOPE_NONE then return false
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
 
     dim as Tko.SymbolId m = sc->firstSym
     dim as int32 guard = 0
     while (m <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr ms = c.syms->SymbolAt( m )
-        if ms = 0 then exit while
+        if ms = nullptr then exit while
         if ms->kind = cast( uint8, Tko.SYM_PROC ) then return true
         if ms->kind = cast( uint8, Tko.SYM_FIELD ) then
             if ms->name = c.names->Fold( c.names->GetString( "base" ) ) then
@@ -132,7 +132,7 @@ private function ScopeIsInProc_ _
     while (cur <> Tko.SCOPE_NONE) andalso (guard < 1000)
         guard += 1
         dim as Tko.SymScope ptr sc = c.syms->ScopeAt( cur )
-        if sc = 0 then return false
+        if sc = nullptr then return false
         if sc->kind = cast( uint8, Tko.SCOPEK_PROC ) then return true
         cur = sc->parent
     wend

@@ -228,7 +228,7 @@ namespace Tko.Check
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
           byval first_ as Tko.SymbolId, byref argT as containers.Array( of uint32 ), _
-          byval tiesOut as int32 ptr = 0 ) as Tko.SymbolId
+          byval tiesOut as int32 ptr = nullptr ) as Tko.SymbolId
 
     '' WHICH 'operator cast' A STRING CONTEXT CALLS -- one rule, scored as fbc scores it
     '' (castpick.tiko). CR_*: what a cast yields; CT_*: the target a context asks with;
@@ -295,8 +295,8 @@ namespace Tko.Check
     '' constant ('abs( 42.3 )'), whose name has to be spelled to be recognised.
     declare function ConstFloatOf _
         ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref outd as float64, _
-          byval depth as int32 = 0, byval syms as Tko.SymbolTable ptr = 0, _
-          byval scope_ as Tko.ScopeId = 0, byval names as Tko.Interner ptr = 0 ) as boolean
+          byval depth as int32 = 0, byval syms as Tko.SymbolTable ptr = nullptr, _
+          byval scope_ as Tko.ScopeId = 0, byval names as Tko.Interner ptr = nullptr ) as boolean
 
     '' Fold an expression to an integer constant, matching fbc bit for bit. The
     '' source manager is needed for LEN and ASC, whose argument is a string literal
@@ -319,10 +319,10 @@ namespace Tko.Check
     declare function ConstOf _
         ( byref ast as Tko.AstArena, byval id as Tko.NodeId, _
           byref src as Tko.SourceManager, byref names as Tko.Interner, _
-          byval intBits as int32 = 64, byval syms as Tko.SymbolTable ptr = 0, _
+          byval intBits as int32 = 64, byval syms as Tko.SymbolTable ptr = nullptr, _
           byval scope_ as Tko.ScopeId = 0, byval depth as int32 = 0, _
-          byval types as Tko.TypeContext ptr = 0, _
-          byval info as Tko.SemanticInfo ptr = 0 ) as ConstVal
+          byval types as Tko.TypeContext ptr = nullptr, _
+          byval info as Tko.SemanticInfo ptr = nullptr ) as ConstVal
 
     declare function AssignableTo _
         ( byval src as Tko.TypeId, byval dst as Tko.TypeId, _

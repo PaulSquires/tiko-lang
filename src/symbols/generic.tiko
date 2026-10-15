@@ -83,7 +83,7 @@ function InstantiateGeneric_ _
     '' It still has to be a UDT whose declaration carries a parameter list, or 'Foo( 3 )'
     '' on an ordinary type would be read as an instantiation.
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
-    if gs = 0 then return Tko.TYPE_NONE
+    if gs = nullptr then return Tko.TYPE_NONE
     if gs->kind <> cast( uint8, Tko.SYM_UDT ) then return Tko.TYPE_NONE
     dim as Tko.NodeId gn = cast( Tko.NodeId, gs->payload )
     if gn = Tko.NODE_NONE then return Tko.TYPE_NONE
@@ -151,14 +151,14 @@ function InstantiateGeneric_ _
     dim as Tko.InternId inm = c.names->Fold( c.names->GetString( key ) )
     dim as Tko.SymbolId prev = c.syms->LookupLocalTyped( ghome, inm, true )
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( prev )
-    if ps <> 0 then return ps->type_
+    if ps <> nullptr then return ps->type_
     if InstDepthOk_( c, id, gname ) = false then return Tko.TYPE_NONE
 
     dim as boolean dup = false
     dim as Tko.SymbolId isid = c.syms->DeclareSym( ghome, inm, _
         Tko.SYM_UDT, c.ast->Loc( id ), dup )
     dim as Tko.Symbol ptr isym = c.syms->SymbolAt( isid )
-    if isym = 0 then return Tko.TYPE_NONE
+    if isym = nullptr then return Tko.TYPE_NONE
     isym->flags or= (gflags and Tko.SYMF_MODMASK)   '' a module's generic's instance is module code
     '' A GENERIC UNION INSTANTIATES AS A UNION. Collect marks an ordinary one from the
     '' declaration's NF_IS_UNION and the layout pass reads SYMF_UNION_KIND off the
@@ -209,14 +209,14 @@ function InstantiateGeneric_ _
         dim as Tko.SymbolId fsid = c.syms->DeclareSym( iin, fnm, Tko.SYM_FIELD, _
             c.ast->Loc( m ), fdup )
         dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
-        if fs <> 0 then fs->type_ = ft
+        if fs <> nullptr then fs->type_ = ft
     next
     c.instDepth -= 1 : c.instChain -= 1 : c.diags->LeaveInst( tfr )
 
     '' 'gs' RE-FETCHED: it points INTO THE SYMBOL TABLE, and the field loop above calls
     '' DeclareSym once per field, which pushes into that table and reallocates it.
     gs = c.syms->SymbolAt( gsid )
-    if gs = 0 then return Tko.TYPE_NONE
+    if gs = nullptr then return Tko.TYPE_NONE
 
     '' THE MEMBERS, AFTER THE WALK. See Ctx.pendInst for why this cannot happen here.
     dim as int32 argFirst = c.pendInstArgs.Count
@@ -250,7 +250,7 @@ function InstantiateGeneric_ _
     '' symbol table, so the 'isym' taken before it points into a freed block. THIS ONE
     '' READ is the crash the bootstrap hit -- the last instruction of the function.
     isym = c.syms->SymbolAt( isid )
-    if isym = 0 then return Tko.TYPE_NONE
+    if isym = nullptr then return Tko.TYPE_NONE
     return isym->type_
 end function
 
@@ -276,9 +276,9 @@ end function
 function RewriteShadowedIntrinsic_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as boolean
 
-    if c.parser = 0 then return false
+    if c.parser = nullptr then return false
     dim as Tko.ParserState ptr p0 = cast( Tko.ParserState ptr, c.parser )
-    if p0->toks = 0 then return false
+    if p0->toks = nullptr then return false
     dim as Tko.TokenKind kw = cast( Tko.TokenKind, StmtOf( c, id )->op )
     if Tko.IsKeywordKind( kw ) = false then return false
     dim as int32 t0, t1
@@ -293,7 +293,7 @@ function RewriteShadowedIntrinsic_ _
     '' bound to nothing: the rewrite fired and every call came out 'unresolved: LINE'.
     dim as Tko.InternId raw = c.names->GetString( Tko.Text.LowerAscii( spell ) )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.syms->Lookup( scope_, c.names->Fold( raw ) ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId decl = cast( Tko.NodeId, s->payload )
     if decl <> Tko.NODE_NONE then
@@ -309,7 +309,7 @@ function RewriteShadowedIntrinsic_ _
 
     dim as Tko.ParserState q
     q.toks = p0->toks
-    q.stream = 0
+    q.stream = nullptr
     q.litPool = p0->litPool
     q.ast = c.ast
     q.src = c.srcMgr
@@ -568,7 +568,7 @@ declare function InstantiateProcAt_ _
 function InstantiateGenericProc_ _
     ( byref c as Ctx, byval callId as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.SymbolId
 
-    if c.parser = 0 then return Tko.SYMBOL_NONE
+    if c.parser = nullptr then return Tko.SYMBOL_NONE
     if c.ast->Kind( callId ) <> Tko.N_CALL then return Tko.SYMBOL_NONE
     dim as int32 taFirst, taCount
     dim as boolean written = c.ast->CallTypeArgsOf( callId, taFirst, taCount )
@@ -604,7 +604,7 @@ function InstantiateGenericProc_ _
             nsid = c.syms->Lookup( scope_, IdentNameOf( c, qbp->lhs ) )
         end if
         dim as Tko.Symbol ptr nss = c.syms->SymbolAt( nsid )
-        if nss = 0 then return Tko.SYMBOL_NONE
+        if nss = nullptr then return Tko.SYMBOL_NONE
         if nss->kind <> cast( uint8, Tko.SYM_NAMESPACE ) then return Tko.SYMBOL_NONE
         lookScope = cast( Tko.ScopeId, nss->inner )
         tgt = qbp->rhs
@@ -626,7 +626,7 @@ function InstantiateGenericProc_ _
         gsid = c.syms->Lookup( lookScope, gname )
     end if
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
-    if gs = 0 then return Tko.SYMBOL_NONE
+    if gs = nullptr then return Tko.SYMBOL_NONE
     if gs->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
     '' A NAME BOTH GENERIC AND NOT: the set's generic, or none -- GenericOfSet_.
     dim as Tko.SymbolId headSid = gsid
@@ -720,7 +720,7 @@ function InstantiateProcAt_ _
       byval at_ as Tko.NodeId ) as Tko.SymbolId
 
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
-    if gs = 0 then return Tko.SYMBOL_NONE
+    if gs = nullptr then return Tko.SYMBOL_NONE
     dim as int32 taCount = cast( int32, argTypes.Count )
 
     '' THE GENERIC'S OWN SYMBOL IS PART OF THE KEY. Name plus type arguments is not
@@ -781,7 +781,7 @@ function InstantiateProcAt_ _
     '' structor. Without this the bootstrap's link failed on FB::FSFAIL<N> and
     '' FB::FAIL<N,M> -- fb/fsresult.bi's error helpers, called from many modules.
     dim as Tko.Symbol ptr ipsym = c.syms->SymbolAt( isid )
-    if ipsym <> 0 then ipsym->flags or= Tko.SYMF_GENERIC_INST or (gs->flags and Tko.SYMF_MODMASK)
+    if ipsym <> nullptr then ipsym->flags or= Tko.SYMF_GENERIC_INST or (gs->flags and Tko.SYMF_MODMASK)
     '' FOR THE MANGLER: _Z5IdentI8FBSTRINGES0_, by the DECLARED name.
     scope
         dim as Tko.InternId pspell = StmtOf( c, gn )->rawName
@@ -812,9 +812,9 @@ end function
 '' every re-parse in this file is -- parsing grows the arena, and a payload pointer held
 '' anywhere up the stack dangles the moment it does.
 sub InstantiatePendingProcs_( byref c as Ctx )
-    if c.parser = 0 then return
+    if c.parser = nullptr then return
     dim as Tko.ParserState ptr p0 = cast( Tko.ParserState ptr, c.parser )
-    if p0->toks = 0 then return
+    if p0->toks = nullptr then return
 
     while c.pendProcDone < c.pendProc.Count
         dim as int32 i = c.pendProcDone
@@ -855,7 +855,7 @@ sub InstantiatePendingProcs_( byref c as Ctx )
 
         dim as Tko.ParserState q
         q.toks = p0->toks
-        q.stream = 0
+        q.stream = nullptr
         q.litPool = p0->litPool
         q.ast = c.ast
         q.src = c.srcMgr
@@ -948,7 +948,7 @@ sub InstantiatePendingProcs_( byref c as Ctx )
             dim as Tko.Symbol ptr isym = c.syms->SymbolAt( isid )
             dim as Tko.SymbolId made = c.syms->LookupLocal( home, inm )
             dim as Tko.Symbol ptr msym = c.syms->SymbolAt( made )
-            if (isym <> 0) andalso (msym <> 0) then
+            if (isym <> nullptr) andalso (msym <> nullptr) then
                 if isym->payload = 0 then isym->payload = msym->payload
                 if isym->type_ = Tko.TYPE_NONE then isym->type_ = msym->type_
                 isym->inner = msym->inner
@@ -981,11 +981,11 @@ function IterElemType_ _
 
     dim as Tko.SymbolId gi = TypeMemberNamed_( c, seqT, "getiterator" )
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gi )
-    if gs = 0 then return Tko.TYPE_NONE
+    if gs = nullptr then return Tko.TYPE_NONE
     if gs->type_ = Tko.TYPE_NONE then return Tko.TYPE_NONE
     dim as Tko.SymbolId vo = TypeMemberNamed_( c, gs->type_, "value" )
     dim as Tko.Symbol ptr vs = c.syms->SymbolAt( vo )
-    if vs = 0 then return Tko.TYPE_NONE
+    if vs = nullptr then return Tko.TYPE_NONE
     return vs->type_
 end function
 
@@ -1010,7 +1010,7 @@ private function TypeMemberNamed_ _
     dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return Tko.SYMBOL_NONE
+    if s = nullptr then return Tko.SYMBOL_NONE
     if s->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     return c.syms->LookupLocal( s->inner, c.names->Fold( c.names->GetString( nm ) ) )
 end function
@@ -1027,9 +1027,9 @@ function QualifierPrefix_( byref c as Ctx, byval sc as Tko.ScopeId ) as string
     while (cur <> Tko.SCOPE_NONE) andalso (guard < 32)
         guard += 1
         dim as Tko.SymScope ptr s = c.syms->ScopeAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         dim as Tko.Symbol ptr o = c.syms->SymbolAt( s->owner )
-        if o <> 0 then
+        if o <> nullptr then
             if o->name <> 0 then parts = c.names->Spelling( o->name ) & "#" & parts
         end if
         cur = s->parent
@@ -1177,7 +1177,7 @@ private sub InstantiateGlobalOpsFor_ _
         dim as Tko.SymbolId found = Tko.SYMBOL_NONE
         while osid <> Tko.SYMBOL_NONE
             dim as Tko.Symbol ptr os = c.syms->SymbolAt( osid )
-            if os = 0 then exit while
+            if os = nullptr then exit while
             if cast( Tko.NodeId, os->payload ) = dn then
                 found = osid
                 exit while
@@ -1196,7 +1196,7 @@ private sub InstantiateGlobalOpsFor_ _
         '' instantiation existed and nothing could find it.
         if isid <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr gsy = c.syms->SymbolAt( found )
-            if gsy <> 0 then c.syms->ChainOverload( gsy->parent, dp->name, isid )
+            if gsy <> nullptr then c.syms->ChainOverload( gsy->parent, dp->name, isid )
         end if
     next
 end sub
@@ -1280,9 +1280,9 @@ private sub InstantiateMembers_ _
       byval inm as Tko.InternId, byval iin as Tko.ScopeId, byval scope_ as Tko.ScopeId, _
       byval argFirst as int32, byval argCount as int32 )
 
-    if c.parser = 0 then return
+    if c.parser = nullptr then return
     dim as Tko.ParserState ptr p0 = cast( Tko.ParserState ptr, c.parser )
-    if p0->toks = 0 then return
+    if p0->toks = nullptr then return
 
     '' The table is scanned to its length AS IT IS NOW. Resolving one member may
     '' instantiate another generic, which appends -- and those entries belong to that
@@ -1341,7 +1341,7 @@ private sub InstantiateMembers_ _
         '' range being re-read is already buffered, so nothing may try to pull more.
         dim as Tko.ParserState q
         q.toks = p0->toks
-        q.stream = 0
+        q.stream = nullptr
         q.litPool = p0->litPool
         q.ast = c.ast
         q.src = c.srcMgr
@@ -1420,7 +1420,7 @@ private sub InstantiateMembers_ _
                 dim as Tko.SymbolId msid = c.syms->DeclareSym( iin, mname, _
                     Tko.SYM_PROC, c.ast->Loc( fresh ), mdup )
                 dim as Tko.Symbol ptr msym = c.syms->SymbolAt( msid )
-                if msym <> 0 then
+                if msym <> nullptr then
                     '' THE FRESH NODE IS THE PAYLOAD. Every call site mangles against
                     '' whatever node the symbol points at, and a symbol with none
                     '' mangles to its bare source spelling -- 'call void put(...)',

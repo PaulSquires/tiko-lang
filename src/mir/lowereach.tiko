@@ -67,7 +67,7 @@ function LowerForEachIter _
     dim as Tko.SymbolId getIt = MemberNamed_( c, at, "getiterator" )
     if getIt = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( getIt )
-    if gs = 0 then return false
+    if gs = nullptr then return false
     dim as Tko.TypeId itT = gs->type_
     if itT = Tko.TYPE_NONE then return false
     if c.types->Kind( itT ) <> Tko.TK_UDT then return false
@@ -83,7 +83,7 @@ function LowerForEachIter _
     if moveNext = Tko.SYMBOL_NONE then return false
 
     dim as Tko.Symbol ptr vs2 = c.syms->SymbolAt( valueOf )
-    if vs2 = 0 then return false
+    if vs2 = nullptr then return false
     dim as Tko.TypeId elT = vs2->type_
     dim as MirType emt = LowerType( elT, *c.types )
     if emt = MT_VOID then return false
@@ -92,7 +92,7 @@ function LowerForEachIter _
     dim as Tko.SymbolId vsid = c.info->RefOf( sp->a )
     if vsid = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr vsym = c.syms->SymbolAt( vsid )
-    if vsym = 0 then return false
+    if vsym = nullptr then return false
     if vsym->type_ = Tko.TYPE_NONE then vsym->type_ = elT
     dim as MirValue vaddr = LowerAddr( c, sp->a )
     if vaddr.kind = cast( uint8, MV_NONE ) then return false
@@ -180,7 +180,7 @@ function LowerForEachIter _
     '' happened to hold: the corpus segfaulted there.
     dim as Tko.TypeId lvt = Tko.TYPE_NONE
     dim as Tko.Symbol ptr lvs = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-    if lvs <> 0 then lvt = lvs->type_
+    if lvs <> nullptr then lvt = lvs->type_
     dim as boolean varIsRef = false
     if lvt <> Tko.TYPE_NONE then
         varIsRef = (c.types->Kind( lvt ) = Tko.TK_REFERENCE)
@@ -409,7 +409,7 @@ private function MemberNamed_ _
     dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return Tko.SYMBOL_NONE
+    if s = nullptr then return Tko.SYMBOL_NONE
     if s->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     return c.syms->LookupLocal( s->inner, c.names->Fold( c.names->GetString( nm ) ) )
 end function
@@ -541,7 +541,7 @@ private function EachEmit_ _
     '' fired.
     dim as Tko.TypeId vrt = Tko.TYPE_NONE
     dim as Tko.Symbol ptr vrs = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-    if vrs <> 0 then vrt = vrs->type_
+    if vrs <> nullptr then vrt = vrs->type_
     if vrt <> Tko.TYPE_NONE then
         if c.types->Kind( vrt ) = Tko.TK_REFERENCE then
             dim as int32 vslot = LocalFor( c, c.info->RefOf( sp->a ) )
@@ -674,7 +674,7 @@ private function EachVarAddr_ _
     dim as Tko.SymbolId vs = c.info->RefOf( sp->a )
     if vs = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr vsym = c.syms->SymbolAt( vs )
-    if vsym = 0 then return false
+    if vsym = nullptr then return false
     if vsym->type_ = Tko.TYPE_NONE then vsym->type_ = elT
     if vsym->type_ = Tko.TYPE_NONE then return false
     outv = LowerAddr( c, sp->a )

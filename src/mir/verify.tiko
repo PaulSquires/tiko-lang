@@ -51,7 +51,7 @@ function Verify _
 
     for fi as int32 = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
-        if f = 0 then continue for
+        if f = nullptr then continue for
         if f->isDefinition = false then continue for
         dim as string fn = names.Spelling( f->name )
 
@@ -199,7 +199,7 @@ function Verify _
                     dim as int32 ci = cast( int32, ins->callee )
                     if (ci >= 0) andalso (ci < m.functions.Count) then
                         dim as MirFunction ptr cf = m.functions[ci]
-                        if cf <> 0 then
+                        if cf <> nullptr then
                             dim as boolean bad = false
                             if cf->isVariadic then
                                 bad = (ins->count < cf->paramCount)

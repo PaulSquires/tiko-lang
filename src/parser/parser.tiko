@@ -1433,8 +1433,8 @@ end function
 '' The prelude, parsed. Returns nothing when there is no keyword table to lex with,
 '' which is the case for a ParserState built by a test harness rather than the driver.
 private sub ParsePrelude( byref p as Tko.ParserState, byref items as Tko.NodeIdVec )
-    if p.kw = 0 then return
-    if p.src = 0 then return
+    if p.kw = nullptr then return
+    if p.src = nullptr then return
 
     dim as Tko.FileId vf = p.src->AddVirtual( "<builtin>", PreludeText( ) )
     dim as Tko.Lex.Result r
@@ -1445,13 +1445,13 @@ private sub ParsePrelude( byref p as Tko.ParserState, byref items as Tko.NodeIdV
     '' diagnostics are shared, because the nodes it builds belong to this unit.
     dim as Tko.ParserState q
     q.toks = @r.tokens
-    q.stream = 0
+    q.stream = nullptr
     q.litPool = @r.literals
     q.ast = p.ast
     q.src = p.src
     q.names = p.names
     q.diags = p.diags
-    q.kw = 0
+    q.kw = nullptr
     q.pos = 0
 
     dim as int32 guard = 0

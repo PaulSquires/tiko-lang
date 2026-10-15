@@ -61,7 +61,7 @@ end function
 
 '' The DIFile for FileId + 1, made on first use; 0 is the module's own.
 private function FileFor_( byref d as DebugInfo, byval fileKey as uint32 ) as int32
-    if (fileKey = 0) orelse (d.sm = 0) then return d.mainFileId
+    if (fileKey = 0) orelse (d.sm = nullptr) then return d.mainFileId
     while d.fileMeta.Count <= cast( int32, fileKey )
         d.fileMeta.Push( 0 )
     wend
@@ -79,7 +79,7 @@ private sub DeclSite_( byref d as DebugInfo, byval s as Tko.Symbol ptr, _
                        byref fileNode as int32, byref lineNo as int32 )
     fileNode = d.mainFileId
     lineNo = 0
-    if d.sm = 0 then exit sub
+    if d.sm = nullptr then exit sub
     dim as Tko.DecodedLoc dl = d.sm->Decode( s->loc )
     fileNode = FileFor_( d, cast( uint32, dl.file ) + 1 )
     lineNo = dl.physLine
@@ -129,12 +129,12 @@ private function QualifiedName_( byref d as DebugInfo, byval s as Tko.Symbol ptr
     dim as int32 guard = 0
     while (sc <> Tko.SCOPE_NONE) andalso (guard < 64)
         dim as Tko.SymScope ptr sp = d.fe->syms->ScopeAt( sc )
-        if sp = 0 then exit while
+        if sp = nullptr then exit while
         dim as boolean named = (sp->kind = cast( uint8, Tko.SCOPEK_TYPE )) orelse _
                                (sp->kind = cast( uint8, Tko.SCOPEK_NAMESPACE ))
         if named andalso (sp->owner <> Tko.SYMBOL_NONE) then
             dim as Tko.Symbol ptr os = d.fe->syms->SymbolAt( sp->owner )
-            if os <> 0 then r = SpellingOf_( d, os ) & "." & r
+            if os <> nullptr then r = SpellingOf_( d, os ) & "." & r
         end if
         sc = sp->parent
         guard += 1
@@ -153,9 +153,9 @@ function DbgSubprogram _
     '' '_ZN1T4GETUEv'. The link name stays as the linkage name.
     dim as string nm = linkName
     dim as int32 id
-    if (procSym <> 0) andalso (d.fe <> 0) then
+    if (procSym <> 0) andalso (d.fe <> nullptr) then
         dim as Tko.Symbol ptr ps = d.fe->syms->SymbolAt( cast( Tko.SymbolId, procSym ) )
-        if ps <> 0 then nm = QualifiedName_( d, ps )
+        if ps <> nullptr then nm = QualifiedName_( d, ps )
         id = SpFor_( d, procSym )
         for i as int32 = 0 to d.spSym.Count - 1
             if d.spSym[i] = procSym then d.spDone[i] = 1
@@ -201,9 +201,9 @@ function DbgDeclare _
     ( byref d as DebugInfo, byval sym as uint32, byval frontType as Tko.TypeId, _
       byval slotIsPtr as boolean, byref slotName as string ) as string
 
-    if (d.fe = 0) orelse (d.curSp < 0) orelse (sym = 0) then return ""
+    if (d.fe = nullptr) orelse (d.curSp < 0) orelse (sym = 0) then return ""
     dim as Tko.Symbol ptr s = d.fe->syms->SymbolAt( cast( Tko.SymbolId, sym ) )
-    if s = 0 then return ""
+    if s = nullptr then return ""
     dim as boolean isParam = (s->kind = cast( uint8, Tko.SYM_PARAMETER ))
     if (isParam = false) andalso (s->kind <> cast( uint8, Tko.SYM_VARIABLE )) then return ""
     dim as int32 ty = DbgType( d, frontType )
@@ -241,7 +241,7 @@ private function OwningProc_( byref d as DebugInfo, byval s as Tko.Symbol ptr ) 
     dim as int32 guard = 0
     while (sc <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         dim as Tko.SymScope ptr sp = d.fe->syms->ScopeAt( sc )
-        if sp = 0 then exit while
+        if sp = nullptr then exit while
         if sp->kind = cast( uint8, Tko.SCOPEK_PROC ) then return cast( uint32, sp->owner )
         sc = sp->parent
         guard += 1
@@ -253,9 +253,9 @@ function DbgGlobal _
     ( byref d as DebugInfo, byval sym as uint32, byref linkName as string, _
       byval isLocal as boolean ) as string
 
-    if (d.fe = 0) orelse (sym = 0) then return ""
+    if (d.fe = nullptr) orelse (sym = 0) then return ""
     dim as Tko.Symbol ptr s = d.fe->syms->SymbolAt( cast( Tko.SymbolId, sym ) )
-    if s = 0 then return ""
+    if s = nullptr then return ""
     dim as int32 ty = DbgType( d, s->type_ )
     if ty < 0 then return ""
     dim as int32 fl, ln
@@ -283,13 +283,13 @@ function DbgFinish( byref d as DebugInfo ) as string
     '' that was not emitted -- an unreferenced PRIVATE one is dropped (llvmrefs.tiko) while
     '' its statics are still globals. The number is referenced, so it is defined here,
     '' as a subprogram with no code.
-    if d.fe <> 0 then
+    if d.fe <> nullptr then
         for i as int32 = 0 to d.spSym.Count - 1
             if d.spDone[i] <> 0 then continue for
             dim as Tko.Symbol ptr ps = d.fe->syms->SymbolAt( cast( Tko.SymbolId, d.spSym[i] ) )
             dim as string nm = "?"
             dim as int32 fl = d.mainFileId, ln = 0
-            if ps <> 0 then
+            if ps <> nullptr then
                 nm = QualifiedName_( d, ps )
                 DeclSite_( d, ps, fl, ln )
             end if
@@ -304,7 +304,7 @@ function DbgFinish( byref d as DebugInfo ) as string
     '' expressions the way it would for the C that fbc's own gcc backend emits.
     dim as string kind_ = "LineTablesOnly"
     dim as string gl = ""
-    if d.fe <> 0 then
+    if d.fe <> nullptr then
         kind_ = "FullDebug"
         if len( d.globals ) > 0 then gl = ", globals: !{" & mid( d.globals, 3 ) & "}"
     end if

@@ -58,7 +58,7 @@ private function ReadCallAssignAsCall_ _
     ''
     '' The member is therefore looked up BY NAME in the base's own type scope --
     '' what matters is only whether the name is a PROCEDURE, not which overload.
-    if s <> 0 then
+    if s <> nullptr then
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then
             dim as Tko.NodeId cal2 = ListOf( c, sp->a )->target
             if c.ast->Kind( cal2 ) = Tko.N_MEMBER then
@@ -78,12 +78,12 @@ private function ReadCallAssignAsCall_ _
                         if ts2 = Tko.SYMBOL_NONE then _
                             ts2 = c.syms->LookupTyped( ds2, tn2, true )
                         dim as Tko.Symbol ptr tsy2 = c.syms->SymbolAt( ts2 )
-                        if tsy2 <> 0 then
+                        if tsy2 <> nullptr then
                             if tsy2->inner <> Tko.SCOPE_NONE then
                                 dim as Tko.SymbolId mm2 = c.syms->LookupLocal( _
                                     tsy2->inner, IdentNameOf( c, mb2->rhs ) )
                                 dim as Tko.Symbol ptr msy2 = c.syms->SymbolAt( mm2 )
-                                if msy2 <> 0 then
+                                if msy2 <> nullptr then
                                     if msy2->kind = cast( uint8, Tko.SYM_PROC ) then
                                         '' A PROPERTY IS NOT FOLDED. 'p.Item( 2 ) = 7'
                                         '' is a SETTER CALL, which is the one member
@@ -109,7 +109,7 @@ private function ReadCallAssignAsCall_ _
             end if
         end if
     end if
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
 
     dim as Tko.ListPayload ptr lp = ListOf( c, sp->a )
@@ -218,7 +218,7 @@ private function ReadDotArgAsCall_ _
     '' resolves at all has its symbol here; one that does not is left to the ordinary
     '' path and its ordinary diagnostic.
     dim as Tko.Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( base_ ) )
-    if bs = 0 then return false
+    if bs = nullptr then return false
     if bs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
 
     '' THE REWRITE. Dropping the member's base turns '<.Proc>.Fn' back into the '.Fn'
@@ -311,7 +311,7 @@ private function PropertyNameSym_ _
       byval headSid as Tko.SymbolId ) as Tko.SymbolId
 
     dim as Tko.Symbol ptr hs = c.syms->SymbolAt( headSid )
-    if hs <> 0 then
+    if hs <> nullptr then
         if hs->kind = cast( uint8, Tko.SYM_PROC ) then return headSid
     end if
 
@@ -322,11 +322,11 @@ private function PropertyNameSym_ _
     '' It may have bound after all -- a qualified name does.
     dim as Tko.SymbolId msid = c.info->RefOf( callee )
     dim as Tko.Symbol ptr ms = c.syms->SymbolAt( msid )
-    if ms <> 0 then
+    if ms <> nullptr then
         if ms->kind = cast( uint8, Tko.SYM_PROC ) then return msid
     end if
 
-    if hs = 0 then return headSid
+    if hs = nullptr then return headSid
     dim as Tko.TypeId bt = c.types->Unqualify( hs->type_ )
     if c.types->Kind( bt ) <> Tko.TK_UDT then return headSid
     dim as Tko.InternId tn = c.types->NameOf( bt )
@@ -336,7 +336,7 @@ private function PropertyNameSym_ _
     dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( ts )
-    if tsy = 0 then return headSid
+    if tsy = nullptr then return headSid
     if tsy->inner = Tko.SCOPE_NONE then return headSid
 
     dim as Tko.BinaryPayload ptr mb = _
@@ -358,7 +358,7 @@ private function HasPropertySetter_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 1000)
         guard += 1
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
@@ -492,7 +492,7 @@ private sub ResolveAmbiguous _
         '' -- so the test is on the symbol's own type, never on what it points at,
         '' and a member or an index is left alone until there is a measurement for it.
         dim as boolean bareName = (c.ast->Kind( sp->a ) = Tko.N_IDENT)
-        if bareName andalso (s <> 0) then
+        if bareName andalso (s <> nullptr) then
             dim as boolean symConst = ((s->flags and Tko.SYMF_CONST) <> 0) orelse _
                                       (cast( Tko.SymbolKind, s->kind ) = Tko.SYM_CONSTANT)
             dim as boolean typeConst = c.types->IsConst( s->type_ )
@@ -513,7 +513,7 @@ private sub ResolveAmbiguous _
         '' assignment to the procedure itself, and the program segfaulted at that line. A
         '' PROPERTY is a setter call, and another overload of the current function is its own
         '' result, so neither is judged.
-        if (isResult = false) andalso bareName andalso (s <> 0) then
+        if (isResult = false) andalso bareName andalso (s <> nullptr) then
             if s->kind = cast( uint8, Tko.SYM_PROC ) then
                 dim as Tko.NodeId fpn = cast( Tko.NodeId, s->payload )
                 dim as boolean isFunc = false
@@ -544,7 +544,7 @@ private sub ResolveAmbiguous _
         return
     end if
 
-    if s = 0 then
+    if s = nullptr then
         c.info->SetAmbiguous( id, Tko.AMB_CALL )
         c.st->calls += 1
         return

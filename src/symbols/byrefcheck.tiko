@@ -14,7 +14,7 @@ private sub CheckByrefResultAgrees_ ( byref c as Ctx, byval id as NodeId )
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->b = NODE_NONE then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if s = 0 then return
+    if s = nullptr then return
     dim as NodeId decl = cast( NodeId, s->payload )
     if decl = NODE_NONE then return
     if decl = id then return
@@ -139,17 +139,17 @@ private function PassedByHiddenRef_ ( byref c as Ctx, byval t as TypeId, byval d
     dim as TypeId b = u
     for g as int32 = 0 to 63
         if b = TYPE_NONE then exit for
-        if StructorOf_( c, b, "__dtor" ) <> 0 then return true
+        if StructorOf_( c, b, "__dtor" ) <> nullptr then return true
         dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( b ) )
         dim as SymbolId ts = c.syms->LookupLocalTyped( ds, c.types->NameOf( b ), true )
         if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, c.types->NameOf( b ), true )
         dim as Symbol ptr s = c.syms->SymbolAt( ts )
-        if (s <> 0) andalso (s->inner <> SCOPE_NONE) then
+        if (s <> nullptr) andalso (s->inner <> SCOPE_NONE) then
             dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
-            dim as SymbolId cur = iif( sc <> 0, sc->firstSym, SYMBOL_NONE )
+            dim as SymbolId cur = iif( sc <> nullptr, sc->firstSym, SYMBOL_NONE )
             while cur <> SYMBOL_NONE
                 dim as Symbol ptr f = c.syms->SymbolAt( cur )
-                if f = 0 then exit while
+                if f = nullptr then exit while
                 if (f->kind = cast( uint8, SYM_FIELD )) andalso ((f->flags and SYMF_STATIC) = 0) andalso (f->type_ <> u) then
                     if PassedByHiddenRef_( c, f->type_, depth + 1 ) then return true
                 end if
@@ -216,7 +216,7 @@ private sub CheckByrefResultValue_ _
             dim as ListPayload ptr cl = _
                 @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, head )].data )]
             dim as Symbol ptr cts = c.syms->SymbolAt( c.info->RefOf( cl->target ) )
-            if cts = 0 then exit while
+            if cts = nullptr then exit while
             if cts->kind <> cast( uint8, SYM_FIELD ) then exit while
             head = cl->target
         elseif (hk = N_INDEX) orelse (hk = N_PAREN) then
@@ -240,7 +240,7 @@ private sub CheckByrefResultValue_ _
         dim as ListPayload ptr lp = _
             @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, head )].data )]
         dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-        if ts = 0 then
+        if ts = nullptr then
             '' 'iif( a, b, c )' IS A TEMPORARY -- error 24 -- and it binds no symbol.
             if c.ast->Kind( lp->target ) = N_IDENT then
                 dim as string tn = c.names->Spelling( _
@@ -269,7 +269,7 @@ private sub CheckByrefResultValue_ _
 
     if c.ast->Kind( head ) <> N_IDENT then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( head ) )
-    if s = 0 then return
+    if s = nullptr then return
     '' A BYVAL PARAMETER IS A LOCAL TOO -- error 272 for 'function = i' over 'byval i as
     '' integer', while a BYREF one is the caller's storage and passes. Measured both.
     '' A parameter's symbol carries no node; its TYPE says how it is passed -- Resolve
@@ -334,8 +334,8 @@ private sub CheckEqParsedAsArg_ ( byref c as Ctx, byval id as NodeId )
         if cast( TokenKind, c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, arg )].data )].op ) <> TK_EQ then return
     end if
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-    if (s = 0) andalso (callee <> NODE_NONE) then s = c.syms->SymbolAt( c.info->RefOf( callee ) )
-    if s = 0 then return
+    if (s = nullptr) andalso (callee <> NODE_NONE) then s = c.syms->SymbolAt( c.info->RefOf( callee ) )
+    if s = nullptr then return
     if s->kind <> cast( uint8, SYM_PROC ) then return
     '' ANY OVERLOAD OF THE NAME WITH A BYREF RESULT, not the one the call chose: fbc's own
     '' warnings/byref-function-assign-2 has 'f1( 123 ) = 123' warn where the one-argument
@@ -346,7 +346,7 @@ private sub CheckEqParsedAsArg_ ( byref c as Ctx, byval id as NodeId )
     if cur = SYMBOL_NONE then cur = c.info->RefOf( sp->a )
     for guard as int32 = 0 to 255
         dim as Symbol ptr os = c.syms->SymbolAt( cur )
-        if os = 0 then exit for
+        if os = nullptr then exit for
         if os->kind = cast( uint8, SYM_PROC ) then
             dim as NodeId pn = cast( NodeId, os->payload )
             if pn <> NODE_NONE then
@@ -375,11 +375,11 @@ private sub CheckByvalResultTarget_ ( byref c as Ctx, byval id as NodeId )
     if c.ast->Kind( sp->a ) <> N_CALL then return
     if c.info->AmbiguousOf( sp->a ) = AMB_PROPERTY_SET then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-    if s = 0 then
+    if s = nullptr then
         dim as NodeId tg = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->a )].data )].target
         if tg <> NODE_NONE then s = c.syms->SymbolAt( c.info->RefOf( tg ) )
     end if
-    if s = 0 then return
+    if s = nullptr then return
     if s->kind <> cast( uint8, SYM_PROC ) then return
     dim as NodeId pn = cast( NodeId, s->payload )
     if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return

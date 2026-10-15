@@ -28,7 +28,7 @@ private function ArrProcResult_ ( byref c as Ctx, byval id as NodeId ) as TypeId
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (pp->extra and PF_ARRAY_RESULT) <> 0 then
         dim as Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if ps <> 0 then return ps->type_
+        if ps <> nullptr then return ps->type_
     end if
     return c.info->TypeOf_( pp->a )
 end function
@@ -39,7 +39,7 @@ private sub ArrCheckNamed_ _
     ( byref c as Ctx, byval at_ as NodeId, byval rt as TypeId, byval n as NodeId )
 
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
-    if s = 0 then
+    if s = nullptr then
         c.diags->Report( TKO0838, PointRange( c.ast->Loc( at_ ) ) )
         return
     end if
@@ -96,7 +96,7 @@ private sub ArrCheckSource_ _
         if (callee = SYMBOL_NONE) andalso (cp->target <> NODE_NONE) then callee = c.info->RefOf( cp->target )
         dim as Symbol ptr cs = c.syms->SymbolAt( callee )
         dim as boolean isProc = false
-        if cs <> 0 then isProc = (cs->kind = cast( uint8, SYM_PROC ))
+        if cs <> nullptr then isProc = (cs->kind = cast( uint8, SYM_PROC ))
         if isProc then
             dim as TypeId ct = c.types->Unqualify( cs->type_ )
             dim as boolean callOk = c.types->IsDynArray( ct )
@@ -133,7 +133,7 @@ private function ArrIsResultCall_ ( byref c as Ctx, byval e0 as NodeId ) as bool
     dim as SymbolId callee = c.info->RefOf( e )
     if (callee = SYMBOL_NONE) andalso (cp->target <> NODE_NONE) then callee = c.info->RefOf( cp->target )
     dim as Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return false
+    if cs = nullptr then return false
     return (cs->kind = cast( uint8, SYM_PROC ))
 end function
 
@@ -240,7 +240,7 @@ end sub
 private sub CheckArrayResultName_ ( byref c as Ctx, byval id as NodeId )
     if (c.ast->nodes[cast( int32, id )].flags and NF_CALL_TARGET) <> 0 then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if s = 0 then return
+    if s = nullptr then return
     if s->kind <> cast( uint8, SYM_PROC ) then return
     if c.types->IsDynArray( c.types->Unqualify( s->type_ ) ) = false then return
     c.diags->Report( TKO0841, PointRange( c.ast->Loc( id ) ), c.names->Spelling( s->name ) )
@@ -255,7 +255,7 @@ private sub CheckArrayArgs_ ( byref c as Ctx, byval id as NodeId )
     dim as SymbolId head = c.info->RefOf( id )
     if (head = SYMBOL_NONE) andalso (lp->target <> NODE_NONE) then head = c.info->RefOf( lp->target )
     dim as Symbol ptr hs = c.syms->SymbolAt( head )
-    if hs = 0 then return
+    if hs = nullptr then return
     if hs->kind <> cast( uint8, SYM_PROC ) then return
     for ai as int32 = 0 to lp->count - 1
         dim as NodeId an = cast( NodeId, c.ast->children[lp->first + ai] )
@@ -265,7 +265,7 @@ private sub CheckArrayArgs_ ( byref c as Ctx, byval id as NodeId )
         for guard as int32 = 0 to 255
             if cur = SYMBOL_NONE then exit for
             dim as Symbol ptr cs = c.syms->SymbolAt( cur )
-            if cs = 0 then exit for
+            if cs = nullptr then exit for
             dim as NodeId pn = cast( NodeId, cs->payload )
             if (pn <> NODE_NONE) andalso (c.ast->Kind( pn ) = N_PROC) then
                 dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]

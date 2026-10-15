@@ -23,7 +23,7 @@ private function SameTypeLet_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.Sy
     tt.Push( cast( uint32, t ) )
     dim as Tko.SymbolId lt = PickCtor( c, StructorOf( c, t, "let" ), tt )
     dim as Tko.Symbol ptr ls = c.syms->SymbolAt( lt )
-    if ls = 0 then return Tko.SYMBOL_NONE
+    if ls = nullptr then return Tko.SYMBOL_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, ls->payload )
     if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return lt
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
@@ -236,7 +236,7 @@ private function LowerSpawnArgAssign_ _
     if daddr.kind = cast( uint8, MV_NONE ) then return false
     dim as int32 tslot = NewTempLocal( c, MT_AGG, sz )
     if tslot < 0 then return false
-    if LowerConvCtorInit_( c, tslot, dt, value, 0 ) = false then return false
+    if LowerConvCtorInit_( c, tslot, dt, value, nullptr ) = false then return false
     if TypeNeedsDtor_( c, dt ) then
         c.udtTemps.Push( cast( uint32, tslot ) )
         c.udtTempTypes.Push( cast( uint32, dt ) )
@@ -338,7 +338,7 @@ private sub LowerAssign _
                 '' fields through the address the same way, '*(float*)&SH$ = ...'.
                 dim as Tko.SymbolId tlsid = c.info->RefOf( target )
                 dim as Tko.Symbol ptr tls = c.syms->SymbolAt( tlsid )
-                dim as boolean frameVar = (tls <> 0) andalso (tlk = Tko.N_IDENT)
+                dim as boolean frameVar = (tls <> nullptr) andalso (tlk = Tko.N_IDENT)
                 if frameVar then frameVar = (tls->kind = cast( uint8, Tko.SYM_VARIABLE ))
                 if frameVar then frameVar = (IsSharedVar( c, tlsid ) = false)
                 if frameVar then frameVar = (IsStaticLocal( c, tlsid ) = false)

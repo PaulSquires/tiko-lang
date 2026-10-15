@@ -88,7 +88,7 @@ private function ConstDesignated_ ( byref c as Ctx, byval n as NodeId ) as boole
     '' 'const S = "abc"': the first wrote the element, the second stopped as unlowered.
     if c.ast->Kind( xb ) = N_IDENT then
         dim as Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( xb ) )
-        if bs <> 0 then
+        if bs <> nullptr then
             if cast( SymbolKind, bs->kind ) = SYM_CONSTANT then return true
             dim as TypeId at0 = c.types->Unqualify( bs->type_ )
             if (c.ast->Kind( n ) = N_CALL) andalso (c.types->Kind( at0 ) = TK_ARRAY) then
@@ -125,7 +125,7 @@ private sub CheckConstWriteTarget_ ( byref c as Ctx, byval id as NodeId )
             if c.ast->Kind( lp->target ) = N_IDENT then
                 '' A SUBSCRIPTED VARIABLE -- an array element -- is judged like an index.
                 dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-                if ts <> 0 then judged = (cast( SymbolKind, ts->kind ) = SYM_VARIABLE)
+                if ts <> nullptr then judged = (cast( SymbolKind, ts->kind ) = SYM_VARIABLE)
                 if c.info->RefOf( lp->target ) = SYMBOL_NONE then
                     dim as string cn = lcase( c.names->Spelling( _
                         c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
@@ -339,7 +339,7 @@ private sub CheckOutsideRange_ ( byref c as Ctx, byval blk as NodeId )
             ''
             '' tiko accepted the three. At module level the TKO0761 rule below is the one asked.
             dim as SymScope ptr cur = c.syms->ScopeAt( c.info->ScopeOf( st ) )
-            if cur <> 0 then
+            if cur <> nullptr then
                 if cur->kind = cast( uint8, SCOPEK_NAMESPACE ) then
                     dim as ScopeId os = NamespaceScopeOf_( c, ip->ownerName )
                     '' ...AND ONLY A NAMESPACE: 'dim as integer A.i1' DEFINES A STATIC MEMBER of a
@@ -348,12 +348,12 @@ private sub CheckOutsideRange_ ( byref c as Ctx, byval blk as NodeId )
                     dim as string oq = c.names->Spelling( ip->ownerName )
                     if instr( oq, "." ) > 0 then oq = left( oq, instr( oq, "." ) - 1 )
                     dim as Symbol ptr oh = c.syms->SymbolAt( c.syms->Lookup( c.info->ScopeOf( st ), c.names->GetString( oq ) ) )
-                    if (oh = 0) orelse (oh->kind <> cast( uint8, SYM_NAMESPACE )) then os = SCOPE_NONE
+                    if (oh = nullptr) orelse (oh->kind <> cast( uint8, SYM_NAMESPACE )) then os = SCOPE_NONE
                     if os <> SCOPE_NONE then
                         dim as boolean nested = false
                         dim as SymScope ptr up = c.syms->ScopeAt( os )
                         for hop as int32 = 0 to 63
-                            if up = 0 then exit for
+                            if up = nullptr then exit for
                             if up->parent = c.info->ScopeOf( st ) then nested = true : exit for
                             up = c.syms->ScopeAt( up->parent )
                         next
@@ -611,7 +611,7 @@ private function ThreadUnsupportedUdt_ _
     dim as TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) <> TK_UDT then return false
     dim as Symbol ptr ts = UdtSymbolOf_( c, u )
-    if ts = 0 then return false
+    if ts = nullptr then return false
     if (ts->flags and SYMF_UNION_KIND) <> 0 then
         why = "a union cannot be passed to a thread"
         return true
@@ -671,7 +671,7 @@ private sub CheckThreadCall_ ( byref c as Ctx, byval id as NodeId )
         '' 'threadcall NoArgs' WITHOUT PARENTHESES is the name alone, no N_CALL. It runs
         '' no more than the other spelling does, so it gets TKO0797 too -- and only that.
         dim as Symbol ptr bare = c.syms->SymbolAt( c.info->RefOf( tcall ) )
-        if bare = 0 then return
+        if bare = nullptr then return
         if bare->kind <> cast( uint8, SYM_PROC ) then return
         dim as NodeId bdecl = cast( NodeId, bare->payload )
         if bdecl = NODE_NONE then return
@@ -693,8 +693,8 @@ private sub CheckThreadCall_ ( byref c as Ctx, byval id as NodeId )
         return
     end if
     dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( tcall ) )
-    if callee = 0 then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-    if callee = 0 then return
+    if callee = nullptr then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if callee = nullptr then return
     if callee->kind <> cast( uint8, SYM_PROC ) then return
     dim as NodeId decl = cast( NodeId, callee->payload )
     if decl = NODE_NONE then return
@@ -851,7 +851,7 @@ private sub CheckRedimDeclShape_( byref c as Ctx )
                 '' scalar' over an 'extern scalar as integer' is one fbc error, and putting
                 '' both on it made two -- caught by this suite's outside-namespace-2 test.
                 dim as Symbol ptr ns = c.syms->SymbolAt( c.info->RefOf( item ) )
-                if ns <> 0 then
+                if ns <> nullptr then
                     if ns->type_ <> TYPE_NONE then
                         if c.types->Kind( c.types->Unqualify( ns->type_ ) ) <> TK_ARRAY then
                             continue for
@@ -1017,18 +1017,18 @@ private function UdtHoldsKind_ _
     ( byref c as Ctx, byval t as TypeId, byval wantString as boolean, _
       byval depth as int32 ) as Symbol ptr
 
-    if depth > 8 then return 0
+    if depth > 8 then return nullptr
     dim as TypeId u = ValueType_( c, t )
-    if u = TYPE_NONE then return 0
-    if c.types->Kind( u ) <> TK_UDT then return 0
+    if u = TYPE_NONE then return nullptr
+    if c.types->Kind( u ) <> TK_UDT then return nullptr
     '' A TUPLE IS NOT A UDT FOR THIS RULE, even though it is synthesised as one:
     '' 'dim as (long, string) s = ( 1, "hello" )' is accepted by fbc and is what this
     '' suite's own tuple-compare and tuple-destructure tests write, while the identical
     '' shape over a NAMED type holding a string is error 24.
-    if TupleLike_( c, u ) then return 0
+    if TupleLike_( c, u ) then return nullptr
     dim as Symbol ptr ts = UdtSymbolOf_( c, u )
-    if ts = 0 then return 0
-    if ts->inner = SCOPE_NONE then return 0
+    if ts = nullptr then return nullptr
+    if ts->inner = SCOPE_NONE then return nullptr
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr f = @c.syms->symbols[i]
         if f->parent <> ts->inner then continue for
@@ -1047,11 +1047,11 @@ private function UdtHoldsKind_ _
             dim as TypeId ft2 = c.types->Unqualify( f->type_ )
             if c.types->Kind( ft2 ) = TK_UDT then
                 dim as Symbol ptr deeper = UdtHoldsKind_( c, ft2, wantString, depth + 1 )
-                if deeper <> 0 then return deeper
+                if deeper <> nullptr then return deeper
             end if
         end if
     next
-    return 0
+    return nullptr
 end function
 
 '' '= ANY' OVER A VAR-LENGTH STRING IS fbc's ERROR 24, "Invalid data types". Measured,
@@ -1073,7 +1073,7 @@ end function
 '' keeping: fbc leaves inner's descriptor uninitialised and then DESTROYS it, which is
 '' its own hazard and not something this rule may be widened to cover.
 private function AnyInitOf_( byref c as Ctx, byval s as Symbol ptr ) as NodeId
-    if s = 0 then return NODE_NONE
+    if s = nullptr then return NODE_NONE
     if s->payload = 0 then return NODE_NONE
     dim as NodeId item = cast( NodeId, s->payload )
     dim as NodeId init = NODE_NONE
@@ -1146,12 +1146,12 @@ private sub CheckAggregateInitFields_( byref c as Ctx )
         '' caught this rule refusing it -- the same distinction TKO0746 needed.
         if DeclaresAnywhere_( c, ValueType_( c, s->type_ ), "__ctor" ) then continue for
         dim as Symbol ptr sf = UdtHoldsKind_( c, s->type_, true, 0 )
-        if sf <> 0 then
+        if sf <> nullptr then
             c.diags->Report( TKO0757, PointRange( c.ast->Loc( item ) ), _
                              c.names->Spelling( s->name ) )
             continue for
         end if
-        if (c.ast->Kind( ip->b ) <> N_INITIALIZER) andalso (UdtHasCtorField_( c, s->type_, 0 ) <> 0) then
+        if (c.ast->Kind( ip->b ) <> N_INITIALIZER) andalso (UdtHasCtorField_( c, s->type_, 0 ) <> nullptr) then
             c.diags->Report( TKO0965, PointRange( c.ast->Loc( item ) ), c.names->Spelling( s->name ) )
             continue for
         end if
@@ -1162,7 +1162,7 @@ private sub CheckAggregateInitFields_( byref c as Ctx )
         '' refused both (structs/bitfield_init.bas).
         if (s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or SYMF_COMMON)) = 0 then continue for
         dim as Symbol ptr bf = UdtHoldsKind_( c, s->type_, false, 0 )
-        if bf = 0 then continue for
+        if bf = nullptr then continue for
         c.diags->Report( TKO0758, PointRange( c.ast->Loc( item ) ), _
                          c.names->Spelling( s->name ) )
     next
@@ -1231,16 +1231,16 @@ private function LoaderFilled_ _
     if DeclaresAnywhere_( c, u, "__ctor" ) then return false
     if ExtendsObject_( c, u ) then return false
     dim as Symbol ptr ts = UdtSymbolOf_( c, u )
-    if ts = 0 then return false
+    if ts = nullptr then return false
     if ts->inner = SCOPE_NONE then return false
     dim as SymScope ptr sc = c.syms->ScopeAt( ts->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     dim as SymbolId cur = sc->firstSym
     dim as int32 guard = 0
     while (cur <> SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit while
+        if f = nullptr then exit while
         if f->kind = cast( uint8, SYM_FIELD ) then
             '' A FIELD INITIALISER is the implicit constructor's work. A BITFIELD's
             '' payload is its width, not a node -- see AnyInitOf_.
@@ -1269,7 +1269,7 @@ private function StaticStorage_ ( byref c as Ctx, byval s as Symbol ptr ) as boo
     while (cur <> SCOPE_NONE) andalso (guard < 1000)
         guard += 1
         dim as SymScope ptr sc = c.syms->ScopeAt( cur )
-        if sc = 0 then exit while
+        if sc = nullptr then exit while
         if sc->kind = cast( uint8, SCOPEK_TYPE ) then return false
         if sc->kind = cast( uint8, SCOPEK_PROC ) then return flagged
         if sc->kind = cast( uint8, SCOPEK_NAMESPACE ) then return true
@@ -1289,7 +1289,7 @@ private function RunTimeLeaf_ _
     select case c.ast->Kind( n )
     case N_IDENT
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
-        if s = 0 then return NODE_NONE
+        if s = nullptr then return NODE_NONE
         select case s->kind
         case cast( uint8, SYM_VARIABLE ), cast( uint8, SYM_PARAMETER )
             return n
@@ -1300,7 +1300,7 @@ private function RunTimeLeaf_ _
         end select
     case N_MEMBER
         dim as Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( n ) )
-        if ms <> 0 then
+        if ms <> nullptr then
             select case ms->kind
             case cast( uint8, SYM_VARIABLE ), cast( uint8, SYM_PROC )
                 return n
@@ -1323,8 +1323,8 @@ private function RunTimeLeaf_ _
             return NODE_NONE
         end select
         dim as Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( n ) )
-        if cs = 0 then cs = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-        if cs <> 0 then
+        if cs = nullptr then cs = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+        if cs <> nullptr then
             if (cs->kind = cast( uint8, SYM_PROC )) orelse _
                (cs->kind = cast( uint8, SYM_VARIABLE )) then return n
             return NODE_NONE
@@ -1437,7 +1437,7 @@ private sub CheckStaticInitConst_( byref c as Ctx )
         '' or any in a namespace -- is reported here, once.
         if c.ast->Kind( ip->b ) = N_IDENT then
             dim as Symbol ptr src = c.syms->SymbolAt( c.info->RefOf( ip->b ) )
-            if src <> 0 then
+            if src <> nullptr then
                 if src->kind = cast( uint8, SYM_VARIABLE ) then
                     dim as boolean flagged = ((s->flags and (SYMF_SHARED or SYMF_STATIC)) <> 0)
                     if flagged andalso (c.types->Kind( vt ) = TK_BUILTIN) then continue for
@@ -1455,15 +1455,15 @@ private sub CheckStaticInitConst_( byref c as Ctx )
         '' A SHARED target's is TKO0668's, and a module-level 'static' target is fine
         '' (tests/diagnostics/static-source-init): only a NAMESPACE's variable is judged.
         dim as SymScope ptr tsc = c.syms->ScopeAt( s->parent )
-        dim as boolean nsTarget = (tsc <> 0) andalso (tsc->kind = cast( uint8, SCOPEK_NAMESPACE ))
+        dim as boolean nsTarget = (tsc <> nullptr) andalso (tsc->kind = cast( uint8, SCOPEK_NAMESPACE ))
         if nsTarget andalso ((s->flags and SYMF_SHARED) = 0) andalso (c.ast->Kind( ip->b ) = N_ADDROF) then
             dim as NodeId ao = c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, ip->b )].data )].operand
             if (ao <> NODE_NONE) andalso (c.ast->Kind( ao ) = N_IDENT) then
                 dim as Symbol ptr asrc = c.syms->SymbolAt( c.info->RefOf( ao ) )
-                if (asrc <> 0) andalso (asrc->kind = cast( uint8, SYM_VARIABLE )) then
+                if (asrc <> nullptr) andalso (asrc->kind = cast( uint8, SYM_VARIABLE )) then
                     if (asrc->flags and (SYMF_SHARED or SYMF_EXTERN or SYMF_COMMON)) = 0 then
                         dim as SymScope ptr ascp = c.syms->ScopeAt( asrc->parent )
-                        if (ascp <> 0) andalso ((ascp->kind = cast( uint8, SCOPEK_MODULE )) orelse (ascp->kind = cast( uint8, SCOPEK_GLOBAL ))) then
+                        if (ascp <> nullptr) andalso ((ascp->kind = cast( uint8, SCOPEK_MODULE )) orelse (ascp->kind = cast( uint8, SCOPEK_GLOBAL ))) then
                             c.diags->Report( TKO0778, PointRange( c.ast->Loc( ip->b ) ), c.names->Spelling( s->name ) )
                             continue for
                         end if

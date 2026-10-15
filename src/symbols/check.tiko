@@ -407,7 +407,7 @@ private function FieldOf_ _
     dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if s = 0 then return Tko.SYMBOL_NONE
+    if s = nullptr then return Tko.SYMBOL_NONE
     if s->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     '' ...UNLESS THE TYPE HAS A FIELD OF THAT NAME. 'as long constructor' is a legal field,
     '' and 't.constructor' is then that field -- measured, fbc-modern 1.20 stores into it and
@@ -416,7 +416,7 @@ private function FieldOf_ _
     if litNm <> nm then
         dim as Tko.SymbolId lit = c.syms->LookupLocal( s->inner, litNm )
         dim as Tko.Symbol ptr ls = c.syms->SymbolAt( lit )
-        if ls <> 0 then
+        if ls <> nullptr then
             if ls->kind = cast( uint8, Tko.SYM_FIELD ) then return lit
         end if
     end if
@@ -435,7 +435,7 @@ private function FieldOf_ _
         dim as Tko.SymbolId bf = c.syms->LookupLocal( s->inner, baseNm )
         if bf <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr b = c.syms->SymbolAt( bf )
-            if (b <> 0) andalso (b->type_ <> Tko.TYPE_NONE) andalso (b->type_ <> t) then
+            if (b <> nullptr) andalso (b->type_ <> Tko.TYPE_NONE) andalso (b->type_ <> t) then
                 dim as Tko.SymbolId up = FieldOf_( c, b->type_, litNm )
                 if up <> Tko.SYMBOL_NONE then return up
             end if
@@ -467,7 +467,7 @@ private function FieldOf_ _
     '' GLOBAL scope while its generic sits in a module or namespace scope below it, so
     '' a name lookup from here walks the wrong way and finds nothing.
     dim as Tko.Symbol ptr gsym = c.syms->SymbolAt( c.info->RefOf( gnode ) )
-    if gsym = 0 then return Tko.SYMBOL_NONE
+    if gsym = nullptr then return Tko.SYMBOL_NONE
     if gsym->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     return c.syms->LookupLocal( gsym->inner, nm )
 end function
@@ -603,7 +603,7 @@ private function ClosureInvokeOf_ _
         c.syms->LookupLocalTyped( cast( Tko.ScopeId, c.types->DeclScopeOf( u ) ), _
                                   c.types->NameOf( u ), true )
     dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
-    if ts = 0 then return Tko.SYMBOL_NONE
+    if ts = nullptr then return Tko.SYMBOL_NONE
     if ts->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     return c.syms->LookupLocal( ts->inner, _
         c.names->Fold( c.names->GetString( "__fbinvoke" ) ) )
@@ -675,7 +675,7 @@ private function TypeOfUncached_ _
     case Tko.N_IDENT
         dim as Tko.SymbolId sid = ParenlessMethodOf_( c, c.info->RefOf( id ), id )
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-        if s <> 0 then t = s->type_ : if (s->kind = cast( uint8, Tko.SYM_PROC )) andalso c.types->IsDynArray( t ) then t = Tko.TYPE_NONE   '' an ARRAY RESULT is not the procedure's own type: the callee of 'f( )' must not read as an array being subscripted
+        if s <> nullptr then t = s->type_ : if (s->kind = cast( uint8, Tko.SYM_PROC )) andalso c.types->IsDynArray( t ) then t = Tko.TYPE_NONE   '' an ARRAY RESULT is not the procedure's own type: the callee of 'f( )' must not read as an array being subscripted
 
         '' A REFERENCE IS TRANSPARENT IN AN EXPRESSION. 'byref n as integer' makes the
         '' SYMBOL a reference-to-integer, because the slot has to hold an address, but
@@ -685,7 +685,7 @@ private function TypeOfUncached_ _
         if t <> Tko.TYPE_NONE then
             if c.types->Kind( t ) = Tko.TK_REFERENCE then t = c.types->Inner( t )
         end if
-        if (t = Tko.TYPE_NONE) andalso (s <> 0) then t = MainArgvType_( c, s )   '' T80
+        if (t = Tko.TYPE_NONE) andalso (s <> nullptr) then t = MainArgvType_( c, s )   '' T80
         '' 'const K = 7' declares no type of its own, so the symbol carries none and
         '' every use of K was untyped -- which made the whole enclosing statement
         '' decline. Its type is its INITIALISER's, measured: K is INTEGER, 'const D =
@@ -694,7 +694,7 @@ private function TypeOfUncached_ _
         '' Computed on DEMAND rather than when the declaration is walked, because a use
         '' can be typed before the declaration is reached and TypeOf_ memoises: an
         '' early use would cache TYPE_NONE and never look again.
-        if (t = Tko.TYPE_NONE) andalso (s <> 0) then
+        if (t = Tko.TYPE_NONE) andalso (s <> nullptr) then
             if (s->kind = cast( uint8, Tko.SYM_CONSTANT )) andalso (s->payload <> 0) then
                 dim as Tko.NodeId item = cast( Tko.NodeId, s->payload )
                 if c.ast->Kind( item ) = Tko.N_VAR_ITEM then
@@ -724,7 +724,7 @@ private function TypeOfUncached_ _
         '' Lazily and on demand, for the same reason the constant above is: a use can
         '' be typed before the declaration is walked, and TypeOf_ memoises, so binding
         '' this eagerly would cache TYPE_NONE against the early use and never revisit.
-        if (t = Tko.TYPE_NONE) andalso (s <> 0) then
+        if (t = Tko.TYPE_NONE) andalso (s <> nullptr) then
             if (s->kind = cast( uint8, Tko.SYM_VARIABLE )) andalso (s->payload <> 0) then
                 dim as Tko.NodeId item = cast( Tko.NodeId, s->payload )
                 if c.ast->Kind( item ) = Tko.N_VAR_ITEM then
@@ -814,7 +814,7 @@ private function TypeOfUncached_ _
         dim as Tko.SymbolId uuop = UserUnaryOp_( c, op, inner )
         if uuop <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr uus = c.syms->SymbolAt( uuop )
-            if uus <> 0 then
+            if uus <> nullptr then
                 c.info->SetRef( id, uuop )
                 t = uus->type_
                 exit select
@@ -912,7 +912,7 @@ private function TypeOfUncached_ _
             uop = UserBinaryOp_( c, op, lt, rt, uopSeen )
             if uop <> Tko.SYMBOL_NONE then
                 dim as Tko.Symbol ptr us = c.syms->SymbolAt( uop )
-                if us <> 0 then
+                if us <> nullptr then
                     t = us->type_
                     c.info->SetRef( id, uop )
                 end if
@@ -954,7 +954,7 @@ private function TypeOfUncached_ _
         dim as Tko.SymbolId qsid = c.info->RefOf( id )
         if qsid <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr qs = c.syms->SymbolAt( qsid )
-            if qs <> 0 then
+            if qs <> nullptr then
                 '' A CONSTANT OR ENUM MEMBER counts too, and only the VARIABLE case
                 '' was here. 'NS.SOME_ENUM_MEMBER' got a REFERENCE and no TYPE, so
                 '' every use of one was untyped -- 'error( FB.FB_RTERROR_... )' and
@@ -1061,7 +1061,7 @@ private function TypeOfUncached_ _
                 dim as Tko.SymbolId ets = c.syms->LookupLocalTyped( eds, etn, true )
                 if ets = Tko.SYMBOL_NONE then ets = c.syms->LookupTyped( eds, etn, true )
                 dim as Tko.Symbol ptr esy = c.syms->SymbolAt( ets )
-                if esy <> 0 then
+                if esy <> nullptr then
                     if esy->inner <> Tko.SCOPE_NONE then
                         dim as Tko.SymbolId ems = _
                             c.syms->LookupLocal( esy->inner, eip->name )
@@ -1090,7 +1090,7 @@ private function TypeOfUncached_ _
             if fs <> Tko.SYMBOL_NONE then fs = ParenlessMethodOf_( c, PropertyReadAccessor_( c, fs ), id )
             if fs <> Tko.SYMBOL_NONE then
                 dim as Tko.Symbol ptr f = c.syms->SymbolAt( fs )
-                if f <> 0 then
+                if f <> nullptr then
                     '' Recorded on the MEMBER node so lowering can find the field
                     '' without repeating the lookup.
                     c.info->SetRef( id, fs )
@@ -1174,7 +1174,7 @@ private function TypeOfUncached_ _
                 '' temporary worked. fb/chrono.bi writes most of its assertions this
                 '' way: 'DateTime( 2025, 1, 31 ).AddMonths( 0 ).Ticks'.
                 dim as Tko.Symbol ptr cs2 = c.syms->SymbolAt( callee )
-                if cs2 <> 0 then
+                if cs2 <> nullptr then
                     '' ...OR A TYPEDEF FOR ONE. 'type Alias as T' is a SYM_TYPEDEF, so
                     '' 'Alias( ).a' left the call untyped and the '.a' on it had nothing
                     '' to offset from -- while 'T( ).a' and 'type<Alias>( ).a' beside it
@@ -1219,7 +1219,7 @@ private function TypeOfUncached_ _
                 '' same N_PROC and carries no type of its own.
                 dim as Tko.Symbol ptr ips = c.syms->SymbolAt( _
                     cast( Tko.SymbolId, c.syms->SymbolAt( civ )->payload ) )
-                if ips <> 0 then
+                if ips <> nullptr then
                     t = ips->type_
                     if t = Tko.TYPE_NONE then t = c.types->Builtin( Tko.TY_VOID )
                 end if
@@ -1361,7 +1361,7 @@ private function TypeOfUncached_ _
                     dim as Tko.SymbolId ixs = IndexOperatorFor_( c, pt, iif( xp->count > 0, cast( Tko.NodeId, c.ast->children[xp->first] ), Tko.NODE_NONE ) )
                     if ixs <> Tko.SYMBOL_NONE then
                         dim as Tko.Symbol ptr ixsym = c.syms->SymbolAt( ixs )
-                        if ixsym <> 0 then
+                        if ixsym <> nullptr then
                             t = ixsym->type_
                             if t <> Tko.TYPE_NONE then
                                 if c.types->Kind( t ) = Tko.TK_REFERENCE then
@@ -1393,7 +1393,7 @@ private function TypeOfUncached_ _
             if dop <> Tko.SYMBOL_NONE then
                 c.info->SetRef( id, dop )
                 dim as Tko.Symbol ptr ds = c.syms->SymbolAt( dop )
-                if ds <> 0 then
+                if ds <> nullptr then
                     t = c.types->Unqualify( ds->type_ )
                     if c.types->Kind( t ) = Tko.TK_REFERENCE then
                         t = c.types->Unqualify( c.types->Inner( t ) )
@@ -1420,7 +1420,7 @@ private function TypeOfUncached_ _
         dim as Tko.SymbolId psid = c.info->RefOf( ap->operand )
         dim as Tko.Symbol ptr psym = c.syms->SymbolAt( psid )
         '' '@x.f' over a BYREF PROPERTY GETTER is its answer's address, 'integer ptr' (checkbase.tiko).
-        if (psym <> 0) andalso (psym->kind = cast( uint8, Tko.SYM_PROC )) then
+        if (psym <> nullptr) andalso (psym->kind = cast( uint8, Tko.SYM_PROC )) then
             if ByrefPropOperand_( c, ap->operand, psym ) = false then t = ProcTypeOfSymbol_( c, psid )
         end if
         if t = Tko.TYPE_NONE then
@@ -1434,7 +1434,7 @@ private function TypeOfUncached_ _
             dim as Tko.SymbolId aop = UdtMemberSym_( c, inner, "@" )
             if aop <> Tko.SYMBOL_NONE then
                 dim as Tko.Symbol ptr aos = c.syms->SymbolAt( aop )
-                if aos <> 0 then
+                if aos <> nullptr then
                     if (aos->kind = cast( uint8, Tko.SYM_PROC )) andalso _
                        (aos->type_ <> Tko.TYPE_NONE) then
                         t = aos->type_

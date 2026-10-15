@@ -33,7 +33,7 @@ private function ConvCtorFor_ _
     dim as Tko.SymbolId cur = StructorOf( c, pt, "__ctor" )
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
             dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
@@ -190,7 +190,7 @@ function UdtCastToUdt_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         if cs->type_ <> Tko.TYPE_NONE then
             dim as Tko.TypeId ru = c.types->Unqualify( cs->type_ )
             if c.types->Kind( ru ) = Tko.TK_REFERENCE then
@@ -242,7 +242,7 @@ function UdtByrefCast_ _
     if cs = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
     '' 'byref' on a result is the procedure's NF_BYREF, not part of its type -- CallReturnsByref_.
     dim as Tko.Symbol ptr csy = c.syms->SymbolAt( cs )
-    if csy = 0 then return Tko.SYMBOL_NONE
+    if csy = nullptr then return Tko.SYMBOL_NONE
     dim as Tko.NodeId cpn = cast( Tko.NodeId, csy->payload )
     if (cpn = Tko.NODE_NONE) orelse (c.ast->Kind( cpn ) <> Tko.N_PROC) then return Tko.SYMBOL_NONE
     if (c.ast->nodes[cast( int32, cpn )].flags and Tko.NF_BYREF) = 0 then return Tko.SYMBOL_NONE
@@ -382,9 +382,9 @@ function ByrefCastInit_ _
     ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, byval init_ as Tko.NodeId, _
       byval selfv as MirValue ptr ) as boolean
 
-    if (slot < 0) andalso (selfv = 0) then return false
+    if (slot < 0) andalso (selfv = nullptr) then return false
     dim as MirValue dst
-    if selfv <> 0 then
+    if selfv <> nullptr then
         dst = *selfv
     else
         dst.kind = cast( uint8, MV_LOCAL ) : dst.ty = cast( uint8, MT_PTR ) : dst.id = slot
@@ -417,7 +417,7 @@ function DirectUdtCtor_( byref c as Ctx, byval pt as Tko.TypeId, byval at as Tko
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
         guard += 1
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         if ParamCountOf( c, cur ) = 1 then
             dim as Tko.TypeId cpt = ParamTypeAt( c, cur, 0 )
             if cpt <> Tko.TYPE_NONE then
@@ -604,7 +604,7 @@ private function UdtConvTemp_ _
         dim as Tko.SymbolId ccur = StructorOf( c, au, "cast" )
         while ccur <> Tko.SYMBOL_NONE
             dim as Tko.Symbol ptr ccs = c.syms->SymbolAt( ccur )
-            if ccs = 0 then exit while
+            if ccs = nullptr then exit while
             dim as Tko.TypeId crt = ccs->type_
             if crt <> Tko.TYPE_NONE then
                 dim as Tko.TypeId cru = c.types->Unqualify( crt )
@@ -901,7 +901,7 @@ function UserConvOperand_ _
         dim as Tko.SymbolId cur = StructorOf( c, et, "cast" )
         while cur <> Tko.SYMBOL_NONE
             dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
-            if cs = 0 then exit while
+            if cs = nullptr then exit while
             dim as Tko.TypeId rt = cs->type_
             if rt <> Tko.TYPE_NONE then
                 dim as Tko.TypeId ru = c.types->Unqualify( rt )
@@ -1004,7 +1004,7 @@ function SretCallType_ _
     ( byref c as Ctx, byval cs as Tko.Symbol ptr, byval viaPointer as boolean, _
       byval sigT as Tko.TypeId ) as Tko.TypeId
 
-    if (viaPointer = false) andalso (cs <> 0) then
+    if (viaPointer = false) andalso (cs <> nullptr) then
         if cs->kind = cast( uint8, Tko.SYM_PROC ) then return cs->type_
         return Tko.TYPE_NONE
     end if
@@ -1195,14 +1195,14 @@ declare function LetParamType_( byref c as Ctx, byval sym as Tko.SymbolId ) as T
 '' THE DESTINATION LetViaCast_ ASSIGNS: the one it was handed -- a function result -- or
 '' the target's address.
 private function DstAddr_( byref c as Ctx, byval target as Tko.NodeId, byval dstp as MirValue ptr ) as MirValue
-    if dstp <> 0 then return *dstp
+    if dstp <> nullptr then return *dstp
     return LowerAddr( c, target )
 end function
 
 
 function LetViaCast_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
-      byval atl as Tko.TypeId, byval avt as Tko.TypeId, byval dstp as MirValue ptr = 0 ) as boolean
+      byval atl as Tko.TypeId, byval avt as Tko.TypeId, byval dstp as MirValue ptr = nullptr ) as boolean
     if (atl = Tko.TYPE_NONE) orelse (avt = Tko.TYPE_NONE) orelse (atl = avt) then return false
     if (c.types->Kind( atl ) <> Tko.TK_UDT) orelse (c.types->Kind( avt ) <> Tko.TK_UDT) then return false
     dim as Tko.SymbolId cur = StructorOf( c, atl, "let" )
@@ -1210,7 +1210,7 @@ function LetViaCast_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
         guard += 1
         dim as Tko.Symbol ptr ls = c.syms->SymbolAt( cur )
-        if ls = 0 then exit while
+        if ls = nullptr then exit while
         dim as Tko.TypeId pt = LetParamType_( c, cur )
         '' A 'let' TAKING THE SOURCE'S OWN TYPE is not this function's: no conversion at all.
         if (pt <> Tko.TYPE_NONE) andalso (c.types->BaseDistance( avt, pt ) >= 0) then return false
@@ -1225,7 +1225,7 @@ function LetViaCast_ _
         while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
             guard += 1
             dim as Tko.Symbol ptr ls = c.syms->SymbolAt( cur )
-            if ls = 0 then exit while
+            if ls = nullptr then exit while
             dim as Tko.TypeId spt = LetParamType_( c, cur )
             if (spt <> Tko.TYPE_NONE) andalso (c.types->Kind( spt ) = Tko.TK_BUILTIN) andalso _
                (c.types->BuiltinOf( spt ) = Tko.TY_STRING) then
@@ -1246,7 +1246,7 @@ function LetViaCast_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 256)
         guard += 1
         dim as Tko.Symbol ptr ls = c.syms->SymbolAt( cur )
-        if ls = 0 then exit while
+        if ls = nullptr then exit while
         dim as Tko.TypeId pt = LetParamType_( c, cur )
         '' A CAST THAT HANDS BACK AN OBJECT -- see UdtPtrCast_. Measured, 'u = v' over
         '' 'TV.cast( ) as TU' and 'TU.let( byref as TU )', TU constructible from TV too: the
@@ -1299,7 +1299,7 @@ function LetViaCast_ _
             if cslot < 0 then return false
             dim as MirValue cda = DstAddr_( c, target, dstp )
             if cda.kind = cast( uint8, MV_NONE ) then return false
-            if LowerConvCtorInit_( c, cslot, atl, value, 0 ) = false then return false
+            if LowerConvCtorInit_( c, cslot, atl, value, nullptr ) = false then return false
             if TypeNeedsDtor_( c, atl ) then c.udtTemps.Push( cast( uint32, cslot ) ) : c.udtTempTypes.Push( cast( uint32, atl ) )
             dim as containers.Array( of uint32 ) cargs
             cargs.Push( cast( uint32, MV_LOCAL ) ) : cargs.Push( cast( uint32, cslot ) )
@@ -1313,7 +1313,7 @@ end function
 '' The type of an 'operator let''s one parameter, reference and qualifiers stripped.
 private function LetParamType_( byref c as Ctx, byval sym as Tko.SymbolId ) as Tko.TypeId
     dim as Tko.Symbol ptr ls = c.syms->SymbolAt( sym )
-    if ls = 0 then return Tko.TYPE_NONE
+    if ls = nullptr then return Tko.TYPE_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, ls->payload )
     dim as Tko.TypeId pt = Tko.TYPE_NONE
     if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then

@@ -965,7 +965,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             if PxPeek( x ) = TK_IDENT then
                 dim as InternId want = cast( InternId, PxTok( x ).literal )
                 PxNext( x )
-                if MacroFor( *x.e, want ) <> 0 then
+                if MacroFor( *x.e, want ) <> nullptr then
                     r = PxNum( -1 )
                 elseif IsDefinedBuiltin_( *x.e, want ) then
                     r = PxNum( -1 )
@@ -1004,7 +1004,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         '' so without it every '#if _WIN32_WINNT >= &h0600' in the Windows headers
         '' read 0 and took the false branch: LOCALE_NAME_USER_DEFAULT and the rest of
         '' the Vista-and-later half were never declared.
-        if x.e <> 0 then
+        if x.e <> nullptr then
             dim as int64 cv = 0
             if PpConstValue( *x.e, t.literal, cv ) then return PxNum( cv )
             dim as string csv

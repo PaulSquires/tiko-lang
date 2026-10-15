@@ -117,7 +117,7 @@ end function
 private function ThisObjectTarget_( byref c as Ctx, byval n as NodeId ) as boolean
     if c.ast->Kind( n ) <> N_IDENT then return false
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, SYM_PARAMETER ) then return false
     if s->name <> c.names->Fold( c.names->GetString( "this" ) ) then return false
     dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( n ) )
@@ -241,10 +241,10 @@ private sub CheckBaseInitCount_ _
     '' fbc-modern 1.20, 2026-09-29 -- 'base( 1, 2, 3 )' and 'base( 1 )' over a parent with
     '' only 'constructor( )' are error 7 (structs/base-init-ctor-disallows-initializer).
     dim as Symbol ptr bct = StructorOf_( c, base_, "__ctor" )
-    if bct <> 0 then
+    if bct <> nullptr then
         dim as boolean fits = false
         for guard as int32 = 0 to 63
-            if bct = 0 then exit for
+            if bct = nullptr then exit for
             dim as NodeId bd = cast( NodeId, bct->payload )
             dim as int32 rq = RequiredParams_( c, bd ), pc = ParamCount_( c, bd )
             if (rq < 0) orelse (pc < 0) then fits = true : exit for
@@ -274,7 +274,7 @@ private sub CheckBaseInitCount_ _
     dim as SymbolId bsid = c.syms->LookupLocalTyped( bsc, bn, true )
     if bsid = SYMBOL_NONE then bsid = c.syms->LookupTyped( bsc, bn, true )
     dim as Symbol ptr bsym = c.syms->SymbolAt( bsid )
-    if bsym = 0 then return
+    if bsym = nullptr then return
     if bsym->inner = SCOPE_NONE then return
     dim as int32 fields = 0
     for i as int32 = 0 to c.syms->symbols.Count - 1
@@ -326,7 +326,7 @@ private sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )
             return
         end select
         dim as Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( m ) )
-        if fs = 0 then return
+        if fs = nullptr then return
         if fs->kind <> cast( uint8, SYM_FIELD ) then return
         if (fs->flags and SYMF_STATIC) <> 0 then return
         '' A CONST FIELD of any object: 'as const integer k = 1' then 'x.k = 2' wrote it.
@@ -338,9 +338,9 @@ private sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )
         if lhs = NODE_NONE then return
         dim as TypeId lt = TYPE_NONE
         '' A VARIABLE'S OWN TYPE, where the walk may have seen a placeholder -- see above.
-        dim as Symbol ptr vs = 0
+        dim as Symbol ptr vs = nullptr
         if c.ast->Kind( lhs ) = N_IDENT then vs = c.syms->SymbolAt( c.info->RefOf( lhs ) )
-        if (vs <> 0) andalso (vs->kind = cast( uint8, SYM_VARIABLE )) then
+        if (vs <> nullptr) andalso (vs->kind = cast( uint8, SYM_VARIABLE )) then
             lt = vs->type_
         else
             lt = c.info->TypeOf_( lhs )
@@ -357,7 +357,7 @@ private sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )
         end if
         if c.types->Kind( c.types->Unqualify( lt ) ) <> TK_UDT then return
         dim as string nm
-        if vs <> 0 then nm = c.names->Spelling( vs->name )
+        if vs <> nullptr then nm = c.names->Spelling( vs->name )
         c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), nm )
         return
     next
@@ -403,9 +403,9 @@ private function UdtArgBad_ ( byref c as Ctx, byval pt as TypeId, byval at as Ty
     if TcTuple_( c, pu ) andalso TcTuple_( c, au ) then return true
     if TcTuple_( c, pu ) orelse TcTuple_( c, au ) then return false
     if DerivesFrom_( c, au, pu ) then return false
-    if StructorOf_( c, au, "cast" ) <> 0 then return false
-    if StructorOf_( c, pu, "__ctor" ) <> 0 then return false
-    if StructorOf_( c, pu, "let" ) <> 0 then return false
+    if StructorOf_( c, au, "cast" ) <> nullptr then return false
+    if StructorOf_( c, pu, "__ctor" ) <> nullptr then return false
+    if StructorOf_( c, pu, "let" ) <> nullptr then return false
     return true
 end function
 private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
@@ -434,7 +434,7 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         '' (LowerLen), not by the chain head: 'LEN( dws )' beside BSTRING's OPERATOR LEN.
         if builtinNm then
             dim as Symbol ptr bops = c.syms->SymbolAt( c.info->RefOf( id ) )
-            if bops <> 0 then
+            if bops <> nullptr then
                 if (bops->kind = cast( uint8, SYM_PROC )) andalso (bops->payload <> 0) then
                     dim as NodeId bpn = cast( NodeId, bops->payload )
                     if c.ast->Kind( bpn ) = N_PROC then
@@ -445,8 +445,8 @@ private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         end if
     end if
     dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( id ) )
-    if callee = 0 then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-    if callee = 0 then return
+    if callee = nullptr then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if callee = nullptr then return
     if callee->kind <> cast( uint8, SYM_PROC ) then return
     dim as NodeId decl = cast( NodeId, callee->payload )
     if decl = NODE_NONE then return
@@ -704,7 +704,7 @@ private sub CheckStringNumberAssign_ _
     '' property's READ type is an integer. Comparing the read type against the value
     '' refused a file fbc accepts; which overload runs is not modelled here.
     dim as Symbol ptr lps = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-    if (lps <> 0) andalso (lps->kind = cast( uint8, SYM_PROC )) then return
+    if (lps <> nullptr) andalso (lps->kind = cast( uint8, SYM_PROC )) then return
     if StrNumMismatch_( c, c.info->TypeOf_( sp->a ), c.info->TypeOf_( sp->b ), sp->a, sp->b ) then
         c.diags->Report( TKO0702, PointRange( c.ast->Loc( id ) ) )
     end if

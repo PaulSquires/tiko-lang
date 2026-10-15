@@ -18,7 +18,7 @@
 private sub DeferAtModule_ ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId )
     if c.ast->Kind( id ) <> Tko.N_DEFER then return
     dim as Tko.SymScope ptr ss = c.syms->ScopeAt( here )
-    if ss = 0 then return
+    if ss = nullptr then return
     select case ss->kind
     case Tko.SCOPEK_GLOBAL, Tko.SCOPEK_MODULE, Tko.SCOPEK_NAMESPACE
         c.diags->Report( Tko.TKO0814, Tko.PointRange( c.ast->Loc( id ) ) )
@@ -46,7 +46,7 @@ private sub GenericMemberList_ ( byref c as Ctx, byval id as Tko.NodeId, byval h
     if (sp->ownerName = 0) orelse (sp->c = Tko.NODE_NONE) then return
     if c.ast->Kind( sp->c ) <> Tko.N_BLOCK then return
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( LookupDottedType_( c, here, sp->ownerName ) )
-    if gs = 0 then return
+    if gs = nullptr then return
     if gs->kind <> cast( uint8, Tko.SYM_UDT ) then return
     if (gs->flags and Tko.SYMF_GENERIC_INST) <> 0 then return
     dim as Tko.NodeId gn = cast( Tko.NodeId, gs->payload )

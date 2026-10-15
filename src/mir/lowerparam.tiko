@@ -16,7 +16,7 @@ function ParamDefaultAt _
     ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as int32 ) as Tko.NodeId
 
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return Tko.NODE_NONE
+    if cs = nullptr then return Tko.NODE_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return Tko.NODE_NONE
     if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.NODE_NONE
@@ -67,7 +67,7 @@ function ParamTypeAt _
     ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as int32 ) as Tko.TypeId
 
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return Tko.TYPE_NONE
+    if cs = nullptr then return Tko.TYPE_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
@@ -86,7 +86,7 @@ function ParamIsByref _
     ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as int32 ) as boolean
 
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return false
+    if cs = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
@@ -117,7 +117,7 @@ function ParamIsVariadic_ _
 
     if idx < 0 then return false
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return false
+    if cs = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
@@ -136,7 +136,7 @@ function ParamIsArray _
     ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as int32 ) as boolean
 
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return false
+    if cs = nullptr then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
@@ -163,7 +163,7 @@ function BareTypeNameTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outa as
     e = Unparen_( c, e )
     if (e = Tko.NODE_NONE) orelse (c.ast->Kind( e ) <> Tko.N_IDENT) then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( e ) )
-    if (s = 0) orelse (s->kind <> cast( uint8, Tko.SYM_UDT )) then return false
+    if (s = nullptr) orelse (s->kind <> cast( uint8, Tko.SYM_UDT )) then return false
     dim as Tko.TypeId t = c.types->Unqualify( s->type_ )
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
     dim as int32 sz = SizeOfType( c, t )

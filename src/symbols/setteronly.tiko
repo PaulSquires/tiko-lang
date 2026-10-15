@@ -13,14 +13,14 @@
 '' Every overload of the property is a setter: a property procedure with no result.
 private function SetterOnly_ ( byref c as Ctx, byval sid as SymbolId ) as boolean
     dim as Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, SYM_PROC ) then return false
     dim as SymbolId cur = c.syms->LookupLocal( s->parent, s->name )
     if cur = SYMBOL_NONE then cur = sid
     dim as boolean anyProp = false
     for guard as int32 = 0 to 255
         dim as Symbol ptr os = c.syms->SymbolAt( cur )
-        if os = 0 then exit for
+        if os = nullptr then exit for
         if os->kind = cast( uint8, SYM_PROC ) then
             dim as NodeId pn = cast( NodeId, os->payload )
             if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return false

@@ -23,14 +23,14 @@ private function IifFieldNeedsCtor_ ( byref c as Ctx, byval t as TypeId ) as boo
     if lcase( c.names->Spelling( tn ) ) = "object" then return true
     dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( t ) )
     dim as Symbol ptr s = c.syms->SymbolAt( c.syms->LookupLocalTyped( ds, tn, true ) )
-    if (s = 0) orelse (s->inner = SCOPE_NONE) then return false
+    if (s = nullptr) orelse (s->inner = SCOPE_NONE) then return false
     dim as SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     dim as SymbolId cur = sc->firstSym
     for guard as int32 = 0 to 9999
         if cur = SYMBOL_NONE then exit for
         dim as Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit for
+        if f = nullptr then exit for
         if f->kind = cast( uint8, SYM_FIELD ) then
             dim as TypeId ft = c.types->Unqualify( f->type_ )
             if c.types->IsDynArray( ft ) then return true
@@ -49,9 +49,9 @@ end function
 '' Can IIF build a result of this UDT: no constructors at all, a default one, or a copy one.
 private function IifUdtCopyable_ ( byref c as Ctx, byval t as TypeId ) as boolean
     dim as Symbol ptr ct = StructorOf_( c, t, "__ctor" )
-    if ct = 0 then return true
+    if ct = nullptr then return true
     dim as int32 guard = 0
-    while (ct <> 0) andalso (guard < 1000)
+    while (ct <> nullptr) andalso (guard < 1000)
         guard += 1
         dim as NodeId cd = cast( NodeId, ct->payload )
         if (cd = NODE_NONE) orelse (c.ast->Kind( cd ) <> N_PROC) then return true
@@ -127,7 +127,7 @@ private function IifCondConst_ ( byref c as Ctx, byval n as NodeId, byval depth 
         dim as string nm = lcase( SpellOf_( c, n ) )
         if (nm = "true") orelse (nm = "false") then return true
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
-        if s = 0 then return false
+        if s = nullptr then return false
         return (s->kind = cast( uint8, SYM_CONSTANT )) orelse (s->kind = cast( uint8, SYM_ENUMCONST ))
     end select
     return false
@@ -166,7 +166,7 @@ private sub CheckIifUdt_ ( byref c as Ctx, byval id as NodeId )
             if c.ast->Kind( opn ) = N_CALL then tg = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, opn )].data )].target
             if tg <> NODE_NONE then
                 dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( tg ) )
-                if vs <> 0 then
+                if vs <> nullptr then
                     select case cast( SymbolKind, vs->kind )
                     case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD : lv = true
                     end select

@@ -96,7 +96,7 @@ private sub BindView_ _
       byval parent as Tko.ScopeId )
     dim as Tko.Symbol ptr a = syms.SymbolAt( asid )
     dim as Tko.Symbol ptr ns = syms.SymbolAt( cast( Tko.SymbolId, nsSid ) )
-    if (a = 0) orelse (ns = 0) then return
+    if (a = nullptr) orelse (ns = nullptr) then return
     a->inner = ns->inner
 end sub
 
@@ -129,7 +129,7 @@ private sub BindReexports_ _
             if m < 0 then continue while
             if nsOf[m] = 0 then continue while
             dim as Tko.Symbol ptr host = syms.SymbolAt( cast( Tko.SymbolId, nsOf[n] ) )
-            if host = 0 then continue while
+            if host = nullptr then continue while
             dim as Tko.ScopeId hs = host->inner
             dim as boolean dup = false
             dim as Tko.SymbolId rsid = syms.DeclareSym( hs, Folded_( ctx, al ), Tko.SYM_NAMESPACE, _
@@ -181,11 +181,11 @@ sub BindImports _
         dim as Tko.SymbolId sid = syms.LookupLocal( modScope, _
             Folded_( ctx, InterfaceNamespace( ctx.ifaceChains[i] ) ) )
         dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
-        while (s <> 0) andalso (s->kind <> cast( uint8, Tko.SYM_NAMESPACE ))
+        while (s <> nullptr) andalso (s->kind <> cast( uint8, Tko.SYM_NAMESPACE ))
             sid = s->altClass
             s = syms.SymbolAt( sid )
         wend
-        if s = 0 then continue for
+        if s = nullptr then continue for
         nsOf[i] = cast( uint32, sid )
         syms.importNs.Push( cast( uint32, sid ) )
         syms.importChains.Push( Tko.Text.UpperAscii( ctx.ifaceChains[i] ) )
@@ -201,7 +201,7 @@ sub BindImports _
         for each f as uint32 in ctx.modFiles
             dim as Tko.FileId fid = cast( Tko.FileId, f )
             dim as Tko.SourceFile ptr sf = ctx.sources.FileAt( fid )
-            if sf = 0 then continue for
+            if sf = nullptr then continue for
             lo.Push( cast( uint32, ctx.sources.LocFor( fid, 0 ) ) )
             hi.Push( cast( uint32, ctx.sources.LocFor( fid, sf->text.Count ) ) )
         next

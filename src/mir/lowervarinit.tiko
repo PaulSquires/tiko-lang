@@ -55,7 +55,7 @@ sub LowerVarItem_ _
     dim as Tko.StmtPayload ipNoInit
     if (ip->b <> Tko.NODE_NONE) andalso (c.ast->Kind( ip->b ) = Tko.N_IDENT) then
         dim as Tko.Symbol ptr tns = c.syms->SymbolAt( c.info->RefOf( ip->b ) )
-        if (tns <> 0) andalso (tns->kind = cast( uint8, Tko.SYM_UDT )) then ipNoInit = *ip : ipNoInit.b = Tko.NODE_NONE : ip = @ipNoInit
+        if (tns <> nullptr) andalso (tns->kind = cast( uint8, Tko.SYM_UDT )) then ipNoInit = *ip : ipNoInit.b = Tko.NODE_NONE : ip = @ipNoInit
     end if
     '' The VARIABLE, not a type name that happens to share the spelling.
     dim as Tko.SymbolId sid = Tko.SYMBOL_NONE
@@ -171,7 +171,7 @@ sub LowerVarItem_ _
     '' A DYNAMIC ARRAY is left alone for the same reason: its slot is a
     '' DESCRIPTOR and InitDynArrayDesc writes every field of it.
     dim as boolean zSkip = false
-    if (slot >= 0) andalso (vs <> 0) then
+    if (slot >= 0) andalso (vs <> nullptr) then
         if c.types->IsDynArray( vs->type_ ) then zSkip = true
         if c.types->Kind( vs->type_ ) = Tko.TK_UDT then
             if TypeNeedsInit_( c, vs->type_ ) then zSkip = true
@@ -182,7 +182,7 @@ sub LowerVarItem_ _
         end if
     end if
     dim as boolean zWant = (slot >= 0)
-    if zWant then zWant = (vs <> 0)
+    if zWant then zWant = (vs <> nullptr)
     if zWant then zWant = (ip->b = Tko.NODE_NONE)
     if zWant then zWant = (zSkip = false)
     if zWant then
@@ -207,7 +207,7 @@ sub LowerVarItem_ _
     '' fbc erases every local dynamic array at scope exit whatever its element
     '' type. Registered as cleanup node 1, which the cleanup emitter reads as
     '' 'erase this array slot'.
-    if (slot >= 0) andalso (vs <> 0) then
+    if (slot >= 0) andalso (vs <> nullptr) then
         if c.types->IsDynArray( vs->type_ ) then
             dim as MirValue dd
             dd.kind = cast( uint8, MV_LOCAL )
@@ -247,7 +247,7 @@ sub LowerVarItem_ _
     ''   fb_ArrayDestructStr( (struct $7FBARRAYIvE*)&tmp$2$0 );
     ''
     '' -- and the UTF-16 flavour takes fb_ArrayDestructUStr instead.
-    if (slot >= 0) andalso (vs <> 0) then
+    if (slot >= 0) andalso (vs <> nullptr) then
         if IsFixedStrArray_( c, vs->type_ ) then
             dim as MirValue za
             za.kind = cast( uint8, MV_LOCAL )
@@ -266,7 +266,7 @@ sub LowerVarItem_ _
         end if
     end if
 
-    if (slot >= 0) andalso (vs <> 0) then
+    if (slot >= 0) andalso (vs <> nullptr) then
         '' 'dim as T x = T( 5 )' selects a constructor by its arguments; a
         '' bare 'dim as T x' takes the no-argument one.
         '' 'dim as T y = x' OVER THE SAME TYPE IS THE COPY CONSTRUCTOR.
@@ -423,7 +423,7 @@ sub LowerVarItem_ _
                             dim as containers.Array( of uint32 ) cargs
                             cargs.Push( cast( uint32, ssa.kind ) )
                             cargs.Push( cast( uint32, ssa.id ) )
-                            EmitStructorCall( c, ucp, slot, 0, @cargs )
+                            EmitStructorCall( c, ucp, slot, nullptr, @cargs )
                         else
                             CallImplicitCopy_( c, dvt, dsa, ssa )
                         end if
@@ -655,7 +655,7 @@ sub LowerVarItem_ _
         dim as MirValue val
         dim as Tko.TypeId dstT = Tko.TYPE_NONE
         dim as Tko.Symbol ptr dsym = c.syms->SymbolAt( sid )
-        if dsym <> 0 then dstT = dsym->type_
+        if dsym <> nullptr then dstT = dsym->type_
         '' 'dim x as <scalar> = type( e )' is '= e' -- see ScalarTypeLitOperand_.
         dim as Tko.NodeId initE = ScalarTypeLitOperand_( c, ip->b, dstT )
         if initE = Tko.NODE_NONE then initE = ip->b

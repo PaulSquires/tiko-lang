@@ -62,7 +62,7 @@ private function Balanced_( byref x as CImp, byval c as CXCursor ) as boolean
     dim as CXToken ptr toks
     dim as uint32 nt
     x.api->tokenize( x.tu, x.api->getCursorExtent( c ), @toks, @nt )
-    if toks = 0 then return true
+    if toks = nullptr then return true
     dim as int32 depth = 0
     dim as boolean ok = true
     for i as int32 = 0 to cast( int32, nt ) - 1
@@ -92,7 +92,7 @@ sub MacroCandidate( byref x as CImp, byval c as CXCursor )
     '' 'const  = 1'.
     dim as any ptr mf
     x.api->getExpansionLocation( x.api->getCursorLocation( c ), @mf, 0, 0, 0 )
-    if mf = 0 then return
+    if mf = nullptr then return
     if Balanced_( x, c ) = false then return
     '' A macro redefined keeps its FIRST position; its value is whatever clang says it is
     '' at the end of the unit, which is where the probes are. By interned id: a scan of
@@ -154,7 +154,7 @@ private function FloatText_( byval d as float64 ) as string
     dim as zstring * 40 buf
     for digits as int32 = 15 to 17
         snprintf( @buf, 40, "%.*g", digits, d )
-        if strtod( @buf, 0 ) = d then exit for
+        if strtod( @buf, nullptr ) = d then exit for
     next
     return buf
 end function
@@ -164,7 +164,7 @@ private function ValueText_( byref x as CImp, byval vd as CXCursor ) as string
     '' too. It is not a constant FreeBASIC can hold as the same thing, so it is dropped.
     dim as CXType vt = x.api->getCanonicalType( x.api->getCursorType( vd ) )
     dim as any ptr ev = x.api->Cursor_Evaluate( vd )
-    if ev = 0 then return ""
+    if ev = nullptr then return ""
     dim as string r
     select case x.api->EvalResult_getKind( ev )
     case CXEval_Int
@@ -184,7 +184,7 @@ private function ValueText_( byref x as CImp, byval vd as CXCursor ) as string
         if (d = d) andalso ((d = 0) orelse (d / 2 <> d)) then r = FloatText_( d ) else r = NONFINITE_
     case CXEval_StrLiteral
         dim as zstring ptr z = x.api->EvalResult_getAsStr( ev )
-        if z <> 0 then
+        if z <> nullptr then
             dim as string s = *z
             '' A quote or a line break has no spelling in a FreeBASIC string literal.
             if (instr( s, """" ) = 0) andalso (instr( s, chr( 10 ) ) = 0) andalso _
@@ -273,10 +273,10 @@ private function ProbeVisit_ cdecl _
     select case p->mode
     case PM_ALIAS
         dim as any ptr ev = xp->api->Cursor_Evaluate( c )
-        if ev <> 0 then
+        if ev <> nullptr then
             if xp->api->EvalResult_getKind( ev ) = CXEval_StrLiteral then
                 dim as zstring ptr z = xp->api->EvalResult_getAsStr( ev )
-                if z <> 0 then p->values[i] = *z
+                if z <> nullptr then p->values[i] = *z
             end if
             xp->api->EvalResult_dispose( ev )
         end if
@@ -332,7 +332,7 @@ private function ProbeParse_( byref x as CImp, lines() as string, live() as bool
         dim as any ptr tu = x.api->parseTranslationUnit( idx, strptr( unitName ), @argv( 0 ), _
             av.Count, @uf, 1, CXTranslationUnit_DetailedPreprocessingRecord or _
             CXTranslationUnit_SkipFunctionBodies or CXTranslationUnit_KeepGoing )
-        if tu = 0 then
+        if tu = nullptr then
             x.api->disposeIndex( idx )
             return false
         end if
@@ -346,7 +346,7 @@ private function ProbeParse_( byref x as CImp, lines() as string, live() as bool
                 x.api->getExpansionLocation( x.api->getDiagnosticLocation( d ), @f, @ln, @col, @off )
                 dim as int32 k = cast( int32, ln ) - baseLine
                 dim as string fn
-                if f <> 0 then fn = ClangText( *x.api, x.api->getFileName( f ) )
+                if f <> nullptr then fn = ClangText( *x.api, x.api->getFileName( f ) )
                 if (fn = unitName) andalso (k >= 0) andalso (k < n) then
                     if live( k ) then
                         live( k ) = false

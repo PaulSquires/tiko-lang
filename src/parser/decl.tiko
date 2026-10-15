@@ -68,7 +68,7 @@ private function RawSpelling( byref p as Tko.ParserState ) as Tko.InternId
     if t.length <= 0 then return 0
     dim as Tko.DecodedLoc d : d.offset = p.src->LocOffset( t.loc, d.file )   '' no column: O(1)
     dim as Tko.SourceFile ptr f = p.src->FileAt( d.file )
-    if f = 0 then return 0
+    if f = nullptr then return 0
     if (d.offset + cast( int32, t.length )) > f->text.Count then return 0
     dim as Tko.InternId raw = p.names->Get( @f->text[d.offset], cast( int32, t.length ) )
     '' ...ONLY IF THOSE BYTES ARE ACTUALLY THIS TOKEN. A token the preprocessor
@@ -628,7 +628,7 @@ private function ParseConstDecl( byref p as Tko.ParserState ) as Tko.NodeId
         '' 1, b = a' names the first from the second, and the module-level guard is
         '' the one NoteDeclaredName_ uses -- a field or a local is not something an
         '' '#if' above it can see.
-        if (p.aggDepth = 0) andalso (p.stream <> 0) then   '' a local too, undone at 'end sub'
+        if (p.aggDepth = 0) andalso (p.stream <> nullptr) then   '' a local too, undone at 'end sub'
             if p.ast->Kind( item ) = Tko.N_VAR_ITEM then
                 dim as int32 csi = cast( int32, p.ast->nodes[cast( int32, item )].data )
                 dim as int64 cval = 0
@@ -1054,11 +1054,11 @@ private function ParseProc _
     end if
     '' See ParserState.procDepth: nothing declared inside a body is told to the
     '' preprocessor, because fbc's 'defined' stops seeing it when the body ends.
-    p.procDepth += 1 : dim as boolean outerSL = p.staticLocals : p.staticLocals = ((sp.extra and Tko.PF_STATIC_LOCALS) <> 0) : if p.stream <> 0 then Tko.PpProcEnter( *cast( Tko.PpStream ptr, p.stream ) )
+    p.procDepth += 1 : dim as boolean outerSL = p.staticLocals : p.staticLocals = ((sp.extra and Tko.PF_STATIC_LOCALS) <> 0) : if p.stream <> nullptr then Tko.PpProcEnter( *cast( Tko.PpStream ptr, p.stream ) )
     if isMember then p.memberDepth += 1
     sp.b = Block( p )
     if isMember then p.memberDepth -= 1
-    p.procDepth -= 1 : p.staticLocals = outerSL : if p.stream <> 0 then Tko.PpProcLeave( *cast( Tko.PpStream ptr, p.stream ) )
+    p.procDepth -= 1 : p.staticLocals = outerSL : if p.stream <> nullptr then Tko.PpProcLeave( *cast( Tko.PpStream ptr, p.stream ) )
     if inGeneric then
         p.genericDepth -= 1
         p.genericParams.Pop( )

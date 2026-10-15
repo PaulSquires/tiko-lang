@@ -258,7 +258,7 @@ private function ProcRedeclared_ _
 
     asOverload = false
     if nm = Tko.INTERN_NONE then return Tko.SYMBOL_NONE
-    if w.src = 0 then return Tko.SYMBOL_NONE
+    if w.src = nullptr then return Tko.SYMBOL_NONE
     if w.src->IsBuiltin( loc ) then return Tko.SYMBOL_NONE
     if (sp->extra and Tko.PF_GENERIC_PROC) <> 0 then return Tko.SYMBOL_NONE
     '' ONLY A HEADER THAT PARSED. One the parser recovered from after a syntax error --
@@ -280,7 +280,7 @@ private function ProcRedeclared_ _
     dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
     w.syms->usePos = savePos
     dim as Tko.Symbol ptr hs = w.syms->SymbolAt( cur )
-    if hs = 0 then return Tko.SYMBOL_NONE
+    if hs = nullptr then return Tko.SYMBOL_NONE
     '' A TYPE may share the spelling; its procedures are then its partner.
     if hs->kind <> cast( uint8, Tko.SYM_PROC ) then cur = hs->altClass
 
@@ -290,7 +290,7 @@ private function ProcRedeclared_ _
     while (scan <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr g = w.syms->SymbolAt( scan )
-        if g = 0 then exit while
+        if g = nullptr then exit while
         if g->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId gn = cast( Tko.NodeId, g->payload )
         if (gn <> Tko.NODE_NONE) andalso (gn <> 0) then
@@ -303,7 +303,7 @@ private function ProcRedeclared_ _
 
     dim as Tko.SymScope ptr sc = w.syms->ScopeAt( scope_ )
     dim as boolean isMember = false
-    if sc <> 0 then isMember = (sc->kind = cast( uint8, Tko.SCOPEK_TYPE ))
+    if sc <> nullptr then isMember = (sc->kind = cast( uint8, Tko.SCOPEK_TYPE ))
     dim as boolean isOperator = (sp->op = cast( uint16, Tko.KW_OPERATOR ))
     dim as boolean byResult = (sp->op = cast( uint16, Tko.KW_PROPERTY ))
     if isOperator then byResult = (lcase( w.names->Spelling( nm ) ) = "cast")
@@ -315,7 +315,7 @@ private function ProcRedeclared_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         dim as boolean here_ = (s->diedAt = 0) andalso (s->parent = scope_)
@@ -375,7 +375,7 @@ private function RefuseRedeclaration_ _
     dim as boolean asOverload = false
     dim as Tko.SymbolId prev = ProcRedeclared_( w, scope_, nm, sp, loc, asOverload )
     dim as Tko.Symbol ptr ps = w.syms->SymbolAt( prev )
-    if ps = 0 then return Tko.SYMBOL_NONE
+    if ps = nullptr then return Tko.SYMBOL_NONE
     w.duplicates += 1
     if ParserRefused_( w, sp ) then return prev
     '' A structor is declared under a synthetic name ('__ctor'); the message says what
@@ -416,7 +416,7 @@ private function RefuseVariadicOverload_ _
       byval sp as Tko.StmtPayload ptr, byval loc as Tko.SourceLoc ) as boolean
 
     if nm = Tko.INTERN_NONE then return false
-    if w.src = 0 then return false
+    if w.src = nullptr then return false
     if w.src->IsBuiltin( loc ) then return false
     if (sp->extra and Tko.PF_GENERIC_PROC) <> 0 then return false
 
@@ -439,7 +439,7 @@ private function RefuseVariadicOverload_ _
     '' 'declare operator + cdecl( byref a as T, ... ) as T' its 143, each ALONE. A MEMBER
     '' operator is not: 'declare operator let cdecl( ... )' inside a type compiles.
     dim as boolean isMember = false
-    if w.syms->ScopeAt( scope_ ) <> 0 then
+    if w.syms->ScopeAt( scope_ ) <> nullptr then
         isMember = (w.syms->ScopeAt( scope_ )->kind = cast( uint8, Tko.SCOPEK_TYPE ))
     end if
     dim as boolean alwaysSet = isCtor orelse (sp->op = cast( uint16, Tko.KW_PROPERTY ))
@@ -455,14 +455,14 @@ private function RefuseVariadicOverload_ _
         dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
         w.syms->usePos = savePos
         dim as Tko.Symbol ptr hs = w.syms->SymbolAt( cur )
-        if hs <> 0 then
+        if hs <> nullptr then
             if hs->kind <> cast( uint8, Tko.SYM_PROC ) then cur = hs->altClass
         end if
         dim as int32 guard = 0
         while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
             guard += 1
             dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
-            if s = 0 then exit while
+            if s = nullptr then exit while
             if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
             dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
             dim as boolean live = (s->diedAt = 0) andalso (s->parent = scope_)
@@ -518,7 +518,7 @@ private function RefuseSecondBody_ _
 
     if nm = Tko.INTERN_NONE then return false
     '' An instantiation, as in ProcRedeclared_: a copy of something already judged.
-    if w.src = 0 then return false
+    if w.src = nullptr then return false
     if sp->b = Tko.NODE_NONE then return false
     if (sp->extra and Tko.PF_GENERIC_PROC) <> 0 then return false
 
@@ -530,7 +530,7 @@ private function RefuseSecondBody_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         dim as boolean hasDecl = (pn <> Tko.NODE_NONE) andalso (pn <> 0)
@@ -594,7 +594,7 @@ private function UndefKeeps_ _
         shown = w.names->Spelling( up->ownerName ) & "." & shown
         dim as Tko.Symbol ptr os = _
             w.syms->SymbolAt( LookupDottedOwner_( w, scope_, up->ownerName ) )
-        if os <> 0 then
+        if os <> nullptr then
             if os->kind = cast( uint8, Tko.SYM_NAMESPACE ) then
                 if os->inner <> Tko.SCOPE_NONE then
                     hit = w.syms->LookupInNamespace( os->inner, up->name )
@@ -612,7 +612,7 @@ private function UndefKeeps_ _
             hit = w.syms->LookupLocal( sc, up->name )
             if hit <> Tko.SYMBOL_NONE then exit while
             dim as Tko.SymScope ptr s_ = w.syms->ScopeAt( sc )
-            if s_ = 0 then exit while
+            if s_ = nullptr then exit while
             sc = s_->parent
         wend
         w.syms->usePos = savePos
@@ -620,10 +620,10 @@ private function UndefKeeps_ _
     end if
 
     dim as Tko.Symbol ptr hs = w.syms->SymbolAt( hit )
-    if hs = 0 then return dotted
+    if hs = nullptr then return dotted
     dim as Tko.SymScope ptr ps = w.syms->ScopeAt( hs->parent )
     dim as boolean inNs = false
-    if ps <> 0 then inNs = (ps->kind = cast( uint8, Tko.SCOPEK_NAMESPACE ))
+    if ps <> nullptr then inNs = (ps->kind = cast( uint8, Tko.SCOPEK_NAMESPACE ))
     if inNs = false then return dotted
     w.diags->Report( Tko.TKO0779, Tko.PointRange( loc ), shown )
     w.diags->AddNote( Tko.TKO0901, Tko.PointRange( hs->loc ) )
@@ -645,10 +645,10 @@ private sub CheckModCtorMember_ _
       byval os as Tko.Symbol ptr )
 
     if (sp->extra and (Tko.PF_MODCTOR or Tko.PF_MODDTOR)) = 0 then return
-    if (os = 0) orelse (os->inner = Tko.SCOPE_NONE) then return
+    if (os = nullptr) orelse (os->inner = Tko.SCOPE_NONE) then return
     dim as Tko.Symbol ptr ms = w.syms->SymbolAt( w.syms->LookupLocal( os->inner, sp->name ) )
     dim as int32 guard = 0
-    while (ms <> 0) andalso (guard < 1000)
+    while (ms <> nullptr) andalso (guard < 1000)
         guard += 1
         dim as Tko.NodeId md = cast( Tko.NodeId, ms->payload )
         if (md <> Tko.NODE_NONE) andalso (md <> id) andalso (w.ast->Kind( md ) = Tko.N_PROC) then

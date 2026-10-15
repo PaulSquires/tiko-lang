@@ -29,7 +29,7 @@ private function IsTypeNameValue_ ( byref c as Ctx, byval n as NodeId, _
     if n = NODE_NONE then return false
     if c.ast->Kind( n ) <> N_IDENT then return false
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     select case cast( SymbolKind, s->kind )
     case SYM_UDT, SYM_TYPEDEF, SYM_ENUM
     case else

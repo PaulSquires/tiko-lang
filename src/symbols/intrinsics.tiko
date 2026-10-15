@@ -47,7 +47,7 @@ function UdtMemberSym_ _
     dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( ts )
-    if sy = 0 then return Tko.SYMBOL_NONE
+    if sy = nullptr then return Tko.SYMBOL_NONE
     if sy->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     '' 'x.constructor( )' AND 'p->destructor( )' NAME THE STRUCTORS, which are
     '' declared under '__ctor' and '__dtor'. Measured, fbc emits '_ZN1TC1Ev( &X )'
@@ -78,14 +78,14 @@ private function UdtCastResultOf_ _
     '' A NUMBER IS THE SHARED RULE'S, chosen by what the value meets (structpick.tiko).
     if wantPtr = false then
         dim as Tko.Symbol ptr ncs = c.syms->SymbolAt( Tko.Check.NumericCastPick( *c.syms, *c.types, *c.names, u, want ) )
-        if ncs = 0 then return Tko.TYPE_NONE
+        if ncs = nullptr then return Tko.TYPE_NONE
         return c.types->Unqualify( ncs->type_ )
     end if
     '' A POINTER: the first pointer-returning cast -- one in every shape the corpus writes.
     dim as Tko.SymbolId cs = UdtMemberSym_( c, u, "cast" )
     while cs <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cs )
-        if cse = 0 then exit while
+        if cse = nullptr then exit while
         if cse->type_ <> Tko.TYPE_NONE then
             dim as Tko.TypeId ru = c.types->Unqualify( cse->type_ )
             if c.types->Kind( ru ) = Tko.TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
@@ -150,7 +150,7 @@ private function PropertyReadAccessor_ _
     ( byref c as Ctx, byval fs as Tko.SymbolId ) as Tko.SymbolId
 
     dim as Tko.Symbol ptr f0 = c.syms->SymbolAt( fs )
-    if f0 = 0 then return fs
+    if f0 = nullptr then return fs
     if f0->kind <> cast( uint8, Tko.SYM_PROC ) then return fs
     dim as Tko.NodeId f0n = cast( Tko.NodeId, f0->payload )
     if f0n = Tko.NODE_NONE then return fs
@@ -168,7 +168,7 @@ private function PropertyReadAccessor_ _
     dim as int32 pg = 0
     while (nx <> Tko.SYMBOL_NONE) andalso (pg < 4096)
         dim as Tko.Symbol ptr ns = c.syms->SymbolAt( nx )
-        if ns = 0 then exit while
+        if ns = nullptr then exit while
         if ns->type_ <> Tko.TYPE_NONE then
             if firstRes = Tko.SYMBOL_NONE then firstRes = nx
             if ProcParamCount_( c, nx ) = 0 then return nx
@@ -860,7 +860,7 @@ private function MemberProcPtr_ _
         if lp->count < 2 then return Tko.SYMBOL_NONE
         dim as Tko.SymbolId bh = c.info->RefOf( fnE )
         dim as Tko.Symbol ptr bhs = c.syms->SymbolAt( bh )
-        if bhs = 0 then return Tko.SYMBOL_NONE
+        if bhs = nullptr then return Tko.SYMBOL_NONE
         if bhs->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
         return ProcPtrPickOverload_( c, bh, lp )
     end if
@@ -875,7 +875,7 @@ private function MemberProcPtr_ _
 
     '' The TYPE the member belongs to: the left side names it.
     dim as Tko.Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
-    if ls = 0 then return Tko.SYMBOL_NONE
+    if ls = nullptr then return Tko.SYMBOL_NONE
     if ls->kind <> cast( uint8, Tko.SYM_UDT ) then return Tko.SYMBOL_NONE
     dim as Tko.TypeId ut = c.types->Unqualify( ls->type_ )
     if ut = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
@@ -892,7 +892,7 @@ private function MemberProcPtr_ _
     end select
     if head = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
     dim as Tko.Symbol ptr hs = c.syms->SymbolAt( head )
-    if hs = 0 then return Tko.SYMBOL_NONE
+    if hs = nullptr then return Tko.SYMBOL_NONE
     if hs->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.SYMBOL_NONE
 
     '' NO SIGNATURE WRITTEN: the first overload DECLARED, which is what fbc takes -- not the chain's head (pointers/procptr-member.bas: four 'proc's).
@@ -946,7 +946,7 @@ function ProcPtrPickOverload_ _
         sigT = c.info->TypeOf_( sigN )
     elseif c.ast->Kind( sigN ) = Tko.N_IDENT then
         dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( c.info->RefOf( sigN ) )
-        if tsy <> 0 then
+        if tsy <> nullptr then
             '' A VARIABLE counts too, because 'typeof( p1 )' unwrapped above
             '' leaves its NAME here and the signature wanted is the one it
             '' holds.
@@ -967,7 +967,7 @@ function ProcPtrPickOverload_ _
     dim as Tko.SymbolId cur = head
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
             '' THE RECEIVER IS NOT IN THE WRITTEN SIGNATURE. 'sub( byval as integer )'
@@ -1018,7 +1018,7 @@ private function ProcTypeOfSymbol_ _
 
     if sid = Tko.SYMBOL_NONE then return Tko.TYPE_NONE
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return Tko.TYPE_NONE
+    if s = nullptr then return Tko.TYPE_NONE
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then return Tko.TYPE_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
@@ -1039,10 +1039,10 @@ private function ProcTypeOfSymbol_ _
     '' has no owning TYPE scope to find one in.
     if (pp->extra and Tko.PF_STATIC) = 0 then
         dim as Tko.SymScope ptr osc = c.syms->ScopeAt( s->parent )
-        if osc <> 0 then
+        if osc <> nullptr then
             if osc->kind = cast( uint8, Tko.SCOPEK_TYPE ) then
                 dim as Tko.Symbol ptr ow = c.syms->SymbolAt( osc->owner )
-                if ow <> 0 then
+                if ow <> nullptr then
                     if ow->type_ <> Tko.TYPE_NONE then
                         ps.Push( cast( uint32, c.types->Reference( ow->type_ ) ) )
                     end if
@@ -1078,7 +1078,7 @@ private function IsThisIdent_( byref c as Ctx, byval n as Tko.NodeId ) as boolea
         return false
     end if
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( c.info->RefOf( n ) )
-    if sy = 0 then return false
+    if sy = nullptr then return false
     return (sy->kind = cast( uint8, Tko.SYM_PARAMETER ))
 end function
 
@@ -1144,7 +1144,7 @@ private function PeekTypeArg_ _
     '' same spelling lives in that variable's own scope.
     dim as Tko.Symbol ptr rsy = c.syms->SymbolAt( c.info->RefOf( n ) )
     dim as Tko.ScopeId look = Tko.SCOPE_NONE
-    if rsy <> 0 then
+    if rsy <> nullptr then
         select case rsy->kind
         case Tko.SYM_UDT, Tko.SYM_TYPEDEF
             return rsy->type_
@@ -1154,7 +1154,7 @@ private function PeekTypeArg_ _
     if look = Tko.SCOPE_NONE then look = c.info->ScopeOf( n )
     dim as Tko.SymbolId tsid = c.syms->LookupTyped( look, ip->name, true )
     dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( tsid )
-    if tsy <> 0 then
+    if tsy <> nullptr then
         select case tsy->kind
         case Tko.SYM_UDT, Tko.SYM_TYPEDEF
             return tsy->type_

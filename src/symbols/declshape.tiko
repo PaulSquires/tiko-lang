@@ -41,7 +41,7 @@ private function TypedefCycles_ ( byref c as Ctx, byval tr as NodeId, byval scop
     dim as containers.Array( of uint32 ) seen
     for hop as int32 = 0 to 31
         dim as Symbol ptr sy = c.syms->SymbolAt( sid )
-        if (sy = 0) orelse (sy->kind <> cast( uint8, SYM_TYPEDEF )) then return false
+        if (sy = nullptr) orelse (sy->kind <> cast( uint8, SYM_TYPEDEF )) then return false
         for s as int32 = 0 to seen.Count - 1
             if seen[s] = cast( uint32, sid ) then return true
         next
@@ -78,10 +78,10 @@ private sub CheckDeclShape_ ( byref c as Ctx, byval id as NodeId )
         '' the SYMBOLS a shared declaration makes, and this one makes none.
         if (op = KW_REDIM) andalso ((c.ast->nodes[cast( int32, id )].flags and NF_SHARED) <> 0) then
             dim as SymScope ptr rsc = c.syms->ScopeAt( c.info->ScopeOf( id ) )
-            if (rsc <> 0) andalso ((rsc->kind = cast( uint8, SCOPEK_BLOCK )) orelse (rsc->kind = cast( uint8, SCOPEK_PROC ))) then
+            if (rsc <> nullptr) andalso ((rsc->kind = cast( uint8, SCOPEK_BLOCK )) orelse (rsc->kind = cast( uint8, SCOPEK_PROC ))) then
                 dim as Symbol ptr rs = c.syms->SymbolAt( c.info->RefOf( item ) )
-                if rs = 0 then rs = c.syms->SymbolAt( c.syms->LookupTyped( c.info->ScopeOf( id ), ip->name, false ) )
-                if (rs <> 0) andalso (rs->payload <> cast( uint32, item )) then
+                if rs = nullptr then rs = c.syms->SymbolAt( c.syms->LookupTyped( c.info->ScopeOf( id ), ip->name, false ) )
+                if (rs <> nullptr) andalso (rs->payload <> cast( uint32, item )) then
                     c.diags->Report( TKO0726, PointRange( c.ast->Loc( item ) ), nm )
                     continue for
                 end if
@@ -140,7 +140,7 @@ private sub CheckDeclShape_ ( byref c as Ctx, byval id as NodeId )
             dim as TypeId et = c.types->Unqualify( c.info->TypeOf_( ip->a ) )
             if c.types->Kind( et ) = TK_UDT then
                 dim as Symbol ptr dts = StructorOf_( c, et, "__dtor" )
-                if (dts <> 0) andalso (dts->payload <> 0) then
+                if (dts <> nullptr) andalso (dts->payload <> 0) then
                     dim as NodeId dd = cast( NodeId, dts->payload )
                     if c.ast->Kind( dd ) = N_PROC then
                         if (c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, dd )].data )].extra and (PF_STDCALL or PF_PASCAL)) <> 0 then
@@ -269,7 +269,7 @@ private function PtrIntNarrow_ ( byref c as Ctx, byval lt as TypeId, byval rt as
     case N_ADDROF, N_MEMBER
     case N_IDENT
         dim as Symbol ptr rs = c.syms->SymbolAt( c.info->RefOf( rhs ) )
-        if rs <> 0 then
+        if rs <> nullptr then
             if rs->kind = cast( uint8, SYM_CONSTANT ) then return false
         end if
     case else
@@ -327,13 +327,13 @@ private function FieldHasInit_ ( byref c as Ctx, byval t as TypeId ) as boolean
     for guard as int32 = 0 to 31
         if (t = TYPE_NONE) orelse (c.types->Kind( t ) <> TK_UDT) then return false
         dim as Symbol ptr us = UdtSymbolOf_( c, t )
-        if (us = 0) orelse (us->inner = SCOPE_NONE) then return false
+        if (us = nullptr) orelse (us->inner = SCOPE_NONE) then return false
         dim as SymScope ptr sc = c.syms->ScopeAt( us->inner )
-        dim as SymbolId cur = iif( sc <> 0, sc->firstSym, SYMBOL_NONE )
+        dim as SymbolId cur = iif( sc <> nullptr, sc->firstSym, SYMBOL_NONE )
         for g2 as int32 = 0 to 9999
             if cur = SYMBOL_NONE then exit for
             dim as Symbol ptr f = c.syms->SymbolAt( cur )
-            if f = 0 then exit for
+            if f = nullptr then exit for
             if (f->kind = cast( uint8, SYM_FIELD )) andalso (f->payload <> 0) then
                 dim as NodeId fn = cast( NodeId, f->payload )
                 if c.ast->Kind( fn ) = N_FIELD then
@@ -364,7 +364,7 @@ private sub CheckTypeLiteral_ ( byref c as Ctx, byval id as NodeId )
     dim as string h = left( c.names->Spelling( tn ), 1 )
     if (h = "(") orelse (h = "$") orelse (h = "~") then return
     if instr( c.names->Spelling( tn ), "<" ) > 0 then return
-    if StructorOf_( c, t, "__ctor" ) <> 0 then return
+    if StructorOf_( c, t, "__ctor" ) <> nullptr then return
     if lp->count = 0 then
         if TcNeedsCtor_( c, t, 0 ) orelse FieldHasInit_( c, t ) then return
         c.diags->Report( TKO0911, PointRange( c.ast->Loc( id ) ), c.names->Spelling( tn ) )
@@ -394,7 +394,7 @@ private sub CheckFileGetPutAmount_ ( byref c as Ctx, byval sp as StmtPayload ptr
         if (lp->count = 0) andalso (lp->target <> NODE_NONE) then
             if c.ast->Kind( lp->target ) = N_IDENT then
                 dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-                if vs <> 0 then
+                if vs <> nullptr then
                     if (vs->kind = cast( uint8, SYM_VARIABLE )) andalso (vs->type_ <> TYPE_NONE) then
                         dim as TypeId at_ = c.types->Unqualify( vs->type_ )
                         if c.types->Kind( at_ ) = TK_REFERENCE then at_ = c.types->Unqualify( c.types->Inner( at_ ) )
@@ -432,7 +432,7 @@ private sub CheckFileGetPutArray_ ( byref c as Ctx, byval id as NodeId )
         dim as NodeId ch = cast( NodeId, c.ast->children[sp->first + i] )
         if (ch = NODE_NONE) orelse (c.ast->Kind( ch ) <> N_IDENT) then continue for
         dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( ch ) )
-        if (vs = 0) orelse (vs->kind <> cast( uint8, SYM_VARIABLE )) orelse (vs->type_ = TYPE_NONE) then continue for
+        if (vs = nullptr) orelse (vs->kind <> cast( uint8, SYM_VARIABLE )) orelse (vs->type_ = TYPE_NONE) then continue for
         dim as TypeId vt = c.types->Unqualify( vs->type_ )
         if c.types->Kind( vt ) = TK_REFERENCE then vt = c.types->Unqualify( c.types->Inner( vt ) )
         if c.types->Kind( vt ) <> TK_ARRAY then continue for
@@ -450,7 +450,7 @@ private sub CheckUdtCallNoCtor_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-    if ts = 0 then return
+    if ts = nullptr then return
     dim as TypeId t = TYPE_NONE
     select case cast( SymbolKind, ts->kind )
     case SYM_UDT, SYM_TYPEDEF
@@ -471,7 +471,7 @@ private sub CheckUdtCallNoCtor_ ( byref c as Ctx, byval id as NodeId )
             if (c.types->Kind( vt ) = TK_ARRAY) orelse c.types->IsDynArray( vt ) then return
         end if
         dim as Symbol ptr tys = c.syms->SymbolAt( c.syms->LookupTyped( ts->parent, ts->name, true ) )
-        if tys = 0 then return
+        if tys = nullptr then return
         if (tys->kind <> cast( uint8, SYM_UDT )) andalso (tys->kind <> cast( uint8, SYM_TYPEDEF )) then return
         if tys->type_ <> TYPE_NONE then t = c.types->Unqualify( tys->type_ )
     case else
@@ -483,7 +483,7 @@ private sub CheckUdtCallNoCtor_ ( byref c as Ctx, byval id as NodeId )
     dim as string h = left( c.names->Spelling( tn ), 1 )
     if (h = "(") orelse (h = "$") orelse (h = "~") then return
     if instr( c.names->Spelling( tn ), "<" ) > 0 then return
-    if StructorOf_( c, t, "__ctor" ) <> 0 then return
+    if StructorOf_( c, t, "__ctor" ) <> nullptr then return
     if TcNeedsCtor_( c, t, 0 ) orelse FieldHasInit_( c, t ) then return
     c.diags->Report( TKO0917, PointRange( c.ast->Loc( lp->target ) ), c.names->Spelling( tn ) )
 end sub
@@ -533,15 +533,15 @@ private function PtrStrElemBad_ ( byref c as Ctx, byval el as TypeId, byval e as
         return NODE_NONE
     end if
     dim as Symbol ptr us = UdtSymbolOf_( c, el )
-    if (us = 0) orelse (us->inner = SCOPE_NONE) then return NODE_NONE
+    if (us = nullptr) orelse (us->inner = SCOPE_NONE) then return NODE_NONE
     dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     dim as SymScope ptr sc = c.syms->ScopeAt( us->inner )
-    dim as SymbolId cur = iif( sc <> 0, sc->firstSym, SYMBOL_NONE )
+    dim as SymbolId cur = iif( sc <> nullptr, sc->firstSym, SYMBOL_NONE )
     dim as int32 k = 0
     for guard as int32 = 0 to 9999
         if (cur = SYMBOL_NONE) orelse (k >= lp->count) then exit for
         dim as Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit for
+        if f = nullptr then exit for
         if (f->kind = cast( uint8, SYM_FIELD )) andalso ((f->flags and SYMF_STATIC) = 0) andalso (f->name <> c.baseName) then
             dim as NodeId fe = StripParens_( c, cast( NodeId, c.ast->children[lp->first + k] ) )
             k += 1
@@ -609,7 +609,7 @@ private sub CheckForScalarCounter_ ( byref c as Ctx, byval id as NodeId )
     dim as boolean bad = (c.ast->Kind( sp->a ) <> N_IDENT)
     if bad = false then
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-        if s = 0 then return
+        if s = nullptr then return
         select case cast( SymbolKind, s->kind )
         case SYM_VARIABLE
         case SYM_PARAMETER
@@ -628,7 +628,7 @@ private sub CheckForConstCounter_ ( byref c as Ctx, byval id as NodeId )
     if (sp->a = NODE_NONE) orelse (sp->c <> NODE_NONE) then return
     if c.ast->Kind( sp->a ) <> N_IDENT then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-    if s = 0 then return
+    if s = nullptr then return
     dim as boolean k = cbool( (s->flags and SYMF_CONST) <> 0 ) orelse _
                        cbool( cast( SymbolKind, s->kind ) = SYM_CONSTANT ) orelse c.types->IsConst( s->type_ )
     if k = false then return
@@ -705,7 +705,7 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
     for n as int32 = 1 to total - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_USING then continue for
         dim as Symbol ptr ns = c.syms->SymbolAt( c.info->RefOf( cast( NodeId, n ) ) )
-        if (ns = 0) orelse (ns->kind <> cast( uint8, SYM_NAMESPACE )) orelse (ns->inner = SCOPE_NONE) then continue for
+        if (ns = nullptr) orelse (ns->kind <> cast( uint8, SYM_NAMESPACE )) orelse (ns->inner = SCOPE_NONE) then continue for
         uNode.Push( cast( uint32, n ) )
         uScope.Push( cast( uint32, c.info->ScopeOf( cast( NodeId, n ) ) ) )
         uInner.Push( cast( uint32, ns->inner ) )
@@ -727,14 +727,14 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
         if c.ast->Kind( x ) <> N_IDENT then continue for
         if qualified[n] <> 0 then continue for
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( x ) )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         select case cast( SymbolKind, s->kind )
         case SYM_VARIABLE, SYM_CONSTANT, SYM_PROC, SYM_ENUMCONST
         case else
             continue for
         end select
         dim as SymScope ptr home = c.syms->ScopeAt( s->parent )
-        if (home = 0) orelse (home->kind <> cast( uint8, SCOPEK_NAMESPACE )) then continue for
+        if (home = nullptr) orelse (home->kind <> cast( uint8, SCOPEK_NAMESPACE )) then continue for
         dim as InternId nm = c.ast->idents[cast( int32, c.ast->nodes[n].data )].name
         '' AN EXPRESSION'S NAME HAS NO SCOPE RECORDED; its statement does, and is built after
         '' it -- the first node past it with a scope is the statement it sits in.
@@ -751,12 +751,12 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
         for guard as int32 = 0 to 255
             if walk = SCOPE_NONE then exit for
             dim as Symbol ptr loc_ = c.syms->SymbolAt( c.syms->LookupLocal( walk, nm ) )
-            if loc_ <> 0 then
+            if loc_ <> nullptr then
                 if (loc_->declAt = 0) orelse (loc_->declAt < cast( uint32, n )) then declared = true
             end if
             if declared then exit for
             dim as SymScope ptr ss = c.syms->ScopeAt( walk )
-            if ss = 0 then exit for
+            if ss = nullptr then exit for
             walk = ss->parent
         next
         if declared then continue for
@@ -770,7 +770,7 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
                 CollectNsNamed_( c, cast( ScopeId, uInner[u] ), nm, got, 0 )
             next
             dim as SymScope ptr ss = c.syms->ScopeAt( sc )
-            if ss = 0 then exit for
+            if ss = nullptr then exit for
             sc = ss->parent
         next
         if got.Count >= 2 then
@@ -799,9 +799,9 @@ private sub CheckBareTypeLiterals_ ( byref c as Ctx )
         dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[n].data )]
         if lp->target = NODE_NONE then continue for
         dim as Symbol ptr hs = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-        if hs = 0 then hs = c.syms->SymbolAt( c.info->RefOf( cast( NodeId, n ) ) )
+        if hs = nullptr then hs = c.syms->SymbolAt( c.info->RefOf( cast( NodeId, n ) ) )
         dim as uint8 mark = 1
-        if (hs <> 0) andalso (hs->kind = cast( uint8, SYM_PROC )) andalso (hs->nextOverload <> SYMBOL_NONE) then mark = 2
+        if (hs <> nullptr) andalso (hs->kind = cast( uint8, SYM_PROC )) andalso (hs->nextOverload <> SYMBOL_NONE) then mark = 2
         for i as int32 = 0 to lp->count - 1
             dim as NodeId a = cast( NodeId, c.ast->children[lp->first + i] )
             if (a > 0) andalso (cast( int32, a ) < total) then argOf[cast( int32, a )] = mark

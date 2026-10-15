@@ -117,7 +117,7 @@ function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
         c.dbgNode = c.curStmtNode
         c.dbgFn = c.f
         c.dbgLine = 0
-        if (c.curStmtNode <> 0) andalso (c.srcMgr <> 0) andalso (c.f->dbgFile > 0) then
+        if (c.curStmtNode <> 0) andalso (c.srcMgr <> nullptr) andalso (c.f->dbgFile > 0) then
             dim as Tko.DecodedLoc dl = _
                 c.srcMgr->Decode( c.ast->Loc( cast( Tko.NodeId, c.curStmtNode ) ) )
             if cast( uint32, dl.file ) + 1 = c.f->dbgFile then c.dbgLine = dl.physLine
@@ -661,7 +661,7 @@ function CallsUserProcNamedLikeBuiltin _
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId decl = cast( Tko.NodeId, s->payload )
     if decl <> Tko.NODE_NONE then
@@ -684,9 +684,9 @@ end function
 '' Agreement costs one comparison; the environment is read only on a disagreement.
 private function AuditName_( byref c as Ctx, byval s as Tko.SymbolId ) as string
     dim as Tko.Symbol ptr sp = c.syms->SymbolAt( s )
-    if sp = 0 then return "(none)"
+    if sp = nullptr then return "(none)"
     dim as int32 ln = 0
-    if c.srcMgr <> 0 then ln = c.srcMgr->Decode( sp->loc ).lineNo
+    if c.srcMgr <> nullptr then ln = c.srcMgr->Decode( sp->loc ).lineNo
     return c.names->Spelling( sp->name ) & "@" & ln
 end function
 
@@ -697,7 +697,7 @@ sub AuditPick( byref c as Ctx, byval n as Tko.NodeId, byref site as string, _
     dim as string dest = environ( "TKO_PICK_AUDIT" )
     if dest = "" then exit sub
     dim as string where_ = "?"
-    if (c.srcMgr <> 0) andalso (n <> Tko.NODE_NONE) then
+    if (c.srcMgr <> nullptr) andalso (n <> Tko.NODE_NONE) then
         dim as Tko.DecodedLoc d = c.srcMgr->Decode( c.ast->Loc( n ) )
         where_ = c.srcMgr->PathOf( d.file ) & ":" & d.lineNo
     end if

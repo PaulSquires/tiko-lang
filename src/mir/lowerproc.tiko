@@ -26,11 +26,11 @@ private function IsGenericMemberBody_ _
     dim as Tko.ScopeId ps = c.info->ScopeOf( id )
     if ps = Tko.SCOPE_NONE then return false
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( ps )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     dim as Tko.SymScope ptr owner = c.syms->ScopeAt( sc->parent )
-    if owner = 0 then return false
+    if owner = nullptr then return false
     dim as Tko.Symbol ptr os = c.syms->SymbolAt( owner->owner )
-    if os = 0 then return false
+    if os = nullptr then return false
     if os->kind <> cast( uint8, Tko.SYM_UDT ) then return false
     dim as Tko.NodeId tn = cast( Tko.NodeId, os->payload )
     if tn = Tko.NODE_NONE then return false
@@ -127,7 +127,7 @@ sub LowerProc _
 
     dim as Tko.SymbolId sid = c.info->RefOf( id )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    dim as Tko.TypeId rt = iif( s <> 0, s->type_, Tko.TYPE_NONE )
+    dim as Tko.TypeId rt = iif( s <> nullptr, s->type_, Tko.TYPE_NONE )
 
     '' MIR carries the MANGLED name and never a source one.
     dim as Tko.InternId nm = c.names->GetString( _
@@ -181,7 +181,7 @@ sub LowerProc _
     '' symbols, every one an Array( of T ) member.
     if sid <> Tko.SYMBOL_NONE then
         dim as Tko.Symbol ptr gsy = c.syms->SymbolAt( sid )
-        if gsy <> 0 then
+        if gsy <> nullptr then
             if (gsy->flags and Tko.SYMF_GENERIC_INST) <> 0 then f->isWeak = true
         end if
     end if
@@ -200,7 +200,7 @@ sub LowerProc _
     dim as int32 savedB = c.curBlock
     dim as Tko.SymbolId savedSym = c.curProcSym
     c.f = f
-    if c.srcMgr <> 0 then
+    if c.srcMgr <> nullptr then
         dim as Tko.DecodedLoc dbgAt = c.srcMgr->Decode( c.ast->Loc( id ) )
         f->dbgFile = cast( uint32, dbgAt.file ) + 1
         f->dbgLine = dbgAt.physLine
@@ -213,7 +213,7 @@ sub LowerProc _
     '' uninitialised local while every CALL site dutifully passed a receiver into
     '' nothing.
     dim as Tko.SymbolId thisSym = Tko.SYMBOL_NONE
-    if s <> 0 then
+    if s <> nullptr then
         if s->inner <> Tko.SCOPE_NONE then
             thisSym = c.syms->LookupLocal( s->inner, _
                 c.names->Fold( c.names->GetString( "this" ) ) )
@@ -286,12 +286,12 @@ sub LowerProc _
             '' 'void' slot in one file.
             dim as Tko.Symbol ptr ts = c.syms->SymbolAt( thisSym )
             dim as boolean inType = false
-            if ts <> 0 then
+            if ts <> nullptr then
                 dim as Tko.ScopeId walk = ts->parent
                 dim as int32 guard = 0
                 while (walk <> Tko.SCOPE_NONE) andalso (guard < 64)
                     dim as Tko.SymScope ptr sc2 = c.syms->ScopeAt( walk )
-                    if sc2 = 0 then exit while
+                    if sc2 = nullptr then exit while
                     if sc2->kind = cast( uint8, Tko.SCOPEK_TYPE ) then
                         inType = true
                         exit while
@@ -675,15 +675,15 @@ sub LowerProc _
     '' string fields before its first statement can assign through one.
     dim as Tko.TypeId structorType = Tko.TYPE_NONE
     dim as boolean inCtor = false
-    if (thisSym <> Tko.SYMBOL_NONE) andalso (s <> 0) then
+    if (thisSym <> Tko.SYMBOL_NONE) andalso (s <> nullptr) then
         dim as Tko.InternId ctorNm = c.names->Fold( c.names->GetString( "__ctor" ) )
         dim as Tko.InternId dtorNm = c.names->Fold( c.names->GetString( "__dtor" ) )
         if (s->name = ctorNm) orelse (s->name = dtorNm) then
             inCtor = (s->name = ctorNm)
             dim as Tko.SymScope ptr ownerSc = c.syms->ScopeAt( s->parent )
-            if ownerSc <> 0 then
+            if ownerSc <> nullptr then
                 dim as Tko.Symbol ptr ownerSym = c.syms->SymbolAt( ownerSc->owner )
-                if ownerSym <> 0 then structorType = ownerSym->type_
+                if ownerSym <> nullptr then structorType = ownerSym->type_
             end if
         end if
     end if
@@ -698,7 +698,7 @@ sub LowerProc _
             '' constructor is WRITTEN and already exists; the question is whether it has
             '' a prologue, and every field it does not initialise is a zero it owes.
             wantsPrologue = CtorPrologueWork_( c, structorType )
-        elseif c.vts <> 0 then
+        elseif c.vts <> nullptr then
             wantsPrologue = (c.vts->Find( structorType ) >= 0)
         end if
     end if
@@ -1203,7 +1203,7 @@ sub LowerMainModule _
     dim as MirFunction ptr savedF = c.f
     dim as int32 savedB = c.curBlock
     c.f = f
-    if c.srcMgr <> 0 then
+    if c.srcMgr <> nullptr then
         dim as Tko.DecodedLoc dbgAt = c.srcMgr->Decode( c.ast->Loc( root ) )
         f->dbgFile = cast( uint32, iif( c.moduleFile >= 0, c.moduleFile, dbgAt.file ) ) + 1
         f->dbgLine = iif( cast( uint32, dbgAt.file ) + 1 = f->dbgFile, dbgAt.physLine, 1 )
@@ -1447,7 +1447,7 @@ function Lower _
       byval isMainModule as boolean = true, _
       byref moduleName as string = "", _
       byval errFlags as int32 = 0, _
-      byval diags as any ptr = 0, byval moduleFile as int32 = -1 ) as int32
+      byval diags as any ptr = nullptr, byval moduleFile as int32 = -1 ) as int32
 
     dim as Ctx c
     c.srcMgr = @src

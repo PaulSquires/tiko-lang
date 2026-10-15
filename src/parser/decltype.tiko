@@ -252,7 +252,7 @@ private function ParseEnumDecl( byref p as Tko.ParserState ) as Tko.NodeId
         end if
         if Accept( p, Tko.TK_EQ ) orelse Accept( p, Tko.TK_FATARROW ) then ip.b = Expression( p )   '' 'K => 1' too
         if ip.b <> Tko.NODE_NONE then enumKnown = ConstFoldsToInt_( p, ip.b, enumNext )
-        if enumKnown andalso (p.aggDepth = 0) andalso (p.procDepth = 0) andalso (p.stream <> 0) then
+        if enumKnown andalso (p.aggDepth = 0) andalso (p.procDepth = 0) andalso (p.stream <> nullptr) then
             Tko.PpNoteConst( *cast( Tko.PpStream ptr, p.stream ), ip.name, enumNext, it.loc )
         end if
         enumNext += 1
@@ -366,7 +366,7 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
         if len( p.nsPath ) > 0 then p.nsPath += "."
         p.nsPath += Tko.Text.LowerAscii( p.names->Spelling( cast( Tko.InternId, parts[i] ) ) )
     next
-    if p.stream <> 0 then Tko.PpSetNamespace( *cast( Tko.PpStream ptr, p.stream ), p.nsPath )
+    if p.stream <> nullptr then Tko.PpSetNamespace( *cast( Tko.PpStream ptr, p.stream ), p.nsPath )
     p.nsDepth += 1
     do
         SkipEols( p )
@@ -379,7 +379,7 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
     loop
     p.nsDepth -= 1
     p.nsPath = outerNs
-    if p.stream <> 0 then Tko.PpSetNamespace( *cast( Tko.PpStream ptr, p.stream ), p.nsPath )
+    if p.stream <> nullptr then Tko.PpSetNamespace( *cast( Tko.PpStream ptr, p.stream ), p.nsPath )
 
     sp.first = p.ast->children.Count
     sp.count = members.Count
@@ -467,7 +467,7 @@ end function
 '' variable of FB; without the 'using' all four are accepted. A 'using' inside a
 '' procedure or a namespace body is not recorded.
 private sub NoteUsing_( byref p as Tko.ParserState, byref path as string )
-    if (p.stream = 0) orelse (len( path ) = 0) then return
+    if (p.stream = nullptr) orelse (len( path ) = 0) then return
     dim as string q = path
     while left( q, 1 ) = "."
         q = mid( q, 2 )
@@ -483,9 +483,9 @@ end sub
 '' '#pragma private' IN EFFECT AT TOKEN pos (PpResult.privateAt): fbc makes every procedure
 '' defined under it private, a method's body too, unless it says 'public'.
 private function PragmaPrivate_( byref p as Tko.ParserState, byval pos_ as int32 ) as boolean
-    if p.stream = 0 then return false
+    if p.stream = nullptr then return false
     dim as Tko.PpStream ptr st = cast( Tko.PpStream ptr, p.stream )
-    if st->outp = 0 then return false
+    if st->outp = nullptr then return false
     dim as boolean on_ = false
     for i as int32 = 0 to st->outp->privateAt.Count - 2 step 2
         if cast( int32, st->outp->privateAt[i] ) > pos_ then exit for

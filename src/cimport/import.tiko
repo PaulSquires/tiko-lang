@@ -202,7 +202,7 @@ function CImportRun( byref api as ClangApi, byref opts as CImportOptions, _
     dim as any ptr idx = api.createIndex( 0, 0 )
     dim as any ptr tu = api.parseTranslationUnit( idx, strptr( unitName ), @argv( 0 ), av.Count, _
                                                   @uf, 1, CXTranslationUnit_Flags_ )
-    if tu = 0 then
+    if tu = nullptr then
         api.disposeIndex( idx )
         res.rc = 1
         res.why = "clang could not start a parse"

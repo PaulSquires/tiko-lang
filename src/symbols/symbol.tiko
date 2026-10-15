@@ -48,7 +48,7 @@ const SYMTAB_LOAD_NUM as int32 = 7
 const SYMTAB_LOAD_DEN as int32 = 10
 
 constructor SymbolTable( )
-    this.names = 0
+    this.names = nullptr
     this.mask = 0
     this.occupied = 0
 
@@ -91,14 +91,14 @@ function SymbolTable.ScopeCount( ) as int32
 end function
 
 function SymbolTable.SymbolAt( byval id as SymbolId ) as Symbol ptr
-    if id = SYMBOL_NONE then return 0
-    if cast( int32, id ) >= this.symbols.Count then return 0
+    if id = SYMBOL_NONE then return nullptr
+    if cast( int32, id ) >= this.symbols.Count then return nullptr
     return @this.symbols[cast( int32, id )]
 end function
 
 function SymbolTable.ScopeAt( byval id as ScopeId ) as SymScope ptr
-    if id = SCOPE_NONE then return 0
-    if cast( int32, id ) >= this.scopes.Count then return 0
+    if id = SCOPE_NONE then return nullptr
+    if cast( int32, id ) >= this.scopes.Count then return nullptr
     return @this.scopes[cast( int32, id )]
 end function
 
@@ -248,13 +248,13 @@ end function
 function SymbolTable.HiddenModuleOf( byval nm as InternId ) as string
     for each h as uint32 in this.hiddenHits
         dim as Symbol ptr s = this.SymbolAt( cast( SymbolId, h ) )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if s->name <> nm then continue for
         '' Up to the module's namespace.
         dim as ScopeId cur = s->parent
         while cur <> SCOPE_NONE
             dim as SymScope ptr sc = this.ScopeAt( cur )
-            if sc = 0 then exit while
+            if sc = nullptr then exit while
             for k as int32 = 0 to this.importNs.Count - 1
                 if this.importNs[k] = cast( uint32, sc->owner ) then
                     return lcase( this.importChains[k] )
@@ -343,7 +343,7 @@ function SymbolTable.LookupThroughUsings _
             if got <> SYMBOL_NONE then return got
         next
         dim as SymScope ptr sc = this.ScopeAt( s )
-        if sc = 0 then exit while
+        if sc = nullptr then exit while
         s = sc->parent
     wend
     return SYMBOL_NONE
@@ -395,7 +395,7 @@ function SymbolTable.LookupTyped _
             end if
         end if
         dim as SymScope ptr s_ = this.ScopeAt( sc )
-        if s_ = 0 then exit while
+        if s_ = nullptr then exit while
         sc = s_->parent
     wend
     if decl <> SYMBOL_NONE then
@@ -419,7 +419,7 @@ function SymbolTable.LookupTyped _
             if got <> SYMBOL_NONE then return got
         next
         dim as SymScope ptr s_ = this.ScopeAt( sc )
-        if s_ = 0 then exit while
+        if s_ = nullptr then exit while
         sc = s_->parent
     wend
     if decl <> SYMBOL_NONE then return decl
@@ -439,7 +439,7 @@ function SymbolTable.Lookup _
         decl = this.LookupLocal( s, nm )
         if decl <> SYMBOL_NONE then exit while
         dim as SymScope ptr sc = this.ScopeAt( s )
-        if sc = 0 then exit while
+        if sc = nullptr then exit while
         s = sc->parent
     wend
     if decl <> SYMBOL_NONE then
@@ -461,7 +461,7 @@ function SymbolTable.Lookup _
             if got <> SYMBOL_NONE then return got
         next
         dim as SymScope ptr sc = this.ScopeAt( s )
-        if sc = 0 then exit while
+        if sc = nullptr then exit while
         s = sc->parent
     wend
     return decl
@@ -494,7 +494,7 @@ function SymbolTable.UsingFileOf( byval node as uint32, byval nsScope as ScopeId
     while (sc <> SCOPE_NONE) andalso (guard < SCOPE_WALK_MAX)
         guard += 1
         dim as SymScope ptr s_ = this.ScopeAt( sc )
-        if s_ = 0 then exit while
+        if s_ = nullptr then exit while
         if this.IsImportNs( s_->owner ) then return this.nodeModFile[node]
         sc = s_->parent
     wend
@@ -559,7 +559,7 @@ sub SymbolTable.UndefSym _
         head = this.LookupLocal( sc, nm )
         if head <> SYMBOL_NONE then exit while
         dim as SymScope ptr s_ = this.ScopeAt( sc )
-        if s_ = 0 then exit while
+        if s_ = nullptr then exit while
         sc = s_->parent
     wend
     dim as SymbolId alt = SYMBOL_NONE
@@ -847,12 +847,12 @@ function TupleUdtFor _
     dim as InternId tnm = names.Fold( names.GetString( key ) )
     dim as SymbolId prev = syms.LookupLocalTyped( SCOPE_GLOBAL, tnm, true )
     dim as Symbol ptr ps = syms.SymbolAt( prev )
-    if ps <> 0 then return ps->type_
+    if ps <> nullptr then return ps->type_
 
     dim as boolean dup = false
     dim as SymbolId tsid = syms.DeclareSym( SCOPE_GLOBAL, tnm, SYM_UDT, at, dup )
     dim as Symbol ptr ts = syms.SymbolAt( tsid )
-    if ts = 0 then return TYPE_NONE
+    if ts = nullptr then return TYPE_NONE
     dim as ScopeId tin = syms.OpenScope( SCOPEK_TYPE, SCOPE_GLOBAL, tsid )
     ts->inner = tin
     ts->type_ = types.NamedType( TK_UDT, tnm, cast( uint32, SCOPE_GLOBAL ) )
@@ -861,7 +861,7 @@ function TupleUdtFor _
         dim as boolean fdup = false
         dim as SymbolId fsid = syms.DeclareSym( tin, fnm, SYM_FIELD, at, fdup )
         dim as Symbol ptr fs = syms.SymbolAt( fsid )
-        if fs <> 0 then fs->type_ = cast( TypeId, elemTypes[i] )
+        if fs <> nullptr then fs->type_ = cast( TypeId, elemTypes[i] )
     next
     return ts->type_
 end function

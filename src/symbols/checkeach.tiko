@@ -42,15 +42,15 @@ private function EachTypeName_( byref c as Ctx, byval t as Tko.TypeId ) as strin
     dim as Tko.SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = Tko.SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
-    if (s = 0) orelse (s->inner = Tko.SCOPE_NONE) then return nm
+    if (s = nullptr) orelse (s->inner = Tko.SCOPE_NONE) then return nm
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return nm
+    if sc = nullptr then return nm
     dim as string r = ""
     dim as Tko.SymbolId cur = sc->firstSym
     for guard as int32 = 0 to 255
         if cur = Tko.SYMBOL_NONE then exit for
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit for
+        if f = nullptr then exit for
         if f->kind = cast( uint8, Tko.SYM_FIELD ) then
             if len( r ) > 0 then r &= ", "
             r &= EachTypeName_( c, c.types->Unqualify( f->type_ ) )
@@ -70,7 +70,7 @@ private sub InferForEachVarTypes_( byref c as Ctx )
         if sp->a = Tko.NODE_NONE then continue for
         if sp->count <> 1 then continue for
         dim as Tko.Symbol ptr vsym = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-        if vsym = 0 then continue for
+        if vsym = nullptr then continue for
         if vsym->type_ <> Tko.TYPE_NONE then continue for
 
         dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->children[sp->first] )
@@ -93,10 +93,10 @@ private sub InferForEachVarTypes_( byref c as Ctx )
             '' Value( ) gives the element's.
             dim as Tko.SymbolId gi = UdtMemberSym_( c, seqT, "getiterator" )
             dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gi )
-            if gs <> 0 then
+            if gs <> nullptr then
                 dim as Tko.SymbolId vo = UdtMemberSym_( c, gs->type_, "value" )
                 dim as Tko.Symbol ptr vs2 = c.syms->SymbolAt( vo )
-                if vs2 <> 0 then
+                if vs2 <> nullptr then
                     dim as Tko.TypeId et = vs2->type_
                     if et <> Tko.TYPE_NONE then
                         if c.types->Kind( et ) = Tko.TK_REFERENCE then
@@ -193,10 +193,10 @@ private function TupleArity_( byref c as Ctx, byval t as Tko.TypeId ) as int32
     dim as Tko.TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) <> Tko.TK_UDT then return -1
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( UdtSymOfType_( c, u ) )
-    if s = 0 then return -1
+    if s = nullptr then return -1
     if s->inner = Tko.SCOPE_NONE then return -1
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->inner )
-    if sc = 0 then return -1
+    if sc = nullptr then return -1
 
     dim as int32 n = 0
     dim as Tko.SymbolId cur = sc->firstSym
@@ -204,7 +204,7 @@ private function TupleArity_( byref c as Ctx, byval t as Tko.TypeId ) as int32
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
-        if f = 0 then exit while
+        if f = nullptr then exit while
         if f->kind = cast( uint8, Tko.SYM_FIELD ) then
             n += 1
             if c.names->Spelling( f->name ) <> ("_" & trim( str( n ) )) then return -1
@@ -345,7 +345,7 @@ sub CheckForEach_( byref c as Ctx )
             dim as Tko.SymbolId gi = UdtMemberSym_( c, seqT, "getiterator" )
             dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gi )
             dim as Tko.TypeId itT = Tko.TYPE_NONE
-            if gs <> 0 then itT = gs->type_
+            if gs <> nullptr then itT = gs->type_
             if (itT = Tko.TYPE_NONE) orelse (c.types->Kind( itT ) <> Tko.TK_UDT) then
                 c.diags->Report( Tko.TKO0606, r, EachTypeName_( c, seqT ) )
                 ok = false
@@ -363,7 +363,7 @@ sub CheckForEach_( byref c as Ctx )
                     '' its generics/fail-foreach-byref.bas). tiko built no program and said
                     '' nothing. The flag is the one lowereach.tiko reads: NF_BYREF on the
                     '' Value( ) declaration. An array needs nothing of the kind.
-                    if (vo <> 0) andalso (sp->op = cast( uint16, Tko.KW_BYREF )) then
+                    if (vo <> nullptr) andalso (sp->op = cast( uint16, Tko.KW_BYREF )) then
                         dim as Tko.NodeId vpn = cast( Tko.NodeId, vo->payload )
                         if (vpn <> Tko.NODE_NONE) andalso (c.ast->Kind( vpn ) = Tko.N_PROC) then
                             if (c.ast->nodes[cast( int32, vpn )].flags and Tko.NF_BYREF) = 0 then
@@ -372,7 +372,7 @@ sub CheckForEach_( byref c as Ctx )
                             end if
                         end if
                     end if
-                    if vo <> 0 then
+                    if vo <> nullptr then
                         elT = vo->type_
                         if elT <> Tko.TYPE_NONE then
                             if c.types->Kind( elT ) = Tko.TK_REFERENCE then

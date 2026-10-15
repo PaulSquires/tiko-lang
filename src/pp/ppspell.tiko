@@ -94,13 +94,13 @@ private sub RelexInto _
             dim as DecodedLoc id_ = e.src->Decode( t.loc )
             dim as SourceFile ptr idf = e.src->FileAt( id_.file )
             dim as string sp = "", gp = ""
-            if (idf <> 0) andalso (Tk( t ) = TK_IDENT) andalso (t.length > 0) andalso _
+            if (idf <> nullptr) andalso (Tk( t ) = TK_IDENT) andalso (t.length > 0) andalso _
                ((id_.offset + t.length) <= idf->text.Count) then
                 sp = space( t.length )
                 memcpy( strptr( sp ), @idf->text[id_.offset], t.length )
                 if sp = e.names->Spelling( cast( InternId, t.literal ) ) then sp = ""
             end if
-            if (idf <> 0) andalso ((t.flags and TF_SPACE_BEFORE) <> 0) then
+            if (idf <> nullptr) andalso ((t.flags and TF_SPACE_BEFORE) <> 0) then
                 dim as int32 k = id_.offset
                 while (k > 0) andalso ((idf->text[k - 1] = 32) orelse (idf->text[k - 1] = 9))
                     k -= 1
@@ -139,7 +139,7 @@ end sub
 private function ApostArgText_( byref e as PpEngine ) as boolean
     if e.frames.Count = 0 then return false
     dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
-    if (f->file = FILE_NONE) orelse (f->toks = 0) then return false
+    if (f->file = FILE_NONE) orelse (f->toks = nullptr) then return false
     if (f->pos < 1) orelse (f->pos >= f->toks->Count) then return false
     dim as Token eol = f->toks->At( f->pos )
     dim as Token prev = f->toks->At( f->pos - 1 )
@@ -149,7 +149,7 @@ private function ApostArgText_( byref e as PpEngine ) as boolean
     dim as DecodedLoc ed = e.src->Decode( eol.loc )
     if (pd.file <> ed.file) orelse (pd.file = FILE_NONE) then return false
     dim as SourceFile ptr sf = e.src->FileAt( ed.file )
-    if sf = 0 then return false
+    if sf = nullptr then return false
     dim as int32 k = pd.offset + cast( int32, prev.length )
     dim as int32 gapAt = k
     while (k < ed.offset) andalso ((sf->text[k] = 32) orelse (sf->text[k] = 9))

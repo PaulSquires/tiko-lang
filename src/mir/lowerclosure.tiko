@@ -37,7 +37,7 @@
 '' where fbc balances at three each.
 function LowerClosureAddr_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
-      byval dstv as MirValue ptr = 0 ) as boolean
+      byval dstv as MirValue ptr = nullptr ) as boolean
 
     if c.ast->Kind( id ) <> Tko.N_CLOSURE then return false
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
@@ -49,7 +49,7 @@ function LowerClosureAddr_ _
     if sz <= 0 then return false
 
     dim as MirValue base_
-    if dstv <> 0 then
+    if dstv <> nullptr then
         base_ = *dstv
     else
         dim as int32 slot = NewTempLocal( c, MT_AGG, sz )

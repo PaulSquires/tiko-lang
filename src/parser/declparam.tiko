@@ -166,14 +166,14 @@ end sub
 '' preserved: an ALIAS keeps exactly the spelling that was written.
 function StringLitText( byref p as Tko.ParserState ) as Tko.InternId
     dim as Tko.Token t = Cur( p )
-    if p.litPool = 0 then return 0
+    if p.litPool = nullptr then return 0
     if cast( int32, t.literal ) >= p.litPool->Count then return 0
     dim as Tko.Literal ptr lit = @(*p.litPool)[cast( int32, t.literal )]
     if lit->textLength <= 0 then return 0
     '' The literal's OWN file. Taking it from t.loc breaks for any token produced by
     '' macro expansion, whose loc points at the use site rather than at the text.
     dim as Tko.SourceFile ptr f = p.src->FileAt( cast( Tko.FileId, lit->textFile ) )
-    if f = 0 then return 0
+    if f = nullptr then return 0
     if (lit->textOffset + lit->textLength) > f->text.Count then return 0
     return p.names->Get( @f->text[lit->textOffset], lit->textLength )
 end function

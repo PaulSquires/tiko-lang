@@ -46,8 +46,8 @@ private sub CheckTypeLiteralText_ ( byref c as Ctx )
         if t = TYPE_NONE then continue for
         if c.types->Kind( t ) <> TK_UDT then continue for
         dim as Symbol ptr tf = TlTextField_( c, t, 0, true )      '' tupleconv.tiko
-        if tf = 0 then continue for
-        if (dimInit[n] <> 0) andalso (TlTextField_( c, t, 0, false ) <> 0) then continue for
+        if tf = nullptr then continue for
+        if (dimInit[n] <> 0) andalso (TlTextField_( c, t, 0, false ) <> nullptr) then continue for
         c.diags->Report( TKO0929, PointRange( c.ast->Loc( id ) ), _
                          c.types->Name( t ), c.names->Spelling( tf->name ) )
     next

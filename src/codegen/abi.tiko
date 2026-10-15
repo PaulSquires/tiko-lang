@@ -257,7 +257,7 @@ private sub RewriteCallArgs _
     ( byref r as Rewriter, byref ins as MirInst, byval callee as MirFunction ptr, _
       byref names as Tko.Interner )
 
-    if callee = 0 then return
+    if callee = nullptr then return
     '' THE RUN IS REBUILT FOR A WIDENED ARGUMENT TOO, not only for an aggregate. This
     '' used to leave early unless some parameter was MT_AGG, so a call whose only ABI
     '' business was 'i8 -> i32 zeroext' kept its narrow argument and clang refused the
@@ -418,7 +418,7 @@ private sub RewriteCallReturn _
       byref names as Tko.Interner, byval discard as boolean = false )
 
     dim as int32 sz = 0
-    if callee <> 0 then sz = callee->retSize
+    if callee <> nullptr then sz = callee->retSize
     if sz <= 0 then
         r.st->declined += 1
         r.outp.Push( ins )
@@ -879,7 +879,7 @@ sub PascalParamOrder _
 
     order.Clear( )
     dim as boolean rev = false
-    if f <> 0 then
+    if f <> nullptr then
         rev = (f->callConv = TKO_CC_PASCAL) andalso (f->isVariadic = false) _
               andalso (n = f->paramTys.Count)
     end if
@@ -1041,7 +1041,7 @@ private sub WalkCalls _
                 continue for
             end if
             dim as int32 ci = cast( int32, ins.callee )
-            dim as MirFunction ptr callee = 0
+            dim as MirFunction ptr callee = nullptr
             if (ci >= 0) andalso (ci < r.m->functions.Count) then
                 callee = r.m->functions[ci]
             end if
@@ -1055,7 +1055,7 @@ private sub WalkCalls _
             '' read the VOID as the disagreement it is not.
             dim as boolean discardAgg = false
             if cast( MirType, ins.ty ) = MT_VOID then
-                if callee <> 0 then
+                if callee <> nullptr then
                     if cast( MirType, callee->retTy ) = MT_AGG then
                         discardAgg = (callee->retSize > 0)
                     end if
@@ -1177,7 +1177,7 @@ private sub DeclineInconsistentReturns _
 
     for fi as int32 = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
-        if f = 0 then continue for
+        if f = nullptr then continue for
         if f->isDefinition = false then continue for
         for bi as int32 = 0 to f->blocks.Count - 1
             for ii as int32 = 0 to f->blocks[bi].insts.Count - 1
@@ -1187,7 +1187,7 @@ private sub DeclineInconsistentReturns _
                 dim as int32 ci = cast( int32, ins->callee )
                 if (ci < 0) orelse (ci >= m.functions.Count) then continue for
                 dim as MirFunction ptr callee = m.functions[ci]
-                if callee = 0 then continue for
+                if callee = nullptr then continue for
                 if cast( MirType, callee->retTy ) <> MT_AGG then continue for
                 if cast( MirType, ins->ty ) = MT_AGG then continue for
                 '' ...AND A VOID CALL IS NOT A DISAGREEMENT. It is a result nobody
@@ -1216,13 +1216,13 @@ sub LowerModule _
 
     '' WHICH AGGREGATES STILL FIT IN REGISTERS, every signature, before anything reads it.
     for fi as int32 = 0 to m.functions.Count - 1
-        if m.functions[fi] <> 0 then SysvRegisterBudget_( m.functions[fi], target )
+        if m.functions[fi] <> nullptr then SysvRegisterBudget_( m.functions[fi], target )
     next
 
     '' CALL SITES, against the signatures the frontend produced.
     for fi as int32 = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
-        if f = 0 then continue for
+        if f = nullptr then continue for
         if f->isDefinition = false then continue for
         dim as Rewriter r
         r.m = @m
@@ -1235,7 +1235,7 @@ sub LowerModule _
     '' SIGNATURES, every function, defined here or not.
     for fi as int32 = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
-        if f = 0 then continue for
+        if f = nullptr then continue for
         dim as boolean touched = false
         if cast( MirType, f->retTy ) = MT_AGG then touched = true
         for i as int32 = 0 to f->paramTys.Count - 1
@@ -1248,7 +1248,7 @@ sub LowerModule _
     '' PARAMETER STORES AND RETURNS, against the new shapes.
     for fi as int32 = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
-        if f = 0 then continue for
+        if f = nullptr then continue for
         if f->isDefinition = false then continue for
         dim as Rewriter r
         r.m = @m

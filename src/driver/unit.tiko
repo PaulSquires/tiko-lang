@@ -177,7 +177,7 @@ function CompileUnit _
     ctx.types.spellSized = UnitSpellsSized_( ctx, ast, id, modFiles )
     '' The editor scan wants the unit's macros, and PpClose frees them.
     dim as Tko.MacroInfoVec scanMacros
-    if ctx.scan <> 0 then Tko.PpSnapshotMacros( st, scanMacros )
+    if ctx.scan <> nullptr then Tko.PpSnapshotMacros( st, scanMacros )
     Tko.PpClose( st )
     ctx.timing.Add( Tko.PH_FRONT, tPh )
 
@@ -324,7 +324,7 @@ function CompileUnit _
         dim as Tko.InternId rnm = cast( Tko.InternId, pr.reservedNames[k] )
         for si as int32 = 1 to syms.Count( )
             dim as Tko.Symbol ptr rsym = syms.SymbolAt( cast( Tko.SymbolId, si ) )
-            if rsym = 0 then continue for
+            if rsym = nullptr then continue for
             if rsym->name <> rnm then continue for
             ctx.diags.Report( Tko.TKO0769, Tko.PointRange( rsym->loc ), _
                               ctx.names.Spelling( rnm ) )
@@ -334,7 +334,7 @@ function CompileUnit _
 
     if ctx.diags.Stopped( ) then return false
 
-    if ctx.scan <> 0 then
+    if ctx.scan <> nullptr then
         '' THE EDITOR SCAN: the front end to Check, harvested -- no layout, no code.
         Tko.Scan.RunUnit( ctx, ast, root, syms, info, p, pr, scanMacros )
     elseif ctx.options.dumpVtable then

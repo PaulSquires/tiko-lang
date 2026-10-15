@@ -26,9 +26,9 @@ private sub CheckFieldDefaultCtor_( byref c as Ctx )
         dim as SourceLoc at = s->loc
         if fn = NODE_NONE then
             dim as SymScope ptr fs0 = c.syms->ScopeAt( s->parent )
-            if fs0 = 0 then continue for
+            if fs0 = nullptr then continue for
             dim as Symbol ptr ow0 = c.syms->SymbolAt( fs0->owner )
-            if ow0 = 0 then continue for
+            if ow0 = nullptr then continue for
             if instr( c.names->Spelling( ow0->name ), "<" ) = 0 then continue for
         else
             if cast( int32, fn ) > c.ast->Count( ) then continue for
@@ -37,9 +37,9 @@ private sub CheckFieldDefaultCtor_( byref c as Ctx )
             at = c.ast->Loc( fn )
         end if
         dim as SymScope ptr ps = c.syms->ScopeAt( s->parent )
-        if ps = 0 then continue for
+        if ps = nullptr then continue for
         dim as Symbol ptr os = c.syms->SymbolAt( ps->owner )
-        if os <> 0 then
+        if os <> nullptr then
             if (os->flags and SYMF_UNION_KIND) <> 0 then continue for
         end if
         dim as TypeId u = c.types->Unqualify( s->type_ )
@@ -77,5 +77,5 @@ end function
 private function ByrefNeedsInit_ ( byref c as Ctx, byval s as Symbol ptr ) as boolean
     if (s->flags and SYMF_EXTERN) <> 0 then return false
     dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
-    return (sc = 0) orelse (sc->kind <> cast( uint8, SCOPEK_TYPE ))
+    return (sc = nullptr) orelse (sc->kind <> cast( uint8, SCOPEK_TYPE ))
 end function

@@ -451,7 +451,7 @@ function LowerOffsetOf _
     if ut = Tko.TYPE_NONE then
         dim as Tko.SymbolId ts = c.info->RefOf( tn )
         dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( ts )
-        if tsy = 0 then return false
+        if tsy = nullptr then return false
         ut = tsy->type_
     end if
     if ut = Tko.TYPE_NONE then return false

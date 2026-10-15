@@ -32,7 +32,7 @@ private sub SpreadOverloadFlag_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn <> Tko.NODE_NONE) andalso (pn <> 0) then
@@ -50,7 +50,7 @@ private sub SpreadOverloadFlag_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn <> Tko.NODE_NONE) andalso (pn <> 0) then
@@ -87,7 +87,7 @@ private function MemberDeclForDef_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn <> Tko.NODE_NONE) andalso (w.ast->Kind( pn ) = Tko.N_PROC) then
@@ -128,7 +128,7 @@ private function UndefinedProcWithArity _
     dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         dim as boolean isProc = (pn <> Tko.NODE_NONE) andalso (pn <> 0)
@@ -207,7 +207,7 @@ private sub DeclareMainArg_ _
     dim as Tko.SymbolId sid = syms.DeclareSym( moduleScope, _
         names.Fold( names.GetString( spelling ) ), Tko.SYM_VARIABLE, Tko.LOC_NONE, dup )
     dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
-    if s <> 0 then s->type_ = t
+    if s <> nullptr then s->type_ = t
 end sub
 
 private function DeclareGlobal _
@@ -232,7 +232,7 @@ private sub DeclareFuncName _
 
     dim as Tko.SymbolId sid = DeclareGlobal( syms, names, diags, spelling )
     dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
-    if s <> 0 then s->flags or= Tko.SYMF_FUNCNAME
+    if s <> nullptr then s->flags or= Tko.SYMF_FUNCNAME
 end sub
 
 private sub DeclareBuiltinConst _
@@ -242,7 +242,7 @@ private sub DeclareBuiltinConst _
 
     dim as Tko.SymbolId sid = DeclareGlobal( syms, names, diags, spelling )
     dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
-    if s = 0 then return
+    if s = nullptr then return
     s->flags or= Tko.SYMF_BUILTIN
     s->type_ = types.Builtin( Tko.TY_BOOLEAN )
     s->payload = value

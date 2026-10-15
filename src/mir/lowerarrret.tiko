@@ -109,7 +109,7 @@ private function IsArrayResultCall_ _
         callee = c.info->RefOf( cp->target )
     end if
     dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
-    if cs = 0 then return false
+    if cs = nullptr then return false
     return (cs->kind = cast( uint8, Tko.SYM_PROC ))
 end function
 

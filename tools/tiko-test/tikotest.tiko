@@ -521,7 +521,7 @@ private function RunCaptureWin_( byval cmdLine as string, byref outText as strin
     si.hStdInput = TtStdHandle_( cast( uint32, -10 ) )
     si.hStdOutput = wr
     si.hStdError = wr                                '' '2>&1'
-    dim as int32 ok = TtCreateProcess_( 0, strptr( buf ), 0, 0, 1, 0, 0, 0, @si, @pi )
+    dim as int32 ok = TtCreateProcess_( nullptr, strptr( buf ), nullptr, nullptr, 1, 0, nullptr, nullptr, @si, @pi )
     TtCloseHandle_( wr )                             '' the child holds the only write end
     MutexUnlock( spawnMtx_ )
     if ok = 0 then
@@ -531,7 +531,7 @@ private function RunCaptureWin_( byval cmdLine as string, byref outText as strin
     end if
     dim as string chunk = space( 65536 )
     dim as uint32 got
-    while TtReadFile_( rd, strptr( chunk ), 65536, @got, 0 ) <> 0
+    while TtReadFile_( rd, strptr( chunk ), 65536, @got, nullptr ) <> 0
         if got = 0 then exit while
         outText &= left( chunk, got )
     wend
@@ -1140,7 +1140,7 @@ sub RunPool_ _
         handles( i ) = ThreadCreate( @Worker_, @wargs( i ) )
     next
     for i as int32 = 0 to nWorkers - 1
-        if handles( i ) <> 0 then ThreadWait( handles( i ) )
+        if handles( i ) <> nullptr then ThreadWait( handles( i ) )
     next
 
     MutexDestroy( pl.mtx )

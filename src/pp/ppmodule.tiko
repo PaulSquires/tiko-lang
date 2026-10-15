@@ -88,7 +88,7 @@ end sub
 '' required headers), because the declarations the module exports may name what it
 '' declares -- HWND, RECT.
 sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as FileId )
-    if e.cfg->moduleFiles = 0 then return
+    if e.cfg->moduleFiles = nullptr then return
     dim as boolean own = false
     for each m as uint32 in *e.cfg->moduleFiles
         if m = cast( uint32, from ) then own = true
@@ -378,7 +378,7 @@ private sub PpModModule_( byref e as PpEngine, byval at as SourceLoc )
     e.outp->moduleLoc = at
     '' Compiled as a module unit, '#module' is what the unit expects (P2). Compiled any other
     '' way, the file is a module file outside its module: not built yet.
-    if e.cfg->moduleFiles = 0 then PpModNotImpl_( e, at )
+    if e.cfg->moduleFiles = nullptr then PpModNotImpl_( e, at )
 end sub
 
 private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
@@ -442,7 +442,7 @@ private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
         PpModNotImpl_( e, at )
         return
     end if
-    if e.cfg->importFn = 0 then return
+    if e.cfg->importFn = nullptr then return
 
     '' THE INTERFACES, read next and dependencies first: pushed last-first, so the first
     '' is on top. One already read -- a diamond -- is not read again.
@@ -514,7 +514,7 @@ function PpModQualifiedMacro( byref e as PpEngine, byref t as Token ) as boolean
     if Tk( nt ) <> TK_IDENT then return false
     dim as string cand = PpModMacroName( e.modst.aliasChains[ai], e.names->Spelling( cast( InternId, nt.literal ) ) )
     dim as PpMacro ptr m = MacroFor( e, e.names->GetString( cand ) )
-    if m = 0 then return false
+    if m = nullptr then return false
     '' A function-like one is a use only with its argument list, as any macro is.
     if m->isFunc andalso (m->optParens = false) then
         if f->pos + 3 > f->toks->Count - 1 then return false
@@ -545,7 +545,7 @@ private sub PpModExport_( byref e as PpEngine, byval at as SourceLoc )
             return
         end if
         dim as PpMacro ptr m = MacroFor( e, cast( InternId, t.literal ) )
-        if m = 0 then
+        if m = nullptr then
             Report( e, TKO0365, t.loc, SpellOf( e, t ) )
         else
             '' AN EXPORTED MACRO SPELLED LIKE ITS MODULE (M32, RFC-0009): refused as a public
@@ -588,7 +588,7 @@ end function
 '' the directive stands in the module file itself -- the innermost file frame is the root
 '' -- and not in a header it included.
 sub PpModJournal( byref e as PpEngine, byval m as PpMacro ptr )
-    if e.cfg->moduleFiles = 0 then return
+    if e.cfg->moduleFiles = nullptr then return
     for k as int32 = e.frames.Count - 1 to 0 step -1
         if e.frames[k].file = FILE_NONE then continue for
         if e.frames[k].file <> e.rootFile then return
@@ -600,7 +600,7 @@ end sub
 
 '' The end of one file of a module unit, whether or not another follows.
 sub PpModEndFile( byref e as PpEngine )
-    if e.cfg->moduleFiles = 0 then return
+    if e.cfg->moduleFiles = nullptr then return
     if e.modst.isModuleFile = false then
         dim as string p = e.src->PathOf( e.rootFile )
         Report( e, TKO0145, e.src->LocFor( e.rootFile, 0 ), p, PpModDirOf_( p ) )
@@ -623,7 +623,7 @@ function PpModNextFile( byref e as PpEngine ) as boolean
     if e.modst.rootEnded then return false
     dim as IdVec ptr files = e.cfg->moduleFiles
     dim as boolean more = false
-    if files <> 0 then more = (e.modst.fileIndex + 1 < files->Count)
+    if files <> nullptr then more = (e.modst.fileIndex + 1 < files->Count)
 
     if e.cfg->scanHeader = false then
         while e.conds.IsEmpty( ) = false

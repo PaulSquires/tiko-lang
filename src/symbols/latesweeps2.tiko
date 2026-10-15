@@ -6,10 +6,10 @@
 
 '' The UDT symbol behind a type, or 0.
 private function UdtSymbolOf_ ( byref c as Ctx, byval udt as TypeId ) as Symbol ptr
-    if udt = TYPE_NONE then return 0
-    if c.types->Kind( udt ) <> TK_UDT then return 0
+    if udt = TYPE_NONE then return nullptr
+    if c.types->Kind( udt ) <> TK_UDT then return nullptr
     dim as InternId tn = c.types->NameOf( udt )
-    if tn = 0 then return 0
+    if tn = 0 then return nullptr
     dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( udt ) )
     dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
     if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
@@ -37,7 +37,7 @@ private function DeclaresAnywhere_ _
         '' no SYMF_GENERIC_INST (that flag is the procedures'), so the '<' is what says so.
         if instr( tn, "(" ) > 0 then return true
         if TupleLike_( c, t ) then return true
-        if StructorOf_( c, t, nm ) <> 0 then return true
+        if StructorOf_( c, t, nm ) <> nullptr then return true
         t = BaseOf_( c, t )
     wend
     return false
@@ -99,7 +99,7 @@ private function UdtPairConverts_ ( byref c as Ctx, byval dst as TypeId, byval s
     while (cur <> SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Symbol ptr cs = c.syms->SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         if c.types->Kind( ValueType_( c, cs->type_ ) ) = TK_UDT then return true
         cur = cs->nextOverload
     wend
@@ -139,7 +139,7 @@ private sub RequireOperator_ _
     '' overload of the name must be hidden.
     if here = TYPE_NONE then
         dim as Symbol ptr gts = UdtSymbolOf_( c, u )
-        if (gts <> 0) andalso (gts->payload <> 0) then
+        if (gts <> nullptr) andalso (gts->payload <> 0) then
             dim as NodeId gn = cast( NodeId, gts->payload )
             if c.ast->Kind( gn ) = N_TYPE then
                 dim as StmtPayload ptr gp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, gn )].data )]
@@ -162,10 +162,10 @@ private sub RequireOperator_ _
             end if
         end if
     end if
-    if st = 0 then return
+    if st = nullptr then return
     dim as Symbol ptr walk = st
     dim as int32 guard = 0
-    while (walk <> 0) andalso (guard < 1000)
+    while (walk <> nullptr) andalso (guard < 1000)
         guard += 1
         if StructorReachable_( c, walk, u, here ) then return
         walk = c.syms->SymbolAt( walk->nextOverload )
@@ -306,7 +306,7 @@ private sub CheckUdtAssign_ ( byref c as Ctx, byval id as NodeId )
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
     '' A PROPERTY on the left is a call, and its setter's parameter is not measured.
     dim as Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-    if (ls <> 0) andalso (ls->kind = cast( uint8, SYM_PROC )) then return
+    if (ls <> nullptr) andalso (ls->kind = cast( uint8, SYM_PROC )) then return
     '' ONLY A PLAIN LVALUE ON THE LEFT: 'let( a, b ) = x' unpacks and is its own rule,
     '' and 'this = other' assigns the object, which tiko-lang types as a POINTER.
     select case c.ast->Kind( sp->a )
@@ -366,13 +366,13 @@ private sub CheckUdtInits_ ( byref c as Ctx )
             @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
         if ip->b = NODE_NONE then continue for
         dim as Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if ms = 0 then
+        if ms = nullptr then
             '' Nothing bound the item: the member is found through its OWNER, the way
             '' the qualified-init sweeps do -- a single UDT of that name, or nothing.
             dim as ScopeId osc = TypeScopeOf_( c, ip->ownerName )
             if osc = SCOPE_NONE then continue for
             ms = c.syms->SymbolAt( c.syms->LookupLocal( osc, c.names->Fold( ip->name ) ) )
-            if ms = 0 then continue for
+            if ms = nullptr then continue for
         end if
         if ms->kind <> cast( uint8, SYM_VARIABLE ) then continue for
         if ms->type_ = TYPE_NONE then continue for
@@ -398,7 +398,7 @@ end sub
 private function GenericDeclaresMember_ _
     ( byref c as Ctx, byval ts as Symbol ptr, byval want as InternId ) as boolean
 
-    if ts = 0 then return false
+    if ts = nullptr then return false
     if ts->payload = 0 then return false
     dim as NodeId gn = cast( NodeId, ts->payload )
     if gn = NODE_NONE then return false
@@ -443,7 +443,7 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
         if c.info->RefOf( mp->rhs ) <> SYMBOL_NONE then return
     end if
     dim as Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
-    if bs = 0 then return
+    if bs = nullptr then return
     select case cast( SymbolKind, bs->kind )
     case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
     '' ...AND A FUNCTION's RESULT, written as a call: 'MkU( ).nope', 'MkT( ).x', 'MkP( )->nope'
@@ -526,7 +526,7 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     while (t <> TYPE_NONE) andalso (guard < 64)
         guard += 1
         dim as Symbol ptr ts = UdtSymbolOf_( c, t )
-        if ts = 0 then return
+        if ts = nullptr then return
         if ts->inner = SCOPE_NONE then return
         if GenericDeclaresMember_( c, ts, want ) then return
         '' A UNION or an ANONYMOUS aggregate inside the type is not searched here, so
@@ -567,17 +567,17 @@ private sub CheckEraseDefaultCtor_ ( byref c as Ctx, byval id as NodeId )
         dim as NodeId arg = cast( NodeId, c.ast->children[sp->first + i] )
         if arg = NODE_NONE then continue for
         dim as Symbol ptr av = c.syms->SymbolAt( c.info->RefOf( arg ) )
-        if av = 0 then continue for
+        if av = nullptr then continue for
         if av->type_ = TYPE_NONE then continue for
         dim as TypeId u = c.types->Unqualify( av->type_ )
         if c.types->Kind( u ) <> TK_ARRAY then continue for
         dim as TypeId el = c.types->Unqualify( c.types->Inner( u ) )
         if c.types->Kind( el ) <> TK_UDT then continue for
         dim as Symbol ptr ct = StructorOf_( c, el, "__ctor" )
-        if ct = 0 then continue for
+        if ct = nullptr then continue for
         dim as boolean hasDefault = false
         dim as int32 guard = 0
-        while (ct <> 0) andalso (guard < 1000)
+        while (ct <> nullptr) andalso (guard < 1000)
             guard += 1
             dim as NodeId cd = cast( NodeId, ct->payload )
             if (cd <> NODE_NONE) andalso (c.ast->Kind( cd ) = N_PROC) then
@@ -645,9 +645,9 @@ private sub CheckProcDefinitionShapes_ ( byref c as Ctx, byval id as NodeId )
     ScanReturnStyles_( c, sp->b, sawReturn, sawAssign )
     if sawReturn then return
     dim as Symbol ptr ct = StructorOf_( c, ru, "__ctor" )
-    if ct = 0 then return
+    if ct = nullptr then return
     dim as int32 guard = 0
-    while (ct <> 0) andalso (guard < 1000)
+    while (ct <> nullptr) andalso (guard < 1000)
         guard += 1
         dim as NodeId cd = cast( NodeId, ct->payload )
         if (cd = NODE_NONE) orelse (c.ast->Kind( cd ) <> N_PROC) then return
@@ -692,7 +692,7 @@ private sub CheckByrefInitShapes_ ( byref c as Ctx )
             dim as ListPayload ptr lp = _
                 @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
             dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
-            if (ts <> 0) andalso (ts->kind = cast( uint8, SYM_UDT )) then
+            if (ts <> nullptr) andalso (ts->kind = cast( uint8, SYM_UDT )) then
                 c.diags->Report( TKO0643, PointRange( c.ast->Loc( init ) ), _
                                  c.names->Spelling( s->name ) )
                 continue for
@@ -714,7 +714,7 @@ private sub CheckByrefInitShapes_ ( byref c as Ctx )
         '' over an 'n:1 as integer'. A plain field of the same type binds fine.
         if ik = N_MEMBER then
             dim as Symbol ptr bfs = c.syms->SymbolAt( c.info->RefOf( init ) )
-            if bfs <> 0 then
+            if bfs <> nullptr then
                 if (bfs->flags and SYMF_BITFIELD) <> 0 then
                     c.diags->Report( TKO0753, PointRange( c.ast->Loc( init ) ), _
                                      c.names->Spelling( bfs->name ) )
@@ -747,7 +747,7 @@ private sub CheckByrefInitShapes_ ( byref c as Ctx )
                 '' A STATIC member or a namespace's variable, 'T2.R1' or 'ns.x', has a fixed
                 '' address (dim/byref-init-from-byref.bas); an instance's field does not.
                 dim as Symbol ptr mv = c.syms->SymbolAt( c.info->RefOf( sb ) )
-                if mv = 0 then
+                if mv = nullptr then
                     fixedAddr = false
                 elseif (mv->kind <> cast( uint8, SYM_VARIABLE )) andalso ((mv->flags and SYMF_STATIC) = 0) then
                     fixedAddr = false
@@ -755,7 +755,7 @@ private sub CheckByrefInitShapes_ ( byref c as Ctx )
             case N_CALL
                 dim as ListPayload ptr sl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sb )].data )]
                 dim as Symbol ptr av = c.syms->SymbolAt( c.info->RefOf( sl->target ) )
-                if (av <> 0) andalso (av->kind = cast( uint8, SYM_PROC )) then
+                if (av <> nullptr) andalso (av->kind = cast( uint8, SYM_PROC )) then
                     '' A BYREF result is an address known only at run time; a by-value one
                     '' has none at all, and that is TKO0643's (fbc's 24), not this rule's.
                     dim as NodeId pv = cast( NodeId, av->payload )
@@ -763,7 +763,7 @@ private sub CheckByrefInitShapes_ ( byref c as Ctx )
                         if ((c.ast->nodes[cast( int32, pv )].flags and NF_BYREF) <> 0) orelse _
                            ((c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pv )].data )].extra and PF_BYREF_RESULT) <> 0) then fixedAddr = false
                     end if
-                elseif (av = 0) orelse (av->kind <> cast( uint8, SYM_VARIABLE )) orelse (av->type_ = TYPE_NONE) then
+                elseif (av = nullptr) orelse (av->kind <> cast( uint8, SYM_VARIABLE )) orelse (av->type_ = TYPE_NONE) then
                     fixedAddr = false
                 elseif c.types->IsDynArray( c.types->Unqualify( av->type_ ) ) then
                     fixedAddr = false
@@ -775,7 +775,7 @@ private sub CheckByrefInitShapes_ ( byref c as Ctx )
                         case N_INT_LIT
                         case N_IDENT
                             dim as Symbol ptr xs = c.syms->SymbolAt( c.info->RefOf( ax ) )
-                            if (xs = 0) orelse ((xs->kind <> cast( uint8, SYM_CONSTANT )) andalso (xs->kind <> cast( uint8, SYM_ENUMCONST ))) then fixedAddr = false
+                            if (xs = nullptr) orelse ((xs->kind <> cast( uint8, SYM_CONSTANT )) andalso (xs->kind <> cast( uint8, SYM_ENUMCONST ))) then fixedAddr = false
                         case else
                             fixedAddr = false
                         end select
@@ -791,7 +791,7 @@ private sub CheckByrefInitShapes_ ( byref c as Ctx )
         '' The static-reference rule.
         if ((s->flags and SYMF_STATIC) <> 0) andalso (ik = N_IDENT) then
             dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( init ) )
-            if (vs <> 0) andalso (vs->kind = cast( uint8, SYM_VARIABLE )) then
+            if (vs <> nullptr) andalso (vs->kind = cast( uint8, SYM_VARIABLE )) then
                 if (vs->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or _
                                    SYMF_COMMON)) = 0 then
                     c.diags->Report( TKO0730, PointRange( c.ast->Loc( init ) ), _
@@ -1019,7 +1019,7 @@ private sub CheckNamespaceMember_ ( byref c as Ctx, byval id as NodeId )
     if c.info->RefOf( id ) <> SYMBOL_NONE then return
     if c.info->RefOf( mp->rhs ) <> SYMBOL_NONE then return
     dim as Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
-    if bs = 0 then return
+    if bs = nullptr then return
     if bs->kind <> cast( uint8, SYM_NAMESPACE ) then return
     if bs->inner = SCOPE_NONE then return
     dim as InternId want = c.names->Fold( _
@@ -1258,11 +1258,11 @@ end sub
 private function HiddenFieldOf_ _
     ( byref c as Ctx, byval udt as TypeId, byval here as TypeId ) as Symbol ptr
     dim as TypeId u = ValueType_( c, udt )
-    if u = TYPE_NONE then return 0
-    if c.types->Kind( u ) <> TK_UDT then return 0
+    if u = TYPE_NONE then return nullptr
+    if c.types->Kind( u ) <> TK_UDT then return nullptr
     dim as Symbol ptr ts = UdtSymbolOf_( c, u )
-    if ts = 0 then return 0
-    if ts->inner = SCOPE_NONE then return 0
+    if ts = nullptr then return nullptr
+    if ts->inner = SCOPE_NONE then return nullptr
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr f = @c.syms->symbols[i]
         if f->parent <> ts->inner then continue for
@@ -1271,7 +1271,7 @@ private function HiddenFieldOf_ _
         if StructorReachable_( c, f, u, here ) then continue for
         return f
     next
-    return 0
+    return nullptr
 end function
 
 private sub ReportHiddenField_ _
@@ -1313,7 +1313,7 @@ private sub CheckAggregateInitVisibility_( byref c as Ctx )
         '' exactly that -- and the scan that cleared this rule could not see them.
         if DeclaresAnywhere_( c, ValueType_( c, s->type_ ), "__ctor" ) then continue for
         dim as Symbol ptr f = HiddenFieldOf_( c, s->type_, EnclosingTypeOf_( c, s->parent ) )
-        if f = 0 then continue for
+        if f = nullptr then continue for
         ReportHiddenField_( c, f, s->type_, ip->b )
     next
 end sub
@@ -1332,7 +1332,7 @@ private sub CheckLetUnpackVisibility_ _
     end select
     dim as TypeId st = c.info->TypeOf_( sp->b )
     dim as Symbol ptr f = HiddenFieldOf_( c, st, here )
-    if f = 0 then return
+    if f = nullptr then return
     ReportHiddenField_( c, f, st, id )
 end sub
 

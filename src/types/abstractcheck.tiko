@@ -163,8 +163,8 @@ sub CheckAbstractInstances _
         dim as ListPayload ptr cp = @ast.lists[cast( int32, ast.nodes[n].data )]
         if cp->target = NODE_NONE then continue for
         dim as Symbol ptr ps = syms.SymbolAt( info.RefOf( id ) )
-        if ps = 0 then ps = syms.SymbolAt( info.RefOf( cp->target ) )
-        if (ps = 0) orelse (ps->kind <> cast( uint8, SYM_PROC )) then continue for
+        if ps = nullptr then ps = syms.SymbolAt( info.RefOf( cp->target ) )
+        if (ps = nullptr) orelse (ps->kind <> cast( uint8, SYM_PROC )) then continue for
         dim as NodeId pd = cast( NodeId, ps->payload )
         if (pd = NODE_NONE) orelse (ast.Kind( pd ) <> N_PROC) then continue for
         dim as StmtPayload ptr pdp = @ast.stmts[cast( int32, ast.nodes[cast( int32, pd )].data )]
@@ -201,7 +201,7 @@ sub CheckAbstractInstances _
         dim as ListPayload ptr cp = @ast.lists[cast( int32, ast.nodes[n].data )]
         if cp->target = NODE_NONE then continue for
         dim as Symbol ptr cs = syms.SymbolAt( info.RefOf( cp->target ) )
-        if cs = 0 then continue for
+        if cs = nullptr then continue for
         '' ...OR TO A TYPEDEF FOR ONE. 'type A2 as A : A2( )' constructs the same A,
         '' and fbc refuses it on the same line number.
         dim as boolean namesType = _

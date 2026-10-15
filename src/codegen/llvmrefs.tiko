@@ -27,7 +27,7 @@ function ReferencedFunctions _
     next
     for fi as int32 = 0 to m.functions.Count - 1
         dim as MirFunction ptr f = m.functions[fi]
-        if f = 0 then continue for
+        if f = nullptr then continue for
         for bi as int32 = 0 to f->blocks.Count - 1
             dim as MirBlock ptr b = @f->blocks[bi]
             for ii as int32 = 0 to b->insts.Count - 1
@@ -62,10 +62,10 @@ function ReferencedFunctions _
     for i as int32 = 0 to m.functions.Count - 1
         if refd[i] = 0 then continue for
         dim as MirFunction ptr f = m.functions[i]
-        if f = 0 then continue for
+        if f = nullptr then continue for
         dim as int32 at = m.FirstFunctionNamed( f->name )
         while at >= 0
-            if m.functions[at] = 0 then exit while
+            if m.functions[at] = nullptr then exit while
             refd[at] = 1
             at = m.functions[at]->nextSameName - 1
         wend

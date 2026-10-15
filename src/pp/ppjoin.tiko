@@ -59,7 +59,7 @@ private function TryTailJoin_( byref e as PpEngine ) as boolean
 
     dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
     if f->file <> FILE_NONE then return false      '' only an expansion has a seam
-    if f->toks = 0 then return false
+    if f->toks = nullptr then return false
     if f->pos <> (f->toks->Count - 1) then return false
     if f->joinTried = f->pos then return false
     f->joinTried = f->pos
@@ -69,7 +69,7 @@ private function TryTailJoin_( byref e as PpEngine ) as boolean
     if (ka = TK_EOL) orelse (ka = TK_EOF) then return false
 
     dim as PpFrame ptr g = @e.frames[e.frames.Count - 2]
-    if g->toks = 0 then return false
+    if g->toks = nullptr then return false
     if g->pos > (g->toks->Count - 1) then return false
     dim as Token b = g->toks->At( g->pos )
     dim as TokenKind kb = Tk( b )

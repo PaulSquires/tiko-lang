@@ -22,16 +22,16 @@ function Dump _
     dim as int32 nbuiltin = 0
     for i as int32 = 1 to syms.Count( )
         dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, i ) )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if src.IsBuiltin( s->loc ) then nbuiltin += 1
     next
     dim as int32 nscopes = 0
     for i as int32 = 1 to syms.ScopeCount( )
         dim as Tko.SymScope ptr sc = syms.ScopeAt( cast( Tko.ScopeId, i ) )
-        if sc = 0 then continue for
+        if sc = nullptr then continue for
         if sc->owner <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr os = syms.SymbolAt( sc->owner )
-            if os <> 0 then
+            if os <> nullptr then
                 if src.IsBuiltin( os->loc ) then continue for
             end if
         end if
@@ -50,7 +50,7 @@ function Dump _
         '' printed at all.
         if sc->owner <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr os = syms.SymbolAt( sc->owner )
-            if os <> 0 then
+            if os <> nullptr then
                 if src.IsBuiltin( os->loc ) then continue for
             end if
         end if
@@ -60,7 +60,7 @@ function Dump _
         dim as Tko.SymbolId vc = sc->firstSym
         while vc <> Tko.SYMBOL_NONE
             dim as Tko.Symbol ptr vs = syms.SymbolAt( vc )
-            if vs = 0 then exit while
+            if vs = nullptr then exit while
             if src.IsBuiltin( vs->loc ) = false then nvis += 1
             vc = vs->nextInScope
         wend

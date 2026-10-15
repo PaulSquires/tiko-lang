@@ -65,7 +65,7 @@ private function ConcatHasWideCastTerm_ _
     dim as Tko.SymbolId cs = UdtMemberSym_( c, u, "cast" )
     while cs <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr cse = c.syms->SymbolAt( cs )
-        if cse = 0 then exit while
+        if cse = nullptr then exit while
         if cse->type_ <> Tko.TYPE_NONE then
             dim as Tko.TypeId ru = c.types->Unqualify( cse->type_ )
             if c.types->Kind( ru ) = Tko.TK_REFERENCE then ru = c.types->Unqualify( c.types->Inner( ru ) )
@@ -138,7 +138,7 @@ private function ConstStrArgWidth_ _
         return 1
     case Tko.N_IDENT
         dim as Tko.Symbol ptr ks = c.syms->SymbolAt( c.info->RefOf( a ) )
-        if ks = 0 then return 0
+        if ks = nullptr then return 0
         if ks->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return 0
         '' A PREDECLARED constant -- 'true', 'false' -- carries a VALUE here, not a node.
         if (ks->payload <= 0) orelse (ks->payload >= c.ast->nodes.Count) then return 0

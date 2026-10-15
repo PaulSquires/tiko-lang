@@ -102,7 +102,7 @@ function Interner.Spelling( byval id as InternId ) as string
 end function
 
 function Interner.Bytes( byval id as InternId ) as const uint8 ptr
-    if id = INTERN_NONE then return 0
+    if id = INTERN_NONE then return nullptr
     return this.entries[cast( int32, id ) - 1].bytes
 end function
 

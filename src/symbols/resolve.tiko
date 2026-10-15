@@ -31,7 +31,7 @@ private function IsStaticProc_ _
 
     if sid = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId n = cast( Tko.NodeId, s->payload )
     if n = Tko.NODE_NONE then return false
@@ -49,7 +49,7 @@ private function FileScopeOf_ _
     while (sc <> Tko.SCOPE_NONE) andalso (guard < Tko.SCOPE_WALK_MAX)
         guard += 1
         dim as Tko.SymScope ptr s_ = c.syms->ScopeAt( sc )
-        if s_ = 0 then exit while
+        if s_ = nullptr then exit while
         if s_->kind = cast( uint8, Tko.SCOPEK_MODULE ) then return sc
         sc = s_->parent
     wend
@@ -109,19 +109,19 @@ private sub BindThis _
         c.syms->LookupLocal( procScope, c.names->Fold( c.names->GetString( "this" ) ) )
     if tsid = Tko.SYMBOL_NONE then return
     dim as Tko.Symbol ptr ts = c.syms->SymbolAt( tsid )
-    if ts = 0 then return
+    if ts = nullptr then return
     if ts->type_ <> Tko.TYPE_NONE then return
 
     dim as Tko.ScopeId cur = procScope
     while cur <> Tko.SCOPE_NONE
         dim as Tko.SymScope ptr s = c.syms->ScopeAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if s->kind = cast( uint8, Tko.SCOPEK_TYPE ) then
             '' A POINTER to the type, not the type: the ABI passes an address, fbc's
             '' own C spells the parameter 'struct $1T*', and every member access
             '' already reaches through a pointer base.
             dim as Tko.Symbol ptr owner = c.syms->SymbolAt( s->owner )
-            if owner <> 0 then
+            if owner <> nullptr then
                 if owner->type_ <> Tko.TYPE_NONE then
                     ts->type_ = c.types->Pointer_( owner->type_ )
                 end if
@@ -146,7 +146,7 @@ private sub BindThis _
     if (ts->type_ = Tko.TYPE_NONE) andalso (ownerName <> 0) then
         dim as Tko.SymbolId osid = LookupDottedType_( c, procScope, ownerName )
         dim as Tko.Symbol ptr os = c.syms->SymbolAt( osid )
-        if os <> 0 then
+        if os <> nullptr then
             if os->type_ <> Tko.TYPE_NONE then
                 ts->type_ = c.types->Pointer_( os->type_ )
             end if
@@ -166,7 +166,7 @@ sub BindDeclType _
     '' one, so the class is asked for rather than assumed.
     dim as Tko.SymbolId sid = c.syms->LookupLocalTyped( scope_, nm, false )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return
+    if s = nullptr then return
     '' FIRST BINDING WINS, except when the caller says otherwise. The BACKPATCH
     '' pass revisits a declaration whose type was built over something not
     '' resolved yet -- 'dim as t p' where 't' aliases a pointer to a type declared
@@ -205,7 +205,7 @@ private function GenericCtorCall_ _
 
     dim as Tko.SymbolId gsid = c.info->RefOf( lp->target )
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
-    if gs = 0 then return false
+    if gs = nullptr then return false
     if gs->kind <> cast( uint8, Tko.SYM_UDT ) then return false
 
     dim as Tko.StmtPayload gsp
@@ -228,9 +228,9 @@ private function SymbolIsOuterName_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
 
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->parent )
-    if sc = 0 then return false
+    if sc = nullptr then return false
     select case cast( Tko.ScopeKind, sc->kind )
     case Tko.SCOPEK_GLOBAL, Tko.SCOPEK_MODULE, Tko.SCOPEK_NAMESPACE
         return true
@@ -322,7 +322,7 @@ private sub WalkExpr _
             '' stays untyped, which is fbc's answer too: it expands __FUNCTION__ to the
             '' undeclared __FB_MAINPROC__ and reports error 42.
             dim as Tko.Symbol ptr fs = c.syms->SymbolAt( sid )
-            if fs <> 0 then
+            if fs <> nullptr then
                 if (fs->flags and Tko.SYMF_FUNCNAME) <> 0 then
                     dim as string fn = Tko.Mangle.EnclosingProcName( _
                         *c.syms, scope_, *c.names )
@@ -490,13 +490,13 @@ private sub WalkExpr _
         '' result is reached into is untouched.
         if c.ast->Kind( mlhs ) = Tko.N_IDENT then
             dim as Tko.Symbol ptr bp0 = c.syms->SymbolAt( c.info->RefOf( mlhs ) )
-            if bp0 <> 0 then
+            if bp0 <> nullptr then
                 if bp0->kind = cast( uint8, Tko.SYM_PROC ) then
                     if c.ast->Kind( mrhs ) = Tko.N_IDENT then
                         dim as Tko.SymbolId tsid3 = c.syms->LookupTyped( _
                             scope_, IdentNameOf( c, mlhs ), true )
                         dim as Tko.Symbol ptr ty3 = c.syms->SymbolAt( tsid3 )
-                        if ty3 <> 0 then
+                        if ty3 <> nullptr then
                             dim as boolean isUdt = _
                                 (ty3->kind = cast( uint8, Tko.SYM_UDT ))
                             dim as boolean hasIn = (ty3->inner <> Tko.SCOPE_NONE)
@@ -515,7 +515,7 @@ private sub WalkExpr _
 
         dim as Tko.SymbolId bsid = c.info->RefOf( mlhs )
         dim as Tko.Symbol ptr bs = c.syms->SymbolAt( bsid )
-        if bs <> 0 then
+        if bs <> nullptr then
             if bs->kind = cast( uint8, Tko.SYM_NAMESPACE ) then
                 if c.ast->Kind( mrhs ) = Tko.N_IDENT then
                     '' IdentNameOf, not StmtOf: an N_IDENT is not a statement payload,
@@ -592,7 +592,7 @@ private sub WalkExpr _
                     '' instance member.
                     dim as Tko.Symbol ptr ms = c.syms->SymbolAt( msid )
                     dim as boolean isConstMember = false
-                    if ms <> 0 then
+                    if ms <> nullptr then
                         select case cast( Tko.SymbolKind, ms->kind )
                         case Tko.SYM_CONSTANT, Tko.SYM_ENUMCONST, Tko.SYM_UDT, _
                              Tko.SYM_ENUM, Tko.SYM_TYPEDEF
@@ -780,7 +780,7 @@ sub WalkStmt _
         dim as Tko.StmtPayload ptr udp = StmtOf( c, id ) : c.rtlUndef.Push( cast( uint32, c.names->Fold( udp->name ) ) )   '' + frees a runtime name (RtlNameAt_)
         if udp->extra = 1 then
             dim as Tko.Symbol ptr us = c.syms->SymbolAt( c.syms->LookupThroughUsings( here, udp->name ) )
-            if us <> 0 then
+            if us <> nullptr then
                 c.diags->Report( Tko.TKO0779, Tko.PointRange( c.ast->Loc( id ) ), c.names->Spelling( udp->name ) )
                 c.diags->AddNote( Tko.TKO0901, Tko.PointRange( us->loc ) )
             end if
@@ -815,7 +815,7 @@ sub WalkStmt _
             '' ...AND A PATH THAT NAMES NO NAMESPACE ABOVE IT -- nothing, a type, a variable,
             '' one declared below, an inner one from outside its parent -- is fbc's error 8
             '' (3 for a bad later component; fbc-modern 1.20, 2026-09-30). It was dropped.
-            dim as boolean nsOk = (nss <> 0)
+            dim as boolean nsOk = (nss <> nullptr)
             if nsOk then nsOk = (nss->kind = cast( uint8, Tko.SYM_NAMESPACE )) andalso (DeclaredBelow_( c, nsid, un, here ) = false)
             if nsOk = false then c.diags->Report( Tko.TKO0923, Tko.PointRange( c.ast->Loc( un ) ), c.names->Spelling( unm ) )
             if nsOk = false then continue for
@@ -929,7 +929,7 @@ sub WalkStmt _
         if esp->name <> 0 then
             dim as Tko.Symbol ptr eos = _
                 c.syms->SymbolAt( c.syms->LookupLocal( here, esp->name ) )
-            if eos <> 0 then
+            if eos <> nullptr then
                 if eos->kind = cast( uint8, Tko.SYM_ENUM ) then escope = eos->inner
             end if
         end if
@@ -965,8 +965,8 @@ sub WalkStmt _
             end if
             dim as Tko.SymbolId esid = c.syms->LookupLocal( lsc, ip->name )
             dim as Tko.Symbol ptr es = c.syms->SymbolAt( esid )
-            if (es <> 0) andalso (pass_ = 0) then if es->loc <> c.ast->Loc( it ) then es = 0   '' THIS member's: another enum's (an explicit one's) took the bare name's value (enum-decls.bas)
-            if es <> 0 then
+            if (es <> nullptr) andalso (pass_ = 0) then if es->loc <> c.ast->Loc( it ) then es = nullptr   '' THIS member's: another enum's (an explicit one's) took the bare name's value (enum-decls.bas)
+            if es <> nullptr then
                 if es->kind = cast( uint8, Tko.SYM_ENUMCONST ) then
                     '' On a SYM_ENUMCONST 'payload' is THE VALUE ITSELF, not a node id.
                     es->payload = enumNext
@@ -1183,7 +1183,7 @@ sub WalkStmt _
             '' declared first it holds the slot, and the typedef never got its type.
             dim as Tko.SymbolId tsid = c.syms->LookupLocalTyped( here, tsp->name, true )
             dim as Tko.Symbol ptr tsym = c.syms->SymbolAt( tsid )
-            if tsym <> 0 then
+            if tsym <> nullptr then
                 if tsym->kind = cast( uint8, Tko.SYM_TYPEDEF ) then tsym->type_ = aliased
             end if
         end if
@@ -1209,7 +1209,7 @@ sub WalkStmt _
             (sp->name = c.names->Fold( c.names->GetString( "base" ) ))
         if isBaseFld then
             dim as Tko.SymScope ptr fsc = c.syms->ScopeAt( here )
-            if fsc <> 0 then
+            if fsc <> nullptr then
                 if fsc->parent <> Tko.SCOPE_NONE then fhere = fsc->parent
             end if
         end if
@@ -1223,12 +1223,12 @@ sub WalkStmt _
         '' the retry happens only when the answer IS this type.
         if isBaseFld andalso (t <> Tko.TYPE_NONE) then
             dim as Tko.SymScope ptr osc = c.syms->ScopeAt( here )
-            if osc <> 0 then
+            if osc <> nullptr then
                 dim as Tko.Symbol ptr osy = c.syms->SymbolAt( osc->owner )
-                if osy <> 0 then
+                if osy <> nullptr then
                     if c.types->Unqualify( t ) = c.types->Unqualify( osy->type_ ) then
                         dim as Tko.SymScope ptr psc = c.syms->ScopeAt( fhere )
-                        if psc <> 0 then
+                        if psc <> nullptr then
                             if psc->parent <> Tko.SCOPE_NONE then
                                 t = ResolveTypeRef( c, sp->a, psc->parent )
                             end if
@@ -1264,7 +1264,7 @@ sub WalkStmt _
         if sp->b <> Tko.NODE_NONE then
             dim as Tko.SymbolId fsid = c.syms->LookupLocal( here, sp->name )
             dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
-            if fs <> 0 then
+            if fs <> nullptr then
                 '' On a SYM_FIELD carrying SYMF_BITFIELD, 'payload' is THE WIDTH IN
                 '' BITS. Nothing else uses a field's payload, and the layout needs a
                 '' number rather than an expression to place the field at all.
@@ -1326,7 +1326,7 @@ sub WalkStmt _
            (sp->count = 1) andalso (sp->a <> Tko.NODE_NONE) then
             dim as Tko.SymbolId vsid = c.info->RefOf( sp->a )
             dim as Tko.Symbol ptr vsym = c.syms->SymbolAt( vsid )
-            if vsym <> 0 then
+            if vsym <> nullptr then
                 if vsym->type_ = Tko.TYPE_NONE then
                     '' From the sequence's SYMBOL, not from TypeOf_: an
                     '' expression's type is CHECK's to record and Check has not run,
@@ -1336,7 +1336,7 @@ sub WalkStmt _
                     dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->children[sp->first] )
                     dim as Tko.TypeId seqT = Tko.TYPE_NONE
                     dim as Tko.Symbol ptr ssym = c.syms->SymbolAt( c.info->RefOf( seqE ) )
-                    if ssym <> 0 then seqT = ssym->type_
+                    if ssym <> nullptr then seqT = ssym->type_
                     '' A BYREF PARAMETER IS A REFERENCE TO THE CONTAINER. Testing
                     '' the reference's own kind found neither an array nor a UDT, so
                     '' 'for each e in a' over a 'byref a as Array( of T )' left the
@@ -1396,7 +1396,7 @@ sub WalkStmt _
         '' pointing into a freed block that everything below reads.
         sp = StmtOf( c, id )
         dim as Tko.Symbol ptr ps = c.syms->SymbolAt( c.currentProc )
-        if (ps <> 0) andalso (ret <> Tko.TYPE_NONE) andalso _
+        if (ps <> nullptr) andalso (ret <> Tko.TYPE_NONE) andalso _
            (ps->type_ = Tko.TYPE_NONE) then
             ps->type_ = ret
         end if
@@ -1419,7 +1419,7 @@ sub WalkStmt _
 
     '' Everything else: recurse through the general slots.
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    if sp = 0 then return
+    if sp = nullptr then return
     WalkStmt( c, sp->a, here )
     WalkStmt( c, sp->b, here )
     WalkStmt( c, sp->c, here )

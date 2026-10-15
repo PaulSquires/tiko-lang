@@ -17,7 +17,7 @@ end function
 
 private function SpProcNode_( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId ) as Tko.NodeId
     dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
-    if s = 0 then return Tko.NODE_NONE
+    if s = nullptr then return Tko.NODE_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return Tko.NODE_NONE
     if ast.Kind( pn ) <> Tko.N_PROC then return Tko.NODE_NONE
@@ -62,7 +62,7 @@ function StructorNamed _
     if tn = 0 then return Tko.SYMBOL_NONE
     dim as Tko.ScopeId ds = cast( Tko.ScopeId, types.DeclScopeOf( t ) )
     dim as Tko.Symbol ptr s = syms.SymbolAt( syms.LookupTyped( ds, tn, true ) )
-    if s = 0 then return Tko.SYMBOL_NONE
+    if s = nullptr then return Tko.SYMBOL_NONE
     if s->inner = Tko.SCOPE_NONE then return Tko.SYMBOL_NONE
     return syms.LookupLocal( s->inner, names.Fold( names.GetString( which ) ) )
 end function
@@ -88,7 +88,7 @@ function StructorUserConvCost _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 1000)
         guard += 1
         dim as Tko.Symbol ptr s = syms.SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         if SpParamCount_( ast, syms, cur ) = 1 then
             dim as Tko.TypeId cpt = SpParamType_( ast, syms, info, cur, 0 )
             if cpt <> Tko.TYPE_NONE then
@@ -133,7 +133,7 @@ function UdtHasStrCast _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
         if rt <> Tko.TYPE_NONE then
             if types.Kind( rt ) = Tko.TK_REFERENCE then rt = types.Unqualify( types.Inner( rt ) )
@@ -193,7 +193,7 @@ private function PtrCastCtorCost_ _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
         if rt <> Tko.TYPE_NONE then
             if types.Kind( rt ) = Tko.TK_REFERENCE then rt = types.Unqualify( types.Inner( rt ) )
@@ -249,7 +249,7 @@ function StructorCastCost _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
         dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
         dim as boolean byrefRes = false
@@ -278,7 +278,7 @@ function PickStructor _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
       byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
       byval first_ as Tko.SymbolId, byref argT as containers.Array( of uint32 ), _
-      byval tiesOut as int32 ptr = 0 ) as Tko.SymbolId
+      byval tiesOut as int32 ptr = nullptr ) as Tko.SymbolId
 
     dim as Tko.SymbolId best = Tko.SYMBOL_NONE
     dim as int32 bestCost = CONV_NONE
@@ -286,7 +286,7 @@ function PickStructor _
     dim as Tko.SymbolId cur = first_
     while cur <> Tko.SYMBOL_NONE
         dim as Tko.Symbol ptr s = syms.SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         dim as Tko.NodeId pn = SpProcNode_( ast, syms, cur )
         if pn <> Tko.NODE_NONE then
             dim as Tko.StmtPayload ptr pp = SpStmt_( ast, pn )
@@ -395,7 +395,7 @@ function PickStructor _
         end if
         cur = s->nextOverload
     wend
-    if tiesOut <> 0 then *tiesOut = iif( best = Tko.SYMBOL_NONE, 0, ties )
+    if tiesOut <> nullptr then *tiesOut = iif( best = Tko.SYMBOL_NONE, 0, ties )
     if ties > 0 then return Tko.SYMBOL_NONE
     return best
 end function
@@ -445,7 +445,7 @@ function PtrCastPick _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
         if rt <> Tko.TYPE_NONE then
             if types.Kind( rt ) = Tko.TK_POINTER then
@@ -501,7 +501,7 @@ function PtrCastFit _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
         dim as boolean byrefRes = false
         dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
@@ -551,7 +551,7 @@ function CharRefCastPick _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
         dim as boolean byRes = false
         dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
@@ -605,7 +605,7 @@ function NumericCastPick _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
         guard += 1
         dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
-        if cs = 0 then exit while
+        if cs = nullptr then exit while
         dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
         dim as int32 rk = 0
         if rt <> Tko.TYPE_NONE then
@@ -656,7 +656,7 @@ function CopyStructorOf _
     while (cur <> Tko.SYMBOL_NONE) andalso (guard < 10000)
         guard += 1
         dim as Tko.Symbol ptr s = syms.SymbolAt( cur )
-        if s = 0 then exit while
+        if s = nullptr then exit while
         dim as Tko.NodeId pn = SpProcNode_( ast, syms, cur )
         if pn <> Tko.NODE_NONE then
             dim as Tko.StmtPayload ptr pp = SpStmt_( ast, pn )

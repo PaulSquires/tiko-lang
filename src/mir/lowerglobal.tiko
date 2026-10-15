@@ -15,7 +15,7 @@
 '' the keyword exists to provide.
 function IsStaticLocal( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return false
+    if s = nullptr then return false
     if (s->flags and Tko.SYMF_SHARED) <> 0 then return false
     return ((s->flags and Tko.SYMF_STATIC) <> 0)
 end function
@@ -33,7 +33,7 @@ end function
 private function StaticName( byref c as Ctx, byval sid as Tko.SymbolId ) as Tko.InternId
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     dim as string owner = "?"
-    if c.f <> 0 then owner = c.names->Spelling( c.f->name )
+    if c.f <> nullptr then owner = c.names->Spelling( c.f->name )
     return c.names->GetString( owner & "$" & c.names->Spelling( s->name ) )
 end function
 
@@ -47,7 +47,7 @@ declare function UniqueGlobalName _
 
 function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as int32
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if s = 0 then return -1
+    if s = nullptr then return -1
 
     '' Keyed by SYMBOL, not by spelling. Two statics called 'n' in sibling scopes of one
     '' procedure are two declarations and therefore two symbols; keying on the name
@@ -66,7 +66,7 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as int32
         '' member the local way gave it whichever member function first touched it,
         '' so two translation units would not agree on the symbol.
         dim as Tko.SymScope ptr ps = c.syms->ScopeAt( s->parent )
-        if ps <> 0 then memberStatic = (ps->kind = cast( uint8, Tko.SCOPEK_TYPE ))
+        if ps <> nullptr then memberStatic = (ps->kind = cast( uint8, Tko.SCOPEK_TYPE ))
         if memberStatic then
             dim as string smn = Tko.Mangle.StaticMemberName( _
                 *c.syms, s->parent, *c.names, c.names->Spelling( s->name ) )
@@ -106,7 +106,7 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as int32
         if ownSpelling = false then
             nm = c.names->GetString( dflt )
             dim as Tko.SymScope ptr vps = c.syms->ScopeAt( s->parent )
-            if vps <> 0 then
+            if vps <> nullptr then
                 if vps->kind = cast( uint8, Tko.SCOPEK_NAMESPACE ) then
                     dim as string qn = Tko.Mangle.StaticMemberName( _
                         *c.syms, s->parent, *c.names, c.names->Spelling( s->name ) )

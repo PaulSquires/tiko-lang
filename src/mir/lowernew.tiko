@@ -333,7 +333,7 @@ private sub BaseLeafWalk_ _
         if ai >= n then return
         dim as Tko.UdtField ptr fld = @c.udts->fields[f0 + i]
         dim as Tko.TypeId ft = c.types->Unqualify( fld->type_ )
-        dim as boolean isBase = (c.vts <> 0) andalso (c.types->Kind( ft ) = Tko.TK_UDT)
+        dim as boolean isBase = (c.vts <> nullptr) andalso (c.types->Kind( ft ) = Tko.TK_UDT)
         if isBase then isBase = (fld->name = c.vts->baseName) andalso (c.types->NameOf( ft ) <> c.names->GetString( "object" ))
         if isBase then
             dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + ai] )
@@ -839,9 +839,9 @@ private function AllocOverride_( byref c as Ctx, byval nm as string ) as Tko.Sym
     if c.modScope <> Tko.SCOPE_NONE then sid = c.syms->LookupLocal( c.modScope, fn )
     if sid = Tko.SYMBOL_NONE then sid = c.syms->LookupLocal( Tko.SCOPE_GLOBAL, fn )
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
-    if (s = 0) orelse (s->kind <> cast( uint8, Tko.SYM_PROC )) orelse ((s->flags and Tko.SYMF_BUILTIN) <> 0) then return Tko.SYMBOL_NONE
+    if (s = nullptr) orelse (s->kind <> cast( uint8, Tko.SYM_PROC )) orelse ((s->flags and Tko.SYMF_BUILTIN) <> 0) then return Tko.SYMBOL_NONE
     dim as Tko.SourceFile ptr sf = c.srcMgr->FileAt( c.srcMgr->Decode( s->loc ).file )
-    if (sf = 0) orelse sf->isVirtual then return Tko.SYMBOL_NONE
+    if (sf = nullptr) orelse sf->isVirtual then return Tko.SYMBOL_NONE
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return Tko.SYMBOL_NONE
     return sid

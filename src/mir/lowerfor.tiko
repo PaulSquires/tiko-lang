@@ -62,7 +62,7 @@ private function ForUdtInit_ _
       byval e as Tko.NodeId, byref dst as MirValue ) as boolean
 
     if LowerCtorInit( c, slot, ct, e ) then return true
-    if LowerConvCtorInit_( c, slot, ct, e, 0 ) then return true
+    if LowerConvCtorInit_( c, slot, ct, e, nullptr ) then return true
     '' A COPY. fbc emits '_ZN1TC1ERS_( &DST, &SRC )' for an lvalue of the type.
     dim as MirValue sv = LowerAddr( c, e )
     if sv.kind = cast( uint8, MV_NONE ) then return false
@@ -228,12 +228,12 @@ private function LowerForUdt_ _
     dim as boolean nextByref = false
     dim as Tko.Symbol ptr nxs = c.syms->SymbolAt( nextOp )
     dim as Tko.NodeId nxn = Tko.NODE_NONE
-    if nxs <> 0 then nxn = cast( Tko.NodeId, nxs->payload )
+    if nxs <> nullptr then nxn = cast( Tko.NodeId, nxs->payload )
     if (nxn <> Tko.NODE_NONE) andalso (c.ast->Kind( nxn ) = Tko.N_PROC) then
         nextByref = ((StmtOf( c, nxn )->extra and Tko.PF_BYREF_RESULT) <> 0) orelse _
                     ((c.ast->nodes[cast( int32, nxn )].flags and Tko.NF_BYREF) <> 0)   '' lowerproc.tiko's own test
     end if
-    if (nextByref = false) andalso (nxs <> 0) then nextByref = (c.types->Kind( nxs->type_ ) = Tko.TK_REFERENCE)
+    if (nextByref = false) andalso (nxs <> nullptr) then nextByref = (c.types->Kind( nxs->type_ ) = Tko.TK_REFERENCE)
     dim as MirValue more = _
         EmitMemberCallArgs_( c, nextOp, addr, iif( nextByref, MT_PTR, MT_I32 ), @nargs )
     if more.kind = cast( uint8, MV_NONE ) then

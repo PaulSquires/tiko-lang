@@ -349,7 +349,7 @@ function WideConstLitNode_( byref c as Ctx, byval e as Tko.NodeId, byval viaWstr
         if viaWstr orelse LitHasUnicodeEscape_( c, e ) then return e
     case Tko.N_IDENT, Tko.N_MEMBER
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( e ) )
-        if (cs = 0) orelse (cs->kind <> cast( uint8, Tko.SYM_CONSTANT )) orelse ((cs->flags and Tko.SYMF_BUILTIN) <> 0) then return Tko.NODE_NONE
+        if (cs = nullptr) orelse (cs->kind <> cast( uint8, Tko.SYM_CONSTANT )) orelse ((cs->flags and Tko.SYMF_BUILTIN) <> 0) then return Tko.NODE_NONE
         if (cs->payload = 0) orelse (c.ast->Kind( cast( Tko.NodeId, cs->payload ) ) <> Tko.N_VAR_ITEM) then return Tko.NODE_NONE
         return WideConstLitNode_( c, StmtOf( c, cast( Tko.NodeId, cs->payload ) )->b, viaWstr )
     end select
@@ -374,7 +374,7 @@ function Utf8WideLit_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     if (e = Tko.NODE_NONE) orelse (c.ast->Kind( e ) <> Tko.N_STRING_LIT) then return false
     dim as Tko.LiteralPayload ptr lp = @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, e )].data )]
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
-    if (f = 0) orelse (f->encoding = Tko.Text.ENC_BYTES) then return false
+    if (f = nullptr) orelse (f->encoding = Tko.Text.ENC_BYTES) then return false
     if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return false
     for i as int32 = 0 to lp->strLength - 1
         if f->text[lp->strOffset + i] >= 128 then return true

@@ -10,7 +10,7 @@ end constructor
 
 destructor MirModule( )
     for i as int32 = 0 to this.functions.Count - 1
-        if this.functions[i] <> 0 then delete this.functions[i]
+        if this.functions[i] <> nullptr then delete this.functions[i]
     next
 end destructor
 
@@ -446,14 +446,14 @@ end function
 sub MirModule.SplitUtf16Literals( byref names as Interner )
     for fi as int32 = 0 to this.functions.Count - 1
         dim as MirFunction ptr f = this.functions[fi]
-        if f = 0 then continue for
+        if f = nullptr then continue for
         for bi as int32 = 0 to f->blocks.Count - 1
             for ii as int32 = 0 to f->blocks[bi].insts.Count - 1
                 dim as MirInst ptr ins = @f->blocks[bi].insts[ii]
                 if cast( MirOp, ins->op ) <> M_CALL_RTL then continue for
                 dim as int32 ci = cast( int32, ins->callee )
                 if (ci < 0) orelse (ci >= this.functions.Count) then continue for
-                if this.functions[ci] = 0 then continue for
+                if this.functions[ci] = nullptr then continue for
                 if left( names.Spelling( this.functions[ci]->name ), 7 ) <> "fb_UStr" then continue for
                 for k as int32 = 0 to ins->count - 1
                     dim as int32 ak = (ins->first + k) * 2

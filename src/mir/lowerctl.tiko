@@ -106,13 +106,13 @@ sub SkipAt _
         dim as string where = ""
         dim as uint32 blameAt = c.curStmtNode
         if c.blameNode <> 0 then blameAt = NonMacroNode_( c, c.blameNode )
-        if (c.srcMgr <> 0) andalso (blameAt <> 0) then
+        if (c.srcMgr <> nullptr) andalso (blameAt <> 0) then
             dim as Tko.DecodedLoc sl = _
                 c.srcMgr->Decode( c.ast->Loc( cast( Tko.NodeId, blameAt ) ) )
             where = " at " & c.srcMgr->PathOf( sl.file ) & ":" & str( sl.lineNo )
         end if
         print "SKIP " & fileName & ":" & str( lineNo ) & " in " & _
-              iif( c.f <> 0, c.names->Spelling( c.f->name ), "?" ) & where
+              iif( c.f <> nullptr, c.names->Spelling( c.f->name ), "?" ) & where
     end if
     '' The site, found by linear scan: about twenty of them, so a map would cost more
     '' than it saved and would not keep the order stable across runs.

@@ -23,9 +23,9 @@
 private function BaseLacksDefaultCtor_ ( byref c as Ctx, byval base_ as TypeId ) as boolean
     if base_ = TYPE_NONE then return false
     dim as Symbol ptr walk = StructorOf_( c, base_, "__ctor" )
-    if walk = 0 then return false
+    if walk = nullptr then return false
     for guard as int32 = 0 to 999
-        if walk = 0 then exit for
+        if walk = nullptr then exit for
         dim as int32 req = RequiredParams_( c, cast( NodeId, walk->payload ) )
         if (req = 0) orelse (req = -1) then return false
         walk = c.syms->SymbolAt( walk->nextOverload )
@@ -42,7 +42,7 @@ end function
 private function HasCopyCtor_ ( byref c as Ctx, byval t as TypeId, byval wantConst as boolean = true, byref nm as string = "__ctor" ) as boolean
     dim as Symbol ptr ct = StructorOf_( c, t, nm )
     for guard as int32 = 0 to 999
-        if ct = 0 then exit for
+        if ct = nullptr then exit for
         dim as NodeId cd = cast( NodeId, ct->payload )
         if (cd = NODE_NONE) orelse (c.ast->Kind( cd ) <> N_PROC) then return (nm = "__ctor")
         dim as StmtPayload ptr cp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, cd )].data )]
@@ -94,7 +94,7 @@ private sub CheckBaseHasDefaultCtor_( byref c as Ctx )
         if s->kind <> cast( uint8, SYM_UDT ) then continue for
         if s->type_ = TYPE_NONE then continue for
         if BaseLacksDefaultCtor_( c, BaseOf_( c, s->type_ ) ) = false then continue for
-        if StructorOf_( c, s->type_, "__ctor" ) = 0 then
+        if StructorOf_( c, s->type_, "__ctor" ) = nullptr then
             c.diags->Report( TKO0654, PointRange( s->loc ), c.names->Spelling( s->name ) )
         elseif HasCopyCtor_( c, s->type_ ) = false then
             c.diags->Report( TKO0926, PointRange( s->loc ), c.names->Spelling( s->name ) )
@@ -109,7 +109,7 @@ private sub CheckBaseHasDefaultCtor_( byref c as Ctx )
         if sp->op <> cast( uint16, KW_CONSTRUCTOR ) then continue for
         if sp->b = NODE_NONE then continue for
         dim as Symbol ptr us = c.syms->SymbolAt( c.syms->LookupTyped( c.info->ScopeOf( cast( NodeId, n ) ), sp->name, true ) )
-        if (us = 0) orelse (us->kind <> cast( uint8, SYM_UDT )) orelse (us->type_ = TYPE_NONE) then continue for
+        if (us = nullptr) orelse (us->kind <> cast( uint8, SYM_UDT )) orelse (us->type_ = TYPE_NONE) then continue for
         if BaseLacksDefaultCtor_( c, BaseOf_( c, us->type_ ) ) = false then continue for
         if CtorCallsBase_( c, sp->b ) then continue for
         dim as SourceLoc at = c.ast->Loc( cast( NodeId, n ) )

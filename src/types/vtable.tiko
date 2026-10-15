@@ -355,12 +355,12 @@ end function
 private function BaseTypeOf_ _
     ( byref syms as SymbolTable, byval s as Symbol ptr, byval baseNm as InternId ) as TypeId
 
-    if s = 0 then return TYPE_NONE
+    if s = nullptr then return TYPE_NONE
     if s->inner = SCOPE_NONE then return TYPE_NONE
     dim as SymbolId bf = syms.LookupLocal( s->inner, baseNm )
     if bf = SYMBOL_NONE then return TYPE_NONE
     dim as Symbol ptr b = syms.SymbolAt( bf )
-    if b = 0 then return TYPE_NONE
+    if b = nullptr then return TYPE_NONE
     if b->kind <> cast( uint8, SYM_FIELD ) then return TYPE_NONE
     return b->type_
 end function
@@ -407,20 +407,20 @@ private function DeclaredDtorOf_ _
       byval ts as SymbolId ) as NodeId
 
     dim as Symbol ptr s = syms.SymbolAt( ts )
-    if s = 0 then return NODE_NONE
+    if s = nullptr then return NODE_NONE
     if s->inner = SCOPE_NONE then return NODE_NONE
     dim as SymScope ptr sc = syms.ScopeAt( s->inner )
-    if sc = 0 then return NODE_NONE
+    if sc = nullptr then return NODE_NONE
     dim as SymbolId cur = sc->firstSym
     dim as int32 guard = 0
     while (cur <> SYMBOL_NONE) andalso (guard < 100000)
         guard += 1
         dim as Symbol ptr m = syms.SymbolAt( cur )
-        if m = 0 then exit while
+        if m = nullptr then exit while
         dim as SymbolId ov = cur
         while ov <> SYMBOL_NONE
             dim as Symbol ptr mo = syms.SymbolAt( ov )
-            if mo = 0 then exit while
+            if mo = nullptr then exit while
             if mo->kind = cast( uint8, SYM_PROC ) then
                 dim as NodeId d = cast( NodeId, mo->payload )
                 if (d <> NODE_NONE) andalso (ast.Kind( d ) = N_PROC) then
@@ -458,7 +458,7 @@ private sub CheckImplicitDtorConv_ _
 
     if bt = TYPE_NONE then return
     dim as Symbol ptr s = syms.SymbolAt( ts )
-    if s = 0 then return
+    if s = nullptr then return
     if DeclaredDtorOf_( ast, syms, ts ) <> NODE_NONE then return
 
     dim as SymbolId bs = UdtSymbolOf_( syms, types, bt )
@@ -487,7 +487,7 @@ end sub
 private function TemplateScopeOf_ _
     ( byref ast as AstArena, byref syms as SymbolTable, byval s as Symbol ptr ) as ScopeId
 
-    if s = 0 then return SCOPE_NONE
+    if s = nullptr then return SCOPE_NONE
     dim as NodeId dn = cast( NodeId, s->payload )
     if dn = NODE_NONE then return SCOPE_NONE
     if ast.Kind( dn ) <> N_TYPE then return SCOPE_NONE
@@ -497,7 +497,7 @@ private function TemplateScopeOf_ _
     if s->name = sp->name then return SCOPE_NONE
     dim as SymbolId gt = syms.LookupLocalTyped( s->parent, sp->name, true )
     dim as Symbol ptr gs = syms.SymbolAt( gt )
-    if gs = 0 then return SCOPE_NONE
+    if gs = nullptr then return SCOPE_NONE
     if gs->kind <> cast( uint8, SYM_UDT ) then return SCOPE_NONE
     return gs->inner
 end function
@@ -528,13 +528,13 @@ private function DeclaresName_ _
       byval t as TypeId, byval nm as InternId ) as boolean
 
     dim as Symbol ptr s = syms.SymbolAt( UdtSymbolOf_( syms, types, t ) )
-    if s = 0 then return false
+    if s = nullptr then return false
     for pass_ as int32 = 0 to 1
         dim as ScopeId sc = s->inner
         if pass_ = 1 then sc = TemplateScopeOf_( ast, syms, s )
         if sc = SCOPE_NONE then continue for
         dim as Symbol ptr m = syms.SymbolAt( syms.LookupLocal( sc, nm ) )
-        if m <> 0 then
+        if m <> nullptr then
             if m->kind = cast( uint8, SYM_PROC ) then return true
         end if
     next
@@ -557,7 +557,7 @@ private function SlotClosedFor_ _
         if (cur = TYPE_NONE) orelse (cur = sl->owner) then return false
         if DeclaresName_( ast, syms, types, cur, nm ) then return true
         dim as Symbol ptr cs = syms.SymbolAt( UdtSymbolOf_( syms, types, cur ) )
-        if cs = 0 then return false
+        if cs = nullptr then return false
         dim as TypeId up = BaseTypeOf_( syms, cs, store.baseName )
         if up = cur then return false
         cur = up
@@ -573,7 +573,7 @@ private function BuildOne_ _
     if store.Find( t ) >= 0 then return true
     dim as SymbolId ts = UdtSymbolOf_( syms, types, t )
     dim as Symbol ptr s = syms.SymbolAt( ts )
-    if s = 0 then return false
+    if s = nullptr then return false
 
     '' THE BASE FIRST, and only once it has a table of its own: its slots are this
     '' type's leading slots, in its order, and an override has to find them there.
@@ -638,18 +638,18 @@ private function BuildOne_ _
         if pass_ = 0 then msc = tmplScope
         if msc = SCOPE_NONE then continue for
         dim as SymScope ptr sc = syms.ScopeAt( msc )
-        if sc <> 0 then
+        if sc <> nullptr then
             dim as SymbolId cur = sc->firstSym
             dim as int32 guard = 0
             while (cur <> SYMBOL_NONE) andalso (guard < 100000)
                 guard += 1
                 dim as Symbol ptr m = syms.SymbolAt( cur )
-                if m = 0 then exit while
+                if m = nullptr then exit while
                 dim as SymbolId nextInScope = m->nextInScope
                 dim as SymbolId ov = cur
                 while ov <> SYMBOL_NONE
                     dim as Symbol ptr mo = syms.SymbolAt( ov )
-                    if mo = 0 then exit while
+                    if mo = nullptr then exit while
                     if mo->kind = cast( uint8, SYM_PROC ) then
                         dim as NodeId decl = cast( NodeId, mo->payload )
                         if (decl <> NODE_NONE) andalso (ast.Kind( decl ) = N_PROC) then
@@ -737,7 +737,7 @@ end function
 private function IsGenericTemplateUdt_ _
     ( byref ast as AstArena, byval s as Symbol ptr ) as boolean
 
-    if s = 0 then return false
+    if s = nullptr then return false
     dim as NodeId dn = cast( NodeId, s->payload )
     if dn = NODE_NONE then return false
     if ast.Kind( dn ) <> N_TYPE then return false
@@ -762,14 +762,14 @@ private sub NotePatternOnly_ _
 
     for i as int32 = 1 to syms.Count( )
         dim as Symbol ptr s = syms.SymbolAt( cast( SymbolId, i ) )
-        if s = 0 then continue for
+        if s = nullptr then continue for
         if s->kind <> cast( uint8, SYM_UDT ) then continue for
         if IsGenericTemplateUdt_( ast, s ) = false then continue for
         if s->inner = SCOPE_NONE then continue for
         dim as boolean used = false
         for j as int32 = 1 to syms.Count( )
             dim as Symbol ptr u = syms.SymbolAt( cast( SymbolId, j ) )
-            if u = 0 then continue for
+            if u = nullptr then continue for
             if u->kind <> cast( uint8, SYM_UDT ) then continue for
             if TemplateScopeOf_( ast, syms, u ) = s->inner then
                 used = true
@@ -778,17 +778,17 @@ private sub NotePatternOnly_ _
         next
         if used then continue for
         dim as SymScope ptr sc = syms.ScopeAt( s->inner )
-        if sc = 0 then continue for
+        if sc = nullptr then continue for
         dim as SymbolId cur = sc->firstSym
         dim as int32 guard = 0
         while (cur <> SYMBOL_NONE) andalso (guard < 100000)
             guard += 1
             dim as Symbol ptr m = syms.SymbolAt( cur )
-            if m = 0 then exit while
+            if m = nullptr then exit while
             dim as SymbolId ov = cur
             while ov <> SYMBOL_NONE
                 dim as Symbol ptr mo = syms.SymbolAt( ov )
-                if mo = 0 then exit while
+                if mo = nullptr then exit while
                 if mo->kind = cast( uint8, SYM_PROC ) then
                     store.patternOnly.Push( cast( uint32, mo->payload ) )
                 end if
@@ -803,7 +803,7 @@ function ComputeVTables _
     ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
       byref info as SemanticInfo, byref store as VTables ) as int32
 
-    if syms.names = 0 then return 0
+    if syms.names = nullptr then return 0
     store.baseName = syms.names->GetString( "base" )
     dim as InternId objNm = syms.names->GetString( "object" )
 
@@ -815,7 +815,7 @@ function ComputeVTables _
         progress = false
         for i as int32 = 1 to syms.Count( )
             dim as Symbol ptr s = syms.SymbolAt( cast( SymbolId, i ) )
-            if s = 0 then continue for
+            if s = nullptr then continue for
             if s->kind <> cast( uint8, SYM_UDT ) then continue for
             if s->type_ = TYPE_NONE then continue for
             if store.Find( s->type_ ) >= 0 then continue for
