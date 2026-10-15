@@ -631,7 +631,7 @@ private function Typedef_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor, 
             text = "type " & nm & " as " & rn
         end if
     case TK_FNPROTO, TK_FNNOPROTO
-        reason = "not-yet"
+        reason = "unsupported"
         why = "typedef '" & nm & "' names a function type, not a pointer to one"
         return false
     case else
@@ -730,8 +730,8 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
     for i as int32 = 0 to segIdx.Count - 1
         dim as C2tSegment s = p.segs[segIdx[i]]
         if s.viaMacro then
-            reason = "not-yet"
-            why = "a declaration a macro invocation makes -- a later c2t phase"
+            reason = "unsupported"
+            why = "a declaration made by a macro invocation"
             return false
         end if
         select case s.kind
@@ -757,8 +757,8 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
         end select
     next
     if nOther > 0 then
-        reason = "not-yet"
-        why = "a declaration c2t P2 does not translate"
+        reason = "unsupported"
+        why = "a kind of declaration c2t does not translate"
         return false
     end if
     dim as string ind = BaseIndent_( e, l1 )
@@ -766,8 +766,8 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
 
     if (nRec + nEnum) > 0 then
         if (nRec + nEnum) > 1 then
-            reason = "not-yet"
-            why = "more than one record or enum in one declaration -- c2t P3"
+            reason = "unsupported"
+            why = "more than one record or enum in one declaration"
             return false
         end if
         dim as Tko.CImport.CXCursor d = en
@@ -811,7 +811,7 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
         end if
     elseif nFn > 0 then
         if segIdx.Count > 1 then
-            reason = "not-yet"
+            reason = "unsupported"
             why = "more than one function on one line"
             return false
         end if

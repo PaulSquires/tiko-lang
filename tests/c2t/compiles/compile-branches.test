@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/branches.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-branches
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/branches.h --verify -o build/.c2t/compile-branches/branches.ti
+'' ARGS: -c build/.c2t/compile-branches/branches.ti -o build/.c2t/compile-branches/branches.o
+'' EXPECT-EXIT: 0

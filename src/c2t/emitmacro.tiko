@@ -75,20 +75,22 @@ private sub Platform_( byref env as CxEnv, byval isWindows as boolean )
     for i as int32 = 0 to 5
         CxEnvAdd( env, arch( i ), "TIKO_ARCH_X86_64", CXV_INT, true, 1 )
     next
-    '' NO tiko TARGET: always 0 -- and C++ never, for c2t reads C.
-    dim as string never( 0 to 15 ) = { "__APPLE__", "__MACH__", "__ANDROID__", "__EMSCRIPTEN__", _
+    '' NO tiko TARGET: always 0 -- and C++ never, for c2t reads C. MinGW and Cygwin too:
+    '' tiko's one Windows target is the MSVC ABI, which is what c2t's Windows pass parses.
+    dim as string never( 0 to 18 ) = { "__APPLE__", "__MACH__", "__ANDROID__", "__EMSCRIPTEN__", _
         "__FreeBSD__", "__OpenBSD__", "__NetBSD__", "__DragonFly__", "__HAIKU__", "__sun", _
-        "_M_ARM64", "__aarch64__", "__arm__", "_M_IX86", "__i386__", "__cplusplus" }
-    for i as int32 = 0 to 15
+        "_M_ARM64", "__aarch64__", "__arm__", "_M_IX86", "__i386__", "__cplusplus", _
+        "__MINGW32__", "__MINGW64__", "__CYGWIN__" }
+    for i as int32 = 0 to 18
         CxEnvAdd( env, never( i ), "0", CXV_INT, false, 0 )
     next
     CxEnvAdd( env, "__STDC__", "1", CXV_INT, true, 1 )
     CxEnvAdd( env, "__STDC_HOSTED__", "1", CXV_INT, true, 1 )
     CxEnvAdd( env, "__STDC_VERSION__", "201112", CXV_INT, true, 201112 )
     '' A COMPILER'S IDENTITY has no tiko meaning: a condition on one is a TODO.
-    dim as string cc( 0 to 8 ) = { "_MSC_VER", "_MSC_FULL_VER", "__GNUC__", "__GNUC_MINOR__", _
-        "__clang__", "__clang_major__", "__MINGW32__", "__MINGW64__", "__CYGWIN__" }
-    for i as int32 = 0 to 8
+    dim as string cc( 0 to 5 ) = { "_MSC_VER", "_MSC_FULL_VER", "__GNUC__", "__GNUC_MINOR__", _
+        "__clang__", "__clang_major__" }
+    for i as int32 = 0 to 5
         CxEnvAdd( env, cc( i ), "", CXV_NONE, true )
     next
 end sub
@@ -134,15 +136,24 @@ private function ClangTook_( byref e as C2tEmit, byref p as C2tPass, byref dirs 
             end select
         end if
     next
+    dim as boolean empty = true
     for t as int32 = dirs[k].tok2 + 1 to stop_ - 1
-        if e.src->toks[t].kind = CT_COMMENT then continue for
-        dim as int32 o = e.src->toks[t].ofs
-        for i as int32 = 0 to p.skipped.Count - 2 step 2
-            if (o >= p.skipped[i]) andalso (o < p.skipped[i + 1]) then return 0
-        next
-        return 1
+        if e.src->toks[t].kind <> CT_COMMENT then
+            empty = false
+            exit for
+        end if
     next
-    return -1
+    if empty then return -1
+    '' AN INACTIVE BRANCH'S RANGE STARTS AT THE '#' OF THE DIRECTIVE THAT OPENS IT and runs
+    '' past that directive (RFC §10 item 2). Not its first token: a taken branch that opens
+    '' with a nested false '#if' (glfw3.h's APIENTRY) starts with that nested range; and a
+    '' range that ENDS at this directive's keyword (exclusive) is the branch before it.
+    dim as int32 a = e.src->toks[dirs[k].tok1].ofs
+    dim as int32 z = e.src->toks[dirs[k].tok2].ofs + e.src->toks[dirs[k].tok2].len_
+    for i as int32 = 0 to p.skipped.Count - 2 step 2
+        if (p.skipped[i] <= a) andalso (p.skipped[i + 1] > z) then return 0
+    next
+    return 1
 end function
 
 '' The tokens of directive d after its word: a condition, or a macro's name and body.
@@ -396,7 +407,7 @@ private sub Define_( byref e as C2tEmit, byref env as CxEnv, byref dirs as C2tDi
         return
     end if
     if left( clangV, 1 ) = "!" then
-        Set_( e, k, 2, "", "macro", "'" & cname & "' is a record value -- a later c2t phase" )
+        Set_( e, k, 2, "", "macro", "'" & cname & "' is a record value (a compound literal), which c2t does not translate" )
         return
     end if
     '' CLANG'S VALUE, and why the expression was not kept.

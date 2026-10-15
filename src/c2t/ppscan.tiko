@@ -379,6 +379,10 @@ sub IdiomBlocks( byref src as C2tSource, byref dirs as C2tDirVec, _
                 Idiom_( blocks, d.line1, d.line2, _
                         "'' c2t: " & trim( LineText( src, d.line1 ) ) & _
                         " -- carried by 'field = N' on each record it packs" )
+            elseif (d.word = "pragma") andalso (Between_( src, d.tok1 + 2, d.tok1 + 2 ) = "once") _
+                   andalso (d.tok2 = d.tok1 + 2) then
+                '' #pragma once MEANS THE SAME in tiko.
+                Idiom_( blocks, d.line1, d.line2, "#pragma once" )
             end if
         case DK_DEFINE
             if InList_( decor, d.name_ ) then

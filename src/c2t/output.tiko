@@ -109,14 +109,14 @@ private function InSkipped_( byref p as C2tPass, byval ofs as int32 ) as boolean
     return false
 end function
 
-'' WHAT LATER PHASE TAKES A DIRECTIVE (PLAN.md): macros P4, conditionals P5, includes P6.
+'' WHAT A DIRECTIVE IS, for a TODO that holds one emitmacro.tiko and includes.tiko did not replace.
 private function DirWhy_( byref d as C2tDirective ) as string
     select case d.kind
-    case DK_DEFINE  : return "macro definition -- translated from c2t P4"
-    case DK_UNDEF   : return "#undef -- translated from c2t P4"
-    case DK_INCLUDE : return "#include -- translated from c2t P6"
+    case DK_DEFINE  : return "macro definition"
+    case DK_UNDEF   : return "#undef"
+    case DK_INCLUDE : return "#include"
     case DK_IF, DK_IFDEF, DK_IFNDEF, DK_ELIF, DK_ELSE, DK_ENDIF
-        return "conditional directive -- translated from c2t P5"
+        return "conditional directive"
     end select
     return "#" & d.word & " has no tiko translation"
 end function
@@ -135,6 +135,7 @@ sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p as C2tP
     next
 
     dim as SpanVec_ spans
+    dim as C2tIntVec bodyL1, bodyL2        '' a function definition's lines, for its directives
     '' ---- clang's declarations, widened to the ';' or the end of a skipped body.
     for i as int32 = 0 to p.segs.Count - 1
         dim as C2tSegment s = p.segs[i]
@@ -147,17 +148,37 @@ sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p as C2tP
         for k as int32 = t1 to t2
             if src.toks[k].endLine > l2 then l2 = src.toks[k].endLine
         next
-        AddSpan_( spans, src.toks[t1].line_, l2, "not-yet", s.name_, "declaration" )
+        AddSpan_( spans, src.toks[t1].line_, l2, "unsupported", s.name_, "a declaration sharing its lines with a directive or untranslated C text" )
         spans[spans.Count - 1].pure = true
         spans[spans.Count - 1].segs = i & ","
+        '' A FUNCTION WITH A BODY (clang skips bodies, so no isCursorDefinition): from its '{'.
+        if s.kind = Tko.CImport.CXCursor_FunctionDecl then
+            for k as int32 = t1 to t2
+                if TokText( src, k ) = "{" then
+                    bodyL1.Push( src.toks[k].line_ )
+                    bodyL2.Push( l2 )
+                    exit for
+                end if
+            next
+        end if
     next
     '' ---- every directive no idiom took.
     for k as int32 = 0 to dirs.Count - 1
         dim as C2tDirective d = dirs[k]
         if taken[d.line1] then continue for
+        '' INSIDE A FUNCTION'S BODY (raymath's '#define EPSILON'): part of the body, which the
+        '' function's own translation drops or quotes.
+        dim as boolean inBody = false
+        for f as int32 = 0 to bodyL1.Count - 1
+            if (d.line1 > bodyL1[f]) andalso (d.line2 < bodyL2[f]) then
+                inBody = true
+                exit for
+            end if
+        next
+        if inBody then continue for
         dim as string what = d.name_
         if len( what ) = 0 then what = "#" & d.word
-        AddSpan_( spans, d.line1, d.line2, "not-yet", what, DirWhy_( d ) )
+        AddSpan_( spans, d.line1, d.line2, "unsupported", what, DirWhy_( d ) )
         spans[spans.Count - 1].dir = k + 1
     next
     '' ---- C text nothing claimed: an inactive branch's declarations, or something clang
