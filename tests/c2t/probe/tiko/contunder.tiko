@@ -1,0 +1,5 @@
+'' probe 9e: a comment-only line kept as a bare continuation underscore plus the comment
+declare sub g( byval a as long, _
+               _ '' a comment line for b
+               byval b as long )
+#print contunder: ok

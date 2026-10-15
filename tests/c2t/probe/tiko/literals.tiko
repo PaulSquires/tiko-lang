@@ -1,0 +1,13 @@
+'' probe 10: float suffixes (sizeof 4 = single, 8 = double) and escaped strings
+'' (tiko's octal escape is \&o, its \nnn escape is decimal)
+const F1 = 1.5f
+const F2 = 1.5!
+const F3 = 2.5d
+const F4 = 2.5#
+const F5 = 1e3f
+const F6 = 1.5
+print sizeof(F1); sizeof(F2); sizeof(F3); sizeof(F4); sizeof(F5); sizeof(F6)
+dim as string s = !"\&o33A\n"
+dim as string d = !"\27A"
+print len(s); asc(s, 1); asc(s, 2); asc(s, 3)
+print len(d); asc(d, 1)

@@ -1,0 +1,5 @@
+'' probe 7 (other side): is a plain enum 8 bytes?
+enum E
+    E_A
+end enum
+#assert sizeof(E) = 8

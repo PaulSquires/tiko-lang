@@ -1,0 +1,2 @@
+'' probe 4c: pointer to an undeclared record, no alias (expect TKO0808)
+dim shared as Z ptr pz

@@ -1,0 +1,9 @@
+'' probe 4e: the -cimport form -- a pointer alias used before the record is defined
+type A__ptr as A ptr
+declare sub UseA( byval p as A__ptr )
+dim shared as A__ptr pa
+type A
+    x as long
+end type
+dim shared as A va
+#assert sizeof(A) = 4

@@ -1,0 +1,15 @@
+'' probe 5: does the front end lay out for a non-host target in one process? clong is 4 on Windows, 8 on Linux
+#include once "crt/long.bi"
+type T
+    a as byte
+    b as clong
+    c as wstring * 2
+end type
+#ifdef __FB_WIN32__
+#assert sizeof(T) = 12
+#assert offsetof(T, c) = 8
+#else
+#assert sizeof(T) = 24
+#assert offsetof(T, c) = 16
+#endif
+#print layout: asserts passed

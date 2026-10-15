@@ -1,0 +1,4 @@
+'' probe 9d: a block comment before the underscore
+declare sub k( byval a as long, /' the first '/ _
+               byval b as long )
+#print contblock: ok

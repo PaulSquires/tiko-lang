@@ -1,0 +1,5 @@
+'' probe 9f: a bare underscore line standing in for a blank line inside a continued list
+declare sub g( byval a as long, _
+               _
+               byval b as long )
+#print contbare: ok

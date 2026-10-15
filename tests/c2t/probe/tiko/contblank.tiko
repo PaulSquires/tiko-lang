@@ -1,0 +1,5 @@
+'' probe 9c: a blank line inside a continued parameter list
+declare sub h( byval a as long, _
+
+               byval b as long )
+#print contblank: ok

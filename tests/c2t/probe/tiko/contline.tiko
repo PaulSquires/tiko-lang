@@ -1,0 +1,5 @@
+'' probe 9b: a whole comment line inside a continued parameter list
+declare sub g( byval a as long, _
+               '' a comment line for b
+               byval b as long )
+#print contline: ok
