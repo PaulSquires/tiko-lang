@@ -159,6 +159,8 @@ After a mapped include the translation may name the types that header declares a
 
 Types are written by their fixed width, the same on both targets: `int` → `int32`, `unsigned` → `uint32`, `long long` → `int64`, `float` → `float32`, `double` → `float64`, `_Bool` → `boolean`, `size_t` → `uinteger`, `char` → `byte`, `void *` → `any ptr`. C's `long` is 4 bytes on Windows and 8 on Linux, and is written `clong` (from `crt/long.bi`). A typedef is kept by name.
 
+A record with a bit-field, or a packed one (`field = N`), is written `type X extern "c"`, so tiko lays it out by the target's C rule: MSVC's on windows-x86_64, SysV's on linux-x86_64. Any other record's layout is C's already, and is written plainly.
+
 A record used before it is defined is named through a hidden alias, `type Foo__fwd as Foo`, written where C declares it forward: `Foo__fwd ptr` above the definition, `Foo ptr` after it and for a record that is never defined (an opaque handle).
 
 ## Remarks
