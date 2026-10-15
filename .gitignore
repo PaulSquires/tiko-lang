@@ -93,5 +93,6 @@ tests/vendor/**/*.o
 /HANDOFF.md
 
 # Local-only notes kept beside the sources they describe; not published.
+/book/README.md
 /book/STYLE.md
 /inc/PROVENANCE.md
