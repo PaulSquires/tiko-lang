@@ -153,7 +153,8 @@ while read -r name rc todos cw cl; do
   fi
   read -r brc btodos bcw bcl <<< "${base[$name]}"
   msg=""
-  (( todos > btodos )) && msg+=" TODOs $btodos -> $todos;"
+  # A HEADER c2t COULD NOT TRANSLATE had no TODOs to count: any translation is better.
+  (( todos > btodos )) && [[ $brc -ne 1 ]] && msg+=" TODOs $btodos -> $todos;"
   [[ $rc -eq 1 && $brc -ne 1 ]] && msg+=" c2t now fails;"
   [[ $bcw == ok && $cw != ok ]] && msg+=" windows compile now fails;"
   [[ $bcl == ok && $cl != ok ]] && msg+=" linux compile now fails;"

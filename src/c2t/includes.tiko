@@ -9,6 +9,12 @@
 '' declares may be named in the translation (types.tiko's passthrough); a TODO otherwise.
 ''
 '' RUN BEFORE THE DECLARATIONS, so the passthrough is known when their types are spelled.
+''
+'' A DECORATION-ONLY HEADER is not included at all: one that declares nothing, includes
+'' nothing, and whose every macro a pass reaches is decoration -- SDL3's SDL_begin_code.h and
+'' SDL_close_code.h, a bracket pair neither of which can be translated on its own. Its macros
+'' are stripped where they are used (clang's semantics), so tiko needs none of them, and
+'' defining them would only collide with the library's own names (SDL_MALLOC, SDL_malloc).
 
 #import "std/containers"
 #include once "c2t/c2t.ti"
@@ -129,6 +135,171 @@ private function TiName_( byref p as string ) as string
     return p & ".ti"
 end function
 
+'' ---------------------------------------------------------------- decoration-only headers
+
+'' Words a decoration macro's body may hold: attributes, storage and inline words, calling
+'' conventions, feature tests. One that takes '(' takes its whole parenthesised group.
+private function DecorWord_( byref w as string ) as boolean
+    select case w
+    case "__attribute__", "__attribute", "__declspec", "alignas", "_Alignas", _
+         "__has_builtin", "__has_attribute", "__has_feature", "__has_extension", _
+         "__has_include", "__has_c_attribute", "__has_cpp_attribute", _
+         "static", "extern", "inline", "__inline", "__inline__", "__forceinline", _
+         "restrict", "__restrict", "__restrict__", "_Noreturn", "noreturn", "__unaligned", _
+         "__cdecl", "_cdecl", "__stdcall", "_stdcall", "__fastcall", "__vectorcall", "__thiscall"
+        return true
+    end select
+    return false
+end function
+
+private function InVec_( byref v as Tko.StrVec, byref w as string ) as boolean
+    for i as int32 = 0 to v.Count - 1
+        if v[i] = w then return true
+    next
+    return false
+end function
+
+'' The next token after i that is not a comment, or n.
+private function NextTok_( byref src as C2tSource, byval i as int32, byval n as int32 ) as int32
+    i += 1
+    while (i < n) andalso (src.toks[i].kind = CT_COMMENT)
+        i += 1
+    wend
+    return i
+end function
+
+'' Is the body of #define d decoration? Its own parameters, the header's other macros and
+'' implementation-reserved names (SAL's _Check_return_) count as decoration too.
+private function DecorBody_( byref src as C2tSource, byref d as C2tDirective, _
+                             byref macros as Tko.StrVec ) as boolean
+    if d.name_ = "NULL" then return true      '' tiko has no NULL to define; cimport drops it too
+    dim as int32 n = d.tok2 + 1
+    dim as int32 t = NextTok_( src, d.tok1, n )        '' 'define'
+    t = NextTok_( src, t, n )                          '' the name
+    if t >= n then return true
+    dim as int32 nameTok = t
+    t = NextTok_( src, t, n )
+    dim as Tko.StrVec params
+    '' FUNCTION-LIKE: '(' right against the name.
+    if (t < n) andalso (TokText( src, t ) = "(") andalso _
+       (src.toks[t].ofs = src.toks[nameTok].ofs + src.toks[nameTok].len_) then
+        t = NextTok_( src, t, n )
+        while (t < n) andalso (TokText( src, t ) <> ")")
+            if src.toks[t].kind = CT_IDENT then params.Push( TokText( src, t ) )
+            t = NextTok_( src, t, n )
+        wend
+        t = NextTok_( src, t, n )
+    end if
+    while t < n
+        dim as string w = TokText( src, t )
+        if (w = "[") andalso (NextTok_( src, t, n ) < n) andalso (TokText( src, NextTok_( src, t, n ) ) = "[") then
+            '' A C23 ATTRIBUTE: [[ ... ]], whatever it holds.
+            dim as int32 depth = 0
+            do
+                dim as string b = TokText( src, t )
+                if b = "[" then depth += 1
+                if b = "]" then depth -= 1
+                t = NextTok_( src, t, n )
+            loop while (t < n) andalso (depth > 0)
+            continue while
+        end if
+        if src.toks[t].kind <> CT_IDENT then return false
+        if DecorWord_( w ) then
+            dim as int32 u = NextTok_( src, t, n )
+            if (u < n) andalso (TokText( src, u ) = "(") then
+                dim as int32 depth = 0
+                t = u
+                do
+                    dim as string b = TokText( src, t )
+                    if b = "(" then depth += 1
+                    if b = ")" then depth -= 1
+                    t = NextTok_( src, t, n )
+                loop while (t < n) andalso (depth > 0)
+                continue while
+            end if
+        elseif (InVec_( macros, w ) = false) andalso (InVec_( params, w ) = false) then
+            if (len( w ) < 2) orelse (w[0] <> 95) then return false
+            if (w[1] <> 95) andalso ((w[1] < 65) orelse (w[1] > 90)) then return false
+        end if
+        t = NextTok_( src, t, n )
+    wend
+    return true
+end function
+
+'' Does the header at path hold only decoration, as this pass reaches it?
+private function DecorOnly_( byref e as C2tEmit, byref p as C2tPass, byref path_ as string ) as boolean
+    dim as C2tSource src
+    if LoadSource( path_, src ) = false then return false
+    dim as C2tDirVec dirs
+    ScanDirectives( src, dirs )
+    '' NOTHING OUTSIDE THE DIRECTIVES but comments: a declaration makes it a real header.
+    dim as C2tIntVec inDir
+    for i as int32 = 0 to src.toks.Count - 1
+        inDir.Push( 0 )
+    next
+    for k as int32 = 0 to dirs.Count - 1
+        for i as int32 = dirs[k].tok1 to dirs[k].tok2
+            inDir[i] = 1
+        next
+    next
+    for i as int32 = 0 to src.toks.Count - 1
+        if (inDir[i] = 0) andalso (src.toks[i].kind <> CT_COMMENT) then return false
+    next
+    '' WHAT THIS PASS SKIPS IN IT does not count (another compiler's branch, a doc section).
+    dim as C2tIntVec skipped
+    dim as any ptr fh = e.api->getFile( p.tu, strptr( path_ ) )
+    if fh <> nullptr then
+        dim as Tko.CImport.CXSourceRangeList ptr lst = e.api->getSkippedRanges( p.tu, fh )
+        if lst <> nullptr then
+            for i as int32 = 0 to cast( int32, lst->count ) - 1
+                dim as uint32 o = 0
+                e.api->getExpansionLocation( e.api->getRangeStart( lst->ranges[i] ), nullptr, nullptr, nullptr, @o )
+                skipped.Push( cast( int32, o ) )
+                e.api->getExpansionLocation( e.api->getRangeEnd( lst->ranges[i] ), nullptr, nullptr, nullptr, @o )
+                skipped.Push( cast( int32, o ) )
+            next
+            e.api->disposeSourceRangeList( lst )
+        end if
+    end if
+    dim as Tko.StrVec macros
+    for k as int32 = 0 to dirs.Count - 1
+        if dirs[k].kind = DK_DEFINE then macros.Push( dirs[k].name_ )
+    next
+    for k as int32 = 0 to dirs.Count - 1
+        dim as C2tDirective d = dirs[k]
+        dim as int32 o = src.toks[d.tok1].ofs
+        dim as boolean live = true
+        for i as int32 = 0 to skipped.Count - 2 step 2
+            if (o >= skipped[i]) andalso (o < skipped[i + 1]) then
+                live = false
+                exit for
+            end if
+        next
+        if live = false then continue for
+        select case d.kind
+        case DK_INCLUDE
+            return false
+        case DK_DEFINE
+            if DecorBody_( src, d, macros ) = false then return false
+        case DK_OTHER
+            select case d.word
+            case "error", "warning"
+            case "pragma"
+                dim as int32 w = NextTok_( src, NextTok_( src, d.tok1, d.tok2 + 1 ), d.tok2 + 1 )
+                if w > d.tok2 then return false
+                select case TokText( src, w )
+                case "pack", "warning", "once", "nopackwarning", "clang", "GCC"
+                case else
+                    return false
+                end select
+            case else
+                return false
+            end select
+        end select
+    next
+    return true
+end function
+
 '' ---------------------------------------------------------------- the directives
 
 sub IncludeDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDirVec )
@@ -187,6 +358,9 @@ sub IncludeDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2t
                     end if
                 next
             end if
+        elseif DecorOnly_( e, p, x.files[hit] ) then
+            e.incText[k] = "'' c2t: " & d.name_ & " holds only decoration macros (stripped where used)"
+            e.incState[k] = 1
         else
             dim as string rel = RelPath_( mainDir, Tko.Modules.AbsPath( x.files[hit] ) )
             e.incText[k] = "#include once " & chr( 34 ) & TiName_( rel ) & chr( 34 )
