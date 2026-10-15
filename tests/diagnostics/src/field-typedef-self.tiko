@@ -1,0 +1,27 @@
+'' A field whose typedef is itself. 'type Uint8 as uint8' is a C 'typedef uint8_t Uint8;'
+'' read into a case-insensitive language: the program's uint8 replaces the prelude's, so it
+'' names itself -- fbc-modern 1.20 answers error 24 at every field below but 'p' and 'q'.
+type Uint8 as uint8
+type Uint16 as uint16
+type Uint32 as uint32
+type Uint64 as uint64
+type t as t
+type ta as tb
+type tb as ta
+type G
+    d(0 to 15) as Uint8
+    a as Uint16
+    b as Uint32
+    c as Uint64
+    e as t
+    f as ta
+    p as t ptr
+    q as Uint8 ptr
+end type
+sub s( )
+    type L
+        y as Uint8
+    end type
+end sub
+dim as G g
+print sizeof( G )

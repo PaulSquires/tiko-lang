@@ -1,0 +1,6 @@
+'' The spelling that works: an alias under ANOTHER name, or the fixed-width name itself.
+type U8 as uint8
+type G
+    d(0 to 15) as U8
+    w as uint16
+end type

@@ -1,0 +1,15 @@
+'' TKO0899 (fbc's 24 or 71) at a FIELD whose typedef is itself, as at a variable -- the
+'' record had no layout and said nothing, so every use of it was TKO0994. A pointer is fine.
+'' See symbols/declshape.tiko CheckFieldShape_.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/field-typedef-self.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: field-typedef-self.tiko(12,5): error TKO0899: 'uint8'
+'' EXPECT-OUT: field-typedef-self.tiko(13,5): error TKO0899: 'uint16'
+'' EXPECT-OUT: field-typedef-self.tiko(14,5): error TKO0899: 'uint32'
+'' EXPECT-OUT: field-typedef-self.tiko(15,5): error TKO0899: 'uint64'
+'' EXPECT-OUT: field-typedef-self.tiko(16,5): error TKO0899: 't'
+'' EXPECT-OUT: field-typedef-self.tiko(17,5): error TKO0899: 'ta'
+'' EXPECT-OUT: field-typedef-self.tiko(23,9): error TKO0899: 'uint8'
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 7
