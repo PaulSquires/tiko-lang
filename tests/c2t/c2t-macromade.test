@@ -1,0 +1,10 @@
+'' tiko c2t: declarations a macro invocation produces are found (the expansion-file rule, P0 item 3).
+'' Everything after the clang line is asserted byte for byte; the tiko and clang versions
+'' in the banner depend on the host, so only the lines around them are.
+'' TEST: cli
+'' CLEAN: build/.c2t/macromade
+'' ARGS: c2t tests/c2t/src/macromade.h -o build/.c2t/macromade/macromade.ti
+'' EXPECT-EXIT: 2
+'' EXPECT-FILE-HAS: build/.c2t/macromade/macromade.ti :: '' macromade.ti -- tiko header translated by c2t (tiko 
+'' EXPECT-FILE-HAS: build/.c2t/macromade/macromade.ti :: ) from the C header "macromade.h"\n''   source sha256 : 0d4d427865ea66c87fd27bb8956c51e0da72a33c7511acf7b8df02ecb15f51a2\n''   clang         : 
+'' EXPECT-FILE-HAS: build/.c2t/macromade/macromade.ti :: ''   passes        : x86_64-pc-windows-msvc\n''   options       : (none)\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' 3 items need manual translation:\n''   line 17  macromade.h:2  C2T-TODO(not-yet)  DECLARE_HANDLE\n''   line 20  macromade.h:4  C2T-TODO(not-yet)  HWIDGET__, HWIDGET\n''   line 22  macromade.h:5  C2T-TODO(not-yet)  HGADGET__, HGADGET\n'' =============================================================================\n\n/' macromade.h -- declarations a macro invocation produces. '/\n'' C2T-TODO(not-yet) macromade.h:2 -- macro definition -- c2t P1 translates no declarations yet\n'' #define DECLARE_HANDLE(n) struct n##__ { int unused; }; typedef struct n##__ *n\n\n'' C2T-TODO(not-yet) macromade.h:4 -- declaration -- c2t P1 translates no declarations yet\n'' DECLARE_HANDLE(HWIDGET);\n'' C2T-TODO(not-yet) macromade.h:5 -- declaration -- c2t P1 translates no declarations yet\n'' DECLARE_HANDLE(HGADGET);\n

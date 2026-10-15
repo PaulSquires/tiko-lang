@@ -1,0 +1,7 @@
+'' A header that cannot be read: TKO0174, exit 1, and nothing written.
+'' TEST: cli
+'' CLEAN: build/.c2t/unreadable
+'' ARGS: c2t tests/c2t/src/no-such-header.h -o build/.c2t/unreadable/x.ti
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0174: cannot read the C header 'tests/c2t/src/no-such-header.h'
+'' EXPECT-NO-FILE: build/.c2t/unreadable/x.ti

@@ -1,0 +1,170 @@
+'' c2t.ti -- 'tiko c2t <in.h>': a C library header, translated into a tiko header a person
+'' can read. Design: docs/tiko-c2t RFC-0001 (C:\dev\docs); this is phase P1, the skeleton.
+''
+'' HYBRID, NOT A SECOND IMPORTER. clang decides what the C means -- which declarations there
+'' are, where each one starts and ends, which #if branches are live -- through the same
+'' libclang binding #cinclude uses (cimport/clang.ti). The ORIGINAL TEXT decides what the
+'' output looks like: c2t lexes the header itself, keeps every comment and blank line where
+'' it was, and replaces each piece of C in place. What it cannot translate stays at its own
+'' position as a C2T-TODO with the C quoted beneath it.
+''
+'' P1 TRANSLATES NO DECLARATION. It carries comments and blank lines over, converts the
+'' header idioms (include guard, the __cplusplus extern block, export macros), writes the
+'' banner, and marks every declaration, macro and directive as a TODO. Later phases replace
+'' TODOs with translations; the layout machinery here is what they write into.
+''
+'' DETERMINISTIC: the same header, options and clang give the same bytes, LF-only, with no
+'' timestamp and no absolute path.
+
+#pragma once
+
+#include once "tko.ti"
+#include once "cimport/clang.ti"
+
+namespace Tko.C2t
+
+'' ---------------------------------------------------------------- the header's text
+
+'' A C token, as c2t's own lexer sees it. Comments are tokens: they are what c2t carries.
+enum C2tTokKind
+    CT_IDENT = 1
+    CT_NUMBER
+    CT_STRING
+    CT_CHAR
+    CT_PUNCT
+    CT_COMMENT
+end enum
+
+type C2tTok
+    as int32 kind
+    as int32 ofs           '' byte offset of the first byte, 0-based
+    as int32 len_
+    as int32 line_         '' 1-based physical line of the first byte
+    as int32 endLine       '' physical line of the last byte (a block comment spans lines)
+    as boolean bol         '' the first token of its logical line
+end type
+type C2tTokVec as containers.Array( of C2tTok )
+type C2tIntVec as containers.Array( of int32 )
+
+'' The header as read: its bytes, the start of each physical line, its tokens.
+type C2tSource
+    as string path_
+    as string name_            '' the file name alone, for the banner and the TODOs
+    as string bytes
+    as string sha256           '' lowercase hex
+    lineStart as C2tIntVec     '' lineStart[i] = offset of line i+1
+    toks as C2tTokVec
+end type
+
+'' ---------------------------------------------------------------- directives
+
+enum C2tDirKind
+    DK_IF = 1
+    DK_IFDEF
+    DK_IFNDEF
+    DK_ELIF
+    DK_ELSE
+    DK_ENDIF
+    DK_DEFINE
+    DK_UNDEF
+    DK_INCLUDE
+    DK_OTHER
+end enum
+
+'' One preprocessor directive: a logical line starting with '#'.
+type C2tDirective
+    as int32 kind
+    as string word             '' the directive's word: "if", "define", "pragma"...
+    as int32 tok1, tok2        '' its tokens, '#' through the last (comments included)
+    as int32 line1, line2      '' its physical lines
+    as string name_            '' the macro of #define/#undef/#ifdef/#ifndef; the path of #include
+    as int32 cond              '' for #elif/#else/#endif: the index of its #if; -1 otherwise
+    as int32 endif_            '' for an #if*: the index of its #endif; -1 if unterminated
+end type
+type C2tDirVec as containers.Array( of C2tDirective )
+
+'' ---------------------------------------------------------------- what replaces what
+
+'' A run of physical lines whose output is decided: either text written in their place
+'' (an idiom: '#pragma once', 'extern "C"', a comment, or nothing at all) or a TODO.
+type C2tBlock
+    as int32 line1, line2
+    as boolean isTodo
+    as string text             '' an idiom's replacement, LF-separated, "" for none
+    as string reason           '' a TODO's reason, from the fixed vocabulary
+    as string what             '' a TODO's subject, for the banner: names, a macro, a path
+    as string why              '' a TODO's one-line explanation
+end type
+type C2tBlockVec as containers.Array( of C2tBlock )
+
+'' A top-level declaration clang reported in the main file, by expansion offsets.
+type C2tSegment
+    as int32 ofs1, ofs2
+    as int32 kind
+    as string name_
+end type
+type C2tSegVec as containers.Array( of C2tSegment )
+
+'' ---------------------------------------------------------------- one clang pass
+
+type C2tPass
+    as string triple
+    segs as C2tSegVec
+    skipped as C2tIntVec       '' pairs: start offset, end offset of each inactive region
+    as boolean guarded         '' clang_isFileMultipleIncludeGuarded
+    clangDiags as Tko.StrVec   '' clang's errors, when the header did not parse
+end type
+
+'' ---------------------------------------------------------------- the run
+
+type C2tOptions
+    as string input_
+    as string output_          '' "" = <input>.ti beside it; "-" = standard output
+    includes as Tko.StrVec     '' -I
+    defines as Tko.StrVec      '' -D
+    undefs as Tko.StrVec       '' -U
+    passArgs as Tko.StrVec     '' --pass, each one string of clang arguments
+    as boolean verify
+end type
+
+'' sha256.tiko
+declare function Sha256Hex( byref data_ as string ) as string
+
+'' source.tiko -- read and lex. False when the file cannot be read.
+declare function LoadSource( byref path_ as string, byref src as C2tSource ) as boolean
+declare function LineCount( byref src as C2tSource ) as int32
+'' Physical line n (1-based) without its line ending.
+declare function LineText( byref src as C2tSource, byval n as int32 ) as string
+'' Lines n1..n2 with every comment converted to tiko's spelling and nothing else changed.
+'' The lines must hold only comments and white space.
+declare function ConvertComments( byref src as C2tSource, byval n1 as int32, byval n2 as int32 ) as string
+declare function TokText( byref src as C2tSource, byval i as int32 ) as string
+'' The index of the first token at or after byte offset 'ofs'; toks.Count if none.
+declare function TokAt( byref src as C2tSource, byval ofs as int32 ) as int32
+
+'' ppscan.tiko -- every directive, the #if nesting matched, and the idioms recognised.
+declare sub ScanDirectives( byref src as C2tSource, byref dirs as C2tDirVec )
+'' The blocks the header idioms decide: guard, __cplusplus extern block, export macros.
+'' 'decor' receives the names of the decoration macros, for later phases to strip.
+declare sub IdiomBlocks( byref src as C2tSource, byref dirs as C2tDirVec, _
+                         byval guarded as boolean, byref blocks as C2tBlockVec, _
+                         byref decor as Tko.StrVec )
+
+'' pass.tiko -- one clang parse of the header for one target.
+declare function RunPass( byref api as Tko.CImport.ClangApi, byref src as C2tSource, _
+                          byref opts as C2tOptions, byref triple as string, _
+                          byref p as C2tPass ) as boolean
+
+'' output.tiko -- the TODO blocks, then the whole file.
+declare sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p as C2tPass, _
+                        byref blocks as C2tBlockVec )
+declare function Assemble( byref src as C2tSource, byref blocks as C2tBlockVec, _
+                           byref outName as string, byref clangVersion as string, _
+                           byref passes as Tko.StrVec, byref optText as string, _
+                           byref todoCount as int32 ) as string
+
+'' c2t.tiko -- 'tiko c2t ...'. args[0] is "c2t". The process exit code: 0 translated with
+'' no TODO, 1 an error, 2 translated with at least one TODO.
+declare function C2tMain( byref args as Tko.StrVec ) as int32
+
+end namespace

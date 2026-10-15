@@ -1,0 +1,5 @@
+'' 'tiko --help' lists the c2t verb with the other subcommands.
+'' TEST: cli
+'' ARGS: --help
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: tiko c2t      translate a C header into a tiko header

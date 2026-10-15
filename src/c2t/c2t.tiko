@@ -1,0 +1,161 @@
+'' c2t.tiko -- 'tiko c2t <in.h> [-o <out.ti> | -o -] [-I dir] [-D x] [-U x] [--pass "args"]'.
+'' See c2t.ti.
+''
+'' A VERB OF THE COMPILER, dispatched beside build/run/check/clean/metadata by
+'' build/subcmd.tiko's Entry before that verb set parses anything, because c2t's options are
+'' its own. Exit status: 0 translated with no TODO, 1 an error, 2 translated with TODOs --
+'' so a script can tell a partial translation from a clean one (RFC-0001 §7).
+
+#import "std/containers"
+#include once "c2t/c2t.ti"
+#include once "codegen/target.ti"
+#include once "codegen/toolchain.ti"
+#include once "driver/diagout.ti"
+
+namespace Tko.C2t
+
+'' '-' IS STANDARD OUTPUT. Binary mode keeps the file LF-only on Windows.
+private function WriteBytes_( byref path_ as string, byref text as string ) as boolean
+    if path_ = "-" then
+        print text;
+        return true
+    end if
+    dim as int32 f = freefile( )
+    if open( path_ for binary access write as #f ) <> 0 then return false
+    if len( text ) then put #f, , text
+    close #f
+    return true
+end function
+
+'' 'dir/raylib.h' -> 'dir/raylib.ti': the input's extension replaced, or '.ti' appended.
+private function DefaultOut_( byref input_ as string ) as string
+    for i as int32 = len( input_ ) to 1 step -1
+        dim as string c = mid( input_, i, 1 )
+        if (c = "/") orelse (c = "\") then exit for
+        if c = "." then return left( input_, i - 1 ) & ".ti"
+    next
+    return input_ & ".ti"
+end function
+
+private function BaseName_( byref p as string ) as string
+    for i as int32 = len( p ) to 1 step -1
+        dim as string c = mid( p, i, 1 )
+        if (c = "/") orelse (c = "\") then return mid( p, i + 1 )
+    next
+    return p
+end function
+
+'' The command line, read. False, with the diagnostics reported, when it is wrong.
+private function ParseArgs_( byref args as Tko.StrVec, byref o as C2tOptions, byref optText as string, _
+                             byref ctx as Tko.CompilerContext ) as boolean
+    dim as boolean ok = true
+    dim as int32 i = 1
+    while i < args.Count
+        dim as string w = args[i]
+        select case w
+        case "-o", "-I", "-D", "-U", "--pass"
+            if i + 1 >= args.Count then
+                ctx.diags.ReportGlobal( Tko.TKO0101, w )
+                return false
+            end if
+            dim as string v = args[i + 1]
+            select case w
+            case "-o"     : o.output_ = v
+            case "-I"     : o.includes.Push( v )
+            case "-D"     : o.defines.Push( v )
+            case "-U"     : o.undefs.Push( v )
+            case "--pass" : o.passArgs.Push( v )
+            end select
+            if w <> "-o" then
+                if len( optText ) then optText &= " "
+                optText &= w & " " & iif( instr( v, " " ) > 0, """" & v & """", v )
+            end if
+            i += 2
+            continue while
+        '' THE CONSOLE'S COLOUR, as every verb takes it (the test runner says never).
+        case "--color=always" : ctx.diags.SetColorMode( Tko.COLOR_ALWAYS )
+        case "--color=never"  : ctx.diags.SetColorMode( Tko.COLOR_NEVER )
+        case "--color=auto"   : ctx.diags.SetColorMode( Tko.COLOR_AUTO )
+        case else
+            dim as boolean isOpt = (len( w ) > 1)
+            if isOpt then isOpt = (left( w, 1 ) = "-")
+            if isOpt then
+                ctx.diags.ReportGlobal( Tko.TKO0100, w )
+                ok = false
+            elseif len( o.input_ ) then
+                ctx.diags.ReportGlobal( Tko.TKO0173, w )
+                ok = false
+            else
+                o.input_ = w
+            end if
+        end select
+        i += 1
+    wend
+    if ok andalso (len( o.input_ ) = 0) then
+        ctx.diags.ReportGlobal( Tko.TKO0102 )
+        ok = false
+    end if
+    return ok
+end function
+
+private function Run_( byref args as Tko.StrVec, byref ctx as Tko.CompilerContext ) as int32
+    dim as C2tOptions o
+    dim as string optText
+    if ParseArgs_( args, o, optText, ctx ) = false then return 1
+
+    dim as C2tSource src
+    if LoadSource( o.input_, src ) = false then
+        ctx.diags.ReportGlobal( Tko.TKO0174, o.input_ )
+        return 1
+    end if
+
+    dim as containers.Array( of string ) noLibs
+    dim as string noClang = ""
+    dim as string clangExe = Tko.Codegen.FindTools( noClang, noLibs ).clangExe
+    dim as Tko.CImport.ClangApi api
+    if Tko.CImport.ClangLoad( api, clangExe ) = false then
+        ctx.diags.ReportGlobal( Tko.TKO0119, api.why )
+        return 1
+    end if
+
+    '' ONE PASS IN P1, for tiko's default target. The Linux pass and the merge are P5.
+    dim as string triple = Tko.Codegen.TargetFor( Tko.TARGET_WINDOWS_X86_64 ).triple
+    dim as C2tPass p
+    if RunPass( api, src, o, triple, p ) = false then
+        ctx.diags.ReportGlobal( Tko.TKO0120, o.input_ )
+        dim as Tko.SourceRange none_
+        for i as int32 = 0 to p.clangDiags.Count - 1
+            ctx.diags.AddNote( Tko.TKO0900, none_, "clang: " & p.clangDiags[i] )
+        next
+        return 1
+    end if
+
+    dim as C2tDirVec dirs
+    ScanDirectives( src, dirs )
+    dim as C2tBlockVec blocks
+    dim as Tko.StrVec decor
+    IdiomBlocks( src, dirs, p.guarded, blocks, decor )
+    TodoBlocks( src, dirs, p, blocks )
+
+    dim as string outPath = o.output_
+    if len( outPath ) = 0 then outPath = DefaultOut_( o.input_ )
+    dim as string outName = iif( outPath = "-", BaseName_( DefaultOut_( o.input_ ) ), BaseName_( outPath ) )
+    dim as Tko.StrVec passes
+    passes.Push( triple )
+    dim as int32 todos = 0
+    dim as string text = Assemble( src, blocks, outName, api.version, passes, optText, todos )
+
+    if WriteBytes_( outPath, text ) = false then
+        ctx.diags.ReportGlobal( Tko.TKO0121, outPath )
+        return 1
+    end if
+    return iif( todos > 0, 2, 0 )
+end function
+
+function C2tMain( byref args as Tko.StrVec ) as int32
+    dim as Tko.CompilerContext ctx
+    if Tko.DiagOut.Start( ctx ) = false then return Tko.DiagOut.Finish( ctx, 1 )
+    return Tko.DiagOut.Finish( ctx, Run_( args, ctx ) )
+end function
+
+end namespace

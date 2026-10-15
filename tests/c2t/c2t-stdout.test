@@ -1,0 +1,7 @@
+'' '-o -' writes the translation to standard output.
+'' TEST: cli
+'' ARGS: c2t tests/c2t/src/clean.h -o -
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: '' clean.ti -- tiko header translated by c2t
+'' EXPECT-OUT: '' Nothing needs manual translation.
+'' EXPECT-OUT: #pragma once

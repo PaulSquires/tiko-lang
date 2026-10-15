@@ -1,0 +1,303 @@
+'' source.tiko -- the header's text: read, lexed, its comments converted. See c2t.ti.
+''
+'' C2T'S OWN LEXER, NOT CLANG'S TOKENS. clang_tokenize returns comments too (P0 item 1), but
+'' only inside a translation unit, and a branch no pass reaches is not in one. This lexer
+'' sees the whole file as written, every branch, so the layout it describes is the same in
+'' every pass. It is deliberately shallow: tokens, their offsets and lines, and which one
+'' starts a logical line. Meaning is clang's job.
+
+#import "std/containers"
+#include once "c2t/c2t.ti"
+#include once "support/diskcache.ti"
+
+namespace Tko.C2t
+
+private function IsIdStart_( byval c as int32 ) as boolean
+    return ((c >= 97) andalso (c <= 122)) orelse ((c >= 65) andalso (c <= 90)) orelse (c = 95) orelse (c = 36)
+end function
+
+private function IsDigit_( byval c as int32 ) as boolean
+    return (c >= 48) andalso (c <= 57)
+end function
+
+private function IsIdChar_( byval c as int32 ) as boolean
+    return IsIdStart_( c ) orelse IsDigit_( c )
+end function
+
+'' A BACKSLASH-NEWLINE at 'i' (either line ending): its length, 0 if there is none. C joins
+'' the two physical lines into one logical line before anything else (translation phase 2).
+private function Splice_( byref s as string, byval i as int32 ) as int32
+    dim as int32 n = len( s )
+    if (i >= n) orelse (s[i] <> 92) then return 0
+    if (i + 1 < n) andalso (s[i + 1] = 10) then return 2
+    if (i + 2 < n) andalso (s[i + 1] = 13) andalso (s[i + 2] = 10) then return 3
+    return 0
+end function
+
+private sub Push_( byref src as C2tSource, byval kind as int32, byval ofs as int32, byval e as int32, _
+                   byval line_ as int32, byref atBol as boolean )
+    dim as C2tTok t
+    t.kind = kind
+    t.ofs = ofs
+    t.len_ = e - ofs
+    t.line_ = line_
+    t.endLine = line_
+    for i as int32 = ofs to e - 1
+        if src.bytes[i] = 10 then t.endLine += 1
+    next
+    '' A COMMENT NEVER STARTS A LOGICAL LINE: '/* x */ #define' is still a directive.
+    if kind <> CT_COMMENT then
+        t.bol = atBol
+        atBol = false
+    end if
+    src.toks.Push( t )
+end sub
+
+private sub Lex_( byref src as C2tSource )
+    dim as string ptr sp = @src.bytes
+    dim as int32 n = len( *sp )
+    dim as int32 i = 0
+    dim as int32 line_ = 1
+    dim as boolean atBol = true
+    while i < n
+        dim as int32 c = (*sp)[i]
+        dim as int32 sl = Splice_( *sp, i )
+        if sl > 0 then
+            i += sl
+            line_ += 1
+            continue while
+        end if
+        select case c
+        case 10
+            i += 1
+            line_ += 1
+            atBol = true
+            continue while
+        case 32, 9, 13, 11, 12
+            i += 1
+            continue while
+        end select
+
+        dim as int32 st = i
+        if (c = 47) andalso (i + 1 < n) andalso ((*sp)[i + 1] = 47) then
+            '' '//' TO THE END OF THE LINE -- which a backslash-newline extends.
+            i += 2
+            while i < n
+                dim as int32 s2 = Splice_( *sp, i )
+                if s2 > 0 then
+                    i += s2
+                    continue while
+                end if
+                if (*sp)[i] = 10 then exit while
+                i += 1
+            wend
+            dim as int32 e = i
+            if (e > st) andalso ((*sp)[e - 1] = 13) then e -= 1
+            Push_( src, CT_COMMENT, st, e, line_, atBol )
+            line_ = src.toks[src.toks.Count - 1].endLine
+        elseif (c = 47) andalso (i + 1 < n) andalso ((*sp)[i + 1] = 42) then
+            i += 2
+            while i < n
+                if ((*sp)[i] = 42) andalso (i + 1 < n) andalso ((*sp)[i + 1] = 47) then
+                    i += 2
+                    exit while
+                end if
+                i += 1
+            wend
+            Push_( src, CT_COMMENT, st, i, line_, atBol )
+            line_ = src.toks[src.toks.Count - 1].endLine
+        elseif (c = 34) orelse (c = 39) then
+            i += 1
+            while i < n
+                dim as int32 q = (*sp)[i]
+                if q = 92 then
+                    i += 2
+                    continue while
+                end if
+                if (q = c) orelse (q = 10) then exit while
+                i += 1
+            wend
+            if (i < n) andalso ((*sp)[i] = c) then i += 1
+            Push_( src, iif( c = 34, CT_STRING, CT_CHAR ), st, i, line_, atBol )
+        elseif IsIdStart_( c ) then
+            while (i < n) andalso IsIdChar_( (*sp)[i] )
+                i += 1
+            wend
+            '' AN ENCODING PREFIX belongs to the literal it introduces: L"..", u8"..", U'.'.
+            dim as string w = mid( *sp, st + 1, i - st )
+            dim as boolean pre = (w = "L") orelse (w = "u") orelse (w = "U") orelse (w = "u8")
+            if pre andalso (i < n) andalso (((*sp)[i] = 34) orelse ((*sp)[i] = 39)) then
+                dim as int32 qc = (*sp)[i]
+                i += 1
+                while i < n
+                    dim as int32 q = (*sp)[i]
+                    if q = 92 then
+                        i += 2
+                        continue while
+                    end if
+                    if (q = qc) orelse (q = 10) then exit while
+                    i += 1
+                wend
+                if (i < n) andalso ((*sp)[i] = qc) then i += 1
+                Push_( src, iif( qc = 34, CT_STRING, CT_CHAR ), st, i, line_, atBol )
+            else
+                Push_( src, CT_IDENT, st, i, line_, atBol )
+            end if
+        elseif IsDigit_( c ) orelse ((c = 46) andalso (i + 1 < n) andalso IsDigit_( (*sp)[i + 1] )) then
+            '' A PP-NUMBER: digits, letters, '_', '.', and a sign after an exponent letter.
+            i += 1
+            while i < n
+                dim as int32 q = (*sp)[i]
+                if IsIdChar_( q ) orelse (q = 46) then
+                    i += 1
+                elseif ((q = 43) orelse (q = 45)) andalso _
+                       (((*sp)[i - 1] = 101) orelse ((*sp)[i - 1] = 69) orelse _
+                        ((*sp)[i - 1] = 112) orelse ((*sp)[i - 1] = 80)) then
+                    i += 1
+                else
+                    exit while
+                end if
+            wend
+            Push_( src, CT_NUMBER, st, i, line_, atBol )
+        else
+            '' PUNCTUATION, one character -- except '##' and '...', which a directive scan or
+            '' a parameter list has to see whole.
+            i += 1
+            if (c = 35) andalso (i < n) andalso ((*sp)[i] = 35) then
+                i += 1
+            elseif (c = 46) andalso (i + 1 < n) andalso ((*sp)[i] = 46) andalso ((*sp)[i + 1] = 46) then
+                i += 2
+            end if
+            Push_( src, CT_PUNCT, st, i, line_, atBol )
+        end if
+    wend
+end sub
+
+function LoadSource( byref path_ as string, byref src as C2tSource ) as boolean
+    src.path_ = path_
+    dim as string nm = path_
+    for i as int32 = len( nm ) to 1 step -1
+        if (mid( nm, i, 1 ) = "/") orelse (mid( nm, i, 1 ) = "\") then
+            nm = mid( nm, i + 1 )
+            exit for
+        end if
+    next
+    src.name_ = nm
+    if Tko.DiskCache.ReadAll( path_, src.bytes ) = false then return false
+    src.sha256 = Sha256Hex( src.bytes )
+    src.lineStart.Push( 0 )
+    for i as int32 = 0 to len( src.bytes ) - 1
+        if (src.bytes[i] = 10) andalso (i + 1 < len( src.bytes )) then src.lineStart.Push( i + 1 )
+    next
+    Lex_( src )
+    return true
+end function
+
+function LineCount( byref src as C2tSource ) as int32
+    return src.lineStart.Count
+end function
+
+function LineText( byref src as C2tSource, byval n as int32 ) as string
+    if (n < 1) orelse (n > src.lineStart.Count) then return ""
+    dim as int32 a = src.lineStart[n - 1]
+    dim as int32 b = len( src.bytes )
+    if n < src.lineStart.Count then b = src.lineStart[n] - 1
+    while (b > a) andalso ((src.bytes[b - 1] = 10) orelse (src.bytes[b - 1] = 13))
+        b -= 1
+    wend
+    return mid( src.bytes, a + 1, b - a )
+end function
+
+function TokText( byref src as C2tSource, byval i as int32 ) as string
+    return mid( src.bytes, src.toks[i].ofs + 1, src.toks[i].len_ )
+end function
+
+function TokAt( byref src as C2tSource, byval ofs as int32 ) as int32
+    dim as int32 lo = 0, hi = src.toks.Count
+    while lo < hi
+        dim as int32 m = (lo + hi) \ 2
+        if src.toks[m].ofs < ofs then lo = m + 1 else hi = m
+    wend
+    return lo
+end function
+
+private function Replace_( byref s as string, byref a as string, byref b as string ) as string
+    dim as string r
+    dim as int32 i = 1
+    while i <= len( s )
+        dim as int32 p = instr( i, s, a )
+        if p = 0 then
+            r &= mid( s, i )
+            exit while
+        end if
+        r &= mid( s, i, p - i ) & b
+        i = p + len( a )
+    wend
+    return r
+end function
+
+'' NESTING-SAFE: tiko's block comments nest, so a '/'' or ''/' inside the C text would open
+'' or close one early. A space between the two characters keeps the text and breaks the pair.
+private function Defuse_( byref s as string ) as string
+    dim as string r
+    dim as int32 n = len( s )
+    for i as int32 = 0 to n - 1
+        r &= chr( s[i] )
+        if i + 1 < n then
+            if ((s[i] = 39) andalso (s[i + 1] = 47)) orelse ((s[i] = 47) andalso (s[i + 1] = 39)) then
+                r &= " "
+            end if
+        end if
+    next
+    return r
+end function
+
+'' One C comment in tiko's spelling: '//' becomes '''' (a '///' doc comment ''''''), and
+'' '/* .. */' becomes '/'' .. ''/'. A spliced '//' comment's later lines get their own ''''.
+private function ConvertOne_( byref t as string ) as string
+    dim as string s = t
+    s = Replace_( s, chr( 13 ), "" )
+    if left( s, 2 ) = "//" then
+        dim as int32 k = 1
+        while (k < len( s )) andalso (mid( s, k + 1, 1 ) = "/")
+            k += 1
+        wend
+        dim as string body = mid( s, k + 1 )
+        body = Replace_( body, chr( 92 ) & chr( 10 ), chr( 10 ) & "'' " )
+        return string( k, "'" ) & body
+    end if
+    dim as string inner = mid( s, 3 )
+    if right( inner, 2 ) = "*/" then inner = left( inner, len( inner ) - 2 )
+    return "/'" & Defuse_( inner ) & "'/"
+end function
+
+function ConvertComments( byref src as C2tSource, byval n1 as int32, byval n2 as int32 ) as string
+    dim as int32 a = src.lineStart[n1 - 1]
+    dim as int32 b = len( src.bytes )
+    if n2 < src.lineStart.Count then b = src.lineStart[n2] - 1
+    dim as string r
+    dim as int32 at = a
+    dim as int32 ti = TokAt( src, a )
+    while (ti < src.toks.Count) andalso (src.toks[ti].ofs < b)
+        dim as C2tTok t = src.toks[ti]
+        r &= mid( src.bytes, at + 1, t.ofs - at )
+        r &= ConvertOne_( TokText( src, ti ) )
+        at = t.ofs + t.len_
+        ti += 1
+    wend
+    if at < b then r &= mid( src.bytes, at + 1, b - at )
+    r = Replace_( r, chr( 13 ), "" )
+    '' NO TRAILING WHITE SPACE on any line written.
+    dim as string o
+    dim as int32 ls = 1
+    for i as int32 = 1 to len( r ) + 1
+        if (i > len( r )) orelse (mid( r, i, 1 ) = chr( 10 )) then
+            if ls > 1 then o &= chr( 10 )
+            o &= rtrim( mid( r, ls, i - ls ) )
+            ls = i + 1
+        end if
+    next
+    return o
+end function
+
+end namespace

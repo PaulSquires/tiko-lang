@@ -1,0 +1,352 @@
+'' output.tiko -- what becomes a TODO, and the file as written. See c2t.ti.
+''
+'' LINE-GRANULAR. Every physical line of the header ends up in exactly one of three places:
+'' an idiom's replacement (ppscan), a TODO block that quotes it, or a run of comment and
+'' blank lines carried over with the comments converted. A TODO block is whole lines, so a
+'' trailing comment goes into the quote with the C it trails.
+
+#import "std/containers"
+#include once "c2t/c2t.ti"
+#include once "cimport/import.ti"
+
+namespace Tko.C2t
+
+type Span_
+    as int32 l1, l2
+    as string reason
+    as string what
+    as string why
+end type
+type SpanVec_ as containers.Array( of Span_ )
+
+private sub AddSpan_( byref v as SpanVec_, byval l1 as int32, byval l2 as int32, _
+                      byref reason as string, byref what as string, byref why as string )
+    dim as Span_ s
+    s.l1 = l1
+    s.l2 = l2
+    s.reason = reason
+    s.what = what
+    s.why = why
+    v.Push( s )
+end sub
+
+'' ONE NAME ONCE: 'typedef struct Color {..} Color;' is a StructDecl and a TypedefDecl, and
+'' the banner should say 'Color', not 'Color, Color'.
+private sub AddWhat_( byref list as string, byref w as string )
+    if len( w ) = 0 then return
+    if len( list ) = 0 then
+        list = w
+        return
+    end if
+    if instr( ", " & list & ",", ", " & w & "," ) > 0 then return
+    list &= ", " & w
+end sub
+
+'' A COMMENT THAT CROSSES A SPAN'S EDGE comes inside it, either way: '/* doc\n more */ int
+'' f(void);' -- leaving the first line outside would convert half a comment.
+private sub Widen_( byref src as C2tSource, byref s as Span_ )
+    dim as boolean moved = true
+    while moved
+        moved = false
+        for i as int32 = 0 to src.toks.Count - 1
+            dim as C2tTok t = src.toks[i]
+            if t.line_ > s.l2 then exit for
+            if (t.endLine >= s.l1) andalso (t.line_ <= s.l2) then
+                if t.line_ < s.l1 then
+                    s.l1 = t.line_
+                    moved = true
+                end if
+                if t.endLine > s.l2 then
+                    s.l2 = t.endLine
+                    moved = true
+                end if
+            end if
+        next
+    wend
+end sub
+
+'' THE END OF A DECLARATION: clang's extent stops before the ';' (P0 item 3), and before the
+'' body of a function whose body was skipped. The index of its last token.
+private function DeclEnd_( byref src as C2tSource, byval t2 as int32 ) as int32
+    dim as int32 n = src.toks.Count
+    dim as int32 j = t2 + 1
+    while (j < n) andalso (src.toks[j].kind = CT_COMMENT)
+        j += 1
+    wend
+    if j >= n then return t2
+    dim as string w = TokText( src, j )
+    if w = ";" then return j
+    if w = "{" then
+        dim as int32 depth = 0
+        for k as int32 = j to n - 1
+            dim as string v = TokText( src, k )
+            if v = "{" then depth += 1
+            if v = "}" then
+                depth -= 1
+                if depth = 0 then
+                    dim as int32 m = k + 1
+                    while (m < n) andalso (src.toks[m].kind = CT_COMMENT)
+                        m += 1
+                    wend
+                    if (m < n) andalso (TokText( src, m ) = ";") then return m
+                    return k
+                end if
+            end if
+        next
+    end if
+    return t2
+end function
+
+private function InSkipped_( byref p as C2tPass, byval ofs as int32 ) as boolean
+    for i as int32 = 0 to p.skipped.Count - 2 step 2
+        if (ofs >= p.skipped[i]) andalso (ofs < p.skipped[i + 1]) then return true
+    next
+    return false
+end function
+
+private function DirWhy_( byref d as C2tDirective ) as string
+    select case d.kind
+    case DK_DEFINE  : return "macro definition"
+    case DK_UNDEF   : return "#undef"
+    case DK_INCLUDE : return "#include"
+    case DK_IF, DK_IFDEF, DK_IFNDEF, DK_ELIF, DK_ELSE, DK_ENDIF
+        return "conditional directive"
+    end select
+    return "#" & d.word
+end function
+
+sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p as C2tPass, _
+                byref blocks as C2tBlockVec )
+    dim as int32 nl = LineCount( src )
+    dim as C2tIntVec taken                 '' 1 = an idiom decided this line
+    for l as int32 = 0 to nl
+        taken.Push( 0 )
+    next
+    for b as int32 = 0 to blocks.Count - 1
+        for l as int32 = blocks[b].line1 to blocks[b].line2
+            taken[l] = 1
+        next
+    next
+
+    dim as SpanVec_ spans
+    dim as string notYet = " -- c2t P1 translates no declarations yet"
+    '' ---- clang's declarations, widened to the ';' or the end of a skipped body.
+    for i as int32 = 0 to p.segs.Count - 1
+        dim as C2tSegment s = p.segs[i]
+        dim as int32 t1 = TokAt( src, s.ofs1 )
+        if t1 >= src.toks.Count then continue for
+        dim as int32 t2 = TokAt( src, s.ofs2 ) - 1
+        if t2 < t1 then t2 = t1
+        t2 = DeclEnd_( src, t2 )
+        dim as int32 l2 = src.toks[t1].line_
+        for k as int32 = t1 to t2
+            if src.toks[k].endLine > l2 then l2 = src.toks[k].endLine
+        next
+        AddSpan_( spans, src.toks[t1].line_, l2, "not-yet", s.name_, "declaration" & notYet )
+    next
+    '' ---- every directive no idiom took.
+    for k as int32 = 0 to dirs.Count - 1
+        dim as C2tDirective d = dirs[k]
+        if taken[d.line1] then continue for
+        dim as string what = d.name_
+        if len( what ) = 0 then what = "#" & d.word
+        AddSpan_( spans, d.line1, d.line2, "not-yet", what, DirWhy_( d ) & notYet )
+    next
+    '' ---- C text nothing claimed: an inactive branch's declarations, or something clang
+    '' did not report. Each run of such lines becomes one TODO.
+    dim as C2tIntVec claimed, code, live
+    for l as int32 = 0 to nl
+        claimed.Push( taken[l] )
+        code.Push( 0 )
+        live.Push( 0 )
+    next
+    for i as int32 = 0 to spans.Count - 1
+        for l as int32 = spans[i].l1 to spans[i].l2
+            claimed[l] = 1
+        next
+    next
+    for i as int32 = 0 to src.toks.Count - 1
+        if src.toks[i].kind = CT_COMMENT then continue for
+        dim as int32 l = src.toks[i].line_
+        if claimed[l] then continue for
+        code[l] = 1
+        if InSkipped_( p, src.toks[i].ofs ) = false then live[l] = 1
+    next
+    dim as int32 l = 1
+    while l <= nl
+        if code[l] = 0 then
+            l += 1
+            continue while
+        end if
+        dim as int32 e = l
+        dim as boolean anyLive = (live[l] = 1)
+        while (e + 1 <= nl) andalso (code[e + 1] = 1)
+            e += 1
+            if live[e] = 1 then anyLive = true
+        wend
+        if anyLive then
+            AddSpan_( spans, l, e, "unrecognised", "", "C text no clang declaration covers" )
+        else
+            AddSpan_( spans, l, e, "unreached-branch", "", _
+                      "inactive for this pass; c2t sees no declarations in it" )
+        end if
+        l = e + 1
+    wend
+
+    '' ---- widen, sort, merge: overlapping spans, or spans sharing a line, are one TODO.
+    for i as int32 = 0 to spans.Count - 1
+        Widen_( src, spans[i] )
+    next
+    for i as int32 = 1 to spans.Count - 1
+        dim as Span_ cur = spans[i]
+        dim as int32 j = i - 1
+        while (j >= 0) andalso (spans[j].l1 > cur.l1)
+            spans[j + 1] = spans[j]
+            j -= 1
+        wend
+        spans[j + 1] = cur
+    next
+    dim as int32 i = 0
+    while i < spans.Count
+        dim as Span_ m = spans[i]
+        dim as int32 j = i + 1
+        while (j < spans.Count) andalso (spans[j].l1 <= m.l2)
+            if spans[j].l2 > m.l2 then m.l2 = spans[j].l2
+            AddWhat_( m.what, spans[j].what )
+            j += 1
+        wend
+        dim as C2tBlock b
+        b.line1 = m.l1
+        b.line2 = m.l2
+        b.isTodo = true
+        b.reason = m.reason
+        b.what = m.what
+        b.why = m.why
+        blocks.Push( b )
+        i = j
+    wend
+end sub
+
+'' ---------------------------------------------------------------- the file
+
+private function Indent_( byref s as string ) as string
+    dim as int32 k = 0
+    while (k < len( s )) andalso ((s[k] = 32) orelse (s[k] = 9))
+        k += 1
+    wend
+    return left( s, k )
+end function
+
+private sub PushLines_( byref v as Tko.StrVec, byref text as string )
+    if len( text ) = 0 then return
+    dim as int32 a = 1
+    for i as int32 = 1 to len( text ) + 1
+        if (i > len( text )) orelse (mid( text, i, 1 ) = chr( 10 )) then
+            v.Push( mid( text, a, i - a ) )
+            a = i + 1
+        end if
+    next
+end sub
+
+private function Short_( byref s as string ) as string
+    if len( s ) <= 60 then return s
+    return left( s, 57 ) & "..."
+end function
+
+function Assemble( byref src as C2tSource, byref blocks as C2tBlockVec, _
+                   byref outName as string, byref clangVersion as string, _
+                   byref passes as Tko.StrVec, byref optText as string, _
+                   byref todoCount as int32 ) as string
+    dim as int32 nl = LineCount( src )
+    dim as C2tIntVec startAt                   '' line -> block index + 1
+    for l as int32 = 0 to nl
+        startAt.Push( 0 )
+    next
+    for b as int32 = 0 to blocks.Count - 1
+        startAt[blocks[b].line1] = b + 1
+    next
+
+    dim as Tko.StrVec body
+    dim as Tko.StrVec todoText
+    dim as C2tIntVec todoAt
+    dim as int32 l = 1
+    while l <= nl
+        dim as int32 bi = startAt[l] - 1
+        if bi >= 0 then
+            dim as C2tBlock b = blocks[bi]
+            if b.isTodo then
+                dim as string ind = Indent_( LineText( src, b.line1 ) )
+                todoAt.Push( body.Count )
+                todoText.Push( src.name_ & ":" & b.line1 & "  C2T-TODO(" & b.reason & ")" & _
+                               iif( len( b.what ) > 0, "  " & Short_( b.what ), "" ) )
+                body.Push( ind & "'' C2T-TODO(" & b.reason & ") " & src.name_ & ":" & b.line1 & " -- " & b.why )
+                for k as int32 = b.line1 to b.line2
+                    body.Push( rtrim( "'' " & LineText( src, k ) ) )
+                next
+            else
+                PushLines_( body, b.text )
+            end if
+            l = b.line2 + 1
+            continue while
+        end if
+        '' A RUN OF LINES NO BLOCK STARTS ON: comments and blank lines, carried over.
+        dim as int32 e = l
+        while (e + 1 <= nl) andalso (startAt[e + 1] = 0)
+            e += 1
+        wend
+        dim as string conv = ConvertComments( src, l, e )
+        dim as int32 a = 1
+        for i as int32 = 1 to len( conv ) + 1
+            if (i > len( conv )) orelse (mid( conv, i, 1 ) = chr( 10 )) then
+                body.Push( mid( conv, a, i - a ) )
+                a = i + 1
+            end if
+        next
+        l = e + 1
+    wend
+
+    '' ---- the banner, now that the TODOs' output lines are known.
+    dim as string rule = "'' " & string( 77, "=" )
+    dim as Tko.StrVec ban
+    ban.Push( rule )
+    ban.Push( "'' " & outName & " -- tiko header translated by c2t (tiko " & _
+              Tko.TKO_VERSION_MAJOR & "." & Tko.TKO_VERSION_MINOR & "." & Tko.TKO_VERSION_PATCH & _
+              Tko.TKO_VERSION_SUFFIX & ") from the C header """ & src.name_ & """" )
+    ban.Push( "''   source sha256 : " & src.sha256 )
+    ban.Push( "''   clang         : " & clangVersion )
+    dim as string ps
+    for i as int32 = 0 to passes.Count - 1
+        if i > 0 then ps &= ", "
+        ps &= passes[i]
+    next
+    ban.Push( "''   passes        : " & ps )
+    ban.Push( "''   options       : " & iif( len( optText ) > 0, optText, "(none)" ) )
+    ban.Push( "''" )
+    ban.Push( "'' Generated from C. Search for C2T-TODO and translate those parts by hand." )
+    ban.Push( "''" )
+    todoCount = todoAt.Count
+    if todoCount = 0 then
+        ban.Push( "'' Nothing needs manual translation." )
+    else
+        ban.Push( "'' " & todoCount & iif( todoCount = 1, " item needs", " items need" ) & " manual translation:" )
+    end if
+    '' BODY LINE i IS OUTPUT LINE first + i: the banner so far, the TODO list, the closing
+    '' rule and the blank line come before it.
+    dim as int32 first = ban.Count + todoCount + 3
+    for i as int32 = 0 to todoCount - 1
+        ban.Push( "''   line " & (first + todoAt[i]) & "  " & todoText[i] )
+    next
+    ban.Push( rule )
+    ban.Push( "" )
+
+    dim as Tko.StrVec all_
+    for i as int32 = 0 to ban.Count - 1
+        all_.Push( ban[i] & chr( 10 ) )
+    next
+    for i as int32 = 0 to body.Count - 1
+        all_.Push( body[i] & chr( 10 ) )
+    next
+    return Tko.CImport.JoinParts( all_ )
+end function
+
+end namespace

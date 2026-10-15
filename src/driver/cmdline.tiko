@@ -142,7 +142,8 @@ function HelpText( byval category as string = "" ) as string
         outp += "  tiko metadata print the project as JSON: targets, profiles, modules" & chr( 10 )
         outp += "  tiko run      build one exe target, then run it with the arguments after --" & chr( 10 )
         outp += "  tiko check    every diagnostic a build would give, through lowering; nothing written" & chr( 10 )
-        outp += "  (their options: --profile, --manifest, --options, -j, --message-format, --no-cache)" & chr( 10 ) & chr( 10 )
+        outp += "  (their options: --profile, --manifest, --options, -j, --message-format, --no-cache)" & chr( 10 )
+        outp += "  tiko c2t      translate a C header into a tiko header: tiko c2t <in.h> [-o <out.ti>|-]" & chr( 10 ) & chr( 10 )
     end if
 
     for c as int32 = Tko.OPTCAT_GENERAL to Tko.OPTCAT_DEVEL

@@ -1,0 +1,82 @@
+'' sha256.tiko -- SHA-256 of a string, as 64 lowercase hex digits. See c2t.ti.
+''
+'' FOR THE BANNER ONLY: it names the exact header a .ti was translated from, so a later run
+'' over a different copy shows as a different hash. Not security code -- nothing here is
+'' constant-time, and nothing needs to be.
+''
+'' WRITTEN FROM FIPS 180-4 (sections 4.1.2, 4.2.2, 5.1.1, 6.2.2); tiko-lang had no SHA of its
+'' own (c2t P0, item 12). tests/c2t/sha256.test holds the standard vectors.
+
+#import "std/containers"
+#include once "c2t/c2t.ti"
+
+namespace Tko.C2t
+
+private function Rotr_( byval x as uint32, byval n as int32 ) as uint32
+    return (x shr n) or (x shl (32 - n))
+end function
+
+private function Hex8_( byval x as uint32 ) as string
+    return lcase( right( "0000000" & hex( x ), 8 ) )
+end function
+
+function Sha256Hex( byref data_ as string ) as string
+    static as uint32 k( 0 to 63 ) = { _
+        &h428a2f98, &h71374491, &hb5c0fbcf, &he9b5dba5, &h3956c25b, &h59f111f1, &h923f82a4, &hab1c5ed5, _
+        &hd807aa98, &h12835b01, &h243185be, &h550c7dc3, &h72be5d74, &h80deb1fe, &h9bdc06a7, &hc19bf174, _
+        &he49b69c1, &hefbe4786, &h0fc19dc6, &h240ca1cc, &h2de92c6f, &h4a7484aa, &h5cb0a9dc, &h76f988da, _
+        &h983e5152, &ha831c66d, &hb00327c8, &hbf597fc7, &hc6e00bf3, &hd5a79147, &h06ca6351, &h14292967, _
+        &h27b70a85, &h2e1b2138, &h4d2c6dfc, &h53380d13, &h650a7354, &h766a0abb, &h81c2c92e, &h92722c85, _
+        &ha2bfe8a1, &ha81a664b, &hc24b8b70, &hc76c51a3, &hd192e819, &hd6990624, &hf40e3585, &h106aa070, _
+        &h19a4c116, &h1e376c08, &h2748774c, &h34b0bcb5, &h391c0cb3, &h4ed8aa4a, &h5b9cca4f, &h682e6ff3, _
+        &h748f82ee, &h78a5636f, &h84c87814, &h8cc70208, &h90befffa, &ha4506ceb, &hbef9a3f7, &hc67178f2 }
+    dim as uint32 h( 0 to 7 ) = { &h6a09e667, &hbb67ae85, &h3c6ef372, &ha54ff53a, _
+                                  &h510e527f, &h9b05688c, &h1f83d9ab, &h5be0cd19 }
+
+    '' THE PADDED MESSAGE: the data, one 1 bit, zeros to 56 mod 64, the bit length big-endian.
+    dim as int64 bits = cast( int64, len( data_ ) ) * 8
+    dim as string m = data_ & chr( &h80 )
+    while (len( m ) mod 64) <> 56
+        m &= chr( 0 )
+    wend
+    for i as int32 = 7 to 0 step -1
+        m &= chr( (bits shr (i * 8)) and &hFF )
+    next
+
+    dim as uint32 w( 0 to 63 )
+    dim as ubyte ptr p = cast( ubyte ptr, strptr( m ) )
+    for blk as int32 = 0 to (len( m ) \ 64) - 1
+        dim as ubyte ptr b = p + blk * 64
+        for t as int32 = 0 to 15
+            w( t ) = (cast( uint32, b[t * 4] ) shl 24) or (cast( uint32, b[t * 4 + 1] ) shl 16) or _
+                     (cast( uint32, b[t * 4 + 2] ) shl 8) or cast( uint32, b[t * 4 + 3] )
+        next
+        for t as int32 = 16 to 63
+            dim as uint32 s0 = Rotr_( w( t - 15 ), 7 ) xor Rotr_( w( t - 15 ), 18 ) xor (w( t - 15 ) shr 3)
+            dim as uint32 s1 = Rotr_( w( t - 2 ), 17 ) xor Rotr_( w( t - 2 ), 19 ) xor (w( t - 2 ) shr 10)
+            w( t ) = w( t - 16 ) + s0 + w( t - 7 ) + s1
+        next
+        dim as uint32 a = h( 0 ), bb = h( 1 ), c = h( 2 ), d = h( 3 )
+        dim as uint32 e = h( 4 ), f = h( 5 ), g = h( 6 ), hh = h( 7 )
+        for t as int32 = 0 to 63
+            dim as uint32 s1 = Rotr_( e, 6 ) xor Rotr_( e, 11 ) xor Rotr_( e, 25 )
+            dim as uint32 ch = (e and f) xor ((not e) and g)
+            dim as uint32 t1 = hh + s1 + ch + k( t ) + w( t )
+            dim as uint32 s0 = Rotr_( a, 2 ) xor Rotr_( a, 13 ) xor Rotr_( a, 22 )
+            dim as uint32 mj = (a and bb) xor (a and c) xor (bb and c)
+            dim as uint32 t2 = s0 + mj
+            hh = g : g = f : f = e : e = d + t1
+            d = c : c = bb : bb = a : a = t1 + t2
+        next
+        h( 0 ) += a : h( 1 ) += bb : h( 2 ) += c : h( 3 ) += d
+        h( 4 ) += e : h( 5 ) += f : h( 6 ) += g : h( 7 ) += hh
+    next
+
+    dim as string r
+    for i as int32 = 0 to 7
+        r &= Hex8_( h( i ) )
+    next
+    return r
+end function
+
+end namespace
