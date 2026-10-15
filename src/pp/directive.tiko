@@ -1235,6 +1235,13 @@ private sub PpDefineBuiltins( byref e as PpEngine )
         PpDefineValue( e, "__FB_LINUX__", "" )
         PpDefineValue( e, "__FB_UNIX__", "" )
     end if
+    '' tiko's own spellings of the same facts, beside the legacy ones rather than in
+    '' place of them. Bodied "1", as __TIKO_COMPILER__ is, so '#ifdef' and '#if' both
+    '' work -- they are tiko's, and no fbc header tests them. TIKO_OS_MACOS and
+    '' TIKO_ARCH_AARCH64 belong here too, once PpConfig carries the OS and CPU of a
+    '' macOS or aarch64 target; every target today is Windows or Linux on x86-64.
+    PpDefineValue( e, iif( onWindows, "TIKO_OS_WINDOWS", "TIKO_OS_LINUX" ), "1" )
+    PpDefineValue( e, "TIKO_ARCH_X86_64", "1" )
 
     '' DEFINED AND EMPTY on a 64-bit target, and NOT DEFINED AT ALL on a 32-bit one.
     '' Measured: fbc errors on '#if __FB_64BIT__' -- "Expected expression" -- because
