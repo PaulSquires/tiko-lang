@@ -61,11 +61,11 @@ function TkoGfxGetMouse cdecl ( byval x as long ptr, byval y as long ptr, _
 
     dim as long bad = TkoGfx.MouseAdjust( ok, TkoGfx.MouseScanlineSize( ), _
                                              mx, my, mz, mb, mc )
-    if x <> 0 then *x = mx
-    if y <> 0 then *y = my
-    if z <> 0 then *z = mz
-    if buttons <> 0 then *buttons = mb
-    if clip <> 0 then *clip = mc
+    if x <> nullptr then *x = mx
+    if y <> nullptr then *y = my
+    if z <> nullptr then *z = mz
+    if buttons <> nullptr then *buttons = mb
+    if clip <> nullptr then *clip = mc
 
     dim as long e = iif( bad <> 0, TkoAbi.FB_RTERROR_ILLEGALFUNCTIONCALL, 0 )
     RtlErrorSetNum( e )

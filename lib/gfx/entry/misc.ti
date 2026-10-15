@@ -71,8 +71,8 @@ end function
 function TkoGfxPMap alias "fb_GfxPMap" ( _
         byval coord as single, byval func_ as long ) as single
 
-    dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( 0 )
-    if c = 0 then return 0.0
+    dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( nullptr )
+    if c = nullptr then return 0.0
     return TkoGfx.PMap32( c->vp, coord, func_ )
 end function
 
@@ -83,8 +83,8 @@ end function
 '' names, and the value is the LOGICAL cursor because that is what a `single`
 '' return is for; the physical one is an integer and POINT already returns it.
 function TkoGfxCursor alias "fb_GfxCursor" ( byval func_ as long ) as single
-    dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( 0 )
-    if c = 0 then return 0.0
+    dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( nullptr )
+    if c = nullptr then return 0.0
     select case func_
     case 0 : return TkoGfx.PMap32( c->vp, c->draw.last_x, 0 )
     case 1 : return TkoGfx.PMap32( c->vp, c->draw.last_y, 1 )
@@ -114,12 +114,12 @@ end function
 function TkoGfxScreenList alias "fb_GfxScreenList" ( byval depth as long ) as long
     if depth > 0 then
         deallocate( TkoGfx.SlList )
-        TkoGfx.SlList = 0
+        TkoGfx.SlList = nullptr
         TkoGfx.SlSize = 0
         dim as DEVMODE dm
         dm.dmSize = sizeof( DEVMODE )
         dim as long i = 0
-        while EnumDisplaySettings( NULL, i, @dm )
+        while EnumDisplaySettings( nullptr, i, @dm )
             dim as long b = dm.dmBitsPerPel
             dim as boolean d2d = (b = 32)
             dim as boolean same = (b = depth)
@@ -135,7 +135,7 @@ function TkoGfxScreenList alias "fb_GfxScreenList" ( byval depth as long ) as lo
     end if
 
     TkoGfx.SlCurrent += 1
-    if (TkoGfx.SlList = 0) orelse (TkoGfx.SlCurrent > TkoGfx.SlSize) then return 0
+    if (TkoGfx.SlList = nullptr) orelse (TkoGfx.SlCurrent > TkoGfx.SlSize) then return 0
     return TkoGfx.SlList[TkoGfx.SlCurrent - 1]
 end function
 
@@ -151,7 +151,7 @@ sub TkoPutAdd alias "fb_hPutAdd" ( _
         byval w as long, byval h as long, _
         byval src_pitch as long, byval dst_pitch as long, _
         byval alpha as long, byval blender as any ptr, byval param as any ptr )
-    if (blender <> 0) orelse (param <> 0) then : end if
+    if (blender <> nullptr) orelse (param <> nullptr) then : end if
     if TkoGfx.PutBlendBpp = 2 then
         TkoGfx.PutAdd16( src, dst, w, h, src_pitch, dst_pitch, alpha )
     else

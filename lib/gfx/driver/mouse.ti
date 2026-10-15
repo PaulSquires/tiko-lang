@@ -80,14 +80,14 @@ end sub
 '' does at the top of its window procedure: client rectangle mapped to SCREEN
 '' coordinates, tested against the live cursor position.
 private sub MouseUpdateOn( byref m as MouseState, byval hwnd as HWND )
-    if hwnd = 0 then
+    if hwnd = nullptr then
         m.on_ = 0
         exit sub
     end if
     dim as RECT r
     GetClientRect( hwnd, @r )
     '' MapWindowPoints over the two corners -- the same call the reference makes.
-    MapWindowPoints( hwnd, NULL, cast( LPPOINT, @r ), 2 )
+    MapWindowPoints( hwnd, nullptr, cast( LPPOINT, @r ), 2 )
     dim as POINT p
     GetCursorPos( @p )
     m.on_ = iif( PtInRect( @r, p ) <> 0, 1, 0 )
@@ -113,7 +113,7 @@ private function MouseHandleMessage( _
         '' side answering (0,199) and "ok" where the reference answered -1.
         '' It is re-armed after every leave, because the notification is
         '' one-shot.
-        if (m.tracking = 0) andalso (hwnd <> 0) then
+        if (m.tracking = 0) andalso (hwnd <> nullptr) then
             dim as TRACKMOUSEEVENT tme
             tme.cbSize      = sizeof( TRACKMOUSEEVENT )
             tme.dwFlags     = TME_LEAVE
@@ -209,7 +209,7 @@ private sub MouseSet( _
         byval x as long, byval y as long, _
         byval cursor as long, byval clip as long )
 
-    if hwnd = 0 then exit sub
+    if hwnd = nullptr then exit sub
 
     if (x <> MOUSE_KEEP) orelse (y <> MOUSE_KEEP) then
         dim as long nx = iif( x = MOUSE_KEEP, m.x, x )
@@ -246,12 +246,12 @@ private sub MouseSet( _
 
     if clip = 0 then
         m.clip = 0
-        ClipCursor( NULL )
+        ClipCursor( nullptr )
     elseif clip > 0 then
         m.clip = 1
         dim as RECT r
         GetClientRect( hwnd, @r )
-        MapWindowPoints( hwnd, NULL, cast( LPPOINT, @r ), 2 )
+        MapWindowPoints( hwnd, nullptr, cast( LPPOINT, @r ), 2 )
         ClipCursor( @r )
     end if
 end sub

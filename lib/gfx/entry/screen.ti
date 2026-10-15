@@ -37,7 +37,7 @@ namespace TkoGfx
 '' a window nothing named (fb_hGetExeName, then the last '.' cut off).
 private function ExeTitle( ) as string
     dim as zstring * 260 path
-    if GetModuleFileName( NULL, @path, 259 ) = 0 then return ""
+    if GetModuleFileName( nullptr, @path, 259 ) = 0 then return ""
     dim as string s = path
     dim as long slash = instrrev( s, "\" )
     if slash > 0 then s = mid( s, slash + 1 )
@@ -85,10 +85,10 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
     '' SCREENSET 1, 1 on a fresh screen shows page 1 as it was allocated.
     for i as integer = 0 to num_pages - 1
         TheScreen.page(i) = callocate( pitch * h )
-        if TheScreen.page(i) = 0 then
+        if TheScreen.page(i) = nullptr then
             for j as integer = 0 to i - 1
                 deallocate( TheScreen.page(j) )
-                TheScreen.page(j) = 0
+                TheScreen.page(j) = nullptr
             next
             return FB_RTERROR_ILLEGALFUNCTIONCALL
         end if
@@ -109,10 +109,10 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
     '' of its own because it calls WindowOpen directly rather than through
     '' SCREEN. It took reading pixels off the presented window to see it.
     dim as any ptr dirtybuf = callocate( h )
-    if dirtybuf = 0 then
+    if dirtybuf = nullptr then
         for i as integer = 0 to num_pages - 1
             deallocate( TheScreen.page(i) )
-            TheScreen.page(i) = 0
+            TheScreen.page(i) = nullptr
         next
         return FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
@@ -141,7 +141,7 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
     ScreenBindPages( )
     ViewportInit( ScreenCtx.vp, w, h )
     DrawStateInit( ScreenCtx.draw, bpp * 8 )
-    ScreenCtx.target = 0
+    ScreenCtx.target = nullptr
     ScreenCtx.inuse = 1
 
     '' EVERY PAGE STARTS AT THE BACKGROUND COLOUR, not at zero. set_mode fills
@@ -195,10 +195,10 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
         WindowClose( TheScreen.wnd )
         for i as integer = 0 to num_pages - 1
             deallocate( TheScreen.page(i) )
-            TheScreen.page(i) = 0
+            TheScreen.page(i) = nullptr
         next
         deallocate( dirtybuf )
-        TheScreen.dirty = 0
+        TheScreen.dirty = nullptr
         TheScreen.num_pages = 0
         ScreenCtx.inuse = 0
         return FB_RTERROR_ILLEGALFUNCTIONCALL
@@ -347,7 +347,7 @@ end function
 '' THE POINTER IS THE SURFACE'S FORMAT, which is the depth ScreenOpen chose --
 '' `pitch` bytes per row, `bpp` bytes per pixel.
 function TkoGfxScreenPtr alias "fb_GfxScreenPtr" ( ) as any ptr
-    if TkoGfx.TheScreen.isOpen = 0 then return 0
+    if TkoGfx.TheScreen.isOpen = 0 then return nullptr
     return TkoGfx.ScreenCtx.surf.pixels
 end function
 

@@ -95,7 +95,7 @@ end sub
 private function BmpSave32( _
         byref path as string, byval img as TkoAbi.PUT_HEADER ptr ) as long
 
-    if img = 0 then return 1
+    if img = nullptr then return 1
     if img->bpp <> 4 then return 1
 
     dim as long w = img->width, h = img->height
@@ -121,7 +121,7 @@ private function BmpSave8( _
         byref path as string, byval img as TkoAbi.PUT_HEADER ptr, _
         byref pal as GfxPalette ) as long
 
-    if img = 0 then return 1
+    if img = nullptr then return 1
     if img->bpp <> 1 then return 1
 
     dim as long w = img->width, h = img->height

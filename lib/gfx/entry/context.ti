@@ -163,8 +163,8 @@ end sub
 '' given, or an image whose header does not read. Every caller must check: an
 '' entry point on a closed screen is a no-op in fbc, not a fault.
 private function ContextFor( byval target as any ptr ) as GfxContext ptr
-    if target = 0 then
-        if TheScreen.isOpen = 0 then return 0
+    if target = nullptr then
+        if TheScreen.isOpen = 0 then return nullptr
         return @ScreenCtx
     end if
 
@@ -174,7 +174,7 @@ private function ContextFor( byval target as any ptr ) as GfxContext ptr
     '' it. The other order is the aliasing defect in the file header.
     dim as long w, h, bpp, pitch, size
     dim as any ptr px
-    if TkoImageQuery( img, w, h, bpp, pitch, px, size ) <> 0 then return 0
+    if TkoImageQuery( img, w, h, bpp, pitch, px, size ) <> 0 then return nullptr
 
     for i as integer = 0 to GFXCTX_IMAGES - 1
         if ImageCtx(i).inuse andalso (ImageCtx(i).target = target) then
@@ -196,7 +196,7 @@ private function ContextFor( byval target as any ptr ) as GfxContext ptr
     dim as long slot = ImageCtxNext
     ImageCtxNext = (ImageCtxNext + 1) mod GFXCTX_IMAGES
     ContextBindImage( ImageCtx(slot), img )
-    if ImageCtx(slot).inuse = 0 then return 0
+    if ImageCtx(slot).inuse = 0 then return nullptr
     return @ImageCtx(slot)
 end function
 
@@ -204,11 +204,11 @@ end function
 '' later image at the same address cannot find a stale entry even if its
 '' geometry happens to match.
 private sub ContextForget( byval target as any ptr )
-    if target = 0 then exit sub
+    if target = nullptr then exit sub
     for i as integer = 0 to GFXCTX_IMAGES - 1
         if ImageCtx(i).target = target then
             ImageCtx(i).inuse = 0
-            ImageCtx(i).target = 0
+            ImageCtx(i).target = nullptr
         end if
     next
 end sub
@@ -219,8 +219,8 @@ end sub
 '' two entry points are most often handed, because `DRAW "R10"` is a temporary.
 private function StrFromDescriptor( byval p as any ptr ) as string
     dim as TkoAbi.FBSTRING ptr s = cptr( TkoAbi.FBSTRING ptr, p )
-    if s = 0 then return ""
-    if s->dat = 0 then return ""
+    if s = nullptr then return ""
+    if s->dat = nullptr then return ""
     dim as integer n = s->len
     if n < 0 then n and= not (cast( integer, 1 ) shl (sizeof( integer ) * 8 - 1))
     if n <= 0 then return ""
@@ -264,7 +264,7 @@ end sub
 '' than reset by SCREEN, which also catches a mode change arriving by a route
 '' this file does not know about.
 private function PaletteCurrent( ) as GfxPalette ptr
-    if TheScreen.isOpen = 0 then return 0
+    if TheScreen.isOpen = 0 then return nullptr
     if TheScreen.mode <> ThePaletteMode then
         ThePaletteReady = 0
         ThePaletteMode = TheScreen.mode
@@ -321,20 +321,20 @@ private sub ScreenTeardown( )
     end if
     WindowClose( TheScreen.wnd )
     for i as integer = 0 to CELL_MAX_PAGES - 1
-        if TheScreen.page(i) <> 0 then
+        if TheScreen.page(i) <> nullptr then
             deallocate( TheScreen.page(i) )
-            TheScreen.page(i) = 0
+            TheScreen.page(i) = nullptr
         end if
     next
     TheScreen.num_pages = 0
     TheScreen.work_page = 0
     TheScreen.visible_page = 0
-    if TheScreen.dirty <> 0 then
+    if TheScreen.dirty <> nullptr then
         deallocate( TheScreen.dirty )
-        TheScreen.dirty = 0
+        TheScreen.dirty = nullptr
     end if
-    SurfaceInit( TheScreen.present, 0, 0, 0, 0, 0 )
-    SurfaceInit( ScreenCtx.surf, 0, 0, 0, 0, 0 )
+    SurfaceInit( TheScreen.present, nullptr, 0, 0, 0, 0 )
+    SurfaceInit( ScreenCtx.surf, nullptr, 0, 0, 0, 0 )
     ViewportInit( ScreenCtx.vp, 0, 0 )
     ScreenCtx.inuse = 0
     TheScreen.mode = 0
@@ -351,7 +351,7 @@ private sub ScreenBindPages( )
     if TheScreen.work_page = TheScreen.visible_page then
         ScreenCtx.surf.dirty = TheScreen.dirty
     else
-        ScreenCtx.surf.dirty = 0
+        ScreenCtx.surf.dirty = nullptr
     end if
 end sub
 

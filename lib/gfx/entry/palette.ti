@@ -56,7 +56,7 @@ sub TkoGfxPalette alias "fb_GfxPalette" ( _
         byval r as long, byval g as long, byval b as long )
 
     dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
-    if p = 0 then exit sub
+    if p = nullptr then exit sub
 
     if index < 0 then
         TkoGfx.PaletteForget( )
@@ -84,18 +84,18 @@ sub TkoGfxPaletteGet alias "fb_GfxPaletteGet" ( _
         byval r as long ptr, byval g as long ptr, byval b as long ptr )
 
     dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
-    if p = 0 then exit sub
+    if p = nullptr then exit sub
 
-    if (g = 0) andalso (b = 0) then
-        if r <> 0 then *r = TkoGfx.PaletteGetPacked( *p, index )
+    if (g = nullptr) andalso (b = nullptr) then
+        if r <> nullptr then *r = TkoGfx.PaletteGetPacked( *p, index )
         exit sub
     end if
 
     dim as long rr, gg, bb
     TkoGfx.PaletteGetRgb( *p, index, rr, gg, bb )
-    if r <> 0 then *r = rr
-    if g <> 0 then *g = gg
-    if b <> 0 then *b = bb
+    if r <> nullptr then *r = rr
+    if g <> nullptr then *g = gg
+    if b <> nullptr then *b = bb
 end sub
 
 '' The same, through a caller array of FreeBASIC `integer` -- 64-bit on win64.
@@ -105,18 +105,18 @@ sub TkoGfxPaletteGet64 alias "fb_GfxPaletteGet64" ( _
         byval r as longint ptr, byval g as longint ptr, byval b as longint ptr )
 
     dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
-    if p = 0 then exit sub
+    if p = nullptr then exit sub
 
-    if (g = 0) andalso (b = 0) then
-        if r <> 0 then *r = TkoGfx.PaletteGetPacked( *p, index )
+    if (g = nullptr) andalso (b = nullptr) then
+        if r <> nullptr then *r = TkoGfx.PaletteGetPacked( *p, index )
         exit sub
     end if
 
     dim as long rr, gg, bb
     TkoGfx.PaletteGetRgb( *p, index, rr, gg, bb )
-    if r <> 0 then *r = rr
-    if g <> 0 then *g = gg
-    if b <> 0 then *b = bb
+    if r <> nullptr then *r = rr
+    if g <> nullptr then *g = gg
+    if b <> nullptr then *b = bb
 end sub
 
 '' PALETTE USING array(0)
@@ -158,7 +158,7 @@ end function
 
 sub TkoGfxPaletteUsing alias "fb_GfxPaletteUsing" ( byval src as long ptr )
     dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
-    if (p = 0) orelse (src = 0) then exit sub
+    if (p = nullptr) orelse (src = nullptr) then exit sub
     dim as long n = PaletteUsingCount_( )
     for i as integer = 0 to n - 1
         if src[i] >= 0 then TkoGfx.PaletteSetPacked( *p, i, cast( ulong, src[i] ) )
@@ -168,7 +168,7 @@ end sub
 
 sub TkoGfxPaletteUsing64 alias "fb_GfxPaletteUsing64" ( byval src as longint ptr )
     dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
-    if (p = 0) orelse (src = 0) then exit sub
+    if (p = nullptr) orelse (src = nullptr) then exit sub
     dim as long n = PaletteUsingCount_( )
     for i as integer = 0 to n - 1
         if src[i] >= 0 then TkoGfx.PaletteSetPacked( *p, i, cast( ulong, src[i] ) )
@@ -179,7 +179,7 @@ end sub
 '' PALETTE GET USING array(0) -- the same, outward.
 sub TkoGfxPaletteGetUsing alias "fb_GfxPaletteGetUsing" ( byval dst as long ptr )
     dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
-    if (p = 0) orelse (dst = 0) then exit sub
+    if (p = nullptr) orelse (dst = nullptr) then exit sub
     dim as long n = PaletteGetUsingCount_( )      '' see PaletteUsingCount_
     for i as integer = 0 to n - 1
         dst[i] = TkoGfx.PaletteGetPacked( *p, i )
@@ -188,7 +188,7 @@ end sub
 
 sub TkoGfxPaletteGetUsing64 alias "fb_GfxPaletteGetUsing64" ( byval dst as longint ptr )
     dim as TkoGfx.GfxPalette ptr p = TkoGfx.PaletteCurrent( )
-    if (p = 0) orelse (dst = 0) then exit sub
+    if (p = nullptr) orelse (dst = nullptr) then exit sub
     dim as long n = PaletteGetUsingCount_( )
     for i as integer = 0 to n - 1
         dst[i] = TkoGfx.PaletteGetPacked( *p, i )

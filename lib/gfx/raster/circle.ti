@@ -112,7 +112,7 @@ private sub DrawEllipse##suffix( _
     if clip_h <= 0 then exit sub
 
     dim as ubyte ptr filled = callocate( clip_h )
-    if filled = 0 then exit sub
+    if filled = nullptr then exit sub
 
     '' fix(), not an implicit cast: C truncates here.
     dim as long x1 = fix( x - a )

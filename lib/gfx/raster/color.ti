@@ -95,7 +95,7 @@ private function Color32( _
         byval fg as ulong, byval bg as ulong, _
         byval flags as long, _
         byval mode as long = 0, _
-        byval pal as GfxPalette ptr = 0 ) as ulong
+        byval pal as GfxPalette ptr = nullptr ) as ulong
 
     dim as ulong cur
 
@@ -117,7 +117,7 @@ private function Color32( _
     select case mode
     case 1
         '' Both colours are palette operations; neither drawing colour changes.
-        if pal <> 0 then
+        if pal <> nullptr then
             if (flags and FB_COLOR_BG_DEFAULT) = 0 then
                 PaletteSetPacked( *pal, -(4 - (cast( long, bg ) and 3)), 0 )
             end if
@@ -133,7 +133,7 @@ private function Color32( _
         end if
         if (flags and FB_COLOR_BG_DEFAULT) = 0 then
             '' the background goes to palette entry 0, NOT to bg_color
-            if pal <> 0 then PaletteSetPacked( *pal, 0, bg )
+            if pal <> nullptr then PaletteSetPacked( *pal, 0, bg )
         end if
         return cur
     end select

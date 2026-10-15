@@ -68,10 +68,10 @@ end type
 private function CellAt( _
         byref cp as CellPlane, byval page as long, _
         byval col0 as long, byval row0 as long ) as CharCell ptr
-    if (page < 0) orelse (page >= cp.num_pages) then return 0
-    if cp.cell(page) = 0 then return 0
-    if (col0 < 0) orelse (col0 >= cp.text_w) then return 0
-    if (row0 < 0) orelse (row0 >= cp.text_h) then return 0
+    if (page < 0) orelse (page >= cp.num_pages) then return nullptr
+    if cp.cell(page) = nullptr then return nullptr
+    if (col0 < 0) orelse (col0 >= cp.text_w) then return nullptr
+    if (row0 < 0) orelse (row0 >= cp.text_h) then return nullptr
     return cp.cell(page) + (row0 * cp.text_w) + col0
 end function
 
@@ -85,12 +85,12 @@ private sub CellsClear( _
         byval ch as ulong, byval fg as ulong, byval bg as ulong )
 
     if (page < 0) orelse (page >= cp.num_pages) then exit sub
-    if cp.cell(page) = 0 then exit sub
+    if cp.cell(page) = nullptr then exit sub
 
     for y as integer = y1 to y2 - 1
         for x as integer = x1 to x2 - 1
             dim as CharCell ptr c = CellAt( cp, page, x, y )
-            if c <> 0 then
+            if c <> nullptr then
                 c->ch = ch
                 c->fg = fg
                 c->bg = bg
@@ -101,9 +101,9 @@ end sub
 
 private sub CellsFree( byref cp as CellPlane )
     for i as integer = 0 to CELL_MAX_PAGES - 1
-        if cp.cell(i) <> 0 then
+        if cp.cell(i) <> nullptr then
             deallocate( cp.cell(i) )
-            cp.cell(i) = 0
+            cp.cell(i) = nullptr
         end if
     next
     cp.num_pages = 0
@@ -128,7 +128,7 @@ private function CellsReset( _
     dim as uinteger n = cast( uinteger, text_w ) * cast( uinteger, text_h )
     for i as integer = 0 to num_pages - 1
         cp.cell(i) = callocate( n, sizeof( CharCell ) )
-        if cp.cell(i) = 0 then
+        if cp.cell(i) = nullptr then
             CellsFree( cp )
             return 0
         end if
@@ -153,7 +153,7 @@ private function CellReadXY( _
     if (row < 1) orelse (row > cp.text_h) then return 0
 
     dim as CharCell ptr c = CellAt( cp, work_page, col - 1, row - 1 )
-    if c = 0 then return 0
+    if c = nullptr then return 0
 
     if colorflag = 0 then return c->ch
 
@@ -241,7 +241,7 @@ private function CellPageCopy( _
     if (from_page < 0) orelse (from_page >= cp.num_pages) then return 0
     if (to_page < 0) orelse (to_page >= cp.num_pages) then return 0
     if from_page = to_page then return 1
-    if (cp.cell(from_page) = 0) orelse (cp.cell(to_page) = 0) then return 0
+    if (cp.cell(from_page) = nullptr) orelse (cp.cell(to_page) = nullptr) then return 0
 
     dim as uinteger n = cast( uinteger, cp.text_w ) * cast( uinteger, cp.text_h )
     memcpy( cp.cell(to_page), cp.cell(from_page), n * sizeof( CharCell ) )

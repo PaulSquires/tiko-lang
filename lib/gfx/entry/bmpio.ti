@@ -334,7 +334,7 @@ private function BlLoadBmp( _
     dim as GfxPalette ptr dp = PaletteCurrent( )
     if pal then
         for i as long = 0 to palette_entries - 1 : pal[i] = ptab(i) : next
-    elseif dp <> 0 then
+    elseif dp <> nullptr then
         for i as long = 0 to palette_entries - 1 : dp->entry(i) = ptab(i) : next
         PaletteLutRebuild( )
     end if
@@ -387,7 +387,7 @@ private function BlLoadBmp( _
     wend
 
     '' SET_DIRTY( ctx, 0, h ): a no-op for an image, and for a hidden page.
-    if dest = 0 then DirtyMark( ScreenCtx.surf, 0, ScreenCtx.surf.h )
+    if dest = nullptr then DirtyMark( ScreenCtx.surf, 0, ScreenCtx.surf.h )
     WindowUnlock( TheScreen.wnd )
     deallocate( buffer )
     return result
@@ -396,13 +396,13 @@ end function
 '' gfx_bload.
 private function BlLoad( byref fn as string, byval dest as any ptr, byval pal as ulong ptr ) as long
     RtlErrorSetNum( TkoAbi.FB_RTERROR_OK )
-    if (dest = 0) andalso (TheScreen.isOpen = 0) then
+    if (dest = nullptr) andalso (TheScreen.isOpen = 0) then
         RtlErrorSetNum( TkoAbi.FB_RTERROR_ILLEGALFUNCTIONCALL )
         return TkoAbi.FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
 
     dim as FILE ptr f = fopen( fn, "rb" )
-    if f = 0 then
+    if f = nullptr then
         RtlErrorSetNum( TkoAbi.FB_RTERROR_FILENOTFOUND )
         return TkoAbi.FB_RTERROR_FILENOTFOUND
     end if
@@ -434,7 +434,7 @@ private function BlLoad( byref fn as string, byval dest as any ptr, byval pal as
     end select
 
     if result = TkoAbi.FB_RTERROR_OK then
-        if dest = 0 then
+        if dest = nullptr then
             WindowLock( TheScreen.wnd )
             dim as ulong cap = cast( ulong, ScreenCtx.surf.pitch * ScreenCtx.surf.h )
             if size > cap then size = cap
@@ -458,7 +458,7 @@ private function BlLoad( byref fn as string, byval dest as any ptr, byval pal as
                         dp->entry(i) = (colour shl 2) and &hFCFCFC
                     end if
                 next
-                if (pal = 0) andalso (dp <> 0) then PaletteLutRebuild( )
+                if (pal = nullptr) andalso (dp <> nullptr) then PaletteLutRebuild( )
             end if
             WindowUnlock( TheScreen.wnd )
         else
@@ -512,7 +512,7 @@ private function BlSaveBmp( byval f as FILE ptr, byval src as any ptr, byval pal
         inpitch = ScreenCtx.surf.pitch
     end if
 
-    if (w <= 0) orelse (h <= 0) orelse (s = 0) orelse (inpitch < w * inbpp) then
+    if (w <= 0) orelse (h <= 0) orelse (s = nullptr) orelse (inpitch < w * inbpp) then
         return TkoAbi.FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
 
@@ -554,7 +554,7 @@ private function BlSaveBmp( byval f as FILE ptr, byval src as any ptr, byval pal
     '' red where blue belongs -- see the file header.
     dim as ulong ptab(0 to 255)
     if inbpp = 1 then
-        if pal = 0 then
+        if pal = nullptr then
             dim as GfxPalette ptr dp = PaletteCurrent( )
             if dp then
                 for i as long = 0 to 255 : ptab(i) = dp->entry(i) : next
@@ -619,7 +619,7 @@ private function BlSave( _
 
     RtlErrorSetNum( TkoAbi.FB_RTERROR_OK )
     dim as FILE ptr f = fopen( fn, "wb" )
-    if f = 0 then
+    if f = nullptr then
         RtlErrorSetNum( TkoAbi.FB_RTERROR_FILENOTFOUND )
         return TkoAbi.FB_RTERROR_FILENOTFOUND
     end if
@@ -632,7 +632,7 @@ private function BlSave( _
     if isBmp then
         result = BlSaveBmp( f, src, pal )
     else
-        if (size = 0) andalso (src <> 0) then
+        if (size = 0) andalso (src <> nullptr) then
             '' an image to a raw block: refused, after the file was created empty
             fclose( f )
             RtlErrorSetNum( TkoAbi.FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -646,7 +646,7 @@ private function BlSave( _
         fputc( (size shr 16) and &hFF, f )
         fputc( (size shr 24) and &hFF, f )
 
-        if src = 0 then
+        if src = nullptr then
             if TheScreen.isOpen = 0 then
                 result = TkoAbi.FB_RTERROR_ILLEGALFUNCTIONCALL
             else

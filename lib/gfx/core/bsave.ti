@@ -44,7 +44,7 @@ const BSAVE_MAGIC = &hFE
 private function BSaveRaw( _
         byref path as string, byval src_ as any ptr, byval size as ulong ) as long
 
-    if (src_ = 0) andalso (size > 0) then return 1
+    if (src_ = nullptr) andalso (size > 0) then return 1
 
     dim as long f = freefile
     if open( path, for binary, access write, as #f ) <> 0 then return 1
@@ -95,7 +95,7 @@ private function BLoadRaw( _
 
     dim as ulong n = got
     if n > maxsize then n = maxsize
-    if (n > 0) andalso (dest <> 0) then
+    if (n > 0) andalso (dest <> nullptr) then
         dim as ubyte ptr p = cptr( ubyte ptr, dest )
         get #f, , *p, n
     end if

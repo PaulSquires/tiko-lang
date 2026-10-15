@@ -31,7 +31,7 @@ sub TkoGfxDraw alias "fb_GfxDraw" ( _
     RtlStrDelTemp( cmd )
 
     dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( target )
-    if c = 0 then exit sub
+    if c = nullptr then exit sub
     if len( text ) = 0 then exit sub
 
     TkoGfx.Draw32( c->surf, text, c->draw.last_x, c->draw.last_y, _
@@ -96,7 +96,7 @@ function TkoGfxDrawString alias "fb_GfxDrawString" ( _
     RtlStrDelTemp( text )
 
     dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( target )
-    if c = 0 then return FB_RTERROR_ILLEGALFUNCTIONCALL
+    if c = nullptr then return FB_RTERROR_ILLEGALFUNCTIONCALL
     if len( s ) = 0 then return 0
 
     dim as long x, y
@@ -116,7 +116,7 @@ function TkoGfxDrawString alias "fb_GfxDrawString" ( _
     dim as long fidx = TkoGfx.FontIndexForMode( TkoGfx.TheScreen.mode )
     if fidx < 0 then fidx = 0
     '' font_ is named and NOT honoured -- see the header.
-    if font_ = 0 then : end if
+    if font_ = nullptr then : end if
 
     '' EVERY MODE IS TRANSPARENT, INCLUDING PSET. Measured: with the screen
     '' pre-filled &h777777, `draw string (4,16), "A", &hFFFFFF, , PSET` leaves

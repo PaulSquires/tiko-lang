@@ -71,8 +71,8 @@ end function
 private function TkoImageNew( _
         byval w as long, byval h as long, byval bpp as long ) as TkoAbi.PUT_HEADER ptr
 
-    if (w <= 0) orelse (h <= 0) then return 0
-    if (bpp <> 1) andalso (bpp <> 2) andalso (bpp <> 4) then return 0
+    if (w <= 0) orelse (h <= 0) then return nullptr
+    if (bpp <> 1) andalso (bpp <> 2) andalso (bpp <> 4) then return nullptr
 
     dim as long pitch = ImagePitch( w, bpp )
     dim as integer bytes = cast( integer, pitch ) * h
@@ -80,7 +80,7 @@ private function TkoImageNew( _
     '' Room for the header, the pixels, the stashed pointer, and slack to align.
     dim as integer p_size = sizeof( any ptr )
     dim as any ptr raw = allocate( bytes + IMAGE_HEADER_SIZE + p_size + 16 )
-    if raw = 0 then return 0
+    if raw = nullptr then return nullptr
 
     dim as integer addr_ = cast( integer, raw ) + p_size + 15
     addr_ = addr_ and (not 15)
@@ -103,21 +103,21 @@ private function TkoImageNew( _
 end function
 
 private sub TkoImageFree( byval img as TkoAbi.PUT_HEADER ptr )
-    if img = 0 then exit sub
+    if img = nullptr then exit sub
     dim as any ptr raw = cptr( any ptr ptr, img )[-1]
-    if raw <> 0 then deallocate( raw )
+    if raw <> nullptr then deallocate( raw )
 end sub
 
 '' First pixel byte. Always header + 32 for a new-style image.
 private function TkoImagePixels( byval img as TkoAbi.PUT_HEADER ptr ) as ubyte ptr
-    if img = 0 then return 0
+    if img = nullptr then return nullptr
     return cptr( ubyte ptr, img ) + IMAGE_HEADER_SIZE
 end function
 
 '' Point a Surface at an image's pixels. The Surface borrows; destroying the
 '' image invalidates it.
 private sub SurfaceFromImage( byref s as Surface, byval img as TkoAbi.PUT_HEADER ptr )
-    if img = 0 then exit sub
+    if img = nullptr then exit sub
     SurfaceInit( s, TkoImagePixels( img ), img->width, img->height, img->pitch, img->bpp )
 end sub
 
@@ -128,9 +128,9 @@ private function TkoImageQuery( _
         byref w as long, byref h as long, byref bpp as long, byref pitch as long, _
         byref pixels as any ptr, byref size as long ) as long
 
-    if (img = 0) orelse (img->htype = 0) then
+    if (img = nullptr) orelse (img->htype = 0) then
         w = -1 : h = -1 : bpp = -1 : pitch = -1 : size = -1
-        pixels = 0
+        pixels = nullptr
         return 1
     end if
 

@@ -213,7 +213,7 @@ end sub
 private sub PutCustom32( byval src as any ptr, byval dst as any ptr, _
         byval w as long, byval h as long, byval src_pitch as long, byval dst_pitch as long, _
         byval blender as PutBlender, byval param as any ptr )
-    if blender = 0 then exit sub
+    if blender = nullptr then exit sub
     dim as integer row = 0
     while row < h
         dim as ulong ptr s = cptr( ulong ptr, cptr( ubyte ptr, src ) + row * src_pitch )

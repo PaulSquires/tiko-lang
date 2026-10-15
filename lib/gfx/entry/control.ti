@@ -212,7 +212,7 @@ end sub
 '' screen. There is no GL, so GET_GL_EXTENSIONS is always "". SET_DRIVER_NAME is
 '' accepted and chooses nothing: there is one driver.
 sub TkoGfxControl_s alias "fb_GfxControl_s" ( byval what as long, byval param as any ptr )
-    if param = 0 then exit sub
+    if param = nullptr then exit sub
     select case what
     case TkoGfx.GET_WINDOW_TITLE
         dim as string t
@@ -245,7 +245,7 @@ end sub
 function TkoGfxGetGLProcAddress alias "fb_GfxGetGLProcAddress" ( _
         byval proc_name as const zstring ptr ) as any ptr
     scope : dim as const zstring ptr ignored = proc_name : end scope
-    return 0
+    return nullptr
 end function
 
 end extern

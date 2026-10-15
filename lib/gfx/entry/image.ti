@@ -87,7 +87,7 @@ function TkoGfxImageCreate alias "fb_GfxImageCreate" ( _
         byval depth as long, _
         byval flags as long ) as any ptr
 
-    if (w <= 0) orelse (h <= 0) then return 0
+    if (w <= 0) orelse (h <= 0) then return nullptr
 
     dim as long bpp
     select case depth
@@ -95,11 +95,11 @@ function TkoGfxImageCreate alias "fb_GfxImageCreate" ( _
     case 8  : bpp = 1
     case 15, 16 : bpp = 2
     case 24, 32 : bpp = 4
-    case else : return 0
+    case else : return nullptr
     end select
 
     dim as TkoAbi.PUT_HEADER ptr img = TkoGfx.TkoImageNew( w, h, bpp )
-    if img = 0 then return 0
+    if img = nullptr then return nullptr
 
     dim as ubyte ptr px = TkoGfx.TkoImagePixels( img )
     dim as long pitch = img->pitch
@@ -157,7 +157,7 @@ end function
 '' its IMAGEDESTROY never clears last_target, which is the whole aliasing
 '' defect.
 sub TkoGfxImageDestroy alias "fb_GfxImageDestroy" ( byval img as any ptr )
-    if img = 0 then exit sub
+    if img = nullptr then exit sub
     TkoGfx.ContextForget( img )
     TkoGfx.TkoImageFree( cptr( TkoAbi.PUT_HEADER ptr, img ) )
 end sub
@@ -182,7 +182,7 @@ function TkoGfxGet alias "fb_GfxGet" ( _
         byval arr as any ptr ) as long
 
     dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( target )
-    if (c = 0) orelse (dest = 0) then return FB_RTERROR_ILLEGALFUNCTIONCALL
+    if (c = nullptr) orelse (dest = nullptr) then return FB_RTERROR_ILLEGALFUNCTIONCALL
 
     dim as long x1, y1, x2, y2
     TkoGfx.CoordA( *c, fx1, fy1, fx2, fy2, flags, x1, y1, x2, y2 )
@@ -202,7 +202,7 @@ function TkoGfxGet alias "fb_GfxGet" ( _
     dim as long bpp = c->surf.bpp
     dim as long pitch = TkoGfx.ImagePitch( w, bpp )
 
-    if arr <> 0 then
+    if arr <> nullptr then
         '' The descriptor's byte size is the one real bound there is.
         dim as TkoAbi.FBARRAY ptr a = cptr( TkoAbi.FBARRAY ptr, arr )
         if a->size < (cast( integer, pitch ) * h + TkoGfx.IMAGE_HEADER_SIZE) then
@@ -251,7 +251,7 @@ function TkoGfxPut alias "fb_GfxPut" ( _
     scope : dim as any ptr ignored = blender : end scope
 
     dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( target )
-    if (c = 0) orelse (src = 0) then return FB_RTERROR_ILLEGALFUNCTIONCALL
+    if (c = nullptr) orelse (src = nullptr) then return FB_RTERROR_ILLEGALFUNCTIONCALL
 
     dim as long sw, sh, sbpp, spitch, ssize
     dim as any ptr spx
@@ -312,23 +312,23 @@ function TkoGfxPut alias "fb_GfxPut" ( _
 
     select case mode
     case TkoGfx.PUTMODE_TRANS
-        TkoPutTrans( sp, dp, w, h, spitch, c->surf.pitch, 0, 0, 0 )
+        TkoPutTrans( sp, dp, w, h, spitch, c->surf.pitch, 0, nullptr, nullptr )
     case TkoGfx.PUTMODE_PSET
-        TkoPutPSet( sp, dp, w, h, spitch, c->surf.pitch, 0, 0, 0 )
+        TkoPutPSet( sp, dp, w, h, spitch, c->surf.pitch, 0, nullptr, nullptr )
     case TkoGfx.PUTMODE_PRESET
-        TkoPutPReset( sp, dp, dwords, h, spitch, c->surf.pitch, 0, 0, 0 )
+        TkoPutPReset( sp, dp, dwords, h, spitch, c->surf.pitch, 0, nullptr, nullptr )
     case TkoGfx.PUTMODE_AND
-        TkoPutAnd( sp, dp, dwords, h, spitch, c->surf.pitch, 0, 0, 0 )
+        TkoPutAnd( sp, dp, dwords, h, spitch, c->surf.pitch, 0, nullptr, nullptr )
     case TkoGfx.PUTMODE_OR
-        TkoPutOr( sp, dp, dwords, h, spitch, c->surf.pitch, 0, 0, 0 )
+        TkoPutOr( sp, dp, dwords, h, spitch, c->surf.pitch, 0, nullptr, nullptr )
     case TkoGfx.PUTMODE_XOR
-        TkoPutXor( sp, dp, dwords, h, spitch, c->surf.pitch, 0, 0, 0 )
+        TkoPutXor( sp, dp, dwords, h, spitch, c->surf.pitch, 0, nullptr, nullptr )
     case TkoGfx.PUTMODE_ALPHA
-        TkoPutAlpha( sp, dp, w, h, spitch, c->surf.pitch, 0, 0, 0 )
+        TkoPutAlpha( sp, dp, w, h, spitch, c->surf.pitch, 0, nullptr, nullptr )
     case TkoGfx.PUTMODE_BLEND
-        TkoPutBlend( sp, dp, w, h, spitch, c->surf.pitch, alpha, 0, 0 )
+        TkoPutBlend( sp, dp, w, h, spitch, c->surf.pitch, alpha, nullptr, nullptr )
     case TkoGfx.PUTMODE_CUSTOM
-        if customproc = 0 then return FB_RTERROR_ILLEGALFUNCTIONCALL
+        if customproc = nullptr then return FB_RTERROR_ILLEGALFUNCTIONCALL
         TkoPutCustom( sp, dp, w, h, spitch, c->surf.pitch, 0, customproc, customparam )
     case else
         return FB_RTERROR_ILLEGALFUNCTIONCALL

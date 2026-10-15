@@ -91,7 +91,7 @@ dim shared as ConsoleState TheCon
 private sub ConDrawCell( byval c as long, byval r as long )
     if (c < 0) orelse (r < 0) orelse (c >= TheCon.cols) orelse (r >= TheCon.rows) then exit sub
     dim as CharCell ptr cell = CellAt( TheCon.cp, TheScreen.work_page, c, r )
-    if cell = 0 then exit sub
+    if cell = nullptr then exit sub
     DrawGlyph( ScreenCtx.surf, c * FONT_WIDTH, r * TheCon.fh, _
                cell->ch, TheCon.fidx, cell->fg, cell->bg )
 end sub
@@ -147,12 +147,12 @@ private sub ConScroll( )
         for c as integer = 0 to TheCon.cols - 1
             dim as CharCell ptr dst = CellAt( TheCon.cp, TheScreen.work_page, c, r )
             dim as CharCell ptr src = CellAt( TheCon.cp, TheScreen.work_page, c, r + 1 )
-            if (dst <> 0) andalso (src <> 0) then *dst = *src
+            if (dst <> nullptr) andalso (src <> nullptr) then *dst = *src
         next
     next
     for c as integer = 0 to TheCon.cols - 1
         dim as CharCell ptr dst = CellAt( TheCon.cp, TheScreen.work_page, c, bot )
-        if dst <> 0 then
+        if dst <> nullptr then
             dst->ch = 32
             dst->fg = TheCon.fg
             dst->bg = TheCon.bg
@@ -215,7 +215,7 @@ private sub ConPutChar( byval ch as long )
     if TheCon.col >= TheCon.cols then ConNewline( )
 
     dim as CharCell ptr cell = CellAt( TheCon.cp, TheScreen.work_page, TheCon.col, TheCon.row )
-    if cell <> 0 then
+    if cell <> nullptr then
         cell->ch = ch and &hFF
         cell->fg = TheCon.fg
         cell->bg = TheCon.bg
@@ -235,7 +235,7 @@ private sub ConPutCaretCell( )
     if TheCon.col >= TheCon.cols then ConNewline( )
 
     dim as CharCell ptr cell = CellAt( TheCon.cp, TheScreen.work_page, TheCon.col, TheCon.row )
-    if cell <> 0 then
+    if cell <> nullptr then
         cell->ch = 255
         cell->fg = TheCon.fg
         cell->bg = TheCon.bg
@@ -320,7 +320,7 @@ end sub
 '' and calls its narrow one, and the mask -- the PAD and NEWLINE bits -- is
 '' applied once, after whatever text there was.
 private sub ConPrintNarrow( byval p as ubyte ptr, byval n as long, byval mask as long )
-    if (p <> 0) andalso (n > 0) then ConPrintTty( p, n )
+    if (p <> nullptr) andalso (n > 0) then ConPrintTty( p, n )
 
     '' PAD is what `PRINT x,` asks for: advance to the next 14-column zone.
     if (mask and FB_PRINT_PAD) <> 0 then
@@ -339,7 +339,7 @@ end sub
 '' exports no symbol for it, so binding it compiles, archives, and then fails to
 '' link. tiko-rt's src/io/conprintw.tiko hit exactly that and counts its own.
 private function WideLen( byval s as wstring ptr ) as long
-    if s = 0 then return 0
+    if s = nullptr then return 0
     dim as long n = 0
     while s[n] <> 0
         n += 1
@@ -643,17 +643,17 @@ sub TkoConPrintBuffW cdecl ( byval buffer as const any ptr, _
     if TkoGfx.TheCon.live = 0 then exit sub
 
     dim as integer n = cast( integer, length )
-    if (buffer = 0) orelse (n <= 0) then
+    if (buffer = nullptr) orelse (n <= 0) then
         '' THE MASK STILL APPLIES with nothing to print: `print wstr("")` is a
         '' newline and reaches here with a length of zero.
-        TkoGfx.ConPrintNarrow( 0, 0, mask )
+        TkoGfx.ConPrintNarrow( nullptr, 0, mask )
         exit sub
     end if
 
     '' The conversion writes a terminator past dst_chars, so the buffer is one
     '' byte longer than the count asked for.
     dim as ubyte ptr tmp = callocate( n + 1 )
-    if tmp = 0 then exit sub
+    if tmp = nullptr then exit sub
     fb_wstr_ConvToA_( cptr( zstring ptr, tmp ), n, cptr( wstring ptr, buffer ) )
     TkoGfx.ConPrintNarrow( tmp, cast( long, n ), mask )
     deallocate( tmp )
@@ -674,7 +674,7 @@ sub TkoConCls cdecl ( byval mode as long )
     for r as integer = TkoGfx.TheCon.viewtop to TkoGfx.TheCon.viewbot
         for c as integer = 0 to TkoGfx.TheCon.cols - 1
             dim as TkoGfx.CharCell ptr cell = TkoGfx.CellAt( TkoGfx.TheCon.cp, TkoGfx.TheScreen.work_page, c, r )
-            if cell <> 0 then
+            if cell <> nullptr then
                 cell->ch = 32
                 cell->fg = TkoGfx.TheCon.fg
                 cell->bg = TkoGfx.TheCon.bg
@@ -731,13 +731,13 @@ function TkoConGetY cdecl ( ) as long
 end function
 
 sub TkoConGetXY cdecl ( byval col as long ptr, byval row as long ptr )
-    if col <> 0 then *col = TkoConGetX( )
-    if row <> 0 then *row = TkoConGetY( )
+    if col <> nullptr then *col = TkoConGetX( )
+    if row <> nullptr then *row = TkoConGetY( )
 end sub
 
 sub TkoConGetSize cdecl ( byval cols as long ptr, byval rows as long ptr )
-    if cols <> 0 then *cols = TkoGfx.TheCon.cols
-    if rows <> 0 then *rows = TkoGfx.TheCon.rows
+    if cols <> nullptr then *cols = TkoGfx.TheCon.cols
+    if rows <> nullptr then *rows = TkoGfx.TheCon.rows
 end sub
 
 '' SCREEN( row, col [, colorflag] ) -- 1-based, straight out of the cell plane.
@@ -806,11 +806,11 @@ function TkoConLineInputW cdecl ( byval text_ as wstring ptr, _
     '' The prompt goes through the same conversion PRINT of a wstring does, and
     '' is drawn here rather than by the runtime for the same reason the narrow
     '' prompt is: the runtime's console printer is what these hooks displaced.
-    if text_ <> 0 then
+    if text_ <> nullptr then
         dim as integer n = TkoGfx.WideLen( text_ )
         if n > 0 then
             dim as ubyte ptr tmp = callocate( n + 1 )
-            if tmp <> 0 then
+            if tmp <> nullptr then
                 fb_wstr_ConvToA_( cptr( zstring ptr, tmp ), n, text_ )
                 for i as integer = 0 to n - 1
                     TkoGfx.ConPutChar( tmp[i] )
@@ -831,7 +831,7 @@ function TkoConLineInputW cdecl ( byval text_ as wstring ptr, _
         if TkoGfx.TheCon.row > TkoGfx.TheCon.viewtop then TkoGfx.TheCon.row -= 1
     end if
 
-    if dst <> 0 then
+    if dst <> nullptr then
         '' AN EMPTY LINE PASSES A NULL, AND THAT IS FINE -- measured, not
         '' assumed. strptr of an empty var-len string is NULL, and the runtime's
         '' setup macro turns a NULL source into a zero-length one and empties
@@ -1012,11 +1012,11 @@ end function
 
 function TkoConReadStr cdecl ( byval buffer as zstring ptr, _
         byval length_ as integer ) as zstring ptr
-    if (TkoGfx.TheCon.live = 0) orelse (buffer = 0) orelse (length_ <= 0) then return 0
+    if (TkoGfx.TheCon.live = 0) orelse (buffer = nullptr) orelse (length_ <= 0) then return nullptr
 
     '' INPUT's caret is the block, which is what gfxlib2's readstr draws.
     dim as string acc = TkoGfx.ConEditLine( TkoGfx.CARET_BLOCK )
-    if TkoGfx.WindowWasClosed( TkoGfx.TheScreen.wnd ) andalso (len( acc ) = 0) then return 0
+    if TkoGfx.WindowWasClosed( TkoGfx.TheScreen.wnd ) andalso (len( acc ) = 0) then return nullptr
 
     dim as long n = len( acc )
     if n > length_ - 1 then n = length_ - 1
@@ -1066,7 +1066,7 @@ function TkoConLineInput cdecl ( byval text_ as TkoAbi.FBSTRING ptr, _
     '' fb_StrAssign handles both, including the fillrem padding a fixed-length
     '' destination wants -- which is why the branch below only chooses the
     '' arguments and never copies bytes itself.
-    if dst <> 0 then
+    if dst <> nullptr then
         dim as zstring ptr src = iif( len( acc ) > 0, strptr( acc ), cptr( zstring ptr, @"" ) )
         fb_StrAssign_( dst, dst_len, src, 0, fillrem )
     end if

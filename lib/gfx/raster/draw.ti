@@ -191,7 +191,7 @@ private sub Draw32( _
             if (v <> 0) andalso (depth < DRAW_MAX_DEPTH) then
                 '' The number is an FBSTRING descriptor address.
                 dim as TkoAbi.FBSTRING ptr sub_ = cptr( TkoAbi.FBSTRING ptr, cast( integer, v ) )
-                if (sub_ <> 0) andalso (sub_->dat <> 0) andalso (sub_->len > 0) then
+                if (sub_ <> nullptr) andalso (sub_->dat <> nullptr) andalso (sub_->len > 0) then
                     dim as string inner = space( sub_->len )
                     memcpy( strptr( inner ), sub_->dat, sub_->len )
                     '' The cursor and colour carry INTO and OUT OF the substring,

@@ -104,7 +104,7 @@ private function LzwEncode( _
         byval in_buffer as const ubyte ptr, byval in_size as integer, _
         byval out_buffer as ubyte ptr, byref out_size as integer ) as long
 
-    if (in_buffer = 0) orelse (out_buffer = 0) then return -1
+    if (in_buffer = nullptr) orelse (out_buffer = nullptr) then return -1
     '' The C reads the first byte unconditionally, so an empty input reads out
     '' of bounds. Refused here instead.
     if in_size <= 0 then return -1
@@ -203,7 +203,7 @@ private function LzwDecodeString( _
         b += 1
         code = cast( long, t.e(code).prefix )
         index += 1
-        if index >= LZW_MAX_CODE - 1 then return 0
+        if index >= LZW_MAX_CODE - 1 then return nullptr
     wend
     *b = cast( ubyte, code )
     return b
@@ -217,7 +217,7 @@ private function LzwDecode( _
         byval in_buffer as const ubyte ptr, byval in_size as integer, _
         byval out_buffer as ubyte ptr, byref out_size as integer ) as long
 
-    if (in_buffer = 0) orelse (out_buffer = 0) then return -1
+    if (in_buffer = nullptr) orelse (out_buffer = nullptr) then return -1
     if in_size <= 0 then return -1
     if out_size <= 0 then return -1
 
@@ -276,7 +276,7 @@ private function LzwDecode( _
         else
             s = LzwDecodeString( t, @decode_stack(0), cast( long, new_code ) )
         end if
-        if s = 0 then return -1
+        if s = nullptr then return -1
 
         byte_ = *s
         while s >= @decode_stack(0)

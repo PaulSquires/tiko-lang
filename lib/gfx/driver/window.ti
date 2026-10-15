@@ -380,7 +380,7 @@ private function WindowProc cdecl ( _
         return 0
     end if
 
-    if w <> 0 then
+    if w <> nullptr then
         '' The pointer state is fed EVERY message, not just mouse ones -- the
         '' reference recomputes "is the cursor inside" at the top of its window
         '' procedure regardless of what arrived. See driver/mouse.ti note 2.
@@ -396,9 +396,9 @@ private function WindowProc cdecl ( _
         '' does not put the arrow back.
         if msg = WM_SETCURSOR then
             if (w->mouse.on_ <> 0) andalso (w->mouse.shown = 0) then
-                SetCursor( NULL )
+                SetCursor( nullptr )
             else
-                SetCursor( LoadCursor( NULL, IDC_ARROW ) )
+                SetCursor( LoadCursor( nullptr, IDC_ARROW ) )
             end if
             return TRUE
         end if
@@ -482,8 +482,8 @@ private function WindowProc cdecl ( _
             '' marks a scanline dirty.
             dim as PAINTSTRUCT ps
             dim as HDC hdc = BeginPaint( hwnd, @ps )
-            if (hdc <> 0) andalso (w->surf <> 0) then
-                if w->mirrorpx <> 0 then
+            if (hdc <> nullptr) andalso (w->surf <> nullptr) then
+                if w->mirrorpx <> nullptr then
                     GdiExpand8( w->mirror, *w->surf, w->lut, 0, w->surf->h - 1 )
                     GdiBlitSpan( hdc, w->mirror, 0, w->surf->h - 1 )
                 else
@@ -503,7 +503,7 @@ end function
 '' handling, which delays things like the shell's own hotkeys.
 private sub WindowPumpMessages( )
     dim as MSG m
-    while PeekMessage( @m, NULL, 0, 0, PM_REMOVE ) <> 0
+    while PeekMessage( @m, nullptr, 0, 0, PM_REMOVE ) <> 0
         TranslateMessage( @m )
         DispatchMessage( @m )
     wend
@@ -515,8 +515,8 @@ private function WindowCreate( byref w as GfxWindow ) as long
     wc.style         = CS_DBLCLKS or CS_VREDRAW or CS_HREDRAW
     wc.lpfnWndProc   = @WindowProc
     wc.hInstance     = w.hinst
-    wc.hCursor       = LoadCursor( NULL, cast( zstring ptr, IDC_ARROW ) )
-    wc.hIcon         = LoadIcon( NULL, cast( zstring ptr, IDI_APPLICATION ) )
+    wc.hCursor       = LoadCursor( nullptr, cast( zstring ptr, IDC_ARROW ) )
+    wc.hIcon         = LoadIcon( nullptr, cast( zstring ptr, IDI_APPLICATION ) )
     wc.lpszClassName = @WINDOW_CLASS_NAME
 
     '' A duplicate class registration is not an error -- a second SCREEN in the
@@ -546,8 +546,8 @@ private function WindowCreate( byref w as GfxWindow ) as long
 
     w.hwnd = CreateWindowEx( 0, @WINDOW_CLASS_NAME, @w.title, style, _
                              x, y, outer_w, outer_h, _
-                             HWND_DESKTOP, NULL, w.hinst, @w )
-    if w.hwnd = 0 then return 0
+                             HWND_DESKTOP, nullptr, w.hinst, @w )
+    if w.hwnd = nullptr then return 0
 
     ShowWindow( w.hwnd, SW_SHOW )
     SetForegroundWindow( w.hwnd )
@@ -574,10 +574,10 @@ private function WindowThread cdecl ( byval param as any ptr ) as DWORD
     while w->running <> 0
         WindowLock( *w )
 
-        if w->surf <> 0 then
+        if w->surf <> nullptr then
             dim as HDC hdc = GetDC( w->hwnd )
-            if hdc <> 0 then
-                if w->mirrorpx <> 0 then
+            if hdc <> nullptr then
+                if w->mirrorpx <> nullptr then
                     '' Expand the WHOLE surface rather than the dirty span:
                     '' GdiPresentDirty finds the span itself and clears the
                     '' marks as it goes, so there is no span to read here yet.
@@ -600,9 +600,9 @@ private function WindowThread cdecl ( byval param as any ptr ) as DWORD
 
     '' Destroy from the owning thread. DestroyWindow from another thread is
     '' silently ignored by Windows and the window would outlive the pump.
-    if w->hwnd <> 0 then
+    if w->hwnd <> nullptr then
         DestroyWindow( w->hwnd )
-        w->hwnd = 0
+        w->hwnd = nullptr
     end if
     return 0
 end function
@@ -613,7 +613,7 @@ private function WindowOpen( _
         byref w as GfxWindow, byref s as Surface, _
         byval cw as long, byval ch as long, byref caption as string ) as long
 
-    w.hwnd = 0 : w.thread = 0 : w.ready = 0
+    w.hwnd = nullptr : w.thread = nullptr : w.ready = nullptr
     w.running = 1 : w.active = 0 : w.closed = 0 : w.started = 0 : w.frames = 0
     w.w = cw : w.h = ch
     w.surf = @s
@@ -621,11 +621,11 @@ private function WindowOpen( _
     '' A paletted surface needs a 32bpp mirror to present through. Allocated
     '' here rather than lazily so a failure is reported by WindowOpen, which the
     '' caller already checks, instead of by a silent blank window later.
-    w.mirrorpx = 0
-    w.lut = 0
+    w.mirrorpx = nullptr
+    w.lut = nullptr
     if s.bpp = 1 then
         w.mirrorpx = callocate( cast( integer, cw ) * 4 * ch )
-        if w.mirrorpx = 0 then return 0
+        if w.mirrorpx = nullptr then return 0
         SurfaceInit( w.mirror, w.mirrorpx, cw, ch, cw * 4, 4 )
     end if
     w.title = left( caption, 255 )
@@ -636,20 +636,20 @@ private function WindowOpen( _
     w.ev_lastx = &hFFFF : w.ev_lasty = &hFFFF
     if w.scanline <= 0 then w.scanline = 1
     KeyTableClear( w.ktab )
-    w.hinst = GetModuleHandle( NULL )
+    w.hinst = GetModuleHandle( nullptr )
 
     InitializeCriticalSection( @w.lock_ )
     w.lock_ready = 1
 
-    w.ready = CreateEvent( NULL, FALSE, FALSE, NULL )
-    if w.ready = 0 then
+    w.ready = CreateEvent( nullptr, FALSE, FALSE, nullptr )
+    if w.ready = nullptr then
         w.running = 0
         return 0
     end if
 
     dim as DWORD tid
-    w.thread = CreateThread( NULL, 0, cast( any ptr, @WindowThread ), @w, 0, @tid )
-    if w.thread = 0 then
+    w.thread = CreateThread( nullptr, 0, cast( any ptr, @WindowThread ), @w, 0, @tid )
+    if w.thread = nullptr then
         w.running = 0
         return 0
     end if
@@ -670,18 +670,18 @@ end function
 private sub WindowClose( byref w as GfxWindow )
     w.running = 0
 
-    if w.thread <> 0 then
+    if w.thread <> nullptr then
         '' A bounded wait, not INFINITE. gfxlib2 waits forever, which turns a
         '' wedged pump into a process that will not exit; the frame period is
         '' 10ms, so anything beyond a couple of seconds is already broken.
         WaitForSingleObject( w.thread, 5000 )
         CloseHandle( w.thread )
-        w.thread = 0
+        w.thread = nullptr
     end if
 
-    if w.ready <> 0 then
+    if w.ready <> nullptr then
         CloseHandle( w.ready )
-        w.ready = 0
+        w.ready = nullptr
     end if
 
     if w.lock_ready then
@@ -689,10 +689,10 @@ private sub WindowClose( byref w as GfxWindow )
         w.lock_ready = 0
     end if
 
-    w.surf = 0
-    if w.mirrorpx <> 0 then
+    w.surf = nullptr
+    if w.mirrorpx <> nullptr then
         deallocate( w.mirrorpx )
-        w.mirrorpx = 0
+        w.mirrorpx = nullptr
     end if
 end sub
 
@@ -709,7 +709,7 @@ private sub DesktopInfo( byref w as long, byref h as long, _
         byref depth as long, byref refresh as long )
     dim as DEVMODE dm
     dm.dmSize = sizeof( DEVMODE )
-    if EnumDisplaySettings( NULL, ENUM_CURRENT_SETTINGS, @dm ) = 0 then
+    if EnumDisplaySettings( nullptr, ENUM_CURRENT_SETTINGS, @dm ) = 0 then
         w = 0 : h = 0 : depth = 0 : refresh = 0
         exit sub
     end if
@@ -727,7 +727,7 @@ end sub
 private sub WindowSetTitle( byref w as GfxWindow, byref title as string, _
         byval held as long )
     w.title = left( title, 255 )
-    if w.hwnd = 0 then exit sub
+    if w.hwnd = nullptr then exit sub
     if held then WindowUnlock( w )
     SetWindowText( w.hwnd, @w.title )
     if held then WindowLock( w )
@@ -737,14 +737,14 @@ end sub
 '' fb_hWin32SetWindowPos packs it -- x in the low 16 bits, y shifted up 16.
 '' The caller unpacks it with the same sign rules gfxlib2 uses.
 private function WindowGetPosPacked( byref w as GfxWindow ) as long
-    if w.hwnd = 0 then return 0
+    if w.hwnd = nullptr then return 0
     dim as RECT r
     if GetWindowRect( w.hwnd, @r ) = 0 then return 0
     return (r.left and &hFFFF) or (r.top shl 16)
 end function
 
 private sub WindowSetPos( byref w as GfxWindow, byval x as long, byval y as long )
-    if w.hwnd = 0 then exit sub
+    if w.hwnd = nullptr then exit sub
     SetWindowPos( w.hwnd, HWND_TOP, x, y, 0, 0, _
         SWP_ASYNCWINDOWPOS or SWP_NOOWNERZORDER or SWP_NOSIZE or SWP_NOZORDER )
 end sub

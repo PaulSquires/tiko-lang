@@ -37,7 +37,7 @@ sub TkoGfxLine alias "fb_GfxLine" ( _
         byval flags as long )
 
     dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( target )
-    if c = 0 then exit sub
+    if c = nullptr then exit sub
 
     dim as long x1, y1, x2, y2
     TkoGfx.CoordA( *c, fx1, fy1, fx2, fy2, flags, x1, y1, x2, y2 )
@@ -65,7 +65,7 @@ sub TkoGfxPset alias "fb_GfxPset" ( _
         byval ispreset as long )
 
     dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( target )
-    if c = 0 then exit sub
+    if c = nullptr then exit sub
 
     dim as long x, y
     TkoGfx.CoordB( *c, fx, fy, flags, x, y )
@@ -106,7 +106,7 @@ sub TkoGfxEllipse alias "fb_GfxEllipse" ( _
         byval flags as long )
 
     dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( target )
-    if c = 0 then exit sub
+    if c = nullptr then exit sub
 
     dim as long x, y
     TkoGfx.CoordB( *c, fx, fy, flags, x, y )
@@ -144,7 +144,7 @@ sub TkoGfxPaint alias "fb_GfxPaint" ( _
         byval flags as long )
 
     dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( target )
-    if c = 0 then exit sub
+    if c = nullptr then exit sub
 
     dim as long x, y
     TkoGfx.CoordB( *c, fx, fy, flags, x, y )
@@ -162,7 +162,7 @@ sub TkoGfxPaint alias "fb_GfxPaint" ( _
     end if
 
     dim as TkoAbi.FBSTRING ptr ps = cptr( TkoAbi.FBSTRING ptr, pattern )
-    if ps = 0 then exit sub
+    if ps = nullptr then exit sub
 
     '' THE LENGTH CARRIES THE TEMP BIT IN ITS SIGN BIT and must be masked before
     '' it is compared -- an fbc temporary descriptor has a NEGATIVE len, so a
@@ -171,7 +171,7 @@ sub TkoGfxPaint alias "fb_GfxPaint" ( _
     if n < 0 then n and= not (cast( integer, 1 ) shl (sizeof( integer ) * 8 - 1))
 
     dim as ubyte ptr pdata = cptr( ubyte ptr, ps->dat )
-    if (pdata = 0) orelse (n < 64 * 4) then exit sub
+    if (pdata = nullptr) orelse (n < 64 * 4) then exit sub
 
     TkoGfx.PaintAny( c->surf, x, y, 0, border, cptr( ulong ptr, pdata ) )
 end sub
@@ -189,7 +189,7 @@ function TkoGfxPoint alias "fb_GfxPoint" ( _
         byval fx as single, byval fy as single ) as long
 
     dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( target )
-    if c = 0 then return -1
+    if c = nullptr then return -1
 
     if fy = TkoGfx.POINT_AXIS_SENTINEL then
         '' the axis-query form: report where the cursor is, in the space asked
@@ -246,8 +246,8 @@ sub TkoGfxView alias "fb_GfxView" ( _
         byval bordercolour as ulong, _
         byval flags as long )
 
-    dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( 0 )
-    if c = 0 then exit sub
+    dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( nullptr )
+    if c = nullptr then exit sub
 
     if (x1 = TkoGfx.VIEW_FULLSCREEN) andalso (y1 = TkoGfx.VIEW_FULLSCREEN) andalso _
        (x2 = TkoGfx.VIEW_FULLSCREEN) andalso (y2 = TkoGfx.VIEW_FULLSCREEN) then
@@ -307,8 +307,8 @@ sub TkoGfxWindow alias "fb_GfxWindow" ( _
         byval x2 as single, byval y2 as single, _
         byval flags as long )
 
-    dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( 0 )
-    if c = 0 then exit sub
+    dim as TkoGfx.GfxContext ptr c = TkoGfx.ContextFor( nullptr )
+    if c = nullptr then exit sub
 
     TkoGfx.WindowSet( c->vp, x1, y1, x2, y2, _
                       iif( (flags and TkoGfx.VIEW_SCREEN) <> 0, 1, 0 ) )

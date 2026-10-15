@@ -83,7 +83,7 @@ private sub BlitFrame( _
         byref s as BlitSrc, byval dest as ubyte ptr, byval pitch as long, _
         byval rowproc as BlitRowProc )
 
-    if (s.pixels = 0) orelse (dest = 0) orelse (rowproc = 0) then exit sub
+    if (s.pixels = nullptr) orelse (dest = nullptr) orelse (rowproc = nullptr) then exit sub
     dim as long ss = iif( s.scanline_size > 0, s.scanline_size, 1 )
 
     dim as ubyte ptr src = s.pixels
@@ -94,13 +94,13 @@ private sub BlitFrame( _
     for y as integer = s.h * ss to 1 step -1
         '' a null dirty array means "everything is dirty" -- the C always has
         '' one, but a caller testing a single frame should not have to fake it
-        if (dirty = 0) orelse (*dirty <> 0) then
+        if (dirty = nullptr) orelse (*dirty <> 0) then
             rowproc( s, src, dst )
         end if
         z += 1
         if z >= ss then
             z = 0
-            if dirty <> 0 then dirty += 1
+            if dirty <> nullptr then dirty += 1
             src += s.pitch
         end if
         dst += pitch
@@ -113,7 +113,7 @@ end sub
 '' the 16bpp sources. Two halves of 256: the low byte of a 5-6-5 pixel indexes
 '' the first, the high byte the second, and the two results are OR-ed.
 private sub BlitConvInit( byval conv as ulong ptr, byval is_rgb as long )
-    if conv = 0 then exit sub
+    if conv = nullptr then exit sub
     for i as integer = 0 to 255
         if is_rgb then
             conv[i]       = ((i and &h1F) shl 19) or ((i and &hE0) shl 5)
@@ -545,7 +545,7 @@ private function BlitSelect( _
         end select
     end select
 
-    return 0
+    return nullptr
 end function
 
 end namespace

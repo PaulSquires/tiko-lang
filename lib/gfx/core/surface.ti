@@ -59,7 +59,7 @@ private sub SurfaceInit( _
         byval bpp as long )
 
     s.pixels  = cptr( ubyte ptr, pixels )
-    s.dirty   = 0
+    s.dirty   = nullptr
     s.w       = w
     s.h       = h
     s.pitch   = pitch

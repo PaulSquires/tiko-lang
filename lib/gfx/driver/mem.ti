@@ -82,7 +82,7 @@ private sub MemUpdate cdecl ( )
     MemLog.last_y1 = -1
     MemLog.last_y2 = -1
 
-    if MemLog.target = 0 then exit sub
+    if MemLog.target = nullptr then exit sub
 
     dim as long y1, y2
     if DirtySpan( *MemLog.target, y1, y2 ) then

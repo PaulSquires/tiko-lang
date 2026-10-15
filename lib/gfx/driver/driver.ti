@@ -69,7 +69,7 @@ type DriverRegistry
 end type
 
 private sub DriverRegister( byref reg as DriverRegistry, byval d as Driver ptr )
-    if d = 0 then exit sub
+    if d = nullptr then exit sub
     if reg.count >= MAX_DRIVERS then exit sub
     reg.list(reg.count) = d
     reg.count += 1
@@ -80,11 +80,11 @@ private function DriverFind( _
         byref reg as DriverRegistry, byref nm as string ) as Driver ptr
     dim as string want = ucase( nm )
     for i as integer = 0 to reg.count - 1
-        if reg.list(i) <> 0 andalso reg.list(i)->name <> 0 then
+        if reg.list(i) <> nullptr andalso reg.list(i)->name <> nullptr then
             if ucase( *reg.list(i)->name ) = want then return reg.list(i)
         end if
     next
-    return 0
+    return nullptr
 end function
 
 end namespace

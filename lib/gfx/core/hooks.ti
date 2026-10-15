@@ -67,7 +67,7 @@ type FB_PAGESETPROC    as function cdecl ( byval active as long, byval visible a
 '' Not guarded by the graphics lock here: gfxlib2 installs under the runtime's
 '' own FB_LOCK, and the caller (mode setup) is the right place to hold it.
 private sub HooksInstall( byval src as TkoAbi.FB_HOOKSTB ptr )
-    if src = 0 then exit sub
+    if src = nullptr then exit sub
     *TkoAbi.RtlHooks( ) = *src
 end sub
 
@@ -83,7 +83,7 @@ private function HooksLive( ) as long
     dim as any ptr ptr h = cptr( any ptr ptr, TkoAbi.RtlHooks( ) )
     dim as long n = 0
     for i as integer = 0 to 27
-        if h[i] <> 0 then n += 1
+        if h[i] <> nullptr then n += 1
     next
     return n
 end function

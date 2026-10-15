@@ -32,7 +32,7 @@ const DRIVER_NAME = "GDI"
 '' nothing would ever read it. Anything else is assigned through the runtime,
 '' which owns the string's memory.
 private sub StrOutUnlessTemp( byval dst as any ptr, byref s as string )
-    if dst = 0 then exit sub
+    if dst = nullptr then exit sub
     if RtlStrDelTemp( dst ) = 0 then exit sub
     dim as zstring * 260 z = left( s, 259 )
     fb_StrAssign_( dst, -1, @z, 0, 0 )
@@ -71,9 +71,9 @@ private function ImageInfoAll( byval img as any ptr, _
         byref pitch as integer, byref dat as any ptr, byref size as integer ) as long
 
     dim as TkoAbi.PUT_HEADER ptr hd = img
-    if (hd = 0) orelse (hd->htype = 0) then
+    if (hd = nullptr) orelse (hd->htype = 0) then
         w = -1 : h = -1 : bpp = -1 : pitch = -1 : size = -1
-        dat = 0
+        dat = nullptr
         return FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
 
@@ -165,7 +165,7 @@ sub TkoGfxImageConvertRow alias "fb_GfxImageConvertRow" ( _
 
     if src_bpp <= 8 then
         dim as TkoGfx.GfxPalette ptr pal = TkoGfx.PaletteCurrent( )
-        if pal = 0 then exit sub
+        if pal = nullptr then exit sub
         select case dbytes
         case 1
             dim as ulong mask

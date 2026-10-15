@@ -53,7 +53,7 @@ sub TkoPutPSet alias "fb_hPutPSet" ( _
         byval src_pitch as long, byval dst_pitch as long, _
         byval alpha as long, byval blender as any ptr, byval param as any ptr )
     scope : dim as long ignored = alpha : end scope
-    if (blender <> 0) orelse (param <> 0) then : end if
+    if (blender <> nullptr) orelse (param <> nullptr) then : end if
     select case TkoGfx.PutBlendBpp
     case 1 : TkoGfx.PutPSet8( src, dst, w, h, src_pitch, dst_pitch )
     case 2 : TkoGfx.PutPSet16( src, dst, w, h, src_pitch, dst_pitch )
@@ -68,7 +68,7 @@ sub TkoPutTrans alias "fb_hPutTrans" ( _
         byval src_pitch as long, byval dst_pitch as long, _
         byval alpha as long, byval blender as any ptr, byval param as any ptr )
     scope : dim as long ignored = alpha : end scope
-    if (blender <> 0) orelse (param <> 0) then : end if
+    if (blender <> nullptr) orelse (param <> nullptr) then : end if
     select case TkoGfx.PutBlendBpp
     case 1 : TkoGfx.PutTrans8( src, dst, w, h, src_pitch, dst_pitch )
     case 2 : TkoGfx.PutTrans16( src, dst, w, h, src_pitch, dst_pitch )
@@ -89,7 +89,7 @@ sub TkoPutPReset alias "fb_hPutPReset" ( _
         byval src_pitch as long, byval dst_pitch as long, _
         byval alpha as long, byval blender as any ptr, byval param as any ptr )
     scope : dim as long ignored = alpha : end scope
-    if (blender <> 0) orelse (param <> 0) then : end if
+    if (blender <> nullptr) orelse (param <> nullptr) then : end if
     TkoGfx.PutPReset32( src, dst, w, h, src_pitch, dst_pitch )
 end sub
 
@@ -99,7 +99,7 @@ sub TkoPutAnd alias "fb_hPutAnd" ( _
         byval src_pitch as long, byval dst_pitch as long, _
         byval alpha as long, byval blender as any ptr, byval param as any ptr )
     scope : dim as long ignored = alpha : end scope
-    if (blender <> 0) orelse (param <> 0) then : end if
+    if (blender <> nullptr) orelse (param <> nullptr) then : end if
     TkoGfx.PutAnd32( src, dst, w, h, src_pitch, dst_pitch )
 end sub
 
@@ -109,7 +109,7 @@ sub TkoPutOr alias "fb_hPutOr" ( _
         byval src_pitch as long, byval dst_pitch as long, _
         byval alpha as long, byval blender as any ptr, byval param as any ptr )
     scope : dim as long ignored = alpha : end scope
-    if (blender <> 0) orelse (param <> 0) then : end if
+    if (blender <> nullptr) orelse (param <> nullptr) then : end if
     TkoGfx.PutOr32( src, dst, w, h, src_pitch, dst_pitch )
 end sub
 
@@ -119,7 +119,7 @@ sub TkoPutXor alias "fb_hPutXor" ( _
         byval src_pitch as long, byval dst_pitch as long, _
         byval alpha as long, byval blender as any ptr, byval param as any ptr )
     scope : dim as long ignored = alpha : end scope
-    if (blender <> 0) orelse (param <> 0) then : end if
+    if (blender <> nullptr) orelse (param <> nullptr) then : end if
     TkoGfx.PutXor32( src, dst, w, h, src_pitch, dst_pitch )
 end sub
 
@@ -133,7 +133,7 @@ sub TkoPutAlpha alias "fb_hPutAlpha" ( _
         byval src_pitch as long, byval dst_pitch as long, _
         byval alpha as long, byval blender as any ptr, byval param as any ptr )
     scope : dim as long ignored = alpha : end scope
-    if (blender <> 0) orelse (param <> 0) then : end if
+    if (blender <> nullptr) orelse (param <> nullptr) then : end if
     '' 16bpp has PutAdd16, which is the narrow ALPHA-with-value path, not this
     '' one. There is no narrow source-alpha routine: a paletted or RGB565 pixel
     '' carries no alpha channel to read.
@@ -150,7 +150,7 @@ sub TkoPutBlend alias "fb_hPutBlend" ( _
         byval w as long, byval h as long, _
         byval src_pitch as long, byval dst_pitch as long, _
         byval alpha as long, byval blender as any ptr, byval param as any ptr )
-    if (blender <> 0) orelse (param <> 0) then : end if
+    if (blender <> nullptr) orelse (param <> nullptr) then : end if
     if TkoGfx.PutBlendBpp = 2 then
         TkoGfx.PutAdd16( src, dst, w, h, src_pitch, dst_pitch, alpha )
     else

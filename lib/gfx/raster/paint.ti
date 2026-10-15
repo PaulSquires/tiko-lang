@@ -178,7 +178,7 @@ private sub Paint##suffix( _
         byref s as Surface, _
         byval x as long, byval y as long, _
         byval col as ulong, byval border as ulong, _
-        byval pattern as elem ptr = 0 )
+        byval pattern as elem ptr = nullptr )
 
     if SurfaceClipEmpty( s ) then exit sub
     if (x < s.clip_x1) orelse (x > s.clip_x2) then exit sub
@@ -196,9 +196,9 @@ private sub Paint##suffix( _
 
     dim as PaintSpan ptr spans = allocate( cap * sizeof( PaintSpan ) )
     dim as long ptr rowhead = allocate( clip_h * sizeof( long ) )
-    if (spans = 0) orelse (rowhead = 0) then
-        if spans <> 0 then deallocate( spans )
-        if rowhead <> 0 then deallocate( rowhead )
+    if (spans = nullptr) orelse (rowhead = nullptr) then
+        if spans <> nullptr then deallocate( spans )
+        if rowhead <> nullptr then deallocate( rowhead )
         exit sub
     end if
 
@@ -250,7 +250,7 @@ private sub Paint##suffix( _
     dim as long top = s.clip_y2
     dim as long bottom = s.clip_y1
     for i as integer = 0 to nspans - 1
-        if pattern = 0 then
+        if pattern = nullptr then
             dim as elem ptr row = cptr( elem ptr, SurfaceRowAddr( s, spans[i].y ) )
             dim as integer px = spans[i].x1
             while px <= spans[i].x2
@@ -282,7 +282,7 @@ private sub PaintAny( _
         byref s as Surface, _
         byval x as long, byval y as long, _
         byval col as ulong, byval border as ulong, _
-        byval pattern as any ptr = 0 )
+        byval pattern as any ptr = nullptr )
     select case s.bpp
     case 1 : Paint8( s, x, y, col, border, cptr( ubyte ptr, pattern ) )
     case 2 : Paint16( s, x, y, col, border, cptr( ushort ptr, pattern ) )

@@ -51,7 +51,7 @@ private sub GdiExpand8( _
         byval lut as ulong ptr, _
         byval y1 as long, byval y2 as long )
 
-    if (lut = 0) orelse (dst.pixels = 0) orelse (src.pixels = 0) then exit sub
+    if (lut = nullptr) orelse (dst.pixels = nullptr) orelse (src.pixels = nullptr) then exit sub
     if y1 < 0 then y1 = 0
     if y2 > src.h - 1 then y2 = src.h - 1
 
@@ -86,7 +86,7 @@ private function GdiBlitSpan( _
         byval y1 as long, _
         byval y2 as long ) as long
 
-    if hdc = 0 orelse s.pixels = 0 then return 0
+    if hdc = nullptr orelse s.pixels = nullptr then return 0
     if y1 < 0 then y1 = 0
     if y2 > s.h - 1 then y2 = s.h - 1
     if y1 > y2 then return 0

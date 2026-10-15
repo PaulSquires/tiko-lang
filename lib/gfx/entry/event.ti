@@ -47,9 +47,9 @@ function TkoGfxEvent alias "fb_GfxEvent" ( byval e as TkoAbi.EVENT ptr ) as long
     if TkoGfx.TheScreen.isOpen = 0 then return 0
     dim as TkoAbi.EVENT tmp
     TkoGfx.WindowLock( TkoGfx.TheScreen.wnd )
-    dim as long got = TkoGfx.EventGet( TkoGfx.TheScreen.wnd.events, tmp, iif( e <> 0, 1, 0 ) )
+    dim as long got = TkoGfx.EventGet( TkoGfx.TheScreen.wnd.events, tmp, iif( e <> nullptr, 1, 0 ) )
     TkoGfx.WindowUnlock( TkoGfx.TheScreen.wnd )
-    if (got <> 0) andalso (e <> 0) then *e = tmp
+    if (got <> 0) andalso (e <> nullptr) then *e = tmp
     return iif( got <> 0, -1, 0 )
 end function
 
