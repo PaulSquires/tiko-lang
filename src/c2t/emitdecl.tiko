@@ -134,6 +134,23 @@ private function LineComments_( byref e as C2tEmit, byval n as int32, byref col 
 end function
 
 '' Line n holds only comments (and white space)? A blank line is not one.
+'' A LINE INSIDE A BODY THAT IS NOT THIS PASS'S C: a directive, or what the pass skips. Its
+'' comments belong to the C it stands beside, not to the member before it.
+private function GapSkip_( byref e as C2tEmit, byval n as int32 ) as boolean
+    dim as int32 ls = e.src->lineStart[n - 1]
+    dim as int32 t = TokAt( *e.src, ls )
+    while (t < e.src->toks.Count) andalso (e.src->toks[t].line_ = n) andalso (e.src->toks[t].kind = CT_COMMENT)
+        t += 1
+    wend
+    if (t < e.src->toks.Count) andalso (e.src->toks[t].line_ = n) andalso (TokText( *e.src, t ) = "#") then return true
+    dim as int32 o = ls
+    if (t < e.src->toks.Count) andalso (e.src->toks[t].line_ = n) then o = e.src->toks[t].ofs
+    for i as int32 = 0 to e.skipped.Count - 2 step 2
+        if (o >= e.skipped[i]) andalso (o < e.skipped[i + 1]) then return true
+    next
+    return false
+end function
+
 private function CommentOnly_( byref e as C2tEmit, byval n as int32 ) as boolean
     dim as boolean any_ = false
     dim as int32 ls = e.src->lineStart[n - 1]
@@ -459,6 +476,7 @@ private function Record_( byref e as C2tEmit, byval rc as Tko.CImport.CXCursor, 
         '' member of its own ('{' alone) gives its comments to the line before.
         if i > 0 then
             for m as int32 = el[i - 1] + 1 to el[i] - 1
+                if GapSkip_( e, m ) then continue for
                 if CommentOnly_( e, m ) then
                     dim as int32 cc, ce
                     outL.Push( Indent_( LineText( *e.src, m ) ) & LineComments_( e, m, cc, ce ) )
@@ -581,6 +599,8 @@ private function Enum_( byref e as C2tEmit, byval ec as Tko.CImport.CXCursor, by
                 if (fi >= ct.Count) orelse (cl[fi] <> m) then s = Trail_( e, s, m )
                 outL.Push( s )
             wend
+        elseif GapSkip_( e, m ) then
+            '' a directive, or C this pass skips
         elseif CommentOnly_( e, m ) then
             dim as int32 cc, ce
             outL.Push( Indent_( LineText( *e.src, m ) ) & LineComments_( e, m, cc, ce ) )
@@ -641,7 +661,13 @@ private function Typedef_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor, 
             why = "typedef '" & nm & "': " & why
             return false
         end if
-        text = "type " & nm & " as " & ty
+        if lcase( nm ) = lcase( ty ) then
+            '' 'typedef uint8_t Uint8': TO tiko THE NAME IS THE TYPE (no case), and redeclaring a
+            '' builtin under its own name leaves the records using it unlaid-out.
+            text = "'' " & nm & ": tiko's own " & ty
+        else
+            text = "type " & nm & " as " & ty
+        end if
     end select
     Written_( e, c )
     return true
@@ -678,6 +704,10 @@ sub EmitInit( byref e as C2tEmit, byref api as Tko.CImport.ClangApi, byref x as 
     e.api = @api
     e.x = @x
     e.src = @src
+    e.skipped.Clear( )
+    for i as int32 = 0 to p.skipped.Count - 1
+        e.skipped.Push( p.skipped[i] )
+    next
     x.api = @api
     x.opts = @io
     x.tu = p.tu

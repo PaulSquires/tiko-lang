@@ -102,6 +102,80 @@ private function DeclEnd_( byref src as C2tSource, byval t2 as int32 ) as int32
     return t2
 end function
 
+'' CLANG'S EXTENT CAN STOP INSIDE THE DECLARATOR -- at a calling convention a macro spells
+'' (SDL's 'typedef int (SDLCALL *H)(...)', on Windows only): close the brackets it left
+'' open, then take any parameter list or array suffix that follows.
+private function FinishDeclarator_( byref src as C2tSource, byval t1 as int32, byval t2 as int32 ) as int32
+    dim as int32 n = src.toks.Count
+    dim as int32 depth = 0
+    for k as int32 = t1 to t2
+        select case TokText( src, k )
+        case "(", "[" : depth += 1
+        case ")", "]" : depth -= 1
+        end select
+    next
+    dim as int32 k = t2 + 1
+    while (depth > 0) andalso (k < n)
+        select case TokText( src, k )
+        case "(", "[" : depth += 1
+        case ")", "]" : depth -= 1
+        case ";", "{" : return t2          '' unbalanced: leave clang's end alone
+        end select
+        if depth = 0 then t2 = k
+        k += 1
+    wend
+    if depth > 0 then return t2
+    do
+        dim as int32 j = t2 + 1
+        while (j < n) andalso (src.toks[j].kind = CT_COMMENT)
+            j += 1
+        wend
+        if j >= n then exit do
+        dim as string w = TokText( src, j )
+        if (w <> "(") andalso (w <> "[") then exit do
+        depth = 0
+        dim as boolean closed = false
+        for m as int32 = j to n - 1
+            select case TokText( src, m )
+            case "(", "[" : depth += 1
+            case ")", "]" : depth -= 1
+            case ";", "{" : exit for
+            end select
+            if depth = 0 then
+                t2 = m
+                closed = true
+                exit for
+            end if
+        next
+        if closed = false then exit do
+    loop
+    return t2
+end function
+
+'' A RECORD OR ENUM WHOSE BODY HOLDS AN #if this pass took one branch of: its members are
+'' the ones that branch keeps, and the note says so -- the others are not translated.
+private function BranchNote_( byref src as C2tSource, byref p as C2tPass, byref recL1 as C2tIntVec, _
+                              byref recL2 as C2tIntVec, byval l1 as int32, byval l2 as int32 ) as string
+    for f as int32 = 0 to recL1.Count - 1
+        if (recL1[f] < l1) orelse (recL2[f] > l2) then continue for
+        for i as int32 = 0 to p.skipped.Count - 2 step 2
+            dim as int32 t = TokAt( src, p.skipped[i] )
+            if t >= src.toks.Count then continue for
+            dim as int32 sl = src.toks[t].line_
+            if (sl > recL1[f]) andalso (sl < recL2[f]) then
+                dim as string ln = LineText( src, l1 )
+                dim as int32 k = 0
+                while (k < len( ln )) andalso ((ln[k] = 32) orelse (ln[k] = 9))
+                    k += 1
+                wend
+                return left( ln, k ) & "'' C2T-NOTE(branch) " & src.name_ & ":" & l1 & _
+                       " -- an #if inside: the members are the ones this target's preprocessor keeps" & chr( 10 )
+            end if
+        next
+    next
+    return ""
+end function
+
 private function InSkipped_( byref p as C2tPass, byval ofs as int32 ) as boolean
     for i as int32 = 0 to p.skipped.Count - 2 step 2
         if (ofs >= p.skipped[i]) andalso (ofs < p.skipped[i + 1]) then return true
@@ -136,6 +210,7 @@ sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p as C2tP
 
     dim as SpanVec_ spans
     dim as C2tIntVec bodyL1, bodyL2        '' a function definition's lines, for its directives
+    dim as C2tIntVec recL1, recL2          '' ...of those, a record's or an enum's
     '' ---- clang's declarations, widened to the ';' or the end of a skipped body.
     for i as int32 = 0 to p.segs.Count - 1
         dim as C2tSegment s = p.segs[i]
@@ -143,7 +218,7 @@ sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p as C2tP
         if t1 >= src.toks.Count then continue for
         dim as int32 t2 = TokAt( src, s.ofs2 ) - 1
         if t2 < t1 then t2 = t1
-        t2 = DeclEnd_( src, t2 )
+        t2 = DeclEnd_( src, FinishDeclarator_( src, t1, t2 ) )
         dim as int32 l2 = src.toks[t1].line_
         for k as int32 = t1 to t2
             if src.toks[k].endLine > l2 then l2 = src.toks[k].endLine
@@ -151,12 +226,19 @@ sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p as C2tP
         AddSpan_( spans, src.toks[t1].line_, l2, "unsupported", s.name_, "a declaration sharing its lines with a directive or untranslated C text" )
         spans[spans.Count - 1].pure = true
         spans[spans.Count - 1].segs = i & ","
-        '' A FUNCTION WITH A BODY (clang skips bodies, so no isCursorDefinition): from its '{'.
-        if s.kind = Tko.CImport.CXCursor_FunctionDecl then
+        '' A FUNCTION WITH A BODY (clang skips bodies, so no isCursorDefinition), or a record or
+        '' enum with members: from its '{'. A directive inside is the body's -- each pass
+        '' translates the members it sees, and the merge guards what differs.
+        if (s.kind = Tko.CImport.CXCursor_FunctionDecl) orelse (s.kind = Tko.CImport.CXCursor_StructDecl) orelse _
+           (s.kind = Tko.CImport.CXCursor_UnionDecl) orelse (s.kind = Tko.CImport.CXCursor_EnumDecl) then
             for k as int32 = t1 to t2
                 if TokText( src, k ) = "{" then
                     bodyL1.Push( src.toks[k].line_ )
                     bodyL2.Push( l2 )
+                    if s.kind <> Tko.CImport.CXCursor_FunctionDecl then
+                        recL1.Push( src.toks[k].line_ )
+                        recL2.Push( l2 )
+                    end if
                     exit for
                 end if
             next
@@ -271,7 +353,7 @@ sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p as C2tP
             dim as int32 d0 = e.decls
             if TranslateSpan( e, p, idx, m.l1, m.l2, text, reason, why ) then
                 b.isTodo = false
-                b.text = text
+                b.text = BranchNote_( src, p, recL1, recL2, m.l1, m.l2 ) & text
                 b.isDecl = (e.decls > d0)
             else
                 b.reason = reason

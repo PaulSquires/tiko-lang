@@ -135,6 +135,7 @@ A **TODO** is API that is missing until someone translates it by hand. A **NOTE*
 | `inline` | A non-static `inline` function, declared: it links only if the library exports it |
 | `value` | A macro written as Clang's value instead of its expression, with the reason: a cast, or a value tiko's reading of the expression would not match |
 | `if-0` | `#if 0` text, kept as a comment |
+| `branch` | A struct or enum with an `#if` inside its body: the members are the ones each target's preprocessor keeps; the other branch's are not translated |
 | `static-assert` | A C `_Static_assert`: a compile-time check, with nothing to declare |
 
 ## Includes
@@ -164,7 +165,8 @@ A record used before it is defined is named through a hidden alias, `type Foo__f
 
 - `tiko c2t` and [`#cinclude`](modern-Cinclude) share tiko's C importer, so a type comes across the same way in both. `#cinclude` is the right tool for a header used as it is; `tiko c2t` for one you want to own.
 - Names: a tiko word is renamed with `_`; a name that collides with another case-insensitively gets `_2`. Each header is its own run, so a collision **between** two headers (a macro `SDL_MALLOC` in one, a function `SDL_malloc` in another) is not seen.
-- A header that cannot be parsed on its own (one that only makes sense included from another) cannot be translated on its own either.
+- A header that cannot be parsed on its own (one that only makes sense included from another) cannot be translated on its own either. An included header that holds only decoration macros (SDL's `SDL_begin_code.h` and `SDL_close_code.h`) is not included at all: its macros are stripped where they are used.
+- A typedef whose name is a tiko type's in another case (`typedef uint8_t Uint8;`) declares nothing: to tiko the name already is that type.
 
 ### See also
 

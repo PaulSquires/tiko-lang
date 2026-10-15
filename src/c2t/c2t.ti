@@ -203,6 +203,7 @@ type C2tEmit
     as Tko.CImport.CImp ptr x
     as C2tSource ptr src
     aliasDone as Tko.StrVec        '' 'type X__fwd as X' already written, by X
+    skipped as C2tIntVec           '' the pass's inactive ranges (C2tPass.skipped)
     as string indOverride          '' see emitdecl.tiko, BaseIndent_
     as boolean useOverride
     renames as Tko.StrVec          '' the banner's rename list: 'kind  c -> tiko'
