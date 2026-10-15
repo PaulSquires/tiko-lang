@@ -478,6 +478,7 @@ private function StmtOf _
 end function
 
 #include once "symbols/tuplenames.tiko"
+#include once "symbols/checkbf.tiko"
 
 '' A var-length STRING or USTRING -- the two builtins that carry a descriptor. Not the
 '' fixed flavours, which are arrays and are handled beside them.
@@ -1096,15 +1097,7 @@ private function TypeOfUncached_ _
                     c.info->SetRef( id, fs )
                     c.info->SetRef( mp->rhs, fs )
                     t = f->type_
-                    '' A BITFIELD READ IS UINTEGER, measured: 'sizeof( x.a )' is 8 for 'short
-                    '' a :4', and 'x.b - 20' over 12 is 18446744073709551608. See lowerbf.tiko.
-                    '' A BOOLEAN one is a signed BYTE: 'sizeof' 1, 'x.a - 2' is -3, 'print' -1.
-                    if (f->flags and Tko.SYMF_BITFIELD) <> 0 then
-                        dim as Tko.TypeId bft = c.types->Unqualify( f->type_ )
-                        dim as boolean bfb = (c.types->Kind( bft ) = Tko.TK_BUILTIN) andalso _
-                            (c.types->BuiltinOf( bft ) = Tko.TY_BOOLEAN)
-                        t = c.types->Builtin( iif( bfb, Tko.TY_BYTE, Tko.TY_UINTEGER ) )
-                    end if
+                    if (f->flags and Tko.SYMF_BITFIELD) <> 0 then t = BitfieldReadType_( c, f, bt )   '' checkbf.tiko
                 end if
             end if
         end if

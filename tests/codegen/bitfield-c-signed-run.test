@@ -1,0 +1,50 @@
+'' RUN: a SIGNED bit-field of a 'type T extern "c"' record reads sign-extended, as C reads it --
+'' -1 in 'a : 3 as byte' is -1 where fbc reads 7 -- through every unit shape, packing, a union,
+'' a pointer, arithmetic, a comparison and a compound operator; unsigned fields beside it stay
+'' unsigned. Output identical to a clang-compiled C twin (x86_64-pc-windows-msvc). The last
+'' record is not 'extern "c"' and keeps fbc's zero extension (fbc-modern 1.20 prints 7 and 31).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/bitfield-c-signed.bas -o tests/codegen/bitfieldcsigned.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/bitfieldcsigned.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: s_mixed a -1
+'' EXPECT-RUN-OUT: s_mixed b -16
+'' EXPECT-RUN-OUT: s_mixed a 3
+'' EXPECT-RUN-OUT: s_mixed b 15
+'' EXPECT-RUN-OUT: s_mixed a -3
+'' EXPECT-RUN-OUT: s_mixed b -15
+'' EXPECT-RUN-OUT: s_mixed a-1 -5
+'' EXPECT-RUN-OUT: s_mixed a<0 1
+'' EXPECT-RUN-OUT: s_mixed a-=1 3
+'' EXPECT-RUN-OUT: s_mixed b+=1 0
+'' EXPECT-RUN-OUT: s_mixed long 3
+'' EXPECT-RUN-OUT: s_mixed double*2 -1
+'' EXPECT-RUN-OUT: s_wide q -1
+'' EXPECT-RUN-OUT: s_wide r -512
+'' EXPECT-RUN-OUT: s_wide q -549755813888
+'' EXPECT-RUN-OUT: s_wide r 511
+'' EXPECT-RUN-OUT: s_wide q -123456789012
+'' EXPECT-RUN-OUT: s_one f -1
+'' EXPECT-RUN-OUT: s_one g -1073741824
+'' EXPECT-RUN-OUT: s_one f 0
+'' EXPECT-RUN-OUT: s_one g 1073741823
+'' EXPECT-RUN-OUT: s_sign_mix u 7
+'' EXPECT-RUN-OUT: s_sign_mix s -1
+'' EXPECT-RUN-OUT: s_sign_mix h -32
+'' EXPECT-RUN-OUT: s_sign_mix u 7
+'' EXPECT-RUN-OUT: s_sign_mix s -1
+'' EXPECT-RUN-OUT: s_sign_mix h 31
+'' EXPECT-RUN-OUT: s_pack1 a -524288
+'' EXPECT-RUN-OUT: s_pack1 b -8192
+'' EXPECT-RUN-OUT: s_pack1 p 255
+'' EXPECT-RUN-OUT: s_pack1 a 524287
+'' EXPECT-RUN-OUT: s_pack1 b -1
+'' EXPECT-RUN-OUT: s_pack1 ptr b -1
+'' EXPECT-RUN-OUT: s_union a -4
+'' EXPECT-RUN-OUT: s_union b -36
+'' EXPECT-RUN-OUT: s_union a -1
+'' EXPECT-RUN-OUT: s_union b -1
+'' EXPECT-RUN-OUT: s_fbc a 7
+'' EXPECT-RUN-OUT: s_fbc b 31

@@ -114,6 +114,7 @@ end function
 '' Widen the unit to 64 bits, shift the field down, mask it -- and NO SIGN EXTENSION,
 '' even for a signed declared type: fbc reads a 3-bit 'as long' holding all ones as 7,
 '' not as -1. Measured, not assumed; it is the one part of this a C habit gets wrong.
+'' The exception is a signed field of an 'extern "c"' record, which reads as C does.
 declare function BitfieldReadParts_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byref addr as MirValue, byval bitOff as int32, byval bitWidth as int32, _
       byval unitTy as MirType, byval unitUns as boolean, byref outv as MirValue ) as boolean
@@ -138,6 +139,37 @@ private function BitfieldReadParts_ _
     dim as MirValue raw = LowerExprLoad( c, addr, unitTy )
     if raw.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue wide = Coerce( c, raw, MT_I64, unitUns )
+
+    '' A SIGNED FIELD OF AN 'extern "c"' RECORD SIGN-EXTENDS, as C does: Check types it
+    '' INTEGER (every other bitfield is UINTEGER, or BYTE for a boolean), so that type is
+    '' the test. Shift the field's top bit up to bit 63, then arithmetically back down:
+    '' -1 stored in 'x : 3 as long' reads -1, where fbc's zero extension reads 7.
+    dim as Tko.TypeId nty = c.info->TypeOf_( id )
+    if (nty <> Tko.TYPE_NONE) andalso (c.types->Kind( nty ) = Tko.TK_BUILTIN) then
+        if c.types->BuiltinOf( nty ) = Tko.TY_INTEGER then
+            dim as int32 up = 64 - bitOff - bitWidth
+            if up > 0 then
+                dim as MirInst sl
+                sl.op = cast( uint16, M_SHL )
+                sl.ty = cast( uint8, MT_I64 )
+                sl.a = wide
+                sl.b = ConstInt( c, up, MT_I64 )
+                wide = Emit( c, sl )
+                if wide.kind = cast( uint8, MV_NONE ) then return false
+            end if
+            if bitWidth < 64 then
+                dim as MirInst sr
+                sr.op = cast( uint16, M_ASHR )
+                sr.ty = cast( uint8, MT_I64 )
+                sr.a = wide
+                sr.b = ConstInt( c, 64 - bitWidth, MT_I64 )
+                wide = Emit( c, sr )
+                if wide.kind = cast( uint8, MV_NONE ) then return false
+            end if
+            outv = Coerce( c, wide, MT_I64 )
+            return true
+        end if
+    end if
 
     if bitOff > 0 then
         dim as MirInst sh

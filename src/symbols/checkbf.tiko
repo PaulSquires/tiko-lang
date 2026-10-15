@@ -1,0 +1,26 @@
+'' checkbf.tiko -- WHAT TYPE A BITFIELD READ HAS.
+''
+'' Split out of check.tiko at the 1500-line cap and included from it, inside the same
+'' namespace, exactly as tuplenames.tiko is.
+
+'' A BITFIELD READ IS UINTEGER, measured: 'sizeof( x.a )' is 8 for 'short a :4', and
+'' 'x.b - 20' over 12 is 18446744073709551608. See lowerbf.tiko. A BOOLEAN one is a
+'' signed BYTE: 'sizeof' 1, 'x.a - 2' is -3, 'print' -1.
+''
+'' IN AN 'extern "c"' RECORD A SIGNED ONE IS INTEGER: C sign-extends, so a C library's -1
+'' in 'int x:3' reads -1, not fbc's 7. lowerbf.tiko keys the sign extension off this type.
+'' 'owner' is the UDT the field was looked up in, already unqualified.
+private function BitfieldReadType_ _
+    ( byref c as Ctx, byval f as Tko.Symbol ptr, byval owner as Tko.TypeId ) as Tko.TypeId
+
+    dim as Tko.TypeId bft = c.types->Unqualify( f->type_ )
+    if c.types->Kind( bft ) = Tko.TK_BUILTIN then
+        select case c.types->BuiltinOf( bft )
+        case Tko.TY_BOOLEAN
+            return c.types->Builtin( Tko.TY_BYTE )
+        case Tko.TY_BYTE, Tko.TY_SHORT, Tko.TY_LONG, Tko.TY_INTEGER, Tko.TY_LONGINT
+            if c.types->IsCLayout( owner ) then return c.types->Builtin( Tko.TY_INTEGER )
+        end select
+    end if
+    return c.types->Builtin( Tko.TY_UINTEGER )
+end function
