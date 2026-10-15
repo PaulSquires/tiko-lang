@@ -91,6 +91,7 @@ type C2tBlock
     as int32 line1, line2
     as boolean isTodo
     as boolean isDecl              '' a translated declaration (extern "C" opens before the first)
+    as int32 dirNo                 '' the directive it holds alone, index + 1; 0 for none
     as string text             '' an idiom's replacement, LF-separated, "" for none
     as string reason           '' a TODO's reason, from the fixed vocabulary
     as string what             '' a TODO's subject, for the banner: names, a macro, a path
@@ -112,6 +113,7 @@ type C2tSegVec as containers.Array( of C2tSegment )
 
 type C2tPass
     as string triple
+    args as Tko.StrVec             '' the clang arguments the pass parsed with (macro probes)
     as any ptr idx                 '' kept open until ClosePass: the emitter reads cursors
     as any ptr tu
     segs as C2tSegVec
@@ -176,6 +178,15 @@ type C2tEmit
     as string indOverride          '' see emitdecl.tiko, BaseIndent_
     as boolean useOverride
     renames as Tko.StrVec          '' the banner's rename list: 'kind  c -> tiko'
+    '' emitmacro.tiko's verdict on each directive, by index: 0 untouched, 1 translated as
+    '' dirText, 2 a TODO with dirReason/dirWhy.
+    dirState as C2tIntVec
+    dirText as Tko.StrVec
+    dirReason as Tko.StrVec
+    dirWhy as Tko.StrVec
+    '' For --verify: '#assert NAME = value' for each integer macro kept as an expression, so
+    '' tiko's own preprocessor checks what cexpr's folder concluded (D17).
+    asserts as Tko.StrVec
     as int32 decls                 '' declarations written
 end type
 '' Set up the importer state for one pass: names, the c2t spellings, what other files declare.
@@ -185,6 +196,84 @@ declare sub EmitInit( byref e as C2tEmit, byref api as Tko.CImport.ClangApi, byr
 declare function TranslateSpan( byref e as C2tEmit, byref p as C2tPass, byref segIdx as C2tIntVec, _
                                 byval l1 as int32, byval l2 as int32, byref text as string, _
                                 byref reason as string, byref why as string ) as boolean
+'' 'code' with physical line n's comments after it, at their column or their gap (emitdecl).
+declare function TrailComments( byref e as C2tEmit, byref code as string, byval n as int32 ) as string
+
+'' ---------------------------------------------------------------- cexpr.tiko
+
+const CXV_INT = 1, CXV_FLOAT = 2, CXV_STR = 3, CXV_TYPE = 4, CXV_NAME = 5, CXV_NONE = 6, CXV_PARAM = 7
+const NK_INT = 1, NK_FLOAT = 2, NK_STR = 3, NK_IDENT = 4, NK_UNARY = 5, NK_BINARY = 6
+const NK_TERNARY = 7, NK_CALL = 8, NK_CAST = 9, NK_DEFINED = 10
+
+type CxNode
+    as int32 kind
+    as string op
+    as string text
+    as int32 a, b, c
+    as int64 ival
+    as float64 fval
+    as string sval
+    as boolean isUns
+    as boolean isF32
+end type
+type CxNodeVec as containers.Array( of CxNode )
+
+type CxValue
+    as int32 kind
+    as int64 i
+    as float64 f
+    as string s
+    as boolean uns
+end type
+
+'' A name's tiko spelling when the environment has no entry for it -- the declarations.
+type CxLookupFn as function( byval owner as any ptr, byref cname as string ) as string
+
+'' What names mean while an expression is printed and folded: macros c2t wrote, parameters,
+'' platform macros -- each with its tiko spelling, kind, value, and whether tiko defines it.
+type CxEnv
+    names as Tko.StrVec
+    tiko as Tko.StrVec
+    kinds as C2tIntVec
+    defs as C2tIntVec
+    ivals as containers.Array( of int64 )
+    fvals as containers.Array( of float64 )
+    svals as Tko.StrVec
+    as any ptr owner
+    as CxLookupFn lookup
+    as CxLookupFn typeLookup
+end type
+
+type CExpr
+    tx as Tko.StrVec               '' the tokens, comments left out
+    tk as C2tIntVec
+    ofs as C2tIntVec
+    nodes as CxNodeVec
+    argList as C2tIntVec
+    as int32 pos
+    as int32 root
+    as string why                  '' why it was refused; "" while it is translatable
+    as boolean cond                '' an #if: 'defined' is an operator; an unknown name is 0
+    as boolean checked             '' the value is compared with clang's afterwards
+    as CxEnv ptr env
+end type
+
+declare sub CxLoad( byref c as CExpr, byref src as C2tSource, byval t1 as int32, byval t2 as int32 )
+declare function CxParse( byref c as CExpr ) as int32
+declare function CxPrint( byref c as CExpr, byval cond as boolean ) as string
+declare function CxFold( byref c as CExpr, byref v as CxValue ) as boolean
+declare function CxEnvFind( byref env as CxEnv, byref cname as string ) as int32
+declare function CxEnvName( byref env as CxEnv, byref cname as string ) as string
+declare function CxEnvType( byref env as CxEnv, byref cname as string ) as string
+declare sub CxEnvAdd( byref env as CxEnv, byref cname as string, byref tiko as string, byval kind as int32, _
+                      byval def_ as boolean = true, byval i as int64 = 0, byval f as float64 = 0, _
+                      byref s as string = "" )
+declare function TikoString( byref b as string ) as string
+
+'' emitmacro.tiko -- every #define, #undef and conditional, in order: emitter's dir* results.
+declare sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDirVec, _
+                             byref blocks as C2tBlockVec )
+
 '' A C comment in tiko's spelling (source.tiko).
 declare function ConvertComment( byref t as string ) as string
 

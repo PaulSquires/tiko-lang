@@ -1,0 +1,610 @@
+'' emitmacro.tiko -- #define, #undef and the conditionals, translated in place. See c2t.ti.
+''
+'' RUN AFTER THE DECLARATIONS (output.tiko's TodoBlocks), so a macro may name whatever c2t
+'' actually declared, and in source order, so each macro and condition sees the macros
+'' before it -- the environment cexpr prints and folds in.
+''
+'' AN OBJECT-LIKE MACRO keeps its expression when tiko's value of the translation equals
+'' clang's value of the C (RFC-0001 D8). When they differ, or the expression has no tiko
+'' spelling, clang's value is written with a C2T-NOTE saying why. A FUNCTION-LIKE macro has
+'' no value to check, so it is translated only when nothing in it can change meaning (D7).
+''
+'' A CONDITIONAL GROUP -- #if .. #elseif .. #else .. #endif -- is translated whole or not at
+'' all: every condition must have a tiko spelling, and tiko, evaluating them, must take the
+'' branch clang took. Otherwise every directive of the group stays a TODO. Platform macros
+'' are tiko's own (TIKO_OS_WINDOWS, TIKO_OS_LINUX, TIKO_ARCH_X86_64), which, unlike
+'' __FB_WIN32__, also work in '#if'.
+
+#import "std/containers"
+#include once "c2t/c2t.ti"
+
+namespace Tko.C2t
+
+'' ---------------------------------------------------------------- names
+
+private function LookupDecl_( byval owner as any ptr, byref cname as string ) as string
+    dim as C2tEmit ptr e = owner
+    dim as Tko.CImport.CImp ptr x = e->x
+    dim as int32 nid = cast( int32, x->strs.GetString( cname ) )
+    if nid >= x->cDeclUsr.Count then return ""
+    dim as int32 uid = x->cDeclUsr[nid] - 1
+    if uid < 0 then return ""
+    if (Tko.CImport.UsrState( *x, uid ) and Tko.CImport.US_EMITTED) = 0 then return ""
+    return Tko.CImport.UsrFbName( *x, uid )
+end function
+
+private function LookupType_( byval owner as any ptr, byref cname as string ) as string
+    dim as C2tEmit ptr e = owner
+    for i as int32 = 0 to e->x->c2tTdName.Count - 1
+        if e->x->c2tTdName[i] = cname then return e->x->c2tTdText[i]
+    next
+    return LookupDecl_( owner, cname )
+end function
+
+'' A macro's tiko name: as C wrote it, '_' after a tiko word, '_2'... after a name anything
+'' holds -- a #define rewrites a name wherever it stands, so it may share it with nothing
+'' (TKO0371, P3's measurement).
+private function MacroName_( byref e as C2tEmit, byref cname as string ) as string
+    dim as string cand = cname
+    if Tko.CImport.NameReservedValue( cname ) then cand = cname & "_"
+    if Tko.CImport.NameTaken( *e.x, cand ) then
+        dim as int32 k = 2
+        while Tko.CImport.NameTaken( *e.x, cname & "_" & k )
+            k += 1
+        wend
+        cand = cname & "_" & k
+    end if
+    Tko.CImport.NameClaim( *e.x, Tko.CImport.NS_VALUE, cand, Tko.CImport.RK_CONST, false )
+    if cand <> cname then e.renames.Push( "constant" & space( 3 ) & cname & " -> " & cand )
+    return cand
+end function
+
+'' ---------------------------------------------------------------- the platform
+
+'' What the C platform macros are in tiko, for this pass's target.
+private sub Platform_( byref env as CxEnv, byval isWindows as boolean )
+    dim as string win( 0 to 4 ) = { "_WIN32", "_WIN64", "WIN32", "__WIN32__", "__WINDOWS__" }
+    for i as int32 = 0 to 4
+        CxEnvAdd( env, win( i ), "TIKO_OS_WINDOWS", CXV_INT, isWindows, 1 )
+    next
+    dim as string lin( 0 to 5 ) = { "__linux__", "__linux", "linux", "__gnu_linux__", "__unix__", "__unix" }
+    for i as int32 = 0 to 5
+        CxEnvAdd( env, lin( i ), "TIKO_OS_LINUX", CXV_INT, isWindows = false, 1 )
+    next
+    dim as string arch( 0 to 5 ) = { "__x86_64__", "__x86_64", "_M_X64", "_M_AMD64", "__amd64__", "__amd64" }
+    for i as int32 = 0 to 5
+        CxEnvAdd( env, arch( i ), "TIKO_ARCH_X86_64", CXV_INT, true, 1 )
+    next
+    '' NO tiko TARGET: always 0 -- and C++ never, for c2t reads C.
+    dim as string never( 0 to 15 ) = { "__APPLE__", "__MACH__", "__ANDROID__", "__EMSCRIPTEN__", _
+        "__FreeBSD__", "__OpenBSD__", "__NetBSD__", "__DragonFly__", "__HAIKU__", "__sun", _
+        "_M_ARM64", "__aarch64__", "__arm__", "_M_IX86", "__i386__", "__cplusplus" }
+    for i as int32 = 0 to 15
+        CxEnvAdd( env, never( i ), "0", CXV_INT, false, 0 )
+    next
+    CxEnvAdd( env, "__STDC__", "1", CXV_INT, true, 1 )
+    CxEnvAdd( env, "__STDC_HOSTED__", "1", CXV_INT, true, 1 )
+    CxEnvAdd( env, "__STDC_VERSION__", "201112", CXV_INT, true, 201112 )
+    '' A COMPILER'S IDENTITY has no tiko meaning: a condition on one is a TODO.
+    dim as string cc( 0 to 8 ) = { "_MSC_VER", "_MSC_FULL_VER", "__GNUC__", "__GNUC_MINOR__", _
+        "__clang__", "__clang_major__", "__MINGW32__", "__MINGW64__", "__CYGWIN__" }
+    for i as int32 = 0 to 8
+        CxEnvAdd( env, cc( i ), "", CXV_NONE, true )
+    next
+end sub
+
+'' ---------------------------------------------------------------- where a directive is
+
+private function LineAt_( byref src as C2tSource, byval ofs as int32 ) as int32
+    dim as int32 t = TokAt( src, ofs )
+    if t >= src.toks.Count then return src.toks[src.toks.Count - 1].endLine
+    if (t > 0) andalso (src.toks[t].ofs > ofs) then t -= 1
+    return src.toks[t].line_
+end function
+
+'' Inside a branch this pass does not take: past the start of a skipped range and before the
+'' line that range ends on -- the directive that OPENS an inactive region, and the one that
+'' closes it, are the group's own and are judged with it (P0 item 2).
+private function Inactive_( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDirVec, _
+                            byref d as C2tDirective ) as boolean
+    '' A GROUP'S #elif, #else AND #endif SHARE ITS #if's FATE: after a taken branch clang skips
+    '' to #endif as one range, which holds them, but they are the group's own structure.
+    select case d.kind
+    case DK_ELIF, DK_ELSE, DK_ENDIF
+        if d.cond >= 0 then return Inactive_( e, p, dirs, dirs[d.cond] )
+    end select
+    dim as int32 o = e.src->toks[d.tok1].ofs
+    for i as int32 = 0 to p.skipped.Count - 2 step 2
+        if (o > p.skipped[i]) andalso (d.line1 < LineAt_( *e.src, p.skipped[i + 1] )) then return true
+    next
+    return false
+end function
+
+'' Did clang take the branch directive k opens? 1 yes, 0 no, -1 cannot tell (an empty body).
+private function ClangTook_( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDirVec, _
+                             byval k as int32 ) as int32
+    dim as int32 ifIdx = iif( dirs[k].cond >= 0, dirs[k].cond, k )
+    dim as int32 stop_ = e.src->toks.Count
+    for j as int32 = k + 1 to dirs.Count - 1
+        if dirs[j].cond = ifIdx then
+            select case dirs[j].kind
+            case DK_ELIF, DK_ELSE, DK_ENDIF
+                stop_ = dirs[j].tok1
+                exit for
+            end select
+        end if
+    next
+    for t as int32 = dirs[k].tok2 + 1 to stop_ - 1
+        if e.src->toks[t].kind = CT_COMMENT then continue for
+        dim as int32 o = e.src->toks[t].ofs
+        for i as int32 = 0 to p.skipped.Count - 2 step 2
+            if (o >= p.skipped[i]) andalso (o < p.skipped[i + 1]) then return 0
+        next
+        return 1
+    next
+    return -1
+end function
+
+'' The tokens of directive d after its word: a condition, or a macro's name and body.
+private function AfterWord_( byref e as C2tEmit, byref d as C2tDirective ) as int32
+    dim as int32 seen = 0
+    for i as int32 = d.tok1 + 1 to d.tok2
+        if e.src->toks[i].kind <> CT_COMMENT then
+            seen += 1
+            if seen = 2 then return i
+        end if
+    next
+    return d.tok2 + 1
+end function
+
+'' ---------------------------------------------------------------- one directive's text
+
+private function IndentOf_( byref s as string ) as string
+    dim as int32 k = 0
+    while (k < len( s )) andalso ((s[k] = 32) orelse (s[k] = 9))
+        k += 1
+    wend
+    return left( s, k )
+end function
+
+private sub Set_( byref e as C2tEmit, byval k as int32, byval state as int32, byref text as string, _
+                  byref reason as string, byref why as string )
+    e.dirState[k] = state
+    e.dirText[k] = text
+    e.dirReason[k] = reason
+    e.dirWhy[k] = why
+end sub
+
+'' '#' plus what the C line had before it, so '#  if' nesting reads as written.
+private function Hash_( byref e as C2tEmit, byref d as C2tDirective ) as string
+    dim as string l = LineText( *e.src, d.line1 )
+    dim as int32 h = instr( l, "#" )
+    dim as int32 w = h + 1
+    while (w <= len( l )) andalso ((mid( l, w, 1 ) = " ") orelse (mid( l, w, 1 ) = chr( 9 )))
+        w += 1
+    wend
+    return left( l, h ) & mid( l, h + 1, w - h - 1 )
+end function
+
+'' A condition, printed and evaluated: false with why when it has no faithful tiko text.
+private function Cond_( byref e as C2tEmit, byref env as CxEnv, byref d as C2tDirective, _
+                        byref text as string, byref truth as boolean, byref why as string ) as boolean
+    dim as CExpr c
+    c.env = @env
+    c.cond = true
+    dim as int32 a = AfterWord_( e, d )
+    if (d.kind = DK_IFDEF) orelse (d.kind = DK_IFNDEF) then
+        '' '#ifdef X' IS 'defined(X)', printed back as '#ifdef' where tiko has the name.
+        c.tx.Push( "defined" ) : c.tk.Push( CT_IDENT ) : c.ofs.Push( 0 )
+        c.tx.Push( d.name_ ) : c.tk.Push( CT_IDENT ) : c.ofs.Push( 2 )
+    else
+        CxLoad( c, *e.src, a, d.tok2 )
+    end if
+    if CxParse( c ) < 0 then
+        why = c.why
+        return false
+    end if
+    dim as string s = CxPrint( c, true )
+    if len( s ) = 0 then
+        why = c.why
+        return false
+    end if
+    dim as CxValue v
+    if CxFold( c, v ) = false then
+        why = "c2t cannot evaluate '" & s & "' to check it"
+        return false
+    end if
+    truth = iif( v.kind = CXV_FLOAT, v.f <> 0, v.i <> 0 )
+    if d.kind = DK_IFNDEF then truth = (truth = false)
+    select case d.kind
+    case DK_IFDEF, DK_IFNDEF
+        if left( s, 8 ) = "defined(" then
+            text = iif( d.kind = DK_IFDEF, "ifdef ", "ifndef " ) & mid( s, 9, len( s ) - 9 )
+        else
+            text = "if " & iif( truth, "1", "0" )
+        end if
+    case DK_ELIF
+        text = "elseif " & s
+    case else
+        text = "if " & s
+    end select
+    return true
+end function
+
+'' ---------------------------------------------------------------- macros
+
+private function ClangText_( byref v as string ) as string
+    if left( v, 1 ) = "-" then return "(" & v & ")"
+    '' clang marks any unsigned value 'ull' -- '(unsigned char)300' is '44ull'; a small one
+    '' reads better, and means the same, without it.
+    if (right( v, 3 ) = "ull") andalso (len( v ) <= 13) then
+        if valulng( left( v, len( v ) - 3 ) ) <= 2147483647ull then return left( v, len( v ) - 3 )
+    end if
+    return v
+end function
+
+'' Does clang's value (MacroPass's text) equal tiko's?
+private function Same_( byref clangV as string, byref v as CxValue ) as boolean
+    if len( clangV ) = 0 then return false
+    select case v.kind
+    case CXV_STR
+        return clangV = """" & v.s & """"
+    case CXV_FLOAT
+        if left( clangV, 1 ) = """" then return false
+        dim as float64 cf = val( clangV )
+        if cf = v.f then return true
+        return abs( cf - v.f ) <= 1e-15 * abs( cf )
+    case CXV_INT
+        if (left( clangV, 1 ) = """") orelse (instr( clangV, "." ) > 0) orelse (instr( lcase( clangV ), "e" ) > 0) then return false
+        dim as string t = clangV
+        if right( t, 3 ) = "ull" then
+            return valulng( left( t, len( t ) - 3 ) ) = cast( uint64, v.i )
+        end if
+        return vallng( t ) = v.i
+    end select
+    return false
+end function
+
+private sub EnvFromClang_( byref env as CxEnv, byref cname as string, byref tiko as string, byref clangV as string )
+    if left( clangV, 1 ) = """" then
+        CxEnvAdd( env, cname, tiko, CXV_STR, true, 0, 0, mid( clangV, 2, len( clangV ) - 2 ) )
+    elseif (instr( clangV, "." ) > 0) orelse ((instr( lcase( clangV ), "e" ) > 0) andalso (right( clangV, 3 ) <> "ull")) then
+        CxEnvAdd( env, cname, tiko, CXV_FLOAT, true, 0, val( clangV ) )
+    elseif right( clangV, 3 ) = "ull" then
+        CxEnvAdd( env, cname, tiko, CXV_INT, true, cast( int64, valulng( left( clangV, len( clangV ) - 3 ) ) ) )
+    else
+        CxEnvAdd( env, cname, tiko, CXV_INT, true, vallng( clangV ) )
+    end if
+end sub
+
+private sub Define_( byref e as C2tEmit, byref env as CxEnv, byref dirs as C2tDirVec, byval k as int32, _
+                     byref clangV as string )
+    dim as C2tDirective d = dirs[k]
+    dim as int32 nt = AfterWord_( e, d )
+    if (nt > d.tok2) orelse (e.src->toks[nt].kind <> CT_IDENT) then
+        Set_( e, k, 2, "", "macro", "a #define with no name" )
+        return
+    end if
+    dim as string cname = TokText( *e.src, nt )
+    dim as string hash = Hash_( e, d )
+    dim as int32 bt = nt + 1
+    dim as boolean fnLike = false
+    if (bt <= d.tok2) andalso (TokText( *e.src, bt ) = "(") andalso _
+       (e.src->toks[nt].ofs + e.src->toks[nt].len_ = e.src->toks[bt].ofs) then fnLike = true
+
+    if fnLike then
+        '' THE PARAMETERS, then the body with them in scope.
+        dim as Tko.StrVec ps
+        dim as int32 t = bt + 1
+        do
+            if t > d.tok2 then
+                Set_( e, k, 2, "", "function-like-macro", "a parameter list without its ')'" )
+                return
+            end if
+            dim as string w = TokText( *e.src, t )
+            if w = ")" then exit do
+            if w = "..." then
+                Set_( e, k, 2, "", "function-like-macro", "variadic: tiko has no __VA_ARGS__" )
+                return
+            end if
+            if (w <> ",") andalso (e.src->toks[t].kind = CT_IDENT) then ps.Push( w )
+            t += 1
+        loop
+        dim as CxEnv fenv = env
+        for i as int32 = 0 to ps.Count - 1
+            CxEnvAdd( fenv, ps[i], ps[i], CXV_PARAM, true )
+        next
+        dim as string body
+        dim as CExpr c
+        c.env = @fenv
+        CxLoad( c, *e.src, t + 1, d.tok2 )
+        if c.tx.Count > 0 then
+            if CxParse( c ) >= 0 then body = CxPrint( c, false )
+            if len( body ) = 0 then
+                Set_( e, k, 2, "", "function-like-macro", c.why )
+                return
+            end if
+        end if
+        dim as string nm = MacroName_( e, cname )
+        dim as string pl
+        for i as int32 = 0 to ps.Count - 1
+            if i > 0 then pl &= ", "
+            pl &= ps[i]
+        next
+        CxEnvAdd( env, cname, nm, CXV_NAME, true )
+        Set_( e, k, 1, TrailComments( e, rtrim( hash & "define " & nm & "(" & pl & ") " & body ), d.line2 ), "", "" )
+        return
+    end if
+
+    '' AN OBJECT-LIKE MACRO.
+    dim as string nm = MacroName_( e, cname )
+    dim as CExpr c
+    c.env = @env
+    c.checked = true
+    CxLoad( c, *e.src, bt, d.tok2 )
+    if c.tx.Count = 0 then
+        '' '#define FEATURE' -- defined, with no value: kept so '#ifdef' still sees it.
+        CxEnvAdd( env, cname, nm, CXV_NONE, true )
+        Set_( e, k, 1, TrailComments( e, hash & "define " & nm, d.line2 ), "", "" )
+        return
+    end if
+    dim as string printed
+    if CxParse( c ) >= 0 then printed = CxPrint( c, false )
+    dim as CxValue v
+    dim as boolean folded = false
+    if len( printed ) then folded = CxFold( c, v )
+    '' A CAST HAS NO VALUE IN tiko's PREPROCESSOR: '#if' refuses one (TKO0308) and '#assert'
+    '' does not truncate (measured, P4). A macro is used in both, so one holding a cast is
+    '' written as clang's value.
+    dim as boolean hasCast = false
+    for i as int32 = 0 to c.nodes.Count - 1
+        if c.nodes[i].kind = NK_CAST then hasCast = true
+    next
+    if hasCast andalso (len( clangV ) > 0) then
+        folded = false
+        c.why = "a cast, which tiko's preprocessor does not evaluate"
+        printed = ""
+    end if
+
+    if folded andalso Same_( clangV, v ) then
+        CxEnvAdd( env, cname, nm, v.kind, true, v.i, v.f, v.s )
+        if v.kind = CXV_INT then e.asserts.Push( "#assert (" & nm & ") = (" & ClangText_( clangV ) & ")" )
+        Set_( e, k, 1, TrailComments( e, hash & "define " & nm & " " & printed, d.line2 ), "", "" )
+        return
+    end if
+    '' A STRING c2t READ ITSELF: clang's probe gives no value for one (it decays to a pointer),
+    '' and the bytes c2t parsed are exact.
+    if folded andalso (v.kind = CXV_STR) andalso (len( clangV ) = 0) then
+        CxEnvAdd( env, cname, nm, CXV_STR, true, 0, 0, v.s )
+        Set_( e, k, 1, TrailComments( e, hash & "define " & nm & " " & printed, d.line2 ), "", "" )
+        return
+    end if
+    '' AN ALIAS: one name tiko declares (a function, a constant, another macro).
+    if (len( printed ) > 0) andalso (c.root >= 0) andalso (c.nodes[c.root].kind = NK_IDENT) then
+        CxEnvAdd( env, cname, nm, CXV_NAME, true )
+        Set_( e, k, 1, TrailComments( e, hash & "define " & nm & " " & printed, d.line2 ), "", "" )
+        return
+    end if
+    if len( clangV ) = 0 then
+        dim as string w = c.why
+        if len( w ) = 0 then w = "clang finds no value for it (a pointer, or not an expression)"
+        Set_( e, k, 2, "", "macro", "'" & cname & "': " & w )
+        return
+    end if
+    if clangV = "!nonfinite" then
+        Set_( e, k, 2, "", "macro", "'" & cname & "' is infinity or NaN, which tiko has no literal for" )
+        return
+    end if
+    if left( clangV, 1 ) = "!" then
+        Set_( e, k, 2, "", "macro", "'" & cname & "' is a record value -- a later c2t phase" )
+        return
+    end if
+    '' CLANG'S VALUE, and why the expression was not kept.
+    dim as string because
+    if len( printed ) = 0 then
+        because = c.why
+    elseif folded then
+        because = "'" & printed & "' is " & iif( v.kind = CXV_FLOAT, str( v.f ), str( v.i ) ) & " in tiko"
+    else
+        because = "c2t cannot evaluate '" & printed & "' to check it"
+    end if
+    EnvFromClang_( env, cname, nm, clangV )
+    dim as string note = IndentOf_( LineText( *e.src, d.line1 ) ) & "'' C2T-NOTE(value) " & e.src->name_ & ":" & _
+                         d.line1 & " -- clang's value; " & because
+    Set_( e, k, 1, note & chr( 10 ) & TrailComments( e, hash & "define " & nm & " " & ClangText_( clangV ), d.line2 ), "", "" )
+end sub
+
+'' '#if 0' exactly: the condition is the one token '0'.
+private function CondIsZero_( byref e as C2tEmit, byref d as C2tDirective ) as boolean
+    dim as int32 a = AfterWord_( e, d )
+    dim as int32 n = 0
+    dim as string t
+    for i as int32 = a to d.tok2
+        if e.src->toks[i].kind = CT_COMMENT then continue for
+        n += 1
+        t = TokText( *e.src, i )
+    next
+    return (n = 1) andalso (t = "0")
+end function
+
+private sub IfZeroNotes_( byref e as C2tEmit, byref blocks as C2tBlockVec, byval l1 as int32, byval l2 as int32 )
+    for b as int32 = 0 to blocks.Count - 1
+        if blocks[b].isTodo = false then continue for
+        if (blocks[b].line1 < l1) orelse (blocks[b].line2 > l2) then continue for
+        dim as string t = IndentOf_( LineText( *e.src, blocks[b].line1 ) ) & "'' C2T-NOTE(if-0) " & _
+                          e.src->name_ & ":" & blocks[b].line1 & " -- inside '#if 0' in the C"
+        for m as int32 = blocks[b].line1 to blocks[b].line2
+            t &= chr( 10 ) & rtrim( "'' " & LineText( *e.src, m ) )
+        next
+        blocks[b].isTodo = false
+        blocks[b].text = t
+    next
+end sub
+
+'' ---------------------------------------------------------------- the walk
+
+type Group_
+    as int32 ifIdx
+    dirIdx as C2tIntVec
+    texts as Tko.StrVec
+    as boolean ok
+    as string why
+    as boolean tikoTook        '' some earlier branch was taken, as tiko sees it
+end type
+type GroupVec_ as containers.Array( of Group_ )
+
+sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDirVec, _
+                     byref blocks as C2tBlockVec )
+    dim as int32 n = dirs.Count
+    e.dirState.Clear( ) : e.dirText.Clear( ) : e.dirReason.Clear( ) : e.dirWhy.Clear( )
+    for i as int32 = 0 to n - 1
+        e.dirState.Push( 0 ) : e.dirText.Push( "" ) : e.dirReason.Push( "" ) : e.dirWhy.Push( "" )
+    next
+    '' WHICH BLOCK EACH DIRECTIVE IS: one of its own (dirIdx), or none -- an idiom took it, or
+    '' it shares a TODO with a declaration and cannot be replaced alone.
+    dim as C2tIntVec blockOf
+    for i as int32 = 0 to n - 1
+        blockOf.Push( -1 )
+    next
+    dim as C2tIntVec idiomLine
+    for l as int32 = 0 to LineCount( *e.src )
+        idiomLine.Push( 0 )
+    next
+    for b as int32 = 0 to blocks.Count - 1
+        if blocks[b].dirNo > 0 then blockOf[blocks[b].dirNo - 1] = b
+        if (blocks[b].isTodo = false) andalso (blocks[b].dirNo = 0) then
+            for l as int32 = blocks[b].line1 to blocks[b].line2
+                idiomLine[l] = 1
+            next
+        end if
+    next
+
+    dim as CxEnv env
+    env.owner = @e
+    env.lookup = @LookupDecl_
+    env.typeLookup = @LookupType_
+    Platform_( env, instr( p.triple, "windows" ) > 0 )
+
+    '' CLANG'S VALUES, in one probe parse: every object-like macro with a body.
+    dim as Tko.StrVec names, values
+    dim as C2tIntVec nameOf
+    for k as int32 = 0 to n - 1
+        nameOf.Push( -1 )
+        dim as C2tDirective d = dirs[k]
+        if (d.kind <> DK_DEFINE) orelse idiomLine[d.line1] then continue for
+        if Inactive_( e, p, dirs, d ) then continue for
+        dim as int32 nt = AfterWord_( e, d )
+        if (nt > d.tok2) orelse (nt + 1 > d.tok2) then continue for
+        if (TokText( *e.src, nt + 1 ) = "(") andalso _
+           (e.src->toks[nt].ofs + e.src->toks[nt].len_ = e.src->toks[nt + 1].ofs) then continue for
+        nameOf[k] = names.Count
+        names.Push( TokText( *e.src, nt ) )
+    next
+    Tko.CImport.MacroValuesFor( *e.x, names, values )
+
+    dim as GroupVec_ groups
+    for k as int32 = 0 to n - 1
+        dim as C2tDirective d = dirs[k]
+        if idiomLine[d.line1] then continue for
+        if Inactive_( e, p, dirs, d ) then
+            Set_( e, k, 2, "", "unreached-branch", "inside a branch this pass does not take" )
+            continue for
+        end if
+        select case d.kind
+        case DK_IF, DK_IFDEF, DK_IFNDEF, DK_ELIF, DK_ELSE
+            if (d.kind = DK_IF) orelse (d.kind = DK_IFDEF) orelse (d.kind = DK_IFNDEF) then
+                dim as Group_ g
+                g.ifIdx = k
+                g.ok = true
+                groups.Push( g )
+            end if
+            if groups.Count = 0 then continue for
+            dim as int32 gi = groups.Count - 1
+            dim as string text, why
+            dim as boolean truth = true
+            if d.kind <> DK_ELSE then
+                if Cond_( e, env, d, text, truth, why ) = false then
+                    if groups[gi].ok then groups[gi].why = why
+                    groups[gi].ok = false
+                end if
+            else
+                text = "else"
+            end if
+            '' TIKO MUST TAKE THE BRANCH CLANG TOOK.
+            if groups[gi].ok then
+                dim as boolean tikoTakes = (groups[gi].tikoTook = false) andalso truth
+                dim as int32 ct = ClangTook_( e, p, dirs, k )
+                if ct < 0 then
+                    groups[gi].ok = false
+                    groups[gi].why = "an empty branch: c2t cannot tell which one clang took"
+                elseif (ct = 1) <> tikoTakes then
+                    groups[gi].ok = false
+                    groups[gi].why = "tiko would take " & iif( tikoTakes, "this branch", "another branch" ) & _
+                                     " where clang does not"
+                end if
+                if tikoTakes then groups[gi].tikoTook = true
+            end if
+            groups[gi].dirIdx.Push( k )
+            groups[gi].texts.Push( text )
+        case DK_ENDIF
+            if groups.Count = 0 then continue for
+            dim as int32 gi = groups.Count - 1
+            groups[gi].dirIdx.Push( k )
+            groups[gi].texts.Push( "endif" )
+            dim as Group_ g = groups[gi]
+            groups.Pop( )
+            for i as int32 = 0 to g.dirIdx.Count - 1
+                if blockOf[g.dirIdx[i]] < 0 then
+                    g.ok = false
+                    if len( g.why ) = 0 then g.why = "a directive of the group shares a line with a declaration"
+                end if
+            next
+            '' '#if 0' IN THE C IS A COMMENT ALREADY (D12): what it hides is a NOTE, not a TODO.
+            for i as int32 = 0 to g.dirIdx.Count - 2
+                dim as int32 dk = g.dirIdx[i]
+                if (dirs[dk].kind = DK_IF) andalso (CondIsZero_( e, dirs[dk] )) then
+                    IfZeroNotes_( e, blocks, dirs[dk].line2 + 1, dirs[g.dirIdx[i + 1]].line1 - 1 )
+                end if
+            next
+            for i as int32 = 0 to g.dirIdx.Count - 1
+                dim as int32 dk = g.dirIdx[i]
+                if g.ok then
+                    Set_( e, dk, 1, TrailComments( e, Hash_( e, dirs[dk] ) & g.texts[i], dirs[dk].line2 ), "", "" )
+                else
+                    Set_( e, dk, 2, "", "conditional", g.why )
+                end if
+            next
+        case DK_DEFINE
+            dim as string cv
+            if nameOf[k] >= 0 then cv = values[nameOf[k]]
+            Define_( e, env, dirs, k, cv )
+        case DK_UNDEF
+            dim as int32 f = CxEnvFind( env, d.name_ )
+            dim as string tn = d.name_
+            if f >= 0 then tn = env.tiko[f]
+            if len( tn ) then
+                CxEnvAdd( env, d.name_, tn, CXV_NONE, false )
+                Set_( e, k, 1, TrailComments( e, Hash_( e, d ) & "undef " & tn, d.line2 ), "", "" )
+            end if
+        end select
+    next
+
+    '' THE BLOCKS: a translated directive replaces its TODO; a refused one keeps it, with
+    '' the reason found here.
+    for k as int32 = 0 to n - 1
+        dim as int32 b = blockOf[k]
+        if (b < 0) orelse (e.dirState[k] = 0) then continue for
+        if e.dirState[k] = 1 then
+            blocks[b].isTodo = false
+            blocks[b].text = e.dirText[k]
+            '' extern "C" OPENS BEFORE THE FIRST TRANSLATED THING, a directive included --
+            '' never inside a conditional whose other branch would leave it unopened.
+            blocks[b].isDecl = true
+        else
+            blocks[b].reason = e.dirReason[k]
+            blocks[b].why = e.dirWhy[k]
+        end if
+    next
+end sub
+
+end namespace

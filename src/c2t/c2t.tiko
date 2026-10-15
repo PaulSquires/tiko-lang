@@ -111,7 +111,7 @@ private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.
                              byref src as C2tSource, byref o as C2tOptions, _
                              byref io as Tko.CImport.CImportOptions, byref optText as string, _
                              byref outName as string, byref text as string, byref manifest as string, _
-                             byref todos as int32 ) as boolean
+                             byref asserts as string, byref todos as int32 ) as boolean
     dim as C2tPass p
     if RunPass( api, src, o, io.triple, p ) = false then
         ctx.diags.ReportGlobal( Tko.TKO0120, o.input_ )
@@ -133,6 +133,7 @@ private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.
     dim as C2tEmit e
     EmitInit( e, api, x, io, src, p )
     TodoBlocks( src, dirs, p, e, blocks )
+    MacroDirectives( e, p, dirs, blocks )
     ClosePass( api, p )
 
     '' clong/culong live in crt/long.bi; extern "C" is placed here unless the header's own
@@ -153,6 +154,10 @@ private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.
     manifest = ""
     for i as int32 = 0 to x.manifest.Count - 1
         manifest &= x.manifest[i] & chr( 10 )
+    next
+    asserts = ""
+    for i as int32 = 0 to e.asserts.Count - 1
+        asserts &= e.asserts[i] & chr( 10 )
     next
     return true
 end function
@@ -197,13 +202,16 @@ private function Run_( byref args as Tko.StrVec, byref ctx as Tko.CompilerContex
         ctx.options.target = Tko.TARGET_WINDOWS_X86_64
         ctx.types.Attach( @ctx.names, Tko.TargetLayoutFor( ctx.options.target ) )
     end if
-    dim as string text, manifest
+    dim as string text, manifest, asserts
     dim as int32 todos
     for round as int32 = 1 to 4
-        if Translate_( ctx, api, src, o, io, optText, outName, text, manifest, todos ) = false then return 1
+        if Translate_( ctx, api, src, o, io, optText, outName, text, manifest, asserts, todos ) = false then return 1
         if o.verify = false then exit for
         dim as Tko.StrVec badName, badWhy
-        if Tko.CImportDriver.VerifyLayout( ctx, text, manifest, badName, badWhy ) = false then
+        '' THE MACROS TOO: each integer one kept as an expression is asserted equal to clang's
+        '' value by tiko's preprocessor, in the text checked -- never in the file written.
+        dim as string checkText = text & chr( 10 ) & asserts
+        if Tko.CImportDriver.VerifyLayout( ctx, checkText, manifest, badName, badWhy ) = false then
             ctx.diags.ReportGlobal( Tko.TKO0175, o.input_ )
             return 1
         end if

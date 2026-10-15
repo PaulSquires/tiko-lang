@@ -209,6 +209,7 @@ declare sub NoteDecl( byref x as CImp, byref cname as string, byval uid as int32
 '' ---- macros.tiko
 declare sub MacroCandidate( byref x as CImp, byval c as CXCursor )
 declare sub MacroPass( byref x as CImp )
+declare sub MacroValuesFor( byref x as CImp, byref names as Tko.StrVec, byref values as Tko.StrVec )
 declare sub MacroSeen( byref x as CImp, byref n as string )
 declare sub NameSeedClaim( byref x as CImp, byval ns as CImpNs, byref n as string )
 declare function StateExport( byref x as CImp ) as string

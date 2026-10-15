@@ -138,5 +138,7 @@ src/c2t/source.tiko
 src/c2t/ppscan.tiko
 src/c2t/pass.tiko
 src/c2t/emitdecl.tiko
+src/c2t/cexpr.tiko
+src/c2t/emitmacro.tiko
 src/c2t/output.tiko
 src/c2t/c2t.tiko

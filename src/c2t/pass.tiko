@@ -87,6 +87,7 @@ function RunPass( byref api as Tko.CImport.ClangApi, byref src as C2tSource, _
     dim as zstring ptr argv( 0 to av.Count )
     for i as int32 = 0 to av.Count - 1
         argv( i ) = strptr( av[i] )
+        p.args.Push( av[i] )
     next
 
     dim as string path_ = src.path_

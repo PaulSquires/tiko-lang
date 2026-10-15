@@ -163,6 +163,10 @@ private function Trail_( byref e as C2tEmit, byref code as string, byval n as in
     return code & space( gap ) & cm
 end function
 
+function TrailComments( byref e as C2tEmit, byref code as string, byval n as int32 ) as string
+    return Trail_( e, code, n )
+end function
+
 '' ---------------------------------------------------------------- aliases
 
 '' Every record the translation reached through a pointer before writing it (types.tiko,
@@ -654,6 +658,12 @@ sub EmitInit( byref e as C2tEmit, byref api as Tko.CImport.ClangApi, byref x as 
     x.opts = @io
     x.tu = p.tu
     x.c2t = true
+    '' THE MACRO PROBES (macros.tiko) parse a unit of their own: one #include of the header,
+    '' with the pass's arguments.
+    x.unitText = "#include " & chr( 34 ) & src.path_ & chr( 34 ) & chr( 10 )
+    for i as int32 = 0 to p.args.Count - 1
+        x.args.Push( p.args[i] )
+    next
     '' THE SYSTEM TYPEDEFS c2t SPELLS ITSELF (RFC-0001 §5.1); any other a system header
     '' declares is refused where it is used.
     dim as string td( 0 to 31 ) = { _

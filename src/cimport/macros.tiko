@@ -421,6 +421,31 @@ private function RecordValue_( byref x as CImp, byref shape as string, fvals() a
     return r & ")"
 end function
 
+'' tiko c2t (src/c2t/emitmacro.tiko): clang's value for each macro in 'names', by the same
+'' probe parse, as MacroPass's text -- "123", "123ull", a float, a quoted string, "" for
+'' none, "!nonfinite", or a "!record " shape. x.unitText and x.args are c2t's: one #include
+'' of the header and the pass's clang arguments.
+sub MacroValuesFor( byref x as CImp, byref names as Tko.StrVec, byref values as Tko.StrVec )
+    dim as int32 n = names.Count
+    values.Clear( )
+    if n = 0 then return
+    dim as string lines( 0 to n - 1 )
+    dim as boolean live( 0 to n - 1 )
+    dim as string vals( 0 to n - 1 )
+    for i as int32 = 0 to n - 1
+        lines( i ) = "__auto_type __tko_probe_" & i & " = (" & names[i] & ");"
+        live( i ) = true
+    next
+    if ProbeParse_( x, lines(), live(), n, chr( 10 ), "__tko_probe_", PM_VALUE, vals() ) = false then
+        for i as int32 = 0 to n - 1
+            vals( i ) = ""
+        next
+    end if
+    for i as int32 = 0 to n - 1
+        values.Push( vals( i ) )
+    next
+end sub
+
 sub MacroPass( byref x as CImp )
     dim as int32 n = x.macroNames.Count
     if n = 0 then return

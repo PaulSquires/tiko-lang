@@ -18,6 +18,7 @@ type Span_
     as string why
     as string segs                 '' the clang segments it came from, "3,4,"
     as boolean pure                '' only segments: c2t may translate it
+    as int32 dir                   '' the directive it is, index + 1; 0 for none
 end type
 type SpanVec_ as containers.Array( of Span_ )
 
@@ -30,6 +31,7 @@ private sub AddSpan_( byref v as SpanVec_, byval l1 as int32, byval l2 as int32,
     s.what = what
     s.why = why
     s.pure = false
+    s.dir = 0
     v.Push( s )
 end sub
 
@@ -156,6 +158,7 @@ sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p as C2tP
         dim as string what = d.name_
         if len( what ) = 0 then what = "#" & d.word
         AddSpan_( spans, d.line1, d.line2, "not-yet", what, DirWhy_( d ) )
+        spans[spans.Count - 1].dir = k + 1
     next
     '' ---- C text nothing claimed: an inactive branch's declarations, or something clang
     '' did not report. Each run of such lines becomes one TODO.
@@ -226,6 +229,8 @@ sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p as C2tP
         b.line1 = m.l1
         b.line2 = m.l2
         b.isTodo = true
+        '' A DIRECTIVE ALONE IN ITS BLOCK can be replaced by emitmacro.tiko.
+        if (j - i = 1) andalso (m.dir > 0) then b.dirNo = m.dir
         b.reason = m.reason
         b.what = m.what
         b.why = m.why
