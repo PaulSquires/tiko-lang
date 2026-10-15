@@ -146,7 +146,7 @@ END TYPE
 ' ========================================================================================
 CONSTRUCTOR CTextSelection2 (BYVAL pTextSelection2 AS ITextSelection2 PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
    ' // Store the pointer of ITextSelection2 interface
-   IF pTextSelection2 = NULL THEN m_Result = E_INVALIDARG : EXIT CONSTRUCTOR
+   IF pTextSelection2 = nullptr THEN m_Result = E_INVALIDARG : EXIT CONSTRUCTOR
    IF fAddRef THEN pTextSelection2->lpvtbl->AddRef(pTextSelection2)
    m_pTextSelection2 = pTextSelection2
 END CONSTRUCTOR
@@ -166,7 +166,7 @@ END DESTRUCTOR
 ' Assignment operator
 ' ========================================================================================
 OPERATOR CTextSelection2.LET (BYVAL pTextSelection2 AS ITextSelection2 PTR)
-   IF pTextSelection2 = NULL THEN m_Result = E_INVALIDARG : EXIT OPERATOR
+   IF pTextSelection2 = nullptr THEN m_Result = E_INVALIDARG : EXIT OPERATOR
    ' // Release the interface
    IF m_pTextSelection2 THEN m_pTextSelection2->lpvtbl->Release(m_pTextSelection2)
    ' // Attach the passed interface pointer to the class
@@ -194,7 +194,7 @@ END FUNCTION
 ' Attaches the passed text document object to the class
 ' ========================================================================================
 FUNCTION CTextSelection2.Attach (BYVAL pTextSelection2 AS ITextSelection2 PTR, BYVAL fAddRef AS BOOLEAN = FALSE) AS HRESULT
-   IF pTextSelection2 = NULL THEN m_Result = E_INVALIDARG : RETURN m_Result
+   IF pTextSelection2 = nullptr THEN m_Result = E_INVALIDARG : RETURN m_Result
    ' // Release the interface
    IF m_pTextSelection2 THEN m_Result = m_pTextSelection2->lpvtbl->Release(m_pTextSelection2)
    ' // Attach the passed interface pointer to the class
@@ -209,7 +209,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CTextSelection2.Detach () AS ITextSelection2 PTR
    DIM pTextSelection2 AS ITextSelection2 PTR = m_pTextSelection2
-   m_pTextSelection2 = NULL
+   m_pTextSelection2 = nullptr
    RETURN pTextSelection2
 END FUNCTION
 ' ========================================================================================

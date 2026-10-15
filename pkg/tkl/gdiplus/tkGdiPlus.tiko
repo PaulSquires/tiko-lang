@@ -241,7 +241,7 @@ PUBLIC FUNCTION tkGdipDllVersion () AS LONG
    DIM cbLen AS DWORD = GetFileVersionInfoSizeW("gdiplus.dll", @dwHandle)
    IF cbLen = 0 THEN EXIT FUNCTION
    DIM pVerInfo AS HANDLE = HeapAlloc(GetProcessHeap, HEAP_ZERO_MEMORY, cbLen)
-   IF pVerInfo = NULL THEN EXIT FUNCTION
+   IF pVerInfo = nullptr THEN EXIT FUNCTION
    IF GetFileVersionInfoW("gdiplus.dll", dwHandle, cbLen, pVerInfo) THEN
       IF VerQueryValueW(pVerInfo, "\", @pvsffi, @cbLen) THEN
          DIM wMajor AS WORD = HIWORD(pvsffi->dwFileVersionMS)
@@ -300,7 +300,7 @@ END FUNCTION
 PUBLIC FUNCTION tkGdipInit () AS ULONG_PTR
    DIM token AS ULONG_PTR, StartupInput AS GdiplusStartupInput
    StartupInput.GdiplusVersion = 1   ' Version must be 1
-   GdiplusStartup(@token, @StartupInput, NULL)
+   GdiplusStartup(@token, @StartupInput, nullptr)
    FUNCTION = token
 END FUNCTION
 ' ========================================================================================
@@ -391,7 +391,7 @@ PUBLIC FUNCTION tkGdipImageFromFile2 (BYREF wszFileName AS WSTRING, _
    IF token = NULL THEN EXIT FUNCTION
    ' // Load the image from file
    GdipLoadImageFromFile(wszFileName, @pImage)
-   IF pImage = NULL THEN EXIT FUNCTION
+   IF pImage = nullptr THEN EXIT FUNCTION
    ' // Get the image width and height
    GdipGetImageWidth(pImage, @ImageWidth)
    GdipGetImageHeight(pImage, @ImageHeight)
@@ -610,8 +610,8 @@ PUBLIC FUNCTION tkGdipImageFromFile (BYREF wszFileName AS WSTRING, _
    ' // Use CreateFileW because Free Basic OPEN does not work with unicode file names.
    ' // Open the file and store its contents into a buffer
    DIM bSuccess AS LONG, dwFileSize AS DWORD, dwHighSize AS DWORD, dwBytesRead AS DWORD
-   DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, NULL, _
-                         OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL)
+   DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, _
+                         OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr)
    IF hFile = INVALID_HANDLE_VALUE THEN EXIT FUNCTION
    ' // Get the size of the file
    dwFileSize = GetFileSize(hFile, @dwHighSize)
@@ -621,7 +621,7 @@ PUBLIC FUNCTION tkGdipImageFromFile (BYREF wszFileName AS WSTRING, _
    END IF
    DIM pBuffer AS UBYTE PTR
    pBuffer = CAllocate(1, dwFileSize)
-   bSuccess = ReadFile(hFile, pBuffer, dwFileSize, @dwBytesRead, NULL)
+   bSuccess = ReadFile(hFile, pBuffer, dwFileSize, @dwBytesRead, nullptr)
    CloseHandle(hFile)
    IF bSuccess THEN
       IF pBuffer THEN
@@ -878,12 +878,12 @@ END FUNCTION
 ' If the method fails, it returns one of the other elements of the Status enumeration.
 ' ========================================================================================
 PUBLIC FUNCTION tkGdipSaveImageToFile (BYVAL pImage AS GpImage PTR, BYREF wszFileName AS WSTRING, BYREF wszMimeType AS WSTRING) AS LONG
-   IF pImage = NULL OR LEN(TRIM(wszFileName)) = 0 THEN RETURN InvalidParameter
+   IF pImage = nullptr OR LEN(TRIM(wszFileName)) = 0 THEN RETURN InvalidParameter
    ' // Initialize Gdiplus
    DIM token AS ULONG_PTR = tkGdipInit
    IF token = 0 THEN EXIT FUNCTION
    DIM clsidEncoder AS GUID = tkGdipGetEncoderClsid(wszMimeType)
-   FUNCTION = GdipSaveImageToFile(pImage, @wszFileName, @clsidEncoder, NULL)
+   FUNCTION = GdipSaveImageToFile(pImage, @wszFileName, @clsidEncoder, nullptr)
    ' // Shutdown Gdiplus
    GdiplusShutdown token
 END FUNCTION
@@ -935,15 +935,15 @@ END FUNCTION
 ' If the method fails, it returns one of the other elements of the Status enumeration.
 ' ========================================================================================
 PUBLIC FUNCTION tkGdipSaveHBITMAPToFile (BYVAL hbmp AS HBITMAP, BYREF wszFileName AS WSTRING, BYREF wszMimeType AS WSTRING = "image/bmp") AS LONG
-   IF hbmp = NULL OR LEN(TRIM(wszFileName)) = 0 THEN RETURN InvalidParameter
+   IF hbmp = nullptr OR LEN(TRIM(wszFileName)) = 0 THEN RETURN InvalidParameter
    ' // Initialize Gdiplus
    DIM token AS ULONG_PTR = tkGdipInit
    ' // Create a Bitmap object from an HBITMAP
    DIM pBitmap AS GpBitmap PTR
-   GdipCreateBitmapFromHBITMAP(hbmp, NULL, @pBitmap)
+   GdipCreateBitmapFromHBITMAP(hbmp, nullptr, @pBitmap)
    IF pBitmap THEN
       DIM clsidEncoder AS GUID = tkGdipGetEncoderClsid(wszMimeType)
-      FUNCTION = GdipSaveImageToFile(CAST(GpImage PTR, pBitmap), @wszFileName, @clsidEncoder, NULL)
+      FUNCTION = GdipSaveImageToFile(CAST(GpImage PTR, pBitmap), @wszFileName, @clsidEncoder, nullptr)
       GdipDisposeImage(cast(GpImage PTR, pBitmap))
    END IF
    IF token = 0 THEN EXIT FUNCTION
@@ -986,24 +986,24 @@ PUBLIC FUNCTION tkGdipPrintHBITMAP (BYVAL hbmp AS HBITMAP, BYVAL bStretch AS BOO
       IF nPos THEN wszPrinterName = LEFT(wszPrinterName, nPos - 1)
       IF wszPrinterName = "" THEN EXIT DO
       ' // Open the printer
-      IF OpenPrinterW(wszPrinterName, @hPrinter, NULL) = 0 THEN EXIT DO
+      IF OpenPrinterW(wszPrinterName, @hPrinter, nullptr) = 0 THEN EXIT DO
       ' // Allocate a buffer of the correct size
-      DIM dwNeeded AS DWORD = DocumentPropertiesW(NULL, hPrinter, wszPrinterName, NULL, NULL, 0)
+      DIM dwNeeded AS DWORD = DocumentPropertiesW(nullptr, hPrinter, wszPrinterName, nullptr, nullptr, 0)
       pbufferDoc = CAllocate(1, dwNeeded)
       ' // Retrieve the printer configuration data
-      DIM nRet AS LONG = DocumentPropertiesW(NULL, hPrinter, wszPrinterName, CAST(PDEVMODEW, pbufferDoc), NULL, DM_OUT_BUFFER)
+      DIM nRet AS LONG = DocumentPropertiesW(nullptr, hPrinter, wszPrinterName, CAST(PDEVMODEW, pbufferDoc), nullptr, DM_OUT_BUFFER)
       IF nRet <> IDOK THEN EXIT DO
       ' // Cast it to a DEVMODEW structure
       DIM pDevMode AS DEVMODEW PTR = CAST(DEVMODEW PTR, pbufferDoc)
       ' // Create a device context for the printer
-      DIM hDC AS .HDC = CreateDCW(wszPrinterName, wszPrinterName, NULL, pDevMode)
-      IF hDC = NULL THEN EXIT DO
+      DIM hDC AS .HDC = CreateDCW(wszPrinterName, wszPrinterName, nullptr, pDevMode)
+      IF hDC = nullptr THEN EXIT DO
       ' // Create a graphics object from the printer DC
       GdipCreateFromHDC(hDC, @pGraphics)
-      IF pGraphics = NULL THEN EXIT DO
+      IF pGraphics = nullptr THEN EXIT DO
       ' // Create a Bitmap object from an HBITMAP
-      GdipCreateBitmapFromHBITMAP(hbmp, NULL, @pBitmap)
-      IF pBitmap = NULL THEN EXIT DO
+      GdipCreateBitmapFromHBITMAP(hbmp, nullptr, @pBitmap)
+      IF pBitmap = nullptr THEN EXIT DO
       ' // Stretching
       DIM cx AS SINGLE, cy AS SINGLE
       IF bStretch THEN GdipSetInterpolationMode(pGraphics, nStretchMode)
@@ -1093,7 +1093,7 @@ PUBLIC FUNCTION tkGdipLoadTexture OVERLOAD (BYREF wszFileName AS WSTRING, BYREF 
       LOOP
       IF nCount <> 1 THEN nStatus = ERROR_INVALID_DATA : EXIT DO
       ' // Get a thumbnail image from the Image object
-      nStatus = GdipGetImageThumbnail(pImage, TextureWidth, TextureHeight, @pThumb, NULL, NULL)
+      nStatus = GdipGetImageThumbnail(pImage, TextureWidth, TextureHeight, @pThumb, nullptr, nullptr)
       IF nStatus <> 0 THEN EXIT DO
       ' // Flip the image vertically
       nStatus = GdipImageRotateFlip(pThumb, 6) ' 6 = RotateNoneFlipY
@@ -1161,17 +1161,17 @@ PUBLIC FUNCTION tkGdipLoadTexture OVERLOAD (BYVAL hInstance AS HINSTANCE, _
    DO
       ' // Find the resource and lock it
       hResource = FindResourceW(cast(HMODULE, hInstance), @wszResourceName, CAST(LPCWSTR, RT_RCDATA))
-      IF hResource = NULL THEN nStatus = E_POINTER : EXIT DO
+      IF hResource = nullptr THEN nStatus = E_POINTER : EXIT DO
       imageSize = SizeofResource(cast(HMODULE, hInstance), hResource)
       IF imageSize = 0 THEN nStatus = ERROR_INVALID_DATA : EXIT DO
       pResourceData = LockResource(LoadResource(cast(HMODULE, hInstance), hResource))
-      IF pResourceData = NULL THEN nStatus = E_POINTER : EXIT DO
+      IF pResourceData = nullptr THEN nStatus = E_POINTER : EXIT DO
       ' // Allocate memory to hold the image
       hGlobal = GlobalAlloc(GMEM_MOVEABLE, imageSize)
-      IF hGlobal = NULL THEN nStatus = E_POINTER : EXIT DO
+      IF hGlobal = nullptr THEN nStatus = E_POINTER : EXIT DO
       ' // Lock the memory
       pGlobalBuffer = GlobalLock(hGlobal)
-      IF pGlobalBuffer = NULL THEN nStatus = E_POINTER : EXIT DO
+      IF pGlobalBuffer = nullptr THEN nStatus = E_POINTER : EXIT DO
       ' // Copy the image from the resource file to global memory
       memcpy pGlobalBuffer, pResourceData, imageSize
       ' // Create an stream in global memory
@@ -1196,7 +1196,7 @@ PUBLIC FUNCTION tkGdipLoadTexture OVERLOAD (BYVAL hInstance AS HINSTANCE, _
       LOOP
       IF nCount <> 1 THEN nStatus = ERROR_INVALID_DATA : EXIT DO
       ' // Get a thumbnail image from the Image object
-      nStatus = GdipGetImageThumbnail(pImage, TextureWidth, TextureHeight, @pThumb, NULL, NULL)
+      nStatus = GdipGetImageThumbnail(pImage, TextureWidth, TextureHeight, @pThumb, nullptr, nullptr)
       IF nStatus <> 0 THEN EXIT DO
       ' // Flip the image vertically
       nStatus = GdipImageRotateFlip(pThumb, 6) ' 6 = RotateNoneFlipY
@@ -1273,26 +1273,26 @@ PUBLIC FUNCTION tkImageStreamFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszIma
    ELSE
       hRes = FindResourceW(hInstance, wszImageName, CAST(LPCWSTR, RT_RCDATA))
    END IF
-   IF hRes = 0 THEN RETURN NULL
+   IF hRes = nullptr THEN RETURN nullptr
 
    ' // Load the resource and get a pointer to the resource data.
    ' // Note: LockResource does not actually lock memory; it is just used
    ' // to obtain a pointer to the memory containing the resource data.
    pResData = LockResource(LoadResource(hInstance, hRes))
-   IF pResData = 0 THEN RETURN NULL
+   IF pResData = nullptr THEN RETURN nullptr
 
    ' Get the size of the resource
    cbRes = SizeofResource(hInstance, hRes)
-   IF cbRes = 0 THEN RETURN NULL
+   IF cbRes = 0 THEN RETURN nullptr
 
    ' Allocate moveable global memory
    hGlobal = GlobalAlloc(GMEM_MOVEABLE, cbRes)
-   IF hGlobal = 0 THEN RETURN NULL
+   IF hGlobal = nullptr THEN RETURN nullptr
 
    pGlobal = GlobalLock(hGlobal)
-   IF pGlobal = 0 THEN
+   IF pGlobal = nullptr THEN
       GlobalFree(hGlobal)
-      RETURN NULL
+      RETURN nullptr
    END IF
 
    ' Copy the resource into allocated memory
@@ -1302,7 +1302,7 @@ PUBLIC FUNCTION tkImageStreamFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszIma
    ' Create a stream that owns the HGLOBAL
    IF CreateStreamOnHGlobal(hGlobal, TRUE, @pStream) <> S_OK THEN
       GlobalFree(hGlobal)
-      RETURN NULL
+      RETURN nullptr
    END IF
 
    RETURN pStream

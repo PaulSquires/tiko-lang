@@ -11,9 +11,9 @@
 ' must free the object.
 ' ========================================================================================
 PUBLIC FUNCTION D2D1_SafeRelease (BYREF pv AS ANY PTR) AS ULONG
-   IF pv = NULL THEN RETURN 0
+   IF pv = nullptr THEN RETURN 0
    FUNCTION = cast(IUnknown PTR, pv)->lpvtbl->Release(pv)
-   pv = NULL
+   pv = nullptr
 END FUNCTION
 ' ========================================================================================
 
@@ -459,11 +459,11 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION D2D1_LayerParameters ( _
    BYREF contentBounds AS D2D1_RECT_F = D2D1_InfiniteRect(), _
-   BYVAL geometricMask AS ID2D1Geometry PTR = NULL, _
+   BYVAL geometricMask AS ID2D1Geometry PTR = nullptr, _
    BYVAL maskAntialiasMode AS D2D1_ANTIALIAS_MODE = D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, _
    BYREF maskTransform AS D2D1_MATRIX_3X2_F = D2D1_IdentityMatrix(), _
    BYREF opacity AS FLOAT = 1.0, _
-   BYVAL opacityBrush AS ID2D1Brush PTR = NULL, _
+   BYVAL opacityBrush AS ID2D1Brush PTR = nullptr, _
    BYVAL layerOptions AS D2D1_LAYER_OPTIONS  = D2D1_LAYER_OPTIONS_NONE _
    ) AS D2D1_LAYER_PARAMETERS
 
@@ -1471,7 +1471,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION D2D1_BitmapProperties1 (BYVAL bitmapOptions AS D2D1_BITMAP_OPTIONS = D2D1_BITMAP_OPTIONS_NONE, _
 BYVAL pixelFormat AS const D2D1_PIXEL_FORMAT = D2D1_PixelFormat(), BYVAL dpiX AS FLOAT = 96.0, BYVAL dpiY AS FLOAT = 96.0, _
-BYVAL colorContext AS ID2D1ColorContext PTR = NULL) AS D2D1_BITMAP_PROPERTIES1
+BYVAL colorContext AS ID2D1ColorContext PTR = nullptr) AS D2D1_BITMAP_PROPERTIES1
 
    DIM AS D2D1_BITMAP_PROPERTIES1 bitmapProperties
    bitmapProperties.pixelFormat = pixelFormat
@@ -1486,8 +1486,8 @@ END FUNCTION
 
 ' ========================================================================================
 PUBLIC FUNCTION D2D1_LayerParameters1 (BYREF contentBounds AS const D2D1_RECT_F = D2D1_InfiniteRect(), _
-BYVAL geometricMask AS ID2D1Geometry PTR = NULL, BYVAL maskAntialiasMode AS D2D1_ANTIALIAS_MODE = D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, _
-BYREF maskTransform AS D2D1_MATRIX_3X2_F = D2D1_IdentityMatrix(), BYVAL opacity AS FLOAT = 1.0, BYVAL opacityBrush AS ID2D1Brush PTR = NULL, _
+BYVAL geometricMask AS ID2D1Geometry PTR = nullptr, BYVAL maskAntialiasMode AS D2D1_ANTIALIAS_MODE = D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, _
+BYREF maskTransform AS D2D1_MATRIX_3X2_F = D2D1_IdentityMatrix(), BYVAL opacity AS FLOAT = 1.0, BYVAL opacityBrush AS ID2D1Brush PTR = nullptr, _
 BYVAL layerOptions AS D2D1_LAYER_OPTIONS1 = D2D1_LAYER_OPTIONS1_NONE) AS D2D1_LAYER_PARAMETERS1
 
    DIM AS D2D1_LAYER_PARAMETERS1 layerParameters

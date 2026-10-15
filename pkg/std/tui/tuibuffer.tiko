@@ -143,7 +143,7 @@ end function
 '' address, silently, with no diagnostic. Measured during phase 1; the same
 '' wart forced tuiterm.tiko's TuiSaved( ) to return a pointer.
 function TuiBuffer.At( byval x as long, byval y as long ) as TuiCell ptr
-    if( InBounds( x, y ) = FALSE ) then return 0
+    if( InBounds( x, y ) = FALSE ) then return nullptr
     return @cells[ y * cols + x ]
 end function
 
@@ -199,7 +199,7 @@ sub TuiFrame.Attach( byval b as TuiBuffer ptr )
 end sub
 
 function TuiFrame.Area( ) as TuiRect
-    if( m_buf = 0 ) then return TuiRectOf( 0, 0, 0, 0 )
+    if( m_buf = nullptr ) then return TuiRectOf( 0, 0, 0, 0 )
     return TuiRectOf( 0, 0, m_buf->cols, m_buf->rows )
 end function
 
@@ -245,7 +245,7 @@ end sub
 '' of a wide glyph that is being partially overwritten.
 sub TuiFrame.hBlankAt( byval x as long, byval y as long, byval st as TuiStyle )
     dim as TuiCell ptr c = m_buf->At( x, y )
-    if( c = 0 ) then exit sub
+    if( c = nullptr ) then exit sub
     c->text = " "
     c->st = st
     c->width = 1
@@ -253,7 +253,7 @@ end sub
 
 sub TuiFrame.SetCell( byval x as long, byval y as long, _
                               byref ch as ustring, byval st as TuiStyle )
-    if( m_buf = 0 ) then exit sub
+    if( m_buf = nullptr ) then exit sub
     if( m_clip.Contains( x, y ) = FALSE ) then exit sub
 
     dim as long adv = 0
@@ -270,7 +270,7 @@ sub TuiFrame.SetCell( byval x as long, byval y as long, _
     '' Overwriting either half of an existing wide glyph must repair the other
     '' half, or the terminal is told to draw a stale partner.
     dim as TuiCell ptr cur = m_buf->At( x, y )
-    if( cur = 0 ) then exit sub
+    if( cur = nullptr ) then exit sub
     if( cur->width = 2 ) then hBlankAt( x + 1, y, cur->st )
     if( cur->width = 0 ) then hBlankAt( x - 1, y, cur->st )
 
@@ -279,7 +279,7 @@ sub TuiFrame.SetCell( byval x as long, byval y as long, _
 
     if( w = 2 ) then
         dim as TuiCell ptr nxt = m_buf->At( x + 1, y )
-        if( nxt <> 0 ) then
+        if( nxt <> nullptr ) then
             '' repair anything the continuation cell is itself clobbering
             if( nxt->width = 2 ) then hBlankAt( x + 2, y, nxt->st )
             nxt->text = ""
@@ -293,7 +293,7 @@ end sub
 '' laying the next run. It is not an error code, and callers routinely ignore it.
 function TuiFrame.DrawText( byval x as long, byval y as long, _
                                     byref s as ustring, byval st as TuiStyle ) as long
-    if( m_buf = 0 ) then return 0
+    if( m_buf = nullptr ) then return 0
 
     dim as long cx = x, i = 0, adv = 0, written = 0
     while( i < len( s ) )
@@ -327,7 +327,7 @@ function TuiFrame.DrawText( byval x as long, byval y as long, _
 end function
 
 sub TuiFrame.FillRect( byval r as TuiRect, byref ch as ustring, byval st as TuiStyle )
-    if( m_buf = 0 ) then exit sub
+    if( m_buf = nullptr ) then exit sub
     dim as TuiRect a = r.Intersect( m_clip )
     if( a.IsEmpty( ) ) then exit sub
 
@@ -341,14 +341,14 @@ end sub
 '' Patches the style of every cell in r, leaving the text alone. This is what
 '' "dim the background behind a modal" is.
 sub TuiFrame.BlendStyle( byval r as TuiRect, byval over as TuiStyle )
-    if( m_buf = 0 ) then exit sub
+    if( m_buf = nullptr ) then exit sub
     dim as TuiRect a = r.Intersect( m_clip )
     if( a.IsEmpty( ) ) then exit sub
 
     for yy as long = a.y to a.Bottom( ) - 1
         for xx as long = a.x to a.Right( ) - 1
             dim as TuiCell ptr c = m_buf->At( xx, yy )
-            if( c <> 0 ) then c->st = c->st.Patch( over )
+            if( c <> nullptr ) then c->st = c->st.Patch( over )
         next
     next
 end sub

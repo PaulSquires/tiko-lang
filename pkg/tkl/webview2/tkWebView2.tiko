@@ -1038,7 +1038,7 @@ BYVAL userDataFolder AS PCWSTR, BYVAL environmentOptions AS ICoreWebView2Environ
 BYVAL environment_created_handler AS ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler PTR) AS HRESULT
    FUNCTION = E_POINTER
    DIM AS ANY PTR pLib = DyLibLoad("WebView2Loader.dll")
-   IF pLib = NULL THEN EXIT FUNCTION
+   IF pLib = nullptr THEN EXIT FUNCTION
    DIM pCreateCoreWebView2EnvironmentWithOptions AS FUNCTION (BYVAL browserExecutableFolder AS PCWSTR, _
       BYVAL userDataFolder AS PCWSTR, BYVAL environmentOptions AS ICoreWebView2EnvironmentOptions PTR, _
       BYVAL environment_created_handler AS ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler PTR) AS HRESULT
@@ -1060,7 +1060,7 @@ BYVAL userDataFolder AS PCWSTR, BYVAL additionalBrowserArguments AS PCWSTR, _
 BYVAL environment_created_handler AS ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler PTR) AS HRESULT
    FUNCTION = E_POINTER
    DIM AS ANY PTR pLib = DyLibLoad("WebView2Loader.dll")
-   IF pLib = NULL THEN EXIT FUNCTION
+   IF pLib = nullptr THEN EXIT FUNCTION
    DIM pCreateCoreWebView2EnvironmentWithDetails AS FUNCTION (BYVAL browserExecutableFolder AS PCWSTR, _
       BYVAL userDataFolder AS PCWSTR, BYVAL additionalBrowserArguments AS PCWSTR, _
       BYVAL environment_created_handler AS ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler PTR) AS HRESULT
@@ -1077,7 +1077,7 @@ END FUNCTION
 PUBLIC FUNCTION CreateCoreWebView2Environment (BYVAL environment_created_handler AS ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler PTR) AS HRESULT
    FUNCTION = E_POINTER
    DIM AS ANY PTR pLib = DyLibLoad("WebView2Loader.dll")
-   IF pLib = NULL THEN EXIT FUNCTION
+   IF pLib = nullptr THEN EXIT FUNCTION
    DIM pCreateCoreWebView2Environment AS FUNCTION (BYVAL environment_created_handler AS ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler PTR) AS HRESULT
    pCreateCoreWebView2Environment = DyLibSymbol(pLib, "CreateCoreWebView2Environment")
    IF pCreateCoreWebView2Environment THEN FUNCTION = pCreateCoreWebView2Environment(environment_created_handler)
@@ -1091,7 +1091,7 @@ END FUNCTION
 PUBLIC FUNCTION GetAvailableCoreWebView2BrowserVersionString (BYVAL browserExecutableFolder AS PCWSTR, BYVAL versionInfo AS LPWSTR PTR) AS HRESULT
    FUNCTION = E_POINTER
    DIM AS ANY PTR pLib = DyLibLoad("WebView2Loader.dll")
-   IF pLib = NULL THEN EXIT FUNCTION
+   IF pLib = nullptr THEN EXIT FUNCTION
    DIM pGetAvailableCoreWebView2BrowserVersionString AS FUNCTION (BYVAL browserExecutableFolder AS PCWSTR, BYVAL versionInfo AS LPWSTR PTR) AS HRESULT
    pGetAvailableCoreWebView2BrowserVersionString = DyLibSymbol(pLib, "GetAvailableCoreWebView2BrowserVersionString")
    IF pGetAvailableCoreWebView2BrowserVersionString THEN FUNCTION = pGetAvailableCoreWebView2BrowserVersionString(browserExecutableFolder, versionInfo)
@@ -1105,7 +1105,7 @@ END FUNCTION
 PUBLIC FUNCTION CompareBrowserVersions (BYVAL version1 AS PCWSTR, BYVAL version2 AS PCWSTR, BYVAL result AS INT_ PTR) AS HRESULT
    FUNCTION = E_POINTER
    DIM AS ANY PTR pLib = DyLibLoad("WebView2Loader.dll")
-   IF pLib = NULL THEN EXIT FUNCTION
+   IF pLib = nullptr THEN EXIT FUNCTION
    DIM pCompareBrowserVersions AS FUNCTION (BYVAL version1 AS PCWSTR, BYVAL version2 AS PCWSTR, BYVAL result AS INT_ PTR) AS HRESULT
    pCompareBrowserVersions = DyLibSymbol(pLib, "CompareBrowserVersions")
    IF pCompareBrowserVersions THEN FUNCTION = pCompareBrowserVersions(version1, version2, result)

@@ -674,7 +674,7 @@ property LocalDate.IsoWeek( ) as long
     if this.m_days = DT_INVALID_DAYS then return 0
     dim as long y, mo, d
     fb_DtCivilFromDays( this.m_days, @y, @mo, @d )
-    return fb_DtIsoWeek( y, mo, d, 0 )
+    return fb_DtIsoWeek( y, mo, d, nullptr )
 end property
 property LocalDate.IsoWeekYear( ) as long
     if this.m_days = DT_INVALID_DAYS then return 0

@@ -581,7 +581,7 @@ END FUNCTION
 ' Only affects the scroll bars.
 ' ========================================================================================
 PUBLIC FUNCTION tkListBox_SetDarkMode (BYVAL hListBox AS HWND) AS HRESULT
-   RETURN SetWindowTheme(hListBox, "DarkMode_Explorer", NULL)
+   RETURN SetWindowTheme(hListBox, "DarkMode_Explorer", nullptr)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -589,6 +589,6 @@ END FUNCTION
 ' Only affects the scroll bars.
 ' ========================================================================================
 PUBLIC FUNCTION tkListBox_RemoveDarkMode (BYVAL hListBox AS HWND) AS HRESULT
-   RETURN SetWindowTheme(hListBox, NULL, NULL)
+   RETURN SetWindowTheme(hListBox, nullptr, nullptr)
 END FUNCTION
 ' ========================================================================================

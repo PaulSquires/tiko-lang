@@ -59,7 +59,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 CONSTRUCTOR CGpImage (BYVAL hInst AS HINSTANCE, BYREF wszImageName AS WSTRING)
    m_pStream = tkImageStreamFromRes(hInst, wszImageName)
-   IF m_pStream = 0 THEN EXIT CONSTRUCTOR
+   IF m_pStream = nullptr THEN EXIT CONSTRUCTOR
    IF GdipLoadImageFromStream(m_pStream, @m_pImage) <> S_OK THEN m_pStream->lpVtbl->Release(m_pStream)
 END CONSTRUCTOR
 ' ========================================================================================
@@ -406,7 +406,7 @@ END FUNCTION
 ' Copies the contents of the existing Image object into a new Image object.
 ' ========================================================================================
 FUNCTION CGpImage.Clone (BYVAL pCloneImage AS CGpImage PTR) AS GpStatus
-   IF pCloneImage = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pCloneImage = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pCloneImage->m_pImage THEN GdipDisposeImage(pCloneImage->m_pImage)
    RETURN SetStatus(GdipCloneImage(m_pImage, @pCloneImage->m_pImage))
 END FUNCTION
@@ -415,7 +415,7 @@ END FUNCTION
 ' ========================================================================================
 ' Gets a thumbnail image from this Image object.
 ' ========================================================================================
-FUNCTION CGpImage.GetThumbnailImage (BYVAL thumbWidth AS UINT, BYVAL thumbHeight AS UINT, BYVAL pThumbnail AS CGpImage PTR, BYVAL pCallback AS ANY PTR = NULL, BYVAL callbackData AS ANY PTR = NULL) AS GpStatus
+FUNCTION CGpImage.GetThumbnailImage (BYVAL thumbWidth AS UINT, BYVAL thumbHeight AS UINT, BYVAL pThumbnail AS CGpImage PTR, BYVAL pCallback AS ANY PTR = nullptr, BYVAL callbackData AS ANY PTR = nullptr) AS GpStatus
    IF pThumbnail->m_pImage THEN GdipDisposeImage(pThumbnail->m_pImage)
    RETURN SetStatus(GdipGetImageThumbnail(m_pImage, thumbWidth, thumbHeight, _
       IIF(pThumbnail, @pThumbnail->m_pImage, NULL), pCallback, callbackData))
@@ -477,7 +477,7 @@ END CONSTRUCTOR
 ' Creates a Bitmap object based on size and format information.
 ' ========================================================================================
 CONSTRUCTOR CGpBitmap (BYVAL nWidth AS INT_, BYVAL nHeight AS INT_, BYVAL pxFormat AS PixelFormat = PixelFormat32bppPARGB)
-   m_Status = GdipCreateBitmapFromScan0(nWidth, nHeight, 0, pxFormat, NULL, @cast(GpBitmap PTR, m_pImage))
+   m_Status = GdipCreateBitmapFromScan0(nWidth, nHeight, 0, pxFormat, nullptr, @cast(GpBitmap PTR, m_pImage))
 END CONSTRUCTOR
 ' ========================================================================================
 
@@ -512,7 +512,7 @@ END CONSTRUCTOR
 ' Creates a Bitmap object based on a handle to a Windows Windows Graphics Device
 ' Interface (GDI) bitmap and a handle to a GDI palette.
 ' ========================================================================================
-CONSTRUCTOR CGpBitmap (BYVAL hbm AS HBITMAP, BYVAL hPal AS HPALETTE = NULL)
+CONSTRUCTOR CGpBitmap (BYVAL hbm AS HBITMAP, BYVAL hPal AS HPALETTE = nullptr)
    m_Status = GdipCreateBitmapFromHBITMAP(hbm, hpal, @cast(GpBitmap PTR, m_pImage))
 END CONSTRUCTOR
 ' ========================================================================================
@@ -540,7 +540,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 CONSTRUCTOR CGpBitmap (BYVAL hInst AS HINSTANCE, BYREF wszImageName AS WSTRING)
    m_pStream = tkImageStreamFromRes(hInst, wszImageName)
-   IF m_pStream = 0 THEN EXIT CONSTRUCTOR
+   IF m_pStream = nullptr THEN EXIT CONSTRUCTOR
    IF GdipLoadImageFromStream(m_pStream, @m_pImage) <> S_OK THEN m_pStream->lpVtbl->Release(m_pStream)
 END CONSTRUCTOR
 ' ========================================================================================
@@ -579,7 +579,7 @@ END FUNCTION
 ' Copies the contents of the existing Bitmap object into a new Bitmap object.
 ' ========================================================================================
 FUNCTION CGpBitmap.Clone (BYVAL pCloneBitmap AS CGpBitmap PTR) AS GpStatus
-   IF pCloneBitmap = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pCloneBitmap = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pCloneBitmap->m_pImage THEN GdipDisposeImage(pCloneBitmap->m_pImage)
    RETURN SetStatus(GdipCloneImage(cast(GpImage PTR, m_pImage), @cast(GpImage PTR, pCloneBitmap->m_pImage)))
 END FUNCTION
@@ -589,7 +589,7 @@ END FUNCTION
 ' Creates a new Bitmap object by copying a portion of this bitmap.
 ' =====================================================================================
 FUNCTION CGpBitmap.Clone (BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL nWidth AS SINGLE, BYVAL nHeight AS SINGLE, BYVAL pxFormat AS PixelFormat, BYVAL pCloneBitmap AS CGpBitmap PTR) AS GpStatus
-   IF pCloneBitmap = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pCloneBitmap = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pCloneBitmap->m_pImage THEN GdipDisposeImage(pCloneBitmap->m_pImage)
    RETURN SetStatus(GdipCloneBitmapArea(x, y, nWidth, nHeight, pxFormat, cast(GpBitmap PTR, m_pImage), _
           @cast(GpBitmap PTR, pCloneBitmap->m_pImage)))
@@ -605,7 +605,7 @@ END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
 FUNCTION CGpBitmap.Clone (BYVAL rcf AS GpRectF PTR, BYVAL pxFormat AS PixelFormat, BYVAL pCloneBitmap AS CGpBitmap PTR) AS GpStatus
-   IF pCloneBitmap = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pCloneBitmap = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pCloneBitmap->m_pImage THEN GdipDisposeImage(pCloneBitmap->m_pImage)
    RETURN SetStatus(GdipCloneBitmapArea(rcf->x, rcf->y, rcf->Width, rcf->Height, pxFormat, cast(GpBitmap PTR, m_pImage), _
           @cast(GpBitmap PTR, pCloneBitmap->m_pImage)))
@@ -613,7 +613,7 @@ END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
 FUNCTION CGpBitmap.Clone (BYVAL rc AS GpRect PTR, BYVAL pxFormat AS PixelFormat, BYVAL pCloneBitmap AS CGpBitmap PTR) AS GpStatus
-   IF pCloneBitmap = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pCloneBitmap = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pCloneBitmap->m_pImage THEN GdipDisposeImage(pCloneBitmap->m_pImage)
    RETURN SetStatus(GdipCloneBitmapArea(rc->x, rc->y, rc->Width, rc->Height, pxFormat, cast(GpBitmap PTR, m_pImage), _
           @cast(GpBitmap PTR, pCloneBitmap->m_pImage)))
@@ -740,8 +740,8 @@ BYVAL useAuxData AS BOOLEAN, BYVAL auxData AS ANY PTR PTR, BYVAL auxDataSize AS 
 END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
-FUNCTION CGpBitmap.ApplyEffect (BYVAL pEffect AS CGpEffect PTR, BYVAL roi AS RECT PTR = NULL) AS GpStatus
-   RETURN SetStatus(GdipBitmapApplyEffect(cast(GpBitmap PTR, m_pImage), cast(ANY PTR, pEffect->m_pEffect), roi, FALSE, NULL, NULL))
+FUNCTION CGpBitmap.ApplyEffect (BYVAL pEffect AS CGpEffect PTR, BYVAL roi AS RECT PTR = nullptr) AS GpStatus
+   RETURN SetStatus(GdipBitmapApplyEffect(cast(GpBitmap PTR, m_pImage), cast(ANY PTR, pEffect->m_pEffect), roi, FALSE, nullptr, nullptr))
 END FUNCTION
 ' =====================================================================================
 
@@ -866,20 +866,20 @@ END CONSTRUCTOR
 ' =====================================================================================
 ' Creates a Metafile object for recording
 ' =====================================================================================
-CONSTRUCTOR CGpMetafile (BYVAL referenceHdc AS HDC, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
-   m_Status = GdipRecordMetafile(referenceHdc, nType, NULL, MetafileFrameUnitGdi, description, @cast(GpMetafile PTR, m_pImage))
+CONSTRUCTOR CGpMetafile (BYVAL referenceHdc AS HDC, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
+   m_Status = GdipRecordMetafile(referenceHdc, nType, nullptr, MetafileFrameUnitGdi, description, @cast(GpMetafile PTR, m_pImage))
 END CONSTRUCTOR
 ' =====================================================================================
 
 ' =====================================================================================
 ' Creates a Metafile object for recording
 ' =====================================================================================
-CONSTRUCTOR CGpMetafile (BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRectF PTR, BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
+CONSTRUCTOR CGpMetafile (BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRectF PTR, BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
    m_Status = GdipRecordMetafile(referenceHdc, nType, frmRect, frameUnit, description, @cast(GpMetafile PTR, m_pImage))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
-CONSTRUCTOR CGpMetafile (BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRect PTR, BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
+CONSTRUCTOR CGpMetafile (BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRect PTR, BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
    m_Status = GdipRecordMetafileI(referenceHdc, nType, frmRect, frameUnit, description, @cast(GpMetafile PTR, m_pImage))
 END CONSTRUCTOR
 ' =====================================================================================
@@ -887,8 +887,8 @@ END CONSTRUCTOR
 ' =====================================================================================
 ' Creates a Metafile object for recording
 ' =====================================================================================
-CONSTRUCTOR CGpMetafile (BYVAL pwszFileName AS WSTRING PTR, BYVAL referenceHdc AS HDC, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
-   m_Status = GdipRecordMetafileFileName(pwszFileName, referenceHdc, nType, NULL, MetafileFrameUnitGdi, description, @cast(GpMetafile PTR, m_pImage))
+CONSTRUCTOR CGpMetafile (BYVAL pwszFileName AS WSTRING PTR, BYVAL referenceHdc AS HDC, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
+   m_Status = GdipRecordMetafileFileName(pwszFileName, referenceHdc, nType, nullptr, MetafileFrameUnitGdi, description, @cast(GpMetafile PTR, m_pImage))
 END CONSTRUCTOR
 ' =====================================================================================
 
@@ -896,13 +896,13 @@ END CONSTRUCTOR
 ' Creates a Metafile object for recording
 ' =====================================================================================
 CONSTRUCTOR CGpMetafile (BYVAL pwszFileName AS WSTRING PTR, BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRectF PTR, _
-BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
+BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
    m_Status = GdipRecordMetafileFileName(pwszFileName, referenceHdc, nType, frmRect, frameUnit, description, @cast(GpMetafile PTR, m_pImage))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 CONSTRUCTOR CGpMetafile (BYVAL pwszFileName AS WSTRING PTR, BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRect PTR, _
-BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
+BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
    m_Status = GdipRecordMetafileFileNameI(pwszFileName, referenceHdc, nType, frmRect, frameUnit, description, @cast(GpMetafile PTR, m_pImage))
 END CONSTRUCTOR
 ' =====================================================================================
@@ -911,7 +911,7 @@ END CONSTRUCTOR
 ' Creates a Metafile object for recording to an IStream interface.
 ' =====================================================================================
 CONSTRUCTOR CGpMetafile (BYVAL pStream AS IStream PTR, BYVAL referenceHdc AS HDC, BYVAL nType AS EmfType, BYVAL description AS WSTRING PTR)
-   m_Status = GdipRecordMetafileStream(pStream, referenceHdc, nType, NULL, MetafileFrameUnitGdi, description, @cast(GpMetafile PTR, m_pImage))
+   m_Status = GdipRecordMetafileStream(pStream, referenceHdc, nType, nullptr, MetafileFrameUnitGdi, description, @cast(GpMetafile PTR, m_pImage))
 END CONSTRUCTOR
 ' =====================================================================================
 
@@ -919,13 +919,13 @@ END CONSTRUCTOR
 ' Creates a Metafile object for recording to an IStream interface.
 ' =====================================================================================
 CONSTRUCTOR CGpMetafile (BYVAL pStream AS IStream PTR, BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRectF PTR, _
-BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
+BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
    m_Status = GdipRecordMetafileStream(pStream, referenceHdc, nType, frmRect, frameUnit, description, @cast(GpMetafile PTR, m_pImage))
 END CONSTRUCTOR
 ' =====================================================================================
 ' =====================================================================================
 CONSTRUCTOR CGpMetafile (BYVAL pStream AS IStream PTR, BYVAL referenceHdc AS HDC, BYVAL frmRect AS GpRect PTR, _
-BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = NULL)
+BYVAL frameUnit AS MetafileFrameUnit = MetafileFrameUnitGdi, BYVAL nType AS EmfType = EmfTypeEmfPlusDual, BYVAL description AS WSTRING PTR = nullptr)
    m_Status = GdipRecordMetafileStreamI(pStream, referenceHdc, nType, frmRect, frameUnit, description, @cast(GpMetafile PTR, m_pImage))
 END CONSTRUCTOR
 ' =====================================================================================

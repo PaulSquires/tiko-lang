@@ -941,7 +941,7 @@ public function Split overload _
 
     dim res as Array( of string )
 
-    dim as integer n = Detail.SplitSpans( s, delim, ignoreCase, 0, 0 )
+    dim as integer n = Detail.SplitSpans( s, delim, ignoreCase, nullptr, 0 )
     if n <= 0 then return res
 
     dim as integer spans( 0 to n * 2 - 1 )
@@ -962,7 +962,7 @@ public function Split overload _
 
     dim res as Array( of ustring )
 
-    dim as integer n = Detail.SplitSpans( s, delim, ignoreCase, 0, 0 )
+    dim as integer n = Detail.SplitSpans( s, delim, ignoreCase, nullptr, 0 )
     if n <= 0 then return res
 
     dim as integer spans( 0 to n * 2 - 1 )
@@ -997,7 +997,7 @@ public function SplitChars overload _
 
     dim res as Array( of string )
 
-    dim as integer n = Detail.SplitCharsSpans( s, chars, ignoreCase, 0, 0 )
+    dim as integer n = Detail.SplitCharsSpans( s, chars, ignoreCase, nullptr, 0 )
     if n <= 0 then return res
 
     dim as integer spans( 0 to n * 2 - 1 )
@@ -1018,7 +1018,7 @@ public function SplitChars overload _
 
     dim res as Array( of ustring )
 
-    dim as integer n = Detail.SplitCharsSpans( s, chars, ignoreCase, 0, 0 )
+    dim as integer n = Detail.SplitCharsSpans( s, chars, ignoreCase, nullptr, 0 )
     if n <= 0 then return res
 
     dim as integer spans( 0 to n * 2 - 1 )

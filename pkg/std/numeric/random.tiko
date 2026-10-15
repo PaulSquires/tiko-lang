@@ -304,7 +304,7 @@ __FB_RNG_CHOICE( string )
 #endif
 
 public function CryptoBytes overload ( byval dst as any ptr, byval nbytes as ulong ) as boolean
-    if( dst = 0 orelse nbytes = 0 ) then return false
+    if( dst = nullptr orelse nbytes = 0 ) then return false
     #ifdef __FB_WIN32__
         function = ( SystemFunction036( dst, nbytes ) <> 0 )
     #else

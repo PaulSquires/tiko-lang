@@ -163,7 +163,7 @@ END FUNCTION
 ' as we will have to do if we return a pointer to a CGpCustomLineCap created with NEW.
 ' =====================================================================================
 FUNCTION CGpCustomLineCap.Clone (BYVAL pCustomLineCap AS CGpCustomLineCap PTR) AS GpStatus
-   IF pCustomLineCap = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pCustomLineCap = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pCustomLineCap->m_pCustomLineCap THEN GdipDeleteCustomLineCap(pCustomLineCap->m_pCustomLineCap)
    RETURN SetStatus(GdipCloneCustomLineCap(m_pCustomLineCap, @pCustomLineCap->m_pCustomLineCap))
 END FUNCTION

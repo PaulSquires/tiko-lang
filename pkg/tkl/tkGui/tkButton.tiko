@@ -543,13 +543,13 @@ END FUNCTION
 ' * Set button dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkButton_SetDarkMode (BYVAL hButton AS HWND) AS HRESULT
-   RETURN SetWindowTheme(hButton, "DarkMode_Explorer", NULL)
+   RETURN SetWindowTheme(hButton, "DarkMode_Explorer", nullptr)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' * Remove button dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkButton_RemoveDarkMode (BYVAL hButton AS HWND) AS HRESULT
-   RETURN SetWindowTheme(hButton, NULL, NULL)
+   RETURN SetWindowTheme(hButton, nullptr, nullptr)
 END FUNCTION
 ' ========================================================================================

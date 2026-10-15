@@ -48,7 +48,7 @@ private function Printf_( byref conv as const string, byval prec as long, byval 
     dim as ulongint slots( 0 to 1 )
     slots( 0 ) = prec
     slots( 1 ) = *cast( ulongint ptr, @v )
-    dim as long n = fmt_vsprintf_( 2ull or 32ull, strptr( buf ), len( buf ), strptr( fz ), 0, @slots( 0 ) )
+    dim as long n = fmt_vsprintf_( 2ull or 32ull, strptr( buf ), len( buf ), strptr( fz ), nullptr, @slots( 0 ) )
 #else
     dim as long n = fmt_snprintf_( strptr( buf ), len( buf ), strptr( fz ), prec, v )
 #endif
@@ -64,7 +64,7 @@ private sub ShortestDigits_( byval v as double, byval isSingle as boolean, byref
     dim as string s
     for p as long = 1 to maxp
         s = Printf_( "%.*e", p - 1, v )
-        dim as double back = fmt_strtod_( strptr( s ), 0 )
+        dim as double back = fmt_strtod_( strptr( s ), nullptr )
         if isSingle then
             if cast( single, back ) = cast( single, v ) then exit for
         else

@@ -231,7 +231,7 @@ END TYPE
 ' ========================================================================================
 CONSTRUCTOR CTextFont2 (BYVAL pTextFont2 AS ITextFont2 PTR, BYVAL fAddRef AS BOOLEAN = FALSE)
    ' // Store the pointer of the ITextFont2 interface
-   IF pTextFont2 =  NULL THEN m_Result = E_INVALIDARG : EXIT CONSTRUCTOR
+   IF pTextFont2 =  nullptr THEN m_Result = E_INVALIDARG : EXIT CONSTRUCTOR
    IF fAddRef THEN pTextFont2->lpvtbl->AddRef(pTextFont2)
    m_pTextFont2 = pTextFont2
 END CONSTRUCTOR
@@ -1896,7 +1896,7 @@ END PROPERTY
 ' Gets the additional character format effects.
 ' ========================================================================================
 FUNCTION CTextFont2.GetPropertyInfo (BYVAL Index AS LONG, BYVAL pType AS LONG PTR, BYVAL pValue AS LONG PTR) AS HRESULT
-   IF m_pTextFont2 = NULL THEN m_Result = E_POINTER: RETURN m_Result
+   IF m_pTextFont2 = nullptr THEN m_Result = E_POINTER: RETURN m_Result
    m_Result = m_pTextFont2->lpvtbl->GetPropertyInfo(m_pTextFont2, Index, pType, pValue)
    RETURN m_Result
 END FUNCTION
@@ -1905,7 +1905,7 @@ END FUNCTION
 ' Gets the additional character format effects.
 ' ========================================================================================
 FUNCTION CTextFont2.PropertyInfo (BYVAL Index AS LONG, BYVAL pType AS LONG PTR, BYVAL pValue AS LONG PTR) AS HRESULT
-   IF m_pTextFont2 = NULL THEN m_Result = E_POINTER: RETURN m_Result
+   IF m_pTextFont2 = nullptr THEN m_Result = E_POINTER: RETURN m_Result
    m_Result = m_pTextFont2->lpvtbl->GetPropertyInfo(m_pTextFont2, Index, pType, pValue)
    RETURN m_Result
 END FUNCTION

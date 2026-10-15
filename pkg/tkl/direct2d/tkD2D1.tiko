@@ -2174,19 +2174,19 @@ PUBLIC TYPE ID2D1RenderTarget_ EXTENDS ID2D1Resource
    DECLARE ABSTRACT FUNCTION CreateLayer (BYREF size AS const D2D1_SIZE_F, BYREF layer AS ID2D1Layer PTR) AS HRESULT
    DECLARE ABSTRACT FUNCTION CreateMesh (BYREF mesh AS ID2D1Mesh PTR) AS HRESULT
    DECLARE ABSTRACT SUB DrawLine (BYVAL point0 AS D2D1_POINT_2F, BYVAL point1 AS D2D1_POINT_2F, BYVAL brush AS ID2D1Brush PTR, _
-      BYVAL strokeWidth AS FLOAT = 1.0!, BYVAL strokeStyle AS ID2D1StrokeStyle PTR = NULL)
+      BYVAL strokeWidth AS FLOAT = 1.0!, BYVAL strokeStyle AS ID2D1StrokeStyle PTR = nullptr)
    DECLARE ABSTRACT SUB DrawRectangle (BYREF rect AS const D2D1_RECT_F, BYVAL brush AS ID2D1Brush PTR, _
-      BYVAL strokeWidth AS FLOAT = 1.0!, BYVAL strokeStyle AS ID2D1StrokeStyle PTR = NULL)
+      BYVAL strokeWidth AS FLOAT = 1.0!, BYVAL strokeStyle AS ID2D1StrokeStyle PTR = nullptr)
    DECLARE ABSTRACT SUB FillRectangle (BYREF rect AS const D2D1_RECT_F, BYVAL brush AS ID2D1Brush PTR)
    DECLARE ABSTRACT SUB DrawRoundedRectangle (BYREF roundedRect AS const D2D1_ROUNDED_RECT, _
-      BYVAL brush AS ID2D1Brush PTR, BYVAL strokeWidth AS FLOAT = 1.0!, BYVAL strokeStyle AS ID2D1StrokeStyle PTR = NULL)
+      BYVAL brush AS ID2D1Brush PTR, BYVAL strokeWidth AS FLOAT = 1.0!, BYVAL strokeStyle AS ID2D1StrokeStyle PTR = nullptr)
    DECLARE ABSTRACT SUB FillRoundedRectangle (BYREF roundedRect AS const D2D1_ROUNDED_RECT, BYVAL brush AS ID2D1Brush PTR)
    DECLARE ABSTRACT SUB DrawEllipse (BYREF ellipse AS const D2D1_ELLIPSE, BYVAL brush AS ID2D1Brush PTR, _
-      BYVAL strokeWidth AS FLOAT = 1.0!, BYVAL strokeStyle AS ID2D1StrokeStyle PTR = NULL)
+      BYVAL strokeWidth AS FLOAT = 1.0!, BYVAL strokeStyle AS ID2D1StrokeStyle PTR = nullptr)
    DECLARE ABSTRACT SUB FillEllipse (BYREF ellipse AS const D2D1_ELLIPSE, BYVAL brush AS ID2D1Brush PTR)
    DECLARE ABSTRACT SUB DrawGeometry (BYVAL geometry AS ID2D1Geometry PTR, BYVAL brush AS ID2D1Brush PTR, _
-      BYVAL strokeWidth AS FLOAT = 1.0!, BYVAL strokeStyle AS ID2D1StrokeStyle PTR = NULL)
-   DECLARE ABSTRACT SUB FillGeometry (BYVAL geometry AS ID2D1Geometry PTR, BYVAL brush AS ID2D1Brush PTR, BYVAL opacityBrush AS ID2D1Brush PTR = NULL)
+      BYVAL strokeWidth AS FLOAT = 1.0!, BYVAL strokeStyle AS ID2D1StrokeStyle PTR = nullptr)
+   DECLARE ABSTRACT SUB FillGeometry (BYVAL geometry AS ID2D1Geometry PTR, BYVAL brush AS ID2D1Brush PTR, BYVAL opacityBrush AS ID2D1Brush PTR = nullptr)
    DECLARE ABSTRACT SUB FillMesh (BYVAL mesh AS ID2D1Mesh PTR, BYVAL brush AS ID2D1Brush PTR)
    DECLARE ABSTRACT SUB FillOpacityMask (BYVAL opacityMask AS ID2D1Bitmap PTR, BYVAL brush AS ID2D1Brush PTR, _
       BYVAL content AS D2D1_OPACITY_MASK_CONTENT, BYREF destinationRectangle AS const D2D1_RECT_F, _
@@ -4034,9 +4034,9 @@ PUBLIC TYPE ID2D1SvgGlyphStyle_ EXTENDS ID2D1Resource
    DECLARE ABSTRACT FUNCTION SetFill (BYVAL brush AS ID2D1Brush PTR) AS HRESULT
    DECLARE ABSTRACT SUB GetFill (BYREF brush AS ID2D1Brush PTR)
    DECLARE ABSTRACT FUNCTION SetStroke (BYVAL brush AS ID2D1Brush PTR, BYVAL strokeWidth AS FLOAT = 1.0!, _
-           BYVAL dashes AS FLOAT PTR = NULL, BYVAL dashesCount AS UINT32, BYVAL dashOffset AS FLOAT = 1.0!) AS HRESULT
+           BYVAL dashes AS FLOAT PTR = nullptr, BYVAL dashesCount AS UINT32, BYVAL dashOffset AS FLOAT = 1.0!) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetStrokeDashesCount () AS UINT32
-   DECLARE ABSTRACT SUB GetStroke (BYREF brush AS ID2D1Brush PTR, BYREF strokeWidth AS FLOAT PTR = NULL, _
+   DECLARE ABSTRACT SUB GetStroke (BYREF brush AS ID2D1Brush PTR, BYREF strokeWidth AS FLOAT PTR = nullptr, _
            BYREF dashes AS FLOAT = NULL, BYVAL dashesCount AS UINT32, BYREF dashOffset AS FLOAT = NULL)
 END TYPE
 
@@ -4067,7 +4067,7 @@ PUBLIC TYPE ID2D1DeviceContext4_ EXTENDS ID2D1DeviceContext3
            BYREF glyphRun AS DWRITE_GLYPH_RUN, BYVAL measuringMode AS DWRITE_MEASURING_MODE = DWRITE_MEASURING_MODE_NATURAL, _
            BYVAL bitmapSnapOption AS D2D1_COLOR_BITMAP_GLYPH_SNAP_OPTION = D2D1_COLOR_BITMAP_GLYPH_SNAP_OPTION_DEFAULT)
    DECLARE ABSTRACT FUNCTION DrawSvgGlyphRun (BYVAL baselineOrigin AS D2D1_POINT_2F, BYREF glyphRun AS DWRITE_GLYPH_RUN, _
-           BYVAL defaultFillBrush AS ID2D1Brush PTR = NULL, BYVAL svgGlyphStyle AS ID2D1SvgGlyphStyle PTR = NULL, _
+           BYVAL defaultFillBrush AS ID2D1Brush PTR = nullptr, BYVAL svgGlyphStyle AS ID2D1SvgGlyphStyle PTR = nullptr, _
            BYVAL colorPaletteIndex AS UINT32 = 0, BYVAL measuringMode AS DWRITE_MEASURING_MODE = DWRITE_MEASURING_MODE_NATURAL) AS HRESULT
    DECLARE ABSTRACT FUNCTION GetColorBitmapGlyphImage (BYVAL glyphImageFormat AS DWRITE_GLYPH_IMAGE_FORMATS, _
            BYVAL glyphOrigin AS D2D1_POINT_2F, BYVAL fontFace AS IDWriteFontFace PTR, BYVAL fontEmSize AS FLOAT, _

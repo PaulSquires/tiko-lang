@@ -97,14 +97,14 @@ END FUNCTION
 ' Retrieves information about the specified combo box.
 ' ========================================================================================
 PUBLIC FUNCTION tkCombo_GetComboBoxInfo OVERLOAD (BYVAL hCombo AS HWND, BYVAL pcbi AS COMBOBOXINFO PTR) AS BOOLEAN
-   IF pcbi = NULL THEN RETURN FALSE
+   IF pcbi = nullptr THEN RETURN FALSE
    pcbi->cbSize = SIZEOF(COMBOBOXINFO)
    RETURN SendMessageW(hCombo, CB_GETCOMBOBOXINFO, 0, CAST(LPARAM, pcbi))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkCombo_GetComboBoxInfo OVERLOAD (BYVAL hCombo AS HWND, BYREF cbi AS COMBOBOXINFO) AS BOOLEAN
-   IF VARPTR(cbi) = 0 THEN RETURN FALSE
+   IF VARPTR(cbi) = nullptr THEN RETURN FALSE
    cbi.cbSize = SIZEOF(COMBOBOXINFO)
    RETURN SendMessageW(hCombo, CB_GETCOMBOBOXINFO, 0, CAST(LPARAM, @cbi))
 END FUNCTION
@@ -585,14 +585,14 @@ END FUNCTION
 ' Sets the control dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkCombo_SetDarkMode (BYVAL hCombo AS HWND) AS HRESULT
-   RETURN SetWindowTheme(hCombo, "DarkMode_CFD", NULL)
+   RETURN SetWindowTheme(hCombo, "DarkMode_CFD", nullptr)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Removes the control dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkCombo_RemoveDarkMode (BYVAL hCombo AS HWND) AS HRESULT
-   RETURN SetWindowTheme(hCombo, NULL, NULL)
+   RETURN SetWindowTheme(hCombo, nullptr, nullptr)
 END FUNCTION
 ' ========================================================================================
 
@@ -680,7 +680,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkCBEx_InsertItem OVERLOAD (BYVAL hComboEx AS HWND, BYREF CBItem AS COMBOBOXEXITEMW) AS LONG
-   IF VARPTR(CBItem) = 0 THEN RETURN FALSE
+   IF VARPTR(CBItem) = nullptr THEN RETURN FALSE
    RETURN SendMessageW(hComboEx, CBEM_INSERTITEMW, 0, cast(LPARAM, @CBItem))
 END FUNCTION
 ' ========================================================================================
@@ -707,13 +707,13 @@ END FUNCTION
 ' Returns nonzero if successful, or zero otherwise.
 ' ========================================================================================
 PUBLIC FUNCTION tkCBEx_SetItem OVERLOAD (BYVAL hComboEx AS HWND, BYVAL pCBItem AS COMBOBOXEXITEMW PTR) AS BOOLEAN
-   IF pCBItem = NULL THEN RETURN FALSE
+   IF pCBItem = nullptr THEN RETURN FALSE
    RETURN SendMessageW(hComboEx, CBEM_SETITEMW, 0, cast(LPARAM, pCBItem))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkCBEx_SetItem OVERLOAD (BYVAL hComboEx AS HWND, BYREF CBItem AS COMBOBOXEXITEMW) AS BOOLEAN
-   IF VARPTR(CBItem) = 0 THEN RETURN FALSE
+   IF VARPTR(CBItem) = nullptr THEN RETURN FALSE
    RETURN SendMessageW(hComboEx, CBEM_SETITEMW, 0, cast(LPARAM, @CBItem))
 END FUNCTION
 ' ========================================================================================
@@ -730,13 +730,13 @@ END SUB
 ' Sets the control dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkCBEx_SetDarkMode (BYVAL hComboEx AS HWND) AS HRESULT
-   RETURN ..SetWindowTheme(hComboEx, "DarkMode_CFD", NULL)
+   RETURN ..SetWindowTheme(hComboEx, "DarkMode_CFD", nullptr)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Removes the control dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkCBEx_RemoveDarkMode (BYVAL hComboEx AS HWND) AS HRESULT
-   RETURN ..SetWindowTheme(hComboEx, NULL, NULL)
+   RETURN ..SetWindowTheme(hComboEx, nullptr, nullptr)
 END FUNCTION
 ' ========================================================================================

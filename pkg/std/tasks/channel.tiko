@@ -188,14 +188,14 @@ end type
 
 sub hPushSend( byval s as ChanCore ptr, byval w as ChanWaiterCore ptr )
     w->prevw = s->slast
-    w->nextw = 0
+    w->nextw = nullptr
     if( s->slast ) then s->slast->nextw = w else s->sfirst = w
     s->slast = w
 end sub
 
 sub hPushRecv( byval s as ChanCore ptr, byval w as ChanWaiterCore ptr )
     w->prevw = s->rlast
-    w->nextw = 0
+    w->nextw = nullptr
     if( s->rlast ) then s->rlast->nextw = w else s->rfirst = w
     s->rlast = w
 end sub
@@ -213,8 +213,8 @@ sub hUnlink( byval s as ChanCore ptr, byval w as ChanWaiterCore ptr, byval issen
         if( s->rfirst = w ) then s->rfirst = w->nextw
         if( s->rlast  = w ) then s->rlast  = w->prevw
     end if
-    w->prevw = 0
-    w->nextw = 0
+    w->prevw = nullptr
+    w->nextw = nullptr
 end sub
 
 '' Claim a record, i.e. win the right to wake it.  Returns FALSE if somebody
@@ -261,7 +261,7 @@ function hPopSend( byval s as ChanCore ptr ) as ChanWaiterCore ptr
         end if
         w = nxt
     wend
-    return 0
+    return nullptr
 end function
 
 function hPopRecv( byval s as ChanCore ptr ) as ChanWaiterCore ptr
@@ -274,7 +274,7 @@ function hPopRecv( byval s as ChanCore ptr ) as ChanWaiterCore ptr
         end if
         w = nxt
     wend
-    return 0
+    return nullptr
 end function
 
 '' ------------------------------------------------ exposed for SELECT
@@ -307,13 +307,13 @@ end sub
 '' ------------------------------------------------------------- construction
 
 constructor Channel( of T )( )
-    this.st = 0                     '' nil channel
+    this.st = nullptr                     '' nil channel
 end constructor
 
 constructor Channel( of T )( byval bufcap as long )
     if( bufcap < 0 ) then
         error( FB.FB_RTERROR_ILLEGALFUNCTIONCALL )
-        this.st = 0
+        this.st = nullptr
         exit constructor
     end if
 
@@ -345,7 +345,7 @@ end constructor
 '' dynamic array destroys every slot it constructed -- including items still
 '' buffered at that point, exactly once.
 destructor Channel( of T )( )
-    if( this.st = 0 ) then exit destructor
+    if( this.st = nullptr ) then exit destructor
 
     dim as ChanState( of T ) ptr s = cptr( ChanState( of T ) ptr, this.st )
     MutexLock( s->core.lok )
@@ -357,7 +357,7 @@ destructor Channel( of T )( )
         MutexDestroy( s->core.lok )
         delete s
     end if
-    this.st = 0
+    this.st = nullptr
 end destructor
 
 operator Channel( of T ).let( byref rhs as Channel( of T ) )
@@ -388,11 +388,11 @@ end operator
 '' ------------------------------------------------------------------ queries
 
 function Channel( of T ).IsNil( ) as boolean
-    return this.st = 0
+    return this.st = nullptr
 end function
 
 function Channel( of T ).IsClosed( ) as boolean
-    if( this.st = 0 ) then return FALSE
+    if( this.st = nullptr ) then return FALSE
     dim as ChanState( of T ) ptr s = cptr( ChanState( of T ) ptr, this.st )
     MutexLock( s->core.lok )
     dim as boolean r = s->core.isclosed
@@ -403,7 +403,7 @@ end function
 '' A snapshot, stale the instant it returns, like every such query in a
 '' concurrent system.  Metrics only -- never control flow.
 function Channel( of T ).Count( ) as long
-    if( this.st = 0 ) then return 0
+    if( this.st = nullptr ) then return 0
     dim as ChanState( of T ) ptr s = cptr( ChanState( of T ) ptr, this.st )
     MutexLock( s->core.lok )
     dim as long r = s->core.num
@@ -412,7 +412,7 @@ function Channel( of T ).Count( ) as long
 end function
 
 function Channel( of T ).Capacity( ) as long
-    if( this.st = 0 ) then return 0
+    if( this.st = nullptr ) then return 0
     dim as ChanState( of T ) ptr s = cptr( ChanState( of T ) ptr, this.st )
     return s->core.cap
 end function
@@ -453,7 +453,7 @@ end function
 '' --------------------------------------------------------------------- send
 
 function Channel( of T ).Send( byref v as T ) as boolean
-    if( this.st = 0 ) then
+    if( this.st = nullptr ) then
         hBlockForever( )
         return FALSE
     end if
@@ -513,7 +513,7 @@ function Channel( of T ).Send( byref v as T ) as boolean
 end function
 
 function Channel( of T ).TrySend( byref v as T ) as boolean
-    if( this.st = 0 ) then return FALSE
+    if( this.st = nullptr ) then return FALSE
 
     dim as ChanState( of T ) ptr s = cptr( ChanState( of T ) ptr, this.st )
     MutexLock( s->core.lok )
@@ -546,7 +546,7 @@ function Channel( of T ).TrySend( byref v as T ) as boolean
 end function
 
 function Channel( of T ).SendFor( byref v as T, byval ms as ulong ) as boolean
-    if( this.st = 0 ) then
+    if( this.st = nullptr ) then
         dim as any ptr p = ParkerSelf( )
         ParkTimed( p, ms )
         return FALSE
@@ -601,7 +601,7 @@ end function
 '' ------------------------------------------------------------------ receive
 
 function Channel( of T ).Receive( byref out as T ) as boolean
-    if( this.st = 0 ) then
+    if( this.st = nullptr ) then
         hBlockForever( )
         return FALSE
     end if
@@ -668,7 +668,7 @@ function Channel( of T ).Receive( byref out as T ) as boolean
 end function
 
 function Channel( of T ).TryReceive( byref out as T ) as boolean
-    if( this.st = 0 ) then return FALSE
+    if( this.st = nullptr ) then return FALSE
 
     dim as ChanState( of T ) ptr s = cptr( ChanState( of T ) ptr, this.st )
     MutexLock( s->core.lok )
@@ -705,7 +705,7 @@ function Channel( of T ).TryReceive( byref out as T ) as boolean
 end function
 
 function Channel( of T ).ReceiveFor( byref out as T, byval ms as ulong ) as boolean
-    if( this.st = 0 ) then
+    if( this.st = nullptr ) then
         dim as any ptr p = ParkerSelf( )
         ParkTimed( p, ms )
         return FALSE
@@ -768,7 +768,7 @@ end function
 '' left waiters parked forever would be useless for shutdown, which is most of
 '' what close is for.
 sub Channel( of T ).Close( )
-    if( this.st = 0 ) then
+    if( this.st = nullptr ) then
         error( FB.FB_RTERROR_ILLEGALFUNCTIONCALL )
         exit sub
     end if
@@ -786,23 +786,23 @@ sub Channel( of T ).Close( )
 
     '' Collect first, unpark after the lock is dropped: unparking under the
     '' lock would have every woken thread immediately block on it.
-    dim as ChanWaiterCore ptr woken = 0
-    dim as ChanWaiterCore ptr tail_ = 0
+    dim as ChanWaiterCore ptr woken = nullptr
+    dim as ChanWaiterCore ptr tail_ = nullptr
 
     do
         dim as ChanWaiterCore ptr w = hPopRecv( @s->core )
-        if( w = 0 ) then exit do
+        if( w = nullptr ) then exit do
         w->closedwake = TRUE
-        w->nextw = 0
+        w->nextw = nullptr
         if( tail_ ) then tail_->nextw = w else woken = w
         tail_ = w
     loop
 
     do
         dim as ChanWaiterCore ptr w = hPopSend( @s->core )
-        if( w = 0 ) then exit do
+        if( w = nullptr ) then exit do
         w->closedwake = TRUE
-        w->nextw = 0
+        w->nextw = nullptr
         if( tail_ ) then tail_->nextw = w else woken = w
         tail_ = w
     loop
@@ -823,7 +823,7 @@ end sub
 '' because it presents as a hang rather than as a design.
 
 function Channel( of T ).ElemPtr( ) as T ptr
-    return 0
+    return nullptr
 end function
 
 function Channel( of T ).GetIterator( ) as ChannelIterator( of T )

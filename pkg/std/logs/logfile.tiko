@@ -151,7 +151,7 @@ end sub
 #endif
 
 constructor FileSink( byref fpath as ustring )
-    this.hInit( fpath, 0 )
+    this.hInit( fpath, nullptr )
 end constructor
 
 constructor FileSink( byref fpath as ustring, byval r as Renderer ptr )
@@ -178,7 +178,7 @@ sub FileSink.hInit( byref fpath as ustring, byval r as Renderer ptr )
 
     '' A file is not a terminal. The owned renderer never colours, and the
     '' sink does not touch a caller's renderer -- that is the caller's call.
-    if( r <> 0 ) then
+    if( r <> nullptr ) then
         this.m_rend = r
     else
         this.m_rend = @this.m_text
@@ -187,7 +187,7 @@ sub FileSink.hInit( byref fpath as ustring, byval r as Renderer ptr )
 
     #ifdef __FB_WIN32__
         this.m_k32.Load( )
-        this.m_h = 0
+        this.m_h = nullptr
     #else
         this.m_fn = 0
     #endif
@@ -209,9 +209,9 @@ end function
 
 destructor FileSink( )
     this.Close( )
-    if( this.m_lock <> 0 ) then
+    if( this.m_lock <> nullptr ) then
         mutexdestroy( this.m_lock )
-        this.m_lock = 0
+        this.m_lock = nullptr
     end if
     #ifdef __FB_WIN32__
         this.m_k32.Unload( )
@@ -253,21 +253,21 @@ function FileSink.hOpen( ) as boolean
     end if
 
     #ifdef __FB_WIN32__
-        this.m_h   = 0
+        this.m_h   = nullptr
         this.m_os  = 0
         this.m_why = "open failed"
-        if( this.m_k32.pCreateFileW = 0 ) then return FALSE
+        if( this.m_k32.pCreateFileW = nullptr ) then return FALSE
         dim as long n = len( this.m_path )
         dim as wstring ptr wp = callocate( ( n + 1 ) * 2 )
-        if( wp = 0 ) then return FALSE
+        if( wp = nullptr ) then return FALSE
         *wp = this.m_path
         dim as any ptr h = this.m_k32.pCreateFileW( wp, FB_LOG_FILE_APPEND_DATA, FB_LOG_FILE_SHARE_ALL, _
             0, FB_LOG_OPEN_ALWAYS, FB_LOG_FILE_ATTR_NORMAL, 0 )
-        if( ( h = 0 orelse h = cast( any ptr, -1 ) ) andalso this.m_k32.pGetLastError <> 0 ) then
+        if( ( h = nullptr orelse h = cast( any ptr, -1 ) ) andalso this.m_k32.pGetLastError <> nullptr ) then
             this.m_os = this.m_k32.pGetLastError( )
         end if
         deallocate( wp )
-        if( h = 0 orelse h = cast( any ptr, -1 ) ) then return FALSE
+        if( h = nullptr orelse h = cast( any ptr, -1 ) ) then return FALSE
         this.m_h = h
     #else
         '' POSIX goes through FreeBASIC's OPEN, so there is no errno to hand
@@ -295,8 +295,8 @@ end function
 
 sub FileSink.hCloseFile( )
     #ifdef __FB_WIN32__
-        if( this.m_h <> 0 andalso this.m_k32.pCloseHandle <> 0 ) then this.m_k32.pCloseHandle( this.m_h )
-        this.m_h = 0
+        if( this.m_h <> nullptr andalso this.m_k32.pCloseHandle <> nullptr ) then this.m_k32.pCloseHandle( this.m_h )
+        this.m_h = nullptr
     #else
         if( this.m_fn <> 0 ) then hLogCloseFileNum( this.m_fn )
         this.m_fn = 0
@@ -305,7 +305,7 @@ end sub
 
 property FileSink.IsOpen( ) as boolean
     #ifdef __FB_WIN32__
-        return this.m_h <> 0
+        return this.m_h <> nullptr
     #else
         return this.m_fn <> 0
     #endif
@@ -332,10 +332,10 @@ function FileSink.hWriteBytes( byref u8 as string ) as boolean
     #ifdef __FB_WIN32__
         this.m_why = "write failed, record dropped"
         this.m_os  = 0
-        if( this.m_k32.pWriteFile = 0 ) then return FALSE
+        if( this.m_k32.pWriteFile = nullptr ) then return FALSE
         dim as ulong wrote
         if( this.m_k32.pWriteFile( this.m_h, strptr( u8 ), len( u8 ), @wrote, 0 ) = 0 ) then
-            if( this.m_k32.pGetLastError <> 0 ) then this.m_os = this.m_k32.pGetLastError( )
+            if( this.m_k32.pGetLastError <> nullptr ) then this.m_os = this.m_k32.pGetLastError( )
             return FALSE
         end if
         return wrote = len( u8 )
@@ -515,7 +515,7 @@ sub FileSink.Flush( )
     dim as long savederr = err
     mutexlock( this.m_lock )
     #ifdef __FB_WIN32__
-        if( this.m_h <> 0 andalso this.m_k32.pFlushFileBuffers <> 0 ) then
+        if( this.m_h <> nullptr andalso this.m_k32.pFlushFileBuffers <> nullptr ) then
             this.m_k32.pFlushFileBuffers( this.m_h )
         end if
     #else

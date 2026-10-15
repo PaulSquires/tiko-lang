@@ -203,7 +203,7 @@ sub DirIterator.hOpen( )
     dim as long r = FsDirOpenRaw( this.m_root, @this.m_h )
 
     if( r <> FS_OK ) then
-        this.m_h = 0
+        this.m_h = nullptr
         this.m_live = TRUE          '' one element, and it is the failure
         this.m_cur = FsFail( of DirEntry )( cast( FsErrorCode, r ), "ReadDir", this.m_root )
         exit sub
@@ -260,7 +260,7 @@ sub DirIterator.MoveNext( )
 
     '' A failed open produced one element and no handle; advancing past it
     '' exhausts the iterator.
-    if( this.m_h = 0 ) then
+    if( this.m_h = nullptr ) then
         this.m_live = FALSE
         exit sub
     end if
@@ -272,9 +272,9 @@ end sub
 '' FreeBASIC lifetime, this runs on EXIT FOR, on GOTO out of the loop, and while
 '' an error unwinds the scope -- so an abandoned scan leaks nothing.
 destructor DirIterator( )
-    if( this.m_h <> 0 ) then
+    if( this.m_h <> nullptr ) then
         FsDirCloseRaw( this.m_h )
-        this.m_h = 0
+        this.m_h = nullptr
     end if
 end destructor
 

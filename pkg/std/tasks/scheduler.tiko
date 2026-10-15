@@ -125,10 +125,10 @@ declare sub SpawnTrampoline( byval p as any ptr )
 '' one convention and Linux sees the other.
 #ifdef __FB_WIN32__
 public declare sub Spawn alias "fb_Spawn" _
-    ( byval work as sub stdcall( byval ctx as any ptr ), byval ctx as any ptr = 0 )
+    ( byval work as sub stdcall( byval ctx as any ptr ), byval ctx as any ptr = nullptr )
 #else
 public declare sub Spawn alias "fb_Spawn" _
-    ( byval work as sub cdecl( byval ctx as any ptr ), byval ctx as any ptr = 0 )
+    ( byval work as sub cdecl( byval ctx as any ptr ), byval ctx as any ptr = nullptr )
 #endif
 
 '' Outstanding goroutines: queued plus running.  A snapshot, stale the instant
@@ -147,7 +147,7 @@ destructor SpawnWork( )
 end destructor
 
 sub SpawnTrampoline( byval p as any ptr )
-    if( p = 0 ) then exit sub
+    if( p = nullptr ) then exit sub
     dim w as SpawnWork ptr = p
     w->Invoke( )
     delete w

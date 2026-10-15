@@ -69,7 +69,7 @@ end function
 '' logging up without a rebuild. An UNPARSEABLE value is ignored and 'lv' stands:
 '' a typo in an environment variable must not silently turn logging off.
 public sub LogInit( byval s as Sink ptr, byval lv as LogLevel )
-    if( s <> 0 ) then hLogDefault.AddSink( s )
+    if( s <> nullptr ) then hLogDefault.AddSink( s )
     dim as LogLevel envlv
     dim as ustring ev = environ( "FB_LOG" )
     if( (len( ev ) > 0) andalso LevelFromName( ev, envlv ) ) then lv = envlv
@@ -85,7 +85,7 @@ end sub
 public sub LogShutdown( )
     for i as long = 0 to hLogDefault.m_sinks.Count( ) - 1
         dim as Sink ptr s = hLogDefault.m_sinks[i]
-        if( s <> 0 ) then
+        if( s <> nullptr ) then
             s->Flush( )
             s->Close( )
         end if

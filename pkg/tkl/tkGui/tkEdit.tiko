@@ -638,14 +638,14 @@ END SUB
 ' instead of a message box.
 ' ========================================================================================
 PUBLIC FUNCTION tkEdit_ShowBalloonTip OVERLOAD (BYVAL hEdit AS HWND, BYVAL peditballoontip AS EDITBALLOONTIP PTR) AS BOOLEAN
-   IF peditballoontip = NULL THEN RETURN FALSE
+   IF peditballoontip = nullptr THEN RETURN FALSE
    peditballoontip->cbStruct = SIZEOF(EDITBALLOONTIP)
    RETURN SendMessageW(hEdit, EM_SHOWBALLOONTIP, 0, cast(LPARAM, peditballoontip))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkEdit_ShowBalloonTip OVERLOAD (BYVAL hEdit AS HWND, BYREF edittip AS EDITBALLOONTIP) AS BOOLEAN
-   IF VARPTR(edittip) = NULL THEN RETURN FALSE
+   IF VARPTR(edittip) = nullptr THEN RETURN FALSE
    edittip.cbStruct = SIZEOF(EDITBALLOONTIP)
    RETURN SendMessageW(hEdit, EM_SHOWBALLOONTIP, 0, cast(LPARAM, @edittip))
 END FUNCTION
@@ -694,7 +694,7 @@ END FUNCTION
 ' Only affects the scroll bars of a multiline edit control.
 ' ========================================================================================
 PUBLIC FUNCTION tkEdit_SetDarkMode (BYVAL hEdit AS HWND) AS HRESULT
-   RETURN SetWindowTheme(hEdit, "DarkMode_Explorer", NULL)
+   RETURN SetWindowTheme(hEdit, "DarkMode_Explorer", nullptr)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -702,7 +702,7 @@ END FUNCTION
 ' Only affects the scroll bars of a multiline edit control.
 ' ========================================================================================
 PUBLIC FUNCTION tkEdit_RemoveDarkMode (BYVAL hEdit AS HWND) AS HRESULT
-   RETURN SetWindowTheme(hEdit, NULL, NULL)
+   RETURN SetWindowTheme(hEdit, nullptr, nullptr)
 END FUNCTION
 ' ========================================================================================
 

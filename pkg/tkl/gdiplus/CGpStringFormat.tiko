@@ -44,7 +44,7 @@ END DESTRUCTOR
 ' Creates a new StringFormat object based on this StringFormat object.
 ' =====================================================================================
 FUNCTION CGpStringFormat.Clone (BYVAL pCloneStringFormat AS CGpStringFormat PTR) AS GpStatus
-   IF pCloneStringFormat = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pCloneStringFormat = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pCloneStringFormat->m_pStringFormat THEN GdipDeleteStringFormat(pCloneStringFormat->m_pStringFormat)
    RETURN SetStatus(GdipCloneStringFormat(m_pStringFormat, @pCloneStringFormat->m_pStringFormat))
 END FUNCTION
@@ -54,7 +54,7 @@ END FUNCTION
 ' Creates a generic, default StringFormat object.
 ' =====================================================================================
 FUNCTION CGpStringFormat.GenericDefault (BYVAL pStringFormat AS CGpStringFormat PTR) AS GpStatus
-   IF pStringFormat = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pStringFormat = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pStringFormat->m_pStringFormat THEN GdipDeleteStringFormat(pStringFormat->m_pStringFormat)
    RETURN SetStatus(GdipStringFormatGetGenericDefault(@pStringFormat->m_pStringFormat))
 END FUNCTION
@@ -64,7 +64,7 @@ END FUNCTION
 ' Creates a generic, typographic StringFormat object.
 ' =====================================================================================
 FUNCTION CGpStringFormat.GenericTypographic (BYVAL pStringFormat AS CGpStringFormat PTR) AS GpStatus
-   IF pStringFormat = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pStringFormat = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pStringFormat->m_pStringFormat THEN GdipDeleteStringFormat(pStringFormat->m_pStringFormat)
    RETURN SetStatus(GdipStringFormatGetGenericTypographic(@pStringFormat->m_pStringFormat))
 END FUNCTION
@@ -193,7 +193,7 @@ END FUNCTION
 ' =====================================================================================
 FUNCTION CGpStringFormat.GetDigitSubstitutionLanguage () AS LANGID
    DIM language AS LANGID
-   m_Status = GdipGetStringFormatDigitSubstitution(m_pStringFormat, @language, NULL)
+   m_Status = GdipGetStringFormatDigitSubstitution(m_pStringFormat, @language, nullptr)
    FUNCTION = language
 END FUNCTION
 ' =====================================================================================

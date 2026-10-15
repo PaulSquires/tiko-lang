@@ -478,11 +478,11 @@ END OPERATOR
 ' =====================================================================================
 ' // Multidimensional array
 FUNCTION DSafeArray.Create (BYVAL vt AS VARTYPE, BYVAL cDims AS UINT, BYVAL prgsabound AS SAFEARRAYBOUND PTR) AS HRESULT
-   IF m_psa <> NULL THEN RETURN E_FAIL
-   IF prgsabound = NULL THEN RETURN E_INVALIDARG
+   IF m_psa <> nullptr THEN RETURN E_FAIL
+   IF prgsabound = nullptr THEN RETURN E_INVALIDARG
    IF cDims < 1 THEN RETURN E_INVALIDARG
    m_psa = SafeArrayCreate(vt, cDims, prgsabound)
-   IF m_psa = NULL THEN RETURN E_OUTOFMEMORY
+   IF m_psa = nullptr THEN RETURN E_OUTOFMEMORY
    RETURN SafeArrayLock(m_psa)
 END FUNCTION
 ' =====================================================================================
@@ -532,11 +532,11 @@ END FUNCTION
 ' =====================================================================================
 ' // Multidimensional array
 FUNCTION DSafeArray.CreateEx (BYVAL vt AS VARTYPE, BYVAL cDims AS UINT, BYVAL prgsabound AS SAFEARRAYBOUND PTR, BYVAL pvExtra AS PVOID) AS HRESULT
-   IF m_psa <> NULL THEN RETURN E_FAIL
-   IF prgsabound = NULL THEN RETURN E_INVALIDARG
+   IF m_psa <> nullptr THEN RETURN E_FAIL
+   IF prgsabound = nullptr THEN RETURN E_INVALIDARG
    IF cDims < 1 THEN RETURN E_INVALIDARG
    m_psa = SafeArrayCreateEx(vt, cDims, prgsabound, pvExtra)
-   IF m_psa = NULL THEN RETURN E_OUTOFMEMORY
+   IF m_psa = nullptr THEN RETURN E_OUTOFMEMORY
    RETURN SafeArrayLock(m_psa)
 END FUNCTION
 ' =====================================================================================
@@ -582,9 +582,9 @@ END FUNCTION
 '  allocation, which speeds up array allocation.
 ' =====================================================================================
 FUNCTION DSafeArray.CreateVector (BYVAL vt AS VARTYPE, BYVAL cElements AS ULONG, BYVAL lLBound AS LONG) AS HRESULT
-   IF m_psa <> NULL THEN RETURN E_FAIL
+   IF m_psa <> nullptr THEN RETURN E_FAIL
    m_psa = SafeArrayCreateVector(vt, lLBound, cElements)
-   IF m_psa = NULL THEN RETURN E_OUTOFMEMORY
+   IF m_psa = nullptr THEN RETURN E_OUTOFMEMORY
    RETURN SafeArrayLock(m_psa)
 END FUNCTION
 ' =====================================================================================
@@ -611,9 +611,9 @@ END FUNCTION
 '   Returns S_OK on success, or an error HRESULT on failure.
 ' =====================================================================================
 FUNCTION DSafeArray.CreateVectorEx (BYVAL vt AS VARTYPE, BYVAL cElements AS ULONG, BYVAL lLBound AS LONG, BYVAL pvExtra AS ANY PTR) AS HRESULT
-   IF m_psa <> NULL THEN RETURN E_FAIL
+   IF m_psa <> nullptr THEN RETURN E_FAIL
    m_psa = SafeArrayCreateVectorEx(vt, lLBound, cElements, pvExtra)
-   IF m_psa = NULL THEN RETURN E_OUTOFMEMORY
+   IF m_psa = nullptr THEN RETURN E_OUTOFMEMORY
    RETURN SafeArrayLock(m_psa)
 END FUNCTION
 ' =====================================================================================
@@ -630,7 +630,7 @@ END FUNCTION
 ' Returns the lower bound of the safe array.
 ' ========================================================================================
 FUNCTION DSafeArray.LBound (BYVAL nDim AS UINT = 1) AS LONG
-   IF m_psa = NULL THEN RETURN 0
+   IF m_psa = nullptr THEN RETURN 0
    DIM plLBound AS LONG
    SafeArrayGetLBound(m_psa, nDim, @plLBound)
    RETURN plLBound
@@ -641,7 +641,7 @@ END FUNCTION
 ' Returns the upper bound of the safe array.
 ' ========================================================================================
 FUNCTION DSafeArray.UBound (BYVAL nDim AS UINT = 1) AS LONG
-   IF m_psa = NULL THEN RETURN 0
+   IF m_psa = nullptr THEN RETURN 0
    DIM plUBound AS LONG
    SafeArrayGetUBound(m_psa, nDim, @plUBound)
    RETURN plUBound
@@ -654,7 +654,7 @@ END FUNCTION
 ' nDim: The array dimension for which to get the number of elements.
 ' ========================================================================================
 FUNCTION DSafeArray.Count (BYVAL nDim AS UINT = 1) AS UINT
-   IF m_psa = NULL THEN RETURN 0
+   IF m_psa = nullptr THEN RETURN 0
    IF nDim < 1 OR nDim > this.NumDims THEN RETURN 0
    DIM plLBound AS LONG, plUBound AS LONG
    SafeArrayGetLBound(m_psa, nDim, @plLBound)
@@ -676,7 +676,7 @@ END FUNCTION
 ' Tests if the safe array can be resized.
 ' =====================================================================================
 FUNCTION DSafeArray.IsResizable () AS BOOLEAN
-   IF m_psa = NULL THEN RETURN FALSE
+   IF m_psa = nullptr THEN RETURN FALSE
    RETURN (m_psa->fFeatures AND FADF_FIXEDSIZE) <> FADF_FIXEDSIZE
 END FUNCTION
 ' =====================================================================================
@@ -685,7 +685,7 @@ END FUNCTION
 ' Returns the VARTYPE stored in the given safe array.
 ' =====================================================================================
 FUNCTION DSafeArray.GetType () AS VARTYPE
-   IF m_psa = NULL THEN RETURN 0
+   IF m_psa = nullptr THEN RETURN 0
    DIM vt AS VARTYPE
    SafeArrayGetVartype(m_psa, @vt)
    RETURN vt
@@ -753,7 +753,7 @@ END FUNCTION
 '          It is a fixed-size array.
 ' =====================================================================================
 FUNCTION DSafeArray.Redim (BYVAL pnewsabounds AS SAFEARRAYBOUND PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    IF (m_psa->fFeatures AND FADF_FIXEDSIZE) = FADF_FIXEDSIZE THEN RETURN E_FAIL
    DIM hr AS HRESULT = SafeArrayUnlock(m_psa)
    IF SUCCEEDED(hr) THEN
@@ -816,7 +816,7 @@ END FUNCTION
 ' Returns S_OK on success, or an HRESULT on failure.
 ' ========================================================================================
 FUNCTION DSafeArray.CopyFrom (BYVAL psaSrc AS SAFEARRAY PTR) AS HRESULT
-   IF psaSrc = NULL THEN RETURN E_INVALIDARG
+   IF psaSrc = nullptr THEN RETURN E_INVALIDARG
    ' // Destroy the safe array
    IF m_psa THEN this.Destroy
    ' // Copy the passed safe array and lock it
@@ -838,7 +838,7 @@ END FUNCTION
 ' // Multidimensional array
 ' // prgIndices: first the element, then the dimension
 FUNCTION DSafeArray.PtrOfIndex (BYVAL prgIndices AS LONG PTR) AS ANY PTR
-   IF m_psa = NULL THEN RETURN NULL
+   IF m_psa = nullptr THEN RETURN nullptr
    DIM pvData AS ANY PTR
    SafeArrayPtrOfIndex(m_psa, prgIndices, @pvData)
    RETURN pvData
@@ -847,7 +847,7 @@ END FUNCTION
 ' =====================================================================================
 ' // One-dimensional array
 FUNCTION DSafeArray.PtrOfIndex (BYVAL idx AS LONG) AS ANY PTR
-   IF m_psa = NULL THEN RETURN NULL
+   IF m_psa = nullptr THEN RETURN nullptr
    DIM pvData AS ANY PTR
    SafeArrayPtrOfIndex(m_psa, @idx, @pvData)
    RETURN pvData
@@ -857,7 +857,7 @@ END FUNCTION
 ' // Two-dimensional array
 ' // First element, then dimension, e.g. 2, 1 (element 2, first dimension), 1, 2 (element 1, 2nd dimension).
 FUNCTION DSafeArray.PtrOfIndex (BYVAL cElem AS LONG, BYVAL cDim AS LONG) AS ANY PTR
-   IF m_psa = NULL THEN RETURN NULL
+   IF m_psa = nullptr THEN RETURN nullptr
    DIM rgIdx(1) AS LONG = {cElem, cDim}
    DIM pvData AS ANY PTR
    SafeArrayPtrOfIndex(m_psa, @rgIdx(0), @pvData)
@@ -877,7 +877,7 @@ FUNCTION DSafeArray.Destroy () AS HRESULT
    IF m_psa THEN
       hr = SafeArrayUnlock(m_psa)
       hr = SafeArrayDestroy(m_psa)
-      IF SUCCEEDED(hr) THEN m_psa = NULL
+      IF SUCCEEDED(hr) THEN m_psa = nullptr
    END IF
    RETURN hr
 END FUNCTION
@@ -929,7 +929,7 @@ END FUNCTION
 ' the DSafeArray array. The VARIANT remains unaltered.
 ' ========================================================================================
 FUNCTION DSafeArray.CopyFromVariant (BYVAL pvar AS VARIANT PTR) AS HRESULT
-   IF pvar = NULL THEN RETURN E_INVALIDARG
+   IF pvar = nullptr THEN RETURN E_INVALIDARG
    IF (pvar->vt AND VT_ARRAY) <> VT_ARRAY THEN RETURN HRESULT_FROM_WIN32(ERROR_INVALID_DATA)
    RETURN this.CopyFrom(pvar->parray)
 END FUNCTION
@@ -940,7 +940,7 @@ END FUNCTION
 ' object. The variant is then changed to VT_EMPTY.
 ' ========================================================================================
 FUNCTION DSafeArray.MoveFromVariant (BYVAL pvar AS VARIANT PTR) AS HRESULT
-   IF pvar = NULL THEN RETURN E_INVALIDARG
+   IF pvar = nullptr THEN RETURN E_INVALIDARG
    IF (pvar->vt AND VT_ARRAY) <> VT_ARRAY THEN RETURN HRESULT_FROM_WIN32(ERROR_INVALID_DATA)
    FUNCTION = this.CopyFrom(pvar->parray)
    pvar->vt = VT_EMPTY
@@ -951,8 +951,8 @@ END FUNCTION
 ' Copies the contents of the safe array to a variant.
 ' ========================================================================================
 FUNCTION DSafeArray.CopyToVariant (BYVAL pvar AS VARIANT PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
-   IF pvar = NULL THEN RETURN E_INVALIDARG
+   IF m_psa = nullptr THEN RETURN E_FAIL
+   IF pvar = nullptr THEN RETURN E_INVALIDARG
    VariantClear(pvar)
    DIM vt AS VARTYPE
    SafeArrayGetVartype(m_psa, @vt)
@@ -965,15 +965,15 @@ END FUNCTION
 ' Transfers ownership of the safe array to a variant and detaches it from the object.
 ' ========================================================================================
 FUNCTION DSafeArray.MoveToVariant (BYVAL pvar AS VARIANT PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
-   IF pvar = NULL THEN RETURN E_INVALIDARG
+   IF m_psa = nullptr THEN RETURN E_FAIL
+   IF pvar = nullptr THEN RETURN E_INVALIDARG
    VariantClear(pvar)
    DIM vt AS VARTYPE
    SafeArrayGetVartype(m_psa, @vt)
    pvar->vt = vt OR VT_ARRAY
    FUNCTION = SafeArrayUnlock(m_psa)
    pvar->parray = m_psa
-   m_psa = NULL
+   m_psa = nullptr
 END FUNCTION
 ' ========================================================================================
 
@@ -986,7 +986,7 @@ END FUNCTION
 ' will try to destroy it when they are deleted or went out of scope.
 ' ========================================================================================
 FUNCTION DSafeArray.Attach (BYVAL psaSrc AS SAFEARRAY PTR) AS HRESULT
-   IF psaSrc = NULL THEN RETURN E_FAIL
+   IF psaSrc = nullptr THEN RETURN E_FAIL
    DIM hr AS HRESULT = this.Destroy
    IF SUCCEEDED(hr) THEN
       m_psa = psaSrc
@@ -1004,7 +1004,7 @@ END FUNCTION
 FUNCTION DSafeArray.Detach () AS SAFEARRAY PTR
    SafeArrayUnlock(m_psa)
    FUNCTION = m_psa
-   m_psa = NULL
+   m_psa = nullptr
 END FUNCTION
 ' ========================================================================================
 
@@ -1017,7 +1017,7 @@ END FUNCTION
 ' =====================================================================================
 FUNCTION DSafeArray.GetIID () AS GUID
    DIM hr AS HRESULT, guid_ AS GUID
-   IF m_psa = NULL THEN RETURN guid_
+   IF m_psa = nullptr THEN RETURN guid_
    IF (m_psa->fFeatures AND FADF_HAVEIID) <> FADF_HAVEIID THEN RETURN guid_
    hr = SafeArrayGetIID(m_psa, @guid_)
    IF hr = S_OK THEN RETURN guid_
@@ -1032,7 +1032,7 @@ END FUNCTION
 '   E_INVALIDARG If the array descriptor does not have the FADF_HAVEIID flag set.
 ' =====================================================================================
 FUNCTION DSafeArray.SetIID (BYVAL pguid AS GUID PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    IF (m_psa->fFeatures AND FADF_HAVEIID) <> FADF_HAVEIID THEN RETURN HRESULT_FROM_WIN32(ERROR_INVALID_DATA)
    RETURN SafeArraySetIID(m_psa, pguid)
 END FUNCTION
@@ -1044,8 +1044,8 @@ END FUNCTION
 ' If the function succeeds it returns the guid; otherwise, returns a null guid.
 ' =====================================================================================
 FUNCTION DSafeArray.GetRecordInfo () AS IRecordInfo PTR
-   IF m_psa = NULL THEN RETURN NULL
-   IF (m_psa->fFeatures AND FADF_RECORD) <> FADF_RECORD THEN RETURN NULL
+   IF m_psa = nullptr THEN RETURN nullptr
+   IF (m_psa->fFeatures AND FADF_RECORD) <> FADF_RECORD THEN RETURN nullptr
    DIM hr AS HRESULT, prinfo AS IRecordInfo PTR
    hr = SafeArrayGetRecordInfo(m_psa, @prinfo)
    RETURN prinfo
@@ -1060,7 +1060,7 @@ END FUNCTION
 '   E_INVALIDARG If the array descriptor does not have the FADF_RECORD flag set.
 ' =====================================================================================
 FUNCTION DSafeArray.SetRecordInfo (BYVAL prinfo AS IRecordInfo PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    IF (m_psa->fFeatures AND FADF_RECORD) <> FADF_RECORD THEN RETURN HRESULT_FROM_WIN32(ERROR_INVALID_DATA)
    RETURN SafeArraySetRecordInfo(m_psa, prinfo)
 END FUNCTION
@@ -1095,7 +1095,7 @@ END FUNCTION
 ' // Multidimensional array
 ' // prgIndices: first the element, then the dimension
 FUNCTION DSafeArray.GetElement (BYVAL prgIndices AS LONG PTR, BYVAL pData AS ANY PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    RETURN SafeArrayGetElement(m_psa, prgIndices, pData)
 END FUNCTION
 ' =====================================================================================
@@ -1108,7 +1108,7 @@ END FUNCTION
 ' =====================================================================================
 ' // One-dimensional array
 FUNCTION DSafeArray.GetElement (BYVAL idx AS LONG, BYVAL pData AS ANY PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    RETURN SafeArrayGetElement(m_psa, @idx, pData)
 END FUNCTION
 ' =====================================================================================
@@ -1122,7 +1122,7 @@ END FUNCTION
 ' // Two-dimensional array
 ' // First element, then dimension, e.g. 2, 1 (element 2, first dimension), 1, 2 (element 1, 2nd dimension).
 FUNCTION DSafeArray.GetElement (BYVAL cElem AS LONG, BYVAL cDim AS LONG, BYVAL pData AS ANY PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM rgIdx(1) AS LONG = {cElem, cDim}
    RETURN SafeArrayGetElement(m_psa, @rgIdx(0), pData)
 END FUNCTION
@@ -1139,7 +1139,7 @@ END FUNCTION
 ' // Multidimensional array
 ' // prgIndices: first the element, then the dimension
 FUNCTION DSafeArray.GetElement (BYVAL prgIndices AS LONG PTR, BYREF bsData AS BSTRING) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN E_FAIL
    RETURN SafeArrayGetElement(m_psa, prgIndices, bsData)
@@ -1152,7 +1152,7 @@ END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
 FUNCTION DSafeArray.GetStr (BYVAL prgIndices AS LONG PTR) AS BSTRING
-   IF m_psa = NULL THEN RETURN ""
+   IF m_psa = nullptr THEN RETURN ""
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN ""
    DIM bs AS TK_BSTR
@@ -1164,7 +1164,7 @@ END FUNCTION
 ' =====================================================================================
 ' // One-dimensional array
 FUNCTION DSafeArray.GetElement (BYVAL idx AS LONG, BYREF bsData AS BSTRING) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN E_FAIL
    RETURN SafeArrayGetElement(m_psa, @idx, bsData)
@@ -1177,7 +1177,7 @@ END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
 FUNCTION DSafeArray.GetStr (BYVAL idx AS LONG) AS BSTRING
-   IF m_psa = NULL THEN RETURN ""
+   IF m_psa = nullptr THEN RETURN ""
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN ""
    DIM bs AS TK_BSTR
@@ -1190,7 +1190,7 @@ END FUNCTION
 ' // Two-dimensional array
 ' // First element, then dimension, e.g. 2, 1 (element 2, first dimension), 1, 2 (element 1, 2nd dimension).
 FUNCTION DSafeArray.GetElement (BYVAL cElem AS LONG, BYVAL cDim AS LONG, BYREF bsData AS BSTRING) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN E_FAIL
    DIM rgIdx(1) AS LONG = {cElem, cDim}
@@ -1206,7 +1206,7 @@ END FUNCTION
 ' // Two-dimensional array
 ' // First element, then dimension, e.g. 2, 1 (element 2, first dimension), 1, 2 (element 1, 2nd dimension).
 FUNCTION DSafeArray.GetStr (BYVAL cElem AS LONG, BYVAL cDim AS LONG) AS BSTRING
-   IF m_psa = NULL THEN RETURN ""
+   IF m_psa = nullptr THEN RETURN ""
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN ""
    DIM rgIdx(1) AS LONG = {cElem, cDim}
@@ -1222,7 +1222,7 @@ END FUNCTION
 ' // Multidimensional array
 ' // prgIndices: first the element, then the dimension
 FUNCTION DSafeArray.GetElement (BYVAL prgIndices AS LONG PTR, BYREF dvData AS DVARIANT) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_VARIANT THEN RETURN E_FAIL
    ' // No need to clear the variant because SafeArrayGetElement uses VariantCopy to
@@ -1239,7 +1239,7 @@ END FUNCTION
 ' // Multidimensional array
 ' // prgIndices: first the element, then the dimension
 FUNCTION DSafeArray.GetVar (BYVAL prgIndices AS LONG PTR) AS DVARIANT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_VARIANT THEN RETURN E_FAIL
    DIM dvData AS DVARIANT
@@ -1251,7 +1251,7 @@ END FUNCTION
 ' =====================================================================================
 ' // One-dimensional array
 FUNCTION DSafeArray.GetElement (BYVAL idx AS LONG, BYREF dvData AS DVARIANT) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_VARIANT THEN RETURN E_FAIL
    RETURN SafeArrayGetElement(m_psa, @idx, dvData)
@@ -1265,7 +1265,7 @@ END FUNCTION
 ' =====================================================================================
 ' // One-dimensional array
 FUNCTION DSafeArray.GetVar (BYVAL idx AS LONG) AS DVARIANT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_VARIANT THEN RETURN E_FAIL
    DIM dvData AS DVARIANT
@@ -1278,7 +1278,7 @@ END FUNCTION
 ' // Two-dimensional array
 ' // First element, then dimension, e.g. 2, 1 (element 2, first dimension), 1, 2 (element 1, 2nd dimension).
 FUNCTION DSafeArray.GetElement (BYVAL cElem AS LONG, BYVAL cDim AS LONG, BYREF dvData AS DVARIANT) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_VARIANT THEN RETURN E_FAIL
    DIM rgIdx(1) AS LONG = {cElem, cDim}
@@ -1294,7 +1294,7 @@ END FUNCTION
 ' // Two-dimensional array
 ' // First element, then dimension, e.g. 2, 1 (element 2, first dimension), 1, 2 (element 1, 2nd dimension).
 FUNCTION DSafeArray.GetVar (BYVAL cElem AS LONG, BYVAL cDim AS LONG) AS DVARIANT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_VARIANT THEN RETURN E_FAIL
    DIM rgIdx(1) AS LONG = {cElem, cDim}
@@ -1338,7 +1338,7 @@ END FUNCTION
 ' =====================================================================================
 ' // Multidimensional array
 FUNCTION DSafeArray.PutElement (BYVAL prgIndices AS LONG PTR, BYVAL pData AS ANY PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    RETURN SafeArrayPutElement(m_psa, prgIndices, pData)
 END FUNCTION
 ' =====================================================================================
@@ -1351,7 +1351,7 @@ END FUNCTION
 ' =====================================================================================
 ' // One-dimensional array
 FUNCTION DSafeArray.PutElement (BYVAL idx AS LONG, BYVAL pData AS ANY PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    RETURN SafeArrayPutElement(m_psa, @idx, pData)
 END FUNCTION
 ' =====================================================================================
@@ -1365,7 +1365,7 @@ END FUNCTION
 ' // Two-dimensional array
 ' // First element, then dimension, e.g. 2, 1 (element 2, first dimension), 1, 2 (element 1, 2nd dimension).
 FUNCTION DSafeArray.PutElement (BYVAL cElem AS LONG, BYVAL cDim AS LONG, BYVAL pData AS ANY PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM rgIdx(1) AS LONG = {cElem, cDim}
    RETURN SafeArrayPutElement(m_psa, @rgIdx(0), pData)
 END FUNCTION
@@ -1381,7 +1381,7 @@ END FUNCTION
 ' =====================================================================================
 ' // Multidimensional array
 FUNCTION DSafeArray.PutElement (BYVAL prgIndices AS LONG PTR, BYREF bsData AS BSTRING) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN E_FAIL
    RETURN SafeArrayPutElement(m_psa, prgIndices, bsData.m_bstr)
@@ -1396,7 +1396,7 @@ END FUNCTION
 ' =====================================================================================
 ' // One-dimensional array
 FUNCTION DSafeArray.PutElement (BYVAL idx AS LONG, BYREF bsData AS BSTRING) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN E_FAIL
    RETURN SafeArrayPutElement(m_psa, @idx, bsData.m_bstr)
@@ -1412,7 +1412,7 @@ END FUNCTION
 ' // Two-dimensional array
 ' // First element, then dimension, e.g. 2, 1 (element 2, first dimension), 1, 2 (element 1, 2nd dimension).
 FUNCTION DSafeArray.PutElement (BYVAL cElem AS LONG, BYVAL cDim AS LONG, BYREF bsData AS BSTRING) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM rgIdx(1) AS LONG = {cElem, cDim}
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN E_FAIL
@@ -1430,7 +1430,7 @@ END FUNCTION
 ' =====================================================================================
 ' // Multidimensional array
 FUNCTION DSafeArray.PutElement (BYVAL prgIndices AS LONG PTR, BYREF dvData AS DVARIANT) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_VARIANT THEN RETURN E_FAIL
    RETURN SafeArrayPutElement(m_psa, prgIndices, dvData)
@@ -1445,7 +1445,7 @@ END FUNCTION
 ' =====================================================================================
 ' // One-dimensional array
 FUNCTION DSafeArray.PutElement (BYVAL idx AS LONG, BYREF dvData AS DVARIANT) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_VARIANT THEN RETURN E_FAIL
    RETURN SafeArrayPutElement(m_psa, @idx, dvData)
@@ -1461,7 +1461,7 @@ END FUNCTION
 ' // Two-dimensional array
 ' // First element, then dimension, e.g. 2, 1 (element 2, first dimension), 1, 2 (element 1, 2nd dimension).
 FUNCTION DSafeArray.PutElement (BYVAL cElem AS LONG, BYVAL cDim AS LONG, BYREF dvData AS DVARIANT) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_VARIANT THEN RETURN E_FAIL
    DIM rgIdx(1) AS LONG = {cElem, cDim}
@@ -1487,7 +1487,7 @@ END FUNCTION
 '          It is not a one-dimensional array.
 ' ========================================================================================
 FUNCTION DSafeArray.AppendElement (BYVAL pData AS ANY PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN E_FAIL
    IF this.IsResizable = FALSE THEN RETURN E_FAIL
@@ -1520,7 +1520,7 @@ END FUNCTION
 '          It is not a one-dimensional array.
 ' ========================================================================================
 FUNCTION DSafeArray.AppendElement (BYREF bsData AS BSTRING) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN E_FAIL
    IF this.IsResizable = FALSE THEN RETURN E_FAIL
@@ -1542,7 +1542,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION DSafeArray.AppendStr (BYVAL pwszData AS WSTRING PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN E_FAIL
    IF this.IsResizable = FALSE THEN RETURN E_FAIL
@@ -1574,7 +1574,7 @@ END FUNCTION
 '          It is not a one-dimensional array.
 ' ========================================================================================
 FUNCTION DSafeArray.AppendElement (BYREF dvData AS DVARIANT) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN E_FAIL
    IF this.IsResizable = FALSE THEN RETURN E_FAIL
@@ -1601,7 +1601,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION DSafeArray.AppendElement (BYVAL vData AS VARIANT) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN E_FAIL
    IF this.IsResizable = FALSE THEN RETURN E_FAIL
@@ -1637,7 +1637,7 @@ END FUNCTION
 ' - pData = Pointer to the data to insert.
 ' ========================================================================================
 FUNCTION DSafeArray.InsertElement (BYVAL nPos AS LONG, BYVAL pData AS ANY PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    IF this.Count = 0 AND nPos = this.LBound THEN RETURN this.AppendElement(pData)
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN E_FAIL
@@ -1681,7 +1681,7 @@ END FUNCTION
 
 ' ========================================================================================
 FUNCTION DSafeArray.InsertElement (BYVAL nPos AS LONG, BYREF bsData AS BSTRING) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    IF this.Count = 0 AND nPos = this.LBound THEN RETURN this.AppendElement(bsData)
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN E_FAIL
@@ -1725,7 +1725,7 @@ END FUNCTION
 
 ' ========================================================================================
 FUNCTION DSafeArray.InsertStr (BYVAL nPos AS LONG, BYVAL pwszData AS WSTRING PTR) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    IF this.Count = 0 AND nPos = this.LBound THEN RETURN this.AppendStr(pwszData)
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN E_FAIL
@@ -1779,7 +1779,7 @@ END FUNCTION
 
 ' ========================================================================================
 FUNCTION DSafeArray.InsertElement (BYVAL nPos AS LONG, BYREF dvData AS DVARIANT) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    IF this.Count = 0 AND nPos = this.LBound THEN RETURN this.AppendElement(dvData)
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN E_FAIL
@@ -1816,7 +1816,7 @@ END FUNCTION
 
 ' ========================================================================================
 FUNCTION DSafeArray.InsertElement (BYVAL nPos AS LONG, BYVAL vData AS VARIANT) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    IF this.Count = 0 AND nPos = this.LBound THEN RETURN this.AppendElement(vData)
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN E_FAIL
@@ -1874,7 +1874,7 @@ END FUNCTION
 '          It is not a one-dimensional array.
 ' ========================================================================================
 FUNCTION DSafeArray.DeleteElement (BYVAL nPos AS LONG) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN E_FAIL
    IF this.IsResizable = FALSE THEN RETURN E_FAIL
@@ -1912,7 +1912,7 @@ END FUNCTION
 
 ' ========================================================================================
 FUNCTION DSafeArray.DeleteStringElement (BYVAL nPos AS LONG) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
@@ -1947,7 +1947,7 @@ END FUNCTION
 
 ' ========================================================================================
 FUNCTION DSafeArray.DeleteVariantElement (BYVAL nPos AS LONG) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
@@ -1986,7 +1986,7 @@ END FUNCTION
 ' - bNoCase = TRUE: Ignore case.
 ' ========================================================================================
 FUNCTION DSafeArray.FindElement (BYREF wszFind AS WSTRING, BYVAL IgnoreCase AS BOOLEAN = TRUE) AS LONG
-   IF m_psa = NULL THEN RETURN 0
+   IF m_psa = nullptr THEN RETURN 0
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN 0
    DIM vt AS VARTYPE = this.GetType
@@ -2032,13 +2032,13 @@ END FUNCTION
 ' - bAscend: TRUE for sorting in ascending order; FALSE for sorting in descending order.
 ' ========================================================================================
 FUNCTION DSafeArray.Sort (BYVAL bAscend AS BOOLEAN = TRUE) AS HRESULT
-   IF m_psa = NULL THEN RETURN E_FAIL
+   IF m_psa = nullptr THEN RETURN E_FAIL
    DIM nDims AS UINT = SafeArrayGetDim(m_psa)
    IF nDims <> 1 THEN RETURN E_FAIL
    DIM vt AS VARTYPE = this.GetType
    IF vt <> VT_BSTR THEN RETURN E_FAIL
    DIM pvData AS TK_BSTR PTR = this.AccessData
-   IF pvData = NULL THEN RETURN E_UNEXPECTED
+   IF pvData = nullptr THEN RETURN E_UNEXPECTED
    IF bAscend THEN
       qsort pvData, this.Count, SIZEOF(TK_BSTR), CPTR(ANY PTR, @tkDSafeArrayCompare)
    ELSE
@@ -2149,7 +2149,7 @@ PUBLIC FUNCTION tkStrJoin (BYREF dsa AS DSafeArray, BYREF wszDelimiter AS WSTRIN
    DIM nCount AS LONG = dsa.Count
    IF nCount = 0 THEN RETURN ustr
    DIM pvData AS TK_BSTR PTR = dsa.AccessData
-   IF pvData = NULL THEN RETURN ustr
+   IF pvData = nullptr THEN RETURN ustr
    ' // Add a leading ""
    IF wszDelimiter = CHR(34, 44, 34) THEN ustr = CHR(34)
    FOR i AS LONG = 0 TO nCount - 1
@@ -2173,15 +2173,15 @@ PUBLIC FUNCTION tkFileReadAllLinesA (BYREF wszFileName AS WSTRING, BYREF szDelim
    DIM dwCount AS DWORD, dwFileSize AS DWORD, dwHighSize AS DWORD, dwBytesRead AS DWORD
    IF LEN(szDelimiter) = 0 THEN RETURN _dsa
    ' // Open the file
-   DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, NULL, _
-                         OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL)
+   DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, _
+                         OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr)
    IF hFile = INVALID_HANDLE_VALUE THEN RETURN _dsa
    ' // Get the size of the file
    dwFileSize = GetFileSize(hFile, @dwHighSize)
    DIM pBuffer AS UBYTE PTR
    pBuffer = CAllocate(1, dwFileSize)
-   IF pBuffer = NULL THEN RETURN _dsa
-   DIM bSuccess AS LONG = ReadFile(hFile, pBuffer, dwFileSize, @dwBytesRead, NULL)
+   IF pBuffer = nullptr THEN RETURN _dsa
+   DIM bSuccess AS LONG = ReadFile(hFile, pBuffer, dwFileSize, @dwBytesRead, nullptr)
    CloseHandle(hFile)
    IF bSuccess = FALSE THEN RETURN _dsa
    ' // Get the number of lines
@@ -2189,7 +2189,7 @@ PUBLIC FUNCTION tkFileReadAllLinesA (BYREF wszFileName AS WSTRING, BYREF szDelim
    DIM pstr AS ANY PTR = pBuffer
    DO
       pstr = strstr(pstr, szDelimiter)
-      IF pstr = NULL THEN EXIT DO
+      IF pstr = nullptr THEN EXIT DO
       pstr += nLen
       dwCount += 1
    LOOP
@@ -2219,7 +2219,7 @@ PUBLIC FUNCTION tkFileReadAllLinesA (BYREF wszFileName AS WSTRING, BYREF szDelim
    ' // Parse the buffer
    DO
       pstr = strstr(pstr, szDelimiter)
-      IF pstr = NULL THEN EXIT DO
+      IF pstr = nullptr THEN EXIT DO
       sLen = pstr - _pstr
       s = ""
       IF sLen > nLen THEN
@@ -2246,15 +2246,15 @@ PUBLIC FUNCTION tkFileReadAllLinesW (BYREF wszFileName AS WSTRING, BYREF wszDeli
    DIM dwCount AS DWORD, dwFileSize AS DWORD, dwHighSize AS DWORD, dwBytesRead AS DWORD
    IF LEN(wszDelimiter) = 0 THEN RETURN _dsa
    ' // Open the file
-   DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, NULL, _
-                         OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL)
+   DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, _
+                         OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, nullptr)
    IF hFile = INVALID_HANDLE_VALUE THEN RETURN _dsa
    ' // Get the size of the file
    dwFileSize = GetFileSize(hFile, @dwHighSize)
    DIM pBuffer AS UBYTE PTR
    pBuffer = CAllocate(1, dwFileSize)
-   IF pBuffer = NULL THEN RETURN _dsa
-   DIM bSuccess AS LONG = ReadFile(hFile, pBuffer, dwFileSize, @dwBytesRead, NULL)
+   IF pBuffer = nullptr THEN RETURN _dsa
+   DIM bSuccess AS LONG = ReadFile(hFile, pBuffer, dwFileSize, @dwBytesRead, nullptr)
    CloseHandle(hFile)
    IF bSuccess = FALSE THEN RETURN _dsa
    ' // Get the number of lines
@@ -2262,7 +2262,7 @@ PUBLIC FUNCTION tkFileReadAllLinesW (BYREF wszFileName AS WSTRING, BYREF wszDeli
    DIM pstr AS ANY PTR = pBuffer
    DO
       pstr = wcsstr(pstr, @wszDelimiter)
-      IF pstr = NULL THEN EXIT DO
+      IF pstr = nullptr THEN EXIT DO
       pstr += nLen
       dwCount += 1
    LOOP
@@ -2287,7 +2287,7 @@ PUBLIC FUNCTION tkFileReadAllLinesW (BYREF wszFileName AS WSTRING, BYREF wszDeli
    ' // Parse the buffer
    DO
       pstr = wcsstr(pstr, @wszDelimiter)
-      IF pstr = NULL THEN EXIT DO
+      IF pstr = nullptr THEN EXIT DO
       sLen = (pstr - _pstr) \ 2
       ustr = ""
       IF sLen > nLen THEN

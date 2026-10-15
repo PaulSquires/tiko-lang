@@ -320,7 +320,7 @@ sub TuiList.SetFocused( byval on_ as boolean ) : focused = on_ : end sub
 
 '' The scroll follows the SELECTION, never the other way round.
 sub TuiList.hClamp( )
-    if( state = 0 ) then exit sub
+    if( state = nullptr ) then exit sub
     dim as long n = items.Count( )
     if( n = 0 ) then
         state->selected = -1
@@ -343,8 +343,8 @@ sub TuiList.Render( byref f as TuiFrame, byval area as TuiRect )
     lastH = area.h
     hClamp( )
 
-    dim as long off = iif( state <> 0, state->offset, 0 )
-    dim as long sel = iif( state <> 0, state->selected, -1 )
+    dim as long off = iif( state <> nullptr, state->offset, 0 )
+    dim as long sel = iif( state <> nullptr, state->selected, -1 )
     dim as long pw = TuiStringWidth( selectPrefix )
 
     for row as long = 0 to area.h - 1
@@ -368,7 +368,7 @@ end sub
 function TuiList.HandleEvent( byref e as TuiEvent ) as boolean
     if( focused = FALSE ) then return FALSE
     if( e.kind <> TUIEVENT_KEY ) then return FALSE
-    if( state = 0 ) then return FALSE
+    if( state = nullptr ) then return FALSE
     if( items.Count( ) = 0 ) then return FALSE
 
     dim as long h = iif( lastH > 0, lastH, 1 )
@@ -432,7 +432,7 @@ function TuiTable.Kind( ) as ustring : return "Table" : end function
 '' row at all while the status line reports a selection. TuiList always got this
 '' right; TuiTable did not, and the two are siblings.
 sub TuiTable.hClamp( )
-    if( state = 0 ) then exit sub
+    if( state = nullptr ) then exit sub
     dim as long n = rows.Count( )
     if( n = 0 ) then
         state->selected = -1
@@ -474,8 +474,8 @@ sub TuiTable.Render( byref f as TuiFrame, byval area as TuiRect )
     if( h <= 0 ) then exit sub
     hClamp( )
 
-    dim as long off = iif( state <> 0, state->offset, 0 )
-    dim as long sel = iif( state <> 0, state->selected, -1 )
+    dim as long off = iif( state <> nullptr, state->offset, 0 )
+    dim as long sel = iif( state <> nullptr, state->selected, -1 )
     if( off < 0 ) then off = 0
 
     dim as TuiRectArray cols = TuiSplitH( TuiRectOf( area.x, top, area.w, 1 ), widths )
@@ -495,7 +495,7 @@ end sub
 function TuiTable.HandleEvent( byref e as TuiEvent ) as boolean
     if( focused = FALSE ) then return FALSE
     if( e.kind <> TUIEVENT_KEY ) then return FALSE
-    if( state = 0 ) then return FALSE
+    if( state = nullptr ) then return FALSE
     if( rows.Count( ) = 0 ) then return FALSE
 
     dim as long h = iif( lastBody > 0, lastBody, 1 )

@@ -260,7 +260,7 @@ END FUNCTION
 ' Returns the index of the new tab if successful, or -1 otherwise.
 ' ========================================================================================
 PUBLIC FUNCTION tkTab_InsertTab (BYVAL hTab AS HWND, BYVAL nTabIndex AS DWORD, BYVAL iImage AS LONG, BYVAL pwszText AS WSTRING PTR, BYVAL lParam AS ..LPARAM = 0) AS LONG
-   IF pwszText = NULL THEN RETURN -1
+   IF pwszText = nullptr THEN RETURN -1
    DIM ttc_item AS TCITEMW
    ttc_item.mask = TCIF_TEXT OR TCIF_IMAGE OR TCIF_RTLREADING OR TCIF_PARAM OR TCIF_STATE OR TCIS_BUTTONPRESSED OR TCIS_HIGHLIGHTED
    ttc_item.pszText = pwszText
@@ -275,7 +275,7 @@ END FUNCTION
 ' * Retrieves the number of tabs and calls InsertTab to add a new tab.
 ' ========================================================================================
 PUBLIC FUNCTION tkTab_AddTab (BYVAL hTab AS HWND, BYVAL iImage AS LONG, BYVAL pwszText AS WSTRING PTR, BYVAL lParam AS ..LPARAM = 0) AS LONG
-   IF pwszText = NULL THEN RETURN -1
+   IF pwszText = nullptr THEN RETURN -1
    DIM nTabIndex AS LONG = SendMessageW(hTab, TCM_GETITEMCOUNT, 0, 0)
    RETURN tkTab_InsertTab(hTab, nTabIndex, iImage, pwszText, lParam)
 END FUNCTION

@@ -67,7 +67,7 @@ public function HashBytes _
     '' the end.  An empty literal reaches here through the ZSTRING PTR overload,
     '' which a "" argument prefers over the STRING one, so the empty case is not
     '' hypothetical -- it segfaulted on the first run.
-    if( (p = 0) orelse (n = 0) ) then
+    if( (p = nullptr) orelse (n = 0) ) then
         return h
     end if
 
@@ -183,14 +183,14 @@ public function HashOf overload ( byref v as const string ) as ulongint
 end function
 
 public function HashOf overload ( byval v as const zstring ptr ) as ulongint
-    if( v = 0 ) then
+    if( v = nullptr ) then
         return FNV_OFFSET_BASIS
     end if
     function = HashBytes( cptr( const ubyte ptr, v ), len( *v ) )
 end function
 
 public function HashOf overload ( byval v as const wstring ptr ) as ulongint
-    if( v = 0 ) then
+    if( v = nullptr ) then
         return FNV_OFFSET_BASIS
     end if
     function = HashBytes( cptr( const ubyte ptr, v ), len( *v ) * sizeof( wstring ) )

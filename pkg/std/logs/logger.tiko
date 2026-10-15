@@ -168,7 +168,7 @@ end function
 '' outlive every logger holding it. That is what makes copying a Logger -- which
 '' With( ) requires -- cheap and obviously not a duplicated file handle.
 sub Logger_.AddSink( byval s as Sink ptr )
-    if( s <> 0 ) then this.m_sinks.Push( s )
+    if( s <> nullptr ) then this.m_sinks.Push( s )
 end sub
 
 sub Logger_.RemoveSink( byval s as Sink ptr )
@@ -282,7 +282,7 @@ sub Logger_.Fatal ( byref m as ustring ) : this.Log( LOG_FATAL, m ) : end sub
 
 '' ============================================================== LogEvent impl
 constructor LogEvent( )
-    this.m_owner   = 0
+    this.m_owner   = nullptr
     this.m_enabled = FALSE
 end constructor
 
@@ -367,7 +367,7 @@ end sub
 '' accident.
 sub LogEvent.Send( )
     if( this.m_enabled = FALSE ) then exit sub
-    if( this.m_owner <> 0 ) then this.m_owner->Emit( this.m_rec )
+    if( this.m_owner <> nullptr ) then this.m_owner->Emit( this.m_rec )
     this.m_enabled = FALSE          '' committing twice would emit twice
 end sub
 

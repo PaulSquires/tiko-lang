@@ -109,7 +109,7 @@ END FUNCTION
 ' Returns TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION tkRebar_GetBandInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYVAL prbbi AS REBARBANDINFOW PTR) AS BOOLEAN
-   IF prbbi = NULL THEN RETURN FALSE
+   IF prbbi = nullptr THEN RETURN FALSE
    IF tkComCtlVersion >= 600 THEN
       prbbi->cbSize  = REBARBANDINFO_V6_SIZE
    ELSE
@@ -120,7 +120,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkRebar_GetBandInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYREF rbbi AS REBARBANDINFOW) AS BOOLEAN
-   IF VARPTR(rbbi) = 0 THEN RETURN FALSE
+   IF VARPTR(rbbi) = nullptr THEN RETURN FALSE
    IF tkComCtlVersion >= 600 THEN
       rbbi.cbSize  = REBARBANDINFO_V6_SIZE
    ELSE
@@ -175,14 +175,14 @@ END FUNCTION
 ' Return value: Returns TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION tkRebar_GetBarInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL prbi AS REBARINFO PTR) AS BOOLEAN
-   IF prbi = NULL THEN RETURN FALSE
+   IF prbi = nullptr THEN RETURN FALSE
    prbi->cbSize = SIZEOF(REBARINFO)
    RETURN SendMessageW(hRebar, RB_GETBARINFO, 0, cast(LPARAM, prbi))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkRebar_GetBarInfo OVERLOAD (BYVAL hRebar AS HWND, BYREF rbi AS REBARINFO) AS BOOLEAN
-   IF VARPTR(rbi) = 0 THEN RETURN FALSE
+   IF VARPTR(rbi) = nullptr THEN RETURN FALSE
    rbi.cbSize = SIZEOF(rbi)
    RETURN SendMessageW(hRebar, RB_GETBARINFO, 0, cast(LPARAM, @rbi))
 END FUNCTION
@@ -209,7 +209,7 @@ END FUNCTION
 ' Return value: Returns TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION tkRebar_GetColorScheme OVERLOAD (BYVAL hRebar AS HWND, BYVAL pcs AS COLORSCHEME PTR) AS BOOLEAN
-   IF pcs = NULL THEN RETURN FALSE
+   IF pcs = nullptr THEN RETURN FALSE
    pcs->dwSize = SIZEOF(COLORSCHEME)
    RETURN SendMessageW(hRebar, RB_GETCOLORSCHEME, 0, CAST(LPARAM, pcs))
 END FUNCTION
@@ -321,7 +321,7 @@ END FUNCTION
 ' Returns the zero-based index of the band at the given point, or -1 if no rebar band was at the point.
 ' ========================================================================================
 PUBLIC FUNCTION tkRebar_HitTest (BYVAL hRebar AS HWND, BYREF rhbt AS RBHITTESTINFO) AS LONG
-   IF VARPTR(rhbt) = 0 THEN RETURN -1
+   IF VARPTR(rhbt) = nullptr THEN RETURN -1
    RETURN SendMessageW(hRebar, RB_HITTEST, 0, cast(LPARAM, @rhbt))
 END FUNCTION
 ' ========================================================================================
@@ -340,7 +340,7 @@ END FUNCTION
 ' * Inserts a new band in a rebar control.
 ' ========================================================================================
 PUBLIC FUNCTION tkRebar_InsertBand OVERLOAD (BYVAL hRebar AS HWND, BYVAL nIndex AS LONG, BYVAL prbbi AS REBARBANDINFOW PTR) AS BOOLEAN
-   IF prbbi = NULL THEN RETURN FALSE
+   IF prbbi = nullptr THEN RETURN FALSE
    IF tkComCtlVersion >= 600 THEN
       prbbi->cbSize  = REBARBANDINFO_V6_SIZE
    ELSE
@@ -351,7 +351,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkRebar_InsertBand OVERLOAD (BYVAL hRebar AS HWND, BYVAL nIndex AS LONG, BYREF rbbi AS REBARBANDINFOW) AS BOOLEAN
-   IF VARPTR(rbbi) = 0 THEN RETURN FALSE
+   IF VARPTR(rbbi) = nullptr THEN RETURN FALSE
    IF tkComCtlVersion >= 600 THEN
       rbbi.cbSize  = REBARBANDINFO_V6_SIZE
    ELSE
@@ -397,7 +397,7 @@ END SUB
 ' Sets characteristics of an existing band in a rebar control. Returns TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION tkRebar_SetBandInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYVAL prbbi AS REBARBANDINFOW PTR) AS BOOLEAN
-   IF prbbi = NULL THEN RETURN FALSE
+   IF prbbi = nullptr THEN RETURN FALSE
    IF tkComCtlVersion >= 600 THEN
       prbbi->cbSize  = REBARBANDINFO_V6_SIZE
    ELSE
@@ -431,14 +431,14 @@ END FUNCTION
 ' Sets the characteristics of a rebar control. Returns TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION tkRebar_SetBarInfo OVERLOAD (BYVAL hRebar AS HWND, BYVAL prbi AS REBARINFO PTR) AS BOOLEAN
-   IF prbi = NULL THEN RETURN FALSE
+   IF prbi = nullptr THEN RETURN FALSE
    prbi->cbSize = SIZEOF(REBARINFO)
    RETURN SendMessageW(hRebar, RB_SETBARINFO, 0, cast(LPARAM, prbi))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkRebar_SetBarInfo OVERLOAD (BYVAL hRebar AS HWND, BYREF rbi AS REBARINFO) AS BOOLEAN
-   IF VARPTR(rbi) = 0 THEN RETURN FALSE
+   IF VARPTR(rbi) = nullptr THEN RETURN FALSE
    rbi.cbSize = SIZEOF(rbi)
    RETURN SendMessageW(hRebar, RB_SETBARINFO, 0, cast(LPARAM, @rbi))
 END FUNCTION
@@ -457,7 +457,7 @@ END FUNCTION
 ' Sets the color scheme information for the rebar control.
 ' ========================================================================================
 PUBLIC SUB tkRebar_SetColorScheme OVERLOAD (BYVAL hRebar AS HWND, BYVAL pcs AS COLORSCHEME PTR)
-   IF pcs = NULL THEN EXIT SUB
+   IF pcs = nullptr THEN EXIT SUB
    pcs->dwSize = SIZEOF(COLORSCHEME)
    SendMessageW(hRebar, RB_SETCOLORSCHEME, 0, CAST(LPARAM, pcs))
 END SUB
@@ -552,13 +552,13 @@ END FUNCTION
 ' * Sets the rebar dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkRebar_SetDarkMode(BYVAL hRebar AS HWND) AS HRESULT
-   RETURN ..SetWindowTheme(hRebar, "DarkModeNavbar", NULL)
+   RETURN ..SetWindowTheme(hRebar, "DarkModeNavbar", nullptr)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' * Removes the rebar dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkRebar_RemoveDarkMode(BYVAL hRebar AS HWND) AS HRESULT
-   RETURN ..SetWindowTheme(hRebar, NULL, NULL)
+   RETURN ..SetWindowTheme(hRebar, nullptr, nullptr)
 END FUNCTION
 ' ========================================================================================

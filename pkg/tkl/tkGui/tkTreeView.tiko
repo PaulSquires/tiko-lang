@@ -123,7 +123,7 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkTreeView_AddRootItem (BYVAL hTreeView AS HWND, BYVAL pwszText AS WSTRING PTR, _
 BYVAL lParam AS ..LPARAM = 0, BYVAL iImage AS LONG = 0, BYVAL iSelectedImage AS LONG = 0) AS HTREEITEM
-   RETURN tkTreeView_InsertItem(hTreeView, NULL, TVI_ROOT, pwszText, lParam, iImage, iSelectedImage)
+   RETURN tkTreeView_InsertItem(hTreeView, nullptr, TVI_ROOT, pwszText, lParam, iImage, iSelectedImage)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -210,7 +210,7 @@ PUBLIC SUB tkTreeView_ExpandChildItems (BYVAL hTreeView AS HWND, BYVAL hNode AS 
       ' // Get the first child node
       hChildNode = tkTreeView_GetChild(hTreeView, hNode)
       IF hChildNode THEN tkTreeView_ExpandChildItems(hTreeView, hChildNode)
-      hNode = NULL
+      hNode = nullptr
    LOOP
 END SUB
 ' ========================================================================================
@@ -271,7 +271,7 @@ PUBLIC SUB tkTreeView_CollapseChildItems (BYVAL hTreeView AS HWND, BYVAL hNode A
       ' // Get the first child node
       hChildNode = tkTreeView_GetChild(hTreeView, hNode)
       IF hChildNode THEN tkTreeView_CollapseChildItems(hTreeView, hChildNode)
-      hNode = NULL
+      hNode = nullptr
    LOOP
 END SUB
 ' ========================================================================================
@@ -416,7 +416,7 @@ END SUB
 ' Returns TRUE if successful, or FALSE otherwise.
 ' ========================================================================================
 PUBLIC FUNCTION tkTreeView_GetItemText OVERLOAD (BYVAL hTreeView AS HWND, BYVAL hItem AS HTREEITEM, BYVAL pwszText AS WSTRING PTR, BYVAL cchtextmax AS LONG) AS BOOLEAN
-   IF pwszText = NULL THEN EXIT FUNCTION
+   IF pwszText = nullptr THEN EXIT FUNCTION
    DIM tvi AS TVITEMW
    tvi.hitem = hItem
    tvi.mask = TVIF_TEXT
@@ -509,28 +509,28 @@ END FUNCTION
 ' * Retrieves the currently selected item in a treeview control.
 ' ========================================================================================
 PUBLIC FUNCTION tkTreeView_GetSelection (BYVAL hTreeView AS HWND) AS HTREEITEM
-   RETURN tkTreeView_GetNextItem(hTreeView, NULL, TVGN_CARET)
+   RETURN tkTreeView_GetNextItem(hTreeView, nullptr, TVGN_CARET)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Retrieves the currently selected item in a treeview control.
 ' ========================================================================================
 PUBLIC FUNCTION tkTreeView_GetSelect (BYVAL hTreeView AS HWND) AS HTREEITEM
-   RETURN tkTreeView_GetNextItem(hTreeView, NULL, TVGN_CARET)
+   RETURN tkTreeView_GetNextItem(hTreeView, nullptr, TVGN_CARET)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' Retrieves the treeview item that is the target of a drag-and-drop operation.
 ' ========================================================================================
 PUBLIC FUNCTION tkTreeView_GetDropHilight (BYVAL hTreeView AS HWND) AS HTREEITEM
-   RETURN tkTreeView_GetNextItem(hTreeView, NULL, TVGN_DROPHILITE)
+   RETURN tkTreeView_GetNextItem(hTreeView, nullptr, TVGN_DROPHILITE)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' * Retrieves the first visible item in a treeview control window.
 ' ========================================================================================
 PUBLIC FUNCTION tkTreeView_GetFirstVisible (BYVAL hTreeView AS HWND) AS HTREEITEM
-   RETURN tkTreeView_GetNextItem(hTreeView, NULL, TVGN_FIRSTVISIBLE)
+   RETURN tkTreeView_GetNextItem(hTreeView, nullptr, TVGN_FIRSTVISIBLE)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -578,7 +578,7 @@ END FUNCTION
 ' Returns TRUE if successful, or FALSE otherwise.
 ' ========================================================================================
 PUBLIC FUNCTION tkTreeView_GetParentText OVERLOAD (BYVAL hTreeView AS HWND, BYVAL hItem AS HTREEITEM, BYVAL pwszText AS WSTRING PTR, BYVAL cchTextMax AS LONG) AS BOOLEAN
-   IF pwszText = NULL THEN EXIT FUNCTION
+   IF pwszText = nullptr THEN EXIT FUNCTION
    DIM hNode AS HTREEITEM = tkTreeView_GetNextItem(hTreeView, hItem, TVGN_PARENT)
    IF hNode THEN RETURN tkTreeView_GetItemText(hTreeView, hNode, pwszText, cchTextMax)
 END FUNCTION
@@ -596,7 +596,7 @@ END FUNCTION
 ' * Retrieves the topmost or very first item of the treeview control.
 ' ========================================================================================
 FUNCTION tkTreeView_GetRoot (BYVAL hTreeView AS HWND) AS HTREEITEM
-   RETURN tkTreeView_GetNextItem(hTreeView, NULL, TVGN_ROOT)
+   RETURN tkTreeView_GetNextItem(hTreeView, nullptr, TVGN_ROOT)
 END FUNCTION
 ' ========================================================================================
 
@@ -625,7 +625,7 @@ END FUNCTION
 ' * Retrieves some or all of a treeview item's state attributes.
 ' ========================================================================================
 PUBLIC FUNCTION tkTreeView_GetLastVisible (BYVAL hTreeView AS HWND) AS HTREEITEM
-   RETURN tkTreeView_GetNextItem(hTreeView, NULL, TVGN_LASTVISIBLE)
+   RETURN tkTreeView_GetNextItem(hTreeView, nullptr, TVGN_LASTVISIBLE)
 END FUNCTION
 ' ========================================================================================
 
@@ -634,13 +634,13 @@ END FUNCTION
 ' Returns TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION tkTreeView_ItemExists (BYVAL hTreeView AS HWND, BYVAL hNode AS HTREEITEM, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
-   IF pwszText = NULL THEN EXIT FUNCTION
+   IF pwszText = nullptr THEN EXIT FUNCTION
    DIM cbLen AS LONG = LEN(*pwszText)
    IF cbLen = 0 THEN EXIT FUNCTION
    DIM ustrItemText AS USTRING = WSPACE(cbLen + 1)
    DIM hItem AS HTREEITEM = tkTreeView_GetChild(hTreeView, hNode)
    DO
-      IF hItem = NULL THEN EXIT FUNCTION
+      IF hItem = nullptr THEN EXIT FUNCTION
       IF tkTreeView_GetItemText(hTreeView, hItem, STRPTR(ustrItemText), LEN(ustrItemText)) = FALSE THEN EXIT DO
       IF ustrItemText = *pwszText THEN
          FUNCTION = TRUE
@@ -656,13 +656,13 @@ END FUNCTION
 ' Returns TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION tkTreeView_ItemExistsIgnoreCase (BYVAL hTreeView AS HWND, BYVAL hNode AS HTREEITEM, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
-   IF pwszText = NULL THEN EXIT FUNCTION
+   IF pwszText = nullptr THEN EXIT FUNCTION
    DIM cbLen AS LONG = LEN(*pwszText)
    IF cbLen = 0 THEN EXIT FUNCTION
    DIM ustrItemText AS USTRING = WSPACE(cbLen + 1)
    DIM hItem AS HTREEITEM = tkTreeView_GetChild(hTreeView, hNode)
    DO
-      IF hItem = NULL THEN EXIT FUNCTION
+      IF hItem = nullptr THEN EXIT FUNCTION
       IF tkTreeView_GetItemText(hTreeView, hItem, STRPTR(ustrItemText), LEN(ustrItemText)) = FALSE THEN EXIT DO
       IF UCASE(ustrItemText) = UCASE(*pwszText) THEN
          FUNCTION = TRUE
@@ -810,14 +810,14 @@ END FUNCTION
 ' Retrieves the bounding rectangle for a treeview item and indicates whether the item is visible.
 ' ========================================================================================
 PUBLIC FUNCTION tkTreeView_GetItemRect OVERLOAD (BYVAL hTreeView AS HWND, BYVAL hItem AS HTREEITEM, BYREF rc AS RECT, BYVAL code AS BOOLEAN) AS BOOLEAN
-   IF VARPTR(rc) = 0 THEN RETURN FALSE
+   IF VARPTR(rc) = nullptr THEN RETURN FALSE
    *CPTR(HTREEITEM PTR, @rc) = hitem
    RETURN SendMessageW(hTreeView, TVM_GETITEMRECT, code, CAST(LPARAM, @rc))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkTreeView_GetItemRect OVERLOAD (BYVAL hTreeView AS HWND, BYVAL hItem AS HTREEITEM, BYVAL prc AS RECT PTR, BYVAL code AS BOOLEAN) AS BOOLEAN
-   IF prc = NULL THEN RETURN FALSE
+   IF prc = nullptr THEN RETURN FALSE
    *CPTR(HTREEITEM PTR, prc) = hitem
    RETURN SendMessageW(hTreeView, TVM_GETITEMRECT, code, CAST(LPARAM, prc))
 END FUNCTION
@@ -1092,13 +1092,13 @@ END FUNCTION
 ' * Set button dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkTreeView_SetDarkMode(BYVAL hTreeView AS HWND) AS HRESULT
-   RETURN SetWindowTheme(hTreeView, "DarkMode_Explorer", NULL)
+   RETURN SetWindowTheme(hTreeView, "DarkMode_Explorer", nullptr)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' * Remove button dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkTreeView_RemoveDarkMode(BYVAL hTreeView AS HWND) AS HRESULT
-   RETURN SetWindowTheme(hTreeView, NULL, NULL)
+   RETURN SetWindowTheme(hTreeView, nullptr, nullptr)
 END FUNCTION
 ' ========================================================================================

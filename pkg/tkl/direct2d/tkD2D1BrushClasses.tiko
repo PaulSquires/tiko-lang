@@ -85,7 +85,7 @@ END OPERATOR
 ' Retrieves the factory associated with this resource.
 ' ========================================================================================
 FUNCTION CID2D1GradientStopCollection.GetFactory () AS ID2D1Factory PTR
-   IF m_pGradientStopCollection = NULL THEN RETURN NULL
+   IF m_pGradientStopCollection = nullptr THEN RETURN nullptr
    DIM factory AS ID2D1Factory PTR
    DIM pResource AS ID2D1Resource PTR = CAST(ID2D1GradientStopCollection PTR, m_pGradientStopCollection)
    pResource->GetFactory(factory)
@@ -100,7 +100,7 @@ END FUNCTION
 ' Retrieves the number of gradient stops in the collection.
 ' ========================================================================================
 FUNCTION CID2D1GradientStopCollection.GetGradientStopCount () AS UINT32
-   IF m_pGradientStopCollection = NULL THEN EXIT FUNCTION
+   IF m_pGradientStopCollection = nullptr THEN EXIT FUNCTION
    RETURN m_pGradientStopCollection->GetGradientStopCount
 END FUNCTION
 ' ========================================================================================
@@ -109,7 +109,7 @@ END FUNCTION
 ' Copies the gradient stops from the collection into an array of D2D1_GRADIENT_STOP structures.
 ' ========================================================================================
 SUB CID2D1GradientStopCollection.GetGradientStops (BYREF gradientStops AS D2D1_GRADIENT_STOP, BYVAL gradientStopsCount AS UINT32)
-   IF m_pGradientStopCollection = NULL THEN EXIT SUB
+   IF m_pGradientStopCollection = nullptr THEN EXIT SUB
    m_pGradientStopCollection->GetGradientStops(gradientStops, gradientStopsCount)
 END SUB
 ' ========================================================================================
@@ -118,7 +118,7 @@ END SUB
 ' Indicates the gamma space in which the gradient stops are interpolated.
 ' ========================================================================================
 FUNCTION CID2D1GradientStopCollection.GetColorInterpolationGamma () AS D2D1_GAMMA
-   IF m_pGradientStopCollection = NULL THEN EXIT FUNCTION
+   IF m_pGradientStopCollection = nullptr THEN EXIT FUNCTION
    RETURN m_pGradientStopCollection->GetColorInterpolationGamma
 END FUNCTION
 ' ========================================================================================
@@ -127,7 +127,7 @@ END FUNCTION
 ' Indicates the behavior of the gradient outside the normalized gradient range.
 ' ========================================================================================
 FUNCTION CID2D1GradientStopCollection.GetExtendMode () AS D2D1_EXTEND_MODE
-   IF m_pGradientStopCollection = NULL THEN EXIT FUNCTION
+   IF m_pGradientStopCollection = nullptr THEN EXIT FUNCTION
    RETURN m_pGradientStopCollection->GetExtendMode
 END FUNCTION
 ' ========================================================================================
@@ -201,7 +201,7 @@ END OPERATOR
 ' Copies the gradient stops from the collection into an array of D2D1_GRADIENT_STOP structures.
 ' ========================================================================================
 SUB CID2D1GradientStopCollection1.GetGradientStops1 (BYREF gradientStops AS D2D1_GRADIENT_STOP, BYVAL gradientStopsCount AS UINT32)
-   IF m_pGradientStopCollection1 = NULL THEN EXIT SUB
+   IF m_pGradientStopCollection1 = nullptr THEN EXIT SUB
    m_pGradientStopCollection1->GetGradientStops1(gradientStops, gradientStopsCount)
 END SUB
 ' ========================================================================================
@@ -210,7 +210,7 @@ END SUB
 ' Gets the color space of the input colors as well as the space in which gradient stops are interpolated.
 ' ========================================================================================
 FUNCTION CID2D1GradientStopCollection1.GetPreInterpolationSpace () AS D2D1_COLOR_SPACE
-   IF m_pGradientStopCollection1 = NULL THEN EXIT FUNCTION
+   IF m_pGradientStopCollection1 = nullptr THEN EXIT FUNCTION
    RETURN m_pGradientStopCollection1->GetPreInterpolationSpace
 END FUNCTION
 ' ========================================================================================
@@ -219,7 +219,7 @@ END FUNCTION
 ' Gets the color space after interpolation has occurred.
 ' ========================================================================================
 FUNCTION CID2D1GradientStopCollection1.GetPostInterpolationSpace () AS D2D1_COLOR_SPACE
-   IF m_pGradientStopCollection1 = NULL THEN EXIT FUNCTION
+   IF m_pGradientStopCollection1 = nullptr THEN EXIT FUNCTION
    RETURN m_pGradientStopCollection1->GetPostInterpolationSpace
 END FUNCTION
 ' ========================================================================================
@@ -228,7 +228,7 @@ END FUNCTION
 ' Gets the precision of the gradient buffer.
 ' ========================================================================================
 FUNCTION CID2D1GradientStopCollection1.GetBufferPrecision () AS D2D1_BUFFER_PRECISION
-   IF m_pGradientStopCollection1 = NULL THEN EXIT FUNCTION
+   IF m_pGradientStopCollection1 = nullptr THEN EXIT FUNCTION
    RETURN m_pGradientStopCollection1->GetBufferPrecision
 END FUNCTION
 ' ========================================================================================
@@ -237,7 +237,7 @@ END FUNCTION
 ' Gets the precision of the gradient buffer.
 ' ========================================================================================
 FUNCTION CID2D1GradientStopCollection1.GetColorInterpolationMode () AS D2D1_COLOR_INTERPOLATION_MODE
-   IF m_pGradientStopCollection1 = NULL THEN EXIT FUNCTION
+   IF m_pGradientStopCollection1 = nullptr THEN EXIT FUNCTION
    RETURN m_pGradientStopCollection1->GetColorInterpolationMode
 END FUNCTION
 ' ========================================================================================
@@ -824,13 +824,13 @@ END FUNCTION
 ' Specifies the center of the gradient ellipse in the brush's coordinate space.
 ' ========================================================================================
 SUB CID2D1RadialGradientBrush.SetCenter (BYVAL center AS D2D1_POINT_2F)
-   IF m_pRadialGradientBrush = NULL THEN EXIT SUB
+   IF m_pRadialGradientBrush = nullptr THEN EXIT SUB
    m_pRadialGradientBrush->SetCenter(center)
 END SUB
 ' ========================================================================================
 ' ========================================================================================
 SUB CID2D1RadialGradientBrush.SetCenter (BYVAL centerX AS SINGLE, BYVAL centerY AS SINGLE)
-   IF m_pRadialGradientBrush = NULL THEN EXIT SUB
+   IF m_pRadialGradientBrush = nullptr THEN EXIT SUB
    DIM center AS D2D1_POINT_2F = (centerX, centerY)
    m_pRadialGradientBrush->SetCenter(center)
 END SUB
@@ -840,13 +840,13 @@ END SUB
 ' Specifies the offset of the gradient origin relative to the gradient ellipse's center.
 ' ========================================================================================
 SUB CID2D1RadialGradientBrush.SetGradientOriginOffset (BYVAL gradientOriginOffset AS D2D1_POINT_2F)
-   IF m_pRadialGradientBrush = NULL THEN EXIT SUB
+   IF m_pRadialGradientBrush = nullptr THEN EXIT SUB
    m_pRadialGradientBrush->SetGradientOriginOffset(gradientOriginOffset)
 END SUB
 ' ========================================================================================
 ' ========================================================================================
 SUB CID2D1RadialGradientBrush.SetGradientOriginOffset (BYVAL gradientOriginOffsetX AS SINGLE, BYVAL gradientOriginOffsetY AS SINGLE)
-   IF m_pRadialGradientBrush = NULL THEN EXIT SUB
+   IF m_pRadialGradientBrush = nullptr THEN EXIT SUB
    DIM gradientOriginOffset AS D2D1_POINT_2F = (gradientOriginOffsetX, gradientOriginOffsetY)
    m_pRadialGradientBrush->SetGradientOriginOffset(gradientOriginOffset)
 END SUB
@@ -856,7 +856,7 @@ END SUB
 ' Specifies the x-radius of the gradient ellipse, in the brush's coordinate space.
 ' ========================================================================================
 SUB CID2D1RadialGradientBrush.SetRadiusX (BYVAL radiusX AS SINGLE)
-   IF m_pRadialGradientBrush = NULL THEN EXIT SUB
+   IF m_pRadialGradientBrush = nullptr THEN EXIT SUB
    m_pRadialGradientBrush->SetRadiusX(radiusX)
 END SUB
 ' ========================================================================================
@@ -865,7 +865,7 @@ END SUB
 ' Specifies the y-radius of the gradient ellipse, in the brush's coordinate space.
 ' ========================================================================================
 SUB CID2D1RadialGradientBrush.SetRadiusY (BYVAL radiusY AS SINGLE)
-   IF m_pRadialGradientBrush = NULL THEN EXIT SUB
+   IF m_pRadialGradientBrush = nullptr THEN EXIT SUB
    m_pRadialGradientBrush->SetRadiusY(radiusY)
 END SUB
 ' ========================================================================================
@@ -874,7 +874,7 @@ END SUB
 ' Retrieves the center of the gradient ellipse.
 ' ========================================================================================
 FUNCTION CID2D1RadialGradientBrush.GetCenter () AS D2D1_POINT_2F
-   IF m_pRadialGradientBrush = NULL THEN EXIT FUNCTION
+   IF m_pRadialGradientBrush = nullptr THEN EXIT FUNCTION
    DIM center AS D2D1_POINT_2F
    m_pRadialGradientBrush->GetCenter(center)
    RETURN center
@@ -885,7 +885,7 @@ END FUNCTION
 ' Retrieves the offset of the gradient origin relative to the gradient ellipse's center.
 ' ========================================================================================
 FUNCTION CID2D1RadialGradientBrush.GetGradientOriginOffset () AS D2D1_POINT_2F
-   IF m_pRadialGradientBrush = NULL THEN EXIT FUNCTION
+   IF m_pRadialGradientBrush = nullptr THEN EXIT FUNCTION
    DIM originOffset AS D2D1_POINT_2F
    m_pRadialGradientBrush->GetGradientOriginOffset(originOffset)
    RETURN originOffset
@@ -896,7 +896,7 @@ END FUNCTION
 ' Retrieves the x-radius of the gradient ellipse.
 ' ========================================================================================
 FUNCTION CID2D1RadialGradientBrush.GetRadiusX () AS FLOAT
-   IF m_pRadialGradientBrush = NULL THEN EXIT FUNCTION
+   IF m_pRadialGradientBrush = nullptr THEN EXIT FUNCTION
    RETURN m_pRadialGradientBrush->GetRadiusX
 END FUNCTION
 ' ========================================================================================
@@ -905,7 +905,7 @@ END FUNCTION
 ' Retrieves the y-radius of the gradient ellipse.
 ' ========================================================================================
 FUNCTION CID2D1RadialGradientBrush.GetRadiusY () AS FLOAT
-   IF m_pRadialGradientBrush = NULL THEN EXIT FUNCTION
+   IF m_pRadialGradientBrush = nullptr THEN EXIT FUNCTION
    RETURN m_pRadialGradientBrush->GetRadiusY
 END FUNCTION
 ' ========================================================================================
@@ -914,7 +914,7 @@ END FUNCTION
 ' Retrieves the ID2D1GradientStopCollection associated with this radial gradient brush object.
 ' ========================================================================================
 FUNCTION CID2D1RadialGradientBrush.GetGradientStopCollection () AS ID2D1GradientStopCollection PTR
-   IF m_pRadialGradientBrush = NULL THEN EXIT FUNCTION
+   IF m_pRadialGradientBrush = nullptr THEN EXIT FUNCTION
    DIM gradientStopCollection AS ID2D1GradientStopCollection PTR
    m_pRadialGradientBrush->GetGradientStopCollection(gradientStopCollection)
    RETURN gradientStopCollection
@@ -1075,7 +1075,7 @@ END SUB
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CID2D1BitmapBrush.GetTransform () AS D2D1_MATRIX_3X2_F
-   IF m_pBitmapBrush = NULL THEN EXIT FUNCTION
+   IF m_pBitmapBrush = nullptr THEN EXIT FUNCTION
    DIM transform AS D2D1_MATRIX_3X2_F
    IF m_pBitmapBrush THEN cast(ID2D1Brush PTR, m_pBitmapBrush)->GetTransform(transform)
    RETURN transform
@@ -1089,7 +1089,7 @@ END FUNCTION
 ' Specifies how the brush horizontally tiles those areas that extend past its bitmap.
 ' ========================================================================================
 SUB CID2D1BitmapBrush.SetExtendModeX (BYVAL extendModeX AS D2D1_EXTEND_MODE)
-   IF m_pBitmapBrush = NULL THEN EXIT SUB
+   IF m_pBitmapBrush = nullptr THEN EXIT SUB
    m_pBitmapBrush->SetExtendModeX(extendModeX)
 END SUB
 ' ========================================================================================
@@ -1098,7 +1098,7 @@ END SUB
 ' Specifies how the brush vertically tiles those areas that extend past its bitmap.
 ' ========================================================================================
 SUB CID2D1BitmapBrush.SetExtendModeY (BYVAL extendModeY AS D2D1_EXTEND_MODE)
-   IF m_pBitmapBrush = NULL THEN EXIT SUB
+   IF m_pBitmapBrush = nullptr THEN EXIT SUB
    m_pBitmapBrush->SetExtendModeY(extendModeY)
 END SUB
 ' ========================================================================================
@@ -1107,7 +1107,7 @@ END SUB
 ' Specifies the interpolation mode used when the brush bitmap is scaled or rotated.
 ' ========================================================================================
 SUB CID2D1BitmapBrush.SetInterpolationMode (BYVAL InterpolationMode AS D2D1_BITMAP_INTERPOLATION_MODE)
-   IF m_pBitmapBrush = NULL THEN EXIT SUB
+   IF m_pBitmapBrush = nullptr THEN EXIT SUB
    m_pBitmapBrush->SetInterpolationMode(InterpolationMode)
 END SUB
 ' ========================================================================================
@@ -1116,7 +1116,7 @@ END SUB
 ' Specifies the bitmap source that this brush uses to paint.
 ' ========================================================================================
 SUB CID2D1BitmapBrush.SetBitmap (BYVAL bitmap AS ID2D1Bitmap PTR)
-   IF m_pBitmapBrush = NULL THEN EXIT SUB
+   IF m_pBitmapBrush = nullptr THEN EXIT SUB
    m_pBitmapBrush->SetBitmap(bitmap)
 END SUB
 ' ========================================================================================
@@ -1125,7 +1125,7 @@ END SUB
 ' Gets the method by which the brush horizontally tiles those areas that extend past its bitmap.
 ' ========================================================================================
 FUNCTION CID2D1BitmapBrush.GetExtendModeX () AS D2D1_EXTEND_MODE
-   IF m_pBitmapBrush = NULL THEN EXIT FUNCTION
+   IF m_pBitmapBrush = nullptr THEN EXIT FUNCTION
    RETURN m_pBitmapBrush->GetExtendModeX
 END FUNCTION
 ' ========================================================================================
@@ -1134,7 +1134,7 @@ END FUNCTION
 ' Gets the method by which the brush vertically tiles those areas that extend past its bitmap.
 ' ========================================================================================
 FUNCTION CID2D1BitmapBrush.GetExtendModeY () AS D2D1_EXTEND_MODE
-   IF m_pBitmapBrush = NULL THEN EXIT FUNCTION
+   IF m_pBitmapBrush = nullptr THEN EXIT FUNCTION
    RETURN m_pBitmapBrush->GetExtendModeY
 END FUNCTION
 ' ========================================================================================
@@ -1143,7 +1143,7 @@ END FUNCTION
 ' Gets the interpolation method used when the brush bitmap is scaled or rotated.
 ' ========================================================================================
 FUNCTION CID2D1BitmapBrush.GetInterpolationMode () AS D2D1_EXTEND_MODE
-   IF m_pBitmapBrush = NULL THEN EXIT FUNCTION
+   IF m_pBitmapBrush = nullptr THEN EXIT FUNCTION
    RETURN m_pBitmapBrush->GetInterpolationMode
 END FUNCTION
 ' ========================================================================================
@@ -1152,7 +1152,7 @@ END FUNCTION
 ' Gets the bitmap source that this brush uses to paint.
 ' ========================================================================================
 FUNCTION CID2D1BitmapBrush.GetBitmap () AS ID2D1Bitmap PTR
-   IF m_pBitmapBrush = NULL THEN EXIT FUNCTION
+   IF m_pBitmapBrush = nullptr THEN EXIT FUNCTION
    DIM bitmap AS ID2D1Bitmap PTR
    m_pBitmapBrush->GetBitmap(bitmap)
    RETURN bitmap
@@ -1232,7 +1232,7 @@ END OPERATOR
 ' Sets the interpolation mode for the brush.
 ' ========================================================================================
 SUB CID2D1BitmapBrush1.SetInterpolationMode1 (BYVAL InterpolationMode AS D2D1_BITMAP_INTERPOLATION_MODE)
-   IF m_pBitmapBrush1 = NULL THEN EXIT SUB
+   IF m_pBitmapBrush1 = nullptr THEN EXIT SUB
    m_pBitmapBrush1->SetInterpolationMode1(InterpolationMode)
 END SUB
 ' ========================================================================================
@@ -1240,7 +1240,7 @@ END SUB
 ' Returns the current interpolation mode of the brush.
 ' ========================================================================================
 FUNCTION CID2D1BitmapBrush1.GetInterpolationMode1 () AS D2D1_EXTEND_MODE
-   IF m_pBitmapBrush1 = NULL THEN EXIT FUNCTION
+   IF m_pBitmapBrush1 = nullptr THEN EXIT FUNCTION
    RETURN m_pBitmapBrush1->GetInterpolationMode1
 END FUNCTION
 ' ========================================================================================
@@ -1397,7 +1397,7 @@ END SUB
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CID2D1ImageBrush.GetTransform () AS D2D1_MATRIX_3X2_F
-   IF m_pImageBrush = NULL THEN EXIT FUNCTION
+   IF m_pImageBrush = nullptr THEN EXIT FUNCTION
    DIM transform AS D2D1_MATRIX_3X2_F
    IF m_pImageBrush THEN cast(ID2D1Brush PTR, m_pImageBrush)->GetTransform(transform)
    RETURN transform
@@ -1408,7 +1408,7 @@ END FUNCTION
 ' Sets the image associated with the provided image brush.
 ' ========================================================================================
 SUB CID2D1ImageBrush.SetImage (BYVAL image AS ID2D1Image PTR)
-   IF m_pImageBrush = NULL THEN EXIT SUB
+   IF m_pImageBrush = nullptr THEN EXIT SUB
    m_pImageBrush->SetImage(image)
 END SUB
 ' ========================================================================================
@@ -1417,7 +1417,7 @@ END SUB
 ' Sets how the content inside the source rectangle in the image brush will be extended on the x-axis.
 ' ========================================================================================
 SUB CID2D1ImageBrush.SetExtendModeX (BYVAL extendModeX AS D2D1_EXTEND_MODE)
-   IF m_pImageBrush = NULL THEN EXIT SUB
+   IF m_pImageBrush = nullptr THEN EXIT SUB
    m_pImageBrush->SetExtendModeX(extendModeX)
 END SUB
 ' ========================================================================================
@@ -1426,7 +1426,7 @@ END SUB
 ' Sets how the content inside the source rectangle in the image brush will be extended on the y-axis.
 ' ========================================================================================
 SUB CID2D1ImageBrush.SetExtendModeY (BYVAL extendModeY AS D2D1_EXTEND_MODE)
-   IF m_pImageBrush = NULL THEN EXIT SUB
+   IF m_pImageBrush = nullptr THEN EXIT SUB
    m_pImageBrush->SetExtendModeY(extendModeY)
 END SUB
 ' ========================================================================================
@@ -1435,7 +1435,7 @@ END SUB
 ' Sets the interpolation mode for the image brush.
 ' ========================================================================================
 SUB CID2D1ImageBrush.SetInterpolationMode (BYVAL InterpolationMode AS D2D1_INTERPOLATION_MODE)
-   IF m_pImageBrush = NULL THEN EXIT SUB
+   IF m_pImageBrush = nullptr THEN EXIT SUB
    m_pImageBrush->SetInterpolationMode(InterpolationMode)
 END SUB
 ' ========================================================================================
@@ -1444,13 +1444,13 @@ END SUB
 ' Sets the source rectangle in the image brush.
 ' ========================================================================================
 SUB CID2D1ImageBrush.SetSourceRectangle (BYREF sourceRectangle AS D2D1_RECT_F)
-   IF m_pImageBrush = NULL THEN EXIT SUB
+   IF m_pImageBrush = nullptr THEN EXIT SUB
    m_pImageBrush->SetSourceRectangle(sourceRectangle)
 END SUB
 ' ========================================================================================
 ' ========================================================================================
 SUB CID2D1ImageBrush.SetSourceRectangle (BYVAL sourceRectangle AS D2D1_RECT_F PTR)
-   IF m_pImageBrush = NULL THEN EXIT SUB
+   IF m_pImageBrush = nullptr THEN EXIT SUB
    m_pImageBrush->SetSourceRectangle(BYVAL sourceRectangle)
 END SUB
 ' ========================================================================================
@@ -1459,7 +1459,7 @@ END SUB
 ' Gets the image associated with the image brush.
 ' ========================================================================================
 FUNCTION CID2D1ImageBrush.GetImage () AS ID2D1Image PTR
-   IF m_pImageBrush = NULL THEN EXIT FUNCTION
+   IF m_pImageBrush = nullptr THEN EXIT FUNCTION
    DIM image AS ID2D1Image PTR
    m_pImageBrush->GetImage(image)
    RETURN image
@@ -1470,7 +1470,7 @@ END FUNCTION
 ' Gets the extend mode of the image brush on the x-axis.
 ' ========================================================================================
 FUNCTION CID2D1ImageBrush.GetExtendModeX () AS D2D1_EXTEND_MODE
-   IF m_pImageBrush = NULL THEN EXIT FUNCTION
+   IF m_pImageBrush = nullptr THEN EXIT FUNCTION
    RETURN m_pImageBrush->GetExtendModeX
 END FUNCTION
 ' ========================================================================================
@@ -1479,7 +1479,7 @@ END FUNCTION
 ' Gets the extend mode of the image brush on the y-axis.
 ' ========================================================================================
 FUNCTION CID2D1ImageBrush.GetExtendModeY () AS D2D1_EXTEND_MODE
-   IF m_pImageBrush = NULL THEN EXIT FUNCTION
+   IF m_pImageBrush = nullptr THEN EXIT FUNCTION
    RETURN m_pImageBrush->GetExtendModeY
 END FUNCTION
 ' ========================================================================================
@@ -1488,7 +1488,7 @@ END FUNCTION
 ' Gets the interpolation mode of the image brush.
 ' ========================================================================================
 FUNCTION CID2D1ImageBrush.GetInterpolationMode () AS D2D1_INTERPOLATION_MODE
-   IF m_pImageBrush = NULL THEN EXIT FUNCTION
+   IF m_pImageBrush = nullptr THEN EXIT FUNCTION
    RETURN m_pImageBrush->GetInterpolationMode
 END FUNCTION
 ' ========================================================================================
@@ -1497,7 +1497,7 @@ END FUNCTION
 ' Gets the rectangle that will be used as the bounds of the image when drawn as an image brush.
 ' ========================================================================================
 FUNCTION CID2D1ImageBrush.GetSourceRectangle () AS D2D1_RECT_F
-   IF m_pImageBrush = NULL THEN EXIT FUNCTION
+   IF m_pImageBrush = nullptr THEN EXIT FUNCTION
    DIM sourceRectangle AS D2D1_RECT_F
    m_pImageBrush->GetSourceRectangle(sourceRectangle)
    RETURN sourceRectangle

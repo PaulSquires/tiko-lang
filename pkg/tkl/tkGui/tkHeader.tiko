@@ -128,13 +128,13 @@ END FUNCTION
 ' The header control must be of type HDF_SPLITBUTTON.
 ' ========================================================================================
 PUBLIC FUNCTION tkHeader_GetItemDropDownRect OVERLOAD (BYVAL hHeader AS HWND, BYVAL iItem AS LONG, BYVAL prc AS RECT PTR) AS BOOLEAN
-   IF prc = NULL THEN RETURN FALSE
+   IF prc = nullptr THEN RETURN FALSE
    RETURN SendMessageW(hHeader, HDM_GETITEMDROPDOWNRECT, iItem, CAST(LPARAM, prc))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkHeader_GetItemDropDownRect OVERLOAD (BYVAL hHeader AS HWND, BYVAL iItem AS LONG, BYREF rc AS RECT) AS BOOLEAN
-   IF VARPTR(rc) = 0 THEN RETURN FALSE
+   IF VARPTR(rc) = nullptr THEN RETURN FALSE
    RETURN SendMessageW(hHeader, HDM_GETITEMDROPDOWNRECT, iItem, CAST(LPARAM, @rc))
 END FUNCTION
 ' ========================================================================================
@@ -209,7 +209,7 @@ END FUNCTION
 ' Return value: Returns TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION tkHeader_GetItemText OVERLOAD (BYVAL hHeader AS HWND, BYVAL iItem AS LONG, BYVAL pwszText AS WSTRING PTR, BYVAL cchTextMax AS LONG = MAX_PATH + 1) AS BOOLEAN
-   IF pwszText = NULL THEN EXIT FUNCTION
+   IF pwszText = nullptr THEN EXIT FUNCTION
    DIM hdi AS HDITEMW
    hdi.mask = HDI_TEXT
    hdi.psztext = pwszText
@@ -233,7 +233,7 @@ END FUNCTION
 ' Gets the text of the specified column.
 ' ========================================================================================
 PUBLIC FUNCTION tkHeader_GetText OVERLOAD (BYVAL hHeader AS HWND, BYVAL iItem AS LONG, BYVAL pwszText AS WSTRING PTR, BYVAL cchTextMax AS LONG = MAX_PATH + 1) AS BOOLEAN
-   IF pwszText = NULL THEN EXIT FUNCTION
+   IF pwszText = nullptr THEN EXIT FUNCTION
    DIM hdi AS HDITEMW
    hdi.mask = HDI_TEXT
    hdi.psztext = pwszText
@@ -276,13 +276,13 @@ END FUNCTION
 ' The header control must be of type HDF_SPLITBUTTON.
 ' ========================================================================================
 PUBLIC FUNCTION tkHeader_GetOverflowRect OVERLOAD (BYVAL hHeader AS HWND, BYVAL prc AS RECT PTR) AS BOOLEAN
-   IF prc = NULL THEN RETURN FALSE
+   IF prc = nullptr THEN RETURN FALSE
    RETURN SendMessageW(hHeader, HDM_GETOVERFLOWRECT, 0, CAST(LPARAM, prc))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkHeader_GetOverflowRect OVERLOAD (BYVAL hHeader AS HWND, BYREF rc AS RECT) AS BOOLEAN
-   IF VARPTR(rc) = 0 THEN RETURN FALSE
+   IF VARPTR(rc) = nullptr THEN RETURN FALSE
    RETURN SendMessageW(hHeader, HDM_GETOVERFLOWRECT, 0, CAST(LPARAM, @rc))
 END FUNCTION
 ' ========================================================================================
@@ -313,13 +313,13 @@ END FUNCTION
 ' Tests a point to determine which header item, if any, is at the specified point.
 ' ========================================================================================
 PUBLIC FUNCTION tkHeader_HitTest OVERLOAD (BYVAL hHeader AS HWND, BYVAL phdhti AS HDHITTESTINFO PTR) AS LONG
-   IF phdhti = NULL THEN RETURN 0
+   IF phdhti = nullptr THEN RETURN 0
    RETURN SendMessageW(hHeader, HDM_HITTEST, 0, CAST(LPARAM, phdhti))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkHeader_HitTest OVERLOAD (BYVAL hHeader AS HWND, BYREF hdhti AS HDHITTESTINFO) AS LONG
-   IF VARPTR(hdhti) = 0 THEN RETURN 0
+   IF VARPTR(hdhti) = nullptr THEN RETURN 0
    RETURN SendMessageW(hHeader, HDM_HITTEST, 0, CAST(LPARAM, @hdhti))
 END FUNCTION
 ' ========================================================================================
@@ -444,7 +444,7 @@ END FUNCTION
 ' * Sets the text of the specified item.
 ' ========================================================================================
 PUBLIC FUNCTION tkHeader_SetItemText (BYVAL hHeader AS HWND, BYVAL iItem AS LONG, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
-   IF pwszText = NULL THEN EXIT FUNCTION
+   IF pwszText = nullptr THEN EXIT FUNCTION
    DIM hdi AS HDITEMW
    hdi.mask = HDI_TEXT
    hdi.cchTextMax = LEN(*pwszText)
@@ -456,7 +456,7 @@ END FUNCTION
 ' * Sets the text of the specified item. Returns TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION tkHeader_SetText (BYVAL hHeader AS HWND, BYVAL iItem AS LONG, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
-   IF pwszText = NULL THEN EXIT FUNCTION
+   IF pwszText = nullptr THEN EXIT FUNCTION
    DIM hdi AS HDITEMW
    hdi.mask = HDI_TEXT
    hdi.cchTextMax = LEN(*pwszText)
@@ -497,13 +497,13 @@ END FUNCTION
 ' * Sets the header dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkHeader_SetDarkMode(BYVAL hHeader AS HWND) AS HRESULT
-   RETURN SetWindowTheme(hHeader, "DarkMode_ItemsView", NULL)
+   RETURN SetWindowTheme(hHeader, "DarkMode_ItemsView", nullptr)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 ' * Removes the header dark mode.
 ' ========================================================================================
 PUBLIC FUNCTION tkHeader_RemoveDarkMode(BYVAL hHeader AS HWND) AS HRESULT
-   RETURN SetWindowTheme(hHeader, NULL, NULL)
+   RETURN SetWindowTheme(hHeader, nullptr, nullptr)
 END FUNCTION
 ' ========================================================================================

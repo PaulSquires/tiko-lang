@@ -62,7 +62,7 @@ PUBLIC TYPE CMaskedEdit
       DECLARE FUNCTION hWindow () AS HWND
       DECLARE SUB GetGroupBounds(BYREF nBegin AS LONG, BYREF nEnd AS LONG, BYVAL nStartPos AS LONG = 0, BYVAL bForward AS BOOLEAN = TRUE)
       DECLARE SUB EnableMask (BYVAL lpszMask AS WSTRING PTR, BYVAL lpszInputTemplate AS WSTRING PTR, _
-              BYREF chMaskInputTemplate AS USTRING = "_", BYVAL lpszValid AS WSTRING PTR = NULL)
+              BYREF chMaskInputTemplate AS USTRING = "_", BYVAL lpszValid AS WSTRING PTR = nullptr)
       DECLARE SUB SetValidChars (BYVAL lpszValid AS WSTRING PTR)
       DECLARE FUNCTION IsMaskedChar (BYVAL chChar AS USHORT, BYVAL chMaskChar AS USHORT) AS BOOLEAN
       DECLARE FUNCTION CheckChar (BYVAL chChar AS USHORT, BYVAL nPos AS LONG) AS BOOLEAN
@@ -109,13 +109,13 @@ FUNCTION CMaskedEdit.CMaskedEditProc ( _
       CASE 9999
          ' // Custom message to set the focus in the first editable group
          DIM pthis AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, dwRefData)
-         IF pthis = NULL THEN EXIT FUNCTION
+         IF pthis = nullptr THEN EXIT FUNCTION
          pthis->SetPos
          EXIT FUNCTION
 
       CASE WM_KEYDOWN
          DIM pthis AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, dwRefData)
-         IF pthis = NULL THEN EXIT FUNCTION
+         IF pthis = nullptr THEN EXIT FUNCTION
          IF LEN(pthis->m_strMask) <> 0 AND LEN(pthis->m_strInputTemplate) <> 0 THEN
             pthis->OnKeyDown(wParam, HIWORD(lParam), LOWORD(lParam))
             EXIT FUNCTION
@@ -141,25 +141,25 @@ FUNCTION CMaskedEdit.CMaskedEditProc ( _
          ' // If mask is enabled, let handle backspace in WM_KEYDOWN, else do default
          IF wParam = 8 THEN
             DIM pthis AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, dwRefData)
-            IF pthis = NULL THEN EXIT FUNCTION
+            IF pthis = nullptr THEN EXIT FUNCTION
             IF LEN(pthis->m_strMask) <> 0 AND LEN(pthis->m_strInputTemplate) <> 0 THEN EXIT FUNCTION
          END IF
          IF wParam = 127 THEN
             DIM pthis AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, dwRefData)
-            IF pthis = NULL THEN EXIT FUNCTION
+            IF pthis = nullptr THEN EXIT FUNCTION
             IF LEN(pthis->m_strMask) = 0 OR LEN(pthis->m_strInputTemplate) = 0 THEN EXIT FUNCTION
          END IF
          ' // Handle Ctrl+Z - Decimal 26, Hex 1A - Undo
          IF wParam = 26 THEN
             DIM pthis AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, dwRefData)
-            IF pthis = NULL THEN EXIT FUNCTION
+            IF pthis = nullptr THEN EXIT FUNCTION
             DIM nPos AS LONG = tkEdit_GetSelStart(pthis->hWindow)
             IF LEN(pthis->m_strUndo) THEN pthis->SetText(pthis->m_strUndo)
             tkEdit_SetSel(pthis->hWindow, nPos, nPos)
             EXIT FUNCTION
          END IF
          DIM pthis AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, dwRefData)
-         IF pthis = NULL THEN EXIT FUNCTION
+         IF pthis = nullptr THEN EXIT FUNCTION
          pthis->m_strUndo = pthis->GetText(FALSE)
          IF LEN(pthis->m_strMask) <> 0 AND LEN(pthis->m_strInputTemplate) <> 0 THEN
             IF iswprint(wParam) <> 0 AND (GetKeyState(VK_CONTROL) AND &H80) <> &H80 THEN
@@ -170,7 +170,7 @@ FUNCTION CMaskedEdit.CMaskedEditProc ( _
 
       CASE WM_CUT, WM_CLEAR
          DIM pthis AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, dwRefData)
-         IF pthis = NULL THEN EXIT FUNCTION
+         IF pthis = nullptr THEN EXIT FUNCTION
          pthis->m_strUndo = pthis->GetText(FALSE)
          DIM nStart AS LONG = tkEdit_GetSelStart(pthis->hWindow)
          DIM nEnd AS LONG = tkEdit_GetSelEnd(pthis->hWindow)
@@ -196,7 +196,7 @@ FUNCTION CMaskedEdit.CMaskedEditProc ( _
 
       CASE WM_PASTE
          DIM pthis AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, dwRefData)
-         IF pthis = NULL THEN EXIT FUNCTION
+         IF pthis = nullptr THEN EXIT FUNCTION
          pthis->m_strUndo = pthis->GetText(FALSE)
          DIM ustrText AS USTRING = tkGetClipboardText
          IF LEN(ustrText) = 0 THEN EXIT FUNCTION
@@ -398,9 +398,9 @@ END FUNCTION
 ' Initializes the masked edit control.
 ' ========================================================================================
 SUB CMaskedEdit.EnableMask (BYVAL lpszMask AS WSTRING PTR, BYVAL lpszInputTemplate AS WSTRING PTR, _
-BYREF chMaskInputTemplate AS USTRING = "_", BYVAL lpszValid AS WSTRING PTR = NULL)
-   IF lpszMask = NULL THEN EXIT SUB
-   IF lpszInputTemplate = NULL THEN EXIT SUB
+BYREF chMaskInputTemplate AS USTRING = "_", BYVAL lpszValid AS WSTRING PTR = nullptr)
+   IF lpszMask = nullptr THEN EXIT SUB
+   IF lpszInputTemplate = nullptr THEN EXIT SUB
    IF iswprint(ASC(chMaskInputTemplate, 1)) = FALSE THEN EXIT SUB
    m_strMask = *lpszMask
    m_strInputTemplate = *lpszInputTemplate
@@ -455,7 +455,7 @@ END FUNCTION
 
 ' ========================================================================================
 FUNCTION CMaskedEdit.SetValue (BYVAL lpszString AS WSTRING PTR, BYVAL bWithDelimiters AS BOOLEAN = TRUE) AS BOOLEAN
-   IF lpszString = NULL THEN RETURN FALSE
+   IF lpszString = nullptr THEN RETURN FALSE
    ' // Make sure the string is not longer than the mask
    DIM ustrSource AS USTRING = *lpszString
    IF LEN(m_strMask) THEN

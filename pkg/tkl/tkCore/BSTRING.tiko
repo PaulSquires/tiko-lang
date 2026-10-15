@@ -70,7 +70,7 @@ END CONSTRUCTOR
 ' Initializes the DWSTRING with the contents of the passed WSTRING.
 ' ========================================================================================
 CONSTRUCTOR BSTRING (BYVAL pwszStr AS CONST WSTRING PTR)
-   IF pwszStr = NULL THEN
+   IF pwszStr = nullptr THEN
       ' // Allocate an empty string
       m_bstr = SysAllocString("")
    ELSE
@@ -86,7 +86,7 @@ CONSTRUCTOR BSTRING (BYREF ansiStr AS STRING = "", BYVAL nCodePage AS UINT = 0)
       IF this.IsUtf8(ansiStr) = FALSE THEN nCodePage = CP_ACP
    END IF
    IF nCodePage = CP_UTF8 THEN
-      DIM dwLen AS DWORD = MultiByteToWideChar(CP_UTF8, 0, STRPTR(ansiStr), -1, NULL, 0)
+      DIM dwLen AS DWORD = MultiByteToWideChar(CP_UTF8, 0, STRPTR(ansiStr), -1, nullptr, 0)
       IF dwLen THEN
          m_bstr = SysAllocString(..WSTR(SPACE(dwLen)))
          MultiByteToWideChar(CP_UTF8, 0, STRPTR(ansiStr), -1, m_bstr, dwLen * 2)
@@ -135,8 +135,8 @@ SUB BSTRING.Append (BYVAL pwszStr AS CONST WSTRING PTR)
    DIM n1 AS UINT = SysStringLen(m_bstr)
    DIM nLen AS UINT = ..LEN(*pwszStr)
    IF nLen = 0 THEN EXIT SUB
-   DIM b AS BSTR = SysAllocStringLen(NULL, n1 + nLen)
-   IF b = NULL THEN EXIT SUB
+   DIM b AS BSTR = SysAllocStringLen(nullptr, n1 + nLen)
+   IF b = nullptr THEN EXIT SUB
    wmemmove(b, m_bstr, n1)
    wmemmove(b + n1, pwszStr, nLen)
    IF m_bstr THEN SysFreeString(m_bstr)
@@ -153,7 +153,7 @@ FUNCTION BSTRING.IsUtf8 (BYREF s AS STRING) AS BOOLEAN
    IF LEN(s) >= 3 THEN
       IF ASC(s,1) = &hEF AND ASC(s,2) = &hBB AND ASC(s,3) = &hBF THEN RETURN TRUE
    END IF
-   DIM wLen AS LONG = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, STRPTR(s), LEN(s), NULL, 0)
+   DIM wLen AS LONG = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, STRPTR(s), LEN(s), nullptr, 0)
    RETURN (wLen <> 0)
 END FUNCTION
 ' ========================================================================================
@@ -163,7 +163,7 @@ END FUNCTION
 ' ========================================================================================
 SUB BSTRING.Clear
    IF m_bstr THEN SysFreeString(m_bstr)
-   m_bstr = NULL
+   m_bstr = nullptr
 END SUB
 ' ========================================================================================
 
@@ -222,12 +222,12 @@ END OPERATOR
 ' Converts the BSTRING to UTF8.
 ' ========================================================================================
 PROPERTY BSTRING.Utf8 () AS STRING
-   IF m_bstr = NULL THEN RETURN ""
+   IF m_bstr = nullptr THEN RETURN ""
    DIM bstrLen AS LONG = SysStringLen(m_bstr)
-   DIM cbLen AS LONG = WideCharToMultiByte(CP_UTF8, 0, cast(WSTRING PTR, m_bstr), bstrLen, NULL, 0, NULL, NULL)
+   DIM cbLen AS LONG = WideCharToMultiByte(CP_UTF8, 0, cast(WSTRING PTR, m_bstr), bstrLen, nullptr, 0, nullptr, nullptr)
    IF cbLen = 0 THEN RETURN ""
    DIM buffer AS STRING = STRING(cbLen, 0)
-   WideCharToMultiByte(CP_UTF8, 0, cast(WSTRING PTR, m_bstr), bstrLen, STRPTR(buffer), cbLen, NULL, NULL)
+   WideCharToMultiByte(CP_UTF8, 0, cast(WSTRING PTR, m_bstr), bstrLen, STRPTR(buffer), cbLen, nullptr, nullptr)
    RETURN buffer
 END PROPERTY
 ' ========================================================================================
@@ -237,7 +237,7 @@ END PROPERTY
 ' ========================================================================================
 PROPERTY BSTRING.Utf8 (BYREF utf8String AS STRING)
    IF m_bstr THEN SysFreeString(m_bstr)
-   DIM dwLen AS DWORD = MultiByteToWideChar(CP_UTF8, 0, STRPTR(utf8String), -1, NULL, 0)
+   DIM dwLen AS DWORD = MultiByteToWideChar(CP_UTF8, 0, STRPTR(utf8String), -1, nullptr, 0)
    IF dwLen THEN
       m_bstr = SysAllocString(WSPACE(dwLen))
       MultiByteToWideChar(CP_UTF8, 0, STRPTR(utf8String), -1, m_bstr, dwLen * 2)
@@ -260,7 +260,7 @@ FUNCTION BSTRING.wchar () AS WSTRING PTR
    DIM pwchar AS WSTRING PTR
    DIM nLen AS LONG = SysStringLen(m_bstr) * 2
    pwchar = CoTaskMemAlloc(nLen)
-   IF pwchar = NULL THEN RETURN NULL
+   IF pwchar = nullptr THEN RETURN nullptr
    IF nLen THEN memcpy pwchar, m_bstr, nLen
    IF nLen = 0 THEN *pwchar = CHR(0)
    RETURN pwchar
@@ -293,12 +293,12 @@ END OPERATOR
 ' ========================================================================================
 ' Helper procedures to display messages
 ' ========================================================================================
-PUBLIC FUNCTION fbxMsg OVERLOAD (BYREF bs AS BSTRING, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
+PUBLIC FUNCTION fbxMsg OVERLOAD (BYREF bs AS BSTRING, BYVAL pwszCaption AS CONST WSTRING PTR = nullptr, BYVAL uType AS DWORD = 0) AS LONG
    RETURN MessageBoxW(GetActiveWindow, CAST(WSTRING PTR, STRPTR(bs)), pwszCaption, MB_APPLMODAL OR uType)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION fbxMsg OVERLOAD (BYVAL hWin AS HWND, BYREF bs AS BSTRING, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
+PUBLIC FUNCTION fbxMsg OVERLOAD (BYVAL hWin AS HWND, BYREF bs AS BSTRING, BYVAL pwszCaption AS CONST WSTRING PTR = nullptr, BYVAL uType AS DWORD = 0) AS LONG
    RETURN MessageBoxW(hWin, CAST(WSTRING PTR, STRPTR(bs)), pwszCaption, MB_APPLMODAL OR uType)
 END FUNCTION
 ' ========================================================================================

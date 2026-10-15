@@ -358,7 +358,7 @@ end sub
 
 function mnyNlsText_( byval lctype as ulong ) as ustring
 dim as wstring * 128 buf
-dim as const wstring ptr pName = 0            '' NULL = LOCALE_NAME_USER_DEFAULT
+dim as const wstring ptr pName = nullptr            '' NULL = LOCALE_NAME_USER_DEFAULT
 if len( mnyWanted_ ) > 0 then
     static as wstring * 96 nameBuf
     nameBuf = mnyWanted_
@@ -429,7 +429,7 @@ end sub
 '' setlocale returns NULL and leaves you in the C locale with nothing to say
 '' so. This branch never runs there -- Windows reads NLS directly.)
 function mnyLconvText_( byval p as const zstring ptr ) as ustring
-if p = 0 then return ""
+if p = nullptr then return ""
 return *p                        '' zstring -> ustring decodes as UTF-8
 end function
 
@@ -465,11 +465,11 @@ else
     dim as string want = mnyWanted_
     pName = setlocale( LC_MONETARY, want )
 end if
-if pName = 0 then exit sub
+if pName = nullptr then exit sub
 mnySnap_.LocaleName = *pName
 
 dim as lconv ptr lc = localeconv( )
-if lc = 0 then exit sub
+if lc = nullptr then exit sub
 
 mnySnap_.Symbol       = mnyLconvText_( lc->currency_symbol )
 mnySnap_.DecimalPoint = mnyLconvText_( lc->mon_decimal_point )
@@ -490,7 +490,7 @@ mnySnap_.NegSignPosn = lc->n_sign_posn
 '' read through a ubyte ptr -- indexing a zstring ptr hands back the raw
 '' character, and a group size of 3 is not a printable one.
 dim as ubyte ptr g = cast( ubyte ptr, lc->mon_grouping )
-if g <> 0 then
+if g <> nullptr then
     do while mnySnap_.GroupCount < MONEY_MAX_GROUPS
         dim as long n = g[mnySnap_.GroupCount]
         if n = 0 then

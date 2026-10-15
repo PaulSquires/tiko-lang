@@ -116,7 +116,7 @@ end type
 '' some container owns. Adding the same widget to a ring and to an owning
 '' container is the normal case.
 sub TuiFocusRing.Add( byval w as TuiWidget ptr )
-    if( w = 0 ) then exit sub
+    if( w = nullptr ) then exit sub
     if( w->CanFocus( ) = FALSE ) then exit sub
     items.Push( w )
     if( items.Count( ) = 1 ) then
@@ -219,7 +219,7 @@ function TuiButton.HandleEvent( byref e as TuiEvent ) as boolean
     if( focused = FALSE ) then return FALSE
     if( e.kind <> TUIEVENT_KEY ) then return FALSE
     if( ( e.key.code <> TUIKEY_ENTER ) andalso ( e.key.ch <> TUI_SPACE ) ) then return FALSE
-    if( onclick <> 0 ) then onclick( id )
+    if( onclick <> nullptr ) then onclick( id )
     return TRUE
 end function
 
@@ -305,14 +305,14 @@ end type
 
 destructor TuiStack( )
     for i as long = 0 to children.Count( ) - 1
-        if( children[i] <> 0 ) then delete children[i]
+        if( children[i] <> nullptr ) then delete children[i]
     next
 end destructor
 
 function TuiStack.Kind( ) as ustring : return "Stack" : end function
 
 sub TuiStack.Add( byval w as TuiWidget ptr, byval c as TuiConstraint )
-    if( w = 0 ) then exit sub
+    if( w = nullptr ) then exit sub
     children.Push( w )
     constraints.Push( c )
 end sub

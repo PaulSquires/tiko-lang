@@ -54,7 +54,7 @@ END SUB
 ' See the AddTooltip method.
 ' ========================================================================================
 PUBLIC FUNCTION tkToolTip_AddTool (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR) AS BOOLEAN
-   IF lpti = NULL THEN RETURN FALSE
+   IF lpti = nullptr THEN RETURN FALSE
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
@@ -83,7 +83,7 @@ END FUNCTION
 ' See the DeleteToolTip method.
 ' ========================================================================================
 PUBLIC SUB tkToolTip_DelTool OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR)
-   IF lpti = NULL THEN EXIT SUB
+   IF lpti = nullptr THEN EXIT SUB
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
@@ -94,7 +94,7 @@ END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkToolTip_DelTool OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW)
-   IF VARPTR(ti) = NULL THEN EXIT SUB
+   IF VARPTR(ti) = nullptr THEN EXIT SUB
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
@@ -109,7 +109,7 @@ END SUB
 ' is, the tool for which the Tooltip is currently displaying text.
 ' ========================================================================================
 PUBLIC FUNCTION tkToolTip_EnumTools OVERLOAD (BYVAL hTooltip AS HWND, BYVAL iTool AS DWORD, BYVAL lpti AS TOOLINFOW PTR) AS BOOLEAN
-   IF lpti = NULL THEN RETURN FALSE
+   IF lpti = nullptr THEN RETURN FALSE
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
@@ -120,7 +120,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkToolTip_EnumTools OVERLOAD (BYVAL hTooltip AS HWND, BYVAL iTool AS DWORD, BYREF ti AS TOOLINFOW) AS BOOLEAN
-   IF VARPTR(ti) = NULL THEN RETURN FALSE
+   IF VARPTR(ti) = nullptr THEN RETURN FALSE
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
@@ -134,7 +134,7 @@ END FUNCTION
 ' Returns the width and height of a Tooltip control.
 ' ========================================================================================
 PUBLIC FUNCTION tkToolTip_GetBubbleSize OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR) AS DWORD
-   IF lpti = NULL THEN RETURN 0
+   IF lpti = nullptr THEN RETURN 0
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
@@ -145,7 +145,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkToolTip_GetBubbleSize OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW) AS DWORD
-   IF VARPTR(ti) = NULL THEN RETURN 0
+   IF VARPTR(ti) = nullptr THEN RETURN 0
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
@@ -165,7 +165,7 @@ END FUNCTION
 ' - The tooltip is currently active (track mode, or a tooltip is being shown)
 ' ========================================================================================
 PUBLIC FUNCTION tkToolTip_GetCurrentTool OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR) AS BOOLEAN
-   IF lpti <> NULL THEN
+   IF lpti <> nullptr THEN
    #ifdef __FB_64BIT__
       IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
    #else
@@ -177,7 +177,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkToolTip_GetCurrentTool OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW) AS BOOLEAN
-   IF VARPTR(ti) <> NULL THEN
+   IF VARPTR(ti) <> nullptr THEN
    #ifdef __FB_64BIT__
       IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
    #else
@@ -246,7 +246,7 @@ END FUNCTION
 ' IF ti.lpszText THEN print *ti.lpszText
 ' ========================================================================================
 PUBLIC SUB tkToolTip_GetText OVERLOAD (BYVAL hTooltip AS HWND, BYVAL numChars AS DWORD, BYVAL lpti AS TOOLINFOW PTR)
-   IF lpti = NULL THEN EXIT SUB
+   IF lpti = nullptr THEN EXIT SUB
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
@@ -257,7 +257,7 @@ END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkToolTip_GetText OVERLOAD (BYVAL hTooltip AS HWND, BYVAL numChars AS DWORD, BYREF ti AS TOOLINFOW)
-   IF VARPTR(ti) = NULL THEN EXIT SUB
+   IF VARPTR(ti) = nullptr THEN EXIT SUB
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
@@ -321,14 +321,14 @@ END FUNCTION
 ' Retrieves information concerning the title of a tooltip control.
 ' ========================================================================================
 PUBLIC SUB tkToolTip_GetTitle OVERLOAD (BYVAL hTooltip AS HWND, BYVAL pTTGetTitle AS TTGETTITLE PTR)
-   IF pTTGetTitle = NULL THEN EXIT SUB
+   IF pTTGetTitle = nullptr THEN EXIT SUB
    pTTGetTitle->dwSize = SIZEOF(TTGETTITLE)
    SendMessageW(hTooltip, TTM_GETTITLE, 0, cast(LPARAM, pTTGetTitle))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkToolTip_GetTitle OVERLOAD (BYVAL hTooltip AS HWND, BYREF tTTGetTitle AS TTGETTITLE)
-   IF VARPTR(tTTGetTitle) = NULL THEN EXIT SUB
+   IF VARPTR(tTTGetTitle) = nullptr THEN EXIT SUB
    tTTGetTitle.dwSize = SIZEOF(TTGETTITLE)
    SendMessageW(hTooltip, TTM_GETTITLE, 0, cast(LPARAM, @tTTGetTitle))
 END SUB
@@ -346,7 +346,7 @@ END FUNCTION
 ' * Retrieves the information that a Tooltip control maintains about a tool.
 ' ========================================================================================
 PUBLIC FUNCTION tkToolTip_GetToolInfo OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR) AS BOOLEAN
-   IF lpti = NULL THEN RETURN FALSE
+   IF lpti = nullptr THEN RETURN FALSE
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
@@ -357,7 +357,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkToolTip_GetToolInfo OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW) AS BOOLEAN
-   IF VARPTR(ti) = NULL THEN RETURN FALSE
+   IF VARPTR(ti) = nullptr THEN RETURN FALSE
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
@@ -397,7 +397,7 @@ END FUNCTION
 ' Sets a new bounding rectangle for a tool.
 ' ========================================================================================
 PUBLIC SUB tkToolTip_NewToolRect OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR)
-   IF lpti = NULL THEN EXIT SUB
+   IF lpti = nullptr THEN EXIT SUB
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
@@ -408,7 +408,7 @@ END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkToolTip_NewToolRect OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW)
-   IF VARPTR(ti) = NULL THEN EXIT SUB
+   IF VARPTR(ti) = nullptr THEN EXIT SUB
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
@@ -516,7 +516,7 @@ END FUNCTION
 ' Sets the information that a Tooltip control maintains for a tool.
 ' ========================================================================================
 PUBLIC SUB tkToolTip_SetToolInfo OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR)
-   IF lpti = NULL THEN EXIT SUB
+   IF lpti = nullptr THEN EXIT SUB
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
@@ -527,7 +527,7 @@ END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkToolTip_SetToolInfo OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW)
-   IF VARPTR(ti) = NULL THEN EXIT SUB
+   IF VARPTR(ti) = nullptr THEN EXIT SUB
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
@@ -559,7 +559,7 @@ END SUB
 ' * Activates a tracking Tooltip.
 ' ========================================================================================
 PUBLIC SUB tkToolTip_TrackActivate OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR)
-   IF lpti = NULL THEN EXIT SUB
+   IF lpti = nullptr THEN EXIT SUB
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
@@ -570,7 +570,7 @@ END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkToolTip_TrackActivate OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW)
-   IF VARPTR(ti) = NULL THEN EXIT SUB
+   IF VARPTR(ti) = nullptr THEN EXIT SUB
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
@@ -583,7 +583,7 @@ END SUB
 ' * Deactivates a tracking Tooltip.
 ' ========================================================================================
 PUBLIC SUB tkToolTip_TrackDeactivate OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR)
-   IF lpti = NULL THEN EXIT SUB
+   IF lpti = nullptr THEN EXIT SUB
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
@@ -594,7 +594,7 @@ END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkToolTip_TrackDeactivate OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW)
-   IF VARPTR(ti) = NULL THEN EXIT SUB
+   IF VARPTR(ti) = nullptr THEN EXIT SUB
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
@@ -624,7 +624,7 @@ END SUB
 ' Sets the Tooltip text for a tool.
 ' ========================================================================================
 PUBLIC SUB tkToolTip_UpdateTipText OVERLOAD (BYVAL hTooltip AS HWND, BYVAL lpti AS TOOLINFOW PTR)
-   IF lpti = NULL THEN EXIT SUB
+   IF lpti = nullptr THEN EXIT SUB
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN lpti->cbSize = 64 ELSE lpti->cbSize = 72
 #else
@@ -635,7 +635,7 @@ END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB tkToolTip_UpdateTipText OVERLOAD (BYVAL hTooltip AS HWND, BYREF ti AS TOOLINFOW)
-   IF VARPTR(ti) = NULL THEN EXIT SUB
+   IF VARPTR(ti) = nullptr THEN EXIT SUB
 #ifdef __FB_64BIT__
    IF tkComCtlVersion < 600 THEN ti.cbSize = 64 ELSE ti.cbSize = 72
 #else
@@ -661,8 +661,8 @@ PUBLIC FUNCTION tkToolTip_AddTooltip (BYVAL hwnd AS HWND, BYREF wszText AS CONST
    DIM dwStyle AS DWORD = WS_POPUP OR TTS_ALWAYSTIP
    IF bBalloon THEN dwStyle = dwStyle OR TTS_BALLOON
    DIM hTooltip AS ..HWND
-   hTooltip = CreateWindowExW(0, "tooltips_class32", "", dwStyle, 0, 0, 0, 0, NULL, NULL, NULL, NULL)
-   IF hTooltip = NULL THEN EXIT FUNCTION
+   hTooltip = CreateWindowExW(0, "tooltips_class32", "", dwStyle, 0, 0, 0, 0, nullptr, nullptr, nullptr, nullptr)
+   IF hTooltip = nullptr THEN EXIT FUNCTION
    ' // You must explicitly define a tooltip control as topmost. Otherwise, it might be covered by the parent window.
    SetWindowPos(hTooltip, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOACTIVATE)
    ' // Registers the window with the tooltip control
@@ -687,7 +687,7 @@ PUBLIC FUNCTION tkToolTip_AddTooltip (BYVAL hwnd AS HWND, BYREF wszText AS CONST
       GetClientRect(hwnd, @tti.rect)
    END IF
    IF bCentered THEN tti.uFlags = tti.uFlags OR TTF_CENTERTIP
-   tti.hinst = GetModuleHandleW(NULL)
+   tti.hinst = GetModuleHandleW(nullptr)
    tti.lpszText = CAST(LPWSTR, @wszText)
    SendMessageW(hTooltip, TTM_ADDTOOLW, 0, CAST(LPARAM, @tti))
    RETURN hTooltip
@@ -702,7 +702,7 @@ END FUNCTION
 ' - wszText  = Tooltip text
 ' ========================================================================================
 PUBLIC SUB tkToolTip_SetTooltipText (BYVAL hTooltip AS HWND, BYVAL hwnd AS HWND, BYREF wszText AS CONST WSTRING)
-   IF hTooltip = NULL OR hwnd = NULL THEN EXIT SUB
+   IF hTooltip = nullptr OR hwnd = nullptr THEN EXIT SUB
    ' // 32-bit: The size of the TOOLINFOW structure is 48 bytes in
    '    version 6 of comctl32.dll, and 44 bytes in lower versions.
    ' // 64-bit: The size of the TOOLINFOW structure is 72 bytes in
@@ -737,7 +737,7 @@ END SUB
 ' - hwnd     = Handle of the window or control
 ' ========================================================================================
 PUBLIC SUB tkToolTip_DeleteTooltip (BYVAL hTooltip AS HWND, BYVAL hwnd AS HWND)
-   IF hTooltip = NULL OR hwnd = NULL THEN EXIT SUB
+   IF hTooltip = nullptr OR hwnd = nullptr THEN EXIT SUB
    ' // 32-bit: The size of the TOOLINFOW structure is 48 bytes in
    '    version 6 of comctl32.dll, and 44 bytes in lower versions.
    ' // 64-bit: The size of the TOOLINFOW structure is 72 bytes in

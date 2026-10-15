@@ -114,11 +114,11 @@ end constructor
 
 destructor AsyncSink( )
     this.Close( )
-    if this.m_drained  <> 0 then conddestroy( this.m_drained )
-    if this.m_notFull  <> 0 then conddestroy( this.m_notFull )
-    if this.m_notEmpty <> 0 then conddestroy( this.m_notEmpty )
-    if this.m_lock     <> 0 then mutexdestroy( this.m_lock )
-    this.m_drained = 0 : this.m_notFull = 0 : this.m_notEmpty = 0 : this.m_lock = 0
+    if this.m_drained  <> nullptr then conddestroy( this.m_drained )
+    if this.m_notFull  <> nullptr then conddestroy( this.m_notFull )
+    if this.m_notEmpty <> nullptr then conddestroy( this.m_notEmpty )
+    if this.m_lock     <> nullptr then mutexdestroy( this.m_lock )
+    this.m_drained = nullptr : this.m_notFull = nullptr : this.m_notEmpty = nullptr : this.m_lock = nullptr
 end destructor
 
 '' ONE WORKER, so delivery is FIFO (RFC-0005 section 6). It leaves only when it has
@@ -141,7 +141,7 @@ sub AsyncSink.hWork( )
         mutexunlock( this.m_lock )
 
         '' OUTSIDE THE LOCK: a slow sink must not stop callers from queueing.
-        if this.m_inner <> 0 then this.m_inner->Write( r )
+        if this.m_inner <> nullptr then this.m_inner->Write( r )
 
         mutexlock( this.m_lock )
         this.m_busy = FALSE
@@ -204,23 +204,23 @@ end sub
 '' Waits until every record queued so far has been WRITTEN by the inner sink, then
 '' flushes it. Safe after Close( ).
 sub AsyncSink.Flush( )
-    if this.m_lock = 0 then return
+    if this.m_lock = nullptr then return
     mutexlock( this.m_lock )
     condsignal( this.m_notEmpty )
     do
         dim as boolean pending = (this.m_count > 0) orelse this.m_busy
-        dim as boolean running = (this.m_thread <> 0) andalso (this.m_stop = FALSE)
+        dim as boolean running = (this.m_thread <> nullptr) andalso (this.m_stop = FALSE)
         if (pending = FALSE) orelse (running = FALSE) then exit do
         condwait( this.m_drained, this.m_lock )
     loop
     mutexunlock( this.m_lock )
-    if (this.m_inner <> 0) andalso (this.m_closed = FALSE) then this.m_inner->Flush( )
+    if (this.m_inner <> nullptr) andalso (this.m_closed = FALSE) then this.m_inner->Flush( )
 end sub
 
 '' Stop accepting, drain, join the worker, flush and close the inner sink.
 '' Idempotent.
 sub AsyncSink.Close( )
-    if this.m_lock = 0 then return
+    if this.m_lock = nullptr then return
     mutexlock( this.m_lock )
     if this.m_closed then
         mutexunlock( this.m_lock )
@@ -232,11 +232,11 @@ sub AsyncSink.Close( )
     condbroadcast( this.m_notFull )
     mutexunlock( this.m_lock )
 
-    if this.m_thread <> 0 then
+    if this.m_thread <> nullptr then
         threadwait( this.m_thread )
-        this.m_thread = 0
+        this.m_thread = nullptr
     end if
-    if this.m_inner <> 0 then
+    if this.m_inner <> nullptr then
         this.m_inner->Flush( )
         this.m_inner->Close( )
     end if
@@ -247,7 +247,7 @@ function AsyncSink.DroppedCount( ) as ulongint
 end function
 
 function AsyncSink.QueueDepth( ) as long
-    if this.m_lock = 0 then return 0
+    if this.m_lock = nullptr then return 0
     mutexlock( this.m_lock )
     dim as long n = this.m_count
     mutexunlock( this.m_lock )

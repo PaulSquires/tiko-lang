@@ -58,7 +58,7 @@ END DESTRUCTOR
 ' Creates a new Path object based on this Path object.
 ' =====================================================================================
 FUNCTION CGpGraphicsPath.Clone (BYVAL pCloneGraphicsPath AS CGpGraphicsPath PTR) AS GpStatus
-   IF pCloneGraphicsPath = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pCloneGraphicsPath = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pCloneGraphicsPath->m_pPath THEN GdipDeletePath(pCloneGraphicsPath->m_pPath)
    RETURN SetStatus(GdipClonePath(m_pPath, @pCloneGraphicsPath->m_pPath))
 END FUNCTION
@@ -503,7 +503,7 @@ END FUNCTION
 ' Applies a transformation to this path and converts each curve in the path to a
 ' sequence of connected lines.
 ' =====================================================================================
-FUNCTION CGpGraphicsPath.Flatten (BYVAL pMatrix AS CGpMatrix PTR = NULL, BYVAL flatness AS SINGLE = FlatnessDefault) AS GpStatus
+FUNCTION CGpGraphicsPath.Flatten (BYVAL pMatrix AS CGpMatrix PTR = nullptr, BYVAL flatness AS SINGLE = FlatnessDefault) AS GpStatus
    RETURN SetStatus(GdipFlattenPath(m_pPath, IIF(pMatrix, pMatrix->m_pMatrix, NULL), flatness))
 END FUNCTION
 ' =====================================================================================
@@ -512,7 +512,7 @@ END FUNCTION
 ' Replaces this path with curves that enclose the area that is filled when this path is
 ' drawn by a specified pen. The GraphicsPath::Widen FUNCTION also flattens the path.
 ' =====================================================================================
-FUNCTION CGpGraphicsPath.Widen (BYVAL pPen AS CGpPen PTR, BYVAL pMatrix AS CGpMatrix PTR = NULL, BYVAL flatness AS SINGLE = FlatnessDefault) AS GpStatus
+FUNCTION CGpGraphicsPath.Widen (BYVAL pPen AS CGpPen PTR, BYVAL pMatrix AS CGpMatrix PTR = nullptr, BYVAL flatness AS SINGLE = FlatnessDefault) AS GpStatus
    RETURN SetStatus(GdipWidenPath(m_pPath, pPen->m_pPen, IIF(pMatrix, pMatrix->m_pMatrix, NULL), flatness))
 END FUNCTION
 ' =====================================================================================
@@ -521,7 +521,7 @@ END FUNCTION
 ' Transforms and flattens this path, and then converts this path's data points so that
 ' they represent only the outline of the path.
 ' =====================================================================================
-FUNCTION CGpGraphicsPath.Outline (BYVAL pMatrix AS CGpMatrix PTR = NULL, BYVAL flatness AS SINGLE = FlatnessDefault) AS GpStatus
+FUNCTION CGpGraphicsPath.Outline (BYVAL pMatrix AS CGpMatrix PTR = nullptr, BYVAL flatness AS SINGLE = FlatnessDefault) AS GpStatus
    RETURN SetStatus(GdipWindingModeOutline(m_pPath, IIF(pMatrix, pMatrix->m_pMatrix, NULL), flatness))
 END FUNCTION
 ' =====================================================================================
@@ -531,7 +531,7 @@ END FUNCTION
 ' of straight lines) the path. Default warpMode value: WarpModePerspective (0).
 ' =====================================================================================
 FUNCTION CGpGraphicsPath.Warp (BYVAL destPoints AS GpPointF PTR, BYVAL nCount AS INT_, BYVAL srcRect AS GpRectF PTR, _
-   BYVAL pMatrix AS CGpMatrix PTR = NULL, BYVAL nWarpMode AS WarpMode = WarpModePerspective, BYVAL Flatness AS SINGLE = FlatnessDefault) AS GpStatus
+   BYVAL pMatrix AS CGpMatrix PTR = nullptr, BYVAL nWarpMode AS WarpMode = WarpModePerspective, BYVAL Flatness AS SINGLE = FlatnessDefault) AS GpStatus
    RETURN SetStatus(GdipWarpPath(m_pPath, IIF(pMatrix, pMatrix->m_pMatrix, NULL), destPoints, nCount, _
           srcRect->x, srcRect->y, srcRect->width, srcRect->height, nWarpMode, flatness))
 END FUNCTION
@@ -569,7 +569,7 @@ END FUNCTION
 ' Determines whether a specified point lies in the area that is filled when this path
 ' is filled by a specified Graphics object.
 ' =====================================================================================
-FUNCTION CGpGraphicsPath.IsVisible (BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL pGraphics AS CGpGraphics PTR = NULL) AS BOOLEAN
+FUNCTION CGpGraphicsPath.IsVisible (BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL pGraphics AS CGpGraphics PTR = nullptr) AS BOOLEAN
    DIM bResult AS BOOL
    m_Status = GdipIsVisiblePathPoint(m_pPath, x, y, IIF(pGraphics, pGraphics->m_pGraphics, NULL), @bResult)
    RETURN bResult
@@ -583,14 +583,14 @@ END FUNCTION
 'END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
-FUNCTION CGpGraphicsPath.IsVisible (BYVAL pt AS GpPointF PTR, BYVAL pGraphics AS CGpGraphics PTR = NULL) AS BOOLEAN
+FUNCTION CGpGraphicsPath.IsVisible (BYVAL pt AS GpPointF PTR, BYVAL pGraphics AS CGpGraphics PTR = nullptr) AS BOOLEAN
    DIM bResult AS BOOL
    m_Status = GdipIsVisiblePathPoint(m_pPath, pt->x, pt->y, IIF(pGraphics, pGraphics->m_pGraphics, NULL), @bResult)
    RETURN bResult
 END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
-FUNCTION CGpGraphicsPath.IsVisible (BYVAL pt AS GpPoint PTR, BYVAL pGraphics AS CGpGraphics PTR = NULL) AS BOOLEAN
+FUNCTION CGpGraphicsPath.IsVisible (BYVAL pt AS GpPoint PTR, BYVAL pGraphics AS CGpGraphics PTR = nullptr) AS BOOLEAN
    DIM bResult AS BOOL
    m_Status = GdipIsVisiblePathPointI(m_pPath, pt->x, pt->y, IIF(pGraphics, pGraphics->m_pGraphics, NULL), @bResult)
    RETURN bResult
@@ -601,7 +601,7 @@ END FUNCTION
 ' Determines whether a specified point touches the outline of this path when the path
 ' is drawn by a specified Graphics object and a specified pen.
 ' =====================================================================================
-FUNCTION CGpGraphicsPath.IsOutlineVisible (BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL pPen AS CGpPen PTR, BYVAL pGraphics AS CGpGraphics PTR = NULL) AS BOOLEAN
+FUNCTION CGpGraphicsPath.IsOutlineVisible (BYVAL x AS SINGLE, BYVAL y AS SINGLE, BYVAL pPen AS CGpPen PTR, BYVAL pGraphics AS CGpGraphics PTR = nullptr) AS BOOLEAN
    DIM bResult AS BOOL
    m_Status = GdipIsOutlineVisiblePathPoint(m_pPath, x, y, IIF(pPen, pPen->m_pPen, NULL), IIF(pGraphics, pGraphics->m_pGraphics, NULL), @bResult)
    FUNCTION = bResult
@@ -615,14 +615,14 @@ END FUNCTION
 'END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
-FUNCTION CGpGraphicsPath.IsOutlineVisible (BYVAL pt AS GpPointF PTR, BYVAL pPen AS CGpPen PTR, BYVAL pGraphics AS CGpGraphics PTR = NULL) AS BOOLEAN
+FUNCTION CGpGraphicsPath.IsOutlineVisible (BYVAL pt AS GpPointF PTR, BYVAL pPen AS CGpPen PTR, BYVAL pGraphics AS CGpGraphics PTR = nullptr) AS BOOLEAN
    DIM bResult AS BOOL
    m_Status = GdipIsOutlineVisiblePathPoint(m_pPath, pt->x, pt->y, IIF(pPen, pPen->m_pPen, NULL), IIF(pGraphics, pGraphics->m_pGraphics, NULL), @bResult)
    FUNCTION = bResult
 END FUNCTION
 ' =====================================================================================
 ' =====================================================================================
-FUNCTION CGpGraphicsPath.IsOutlineVisible (BYVAL pt AS GpPoint PTR, BYVAL pPen AS CGpPen PTR, BYVAL pGraphics AS CGpGraphics PTR = NULL) AS BOOLEAN
+FUNCTION CGpGraphicsPath.IsOutlineVisible (BYVAL pt AS GpPoint PTR, BYVAL pPen AS CGpPen PTR, BYVAL pGraphics AS CGpGraphics PTR = nullptr) AS BOOLEAN
    DIM bResult AS BOOL
    m_Status = GdipIsOutlineVisiblePathPointI(m_pPath, pt->x, pt->y, IIF(pPen, pPen->m_pPen, NULL), IIF(pGraphics, pGraphics->m_pGraphics, NULL), @bResult)
    FUNCTION = bResult

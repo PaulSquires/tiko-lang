@@ -219,7 +219,7 @@ END FUNCTION
 ' * Determines whether the elements of this matrix are equal to the elements of another matrix.
 ' =====================================================================================
 FUNCTION CGpMatrix.Equals (BYVAL pMatrix AS CGpMatrix PTR) AS BOOLEAN
-   IF pMatrix = NULL THEN RETURN FALSE
+   IF pMatrix = nullptr THEN RETURN FALSE
    DIM result AS BOOL
    m_Status = GdipIsMatrixEqual(m_pMatrix, pMatrix->m_pMatrix, @result)
    RETURN result
@@ -230,7 +230,7 @@ END FUNCTION
 ' * Creates a new Matrix object based on this Matrix object.
 ' =====================================================================================
 FUNCTION CGpMatrix.Clone (BYVAL pMatrix AS CGpMatrix PTR) AS GpStatus
-   IF pMatrix = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pMatrix = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pMatrix->m_pMatrix THEN GdipDeleteMatrix(pMatrix->m_pMatrix)
    RETURN SetStatus(GdipCloneMatrix(m_pMatrix, @pMatrix->m_pMatrix))
 END FUNCTION

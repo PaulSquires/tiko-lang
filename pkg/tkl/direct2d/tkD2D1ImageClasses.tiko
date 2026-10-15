@@ -100,7 +100,7 @@ END OPERATOR
 ' Retrieves the factory associated with this resource.
 ' ========================================================================================
 FUNCTION CID2D1Bitmap.GetFactory () AS ID2D1Factory PTR
-   IF m_pBitmap = NULL THEN RETURN NULL
+   IF m_pBitmap = nullptr THEN RETURN nullptr
    DIM factory AS ID2D1Factory PTR
    DIM pResource AS ID2D1Resource PTR = CAST(ANY PTR, m_pBitmap)
    pResource->GetFactory(factory)
@@ -112,7 +112,7 @@ END FUNCTION
 ' Returns the size, in device-independent pixels (DIPs), of the bitmap.
 ' ========================================================================================
 FUNCTION CID2D1Bitmap.GetSize () AS D2D1_SIZE_F
-   IF m_pBitmap = NULL THEN EXIT FUNCTION
+   IF m_pBitmap = nullptr THEN EXIT FUNCTION
    DIM size AS D2D1_SIZE_F
    m_pBitmap->GetSize(size)
    RETURN size
@@ -123,7 +123,7 @@ END FUNCTION
 ' Returns the size, in device-dependent units (pixels), of the bitmap.
 ' ========================================================================================
 FUNCTION CID2D1Bitmap.GetPixelSize () AS D2D1_SIZE_U
-   IF m_pBitmap = NULL THEN EXIT FUNCTION
+   IF m_pBitmap = nullptr THEN EXIT FUNCTION
    DIM size AS D2D1_SIZE_U
    m_pBitmap->GetPixelSize(size)
    RETURN size
@@ -134,7 +134,7 @@ END FUNCTION
 ' Retrieves the pixel format and alpha mode of the bitmap.
 ' ========================================================================================
 FUNCTION CID2D1Bitmap.GetPixelFormat () AS D2D1_PIXEL_FORMAT
-   IF m_pBitmap = NULL THEN EXIT FUNCTION
+   IF m_pBitmap = nullptr THEN EXIT FUNCTION
    DIM pixelFormat AS D2D1_PIXEL_FORMAT
    m_pBitmap->GetPixelFormat(pixelFormat)
    RETURN pixelFormat
@@ -145,13 +145,13 @@ END FUNCTION
 ' Retrieves the pixel format and alpha mode of the bitmap.
 ' ========================================================================================
 SUB CID2D1Bitmap.GetDpi (BYREF DpiX AS FLOAT, BYREF DpiY AS FLOAT)
-   IF m_pBitmap = NULL THEN EXIT SUB
+   IF m_pBitmap = nullptr THEN EXIT SUB
    m_pBitmap->GetDpi(DpiX, DpiY)
 END SUB
 ' ========================================================================================
 ' ========================================================================================
 SUB CID2D1Bitmap.GetDpi (BYVAL DpiX AS FLOAT PTR, BYVAL DpiY AS FLOAT PTR)
-   IF m_pBitmap = NULL THEN EXIT SUB
+   IF m_pBitmap = nullptr THEN EXIT SUB
    m_pBitmap->GetDpi(BYVAL DpiX, BYVAL DpiY)
 END SUB
 ' ========================================================================================
@@ -160,20 +160,20 @@ END SUB
 ' Copies the specified region from the specified bitmap into the current bitmap.
 ' ========================================================================================
 FUNCTION CID2D1Bitmap.CopyFromBitmap (BYREF destPoint AS const D2D1_POINT_2U, BYVAL bitmap AS ID2D1Bitmap PTR, BYREF srcRect AS const D2D1_RECT_U) AS HRESULT
-   IF m_pBitmap = NULL THEN RETURN E_POINTER
+   IF m_pBitmap = nullptr THEN RETURN E_POINTER
    RETURN m_pBitmap->CopyFromBitmap(destPoint, bitmap, srcRect)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CID2D1Bitmap.CopyFromBitmap (BYVAL destPoint AS const D2D1_POINT_2U PTR, BYVAL bitmap AS ID2D1Bitmap PTR, BYVAL srcRect AS const D2D1_RECT_U PTR) AS HRESULT
-   IF m_pBitmap = NULL THEN RETURN E_POINTER
+   IF m_pBitmap = nullptr THEN RETURN E_POINTER
    RETURN m_pBitmap->CopyFromBitmap(BYVAL destPoint, bitmap, BYVAL srcRect)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CID2D1Bitmap.CopyFromBitmap (BYVAL destPointX AS const UINT32, BYVAL destPointY AS const UINT32, BYVAL bitmap AS ID2D1Bitmap PTR, _
    BYVAL srcRectLeft AS UINT32, BYVAL srcRectTop AS UINT32, BYVAL srcRectRight AS UINT32, BYVAL srcRectBottom AS UINT32) AS HRESULT
-   IF m_pBitmap = NULL THEN RETURN E_POINTER
+   IF m_pBitmap = nullptr THEN RETURN E_POINTER
    DIM destPoint AS D2D1_POINT_2U = (destPointX, destPointY)
    DIM srcRect AS D2D1_RECT_U = (srcRectLeft, srcRectTop, srcRectRight, srcRectBottom)
    RETURN m_pBitmap->CopyFromBitmap(destPoint, bitmap, srcRect)
@@ -184,20 +184,20 @@ END FUNCTION
 ' Copies the specified region from the specified bitmap into the current bitmap.
 ' ========================================================================================
 FUNCTION CID2D1Bitmap.CopyFromRenderTarget (BYREF destPoint AS const D2D1_POINT_2U, BYVAL renderTarget AS ID2D1RenderTarget PTR, BYREF srcRect AS const D2D1_RECT_U) AS HRESULT
-   IF m_pBitmap = NULL THEN RETURN E_POINTER
+   IF m_pBitmap = nullptr THEN RETURN E_POINTER
    RETURN m_pBitmap->CopyFromRenderTarget(destPoint, renderTarget, srcRect)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CID2D1Bitmap.CopyFromRenderTarget (BYVAL destPoint AS const D2D1_POINT_2U PTR, BYVAL renderTarget AS ID2D1RenderTarget PTR, BYVAL srcRect AS const D2D1_RECT_U PTR) AS HRESULT
-   IF m_pBitmap = NULL THEN RETURN E_POINTER
+   IF m_pBitmap = nullptr THEN RETURN E_POINTER
    RETURN m_pBitmap->CopyFromRenderTarget(BYVAL destPoint, renderTarget, BYVAL srcRect)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CID2D1Bitmap.CopyFromRenderTarget (BYVAL destPointX AS const UINT32, BYVAL destPointY AS const UINT32, BYVAL renderTarget AS ID2D1RenderTarget PTR, _
    BYVAL srcRectLeft AS UINT32, BYVAL srcRectTop AS UINT32, BYVAL srcRectRight AS UINT32, BYVAL srcRectBottom AS UINT32) AS HRESULT
-   IF m_pBitmap = NULL THEN RETURN E_POINTER
+   IF m_pBitmap = nullptr THEN RETURN E_POINTER
    DIM destPoint AS D2D1_POINT_2U = (destPointX, destPointY)
    DIM srcRect AS D2D1_RECT_U = (srcRectLeft, srcRectTop, srcRectRight, srcRectBottom)
    RETURN m_pBitmap->CopyFromRenderTarget(destPoint, renderTarget, srcRect)
@@ -208,13 +208,13 @@ END FUNCTION
 ' Copies the specified region from memory into the current bitmap.
 ' ========================================================================================
 FUNCTION CID2D1Bitmap.CopyFromMemory (BYREF dstRect AS const D2D1_RECT_U, BYVAL srcData AS ANY PTR, BYVAL pitch AS UINT32) AS HRESULT
-   IF m_pBitmap = NULL THEN RETURN E_POINTER
+   IF m_pBitmap = nullptr THEN RETURN E_POINTER
    RETURN m_pBitmap->CopyFromMemory(dstRect, srcData, pitch)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CID2D1Bitmap.CopyFromMemory (BYVAL dstRect AS const D2D1_RECT_U PTR, BYVAL srcData AS ANY PTR, BYVAL pitch AS UINT32) AS HRESULT
-   IF m_pBitmap = NULL THEN RETURN E_POINTER
+   IF m_pBitmap = nullptr THEN RETURN E_POINTER
    RETURN m_pBitmap->CopyFromMemory(BYVAL dstRect, srcData, pitch)
 END FUNCTION
 ' ========================================================================================
@@ -222,7 +222,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CID2D1Bitmap.CopyFromMemory (BYVAL dstRectLeft AS UINT32, BYVAL dstRectTop AS UINT32, _
    BYVAL dstRectRight AS UINT32, BYVAL dstRectBottom AS UINT32, BYVAL srcData AS ANY PTR, BYVAL pitch AS UINT32) AS HRESULT
-   IF m_pBitmap = NULL THEN RETURN E_POINTER
+   IF m_pBitmap = nullptr THEN RETURN E_POINTER
    DIM dstRect AS D2D1_RECT_U = (dstRectLeft, dstRectTop, dstRectRight, dstRectBottom)
    RETURN m_pBitmap->CopyFromMemory(dstRect, srcData, pitch)
 END FUNCTION
@@ -312,7 +312,7 @@ END OPERATOR
 ' Gets the color context information associated with the bitmap.
 ' ========================================================================================
 FUNCTION CID2D1Bitmap1.GetColorContext () AS ID2D1ColorContext PTR
-   IF m_pBitmap1 = NULL THEN RETURN NULL
+   IF m_pBitmap1 = nullptr THEN RETURN nullptr
    DIM colorContext AS ID2D1ColorContext PTR
    m_pBitmap1->GetColorContext(colorContext)
    RETURN colorContext
@@ -323,7 +323,7 @@ END FUNCTION
 ' Gets the options used in creating the bitmap.
 ' ========================================================================================
 FUNCTION CID2D1Bitmap1.GetOptions () AS D2D1_BITMAP_OPTIONS
-   IF m_pBitmap1 = NULL THEN EXIT FUNCTION
+   IF m_pBitmap1 = nullptr THEN EXIT FUNCTION
    RETURN m_pBitmap1->GetOptions
 END FUNCTION
 ' ========================================================================================
@@ -333,7 +333,7 @@ END FUNCTION
 ' surface created when the bitmap was created.
 ' ========================================================================================
 FUNCTION CID2D1Bitmap1.GetSurface () AS IDXGISurface PTR
-   IF m_pBitmap1 = NULL THEN RETURN NULL
+   IF m_pBitmap1 = nullptr THEN RETURN nullptr
    DIM dxgiSurface AS IDXGISurface PTR
    m_pBitmap1->GetSurface(dxgiSurface)
    RETURN dxgiSurface
@@ -344,7 +344,7 @@ END FUNCTION
 ' Maps the given bitmap into memory.
 ' ========================================================================================
 FUNCTION CID2D1Bitmap1.Map (BYVAL options AS D2D1_MAP_OPTIONS) AS D2D1_MAPPED_RECT
-   IF m_pBitmap1 = NULL THEN EXIT FUNCTION
+   IF m_pBitmap1 = nullptr THEN EXIT FUNCTION
    DIM mappedRect AS D2D1_MAPPED_RECT
    SetLastError(m_pBitmap1->Map(options, mappedRect))
    RETURN mappedRect
@@ -355,7 +355,7 @@ END FUNCTION
 ' Unnmaps the bitmap from memory.
 ' ========================================================================================
 FUNCTION CID2D1Bitmap1.Unmap () AS HRESULT
-   IF m_pBitmap1 = NULL THEN EXIT FUNCTION
+   IF m_pBitmap1 = nullptr THEN EXIT FUNCTION
    RETURN m_pBitmap1->Unmap
 END FUNCTION
 ' ========================================================================================
@@ -453,7 +453,7 @@ END FUNCTION
 ' Gets the color space of the color context.
 ' ========================================================================================
 FUNCTION CID2D1ColorContext.GetColorSpace () AS D2D1_COLOR_SPACE
-   IF m_pColorContext = NULL THEN EXIT FUNCTION
+   IF m_pColorContext = nullptr THEN EXIT FUNCTION
    RETURN m_pColorContext->GetColorSpace
 END FUNCTION
 ' ========================================================================================
@@ -462,7 +462,7 @@ END FUNCTION
 ' Gets the size of the color profile associated with the bitmap.
 ' ========================================================================================
 FUNCTION CID2D1ColorContext.GetProfileSize () AS UINT32
-   IF m_pColorContext = NULL THEN EXIT FUNCTION
+   IF m_pColorContext = nullptr THEN EXIT FUNCTION
    RETURN m_pColorContext->GetProfileSize
 END FUNCTION
 ' ========================================================================================
@@ -471,7 +471,7 @@ END FUNCTION
 ' Gets the size of the color profile associated with the bitmap.
 ' ========================================================================================
 FUNCTION CID2D1ColorContext.GetProfile (BYVAL profile AS BYTE PTR, BYVAL profileSize AS UINT32) AS HRESULT
-   IF m_pColorContext = NULL THEN EXIT FUNCTION
+   IF m_pColorContext = nullptr THEN EXIT FUNCTION
    RETURN m_pColorContext->GetProfile(profile, profileSize)
 END FUNCTION
 ' ========================================================================================
@@ -556,7 +556,7 @@ END OPERATOR
 ' Retrieves the color context type.
 ' ========================================================================================
 FUNCTION CID2D1ColorContext1.GetColorContextType () AS D2D1_COLOR_CONTEXT_TYPE
-   IF m_pColorContext1 = NULL THEN EXIT FUNCTION
+   IF m_pColorContext1 = nullptr THEN EXIT FUNCTION
    RETURN m_pColorContext1->GetColorContextType
 END FUNCTION
 ' ========================================================================================
@@ -565,7 +565,7 @@ END FUNCTION
 ' Retrieves the DXGI color space of this context. Returns DXGI_COLOR_SPACE_CUSTOM when color context type is ICC.
 ' ========================================================================================
 FUNCTION CID2D1ColorContext1.GetDXGIColorSpace () AS DXGI_COLOR_SPACE_TYPE
-   IF m_pColorContext1 = NULL THEN EXIT FUNCTION
+   IF m_pColorContext1 = nullptr THEN EXIT FUNCTION
    RETURN m_pColorContext1->GetDXGIColorSpace
 END FUNCTION
 ' ========================================================================================
@@ -574,7 +574,7 @@ END FUNCTION
 ' Retrieves the DXGI color space of this context. Returns DXGI_COLOR_SPACE_CUSTOM when color context type is ICC.
 ' ========================================================================================
 FUNCTION CID2D1ColorContext1.GetSimpleColorProfile () AS D2D1_SIMPLE_COLOR_PROFILE
-   IF m_pColorContext1 = NULL THEN EXIT FUNCTION
+   IF m_pColorContext1 = nullptr THEN EXIT FUNCTION
    DIM simpleProfile AS D2D1_SIMPLE_COLOR_PROFILE
    SetLastError(m_pColorContext1->GetSimpleColorProfile(simpleProfile))
    RETURN simpleProfile

@@ -478,17 +478,17 @@ public sub SortListBy( of T, TCmp )( byref l as LinkedList( of T ), byref less a
     end if
 
     dim as LinkedNode( of T ) ptr head = l.head
-    dim as LinkedNode( of T ) ptr tail = 0
+    dim as LinkedNode( of T ) ptr tail = nullptr
     dim as long runw = 1
 
     do
         dim as LinkedNode( of T ) ptr p = head
-        dim as LinkedNode( of T ) ptr newHead = 0
+        dim as LinkedNode( of T ) ptr newHead = nullptr
         dim as long merges = 0
 
-        tail = 0
+        tail = nullptr
 
-        while( p <> 0 )
+        while( p <> nullptr )
             merges += 1
 
             '' q starts runw nodes along from p, so p's run is p..q-1 and
@@ -496,7 +496,7 @@ public sub SortListBy( of T, TCmp )( byref l as LinkedList( of T ), byref less a
             '' end of the chain, which is what qsize's q<>0 test handles.
             dim as LinkedNode( of T ) ptr q = p
             dim as long psize = 0
-            while( (psize < runw) andalso (q <> 0) )
+            while( (psize < runw) andalso (q <> nullptr) )
                 psize += 1
                 q = q->nxt
             wend
@@ -504,7 +504,7 @@ public sub SortListBy( of T, TCmp )( byref l as LinkedList( of T ), byref less a
 
             do
                 dim as boolean pLeft = (psize > 0)
-                dim as boolean qLeft = (qsize > 0) andalso (q <> 0)
+                dim as boolean qLeft = (qsize > 0) andalso (q <> nullptr)
                 if( (pLeft orelse qLeft) = false ) then
                     exit do
                 end if
@@ -525,7 +525,7 @@ public sub SortListBy( of T, TCmp )( byref l as LinkedList( of T ), byref less a
                     end if
                 end if
 
-                if( tail <> 0 ) then
+                if( tail <> nullptr ) then
                     tail->nxt = e
                 else
                     newHead = e
@@ -537,7 +537,7 @@ public sub SortListBy( of T, TCmp )( byref l as LinkedList( of T ), byref less a
             p = q
         wend
 
-        tail->nxt = 0
+        tail->nxt = nullptr
         head = newHead
 
         '' One merge for the whole pass means one run for the whole chain.

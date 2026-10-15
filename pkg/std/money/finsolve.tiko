@@ -289,7 +289,7 @@ public function FinSolveRoot overload _
     ) as FinResultSolve
 
     '' ---- step 0: the one pre-check this file can make
-    if( f = 0 ) then return hSolveFail( FIN_DOMAIN, 0, NaN( ), NaN( ) )
+    if( f = nullptr ) then return hSolveFail( FIN_DOMAIN, 0, NaN( ), NaN( ) )
     if( hSolveUsable( o.LowerBound_ ) = FALSE ) then return hSolveFail( FIN_DOMAIN, 0, NaN( ), NaN( ) )
     if( hSolveUsable( o.UpperBound_ ) = FALSE ) then return hSolveFail( FIN_DOMAIN, 0, NaN( ), NaN( ) )
     if( o.LowerBound_ >= o.UpperBound_ ) then return hSolveFail( FIN_DOMAIN, 0, NaN( ), NaN( ) )

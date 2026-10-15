@@ -125,7 +125,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkMonthCal_GetToday OVERLOAD (BYVAL hMonthCal AS HWND, BYREF st AS SYSTEMTIME) AS BOOLEAN
-   IF VARPTR(st) = 0 THEN RETURN FALSE
+   IF VARPTR(st) = nullptr THEN RETURN FALSE
    RETURN SendMessageW(hMonthCal, MCM_GETTODAY, 0, CAST(LPARAM, @st))
 END FUNCTION
 ' ========================================================================================
@@ -147,7 +147,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC FUNCTION tkMonthCal_HitTest OVERLOAD (BYVAL hMonthCal AS HWND, BYREF info AS MCHITTESTINFO) AS DWORD
-   IF VARPTR(info) <> 0 THEN info.cbSize = SIZEOF(MCHITTESTINFO)
+   IF VARPTR(info) <> nullptr THEN info.cbSize = SIZEOF(MCHITTESTINFO)
    RETURN SendMessageW(hMonthCal, MCM_HITTEST, 0, CAST(LPARAM, @info))
 END FUNCTION
 ' ========================================================================================
@@ -246,7 +246,7 @@ PUBLIC FUNCTION tkMonthCal_GetCalendarGridInfo OVERLOAD (BYVAL hMonthCal AS HWND
 END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION tkMonthCal_GetCalendarGridInfo OVERLOAD (BYVAL hMonthCal AS HWND, BYREF info AS MCGRIDINFO) AS BOOLEAN
-   IF VARPTR(info) <> 0 THEN info.cbSize = SIZEOF(MCGRIDINFO)
+   IF VARPTR(info) <> nullptr THEN info.cbSize = SIZEOF(MCGRIDINFO)
    RETURN SendMessageW(hMonthCal, MCM_GETCALENDARGRIDINFO, 0, CAST(LPARAM, @info))
 END FUNCTION
 ' ========================================================================================

@@ -173,7 +173,7 @@ end function
 '' is already gone by the time this can reach zero, so there is nothing here
 '' that needs to know T.
 sub hWeakRelease( byval c as SpCtl ptr )
-    if( c = 0 ) then
+    if( c = nullptr ) then
         exit sub
     end if
     if( hRefDec( @c->weak ) = 1 ) then
@@ -225,15 +225,15 @@ end type
 '' -------------------------------------------------------------- SharedPtr
 
 constructor SharedPtr( of T )( )
-    this.ctl = 0
+    this.ctl = nullptr
 end constructor
 
 '' Adopts a raw pointer.  The SharedPtr owns it from here and will DELETE it;
 '' handing the same raw pointer to two SharedPtrs gives two owners and a double
 '' free, exactly as in C++.  MakeShared( ) avoids the question.
 constructor SharedPtr( of T )( byval p as T ptr )
-    if( p = 0 ) then
-        this.ctl = 0
+    if( p = nullptr ) then
+        this.ctl = nullptr
         exit constructor
     end if
     dim as SpCtl ptr c = new SpCtl
@@ -281,15 +281,15 @@ end sub
 '' know T at all.
 sub SharedPtr( of T ).hRelease( )
     dim as SpCtl ptr c = this.ctl
-    this.ctl = 0
-    if( c = 0 ) then
+    this.ctl = nullptr
+    if( c = nullptr ) then
         exit sub
     end if
     if( hRefDec( @c->strong ) = 1 ) then
         '' last strong reference: destroy the object, then drop the single
         '' weak reference that all the strong handles shared
         delete cptr( T ptr, c->obj )
-        c->obj = 0
+        c->obj = nullptr
         hWeakRelease( c )
     end if
 end sub
@@ -299,8 +299,8 @@ sub SharedPtr( of T ).Reset( )
 end sub
 
 function SharedPtr( of T ).Get( ) as T ptr
-    if( this.ctl = 0 ) then
-        return 0
+    if( this.ctl = nullptr ) then
+        return nullptr
     end if
     return cptr( T ptr, this.ctl->obj )
 end function
@@ -316,7 +316,7 @@ end function
 '' an 'on error' handler returns control the dereference below faults.  Reading
 '' through a null handle is a bug at the call site.
 function SharedPtr( of T ).Ref( ) byref as T
-    if( this.ctl = 0 ) then
+    if( this.ctl = nullptr ) then
         '' QUALIFIED, and it has to be.  A generic body is replayed at the
         '' INSTANTIATION site and its names resolve there, not here -- so an
         '' unqualified FB_RTERROR_ILLEGALFUNCTIONCALL made this usable only
@@ -329,14 +329,14 @@ function SharedPtr( of T ).Ref( ) byref as T
 end function
 
 function SharedPtr( of T ).IsNull( ) as boolean
-    return this.ctl = 0
+    return this.ctl = nullptr
 end function
 
 '' Advisory under -mt: another thread may add or drop a handle before you act on
 '' the answer.  UseCount( ) = 1 is the only reading that is stable, and only
 '' because no other thread can be holding one.
 function SharedPtr( of T ).UseCount( ) as long
-    if( this.ctl = 0 ) then
+    if( this.ctl = nullptr ) then
         return 0
     end if
     return hRefLoad( @this.ctl->strong )
@@ -345,7 +345,7 @@ end function
 '' --------------------------------------------------------------- WeakPtr
 
 constructor WeakPtr( of T )( )
-    this.ctl = 0
+    this.ctl = nullptr
 end constructor
 
 constructor WeakPtr( of T )( byref rhs as SharedPtr( of T ) )
@@ -364,7 +364,7 @@ end constructor
 
 destructor WeakPtr( of T )( )
     hWeakRelease( this.ctl )
-    this.ctl = 0
+    this.ctl = nullptr
 end destructor
 
 operator WeakPtr( of T ).let( byref rhs as WeakPtr( of T ) )
@@ -391,7 +391,7 @@ end operator
 
 sub WeakPtr( of T ).Reset( )
     hWeakRelease( this.ctl )
-    this.ctl = 0
+    this.ctl = nullptr
 end sub
 
 '' Returns a null SharedPtr if the object is already gone.
@@ -401,7 +401,7 @@ end sub
 '' second increment -- hAdopt exists for exactly that.
 function WeakPtr( of T ).Lock( ) as SharedPtr( of T )
     dim as SharedPtr( of T ) r
-    if( this.ctl = 0 ) then
+    if( this.ctl = nullptr ) then
         return r
     end if
     if( hRefIncIfLive( @this.ctl->strong ) ) then
@@ -411,14 +411,14 @@ function WeakPtr( of T ).Lock( ) as SharedPtr( of T )
 end function
 
 function WeakPtr( of T ).Expired( ) as boolean
-    if( this.ctl = 0 ) then
+    if( this.ctl = nullptr ) then
         return TRUE
     end if
     return hRefLoad( @this.ctl->strong ) = 0
 end function
 
 function WeakPtr( of T ).UseCount( ) as long
-    if( this.ctl = 0 ) then
+    if( this.ctl = nullptr ) then
         return 0
     end if
     return hRefLoad( @this.ctl->strong )
@@ -503,7 +503,7 @@ end function
 '' destructor on a Derived object.  Nothing here can check it.
 public function SpCast( of D, B )( byref s as SharedPtr( of D ) ) as SharedPtr( of B )
     dim as SharedPtr( of B ) r
-    if( s.ctl = 0 ) then
+    if( s.ctl = nullptr ) then
         return r
     end if
     hRefInc( @s.ctl->strong )

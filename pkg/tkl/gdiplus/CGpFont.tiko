@@ -47,7 +47,7 @@ END CONSTRUCTOR
 ' GdipCreateFontFromLogfontA and GdipCreateFontFromLogfontW, only GdipCreateFontFromLogfont.
 ' ========================================================================================
 CONSTRUCTOR CGpFont (BYVAL hdc AS HDC, BYVAL plogfont AS LOGFONTW PTR)
-   IF plogfont <> NULL THEN
+   IF plogfont <> nullptr THEN
       m_Status = GdipCreateFontFromLogfontW(hdc, plogfont, @m_pFont)
    ELSE
       m_Status = GdipCreateFontFromDC(hdc, @m_pFont)
@@ -61,7 +61,7 @@ END CONSTRUCTOR
 ' version of a logical font. This constructor is provided for compatibility with GDI.
 ' ========================================================================================
 CONSTRUCTOR CGpFont (BYVAL hdc AS HDC, BYVAL plogfont AS LOGFONTA PTR)
-   IF plogfont <> NULL THEN
+   IF plogfont <> nullptr THEN
       m_Status = GdipCreateFontFromLogfontA(hdc, plogfont, @m_pFont)
    ELSE
       m_Status = GdipCreateFontFromDC(hdc, @m_pFont)
@@ -81,7 +81,7 @@ END CONSTRUCTOR
 ' Creates a Font object based on a font family, a size, a font style, a unit of
 ' measurement, and a FontCollection object.
 ' ========================================================================================
-CONSTRUCTOR CGpFont (BYVAL pwszFamilyName AS WSTRING PTR, BYVAL emSize AS SINGLE, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL pFontCollection AS CGpFontCollection PTR = NULL)
+CONSTRUCTOR CGpFont (BYVAL pwszFamilyName AS WSTRING PTR, BYVAL emSize AS SINGLE, BYVAL nStyle AS INT_ = 0, BYVAL nUnit AS GpUnit = 0, BYVAL pFontCollection AS CGpFontCollection PTR = nullptr)
    DIM pFamily AS CGpFontFamily = CGpFontFamily(pwszFamilyName, pFontCollection)
    IF pFamily.GetLastStatus = Ok THEN
       m_Status = GdipCreateFont(pFamily.m_pFontFamily, emSize, nStyle, nUnit, @m_pFont)
@@ -119,7 +119,7 @@ END FUNCTION
 ' Creates a new Font object based on this Font object.
 ' ========================================================================================
 FUNCTION CGpFont.Clone (BYVAL pCloneFont AS CGpFont PTR) AS GpStatus
-   IF pCloneFont = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pCloneFont = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pCloneFont->m_pFont THEN GdipDeleteFont(pCloneFont->m_pFont)
    RETURN SetStatus(GdipCloneFont(m_pFont, @pCloneFont->m_pFont))
 END FUNCTION
@@ -129,7 +129,7 @@ END FUNCTION
 ' The IsAvailable method determines whether this Font object was created successfully.
 ' ========================================================================================
 FUNCTION CGpFont.IsAvailable () AS BOOLEAN
-   RETURN m_pFont <> NULL
+   RETURN m_pFont <> nullptr
 END FUNCTION
 ' ========================================================================================
 
@@ -137,7 +137,7 @@ END FUNCTION
 ' The GetFamily method gets the font family on which this font is based.
 ' ========================================================================================
 FUNCTION CGpFont.GetFamily (BYVAL pFamily AS CGpFontFamily PTR) AS GpStatus
-   IF pFamily = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pFamily = nullptr THEN RETURN SetStatus(InvalidParameter)
    RETURN SetStatus(GdipGetFamily(m_pFont, @pFamily->m_pFontFamily))
 END FUNCTION
 ' ========================================================================================
@@ -222,7 +222,7 @@ END CONSTRUCTOR
 ' ========================================================================================
 ' Creates a FontFamily object based on a specified font collection.
 ' ========================================================================================
-CONSTRUCTOR CGpFontFamily (BYVAL pwszName AS WSTRING PTR, BYVAL pFontCollection AS CGpFontCollection PTR = NULL)
+CONSTRUCTOR CGpFontFamily (BYVAL pwszName AS WSTRING PTR, BYVAL pFontCollection AS CGpFontCollection PTR = nullptr)
    m_Status = GdipCreateFontFamilyFromName(pwszName, IIF(pFontCollection, pFontCollection->m_pFontCollection, NULL), @m_pFontFamily)
 END CONSTRUCTOR
 ' ========================================================================================
@@ -239,7 +239,7 @@ END DESTRUCTOR
 ' * Creates a new FontFamily object based on this Brush object.
 ' =====================================================================================
 FUNCTION CGpFontFamily.Clone (BYVAL pFontFamily AS CGpFontFamily PTR) AS GpStatus
-   IF pFontFamily = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pFontFamily = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pFontFamily->m_pFontFamily THEN GdipDeleteFontFamily(pFontFamily->m_pFontFamily)
    RETURN SetStatus(GdipCloneFontFamily(m_pFontFamily, @pFontFamily->m_pFontFamily))
 END FUNCTION
@@ -249,7 +249,7 @@ END FUNCTION
 ' Gets a FontFamily object that specifies a generic sans serif typeface.
 ' =====================================================================================
 FUNCTION CGpFontFamily.GenericSansSerif (BYVAL pFontFamily AS CGpFontFamily PTR) AS GpStatus
-   IF pFontFamily = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pFontFamily = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pFontFamily->m_pFontFamily THEN GdipDeleteFontFamily(pFontFamily->m_pFontFamily)
    m_Status = GdipGetGenericFontFamilySansSerif(@pFontFamily->m_pFontFamily)
 END FUNCTION
@@ -259,7 +259,7 @@ END FUNCTION
 ' Gets a FontFamily object that specifies a generic serif typeface.
 ' =====================================================================================
 FUNCTION CGpFontFamily.GenericSerif (BYVAL pFontFamily AS CGpFontFamily PTR) AS GpStatus
-   IF pFontFamily = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pFontFamily = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pFontFamily->m_pFontFamily THEN GdipDeleteFontFamily(pFontFamily->m_pFontFamily)
    m_Status = GdipGetGenericFontFamilySerif(@pFontFamily->m_pFontFamily)
 END FUNCTION
@@ -269,7 +269,7 @@ END FUNCTION
 ' Gets a FontFamily object that specifies a generic monospace typeface.
 ' =====================================================================================
 FUNCTION CGpFontFamily.GenericMonospace (BYVAL pFontFamily AS CGpFontFamily PTR) AS GpStatus
-   IF pFontFamily = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pFontFamily = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pFontFamily->m_pFontFamily THEN GdipDeleteFontFamily(pFontFamily->m_pFontFamily)
    m_Status = GdipGetGenericFontFamilyMonospace(@pFontFamily->m_pFontFamily)
 END FUNCTION
@@ -279,7 +279,7 @@ END FUNCTION
 ' Gets the name of this font family.
 ' =====================================================================================
 FUNCTION CGpFontFamily.GetFamilyName (BYVAL pwszName AS WSTRING PTR, BYVAL language AS LANGID = LANG_NEUTRAL) AS GpStatus
-   IF pwszName = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pwszName = nullptr THEN RETURN SetStatus(InvalidParameter)
    RETURN SetStatus(GdipGetFamilyName(m_pFontFamily, pwszName, language))
 END FUNCTION
 ' =====================================================================================
@@ -288,7 +288,7 @@ END FUNCTION
 ' The IsAvailable method determines whether this Font object was created successfully.
 ' ========================================================================================
 FUNCTION CGpFontFamily.IsAvailable () AS BOOLEAN
-   RETURN m_pFontFamily <> NULL
+   RETURN m_pFontFamily <> nullptr
 END FUNCTION
 ' ========================================================================================
 
@@ -380,7 +380,7 @@ END FUNCTION
 ' Gets the font families contained in this font collection.
 ' =====================================================================================
 FUNCTION CGpFontCollection.GetFamilies (BYVAL numSought AS INT_, BYVAL gpfamilies AS CGpFontFamily PTR, BYVAL numFound AS INT_ PTR) AS GpStatus
-   IF numSought <= 0 OR gpfamilies = NULL OR numFound = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF numSought <= 0 OR gpfamilies = nullptr OR numFound = nullptr THEN RETURN SetStatus(InvalidParameter)
    *numFound = 0
    DIM rgfamilies(numSought - 1) AS GpFontFamily PTR
    m_Status = GdipGetFontCollectionFamilyList(m_pFontCollection, numSought, @rgfamilies(0), numFound)

@@ -294,7 +294,7 @@ sub TuiEmergencyRestore( )
     #ifdef __FB_WIN32__
         if( s->leaveLen > 0 ) then
             dim as DWORD written
-            WriteFile( s->hOut, @s->leaveSeq[0], s->leaveLen, @written, 0 )
+            WriteFile( s->hOut, @s->leaveSeq[0], s->leaveLen, @written, nullptr )
         end if
         SetConsoleMode( s->hOut, s->outMode )
         SetConsoleMode( s->hIn, s->inMode )
@@ -315,7 +315,7 @@ end sub
 #else
     sub TuiSignalHandler cdecl ( byval sig as long )
         TuiEmergencyRestore( )
-        tui_signal( sig, cast( any ptr, 0 ) )   '' SIG_DFL
+        tui_signal( sig, nullptr )   '' SIG_DFL
         tui_raise( sig )
     end sub
 
@@ -660,12 +660,12 @@ function TuiTerminal.Leave( ) as TuiUnitResult
         SetConsoleCtrlHandler( @TuiCtrlHandler, FALSE )
     #else
         if( sv->haveOrig ) then tui_tcsetattr( 0, TUI_TCSAFLUSH, @sv->orig )
-        tui_signal( TUI_SIGINT,   cast( any ptr, 0 ) )
-        tui_signal( TUI_SIGTERM,  cast( any ptr, 0 ) )
-        tui_signal( TUI_SIGHUP,   cast( any ptr, 0 ) )
-        tui_signal( TUI_SIGQUIT,  cast( any ptr, 0 ) )
-        tui_signal( TUI_SIGSEGV,  cast( any ptr, 0 ) )
-        tui_signal( TUI_SIGWINCH, cast( any ptr, 0 ) )
+        tui_signal( TUI_SIGINT,   nullptr )
+        tui_signal( TUI_SIGTERM,  nullptr )
+        tui_signal( TUI_SIGHUP,   nullptr )
+        tui_signal( TUI_SIGQUIT,  nullptr )
+        tui_signal( TUI_SIGSEGV,  nullptr )
+        tui_signal( TUI_SIGWINCH, nullptr )
     #endif
 
     return w
@@ -694,7 +694,7 @@ function TuiTerminal.WriteText( byref u as ustring ) as TuiUnitResult
             dim as TuiUnitResult f = Flush( )
             if( f.IsOk( ) = false ) then return f
             dim as DWORD written
-            if( WriteConsoleW( m_hOut, cast( any ptr, strptr( u ) ), len( u ), @written, 0 ) = 0 ) then
+            if( WriteConsoleW( m_hOut, cast( any ptr, strptr( u ) ), len( u ), @written, nullptr ) = 0 ) then
                 return TuiFailUnit( TUIERR_IO, "WriteConsoleW", GetLastError( ) )
             end if
             return TuiOkUnit( )
@@ -717,7 +717,7 @@ function TuiTerminal.Flush( ) as TuiUnitResult
     dim as long n = len( m_buf )
     #ifdef __FB_WIN32__
         dim as DWORD written
-        if( WriteFile( m_hOut, strptr( m_buf ), n, @written, 0 ) = 0 ) then
+        if( WriteFile( m_hOut, strptr( m_buf ), n, @written, nullptr ) = 0 ) then
             m_buf = ""
             return TuiFailUnit( TUIERR_IO, "WriteFile", GetLastError( ) )
         end if

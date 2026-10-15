@@ -63,15 +63,15 @@ public type LinkedList( of T )
 end type
 
 constructor LinkedList( of T )( )
-    this.head = 0
-    this.tail = 0
+    this.head = nullptr
+    this.tail = nullptr
     this.num = 0
 end constructor
 
 '' Deep copy.  Without this the compiler-supplied copy would share the chain.
 constructor LinkedList( of T )( byref rhs as LinkedList( of T ) )
-    this.head = 0
-    this.tail = 0
+    this.head = nullptr
+    this.tail = nullptr
     this.num = 0
     this.CopyFrom( rhs )
 end constructor
@@ -112,7 +112,7 @@ sub LinkedList( of T ).PushFront( byref v as T )
 
     dim as LinkedNode( of T ) ptr n = new LinkedNode( of T )
     n->value = vv
-    n->prv = 0
+    n->prv = nullptr
     n->nxt = this.head
 
     if( this.head ) then
@@ -130,7 +130,7 @@ sub LinkedList( of T ).PushBack( byref v as T )
 
     dim as LinkedNode( of T ) ptr n = new LinkedNode( of T )
     n->value = vv
-    n->nxt = 0
+    n->nxt = nullptr
     n->prv = this.tail
 
     if( this.tail ) then
@@ -149,7 +149,7 @@ end sub
 function LinkedList( of T ).PopFront( ) as T
     dim as T r
 
-    if( this.head = 0 ) then
+    if( this.head = nullptr ) then
         return r
     end if
 
@@ -158,9 +158,9 @@ function LinkedList( of T ).PopFront( ) as T
 
     this.head = n->nxt
     if( this.head ) then
-        this.head->prv = 0
+        this.head->prv = nullptr
     else
-        this.tail = 0
+        this.tail = nullptr
     end if
 
     delete n
@@ -172,7 +172,7 @@ end function
 function LinkedList( of T ).PopBack( ) as T
     dim as T r
 
-    if( this.tail = 0 ) then
+    if( this.tail = nullptr ) then
         return r
     end if
 
@@ -181,9 +181,9 @@ function LinkedList( of T ).PopBack( ) as T
 
     this.tail = n->prv
     if( this.tail ) then
-        this.tail->nxt = 0
+        this.tail->nxt = nullptr
     else
-        this.head = 0
+        this.head = nullptr
     end if
 
     delete n
@@ -196,7 +196,7 @@ end function
 '' reference has to refer to something, and there is nothing else to refer to.
 function LinkedList( of T ).Front( ) byref as T
     static as T blank
-    if( this.head = 0 ) then
+    if( this.head = nullptr ) then
         return blank
     end if
     return this.head->value
@@ -204,7 +204,7 @@ end function
 
 function LinkedList( of T ).Back( ) byref as T
     static as T blank
-    if( this.tail = 0 ) then
+    if( this.tail = nullptr ) then
         return blank
     end if
     return this.tail->value
@@ -219,8 +219,8 @@ sub LinkedList( of T ).Clear( )
         p = nxt
     wend
 
-    this.head = 0
-    this.tail = 0
+    this.head = nullptr
+    this.tail = nullptr
     this.num = 0
 end sub
 
@@ -231,7 +231,7 @@ function LinkedList( of T ).GetIterator( ) as LinkedListIterator( of T )
 end function
 
 function LinkedListIterator( of T ).IsValid( ) as boolean
-    return this.node <> 0
+    return this.node <> nullptr
 end function
 
 function LinkedListIterator( of T ).Value( ) byref as T
@@ -245,7 +245,7 @@ end function
 '' who steps one too many times gets a crash from the node-based containers and
 '' silence from the others. Same contract, same behaviour.
 sub LinkedListIterator( of T ).MoveNext( )
-    if( this.node = 0 ) then exit sub
+    if( this.node = nullptr ) then exit sub
     dim as LinkedNode( of T ) ptr n = cptr( LinkedNode( of T ) ptr, this.node )
     this.node = n->nxt
 end sub

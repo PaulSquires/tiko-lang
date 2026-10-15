@@ -80,7 +80,7 @@ end function
 '' Length-counted, because SQLite text may legitimately contain an embedded
 '' NUL and left( *p, n ) would stop at it.
 function hFromUtf8( byval raw as const any ptr, byval byteCount as long ) as ustring
-    if raw = 0 then return ""
+    if raw = nullptr then return ""
     if byteCount <= 0 then return ""
     dim as string buffer = space( byteCount )
     memcpy( strptr( buffer ), raw, byteCount )
@@ -88,7 +88,7 @@ function hFromUtf8( byval raw as const any ptr, byval byteCount as long ) as ust
 end function
 
 function hFromUtf8Z( byval raw as const zstring ptr ) as ustring
-    if raw = 0 then return ""
+    if raw = nullptr then return ""
     return *raw
 end function
 
@@ -265,7 +265,7 @@ function hDbError( byval handle as sqlite3 ptr, byval errCode as long, _
     dim as long primaryCode = errCode and &hFF
     dim as long extCode = errCode
 
-    if handle <> 0 then
+    if handle <> nullptr then
         messageText = hFromUtf8Z( sqlite3_errmsg( handle ) )
 
         if ( extCode shr 8 ) = 0 then
@@ -950,7 +950,7 @@ end function
 '' Read one column of the CURRENT row.  Shared by Statement.ColumnValue and by
 '' Database.Query, which drives a raw statement out of the cache.
 function hColumnValue( byval stmt as sqlite3_stmt ptr, byval index as long ) as DbValue
-    if stmt = 0 then return DbValue( )
+    if stmt = nullptr then return DbValue( )
     if ( index < 0 ) orelse ( index >= sqlite3_column_count( stmt ) ) then return DbValue( )
 
     select case sqlite3_column_type( stmt, index )
@@ -986,7 +986,7 @@ end function
 '' of a result set can carry one reference rather than its own copy.
 function hColumnNames( byval stmt as sqlite3_stmt ptr ) as NamesPtr
     dim names as NamesPtr = NamesPtr( new UStringArray )
-    if stmt <> 0 then
+    if stmt <> nullptr then
         dim as long columns = sqlite3_column_count( stmt )
         for index as long = 0 to columns - 1
             names.Ref( ).Push( hFromUtf8Z( sqlite3_column_name( stmt, index ) ) )
@@ -1074,8 +1074,8 @@ end type
 
 
 constructor Statement( )
-    this.m_db     = 0
-    this.m_stmt   = 0
+    this.m_db     = nullptr
+    this.m_stmt   = nullptr
     this.m_done   = false
     this.m_hasRow = false
 end constructor
@@ -1093,17 +1093,17 @@ destructor Statement( )
 end destructor
 
 sub Statement.Close( )
-    if this.m_stmt <> 0 then
+    if this.m_stmt <> nullptr then
         sqlite3_finalize( this.m_stmt )
-        this.m_stmt = 0
+        this.m_stmt = nullptr
     end if
-    this.m_db     = 0
+    this.m_db     = nullptr
     this.m_done   = false
     this.m_hasRow = false
 end sub
 
 function Statement.IsOpen( ) as boolean
-    return ( this.m_stmt <> 0 )
+    return ( this.m_stmt <> nullptr )
 end function
 
 function Statement.Sql( ) as ustring
@@ -1115,15 +1115,15 @@ function Statement.Handle( ) as sqlite3_stmt ptr
 end function
 
 function Statement.IsReadOnly( ) as boolean
-    if this.m_stmt = 0 then return true
+    if this.m_stmt = nullptr then return true
     return ( sqlite3_stmt_readonly( this.m_stmt ) <> 0 )
 end function
 
 '' The SQL with its parameters substituted -- for a log line, never to run.
 function Statement.ExpandedSql( ) as ustring
-    if this.m_stmt = 0 then return this.m_sql
+    if this.m_stmt = nullptr then return this.m_sql
     dim as zstring ptr raw = sqlite3_expanded_sql( this.m_stmt )
-    if raw = 0 then return this.m_sql
+    if raw = nullptr then return this.m_sql
     dim as ustring text = hFromUtf8Z( raw )
     sqlite3_free( raw )
     return text
@@ -1136,14 +1136,14 @@ end sub
 function Statement.Attach( byval dbHandle as sqlite3 ptr, byref sqlText as ustring ) as VoidResult
     this.Close( )
 
-    if dbHandle = 0 then
+    if dbHandle = nullptr then
         this.m_lastError = hMakeError( SQLITE_MISUSE, "the database is not open", "Prepare", sqlText )
         return FailVoid( this.m_lastError )
     end if
 
     dim as string utf8 = hToUtf8( sqlText )
     dim as sqlite3_stmt ptr prepared
-    dim as long rc = sqlite3_prepare_v2( dbHandle, strptr( utf8 ), len( utf8 ), @prepared, 0 )
+    dim as long rc = sqlite3_prepare_v2( dbHandle, strptr( utf8 ), len( utf8 ), @prepared, nullptr )
 
     if rc <> SQLITE_OK then
         this.m_lastError = hDbError( dbHandle, rc, "sqlite3_prepare_v2", sqlText )
@@ -1151,7 +1151,7 @@ function Statement.Attach( byval dbHandle as sqlite3 ptr, byref sqlText as ustri
     end if
 
     '' An empty or comment-only statement prepares to a NULL handle.
-    if prepared = 0 then
+    if prepared = nullptr then
         this.m_lastError = hMakeError( SQLITE_ERROR, "the statement is empty", "sqlite3_prepare_v2", sqlText )
         return FailVoid( this.m_lastError )
     end if
@@ -1225,18 +1225,18 @@ function hBindAll( byval stmt as sqlite3_stmt ptr, byref boundArgs as Params, _
 end function
 
 function Statement.ParameterCount( ) as long
-    if this.m_stmt = 0 then return 0
+    if this.m_stmt = nullptr then return 0
     return sqlite3_bind_parameter_count( this.m_stmt )
 end function
 
 function Statement.ParameterIndex( byref paramName as ustring ) as long
-    if this.m_stmt = 0 then return 0
+    if this.m_stmt = nullptr then return 0
     dim as string utf8 = hToUtf8( paramName )
     return sqlite3_bind_parameter_index( this.m_stmt, strptr( utf8 ) )
 end function
 
 function Statement.Bind( byval index as long, byval boundValue as DbValue ) as VoidResult
-    if this.m_stmt = 0 then
+    if this.m_stmt = nullptr then
         this.m_lastError = hMakeError( SQLITE_MISUSE, "the statement is not prepared", "Bind", this.m_sql )
         return FailVoid( this.m_lastError )
     end if
@@ -1263,7 +1263,7 @@ end function
 '' positional counter ignores the named entries, which is what ?/:name SQL
 '' means anyway.
 function Statement.BindAll( byref boundArgs as Params ) as VoidResult
-    if this.m_stmt = 0 then
+    if this.m_stmt = nullptr then
         this.m_lastError = hMakeError( SQLITE_MISUSE, "the statement is not prepared", "BindAll", this.m_sql )
         return FailVoid( this.m_lastError )
     end if
@@ -1283,7 +1283,7 @@ function Statement.BindAll( byref boundArgs as Params ) as VoidResult
 end function
 
 function Statement.ClearBindings( ) as VoidResult
-    if this.m_stmt = 0 then return OkVoid( )
+    if this.m_stmt = nullptr then return OkVoid( )
     dim as long rc = sqlite3_clear_bindings( this.m_stmt )
     if rc <> SQLITE_OK then
         this.m_lastError = hDbError( this.m_db, rc, "sqlite3_clear_bindings", this.m_sql )
@@ -1299,7 +1299,7 @@ end function
 '' The prior failure has already been reported by NextRow( ), and resetting
 '' clears it.
 function Statement.Reset( ) as VoidResult
-    if this.m_stmt = 0 then return OkVoid( )
+    if this.m_stmt = nullptr then return OkVoid( )
 
     this.m_done      = false
     this.m_hasRow    = false
@@ -1312,7 +1312,7 @@ end function
 '' true  -- a row is available, read it with CurrentRow( ) / ColumnValue( )
 '' false -- the statement is finished
 function Statement.NextRow( ) as BoolResult
-    if this.m_stmt = 0 then
+    if this.m_stmt = nullptr then
         this.m_lastError = hMakeError( SQLITE_MISUSE, "the statement is not prepared", "NextRow", this.m_sql )
         return oc.Fail( of boolean, DbError )( this.m_lastError )
     end if
@@ -1359,23 +1359,23 @@ function Statement.IsDone( ) as boolean
 end function
 
 function Statement.ColumnCount( ) as long
-    if this.m_stmt = 0 then return 0
+    if this.m_stmt = nullptr then return 0
     return sqlite3_column_count( this.m_stmt )
 end function
 
 function Statement.ColumnName( byval index as long ) as ustring
-    if this.m_stmt = 0 then return ""
+    if this.m_stmt = nullptr then return ""
     if ( index < 0 ) orelse ( index >= sqlite3_column_count( this.m_stmt ) ) then return ""
     return hFromUtf8Z( sqlite3_column_name( this.m_stmt, index ) )
 end function
 
 function Statement.ColumnDeclaredType( byval index as long ) as ustring
-    if this.m_stmt = 0 then return ""
+    if this.m_stmt = nullptr then return ""
     return hFromUtf8Z( sqlite3_column_decltype( this.m_stmt, index ) )
 end function
 
 function Statement.ColumnKind( byval index as long ) as ValueKind
-    if this.m_stmt = 0 then return SqlNull
+    if this.m_stmt = nullptr then return SqlNull
     select case sqlite3_column_type( this.m_stmt, index )
         case SQLITE_INTEGER : return SqlInteger
         case SQLITE_FLOAT   : return SqlFloat
@@ -1444,7 +1444,7 @@ end function
 sub StatementIterator.Start( byval owner as Statement_ ptr )
     this.m_owner = owner
     this.m_valid = false
-    if owner = 0 then exit sub
+    if owner = nullptr then exit sub
 
     owner->Reset( )
 
@@ -1503,8 +1503,8 @@ end type
 public type SqlFunction as sub( byref context as SqlContext )
 
 constructor SqlContext( )
-    this.m_ctx  = 0
-    this.m_argv = 0
+    this.m_ctx  = nullptr
+    this.m_argv = nullptr
     this.m_argc = 0
 end constructor
 
@@ -1520,7 +1520,7 @@ function SqlContext.ArgCount( ) as long
 end function
 
 function SqlContext.Arg( byval index as long ) as DbValue
-    if this.m_argv = 0 then return DbValue( )
+    if this.m_argv = nullptr then return DbValue( )
     if ( index < 0 ) orelse ( index >= this.m_argc ) then return DbValue( )
 
     dim as sqlite3_value ptr cell = this.m_argv[ index ]
@@ -1554,11 +1554,11 @@ function SqlContext.Arg( byval index as long ) as DbValue
 end function
 
 sub SqlContext.ReturnNull( )
-    if this.m_ctx <> 0 then sqlite3_result_null( this.m_ctx )
+    if this.m_ctx <> nullptr then sqlite3_result_null( this.m_ctx )
 end sub
 
 sub SqlContext.ReturnValue( byval outcome as DbValue )
-    if this.m_ctx = 0 then exit sub
+    if this.m_ctx = nullptr then exit sub
 
     select case outcome.Kind( )
         case SqlNull
@@ -1582,7 +1582,7 @@ sub SqlContext.ReturnValue( byval outcome as DbValue )
 end sub
 
 sub SqlContext.ReturnError( byref messageText as ustring )
-    if this.m_ctx = 0 then exit sub
+    if this.m_ctx = nullptr then exit sub
     dim as string utf8 = hToUtf8( messageText )
     sqlite3_result_error( this.m_ctx, strptr( utf8 ), len( utf8 ) )
 end sub
@@ -1593,7 +1593,7 @@ end sub
 sub hInvokeSqlFunction cdecl( byval ctx as sqlite3_context ptr, byval argCount as long, _
                                       byval argv as sqlite3_value ptr ptr )
     dim as SqlFunction handler = cast( SqlFunction, sqlite3_user_data( ctx ) )
-    if handler = 0 then
+    if handler = nullptr then
         sqlite3_result_error( ctx, "fbsqlite: no handler registered", -1 )
         exit sub
     end if
@@ -1690,7 +1690,7 @@ public type Database
 end type
 
 constructor Database( )
-    this.m_db = 0
+    this.m_db = nullptr
     this.m_cacheEnabled = true
 end constructor
 
@@ -1716,13 +1716,13 @@ function Database.OpenWithFlags( byref filePath as ustring, byval flags as long 
 
     dim as string utf8 = hToUtf8( filePath )
     dim as sqlite3 ptr opened
-    dim as long rc = sqlite3_open_v2( strptr( utf8 ), @opened, flags, 0 )
+    dim as long rc = sqlite3_open_v2( strptr( utf8 ), @opened, flags, nullptr )
 
     if rc <> SQLITE_OK then
         '' sqlite3_open_v2 hands back a handle even on failure, so that the
         '' message can be read off it; close it either way.
         dim as DbError reason = hDbError( opened, rc, "sqlite3_open_v2", filePath )
-        if opened <> 0 then sqlite3_close_v2( opened )
+        if opened <> nullptr then sqlite3_close_v2( opened )
         this.m_lastError = reason
         return FailVoid( reason )
     end if
@@ -1750,21 +1750,21 @@ end function
 sub Database.ClearStatementCache( )
     for each entry in this.m_cache
         dim as sqlite3_stmt ptr stmt = cptr( sqlite3_stmt ptr, entry.value.handle )
-        if stmt <> 0 then sqlite3_finalize( stmt )
+        if stmt <> nullptr then sqlite3_finalize( stmt )
     next
     this.m_cache.Clear( )
 end sub
 
 sub Database.Close( )
-    if this.m_db = 0 then exit sub
+    if this.m_db = nullptr then exit sub
     this.ClearStatementCache( )
     sqlite3_close_v2( this.m_db )
-    this.m_db = 0
+    this.m_db = nullptr
     this.m_path = ""
 end sub
 
 function Database.IsOpen( ) as boolean
-    return ( this.m_db <> 0 )
+    return ( this.m_db <> nullptr )
 end function
 
 function Database.FileName( ) as ustring
@@ -1794,10 +1794,10 @@ end function
 '' ---------------------------------------------------------------------------
 function Database.hAcquire( byref sqlText as ustring, byref stmt as sqlite3_stmt ptr, _
                             byref cached as boolean ) as VoidResult
-    stmt   = 0
+    stmt   = nullptr
     cached = false
 
-    if this.m_db = 0 then
+    if this.m_db = nullptr then
         this.m_lastError = hMakeError( SQLITE_MISUSE, "the database is not open", "Prepare", sqlText )
         return FailVoid( this.m_lastError )
     end if
@@ -1819,12 +1819,12 @@ function Database.hAcquire( byref sqlText as ustring, byref stmt as sqlite3_stmt
 
     dim as string utf8 = hToUtf8( sqlText )
     dim as sqlite3_stmt ptr prepared
-    dim as long rc = sqlite3_prepare_v2( this.m_db, strptr( utf8 ), len( utf8 ), @prepared, 0 )
+    dim as long rc = sqlite3_prepare_v2( this.m_db, strptr( utf8 ), len( utf8 ), @prepared, nullptr )
 
     if rc <> SQLITE_OK then
         return FailVoid( this.hFail( rc, "sqlite3_prepare_v2", sqlText ) )
     end if
-    if prepared = 0 then
+    if prepared = nullptr then
         this.m_lastError = hMakeError( SQLITE_ERROR, "the statement is empty", "sqlite3_prepare_v2", sqlText )
         return FailVoid( this.m_lastError )
     end if
@@ -1849,7 +1849,7 @@ function Database.hAcquire( byref sqlText as ustring, byref stmt as sqlite3_stmt
 end function
 
 sub Database.hRelease( byref sqlText as ustring, byval stmt as sqlite3_stmt ptr, byval cached as boolean )
-    if stmt = 0 then exit sub
+    if stmt = nullptr then exit sub
 
     if cached = false then
         sqlite3_finalize( stmt )
@@ -1929,25 +1929,25 @@ end function
 '' Several statements separated by ';'.  No parameters -- SQLite's own exec
 '' does not bind -- so this is for schema scripts and migrations.
 function Database.ExecuteScript( byref sqlText as ustring ) as VoidResult
-    if this.m_db = 0 then
+    if this.m_db = nullptr then
         this.m_lastError = hMakeError( SQLITE_MISUSE, "the database is not open", "ExecuteScript", sqlText )
         return FailVoid( this.m_lastError )
     end if
 
     dim as string utf8 = hToUtf8( sqlText )
     dim as zstring ptr rawMessage
-    dim as long rc = sqlite3_exec( this.m_db, strptr( utf8 ), 0, 0, @rawMessage )
+    dim as long rc = sqlite3_exec( this.m_db, strptr( utf8 ), nullptr, nullptr, @rawMessage )
 
     if rc <> SQLITE_OK then
         dim as ustring messageText = hFromUtf8Z( rawMessage )
-        if rawMessage <> 0 then sqlite3_free( rawMessage )
+        if rawMessage <> nullptr then sqlite3_free( rawMessage )
         dim as DbError reason = DbError( rc, sqlite3_extended_errcode( this.m_db ), _
                                          messageText, "sqlite3_exec", sqlText )
         this.m_lastError = reason
         return FailVoid( reason )
     end if
 
-    if rawMessage <> 0 then sqlite3_free( rawMessage )
+    if rawMessage <> nullptr then sqlite3_free( rawMessage )
     return OkVoid( )
 end function
 
@@ -2059,22 +2059,22 @@ end function
 ''  Connection state
 '' ---------------------------------------------------------------------------
 function Database.LastInsertRowId( ) as longint
-    if this.m_db = 0 then return 0
+    if this.m_db = nullptr then return 0
     return sqlite3_last_insert_rowid( this.m_db )
 end function
 
 function Database.Changes( ) as long
-    if this.m_db = 0 then return 0
+    if this.m_db = nullptr then return 0
     return sqlite3_changes( this.m_db )
 end function
 
 function Database.TotalChanges( ) as longint
-    if this.m_db = 0 then return 0
+    if this.m_db = nullptr then return 0
     return sqlite3_total_changes64( this.m_db )
 end function
 
 function Database.InTransaction( ) as boolean
-    if this.m_db = 0 then return false
+    if this.m_db = nullptr then return false
     return ( sqlite3_get_autocommit( this.m_db ) = 0 )
 end function
 
@@ -2083,14 +2083,14 @@ function Database.LastError( ) as DbError
 end function
 
 sub Database.Interrupt( )
-    if this.m_db <> 0 then sqlite3_interrupt( this.m_db )
+    if this.m_db <> nullptr then sqlite3_interrupt( this.m_db )
 end sub
 
 '' ---------------------------------------------------------------------------
 ''  Configuration
 '' ---------------------------------------------------------------------------
 function Database.SetBusyTimeout( byval milliseconds as long ) as VoidResult
-    if this.m_db = 0 then
+    if this.m_db = nullptr then
         this.m_lastError = hMakeError( SQLITE_MISUSE, "the database is not open", "SetBusyTimeout", "" )
         return FailVoid( this.m_lastError )
     end if
@@ -2191,7 +2191,7 @@ end function
 '' ---------------------------------------------------------------------------
 function Database.CreateFunction( byref funcName as ustring, byval argCount as long, _
                                   byval handler as SqlFunction ) as VoidResult
-    if this.m_db = 0 then
+    if this.m_db = nullptr then
         this.m_lastError = hMakeError( SQLITE_MISUSE, "the database is not open", "CreateFunction", "" )
         return FailVoid( this.m_lastError )
     end if
@@ -2200,7 +2200,7 @@ function Database.CreateFunction( byref funcName as ustring, byval argCount as l
     dim as long rc = sqlite3_create_function_v2( this.m_db, strptr( utf8 ), argCount, _
                                                  SQLITE_UTF8 or SQLITE_DETERMINISTIC, _
                                                  cptr( any ptr, handler ), _
-                                                 @hInvokeSqlFunction, 0, 0, 0 )
+                                                 @hInvokeSqlFunction, nullptr, nullptr, nullptr )
 
     if rc <> SQLITE_OK then
         return FailVoid( this.hFail( rc, "sqlite3_create_function_v2", funcName ) )
@@ -2210,7 +2210,7 @@ end function
 
 '' A consistent copy of a LIVE database, using SQLite's own online backup.
 function Database.BackupTo( byref destPath as ustring ) as VoidResult
-    if this.m_db = 0 then
+    if this.m_db = nullptr then
         this.m_lastError = hMakeError( SQLITE_MISUSE, "the database is not open", "BackupTo", "" )
         return FailVoid( this.m_lastError )
     end if
@@ -2218,16 +2218,16 @@ function Database.BackupTo( byref destPath as ustring ) as VoidResult
     dim as string utf8 = hToUtf8( destPath )
     dim as sqlite3 ptr target
     dim as long rc = sqlite3_open_v2( strptr( utf8 ), @target, _
-                                      SQLITE_OPEN_READWRITE or SQLITE_OPEN_CREATE, 0 )
+                                      SQLITE_OPEN_READWRITE or SQLITE_OPEN_CREATE, nullptr )
     if rc <> SQLITE_OK then
         dim as DbError reason = hDbError( target, rc, "sqlite3_open_v2", destPath )
-        if target <> 0 then sqlite3_close_v2( target )
+        if target <> nullptr then sqlite3_close_v2( target )
         this.m_lastError = reason
         return FailVoid( reason )
     end if
 
     dim as sqlite3_backup ptr job = sqlite3_backup_init( target, "main", this.m_db, "main" )
-    if job = 0 then
+    if job = nullptr then
         dim as DbError reason = hDbError( target, sqlite3_errcode( target ), "sqlite3_backup_init", destPath )
         sqlite3_close_v2( target )
         this.m_lastError = reason
@@ -2276,7 +2276,7 @@ public type Transaction
 end type
 
 constructor Transaction( )
-    this.m_db     = 0
+    this.m_db     = nullptr
     this.m_active = false
 end constructor
 
@@ -2406,8 +2406,8 @@ public type BlobStream
 end type
 
 constructor BlobStream( )
-    this.m_db   = 0
-    this.m_blob = 0
+    this.m_db   = nullptr
+    this.m_blob = nullptr
 end constructor
 
 constructor BlobStream( byref other as BlobStream )
@@ -2423,15 +2423,15 @@ destructor BlobStream( )
 end destructor
 
 sub BlobStream.Close( )
-    if this.m_blob <> 0 then
+    if this.m_blob <> nullptr then
         sqlite3_blob_close( this.m_blob )
-        this.m_blob = 0
+        this.m_blob = nullptr
     end if
-    this.m_db = 0
+    this.m_db = nullptr
 end sub
 
 function BlobStream.IsOpen( ) as boolean
-    return ( this.m_blob <> 0 )
+    return ( this.m_blob <> nullptr )
 end function
 
 function BlobStream.Open( byref conn as Database, byref tableName as ustring, _
@@ -2440,7 +2440,7 @@ function BlobStream.Open( byref conn as Database, byref tableName as ustring, _
     this.Close( )
 
     dim as sqlite3 ptr dbHandle = conn.Handle( )
-    if dbHandle = 0 then
+    if dbHandle = nullptr then
         return FailVoid( hMakeError( SQLITE_MISUSE, "the database is not open", "BlobOpen", "" ) )
     end if
 
@@ -2460,12 +2460,12 @@ function BlobStream.Open( byref conn as Database, byref tableName as ustring, _
 end function
 
 function BlobStream.Size( ) as long
-    if this.m_blob = 0 then return 0
+    if this.m_blob = nullptr then return 0
     return sqlite3_blob_bytes( this.m_blob )
 end function
 
 function BlobStream.Read( byval offset as long, byval byteCount as long ) as BytesResult
-    if this.m_blob = 0 then
+    if this.m_blob = nullptr then
         return oc.Fail( of ByteArray, DbError )( hMakeError( SQLITE_MISUSE, "the blob is not open", "BlobRead", "" ) )
     end if
 
@@ -2491,7 +2491,7 @@ end function
 
 '' A BLOB opened this way cannot be resized -- write within Size( ).
 function BlobStream.Write( byval offset as long, byref bytes as ByteArray ) as VoidResult
-    if this.m_blob = 0 then
+    if this.m_blob = nullptr then
         return FailVoid( hMakeError( SQLITE_MISUSE, "the blob is not open", "BlobWrite", "" ) )
     end if
     if bytes.Count( ) = 0 then return OkVoid( )

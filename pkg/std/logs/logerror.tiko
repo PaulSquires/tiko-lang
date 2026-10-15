@@ -116,7 +116,7 @@ end type
 '' sink with no kernel32 counts drops, it does not crash.
 sub hLogK32.Load( )
     this.lib_ = dylibload( "kernel32.dll" )
-    if( this.lib_ = 0 ) then exit sub
+    if( this.lib_ = nullptr ) then exit sub
     this.pGetStdHandle     = cast( hK32GetStdHandle,     dylibsymbol( this.lib_, "GetStdHandle" ) )
     this.pGetFileType      = cast( hK32GetFileType,      dylibsymbol( this.lib_, "GetFileType" ) )
     this.pGetConsoleMode   = cast( hK32GetConsoleMode,   dylibsymbol( this.lib_, "GetConsoleMode" ) )
@@ -130,12 +130,12 @@ sub hLogK32.Load( )
 end sub
 
 sub hLogK32.Unload( )
-    if( this.lib_ <> 0 ) then dylibfree( this.lib_ )
-    this.lib_ = 0
-    this.pGetStdHandle = 0 : this.pGetFileType = 0 : this.pGetConsoleMode = 0
-    this.pSetConsoleMode = 0 : this.pWriteConsoleW = 0 : this.pWriteFile = 0
-    this.pCreateFileW = 0 : this.pFlushFileBuffers = 0 : this.pCloseHandle = 0
-    this.pGetLastError = 0
+    if( this.lib_ <> nullptr ) then dylibfree( this.lib_ )
+    this.lib_ = nullptr
+    this.pGetStdHandle = nullptr : this.pGetFileType = nullptr : this.pGetConsoleMode = nullptr
+    this.pSetConsoleMode = nullptr : this.pWriteConsoleW = nullptr : this.pWriteFile = nullptr
+    this.pCreateFileW = nullptr : this.pFlushFileBuffers = nullptr : this.pCloseHandle = nullptr
+    this.pGetLastError = nullptr
 end sub
 
 const FB_LOG_STD_OUTPUT = cast( ulong, -11 )
@@ -189,9 +189,9 @@ dim as string u8 = ln                         '' ustring -> string is UTF-8
 #ifdef __FB_WIN32__
     dim k as hLogK32
     k.Load( )
-    if( k.pGetStdHandle <> 0 andalso k.pWriteFile <> 0 ) then
+    if( k.pGetStdHandle <> nullptr andalso k.pWriteFile <> nullptr ) then
         dim as any ptr h = k.pGetStdHandle( FB_LOG_STD_ERROR )
-        if( h <> 0 andalso h <> cast( any ptr, -1 ) ) then
+        if( h <> nullptr andalso h <> cast( any ptr, -1 ) ) then
             dim as ulong wrote
             k.pWriteFile( h, strptr( u8 ), len( u8 ), @wrote, 0 )
         end if
@@ -222,7 +222,7 @@ end function
 sub hLogReport( byref sinkname as ustring, byref reason as ustring, byval oscode as long )
 if( hLogErrMode = 0 ) then
     LogDefaultErrorHandler( sinkname, reason, oscode )
-elseif( hLogErrHandler <> 0 ) then
+elseif( hLogErrHandler <> nullptr ) then
     dim as long saved = err
     cast( LogErrorHandler, hLogErrHandler )( sinkname, reason, oscode )
     err = saved

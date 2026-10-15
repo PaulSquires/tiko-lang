@@ -132,8 +132,8 @@ public function SelectAddRecv( of T ) _
     w->c.parker     = sc.parker
     w->c.claimed    = FALSE
     w->c.closedwake = FALSE
-    w->c.prevw      = 0
-    w->c.nextw      = 0
+    w->c.prevw      = nullptr
+    w->c.nextw      = nullptr
     w->c.seldone    = @sc.done
     w->c.caseidx    = idx
     w->slot         = @out
@@ -146,8 +146,8 @@ public function SelectAddRecv( of T ) _
     '' A nil channel is permanently not-ready, which is how a case is
     '' disabled (RFC-0002 section 7).  It is registered with a NULL core and
     '' simply never polled or enqueued.
-    if( ch.st = 0 ) then
-        sc.cases( idx ).core = 0
+    if( ch.st = nullptr ) then
+        sc.cases( idx ).core = nullptr
     else
         sc.cases( idx ).core = @cptr( ChanState( of T ) ptr, ch.st )->core
     end if
@@ -171,8 +171,8 @@ public function SelectAddSend( of T ) _
     w->c.parker     = sc.parker
     w->c.claimed    = FALSE
     w->c.closedwake = FALSE
-    w->c.prevw      = 0
-    w->c.nextw      = 0
+    w->c.prevw      = nullptr
+    w->c.nextw      = nullptr
     w->c.seldone    = @sc.done
     w->c.caseidx    = idx
     w->slot         = held
@@ -181,8 +181,8 @@ public function SelectAddSend( of T ) _
     sc.cases( idx ).kind     = SELKIND_SEND
     sc.cases( idx ).enqueued = FALSE
 
-    if( ch.st = 0 ) then
-        sc.cases( idx ).core = 0
+    if( ch.st = nullptr ) then
+        sc.cases( idx ).core = nullptr
     else
         sc.cases( idx ).core = @cptr( ChanState( of T ) ptr, ch.st )->core
     end if
@@ -207,7 +207,7 @@ end function
 '' ------------------------------------------------------------ the runner
 
 function hReady( byval c as ChanCore ptr, byval kind as long ) as boolean
-    if( c = 0 ) then return FALSE            '' nil channel: never ready
+    if( c = nullptr ) then return FALSE            '' nil channel: never ready
 
     if( kind = SELKIND_RECV ) then
         '' an item, a waiting sender, or closed (which yields end-of-stream)
@@ -233,7 +233,7 @@ sub hLockAll( byref sc as SelectCtx, order( ) as ChanCore ptr, byref cnt as long
     cnt = 0
     for i as long = 0 to sc.n-1
         dim as ChanCore ptr c = sc.cases( i ).core
-        if( c = 0 ) then continue for
+        if( c = nullptr ) then continue for
         dim as boolean dup = FALSE
         for j as long = 0 to cnt-1
             if( order( j ) = c ) then dup = TRUE : exit for
@@ -315,14 +315,14 @@ public function SelectRun( byref sc as SelectCtx ) as long
         next
 
         if( sc.haselse ) then
-            hUnlockAllBut( order( ), cnt, 0 )
+            hUnlockAllBut( order( ), cnt, nullptr )
             return SELECT_ELSE
         end if
 
         '' Nothing ready: register on every channel and park.
         for i as long = 0 to sc.n-1
             dim as ChanCore ptr c = sc.cases( i ).core
-            if( c = 0 ) then continue for
+            if( c = nullptr ) then continue for
             if( sc.cases( i ).kind = SELKIND_RECV ) then
                 ChanPushRecv( c, sc.cases( i ).rec )
             else
@@ -331,7 +331,7 @@ public function SelectRun( byref sc as SelectCtx ) as long
             sc.cases( i ).enqueued = TRUE
         next
 
-        hUnlockAllBut( order( ), cnt, 0 )
+        hUnlockAllBut( order( ), cnt, nullptr )
 
         dim as boolean timedout = FALSE
         if( sc.hastimeout ) then
@@ -345,7 +345,7 @@ public function SelectRun( byref sc as SelectCtx ) as long
         dim as long fired = SELECT_NONE
         for i as long = 0 to sc.n-1
             dim as ChanCore ptr c = sc.cases( i ).core
-            if( c = 0 ) then continue for
+            if( c = nullptr ) then continue for
             if( sc.cases( i ).rec->claimed ) then
                 fired = i
             elseif( sc.cases( i ).enqueued ) then
@@ -353,7 +353,7 @@ public function SelectRun( byref sc as SelectCtx ) as long
             end if
             sc.cases( i ).enqueued = FALSE
         next
-        hUnlockAllBut( order( ), cnt, 0 )
+        hUnlockAllBut( order( ), cnt, nullptr )
 
         if( fired >= 0 ) then
             sc.polled = FALSE
@@ -397,16 +397,16 @@ end function
 public sub SelectReleaseRecv( of T )( byref sc as SelectCtx, byval idx as long, byref ch as Channel( of T ) )
     dim as ChanWaiter( of T ) ptr w = cptr( ChanWaiter( of T ) ptr, sc.cases( idx ).rec )
     '' hoisted: mixing a boolean and a pointer in ANDALSO is warning 38
-    dim as boolean freeslot = ( sc.cases( idx ).ownsslot andalso ( w->slot <> 0 ) )
+    dim as boolean freeslot = ( sc.cases( idx ).ownsslot andalso ( w->slot <> nullptr ) )
     if( freeslot ) then delete w->slot
     delete w
-    sc.cases( idx ).rec = 0
+    sc.cases( idx ).rec = nullptr
 end sub
 
 public sub SelectReleaseSend( of T )( byref sc as SelectCtx, byval idx as long, byref ch as Channel( of T ) )
     dim as ChanWaiter( of T ) ptr w = cptr( ChanWaiter( of T ) ptr, sc.cases( idx ).rec )
     if( w->slot ) then delete w->slot
     delete w
-    sc.cases( idx ).rec = 0
+    sc.cases( idx ).rec = nullptr
 end sub
 

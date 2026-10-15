@@ -50,7 +50,7 @@ public type TuiPopup extends TuiWidget
 end type
 
 destructor TuiPopup( )
-    if( content <> 0 ) then delete content
+    if( content <> nullptr ) then delete content
 end destructor
 
 function TuiPopup.Kind( ) as ustring : return "Popup" : end function
@@ -66,12 +66,12 @@ sub TuiPopup.Render( byref f as TuiFrame, byval unused as TuiRect )
     f.PushLayer( area )
     frame_.fill = TRUE
     frame_.Render( f, area )
-    if( content <> 0 ) then content->Render( f, frame_.Inner( area ) )
+    if( content <> nullptr ) then content->Render( f, frame_.Inner( area ) )
     f.PopLayer( )
 end sub
 
 function TuiPopup.HandleEvent( byref e as TuiEvent ) as boolean
-    if( content <> 0 ) then
+    if( content <> nullptr ) then
         if( content->HandleEvent( e ) ) then return TRUE
     end if
     '' MODALITY, in one line: consume everything else so nothing behind sees it
@@ -414,7 +414,7 @@ sub TuiTree.Add( byref label as ustring, byval depth as long, _
     n.hasChildren = hasChildren
     n.userId = userId
     nodes.Push( n )
-    if( state <> 0 ) then
+    if( state <> nullptr ) then
         while( state->expanded.Count( ) < nodes.Count( ) )
             state->expanded.Push( TRUE )
         wend
@@ -424,7 +424,7 @@ end sub
 '' A node is visible when every ancestor is expanded. Walking backwards to the
 '' nearest shallower node is the whole ancestry test a flattened list needs.
 function TuiTree.hIsVisible( byval i as long ) as boolean
-    if( state = 0 ) then return TRUE
+    if( state = nullptr ) then return TRUE
     if( i <= 0 ) then return TRUE
     dim as long d = nodes[i].depth
     for j as long = i - 1 to 0 step -1
@@ -448,7 +448,7 @@ function TuiTree.VisibleCount( ) as long
 end function
 
 sub TuiTree.hClamp( )
-    if( state = 0 ) then exit sub
+    if( state = nullptr ) then exit sub
     dim as long n = nodes.Count( )
     if( n = 0 ) then
         state->selected = -1
@@ -480,7 +480,7 @@ end sub
 
 sub TuiTree.Render( byref f as TuiFrame, byval area as TuiRect )
     if( area.IsEmpty( ) ) then exit sub
-    if( state = 0 ) then exit sub
+    if( state = nullptr ) then exit sub
     lastH = area.h
     hClamp( )
 
@@ -521,7 +521,7 @@ end sub
 
 function TuiTree.HandleEvent( byref e as TuiEvent ) as boolean
     if( isFocused = FALSE ) then return FALSE
-    if( state = 0 ) then return FALSE
+    if( state = nullptr ) then return FALSE
     if( e.kind <> TUIEVENT_KEY ) then return FALSE
     if( nodes.Count( ) = 0 ) then return FALSE
 

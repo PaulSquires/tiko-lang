@@ -174,7 +174,7 @@ end constructor
 '' 'p', so the address is kept too ('i' = 1). A NULL one ('i' = 2) is a format error as text.
 constructor FormatArg( byval v as const zstring ptr )
     kind = FAK_STR : u = cast( ulongint, v )
-    if v = 0 then
+    if v = nullptr then
         i = 2
     else
         i = 1 : s = *v

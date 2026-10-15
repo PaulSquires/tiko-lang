@@ -97,7 +97,7 @@ public type FileLock
 end type
 
 constructor FileLock( )
-    this.m_h = 0
+    this.m_h = nullptr
 end constructor
 
 '' Releases on scope exit, including EXIT FOR, GOTO out of a block, and while an
@@ -113,7 +113,7 @@ function FileLock.Acquire( byref p as const ustring, byval exclusive as boolean,
     dim as long r = FsLockAcquireRaw( p, iif( exclusive, 1, 0 ), timeoutMs, @this.m_h )
 
     if( r <> FS_OK ) then
-        this.m_h = 0
+        this.m_h = nullptr
         return FsFail( of boolean )( cast( FsErrorCode, r ), "FileLock.Acquire", p )
     end if
 
@@ -121,14 +121,14 @@ function FileLock.Acquire( byref p as const ustring, byval exclusive as boolean,
 end function
 
 sub FileLock.Release( )
-    if( this.m_h <> 0 ) then
+    if( this.m_h <> nullptr ) then
         FsLockReleaseRaw( this.m_h )
-        this.m_h = 0
+        this.m_h = nullptr
     end if
 end sub
 
 const function FileLock.IsHeld( ) as boolean
-    return ( this.m_h <> 0 )
+    return ( this.m_h <> nullptr )
 end function
 
 '' ====================================================== memory-mapped files
@@ -164,7 +164,7 @@ public type MemoryMappedFile
 end type
 
 constructor MemoryMappedFile( )
-    this.m_h = 0
+    this.m_h = nullptr
 end constructor
 
 destructor MemoryMappedFile( )
@@ -177,7 +177,7 @@ function MemoryMappedFile.Open( byref p as const ustring, byval writable as bool
     dim as long r = FsMmapOpenRaw( p, iif( writable, 1, 0 ), @this.m_h )
 
     if( r <> FS_OK ) then
-        this.m_h = 0
+        this.m_h = nullptr
         return FsFail( of boolean )( cast( FsErrorCode, r ), "MemoryMappedFile.Open", p )
     end if
 
@@ -185,9 +185,9 @@ function MemoryMappedFile.Open( byref p as const ustring, byval writable as bool
 end function
 
 sub MemoryMappedFile.Close( )
-    if( this.m_h <> 0 ) then
+    if( this.m_h <> nullptr ) then
         FsMmapCloseRaw( this.m_h )
-        this.m_h = 0
+        this.m_h = nullptr
     end if
 end sub
 
@@ -200,7 +200,7 @@ const function MemoryMappedFile.Size( ) as ulongint
 end function
 
 const function MemoryMappedFile.IsOpen( ) as boolean
-    return ( this.m_h <> 0 )
+    return ( this.m_h <> nullptr )
 end function
 
 function MemoryMappedFile.Flush( ) as FsResultBool
@@ -257,7 +257,7 @@ public type FileWatcher
 end type
 
 constructor FileWatcher( )
-    this.m_h = 0
+    this.m_h = nullptr
 end constructor
 
 destructor FileWatcher( )
@@ -270,7 +270,7 @@ function FileWatcher.Start( byref p as const ustring, byval recursive as boolean
     dim as long r = FsWatchStartRaw( p, iif( recursive, 1, 0 ), @this.m_h )
 
     if( r <> FS_OK ) then
-        this.m_h = 0
+        this.m_h = nullptr
         return FsFail( of boolean )( cast( FsErrorCode, r ), "FileWatcher.Start", p )
     end if
 
@@ -278,20 +278,20 @@ function FileWatcher.Start( byref p as const ustring, byval recursive as boolean
 end function
 
 sub FileWatcher.Stop( )
-    if( this.m_h <> 0 ) then
+    if( this.m_h <> nullptr ) then
         FsWatchStopRaw( this.m_h )
-        this.m_h = 0
+        this.m_h = nullptr
     end if
 end sub
 
 const function FileWatcher.IsWatching( ) as boolean
-    return ( this.m_h <> 0 )
+    return ( this.m_h <> nullptr )
 end function
 
 function FileWatcher.Poll( changes as Array( of FsChange ), byval timeoutMs as long ) as FsResultLong
     changes.Clear( )
 
-    if( this.m_h = 0 ) then
+    if( this.m_h = nullptr ) then
         return FsFail( of long )( FS_INVALID_PATH, "FileWatcher.Poll", "" )
     end if
 

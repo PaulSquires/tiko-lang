@@ -75,7 +75,7 @@ constructor WaitGroup( )
     this.lok     = MutexCreate( )
     this.n   = 0
     this.waiting = 0
-    this.first   = 0
+    this.first   = nullptr
 end constructor
 
 '' Does NOT wait.  A WaitGroup destroyed with a non-zero counter is a bug the
@@ -93,7 +93,7 @@ destructor WaitGroup( )
     end if
 
     MutexDestroy( this.lok )
-    this.lok = 0
+    this.lok = nullptr
 end destructor
 
 '' Add BEFORE the spawn, always.  Adding from inside the goroutine races the
@@ -119,10 +119,10 @@ sub WaitGroup.Add( byval delta as long )
         exit sub
     end if
 
-    dim as WgWaiter ptr woken = 0
+    dim as WgWaiter ptr woken = nullptr
     if( this.n = 0 ) then
         woken = this.first
-        this.first = 0
+        this.first = nullptr
     end if
 
     MutexUnlock( this.lok )
@@ -260,7 +260,7 @@ end type
 declare sub hCtxCancel( byval s as CtxState ptr, byval isdeadline as boolean )
 
 sub hCtxRelease( byval s as CtxState ptr )
-    if( s = 0 ) then exit sub
+    if( s = nullptr ) then exit sub
     MutexLock( s->lok )
     s->refs -= 1
     dim as boolean dead = ( s->refs = 0 )
@@ -292,7 +292,7 @@ end sub
 '' here rather than a bug.  This is the only place this design diverges from
 '' RFC-0002 section 6, and it is deliberate.
 sub hCtxCancel( byval s as CtxState ptr, byval isdeadline as boolean )
-    if( s = 0 ) then exit sub
+    if( s = nullptr ) then exit sub
 
     MutexLock( s->lok )
     if( s->cancelled ) then
@@ -340,7 +340,7 @@ function hCtxNew( byval parent as CtxState ptr ) as CtxState ptr
     s->done_      = Channel( of boolean )( 1 )
     s->parent     = parent
     s->nchildren  = 0
-    s->timerparker = 0
+    s->timerparker = nullptr
 
     if( parent ) then
         MutexLock( parent->lok )
@@ -349,7 +349,7 @@ function hCtxNew( byval parent as CtxState ptr ) as CtxState ptr
             MutexDestroy( s->lok )
             delete s
             error( FB.FB_RTERROR_ILLEGALFUNCTIONCALL )
-            return 0
+            return nullptr
         end if
         parent->children( parent->nchildren ) = s
         parent->nchildren += 1
@@ -369,7 +369,7 @@ end function
 '' ---- Context members
 
 constructor Context( )
-    this.st = 0                        '' background: never cancelled
+    this.st = nullptr                        '' background: never cancelled
 end constructor
 
 constructor Context( byref rhs as Context )
@@ -384,7 +384,7 @@ end constructor
 
 destructor Context( )
     hCtxRelease( cptr( CtxState ptr, this.st ) )
-    this.st = 0
+    this.st = nullptr
 end destructor
 
 operator Context.let( byref rhs as Context )
@@ -400,7 +400,7 @@ operator Context.let( byref rhs as Context )
 end operator
 
 function Context.IsCancelled( ) as boolean
-    if( this.st = 0 ) then return FALSE
+    if( this.st = nullptr ) then return FALSE
     dim as CtxState ptr s = cptr( CtxState ptr, this.st )
     MutexLock( s->lok )
     dim as boolean c = s->cancelled
@@ -409,7 +409,7 @@ function Context.IsCancelled( ) as boolean
 end function
 
 function Context.Err( ) as string
-    if( this.st = 0 ) then return ""
+    if( this.st = nullptr ) then return ""
     dim as CtxState ptr s = cptr( CtxState ptr, this.st )
     MutexLock( s->lok )
     dim as boolean c = s->cancelled
@@ -425,7 +425,7 @@ end function
 '' context that can never be cancelled is permanently disabled, which is what it
 '' means (RFC-0002 section 7).
 function Context.Done( ) as Channel( of boolean )
-    if( this.st = 0 ) then
+    if( this.st = nullptr ) then
         dim as Channel( of boolean ) nilch
         return nilch
     end if
@@ -476,7 +476,7 @@ sub hCtxTimerProc( byval p as any ptr )
     end if
 
     MutexLock( s->lok )
-    s->timerparker = 0
+    s->timerparker = nullptr
     MutexUnlock( s->lok )
 
     hCtxRelease( s )
@@ -486,7 +486,7 @@ public function WithTimeout( byref parent as Context, byval ms as ulong ) as Can
     dim as CancelContext c
     dim as CtxState ptr s = hCtxNew( cptr( CtxState ptr, parent.st ) )
     c.st = s
-    if( s = 0 ) then return c
+    if( s = nullptr ) then return c
 
     MutexLock( s->lok )
     s->refs += 1                       '' the timer holds a reference

@@ -122,7 +122,7 @@ end function
 '' default-constructed array on every call -- and the caller usually has one to
 '' reuse across a loop of files.
 public function ReadAllBytes( byref p as const ustring, buf as Array( of ubyte ) ) as FsResultI64
-    dim as ubyte ptr raw = 0
+    dim as ubyte ptr raw = nullptr
     dim as longint n = 0
 
     buf.Clear( )
@@ -214,12 +214,12 @@ end function
 
 public function WriteAllBytes( byref p as const ustring, buf as Array( of ubyte ) ) as FsResultBool
     dim as long n = buf.Count( )
-    dim as ubyte ptr tmp = 0
+    dim as ubyte ptr tmp = nullptr
     dim as long r
 
     if( n > 0 ) then
         tmp = callocate( n, sizeof( ubyte ) )
-        if( tmp = 0 ) then
+        if( tmp = nullptr ) then
             return FsFail( of boolean )( FS_NO_SPACE, "WriteAllBytes", p )
         end if
         for i as long = 0 to n - 1
@@ -229,7 +229,7 @@ public function WriteAllBytes( byref p as const ustring, buf as Array( of ubyte 
 
     r = FsWriteWholeRaw( p, tmp, n, 0 )
 
-    if( tmp <> 0 ) then deallocate( tmp )
+    if( tmp <> nullptr ) then deallocate( tmp )
 
     if( r <> FS_OK ) then
         return FsFail( of boolean )( cast( FsErrorCode, r ), "WriteAllBytes", p )

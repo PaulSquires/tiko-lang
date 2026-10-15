@@ -59,7 +59,7 @@ END DESTRUCTOR
 ' * Creates a new Pen object based on this Pen object.
 ' =====================================================================================
 FUNCTION CGpPen.Clone (BYVAL pPen AS CGpPen PTR) AS GpStatus
-   IF pPen = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pPen = nullptr THEN RETURN SetStatus(InvalidParameter)
    IF pPen->m_pPen THEN GdipDeletePen(pPen->m_pPen)
    RETURN SetStatus(GdipClonePen(m_pPen, @pPen->m_pPen))
 END FUNCTION
@@ -331,7 +331,7 @@ END FUNCTION
 ' Gets the Brush object that is currently set for this Pen object.
 ' =====================================================================================
 FUNCTION CGpPen.GetBrush (BYVAL pBrush AS CGpBrush PTR) AS GpStatus
-   IF pBrush = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pBrush = nullptr THEN RETURN SetStatus(InvalidParameter)
    RETURN SetStatus(GdipGetPenBrushFill(m_pPen, @pBrush->m_pBrush))
 END FUNCTION
 ' =====================================================================================

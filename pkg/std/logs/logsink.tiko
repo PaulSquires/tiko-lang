@@ -97,11 +97,11 @@ private:
 end type
 
 constructor ConsoleSink( )
-    this.hInit( CT_STDERR, 0 )
+    this.hInit( CT_STDERR, nullptr )
 end constructor
 
 constructor ConsoleSink( byval target as ConsoleTarget )
-    this.hInit( target, 0 )
+    this.hInit( target, nullptr )
 end constructor
 
 constructor ConsoleSink( byval target as ConsoleTarget, byval r as Renderer ptr )
@@ -117,7 +117,7 @@ sub ConsoleSink.hInit( byval target as ConsoleTarget, byval r as Renderer ptr )
     this.m_closed  = FALSE
     this.m_target  = target
 
-    if( r <> 0 ) then
+    if( r <> nullptr ) then
         this.m_rend    = r
         this.m_ownrend = FALSE
     else
@@ -129,16 +129,16 @@ sub ConsoleSink.hInit( byval target as ConsoleTarget, byval r as Renderer ptr )
 
     #ifdef __FB_WIN32__
         this.m_k32.Load( )
-        this.m_h = 0
+        this.m_h = nullptr
         this.m_isconsole = FALSE
-        if( this.m_k32.pGetStdHandle <> 0 ) then
+        if( this.m_k32.pGetStdHandle <> nullptr ) then
             if( target = CT_STDOUT ) then
                 this.m_h = this.m_k32.pGetStdHandle( FB_LOG_STD_OUTPUT )
             else
                 this.m_h = this.m_k32.pGetStdHandle( FB_LOG_STD_ERROR )
             end if
         end if
-        if( this.m_k32.pGetFileType <> 0 ) then
+        if( this.m_k32.pGetFileType <> nullptr ) then
             this.m_isconsole = ( this.m_k32.pGetFileType( this.m_h ) = FB_LOG_FILE_TYPE_CHAR )
         end if
 
@@ -147,7 +147,7 @@ sub ConsoleSink.hInit( byval target as ConsoleTarget, byval r as Renderer ptr )
         '' garbage, so colour is only on if enabling it actually worked.
         if( this.m_isconsole ) then
             dim as ulong mode
-            if( this.m_k32.pGetConsoleMode = 0 orelse this.m_k32.pSetConsoleMode = 0 ) then
+            if( this.m_k32.pGetConsoleMode = nullptr orelse this.m_k32.pSetConsoleMode = nullptr ) then
                 wantcolour = FALSE
             elseif( this.m_k32.pGetConsoleMode( this.m_h, @mode ) = 0 ) then
                 wantcolour = FALSE
@@ -172,9 +172,9 @@ end sub
 
 destructor ConsoleSink( )
     this.Close( )
-    if( this.m_lock <> 0 ) then
+    if( this.m_lock <> nullptr ) then
         mutexdestroy( this.m_lock )
-        this.m_lock = 0
+        this.m_lock = nullptr
     end if
     #ifdef __FB_WIN32__
         this.m_k32.Unload( )
@@ -212,7 +212,7 @@ end function
 '' record lands here -- counted, and reported once a second.
 function ConsoleSink.hEmit( byref s as ustring, byref os as long ) as ustring
     #ifdef __FB_WIN32__
-        if( this.m_h = 0 orelse this.m_h = cast( any ptr, -1 ) ) then
+        if( this.m_h = nullptr orelse this.m_h = cast( any ptr, -1 ) ) then
             return "no console handle, record dropped"
         end if
 
@@ -221,20 +221,20 @@ function ConsoleSink.hEmit( byref s as ustring, byref os as long ) as ustring
             dim as long n = len( s )
             if( n = 0 ) then return ""
             dim as wstring ptr wp = callocate( (n + 1) * 2 )
-            if( wp = 0 ) then return "out of memory, record dropped"
+            if( wp = nullptr ) then return "out of memory, record dropped"
             *wp = s
             dim as long ok = 0
-            if( this.m_k32.pWriteConsoleW <> 0 ) then ok = this.m_k32.pWriteConsoleW( this.m_h, wp, n, @wrote, 0 )
-            if( ok = 0 andalso this.m_k32.pGetLastError <> 0 ) then os = this.m_k32.pGetLastError( )
+            if( this.m_k32.pWriteConsoleW <> nullptr ) then ok = this.m_k32.pWriteConsoleW( this.m_h, wp, n, @wrote, 0 )
+            if( ok = 0 andalso this.m_k32.pGetLastError <> nullptr ) then os = this.m_k32.pGetLastError( )
             deallocate( wp )
             if( ok = 0 ) then return "write failed, record dropped"
         else
             dim as string u8 = s          '' ustring -> string is UTF-8
             if( len( u8 ) = 0 ) then return ""
             dim as long ok = 0
-            if( this.m_k32.pWriteFile <> 0 ) then ok = this.m_k32.pWriteFile( this.m_h, strptr( u8 ), len( u8 ), @wrote, 0 )
+            if( this.m_k32.pWriteFile <> nullptr ) then ok = this.m_k32.pWriteFile( this.m_h, strptr( u8 ), len( u8 ), @wrote, 0 )
             if( ok = 0 ) then
-                if( this.m_k32.pGetLastError <> 0 ) then os = this.m_k32.pGetLastError( )
+                if( this.m_k32.pGetLastError <> nullptr ) then os = this.m_k32.pGetLastError( )
                 return "write failed, record dropped"
             end if
         end if
