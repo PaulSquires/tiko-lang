@@ -61,6 +61,13 @@ type CXSourceRange
     as uint32 end_int_data
 end type
 
+'' CXSourceLocation.h:283. Returned by pointer and released with clang_disposeSourceRangeList;
+'' only 'tiko c2t' asks for one.
+type CXSourceRangeList
+    as uint32 count
+    as CXSourceRange ptr ranges
+end type
+
 '' Index.h:5025. 'int_data(0)' holds the CXTokenKind; the rest is libclang's.
 type CXToken
     int_data(0 to 3) as uint32
@@ -230,6 +237,15 @@ type CXInclusionVisitor as sub cdecl _
     '' ---- files (CXFile.h) and inclusions
     SB( getInclusions, "clang_getInclusions", ( byval tu as any ptr, byval visitor as CXInclusionVisitor, byval client as any ptr ) )
     FN( getFileName, "clang_getFileName", ( byval f as any ptr ), CXString )
+    '' ---- what 'tiko c2t' reads besides: the main file, its inactive branches, its guard
+    FN( getFile, "clang_getFile", ( byval tu as any ptr, byval fileName as zstring ptr ), any ptr )  '' Index.h:511
+    FN( File_isEqual, "clang_File_isEqual", ( byval f1 as any ptr, byval f2 as any ptr ), int32 )  '' CXFile.h:68
+    FN( isFileMultipleIncludeGuarded, "clang_isFileMultipleIncludeGuarded", ( byval tu as any ptr, byval f as any ptr ), uint32 )  '' Index.h:498
+    FN( getLocationForOffset, "clang_getLocationForOffset", ( byval tu as any ptr, byval f as any ptr, byval offset as uint32 ), CXSourceLocation )  '' Index.h:540
+    FN( getSkippedRanges, "clang_getSkippedRanges", ( byval tu as any ptr, byval f as any ptr ), CXSourceRangeList ptr )  '' Index.h:550
+    SB( disposeSourceRangeList, "clang_disposeSourceRangeList", ( byval ranges as CXSourceRangeList ptr ) )  '' CXSourceLocation.h:288
+    FN( Location_isFromMainFile, "clang_Location_isFromMainFile", ( byval loc as CXSourceLocation ), int32 )  '' CXSourceLocation.h:96
+    FN( Location_isInSystemHeader, "clang_Location_isInSystemHeader", ( byval loc as CXSourceLocation ), int32 )  '' CXSourceLocation.h:90
 #endmacro
 
 '' ---------------------------------------------------------------- the loaded library

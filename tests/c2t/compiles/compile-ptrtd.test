@@ -1,0 +1,6 @@
+'' The translation of tests/c2t/src/ptrtd.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-ptrtd
+'' STEP: c2t tests/c2t/src/ptrtd.h --verify -o build/.c2t/compile-ptrtd/ptrtd.ti
+'' ARGS: -c build/.c2t/compile-ptrtd/ptrtd.ti -o build/.c2t/compile-ptrtd/ptrtd.o
+'' EXPECT-EXIT: 0

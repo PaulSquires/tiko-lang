@@ -1,0 +1,164 @@
+'' pass.tiko -- one clang parse of the header, for one target. See c2t.ti.
+''
+'' THE HEADER IS THE MAIN FILE, parsed by its own path -- not wrapped in a synthesised unit as
+'' #cinclude does -- because c2t wants exactly the declarations written in it, located in it.
+'' Every location is an EXPANSION location: P0 (RFC-0001 §10, item 3) measured spelling
+'' locations differing between libclang 18 and 21, expansion locations identical.
+
+#import "std/containers"
+#include once "c2t/c2t.ti"
+#include once "support/spawn.ti"
+
+namespace Tko.C2t
+
+'' The preprocessing cursors, read from the text by ppscan instead (Index.h:2283-2288).
+const CX_FIRST_PREPROCESSING = 500
+const CX_LAST_PREPROCESSING  = 503
+
+type SegCtx_
+    as Tko.CImport.ClangApi ptr api
+    as any ptr mainFile
+    as C2tSegVec ptr segs
+end type
+
+private function Offset_( byref api as Tko.CImport.ClangApi, byval loc as Tko.CImport.CXSourceLocation ) as int32
+    dim as uint32 o = 0
+    api.getExpansionLocation( loc, nullptr, nullptr, nullptr, @o )
+    return cast( int32, o )
+end function
+
+'' THE MAIN FILE'S TOP-LEVEL DECLARATIONS. isFromMainFile alone misses a declaration made by
+'' a macro invocation written in this file -- DECLARE_HANDLE(x); -- so a cursor whose
+'' EXPANSION is in the main file counts too (P0 item 3).
+private function SegVisit_ cdecl _
+    ( byval c as Tko.CImport.CXCursor, byval parent as Tko.CImport.CXCursor, byval client as any ptr ) as int32
+    dim as SegCtx_ ptr x = client
+    dim as Tko.CImport.ClangApi ptr api = x->api
+    dim as int32 kind = api->getCursorKind( c )
+    if (kind >= CX_FIRST_PREPROCESSING) andalso (kind <= CX_LAST_PREPROCESSING) then
+        return Tko.CImport.CXChildVisit_Continue
+    end if
+    dim as Tko.CImport.CXSourceLocation loc = api->getCursorLocation( c )
+    dim as boolean mine = (api->Location_isFromMainFile( loc ) <> 0)
+    dim as boolean viaMacro = false
+    if mine = false then
+        viaMacro = true
+        dim as any ptr f = nullptr
+        api->getExpansionLocation( loc, @f, nullptr, nullptr, nullptr )
+        if f <> nullptr then mine = (api->File_isEqual( f, x->mainFile ) <> 0)
+    end if
+    if mine = false then return Tko.CImport.CXChildVisit_Continue
+
+    dim as Tko.CImport.CXSourceRange r = api->getCursorExtent( c )
+    dim as C2tSegment s
+    s.ofs1 = Offset_( *api, api->getRangeStart( r ) )
+    s.ofs2 = Offset_( *api, api->getRangeEnd( r ) )
+    s.kind = kind
+    s.name_ = Tko.CImport.ClangText( *api, api->getCursorSpelling( c ) )
+    s.cur = c
+    s.viaMacro = viaMacro
+    x->segs->Push( s )
+    return Tko.CImport.CXChildVisit_Continue
+end function
+
+function RunPass( byref api as Tko.CImport.ClangApi, byref src as C2tSource, _
+                  byref opts as C2tOptions, byref triple as string, _
+                  byref p as C2tPass ) as boolean
+    p.triple = triple
+
+    '' THE ARGUMENTS OUTLIVE THE PARSE: argv holds pointers into these strings.
+    dim as Tko.StrVec av
+    av.Push( "-x" ) : av.Push( "c" ) : av.Push( "-std=c11" )
+    av.Push( "--target=" & triple )
+    dim as string rdir = Tko.CImport.ClangResourceDir( api )
+    if len( rdir ) then av.Push( "-resource-dir=" & rdir )
+    for i as int32 = 0 to opts.includes.Count - 1
+        av.Push( "-I" ) : av.Push( opts.includes[i] )
+    next
+    for i as int32 = 0 to opts.defines.Count - 1
+        av.Push( "-D" ) : av.Push( opts.defines[i] )
+    next
+    for i as int32 = 0 to opts.undefs.Count - 1
+        av.Push( "-U" ) : av.Push( opts.undefs[i] )
+    next
+    for i as int32 = 0 to opts.passArgs.Count - 1
+        Tko.Spawn.SplitArgs( opts.passArgs[i], av )
+    next
+    '' A LINUX PASS ON ANOTHER HOST needs Linux's system headers: --sysroot names them (the WSL
+    '' root works: '//wsl.localhost/Ubuntu'). The Windows pass finds the SDK itself.
+    if (len( opts.sysroot ) > 0) andalso (instr( triple, "linux" ) > 0) then av.Push( "--sysroot=" & opts.sysroot )
+    dim as zstring ptr argv( 0 to av.Count )
+    for i as int32 = 0 to av.Count - 1
+        argv( i ) = strptr( av[i] )
+        p.args.Push( av[i] )
+    next
+
+    dim as string path_ = src.path_
+    dim as any ptr idx = api.createIndex( 0, 0 )
+    '' DETAILED PREPROCESSING RECORD: without it clang reports no skipped ranges at all (P0
+    '' item 2). Bodies are skipped; c2t quotes a static inline body from the text.
+    dim as any ptr tu = api.parseTranslationUnit( idx, strptr( path_ ), @argv( 0 ), av.Count, nullptr, 0, _
+        Tko.CImport.CXTranslationUnit_DetailedPreprocessingRecord or Tko.CImport.CXTranslationUnit_SkipFunctionBodies )
+    if tu = nullptr then
+        api.disposeIndex( idx )
+        p.clangDiags.Push( "clang could not start a parse" )
+        return false
+    end if
+
+    '' ANY ERROR REFUSES THE HEADER: a translation unit with holes in it would be walked as if
+    '' whole, and what the error hid would vanish from the output without a TODO.
+    dim as int32 nerr = 0
+    for i as int32 = 0 to api.getNumDiagnostics( tu ) - 1
+        dim as any ptr d = api.getDiagnostic( tu, i )
+        if api.getDiagnosticSeverity( d ) >= 3 then
+            nerr += 1
+            if p.clangDiags.Count < 10 then p.clangDiags.Push( Tko.CImport.ClangText( api, api.formatDiagnostic( d, 3 ) ) )
+        end if
+        api.disposeDiagnostic( d )
+    next
+    if nerr > 0 then
+        if nerr > 10 then p.clangDiags.Push( "(" & (nerr - 10) & " more suppressed)" )
+        api.disposeTranslationUnit( tu )
+        api.disposeIndex( idx )
+        return false
+    end if
+
+    dim as any ptr mf = api.getFile( tu, strptr( path_ ) )
+    p.guarded = (api.isFileMultipleIncludeGuarded( tu, mf ) <> 0)
+
+    dim as SegCtx_ x
+    x.api = @api
+    x.mainFile = mf
+    x.segs = @p.segs
+    api.visitChildren( api.getTranslationUnitCursor( tu ), @SegVisit_, @x )
+
+    dim as Tko.CImport.CXSourceRangeList ptr lst = api.getSkippedRanges( tu, mf )
+    if lst <> nullptr then
+        for i as int32 = 0 to cast( int32, lst->count ) - 1
+            p.skipped.Push( Offset_( api, api.getRangeStart( lst->ranges[i] ) ) )
+            p.skipped.Push( Offset_( api, api.getRangeEnd( lst->ranges[i] ) ) )
+        next
+        api.disposeSourceRangeList( lst )
+    end if
+
+    '' THE UNIT STAYS OPEN: the emitter reads the cursors. ClosePass releases it.
+    p.idx = idx
+    p.tu = tu
+    return true
+end function
+
+sub ClosePass( byref api as Tko.CImport.ClangApi, byref p as C2tPass )
+    if p.tu <> nullptr then api.disposeTranslationUnit( p.tu )
+    if p.idx <> nullptr then api.disposeIndex( p.idx )
+    p.tu = nullptr
+    p.idx = nullptr
+end sub
+
+sub CursorSpan( byref api as Tko.CImport.ClangApi, byval c as Tko.CImport.CXCursor, _
+                byref ofs1 as int32, byref ofs2 as int32 )
+    dim as Tko.CImport.CXSourceRange r = api.getCursorExtent( c )
+    ofs1 = Offset_( api, api.getRangeStart( r ) )
+    ofs2 = Offset_( api, api.getRangeEnd( r ) )
+end sub
+
+end namespace

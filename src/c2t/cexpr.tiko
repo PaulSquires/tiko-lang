@@ -1,0 +1,953 @@
+'' cexpr.tiko -- a C expression from a macro body or an #if, as tiko text and as a value.
+'' See c2t.ti.
+''
+'' PARSED WITH C's PRECEDENCE, PRINTED FULLY PARENTHESISED. tiko's 'shl'/'shr' bind tighter
+'' than '+' and its '^' is power, so a translation that kept C's bare spelling would mean
+'' something else; every binary operation is written '(a op b)' and nothing depends on
+'' tiko's table (RFC-0001 §5.5).
+''
+'' FOLDED UNDER tiko's RULES, not C's: a comparison is -1, integer division is '\', and a
+'' literal's type is tiko's. c2t compares that value with the one clang computes for the C
+'' text; when they differ the translation is not trusted and clang's value is written
+'' instead (emitmacro.tiko). That is how C's 'true is 1' and every other difference in
+'' meaning is caught without being enumerated.
+''
+'' WHAT IS REFUSED, with the reason as 'why': sizeof, member access, subscripts, pointer
+'' casts, '#' and '##', comma expressions, assignments, wide literals, long double and hex
+'' float literals -- and, where the value is not checked (a function-like macro, an #if), a
+'' division whose operands are not known to be integers and a C truth value used as a number.
+
+#import "std/containers"
+#include once "c2t/c2t.ti"
+
+namespace Tko.C2t
+
+
+'' ---------------------------------------------------------------- tokens to parse
+
+private sub Fail_( byref c as CExpr, byref why as string )
+    if len( c.why ) = 0 then c.why = why
+end sub
+
+private function Peek_( byref c as CExpr, byval k as int32 = 0 ) as string
+    if c.pos + k < c.tx.Count then return c.tx[c.pos + k]
+    return ""
+end function
+
+private function PeekKind_( byref c as CExpr, byval k as int32 = 0 ) as int32
+    if c.pos + k < c.tk.Count then return c.tk[c.pos + k]
+    return 0
+end function
+
+private function Accept_( byref c as CExpr, byref s as string ) as boolean
+    if Peek_( c ) = s then
+        c.pos += 1
+        return true
+    end if
+    return false
+end function
+
+private function Node_( byref c as CExpr, byval kind as int32, byref op as string, _
+                        byval a as int32 = -1, byval b as int32 = -1, byval d as int32 = -1 ) as int32
+    dim as CxNode n
+    n.kind = kind
+    n.op = op
+    n.a = a
+    n.b = b
+    n.c = d
+    c.nodes.Push( n )
+    return c.nodes.Count - 1
+end function
+
+'' ---------------------------------------------------------------- literals
+
+private function HexVal_( byref s as string ) as uint64
+    dim as uint64 v = 0
+    for i as int32 = 0 to len( s ) - 1
+        dim as int32 ch = s[i]
+        dim as int32 d = -1
+        if (ch >= 48) andalso (ch <= 57) then d = ch - 48
+        if (ch >= 97) andalso (ch <= 102) then d = ch - 87
+        if (ch >= 65) andalso (ch <= 70) then d = ch - 55
+        if d < 0 then return v
+        v = v * 16 + d
+    next
+    return v
+end function
+
+private function BaseVal_( byref s as string, byval radix as int32, byref ok as boolean ) as uint64
+    dim as uint64 v = 0
+    ok = (len( s ) > 0)
+    for i as int32 = 0 to len( s ) - 1
+        dim as int32 d = s[i] - 48
+        if (d < 0) orelse (d >= radix) then
+            ok = false
+            return v
+        end if
+        v = v * radix + d
+    next
+    return v
+end function
+
+'' An integer literal: its value, whether C calls it unsigned, and its tiko spelling.
+private function IntLit_( byref c as CExpr, byref t as string ) as int32
+    dim as string s = lcase( t )
+    dim as string suf
+    while (len( s ) > 0) andalso ((right( s, 1 ) = "u") orelse (right( s, 1 ) = "l"))
+        suf = right( s, 1 ) & suf
+        s = left( s, len( s ) - 1 )
+    wend
+    dim as boolean uns = (instr( suf, "u" ) > 0)
+    dim as string body, txt
+    dim as uint64 v
+    dim as boolean ok = true
+    if (left( s, 2 ) = "0x") then
+        body = mid( t, 3, len( s ) - 2 )
+        v = HexVal_( lcase( body ) )
+        txt = "&h" & ucase( body )
+    elseif left( s, 2 ) = "0b" then
+        body = mid( s, 3 )
+        v = BaseVal_( body, 2, ok )
+        txt = "&b" & body
+    elseif (len( s ) > 1) andalso (left( s, 1 ) = "0") then
+        body = mid( s, 2 )
+        v = BaseVal_( body, 8, ok )
+        txt = "&o" & body
+    else
+        v = BaseVal_( s, 10, ok )
+        txt = s
+    end if
+    if ok = false then
+        Fail_( c, "integer literal '" & t & "'" )
+        return -1
+    end if
+    '' tiko's SUFFIX: 'ull' for C's 64-bit unsigned, 'll' for 64-bit, 'u' for any other
+    '' unsigned; C's 'l' alone is dropped (tiko's literal is already wide enough), and the
+    '' value check below catches any difference in wrapping.
+    if (instr( suf, "ll" ) > 0) andalso uns then
+        txt &= "ull"
+    elseif instr( suf, "ll" ) > 0 then
+        txt &= "ll"
+    elseif uns then
+        txt &= "u"
+    end if
+    dim as int32 n = Node_( c, NK_INT, "" )
+    c.nodes[n].text = txt
+    c.nodes[n].ival = cast( int64, v )
+    c.nodes[n].isUns = uns
+    return n
+end function
+
+private function FloatLit_( byref c as CExpr, byref t as string ) as int32
+    dim as string s = lcase( t )
+    if left( s, 2 ) = "0x" then
+        Fail_( c, "hexadecimal floating literal '" & t & "'" )
+        return -1
+    end if
+    dim as boolean f32 = false
+    if right( s, 1 ) = "f" then
+        f32 = true
+        s = left( s, len( s ) - 1 )
+    elseif right( s, 1 ) = "l" then
+        Fail_( c, "long double literal '" & t & "'" )
+        return -1
+    end if
+    dim as int32 n = Node_( c, NK_FLOAT, "" )
+    c.nodes[n].text = s & iif( f32, "f", "" )
+    c.nodes[n].fval = val( s )
+    if f32 then c.nodes[n].fval = cast( float64, cast( float32, c.nodes[n].fval ) )
+    c.nodes[n].isF32 = f32
+    return n
+end function
+
+'' One C escape at s[i] (the backslash): the byte, and i moved past it.
+private function Escape_( byref s as string, byref i as int32, byref ok as boolean ) as int32
+    i += 1
+    if i >= len( s ) then
+        ok = false
+        return 0
+    end if
+    dim as int32 ch = s[i]
+    i += 1
+    select case ch
+    case 110 : return 10      '' n
+    case 116 : return 9       '' t
+    case 114 : return 13      '' r
+    case 97  : return 7       '' a
+    case 98  : return 8       '' b
+    case 102 : return 12      '' f
+    case 118 : return 11      '' v
+    case 92, 39, 34, 63 : return ch
+    case 120                  '' x
+        dim as string h
+        while (i < len( s )) andalso (len( h ) < 2) andalso _
+              (((s[i] >= 48) andalso (s[i] <= 57)) orelse ((s[i] >= 97) andalso (s[i] <= 102)) orelse ((s[i] >= 65) andalso (s[i] <= 70)))
+            h &= chr( s[i] )
+            i += 1
+        wend
+        if len( h ) = 0 then ok = false
+        return cast( int32, HexVal_( lcase( h ) ) )
+    case 48 to 55             '' octal
+        dim as int32 v = ch - 48
+        dim as int32 k = 1
+        while (i < len( s )) andalso (k < 3) andalso (s[i] >= 48) andalso (s[i] <= 55)
+            v = v * 8 + (s[i] - 48)
+            i += 1
+            k += 1
+        wend
+        return v
+    end select
+    ok = false
+    return 0
+end function
+
+'' A C string literal's bytes, quotes removed and escapes resolved.
+private function StrBytes_( byref c as CExpr, byref t as string, byref ok as boolean ) as string
+    dim as string r
+    ok = true
+    dim as int32 i = 1
+    dim as int32 e = len( t ) - 1
+    while i < e
+        if t[i] = 92 then
+            r &= chr( Escape_( t, i, ok ) )
+            if ok = false then return ""
+        else
+            r &= chr( t[i] )
+            i += 1
+        end if
+    wend
+    return r
+end function
+
+'' tiko's spelling of a string's bytes: plain when nothing needs escaping, else '!"..."'
+'' with tiko's escapes -- whose '\nnn' is DECIMAL, so other bytes are '\&hHH' (P0 item 10).
+function TikoString( byref b as string ) as string
+    dim as boolean plain = true
+    for i as int32 = 0 to len( b ) - 1
+        if (b[i] < 32) orelse (b[i] = 34) orelse (b[i] = 92) orelse (b[i] > 126) then plain = false
+    next
+    if plain then return """" & b & """"
+    dim as string r = "!"""
+    for i as int32 = 0 to len( b ) - 1
+        dim as int32 ch = b[i]
+        select case ch
+        case 10 : r &= "\n"
+        case 9  : r &= "\t"
+        case 13 : r &= "\r"
+        case 34 : r &= "\"""
+        case 92 : r &= "\\"
+        case 32 to 126 : r &= chr( ch )
+        case else : r &= "\&h" & right( "0" & hex( ch ), 2 )
+        end select
+    next
+    return r & """"
+end function
+
+'' ---------------------------------------------------------------- the parser
+
+declare function Expr_( byref c as CExpr ) as int32
+declare function Unary_( byref c as CExpr ) as int32
+declare function Assign_( byref c as CExpr ) as int32
+
+'' 'int', 'unsigned long', 'char *', 'MyType' -- a C type name inside a cast's parentheses,
+'' as tiko: "" when the tokens from c.pos are not one.
+private function CastType_( byref c as CExpr, byref env as CxEnv, byref consumed as int32 ) as string
+    dim as int32 k = 0
+    dim as int32 nUns = 0, nSig = 0, nLong = 0, nShort = 0, nInt = 0, nChar = 0
+    dim as int32 nFloat = 0, nDouble = 0, nVoid = 0, nBool = 0
+    dim as string named
+    do
+        dim as string w = Peek_( c, k )
+        select case w
+        case "unsigned" : nUns += 1
+        case "signed"   : nSig += 1
+        case "long"     : nLong += 1
+        case "short"    : nShort += 1
+        case "int"      : nInt += 1
+        case "char"     : nChar += 1
+        case "float"    : nFloat += 1
+        case "double"   : nDouble += 1
+        case "void"     : nVoid += 1
+        case "_Bool"    : nBool += 1
+        case "const", "volatile"
+        case else
+            if (PeekKind_( c, k ) = CT_IDENT) andalso (len( named ) = 0) andalso (k = 0) then
+                dim as string tt = CxEnvType( env, w )
+                if len( tt ) = 0 then return ""
+                named = tt
+            else
+                exit do
+            end if
+        end select
+        k += 1
+    loop
+    dim as int32 stars = 0
+    while Peek_( c, k ) = "*"
+        stars += 1
+        k += 1
+    wend
+    if Peek_( c, k ) <> ")" then return ""
+    dim as string t
+    if len( named ) then
+        t = named
+    elseif nVoid then
+        t = "any"
+    elseif nBool then
+        t = "boolean"
+    elseif nFloat then
+        t = "float32"
+    elseif nDouble then
+        if nLong then return ""
+        t = "float64"
+    elseif nChar then
+        if nUns then
+            t = "uint8"
+        elseif nSig then
+            t = "int8"
+        else
+            t = "byte"
+        end if
+    elseif nShort then
+        t = iif( nUns, "uint16", "int16" )
+    elseif nLong >= 2 then
+        t = iif( nUns, "uint64", "int64" )
+    elseif nLong = 1 then
+        t = iif( nUns, "culong", "clong" )
+    elseif (nInt + nUns + nSig) > 0 then
+        t = iif( nUns, "uint32", "int32" )
+    else
+        return ""
+    end if
+    for i as int32 = 1 to stars
+        t &= " ptr"
+    next
+    consumed = k + 1
+    return t
+end function
+
+private function Primary_( byref c as CExpr ) as int32
+    dim as string t = Peek_( c )
+    dim as int32 kind = PeekKind_( c )
+    if len( t ) = 0 then
+        Fail_( c, "an expression ends too soon" )
+        return -1
+    end if
+    if t = "(" then
+        '' A CAST: '(' a type name ')' followed by something to cast.
+        c.pos += 1
+        dim as int32 used = 0
+        dim as string tt = CastType_( c, *c.env, used )
+        if len( tt ) then
+            dim as int32 nxt = PeekKind_( c, used )
+            dim as string ns = Peek_( c, used )
+            if (nxt = CT_IDENT) orelse (nxt = CT_NUMBER) orelse (nxt = CT_CHAR) orelse (nxt = CT_STRING) orelse _
+               (ns = "(") orelse (ns = "-") orelse (ns = "+") orelse (ns = "~") orelse (ns = "!") then
+                c.pos += used
+                if right( tt, 4 ) = " ptr" then
+                    Fail_( c, "a pointer cast" )
+                    return -1
+                end if
+                dim as int32 a = Unary_( c )
+                if a < 0 then return -1
+                dim as int32 n = Node_( c, NK_CAST, "", a )
+                c.nodes[n].text = tt
+                return n
+            end if
+        end if
+        dim as int32 e = Expr_( c )
+        if e < 0 then return -1
+        if Accept_( c, ")" ) = false then
+            Fail_( c, "a ')' is missing" )
+            return -1
+        end if
+        return e
+    end if
+    select case kind
+    case CT_NUMBER
+        c.pos += 1
+        dim as string lt = lcase( t )
+        dim as boolean isFloat = (instr( lt, "." ) > 0)
+        if (left( lt, 2 ) <> "0x") andalso (instr( lt, "e" ) > 0) then isFloat = true
+        if (left( lt, 2 ) = "0x") andalso (instr( lt, "p" ) > 0) then isFloat = true
+        if isFloat then return FloatLit_( c, t )
+        return IntLit_( c, t )
+    case CT_CHAR
+        c.pos += 1
+        if left( t, 1 ) <> "'" then
+            Fail_( c, "a wide or UTF character literal" )
+            return -1
+        end if
+        dim as boolean ok
+        dim as string b = StrBytes_( c, t, ok )
+        if (ok = false) orelse (len( b ) <> 1) then
+            Fail_( c, "character literal " & t )
+            return -1
+        end if
+        dim as int32 n = Node_( c, NK_INT, "" )
+        c.nodes[n].ival = b[0]
+        if c.nodes[n].ival > 127 then c.nodes[n].ival -= 256
+        c.nodes[n].text = str( c.nodes[n].ival )
+        return n
+    case CT_STRING
+        dim as string all_
+        while PeekKind_( c ) = CT_STRING
+            dim as string s = Peek_( c )
+            if left( s, 1 ) <> """" then
+                Fail_( c, "a wide or UTF string literal" )
+                return -1
+            end if
+            dim as boolean ok
+            all_ &= StrBytes_( c, s, ok )
+            if ok = false then
+                Fail_( c, "string literal " & s )
+                return -1
+            end if
+            c.pos += 1
+        wend
+        dim as int32 n = Node_( c, NK_STR, "" )
+        c.nodes[n].sval = all_
+        c.nodes[n].text = TikoString( all_ )
+        return n
+    case CT_IDENT
+        c.pos += 1
+        if (t = "defined") andalso c.cond then
+            dim as boolean paren = Accept_( c, "(" )
+            dim as string nm = Peek_( c )
+            if PeekKind_( c ) <> CT_IDENT then
+                Fail_( c, "'defined' without a name" )
+                return -1
+            end if
+            c.pos += 1
+            if paren andalso (Accept_( c, ")" ) = false) then
+                Fail_( c, "'defined(' without its ')'" )
+                return -1
+            end if
+            dim as int32 n = Node_( c, NK_DEFINED, "" )
+            c.nodes[n].text = nm
+            return n
+        end if
+        if (t = "sizeof") orelse (t = "_Alignof") orelse (t = "__builtin_offsetof") then
+            Fail_( c, "'" & t & "'" )
+            return -1
+        end if
+        if Peek_( c ) = "(" then
+            '' A CALL: of a function, or of another function-like macro.
+            c.pos += 1
+            dim as int32 n = Node_( c, NK_CALL, "" )
+            c.nodes[n].text = t
+            dim as C2tIntVec args
+            if Accept_( c, ")" ) = false then
+                do
+                    dim as int32 a = Assign_( c )
+                    if a < 0 then return -1
+                    args.Push( a )
+                    if Accept_( c, ")" ) then exit do
+                    if Accept_( c, "," ) = false then
+                        Fail_( c, "a call's ')' is missing" )
+                        return -1
+                    end if
+                loop
+            end if
+            c.nodes[n].a = c.argList.Count
+            c.nodes[n].b = args.Count
+            for i as int32 = 0 to args.Count - 1
+                c.argList.Push( args[i] )
+            next
+            return n
+        end if
+        dim as int32 n = Node_( c, NK_IDENT, "" )
+        c.nodes[n].text = t
+        return n
+    end select
+    Fail_( c, "'" & t & "' cannot start an expression" )
+    return -1
+end function
+
+private function Postfix_( byref c as CExpr ) as int32
+    dim as int32 a = Primary_( c )
+    if a < 0 then return -1
+    dim as string t = Peek_( c )
+    dim as boolean bad = (t = ".") orelse (t = "[")
+    '' '->', '++' and '--' arrive as two one-character tokens.
+    if (bad = false) andalso ((t = "-") orelse (t = "+")) andalso (c.pos + 1 < c.ofs.Count) then
+        if c.ofs[c.pos] + 1 = c.ofs[c.pos + 1] then
+            dim as string t2 = Peek_( c, 1 )
+            bad = (t2 = ">") orelse (t2 = t)
+        end if
+    end if
+    if bad then
+        Fail_( c, "member access, subscripts and increments" )
+        return -1
+    end if
+    return a
+end function
+
+function Unary_( byref c as CExpr ) as int32
+    dim as string t = Peek_( c )
+    select case t
+    case "-", "+", "!", "~"
+        c.pos += 1
+        dim as int32 a = Unary_( c )
+        if a < 0 then return -1
+        return Node_( c, NK_UNARY, t, a )
+    case "*", "&", "++", "--"
+        Fail_( c, "'" & t & "' as a prefix" )
+        return -1
+    end select
+    return Postfix_( c )
+end function
+
+'' C's binary precedence, tightest first; 0 for not a binary operator.
+private function Prec_( byref t as string ) as int32
+    select case t
+    case "*", "/", "%"        : return 10
+    case "+", "-"             : return 9
+    case "<<", ">>"           : return 8
+    case "<", "<=", ">", ">=" : return 7
+    case "==", "!="           : return 6
+    case "&"                  : return 5
+    case "^"                  : return 4
+    case "|"                  : return 3
+    case "&&"                 : return 2
+    case "||"                 : return 1
+    end select
+    return 0
+end function
+
+'' The lexer keeps punctuation one character long ('<' '<'), so two-character operators are
+'' read here from adjacent tokens.
+private function BinOp_( byref c as CExpr, byref width_ as int32 ) as string
+    dim as string a = Peek_( c ), b = Peek_( c, 1 )
+    width_ = 1
+    if c.pos + 1 < c.ofs.Count then
+        if c.ofs[c.pos] + 1 = c.ofs[c.pos + 1] then
+            dim as string two = a & b
+            select case two
+            case "<<", ">>", "<=", ">=", "==", "!=", "&&", "||"
+                '' '<<=' is an assignment, never in a constant expression.
+                width_ = 2
+                return two
+            end select
+        end if
+    end if
+    select case a
+    case "*", "/", "%", "+", "-", "<", ">", "&", "^", "|"
+        return a
+    case "=", ","
+        Fail_( c, "an assignment or a comma expression" )
+    end select
+    return ""
+end function
+
+private function Binary_( byref c as CExpr, byval minPrec as int32 ) as int32
+    dim as int32 a = Unary_( c )
+    if a < 0 then return -1
+    do
+        dim as int32 w
+        dim as string op = BinOp_( c, w )
+        if len( c.why ) then return -1
+        dim as int32 p = Prec_( op )
+        if (p = 0) orelse (p < minPrec) then exit do
+        c.pos += w
+        dim as int32 b = Binary_( c, p + 1 )
+        if b < 0 then return -1
+        a = Node_( c, NK_BINARY, op, a, b )
+    loop
+    return a
+end function
+
+'' The conditional operator, right-associative.
+function Assign_( byref c as CExpr ) as int32
+    dim as int32 a = Binary_( c, 1 )
+    if a < 0 then return -1
+    if Accept_( c, "?" ) then
+        dim as int32 b = Assign_( c )
+        if b < 0 then return -1
+        if Accept_( c, ":" ) = false then
+            Fail_( c, "a '?' without its ':'" )
+            return -1
+        end if
+        dim as int32 d = Assign_( c )
+        if d < 0 then return -1
+        return Node_( c, NK_TERNARY, "?", a, b, d )
+    end if
+    return a
+end function
+
+function Expr_( byref c as CExpr ) as int32
+    return Assign_( c )
+end function
+
+function CxParse( byref c as CExpr ) as int32
+    c.pos = 0
+    dim as int32 r = Expr_( c )
+    if r < 0 then return -1
+    if c.pos < c.tx.Count then
+        Fail_( c, "'" & c.tx[c.pos] & "' after the expression" )
+        return -1
+    end if
+    c.root = r
+    return r
+end function
+
+'' ---------------------------------------------------------------- tiko text
+
+'' A node whose value is a C truth value -- 1 in C, -1 in tiko.
+private function IsTruth_( byref c as CExpr, byval n as int32 ) as boolean
+    dim as CxNode x = c.nodes[n]
+    if x.kind = NK_DEFINED then return true
+    if (x.kind = NK_UNARY) andalso (x.op = "!") then return true
+    if x.kind = NK_BINARY then
+        select case x.op
+        case "<", "<=", ">", ">=", "==", "!=", "&&", "||" : return true
+        end select
+    end if
+    return false
+end function
+
+'' Known to be an integer: literals, integer casts, and arithmetic of them.
+private function IsInt_( byref c as CExpr, byval n as int32 ) as boolean
+    dim as CxNode x = c.nodes[n]
+    select case x.kind
+    case NK_INT : return true
+    case NK_CAST : return (left( x.text, 5 ) <> "float")
+    case NK_UNARY : return IsInt_( c, x.a )
+    case NK_BINARY
+        if IsTruth_( c, n ) then return true
+        return IsInt_( c, x.a ) andalso IsInt_( c, x.b )
+    case NK_IDENT
+        dim as int32 k = CxEnvFind( *c.env, x.text )
+        if k >= 0 then return (c.env->kinds[k] = CXV_INT)
+    end select
+    return false
+end function
+
+'' 'cond': the value is only tested for truth (an #if, an iif's condition, an operand of
+'' andalso/orelse/not), so a C truth value may appear as it is.
+private function Print_( byref c as CExpr, byval n as int32, byval cond as boolean ) as string
+    dim as CxNode x = c.nodes[n]
+    if (cond = false) andalso c.checked = false andalso IsTruth_( c, n ) then
+        Fail_( c, "a C truth value (1) used as a number; tiko's is -1" )
+        return ""
+    end if
+    select case x.kind
+    case NK_INT, NK_FLOAT, NK_STR
+        return x.text
+    case NK_DEFINED
+        '' A PLATFORM no tiko target is reads '0'; one c2t maps reads as tiko's own
+        '' (defined(TIKO_OS_WINDOWS)); a compiler's identity (_MSC_VER) has no tiko meaning.
+        dim as int32 k = CxEnvFind( *c.env, x.text )
+        if k >= 0 then
+            dim as string tn = c.env->tiko[k]
+            if len( tn ) = 0 then
+                Fail_( c, "'" & x.text & "' has no tiko equivalent" )
+                return ""
+            end if
+            if (tn[0] >= 48) andalso (tn[0] <= 57) then return tn
+            return "defined(" & tn & ")"
+        end if
+        if Tko.CImport.NameReservedValue( x.text ) then
+            Fail_( c, "'" & x.text & "' is a tiko word" )
+            return ""
+        end if
+        return "defined(" & x.text & ")"
+    case NK_IDENT
+        dim as string nm = CxEnvName( *c.env, x.text )
+        dim as int32 k = CxEnvFind( *c.env, x.text )
+        if (k >= 0) andalso (len( nm ) = 0) then
+            Fail_( c, "'" & x.text & "' has no tiko equivalent" )
+            return ""
+        end if
+        if len( nm ) = 0 then
+            '' IN AN #if A NAME NOTHING DEFINES IS 0 in C and in tiko alike: it stays as
+            '' written, and the branch check catches a header that defined it after all.
+            if c.cond andalso (Tko.CImport.NameReservedValue( x.text ) = false) then return x.text
+            Fail_( c, "'" & x.text & "' is nothing tiko declares" )
+            return ""
+        end if
+        '' A MACRO PARAMETER IS ALWAYS PARENTHESISED: its argument may be 'x + 1', and the
+        '' parentheses C wrote around it are gone once the expression is a tree.
+        if (k >= 0) andalso (c.env->kinds[k] = CXV_PARAM) then return "(" & nm & ")"
+        return nm
+    case NK_CAST
+        return "cast(" & x.text & ", " & Print_( c, x.a, false ) & ")"
+    case NK_UNARY
+        select case x.op
+        case "-" : return "(-" & Print_( c, x.a, false ) & ")"
+        case "+" : return Print_( c, x.a, false )
+        case "~" : return "(not " & Print_( c, x.a, false ) & ")"
+        case "!" : return "((" & Print_( c, x.a, true ) & ") = 0)"
+        end select
+    case NK_BINARY
+        dim as boolean sub_ = false
+        dim as string op
+        select case x.op
+        case "&&" : op = "andalso" : sub_ = true
+        case "||" : op = "orelse"  : sub_ = true
+        case "==" : op = "="
+        case "!=" : op = "<>"
+        case "%"  : op = "mod"
+        case "<<" : op = "shl"
+        case ">>" : op = "shr"
+        case "&"  : op = "and"
+        case "|"  : op = "or"
+        case "^"  : op = "xor"
+        case "/"
+            '' INTEGER DIVISION IS '\' -- tiko's '/' divides as floating point.
+            if IsInt_( c, x.a ) andalso IsInt_( c, x.b ) then
+                op = "\"
+            elseif c.checked then
+                op = "/"
+            else
+                Fail_( c, "a division whose operands may be integers or floats" )
+                return ""
+            end if
+        case else : op = x.op
+        end select
+        return "(" & Print_( c, x.a, sub_ ) & " " & op & " " & Print_( c, x.b, sub_ ) & ")"
+    case NK_TERNARY
+        return "iif(" & Print_( c, x.a, true ) & ", " & Print_( c, x.b, cond ) & ", " & Print_( c, x.c, cond ) & ")"
+    case NK_CALL
+        dim as string nm = CxEnvName( *c.env, x.text )
+        if len( nm ) = 0 then
+            Fail_( c, "'" & x.text & "()' is nothing tiko declares" )
+            return ""
+        end if
+        dim as string r = nm & "("
+        for i as int32 = 0 to x.b - 1
+            if i > 0 then r &= ", "
+            r &= Print_( c, c.argList[x.a + i], false )
+        next
+        return r & ")"
+    end select
+    Fail_( c, "an expression c2t cannot spell" )
+    return ""
+end function
+
+function CxPrint( byref c as CExpr, byval cond as boolean ) as string
+    dim as string r = Print_( c, c.root, cond )
+    if len( c.why ) then return ""
+    '' THE OUTERMOST PARENTHESES go: '#define F (1 shl 6)' reads as the C did when C had
+    '' them, and a bare '#define F 64' keeps none to begin with.
+    return r
+end function
+
+'' ---------------------------------------------------------------- the value, tiko's way
+
+private function Fold_( byref c as CExpr, byval n as int32, byref v as CxValue ) as boolean
+    dim as CxNode x = c.nodes[n]
+    v.kind = CXV_INT
+    v.i = 0
+    v.f = 0
+    v.s = ""
+    v.uns = false
+    select case x.kind
+    case NK_INT
+        v.i = x.ival
+        v.uns = x.isUns
+        return true
+    case NK_FLOAT
+        v.kind = CXV_FLOAT
+        v.f = x.fval
+        return true
+    case NK_STR
+        v.kind = CXV_STR
+        v.s = x.sval
+        return true
+    case NK_DEFINED
+        dim as int32 k = CxEnvFind( *c.env, x.text )
+        if k >= 0 then v.i = iif( c.env->defs[k] <> 0, -1, 0 )
+        return true
+    case NK_IDENT
+        dim as int32 k = CxEnvFind( *c.env, x.text )
+        if k < 0 then
+            '' AN UNDEFINED NAME IN AN #if IS 0, in C and in tiko alike (P4 probe).
+            if c.cond then return true
+            return false
+        end if
+        if c.env->defs[k] = 0 then return c.cond
+        v.kind = c.env->kinds[k]
+        v.i = c.env->ivals[k]
+        v.f = c.env->fvals[k]
+        v.s = c.env->svals[k]
+        return (v.kind = CXV_INT) orelse (v.kind = CXV_FLOAT) orelse (v.kind = CXV_STR)
+    case NK_CAST
+        dim as CxValue a
+        if Fold_( c, x.a, a ) = false then return false
+        dim as float64 fv = iif( a.kind = CXV_FLOAT, a.f, cast( float64, a.i ) )
+        dim as int64 iv = iif( a.kind = CXV_FLOAT, cast( int64, fix( a.f ) ), a.i )
+        select case x.text
+        case "float32" : v.kind = CXV_FLOAT : v.f = cast( float64, cast( float32, fv ) )
+        case "float64" : v.kind = CXV_FLOAT : v.f = fv
+        case "byte", "int8" : v.i = cast( int64, cast( byte, iv and &hFF ) )
+        case "uint8" : v.i = iv and &hFF
+        case "int16" : v.i = cast( int64, cast( short, iv and &hFFFF ) )
+        case "uint16" : v.i = iv and &hFFFF
+        case "int32" : v.i = cast( int64, cast( long, iv and &hFFFFFFFFll ) )
+        case "uint32" : v.i = iv and &hFFFFFFFFll
+        case "boolean" : v.i = iif( iv <> 0, -1, 0 )
+        case else : v.i = iv
+        end select
+        return true
+    case NK_UNARY
+        dim as CxValue a
+        if Fold_( c, x.a, a ) = false then return false
+        select case x.op
+        case "-"
+            if a.kind = CXV_FLOAT then v.kind = CXV_FLOAT : v.f = -a.f else v.i = -a.i : v.uns = a.uns
+        case "+"
+            v = a
+        case "~"
+            if a.kind <> CXV_INT then return false
+            v.i = not a.i
+            v.uns = a.uns
+        case "!"
+            dim as boolean z = iif( a.kind = CXV_FLOAT, a.f = 0, a.i = 0 )
+            v.i = iif( z, -1, 0 )
+        end select
+        return true
+    case NK_TERNARY
+        dim as CxValue t
+        if Fold_( c, x.a, t ) = false then return false
+        dim as boolean truth = iif( t.kind = CXV_FLOAT, t.f <> 0, t.i <> 0 )
+        return Fold_( c, iif( truth, x.b, x.c ), v )
+    case NK_BINARY
+        dim as CxValue a, b
+        if Fold_( c, x.a, a ) = false then return false
+        if (x.op = "&&") orelse (x.op = "||") then
+            dim as boolean ta = iif( a.kind = CXV_FLOAT, a.f <> 0, a.i <> 0 )
+            if (x.op = "&&") andalso (ta = false) then return true
+            if (x.op = "||") andalso ta then
+                v.i = -1
+                return true
+            end if
+            if Fold_( c, x.b, b ) = false then return false
+            dim as boolean tb = iif( b.kind = CXV_FLOAT, b.f <> 0, b.i <> 0 )
+            v.i = iif( tb, -1, 0 )
+            return true
+        end if
+        if Fold_( c, x.b, b ) = false then return false
+        if (a.kind = CXV_STR) orelse (b.kind = CXV_STR) then return false
+        if (a.kind = CXV_FLOAT) orelse (b.kind = CXV_FLOAT) then
+            dim as float64 fa = iif( a.kind = CXV_FLOAT, a.f, cast( float64, a.i ) )
+            dim as float64 fb = iif( b.kind = CXV_FLOAT, b.f, cast( float64, b.i ) )
+            v.kind = CXV_FLOAT
+            select case x.op
+            case "+" : v.f = fa + fb
+            case "-" : v.f = fa - fb
+            case "*" : v.f = fa * fb
+            case "/"
+                if fb = 0 then return false
+                v.f = fa / fb
+            case "<"  : v.kind = CXV_INT : v.i = iif( fa < fb, -1, 0 )
+            case "<=" : v.kind = CXV_INT : v.i = iif( fa <= fb, -1, 0 )
+            case ">"  : v.kind = CXV_INT : v.i = iif( fa > fb, -1, 0 )
+            case ">=" : v.kind = CXV_INT : v.i = iif( fa >= fb, -1, 0 )
+            case "==" : v.kind = CXV_INT : v.i = iif( fa = fb, -1, 0 )
+            case "!=" : v.kind = CXV_INT : v.i = iif( fa <> fb, -1, 0 )
+            case else : return false
+            end select
+            return true
+        end if
+        dim as boolean uns = a.uns orelse b.uns
+        dim as uint64 ua = cast( uint64, a.i ), ub = cast( uint64, b.i )
+        v.uns = uns
+        select case x.op
+        case "+" : v.i = a.i + b.i
+        case "-" : v.i = a.i - b.i
+        case "*" : v.i = a.i * b.i
+        case "/", "%"
+            if b.i = 0 then return false
+            if x.op = "/" then
+                if uns then v.i = cast( int64, ua \ ub ) else v.i = a.i \ b.i
+            else
+                if uns then v.i = cast( int64, ua mod ub ) else v.i = a.i mod b.i
+            end if
+        case "<<" : v.i = a.i shl b.i
+        case ">>"
+            if uns then v.i = cast( int64, ua shr b.i ) else v.i = a.i shr b.i
+        case "&" : v.i = a.i and b.i
+        case "|" : v.i = a.i or b.i
+        case "^" : v.i = a.i xor b.i
+        case "<", "<=", ">", ">=", "==", "!="
+            dim as boolean r
+            if uns then
+                select case x.op
+                case "<"  : r = (ua < ub)
+                case "<=" : r = (ua <= ub)
+                case ">"  : r = (ua > ub)
+                case ">=" : r = (ua >= ub)
+                case "==" : r = (ua = ub)
+                case else : r = (ua <> ub)
+                end select
+            else
+                select case x.op
+                case "<"  : r = (a.i < b.i)
+                case "<=" : r = (a.i <= b.i)
+                case ">"  : r = (a.i > b.i)
+                case ">=" : r = (a.i >= b.i)
+                case "==" : r = (a.i = b.i)
+                case else : r = (a.i <> b.i)
+                end select
+            end if
+            v.uns = false
+            v.i = iif( r, -1, 0 )
+        case else
+            return false
+        end select
+        return true
+    end select
+    return false
+end function
+
+function CxFold( byref c as CExpr, byref v as CxValue ) as boolean
+    if c.root < 0 then return false
+    return Fold_( c, c.root, v )
+end function
+
+'' ---------------------------------------------------------------- the environment
+
+function CxEnvFind( byref env as CxEnv, byref cname as string ) as int32
+    for i as int32 = env.names.Count - 1 to 0 step -1
+        if env.names[i] = cname then return i
+    next
+    return -1
+end function
+
+function CxEnvName( byref env as CxEnv, byref cname as string ) as string
+    dim as int32 k = CxEnvFind( env, cname )
+    if k >= 0 then return env.tiko[k]
+    if env.lookup <> nullptr then return env.lookup( env.owner, cname )
+    return ""
+end function
+
+function CxEnvType( byref env as CxEnv, byref cname as string ) as string
+    dim as int32 k = CxEnvFind( env, cname )
+    if (k >= 0) andalso (env.kinds[k] = CXV_TYPE) then return env.tiko[k]
+    if env.typeLookup <> nullptr then return env.typeLookup( env.owner, cname )
+    return ""
+end function
+
+sub CxEnvAdd( byref env as CxEnv, byref cname as string, byref tiko as string, byval kind as int32, _
+              byval def_ as boolean = true, byval i as int64 = 0, byval f as float64 = 0, _
+              byref s as string = "" )
+    env.names.Push( cname )
+    env.tiko.Push( tiko )
+    env.kinds.Push( kind )
+    env.defs.Push( iif( def_, 1, 0 ) )
+    env.ivals.Push( i )
+    env.fvals.Push( f )
+    env.svals.Push( s )
+end sub
+
+'' The non-comment tokens c.tx/c.tk/c.ofs from src.toks[t1..t2].
+sub CxLoad( byref c as CExpr, byref src as C2tSource, byval t1 as int32, byval t2 as int32 )
+    for i as int32 = t1 to t2
+        if src.toks[i].kind = CT_COMMENT then continue for
+        c.tx.Push( TokText( src, i ) )
+        c.tk.Push( src.toks[i].kind )
+        c.ofs.Push( src.toks[i].ofs )
+    next
+end sub
+
+end namespace

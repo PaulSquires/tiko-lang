@@ -1,0 +1,5 @@
+'' An option tiko c2t does not take: TKO0100, exit 1.
+'' TEST: cli
+'' ARGS: c2t --recurse tests/c2t/src/clean.h
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0100: unknown option '--recurse'

@@ -1,0 +1,7 @@
+'' probe 7: sizeof a plain tiko enum
+enum E
+    E_A
+    E_B = 3
+end enum
+#print enumsize: sizeof(E) follows
+#assert sizeof(E) = 4

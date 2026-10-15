@@ -1,0 +1,16 @@
+'' probe 6: extern variables, extern import, a type block and #if inside extern "C"
+extern "C"
+extern gvar as long
+extern import gimp as long
+#ifdef __FB_WIN32__
+type T
+    a as long
+end type
+#else
+type T
+    a as longint
+end type
+#endif
+declare function f( byval p as T ptr ) as long
+end extern
+#print externc: ok

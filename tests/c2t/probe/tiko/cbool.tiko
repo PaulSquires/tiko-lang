@@ -1,0 +1,12 @@
+'' probe 8: a C _Bool return of 1 (and a boolean argument) through tiko's boolean
+extern "C"
+declare function cb_true( ) as boolean
+declare function cb_false( ) as boolean
+declare function cb_take( byval b as boolean ) as long
+end extern
+print cb_true( ), cb_false( )
+print (cb_true( ) = true), (cb_false( ) = false)
+if cb_true( ) then print "if-true taken"
+if not cb_false( ) then print "not-false taken"
+print cint( cb_true( ) ), cint( cb_false( ) )
+print cb_take( true ), cb_take( false )

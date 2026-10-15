@@ -1,0 +1,8 @@
+'' probe 4g: the fbfrog form -- typedef name aliases an underscored tag defined later
+type A as A_
+declare sub UseA( byval p as A ptr )
+type A_
+    x as long
+end type
+dim shared as A va
+#assert sizeof(A) = 4

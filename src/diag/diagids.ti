@@ -100,6 +100,10 @@
     DIAG( TKO0170, SEV_ERROR,   "'tiko run' runs one target; name one of: %0" )
     DIAG( TKO0171, SEV_ERROR,   "could not copy '%0' to '%1'" )
     DIAG( TKO0172, SEV_ERROR,   "cannot make an import library for '%0': %1" )
+    '' 'tiko c2t' (src/c2t): a C header translated into a tiko header.
+    DIAG( TKO0173, SEV_ERROR,   "'tiko c2t' translates one header per run; '%0' is a second" )
+    DIAG( TKO0174, SEV_ERROR,   "cannot read the C header '%0'" )
+    DIAG( TKO0175, SEV_ERROR,   "the translation of %0 does not compile; this is a bug in tiko c2t" )
     DIAG( TKO0169, SEV_NOTE,    "'%0' is not cached: %1" )
     DIAG( TKO0166, SEV_ERROR,   "another build of '%0' is running (it holds %1)" )
     DIAG( TKO0153, SEV_ERROR,   "'%0' was compiled against module object '%1', which is not there; compile it again with -c" )

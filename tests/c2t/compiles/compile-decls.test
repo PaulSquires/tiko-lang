@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/decls.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-decls
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/decls.h -o build/.c2t/compile-decls/decls.ti
+'' ARGS: -c build/.c2t/compile-decls/decls.ti -o build/.c2t/compile-decls/decls.o
+'' EXPECT-EXIT: 0

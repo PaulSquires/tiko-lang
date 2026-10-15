@@ -6,6 +6,7 @@
 #include once "build/events.ti"
 #include once "build/lock.ti"
 #include once "build/plan.ti"
+#include once "c2t/c2t.ti"
 #include once "driver/driver.ti"
 #include once "driver/diagout.ti"
 #include once "driver/manifest.ti"
@@ -489,6 +490,9 @@ end function
 
 function Entry( byref args as Tko.StrVec ) as int32
     if args.IsEmpty( ) then return Tko.Driver.Run( args )
+    '' 'tiko c2t' IS A VERB WITH OPTIONS OF ITS OWN (src/c2t), so it leaves before the build
+    '' verbs' ParseArgs_ would refuse them.
+    if args[0] = "c2t" then return Tko.C2t.C2tMain( args )
     if IsCommand( args[0] ) = false then return Tko.Driver.Run( args )
 
     '' THE SUBCOMMAND'S OWN DIAGNOSTICS -- a bad option, a manifest, a busy lock -- go through

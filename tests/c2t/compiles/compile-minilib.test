@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/minilib.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-minilib
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/minilib.h -o build/.c2t/compile-minilib/minilib.ti
+'' ARGS: -c build/.c2t/compile-minilib/minilib.ti -o build/.c2t/compile-minilib/minilib.o
+'' EXPECT-EXIT: 0

@@ -1,0 +1,13 @@
+'' probe 4f: the hidden alias itself used as the pointee before the record is defined
+type A__fwd as A
+declare sub UseA( byval p as A__fwd ptr )
+dim shared as A__fwd ptr pa
+type A
+    x as long
+end type
+dim shared as A va
+sub Check( )
+    dim as A ptr pb = pa
+    pb->x = 1
+end sub
+#assert sizeof(A) = 4

@@ -1,0 +1,10 @@
+'' tiko c2t: nothing to translate: '#pragma once', the comments, exit 0.
+'' Everything after the clang line is asserted byte for byte; the tiko and clang versions
+'' in the banner depend on the host, so only the lines around them are.
+'' TEST: cli
+'' CLEAN: build/.c2t/clean
+'' ARGS: c2t tests/c2t/src/clean.h -o build/.c2t/clean/clean.ti
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: build/.c2t/clean/clean.ti :: '' clean.ti -- tiko header translated by c2t (tiko 
+'' EXPECT-FILE-HAS: build/.c2t/clean/clean.ti :: ) from the C header "clean.h"\n''   source sha256 : f10f8b152635cdcb018f962617debb7c2cba6a675763bbf0fa398469e8f29b77\n''   clang         : 
+'' EXPECT-FILE-HAS: build/.c2t/clean/clean.ti :: ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu\n''   options       : (none)\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' Nothing needs manual translation.\n'' =============================================================================\n\n/' clean.h -- nothing to translate: a guard and comments only. '/\n#pragma once\n\n'' Nothing here but this comment.\n\n

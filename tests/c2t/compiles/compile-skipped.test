@@ -1,0 +1,6 @@
+'' The translation of tests/c2t/src/skipped.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-skipped
+'' STEP: c2t tests/c2t/src/skipped.h -o build/.c2t/compile-skipped/skipped.ti
+'' ARGS: -c build/.c2t/compile-skipped/skipped.ti -o build/.c2t/compile-skipped/skipped.o
+'' EXPECT-EXIT: 0

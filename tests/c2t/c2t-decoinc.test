@@ -1,0 +1,11 @@
+'' tiko c2t: a decoration-only header pair (SDL_begin_code.h's shape) becomes a comment, not an #include; a macros-only header with a value stays an #include; deco_malloc keeps its name beside DECO_MALLOC.
+'' Everything after the clang line is asserted byte for byte; the tiko and clang versions
+'' in the banner depend on the host, so only the lines around them are.
+'' TEST: cli
+'' CLEAN: build/.c2t/decoinc
+'' STEP: c2t tests/c2t/src/deco/deco/limits.h --verify -o build/.c2t/decoinc/deco/limits.ti
+'' ARGS: c2t tests/c2t/src/deco/decoinc.h --verify -o build/.c2t/decoinc/decoinc.ti
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: build/.c2t/decoinc/decoinc.ti :: '' decoinc.ti -- tiko header translated by c2t (tiko 
+'' EXPECT-FILE-HAS: build/.c2t/decoinc/decoinc.ti :: ) from the C header "decoinc.h"\n''   source sha256 : a00f9fab45d255766c155db3f338e75820bb2f5674b01690f3ee6d5091e1ded5\n''   clang         : 
+'' EXPECT-FILE-HAS: build/.c2t/decoinc/decoinc.ti :: ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu\n''   options       : --verify\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' Nothing needs manual translation.\n'' =============================================================================\n\n/' decoinc.h -- includes a decoration-only pair (begin/end) and a macros-only header. '/\n#pragma once\nextern "C"\n\n#include once "deco/limits.ti"\n'' c2t: "deco/begin.h" holds only decoration macros (stripped where used)\n\ndeclare function deco_malloc( byval size as int32 ) as any ptr   /' a function, not the macro '/\ndeclare function deco_level( ) as int32\n\n'' c2t: "deco/end.h" holds only decoration macros (stripped where used)\n\nend extern\n

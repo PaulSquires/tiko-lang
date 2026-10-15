@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/layout.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-layout
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/layout.h --verify -o build/.c2t/compile-layout/layout.ti
+'' ARGS: -c build/.c2t/compile-layout/layout.ti -o build/.c2t/compile-layout/layout.o
+'' EXPECT-EXIT: 0

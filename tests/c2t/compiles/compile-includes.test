@@ -1,0 +1,10 @@
+'' The translation of tests/c2t/src/includes.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-includes
+'' STEP: c2t tests/c2t/src/inc/base.h --verify -o build/.c2t/compile-includes/base.ti
+'' STEP: c2t tests/c2t/src/inc/sub/util.h --verify -o build/.c2t/compile-includes/sub/util.ti
+'' STEP: c2t tests/c2t/src/inc/lib/extra.h --verify -o build/.c2t/compile-includes/lib/extra.ti
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/inc/app.h -I tests/c2t/src/inc --verify -o build/.c2t/compile-includes/includes.ti
+'' ARGS: -c build/.c2t/compile-includes/includes.ti -o build/.c2t/compile-includes/includes.o
+'' EXPECT-EXIT: 0

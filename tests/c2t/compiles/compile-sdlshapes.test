@@ -1,0 +1,6 @@
+'' The translation of tests/c2t/src/sdlshapes.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-sdlshapes
+'' STEP: c2t tests/c2t/src/sdlshapes.h --verify -o build/.c2t/compile-sdlshapes/sdlshapes.ti
+'' ARGS: -c build/.c2t/compile-sdlshapes/sdlshapes.ti -o build/.c2t/compile-sdlshapes/sdlshapes.o
+'' EXPECT-EXIT: 0

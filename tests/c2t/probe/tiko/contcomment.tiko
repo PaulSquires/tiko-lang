@@ -1,0 +1,4 @@
+'' probe 9a: a comment after the line-continuation underscore
+declare sub f( byval a as long, _   '' the first parameter
+               byval b as long )    '' the second
+#print contcomment: ok

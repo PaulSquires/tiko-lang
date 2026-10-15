@@ -80,12 +80,14 @@ end function
 '' it -- and nothing is pushed to the output until the whole record has succeeded.
 type Build_
     as Tko.StrVec body         '' member lines, already indented
+    as containers.Array( of int32 ) ofs   '' each body line's C offset, for tiko c2t; -1 none
     as Tko.StrVec pre          '' whole declarations to emit first
     as Tko.StrVec preMan       '' their manifest lines
     as Tko.StrVec man          '' this record's field manifest lines
     as int32 members
     as int64 lastEnd         '' where C's last member ends, in bytes -- for the tail pad
     as int64 maxAlign        '' the widest member alignment, before any #pragma pack
+    as boolean hasBits       '' a bit-field among the members (tiko c2t's 'extern "c"')
     as Tko.StrVec seen         '' field names taken, upper-cased
 end type
 
@@ -192,6 +194,20 @@ private function Nested_( byref x as CImp, byval c as CXCursor, byref b as Build
     return true
 end function
 
+'' WHERE A CURSOR STARTS (or ends) in the file, as an expansion offset -- tiko c2t's only
+'' use of a location here.
+private function CurOfs_( byref x as CImp, byval c as CXCursor, byval atEnd as boolean ) as int32
+    dim as CXSourceRange r = x.api->getCursorExtent( c )
+    dim as uint32 o = 0
+    if atEnd then
+        x.api->getExpansionLocation( x.api->getRangeEnd( r ), nullptr, nullptr, nullptr, @o )
+        if o > 0 then o -= 1
+    else
+        x.api->getExpansionLocation( x.api->getRangeStart( r ), nullptr, nullptr, nullptr, @o )
+    end if
+    return cast( int32, o )
+end function
+
 '' fbc-modern's prefix: a member of an anonymous member is named as one.
 private function FieldWhy_( byval depth as int32, byref cname as string, byref w as string ) as string
     if depth > 0 then return "anonymous member field '" & cname & "': " & w
@@ -249,8 +265,10 @@ private function Members_( byref x as CImp, byval rc as CXCursor, byval outerT a
                 if Members_( x, ad, outerT, outerName, depth + 1, ind, b, why ) = false then return false
             else
                 b.body.Push( ind & iif( kUnion, "union", "type" ) )
+                if x.c2t then b.ofs.Push( CurOfs_( x, ad, false ) )
                 if Members_( x, ad, outerT, outerName, depth + 1, ind & chr( 9 ), b, why ) = false then return false
                 b.body.Push( ind & iif( kUnion, "end union", "end type" ) )
+                if x.c2t then b.ofs.Push( CurOfs_( x, ad, true ) )
             end if
             continue for
         end if
@@ -280,8 +298,10 @@ private function Members_( byref x as CImp, byval rc as CXCursor, byval outerT a
                     return false
                 end if
                 dim as string fname = FieldUnique_( b, cname, NameField( cname, false ) )
+                if x.c2t andalso (cspell <> "-") andalso (fname <> cname) then x.c2tRen.Push( outerName & "." & cname & " -> " & fname )
                 line_ = fname & " : " & w & " as " & bt
                 MemberAlign_( x, ft, b )
+                b.hasBits = true
                 dim as int64 bbit = FieldBit_( x, outerT, k, cname )
                 b.man.Push( "  field " & fname & " " & bbit & " " & w & " " & cspell )
                 if (bbit + w + 7) \ 8 > b.lastEnd then b.lastEnd = (bbit + w + 7) \ 8
@@ -317,6 +337,7 @@ private function Members_( byref x as CImp, byval rc as CXCursor, byval outerT a
                     return false
                 end if
                 dim as string fname = FieldUnique_( b, cname, NameField( cname, len( dims ) > 0 ) )
+                if x.c2t andalso (fname <> cname) then x.c2tRen.Push( outerName & "." & cname & " -> " & fname )
                 line_ = fname & dims & " as " & ftx
                 MemberAlign_( x, ft, b )
                 dim as int64 fbit = FieldBit_( x, outerT, k, cname )
@@ -325,6 +346,7 @@ private function Members_( byref x as CImp, byval rc as CXCursor, byval outerT a
                 if fend > b.lastEnd then b.lastEnd = fend
             end if
             b.body.Push( ind & line_ )
+            if x.c2t then b.ofs.Push( CurOfs_( x, k, false ) )
         end scope
     next
     return true
@@ -372,8 +394,19 @@ function RecordEmit( byref x as CImp, byval c as CXCursor, byref fbName as strin
     '' 'int a:30; int b:5' b at bit 30. A '#pragma pack' that changes no alignment is not
     '' visible here at all, and --verify refuses such a record if it moved a bit-field.
     dim as string head = iif( isUnion, "union ", "type " ) & fbName
+    if x.c2t andalso (align > 8) then
+        '' tiko c2t REFUSES OVER-ALIGNMENT (RFC-0001 §5.1): its pad member would make sizeof
+        '' right and leave every instance wrongly aligned.
+        why = "over-aligned record (alignment " & align & ") has no tiko spelling"
+        return false
+    end if
     if (align >= 1) andalso (align < b.maxAlign) then head &= " field = " & align
-    head &= " extern ""c"""
+    '' tiko c2t WRITES 'extern "c"' ONLY WHERE IT CHANGES THE LAYOUT -- a bit-field, or a packed
+    '' record -- as it writes 'field = N': elsewhere tiko's own layout is C's, and the clause
+    '' is noise a person reads past.
+    if (x.c2t = false) orelse b.hasBits orelse ((align >= 1) andalso (align < b.maxAlign)) then
+        head &= " extern ""c"""
+    end if
 
     '' OVER-ALIGNMENT HAS NO FREEBASIC SPELLING -- FIELD = N only ever lowers alignment --
     '' so the tail padding C adds is written out as a member, which makes sizeof and every
@@ -391,6 +424,12 @@ function RecordEmit( byref x as CImp, byval c as CXCursor, byref fbName as strin
     for i as int32 = 0 to b.body.Count - 1
         txt &= b.body[i] & chr( 10 )
     next
+    if x.c2t then
+        x.c2tRecOfs.Clear( )
+        for i as int32 = 0 to b.ofs.Count - 1
+            x.c2tRecOfs.Push( b.ofs[i] )
+        next
+    end if
     txt &= iif( isUnion, "end union", "end type" )
     x.decls.Push( txt )
 

@@ -1,0 +1,98 @@
+libclang: clang version 21.1.0
+== probe 1: clang_tokenize over comments.h [x86_64-pc-windows-msvc]
+diagnostics: 0
+token kinds: Comment=7, Ident=5, Keyword=5, Punct=7
+  comment token: /* c2t P0 probe 1: does clang_tokenize return comment tokens? */
+  comment token: // a line comment
+  comment token: /* trailing block */
+  comment token: // trailing line
+  comment token: /** a doc comment */
+  comment token: // field comment
+  comment token: /* leading field comment */
+== probe 2: skipped ranges in skip.h [x86_64-pc-windows-msvc, DetailedPreprocessingRecord]
+diagnostics: 0
+  4:1 (ofs 108) .. 6:7 (ofs 131)   first='#if 0' last='#endif'
+  10:1 (ofs 159) .. 12:7 (ofs 182)   first='#else' last='#endif'
+  14:1 (ofs 184) .. 16:6 (ofs 219)   first='#if defined(NOPE)' last='#elif FEATURE'
+  18:1 (ofs 239) .. 20:7 (ofs 263)   first='#else' last='#endif'
+  22:1 (ofs 265) .. 26:7 (ofs 321)   first='#ifndef FEATURE' last='#endif'
+  30:1 (ofs 351) .. 32:7 (ofs 379)   first='#else' last='#endif'
+== probe 2: skipped ranges in skip.h [x86_64-pc-linux-gnu, DetailedPreprocessingRecord]
+diagnostics: 0
+  4:1 (ofs 108) .. 6:7 (ofs 131)   first='#if 0' last='#endif'
+  10:1 (ofs 159) .. 12:7 (ofs 182)   first='#else' last='#endif'
+  14:1 (ofs 184) .. 16:6 (ofs 219)   first='#if defined(NOPE)' last='#elif FEATURE'
+  18:1 (ofs 239) .. 20:7 (ofs 263)   first='#else' last='#endif'
+  22:1 (ofs 265) .. 26:7 (ofs 321)   first='#ifndef FEATURE' last='#endif'
+  28:1 (ofs 323) .. 30:6 (ofs 356)   first='#ifdef _WIN32' last='#else'
+== probe 2: skipped ranges in skip.h [x86_64-pc-linux-gnu, no options]
+diagnostics: 0
+== probe 2: skipped ranges in skip.h [x86_64-pc-linux-gnu, Detailed + PrecompiledPreamble, after one reparse]
+diagnostics: 0
+  4:1 (ofs 108) .. 6:7 (ofs 131)   first='#if 0' last='#endif'
+  10:1 (ofs 159) .. 12:7 (ofs 182)   first='#else' last='#endif'
+  14:1 (ofs 184) .. 16:6 (ofs 219)   first='#if defined(NOPE)' last='#elif FEATURE'
+  18:1 (ofs 239) .. 20:7 (ofs 263)   first='#else' last='#endif'
+  22:1 (ofs 265) .. 26:7 (ofs 321)   first='#ifndef FEATURE' last='#endif'
+  28:1 (ofs 323) .. 30:6 (ofs 356)   first='#ifdef _WIN32' last='#else'
+== probe 3: top-level cursor extents in extents.h [x86_64-pc-windows-msvc]
+diagnostics: 0
+include-guarded (clang_isFileMultipleIncludeGuarded): 1
+  macro definition       EXTENTS_H      exp 3:9..3:18  spellstart 3:9  text='EXTENTS_H'  next='\\n\\n#'
+  macro definition       EMPTYAPI       exp 5:9..5:17  spellstart 5:9  text='EMPTYAPI'  next='\\n#d'
+  macro definition       DLLAPI         exp 6:9..6:37  spellstart 6:9  text='DLLAPI __declspec(dllimport)'  next='\\n#d'
+  macro definition       ATTRAPI        exp 7:9..7:55  spellstart 7:9  text='ATTRAPI __attribute__((visibility("default")))'  next='\\n#d'
+  macro definition       DECLARE_HANDLE exp 8:9..8:80  spellstart 8:9  text='DECLARE_HANDLE(n) struct n##__ { int unused; }; typedef struct n##__ *n'  next='\\n\\nE'
+  macro expansion        EMPTYAPI       exp 10:1..10:9  spellstart 10:1  text='EMPTYAPI'  next=' vo'
+  macro expansion        DLLAPI         exp 11:1..11:7  spellstart 11:1  text='DLLAPI'  next=' vo'
+  macro expansion        ATTRAPI        exp 12:1..12:8  spellstart 12:1  text='ATTRAPI'  next=' in'
+  macro expansion        DECLARE_HANDLE exp 20:1..20:23  spellstart 20:1  text='DECLARE_HANDLE(HTHING)'  next=';\\n_'
+  FunctionDecl           f_empty        exp 10:10..10:29  spellstart 10:10  text='void f_empty(int a)'  next=';\\nD'
+  FunctionDecl           f_dll          exp 11:1..11:25  spellstart 6:16  text='DLLAPI void f_dll(int a)'  next=';\\nA'
+  FunctionDecl           f_attr         exp 12:1..12:53  spellstart 7:17  text='ATTRAPI int f_attr(void) __attribute__((deprecated))'  next=';\\nv'
+  FunctionDecl           f_multi        exp 13:1..14:20  spellstart 13:1  text='void f_multi(int a,\\n             int b)'  next=';  '
+  StructDecl             S1             exp 16:9..16:29  spellstart 16:9  text='struct S1 { int x; }'  next=' S1'
+  TypedefDecl            S1             exp 16:1..16:32  spellstart 16:1  text='typedef struct S1 { int x; } S1'  next=';\\nt'
+  StructDecl             S2             exp 17:9..17:26  spellstart 17:9  text='struct { int y; }'  next=' S2'
+  TypedefDecl            S2             exp 17:1..17:29  spellstart 17:1  text='typedef struct { int y; } S2'  next=';\\ni'
+  VarDecl                va             exp 18:1..18:7  spellstart 18:1  text='int va'  next=', v'
+  VarDecl                vb             exp 18:1..18:11  spellstart 18:1  text='int va, vb'  next=';\\n\\n'
+  [expansion only] StructDecl HTHING__       exp 20:1..20:23  spellstart 8:27  text='DECLARE_HANDLE(HTHING)'  next=';\\n_'
+  [expansion only] TypedefDecl HTHING         exp 20:1..20:1  spellstart 8:57  text=''  next='DEC'
+  StaticAssert           -              exp 21:1..21:45  spellstart 21:1  text='_Static_assert(sizeof(int) == 4, "int is 4")'  next=';\\n\\n'
+  VarDecl                gvar           exp 23:1..23:16  spellstart 23:1  text='extern int gvar'  next=';\\ns'
+  StructDecl             Fwd            exp 24:1..24:11  spellstart 24:1  text='struct Fwd'  next=';\\nt'
+  TypedefDecl            Fwd            exp 25:1..25:23  spellstart 25:1  text='typedef struct Fwd Fwd'  next=';\\ne'
+  EnumDecl               E              exp 26:1..26:24  spellstart 26:1  text='enum E { E_A, E_B = 3 }'  next=';\\ns'
+  FunctionDecl           f_inline       exp 27:1..27:34  spellstart 27:1  text='static inline int f_inline(int v)'  next=' { '
+== probe 3: top-level cursor extents in extents.h [x86_64-pc-linux-gnu]
+diagnostics: 1
+  diag: error: '__declspec' attributes are not enabled; use '-fdeclspec' or '-fms-extensions' to enable support for __declspec attributes
+include-guarded (clang_isFileMultipleIncludeGuarded): 1
+  macro definition       EXTENTS_H      exp 3:9..3:18  spellstart 3:9  text='EXTENTS_H'  next='\\n\\n#'
+  macro definition       EMPTYAPI       exp 5:9..5:17  spellstart 5:9  text='EMPTYAPI'  next='\\n#d'
+  macro definition       DLLAPI         exp 6:9..6:37  spellstart 6:9  text='DLLAPI __declspec(dllimport)'  next='\\n#d'
+  macro definition       ATTRAPI        exp 7:9..7:55  spellstart 7:9  text='ATTRAPI __attribute__((visibility("default")))'  next='\\n#d'
+  macro definition       DECLARE_HANDLE exp 8:9..8:80  spellstart 8:9  text='DECLARE_HANDLE(n) struct n##__ { int unused; }; typedef struct n##__ *n'  next='\\n\\nE'
+  macro expansion        EMPTYAPI       exp 10:1..10:9  spellstart 10:1  text='EMPTYAPI'  next=' vo'
+  macro expansion        DLLAPI         exp 11:1..11:7  spellstart 11:1  text='DLLAPI'  next=' vo'
+  macro expansion        ATTRAPI        exp 12:1..12:8  spellstart 12:1  text='ATTRAPI'  next=' in'
+  macro expansion        DECLARE_HANDLE exp 20:1..20:23  spellstart 20:1  text='DECLARE_HANDLE(HTHING)'  next=';\\n_'
+  FunctionDecl           f_empty        exp 10:10..10:29  spellstart 10:10  text='void f_empty(int a)'  next=';\\nD'
+  FunctionDecl           f_dll          exp 11:1..11:25  spellstart 6:16  text='DLLAPI void f_dll(int a)'  next=';\\nA'
+  FunctionDecl           f_attr         exp 12:1..12:53  spellstart 7:17  text='ATTRAPI int f_attr(void) __attribute__((deprecated))'  next=';\\nv'
+  FunctionDecl           f_multi        exp 13:1..14:20  spellstart 13:1  text='void f_multi(int a,\\n             int b)'  next=';  '
+  StructDecl             S1             exp 16:9..16:29  spellstart 16:9  text='struct S1 { int x; }'  next=' S1'
+  TypedefDecl            S1             exp 16:1..16:32  spellstart 16:1  text='typedef struct S1 { int x; } S1'  next=';\\nt'
+  StructDecl             S2             exp 17:9..17:26  spellstart 17:9  text='struct { int y; }'  next=' S2'
+  TypedefDecl            S2             exp 17:1..17:29  spellstart 17:1  text='typedef struct { int y; } S2'  next=';\\ni'
+  VarDecl                va             exp 18:1..18:7  spellstart 18:1  text='int va'  next=', v'
+  VarDecl                vb             exp 18:1..18:11  spellstart 18:1  text='int va, vb'  next=';\\n\\n'
+  [expansion only] StructDecl HTHING__       exp 20:1..20:23  spellstart 8:27  text='DECLARE_HANDLE(HTHING)'  next=';\\n_'
+  [expansion only] TypedefDecl HTHING         exp 20:1..20:1  spellstart 8:57  text=''  next='DEC'
+  StaticAssert           -              exp 21:1..21:45  spellstart 21:1  text='_Static_assert(sizeof(int) == 4, "int is 4")'  next=';\\n\\n'
+  VarDecl                gvar           exp 23:1..23:16  spellstart 23:1  text='extern int gvar'  next=';\\ns'
+  StructDecl             Fwd            exp 24:1..24:11  spellstart 24:1  text='struct Fwd'  next=';\\nt'
+  TypedefDecl            Fwd            exp 25:1..25:23  spellstart 25:1  text='typedef struct Fwd Fwd'  next=';\\ne'
+  EnumDecl               E              exp 26:1..26:24  spellstart 26:1  text='enum E { E_A, E_B = 3 }'  next=';\\ns'
+  FunctionDecl           f_inline       exp 27:1..27:34  spellstart 27:1  text='static inline int f_inline(int v)'  next=' { '

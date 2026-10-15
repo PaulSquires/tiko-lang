@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/macros.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-macros
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/macros.h --verify -o build/.c2t/compile-macros/macros.ti
+'' ARGS: -c build/.c2t/compile-macros/macros.ti -o build/.c2t/compile-macros/macros.o
+'' EXPECT-EXIT: 0

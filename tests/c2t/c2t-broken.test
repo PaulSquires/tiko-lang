@@ -1,0 +1,9 @@
+'' A header that does not parse is not translated: TKO0120 with clang's own errors as notes,
+'' exit 1, and nothing written.
+'' TEST: cli
+'' CLEAN: build/.c2t/broken
+'' ARGS: c2t tests/c2t/src/broken.h -o build/.c2t/broken/broken.ti
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0120: unable to import C header tests/c2t/src/broken.h
+'' EXPECT-OUT: note: clang: tests/c2t/src/broken.h:2:7: error: expected parameter declarator
+'' EXPECT-NO-FILE: build/.c2t/broken/broken.ti

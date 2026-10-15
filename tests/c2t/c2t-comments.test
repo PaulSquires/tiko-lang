@@ -1,0 +1,10 @@
+'' tiko c2t: every comment shape converted; a comment that ends on a declaration's line goes above its translation; tiko's delimiters defused.
+'' Everything after the clang line is asserted byte for byte; the tiko and clang versions
+'' in the banner depend on the host, so only the lines around them are.
+'' TEST: cli
+'' CLEAN: build/.c2t/comments
+'' ARGS: c2t tests/c2t/src/comments.h -o build/.c2t/comments/comments.ti
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: build/.c2t/comments/comments.ti :: '' comments.ti -- tiko header translated by c2t (tiko 
+'' EXPECT-FILE-HAS: build/.c2t/comments/comments.ti :: ) from the C header "comments.h"\n''   source sha256 : b67afc7442bb6207d62e92e79d74d2c2fc21d62b4f7377a86ec95324cb8ccda4\n''   clang         : 
+'' EXPECT-FILE-HAS: build/.c2t/comments/comments.ti :: ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu\n''   options       : (none)\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' Nothing needs manual translation.\n'' =============================================================================\n\n/' comments.h -- every comment shape c2t converts. '/\n#pragma once\n\n'' a line comment\n''' a doc line comment\n/' a block '/   /' and a second on the same line '/\n\n/'*\n * A multi-line doc block. It quotes tiko's own delimiters, ' / and / ',\n * which must not open or close a tiko comment.\n '/\n\nextern "C"\n\n/' a block comment that starts here\n   and ends on the declaration's line '/\nextern after_comment as int32\n\nextern trailing as int32 '' a trailing comment goes into the quote\n'' a line comment spliced\n''    onto the next line\n\nend extern\n

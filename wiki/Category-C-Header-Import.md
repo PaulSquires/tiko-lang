@@ -4,7 +4,7 @@
 
 > **In tiko.** tiko imports C headers itself, through libclang loaded at first use and never linked, for windows-x86_64 (the Windows default) and linux-x86_64. Its C-import options are `-cinclude`, `-cimport`, `-cimport-out` (`-` for standard output), `-cimport-manifest`, `-cdefine`, `-csysroot`, `-copt`, `-cnomacros`, `-cnoverify`, `-cnocache` and `-ccachedir`, plus the compiler-development option `--cimport-probe`. Measured on windows-x86_64.
 
-> 📘 **Also in this category:** [#cinclude Tutorial](modern-Cinclude-tutorial)
+> 📘 **Also in this category:** [#cinclude Tutorial](modern-Cinclude-tutorial) · [tiko c2t](C2t) — translate a header once into a readable `.ti` you keep
 
 
 ## Syntax
@@ -283,7 +283,7 @@ The example builds with tiko on windows-x86_64 with `-cinclude vendor`. Its libr
 
 ## Pages in this category
 
-[#cinclude](modern-Cinclude) · [#cinclude Tutorial](modern-Cinclude-tutorial)
+[#cinclude](modern-Cinclude) · [#cinclude Tutorial](modern-Cinclude-tutorial) · [tiko c2t](C2t)
 
 ---
 

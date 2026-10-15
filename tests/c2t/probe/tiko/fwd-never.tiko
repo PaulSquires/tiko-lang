@@ -1,0 +1,4 @@
+'' probe 4b: hidden alias, record NEVER defined (opaque), used through a pointer only
+type O__fwd as O
+declare sub UseO( byval p as O ptr )
+dim shared as O ptr po

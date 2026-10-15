@@ -1,0 +1,31 @@
+'' probe 11: iif / andalso / not defined() inside #if; which OS macro -target sets
+#if iif(1, 2, 3) = 2
+#print ppexpr: iif ok
+#endif
+#if (1 andalso 1) orelse 0
+#print ppexpr: andalso ok
+#endif
+#if not defined(NOPE_NOT_DEFINED)
+#print ppexpr: not defined ok
+#endif
+#if (1 shl 6) = 64
+#print ppexpr: shl ok
+#endif
+#if (7 \ 2) = 3
+#print ppexpr: int division ok
+#endif
+#if (1 = 1) = -1
+#print ppexpr: comparison is -1
+#endif
+#ifdef __FB_WIN32__
+#print ppexpr: __FB_WIN32__ defined
+#endif
+#ifdef __FB_LINUX__
+#print ppexpr: __FB_LINUX__ defined
+#endif
+#ifdef TIKO_OS_WINDOWS
+#print ppexpr: TIKO_OS_WINDOWS defined
+#endif
+#ifdef TIKO_OS_LINUX
+#print ppexpr: TIKO_OS_LINUX defined
+#endif

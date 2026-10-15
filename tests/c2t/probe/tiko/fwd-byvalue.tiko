@@ -1,0 +1,3 @@
+'' probe 4d: hidden alias, never defined, used by VALUE (expect TKO0810)
+type O__fwd as O
+dim shared as O vo

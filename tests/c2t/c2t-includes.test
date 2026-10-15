@@ -1,0 +1,13 @@
+'' tiko c2t: #include translated: beside, below and through -I as relative .ti paths; a freestanding system header; stdio.h and windows.h mapped, so FILE, HWND and DWORD may be named; windows.bi first; an unknown system header a TODO. Its includes are translated first, as D16 says.
+'' Everything after the clang line is asserted byte for byte; the tiko and clang versions
+'' in the banner depend on the host, so only the lines around them are.
+'' TEST: cli
+'' CLEAN: build/.c2t/includes
+'' STEP: c2t tests/c2t/src/inc/base.h --verify -o build/.c2t/includes/base.ti
+'' STEP: c2t tests/c2t/src/inc/sub/util.h --verify -o build/.c2t/includes/sub/util.ti
+'' STEP: c2t tests/c2t/src/inc/lib/extra.h --verify -o build/.c2t/includes/lib/extra.ti
+'' ARGS: c2t tests/c2t/src/inc/app.h -I tests/c2t/src/inc --verify -o build/.c2t/includes/includes.ti
+'' EXPECT-EXIT: 2
+'' EXPECT-FILE-HAS: build/.c2t/includes/includes.ti :: '' includes.ti -- tiko header translated by c2t (tiko 
+'' EXPECT-FILE-HAS: build/.c2t/includes/includes.ti :: ) from the C header "app.h"\n''   source sha256 : a46df9fd71b156bfbc4375eaa304300a0bb3bcf5609b1712875ef134f8c1f2c4\n''   clang         : 
+'' EXPECT-FILE-HAS: build/.c2t/includes/includes.ti :: ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu\n''   options       : -I tests/c2t/src/inc --verify\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' 1 item needs manual translation:\n''   line 35  app.h:17  C2T-TODO(system-header)  <stdatomic.h>\n'' =============================================================================\n\n/' app.h -- includes: a header beside it, one below it, one through -I, system headers. '/\n#pragma once\n\n#ifdef TIKO_OS_WINDOWS\n#include once "windows.bi"\n#endif\n\nextern "C"\n\n'' <stdint.h>: built into tiko  /' freestanding: built into tiko '/\n#include once "base.ti"         /' beside it '/\n#include once "sub/util.ti"     /' below it '/\n#include once "lib/extra.ti"    /' through -I: still written relative to this header '/\n\n#ifdef TIKO_OS_WINDOWS\n#include once "crt/stdio.bi"    /' tiko's crt/stdio.bi: FILE may now be named '/\ndeclare function app_log( byval f as FILE ptr, byval id as base_id ) as int32\n#include once "windows.bi"      /' windows.bi: every Win32 name may be '/\ndeclare function app_window( byval w as HWND, byval flags as DWORD ) as int32\n#endif\n\n'' C2T-TODO(system-header) app.h:17 -- <stdatomic.h> has no tiko counterpart in c2t's table\n'' #include <stdatomic.h>          /* no tiko counterpart: a TODO */\n\ndeclare function app_run( byval id as base_id, byval f as util_flags, byval m as extra_mode ) as int32\n\nend extern\n

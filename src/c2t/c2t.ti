@@ -1,0 +1,340 @@
+'' c2t.ti -- 'tiko c2t <in.h>': a C library header, translated into a tiko header a person
+'' can read. Design: docs/tiko-c2t RFC-0001 (C:\dev\docs); this is phase P1, the skeleton.
+''
+'' HYBRID, NOT A SECOND IMPORTER. clang decides what the C means -- which declarations there
+'' are, where each one starts and ends, which #if branches are live -- through the same
+'' libclang binding #cinclude uses (cimport/clang.ti). The ORIGINAL TEXT decides what the
+'' output looks like: c2t lexes the header itself, keeps every comment and blank line where
+'' it was, and replaces each piece of C in place. What it cannot translate stays at its own
+'' position as a C2T-TODO with the C quoted beneath it.
+''
+'' P1 TRANSLATES NO DECLARATION. It carries comments and blank lines over, converts the
+'' header idioms (include guard, the __cplusplus extern block, export macros), writes the
+'' banner, and marks every declaration, macro and directive as a TODO. Later phases replace
+'' TODOs with translations; the layout machinery here is what they write into.
+''
+'' DETERMINISTIC: the same header, options and clang give the same bytes, LF-only, with no
+'' timestamp and no absolute path.
+
+#pragma once
+
+#include once "tko.ti"
+#include once "cimport/import.ti"
+
+namespace Tko.C2t
+
+'' ---------------------------------------------------------------- the header's text
+
+'' A C token, as c2t's own lexer sees it. Comments are tokens: they are what c2t carries.
+enum C2tTokKind
+    CT_IDENT = 1
+    CT_NUMBER
+    CT_STRING
+    CT_CHAR
+    CT_PUNCT
+    CT_COMMENT
+end enum
+
+type C2tTok
+    as int32 kind
+    as int32 ofs           '' byte offset of the first byte, 0-based
+    as int32 len_
+    as int32 line_         '' 1-based physical line of the first byte
+    as int32 endLine       '' physical line of the last byte (a block comment spans lines)
+    as boolean bol         '' the first token of its logical line
+end type
+type C2tTokVec as containers.Array( of C2tTok )
+type C2tIntVec as containers.Array( of int32 )
+
+'' The header as read: its bytes, the start of each physical line, its tokens.
+type C2tSource
+    as string path_
+    as string name_            '' the file name alone, for the banner and the TODOs
+    as string bytes
+    as string sha256           '' lowercase hex
+    lineStart as C2tIntVec     '' lineStart[i] = offset of line i+1
+    toks as C2tTokVec
+end type
+
+'' ---------------------------------------------------------------- directives
+
+enum C2tDirKind
+    DK_IF = 1
+    DK_IFDEF
+    DK_IFNDEF
+    DK_ELIF
+    DK_ELSE
+    DK_ENDIF
+    DK_DEFINE
+    DK_UNDEF
+    DK_INCLUDE
+    DK_OTHER
+end enum
+
+'' One preprocessor directive: a logical line starting with '#'.
+type C2tDirective
+    as int32 kind
+    as string word             '' the directive's word: "if", "define", "pragma"...
+    as int32 tok1, tok2        '' its tokens, '#' through the last (comments included)
+    as int32 line1, line2      '' its physical lines
+    as string name_            '' the macro of #define/#undef/#ifdef/#ifndef; the path of #include
+    as int32 cond              '' for #elif/#else/#endif: the index of its #if; -1 otherwise
+    as int32 endif_            '' for an #if*: the index of its #endif; -1 if unterminated
+end type
+type C2tDirVec as containers.Array( of C2tDirective )
+
+'' ---------------------------------------------------------------- what replaces what
+
+'' A run of physical lines whose output is decided: either text written in their place
+'' (an idiom: '#pragma once', 'extern "C"', a comment, or nothing at all) or a TODO.
+type C2tBlock
+    as int32 line1, line2
+    as boolean isTodo
+    as boolean isDecl              '' a translated declaration (extern "C" opens before the first)
+    as int32 dirNo                 '' the directive it holds alone, index + 1; 0 for none
+    as boolean unreached           '' C text this pass does not see: an inactive branch, '#if 0'
+    '' TODOs INSIDE a translated block's text -- a guarded merge (merge.tiko) can hold one:
+    '' each 'line-offset TAB reason TAB what TAB C-line', for the banner and the exit status.
+    marks as Tko.StrVec
+    as string text             '' an idiom's replacement, LF-separated, "" for none
+    as string reason           '' a TODO's reason, from the fixed vocabulary
+    as string what             '' a TODO's subject, for the banner: names, a macro, a path
+    as string why              '' a TODO's one-line explanation
+end type
+type C2tBlockVec as containers.Array( of C2tBlock )
+
+'' A top-level declaration clang reported in the main file, by expansion offsets.
+type C2tSegment
+    as int32 ofs1, ofs2
+    as int32 kind
+    as string name_
+    as Tko.CImport.CXCursor cur    '' valid while the pass's translation unit is open
+    as boolean viaMacro            '' made by a macro invocation (P0 item 3)
+end type
+type C2tSegVec as containers.Array( of C2tSegment )
+
+'' ---------------------------------------------------------------- one clang pass
+
+type C2tPass
+    as string triple
+    args as Tko.StrVec             '' the clang arguments the pass parsed with (macro probes)
+    as any ptr idx                 '' kept open until ClosePass: the emitter reads cursors
+    as any ptr tu
+    segs as C2tSegVec
+    skipped as C2tIntVec       '' pairs: start offset, end offset of each inactive region
+    as boolean guarded         '' clang_isFileMultipleIncludeGuarded
+    clangDiags as Tko.StrVec   '' clang's errors, when the header did not parse
+end type
+
+'' ---------------------------------------------------------------- one pass's result
+
+'' Everything one pass produced, kept for the merge (merge.tiko).
+type C2tPassOut
+    as string triple
+    as boolean isWindows
+    as int32 extraNo               '' 0 the base pass; k for the k-th --pass
+    as string extra                '' that --pass's clang arguments
+    blocks as C2tBlockVec
+    dirState as C2tIntVec
+    dirText as Tko.StrVec
+    dirReason as Tko.StrVec
+    dirWhy as Tko.StrVec
+    skipped as C2tIntVec
+    as string manifest
+    as string asserts
+    renames as Tko.StrVec
+    as boolean needsCLong
+    as boolean guarded
+    as boolean windowsBi           '' the header includes <windows.h>, mapped to windows.bi
+end type
+type C2tPassOutVec as containers.Array( of C2tPassOut )
+
+'' ---------------------------------------------------------------- the run
+
+type C2tOptions
+    as string input_
+    as string output_          '' "" = <input>.ti beside it; "-" = standard output
+    includes as Tko.StrVec     '' -I
+    defines as Tko.StrVec      '' -D
+    undefs as Tko.StrVec       '' -U
+    passArgs as Tko.StrVec     '' --pass, each one string of clang arguments
+    as string sysroot          '' --sysroot: the Linux passes' system headers, from a Windows host
+    as boolean verify
+end type
+
+'' sha256.tiko
+declare function Sha256Hex( byref data_ as string ) as string
+
+'' source.tiko -- read and lex. False when the file cannot be read.
+declare function LoadSource( byref path_ as string, byref src as C2tSource ) as boolean
+declare function LineCount( byref src as C2tSource ) as int32
+'' Physical line n (1-based) without its line ending.
+declare function LineText( byref src as C2tSource, byval n as int32 ) as string
+'' Lines n1..n2 with every comment converted to tiko's spelling and nothing else changed.
+'' The lines must hold only comments and white space.
+declare function ConvertComments( byref src as C2tSource, byval n1 as int32, byval n2 as int32 ) as string
+'' Bytes a..b-1 the same way: comments converted, nothing else changed, no trailing blanks.
+declare function ConvertRange( byref src as C2tSource, byval a as int32, byval b as int32 ) as string
+declare function TokText( byref src as C2tSource, byval i as int32 ) as string
+'' The index of the first token at or after byte offset 'ofs'; toks.Count if none.
+declare function TokAt( byref src as C2tSource, byval ofs as int32 ) as int32
+
+'' ppscan.tiko -- every directive, the #if nesting matched, and the idioms recognised.
+declare sub ScanDirectives( byref src as C2tSource, byref dirs as C2tDirVec )
+'' The blocks the header idioms decide: guard, __cplusplus extern block, export macros.
+'' 'decor' receives the names of the decoration macros, for later phases to strip.
+declare sub IdiomBlocks( byref src as C2tSource, byref dirs as C2tDirVec, _
+                         byval guarded as boolean, byref blocks as C2tBlockVec, _
+                         byref decor as Tko.StrVec )
+
+'' pass.tiko -- one clang parse of the header for one target.
+declare function RunPass( byref api as Tko.CImport.ClangApi, byref src as C2tSource, _
+                          byref opts as C2tOptions, byref triple as string, _
+                          byref p as C2tPass ) as boolean
+declare sub ClosePass( byref api as Tko.CImport.ClangApi, byref p as C2tPass )
+'' A cursor's extent as expansion offsets.
+declare sub CursorSpan( byref api as Tko.CImport.ClangApi, byval c as Tko.CImport.CXCursor, _
+                        byref ofs1 as int32, byref ofs2 as int32 )
+
+'' emitdecl.tiko -- the declarations of one TODO-free span, translated. c2t's view of the
+'' importer's state: the names pass 1 gave, what is written, which aliases exist.
+type C2tEmit
+    as Tko.CImport.ClangApi ptr api
+    as Tko.CImport.CImp ptr x
+    as C2tSource ptr src
+    aliasDone as Tko.StrVec        '' 'type X__fwd as X' already written, by X
+    skipped as C2tIntVec           '' the pass's inactive ranges (C2tPass.skipped)
+    as string indOverride          '' see emitdecl.tiko, BaseIndent_
+    as boolean useOverride
+    renames as Tko.StrVec          '' the banner's rename list: 'kind  c -> tiko'
+    '' emitmacro.tiko's verdict on each directive, by index: 0 untouched, 1 translated as
+    '' dirText, 2 a TODO with dirReason/dirWhy.
+    dirState as C2tIntVec
+    dirText as Tko.StrVec
+    dirReason as Tko.StrVec
+    dirWhy as Tko.StrVec
+    '' includes.tiko's verdict on each #include, by directive index, as dir* above.
+    incState as C2tIntVec
+    incText as Tko.StrVec
+    incReason as Tko.StrVec
+    incWhy as Tko.StrVec
+    '' For --verify: '#assert NAME = value' for each integer macro kept as an expression, so
+    '' tiko's own preprocessor checks what cexpr's folder concluded (D17).
+    asserts as Tko.StrVec
+    as int32 decls                 '' declarations written
+end type
+'' Set up the importer state for one pass: names, the c2t spellings, what other files declare.
+declare sub EmitInit( byref e as C2tEmit, byref api as Tko.CImport.ClangApi, byref x as Tko.CImport.CImp, _
+                      byref io as Tko.CImport.CImportOptions, byref src as C2tSource, byref p as C2tPass )
+'' The span's text, or false with reason and why for its TODO.
+declare function TranslateSpan( byref e as C2tEmit, byref p as C2tPass, byref segIdx as C2tIntVec, _
+                                byval l1 as int32, byval l2 as int32, byref text as string, _
+                                byref reason as string, byref why as string ) as boolean
+'' 'code' with physical line n's comments after it, at their column or their gap (emitdecl).
+declare function TrailComments( byref e as C2tEmit, byref code as string, byval n as int32 ) as string
+
+'' ---------------------------------------------------------------- cexpr.tiko
+
+const CXV_INT = 1, CXV_FLOAT = 2, CXV_STR = 3, CXV_TYPE = 4, CXV_NAME = 5, CXV_NONE = 6, CXV_PARAM = 7
+const NK_INT = 1, NK_FLOAT = 2, NK_STR = 3, NK_IDENT = 4, NK_UNARY = 5, NK_BINARY = 6
+const NK_TERNARY = 7, NK_CALL = 8, NK_CAST = 9, NK_DEFINED = 10
+
+type CxNode
+    as int32 kind
+    as string op
+    as string text
+    as int32 a, b, c
+    as int64 ival
+    as float64 fval
+    as string sval
+    as boolean isUns
+    as boolean isF32
+end type
+type CxNodeVec as containers.Array( of CxNode )
+
+type CxValue
+    as int32 kind
+    as int64 i
+    as float64 f
+    as string s
+    as boolean uns
+end type
+
+'' A name's tiko spelling when the environment has no entry for it -- the declarations.
+type CxLookupFn as function( byval owner as any ptr, byref cname as string ) as string
+
+'' What names mean while an expression is printed and folded: macros c2t wrote, parameters,
+'' platform macros -- each with its tiko spelling, kind, value, and whether tiko defines it.
+type CxEnv
+    names as Tko.StrVec
+    tiko as Tko.StrVec
+    kinds as C2tIntVec
+    defs as C2tIntVec
+    ivals as containers.Array( of int64 )
+    fvals as containers.Array( of float64 )
+    svals as Tko.StrVec
+    as any ptr owner
+    as CxLookupFn lookup
+    as CxLookupFn typeLookup
+end type
+
+type CExpr
+    tx as Tko.StrVec               '' the tokens, comments left out
+    tk as C2tIntVec
+    ofs as C2tIntVec
+    nodes as CxNodeVec
+    argList as C2tIntVec
+    as int32 pos
+    as int32 root
+    as string why                  '' why it was refused; "" while it is translatable
+    as boolean cond                '' an #if: 'defined' is an operator; an unknown name is 0
+    as boolean checked             '' the value is compared with clang's afterwards
+    as CxEnv ptr env
+end type
+
+declare sub CxLoad( byref c as CExpr, byref src as C2tSource, byval t1 as int32, byval t2 as int32 )
+declare function CxParse( byref c as CExpr ) as int32
+declare function CxPrint( byref c as CExpr, byval cond as boolean ) as string
+declare function CxFold( byref c as CExpr, byref v as CxValue ) as boolean
+declare function CxEnvFind( byref env as CxEnv, byref cname as string ) as int32
+declare function CxEnvName( byref env as CxEnv, byref cname as string ) as string
+declare function CxEnvType( byref env as CxEnv, byref cname as string ) as string
+declare sub CxEnvAdd( byref env as CxEnv, byref cname as string, byref tiko as string, byval kind as int32, _
+                      byval def_ as boolean = true, byval i as int64 = 0, byval f as float64 = 0, _
+                      byref s as string = "" )
+declare function TikoString( byref b as string ) as string
+
+'' includes.tiko -- each #include resolved through clang's inclusions: its text, or a TODO.
+'' Before the declarations: a mapped system header lets them name its types.
+declare sub IncludeDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDirVec )
+
+'' emitmacro.tiko -- every #define, #undef and conditional, in order: emitter's dir* results.
+declare sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDirVec, _
+                             byref blocks as C2tBlockVec )
+
+'' A C comment in tiko's spelling (source.tiko).
+declare function ConvertComment( byref t as string ) as string
+
+'' output.tiko -- the TODO blocks, then the whole file.
+declare sub TodoBlocks( byref src as C2tSource, byref dirs as C2tDirVec, byref p as C2tPass, _
+                        byref e as C2tEmit, byref blocks as C2tBlockVec )
+'' 'preamble' goes after '#pragma once' (or first); 'externC' opens before the first
+'' translated declaration and closes at the end, when no __cplusplus block placed it.
+'' merge.tiko -- the passes' blocks as one file's: identical text once, differing text under a
+'' synthesised guard, C text no pass sees as one TODO.
+declare sub MergePasses( byref src as C2tSource, byref dirs as C2tDirVec, byref outs as C2tPassOutVec, _
+                         byref merged as C2tBlockVec )
+'' A TODO block's text: its header line and the C quoted beneath (output.tiko).
+declare function TodoText( byref src as C2tSource, byref b as C2tBlock ) as string
+
+declare function Assemble( byref src as C2tSource, byref blocks as C2tBlockVec, _
+                           byref outName as string, byref clangVersion as string, _
+                           byref passes as Tko.StrVec, byref optText as string, _
+                           byref preamble as string, byval externC as boolean, _
+                           byref renames as Tko.StrVec, byref todoCount as int32 ) as string
+
+'' c2t.tiko -- 'tiko c2t ...'. args[0] is "c2t". The process exit code: 0 translated with
+'' no TODO, 1 an error, 2 translated with at least one TODO.
+declare function C2tMain( byref args as Tko.StrVec ) as int32
+
+end namespace

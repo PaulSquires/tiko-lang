@@ -158,6 +158,26 @@ type CImp
     '' The parse, kept so macros.tiko can parse again with its probes appended.
     as string     unitText
     as Tko.StrVec args
+
+    '' 'tiko c2t' (src/c2t) DRIVES THE SAME MAPPING for a header people will read, and these
+    '' are the only places it differs. False for #cinclude and -cimport, whose output does
+    '' not move: fixed-width spellings (int32, not long); a record defined later is reached
+    '' as 'Name__fwd ptr' and an opaque one as 'Name ptr', each needing the alias 'type
+    '' Name__fwd as Name' that c2t writes in place (c2tFwd lists the names asked for); and
+    '' a system header's typedef is its c2t spelling (c2tTdName/c2tTdText) or refused.
+    as boolean    c2t
+    as Tko.StrVec c2tFwd
+    as Tko.StrVec c2tTdName
+    as Tko.StrVec c2tTdText
+    '' ...and for the record RecordEmit wrote last: the C source offset each member line came
+    '' from (-1 for a line C has no counterpart for), and the fields it renamed, as
+    '' 'record.cname -> fbname' -- c2t lays the record out by them and lists the renames.
+    as containers.Array( of int32 ) c2tRecOfs
+    as Tko.StrVec c2tRen
+    '' ...and the system types a translation may name as C spells them, because the header
+    '' includes their tiko counterpart (src/c2t/includes.tiko): by name, or all (windows.bi).
+    as Tko.StrVec c2tSysPass
+    as boolean    c2tSysAll
 end type
 
 '' ---- names.tiko
@@ -193,6 +213,7 @@ declare sub NoteDecl( byref x as CImp, byref cname as string, byval uid as int32
 '' ---- macros.tiko
 declare sub MacroCandidate( byref x as CImp, byval c as CXCursor )
 declare sub MacroPass( byref x as CImp )
+declare sub MacroValuesFor( byref x as CImp, byref names as Tko.StrVec, byref values as Tko.StrVec )
 declare sub MacroSeen( byref x as CImp, byref n as string )
 declare sub NameSeedClaim( byref x as CImp, byval ns as CImpNs, byref n as string )
 declare function StateExport( byref x as CImp ) as string

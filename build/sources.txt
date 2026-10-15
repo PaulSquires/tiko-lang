@@ -133,3 +133,14 @@ src/driver/cicache.tiko
 src/driver/cinclude.tiko
 src/cimport/macros.tiko
 src/cimport/state.tiko
+src/c2t/sha256.tiko
+src/c2t/source.tiko
+src/c2t/ppscan.tiko
+src/c2t/pass.tiko
+src/c2t/emitdecl.tiko
+src/c2t/includes.tiko
+src/c2t/cexpr.tiko
+src/c2t/emitmacro.tiko
+src/c2t/merge.tiko
+src/c2t/output.tiko
+src/c2t/c2t.tiko

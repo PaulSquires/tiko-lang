@@ -1,0 +1,10 @@
+'' tiko c2t: inline functions (D15): a non-static inline declared with its NOTE, a static inline a TODO with its body quoted, a bodiless static a TODO.
+'' Everything after the clang line is asserted byte for byte; the tiko and clang versions
+'' in the banner depend on the host, so only the lines around them are.
+'' TEST: cli
+'' CLEAN: build/.c2t/inline
+'' ARGS: c2t tests/c2t/src/inline.h --verify -o build/.c2t/inline/inline.ti
+'' EXPECT-EXIT: 2
+'' EXPECT-FILE-HAS: build/.c2t/inline/inline.ti :: '' inline.ti -- tiko header translated by c2t (tiko 
+'' EXPECT-FILE-HAS: build/.c2t/inline/inline.ti :: ) from the C header "inline.h"\n''   source sha256 : 2d688289554a4436e2b5c3bc2df4fd04bc02e476c3f857bb8e5893a261e2d353\n''   clang         : 
+'' EXPECT-FILE-HAS: build/.c2t/inline/inline.ti :: ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu\n''   options       : --verify\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' 2 items need manual translation:\n''   line 23  inline.h:7  C2T-TODO(static-inline)  clamp\n''   line 30  inline.h:13  C2T-TODO(static-inline)  helper\n'' =============================================================================\n\n/' inline.h -- inline functions (RFC-0001 D15). '/\n#pragma once\n\nextern "C"\n\n'' C2T-NOTE(inline) inline.h:5 -- inline: links only if the library exports 'twice'\ndeclare function twice( byval x as int32 ) as int32                          /' links only if the library exports it '/\n\n'' C2T-TODO(static-inline) inline.h:7 -- static inline function 'clamp': no symbol to link against; port the body by hand\n'' static inline int clamp(int v, int lo, int hi)    /* no symbol: a TODO with its body */\n'' {\n''     /* the body is quoted whole */\n''     return v < lo ? lo : (v > hi ? hi : v);\n'' }\n\n'' C2T-TODO(static-inline) inline.h:13 -- static function 'helper': no symbol to link against; port the body by hand\n'' static int helper(void);                          /* static, no body here: a TODO too */\ndeclare function plain( byval v as int32 ) as int32\n\nend extern\n

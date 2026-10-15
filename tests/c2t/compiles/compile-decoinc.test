@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/decoinc.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-decoinc
+'' STEP: c2t tests/c2t/src/deco/deco/limits.h --verify -o build/.c2t/compile-decoinc/deco/limits.ti
+'' STEP: c2t tests/c2t/src/deco/decoinc.h --verify -o build/.c2t/compile-decoinc/decoinc.ti
+'' ARGS: -c build/.c2t/compile-decoinc/decoinc.ti -o build/.c2t/compile-decoinc/decoinc.o
+'' EXPECT-EXIT: 0

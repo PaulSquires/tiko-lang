@@ -1,0 +1,5 @@
+'' -I, -D, -U and --pass reach clang and are echoed in the banner; -o is not.
+'' TEST: cli
+'' ARGS: c2t tests/c2t/src/clean.h -I tests/c2t/src -D FOO=1 -U BAR --pass "-DBAZ -DQUX=2" -o -
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: ''   options       : -I tests/c2t/src -D FOO=1 -U BAR --pass "-DBAZ -DQUX=2"

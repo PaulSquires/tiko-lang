@@ -1,0 +1,9 @@
+'' probe 4a: hidden alias, record defined LATER, used through a pointer first, by value after
+type A__fwd as A
+declare sub UseA( byval p as A ptr )
+dim shared as A ptr pa
+type A
+    x as long
+end type
+dim shared as A va
+#assert sizeof(A) = 4

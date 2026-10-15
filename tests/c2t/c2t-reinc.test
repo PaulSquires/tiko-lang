@@ -1,0 +1,12 @@
+'' tiko c2t: an #include of a guarded header the unit already entered through another header is still translated (clang lists no inclusion for it).
+'' Everything after the clang line is asserted byte for byte; the tiko and clang versions
+'' in the banner depend on the host, so only the lines around them are.
+'' TEST: cli
+'' CLEAN: build/.c2t/reinc
+'' STEP: c2t tests/c2t/src/reinc/sub/g.h --verify -o build/.c2t/reinc/sub/g.ti
+'' STEP: c2t tests/c2t/src/reinc/sub/a.h --verify -o build/.c2t/reinc/sub/a.ti
+'' ARGS: c2t tests/c2t/src/reinc/reinc.h --verify -o build/.c2t/reinc/reinc.ti
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: build/.c2t/reinc/reinc.ti :: '' reinc.ti -- tiko header translated by c2t (tiko 
+'' EXPECT-FILE-HAS: build/.c2t/reinc/reinc.ti :: ) from the C header "reinc.h"\n''   source sha256 : 093768165d63c5e4acf2007a448055b5151753cf30a6296eec0d6e1bc1b88365\n''   clang         : 
+'' EXPECT-FILE-HAS: build/.c2t/reinc/reinc.ti :: ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu\n''   options       : --verify\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' Nothing needs manual translation.\n'' =============================================================================\n\n/' reinc.h -- g.h again, after a.h has included it: clang does not enter it twice. '/\n#pragma once\nextern "C"\n\n#include once "sub/a.ti"\n#include once "sub/g.ti"\ndeclare function ri_f( byval x as g_id ) as int32\n\nend extern\n

@@ -1,0 +1,938 @@
+'' emitdecl.tiko -- the declarations of one span, translated in place. See c2t.ti.
+''
+'' THE IMPORTER'S MAPPING, c2t's LAYOUT. Every type is spelled by src/cimport's TypeText in
+'' c2t mode, and every name is the one its pass 1 gave (D3). What is c2t's own is the shape:
+'' each source line that holds code becomes one tiko line (or, for a record or an enum, one
+'' per member), keeps its indentation, and ends with the comments that line held.
+''
+'' ONE RULE FOR COMMENTS. A comment on a line of code moves to the end of that line's tiko
+'' text, at its original column when the text is short enough and after its original gap
+'' when not. A line holding only comments is carried over as it is -- except inside a
+'' continued parameter list, where tiko refuses a bare comment line (TKO0406, P0 item 9) and
+'' it becomes '_ '' text'.
+''
+'' WHAT P2 DOES NOT TRANSLATE stays a TODO with its reason: records with bitfields, nested or
+'' anonymous members, or packing (P3), declarations a macro made, function typedefs.
+
+#import "std/containers"
+#include once "c2t/c2t.ti"
+
+namespace Tko.C2t
+
+'' The cursor and type kinds read here (Index.h, LLVM 21.1.0).
+const CK_STRUCT = 2, CK_UNION = 3, CK_ENUM = 5, CK_FIELD = 6, CK_ENUMCONST = 7
+const CK_FUNCTION = 8, CK_VAR = 9, CK_TYPEDEF = 20, CK_DLLIMPORT = 419, CK_STATICASSERT = 602
+const TK_VOID = 2, TK_CHAR_U = 4, TK_UCHAR = 5, TK_USHORT = 8, TK_UINT = 9, TK_ULONG = 10
+const TK_ULONGLONG = 11, TK_CHAR_S = 13, TK_RECORD = 105, TK_ENUM = 106, TK_TYPEDEF = 107
+const TK_FNNOPROTO = 110, TK_FNPROTO = 111, TK_CONSTARRAY = 112, TK_ELABORATED = 119
+const SC_STATIC = 3
+const CK_FIRSTATTR = 400, CK_LASTATTR = 439
+
+type CurVec_ as containers.Array( of Tko.CImport.CXCursor )
+
+type KidsCtx_
+    as Tko.CImport.ClangApi ptr api
+    as CurVec_ ptr v
+    as boolean dll
+end type
+
+private function KidVisit_ cdecl _
+    ( byval c as Tko.CImport.CXCursor, byval parent as Tko.CImport.CXCursor, byval client as any ptr ) as int32
+    dim as KidsCtx_ ptr k = client
+    if k->api->getCursorKind( c ) = CK_DLLIMPORT then k->dll = true
+    k->v->Push( c )
+    return Tko.CImport.CXChildVisit_Continue
+end function
+
+private sub Kids_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor, byref v as CurVec_, byref dll as boolean )
+    dim as KidsCtx_ k
+    k.api = e.api
+    k.v = @v
+    e.api->visitChildren( c, @KidVisit_, @k )
+    dll = k.dll
+end sub
+
+'' A NAME THE TRANSLATION CHANGED, for the banner (D19): kind, the C spelling, tiko's.
+private sub Ren_( byref e as C2tEmit, byref kind as string, byref cname as string, byref fb as string )
+    if fb = cname then return
+    e.renames.Push( kind & space( 11 - len( kind ) ) & cname & " -> " & fb )
+end sub
+
+private function Usr_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor ) as int32
+    return Tko.CImport.UsrId( *e.x, Tko.CImport.CursorUsr( *e.x, c ) )
+end function
+
+private function FbName_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor ) as string
+    return Tko.CImport.UsrFbName( *e.x, Usr_( e, c ) )
+end function
+
+private sub Written_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor )
+    Tko.CImport.UsrSet( *e.x, Usr_( e, c ), Tko.CImport.US_EMITTED )
+end sub
+
+private function Start_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor ) as int32
+    dim as int32 a, b
+    CursorSpan( *e.api, c, a, b )
+    return a
+end function
+
+private function LineOf_( byref e as C2tEmit, byval ofs as int32 ) as int32
+    dim as int32 t = TokAt( *e.src, ofs )
+    if t >= e.src->toks.Count then t = e.src->toks.Count - 1
+    return e.src->toks[t].line_
+end function
+
+private function Indent_( byref s as string ) as string
+    dim as int32 k = 0
+    while (k < len( s )) andalso ((s[k] = 32) orelse (s[k] = 9))
+        k += 1
+    wend
+    return left( s, k )
+end function
+
+'' THE INDENTATION A DECLARATION IS WRITTEN AT: its first line's -- or, when a comment above
+'' was split off it, the line the comment started on (TranslateSpan).
+private function BaseIndent_( byref e as C2tEmit, byval l1 as int32 ) as string
+    if e.useOverride then return e.indOverride
+    return Indent_( LineText( *e.src, l1 ) )
+end function
+
+'' 's' split at its LFs, onto the end of v.
+private sub PushSplit_( byref v as Tko.StrVec, byref s as string )
+    dim as int32 a = 1
+    for i as int32 = 1 to len( s ) + 1
+        if (i > len( s )) orelse (s[i - 1] = 10) then
+            v.Push( mid( s, a, i - a ) )
+            a = i + 1
+        end if
+    next
+end sub
+
+'' ---------------------------------------------------------------- comments on a line
+
+'' The comments that START on physical line n, in order: their converted text, the column of
+'' the first (0-based), and the end offset of the last code token before it on that line.
+private function LineComments_( byref e as C2tEmit, byval n as int32, byref col as int32, _
+                                byref codeEnd as int32 ) as string
+    dim as string r
+    col = -1
+    codeEnd = -1
+    dim as int32 ls = e.src->lineStart[n - 1]
+    for i as int32 = TokAt( *e.src, ls ) to e.src->toks.Count - 1
+        dim as C2tTok t = e.src->toks[i]
+        if t.line_ > n then exit for
+        if t.line_ < n then continue for
+        if t.kind = CT_COMMENT then
+            if col < 0 then col = t.ofs - ls
+            if len( r ) then r &= " "
+            r &= ConvertComment( TokText( *e.src, i ) )
+        elseif col < 0 then
+            codeEnd = t.ofs + t.len_ - ls
+        end if
+    next
+    return r
+end function
+
+'' Line n holds only comments (and white space)? A blank line is not one.
+'' A LINE INSIDE A BODY THAT IS NOT THIS PASS'S C: a directive, or what the pass skips. Its
+'' comments belong to the C it stands beside, not to the member before it.
+private function GapSkip_( byref e as C2tEmit, byval n as int32 ) as boolean
+    dim as int32 ls = e.src->lineStart[n - 1]
+    dim as int32 t = TokAt( *e.src, ls )
+    while (t < e.src->toks.Count) andalso (e.src->toks[t].line_ = n) andalso (e.src->toks[t].kind = CT_COMMENT)
+        t += 1
+    wend
+    if (t < e.src->toks.Count) andalso (e.src->toks[t].line_ = n) andalso (TokText( *e.src, t ) = "#") then return true
+    dim as int32 o = ls
+    if (t < e.src->toks.Count) andalso (e.src->toks[t].line_ = n) then o = e.src->toks[t].ofs
+    for i as int32 = 0 to e.skipped.Count - 2 step 2
+        if (o >= e.skipped[i]) andalso (o < e.skipped[i + 1]) then return true
+    next
+    return false
+end function
+
+private function CommentOnly_( byref e as C2tEmit, byval n as int32 ) as boolean
+    dim as boolean any_ = false
+    dim as int32 ls = e.src->lineStart[n - 1]
+    for i as int32 = TokAt( *e.src, ls ) to e.src->toks.Count - 1
+        dim as C2tTok t = e.src->toks[i]
+        if t.line_ > n then exit for
+        if t.kind <> CT_COMMENT then return false
+        if t.line_ = n then any_ = true
+    next
+    return any_
+end function
+
+private function Blank_( byref e as C2tEmit, byval n as int32 ) as boolean
+    return len( trim( LineText( *e.src, n ), any chr( 32, 9, 13 ) ) ) = 0
+end function
+
+'' 'code' with line n's comments after it: at their original column when 'code' is shorter,
+'' else after their original gap from the code before them (at least one space).
+private function Trail_( byref e as C2tEmit, byref code as string, byval n as int32 ) as string
+    dim as int32 col, codeEnd
+    dim as string cm = LineComments_( e, n, col, codeEnd )
+    if len( cm ) = 0 then return code
+    if len( code ) < col then return code & space( col - len( code ) ) & cm
+    dim as int32 gap = 1
+    if codeEnd >= 0 then gap = col - codeEnd
+    if gap < 1 then gap = 1
+    return code & space( gap ) & cm
+end function
+
+function TrailComments( byref e as C2tEmit, byref code as string, byval n as int32 ) as string
+    return Trail_( e, code, n )
+end function
+
+'' ---------------------------------------------------------------- aliases
+
+'' Every record the translation reached through a pointer before writing it (types.tiko,
+'' C2tPtrToRecord_) needs 'type X__fwd as X' above it -- once, at the first place.
+private function NewAliases_( byref e as C2tEmit, byval n0 as int32, byref ind as string ) as string
+    dim as string r
+    for i as int32 = n0 to e.x->c2tFwd.Count - 1
+        dim as string nm = e.x->c2tFwd[i]
+        dim as boolean done = false
+        for j as int32 = 0 to e.aliasDone.Count - 1
+            if e.aliasDone[j] = nm then
+                done = true
+                exit for
+            end if
+        next
+        if done = false then
+            e.aliasDone.Push( nm )
+            r &= ind & "type " & nm & "__fwd as " & nm & chr( 10 )
+        end if
+    next
+    return r
+end function
+
+private sub Forget_( byref e as C2tEmit, byval n0 as int32 )
+    while e.x->c2tFwd.Count > n0
+        e.x->c2tFwd.Pop( )
+    wend
+end sub
+
+private function AliasDone_( byref e as C2tEmit, byref nm as string ) as boolean
+    for j as int32 = 0 to e.aliasDone.Count - 1
+        if e.aliasDone[j] = nm then return true
+    next
+    return false
+end function
+
+'' ---------------------------------------------------------------- functions
+
+private function Function_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor, byval l1 as int32, _
+                            byval l2 as int32, byref text as string, byref reason as string, _
+                            byref why as string ) as boolean
+    dim as Tko.CImport.ClangApi ptr api = e.api
+    dim as string cname = Tko.CImport.CursorName( *e.x, c )
+    dim as boolean inl = (api->Cursor_isFunctionInlined( c ) <> 0)
+    if api->Cursor_getStorageClass( c ) = SC_STATIC then
+        reason = "static-inline"
+        why = iif( inl, "static inline", "static" ) & " function '" & cname & _
+              "': no symbol to link against; port the body by hand"
+        return false
+    end if
+    dim as Tko.CImport.CXType ft = api->getCursorType( c )
+    if ft.kind = TK_FNNOPROTO then
+        reason = "no-prototype"
+        why = "'" & cname & "()' declares no parameter list; C allows any arguments"
+        return false
+    end if
+    select case api->getFunctionTypeCallingConv( ft )
+    case 0, 1, 6, 7, 10, 11
+    case else
+        reason = "refused-type"
+        why = "'" & cname & "' uses a calling convention tiko has no spelling for"
+        return false
+    end select
+
+    dim as string nm = FbName_( e, c )
+    Ren_( e, "procedure", cname, nm )
+    dim as Tko.CImport.CXType rt = api->getCursorResultType( c )
+    dim as boolean isSub = (Tko.CImport.Unwrap( *e.x, rt ).kind = TK_VOID)
+    dim as string rs
+    if isSub = false then
+        rs = Tko.CImport.TypeText( *e.x, rt, why )
+        if len( rs ) = 0 then
+            reason = "refused-type"
+            why = "'" & cname & "' return type: " & why
+            return false
+        end if
+    end if
+
+    '' THE PARAMETERS, each with the source line it starts on.
+    dim as int32 n = api->Cursor_getNumArguments( c )
+    dim as Tko.StrVec pt
+    dim as C2tIntVec pl
+    for i as int32 = 0 to n - 1
+        dim as Tko.CImport.CXCursor a = api->Cursor_getArgument( c, i )
+        dim as string ty = Tko.CImport.ParamTypeText( *e.x, api->getCursorType( a ), why )
+        if len( ty ) = 0 then
+            reason = "refused-type"
+            why = "'" & cname & "' parameter " & (i + 1) & ": " & why
+            return false
+        end if
+        dim as string pn = Tko.CImport.CursorName( *e.x, a )
+        if len( pn ) then
+            Ren_( e, "parameter", cname & "." & pn, cname & "." & Tko.CImport.NameParam( pn ) )
+            pt.Push( "byval " & Tko.CImport.NameParam( pn ) & " as " & ty )
+        else
+            pt.Push( "byval as " & ty )
+        end if
+        pl.Push( LineOf_( e, Start_( e, a ) ) )
+    next
+    dim as boolean variadic = (api->isFunctionTypeVariadic( ft ) <> 0)
+    if variadic andalso (n = 0) then
+        reason = "refused-type"
+        why = "'" & cname & "' is variadic with no named parameter"
+        return false
+    end if
+
+    dim as string ind = BaseIndent_( e, l1 )
+    dim as string head = ind & "declare " & iif( isSub, "sub ", "function " ) & nm
+    if nm <> cname then head &= " alias """ & cname & """"
+    head &= "( "
+    '' A CONTINUATION LINE ALIGNED UNDER C's '(' is aligned under tiko's; any other indent
+    '' is kept as written.
+    dim as int32 cparen = -1
+    dim as int32 t0 = TokAt( *e.src, Start_( e, c ) )
+    for i as int32 = t0 to e.src->toks.Count - 1
+        if TokText( *e.src, i ) = "(" then
+            cparen = e.src->toks[i].ofs - e.src->lineStart[e.src->toks[i].line_ - 1]
+            exit for
+        end if
+    next
+
+    dim as Tko.StrVec outL
+    dim as string cur = head
+    dim as int32 curLine = l1
+    for i as int32 = 0 to n - 1
+        if i > 0 then
+            if pl[i] > pl[i - 1] then
+                '' A LINE BREAK IN C IS ONE IN tiko: the line ends ', _' with its comments.
+                outL.Push( Trail_( e, cur & ", _", curLine ) )
+                for m as int32 = curLine + 1 to pl[i] - 1
+                    dim as string mi = Indent_( LineText( *e.src, m ) )
+                    if (cparen >= 0) andalso (len( mi ) = cparen + 1) then mi = space( len( head ) )
+                    if CommentOnly_( e, m ) then
+                        dim as int32 cc, ce
+                        outL.Push( mi & "_ " & LineComments_( e, m, cc, ce ) )
+                    else
+                        outL.Push( rtrim( mi & "_" ) )
+                    end if
+                next
+                dim as string ci = Indent_( LineText( *e.src, pl[i] ) )
+                if (cparen >= 0) andalso (len( ci ) = cparen + 1) then ci = space( len( head ) )
+                cur = ci
+                curLine = pl[i]
+            else
+                cur &= ", "
+            end if
+        end if
+        cur &= pt[i]
+    next
+    if variadic then cur &= ", ..."
+    cur &= iif( n > 0 orelse variadic, " )", ")" )
+    if isSub = false then cur &= " as " & rs
+    '' THE LAST CODE LINE'S COMMENTS -- and any line after it the declaration still spans.
+    for m as int32 = curLine + 1 to l2
+        if CommentOnly_( e, m ) = false then curLine = m
+    next
+    outL.Push( Trail_( e, cur, curLine ) )
+    for m as int32 = curLine + 1 to l2
+        dim as int32 cc, ce
+        if CommentOnly_( e, m ) then outL.Push( Indent_( LineText( *e.src, m ) ) & LineComments_( e, m, cc, ce ) )
+    next
+
+    if inl then
+        text = ind & "'' C2T-NOTE(inline) " & e.src->name_ & ":" & l1 & _
+               " -- inline: links only if the library exports '" & cname & "'" & chr( 10 )
+    end if
+    for i as int32 = 0 to outL.Count - 1
+        text &= outL[i]
+        if i < outL.Count - 1 then text &= chr( 10 )
+    next
+    Written_( e, c )
+    return true
+end function
+
+'' ---------------------------------------------------------------- variables
+
+private function Var_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor, byref text as string, _
+                       byref reason as string, byref why as string ) as boolean
+    dim as Tko.CImport.ClangApi ptr api = e.api
+    dim as string cname = Tko.CImport.CursorName( *e.x, c )
+    if api->Cursor_getStorageClass( c ) = SC_STATIC then
+        reason = "refused-type"
+        why = "static variable '" & cname & "': no symbol to link against"
+        return false
+    end if
+    dim as Tko.CImport.CXType t = Tko.CImport.Unwrap( *e.x, api->getCursorType( c ) )
+    dim as string dims
+    while t.kind = TK_CONSTARRAY
+        if len( dims ) then dims &= ", "
+        dims &= "0 to " & (api->getNumElements( t ) - 1)
+        t = Tko.CImport.Unwrap( *e.x, api->getElementType( t ) )
+    wend
+    dim as string ty = Tko.CImport.TypeText( *e.x, t, why )
+    if len( ty ) = 0 then
+        reason = "refused-type"
+        why = "'" & cname & "': " & why
+        return false
+    end if
+    dim as CurVec_ kids
+    dim as boolean dll
+    Kids_( e, c, kids, dll )
+    dim as string nm = FbName_( e, c )
+    Ren_( e, "variable", cname, nm )
+    text = "extern " & iif( dll, "import ", "" ) & nm
+    if len( dims ) then text &= "(" & dims & ")"
+    if nm <> cname then text &= " alias """ & cname & """"
+    text &= " as " & ty
+    Written_( e, c )
+    return true
+end function
+
+'' ---------------------------------------------------------------- records
+
+'' tiko's indentation for a line RecordEmit wrote with leading tabs: four spaces per level.
+private function Retab_( byref s as string, byref ind as string, byref depth as int32 ) as string
+    depth = 0
+    while (depth < len( s )) andalso (s[depth] = 9)
+        depth += 1
+    wend
+    return ind & space( 4 * depth ) & mid( s, depth + 1 )
+end function
+
+'' A record, through src/cimport's RecordEmit (D3): its members, bit-fields, anonymous and
+'' nested members, 'field = N' and every refusal are the importer's; the layout is c2t's.
+'' Each member line goes on the source line its member starts on, at that line's
+'' indentation, with that line's comments; comment and blank lines between stay where they
+'' are. Records C declared inside this one -- and the ones named for unnamed field types --
+'' come first, as RecordEmit orders them.
+private function Record_( byref e as C2tEmit, byval rc as Tko.CImport.CXCursor, byval l1 as int32, _
+                          byval l2 as int32, byref recName as string, byref tail as string, _
+                          byref text as string, byref reason as string, byref why as string ) as boolean
+    dim as Tko.CImport.CImp ptr x = e.x
+    dim as int32 n0 = x->decls.Count
+    dim as int32 r0 = x->c2tRen.Count
+    if Tko.CImport.RecordEmit( *x, rc, recName, why ) = false then
+        x->curRecordUsr = ""
+        while x->c2tRen.Count > r0
+            x->c2tRen.Pop( )
+        wend
+        '' A RECORD THE LAYOUT CHECK REFUSED (--verify) says so in its reason.
+        reason = "refused-type"
+        for i as int32 = 0 to x->opts->refuseName.Count - 1
+            if lcase( x->opts->refuseName[i] ) = lcase( recName ) then reason = "layout"
+        next
+        why = "record '" & recName & "': " & why
+        return false
+    end if
+    x->curRecordUsr = ""
+    '' ALREADY WRITTEN -- as a nested record of one before it: nothing more to say here.
+    if x->decls.Count = n0 then
+        text = ""
+        return true
+    end if
+    for i as int32 = r0 to x->c2tRen.Count - 1
+        e.renames.Push( "field      " & x->c2tRen[i] )
+    next
+
+    dim as string ind = BaseIndent_( e, l1 )
+    dim as Tko.StrVec outL
+    '' WHAT HAD TO COME FIRST: nested named records, records for unnamed field types.
+    for i as int32 = n0 to x->decls.Count - 2
+        dim as Tko.StrVec pl
+        PushSplit_( pl, x->decls[i] )
+        for j as int32 = 0 to pl.Count - 1
+            dim as int32 dd
+            outL.Push( Retab_( pl[j], ind, dd ) )
+        next
+    next
+
+    '' THIS RECORD: head, member lines, end -- each with the source line it belongs to.
+    dim as Tko.StrVec rl
+    PushSplit_( rl, x->decls[x->decls.Count - 1] )
+    dim as int32 nb = rl.Count - 2
+    dim as Tko.StrVec et
+    dim as C2tIntVec el
+    et.Push( rl[0] ) : el.Push( l1 )
+    dim as int32 prev = l1
+    for i as int32 = 0 to nb - 1
+        dim as int32 sl = prev
+        if (i < x->c2tRecOfs.Count) andalso (x->c2tRecOfs[i] >= 0) then sl = LineOf_( e, x->c2tRecOfs[i] )
+        if sl < prev then sl = prev
+        if sl > l2 then sl = l2
+        et.Push( rl[i + 1] ) : el.Push( sl )
+        prev = sl
+    next
+    et.Push( rl[rl.Count - 1] & tail ) : el.Push( l2 )
+
+    for i as int32 = 0 to et.Count - 1
+        '' THE GAP before this line: comment and blank lines stay; a line of code with no
+        '' member of its own ('{' alone) gives its comments to the line before.
+        if i > 0 then
+            for m as int32 = el[i - 1] + 1 to el[i] - 1
+                if GapSkip_( e, m ) then continue for
+                if CommentOnly_( e, m ) then
+                    dim as int32 cc, ce
+                    outL.Push( Indent_( LineText( *e.src, m ) ) & LineComments_( e, m, cc, ce ) )
+                elseif Blank_( e, m ) then
+                    outL.Push( "" )
+                else
+                    dim as int32 cc, ce
+                    dim as string cm = LineComments_( e, m, cc, ce )
+                    if len( cm ) andalso (outL.Count > 0) then outL[outL.Count - 1] &= " " & cm
+                end if
+            next
+        end if
+        dim as string s
+        dim as int32 depth
+        if (i = 0) orelse (i = et.Count - 1) then
+            s = ind & et[i]
+        elseif (el[i] <> l1) andalso (el[i] <> l2) then
+            '' A MEMBER ON ITS OWN LINE keeps that line's indentation, nested blocks one
+            '' level deeper than their opening line.
+            dim as string raw = Retab_( et[i], "", depth )
+            s = Indent_( LineText( *e.src, el[i] ) ) & mid( raw, 4 * depth + 1 )
+            if (i > 1) andalso (el[i - 1] = el[i]) then s = Retab_( et[i], ind, depth )
+        else
+            s = Retab_( et[i], ind, depth )
+        end if
+        '' THE LINE'S COMMENTS go after the last tiko line that belongs to it.
+        if (i = et.Count - 1) orelse (el[i + 1] <> el[i]) then s = Trail_( e, s, el[i] )
+        outL.Push( s )
+    next
+    for i as int32 = 0 to outL.Count - 1
+        text &= outL[i]
+        if i < outL.Count - 1 then text &= chr( 10 )
+    next
+    return true
+end function
+
+'' ---------------------------------------------------------------- enums
+
+private function Enum_( byref e as C2tEmit, byval ec as Tko.CImport.CXCursor, byval l1 as int32, _
+                        byval l2 as int32, byref enumName as string, byref text as string, _
+                        byref reason as string, byref why as string ) as boolean
+    dim as Tko.CImport.ClangApi ptr api = e.api
+    dim as Tko.CImport.CXType it = api->getEnumDeclIntegerType( ec )
+    dim as string itx = Tko.CImport.TypeText( *e.x, it, why )
+    if len( itx ) = 0 then
+        reason = "refused-type"
+        why = "enum '" & enumName & "': " & why
+        return false
+    end if
+    dim as boolean uns = false
+    select case Tko.CImport.Unwrap( *e.x, it ).kind
+    case TK_CHAR_U, TK_UCHAR, TK_USHORT, TK_UINT, TK_ULONG, TK_ULONGLONG
+        uns = true
+    end select
+    dim as CurVec_ kids
+    dim as boolean dll
+    Kids_( e, ec, kids, dll )
+    dim as Tko.StrVec ct
+    dim as C2tIntVec cl
+    for i as int32 = 0 to kids.Count - 1
+        if api->getCursorKind( kids[i] ) <> CK_ENUMCONST then continue for
+        dim as string s = FbName_( e, kids[i] )
+        Ren_( e, "constant", Tko.CImport.CursorName( *e.x, kids[i] ), s )
+        '' A VALUE WHERE C WROTE ONE: clang's, until P4 translates the expression.
+        dim as int32 a, b
+        CursorSpan( *api, kids[i], a, b )
+        dim as boolean init_ = false
+        for t as int32 = TokAt( *e.src, a ) to TokAt( *e.src, b ) - 1
+            if TokText( *e.src, t ) = "=" then
+                init_ = true
+                exit for
+            end if
+        next
+        if init_ then
+            if uns then
+                s &= " = " & api->getEnumConstantDeclUnsignedValue( kids[i] )
+            else
+                s &= " = " & api->getEnumConstantDeclValue( kids[i] )
+            end if
+        end if
+        ct.Push( s )
+        cl.Push( LineOf_( e, a ) )
+    next
+    if ct.Count = 0 then
+        reason = "refused-type"
+        why = "enum '" & enumName & "' has no enumerators"
+        return false
+    end if
+
+    dim as string ind = BaseIndent_( e, l1 )
+    dim as Tko.StrVec outL
+    dim as string head
+    '' ENUMS ARE NEVER A tiko ENUM TYPE: a tiko enum is 8 bytes on both targets and a C enum
+    '' 4 (P0 item 7). The type is its integer; the constants a nameless enum block.
+    if len( enumName ) then outL.Push( ind & "type " & enumName & " as " & itx )
+    dim as int32 fi = 0
+    for m as int32 = l1 to l2
+        if m = l1 then
+            outL.Push( Trail_( e, ind & "enum", m ) )
+            while (fi < ct.Count) andalso (cl[fi] = m)
+                outL.Push( ind & "    " & ct[fi] )
+                fi += 1
+            wend
+            if m = l2 then outL.Push( ind & "end enum" )
+            continue for
+        end if
+        if m = l2 then
+            while (fi < ct.Count) andalso (cl[fi] = m)
+                outL.Push( ind & "    " & ct[fi] )
+                fi += 1
+            wend
+            outL.Push( Trail_( e, ind & "end enum", m ) )
+            continue for
+        end if
+        if (fi < ct.Count) andalso (cl[fi] = m) then
+            dim as string cin = Indent_( LineText( *e.src, m ) )
+            while (fi < ct.Count) andalso (cl[fi] = m)
+                dim as string s = cin & ct[fi]
+                fi += 1
+                if (fi >= ct.Count) orelse (cl[fi] <> m) then s = Trail_( e, s, m )
+                outL.Push( s )
+            wend
+        elseif GapSkip_( e, m ) then
+            '' a directive, or C this pass skips
+        elseif CommentOnly_( e, m ) then
+            dim as int32 cc, ce
+            outL.Push( Indent_( LineText( *e.src, m ) ) & LineComments_( e, m, cc, ce ) )
+        elseif Blank_( e, m ) then
+            outL.Push( "" )
+        else
+            dim as int32 cc, ce
+            dim as string cm = LineComments_( e, m, cc, ce )
+            if len( cm ) andalso (outL.Count > 0) then outL[outL.Count - 1] &= " " & cm
+        end if
+    next
+    for i as int32 = 0 to outL.Count - 1
+        text &= outL[i]
+        if i < outL.Count - 1 then text &= chr( 10 )
+    next
+    Written_( e, ec )
+    return true
+end function
+
+'' ---------------------------------------------------------------- typedefs
+
+private function Typedef_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor, byref text as string, _
+                           byref reason as string, byref why as string ) as boolean
+    dim as Tko.CImport.ClangApi ptr api = e.api
+    dim as string nm = FbName_( e, c )
+    Ren_( e, "type", Tko.CImport.CursorName( *e.x, c ), nm )
+    dim as Tko.CImport.CXType u = Tko.CImport.Unwrap( *e.x, api->getTypedefDeclUnderlyingType( c ) )
+    select case u.kind
+    case TK_RECORD, TK_ENUM
+        dim as Tko.CImport.CXCursor d = api->getTypeDeclaration( u )
+        dim as string rn = FbName_( e, d )
+        if len( rn ) = 0 then
+            reason = "refused-type"
+            why = "typedef '" & nm & "' names a record clang does not name"
+            return false
+        end if
+        if rn = nm then
+            '' 'typedef struct X X;': THE HIDDEN ALIAS introduces X (D18). Once is enough.
+            if u.kind = TK_ENUM then
+                text = ""
+            elseif AliasDone_( e, rn ) then
+                text = ""
+            else
+                e.aliasDone.Push( rn )
+                text = "type " & rn & "__fwd as " & rn
+            end if
+        else
+            text = "type " & nm & " as " & rn
+        end if
+    case TK_FNPROTO, TK_FNNOPROTO
+        reason = "unsupported"
+        why = "typedef '" & nm & "' names a function type, not a pointer to one"
+        return false
+    case else
+        dim as string ty = Tko.CImport.TypeText( *e.x, api->getTypedefDeclUnderlyingType( c ), why )
+        if len( ty ) = 0 then
+            reason = "refused-type"
+            why = "typedef '" & nm & "': " & why
+            return false
+        end if
+        if lcase( nm ) = lcase( ty ) then
+            '' 'typedef uint8_t Uint8': TO tiko THE NAME IS THE TYPE (no case), and redeclaring a
+            '' builtin under its own name leaves the records using it unlaid-out.
+            text = "'' " & nm & ": tiko's own " & ty
+        else
+            text = "type " & nm & " as " & ty
+        end if
+    end select
+    Written_( e, c )
+    return true
+end function
+
+'' ---------------------------------------------------------------- the span
+
+'' The typedefs of a record declaration that do not name the record itself -- 'typedef struct
+'' X *Y' -- each 'type Y as <its type>' after the record (or its hidden alias) is written, so
+'' the pointer is 'X__fwd ptr' or 'X ptr' as D18 says.
+private function PtrTypedefs_( byref e as C2tEmit, byref p as C2tPass, byref ptrTd as C2tIntVec, _
+                               byref ind as string, byref text as string, _
+                               byref reason as string, byref why as string ) as boolean
+    for i as int32 = 0 to ptrTd.Count - 1
+        dim as Tko.CImport.CXCursor c = p.segs[ptrTd[i]].cur
+        dim as string tn = FbName_( e, c )
+        Ren_( e, "type", Tko.CImport.CursorName( *e.x, c ), tn )
+        dim as string w
+        dim as string ty = Tko.CImport.TypeText( *e.x, e.api->getTypedefDeclUnderlyingType( c ), w )
+        if len( ty ) = 0 then
+            reason = "refused-type"
+            why = "typedef '" & tn & "': " & w
+            return false
+        end if
+        if len( text ) then text &= chr( 10 )
+        text &= ind & "type " & tn & " as " & ty
+        Written_( e, c )
+    next
+    return true
+end function
+
+sub EmitInit( byref e as C2tEmit, byref api as Tko.CImport.ClangApi, byref x as Tko.CImport.CImp, _
+              byref io as Tko.CImport.CImportOptions, byref src as C2tSource, byref p as C2tPass )
+    e.api = @api
+    e.x = @x
+    e.src = @src
+    e.skipped.Clear( )
+    for i as int32 = 0 to p.skipped.Count - 1
+        e.skipped.Push( p.skipped[i] )
+    next
+    x.api = @api
+    x.opts = @io
+    x.tu = p.tu
+    x.c2t = true
+    '' THE MACRO PROBES (macros.tiko) parse a unit of their own: one #include of the header,
+    '' with the pass's arguments.
+    x.unitText = "#include " & chr( 34 ) & src.path_ & chr( 34 ) & chr( 10 )
+    for i as int32 = 0 to p.args.Count - 1
+        x.args.Push( p.args[i] )
+    next
+    '' THE SYSTEM TYPEDEFS c2t SPELLS ITSELF (RFC-0001 §5.1); any other a system header
+    '' declares is refused where it is used.
+    dim as string td( 0 to 31 ) = { _
+        "size_t", "uinteger", "ssize_t", "integer", "ptrdiff_t", "integer", _
+        "intptr_t", "integer", "uintptr_t", "uinteger", "int8_t", "int8", _
+        "uint8_t", "uint8", "int16_t", "int16", "uint16_t", "uint16", _
+        "int32_t", "int32", "uint32_t", "uint32", "int64_t", "int64", _
+        "uint64_t", "uint64", "intmax_t", "int64", "uintmax_t", "uint64", _
+        "va_list", "cva_list" }
+    for i as int32 = 0 to 31 step 2
+        x.c2tTdName.Push( td( i ) )
+        x.c2tTdText.Push( td( i + 1 ) )
+    next
+    '' wchar_t IS THE TARGET'S: 2 bytes on Windows, 4 on Linux (a pointer to one is 'wstring
+    '' ptr' either way, types.tiko). The merge guards the difference.
+    x.c2tTdName.Push( "wchar_t" )
+    x.c2tTdText.Push( iif( io.isWindows, "uint16", "int32" ) )
+    Tko.CImport.DeclPassNames( x )
+    '' WHAT OTHER FILES DECLARE IS WRITTEN ALREADY -- by their own .ti, or mapped above.
+    dim as CurVec_ top
+    dim as boolean dll
+    Kids_( e, api.getTranslationUnitCursor( p.tu ), top, dll )
+    dim as any ptr mf = api.getFile( p.tu, strptr( src.path_ ) )
+    for i as int32 = 0 to top.Count - 1
+        dim as Tko.CImport.CXSourceLocation loc = api.getCursorLocation( top[i] )
+        if api.Location_isFromMainFile( loc ) = 0 then
+            dim as any ptr f = nullptr
+            api.getExpansionLocation( loc, @f, nullptr, nullptr, nullptr )
+            if (f = nullptr) orelse (api.File_isEqual( f, mf ) = 0) then Written_( e, top[i] )
+        end if
+    next
+end sub
+
+private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segIdx as C2tIntVec, _
+                             byval l1 as int32, byval l2 as int32, byref text as string, _
+                             byref reason as string, byref why as string ) as boolean
+    dim as Tko.CImport.ClangApi ptr api = e.api
+    dim as int32 n0 = e.x->c2tFwd.Count
+    dim as int32 ren0 = e.renames.Count
+    text = ""
+
+    '' COMMENT LINES THE SPAN WAS WIDENED OVER (output.tiko, Widen_): a block comment that
+    '' starts above the declaration and ends on its first line. It is written above the
+    '' translation as it stands, and the translation starts on the line the code does.
+    dim as string lead
+    dim as int32 a0 = e.src->lineStart[l1 - 1]
+    dim as int32 ft = TokAt( *e.src, a0 )
+    while (ft < e.src->toks.Count) andalso (e.src->toks[ft].kind = CT_COMMENT)
+        ft += 1
+    wend
+    if (ft < e.src->toks.Count) andalso (e.src->toks[ft].line_ > l1) then
+        lead = ConvertRange( *e.src, a0, e.src->toks[ft].ofs )
+        while (len( lead ) > 0) andalso (right( lead, 1 ) = chr( 10 ))
+            lead = left( lead, len( lead ) - 1 )
+        wend
+        e.indOverride = Indent_( LineText( *e.src, l1 ) )
+        e.useOverride = true
+        l1 = e.src->toks[ft].line_
+    end if
+
+    '' WHAT THE SPAN HOLDS decides the path.
+    dim as int32 nRec = 0, nEnum = 0, nFn = 0, nVar = 0, nTd = 0, nOther = 0
+    dim as Tko.CImport.CXCursor rec, en
+    for i as int32 = 0 to segIdx.Count - 1
+        dim as C2tSegment s = p.segs[segIdx[i]]
+        if s.viaMacro then
+            reason = "unsupported"
+            why = "a declaration made by a macro invocation"
+            return false
+        end if
+        select case s.kind
+        case CK_STRUCT, CK_UNION
+            nRec += 1 : rec = s.cur
+        case CK_ENUM
+            nEnum += 1 : en = s.cur
+        case CK_FUNCTION : nFn += 1
+        case CK_VAR      : nVar += 1
+        case CK_TYPEDEF  : nTd += 1
+        case CK_STATICASSERT
+            reason = ""
+            dim as string ind = BaseIndent_( e, l1 )
+            text = ind & "'' C2T-NOTE(static-assert) " & e.src->name_ & ":" & l1 & _
+                   " -- a C compile-time check; nothing to declare"
+            for m as int32 = l1 to l2
+                text &= chr( 10 ) & rtrim( "'' " & LineText( *e.src, m ) )
+            next
+            if len( lead ) then text = lead & chr( 10 ) & text
+            return true
+        case else
+            nOther += 1
+        end select
+    next
+    if nOther > 0 then
+        reason = "unsupported"
+        why = "a kind of declaration c2t does not translate"
+        return false
+    end if
+    dim as string ind = BaseIndent_( e, l1 )
+    dim as boolean ok = true
+
+    if (nRec + nEnum) > 0 then
+        if (nRec + nEnum) > 1 then
+            reason = "unsupported"
+            why = "more than one record or enum in one declaration"
+            return false
+        end if
+        dim as Tko.CImport.CXCursor d = en
+        if nRec > 0 then d = rec
+        dim as boolean def_ = (api->isCursorDefinition( d ) <> 0)
+        '' THE NAME: the record's, or the typedef's that named an anonymous one. A typedef
+        '' under ANOTHER name is written after the record as 'type Y as X'.
+        dim as string nm = FbName_( e, d )
+        dim as string dcn = Tko.CImport.CursorName( *e.x, d )
+        if len( dcn ) then Ren_( e, "type", dcn, nm )
+        dim as string tail
+        dim as C2tIntVec ptrTd                 '' 'typedef struct X *Y': after the record
+        for i as int32 = 0 to segIdx.Count - 1
+            dim as C2tSegment s = p.segs[segIdx[i]]
+            if s.kind = CK_TYPEDEF then
+                '' A TYPEDEF OF THE RECORD ITSELF names it; one of a pointer to it (or anything
+                '' else built on it) is spelled like any typedef, once the record is written.
+                dim as Tko.CImport.CXType uu = Tko.CImport.Unwrap( *e.x, api->getTypedefDeclUnderlyingType( s.cur ) )
+                if (uu.kind <> TK_RECORD) andalso (uu.kind <> TK_ENUM) then
+                    ptrTd.Push( segIdx[i] )
+                    continue for
+                end if
+                dim as string tn = FbName_( e, s.cur )
+                if len( nm ) = 0 then nm = tn
+                if tn <> nm then tail &= chr( 10 ) & ind & "type " & tn & " as " & nm
+                Written_( e, s.cur )
+            end if
+        next
+        if (len( nm ) = 0) andalso (ptrTd.Count > 0) then
+            reason = "refused-type"
+            why = "typedef '" & FbName_( e, p.segs[ptrTd[0]].cur ) & "' points to a record with no name"
+            return false
+        end if
+        if def_ = false then
+            '' 'struct X;' -- a forward declaration: the hidden alias (D18).
+            if (nRec > 0) andalso (AliasDone_( e, nm ) = false) then
+                e.aliasDone.Push( nm )
+                text = Trail_( e, ind & "type " & nm & "__fwd as " & nm, l2 )
+            else
+                text = ""
+            end if
+            if len( tail ) then text &= tail
+            if PtrTypedefs_( e, p, ptrTd, ind, text, reason, why ) = false then return false
+            return true
+        end if
+        if nRec > 0 then
+            ok = Record_( e, d, l1, l2, nm, "", text, reason, why )
+            if ok andalso len( tail ) then text &= tail
+            if ok then ok = PtrTypedefs_( e, p, ptrTd, ind, text, reason, why )
+            '' A RECORD LEFT AS A TODO IS NOT DECLARED: a pointer to it later is 'Name ptr'
+            '' behind the hidden alias, as for an opaque one (types.tiko, C2tPtrToRecord_).
+            if ok = false then Tko.CImport.UsrSet( *e.x, Usr_( e, d ), Tko.CImport.US_REFUSED )
+        else
+            ok = Enum_( e, d, l1, l2, nm, text, reason, why )
+            if ok andalso len( tail ) then text &= tail
+            if ok then ok = PtrTypedefs_( e, p, ptrTd, ind, text, reason, why )
+        end if
+    elseif nFn > 0 then
+        if segIdx.Count > 1 then
+            reason = "unsupported"
+            why = "more than one function on one line"
+            return false
+        end if
+        ok = Function_( e, p.segs[segIdx[0]].cur, l1, l2, text, reason, why )
+    elseif nVar > 0 then
+        for i as int32 = 0 to segIdx.Count - 1
+            dim as string one
+            if Var_( e, p.segs[segIdx[i]].cur, one, reason, why ) = false then
+                ok = false
+                exit for
+            end if
+            if len( text ) then text &= chr( 10 )
+            text &= ind & one
+        next
+        if ok then text = Trail_( e, text, l2 )
+    elseif nTd > 0 then
+        for i as int32 = 0 to segIdx.Count - 1
+            dim as string one
+            if Typedef_( e, p.segs[segIdx[i]].cur, one, reason, why ) = false then
+                ok = false
+                exit for
+            end if
+            if len( one ) then
+                if len( text ) then text &= chr( 10 )
+                text &= ind & one
+            end if
+        next
+        if ok andalso len( text ) then text = Trail_( e, text, l2 )
+    end if
+
+    if ok = false then
+        Forget_( e, n0 )
+        while e.renames.Count > ren0
+            e.renames.Pop( )
+        wend
+        return false
+    end if
+    '' THE ALIASES THIS DECLARATION NEEDS go above it, once each; a leading comment above both.
+    text = NewAliases_( e, n0, ind ) & text
+    if len( lead ) then text = lead & chr( 10 ) & text
+    e.decls += 1
+    return true
+end function
+
+function TranslateSpan( byref e as C2tEmit, byref p as C2tPass, byref segIdx as C2tIntVec, _
+                        byval l1 as int32, byval l2 as int32, byref text as string, _
+                        byref reason as string, byref why as string ) as boolean
+    e.useOverride = false
+    dim as boolean ok = Translate_( e, p, segIdx, l1, l2, text, reason, why )
+    e.useOverride = false
+    return ok
+end function
+
+end namespace

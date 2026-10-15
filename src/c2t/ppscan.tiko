@@ -1,0 +1,396 @@
+'' ppscan.tiko -- the header's directives, and the idioms c2t replaces outright. See c2t.ti.
+''
+'' LIBCLANG HAS NO CURSORS FOR #if, #else OR #endif (RFC-0001 §4.3), so the conditional
+'' structure is read from the text: one pass over c2t's own tokens, independent of target,
+'' which is what lets a later phase line the passes up by byte offset.
+
+#import "std/containers"
+#include once "c2t/c2t.ti"
+
+namespace Tko.C2t
+
+private function KindOf_( byref w as string ) as int32
+    select case w
+    case "if"      : return DK_IF
+    case "ifdef"   : return DK_IFDEF
+    case "ifndef"  : return DK_IFNDEF
+    case "elif"    : return DK_ELIF
+    case "else"    : return DK_ELSE
+    case "endif"   : return DK_ENDIF
+    case "define"  : return DK_DEFINE
+    case "undef"   : return DK_UNDEF
+    case "include" : return DK_INCLUDE
+    end select
+    return DK_OTHER
+end function
+
+private function IsHash_( byref src as C2tSource, byval i as int32 ) as boolean
+    if src.toks[i].kind <> CT_PUNCT then return false
+    if src.toks[i].bol = false then return false
+    return TokText( src, i ) = "#"
+end function
+
+sub ScanDirectives( byref src as C2tSource, byref dirs as C2tDirVec )
+    dim as C2tIntVec stack
+    dim as int32 i = 0
+    while i < src.toks.Count
+        if IsHash_( src, i ) = false then
+            i += 1
+            continue while
+        end if
+        dim as C2tDirective d
+        d.tok1 = i
+        d.line1 = src.toks[i].line_
+        d.cond = -1
+        d.endif_ = -1
+        '' THE LOGICAL LINE: every token up to the next one that starts a line. A comment on
+        '' the NEXT physical line also has bol = false, so comments are taken only while they
+        '' start on a line the directive already reached.
+        dim as int32 last = i
+        dim as int32 lastLine = src.toks[i].endLine
+        dim as int32 j = i + 1
+        while j < src.toks.Count
+            dim as C2tTok t = src.toks[j]
+            if t.kind = CT_COMMENT then
+                if t.line_ > lastLine then exit while
+            else
+                if t.bol then exit while
+            end if
+            last = j
+            if t.endLine > lastLine then lastLine = t.endLine
+            j += 1
+        wend
+        d.tok2 = last
+        d.line2 = lastLine
+
+        '' THE WORD and, where the directive has one, the NAME it is about.
+        dim as int32 w = i + 1
+        while (w <= last) andalso (src.toks[w].kind = CT_COMMENT)
+            w += 1
+        wend
+        if (w <= last) andalso (src.toks[w].kind = CT_IDENT) then d.word = TokText( src, w )
+        d.kind = KindOf_( d.word )
+        dim as int32 nm = w + 1
+        while (nm <= last) andalso (src.toks[nm].kind = CT_COMMENT)
+            nm += 1
+        wend
+        if nm <= last then
+            select case d.kind
+            case DK_DEFINE, DK_UNDEF, DK_IFDEF, DK_IFNDEF
+                if src.toks[nm].kind = CT_IDENT then d.name_ = TokText( src, nm )
+            case DK_INCLUDE
+                if src.toks[nm].kind = CT_STRING then
+                    d.name_ = TokText( src, nm )
+                else
+                    '' '<a/b.h>': the text from '<' to '>', as written.
+                    dim as int32 a = src.toks[nm].ofs
+                    dim as int32 p = instr( a + 1, src.bytes, ">" )
+                    if p > 0 then d.name_ = mid( src.bytes, a + 1, p - a )
+                end if
+            end select
+        end if
+
+        dim as int32 me = dirs.Count
+        select case d.kind
+        case DK_IF, DK_IFDEF, DK_IFNDEF
+            stack.Push( me )
+        case DK_ELIF, DK_ELSE
+            if stack.Count > 0 then d.cond = stack[stack.Count - 1]
+        case DK_ENDIF
+            if stack.Count > 0 then
+                d.cond = stack[stack.Count - 1]
+                stack.Pop( )
+            end if
+        end select
+        dirs.Push( d )
+        if (d.kind = DK_ENDIF) andalso (d.cond >= 0) then dirs[d.cond].endif_ = me
+        i = last + 1
+    wend
+end sub
+
+'' ---------------------------------------------------------------- idioms
+
+'' The non-comment tokens of directive d after its word and name: a #define's body.
+private sub BodyToks_( byref src as C2tSource, byref d as C2tDirective, byref out_ as C2tIntVec )
+    dim as int32 seen = 0
+    for i as int32 = d.tok1 + 1 to d.tok2
+        if src.toks[i].kind <> CT_COMMENT then
+            seen += 1
+            '' '#' is token 0, the word is 1, the name 2: the body starts after the name.
+            if seen > 2 then out_.Push( i )
+        end if
+    next
+end sub
+
+'' A FUNCTION-LIKE MACRO has '(' straight after its name, with no space between.
+private function IsFunctionLike_( byref src as C2tSource, byref d as C2tDirective ) as boolean
+    dim as C2tIntVec b
+    BodyToks_( src, d, b )
+    if b.Count = 0 then return false
+    dim as int32 k = b[0]
+    if TokText( src, k ) <> "(" then return false
+    dim as C2tTok t = src.toks[k - 1]
+    return t.ofs + t.len_ = src.toks[k].ofs
+end function
+
+private function IsCallConv_( byref w as string ) as boolean
+    select case w
+    case "__cdecl", "_cdecl", "__stdcall", "_stdcall", "__fastcall", "__vectorcall", _
+         "extern", "__declspec", "__attribute__", "__attribute"
+        return true
+    end select
+    return false
+end function
+
+private function InList_( byref v as Tko.StrVec, byref w as string ) as boolean
+    for i as int32 = 0 to v.Count - 1
+        if v[i] = w then return true
+    next
+    return false
+end function
+
+'' A DECORATION BODY: empty, or only __declspec(...), __attribute__((...)), a calling
+'' convention, 'extern', or another decoration macro -- anything inside the parentheses.
+private function DecorBody_( byref src as C2tSource, byref d as C2tDirective, _
+                             byref decor as Tko.StrVec ) as boolean
+    dim as C2tIntVec b
+    BodyToks_( src, d, b )
+    dim as int32 depth = 0
+    for i as int32 = 0 to b.Count - 1
+        dim as string w = TokText( src, b[i] )
+        if w = "(" then
+            depth += 1
+        elseif w = ")" then
+            depth -= 1
+        elseif depth = 0 then
+            if src.toks[b[i]].kind <> CT_IDENT then return false
+            if (IsCallConv_( w ) = false) andalso (InList_( decor, w ) = false) then return false
+        end if
+    next
+    return depth = 0
+end function
+
+'' Used as a word somewhere outside every directive -- what tells an export macro from a
+'' feature switch that is only ever tested with #ifdef.
+private function UsedOutside_( byref src as C2tSource, byref dirs as C2tDirVec, byref nm as string ) as boolean
+    dim as int32 di = 0
+    for i as int32 = 0 to src.toks.Count - 1
+        while (di < dirs.Count) andalso (dirs[di].tok2 < i)
+            di += 1
+        wend
+        if (di < dirs.Count) andalso (dirs[di].tok1 <= i) then continue for
+        if (src.toks[i].kind = CT_IDENT) andalso (TokText( src, i ) = nm) then return true
+    next
+    return false
+end function
+
+'' Every directive strictly between the #if at c and its #endif is a decoration #define or
+'' #undef, or part of a nested conditional, and nothing but comments lies outside them.
+private function DecorTree_( byref src as C2tSource, byref dirs as C2tDirVec, byval c as int32, _
+                             byref decor as Tko.StrVec, byref names as Tko.StrVec ) as boolean
+    dim as int32 e = dirs[c].endif_
+    if e < 0 then return false
+    dim as boolean any_ = false
+    for k as int32 = c + 1 to e - 1
+        dim as C2tDirective d = dirs[k]
+        select case d.kind
+        case DK_DEFINE, DK_UNDEF
+            if InList_( decor, d.name_ ) = false then return false
+            if d.kind = DK_DEFINE then
+                any_ = true
+                if InList_( names, d.name_ ) = false then names.Push( d.name_ )
+            end if
+        case DK_IF, DK_IFDEF, DK_IFNDEF, DK_ELIF, DK_ELSE, DK_ENDIF
+        case else
+            return false
+        end select
+    next
+    '' NO C TEXT between the directives.
+    dim as int32 k = c
+    for i as int32 = dirs[c].tok2 + 1 to dirs[e].tok1 - 1
+        while (k < e) andalso (dirs[k].tok2 < i)
+            k += 1
+        wend
+        if (dirs[k].tok1 <= i) andalso (i <= dirs[k].tok2) then continue for
+        if src.toks[i].kind <> CT_COMMENT then return false
+    next
+    return any_
+end function
+
+private sub Idiom_( byref blocks as C2tBlockVec, byval l1 as int32, byval l2 as int32, byref text as string )
+    dim as C2tBlock b
+    b.line1 = l1
+    b.line2 = l2
+    b.isTodo = false
+    b.text = text
+    blocks.Push( b )
+end sub
+
+private function OnlyComments_( byref src as C2tSource, byval a as int32, byval b as int32 ) as boolean
+    for i as int32 = a to b
+        if src.toks[i].kind <> CT_COMMENT then return false
+    next
+    return true
+end function
+
+'' The tokens between two directives, comments left out, as one space-joined string.
+private function Between_( byref src as C2tSource, byval a as int32, byval b as int32 ) as string
+    dim as string r
+    for i as int32 = a to b
+        if src.toks[i].kind <> CT_COMMENT then
+            if len( r ) then r &= " "
+            r &= TokText( src, i )
+        end if
+    next
+    return r
+end function
+
+private function TestsCplusplus_( byref src as C2tSource, byref d as C2tDirective ) as boolean
+    if d.kind = DK_IFDEF then return d.name_ = "__cplusplus"
+    if d.kind <> DK_IF then return false
+    dim as C2tIntVec b
+    BodyToks_( src, d, b )
+    '' BodyToks_ skips '#', 'if' and the first word; '#if defined(__cplusplus)' keeps
+    '' '(' '__cplusplus' ')', and '#if __cplusplus' keeps nothing past the name.
+    dim as string first = ""
+    for i as int32 = d.tok1 + 1 to d.tok2
+        if src.toks[i].kind <> CT_COMMENT then
+            if TokText( src, i ) <> "if" then
+                first = TokText( src, i )
+                exit for
+            end if
+        end if
+    next
+    dim as string rest = first
+    for i as int32 = 0 to b.Count - 1
+        rest &= TokText( src, b[i] )
+    next
+    return (rest = "defined(__cplusplus)") orelse (rest = "__cplusplus") orelse (rest = "defined__cplusplus")
+end function
+
+sub IdiomBlocks( byref src as C2tSource, byref dirs as C2tDirVec, _
+                 byval guarded as boolean, byref blocks as C2tBlockVec, _
+                 byref decor as Tko.StrVec )
+    '' ---- the include guard: '#ifndef G' / '#define G' first, its '#endif' last, nothing
+    '' but comments outside them -- and clang agreeing (clang_isFileMultipleIncludeGuarded).
+    dim as int32 guardIf = -1
+    if guarded andalso (dirs.Count >= 3) then
+        dim as C2tDirective d0 = dirs[0]
+        dim as C2tDirective d1 = dirs[1]
+        dim as boolean ok = (d0.kind = DK_IFNDEF) andalso (d1.kind = DK_DEFINE)
+        if ok then ok = (len( d0.name_ ) > 0) andalso (d0.name_ = d1.name_)
+        if ok then ok = (d0.endif_ = dirs.Count - 1)
+        if ok then ok = OnlyComments_( src, 0, d0.tok1 - 1 )
+        if ok then ok = OnlyComments_( src, d0.tok2 + 1, d1.tok1 - 1 )
+        if ok then ok = OnlyComments_( src, dirs[d0.endif_].tok2 + 1, src.toks.Count - 1 )
+        if ok then
+            dim as C2tIntVec body
+            BodyToks_( src, d1, body )
+            ok = (body.Count = 0)
+        end if
+        if ok then
+            guardIf = 0
+            Idiom_( blocks, d0.line1, d0.line2, "#pragma once" )
+            Idiom_( blocks, d1.line1, d1.line2, "" )
+            Idiom_( blocks, dirs[d0.endif_].line1, dirs[d0.endif_].line2, "" )
+        end if
+    end if
+
+    '' ---- the decoration macros: object-like with a decorative body, and USED -- outside
+    '' every directive, or in the body of another decoration macro ('#define RLAPI
+    '' LIB_EXPORT'). Candidates first, to a fixed point, because a body may name another
+    '' candidate; then the used ones, also to a fixed point. A feature switch ('#define
+    '' FEATURE_X', only ever tested with #ifdef) is a candidate nothing uses.
+    dim as Tko.StrVec cand
+    dim as boolean grew = true
+    while grew
+        grew = false
+        for k as int32 = 0 to dirs.Count - 1
+            dim as C2tDirective d = dirs[k]
+            if (d.kind <> DK_DEFINE) orelse (len( d.name_ ) = 0) then continue for
+            if (k = 1) andalso (guardIf = 0) then continue for
+            if InList_( cand, d.name_ ) then continue for
+            if IsFunctionLike_( src, d ) then continue for
+            if DecorBody_( src, d, cand ) then
+                cand.Push( d.name_ )
+                grew = true
+            end if
+        next
+    wend
+    for i as int32 = 0 to cand.Count - 1
+        if UsedOutside_( src, dirs, cand[i] ) then decor.Push( cand[i] )
+    next
+    grew = true
+    while grew
+        grew = false
+        for k as int32 = 0 to dirs.Count - 1
+            dim as C2tDirective d = dirs[k]
+            if (d.kind <> DK_DEFINE) orelse (InList_( decor, d.name_ ) = false) then continue for
+            dim as C2tIntVec b
+            BodyToks_( src, d, b )
+            for i as int32 = 0 to b.Count - 1
+                dim as string w = TokText( src, b[i] )
+                if InList_( cand, w ) andalso (InList_( decor, w ) = false) then
+                    decor.Push( w )
+                    grew = true
+                end if
+            next
+        next
+    wend
+
+    '' ---- conditionals: the __cplusplus extern block, and trees that only define export
+    '' macros. Outermost first; a collapsed tree's insides are not looked at again.
+    dim as int32 skipTo = -1
+    for k as int32 = 0 to dirs.Count - 1
+        if k = guardIf then continue for
+        if k <= skipTo then continue for
+        dim as C2tDirective d = dirs[k]
+        select case d.kind
+        case DK_IF, DK_IFDEF, DK_IFNDEF
+            dim as int32 e = d.endif_
+            if e < 0 then continue for
+            if TestsCplusplus_( src, d ) andalso (e = k + 1) then
+                dim as string body = Between_( src, d.tok2 + 1, dirs[e].tok1 - 1 )
+                if body = "extern ""C"" {" then
+                    Idiom_( blocks, d.line1, dirs[e].line2, "extern ""C""" )
+                    skipTo = e
+                elseif body = "}" then
+                    Idiom_( blocks, d.line1, dirs[e].line2, "end extern" )
+                    skipTo = e
+                end if
+                continue for
+            end if
+            dim as Tko.StrVec names
+            if DecorTree_( src, dirs, k, decor, names ) then
+                dim as string nl
+                for i as int32 = 0 to names.Count - 1
+                    if i > 0 then nl &= ", "
+                    nl &= names[i]
+                next
+                Idiom_( blocks, d.line1, dirs[e].line2, _
+                        "'' c2t: export macro " & nl & " (decoration, stripped where used)" )
+                skipTo = e
+            end if
+        case DK_OTHER
+            '' #pragma pack IS CARRIED BY THE RECORDS: each one it affects says 'field = N',
+            '' from clang's own alignment (records.tiko), so the directive itself has nothing
+            '' left to do in tiko.
+            if (d.word = "pragma") andalso (Between_( src, d.tok1 + 2, d.tok1 + 2 ) = "pack") then
+                Idiom_( blocks, d.line1, d.line2, _
+                        "'' c2t: " & trim( LineText( src, d.line1 ) ) & _
+                        " -- carried by 'field = N' on each record it packs" )
+            elseif (d.word = "pragma") andalso (Between_( src, d.tok1 + 2, d.tok1 + 2 ) = "once") _
+                   andalso (d.tok2 = d.tok1 + 2) then
+                '' #pragma once MEANS THE SAME in tiko.
+                Idiom_( blocks, d.line1, d.line2, "#pragma once" )
+            end if
+        case DK_DEFINE
+            if InList_( decor, d.name_ ) then
+                Idiom_( blocks, d.line1, d.line2, _
+                        "'' c2t: export macro " & d.name_ & " (decoration, stripped where used)" )
+            end if
+        end select
+    next
+end sub
+
+end namespace
