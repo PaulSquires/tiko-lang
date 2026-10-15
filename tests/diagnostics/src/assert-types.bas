@@ -1,6 +1,6 @@
-'' '#assert' OVER TYPES AND SIZES -- fbc's error 308 on lines 17 to 23 (fbc-modern 1.20). tiko
-'' passed each in silence: Resolve folds plain numbers only. Lines 25 to 31 hold and pass, and
-'' line 33 is a false one this does not judge: a UDT's size is not known where it is asked.
+'' '#assert' OVER TYPES AND SIZES -- fbc's error 308 on lines 17 to 23 and 33 (fbc-modern 1.20).
+'' tiko passed each in silence: Resolve folds plain numbers only. Lines 25 to 31 hold and pass.
+'' Line 33's UDT size is judged from the layouts (assertlayout.tiko).
 type T
     a as long
     b as long

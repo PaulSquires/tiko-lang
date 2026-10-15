@@ -426,8 +426,8 @@ end sub
 '' and sizeof is the layout. Judged here, after Check, and ONLY when the condition asks one
 '' of those questions: a plain one is Resolve's, and asking it again would report it twice.
 '' A leaf this cannot read leaves the condition unknown, and unknown is silent: a named
-'' constant, a string's len, and a UDT's size, which TypeContext.Layout does not know yet --
-'' so '#assert sizeof( T ) = 8' over a 12-byte T still passes.
+'' constant, or a string's len. A UDT's size and a field's offset come from the layouts
+'' (assertlayout.tiko), which TypeContext.Layout does not hold yet.
 private function AssertOperandType_ ( byref c as Ctx, byval n as NodeId ) as TypeId
     n = Unparen3_( c, n )
     if n = NODE_NONE then return TYPE_NONE
@@ -476,6 +476,8 @@ private function AssertIntrinsic_ _
     return (ot <> TYPE_NONE)
 end function
 
+#include once "symbols/assertlayout.tiko"
+
 '' The SIZE sizeof or len answers at compile time, or -1. A string's len is its contents, and
 '' an array's size is not asked; a fixed-length string is its buffer.
 private function AssertSize_ _
@@ -493,6 +495,7 @@ private function AssertSize_ _
         end if
         if (isType = false) andalso (c.types->Kind( u ) = TK_UDT) then return -1
     end if
+    if c.types->Kind( u ) = TK_UDT then return AssertUdtSize_( c, u )
     dim as int32 sz = c.types->Layout( u ).size
     if sz <= 0 then return -1
     return sz
@@ -542,6 +545,7 @@ private function AssertEval_ _
         v = c.ast->literals[cast( int32, c.ast->nodes[cast( int32, n )].data )].intValue
         return true
     case N_CALL
+        if AssertOffsetOf_( c, n, v ) then typed = true : return true
         if AssertIntrinsic_( c, n, nm, ot, isType ) = false then return false
         if nm = "typeof" then return false
         v = AssertSize_( c, nm, ot, isType )

@@ -1,0 +1,16 @@
+'' TKO0604, fbc's 308: a false '#assert' over a UDT's size or a field's offset -- plain, nested,
+'' through a variable, a typedef, a namespace, 'field = 1', 'extends' and a dotted offsetof.
+'' See assertlayout.tiko. The true twins on lines 31 to 41 must stay silent.
+'' TEST: cli
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/assert-udt-layout.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: assert-udt-layout.bas(21,1): error TKO0604: #assert condition failed
+'' EXPECT-OUT: assert-udt-layout.bas(22,1): error TKO0604: #assert condition failed
+'' EXPECT-OUT: assert-udt-layout.bas(23,1): error TKO0604: #assert condition failed
+'' EXPECT-OUT: assert-udt-layout.bas(24,1): error TKO0604: #assert condition failed
+'' EXPECT-OUT: assert-udt-layout.bas(25,1): error TKO0604: #assert condition failed
+'' EXPECT-OUT: assert-udt-layout.bas(26,1): error TKO0604: #assert condition failed
+'' EXPECT-OUT: assert-udt-layout.bas(27,1): error TKO0604: #assert condition failed
+'' EXPECT-OUT: assert-udt-layout.bas(28,1): error TKO0604: #assert condition failed
+'' EXPECT-OUT: assert-udt-layout.bas(29,1): error TKO0604: #assert condition failed
+'' EXPECT-MAX-DIAG: 9
