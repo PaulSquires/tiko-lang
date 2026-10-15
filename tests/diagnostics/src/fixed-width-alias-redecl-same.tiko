@@ -1,0 +1,32 @@
+'' An ALIAS of each of the ten fixed-width names, used where a complete type is needed --
+'' a BYVAL parameter of a declaration and of a definition, a DIM -- ABOVE the program's own
+'' same-type declaration of the name, as win/basetsd.bi's 'type INT32 as long' below a
+'' header's 'type base_id as int32'. The name was complete above (the prelude's) and still
+'' means the same type below: no diagnostic (symbols/latesweeps4.tiko CompletedBelow4_).
+type a_i8  as int8
+type a_u8  as uint8
+type a_i16 as int16
+type a_u16 as uint16
+type a_i32 as int32
+type a_u32 as uint32
+type a_i64 as int64
+type a_u64 as uint64
+type a_f32 as float32
+type a_f64 as float64
+declare function f( byval a as a_i8, byval b as a_u8, byval c as a_i16, byval d as a_u16, byval e as a_i32, byval f_ as a_u32, byval g as a_i64, byval h as a_u64, byval i as a_f32, byval j as a_f64 ) as long
+dim as a_i32 n = 7
+dim as a_f64 x = 2.5
+type INT8 as byte
+type UINT8 as ubyte
+type INT16 as short
+type UINT16 as ushort
+type INT32 as long
+type UINT32 as ulong
+type INT64 as longint
+type UINT64 as ulongint
+type FLOAT32 as single
+type FLOAT64 as double
+function f( byval a as a_i8, byval b as a_u8, byval c as a_i16, byval d as a_u16, byval e as a_i32, byval f_ as a_u32, byval g as a_i64, byval h as a_u64, byval i as a_f32, byval j as a_f64 ) as long
+    return sizeof( a ) + sizeof( b ) + sizeof( c ) + sizeof( d ) + sizeof( e ) + sizeof( f_ ) + sizeof( g ) + sizeof( h ) + sizeof( i ) + sizeof( j )
+end function
+print f( 1, 2, 3, 4, n, 6, 7, 8, 1.5, x )

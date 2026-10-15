@@ -389,6 +389,9 @@ namespace Tko
 
     declare function BuiltinName( byval b as BuiltinType ) as string
     declare function BuiltinClass( byval b as BuiltinType ) as TypeClass
+    '' The builtin one of tiko's ten fixed-width names -- int8 .. uint64, float32, float64 --
+    '' stands for, in any case; TY_NONE for any other name.
+    declare function FixedWidthBuiltin( byref nm as string ) as BuiltinType
     declare function DefaultTargetLayout( ) as TargetLayout
     '' The layout of one target. Every number in it is measured from fbc for that
     '' target, not derived from the width.

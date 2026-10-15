@@ -1,0 +1,12 @@
+'' An alias of int32 declared in a header and used by a BYVAL parameter, then windows.bi,
+'' whose 'type INT32 as long' was TKO0811 "'int32' is still incomplete" at the parameter.
+'' Built and run (symbols/latesweeps4.tiko CompletedBelow4_).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/codegen/src/fixed-width-alias-windows.tiko -o tests/codegen/fixed-width-alias-windows.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0811
+'' EXPECT-FILE: tests/codegen/fixed-width-alias-windows.exe
+'' RUN: tests/codegen/fixed-width-alias-windows.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  4 4 42 42

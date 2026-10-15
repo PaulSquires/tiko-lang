@@ -61,7 +61,7 @@ print sizeof( INT32 ); sizeof( uint8 ); float32; uint16( 6 )
 
 This prints `4 8 5 7`. Because tiko ignores case, `INT32` and `int32` are the same name.
 
-A name used *above* the program's declaration is fine when the declaration gives it the type tiko does, as `win/basetsd.bi` does: `dim as int32 n` and then `#include "windows.bi"` compiles, and so does a module whose interface uses `int32`, imported by a program that includes `windows.bi`. Above a declaration of a *different* type, such as a `type uint8 as integer` written below a `dim as uint8`, the use is error `TKO0784`: the code above it would otherwise change meaning.
+A name used *above* the program's declaration is fine when the declaration gives it the type tiko does, as `win/basetsd.bi` does: `dim as int32 n` and then `#include "windows.bi"` compiles, and so does a module whose interface uses `int32`, imported by a program that includes `windows.bi`, and so does an alias such as `type base_id as int32` used above it. Above a declaration of a *different* type, such as a `type uint8 as integer` written below a `dim as uint8`, the use is error `TKO0784` (`TKO0811` through an alias): the code above it would otherwise change meaning.
 
 **The program's declaration replaces the name throughout the program**, not just in its own file. `jpeglib.bi` declares `type INT32 as clong`, which is 8 bytes on Linux x86-64. A Linux program that includes it therefore gets an 8-byte `int32`.
 

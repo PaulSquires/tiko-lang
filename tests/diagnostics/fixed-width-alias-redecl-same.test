@@ -1,0 +1,8 @@
+'' An alias of each fixed-width name used above a program's own same-type declaration of the
+'' name: accepted with no diagnostic (symbols/latesweeps4.tiko CompletedBelow4_).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/fixed-width-alias-redecl-same.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0811
+'' EXPECT-NOT: TKO0784
+'' EXPECT-OUT: 0 statements not lowered

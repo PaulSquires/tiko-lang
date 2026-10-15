@@ -52,6 +52,22 @@ function BuiltinClass( byval b as BuiltinType ) as TypeClass
     return cast( TypeClass, builtinTb(b).class_ )
 end function
 
+function FixedWidthBuiltin( byref nm as string ) as BuiltinType
+    select case lcase( nm )
+    case "int8"    : return TY_BYTE
+    case "uint8"   : return TY_UBYTE
+    case "int16"   : return TY_SHORT
+    case "uint16"  : return TY_USHORT
+    case "int32"   : return TY_LONG
+    case "uint32"  : return TY_ULONG
+    case "int64"   : return TY_LONGINT
+    case "uint64"  : return TY_ULONGINT
+    case "float32" : return TY_SINGLE
+    case "float64" : return TY_DOUBLE
+    end select
+    return TY_NONE
+end function
+
 '' The x86-64 facts, MEASURED against fbc rather than assumed
 '' (tests/types/layout.test regenerates and compares them):
 ''

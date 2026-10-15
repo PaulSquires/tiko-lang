@@ -278,20 +278,8 @@ end function
 '' the code above would change meaning silently, a module's interface included.
 private function SameFixedWidth_ ( byref c as Ctx, byval s as Tko.Symbol ptr ) as boolean
     if s->kind <> cast( uint8, Tko.SYM_TYPEDEF ) then return false
-    dim as Tko.BuiltinType b
-    select case lcase( c.names->Spelling( s->name ) )
-    case "int8"    : b = Tko.TY_BYTE
-    case "uint8"   : b = Tko.TY_UBYTE
-    case "int16"   : b = Tko.TY_SHORT
-    case "uint16"  : b = Tko.TY_USHORT
-    case "int32"   : b = Tko.TY_LONG
-    case "uint32"  : b = Tko.TY_ULONG
-    case "int64"   : b = Tko.TY_LONGINT
-    case "uint64"  : b = Tko.TY_ULONGINT
-    case "float32" : b = Tko.TY_SINGLE
-    case "float64" : b = Tko.TY_DOUBLE
-    case else      : return false
-    end select
+    dim as Tko.BuiltinType b = Tko.FixedWidthBuiltin( c.names->Spelling( s->name ) )
+    if b = Tko.TY_NONE then return false
     '' Collect's placeholder until the walk reaches the declaration: chase it now, as a
     '' typedef of a typedef is (ChaseTypedef_).
     dim as boolean ready = (s->type_ <> Tko.TYPE_NONE)

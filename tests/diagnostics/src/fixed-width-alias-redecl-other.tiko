@@ -1,0 +1,5 @@
+'' An alias of uint8 used above the program's declaration of uint8 as a DIFFERENT type.
+type small as uint8
+dim as small s
+type uint8 as integer
+print sizeof( s )

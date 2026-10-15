@@ -1284,7 +1284,15 @@ private function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId, byval a
             '' FWD as integer' -- fbc's 71 for 'dim x as T', a 'byval' parameter, 'function f( )
             '' byref as T' with a body, and a call to it (fbc-modern 1.20, 2026-09-29;
             '' functions/return-byref-fwdref and -body). The walk stopped at the builtin.
+            '' Not a program's own same-type declaration of a fixed-width name, though:
+            '' 'type base_id as int32', a use, then win/basetsd.bi's 'type INT32 as long'.
+            '' int32 was complete above it -- the prelude's -- and still means long, as
+            '' resolveunbound.tiko's SameFixedWidth_ has it for a use of int32 itself.
             if viaTypedef andalso (sy->declAt <> 0) andalso (upos < sy->declAt) then
+                dim as BuiltinType fw = FixedWidthBuiltin( c.names->Spelling( sy->name ) )
+                if (fw <> TY_NONE) andalso (sy->type_ <> TYPE_NONE) then
+                    if c.types->Unqualify( sy->type_ ) = c.types->Builtin( fw ) then return ""
+                end if
                 if Tko.ModSym.OrderFree( *c.syms, sid ) = false then return c.names->Spelling( sy->name )
             end if
             '' A TYPEDEF SYMBOL'S PAYLOAD IS ITS TARGET TYPEREF, not the N_TYPEDEF node --
