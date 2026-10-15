@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/inline.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-inline
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/inline.h --verify -o build/.c2t/compile-inline/inline.ti
+'' ARGS: -c build/.c2t/compile-inline/inline.ti -o build/.c2t/compile-inline/inline.o
+'' EXPECT-EXIT: 0

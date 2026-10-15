@@ -8,11 +8,13 @@
 '' so a script can tell a partial translation from a clean one (RFC-0001 §7).
 
 #import "std/containers"
+#import "std/fs"
 #include once "c2t/c2t.ti"
 #include once "codegen/target.ti"
 #include once "codegen/toolchain.ti"
 #include once "driver/diagout.ti"
 #include once "driver/cimportverify.ti"
+#include once "driver/modresolve.ti"
 
 namespace Tko.C2t
 
@@ -137,6 +139,7 @@ private function TranslatePass_( byref ctx as Tko.CompilerContext, byref api as 
     dim as Tko.CImport.CImp x
     dim as C2tEmit e
     EmitInit( e, api, x, io, src, p )
+    IncludeDirectives( e, p, dirs )
     TodoBlocks( src, dirs, p, e, blocks )
     MacroDirectives( e, p, dirs, blocks )
     ClosePass( api, p )
@@ -151,6 +154,7 @@ private function TranslatePass_( byref ctx as Tko.CompilerContext, byref api as 
     po.skipped = p.skipped
     po.renames = e.renames
     po.needsCLong = x.needsCLong
+    po.windowsBi = x.c2tSysAll
     po.guarded = p.guarded
     po.manifest = ""
     for i as int32 = 0 to x.manifest.Count - 1
@@ -202,9 +206,10 @@ private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.
     '' WHAT THE PASSES SHARE: renames once each, crt/long.bi when any pass needed clong, and
     '' extern "C" placed here unless the header's own __cplusplus block said where.
     dim as Tko.StrVec renames
-    dim as boolean needsCLong = false
+    dim as boolean needsCLong = false, windowsBi = false
     for p as int32 = 0 to outs.Count - 1
         if outs[p].needsCLong then needsCLong = true
+        if outs[p].windowsBi then windowsBi = true
         for i as int32 = 0 to outs[p].renames.Count - 1
             dim as boolean have = false
             for j as int32 = 0 to renames.Count - 1
@@ -215,6 +220,15 @@ private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.
     next
     dim as string preamble
     if needsCLong then preamble = "#include once " & chr( 34 ) & "crt/long.bi" & chr( 34 )
+    '' windows.bi FIRST, before any use of int32: it declares 'type INT32 as long', and tiko
+    '' binds an alias of int32 used above that declaration to it, then refuses the use as
+    '' incomplete (TKO0811; a compiler issue, P6). Where the C includes <windows.h> it is then
+    '' a no-op.
+    if windowsBi then
+        if len( preamble ) then preamble &= chr( 10 )
+        preamble &= "#ifdef TIKO_OS_WINDOWS" & chr( 10 ) & "#include once " & chr( 34 ) & "windows.bi" & _
+                    chr( 34 ) & chr( 10 ) & "#endif"
+    end if
     '' A GLOBAL -D IS THE CONFIGURATION TRANSLATED FOR: the file defines it too, so its own
     '' conditionals select what was translated. A --pass's define is the user's to set.
     for i as int32 = 0 to o.defines.Count - 1
@@ -274,6 +288,23 @@ private function Run_( byref args as Tko.StrVec, byref ctx as Tko.CompilerContex
     '' that target's passes only -- the merge then guards it -- and the header translated
     '' again. The base passes are what is checked: a --pass's records sit under a guard on
     '' its define, which the check does not set.
+    '' WHERE THE CHECKED TEXT'S INCLUDES ARE FOUND: beside the output first -- a header's
+    '' includes are translated before it (D16), into the same tree -- then tiko's own headers
+    '' (crt/*.bi, windows.bi), found as the compiler's command line finds them
+    '' (driver/cmdline.tiko, AppendDefaultIncludeDir).
+    if o.verify then
+        dim as string od = Tko.Modules.DirOfFile( Tko.Modules.AbsPath( iif( outPath = "-", o.input_, outPath ) ) )
+        if len( od ) then ctx.options.includePaths.Push( od )
+        dim as ustring envInc = environ( "TKO_INCLUDE" )
+        if len( envInc ) > 0 then
+            ctx.options.includePaths.Push( envInc )
+        else
+            dim as ustring exeDir = exepath( )
+            dim as ustring cand = fs.PathJoin( exeDir, "inc" )
+            if fs.IsDir( cand ) = false then cand = fs.PathJoin( fs.PathParent( exeDir ), "inc" )
+            if fs.IsDir( cand ) then ctx.options.includePaths.Push( cand )
+        end if
+    end if
     dim as Tko.StrVec refuseName( 0 to 1 ), refuseWhy( 0 to 1 )
     dim as Tko.TargetId tg( 0 to 1 ) = { Tko.TARGET_WINDOWS_X86_64, Tko.TARGET_LINUX_X86_64 }
     dim as C2tPassOutVec outs
@@ -315,6 +346,11 @@ private function Run_( byref args as Tko.StrVec, byref ctx as Tko.CompilerContex
         if grew = false then exit for
     next
 
+    '' THE OUTPUT'S DIRECTORY is made when missing: a header's includes go below it (D16).
+    if outPath <> "-" then
+        dim as string od = Tko.Modules.DirOfFile( outPath )
+        if (len( od ) > 0) andalso (fs.IsDir( od ) = false) then fs.CreateDirAll( od )
+    end if
     if WriteBytes_( outPath, text ) = false then
         ctx.diags.ReportGlobal( Tko.TKO0121, outPath )
         return 1

@@ -596,6 +596,19 @@ sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDi
             dim as string cv
             if nameOf[k] >= 0 then cv = values[nameOf[k]]
             Define_( e, env, dirs, k, cv )
+        case DK_INCLUDE
+            '' includes.tiko DECIDED IT; here it takes the line's '#' spacing and comments.
+            if (k < e.incState.Count) andalso (e.incState[k] = 1) then
+                dim as string t = e.incText[k]
+                if left( t, 1 ) = "#" then
+                    t = Hash_( e, d ) & mid( t, 2 )
+                else
+                    t = IndentOf_( LineText( *e.src, d.line1 ) ) & t
+                end if
+                Set_( e, k, 1, TrailComments( e, t, d.line2 ), "", "" )
+            elseif (k < e.incState.Count) andalso (e.incState[k] = 2) then
+                Set_( e, k, 2, "", e.incReason[k], e.incWhy[k] )
+            end if
         case DK_UNDEF
             dim as int32 f = CxEnvFind( env, d.name_ )
             dim as string tn = d.name_

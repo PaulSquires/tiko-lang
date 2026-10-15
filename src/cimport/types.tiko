@@ -180,6 +180,17 @@ private function C2tSystem_( byref x as CImp, byval d as CXCursor ) as boolean
     return x.api->Location_isInSystemHeader( x.api->getCursorLocation( d ) ) <> 0
 end function
 
+'' A system type the translation may name anyway: its header is mapped to a tiko header that
+'' declares it under the same name (c2tSysPass, c2tSysAll).
+private function C2tPass_( byref x as CImp, byref nm as string ) as boolean
+    if len( nm ) = 0 then return false
+    if x.c2tSysAll then return true
+    for i as int32 = 0 to x.c2tSysPass.Count - 1
+        if x.c2tSysPass[i] = nm then return true
+    next
+    return false
+end function
+
 '' tiko c2t's forward reference (RFC-0001 D18, P0 item 4): the record keeps its C name. One
 '' already written, or this one, is 'Name ptr'; one never defined, or refused, is 'Name ptr'
 '' after the alias 'type Name__fwd as Name' introduces it; one defined LATER is 'Name__fwd
@@ -216,6 +227,11 @@ private function PtrToRecord_( byref x as CImp, byval pt as CXType, byval constP
     dim as boolean self_ = (len( x.curRecordUsr ) > 0) andalso (CursorUsr( x, d ) = x.curRecordUsr)
     if x.c2t then
         if C2tSystem_( x, d ) then
+            dim as string sn = CursorName( x, d )
+            if C2tPass_( x, sn ) then
+                wholeText = iif( constPointee, "const ", "" ) & sn & " ptr"
+                return true
+            end if
             why = "'" & ClangText( *x.api, x.api->getTypeSpelling( pt ) ) & "' is a system header's type"
             return true
         end if
@@ -285,6 +301,7 @@ function TypeText( byref x as CImp, byval t0 as CXType, byref why as string ) as
                 if x.c2tTdName[i] = tn then return x.c2tTdText[i]
             next
             if C2tSystem_( x, x.api->getTypeDeclaration( t ) ) then
+                if C2tPass_( x, tn ) then return tn
                 why = "'" & tn & "' is a system header's type"
                 return ""
             end if
@@ -307,6 +324,8 @@ function TypeText( byref x as CImp, byval t0 as CXType, byref why as string ) as
             return ""
         end if
         if x.c2t andalso C2tSystem_( x, x.api->getTypeDeclaration( t ) ) then
+            dim as string sn = CursorName( x, x.api->getTypeDeclaration( t ) )
+            if C2tPass_( x, sn ) then return sn
             why = "'" & ClangText( *x.api, x.api->getTypeSpelling( t ) ) & "' is a system header's type"
             return ""
         end if

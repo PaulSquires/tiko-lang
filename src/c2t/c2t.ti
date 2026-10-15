@@ -145,6 +145,7 @@ type C2tPassOut
     renames as Tko.StrVec
     as boolean needsCLong
     as boolean guarded
+    as boolean windowsBi           '' the header includes <windows.h>, mapped to windows.bi
 end type
 type C2tPassOutVec as containers.Array( of C2tPassOut )
 
@@ -211,6 +212,11 @@ type C2tEmit
     dirText as Tko.StrVec
     dirReason as Tko.StrVec
     dirWhy as Tko.StrVec
+    '' includes.tiko's verdict on each #include, by directive index, as dir* above.
+    incState as C2tIntVec
+    incText as Tko.StrVec
+    incReason as Tko.StrVec
+    incWhy as Tko.StrVec
     '' For --verify: '#assert NAME = value' for each integer macro kept as an expression, so
     '' tiko's own preprocessor checks what cexpr's folder concluded (D17).
     asserts as Tko.StrVec
@@ -296,6 +302,10 @@ declare sub CxEnvAdd( byref env as CxEnv, byref cname as string, byref tiko as s
                       byval def_ as boolean = true, byval i as int64 = 0, byval f as float64 = 0, _
                       byref s as string = "" )
 declare function TikoString( byref b as string ) as string
+
+'' includes.tiko -- each #include resolved through clang's inclusions: its text, or a TODO.
+'' Before the declarations: a mapped system header lets them name its types.
+declare sub IncludeDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDirVec )
 
 '' emitmacro.tiko -- every #define, #undef and conditional, in order: emitter's dir* results.
 declare sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDirVec, _
