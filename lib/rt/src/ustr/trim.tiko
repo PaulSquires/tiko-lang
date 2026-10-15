@@ -42,7 +42,7 @@ extern "rtlib"
 	declare function tkrt_UAllocTempNoLock alias "fb_hUStrAllocTemp_NoLock" _
 		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
 	declare function tkrt_UDelTempNoLock alias "fb_hUStrDelTemp_NoLock" _
-		( byval s as FBUSTRING ptr ) as long
+		( byval s as FBUSTRING ptr ) as int32
 end extern
 
 '' AN EMPTY RESULT ALLOCATES NOTHING -- it is the shared empty descriptor, not a
@@ -80,7 +80,7 @@ end function
 ''   st <> NULL -> strip any unit in the set
 private function hTrim _
 	( byval src as any ptr, byval src_size as integer, _
-	  byval st as FB_UCHAR ptr, byval setlen as integer, byval mode as long ) as FBUSTRING ptr
+	  byval st as FB_UCHAR ptr, byval setlen as integer, byval mode as int32 ) as FBUSTRING ptr
 
 	dim as FB_UCHAR ptr src_ptr = any
 	dim as integer src_len = any
@@ -122,7 +122,7 @@ end function
 '' guard below.
 private function hTrimEx _
 	( byval src as any ptr, byval src_size as integer, _
-	  byval pat as any ptr, byval pat_size as integer, byval mode as long ) as FBUSTRING ptr
+	  byval pat as any ptr, byval pat_size as integer, byval mode as int32 ) as FBUSTRING ptr
 
 	dim as FB_UCHAR ptr src_ptr = any, pat_ptr = any
 	dim as integer src_len = any, pat_len = any

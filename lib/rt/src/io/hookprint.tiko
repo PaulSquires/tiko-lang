@@ -35,15 +35,15 @@
 
 extern "rtlib"
 	declare sub tkrt_ConsolePrintBufferEx alias "fb_ConsolePrintBufferEx" _
-		( byval buffer as any ptr, byval length as uinteger, byval mask as long )
+		( byval buffer as any ptr, byval length as uinteger, byval mask as int32 )
 	declare sub tkrt_ConsolePrintBufferWstrEx alias "fb_ConsolePrintBufferWstrEx" _
-		( byval buffer as wstring ptr, byval length as uinteger, byval mask as long )
+		( byval buffer as wstring ptr, byval length as uinteger, byval mask as int32 )
 end extern
 
 extern "rtlib"
 
 sub tkort_PrintBufferEx alias "fb_PrintBufferEx" _
-	( byval buffer as any ptr, byval length as uinteger, byval mask as long )
+	( byval buffer as any ptr, byval length as uinteger, byval mask as int32 )
 
 	IOLOCK()
 
@@ -61,12 +61,12 @@ end sub
 '' NOTE THE LENGTH COMES FROM strlen -- so this form cannot carry an embedded
 '' NUL, where fb_PrintStringEx can.
 sub tkort_PrintBuffer alias "fb_PrintBuffer" _
-	( byval buffer as zstring ptr, byval mask as long )
+	( byval buffer as zstring ptr, byval mask as int32 )
 	tkort_PrintBufferEx( buffer, strlen( buffer ), mask )
 end sub
 
 sub tkort_PrintBufferWstrEx alias "fb_PrintBufferWstrEx" _
-	( byval buffer as wstring ptr, byval length as uinteger, byval mask as long )
+	( byval buffer as wstring ptr, byval length as uinteger, byval mask as int32 )
 
 	IOLOCK()
 
@@ -82,7 +82,7 @@ sub tkort_PrintBufferWstrEx alias "fb_PrintBufferWstrEx" _
 end sub
 
 sub tkort_PrintBufferWstr alias "fb_PrintBufferWstr" _
-	( byval buffer as wstring ptr, byval mask as long )
+	( byval buffer as wstring ptr, byval mask as int32 )
 	tkort_PrintBufferWstrEx( buffer, FB_WSTR_LEN( buffer ), mask )
 end sub
 

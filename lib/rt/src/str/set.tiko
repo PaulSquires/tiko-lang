@@ -37,7 +37,7 @@ extern "rtlib"
 	declare sub fb_hStrCopyN alias "fb_hStrCopyN" _
 		( byval dst as zstring ptr, byval src as zstring ptr, byval bytes as integer )
 	declare function tkrt_DelTemp alias "fb_hStrDelTemp" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 end extern
 
 extern "rtlib"
@@ -91,7 +91,7 @@ sub tkort_StrLsetANA alias "fb_StrLsetANA" _
 
 			n = dlen - slen
 			if( n > 0 ) then
-				memset( cptr( ubyte ptr, dst ) + slen, 32, n )
+				memset( cptr( uint8 ptr, dst ) + slen, 32, n )
 			end if
 		end if
 	end if
@@ -154,7 +154,7 @@ sub tkort_StrRsetANA alias "fb_StrRsetANA" _
 			dim as integer n = dlen
 			if( dlen > slen ) then n = slen
 
-			fb_hStrCopyN( cptr( ubyte ptr, dst ) + padlen, src->data, n )
+			fb_hStrCopyN( cptr( uint8 ptr, dst ) + padlen, src->data, n )
 		end if
 	end if
 

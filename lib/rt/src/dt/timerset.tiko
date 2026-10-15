@@ -56,20 +56,20 @@
 	'' The day-of-week slot in the middle is the trap -- a struct written as
 	'' y/m/d in the obvious order sets the day into wDayOfWeek and is ignored.
 	type SYSTEMTIME_
-		as ushort wYear, wMonth, wDayOfWeek, wDay
-		as ushort wHour, wMinute, wSecond, wMilliseconds
+		as uint16 wYear, wMonth, wDayOfWeek, wDay
+		as uint16 wHour, wMinute, wSecond, wMilliseconds
 	end type
 
 	#assert sizeof( SYSTEMTIME_ ) = 16
 
 	extern "c"   '' NON-FBCALL: kernel32, `stdcall` per declaration.
 		declare sub w_GetLocalTime stdcall alias "GetLocalTime" ( byval st as SYSTEMTIME_ ptr )
-		declare function w_SetLocalTime stdcall alias "SetLocalTime" ( byval st as SYSTEMTIME_ ptr ) as long
+		declare function w_SetLocalTime stdcall alias "SetLocalTime" ( byval st as SYSTEMTIME_ ptr ) as int32
 		declare function w_QueryPerformanceCounter stdcall alias "QueryPerformanceCounter" _
-			( byval c as longint ptr ) as long
+			( byval c as int64 ptr ) as int32
 		declare function w_QueryPerformanceFrequency stdcall alias "QueryPerformanceFrequency" _
-			( byval c as longint ptr ) as long
-		declare function w_GetTickCount stdcall alias "GetTickCount" ( ) as ulong
+			( byval c as int64 ptr ) as int32
+		declare function w_GetTickCount stdcall alias "GetTickCount" ( ) as uint32
 	end extern
 
 	const TIMER_NONE    = 0
@@ -77,29 +77,29 @@
 	const TIMER_HIGHRES = 2
 
 	'' FILE-STATIC, and deliberately not guarded -- see the file header.
-	dim shared as long tkort_timer_kind = TIMER_NONE
-	dim shared as double tkort_timer_freq
+	dim shared as int32 tkort_timer_kind = TIMER_NONE
+	dim shared as float64 tkort_timer_freq
 
 #else
 
 	type TIMEVAL_
-		as longint tv_sec
-		as longint tv_usec
+		as int64 tv_sec
+		as int64 tv_usec
 	end type
 
 	#assert sizeof( TIMEVAL_ ) = 16
 
 	extern "c"   '' NON-FBCALL: libc.
 		declare function u_gettimeofday alias "gettimeofday" _
-			( byval tv as TIMEVAL_ ptr, byval tz as any ptr ) as long
+			( byval tv as TIMEVAL_ ptr, byval tz as any ptr ) as int32
 		declare function u_settimeofday alias "settimeofday" _
-			( byval tv as TIMEVAL_ ptr, byval tz as any ptr ) as long
+			( byval tv as TIMEVAL_ ptr, byval tz as any ptr ) as int32
 	end extern
 
 	'' The month lengths in SECONDS, exactly as fbc spells them -- 31, 28, 31,
 	'' 30 ... days. February is 28 and there is no leap variant, which is part
 	'' of defect 3 in the file header.
-	dim shared as long tkort_month_len( 0 to 11 ) = { _
+	dim shared as int32 tkort_month_len( 0 to 11 ) = { _
 		2678400, 2419200, 2678400, 2592000, 2678400, 2592000, _
 		2678400, 2678400, 2592000, 2678400, 2592000, 2678400 }
 
@@ -108,17 +108,17 @@
 extern "rtlib"   '' FBCALL: fb_datetime.h decorates fb_Timer, and the win32
                  '' archive spells it `_fb_Timer@0`.
 
-function tkort_Timer alias "fb_Timer" ( ) as double
+function tkort_Timer alias "fb_Timer" ( ) as float64
 
 	#ifdef __FB_WIN32__
-		dim as longint count = any
+		dim as int64 count = any
 
 		'' FIRST CALL DECIDES, and the decision is cached forever.
 		if( tkort_timer_kind = TIMER_NONE ) then
 			if( w_QueryPerformanceFrequency( @count ) <> 0 ) then
 				'' THE RECIPROCAL IS CACHED, not the frequency -- so the hot
 				'' path multiplies instead of dividing.
-				tkort_timer_freq = 1.0 / cast( double, count )
+				tkort_timer_freq = 1.0 / cast( float64, count )
 				tkort_timer_kind = TIMER_HIGHRES
 			else
 				tkort_timer_kind = TIMER_NORMAL
@@ -127,11 +127,11 @@ function tkort_Timer alias "fb_Timer" ( ) as double
 
 		if( tkort_timer_kind = TIMER_NORMAL ) then
 			'' ~15ms RESOLUTION AND WRAPS AT 49.7 DAYS. Unreachable in practice.
-			return cast( double, w_GetTickCount( ) ) * 0.001
+			return cast( float64, w_GetTickCount( ) ) * 0.001
 		end if
 
 		w_QueryPerformanceCounter( @count )
-		return cast( double, count ) * tkort_timer_freq
+		return cast( float64, count ) * tkort_timer_freq
 	#else
 		'' SECONDS SINCE THE EPOCH -- a wall clock, not a stopwatch. The
 		'' multiply-then-scale rather than a direct divide is fbc's, and it
@@ -139,7 +139,7 @@ function tkort_Timer alias "fb_Timer" ( ) as double
 		'' would, and the differential compares the printed digits.
 		dim as TIMEVAL_ tv = any
 		u_gettimeofday( @tv, 0 )
-		return ((cast( double, tv.tv_sec ) * 1000000.0) + cast( double, tv.tv_usec )) * 0.000001
+		return ((cast( float64, tv.tv_sec ) * 1000000.0) + cast( float64, tv.tv_usec )) * 0.000001
 	#endif
 end function
 
@@ -152,15 +152,15 @@ extern "c"   '' NON-FBCALL: fb_datetime.h declares both setters plainly, and the
 '' the milliseconds survive, and a machine whose clock is being stepped between
 '' the read and the write loses the difference.
 function tkort_hSetTime alias "fb_hSetTime" _
-	( byval h as long, byval m as long, byval s as long ) as long
+	( byval h as int32, byval m as int32, byval s as int32 ) as int32
 
 	#ifdef __FB_WIN32__
 		dim as SYSTEMTIME_ st = any
 		w_GetLocalTime( @st )
 
-		st.wHour = cast( ushort, h )
-		st.wMinute = cast( ushort, m )
-		st.wSecond = cast( ushort, s )
+		st.wHour = cast( uint16, h )
+		st.wMinute = cast( uint16, m )
+		st.wSecond = cast( uint16, s )
 
 		'' NO RANGE CHECK. An hour of 99 is handed to SetLocalTime, which
 		'' refuses it and gives -1 -- which is the same answer an unprivileged
@@ -185,7 +185,7 @@ end function
 '' THE POSIX HALF IS ARITHMETICALLY WRONG IN THREE WAYS AND IS COPIED FAITHFULLY
 '' -- see the file header, which names each one. Do not "fix" any of them.
 function tkort_hSetDate alias "fb_hSetDate" _
-	( byval y as long, byval m as long, byval d as long ) as long
+	( byval y as int32, byval m as int32, byval d as int32 ) as int32
 
 	#ifdef __FB_WIN32__
 		dim as SYSTEMTIME_ st = any
@@ -193,9 +193,9 @@ function tkort_hSetDate alias "fb_hSetDate" _
 
 		'' wDayOfWeek IS LEFT AS IT WAS and SetLocalTime ignores it, which is
 		'' the only reason writing a stale day-of-week is harmless.
-		st.wYear = cast( ushort, y )
-		st.wMonth = cast( ushort, m )
-		st.wDay = cast( ushort, d )
+		st.wYear = cast( uint16, y )
+		st.wMonth = cast( uint16, m )
+		st.wDay = cast( uint16, d )
 
 		if( w_SetLocalTime( @st ) = 0 ) then return -1
 		return 0
@@ -206,24 +206,24 @@ function tkort_hSetDate alias "fb_hSetDate" _
 		u_gettimeofday( @tv, 0 )
 
 		'' The time of day is kept and everything else rebuilt.
-		dim as longint secs = tv.tv_sec mod 86400
+		dim as int64 secs = tv.tv_sec mod 86400
 		tv.tv_sec = 0
 
 		'' DEFECT 1 and DEFECT 2: `(i \ 400) = 0` is integer division and is
 		'' never true here, and the leap day is added to `d` rather than to the
 		'' seconds. Both are fbc's.
-		for i as long = 1970 to y - 1
+		for i as int32 = 1970 to y - 1
 			tv.tv_sec += 31536000
 			if( ((i mod 4) = 0) orelse ((i \ 400) = 0) ) then d += 1
 		next
 
 		'' DEFECT 3: the month NUMBER times the length of THAT month, instead of
 		'' the sum of the preceding months.
-		tv.tv_sec += (cast( longint, m ) * tkort_month_len( m - 1 ))
+		tv.tv_sec += (cast( int64, m ) * tkort_month_len( m - 1 ))
 
 		if( ((y mod 4) = 0) orelse ((y \ 400) = 0) ) then d += 1
 
-		tv.tv_sec += (cast( longint, d ) * 86400) + secs
+		tv.tv_sec += (cast( int64, d ) * 86400) + secs
 		if( u_settimeofday( @tv, 0 ) <> 0 ) then return -1
 		return 0
 	#endif

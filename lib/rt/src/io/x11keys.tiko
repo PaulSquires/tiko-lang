@@ -53,16 +53,16 @@
 
 '' KeySym is Xlib's `unsigned long` -- EIGHT bytes here. See the file header.
 type TKORT_XKROW
-	as ulongint keysym
-	as long     scancode
+	as uint64 keysym
+	as int32     scancode
 end type
 
 #define _XK( k, s ) type<TKORT_XKROW>( k, s )
 
 '' The X11 callbacks, passed in rather than linked -- see the file header.
-type XDISPLAYKEYCODES    as function cdecl ( byval d as any ptr, byval lo as long ptr, byval hi as long ptr ) as long
-type XGETKEYBOARDMAPPING as function cdecl ( byval d as any ptr, byval kc as ubyte, byval cnt as long, byval per as long ptr ) as ulongint ptr
-type XFREE               as function cdecl ( byval p as any ptr ) as long
+type XDISPLAYKEYCODES    as function cdecl ( byval d as any ptr, byval lo as int32 ptr, byval hi as int32 ptr ) as int32
+type XGETKEYBOARDMAPPING as function cdecl ( byval d as any ptr, byval kc as uint8, byval cnt as int32, byval per as int32 ptr ) as uint64 ptr
+type XFREE               as function cdecl ( byval p as any ptr ) as int32
 
 '' GENERATED FROM fbc's SOURCE -- see the file header. 105 rows, the last being
 '' the terminator the search stops on.
@@ -126,7 +126,7 @@ dim shared as TKORT_XKROW tkort_keysym_to_scancode( 0 to 104 ) = { _
 '' array -- FreeBASIC rejects that pair with error 36. Same idiom as
 '' src/error/errmsg.tiko and src/init/ctxdata.tiko.
 type TKORT_X11TB
-	as ubyte v( 0 to 255 )
+	as uint8 v( 0 to 255 )
 end type
 
 #assert sizeof( TKORT_X11TB ) = 256
@@ -147,8 +147,8 @@ sub tkort_hInitX11KeycodeToScancodeTb alias "fb_hInitX11KeycodeToScancodeTb" _
 	( byval display_ as any ptr, byval DisplayKeycodes as XDISPLAYKEYCODES, _
 	  byval GetKeyboardMapping as XGETKEYBOARDMAPPING, byval Free_ as XFREE )
 
-	dim as long keycode_min = any, keycode_max = any
-	dim as long keysyms_per_keycode_return = any
+	dim as int32 keycode_min = any, keycode_max = any
+	dim as int32 keysyms_per_keycode_return = any
 
 	DisplayKeycodes( display_, @keycode_min, @keycode_max )
 
@@ -157,14 +157,14 @@ sub tkort_hInitX11KeycodeToScancodeTb alias "fb_hInitX11KeycodeToScancodeTb" _
 	if( keycode_min < 0 ) then keycode_min = 0
 	if( keycode_max > 255 ) then keycode_max = 255
 
-	for i as long = keycode_min to keycode_max
+	for i as int32 = keycode_min to keycode_max
 		'' ONE KEYCODE AT A TIME, and the result is freed each pass -- Xlib
 		'' allocates the array on every call.
-		dim as ulongint ptr keysyms = GetKeyboardMapping( display_, cast( ubyte, i ), 1, _
+		dim as uint64 ptr keysyms = GetKeyboardMapping( display_, cast( uint8, i ), 1, _
 		                                                  @keysyms_per_keycode_return )
 
 		if( keysyms <> 0 ) then
-			dim as ulongint keysym = keysyms[0]
+			dim as uint64 keysym = keysyms[0]
 
 			'' NoSymbol LEAVES THE SLOT ALONE rather than writing zero -- so a
 			'' keycode the server does not map keeps whatever the table already
@@ -178,7 +178,7 @@ sub tkort_hInitX11KeycodeToScancodeTb alias "fb_hInitX11KeycodeToScancodeTb" _
 				       (tkort_keysym_to_scancode(j).keysym <> keysym) )
 					j += 1
 				wend
-				fb_x11keycode_to_scancode.v(i) = cast( ubyte, tkort_keysym_to_scancode(j).scancode )
+				fb_x11keycode_to_scancode.v(i) = cast( uint8, tkort_keysym_to_scancode(j).scancode )
 			end if
 
 			Free_( keysyms )

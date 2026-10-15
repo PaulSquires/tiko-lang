@@ -38,10 +38,10 @@ extern "c"   '' NON-FBCALL: a data symbol carries no decoration, and the
              '' declaration is what gives the definition below external linkage.
              '' A `dim shared` INSIDE this block would be file-local -- the
              '' __fb_errmsg trap.
-	extern __fb_enable_vt100_escapes alias "__fb_enable_vt100_escapes" as long
+	extern __fb_enable_vt100_escapes alias "__fb_enable_vt100_escapes" as int32
 end extern
 
 '' OUTSIDE the block, and initialised to -1 so it lands in .data.
-dim shared __fb_enable_vt100_escapes as long = -1
+dim shared __fb_enable_vt100_escapes as int32 = -1
 
 #endif

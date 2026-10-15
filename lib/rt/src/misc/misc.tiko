@@ -33,15 +33,15 @@
 '' TRUE by default, matching fbc: the flag turns internationalised DATE/TIME
 '' formatting OFF, and a runtime that started with it off would format
 '' differently from every other build until something set it.
-dim shared as long tkort_intl_on = 1
+dim shared as int32 tkort_intl_on = 1
 
 extern "rtlib"
 
-sub tkort_I18nSet alias "fb_I18nSet" ( byval on_off as long )
+sub tkort_I18nSet alias "fb_I18nSet" ( byval on_off as int32 )
 	tkort_intl_on = iif( on_off <> 0, 1, 0 )
 end sub
 
-function tkort_I18nGet alias "fb_I18nGet" ( ) as long
+function tkort_I18nGet alias "fb_I18nGet" ( ) as int32
 	return tkort_intl_on
 end function
 
@@ -114,9 +114,9 @@ extern "c"   '' NON-FBCALL: libc and the internal temp-descriptor helpers.
 	#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
 		'' _putenv, not putenv: MSVCRT spells it with the underscore, and the
 		'' unprefixed name is not exported at all.
-		declare function c_putenv alias "_putenv" ( byval s as zstring ptr ) as long
+		declare function c_putenv alias "_putenv" ( byval s as zstring ptr ) as int32
 	#else
-		declare function c_putenv alias "putenv" ( byval s as zstring ptr ) as long
+		declare function c_putenv alias "putenv" ( byval s as zstring ptr ) as int32
 	#endif
 	declare function tkrt_StrAllocTempNoLock alias "fb_hStrAllocTemp_NoLock" _
 		( byval s as FBSTRING ptr, byval len_ as integer ) as FBSTRING ptr
@@ -176,8 +176,8 @@ function tkort_GetEnviron alias "fb_GetEnviron" ( byval varname as FBSTRING ptr 
 	return dst
 end function
 
-function tkort_SetEnviron alias "fb_SetEnviron" ( byval s as FBSTRING ptr ) as long
-	dim as long res = 0
+function tkort_SetEnviron alias "fb_SetEnviron" ( byval s as FBSTRING ptr ) as int32
+	dim as int32 res = 0
 
 	if( s <> 0 ) then
 		if( s->data <> 0 ) then res = c_putenv( s->data )
@@ -203,15 +203,15 @@ end extern
 extern "c"   '' NON-FBCALL: the two grammar halves, declared plain in fb_datetime.h.
 	declare function tkrt_hDateParse alias "fb_hDateParse" _
 		( byval text as zstring ptr, byval text_len as uinteger, _
-		  byval pDay as long ptr, byval pMonth as long ptr, byval pYear as long ptr, _
-		  byval length_ as uinteger ptr ) as long
+		  byval pDay as int32 ptr, byval pMonth as int32 ptr, byval pYear as int32 ptr, _
+		  byval length_ as uinteger ptr ) as int32
 	declare function tkrt_hTimeParse alias "fb_hTimeParse" _
 		( byval text as zstring ptr, byval text_len as uinteger, _
-		  byval pHour as long ptr, byval pMinute as long ptr, byval pSecond as long ptr, _
-		  byval length_ as uinteger ptr ) as long
+		  byval pHour as int32 ptr, byval pMinute as int32 ptr, byval pSecond as int32 ptr, _
+		  byval length_ as uinteger ptr ) as int32
 end extern
 
-private function hIsSpace( byval c as ubyte ) as long
+private function hIsSpace( byval c as uint8 ) as int32
 	'' The C isspace set, spelled out: space, tab, newline, vertical tab, form
 	'' feed, carriage return. NOT the locale's, which would make the parse
 	'' depend on setlocale.
@@ -224,17 +224,17 @@ extern "rtlib"
 
 function tkort_DateTimeParse alias "fb_DateTimeParse" _
 	( byval s as FBSTRING ptr, _
-	  byval pDay as long ptr, byval pMonth as long ptr, byval pYear as long ptr, _
-	  byval pHour as long ptr, byval pMinute as long ptr, byval pSecond as long ptr, _
-	  byval want_date as long, byval want_time as long ) as long
+	  byval pDay as int32 ptr, byval pMonth as int32 ptr, byval pYear as int32 ptr, _
+	  byval pHour as int32 ptr, byval pMinute as int32 ptr, byval pSecond as int32 ptr, _
+	  byval want_date as int32, byval want_time as int32 ) as int32
 
-	dim as ubyte ptr text = any
+	dim as uint8 ptr text = any
 	dim as uinteger text_len = any, length_ = any
-	dim as long result = 0
+	dim as int32 result = 0
 
 	if( s = 0 ) then return 0
 
-	text = cptr( ubyte ptr, s->data )
+	text = cptr( uint8 ptr, s->data )
 	text_len = FB_STRSIZE( s )
 
 	if( text = 0 ) then return 0
@@ -293,12 +293,12 @@ function tkort_DateTimeParse alias "fb_DateTimeParse" _
 end function
 
 function tkort_DateParse alias "fb_DateParse" _
-	( byval s as FBSTRING ptr, byval pDay as long ptr, byval pMonth as long ptr, byval pYear as long ptr ) as long
+	( byval s as FBSTRING ptr, byval pDay as int32 ptr, byval pMonth as int32 ptr, byval pYear as int32 ptr ) as int32
 	return tkort_DateTimeParse( s, pDay, pMonth, pYear, 0, 0, 0, 1, 0 )
 end function
 
 function tkort_TimeParse alias "fb_TimeParse" _
-	( byval s as FBSTRING ptr, byval pHour as long ptr, byval pMinute as long ptr, byval pSecond as long ptr ) as long
+	( byval s as FBSTRING ptr, byval pHour as int32 ptr, byval pMinute as int32 ptr, byval pSecond as int32 ptr ) as int32
 	return tkort_DateTimeParse( s, 0, 0, 0, pHour, pMinute, pSecond, 0, 1 )
 end function
 

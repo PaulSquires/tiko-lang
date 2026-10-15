@@ -37,7 +37,7 @@ extern "c"   '' NON-FBCALL: fb_hGetExeName is declared plain in fb_system.h.
 end extern
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as int32 ) as int32
 end extern
 
 '' The launch timestamp, "MM-DD-YYYY, HH:MM:SS".
@@ -58,12 +58,12 @@ private sub tkort_hStampLaunchTime( byval prof as FB_PROFILER_GLOBAL ptr )
 	if( ptm = 0 ) then exit sub
 
 	tkrt_snprintf( @prof->launch_time, 32, @"%02d-%02d-%04d, %02d:%02d:%02d", _
-		cast( long, (1 + ptm->tm_mon) mod 100 ), _
-		cast( long, ptm->tm_mday mod 100 ), _
-		cast( long, (1900 + ptm->tm_year) mod 10000 ), _
-		cast( long, ptm->tm_hour mod 100 ), _
-		cast( long, ptm->tm_min mod 100 ), _
-		cast( long, ptm->tm_sec mod 100 ) )
+		cast( int32, (1 + ptm->tm_mon) mod 100 ), _
+		cast( int32, ptm->tm_mday mod 100 ), _
+		cast( int32, (1900 + ptm->tm_year) mod 10000 ), _
+		cast( int32, ptm->tm_hour mod 100 ), _
+		cast( int32, ptm->tm_min mod 100 ), _
+		cast( int32, ptm->tm_sec mod 100 ) )
 	prof->launch_time[31] = 0
 end sub
 
@@ -78,9 +78,9 @@ extern "c"   '' NON-FBCALL: fb_profile.h declares all of these plain.
 '' Jenkins one-at-a-time. Reproduced exactly, shifts included: the hash decides
 '' which block a string lands in, so a different mixing function changes the
 '' table layout that fbc's profile_calls.o walks.
-function tkort_ProfileHashName alias "fb_ProfileHashName" ( byval p as zstring ptr ) as ulong
-	dim as ulong hash_ = 0
-	dim as byte sc = any
+function tkort_ProfileHashName alias "fb_ProfileHashName" ( byval p as zstring ptr ) as uint32
+	dim as uint32 hash_ = 0
+	dim as int8 sc = any
 	dim as integer i = 0
 
 	while( p[i] <> 0 )
@@ -92,7 +92,7 @@ function tkort_ProfileHashName alias "fb_ProfileHashName" ( byval p as zstring p
 		'' every metric the profiler reports. Caught by the differential on
 		'' a three-byte high-ASCII name; nothing below 0x80 would show it.
 		sc = p[i]
-		hash_ += cast( ulong, cast( long, sc ) )
+		hash_ += cast( uint32, cast( int32, sc ) )
 		hash_ += hash_ shl 10
 		hash_ xor= hash_ shr 6
 		i += 1
@@ -106,11 +106,11 @@ end function
 '' Bump-allocate `length` bytes plus a header. Returns NULL when the request
 '' cannot fit a whole block -- callers treat that as "give up", not "grow".
 function tkort_STRING_TABLE_alloc alias "STRING_TABLE_alloc" _
-	( byval strings as STRING_TABLE ptr, byval length_ as long ) as STRING_INFO ptr
+	( byval strings as STRING_TABLE ptr, byval length_ as int32 ) as STRING_INFO ptr
 
 	dim as STRING_INFO ptr info = any
 	dim as STRING_INFO_TB_ ptr tb = any
-	dim as long entsize = any
+	dim as int32 entsize = any
 
 	'' Rounded up to a multiple of 4 -- see the header.
 	entsize = sizeof( STRING_INFO ) + ((length_ + 3) and (not 3))
@@ -164,10 +164,10 @@ end sub
 '' so the stored string is always NUL-terminated in place.
 function tkort_STRING_TABLE_add alias "STRING_TABLE_add" _
 	( byval strings as STRING_TABLE ptr, byval src as zstring ptr, _
-	  byval hashkey as ulong ) as STRING_INFO ptr
+	  byval hashkey as uint32 ) as STRING_INFO ptr
 
 	dim as STRING_INFO ptr info = any
-	dim as long nbytes = cast( long, strlen( src ) ) + 1
+	dim as int32 nbytes = cast( int32, strlen( src ) ) + 1
 
 	info = tkort_STRING_TABLE_alloc( strings, nbytes )
 	if( info <> 0 ) then
@@ -181,10 +181,10 @@ end function
 
 '' Walks the arena by stepping over each entry's own size.
 function tkort_STRING_TABLE_max_len alias "STRING_TABLE_max_len" _
-	( byval strings as STRING_TABLE ptr ) as long
+	( byval strings as STRING_TABLE ptr ) as int32
 	dim as STRING_INFO_TB_ ptr tb = any
 	dim as STRING_INFO ptr info = any
-	dim as long max_len = 0 : dim as integer index_ = any
+	dim as int32 max_len = 0 : dim as integer index_ = any
 
 	if( strings = 0 ) then return 0
 	tb = strings->tb
@@ -208,10 +208,10 @@ extern "c"   '' NON-FBCALL: the hash internals, declared plain.
 '' Returns NULL when the whole chain is occupied at this index.
 function tkort_STRING_HASH_TB_find alias "STRING_HASH_TB_find" _
 	( byval tb as STRING_HASH_TB_ ptr, byval src as zstring ptr, _
-	  byval hashkey as ulong ) as STRING_INFO ptr
+	  byval hashkey as uint32 ) as STRING_INFO ptr
 
 	dim as STRING_INFO ptr info = any
-	dim as long hash_index = cast( long, hashkey mod STRING_HASH_TB_SIZE )
+	dim as int32 hash_index = cast( int32, hashkey mod STRING_HASH_TB_SIZE )
 
 	while( tb <> 0 )
 		info = tb->items(hash_index)
@@ -233,7 +233,7 @@ end function
 
 function tkort_STRING_HASH_TABLE_find alias "STRING_HASH_TABLE_find" _
 	( byval hash_ as STRING_HASH_TABLE_ ptr, byval src as zstring ptr, _
-	  byval hashkey as ulong ) as STRING_INFO ptr
+	  byval hashkey as uint32 ) as STRING_INFO ptr
 	return tkort_STRING_HASH_TB_find( hash_->tb, src, hashkey )
 end function
 
@@ -264,11 +264,11 @@ end sub
 '' caller's buffer need not outlive the call.
 function tkort_STRING_HASH_TABLE_add alias "STRING_HASH_TABLE_add" _
 	( byval hash_ as STRING_HASH_TABLE_ ptr, byval src as zstring ptr, _
-	  byval hashkey as ulong ) as STRING_INFO ptr
+	  byval hashkey as uint32 ) as STRING_INFO ptr
 
 	dim as STRING_HASH_TB_ ptr tb = hash_->tb
 	dim as STRING_INFO ptr info = any
-	dim as long hash_index = cast( long, hashkey mod STRING_HASH_TB_SIZE )
+	dim as int32 hash_index = cast( int32, hashkey mod STRING_HASH_TB_SIZE )
 
 	if( tb = 0 ) then
 		tb = calloc( 1, sizeof( STRING_HASH_TB_ ) )
@@ -302,7 +302,7 @@ function tkort_STRING_HASH_TABLE_add_info alias "STRING_HASH_TABLE_add_info" _
 
 	dim as STRING_HASH_TB_ ptr tb = hash_->tb
 	dim as STRING_INFO ptr info = any
-	dim as long hash_index = cast( long, new_info->hashkey mod STRING_HASH_TB_SIZE )
+	dim as int32 hash_index = cast( int32, new_info->hashkey mod STRING_HASH_TB_SIZE )
 
 	if( tb = 0 ) then
 		tb = calloc( 1, sizeof( STRING_HASH_TB_ ) )
@@ -344,20 +344,20 @@ end sub
 
 '' Adds to the SHARED table first, then records the same entry locally.
 sub tkort_STRING_HASH_add alias "STRING_HASH_add" _
-	( byval hash_ as STRING_HASH_ ptr, byval src as zstring ptr, byval hashkey as ulong )
+	( byval hash_ as STRING_HASH_ ptr, byval src as zstring ptr, byval hashkey as uint32 )
 	dim as STRING_INFO ptr info = tkort_STRING_HASH_TABLE_add( hash_->strings_hash, src, hashkey )
 	if( info <> 0 ) then tkort_STRING_HASH_TABLE_add_info( @hash_->hash_, info )
 end sub
 
 function tkort_STRING_HASH_find alias "STRING_HASH_find" _
 	( byval hash_ as STRING_HASH_ ptr, byval src as zstring ptr, _
-	  byval hashkey as ulong ) as STRING_INFO ptr
+	  byval hashkey as uint32 ) as STRING_INFO ptr
 	return tkort_STRING_HASH_TB_find( hash_->hash_.tb, src, hashkey )
 end function
 
 function tkort_PROFILER_add_ignore alias "PROFILER_add_ignore" _
 	( byval prof as FB_PROFILER_GLOBAL ptr, byval src as zstring ptr, _
-	  byval hashkey as ulong ) as zstring ptr
+	  byval hashkey as uint32 ) as zstring ptr
 	dim as STRING_INFO ptr info = tkort_STRING_HASH_TABLE_add( @prof->ignores_hash, src, hashkey )
 	'' Returns the STRING, not the header -- and does not check for NULL,
 	'' which matches fbc: a failed add yields a pointer to offset 12 of NULL
@@ -426,7 +426,7 @@ end sub
 sub tkort_METRICS_HashTable alias "fb_hPROFILER_METRICS_HashTable" _
 	( byval metrics as FB_PROFILER_METRICS ptr, byval hash_ as STRING_HASH_TABLE_ ptr )
 	dim as STRING_HASH_TB_ ptr tb = any
-	dim as long i = any
+	dim as int32 i = any
 
 	if( metrics = 0 ) then exit sub
 	if( hash_ = 0 ) then exit sub
@@ -492,7 +492,7 @@ end extern
 '' Copy with validation. REJECTS an empty source and one that fills the buffer,
 '' so a truncated path is never written.
 private function hProfileCopyFilename( byval dst as zstring ptr, byval src as zstring ptr, _
-                                       byval length_ as long ) as long
+                                       byval length_ as int32 ) as int32
 	dim as integer len_ = any
 
 	if( fb_profiler = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -515,8 +515,8 @@ end function
 extern "rtlib"
 
 function tkort_ProfileSetFileName alias "fb_ProfileSetFileName" _
-	( byval filename as zstring ptr ) as long
-	dim as long ret = any
+	( byval filename as zstring ptr ) as int32
+	dim as int32 ret = any
 	TKORT_PROFLOCK()
 	if( (fb_profiler <> 0) andalso (filename <> 0) ) then
 		ret = hProfileCopyFilename( @fb_profiler->filename, filename, PROFILER_MAX_PATH )
@@ -530,8 +530,8 @@ end function
 '' WITH NO NAME SET, THE DEFAULT IS DERIVED FROM THE EXECUTABLE -- exe name
 '' plus ".prf" -- and only falls back to "profile.txt" when even that fails.
 function tkort_ProfileGetFileName alias "fb_ProfileGetFileName" _
-	( byval filename as zstring ptr, byval length_ as long ) as long
-	dim as long ret = any
+	( byval filename as zstring ptr, byval length_ as int32 ) as int32
+	dim as int32 ret = any
 	dim as zstring * PROFILER_MAX_PATH buffer = any
 	dim as zstring ptr fname = any
 
@@ -558,8 +558,8 @@ end function
 
 '' Returns 0 when there is no profiler, which is indistinguishable from
 '' PROFILE_OPTION_REPORT_DEFAULT -- and deliberately so.
-function tkort_ProfileGetOptions alias "fb_ProfileGetOptions" ( ) as long
-	dim as long options = 0
+function tkort_ProfileGetOptions alias "fb_ProfileGetOptions" ( ) as int32
+	dim as int32 options = 0
 	TKORT_PROFLOCK()
 	if( fb_profiler <> 0 ) then options = fb_profiler->options
 	TKORT_PROFUNLOCK()
@@ -567,8 +567,8 @@ function tkort_ProfileGetOptions alias "fb_ProfileGetOptions" ( ) as long
 end function
 
 '' Returns the PREVIOUS options, so a caller can restore them.
-function tkort_ProfileSetOptions alias "fb_ProfileSetOptions" ( byval options as long ) as long
-	dim as long previous_options = 0
+function tkort_ProfileSetOptions alias "fb_ProfileSetOptions" ( byval options as int32 ) as int32
+	dim as int32 previous_options = 0
 	TKORT_PROFLOCK()
 	if( fb_profiler <> 0 ) then
 		previous_options = fb_profiler->options
@@ -579,7 +579,7 @@ function tkort_ProfileSetOptions alias "fb_ProfileSetOptions" ( byval options as
 end function
 
 sub tkort_ProfileIgnore alias "fb_ProfileIgnore" ( byval procname as zstring ptr )
-	dim as ulong hashkey = any
+	dim as uint32 hashkey = any
 	TKORT_PROFLOCK()
 	if( (fb_profiler <> 0) andalso (procname <> 0) ) then
 		hashkey = tkort_ProfileHashName( procname )

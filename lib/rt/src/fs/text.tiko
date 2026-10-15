@@ -29,9 +29,9 @@
 
 extern "rtlib"
 	declare function tkrt_FsReadWhole alias "fb_UStrFsReadWhole" _
-		( byval p as FBUSTRING ptr, byval o as ubyte ptr ptr, byval n as longint ptr ) as long
+		( byval p as FBUSTRING ptr, byval o as uint8 ptr ptr, byval n as int64 ptr ) as int32
 	declare function tkrt_FsWriteWhole alias "fb_UStrFsWriteWhole" _
-		( byval p as FBUSTRING ptr, byval d as ubyte ptr, byval n as longint, byval ap as long ) as long
+		( byval p as FBUSTRING ptr, byval d as uint8 ptr, byval n as int64, byval ap as int32 ) as int32
 	declare sub tkrt_FsFreeBuf alias "fb_FsFreeBuf" ( byval b as any ptr )
 end extern
 
@@ -73,15 +73,15 @@ end function
 extern "rtlib"
 
 function tkort_UStrFsReadAllText alias "fb_UStrFsReadAllText" _
-	( byval p as FBUSTRING ptr, byval status as long ptr ) as FBUSTRING ptr
+	( byval p as FBUSTRING ptr, byval status as int32 ptr ) as FBUSTRING ptr
 
-	dim as ubyte ptr buf = 0
-	dim as longint len_ = 0
-	dim as long r = any
+	dim as uint8 ptr buf = 0
+	dim as int64 len_ = 0
+	dim as int32 r = any
 	dim as FBUSTRING ptr res = any
 	dim as integer units = any, i = any, bytes = any, cap = any, n = any
 	dim as FB_UCHAR ptr tmp = any
-	dim as ubyte ptr start = any
+	dim as uint8 ptr start = any
 
 	if( status <> 0 ) then *status = FB_FS_OK
 
@@ -123,7 +123,7 @@ function tkort_UStrFsReadAllText alias "fb_UStrFsReadAllText" _
 			end if
 
 			for i = 0 to units - 1
-				tmp[i] = cast( FB_UCHAR, (cast( ulong, buf[2 + i*2] ) shl 8) or cast( ulong, buf[3 + i*2] ) )
+				tmp[i] = cast( FB_UCHAR, (cast( uint32, buf[2 + i*2] ) shl 8) or cast( uint32, buf[3 + i*2] ) )
 			next
 
 			res = hTemp( tmp, units )
@@ -174,16 +174,16 @@ end function
 
 '' Rule 4: UTF-8, no BOM.
 function tkort_UStrFsWriteAllText alias "fb_UStrFsWriteAllText" _
-	( byval p as FBUSTRING ptr, byval s as FBUSTRING ptr, byval append_ as long ) as long
+	( byval p as FBUSTRING ptr, byval s as FBUSTRING ptr, byval append_ as int32 ) as int32
 
 	dim as FB_UCHAR ptr src = any
 	dim as integer len_ = any, cap = any, n = any
 	dim as zstring ptr tmp = any
-	dim as long r = any
+	dim as int32 r = any
 
 	hUArg( s, @src, @len_ )
 
-	if( len_ = 0 ) then return tkrt_FsWriteWhole( p, cptr( ubyte ptr, @"" ), 0, append_ )
+	if( len_ = 0 ) then return tkrt_FsWriteWhole( p, cptr( uint8 ptr, @"" ), 0, append_ )
 
 	'' Three bytes per unit is the worst case for the BMP, and a surrogate PAIR
 	'' is two units producing four bytes, so the bound holds for astral code
@@ -196,7 +196,7 @@ function tkort_UStrFsWriteAllText alias "fb_UStrFsWriteAllText" _
 	n = tkrt_Utf16ToUtf8( src, len_, tmp, cap - 1 )
 	if( n < 0 ) then n = 0
 
-	r = tkrt_FsWriteWhole( p, cptr( ubyte ptr, tmp ), n, append_ )
+	r = tkrt_FsWriteWhole( p, cptr( uint8 ptr, tmp ), n, append_ )
 
 	free( tmp )
 	return r

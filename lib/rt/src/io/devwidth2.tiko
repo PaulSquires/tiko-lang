@@ -53,7 +53,7 @@
 type TKORT_DEVWIDTH
 	as FB_LISTELEM  elem
 	as zstring ptr  device
-	as long         width_
+	as int32         width_
 end type
 
 extern "c"   '' NON-FBCALL: the list helpers and the string lock are all
@@ -67,20 +67,20 @@ extern "c"   '' NON-FBCALL: the list helpers and the string lock are all
 	'' The two device-protocol tests are tiko-rt's; the two SetWidth entry
 	'' points behind them are still fbc's, in dev_lpt.o and dev_com.o.
 	declare function tkrt_DevLptTestProtocol alias "fb_DevLptTestProtocol" _
-		( byval h as any ptr, byval f as zstring ptr, byval l as uinteger ) as long
+		( byval h as any ptr, byval f as zstring ptr, byval l as uinteger ) as int32
 	declare function tkrt_DevComTestProtocol alias "fb_DevComTestProtocol" _
-		( byval h as any ptr, byval f as zstring ptr, byval l as uinteger ) as long
+		( byval h as any ptr, byval f as zstring ptr, byval l as uinteger ) as int32
 	declare function tkrt_DevPrinterSetWidth alias "fb_DevPrinterSetWidth" _
-		( byval dev as zstring ptr, byval w as long, byval cur as long ) as long
+		( byval dev as zstring ptr, byval w as int32, byval cur as int32 ) as int32
 	declare function tkrt_DevSerialSetWidth alias "fb_DevSerialSetWidth" _
-		( byval dev as zstring ptr, byval w as long, byval cur as long ) as long
+		( byval dev as zstring ptr, byval w as int32, byval cur as int32 ) as int32
 
 end extern
 
 extern "rtlib"   '' FBCALL: both are decorated, and the win32 archive spells
                  '' them `_fb_Width@8` and `_fb_ErrorSetNum@4`.
-	declare function tkrt_Width alias "fb_Width" ( byval cols as long, byval rows as long ) as long
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_Width alias "fb_Width" ( byval cols as int32, byval rows as int32 ) as int32
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 end extern
 
 #ifdef ENABLE_MT
@@ -115,11 +115,11 @@ private function hStrDup( byval s as zstring ptr ) as zstring ptr
 end function
 
 function tkort_WidthDev alias "fb_WidthDev" _
-	( byval dev as FBSTRING ptr, byval width_ as long ) as long
+	( byval dev as FBSTRING ptr, byval width_ as int32 ) as int32
 
 	'' THE CURRENT WIDTH STARTS AS THE ARGUMENT, which is what makes an unknown
 	'' device's query return the -1 it was given rather than zero.
-	dim as long cur = width_
+	dim as int32 cur = width_
 	dim as TKORT_DEVWIDTH ptr node = 0
 
 	LOCK_()
@@ -144,9 +144,9 @@ function tkort_WidthDev alias "fb_WidthDev" _
 	'' rather than through toupper because toupper is locale-sensitive and the
 	'' comparisons below are against fixed ASCII literals.
 	for i as integer = 0 to size_ - 1
-		dim as ubyte c = cptr( ubyte ptr, device )[i]
+		dim as uint8 c = cptr( uint8 ptr, device )[i]
 		if( (c >= 97) andalso (c <= 122) ) then          '' 'a'..'z'
-			cptr( ubyte ptr, device )[i] = c - 32
+			cptr( uint8 ptr, device )[i] = c - 32
 		end if
 	next
 

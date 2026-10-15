@@ -31,30 +31,30 @@ const DT_PAT_ERR = -1
 
 extern "rtlib"
 	declare sub tkrt_DtToCivil alias "fb_DtToCivil" _
-		( byval ticks as longint, byval y as long ptr, byval mo as long ptr, _
-		  byval d as long ptr, byval h as long ptr, byval mi as long ptr, _
-		  byval s as long ptr, byval sub_ as longint ptr )
+		( byval ticks as int64, byval y as int32 ptr, byval mo as int32 ptr, _
+		  byval d as int32 ptr, byval h as int32 ptr, byval mi as int32 ptr, _
+		  byval s as int32 ptr, byval sub_ as int64 ptr )
 	declare sub tkrt_DtCivilFromDays alias "fb_DtCivilFromDays" _
-		( byval days as long, byval y as long ptr, byval mo as long ptr, byval d as long ptr )
-	declare function tkrt_DtDayOfWeek alias "fb_DtDayOfWeek" ( byval days as long ) as long
+		( byval days as int32, byval y as int32 ptr, byval mo as int32 ptr, byval d as int32 ptr )
+	declare function tkrt_DtDayOfWeek alias "fb_DtDayOfWeek" ( byval days as int32 ) as int32
 	declare function tkrt_DtDayOfYear alias "fb_DtDayOfYear" _
-		( byval y as long, byval mo as long, byval d as long ) as long
+		( byval y as int32, byval mo as int32, byval d as int32 ) as int32
 	declare function tkrt_DtDaysFromCivil alias "fb_DtDaysFromCivil" _
-		( byval y as long, byval mo as long, byval d as long ) as long
-	declare function tkrt_DtDaysInYear alias "fb_DtDaysInYear" ( byval y as long ) as long
-	declare function tkrt_DtIsValidTicks alias "fb_DtIsValidTicks" ( byval t as longint ) as long
+		( byval y as int32, byval mo as int32, byval d as int32 ) as int32
+	declare function tkrt_DtDaysInYear alias "fb_DtDaysInYear" ( byval y as int32 ) as int32
+	declare function tkrt_DtIsValidTicks alias "fb_DtIsValidTicks" ( byval t as int64 ) as int32
 	declare function tkrt_DtIsoWeek alias "fb_DtIsoWeek" _
-		( byval y as long, byval mo as long, byval d as long, byval iy as long ptr ) as long
+		( byval y as int32, byval mo as int32, byval d as int32, byval iy as int32 ptr ) as int32
 	declare function tkrt_DtFromCivil alias "fb_DtFromCivil" _
-		( byval y as long, byval mo as long, byval d as long, byval h as long, _
-		  byval mi as long, byval s as long, byval sub_ as longint, _
-		  byval out_ as longint ptr ) as long
+		( byval y as int32, byval mo as int32, byval d as int32, byval h as int32, _
+		  byval mi as int32, byval s as int32, byval sub_ as int64, _
+		  byval out_ as int64 ptr ) as int32
 	declare function tkrt_DtIsoFormat alias "fb_DtIsoFormat" _
-		( byval ticks as longint, byval off as long, byval buf as ubyte ptr, _
-		  byval buflen as long ) as long
+		( byval ticks as int64, byval off as int32, byval buf as uint8 ptr, _
+		  byval buflen as int32 ) as int32
 	declare function tkrt_DtIsoParse alias "fb_DtIsoParse" _
-		( byval s as ubyte ptr, byval l as long, byval t as longint ptr, _
-		  byval o as long ptr ) as long
+		( byval s as uint8 ptr, byval l as int32, byval t as int64 ptr, _
+		  byval o as int32 ptr ) as int32
 end extern
 
 '' Name tables. Stored as a fixed grid rather than a pointer array so the whole
@@ -67,7 +67,7 @@ dim shared as TKORT_NAME16 hMonthFull(0 to 11)
 dim shared as TKORT_NAME16 hMonthAbbr(0 to 11)
 dim shared as TKORT_NAME16 hDayFull(0 to 6)
 dim shared as TKORT_NAME16 hDayAbbr(0 to 6)
-dim shared as long hNamesReady = 0
+dim shared as int32 hNamesReady = 0
 
 private sub hInitNames( )
 	if( hNamesReady ) then exit sub
@@ -96,38 +96,38 @@ private sub hInitNames( )
 	hNamesReady = 1
 end sub
 
-private function hIsAlpha( byval c as ulong ) as long
+private function hIsAlpha( byval c as uint32 ) as int32
 	if( (c >= 97) andalso (c <= 122) ) then return 1
 	if( (c >= 65) andalso (c <= 90) ) then return 1
 	return 0
 end function
 
-private function hIsDigit( byval c as ulong ) as long
+private function hIsDigit( byval c as uint32 ) as int32
 	if( (c >= 48) andalso (c <= 57) ) then return 1
 	return 0
 end function
 
 '' Length of the nrun of identical characters at p.
-private function hRun( byval p as ubyte ptr, byval pend as ubyte ptr ) as long
-	dim as ubyte ptr q = p
+private function hRun( byval p as uint8 ptr, byval pend as uint8 ptr ) as int32
+	dim as uint8 ptr q = p
 	while( q < pend )
 		if( *q <> *p ) then exit while
 		q += 1
 	wend
-	return cast( long, q - p )
+	return cast( int32, q - p )
 end function
 
 '' Right-aligned decimal, zero-padded to minDigits. Zero prints as "0".
-private function hPatNum( byval buf as ubyte ptr, byval v as longint, _
-                          byval minDigits as long ) as long
-	dim as ubyte tmp(0 to 23)
-	dim as long k = 0, n = 0
+private function hPatNum( byval buf as uint8 ptr, byval v as int64, _
+                          byval minDigits as int32 ) as int32
+	dim as uint8 tmp(0 to 23)
+	dim as int32 k = 0, n = 0
 
 	if( v = 0 ) then
 		tmp(k) = 48 : k += 1
 	end if
 	while( v > 0 )
-		tmp(k) = 48 + cast( long, v mod 10 ) : k += 1
+		tmp(k) = 48 + cast( int32, v mod 10 ) : k += 1
 		v \= 10
 	wend
 	while( k < minDigits )
@@ -140,8 +140,8 @@ private function hPatNum( byval buf as ubyte ptr, byval v as longint, _
 	return n
 end function
 
-private function hPatStr( byval buf as ubyte ptr, byval s as zstring ptr ) as long
-	dim as long n = 0
+private function hPatStr( byval buf as uint8 ptr, byval s as zstring ptr ) as int32
+	dim as int32 n = 0
 	while( s[n] <> 0 )
 		buf[n] = s[n]
 		n += 1
@@ -150,19 +150,19 @@ private function hPatStr( byval buf as ubyte ptr, byval s as zstring ptr ) as lo
 end function
 
 '' Returns characters written, or DT_PAT_ERR on a pattern error.
-private function hPatFormatCore( byval ticks as longint, byval offMin as long, _
-                                 byval pat as ubyte ptr, byval patlen as long, _
-                                 byval buf as ubyte ptr, byval buflen as long ) as long
-	dim as ubyte ptr p = pat, pend = pat + patlen
-	dim as long n = 0
-	dim as long y = any, mo = any, d = any, h = any, mi = any, s = any
-	dim as longint sub_ = any, v = any
-	dim as long days = any, nrun = any, i = any, h12 = any, w = any
-	dim as long a = any, sign_ = any, iy = any
-	dim as ulong c = any
+private function hPatFormatCore( byval ticks as int64, byval offMin as int32, _
+                                 byval pat as uint8 ptr, byval patlen as int32, _
+                                 byval buf as uint8 ptr, byval buflen as int32 ) as int32
+	dim as uint8 ptr p = pat, pend = pat + patlen
+	dim as int32 n = 0
+	dim as int32 y = any, mo = any, d = any, h = any, mi = any, s = any
+	dim as int64 sub_ = any, v = any
+	dim as int32 days = any, nrun = any, i = any, h12 = any, w = any
+	dim as int32 a = any, sign_ = any, iy = any
+	dim as uint32 c = any
 
 	hInitNames( )
-	days = cast( long, ticks \ FB_DT_TICKS_PER_DAY )
+	days = cast( int32, ticks \ FB_DT_TICKS_PER_DAY )
 	tkrt_DtToCivil( ticks, @y, @mo, @d, @h, @mi, @s, @sub_ )
 
 	while( p < pend )
@@ -375,11 +375,11 @@ end function
 '' Shift to UTC for the "u" and "R" constant formats. A value with NO offset is
 '' taken at face value rather than guessed at, and a shift that would leave the
 '' representable range is abandoned rather than clamped.
-private function hPatToUtc( byval ticks as longint, byval offMin as long ) as longint
-	dim as longint r = any
+private function hPatToUtc( byval ticks as int64, byval offMin as int32 ) as int64
+	dim as int64 r = any
 	if( offMin = DT_PAT_OFFSET_UNSPECIFIED ) then return ticks
 	if( offMin = 0 ) then return ticks
-	r = ticks - cast( longint, offMin ) * FB_DT_TICKS_PER_MINUTE
+	r = ticks - cast( int64, offMin ) * FB_DT_TICKS_PER_MINUTE
 	if( tkrt_DtIsValidTicks( r ) = 0 ) then return ticks
 	return r
 end function
@@ -387,10 +387,10 @@ end function
 extern "rtlib"
 
 function tkort_DtPatFormat alias "fb_DtPatFormat" _
-	( byval ticks as longint, byval offMin as long, byval pat as ubyte ptr, _
-	  byval patlen as long, byval buf as ubyte ptr, byval buflen as long ) as long
+	( byval ticks as int64, byval offMin as int32, byval pat as uint8 ptr, _
+	  byval patlen as int32, byval buf as uint8 ptr, byval buflen as int32 ) as int32
 
-	dim as long n = any, L = any
+	dim as int32 n = any, L = any
 	dim as zstring ptr expand = 0
 
 	if( buf = 0 ) then return DT_PAT_ERR
@@ -453,22 +453,22 @@ end extern
 '' ----------------------------------------------------------------- parse
 
 type FB_DTPARTS
-	as long     year_, month_, day_
-	as long     hour24, hour12, minute_, second_
-	as longint  sub_
-	as long     ampm                            '' -1 none, 0 AM, 1 PM
-	as long     off
-	as long     doy
-	as long     wday                            '' from ddd/dddd, cross-checked
-	as long     hasYear, hasMonth, hasDay, hasHour24, hasHour12
-	as long     hasMin, hasSec, hasDoy
+	as int32     year_, month_, day_
+	as int32     hour24, hour12, minute_, second_
+	as int64  sub_
+	as int32     ampm                            '' -1 none, 0 AM, 1 PM
+	as int32     off
+	as int32     doy
+	as int32     wday                            '' from ddd/dddd, cross-checked
+	as int32     hasYear, hasMonth, hasDay, hasHour24, hasHour12
+	as int32     hasMin, hasSec, hasDoy
 end type
 
 '' Set a field, FAILING if it is already set to a DIFFERENT value. Repeating a
 '' field consistently is fine; contradicting it is not -- so "2025-03-04" under
 '' "yyyy-MM-dd" with a second, disagreeing day is rejected rather than taking
 '' the last one.
-private function hSet( byval slot as long ptr, byval has as long ptr, byval v as long ) as long
+private function hSet( byval slot as int32 ptr, byval has as int32 ptr, byval v as int32 ) as int32
 	if( (*has <> 0) andalso (*slot <> v) ) then return 1
 	*slot = v
 	*has = 1
@@ -477,11 +477,11 @@ end function
 
 '' Case-insensitive match against a name table, advancing pos on success.
 '' Returns the 1-BASED index through out_.
-private function hMatchName( byval s as ubyte ptr, byval slen as long, byval pos_ as integer ptr, _
-                             byval tbl as TKORT_NAME16 ptr, byval cnt as long, _
-                             byval out_ as long ptr ) as long
-	dim as long i = any, j = any
-	dim as ulong a = any, b = any
+private function hMatchName( byval s as uint8 ptr, byval slen as int32, byval pos_ as integer ptr, _
+                             byval tbl as TKORT_NAME16 ptr, byval cnt as int32, _
+                             byval out_ as int32 ptr ) as int32
+	dim as int32 i = any, j = any
+	dim as uint32 a = any, b = any
 	dim as zstring ptr w = any
 
 	for i = 0 to cnt - 1
@@ -509,9 +509,9 @@ private function hMatchName( byval s as ubyte ptr, byval slen as long, byval pos
 end function
 
 '' Exactly `fixed` digits when fixed > 0, otherwise 1..maxd.
-private function hReadNum( byval s as ubyte ptr, byval slen as long, byval pos_ as integer ptr, _
-                           byval fixed as long, byval maxd as long, byval out_ as long ptr ) as long
-	dim as long v = 0, n = 0, i = any
+private function hReadNum( byval s as uint8 ptr, byval slen as int32, byval pos_ as integer ptr, _
+                           byval fixed as int32, byval maxd as int32, byval out_ as int32 ptr ) as int32
+	dim as int32 v = 0, n = 0, i = any
 
 	if( fixed > 0 ) then
 		if( *pos_ + fixed > slen ) then return 1
@@ -537,7 +537,7 @@ end function
 
 '' Does the token at p consume digits? Used for the adjacent-variable-width
 '' ambiguity check below. MMM and dddd are NAMES, not numbers.
-private function hTokenIsNumeric( byval p as ubyte ptr, byval pend as ubyte ptr ) as long
+private function hTokenIsNumeric( byval p as uint8 ptr, byval pend as uint8 ptr ) as int32
 	if( p >= pend ) then return 0
 	select case *p
 	case 121, 77, 100, 68, 81, 119, 89, 72, 104, 109, 115, 102, 70
@@ -554,21 +554,21 @@ extern "rtlib"
 '' ERROR -- three outcomes, not two, because "this pattern cannot work" and
 '' "this input does not match" need different fixes.
 function tkort_DtPatParse alias "fb_DtPatParse" _
-	( byval s as ubyte ptr, byval slen as long, byval pat as ubyte ptr, _
-	  byval patlen as long, byval out_ticks as longint ptr, _
-	  byval out_off as long ptr ) as long
+	( byval s as uint8 ptr, byval slen as int32, byval pat as uint8 ptr, _
+	  byval patlen as int32, byval out_ticks as int64 ptr, _
+	  byval out_off as int32 ptr ) as int32
 
 	dim as FB_DTPARTS pt = any
-	dim as ubyte ptr p = pat, pend = pat + patlen
+	dim as uint8 ptr p = pat, pend = pat + patlen
 	'' integer, not long: it is a position within the input string, and the
 	'' index-width rule applies to it even though every value it holds is
 	'' small -- the type is what the lint checks, not the range.
 	dim as integer pos_ = 0
-	dim as longint ticks = any, acc = any
-	dim as long nrun = any, v = any, i = any, got = any
-	dim as long sign_ = any, hh = any, mm = any, h = any, dy = any
-	dim as long yy = any, mm2 = any, dd = any
-	dim as ulong c = any, a = any, b = any
+	dim as int64 ticks = any, acc = any
+	dim as int32 nrun = any, v = any, i = any, got = any
+	dim as int32 sign_ = any, hh = any, mm = any, h = any, dy = any
+	dim as int32 yy = any, mm2 = any, dd = any
+	dim as uint32 c = any, a = any, b = any
 
 	hInitNames( )
 

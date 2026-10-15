@@ -50,7 +50,7 @@
 
 '' Characters between two pointers into the same buffer.
 #define FB_WSTR_CALCDIFF( ini, end ) _
-	( cast( integer, cast( ubyte ptr, end ) - cast( ubyte ptr, ini ) ) \ TKORT_WCHAR_SIZE )
+	( cast( integer, cast( uint8 ptr, end ) - cast( uint8 ptr, ini ) ) \ TKORT_WCHAR_SIZE )
 
 '' Allocate room for `chars` characters plus the terminator.
 ''

@@ -71,13 +71,13 @@ const DBL_MAXDIGS  = 16
 
 '' Packed ASCII, consumed one byte at a time by the digit loops. The digits of
 '' the placeholder value stand in for these characters.
-const CHARS_NAN   as ulongint = (35 shl 24) or (78 shl 16) or (65 shl 8) or 78     '' #NAN
-const CHARS_INF   as ulongint = (35 shl 24) or (73 shl 16) or (78 shl 8) or 70     '' #INF
-const CHARS_IND   as ulongint = (35 shl 24) or (73 shl 16) or (78 shl 8) or 68     '' #IND
+const CHARS_NAN   as uint64 = (35 shl 24) or (78 shl 16) or (65 shl 8) or 78     '' #NAN
+const CHARS_INF   as uint64 = (35 shl 24) or (73 shl 16) or (78 shl 8) or 70     '' #INF
+const CHARS_IND   as uint64 = (35 shl 24) or (73 shl 16) or (78 shl 8) or 68     '' #IND
 '' The QB glitch: a truncated text "rounds up" into these characters.
-const CHARS_TRUNC as ulongint = (36 shl 24) or (48 shl 16) or (48 shl 8) or 48     '' $000
-const CHARS_TRUE  as ulongint = (116 shl 24) or (114 shl 16) or (117 shl 8) or 101
-const CHARS_FALSE as ulongint = (102ull shl 32) or (97 shl 24) or (108 shl 16) or (115 shl 8) or 101
+const CHARS_TRUNC as uint64 = (36 shl 24) or (48 shl 16) or (48 shl 8) or 48     '' $000
+const CHARS_TRUE  as uint64 = (116 shl 24) or (114 shl 16) or (117 shl 8) or 101
+const CHARS_FALSE as uint64 = (102ull shl 32) or (97 shl 24) or (108 shl 16) or (115 shl 8) or 101
 
 const VAL_ISNEG   = &h1
 const VAL_ISINF   = &h2
@@ -87,30 +87,30 @@ const VAL_ISFLOAT = &h10
 const VAL_ISSNG   = &h20
 const VAL_ISBOOL  = &h40
 
-const FB_TLSKEY_PRINTUSG as long = 3
+const FB_TLSKEY_PRINTUSG as int32 = 3
 
 type FB_PRINTUSGCTX field = 1
-	as long        chars       '' C int
+	as int32        chars       '' C int
 	as zstring ptr ptr_
 	as FBSTRING    fmtstr
 end type
 
 extern "rtlib"
 	declare function fb_TlsGetCtx alias "fb_TlsGetCtx" _
-		( byval idx as long, byval length as uinteger, byval dtor as any ptr ) as any ptr
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as long ) as long
+		( byval idx as int32, byval length as uinteger, byval dtor as any ptr ) as any ptr
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as int32 ) as int32
 	declare function tkrt_StrAssign alias "fb_StrAssign" _
 		( byval dst as any ptr, byval dst_size as integer, byval src as any ptr, _
-		  byval src_size as integer, byval fillrem as long ) as long
+		  byval src_size as integer, byval fillrem as int32 ) as int32
 	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
-	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 	declare sub tkrt_PrintFixString alias "fb_PrintFixString" _
-		( byval fnum as long, byval s as zstring ptr, byval mask as long )
-	declare sub tkrt_PrintVoid alias "fb_PrintVoid" ( byval fnum as long, byval mask as long )
+		( byval fnum as int32, byval s as zstring ptr, byval mask as int32 )
+	declare sub tkrt_PrintVoid alias "fb_PrintVoid" ( byval fnum as int32, byval mask as int32 )
 	declare sub tkrt_PrintWstr alias "fb_PrintWstr" _
-		( byval fnum as long, byval s as wstring ptr, byval mask as long )
+		( byval fnum as int32, byval s as wstring ptr, byval mask as int32 )
 	declare sub tkrt_PrintUStr alias "fb_PrintUStr" _
-		( byval fnum as long, byval s as FBUSTRING ptr, byval mask as long )
+		( byval fnum as int32, byval s as FBUSTRING ptr, byval mask as int32 )
 end extern
 
 '' fb_PRINTUSGCTX_Destructor is NULL in fbc -- the descriptor is freed by
@@ -121,8 +121,8 @@ private function hCtx( ) as FB_PRINTUSGCTX ptr
 end function
 
 '' Powers of ten by squaring. n is 0..19; 10^19 still fits an unsigned 64.
-private function hPow10( byval n as long ) as ulongint
-	dim as ulongint ret = 1, a = 10
+private function hPow10( byval n as int32 ) as uint64
+	dim as uint64 ret = 1, a = 10
 	while( n > 0 )
 		if( (n and 1) <> 0 ) then ret *= a
 		a *= a
@@ -134,16 +134,16 @@ end function
 '' floor(log10(a)) for a > 0, and 0 for a = 0. The staircase of comparisons is
 '' fbc's, and it is reproduced rather than replaced by a loop because the
 '' result feeds digit counts that must agree exactly.
-private function hLog10( byval a as ulongint ) as long
-	dim as long ret = 0, a32 = any
-	dim as ulongint a64 = a
+private function hLog10( byval a as uint64 ) as int32
+	dim as int32 ret = 0, a32 = any
+	dim as uint64 a64 = a
 
 	while( a64 >= 100000000ull )
 		a64 \= 100000000ull
 		ret += 8
 	wend
 
-	a32 = cast( long, a64 )
+	a32 = cast( int32, a64 )
 	if( a32 >= 10000 ) then ret += 4 else a32 *= 10000
 	if( a32 >= 1000000 ) then ret += 2 else a32 *= 100
 	if( a32 >= 10000000 ) then ret += 1
@@ -151,14 +151,14 @@ private function hLog10( byval a as ulongint ) as long
 	return ret
 end function
 
-private function hNumDigits( byval a as ulongint ) as long
+private function hNumDigits( byval a as uint64 ) as int32
 	return hLog10( a ) + 1
 end function
 
 '' a / 10^n, ROUNDED HALF UP. The rounding is what makes a truncated field
 '' round rather than chop, and it is applied at every scaling step.
-private function hDivPow10( byval a as ulongint, byval n as long ) as ulongint
-	dim as ulongint b = any, ret = any
+private function hDivPow10( byval a as uint64, byval n as int32 ) as uint64
+	dim as uint64 b = any, ret = any
 	if( n > 19 ) then return 0
 	b = hPow10( n )
 	ret = a \ b
@@ -169,7 +169,7 @@ end function
 extern "rtlib"
 
 '' Stores the format string and rewinds the cursor to its start.
-function tkort_PrintUsingInit alias "fb_PrintUsingInit" ( byval fmtstr as FBSTRING ptr ) as long
+function tkort_PrintUsingInit alias "fb_PrintUsingInit" ( byval fmtstr as FBSTRING ptr ) as int32
 	dim as FB_PRINTUSGCTX ptr ctx = any
 
 	TKORT_IOLOCK()
@@ -195,10 +195,10 @@ end extern
 ''
 '' '_' ESCAPES THE NEXT CHARACTER, so "_#" prints a '#' instead of starting a
 '' numeric field -- and a trailing '_' with nothing after it prints itself.
-private function hFmtStr( byval fnum as long ) as long
+private function hFmtStr( byval fnum as int32 ) as int32
 	dim as FB_PRINTUSGCTX ptr ctx = hCtx( )
 	dim as zstring * BUFFERLEN + 1 buffer = any
-	dim as long c = any, nc = any, nnc = any, length = 0, doexit = any
+	dim as int32 c = any, nc = any, nnc = any, length = 0, doexit = any
 
 	if( ctx->ptr_ = 0 ) then ctx->chars = 0
 
@@ -255,7 +255,7 @@ end function
 extern "rtlib"
 
 '' Flushes any trailing literal text, then drops the format string.
-function tkort_PrintUsingEnd alias "fb_PrintUsingEnd" ( byval fnum as long ) as long
+function tkort_PrintUsingEnd alias "fb_PrintUsingEnd" ( byval fnum as int32 ) as int32
 	dim as FB_PRINTUSGCTX ptr ctx = any
 
 	hFmtStr( fnum )
@@ -289,11 +289,11 @@ extern "rtlib"
 '' EMBEDDED NULs BECOME SPACES in the padded output. That is QB behaviour and
 '' it is visible whenever a fixed-length string is shorter than its buffer.
 function tkort_PrintUsingStr alias "fb_PrintUsingStr" _
-	( byval fnum as long, byval s as FBSTRING ptr, byval mask as long ) as long
+	( byval fnum as int32, byval s as FBSTRING ptr, byval mask as int32 ) as int32
 
 	dim as FB_PRINTUSGCTX ptr ctx = hCtx( )
 	dim as zstring * BUFFERLEN + 1 buffer = any
-	dim as long c = any, nc = any, strchars = any, doexit = any, i = any
+	dim as int32 c = any, nc = any, strchars = any, doexit = any, i = any
 
 	'' Restart when the format has been consumed -- this is what makes one
 	'' field format a whole argument list.
@@ -398,12 +398,12 @@ extern "rtlib"
 '' counts WCHARs, and the whole-string case hands the source pointer straight
 '' to fb_PrintWstr rather than copying.
 function tkort_PrintUsingWstr alias "fb_PrintUsingWstr" _
-	( byval fnum as long, byval s as wstring ptr, byval mask as long ) as long
+	( byval fnum as int32, byval s as wstring ptr, byval mask as int32 ) as int32
 
 	dim as FB_PRINTUSGCTX ptr ctx = hCtx( )
 	dim as wstring * BUFFERLEN + 1 buffer = any
-	dim as long c = any, nc = any, strchars = any, doexit = any, i = any, length = any
-	dim as ulong wc = any
+	dim as int32 c = any, nc = any, strchars = any, doexit = any, i = any, length = any
+	dim as uint32 wc = any
 
 	if( ctx->chars = 0 ) then
 		ctx->ptr_ = ctx->fmtstr.data
@@ -508,7 +508,7 @@ end extern
 '' -- a real Windows console takes the wide path, everything else gets UTF-8 --
 '' in one place. The descriptor is NOT from the temp pool and its len carries
 '' no temp bit, so nothing frees it.
-private sub hPrintUnits( byval fnum as long, byval p as FB_UCHAR ptr, byval units as integer )
+private sub hPrintUnits( byval fnum as int32, byval p as FB_UCHAR ptr, byval units as integer )
 	dim as FBUSTRING d = any
 	d.data = p
 	d.len = units
@@ -528,12 +528,12 @@ extern "rtlib"
 '' redirected path is UTF-8 -- the same program would format differently into a
 '' file than onto a console.
 function tkort_PrintUsingUStr alias "fb_PrintUsingUStr" _
-	( byval fnum as long, byval s as FBUSTRING ptr, byval mask as long ) as long
+	( byval fnum as int32, byval s as FBUSTRING ptr, byval mask as int32 ) as int32
 
 	dim as FB_PRINTUSGCTX ptr ctx = hCtx( )
 	dim as FB_UCHAR buffer(0 to BUFFERLEN)
 	dim as FB_UCHAR ptr sptr = any
-	dim as long c = any, nc = any, strchars = any, doexit = any, i = any
+	dim as int32 c = any, nc = any, strchars = any, doexit = any, i = any
 	dim as integer length = any
 
 	if( ctx->chars = 0 ) then
@@ -648,7 +648,7 @@ end extern
 #macro ADD_CHAR( c )
 	scope
 		if( p >= @buffer(0) ) then
-			*p = cast( ubyte, (c) )
+			*p = cast( uint8, (c) )
 			p -= 1
 		elseif( p = @buffer(0) ) then
 			*p = CHAR_WTF
@@ -656,24 +656,24 @@ end extern
 	end scope
 #endmacro
 
-private function hPrintNumber( byval fnum as long, byval val_ as ulongint, _
-                               byval val_exp as long, byval flags as long, _
-                               byval mask as long ) as long
+private function hPrintNumber( byval fnum as int32, byval val_ as uint64, _
+                               byval val_exp as int32, byval flags as int32, _
+                               byval mask as int32 ) as int32
 
 	dim as FB_PRINTUSGCTX ptr ctx = hCtx( )
-	dim as ubyte buffer(0 to BUFFERLEN)
-	dim as ubyte ptr p = any
-	dim as long val_digs = any, val_zdigs = any
-	dim as ulongint val0 = any
-	dim as long val_digs0 = any, val_exp0 = any
-	dim as long isneg_ = any, isfloat_ = any, issng_ = any
-	dim as long c = any, lc = any
-	dim as long doexit = any, padchar = any, intdigs = any, decdigs = any, expdigs = any
-	dim as long adddollar = any, addcommas = any, signatend = any, signatstart = any
-	dim as long plussign = any, toobig = any
-	dim as long intdigs2 = any, expsignchar = any, totdigs = any, decpoint = any
-	dim as long isamp = any, i = any
-	dim as ulongint chars_ = 0
+	dim as uint8 buffer(0 to BUFFERLEN)
+	dim as uint8 ptr p = any
+	dim as int32 val_digs = any, val_zdigs = any
+	dim as uint64 val0 = any
+	dim as int32 val_digs0 = any, val_exp0 = any
+	dim as int32 isneg_ = any, isfloat_ = any, issng_ = any
+	dim as int32 c = any, lc = any
+	dim as int32 doexit = any, padchar = any, intdigs = any, decdigs = any, expdigs = any
+	dim as int32 adddollar = any, addcommas = any, signatend = any, signatstart = any
+	dim as int32 plussign = any, toobig = any
+	dim as int32 intdigs2 = any, expsignchar = any, totdigs = any, decpoint = any
+	dim as int32 isamp = any, i = any
+	dim as uint64 chars_ = 0
 
 	if( ctx->chars = 0 ) then
 		ctx->ptr_ = ctx->fmtstr.data
@@ -1073,7 +1073,7 @@ private function hPrintNumber( byval fnum as long, byval val_ as ulongint, _
 					ADD_CHAR( chars_ and &hff )
 					chars_ shr= 8
 				else
-					ADD_CHAR( CHAR_ZERO + cast( long, val_ mod 10 ) )
+					ADD_CHAR( CHAR_ZERO + cast( int32, val_ mod 10 ) )
 				end if
 				val_ \= 10
 				val_digs -= 1
@@ -1101,7 +1101,7 @@ private function hPrintNumber( byval fnum as long, byval val_ as ulongint, _
 				ADD_CHAR( chars_ and &hff )
 				chars_ shr= 8
 			else
-				ADD_CHAR( CHAR_ZERO + cast( long, val_ mod 10 ) )
+				ADD_CHAR( CHAR_ZERO + cast( int32, val_ mod 10 ) )
 			end if
 			val_ \= 10
 			val_digs -= 1
@@ -1169,12 +1169,12 @@ end function
 '' step exact in 64 bits. The obvious floating-point route (log10 then pow)
 '' loses a digit at the extremes and would make the answer depend on the host's
 '' libm.
-private function hScaleDoubleToULL( byval value as double, byval pval_exp as long ptr ) as ulongint
-	dim as ulongint val_ull = any
-	dim as long digs = any, pow2 = any, pow10 = any, scale = any
+private function hScaleDoubleToULL( byval value as float64, byval pval_exp as int32 ptr ) as uint64
+	dim as uint64 val_ull = any
+	dim as int32 digs = any, pow2 = any, pow10 = any, scale = any
 
-	val_ull = *cptr( ulongint ptr, @value )
-	pow2 = cast( long, (val_ull shr 52) and &h7ff ) - 1023
+	val_ull = *cptr( uint64 ptr, @value )
+	pow2 = cast( int32, (val_ull shr 52) and &h7ff ) - 1023
 	val_ull and= (1ull shl 52) - 1
 
 	if( pow2 > -1023 ) then
@@ -1227,39 +1227,39 @@ end function
 '' The IEEE predicates, over the bit pattern rather than over comparisons: a
 '' comparison with NaN is false in both directions and would classify it as
 '' neither negative nor positive.
-private function hBits( byval d as double ) as longint
-	return *cptr( longint ptr, @d )
+private function hBits( byval d as float64 ) as int64
+	return *cptr( int64 ptr, @d )
 end function
 
-private function hIsNeg( byval d as double ) as long
+private function hIsNeg( byval d as float64 ) as int32
 	'' THE SIGN BIT, not `d < 0`: this reports -0.0 as negative, which is what
 	'' makes PRINT USING emit "-0" for it.
 	if( hBits( d ) < 0 ) then return 1
 	return 0
 end function
 
-private function hIsZero( byval d as double ) as long
+private function hIsZero( byval d as float64 ) as int32
 	if( (hBits( d ) and &h7fffffffffffffffll) = 0 ) then return 1
 	return 0
 end function
 
-private function hIsFinite( byval d as double ) as long
+private function hIsFinite( byval d as float64 ) as int32
 	if( (hBits( d ) and &h7ff0000000000000ll) < &h7ff0000000000000ll ) then return 1
 	return 0
 end function
 
-private function hIsInf( byval d as double ) as long
+private function hIsInf( byval d as float64 ) as int32
 	if( (hBits( d ) and &h7fffffffffffffffll) = &h7ff0000000000000ll ) then return 1
 	return 0
 end function
 
 '' The x87 "indefinite" NaN specifically -- a distinct output from a plain NaN.
-private function hIsInd( byval d as double ) as long
-	if( hBits( d ) = cast( longint, &hfff8000000000000ull ) ) then return 1
+private function hIsInd( byval d as float64 ) as int32
+	if( hBits( d ) = cast( int64, &hfff8000000000000ull ) ) then return 1
 	return 0
 end function
 
-private function hIsNan( byval d as double ) as long
+private function hIsNan( byval d as float64 ) as int32
 	if( hIsFinite( d ) orelse hIsInf( d ) orelse hIsInd( d ) ) then return 0
 	return 1
 end function
@@ -1267,9 +1267,9 @@ end function
 extern "rtlib"
 
 function tkort_PrintUsingDouble alias "fb_PrintUsingDouble" _
-	( byval fnum as long, byval value as double, byval mask as long ) as long
-	dim as long val_exp = 0, flags = VAL_ISFLOAT
-	dim as ulongint val_ull = 1
+	( byval fnum as int32, byval value as float64, byval mask as int32 ) as int32
+	dim as int32 val_exp = 0, flags = VAL_ISFLOAT
+	dim as uint64 val_ull = 1
 
 	if( hIsNeg( value ) ) then flags or= VAL_ISNEG
 
@@ -1295,10 +1295,10 @@ end function
 '' SINGLE goes through the SAME double scaler -- the difference is only the
 '' VAL_ISSNG flag, which caps "&" at 7 significant digits.
 function tkort_PrintUsingSingle alias "fb_PrintUsingSingle" _
-	( byval fnum as long, byval value_f as single, byval mask as long ) as long
-	dim as long val_exp = 0, flags = VAL_ISFLOAT or VAL_ISSNG
-	dim as ulongint val_ull = 1
-	dim as double value = cdbl( value_f )
+	( byval fnum as int32, byval value_f as float32, byval mask as int32 ) as int32
+	dim as int32 val_exp = 0, flags = VAL_ISFLOAT or VAL_ISSNG
+	dim as uint64 val_ull = 1
+	dim as float64 value = cdbl( value_f )
 
 	if( hIsNeg( value ) ) then flags or= VAL_ISNEG
 
@@ -1322,23 +1322,23 @@ function tkort_PrintUsingSingle alias "fb_PrintUsingSingle" _
 end function
 
 function tkort_PrintUsingULongint alias "fb_PrintUsingULongint" _
-	( byval fnum as long, byval value_ull as ulongint, byval mask as long ) as long
+	( byval fnum as int32, byval value_ull as uint64, byval mask as int32 ) as int32
 	return hPrintNumber( fnum, value_ull, 0, 0, mask )
 end function
 
 function tkort_PrintUsingLongint alias "fb_PrintUsingLongint" _
-	( byval fnum as long, byval val_ll as longint, byval mask as long ) as long
-	dim as long flags = any
-	dim as ulongint val_ull = any
+	( byval fnum as int32, byval val_ll as int64, byval mask as int32 ) as int32
+	dim as int32 flags = any
+	dim as uint64 val_ull = any
 
 	if( val_ll < 0 ) then
 		flags = VAL_ISNEG
 		'' Negating LLONG_MIN overflows as a signed value; the unsigned
 		'' result is still the right magnitude.
-		val_ull = cast( ulongint, -val_ll )
+		val_ull = cast( uint64, -val_ll )
 	else
 		flags = 0
-		val_ull = cast( ulongint, val_ll )
+		val_ull = cast( uint64, val_ll )
 	end if
 
 	return hPrintNumber( fnum, val_ull, 0, flags, mask )
@@ -1347,9 +1347,9 @@ end function
 '' VAL_ISNEG on TRUE is not a sign -- it is how the "&" path above tells the
 '' two words apart before it overwrites the mantissa.
 function tkort_PrintUsingBoolean alias "fb_PrintUsingBoolean" _
-	( byval fnum as long, byval val_ as byte, byval mask as long ) as long
-	dim as long flags = VAL_ISBOOL
-	dim as ulongint val_ull = any
+	( byval fnum as int32, byval val_ as int8, byval mask as int32 ) as int32
+	dim as int32 flags = VAL_ISBOOL
+	dim as uint64 val_ull = any
 
 	if( val_ <> 0 ) then
 		flags or= VAL_ISNEG

@@ -48,11 +48,11 @@ const TKORT_PROCNAME_MAX = 1024
 
 extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
 	declare function w_LoadLibraryA stdcall alias "LoadLibraryA" ( byval n as zstring ptr ) as any ptr
-	declare function w_FreeLibrary stdcall alias "FreeLibrary" ( byval h as any ptr ) as long
+	declare function w_FreeLibrary stdcall alias "FreeLibrary" ( byval h as any ptr ) as int32
 	declare function w_GetProcAddress stdcall alias "GetProcAddress" ( byval h as any ptr, byval n as zstring ptr ) as any ptr
 	declare function w_GetModuleHandleA stdcall alias "GetModuleHandleA" ( byval n as zstring ptr ) as any ptr
-	declare function c_snprintf alias "snprintf" ( byval buf as zstring ptr, byval n as uinteger, byval fmt as zstring ptr, ... ) as long
-	declare function c_strchr alias "strchr" ( byval s as zstring ptr, byval c as long ) as zstring ptr
+	declare function c_snprintf alias "snprintf" ( byval buf as zstring ptr, byval n as uinteger, byval fmt as zstring ptr, ... ) as int32
+	declare function c_strchr alias "strchr" ( byval s as zstring ptr, byval c as int32 ) as zstring ptr
 end extern
 
 extern "rtlib"
@@ -75,7 +75,7 @@ function tkort_DylibSymbol alias "fb_DylibSymbol" _
 
 	dim as any ptr proc_ = 0
 	dim as zstring * TKORT_PROCNAME_MAX procname = any
-	dim as long i = any
+	dim as int32 i = any
 
 	'' A NULL library means THIS executable, which is what makes
 	'' DYLIBSYMBOL( 0, "name" ) resolve a symbol the program itself exports.
@@ -104,7 +104,7 @@ function tkort_DylibSymbol alias "fb_DylibSymbol" _
 end function
 
 function tkort_DylibSymbolByOrd alias "fb_DylibSymbolByOrd" _
-	( byval library as any ptr, byval symbol as short ) as any ptr
+	( byval library as any ptr, byval symbol as int16 ) as any ptr
 
 	if( library = 0 ) then library = w_GetModuleHandleA( 0 )
 
@@ -112,7 +112,7 @@ function tkort_DylibSymbolByOrd alias "fb_DylibSymbolByOrd" _
 	'' whose high bits are zero, not as a string. Casting the number straight to
 	'' a pointer is the macro, and the zero-extension is what tells the loader
 	'' it is an ordinal.
-	return w_GetProcAddress( library, cptr( zstring ptr, cast( uinteger, cast( ushort, symbol ) ) ) )
+	return w_GetProcAddress( library, cptr( zstring ptr, cast( uinteger, cast( uint16, symbol ) ) ) )
 end function
 
 sub tkort_DylibFree alias "fb_DylibFree" ( byval library as any ptr )
@@ -151,7 +151,7 @@ end function
 
 function tkort_hDynLoadAlso alias "fb_hDynLoadAlso" _
 	( byval hlib as any ptr, byval funcname as zstring ptr ptr, _
-	  byval funcptr as any ptr ptr, byval count as integer ) as long
+	  byval funcptr as any ptr ptr, byval count as integer ) as int32
 
 	dim as integer i = any
 
@@ -180,10 +180,10 @@ const TKORT_MAX_PATH = 1024
 const RTLD_LAZY_ = 1
 
 extern "c"   '' NON-FBCALL: libdl and libc, plus two of fbc's own helpers.
-	declare function u_dlopen alias "dlopen" ( byval n as zstring ptr, byval flags as long ) as any ptr
+	declare function u_dlopen alias "dlopen" ( byval n as zstring ptr, byval flags as int32 ) as any ptr
 	declare function u_dlsym alias "dlsym" ( byval h as any ptr, byval n as zstring ptr ) as any ptr
-	declare function u_dlclose alias "dlclose" ( byval h as any ptr ) as long
-	declare function c_snprintf alias "snprintf" ( byval buf as zstring ptr, byval n as uinteger, byval fmt as zstring ptr, ... ) as long
+	declare function u_dlclose alias "dlclose" ( byval h as any ptr ) as int32
+	declare function c_snprintf alias "snprintf" ( byval buf as zstring ptr, byval n as uinteger, byval fmt as zstring ptr, ... ) as int32
 
 	'' fbc's own, and they stay fbc's: the console teardown lives in hinit.o and
 	'' the path rewriter in file_hconvpath.o.
@@ -253,8 +253,8 @@ end function
 '' ELF has no ordinal export table, so there is nothing to look up. NULL is the
 '' honest answer rather than a fabricated failure code.
 function tkort_DylibSymbolByOrd alias "fb_DylibSymbolByOrd" _
-	( byval library as any ptr, byval symbol as short ) as any ptr
-	scope : dim as any ptr unused_l = library : dim as short unused_s = symbol : end scope
+	( byval library as any ptr, byval symbol as int16 ) as any ptr
+	scope : dim as any ptr unused_l = library : dim as int16 unused_s = symbol : end scope
 	return 0
 end function
 
@@ -314,7 +314,7 @@ end function
 
 function tkort_hDynLoadAlso alias "fb_hDynLoadAlso" _
 	( byval hlib as any ptr, byval funcname as zstring ptr ptr, _
-	  byval funcptr as any ptr ptr, byval count as integer ) as long
+	  byval funcptr as any ptr ptr, byval count as integer ) as int32
 
 	dim as integer i = any
 

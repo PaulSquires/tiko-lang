@@ -45,20 +45,20 @@ const FB_FILE_ENCOD_ASCII = 0
 const TKORT_SEEK_CUR = 1
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: the *Ex form takes a handle.
 	declare function tkrt_FileSeekEx alias "fb_FileSeekEx" _
-		( byval h as FB_FILE ptr, byval newpos as longint ) as long
+		( byval h as FB_FILE ptr, byval newpos as int64 ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: fb_file.h declares these plainly.
 
 function tkort_FileGetDataEx alias "fb_FileGetDataEx" _
-	( byval h as FB_FILE ptr, byval pos_ as longint, byval dst as any ptr, _
+	( byval h as FB_FILE ptr, byval pos_ as int64, byval dst as any ptr, _
 	  byval length as uinteger, byval bytesread as uinteger ptr, _
-	  byval adjust_rec_pos as long, byval is_unicode as long ) as long
+	  byval adjust_rec_pos as int32, byval is_unicode as int32 ) as int32
 
 	if( TKORT_HANDLE_USED( h ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -69,10 +69,10 @@ function tkort_FileGetDataEx alias "fb_FileGetDataEx" _
 
 	IOLOCK()
 
-	dim as long res = tkrt_ErrorSetNum( FB_RTERROR_OK )
+	dim as int32 res = tkrt_ErrorSetNum( FB_RTERROR_OK )
 	dim as uinteger chars = length
 	dim as uinteger read_chars = 0
-	dim as ubyte ptr pachData = cptr( ubyte ptr, dst )
+	dim as uint8 ptr pachData = cptr( uint8 ptr, dst )
 
 	if( pos_ > 0 ) then res = tkrt_FileSeekEx( h, pos_ )
 
@@ -82,7 +82,7 @@ function tkort_FileGetDataEx alias "fb_FileGetDataEx" _
 		if( h->encod <> FB_FILE_ENCOD_ASCII ) then bytes = bytes * sizeof( wstring )
 		if( h->putback_size < bytes ) then bytes = h->putback_size
 
-		dim as ubyte ptr pb = @h->putback_buffer(0)
+		dim as uint8 ptr pb = @h->putback_buffer(0)
 
 		if( is_unicode = 0 ) then
 			if( h->encod = FB_FILE_ENCOD_ASCII ) then
@@ -91,8 +91,8 @@ function tkort_FileGetDataEx alias "fb_FileGetDataEx" _
 				dim as wstring ptr wcp = cptr( wstring ptr, pb )
 				dim as uinteger n = bytes \ sizeof( wstring )
 				for i as uinteger = 0 to n - 1
-					dim as ulong ch = wcp[i]
-					pachData[i] = cast( ubyte, ch )
+					dim as uint32 ch = wcp[i]
+					pachData[i] = cast( uint8, ch )
 				next
 			end if
 		else
@@ -149,7 +149,7 @@ function tkort_FileGetDataEx alias "fb_FileGetDataEx" _
 
 		dim as uinteger got = read_chars
 		if( is_unicode <> 0 ) then got = read_chars * sizeof( wstring )
-		dim as longint skip_size = (h->reclen - (got mod h->reclen)) mod h->reclen
+		dim as int64 skip_size = (h->reclen - (got mod h->reclen)) mod h->reclen
 
 		'' Spent against the put-back buffer before it becomes a seek.
 		if( skip_size <> 0 ) then
@@ -175,8 +175,8 @@ function tkort_FileGetDataEx alias "fb_FileGetDataEx" _
 end function
 
 function tkort_FileGetData alias "fb_FileGetData" _
-	( byval fnum as long, byval pos_ as longint, byval dst as any ptr, _
-	  byval chars as uinteger, byval adjust_rec_pos as long ) as long
+	( byval fnum as int32, byval pos_ as int64, byval dst as any ptr, _
+	  byval chars as uinteger, byval adjust_rec_pos as int32 ) as int32
 	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, _
 	                            0, adjust_rec_pos, 0 )
 end function
@@ -186,14 +186,14 @@ end extern
 extern "rtlib"
 
 function tkort_FileGet alias "fb_FileGet" _
-	( byval fnum as long, byval pos_ as long, byval dst as any ptr, _
-	  byval chars as uinteger ) as long
+	( byval fnum as int32, byval pos_ as int32, byval dst as any ptr, _
+	  byval chars as uinteger ) as int32
 	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, 0, -1, 0 )
 end function
 
 function tkort_FileGetLarge alias "fb_FileGetLarge" _
-	( byval fnum as long, byval pos_ as longint, byval dst as any ptr, _
-	  byval chars as uinteger ) as long
+	( byval fnum as int32, byval pos_ as int64, byval dst as any ptr, _
+	  byval chars as uinteger ) as int32
 	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, 0, -1, 0 )
 end function
 
@@ -201,15 +201,15 @@ end function
 '' the only way a caller can tell a short read from a full one, since the return
 '' value is an error code and a partial read is not an error.
 function tkort_FileGetIOB alias "fb_FileGetIOB" _
-	( byval fnum as long, byval pos_ as long, byval dst as any ptr, _
-	  byval chars as uinteger, byval bytesread as uinteger ptr ) as long
+	( byval fnum as int32, byval pos_ as int32, byval dst as any ptr, _
+	  byval chars as uinteger, byval bytesread as uinteger ptr ) as int32
 	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, _
 	                            bytesread, -1, 0 )
 end function
 
 function tkort_FileGetLargeIOB alias "fb_FileGetLargeIOB" _
-	( byval fnum as long, byval pos_ as longint, byval dst as any ptr, _
-	  byval chars as uinteger, byval bytesread as uinteger ptr ) as long
+	( byval fnum as int32, byval pos_ as int64, byval dst as any ptr, _
+	  byval chars as uinteger, byval bytesread as uinteger ptr ) as int32
 	return tkort_FileGetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, chars, _
 	                            bytesread, -1, 0 )
 end function

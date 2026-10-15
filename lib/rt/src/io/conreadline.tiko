@@ -78,27 +78,27 @@ const KEY_DOWN_  = TKORT_EXT_KEY( 80 )    '' 'P'
 const KEY_DEL_   = TKORT_EXT_KEY( 83 )    '' 'S'
 
 extern "rtlib"   '' FBCALL: all of these are decorated on win32.
-	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as long ptr, byval rows as long ptr )
-	declare sub tkrt_GetXY alias "fb_GetXY" ( byval col as long ptr, byval row as long ptr )
+	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as int32 ptr, byval rows as int32 ptr )
+	declare sub tkrt_GetXY alias "fb_GetXY" ( byval col as int32 ptr, byval row as int32 ptr )
 	declare function tkrt_Locate alias "fb_Locate" _
-		( byval row as long, byval col as long, byval cursor as long, _
-		  byval top_ as long, byval bot as long ) as long
-	declare function tkrt_KeyHit alias "fb_KeyHit" ( ) as long
-	declare sub tkrt_Delay alias "fb_Delay" ( byval msecs as ulong )
+		( byval row as int32, byval col as int32, byval cursor as int32, _
+		  byval top_ as int32, byval bot as int32 ) as int32
+	declare function tkrt_KeyHit alias "fb_KeyHit" ( ) as int32
+	declare sub tkrt_Delay alias "fb_Delay" ( byval msecs as uint32 )
 	declare function tkrt_Inkey alias "fb_Inkey" ( ) as FBSTRING ptr
 	declare sub tkrt_Beep alias "fb_Beep" ( )
 	declare sub tkrt_PrintFixString alias "fb_PrintFixString" _
-		( byval fnum as long, byval s as zstring ptr, byval mask as long )
+		( byval fnum as int32, byval s as zstring ptr, byval mask as int32 )
 	declare function tkrt_StrMid alias "fb_StrMid" _
 		( byval s as FBSTRING ptr, byval start_ as integer, byval length_ as integer ) as FBSTRING ptr
 	declare function tkrt_StrAssign alias "fb_StrAssign" _
 		( byval dst as any ptr, byval dst_size as integer, _
-		  byval src as any ptr, byval src_size as integer, byval fill_rem as long ) as any ptr
+		  byval src as any ptr, byval src_size as integer, byval fill_rem as int32 ) as any ptr
 	declare function tkrt_StrConcatAssign alias "fb_StrConcatAssign" _
 		( byval dst as any ptr, byval dst_size as integer, _
-		  byval src as any ptr, byval src_size as integer, byval fill_rem as long ) as any ptr
+		  byval src as any ptr, byval src_size as integer, byval fill_rem as int32 ) as any ptr
 	declare function tkrt_StrFill1 alias "fb_StrFill1" _
-		( byval cnt as integer, byval fchar as long ) as FBSTRING ptr
+		( byval cnt as integer, byval fchar as int32 ) as FBSTRING ptr
 	declare function tkrt_StrAllocTempDescF alias "fb_StrAllocTempDescF" _
 		( byval s as zstring ptr, byval str_size as integer ) as FBSTRING ptr
 	declare function tkrt_StrAllocTempResult alias "fb_StrAllocTempResult" _
@@ -108,15 +108,15 @@ end extern
 extern "c"   '' NON-FBCALL: both are declared plain in fb_console.h and
              '' fb_string.h, and the win32 archive agrees.
 	declare sub tkrt_PrintBufferEx alias "fb_PrintBufferEx" _
-		( byval buffer as any ptr, byval length_ as uinteger, byval mask as long )
-	declare function tkrt_hStrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+		( byval buffer as any ptr, byval length_ as uinteger, byval mask as int32 )
+	declare function tkrt_hStrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 end extern
 
 '' THE CURSOR ARITHMETIC. One-based in, one-based out; zero-based in between --
 '' see the file header on why the negative-column fold is written the way it is.
 private sub tkort_DoAdjust _
-	( byval x as long ptr, byval y as long ptr, byval dx as long, byval dy as long, _
-	  byval cols as long, byval rows as long )
+	( byval x as int32 ptr, byval y as int32 ptr, byval dx as int32, byval dy as int32, _
+	  byval cols as int32, byval rows as int32 )
 
 	*x -= 1
 	*y -= 1
@@ -139,8 +139,8 @@ end sub
 
 '' DoAdjust, then either locate or scroll -- see the file header.
 private sub tkort_DoMove _
-	( byval x as long ptr, byval y as long ptr, byval dx as long, byval dy as long, _
-	  byval cols as long, byval rows as long )
+	( byval x as int32 ptr, byval y as int32 ptr, byval dx as int32, byval dy as int32, _
+	  byval cols as int32, byval rows as int32 )
 
 	tkort_DoAdjust( x, y, dx, dy, cols, rows )
 	if( (*y = (rows + 1)) andalso (*x = 1) ) then
@@ -156,7 +156,7 @@ end sub
 extern "rtlib"   '' FBCALL: fb_console.h declares it with FBCALL and the win32
                  '' archive decorates it.
 
-function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as long ) as FBSTRING ptr
+function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as int32 ) as FBSTRING ptr
 
 	'' A LOCAL DESCRIPTOR, built in place and handed over at the end -- see the
 	'' file header on why the return is not @result.
@@ -165,11 +165,11 @@ function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as long ) 
 	result_.len = 0
 	result_.size = 0
 
-	dim as long current_x = any, current_y = any
-	dim as long cols = any, rows = any
+	dim as int32 current_x = any, current_y = any
+	dim as int32 cols = any, rows = any
 	dim as integer pos_ = any, len_ = any, tmp_buffer_len = 0
-	dim as long cursor_visible = any
-	dim as long k = 0
+	dim as int32 cursor_visible = any
+	dim as int32 k = 0
 	dim as zstring * 12 tmp_buffer
 
 	tkrt_GetSize( @cols, @rows )
@@ -190,7 +190,7 @@ function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as long ) 
 
 	do
 		dim as integer delete_char_count = 0
-		dim as long add_char = 0
+		dim as int32 add_char = 0
 		dim as FBSTRING ptr s = any
 
 		tkrt_GetXY( @current_x, @current_y )
@@ -215,9 +215,9 @@ function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as long ) 
 			'' TWO BYTES MEANS AN EXTENDED KEY, and it is the SECOND that
 			'' identifies it -- see the file header on the byte order.
 			if( FB_STRSIZE( s ) = 2 ) then
-				k = TKORT_EXT_KEY( cptr( ubyte ptr, s->data )[1] )
+				k = TKORT_EXT_KEY( cptr( uint8 ptr, s->data )[1] )
 			else
-				k = cptr( ubyte ptr, s->data )[0]
+				k = cptr( uint8 ptr, s->data )[0]
 			end if
 			tkrt_hStrDelTemp( s )
 		else
@@ -231,7 +231,7 @@ function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as long ) 
 			'' still empty.
 			dim as zstring * 2 mask_
 			if( (result_.data <> 0) andalso (pos_ < len_) ) then
-				mask_[0] = cptr( ubyte ptr, result_.data )[pos_]
+				mask_[0] = cptr( uint8 ptr, result_.data )[pos_]
 			else
 				mask_[0] = 32
 			end if
@@ -308,7 +308,7 @@ function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as long ) 
 			'' the test is really "is it printable", and every extended key has
 			'' already been turned into a value above 255 by TKORT_EXT_KEY.
 			if( (k >= 32) andalso (k <= 255) ) then
-				tmp_buffer[0] = cast( ubyte, k )
+				tmp_buffer[0] = cast( uint8, k )
 				tmp_buffer_len = 1
 				add_char = -1
 			end if
@@ -330,7 +330,7 @@ function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as long ) 
 
 			TKORT_IOLOCK()
 
-			tkrt_PrintBufferEx( cptr( ubyte ptr, result_.data ) + pos_, len_ - pos_, 0 )
+			tkrt_PrintBufferEx( cptr( uint8 ptr, result_.data ) + pos_, len_ - pos_, 0 )
 
 			'' THE DELETED CELLS ARE PAINTED OVER WITH SPACES rather than being
 			'' cleared -- there is no erase-to-end-of-line here, so the tail has
@@ -349,7 +349,7 @@ function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as long ) 
 		end if
 
 		if( add_char <> 0 ) then
-			dim as long old_x = current_x, old_y = current_y
+			dim as int32 old_x = current_x, old_y = current_y
 			'' + 1: fb_StrAllocTempDescF takes the buffer SIZE, terminator
 			'' included, not the length.
 			dim as FBSTRING ptr str_add = tkrt_StrAllocTempDescF( @tmp_buffer, tmp_buffer_len + 1 )
@@ -362,7 +362,7 @@ function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as long ) 
 
 			TKORT_IOLOCK()
 
-			tkrt_PrintBufferEx( cptr( ubyte ptr, result_.data ) + pos_, len_ - pos_, 0 )
+			tkrt_PrintBufferEx( cptr( uint8 ptr, result_.data ) + pos_, len_ - pos_, 0 )
 
 			tkrt_GetXY( @current_x, @current_y )
 
@@ -377,7 +377,7 @@ function tkort_ConReadLine alias "fb_ConReadLine" ( byval soft_cursor as long ) 
 				current_x = old_x : current_y = old_y
 				tkort_DoMove( @current_x, @current_y, tmp_buffer_len, 0, cols, rows )
 			else
-				dim as long tmp_x_2 = old_x, tmp_y_2 = old_y
+				dim as int32 tmp_x_2 = old_x, tmp_y_2 = old_y
 				tkort_DoAdjust( @tmp_x_2, @tmp_y_2, len_ - pos_, 0, cols, rows )
 				if( (tmp_y_2 > (rows + 1)) orelse _
 				    ((tmp_y_2 = (rows + 1)) andalso (tmp_x_2 > 1)) ) then

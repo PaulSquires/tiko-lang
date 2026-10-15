@@ -34,8 +34,8 @@
 extern "c"   '' NON-FBCALL: variadic, so cdecl; fbc's FBCALL is nothing on x86-64.
 
 function tkort_ThreadCall alias "fb_ThreadCall" _
-	( byval proc as any ptr, byval abi as long, byval stack_size as integer, _
-	  byval num_args as long, ... ) as any ptr
+	( byval proc as any ptr, byval abi as int32, byval stack_size as integer, _
+	  byval num_args as int32, ... ) as any ptr
 	return 0
 end function
 

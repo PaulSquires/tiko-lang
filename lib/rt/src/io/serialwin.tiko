@@ -113,23 +113,23 @@ const FB_SERIAL_STOP_BITS_2_   = 2
 '' FB_SERIAL_OPTIONS -- the same seventeen fields as src/io/devcomopen.tiko, and
 '' the #assert is what keeps the two spellings from drifting apart.
 type FB_SERIAL_OPTIONS
-	as ulong uiSpeed
-	as ulong uiDataBits
-	as long  Parity
-	as long  StopBits
-	as ulong DurationCTS
-	as ulong DurationDSR
-	as ulong DurationCD
-	as ulong OpenTimeout
-	as long  SuppressRTS
-	as long  AddLF
-	as long  CheckParity
-	as long  KeepDTREnabled
-	as long  DiscardOnError
-	as long  IgnoreAllErrors
-	as ulong IRQNumber
-	as ulong TransmitBuffer
-	as ulong ReceiveBuffer
+	as uint32 uiSpeed
+	as uint32 uiDataBits
+	as int32  Parity
+	as int32  StopBits
+	as uint32 DurationCTS
+	as uint32 DurationDSR
+	as uint32 DurationCD
+	as uint32 OpenTimeout
+	as int32  SuppressRTS
+	as int32  AddLF
+	as int32  CheckParity
+	as int32  KeepDTREnabled
+	as int32  DiscardOnError
+	as int32  IgnoreAllErrors
+	as uint32 IRQNumber
+	as uint32 TransmitBuffer
+	as uint32 ReceiveBuffer
 end type
 
 #assert sizeof( FB_SERIAL_OPTIONS ) = 68
@@ -138,132 +138,132 @@ end type
 '' file header.
 type W32_SERIAL_INFO
 	as any ptr               hDevice
-	as long                  iPort
+	as int32                  iPort
 	as FB_SERIAL_OPTIONS ptr pOptions
 end type
 
 '' THE DCB, FIELD FOR FIELD FROM THE SDK. See the file header on why the bit
 '' order is the contract.
 type DCB_
-	as ulong DCBlength
-	as ulong BaudRate
-	as ulong fBinary : 1
-	as ulong fParity : 1
-	as ulong fOutxCtsFlow : 1
-	as ulong fOutxDsrFlow : 1
-	as ulong fDtrControl : 2
-	as ulong fDsrSensitivity : 1
-	as ulong fTXContinueOnXoff : 1
-	as ulong fOutX : 1
-	as ulong fInX : 1
-	as ulong fErrorChar : 1
-	as ulong fNull : 1
-	as ulong fRtsControl : 2
-	as ulong fAbortOnError : 1
-	as ulong fDummy2 : 17
-	as ushort wReserved
-	as ushort XonLim
-	as ushort XoffLim
-	as ubyte  ByteSize
-	as ubyte  Parity
-	as ubyte  StopBits
-	as byte   XonChar
-	as byte   XoffChar
-	as byte   ErrorChar
-	as byte   EofChar
-	as byte   EvtChar
-	as ushort wReserved1
+	as uint32 DCBlength
+	as uint32 BaudRate
+	as uint32 fBinary : 1
+	as uint32 fParity : 1
+	as uint32 fOutxCtsFlow : 1
+	as uint32 fOutxDsrFlow : 1
+	as uint32 fDtrControl : 2
+	as uint32 fDsrSensitivity : 1
+	as uint32 fTXContinueOnXoff : 1
+	as uint32 fOutX : 1
+	as uint32 fInX : 1
+	as uint32 fErrorChar : 1
+	as uint32 fNull : 1
+	as uint32 fRtsControl : 2
+	as uint32 fAbortOnError : 1
+	as uint32 fDummy2 : 17
+	as uint16 wReserved
+	as uint16 XonLim
+	as uint16 XoffLim
+	as uint8  ByteSize
+	as uint8  Parity
+	as uint8  StopBits
+	as int8   XonChar
+	as int8   XoffChar
+	as int8   ErrorChar
+	as int8   EofChar
+	as int8   EvtChar
+	as uint16 wReserved1
 end type
 
 #assert sizeof( DCB_ ) = 28
 
 type COMMTIMEOUTS_
-	as ulong ReadIntervalTimeout
-	as ulong ReadTotalTimeoutMultiplier
-	as ulong ReadTotalTimeoutConstant
-	as ulong WriteTotalTimeoutMultiplier
-	as ulong WriteTotalTimeoutConstant
+	as uint32 ReadIntervalTimeout
+	as uint32 ReadTotalTimeoutMultiplier
+	as uint32 ReadTotalTimeoutConstant
+	as uint32 WriteTotalTimeoutMultiplier
+	as uint32 WriteTotalTimeoutConstant
 end type
 
 #assert sizeof( COMMTIMEOUTS_ ) = 20
 
 type COMMPROP_
-	as ushort wPacketLength
-	as ushort wPacketVersion
-	as ulong  dwServiceMask
-	as ulong  dwReserved1
-	as ulong  dwMaxTxQueue
-	as ulong  dwMaxRxQueue
-	as ulong  dwMaxBaud
-	as ulong  dwProvSubType
-	as ulong  dwProvCapabilities
-	as ulong  dwSettableParams
-	as ulong  dwSettableBaud
-	as ushort wSettableData
-	as ushort wSettableStopParity
-	as ulong  dwCurrentTxQueue
-	as ulong  dwCurrentRxQueue
-	as ulong  dwProvSpec1
-	as ulong  dwProvSpec2
+	as uint16 wPacketLength
+	as uint16 wPacketVersion
+	as uint32  dwServiceMask
+	as uint32  dwReserved1
+	as uint32  dwMaxTxQueue
+	as uint32  dwMaxRxQueue
+	as uint32  dwMaxBaud
+	as uint32  dwProvSubType
+	as uint32  dwProvCapabilities
+	as uint32  dwSettableParams
+	as uint32  dwSettableBaud
+	as uint16 wSettableData
+	as uint16 wSettableStopParity
+	as uint32  dwCurrentTxQueue
+	as uint32  dwCurrentRxQueue
+	as uint32  dwProvSpec1
+	as uint32  dwProvSpec2
 	as wstring * 1 wcProvChar
 end type
 
 type COMSTAT_
-	as ulong fCtsHold : 1
-	as ulong fDsrHold : 1
-	as ulong fRlsdHold : 1
-	as ulong fXoffHold : 1
-	as ulong fXoffSent : 1
-	as ulong fEof : 1
-	as ulong fTxim : 1
-	as ulong fReserved : 25
-	as ulong cbInQue
-	as ulong cbOutQue
+	as uint32 fCtsHold : 1
+	as uint32 fDsrHold : 1
+	as uint32 fRlsdHold : 1
+	as uint32 fXoffHold : 1
+	as uint32 fXoffSent : 1
+	as uint32 fEof : 1
+	as uint32 fTxim : 1
+	as uint32 fReserved : 25
+	as uint32 cbInQue
+	as uint32 cbOutQue
 end type
 
 #assert sizeof( COMSTAT_ ) = 12
 
 extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
 	declare function w_CreateFileA stdcall alias "CreateFileA" _
-		( byval name_ as zstring ptr, byval access as ulong, byval share as ulong, _
-		  byval sec as any ptr, byval disp as ulong, byval flags as ulong, _
+		( byval name_ as zstring ptr, byval access as uint32, byval share as uint32, _
+		  byval sec as any ptr, byval disp as uint32, byval flags as uint32, _
 		  byval templ as any ptr ) as any ptr
-	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as long
+	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as int32
 	declare function w_ReadFile stdcall alias "ReadFile" _
-		( byval h as any ptr, byval buf as any ptr, byval n as ulong, _
-		  byval got as ulong ptr, byval ov as any ptr ) as long
+		( byval h as any ptr, byval buf as any ptr, byval n as uint32, _
+		  byval got as uint32 ptr, byval ov as any ptr ) as int32
 	declare function w_WriteFile stdcall alias "WriteFile" _
-		( byval h as any ptr, byval buf as any ptr, byval n as ulong, _
-		  byval wrote as ulong ptr, byval ov as any ptr ) as long
+		( byval h as any ptr, byval buf as any ptr, byval n as uint32, _
+		  byval wrote as uint32 ptr, byval ov as any ptr ) as int32
 	declare function w_GetCommModemStatus stdcall alias "GetCommModemStatus" _
-		( byval h as any ptr, byval stat_ as ulong ptr ) as long
+		( byval h as any ptr, byval stat_ as uint32 ptr ) as int32
 	declare function w_GetCommProperties stdcall alias "GetCommProperties" _
-		( byval h as any ptr, byval prop as COMMPROP_ ptr ) as long
+		( byval h as any ptr, byval prop as COMMPROP_ ptr ) as int32
 	declare function w_SetupComm stdcall alias "SetupComm" _
-		( byval h as any ptr, byval rxq as ulong, byval txq as ulong ) as long
+		( byval h as any ptr, byval rxq as uint32, byval txq as uint32 ) as int32
 	declare function w_GetCommTimeouts stdcall alias "GetCommTimeouts" _
-		( byval h as any ptr, byval t as COMMTIMEOUTS_ ptr ) as long
+		( byval h as any ptr, byval t as COMMTIMEOUTS_ ptr ) as int32
 	declare function w_SetCommTimeouts stdcall alias "SetCommTimeouts" _
-		( byval h as any ptr, byval t as COMMTIMEOUTS_ ptr ) as long
+		( byval h as any ptr, byval t as COMMTIMEOUTS_ ptr ) as int32
 	declare function w_GetCommState stdcall alias "GetCommState" _
-		( byval h as any ptr, byval d as DCB_ ptr ) as long
+		( byval h as any ptr, byval d as DCB_ ptr ) as int32
 	declare function w_SetCommState stdcall alias "SetCommState" _
-		( byval h as any ptr, byval d as DCB_ ptr ) as long
+		( byval h as any ptr, byval d as DCB_ ptr ) as int32
 	declare function w_EscapeCommFunction stdcall alias "EscapeCommFunction" _
-		( byval h as any ptr, byval func_ as ulong ) as long
+		( byval h as any ptr, byval func_ as uint32 ) as int32
 	declare function w_ClearCommError stdcall alias "ClearCommError" _
-		( byval h as any ptr, byval errs as ulong ptr, byval stat_ as COMSTAT_ ptr ) as long
+		( byval h as any ptr, byval errs as uint32 ptr, byval stat_ as COMSTAT_ ptr ) as int32
 end extern
 
 extern "rtlib"   '' FBCALL: both are decorated on win32.
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
-	declare function tkrt_Timer alias "fb_Timer" ( ) as double
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
+	declare function tkrt_Timer alias "fb_Timer" ( ) as float64
 end extern
 
 '' fbc's GET_MSEC_TIME() -- fb_Timer scaled to milliseconds and truncated into
 '' 32 bits. See the file header on why the clock matters.
-private function tkort_msec_time( ) as ulong
-	return cast( ulong, fix( tkrt_Timer( ) * 1000.0 ) )
+private function tkort_msec_time( ) as uint32
+	return cast( uint32, fix( tkrt_Timer( ) * 1000.0 ) )
 end function
 
 '' A BUSY-WAIT, DELIBERATELY. See the file header.
@@ -271,11 +271,11 @@ end function
 '' THE SUBTRACTION IS UNSIGNED so that a wrap of the 32-bit millisecond counter
 '' still yields the correct elapsed time.
 private function tkort_SerialWaitSignal _
-	( byval hDevice as any ptr, byval dwMask as ulong, byval dwResult as ulong, _
-	  byval dwTimeout as ulong ) as long
+	( byval hDevice as any ptr, byval dwMask as uint32, byval dwResult as uint32, _
+	  byval dwTimeout as uint32 ) as int32
 
-	dim as ulong dwStartTime = tkort_msec_time( )
-	dim as ulong dwModemStatus = 0
+	dim as uint32 dwStartTime = tkort_msec_time( )
+	dim as uint32 dwModemStatus = 0
 
 	if( w_GetCommModemStatus( hDevice, @dwModemStatus ) = 0 ) then return 0
 
@@ -290,7 +290,7 @@ end function
 '' CD FIRST, THEN DSR, and a zero duration means "do not wait" rather than "wait
 '' forever".
 private function tkort_SerialCheckLines _
-	( byval hDevice as any ptr, byval pOptions as FB_SERIAL_OPTIONS ptr ) as long
+	( byval hDevice as any ptr, byval pOptions as FB_SERIAL_OPTIONS ptr ) as int32
 
 	if( pOptions->DurationCD <> 0 ) then
 		if( tkort_SerialWaitSignal( hDevice, MS_RLSD_ON_, MS_RLSD_ON_, pOptions->DurationCD ) = 0 ) then
@@ -311,15 +311,15 @@ extern "c"   '' NON-FBCALL: fb_serial.h declares all five plainly, and the win32
              '' archive spells them without `@N`.
 
 function tkort_SerialOpen alias "fb_SerialOpen" _
-	( byval handle as FB_FILE ptr, byval iPort as long, byval options as FB_SERIAL_OPTIONS ptr, _
-	  byval pszDevice as zstring ptr, byval ppvHandle as any ptr ptr ) as long
+	( byval handle as FB_FILE ptr, byval iPort as int32, byval options as FB_SERIAL_OPTIONS ptr, _
+	  byval pszDevice as zstring ptr, byval ppvHandle as any ptr ptr ) as int32
 
-	dim as ulong dwDefaultTxBufferSize = 16384
-	dim as ulong dwDefaultRxBufferSize = 16384
-	dim as ulong dwDesiredAccess = 0
+	dim as uint32 dwDefaultTxBufferSize = 16384
+	dim as uint32 dwDefaultRxBufferSize = 16384
+	dim as uint32 dwDesiredAccess = 0
 	dim as zstring ptr pszDev = any, p = any
 	dim as any ptr hDevice = any
-	dim as long res = any
+	dim as int32 res = any
 
 	'' IRQ SELECTION IS REFUSED BEFORE ANYTHING ELSE -- see the file header.
 	if( options->IRQNumber <> 0 ) then
@@ -446,7 +446,7 @@ function tkort_SerialOpen alias "fb_SerialOpen" _
 			                       RTS_CONTROL_DISABLE_, RTS_CONTROL_HANDSHAKE_ )
 
 			dcb.fAbortOnError = 0
-			dcb.ByteSize = cast( ubyte, options->uiDataBits )
+			dcb.ByteSize = cast( uint8, options->uiDataBits )
 
 			select case options->Parity
 			case FB_SERIAL_PARITY_NONE_  : dcb.Parity = NOPARITY_
@@ -499,16 +499,16 @@ end function
 '' practice, the queue being at most a few tens of kilobytes, but the cast is
 '' fbc's and is reproduced rather than widened.
 function tkort_SerialGetRemaining alias "fb_SerialGetRemaining" _
-	( byval handle as FB_FILE ptr, byval pvHandle as any ptr, byval pLength as longint ptr ) as long
+	( byval handle as FB_FILE ptr, byval pvHandle as any ptr, byval pLength as int64 ptr ) as int32
 
 	dim as W32_SERIAL_INFO ptr pInfo = cast( W32_SERIAL_INFO ptr, pvHandle )
-	dim as ulong dwErrors = any
+	dim as uint32 dwErrors = any
 	dim as COMSTAT_ Status_
 
 	if( w_ClearCommError( pInfo->hDevice, @dwErrors, @Status_ ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
-	if( pLength <> 0 ) then *pLength = cast( long, Status_.cbInQue )
+	if( pLength <> 0 ) then *pLength = cast( int32, Status_.cbInQue )
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
 
@@ -517,16 +517,16 @@ end function
 '' actually went out.
 function tkort_SerialWrite alias "fb_SerialWrite" _
 	( byval handle as FB_FILE ptr, byval pvHandle as any ptr, _
-	  byval data_ as any ptr, byval length_ as uinteger ) as long
+	  byval data_ as any ptr, byval length_ as uinteger ) as int32
 
 	dim as W32_SERIAL_INFO ptr pInfo = cast( W32_SERIAL_INFO ptr, pvHandle )
-	dim as ulong dwWriteCount = any
+	dim as uint32 dwWriteCount = any
 
 	if( tkort_SerialCheckLines( pInfo->hDevice, pInfo->pOptions ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 	end if
 
-	if( w_WriteFile( pInfo->hDevice, data_, cast( ulong, length_ ), @dwWriteCount, 0 ) = 0 ) then
+	if( w_WriteFile( pInfo->hDevice, data_, cast( uint32, length_ ), @dwWriteCount, 0 ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 	end if
 
@@ -541,16 +541,16 @@ end function
 '' with what arrived.
 function tkort_SerialRead alias "fb_SerialRead" _
 	( byval handle as FB_FILE ptr, byval pvHandle as any ptr, _
-	  byval data_ as any ptr, byval pLength as uinteger ptr ) as long
+	  byval data_ as any ptr, byval pLength as uinteger ptr ) as int32
 
 	dim as W32_SERIAL_INFO ptr pInfo = cast( W32_SERIAL_INFO ptr, pvHandle )
-	dim as ulong dwReadCount = any
+	dim as uint32 dwReadCount = any
 
 	if( tkort_SerialCheckLines( pInfo->hDevice, pInfo->pOptions ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 	end if
 
-	if( w_ReadFile( pInfo->hDevice, data_, cast( ulong, *pLength ), @dwReadCount, 0 ) = 0 ) then
+	if( w_ReadFile( pInfo->hDevice, data_, cast( uint32, *pLength ), @dwReadCount, 0 ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 	end if
 
@@ -562,7 +562,7 @@ end function
 '' NEITHER THE HANDLE NOR THE OPTIONS BLOCK IS CHECKED, and the options are not
 '' freed -- they belong to the DEV_COM_INFO that outlives this.
 function tkort_SerialClose alias "fb_SerialClose" _
-	( byval handle as FB_FILE ptr, byval pvHandle as any ptr ) as long
+	( byval handle as FB_FILE ptr, byval pvHandle as any ptr ) as int32
 
 	dim as W32_SERIAL_INFO ptr pInfo = cast( W32_SERIAL_INFO ptr, pvHandle )
 	w_CloseHandle( pInfo->hDevice )

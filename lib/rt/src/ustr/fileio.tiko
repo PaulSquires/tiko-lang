@@ -62,7 +62,7 @@ const FB_INPUT_MAXSTRINGLEN = 2048
 const LINEBUF_INIT = 256
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
 	declare sub tkrt_WstrDelete alias "fb_WstrDelete" ( byval s as wstring ptr )
 
@@ -73,39 +73,39 @@ extern "rtlib"
 	declare function tkrt_UStrAssignFromA alias "fb_UStrAssignFromA" _
 		( byval dst as any ptr, byval dst_size as integer, _
 		  byval src as any ptr, byval src_size as integer, _
-		  byval fill_rem as long, byval is_init as long ) as any ptr
+		  byval fill_rem as int32, byval is_init as int32 ) as any ptr
 	declare function tkrt_UStrAssignFromW alias "fb_UStrAssignFromW" _
 		( byval dst as any ptr, byval dst_size as integer, _
-		  byval src as wstring ptr, byval fill_rem as long, byval is_init as long ) as any ptr
+		  byval src as wstring ptr, byval fill_rem as int32, byval is_init as int32 ) as any ptr
 
 	declare sub tkrt_PrintWstr alias "fb_PrintWstr" _
-		( byval fnum as long, byval s as wstring ptr, byval mask as long )
+		( byval fnum as int32, byval s as wstring ptr, byval mask as int32 )
 	declare sub tkrt_PrintString alias "fb_PrintString" _
-		( byval fnum as long, byval s as FBSTRING ptr, byval mask as long )
+		( byval fnum as int32, byval s as FBSTRING ptr, byval mask as int32 )
 	declare sub tkrt_WriteWstr alias "fb_WriteWstr" _
-		( byval fnum as long, byval s as wstring ptr, byval mask as long )
+		( byval fnum as int32, byval s as wstring ptr, byval mask as int32 )
 	declare sub tkrt_WriteString alias "fb_WriteString" _
-		( byval fnum as long, byval s as FBSTRING ptr, byval mask as long )
+		( byval fnum as int32, byval s as FBSTRING ptr, byval mask as int32 )
 
 	declare function tkrt_FileLineInput alias "fb_FileLineInput" _
-		( byval fnum as long, byval dst as any ptr, byval dst_len as integer, _
-		  byval fillrem as long ) as long
+		( byval fnum as int32, byval dst as any ptr, byval dst_len as integer, _
+		  byval fillrem as int32 ) as int32
 	declare function tkrt_InputString alias "fb_InputString" _
-		( byval dst as any ptr, byval strlen_ as integer, byval fillrem as long ) as long
+		( byval dst as any ptr, byval strlen_ as integer, byval fillrem as int32 ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: the *Ex forms, the tokeniser and the TLS accessor are
              '' all undecorated in fbc's win32 archive.
 	declare function tkrt_GetDataEx alias "fb_FileGetDataEx" _
-		( byval h as FB_FILE ptr, byval pos_ as longint, byval dst as any ptr, _
+		( byval h as FB_FILE ptr, byval pos_ as int64, byval dst as any ptr, _
 		  byval length as uinteger, byval bytesread as uinteger ptr, _
-		  byval adjust as long, byval is_uni as long ) as long
+		  byval adjust as int32, byval is_uni as int32 ) as int32
 	declare function tkrt_PutBackEx alias "fb_FilePutBackEx" _
-		( byval h as FB_FILE ptr, byval src as any ptr, byval chars as uinteger ) as long
+		( byval h as FB_FILE ptr, byval src as any ptr, byval chars as uinteger ) as int32
 	declare sub tkrt_NextTokenWstr alias "fb_FileInputNextTokenWstr" _
-		( byval b as wstring ptr, byval max_chars as integer, byval is_string as long )
+		( byval b as wstring ptr, byval max_chars as integer, byval is_string as int32 )
 	declare function tkrt_TlsGetCtx alias "fb_TlsGetCtx" _
-		( byval keyid as long, byval len_ as uinteger, byval dtor as any ptr ) as any ptr
+		( byval keyid as int32, byval len_ as uinteger, byval dtor as any ptr ) as any ptr
 	declare sub tkrt_INPUTCTX_Destructor alias "fb_INPUTCTX_Destructor" ( byval d as any ptr )
 end extern
 
@@ -113,11 +113,11 @@ end extern
 '' the whole shape has to be right for the offset to be.
 type FB_INPUTCTX field = 1
 	as FB_FILE ptr handle
-	as long        status
-	as long    pad0_
+	as int32        status
+	as int32    pad0_
 	as FBSTRING    str_
-	as long        cursor
-	as long    pad1_
+	as int32        cursor
+	as int32    pad1_
 end type
 
 #assert sizeof( FB_INPUTCTX ) = 48
@@ -127,12 +127,12 @@ end type
 	                                       @tkrt_INPUTCTX_Destructor ) )
 
 '' TRUE when the DEVICE does the encoding, so this file must not do it too.
-private function hIsEncoded( byval h as FB_FILE ptr ) as long
+private function hIsEncoded( byval h as FB_FILE ptr ) as int32
 	if( h = 0 ) then return 0
 	return iif( h->encod <> FB_FILE_ENCOD_ASCII, 1, 0 )
 end function
 
-private function hIsEncodedFile( byval fnum as long ) as long
+private function hIsEncodedFile( byval fnum as int32 ) as int32
 	dim as FB_FILE ptr h = TKORT_FILE_TO_HANDLE( fnum )
 	if( TKORT_HANDLE_USED( h ) = 0 ) then return 0
 	return iif( h->encod <> FB_FILE_ENCOD_ASCII, 1, 0 )
@@ -140,7 +140,7 @@ end function
 
 '' TRUE only for a REAL Windows console -- not a pipe, not a file, and never on
 '' any other platform.
-private function hIsRealConsole( byval fnum as long ) as long
+private function hIsRealConsole( byval fnum as int32 ) as int32
 	#ifdef __FB_WIN32__
 		if( fnum <> 0 ) then return 0
 		'' Read the rect BEFORE testing it. See the file header.
@@ -162,7 +162,7 @@ extern "rtlib"
 '' arrives.
 
 sub tkort_PrintUStr alias "fb_PrintUStr" _
-	( byval fnum as long, byval src as FBUSTRING ptr, byval mask as long )
+	( byval fnum as int32, byval src as FBUSTRING ptr, byval mask as int32 )
 
 	if( (hIsRealConsole( fnum ) <> 0) orelse (hIsEncodedFile( fnum ) <> 0) ) then
 		'' Straight to the wide path: NO conversion at all where wchar_t is
@@ -177,7 +177,7 @@ sub tkort_PrintUStr alias "fb_PrintUStr" _
 end sub
 
 sub tkort_WriteUStr alias "fb_WriteUStr" _
-	( byval fnum as long, byval src as FBUSTRING ptr, byval mask as long )
+	( byval fnum as int32, byval src as FBUSTRING ptr, byval mask as int32 )
 
 	if( (hIsRealConsole( fnum ) <> 0) orelse (hIsEncodedFile( fnum ) <> 0) ) then
 		dim as wstring ptr w = tkrt_UStrToWstr( src, FB_USTRSIZEVARLEN )
@@ -191,10 +191,10 @@ end sub
 '' ------------------------------------------------------------- LINE INPUT #
 
 function tkort_FileLineInputUStr alias "fb_FileLineInputUStr" _
-	( byval fnum as long, byval dst as FBUSTRING ptr ) as long
+	( byval fnum as int32, byval dst as FBUSTRING ptr ) as int32
 
 	dim as FB_FILE ptr h = TKORT_FILE_TO_HANDLE( fnum )
-	dim as long res = any
+	dim as int32 res = any
 
 	if( TKORT_HANDLE_USED( h ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -273,7 +273,7 @@ end function
 '' is two calls, one naming the channel and one per destination, so there is no
 '' file number to pass here.
 
-function tkort_InputUStr alias "fb_InputUStr" ( byval dst as FBUSTRING ptr ) as long
+function tkort_InputUStr alias "fb_InputUStr" ( byval dst as FBUSTRING ptr ) as int32
 
 	dim as FB_INPUTCTX ptr ctx = TKORT_TLSGET_INPUT()
 

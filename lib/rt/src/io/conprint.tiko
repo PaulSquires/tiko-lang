@@ -78,16 +78,16 @@ const UTF8_LEAD_ = &hEF        '' U+F000's first byte
 const UTF8_MID_  = &h80        '' and its second
 
 extern "c"   '' NON-FBCALL: internal, declared plain in fb_private_console.h.
-	declare sub tkrt_RecheckConsoleSize alias "fb_hRecheckConsoleSize" ( byval force as long )
+	declare sub tkrt_RecheckConsoleSize alias "fb_hRecheckConsoleSize" ( byval force as int32 )
 end extern
 
 extern "c"   '' NON-FBCALL: fb_console.h declares both plainly.
 
 sub tkort_ConsolePrintBufferEx alias "fb_ConsolePrintBufferEx" _
-	( byval buffer as any ptr, byval length_ as uinteger, byval mask as long )
+	( byval buffer as any ptr, byval length_ as uinteger, byval mask as int32 )
 
-	dim as ubyte ptr cbuffer = cast( ubyte ptr, buffer )
-	dim as ulong c = any
+	dim as uint8 ptr cbuffer = cast( uint8 ptr, buffer )
+	dim as uint32 c = any
 	dim as uinteger avail = any, avail_len = any
 	dim as uinteger remaining = length_
 
@@ -110,8 +110,8 @@ sub tkort_ConsolePrintBufferEx alias "fb_ConsolePrintBufferEx" _
 	tkrt_RecheckConsoleSize( -1 )
 	tkrt_BgUnlock()
 
-	dim as long w = TKORT_CON_L( TKORT_CON_W )
-	dim as long h = TKORT_CON_L( TKORT_CON_H )
+	dim as int32 w = TKORT_CON_L( TKORT_CON_W )
+	dim as int32 h = TKORT_CON_L( TKORT_CON_H )
 
 	'' CELLS LEFT ON SCREEN, from the cursor to the end -- and the coordinates
 	'' are ONE-BASED, which is where the two subtractions come from.
@@ -179,7 +179,7 @@ end sub
 '' THE LENGTH COMES FROM strlen, so this spelling cannot print an embedded NUL
 '' -- and the *Ex form's NUL-to-space rule is therefore unreachable through it.
 sub tkort_ConsolePrintBuffer alias "fb_ConsolePrintBuffer" _
-	( byval buffer as zstring ptr, byval mask as long )
+	( byval buffer as zstring ptr, byval mask as int32 )
 
 	tkort_ConsolePrintBufferEx( buffer, strlen( buffer ), mask )
 end sub

@@ -29,9 +29,9 @@
 '' and assigning works, but the read side of that idiom does not (inc/wstr.ti),
 '' so one accessor is used for both.
 #if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
-	type TKORT_WTS_UNIT as ushort
+	type TKORT_WTS_UNIT as uint16
 #else
-	type TKORT_WTS_UNIT as ulong
+	type TKORT_WTS_UNIT as uint32
 #endif
 
 private function hWidenTemp( byval src as zstring ptr ) as wstring ptr
@@ -43,7 +43,7 @@ private function hWidenTemp( byval src as zstring ptr ) as wstring ptr
 
 	dim as TKORT_WTS_UNIT ptr d = cptr( TKORT_WTS_UNIT ptr, dst )
 	for i as integer = 0 to n - 1
-		d[i] = cptr( ubyte ptr, src )[i]
+		d[i] = cptr( uint8 ptr, src )[i]
 	next
 	d[n] = 0
 
@@ -53,7 +53,7 @@ end function
 
 '' Same trailing-dot rule as the narrow side.
 private function hFloatToW _
-	( byval num as double, byval cap as integer, byval fmt as zstring ptr ) as wstring ptr
+	( byval num as float64, byval cap as integer, byval fmt as zstring ptr ) as wstring ptr
 
 	dim as zstring * 64 buf
 	tkrt_snprintf( @buf, 64, fmt, num )
@@ -67,7 +67,7 @@ private function hFloatToW _
 
 end function
 
-private function hIntToW( byval fmt as zstring ptr, byval num as longint ) as wstring ptr
+private function hIntToW( byval fmt as zstring ptr, byval num as int64 ) as wstring ptr
 	dim as zstring * 64 buf
 	tkrt_snprintf( @buf, 64, fmt, num )
 	return hWidenTemp( @buf )
@@ -75,27 +75,27 @@ end function
 
 extern "rtlib"
 
-function tkort_IntToWstr alias "fb_IntToWstr" ( byval num as long ) as wstring ptr
+function tkort_IntToWstr alias "fb_IntToWstr" ( byval num as int32 ) as wstring ptr
 	return hIntToW( @"%d", num )
 end function
 
-function tkort_UIntToWstr alias "fb_UIntToWstr" ( byval num as ulong ) as wstring ptr
-	return hIntToW( @"%u", cast( longint, num ) )
+function tkort_UIntToWstr alias "fb_UIntToWstr" ( byval num as uint32 ) as wstring ptr
+	return hIntToW( @"%u", cast( int64, num ) )
 end function
 
-function tkort_LongintToWstr alias "fb_LongintToWstr" ( byval num as longint ) as wstring ptr
+function tkort_LongintToWstr alias "fb_LongintToWstr" ( byval num as int64 ) as wstring ptr
 	return hIntToW( @"%lld", num )
 end function
 
-function tkort_ULongintToWstr alias "fb_ULongintToWstr" ( byval num as ulongint ) as wstring ptr
-	return hIntToW( @"%llu", cast( longint, num ) )
+function tkort_ULongintToWstr alias "fb_ULongintToWstr" ( byval num as uint64 ) as wstring ptr
+	return hIntToW( @"%llu", cast( int64, num ) )
 end function
 
-function tkort_FloatToWstr alias "fb_FloatToWstr" ( byval num as single ) as wstring ptr
+function tkort_FloatToWstr alias "fb_FloatToWstr" ( byval num as float32 ) as wstring ptr
 	return hFloatToW( num, 7 + 8, @"%.7g" )
 end function
 
-function tkort_DoubleToWstr alias "fb_DoubleToWstr" ( byval num as double ) as wstring ptr
+function tkort_DoubleToWstr alias "fb_DoubleToWstr" ( byval num as float64 ) as wstring ptr
 	return hFloatToW( num, 16 + 8, @"%.16g" )
 end function
 
@@ -114,8 +114,8 @@ const FB_F2A_ADDBLANK_W = 1
 extern "c"   '' NON-FBCALL: fb_unicode.h declares it without the macro.
 
 function tkort_FloatExToWstr alias "fb_FloatExToWstr" _
-	( byval val_ as double, byval buffer as wstring ptr, _
-	  byval digits as long, byval mask as long ) as wstring ptr
+	( byval val_ as float64, byval buffer as wstring ptr, _
+	  byval digits as int32, byval mask as int32 ) as wstring ptr
 
 	dim as TKORT_WTS_UNIT ptr b = cptr( TKORT_WTS_UNIT ptr, buffer )
 	dim as integer base_ = 0
@@ -134,7 +134,7 @@ function tkort_FloatExToWstr alias "fb_FloatExToWstr" _
 	end if
 
 	for i as integer = 0 to n - 1
-		b[base_ + i] = cptr( ubyte ptr, @buf )[i]
+		b[base_ + i] = cptr( uint8 ptr, @buf )[i]
 	next
 	b[base_ + n] = 0
 

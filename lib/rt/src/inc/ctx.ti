@@ -42,7 +42,7 @@
 '' null_desc.data. It compiled, linked and returned a plausible empty string.
 '' build/diff.sh caught it on its first run.
 type TKORT_CTX_HEAD
-	as long             argc       '' C int
+	as int32             argc       '' C int
 	as zstring ptr ptr  argv
 	as FBSTRING         null_desc
 	as FBUSTRING        unull_desc   '' the ustring family's shared empty
@@ -94,9 +94,9 @@ end extern
 const TKORT_ERRMSG_OFFSET = 64
 
 extern "c"   '' NON-FBCALL: both are DATA.
-	extern __fb_ctx_head alias "__fb_ctx" as ubyte
+	extern __fb_ctx_head alias "__fb_ctx" as uint8
 	'' The 1024-byte buffer fbc formats its message into. Shared, not ours.
-	extern __fb_errmsg alias "__fb_errmsg" as ubyte
+	extern __fb_errmsg alias "__fb_errmsg" as uint8
 end extern
 
 '' __fb_ctx.lang -- the FB_LANG_* dialect the program was compiled for.
@@ -111,7 +111,7 @@ end extern
 '' the other.
 const TKORT_LANG_OFFSET = 20860
 
-#define TKORT_CTX_LANG() *cptr( long ptr, @__fb_ctx_head + TKORT_LANG_OFFSET )
+#define TKORT_CTX_LANG() *cptr( int32 ptr, @__fb_ctx_head + TKORT_LANG_OFFSET )
 
 '' FB_LANG_*, in fb.h's enum order.
 const FB_LANG_FB            = 0
@@ -156,8 +156,8 @@ const TKORT_HOOK_PRINTBUFFW = 168
 const TKORT_HOOK_IN         = 208
 const TKORT_HOOK_OUT        = 216
 
-type FB_PRINTBUFFPROC as sub cdecl ( byval buffer as any ptr, byval length as uinteger, byval mask as long )
-type FB_PRINTBUFFWPROC as sub cdecl ( byval buffer as wstring ptr, byval length as uinteger, byval mask as long )
+type FB_PRINTBUFFPROC as sub cdecl ( byval buffer as any ptr, byval length as uinteger, byval mask as int32 )
+type FB_PRINTBUFFWPROC as sub cdecl ( byval buffer as wstring ptr, byval length as uinteger, byval mask as int32 )
 
 #define TKORT_HOOK_PRINTBUFFPROC() _
 	*cptr( FB_PRINTBUFFPROC ptr, @__fb_ctx_head + TKORT_HOOK_PRINTBUFF )
@@ -165,10 +165,10 @@ type FB_PRINTBUFFWPROC as sub cdecl ( byval buffer as wstring ptr, byval length 
 	*cptr( FB_PRINTBUFFWPROC ptr, @__fb_ctx_head + TKORT_HOOK_PRINTBUFFW )
 
 type FB_INKEYPROC  as function cdecl ( ) as FBSTRING ptr
-type FB_GETKEYPROC as function cdecl ( ) as long
-type FB_KEYHITPROC as function cdecl ( ) as long
-type FB_INPROC     as function cdecl ( byval port as ushort ) as long
-type FB_OUTPROC    as function cdecl ( byval port as ushort, byval value as ubyte ) as long
+type FB_GETKEYPROC as function cdecl ( ) as int32
+type FB_KEYHITPROC as function cdecl ( ) as int32
+type FB_INPROC     as function cdecl ( byval port as uint16 ) as int32
+type FB_OUTPROC    as function cdecl ( byval port as uint16, byval value as uint8 ) as int32
 
 #define TKORT_HOOK_INKEYPROC()  *cptr( FB_INKEYPROC ptr,  @__fb_ctx_head + TKORT_HOOK_INKEY )
 #define TKORT_HOOK_GETKEYPROC() *cptr( FB_GETKEYPROC ptr, @__fb_ctx_head + TKORT_HOOK_GETKEY )

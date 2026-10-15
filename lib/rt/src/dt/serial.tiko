@@ -33,40 +33,40 @@
 #include once "inc/sysbind.ti"
 
 extern "c"   '' NON-FBCALL: fb_datetime.h declares these plain; win32 must not decorate.
-declare function tkrt_TimeLeap alias "fb_hTimeLeap" ( byval year as long ) as long
+declare function tkrt_TimeLeap alias "fb_hTimeLeap" ( byval year as int32 ) as int32
 declare function tkrt_TimeDaysInMonth alias "fb_hTimeDaysInMonth" _
-	( byval month as long, byval year as long ) as long
+	( byval month as int32, byval year as int32 ) as int32
 declare sub tkrt_NormalizeDate alias "fb_hNormalizeDate" _
-	( byval pDay as long ptr, byval pMonth as long ptr, byval pYear as long ptr )
+	( byval pDay as int32 ptr, byval pMonth as int32 ptr, byval pYear as int32 ptr )
 declare sub tkrt_GetBeginOfWeek alias "fb_hGetBeginOfWeek" _
-	( byval pYear as long ptr, byval pMonth as long ptr, byval pDay as long ptr, _
-	  byval first_day_of_week as long )
+	( byval pYear as int32 ptr, byval pMonth as int32 ptr, byval pDay as int32 ptr, _
+	  byval first_day_of_week as int32 )
 declare function tkrt_GetFirstWeekOfYear alias "fb_hGetFirstWeekOfYear" _
-	( byval year as long, byval first_day_of_year as long, _
-	  byval first_day_of_week as long ) as double
+	( byval year as int32, byval first_day_of_year as int32, _
+	  byval first_day_of_week as int32 ) as float64
 end extern
 
 '' FBCALL: the ones fbc's codegen emits calls to.
 extern "rtlib"
 declare function tkrt_DateSerial alias "fb_DateSerial" _
-	( byval year as long, byval month as long, byval day_ as long ) as long
+	( byval year as int32, byval month as int32, byval day_ as int32 ) as int32
 declare sub tkrt_DateDecodeSerial alias "fb_hDateDecodeSerial" _
-	( byval serial as double, byval pYear as long ptr, _
-	  byval pMonth as long ptr, byval pDay as long ptr )
-declare function tkrt_FIXDouble alias "fb_FIXDouble" ( byval x as double ) as double
+	( byval serial as float64, byval pYear as int32 ptr, _
+	  byval pMonth as int32 ptr, byval pDay as int32 ptr )
+declare function tkrt_FIXDouble alias "fb_FIXDouble" ( byval x as float64 ) as float64
 declare sub tkrt_TimeDecodeSerial alias "fb_hTimeDecodeSerial" _
-	( byval serial as double, byval pHour as long ptr, _
-	  byval pMinute as long ptr, byval pSecond as long ptr, _
-	  byval use_qb_hack as long )
+	( byval serial as float64, byval pHour as int32 ptr, _
+	  byval pMinute as int32 ptr, byval pSecond as int32 ptr, _
+	  byval use_qb_hack as int32 )
 declare function tkrt_Weekday alias "fb_Weekday" _
-	( byval serial as double, byval first_day_of_week as long ) as long
+	( byval serial as float64, byval first_day_of_week as int32 ) as int32
 end extern
 
 '' ------------------------------------------------------- leap and lengths
 
 extern "c"   '' NON-FBCALL: helpers, not entry points.
 
-function tkort_TimeLeap alias "fb_hTimeLeap" ( byval year as long ) as long
+function tkort_TimeLeap alias "fb_hTimeLeap" ( byval year as int32 ) as int32
 	if( (year mod 400) = 0 ) then return 1
 	if( (year mod 100) = 0 ) then return 0
 	'' `year and 3`, not `mod 4`: for a negative year C's mod gives a
@@ -77,8 +77,8 @@ function tkort_TimeLeap alias "fb_hTimeLeap" ( byval year as long ) as long
 end function
 
 function tkort_TimeDaysInMonth alias "fb_hTimeDaysInMonth" _
-	( byval month as long, byval year as long ) as long
-	static as long days(0 to 11) = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+	( byval month as int32, byval year as int32 ) as int32
+	static as int32 days(0 to 11) = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 	if( month = 2 ) then return days(month - 1) + tkrt_TimeLeap( year )
 	return days(month - 1)
 end function
@@ -88,10 +88,10 @@ end function
 '' known before the loop, going backward the month must be stepped first,
 '' because which length applies depends on where you land.
 sub tkort_NormalizeDate alias "fb_hNormalizeDate" _
-	( byval pDay as long ptr, byval pMonth as long ptr, byval pYear as long ptr )
+	( byval pDay as int32 ptr, byval pMonth as int32 ptr, byval pYear as int32 ptr )
 
-	dim as long day_ = *pDay, month = *pMonth, year = *pYear
-	dim as long sub_months = any, sub_years = any, sub_days = any, dom = any
+	dim as int32 day_ = *pDay, month = *pMonth, year = *pYear
+	dim as int32 sub_months = any, sub_years = any, sub_days = any, dom = any
 
 	if( month < 1 ) then
 		sub_months = -month + 1
@@ -142,7 +142,7 @@ end sub
 '' a fixed-length or zstring argument is not accepted here, and the temp is
 '' NOT freed. Both match fbc; the callers own the string.
 function tkort_TimeGetIntervalType alias "fb_hTimeGetIntervalType" _
-	( byval interval as FBSTRING ptr ) as long
+	( byval interval as FBSTRING ptr ) as int32
 
 	if( interval = 0 ) then return FB_TIME_INTERVAL_INVALID
 	if( interval->data = 0 ) then return FB_TIME_INTERVAL_INVALID
@@ -171,10 +171,10 @@ extern "rtlib"
 '' cur_year/cur_month/cur_day seeded at 1900-01-01, result must already be 2
 '' before anything is added.
 function tkort_DateSerial alias "fb_DateSerial" _
-	( byval year as long, byval month as long, byval day_ as long ) as long
+	( byval year as int32, byval month as int32, byval day_ as int32 ) as int32
 
-	dim as long result = 2
-	dim as long cur_year = FB_DT_BASE_YEAR, cur_month = 1, cur_day = 1
+	dim as int32 result = 2
+	dim as int32 cur_year = FB_DT_BASE_YEAR, cur_month = 1, cur_day = 1
 
 	tkrt_NormalizeDate( @day_, @month, @year )
 
@@ -199,12 +199,12 @@ function tkort_DateSerial alias "fb_DateSerial" _
 end function
 
 function tkort_TimeSerial alias "fb_TimeSerial" _
-	( byval hour as long, byval minute as long, byval second as long ) as double
+	( byval hour as int32, byval minute as int32, byval second as int32 ) as float64
 	'' Three separate divisions, summed -- NOT (h*3600+m*60+s)/86400. The
 	'' two disagree in the last ULP, and DATEDIFF compares these values.
-	dim as double dblHour   = 1.0 * cdbl( hour ) / 24.0
-	dim as double dblMinute = 1.0 * minute / (24.0 * 60.0)
-	dim as double dblSecond = 1.0 * second / (24.0 * 60.0 * 60.0)
+	dim as float64 dblHour   = 1.0 * cdbl( hour ) / 24.0
+	dim as float64 dblMinute = 1.0 * minute / (24.0 * 60.0)
+	dim as float64 dblSecond = 1.0 * second / (24.0 * 60.0 * 60.0)
 	return dblHour + dblMinute + dblSecond
 end function
 
@@ -215,11 +215,11 @@ end function
 '' and day are unwanted -- so fb_Year is cheaper, and, more importantly, still
 '' correct with serial left holding the day-of-year remainder.
 sub tkort_DateDecodeSerial alias "fb_hDateDecodeSerial" _
-	( byval serial as double, byval pYear as long ptr, _
-	  byval pMonth as long ptr, byval pDay as long ptr )
+	( byval serial as float64, byval pYear as int32 ptr, _
+	  byval pMonth as int32 ptr, byval pDay as int32 ptr )
 
-	dim as long tmp_days = any
-	dim as long cur_year = FB_DT_BASE_YEAR, cur_month = 1, cur_day = 1
+	dim as int32 tmp_days = any
+	dim as int32 cur_year = FB_DT_BASE_YEAR, cur_month = 1, cur_day = 1
 
 	serial = floor( serial )
 	serial -= 2
@@ -252,29 +252,29 @@ sub tkort_DateDecodeSerial alias "fb_hDateDecodeSerial" _
 	if( pDay   <> 0 ) then *pDay   = cur_day
 end sub
 
-function tkort_Year alias "fb_Year" ( byval serial as double ) as long
-	dim as long year = any
+function tkort_Year alias "fb_Year" ( byval serial as float64 ) as int32
+	dim as int32 year = any
 	tkrt_DateDecodeSerial( serial, @year, 0, 0 )
 	return year
 end function
 
-function tkort_Month alias "fb_Month" ( byval serial as double ) as long
-	dim as long month = any
+function tkort_Month alias "fb_Month" ( byval serial as float64 ) as int32
+	dim as int32 month = any
 	tkrt_DateDecodeSerial( serial, 0, @month, 0 )
 	return month
 end function
 
-function tkort_Day alias "fb_Day" ( byval serial as double ) as long
-	dim as long day_ = any
+function tkort_Day alias "fb_Day" ( byval serial as float64 ) as int32
+	dim as int32 day_ = any
 	tkrt_DateDecodeSerial( serial, 0, 0, @day_ )
 	return day_
 end function
 
 '' 1 = Sunday .. 7 = Saturday, then rotated so first_day_of_week becomes 1.
 function tkort_Weekday alias "fb_Weekday" _
-	( byval serial as double, byval first_day_of_week as long ) as long
+	( byval serial as float64, byval first_day_of_week as int32 ) as int32
 
-	dim as long dow = (clng( fix( floor( serial ) - 1 ) ) mod 7) + 1
+	dim as int32 dow = (clng( fix( floor( serial ) - 1 ) ) mod 7) + 1
 
 	if( first_day_of_week = FB_WEEK_DAY_SYSTEM ) then
 		'' fbc has the same FIXME: the system's first day is never queried.
@@ -299,12 +299,12 @@ extern "rtlib"
 '' Splits a serial's fractional part into h:m:s. use_qb_hack selects between
 '' two different treatments of a negative fraction; see the header comment.
 sub tkort_TimeDecodeSerial alias "fb_hTimeDecodeSerial" _
-	( byval serial as double, byval pHour as long ptr, _
-	  byval pMinute as long ptr, byval pSecond as long ptr, _
-	  byval use_qb_hack as long )
+	( byval serial as float64, byval pHour as int32 ptr, _
+	  byval pMinute as int32 ptr, byval pSecond as int32 ptr, _
+	  byval use_qb_hack as int32 )
 
-	dim as long hour = any, minute = any, second = any
-	dim as double dblFixValue = tkrt_FIXDouble( serial )
+	dim as int32 hour = any, minute = any, second = any
+	dim as float64 dblFixValue = tkrt_FIXDouble( serial )
 
 	serial -= dblFixValue
 	if( TKORT_HSIGN( serial ) = -1 ) then
@@ -339,20 +339,20 @@ sub tkort_TimeDecodeSerial alias "fb_hTimeDecodeSerial" _
 	if( pSecond <> 0 ) then *pSecond = second
 end sub
 
-function tkort_Hour alias "fb_Hour" ( byval serial as double ) as long
-	dim as long hour = any
+function tkort_Hour alias "fb_Hour" ( byval serial as float64 ) as int32
+	dim as int32 hour = any
 	tkrt_TimeDecodeSerial( serial, @hour, 0, 0, 1 )
 	return hour
 end function
 
-function tkort_Minute alias "fb_Minute" ( byval serial as double ) as long
-	dim as long minute = any
+function tkort_Minute alias "fb_Minute" ( byval serial as float64 ) as int32
+	dim as int32 minute = any
 	tkrt_TimeDecodeSerial( serial, 0, @minute, 0, 1 )
 	return minute
 end function
 
-function tkort_Second alias "fb_Second" ( byval serial as double ) as long
-	dim as long second = any
+function tkort_Second alias "fb_Second" ( byval serial as float64 ) as int32
+	dim as int32 second = any
 	tkrt_TimeDecodeSerial( serial, 0, 0, @second, 1 )
 	return second
 end function
@@ -364,8 +364,8 @@ end extern
 extern "c"   '' NON-FBCALL: fb_hGetDayOfYear* are helpers.
 
 function tkort_GetDayOfYearEx alias "fb_hGetDayOfYearEx" _
-	( byval year as long, byval month as long, byval day_ as long ) as long
-	dim as long result = 0, cur_month = 1
+	( byval year as int32, byval month as int32, byval day_ as int32 ) as int32
+	dim as int32 result = 0, cur_month = 1
 	while( cur_month <> month )
 		result += tkrt_TimeDaysInMonth( cur_month, year )
 		cur_month += 1
@@ -373,8 +373,8 @@ function tkort_GetDayOfYearEx alias "fb_hGetDayOfYearEx" _
 	return result + day_
 end function
 
-function tkort_GetDayOfYear alias "fb_hGetDayOfYear" ( byval serial as double ) as long
-	dim as long year = any, month = any, day_ = any
+function tkort_GetDayOfYear alias "fb_hGetDayOfYear" ( byval serial as float64 ) as int32
+	dim as int32 year = any, month = any, day_ = any
 	tkrt_DateDecodeSerial( serial, @year, @month, @day_ )
 	return tkort_GetDayOfYearEx( year, month, day_ )
 end function
@@ -392,11 +392,11 @@ extern "c"   '' NON-FBCALL: the week helpers are internal to DATEPART/DATEDIFF.
 
 '' Rewinds a date to the first day of its week, in place.
 sub tkort_GetBeginOfWeek alias "fb_hGetBeginOfWeek" _
-	( byval pYear as long ptr, byval pMonth as long ptr, byval pDay as long ptr, _
-	  byval first_day_of_week as long )
+	( byval pYear as int32 ptr, byval pMonth as int32 ptr, byval pDay as int32 ptr, _
+	  byval first_day_of_week as int32 )
 
-	dim as double serial = tkrt_DateSerial( *pYear, *pMonth, *pDay )
-	dim as long weekday = tkrt_Weekday( serial, first_day_of_week )
+	dim as float64 serial = tkrt_DateSerial( *pYear, *pMonth, *pDay )
+	dim as int32 weekday = tkrt_Weekday( serial, first_day_of_week )
 	serial -= weekday - 1
 	tkrt_DateDecodeSerial( serial, pYear, pMonth, pDay )
 end sub
@@ -405,12 +405,12 @@ end sub
 '' Note this can land in DECEMBER OF THE PREVIOUS YEAR -- that is the whole
 '' point of the FOUR_DAYS and FULL_WEEK rules, and callers must not clamp it.
 function tkort_GetFirstWeekOfYear alias "fb_hGetFirstWeekOfYear" _
-	( byval year as long, byval first_day_of_year as long, _
-	  byval first_day_of_week as long ) as double
+	( byval year as int32, byval first_day_of_year as int32, _
+	  byval first_day_of_week as int32 ) as float64
 
-	dim as long first_week_year = any, first_week_month = any, first_week_day = any
-	dim as double serial_week_begin = any, serial_year_begin = any
-	dim as long remaining_weekdays = any
+	dim as int32 first_week_year = any, first_week_month = any, first_week_day = any
+	dim as float64 serial_week_begin = any, serial_year_begin = any
+	dim as int32 remaining_weekdays = any
 
 	if( first_day_of_year = FB_WEEK_FIRST_SYSTEM ) then
 		'' fbc has the same FIXME here; the system is never queried.
@@ -439,11 +439,11 @@ function tkort_GetFirstWeekOfYear alias "fb_hGetFirstWeekOfYear" _
 end function
 
 function tkort_GetWeekOfYear alias "fb_hGetWeekOfYear" _
-	( byval ref_year as long, byval serial as double, _
-	  byval first_day_of_year as long, byval first_day_of_week as long ) as long
+	( byval ref_year as int32, byval serial as float64, _
+	  byval first_day_of_year as int32, byval first_day_of_week as int32 ) as int32
 
-	dim as long sign_ = any, year = any, week = any
-	dim as double serial_first_week = any
+	dim as int32 sign_ = any, year = any, week = any
+	dim as float64 serial_first_week = any
 
 	'' Decoded but unused -- fbc computes it and then ignores it. Kept so
 	'' the call sequence matches; it costs one decode and hides nothing.
@@ -463,10 +463,10 @@ function tkort_GetWeekOfYear alias "fb_hGetWeekOfYear" _
 end function
 
 function tkort_GetWeeksOfYear alias "fb_hGetWeeksOfYear" _
-	( byval ref_year as long, byval first_day_of_year as long, _
-	  byval first_day_of_week as long ) as long
-	dim as double serial_start = tkrt_GetFirstWeekOfYear( ref_year, first_day_of_year, first_day_of_week )
-	dim as double serial_end   = tkrt_GetFirstWeekOfYear( ref_year + 1, first_day_of_year, first_day_of_week )
+	( byval ref_year as int32, byval first_day_of_year as int32, _
+	  byval first_day_of_week as int32 ) as int32
+	dim as float64 serial_start = tkrt_GetFirstWeekOfYear( ref_year, first_day_of_year, first_day_of_week )
+	dim as float64 serial_end   = tkrt_GetFirstWeekOfYear( ref_year + 1, first_day_of_year, first_day_of_week )
 	return clng( fix( (serial_end - serial_start) / 7.0 ) )
 end function
 

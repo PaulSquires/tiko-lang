@@ -25,28 +25,28 @@
 
 extern "rtlib"
 	declare function tkrt_SkipChar alias "fb_hStrSkipChar" _
-		( byval s as zstring ptr, byval length as integer, byval c as long ) as zstring ptr
+		( byval s as zstring ptr, byval length as integer, byval c as int32 ) as zstring ptr
 	declare function tkrt_Radix2Longint alias "fb_hStrRadix2Longint" _
-		( byval s as zstring ptr, byval length as integer, byval radix as long ) as longint
+		( byval s as zstring ptr, byval length as integer, byval radix as int32 ) as int64
 	declare function tkrt_DelTemp alias "fb_hStrDelTemp" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 end extern
 
 extern "rtlib"
 
 function tkort_hStr2Double alias "fb_hStr2Double" _
-	( byval src as zstring ptr, byval length as integer ) as double
+	( byval src as zstring ptr, byval length as integer ) as float64
 
 	dim as zstring ptr p = tkrt_SkipChar( src, length, 32 )
 
-	length -= cast( integer, cptr( ubyte ptr, p ) - cptr( ubyte ptr, src ) )
+	length -= cast( integer, cptr( uint8 ptr, p ) - cptr( uint8 ptr, src ) )
 	if( length < 1 ) then return 0.0
 
-	dim as ubyte ptr up = cptr( ubyte ptr, p )
+	dim as uint8 ptr up = cptr( uint8 ptr, p )
 
 	if( length >= 2 ) then
 		if( up[0] = asc("&") ) then
-			dim as long radix = any
+			dim as int32 radix = any
 			dim as integer skip = 2
 
 			select case as const up[1]
@@ -62,7 +62,7 @@ function tkort_hStr2Double alias "fb_hStr2Double" _
 				skip = 1
 			end select
 
-			return cast( double, tkrt_Radix2Longint( cptr( zstring ptr, up + skip ), length - skip, radix ) )
+			return cast( float64, tkrt_Radix2Longint( cptr( zstring ptr, up + skip ), length - skip, radix ) )
 
 		elseif( up[0] = asc("0") ) then
 			'' strtod would read 0x as hex; FreeBASIC recognises only &h.
@@ -72,10 +72,10 @@ function tkort_hStr2Double alias "fb_hStr2Double" _
 
 	'' The d/D -> e/E rewrite, in a temporary buffer. The allocation is part of
 	'' the observable traffic, so it stays.
-	dim as ubyte ptr q = allocate( length + 1 )
+	dim as uint8 ptr q = allocate( length + 1 )
 	if( q = 0 ) then return 0.0
 
-	dim as ubyte c = any
+	dim as uint8 c = any
 	for i as integer = 0 to length - 1
 		c = up[i]
 		'' INCREMENT, not assign: 'd'+1 = 'e' and 'D'+1 = 'E'.
@@ -84,18 +84,18 @@ function tkort_hStr2Double alias "fb_hStr2Double" _
 	next
 	q[length] = 0
 
-	dim as double ret = strtod( cptr( zstring ptr, q ), 0 )
+	dim as float64 ret = strtod( cptr( zstring ptr, q ), 0 )
 	deallocate( q )
 
 	return ret
 
 end function
 
-function tkort_VAL alias "fb_VAL" ( byval s as FBSTRING ptr ) as double
+function tkort_VAL alias "fb_VAL" ( byval s as FBSTRING ptr ) as float64
 
 	if( s = 0 ) then return 0.0
 
-	dim as double v = 0.0
+	dim as float64 v = 0.0
 	if( s->data <> 0 ) then
 		if( FB_STRSIZE( s ) <> 0 ) then
 			v = tkort_hStr2Double( s->data, FB_STRSIZE( s ) )

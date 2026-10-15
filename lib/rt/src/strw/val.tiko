@@ -23,11 +23,11 @@ extern "c"   '' NON-FBCALL: the libc wide parsers.
 	'' error 4) while the Linux ones do not declare wcstoull (so NOT declaring
 	'' it is error 42). An alias is the only spelling that builds on both.
 	declare function tkrt_wcstod cdecl alias "wcstod" _
-		( byval s as wstring ptr, byval e as wstring ptr ptr ) as double
+		( byval s as wstring ptr, byval e as wstring ptr ptr ) as float64
 	declare function tkrt_wcstoul cdecl alias "wcstoul" _
-		( byval s as wstring ptr, byval e as wstring ptr ptr, byval base_ as long ) as ulong
+		( byval s as wstring ptr, byval e as wstring ptr ptr, byval base_ as int32 ) as uint32
 	declare function tkrt_wcstoull cdecl alias "wcstoull" _
-		( byval s as wstring ptr, byval e as wstring ptr ptr, byval base_ as long ) as ulongint
+		( byval s as wstring ptr, byval e as wstring ptr ptr, byval base_ as int32 ) as uint64
 end extern
 
 '' Skip leading spaces and report how many characters remain. Returns the new
@@ -42,7 +42,7 @@ private function hSkipSpace _
 		'' Through a local: comparing p[0] to a literal compares wstring
 		'' EXPRESSIONS, which is the trap that produced four bugs in the strw
 		'' batch (see inc/wstr.ti).
-		dim as ulong c = p[0]
+		dim as uint32 c = p[0]
 		if( c <> 32 ) then exit while
 		p += 1
 		n -= 1
@@ -59,15 +59,15 @@ end function
 '' A BARE `&` MEANS OCTAL, and only ONE character is consumed rather than two --
 '' `&777` is 511. That default is the reason the skip count is a variable.
 private function hRadixPrefix _
-	( byval p as wstring ptr ptr, byval length as integer ptr ) as long
+	( byval p as wstring ptr ptr, byval length as integer ptr ) as int32
 
 	if( *length < 2 ) then return 0
 
-	dim as ulong lead = (*p)[0]
+	dim as uint32 lead = (*p)[0]
 	if( lead <> asc( "&" ) ) then return 0
 
-	dim as ulong c = (*p)[1]
-	dim as long radix = any, skip = 2
+	dim as uint32 c = (*p)[1]
+	dim as int32 radix = any, skip = 2
 
 	select case as const c
 	case asc( "h" ), asc( "H" ) : radix = 16
@@ -93,15 +93,15 @@ extern "rtlib"
 '' is no error, no end pointer and no overflow report. VALINT("&hFFZZ") is
 '' &hFF's value, not zero and not an error.
 function tkort_WstrRadix2Longint alias "fb_WstrRadix2Longint" _
-	( byval src as wstring ptr, byval length as integer, byval radix as long ) as longint
+	( byval src as wstring ptr, byval length as integer, byval radix as int32 ) as int64
 
-	dim as longint v = 0
+	dim as int64 v = 0
 	dim as wstring ptr p = src
 
 	select case as const radix
 	case 16
 		while( length > 0 )
-			dim as ulong c = p[0]
+			dim as uint32 c = p[0]
 			if( (c >= 97) andalso (c <= 102) ) then
 				c -= 87
 			elseif( (c >= 65) andalso (c <= 70) ) then
@@ -116,14 +116,14 @@ function tkort_WstrRadix2Longint alias "fb_WstrRadix2Longint" _
 		wend
 	case 8
 		while( length > 0 )
-			dim as ulong c = p[0]
+			dim as uint32 c = p[0]
 			if( (c < 48) orelse (c > 55) ) then exit while
 			v = (v * 8) + (c - 48)
 			p += 1 : length -= 1
 		wend
 	case 2
 		while( length > 0 )
-			dim as ulong c = p[0]
+			dim as uint32 c = p[0]
 			if( (c < 48) orelse (c > 49) ) then exit while
 			v = (v * 2) + (c - 48)
 			p += 1 : length -= 1
@@ -135,11 +135,11 @@ function tkort_WstrRadix2Longint alias "fb_WstrRadix2Longint" _
 end function
 
 function tkort_WstrRadix2Int alias "fb_WstrRadix2Int" _
-	( byval src as wstring ptr, byval length as integer, byval radix as long ) as long
+	( byval src as wstring ptr, byval length as integer, byval radix as int32 ) as int32
 	'' NOTE: fbc has a SEPARATE 32-bit implementation rather than a truncation
 	'' of the 64-bit one, and the two agree for every input -- the accumulator
 	'' wraps at 32 bits there and is truncated here, which is the same value.
-	return cast( long, tkort_WstrRadix2Longint( src, length, radix ) )
+	return cast( int32, tkort_WstrRadix2Longint( src, length, radix ) )
 end function
 
 '' --------------------------------------------------------- VAL and friends
@@ -150,22 +150,22 @@ end function
 	dim as integer length = _length
 	dim as wstring ptr p = hSkipSpace( src, @length )
 	if( length < 1 ) then return bail
-	dim as long radix = 10
+	dim as int32 radix = 10
 	dim as wstring ptr __r = p
 	dim as integer __rl = length
-	dim as long __pfx = hRadixPrefix( @__r, @__rl )
+	dim as int32 __pfx = hRadixPrefix( @__r, @__rl )
 	if( __pfx <> 0 ) then radix = __pfx
 #endmacro
 
 function tkort_WstrToDouble alias "fb_WstrToDouble" _
-	( byval src as wstring ptr, byval _length as integer ) as double
+	( byval src as wstring ptr, byval _length as integer ) as float64
 
 	WVAL_PROLOGUE( src, length, p, radix, 0.0 )
 
 	'' A prefixed literal is an INTEGER literal, parsed exactly, and only then
 	'' widened -- going through wcstod would lose precision above 2^53.
 	if( radix <> 10 ) then
-		return cast( double, tkort_WstrRadix2Longint( __r, __rl, radix ) )
+		return cast( float64, tkort_WstrRadix2Longint( __r, __rl, radix ) )
 	end if
 
 	'' THE 'd' EXPONENT WORKAROUND. FreeBASIC accepts 1d5 for 1e5, and wcstod
@@ -176,19 +176,19 @@ function tkort_WstrToDouble alias "fb_WstrToDouble" _
 	if( q = 0 ) then return 0.0
 
 	for i as integer = 0 to length - 1
-		dim as ulong c = p[i]
+		dim as uint32 c = p[i]
 		if( (c = asc( "d" )) orelse (c = asc( "D" )) ) then c += 1
 		q[i] = c
 	next
 	q[length] = 0
 
-	dim as double ret = tkrt_wcstod( q, 0 )
+	dim as float64 ret = tkrt_wcstod( q, 0 )
 	FB_WSTR_DEL( q )
 	return ret
 
 end function
 
-function tkort_WstrVal alias "fb_WstrVal" ( byval s as wstring ptr ) as double
+function tkort_WstrVal alias "fb_WstrVal" ( byval s as wstring ptr ) as float64
 	if( s = 0 ) then return 0.0
 	dim as integer n = FB_WSTR_LEN( s )
 	if( n = 0 ) then return 0.0
@@ -209,14 +209,14 @@ end function
 '' sizeof branch because it is genuinely about WHICH LIBC, not about a width.
 
 function tkort_WstrToInt alias "fb_WstrToInt" _
-	( byval src as wstring ptr, byval _length as integer ) as long
+	( byval src as wstring ptr, byval _length as integer ) as int32
 	WVAL_PROLOGUE( src, length, p, radix, 0 )
 	if( radix <> 10 ) then p = __r
 	'' wcstoul, not wcstol: the signed one SATURATES.
-	return cast( long, tkrt_wcstoul( p, 0, radix ) )
+	return cast( int32, tkrt_wcstoul( p, 0, radix ) )
 end function
 
-function tkort_WstrValInt alias "fb_WstrValInt" ( byval s as wstring ptr ) as long
+function tkort_WstrValInt alias "fb_WstrValInt" ( byval s as wstring ptr ) as int32
 	if( s = 0 ) then return 0
 	dim as integer n = FB_WSTR_LEN( s )
 	if( n = 0 ) then return 0
@@ -224,13 +224,13 @@ function tkort_WstrValInt alias "fb_WstrValInt" ( byval s as wstring ptr ) as lo
 end function
 
 function tkort_WstrToUInt alias "fb_WstrToUInt" _
-	( byval src as wstring ptr, byval _length as integer ) as ulong
+	( byval src as wstring ptr, byval _length as integer ) as uint32
 	WVAL_PROLOGUE( src, length, p, radix, 0 )
 	if( radix <> 10 ) then p = __r
 	return tkrt_wcstoul( p, 0, radix )
 end function
 
-function tkort_WstrValUInt alias "fb_WstrValUInt" ( byval s as wstring ptr ) as ulong
+function tkort_WstrValUInt alias "fb_WstrValUInt" ( byval s as wstring ptr ) as uint32
 	if( s = 0 ) then return 0
 	dim as integer n = FB_WSTR_LEN( s )
 	if( n = 0 ) then return 0
@@ -238,7 +238,7 @@ function tkort_WstrValUInt alias "fb_WstrValUInt" ( byval s as wstring ptr ) as 
 end function
 
 function tkort_WstrToLongint alias "fb_WstrToLongint" _
-	( byval src as wstring ptr, byval _length as integer ) as longint
+	( byval src as wstring ptr, byval _length as integer ) as int64
 	WVAL_PROLOGUE( src, length, p, radix, 0 )
 	if( radix <> 10 ) then
 		#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
@@ -248,10 +248,10 @@ function tkort_WstrToLongint alias "fb_WstrToLongint" _
 		#endif
 	end if
 	'' wcstoull, not wcstoll: the signed one SATURATES.
-	return cast( longint, tkrt_wcstoull( p, 0, radix ) )
+	return cast( int64, tkrt_wcstoull( p, 0, radix ) )
 end function
 
-function tkort_WstrValLng alias "fb_WstrValLng" ( byval s as wstring ptr ) as longint
+function tkort_WstrValLng alias "fb_WstrValLng" ( byval s as wstring ptr ) as int64
 	if( s = 0 ) then return 0
 	dim as integer n = FB_WSTR_LEN( s )
 	if( n = 0 ) then return 0
@@ -259,11 +259,11 @@ function tkort_WstrValLng alias "fb_WstrValLng" ( byval s as wstring ptr ) as lo
 end function
 
 function tkort_WstrToULongint alias "fb_WstrToULongint" _
-	( byval src as wstring ptr, byval _length as integer ) as ulongint
+	( byval src as wstring ptr, byval _length as integer ) as uint64
 	WVAL_PROLOGUE( src, length, p, radix, 0 )
 	if( radix <> 10 ) then
 		#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
-			return cast( ulongint, tkort_WstrRadix2Longint( __r, __rl, radix ) )
+			return cast( uint64, tkort_WstrRadix2Longint( __r, __rl, radix ) )
 		#else
 			p = __r
 		#endif
@@ -271,7 +271,7 @@ function tkort_WstrToULongint alias "fb_WstrToULongint" _
 	return tkrt_wcstoull( p, 0, radix )
 end function
 
-function tkort_WstrValULng alias "fb_WstrValULng" ( byval s as wstring ptr ) as ulongint
+function tkort_WstrValULng alias "fb_WstrValULng" ( byval s as wstring ptr ) as uint64
 	if( s = 0 ) then return 0
 	dim as integer n = FB_WSTR_LEN( s )
 	if( n = 0 ) then return 0
@@ -294,13 +294,13 @@ private sub hBoolInit( )
 	end if
 end sub
 
-function tkort_hBoolToWstr alias "fb_hBoolToWstr" ( byval num as byte ) as wstring ptr
+function tkort_hBoolToWstr alias "fb_hBoolToWstr" ( byval num as int8 ) as wstring ptr
 	hBoolInit( )
 	if( num <> 0 ) then return @tkort_wtrue
 	return @tkort_wfalse
 end function
 
-function tkort_BoolToWstr alias "fb_BoolToWstr" ( byval num as byte ) as wstring ptr
+function tkort_BoolToWstr alias "fb_BoolToWstr" ( byval num as int8 ) as wstring ptr
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( 5 )
 	if( dst <> 0 ) then
 		dim as wstring ptr src = tkort_hBoolToWstr( num )
@@ -311,13 +311,13 @@ end function
 
 '' Case-insensitive compare against a NUL-terminated wstring of known length.
 private function hWCmp _
-	( byval a as wstring ptr, byval length as integer, byval z as wstring ptr ) as long
+	( byval a as wstring ptr, byval length as integer, byval z as wstring ptr ) as int32
 
 	dim as integer chars = FB_WSTR_LEN( z )
 	if( chars <> length ) then return 1
 
 	for i as integer = 0 to chars - 1
-		dim as ulong ca = a[i], cz = z[i]
+		dim as uint32 ca = a[i], cz = z[i]
 		'' ASCII fold is enough: the only words compared are "true" and "false".
 		if( (ca >= 97) andalso (ca <= 122) ) then ca -= 32
 		if( (cz >= 97) andalso (cz <= 122) ) then cz -= 32
@@ -332,18 +332,18 @@ end function
 '' a number at all -- VAL of it is 0.0 and that is what decides. Note both signs
 '' of zero are tested, because -0.0 compares equal to 0.0 but is a distinct value.
 function tkort_WstrToBool alias "fb_WstrToBool" _
-	( byval src as wstring ptr, byval length as integer ) as byte
+	( byval src as wstring ptr, byval length as integer ) as int8
 
 	if( hWCmp( src, length, tkort_hBoolToWstr( 0 ) ) = 0 ) then return 0
 	if( hWCmp( src, length, tkort_hBoolToWstr( 1 ) ) = 0 ) then return 1
 
-	dim as double v = tkort_WstrToDouble( src, length )
+	dim as float64 v = tkort_WstrToDouble( src, length )
 	if( (v <> 0.0) andalso (v <> -0.0) ) then return 1
 	return 0
 
 end function
 
-function tkort_WstrValBool alias "fb_WstrValBool" ( byval s as wstring ptr ) as byte
+function tkort_WstrValBool alias "fb_WstrValBool" ( byval s as wstring ptr ) as int8
 	if( s = 0 ) then return 0
 	dim as integer n = FB_WSTR_LEN( s )
 	if( n = 0 ) then return 0
@@ -367,15 +367,15 @@ end function
 '' answer to give.
 
 function tkort_WstrRadix2LongintQB alias "fb_WstrRadix2LongintQB" _
-	( byval src as wstring ptr, byval length as integer, byval radix as long ) as longint
+	( byval src as wstring ptr, byval length as integer, byval radix as int32 ) as int64
 
-	dim as ulongint v = 0
-	dim as long islong = 0
+	dim as uint64 v = 0
+	dim as int32 islong = 0
 	dim as wstring ptr p = src
 
 	while( length > 0 )
-		dim as ulong c = p[0]
-		dim as long digit = -1
+		dim as uint32 c = p[0]
+		dim as int32 digit = -1
 		if( (c >= 48) andalso (c <= 57) ) then
 			digit = c - 48
 		elseif( (c >= 97) andalso (c <= 102) ) then
@@ -386,69 +386,69 @@ function tkort_WstrRadix2LongintQB alias "fb_WstrRadix2LongintQB" _
 		if( digit < 0 ) then exit while
 		if( digit >= radix ) then exit while
 
-		v = (v * cast( ulongint, radix )) + cast( ulongint, digit )
+		v = (v * cast( uint64, radix )) + cast( uint64, digit )
 		p += 1
 		length -= 1
 	wend
 
 	'' The '&' LONG suffix keeps the literal 32 bits wide.
 	if( length > 0 ) then
-		dim as ulong c = p[0]
+		dim as uint32 c = p[0]
 		if( c = asc( "&" ) ) then islong = 1
 	end if
 
 	if( (islong = 0) andalso (v <= &hFFFFull) ) then
-		return cast( longint, cast( short, cast( ushort, v ) ) )
+		return cast( int64, cast( int16, cast( uint16, v ) ) )
 	end if
 
 	if( v <= &hFFFFFFFFull ) then
-		return cast( longint, cast( long, cast( ulong, v ) ) )
+		return cast( int64, cast( int32, cast( uint32, v ) ) )
 	end if
 
-	return cast( longint, v )
+	return cast( int64, v )
 
 end function
 
 function tkort_WstrRadix2IntQB alias "fb_WstrRadix2IntQB" _
-	( byval src as wstring ptr, byval length as integer, byval radix as long ) as long
-	return cast( long, tkort_WstrRadix2LongintQB( src, length, radix ) )
+	( byval src as wstring ptr, byval length as integer, byval radix as int32 ) as int32
+	return cast( int32, tkort_WstrRadix2LongintQB( src, length, radix ) )
 end function
 
 '' The five below share one shape: skip spaces, try a prefix, and fall through
 '' to the ORDINARY parser when there is none -- QB has nothing to say about
 '' plain decimal.
 function tkort_WstrToLongintQB alias "fb_WstrToLongintQB" _
-	( byval src as wstring ptr, byval _length as integer ) as longint
+	( byval src as wstring ptr, byval _length as integer ) as int64
 	WVAL_PROLOGUE( src, length, p, radix, 0 )
 	if( __pfx <> 0 ) then return tkort_WstrRadix2LongintQB( __r, __rl, __pfx )
 	return tkort_WstrToLongint( p, length )
 end function
 
 function tkort_WstrToIntQB alias "fb_WstrToIntQB" _
-	( byval src as wstring ptr, byval _length as integer ) as long
+	( byval src as wstring ptr, byval _length as integer ) as int32
 	WVAL_PROLOGUE( src, length, p, radix, 0 )
 	if( __pfx <> 0 ) then return tkort_WstrRadix2IntQB( __r, __rl, __pfx )
 	return tkort_WstrToInt( p, length )
 end function
 
 function tkort_WstrToUIntQB alias "fb_WstrToUIntQB" _
-	( byval src as wstring ptr, byval _length as integer ) as ulong
+	( byval src as wstring ptr, byval _length as integer ) as uint32
 	WVAL_PROLOGUE( src, length, p, radix, 0 )
-	if( __pfx <> 0 ) then return cast( ulong, tkort_WstrRadix2IntQB( __r, __rl, __pfx ) )
+	if( __pfx <> 0 ) then return cast( uint32, tkort_WstrRadix2IntQB( __r, __rl, __pfx ) )
 	return tkort_WstrToUInt( p, length )
 end function
 
 function tkort_WstrToULongintQB alias "fb_WstrToULongintQB" _
-	( byval src as wstring ptr, byval _length as integer ) as ulongint
+	( byval src as wstring ptr, byval _length as integer ) as uint64
 	WVAL_PROLOGUE( src, length, p, radix, 0 )
-	if( __pfx <> 0 ) then return cast( ulongint, tkort_WstrRadix2LongintQB( __r, __rl, __pfx ) )
+	if( __pfx <> 0 ) then return cast( uint64, tkort_WstrRadix2LongintQB( __r, __rl, __pfx ) )
 	return tkort_WstrToULongint( p, length )
 end function
 
 function tkort_WstrToDoubleQB alias "fb_WstrToDoubleQB" _
-	( byval src as wstring ptr, byval _length as integer ) as double
+	( byval src as wstring ptr, byval _length as integer ) as float64
 	WVAL_PROLOGUE( src, length, p, radix, 0.0 )
-	if( __pfx <> 0 ) then return cast( double, tkort_WstrRadix2LongintQB( __r, __rl, __pfx ) )
+	if( __pfx <> 0 ) then return cast( float64, tkort_WstrRadix2LongintQB( __r, __rl, __pfx ) )
 	return tkort_WstrToDouble( p, length )
 end function
 

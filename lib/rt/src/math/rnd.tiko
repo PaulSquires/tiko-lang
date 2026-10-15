@@ -53,48 +53,48 @@ const MAX_STATE = FB_RND_MAX_STATE
 const PERIOD    = 397
 const INITIAL_SEED = 327680
 
-type FB_RNDPROC   as function cdecl ( byval n as single ) as double
-type FB_RNDPROC32 as function cdecl ( ) as ulong
+type FB_RNDPROC   as function cdecl ( byval n as float32 ) as float64
+type FB_RNDPROC32 as function cdecl ( ) as uint32
 
 '' The state block, handed out whole by fb_RndGetState. NOT byte-packed: it
 '' mirrors what the C compiler laid out and callers read its fields.
 type FB_RNDSTATE
-	as ulong        algorithm
-	as ulong        length_
+	as uint32        algorithm
+	as uint32        length_
 	as FB_RNDPROC   rndproc
 	as FB_RNDPROC32 rndproc32
 	'' A union of a 64- and a 32-bit seed in C. Declared as the 64-bit member
 	'' with a macro for the low half, because FreeBASIC's union would need a
 	'' name and the field is read by offset from the other side.
-	as ulongint     iseed64
-	as ulong ptr    index32
-	as ulong        state32( 0 to FB_RND_MAX_STATE - 1 )
+	as uint64     iseed64
+	as uint32 ptr    index32
+	as uint32        state32( 0 to FB_RND_MAX_STATE - 1 )
 end type
 
-#define TKORT_ISEED32( c ) *cptr( ulong ptr, @(c).iseed64 )
+#define TKORT_ISEED32( c ) *cptr( uint32 ptr, @(c).iseed64 )
 
 extern "rtlib"
-	declare function tkrt_Timer alias "fb_Timer" ( ) as double
-	declare sub tkort_Randomize alias "fb_Randomize" ( byval seed as double, byval algorithm as long )
-	declare function tkort_Rnd alias "fb_Rnd" ( byval n as single ) as double
-	declare function tkort_Rnd32 alias "fb_Rnd32" ( ) as ulong
+	declare function tkrt_Timer alias "fb_Timer" ( ) as float64
+	declare sub tkort_Randomize alias "fb_Randomize" ( byval seed as float64, byval algorithm as int32 )
+	declare function tkort_Rnd alias "fb_Rnd" ( byval n as float32 ) as float64
+	declare function tkort_Rnd32 alias "fb_Rnd32" ( ) as uint32
 end extern
 
-declare function hRnd_Startup cdecl ( byval n as single ) as double
-declare function hRnd_Startup32 cdecl ( ) as ulong
+declare function hRnd_Startup cdecl ( byval n as float32 ) as float64
+declare function hRnd_Startup32 cdecl ( ) as uint32
 '' CDECL IS EXPLICIT, like its two neighbours above. A declaration outside an
 '' EXTERN block that names no convention takes the TARGET's default, which is
 '' stdcall on win32 and cdecl everywhere else -- see build/lint.sh check 3b.
-declare sub hRndCtxInitMTWIST32 cdecl ( byval seed as ulongint )
+declare sub hRndCtxInitMTWIST32 cdecl ( byval seed as uint64 )
 
 '' The generator state. A file-scope static in fbc; the initial function
 '' pointers are the STARTUP pair -- see the header.
 dim shared as FB_RNDSTATE ctx_
 
 '' Updated by fb_Rnd only, never reset. See the header.
-dim shared as double last_num = 0.0
+dim shared as float64 last_num = 0.0
 
-dim shared as long ctx_inited = 0
+dim shared as int32 ctx_inited = 0
 
 private sub hEnsureCtx( )
 	if( ctx_inited ) then exit sub
@@ -110,8 +110,8 @@ end sub
 '' Numerical Recipes 7.1: seed, then a linear congruential fill.
 #define FBRNDFAST32( a ) ( ((a) * 1664525ul) + 1013904223ul )
 
-private sub hFillFAST32( byval buffer as ulong ptr, byval length32 as ulong, byval iseed32 as ulong )
-	dim as ulong i = any
+private sub hFillFAST32( byval buffer as uint32 ptr, byval length32 as uint32, byval iseed32 as uint32 )
+	dim as uint32 i = any
 	buffer[0] = iseed32
 	for i = 1 to length32 - 1
 		buffer[i] = FBRNDFAST32( buffer[i - 1] )
@@ -120,17 +120,17 @@ end sub
 
 '' ------------------------------------------------------------- FB_RND_CRT
 
-private function hRnd_CRT32 cdecl ( ) as ulong
+private function hRnd_CRT32 cdecl ( ) as uint32
 	return rand( )
 end function
 
-private function hRnd_CRT cdecl ( byval n as single ) as double
+private function hRnd_CRT cdecl ( byval n as float32 ) as float64
 	if( n = 0.0 ) then return last_num
 	'' 1/(RAND_MAX+1), so the result is in [0,1) and never reaches 1.
 	return cdbl( hRnd_CRT32( ) ) * (1.0 / (cdbl( TKORT_RAND_MAX ) + 1.0))
 end function
 
-private sub hRndCtxInitCRT32( byval seed as ulong )
+private sub hRndCtxInitCRT32( byval seed as uint32 )
 	ctx_.algorithm = FB_RND_CRT
 	ctx_.length_ = 0
 	ctx_.index32 = 0
@@ -141,19 +141,19 @@ end sub
 
 '' ------------------------------------------------------------ FB_RND_FAST
 
-private function hRnd_FAST32 cdecl ( ) as ulong
+private function hRnd_FAST32 cdecl ( ) as uint32
 	TKORT_ISEED32( ctx_ ) = FBRNDFAST32( TKORT_ISEED32( ctx_ ) )
 	return TKORT_ISEED32( ctx_ )
 end function
 
-private function hRnd_FAST cdecl ( byval n as single ) as double
+private function hRnd_FAST cdecl ( byval n as float32 ) as float64
 	'' NOT last_num: FAST recomputes from its own seed, so RND(0) here can
 	'' differ from the last value fb_Rnd returned. See the header.
 	if( n = 0.0 ) then return cdbl( TKORT_ISEED32( ctx_ ) ) / 4294967296.0
 	return cdbl( hRnd_FAST32( ) ) / 4294967296.0
 end function
 
-private sub hRndCtxInitFAST32( byval seed as ulong )
+private sub hRndCtxInitFAST32( byval seed as uint32 )
 	ctx_.algorithm = FB_RND_FAST
 	ctx_.length_ = 0
 	ctx_.index32 = 0
@@ -170,9 +170,9 @@ end sub
 '' done alone because it pairs with element 0. Folding them into one loop with
 '' a modulo gives the same numbers but is not what fbc compiled.
 
-private function hRnd_MTWIST32 cdecl ( ) as ulong
-	dim as ulong i = any, v = any
-	static as ulong xor_mask(0 to 1) = { 0, &h9908B0DF }
+private function hRnd_MTWIST32 cdecl ( ) as uint32
+	dim as uint32 i = any, v = any
+	static as uint32 xor_mask(0 to 1) = { 0, &h9908B0DF }
 
 	if( ctx_.index32 = 0 ) then
 		hRndCtxInitMTWIST32( INITIAL_SEED )
@@ -202,19 +202,19 @@ private function hRnd_MTWIST32 cdecl ( ) as ulong
 	return v
 end function
 
-private function hRnd_MTWIST cdecl ( byval n as single ) as double
+private function hRnd_MTWIST cdecl ( byval n as float32 ) as float64
 	if( n = 0.0 ) then return last_num
 	return cdbl( hRnd_MTWIST32( ) ) / 4294967296.0
 end function
 
-private sub hRndCtxInitMTWIST32 cdecl ( byval seed as ulongint )
+private sub hRndCtxInitMTWIST32 cdecl ( byval seed as uint64 )
 	ctx_.algorithm = FB_RND_MTWIST
 	ctx_.length_ = MAX_STATE
 	'' Positioned at the END, so the first call regenerates immediately.
 	ctx_.index32 = @ctx_.state32(0) + MAX_STATE
 	ctx_.rndproc = @hRnd_MTWIST
 	ctx_.rndproc32 = @hRnd_MTWIST32
-	hFillFAST32( @ctx_.state32(0), MAX_STATE, cast( ulong, seed ) )
+	hFillFAST32( @ctx_.state32(0), MAX_STATE, cast( uint32, seed ) )
 end sub
 
 '' -------------------------------------------------------------- FB_RND_QB
@@ -222,13 +222,13 @@ end sub
 '' The QuickBASIC generator: a 24-BIT linear congruential, masked to &hFFFFFF.
 '' The narrow width is the point -- it reproduces QB's sequence exactly.
 
-private function hRnd_QB32 cdecl ( ) as ulong
+private function hRnd_QB32 cdecl ( ) as uint32
 	TKORT_ISEED32( ctx_ ) = ((TKORT_ISEED32( ctx_ ) * &hFD43FDul) + &hC39EC3ul) and &hFFFFFFul
 	return TKORT_ISEED32( ctx_ )
 end function
 
-private function hRnd_QB cdecl ( byval n as single ) as double
-	dim as ulong s = any
+private function hRnd_QB cdecl ( byval n as float32 ) as float64
+	dim as uint32 s = any
 
 	'' SINGLE division, not double: the result is computed in single and then
 	'' widened, so the low bits differ from a double division.
@@ -236,14 +236,14 @@ private function hRnd_QB cdecl ( byval n as single ) as double
 
 	'' A NEGATIVE ARGUMENT RESEEDS from the bit pattern of n -- QB only.
 	if( n < 0.0 ) then
-		s = *cptr( ulong ptr, @n )
+		s = *cptr( uint32 ptr, @n )
 		TKORT_ISEED32( ctx_ ) = s + (s shr 24)
 	end if
 
 	return cdbl( csng( hRnd_QB32( ) ) / csng( &h1000000 ) )
 end function
 
-private sub hRndCtxInitQB32( byval seed as ulong )
+private sub hRndCtxInitQB32( byval seed as uint32 )
 	ctx_.algorithm = FB_RND_QB
 	ctx_.length_ = 0
 	ctx_.index32 = 0
@@ -274,36 +274,36 @@ end sub
 	extern "c"   '' NON-FBCALL: advapi32 imports, not rtlib entry points.
 		declare function CryptAcquireContextA stdcall alias "CryptAcquireContextA" _
 			( byval phProv as any ptr, byval szContainer as zstring ptr, _
-			  byval szProvider as zstring ptr, byval dwProvType as ulong, _
-			  byval dwFlags as ulong ) as long
+			  byval szProvider as zstring ptr, byval dwProvType as uint32, _
+			  byval dwFlags as uint32 ) as int32
 		declare function CryptGenRandom stdcall alias "CryptGenRandom" _
-			( byval hProv as any ptr, byval dwLen as ulong, byval pbBuffer as ubyte ptr ) as long
+			( byval hProv as any ptr, byval dwLen as uint32, byval pbBuffer as uint8 ptr ) as int32
 		declare function CryptReleaseContext stdcall alias "CryptReleaseContext" _
-			( byval hProv as any ptr, byval dwFlags as ulong ) as long
+			( byval hProv as any ptr, byval dwFlags as uint32 ) as int32
 	end extern
 #else
 	'' NOT console io: these are the POSIX file descriptors, named open/read/
 	'' close, which the freestanding lint reasonably flags on sight. They are
 	'' here to read /dev/urandom and nothing else.
 	extern "c"   '' NON-FBCALL: libc file descriptors, for /dev/urandom.
-		declare function fdopen_ alias "open" ( byval path as zstring ptr, byval flags as long, ... ) as long
-		declare function fdread_ alias "read" ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
-		declare function fdclose_ alias "close" ( byval fd as long ) as long
+		declare function fdopen_ alias "open" ( byval path as zstring ptr, byval flags as int32, ... ) as int32
+		declare function fdread_ alias "read" ( byval fd as int32, byval buf as any ptr, byval n as uinteger ) as integer
+		declare function fdclose_ alias "close" ( byval fd as int32 ) as int32
 	end extern
 	const O_RDONLY = 0
 #endif
 
-private function hRefillRealRndNumber( ) as long
-	dim as long success = 0
+private function hRefillRealRndNumber( ) as int32
+	dim as int32 success = 0
 
 	#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
 		dim as any ptr provider = 0
 		if( CryptAcquireContextA( @provider, 0, 0, PROV_RSA_FULL, 0 ) <> 0 ) then
-			success = CryptGenRandom( provider, MAX_STATE * 4, cptr( ubyte ptr, @ctx_.state32(0) ) )
+			success = CryptGenRandom( provider, MAX_STATE * 4, cptr( uint8 ptr, @ctx_.state32(0) ) )
 			CryptReleaseContext( provider, 0 )
 		end if
 	#else
-		dim as long urandom = fdopen_( @"/dev/urandom", O_RDONLY )
+		dim as int32 urandom = fdopen_( @"/dev/urandom", O_RDONLY )
 		if( urandom <> -1 ) then
 			if( fdread_( urandom, @ctx_.state32(0), MAX_STATE * 4 ) = MAX_STATE * 4 ) then
 				success = 1
@@ -316,8 +316,8 @@ private function hRefillRealRndNumber( ) as long
 	return success
 end function
 
-private function hRnd_REAL32 cdecl ( ) as ulong
-	dim as ulong v = any
+private function hRnd_REAL32 cdecl ( ) as uint32
+	dim as uint32 v = any
 	if( ctx_.index32 = (@ctx_.state32(0) + MAX_STATE) ) then
 		if( hRefillRealRndNumber( ) = 0 ) then
 			'' Permanent downgrade -- see the header.
@@ -330,12 +330,12 @@ private function hRnd_REAL32 cdecl ( ) as ulong
 	return v
 end function
 
-private function hRnd_REAL cdecl ( byval n as single ) as double
+private function hRnd_REAL cdecl ( byval n as float32 ) as float64
 	if( n = 0.0 ) then return last_num
 	return cdbl( hRnd_REAL32( ) ) / 4294967296.0
 end function
 
-private sub hRndCtxInitREAL32( byval seed as ulongint )
+private sub hRndCtxInitREAL32( byval seed as uint64 )
 	ctx_.algorithm = FB_RND_REAL
 	ctx_.length_ = MAX_STATE
 	ctx_.index32 = @ctx_.state32(0) + MAX_STATE
@@ -343,7 +343,7 @@ private sub hRndCtxInitREAL32( byval seed as ulongint )
 	ctx_.rndproc32 = @hRnd_REAL32
 	'' Seeded deterministically anyway, because a failed refill leaves this
 	'' state in place until the fallback replaces it.
-	hFillFAST32( @ctx_.state32(0), MAX_STATE, cast( ulong, seed ) )
+	hFillFAST32( @ctx_.state32(0), MAX_STATE, cast( uint32, seed ) )
 end sub
 
 '' --------------------------------------------------------------- startup
@@ -361,19 +361,19 @@ private sub hStartup( )
 	end select
 end sub
 
-private function hRnd_Startup32 cdecl ( ) as ulong
+private function hRnd_Startup32 cdecl ( ) as uint32
 	hStartup( )
 	'' Re-dispatched through the PUBLIC entry point, so the new pointers are
 	'' picked up and the lock is taken again -- fbc does the same.
 	return tkort_Rnd32( )
 end function
 
-private function hRnd_Startup cdecl ( byval n as single ) as double
+private function hRnd_Startup cdecl ( byval n as float32 ) as float64
 	hStartup( )
 	return tkort_Rnd( n )
 end function
 
-private function hGetAlgorithm( byval algorithm as long ) as long
+private function hGetAlgorithm( byval algorithm as int32 ) as int32
 	if( algorithm = FB_RND_AUTO ) then
 		select case TKORT_CTX_LANG()
 		case FB_LANG_QB                        : algorithm = FB_RND_QB
@@ -391,17 +391,17 @@ extern "rtlib"
 '' seed = -1 means "unpredictable": the TIMER's two halves are XORed, which
 '' changes far more often than once a second. Every algorithm but QB then takes
 '' the INTEGER value of that.
-sub tkort_Randomize alias "fb_Randomize" ( byval seed as double, byval algorithm as long )
-	dim as ulong i0 = any, i1 = any, s = any
-	dim as double d = any
+sub tkort_Randomize alias "fb_Randomize" ( byval seed as float64, byval algorithm as int32 )
+	dim as uint32 i0 = any, i1 = any, s = any
+	dim as float64 d = any
 
 	hEnsureCtx( )
 	TKORT_MATHLOCK()
 
 	if( seed = -1.0 ) then
 		d = tkrt_Timer( )
-		i0 = cptr( ulong ptr, @d )[0]
-		i1 = cptr( ulong ptr, @d )[1]
+		i0 = cptr( uint32 ptr, @d )[0]
+		i1 = cptr( uint32 ptr, @d )[1]
 		seed = cdbl( i0 xor i1 )
 	end if
 
@@ -409,13 +409,13 @@ sub tkort_Randomize alias "fb_Randomize" ( byval seed as double, byval algorithm
 
 	select case ctx_.algorithm
 	case FB_RND_CRT
-		hRndCtxInitCRT32( cast( ulong, seed ) )
+		hRndCtxInitCRT32( cast( uint32, seed ) )
 		'' One value is drawn and DISCARDED, so the first RND after
 		'' RANDOMIZE is the second value of the sequence.
 		tkort_Rnd32( )
 
 	case FB_RND_FAST
-		hRndCtxInitFAST32( cast( ulong, seed ) )
+		hRndCtxInitFAST32( cast( uint32, seed ) )
 
 	case FB_RND_QB
 		'' QB seeds from the HIGH word of the double's bit pattern, folds it
@@ -423,22 +423,22 @@ sub tkort_Randomize alias "fb_Randomize" ( byval seed as double, byval algorithm
 		'' RANDOMIZE with the same value twice does not give the same
 		'' sequence unless the previous state also matched.
 		d = seed
-		s = cptr( ulong ptr, @d )[1]
+		s = cptr( uint32 ptr, @d )[1]
 		s xor= (s shr 16)
 		s = ((s and &hFFFF) shl 8) or (TKORT_ISEED32( ctx_ ) and &hFF)
 		hRndCtxInitQB32( s )
 
 	case FB_RND_REAL
-		hRndCtxInitREAL32( cast( ulong, seed ) )
+		hRndCtxInitREAL32( cast( uint32, seed ) )
 
 	case else
-		hRndCtxInitMTWIST32( cast( ulong, seed ) )
+		hRndCtxInitMTWIST32( cast( uint32, seed ) )
 	end select
 
 	TKORT_MATHUNLOCK()
 end sub
 
-function tkort_Rnd alias "fb_Rnd" ( byval n as single ) as double
+function tkort_Rnd alias "fb_Rnd" ( byval n as float32 ) as float64
 	hEnsureCtx( )
 	TKORT_MATHLOCK()
 	'' last_num is written HERE and nowhere else -- see the header.
@@ -447,8 +447,8 @@ function tkort_Rnd alias "fb_Rnd" ( byval n as single ) as double
 	return last_num
 end function
 
-function tkort_Rnd32 alias "fb_Rnd32" ( ) as ulong
-	dim as ulong result = any
+function tkort_Rnd32 alias "fb_Rnd32" ( ) as uint32
+	dim as uint32 result = any
 	hEnsureCtx( )
 	TKORT_MATHLOCK()
 	result = ctx_.rndproc32( )

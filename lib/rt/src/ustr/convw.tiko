@@ -59,22 +59,22 @@
 extern "c"   '' NON-FBCALL: fb_ustring.h declares the codepoint reader plainly.
 	declare function tkrt_CodepointAt alias "fb_hUStrCodepointAt" _
 		( byval s as FB_UCHAR ptr, byval units as integer, _
-		  byval index_ as integer, byval used as integer ptr ) as ulong
+		  byval index_ as integer, byval used as integer ptr ) as uint32
 end extern
 
 extern "rtlib"
 	declare function tkrt_UAllocTempNoLock alias "fb_hUStrAllocTemp_NoLock" _
 		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
 	declare function tkrt_UDelTempNoLock alias "fb_hUStrDelTemp_NoLock" _
-		( byval s as FBUSTRING ptr ) as long
+		( byval s as FBUSTRING ptr ) as int32
 	declare function tkrt_UStrAssignEx alias "fb_UStrAssignEx" _
 		( byval dst as any ptr, byval dst_size as integer, _
 		  byval src as any ptr, byval src_size as integer, _
-		  byval fill_rem as long, byval is_init as long ) as any ptr
+		  byval fill_rem as int32, byval is_init as int32 ) as any ptr
 end extern
 
-const FB_UCHAR_MAX_CP     as ulong = &h10FFFF
-const FB_UCHAR_REPLACEMENT as ulong = &hFFFD
+const FB_UCHAR_MAX_CP     as uint32 = &h10FFFF
+const FB_UCHAR_REPLACEMENT as uint32 = &hFFFD
 
 '' wstring -> ustring, into a caller-provided buffer sized by a measure pass.
 '' `dst` may be NULL to measure only; returns units written, excluding the
@@ -85,7 +85,7 @@ private function hWcharToUnits _
 
 	if( sizeof( wstring ) = 2 ) then
 		'' Already UTF-16, surrogate pairs included.
-		dim as ushort ptr s = cptr( ushort ptr, src )
+		dim as uint16 ptr s = cptr( uint16 ptr, src )
 		dim as integer n = src_chars
 		if( dst <> 0 ) then
 			dim as integer lim = iif( n < dst_units, n, dst_units )
@@ -99,10 +99,10 @@ private function hWcharToUnits _
 		'' UTF-32 -> UTF-16. A scalar above the BMP becomes a PAIR, so the unit
 		'' count is not the character count -- which is the whole reason the
 		'' measure pass exists.
-		dim as ulong ptr s = cptr( ulong ptr, src )
+		dim as uint32 ptr s = cptr( uint32 ptr, src )
 		dim as integer n = 0
 		for i as integer = 0 to src_chars - 1
-			dim as ulong cp = s[i]
+			dim as uint32 cp = s[i]
 			'' Above U+10FFFF cannot be written down at all; a surrogate value
 			'' CAN, and is passed through -- see the header.
 			if( cp > FB_UCHAR_MAX_CP ) then cp = FB_UCHAR_REPLACEMENT
@@ -110,7 +110,7 @@ private function hWcharToUnits _
 				if( (dst <> 0) andalso (n < dst_units) ) then dst[n] = cast( FB_UCHAR, cp )
 				n += 1
 			else
-				dim as ulong v = cp - &h10000
+				dim as uint32 v = cp - &h10000
 				if( (dst <> 0) andalso (n < dst_units) ) then _
 					dst[n] = cast( FB_UCHAR, &hD800 + (v shr 10) )
 				n += 1
@@ -131,7 +131,7 @@ private function hUnitsToWchar _
 	  byval dst as wstring ptr, byval dst_chars as integer ) as integer
 
 	if( sizeof( wstring ) = 2 ) then
-		dim as ushort ptr d = cptr( ushort ptr, dst )
+		dim as uint16 ptr d = cptr( uint16 ptr, dst )
 		dim as integer n = src_units
 		if( dst <> 0 ) then
 			dim as integer lim = iif( n < dst_chars, n, dst_chars )
@@ -144,11 +144,11 @@ private function hUnitsToWchar _
 	else
 		'' UTF-16 -> UTF-32: a pair COLLAPSES into one char, and a lone
 		'' surrogate becomes U+FFFD -- the one direction that still substitutes.
-		dim as ulong ptr d = cptr( ulong ptr, dst )
+		dim as uint32 ptr d = cptr( uint32 ptr, dst )
 		dim as integer i = 0, n = 0
 		while( i < src_units )
 			dim as integer used = any
-			dim as ulong cp = tkrt_CodepointAt( src, src_units, i, @used )
+			dim as uint32 cp = tkrt_CodepointAt( src, src_units, i, @used )
 			if( (dst <> 0) andalso (n < dst_chars) ) then d[n] = cp
 			n += 1
 			i += used
@@ -168,7 +168,7 @@ extern "rtlib"
 '' pool behind it, so there is nothing here to serialise.
 function tkort_UStrAssignFromW alias "fb_UStrAssignFromW" _
 	( byval dst as any ptr, byval dst_size as integer, _
-	  byval src as wstring ptr, byval fill_rem as long, byval is_init as long ) as any ptr
+	  byval src as wstring ptr, byval fill_rem as int32, byval is_init as int32 ) as any ptr
 
 	if( dst = 0 ) then return dst
 

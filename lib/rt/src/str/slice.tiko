@@ -22,7 +22,7 @@ extern "rtlib"
 	declare function fb_hStrAllocTemp alias "fb_hStrAllocTemp" _
 		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
 	declare function tkrt_DelTemp alias "fb_hStrDelTemp" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 	declare sub fb_hStrCopy alias "fb_hStrCopy" _
 		( byval dst as zstring ptr, byval src as zstring ptr, byval bytes as integer )
 end extern

@@ -86,41 +86,41 @@ const COPY_BUFFER_SIZE = 512
 #endif
 
 type TKORT_STATBUF
-	as ubyte raw( 0 to STAT_BUF_SIZE_ - 1 )
+	as uint8 raw( 0 to STAT_BUF_SIZE_ - 1 )
 end type
 
 '' struct tm, whose first six ints are sec, min, hour, mday, mon, year -- the
 '' only fields used, and identical on all three targets.
 type TKORT_TM
-	as long tm_sec, tm_min, tm_hour, tm_mday, tm_mon, tm_year
+	as int32 tm_sec, tm_min, tm_hour, tm_mday, tm_mon, tm_year
 end type
 
 extern "c"   '' NON-FBCALL: libc.
 	#ifdef __FB_WIN32__
 		declare function crt_stat alias "_stat64i32" _
-			( byval p as zstring ptr, byval st as TKORT_STATBUF ptr ) as long
-		declare function crt_localtime alias "_localtime64" ( byval t as longint ptr ) as TKORT_TM ptr
+			( byval p as zstring ptr, byval st as TKORT_STATBUF ptr ) as int32
+		declare function crt_localtime alias "_localtime64" ( byval t as int64 ptr ) as TKORT_TM ptr
 	#else
 		declare function crt_stat alias "stat64" _
-			( byval p as zstring ptr, byval st as TKORT_STATBUF ptr ) as long
-		declare function crt_localtime alias "localtime" ( byval t as longint ptr ) as TKORT_TM ptr
+			( byval p as zstring ptr, byval st as TKORT_STATBUF ptr ) as int32
+		declare function crt_localtime alias "localtime" ( byval t as int64 ptr ) as TKORT_TM ptr
 	#endif
 end extern
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 	declare function tkrt_DateSerial alias "fb_DateSerial" _
-		( byval y as long, byval m as long, byval d as long ) as long
+		( byval y as int32, byval m as int32, byval d as int32 ) as int32
 	declare function tkrt_TimeSerial alias "fb_TimeSerial" _
-		( byval h as long, byval m as long, byval s as long ) as double
+		( byval h as int32, byval m as int32, byval s as int32 ) as float64
 	declare function tkrt_Dir alias "fb_Dir" _
-		( byval filespec as FBSTRING ptr, byval attrib as long, _
-		  byval outattrib as long ptr ) as FBSTRING ptr
+		( byval filespec as FBSTRING ptr, byval attrib as int32, _
+		  byval outattrib as int32 ptr ) as FBSTRING ptr
 end extern
 
 extern "c"   '' NON-FBCALL: the h-prefixed helper and the CRT.
-	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
-	declare function crt_remove alias "remove" ( byval p as zstring ptr ) as long
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
+	declare function crt_remove alias "remove" ( byval p as zstring ptr ) as int32
 end extern
 
 '' THE ONLY THING NEEDED FROM THE THREE DEVICE STRUCTS IS THEIR FIRST MEMBER, so
@@ -129,17 +129,17 @@ end extern
 '' the first of them outright -- and binding the rest would be four platform
 '' layouts to keep right for no gain.
 #define TKORT_FIRST_PTR( p ) (*cptr( any ptr ptr, p ))
-#define TKORT_FIRST_LONG( p ) (*cptr( long ptr, p ))
+#define TKORT_FIRST_LONG( p ) (*cptr( int32 ptr, p ))
 
 extern "rtlib"
 
 '' ------------------------------------------------------------------ FILEATTR
 
 function tkort_FileAttr alias "fb_FileAttr" _
-	( byval handle as long, byval returntype as long ) as integer
+	( byval handle as int32, byval returntype as int32 ) as integer
 
 	dim as integer ret = 0
-	dim as long err_ = 0
+	dim as int32 err_ = 0
 	dim as FB_FILE ptr file_ = TKORT_FILE_TO_HANDLE( handle )
 
 	if( file_ = 0 ) then
@@ -226,7 +226,7 @@ end function
 
 '' fopen + fclose, NOT stat. A file that exists but cannot be opened for reading
 '' is FALSE, and the access time is touched.
-function tkort_FileExists alias "fb_FileExists" ( byval filename as zstring ptr ) as long
+function tkort_FileExists alias "fb_FileExists" ( byval filename as zstring ptr ) as int32
 
 	dim as FILE ptr fp = fopen( filename, @"r" )
 	if( fp <> 0 ) then
@@ -241,7 +241,7 @@ end function
 '' A DATE SERIAL PLUS A TIME SERIAL, from st_mtime through localtime. Zero on
 '' any failure -- and 0.0 is also a legitimate serial (1899-12-30), so a caller
 '' cannot tell "missing" from "very old" except by testing separately.
-function tkort_FileDateTime alias "fb_FileDateTime" ( byval filename as zstring ptr ) as double
+function tkort_FileDateTime alias "fb_FileDateTime" ( byval filename as zstring ptr ) as float64
 
 	dim as TKORT_STATBUF buf = any
 
@@ -250,7 +250,7 @@ function tkort_FileDateTime alias "fb_FileDateTime" ( byval filename as zstring 
 	'' The mtime is copied OUT of the buffer before localtime is called, exactly
 	'' as fbc's object does -- localtime takes a pointer to a time_t, not a
 	'' pointer into a struct.
-	dim as longint t = *cptr( longint ptr, @buf.raw(STAT_MTIME_) )
+	dim as int64 t = *cptr( int64 ptr, @buf.raw(STAT_MTIME_) )
 
 	dim as TKORT_TM ptr ptm = crt_localtime( @t )
 	if( ptm = 0 ) then return 0.0
@@ -263,9 +263,9 @@ end function
 
 '' errno IS READ IMMEDIATELY, before the temp descriptor is deleted -- fb_StrDelete
 '' calls free(), and free() may set errno.
-function tkort_FileKill alias "fb_FileKill" ( byval str_ as FBSTRING ptr ) as long
+function tkort_FileKill alias "fb_FileKill" ( byval str_ as FBSTRING ptr ) as int32
 
-	dim as long res = 0, err_ = 0
+	dim as int32 res = 0, err_ = 0
 
 	if( str_->data <> 0 ) then
 		res = crt_remove( str_->data )
@@ -303,12 +303,12 @@ extern "rtlib"
 '' BOTH STREAMS ARE CLOSED ON EVERY PATH, including the ones that copyfail before
 '' the second was opened -- which is why dst is initialised to NULL first.
 function tkort_CrtFileCopy alias "fb_CrtFileCopy" _
-	( byval source as zstring ptr, byval destination as zstring ptr ) as long
+	( byval source as zstring ptr, byval destination as zstring ptr ) as int32
 
 	dim as FILE ptr src = 0, dst = 0
-	dim as ubyte buffer( 0 to COPY_BUFFER_SIZE - 1 ) = any
+	dim as uint8 buffer( 0 to COPY_BUFFER_SIZE - 1 ) = any
 	dim as uinteger bytesread = any
-	dim as long copyfail = 0
+	dim as int32 copyfail = 0
 
 	src = fopen( source, @"rb" )
 	if( src = 0 ) then
@@ -346,7 +346,7 @@ end function
 '' would start one.
 dim shared as FBSTRING tkort_dirnext_fname
 
-function tkort_DirNext alias "fb_DirNext" ( byval attrib as long ptr ) as FBSTRING ptr
+function tkort_DirNext alias "fb_DirNext" ( byval attrib as int32 ptr ) as FBSTRING ptr
 	return tkrt_Dir( @tkort_dirnext_fname, 0, attrib )
 end function
 
@@ -354,18 +354,18 @@ end function
 '' the int is taken locally and widened -- writing directly would leave the top
 '' half as whatever was on the stack.
 function tkort_Dir64 alias "fb_Dir64" _
-	( byval filespec as FBSTRING ptr, byval attrib as long, _
-	  byval outattrib as longint ptr ) as FBSTRING ptr
+	( byval filespec as FBSTRING ptr, byval attrib as int32, _
+	  byval outattrib as int64 ptr ) as FBSTRING ptr
 
-	dim as long ioutattrib = any
+	dim as int32 ioutattrib = any
 	dim as FBSTRING ptr res = tkrt_Dir( filespec, attrib, @ioutattrib )
 	*outattrib = ioutattrib
 	return res
 end function
 
-function tkort_DirNext64 alias "fb_DirNext64" ( byval outattrib as longint ptr ) as FBSTRING ptr
+function tkort_DirNext64 alias "fb_DirNext64" ( byval outattrib as int64 ptr ) as FBSTRING ptr
 
-	dim as long ioutattrib = any
+	dim as int32 ioutattrib = any
 	dim as FBSTRING ptr res = tkort_DirNext( @ioutattrib )
 	*outattrib = ioutattrib
 	return res

@@ -62,13 +62,13 @@ const FB_TLSKEY_DIR_ = 1
 extern "c"   '' NON-FBCALL: the TLS allocator and the string internals are all
              '' declared plain in fb_thread.h and fb_string.h.
 	declare function tkrt_TlsGetCtx alias "fb_TlsGetCtx" _
-		( byval id as long, byval size_ as uinteger, byval dtor as any ptr ) as any ptr
+		( byval id as int32, byval size_ as uinteger, byval dtor as any ptr ) as any ptr
 	declare function tkrt_hStrAllocTemp_NoLock alias "fb_hStrAllocTemp_NoLock" _
 		( byval s as FBSTRING ptr, byval size_ as integer ) as FBSTRING ptr
 	declare sub tkrt_hStrCopy alias "fb_hStrCopy" _
 		( byval dst as zstring ptr, byval src as zstring ptr, byval l as integer )
 	declare function tkrt_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 	declare sub fb_StrLock alias "fb_StrLock" ( )
 	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
 end extern
@@ -98,14 +98,14 @@ end extern
 	'' attrib at 0 and name at 36. The two targets agree because every field is
 	'' fixed-width and time_t is 64-bit on both under MinGW-w64.
 	type FB_DIRCTX_
-		as long     in_use
-		as long     attrib
-		as ulong    d_attrib               '' data.attrib
-		as ulong    d_pad0                 '' padding to the 8-aligned times
-		as longint  d_time_create
-		as longint  d_time_access
-		as longint  d_time_write
-		as ulong    d_size
+		as int32     in_use
+		as int32     attrib
+		as uint32    d_attrib               '' data.attrib
+		as uint32    d_pad0                 '' padding to the 8-aligned times
+		as int64  d_time_create
+		as int64  d_time_access
+		as int64  d_time_write
+		as uint32    d_size
 		as zstring * 260 d_name            '' 44 .. 303, ending exactly where
 		                                   '' handle begins -- the #asserts
 		                                   '' below are what proved that, after
@@ -148,14 +148,14 @@ end extern
 			declare function crt_findfirst alias "_findfirst64i32" _
 				( byval spec as zstring ptr, byval data_ as any ptr ) as integer
 			declare function crt_findnext alias "_findnext64i32" _
-				( byval h as integer, byval data_ as any ptr ) as long
+				( byval h as integer, byval data_ as any ptr ) as int32
 		#else
 			declare function crt_findfirst alias "_findfirst" _
 				( byval spec as zstring ptr, byval data_ as any ptr ) as integer
 			declare function crt_findnext alias "_findnext" _
-				( byval h as integer, byval data_ as any ptr ) as long
+				( byval h as integer, byval data_ as any ptr ) as int32
 		#endif
-		declare function crt_findclose alias "_findclose" ( byval h as integer ) as long
+		declare function crt_findclose alias "_findclose" ( byval h as integer ) as int32
 	end extern
 
 #else
@@ -164,8 +164,8 @@ end extern
 	'' pattern and the directory it was split off -- because opendir cannot glob
 	'' and the pattern has to survive until the next readdir.
 	type FB_DIRCTX_
-		as long     in_use
-		as long     attrib
+		as int32     in_use
+		as int32     attrib
 		as any ptr  dir_
 		as zstring * TKORT_DIR_MAX_PATH filespec
 		as zstring * TKORT_DIR_MAX_PATH dirname
@@ -193,19 +193,19 @@ end extern
 	const S_IFSOCK_= &o140000
 
 	type STATBUF_
-		as ubyte raw( 0 to STAT_BUF_SIZE_ - 1 )
+		as uint8 raw( 0 to STAT_BUF_SIZE_ - 1 )
 	end type
 
 	extern "c"   '' NON-FBCALL: libc. `stat64` and not `stat`, for the same
 	             '' reason fs/fileops2.tiko gives -- plain `stat` is a macro whose
 	             '' expansion binds a different struct.
 		declare function u_stat alias "stat64" _
-			( byval path as zstring ptr, byval buf as STATBUF_ ptr ) as long
+			( byval path as zstring ptr, byval buf as STATBUF_ ptr ) as int32
 		declare function u_opendir alias "opendir" ( byval path as zstring ptr ) as any ptr
 		declare function u_readdir alias "readdir" ( byval d as any ptr ) as any ptr
-		declare function u_closedir alias "closedir" ( byval d as any ptr ) as long
-		declare function u_geteuid alias "geteuid" ( ) as ulong
-		declare function u_getegid alias "getegid" ( ) as ulong
+		declare function u_closedir alias "closedir" ( byval d as any ptr ) as int32
+		declare function u_geteuid alias "geteuid" ( ) as uint32
+		declare function u_getegid alias "getegid" ( ) as uint32
 	end extern
 
 #endif
@@ -263,12 +263,12 @@ end sub
 ''                    hidden rather than filtered -- see the file header.
 ''   0x04 system      a character device, block device, FIFO or socket.
 ''   0x10 directory / 0x20 archive, and exactly one of the two is always set.
-private function hGetAttrib( byval name_ as zstring ptr, byval info as STATBUF_ ptr ) as long
+private function hGetAttrib( byval name_ as zstring ptr, byval info as STATBUF_ ptr ) as int32
 
-	dim as long attrib = 0, mask = any
-	dim as ulong mode_ = *cptr( ulong ptr, @info->raw(STAT_MODE_) )
-	dim as ulong uid = *cptr( ulong ptr, @info->raw(STAT_UID_) )
-	dim as ulong gid = *cptr( ulong ptr, @info->raw(STAT_GID_) )
+	dim as int32 attrib = 0, mask = any
+	dim as uint32 mode_ = *cptr( uint32 ptr, @info->raw(STAT_MODE_) )
+	dim as uint32 uid = *cptr( uint32 ptr, @info->raw(STAT_UID_) )
+	dim as uint32 gid = *cptr( uint32 ptr, @info->raw(STAT_GID_) )
 
 	if( uid = u_geteuid( ) ) then
 		mask = S_IWUSR_
@@ -282,7 +282,7 @@ private function hGetAttrib( byval name_ as zstring ptr, byval info as STATBUF_ 
 
 	if( name_[0] = 46 ) then attrib or= &h2          '' '.'
 
-	dim as ulong fmt = mode_ and S_IFMT_
+	dim as uint32 fmt = mode_ and S_IFMT_
 	if( (fmt = S_IFCHR_) orelse (fmt = S_IFBLK_) orelse _
 	    (fmt = S_IFIFO_) orelse (fmt = S_IFSOCK_) ) then attrib or= &h4
 
@@ -308,12 +308,12 @@ end function
 '' the character as a NUMBER, and a letter is 0, so no wildcard ever matched --
 '' `dir( "*.dat" )` returned nothing on Linux while the exact-name path, which never
 '' comes here, worked. Windows globs in the CRT and never calls this.
-private function hMatchSpec( byval namez as zstring ptr ) as long
+private function hMatchSpec( byval namez as zstring ptr ) as int32
 
 	dim as FB_DIRCTX_ ptr ctx = TKORT_TLSGET_DIR( )
-	dim as ubyte ptr name_ = cptr( ubyte ptr, namez )
-	dim as ubyte ptr any_ = 0
-	dim as ubyte ptr spec = cptr( ubyte ptr, @ctx->filespec )
+	dim as uint8 ptr name_ = cptr( uint8 ptr, namez )
+	dim as uint8 ptr any_ = 0
+	dim as uint8 ptr spec = cptr( uint8 ptr, @ctx->filespec )
 
 	while( (spec[0] <> 0) orelse (name_[0] <> 0) )
 		select case spec[0]
@@ -352,7 +352,7 @@ end function
 
 '' ADVANCES TO THE NEXT MATCH, or closes the scan and returns NULL. The two
 '' platforms share only the shape.
-private function hFindNext( byval attrib as long ptr ) as zstring ptr
+private function hFindNext( byval attrib as int32 ptr ) as zstring ptr
 
 	dim as FB_DIRCTX_ ptr ctx = TKORT_TLSGET_DIR( )
 	dim as zstring ptr name_ = 0
@@ -380,7 +380,7 @@ private function hFindNext( byval attrib as long ptr ) as zstring ptr
 				hCloseDir( )
 				return 0
 			end if
-			name_ = cptr( zstring ptr, cptr( ubyte ptr, entry ) + DIRENT_NAME_ )
+			name_ = cptr( zstring ptr, cptr( uint8 ptr, entry ) + DIRENT_NAME_ )
 
 			'' THE FULL PATH IS REBUILT FOR EVERY ENTRY because readdir gives a
 			'' bare name and stat needs a path. Both concatenations are bounded
@@ -409,12 +409,12 @@ extern "rtlib"   '' FBCALL: fb_file.h decorates fb_Dir, and the win32 archive
                  '' spells it `_fb_Dir@12`.
 
 function tkort_Dir alias "fb_Dir" _
-	( byval filespec as FBSTRING ptr, byval attrib as long, _
-	  byval out_attrib as long ptr ) as FBSTRING ptr
+	( byval filespec as FBSTRING ptr, byval attrib as int32, _
+	  byval out_attrib as int32 ptr ) as FBSTRING ptr
 
 	dim as FBSTRING ptr res = any
 	dim as integer l = any
-	dim as long tmp_attrib = any
+	dim as int32 tmp_attrib = any
 	dim as zstring ptr name_ = 0
 
 	'' out_attrib IS OPTIONAL and is redirected at a local rather than tested

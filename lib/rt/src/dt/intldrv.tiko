@@ -72,7 +72,7 @@ extern "c"   '' NON-FBCALL: the string internals, declared plain in fb_string.h.
 	declare function tkrt_hStrAllocTemp_NoLock alias "fb_hStrAllocTemp_NoLock" _
 		( byval s as FBSTRING ptr, byval size_ as integer ) as FBSTRING ptr
 	declare function tkrt_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 	declare sub fb_StrLock alias "fb_StrLock" ( )
 	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
 end extern
@@ -113,17 +113,17 @@ end extern
 
 	extern "c"   '' NON-FBCALL: kernel32, `stdcall` per declaration.
 		declare function w_GetLocaleInfoA stdcall alias "GetLocaleInfoA" _
-			( byval lcid as ulong, byval lctype as ulong, _
-			  byval buf as zstring ptr, byval sz as long ) as long
-		declare function w_GetLastError stdcall alias "GetLastError" ( ) as ulong
-		declare function w_GetConsoleCP stdcall alias "GetConsoleCP" ( ) as ulong
+			( byval lcid as uint32, byval lctype as uint32, _
+			  byval buf as zstring ptr, byval sz as int32 ) as int32
+		declare function w_GetLastError stdcall alias "GetLastError" ( ) as uint32
+		declare function w_GetConsoleCP stdcall alias "GetConsoleCP" ( ) as uint32
 		declare function w_MultiByteToWideChar stdcall alias "MultiByteToWideChar" _
-			( byval cp as ulong, byval flags as ulong, byval src as zstring ptr, _
-			  byval srclen as long, byval dst as any ptr, byval dstlen as long ) as long
+			( byval cp as uint32, byval flags as uint32, byval src as zstring ptr, _
+			  byval srclen as int32, byval dst as any ptr, byval dstlen as int32 ) as int32
 		declare function w_WideCharToMultiByte stdcall alias "WideCharToMultiByte" _
-			( byval cp as ulong, byval flags as ulong, byval src as any ptr, _
-			  byval srclen as long, byval dst as zstring ptr, byval dstlen as long, _
-			  byval defchar as any ptr, byval useddef as any ptr ) as long
+			( byval cp as uint32, byval flags as uint32, byval src as any ptr, _
+			  byval srclen as int32, byval dst as zstring ptr, byval dstlen as int32, _
+			  byval defchar as any ptr, byval useddef as any ptr ) as int32
 	end extern
 
 #else
@@ -141,7 +141,7 @@ end extern
 	const NL_T_FMT     = 131114
 
 	extern "c"   '' NON-FBCALL: libc.
-		declare function u_nl_langinfo alias "nl_langinfo" ( byval item as long ) as zstring ptr
+		declare function u_nl_langinfo alias "nl_langinfo" ( byval item as int32 ) as zstring ptr
 	end extern
 
 #endif
@@ -155,7 +155,7 @@ extern "c"   '' NON-FBCALL: every driver is declared plain in fb_datetime.h and
 '' pszBuffer, and the loop's first allocation is 128 because `uiSize <<= 1`
 '' happens inside the realloc argument.
 function tkort_hGetLocaleInfo alias "fb_hGetLocaleInfo" _
-	( byval Locale as ulong, byval LCType as ulong, _
+	( byval Locale as uint32, byval LCType as uint32, _
 	  byval pszBuffer as zstring ptr, byval uiSize as uinteger ) as zstring ptr
 
 	if( uiSize = 0 ) then
@@ -172,7 +172,7 @@ function tkort_hGetLocaleInfo alias "fb_hGetLocaleInfo" _
 
 			'' ONE LESS THAN THE BUFFER, so a full answer still has room for the
 			'' terminator GetLocaleInfo writes.
-			if( w_GetLocaleInfoA( Locale, LCType, pszBuffer, cast( long, uiSize ) - 1 ) <> 0 ) then
+			if( w_GetLocaleInfoA( Locale, LCType, pszBuffer, cast( int32, uiSize ) - 1 ) <> 0 ) then
 				return pszBuffer
 			end if
 
@@ -187,7 +187,7 @@ function tkort_hGetLocaleInfo alias "fb_hGetLocaleInfo" _
 	else
 		'' AND HERE THE FULL SIZE IS PASSED, not one less -- the two modes differ
 		'' by a byte and fbc does not explain why.
-		if( w_GetLocaleInfoA( Locale, LCType, pszBuffer, cast( long, uiSize ) ) <> 0 ) then
+		if( w_GetLocaleInfoA( Locale, LCType, pszBuffer, cast( int32, uiSize ) ) <> 0 ) then
 			return pszBuffer
 		end if
 	end if
@@ -199,7 +199,7 @@ end function
 '' code-page-to-code-page conversion. Each half allocates a temp, deletes its
 '' input, and gives back the null descriptor on failure -- so the pair never
 '' returns NULL and never leaks the intermediate.
-private function hIntlConvertToWC( byval source as FBSTRING ptr, byval source_cp as ulong ) as FBSTRING ptr
+private function hIntlConvertToWC( byval source as FBSTRING ptr, byval source_cp as uint32 ) as FBSTRING ptr
 
 	dim as FBSTRING ptr res = any
 
@@ -207,7 +207,7 @@ private function hIntlConvertToWC( byval source as FBSTRING ptr, byval source_cp
 
 	'' A NULL destination ASKS FOR THE LENGTH; the same call with a buffer then
 	'' does the work.
-	dim as long CharsRequired = w_MultiByteToWideChar( source_cp, 0, source->data, _
+	dim as int32 CharsRequired = w_MultiByteToWideChar( source_cp, 0, source->data, _
 	                                                   FB_STRSIZE( source ), 0, 0 )
 
 	'' THE SIZE IS IN BYTES AND CARRIES ITS OWN TERMINATOR: (n+1) wide characters
@@ -219,7 +219,7 @@ private function hIntlConvertToWC( byval source as FBSTRING ptr, byval source_cp
 		                       res->data, CharsRequired )
 		'' THE WIDE TERMINATOR IS WRITTEN BY HAND -- MultiByteToWideChar does not
 		'' add one when it is given an explicit source length.
-		*cptr( ushort ptr, res->data + idx ) = 0
+		*cptr( uint16 ptr, res->data + idx ) = 0
 	else
 		res = TKORT_NULLSTR()
 	end if
@@ -231,7 +231,7 @@ private function hIntlConvertToWC( byval source as FBSTRING ptr, byval source_cp
 	return res
 end function
 
-private function hIntlConvertFromWC( byval source as FBSTRING ptr, byval dest_cp as ulong ) as FBSTRING ptr
+private function hIntlConvertFromWC( byval source as FBSTRING ptr, byval dest_cp as uint32 ) as FBSTRING ptr
 
 	dim as FBSTRING ptr res = any
 
@@ -239,7 +239,7 @@ private function hIntlConvertFromWC( byval source as FBSTRING ptr, byval dest_cp
 
 	'' THE SOURCE LENGTH IS IN CHARACTERS HERE, so the byte length is halved --
 	'' the one place the descriptor's byte count and the API's unit count differ.
-	dim as long CharsRequired = w_WideCharToMultiByte( dest_cp, 0, source->data, _
+	dim as int32 CharsRequired = w_WideCharToMultiByte( dest_cp, 0, source->data, _
 	                                                   FB_STRSIZE( source ) \ 2, 0, 0, 0, 0 )
 
 	res = tkrt_hStrAllocTemp_NoLock( 0, CharsRequired )
@@ -259,15 +259,15 @@ private function hIntlConvertFromWC( byval source as FBSTRING ptr, byval dest_cp
 end function
 
 function tkort_hIntlConvertString alias "fb_hIntlConvertString" _
-	( byval source as FBSTRING ptr, byval source_cp as long, byval dest_cp as long ) as FBSTRING ptr
+	( byval source as FBSTRING ptr, byval source_cp as int32, byval dest_cp as int32 ) as FBSTRING ptr
 
-	return hIntlConvertFromWC( hIntlConvertToWC( source, cast( ulong, source_cp ) ), _
-	                           cast( ulong, dest_cp ) )
+	return hIntlConvertFromWC( hIntlConvertToWC( source, cast( uint32, source_cp ) ), _
+	                           cast( uint32, dest_cp ) )
 end function
 
 '' The name lookup shared by the month and weekday drivers: read it in the ANSI
 '' code page, copy it into a temp, and re-encode into the console's code page.
-private function hLocaleName( byval lctype as ulong ) as FBSTRING ptr
+private function hLocaleName( byval lctype as uint32 ) as FBSTRING ptr
 
 	'' uiSize = 0, so this ALLOCATES and the buffer is ours to free.
 	dim as zstring ptr pszName = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, lctype, 0, 0 )
@@ -281,11 +281,11 @@ private function hLocaleName( byval lctype as ulong ) as FBSTRING ptr
 		'' than 0 -- so a console-less process converts to code page 0, which is
 		'' CP_ACP, which is where the name already was. Harmless, and
 		'' reproduced.
-		dim as ulong target_cp = w_GetConsoleCP( )
-		if( target_cp <> cast( ulong, -1 ) ) then
+		dim as uint32 target_cp = w_GetConsoleCP( )
+		if( target_cp <> cast( uint32, -1 ) ) then
 			'' THE TERMINATOR TRAVELS WITH IT: name_len + 1.
 			memcpy( result->data, pszName, name_len + 1 )
-			result = tkort_hIntlConvertString( result, CP_ACP_, cast( long, target_cp ) )
+			result = tkort_hIntlConvertString( result, CP_ACP_, cast( int32, target_cp ) )
 		end if
 	end if
 
@@ -302,14 +302,14 @@ end function
 '' numeric ones. So a French Windows reports "." as its date divider and a French
 '' Linux still reports "/" -- a real behavioural difference between the two
 '' platforms, not a bug in either.
-function tkort_DrvIntlGet alias "fb_DrvIntlGet" ( byval index_ as long ) as zstring ptr
+function tkort_DrvIntlGet alias "fb_DrvIntlGet" ( byval index_ as int32 ) as zstring ptr
 
 	#ifdef __FB_WIN32__
 		'' A FILE-STATIC BUFFER, so the answer survives only until the next call
 		'' -- and two threads asking at once overwrite each other. fbc's, and
 		'' the reason fb_IntlGet copies before it returns.
 		static as zstring * 128 buf
-		dim as ulong lctype = any
+		dim as uint32 lctype = any
 
 		select case index_
 		case eFIL_DateDivider           : lctype = LOCALE_SDATE_
@@ -339,12 +339,12 @@ end function
 '' THE MONTH TABLE IS JANUARY-FIRST ON BOTH and needs no rotation -- unlike the
 '' weekday one below.
 function tkort_DrvIntlGetMonthName alias "fb_DrvIntlGetMonthName" _
-	( byval month_ as long, byval short_names as long ) as FBSTRING ptr
+	( byval month_ as int32, byval short_names as int32 ) as FBSTRING ptr
 
 	if( (month_ < 1) orelse (month_ > 12) ) then return 0
 
 	#ifdef __FB_WIN32__
-		dim as ulong lctype = any
+		dim as uint32 lctype = any
 		if( short_names <> 0 ) then
 			lctype = LOCALE_SABBREVMONTHNAME1_ + month_ - 1
 		else
@@ -352,7 +352,7 @@ function tkort_DrvIntlGetMonthName alias "fb_DrvIntlGetMonthName" _
 		end if
 		return hLocaleName( lctype )
 	#else
-		dim as long item = any
+		dim as int32 item = any
 		if( short_names <> 0 ) then
 			item = NL_ABMON_1 + month_ - 1
 		else
@@ -376,7 +376,7 @@ end function
 '' already Sunday and subtracts 1. Off by one here shifts every name and every
 '' "did a name come back" test still passes.
 function tkort_DrvIntlGetWeekdayName alias "fb_DrvIntlGetWeekdayName" _
-	( byval weekday_ as long, byval short_names as long ) as FBSTRING ptr
+	( byval weekday_ as int32, byval short_names as int32 ) as FBSTRING ptr
 
 	if( (weekday_ < 1) orelse (weekday_ > 7) ) then return 0
 
@@ -384,7 +384,7 @@ function tkort_DrvIntlGetWeekdayName alias "fb_DrvIntlGetWeekdayName" _
 		'' SUNDAY WRAPS TO THE END of Windows' Monday-first table.
 		if( weekday_ = 1 ) then weekday_ = 8
 
-		dim as ulong lctype = any
+		dim as uint32 lctype = any
 		if( short_names <> 0 ) then
 			lctype = LOCALE_SABBREVDAYNAME1_ + weekday_ - 2
 		else
@@ -392,7 +392,7 @@ function tkort_DrvIntlGetWeekdayName alias "fb_DrvIntlGetWeekdayName" _
 		end if
 		return hLocaleName( lctype )
 	#else
-		dim as long item = any
+		dim as int32 item = any
 		if( short_names <> 0 ) then
 			item = NL_ABDAY_1 + weekday_ - 1
 		else
@@ -434,7 +434,7 @@ dim shared as zstring * 2 tkort_xlat_nl = chr( 10 )
 dim shared as zstring * 2 tkort_xlat_tab = chr( 9 )
 
 type XLAT_
-	as long do_esc, do_fmt
+	as int32 do_esc, do_fmt
 	as zstring ptr out
 	as integer remaining
 	as zstring * 2 one
@@ -444,7 +444,7 @@ end type
 '' buffer ALREADY DIRTY -- the writes that came before are not rolled back, and
 '' that is fbc's behaviour, not an oversight here.
 private function hXlatAdd( byval x as XLAT_ ptr, byval pszAdd as zstring ptr, _
-                           byval add_len as integer ) as long
+                           byval add_len as integer ) as int32
 	if( add_len = 0 ) then return 1
 	if( x->remaining < add_len ) then return 0
 	strcpy( x->out, pszAdd )
@@ -460,7 +460,7 @@ end function
 '' minute. A translator that preserved case would produce a format meaning
 '' something else entirely.
 function tkort_DrvIntlGetDateFormat alias "fb_DrvIntlGetDateFormat" _
-	( byval buffer as zstring ptr, byval len_ as uinteger ) as long
+	( byval buffer as zstring ptr, byval len_ as uinteger ) as int32
 
 	#ifdef __FB_WIN32__
 		'' THE PRIMARY PATH, and the only one that runs on any supported
@@ -498,12 +498,12 @@ function tkort_DrvIntlGetDateFormat alias "fb_DrvIntlGetDateFormat" _
 
 			if( achOrder[0] <> 0 ) then
 				dim as integer remaining = len_ - 1
-				dim as long day_lead_zero = ( atoi( pszDayZero ) <> 0 )
-				dim as long mon_lead_zero = ( atoi( pszMonZero ) <> 0 )
+				dim as int32 day_lead_zero = ( atoi( pszDayZero ) <> 0 )
+				dim as int32 mon_lead_zero = ( atoi( pszMonZero ) <> 0 )
 
 				for i as integer = 0 to 2
 					dim as zstring ptr pszAdd = 0
-					select case cast( long, achOrder[i] )
+					select case cast( int32, achOrder[i] )
 					case 109 : pszAdd = iif( mon_lead_zero, @"MM", @"M" )    '' 'm'
 					case 100 : pszAdd = iif( day_lead_zero, @"dd", @"d" )    '' 'd'
 					case 121 : pszAdd = @"yyyy"                              '' 'y'
@@ -537,7 +537,7 @@ function tkort_DrvIntlGetDateFormat alias "fb_DrvIntlGetDateFormat" _
 		x.one[0] = 0 : x.one[1] = 0
 
 		while( pszCurrent[0] <> 0 )
-			dim as ubyte ch = pszCurrent[0]
+			dim as uint8 ch = pszCurrent[0]
 			dim as zstring ptr pszAdd = 0
 			dim as integer add_len = 0
 
@@ -546,14 +546,14 @@ function tkort_DrvIntlGetDateFormat alias "fb_DrvIntlGetDateFormat" _
 				x.do_esc = 0
 				x.one[0] = ch : pszAdd = @x.one : add_len = 1
 			elseif( x.do_fmt <> 0 ) then
-				dim as long succeeded = 1
+				dim as int32 succeeded = 1
 				x.do_fmt = 0
 
 				'' NOTE THE CASE FLIP: strftime's lower-case m is the MONTH and VB's
 				'' upper-case M is, while lower-case m in VB is the MINUTE. A
 				'' translator that preserved case would produce a format meaning
 				'' something else entirely.
-				select case cast( long, ch )
+				select case cast( int32, ch )
 				case 110 : pszAdd = @tkort_xlat_nl  : add_len = 1     '' n
 				case 116 : pszAdd = @tkort_xlat_tab : add_len = 1     '' t
 				case 37  : pszAdd = @"%"          : add_len = 1     '' percent
@@ -574,7 +574,7 @@ function tkort_DrvIntlGetDateFormat alias "fb_DrvIntlGetDateFormat" _
 				'' returns TRUE. See the file header.
 				if( succeeded = 0 ) then exit while
 			else
-				select case cast( long, ch )
+				select case cast( int32, ch )
 				case 37 : x.do_fmt = 1                 '' percent
 				case 92 : x.do_esc = 1                 '' backslash
 				case else
@@ -591,7 +591,7 @@ function tkort_DrvIntlGetDateFormat alias "fb_DrvIntlGetDateFormat" _
 end function
 
 function tkort_DrvIntlGetTimeFormat alias "fb_DrvIntlGetTimeFormat" _
-	( byval buffer as zstring ptr, byval len_ as uinteger ) as long
+	( byval buffer as zstring ptr, byval len_ as uinteger ) as int32
 
 	#ifdef __FB_WIN32__
 		dim as zstring * 90 achFormat = any
@@ -613,8 +613,8 @@ function tkort_DrvIntlGetTimeFormat alias "fb_DrvIntlGetTimeFormat" _
 		dim as zstring ptr pszHourZero = tkort_hGetLocaleInfo( LOCALE_USER_DEFAULT_, LOCALE_ITLZERO_, @achHourZero, 8 )
 
 		dim as integer i = 0
-		dim as long use_timemark = ( (pszTimeMark <> 0) andalso (atoi( pszTimeMark ) = 1) )
-		dim as long timemark_prefix = ( (pszTimeMarkPos <> 0) andalso (atoi( pszTimeMarkPos ) = 1) )
+		dim as int32 use_timemark = ( (pszTimeMark <> 0) andalso (atoi( pszTimeMark ) = 1) )
+		dim as int32 timemark_prefix = ( (pszTimeMarkPos <> 0) andalso (atoi( pszTimeMarkPos ) = 1) )
 
 		if( use_timemark andalso timemark_prefix ) then
 			strcpy( @achFormat + i, @"AM/PM " )
@@ -654,7 +654,7 @@ function tkort_DrvIntlGetTimeFormat alias "fb_DrvIntlGetTimeFormat" _
 		x.one[0] = 0 : x.one[1] = 0
 
 		while( pszCurrent[0] <> 0 )
-			dim as ubyte ch = pszCurrent[0]
+			dim as uint8 ch = pszCurrent[0]
 			dim as zstring ptr pszAdd = 0
 			dim as integer add_len = 0
 
@@ -662,10 +662,10 @@ function tkort_DrvIntlGetTimeFormat alias "fb_DrvIntlGetTimeFormat" _
 				x.do_esc = 0
 				x.one[0] = ch : pszAdd = @x.one : add_len = 1
 			elseif( x.do_fmt <> 0 ) then
-				dim as long succeeded = 1
+				dim as int32 succeeded = 1
 				x.do_fmt = 0
 
-				select case cast( long, ch )
+				select case cast( int32, ch )
 				case 110 : pszAdd = @tkort_xlat_nl  : add_len = 1     '' n
 				case 116 : pszAdd = @tkort_xlat_tab : add_len = 1     '' t
 				case 37  : pszAdd = @"%"           : add_len = 1     '' percent
@@ -682,7 +682,7 @@ function tkort_DrvIntlGetTimeFormat alias "fb_DrvIntlGetTimeFormat" _
 
 				if( succeeded = 0 ) then exit while
 			else
-				select case cast( long, ch )
+				select case cast( int32, ch )
 				case 37 : x.do_fmt = 1
 				case 92 : x.do_esc = 1
 				case else

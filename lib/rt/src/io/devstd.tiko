@@ -60,29 +60,29 @@ const FB_FILE_ACCESS_WRITE     = 2
 const FB_FILE_ACCESS_READWRITE = 3
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 	declare function tkrt_ErrorThrowEx alias "fb_ErrorThrowEx" _
-		( byval errnum as long, byval linenum as long, byval fname as zstring ptr, _
+		( byval errnum as int32, byval linenum as int32, byval fname as zstring ptr, _
 		  byval res_label as any ptr, byval resnext_label as any ptr ) as any ptr
 end extern
 
 '' The FILE* device's hooks, which these three borrow wholesale for everything
 '' but close. All undecorated in fbc's win32 archive.
 extern "c"   '' NON-FBCALL: device hooks.
-	declare function tkrt_DevFileEof alias "fb_DevFileEof" ( byval h as FB_FILE ptr ) as long
+	declare function tkrt_DevFileEof alias "fb_DevFileEof" ( byval h as FB_FILE ptr ) as int32
 	declare function tkrt_DevFileRead alias "fb_DevFileRead" _
-		( byval h as FB_FILE ptr, byval v as any ptr, byval pl as uinteger ptr ) as long
+		( byval h as FB_FILE ptr, byval v as any ptr, byval pl as uinteger ptr ) as int32
 	declare function tkrt_DevFileReadWstr alias "fb_DevFileReadWstr" _
-		( byval h as FB_FILE ptr, byval d as wstring ptr, byval pc as uinteger ptr ) as long
+		( byval h as FB_FILE ptr, byval d as wstring ptr, byval pc as uinteger ptr ) as int32
 	declare function tkrt_DevFileWrite alias "fb_DevFileWrite" _
-		( byval h as FB_FILE ptr, byval v as any ptr, byval l as uinteger ) as long
+		( byval h as FB_FILE ptr, byval v as any ptr, byval l as uinteger ) as int32
 	declare function tkrt_DevFileWriteWstr alias "fb_DevFileWriteWstr" _
-		( byval h as FB_FILE ptr, byval v as wstring ptr, byval l as uinteger ) as long
+		( byval h as FB_FILE ptr, byval v as wstring ptr, byval l as uinteger ) as int32
 	declare function tkrt_DevFileReadLine alias "fb_DevFileReadLine" _
-		( byval h as FB_FILE ptr, byval d as FBSTRING ptr ) as long
+		( byval h as FB_FILE ptr, byval d as FBSTRING ptr ) as int32
 	declare function tkrt_DevFileReadLineWstr alias "fb_DevFileReadLineWstr" _
-		( byval h as FB_FILE ptr, byval d as wstring ptr, byval c as integer ) as long
-	declare function tkrt_DevFileFlush alias "fb_DevFileFlush" ( byval h as FB_FILE ptr ) as long
+		( byval h as FB_FILE ptr, byval d as wstring ptr, byval c as integer ) as int32
+	declare function tkrt_DevFileFlush alias "fb_DevFileFlush" ( byval h as FB_FILE ptr ) as int32
 end extern
 
 '' pclose. MinGW spells it with a leading underscore.
@@ -90,11 +90,11 @@ extern "c"   '' NON-FBCALL: CRT.
 	#ifdef __FB_WIN32__
 		declare function crt_popen alias "_popen" _
 			( byval cmd as zstring ptr, byval mode_ as zstring ptr ) as FILE ptr
-		declare function crt_pclose alias "_pclose" ( byval f as FILE ptr ) as long
+		declare function crt_pclose alias "_pclose" ( byval f as FILE ptr ) as int32
 	#else
 		declare function crt_popen alias "popen" _
 			( byval cmd as zstring ptr, byval mode_ as zstring ptr ) as FILE ptr
-		declare function crt_pclose alias "pclose" ( byval f as FILE ptr ) as long
+		declare function crt_pclose alias "pclose" ( byval f as FILE ptr ) as int32
 	#endif
 end extern
 
@@ -102,8 +102,8 @@ end extern
 '' io/devfile.tiko on why the declarations must be inside the block.
 extern "c"   '' NON-FBCALL: fb_device.h declares these without FBCALL.
 
-declare function tkort_DevStdIoClose alias "fb_DevStdIoClose" ( byval h as FB_FILE ptr ) as long
-declare function tkort_DevPipeClose alias "fb_DevPipeClose" ( byval h as FB_FILE ptr ) as long
+declare function tkort_DevStdIoClose alias "fb_DevStdIoClose" ( byval h as FB_FILE ptr ) as int32
+declare function tkort_DevPipeClose alias "fb_DevPipeClose" ( byval h as FB_FILE ptr ) as int32
 
 end extern
 
@@ -144,7 +144,7 @@ extern "c"   '' NON-FBCALL, as declared above.
 
 '' CLOSES NOTHING. The stream belongs to the process, so only the handle's
 '' reference to it is dropped -- see the file header.
-function tkort_DevStdIoClose alias "fb_DevStdIoClose" ( byval h as FB_FILE ptr ) as long
+function tkort_DevStdIoClose alias "fb_DevStdIoClose" ( byval h as FB_FILE ptr ) as int32
 	TKORT_IOLOCK()
 	h->opaque = 0
 	TKORT_IOUNLOCK()
@@ -153,7 +153,7 @@ end function
 
 '' pclose, NOT fclose -- a pipe owns its stream and its child process, and
 '' fclose would leak both.
-function tkort_DevPipeClose alias "fb_DevPipeClose" ( byval h as FB_FILE ptr ) as long
+function tkort_DevPipeClose alias "fb_DevPipeClose" ( byval h as FB_FILE ptr ) as int32
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
 	if( fp <> 0 ) then crt_pclose( fp )
@@ -167,7 +167,7 @@ end function
 '' THE MODE IS VALIDATED BEFORE THE LOCK IS TAKEN, and BINARY and RANDOM are
 '' rejected outright: a console stream has no record structure and no position.
 function tkort_DevConsOpen alias "fb_DevConsOpen" _
-	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval filename_len as uinteger ) as long
+	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval filename_len as uinteger ) as int32
 
 	select case h->mode
 	case FB_FILE_MODE_INPUT, FB_FILE_MODE_OUTPUT, FB_FILE_MODE_APPEND
@@ -199,9 +199,9 @@ end function
 '' written rather than simplified, since simplifying means choosing which of the
 '' two fbc meant.
 function tkort_DevErrOpen alias "fb_DevErrOpen" _
-	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval filename_len as uinteger ) as long
+	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval filename_len as uinteger ) as int32
 
-	dim as long res = tkrt_ErrorSetNum( FB_RTERROR_OK )
+	dim as int32 res = tkrt_ErrorSetNum( FB_RTERROR_OK )
 
 	TKORT_IOLOCK()
 
@@ -228,9 +228,9 @@ end function
 '' does not return. The handle comes back with a live child process AND an
 '' error, which is fbc's behaviour and is reproduced.
 function tkort_DevPipeOpen alias "fb_DevPipeOpen" _
-	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval filename_len as uinteger ) as long
+	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval filename_len as uinteger ) as int32
 
-	dim as long res = tkrt_ErrorSetNum( FB_RTERROR_OK )
+	dim as int32 res = tkrt_ErrorSetNum( FB_RTERROR_OK )
 	dim as FILE ptr fp = 0
 	dim as zstring * 16 openmask = any
 
@@ -284,7 +284,7 @@ extern "rtlib"
 '' NULL ON SUCCESS, and the thrown handler's answer on failure -- see the file
 '' header. fbc emits this inside an `if`, for the side effect.
 function tkort_NullPtrChk alias "fb_NullPtrChk" _
-	( byval p as any ptr, byval linenum as long, byval fname as zstring ptr ) as any ptr
+	( byval p as any ptr, byval linenum as int32, byval fname as zstring ptr ) as any ptr
 
 	if( p = 0 ) then
 		return tkrt_ErrorThrowEx( FB_RTERROR_NULLPTR, linenum, fname, 0, 0 )

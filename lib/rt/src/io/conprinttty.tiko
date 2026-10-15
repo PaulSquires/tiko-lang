@@ -27,7 +27,7 @@
 extern "c"   '' NON-FBCALL: fb_console.h declares both plainly.
 
 sub tkort_ConPrintRaw alias "fb_ConPrintRaw" _
-	( byval handle as fb_ConHooks ptr, byval pachText as ubyte ptr, byval textLength as uinteger )
+	( byval handle as fb_ConHooks ptr, byval pachText as uint8 ptr, byval textLength as uinteger )
 
 	dim as uinteger remaining = textLength
 
@@ -60,9 +60,9 @@ sub tkort_ConPrintRawWstr alias "fb_ConPrintRawWstr" _
 
 	dim as uinteger remaining = textLength
 	#if sizeof( wstring ) = 2
-		dim as ushort ptr p = cast( ushort ptr, pachText )
+		dim as uint16 ptr p = cast( uint16 ptr, pachText )
 	#else
-		dim as ulong ptr p = cast( ulong ptr, pachText )
+		dim as uint32 ptr p = cast( uint32 ptr, pachText )
 	#endif
 
 	while( remaining <> 0 )

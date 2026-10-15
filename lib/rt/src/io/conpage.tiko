@@ -38,7 +38,7 @@
 #include once "inc/sysbind.ti"
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as int32 ) as int32
 end extern
 
 #if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
@@ -57,9 +57,9 @@ const TKORT_CON_SETBYUSER = 64
 const TKORT_CON_OUTHANDLE = 8
 
 #define TKORT_CON_PAGE( i )  (*cptr( any ptr ptr, @__fb_con + TKORT_CON_PGTB + (i) * sizeof( any ptr ) ))
-#define TKORT_CON_ACTIVEPG() (*cptr( long ptr, @__fb_con + TKORT_CON_ACTIVE ))
-#define TKORT_CON_VISIBLEPG() (*cptr( long ptr, @__fb_con + TKORT_CON_VISIBLE ))
-#define TKORT_CON_SETBYUSERF() (*cptr( long ptr, @__fb_con + TKORT_CON_SETBYUSER ))
+#define TKORT_CON_ACTIVEPG() (*cptr( int32 ptr, @__fb_con + TKORT_CON_ACTIVE ))
+#define TKORT_CON_VISIBLEPG() (*cptr( int32 ptr, @__fb_con + TKORT_CON_VISIBLE ))
+#define TKORT_CON_SETBYUSERF() (*cptr( int32 ptr, @__fb_con + TKORT_CON_SETBYUSER ))
 #define TKORT_CON_OUT()      (*cptr( any ptr ptr, @__fb_con + TKORT_CON_OUTHANDLE ))
 
 const GENERIC_READ_  = &h80000000ul
@@ -68,18 +68,18 @@ const CONSOLE_TEXTMODE_BUFFER_ = 1
 
 extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
 	declare function w_CreateConsoleScreenBuffer stdcall alias "CreateConsoleScreenBuffer" _
-		( byval acc as ulong, byval share as ulong, byval sa as any ptr, _
-		  byval flags as ulong, byval reserved as any ptr ) as any ptr
+		( byval acc as uint32, byval share as uint32, byval sa as any ptr, _
+		  byval flags as uint32, byval reserved as any ptr ) as any ptr
 	declare function w_SetConsoleScreenBufferSize stdcall alias "SetConsoleScreenBufferSize" _
-		( byval h as any ptr, byval size_ as ulong ) as long
+		( byval h as any ptr, byval size_ as uint32 ) as int32
 	declare function w_SetConsoleActiveScreenBuffer stdcall alias "SetConsoleActiveScreenBuffer" _
-		( byval h as any ptr ) as long
+		( byval h as any ptr ) as int32
 	declare function w_SetConsoleWindowInfo stdcall alias "SetConsoleWindowInfo" _
-		( byval h as any ptr, byval absolute as long, byval rect as any ptr ) as long
+		( byval h as any ptr, byval absolute as int32, byval rect as any ptr ) as int32
 	declare function w_ReadConsoleOutputA stdcall alias "ReadConsoleOutputA" _
-		( byval h as any ptr, byval buf as any ptr, byval size_ as ulong, byval pos as ulong, byval region as any ptr ) as long
+		( byval h as any ptr, byval buf as any ptr, byval size_ as uint32, byval pos as uint32, byval region as any ptr ) as int32
 	declare function w_WriteConsoleOutputA stdcall alias "WriteConsoleOutputA" _
-		( byval h as any ptr, byval buf as any ptr, byval size_ as ulong, byval pos as ulong, byval region as any ptr ) as long
+		( byval h as any ptr, byval buf as any ptr, byval size_ as uint32, byval pos as uint32, byval region as any ptr ) as int32
 end extern
 
 '' The srWindow field of CONSOLE_SCREEN_BUFFER_INFO, which Read/WriteConsoleOutput
@@ -91,7 +91,7 @@ extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
 '' A new page, sized from stdout's buffer -- see the file header.
 function tkort_hConsoleCreateBuffer alias "fb_hConsoleCreateBuffer" ( ) as any ptr
 	dim as any ptr hnd = any
-	dim as ubyte csbi( 0 to CSBI_SIZE_ - 1 ) = any
+	dim as uint8 csbi( 0 to CSBI_SIZE_ - 1 ) = any
 
 	hnd = w_CreateConsoleScreenBuffer( GENERIC_READ_ or GENERIC_WRITE_, 0, 0, _
 	                                   CONSOLE_TEXTMODE_BUFFER_, 0 )
@@ -99,8 +99,8 @@ function tkort_hConsoleCreateBuffer alias "fb_hConsoleCreateBuffer" ( ) as any p
 
 	if( w_GetConsoleScreenBufferInfo( TKORT_CON_OUT(), @csbi(0) ) <> 0 ) then
 		w_SetConsoleScreenBufferSize( hnd, _
-			TKORT_COORD( *cptr( short ptr, @csbi(CSBI_DWSIZE_X_) ), _
-			             *cptr( short ptr, @csbi(CSBI_DWSIZE_Y_) ) ) )
+			TKORT_COORD( *cptr( int16 ptr, @csbi(CSBI_DWSIZE_X_) ), _
+			             *cptr( int16 ptr, @csbi(CSBI_DWSIZE_Y_) ) ) )
 	end if
 
 	return hnd
@@ -108,20 +108,20 @@ end function
 
 '' The cursor SIZE comes from stdout and only the VISIBILITY is applied, which is
 '' why this reads one handle and writes another.
-private sub hHideCursor( byval pg1 as long, byval pg2 as long )
-	dim as ubyte cci( 0 to CCI_SIZE_ - 1 )
+private sub hHideCursor( byval pg1 as int32, byval pg2 as int32 )
+	dim as uint8 cci( 0 to CCI_SIZE_ - 1 )
 
 	w_GetConsoleCursorInfo( TKORT_CON_OUT(), @cci(0) )
-	*cptr( long ptr, @cci(CCI_VISIBLE_) ) = 0
+	*cptr( int32 ptr, @cci(CCI_VISIBLE_) ) = 0
 
 	w_SetConsoleCursorInfo( TKORT_CON_PAGE( pg1 ), @cci(0) )
 	if( pg2 >= 0 ) then w_SetConsoleCursorInfo( TKORT_CON_PAGE( pg2 ), @cci(0) )
 end sub
 
 function tkort_ConsolePageSet alias "fb_ConsolePageSet" _
-	( byval active as long, byval visible as long ) as long
+	( byval active as int32, byval visible as int32 ) as int32
 
-	dim as long res = any
+	dim as int32 res = any
 	dim as any ptr hnd = any
 
 	'' Forces the lazy handle init, so the page table's slot 0 is stdout.
@@ -163,10 +163,10 @@ function tkort_ConsolePageSet alias "fb_ConsolePageSet" _
 	return res
 end function
 
-function tkort_ConsolePageCopy alias "fb_ConsolePageCopy" ( byval src as long, byval dst as long ) as long
+function tkort_ConsolePageCopy alias "fb_ConsolePageCopy" ( byval src as int32, byval dst as int32 ) as int32
 	dim as any ptr hnd = any, buff = any
-	dim as ubyte csbi( 0 to CSBI_SIZE_ - 1 ) = any
-	dim as long w = any, h = any
+	dim as uint8 csbi( 0 to CSBI_SIZE_ - 1 ) = any
+	dim as int32 w = any, h = any
 
 	tkrt_hConsoleGetHandle( 0 )
 
@@ -208,8 +208,8 @@ function tkort_ConsolePageCopy alias "fb_ConsolePageCopy" ( byval src as long, b
 		return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 	end if
 
-	w = *cptr( short ptr, @csbi(CSBI_DWSIZE_X_) )
-	h = *cptr( short ptr, @csbi(CSBI_DWSIZE_Y_) )
+	w = *cptr( int16 ptr, @csbi(CSBI_DWSIZE_X_) )
+	h = *cptr( int16 ptr, @csbi(CSBI_DWSIZE_Y_) )
 
 	buff = malloc( w * h * 4 )
 	if( buff = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
@@ -221,8 +221,8 @@ function tkort_ConsolePageCopy alias "fb_ConsolePageCopy" ( byval src as long, b
 
 	w_GetConsoleScreenBufferInfo( TKORT_CON_PAGE( dst ), @csbi(0) )
 	w_WriteConsoleOutputA( TKORT_CON_PAGE( dst ), buff, _
-	                       TKORT_COORD( *cptr( short ptr, @csbi(CSBI_DWSIZE_X_) ), _
-	                                    *cptr( short ptr, @csbi(CSBI_DWSIZE_Y_) ) ), _
+	                       TKORT_COORD( *cptr( int16 ptr, @csbi(CSBI_DWSIZE_X_) ), _
+	                                    *cptr( int16 ptr, @csbi(CSBI_DWSIZE_Y_) ) ), _
 	                       TKORT_COORD( 0, 0 ), @csbi(CSBI_SRWINDOW_) )
 	free( buff )
 
@@ -230,14 +230,14 @@ function tkort_ConsolePageCopy alias "fb_ConsolePageCopy" ( byval src as long, b
 end function
 
 '' WIDTH cols, rows -- query with no positive argument, resize with one.
-function tkort_ConsoleWidth alias "fb_ConsoleWidth" ( byval cols as long, byval rows as long ) as long
-	dim as ulong max_ = any
-	dim as long maxx = any, maxy = any
-	dim as long cur = any, do_change = 0, do_resize = 0
-	dim as long ncols = any, nrows = any
-	dim as long sx = any, sy = any
-	dim as short rect( 0 to 3 ) = any, rectres( 0 to 3 ) = any
-	dim as long i = any
+function tkort_ConsoleWidth alias "fb_ConsoleWidth" ( byval cols as int32, byval rows as int32 ) as int32
+	dim as uint32 max_ = any
+	dim as int32 maxx = any, maxy = any
+	dim as int32 cur = any, do_change = 0, do_resize = 0
+	dim as int32 ncols = any, nrows = any
+	dim as int32 sx = any, sy = any
+	dim as int16 rect( 0 to 3 ) = any, rectres( 0 to 3 ) = any
+	dim as int32 i = any
 
 	tkrt_InitConsoleWindow( )
 
@@ -245,8 +245,8 @@ function tkort_ConsoleWidth alias "fb_ConsoleWidth" ( byval cols as long, byval 
 	if( TKORT_CON_WINDOW_EMPTY() ) then return 0
 
 	max_ = w_GetLargestConsoleWindowSize( TKORT_OUT_HANDLE() )
-	maxx = cast( short, max_ and &hFFFF )
-	maxy = cast( short, (max_ shr 16) and &hFFFF )
+	maxx = cast( int16, max_ and &hFFFF )
+	maxy = cast( int16, (max_ shr 16) and &hFFFF )
 
 	tkrt_hConsoleGetWindow( 0, 0, @ncols, @nrows )
 
@@ -270,10 +270,10 @@ function tkort_ConsoleWidth alias "fb_ConsoleWidth" ( byval cols as long, byval 
 
 	rect(0) = 0                                  '' Left
 	rect(1) = 0                                  '' Top
-	rect(2) = cast( short, sx - 1 )              '' Right
-	if( rect(2) > maxx ) then rect(2) = cast( short, maxx )
-	rect(3) = cast( short, sy - 1 )              '' Bottom
-	if( rect(3) > maxy ) then rect(3) = cast( short, maxy )
+	rect(2) = cast( int16, sx - 1 )              '' Right
+	if( rect(2) > maxx ) then rect(2) = cast( int16, maxx )
+	rect(3) = cast( int16, sy - 1 )              '' Bottom
+	if( rect(3) > maxy ) then rect(3) = cast( int16, maxy )
 
 	'' SHRINK THE WINDOW BEFORE THE BUFFER. A window larger than the buffer it
 	'' looks at is rejected, so when either dimension is getting smaller the
@@ -281,12 +281,12 @@ function tkort_ConsoleWidth alias "fb_ConsoleWidth" ( byval cols as long, byval 
 	'' dimension that is NOT shrinking is clamped to the old size.
 	if( rect(3) < (nrows - 1) ) then
 		do_resize = 1
-		memcpy( @rectres(0), @rect(0), 4 * sizeof( short ) )
-		if( rectres(2) >= ncols ) then rectres(2) = cast( short, ncols - 1 )
+		memcpy( @rectres(0), @rect(0), 4 * sizeof( int16 ) )
+		if( rectres(2) >= ncols ) then rectres(2) = cast( int16, ncols - 1 )
 	elseif( rect(2) < (ncols - 1) ) then
 		do_resize = 1
-		memcpy( @rectres(0), @rect(0), 4 * sizeof( short ) )
-		if( rectres(3) >= nrows ) then rectres(3) = cast( short, nrows - 1 )
+		memcpy( @rectres(0), @rect(0), 4 * sizeof( int16 ) )
+		if( rectres(3) >= nrows ) then rectres(3) = cast( int16, nrows - 1 )
 	end if
 
 	if( do_resize <> 0 ) then
@@ -324,7 +324,7 @@ end extern
 
 '' Owned by tiko-rt already, in io/conattr.tiko.
 extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
-	declare sub tkrt_ConsoleClear alias "fb_ConsoleClear" ( byval mode_ as long )
+	declare sub tkrt_ConsoleClear alias "fb_ConsoleClear" ( byval mode_ as int32 )
 end extern
 
 extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive, so plain here.
@@ -332,18 +332,18 @@ extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive, so plain here.
 '' NO PAGES ON A TERMINAL -- see the file header. -1 is "cannot", not an error
 '' code, so SCREEN , pg, pg is usable as a capability test.
 function tkort_ConsolePageSet alias "fb_ConsolePageSet" _
-	( byval active as long, byval visible as long ) as long
-	scope : dim as long ua = active : dim as long uv = visible : end scope
+	( byval active as int32, byval visible as int32 ) as int32
+	scope : dim as int32 ua = active : dim as int32 uv = visible : end scope
 	return -1
 end function
 
-function tkort_ConsolePageCopy alias "fb_ConsolePageCopy" ( byval src as long, byval dst as long ) as long
-	scope : dim as long us = src : dim as long ud = dst : end scope
+function tkort_ConsolePageCopy alias "fb_ConsolePageCopy" ( byval src as int32, byval dst as int32 ) as int32
+	scope : dim as int32 us = src : dim as int32 ud = dst : end scope
 	return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 end function
 
-function tkort_ConsoleWidth alias "fb_ConsoleWidth" ( byval cols as long, byval rows as long ) as long
-	dim as long cur = any
+function tkort_ConsoleWidth alias "fb_ConsoleWidth" ( byval cols as int32, byval rows as int32 ) as int32
+	dim as int32 cur = any
 
 	'' 80x25 before the console is up, which is the same pair the Windows side
 	'' falls back to -- and NOT the 80x24 fb_ConsoleGetSize uses. The two
@@ -387,16 +387,16 @@ end extern
 '' Under the I/O lock, because fb_DevPrinterGetOffset walks the open-device list.
 
 extern "c"   '' NON-FBCALL: fbc's own printer device, in io_printer.o.
-	declare function tkrt_DevPrinterGetOffset alias "fb_DevPrinterGetOffset" ( byval dev as zstring ptr ) as long
+	declare function tkrt_DevPrinterGetOffset alias "fb_DevPrinterGetOffset" ( byval dev as zstring ptr ) as int32
 	declare function tkrt_sprintf2 alias "sprintf" _
-		( byval buf as zstring ptr, byval fmt as zstring ptr, ... ) as long
+		( byval buf as zstring ptr, byval fmt as zstring ptr, ... ) as int32
 end extern
 
 extern "rtlib"
 
-function tkort_LPos alias "fb_LPos" ( byval printer_index as long ) as long
+function tkort_LPos alias "fb_LPos" ( byval printer_index as int32 ) as int32
 	dim as zstring * 32 buffer = any
-	dim as long cur = any
+	dim as int32 cur = any
 
 	TKORT_IOLOCK()
 

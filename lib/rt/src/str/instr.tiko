@@ -30,7 +30,7 @@
 
 extern "rtlib"
 	declare function tkrt_DelTempNoLock alias "fb_hStrDelTemp_NoLock" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 	declare sub fb_StrLock alias "fb_StrLock" ( )
 	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
 end extern
@@ -49,8 +49,8 @@ extern "rtlib"
 private function hFindBM _
 	( _
 		byval start as integer, _
-		byval text_ as ubyte ptr, byval len_text as integer, _
-		byval patt as ubyte ptr, byval len_patt as integer _
+		byval text_ as uint8 ptr, byval len_text as integer, _
+		byval patt as uint8 ptr, byval len_patt as integer _
 	) as integer
 
 	dim as integer len_max = len_text - len_patt
@@ -88,7 +88,7 @@ private function hFindBM _
 	i = len_patt : j = len_patt + 1
 	suffixes[i] = j
 	while( i <> 0 )
-		dim as ubyte ch1 = patt[i - 1]
+		dim as uint8 ch1 = patt[i - 1]
 		while( (j <= len_patt) andalso (ch1 <> patt[j - 1]) )
 			if( bm_gc[j] = 0 ) then bm_gc[j] = j - i
 			j = suffixes[j]
@@ -119,7 +119,7 @@ private function hFindBM _
 			exit while
 		end if
 
-		dim as ubyte chText = text_[i + j - 1]
+		dim as uint8 chText = text_[i + j - 1]
 		dim as integer shift_gc = bm_gc[j]
 		dim as integer shift_bc = j - 1 - bm_bc( chText )
 		if( shift_gc > shift_bc ) then i += shift_gc else i += shift_bc
@@ -161,16 +161,16 @@ function tkort_StrInstr alias "fb_StrInstr" _
 		elseif( size_patt = 1 ) then
 			'' One character: memchr, not Boyer-Moore.
 			dim as any ptr hit = memchr( src->data + start - 1, _
-			                             cptr( ubyte ptr, patt->data )[0], _
+			                             cptr( uint8 ptr, patt->data )[0], _
 			                             size_src - start + 1 )
 			if( hit = 0 ) then
 				r = 0
 			else
-				r = cast( integer, cast( ubyte ptr, hit ) - cptr( ubyte ptr, src->data ) ) + 1
+				r = cast( integer, cast( uint8 ptr, hit ) - cptr( uint8 ptr, src->data ) ) + 1
 			end if
 		else
-			r = hFindBM( start - 1, cptr( ubyte ptr, src->data ), size_src, _
-			                        cptr( ubyte ptr, patt->data ), size_patt )
+			r = hFindBM( start - 1, cptr( uint8 ptr, src->data ), size_src, _
+			                        cptr( uint8 ptr, patt->data ), size_patt )
 		end if
 	end if
 

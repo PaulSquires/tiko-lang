@@ -29,7 +29,7 @@
 
 extern "c"   '' NON-FBCALL: fb_error.h declares the thrower plain.
 	declare function tkrt_ErrorThrowMsg alias "fb_ErrorThrowMsg" _
-		( byval err_num as long, byval line_num as long, byval mod_name as zstring ptr, _
+		( byval err_num as int32, byval line_num as int32, byval mod_name as zstring ptr, _
 		  byval msg as zstring ptr, byval res_label as any ptr, _
 		  byval resnext_label as any ptr ) as FB_ERRHANDLER
 end extern
@@ -37,9 +37,9 @@ end extern
 '' The three messages, assembled in the order fbc assembles them: a leading
 '' newline, then either the variable's name in quotes or the bare word "array",
 '' then the complaint.
-private function hThrowError( byval errnum as long, byval idx as longint, _
-                              byval lbound_ as longint, byval ubound_ as longint, _
-                              byval linenum as long, byval filename as zstring ptr, _
+private function hThrowError( byval errnum as int32, byval idx as int64, _
+                              byval lbound_ as int64, byval ubound_ as int64, _
+                              byval linenum as int32, byval filename as zstring ptr, _
                               byval variablename as zstring ptr ) as any ptr
 
 	'' integer, not long: it is a byte offset into the message buffer, and
@@ -81,7 +81,7 @@ extern "rtlib"
 '' reports WRONGDIMENSIONS. The NULL-descriptor case takes the first path, not
 '' a crash.
 function tkort_ArrayDimensionChk alias "fb_ArrayDimensionChk" _
-	( byval dimensions as integer, byval array_ as FBARRAY ptr, byval linenum as long, _
+	( byval dimensions as integer, byval array_ as FBARRAY ptr, byval linenum as int32, _
 	  byval filename as zstring ptr, byval variablename as zstring ptr ) as any ptr
 
 	if( array_ = 0 ) then
@@ -101,7 +101,7 @@ end function
 
 function tkort_ArrayBoundChkEx alias "fb_ArrayBoundChkEx" _
 	( byval idx as integer, byval lbound_ as integer, byval ubound_ as integer, _
-	  byval linenum as long, byval filename as zstring ptr, _
+	  byval linenum as int32, byval filename as zstring ptr, _
 	  byval variablename as zstring ptr ) as any ptr
 
 	if( (idx < lbound_) orelse (idx > ubound_) ) then
@@ -113,7 +113,7 @@ end function
 
 '' UNSIGNED idx and ubound -- see the header. One comparison catches both ends.
 function tkort_ArraySngBoundChkEx alias "fb_ArraySngBoundChkEx" _
-	( byval idx as uinteger, byval ubound_ as uinteger, byval linenum as long, _
+	( byval idx as uinteger, byval ubound_ as uinteger, byval linenum as int32, _
 	  byval filename as zstring ptr, byval variablename as zstring ptr ) as any ptr
 
 	if( idx > ubound_ ) then
@@ -129,12 +129,12 @@ end function
 '' version of newer fbc sources.
 function tkort_ArrayBoundChk alias "fb_ArrayBoundChk" _
 	( byval idx as integer, byval lbound_ as integer, byval ubound_ as integer, _
-	  byval linenum as long, byval filename as zstring ptr ) as any ptr
+	  byval linenum as int32, byval filename as zstring ptr ) as any ptr
 	return tkort_ArrayBoundChkEx( idx, lbound_, ubound_, linenum, filename, 0 )
 end function
 
 function tkort_ArraySngBoundChk alias "fb_ArraySngBoundChk" _
-	( byval idx as uinteger, byval ubound_ as uinteger, byval linenum as long, _
+	( byval idx as uinteger, byval ubound_ as uinteger, byval linenum as int32, _
 	  byval filename as zstring ptr ) as any ptr
 	return tkort_ArraySngBoundChkEx( idx, ubound_, linenum, filename, 0 )
 end function

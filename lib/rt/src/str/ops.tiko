@@ -48,8 +48,8 @@ extern "rtlib"
 	declare sub fb_hStrCopy alias "fb_hStrCopy" _
 		( byval dst as zstring ptr, byval src as zstring ptr, byval bytes as integer )
 	declare function tkrt_Utf16ToUtf8 alias "fb_hUtf16ToUtf8" _
-		( byval src as ushort ptr, byval src_units as integer, _
-		  byval dst as ubyte ptr, byval dst_bytes as integer ) as integer
+		( byval src as uint16 ptr, byval src_units as integer, _
+		  byval dst as uint8 ptr, byval dst_bytes as integer ) as integer
 end extern
 
 '' ---------------------------------------------- the byte instantiation
@@ -59,13 +59,13 @@ end extern
 '' ustr/ops.tiko will include the same file with 16-bit definitions.
 
 #define SOP( n )       hb_##n
-#define SOP_UNIT       ubyte
+#define SOP_UNIT       uint8
 
 '' ASCII fold, one unit in and one unit out -- so a fold never changes a length
 '' and every offset stays valid. A STRING is a byte buffer with no declared
 '' encoding, so folding above 127 would be guessing at a codepage.
-#define SOP_FOLD( c )   cast( ubyte, iif( ((c) >= 97) andalso ((c) <= 122), (c) - 32, (c) ) )
-#define SOP_LOWER( c )  cast( ubyte, iif( ((c) >= 65) andalso ((c) <= 90), (c) + 32, (c) ) )
+#define SOP_FOLD( c )   cast( uint8, iif( ((c) >= 97) andalso ((c) <= 122), (c) - 32, (c) ) )
+#define SOP_LOWER( c )  cast( uint8, iif( ((c) >= 65) andalso ((c) <= 90), (c) + 32, (c) ) )
 
 '' A word character for title case: ASCII alphanumerics PLUS everything >= 0x80.
 '' In a UTF-8 STRING those are the lead and continuation bytes of a letter, so
@@ -99,7 +99,7 @@ end extern
 ''
 '' A NULL descriptor and one with a NULL data pointer both mean the empty string.
 private sub hStrArg _
-	( byval s as FBSTRING ptr, byval ptr_ as ubyte ptr ptr, byval length as integer ptr )
+	( byval s as FBSTRING ptr, byval ptr_ as uint8 ptr ptr, byval length as integer ptr )
 
 	if( s = 0 ) then
 		*ptr_ = 0 : *length = 0
@@ -110,7 +110,7 @@ private sub hStrArg _
 		exit sub
 	end if
 
-	*ptr_ = cptr( ubyte ptr, s->data )
+	*ptr_ = cptr( uint8 ptr, s->data )
 	'' FB_STRSIZE, never ->len raw: the temp flag lives in the sign bit, so a
 	'' temporary read raw comes back hugely negative and the string looks empty.
 	*length = FB_STRSIZE( s )
@@ -135,10 +135,10 @@ end sub
 const HPAT_STACK = 128
 
 type HPAT
-	as ubyte ptr  ptr_
+	as uint8 ptr  ptr_
 	as integer    length
-	as ubyte ptr  heap        '' non-NULL only when the stack buffer was too small
-	as ubyte      buf(0 to HPAT_STACK - 1)
+	as uint8 ptr  heap        '' non-NULL only when the stack buffer was too small
+	as uint8      buf(0 to HPAT_STACK - 1)
 end type
 
 private sub hPatArg( byval pat as FBUSTRING ptr, byval p as HPAT ptr )
@@ -151,7 +151,7 @@ private sub hPatArg( byval pat as FBUSTRING ptr, byval p as HPAT ptr )
 	if( pat->data = 0 ) then exit sub
 	if( FB_USTRSIZE( pat ) <= 0 ) then exit sub
 
-	dim as ushort ptr up = pat->data
+	dim as uint16 ptr up = pat->data
 	dim as integer ulen = FB_USTRSIZE( pat )
 
 	dim as integer nbytes = tkrt_Utf16ToUtf8( up, ulen, 0, 0 )
@@ -181,7 +181,7 @@ end sub
 
 '' A temporary holding one run of the source.
 private function hStrTempFrom _
-	( byval src as ubyte ptr, byval n as integer ) as FBSTRING ptr
+	( byval src as uint8 ptr, byval n as integer ) as FBSTRING ptr
 
 	if( n <= 0 ) then return TKORT_NULLSTR( )
 
@@ -200,8 +200,8 @@ end function
 '' Two runs joined -- for DeleteAt, which keeps the text either side of the cut.
 private function hStrTempFrom2 _
 	( _
-		byval a as ubyte ptr, byval alen as integer, _
-		byval b as ubyte ptr, byval blen as integer _
+		byval a as uint8 ptr, byval alen as integer, _
+		byval b as uint8 ptr, byval blen as integer _
 	) as FBSTRING ptr
 
 	dim as integer n = alen + blen
@@ -239,9 +239,9 @@ end function
 extern "rtlib"
 
 function tkort_StrTally alias "fb_StrTally" _
-	( byval s as FBSTRING ptr, byval pat as FBUSTRING ptr, byval ic as long ) as integer
+	( byval s as FBSTRING ptr, byval pat as FBUSTRING ptr, byval ic as int32 ) as integer
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any
 	dim as HPAT p
 
@@ -256,9 +256,9 @@ function tkort_StrTally alias "fb_StrTally" _
 end function
 
 function tkort_StrTallyChars alias "fb_StrTallyChars" _
-	( byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as long ) as integer
+	( byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as integer
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any
 	dim as HPAT p
 
@@ -273,11 +273,11 @@ function tkort_StrTallyChars alias "fb_StrTallyChars" _
 end function
 
 function tkort_StrInstrChars alias "fb_StrInstrChars" _
-	( byval start as integer, byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as long ) as integer
+	( byval start as integer, byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as integer
 
 	if( start < 1 ) then return 0
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any
 	dim as HPAT p
 
@@ -293,11 +293,11 @@ function tkort_StrInstrChars alias "fb_StrInstrChars" _
 end function
 
 function tkort_StrVerifySet alias "fb_StrVerifySet" _
-	( byval start as integer, byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as long ) as integer
+	( byval start as integer, byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as integer
 
 	if( start < 1 ) then return 0
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any
 	dim as HPAT p
 
@@ -313,11 +313,11 @@ function tkort_StrVerifySet alias "fb_StrVerifySet" _
 end function
 
 function tkort_StrSpanOf alias "fb_StrSpanOf" _
-	( byval start as integer, byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as long ) as integer
+	( byval start as integer, byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as integer
 
 	if( start < 1 ) then return 0
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any
 	dim as HPAT p
 
@@ -332,16 +332,16 @@ function tkort_StrSpanOf alias "fb_StrSpanOf" _
 end function
 
 function tkort_StrStartsWith alias "fb_StrStartsWith" _
-	( byval s as FBSTRING ptr, byval pre as FBUSTRING ptr, byval ic as long ) as long
+	( byval s as FBSTRING ptr, byval pre as FBUSTRING ptr, byval ic as int32 ) as int32
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any
 	dim as HPAT p
 
 	hStrArg( s, @sp, @sl )
 	hPatArg( pre, @p )
 
-	dim as long r = SOP(hStartsWith)( sp, sl, p.ptr_, p.length, ic )
+	dim as int32 r = SOP(hStartsWith)( sp, sl, p.ptr_, p.length, ic )
 
 	hPatRel( @p )
 	return r
@@ -349,16 +349,16 @@ function tkort_StrStartsWith alias "fb_StrStartsWith" _
 end function
 
 function tkort_StrEndsWith alias "fb_StrEndsWith" _
-	( byval s as FBSTRING ptr, byval suf as FBUSTRING ptr, byval ic as long ) as long
+	( byval s as FBSTRING ptr, byval suf as FBUSTRING ptr, byval ic as int32 ) as int32
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any
 	dim as HPAT p
 
 	hStrArg( s, @sp, @sl )
 	hPatArg( suf, @p )
 
-	dim as long r = SOP(hEndsWith)( sp, sl, p.ptr_, p.length, ic )
+	dim as int32 r = SOP(hEndsWith)( sp, sl, p.ptr_, p.length, ic )
 
 	hPatRel( @p )
 	return r
@@ -369,16 +369,16 @@ end function
 '' empty string, so this special-cases an empty pattern instead of letting SOP(hFind)
 '' answer -1 for it.
 function tkort_StrContains alias "fb_StrContains" _
-	( byval s as FBSTRING ptr, byval pat as FBUSTRING ptr, byval ic as long ) as long
+	( byval s as FBSTRING ptr, byval pat as FBUSTRING ptr, byval ic as int32 ) as int32
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any
 	dim as HPAT p
 
 	hStrArg( s, @sp, @sl )
 	hPatArg( pat, @p )
 
-	dim as long r = any
+	dim as int32 r = any
 	if( p.length <= 0 ) then
 		r = 1
 	else
@@ -390,15 +390,15 @@ function tkort_StrContains alias "fb_StrContains" _
 
 end function
 
-function tkort_StrIsNumeric alias "fb_StrIsNumeric" ( byval s as FBSTRING ptr ) as long
-	dim as ubyte ptr sp = any
+function tkort_StrIsNumeric alias "fb_StrIsNumeric" ( byval s as FBSTRING ptr ) as int32
+	dim as uint8 ptr sp = any
 	dim as integer sl = any
 	hStrArg( s, @sp, @sl )
 	return SOP(hIsNumeric)( sp, sl )
 end function
 
-function tkort_StrIsBlank alias "fb_StrIsBlank" ( byval s as FBSTRING ptr ) as long
-	dim as ubyte ptr sp = any
+function tkort_StrIsBlank alias "fb_StrIsBlank" ( byval s as FBSTRING ptr ) as int32
+	dim as uint8 ptr sp = any
 	dim as integer sl = any
 	hStrArg( s, @sp, @sl )
 	return SOP(hIsBlank)( sp, sl )
@@ -418,11 +418,11 @@ end extern
 extern "rtlib"
 
 function tkort_StrExtract alias "fb_StrExtract" _
-	( byval start as integer, byval s as FBSTRING ptr, byval pat as FBUSTRING ptr, byval ic as long ) as FBSTRING ptr
+	( byval start as integer, byval s as FBSTRING ptr, byval pat as FBUSTRING ptr, byval ic as int32 ) as FBSTRING ptr
 
 	if( start < 1 ) then return TKORT_NULLSTR( )
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any, off = any, cnt = any
 	dim as HPAT p
 
@@ -438,11 +438,11 @@ function tkort_StrExtract alias "fb_StrExtract" _
 end function
 
 function tkort_StrExtractChars alias "fb_StrExtractChars" _
-	( byval start as integer, byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as long ) as FBSTRING ptr
+	( byval start as integer, byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as FBSTRING ptr
 
 	if( start < 1 ) then return TKORT_NULLSTR( )
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any, off = any, cnt = any
 	dim as HPAT p
 
@@ -460,11 +460,11 @@ end function
 '' NOTE THE ARGUMENT ORDER: Remain takes ( s, pat, start ) where Extract takes
 '' ( start, s, pat ). Not a transcription slip -- fbc's declarations differ.
 function tkort_StrRemain alias "fb_StrRemain" _
-	( byval s as FBSTRING ptr, byval pat as FBUSTRING ptr, byval start as integer, byval ic as long ) as FBSTRING ptr
+	( byval s as FBSTRING ptr, byval pat as FBUSTRING ptr, byval start as integer, byval ic as int32 ) as FBSTRING ptr
 
 	if( start < 1 ) then return TKORT_NULLSTR( )
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any, off = any, cnt = any
 	dim as HPAT p
 
@@ -480,11 +480,11 @@ function tkort_StrRemain alias "fb_StrRemain" _
 end function
 
 function tkort_StrRemainChars alias "fb_StrRemainChars" _
-	( byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval start as integer, byval ic as long ) as FBSTRING ptr
+	( byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval start as integer, byval ic as int32 ) as FBSTRING ptr
 
 	if( start < 1 ) then return TKORT_NULLSTR( )
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any, off = any, cnt = any
 	dim as HPAT p
 
@@ -502,12 +502,12 @@ end function
 function tkort_StrBetween alias "fb_StrBetween" _
 	( _
 		byval s as FBSTRING ptr, byval d1 as FBUSTRING ptr, byval d2 as FBUSTRING ptr, _
-		byval start as integer, byval ic as long _
+		byval start as integer, byval ic as int32 _
 	) as FBSTRING ptr
 
 	if( start < 1 ) then return TKORT_NULLSTR( )
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any, off = any, cnt = any
 	dim as HPAT p1, p2
 
@@ -527,7 +527,7 @@ end function
 function tkort_StrClipLeft alias "fb_StrClipLeft" _
 	( byval s as FBSTRING ptr, byval n as integer ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any, off = any, cnt = any
 
 	hStrArg( s, @sp, @sl )
@@ -540,7 +540,7 @@ end function
 function tkort_StrClipRight alias "fb_StrClipRight" _
 	( byval s as FBSTRING ptr, byval n as integer ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any, off = any, cnt = any
 
 	hStrArg( s, @sp, @sl )
@@ -559,7 +559,7 @@ extern "rtlib"
 function tkort_StrDeleteAt alias "fb_StrDeleteAt" _
 	( byval s as FBSTRING ptr, byval start as integer, byval count as integer ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any, coff = any, clen = any
 
 	hStrArg( s, @sp, @sl )
@@ -575,7 +575,7 @@ end function
 function tkort_StrInsertAt alias "fb_StrInsertAt" _
 	( byval s as FBSTRING ptr, byval ins as FBUSTRING ptr, byval pos_ as integer ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any
 
 	hStrArg( s, @sp, @sl )
@@ -621,7 +621,7 @@ end extern
 
 '' Allocate a temp of exactly n and hand back its buffer, or NULL.
 private function hStrTempAlloc _
-	( byval n as integer, byval outbuf as ubyte ptr ptr ) as FBSTRING ptr
+	( byval n as integer, byval outbuf as uint8 ptr ptr ) as FBSTRING ptr
 
 	*outbuf = 0
 
@@ -630,7 +630,7 @@ private function hStrTempAlloc _
 	dim as FBSTRING ptr dst = fb_hStrAllocTemp( 0, n )
 	if( dst = 0 ) then return TKORT_NULLSTR( )
 
-	*outbuf = cptr( ubyte ptr, dst->data )
+	*outbuf = cptr( uint8 ptr, dst->data )
 	return dst
 
 end function
@@ -649,9 +649,9 @@ extern "rtlib"
 '' The size is EXACT rather than an estimate: SOP(hTally) walks with the same loop
 '' SOP(hReplaceFill) does, so the two agree by construction.
 function tkort_StrReplace alias "fb_StrReplace" _
-	( byval s as FBSTRING ptr, byval pat as FBUSTRING ptr, byval rep as FBUSTRING ptr, byval ic as long ) as FBSTRING ptr
+	( byval s as FBSTRING ptr, byval pat as FBUSTRING ptr, byval rep as FBUSTRING ptr, byval ic as int32 ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any, outbuf = any
+	dim as uint8 ptr sp = any, outbuf = any
 	dim as integer sl = any
 	dim as HPAT p, r
 
@@ -677,9 +677,9 @@ end function
 '' Remove is Replace with an empty replacement -- literally: it calls the same
 '' fill with a NULL replacement pointer.
 function tkort_StrRemove alias "fb_StrRemove" _
-	( byval s as FBSTRING ptr, byval pat as FBUSTRING ptr, byval ic as long ) as FBSTRING ptr
+	( byval s as FBSTRING ptr, byval pat as FBUSTRING ptr, byval ic as int32 ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any, outbuf = any
+	dim as uint8 ptr sp = any, outbuf = any
 	dim as integer sl = any
 	dim as HPAT p
 
@@ -701,9 +701,9 @@ function tkort_StrRemove alias "fb_StrRemove" _
 end function
 
 function tkort_StrRemoveChars alias "fb_StrRemoveChars" _
-	( byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as long ) as FBSTRING ptr
+	( byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any, outbuf = any
+	dim as uint8 ptr sp = any, outbuf = any
 	dim as integer sl = any
 	dim as HPAT p
 
@@ -722,9 +722,9 @@ function tkort_StrRemoveChars alias "fb_StrRemoveChars" _
 end function
 
 function tkort_StrRetainChars alias "fb_StrRetainChars" _
-	( byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as long ) as FBSTRING ptr
+	( byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any, outbuf = any
+	dim as uint8 ptr sp = any, outbuf = any
 	dim as integer sl = any
 	dim as HPAT p
 
@@ -751,9 +751,9 @@ extern "rtlib"
 '' two or more bytes and has no one-byte form -- and this is a one-for-one
 '' substitution, so there is nothing sensible to substitute.
 function tkort_StrReplaceChars alias "fb_StrReplaceChars" _
-	( byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval wth as FBUSTRING ptr, byval ic as long ) as FBSTRING ptr
+	( byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval wth as FBUSTRING ptr, byval ic as int32 ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any, outbuf = any
+	dim as uint8 ptr sp = any, outbuf = any
 	dim as integer sl = any
 	dim as HPAT p, r
 
@@ -780,7 +780,7 @@ end function
 
 function tkort_StrReverse alias "fb_StrReverse" ( byval s as FBSTRING ptr ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any, outbuf = any
+	dim as uint8 ptr sp = any, outbuf = any
 	dim as integer sl = any
 
 	hStrArg( s, @sp, @sl )
@@ -798,7 +798,7 @@ end function
 function tkort_StrRepeat alias "fb_StrRepeat" _
 	( byval count as integer, byval s as FBSTRING ptr ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any, outbuf = any
+	dim as uint8 ptr sp = any, outbuf = any
 	dim as integer sl = any
 
 	hStrArg( s, @sp, @sl )
@@ -822,7 +822,7 @@ end function
 function tkort_StrShrink alias "fb_StrShrink" _
 	( byval s as FBSTRING ptr, byval mask as FBUSTRING ptr ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any, outbuf = any
+	dim as uint8 ptr sp = any, outbuf = any
 	dim as integer sl = any
 	dim as HPAT p
 
@@ -842,7 +842,7 @@ end function
 
 function tkort_StrMCase alias "fb_StrMCase" ( byval s as FBSTRING ptr ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any, outbuf = any
+	dim as uint8 ptr sp = any, outbuf = any
 	dim as integer sl = any
 
 	hStrArg( s, @sp, @sl )
@@ -860,10 +860,10 @@ end function
 function tkort_StrRemoveBetween alias "fb_StrRemoveBetween" _
 	( _
 		byval s as FBSTRING ptr, byval d1 as FBUSTRING ptr, byval d2 as FBUSTRING ptr, _
-		byval removeAll as long, byval start as integer, byval ic as long _
+		byval removeAll as int32, byval start as integer, byval ic as int32 _
 	) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any, outbuf = any
+	dim as uint8 ptr sp = any, outbuf = any
 	dim as integer sl = any
 
 	hStrArg( s, @sp, @sl )
@@ -896,15 +896,15 @@ end extern
 '' to UTF-8 first -- and a non-ASCII pad is two or more bytes with no one-byte
 '' form, so A SPACE IS USED rather than writing a lone lead byte. An empty pad
 '' is a space for the same reason.
-private function hStrPadUnit( byval p as HPAT ptr ) as ubyte
+private function hStrPadUnit( byval p as HPAT ptr ) as uint8
 	if( p->length = 1 ) then return p->ptr_[0]
 	return 32
 end function
 
 private function hStrPad _
-	( byval s as FBSTRING ptr, byval fieldw as integer, byval pad as FBUSTRING ptr, byval mode as long ) as FBSTRING ptr
+	( byval s as FBSTRING ptr, byval fieldw as integer, byval pad as FBUSTRING ptr, byval mode as int32 ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any, outbuf = any
+	dim as uint8 ptr sp = any, outbuf = any
 	dim as integer sl = any
 	dim as HPAT p
 
@@ -945,7 +945,7 @@ end function
 function tkort_StrWrap alias "fb_StrWrap" _
 	( byval s as FBSTRING ptr, byval op as FBUSTRING ptr, byval cl as FBUSTRING ptr ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any, outbuf = any
+	dim as uint8 ptr sp = any, outbuf = any
 	dim as integer sl = any
 	dim as HPAT a, b
 
@@ -953,7 +953,7 @@ function tkort_StrWrap alias "fb_StrWrap" _
 	hPatArg( op, @a )
 	hPatArg( cl, @b )
 
-	dim as ubyte ptr clp = any
+	dim as uint8 ptr clp = any
 	dim as integer cll = any
 	if( b.length > 0 ) then
 		clp = b.ptr_ : cll = b.length
@@ -977,9 +977,9 @@ function tkort_StrWrap alias "fb_StrWrap" _
 end function
 
 function tkort_StrUnwrap alias "fb_StrUnwrap" _
-	( byval s as FBSTRING ptr, byval op as FBUSTRING ptr, byval cl as FBUSTRING ptr, byval ic as long ) as FBSTRING ptr
+	( byval s as FBSTRING ptr, byval op as FBUSTRING ptr, byval cl as FBUSTRING ptr, byval ic as int32 ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any, off = any, cnt = any
 	dim as HPAT a, b
 
@@ -987,7 +987,7 @@ function tkort_StrUnwrap alias "fb_StrUnwrap" _
 	hPatArg( op, @a )
 	hPatArg( cl, @b )
 
-	dim as ubyte ptr clp = any
+	dim as uint8 ptr clp = any
 	dim as integer cll = any
 	if( b.length > 0 ) then
 		clp = b.ptr_ : cll = b.length
@@ -1008,7 +1008,7 @@ end function
 '' Unescape can only shrink, so one pass into a buffer of slen is enough.
 function tkort_StrEscape alias "fb_StrEscape" ( byval s as FBSTRING ptr ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any, outbuf = any
+	dim as uint8 ptr sp = any, outbuf = any
 	dim as integer sl = any
 
 	hStrArg( s, @sp, @sl )
@@ -1026,7 +1026,7 @@ end function
 
 function tkort_StrUnescape alias "fb_StrUnescape" ( byval s as FBSTRING ptr ) as FBSTRING ptr
 
-	dim as ubyte ptr sp = any, outbuf = any
+	dim as uint8 ptr sp = any, outbuf = any
 	dim as integer sl = any
 
 	hStrArg( s, @sp, @sl )
@@ -1045,11 +1045,11 @@ end function
 '' passes rather than the O(n^2) rescan a per-field accessor would force.
 function tkort_StrSplitSpans alias "fb_StrSplitSpans" _
 	( _
-		byval s as FBSTRING ptr, byval delim as FBUSTRING ptr, byval ic as long, _
+		byval s as FBSTRING ptr, byval delim as FBUSTRING ptr, byval ic as int32, _
 		byval spans as integer ptr, byval maxpairs as integer _
 	) as integer
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any
 	dim as HPAT p
 
@@ -1065,11 +1065,11 @@ end function
 
 function tkort_StrSplitCharsSpans alias "fb_StrSplitCharsSpans" _
 	( _
-		byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as long, _
+		byval s as FBSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32, _
 		byval spans as integer ptr, byval maxpairs as integer _
 	) as integer
 
-	dim as ubyte ptr sp = any
+	dim as uint8 ptr sp = any
 	dim as integer sl = any
 	dim as HPAT p
 

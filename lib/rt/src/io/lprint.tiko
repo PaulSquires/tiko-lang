@@ -32,20 +32,20 @@
 
 extern "rtlib"
 	'' fbc's own: file_openlpt.o.
-	declare function tkrt_LPrintInit alias "fb_LPrintInit" ( ) as long
+	declare function tkrt_LPrintInit alias "fb_LPrintInit" ( ) as int32
 
 	'' tiko-rt's own, in io/print.tiko, io/print_wstr.tiko and io/printusg.tiko.
 	declare sub tkrt_PrintStringEx alias "fb_PrintStringEx" _
-		( byval h as FB_FILE ptr, byval s as FBSTRING ptr, byval mask as long )
+		( byval h as FB_FILE ptr, byval s as FBSTRING ptr, byval mask as int32 )
 	declare sub tkrt_PrintFixStringEx alias "fb_PrintFixStringEx" _
-		( byval h as FB_FILE ptr, byval s as zstring ptr, byval mask as long )
-	declare sub tkrt_PrintVoidEx alias "fb_PrintVoidEx" ( byval h as FB_FILE ptr, byval mask as long )
+		( byval h as FB_FILE ptr, byval s as zstring ptr, byval mask as int32 )
+	declare sub tkrt_PrintVoidEx alias "fb_PrintVoidEx" ( byval h as FB_FILE ptr, byval mask as int32 )
 	declare sub tkrt_PrintWstrEx alias "fb_PrintWstrEx" _
-		( byval h as FB_FILE ptr, byval s as wstring ptr, byval mask as long )
+		( byval h as FB_FILE ptr, byval s as wstring ptr, byval mask as int32 )
 	declare sub tkrt_PrintFixString alias "fb_PrintFixString" _
-		( byval fnum as long, byval s as zstring ptr, byval mask as long )
-	declare function tkrt_PrintUsingInit alias "fb_PrintUsingInit" ( byval fmtstr as FBSTRING ptr ) as long
-	declare sub tkrt_PrintPadEx alias "fb_PrintPadEx" ( byval h as FB_FILE ptr, byval mask as long )
+		( byval fnum as int32, byval s as zstring ptr, byval mask as int32 )
+	declare function tkrt_PrintUsingInit alias "fb_PrintUsingInit" ( byval fmtstr as FBSTRING ptr ) as int32
+	declare sub tkrt_PrintPadEx alias "fb_PrintPadEx" ( byval h as FB_FILE ptr, byval mask as int32 )
 end extern
 
 '' fb_hFloat2Str's ADDBLANK flag, the leading space a positive number carries.
@@ -53,10 +53,10 @@ const TKORT_F2A_ADDBLANK = 1
 
 extern "c"   '' NON-FBCALL: internal formatting helpers, declared plain.
 	declare function tkrt_sprintf alias "sprintf" _
-		( byval buf as zstring ptr, byval fmt as zstring ptr, ... ) as long
+		( byval buf as zstring ptr, byval fmt as zstring ptr, ... ) as int32
 	declare function tkrt_Float2Str alias "fb_hFloat2Str" _
-		( byval v as double, byval buf as zstring ptr, byval digits as long, byval mask as long ) as zstring ptr
-	declare function tkrt_hBoolToStr alias "fb_hBoolToStr" ( byval n as byte ) as zstring ptr
+		( byval v as float64, byval buf as zstring ptr, byval digits as int32, byval mask as int32 ) as zstring ptr
+	declare function tkrt_hBoolToStr alias "fb_hBoolToStr" ( byval n as int8 ) as zstring ptr
 	'' fb_hFilePrintBufferEx, NOT fb_PrintBufferEx. The two exist and both link:
 	'' the first writes to a FILE handle and the second to the CONSOLE buffer. The
 	'' wrong one was aliased here first, and the numeric LPRINTs went to the
@@ -64,12 +64,12 @@ extern "c"   '' NON-FBCALL: internal formatting helpers, declared plain.
 	'' which is the only thing that could have caught it, since both names are
 	'' real and the program links either way.
 	declare function tkrt_PrintBufferEx alias "fb_hFilePrintBufferEx" _
-		( byval h as FB_FILE ptr, byval s as zstring ptr, byval len_ as uinteger ) as long
+		( byval h as FB_FILE ptr, byval s as zstring ptr, byval len_ as uinteger ) as int32
 end extern
 
 '' NEWLINE -> BIN_NEWLINE. A printer channel is binary, so the CR LF is the
 '' runtime's job.
-private function hBinNewline( byval mask as long ) as long
+private function hBinNewline( byval mask as int32 ) as int32
 	if( (mask and FB_PRINT_NEWLINE) <> 0 ) then
 		return (mask and (not FB_PRINT_NEWLINE)) or FB_PRINT_BIN_NEWLINE
 	end if
@@ -84,7 +84,7 @@ end function
 #macro LPRINTNUM( fnum, val, mask, fmt )
 	scope
 		dim as zstring * 80 buffer
-		dim as long n = any
+		dim as int32 n = any
 		dim as FB_FILE ptr __h = TKORT_FILE_TO_HANDLE( fnum )
 		if( ((mask) and FB_PRINT_APPEND_SPACE) <> 0 ) then
 			if( ((mask) and FB_PRINT_BIN_NEWLINE) <> 0 ) then
@@ -111,24 +111,24 @@ extern "rtlib"
 '' ------------------------------------------------------------------ strings
 
 sub tkort_LPrintString alias "fb_LPrintString" _
-	( byval fnum as long, byval s as FBSTRING ptr, byval mask as long )
+	( byval fnum as int32, byval s as FBSTRING ptr, byval mask as int32 )
 	tkrt_LPrintInit( )
 	tkrt_PrintStringEx( TKORT_FILE_TO_HANDLE( fnum ), s, hBinNewline( mask ) )
 end sub
 
 sub tkort_LPrintFixString alias "fb_LPrintFixString" _
-	( byval fnum as long, byval s as zstring ptr, byval mask as long )
+	( byval fnum as int32, byval s as zstring ptr, byval mask as int32 )
 	tkrt_LPrintInit( )
 	tkrt_PrintFixStringEx( TKORT_FILE_TO_HANDLE( fnum ), s, hBinNewline( mask ) )
 end sub
 
 sub tkort_LPrintWstr alias "fb_LPrintWstr" _
-	( byval fnum as long, byval s as wstring ptr, byval mask as long )
+	( byval fnum as int32, byval s as wstring ptr, byval mask as int32 )
 	tkrt_LPrintInit( )
 	tkrt_PrintWstrEx( TKORT_FILE_TO_HANDLE( fnum ), s, hBinNewline( mask ) )
 end sub
 
-sub tkort_LPrintVoid alias "fb_LPrintVoid" ( byval fnum as long, byval mask as long )
+sub tkort_LPrintVoid alias "fb_LPrintVoid" ( byval fnum as int32, byval mask as int32 )
 	tkrt_LPrintInit( )
 	tkrt_PrintVoidEx( TKORT_FILE_TO_HANDLE( fnum ), hBinNewline( mask ) )
 end sub
@@ -141,56 +141,56 @@ end sub
 '' different place.
 
 sub tkort_LPrintInt alias "fb_LPrintInt" _
-	( byval fnum as long, byval v as long, byval mask as long )
+	( byval fnum as int32, byval v as int32, byval mask as int32 )
 	tkrt_LPrintInit( )
 	mask = hBinNewline( mask )
 	LPRINTNUM( fnum, v, mask, "% d" )
 end sub
 
 sub tkort_LPrintUInt alias "fb_LPrintUInt" _
-	( byval fnum as long, byval v as ulong, byval mask as long )
+	( byval fnum as int32, byval v as uint32, byval mask as int32 )
 	tkrt_LPrintInit( )
 	mask = hBinNewline( mask )
 	LPRINTNUM( fnum, v, mask, "%u" )
 end sub
 
 sub tkort_LPrintShort alias "fb_LPrintShort" _
-	( byval fnum as long, byval v as short, byval mask as long )
+	( byval fnum as int32, byval v as int16, byval mask as int32 )
 	tkrt_LPrintInit( )
 	mask = hBinNewline( mask )
-	LPRINTNUM( fnum, cast( long, v ), mask, "% d" )
+	LPRINTNUM( fnum, cast( int32, v ), mask, "% d" )
 end sub
 
 sub tkort_LPrintUShort alias "fb_LPrintUShort" _
-	( byval fnum as long, byval v as ushort, byval mask as long )
+	( byval fnum as int32, byval v as uint16, byval mask as int32 )
 	tkrt_LPrintInit( )
 	mask = hBinNewline( mask )
-	LPRINTNUM( fnum, cast( ulong, v ), mask, "%u" )
+	LPRINTNUM( fnum, cast( uint32, v ), mask, "%u" )
 end sub
 
 sub tkort_LPrintByte alias "fb_LPrintByte" _
-	( byval fnum as long, byval v as byte, byval mask as long )
+	( byval fnum as int32, byval v as int8, byval mask as int32 )
 	tkrt_LPrintInit( )
 	mask = hBinNewline( mask )
-	LPRINTNUM( fnum, cast( long, v ), mask, "% d" )
+	LPRINTNUM( fnum, cast( int32, v ), mask, "% d" )
 end sub
 
 sub tkort_LPrintUByte alias "fb_LPrintUByte" _
-	( byval fnum as long, byval v as ubyte, byval mask as long )
+	( byval fnum as int32, byval v as uint8, byval mask as int32 )
 	tkrt_LPrintInit( )
 	mask = hBinNewline( mask )
-	LPRINTNUM( fnum, cast( ulong, v ), mask, "%u" )
+	LPRINTNUM( fnum, cast( uint32, v ), mask, "%u" )
 end sub
 
 sub tkort_LPrintLongint alias "fb_LPrintLongint" _
-	( byval fnum as long, byval v as longint, byval mask as long )
+	( byval fnum as int32, byval v as int64, byval mask as int32 )
 	tkrt_LPrintInit( )
 	mask = hBinNewline( mask )
 	LPRINTNUM( fnum, v, mask, "% lld" )
 end sub
 
 sub tkort_LPrintULongint alias "fb_LPrintULongint" _
-	( byval fnum as long, byval v as ulongint, byval mask as long )
+	( byval fnum as int32, byval v as uint64, byval mask as int32 )
 	tkrt_LPrintInit( )
 	mask = hBinNewline( mask )
 	LPRINTNUM( fnum, v, mask, "%llu" )
@@ -199,7 +199,7 @@ end sub
 '' A BOOLEAN PRINTS AS A WORD, not as a number: "true" or "false" through
 '' fb_hBoolToStr, formatted with "%s".
 sub tkort_LPrintBool alias "fb_LPrintBool" _
-	( byval fnum as long, byval v as byte, byval mask as long )
+	( byval fnum as int32, byval v as int8, byval mask as int32 )
 	tkrt_LPrintInit( )
 	mask = hBinNewline( mask )
 	LPRINTNUM( fnum, tkrt_hBoolToStr( v ), mask, "%s" )
@@ -215,15 +215,15 @@ end sub
 '' TKORT_F2A_ADDBLANK is the leading space, the same one "% d" carries for integers.
 
 sub tkort_LPrintSingle alias "fb_LPrintSingle" _
-	( byval fnum as long, byval v as single, byval mask as long )
+	( byval fnum as int32, byval v as float32, byval mask as int32 )
 	dim as zstring * (8 + 1 + 9 + 1) buffer = any
 	tkrt_LPrintInit( )
-	tkrt_PrintFixString( fnum, tkrt_Float2Str( cast( double, v ), @buffer, 7, TKORT_F2A_ADDBLANK ), _
+	tkrt_PrintFixString( fnum, tkrt_Float2Str( cast( float64, v ), @buffer, 7, TKORT_F2A_ADDBLANK ), _
 	                     hBinNewline( mask ) )
 end sub
 
 sub tkort_LPrintDouble alias "fb_LPrintDouble" _
-	( byval fnum as long, byval v as double, byval mask as long )
+	( byval fnum as int32, byval v as float64, byval mask as int32 )
 	dim as zstring * (16 + 1 + 9 + 1) buffer = any
 	tkrt_LPrintInit( )
 	tkrt_PrintFixString( fnum, tkrt_Float2Str( v, @buffer, 16, TKORT_F2A_ADDBLANK ), _
@@ -237,8 +237,8 @@ end sub
 '' nothing; USING has to report, because its return value is what the compiler
 '' tests before emitting the rest of the statement.
 
-function tkort_LPrintUsingInit alias "fb_LPrintUsingInit" ( byval fmtstr as FBSTRING ptr ) as long
-	dim as long res = tkrt_LPrintInit( )
+function tkort_LPrintUsingInit alias "fb_LPrintUsingInit" ( byval fmtstr as FBSTRING ptr ) as int32
+	dim as int32 res = tkrt_LPrintInit( )
 	if( res <> FB_RTERROR_OK ) then return res
 	return tkrt_PrintUsingInit( fmtstr )
 end function

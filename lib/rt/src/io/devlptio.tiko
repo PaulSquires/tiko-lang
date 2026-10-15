@@ -44,7 +44,7 @@
 type DEV_LPT_INFO
 	as any ptr      driver_opaque
 	as zstring ptr  pszDevice
-	as long         iPort
+	as int32         iPort
 	as uinteger     uiRefCount     '' size_t: pointer-width
 end type
 
@@ -52,25 +52,25 @@ extern "c"   '' NON-FBCALL: the printer driver is fbc's and fb_printer.h
              '' declares all four plainly -- the win32 archive confirms no `@N`
              '' on any of them.
 	declare function tkrt_PrinterWrite alias "fb_PrinterWrite" _
-		( byval devInfo as DEV_LPT_INFO ptr, byval data_ as any ptr, byval length_ as uinteger ) as long
+		( byval devInfo as DEV_LPT_INFO ptr, byval data_ as any ptr, byval length_ as uinteger ) as int32
 	declare function tkrt_PrinterWriteWstr alias "fb_PrinterWriteWstr" _
-		( byval devInfo as DEV_LPT_INFO ptr, byval data_ as wstring ptr, byval length_ as uinteger ) as long
+		( byval devInfo as DEV_LPT_INFO ptr, byval data_ as wstring ptr, byval length_ as uinteger ) as int32
 	declare function tkrt_PrinterClose alias "fb_PrinterClose" _
-		( byval devInfo as DEV_LPT_INFO ptr ) as long
+		( byval devInfo as DEV_LPT_INFO ptr ) as int32
 end extern
 
 extern "rtlib"   '' FBCALL: fb_ErrorSetNum is decorated.
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: fb_printer.h declares these three plainly too, and
              '' the win32 archive spells them without `@N`.
 
 function tkort_DevLptWrite alias "fb_DevLptWrite" _
-	( byval handle as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as long
+	( byval handle as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as int32
 
 	TKORT_IOLOCK()
-	dim as long res = tkrt_PrinterWrite( cptr( DEV_LPT_INFO ptr, handle->opaque ), value, valuelen )
+	dim as int32 res = tkrt_PrinterWrite( cptr( DEV_LPT_INFO ptr, handle->opaque ), value, valuelen )
 	TKORT_IOUNLOCK()
 
 	return res
@@ -80,10 +80,10 @@ end function
 '' the narrow one -- the printer decides how to encode, because a PostScript
 '' driver and a raw text driver want different things.
 function tkort_DevLptWriteWstr alias "fb_DevLptWriteWstr" _
-	( byval handle as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as long
+	( byval handle as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as int32
 
 	TKORT_IOLOCK()
-	dim as long res = tkrt_PrinterWriteWstr( cptr( DEV_LPT_INFO ptr, handle->opaque ), value, valuelen )
+	dim as int32 res = tkrt_PrinterWriteWstr( cptr( DEV_LPT_INFO ptr, handle->opaque ), value, valuelen )
 	TKORT_IOUNLOCK()
 
 	return res
@@ -91,9 +91,9 @@ end function
 
 '' REFERENCE-COUNTED -- see the file header. Only the last close shuts the device
 '' down, and only a successful shutdown frees.
-function tkort_DevLptClose alias "fb_DevLptClose" ( byval handle as FB_FILE ptr ) as long
+function tkort_DevLptClose alias "fb_DevLptClose" ( byval handle as FB_FILE ptr ) as int32
 
-	dim as long res = any
+	dim as int32 res = any
 
 	TKORT_IOLOCK()
 

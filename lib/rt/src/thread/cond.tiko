@@ -41,8 +41,8 @@ const TKORT_COND_BROADCAST = 1
 '' than a union: the two arms are never both live, and FBCOND is entirely
 '' private to this file -- nothing outside it knows the layout.
 type FBCOND
-	as long    waiters_count
-	as ubyte   waiters_count_lock( 0 to TKORT_CRITSEC_SIZE - 1 )
+	as int32    waiters_count
+	as uint8   waiters_count_lock( 0 to TKORT_CRITSEC_SIZE - 1 )
 
 	'' 9x: event(SIGNAL) is auto-reset, event(BROADCAST) is manual-reset, and
 	'' they are adjacent because WaitForMultipleObjects takes an array.
@@ -51,15 +51,15 @@ type FBCOND
 	'' nt
 	as any ptr sema
 	as any ptr waiters_done
-	as long    was_broadcast
+	as int32    was_broadcast
 end type
 
 type SIGNALOBJECTANDWAIT as function stdcall _
-	( byval a as any ptr, byval b as any ptr, byval ms as ulong, byval alertable as long ) as ulong
+	( byval a as any ptr, byval b as any ptr, byval ms as uint32, byval alertable as int32 ) as uint32
 
 dim shared as SIGNALOBJECTANDWAIT tkort_pSignalObjectAndWait
-dim shared as long tkort_condInited
-dim shared as long tkort_condUseNT
+dim shared as int32 tkort_condInited
+dim shared as int32 tkort_condUseNT
 
 '' The one-time probe. Guarded by the runtime's own MT lock, which lives in
 '' fbc's hinit.o -- so two threads racing into fb_CondCreate cannot both probe.
@@ -135,7 +135,7 @@ sub tkort_CondDestroy alias "fb_CondDestroy" ( byval c as FBCOND ptr )
 end sub
 
 sub tkort_CondSignal alias "fb_CondSignal" ( byval c as FBCOND ptr )
-	dim as long has_waiters = any
+	dim as int32 has_waiters = any
 
 	if( c = 0 ) then exit sub
 
@@ -153,7 +153,7 @@ sub tkort_CondSignal alias "fb_CondSignal" ( byval c as FBCOND ptr )
 end sub
 
 sub tkort_CondBroadcast alias "fb_CondBroadcast" ( byval c as FBCOND ptr )
-	dim as long has_waiters = any
+	dim as int32 has_waiters = any
 
 	if( c = 0 ) then exit sub
 
@@ -182,8 +182,8 @@ sub tkort_CondBroadcast alias "fb_CondBroadcast" ( byval c as FBCOND ptr )
 end sub
 
 sub tkort_CondWait alias "fb_CondWait" ( byval c as FBCOND ptr, byval m as FBMUTEX ptr )
-	dim as long last_waiter = any
-	dim as ulong result = any
+	dim as int32 last_waiter = any
+	dim as uint32 result = any
 
 	if( c = 0 ) then exit sub
 	if( m = 0 ) then exit sub
@@ -235,7 +235,7 @@ end extern
 '' pthread has the primitive, so this is a wrapper and nothing more.
 
 type FBCOND
-	as ubyte id( 0 to TKORT_PTHREAD_COND_SIZE - 1 )
+	as uint8 id( 0 to TKORT_PTHREAD_COND_SIZE - 1 )
 end type
 
 extern "rtlib"

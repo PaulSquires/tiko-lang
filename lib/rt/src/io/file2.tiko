@@ -38,12 +38,12 @@ const FB_FILE_ENCOD_ASCII = 0
 
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 	declare sub tkrt_FileReset alias "fb_FileReset" ( )
 end extern
 
 extern "c"   '' NON-FBCALL: an *Ex form and two libc calls.
-	declare function tkrt_FileTellEx alias "fb_FileTellEx" ( byval h as FB_FILE ptr ) as longint
+	declare function tkrt_FileTellEx alias "fb_FileTellEx" ( byval h as FB_FILE ptr ) as int64
 	'' The 64-bit seek/tell pair. Not in fbc's crt bindings under these names on
 	'' every target, so they are declared here with local aliases.
 '' _fseeki64 / _ftelli64 ON THE MICROSOFT ABI. There is no fseeko in the UCRT:
@@ -52,19 +52,19 @@ extern "c"   '' NON-FBCALL: an *Ex form and two libc calls.
 '' from build.sh -- see src/sys/sys.ti for why fbc cannot tell us itself.
 #ifdef TKORT_MSVC
 	declare function tkrt_fseeko cdecl alias "_fseeki64" _
-		( byval f as FILE ptr, byval off as longint, byval whence as long ) as long
-	declare function tkrt_ftello cdecl alias "_ftelli64" ( byval f as FILE ptr ) as longint
+		( byval f as FILE ptr, byval off as int64, byval whence as int32 ) as int32
+	declare function tkrt_ftello cdecl alias "_ftelli64" ( byval f as FILE ptr ) as int64
 #else
 	declare function tkrt_fseeko cdecl alias "fseeko" _
-		( byval f as FILE ptr, byval off as longint, byval whence as long ) as long
-	declare function tkrt_ftello cdecl alias "ftello" ( byval f as FILE ptr ) as longint
+		( byval f as FILE ptr, byval off as int64, byval whence as int32 ) as int32
+	declare function tkrt_ftello cdecl alias "ftello" ( byval f as FILE ptr ) as int64
 #endif
 end extern
 
 extern "c"   '' NON-FBCALL: the *Ex forms take a handle.
 
 '' Every path that cannot answer says TRUE.
-function tkort_FileEofEx alias "fb_FileEofEx" ( byval h as FB_FILE ptr ) as long
+function tkort_FileEofEx alias "fb_FileEofEx" ( byval h as FB_FILE ptr ) as int32
 
 	if( TKORT_HANDLE_USED( h ) = 0 ) then return FB_TRUE
 
@@ -86,7 +86,7 @@ function tkort_FileEofEx alias "fb_FileEofEx" ( byval h as FB_FILE ptr ) as long
 		return FB_FALSE
 	end if
 
-	dim as long res = h->hooks->pfnEof( h )
+	dim as int32 res = h->hooks->pfnEof( h )
 
 	IOUNLOCK()
 	return res
@@ -95,13 +95,13 @@ end function
 
 '' LOC goes through TELL and then UNDOES its 1-based conversion, so the two are
 '' not independent -- a change to TELL's arithmetic moves LOC with it.
-function tkort_FileLocationEx alias "fb_FileLocationEx" ( byval h as FB_FILE ptr ) as longint
+function tkort_FileLocationEx alias "fb_FileLocationEx" ( byval h as FB_FILE ptr ) as int64
 
 	if( TKORT_HANDLE_USED( h ) = 0 ) then return 0
 
 	IOLOCK()
 
-	dim as longint pos_ = tkrt_FileTellEx( h )
+	dim as int64 pos_ = tkrt_FileTellEx( h )
 	if( pos_ <> 0 ) then
 		pos_ -= 1
 		'' THE QB QUIRK: sequential modes report 128-byte blocks.
@@ -117,7 +117,7 @@ end function
 
 '' The handle is ZEROED after the hook succeeds, which is what makes
 '' FB_HANDLE_USED false for it afterwards and what FREEFILE looks for.
-function tkort_FileCloseEx alias "fb_FileCloseEx" ( byval h as FB_FILE ptr ) as long
+function tkort_FileCloseEx alias "fb_FileCloseEx" ( byval h as FB_FILE ptr ) as int32
 
 	IOLOCK()
 
@@ -126,7 +126,7 @@ function tkort_FileCloseEx alias "fb_FileCloseEx" ( byval h as FB_FILE ptr ) as 
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
-	dim as long result = h->hooks->pfnClose( h )
+	dim as int32 result = h->hooks->pfnClose( h )
 	if( result <> 0 ) then
 		IOUNLOCK()
 		return result
@@ -151,7 +151,7 @@ extern "c"   '' NON-FBCALL: the *Ex form takes a handle.
 '' chars * sizeof( wstring ) -- which means UNGET twice on a wide file already
 '' overflows a four-byte buffer on Linux, where a wchar is four bytes.
 function tkort_FilePutBackEx alias "fb_FilePutBackEx" _
-	( byval h as FB_FILE ptr, byval src as any ptr, byval chars as uinteger ) as long
+	( byval h as FB_FILE ptr, byval src as any ptr, byval chars as uinteger ) as int32
 
 	if( TKORT_HANDLE_USED( h ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -159,7 +159,7 @@ function tkort_FilePutBackEx alias "fb_FilePutBackEx" _
 
 	IOLOCK()
 
-	dim as long res = tkrt_ErrorSetNum( FB_RTERROR_OK )
+	dim as int32 res = tkrt_ErrorSetNum( FB_RTERROR_OK )
 
 	dim as uinteger bytes = chars
 	if( h->encod <> FB_FILE_ENCOD_ASCII ) then bytes = chars * sizeof( wstring )
@@ -180,7 +180,7 @@ function tkort_FilePutBackEx alias "fb_FilePutBackEx" _
 		if( h->encod = FB_FILE_ENCOD_ASCII ) then
 			memcpy( @h->putback_buffer(0), src, bytes )
 		else
-			dim as ubyte ptr s = cptr( ubyte ptr, src )
+			dim as uint8 ptr s = cptr( uint8 ptr, src )
 			dim as wstring ptr d = cptr( wstring ptr, @h->putback_buffer(0) )
 			for i as uinteger = 0 to chars - 1
 				d[i] = s[i]
@@ -199,17 +199,17 @@ end extern
 
 extern "rtlib"
 
-function tkort_FileEof alias "fb_FileEof" ( byval fnum as long ) as long
+function tkort_FileEof alias "fb_FileEof" ( byval fnum as int32 ) as int32
 	return tkort_FileEofEx( TKORT_FILE_TO_HANDLE( fnum ) )
 end function
 
-function tkort_FileLocation alias "fb_FileLocation" ( byval fnum as long ) as longint
+function tkort_FileLocation alias "fb_FileLocation" ( byval fnum as int32 ) as int64
 	return tkort_FileLocationEx( TKORT_FILE_TO_HANDLE( fnum ) )
 end function
 
 '' CLOSE #0 is rejected. The commented call is fbc's own record of the road not
 '' taken -- old FB closed every file here.
-function tkort_FileClose alias "fb_FileClose" ( byval fnum as long ) as long
+function tkort_FileClose alias "fb_FileClose" ( byval fnum as int32 ) as int32
 	if( fnum = 0 ) then
 		'' tkrt_FileReset( )
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -218,21 +218,21 @@ function tkort_FileClose alias "fb_FileClose" ( byval fnum as long ) as long
 end function
 
 '' CLOSE with no arguments closes everything, as in QB.
-function tkort_FileCloseAll alias "fb_FileCloseAll" ( ) as long
+function tkort_FileCloseAll alias "fb_FileCloseAll" ( ) as int32
 	tkrt_FileReset( )
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
 
 function tkort_FilePutBack alias "fb_FilePutBack" _
-	( byval fnum as long, byval src as any ptr, byval chars as uinteger ) as long
+	( byval fnum as int32, byval src as any ptr, byval chars as uinteger ) as int32
 	return tkort_FilePutBackEx( TKORT_FILE_TO_HANDLE( fnum ), src, chars )
 end function
 
 '' FREEFILE walks the table for the first entry with no hooks, and returns the
 '' 1-BASED file number rather than the index. 0 means the table is full.
-function tkort_FileFree alias "fb_FileFree" ( ) as long
+function tkort_FileFree alias "fb_FileFree" ( ) as int32
 	IOLOCK()
-	for i as long = 1 to (FB_MAX_FILES - FB_RESERVED_FILES)
+	for i as int32 = 1 to (FB_MAX_FILES - FB_RESERVED_FILES)
 		dim as FB_FILE ptr h = TKORT_FILE_TO_HANDLE( i )
 		if( h->hooks = 0 ) then
 			IOUNLOCK()
@@ -254,12 +254,12 @@ extern "c"   '' NON-FBCALL: fb_file.h declares it plainly.
 '' LEN( filename ) opens the file just to measure it, and SETS THE ERROR NUMBER
 '' BOTH WAYS -- OK on success, ILLEGALFUNCTIONCALL on any failure -- so a caller
 '' checking ERR afterwards sees a definite answer rather than a stale one.
-function tkort_FileLenEx alias "fb_FileLenEx" ( byval filename as zstring ptr ) as longint
+function tkort_FileLenEx alias "fb_FileLenEx" ( byval filename as zstring ptr ) as int64
 
 	dim as FILE ptr fp = fopen( filename, "rb" )
 	if( fp <> 0 ) then
 		if( tkrt_fseeko( fp, 0, 2 ) = 0 ) then          '' SEEK_END
-			dim as longint length = tkrt_ftello( fp )
+			dim as int64 length = tkrt_ftello( fp )
 			if( length <> -1 ) then
 				fclose( fp )
 				tkrt_ErrorSetNum( FB_RTERROR_OK )
@@ -278,7 +278,7 @@ end extern
 
 extern "rtlib"
 
-function tkort_FileLen alias "fb_FileLen" ( byval filename as zstring ptr ) as longint
+function tkort_FileLen alias "fb_FileLen" ( byval filename as zstring ptr ) as int64
 	return tkort_FileLenEx( filename )
 end function
 

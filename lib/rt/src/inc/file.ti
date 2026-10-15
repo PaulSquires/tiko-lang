@@ -55,20 +55,20 @@ type FB_FILE as FB_FILE_
 '' TYPED, not `any ptr`. The dispatchers in src/io/file.tiko call these directly,
 '' and a wrong signature here is a wrong calling sequence at every call site
 '' rather than a compile error at one.
-type FnFileEof         as function cdecl ( byval h as FB_FILE ptr ) as long
-type FnFileClose       as function cdecl ( byval h as FB_FILE ptr ) as long
-type FnFileSeek        as function cdecl ( byval h as FB_FILE ptr, byval offset as longint, byval whence as long ) as long
-type FnFileTell        as function cdecl ( byval h as FB_FILE ptr, byval pOffset as longint ptr ) as long
-type FnFileRead        as function cdecl ( byval h as FB_FILE ptr, byval value as any ptr, byval pLen as uinteger ptr ) as long
-type FnFileReadWstr    as function cdecl ( byval h as FB_FILE ptr, byval value as wstring ptr, byval pLen as uinteger ptr ) as long
-type FnFileWrite       as function cdecl ( byval h as FB_FILE ptr, byval value as any ptr, byval length as uinteger ) as long
-type FnFileWriteWstr   as function cdecl ( byval h as FB_FILE ptr, byval value as wstring ptr, byval length as uinteger ) as long
-type FnFileLock        as function cdecl ( byval h as FB_FILE ptr, byval pos as longint, byval size as longint ) as long
-type FnFileUnlock      as function cdecl ( byval h as FB_FILE ptr, byval pos as longint, byval size as longint ) as long
-type FnFileReadLine    as function cdecl ( byval h as FB_FILE ptr, byval dst as FBSTRING ptr ) as long
-type FnFileReadLineWstr as function cdecl ( byval h as FB_FILE ptr, byval dst as wstring ptr, byval dst_chars as integer ) as long
-type FnFileSetWidth    as function cdecl ( byval h as FB_FILE ptr, byval new_width as long ) as long
-type FnFileFlush       as function cdecl ( byval h as FB_FILE ptr ) as long
+type FnFileEof         as function cdecl ( byval h as FB_FILE ptr ) as int32
+type FnFileClose       as function cdecl ( byval h as FB_FILE ptr ) as int32
+type FnFileSeek        as function cdecl ( byval h as FB_FILE ptr, byval offset as int64, byval whence as int32 ) as int32
+type FnFileTell        as function cdecl ( byval h as FB_FILE ptr, byval pOffset as int64 ptr ) as int32
+type FnFileRead        as function cdecl ( byval h as FB_FILE ptr, byval value as any ptr, byval pLen as uinteger ptr ) as int32
+type FnFileReadWstr    as function cdecl ( byval h as FB_FILE ptr, byval value as wstring ptr, byval pLen as uinteger ptr ) as int32
+type FnFileWrite       as function cdecl ( byval h as FB_FILE ptr, byval value as any ptr, byval length as uinteger ) as int32
+type FnFileWriteWstr   as function cdecl ( byval h as FB_FILE ptr, byval value as wstring ptr, byval length as uinteger ) as int32
+type FnFileLock        as function cdecl ( byval h as FB_FILE ptr, byval pos as int64, byval size as int64 ) as int32
+type FnFileUnlock      as function cdecl ( byval h as FB_FILE ptr, byval pos as int64, byval size as int64 ) as int32
+type FnFileReadLine    as function cdecl ( byval h as FB_FILE ptr, byval dst as FBSTRING ptr ) as int32
+type FnFileReadLineWstr as function cdecl ( byval h as FB_FILE ptr, byval dst as wstring ptr, byval dst_chars as integer ) as int32
+type FnFileSetWidth    as function cdecl ( byval h as FB_FILE ptr, byval new_width as int32 ) as int32
+type FnFileFlush       as function cdecl ( byval h as FB_FILE ptr ) as int32
 
 type FB_FILE_HOOKS
 	as FnFileEof           pfnEof
@@ -91,21 +91,21 @@ end type
 '' is the mistake that put __fb_ctx.null_desc four bytes early in inc/ctx.ti and
 '' returned a pointer into the middle of a descriptor.
 type FB_FILE_
-	as long      mode
+	as int32      mode
 	'' fbc calls this `len`; it is the RECORD length for RANDOM files, and it is
 	'' a C `int` -- genuinely 32-bit, not a pointer-width length. Named reclen
 	'' both because `len` is a FreeBASIC keyword and because the index-width lint
 	'' is right to object to a `long` called length: this one is a struct field
 	'' mirroring an int, not an index.
-	as long      reclen
-	as long      encod            '' FB_FILE_ENCOD, a C enum -> int
-	as longint   size             '' fb_off_t, 64-bit on all three targets
-	as long      type_            '' `type` is a keyword too
-	as long      access
-	as long      lock_            '' and `lock`
-	as ulong     line_length
-	as ulong     width
-	as ubyte     putback_buffer(0 to 3)
+	as int32      reclen
+	as int32      encod            '' FB_FILE_ENCOD, a C enum -> int
+	as int64   size             '' fb_off_t, 64-bit on all three targets
+	as int32      type_            '' `type` is a keyword too
+	as int32      access
+	as int32      lock_            '' and `lock`
+	as uint32     line_length
+	as uint32     width
+	as uint8     putback_buffer(0 to 3)
 	as uinteger  putback_size     '' size_t: pointer-width
 	as FB_FILE_HOOKS ptr hooks
 	as any ptr   opaque
@@ -131,7 +131,7 @@ const FB_RESERVED_FILES = 2
 '' fields no entry point here will ever touch, each an opportunity to get a
 '' layout wrong for no benefit.
 extern "c"   '' NON-FBCALL: __fb_ctx is DATA, not a procedure.
-	extern __fb_ctx_bytes alias "__fb_ctx" as ubyte
+	extern __fb_ctx_bytes alias "__fb_ctx" as uint8
 end extern
 
 #define TKORT_FILETB() cptr( FB_FILE ptr, @__fb_ctx_bytes + TKORT_FILETB_OFFSET )
@@ -187,7 +187,7 @@ const TKORT_DOFILERESET_OFFSET = TKORT_LANG_OFFSET - 4
 
 #assert TKORT_FILETB_OFFSET + FB_MAX_FILES * sizeof( FB_FILE ) = TKORT_DOFILERESET_OFFSET
 
-#define TKORT_DO_FILE_RESET() (*cptr( long ptr, @__fb_ctx_bytes + TKORT_DOFILERESET_OFFSET ))
+#define TKORT_DO_FILE_RESET() (*cptr( int32 ptr, @__fb_ctx_bytes + TKORT_DOFILERESET_OFFSET ))
 
 #define TKORT_FILE_INDEX_VALID( n ) _
 	( ((n) >= 1) andalso ((n) <= (FB_MAX_FILES - FB_RESERVED_FILES)) )

@@ -62,14 +62,14 @@ extern "c"   '' NON-FBCALL: libc's case-insensitive compares. MinGW provides the
 	'' see src/sys/sys.ti for why fbc cannot tell us itself.
 	#ifdef TKORT_MSVC
 	declare function crt_strncasecmp alias "_strnicmp" _
-		( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as long
+		( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as int32
 	declare function crt_strcasecmp alias "_stricmp" _
-		( byval a as zstring ptr, byval b as zstring ptr ) as long
+		( byval a as zstring ptr, byval b as zstring ptr ) as int32
 	#else
 	declare function crt_strncasecmp alias "strncasecmp" _
-		( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as long
+		( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as int32
 	declare function crt_strcasecmp alias "strcasecmp" _
-		( byval a as zstring ptr, byval b as zstring ptr ) as long
+		( byval a as zstring ptr, byval b as zstring ptr ) as int32
 	#endif
 end extern
 
@@ -79,21 +79,21 @@ extern "c"   '' NON-FBCALL: fb_file.h, fb_serial.h and fb_printer.h declare the
              '' no `@N`.
 	declare function tkrt_FileOpenVfsEx alias "fb_FileOpenVfsEx" _
 		( byval handle as FB_FILE ptr, byval str_filename as FBSTRING ptr, _
-		  byval mode_ as ulong, byval acc as ulong, byval lock_ as ulong, _
-		  byval len_ as long, byval encoding as long, byval pfnOpen as any ptr ) as long
+		  byval mode_ as uint32, byval acc as uint32, byval lock_ as uint32, _
+		  byval len_ as int32, byval encoding as int32, byval pfnOpen as any ptr ) as int32
 
 	'' The six drivers. Two of them -- Com and Lpt -- are still fbc's; the other
 	'' four are tiko-rt's own, and nothing here can tell the difference.
 	declare function tkrt_DevComOpen alias "fb_DevComOpen" _
-		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as long
+		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as int32
 	declare function tkrt_DevLptOpen alias "fb_DevLptOpen" _
-		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as long
+		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as int32
 	declare function tkrt_DevConsOpen alias "fb_DevConsOpen" _
-		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as long
+		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as int32
 	declare function tkrt_DevScrnOpen alias "fb_DevScrnOpen" _
-		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as long
+		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as int32
 	declare function tkrt_DevPipeOpen alias "fb_DevPipeOpen" _
-		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as long
+		( byval h as FB_FILE ptr, byval f as zstring ptr, byval l as uinteger ) as int32
 	declare sub tkrt_DevScrnInit alias "fb_DevScrnInit" ( )
 end extern
 
@@ -102,21 +102,21 @@ extern "rtlib"   '' FBCALL: these three ARE decorated, and the win32 archive
                  '' `_fb_CrtFileCopy@8`.
 	declare function tkrt_FileOpenEx alias "fb_FileOpenEx" _
 		( byval handle as FB_FILE ptr, byval str_filename as FBSTRING ptr, _
-		  byval mode_ as ulong, byval acc as ulong, byval lock_ as ulong, _
-		  byval len_ as long ) as long
+		  byval mode_ as uint32, byval acc as uint32, byval lock_ as uint32, _
+		  byval len_ as int32 ) as int32
 	declare function tkrt_StrMid alias "fb_StrMid" _
 		( byval s as FBSTRING ptr, byval start_ as integer, byval l as integer ) as FBSTRING ptr
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 	#ifndef __FB_WIN32__
 		declare function tkrt_CrtFileCopy alias "fb_CrtFileCopy" _
-			( byval src as zstring ptr, byval dst as zstring ptr ) as long
+			( byval src as zstring ptr, byval dst as zstring ptr ) as int32
 	#endif
 end extern
 
 #ifdef __FB_WIN32__
 	extern "c"   '' NON-FBCALL: kernel32, `stdcall` per declaration.
 		declare function w_CopyFileA stdcall alias "CopyFileA" _
-			( byval src as zstring ptr, byval dst as zstring ptr, byval failIfExists as long ) as long
+			( byval src as zstring ptr, byval dst as zstring ptr, byval failIfExists as int32 ) as int32
 	end extern
 #endif
 
@@ -127,7 +127,7 @@ extern "rtlib"   '' FBCALL: fb_FileOpenQB and fb_FileCopy are both decorated,
 '' follows them. Spelled once because COM and LPT do exactly the same thing --
 '' and note it reads `data[i]` even when i has reached str_len, which is safe
 '' only because the descriptor's data is NUL-terminated. See the file header.
-private function hNumberedDeviceColon( byval s as FBSTRING ptr, byval str_len as integer ) as long
+private function hNumberedDeviceColon( byval s as FBSTRING ptr, byval str_len as integer ) as int32
 	dim as integer i = 3
 	while( (i < str_len) andalso (s->data[i] >= 48) andalso (s->data[i] <= 57) )
 		i += 1
@@ -138,8 +138,8 @@ end function
 '' DISPATCHES ON THE NAME. The order of the tests is the precedence and is not
 '' alphabetical -- see the file header.
 function tkort_FileOpenQB alias "fb_FileOpenQB" _
-	( byval str_ as FBSTRING ptr, byval mode_ as ulong, byval acc as ulong, _
-	  byval lock_ as ulong, byval fnum as long, byval len_ as long ) as long
+	( byval str_ as FBSTRING ptr, byval mode_ as uint32, byval acc as uint32, _
+	  byval lock_ as uint32, byval fnum as int32, byval len_ as int32 ) as int32
 
 	'' THE CHANNEL NUMBER IS CHECKED BEFORE THE STRING, so an invalid fnum with
 	'' a NULL filename reports the channel error and not the filename one.
@@ -214,12 +214,12 @@ end function
 '' preserves attributes and timestamps; the POSIX read/write loop preserves
 '' nothing.
 function tkort_FileCopy alias "fb_FileCopy" _
-	( byval source as zstring ptr, byval destination as zstring ptr ) as long
+	( byval source as zstring ptr, byval destination as zstring ptr ) as int32
 
 	#ifdef __FB_WIN32__
 		'' FALSE for failIfExists, so an existing destination IS overwritten --
 		'' which is the one respect in which the two platforms agree.
-		dim as long res = w_CopyFileA( source, destination, 0 )
+		dim as int32 res = w_CopyFileA( source, destination, 0 )
 		return tkrt_ErrorSetNum( iif( res = 0, FB_RTERROR_ILLEGALFUNCTIONCALL, FB_RTERROR_OK ) )
 	#else
 		'' fb_CrtFileCopy ALREADY SETS THE ERROR, so this must not set it again

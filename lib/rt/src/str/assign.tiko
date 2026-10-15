@@ -52,11 +52,11 @@ extern "rtlib"
 	declare function fb_hStrAlloc alias "fb_hStrAlloc" _
 		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
 	declare function fb_hStrRealloc alias "fb_hStrRealloc" _
-		( byval s as FBSTRING ptr, byval length as integer, byval keepdata as long ) as FBSTRING ptr
+		( byval s as FBSTRING ptr, byval length as integer, byval keepdata as int32 ) as FBSTRING ptr
 	declare function tkrt_DelTempNoLock alias "fb_hStrDelTemp_NoLock" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 	declare function tkrt_DelTempDesc alias "fb_hStrDelTempDesc" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
 	declare sub fb_StrLock alias "fb_StrLock" ( )
 	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
@@ -76,7 +76,7 @@ function tkort_StrAssignEx alias "fb_StrAssignEx" _
 	( _
 		byval dst as any ptr, byval dst_size as integer, _
 		byval src as any ptr, byval src_size as integer, _
-		byval fill_rem as long, byval is_init as long _
+		byval fill_rem as int32, byval is_init as int32 _
 	) as any ptr
 
 	dim as FBSTRING ptr dstr = any
@@ -161,13 +161,13 @@ function tkort_StrAssignEx alias "fb_StrAssignEx" _
 
 		dst_size -= src_len
 		if( dst_size > 0 ) then
-			memset( cptr( ubyte ptr, dst ) + src_len, 32, dst_size )
+			memset( cptr( uint8 ptr, dst ) + src_len, 32, dst_size )
 		end if
 
 	else
 		'' Fixed-length ZSTRING, or a plain zstring pointer.
 		if( src_len = 0 ) then
-			*cptr( ubyte ptr, dst ) = 0
+			*cptr( uint8 ptr, dst ) = 0
 		else
 			if( dst_size = 0 ) then
 				'' A byte pointer: as in C, assume the caller's buffer fits.
@@ -185,7 +185,7 @@ function tkort_StrAssignEx alias "fb_StrAssignEx" _
 		if( fill_rem <> 0 ) then
 			dst_size -= src_len
 			if( dst_size > 0 ) then
-				memset( cptr( ubyte ptr, dst ) + src_len, 0, dst_size )
+				memset( cptr( uint8 ptr, dst ) + src_len, 0, dst_size )
 			end if
 		end if
 	end if
@@ -203,7 +203,7 @@ end function
 function tkort_StrAssign alias "fb_StrAssign" _
 	( _
 		byval dst as any ptr, byval dst_size as integer, _
-		byval src as any ptr, byval src_size as integer, byval fill_rem as long _
+		byval src as any ptr, byval src_size as integer, byval fill_rem as int32 _
 	) as any ptr
 	return tkort_StrAssignEx( dst, dst_size, src, src_size, fill_rem, 0 )
 end function
@@ -214,7 +214,7 @@ end function
 function tkort_StrInit alias "fb_StrInit" _
 	( _
 		byval dst as any ptr, byval dst_size as integer, _
-		byval src as any ptr, byval src_size as integer, byval fill_rem as long _
+		byval src as any ptr, byval src_size as integer, byval fill_rem as int32 _
 	) as any ptr
 	return tkort_StrAssignEx( dst, dst_size, src, src_size, fill_rem, 1 )
 end function

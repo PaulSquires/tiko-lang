@@ -62,18 +62,18 @@ const SUBST = 63
 const STAGE = 1024
 
 type TKORT_UTF8_TRAILING
-	as byte v( 0 to 255 )
+	as int8 v( 0 to 255 )
 end type
 type TKORT_UTF8_OFFSETS
-	as ulong v( 0 to 5 )
+	as uint32 v( 0 to 5 )
 end type
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
 	declare function tkrt_StrConcatAssign alias "fb_StrConcatAssign" _
 		( byval dst as any ptr, byval dst_size as integer, _
-		  byval src as any ptr, byval src_size as integer, byval fillrem as long ) as any ptr
+		  byval src as any ptr, byval src_size as integer, byval fillrem as int32 ) as any ptr
 	declare function tkrt_WstrConcatAssign alias "fb_WstrConcatAssign" _
 		( byval dst as wstring ptr, byval dst_chars as integer, byval src as wstring ptr ) as wstring ptr
 end extern
@@ -86,36 +86,36 @@ extern "c"   '' NON-FBCALL: the tables are DATA, and the rest are h-prefixed
 	declare sub tkrt_ConvertPath alias "fb_hConvertPath" ( byval p as zstring ptr )
 	declare sub tkrt_SetFileBufSize alias "fb_hSetFileBufSize" ( byval fp as FILE ptr )
 	declare function tkrt_DevFileGetSize alias "fb_DevFileGetSize" _
-		( byval fp as FILE ptr, byval m as long, byval e as long, byval b as long ) as longint
+		( byval fp as FILE ptr, byval m as int32, byval e as int32, byval b as int32 ) as int64
 
 	'' The eight hooks this device shares with the plain FILE* one -- seek,
 	'' tell, close, eof, lock, unlock and flush are identical, because the
 	'' encoding lives in the READ and WRITE paths and nowhere else.
-	declare function tkrt_DevFileEof alias "fb_DevFileEof" ( byval h as FB_FILE ptr ) as long
-	declare function tkrt_DevFileClose alias "fb_DevFileClose" ( byval h as FB_FILE ptr ) as long
+	declare function tkrt_DevFileEof alias "fb_DevFileEof" ( byval h as FB_FILE ptr ) as int32
+	declare function tkrt_DevFileClose alias "fb_DevFileClose" ( byval h as FB_FILE ptr ) as int32
 	declare function tkrt_DevFileSeek alias "fb_DevFileSeek" _
-		( byval h as FB_FILE ptr, byval o as longint, byval w as long ) as long
+		( byval h as FB_FILE ptr, byval o as int64, byval w as int32 ) as int32
 	declare function tkrt_DevFileTell alias "fb_DevFileTell" _
-		( byval h as FB_FILE ptr, byval p as longint ptr ) as long
+		( byval h as FB_FILE ptr, byval p as int64 ptr ) as int32
 	declare function tkrt_DevFileLock alias "fb_DevFileLock" _
-		( byval h as FB_FILE ptr, byval p as longint, byval s as longint ) as long
+		( byval h as FB_FILE ptr, byval p as int64, byval s as int64 ) as int32
 	declare function tkrt_DevFileUnlock alias "fb_DevFileUnlock" _
-		( byval h as FB_FILE ptr, byval p as longint, byval s as longint ) as long
-	declare function tkrt_DevFileFlush alias "fb_DevFileFlush" ( byval h as FB_FILE ptr ) as long
+		( byval h as FB_FILE ptr, byval p as int64, byval s as int64 ) as int32
+	declare function tkrt_DevFileFlush alias "fb_DevFileFlush" ( byval h as FB_FILE ptr ) as int32
 
 	declare function tkrt_CharToUTF alias "fb_CharToUTF" _
-		( byval encod as long, byval src as ubyte ptr, byval chars as integer, _
-		  byval dst as ubyte ptr, byval bytes_ as integer ptr ) as ubyte ptr
+		( byval encod as int32, byval src as uint8 ptr, byval chars as integer, _
+		  byval dst as uint8 ptr, byval bytes_ as integer ptr ) as uint8 ptr
 	declare function tkrt_WCharToUTF alias "fb_WCharToUTF" _
-		( byval encod as long, byval src as wstring ptr, byval chars as integer, _
-		  byval dst as ubyte ptr, byval bytes_ as integer ptr ) as ubyte ptr
+		( byval encod as int32, byval src as wstring ptr, byval chars as integer, _
+		  byval dst as uint8 ptr, byval bytes_ as integer ptr ) as uint8 ptr
 
 	declare function tkrt_GetDataEx alias "fb_FileGetDataEx" _
-		( byval h as FB_FILE ptr, byval pos_ as longint, byval dst as any ptr, _
+		( byval h as FB_FILE ptr, byval pos_ as int64, byval dst as any ptr, _
 		  byval length as uinteger, byval bytesread as uinteger ptr, _
-		  byval adjust as long, byval is_uni as long ) as long
+		  byval adjust as int32, byval is_uni as int32 ) as int32
 	declare function tkrt_PutBackEx alias "fb_FilePutBackEx" _
-		( byval h as FB_FILE ptr, byval src as any ptr, byval chars as uinteger ) as long
+		( byval h as FB_FILE ptr, byval src as any ptr, byval chars as uinteger ) as int32
 end extern
 
 '' Every name below is plain cdecl, forward declarations included -- see
@@ -124,23 +124,23 @@ extern "c"   '' NON-FBCALL: fb_device.h declares these without FBCALL; they are
              '' reached through FB_FILE_HOOKS.
 
 declare function tkort_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
-	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval fname_len as uinteger ) as long
+	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval fname_len as uinteger ) as int32
 declare function tkort_DevFileReadEncod alias "fb_DevFileReadEncod" _
-	( byval h as FB_FILE ptr, byval dst as any ptr, byval max_chars as uinteger ptr ) as long
+	( byval h as FB_FILE ptr, byval dst as any ptr, byval max_chars as uinteger ptr ) as int32
 declare function tkort_DevFileReadEncodWstr alias "fb_DevFileReadEncodWstr" _
-	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval max_chars as uinteger ptr ) as long
+	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval max_chars as uinteger ptr ) as int32
 declare function tkort_DevFileReadLineEncod alias "fb_DevFileReadLineEncod" _
-	( byval h as FB_FILE ptr, byval dst as FBSTRING ptr ) as long
+	( byval h as FB_FILE ptr, byval dst as FBSTRING ptr ) as int32
 declare function tkort_DevFileReadLineEncodWstr alias "fb_DevFileReadLineEncodWstr" _
-	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval max_chars as integer ) as long
+	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval max_chars as integer ) as int32
 declare function tkort_DevFileWriteEncod alias "fb_DevFileWriteEncod" _
-	( byval h as FB_FILE ptr, byval buffer as any ptr, byval chars as uinteger ) as long
+	( byval h as FB_FILE ptr, byval buffer as any ptr, byval chars as uinteger ) as int32
 declare function tkort_DevFileWriteEncodWstr alias "fb_DevFileWriteEncodWstr" _
-	( byval h as FB_FILE ptr, byval buffer as wstring ptr, byval chars as uinteger ) as long
+	( byval h as FB_FILE ptr, byval buffer as wstring ptr, byval chars as uinteger ) as int32
 declare function tkort_ReadUTFToChar alias "fb_hFileRead_UTFToChar" _
-	( byval fp as FILE ptr, byval encod as long, byval dst as ubyte ptr, byval max_chars as integer ) as integer
+	( byval fp as FILE ptr, byval encod as int32, byval dst as uint8 ptr, byval max_chars as integer ) as integer
 declare function tkort_ReadUTFToWchar alias "fb_hFileRead_UTFToWchar" _
-	( byval fp as FILE ptr, byval encod as long, byval dst as wstring ptr, byval max_chars as integer ) as integer
+	( byval fp as FILE ptr, byval encod as int32, byval dst as wstring ptr, byval max_chars as integer ) as integer
 
 end extern
 
@@ -168,8 +168,8 @@ dim shared as FB_FILE_HOOKS hooks_dev_file_encod = ( _
 '' READ INTO A ZEROED WORD, LOW BYTES FIRST. The comparison is against a value
 '' whose high byte is zero for the three-byte UTF-8 mark, so the word must be
 '' cleared before the partial read -- see the file header.
-private function hCheckBOM( byval fp as FILE ptr, byval encod as long ) as long
-	dim as ulong bom = 0
+private function hCheckBOM( byval fp as FILE ptr, byval encod as int32 ) as int32
+	dim as uint32 bom = 0
 
 	select case encod
 	case FB_FILE_ENCOD_UTF8
@@ -188,8 +188,8 @@ private function hCheckBOM( byval fp as FILE ptr, byval encod as long ) as long
 	return 0
 end function
 
-private function hWriteBOM( byval fp as FILE ptr, byval encod as long ) as long
-	dim as ulong bom = any
+private function hWriteBOM( byval fp as FILE ptr, byval encod as int32 ) as int32
+	dim as uint32 bom = any
 
 	select case encod
 	case FB_FILE_ENCOD_UTF8
@@ -219,10 +219,10 @@ end function
 '' lead byte, looks up how many continuation bytes follow, reads them in ONE
 '' call, then folds six bits at a time and subtracts the offset that undoes the
 '' lead-byte marker bits. Returns -1 at end of input.
-private function hDecodeUTF8( byval fp as FILE ptr ) as long
+private function hDecodeUTF8( byval fp as FILE ptr ) as int32
 
-	dim as ubyte c(0 to 6) = any
-	dim as ulong wc = 0
+	dim as uint8 c(0 to 6) = any
+	dim as uint32 wc = 0
 	dim as integer extbytes = any, i = any
 
 	if( fread( @c(0), 1, 1, fp ) <> 1 ) then return -1
@@ -243,7 +243,7 @@ private function hDecodeUTF8( byval fp as FILE ptr ) as long
 
 	wc -= __fb_utf8_offsetsTb.v( extbytes )
 
-	return cast( long, wc )
+	return cast( int32, wc )
 end function
 
 extern "c"   '' NON-FBCALL, as declared above.
@@ -252,21 +252,21 @@ extern "c"   '' NON-FBCALL, as declared above.
 '' character, so there is no other answer -- and a UTF-16 surrogate pair is read
 '' as two units and yields ONE '?', not two.
 function tkort_ReadUTFToChar alias "fb_hFileRead_UTFToChar" _
-	( byval fp as FILE ptr, byval encod as long, byval dst as ubyte ptr, byval max_chars as integer ) as integer
+	( byval fp as FILE ptr, byval encod as int32, byval dst as uint8 ptr, byval max_chars as integer ) as integer
 
 	dim as integer chars = max_chars
-	dim as long wc = any
-	dim as ushort c16 = any
-	dim as ulong c32 = any
-	dim as ubyte ptr d = dst
+	dim as int32 wc = any
+	dim as uint16 c16 = any
+	dim as uint32 c32 = any
+	dim as uint8 ptr d = dst
 
 	select case encod
 	case FB_FILE_ENCOD_UTF8
 		while( chars > 0 )
 			wc = hDecodeUTF8( fp )
 			if( wc < 0 ) then exit while
-			if( cast( ulong, wc ) > 255 ) then wc = SUBST
-			*d = cast( ubyte, wc )
+			if( cast( uint32, wc ) > 255 ) then wc = SUBST
+			*d = cast( uint8, wc )
 			d += 1
 			chars -= 1
 		wend
@@ -282,7 +282,7 @@ function tkort_ReadUTFToChar alias "fb_hFileRead_UTFToChar" _
 				end if
 				c16 = SUBST
 			end if
-			*d = cast( ubyte, c16 )
+			*d = cast( uint8, c16 )
 			d += 1
 			chars -= 1
 		wend
@@ -291,7 +291,7 @@ function tkort_ReadUTFToChar alias "fb_hFileRead_UTFToChar" _
 		while( chars > 0 )
 			if( fread( @c32, 4, 1, fp ) <> 1 ) then exit while
 			if( c32 > 255 ) then c32 = SUBST
-			*d = cast( ubyte, c32 )
+			*d = cast( uint8, c32 )
 			d += 1
 			chars -= 1
 		wend
@@ -309,16 +309,16 @@ end function
 '' and keeps the two shapes visibly separate rather than hiding a width
 '' assumption inside a cast.
 function tkort_ReadUTFToWchar alias "fb_hFileRead_UTFToWchar" _
-	( byval fp as FILE ptr, byval encod as long, byval dst as wstring ptr, byval max_chars as integer ) as integer
+	( byval fp as FILE ptr, byval encod as int32, byval dst as wstring ptr, byval max_chars as integer ) as integer
 
 	dim as integer chars = max_chars
-	dim as long wc = any
-	dim as ulong c = any, c2 = any
+	dim as int32 wc = any
+	dim as uint32 c = any, c2 = any
 
 	#if sizeof( wstring ) = 2
-		dim as ushort ptr d = cast( ushort ptr, dst )
+		dim as uint16 ptr d = cast( uint16 ptr, dst )
 	#else
-		dim as ulong ptr d = cast( ulong ptr, dst )
+		dim as uint32 ptr d = cast( uint32 ptr, dst )
 	#endif
 
 	select case encod
@@ -326,10 +326,10 @@ function tkort_ReadUTFToWchar alias "fb_hFileRead_UTFToWchar" _
 		while( chars > 0 )
 			wc = hDecodeUTF8( fp )
 			if( wc < 0 ) then exit while
-			c = cast( ulong, wc )
+			c = cast( uint32, wc )
 			#if sizeof( wstring ) = 2
 				if( c <= UTF16_MAX_BMP ) then
-					*d = cast( ushort, c )
+					*d = cast( uint16, c )
 					d += 1
 				else
 					'' A pair needs TWO slots, and if only one is left the
@@ -338,9 +338,9 @@ function tkort_ReadUTFToWchar alias "fb_hFileRead_UTFToWchar" _
 					'' of max_chars without end of file.
 					if( chars > 1 ) then
 						c -= UTF16_HALFBASE
-						*d = cast( ushort, (c shr UTF16_HALFSHIFT) + UTF16_SUR_HIGH_START )
+						*d = cast( uint16, (c shr UTF16_HALFSHIFT) + UTF16_SUR_HIGH_START )
 						d += 1
-						*d = cast( ushort, (c and UTF16_HALFMASK) + UTF16_SUR_LOW_START )
+						*d = cast( uint16, (c and UTF16_HALFMASK) + UTF16_SUR_LOW_START )
 						d += 1
 						chars -= 1
 					end if
@@ -379,13 +379,13 @@ function tkort_ReadUTFToWchar alias "fb_hFileRead_UTFToWchar" _
 				if( c > UTF16_MAX_BMP ) then
 					c -= UTF16_HALFBASE
 					if( chars > 1 ) then
-						*d = cast( ushort, (c shr UTF16_HALFSHIFT) + UTF16_SUR_HIGH_START )
+						*d = cast( uint16, (c shr UTF16_HALFSHIFT) + UTF16_SUR_HIGH_START )
 						d += 1
 						chars -= 1
 					end if
 					c = (c and UTF16_HALFMASK) + UTF16_SUR_LOW_START
 				end if
-				*d = cast( ushort, c )
+				*d = cast( uint16, c )
 				d += 1
 				chars -= 1
 			wend
@@ -403,14 +403,14 @@ end function
 '' ------------------------------------------------------------------ open
 
 function tkort_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
-	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval fname_len as uinteger ) as long
+	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval fname_len as uinteger ) as int32
 
 	dim as FILE ptr fp = 0
 	dim as zstring ptr openmask = 0
 	dim as zstring * (STAGE) stage_ = any
 	dim as zstring ptr fname = @stage_
 	dim as any ptr heap_ = 0
-	dim as long effective_mode = any
+	dim as int32 effective_mode = any
 
 	TKORT_IOLOCK()
 
@@ -423,7 +423,7 @@ function tkort_DevFileOpenEncod alias "fb_DevFileOpenEncod" _
 		fname = cast( zstring ptr, heap_ )
 	end if
 	memcpy( fname, filename, fname_len )
-	cast( ubyte ptr, fname )[fname_len] = 0
+	cast( uint8 ptr, fname )[fname_len] = 0
 
 	tkrt_ConvertPath( fname )
 
@@ -526,7 +526,7 @@ private function hReadStream( byval h as FB_FILE ptr ) as FILE ptr
 end function
 
 function tkort_DevFileReadEncod alias "fb_DevFileReadEncod" _
-	( byval h as FB_FILE ptr, byval dst as any ptr, byval max_chars as uinteger ptr ) as long
+	( byval h as FB_FILE ptr, byval dst as any ptr, byval max_chars as uinteger ptr ) as int32
 
 	TKORT_IOLOCK()
 
@@ -537,10 +537,10 @@ function tkort_DevFileReadEncod alias "fb_DevFileReadEncod" _
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
-	dim as uinteger chars = tkort_ReadUTFToChar( fp, h->encod, cast( ubyte ptr, dst ), want )
+	dim as uinteger chars = tkort_ReadUTFToChar( fp, h->encod, cast( uint8 ptr, dst ), want )
 
 	if( chars <> want ) then
-		memset( cast( ubyte ptr, dst ) + chars, 0, want - chars )
+		memset( cast( uint8 ptr, dst ) + chars, 0, want - chars )
 	end if
 
 	*max_chars = chars
@@ -550,7 +550,7 @@ function tkort_DevFileReadEncod alias "fb_DevFileReadEncod" _
 end function
 
 function tkort_DevFileReadEncodWstr alias "fb_DevFileReadEncodWstr" _
-	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval max_chars as uinteger ptr ) as long
+	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval max_chars as uinteger ptr ) as int32
 
 	TKORT_IOLOCK()
 
@@ -566,7 +566,7 @@ function tkort_DevFileReadEncodWstr alias "fb_DevFileReadEncodWstr" _
 	'' The fill is in CHARACTERS times the wchar width, which differs per
 	'' target -- a byte count here would zero a quarter of the tail on Linux.
 	if( chars <> want ) then
-		memset( cast( ubyte ptr, dst ) + chars * sizeof( wstring ), 0, _
+		memset( cast( uint8 ptr, dst ) + chars * sizeof( wstring ), 0, _
 		        (want - chars) * sizeof( wstring ) )
 	end if
 
@@ -583,9 +583,9 @@ end function
 '' not LF it is PUSHED BACK, so a lone CR terminates the line without eating the
 '' character after it.
 function tkort_DevFileReadLineEncod alias "fb_DevFileReadLineEncod" _
-	( byval h as FB_FILE ptr, byval dst as FBSTRING ptr ) as long
+	( byval h as FB_FILE ptr, byval dst as FBSTRING ptr ) as int32
 
-	dim as long res = FB_RTERROR_OK
+	dim as int32 res = FB_RTERROR_OK
 
 	TKORT_IOLOCK()
 
@@ -627,9 +627,9 @@ end function
 '' is_unicode is TRUE -- passing a byte count would read half a character on
 '' Windows and a quarter on Linux.
 function tkort_DevFileReadLineEncodWstr alias "fb_DevFileReadLineEncodWstr" _
-	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval max_chars as integer ) as long
+	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval max_chars as integer ) as int32
 
-	dim as long res = FB_RTERROR_OK
+	dim as int32 res = FB_RTERROR_OK
 
 	TKORT_IOLOCK()
 
@@ -672,7 +672,7 @@ end function
 '' return its input unchanged when no conversion was needed, and freeing that
 '' would free the caller's memory.
 function tkort_DevFileWriteEncod alias "fb_DevFileWriteEncod" _
-	( byval h as FB_FILE ptr, byval buffer as any ptr, byval chars as uinteger ) as long
+	( byval h as FB_FILE ptr, byval buffer as any ptr, byval chars as uinteger ) as int32
 
 	TKORT_IOLOCK()
 
@@ -683,7 +683,7 @@ function tkort_DevFileWriteEncod alias "fb_DevFileWriteEncod" _
 	end if
 
 	dim as integer bytes_ = any
-	dim as ubyte ptr encod_buffer = tkrt_CharToUTF( h->encod, cast( ubyte ptr, buffer ), _
+	dim as uint8 ptr encod_buffer = tkrt_CharToUTF( h->encod, cast( uint8 ptr, buffer ), _
 	                                                chars, 0, @bytes_ )
 
 	if( encod_buffer <> 0 ) then
@@ -695,7 +695,7 @@ function tkort_DevFileWriteEncod alias "fb_DevFileWriteEncod" _
 			return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 		end if
 
-		if( encod_buffer <> cast( ubyte ptr, buffer ) ) then free( encod_buffer )
+		if( encod_buffer <> cast( uint8 ptr, buffer ) ) then free( encod_buffer )
 	end if
 
 	TKORT_IOUNLOCK()
@@ -703,7 +703,7 @@ function tkort_DevFileWriteEncod alias "fb_DevFileWriteEncod" _
 end function
 
 function tkort_DevFileWriteEncodWstr alias "fb_DevFileWriteEncodWstr" _
-	( byval h as FB_FILE ptr, byval buffer as wstring ptr, byval chars as uinteger ) as long
+	( byval h as FB_FILE ptr, byval buffer as wstring ptr, byval chars as uinteger ) as int32
 
 	TKORT_IOLOCK()
 
@@ -714,7 +714,7 @@ function tkort_DevFileWriteEncodWstr alias "fb_DevFileWriteEncodWstr" _
 	end if
 
 	dim as integer bytes_ = any
-	dim as ubyte ptr encod_buffer = tkrt_WCharToUTF( h->encod, buffer, chars, 0, @bytes_ )
+	dim as uint8 ptr encod_buffer = tkrt_WCharToUTF( h->encod, buffer, chars, 0, @bytes_ )
 
 	if( encod_buffer <> 0 ) then
 		if( fwrite( encod_buffer, 1, bytes_, fp ) <> bytes_ ) then
@@ -722,7 +722,7 @@ function tkort_DevFileWriteEncodWstr alias "fb_DevFileWriteEncodWstr" _
 			return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 		end if
 
-		if( encod_buffer <> cast( ubyte ptr, buffer ) ) then free( encod_buffer )
+		if( encod_buffer <> cast( uint8 ptr, buffer ) ) then free( encod_buffer )
 	end if
 
 	TKORT_IOUNLOCK()

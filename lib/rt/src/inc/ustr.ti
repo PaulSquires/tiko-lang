@@ -14,7 +14,7 @@ extern "c"   '' NON-FBCALL: fb_ustring.h declares all ten without FBCALL.
 		( byval s as FB_UCHAR ptr ) as integer
 	declare function tkrt_UStrCompare alias "fb_hUStrCompare" _
 		( byval s1 as FB_UCHAR ptr, byval len1 as integer, _
-		  byval s2 as FB_UCHAR ptr, byval len2 as integer ) as long
+		  byval s2 as FB_UCHAR ptr, byval len2 as integer ) as int32
 	declare sub tkrt_UStrCopy alias "fb_hUStrCopy" _
 		( byval dst as FB_UCHAR ptr, byval src as FB_UCHAR ptr, byval units as integer )
 	declare sub tkrt_UStrCopyN alias "fb_hUStrCopyN" _

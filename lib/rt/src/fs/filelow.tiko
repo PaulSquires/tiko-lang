@@ -49,7 +49,7 @@
 #include once "inc/sysbind.ti"
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 end extern
 
 '' fb_CHR IS NOT FBCALL, AND THE ARCHIVE IS WHAT SAYS SO: win32 spells it
@@ -60,19 +60,19 @@ end extern
 '' rejected outright ("vararg parameters are only allowed in CDECL procedures"),
 '' which is fbc-modern refusing to emit the same lie.
 extern "c"   '' NON-FBCALL: variadic, hence cdecl on every target.
-	declare function tkrt_CHR alias "fb_CHR" ( byval argc as long, ... ) as FBSTRING ptr
+	declare function tkrt_CHR alias "fb_CHR" ( byval argc as int32, ... ) as FBSTRING ptr
 end extern
 
 extern "c"   '' NON-FBCALL: libc and the Win32 API.
-	declare function crt_fileno alias "fileno" ( byval f as FILE ptr ) as long
+	declare function crt_fileno alias "fileno" ( byval f as FILE ptr ) as int32
 '' _fseeki64 / _ftelli64 ON THE MICROSOFT ABI. There is no fseeko in the UCRT:
 '' the 64-bit seek pair is spelled with a leading underscore and an i64 suffix
 '' there. Same signature and same meaning, a different name. TKORT_MSVC comes
 '' from build.sh -- see src/sys/sys.ti for why fbc cannot tell us itself.
 #ifdef TKORT_MSVC
-	declare function crt_ftello alias "_ftelli64" ( byval f as FILE ptr ) as longint
+	declare function crt_ftello alias "_ftelli64" ( byval f as FILE ptr ) as int64
 #else
-	declare function crt_ftello alias "ftello" ( byval f as FILE ptr ) as longint
+	declare function crt_ftello alias "ftello" ( byval f as FILE ptr ) as int64
 #endif
 	declare function crt_freopen alias "freopen" _
 		( byval path as zstring ptr, byval mode_ as zstring ptr, byval f as FILE ptr ) as FILE ptr
@@ -83,7 +83,7 @@ end extern
 	extern "c"   '' NON-FBCALL: the MSVCRT handle bridge, spelled without the
 	             '' leading underscore in fbc's source and WITH one in the
 	             '' import library.
-		declare function crt_get_osfhandle alias "_get_osfhandle" ( byval fd as long ) as any ptr
+		declare function crt_get_osfhandle alias "_get_osfhandle" ( byval fd as int32 ) as any ptr
 	end extern
 
 	extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points. The
@@ -92,19 +92,19 @@ end extern
 	             '' the same one inc/console.ti uses. EXTERN "Windows" would say
 	             '' the same thing and the lint refuses it, because it is one
 	             '' keyword away from EXTERN "rtlib" and means something else.
-		declare function FlushFileBuffers_ stdcall alias "FlushFileBuffers" ( byval h as any ptr ) as long
-		declare function SetEndOfFile_ stdcall alias "SetEndOfFile" ( byval h as any ptr ) as long
+		declare function FlushFileBuffers_ stdcall alias "FlushFileBuffers" ( byval h as any ptr ) as int32
+		declare function SetEndOfFile_ stdcall alias "SetEndOfFile" ( byval h as any ptr ) as int32
 		declare function LockFile_ stdcall alias "LockFile" _
-			( byval h as any ptr, byval offlo as ulong, byval offhi as ulong, _
-			  byval lenlo as ulong, byval lenhi as ulong ) as long
+			( byval h as any ptr, byval offlo as uint32, byval offhi as uint32, _
+			  byval lenlo as uint32, byval lenhi as uint32 ) as int32
 		declare function UnlockFile_ stdcall alias "UnlockFile" _
-			( byval h as any ptr, byval offlo as ulong, byval offhi as ulong, _
-			  byval lenlo as ulong, byval lenhi as ulong ) as long
+			( byval h as any ptr, byval offlo as uint32, byval offhi as uint32, _
+			  byval lenlo as uint32, byval lenhi as uint32 ) as int32
 	end extern
 
 	extern "c"   '' NON-FBCALL: fbc's own console handle cache.
 		declare sub tkrt_hConsoleResetHandles alias "fb_hConsoleResetHandles" ( )
-		declare function tkrt_hConsoleGetHandle alias "fb_hConsoleGetHandle" ( byval is_input as long ) as any ptr
+		declare function tkrt_hConsoleGetHandle alias "fb_hConsoleGetHandle" ( byval is_input as int32 ) as any ptr
 	end extern
 
 #else
@@ -113,13 +113,13 @@ end extern
 	'' l_whence 2, l_start 8, l_len 16, l_pid 24. Bound as fields rather than a
 	'' raw buffer because every one of the first four is written.
 	type FLOCK_
-		as short l_type
-		as short l_whence
-		as long  pad0_
-		as longint l_start
-		as longint l_len
-		as long  l_pid
-		as long  pad1_
+		as int16 l_type
+		as int16 l_whence
+		as int32  pad0_
+		as int64 l_start
+		as int64 l_len
+		as int32  l_pid
+		as int32  pad1_
 	end type
 
 	#assert sizeof( FLOCK_ ) = 32
@@ -136,15 +136,15 @@ end extern
 	const SEEK_SET_ = 0
 
 	extern "c"   '' NON-FBCALL: libc.
-		declare function u_fsync alias "fsync" ( byval fd as long ) as long
-		declare function u_ftruncate alias "ftruncate" ( byval fd as long, byval length_ as longint ) as long
+		declare function u_fsync alias "fsync" ( byval fd as int32 ) as int32
+		declare function u_ftruncate alias "ftruncate" ( byval fd as int32, byval length_ as int64 ) as int32
 		'' fcntl IS VARIADIC -- 'int fcntl( int fd, int cmd, ... )' -- and is declared so,
 		'' once. Two fixed declarations under one alias, two arguments and three, were
 		'' the same symbol twice: tiko keys a declaration by its link name and refused the
 		'' three-argument call (TKO0993, 'calls fcntl with 3 arguments, which declares 2')
 		'' when tiko first built this runtime on Linux (2026-10-10). And on x86-64 SysV a
 		'' variadic callee expects %al set, which only a variadic call site does.
-		declare function u_fcntl alias "fcntl" ( byval fd as long, byval cmd as long, ... ) as long
+		declare function u_fcntl alias "fcntl" ( byval fd as int32, byval cmd as int32, ... ) as int32
 	end extern
 
 #endif
@@ -157,7 +157,7 @@ extern "c"   '' NON-FBCALL: fb_file.h declares fb_hConvertPath plainly.
 '' file header on why that is not symmetric.
 sub tkort_hConvertPath alias "fb_hConvertPath" ( byval path as zstring ptr )
 
-	dim as ubyte ptr p = cast( ubyte ptr, path )
+	dim as uint8 ptr p = cast( uint8 ptr, path )
 	dim as integer length_ = strlen( path )
 
 	for i as integer = 0 to length_ - 1
@@ -174,7 +174,7 @@ end sub
 '' NOT fflush. That empties the CRT's buffer into the OS; this asks the OS to
 '' commit to the medium, which is the difference between surviving a crash and
 '' surviving a power cut.
-function tkort_hFileFlushEx alias "fb_hFileFlushEx" ( byval f as FILE ptr ) as long
+function tkort_hFileFlushEx alias "fb_hFileFlushEx" ( byval f as FILE ptr ) as int32
 
 	#ifdef __FB_WIN32__
 		if( FlushFileBuffers_( crt_get_osfhandle( crt_fileno( f ) ) ) = 0 ) then
@@ -194,14 +194,14 @@ end function
 '' TRUNCATES AT THE CURRENT POSITION. POSIX reads the position and passes it to
 '' ftruncate; Windows' SetEndOfFile takes the handle's own position and needs no
 '' argument -- so the ftello is a POSIX-only step and not a shared one.
-function tkort_hFileSetEofEx alias "fb_hFileSetEofEx" ( byval f as FILE ptr ) as long
+function tkort_hFileSetEofEx alias "fb_hFileSetEofEx" ( byval f as FILE ptr ) as int32
 
 	#ifdef __FB_WIN32__
 		if( SetEndOfFile_( crt_get_osfhandle( crt_fileno( f ) ) ) = 0 ) then
 			return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 		end if
 	#else
-		dim as longint pos_ = crt_ftello( f )
+		dim as int64 pos_ = crt_ftello( f )
 		if( u_ftruncate( crt_fileno( f ), pos_ ) <> 0 ) then
 			return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 		end if
@@ -217,11 +217,11 @@ end function
 '' THE READ-LOCK BRANCH IS DEAD CODE AND IS KEPT DEAD. `fcntl(fd, F_GETFL) &
 '' O_RDONLY` with O_RDONLY == 0 is always false, so every lock is a WRITE lock --
 '' see the file header. Reproduced exactly.
-private function hDoLock( byval f as FILE ptr, byval lock_ as long, _
-                          byval inipos as longint, byval size_ as longint ) as long
+private function hDoLock( byval f as FILE ptr, byval lock_ as int32, _
+                          byval inipos as int64, byval size_ as int64 ) as int32
 
 	dim as FLOCK_ lck
-	dim as long fd = crt_fileno( f )
+	dim as int32 fd = crt_fileno( f )
 
 	if( lock_ <> 0 ) then
 		if( (u_fcntl( fd, F_GETFL_ ) and O_RDONLY_) <> 0 ) then
@@ -245,15 +245,15 @@ end function
 #endif
 
 function tkort_hFileLock alias "fb_hFileLock" _
-	( byval f as FILE ptr, byval inipos as longint, byval size_ as longint ) as long
+	( byval f as FILE ptr, byval inipos as int64, byval size_ as int64 ) as int32
 
 	#ifdef __FB_WIN32__
 		'' THE OFFSET AND LENGTH ARE SPLIT INTO TWO 32-BIT HALVES, and fbc
 		'' passes ZERO for both high halves -- so a lock past 4 GB silently
 		'' wraps. Reproduced.
 		return tkrt_ErrorSetNum( iif( LockFile_( crt_get_osfhandle( crt_fileno( f ) ), _
-		                                         cast( ulong, inipos ), 0, _
-		                                         cast( ulong, size_ ), 0 ) <> 0, _
+		                                         cast( uint32, inipos ), 0, _
+		                                         cast( uint32, size_ ), 0 ) <> 0, _
 		                              FB_RTERROR_OK, FB_RTERROR_FILEIO ) )
 	#else
 		return hDoLock( f, 1, inipos, size_ )
@@ -261,12 +261,12 @@ function tkort_hFileLock alias "fb_hFileLock" _
 end function
 
 function tkort_hFileUnlock alias "fb_hFileUnlock" _
-	( byval f as FILE ptr, byval inipos as longint, byval size_ as longint ) as long
+	( byval f as FILE ptr, byval inipos as int64, byval size_ as int64 ) as int32
 
 	#ifdef __FB_WIN32__
 		return tkrt_ErrorSetNum( iif( UnlockFile_( crt_get_osfhandle( crt_fileno( f ) ), _
-		                                           cast( ulong, inipos ), 0, _
-		                                           cast( ulong, size_ ), 0 ) <> 0, _
+		                                           cast( uint32, inipos ), 0, _
+		                                           cast( uint32, size_ ), 0 ) <> 0, _
 		                              FB_RTERROR_OK, FB_RTERROR_FILEIO ) )
 	#else
 		return hDoLock( f, 0, inipos, size_ )
@@ -281,7 +281,7 @@ end function
 ''
 '' RETURNS A BOOLEAN, not an error code: the caller in io/fileinput.tiko turns it
 '' into FB_RTERROR_OK or FB_RTERROR_FILEIO.
-function tkort_hFileResetEx alias "fb_hFileResetEx" ( byval streamno as long ) as long
+function tkort_hFileResetEx alias "fb_hFileResetEx" ( byval streamno as int32 ) as int32
 
 	dim as FILE ptr f = any
 
@@ -317,7 +317,7 @@ end function
 '' code and comes out as CHR(low, high) -- 0x4800 becomes CHR(0, 72) -- so every
 '' caller tells the two apart by LEN(), and both the order and the length are the
 '' contract.
-function tkort_hMakeInkeyStr alias "fb_hMakeInkeyStr" ( byval key as long ) as FBSTRING ptr
+function tkort_hMakeInkeyStr alias "fb_hMakeInkeyStr" ( byval key as int32 ) as FBSTRING ptr
 
 	if( key > &hFF ) then
 		return tkrt_CHR( 2, (key and &hFF), (key shr 8) )

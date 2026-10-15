@@ -30,7 +30,7 @@
 extern "rtlib"
 	declare function tkrt_AllocTemp alias "fb_hStrAllocTemp" _
 		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
-	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 end extern
 
 '' Copy `length` bytes out of the string, if it has that many, then RELEASE IT.
@@ -65,49 +65,49 @@ extern "rtlib"
 
 '' ------------------------------------------------------------------- CV
 
-function tkort_CVSHORT alias "fb_CVSHORT" ( byval s as FBSTRING ptr ) as short
-	dim as short num = 0
-	hCV( s, sizeof( short ), @num )
+function tkort_CVSHORT alias "fb_CVSHORT" ( byval s as FBSTRING ptr ) as int16
+	dim as int16 num = 0
+	hCV( s, sizeof( int16 ), @num )
 	return num
 end function
 
 '' FOUR bytes, not pointer-width -- see the header.
-function tkort_CVI alias "fb_CVI" ( byval s as FBSTRING ptr ) as long
-	dim as long num = 0
-	hCV( s, sizeof( long ), @num )
+function tkort_CVI alias "fb_CVI" ( byval s as FBSTRING ptr ) as int32
+	dim as int32 num = 0
+	hCV( s, sizeof( int32 ), @num )
 	return num
 end function
 
 '' Identical to fb_CVI, deliberately: fbc gives both the same body.
-function tkort_CVL alias "fb_CVL" ( byval s as FBSTRING ptr ) as long
-	dim as long num = 0
-	hCV( s, sizeof( long ), @num )
+function tkort_CVL alias "fb_CVL" ( byval s as FBSTRING ptr ) as int32
+	dim as int32 num = 0
+	hCV( s, sizeof( int32 ), @num )
 	return num
 end function
 
-function tkort_CVLONGINT alias "fb_CVLONGINT" ( byval s as FBSTRING ptr ) as longint
-	dim as longint num = 0
-	hCV( s, sizeof( longint ), @num )
+function tkort_CVLONGINT alias "fb_CVLONGINT" ( byval s as FBSTRING ptr ) as int64
+	dim as int64 num = 0
+	hCV( s, sizeof( int64 ), @num )
 	return num
 end function
 
-function tkort_CVS alias "fb_CVS" ( byval s as FBSTRING ptr ) as single
-	dim as single num = 0.0
-	hCV( s, sizeof( single ), @num )
+function tkort_CVS alias "fb_CVS" ( byval s as FBSTRING ptr ) as float32
+	dim as float32 num = 0.0
+	hCV( s, sizeof( float32 ), @num )
 	return num
 end function
 
-function tkort_CVD alias "fb_CVD" ( byval s as FBSTRING ptr ) as double
-	dim as double num = 0.0
-	hCV( s, sizeof( double ), @num )
+function tkort_CVD alias "fb_CVD" ( byval s as FBSTRING ptr ) as float64
+	dim as float64 num = 0.0
+	hCV( s, sizeof( float64 ), @num )
 	return num
 end function
 
 '' ------------------------------------------------------------------- MK
 
-function tkort_MKSHORT alias "fb_MKSHORT" ( byval num as short ) as FBSTRING ptr
-	dim as short v = num
-	return hMK( sizeof( short ), @v )
+function tkort_MKSHORT alias "fb_MKSHORT" ( byval num as int16 ) as FBSTRING ptr
+	dim as int16 v = num
+	return hMK( sizeof( int16 ), @v )
 end function
 
 '' POINTER-WIDTH, not four -- the half of the asymmetry the header describes.
@@ -116,24 +116,24 @@ function tkort_MKI alias "fb_MKI" ( byval num as integer ) as FBSTRING ptr
 	return hMK( sizeof( integer ), @v )
 end function
 
-function tkort_MKL alias "fb_MKL" ( byval num as long ) as FBSTRING ptr
-	dim as long v = num
-	return hMK( sizeof( long ), @v )
+function tkort_MKL alias "fb_MKL" ( byval num as int32 ) as FBSTRING ptr
+	dim as int32 v = num
+	return hMK( sizeof( int32 ), @v )
 end function
 
-function tkort_MKLONGINT alias "fb_MKLONGINT" ( byval num as longint ) as FBSTRING ptr
-	dim as longint v = num
-	return hMK( sizeof( longint ), @v )
+function tkort_MKLONGINT alias "fb_MKLONGINT" ( byval num as int64 ) as FBSTRING ptr
+	dim as int64 v = num
+	return hMK( sizeof( int64 ), @v )
 end function
 
-function tkort_MKS alias "fb_MKS" ( byval num as single ) as FBSTRING ptr
-	dim as single v = num
-	return hMK( sizeof( single ), @v )
+function tkort_MKS alias "fb_MKS" ( byval num as float32 ) as FBSTRING ptr
+	dim as float32 v = num
+	return hMK( sizeof( float32 ), @v )
 end function
 
-function tkort_MKD alias "fb_MKD" ( byval num as double ) as FBSTRING ptr
-	dim as double v = num
-	return hMK( sizeof( double ), @v )
+function tkort_MKD alias "fb_MKD" ( byval num as float64 ) as FBSTRING ptr
+	dim as float64 v = num
+	return hMK( sizeof( float64 ), @v )
 end function
 
 end extern

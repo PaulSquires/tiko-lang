@@ -38,7 +38,7 @@ end type
 '' FB_UCHAR is USHORT on EVERY target -- deliberately not wchar_t, which is
 '' 2 bytes on Windows and 4 on Linux.
 
-type FB_UCHAR as ushort
+type FB_UCHAR as uint16
 
 type FBUSTRING field = 1
 	as FB_UCHAR ptr data      '' the code units
@@ -94,7 +94,7 @@ type FB_LISTELEM field = 1
 end type
 
 type FB_LIST field = 1
-	as long             cnt      '' C int, not integer -- this one really is 32-bit
+	as int32             cnt      '' C int, not integer -- this one really is 32-bit
 	as FB_LISTELEM ptr  head
 	as FB_LISTELEM ptr  tail
 	as FB_LISTELEM ptr  fhead    '' first free element
@@ -116,8 +116,8 @@ type FB_ERRHANDLER as sub( )
 
 type FB_ERRORCTX field = 1
 	as FB_ERRHANDLER handler
-	as long          err_num     '' C int
-	as long          line_num    '' C int
+	as int32          err_num     '' C int
+	as int32          line_num    '' C int
 	as zstring ptr   mod_name
 	as zstring ptr   fun_name
 	as any ptr       res_lbl
@@ -134,8 +134,8 @@ type FB_ERRORCTX field = 1
 	'' OVER-SIZED AND HAND-ALIGNED: 528 bytes against Windows x64's 256-byte
 	'' jmp_buf and glibc's 200, and fb_ErrorJmpBuf rounds the address up to 16
 	'' because this type is 'field = 1' and setjmp saves xmm registers.
-	as long          jmp_armed
-	as ubyte         jmp_raw(0 to 527)
+	as int32          jmp_armed
+	as uint8         jmp_raw(0 to 527)
 end type
 
 '' ================================================================== macros

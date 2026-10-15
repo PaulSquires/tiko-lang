@@ -34,11 +34,11 @@
 
 #include once "inc/descriptors.ti"
 
-const FB_TLSKEY_ERROR as long = 0
+const FB_TLSKEY_ERROR as int32 = 0
 
 extern "rtlib"
 	declare function fb_TlsGetCtx alias "fb_TlsGetCtx" _
-		( byval idx as long, byval length as uinteger, byval dtor as any ptr ) as any ptr
+		( byval idx as int32, byval length as uinteger, byval dtor as any ptr ) as any ptr
 end extern
 
 private function hCtx( ) as FB_ERRORCTX ptr
@@ -48,21 +48,21 @@ end function
 
 extern "rtlib"
 
-function tkort_ErrorGetNum alias "fb_ErrorGetNum" ( ) as long
+function tkort_ErrorGetNum alias "fb_ErrorGetNum" ( ) as int32
 	dim as FB_ERRORCTX ptr c = hCtx( )
 	if( c = 0 ) then return 0
 	return c->err_num
 end function
 
 '' Returns the NEW value -- unlike the name setters below.
-function tkort_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as long ) as long
+function tkort_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as int32 ) as int32
 	dim as FB_ERRORCTX ptr c = hCtx( )
 	if( c = 0 ) then return errnum
 	c->err_num = errnum
 	return errnum
 end function
 
-function tkort_ErrorGetLineNum alias "fb_ErrorGetLineNum" ( ) as long
+function tkort_ErrorGetLineNum alias "fb_ErrorGetLineNum" ( ) as int32
 	dim as FB_ERRORCTX ptr c = hCtx( )
 	if( c = 0 ) then return 0
 	return c->line_num

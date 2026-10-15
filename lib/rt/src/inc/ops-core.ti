@@ -33,7 +33,7 @@
 
 '' Compare two runs, honouring the fold flag.
 private function SOP(hEq) _
-	( byval a as SOP_UNIT ptr, byval b as SOP_UNIT ptr, byval length as integer, byval ic as long ) as long
+	( byval a as SOP_UNIT ptr, byval b as SOP_UNIT ptr, byval length as integer, byval ic as int32 ) as int32
 
 	if( ic = 0 ) then
 		if( memcmp( a, b, length * sizeof( SOP_UNIT ) ) = 0 ) then return 1
@@ -50,7 +50,7 @@ end function
 
 '' Is c one of set[0..setlen-1]?
 private function SOP(hInSet) _
-	( byval c as SOP_UNIT, byval st as SOP_UNIT ptr, byval setlen as integer, byval ic as long ) as long
+	( byval c as SOP_UNIT, byval st as SOP_UNIT ptr, byval setlen as integer, byval ic as int32 ) as int32
 
 	if( ic <> 0 ) then
 		dim as SOP_UNIT fc = SOP_FOLD( c )
@@ -72,7 +72,7 @@ private function SOP(hFind) _
 	( _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval pat as SOP_UNIT ptr, byval patlen as integer, _
-		byval from as integer, byval ic as long _
+		byval from as integer, byval ic as int32 _
 	) as integer
 
 	if( patlen <= 0 ) then return -1
@@ -93,7 +93,7 @@ private function SOP(hFindAny) _
 	( _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval st as SOP_UNIT ptr, byval setlen as integer, _
-		byval from as integer, byval ic as long _
+		byval from as integer, byval ic as int32 _
 	) as integer
 
 	if( setlen <= 0 ) then return -1
@@ -114,7 +114,7 @@ private function SOP(hVerify) _
 	( _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval st as SOP_UNIT ptr, byval setlen as integer, _
-		byval from as integer, byval ic as long _
+		byval from as integer, byval ic as int32 _
 	) as integer
 
 	if( slen <= 0 ) then return -1
@@ -134,7 +134,7 @@ private function SOP(hSpan) _
 	( _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval st as SOP_UNIT ptr, byval setlen as integer, _
-		byval from as integer, byval ic as long _
+		byval from as integer, byval ic as int32 _
 	) as integer
 
 	if( slen <= 0 ) then return 0
@@ -157,7 +157,7 @@ end function
 private function SOP(hTally) _
 	( _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
-		byval pat as SOP_UNIT ptr, byval patlen as integer, byval ic as long _
+		byval pat as SOP_UNIT ptr, byval patlen as integer, byval ic as int32 _
 	) as integer
 
 	if( patlen <= 0 ) then return 0
@@ -178,7 +178,7 @@ end function
 private function SOP(hTallyAny) _
 	( _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
-		byval st as SOP_UNIT ptr, byval setlen as integer, byval ic as long _
+		byval st as SOP_UNIT ptr, byval setlen as integer, byval ic as int32 _
 	) as integer
 
 	if( setlen <= 0 ) then return 0
@@ -199,8 +199,8 @@ end function
 private function SOP(hStartsWith) _
 	( _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
-		byval pre as SOP_UNIT ptr, byval prelen as integer, byval ic as long _
-	) as long
+		byval pre as SOP_UNIT ptr, byval prelen as integer, byval ic as int32 _
+	) as int32
 
 	if( prelen <= 0 ) then return 1
 	if( prelen > slen ) then return 0
@@ -211,8 +211,8 @@ end function
 private function SOP(hEndsWith) _
 	( _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
-		byval suf as SOP_UNIT ptr, byval suflen as integer, byval ic as long _
-	) as long
+		byval suf as SOP_UNIT ptr, byval suflen as integer, byval ic as int32 _
+	) as int32
 
 	if( suflen <= 0 ) then return 1
 	if( suflen > slen ) then return 0
@@ -240,7 +240,7 @@ private sub SOP(hExtractSpan) _
 	( _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval pat as SOP_UNIT ptr, byval patlen as integer, _
-		byval from as integer, byval ic as long, _
+		byval from as integer, byval ic as int32, _
 		byval off as integer ptr, byval cnt as integer ptr _
 	)
 
@@ -262,7 +262,7 @@ private sub SOP(hExtractCharsSpan) _
 	( _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval st as SOP_UNIT ptr, byval setlen as integer, _
-		byval from as integer, byval ic as long, _
+		byval from as integer, byval ic as int32, _
 		byval off as integer ptr, byval cnt as integer ptr _
 	)
 
@@ -289,7 +289,7 @@ private sub SOP(hRemainSpan) _
 	( _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval pat as SOP_UNIT ptr, byval patlen as integer, _
-		byval from as integer, byval ic as long, _
+		byval from as integer, byval ic as int32, _
 		byval off as integer ptr, byval cnt as integer ptr _
 	)
 
@@ -313,7 +313,7 @@ private sub SOP(hRemainCharsSpan) _
 	( _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval st as SOP_UNIT ptr, byval setlen as integer, _
-		byval from as integer, byval ic as long, _
+		byval from as integer, byval ic as int32, _
 		byval off as integer ptr, byval cnt as integer ptr _
 	)
 
@@ -344,7 +344,7 @@ private sub SOP(hBetweenSpan) _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval d1 as SOP_UNIT ptr, byval d1len as integer, _
 		byval d2 as SOP_UNIT ptr, byval d2len as integer, _
-		byval from as integer, byval ic as long, _
+		byval from as integer, byval ic as int32, _
 		byval off as integer ptr, byval cnt as integer ptr _
 	)
 
@@ -465,7 +465,7 @@ private function SOP(hReplaceFill) _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval pat as SOP_UNIT ptr, byval patlen as integer, _
 		byval rep as SOP_UNIT ptr, byval replen as integer, _
-		byval ic as long _
+		byval ic as int32 _
 	) as integer
 
 	if( (patlen <= 0) orelse (slen <= 0) ) then
@@ -509,7 +509,7 @@ private function SOP(hRemoveCharsFill) _
 	( _
 		byval dst as SOP_UNIT ptr, _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
-		byval st as SOP_UNIT ptr, byval setlen as integer, byval ic as long _
+		byval st as SOP_UNIT ptr, byval setlen as integer, byval ic as int32 _
 	) as integer
 
 	dim as integer w = 0
@@ -533,7 +533,7 @@ private function SOP(hRetainCharsFill) _
 	( _
 		byval dst as SOP_UNIT ptr, _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
-		byval st as SOP_UNIT ptr, byval setlen as integer, byval ic as long _
+		byval st as SOP_UNIT ptr, byval setlen as integer, byval ic as int32 _
 	) as integer
 
 	if( setlen <= 0 ) then return 0
@@ -558,7 +558,7 @@ private function SOP(hReplaceCharsFill) _
 		byval dst as SOP_UNIT ptr, _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval st as SOP_UNIT ptr, byval setlen as integer, _
-		byval unit as SOP_UNIT, byval ic as long _
+		byval unit as SOP_UNIT, byval ic as int32 _
 	) as integer
 
 	for i as integer = 0 to slen - 1
@@ -706,7 +706,7 @@ private function SOP(hRemoveBetweenFill) _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval d1 as SOP_UNIT ptr, byval d1len as integer, _
 		byval d2 as SOP_UNIT ptr, byval d2len as integer, _
-		byval removeAll as long, byval from as integer, byval ic as long _
+		byval removeAll as int32, byval from as integer, byval ic as int32 _
 	) as integer
 
 	if( slen <= 0 ) then return 0
@@ -769,7 +769,7 @@ private function SOP(hPadFill) _
 	( _
 		byval dst as SOP_UNIT ptr, _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
-		byval fieldw as integer, byval pad as SOP_UNIT, byval mode as long _
+		byval fieldw as integer, byval pad as SOP_UNIT, byval mode as int32 _
 	) as integer
 
 	if( fieldw <= 0 ) then return 0
@@ -814,7 +814,7 @@ private sub SOP(hUnwrapSpan) _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval op as SOP_UNIT ptr, byval oplen as integer, _
 		byval cl as SOP_UNIT ptr, byval cllen as integer, _
-		byval ic as long, byval off as integer ptr, byval cnt as integer ptr _
+		byval ic as int32, byval off as integer ptr, byval cnt as integer ptr _
 	)
 
 	*off = 0
@@ -856,7 +856,7 @@ end sub
 '' Unescape is the EXACT inverse for every input, including one that already
 '' contains backslashes.
 
-dim shared as ubyte tkort_hexDigit(0 to 15) = _
+dim shared as uint8 tkort_hexDigit(0 to 15) = _
 	{ asc("0"), asc("1"), asc("2"), asc("3"), asc("4"), asc("5"), asc("6"), asc("7"), _
 	  asc("8"), asc("9"), asc("A"), asc("B"), asc("C"), asc("D"), asc("E"), asc("F") }
 
@@ -905,7 +905,7 @@ private function SOP(hEscapeFill) _
 end function
 
 '' One hex digit's value, or -1.
-private function SOP(hHexVal)( byval c as SOP_UNIT ) as long
+private function SOP(hHexVal)( byval c as SOP_UNIT ) as int32
 	if( (c >= asc("0")) andalso (c <= asc("9")) ) then return c - asc("0")
 	if( (c >= asc("a")) andalso (c <= asc("f")) ) then return c - asc("a") + 10
 	if( (c >= asc("A")) andalso (c <= asc("F")) ) then return c - asc("A") + 10
@@ -951,10 +951,10 @@ private function SOP(hUnescapeFill) _
 		case asc("0")
 			dst[w] = 0 : w += 1 : i += 2
 		case asc("x")
-			dim as long done_ = 0
+			dim as int32 done_ = 0
 			if( i + 3 < slen ) then
-				dim as long hi = SOP(hHexVal)( s[i + 2] )
-				dim as long lo = SOP(hHexVal)( s[i + 3] )
+				dim as int32 hi = SOP(hHexVal)( s[i + 2] )
+				dim as int32 lo = SOP(hHexVal)( s[i + 3] )
 				if( (hi >= 0) andalso (lo >= 0) ) then
 					dst[w] = cast( SOP_UNIT, (hi shl 4) or lo )
 					w += 1 : i += 4
@@ -979,13 +979,13 @@ end function
 
 '' Whitespace: space, tab, LF, VT, FF, CR. The same six C's isspace() uses,
 '' spelled out so it does not depend on a locale.
-private function SOP(hIsSpace)( byval c as SOP_UNIT ) as long
+private function SOP(hIsSpace)( byval c as SOP_UNIT ) as int32
 	if( c = 32 ) then return 1
 	if( (c >= 9) andalso (c <= 13) ) then return 1
 	return 0
 end function
 
-private function SOP(hIsBlank)( byval s as SOP_UNIT ptr, byval slen as integer ) as long
+private function SOP(hIsBlank)( byval s as SOP_UNIT ptr, byval slen as integer ) as int32
 	for i as integer = 0 to slen - 1
 		if( SOP(hIsSpace)( s[i] ) = 0 ) then return 0
 	next
@@ -1007,7 +1007,7 @@ end function
 '' RADIX LITERALS (&H, &O, &B) ARE NOT ACCEPTED, even though VAL takes them:
 '' they are a FreeBASIC literal syntax rather than a numeric string, and
 '' admitting them would make "&HZZ" a parse question with no good answer.
-private function SOP(hIsNumeric)( byval s as SOP_UNIT ptr, byval slen as integer ) as long
+private function SOP(hIsNumeric)( byval s as SOP_UNIT ptr, byval slen as integer ) as int32
 
 	dim as integer i = 0
 	dim as integer digits = 0
@@ -1097,7 +1097,7 @@ private function SOP(hSplitSpans) _
 	( _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval pat as SOP_UNIT ptr, byval patlen as integer, _
-		byval ic as long, byval spans as integer ptr, byval maxpairs as integer _
+		byval ic as int32, byval spans as integer ptr, byval maxpairs as integer _
 	) as integer
 
 	if( slen < 0 ) then slen = 0
@@ -1141,7 +1141,7 @@ private function SOP(hSplitCharsSpans) _
 	( _
 		byval s as SOP_UNIT ptr, byval slen as integer, _
 		byval st as SOP_UNIT ptr, byval setlen as integer, _
-		byval ic as long, byval spans as integer ptr, byval maxpairs as integer _
+		byval ic as int32, byval spans as integer ptr, byval maxpairs as integer _
 	) as integer
 
 	if( slen < 0 ) then slen = 0

@@ -29,32 +29,32 @@ const FB_RTERROR_OK = 0
 const FB_RTERROR_ILLEGALFUNCTIONCALL = 1
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
-	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: the data-path *Ex forms.
 	declare function tkrt_PutDataEx alias "fb_FilePutDataEx" _
-		( byval h as FB_FILE ptr, byval pos_ as longint, byval data_ as any ptr, _
-		  byval length as uinteger, byval adjust as long, byval chknl as long, _
-		  byval is_uni as long ) as long
+		( byval h as FB_FILE ptr, byval pos_ as int64, byval data_ as any ptr, _
+		  byval length as uinteger, byval adjust as int32, byval chknl as int32, _
+		  byval is_uni as int32 ) as int32
 	declare function tkrt_GetDataEx alias "fb_FileGetDataEx" _
-		( byval h as FB_FILE ptr, byval pos_ as longint, byval dst as any ptr, _
+		( byval h as FB_FILE ptr, byval pos_ as int64, byval dst as any ptr, _
 		  byval length as uinteger, byval bytesread as uinteger ptr, _
-		  byval adjust as long, byval is_uni as long ) as long
+		  byval adjust as int32, byval is_uni as int32 ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: fb_file.h declares the *Ex forms plainly.
 
 function tkort_FilePutStrEx alias "fb_FilePutStrEx" _
-	( byval h as FB_FILE ptr, byval pos_ as longint, byval str_ as any ptr, _
-	  byval str_len as integer ) as long
+	( byval h as FB_FILE ptr, byval pos_ as int64, byval str_ as any ptr, _
+	  byval str_len as integer ) as int32
 
 	dim as zstring ptr data_ = any
 	dim as integer length = any
 	FB_STRSETUP_DYN( str_, str_len, data_, length )
 
-	dim as long res = any
+	dim as int32 res = any
 	if( (data_ <> 0) andalso (length > 0) ) then
 		'' checknewline TRUE: writing a string through PUT keeps PRINT's comma
 		'' padding correct, which is the whole reason that flag exists.
@@ -71,8 +71,8 @@ function tkort_FilePutStrEx alias "fb_FilePutStrEx" _
 end function
 
 function tkort_FileGetStrEx alias "fb_FileGetStrEx" _
-	( byval h as FB_FILE ptr, byval pos_ as longint, byval str_ as any ptr, _
-	  byval str_len as integer, byval bytesread as uinteger ptr ) as long
+	( byval h as FB_FILE ptr, byval pos_ as int64, byval str_ as any ptr, _
+	  byval str_len as integer, byval bytesread as uinteger ptr ) as int32
 
 	if( bytesread <> 0 ) then *bytesread = 0
 
@@ -84,7 +84,7 @@ function tkort_FileGetStrEx alias "fb_FileGetStrEx" _
 	dim as integer length = any
 	FB_STRSETUP_DYN( str_, str_len, data_, length )
 
-	dim as long res = any
+	dim as int32 res = any
 	dim as uinteger got = length
 
 	if( (data_ <> 0) andalso (length > 0) ) then
@@ -112,38 +112,38 @@ end extern
 extern "rtlib"
 
 function tkort_FilePutStr alias "fb_FilePutStr" _
-	( byval fnum as long, byval pos_ as long, byval str_ as any ptr, _
-	  byval str_len as integer ) as long
+	( byval fnum as int32, byval pos_ as int32, byval str_ as any ptr, _
+	  byval str_len as integer ) as int32
 	return tkort_FilePutStrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, str_, str_len )
 end function
 
 function tkort_FilePutStrLarge alias "fb_FilePutStrLarge" _
-	( byval fnum as long, byval pos_ as longint, byval str_ as any ptr, _
-	  byval str_len as integer ) as long
+	( byval fnum as int32, byval pos_ as int64, byval str_ as any ptr, _
+	  byval str_len as integer ) as int32
 	return tkort_FilePutStrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, str_, str_len )
 end function
 
 function tkort_FileGetStr alias "fb_FileGetStr" _
-	( byval fnum as long, byval pos_ as long, byval str_ as any ptr, _
-	  byval str_len as integer ) as long
+	( byval fnum as int32, byval pos_ as int32, byval str_ as any ptr, _
+	  byval str_len as integer ) as int32
 	return tkort_FileGetStrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, str_, str_len, 0 )
 end function
 
 function tkort_FileGetStrLarge alias "fb_FileGetStrLarge" _
-	( byval fnum as long, byval pos_ as longint, byval str_ as any ptr, _
-	  byval str_len as integer ) as long
+	( byval fnum as int32, byval pos_ as int64, byval str_ as any ptr, _
+	  byval str_len as integer ) as int32
 	return tkort_FileGetStrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, str_, str_len, 0 )
 end function
 
 function tkort_FileGetStrIOB alias "fb_FileGetStrIOB" _
-	( byval fnum as long, byval pos_ as long, byval str_ as any ptr, _
-	  byval str_len as integer, byval bytesread as uinteger ptr ) as long
+	( byval fnum as int32, byval pos_ as int32, byval str_ as any ptr, _
+	  byval str_len as integer, byval bytesread as uinteger ptr ) as int32
 	return tkort_FileGetStrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, str_, str_len, bytesread )
 end function
 
 function tkort_FileGetStrLargeIOB alias "fb_FileGetStrLargeIOB" _
-	( byval fnum as long, byval pos_ as longint, byval str_ as any ptr, _
-	  byval str_len as integer, byval bytesread as uinteger ptr ) as long
+	( byval fnum as int32, byval pos_ as int64, byval str_ as any ptr, _
+	  byval str_len as integer, byval bytesread as uinteger ptr ) as int32
 	return tkort_FileGetStrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, str_, str_len, bytesread )
 end function
 

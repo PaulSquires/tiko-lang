@@ -31,9 +31,9 @@
 extern "rtlib"
 
 function tkort_hStrSkipChar alias "fb_hStrSkipChar" _
-	( byval s as zstring ptr, byval length as integer, byval c as long ) as zstring ptr
+	( byval s as zstring ptr, byval length as integer, byval c as int32 ) as zstring ptr
 
-	dim as ubyte ptr p = cptr( ubyte ptr, s )
+	dim as uint8 ptr p = cptr( uint8 ptr, s )
 
 	if( s <> 0 ) then
 		'' C's `while( (--len >= 0) && (*p == c) )`: decrement FIRST, so a
@@ -51,12 +51,12 @@ function tkort_hStrSkipChar alias "fb_hStrSkipChar" _
 end function
 
 function tkort_hStrSkipCharRev alias "fb_hStrSkipCharRev" _
-	( byval s as zstring ptr, byval length as integer, byval c as long ) as zstring ptr
+	( byval s as zstring ptr, byval length as integer, byval c as int32 ) as zstring ptr
 
 	if( s = 0 ) then return s
 	if( length <= 0 ) then return s
 
-	dim as ubyte ptr p = cptr( ubyte ptr, s ) + length - 1
+	dim as uint8 ptr p = cptr( uint8 ptr, s ) + length - 1
 
 	'' NUL is stripped here and nowhere else -- see the note above.
 	do

@@ -49,38 +49,38 @@
 #endif
 
 extern "rtlib"
-	declare sub tkrt_End alias "fb_End" ( byval errlevel as long )
+	declare sub tkrt_End alias "fb_End" ( byval errlevel as int32 )
 	declare function tkrt_ExecEx alias "fb_ExecEx" _
-		( byval program as FBSTRING ptr, byval args as FBSTRING ptr, byval wait_ as long ) as long
+		( byval program as FBSTRING ptr, byval args as FBSTRING ptr, byval wait_ as int32 ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: the h-prefixed helpers, all undecorated in fbc's
              '' win32 archive.
 	declare function tkrt_hStrAllocTemp alias "fb_hStrAllocTemp" _
 		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
-	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 	declare sub tkrt_StrCopy alias "fb_hStrCopy" _
 		( byval dst as zstring ptr, byval src as zstring ptr, byval bytes as integer )
 	declare function tkrt_hGetCurrentDir alias "fb_hGetCurrentDir" _
 		( byval buffer as zstring ptr, byval maxlen as integer ) as integer
 	declare function tkrt_hGetExePath alias "fb_hGetExePath" _
 		( byval buffer as zstring ptr, byval maxlen as integer ) as zstring ptr
-	declare function tkrt_hShell alias "fb_hShell" ( byval cmd as zstring ptr ) as long
+	declare function tkrt_hShell alias "fb_hShell" ( byval cmd as zstring ptr ) as int32
 end extern
 
 '' The CRT directory calls. MinGW spells all three with a leading underscore and
 '' mkdir takes no mode; POSIX spells them plainly and mkdir takes one.
 #ifdef __FB_WIN32__
 	extern "c"   '' NON-FBCALL: CRT entry points, not runtime ones.
-		declare function crt_chdir alias "_chdir" ( byval p as zstring ptr ) as long
-		declare function crt_mkdir alias "_mkdir" ( byval p as zstring ptr ) as long
-		declare function crt_rmdir alias "_rmdir" ( byval p as zstring ptr ) as long
+		declare function crt_chdir alias "_chdir" ( byval p as zstring ptr ) as int32
+		declare function crt_mkdir alias "_mkdir" ( byval p as zstring ptr ) as int32
+		declare function crt_rmdir alias "_rmdir" ( byval p as zstring ptr ) as int32
 	end extern
 #else
 	extern "c"   '' NON-FBCALL: CRT entry points, not runtime ones.
-		declare function crt_chdir alias "chdir" ( byval p as zstring ptr ) as long
-		declare function crt_mkdir_ alias "mkdir" ( byval p as zstring ptr, byval m as ulong ) as long
-		declare function crt_rmdir alias "rmdir" ( byval p as zstring ptr ) as long
+		declare function crt_chdir alias "chdir" ( byval p as zstring ptr ) as int32
+		declare function crt_mkdir_ alias "mkdir" ( byval p as zstring ptr, byval m as uint32 ) as int32
+		declare function crt_rmdir alias "rmdir" ( byval p as zstring ptr ) as int32
 	end extern
 	'' S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH -- 0775. NOT 0777: fbc creates
 	'' directories group-writable and world-readable, and the umask narrows it
@@ -159,7 +159,7 @@ end function
 '' arg < 0 JOINS EVERYTHING FROM argv[1]; arg >= argc is the empty string, and
 '' arg = 0 is the program name. A program with no arguments answers "" to
 '' COMMAND$(-1) without allocating anything.
-function tkort_Command alias "fb_Command" ( byval arg as long ) as FBSTRING ptr
+function tkort_Command alias "fb_Command" ( byval arg as int32 ) as FBSTRING ptr
 
 	dim as FBSTRING ptr dst = any
 	dim as integer i = any, length_ = any
@@ -203,24 +203,24 @@ end function
 
 '' The CRT's return value, unchanged, and the temp deleted afterwards. See the
 '' file header on why there is no NULL check and no fb_ErrorSetNum.
-function tkort_ChDir alias "fb_ChDir" ( byval path as FBSTRING ptr ) as long
-	dim as long res = crt_chdir( path->data )
+function tkort_ChDir alias "fb_ChDir" ( byval path as FBSTRING ptr ) as int32
+	dim as int32 res = crt_chdir( path->data )
 	tkrt_DelTemp( path )
 	return res
 end function
 
-function tkort_MkDir alias "fb_MkDir" ( byval path as FBSTRING ptr ) as long
+function tkort_MkDir alias "fb_MkDir" ( byval path as FBSTRING ptr ) as int32
 	#ifdef __FB_WIN32__
-		dim as long res = crt_mkdir( path->data )
+		dim as int32 res = crt_mkdir( path->data )
 	#else
-		dim as long res = crt_mkdir_( path->data, MKDIR_MODE )
+		dim as int32 res = crt_mkdir_( path->data, MKDIR_MODE )
 	#endif
 	tkrt_DelTemp( path )
 	return res
 end function
 
-function tkort_RmDir alias "fb_RmDir" ( byval path as FBSTRING ptr ) as long
-	dim as long res = crt_rmdir( path->data )
+function tkort_RmDir alias "fb_RmDir" ( byval path as FBSTRING ptr ) as int32
+	dim as int32 res = crt_rmdir( path->data )
 	tkrt_DelTemp( path )
 	return res
 end function
@@ -231,7 +231,7 @@ end function
 '' three are fb_ExecEx with different flags, and NONE of them deletes its temp
 '' descriptor -- fb_ExecEx does that, because it is the one that reads them.
 function tkort_Exec alias "fb_Exec" _
-	( byval program as FBSTRING ptr, byval args as FBSTRING ptr ) as long
+	( byval program as FBSTRING ptr, byval args as FBSTRING ptr ) as int32
 
 	return tkrt_ExecEx( program, args, FB_TRUE )
 end function
@@ -239,22 +239,22 @@ end function
 '' -1 IS THE ONLY THING THIS CAN RETURN. On success fb_End never comes back; on
 '' failure fb_ExecEx already returned -1 and so does this.
 function tkort_Run alias "fb_Run" _
-	( byval program as FBSTRING ptr, byval args as FBSTRING ptr ) as long
+	( byval program as FBSTRING ptr, byval args as FBSTRING ptr ) as int32
 
 	if( tkrt_ExecEx( program, args, FB_FALSE ) <> -1 ) then tkrt_End( 0 )
 	return -1
 end function
 
-function tkort_Chain alias "fb_Chain" ( byval program as FBSTRING ptr ) as long
+function tkort_Chain alias "fb_Chain" ( byval program as FBSTRING ptr ) as int32
 	return tkrt_ExecEx( program, 0, FB_TRUE )
 end function
 
 '' A NULL OR UNASSIGNED PROGRAM STRING IS -1 WITHOUT A SHELL, and this is the
 '' one function in the group that does check -- because it passes the pointer to
 '' the platform's shell rather than to the CRT.
-function tkort_Shell alias "fb_Shell" ( byval program as FBSTRING ptr ) as long
+function tkort_Shell alias "fb_Shell" ( byval program as FBSTRING ptr ) as int32
 
-	dim as long errcode = -1
+	dim as int32 errcode = -1
 
 	if( (program <> 0) andalso (program->data <> 0) ) then
 		errcode = tkrt_hShell( program->data )
@@ -289,12 +289,12 @@ extern "c"   '' NON-FBCALL: fb_system.h declares fb_hParseArgs plainly.
 '' Returns -1 for a NULL buffer or a negative length, and the ARGUMENT COUNT
 '' otherwise; dst must be at least as large as src.
 function tkort_hParseArgs alias "fb_hParseArgs" _
-	( byval dst as zstring ptr, byval src as zstring ptr, byval length_ as integer ) as long
+	( byval dst as zstring ptr, byval src as zstring ptr, byval length_ as integer ) as int32
 
-	dim as long in_quote = 0, argc = 0
+	dim as int32 in_quote = 0, argc = 0
 	dim as integer bs_count = 0, i = 0
-	dim as ubyte ptr s = cast( ubyte ptr, src )
-	dim as ubyte ptr p = cast( ubyte ptr, dst )
+	dim as uint8 ptr s = cast( uint8 ptr, src )
+	dim as uint8 ptr p = cast( uint8 ptr, dst )
 
 	if( (src = 0) orelse (dst = 0) orelse (length_ < 0) ) then return -1
 

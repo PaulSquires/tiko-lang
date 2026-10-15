@@ -106,8 +106,8 @@ const KEY_DEL_       = TKORT_EXTKEY( 83 )
 
 '' A node of the escape-sequence tree -- see the file header for its shape.
 type TKORT_KEYNODE
-	as ubyte             key_
-	as short             code_
+	as uint8             key_
+	as int16             code_
 	as TKORT_KEYNODE ptr next_
 	as TKORT_KEYNODE ptr child_
 end type
@@ -118,20 +118,20 @@ extern "c"   '' NON-FBCALL: termcap.
 end extern
 
 extern "c"   '' NON-FBCALL: rtlib internals, declared plain.
-	declare function tkrt_hMakeInkeyStr alias "fb_hMakeInkeyStr" ( byval ch as long ) as FBSTRING ptr
+	declare function tkrt_hMakeInkeyStr alias "fb_hMakeInkeyStr" ( byval ch as int32 ) as FBSTRING ptr
 end extern
 
 extern "rtlib"   '' FBCALL.
 	declare sub tkrt_BgLock4 alias "fb_BgLock" ( )
 	declare sub tkrt_BgUnlock4 alias "fb_BgUnlock" ( )
-	declare sub tkrt_Sleep4 alias "fb_Sleep" ( byval ms as long )
+	declare sub tkrt_Sleep4 alias "fb_Sleep" ( byval ms as int32 )
 end extern
 
 '' The 24 termcap capability ids and the key each stands for. Held as real
 '' objects because tgetstr takes a mutable char*.
 type TKORT_KEYDATA
 	as zstring * 4 cap
-	as long        code_
+	as int32        code_
 end type
 
 dim shared as TKORT_KEYDATA tkort_key_data( 0 to 23 )
@@ -170,19 +170,19 @@ private sub tkort_init_key_data( )
 end sub
 
 '' File-local state.
-dim shared as long tkort_key_buffer( 0 to KEY_BUFFER_LEN_ - 1 )
-dim shared as long tkort_key_head = 0, tkort_key_tail = 0
-dim shared as long tkort_key_buffer_changed = 0
+dim shared as int32 tkort_key_buffer( 0 to KEY_BUFFER_LEN_ - 1 )
+dim shared as int32 tkort_key_head = 0, tkort_key_tail = 0
+dim shared as int32 tkort_key_buffer_changed = 0
 dim shared as TKORT_KEYNODE ptr tkort_root_node = 0
 
 '' Inserts one sequence, one character per level. Recursive, as fbc's is.
 private sub tkort_add_key _
-	( byval node as TKORT_KEYNODE ptr ptr, byval key_ as zstring ptr, byval code_ as short )
+	( byval node as TKORT_KEYNODE ptr ptr, byval key_ as zstring ptr, byval code_ as int16 )
 
 	dim as TKORT_KEYNODE ptr n = *node
 	while( n <> 0 )
-		if( n->key_ = cptr( ubyte ptr, key_ )[0] ) then
-			tkort_add_key( @n->child_, cast( zstring ptr, cptr( ubyte ptr, key_ ) + 1 ), code_ )
+		if( n->key_ = cptr( uint8 ptr, key_ )[0] ) then
+			tkort_add_key( @n->child_, cast( zstring ptr, cptr( uint8 ptr, key_ ) + 1 ), code_ )
 			exit sub
 		end if
 		n = n->next_
@@ -192,14 +192,14 @@ private sub tkort_add_key _
 	if( n = 0 ) then exit sub
 	n->child_ = 0
 	n->next_ = *node
-	n->key_ = cptr( ubyte ptr, key_ )[0]
+	n->key_ = cptr( uint8 ptr, key_ )[0]
 	n->code_ = 0
 	*node = n
 
 	'' THE CODE LANDS ON THE LAST CHARACTER ONLY; every node above it keeps 0,
 	'' which is what makes a zero code mean "keep walking".
-	if( cptr( ubyte ptr, key_ )[1] <> 0 ) then
-		tkort_add_key( @n->child_, cast( zstring ptr, cptr( ubyte ptr, key_ ) + 1 ), code_ )
+	if( cptr( uint8 ptr, key_ )[1] <> 0 ) then
+		tkort_add_key( @n->child_, cast( zstring ptr, cptr( uint8 ptr, key_ ) + 1 ), code_ )
 	else
 		n->code_ = code_
 	end if
@@ -217,8 +217,8 @@ private sub tkort_init_keys( )
 		if( key_ <> 0 ) then
 			'' + 1 DROPS THE LEADING ESC -- see the file header.
 			tkort_add_key( @tkort_root_node, _
-			               cast( zstring ptr, cptr( ubyte ptr, key_ ) + 1 ), _
-			               cast( short, tkort_key_data(i).code_ ) )
+			               cast( zstring ptr, cptr( uint8 ptr, key_ ) + 1 ), _
+			               cast( int16, tkort_key_data(i).code_ ) )
 		end if
 	next
 
@@ -228,13 +228,13 @@ private sub tkort_init_keys( )
 end sub
 
 '' Reads one key, decoding an escape sequence through the tree.
-private function tkort_get_input( ) as long
+private function tkort_get_input( ) as int32
 
 	dim as any ptr g = TKORT_CON_P( TKORT_CON_KBGETCH )
 	if( g = 0 ) then return -1
-	dim as function cdecl ( ) as long getch_ = cast( function cdecl ( ) as long, g )
+	dim as function cdecl ( ) as int32 getch_ = cast( function cdecl ( ) as int32, g )
 
-	dim as long k = getch_( )
+	dim as int32 k = getch_( )
 	if( k = 27 ) then
 		k = getch_( )
 		'' A LONE ESC. See the file header on why it is indistinguishable from
@@ -249,13 +249,13 @@ private function tkort_get_input( ) as long
 				if( node->code_ <> 0 ) then
 					if( node->code_ = KEY_MOUSE_ ) then
 						'' THREE MORE BYTES, straight to the mouse driver.
-						dim as long cb = getch_( )
-						dim as long cx = getch_( )
-						dim as long cy = getch_( )
+						dim as int32 cb = getch_( )
+						dim as int32 cx = getch_( )
+						dim as int32 cy = getch_( )
 						dim as any ptr mu = TKORT_CON_P( TKORT_CON_MOUSEUPDATE )
 						if( mu <> 0 ) then
-							dim as sub cdecl ( byval a as long, byval b as long, byval c as long ) fn_ = _
-								cast( sub cdecl ( byval a as long, byval b as long, byval c as long ), mu )
+							dim as sub cdecl ( byval a as int32, byval b as int32, byval c as int32 ) fn_ = _
+								cast( sub cdecl ( byval a as int32, byval b as int32, byval c as int32 ), mu )
 							fn_( cb, cx, cy )
 						end if
 						'' A MOUSE REPORT IS NOT A KEY.
@@ -285,7 +285,7 @@ extern "c"   '' NON-FBCALL: fb_private_console.h declares these plainly.
 
 '' ASSUMES BG_LOCK IS HELD -- it is also called from the background thread, via
 '' fb_hTermQuery in src/init/hinitposix.tiko.
-sub tkort_hAddCh alias "fb_hAddCh" ( byval k as long )
+sub tkort_hAddCh alias "fb_hAddCh" ( byval k as int32 )
 
 	'' DEL BECOMES BACKSPACE and LF becomes CR -- see the file header.
 	if( k = &h7F ) then
@@ -304,9 +304,9 @@ sub tkort_hAddCh alias "fb_hAddCh" ( byval k as long )
 end sub
 
 '' THE RETURN VALUE IS RIGHT BY COINCIDENCE -- see the file header.
-function tkort_hGetCh alias "fb_hGetCh" ( byval remove_ as long ) as long
+function tkort_hGetCh alias "fb_hGetCh" ( byval remove_ as int32 ) as int32
 
-	dim as long k = tkort_get_input( )
+	dim as int32 k = tkort_get_input( )
 	if( k >= 0 ) then
 		tkrt_BgLock4( )
 		tkort_hAddCh( k )
@@ -328,7 +328,7 @@ function tkort_ConsoleInkey alias "fb_ConsoleInkey" ( ) as FBSTRING ptr
 
 	if( TKORT_CON_L( TKORT_CON_INITED ) = 0 ) then return TKORT_NULLSTR()
 
-	dim as long ch = tkort_hGetCh( -1 )
+	dim as int32 ch = tkort_hGetCh( -1 )
 	if( ch >= 0 ) then
 		return tkrt_hMakeInkeyStr( ch )
 	end if
@@ -337,9 +337,9 @@ function tkort_ConsoleInkey alias "fb_ConsoleInkey" ( ) as FBSTRING ptr
 end function
 
 '' LOCKS PER ATTEMPT, NOT ACROSS THE WAIT -- see the file header.
-function tkort_ConsoleGetkey alias "fb_ConsoleGetkey" ( ) as long
+function tkort_ConsoleGetkey alias "fb_ConsoleGetkey" ( ) as int32
 
-	dim as long key_ = any
+	dim as int32 key_ = any
 
 	do
 		TKORT_IOLOCK()
@@ -368,14 +368,14 @@ end function
 '' IT REPORTS WHETHER THE BUFFER CHANGED, not whether it is non-empty -- and it
 '' CLEARS the flag, so two calls in a row give different answers even with a key
 '' still waiting.
-function tkort_ConsoleKeyHit alias "fb_ConsoleKeyHit" ( ) as long
+function tkort_ConsoleKeyHit alias "fb_ConsoleKeyHit" ( ) as int32
 
 	if( TKORT_CON_L( TKORT_CON_INITED ) = 0 ) then
 		return iif( feof( stdin ) <> 0, 0, -1 )
 	end if
 
 	tkort_hGetCh( 0 )
-	dim as long result_ = tkort_key_buffer_changed
+	dim as int32 result_ = tkort_key_buffer_changed
 	tkort_key_buffer_changed = 0
 	return result_
 end function

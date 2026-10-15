@@ -85,9 +85,9 @@ const TKORT_CON_MOUSEHOOK_OFF = 72
 #define TKORT_CON_MOUSEHOOK() (*cptr( any ptr ptr, @__fb_con + TKORT_CON_MOUSEHOOK_OFF ))
 
 type TKORT_KEYROW
-	as ubyte sc
-	as ubyte vk1
-	as ubyte vk2
+	as uint8 sc
+	as uint8 vk1
+	as uint8 vk2
 end type
 
 '' One row: scancode, primary virtual key, keypad alternate (0 if none).
@@ -145,17 +145,17 @@ dim shared as TKORT_KEYROW tkort_keytable( 0 to 87 ) = { _
 
 extern "c"   '' NON-FBCALL: kernel32 and user32, `stdcall` per declaration --
              '' the house idiom, as in inc/console.ti.
-	declare function w_GetSystemMetrics stdcall alias "GetSystemMetrics" ( byval idx as long ) as long
-	declare function w_GetAsyncKeyState stdcall alias "GetAsyncKeyState" ( byval vk as long ) as short
+	declare function w_GetSystemMetrics stdcall alias "GetSystemMetrics" ( byval idx as int32 ) as int32
+	declare function w_GetAsyncKeyState stdcall alias "GetAsyncKeyState" ( byval vk as int32 ) as int16
 	declare function w_SetConsoleModeM stdcall alias "SetConsoleMode" _
-		( byval h as any ptr, byval m as ulong ) as long
+		( byval h as any ptr, byval m as uint32 ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: fbc's console internals, all still C and all
              '' declared plain in fb_private_console.h.
-	declare function tkrt_hConsoleGetKey alias "fb_hConsoleGetKey" ( byval wait_ as long ) as long
-	declare function tkrt_hConsolePeekKey alias "fb_hConsolePeekKey" ( byval wait_ as long ) as long
-	declare function tkrt_ConsoleHasFocus alias "fb_ConsoleHasFocus" ( ) as long
+	declare function tkrt_hConsoleGetKey alias "fb_hConsoleGetKey" ( byval wait_ as int32 ) as int32
+	declare function tkrt_hConsolePeekKey alias "fb_hConsolePeekKey" ( byval wait_ as int32 ) as int32
+	declare function tkrt_ConsoleHasFocus alias "fb_ConsoleHasFocus" ( ) as int32
 	declare sub tkrt_ConsoleProcessEvents alias "fb_ConsoleProcessEvents" ( )
 	'' tkrt_hConvertToConsole and tkrt_hConvertFromConsole are NOT declared here
 	'' -- inc/console.ti already provides both, and a second declaration is
@@ -164,24 +164,24 @@ end extern
 
 extern "rtlib"   '' FBCALL: these three are decorated, and the win32 archive
                  '' confirms the `@N` on each.
-	declare function tkrt_hMakeInkeyStr alias "fb_hMakeInkeyStr" ( byval key as long ) as FBSTRING ptr
-	declare sub tkrt_Sleep alias "fb_Sleep" ( byval msecs as long )
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_hMakeInkeyStr alias "fb_hMakeInkeyStr" ( byval key as int32 ) as FBSTRING ptr
+	declare sub tkrt_Sleep alias "fb_Sleep" ( byval msecs as int32 )
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 end extern
 
 '' THREE-STATE, and file-local -- see the file header.
-dim shared as long tkort_mouse_inited = -1
-dim shared as long tkort_last_x = 0, tkort_last_y = 0
-dim shared as long tkort_last_z = 0, tkort_last_buttons = 0
+dim shared as int32 tkort_mouse_inited = -1
+dim shared as int32 tkort_last_x = 0, tkort_last_y = 0
+dim shared as int32 tkort_last_z = 0, tkort_last_buttons = 0
 
 '' MOUSE_EVENT_RECORD, only as far as the fields this reads. The position is a
 '' COORD -- two SHORTs -- packed at the front.
 type MOUSE_EVENT_RECORD_
-	as short  dwMousePositionX
-	as short  dwMousePositionY
-	as ulong  dwButtonState
-	as ulong  dwControlKeyState
-	as ulong  dwEventFlags
+	as int16  dwMousePositionX
+	as int16  dwMousePositionY
+	as uint32  dwButtonState
+	as uint32  dwControlKeyState
+	as uint32  dwEventFlags
 end type
 
 extern "c"   '' NON-FBCALL: fb_private_console.h declares all seven plainly, and
@@ -192,7 +192,7 @@ extern "c"   '' NON-FBCALL: fb_private_console.h declares all seven plainly, and
 '' THE CALLER HOLDS THE LOCK -- fbc says so in a comment.
 function tkort_ConsoleInkey alias "fb_ConsoleInkey" ( ) as FBSTRING ptr
 
-	dim as long key = tkrt_hConsoleGetKey( -1 )
+	dim as int32 key = tkrt_hConsoleGetKey( -1 )
 
 	'' NO KEY IS THE NULL DESCRIPTOR, not an empty allocation.
 	if( key = -1 ) then return TKORT_NULLSTR()
@@ -202,9 +202,9 @@ function tkort_ConsoleInkey alias "fb_ConsoleInkey" ( ) as FBSTRING ptr
 end function
 
 '' LOCKS INSIDE THE LOOP, NOT AROUND IT -- see the file header.
-function tkort_ConsoleGetkey alias "fb_ConsoleGetkey" ( ) as long
+function tkort_ConsoleGetkey alias "fb_ConsoleGetkey" ( ) as int32
 
-	dim as long k = any
+	dim as int32 k = any
 
 	do
 		TKORT_IOLOCK()
@@ -223,14 +223,14 @@ function tkort_ConsoleGetkey alias "fb_ConsoleGetkey" ( ) as long
 end function
 
 '' PEEK, not get: the key stays in the queue. The caller holds the lock.
-function tkort_ConsoleKeyHit alias "fb_ConsoleKeyHit" ( ) as long
+function tkort_ConsoleKeyHit alias "fb_ConsoleKeyHit" ( ) as int32
 	return iif( tkrt_hConsolePeekKey( -1 ) <> -1, 1, 0 )
 end function
 
 '' ------------------------------------------------------------ MULTIKEY
 
 '' SEARCHES THE SECOND COLUMN FIRST -- see the file header.
-function tkort_hVirtualToScancode alias "fb_hVirtualToScancode" ( byval vkey as long ) as long
+function tkort_hVirtualToScancode alias "fb_hVirtualToScancode" ( byval vkey as int32 ) as int32
 
 	dim as integer i = 0
 	while( tkort_keytable(i).sc <> 0 )
@@ -246,7 +246,7 @@ end function
 '' TRUE ONLY WHILE THE CONSOLE HAS FOCUS, because GetAsyncKeyState is global to
 '' the desktop -- without the focus test a background program would report keys
 '' pressed in whatever window the user is actually typing into.
-function tkort_ConsoleMultikey alias "fb_ConsoleMultikey" ( byval scancode as long ) as long
+function tkort_ConsoleMultikey alias "fb_ConsoleMultikey" ( byval scancode as int32 ) as int32
 
 	tkrt_ConsoleProcessEvents( )
 
@@ -256,7 +256,7 @@ function tkort_ConsoleMultikey alias "fb_ConsoleMultikey" ( byval scancode as lo
 			if( tkort_keytable(i).sc = scancode ) then
 				'' BOTH VIRTUAL KEYS, OR'd -- the keypad alternate is what makes
 				'' MULTIKEY(SC_HOME) true for the 7 on the numeric pad.
-				dim as long st = w_GetAsyncKeyState( tkort_keytable(i).vk1 )
+				dim as int32 st = w_GetAsyncKeyState( tkort_keytable(i).vk1 )
 				if( tkort_keytable(i).vk2 <> 0 ) then
 					st or= w_GetAsyncKeyState( tkort_keytable(i).vk2 )
 				end if
@@ -289,10 +289,10 @@ private sub tkort_ProcessMouseEvent cdecl ( byval pEvent as MOUSE_EVENT_RECORD_ 
 end sub
 
 function tkort_ConsoleGetMouse alias "fb_ConsoleGetMouse" _
-	( byval x as long ptr, byval y as long ptr, byval z as long ptr, _
-	  byval buttons as long ptr, byval clip as long ptr ) as long
+	( byval x as int32 ptr, byval y as int32 ptr, byval z as int32 ptr, _
+	  byval buttons as int32 ptr, byval clip as int32 ptr ) as int32
 
-	dim as ulong dwMode = any
+	dim as uint32 dwMode = any
 
 	'' FIRST CALL ASKS THE SYSTEM. -1 is "not asked"; the answer becomes the
 	'' button count, and zero means there is no mouse at all.
@@ -324,7 +324,7 @@ function tkort_ConsoleGetMouse alias "fb_ConsoleGetMouse" _
 			'' EXTENDED_FLAGS IS REQUIRED to turn quick-edit off -- without it
 			'' the call silently does nothing.
 			dwMode or= (ENABLE_MOUSE_INPUT_ or ENABLE_EXTENDED_FLAGS_)
-			dwMode and= (not cast( ulong, ENABLE_QUICK_EDIT_MODE_ ))
+			dwMode and= (not cast( uint32, ENABLE_QUICK_EDIT_MODE_ ))
 			w_SetConsoleModeM( TKORT_IN_HANDLE(), dwMode )
 		end if
 	end if
@@ -346,7 +346,7 @@ end function
 
 '' ALWAYS FAILS. There is no console API to move the pointer.
 function tkort_ConsoleSetMouse alias "fb_ConsoleSetMouse" _
-	( byval x as long, byval y as long, byval cursor as long, byval clip as long ) as long
+	( byval x as int32, byval y as int32, byval cursor as int32, byval clip as int32 ) as int32
 
 	return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 end function

@@ -21,22 +21,22 @@
 const FB_SCRN_DEFAULT_HEIGHT = 25
 
 extern "rtlib"
-	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as long ptr, byval rows as long ptr )
+	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as int32 ptr, byval rows as int32 ptr )
 end extern
 
 '' -1 means "not resolved yet"; see the header.
-dim shared as long view_toprow = -1
-dim shared as long view_botrow = -1
+dim shared as int32 view_toprow = -1
+dim shared as int32 view_botrow = -1
 
 '' NON-FBCALL: fb.h declares all four of these plain.
 extern "c"   '' NON-FBCALL: console helpers, no FBCALL marker in fb.h.
 
-function tkort_ConsoleGetTopRow alias "fb_ConsoleGetTopRow" ( ) as long
+function tkort_ConsoleGetTopRow alias "fb_ConsoleGetTopRow" ( ) as int32
 	if( view_toprow = -1 ) then view_toprow = 0
 	return view_toprow
 end function
 
-function tkort_ConsoleGetBotRow alias "fb_ConsoleGetBotRow" ( ) as long
+function tkort_ConsoleGetBotRow alias "fb_ConsoleGetBotRow" ( ) as int32
 	if( view_botrow = -1 ) then
 		'' Asked for the ROW COUNT and converted to a 0-based last row.
 		tkrt_GetSize( 0, @view_botrow )
@@ -52,14 +52,14 @@ end function
 '' Sets both directly, WITHOUT the lazy resolution above -- a caller that
 '' establishes the window has already decided both rows.
 sub tkort_ConsoleSetTopBotRows alias "fb_ConsoleSetTopBotRows" _
-	( byval top_ as long, byval bot as long )
+	( byval top_ as int32, byval bot as int32 )
 	view_toprow = top_
 	view_botrow = bot
 end sub
 
 '' 1-BASED, unlike the two getters it calls. See the header.
 sub tkort_ConsoleGetView alias "fb_ConsoleGetView" _
-	( byval toprow as long ptr, byval botrow as long ptr )
+	( byval toprow as int32 ptr, byval botrow as int32 ptr )
 	*toprow = tkort_ConsoleGetTopRow( ) + 1
 	*botrow = tkort_ConsoleGetBotRow( ) + 1
 end sub

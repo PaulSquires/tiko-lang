@@ -51,7 +51,7 @@ extern "rtlib"
 	declare sub fb_hUStrCopy alias "fb_hUStrCopy" _
 		( byval dst as FB_UCHAR ptr, byval src as FB_UCHAR ptr, byval units as integer )
 	declare function tkrt_UDelTempNoLock alias "fb_hUStrDelTemp_NoLock" _
-		( byval s as FBUSTRING ptr ) as long
+		( byval s as FBUSTRING ptr ) as int32
 	declare function fb_hUStrToUpper alias "fb_hUStrToUpper" ( byval c as FB_UCHAR ) as FB_UCHAR
 	declare function fb_hUStrToLower alias "fb_hUStrToLower" ( byval c as FB_UCHAR ) as FB_UCHAR
 	declare function tkrt_WstrToUStr alias "fb_WstrToUStr" ( byval w as wstring ptr ) as FBUSTRING ptr
@@ -252,7 +252,7 @@ end function
 extern "rtlib"
 
 function tkort_UStrTally alias "fb_UStrTally" _
-	( byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval ic as long ) as integer
+	( byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval ic as int32 ) as integer
 	dim as FB_UCHAR ptr sp = any, pp = any
 	dim as integer sl = any, pl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( pat, @pp, @pl )
@@ -260,7 +260,7 @@ function tkort_UStrTally alias "fb_UStrTally" _
 end function
 
 function tkort_UStrTallyChars alias "fb_UStrTallyChars" _
-	( byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as long ) as integer
+	( byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as integer
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, tl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( st, @tp, @tl )
@@ -268,7 +268,7 @@ function tkort_UStrTallyChars alias "fb_UStrTallyChars" _
 end function
 
 function tkort_UStrInstrChars alias "fb_UStrInstrChars" _
-	( byval start as integer, byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as long ) as integer
+	( byval start as integer, byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as integer
 	if( start < 1 ) then return 0
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, tl = any
@@ -277,7 +277,7 @@ function tkort_UStrInstrChars alias "fb_UStrInstrChars" _
 end function
 
 function tkort_UStrVerifySet alias "fb_UStrVerifySet" _
-	( byval start as integer, byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as long ) as integer
+	( byval start as integer, byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as integer
 	if( start < 1 ) then return 0
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, tl = any
@@ -286,7 +286,7 @@ function tkort_UStrVerifySet alias "fb_UStrVerifySet" _
 end function
 
 function tkort_UStrSpanOf alias "fb_UStrSpanOf" _
-	( byval start as integer, byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as long ) as integer
+	( byval start as integer, byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as integer
 	if( start < 1 ) then return 0
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, tl = any
@@ -295,7 +295,7 @@ function tkort_UStrSpanOf alias "fb_UStrSpanOf" _
 end function
 
 function tkort_UStrStartsWith alias "fb_UStrStartsWith" _
-	( byval s as FBUSTRING ptr, byval pre as FBUSTRING ptr, byval ic as long ) as long
+	( byval s as FBUSTRING ptr, byval pre as FBUSTRING ptr, byval ic as int32 ) as int32
 	dim as FB_UCHAR ptr sp = any, pp = any
 	dim as integer sl = any, pl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( pre, @pp, @pl )
@@ -303,7 +303,7 @@ function tkort_UStrStartsWith alias "fb_UStrStartsWith" _
 end function
 
 function tkort_UStrEndsWith alias "fb_UStrEndsWith" _
-	( byval s as FBUSTRING ptr, byval suf as FBUSTRING ptr, byval ic as long ) as long
+	( byval s as FBUSTRING ptr, byval suf as FBUSTRING ptr, byval ic as int32 ) as int32
 	dim as FB_UCHAR ptr sp = any, pp = any
 	dim as integer sl = any, pl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( suf, @pp, @pl )
@@ -312,7 +312,7 @@ end function
 
 '' Follows StartsWith rather than hFind: every string contains the empty string.
 function tkort_UStrContains alias "fb_UStrContains" _
-	( byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval ic as long ) as long
+	( byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval ic as int32 ) as int32
 	dim as FB_UCHAR ptr sp = any, pp = any
 	dim as integer sl = any, pl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( pat, @pp, @pl )
@@ -320,14 +320,14 @@ function tkort_UStrContains alias "fb_UStrContains" _
 	return iif( hu_hFind( sp, sl, pp, pl, 0, ic ) >= 0, 1, 0 )
 end function
 
-function tkort_UStrIsNumeric alias "fb_UStrIsNumeric" ( byval s as FBUSTRING ptr ) as long
+function tkort_UStrIsNumeric alias "fb_UStrIsNumeric" ( byval s as FBUSTRING ptr ) as int32
 	dim as FB_UCHAR ptr sp = any
 	dim as integer sl = any
 	hUStrArg( s, @sp, @sl )
 	return hu_hIsNumeric( sp, sl )
 end function
 
-function tkort_UStrIsBlank alias "fb_UStrIsBlank" ( byval s as FBUSTRING ptr ) as long
+function tkort_UStrIsBlank alias "fb_UStrIsBlank" ( byval s as FBUSTRING ptr ) as int32
 	dim as FB_UCHAR ptr sp = any
 	dim as integer sl = any
 	hUStrArg( s, @sp, @sl )
@@ -335,7 +335,7 @@ function tkort_UStrIsBlank alias "fb_UStrIsBlank" ( byval s as FBUSTRING ptr ) a
 end function
 
 function tkort_UStrExtract alias "fb_UStrExtract" _
-	( byval start as integer, byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval start as integer, byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	if( start < 1 ) then return TKORT_UNULLSTR( )
 	dim as FB_UCHAR ptr sp = any, pp = any
 	dim as integer sl = any, pl = any, off = any, cnt = any
@@ -345,7 +345,7 @@ function tkort_UStrExtract alias "fb_UStrExtract" _
 end function
 
 function tkort_UStrExtractChars alias "fb_UStrExtractChars" _
-	( byval start as integer, byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval start as integer, byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	if( start < 1 ) then return TKORT_UNULLSTR( )
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, tl = any, off = any, cnt = any
@@ -355,7 +355,7 @@ function tkort_UStrExtractChars alias "fb_UStrExtractChars" _
 end function
 
 function tkort_UStrRemain alias "fb_UStrRemain" _
-	( byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval start as integer, byval ic as long ) as FBUSTRING ptr
+	( byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval start as integer, byval ic as int32 ) as FBUSTRING ptr
 	if( start < 1 ) then return TKORT_UNULLSTR( )
 	dim as FB_UCHAR ptr sp = any, pp = any
 	dim as integer sl = any, pl = any, off = any, cnt = any
@@ -365,7 +365,7 @@ function tkort_UStrRemain alias "fb_UStrRemain" _
 end function
 
 function tkort_UStrRemainChars alias "fb_UStrRemainChars" _
-	( byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval start as integer, byval ic as long ) as FBUSTRING ptr
+	( byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval start as integer, byval ic as int32 ) as FBUSTRING ptr
 	if( start < 1 ) then return TKORT_UNULLSTR( )
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, tl = any, off = any, cnt = any
@@ -376,7 +376,7 @@ end function
 
 function tkort_UStrBetween alias "fb_UStrBetween" _
 	( byval s as FBUSTRING ptr, byval d1 as FBUSTRING ptr, byval d2 as FBUSTRING ptr, _
-	  byval start as integer, byval ic as long ) as FBUSTRING ptr
+	  byval start as integer, byval ic as int32 ) as FBUSTRING ptr
 	if( start < 1 ) then return TKORT_UNULLSTR( )
 	dim as FB_UCHAR ptr sp = any, ap = any, bp = any
 	dim as integer sl = any, al = any, blen2 = any, off = any, cnt = any
@@ -437,7 +437,7 @@ end function
 '' ---- transforms
 
 function tkort_UStrReplace alias "fb_UStrReplace" _
-	( byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval rep as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval rep as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, pp = any, rp = any, outbuf = any
 	dim as integer sl = any, pl = any, rl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( pat, @pp, @pl ) : hUStrArg( rep, @rp, @rl )
@@ -449,7 +449,7 @@ function tkort_UStrReplace alias "fb_UStrReplace" _
 end function
 
 function tkort_UStrRemove alias "fb_UStrRemove" _
-	( byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, pp = any, outbuf = any
 	dim as integer sl = any, pl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( pat, @pp, @pl )
@@ -460,7 +460,7 @@ function tkort_UStrRemove alias "fb_UStrRemove" _
 end function
 
 function tkort_UStrRemoveChars alias "fb_UStrRemoveChars" _
-	( byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, tp = any, outbuf = any
 	dim as integer sl = any, tl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( st, @tp, @tl )
@@ -470,7 +470,7 @@ function tkort_UStrRemoveChars alias "fb_UStrRemoveChars" _
 end function
 
 function tkort_UStrRetainChars alias "fb_UStrRetainChars" _
-	( byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, tp = any, outbuf = any
 	dim as integer sl = any, tl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( st, @tp, @tl )
@@ -482,7 +482,7 @@ end function
 '' A replacement that is not exactly ONE code unit copies through unchanged --
 '' at this width that also rules out an astral replacement, which is a pair.
 function tkort_UStrReplaceChars alias "fb_UStrReplaceChars" _
-	( byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval wth as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval wth as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, tp = any, wp = any, outbuf = any
 	dim as integer sl = any, tl = any, wl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( st, @tp, @tl ) : hUStrArg( wth, @wp, @wl )
@@ -553,7 +553,7 @@ end function
 
 function tkort_UStrRemoveBetween alias "fb_UStrRemoveBetween" _
 	( byval s as FBUSTRING ptr, byval d1 as FBUSTRING ptr, byval d2 as FBUSTRING ptr, _
-	  byval removeAll as long, byval start as integer, byval ic as long ) as FBUSTRING ptr
+	  byval removeAll as int32, byval start as integer, byval ic as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, ap = any, bp = any, outbuf = any
 	dim as integer sl = any, al = any, blen2 = any
 	hUStrArg( s, @sp, @sl )
@@ -567,7 +567,7 @@ function tkort_UStrRemoveBetween alias "fb_UStrRemoveBetween" _
 end function
 
 private function hUPad _
-	( byval s as FBUSTRING ptr, byval fieldw as integer, byval pad as FBUSTRING ptr, byval mode as long ) as FBUSTRING ptr
+	( byval s as FBUSTRING ptr, byval fieldw as integer, byval pad as FBUSTRING ptr, byval mode as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, pp = any, outbuf = any
 	dim as integer sl = any, pl = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( pad, @pp, @pl )
@@ -618,7 +618,7 @@ function tkort_UStrWrap alias "fb_UStrWrap" _
 end function
 
 function tkort_UStrUnwrap alias "fb_UStrUnwrap" _
-	( byval s as FBUSTRING ptr, byval op as FBUSTRING ptr, byval cl as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval s as FBUSTRING ptr, byval op as FBUSTRING ptr, byval cl as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, ap = any, bp = any
 	dim as integer sl = any, al = any, blen2 = any, off = any, cnt = any
 	hUStrArg( s, @sp, @sl ) : hUStrArg( op, @ap, @al ) : hUStrArg( cl, @bp, @blen2 )
@@ -657,7 +657,7 @@ function tkort_UStrUnescape alias "fb_UStrUnescape" ( byval s as FBUSTRING ptr )
 end function
 
 function tkort_UStrSplitSpans alias "fb_UStrSplitSpans" _
-	( byval s as FBUSTRING ptr, byval delim as FBUSTRING ptr, byval ic as long, _
+	( byval s as FBUSTRING ptr, byval delim as FBUSTRING ptr, byval ic as int32, _
 	  byval spans as integer ptr, byval maxpairs as integer ) as integer
 	dim as FB_UCHAR ptr sp = any, dp = any
 	dim as integer sl = any, dl = any
@@ -666,7 +666,7 @@ function tkort_UStrSplitSpans alias "fb_UStrSplitSpans" _
 end function
 
 function tkort_UStrSplitCharsSpans alias "fb_UStrSplitCharsSpans" _
-	( byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as long, _
+	( byval s as FBUSTRING ptr, byval st as FBUSTRING ptr, byval ic as int32, _
 	  byval spans as integer ptr, byval maxpairs as integer ) as integer
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, tl = any
@@ -692,7 +692,7 @@ end extern
 extern "rtlib"
 
 function tkort_WStrTally alias "fb_WStrTally" _
-	( byval s as wstring ptr, byval pat as FBUSTRING ptr, byval ic as long ) as integer
+	( byval s as wstring ptr, byval pat as FBUSTRING ptr, byval ic as int32 ) as integer
 	dim as FB_UCHAR ptr sp = any, pp = any
 	dim as integer sl = any, pl = any
 	dim as HWSTRARG t1
@@ -704,7 +704,7 @@ function tkort_WStrTally alias "fb_WStrTally" _
 end function
 
 function tkort_WStrTallyChars alias "fb_WStrTallyChars" _
-	( byval s as wstring ptr, byval st as FBUSTRING ptr, byval ic as long ) as integer
+	( byval s as wstring ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as integer
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, tl = any
 	dim as HWSTRARG t1
@@ -716,7 +716,7 @@ function tkort_WStrTallyChars alias "fb_WStrTallyChars" _
 end function
 
 function tkort_WStrInstrChars alias "fb_WStrInstrChars" _
-	( byval start as integer, byval s as wstring ptr, byval st as FBUSTRING ptr, byval ic as long ) as integer
+	( byval start as integer, byval s as wstring ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as integer
 	if( start < 1 ) then return 0
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, tl = any
@@ -729,7 +729,7 @@ function tkort_WStrInstrChars alias "fb_WStrInstrChars" _
 end function
 
 function tkort_WStrVerifySet alias "fb_WStrVerifySet" _
-	( byval start as integer, byval s as wstring ptr, byval st as FBUSTRING ptr, byval ic as long ) as integer
+	( byval start as integer, byval s as wstring ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as integer
 	if( start < 1 ) then return 0
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, tl = any
@@ -742,7 +742,7 @@ function tkort_WStrVerifySet alias "fb_WStrVerifySet" _
 end function
 
 function tkort_WStrSpanOf alias "fb_WStrSpanOf" _
-	( byval start as integer, byval s as wstring ptr, byval st as FBUSTRING ptr, byval ic as long ) as integer
+	( byval start as integer, byval s as wstring ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as integer
 	if( start < 1 ) then return 0
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, tl = any
@@ -755,7 +755,7 @@ function tkort_WStrSpanOf alias "fb_WStrSpanOf" _
 end function
 
 function tkort_WStrStartsWith alias "fb_WStrStartsWith" _
-	( byval s as wstring ptr, byval pre as FBUSTRING ptr, byval ic as long ) as long
+	( byval s as wstring ptr, byval pre as FBUSTRING ptr, byval ic as int32 ) as int32
 	dim as FB_UCHAR ptr sp = any, pp = any
 	dim as integer sl = any, pl = any
 	dim as HWSTRARG t1
@@ -767,7 +767,7 @@ function tkort_WStrStartsWith alias "fb_WStrStartsWith" _
 end function
 
 function tkort_WStrEndsWith alias "fb_WStrEndsWith" _
-	( byval s as wstring ptr, byval suf as FBUSTRING ptr, byval ic as long ) as long
+	( byval s as wstring ptr, byval suf as FBUSTRING ptr, byval ic as int32 ) as int32
 	dim as FB_UCHAR ptr sp = any, pp = any
 	dim as integer sl = any, pl = any
 	dim as HWSTRARG t1
@@ -779,7 +779,7 @@ function tkort_WStrEndsWith alias "fb_WStrEndsWith" _
 end function
 
 function tkort_WStrIsNumeric alias "fb_WStrIsNumeric" _
-	( byval s as wstring ptr ) as long
+	( byval s as wstring ptr ) as int32
 	dim as FB_UCHAR ptr sp = any
 	dim as integer sl = any
 	dim as HWSTRARG t1
@@ -790,7 +790,7 @@ function tkort_WStrIsNumeric alias "fb_WStrIsNumeric" _
 end function
 
 function tkort_WStrIsBlank alias "fb_WStrIsBlank" _
-	( byval s as wstring ptr ) as long
+	( byval s as wstring ptr ) as int32
 	dim as FB_UCHAR ptr sp = any
 	dim as integer sl = any
 	dim as HWSTRARG t1
@@ -805,7 +805,7 @@ end extern
 extern "rtlib"
 
 function tkort_WStrExtract alias "fb_WStrExtract" _
-	( byval start as integer, byval s as wstring ptr, byval pat as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval start as integer, byval s as wstring ptr, byval pat as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	if( start < 1 ) then return TKORT_UNULLSTR( )
 	dim as FB_UCHAR ptr sp = any, pp = any
 	dim as integer sl = any, off = any, cnt = any, pl = any
@@ -819,7 +819,7 @@ function tkort_WStrExtract alias "fb_WStrExtract" _
 end function
 
 function tkort_WStrExtractChars alias "fb_WStrExtractChars" _
-	( byval start as integer, byval s as wstring ptr, byval st as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval start as integer, byval s as wstring ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	if( start < 1 ) then return TKORT_UNULLSTR( )
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, off = any, cnt = any, tl = any
@@ -833,7 +833,7 @@ function tkort_WStrExtractChars alias "fb_WStrExtractChars" _
 end function
 
 function tkort_WStrRemain alias "fb_WStrRemain" _
-	( byval s as wstring ptr, byval pat as FBUSTRING ptr, byval start as integer, byval ic as long ) as FBUSTRING ptr
+	( byval s as wstring ptr, byval pat as FBUSTRING ptr, byval start as integer, byval ic as int32 ) as FBUSTRING ptr
 	if( start < 1 ) then return TKORT_UNULLSTR( )
 	dim as FB_UCHAR ptr sp = any, pp = any
 	dim as integer sl = any, off = any, cnt = any, pl = any
@@ -847,7 +847,7 @@ function tkort_WStrRemain alias "fb_WStrRemain" _
 end function
 
 function tkort_WStrRemainChars alias "fb_WStrRemainChars" _
-	( byval s as wstring ptr, byval st as FBUSTRING ptr, byval start as integer, byval ic as long ) as FBUSTRING ptr
+	( byval s as wstring ptr, byval st as FBUSTRING ptr, byval start as integer, byval ic as int32 ) as FBUSTRING ptr
 	if( start < 1 ) then return TKORT_UNULLSTR( )
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, off = any, cnt = any, tl = any
@@ -861,7 +861,7 @@ function tkort_WStrRemainChars alias "fb_WStrRemainChars" _
 end function
 
 function tkort_WStrBetween alias "fb_WStrBetween" _
-	( byval s as wstring ptr, byval d1 as FBUSTRING ptr, byval d2 as FBUSTRING ptr, byval start as integer, byval ic as long ) as FBUSTRING ptr
+	( byval s as wstring ptr, byval d1 as FBUSTRING ptr, byval d2 as FBUSTRING ptr, byval start as integer, byval ic as int32 ) as FBUSTRING ptr
 	if( start < 1 ) then return TKORT_UNULLSTR( )
 	dim as FB_UCHAR ptr sp = any, ap = any, bp = any
 	dim as integer sl = any, off = any, cnt = any, al = any, bl2 = any
@@ -961,13 +961,13 @@ end extern
 extern "rtlib"
 
 function tkort_WStrContains alias "fb_WStrContains" _
-	( byval s as wstring ptr, byval pat as FBUSTRING ptr, byval ic as long ) as long
+	( byval s as wstring ptr, byval pat as FBUSTRING ptr, byval ic as int32 ) as int32
 	dim as FB_UCHAR ptr sp = any, pp = any
 	dim as integer sl = any, pl = any
 	dim as HWSTRARG t1
 	hWstrArg( s, @sp, @sl, @t1 )
 	hUStrArg( pat, @pp, @pl )
-	dim as long r = 1
+	dim as int32 r = 1
 	if( pl > 0 ) then r = iif( hu_hFind( sp, sl, pp, pl, 0, ic ) >= 0, 1, 0 )
 	hWstrRel( @t1 )
 	return r
@@ -992,7 +992,7 @@ function tkort_WStrDeleteAt alias "fb_WStrDeleteAt" _
 end function
 
 function tkort_WStrReplace alias "fb_WStrReplace" _
-	( byval s as wstring ptr, byval pat as FBUSTRING ptr, byval rep as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval s as wstring ptr, byval pat as FBUSTRING ptr, byval rep as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, pp = any, rp = any
 	dim as integer sl = any, pl = any, rl = any
 	dim as HWSTRARG t1
@@ -1008,7 +1008,7 @@ function tkort_WStrReplace alias "fb_WStrReplace" _
 end function
 
 function tkort_WStrRemove alias "fb_WStrRemove" _
-	( byval s as wstring ptr, byval pat as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval s as wstring ptr, byval pat as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, pp = any
 	dim as integer sl = any, pl = any
 	dim as HWSTRARG t1
@@ -1023,7 +1023,7 @@ function tkort_WStrRemove alias "fb_WStrRemove" _
 end function
 
 function tkort_WStrRemoveChars alias "fb_WStrRemoveChars" _
-	( byval s as wstring ptr, byval st as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval s as wstring ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, tl = any
 	dim as HWSTRARG t1
@@ -1037,7 +1037,7 @@ function tkort_WStrRemoveChars alias "fb_WStrRemoveChars" _
 end function
 
 function tkort_WStrRetainChars alias "fb_WStrRetainChars" _
-	( byval s as wstring ptr, byval st as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval s as wstring ptr, byval st as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, tp = any
 	dim as integer sl = any, tl = any
 	dim as HWSTRARG t1
@@ -1122,7 +1122,7 @@ function tkort_WStrInsertAt alias "fb_WStrInsertAt" _
 end function
 
 function tkort_WStrReplaceChars alias "fb_WStrReplaceChars" _
-	( byval s as wstring ptr, byval st as FBUSTRING ptr, byval wth as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval s as wstring ptr, byval st as FBUSTRING ptr, byval wth as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, tp = any, wp = any
 	dim as integer sl = any, tl = any, wl = any
 	dim as HWSTRARG t1
@@ -1144,7 +1144,7 @@ function tkort_WStrReplaceChars alias "fb_WStrReplaceChars" _
 end function
 
 function tkort_WStrRemoveBetween alias "fb_WStrRemoveBetween" _
-	( byval s as wstring ptr, byval d1 as FBUSTRING ptr, byval d2 as FBUSTRING ptr, byval removeAll as long, byval start as integer, byval ic as long ) as FBUSTRING ptr
+	( byval s as wstring ptr, byval d1 as FBUSTRING ptr, byval d2 as FBUSTRING ptr, byval removeAll as int32, byval start as integer, byval ic as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, ap = any, bp = any
 	dim as integer sl = any, al = any, bl2 = any
 	dim as HWSTRARG t1
@@ -1233,7 +1233,7 @@ function tkort_WStrWrap alias "fb_WStrWrap" _
 end function
 
 function tkort_WStrUnwrap alias "fb_WStrUnwrap" _
-	( byval s as wstring ptr, byval op as FBUSTRING ptr, byval cl as FBUSTRING ptr, byval ic as long ) as FBUSTRING ptr
+	( byval s as wstring ptr, byval op as FBUSTRING ptr, byval cl as FBUSTRING ptr, byval ic as int32 ) as FBUSTRING ptr
 	dim as FB_UCHAR ptr sp = any, ap = any, bp = any
 	dim as integer sl = any, al = any, bl2 = any
 	dim as HWSTRARG t1

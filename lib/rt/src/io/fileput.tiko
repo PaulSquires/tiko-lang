@@ -55,20 +55,20 @@ const FB_RTERROR_FILEIO = 3
 const TKORT_SEEK_CUR = 1
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: the *Ex forms take a handle.
 	declare function tkrt_FileSeekEx alias "fb_FileSeekEx" _
-		( byval h as FB_FILE ptr, byval newpos as longint ) as long
+		( byval h as FB_FILE ptr, byval newpos as int64 ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: fb_file.h declares these plainly.
 
 function tkort_FilePutDataEx alias "fb_FilePutDataEx" _
-	( byval h as FB_FILE ptr, byval pos_ as longint, byval data_ as any ptr, _
-	  byval length as uinteger, byval adjust_rec_pos as long, _
-	  byval checknewline as long, byval is_unicode as long ) as long
+	( byval h as FB_FILE ptr, byval pos_ as int64, byval data_ as any ptr, _
+	  byval length as uinteger, byval adjust_rec_pos as int32, _
+	  byval checknewline as int32, byval is_unicode as int32 ) as int32
 
 	if( TKORT_HANDLE_USED( h ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -79,7 +79,7 @@ function tkort_FilePutDataEx alias "fb_FilePutDataEx" _
 
 	IOLOCK()
 
-	dim as long res = tkrt_ErrorSetNum( FB_RTERROR_OK )
+	dim as int32 res = tkrt_ErrorSetNum( FB_RTERROR_OK )
 
 	'' Any modifying non-read operation drops the put-back buffer.
 	h->putback_size = 0
@@ -126,7 +126,7 @@ function tkort_FilePutDataEx alias "fb_FilePutDataEx" _
 		dim as uinteger bytes = length
 		if( is_unicode <> 0 ) then bytes = length * sizeof( wstring )
 		'' THE OUTER MOD: a full-record write skips nothing.
-		dim as longint skip_size = (h->reclen - (bytes mod h->reclen)) mod h->reclen
+		dim as int64 skip_size = (h->reclen - (bytes mod h->reclen)) mod h->reclen
 		if( skip_size <> 0 ) then
 			h->hooks->pfnSeek( h, skip_size, TKORT_SEEK_CUR )
 		end if
@@ -140,11 +140,11 @@ function tkort_FilePutDataEx alias "fb_FilePutDataEx" _
 			'' newline, or 0 when there is none.
 			dim as integer i = length
 			if( is_unicode = 0 ) then
-				dim as ubyte ptr t = cptr( ubyte ptr, data_ )
+				dim as uint8 ptr t = cptr( uint8 ptr, data_ )
 				do
 					i -= 1
 					if( i < 0 ) then exit do
-					dim as ulong ch = t[i]
+					dim as uint32 ch = t[i]
 					if( (ch = 10) orelse (ch = 13) ) then exit do
 				loop
 			else
@@ -152,7 +152,7 @@ function tkort_FilePutDataEx alias "fb_FilePutDataEx" _
 				do
 					i -= 1
 					if( i < 0 ) then exit do
-					dim as ulong ch = t[i]
+					dim as uint32 ch = t[i]
 					if( (ch = 10) orelse (ch = 13) ) then exit do
 				loop
 			end if
@@ -168,7 +168,7 @@ function tkort_FilePutDataEx alias "fb_FilePutDataEx" _
 
 			'' The second deref is fbc's and is a no-op here; kept so the shapes
 			'' match rather than because it does anything.
-			dim as long iWidth = cast( long, tkort_HandleDeref( h )->width )
+			dim as int32 iWidth = cast( int32, tkort_HandleDeref( h )->width )
 			if( iWidth <> 0 ) then h->line_length mod= iWidth
 
 		end if
@@ -183,9 +183,9 @@ function tkort_FilePutDataEx alias "fb_FilePutDataEx" _
 end function
 
 function tkort_FilePutData alias "fb_FilePutData" _
-	( byval fnum as long, byval pos_ as longint, byval data_ as any ptr, _
-	  byval length as uinteger, byval adjust_rec_pos as long, _
-	  byval checknewline as long ) as long
+	( byval fnum as int32, byval pos_ as int64, byval data_ as any ptr, _
+	  byval length as uinteger, byval adjust_rec_pos as int32, _
+	  byval checknewline as int32 ) as int32
 	return tkort_FilePutDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, data_, length, _
 	                            adjust_rec_pos, checknewline, 0 )
 end function
@@ -196,14 +196,14 @@ extern "rtlib"
 
 '' PUT #f, pos, value -- adjusts the record position, does NOT track newlines.
 function tkort_FilePut alias "fb_FilePut" _
-	( byval fnum as long, byval pos_ as long, byval value as any ptr, _
-	  byval valuelen as uinteger ) as long
+	( byval fnum as int32, byval pos_ as int32, byval value as any ptr, _
+	  byval valuelen as uinteger ) as int32
 	return tkort_FilePutData( fnum, pos_, value, valuelen, -1, 0 )
 end function
 
 function tkort_FilePutLarge alias "fb_FilePutLarge" _
-	( byval fnum as long, byval pos_ as longint, byval value as any ptr, _
-	  byval valuelen as uinteger ) as long
+	( byval fnum as int32, byval pos_ as int64, byval value as any ptr, _
+	  byval valuelen as uinteger ) as int32
 	return tkort_FilePutData( fnum, pos_, value, valuelen, -1, 0 )
 end function
 

@@ -24,13 +24,13 @@ extern "c"   '' NON-FBCALL: fb_unicode.h declares both converters plainly.
 end extern
 
 extern "rtlib"
-	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 	declare function tkrt_AllocTemp alias "fb_hStrAllocTemp" _
 		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
 	declare function tkrt_StrAlloc alias "fb_hStrAlloc" _
 		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
 	declare function tkrt_StrRealloc alias "fb_hStrRealloc" _
-		( byval s as FBSTRING ptr, byval length as integer, byval k as long ) as FBSTRING ptr
+		( byval s as FBSTRING ptr, byval length as integer, byval k as int32 ) as FBSTRING ptr
 	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
 end extern
 
@@ -52,7 +52,7 @@ private function hNoMultibyte _
 	dim as integer w = 0, i = 0
 
 	while( w < dst_chars )
-		dim as ulong c = src[i]
+		dim as uint32 c = src[i]
 		i += 1
 		if( c = 0 ) then exit while
 		if( c > 127 ) then
@@ -162,7 +162,7 @@ end function
 '' WSTRING -> STRING, assignment, over all four destination forms.
 function tkort_WstrAssignToAEx alias "fb_WstrAssignToAEx" _
 	( byval dst as any ptr, byval dst_chars as integer, byval src as wstring ptr, _
-	  byval fill_rem as long, byval is_init as long ) as any ptr
+	  byval fill_rem as int32, byval is_init as int32 ) as any ptr
 
 	if( dst = 0 ) then return dst
 
@@ -213,7 +213,7 @@ function tkort_WstrAssignToAEx alias "fb_WstrAssignToAEx" _
 		end if
 
 		if( (dst_chars - written) > 0 ) then
-			memset( cptr( ubyte ptr, dst ) + written, 32, dst_chars - written )
+			memset( cptr( uint8 ptr, dst ) + written, 32, dst_chars - written )
 		end if
 
 	else
@@ -237,7 +237,7 @@ function tkort_WstrAssignToAEx alias "fb_WstrAssignToAEx" _
 			'' survives and only the tail behind it is zeroed. There is room for
 			'' dst_chars + 1, which is what makes that legal.
 			if( (fill_rem <> 0) andalso (written < dst_chars) ) then
-				memset( cptr( ubyte ptr, dst ) + written + 1, 0, dst_chars - written )
+				memset( cptr( uint8 ptr, dst ) + written + 1, 0, dst_chars - written )
 			end if
 		end if
 
@@ -249,13 +249,13 @@ end function
 
 function tkort_WstrAssignToA alias "fb_WstrAssignToA" _
 	( byval dst as any ptr, byval dst_chars as integer, byval src as wstring ptr, _
-	  byval fill_rem as long ) as any ptr
+	  byval fill_rem as int32 ) as any ptr
 	return tkort_WstrAssignToAEx( dst, dst_chars, src, fill_rem, 0 )
 end function
 
 function tkort_WstrAssignToA_Init alias "fb_WstrAssignToA_Init" _
 	( byval dst as any ptr, byval dst_chars as integer, byval src as wstring ptr, _
-	  byval fill_rem as long ) as any ptr
+	  byval fill_rem as int32 ) as any ptr
 	return tkort_WstrAssignToAEx( dst, dst_chars, src, fill_rem, 1 )
 end function
 

@@ -28,12 +28,12 @@
 #include once "inc/ctx.ti"
 #include once "inc/fmt.ti"
 
-const FB_TLSKEY_ERROR as long = 0
+const FB_TLSKEY_ERROR as int32 = 0
 
 extern "rtlib"
 	declare function fb_TlsGetCtx alias "fb_TlsGetCtx" _
-		( byval idx as long, byval length as uinteger, byval dtor as any ptr ) as any ptr
-	declare sub tkrt_End alias "fb_End" ( byval errlevel as long )
+		( byval idx as int32, byval length as uinteger, byval dtor as any ptr ) as any ptr
+	declare sub tkrt_End alias "fb_End" ( byval errlevel as int32 )
 end extern
 
 '' src/c/errjmp.c. Plain C linkage, like every other member there, because the
@@ -55,7 +55,7 @@ end function
 '' SIGTERM appears twice and SIGABRT is against the quit text -- but the
 '' STRINGS are in the right order and the strings are what is observable.
 '' Reproduce the strings, not the comments.
-private function hErrMessage( byval n as long ) as zstring ptr
+private function hErrMessage( byval n as int32 ) as zstring ptr
 	select case n
 	case 0  : return @""
 	case 1  : return @"illegal function call"
@@ -87,7 +87,7 @@ end function
 '' is known and " in MOD::FUN()" when it is not. fbc picks it with an inline
 '' conditional on line_num > 0, and the two words are not interchangeable in
 '' the output a test compares.
-private sub hDie( byval err_num as long, byval line_num as long, _
+private sub hDie( byval err_num as int32, byval line_num as int32, _
                   byval mod_name as zstring ptr, byval fun_name as zstring ptr, _
                   byval msg as zstring ptr )
 
@@ -143,7 +143,7 @@ extern "c"   '' NON-FBCALL: the throw/resume entry points, per fb_error.h.
 '' Returns the HANDLER for the compiler to jump to, or dies. Never returns
 '' normally when there is no handler.
 function tkort_ErrorThrowMsg alias "fb_ErrorThrowMsg" _
-	( byval err_num as long, byval line_num as long, byval mod_name as zstring ptr, _
+	( byval err_num as int32, byval line_num as int32, byval mod_name as zstring ptr, _
 	  byval msg as zstring ptr, byval res_label as any ptr, _
 	  byval resnext_label as any ptr ) as FB_ERRHANDLER
 
@@ -184,7 +184,7 @@ function tkort_ErrorThrowMsg alias "fb_ErrorThrowMsg" _
 end function
 
 function tkort_ErrorThrowEx alias "fb_ErrorThrowEx" _
-	( byval err_num as long, byval line_num as long, byval mod_name as zstring ptr, _
+	( byval err_num as int32, byval line_num as int32, byval mod_name as zstring ptr, _
 	  byval res_label as any ptr, byval resnext_label as any ptr ) as FB_ERRHANDLER
 	return tkort_ErrorThrowMsg( err_num, line_num, mod_name, 0, res_label, resnext_label )
 end function
@@ -192,7 +192,7 @@ end function
 '' Rethrows whatever error number is already in the context -- ERROR with no
 '' argument, and the path RESUME takes after a handler returns.
 function tkort_ErrorThrowAt alias "fb_ErrorThrowAt" _
-	( byval line_num as long, byval mod_name as zstring ptr, _
+	( byval line_num as int32, byval mod_name as zstring ptr, _
 	  byval res_label as any ptr, byval resnext_label as any ptr ) as FB_ERRHANDLER
 	dim as FB_ERRORCTX ptr ctx = hCtx( )
 	return tkort_ErrorThrowEx( ctx->err_num, line_num, mod_name, res_label, resnext_label )

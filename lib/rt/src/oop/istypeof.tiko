@@ -24,13 +24,13 @@
 
 extern "rtlib"
 	function tkort_IsTypeOf alias "fb_IsTypeOf" _
-		( byval obj as TKORT_OBJECT ptr, byval typeRTTI as TKORT_RTTI ptr ) as long
+		( byval obj as TKORT_OBJECT ptr, byval typeRTTI as TKORT_RTTI ptr ) as int32
 
 		if( obj = 0 ) then return 0
 		if( typeRTTI = 0 ) then return 0
 
 		dim as TKORT_BASEVT ptr vt = cast( TKORT_BASEVT ptr, _
-			cast( ubyte ptr, obj->pVT ) - sizeof( TKORT_BASEVT ) )
+			cast( uint8 ptr, obj->pVT ) - sizeof( TKORT_BASEVT ) )
 		dim as TKORT_RTTI ptr objRTTI = vt->pRTTI
 
 		while( objRTTI <> 0 )

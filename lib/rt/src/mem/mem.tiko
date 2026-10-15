@@ -42,14 +42,14 @@ extern "rtlib"
 '' than one big alloca: this is called for UDT SWAP, where the operand can be
 '' large, and a variable-length stack allocation in a runtime entry point is a
 '' stack-overflow waiting for a big UDT.
-sub tkort_MemSwap alias "fb_MemSwap" ( byval dst as ubyte ptr, byval src as ubyte ptr, byval bytes as integer )
+sub tkort_MemSwap alias "fb_MemSwap" ( byval dst as uint8 ptr, byval src as uint8 ptr, byval bytes as integer )
 
 	if( (dst = 0) orelse (src = 0) orelse (bytes <= 0) ) then
 		exit sub
 	end if
 
 	const CHUNK as integer = 512
-	dim as ubyte tmp( 0 to CHUNK - 1 )
+	dim as uint8 tmp( 0 to CHUNK - 1 )
 	dim as integer remaining = bytes
 	dim as integer n = any
 
@@ -73,8 +73,8 @@ end sub
 '' residue from whatever the destination held before.
 sub tkort_MemCopyClear alias "fb_MemCopyClear" _
 	( _
-		byval dst as ubyte ptr, byval dstlen as uinteger, _
-		byval src as ubyte ptr, byval srclen as uinteger _
+		byval dst as uint8 ptr, byval dstlen as uinteger, _
+		byval src as uint8 ptr, byval srclen as uinteger _
 	)
 
 	if( (dst = 0) orelse (dstlen = 0) ) then

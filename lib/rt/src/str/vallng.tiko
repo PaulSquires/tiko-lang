@@ -31,11 +31,11 @@
 
 extern "rtlib"
 	declare function tkrt_SkipChar alias "fb_hStrSkipChar" _
-		( byval s as zstring ptr, byval length as integer, byval c as long ) as zstring ptr
+		( byval s as zstring ptr, byval length as integer, byval c as int32 ) as zstring ptr
 	declare function tkrt_Radix2Longint alias "fb_hStrRadix2Longint" _
-		( byval s as zstring ptr, byval length as integer, byval radix as long ) as longint
+		( byval s as zstring ptr, byval length as integer, byval radix as int32 ) as int64
 	declare function tkrt_DelTemp alias "fb_hStrDelTemp" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 end extern
 
 extern "rtlib"
@@ -44,15 +44,15 @@ extern "rtlib"
 '' remaining text and the radix. Returns 0 when there is nothing left to parse.
 #macro TKORT_VAL_PROLOGUE( src, length, up, p, radix, skip, bail )
 	dim as zstring ptr p = tkrt_SkipChar( src, length, 32 )
-	length -= cast( integer, cptr( ubyte ptr, p ) - cptr( ubyte ptr, src ) )
+	length -= cast( integer, cptr( uint8 ptr, p ) - cptr( uint8 ptr, src ) )
 	if( length < 1 ) then return bail
-	dim as ubyte ptr up = cptr( ubyte ptr, p )
-	dim as long radix = 10
+	dim as uint8 ptr up = cptr( uint8 ptr, p )
+	dim as int32 radix = 10
 	dim as integer skip = 2
 #endmacro
 
 function tkort_hStr2Longint alias "fb_hStr2Longint" _
-	( byval src as zstring ptr, byval length as integer ) as longint
+	( byval src as zstring ptr, byval length as integer ) as int64
 
 	TKORT_VAL_PROLOGUE( src, length, up, p, radix, skip, 0 )
 
@@ -79,15 +79,15 @@ function tkort_hStr2Longint alias "fb_hStr2Longint" _
 	end if
 
 	'' strtoull, not strtoll: out of range WRAPS instead of saturating.
-	return cast( longint, strtoull( p, 0, radix ) )
+	return cast( int64, strtoull( p, 0, radix ) )
 
 end function
 
-function tkort_VALLNG alias "fb_VALLNG" ( byval s as FBSTRING ptr ) as longint
+function tkort_VALLNG alias "fb_VALLNG" ( byval s as FBSTRING ptr ) as int64
 
 	if( s = 0 ) then return 0
 
-	dim as longint v = 0
+	dim as int64 v = 0
 	if( s->data <> 0 ) then
 		if( FB_STRSIZE( s ) <> 0 ) then
 			v = tkort_hStr2Longint( s->data, FB_STRSIZE( s ) )
@@ -101,7 +101,7 @@ function tkort_VALLNG alias "fb_VALLNG" ( byval s as FBSTRING ptr ) as longint
 end function
 
 function tkort_hStr2ULongint alias "fb_hStr2ULongint" _
-	( byval src as zstring ptr, byval length as integer ) as ulongint
+	( byval src as zstring ptr, byval length as integer ) as uint64
 
 	TKORT_VAL_PROLOGUE( src, length, up, p, radix, skip, 0 )
 
@@ -121,7 +121,7 @@ function tkort_hStr2ULongint alias "fb_hStr2ULongint" _
 		if( radix <> 10 ) then
 			p = cptr( zstring ptr, up + skip )
 			#ifdef __FB_WIN32__
-				return cast( ulongint, tkrt_Radix2Longint( p, length - skip, radix ) )
+				return cast( uint64, tkrt_Radix2Longint( p, length - skip, radix ) )
 			#endif
 		end if
 	end if
@@ -130,11 +130,11 @@ function tkort_hStr2ULongint alias "fb_hStr2ULongint" _
 
 end function
 
-function tkort_VALULNG alias "fb_VALULNG" ( byval s as FBSTRING ptr ) as ulongint
+function tkort_VALULNG alias "fb_VALULNG" ( byval s as FBSTRING ptr ) as uint64
 
 	if( s = 0 ) then return 0
 
-	dim as ulongint v = 0
+	dim as uint64 v = 0
 	if( s->data <> 0 ) then
 		if( FB_STRSIZE( s ) <> 0 ) then
 			v = tkort_hStr2ULongint( s->data, FB_STRSIZE( s ) )

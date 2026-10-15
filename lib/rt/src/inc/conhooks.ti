@@ -22,20 +22,20 @@
 '' Bottom = -1 MEANS "NO BOTTOM", i.e. never scroll -- not "row minus one".
 
 type fb_Rect
-	as long Left_, Top_, Right_, Bottom_
+	as int32 Left_, Top_, Right_, Bottom_
 end type
 
 type fb_Coord
-	as long X_, Y_
+	as int32 X_, Y_
 end type
 
 type fb_ConHooks_ as fb_ConHooks
 
 type FnConScroll as sub cdecl _
-	( byval handle as fb_ConHooks_ ptr, byval x1 as long, byval y1 as long, _
-	  byval x2 as long, byval y2 as long, byval rows as long )
+	( byval handle as fb_ConHooks_ ptr, byval x1 as int32, byval y1 as int32, _
+	  byval x2 as int32, byval y2 as int32, byval rows as int32 )
 type FnConWrite as function cdecl _
-	( byval handle as fb_ConHooks_ ptr, byval buffer as any ptr, byval length_ as uinteger ) as long
+	( byval handle as fb_ConHooks_ ptr, byval buffer as any ptr, byval length_ as uinteger ) as int32
 
 type fb_ConHooks
 	as any ptr      Opaque

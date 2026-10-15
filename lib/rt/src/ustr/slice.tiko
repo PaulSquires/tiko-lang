@@ -40,7 +40,7 @@ extern "rtlib"
 	declare function tkrt_UAllocTempNoLock alias "fb_hUStrAllocTemp_NoLock" _
 		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
 	declare function tkrt_UDelTempNoLock alias "fb_hUStrDelTemp_NoLock" _
-		( byval s as FBUSTRING ptr ) as long
+		( byval s as FBUSTRING ptr ) as int32
 end extern
 
 private function hTempFrom _
@@ -198,7 +198,7 @@ function tkort_UStrSpace alias "fb_UStrSpace" ( byval units as integer ) as FBUS
 end function
 
 function tkort_UStrFill1 alias "fb_UStrFill1" _
-	( byval units as integer, byval unit as long ) as FBUSTRING ptr
+	( byval units as integer, byval unit as int32 ) as FBUSTRING ptr
 	STRLOCK()
 	dim as FBUSTRING ptr dst = hFilled( units, cast( FB_UCHAR, unit ) )
 	STRUNLOCK()

@@ -74,13 +74,13 @@ const CHUNK = 1048576
 const STAGE = 1024
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 	declare function tkrt_StrAssign alias "fb_StrAssign" _
 		( byval dst as any ptr, byval dst_size as integer, _
-		  byval src as any ptr, byval src_size as integer, byval fill_rem as long ) as any ptr
+		  byval src as any ptr, byval src_size as integer, byval fill_rem as int32 ) as any ptr
 	declare function tkrt_StrConcatAssign alias "fb_StrConcatAssign" _
 		( byval dst as any ptr, byval dst_size as integer, _
-		  byval src as any ptr, byval src_size as integer, byval fillrem as long ) as any ptr
+		  byval src as any ptr, byval src_size as integer, byval fillrem as int32 ) as any ptr
 	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
 	declare function tkrt_WstrAssignFromA alias "fb_WstrAssignFromA" _
 		( byval dst as wstring ptr, byval dst_chars as integer, _
@@ -91,9 +91,9 @@ extern "c"   '' NON-FBCALL: the h-prefixed internals and the two libc 64-bit
              '' seek names, all undecorated in fbc's win32 archive.
 	declare sub tkrt_ConvertPath alias "fb_hConvertPath" ( byval p as zstring ptr )
 	declare function tkrt_hFileLock alias "fb_hFileLock" _
-		( byval f as FILE ptr, byval inipos as longint, byval sz as longint ) as long
+		( byval f as FILE ptr, byval inipos as int64, byval sz as int64 ) as int32
 	declare function tkrt_hFileUnlock alias "fb_hFileUnlock" _
-		( byval f as FILE ptr, byval inipos as longint, byval sz as longint ) as long
+		( byval f as FILE ptr, byval inipos as int64, byval sz as int64 ) as int32
 	declare function tkrt_ConvFromA alias "fb_wstr_ConvFromA" _
 		( byval dst as wstring ptr, byval dst_chars as integer, byval src as zstring ptr ) as integer
 	declare function tkrt_ConvToA alias "fb_wstr_ConvToA" _
@@ -104,12 +104,12 @@ extern "c"   '' NON-FBCALL: the h-prefixed internals and the two libc 64-bit
 '' from build.sh -- see src/sys/sys.ti for why fbc cannot tell us itself.
 #ifdef TKORT_MSVC
 	declare function tkrt_fseeko cdecl alias "_fseeki64" _
-		( byval f as FILE ptr, byval off as longint, byval whence as long ) as long
-	declare function tkrt_ftello cdecl alias "_ftelli64" ( byval f as FILE ptr ) as longint
+		( byval f as FILE ptr, byval off as int64, byval whence as int32 ) as int32
+	declare function tkrt_ftello cdecl alias "_ftelli64" ( byval f as FILE ptr ) as int64
 #else
 	declare function tkrt_fseeko cdecl alias "fseeko" _
-		( byval f as FILE ptr, byval off as longint, byval whence as long ) as long
-	declare function tkrt_ftello cdecl alias "ftello" ( byval f as FILE ptr ) as longint
+		( byval f as FILE ptr, byval off as int64, byval whence as int32 ) as int32
+	declare function tkrt_ftello cdecl alias "ftello" ( byval f as FILE ptr ) as int64
 #endif
 end extern
 
@@ -127,35 +127,35 @@ extern "c"   '' NON-FBCALL: every dev_file name is undecorated in fbc's win32
              '' they are reached through FB_FILE_HOOKS rather than called by
              '' generated code.
 
-declare function tkort_DevFileEof alias "fb_DevFileEof" ( byval h as FB_FILE ptr ) as long
-declare function tkort_DevFileClose alias "fb_DevFileClose" ( byval h as FB_FILE ptr ) as long
+declare function tkort_DevFileEof alias "fb_DevFileEof" ( byval h as FB_FILE ptr ) as int32
+declare function tkort_DevFileClose alias "fb_DevFileClose" ( byval h as FB_FILE ptr ) as int32
 declare function tkort_DevFileSeek alias "fb_DevFileSeek" _
-	( byval h as FB_FILE ptr, byval offset as longint, byval whence as long ) as long
+	( byval h as FB_FILE ptr, byval offset as int64, byval whence as int32 ) as int32
 declare function tkort_DevFileTell alias "fb_DevFileTell" _
-	( byval h as FB_FILE ptr, byval pOffset as longint ptr ) as long
+	( byval h as FB_FILE ptr, byval pOffset as int64 ptr ) as int32
 declare function tkort_DevFileRead alias "fb_DevFileRead" _
-	( byval h as FB_FILE ptr, byval dst as any ptr, byval pLength as uinteger ptr ) as long
+	( byval h as FB_FILE ptr, byval dst as any ptr, byval pLength as uinteger ptr ) as int32
 declare function tkort_DevFileReadWstr alias "fb_DevFileReadWstr" _
-	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as long
+	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as int32
 declare function tkort_DevFileWrite alias "fb_DevFileWrite" _
-	( byval h as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as long
+	( byval h as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as int32
 declare function tkort_DevFileWriteWstr alias "fb_DevFileWriteWstr" _
-	( byval h as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as long
+	( byval h as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as int32
 declare function tkort_DevFileLock alias "fb_DevFileLock" _
-	( byval h as FB_FILE ptr, byval position as longint, byval sz as longint ) as long
+	( byval h as FB_FILE ptr, byval position as int64, byval sz as int64 ) as int32
 declare function tkort_DevFileUnlock alias "fb_DevFileUnlock" _
-	( byval h as FB_FILE ptr, byval position as longint, byval sz as longint ) as long
+	( byval h as FB_FILE ptr, byval position as int64, byval sz as int64 ) as int32
 declare function tkort_DevFileReadLine alias "fb_DevFileReadLine" _
-	( byval h as FB_FILE ptr, byval dst as FBSTRING ptr ) as long
+	( byval h as FB_FILE ptr, byval dst as FBSTRING ptr ) as int32
 declare function tkort_DevFileReadLineWstr alias "fb_DevFileReadLineWstr" _
-	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval dst_chars as integer ) as long
-declare function tkort_DevFileFlush alias "fb_DevFileFlush" ( byval h as FB_FILE ptr ) as long
+	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval dst_chars as integer ) as int32
+declare function tkort_DevFileFlush alias "fb_DevFileFlush" ( byval h as FB_FILE ptr ) as int32
 declare function tkort_DevFileReadLineDumb alias "fb_DevFileReadLineDumb" _
-	( byval fp as FILE ptr, byval dst as FBSTRING ptr, byval pfnReadString as FnDevReadString ) as long
+	( byval fp as FILE ptr, byval dst as FBSTRING ptr, byval pfnReadString as FnDevReadString ) as int32
 declare function tkort_hDevFileSeekStart alias "fb_hDevFileSeekStart" _
-	( byval fp as FILE ptr, byval mode as long, byval encod as long, byval seek_zero as long ) as long
+	( byval fp as FILE ptr, byval mode as int32, byval encod as int32, byval seek_zero as int32 ) as int32
 declare function tkort_DevFileGetSize alias "fb_DevFileGetSize" _
-	( byval fp as FILE ptr, byval mode as long, byval encod as long, byval seek_back as long ) as longint
+	( byval fp as FILE ptr, byval mode as int32, byval encod as int32, byval seek_back as int32 ) as int64
 declare sub tkort_hSetFileBufSize alias "fb_hSetFileBufSize" ( byval fp as FILE ptr )
 
 end extern
@@ -182,10 +182,10 @@ dim shared as FB_FILE_HOOKS hooks_dev_file = ( _
 '' fbc uses strcasecmp, which MinGW spells _stricmp. Written out rather than
 '' bound, because binding it needs a different name per platform for four lines
 '' of code and the comparison is only ever against the literal "CON".
-private function hEqualsCON( byval s as zstring ptr ) as long
-	dim as ubyte ptr p = cast( ubyte ptr, s )
-	dim as ubyte c = any
-	dim as ubyte want(0 to 2) = { 67, 79, 78 }
+private function hEqualsCON( byval s as zstring ptr ) as int32
+	dim as uint8 ptr p = cast( uint8 ptr, s )
+	dim as uint8 c = any
+	dim as uint8 want(0 to 2) = { 67, 79, 78 }
 	for i as integer = 0 to 2
 		c = p[i]
 		if( (c >= 97) andalso (c <= 122) ) then c -= 32
@@ -208,7 +208,7 @@ end sub
 '' unless seek_zero was asked for -- returning 0 without moving -- because
 '' rewinding an ASCII stream to 0 on every open would undo an APPEND.
 function tkort_hDevFileSeekStart alias "fb_hDevFileSeekStart" _
-	( byval fp as FILE ptr, byval mode as long, byval encod as long, byval seek_zero as long ) as long
+	( byval fp as FILE ptr, byval mode as int32, byval encod as int32, byval seek_zero as int32 ) as int32
 
 	dim as uinteger ofs = any
 
@@ -230,9 +230,9 @@ end function
 '' -1 IS THE FAILURE VALUE AND ALSO THE "NOT MEASURED YET" VALUE, which is why
 '' fb_DevFileOpen sets handle->size = -1 before the switch and tests it after.
 function tkort_DevFileGetSize alias "fb_DevFileGetSize" _
-	( byval fp as FILE ptr, byval mode as long, byval encod as long, byval seek_back as long ) as longint
+	( byval fp as FILE ptr, byval mode as int32, byval encod as int32, byval seek_back as int32 ) as int64
 
-	dim as longint sz = 0
+	dim as int64 sz = 0
 
 	select case mode
 	case FB_FILE_MODE_BINARY, FB_FILE_MODE_RANDOM, FB_FILE_MODE_INPUT
@@ -251,7 +251,7 @@ function tkort_DevFileGetSize alias "fb_DevFileGetSize" _
 end function
 
 function tkort_DevFileOpen alias "fb_DevFileOpen" _
-	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval fname_len as uinteger ) as long
+	( byval h as FB_FILE ptr, byval filename as zstring ptr, byval fname_len as uinteger ) as int32
 
 	dim as FILE ptr fp = 0
 	dim as zstring ptr openmask = 0
@@ -270,7 +270,7 @@ function tkort_DevFileOpen alias "fb_DevFileOpen" _
 		fname = cast( zstring ptr, heap_ )
 	end if
 	memcpy( fname, filename, fname_len )
-	cast( ubyte ptr, fname )[fname_len] = 0
+	cast( uint8 ptr, fname )[fname_len] = 0
 
 	'' Slashes to whatever this platform uses. fbc's own, still.
 	tkrt_ConvertPath( fname )
@@ -400,7 +400,7 @@ end function
 
 '' NOT AN ERROR ON A CLOSED HANDLE. CLOSE on a handle whose opaque is already
 '' NULL succeeds, because the end-of-program flush can reach here a second time.
-function tkort_DevFileClose alias "fb_DevFileClose" ( byval h as FB_FILE ptr ) as long
+function tkort_DevFileClose alias "fb_DevFileClose" ( byval h as FB_FILE ptr ) as int32
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
 	if( fp <> 0 ) then fclose( fp )
@@ -411,9 +411,9 @@ end function
 
 '' ------------------------------------------------------------------ eof
 
-function tkort_DevFileEof alias "fb_DevFileEof" ( byval h as FB_FILE ptr ) as long
+function tkort_DevFileEof alias "fb_DevFileEof" ( byval h as FB_FILE ptr ) as int32
 
-	dim as long is_eof = any, c = any
+	dim as int32 is_eof = any, c = any
 
 	TKORT_IOLOCK()
 
@@ -448,7 +448,7 @@ end function
 '' ------------------------------------------------------------------ seek/tell
 
 function tkort_DevFileSeek alias "fb_DevFileSeek" _
-	( byval h as FB_FILE ptr, byval offset as longint, byval whence as long ) as long
+	( byval h as FB_FILE ptr, byval offset as int64, byval whence as int32 ) as int32
 
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
@@ -456,14 +456,14 @@ function tkort_DevFileSeek alias "fb_DevFileSeek" _
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
-	dim as long ok = iif( tkrt_fseeko( fp, offset, whence ) = 0, 1, 0 )
-	dim as long res = tkrt_ErrorSetNum( iif( ok <> 0, FB_RTERROR_OK, FB_RTERROR_FILEIO ) )
+	dim as int32 ok = iif( tkrt_fseeko( fp, offset, whence ) = 0, 1, 0 )
+	dim as int32 res = tkrt_ErrorSetNum( iif( ok <> 0, FB_RTERROR_OK, FB_RTERROR_FILEIO ) )
 	TKORT_IOUNLOCK()
 	return res
 end function
 
 function tkort_DevFileTell alias "fb_DevFileTell" _
-	( byval h as FB_FILE ptr, byval pOffset as longint ptr ) as long
+	( byval h as FB_FILE ptr, byval pOffset as int64 ptr ) as int32
 
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
@@ -481,7 +481,7 @@ end function
 '' SIZE ZERO IS REJECTED BEFORE THE LOCK IS TAKEN, and before the handle is even
 '' looked at -- an empty range is an illegal function call, not a no-op.
 function tkort_DevFileLock alias "fb_DevFileLock" _
-	( byval h as FB_FILE ptr, byval position as longint, byval sz as longint ) as long
+	( byval h as FB_FILE ptr, byval position as int64, byval sz as int64 ) as int32
 
 	if( sz = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 
@@ -491,13 +491,13 @@ function tkort_DevFileLock alias "fb_DevFileLock" _
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
-	dim as long res = tkrt_hFileLock( fp, position, sz )
+	dim as int32 res = tkrt_hFileLock( fp, position, sz )
 	TKORT_IOUNLOCK()
 	return res
 end function
 
 function tkort_DevFileUnlock alias "fb_DevFileUnlock" _
-	( byval h as FB_FILE ptr, byval position as longint, byval sz as longint ) as long
+	( byval h as FB_FILE ptr, byval position as int64, byval sz as int64 ) as int32
 
 	if( sz = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 
@@ -507,14 +507,14 @@ function tkort_DevFileUnlock alias "fb_DevFileUnlock" _
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
-	dim as long res = tkrt_hFileUnlock( fp, position, sz )
+	dim as int32 res = tkrt_hFileUnlock( fp, position, sz )
 	TKORT_IOUNLOCK()
 	return res
 end function
 
 '' ------------------------------------------------------------------ flush
 
-function tkort_DevFileFlush alias "fb_DevFileFlush" ( byval h as FB_FILE ptr ) as long
+function tkort_DevFileFlush alias "fb_DevFileFlush" ( byval h as FB_FILE ptr ) as int32
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
 	if( fp = 0 ) then
@@ -536,7 +536,7 @@ end function
 '' would return a total that skips a hole.
 private function hFreadLarge( byval p as any ptr, byval nbytes as uinteger, byval fp as FILE ptr ) as uinteger
 	dim as uinteger total = 0, n = any
-	dim as ubyte ptr q = cast( ubyte ptr, p )
+	dim as uint8 ptr q = cast( uint8 ptr, p )
 	dim as uinteger left_ = nbytes
 	while( left_ > CHUNK )
 		n = fread( q, 1, CHUNK, fp )
@@ -551,7 +551,7 @@ end function
 
 private function hFwriteLarge( byval p as any ptr, byval nbytes as uinteger, byval fp as FILE ptr ) as uinteger
 	dim as uinteger total = 0, n = any
-	dim as ubyte ptr q = cast( ubyte ptr, p )
+	dim as uint8 ptr q = cast( uint8 ptr, p )
 	dim as uinteger left_ = nbytes
 	while( left_ > CHUNK )
 		n = fwrite( q, 1, CHUNK, fp )
@@ -576,7 +576,7 @@ private function hReadStream( byval h as FB_FILE ptr ) as FILE ptr
 end function
 
 function tkort_DevFileRead alias "fb_DevFileRead" _
-	( byval h as FB_FILE ptr, byval dst as any ptr, byval pLength as uinteger ptr ) as long
+	( byval h as FB_FILE ptr, byval dst as any ptr, byval pLength as uinteger ptr ) as int32
 
 	TKORT_IOLOCK()
 
@@ -592,7 +592,7 @@ function tkort_DevFileRead alias "fb_DevFileRead" _
 	'' THE TAIL IS ZEROED, not left alone: a GET past the end yields a zeroed
 	'' record rather than whatever the caller's buffer held.
 	if( rlen <> length_ ) then
-		memset( cast( ubyte ptr, dst ) + rlen, 0, length_ - rlen )
+		memset( cast( uint8 ptr, dst ) + rlen, 0, length_ - rlen )
 	end if
 
 	*pLength = rlen
@@ -602,7 +602,7 @@ function tkort_DevFileRead alias "fb_DevFileRead" _
 end function
 
 function tkort_DevFileWrite alias "fb_DevFileWrite" _
-	( byval h as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as long
+	( byval h as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as int32
 
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = cast( FILE ptr, h->opaque )
@@ -619,7 +619,7 @@ function tkort_DevFileWrite alias "fb_DevFileWrite" _
 end function
 
 function tkort_DevFileReadWstr alias "fb_DevFileReadWstr" _
-	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as long
+	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as int32
 
 	TKORT_IOLOCK()
 
@@ -645,7 +645,7 @@ function tkort_DevFileReadWstr alias "fb_DevFileReadWstr" _
 
 	'' Plain fread, not the chunked one: fbc's wide read is a single call.
 	dim as uinteger chars = fread( buf, 1, want, fp )
-	cast( ubyte ptr, buf )[chars] = 0
+	cast( uint8 ptr, buf )[chars] = 0
 
 	'' A file opened without ENCODING is a BYTE file, so this is a widening
 	'' conversion and not a decode -- ENCODING files go through
@@ -655,7 +655,7 @@ function tkort_DevFileReadWstr alias "fb_DevFileReadWstr" _
 	if( heap_ <> 0 ) then free( heap_ )
 
 	if( chars <> want ) then
-		memset( cast( ubyte ptr, dst ) + chars * sizeof( wstring ), 0, _
+		memset( cast( uint8 ptr, dst ) + chars * sizeof( wstring ), 0, _
 		        (want - chars) * sizeof( wstring ) )
 	end if
 
@@ -666,7 +666,7 @@ function tkort_DevFileReadWstr alias "fb_DevFileReadWstr" _
 end function
 
 function tkort_DevFileWriteWstr alias "fb_DevFileWriteWstr" _
-	( byval h as FB_FILE ptr, byval src as wstring ptr, byval chars as uinteger ) as long
+	( byval h as FB_FILE ptr, byval src as wstring ptr, byval chars as uinteger ) as int32
 
 	TKORT_IOLOCK()
 
@@ -691,7 +691,7 @@ function tkort_DevFileWriteWstr alias "fb_DevFileWriteWstr" _
 
 	tkrt_ConvToA( buf, chars, src )
 
-	dim as long ok = iif( fwrite( buf, 1, chars, fp ) = chars, 1, 0 )
+	dim as int32 ok = iif( fwrite( buf, 1, chars, fp ) = chars, 1, 0 )
 
 	if( heap_ <> 0 ) then free( heap_ )
 
@@ -716,16 +716,16 @@ end function
 '' 17 with the partial line intact -- LINE INPUT on a file with no trailing
 '' newline yields the last line AND the end-of-file error.
 function tkort_DevFileReadLineDumb alias "fb_DevFileReadLineDumb" _
-	( byval fp as FILE ptr, byval dst as FBSTRING ptr, byval pfnReadString as FnDevReadString ) as long
+	( byval fp as FILE ptr, byval dst as FBSTRING ptr, byval pfnReadString as FnDevReadString ) as int32
 
-	dim as long res = tkrt_ErrorSetNum( FB_RTERROR_OK )
+	dim as int32 res = tkrt_ErrorSetNum( FB_RTERROR_OK )
 	dim as uinteger buffer_len = any
-	dim as long found = any, first_run = any
+	dim as int32 found = any, first_run = any
 	dim as zstring * 512 buffer = any
 	dim as FBSTRING src
-	dim as ubyte ptr b = cast( ubyte ptr, @buffer )
+	dim as uint8 ptr b = cast( uint8 ptr, @buffer )
 	dim as integer tmp_buf_len = any
-	dim as ubyte ch = any
+	dim as uint8 ch = any
 	dim as zstring ptr got = any
 
 	src.data = @buffer
@@ -802,7 +802,7 @@ function tkort_DevFileReadLineDumb alias "fb_DevFileReadLineDumb" _
 end function
 
 function tkort_DevFileReadLine alias "fb_DevFileReadLine" _
-	( byval h as FB_FILE ptr, byval dst as FBSTRING ptr ) as long
+	( byval h as FB_FILE ptr, byval dst as FBSTRING ptr ) as int32
 
 	TKORT_IOLOCK()
 	dim as FILE ptr fp = hReadStream( h )
@@ -810,7 +810,7 @@ function tkort_DevFileReadLine alias "fb_DevFileReadLine" _
 		TKORT_IOUNLOCK()
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
-	dim as long res = tkort_DevFileReadLineDumb( fp, dst, 0 )
+	dim as int32 res = tkort_DevFileReadLineDumb( fp, dst, 0 )
 	TKORT_IOUNLOCK()
 	return res
 end function
@@ -818,7 +818,7 @@ end function
 '' THE TEMPORARY IS DELETED ON EVERY PATH, and the assignment happens for END OF
 '' FILE too -- the last unterminated line still has to reach the caller.
 function tkort_DevFileReadLineWstr alias "fb_DevFileReadLineWstr" _
-	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval dst_chars as integer ) as long
+	( byval h as FB_FILE ptr, byval dst as wstring ptr, byval dst_chars as integer ) as int32
 
 	dim as FBSTRING temp
 
@@ -834,7 +834,7 @@ function tkort_DevFileReadLineWstr alias "fb_DevFileReadLineWstr" _
 	temp.len = 0
 	temp.size = 0
 
-	dim as long res = tkort_DevFileReadLineDumb( fp, @temp, 0 )
+	dim as int32 res = tkort_DevFileReadLineDumb( fp, @temp, 0 )
 
 	if( (res = FB_RTERROR_OK) orelse (res = FB_RTERROR_ENDOFFILE) ) then
 		tkrt_WstrAssignFromA( dst, dst_chars, @temp, -1 )

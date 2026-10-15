@@ -34,31 +34,31 @@ const FB_INPUT_MAXLONGLEN = 18
 const FB_INPUT_MAXNUMERICLEN = (2 + 64) + 1
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 	declare function tkrt_Str2Int alias "fb_hStr2Int" _
-		( byval s as zstring ptr, byval length as integer ) as long
+		( byval s as zstring ptr, byval length as integer ) as int32
 	declare function tkrt_Str2UInt alias "fb_hStr2UInt" _
-		( byval s as zstring ptr, byval length as integer ) as ulong
+		( byval s as zstring ptr, byval length as integer ) as uint32
 	declare function tkrt_Str2Longint alias "fb_hStr2Longint" _
-		( byval s as zstring ptr, byval length as integer ) as longint
+		( byval s as zstring ptr, byval length as integer ) as int64
 	declare function tkrt_Str2ULongint alias "fb_hStr2ULongint" _
-		( byval s as zstring ptr, byval length as integer ) as ulongint
+		( byval s as zstring ptr, byval length as integer ) as uint64
 	declare function tkrt_Str2Double alias "fb_hStr2Double" _
-		( byval s as zstring ptr, byval length as integer ) as double
+		( byval s as zstring ptr, byval length as integer ) as float64
 	declare function tkrt_Str2Bool alias "fb_hStr2Bool" _
-		( byval s as zstring ptr, byval length as integer ) as long
+		( byval s as zstring ptr, byval length as integer ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: the tokeniser stays fbc's.
 	declare function tkrt_NextToken alias "fb_FileInputNextToken" _
-		( byval buffer as zstring ptr, byval maxlen as long, byval isstring as long, _
-		  byval isfp as long ptr ) as integer
+		( byval buffer as zstring ptr, byval maxlen as int32, byval isstring as int32, _
+		  byval isfp as int32 ptr ) as integer
 end extern
 
 #macro INPUT_SIGNED( dst, ty )
 	scope
 		dim as zstring * (FB_INPUT_MAXNUMERICLEN + 1) buffer
-		dim as long isfp = any
+		dim as int32 isfp = any
 		dim as integer length = tkrt_NextToken( @buffer, FB_INPUT_MAXNUMERICLEN, 0, @isfp )
 		if( isfp = 0 ) then
 			*dst = cast( ty, tkrt_Str2Int( @buffer, length ) )
@@ -72,7 +72,7 @@ end extern
 #macro INPUT_UNSIGNED( dst, ty )
 	scope
 		dim as zstring * (FB_INPUT_MAXNUMERICLEN + 1) buffer
-		dim as long isfp = any
+		dim as int32 isfp = any
 		dim as integer length = tkrt_NextToken( @buffer, FB_INPUT_MAXNUMERICLEN, 0, @isfp )
 		if( isfp = 0 ) then
 			*dst = cast( ty, tkrt_Str2UInt( @buffer, length ) )
@@ -86,7 +86,7 @@ end extern
 #macro INPUT_FP( dst, ty, strtofn )
 	scope
 		dim as zstring * (FB_INPUT_MAXNUMERICLEN + 1) buffer
-		dim as long isfp = any
+		dim as int32 isfp = any
 		dim as integer length = tkrt_NextToken( @buffer, FB_INPUT_MAXNUMERICLEN, 0, @isfp )
 		if( isfp = 0 ) then
 			if( length <= FB_INPUT_MAXINTLEN ) then
@@ -109,43 +109,43 @@ end extern
 
 extern "rtlib"
 
-function tkort_InputByte alias "fb_InputByte" ( byval dst as byte ptr ) as long
-	INPUT_SIGNED( dst, byte )
+function tkort_InputByte alias "fb_InputByte" ( byval dst as int8 ptr ) as int32
+	INPUT_SIGNED( dst, int8 )
 end function
 
-function tkort_InputShort alias "fb_InputShort" ( byval dst as short ptr ) as long
-	INPUT_SIGNED( dst, short )
+function tkort_InputShort alias "fb_InputShort" ( byval dst as int16 ptr ) as int32
+	INPUT_SIGNED( dst, int16 )
 end function
 
-function tkort_InputInt alias "fb_InputInt" ( byval dst as long ptr ) as long
-	INPUT_SIGNED( dst, long )
+function tkort_InputInt alias "fb_InputInt" ( byval dst as int32 ptr ) as int32
+	INPUT_SIGNED( dst, int32 )
 end function
 
-function tkort_InputUbyte alias "fb_InputUbyte" ( byval dst as ubyte ptr ) as long
-	INPUT_UNSIGNED( dst, ubyte )
+function tkort_InputUbyte alias "fb_InputUbyte" ( byval dst as uint8 ptr ) as int32
+	INPUT_UNSIGNED( dst, uint8 )
 end function
 
-function tkort_InputUshort alias "fb_InputUshort" ( byval dst as ushort ptr ) as long
-	INPUT_UNSIGNED( dst, ushort )
+function tkort_InputUshort alias "fb_InputUshort" ( byval dst as uint16 ptr ) as int32
+	INPUT_UNSIGNED( dst, uint16 )
 end function
 
-function tkort_InputUint alias "fb_InputUint" ( byval dst as ulong ptr ) as long
-	INPUT_UNSIGNED( dst, ulong )
+function tkort_InputUint alias "fb_InputUint" ( byval dst as uint32 ptr ) as int32
+	INPUT_UNSIGNED( dst, uint32 )
 end function
 
-function tkort_InputSingle alias "fb_InputSingle" ( byval dst as single ptr ) as long
-	INPUT_FP( dst, single, strtof )
+function tkort_InputSingle alias "fb_InputSingle" ( byval dst as float32 ptr ) as int32
+	INPUT_FP( dst, float32, strtof )
 end function
 
-function tkort_InputDouble alias "fb_InputDouble" ( byval dst as double ptr ) as long
-	INPUT_FP( dst, double, strtod )
+function tkort_InputDouble alias "fb_InputDouble" ( byval dst as float64 ptr ) as int32
+	INPUT_FP( dst, float64, strtod )
 end function
 
 '' THE 64-BIT FORMS TAKE THE LENGTH BRANCH: a short token goes to the 32-bit
 '' parser and only a long one to the 64-bit parser.
-function tkort_InputLongint alias "fb_InputLongint" ( byval dst as longint ptr ) as long
+function tkort_InputLongint alias "fb_InputLongint" ( byval dst as int64 ptr ) as int32
 	dim as zstring * (FB_INPUT_MAXNUMERICLEN + 1) buffer
-	dim as long isfp = any
+	dim as int32 isfp = any
 	dim as integer length = tkrt_NextToken( @buffer, FB_INPUT_MAXNUMERICLEN, 0, @isfp )
 	if( isfp = 0 ) then
 		if( length <= FB_INPUT_MAXINTLEN ) then
@@ -154,7 +154,7 @@ function tkort_InputLongint alias "fb_InputLongint" ( byval dst as longint ptr )
 			*dst = tkrt_Str2Longint( @buffer, length )
 		end if
 	else
-		*dst = cast( longint, rint( tkrt_Str2Double( @buffer, length ) ) )
+		*dst = cast( int64, rint( tkrt_Str2Double( @buffer, length ) ) )
 	end if
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
@@ -164,28 +164,28 @@ end function
 '' "-1" read into a ULONGINT becomes 18446744073709551615 rather than 0. The
 '' long path uses the unsigned parser, so the two disagree on a negative token
 '' purely by its LENGTH.
-function tkort_InputUlongint alias "fb_InputUlongint" ( byval dst as ulongint ptr ) as long
+function tkort_InputUlongint alias "fb_InputUlongint" ( byval dst as uint64 ptr ) as int32
 	dim as zstring * (FB_INPUT_MAXNUMERICLEN + 1) buffer
-	dim as long isfp = any
+	dim as int32 isfp = any
 	dim as integer length = tkrt_NextToken( @buffer, FB_INPUT_MAXNUMERICLEN, 0, @isfp )
 	if( isfp = 0 ) then
 		if( length <= FB_INPUT_MAXINTLEN ) then
-			*dst = cast( ulongint, cast( longint, tkrt_Str2Int( @buffer, length ) ) )
+			*dst = cast( uint64, cast( int64, tkrt_Str2Int( @buffer, length ) ) )
 		else
 			*dst = tkrt_Str2ULongint( @buffer, length )
 		end if
 	else
-		*dst = cast( ulongint, rint( tkrt_Str2Double( @buffer, length ) ) )
+		*dst = cast( uint64, rint( tkrt_Str2Double( @buffer, length ) ) )
 	end if
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
 
 '' No floating-point branch: the bool parser handles every token itself.
-function tkort_InputBool alias "fb_InputBool" ( byval dst as byte ptr ) as long
+function tkort_InputBool alias "fb_InputBool" ( byval dst as int8 ptr ) as int32
 	dim as zstring * (FB_INPUT_MAXNUMERICLEN + 1) buffer
-	dim as long isfp = any
+	dim as int32 isfp = any
 	dim as integer length = tkrt_NextToken( @buffer, FB_INPUT_MAXNUMERICLEN, 0, @isfp )
-	*dst = cast( byte, tkrt_Str2Bool( @buffer, length ) )
+	*dst = cast( int8, tkrt_Str2Bool( @buffer, length ) )
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
 
@@ -209,46 +209,46 @@ end extern
 
 extern "rtlib"
 	declare function tkrt_Str2IntQB alias "fb_hStr2IntQB" _
-		( byval s as zstring ptr, byval length as integer ) as long
+		( byval s as zstring ptr, byval length as integer ) as int32
 	declare function tkrt_Str2UIntQB alias "fb_hStr2UIntQB" _
-		( byval s as zstring ptr, byval length as integer ) as ulong
+		( byval s as zstring ptr, byval length as integer ) as uint32
 	declare function tkrt_Str2LongintQB alias "fb_hStr2LongintQB" _
-		( byval s as zstring ptr, byval length as integer ) as longint
+		( byval s as zstring ptr, byval length as integer ) as int64
 	declare function tkrt_Str2ULongintQB alias "fb_hStr2ULongintQB" _
-		( byval s as zstring ptr, byval length as integer ) as ulongint
+		( byval s as zstring ptr, byval length as integer ) as uint64
 	declare function tkrt_Str2DoubleQB alias "fb_hStr2DoubleQB" _
-		( byval s as zstring ptr, byval length as integer ) as double
+		( byval s as zstring ptr, byval length as integer ) as float64
 end extern
 
 extern "rtlib"
 
-function tkort_InputIntQB alias "fb_InputIntQB" ( byval dst as long ptr ) as long
+function tkort_InputIntQB alias "fb_InputIntQB" ( byval dst as int32 ptr ) as int32
 	dim as zstring * (FB_INPUT_MAXNUMERICLEN + 1) buffer
-	dim as long isfp = any
+	dim as int32 isfp = any
 	dim as integer length = tkrt_NextToken( @buffer, FB_INPUT_MAXNUMERICLEN, 0, @isfp )
 	if( isfp = 0 ) then
 		*dst = tkrt_Str2IntQB( @buffer, length )
 	else
-		*dst = cast( long, rint( tkrt_Str2DoubleQB( @buffer, length ) ) )
+		*dst = cast( int32, rint( tkrt_Str2DoubleQB( @buffer, length ) ) )
 	end if
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
 
-function tkort_InputUintQB alias "fb_InputUintQB" ( byval dst as ulong ptr ) as long
+function tkort_InputUintQB alias "fb_InputUintQB" ( byval dst as uint32 ptr ) as int32
 	dim as zstring * (FB_INPUT_MAXNUMERICLEN + 1) buffer
-	dim as long isfp = any
+	dim as int32 isfp = any
 	dim as integer length = tkrt_NextToken( @buffer, FB_INPUT_MAXNUMERICLEN, 0, @isfp )
 	if( isfp = 0 ) then
 		*dst = tkrt_Str2UIntQB( @buffer, length )
 	else
-		*dst = cast( ulong, rint( tkrt_Str2DoubleQB( @buffer, length ) ) )
+		*dst = cast( uint32, rint( tkrt_Str2DoubleQB( @buffer, length ) ) )
 	end if
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
 
-function tkort_InputLongintQB alias "fb_InputLongintQB" ( byval dst as longint ptr ) as long
+function tkort_InputLongintQB alias "fb_InputLongintQB" ( byval dst as int64 ptr ) as int32
 	dim as zstring * (FB_INPUT_MAXNUMERICLEN + 1) buffer
-	dim as long isfp = any
+	dim as int32 isfp = any
 	dim as integer length = tkrt_NextToken( @buffer, FB_INPUT_MAXNUMERICLEN, 0, @isfp )
 	if( isfp = 0 ) then
 		if( length <= FB_INPUT_MAXINTLEN ) then
@@ -257,23 +257,23 @@ function tkort_InputLongintQB alias "fb_InputLongintQB" ( byval dst as longint p
 			*dst = tkrt_Str2LongintQB( @buffer, length )
 		end if
 	else
-		*dst = cast( longint, rint( tkrt_Str2DoubleQB( @buffer, length ) ) )
+		*dst = cast( int64, rint( tkrt_Str2DoubleQB( @buffer, length ) ) )
 	end if
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
 
-function tkort_InputUlongintQB alias "fb_InputUlongintQB" ( byval dst as ulongint ptr ) as long
+function tkort_InputUlongintQB alias "fb_InputUlongintQB" ( byval dst as uint64 ptr ) as int32
 	dim as zstring * (FB_INPUT_MAXNUMERICLEN + 1) buffer
-	dim as long isfp = any
+	dim as int32 isfp = any
 	dim as integer length = tkrt_NextToken( @buffer, FB_INPUT_MAXNUMERICLEN, 0, @isfp )
 	if( isfp = 0 ) then
 		if( length <= FB_INPUT_MAXINTLEN ) then
-			*dst = cast( ulongint, cast( longint, tkrt_Str2IntQB( @buffer, length ) ) )
+			*dst = cast( uint64, cast( int64, tkrt_Str2IntQB( @buffer, length ) ) )
 		else
 			*dst = tkrt_Str2ULongintQB( @buffer, length )
 		end if
 	else
-		*dst = cast( ulongint, rint( tkrt_Str2DoubleQB( @buffer, length ) ) )
+		*dst = cast( uint64, rint( tkrt_Str2DoubleQB( @buffer, length ) ) )
 	end if
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
@@ -283,7 +283,7 @@ end function
 #macro INPUT_FP_QB( dst, ty, strtofn )
 	scope
 		dim as zstring * (FB_INPUT_MAXNUMERICLEN + 1) buffer
-		dim as long isfp = any
+		dim as int32 isfp = any
 		dim as integer length = tkrt_NextToken( @buffer, FB_INPUT_MAXNUMERICLEN, 0, @isfp )
 		if( isfp = 0 ) then
 			if( length <= FB_INPUT_MAXINTLEN ) then
@@ -304,12 +304,12 @@ end function
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 #endmacro
 
-function tkort_InputSingleQB alias "fb_InputSingleQB" ( byval dst as single ptr ) as long
-	INPUT_FP_QB( dst, single, strtof )
+function tkort_InputSingleQB alias "fb_InputSingleQB" ( byval dst as float32 ptr ) as int32
+	INPUT_FP_QB( dst, float32, strtof )
 end function
 
-function tkort_InputDoubleQB alias "fb_InputDoubleQB" ( byval dst as double ptr ) as long
-	INPUT_FP_QB( dst, double, strtod )
+function tkort_InputDoubleQB alias "fb_InputDoubleQB" ( byval dst as float64 ptr ) as int32
+	INPUT_FP_QB( dst, float64, strtod )
 end function
 
 end extern

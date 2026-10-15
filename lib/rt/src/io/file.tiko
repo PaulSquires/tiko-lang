@@ -40,7 +40,7 @@
 #endif
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 end extern
 
 #include once "inc/rterror.ti"
@@ -53,13 +53,13 @@ const TKORT_SEEK_END = 2
 extern "c"   '' NON-FBCALL: the *Ex forms take a handle, per fb_file.h.
 
 '' TELL. Returns a 1-BASED position, and 0 for a handle that is not open.
-function tkort_FileTellEx alias "fb_FileTellEx" ( byval h as FB_FILE ptr ) as longint
+function tkort_FileTellEx alias "fb_FileTellEx" ( byval h as FB_FILE ptr ) as int64
 
 	if( TKORT_HANDLE_USED( h ) = 0 ) then return 0
 
 	IOLOCK()
 
-	dim as longint pos_ = -1
+	dim as int64 pos_ = -1
 	if( h->hooks->pfnTell <> 0 ) then
 		if( h->hooks->pfnTell( h, @pos_ ) <> 0 ) then pos_ = -1
 	end if
@@ -82,16 +82,16 @@ end function
 
 '' SIZE. Seeks to the end and back, so it needs BOTH hooks -- a handle with only
 '' one reports 0 rather than guessing.
-function tkort_FileSizeEx alias "fb_FileSizeEx" ( byval h as FB_FILE ptr ) as longint
+function tkort_FileSizeEx alias "fb_FileSizeEx" ( byval h as FB_FILE ptr ) as int64
 
-	dim as longint res = 0
+	dim as int64 res = 0
 	if( TKORT_HANDLE_USED( h ) = 0 ) then return res
 
 	IOLOCK()
 
 	if( (h->hooks->pfnSeek <> 0) andalso (h->hooks->pfnTell <> 0) ) then
-		dim as longint old_pos = any
-		dim as long r = h->hooks->pfnTell( h, @old_pos )
+		dim as int64 old_pos = any
+		dim as int32 r = h->hooks->pfnTell( h, @old_pos )
 		if( r = 0 ) then r = h->hooks->pfnSeek( h, 0, TKORT_SEEK_END )
 		if( r = 0 ) then
 			r = h->hooks->pfnTell( h, @res )
@@ -108,7 +108,7 @@ end function
 
 '' SEEK. Note the order: 1-based first, then records.
 function tkort_FileSeekEx alias "fb_FileSeekEx" _
-	( byval h as FB_FILE ptr, byval newpos as longint ) as long
+	( byval h as FB_FILE ptr, byval newpos as int64 ) as int32
 
 	if( TKORT_HANDLE_USED( h ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -123,7 +123,7 @@ function tkort_FileSeekEx alias "fb_FileSeekEx" _
 	newpos -= 1
 	if( h->mode = FB_FILE_MODE_RANDOM ) then newpos = newpos * h->reclen
 
-	dim as long res = any
+	dim as int32 res = any
 	if( h->hooks->pfnSeek <> 0 ) then
 		res = h->hooks->pfnSeek( h, newpos, TKORT_SEEK_SET )
 	else
@@ -138,15 +138,15 @@ end function
 end extern
 
 extern "c"   '' NON-FBCALL: the platform hooks these two call.
-	declare function tkrt_hFileFlushEx alias "fb_hFileFlushEx" ( byval f as any ptr ) as long
-	declare function tkrt_hFileSetEofEx alias "fb_hFileSetEofEx" ( byval f as any ptr ) as long
+	declare function tkrt_hFileFlushEx alias "fb_hFileFlushEx" ( byval f as any ptr ) as int32
+	declare function tkrt_hFileSetEofEx alias "fb_hFileSetEofEx" ( byval f as any ptr ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: the *Ex forms take a handle.
 
 '' Only a WRITABLE mode may be flushed or truncated. INPUT is rejected, which is
 '' why this is a mode test rather than a hook test.
-private function hWritableMode( byval m as long ) as integer
+private function hWritableMode( byval m as int32 ) as integer
 	if( m = FB_FILE_MODE_BINARY ) then return -1
 	if( m = FB_FILE_MODE_RANDOM ) then return -1
 	if( m = FB_FILE_MODE_OUTPUT ) then return -1
@@ -157,7 +157,7 @@ end function
 '' FLUSH. systembuffers <> 0 also pushes the C stream buffer down to the OS,
 '' which is a second, separate flush through the opaque FILE*.
 function tkort_FileFlushEx alias "fb_FileFlushEx" _
-	( byval h as FB_FILE ptr, byval systembuffers as long ) as long
+	( byval h as FB_FILE ptr, byval systembuffers as int32 ) as int32
 
 	IOLOCK()
 
@@ -171,7 +171,7 @@ function tkort_FileFlushEx alias "fb_FileFlushEx" _
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
-	dim as long res = any
+	dim as int32 res = any
 	if( h->hooks->pfnFlush <> 0 ) then
 		res = h->hooks->pfnFlush( h )
 		if( (res = FB_RTERROR_OK) andalso (systembuffers <> 0) ) then
@@ -188,7 +188,7 @@ end function
 
 '' SETEOF truncates at the CURRENT position -- everything from it onward goes.
 '' It flushes first, because the buffered bytes belong before the cut.
-function tkort_FileSetEofEx alias "fb_FileSetEofEx" ( byval h as FB_FILE ptr ) as long
+function tkort_FileSetEofEx alias "fb_FileSetEofEx" ( byval h as FB_FILE ptr ) as int32
 
 	IOLOCK()
 
@@ -206,7 +206,7 @@ function tkort_FileSetEofEx alias "fb_FileSetEofEx" ( byval h as FB_FILE ptr ) a
 	'' recursive on both platforms -- which is what makes this legal rather than
 	'' a deadlock. RFC-0002 records the recursion; this is the first place in
 	'' tiko-rt that relies on it.
-	dim as long res = tkort_FileFlushEx( h, 0 )
+	dim as int32 res = tkort_FileFlushEx( h, 0 )
 	if( res = FB_RTERROR_OK ) then res = tkrt_hFileSetEofEx( h->opaque )
 
 	IOUNLOCK()
@@ -238,7 +238,7 @@ end function
 '' error, which is why the differential does not call it that way.
 
 function tkort_FileLockEx alias "fb_FileLockEx" _
-	( byval h as FB_FILE ptr, byval inipos as longint, byval endpos as longint ) as long
+	( byval h as FB_FILE ptr, byval inipos as int64, byval endpos as int64 ) as int32
 
 	if( (inipos < 1) orelse (endpos <= inipos) ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -257,7 +257,7 @@ function tkort_FileLockEx alias "fb_FileLockEx" _
 		endpos -= 1
 	end if
 
-	dim as long res = any
+	dim as int32 res = any
 	if( h->hooks->pfnLock <> 0 ) then
 		'' inipos - 1: the second decrement. See the note above.
 		res = h->hooks->pfnLock( h, inipos - 1, endpos - inipos )
@@ -271,7 +271,7 @@ function tkort_FileLockEx alias "fb_FileLockEx" _
 end function
 
 function tkort_FileUnlockEx alias "fb_FileUnlockEx" _
-	( byval h as FB_FILE ptr, byval inipos as longint, byval endpos as longint ) as long
+	( byval h as FB_FILE ptr, byval inipos as int64, byval endpos as int64 ) as int32
 
 	if( (inipos < 1) orelse (endpos <= inipos) ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -289,7 +289,7 @@ function tkort_FileUnlockEx alias "fb_FileUnlockEx" _
 		endpos -= 1
 	end if
 
-	dim as long res = any
+	dim as int32 res = any
 	if( h->hooks <> 0 ) then
 		if( h->hooks->pfnUnlock <> 0 ) then
 			'' inipos, NOT inipos - 1. The asymmetry with LOCK is deliberate.
@@ -312,11 +312,11 @@ end extern
 
 extern "rtlib"
 
-function tkort_FileTell alias "fb_FileTell" ( byval fnum as long ) as longint
+function tkort_FileTell alias "fb_FileTell" ( byval fnum as int32 ) as int64
 	return tkort_FileTellEx( TKORT_FILE_TO_HANDLE( fnum ) )
 end function
 
-function tkort_FileSize alias "fb_FileSize" ( byval fnum as long ) as longint
+function tkort_FileSize alias "fb_FileSize" ( byval fnum as int32 ) as int64
 	return tkort_FileSizeEx( TKORT_FILE_TO_HANDLE( fnum ) )
 end function
 
@@ -324,12 +324,12 @@ end function
 '' dispatcher, so the only difference is how much of a large offset survives the
 '' call.
 function tkort_FileSeek alias "fb_FileSeek" _
-	( byval fnum as long, byval newpos as long ) as long
+	( byval fnum as int32, byval newpos as int32 ) as int32
 	return tkort_FileSeekEx( TKORT_FILE_TO_HANDLE( fnum ), newpos )
 end function
 
 function tkort_FileSeekLarge alias "fb_FileSeekLarge" _
-	( byval fnum as long, byval newpos as longint ) as long
+	( byval fnum as int32, byval newpos as int64 ) as int32
 	return tkort_FileSeekEx( TKORT_FILE_TO_HANDLE( fnum ), newpos )
 end function
 
@@ -348,14 +348,14 @@ end function
 '' NO MODE CHECK HERE, unlike fb_FileFlushEx. FLUSH with no argument walks every
 '' channel, and one open for INPUT simply has no pfnFlush to call -- so the loop
 '' skips it silently instead of reporting error 1 for it.
-sub tkort_FileFlushAll alias "fb_FileFlushAll" ( byval systembuffers as long )
+sub tkort_FileFlushAll alias "fb_FileFlushAll" ( byval systembuffers as int32 )
 
 	IOLOCK()
 
 	for i as integer = 1 to (FB_MAX_FILES - FB_RESERVED_FILES)
 		dim as FB_FILE ptr h = TKORT_FILE_TO_HANDLE_VALID( i )
 		if( (h->hooks <> 0) andalso (h->hooks->pfnFlush <> 0) ) then
-			dim as long res = h->hooks->pfnFlush( h )
+			dim as int32 res = h->hooks->pfnFlush( h )
 			'' TWO LEVELS OF BUFFER: the hook empties the CRT's, and
 			'' systembuffers additionally asks the OS to commit to the medium.
 			if( (res = FB_RTERROR_OK) andalso (systembuffers <> 0) ) then
@@ -377,7 +377,7 @@ end sub
 '' an argument, and no earlier test did either. A wrong answer that nothing asks
 '' for is invisible until something asks.
 function tkort_FileFlush alias "fb_FileFlush" _
-	( byval fnum as long, byval systembuffers as long ) as long
+	( byval fnum as int32, byval systembuffers as int32 ) as int32
 
 	if( fnum = -1 ) then
 		tkort_FileFlushAll( systembuffers )
@@ -387,29 +387,29 @@ function tkort_FileFlush alias "fb_FileFlush" _
 	return tkort_FileFlushEx( TKORT_FILE_TO_HANDLE( fnum ), systembuffers )
 end function
 
-function tkort_FileSetEof alias "fb_FileSetEof" ( byval fnum as long ) as long
+function tkort_FileSetEof alias "fb_FileSetEof" ( byval fnum as int32 ) as int32
 	return tkort_FileSetEofEx( TKORT_FILE_TO_HANDLE( fnum ) )
 end function
 
 '' The unsigned parameters are fbc's: a negative position is rejected by the
 '' inipos < 1 test after conversion, not by the type.
 function tkort_FileLock alias "fb_FileLock" _
-	( byval fnum as long, byval inipos as ulong, byval endpos as ulong ) as long
+	( byval fnum as int32, byval inipos as uint32, byval endpos as uint32 ) as int32
 	return tkort_FileLockEx( TKORT_FILE_TO_HANDLE( fnum ), inipos, endpos )
 end function
 
 function tkort_FileLockLarge alias "fb_FileLockLarge" _
-	( byval fnum as long, byval inipos as longint, byval endpos as longint ) as long
+	( byval fnum as int32, byval inipos as int64, byval endpos as int64 ) as int32
 	return tkort_FileLockEx( TKORT_FILE_TO_HANDLE( fnum ), inipos, endpos )
 end function
 
 function tkort_FileUnlock alias "fb_FileUnlock" _
-	( byval fnum as long, byval inipos as ulong, byval endpos as ulong ) as long
+	( byval fnum as int32, byval inipos as uint32, byval endpos as uint32 ) as int32
 	return tkort_FileUnlockEx( TKORT_FILE_TO_HANDLE( fnum ), inipos, endpos )
 end function
 
 function tkort_FileUnlockLarge alias "fb_FileUnlockLarge" _
-	( byval fnum as long, byval inipos as longint, byval endpos as longint ) as long
+	( byval fnum as int32, byval inipos as int64, byval endpos as int64 ) as int32
 	return tkort_FileUnlockEx( TKORT_FILE_TO_HANDLE( fnum ), inipos, endpos )
 end function
 

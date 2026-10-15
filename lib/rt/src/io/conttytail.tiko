@@ -49,7 +49,7 @@ end extern
 extern "c"   '' NON-FBCALL: fb_console.h declares these plainly, and the raw
              '' layer they call lives in io/conprinttty.tiko.
 	declare sub tkrt_ConPrintRaw alias "fb_ConPrintRaw" _
-		( byval handle as fb_ConHooks ptr, byval pachText as ubyte ptr, byval textLength as uinteger )
+		( byval handle as fb_ConHooks ptr, byval pachText as uint8 ptr, byval textLength as uinteger )
 	declare sub tkrt_ConPrintRawWstr alias "fb_ConPrintRawWstr" _
 		( byval handle as fb_ConHooks ptr, byval pachText as wstring ptr, byval textLength as uinteger )
 end extern
@@ -62,17 +62,17 @@ extern "c"   '' NON-FBCALL, as above.
 '' duplication, and the two differ in three places anyway.
 
 sub tkort_ConPrintTTY alias "fb_ConPrintTTY" _
-	( byval handle as fb_ConHooks ptr, byval pachText as ubyte ptr, _
-	  byval TextLength as uinteger, byval is_text_mode as long )
+	( byval handle as fb_ConHooks ptr, byval pachText as uint8 ptr, _
+	  byval TextLength as uinteger, byval is_text_mode as int32 )
 
 	'' Eight spaces, the most a tab can expand to.
-	static as ubyte achTabSpaces(0 to 7) = { 32, 32, 32, 32, 32, 32, 32, 32 }
+	static as uint8 achTabSpaces(0 to 7) = { 32, 32, 32, 32, 32, 32, 32, 32 }
 
-	dim as ubyte OutputBuffer( 0 to OUTPUT_BUFFER_SIZE - 1 ) = any
+	dim as uint8 OutputBuffer( 0 to OUTPUT_BUFFER_SIZE - 1 ) = any
 	dim as uinteger OutputBufferLength = 0, OutputBufferChars = 0
 	dim as fb_Coord dwCurrentCoord = any, dwMoveCoord
-	dim as long fGotNewCoordinate = 0
-	dim as long BorderWidth = handle->Border.Right_ - handle->Border.Left_ + 1
+	dim as int32 fGotNewCoordinate = 0
+	dim as int32 BorderWidth = handle->Border.Right_ - handle->Border.Left_ + 1
 
 	if( BorderWidth = 0 ) then exit sub
 
@@ -82,10 +82,10 @@ sub tkort_ConPrintTTY alias "fb_ConPrintTTY" _
 
 	for IndexText as uinteger = 0 to TextLength - 1
 
-		dim as ubyte ptr pachOutputData = pachText
+		dim as uint8 ptr pachOutputData = pachText
 		dim as uinteger OutputDataLength = 0, OutputDataChars = 0
-		dim as long fDoFlush = 0, fSetNewCoord = 0
-		dim as ubyte ch = *pachOutputData
+		dim as int32 fDoFlush = 0, fSetNewCoord = 0
+		dim as uint8 ch = *pachOutputData
 
 		select case ch
 		case 7                             '' bell
@@ -153,7 +153,7 @@ sub tkort_ConPrintTTY alias "fb_ConPrintTTY" _
 			dwCurrentCoord.X_ += OutputDataChars
 			if( dwCurrentCoord.X_ > handle->Border.Right_ ) then
 				'' ARITHMETIC, NOT A LOOP -- a batch may cross several lines.
-				dim as long NormalX = dwCurrentCoord.X_ - handle->Border.Left_
+				dim as int32 NormalX = dwCurrentCoord.X_ - handle->Border.Left_
 				dwCurrentCoord.X_ = (NormalX mod BorderWidth) + handle->Border.Left_
 				dwCurrentCoord.Y_ += NormalX \ BorderWidth
 			end if
@@ -178,24 +178,24 @@ end sub
 
 sub tkort_ConPrintTTYWstr alias "fb_ConPrintTTYWstr" _
 	( byval handle as fb_ConHooks ptr, byval pachText as wstring ptr, _
-	  byval TextLength as uinteger, byval is_text_mode as long )
+	  byval TextLength as uinteger, byval is_text_mode as int32 )
 
 	#if sizeof( wstring ) = 2
-		static as ushort achTabSpaces(0 to 7) = { 32, 32, 32, 32, 32, 32, 32, 32 }
-		dim as ushort OutputBuffer( 0 to OUTPUT_BUFFER_SIZE - 1 ) = any
-		dim as ushort ptr t = cast( ushort ptr, pachText )
-		dim as ushort ptr pachOutputData = any
+		static as uint16 achTabSpaces(0 to 7) = { 32, 32, 32, 32, 32, 32, 32, 32 }
+		dim as uint16 OutputBuffer( 0 to OUTPUT_BUFFER_SIZE - 1 ) = any
+		dim as uint16 ptr t = cast( uint16 ptr, pachText )
+		dim as uint16 ptr pachOutputData = any
 	#else
-		static as ulong achTabSpaces(0 to 7) = { 32, 32, 32, 32, 32, 32, 32, 32 }
-		dim as ulong OutputBuffer( 0 to OUTPUT_BUFFER_SIZE - 1 ) = any
-		dim as ulong ptr t = cast( ulong ptr, pachText )
-		dim as ulong ptr pachOutputData = any
+		static as uint32 achTabSpaces(0 to 7) = { 32, 32, 32, 32, 32, 32, 32, 32 }
+		dim as uint32 OutputBuffer( 0 to OUTPUT_BUFFER_SIZE - 1 ) = any
+		dim as uint32 ptr t = cast( uint32 ptr, pachText )
+		dim as uint32 ptr pachOutputData = any
 	#endif
 
 	dim as uinteger OutputBufferLength = 0, OutputBufferChars = 0
 	dim as fb_Coord dwCurrentCoord = any, dwMoveCoord
-	dim as long fGotNewCoordinate = 0
-	dim as long BorderWidth = handle->Border.Right_ - handle->Border.Left_ + 1
+	dim as int32 fGotNewCoordinate = 0
+	dim as int32 BorderWidth = handle->Border.Right_ - handle->Border.Left_ + 1
 
 	if( BorderWidth = 0 ) then exit sub
 
@@ -207,8 +207,8 @@ sub tkort_ConPrintTTYWstr alias "fb_ConPrintTTYWstr" _
 
 		pachOutputData = t
 		dim as uinteger OutputDataLength = 0, OutputDataChars = 0
-		dim as long fDoFlush = 0, fSetNewCoord = 0
-		dim as ulong ch = *pachOutputData
+		dim as int32 fDoFlush = 0, fSetNewCoord = 0
+		dim as uint32 ch = *pachOutputData
 
 		select case ch
 		case 7
@@ -273,7 +273,7 @@ sub tkort_ConPrintTTYWstr alias "fb_ConPrintTTYWstr" _
 		if( OutputDataLength <> 0 ) then
 			dwCurrentCoord.X_ += OutputDataChars
 			if( dwCurrentCoord.X_ > handle->Border.Right_ ) then
-				dim as long NormalX = dwCurrentCoord.X_ - handle->Border.Left_
+				dim as int32 NormalX = dwCurrentCoord.X_ - handle->Border.Left_
 				dwCurrentCoord.X_ = (NormalX mod BorderWidth) + handle->Border.Left_
 				dwCurrentCoord.Y_ += NormalX \ BorderWidth
 			end if

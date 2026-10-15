@@ -28,16 +28,16 @@ const PROC_HASH_TB_SIZE = 257
 '' widened to `integer`. Named entbytes/strbytes rather than size/length so the
 '' lint does not have to be argued with at every reader.
 type STRING_INFO
-	as long         entbytes      '' padded allocation size of this entry
-	as long         strbytes      '' strlen + 1, the bytes actually stored
-	as ulong        hashkey
+	as int32         entbytes      '' padded allocation size of this entry
+	as int32         strbytes      '' strlen + 1, the bytes actually stored
+	as uint32        hashkey
 end type
 
 type STRING_INFO_TB_
-	as ubyte              data( 0 to STRING_INFO_TB_SIZE - 1 )
+	as uint8              data( 0 to STRING_INFO_TB_SIZE - 1 )
 	as STRING_INFO_TB_ ptr nxt
-	as long               bytes_used
-	as long               string_tb_id
+	as int32               bytes_used
+	as int32               string_tb_id
 end type
 
 type STRING_TABLE
@@ -66,15 +66,15 @@ type FB_PROFILER_GLOBAL
 	as STRING_HASH_TABLE_  ignores_hash
 	as zstring * PROFILER_MAX_PATH filename
 	as zstring * 32        launch_time
-	as long                options
+	as int32                options
 end type
 
 type FB_PROFILER_METRICS
-	as long nthreads
-	as long string_bytes_allocated, string_bytes_used, string_bytes_free
-	as long string_count_blocks, string_count_strings, string_max_len
-	as long hash_bytes_allocated, hash_count_blocks, hash_count_items, hash_count_slots
-	as long procs_bytes_allocated, procs_count_blocks, procs_count_items, procs_count_slots
+	as int32 nthreads
+	as int32 string_bytes_allocated, string_bytes_used, string_bytes_free
+	as int32 string_count_blocks, string_count_strings, string_max_len
+	as int32 hash_bytes_allocated, hash_count_blocks, hash_count_items, hash_count_slots
+	as int32 procs_bytes_allocated, procs_count_blocks, procs_count_items, procs_count_slots
 end type
 
 '' The reporting options, in fb_profile.h's order.
@@ -97,26 +97,26 @@ const PROFILE_OPTION_GRAPHICS_CHARS    = &h02000000
 '' The shared entry points profile_calls.bas calls into profile/core.tiko.
 '' NON-FBCALL: fb_profile.h declares every one of these plain.
 extern "c"   '' NON-FBCALL: the profiler internals carry no FBCALL marker.
-	declare function fb_ProfileHashName alias "fb_ProfileHashName" ( byval p as zstring ptr ) as ulong
+	declare function fb_ProfileHashName alias "fb_ProfileHashName" ( byval p as zstring ptr ) as uint32
 	declare sub STRING_TABLE_constructor alias "STRING_TABLE_constructor" ( byval s as STRING_TABLE ptr )
 	declare sub STRING_TABLE_destructor alias "STRING_TABLE_destructor" ( byval s as STRING_TABLE ptr )
-	declare function STRING_TABLE_max_len alias "STRING_TABLE_max_len" ( byval s as STRING_TABLE ptr ) as long
+	declare function STRING_TABLE_max_len alias "STRING_TABLE_max_len" ( byval s as STRING_TABLE ptr ) as int32
 	declare function STRING_HASH_TB_find alias "STRING_HASH_TB_find" _
-		( byval tb as STRING_HASH_TB_ ptr, byval src as zstring ptr, byval h as ulong ) as STRING_INFO ptr
+		( byval tb as STRING_HASH_TB_ ptr, byval src as zstring ptr, byval h as uint32 ) as STRING_INFO ptr
 	declare function STRING_HASH_TABLE_find alias "STRING_HASH_TABLE_find" _
-		( byval ht as STRING_HASH_TABLE_ ptr, byval src as zstring ptr, byval h as ulong ) as STRING_INFO ptr
+		( byval ht as STRING_HASH_TABLE_ ptr, byval src as zstring ptr, byval h as uint32 ) as STRING_INFO ptr
 	declare sub STRING_HASH_TABLE_constructor alias "STRING_HASH_TABLE_constructor" _
 		( byval ht as STRING_HASH_TABLE_ ptr, byval s as STRING_TABLE ptr )
 	declare sub STRING_HASH_TABLE_destructor alias "STRING_HASH_TABLE_destructor" ( byval ht as STRING_HASH_TABLE_ ptr )
 	declare function STRING_HASH_TABLE_add alias "STRING_HASH_TABLE_add" _
-		( byval ht as STRING_HASH_TABLE_ ptr, byval src as zstring ptr, byval h as ulong ) as STRING_INFO ptr
+		( byval ht as STRING_HASH_TABLE_ ptr, byval src as zstring ptr, byval h as uint32 ) as STRING_INFO ptr
 	declare sub STRING_HASH_constructor alias "STRING_HASH_constructor" _
 		( byval h as STRING_HASH_ ptr, byval sh as STRING_HASH_TABLE_ ptr )
 	declare sub STRING_HASH_destructor alias "STRING_HASH_destructor" ( byval h as STRING_HASH_ ptr )
 	declare sub STRING_HASH_add alias "STRING_HASH_add" _
-		( byval h as STRING_HASH_ ptr, byval src as zstring ptr, byval hk as ulong )
+		( byval h as STRING_HASH_ ptr, byval src as zstring ptr, byval hk as uint32 )
 	declare function STRING_HASH_find alias "STRING_HASH_find" _
-		( byval h as STRING_HASH_ ptr, byval src as zstring ptr, byval hk as ulong ) as STRING_INFO ptr
+		( byval h as STRING_HASH_ ptr, byval src as zstring ptr, byval hk as uint32 ) as STRING_INFO ptr
 	declare sub fb_hPROFILER_METRICS_Clear alias "fb_hPROFILER_METRICS_Clear" ( byval m as FB_PROFILER_METRICS ptr )
 	declare sub fb_hPROFILER_METRICS_Strings alias "fb_hPROFILER_METRICS_Strings" _
 		( byval m as FB_PROFILER_METRICS ptr, byval s as STRING_TABLE ptr )

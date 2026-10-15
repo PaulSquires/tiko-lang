@@ -31,7 +31,7 @@
 #include once "inc/config.ti"
 
 type TKORT_ERRMSG_BUF
-	as ubyte v( 0 to FB_ERRMSG_SIZE - 1 )
+	as uint8 v( 0 to FB_ERRMSG_SIZE - 1 )
 end type
 
 extern "c"   '' NON-FBCALL: __fb_errmsg is DATA, not a procedure. The

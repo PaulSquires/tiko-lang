@@ -37,7 +37,7 @@
 const TKORT_EXT_CHAR = 255
 
 '' FB_MAKE_EXT_KEY( ch ) = (ch << 8) + FB_EXT_CHAR.
-#define TKORT_EXT_KEY( ch ) ((cast( long, ch ) shl 8) + TKORT_EXT_CHAR)
+#define TKORT_EXT_KEY( ch ) ((cast( int32, ch ) shl 8) + TKORT_EXT_CHAR)
 
 '' The scancodes, from fb_event.h. Named rather than written as literals at the
 '' point of use, because a bare 0x4C in a select case is unreadable and this file
@@ -68,7 +68,7 @@ extern "c"   '' NON-FBCALL: fb_event.h declares it plainly, and the win32
              '' archive spells it `_fb_hScancodeToExtendedKey` with no `@N`.
 
 function tkort_hScancodeToExtendedKey alias "fb_hScancodeToExtendedKey" _
-	( byval scancode as long ) as long
+	( byval scancode as int32 ) as int32
 
 	select case as const scancode
 	case SC_F1_       : return TKORT_EXT_KEY( asc( ";" ) )

@@ -23,10 +23,10 @@ private function hNoMultibyte _
 	( byval dst as wstring ptr, byval dst_chars as integer, byval src as zstring ptr ) as integer
 
 	dim as integer w = 0
-	dim as ubyte ptr s = cptr( ubyte ptr, src )
+	dim as uint8 ptr s = cptr( uint8 ptr, src )
 
 	while( w < dst_chars )
-		dim as ubyte c = s[w]
+		dim as uint8 c = s[w]
 		if( c = 0 ) then exit while
 		if( c > 127 ) then c = asc( "?" )
 		dst[w] = c

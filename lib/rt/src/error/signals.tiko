@@ -70,10 +70,10 @@
 	const TKORT_SIGQUIT  = 3
 #endif
 
-type FB_SIGHANDLER_PROC as sub cdecl ( byval sig as long )
+type FB_SIGHANDLER_PROC as sub cdecl ( byval sig as int32 )
 
 type FB_SIGHANDLER
-	as long                errnum
+	as int32                errnum
 	as FB_SIGHANDLER_PROC  oldhnd
 end type
 
@@ -86,15 +86,15 @@ dim shared as FB_SIGHANDLER tkort_sigTb( 0 to TKORT_NSIG - 1 )
 
 extern "c"   '' NON-FBCALL: libc, and fbc's own error entry point.
 	declare function crt_signal alias "signal" _
-		( byval sig as long, byval handler as FB_SIGHANDLER_PROC ) as FB_SIGHANDLER_PROC
-	declare function crt_raise alias "raise" ( byval sig as long ) as long
+		( byval sig as int32, byval handler as FB_SIGHANDLER_PROC ) as FB_SIGHANDLER_PROC
+	declare function crt_raise alias "raise" ( byval sig as int32 ) as int32
 	declare function tkrt_ErrorThrowEx alias "fb_ErrorThrowEx" _
-		( byval errnum as long, byval linenum as long, byval modname as any ptr, _
+		( byval errnum as int32, byval linenum as int32, byval modname as any ptr, _
 		  byval funcname as any ptr, byval res_lbl as any ptr ) as FB_ERRHANDLER
 end extern
 
 extern "rtlib"   '' FBCALL: fb_End is decorated, `_fb_End@4` on win32.
-	declare sub tkrt_End alias "fb_End" ( byval errlevel as long )
+	declare sub tkrt_End alias "fb_End" ( byval errlevel as int32 )
 end extern
 
 #ifdef __FB_WIN32__
@@ -114,7 +114,7 @@ end extern
 		as any ptr ContextRecord
 	end type
 
-	type TOP_LEVEL_FILTER as function stdcall ( byval info as EXCEPTION_POINTERS_ ptr ) as long
+	type TOP_LEVEL_FILTER as function stdcall ( byval info as EXCEPTION_POINTERS_ ptr ) as int32
 
 	extern "c"   '' NON-FBCALL: kernel32, `stdcall` per declaration.
 		declare function w_SetUnhandledExceptionFilter stdcall alias "SetUnhandledExceptionFilter" _
@@ -128,7 +128,7 @@ end extern
 '' THE SHARED HANDLER. Not `extern "c"` -- it is never named outside this file,
 '' and its address is only ever handed to signal(). It must be cdecl to match
 '' what signal() will call it as, which is what the FB_SIGHANDLER_PROC type says.
-private sub tkort_gen_handler cdecl ( byval sig as long )
+private sub tkort_gen_handler cdecl ( byval sig as int32 )
 
 	'' THREE CONDITIONS, and the third is the one that matters: an entry whose
 	'' errnum is FB_RTERROR_OK was never set up, because the table is zeroed and
@@ -156,11 +156,11 @@ end sub
 '' WINDOWS DELIVERS THESE AS STRUCTURED EXCEPTIONS, NOT SIGNALS, so without this
 '' filter the CRT's SIGSEGV never fires for a real null dereference. raise()
 '' turns the exception into the signal the table expects.
-private function tkort_exception_filter stdcall ( byval info as EXCEPTION_POINTERS_ ptr ) as long
+private function tkort_exception_filter stdcall ( byval info as EXCEPTION_POINTERS_ ptr ) as int32
 
 	'' The code is the FIRST field of the EXCEPTION_RECORD, which is why the
 	'' record itself does not need modelling.
-	dim as ulong code = *cptr( ulong ptr, info->ExceptionRecord )
+	dim as uint32 code = *cptr( uint32 ptr, info->ExceptionRecord )
 
 	select case code
 	case EXCEPTION_ACCESS_VIOLATION_, EXCEPTION_STACK_OVERFLOW_

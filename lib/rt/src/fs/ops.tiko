@@ -33,7 +33,7 @@
 #include once "inc/sysbind.ti"
 
 extern "rtlib"
-	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as long
+	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: the ustring temp builder, declared plain.
@@ -68,7 +68,7 @@ private function hTemp( byval src as FB_UCHAR ptr, byval units as integer ) as F
 end function
 
 '' The hex alphabet the temp-name generator spells its 8 random bytes with.
-private function hHexDigit( byval v as long ) as long
+private function hHexDigit( byval v as int32 ) as int32
 	if( v < 10 ) then return 48 + v
 	return 97 + (v - 10)
 end function
@@ -102,36 +102,36 @@ const IO_CHUNK_ = &h10000000ll
 
 extern "c"   '' NON-FBCALL: kernel32 and advapi32 imports, not rtlib entry points.
 	declare function w_CreateFileW stdcall alias "CreateFileW" _
-		( byval n as wstring ptr, byval acc as ulong, byval share as ulong, byval sa as any ptr, _
-		  byval disp as ulong, byval flags as ulong, byval templ as any ptr ) as any ptr
-	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as long
-	declare function w_GetFileSizeEx stdcall alias "GetFileSizeEx" ( byval h as any ptr, byval sz as longint ptr ) as long
+		( byval n as wstring ptr, byval acc as uint32, byval share as uint32, byval sa as any ptr, _
+		  byval disp as uint32, byval flags as uint32, byval templ as any ptr ) as any ptr
+	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as int32
+	declare function w_GetFileSizeEx stdcall alias "GetFileSizeEx" ( byval h as any ptr, byval sz as int64 ptr ) as int32
 	declare function w_ReadFile stdcall alias "ReadFile" _
-		( byval h as any ptr, byval buf as any ptr, byval n as ulong, byval got as ulong ptr, byval ov as any ptr ) as long
+		( byval h as any ptr, byval buf as any ptr, byval n as uint32, byval got as uint32 ptr, byval ov as any ptr ) as int32
 	declare function w_WriteFile stdcall alias "WriteFile" _
-		( byval h as any ptr, byval buf as any ptr, byval n as ulong, byval wrote as ulong ptr, byval ov as any ptr ) as long
+		( byval h as any ptr, byval buf as any ptr, byval n as uint32, byval wrote as uint32 ptr, byval ov as any ptr ) as int32
 	declare function w_SetFilePointer stdcall alias "SetFilePointer" _
-		( byval h as any ptr, byval lo as long, byval hi as long ptr, byval whence as ulong ) as ulong
-	declare function w_GetFileAttributesW stdcall alias "GetFileAttributesW" ( byval n as wstring ptr ) as ulong
+		( byval h as any ptr, byval lo as int32, byval hi as int32 ptr, byval whence as uint32 ) as uint32
+	declare function w_GetFileAttributesW stdcall alias "GetFileAttributesW" ( byval n as wstring ptr ) as uint32
 	declare function w_SetFileAttributesW stdcall alias "SetFileAttributesW" _
-		( byval n as wstring ptr, byval attrs as ulong ) as long
+		( byval n as wstring ptr, byval attrs as uint32 ) as int32
 	declare function w_CreateDirectoryW stdcall alias "CreateDirectoryW" _
-		( byval n as wstring ptr, byval sa as any ptr ) as long
-	declare function w_RemoveDirectoryW stdcall alias "RemoveDirectoryW" ( byval n as wstring ptr ) as long
-	declare function w_DeleteFileW stdcall alias "DeleteFileW" ( byval n as wstring ptr ) as long
+		( byval n as wstring ptr, byval sa as any ptr ) as int32
+	declare function w_RemoveDirectoryW stdcall alias "RemoveDirectoryW" ( byval n as wstring ptr ) as int32
+	declare function w_DeleteFileW stdcall alias "DeleteFileW" ( byval n as wstring ptr ) as int32
 	declare function w_CopyFileW stdcall alias "CopyFileW" _
-		( byval s as wstring ptr, byval d as wstring ptr, byval failexists as long ) as long
+		( byval s as wstring ptr, byval d as wstring ptr, byval failexists as int32 ) as int32
 	declare function w_MoveFileExW stdcall alias "MoveFileExW" _
-		( byval s as wstring ptr, byval d as wstring ptr, byval flags as ulong ) as long
+		( byval s as wstring ptr, byval d as wstring ptr, byval flags as uint32 ) as int32
 	declare function w_ReplaceFileW stdcall alias "ReplaceFileW" _
 		( byval t as wstring ptr, byval r as wstring ptr, byval backup as wstring ptr, _
-		  byval flags as ulong, byval x as any ptr, byval y as any ptr ) as long
-	declare function w_GetTempPathW stdcall alias "GetTempPathW" ( byval cap as ulong, byval buf as wstring ptr ) as ulong
+		  byval flags as uint32, byval x as any ptr, byval y as any ptr ) as int32
+	declare function w_GetTempPathW stdcall alias "GetTempPathW" ( byval cap as uint32, byval buf as wstring ptr ) as uint32
 	declare function w_LoadLibraryW stdcall alias "LoadLibraryW" ( byval n as wstring ptr ) as any ptr
 	declare function w_GetProcAddress stdcall alias "GetProcAddress" ( byval h as any ptr, byval n as zstring ptr ) as any ptr
 end extern
 
-type RTLGENRANDOM as function stdcall ( byval buf as any ptr, byval n as ulong ) as ubyte
+type RTLGENRANDOM as function stdcall ( byval buf as any ptr, byval n as uint32 ) as uint8
 
 private function hFsWide( byval p as FBUSTRING ptr ) as wstring ptr
 	dim as FB_UCHAR ptr s = any
@@ -148,8 +148,8 @@ end function
 
 '' The temp directory as a PLAIN BUFFER, with NO descriptor allocated -- see the
 '' file header. Returns the length in code units, or 0 on failure.
-private function hTempDirWide( byval buf as FB_UCHAR ptr, byval cap as long ) as long
-	dim as ulong n = w_GetTempPathW( cap, cptr( wstring ptr, buf ) )
+private function hTempDirWide( byval buf as FB_UCHAR ptr, byval cap as int32 ) as int32
+	dim as uint32 n = w_GetTempPathW( cap, cptr( wstring ptr, buf ) )
 
 	if( (n = 0) orelse (n > cap) ) then return 0
 
@@ -170,14 +170,14 @@ sub tkort_FsFreeBuf alias "fb_FsFreeBuf" ( byval b as any ptr )
 end sub
 
 function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
-	( byval p as FBUSTRING ptr, byval out_ as ubyte ptr ptr, byval outlen as longint ptr ) as long
+	( byval p as FBUSTRING ptr, byval out_ as uint8 ptr ptr, byval outlen as int64 ptr ) as int32
 
 	dim as wstring ptr w = any
 	dim as any ptr h = any
-	dim as longint sz = any, got = 0
-	dim as ubyte ptr buf = any
-	dim as ulong attrs = any, chunk = any, red = any
-	dim as long e = any
+	dim as int64 sz = any, got = 0
+	dim as uint8 ptr buf = any
+	dim as uint32 attrs = any, chunk = any, red = any
+	dim as int32 e = any
 
 	*out_ = 0
 	*outlen = 0
@@ -211,7 +211,7 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 	''
 	'' BOTH SIDES MUST BE UNSIGNED. Signed, this compares against -2, so EVERY
 	'' file looks too large and reading a five-byte file fails with NO_SPACE.
-	if( cast( ulongint, sz ) > cast( ulongint, cast( uinteger, -1 ) ) - 1 ) then
+	if( cast( uint64, sz ) > cast( uint64, cast( uinteger, -1 ) ) - 1 ) then
 		w_CloseHandle( h )
 		return FB_FS_NO_SPACE
 	end if
@@ -223,8 +223,8 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 	end if
 
 	while( got < sz )
-		dim as longint left_ = sz - got
-		chunk = iif( left_ > IO_CHUNK_, cast( ulong, IO_CHUNK_ ), cast( ulong, left_ ) )
+		dim as int64 left_ = sz - got
+		chunk = iif( left_ > IO_CHUNK_, cast( uint32, IO_CHUNK_ ), cast( uint32, left_ ) )
 		red = 0
 
 		if( w_ReadFile( h, buf + got, chunk, @red, 0 ) = 0 ) then
@@ -249,13 +249,13 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 end function
 
 function tkort_UStrFsWriteWhole alias "fb_UStrFsWriteWhole" _
-	( byval p as FBUSTRING ptr, byval data_ as ubyte ptr, byval len_ as longint, byval append_ as long ) as long
+	( byval p as FBUSTRING ptr, byval data_ as uint8 ptr, byval len_ as int64, byval append_ as int32 ) as int32
 
 	dim as wstring ptr w = any
 	dim as any ptr h = any
-	dim as longint done = 0
-	dim as ulong chunk = any, wrote = any
-	dim as long e = any
+	dim as int64 done = 0
+	dim as uint32 chunk = any, wrote = any
+	dim as int32 e = any
 
 	w = hFsWide( p )
 	if( w = 0 ) then return FB_FS_UNKNOWN
@@ -270,8 +270,8 @@ function tkort_UStrFsWriteWhole alias "fb_UStrFsWriteWhole" _
 	if( append_ <> 0 ) then w_SetFilePointer( h, 0, 0, FILE_END_ )
 
 	while( done < len_ )
-		dim as longint left_ = len_ - done
-		chunk = iif( left_ > IO_CHUNK_, cast( ulong, IO_CHUNK_ ), cast( ulong, left_ ) )
+		dim as int64 left_ = len_ - done
+		chunk = iif( left_ > IO_CHUNK_, cast( uint32, IO_CHUNK_ ), cast( uint32, left_ ) )
 		wrote = 0
 
 		if( w_WriteFile( h, data_ + done, chunk, @wrote, 0 ) = 0 ) then
@@ -287,9 +287,9 @@ function tkort_UStrFsWriteWhole alias "fb_UStrFsWriteWhole" _
 	return FB_FS_OK
 end function
 
-function tkort_UStrFsCreateDir alias "fb_UStrFsCreateDir" ( byval p as FBUSTRING ptr ) as long
+function tkort_UStrFsCreateDir alias "fb_UStrFsCreateDir" ( byval p as FBUSTRING ptr ) as int32
 	dim as wstring ptr w = hFsWide( p )
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	if( w = 0 ) then return FB_FS_UNKNOWN
 	if( w_CreateDirectoryW( w, 0 ) = 0 ) then r = tkrt_FsMapOsError( )
@@ -297,9 +297,9 @@ function tkort_UStrFsCreateDir alias "fb_UStrFsCreateDir" ( byval p as FBUSTRING
 	return r
 end function
 
-function tkort_UStrFsRemoveDir alias "fb_UStrFsRemoveDir" ( byval p as FBUSTRING ptr ) as long
+function tkort_UStrFsRemoveDir alias "fb_UStrFsRemoveDir" ( byval p as FBUSTRING ptr ) as int32
 	dim as wstring ptr w = hFsWide( p )
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	if( w = 0 ) then return FB_FS_UNKNOWN
 	if( w_RemoveDirectoryW( w ) = 0 ) then r = tkrt_FsMapOsError( )
@@ -311,10 +311,10 @@ end function
 '' as FS_ACCESS_DENIED. It does NOT clear the read-only attribute -- that is
 '' RemoveDirAll's documented rm -rf behaviour, not the behaviour of deleting one
 '' named file.
-function tkort_UStrFsRemoveFile alias "fb_UStrFsRemoveFile" ( byval p as FBUSTRING ptr ) as long
+function tkort_UStrFsRemoveFile alias "fb_UStrFsRemoveFile" ( byval p as FBUSTRING ptr ) as int32
 	dim as wstring ptr w = hFsWide( p )
-	dim as ulong attrs = any
-	dim as long r = FB_FS_OK
+	dim as uint32 attrs = any
+	dim as int32 r = FB_FS_OK
 
 	if( w = 0 ) then return FB_FS_UNKNOWN
 
@@ -338,10 +338,10 @@ function tkort_UStrFsRemoveFile alias "fb_UStrFsRemoveFile" ( byval p as FBUSTRI
 end function
 
 function tkort_UStrFsCopyFile alias "fb_UStrFsCopyFile" _
-	( byval s as FBUSTRING ptr, byval d as FBUSTRING ptr, byval overwrite as long ) as long
+	( byval s as FBUSTRING ptr, byval d as FBUSTRING ptr, byval overwrite as int32 ) as int32
 
 	dim as wstring ptr ws = any, wd = any
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	ws = hFsWide( s )
 	wd = hFsWide( d )
@@ -362,11 +362,11 @@ end function
 '' The native rename only. The cross-volume copy-then-delete fallback lives in
 '' the FB layer, because it needs CopyFile and RemoveFile and their error shapes.
 function tkort_UStrFsMoveFile alias "fb_UStrFsMoveFile" _
-	( byval s as FBUSTRING ptr, byval d as FBUSTRING ptr, byval overwrite as long ) as long
+	( byval s as FBUSTRING ptr, byval d as FBUSTRING ptr, byval overwrite as int32 ) as int32
 
 	dim as wstring ptr ws = any, wd = any
-	dim as ulong flags = 0
-	dim as long r = FB_FS_OK
+	dim as uint32 flags = 0
+	dim as int32 r = FB_FS_OK
 
 	ws = hFsWide( s )
 	wd = hFsWide( d )
@@ -389,10 +389,10 @@ end function
 '' power loss -- WriteAtomic flushes the temp before calling this, and the
 '' stronger durability guarantee is explicitly not on offer.
 function tkort_UStrFsReplaceFile alias "fb_UStrFsReplaceFile" _
-	( byval target as FBUSTRING ptr, byval replacement as FBUSTRING ptr ) as long
+	( byval target as FBUSTRING ptr, byval replacement as FBUSTRING ptr ) as int32
 
 	dim as wstring ptr wt = any, wr = any
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	wt = hFsWide( target )
 	wr = hFsWide( replacement )
@@ -417,9 +417,9 @@ end function
 '' line, so this adds no new dependency, and it is reached through
 '' GetProcAddress so a Windows build without it degrades rather than fails to
 '' link.
-function tkort_FsRandomBytes alias "fb_FsRandomBytes" ( byval buf as ubyte ptr, byval len_ as long ) as long
+function tkort_FsRandomBytes alias "fb_FsRandomBytes" ( byval buf as uint8 ptr, byval len_ as int32 ) as int32
 	static as RTLGENRANDOM pRtlGenRandom = 0
-	static as long tried = 0
+	static as int32 tried = 0
 
 	if( tried = 0 ) then
 		dim as any ptr h = w_LoadLibraryW( wstr( "advapi32.dll" ) )
@@ -428,15 +428,15 @@ function tkort_FsRandomBytes alias "fb_FsRandomBytes" ( byval buf as ubyte ptr, 
 	end if
 
 	if( pRtlGenRandom <> 0 ) then
-		if( pRtlGenRandom( buf, cast( ulong, len_ ) ) <> 0 ) then return FB_FS_OK
+		if( pRtlGenRandom( buf, cast( uint32, len_ ) ) <> 0 ) then return FB_FS_OK
 	end if
 
 	return FB_FS_UNSUPPORTED
 end function
 
-function tkort_UStrFsTempDir alias "fb_UStrFsTempDir" ( byval status as long ptr ) as FBUSTRING ptr
+function tkort_UStrFsTempDir alias "fb_UStrFsTempDir" ( byval status as int32 ptr ) as FBUSTRING ptr
 	dim as FB_UCHAR buf( 0 to MAX_PATH_ + 1 ) = any
-	dim as long n = any
+	dim as int32 n = any
 
 	if( status <> 0 ) then *status = FB_FS_OK
 
@@ -452,13 +452,13 @@ end function
 '' Builds <dir>\<prefix><16 hex digits> and creates it atomically. Retried on
 '' collision a bounded number of times, then reported -- an unbounded retry on a
 '' broken CSPRNG would hang instead of failing.
-private function hCreateTemp( byval prefix as FBUSTRING ptr, byval wantdir as long, byval status as long ptr ) as FBUSTRING ptr
+private function hCreateTemp( byval prefix as FBUSTRING ptr, byval wantdir as int32, byval status as int32 ptr ) as FBUSTRING ptr
 	dim as FB_UCHAR dirbuf( 0 to MAX_PATH_ + 1 ) = any
 	dim as FB_UCHAR ptr pres = any, w = any
 	dim as integer prelen = any
-	dim as long dirlen = any, attempt = any, i = any, made = any, e = any
+	dim as int32 dirlen = any, attempt = any, i = any, made = any, e = any
 	dim as integer n = any
-	dim as ubyte rb( 0 to 7 ) = any
+	dim as uint8 rb( 0 to 7 ) = any
 	dim as any ptr h = any
 
 	if( status <> 0 ) then *status = FB_FS_OK
@@ -535,12 +535,12 @@ private function hCreateTemp( byval prefix as FBUSTRING ptr, byval wantdir as lo
 end function
 
 function tkort_UStrFsCreateTempFile alias "fb_UStrFsCreateTempFile" _
-	( byval prefix as FBUSTRING ptr, byval status as long ptr ) as FBUSTRING ptr
+	( byval prefix as FBUSTRING ptr, byval status as int32 ptr ) as FBUSTRING ptr
 	return hCreateTemp( prefix, 0, status )
 end function
 
 function tkort_UStrFsCreateTempDir alias "fb_UStrFsCreateTempDir" _
-	( byval prefix as FBUSTRING ptr, byval status as long ptr ) as FBUSTRING ptr
+	( byval prefix as FBUSTRING ptr, byval status as int32 ptr ) as FBUSTRING ptr
 	return hCreateTemp( prefix, 1, status )
 end function
 
@@ -548,11 +548,11 @@ end function
 '' clear the read-only attribute or it fails partway through a checked-out
 '' repository.
 function tkort_UStrFsSetReadOnly alias "fb_UStrFsSetReadOnly" _
-	( byval p as FBUSTRING ptr, byval v as long ) as long
+	( byval p as FBUSTRING ptr, byval v as int32 ) as int32
 
 	dim as wstring ptr w = hFsWide( p )
-	dim as ulong attrs = any
-	dim as long r = FB_FS_OK
+	dim as uint32 attrs = any
+	dim as int32 r = FB_FS_OK
 
 	if( w = 0 ) then return FB_FS_UNKNOWN
 
@@ -607,27 +607,27 @@ const SYS_getrandom_ = 318
 const COPY_CHUNK_ = 65536
 
 type stat_
-	as ubyte raw( 0 to STAT_BUF_SIZE - 1 )
+	as uint8 raw( 0 to STAT_BUF_SIZE - 1 )
 end type
 
 extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
-	declare function u_open alias "open" ( byval p as zstring ptr, byval flags as long, ... ) as long
-	declare function u_close alias "close" ( byval fd as long ) as long
-	declare function u_read alias "read" ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
-	declare function u_write alias "write" ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
-	declare function u_fstat alias "fstat" ( byval fd as long, byval st as stat_ ptr ) as long
-	declare function u_stat alias "stat" ( byval p as zstring ptr, byval st as stat_ ptr ) as long
-	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as stat_ ptr ) as long
-	declare function u_mkdir alias "mkdir" ( byval p as zstring ptr, byval mode_ as ulong ) as long
-	declare function u_rmdir alias "rmdir" ( byval p as zstring ptr ) as long
-	declare function u_unlink alias "unlink" ( byval p as zstring ptr ) as long
-	declare function u_rename alias "rename" ( byval s as zstring ptr, byval d as zstring ptr ) as long
-	declare function u_chmod alias "chmod" ( byval p as zstring ptr, byval mode_ as ulong ) as long
-	declare function u_umask alias "umask" ( byval m as ulong ) as ulong
+	declare function u_open alias "open" ( byval p as zstring ptr, byval flags as int32, ... ) as int32
+	declare function u_close alias "close" ( byval fd as int32 ) as int32
+	declare function u_read alias "read" ( byval fd as int32, byval buf as any ptr, byval n as uinteger ) as integer
+	declare function u_write alias "write" ( byval fd as int32, byval buf as any ptr, byval n as uinteger ) as integer
+	declare function u_fstat alias "fstat" ( byval fd as int32, byval st as stat_ ptr ) as int32
+	declare function u_stat alias "stat" ( byval p as zstring ptr, byval st as stat_ ptr ) as int32
+	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as stat_ ptr ) as int32
+	declare function u_mkdir alias "mkdir" ( byval p as zstring ptr, byval mode_ as uint32 ) as int32
+	declare function u_rmdir alias "rmdir" ( byval p as zstring ptr ) as int32
+	declare function u_unlink alias "unlink" ( byval p as zstring ptr ) as int32
+	declare function u_rename alias "rename" ( byval s as zstring ptr, byval d as zstring ptr ) as int32
+	declare function u_chmod alias "chmod" ( byval p as zstring ptr, byval mode_ as uint32 ) as int32
+	declare function u_umask alias "umask" ( byval m as uint32 ) as uint32
 	declare function u_getenv alias "getenv" ( byval n as zstring ptr ) as zstring ptr
 	declare function u_strlen alias "strlen" ( byval s as zstring ptr ) as uinteger
-	declare function u_errno_location alias "__errno_location" ( ) as long ptr
-	declare function u_syscall alias "syscall" ( byval n as longint, ... ) as longint
+	declare function u_errno_location alias "__errno_location" ( ) as int32 ptr
+	declare function u_syscall alias "syscall" ( byval n as int64, ... ) as int64
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
 		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
 	declare function u_utf8to16 alias "fb_hUtf8ToUtf16" _
@@ -687,13 +687,13 @@ sub tkort_FsFreeBuf alias "fb_FsFreeBuf" ( byval b as any ptr )
 end sub
 
 function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
-	( byval p as FBUSTRING ptr, byval out_ as ubyte ptr ptr, byval outlen as longint ptr ) as long
+	( byval p as FBUSTRING ptr, byval out_ as uint8 ptr ptr, byval outlen as int64 ptr ) as int32
 
 	dim as zstring ptr path_ = any
 	dim as stat_ st = any
-	dim as ubyte ptr buf = any
-	dim as longint sz = any, got = 0
-	dim as long fd = any, e = any
+	dim as uint8 ptr buf = any
+	dim as int64 sz = any, got = 0
+	dim as int32 fd = any, e = any
 	dim as integer n = any
 
 	*out_ = 0
@@ -720,14 +720,14 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 	'' POSIX open( ) on a directory SUCCEEDS; only the read fails, and with
 	'' EISDIR. Checked here so the code is FS_IS_A_DIRECTORY either way and the
 	'' two platforms agree.
-	if( (*cptr( ulong ptr, @st.raw(STAT_MODE_) ) and S_IFMT_) = S_IFDIR_ ) then
+	if( (*cptr( uint32 ptr, @st.raw(STAT_MODE_) ) and S_IFMT_) = S_IFDIR_ ) then
 		u_close( fd )
 		return FB_FS_IS_A_DIRECTORY
 	end if
 
-	sz = *cptr( longint ptr, @st.raw(STAT_SIZE_) )
+	sz = *cptr( int64 ptr, @st.raw(STAT_SIZE_) )
 
-	if( cast( ulongint, sz ) > cast( ulongint, cast( uinteger, -1 ) ) - 1 ) then
+	if( cast( uint64, sz ) > cast( uint64, cast( uinteger, -1 ) ) - 1 ) then
 		u_close( fd )
 		return FB_FS_NO_SPACE
 	end if
@@ -766,11 +766,11 @@ function tkort_UStrFsReadWhole alias "fb_UStrFsReadWhole" _
 end function
 
 function tkort_UStrFsWriteWhole alias "fb_UStrFsWriteWhole" _
-	( byval p as FBUSTRING ptr, byval data_ as ubyte ptr, byval len_ as longint, byval append_ as long ) as long
+	( byval p as FBUSTRING ptr, byval data_ as uint8 ptr, byval len_ as int64, byval append_ as int32 ) as int32
 
 	dim as zstring ptr path_ = any
-	dim as longint done = 0
-	dim as long fd = any, flags = any, e = any
+	dim as int64 done = 0
+	dim as int32 fd = any, flags = any, e = any
 	dim as integer n = any
 
 	path_ = hFsNarrow( p )
@@ -802,9 +802,9 @@ function tkort_UStrFsWriteWhole alias "fb_UStrFsWriteWhole" _
 	return FB_FS_OK
 end function
 
-function tkort_UStrFsCreateDir alias "fb_UStrFsCreateDir" ( byval p as FBUSTRING ptr ) as long
+function tkort_UStrFsCreateDir alias "fb_UStrFsCreateDir" ( byval p as FBUSTRING ptr ) as int32
 	dim as zstring ptr path_ = hFsNarrow( p )
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	if( path_ = 0 ) then return FB_FS_UNKNOWN
 	if( u_mkdir( path_, &o777 ) <> 0 ) then r = tkrt_FsMapOsError( )
@@ -812,9 +812,9 @@ function tkort_UStrFsCreateDir alias "fb_UStrFsCreateDir" ( byval p as FBUSTRING
 	return r
 end function
 
-function tkort_UStrFsRemoveDir alias "fb_UStrFsRemoveDir" ( byval p as FBUSTRING ptr ) as long
+function tkort_UStrFsRemoveDir alias "fb_UStrFsRemoveDir" ( byval p as FBUSTRING ptr ) as int32
 	dim as zstring ptr path_ = hFsNarrow( p )
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	if( path_ = 0 ) then return FB_FS_UNKNOWN
 
@@ -832,10 +832,10 @@ function tkort_UStrFsRemoveDir alias "fb_UStrFsRemoveDir" ( byval p as FBUSTRING
 	return r
 end function
 
-function tkort_UStrFsRemoveFile alias "fb_UStrFsRemoveFile" ( byval p as FBUSTRING ptr ) as long
+function tkort_UStrFsRemoveFile alias "fb_UStrFsRemoveFile" ( byval p as FBUSTRING ptr ) as int32
 	dim as zstring ptr path_ = hFsNarrow( p )
 	dim as stat_ st = any
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	if( path_ = 0 ) then return FB_FS_UNKNOWN
 
@@ -843,7 +843,7 @@ function tkort_UStrFsRemoveFile alias "fb_UStrFsRemoveFile" ( byval p as FBUSTRI
 	'' whatever unlink happens to report (EPERM on some systems, EISDIR on
 	'' others -- neither is portable).
 	if( u_lstat( path_, @st ) = 0 ) then
-		if( (*cptr( ulong ptr, @st.raw(STAT_MODE_) ) and S_IFMT_) = S_IFDIR_ ) then
+		if( (*cptr( uint32 ptr, @st.raw(STAT_MODE_) ) and S_IFMT_) = S_IFDIR_ ) then
 			free( path_ )
 			return FB_FS_IS_A_DIRECTORY
 		end if
@@ -859,13 +859,13 @@ end function
 '' reflinks are a candidate optimisation, not a feature -- each needs this exact
 '' fallback anyway.
 function tkort_UStrFsCopyFile alias "fb_UStrFsCopyFile" _
-	( byval s as FBUSTRING ptr, byval d as FBUSTRING ptr, byval overwrite as long ) as long
+	( byval s as FBUSTRING ptr, byval d as FBUSTRING ptr, byval overwrite as int32 ) as int32
 
 	dim as zstring ptr sp = any, dp = any
 	dim as stat_ st = any
-	dim as ubyte buf( 0 to COPY_CHUNK_ - 1 ) = any
-	dim as long sfd = any, dfd = any, flags = any, r = FB_FS_OK
-	dim as ulong mode_ = any
+	dim as uint8 buf( 0 to COPY_CHUNK_ - 1 ) = any
+	dim as int32 sfd = any, dfd = any, flags = any, r = FB_FS_OK
+	dim as uint32 mode_ = any
 	dim as integer n = any, w = any, k = any
 
 	sp = hFsNarrow( s )
@@ -886,7 +886,7 @@ function tkort_UStrFsCopyFile alias "fb_UStrFsCopyFile" _
 	if( u_fstat( sfd, @st ) <> 0 ) then
 		mode_ = &o666
 	else
-		mode_ = *cptr( ulong ptr, @st.raw(STAT_MODE_) )
+		mode_ = *cptr( uint32 ptr, @st.raw(STAT_MODE_) )
 	end if
 
 	'' O_EXCL is what makes "do not overwrite" the default and atomic.
@@ -933,11 +933,11 @@ function tkort_UStrFsCopyFile alias "fb_UStrFsCopyFile" _
 end function
 
 function tkort_UStrFsMoveFile alias "fb_UStrFsMoveFile" _
-	( byval s as FBUSTRING ptr, byval d as FBUSTRING ptr, byval overwrite as long ) as long
+	( byval s as FBUSTRING ptr, byval d as FBUSTRING ptr, byval overwrite as int32 ) as int32
 
 	dim as zstring ptr sp = any, dp = any
 	dim as stat_ st = any
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	sp = hFsNarrow( s )
 	dp = hFsNarrow( d )
@@ -966,7 +966,7 @@ end function
 '' rename(2) gives exactly the guarantee WriteAtomic needs: a reader sees the
 '' old file or the new one, never a partial.
 function tkort_UStrFsReplaceFile alias "fb_UStrFsReplaceFile" _
-	( byval target as FBUSTRING ptr, byval replacement as FBUSTRING ptr ) as long
+	( byval target as FBUSTRING ptr, byval replacement as FBUSTRING ptr ) as int32
 	return tkort_UStrFsMoveFile( replacement, target, 1 )
 end function
 
@@ -978,11 +978,11 @@ end function
 '' fs_ops.o on POSIX and in fs_stat.o on Windows, and the gate replaces fbc
 '' MEMBERS: a symbol on the wrong side would leave the other member half-covered.
 function tkort_UStrFsIdentity alias "fb_UStrFsIdentity" _
-	( byval p as FBUSTRING ptr, byval vol as ulongint ptr, byval id as ulongint ptr ) as long
+	( byval p as FBUSTRING ptr, byval vol as uint64 ptr, byval id as uint64 ptr ) as int32
 
 	dim as zstring ptr path_ = any
 	dim as stat_ st = any
-	dim as long e = any
+	dim as int32 e = any
 
 	*vol = 0
 	*id = 0
@@ -998,16 +998,16 @@ function tkort_UStrFsIdentity alias "fb_UStrFsIdentity" _
 
 	free( path_ )
 
-	*vol = *cptr( ulongint ptr, @st.raw(STAT_DEV_) )
-	*id  = *cptr( ulongint ptr, @st.raw(STAT_INO_) )
+	*vol = *cptr( uint64 ptr, @st.raw(STAT_DEV_) )
+	*id  = *cptr( uint64 ptr, @st.raw(STAT_INO_) )
 	return FB_FS_OK
 end function
 
 '' NEVER the program's own Rnd, which is seeded predictably and shared with the
 '' caller -- a guessable temp name is a real attack.
-function tkort_FsRandomBytes alias "fb_FsRandomBytes" ( byval buf as ubyte ptr, byval len_ as long ) as long
-	dim as long got = 0, fd = any
-	dim as longint n = any
+function tkort_FsRandomBytes alias "fb_FsRandomBytes" ( byval buf as uint8 ptr, byval len_ as int32 ) as int32
+	dim as int32 got = 0, fd = any
+	dim as int64 n = any
 	dim as integer k = any
 
 	while( got < len_ )
@@ -1017,7 +1017,7 @@ function tkort_FsRandomBytes alias "fb_FsRandomBytes" ( byval buf as ubyte ptr, 
 			'' fall through to /dev/urandom
 			exit while
 		end if
-		got += cast( long, n )
+		got += cast( int32, n )
 	wend
 
 	if( got >= len_ ) then return FB_FS_OK
@@ -1041,15 +1041,15 @@ function tkort_FsRandomBytes alias "fb_FsRandomBytes" ( byval buf as ubyte ptr, 
 	return iif( got >= len_, FB_FS_OK, FB_FS_UNSUPPORTED )
 end function
 
-function tkort_UStrFsTempDir alias "fb_UStrFsTempDir" ( byval status as long ptr ) as FBUSTRING ptr
+function tkort_UStrFsTempDir alias "fb_UStrFsTempDir" ( byval status as int32 ptr ) as FBUSTRING ptr
 	if( status <> 0 ) then *status = FB_FS_OK
 	return hFsFromNarrow( hTempDirNarrow( ), -1 )
 end function
 
-private function hCreateTemp( byval prefix as FBUSTRING ptr, byval wantdir as long, byval status as long ptr ) as FBUSTRING ptr
+private function hCreateTemp( byval prefix as FBUSTRING ptr, byval wantdir as int32, byval status as int32 ptr ) as FBUSTRING ptr
 	dim as zstring ptr dir_ = any, pre = any, full = any
-	dim as ubyte rb( 0 to 7 ) = any
-	dim as long attempt = any, i = any, made = any, e = any, fd = any
+	dim as uint8 rb( 0 to 7 ) = any
+	dim as int32 attempt = any, i = any, made = any, e = any, fd = any
 	dim as uinteger n = any, at = any
 
 	if( status <> 0 ) then *status = FB_FS_OK
@@ -1079,11 +1079,11 @@ private function hCreateTemp( byval prefix as FBUSTRING ptr, byval wantdir as lo
 		end if
 
 		at = 0
-		for i = 0 to cast( long, u_strlen( dir_ ) ) - 1
+		for i = 0 to cast( int32, u_strlen( dir_ ) ) - 1
 			full[at] = dir_[i] : at += 1
 		next
 		full[at] = 47 : at += 1
-		for i = 0 to cast( long, u_strlen( pre ) ) - 1
+		for i = 0 to cast( int32, u_strlen( pre ) ) - 1
 			full[at] = pre[i] : at += 1
 		next
 
@@ -1132,12 +1132,12 @@ private function hCreateTemp( byval prefix as FBUSTRING ptr, byval wantdir as lo
 end function
 
 function tkort_UStrFsCreateTempFile alias "fb_UStrFsCreateTempFile" _
-	( byval prefix as FBUSTRING ptr, byval status as long ptr ) as FBUSTRING ptr
+	( byval prefix as FBUSTRING ptr, byval status as int32 ptr ) as FBUSTRING ptr
 	return hCreateTemp( prefix, 0, status )
 end function
 
 function tkort_UStrFsCreateTempDir alias "fb_UStrFsCreateTempDir" _
-	( byval prefix as FBUSTRING ptr, byval status as long ptr ) as FBUSTRING ptr
+	( byval prefix as FBUSTRING ptr, byval status as int32 ptr ) as FBUSTRING ptr
 	return hCreateTemp( prefix, 1, status )
 end function
 
@@ -1145,12 +1145,12 @@ end function
 '' restores the write bits subject to the current umask -- which means this is
 '' NOT an exact inverse. A caller needing exactness uses SetPosixMode.
 function tkort_UStrFsSetReadOnly alias "fb_UStrFsSetReadOnly" _
-	( byval p as FBUSTRING ptr, byval v as long ) as long
+	( byval p as FBUSTRING ptr, byval v as int32 ) as int32
 
 	dim as zstring ptr path_ = hFsNarrow( p )
 	dim as stat_ st = any
-	dim as ulong m = any, mask = any
-	dim as long r = FB_FS_OK
+	dim as uint32 m = any, mask = any
+	dim as int32 r = FB_FS_OK
 
 	if( path_ = 0 ) then return FB_FS_UNKNOWN
 
@@ -1160,14 +1160,14 @@ function tkort_UStrFsSetReadOnly alias "fb_UStrFsSetReadOnly" _
 		return r
 	end if
 
-	m = *cptr( ulong ptr, @st.raw(STAT_MODE_) )
+	m = *cptr( uint32 ptr, @st.raw(STAT_MODE_) )
 
 	if( v <> 0 ) then
-		m and= not cast( ulong, S_IWUSR_ or S_IWGRP_ or S_IWOTH_ )
+		m and= not cast( uint32, S_IWUSR_ or S_IWGRP_ or S_IWOTH_ )
 	else
 		mask = u_umask( 0 )
 		u_umask( mask )
-		m or= (cast( ulong, S_IWUSR_ or S_IWGRP_ or S_IWOTH_ ) and (not mask))
+		m or= (cast( uint32, S_IWUSR_ or S_IWGRP_ or S_IWOTH_ ) and (not mask))
 	end if
 
 	if( u_chmod( path_, m ) <> 0 ) then r = tkrt_FsMapOsError( )

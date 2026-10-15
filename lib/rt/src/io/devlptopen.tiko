@@ -66,13 +66,13 @@
 type DEV_LPT_INFO
 	as any ptr      driver_opaque
 	as zstring ptr  pszDevice
-	as long         iPort
+	as int32         iPort
 	as uinteger     uiRefCount
 end type
 
 type DEV_LPT_PROTOCOL
 	as zstring ptr proto
-	as long        iPort
+	as int32        iPort
 	as zstring ptr name_
 	as zstring ptr title_
 	as zstring ptr emu
@@ -85,18 +85,18 @@ extern "c"   '' NON-FBCALL: fb_printer.h declares all of these plainly, and the
              '' win32 archive spells them without `@N`.
 	declare function tkrt_DevLptParseProtocol alias "fb_DevLptParseProtocol" _
 		( byval lpt_proto_out as DEV_LPT_PROTOCOL ptr ptr, byval proto_raw as zstring ptr, _
-		  byval proto_raw_len as uinteger, byval subst_prn as long ) as long
-	declare function tkrt_DevLptClose alias "fb_DevLptClose" ( byval handle as FB_FILE ptr ) as long
+		  byval proto_raw_len as uinteger, byval subst_prn as int32 ) as int32
+	declare function tkrt_DevLptClose alias "fb_DevLptClose" ( byval handle as FB_FILE ptr ) as int32
 	declare function tkrt_DevLptWrite alias "fb_DevLptWrite" _
-		( byval handle as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as long
+		( byval handle as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as int32
 	declare function tkrt_DevLptWriteWstr alias "fb_DevLptWriteWstr" _
-		( byval handle as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as long
+		( byval handle as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as int32
 	declare function tkrt_PrinterOpen alias "fb_PrinterOpen" _
-		( byval devInfo as DEV_LPT_INFO ptr, byval iPort as long, byval pszDevice as zstring ptr ) as long
+		( byval devInfo as DEV_LPT_INFO ptr, byval iPort as int32, byval pszDevice as zstring ptr ) as int32
 end extern
 
 extern "rtlib"   '' FBCALL: fb_ErrorSetNum is decorated on win32.
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 end extern
 
 '' THE HOOK TABLE IS A CONSTANT AND ITS ADDRESS IS STORED IN EVERY HANDLE, so it
@@ -125,8 +125,8 @@ dim shared as FB_FILE_HOOKS tkort_hooks_dev_lpt = ( _
 ''
 '' iPort 0 MATCHES ANY PORT. That is how the two query functions find a printer
 '' opened as "LPT:" with no number.
-private function tkort_lpt_find_by_name( byval iPort as long, byval filename as zstring ptr, _
-                                         byval no_redir as long ) as FB_FILE ptr
+private function tkort_lpt_find_by_name( byval iPort as int32, byval filename as zstring ptr, _
+                                         byval no_redir as int32 ) as FB_FILE ptr
 
 	for i as integer = 0 to FB_MAX_FILES - 1
 		dim as FB_FILE ptr handle = TKORT_FILETB() + i
@@ -166,12 +166,12 @@ extern "c"   '' NON-FBCALL: fb_printer.h declares all three plainly and the
 
 function tkort_DevLptOpen alias "fb_DevLptOpen" _
 	( byval handle as FB_FILE ptr, byval filename as zstring ptr, _
-	  byval filename_len as uinteger ) as long
+	  byval filename_len as uinteger ) as int32
 
 	dim as DEV_LPT_PROTOCOL ptr lpt_proto = 0
 	dim as DEV_LPT_INFO ptr devInfo = any
 	dim as FB_FILE ptr redir_handle = 0, tmp_handle = 0
-	dim as long res = any
+	dim as int32 res = any
 
 	'' A FAILED PARSE STILL MAY HAVE ALLOCATED -- the parser writes the pointer
 	'' before it decides the string is bad, so the free is not dead code.
@@ -240,10 +240,10 @@ end function
 '' WIDTH IS BOTH A GETTER AND A SETTER: width = -1 asks, anything else sets, and
 '' either way the CURRENT width comes back. default_width = -1 means "80".
 function tkort_DevPrinterSetWidth alias "fb_DevPrinterSetWidth" _
-	( byval pszDevice as zstring ptr, byval width_ as long, byval default_width as long ) as long
+	( byval pszDevice as zstring ptr, byval width_ as int32, byval default_width as int32 ) as int32
 
 	dim as FB_FILE ptr tmp_handle = 0
-	dim as long cur = iif( default_width = -1, 80, default_width )
+	dim as int32 cur = iif( default_width = -1, 80, default_width )
 	dim as zstring ptr pszDev = any
 	dim as DEV_LPT_PROTOCOL ptr lpt_proto = 0
 
@@ -272,10 +272,10 @@ end function
 '' which is indistinguishable from one at the start of a line. fbc makes the
 '' same conflation.
 function tkort_DevPrinterGetOffset alias "fb_DevPrinterGetOffset" _
-	( byval pszDevice as zstring ptr ) as long
+	( byval pszDevice as zstring ptr ) as int32
 
 	dim as FB_FILE ptr tmp_handle = 0
-	dim as long cur = 0
+	dim as int32 cur = 0
 	dim as zstring ptr pszDev = any
 	dim as DEV_LPT_PROTOCOL ptr lpt_proto = 0
 

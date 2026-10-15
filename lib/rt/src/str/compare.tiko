@@ -34,7 +34,7 @@
 
 extern "rtlib"
 	declare function tkrt_DelTemp alias "fb_hStrDelTemp" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 end extern
 
 extern "rtlib"
@@ -43,7 +43,7 @@ function tkort_StrCompare alias "fb_StrCompare" _
 	( _
 		byval str1 as any ptr, byval str1_size as integer, _
 		byval str2 as any ptr, byval str2_size as integer _
-	) as long
+	) as int32
 
 	dim as zstring ptr p1 = any, p2 = any
 	dim as integer n1 = any, n2 = any
@@ -54,7 +54,7 @@ function tkort_StrCompare alias "fb_StrCompare" _
 	dim as integer shorter = n1
 	if( n2 < shorter ) then shorter = n2
 
-	dim as long result = 0
+	dim as int32 result = 0
 
 	'' A NULL data pointer is an empty string, so it never reaches memcmp: with
 	'' n = 0 the length comparison below decides on its own.

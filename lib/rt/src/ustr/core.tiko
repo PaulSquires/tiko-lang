@@ -88,7 +88,7 @@ end sub
 '' has to be the end of the table.
 private function hElem( byval s as FBUSTRING ptr ) as FB_USTR_TMPDESC ptr
 	if( s = 0 ) then return 0
-	dim as ubyte ptr p = cptr( ubyte ptr, s ) - offsetof( FB_USTR_TMPDESC, desc )
+	dim as uint8 ptr p = cptr( uint8 ptr, s ) - offsetof( FB_USTR_TMPDESC, desc )
 	dim as FB_USTR_TMPDESC ptr e = cptr( FB_USTR_TMPDESC ptr, p )
 	if( e < @tkort_utmpTable(0) ) then return 0
 	if( e > @tkort_utmpTable(FB_STR_TMPDESCRIPTORS - 1) ) then return 0
@@ -122,7 +122,7 @@ end function
 '' data BEFORE calling it: the other order frees the pool entry, wipes the
 '' pointer, and then has nothing left to deallocate.
 function tkort_hUStrDelTempDesc alias "fb_hUStrDelTempDesc" _
-	( byval s as FBUSTRING ptr ) as long
+	( byval s as FBUSTRING ptr ) as int32
 
 	dim as FB_USTR_TMPDESC ptr e = hElem( s )
 	if( e = 0 ) then return -1
@@ -215,7 +215,7 @@ end function
 '' The third arm is why assigning a shorter ustring usually does NOT reallocate,
 '' while the narrow allocator resizes on every assignment whose granule differs.
 function tkort_hUStrRealloc alias "fb_hUStrRealloc" _
-	( byval s as FBUSTRING ptr, byval units as integer, byval keepdata as long ) as FBUSTRING ptr
+	( byval s as FBUSTRING ptr, byval units as integer, byval keepdata as int32 ) as FBUSTRING ptr
 
 	'' `keepdata`, not `preserve`: PRESERVE is a FreeBASIC keyword (REDIM
 	'' PRESERVE) and is error 59 as a parameter name.
@@ -320,7 +320,7 @@ end function
 '' ORDER MATTERS. DelTempDesc zeroes the descriptor, so the free has to come
 '' first or the data pointer is gone before it is released.
 function tkort_hUStrDelTemp_NoLock alias "fb_hUStrDelTemp_NoLock" _
-	( byval s as FBUSTRING ptr ) as long
+	( byval s as FBUSTRING ptr ) as int32
 
 	if( s = 0 ) then return -1
 
@@ -330,9 +330,9 @@ function tkort_hUStrDelTemp_NoLock alias "fb_hUStrDelTemp_NoLock" _
 
 end function
 
-function tkort_hUStrDelTemp alias "fb_hUStrDelTemp" ( byval s as FBUSTRING ptr ) as long
+function tkort_hUStrDelTemp alias "fb_hUStrDelTemp" ( byval s as FBUSTRING ptr ) as int32
 	STRLOCK()
-	dim as long r = tkort_hUStrDelTemp_NoLock( s )
+	dim as int32 r = tkort_hUStrDelTemp_NoLock( s )
 	STRUNLOCK()
 	return r
 end function

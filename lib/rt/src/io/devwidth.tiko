@@ -58,30 +58,30 @@
 
 extern "c"   '' NON-FBCALL: the handle-taking and device-layer forms.
 	declare sub tkrt_DevScrnInitNoOpen alias "fb_DevScrnInit_NoOpen" ( )
-	declare sub tkrt_PrintVoidEx alias "fb_PrintVoidEx" ( byval h as FB_FILE ptr, byval mask as long )
-	declare sub tkrt_PrintPadEx alias "fb_PrintPadEx" ( byval h as FB_FILE ptr, byval mask as long )
+	declare sub tkrt_PrintVoidEx alias "fb_PrintVoidEx" ( byval h as FB_FILE ptr, byval mask as int32 )
+	declare sub tkrt_PrintPadEx alias "fb_PrintPadEx" ( byval h as FB_FILE ptr, byval mask as int32 )
 	declare sub tkrt_PrintStringEx alias "fb_PrintStringEx" _
-		( byval h as FB_FILE ptr, byval s as FBSTRING ptr, byval mask as long )
+		( byval h as FB_FILE ptr, byval s as FBSTRING ptr, byval mask as int32 )
 end extern
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as int32 ) as int32
 	declare sub tkrt_PrintBufferEx alias "fb_PrintBufferEx" _
-		( byval buffer as any ptr, byval length as uinteger, byval mask as long )
-	declare sub tkrt_GetXY alias "fb_GetXY" ( byval col as long ptr, byval row as long ptr )
-	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as long ptr, byval rows as long ptr )
+		( byval buffer as any ptr, byval length as uinteger, byval mask as int32 )
+	declare sub tkrt_GetXY alias "fb_GetXY" ( byval col as int32 ptr, byval row as int32 ptr )
+	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as int32 ptr, byval rows as int32 ptr )
 	declare function tkrt_Locate alias "fb_Locate" _
-		( byval row as long, byval col as long, byval cursor as long, _
-		  byval top_ as long, byval bot as long ) as long
-	declare function tkrt_Width alias "fb_Width" ( byval cols as long, byval rows as long ) as long
+		( byval row as int32, byval col as int32, byval cursor as int32, _
+		  byval top_ as int32, byval bot as int32 ) as int32
+	declare function tkrt_Width alias "fb_Width" ( byval cols as int32, byval rows as int32 ) as int32
 	declare function tkrt_StrFill1 alias "fb_StrFill1" _
-		( byval cnt as integer, byval ch as long ) as FBSTRING ptr
+		( byval cnt as integer, byval ch as int32 ) as FBSTRING ptr
 	declare function tkrt_StrAllocTempDescF alias "fb_StrAllocTempDescF" _
 		( byval s as zstring ptr, byval length as integer ) as FBSTRING ptr
 end extern
 
 '' Follow the redirection chain, then ask whether that is the screen handle.
-private function hIsScreen( byval h as FB_FILE ptr ) as long
+private function hIsScreen( byval h as FB_FILE ptr ) as int32
 	if( h = 0 ) then return 0
 	dim as FB_FILE ptr d = h
 	while( d->redirection_to <> 0 )
@@ -93,9 +93,9 @@ end function
 
 extern "rtlib"
 
-sub tkort_PrintTab alias "fb_PrintTab" ( byval fnum as long, byval newcol as long )
+sub tkort_PrintTab alias "fb_PrintTab" ( byval fnum as int32, byval newcol as int32 )
 	dim as FB_FILE ptr handle = any
-	dim as long col = any, row = any, cols = any, rows = any
+	dim as int32 col = any, row = any, cols = any, rows = any
 
 	tkrt_DevScrnInitNoOpen( )
 	TKORT_IOLOCK()
@@ -160,9 +160,9 @@ sub tkort_PrintTab alias "fb_PrintTab" ( byval fnum as long, byval newcol as lon
 	TKORT_IOUNLOCK()
 end sub
 
-sub tkort_PrintSPC alias "fb_PrintSPC" ( byval fnum as long, byval n as integer )
+sub tkort_PrintSPC alias "fb_PrintSPC" ( byval fnum as int32, byval n as integer )
 	dim as FB_FILE ptr handle = any
-	dim as long col = any, row = any, cols = any, rows = any, newcol = any
+	dim as int32 col = any, row = any, cols = any, rows = any, newcol = any
 
 	'' Zero is a no-op BEFORE the screen is initialised -- SPC(0) must not
 	'' open a console.
@@ -189,7 +189,7 @@ sub tkort_PrintSPC alias "fb_PrintSPC" ( byval fnum as long, byval n as integer 
 		tkrt_GetSize( @cols, @rows )
 
 		'' A LOOP, not modulo: every skipped line has to be emitted.
-		newcol = col + cast( long, n )
+		newcol = col + cast( int32, n )
 		while( newcol > cols )
 			tkrt_PrintVoidEx( handle, FB_PRINT_NEWLINE )
 			newcol -= cols
@@ -214,7 +214,7 @@ extern "rtlib"
 '' win64 and Linux cannot tell the difference; only build/symbols.sh on win32
 '' catches it, which is the fourth time that check has earned its place.
 function tkort_SetPos alias "fb_SetPos" _
-	( byval handle as FB_FILE ptr, byval line_length as long ) as long
+	( byval handle as FB_FILE ptr, byval line_length as int32 ) as int32
 	TKORT_IOLOCK()
 	handle->line_length = line_length
 	TKORT_IOUNLOCK()
@@ -227,8 +227,8 @@ extern "rtlib"
 
 '' WIDTH #n -- see the header on the two return meanings.
 function tkort_WidthFile alias "fb_WidthFile" _
-	( byval fnum as long, byval wid as long ) as long
-	dim as long cur = wid
+	( byval fnum as int32, byval wid as int32 ) as int32
+	dim as int32 cur = wid
 	dim as FB_FILE ptr handle = any
 
 	TKORT_IOLOCK()
@@ -254,7 +254,7 @@ function tkort_WidthFile alias "fb_WidthFile" _
 
 	if( handle = TKORT_HANDLE_SCREEN() ) then
 		if( wid <> -1 ) then tkrt_Width( wid, -1 )
-		cur = cast( long, TKORT_HANDLE_SCREEN()->width )
+		cur = cast( int32, TKORT_HANDLE_SCREEN()->width )
 	else
 		if( wid <> -1 ) then
 			handle->width = wid
@@ -262,7 +262,7 @@ function tkort_WidthFile alias "fb_WidthFile" _
 				handle->hooks->pfnSetWidth( handle, wid )
 			end if
 		end if
-		cur = cast( long, handle->width )
+		cur = cast( int32, handle->width )
 	end if
 
 	TKORT_IOUNLOCK()

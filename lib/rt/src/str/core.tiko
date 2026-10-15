@@ -136,9 +136,9 @@ private function hFromPool( byval s as FBSTRING ptr ) as integer
 	'' element's descriptor is PAST @tkort_tmpTable(255) and a naive
 	'' `<= @table(last)` rejects it -- one entry in 256, which would have been
 	'' a lovely bug to find later.
-	dim as ubyte ptr lo = cptr( ubyte ptr, @tkort_tmpTable(0) )
-	dim as ubyte ptr hi = lo + (sizeof( FB_STR_TMPDESC ) * FB_STR_TMPDESCRIPTORS)
-	dim as ubyte ptr p  = cptr( ubyte ptr, s )
+	dim as uint8 ptr lo = cptr( uint8 ptr, @tkort_tmpTable(0) )
+	dim as uint8 ptr hi = lo + (sizeof( FB_STR_TMPDESC ) * FB_STR_TMPDESCRIPTORS)
+	dim as uint8 ptr p  = cptr( uint8 ptr, s )
 	return (p >= lo) andalso (p < hi)
 end function
 
@@ -155,7 +155,7 @@ end function
 
 private sub hPoolFree( byval s as FBSTRING ptr )
 	if( hFromPool( s ) = 0 ) then exit sub
-	dim as ubyte ptr p = cptr( ubyte ptr, s ) - offsetof( FB_STR_TMPDESC, desc )
+	dim as uint8 ptr p = cptr( uint8 ptr, s ) - offsetof( FB_STR_TMPDESC, desc )
 	fb_hListFreeElem( @tkort_tmpList, cptr( FB_LISTELEM ptr, p ) )
 end sub
 
@@ -185,7 +185,7 @@ end function
 '' descriptors that were never ours, and skipped its own cleanup. Gate 2 would
 '' have caught it; the allocator differential caught it in thirty seconds.
 function tkort_hStrDelTempDesc alias "fb_hStrDelTempDesc" _
-	( byval s as FBSTRING ptr ) as long
+	( byval s as FBSTRING ptr ) as int32
 
 	if( hFromPool( s ) = 0 ) then return -1
 
@@ -254,7 +254,7 @@ end function
 '' (appending one character at a time does not reallocate 32 times) and moves
 '' when it changes, including on shrink.
 function tkort_hStrRealloc alias "fb_hStrRealloc" _
-	( byval s as FBSTRING ptr, byval length as integer, byval keepdata as long ) as FBSTRING ptr
+	( byval s as FBSTRING ptr, byval length as integer, byval keepdata as int32 ) as FBSTRING ptr
 
 	'' NOTE: the parameter is `keepdata`, not `preserve` -- PRESERVE is a
 	'' FreeBASIC keyword (REDIM PRESERVE) and is error 59 as a parameter name.
@@ -460,7 +460,7 @@ end function
 '' So: -1 means "the descriptor was not mine to release", not "I did nothing".
 '' The data is freed either way, when the temp bit says the temporary owns it.
 function tkort_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
-	( byval s as FBSTRING ptr ) as long
+	( byval s as FBSTRING ptr ) as int32
 
 	if( s = 0 ) then return -1
 
@@ -515,9 +515,9 @@ function tkort_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
 
 end function
 
-function tkort_hStrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+function tkort_hStrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 	STRLOCK()
-	dim as long r = tkort_hStrDelTemp_NoLock( s )
+	dim as int32 r = tkort_hStrDelTemp_NoLock( s )
 	STRUNLOCK()
 	return r
 end function

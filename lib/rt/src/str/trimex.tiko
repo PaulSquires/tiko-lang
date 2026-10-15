@@ -69,22 +69,22 @@ extern "c"   '' NON-FBCALL: the string internals, declared plain in fb_string.h.
 	declare sub tkrt_hStrCopy alias "fb_hStrCopy" _
 		( byval dst as zstring ptr, byval src as zstring ptr, byval l as integer )
 	declare function tkrt_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 	declare sub fb_StrLock alias "fb_StrLock" ( )
 	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
 end extern
 
 extern "rtlib"   '' FBCALL: these three ARE decorated, and the win32 archive
                  '' confirms the `@N` on each.
-	declare function tkrt_hStrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_hStrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 	declare function tkrt_hStrSkipChar alias "fb_hStrSkipChar" _
-		( byval s as zstring ptr, byval l as integer, byval c as long ) as zstring ptr
+		( byval s as zstring ptr, byval l as integer, byval c as int32 ) as zstring ptr
 	declare function tkrt_hStrSkipCharRev alias "fb_hStrSkipCharRev" _
-		( byval s as zstring ptr, byval l as integer, byval c as long ) as zstring ptr
+		( byval s as zstring ptr, byval l as integer, byval c as int32 ) as zstring ptr
 	declare function tkrt_WstrUcase2 alias "fb_WstrUcase2" _
-		( byval s as wstring ptr, byval mode_ as long ) as wstring ptr
+		( byval s as wstring ptr, byval mode_ as int32 ) as wstring ptr
 	declare function tkrt_WstrLcase2 alias "fb_WstrLcase2" _
-		( byval s as wstring ptr, byval mode_ as long ) as wstring ptr
+		( byval s as wstring ptr, byval mode_ as int32 ) as wstring ptr
 end extern
 
 #ifdef ENABLE_MT
@@ -118,7 +118,7 @@ end extern
 ''
 '' The spelling that gives a byte is an explicit pointer cast, which is what
 '' every site below uses.
-#define TKORT_BYTE( p, i ) (cptr( ubyte ptr, p )[i])
+#define TKORT_BYTE( p, i ) (cptr( uint8 ptr, p )[i])
 
 #define TKORT_PATLEN( pattern ) _
 	iif( ((pattern) <> 0) andalso ((pattern)->data <> 0), FB_STRSIZE( pattern ), 0 )
@@ -154,7 +154,7 @@ function tkort_TrimAny alias "fb_TrimAny" _
 		if( len_pattern <> 0 ) then
 			'' FROM THE FRONT: advance while the character is in the set.
 			while( l <> 0 )
-				if( memchr( pattern->data, cast( long, cptr( ubyte ptr, pachText )[0] ), len_pattern ) = 0 ) then exit while
+				if( memchr( pattern->data, cast( int32, cptr( uint8 ptr, pachText )[0] ), len_pattern ) = 0 ) then exit while
 				l -= 1
 				pachText += 1
 			wend
@@ -164,7 +164,7 @@ function tkort_TrimAny alias "fb_TrimAny" _
 			'' rather than one past it.
 			while( l <> 0 )
 				l -= 1
-				if( memchr( pattern->data, cast( long, cptr( ubyte ptr, pachText )[l] ), len_pattern ) = 0 ) then
+				if( memchr( pattern->data, cast( int32, cptr( uint8 ptr, pachText )[l] ), len_pattern ) = 0 ) then
 					l += 1
 					exit while
 				end if
@@ -213,7 +213,7 @@ function tkort_LTrimAny alias "fb_LTrimAny" _
 
 		if( len_pattern <> 0 ) then
 			while( l <> 0 )
-				if( memchr( pattern->data, cast( long, cptr( ubyte ptr, pachText )[0] ), len_pattern ) = 0 ) then exit while
+				if( memchr( pattern->data, cast( int32, cptr( uint8 ptr, pachText )[0] ), len_pattern ) = 0 ) then exit while
 				l -= 1
 				pachText += 1
 			wend
@@ -264,7 +264,7 @@ function tkort_RTrimAny alias "fb_RTrimAny" _
 		if( len_pattern <> 0 ) then
 			while( l <> 0 )
 				l -= 1
-				if( memchr( pattern->data, cast( long, cptr( ubyte ptr, pachText )[l] ), len_pattern ) = 0 ) then
+				if( memchr( pattern->data, cast( int32, cptr( uint8 ptr, pachText )[l] ), len_pattern ) = 0 ) then
 					l += 1
 					exit while
 				end if
@@ -319,7 +319,7 @@ function tkort_TrimEx alias "fb_TrimEx" _
 		if( l >= len_pattern ) then
 			if( len_pattern = 1 ) then
 				'' POINTER DIFFERENCE arithmetic.
-				src_ptr = tkrt_hStrSkipChar( src_ptr, l, cast( long, cptr( ubyte ptr, pattern->data )[0] ) )
+				src_ptr = tkrt_hStrSkipChar( src_ptr, l, cast( int32, cptr( uint8 ptr, pattern->data )[0] ) )
 				l = l - cast( integer, src_ptr - src->data )
 			elseif( len_pattern <> 0 ) then
 				'' PATTERN-SIZED STEPS.
@@ -336,7 +336,7 @@ function tkort_TrimEx alias "fb_TrimEx" _
 		if( l >= len_pattern ) then
 			if( len_pattern = 1 ) then
 				dim as zstring ptr p_tmp = tkrt_hStrSkipCharRev( src_ptr, l, _
-				                              cast( long, cptr( ubyte ptr, pattern->data )[0] ) )
+				                              cast( int32, cptr( uint8 ptr, pattern->data )[0] ) )
 				'' PLUS ONE, because SkipCharRev lands ON the last kept
 				'' character rather than one past it.
 				l = cast( integer, p_tmp - src_ptr ) + 1
@@ -397,7 +397,7 @@ function tkort_LTrimEx alias "fb_LTrimEx" _
 
 		if( l >= len_pattern ) then
 			if( len_pattern = 1 ) then
-				src_ptr = tkrt_hStrSkipChar( src_ptr, l, cast( long, cptr( ubyte ptr, pattern->data )[0] ) )
+				src_ptr = tkrt_hStrSkipChar( src_ptr, l, cast( int32, cptr( uint8 ptr, pattern->data )[0] ) )
 				l = l - cast( integer, src_ptr - src->data )
 			elseif( len_pattern <> 0 ) then
 				while( l >= len_pattern )
@@ -451,7 +451,7 @@ function tkort_RTrimEx alias "fb_RTrimEx" _
 		if( l >= len_pattern ) then
 			if( len_pattern = 1 ) then
 				dim as zstring ptr src_ptr = tkrt_hStrSkipCharRev( src->data, l, _
-				                                 cast( long, cptr( ubyte ptr, pattern->data )[0] ) )
+				                                 cast( int32, cptr( uint8 ptr, pattern->data )[0] ) )
 				l = cast( integer, src_ptr - src->data ) + 1
 			elseif( len_pattern <> 0 ) then
 				dim as zstring ptr src_ptr = src->data
@@ -565,7 +565,7 @@ extern "c"   '' NON-FBCALL: variadic, hence cdecl on every target.
 
 '' EVERY ARGUMENT IS READ AS `unsigned int` AND TRUNCATED TO ONE BYTE, so
 '' CHR(&h141) is CHR(&h41) with no diagnostic. See the file header.
-function tkort_CHR alias "fb_CHR" ( byval args as long, ... ) as FBSTRING ptr
+function tkort_CHR alias "fb_CHR" ( byval args as int32, ... ) as FBSTRING ptr
 
 	dim as FBSTRING ptr dst = any
 	dim as cva_list ap = any
@@ -582,8 +582,8 @@ function tkort_CHR alias "fb_CHR" ( byval args as long, ... ) as FBSTRING ptr
 			'' READ AS `unsigned int` -- the default promotion for every
 			'' integer type narrower than int, which is what the caller's
 			'' argument became on the way in.
-			dim as ulong num = cva_arg( ap, ulong )
-			dst->data[i] = cast( ubyte, num )
+			dim as uint32 num = cva_arg( ap, uint32 )
+			dst->data[i] = cast( uint8, num )
 		next
 		dst->data[args] = 0
 	else

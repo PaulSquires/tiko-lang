@@ -33,10 +33,10 @@ const UTF16_SUR_HIGH_START = &hD800u
 const UTF16_SUR_HIGH_END   = &hDBFFu
 
 type TKORT_UTF8_TRAILING
-	as byte v( 0 to 255 )
+	as int8 v( 0 to 255 )
 end type
 type TKORT_UTF8_OFFSETS
-	as ulong v( 0 to 5 )
+	as uint32 v( 0 to 5 )
 end type
 
 extern "c"   '' NON-FBCALL: the tables live in utf/core.tiko; no FBCALL anywhere.
@@ -47,12 +47,12 @@ end extern
 extern "c"   '' NON-FBCALL: none of these appear in a header with FBCALL.
 
 function tkort_UTF8ToChar alias "fb_hUTF8ToChar" _
-	( byval src as ubyte ptr, byval dst as ubyte ptr, byval chars as integer ptr ) as ubyte ptr
+	( byval src as uint8 ptr, byval dst as uint8 ptr, byval chars as integer ptr ) as uint8 ptr
 
-	dim as ulong c = any
+	dim as uint32 c = any
 	dim as integer extbytes = any, charsleft = any, dst_size = any, k = any
-	dim as ubyte ptr buffer = dst
-	dim as ubyte ptr newbuffer = any
+	dim as uint8 ptr buffer = dst
+	dim as uint8 ptr newbuffer = any
 
 	if( dst = 0 ) then
 		dst_size = 0
@@ -120,12 +120,12 @@ end function
 '' one and every subsequent count would be off by one. An unpaired LOW
 '' surrogate is not special-cased: it is simply > 255 and becomes '?'.
 function tkort_UTF16ToChar alias "fb_hUTF16ToChar" _
-	( byval src as ushort ptr, byval dst as ubyte ptr, byval chars as integer ptr ) as ubyte ptr
+	( byval src as uint16 ptr, byval dst as uint8 ptr, byval chars as integer ptr ) as uint8 ptr
 
-	dim as ulong c = any
+	dim as uint32 c = any
 	dim as integer charsleft = any, dst_size = any
-	dim as ubyte ptr buffer = dst
-	dim as ubyte ptr newbuffer = any
+	dim as uint8 ptr buffer = dst
+	dim as uint8 ptr newbuffer = any
 
 	if( dst = 0 ) then
 		dst_size = 0
@@ -178,12 +178,12 @@ end function
 
 '' UTF-32. No surrogates to consider: anything above 255 is one '?'.
 function tkort_UTF32ToChar alias "fb_hUTF32ToChar" _
-	( byval src as ulong ptr, byval dst as ubyte ptr, byval chars as integer ptr ) as ubyte ptr
+	( byval src as uint32 ptr, byval dst as uint8 ptr, byval chars as integer ptr ) as uint8 ptr
 
-	dim as ulong c = any
+	dim as uint32 c = any
 	dim as integer charsleft = any, dst_size = any
-	dim as ubyte ptr buffer = dst
-	dim as ubyte ptr newbuffer = any
+	dim as uint8 ptr buffer = dst
+	dim as uint8 ptr newbuffer = any
 
 	if( dst = 0 ) then
 		dst_size = 0
@@ -228,8 +228,8 @@ end function
 '' ASCII -- including FB_FILE_ENCOD_ASCII itself, which is not a UTF encoding
 '' and has no business here.
 function tkort_UTFToChar alias "fb_UTFToChar" _
-	( byval encod as long, byval src as any ptr, byval dst as ubyte ptr, _
-	  byval chars as integer ptr ) as ubyte ptr
+	( byval encod as int32, byval src as any ptr, byval dst as uint8 ptr, _
+	  byval chars as integer ptr ) as uint8 ptr
 
 	select case encod
 	case FB_FILE_ENCOD_UTF8

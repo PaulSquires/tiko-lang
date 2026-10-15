@@ -28,7 +28,7 @@ extern "rtlib"
 	'' type mismatch at the call site -- the same reservation that forces every
 	'' definition in this project to be `tkort_X alias "fb_X"`.
 	declare function tkrt_DelTemp alias "fb_hStrDelTemp" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 end extern
 
 extern "rtlib"
@@ -67,7 +67,7 @@ end function
 '' 1-based. Position 0, a position past the end, an empty string and a NULL
 '' descriptor all answer 0.
 function tkort_ASC alias "fb_ASC" _
-	( byval s as FBSTRING ptr, byval idx as integer ) as ulong
+	( byval s as FBSTRING ptr, byval idx as integer ) as uint32
 
 	'' CONSUMES A TEMPORARY OPERAND (PROBE-29), like fb_LEFT, fb_RIGHT and
 	'' fb_StrLen. So the value is computed first and the source released on
@@ -76,7 +76,7 @@ function tkort_ASC alias "fb_ASC" _
 	'' forgetting the release entirely.
 	if( s = 0 ) then return 0
 
-	dim as ulong result = 0
+	dim as uint32 result = 0
 
 	dim as zstring ptr p = s->data
 	dim as integer n = FB_STRSIZE( s )
@@ -91,7 +91,7 @@ function tkort_ASC alias "fb_ASC" _
 	'' every letter. The symptom was fb_ASC returning 0 for every valid position
 	'' while fb_LEFT and fb_RIGHT -- using the same pointer -- were correct.
 	if( (p <> 0) andalso (idx >= 1) andalso (idx <= n) ) then
-		result = cast( ulong, cptr( ubyte ptr, p )[idx - 1] )
+		result = cast( uint32, cptr( uint8 ptr, p )[idx - 1] )
 	end if
 
 	'' CALL DelTemp UNCONDITIONALLY -- do NOT pre-filter on the temp bit.

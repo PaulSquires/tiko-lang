@@ -45,7 +45,7 @@
 #endif
 
 type FB_DATADESC field = 1
-	as short    length
+	as int16    length
 	as any ptr  item
 end type
 

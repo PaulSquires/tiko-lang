@@ -45,7 +45,7 @@
 
 '' LONGINT, so the element alignment IS the alignment -- see the file header.
 type TKORT_CTX_BLOCK
-	as longint v( 0 to (TKORT_CTX_SIZE \ 8) - 1 )
+	as int64 v( 0 to (TKORT_CTX_SIZE \ 8) - 1 )
 end type
 
 '' The two things that must hold, checked rather than trusted: the block is

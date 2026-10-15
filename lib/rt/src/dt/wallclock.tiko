@@ -64,7 +64,7 @@ const FB_WEEK_DAY_SYSTEM  = 0
 const FB_WEEK_DAY_DEFAULT = 1
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 	'' AS LONG, NOT AS DOUBLE. fb_DateSerial returns an INT -- a whole day
 	'' count -- and only fb_TimeSerial returns a fraction. Declaring it double
 	'' here compiled and linked, and read the value out of XMM0 instead of RAX:
@@ -73,33 +73,33 @@ extern "rtlib"
 	'' `double dblDate = fb_DateSerial(...)`, an implicit int-to-double
 	'' conversion, and that is what this is.
 	declare function tkrt_DateSerial alias "fb_DateSerial" _
-		( byval year_ as long, byval month_ as long, byval day_ as long ) as long
+		( byval year_ as int32, byval month_ as int32, byval day_ as int32 ) as int32
 	declare function tkrt_TimeSerial alias "fb_TimeSerial" _
-		( byval hour_ as long, byval minute_ as long, byval second_ as long ) as double
+		( byval hour_ as int32, byval minute_ as int32, byval second_ as int32 ) as float64
 	declare function tkrt_DateParse alias "fb_DateParse" _
-		( byval s as FBSTRING ptr, byval pDay as long ptr, _
-		  byval pMonth as long ptr, byval pYear as long ptr ) as long
+		( byval s as FBSTRING ptr, byval pDay as int32 ptr, _
+		  byval pMonth as int32 ptr, byval pYear as int32 ptr ) as int32
 	declare function tkrt_TimeParse alias "fb_TimeParse" _
-		( byval s as FBSTRING ptr, byval pHour as long ptr, _
-		  byval pMinute as long ptr, byval pSecond as long ptr ) as long
-	declare sub tkrt_Sleep alias "fb_Sleep" ( byval msecs as long )
+		( byval s as FBSTRING ptr, byval pHour as int32 ptr, _
+		  byval pMinute as int32 ptr, byval pSecond as int32 ptr ) as int32
+	declare sub tkrt_Sleep alias "fb_Sleep" ( byval msecs as int32 )
 end extern
 
 extern "c"   '' NON-FBCALL: the h-prefixed internals and the Intl lookups are
              '' undecorated in fbc's win32 archive.
 	declare function tkrt_hStrAllocTemp alias "fb_hStrAllocTemp" _
 		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
-	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 	declare function tkrt_IntlGetMonthName alias "fb_IntlGetMonthName" _
-		( byval month_ as long, byval abbrev as long, byval is_wide as long ) as FBSTRING ptr
+		( byval month_ as int32, byval abbrev as int32, byval is_wide as int32 ) as FBSTRING ptr
 	declare function tkrt_IntlGetWeekdayName alias "fb_IntlGetWeekdayName" _
-		( byval weekday_ as long, byval abbrev as long, byval is_wide as long ) as FBSTRING ptr
-	declare sub tkrt_Delay alias "fb_Delay" ( byval msecs as long )
-	declare function tkrt_InputBufferChanged alias "fb_hConsoleInputBufferChanged" ( ) as long
+		( byval weekday_ as int32, byval abbrev as int32, byval is_wide as int32 ) as FBSTRING ptr
+	declare sub tkrt_Delay alias "fb_Delay" ( byval msecs as int32 )
+	declare function tkrt_InputBufferChanged alias "fb_hConsoleInputBufferChanged" ( ) as int32
 	declare function tkrt_hSetDate alias "fb_hSetDate" _
-		( byval year_ as long, byval month_ as long, byval day_ as long ) as long
+		( byval year_ as int32, byval month_ as int32, byval day_ as int32 ) as int32
 	declare function tkrt_hSetTime alias "fb_hSetTime" _
-		( byval hour_ as long, byval minute_ as long, byval second_ as long ) as long
+		( byval hour_ as int32, byval minute_ as int32, byval second_ as int32 ) as int32
 end extern
 
 '' isdigit, written out: the crt binding is a macro on some targets and a call on
@@ -180,7 +180,7 @@ end function
 '' THE EARLY RETURN DOES NOT UNLOCK, and that is fbc's, reproduced. See the file
 '' header: adding the unlock would make tiko-rt survive a path on which fbc
 '' deadlocks, which is a behaviour difference and not a fix.
-function tkort_Now alias "fb_Now" ( ) as double
+function tkort_Now alias "fb_Now" ( ) as float64
 
 	dim as time_t rawtime = any
 	dim as tm ptr ptm = any
@@ -191,8 +191,8 @@ function tkort_Now alias "fb_Now" ( ) as double
 	ptm = localtime( @rawtime )
 	if( ptm = 0 ) then return 0.0
 
-	dim as double dblDate = tkrt_DateSerial( 1900 + ptm->tm_year, 1 + ptm->tm_mon, ptm->tm_mday )
-	dim as double dblTime = tkrt_TimeSerial( ptm->tm_hour, ptm->tm_min, ptm->tm_sec )
+	dim as float64 dblDate = tkrt_DateSerial( 1900 + ptm->tm_year, 1 + ptm->tm_mon, ptm->tm_mday )
+	dim as float64 dblTime = tkrt_TimeSerial( ptm->tm_hour, ptm->tm_min, ptm->tm_sec )
 
 	TKORT_IOUNLOCK()
 
@@ -203,10 +203,10 @@ end function
 
 '' THE TEMP IS DELETED BEFORE THE RESULT IS USED, on both the success and the
 '' failure path -- the parse has already copied out everything it needs.
-function tkort_DateValue alias "fb_DateValue" ( byval s as FBSTRING ptr ) as long
+function tkort_DateValue alias "fb_DateValue" ( byval s as FBSTRING ptr ) as int32
 
-	dim as long year_ = any, month_ = any, day_ = any
-	dim as long ok = tkrt_DateParse( s, @day_, @month_, @year_ )
+	dim as int32 year_ = any, month_ = any, day_ = any
+	dim as int32 ok = tkrt_DateParse( s, @day_, @month_, @year_ )
 
 	tkrt_DelTemp( s )
 
@@ -222,10 +222,10 @@ function tkort_DateValue alias "fb_DateValue" ( byval s as FBSTRING ptr ) as lon
 	return tkrt_DateSerial( year_, month_, day_ )
 end function
 
-function tkort_TimeValue alias "fb_TimeValue" ( byval s as FBSTRING ptr ) as double
+function tkort_TimeValue alias "fb_TimeValue" ( byval s as FBSTRING ptr ) as float64
 
-	dim as long hour_ = any, minute_ = any, second_ = any
-	dim as long ok = tkrt_TimeParse( s, @hour_, @minute_, @second_ )
+	dim as int32 hour_ = any, minute_ = any, second_ = any
+	dim as int32 ok = tkrt_TimeParse( s, @hour_, @minute_, @second_ )
 
 	tkrt_DelTemp( s )
 
@@ -241,10 +241,10 @@ end function
 
 '' ISDATE SETS NO ERROR. It is a question, not an operation -- a string that does
 '' not parse is FALSE, and ERR is left exactly as it was.
-function tkort_IsDate alias "fb_IsDate" ( byval s as FBSTRING ptr ) as long
+function tkort_IsDate alias "fb_IsDate" ( byval s as FBSTRING ptr ) as int32
 
-	dim as long year_ = any, month_ = any, day_ = any
-	dim as long ok = tkrt_DateParse( s, @day_, @month_, @year_ )
+	dim as int32 year_ = any, month_ = any, day_ = any
+	dim as int32 ok = tkrt_DateParse( s, @day_, @month_, @year_ )
 
 	tkrt_DelTemp( s )
 
@@ -255,7 +255,7 @@ end function
 '' ------------------------------------------------------------- the name table
 
 function tkort_MonthName alias "fb_MonthName" _
-	( byval month_ as long, byval abbreviation as long ) as FBSTRING ptr
+	( byval month_ as int32, byval abbreviation as int32 ) as FBSTRING ptr
 
 	if( (month_ < 1) orelse (month_ > 12) ) then
 		tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -281,8 +281,8 @@ end function
 '' wraps by subtracting seven, not by a modulo, because the inputs are already
 '' range-checked into 1..7.
 function tkort_WeekdayName alias "fb_WeekdayName" _
-	( byval weekday_ as long, byval abbreviation as long, _
-	  byval first_day_of_week as long ) as FBSTRING ptr
+	( byval weekday_ as int32, byval abbreviation as int32, _
+	  byval first_day_of_week as int32 ) as FBSTRING ptr
 
 	if( (weekday_ < 1) orelse (weekday_ > 7) orelse _
 	    (first_day_of_week < 0) orelse (first_day_of_week > 7) ) then
@@ -313,7 +313,7 @@ end function
 '' kind 0 is SLEEP (interruptible), kind 1 is the raw delay. Anything else is
 '' error 1 and no sleep at all.
 function tkort_SleepEx alias "fb_SleepEx" _
-	( byval msecs as long, byval kind as long ) as long
+	( byval msecs as int32, byval kind as int32 ) as int32
 
 	select case kind
 	case 0
@@ -336,7 +336,7 @@ extern "c"   '' NON-FBCALL: fb_ConsoleSleep is the hookable implementation behin
 '' keyboard is never polled -- a console check costs more than the sleep it would
 '' interrupt -- so SLEEP 50 cannot be cut short by a keystroke and SLEEP 100 can.
 '' -1 waits forever, polling every 50 ms.
-sub tkort_ConsoleSleep alias "fb_ConsoleSleep" ( byval msecs as long )
+sub tkort_ConsoleSleep alias "fb_ConsoleSleep" ( byval msecs as int32 )
 
 	if( msecs = -1 ) then
 		while( tkrt_InputBufferChanged( ) = 0 )
@@ -370,13 +370,13 @@ extern "rtlib"
 ''
 '' A TWO-DIGIT YEAR GETS 1900 ADDED, which is VBDOS's rule and not a windowing
 '' one: "1-1-25" is 1925, never 2025.
-function tkort_SetDate alias "fb_SetDate" ( byval dstr as FBSTRING ptr ) as long
+function tkort_SetDate alias "fb_SetDate" ( byval dstr as FBSTRING ptr ) as int32
 
 	if( (dstr <> 0) andalso (dstr->data <> 0) ) then
 
-		dim as ubyte ptr t = cast( ubyte ptr, dstr->data )
-		dim as ubyte c = any, sep = any
-		dim as long m = 0, d = 0, y = 0
+		dim as uint8 ptr t = cast( uint8 ptr, dstr->data )
+		dim as uint8 c = any, sep = any
+		dim as int32 m = 0, d = 0, y = 0
 
 		'' month
 		c = *t
@@ -435,13 +435,13 @@ end function
 '' as `declare function time_ alias "time"`, using the same trailing-underscore
 '' convention this project does for keyword collisions. Third instance of that
 '' clash, after access_ and EOF_.
-function tkort_SetTime alias "fb_SetTime" ( byval tstr as FBSTRING ptr ) as long
+function tkort_SetTime alias "fb_SetTime" ( byval tstr as FBSTRING ptr ) as int32
 
 	if( (tstr <> 0) andalso (tstr->data <> 0) ) then
 
-		dim as ubyte ptr t = cast( ubyte ptr, tstr->data )
-		dim as ubyte c = any
-		dim as long i = any, h = 0, m = 0, s = 0
+		dim as uint8 ptr t = cast( uint8 ptr, tstr->data )
+		dim as uint8 c = any
+		dim as int32 i = any, h = 0, m = 0, s = 0
 
 		'' hours
 		i = 0

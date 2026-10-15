@@ -20,9 +20,9 @@
 '' the trap documented at the top of inc/wstr.ti. One typed accessor is used for
 '' both the fill and the terminator so the two cannot disagree about the width.
 #if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
-	type TKORT_WRDX_UNIT as ushort
+	type TKORT_WRDX_UNIT as uint16
 #else
-	type TKORT_WRDX_UNIT as ulong
+	type TKORT_WRDX_UNIT as uint32
 #endif
 
 #define RDX( n )   hw_##n
@@ -30,8 +30,8 @@
 #include once "inc/radix-core.ti"
 
 private function hRadixW _
-	( byval num as ulongint, byval digits as long, _
-	  byval shift as long, byval mask as ulongint, byval ishex as long ) as wstring ptr
+	( byval num as uint64, byval digits as int32, _
+	  byval shift as int32, byval mask as uint64, byval ishex as int32 ) as wstring ptr
 
 	if( digits <= 0 ) then digits = hw_hDigits( num, shift )
 
@@ -49,93 +49,93 @@ extern "rtlib"
 '' ------------------------------------------------------------------- HEX
 
 function tkort_WstrHexEx_l alias "fb_WstrHexEx_l" _
-	( byval num as ulongint, byval digits as long ) as wstring ptr
+	( byval num as uint64, byval digits as int32 ) as wstring ptr
 	return hRadixW( num, digits, 4, 15, 1 )
 end function
-function tkort_WstrHex_l alias "fb_WstrHex_l" ( byval num as ulongint ) as wstring ptr
+function tkort_WstrHex_l alias "fb_WstrHex_l" ( byval num as uint64 ) as wstring ptr
 	return tkort_WstrHexEx_l( num, 0 )
 end function
 function tkort_WstrHexEx_b alias "fb_WstrHexEx_b" _
-	( byval num as ubyte, byval digits as long ) as wstring ptr
+	( byval num as uint8, byval digits as int32 ) as wstring ptr
 	return tkort_WstrHexEx_l( num, digits )
 end function
-function tkort_WstrHex_b alias "fb_WstrHex_b" ( byval num as ubyte ) as wstring ptr
+function tkort_WstrHex_b alias "fb_WstrHex_b" ( byval num as uint8 ) as wstring ptr
 	return tkort_WstrHexEx_l( num, 0 )
 end function
 function tkort_WstrHexEx_s alias "fb_WstrHexEx_s" _
-	( byval num as ushort, byval digits as long ) as wstring ptr
+	( byval num as uint16, byval digits as int32 ) as wstring ptr
 	return tkort_WstrHexEx_l( num, digits )
 end function
-function tkort_WstrHex_s alias "fb_WstrHex_s" ( byval num as ushort ) as wstring ptr
+function tkort_WstrHex_s alias "fb_WstrHex_s" ( byval num as uint16 ) as wstring ptr
 	return tkort_WstrHexEx_l( num, 0 )
 end function
 function tkort_WstrHexEx_i alias "fb_WstrHexEx_i" _
-	( byval num as ulong, byval digits as long ) as wstring ptr
+	( byval num as uint32, byval digits as int32 ) as wstring ptr
 	return tkort_WstrHexEx_l( num, digits )
 end function
-function tkort_WstrHex_i alias "fb_WstrHex_i" ( byval num as ulong ) as wstring ptr
+function tkort_WstrHex_i alias "fb_WstrHex_i" ( byval num as uint32 ) as wstring ptr
 	return tkort_WstrHexEx_l( num, 0 )
 end function
 
 '' ------------------------------------------------------------------- OCT
 
 function tkort_WstrOctEx_l alias "fb_WstrOctEx_l" _
-	( byval num as ulongint, byval digits as long ) as wstring ptr
+	( byval num as uint64, byval digits as int32 ) as wstring ptr
 	return hRadixW( num, digits, 3, 7, 0 )
 end function
-function tkort_WstrOct_l alias "fb_WstrOct_l" ( byval num as ulongint ) as wstring ptr
+function tkort_WstrOct_l alias "fb_WstrOct_l" ( byval num as uint64 ) as wstring ptr
 	return tkort_WstrOctEx_l( num, 0 )
 end function
 function tkort_WstrOctEx_b alias "fb_WstrOctEx_b" _
-	( byval num as ubyte, byval digits as long ) as wstring ptr
+	( byval num as uint8, byval digits as int32 ) as wstring ptr
 	return tkort_WstrOctEx_l( num, digits )
 end function
-function tkort_WstrOct_b alias "fb_WstrOct_b" ( byval num as ubyte ) as wstring ptr
+function tkort_WstrOct_b alias "fb_WstrOct_b" ( byval num as uint8 ) as wstring ptr
 	return tkort_WstrOctEx_l( num, 0 )
 end function
 function tkort_WstrOctEx_s alias "fb_WstrOctEx_s" _
-	( byval num as ushort, byval digits as long ) as wstring ptr
+	( byval num as uint16, byval digits as int32 ) as wstring ptr
 	return tkort_WstrOctEx_l( num, digits )
 end function
-function tkort_WstrOct_s alias "fb_WstrOct_s" ( byval num as ushort ) as wstring ptr
+function tkort_WstrOct_s alias "fb_WstrOct_s" ( byval num as uint16 ) as wstring ptr
 	return tkort_WstrOctEx_l( num, 0 )
 end function
 function tkort_WstrOctEx_i alias "fb_WstrOctEx_i" _
-	( byval num as ulong, byval digits as long ) as wstring ptr
+	( byval num as uint32, byval digits as int32 ) as wstring ptr
 	return tkort_WstrOctEx_l( num, digits )
 end function
-function tkort_WstrOct_i alias "fb_WstrOct_i" ( byval num as ulong ) as wstring ptr
+function tkort_WstrOct_i alias "fb_WstrOct_i" ( byval num as uint32 ) as wstring ptr
 	return tkort_WstrOctEx_l( num, 0 )
 end function
 
 '' ------------------------------------------------------------------- BIN
 
 function tkort_WstrBinEx_l alias "fb_WstrBinEx_l" _
-	( byval num as ulongint, byval digits as long ) as wstring ptr
+	( byval num as uint64, byval digits as int32 ) as wstring ptr
 	return hRadixW( num, digits, 1, 1, 0 )
 end function
-function tkort_WstrBin_l alias "fb_WstrBin_l" ( byval num as ulongint ) as wstring ptr
+function tkort_WstrBin_l alias "fb_WstrBin_l" ( byval num as uint64 ) as wstring ptr
 	return tkort_WstrBinEx_l( num, 0 )
 end function
 function tkort_WstrBinEx_b alias "fb_WstrBinEx_b" _
-	( byval num as ubyte, byval digits as long ) as wstring ptr
+	( byval num as uint8, byval digits as int32 ) as wstring ptr
 	return tkort_WstrBinEx_l( num, digits )
 end function
-function tkort_WstrBin_b alias "fb_WstrBin_b" ( byval num as ubyte ) as wstring ptr
+function tkort_WstrBin_b alias "fb_WstrBin_b" ( byval num as uint8 ) as wstring ptr
 	return tkort_WstrBinEx_l( num, 0 )
 end function
 function tkort_WstrBinEx_s alias "fb_WstrBinEx_s" _
-	( byval num as ushort, byval digits as long ) as wstring ptr
+	( byval num as uint16, byval digits as int32 ) as wstring ptr
 	return tkort_WstrBinEx_l( num, digits )
 end function
-function tkort_WstrBin_s alias "fb_WstrBin_s" ( byval num as ushort ) as wstring ptr
+function tkort_WstrBin_s alias "fb_WstrBin_s" ( byval num as uint16 ) as wstring ptr
 	return tkort_WstrBinEx_l( num, 0 )
 end function
 function tkort_WstrBinEx_i alias "fb_WstrBinEx_i" _
-	( byval num as ulong, byval digits as long ) as wstring ptr
+	( byval num as uint32, byval digits as int32 ) as wstring ptr
 	return tkort_WstrBinEx_l( num, digits )
 end function
-function tkort_WstrBin_i alias "fb_WstrBin_i" ( byval num as ulong ) as wstring ptr
+function tkort_WstrBin_i alias "fb_WstrBin_i" ( byval num as uint32 ) as wstring ptr
 	return tkort_WstrBinEx_l( num, 0 )
 end function
 
@@ -151,49 +151,49 @@ end function
 
 function tkort_WstrHex_p alias "fb_WstrHex_p" ( byval p as any ptr ) as wstring ptr
 	if( sizeof( any ptr ) = 8 ) then
-		return tkort_WstrHexEx_l( cast( ulongint, cast( uinteger, p ) ), 0 )
+		return tkort_WstrHexEx_l( cast( uint64, cast( uinteger, p ) ), 0 )
 	else
-		return tkort_WstrHexEx_i( cast( ulong, cast( uinteger, p ) ), 0 )
+		return tkort_WstrHexEx_i( cast( uint32, cast( uinteger, p ) ), 0 )
 	end if
 end function
 function tkort_WstrHexEx_p alias "fb_WstrHexEx_p" _
-	( byval p as any ptr, byval digits as long ) as wstring ptr
+	( byval p as any ptr, byval digits as int32 ) as wstring ptr
 	if( sizeof( any ptr ) = 8 ) then
-		return tkort_WstrHexEx_l( cast( ulongint, cast( uinteger, p ) ), digits )
+		return tkort_WstrHexEx_l( cast( uint64, cast( uinteger, p ) ), digits )
 	else
-		return tkort_WstrHexEx_i( cast( ulong, cast( uinteger, p ) ), digits )
+		return tkort_WstrHexEx_i( cast( uint32, cast( uinteger, p ) ), digits )
 	end if
 end function
 
 function tkort_WstrOct_p alias "fb_WstrOct_p" ( byval p as any ptr ) as wstring ptr
 	if( sizeof( any ptr ) = 8 ) then
-		return tkort_WstrOctEx_l( cast( ulongint, cast( uinteger, p ) ), 0 )
+		return tkort_WstrOctEx_l( cast( uint64, cast( uinteger, p ) ), 0 )
 	else
-		return tkort_WstrOctEx_i( cast( ulong, cast( uinteger, p ) ), 0 )
+		return tkort_WstrOctEx_i( cast( uint32, cast( uinteger, p ) ), 0 )
 	end if
 end function
 function tkort_WstrOctEx_p alias "fb_WstrOctEx_p" _
-	( byval p as any ptr, byval digits as long ) as wstring ptr
+	( byval p as any ptr, byval digits as int32 ) as wstring ptr
 	if( sizeof( any ptr ) = 8 ) then
-		return tkort_WstrOctEx_l( cast( ulongint, cast( uinteger, p ) ), digits )
+		return tkort_WstrOctEx_l( cast( uint64, cast( uinteger, p ) ), digits )
 	else
-		return tkort_WstrOctEx_i( cast( ulong, cast( uinteger, p ) ), digits )
+		return tkort_WstrOctEx_i( cast( uint32, cast( uinteger, p ) ), digits )
 	end if
 end function
 
 function tkort_WstrBin_p alias "fb_WstrBin_p" ( byval p as any ptr ) as wstring ptr
 	if( sizeof( any ptr ) = 8 ) then
-		return tkort_WstrBinEx_l( cast( ulongint, cast( uinteger, p ) ), 0 )
+		return tkort_WstrBinEx_l( cast( uint64, cast( uinteger, p ) ), 0 )
 	else
-		return tkort_WstrBinEx_i( cast( ulong, cast( uinteger, p ) ), 0 )
+		return tkort_WstrBinEx_i( cast( uint32, cast( uinteger, p ) ), 0 )
 	end if
 end function
 function tkort_WstrBinEx_p alias "fb_WstrBinEx_p" _
-	( byval p as any ptr, byval digits as long ) as wstring ptr
+	( byval p as any ptr, byval digits as int32 ) as wstring ptr
 	if( sizeof( any ptr ) = 8 ) then
-		return tkort_WstrBinEx_l( cast( ulongint, cast( uinteger, p ) ), digits )
+		return tkort_WstrBinEx_l( cast( uint64, cast( uinteger, p ) ), digits )
 	else
-		return tkort_WstrBinEx_i( cast( ulong, cast( uinteger, p ) ), digits )
+		return tkort_WstrBinEx_i( cast( uint32, cast( uinteger, p ) ), digits )
 	end if
 end function
 

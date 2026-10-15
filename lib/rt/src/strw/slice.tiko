@@ -125,7 +125,7 @@ function tkort_WstrSpace alias "fb_WstrSpace" ( byval chars as integer ) as wstr
 end function
 
 function tkort_WstrFill1 alias "fb_WstrFill1" _
-	( byval chars as integer, byval c as long ) as wstring ptr
+	( byval chars as integer, byval c as int32 ) as wstring ptr
 	if( chars <= 0 ) then return 0
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( chars )
 	if( dst <> 0 ) then
@@ -154,7 +154,7 @@ function tkort_WstrFill2 alias "fb_WstrFill2" _
 	'' NULs; the differential caught it on the one line where the two runtimes
 	'' disagreed. The identical mistake had already appeared in a test helper
 	'' earlier the same day, where it printed 0000 on BOTH sides and PASSED.
-	dim as long first_ = src[0]
+	dim as int32 first_ = src[0]
 	return tkort_WstrFill1( chars, first_ )
 end function
 
@@ -162,7 +162,7 @@ end function
 '' Linux this can exceed U+FFFF and on Windows it cannot, and a program that
 '' round-trips ASCW/CHRW is portable only within the BMP.
 function tkort_WstrAsc alias "fb_WstrAsc" _
-	( byval src as wstring ptr, byval pos_ as integer ) as ulong
+	( byval src as wstring ptr, byval pos_ as integer ) as uint32
 
 	if( src = 0 ) then return 0
 
@@ -238,7 +238,7 @@ end extern
 '' argument list with the wrong stride on every target.
 extern "c"   '' NON-FBCALL: fb_unicode.h declares fb_WstrChr without it.
 
-function tkort_WstrChr cdecl alias "fb_WstrChr" ( byval args as long, ... ) as wstring ptr
+function tkort_WstrChr cdecl alias "fb_WstrChr" ( byval args as int32, ... ) as wstring ptr
 
 	if( args <= 0 ) then return 0
 
@@ -248,7 +248,7 @@ function tkort_WstrChr cdecl alias "fb_WstrChr" ( byval args as long, ... ) as w
 	dim as cva_list ap = any
 	cva_start( ap, args )
 	for i as integer = 0 to args - 1
-		dst[i] = cva_arg( ap, long )
+		dst[i] = cva_arg( ap, int32 )
 	next
 	cva_end( ap )
 

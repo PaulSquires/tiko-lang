@@ -27,9 +27,9 @@
 #include once "inc/descriptors.ti"
 
 type TKORT_UCASE_RUN field = 1
-	as ushort lo
-	as ushort hi
-	as long   delta      '' C int32_t -- a delta, not a code unit
+	as uint16 lo
+	as uint16 hi
+	as int32   delta      '' C int32_t -- a delta, not a code unit
 end type
 
 dim shared as TKORT_UCASE_RUN tkort_ucase_upper( 0 to 667 ) = { _

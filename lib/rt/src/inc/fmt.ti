@@ -97,10 +97,10 @@
 #ifdef TKORT_MSVC
 	extern "c"   '' NON-FBCALL: these are libc, not rtlib entry points.
 		declare function tkrt_sprintf cdecl alias "sprintf" _
-			( byval s as zstring ptr, byval fmt as zstring ptr, ... ) as long
+			( byval s as zstring ptr, byval fmt as zstring ptr, ... ) as int32
 		declare function tkrt_ucrt_vsnprintf cdecl alias "__stdio_common_vsprintf" _
-			( byval options as ulongint, byval s as zstring ptr, byval n as uinteger, _
-			  byval fmt as zstring ptr, byval loc as any ptr, byval ap as cva_list ) as long
+			( byval options as uint64, byval s as zstring ptr, byval n as uinteger, _
+			  byval fmt as zstring ptr, byval loc as any ptr, byval ap as cva_list ) as int32
 	end extern
 
 	'' _CRT_INTERNAL_PRINTF_STANDARD_SNPRINTF_BEHAVIOR  (1 shl 1)
@@ -113,11 +113,11 @@
 	'' copy and none of them is an export -- the archive's symbol table is part
 	'' of the ABI contract and build/abidelta.sh checks it.
 	private function tkrt_snprintf cdecl _
-		( byval s as zstring ptr, byval n as uinteger, byval fmt as zstring ptr, ... ) as long
+		( byval s as zstring ptr, byval n as uinteger, byval fmt as zstring ptr, ... ) as int32
 
 		dim as cva_list ap = any
 		cva_start( ap, fmt )
-		dim as long r = tkrt_ucrt_vsnprintf( TKORT_UCRT_SNPRINTF_OPTS, s, n, fmt, 0, ap )
+		dim as int32 r = tkrt_ucrt_vsnprintf( TKORT_UCRT_SNPRINTF_OPTS, s, n, fmt, 0, ap )
 		cva_end( ap )
 		return r
 
@@ -126,17 +126,17 @@
 	extern "c"   '' NON-FBCALL: these are libc, not rtlib entry points.
 		'' sprintf -> MinGW.  snprintf -> MSVCRT.  Both verified above.
 		declare function tkrt_sprintf cdecl alias "__mingw_sprintf" _
-			( byval s as zstring ptr, byval fmt as zstring ptr, ... ) as long
+			( byval s as zstring ptr, byval fmt as zstring ptr, ... ) as int32
 		declare function tkrt_snprintf cdecl alias "snprintf" _
-			( byval s as zstring ptr, byval n as uinteger, byval fmt as zstring ptr, ... ) as long
+			( byval s as zstring ptr, byval n as uinteger, byval fmt as zstring ptr, ... ) as int32
 	end extern
 #else
 	extern "c"   '' NON-FBCALL: these are libc, not rtlib entry points.
 		'' glibc has one implementation and it is the C99 one.
 		declare function tkrt_sprintf cdecl alias "sprintf" _
-			( byval s as zstring ptr, byval fmt as zstring ptr, ... ) as long
+			( byval s as zstring ptr, byval fmt as zstring ptr, ... ) as int32
 		declare function tkrt_snprintf cdecl alias "snprintf" _
-			( byval s as zstring ptr, byval n as uinteger, byval fmt as zstring ptr, ... ) as long
+			( byval s as zstring ptr, byval n as uinteger, byval fmt as zstring ptr, ... ) as int32
 	end extern
 #endif
 

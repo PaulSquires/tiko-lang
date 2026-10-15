@@ -157,16 +157,16 @@ type FnProcessMouseEvent as sub cdecl ( byval ev as any ptr )
 
 extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
 	declare function w_PeekConsoleInputA stdcall alias "PeekConsoleInputA" _
-		( byval h as any ptr, byval buf as any ptr, byval n as ulong, byval got as ulong ptr ) as long
+		( byval h as any ptr, byval buf as any ptr, byval n as uint32, byval got as uint32 ptr ) as int32
 	declare function w_ReadConsoleInputA stdcall alias "ReadConsoleInputA" _
-		( byval h as any ptr, byval buf as any ptr, byval n as ulong, byval got as ulong ptr ) as long
+		( byval h as any ptr, byval buf as any ptr, byval n as uint32, byval got as uint32 ptr ) as int32
 	declare function w_WriteConsoleInputA stdcall alias "WriteConsoleInputA" _
-		( byval h as any ptr, byval buf as any ptr, byval n as ulong, byval wrote as ulong ptr ) as long
+		( byval h as any ptr, byval buf as any ptr, byval n as uint32, byval wrote as uint32 ptr ) as int32
 	declare function w_SetConsoleCtrlHandler stdcall alias "SetConsoleCtrlHandler" _
-		( byval handler as any ptr, byval add_ as long ) as long
+		( byval handler as any ptr, byval add_ as int32 ) as int32
 	declare function w_MapVirtualKeyA stdcall alias "MapVirtualKeyA" _
-		( byval code_ as ulong, byval maptype as ulong ) as ulong
-	declare function w_VkKeyScanA stdcall alias "VkKeyScanA" ( byval ch as byte ) as short
+		( byval code_ as uint32, byval maptype as uint32 ) as uint32
+	declare function w_VkKeyScanA stdcall alias "VkKeyScanA" ( byval ch as int8 ) as int16
 end extern
 
 '' ------------------------------------------------------------- the two tables
@@ -177,14 +177,14 @@ end extern
 '' stops translating the top of the keyboard.
 
 type TKORT_KEYCODES
-	as ushort value_normal
-	as ushort value_shift
-	as ushort value_ctrl
-	as ushort value_alt
+	as uint16 value_normal
+	as uint16 value_shift
+	as uint16 value_ctrl
+	as uint16 value_alt
 end type
 
 type TKORT_KEYLISTENTRY
-	as ushort        scan_code
+	as uint16        scan_code
 	as TKORT_KEYCODES codes
 end type
 
@@ -257,17 +257,17 @@ dim shared as TKORT_KEYCODES tkort_asc_key_codes( 0 to 88 ) = { _
 '' All file-local, all `static` in fbc. The INPUT_RECORDs are kept as raw bytes
 '' because the only things done with them are memcpy and WriteConsoleInput.
 
-dim shared as long      tkort_key_buffer( 0 to KEY_BUFFER_LEN_ - 1 )
+dim shared as int32      tkort_key_buffer( 0 to KEY_BUFFER_LEN_ - 1 )
 dim shared as uinteger  tkort_key_head = 0, tkort_key_tail = 0
-dim shared as ubyte     tkort_input_events( 0 to (KEY_BUFFER_LEN_ * IR_SIZE_) - 1 )
-dim shared as ulong     tkort_key_scratch_pad = 0
-dim shared as long      tkort_key_buffer_changed = 0
-dim shared as long      tkort_control_handler_inited = 0
+dim shared as uint8     tkort_input_events( 0 to (KEY_BUFFER_LEN_ * IR_SIZE_) - 1 )
+dim shared as uint32     tkort_key_scratch_pad = 0
+dim shared as int32      tkort_key_buffer_changed = 0
+dim shared as int32      tkort_control_handler_inited = 0
 
 '' console_has_focus STARTS TRUE. A program that never receives a FOCUS_EVENT --
 '' which is every program whose console it did not create -- must report focus,
 '' not the absence of it.
-dim shared as long      tkort_console_has_focus = 1
+dim shared as int32      tkort_console_has_focus = 1
 
 '' FORWARD DECLARATIONS OF THIS FILE'S OWN EXPORTS. The three call each other
 '' and are defined below the private helpers that use them, so they are declared
@@ -275,16 +275,16 @@ dim shared as long      tkort_console_has_focus = 1
 '' scope inherits the module's default convention and would take stdcall on
 '' win32. That trap has been sprung twice in this repo.
 extern "c"   '' NON-FBCALL: these three, whose definitions below say the same.
-	declare function tkort_hConsoleInputBufferChanged alias "fb_hConsoleInputBufferChanged" ( ) as long
-	declare function tkort_ConsoleProcessEvents alias "fb_ConsoleProcessEvents" ( ) as long
+	declare function tkort_hConsoleInputBufferChanged alias "fb_hConsoleInputBufferChanged" ( ) as int32
+	declare function tkort_ConsoleProcessEvents alias "fb_ConsoleProcessEvents" ( ) as int32
 	declare function tkort_hConsoleTranslateKey alias "fb_hConsoleTranslateKey" _
-		( byval AsciiChar as byte, byval wVsCode as ushort, byval wVkCode as ushort, _
-		  byval dwControlKeyState as ulong, byval bEnhancedKeysOnly as long ) as long
+		( byval AsciiChar as int8, byval wVsCode as uint16, byval wVkCode as uint16, _
+		  byval dwControlKeyState as uint32, byval bEnhancedKeysOnly as int32 ) as int32
 end extern
 
 #define KER_AT( i ) ( @tkort_input_events( (i) * IR_SIZE_ + IR_EVENT_ ) )
 
-private sub tkort_hConsolePostKey( byval key as long, byval pker as ubyte ptr )
+private sub tkort_hConsolePostKey( byval key as int32, byval pker as uint8 ptr )
 
 	TKORT_IOLOCK()
 
@@ -293,7 +293,7 @@ private sub tkort_hConsolePostKey( byval key as long, byval pker as ubyte ptr )
 	'' The record is stored whole, with its EventType stamped, so put-back can
 	'' hand it straight back to the console.
 	memcpy( KER_AT( tkort_key_tail ), pker, KER_SIZE_ )
-	*cptr( ushort ptr, @tkort_input_events( tkort_key_tail * IR_SIZE_ + IR_EVENTTYPE_ ) ) = KEY_EVENT_
+	*cptr( uint16 ptr, @tkort_input_events( tkort_key_tail * IR_SIZE_ + IR_EVENTTYPE_ ) ) = KEY_EVENT_
 
 	'' FULL MEANS DROP THE OLDEST -- see the file header.
 	if( ((tkort_key_tail + 1) and (KEY_BUFFER_LEN_ - 1)) = tkort_key_head ) then
@@ -308,16 +308,16 @@ end sub
 
 '' THE PEEK/GET PAIR ARE ONE FUNCTION. `full` decides whether an extended key is
 '' returned whole or split into two reads; `allow_remove` decides peek from get.
-private function tkort_hConsoleGetKeyEx( byval full as long, byval allow_remove as long ) as long
+private function tkort_hConsoleGetKeyEx( byval full as int32, byval allow_remove as int32 ) as int32
 
-	dim as long key = -1
+	dim as int32 key = -1
 
 	tkort_ConsoleProcessEvents( )
 
 	TKORT_IOLOCK()
 
 	if( tkort_key_head <> tkort_key_tail ) then
-		dim as long do_remove = allow_remove
+		dim as int32 do_remove = allow_remove
 		key = tkort_key_buffer( tkort_key_head )
 		if( key > 255 ) then
 			if( full = 0 ) then
@@ -347,15 +347,15 @@ end function
 
 '' ------------------------------------------------------- the key event decoder
 
-private sub tkort_hConsoleProcessKeyEvent( byval event_ as ubyte ptr )
+private sub tkort_hConsoleProcessKeyEvent( byval event_ as uint8 ptr )
 
-	dim as long KeyCode = any
-	dim as long ValidKeyStatus = any, ValidKeys = any, AddScratchPadKey = 0
-	dim as long bKeyDown = *cptr( long ptr, event_ + KER_KEYDOWN_ )
-	dim as ushort wVkCode = *cptr( ushort ptr, event_ + KER_VKCODE_ )
-	dim as ushort wVsCode = *cptr( ushort ptr, event_ + KER_VSCODE_ )
-	dim as byte   AsciiChar = *cptr( byte ptr, event_ + KER_UCHAR_ )
-	dim as ulong  ctrl = *cptr( ulong ptr, event_ + KER_CTRLSTATE_ )
+	dim as int32 KeyCode = any
+	dim as int32 ValidKeyStatus = any, ValidKeys = any, AddScratchPadKey = 0
+	dim as int32 bKeyDown = *cptr( int32 ptr, event_ + KER_KEYDOWN_ )
+	dim as uint16 wVkCode = *cptr( uint16 ptr, event_ + KER_VKCODE_ )
+	dim as uint16 wVsCode = *cptr( uint16 ptr, event_ + KER_VSCODE_ )
+	dim as int8   AsciiChar = *cptr( int8 ptr, event_ + KER_UCHAR_ )
+	dim as uint32  ctrl = *cptr( uint32 ptr, event_ + KER_CTRLSTATE_ )
 
 	if( bKeyDown <> 0 ) then
 		KeyCode = tkort_hConsoleTranslateKey( AsciiChar, wVsCode, wVkCode, ctrl, 0 )
@@ -365,9 +365,9 @@ private sub tkort_hConsoleProcessKeyEvent( byval event_ as ubyte ptr )
 
 	'' ALT DOWN AND NOTHING ELSE DOWN. Ctrl or Shift alongside ALT disqualifies
 	'' the combination entirely.
-	dim as long no_ctrl_shift = _
+	dim as int32 no_ctrl_shift = _
 		iif( (ctrl and (LEFT_CTRL_PRESSED_ or RIGHT_CTRL_PRESSED_ or SHIFT_PRESSED_)) = 0, 1, 0 )
-	dim as long alt_down = _
+	dim as int32 alt_down = _
 		iif( (ctrl and (LEFT_ALT_PRESSED_ or RIGHT_ALT_PRESSED_)) <> 0, 1, 0 )
 	ValidKeyStatus = iif( (no_ctrl_shift <> 0) andalso (alt_down <> 0), 1, 0 )
 
@@ -392,26 +392,26 @@ private sub tkort_hConsoleProcessKeyEvent( byval event_ as ubyte ptr )
 
 	if( AddScratchPadKey <> 0 ) then
 		'' SYNTHESISE A WHOLE RECORD -- see the file header.
-		dim as ubyte rec( 0 to KER_SIZE_ - 1 )
-		dim as byte chAsciiCode = cast( byte, tkort_key_scratch_pad and &hFF )
-		dim as short wVk = w_VkKeyScanA( chAsciiCode )
-		dim as ulong st = 0
+		dim as uint8 rec( 0 to KER_SIZE_ - 1 )
+		dim as int8 chAsciiCode = cast( int8, tkort_key_scratch_pad and &hFF )
+		dim as int16 wVk = w_VkKeyScanA( chAsciiCode )
+		dim as uint32 st = 0
 
 		memset( @rec(0), 0, KER_SIZE_ )
-		*cptr( byte ptr, @rec(KER_UCHAR_) ) = chAsciiCode
-		*cptr( ushort ptr, @rec(KER_VKCODE_) ) = cast( ushort, wVk and &hFF )
+		*cptr( int8 ptr, @rec(KER_UCHAR_) ) = chAsciiCode
+		*cptr( uint16 ptr, @rec(KER_VKCODE_) ) = cast( uint16, wVk and &hFF )
 
 		'' VkKeyScan returns the shift state in the SECOND byte: bit 8 shift,
 		'' bit 9 ctrl, bit 10 alt.
 		if( (wVk and &h100) <> 0 ) then st or= SHIFT_PRESSED_
 		if( (wVk and &h200) <> 0 ) then st or= LEFT_CTRL_PRESSED_
 		if( (wVk and &h400) <> 0 ) then st or= LEFT_ALT_PRESSED_
-		*cptr( ulong ptr, @rec(KER_CTRLSTATE_) ) = st
+		*cptr( uint32 ptr, @rec(KER_CTRLSTATE_) ) = st
 
-		*cptr( ushort ptr, @rec(KER_VSCODE_) ) = _
-			cast( ushort, w_MapVirtualKeyA( *cptr( ushort ptr, @rec(KER_VKCODE_) ), MAPVK_VK_TO_VSC_ ) )
+		*cptr( uint16 ptr, @rec(KER_VSCODE_) ) = _
+			cast( uint16, w_MapVirtualKeyA( *cptr( uint16 ptr, @rec(KER_VKCODE_) ), MAPVK_VK_TO_VSC_ ) )
 
-		tkort_hConsolePostKey( cast( long, tkort_key_scratch_pad and &hFF ), @rec(0) )
+		tkort_hConsolePostKey( cast( int32, tkort_key_scratch_pad and &hFF ), @rec(0) )
 		tkort_key_scratch_pad = 0
 	end if
 
@@ -422,17 +422,17 @@ end sub
 
 '' ---------------------------------------------------------- the ctrl handler
 
-private function tkort_hConsoleHandlerRoutine stdcall ( byval dwCtrlType as ulong ) as long
+private function tkort_hConsoleHandlerRoutine stdcall ( byval dwCtrlType as uint32 ) as int32
 
 	select case dwCtrlType
 	case CTRL_CLOSE_EVENT_, CTRL_LOGOFF_EVENT_, CTRL_SHUTDOWN_EVENT_
 		'' A CLOSE BECOMES Alt+F4 IN THE KEY QUEUE -- see the file header.
-		dim as ubyte rec( 0 to KER_SIZE_ - 1 )
+		dim as uint8 rec( 0 to KER_SIZE_ - 1 )
 		memset( @rec(0), 0, KER_SIZE_ )
-		*cptr( ushort ptr, @rec(KER_VKCODE_) ) = VK_F4_
-		*cptr( ulong ptr, @rec(KER_CTRLSTATE_) ) = LEFT_ALT_PRESSED_
-		*cptr( ushort ptr, @rec(KER_VSCODE_) ) = _
-			cast( ushort, w_MapVirtualKeyA( VK_F4_, MAPVK_VK_TO_VSC_ ) )
+		*cptr( uint16 ptr, @rec(KER_VKCODE_) ) = VK_F4_
+		*cptr( uint32 ptr, @rec(KER_CTRLSTATE_) ) = LEFT_ALT_PRESSED_
+		*cptr( uint16 ptr, @rec(KER_VSCODE_) ) = _
+			cast( uint16, w_MapVirtualKeyA( VK_F4_, MAPVK_VK_TO_VSC_ ) )
 		tkort_hConsolePostKey( KEY_QUIT_, @rec(0) )
 		return 1
 	end select
@@ -463,9 +463,9 @@ end sub
 extern "c"   '' NON-FBCALL: all seven are declared plain in
              '' win32/fb_private_console.h, and the archive agrees -- no @N.
 
-function tkort_hConsoleInputBufferChanged alias "fb_hConsoleInputBufferChanged" ( ) as long
+function tkort_hConsoleInputBufferChanged alias "fb_hConsoleInputBufferChanged" ( ) as int32
 
-	dim as long result_ = any
+	dim as int32 result_ = any
 
 	tkort_ConsoleProcessEvents( )
 
@@ -477,11 +477,11 @@ function tkort_hConsoleInputBufferChanged alias "fb_hConsoleInputBufferChanged" 
 	return result_
 end function
 
-function tkort_hConsoleGetKey alias "fb_hConsoleGetKey" ( byval full as long ) as long
+function tkort_hConsoleGetKey alias "fb_hConsoleGetKey" ( byval full as int32 ) as int32
 	return tkort_hConsoleGetKeyEx( full, 1 )
 end function
 
-function tkort_hConsolePeekKey alias "fb_hConsolePeekKey" ( byval full as long ) as long
+function tkort_hConsolePeekKey alias "fb_hConsolePeekKey" ( byval full as int32 ) as int32
 	return tkort_hConsoleGetKeyEx( full, 0 )
 end function
 
@@ -499,7 +499,7 @@ sub tkort_hConsolePutBackEvents alias "fb_hConsolePutBackEvents" ( )
 
 	key_idx = tkort_key_head
 	while( key_idx <> tkort_key_tail )
-		dim as ulong dwEventsWritten = 0
+		dim as uint32 dwEventsWritten = 0
 		'' AT MOST TWO RUNS, because the ring wraps. The test is against the
 		'' TAIL, not the head.
 		dim as uinteger count_ = iif( key_idx > tkort_key_tail, _
@@ -508,7 +508,7 @@ sub tkort_hConsolePutBackEvents alias "fb_hConsolePutBackEvents" ( )
 
 		w_WriteConsoleInputA( TKORT_IN_HANDLE(), _
 		                      @tkort_input_events( key_idx * IR_SIZE_ ), _
-		                      cast( ulong, count_ ), @dwEventsWritten )
+		                      cast( uint32, count_ ), @dwEventsWritten )
 
 		key_idx += count_
 		if( key_idx = KEY_BUFFER_LEN_ ) then key_idx = 0
@@ -517,17 +517,17 @@ sub tkort_hConsolePutBackEvents alias "fb_hConsolePutBackEvents" ( )
 	TKORT_IOUNLOCK()
 end sub
 
-function tkort_ConsoleHasFocus alias "fb_ConsoleHasFocus" ( ) as long
+function tkort_ConsoleHasFocus alias "fb_ConsoleHasFocus" ( ) as int32
 	return tkort_console_has_focus
 end function
 
 '' THE RETURN VALUE MEANS "A MOUSE EVENT WAS DISPATCHED", not "an event was
 '' read". Only fb_hConsolePutBackEvents looks at it.
-function tkort_ConsoleProcessEvents alias "fb_ConsoleProcessEvents" ( ) as long
+function tkort_ConsoleProcessEvents alias "fb_ConsoleProcessEvents" ( ) as int32
 
-	dim as long got_event = 0
-	dim as ubyte ir( 0 to IR_SIZE_ - 1 )
-	dim as ulong dwRead = any
+	dim as int32 got_event = 0
+	dim as uint8 ir( 0 to IR_SIZE_ - 1 )
+	dim as uint32 dwRead = any
 
 	tkort_hInitControlHandler( )
 
@@ -544,11 +544,11 @@ function tkort_ConsoleProcessEvents alias "fb_ConsoleProcessEvents" ( ) as long
 
 			TKORT_IOLOCK()
 
-			select case *cptr( ushort ptr, @ir(IR_EVENTTYPE_) )
+			select case *cptr( uint16 ptr, @ir(IR_EVENTTYPE_) )
 			case KEY_EVENT_
-				dim as ubyte ptr ker = @ir(IR_EVENT_)
-				dim as long down = *cptr( long ptr, ker + KER_KEYDOWN_ )
-				dim as ushort rep = *cptr( ushort ptr, ker + KER_REPEAT_ )
+				dim as uint8 ptr ker = @ir(IR_EVENT_)
+				dim as int32 down = *cptr( int32 ptr, ker + KER_KEYDOWN_ )
+				dim as uint16 rep = *cptr( uint16 ptr, ker + KER_REPEAT_ )
 
 				if( (down <> 0) andalso (rep <> 0) ) then
 					'' A REPEAT COUNT POSTS THE KEY THAT MANY TIMES.
@@ -571,7 +571,7 @@ function tkort_ConsoleProcessEvents alias "fb_ConsoleProcessEvents" ( ) as long
 				end if
 
 			case FOCUS_EVENT_
-				tkort_console_has_focus = *cptr( long ptr, @ir(IR_EVENT_) )
+				tkort_console_has_focus = *cptr( int32 ptr, @ir(IR_EVENT_) )
 			end select
 
 			TKORT_IOUNLOCK()
@@ -586,11 +586,11 @@ end function
 '' QB-compatible key code, or -1 when the key does not translate. See the file
 '' header for the rules -- they are not obvious from the control flow.
 function tkort_hConsoleTranslateKey alias "fb_hConsoleTranslateKey" _
-	( byval AsciiChar as byte, byval wVsCode as ushort, byval wVkCode as ushort, _
-	  byval dwControlKeyState as ulong, byval bEnhancedKeysOnly as long ) as long
+	( byval AsciiChar as int8, byval wVsCode as uint16, byval wVkCode as uint16, _
+	  byval dwControlKeyState as uint32, byval bEnhancedKeysOnly as int32 ) as int32
 
-	dim as long KeyCode = 0, AddKeyCode = 0
-	dim as long is_ext_code = iif( AsciiChar = 0, 1, 0 )
+	dim as int32 KeyCode = 0, AddKeyCode = 0
+	dim as int32 is_ext_code = iif( AsciiChar = 0, 1, 0 )
 
 	if( ((dwControlKeyState and ENHANCED_KEY_) <> 0) andalso (is_ext_code <> 0) ) then
 		'' THE TWELVE-ROW TABLE, matched on SCAN code.
@@ -616,8 +616,8 @@ function tkort_hConsoleTranslateKey alias "fb_hConsoleTranslateKey" _
 			end if
 		next
 	else
-		dim as ulong uiAsciiChar = cast( ulong, cast( ubyte, AsciiChar ) )
-		dim as ulong uiNormalKey = any, uiNormalKeyOtherCase = any
+		dim as uint32 uiAsciiChar = cast( uint32, cast( uint8, AsciiChar ) )
+		dim as uint32 uiNormalKey = any, uiNormalKeyOtherCase = any
 
 		'' INDEXED BY SCAN CODE, with the bounds test that makes the table's
 		'' length part of the contract.
@@ -627,10 +627,10 @@ function tkort_hConsoleTranslateKey alias "fb_hConsoleTranslateKey" _
 			uiNormalKey = w_MapVirtualKeyA( wVkCode, MAPVK_VK_TO_CHAR_ ) and &hFFFF
 			'' THE CRT's isupper/tolower, on an argument that can exceed 255 --
 			'' see the file header on why they are not reimplemented.
-			if( isupper( cast( long, uiNormalKey ) ) <> 0 ) then
-				uiNormalKeyOtherCase = cast( ulong, tolower( cast( long, uiNormalKey ) ) )
-			elseif( islower( cast( long, uiNormalKey ) ) <> 0 ) then
-				uiNormalKeyOtherCase = cast( ulong, toupper( cast( long, uiNormalKey ) ) )
+			if( isupper( cast( int32, uiNormalKey ) ) <> 0 ) then
+				uiNormalKeyOtherCase = cast( uint32, tolower( cast( int32, uiNormalKey ) ) )
+			elseif( islower( cast( int32, uiNormalKey ) ) <> 0 ) then
+				uiNormalKeyOtherCase = cast( uint32, toupper( cast( int32, uiNormalKey ) ) )
 			else
 				uiNormalKeyOtherCase = uiNormalKey
 			end if
@@ -645,15 +645,15 @@ function tkort_hConsoleTranslateKey alias "fb_hConsoleTranslateKey" _
 				if( uiAsciiChar = 0 ) then
 					KeyCode = codes->value_normal
 				else
-					KeyCode = cast( long, uiNormalKey )
+					KeyCode = cast( int32, uiNormalKey )
 				end if
 			end if
 
 			'' ACCEPTED ONLY IF EXTENDED **AND** THE ASCII AGREES WITH THE
 			'' LAYOUT. The second half is what lets AltGr combinations through
 			'' untranslated -- see the file header.
-			dim as long is_ext = iif( KeyCode > 255, 1, 0 )
-			dim as long agrees = iif( (uiAsciiChar = uiNormalKey) orelse _
+			dim as int32 is_ext = iif( KeyCode > 255, 1, 0 )
+			dim as int32 agrees = iif( (uiAsciiChar = uiNormalKey) orelse _
 			                          (uiAsciiChar = uiNormalKeyOtherCase), 1, 0 )
 			AddKeyCode = iif( (is_ext <> 0) andalso (agrees <> 0), 1, 0 )
 		end if
@@ -661,7 +661,7 @@ function tkort_hConsoleTranslateKey alias "fb_hConsoleTranslateKey" _
 		if( (AddKeyCode = 0) andalso (bEnhancedKeysOnly = 0) ) then
 			if( is_ext_code = 0 ) then
 				'' A plain character is simply itself.
-				KeyCode = cast( long, uiAsciiChar )
+				KeyCode = cast( int32, uiAsciiChar )
 				AddKeyCode = 1
 			end if
 		end if
@@ -695,12 +695,12 @@ end extern
 '' a program that installed one gets its own answer here too.
 
 extern "rtlib"
-	declare function tkrt_KeyHit2 alias "fb_KeyHit" ( ) as long
+	declare function tkrt_KeyHit2 alias "fb_KeyHit" ( ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: declared plain in fb_private_console.h.
 
-function tkort_hConsoleInputBufferChanged alias "fb_hConsoleInputBufferChanged" ( ) as long
+function tkort_hConsoleInputBufferChanged alias "fb_hConsoleInputBufferChanged" ( ) as int32
 	return tkrt_KeyHit2( )
 end function
 

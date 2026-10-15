@@ -26,7 +26,7 @@ extern "rtlib"
 	declare function fb_hStrAllocTemp_NoLock alias "fb_hStrAllocTemp_NoLock" _
 		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
 	declare function tkrt_DelTempNoLock alias "fb_hStrDelTemp_NoLock" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 	declare sub fb_StrLock alias "fb_StrLock" ( )
 	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
 end extern
@@ -42,7 +42,7 @@ end extern
 extern "rtlib"
 
 function tkort_StrLcase2 alias "fb_StrLcase2" _
-	( byval src as FBSTRING ptr, byval mode as long ) as FBSTRING ptr
+	( byval src as FBSTRING ptr, byval mode as int32 ) as FBSTRING ptr
 
 	if( src = 0 ) then return TKORT_NULLSTR( )
 
@@ -63,15 +63,15 @@ function tkort_StrLcase2 alias "fb_StrLcase2" _
 		'' answers for every byte above 127 and the differential caught it on
 		'' the high-byte case. The mode-1 range tests are unaffected either way,
 		'' because a negative value fails both bounds just as 200 does.
-		dim as byte ptr s = cptr( byte ptr, src->data )
-		dim as ubyte ptr d = cptr( ubyte ptr, dst->data )
-		dim as long c = any
+		dim as int8 ptr s = cptr( int8 ptr, src->data )
+		dim as uint8 ptr d = cptr( uint8 ptr, dst->data )
+		dim as int32 c = any
 
 		if( mode = 1 ) then
 			for i as integer = 0 to length - 1
 				c = s[i]
 				if( (c >= 65) andalso (c <= 90) ) then c += (97 - 65)
-				d[i] = cast( ubyte, c )
+				d[i] = cast( uint8, c )
 			next
 		else
 			for i as integer = 0 to length - 1
@@ -98,10 +98,10 @@ function tkort_StrLcase2 alias "fb_StrLcase2" _
 			'' THE SOURCE IS STILL READ SIGNED, which is what makes the EOF case
 			'' reachable at all and is measured in the note above.
 				if( c <> -1 ) then
-					dim as long uc = c and &hFF
+					dim as int32 uc = c and &hFF
 					if( isupper( uc ) ) then c = tolower( uc )
 				end if
-				d[i] = cast( ubyte, c )
+				d[i] = cast( uint8, c )
 			next
 		end if
 

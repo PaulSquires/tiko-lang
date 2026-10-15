@@ -53,10 +53,10 @@ const UTF16_HALFBASE       = &h00010000u
 const UTF16_HALFMASK       = &h000003FFu
 
 type TKORT_UTF8_TRAILING
-	as byte v( 0 to 255 )
+	as int8 v( 0 to 255 )
 end type
 type TKORT_UTF8_OFFSETS
-	as ulong v( 0 to 5 )
+	as uint32 v( 0 to 5 )
 end type
 
 extern "c"   '' NON-FBCALL: the tables live in utf/core.tiko, and the three
@@ -111,12 +111,12 @@ extern "c"   '' NON-FBCALL: fb_file.h declares fb_UTFToWChar plainly.
 
 '' ----------------------------------------------------------- WCHAR is UTF-16
 
-private function hUTF8ToUTF16( byval src as ubyte ptr, byval dst as ushort ptr, _
-                               byval chars as integer ptr ) as ushort ptr
+private function hUTF8ToUTF16( byval src as uint8 ptr, byval dst as uint16 ptr, _
+                               byval chars as integer ptr ) as uint16 ptr
 
-	dim as ulong c = any
+	dim as uint32 c = any
 	dim as integer charsleft = any
-	dim as ushort ptr buffer = dst
+	dim as uint16 ptr buffer = dst
 
 	if( dst = 0 ) then
 		dim as integer dst_size = 0
@@ -131,7 +131,7 @@ private function hUTF8ToUTF16( byval src as ubyte ptr, byval dst as ushort ptr, 
 				dst_size -= charsleft
 				charsleft = TKORT_UTF_GROW
 				dst_size += charsleft
-				dim as ushort ptr nb = cptr( ushort ptr, realloc( buffer, dst_size * 2 ) )
+				dim as uint16 ptr nb = cptr( uint16 ptr, realloc( buffer, dst_size * 2 ) )
 				if( nb = 0 ) then
 					free( buffer )
 					return 0
@@ -141,11 +141,11 @@ private function hUTF8ToUTF16( byval src as ubyte ptr, byval dst as ushort ptr, 
 			end if
 
 			if( c <= UTF16_MAX_BMP ) then
-				*dst = cast( ushort, c ) : dst += 1
+				*dst = cast( uint16, c ) : dst += 1
 			else
 				c -= UTF16_HALFBASE
-				*dst = cast( ushort, (c shr UTF16_HALFSHIFT) + UTF16_SUR_HIGH_START ) : dst += 1
-				*dst = cast( ushort, (c and UTF16_HALFMASK) + UTF16_SUR_LOW_START ) : dst += 1
+				*dst = cast( uint16, (c shr UTF16_HALFSHIFT) + UTF16_SUR_HIGH_START ) : dst += 1
+				*dst = cast( uint16, (c and UTF16_HALFMASK) + UTF16_SUR_LOW_START ) : dst += 1
 				charsleft -= 1
 			end if
 
@@ -160,14 +160,14 @@ private function hUTF8ToUTF16( byval src as ubyte ptr, byval dst as ushort ptr, 
 			TKORT_UTF8_DECODE( src, c )
 
 			if( c <= UTF16_MAX_BMP ) then
-				*dst = cast( ushort, c ) : dst += 1
+				*dst = cast( uint16, c ) : dst += 1
 			else
 				c -= UTF16_HALFBASE
-				*dst = cast( ushort, (c shr UTF16_HALFSHIFT) + UTF16_SUR_HIGH_START ) : dst += 1
+				*dst = cast( uint16, (c shr UTF16_HALFSHIFT) + UTF16_SUR_HIGH_START ) : dst += 1
 				'' WITH ONE UNIT LEFT THE PAIR IS TRUNCATED, leaving an unpaired
 				'' high surrogate -- see the file header.
 				if( charsleft > 1 ) then
-					*dst = cast( ushort, (c and UTF16_HALFMASK) + UTF16_SUR_LOW_START ) : dst += 1
+					*dst = cast( uint16, (c and UTF16_HALFMASK) + UTF16_SUR_LOW_START ) : dst += 1
 					charsleft -= 1
 				end if
 			end if
@@ -184,8 +184,8 @@ end function
 
 '' UTF-16 IN, UTF-16 OUT: a copy, but the LENGTH still has to be found, and in
 '' fill mode it is bounded by the caller's size.
-private function hUTF16ToUTF16( byval src as ushort ptr, byval dst as ushort ptr, _
-                                byval chars as integer ptr ) as ushort ptr
+private function hUTF16ToUTF16( byval src as uint16 ptr, byval dst as uint16 ptr, _
+                                byval chars as integer ptr ) as uint16 ptr
 
 	dim as integer l = 0
 
@@ -193,7 +193,7 @@ private function hUTF16ToUTF16( byval src as ushort ptr, byval dst as ushort ptr
 		while( src[l] <> 0 )
 			l += 1
 		wend
-		dst = cptr( ushort ptr, malloc( (l + 1) * 2 ) )
+		dst = cptr( uint16 ptr, malloc( (l + 1) * 2 ) )
 		if( dst = 0 ) then return 0
 		memcpy( dst, src, (l + 1) * 2 )
 	else
@@ -211,12 +211,12 @@ end function
 
 '' UTF-32 IN, UTF-16 OUT: the one direction that can GROW, because a code point
 '' above the BMP becomes two units.
-private function hUTF32ToUTF16( byval src as ulong ptr, byval dst as ushort ptr, _
-                                byval chars as integer ptr ) as ushort ptr
+private function hUTF32ToUTF16( byval src as uint32 ptr, byval dst as uint16 ptr, _
+                                byval chars as integer ptr ) as uint16 ptr
 
-	dim as ulong c = any
+	dim as uint32 c = any
 	dim as integer charsleft = any
-	dim as ushort ptr buffer = dst
+	dim as uint16 ptr buffer = dst
 
 	if( dst = 0 ) then
 		dim as integer dst_size = 0
@@ -228,7 +228,7 @@ private function hUTF32ToUTF16( byval src as ulong ptr, byval dst as ushort ptr,
 				dst_size -= charsleft
 				charsleft = TKORT_UTF_GROW
 				dst_size += charsleft
-				dim as ushort ptr nb = cptr( ushort ptr, realloc( buffer, dst_size * 2 ) )
+				dim as uint16 ptr nb = cptr( uint16 ptr, realloc( buffer, dst_size * 2 ) )
 				if( nb = 0 ) then
 					free( buffer )
 					return 0
@@ -239,12 +239,12 @@ private function hUTF32ToUTF16( byval src as ulong ptr, byval dst as ushort ptr,
 
 			if( c > UTF16_MAX_BMP ) then
 				c -= UTF16_HALFBASE
-				*dst = cast( ushort, (c shr UTF16_HALFSHIFT) + UTF16_SUR_HIGH_START ) : dst += 1
+				*dst = cast( uint16, (c shr UTF16_HALFSHIFT) + UTF16_SUR_HIGH_START ) : dst += 1
 				c = (c and UTF16_HALFMASK) + UTF16_SUR_LOW_START
 				charsleft -= 1
 			end if
 
-			*dst = cast( ushort, c ) : dst += 1
+			*dst = cast( uint16, c ) : dst += 1
 
 			if( c = 0 ) then exit do
 			charsleft -= 1
@@ -259,13 +259,13 @@ private function hUTF32ToUTF16( byval src as ulong ptr, byval dst as ushort ptr,
 			if( c > UTF16_MAX_BMP ) then
 				c -= UTF16_HALFBASE
 				if( charsleft > 1 ) then
-					*dst = cast( ushort, (c shr UTF16_HALFSHIFT) + UTF16_SUR_HIGH_START ) : dst += 1
+					*dst = cast( uint16, (c shr UTF16_HALFSHIFT) + UTF16_SUR_HIGH_START ) : dst += 1
 					charsleft -= 1
 				end if
 				c = (c and UTF16_HALFMASK) + UTF16_SUR_LOW_START
 			end if
 
-			*dst = cast( ushort, c ) : dst += 1
+			*dst = cast( uint16, c ) : dst += 1
 
 			if( c = 0 ) then exit while
 			charsleft -= 1
@@ -281,12 +281,12 @@ end function
 
 '' ----------------------------------------------------------- WCHAR is UTF-32
 
-private function hUTF8ToUTF32( byval src as ubyte ptr, byval dst as ulong ptr, _
-                               byval chars as integer ptr ) as ulong ptr
+private function hUTF8ToUTF32( byval src as uint8 ptr, byval dst as uint32 ptr, _
+                               byval chars as integer ptr ) as uint32 ptr
 
-	dim as ulong c = any
+	dim as uint32 c = any
 	dim as integer charsleft = any
-	dim as ulong ptr buffer = dst
+	dim as uint32 ptr buffer = dst
 
 	if( dst = 0 ) then
 		dim as integer dst_size = 0
@@ -299,7 +299,7 @@ private function hUTF8ToUTF32( byval src as ubyte ptr, byval dst as ulong ptr, _
 			if( charsleft = 0 ) then
 				charsleft = TKORT_UTF_GROW
 				dst_size += charsleft
-				dim as ulong ptr nb = cptr( ulong ptr, realloc( buffer, dst_size * 4 ) )
+				dim as uint32 ptr nb = cptr( uint32 ptr, realloc( buffer, dst_size * 4 ) )
 				if( nb = 0 ) then
 					free( buffer )
 					return 0
@@ -332,12 +332,12 @@ end function
 
 '' UTF-16 IN, UTF-32 OUT: pairs COMBINE, so the output is never longer than the
 '' input and the buffer never has to grow past the first estimate.
-private function hUTF16ToUTF32( byval src as ushort ptr, byval dst as ulong ptr, _
-                                byval chars as integer ptr ) as ulong ptr
+private function hUTF16ToUTF32( byval src as uint16 ptr, byval dst as uint32 ptr, _
+                                byval chars as integer ptr ) as uint32 ptr
 
-	dim as ulong c = any
+	dim as uint32 c = any
 	dim as integer charsleft = any
-	dim as ulong ptr buffer = dst
+	dim as uint32 ptr buffer = dst
 
 	if( dst = 0 ) then
 		dim as integer dst_size = 0
@@ -346,14 +346,14 @@ private function hUTF16ToUTF32( byval src as ushort ptr, byval dst as ulong ptr,
 			c = (*src) and &h0000FFFFu : src += 1
 			if( (c >= UTF16_SUR_HIGH_START) andalso (c <= UTF16_SUR_HIGH_END) ) then
 				c = ((c - UTF16_SUR_HIGH_START) shl UTF16_HALFSHIFT) + _
-				    (cast( ulong, *src ) - UTF16_SUR_LOW_START) + UTF16_HALFBASE
+				    (cast( uint32, *src ) - UTF16_SUR_LOW_START) + UTF16_HALFBASE
 				src += 1
 			end if
 
 			if( charsleft = 0 ) then
 				charsleft = TKORT_UTF_GROW
 				dst_size += charsleft
-				dim as ulong ptr nb = cptr( ulong ptr, realloc( buffer, dst_size * 4 ) )
+				dim as uint32 ptr nb = cptr( uint32 ptr, realloc( buffer, dst_size * 4 ) )
 				if( nb = 0 ) then
 					free( buffer )
 					return 0
@@ -375,7 +375,7 @@ private function hUTF16ToUTF32( byval src as ushort ptr, byval dst as ulong ptr,
 			c = (*src) and &h0000FFFFu : src += 1
 			if( (c >= UTF16_SUR_HIGH_START) andalso (c <= UTF16_SUR_HIGH_END) ) then
 				c = ((c - UTF16_SUR_HIGH_START) shl UTF16_HALFSHIFT) + _
-				    (cast( ulong, *src ) - UTF16_SUR_LOW_START) + UTF16_HALFBASE
+				    (cast( uint32, *src ) - UTF16_SUR_LOW_START) + UTF16_HALFBASE
 				src += 1
 			end if
 
@@ -391,8 +391,8 @@ private function hUTF16ToUTF32( byval src as ushort ptr, byval dst as ulong ptr,
 	return buffer
 end function
 
-private function hUTF32ToUTF32( byval src as ulong ptr, byval dst as ulong ptr, _
-                                byval chars as integer ptr ) as ulong ptr
+private function hUTF32ToUTF32( byval src as uint32 ptr, byval dst as uint32 ptr, _
+                                byval chars as integer ptr ) as uint32 ptr
 
 	dim as integer l = 0
 
@@ -400,7 +400,7 @@ private function hUTF32ToUTF32( byval src as ulong ptr, byval dst as ulong ptr, 
 		while( src[l] <> 0 )
 			l += 1
 		wend
-		dst = cptr( ulong ptr, malloc( (l + 1) * 4 ) )
+		dst = cptr( uint32 ptr, malloc( (l + 1) * 4 ) )
 		if( dst = 0 ) then return 0
 		memcpy( dst, src, (l + 1) * 4 )
 	else
@@ -423,26 +423,26 @@ end function
 '' FB_FILE_ENCOD_ASCII lands here too, because a narrow file never reaches this
 '' path at all.
 function tkort_UTFToWChar alias "fb_UTFToWChar" _
-	( byval encod as long, byval src as any ptr, byval dst as wstring ptr, _
+	( byval encod as int32, byval src as any ptr, byval dst as wstring ptr, _
 	  byval chars as integer ptr ) as wstring ptr
 
 	#ifdef TKORT_WCHAR_IS_UTF16
 		select case encod
 		case FB_FILE_ENCOD_UTF8
-			return cptr( wstring ptr, hUTF8ToUTF16( src, cptr( ushort ptr, dst ), chars ) )
+			return cptr( wstring ptr, hUTF8ToUTF16( src, cptr( uint16 ptr, dst ), chars ) )
 		case FB_FILE_ENCOD_UTF16
-			return cptr( wstring ptr, hUTF16ToUTF16( src, cptr( ushort ptr, dst ), chars ) )
+			return cptr( wstring ptr, hUTF16ToUTF16( src, cptr( uint16 ptr, dst ), chars ) )
 		case FB_FILE_ENCOD_UTF32
-			return cptr( wstring ptr, hUTF32ToUTF16( src, cptr( ushort ptr, dst ), chars ) )
+			return cptr( wstring ptr, hUTF32ToUTF16( src, cptr( uint16 ptr, dst ), chars ) )
 		end select
 	#else
 		select case encod
 		case FB_FILE_ENCOD_UTF8
-			return cptr( wstring ptr, hUTF8ToUTF32( src, cptr( ulong ptr, dst ), chars ) )
+			return cptr( wstring ptr, hUTF8ToUTF32( src, cptr( uint32 ptr, dst ), chars ) )
 		case FB_FILE_ENCOD_UTF16
-			return cptr( wstring ptr, hUTF16ToUTF32( src, cptr( ulong ptr, dst ), chars ) )
+			return cptr( wstring ptr, hUTF16ToUTF32( src, cptr( uint32 ptr, dst ), chars ) )
 		case FB_FILE_ENCOD_UTF32
-			return cptr( wstring ptr, hUTF32ToUTF32( src, cptr( ulong ptr, dst ), chars ) )
+			return cptr( wstring ptr, hUTF32ToUTF32( src, cptr( uint32 ptr, dst ), chars ) )
 		end select
 	#endif
 

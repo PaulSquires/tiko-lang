@@ -40,18 +40,18 @@ end type
 
 extern "c"   '' NON-FBCALL: the msvcrt thread starter, not an rtlib entry point.
 	declare function c_beginthreadex alias "_beginthreadex" _
-		( byval sec as any ptr, byval stack as ulong, byval proc_ as any ptr, _
-		  byval arg as any ptr, byval flags as ulong, byval tid as ulong ptr ) as uinteger
+		( byval sec as any ptr, byval stack as uint32, byval proc_ as any ptr, _
+		  byval arg as any ptr, byval flags as uint32, byval tid as uint32 ptr ) as uinteger
 end extern
 
 '' The proxy. stdcall, because that is what _beginthreadex expects on win32 and
 '' what WINAPI expands to; on win64 the convention is the same for every call so
 '' the annotation is free.
-private function hThreadProc stdcall ( byval param as any ptr ) as ulong
+private function hThreadProc stdcall ( byval param as any ptr ) as uint32
 	dim as FBTHREADINFO ptr info = param
 	dim as FBTHREAD ptr thread = info->thread
 	dim as FB_FBTHREADCTX ptr ctx = any
-	dim as long flags = any
+	dim as int32 flags = any
 
 	ctx = TKORT_TLSGET_FBTHREAD()
 	if( ctx <> 0 ) then ctx->self_ = thread
@@ -76,7 +76,7 @@ function tkort_ThreadCreate alias "fb_ThreadCreate" _
 
 	dim as FBTHREAD ptr thread = any
 	dim as FBTHREADINFO ptr info = any
-	dim as ulong thrdaddr = any
+	dim as uint32 thrdaddr = any
 
 	thread = malloc( sizeof( FBTHREAD ) )
 	if( thread = 0 ) then return 0
@@ -94,7 +94,7 @@ function tkort_ThreadCreate alias "fb_ThreadCreate" _
 
 	'' The last argument cannot be NULL or the call fails on Windows 9x, which
 	'' is why fbc passes a scratch variable it never reads.
-	thread->id = cast( any ptr, c_beginthreadex( 0, cast( ulong, stack_size ), _
+	thread->id = cast( any ptr, c_beginthreadex( 0, cast( uint32, stack_size ), _
 		cast( any ptr, @hThreadProc ), info, 0, @thrdaddr ) )
 
 	if( thread->id = 0 ) then
@@ -135,7 +135,7 @@ private function hThreadProc cdecl ( byval param as any ptr ) as any ptr
 	dim as FBTHREADINFO ptr info = param
 	dim as FBTHREAD ptr thread = info->thread
 	dim as FB_FBTHREADCTX ptr ctx = any
-	dim as long flags = any
+	dim as int32 flags = any
 
 	ctx = TKORT_TLSGET_FBTHREAD()
 	if( ctx <> 0 ) then ctx->self_ = thread
@@ -162,7 +162,7 @@ function tkort_ThreadCreate alias "fb_ThreadCreate" _
 
 	dim as FBTHREAD ptr thread = any
 	dim as FBTHREADINFO ptr info = any
-	dim as ubyte attr( 0 to TKORT_PTHREAD_ATTR_SIZE - 1 ) = any
+	dim as uint8 attr( 0 to TKORT_PTHREAD_ATTR_SIZE - 1 ) = any
 	dim as uinteger want = cast( uinteger, stack_size )
 
 	thread = malloc( sizeof( FBTHREAD ) )

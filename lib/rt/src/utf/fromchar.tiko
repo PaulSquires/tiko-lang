@@ -23,11 +23,11 @@
 extern "c"   '' NON-FBCALL: fb_file.h declares both of these plain.
 
 declare sub tkrt_CharToUTF8 alias "fb_hCharToUTF8" _
-	( byval src as ubyte ptr, byval chars as integer, _
-	  byval dst as ubyte ptr, byval total_bytes as integer ptr )
+	( byval src as uint8 ptr, byval chars as integer, _
+	  byval dst as uint8 ptr, byval total_bytes as integer ptr )
 
-private function hToUTF8( byval src as ubyte ptr, byval chars as integer, _
-                          byval dst as ubyte ptr, byval bytes_ as integer ptr ) as ubyte ptr
+private function hToUTF8( byval src as uint8 ptr, byval chars as integer, _
+                          byval dst as uint8 ptr, byval bytes_ as integer ptr ) as uint8 ptr
 	if( chars > 0 ) then
 		if( dst = 0 ) then
 			'' chars * 2: the worst case for a single byte, exactly.
@@ -44,21 +44,21 @@ end function
 
 '' LITTLE-ENDIAN ONLY, and fbc says so in a FIXME. The units are stored with a
 '' plain assignment, so the byte order is the host's.
-private function hToUTF16( byval src as ubyte ptr, byval chars as integer, _
-                           byval dst as ubyte ptr, byval bytes_ as integer ptr ) as ubyte ptr
-	dim as ushort ptr p = any
+private function hToUTF16( byval src as uint8 ptr, byval chars as integer, _
+                           byval dst as uint8 ptr, byval bytes_ as integer ptr ) as uint8 ptr
+	dim as uint16 ptr p = any
 
 	'' Computed BEFORE the allocation can fail, and left set even then.
-	*bytes_ = chars * sizeof( ushort )
+	*bytes_ = chars * sizeof( uint16 )
 
 	if( chars > 0 ) then
 		if( dst = 0 ) then
-			dst = malloc( chars * sizeof( ushort ) )
+			dst = malloc( chars * sizeof( uint16 ) )
 			if( dst = 0 ) then return 0
 		end if
 	end if
 
-	p = cptr( ushort ptr, dst )
+	p = cptr( uint16 ptr, dst )
 	while( chars > 0 )
 		'' Read as UNSIGNED: a signed char would sign-extend 0x80-0xFF into
 		'' 0xFF80-0xFFFF instead of 0x0080-0x00FF.
@@ -69,20 +69,20 @@ private function hToUTF16( byval src as ubyte ptr, byval chars as integer, _
 	return dst
 end function
 
-private function hToUTF32( byval src as ubyte ptr, byval chars as integer, _
-                           byval dst as ubyte ptr, byval bytes_ as integer ptr ) as ubyte ptr
-	dim as ulong ptr p = any
+private function hToUTF32( byval src as uint8 ptr, byval chars as integer, _
+                           byval dst as uint8 ptr, byval bytes_ as integer ptr ) as uint8 ptr
+	dim as uint32 ptr p = any
 
-	*bytes_ = chars * sizeof( ulong )
+	*bytes_ = chars * sizeof( uint32 )
 
 	if( chars > 0 ) then
 		if( dst = 0 ) then
-			dst = malloc( chars * sizeof( ulong ) )
+			dst = malloc( chars * sizeof( uint32 ) )
 			if( dst = 0 ) then return 0
 		end if
 	end if
 
-	p = cptr( ulong ptr, dst )
+	p = cptr( uint32 ptr, dst )
 	while( chars > 0 )
 		*p = *src : p += 1 : src += 1
 		chars -= 1
@@ -95,8 +95,8 @@ end function
 '' every path above, which always sets it. A caller that ignores the NULL reads
 '' whatever was in its own variable.
 function tkort_CharToUTF alias "fb_CharToUTF" _
-	( byval encod as long, byval src as ubyte ptr, byval chars as integer, _
-	  byval dst as ubyte ptr, byval bytes_ as integer ptr ) as ubyte ptr
+	( byval encod as int32, byval src as uint8 ptr, byval chars as integer, _
+	  byval dst as uint8 ptr, byval bytes_ as integer ptr ) as uint8 ptr
 
 	select case encod
 	case FB_FILE_ENCOD_UTF8

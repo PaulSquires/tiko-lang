@@ -43,33 +43,33 @@
 
 '' Owned by tiko-rt already, in io/viewhlp.tiko.
 extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
-	declare sub tkrt_ConsoleGetView alias "fb_ConsoleGetView" ( byval top_ as long ptr, byval bot as long ptr )
-	declare function tkrt_ConsoleGetTopRow alias "fb_ConsoleGetTopRow" ( ) as long
-	declare function tkrt_ConsoleGetBotRow alias "fb_ConsoleGetBotRow" ( ) as long
-	declare sub tkrt_ConsoleSetTopBotRows alias "fb_ConsoleSetTopBotRows" ( byval t as long, byval b as long )
+	declare sub tkrt_ConsoleGetView alias "fb_ConsoleGetView" ( byval top_ as int32 ptr, byval bot as int32 ptr )
+	declare function tkrt_ConsoleGetTopRow alias "fb_ConsoleGetTopRow" ( ) as int32
+	declare function tkrt_ConsoleGetBotRow alias "fb_ConsoleGetBotRow" ( ) as int32
+	declare sub tkrt_ConsoleSetTopBotRows alias "fb_ConsoleSetTopBotRows" ( byval t as int32, byval b as int32 )
 end extern
 
 
 '' Owned by tiko-rt already, in io/conquery.tiko. Declared with the SAME
 '' convention each one actually has -- the four FBCALL ones and the rest cdecl.
 extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
-	declare function tkrt_ConsoleGetX alias "fb_ConsoleGetX" ( ) as long
-	declare function tkrt_ConsoleGetY alias "fb_ConsoleGetY" ( ) as long
-	declare function tkrt_ConsoleGetMaxRow alias "fb_ConsoleGetMaxRow" ( ) as long
+	declare function tkrt_ConsoleGetX alias "fb_ConsoleGetX" ( ) as int32
+	declare function tkrt_ConsoleGetY alias "fb_ConsoleGetY" ( ) as int32
+	declare function tkrt_ConsoleGetMaxRow alias "fb_ConsoleGetMaxRow" ( ) as int32
 #if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
-	declare function tkrt_ConsoleGetRawXEx alias "fb_ConsoleGetRawXEx" ( byval h as any ptr ) as long
-	declare function tkrt_ConsoleGetRawYEx alias "fb_ConsoleGetRawYEx" ( byval h as any ptr ) as long
+	declare function tkrt_ConsoleGetRawXEx alias "fb_ConsoleGetRawXEx" ( byval h as any ptr ) as int32
+	declare function tkrt_ConsoleGetRawYEx alias "fb_ConsoleGetRawYEx" ( byval h as any ptr ) as int32
 #endif
 end extern
 
 extern "rtlib"
-	declare sub tkrt_ConsoleGetXY alias "fb_ConsoleGetXY" ( byval c as long ptr, byval r as long ptr )
-	declare sub tkrt_ConsoleGetSize alias "fb_ConsoleGetSize" ( byval c as long ptr, byval r as long ptr )
+	declare sub tkrt_ConsoleGetXY alias "fb_ConsoleGetXY" ( byval c as int32 ptr, byval r as int32 ptr )
+	declare sub tkrt_ConsoleGetSize alias "fb_ConsoleGetSize" ( byval c as int32 ptr, byval r as int32 ptr )
 	declare sub tkrt_ViewUpdate alias "fb_ViewUpdate" ( )
-	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as long ptr, byval rows as long ptr )
+	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as int32 ptr, byval rows as int32 ptr )
 	declare function tkrt_Locate alias "fb_Locate" _
-		( byval row as long, byval col as long, byval cursor as long, _
-		  byval page as long, byval isperm as long ) as long
+		( byval row as int32, byval col as int32, byval cursor as int32, _
+		  byval page as int32, byval isperm as int32 ) as int32
 end extern
 
 #if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
@@ -78,12 +78,12 @@ end extern
 
 extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
 	declare function w_FillConsoleOutputAttribute stdcall alias "FillConsoleOutputAttribute" _
-		( byval h as any ptr, byval attr as ushort, byval n as ulong, byval c as ulong, byval got as ulong ptr ) as long
+		( byval h as any ptr, byval attr as uint16, byval n as uint32, byval c as uint32, byval got as uint32 ptr ) as int32
 	declare function w_FillConsoleOutputCharacterA stdcall alias "FillConsoleOutputCharacterA" _
-		( byval h as any ptr, byval ch as ubyte, byval n as ulong, byval c as ulong, byval got as ulong ptr ) as long
+		( byval h as any ptr, byval ch as uint8, byval n as uint32, byval c as uint32, byval got as uint32 ptr ) as int32
 	declare function w_ScrollConsoleScreenBufferA stdcall alias "ScrollConsoleScreenBufferA" _
 		( byval h as any ptr, byval scroll_ as any ptr, byval clip as any ptr, _
-		  byval dest as ulong, byval fill as any ptr ) as long
+		  byval dest as uint32, byval fill as any ptr ) as int32
 end extern
 
 '' FOREGROUND_BLUE is 1, _GREEN 2, _RED 4 and _INTENSITY 8 -- which is exactly
@@ -92,7 +92,7 @@ end extern
 '' numberings and not a guarantee: the POSIX half of this file needs a real
 '' permutation for the same operation, and a reader who deleted this would have
 '' to rediscover why one platform needs one and the other does not.
-dim shared as ushort tkort_colorlut( 0 to 15 ) = { _
+dim shared as uint16 tkort_colorlut( 0 to 15 ) = { _
 	0, 1, 2, 3, 4, 5, 6, 7, _
 	8, 9, 10, 11, 12, 13, 14, 15 }
 
@@ -100,29 +100,29 @@ dim shared as ushort tkort_colorlut( 0 to 15 ) = { _
 '' cannot be turned back into an index -- the mapping is many-to-one once the
 '' console has been touched by anything else -- so COLOR's return value comes
 '' from here.
-dim shared as ulong tkort_last_bc = 0        '' FB_COLOR_BLACK
-dim shared as ulong tkort_last_fc = 7        '' FB_COLOR_WHITE
+dim shared as uint32 tkort_last_bc = 0        '' FB_COLOR_BLACK
+dim shared as uint32 tkort_last_fc = 7        '' FB_COLOR_WHITE
 
 extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
 
-function tkort_ConsoleGetColorAttEx alias "fb_ConsoleGetColorAttEx" ( byval h as any ptr ) as ulong
-	dim as ubyte info( 0 to CSBI_SIZE_ - 1 ) = any
+function tkort_ConsoleGetColorAttEx alias "fb_ConsoleGetColorAttEx" ( byval h as any ptr ) as uint32
+	dim as uint8 info( 0 to CSBI_SIZE_ - 1 ) = any
 	'' 7 is white-on-black, the attribute a console starts with, and the only
 	'' sensible answer when the handle is not a console at all.
 	if( w_GetConsoleScreenBufferInfo( h, @info(0) ) = 0 ) then return 7
-	return *cptr( ushort ptr, @info(CSBI_ATTRIBUTES_) )
+	return *cptr( uint16 ptr, @info(CSBI_ATTRIBUTES_) )
 end function
 
-function tkort_ConsoleGetColorAtt alias "fb_ConsoleGetColorAtt" ( ) as ulong
+function tkort_ConsoleGetColorAtt alias "fb_ConsoleGetColorAtt" ( ) as uint32
 	return tkort_ConsoleGetColorAttEx( TKORT_OUT_HANDLE() )
 end function
 
 function tkort_ConsoleColor alias "fb_ConsoleColor" _
-	( byval fc as ulong, byval bc as ulong, byval flags as long ) as ulong
+	( byval fc as uint32, byval bc as uint32, byval flags as int32 ) as uint32
 
 	'' The PREVIOUS pair, packed fg | (bg << 16), captured before anything
 	'' changes -- COLOR returns what it replaced.
-	dim as ulong cur = tkort_last_fc or (tkort_last_bc shl 16)
+	dim as uint32 cur = tkort_last_fc or (tkort_last_bc shl 16)
 
 	if( (flags and FB_COLOR_FG_DEFAULT) = 0 ) then
 		tkort_last_fc = fc and &hF
@@ -138,7 +138,7 @@ function tkort_ConsoleColor alias "fb_ConsoleColor" _
 		bc = tkort_last_bc
 	end if
 
-	w_SetConsoleTextAttribute( TKORT_OUT_HANDLE(), cast( ushort, fc + (bc shl 4) ) )
+	w_SetConsoleTextAttribute( TKORT_OUT_HANDLE(), cast( uint16, fc + (bc shl 4) ) )
 
 	return cur
 end function
@@ -148,10 +148,10 @@ end function
 '' "leave the cursor visibility alone" -- three independent optional arguments in
 '' one call, which is why none of them can use 0 as the sentinel.
 sub tkort_ConsoleLocateRawEx alias "fb_ConsoleLocateRawEx" _
-	( byval h as any ptr, byval row as long, byval col as long, byval cursor as long )
+	( byval h as any ptr, byval row as int32, byval col as int32, byval cursor as int32 )
 
 	'' Zeroed for the same reason as fb_ConsoleLocate -- see there.
-	dim as ubyte info( 0 to CCI_SIZE_ - 1 )
+	dim as uint8 info( 0 to CCI_SIZE_ - 1 )
 
 	if( col < 0 ) then col = tkrt_ConsoleGetRawXEx( h )
 	if( row < 0 ) then row = tkrt_ConsoleGetRawYEx( h )
@@ -162,7 +162,7 @@ sub tkort_ConsoleLocateRawEx alias "fb_ConsoleLocateRawEx" _
 		'' the visibility is applied to `h` -- and it matters when `h` is a
 		'' second page buffer with a different cursor size.
 		w_GetConsoleCursorInfo( TKORT_OUT_HANDLE(), @info(0) )
-		*cptr( long ptr, @info(CCI_VISIBLE_) ) = iif( cursor <> 0, 1, 0 )
+		*cptr( int32 ptr, @info(CCI_VISIBLE_) ) = iif( cursor <> 0, 1, 0 )
 		w_SetConsoleCursorInfo( h, @info(0) )
 	end if
 
@@ -176,7 +176,7 @@ end extern
 extern "rtlib"
 
 sub tkort_ConsoleLocateRaw alias "fb_ConsoleLocateRaw" _
-	( byval row as long, byval col as long, byval cursor as long )
+	( byval row as int32, byval col as int32, byval cursor as int32 )
 	tkort_ConsoleLocateRawEx( TKORT_OUT_HANDLE(), row, col, cursor )
 end sub
 
@@ -188,7 +188,7 @@ extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
 '' The return value packs the PREVIOUS position and cursor visibility:
 ''     col | (row << 8) | (visible ? 0x10000 : 0)
 function tkort_ConsoleLocate alias "fb_ConsoleLocate" _
-	( byval row as long, byval col as long, byval cursor as long ) as long
+	( byval row as int32, byval col as int32, byval cursor as int32 ) as int32
 
 	'' ZEROED, like the query buffers in io/conquery.tiko: on a REDIRECTED handle
 	'' GetConsoleCursorInfo FAILS and leaves the buffer untouched, and fbc then
@@ -196,16 +196,16 @@ function tkort_ConsoleLocate alias "fb_ConsoleLocate" _
 	'' its stack. Zeroing makes tiko-rt's answer DEFINED. It cannot make it EQUAL
 	'' to fbc's, because fbc's is not a value, so conattr-parity asserts the bit
 	'' is in range rather than asserting which way it fell.
-	dim as ubyte info( 0 to CCI_SIZE_ - 1 )
-	dim as long ret_val = any
-	dim as long c = any, r = any
+	dim as uint8 info( 0 to CCI_SIZE_ - 1 )
+	dim as int32 ret_val = any
+	dim as int32 c = any, r = any
 
 	if( col < 1 ) then col = tkrt_ConsoleGetX( )
 	if( row < 1 ) then row = tkrt_ConsoleGetY( )
 
 	w_GetConsoleCursorInfo( TKORT_OUT_HANDLE(), @info(0) )
 	ret_val = (col and &hFF) or ((row and &hFF) shl 8) or _
-	          iif( *cptr( long ptr, @info(CCI_VISIBLE_) ) <> 0, &h10000, 0 )
+	          iif( *cptr( int32 ptr, @info(CCI_VISIBLE_) ) <> 0, &h10000, 0 )
 
 	c = col : r = row
 	tkrt_hConvertToConsole( @c, @r, 0, 0 )
@@ -219,11 +219,11 @@ end function
 '' FillConsoleOutput* takes a start coordinate and a run length, not a rect, so a
 '' rectangle is one call pair per row.
 sub tkort_ConsoleClearViewRawEx alias "fb_ConsoleClearViewRawEx" _
-	( byval h as any ptr, byval x1 as long, byval y1 as long, byval x2 as long, byval y2 as long )
+	( byval h as any ptr, byval x1 as int32, byval y1 as int32, byval x2 as int32, byval y2 as int32 )
 
-	dim as ushort attr = cast( ushort, tkort_ConsoleGetColorAttEx( h ) )
-	dim as long width_ = x2 - x1 + 1, lines_ = y2 - y1 + 1
-	dim as ulong written = any
+	dim as uint16 attr = cast( uint16, tkort_ConsoleGetColorAttEx( h ) )
+	dim as int32 width_ = x2 - x1 + 1, lines_ = y2 - y1 + 1
+	dim as uint32 written = any
 
 	if( (width_ = 0) orelse (lines_ = 0) ) then exit sub
 
@@ -239,9 +239,9 @@ sub tkort_ConsoleClearViewRawEx alias "fb_ConsoleClearViewRawEx" _
 	tkort_ConsoleLocateRawEx( h, y1, x1, -1 )
 end sub
 
-sub tkort_ConsoleClear alias "fb_ConsoleClear" ( byval mode_ as long )
-	dim as long view_left = any, view_top = any, view_right = any, view_bottom = any
-	dim as long win_left = any, win_top = any, win_right = any, win_bottom = any
+sub tkort_ConsoleClear alias "fb_ConsoleClear" ( byval mode_ as int32 )
+	dim as int32 view_left = any, view_top = any, view_right = any, view_bottom = any
+	dim as int32 win_left = any, win_top = any, win_right = any, win_bottom = any
 
 	'' Lazily filled, so it must be asked for before being tested.
 	tkrt_InitConsoleWindow( )
@@ -257,7 +257,7 @@ sub tkort_ConsoleClear alias "fb_ConsoleClear" ( byval mode_ as long )
 	win_bottom = TKORT_CON_WINDOW_BOTTOM()
 
 	'' &hFFFF0000 is gfxlib's DEFAULT_COLOR arriving where a mode was expected.
-	if( (mode_ = 2) orelse (mode_ = cast( long, &hFFFF0000ul )) ) then
+	if( (mode_ = 2) orelse (mode_ = cast( int32, &hFFFF0000ul )) ) then
 		tkrt_ConsoleGetView( @view_top, @view_bottom )
 		tkrt_hConvertToConsole( 0, @view_top, 0, @view_bottom )
 		view_left = win_left
@@ -275,11 +275,11 @@ end sub
 '' Scrolling more rows than the region holds is a CLEAR, not a scroll of an
 '' empty region -- ScrollConsoleScreenBuffer with a source rectangle entirely
 '' outside the destination would leave the fill attribute unapplied.
-private sub hConsoleScrollRawEx( byval h as any ptr, byval x1 as long, byval y1 as long, _
-                                 byval x2 as long, byval y2 as long, byval nrows as long )
-	dim as long height_ = y2 - y1 + 1
-	dim as short srec( 0 to 3 ) = any
-	dim as ubyte cinf( 0 to 3 ) = any
+private sub hConsoleScrollRawEx( byval h as any ptr, byval x1 as int32, byval y1 as int32, _
+                                 byval x2 as int32, byval y2 as int32, byval nrows as int32 )
+	dim as int32 height_ = y2 - y1 + 1
+	dim as int16 srec( 0 to 3 ) = any
+	dim as uint8 cinf( 0 to 3 ) = any
 
 	if( nrows <= 0 ) then exit sub
 
@@ -290,15 +290,15 @@ private sub hConsoleScrollRawEx( byval h as any ptr, byval x1 as long, byval y1 
 
 	'' SMALL_RECT is Left, Top, Right, Bottom -- NOT the order the fields are
 	'' assigned in fbc's source, which sets Left, Right, Top, Bottom.
-	srec(0) = cast( short, x1 )
-	srec(1) = cast( short, y1 + nrows )
-	srec(2) = cast( short, x2 )
-	srec(3) = cast( short, y2 )
+	srec(0) = cast( int16, x1 )
+	srec(1) = cast( int16, y1 + nrows )
+	srec(2) = cast( int16, x2 )
+	srec(3) = cast( int16, y2 )
 
 	'' CHAR_INFO is a one-character union followed by a WORD of attributes.
 	cinf(0) = 32
 	cinf(1) = 0
-	*cptr( ushort ptr, @cinf(2) ) = cast( ushort, tkort_ConsoleGetColorAttEx( h ) )
+	*cptr( uint16 ptr, @cinf(2) ) = cast( uint16, tkort_ConsoleGetColorAttEx( h ) )
 
 	w_ScrollConsoleScreenBufferA( h, @srec(0), 0, TKORT_COORD( x1, y1 ), @cinf(0) )
 end sub
@@ -310,8 +310,8 @@ sub tkort_ConsoleViewUpdate alias "fb_ConsoleViewUpdate" ( )
 	tkrt_hUpdateConsoleWindow( )
 end sub
 
-sub tkort_ConsoleScroll alias "fb_ConsoleScroll" ( byval nrows as long )
-	dim as long left_ = 1, right_ = any, toprow = any, botrow = any
+sub tkort_ConsoleScroll alias "fb_ConsoleScroll" ( byval nrows as int32 )
+	dim as int32 left_ = 1, right_ = any, toprow = any, botrow = any
 
 	if( nrows <= 0 ) then exit sub
 
@@ -330,17 +330,17 @@ end extern
 
 '' FreeBASIC's colour index is the CGA order; the terminal's is not. This is the
 '' permutation, and it is why a naive pass-through gives blue where red belongs.
-dim shared as ubyte tkort_termmap( 0 to 7 ) = { 0, 4, 2, 6, 1, 5, 3, 7 }
+dim shared as uint8 tkort_termmap( 0 to 7 ) = { 0, 4, 2, 6, 1, 5, 3, 7 }
 
 extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive, so plain here.
 
 function tkort_ConsoleColor alias "fb_ConsoleColor" _
-	( byval fc as ulong, byval bc as ulong, byval flags as long ) as ulong
+	( byval fc as uint32, byval bc as uint32, byval flags as int32 ) as uint32
 
-	dim as ulong old_fg = TKORT_CON_U( TKORT_CON_FGCOLOR )
-	dim as ulong old_bg = TKORT_CON_U( TKORT_CON_BGCOLOR )
-	dim as long force = 0
-	dim as ulong nfg = any, nbg = any
+	dim as uint32 old_fg = TKORT_CON_U( TKORT_CON_FGCOLOR )
+	dim as uint32 old_bg = TKORT_CON_U( TKORT_CON_BGCOLOR )
+	dim as int32 force = 0
+	dim as uint32 nfg = any, nbg = any
 
 	if( TKORT_CON_L( TKORT_CON_INITED ) = 0 ) then return old_fg or (old_bg shl 16)
 
@@ -386,16 +386,16 @@ end function
 '' The attribute is SYNTHESISED from the two indices, because a terminal has no
 '' attribute to read back. Note the shift is 4, not the 16 fb_ConsoleColor packs
 '' its return value with -- this is a colour BYTE, that is a pair of indices.
-function tkort_ConsoleGetColorAtt alias "fb_ConsoleGetColorAtt" ( ) as ulong
+function tkort_ConsoleGetColorAtt alias "fb_ConsoleGetColorAtt" ( ) as uint32
 	if( TKORT_CON_L( TKORT_CON_INITED ) = 0 ) then return &h7
 	return TKORT_CON_U( TKORT_CON_FGCOLOR ) or (TKORT_CON_U( TKORT_CON_BGCOLOR ) shl 4)
 end function
 
 function tkort_ConsoleLocate alias "fb_ConsoleLocate" _
-	( byval row as long, byval col as long, byval cursor as long ) as long
+	( byval row as int32, byval col as int32, byval cursor as int32 ) as int32
 
-	dim as long x = any, y = any
-	static as long visible = &h10000
+	dim as int32 x = any, y = any
+	static as int32 visible = &h10000
 
 	if( TKORT_CON_L( TKORT_CON_INITED ) = 0 ) then return 0
 
@@ -438,10 +438,10 @@ function tkort_ConsoleLocate alias "fb_ConsoleLocate" _
 	return (x and &hFF) or ((y and &hFF) shl 8) or visible
 end function
 
-sub tkort_ConsoleClear alias "fb_ConsoleClear" ( byval mode_ as long )
-	dim as long start_ = any, end_ = any, i = any, w = any, h = any
-	dim as ubyte ptr cbuf = any, abuf = any
-	dim as ubyte attr = any
+sub tkort_ConsoleClear alias "fb_ConsoleClear" ( byval mode_ as int32 )
+	dim as int32 start_ = any, end_ = any, i = any, w = any, h = any
+	dim as uint8 ptr cbuf = any, abuf = any
+	dim as uint8 attr = any
 
 	if( (TKORT_CON_L( TKORT_CON_INITED ) = 0) orelse (mode_ = 1) ) then exit sub
 
@@ -450,7 +450,7 @@ sub tkort_ConsoleClear alias "fb_ConsoleClear" ( byval mode_ as long )
 	tkrt_BgUnlock( )
 
 	tkrt_ConsoleGetView( @start_, @end_ )
-	if( (mode_ <> 2) andalso (mode_ <> cast( long, &hFFFF0000ul )) ) then
+	if( (mode_ <> 2) andalso (mode_ <> cast( int32, &hFFFF0000ul )) ) then
 		start_ = 1
 		end_ = tkrt_ConsoleGetMaxRow( )
 	end if
@@ -463,7 +463,7 @@ sub tkort_ConsoleClear alias "fb_ConsoleClear" ( byval mode_ as long )
 
 	cbuf = TKORT_CON_P( TKORT_CON_CHARBUF )
 	abuf = TKORT_CON_P( TKORT_CON_ATTRBUF )
-	attr = cast( ubyte, TKORT_CON_U( TKORT_CON_FGCOLOR ) or (TKORT_CON_U( TKORT_CON_BGCOLOR ) shl 4) )
+	attr = cast( uint8, TKORT_CON_U( TKORT_CON_FGCOLOR ) or (TKORT_CON_U( TKORT_CON_BGCOLOR ) shl 4) )
 
 	'' THE SHADOW BUFFERS ARE UPDATED AS WELL AS THE TERMINAL. A terminal cannot
 	'' be read back, so SCREEN( ) answers from these -- clearing the screen
@@ -484,7 +484,7 @@ end sub
 '' One termcap sequence, and no shadow-buffer update: the terminal's own scroll
 '' moves the lines and the next recheck picks the result up. That asymmetry with
 '' the Windows side is the terminal doing the work.
-sub tkort_ConsoleScroll alias "fb_ConsoleScroll" ( byval nrows as long )
+sub tkort_ConsoleScroll alias "fb_ConsoleScroll" ( byval nrows as int32 )
 	tkrt_hTermOut( SEQ_SCROLL_, 0, nrows )
 end sub
 
@@ -521,10 +521,10 @@ end extern
 extern "c"   '' NON-FBCALL: undecorated in fbc's win32 archive.
 
 function tkort_ConsoleViewEx alias "fb_ConsoleViewEx" _
-	( byval toprow as long, byval botrow as long, byval set_cursor as long ) as long
+	( byval toprow as int32, byval botrow as int32, byval set_cursor as int32 ) as int32
 
-	dim as long do_update = 0
-	dim as long maxrow = any, minrow = 1
+	dim as int32 do_update = 0
+	dim as int32 maxrow = any, minrow = 1
 
 	tkrt_GetSize( 0, @maxrow )
 	if( maxrow = 0 ) then maxrow = FB_SCRN_DEFAULT_HEIGHT
@@ -572,7 +572,7 @@ end extern
 
 extern "rtlib"
 
-function tkort_ConsoleView alias "fb_ConsoleView" ( byval toprow as long, byval botrow as long ) as long
+function tkort_ConsoleView alias "fb_ConsoleView" ( byval toprow as int32, byval botrow as int32 ) as int32
 	return tkort_ConsoleViewEx( toprow, botrow, 1 )
 end function
 

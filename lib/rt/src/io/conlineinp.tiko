@@ -59,58 +59,58 @@ const FB_PRINT_FORCE_ADJUST = 8
 '' `status`, `str` and `index` exist, and all four are written here.
 type FB_INPUTCTX field = 1
 	as FB_FILE ptr handle
-	as long        status
-	as long    pad0_
+	as int32        status
+	as int32    pad0_
 	as FBSTRING    str_
-	as long        cursor
-	as long    pad1_
+	as int32        cursor
+	as int32    pad1_
 end type
 
 #assert sizeof( FB_INPUTCTX ) = 48
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
 	declare function tkrt_StrAssign alias "fb_StrAssign" _
 		( byval dst as any ptr, byval dst_size as integer, _
-		  byval src as any ptr, byval src_size as integer, byval fill_rem as long ) as any ptr
+		  byval src as any ptr, byval src_size as integer, byval fill_rem as int32 ) as any ptr
 	declare function tkrt_WstrAssignFromA alias "fb_WstrAssignFromA" _
 		( byval dst as wstring ptr, byval dst_chars as integer, _
 		  byval src as any ptr, byval src_size as integer ) as wstring ptr
 
-	declare function tkrt_GetX alias "fb_GetX" ( ) as long
-	declare sub tkrt_GetXY alias "fb_GetXY" ( byval col as long ptr, byval row as long ptr )
-	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as long ptr, byval rows as long ptr )
-	declare function tkrt_IsRedirected alias "fb_IsRedirected" ( byval is_input as long ) as long
-	declare function tkrt_FileInput alias "fb_FileInput" ( byval fnum as long ) as long
+	declare function tkrt_GetX alias "fb_GetX" ( ) as int32
+	declare sub tkrt_GetXY alias "fb_GetXY" ( byval col as int32 ptr, byval row as int32 ptr )
+	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as int32 ptr, byval rows as int32 ptr )
+	declare function tkrt_IsRedirected alias "fb_IsRedirected" ( byval is_input as int32 ) as int32
+	declare function tkrt_FileInput alias "fb_FileInput" ( byval fnum as int32 ) as int32
 	declare sub tkrt_DevScrnInit_Read alias "fb_DevScrnInit_Read" ( )
 
 	declare sub tkrt_PrintString alias "fb_PrintString" _
-		( byval fnum as long, byval s as FBSTRING ptr, byval mask as long )
+		( byval fnum as int32, byval s as FBSTRING ptr, byval mask as int32 )
 	declare sub tkrt_PrintFixString alias "fb_PrintFixString" _
-		( byval fnum as long, byval s as zstring ptr, byval mask as long )
+		( byval fnum as int32, byval s as zstring ptr, byval mask as int32 )
 	declare sub tkrt_PrintWstr alias "fb_PrintWstr" _
-		( byval fnum as long, byval s as wstring ptr, byval mask as long )
-	declare sub tkrt_PrintVoid alias "fb_PrintVoid" ( byval fnum as long, byval mask as long )
+		( byval fnum as int32, byval s as wstring ptr, byval mask as int32 )
+	declare sub tkrt_PrintVoid alias "fb_PrintVoid" ( byval fnum as int32, byval mask as int32 )
 	declare sub tkrt_PrintBufferEx alias "fb_PrintBufferEx" _
-		( byval buffer as any ptr, byval length_ as uinteger, byval mask as long )
+		( byval buffer as any ptr, byval length_ as uinteger, byval mask as int32 )
 end extern
 
 extern "c"   '' NON-FBCALL: the *Ex forms and the h-prefixed internals.
 	declare function tkrt_LocateEx alias "fb_LocateEx" _
-		( byval row as long, byval col as long, byval cursor as long, _
-		  byval new_pos as long ptr ) as long
-	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+		( byval row as int32, byval col as int32, byval cursor as int32, _
+		  byval new_pos as int32 ptr ) as int32
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 	declare function tkrt_TlsGetCtx alias "fb_TlsGetCtx" _
-		( byval keyid as long, byval len_ as uinteger, byval dtor as any ptr ) as any ptr
+		( byval keyid as int32, byval len_ as uinteger, byval dtor as any ptr ) as any ptr
 	declare sub tkrt_INPUTCTX_Destructor alias "fb_INPUTCTX_Destructor" ( byval d as any ptr )
 	declare function tkrt_LineInput alias "fb_LineInput" _
 		( byval text_ as FBSTRING ptr, byval dst as any ptr, byval dst_len as integer, _
-		  byval fillrem as long, byval addquestion as long, byval addnewline as long ) as long
+		  byval fillrem as int32, byval addquestion as int32, byval addnewline as int32 ) as int32
 	declare function tkrt_DevFileReadLineDumb alias "fb_DevFileReadLineDumb" _
-		( byval fp as FILE ptr, byval dst as FBSTRING ptr, byval pfn as any ptr ) as long
+		( byval fp as FILE ptr, byval dst as FBSTRING ptr, byval pfn as any ptr ) as int32
 	#if defined( __FB_WIN32__ )
-		declare function tkrt_ConReadLine alias "fb_ConReadLine" ( byval addnl as long ) as FBSTRING ptr
+		declare function tkrt_ConReadLine alias "fb_ConReadLine" ( byval addnl as int32 ) as FBSTRING ptr
 	#else
 		declare function tkrt_ReadString alias "fb_ReadString" _
 			( byval buffer as zstring ptr, byval count as uinteger, byval fp as FILE ptr ) as zstring ptr
@@ -134,11 +134,11 @@ extern "rtlib"
 '' rejected the arguments. start and stop are accepted and ignored -- they are
 '' QBASIC's cursor-shape parameters, which fbc does not implement.
 function tkort_Locate alias "fb_Locate" _
-	( byval row as long, byval col as long, byval cursor as long, _
-	  byval start_ as long, byval stop_ as long ) as long
+	( byval row as int32, byval col as int32, byval cursor as int32, _
+	  byval start_ as int32, byval stop_ as int32 ) as int32
 
-	dim as long new_pos = any
-	dim as long res = tkrt_LocateEx( row, col, cursor, @new_pos )
+	dim as int32 new_pos = any
+	dim as int32 res = tkrt_LocateEx( row, col, cursor, @new_pos )
 	if( res <> FB_RTERROR_OK ) then
 		tkrt_LocateEx( 0, 0, cursor, @new_pos )
 	end if
@@ -148,14 +148,14 @@ end function
 '' ------------------------------------------------------------------ POS
 
 '' The argument is ignored. See the file header.
-function tkort_Pos alias "fb_Pos" ( byval dummy as long ) as long
+function tkort_Pos alias "fb_Pos" ( byval dummy as int32 ) as int32
 	return tkrt_GetX( )
 end function
 
 '' ------------------------------------------------------------------ INPUT
 
 function tkort_ConsoleInput alias "fb_ConsoleInput" _
-	( byval text_ as FBSTRING ptr, byval addquestion as long, byval addnewline as long ) as long
+	( byval text_ as FBSTRING ptr, byval addquestion as int32, byval addnewline as int32 ) as int32
 
 	'' Point the SCREEN device's reader at stdin or at the keyboard, once.
 	tkrt_DevScrnInit_Read( )
@@ -191,7 +191,7 @@ extern "c"   '' NON-FBCALL: fb_console.h declares both plainly.
 '' there is no cursor to repair afterwards -- only the optional newline.
 function tkort_ConsoleLineInput alias "fb_ConsoleLineInput" _
 	( byval text_ as FBSTRING ptr, byval dst as any ptr, byval dst_len as integer, _
-	  byval fillrem as long, byval addquestion as long, byval addnewline as long ) as long
+	  byval fillrem as int32, byval addquestion as int32, byval addnewline as int32 ) as int32
 
 	TKORT_IOLOCK()
 
@@ -233,7 +233,7 @@ end function
 
 function tkort_ConsoleLineInputWstr alias "fb_ConsoleLineInputWstr" _
 	( byval text_ as wstring ptr, byval dst as wstring ptr, byval max_chars as integer, _
-	  byval addquestion as long, byval addnewline as long ) as long
+	  byval addquestion as int32, byval addnewline as int32 ) as int32
 
 	TKORT_IOLOCK()
 
@@ -272,9 +272,9 @@ end function
 
 function tkort_ConsoleLineInput alias "fb_ConsoleLineInput" _
 	( byval text_ as FBSTRING ptr, byval dst as any ptr, byval dst_len as integer, _
-	  byval fillrem as long, byval addquestion as long, byval addnewline as long ) as long
+	  byval fillrem as int32, byval addquestion as int32, byval addnewline as int32 ) as int32
 
-	dim as long res = any, old_x = any, old_y = any
+	dim as int32 res = any, old_x = any, old_y = any
 	dim as uinteger length_ = any
 
 	'' BOTH OF THESE HAPPEN BEFORE THE LOCK, and the position is captured
@@ -311,7 +311,7 @@ function tkort_ConsoleLineInput alias "fb_ConsoleLineInput" _
 		'' "The easy and dumb method", in fbc's own words -- and it does not
 		'' handle TABs. Reproduced exactly: a different formula is a different
 		'' cursor, and the TAB bug is part of the contract.
-		dim as long cols = any, rows = any, cur_y = any
+		dim as int32 cols = any, rows = any, cur_y = any
 		tkrt_GetSize( @cols, @rows )
 		tkrt_GetXY( 0, @cur_y )
 
@@ -335,9 +335,9 @@ end function
 
 function tkort_ConsoleLineInputWstr alias "fb_ConsoleLineInputWstr" _
 	( byval text_ as wstring ptr, byval dst as wstring ptr, byval max_chars as integer, _
-	  byval addquestion as long, byval addnewline as long ) as long
+	  byval addquestion as int32, byval addnewline as int32 ) as int32
 
-	dim as long res = any, old_x = any, old_y = any
+	dim as int32 res = any, old_x = any, old_y = any
 	dim as uinteger length_ = any
 
 	tkrt_PrintBufferEx( 0, 0, FB_PRINT_FORCE_ADJUST )
@@ -362,7 +362,7 @@ function tkort_ConsoleLineInputWstr alias "fb_ConsoleLineInputWstr" _
 	length_ = FB_STRSIZE( @str_result )
 
 	if( addnewline = 0 ) then
-		dim as long cols = any, rows = any, cur_y = any
+		dim as int32 cols = any, rows = any, cur_y = any
 		tkrt_GetSize( @cols, @rows )
 		tkrt_GetXY( 0, @cur_y )
 

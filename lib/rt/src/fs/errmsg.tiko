@@ -51,23 +51,23 @@ dim shared as zstring ptr hFsMessages( 0 to FB_FS_CODE_MAX ) = { _
 
 extern "rtlib"
 
-function tkort_UStrFsErrorMessage alias "fb_UStrFsErrorMessage" ( byval fs_code as long ) as FBUSTRING ptr
+function tkort_UStrFsErrorMessage alias "fb_UStrFsErrorMessage" ( byval fs_code as int32 ) as FBUSTRING ptr
 	'' READ THROUGH A ubyte ptr, NOT THE zstring ptr. `msg[i]` on a
 	'' `zstring ptr` yields a string EXPRESSION, not a character, so
 	'' `cast( FB_UCHAR, msg[i] )` numeric-converts a one-character string and
 	'' gives 0 for every letter. The lengths still came out right, so the
 	'' differential printed the correct NUMBER of NULs -- a defect that looks
 	'' like a working loop until the bytes are compared.
-	dim as ubyte ptr msg = any
+	dim as uint8 ptr msg = any
 	dim as FBUSTRING ptr dst = any
 	dim as integer i = any, len_ = any
-	dim as long code_ = fs_code
+	dim as int32 code_ = fs_code
 
 	'' An out-of-range code is UNKNOWN rather than an empty string: a caller
 	'' printing the message of a code it invented should still get a sentence.
 	if( (code_ < 0) orelse (code_ > FB_FS_CODE_MAX) ) then code_ = FB_FS_UNKNOWN
 
-	msg = cptr( ubyte ptr, hFsMessages(code_) )
+	msg = cptr( uint8 ptr, hFsMessages(code_) )
 
 	len_ = 0
 	while( msg[len_] <> 0 )

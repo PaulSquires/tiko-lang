@@ -41,7 +41,7 @@
 #include once "inc/sysbind.ti"
 
 extern "rtlib"
-	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as long
+	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as int32
 end extern
 
 private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
@@ -83,25 +83,25 @@ const FILE_CS_FLAG_CASE_SENSITIVE_DIR_ = &h00000001ul
 
 extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
 	declare function w_SetThreadErrorMode stdcall alias "SetThreadErrorMode" _
-		( byval mode_ as ulong, byval old as ulong ptr ) as long
-	declare function w_GetFileAttributesW stdcall alias "GetFileAttributesW" ( byval n as wstring ptr ) as ulong
+		( byval mode_ as uint32, byval old as uint32 ptr ) as int32
+	declare function w_GetFileAttributesW stdcall alias "GetFileAttributesW" ( byval n as wstring ptr ) as uint32
 	declare function w_GetVolumePathNameW stdcall alias "GetVolumePathNameW" _
-		( byval n as wstring ptr, byval buf as wstring ptr, byval cap as ulong ) as long
+		( byval n as wstring ptr, byval buf as wstring ptr, byval cap as uint32 ) as int32
 	declare function w_GetDiskFreeSpaceExW stdcall alias "GetDiskFreeSpaceExW" _
-		( byval n as wstring ptr, byval avail as ulongint ptr, byval total as ulongint ptr, _
-		  byval freeb as ulongint ptr ) as long
+		( byval n as wstring ptr, byval avail as uint64 ptr, byval total as uint64 ptr, _
+		  byval freeb as uint64 ptr ) as int32
 	declare function w_GetVolumeInformationW stdcall alias "GetVolumeInformationW" _
-		( byval root as wstring ptr, byval name_ as wstring ptr, byval namecap as ulong, _
-		  byval serial as ulong ptr, byval maxcomp as ulong ptr, byval flags as ulong ptr, _
-		  byval fstype as wstring ptr, byval fscap as ulong ) as long
+		( byval root as wstring ptr, byval name_ as wstring ptr, byval namecap as uint32, _
+		  byval serial as uint32 ptr, byval maxcomp as uint32 ptr, byval flags as uint32 ptr, _
+		  byval fstype as wstring ptr, byval fscap as uint32 ) as int32
 	declare function w_GetLogicalDriveStringsW stdcall alias "GetLogicalDriveStringsW" _
-		( byval cap as ulong, byval buf as wstring ptr ) as ulong
+		( byval cap as uint32, byval buf as wstring ptr ) as uint32
 	declare function w_CreateFileW stdcall alias "CreateFileW" _
-		( byval n as wstring ptr, byval acc as ulong, byval share as ulong, byval sa as any ptr, _
-		  byval disp as ulong, byval flags as ulong, byval templ as any ptr ) as any ptr
-	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as long
+		( byval n as wstring ptr, byval acc as uint32, byval share as uint32, byval sa as any ptr, _
+		  byval disp as uint32, byval flags as uint32, byval templ as any ptr ) as any ptr
+	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as int32
 	declare function w_GetFileInformationByHandleEx stdcall alias "GetFileInformationByHandleEx" _
-		( byval h as any ptr, byval cls as long, byval info as any ptr, byval n as ulong ) as long
+		( byval h as any ptr, byval cls as int32, byval info as any ptr, byval n as uint32 ) as int32
 end extern
 
 private function hFsWide( byval p as FBUSTRING ptr ) as wstring ptr
@@ -117,8 +117,8 @@ private function hFsWide( byval p as FBUSTRING ptr ) as wstring ptr
 	return cptr( wstring ptr, w )
 end function
 
-private function hWLen( byval w as FB_UCHAR ptr ) as long
-	dim as long n = 0
+private function hWLen( byval w as FB_UCHAR ptr ) as int32
+	dim as int32 n = 0
 	while( w[n] <> 0 )
 		n += 1
 	wend
@@ -127,23 +127,23 @@ end function
 
 '' Checked with GetFileAttributesW rather than a full stat: the question is only
 '' whether the path resolves at all.
-private function hExistsWide( byval w as wstring ptr ) as long
+private function hExistsWide( byval w as wstring ptr ) as int32
 	return iif( w_GetFileAttributesW( w ) <> INVALID_FILE_ATTRIBUTES_, 1, 0 )
 end function
 
-private function hPushErrorMode( ) as ulong
-	dim as ulong old = 0
+private function hPushErrorMode( ) as uint32
+	dim as uint32 old = 0
 	w_SetThreadErrorMode( SEM_FAILCRITICALERRORS_, @old )
 	return old
 end function
 
-private sub hPopErrorMode( byval old as ulong )
+private sub hPopErrorMode( byval old as uint32 )
 	w_SetThreadErrorMode( old, 0 )
 end sub
 
 private sub hCopyField( byval src as FB_UCHAR ptr, byval dst as FB_UCHAR ptr, _
-                        byval cap as long, byval outlen as long ptr )
-	dim as long n = hWLen( src )
+                        byval cap as int32, byval outlen as int32 ptr )
+	dim as int32 n = hWLen( src )
 	if( n > cap - 1 ) then n = cap - 1
 	if( n > 0 ) then memcpy( dst, src, n * sizeof( FB_UCHAR ) )
 	*outlen = n
@@ -151,11 +151,11 @@ end sub
 
 '' Fills root/name/fstype/flags for the volume holding `w`. The caller has
 '' already pushed the error mode.
-private function hVolumeInfoWide( byval w as wstring ptr, byval out_ as FB_FSVOLUME ptr ) as long
+private function hVolumeInfoWide( byval w as wstring ptr, byval out_ as FB_FSVOLUME ptr ) as int32
 	dim as FB_UCHAR root( 0 to MAX_PATH_ + 1 ) = any
 	dim as FB_UCHAR name_( 0 to MAX_PATH_ + 1 ) = any
 	dim as FB_UCHAR fstype( 0 to MAX_PATH_ + 1 ) = any
-	dim as ulong maxcomp = 0, flags = 0, csi = 0
+	dim as uint32 maxcomp = 0, flags = 0, csi = 0
 	dim as any ptr hd = any
 
 	memset( out_, 0, sizeof( FB_FSVOLUME ) )
@@ -204,7 +204,7 @@ private function hVolumeInfoWide( byval w as wstring ptr, byval out_ as FB_FSVOL
 
 	if( cast( integer, hd ) <> INVALID_HANDLE_VALUE_ ) then
 		csi = 0
-		if( w_GetFileInformationByHandleEx( hd, FileCaseSensitiveInfo_, @csi, sizeof( ulong ) ) <> 0 ) then
+		if( w_GetFileInformationByHandleEx( hd, FileCaseSensitiveInfo_, @csi, sizeof( uint32 ) ) <> 0 ) then
 			if( (csi and FILE_CS_FLAG_CASE_SENSITIVE_DIR_) <> 0 ) then out_->flags or= FB_FSVOL_CASESENS
 		end if
 		w_CloseHandle( hd )
@@ -218,13 +218,13 @@ end function
 extern "rtlib"
 
 function tkort_UStrFsDiskSpace alias "fb_UStrFsDiskSpace" _
-	( byval p as FBUSTRING ptr, byval out_ as FB_FSSPACE ptr ) as long
+	( byval p as FBUSTRING ptr, byval out_ as FB_FSSPACE ptr ) as int32
 
 	dim as wstring ptr w = any
 	dim as FB_UCHAR root( 0 to MAX_PATH_ + 1 ) = any
-	dim as ulongint avail = any, total = any, freeb = any
-	dim as ulong old = any
-	dim as long r = FB_FS_OK
+	dim as uint64 avail = any, total = any, freeb = any
+	dim as uint32 old = any
+	dim as int32 r = FB_FS_OK
 
 	memset( out_, 0, sizeof( FB_FSSPACE ) )
 
@@ -251,11 +251,11 @@ function tkort_UStrFsDiskSpace alias "fb_UStrFsDiskSpace" _
 end function
 
 function tkort_UStrFsVolumeInfo alias "fb_UStrFsVolumeInfo" _
-	( byval p as FBUSTRING ptr, byval out_ as FB_FSVOLUME ptr ) as long
+	( byval p as FBUSTRING ptr, byval out_ as FB_FSVOLUME ptr ) as int32
 
 	dim as wstring ptr w = any
-	dim as ulong old = any
-	dim as long r = any
+	dim as uint32 old = any
+	dim as int32 r = any
 
 	w = hFsWide( p )
 	if( w = 0 ) then return FB_FS_UNKNOWN
@@ -276,12 +276,12 @@ end function
 '' use. Re-walking the list per index is quadratic over at most 26 drives, which
 '' is not worth caching away.
 function tkort_FsVolumeEnum alias "fb_FsVolumeEnum" _
-	( byval index_ as long, byval out_ as FB_FSVOLUME ptr ) as long
+	( byval index_ as int32, byval out_ as FB_FSVOLUME ptr ) as int32
 
 	dim as FB_UCHAR drives( 0 to 511 ) = any
-	dim as ulong n = any, old = any
+	dim as uint32 n = any, old = any
 	dim as FB_UCHAR ptr d = any
-	dim as long seen = 0, r = FB_FS_EXHAUSTED
+	dim as int32 seen = 0, r = FB_FS_EXHAUSTED
 	dim as FB_FSVOLUME tmp = any
 
 	old = hPushErrorMode( )
@@ -333,17 +333,17 @@ const STATVFS_NAMEMAX_  = 80
 const MOUNTINFO_LINE = 4096
 
 type statvfs_
-	as ubyte raw( 0 to STATVFS_SIZE_ - 1 )
+	as uint8 raw( 0 to STATVFS_SIZE_ - 1 )
 end type
 
 extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
-	declare function u_statvfs alias "statvfs" ( byval p as zstring ptr, byval st as statvfs_ ptr ) as long
+	declare function u_statvfs alias "statvfs" ( byval p as zstring ptr, byval st as statvfs_ ptr ) as int32
 	declare function u_realpath alias "realpath" ( byval p as zstring ptr, byval resolved as zstring ptr ) as zstring ptr
 	declare function u_fopen alias "fopen" ( byval p as zstring ptr, byval mode_ as zstring ptr ) as any ptr
-	declare function u_fgets alias "fgets" ( byval buf as zstring ptr, byval n as long, byval f as any ptr ) as zstring ptr
-	declare function u_fclose alias "fclose" ( byval f as any ptr ) as long
+	declare function u_fgets alias "fgets" ( byval buf as zstring ptr, byval n as int32, byval f as any ptr ) as zstring ptr
+	declare function u_fclose alias "fclose" ( byval f as any ptr ) as int32
 	declare function u_strlen alias "strlen" ( byval s as zstring ptr ) as uinteger
-	declare function u_strncmp alias "strncmp" ( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as long
+	declare function u_strncmp alias "strncmp" ( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as int32
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
 		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
 	declare function u_utf8to16 alias "fb_hUtf8ToUtf16" _
@@ -366,7 +366,7 @@ private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
 end function
 
 '' Copy a narrow string into one of FB_FSVOLUME's UTF-16 fields.
-private function hSetField( byval src as zstring ptr, byval dst as FB_UCHAR ptr, byval cap as long ) as long
+private function hSetField( byval src as zstring ptr, byval dst as FB_UCHAR ptr, byval cap as int32 ) as int32
 	dim as integer n = any
 
 	if( src = 0 ) then return 0
@@ -385,9 +385,9 @@ end function
 '' The optional-field run is VARIABLE LENGTH and terminated by a literal "-",
 '' which is why this scans for the separator rather than counting fields.
 private function hParseMountInfo( byval ln as zstring ptr, byval mountpoint as zstring ptr ptr, _
-                                  byval fstype as zstring ptr ptr, byval source as zstring ptr ptr ) as long
+                                  byval fstype as zstring ptr ptr, byval source as zstring ptr ptr ) as int32
 	dim as zstring ptr p = ln, tok = any
-	dim as long fld = 0
+	dim as int32 fld = 0
 
 	*mountpoint = 0
 	*fstype = 0
@@ -451,7 +451,7 @@ private function hParseMountInfo( byval ln as zstring ptr, byval mountpoint as z
 end function
 
 '' Is this a real block-device-backed filesystem, or a pseudo one?
-private function hIsRealMount( byval source as zstring ptr ) as long
+private function hIsRealMount( byval source as zstring ptr ) as int32
 	if( source = 0 ) then return 0
 	return iif( source[0] = 47, 1, 0 )
 end function
@@ -471,8 +471,8 @@ private sub hFillVolume( byval mountpoint as zstring ptr, byval fstype as zstrin
 	out_->namelen = 0
 
 	if( u_statvfs( mountpoint, @st ) = 0 ) then
-		out_->maxcomp = cast( ulong, *cptr( ulongint ptr, @st.raw(STATVFS_NAMEMAX_) ) )
-		if( (*cptr( ulongint ptr, @st.raw(STATVFS_FLAG_) ) and ST_RDONLY_) <> 0 ) then
+		out_->maxcomp = cast( uint32, *cptr( uint64 ptr, @st.raw(STATVFS_NAMEMAX_) ) )
+		if( (*cptr( uint64 ptr, @st.raw(STATVFS_FLAG_) ) and ST_RDONLY_) <> 0 ) then
 			out_->flags or= FB_FSVOL_READONLY
 		end if
 	end if
@@ -497,12 +497,12 @@ end sub
 extern "rtlib"
 
 function tkort_UStrFsDiskSpace alias "fb_UStrFsDiskSpace" _
-	( byval p as FBUSTRING ptr, byval out_ as FB_FSSPACE ptr ) as long
+	( byval p as FBUSTRING ptr, byval out_ as FB_FSSPACE ptr ) as int32
 
 	dim as zstring ptr path_ = any
 	dim as statvfs_ st = any
-	dim as ulongint unit = any
-	dim as long r = FB_FS_OK
+	dim as uint64 unit = any
+	dim as int32 r = FB_FS_OK
 
 	memset( out_, 0, sizeof( FB_FSSPACE ) )
 
@@ -514,14 +514,14 @@ function tkort_UStrFsDiskSpace alias "fb_UStrFsDiskSpace" _
 	else
 		'' f_frsize, not f_bsize: the former is the fragment size the block
 		'' counts are expressed in, and the two differ on real filesystems.
-		unit = *cptr( ulongint ptr, @st.raw(STATVFS_FRSIZE_) )
-		if( unit = 0 ) then unit = *cptr( ulongint ptr, @st.raw(STATVFS_BSIZE_) )
+		unit = *cptr( uint64 ptr, @st.raw(STATVFS_FRSIZE_) )
+		if( unit = 0 ) then unit = *cptr( uint64 ptr, @st.raw(STATVFS_BSIZE_) )
 
-		out_->total     = *cptr( ulongint ptr, @st.raw(STATVFS_BLOCKS_) ) * unit
-		out_->freebytes = *cptr( ulongint ptr, @st.raw(STATVFS_BFREE_) ) * unit
+		out_->total     = *cptr( uint64 ptr, @st.raw(STATVFS_BLOCKS_) ) * unit
+		out_->freebytes = *cptr( uint64 ptr, @st.raw(STATVFS_BFREE_) ) * unit
 
 		'' f_bavail, not f_bfree -- see the file header.
-		out_->avail     = *cptr( ulongint ptr, @st.raw(STATVFS_BAVAIL_) ) * unit
+		out_->avail     = *cptr( uint64 ptr, @st.raw(STATVFS_BAVAIL_) ) * unit
 	end if
 
 	free( path_ )
@@ -533,7 +533,7 @@ end function
 '' worked out, because statvfs reports the filesystem but not where it is
 '' attached.
 function tkort_UStrFsVolumeInfo alias "fb_UStrFsVolumeInfo" _
-	( byval p as FBUSTRING ptr, byval out_ as FB_FSVOLUME ptr ) as long
+	( byval p as FBUSTRING ptr, byval out_ as FB_FSVOLUME ptr ) as int32
 
 	dim as zstring ptr path_ = any, res = any, mp = any, fs = any, src = any
 	dim as any ptr f = any
@@ -541,7 +541,7 @@ function tkort_UStrFsVolumeInfo alias "fb_UStrFsVolumeInfo" _
 	dim as zstring * MOUNTINFO_LINE bestmp = any
 	dim as zstring * 256 bestfs = any
 	dim as uinteger bestlen = 0, mplen = any
-	dim as long found = 0, e = any, i = any
+	dim as int32 found = 0, e = any, i = any
 
 	memset( out_, 0, sizeof( FB_FSVOLUME ) )
 
@@ -596,12 +596,12 @@ function tkort_UStrFsVolumeInfo alias "fb_UStrFsVolumeInfo" _
 end function
 
 function tkort_FsVolumeEnum alias "fb_FsVolumeEnum" _
-	( byval index_ as long, byval out_ as FB_FSVOLUME ptr ) as long
+	( byval index_ as int32, byval out_ as FB_FSVOLUME ptr ) as int32
 
 	dim as any ptr f = any
 	dim as zstring * MOUNTINFO_LINE ln = any
 	dim as zstring ptr mp = any, fs = any, src = any
-	dim as long seen = 0, r = FB_FS_EXHAUSTED
+	dim as int32 seen = 0, r = FB_FS_EXHAUSTED
 
 	f = u_fopen( @"/proc/self/mountinfo", @"r" )
 	if( f = 0 ) then return FB_FS_UNSUPPORTED

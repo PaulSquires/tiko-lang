@@ -25,27 +25,27 @@
 
 extern "rtlib"
 	declare function tkrt_SkipChar alias "fb_hStrSkipChar" _
-		( byval s as zstring ptr, byval length as integer, byval c as long ) as zstring ptr
+		( byval s as zstring ptr, byval length as integer, byval c as int32 ) as zstring ptr
 	declare function tkrt_Radix2Int alias "fb_hStrRadix2Int" _
-		( byval s as zstring ptr, byval length as integer, byval radix as long ) as long
+		( byval s as zstring ptr, byval length as integer, byval radix as int32 ) as int32
 	declare function tkrt_DelTemp alias "fb_hStrDelTemp" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 end extern
 
 extern "rtlib"
 
 function tkort_hStr2Int alias "fb_hStr2Int" _
-	( byval src as zstring ptr, byval length as integer ) as long
+	( byval src as zstring ptr, byval length as integer ) as int32
 
 	dim as zstring ptr p = tkrt_SkipChar( src, length, 32 )
 
-	length -= cast( integer, cptr( ubyte ptr, p ) - cptr( ubyte ptr, src ) )
+	length -= cast( integer, cptr( uint8 ptr, p ) - cptr( uint8 ptr, src ) )
 	if( length < 1 ) then return 0
 
-	dim as ubyte ptr up = cptr( ubyte ptr, p )
+	dim as uint8 ptr up = cptr( uint8 ptr, p )
 
 	if( (length >= 2) andalso (up[0] = asc("&")) ) then
-		dim as long radix = 0
+		dim as int32 radix = 0
 		dim as integer skip = 2
 
 		select case as const up[1]
@@ -66,15 +66,15 @@ function tkort_hStr2Int alias "fb_hStr2Int" _
 	end if
 
 	'' strtoul, not atoi: out of range WRAPS instead of saturating.
-	return cast( long, strtoul( p, 0, 10 ) )
+	return cast( int32, strtoul( p, 0, 10 ) )
 
 end function
 
-function tkort_VALINT alias "fb_VALINT" ( byval s as FBSTRING ptr ) as long
+function tkort_VALINT alias "fb_VALINT" ( byval s as FBSTRING ptr ) as int32
 
 	if( s = 0 ) then return 0
 
-	dim as long v = 0
+	dim as int32 v = 0
 	if( s->data <> 0 ) then
 		if( FB_STRSIZE( s ) <> 0 ) then
 			v = tkort_hStr2Int( s->data, FB_STRSIZE( s ) )
@@ -88,15 +88,15 @@ function tkort_VALINT alias "fb_VALINT" ( byval s as FBSTRING ptr ) as long
 end function
 
 function tkort_hStr2UInt alias "fb_hStr2UInt" _
-	( byval src as zstring ptr, byval length as integer ) as ulong
+	( byval src as zstring ptr, byval length as integer ) as uint32
 
 	dim as zstring ptr p = tkrt_SkipChar( src, length, 32 )
 
-	length -= cast( integer, cptr( ubyte ptr, p ) - cptr( ubyte ptr, src ) )
+	length -= cast( integer, cptr( uint8 ptr, p ) - cptr( uint8 ptr, src ) )
 	if( length < 1 ) then return 0
 
-	dim as ubyte ptr up = cptr( ubyte ptr, p )
-	dim as long radix = 10
+	dim as uint8 ptr up = cptr( uint8 ptr, p )
+	dim as int32 radix = 10
 
 	if( (length >= 2) andalso (up[0] = asc("&")) ) then
 		dim as integer skip = 2
@@ -117,15 +117,15 @@ function tkort_hStr2UInt alias "fb_hStr2UInt" _
 		if( radix <> 10 ) then p = cptr( zstring ptr, up + skip )
 	end if
 
-	return cast( ulong, strtoul( p, 0, radix ) )
+	return cast( uint32, strtoul( p, 0, radix ) )
 
 end function
 
-function tkort_VALUINT alias "fb_VALUINT" ( byval s as FBSTRING ptr ) as ulong
+function tkort_VALUINT alias "fb_VALUINT" ( byval s as FBSTRING ptr ) as uint32
 
 	if( s = 0 ) then return 0
 
-	dim as ulong v = 0
+	dim as uint32 v = 0
 	if( s->data <> 0 ) then
 		if( FB_STRSIZE( s ) <> 0 ) then
 			v = tkort_hStr2UInt( s->data, FB_STRSIZE( s ) )

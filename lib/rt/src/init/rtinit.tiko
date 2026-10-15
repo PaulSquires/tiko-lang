@@ -82,14 +82,14 @@ dim shared as zstring * 2 tkort_locale_env
 
 extern "c"   '' NON-FBCALL: libc, and fbc's own internals, all declared plain.
 	declare function crt_setlocale alias "setlocale" _
-		( byval category as long, byval locale as zstring ptr ) as zstring ptr
+		( byval category as int32, byval locale as zstring ptr ) as zstring ptr
 	declare function crt_fputs alias "fputs" _
-		( byval s as zstring ptr, byval stream as any ptr ) as long
-	declare sub crt_exit alias "exit" ( byval code as long )
+		( byval s as zstring ptr, byval stream as any ptr ) as int32
+	declare sub crt_exit alias "exit" ( byval code as int32 )
 
 	'' Still fbc's: hinit.o and sched.o are both inline asm and stay C.
 	declare sub tkrt_hInit alias "fb_hInit" ( )
-	declare sub tkrt_hEnd alias "fb_hEnd" ( byval iserror as long )
+	declare sub tkrt_hEnd alias "fb_hEnd" ( byval iserror as int32 )
 	declare sub tkrt_SchedShutdown alias "fb_SchedShutdown" ( )
 
 	'' tiko-rt's own.
@@ -107,7 +107,7 @@ end extern
 
 extern "rtlib"   '' FBCALL: fb_FileReset is decorated, and the win32 archive
                  '' spells it `_fb_FileReset@0`.
-	declare function tkrt_FileReset alias "fb_FileReset" ( ) as long
+	declare function tkrt_FileReset alias "fb_FileReset" ( ) as int32
 end extern
 
 '' stderr comes from crt/stdio.bi, the same way src/error/assert.tiko gets it.
@@ -116,7 +116,7 @@ end extern
 '' LOCAL symbol (`b NAME.0`), which is what fbc's `static int __fb_is_inicnt`
 '' is too -- so this adds nothing to the exported surface and symbols.sh stays
 '' quiet.
-dim shared as long tkort_is_inicnt
+dim shared as int32 tkort_is_inicnt
 
 '' The exit_gfxlib2 slot, which inc/ctx.ti does not bind because nothing else
 '' needs it. It is the LAST field: lang sits at TKORT_LANG_OFFSET and this
@@ -204,7 +204,7 @@ extern "rtlib"   '' FBCALL: fb.h decorates both, and the win32 archive spells
 '' CALLED BY THE FB PROGRAM, from its main -- so AFTER fb_hRtInit's memset.
 '' Records three things and does nothing else.
 sub tkort_Init alias "fb_Init" _
-	( byval argc as long, byval argv as zstring ptr ptr, byval lang as long )
+	( byval argc as int32, byval argv as zstring ptr ptr, byval lang as int32 )
 
 	__fb_ctx.argc = argc
 	__fb_ctx.argv = argv
@@ -214,7 +214,7 @@ end sub
 
 '' CALLED BY THE FB PROGRAM, or by fb_Die on an assertion failure or runtime
 '' error. Does NOT return.
-sub tkort_End alias "fb_End" ( byval errlevel as long )
+sub tkort_End alias "fb_End" ( byval errlevel as int32 )
 
 	'' THE GFX CLEAN-UP HAPPENS HERE, not in fb_hRtExit, because waiting for a
 	'' thread from a global destructor can dead-lock on the Windows loader lock

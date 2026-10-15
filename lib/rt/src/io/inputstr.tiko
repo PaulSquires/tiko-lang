@@ -43,13 +43,13 @@ const FB_RTERROR_OUTOFMEM = 4
 const FB_INPUT_MAXSTRINGLEN = 4096
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 	declare function tkrt_AllocTemp alias "fb_hStrAllocTemp" _
 		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
-	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 	declare function tkrt_StrAssign alias "fb_StrAssign" _
 		( byval dst as any ptr, byval dst_size as integer, byval src as any ptr, _
-		  byval src_size as integer, byval fill_rem as long ) as any ptr
+		  byval src_size as integer, byval fill_rem as int32 ) as any ptr
 	declare function tkrt_WstrAssign alias "fb_WstrAssign" _
 		( byval dst as wstring ptr, byval dst_chars as integer, _
 		  byval src as wstring ptr ) as wstring ptr
@@ -57,14 +57,14 @@ end extern
 
 extern "c"   '' NON-FBCALL: the tokeniser, the data path and the screen setup.
 	declare function tkrt_NextToken alias "fb_FileInputNextToken" _
-		( byval buffer as zstring ptr, byval maxlen as long, byval isstring as long, _
-		  byval isfp as long ptr ) as integer
+		( byval buffer as zstring ptr, byval maxlen as int32, byval isstring as int32, _
+		  byval isfp as int32 ptr ) as integer
 	declare sub tkrt_NextTokenWstr alias "fb_FileInputNextTokenWstr" _
-		( byval buffer as wstring ptr, byval maxlen as long, byval isstring as long )
+		( byval buffer as wstring ptr, byval maxlen as int32, byval isstring as int32 )
 	declare function tkrt_GetDataEx alias "fb_FileGetDataEx" _
-		( byval h as FB_FILE ptr, byval pos_ as longint, byval dst as any ptr, _
+		( byval h as FB_FILE ptr, byval pos_ as int64, byval dst as any ptr, _
 		  byval length as uinteger, byval bytesread as uinteger ptr, _
-		  byval adjust as long, byval is_uni as long ) as long
+		  byval adjust as int32, byval is_uni as int32 ) as int32
 	declare sub tkrt_DevScrnInitRead alias "fb_DevScrnInit_Read" ( )
 	declare sub tkrt_DevScrnInitReadWstr alias "fb_DevScrnInit_ReadWstr" ( )
 end extern
@@ -82,9 +82,9 @@ extern "rtlib"
 '' INPUT of a STRING: one token, then the ordinary assign so that STRING * N
 '' padding and ZSTRING clamping happen in one place.
 function tkort_InputString alias "fb_InputString" _
-	( byval dst as any ptr, byval strlen_ as integer, byval fillrem as long ) as long
+	( byval dst as any ptr, byval strlen_ as integer, byval fillrem as int32 ) as int32
 	dim as zstring * (FB_INPUT_MAXSTRINGLEN + 1) buffer
-	dim as long isfp = any
+	dim as int32 isfp = any
 	tkrt_NextToken( @buffer, FB_INPUT_MAXSTRINGLEN, -1, @isfp )
 	'' src_size 0: a plain zstring pointer, length walked.
 	tkrt_StrAssign( dst, strlen_, @buffer, 0, fillrem )
@@ -92,7 +92,7 @@ function tkort_InputString alias "fb_InputString" _
 end function
 
 function tkort_InputWstr alias "fb_InputWstr" _
-	( byval str_ as wstring ptr, byval length as integer ) as long
+	( byval str_ as wstring ptr, byval length as integer ) as int32
 	dim as wstring * (FB_INPUT_MAXSTRINGLEN + 1) buffer
 	tkrt_NextTokenWstr( @buffer, FB_INPUT_MAXSTRINGLEN, -1 )
 	tkrt_WstrAssign( str_, length, @buffer )
@@ -101,7 +101,7 @@ end function
 
 '' INPUT$( n [, #f] ) -- n BYTES, not a token.
 function tkort_FileStrInput alias "fb_FileStrInput" _
-	( byval bytes as integer, byval fnum as long ) as FBSTRING ptr
+	( byval bytes as integer, byval fnum as int32 ) as FBSTRING ptr
 
 	tkrt_DevScrnInitRead( )
 
@@ -113,7 +113,7 @@ function tkort_FileStrInput alias "fb_FileStrInput" _
 		return TKORT_NULLSTR()
 	end if
 
-	dim as long res = FB_RTERROR_OK
+	dim as int32 res = FB_RTERROR_OK
 	dim as FBSTRING ptr dst = tkrt_AllocTemp( 0, bytes )
 
 	if( dst <> 0 ) then
@@ -172,7 +172,7 @@ end function
 '' is fbc's, and it differs from the narrow INPUT$ next door, which tracks the
 '' real count and shrinks the descriptor.
 function tkort_FileWstrInput alias "fb_FileWstrInput" _
-	( byval chars as integer, byval fnum as long ) as wstring ptr
+	( byval chars as integer, byval fnum as int32 ) as wstring ptr
 
 	tkrt_DevScrnInitReadWstr( )
 
@@ -184,13 +184,13 @@ function tkort_FileWstrInput alias "fb_FileWstrInput" _
 		return 0
 	end if
 
-	dim as long res = FB_RTERROR_OK
+	dim as int32 res = FB_RTERROR_OK
 	dim as wstring ptr dst = FB_WSTR_ALLOCTEMP( chars )
 
 	if( dst <> 0 ) then
 		dim as integer read_chars = 0
 		dim as uinteger length = any
-		dim as ubyte ptr b = cptr( ubyte ptr, dst )
+		dim as uint8 ptr b = cptr( uint8 ptr, dst )
 
 		if( hIsScreen( h ) ) then
 			while( read_chars <> chars )

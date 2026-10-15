@@ -48,7 +48,7 @@ type FB_DTORMULT as sub cdecl ( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR
 const FILL_SPACE = 32
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 	declare function tkrt_ArrayLen alias "fb_ArrayLen" ( byval a as FBARRAY ptr ) as uinteger
 	declare sub tkrt_ArrayResetDesc alias "fb_ArrayResetDesc" ( byval a as FBARRAY ptr )
 	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
@@ -56,26 +56,26 @@ end extern
 
 extern "rtlib"
 
-declare function tkort_ArrayClear alias "fb_ArrayClear" ( byval a as FBARRAY ptr ) as long
-declare function tkort_ArrayErase alias "fb_ArrayErase" ( byval a as FBARRAY ptr ) as long
+declare function tkort_ArrayClear alias "fb_ArrayClear" ( byval a as FBARRAY ptr ) as int32
+declare function tkort_ArrayErase alias "fb_ArrayErase" ( byval a as FBARRAY ptr ) as int32
 declare sub tkort_ArrayDestructObj alias "fb_ArrayDestructObj" _
 	( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR )
 declare function tkort_ArrayClearObj alias "fb_ArrayClearObj" _
-	( byval a as FBARRAY ptr, byval ctor as FB_DEFCTOR, byval dtor as FB_DEFCTOR ) as long
+	( byval a as FBARRAY ptr, byval ctor as FB_DEFCTOR, byval dtor as FB_DEFCTOR ) as int32
 declare sub tkort_ArrayDestructStr alias "fb_ArrayDestructStr" ( byval a as FBARRAY ptr )
 
 '' ------------------------------------------------------------------ clear
 
 '' A NULL base_ptr IS NOT AN ERROR. A global dynamic array that was never
 '' allocated still gets erased at program exit.
-function tkort_ArrayClear alias "fb_ArrayClear" ( byval a as FBARRAY ptr ) as long
+function tkort_ArrayClear alias "fb_ArrayClear" ( byval a as FBARRAY ptr ) as int32
 	if( a->base_ptr <> 0 ) then memset( a->base_ptr, 0, a->size )
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
 
 '' The STRING*N form. Same memset, a caller-chosen byte -- fbc passes 32.
 function tkort_ArrayFill alias "fb_ArrayFill" _
-	( byval a as FBARRAY ptr, byval fillchar as long ) as long
+	( byval a as FBARRAY ptr, byval fillchar as int32 ) as int32
 
 	if( a->base_ptr <> 0 ) then memset( a->base_ptr, fillchar, a->size )
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
@@ -99,7 +99,7 @@ sub tkort_ArrayCtorObj alias "fb_hArrayCtorObj" _
 
 	dim as uinteger elements = tkrt_ArrayLen( a )
 	dim as uinteger element_len = a->element_len
-	dim as ubyte ptr this_ = cast( ubyte ptr, a->base_ptr )
+	dim as uint8 ptr this_ = cast( uint8 ptr, a->base_ptr )
 
 	while( elements > 0 )
 		ctor( this_ )
@@ -116,7 +116,7 @@ sub tkort_ArrayDtorObj alias "fb_hArrayDtorObj" _
 
 	dim as uinteger elements = tkrt_ArrayLen( a )
 	dim as uinteger element_len = a->element_len
-	dim as ubyte ptr this_ = cast( ubyte ptr, a->base_ptr ) + ((elements - 1) * element_len)
+	dim as uint8 ptr this_ = cast( uint8 ptr, a->base_ptr ) + ((elements - 1) * element_len)
 
 	while( elements > keep_idx )
 		dtor( this_ )
@@ -168,7 +168,7 @@ end sub
 '' FIXED-LENGTH ARRAYS ARE CLEARED, NEVER FREED. Their storage is not the
 '' descriptor's -- it is a global, a local or a UDT field -- so freeing it would
 '' free memory the descriptor does not own.
-function tkort_ArrayErase alias "fb_ArrayErase" ( byval a as FBARRAY ptr ) as long
+function tkort_ArrayErase alias "fb_ArrayErase" ( byval a as FBARRAY ptr ) as int32
 
 	'' NULL is legal: a global dynamic array that was never allocated is still
 	'' destroyed at exit.
@@ -189,7 +189,7 @@ end function
 '' destruction pass -- and the constructor is then responsible for the whole
 '' initialisation, which is why the clear is skipped when it exists.
 function tkort_ArrayClearObj alias "fb_ArrayClearObj" _
-	( byval a as FBARRAY ptr, byval ctor as FB_DEFCTOR, byval dtor as FB_DEFCTOR ) as long
+	( byval a as FBARRAY ptr, byval ctor as FB_DEFCTOR, byval dtor as FB_DEFCTOR ) as int32
 
 	if( dtor <> 0 ) then tkort_ArrayDestructObj( a, dtor )
 
@@ -204,7 +204,7 @@ end function
 
 '' The run-time test fb_ArrayClearObj does not make.
 function tkort_ArrayEraseObj alias "fb_ArrayEraseObj" _
-	( byval a as FBARRAY ptr, byval ctor as FB_DEFCTOR, byval dtor as FB_DEFCTOR ) as long
+	( byval a as FBARRAY ptr, byval ctor as FB_DEFCTOR, byval dtor as FB_DEFCTOR ) as int32
 
 	if( (a->flags and FBARRAY_FLAGS_FIXED_LEN) <> 0 ) then
 		tkort_ArrayClearObj( a, ctor, dtor )

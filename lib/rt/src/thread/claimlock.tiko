@@ -69,8 +69,8 @@
 '' sizeof( any ptr ) rather than hard-coded: 40 on win64, 24 on win32.
 type TKORT_CRITSEC
 	as any ptr  DebugInfo
-	as long     LockCount
-	as long     RecursionCount
+	as int32     LockCount
+	as int32     RecursionCount
 	as any ptr  OwningThread
 	as any ptr  LockSemaphore
 	as uinteger SpinCount
@@ -85,7 +85,7 @@ extern "c"   '' NON-FBCALL: kernel32 imports.
 		( byval cs as TKORT_CRITSEC ptr )
 	declare sub w_LeaveCriticalSection stdcall alias "LeaveCriticalSection" _
 		( byval cs as TKORT_CRITSEC ptr )
-	declare sub w_Sleep stdcall alias "Sleep" ( byval ms as ulong )
+	declare sub w_Sleep stdcall alias "Sleep" ( byval ms as uint32 )
 end extern
 
 '' THE ATOMIC COMES FROM THE RUNTIME, NOT FROM kernel32. InterlockedExchange and
@@ -100,18 +100,18 @@ end extern
 '' be holding, which needs no separate exchange primitive.
 extern "rtlib"   '' FBCALL: fb_thread.h declares it with FBCALL.
 	declare function tkrt_AtomicCasLong alias "fb_AtomicCasLong" _
-		( byval p as long ptr, byval expected as long, byval desired as long ) as long
+		( byval p as int32 ptr, byval expected as int32, byval desired as int32 ) as int32
 end extern
 
 '' File-local, and there is exactly one of each -- see the file header on why
 '' that is true in a .bas and would not be in a .bi.
 dim shared as TKORT_CRITSEC tkort_claimcs
-dim shared as long          tkort_claiminit
+dim shared as int32          tkort_claiminit
 
 '' 0 = untouched, 1 = initialising, 2 = ready. See the file header.
 private sub tkort_hEnsure( )
 	do
-		dim as long s = tkrt_AtomicCasLong( @tkort_claiminit, 0, 1 )
+		dim as int32 s = tkrt_AtomicCasLong( @tkort_claiminit, 0, 1 )
 		if( s = 0 ) then
 			w_InitializeCriticalSection( @tkort_claimcs )
 			'' 1 -> 2. Only this thread can see 1 here, so the CAS cannot fail.
@@ -144,16 +144,16 @@ end extern
 '' MEASURED: pthread_mutex_t is 40 bytes and PTHREAD_MUTEX_INITIALIZER is ALL
 '' ZERO BYTES -- so .bss initialises it and there is nothing to do lazily.
 type TKORT_PTHREAD_MUTEX
-	as ubyte raw( 0 to 39 )
+	as uint8 raw( 0 to 39 )
 end type
 
 #assert sizeof( TKORT_PTHREAD_MUTEX ) = 40
 
 extern "c"   '' NON-FBCALL: libpthread.
 	declare function c_pthread_mutex_lock alias "pthread_mutex_lock" _
-		( byval m as TKORT_PTHREAD_MUTEX ptr ) as long
+		( byval m as TKORT_PTHREAD_MUTEX ptr ) as int32
 	declare function c_pthread_mutex_unlock alias "pthread_mutex_unlock" _
-		( byval m as TKORT_PTHREAD_MUTEX ptr ) as long
+		( byval m as TKORT_PTHREAD_MUTEX ptr ) as int32
 end extern
 
 dim shared as TKORT_PTHREAD_MUTEX tkort_claimmx

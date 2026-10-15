@@ -107,8 +107,8 @@ const KT_CONS_   = 5
 const KT_ASCII_  = 9
 const KT_LETTER_ = 11
 
-#define KTYP_( x ) ((cast( long, x ) shr 8) and &h0F)
-#define KVAL_( x ) (cast( long, x ) and &hFF)
+#define KTYP_( x ) ((cast( int32, x ) shr 8) and &h0F)
+#define KVAL_( x ) (cast( int32, x ) and &hFF)
 
 const CS8_     = 48
 const VTIME2_  = 5
@@ -142,40 +142,40 @@ const TKORT_HOOK_SLEEP    = TKORT_HOOKS_BASE + 8 * 23
 #assert TKORT_HOOKS_BASE + 8 * 28 = TKORT_FILETB_OFFSET
 
 type TERMIOS3_
-	as ulong c_iflag
-	as ulong c_oflag
-	as ulong c_cflag
-	as ulong c_lflag
-	as ubyte c_line
-	as ubyte c_cc( 0 to NCCS2_ - 1 )
-	as ubyte pad_( 0 to 2 )
-	as ulong c_ispeed
-	as ulong c_ospeed
+	as uint32 c_iflag
+	as uint32 c_oflag
+	as uint32 c_cflag
+	as uint32 c_lflag
+	as uint8 c_line
+	as uint8 c_cc( 0 to NCCS2_ - 1 )
+	as uint8 pad_( 0 to 2 )
+	as uint32 c_ispeed
+	as uint32 c_ospeed
 end type
 
 #assert sizeof( TERMIOS3_ ) = 60
 
 '' MEASURED: 4 bytes, kb_table 0, kb_index 1, kb_value 2.
 type KBENTRY_
-	as ubyte  kb_table
-	as ubyte  kb_index
-	as ushort kb_value
+	as uint8  kb_table
+	as uint8  kb_index
+	as uint16 kb_value
 end type
 
 #assert sizeof( KBENTRY_ ) = 4
 
 '' MEASURED: 6 bytes, v_active first.
 type VTSTAT_
-	as ushort v_active
-	as ushort v_signal
-	as ushort v_state
+	as uint16 v_active
+	as uint16 v_signal
+	as uint16 v_state
 end type
 
 #assert sizeof( VTSTAT_ ) = 6
 
 '' GENERATED FROM fbc's SOURCE -- see the file header. Kernel keycode to
 '' FreeBASIC scancode, 128 entries.
-dim shared as ubyte tkort_kernel_to_scancode( 0 to 127 ) = { _
+dim shared as uint8 tkort_kernel_to_scancode( 0 to 127 ) = { _
 	&h00, &h01, &h02, &h03, &h04, &h05, &h06, &h07, _
 	&h08, &h09, &h0A, &h0B, &h0C, &h0D, &h0E, &h0F, _
 	&h10, &h11, &h12, &h13, &h14, &h15, &h16, &h17, _
@@ -197,28 +197,28 @@ dim shared as ubyte tkort_kernel_to_scancode( 0 to 127 ) = { _
 '' without NumLock only the operators produce a character; the digits become
 '' cursor keys and are handled as extended codes instead.
 dim shared as zstring * 20 tkort_pad_numlock
-dim shared as ubyte tkort_pad_plain( 0 to NUM_PAD_KEYS_ - 1 ) = { _
+dim shared as uint8 tkort_pad_plain( 0 to NUM_PAD_KEYS_ - 1 ) = { _
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 43, 45, 42, 47, 13, 0, 0 }
 
 extern "c"   '' NON-FBCALL: libc.
-	declare function c_dup alias "dup" ( byval fd as long ) as long
-	declare function c_close3 alias "close" ( byval fd as long ) as long
-	declare function c_read3 alias "read" ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
-	declare function c_ioctl3 alias "ioctl" ( byval fd as long, byval req as ulong, ... ) as long
+	declare function c_dup alias "dup" ( byval fd as int32 ) as int32
+	declare function c_close3 alias "close" ( byval fd as int32 ) as int32
+	declare function c_read3 alias "read" ( byval fd as int32, byval buf as any ptr, byval n as uinteger ) as integer
+	declare function c_ioctl3 alias "ioctl" ( byval fd as int32, byval req as uint32, ... ) as int32
 	declare function c_tcsetattr3 alias "tcsetattr" _
-		( byval fd as long, byval act as long, byval t as TERMIOS3_ ptr ) as long
-	declare function c_getpid alias "getpid" ( ) as long
-	declare function c_kill alias "kill" ( byval pid as long, byval sig as long ) as long
-	declare function c_usleep3 alias "usleep" ( byval us as ulong ) as long
+		( byval fd as int32, byval act as int32, byval t as TERMIOS3_ ptr ) as int32
+	declare function c_getpid alias "getpid" ( ) as int32
+	declare function c_kill alias "kill" ( byval pid as int32, byval sig as int32 ) as int32
+	declare function c_usleep3 alias "usleep" ( byval us as uint32 ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: rtlib internals, declared plain.
 	declare function tkrt_hScancodeToExtendedKey alias "fb_hScancodeToExtendedKey" _
-		( byval scancode as long ) as long
+		( byval scancode as int32 ) as int32
 	declare sub tkrt_hStartBgThread4 alias "fb_hStartBgThread" ( )
 	declare function tkrt_hTermOut4 alias "fb_hTermOut" _
-		( byval code_ as long, byval p1 as long, byval p2 as long ) as long
-	declare function tkrt_hXTermHasFocus4 alias "fb_hXTermHasFocus" ( ) as long
+		( byval code_ as int32, byval p1 as int32, byval p2 as int32 ) as int32
+	declare function tkrt_hXTermHasFocus4 alias "fb_hXTermHasFocus" ( ) as int32
 	declare sub tkrt_hXTermInitFocus4 alias "fb_hXTermInitFocus" ( )
 	declare sub tkrt_hXTermExitFocus4 alias "fb_hXTermExitFocus" ( )
 	declare sub tkrt_hInitX11KeycodeToScancodeTb alias "fb_hInitX11KeycodeToScancodeTb" _
@@ -227,7 +227,7 @@ extern "c"   '' NON-FBCALL: rtlib internals, declared plain.
 		( byval libname as zstring ptr, byval funcname as zstring ptr ptr, _
 		  byval funcptr as any ptr ptr ) as any ptr
 	declare sub tkrt_hDynUnload4 alias "fb_hDynUnload" ( byval lib as any ptr ptr )
-	extern fb_x11keycode_to_scancode alias "fb_x11keycode_to_scancode" as ubyte
+	extern fb_x11keycode_to_scancode alias "fb_x11keycode_to_scancode" as uint8
 end extern
 
 extern "rtlib"   '' FBCALL.
@@ -253,19 +253,19 @@ dim shared as X_FUNCS6  tkort_mk_X
 dim shared as zstring * 24 tkort_mk_n( 0 to 5 )
 dim shared as zstring ptr  tkort_mk_names( 0 to 6 )
 
-dim shared as long     tkort_main_pid
-dim shared as long     tkort_key_fd = -1
-dim shared as long     tkort_key_old_mode, tkort_key_leds
-dim shared as ubyte    tkort_key_state( 0 to 127 )
-dim shared as ushort   tkort_mk_buffer( 0 to KEY_BUFFER_SIZE_ - 1 )
-dim shared as long     tkort_mk_head, tkort_mk_tail
+dim shared as int32     tkort_main_pid
+dim shared as int32     tkort_key_fd = -1
+dim shared as int32     tkort_key_old_mode, tkort_key_leds
+dim shared as uint8    tkort_key_state( 0 to 127 )
+dim shared as uint16   tkort_mk_buffer( 0 to KEY_BUFFER_SIZE_ - 1 )
+dim shared as int32     tkort_mk_head, tkort_mk_tail
 dim shared as any ptr  tkort_old_getch
 dim shared as any ptr  tkort_gfx_save, tkort_gfx_restore, tkort_gfx_key_handler
 
 '' The console getch replacement: reads from THIS driver's own ring, since the
 '' tty no longer produces characters.
-private function tkort_keyboard_console_getch cdecl ( ) as long
-	dim as long key_ = -1
+private function tkort_keyboard_console_getch cdecl ( ) as int32
+	dim as int32 key_ = -1
 
 	tkrt_BgLock5( )
 	if( tkort_mk_head <> tkort_mk_tail ) then
@@ -281,20 +281,20 @@ end function
 '' tty went to MEDIUMRAW happens here -- see the file header.
 private sub tkort_keyboard_console_handler cdecl ( )
 
-	dim as ubyte buffer_( 0 to 127 )
+	dim as uint8 buffer_( 0 to 127 )
 	dim as KBENTRY_ entry_
 	dim as VTSTAT_ vt_state
 
 	dim as integer num_bytes = c_read3( tkort_key_fd, @buffer_(0), 128 )
 	if( num_bytes > 0 ) then
 		for i as integer = 0 to num_bytes - 1
-			dim as ubyte scancode = tkort_kernel_to_scancode( buffer_(i) and &h7F )
+			dim as uint8 scancode = tkort_kernel_to_scancode( buffer_(i) and &h7F )
 			'' BIT 7 IS THE RELEASE FLAG, inverted into "pressed".
-			dim as long pressed = (buffer_(i) and &h80) xor &h80
-			dim as long repeated = iif( (pressed <> 0) andalso (tkort_key_state(scancode) <> 0), -1, 0 )
+			dim as int32 pressed = (buffer_(i) and &h80) xor &h80
+			dim as int32 repeated = iif( (pressed <> 0) andalso (tkort_key_state(scancode) <> 0), -1, 0 )
 			tkort_key_state(scancode) = iif( pressed <> 0, 1, 0 )
 
-			dim as long extended = 0
+			dim as int32 extended = 0
 			select case scancode
 			case SC_CAPSLOCK_   : if( pressed <> 0 ) then tkort_key_leds xor= LED_CAP_
 			case SC_NUMLOCK_    : if( pressed <> 0 ) then tkort_key_leds xor= LED_NUM_
@@ -314,7 +314,7 @@ private sub tkort_keyboard_console_handler cdecl ( )
 			entry_.kb_index = scancode
 			c_ioctl3( tkort_key_fd, KDGKBENT_, @entry_ )
 
-			dim as long key_ = any
+			dim as int32 key_ = any
 			if( scancode = SC_BACKSPACE_ ) then
 				key_ = 8
 			elseif( entry_.kb_value = K_NOSUCHMAP_ ) then
@@ -332,7 +332,7 @@ private sub tkort_keyboard_console_handler cdecl ( )
 				case KT_PAD_
 					if( key_ < NUM_PAD_KEYS_ ) then
 						if( (tkort_key_leds and LED_NUM_) <> 0 ) then
-							key_ = cptr( ubyte ptr, @tkort_pad_numlock )[key_]
+							key_ = cptr( uint8 ptr, @tkort_pad_numlock )[key_]
 						else
 							key_ = tkort_pad_plain(key_)
 						end if
@@ -345,9 +345,9 @@ private sub tkort_keyboard_console_handler cdecl ( )
 
 				case KT_CONS_
 					'' A VIRTUAL TERMINAL SWITCH -- see the file header.
-					dim as long vt = key_ + 1
+					dim as int32 vt = key_ + 1
 					if( (pressed <> 0) andalso (c_ioctl3( tkort_key_fd, VT_GETSTATE_, @vt_state ) >= 0) ) then
-						dim as long orig_vt = vt_state.v_active
+						dim as int32 orig_vt = vt_state.v_active
 						if( vt <> orig_vt ) then
 							if( TKORT_CON_P( TKORT_CON_GFXEXIT ) <> 0 ) then
 								if( tkort_gfx_save <> 0 ) then
@@ -390,7 +390,7 @@ private sub tkort_keyboard_console_handler cdecl ( )
 			if( extended <> 0 ) then key_ = extended
 
 			if( (pressed <> 0) andalso (key_ <> 0) ) then
-				tkort_mk_buffer( tkort_mk_tail ) = cast( ushort, key_ )
+				tkort_mk_buffer( tkort_mk_tail ) = cast( uint16, key_ )
 				if( ((tkort_mk_tail + 1) and (KEY_BUFFER_SIZE_ - 1)) = tkort_mk_head ) then
 					tkort_mk_head = (tkort_mk_head + 1) and (KEY_BUFFER_SIZE_ - 1)
 				end if
@@ -398,8 +398,8 @@ private sub tkort_keyboard_console_handler cdecl ( )
 			end if
 
 			if( tkort_gfx_key_handler <> 0 ) then
-				dim as sub cdecl ( byval a as long, byval b as long, byval c as long, byval d as long ) kh = _
-					cast( sub cdecl ( byval a as long, byval b as long, byval c as long, byval d as long ), _
+				dim as sub cdecl ( byval a as int32, byval b as int32, byval c as int32, byval d as int32 ) kh = _
+					cast( sub cdecl ( byval a as int32, byval b as int32, byval c as int32, byval d as int32 ), _
 					      tkort_gfx_key_handler )
 				kh( pressed, repeated, scancode, key_ )
 			end if
@@ -415,12 +415,12 @@ end sub
 '' UNDER X11 THE WHOLE KEYBOARD ARRIVES IN ONE CALL, and only while focused.
 private sub tkort_keyboard_x11_handler cdecl ( )
 
-	dim as ubyte keymap( 0 to 31 )
+	dim as uint8 keymap( 0 to 31 )
 
 	if( tkrt_hXTermHasFocus4( ) = 0 ) then exit sub
 
-	dim as sub cdecl ( byval d as any ptr, byval k as ubyte ptr ) qk = _
-		cast( sub cdecl ( byval d as any ptr, byval k as ubyte ptr ), tkort_mk_X.QueryKeymap )
+	dim as sub cdecl ( byval d as any ptr, byval k as uint8 ptr ) qk = _
+		cast( sub cdecl ( byval d as any ptr, byval k as uint8 ptr ), tkort_mk_X.QueryKeymap )
 	qk( tkort_mk_display, @keymap(0) )
 
 	memset( @tkort_key_state(0), 0, 128 )
@@ -454,12 +454,12 @@ private sub tkort_keyboard_exit cdecl ( )
 		tkrt_hXTermExitFocus4( )
 	end if
 
-	TKORT_CON_P( TKORT_CON_KBGETCH ) = cast( ubyte ptr, tkort_old_getch )
+	TKORT_CON_P( TKORT_CON_KBGETCH ) = cast( uint8 ptr, tkort_old_getch )
 	TKORT_CON_P( TKORT_CON_KBHANDLER ) = 0
 	TKORT_CON_P( TKORT_CON_KBEXIT ) = 0
 end sub
 
-private function tkort_keyboard_init cdecl ( ) as long
+private function tkort_keyboard_init cdecl ( ) as int32
 
 	dim as TERMIOS3_ term
 	memset( @term, 0, sizeof( TERMIOS3_ ) )
@@ -485,8 +485,8 @@ private function tkort_keyboard_init cdecl ( ) as long
 			return -1
 		end if
 
-		TKORT_CON_P( TKORT_CON_KBHANDLER ) = cast( ubyte ptr, @tkort_keyboard_console_handler )
-		TKORT_CON_P( TKORT_CON_KBGETCH ) = cast( ubyte ptr, @tkort_keyboard_console_getch )
+		TKORT_CON_P( TKORT_CON_KBHANDLER ) = cast( uint8 ptr, @tkort_keyboard_console_handler )
+		TKORT_CON_P( TKORT_CON_KBGETCH ) = cast( uint8 ptr, @tkort_keyboard_console_getch )
 		tkort_mk_head = 0
 		tkort_mk_tail = 0
 		c_ioctl3( tkort_key_fd, KDGETLED_, @tkort_key_leds )
@@ -516,17 +516,17 @@ private function tkort_keyboard_init cdecl ( ) as long
 		                                  tkort_mk_X.GetKeyboardMapping, tkort_mk_X.Free_ )
 
 		tkrt_hXTermInitFocus4( )
-		TKORT_CON_P( TKORT_CON_KBHANDLER ) = cast( ubyte ptr, @tkort_keyboard_x11_handler )
+		TKORT_CON_P( TKORT_CON_KBHANDLER ) = cast( uint8 ptr, @tkort_keyboard_x11_handler )
 	end if
 
-	TKORT_CON_P( TKORT_CON_KBINIT ) = cast( ubyte ptr, @tkort_keyboard_init )
-	TKORT_CON_P( TKORT_CON_KBEXIT ) = cast( ubyte ptr, @tkort_keyboard_exit )
+	TKORT_CON_P( TKORT_CON_KBINIT ) = cast( uint8 ptr, @tkort_keyboard_init )
+	TKORT_CON_P( TKORT_CON_KBEXIT ) = cast( uint8 ptr, @tkort_keyboard_exit )
 
 	return 0
 end function
 
 
-function tkort_ConsoleMultikey alias "fb_ConsoleMultikey" ( byval scancode as long ) as long
+function tkort_ConsoleMultikey alias "fb_ConsoleMultikey" ( byval scancode as int32 ) as int32
 
 	if( TKORT_CON_L( TKORT_CON_INITED ) = 0 ) then return 0
 
@@ -541,7 +541,7 @@ function tkort_ConsoleMultikey alias "fb_ConsoleMultikey" ( byval scancode as lo
 		tkrt_BgLock5( )
 	end if
 
-	dim as long res = iif( tkort_key_state( scancode and &h7F ) <> 0, -1, 0 )
+	dim as int32 res = iif( tkort_key_state( scancode and &h7F ) <> 0, -1, 0 )
 
 	tkrt_BgUnlock5( )
 
@@ -551,24 +551,24 @@ end function
 '' CALLED BY gfxlib2 when it takes or releases the screen.
 function tkort_hConsoleGfxMode alias "fb_hConsoleGfxMode" _
 	( byval gfx_exit as any ptr, byval save_ as any ptr, byval restore_ as any ptr, _
-	  byval key_handler as any ptr ) as long
+	  byval key_handler as any ptr ) as int32
 
 	tkrt_BgLock5( )
 
 	tkrt_hStartBgThread4( )
 
-	TKORT_CON_P( TKORT_CON_GFXEXIT ) = cast( ubyte ptr, gfx_exit )
+	TKORT_CON_P( TKORT_CON_GFXEXIT ) = cast( uint8 ptr, gfx_exit )
 
 	if( gfx_exit <> 0 ) then
 		'' FIVE CONSOLE HOOKS ARE CLEARED so INKEY, GETKEY, KEYHIT, MULTIKEY and
 		'' SLEEP stop going through the console driver -- see the file header on
 		'' how the offsets are pinned.
 		TKORT_IOLOCK()
-		*cptr( any ptr ptr, cptr( ubyte ptr, @__fb_ctx ) + TKORT_HOOK_MULTIKEY ) = 0
-		*cptr( any ptr ptr, cptr( ubyte ptr, @__fb_ctx ) + TKORT_HOOK_INKEY ) = 0
-		*cptr( any ptr ptr, cptr( ubyte ptr, @__fb_ctx ) + TKORT_HOOK_GETKEY ) = 0
-		*cptr( any ptr ptr, cptr( ubyte ptr, @__fb_ctx ) + TKORT_HOOK_KEYHIT ) = 0
-		*cptr( any ptr ptr, cptr( ubyte ptr, @__fb_ctx ) + TKORT_HOOK_SLEEP ) = 0
+		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_MULTIKEY ) = 0
+		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_INKEY ) = 0
+		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_GETKEY ) = 0
+		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_KEYHIT ) = 0
+		*cptr( any ptr ptr, cptr( uint8 ptr, @__fb_ctx ) + TKORT_HOOK_SLEEP ) = 0
 		TKORT_IOUNLOCK()
 
 		tkort_gfx_save = save_

@@ -25,16 +25,16 @@
 '' This was invisible until the Release build ran all three targets: win64 built
 '' clean and the failure was linux-only.
 extern "c"   '' NON-FBCALL: libc wide character classification.
-	declare function tkrt_iswlower cdecl alias "iswlower" ( byval c as ulong ) as long
-	declare function tkrt_iswupper cdecl alias "iswupper" ( byval c as ulong ) as long
-	declare function tkrt_towupper cdecl alias "towupper" ( byval c as ulong ) as ulong
-	declare function tkrt_towlower cdecl alias "towlower" ( byval c as ulong ) as ulong
+	declare function tkrt_iswlower cdecl alias "iswlower" ( byval c as uint32 ) as int32
+	declare function tkrt_iswupper cdecl alias "iswupper" ( byval c as uint32 ) as int32
+	declare function tkrt_towupper cdecl alias "towupper" ( byval c as uint32 ) as uint32
+	declare function tkrt_towlower cdecl alias "towlower" ( byval c as uint32 ) as uint32
 end extern
 
 extern "rtlib"
 
 function tkort_WstrUcase2 alias "fb_WstrUcase2" _
-	( byval src as wstring ptr, byval mode as long ) as wstring ptr
+	( byval src as wstring ptr, byval mode as int32 ) as wstring ptr
 
 	if( src = 0 ) then return 0
 
@@ -48,13 +48,13 @@ function tkort_WstrUcase2 alias "fb_WstrUcase2" _
 
 	if( mode = 1 ) then
 		for i as integer = 0 to chars - 1
-			dim as ulong c = src[i]
+			dim as uint32 c = src[i]
 			if( (c >= 97) andalso (c <= 122) ) then c -= (97 - 65)
 			dst[i] = c
 		next
 	else
 		for i as integer = 0 to chars - 1
-			dim as ulong c = src[i]
+			dim as uint32 c = src[i]
 			if( tkrt_iswlower( c ) ) then c = tkrt_towupper( c )
 			dst[i] = c
 		next
@@ -66,7 +66,7 @@ function tkort_WstrUcase2 alias "fb_WstrUcase2" _
 end function
 
 function tkort_WstrLcase2 alias "fb_WstrLcase2" _
-	( byval src as wstring ptr, byval mode as long ) as wstring ptr
+	( byval src as wstring ptr, byval mode as int32 ) as wstring ptr
 
 	if( src = 0 ) then return 0
 
@@ -77,13 +77,13 @@ function tkort_WstrLcase2 alias "fb_WstrLcase2" _
 
 	if( mode = 1 ) then
 		for i as integer = 0 to chars - 1
-			dim as ulong c = src[i]
+			dim as uint32 c = src[i]
 			if( (c >= 65) andalso (c <= 90) ) then c += (97 - 65)
 			dst[i] = c
 		next
 	else
 		for i as integer = 0 to chars - 1
-			dim as ulong c = src[i]
+			dim as uint32 c = src[i]
 			if( tkrt_iswupper( c ) ) then c = tkrt_towlower( c )
 			dst[i] = c
 		next

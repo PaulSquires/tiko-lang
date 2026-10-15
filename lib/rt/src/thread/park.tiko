@@ -40,15 +40,15 @@ extern "rtlib"
 
 type FBPARKER
 	as any ptr event_                              '' auto-reset
-	as ubyte   lock_( 0 to TKORT_CRITSEC_SIZE - 1 )
-	as long    permit
+	as uint8   lock_( 0 to TKORT_CRITSEC_SIZE - 1 )
+	as int32    permit
 end type
 
 '' Consume a permit if one is there. THE ResetEvent MATTERS: a permit issued
 '' while nobody was parked leaves the event signalled, and clearing it here is
 '' what keeps the NEXT park from returning spuriously.
-private function hTakePermit( byval p as FBPARKER ptr ) as long
-	dim as long got = any
+private function hTakePermit( byval p as FBPARKER ptr ) as int32
+	dim as int32 got = any
 
 	w_EnterCriticalSection( @p->lock_(0) )
 	got = p->permit
@@ -93,8 +93,8 @@ sub tkort_Park alias "fb_Park" ( byval p as FBPARKER ptr )
 	wend
 end sub
 
-function tkort_ParkTimed alias "fb_ParkTimed" ( byval p as FBPARKER ptr, byval ms as ulong ) as long
-	dim as ulong start_ = any, elapsed = any
+function tkort_ParkTimed alias "fb_ParkTimed" ( byval p as FBPARKER ptr, byval ms as uint32 ) as int32
+	dim as uint32 start_ = any, elapsed = any
 
 	if( p = 0 ) then return 0
 
@@ -132,31 +132,31 @@ end sub
 const SYSINFO_SIZE_    = 48
 const SYSINFO_NPROCS_  = 32
 
-function tkort_CpuCount alias "fb_CpuCount" ( ) as long
-	dim as ubyte si( 0 to SYSINFO_SIZE_ - 1 ) = any
-	dim as ulong n = any
+function tkort_CpuCount alias "fb_CpuCount" ( ) as int32
+	dim as uint8 si( 0 to SYSINFO_SIZE_ - 1 ) = any
+	dim as uint32 n = any
 
 	w_GetSystemInfo( @si(0) )
-	n = *cptr( ulong ptr, @si(SYSINFO_NPROCS_) )
+	n = *cptr( uint32 ptr, @si(SYSINFO_NPROCS_) )
 
 	'' Logical processors in the calling process's processor group. Wrong inside
 	'' a container with a CPU quota, and it is what every other language's
 	'' runtime uses.
-	return iif( n > 0, cast( long, n ), 1 )
+	return iif( n > 0, cast( int32, n ), 1 )
 end function
 
 #else
 
 type FBPARKER
-	as ubyte lock_( 0 to TKORT_PTHREAD_MUTEX_SIZE - 1 )
-	as ubyte cond_( 0 to TKORT_PTHREAD_COND_SIZE - 1 )
-	as long  permit
-	as long  monotonic                     '' cond is bound to CLOCK_MONOTONIC
+	as uint8 lock_( 0 to TKORT_PTHREAD_MUTEX_SIZE - 1 )
+	as uint8 cond_( 0 to TKORT_PTHREAD_COND_SIZE - 1 )
+	as int32  permit
+	as int32  monotonic                     '' cond is bound to CLOCK_MONOTONIC
 end type
 
 function tkort_ParkerCreate alias "fb_ParkerCreate" ( ) as FBPARKER ptr
 	dim as FBPARKER ptr p = malloc( sizeof( FBPARKER ) )
-	dim as ubyte attr( 0 to TKORT_CONDATTR_SIZE - 1 ) = any
+	dim as uint8 attr( 0 to TKORT_CONDATTR_SIZE - 1 ) = any
 
 	if( p = 0 ) then return 0
 
@@ -182,15 +182,15 @@ sub tkort_ParkerDestroy alias "fb_ParkerDestroy" ( byval p as FBPARKER ptr )
 	free( p )
 end sub
 
-private sub hDeadline( byval p as FBPARKER ptr, byval ms as ulong, byval ts as timespec_ ptr )
-	dim as long clk = CLOCK_REALTIME_
+private sub hDeadline( byval p as FBPARKER ptr, byval ms as uint32, byval ts as timespec_ ptr )
+	dim as int32 clk = CLOCK_REALTIME_
 
 	if( p->monotonic <> 0 ) then clk = CLOCK_MONOTONIC_
 
 	u_clock_gettime( clk, ts )
 
-	ts->tv_sec  += cast( longint, ms \ 1000ul )
-	ts->tv_nsec += cast( longint, ms mod 1000ul ) * 1000000ll
+	ts->tv_sec  += cast( int64, ms \ 1000ul )
+	ts->tv_nsec += cast( int64, ms mod 1000ul ) * 1000000ll
 	if( ts->tv_nsec >= 1000000000ll ) then
 		ts->tv_nsec -= 1000000000ll
 		ts->tv_sec += 1
@@ -210,9 +210,9 @@ sub tkort_Park alias "fb_Park" ( byval p as FBPARKER ptr )
 	u_pthread_mutex_unlock( @p->lock_(0) )
 end sub
 
-function tkort_ParkTimed alias "fb_ParkTimed" ( byval p as FBPARKER ptr, byval ms as ulong ) as long
+function tkort_ParkTimed alias "fb_ParkTimed" ( byval p as FBPARKER ptr, byval ms as uint32 ) as int32
 	dim as timespec_ ts = any
-	dim as long got = any
+	dim as int32 got = any
 
 	if( p = 0 ) then return 0
 
@@ -255,12 +255,12 @@ sub tkort_Unpark alias "fb_Unpark" ( byval p as FBPARKER ptr )
 	u_pthread_mutex_unlock( @p->lock_(0) )
 end sub
 
-function tkort_CpuCount alias "fb_CpuCount" ( ) as long
-	dim as longint n = u_sysconf( SC_NPROCESSORS_ONLN_ )
+function tkort_CpuCount alias "fb_CpuCount" ( ) as int32
+	dim as int64 n = u_sysconf( SC_NPROCESSORS_ONLN_ )
 
 	'' Wrong inside a container with a CPU quota, and it is what every other
 	'' language's runtime uses.
-	return iif( n > 0, cast( long, n ), 1 )
+	return iif( n > 0, cast( int32, n ), 1 )
 end function
 
 #endif

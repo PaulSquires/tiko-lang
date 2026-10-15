@@ -11,22 +11,22 @@
 #include once "inc/descriptors.ti"
 
 extern "rtlib"
-	declare function fb_HEX_i alias "fb_HEX_i" ( byval num as long ) as FBSTRING ptr
-	declare function fb_OCT_i alias "fb_OCT_i" ( byval num as long ) as FBSTRING ptr
-	declare function fb_BIN_i alias "fb_BIN_i" ( byval num as long ) as FBSTRING ptr
+	declare function fb_HEX_i alias "fb_HEX_i" ( byval num as int32 ) as FBSTRING ptr
+	declare function fb_OCT_i alias "fb_OCT_i" ( byval num as int32 ) as FBSTRING ptr
+	declare function fb_BIN_i alias "fb_BIN_i" ( byval num as int32 ) as FBSTRING ptr
 end extern
 
 extern "rtlib"
 
-function tkort_HEX alias "fb_HEX" ( byval num as long ) as FBSTRING ptr
+function tkort_HEX alias "fb_HEX" ( byval num as int32 ) as FBSTRING ptr
 	return fb_HEX_i( num )
 end function
 
-function tkort_OCT alias "fb_OCT" ( byval num as long ) as FBSTRING ptr
+function tkort_OCT alias "fb_OCT" ( byval num as int32 ) as FBSTRING ptr
 	return fb_OCT_i( num )
 end function
 
-function tkort_BIN alias "fb_BIN" ( byval num as long ) as FBSTRING ptr
+function tkort_BIN alias "fb_BIN" ( byval num as int32 ) as FBSTRING ptr
 	return fb_BIN_i( num )
 end function
 

@@ -50,8 +50,8 @@ end function
 '' Clamp to [0, cap-1] and copy. A NEGATIVE length is treated as zero rather
 '' than as an error: the enumeration owns that field, and a bad value there
 '' should produce an empty name, not a read out of bounds.
-private function hField( byval src as FB_UCHAR ptr, byval len_ as long, _
-                         byval cap as long ) as FBUSTRING ptr
+private function hField( byval src as FB_UCHAR ptr, byval len_ as int32, _
+                         byval cap as int32 ) as FBUSTRING ptr
 	dim as integer n = len_
 	if( n < 0 ) then n = 0
 	if( n > cap - 1 ) then n = cap - 1
@@ -91,20 +91,20 @@ function tkort_UStrFsChangePath alias "fb_UStrFsChangePath" _
 end function
 
 '' The four size hooks -- see the header.
-function tkort_FsSizeofInfo alias "fb_FsSizeofInfo" ( ) as long
-	return cast( long, sizeof( FB_FSINFO ) )
+function tkort_FsSizeofInfo alias "fb_FsSizeofInfo" ( ) as int32
+	return cast( int32, sizeof( FB_FSINFO ) )
 end function
 
-function tkort_FsSizeofDirEnt alias "fb_FsSizeofDirEnt" ( ) as long
-	return cast( long, sizeof( FB_FSDIRENT ) )
+function tkort_FsSizeofDirEnt alias "fb_FsSizeofDirEnt" ( ) as int32
+	return cast( int32, sizeof( FB_FSDIRENT ) )
 end function
 
-function tkort_FsSizeofVolume alias "fb_FsSizeofVolume" ( ) as long
-	return cast( long, sizeof( FB_FSVOLUME ) )
+function tkort_FsSizeofVolume alias "fb_FsSizeofVolume" ( ) as int32
+	return cast( int32, sizeof( FB_FSVOLUME ) )
 end function
 
-function tkort_FsSizeofChange alias "fb_FsSizeofChange" ( ) as long
-	return cast( long, sizeof( FB_FSCHANGE ) )
+function tkort_FsSizeofChange alias "fb_FsSizeofChange" ( ) as int32
+	return cast( int32, sizeof( FB_FSCHANGE ) )
 end function
 
 end extern

@@ -36,7 +36,7 @@
 #include once "inc/sysbind.ti"
 
 extern "rtlib"
-	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as long
+	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: the ustring temp builder, declared plain.
@@ -125,25 +125,25 @@ const BHFI_INDEXLOW_  = 48
 
 extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
 	declare function w_GetFileAttributesExW stdcall alias "GetFileAttributesExW" _
-		( byval n as wstring ptr, byval level as long, byval info as any ptr ) as long
+		( byval n as wstring ptr, byval level as int32, byval info as any ptr ) as int32
 	declare function w_FindFirstFileW stdcall alias "FindFirstFileW" _
 		( byval n as wstring ptr, byval fd as any ptr ) as any ptr
-	declare function w_FindClose stdcall alias "FindClose" ( byval h as any ptr ) as long
+	declare function w_FindClose stdcall alias "FindClose" ( byval h as any ptr ) as int32
 	declare function w_CreateFileW stdcall alias "CreateFileW" _
-		( byval n as wstring ptr, byval acc as ulong, byval share as ulong, byval sa as any ptr, _
-		  byval disp as ulong, byval flags as ulong, byval templ as any ptr ) as any ptr
-	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as long
+		( byval n as wstring ptr, byval acc as uint32, byval share as uint32, byval sa as any ptr, _
+		  byval disp as uint32, byval flags as uint32, byval templ as any ptr ) as any ptr
+	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as int32
 	declare function w_GetFileInformationByHandle stdcall alias "GetFileInformationByHandle" _
-		( byval h as any ptr, byval info as any ptr ) as long
+		( byval h as any ptr, byval info as any ptr ) as int32
 	declare function w_GetFullPathNameW stdcall alias "GetFullPathNameW" _
-		( byval n as wstring ptr, byval cap as ulong, byval buf as wstring ptr, byval part as any ptr ) as ulong
+		( byval n as wstring ptr, byval cap as uint32, byval buf as wstring ptr, byval part as any ptr ) as uint32
 	declare function w_GetFinalPathNameByHandleW stdcall alias "GetFinalPathNameByHandleW" _
-		( byval h as any ptr, byval buf as wstring ptr, byval cap as ulong, byval flags as ulong ) as ulong
+		( byval h as any ptr, byval buf as wstring ptr, byval cap as uint32, byval flags as uint32 ) as uint32
 	declare function w_GetCurrentDirectoryW stdcall alias "GetCurrentDirectoryW" _
-		( byval cap as ulong, byval buf as wstring ptr ) as ulong
-	declare function w_SetCurrentDirectoryW stdcall alias "SetCurrentDirectoryW" ( byval n as wstring ptr ) as long
+		( byval cap as uint32, byval buf as wstring ptr ) as uint32
+	declare function w_SetCurrentDirectoryW stdcall alias "SetCurrentDirectoryW" ( byval n as wstring ptr ) as int32
 	declare function w_SetFileTime stdcall alias "SetFileTime" _
-		( byval h as any ptr, byval c as any ptr, byval a as any ptr, byval m as any ptr ) as long
+		( byval h as any ptr, byval c as any ptr, byval a as any ptr, byval m as any ptr ) as int32
 end extern
 
 '' NUL-terminated wide copy of a USTRING path, heap-allocated because paths are
@@ -164,27 +164,27 @@ end function
 
 '' FILETIME is 100 ns since 1601-01-01; the module's tick is 100 ns since
 '' 0001-01-01. Same unit, different epoch, so this is one addition.
-private function hTicks( byval ft as ubyte ptr ) as longint
-	dim as ulong lo = *cptr( ulong ptr, ft )
-	dim as ulong hi = *cptr( ulong ptr, ft + 4 )
+private function hTicks( byval ft as uint8 ptr ) as int64
+	dim as uint32 lo = *cptr( uint32 ptr, ft )
+	dim as uint32 hi = *cptr( uint32 ptr, ft + 4 )
 	if( (lo = 0) andalso (hi = 0) ) then return 0
-	return cast( longint, (cast( ulongint, hi ) shl 32) or cast( ulongint, lo ) ) + FB_FS_TICKS_TO_FILETIME
+	return cast( int64, (cast( uint64, hi ) shl 32) or cast( uint64, lo ) ) + FB_FS_TICKS_TO_FILETIME
 end function
 
-private sub hFromTicks( byval t as longint, byval ft as ubyte ptr )
-	dim as ulongint v = cast( ulongint, t - FB_FS_TICKS_TO_FILETIME )
-	*cptr( ulong ptr, ft )     = cast( ulong, v and &hFFFFFFFFull )
-	*cptr( ulong ptr, ft + 4 ) = cast( ulong, v shr 32 )
+private sub hFromTicks( byval t as int64, byval ft as uint8 ptr )
+	dim as uint64 v = cast( uint64, t - FB_FS_TICKS_TO_FILETIME )
+	*cptr( uint32 ptr, ft )     = cast( uint32, v and &hFFFFFFFFull )
+	*cptr( uint32 ptr, ft + 4 ) = cast( uint32, v shr 32 )
 end sub
 
 '' A reparse point is only a LINK if its tag says so. Dedup, cloud placeholders
 '' and several other features are also reparse points, and treating them as
 '' links would make a walk skip real directories.
-private function hIsLinkTag( byval tag as ulong ) as long
+private function hIsLinkTag( byval tag as uint32 ) as int32
 	return iif( (tag = IO_REPARSE_TAG_SYMLINK_) orelse (tag = IO_REPARSE_TAG_MOUNT_POINT_), 1, 0 )
 end function
 
-private function hKindFromAttrs( byval attrs as ulong, byval tag as ulong ) as long
+private function hKindFromAttrs( byval attrs as uint32, byval tag as uint32 ) as int32
 	if( attrs = INVALID_FILE_ATTRIBUTES_ ) then return FB_FSKIND_NONE
 	if( ((attrs and FILE_ATTRIBUTE_REPARSE_POINT_) <> 0) andalso (hIsLinkTag( tag ) <> 0) ) then
 		return FB_FSKIND_LINK
@@ -197,9 +197,9 @@ end function
 '' Windows has no FS_IS_A_DIRECTORY and reports ERROR_ACCESS_DENIED for a wide
 '' range of unrelated causes, so callers that know better synthesise their own
 '' code. Nothing is guessed here.
-private function hStatWide( byval w as wstring ptr, byval follow as long, byval out_ as FB_FSINFO ptr ) as long
-	dim as ubyte fad( 0 to FAD_SIZE_ - 1 ) = any
-	dim as ulong tag = 0, attrs = any
+private function hStatWide( byval w as wstring ptr, byval follow as int32, byval out_ as FB_FSINFO ptr ) as int32
+	dim as uint8 fad( 0 to FAD_SIZE_ - 1 ) = any
+	dim as uint32 tag = 0, attrs = any
 	dim as any ptr h = any
 
 	memset( out_, 0, sizeof( FB_FSINFO ) )
@@ -208,14 +208,14 @@ private function hStatWide( byval w as wstring ptr, byval follow as long, byval 
 		return tkrt_FsMapOsError( )
 	end if
 
-	attrs = *cptr( ulong ptr, @fad(FAD_ATTRS_) )
+	attrs = *cptr( uint32 ptr, @fad(FAD_ATTRS_) )
 
 	'' Only ask for the reparse tag when there is one to ask about.
 	if( (attrs and FILE_ATTRIBUTE_REPARSE_POINT_) <> 0 ) then
-		dim as ubyte fd( 0 to WFD_SIZE_ - 1 ) = any
+		dim as uint8 fd( 0 to WFD_SIZE_ - 1 ) = any
 		h = w_FindFirstFileW( w, @fd(0) )
 		if( cast( integer, h ) <> INVALID_HANDLE_VALUE_ ) then
-			tag = *cptr( ulong ptr, @fd(WFD_RESERVED0_) )
+			tag = *cptr( uint32 ptr, @fd(WFD_RESERVED0_) )
 			w_FindClose( h )
 		end if
 	end if
@@ -224,9 +224,9 @@ private function hStatWide( byval w as wstring ptr, byval follow as long, byval 
 	'' IsSymlink true would be a contradiction -- that is what "follow" means.
 	if( (follow <> 0) andalso ((attrs and FILE_ATTRIBUTE_REPARSE_POINT_) <> 0) _
 	    andalso (hIsLinkTag( tag ) <> 0) ) then
-		dim as ubyte bhfi( 0 to BHFI_SIZE_ - 1 ) = any
-		dim as long ok = any, r = any
-		dim as ulong a2 = any
+		dim as uint8 bhfi( 0 to BHFI_SIZE_ - 1 ) = any
+		dim as int32 ok = any, r = any
+		dim as uint32 a2 = any
 
 		h = w_CreateFileW( w, 0, _
 			FILE_SHARE_READ_ or FILE_SHARE_WRITE_ or FILE_SHARE_DELETE_, _
@@ -239,9 +239,9 @@ private function hStatWide( byval w as wstring ptr, byval follow as long, byval 
 		w_CloseHandle( h )
 		if( ok = 0 ) then return r
 
-		a2 = *cptr( ulong ptr, @bhfi(BHFI_ATTRS_) )
-		out_->size_ = (cast( ulongint, *cptr( ulong ptr, @bhfi(BHFI_SIZEHIGH_) ) ) shl 32) or _
-		              cast( ulongint, *cptr( ulong ptr, @bhfi(BHFI_SIZELOW_) ) )
+		a2 = *cptr( uint32 ptr, @bhfi(BHFI_ATTRS_) )
+		out_->size_ = (cast( uint64, *cptr( uint32 ptr, @bhfi(BHFI_SIZEHIGH_) ) ) shl 32) or _
+		              cast( uint64, *cptr( uint32 ptr, @bhfi(BHFI_SIZELOW_) ) )
 		out_->mtime = hTicks( @bhfi(BHFI_MTIME_) )
 		out_->ctime = hTicks( @bhfi(BHFI_CTIME_) )
 		out_->atime = hTicks( @bhfi(BHFI_ATIME_) )
@@ -255,8 +255,8 @@ private function hStatWide( byval w as wstring ptr, byval follow as long, byval 
 		return FB_FS_OK
 	end if
 
-	out_->size_ = (cast( ulongint, *cptr( ulong ptr, @fad(FAD_SIZEHIGH_) ) ) shl 32) or _
-	              cast( ulongint, *cptr( ulong ptr, @fad(FAD_SIZELOW_) ) )
+	out_->size_ = (cast( uint64, *cptr( uint32 ptr, @fad(FAD_SIZEHIGH_) ) ) shl 32) or _
+	              cast( uint64, *cptr( uint32 ptr, @fad(FAD_SIZELOW_) ) )
 	out_->mtime = hTicks( @fad(FAD_MTIME_) )
 	out_->ctime = hTicks( @fad(FAD_CTIME_) )
 	out_->atime = hTicks( @fad(FAD_ATIME_) )
@@ -279,10 +279,10 @@ end function
 extern "rtlib"
 
 function tkort_UStrFsStat alias "fb_UStrFsStat" _
-	( byval p as FBUSTRING ptr, byval follow as long, byval out_ as FB_FSINFO ptr ) as long
+	( byval p as FBUSTRING ptr, byval follow as int32, byval out_ as FB_FSINFO ptr ) as int32
 
 	dim as wstring ptr w = hFsWide( p )
-	dim as long r = any
+	dim as int32 r = any
 
 	if( w = 0 ) then return FB_FS_UNKNOWN
 	r = hStatWide( w, follow, out_ )
@@ -291,10 +291,10 @@ function tkort_UStrFsStat alias "fb_UStrFsStat" _
 end function
 
 function tkort_UStrFsAbsolutePath alias "fb_UStrFsAbsolutePath" _
-	( byval p as FBUSTRING ptr, byval status as long ptr ) as FBUSTRING ptr
+	( byval p as FBUSTRING ptr, byval status as int32 ptr ) as FBUSTRING ptr
 
 	dim as wstring ptr w = any, buf = any
-	dim as ulong n = any
+	dim as uint32 n = any
 	dim as FBUSTRING ptr res = any
 
 	if( status <> 0 ) then *status = FB_FS_OK
@@ -343,12 +343,12 @@ end function
 '' it is KEPT -- removing it there would produce a path the OS cannot open. So
 '' canonical results must be compared with PathEquals, not "=".
 function tkort_UStrFsCanonicalPath alias "fb_UStrFsCanonicalPath" _
-	( byval p as FBUSTRING ptr, byval status as long ptr ) as FBUSTRING ptr
+	( byval p as FBUSTRING ptr, byval status as int32 ptr ) as FBUSTRING ptr
 
 	dim as wstring ptr w = any
 	dim as FB_UCHAR ptr buf = any, o = any
 	dim as any ptr h = any
-	dim as ulong n = any
+	dim as uint32 n = any
 	dim as integer outlen = any
 	dim as FBUSTRING ptr res = any
 
@@ -424,9 +424,9 @@ function tkort_UStrFsCanonicalPath alias "fb_UStrFsCanonicalPath" _
 	return res
 end function
 
-function tkort_UStrFsCurrentDir alias "fb_UStrFsCurrentDir" ( byval status as long ptr ) as FBUSTRING ptr
+function tkort_UStrFsCurrentDir alias "fb_UStrFsCurrentDir" ( byval status as int32 ptr ) as FBUSTRING ptr
 	dim as wstring ptr buf = any
-	dim as ulong n = any
+	dim as uint32 n = any
 	dim as FBUSTRING ptr res = any
 
 	if( status <> 0 ) then *status = FB_FS_OK
@@ -455,9 +455,9 @@ function tkort_UStrFsCurrentDir alias "fb_UStrFsCurrentDir" ( byval status as lo
 	return res
 end function
 
-function tkort_UStrFsSetCurrentDir alias "fb_UStrFsSetCurrentDir" ( byval p as FBUSTRING ptr ) as long
+function tkort_UStrFsSetCurrentDir alias "fb_UStrFsSetCurrentDir" ( byval p as FBUSTRING ptr ) as int32
 	dim as wstring ptr w = hFsWide( p )
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	if( w = 0 ) then return FB_FS_UNKNOWN
 	if( w_SetCurrentDirectoryW( w ) = 0 ) then r = tkrt_FsMapOsError( )
@@ -471,12 +471,12 @@ end function
 '' identity of what the link POINTS AT, since that is what it would be
 '' descending into and therefore what could form a cycle.
 function tkort_UStrFsIdentity alias "fb_UStrFsIdentity" _
-	( byval p as FBUSTRING ptr, byval vol as ulongint ptr, byval id as ulongint ptr ) as long
+	( byval p as FBUSTRING ptr, byval vol as uint64 ptr, byval id as uint64 ptr ) as int32
 
 	dim as wstring ptr w = any
 	dim as any ptr h = any
-	dim as ubyte bhfi( 0 to BHFI_SIZE_ - 1 ) = any
-	dim as long r = FB_FS_OK
+	dim as uint8 bhfi( 0 to BHFI_SIZE_ - 1 ) = any
+	dim as int32 r = FB_FS_OK
 
 	*vol = 0
 	*id = 0
@@ -494,9 +494,9 @@ function tkort_UStrFsIdentity alias "fb_UStrFsIdentity" _
 	if( w_GetFileInformationByHandle( h, @bhfi(0) ) = 0 ) then
 		r = tkrt_FsMapOsError( )
 	else
-		*vol = cast( ulongint, *cptr( ulong ptr, @bhfi(BHFI_VOLSERIAL_) ) )
-		*id  = (cast( ulongint, *cptr( ulong ptr, @bhfi(BHFI_INDEXHIGH_) ) ) shl 32) or _
-		       cast( ulongint, *cptr( ulong ptr, @bhfi(BHFI_INDEXLOW_) ) )
+		*vol = cast( uint64, *cptr( uint32 ptr, @bhfi(BHFI_VOLSERIAL_) ) )
+		*id  = (cast( uint64, *cptr( uint32 ptr, @bhfi(BHFI_INDEXHIGH_) ) ) shl 32) or _
+		       cast( uint64, *cptr( uint32 ptr, @bhfi(BHFI_INDEXLOW_) ) )
 	end if
 
 	w_CloseHandle( h )
@@ -508,13 +508,13 @@ end function
 '' DIRECTORY's times can be set too -- a tree copy that preserved file times but
 '' not directory times would be a strange half-measure.
 function tkort_UStrFsSetTimes alias "fb_UStrFsSetTimes" _
-	( byval p as FBUSTRING ptr, byval mtime as longint, byval atime as longint ) as long
+	( byval p as FBUSTRING ptr, byval mtime as int64, byval atime as int64 ) as int32
 
 	dim as wstring ptr w = any
 	dim as any ptr h = any
-	dim as ubyte ftm( 0 to 7 ) = any, fta( 0 to 7 ) = any
+	dim as uint8 ftm( 0 to 7 ) = any, fta( 0 to 7 ) = any
 	dim as any ptr pm = 0, pa = 0
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	w = hFsWide( p )
 	if( w = 0 ) then return FB_FS_UNKNOWN
@@ -583,27 +583,27 @@ const STATX_BTIME_NSEC_   = 88
 const UTIME_OMIT_ = ((1 shl 30) - 2)
 
 type stat_
-	as ubyte raw( 0 to STAT_BUF_SIZE - 1 )
+	as uint8 raw( 0 to STAT_BUF_SIZE - 1 )
 end type
 
 type statx_
-	as ubyte raw( 0 to STATX_BUF_SIZE - 1 )
+	as uint8 raw( 0 to STATX_BUF_SIZE - 1 )
 end type
 
 type timespec_
-	as longint tv_sec
-	as longint tv_nsec
+	as int64 tv_sec
+	as int64 tv_nsec
 end type
 
 extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
-	declare function u_stat alias "stat" ( byval p as zstring ptr, byval st as stat_ ptr ) as long
-	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as stat_ ptr ) as long
+	declare function u_stat alias "stat" ( byval p as zstring ptr, byval st as stat_ ptr ) as int32
+	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as stat_ ptr ) as int32
 	declare function u_getcwd alias "getcwd" ( byval buf as zstring ptr, byval n as uinteger ) as zstring ptr
-	declare function u_chdir alias "chdir" ( byval p as zstring ptr ) as long
+	declare function u_chdir alias "chdir" ( byval p as zstring ptr ) as int32
 	declare function u_realpath alias "realpath" ( byval p as zstring ptr, byval resolved as zstring ptr ) as zstring ptr
 	declare function u_utimensat alias "utimensat" _
-		( byval dirfd as long, byval p as zstring ptr, byval times as timespec_ ptr, byval flags as long ) as long
-	declare function u_syscall alias "syscall" ( byval n as longint, ... ) as longint
+		( byval dirfd as int32, byval p as zstring ptr, byval times as timespec_ ptr, byval flags as int32 ) as int32
+	declare function u_syscall alias "syscall" ( byval n as int64, ... ) as int64
 	declare function u_strlen alias "strlen" ( byval s as zstring ptr ) as uinteger
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
 		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
@@ -648,15 +648,15 @@ private function hFsFromNarrow( byval b as zstring ptr, byval bytes as integer )
 	return res
 end function
 
-private function hUnixToTicks( byval sec as longint, byval nsec as longint ) as longint
+private function hUnixToTicks( byval sec as int64, byval nsec as int64 ) as int64
 	return FB_FS_TICKS_TO_UNIX_EPOCH + (sec * 10000000ll) + (nsec \ 100ll)
 end function
 
-private function hKindFromMode( byval m as ulong ) as long
+private function hKindFromMode( byval m as uint32 ) as int32
 	'' Plain comparisons rather than SELECT CASE AS CONST: the S_IF* values are
 	'' 0o120000 apart, which is a jump table with 40,000 empty slots and is
 	'' error 69, "range too large".
-	dim as ulong t = m and S_IFMT_
+	dim as uint32 t = m and S_IFMT_
 	if( t = S_IFLNK_ ) then return FB_FSKIND_LINK
 	if( t = S_IFDIR_ ) then return FB_FSKIND_DIR
 	if( t = S_IFREG_ ) then return FB_FSKIND_FILE
@@ -664,18 +664,18 @@ private function hKindFromMode( byval m as ulong ) as long
 end function
 
 private sub hFillFromStat( byval st as stat_ ptr, byval out_ as FB_FSINFO ptr )
-	dim as ulong m = *cptr( ulong ptr, @st->raw(STAT_MODE_) )
+	dim as uint32 m = *cptr( uint32 ptr, @st->raw(STAT_MODE_) )
 
 	memset( out_, 0, sizeof( FB_FSINFO ) )
 
-	out_->size_ = cast( ulongint, *cptr( longint ptr, @st->raw(STAT_SIZE_) ) )
+	out_->size_ = cast( uint64, *cptr( int64 ptr, @st->raw(STAT_SIZE_) ) )
 	out_->native_attrs = m
 	out_->kind = hKindFromMode( m )
 
-	out_->mtime = hUnixToTicks( *cptr( longint ptr, @st->raw(STAT_MTIM_) ), _
-	                            *cptr( longint ptr, @st->raw(STAT_MTIM_ + 8) ) )
-	out_->atime = hUnixToTicks( *cptr( longint ptr, @st->raw(STAT_ATIM_) ), _
-	                            *cptr( longint ptr, @st->raw(STAT_ATIM_ + 8) ) )
+	out_->mtime = hUnixToTicks( *cptr( int64 ptr, @st->raw(STAT_MTIM_) ), _
+	                            *cptr( int64 ptr, @st->raw(STAT_MTIM_ + 8) ) )
+	out_->atime = hUnixToTicks( *cptr( int64 ptr, @st->raw(STAT_ATIM_) ), _
+	                            *cptr( int64 ptr, @st->raw(STAT_ATIM_ + 8) ) )
 
 	out_->flags or= FB_FSFLAG_HAS_ATIME
 
@@ -687,35 +687,35 @@ end sub
 
 '' Best effort. A kernel or filesystem without birth-time support leaves
 '' HAS_CTIME clear, which is the honest answer.
-private sub hTryBirthTime( byval path_ as zstring ptr, byval follow as long, byval out_ as FB_FSINFO ptr )
+private sub hTryBirthTime( byval path_ as zstring ptr, byval follow as int32, byval out_ as FB_FSINFO ptr )
 	dim as statx_ stx = any
-	dim as long flags = AT_STATX_SYNC_AS_STAT_
+	dim as int32 flags = AT_STATX_SYNC_AS_STAT_
 
 	if( follow = 0 ) then flags or= AT_SYMLINK_NOFOLLOW_
 
 	if( u_syscall( SYS_statx_, AT_FDCWD_, path_, flags, STATX_BTIME_, @stx ) <> 0 ) then exit sub
-	if( (*cptr( ulong ptr, @stx.raw(STATX_MASK_) ) and STATX_BTIME_) = 0 ) then exit sub
+	if( (*cptr( uint32 ptr, @stx.raw(STATX_MASK_) ) and STATX_BTIME_) = 0 ) then exit sub
 
-	out_->ctime = hUnixToTicks( *cptr( longint ptr, @stx.raw(STATX_BTIME_SEC_) ), _
-	                            cast( longint, *cptr( ulong ptr, @stx.raw(STATX_BTIME_NSEC_) ) ) )
+	out_->ctime = hUnixToTicks( *cptr( int64 ptr, @stx.raw(STATX_BTIME_SEC_) ), _
+	                            cast( int64, *cptr( uint32 ptr, @stx.raw(STATX_BTIME_NSEC_) ) ) )
 	out_->flags or= FB_FSFLAG_HAS_CTIME
 end sub
 
 extern "rtlib"
 
 function tkort_UStrFsStat alias "fb_UStrFsStat" _
-	( byval p as FBUSTRING ptr, byval follow as long, byval out_ as FB_FSINFO ptr ) as long
+	( byval p as FBUSTRING ptr, byval follow as int32, byval out_ as FB_FSINFO ptr ) as int32
 
 	dim as zstring ptr path_ = hFsNarrow( p )
 	dim as stat_ st = any
-	dim as long r = any
+	dim as int32 r = any
 
 	if( path_ = 0 ) then return FB_FS_UNKNOWN
 
 	r = iif( follow <> 0, u_stat( path_, @st ), u_lstat( path_, @st ) )
 
 	if( r <> 0 ) then
-		dim as long e = tkrt_FsMapOsError( )
+		dim as int32 e = tkrt_FsMapOsError( )
 		free( path_ )
 		memset( out_, 0, sizeof( FB_FSINFO ) )
 		return e
@@ -728,7 +728,7 @@ function tkort_UStrFsStat alias "fb_UStrFsStat" _
 	return FB_FS_OK
 end function
 
-function tkort_UStrFsCurrentDir alias "fb_UStrFsCurrentDir" ( byval status as long ptr ) as FBUSTRING ptr
+function tkort_UStrFsCurrentDir alias "fb_UStrFsCurrentDir" ( byval status as int32 ptr ) as FBUSTRING ptr
 	dim as zstring * 4097 buf = any
 
 	if( status <> 0 ) then *status = FB_FS_OK
@@ -742,7 +742,7 @@ function tkort_UStrFsCurrentDir alias "fb_UStrFsCurrentDir" ( byval status as lo
 end function
 
 function tkort_UStrFsAbsolutePath alias "fb_UStrFsAbsolutePath" _
-	( byval p as FBUSTRING ptr, byval status as long ptr ) as FBUSTRING ptr
+	( byval p as FBUSTRING ptr, byval status as int32 ptr ) as FBUSTRING ptr
 
 	dim as FB_UCHAR ptr s = any
 	dim as integer len_ = any
@@ -764,7 +764,7 @@ end function
 '' Resolves every symbolic link and requires every component to exist -- unlike
 '' AbsolutePath, and the contrast is the reason both exist.
 function tkort_UStrFsCanonicalPath alias "fb_UStrFsCanonicalPath" _
-	( byval p as FBUSTRING ptr, byval status as long ptr ) as FBUSTRING ptr
+	( byval p as FBUSTRING ptr, byval status as int32 ptr ) as FBUSTRING ptr
 
 	dim as zstring ptr path_ = any, res = any
 	dim as FBUSTRING ptr out_ = any
@@ -793,9 +793,9 @@ function tkort_UStrFsCanonicalPath alias "fb_UStrFsCanonicalPath" _
 	return out_
 end function
 
-function tkort_UStrFsSetCurrentDir alias "fb_UStrFsSetCurrentDir" ( byval p as FBUSTRING ptr ) as long
+function tkort_UStrFsSetCurrentDir alias "fb_UStrFsSetCurrentDir" ( byval p as FBUSTRING ptr ) as int32
 	dim as zstring ptr path_ = hFsNarrow( p )
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	if( path_ = 0 ) then return FB_FS_UNKNOWN
 	if( u_chdir( path_ ) <> 0 ) then r = tkrt_FsMapOsError( )
@@ -807,12 +807,12 @@ end function
 '' that, which is why utimensat is used rather than the older utimes( ) that can
 '' only set both.
 function tkort_UStrFsSetTimes alias "fb_UStrFsSetTimes" _
-	( byval p as FBUSTRING ptr, byval mtime as longint, byval atime as longint ) as long
+	( byval p as FBUSTRING ptr, byval mtime as int64, byval atime as int64 ) as int32
 
 	dim as zstring ptr path_ = hFsNarrow( p )
 	dim as timespec_ ts( 0 to 1 ) = any
-	dim as long r = FB_FS_OK
-	dim as longint v = any
+	dim as int32 r = FB_FS_OK
+	dim as int64 v = any
 
 	if( path_ = 0 ) then return FB_FS_UNKNOWN
 

@@ -35,13 +35,13 @@
 '' is "wrong number of dimensions". A struct whose only member is the array has
 '' exactly the array's layout, so C sees the same bytes at the same symbol.
 type TKORT_UTF8_BMARK
-	as ubyte v( 0 to 6 )
+	as uint8 v( 0 to 6 )
 end type
 type TKORT_UTF8_TRAILING
-	as byte v( 0 to 255 )
+	as int8 v( 0 to 255 )
 end type
 type TKORT_UTF8_OFFSETS
-	as ulong v( 0 to 5 )
+	as uint32 v( 0 to 5 )
 end type
 
 extern "c"   '' NON-FBCALL: three tables and one plain helper, no FBCALL anywhere.
@@ -82,10 +82,10 @@ extern "c"   '' NON-FBCALL: fb_file.h declares it plain.
 '' EMBEDDED NULs ARE CONVERTED, NOT TERMINATORS. The count comes from `chars`,
 '' so a NUL in the middle is emitted as a one-byte 0 and the loop continues.
 sub tkort_CharToUTF8 alias "fb_hCharToUTF8" _
-	( byval src as ubyte ptr, byval chars as integer, _
-	  byval dst as ubyte ptr, byval total_bytes as integer ptr )
+	( byval src as uint8 ptr, byval chars as integer, _
+	  byval dst as uint8 ptr, byval total_bytes as integer ptr )
 
-	dim as ulong c = any
+	dim as uint32 c = any
 
 	*total_bytes = 0
 	while( chars > 0 )

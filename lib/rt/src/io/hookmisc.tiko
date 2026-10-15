@@ -53,42 +53,42 @@
 #define TKORT_HK_LINEINPUTW TKORT_HOOK_AT( 21 )
 
 type FB_LOCATEPROC as function cdecl _
-	( byval row as long, byval col as long, byval cursor as long ) as long
+	( byval row as int32, byval col as int32, byval cursor as int32 ) as int32
 type FB_READSTRPROC as function cdecl _
 	( byval buffer as zstring ptr, byval length_ as integer ) as zstring ptr
 type FB_GETMOUSEPROC as function cdecl _
-	( byval x as long ptr, byval y as long ptr, byval z as long ptr, _
-	  byval buttons as long ptr, byval clip as long ptr ) as long
+	( byval x as int32 ptr, byval y as int32 ptr, byval z as int32 ptr, _
+	  byval buttons as int32 ptr, byval clip as int32 ptr ) as int32
 type FB_LINEINPUTPROC as function cdecl _
 	( byval text_ as FBSTRING ptr, byval dst as any ptr, byval dst_len as integer, _
-	  byval fillrem as long, byval addquestion as long, byval addnewline as long ) as long
+	  byval fillrem as int32, byval addquestion as int32, byval addnewline as int32 ) as int32
 type FB_LINEINPUTWPROC as function cdecl _
 	( byval text_ as wstring ptr, byval dst as wstring ptr, byval max_chars as integer, _
-	  byval addquestion as long, byval addnewline as long ) as long
+	  byval addquestion as int32, byval addnewline as int32 ) as int32
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
-	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as long ptr, byval rows as long ptr )
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
+	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as int32 ptr, byval rows as int32 ptr )
 	declare sub tkrt_DevScrnInit_NoOpen alias "fb_DevScrnInit_NoOpen" ( )
 end extern
 
 extern "c"   '' NON-FBCALL: the console implementations these fall back to, and
              '' the view query -- all undecorated in fbc's win32 archive.
 	declare sub tkrt_ConsoleGetView alias "fb_ConsoleGetView" _
-		( byval start_row as long ptr, byval end_row as long ptr )
+		( byval start_row as int32 ptr, byval end_row as int32 ptr )
 	declare function tkrt_ConsoleLocate alias "fb_ConsoleLocate" _
-		( byval row as long, byval col as long, byval cursor as long ) as long
+		( byval row as int32, byval col as int32, byval cursor as int32 ) as int32
 	declare function tkrt_ConsoleReadStr alias "fb_ConsoleReadStr" _
 		( byval buffer as zstring ptr, byval length_ as integer ) as zstring ptr
 	declare function tkrt_ConsoleGetMouse alias "fb_ConsoleGetMouse" _
-		( byval x as long ptr, byval y as long ptr, byval z as long ptr, _
-		  byval buttons as long ptr, byval clip as long ptr ) as long
+		( byval x as int32 ptr, byval y as int32 ptr, byval z as int32 ptr, _
+		  byval buttons as int32 ptr, byval clip as int32 ptr ) as int32
 	declare function tkrt_ConsoleLineInput alias "fb_ConsoleLineInput" _
 		( byval text_ as FBSTRING ptr, byval dst as any ptr, byval dst_len as integer, _
-		  byval fillrem as long, byval addquestion as long, byval addnewline as long ) as long
+		  byval fillrem as int32, byval addquestion as int32, byval addnewline as int32 ) as int32
 	declare function tkrt_ConsoleLineInputWstr alias "fb_ConsoleLineInputWstr" _
 		( byval text_ as wstring ptr, byval dst as wstring ptr, byval max_chars as integer, _
-		  byval addquestion as long, byval addnewline as long ) as long
+		  byval addquestion as int32, byval addnewline as int32 ) as int32
 end extern
 
 extern "rtlib"
@@ -98,12 +98,12 @@ extern "rtlib"
 '' THE ROW IS VALIDATED AGAINST THE VIEW PRINT REGION and the column against the
 '' full width. Both zeros mean "do not move" and skip their range test entirely.
 function tkort_LocateEx alias "fb_LocateEx" _
-	( byval row as long, byval col as long, byval cursor as long, _
-	  byval current_pos as long ptr ) as long
+	( byval row as int32, byval col as int32, byval cursor as int32, _
+	  byval current_pos as int32 ptr ) as int32
 
-	dim as long tmp_current_pos = 0
-	dim as long res = tkrt_ErrorSetNum( FB_RTERROR_OK )
-	dim as long start_y = any, end_y = any, con_width = any
+	dim as int32 tmp_current_pos = 0
+	dim as int32 res = tkrt_ErrorSetNum( FB_RTERROR_OK )
+	dim as int32 start_y = any, end_y = any, con_width = any
 
 	tkrt_ConsoleGetView( @start_y, @end_y )
 	tkrt_GetSize( @con_width, 0 )
@@ -146,7 +146,7 @@ end function
 '' would stop every other thread.
 function tkort_LineInput alias "fb_LineInput" _
 	( byval text_ as FBSTRING ptr, byval dst as any ptr, byval dst_len as integer, _
-	  byval fillrem as long, byval addquestion as long, byval addnewline as long ) as long
+	  byval fillrem as int32, byval addquestion as int32, byval addnewline as int32 ) as int32
 
 	TKORT_IOLOCK()
 	dim as FB_LINEINPUTPROC p = TKORT_HOOKPTR( FB_LINEINPUTPROC, TKORT_HK_LINEINPUT )
@@ -160,7 +160,7 @@ end function
 
 function tkort_LineInputWstr alias "fb_LineInputWstr" _
 	( byval text_ as wstring ptr, byval dst as wstring ptr, byval max_chars as integer, _
-	  byval addquestion as long, byval addnewline as long ) as long
+	  byval addquestion as int32, byval addnewline as int32 ) as int32
 
 	TKORT_IOLOCK()
 	dim as FB_LINEINPUTWPROC p = TKORT_HOOKPTR( FB_LINEINPUTWPROC, TKORT_HK_LINEINPUTW )
@@ -177,10 +177,10 @@ end function
 '' THE LOCK IS HELD ACROSS THE CALL here, unlike the two above -- a mouse query
 '' does not block, so there is nothing to release it for.
 function tkort_GetMouse alias "fb_GetMouse" _
-	( byval x as long ptr, byval y as long ptr, byval z as long ptr, _
-	  byval buttons as long ptr, byval clip as long ptr ) as long
+	( byval x as int32 ptr, byval y as int32 ptr, byval z as int32 ptr, _
+	  byval buttons as int32 ptr, byval clip as int32 ptr ) as int32
 
-	dim as long res = any
+	dim as int32 res = any
 
 	TKORT_IOLOCK()
 
@@ -200,12 +200,12 @@ end function
 '' yields -1 for the rest rather than whatever was on the stack. That -1 is
 '' also what a program tests for "no mouse".
 function tkort_GetMouse64 alias "fb_GetMouse64" _
-	( byval x as longint ptr, byval y as longint ptr, byval z as longint ptr, _
-	  byval buttons as longint ptr, byval clip as longint ptr ) as long
+	( byval x as int64 ptr, byval y as int64 ptr, byval z as int64 ptr, _
+	  byval buttons as int64 ptr, byval clip as int64 ptr ) as int32
 
-	dim as long ix = -1, iy = -1, iz = -1, ibuttons = -1, iclip = -1
+	dim as int32 ix = -1, iy = -1, iz = -1, ibuttons = -1, iclip = -1
 
-	dim as long res = tkort_GetMouse( @ix, @iy, @iz, @ibuttons, @iclip )
+	dim as int32 res = tkort_GetMouse( @ix, @iy, @iz, @ibuttons, @iclip )
 
 	if( x <> 0 )       then *x = ix
 	if( y <> 0 )       then *y = iy

@@ -34,45 +34,45 @@
 
 extern "c"   '' NON-FBCALL: helpers, declared plain in fb_datetime.h.
 declare function tkrt_TimeDaysInMonth alias "fb_hTimeDaysInMonth" _
-	( byval month as long, byval year as long ) as long
+	( byval month as int32, byval year as int32 ) as int32
 declare function tkrt_TimeGetIntervalType alias "fb_hTimeGetIntervalType" _
-	( byval interval as FBSTRING ptr ) as long
+	( byval interval as FBSTRING ptr ) as int32
 declare function tkrt_GetDayOfYearEx alias "fb_hGetDayOfYearEx" _
-	( byval year as long, byval month as long, byval day_ as long ) as long
+	( byval year as int32, byval month as int32, byval day_ as int32 ) as int32
 declare function tkrt_GetWeekOfYear alias "fb_hGetWeekOfYear" _
-	( byval ref_year as long, byval serial as double, _
-	  byval first_day_of_year as long, byval first_day_of_week as long ) as long
+	( byval ref_year as int32, byval serial as float64, _
+	  byval first_day_of_year as int32, byval first_day_of_week as int32 ) as int32
 end extern
 
 extern "rtlib"
-declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as long ) as long
-declare function tkrt_FIXDouble alias "fb_FIXDouble" ( byval x as double ) as double
+declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as int32 ) as int32
+declare function tkrt_FIXDouble alias "fb_FIXDouble" ( byval x as float64 ) as float64
 declare function tkrt_DateSerial alias "fb_DateSerial" _
-	( byval year as long, byval month as long, byval day_ as long ) as long
+	( byval year as int32, byval month as int32, byval day_ as int32 ) as int32
 declare function tkrt_TimeSerial alias "fb_TimeSerial" _
-	( byval hour as long, byval minute as long, byval second as long ) as double
+	( byval hour as int32, byval minute as int32, byval second as int32 ) as float64
 declare sub tkrt_DateDecodeSerial alias "fb_hDateDecodeSerial" _
-	( byval serial as double, byval pYear as long ptr, _
-	  byval pMonth as long ptr, byval pDay as long ptr )
+	( byval serial as float64, byval pYear as int32 ptr, _
+	  byval pMonth as int32 ptr, byval pDay as int32 ptr )
 declare sub tkrt_TimeDecodeSerial alias "fb_hTimeDecodeSerial" _
-	( byval serial as double, byval pHour as long ptr, _
-	  byval pMinute as long ptr, byval pSecond as long ptr, _
-	  byval use_qb_hack as long )
+	( byval serial as float64, byval pHour as int32 ptr, _
+	  byval pMinute as int32 ptr, byval pSecond as int32 ptr, _
+	  byval use_qb_hack as int32 )
 declare function tkrt_Weekday alias "fb_Weekday" _
-	( byval serial as double, byval first_day_of_week as long ) as long
+	( byval serial as float64, byval first_day_of_week as int32 ) as int32
 end extern
 
 extern "rtlib"
 
 function tkort_DateAdd alias "fb_DateAdd" _
-	( byval interval as FBSTRING ptr, byval interval_value_arg as double, _
-	  byval serial as double ) as double
+	( byval interval as FBSTRING ptr, byval interval_value_arg as float64, _
+	  byval serial as float64 ) as float64
 
-	dim as long year = any, month = any, day_ = any
-	dim as long hour = any, minute = any, second = any
-	dim as long carry_value = any, test_value = any
-	dim as long interval_value = clng( fix( tkrt_FIXDouble( interval_value_arg ) ) )
-	dim as long interval_type = tkrt_TimeGetIntervalType( interval )
+	dim as int32 year = any, month = any, day_ = any
+	dim as int32 hour = any, minute = any, second = any
+	dim as int32 carry_value = any, test_value = any
+	dim as int32 interval_value = clng( fix( tkrt_FIXDouble( interval_value_arg ) ) )
+	dim as int32 interval_type = tkrt_TimeGetIntervalType( interval )
 
 	tkrt_ErrorSetNum( FB_RTERROR_OK )
 
@@ -125,13 +125,13 @@ function tkort_DateAdd alias "fb_DateAdd" _
 end function
 
 function tkort_DatePart alias "fb_DatePart" _
-	( byval interval as FBSTRING ptr, byval serial as double, _
-	  byval first_day_of_week as long, byval first_day_of_year as long ) as long
+	( byval interval as FBSTRING ptr, byval serial as float64, _
+	  byval first_day_of_week as int32, byval first_day_of_year as int32 ) as int32
 
-	dim as long result = 0
-	dim as long year = any, month = any, day_ = any
-	dim as long hour = any, minute = any, second = any
-	dim as long interval_type = tkrt_TimeGetIntervalType( interval )
+	dim as int32 result = 0
+	dim as int32 year = any, month = any, day_ = any
+	dim as int32 hour = any, minute = any, second = any
+	dim as int32 interval_type = tkrt_TimeGetIntervalType( interval )
 
 	tkrt_ErrorSetNum( FB_RTERROR_OK )
 
@@ -178,15 +178,15 @@ function tkort_DatePart alias "fb_DatePart" _
 end function
 
 function tkort_DateDiff alias "fb_DateDiff" _
-	( byval interval as FBSTRING ptr, byval serial1 as double, byval serial2 as double, _
-	  byval first_day_of_week as long, byval first_day_of_year as long ) as longint
+	( byval interval as FBSTRING ptr, byval serial1 as float64, byval serial2 as float64, _
+	  byval first_day_of_week as int32, byval first_day_of_year as int32 ) as int64
 
-	dim as long year1 = any, month1 = any, year2 = any, month2 = any
-	dim as long hour = any, minute = any, second = any, week = any
-	dim as longint result = 0
-	dim as double serial = any, serial_tmp = any
-	dim as long add_value = any
-	dim as long interval_type = tkrt_TimeGetIntervalType( interval )
+	dim as int32 year1 = any, month1 = any, year2 = any, month2 = any
+	dim as int32 hour = any, minute = any, second = any, week = any
+	dim as int64 result = 0
+	dim as float64 serial = any, serial_tmp = any
+	dim as int32 add_value = any
+	dim as int32 interval_type = tkrt_TimeGetIntervalType( interval )
 
 	tkrt_ErrorSetNum( FB_RTERROR_OK )
 

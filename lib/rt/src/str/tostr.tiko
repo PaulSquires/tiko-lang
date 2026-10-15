@@ -37,7 +37,7 @@ end extern
 '' Allocate, format through the caller's closure, trim a trailing dot, and set
 '' the real length. Every float entry point below is this plus a format string.
 private function hFloatTo _
-	( byval num as double, byval cap as integer, byval fmt as zstring ptr ) as FBSTRING ptr
+	( byval num as float64, byval cap as integer, byval fmt as zstring ptr ) as FBSTRING ptr
 
 	dim as FBSTRING ptr dst = tkrt_AllocTemp( 0, cap )
 	if( dst = 0 ) then return TKORT_NULLSTR()
@@ -60,11 +60,11 @@ private function hFloatTo _
 	'' calls __mingw_sprintf, which is fbc's own. The wide family goes through the
 	'' MSVCRT-compatible options and already matches ('-1.#IND'); PRINT and WRITE
 	'' go through fb_hFloat2Str below and match too. tests/abi/tostr-parity.bas.
-	dim as ulongint bits_ = *cptr( ulongint ptr, @num )
+	dim as uint64 bits_ = *cptr( uint64 ptr, @num )
 	if( ((bits_ and &h7FF0000000000000ull) = &h7FF0000000000000ull) andalso _
 	    ((bits_ and &h000FFFFFFFFFFFFFull) <> 0) ) then
 		bits_ = &h7FF8000000000000ull
-		num = *cptr( double ptr, @bits_ )
+		num = *cptr( float64 ptr, @bits_ )
 	end if
 #endif
 
@@ -87,7 +87,7 @@ private function hFloatTo _
 end function
 
 private function hIntTo _
-	( byval fmt as zstring ptr, byval cap as integer, byval num as longint ) as FBSTRING ptr
+	( byval fmt as zstring ptr, byval cap as integer, byval num as int64 ) as FBSTRING ptr
 
 	dim as FBSTRING ptr dst = tkrt_AllocTemp( 0, cap )
 	if( dst = 0 ) then return TKORT_NULLSTR()
@@ -102,29 +102,29 @@ extern "rtlib"
 
 '' -------------------------------------------------------------- integers
 
-function tkort_IntToStr alias "fb_IntToStr" ( byval num as long ) as FBSTRING ptr
-	return hIntTo( @"%d", sizeof( long ) * 3, num )
+function tkort_IntToStr alias "fb_IntToStr" ( byval num as int32 ) as FBSTRING ptr
+	return hIntTo( @"%d", sizeof( int32 ) * 3, num )
 end function
 
-function tkort_UIntToStr alias "fb_UIntToStr" ( byval num as ulong ) as FBSTRING ptr
-	return hIntTo( @"%u", sizeof( long ) * 3, cast( longint, num ) )
+function tkort_UIntToStr alias "fb_UIntToStr" ( byval num as uint32 ) as FBSTRING ptr
+	return hIntTo( @"%u", sizeof( int32 ) * 3, cast( int64, num ) )
 end function
 
-function tkort_LongintToStr alias "fb_LongintToStr" ( byval num as longint ) as FBSTRING ptr
-	return hIntTo( @"%lld", sizeof( longint ) * 3, num )
+function tkort_LongintToStr alias "fb_LongintToStr" ( byval num as int64 ) as FBSTRING ptr
+	return hIntTo( @"%lld", sizeof( int64 ) * 3, num )
 end function
 
-function tkort_ULongintToStr alias "fb_ULongintToStr" ( byval num as ulongint ) as FBSTRING ptr
-	return hIntTo( @"%llu", sizeof( longint ) * 3, cast( longint, num ) )
+function tkort_ULongintToStr alias "fb_ULongintToStr" ( byval num as uint64 ) as FBSTRING ptr
+	return hIntTo( @"%llu", sizeof( int64 ) * 3, cast( int64, num ) )
 end function
 
 '' ---------------------------------------------------------------- floats
 
-function tkort_FloatToStr alias "fb_FloatToStr" ( byval num as single ) as FBSTRING ptr
+function tkort_FloatToStr alias "fb_FloatToStr" ( byval num as float32 ) as FBSTRING ptr
 	return hFloatTo( num, 7 + 8, @"%.7g" )
 end function
 
-function tkort_DoubleToStr alias "fb_DoubleToStr" ( byval num as double ) as FBSTRING ptr
+function tkort_DoubleToStr alias "fb_DoubleToStr" ( byval num as float64 ) as FBSTRING ptr
 	return hFloatTo( num, 16 + 8, @"%.16g" )
 end function
 
@@ -133,7 +133,7 @@ end function
 dim shared as zstring * 6 tkort_sfalse, tkort_strue
 dim shared as integer tkort_sbool_ready
 
-function tkort_hBoolToStr alias "fb_hBoolToStr" ( byval num as byte ) as zstring ptr
+function tkort_hBoolToStr alias "fb_hBoolToStr" ( byval num as int8 ) as zstring ptr
 	if( tkort_sbool_ready = 0 ) then
 		tkort_sfalse = "false"
 		tkort_strue  = "true"
@@ -143,7 +143,7 @@ function tkort_hBoolToStr alias "fb_hBoolToStr" ( byval num as byte ) as zstring
 	return @tkort_sfalse
 end function
 
-function tkort_BoolToStr alias "fb_BoolToStr" ( byval num as byte ) as FBSTRING ptr
+function tkort_BoolToStr alias "fb_BoolToStr" ( byval num as int8 ) as FBSTRING ptr
 	dim as FBSTRING ptr dst = tkrt_AllocTemp( 0, 8 )
 	if( dst = 0 ) then return TKORT_NULLSTR()
 	dim as zstring ptr src = tkort_hBoolToStr( num )
@@ -158,8 +158,8 @@ end function
 ''
 '' The space flag, and nothing else.
 
-function tkort_IntToStrQB alias "fb_IntToStrQB" ( byval num as long ) as FBSTRING ptr
-	return hIntTo( @"% d", sizeof( long ) * 3, num )
+function tkort_IntToStrQB alias "fb_IntToStrQB" ( byval num as int32 ) as FBSTRING ptr
+	return hIntTo( @"% d", sizeof( int32 ) * 3, num )
 end function
 
 '' THE SPACE FLAG DOES NOT APPLY TO AN UNSIGNED CONVERSION, and only one of the
@@ -170,23 +170,23 @@ end function
 '' space is written into the format as a literal rather than asked for as a flag.
 '' Identical text on every target, and it stops depending on which printf.
 '' The signed twins keep "% d" and "% lld": the flag is defined for those.
-function tkort_UIntToStrQB alias "fb_UIntToStrQB" ( byval num as ulong ) as FBSTRING ptr
-	return hIntTo( @" %u", sizeof( long ) * 3, cast( longint, num ) )
+function tkort_UIntToStrQB alias "fb_UIntToStrQB" ( byval num as uint32 ) as FBSTRING ptr
+	return hIntTo( @" %u", sizeof( int32 ) * 3, cast( int64, num ) )
 end function
 
-function tkort_LongintToStrQB alias "fb_LongintToStrQB" ( byval num as longint ) as FBSTRING ptr
-	return hIntTo( @"% lld", sizeof( longint ) * 3, num )
+function tkort_LongintToStrQB alias "fb_LongintToStrQB" ( byval num as int64 ) as FBSTRING ptr
+	return hIntTo( @"% lld", sizeof( int64 ) * 3, num )
 end function
 
-function tkort_ULongintToStrQB alias "fb_ULongintToStrQB" ( byval num as ulongint ) as FBSTRING ptr
-	return hIntTo( @" %llu", sizeof( longint ) * 3, cast( longint, num ) )
+function tkort_ULongintToStrQB alias "fb_ULongintToStrQB" ( byval num as uint64 ) as FBSTRING ptr
+	return hIntTo( @" %llu", sizeof( int64 ) * 3, cast( int64, num ) )
 end function
 
-function tkort_FloatToStrQB alias "fb_FloatToStrQB" ( byval num as single ) as FBSTRING ptr
+function tkort_FloatToStrQB alias "fb_FloatToStrQB" ( byval num as float32 ) as FBSTRING ptr
 	return hFloatTo( num, 7 + 8, @"% .7g" )
 end function
 
-function tkort_DoubleToStrQB alias "fb_DoubleToStrQB" ( byval num as double ) as FBSTRING ptr
+function tkort_DoubleToStrQB alias "fb_DoubleToStrQB" ( byval num as float64 ) as FBSTRING ptr
 	return hFloatTo( num, 16 + 8, @"% .16g" )
 end function
 
@@ -214,8 +214,8 @@ const FB_F2A_ADDBLANK = 1
 extern "c"   '' NON-FBCALL: fb_string.h declares fb_hFloat2Str without it.
 
 function tkort_hFloat2Str alias "fb_hFloat2Str" _
-	( byval val_ as double, byval buffer as zstring ptr, _
-	  byval digits as long, byval mask as long ) as zstring ptr
+	( byval val_ as float64, byval buffer as zstring ptr, _
+	  byval digits as int32, byval mask as int32 ) as zstring ptr
 
 	dim as zstring ptr p = buffer
 	if( (mask and FB_F2A_ADDBLANK) <> 0 ) then p = @buffer[1]

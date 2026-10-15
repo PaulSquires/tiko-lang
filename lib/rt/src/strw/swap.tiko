@@ -25,7 +25,7 @@
 
 extern "rtlib"
 	declare sub tkrt_MemSwap alias "fb_MemSwap" _
-		( byval a as ubyte ptr, byval b as ubyte ptr, byval bytes as uinteger )
+		( byval a as uint8 ptr, byval b as uint8 ptr, byval bytes as uinteger )
 end extern
 
 extern "rtlib"
@@ -47,7 +47,7 @@ sub tkort_WstrSwap alias "fb_WstrSwap" _
 	'' belong.
 	if( len1 = len2 ) then
 		if( len1 > 0 ) then
-			tkrt_MemSwap( cptr( ubyte ptr, str1 ), cptr( ubyte ptr, str2 ), _
+			tkrt_MemSwap( cptr( uint8 ptr, str1 ), cptr( uint8 ptr, str2 ), _
 			              len1 * sizeof( wstring ) )
 		end if
 		exit sub
@@ -62,7 +62,7 @@ sub tkort_WstrSwap alias "fb_WstrSwap" _
 	end if
 
 	if( len1 > 0 ) then
-		tkrt_MemSwap( cptr( ubyte ptr, str1 ), cptr( ubyte ptr, str2 ), _
+		tkrt_MemSwap( cptr( uint8 ptr, str1 ), cptr( uint8 ptr, str2 ), _
 		              len1 * sizeof( wstring ) )
 	end if
 
@@ -76,8 +76,8 @@ sub tkort_WstrSwap alias "fb_WstrSwap" _
 	end if
 
 	'' The two terminators end up SWAPPED with the lengths.
-	dim as ubyte ptr b1 = cptr( ubyte ptr, str1 )
-	dim as ubyte ptr b2 = cptr( ubyte ptr, str2 )
+	dim as uint8 ptr b1 = cptr( uint8 ptr, str1 )
+	dim as uint8 ptr b2 = cptr( uint8 ptr, str2 )
 	for k as integer = 0 to sizeof( wstring ) - 1
 		b1[len2 * sizeof( wstring ) + k] = 0
 		b2[len1 * sizeof( wstring ) + k] = 0

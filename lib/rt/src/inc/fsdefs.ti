@@ -52,18 +52,18 @@ const FB_FS_TICKS_TO_FILETIME   = 504911232000000000ll
 const FB_FS_TICKS_TO_UNIX_EPOCH = 621355968000000000ll
 
 type FB_FSINFO
-	as ulongint  size_
-	as longint   mtime, ctime, atime      '' ticks; 0 when absent
-	as ulong     native_attrs             '' dwFileAttributes / st_mode
-	as long      kind                     '' FB_FSKIND_*
-	as long      flags                    '' FB_FSFLAG_*
+	as uint64  size_
+	as int64   mtime, ctime, atime      '' ticks; 0 when absent
+	as uint32     native_attrs             '' dwFileAttributes / st_mode
+	as int32      kind                     '' FB_FSKIND_*
+	as int32      flags                    '' FB_FSFLAG_*
 end type
 
 type FB_FSDIRENT
 	as FB_UCHAR  name( 0 to FB_FS_MAXNAME - 1 )
-	as long      namelen
-	as long      kind
-	as long      has_info
+	as int32      namelen
+	as int32      kind
+	as int32      has_info
 	as FB_FSINFO info
 end type
 
@@ -71,19 +71,19 @@ type FB_FSVOLUME
 	as FB_UCHAR  root( 0 to FB_FS_MAXPATH - 1 )
 	as FB_UCHAR  name( 0 to FB_FS_MAXNAME - 1 )
 	as FB_UCHAR  fstype( 0 to FB_FS_MAXNAME - 1 )
-	as long      rootlen, namelen, fstypelen
-	as ulong     maxcomp
-	as long      flags
+	as int32      rootlen, namelen, fstypelen
+	as uint32     maxcomp
+	as int32      flags
 end type
 
 type FB_FSCHANGE
 	as FB_UCHAR  path( 0 to FB_FS_MAXPATH - 1 )
-	as long      pathlen
-	as long      kind
+	as int32      pathlen
+	as int32      kind
 end type
 
 type FB_FSSPACE
-	as ulongint  total          '' capacity of the volume
-	as ulongint  freebytes      '' free, IGNORING quota
-	as ulongint  avail          '' free TO THIS USER, honouring quota
+	as uint64  total          '' capacity of the volume
+	as uint64  freebytes      '' free, IGNORING quota
+	as uint64  avail          '' free TO THIS USER, honouring quota
 end type

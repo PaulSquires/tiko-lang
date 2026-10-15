@@ -65,9 +65,9 @@ const TKORT_EOF = -1
 '' (FB_WCHAR)-1: &hFFFF on Windows, &hFFFFFFFF on Linux. Comparing against -1 as
 '' an integer would never match on the narrower target.
 #if sizeof( wstring ) = 2
-	const TKORT_WEOF as ulong = &h0000FFFFu
+	const TKORT_WEOF as uint32 = &h0000FFFFu
 #else
-	const TKORT_WEOF as ulong = &hFFFFFFFFu
+	const TKORT_WEOF as uint32 = &hFFFFFFFFu
 #endif
 
 '' fb_file.h:
@@ -81,16 +81,16 @@ const TKORT_EOF = -1
 '' The asserts are what hold it.
 type FB_INPUTCTX field = 1
 	as FB_FILE ptr handle
-	as long        status
+	as int32        status
 	'' fbc calls this `index`, and it is a C `int` -- genuinely 32-bit, not a
 	'' pointer-width index. Renamed because the index-width lint matches on the
 	'' NAME and is right to, and because a struct field mirroring an int is the
 	'' one case where `as long` is the correct spelling. Same exemption as
 	'' FB_FILE.reclen in inc/file.ti.
-	as long    pad0_
+	as int32    pad0_
 	as FBSTRING    str_
-	as long        cursor
-	as long    pad1_
+	as int32        cursor
+	as int32    pad1_
 end type
 
 #assert sizeof( FB_INPUTCTX ) = 48
@@ -106,14 +106,14 @@ const eIM_ReadLine = 1
 const eIM_Read     = 2
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
 	declare function tkrt_StrAssign alias "fb_StrAssign" _
 		( byval dst as any ptr, byval dst_size as integer, _
-		  byval src as any ptr, byval src_size as integer, byval fill_rem as long ) as any ptr
+		  byval src as any ptr, byval src_size as integer, byval fill_rem as int32 ) as any ptr
 	declare function tkrt_StrConcatAssign alias "fb_StrConcatAssign" _
 		( byval dst as any ptr, byval dst_size as integer, _
-		  byval src as any ptr, byval src_size as integer, byval fillrem as long ) as any ptr
+		  byval src as any ptr, byval src_size as integer, byval fillrem as int32 ) as any ptr
 	declare sub tkrt_DevScrnInit_Write alias "fb_DevScrnInit_Write" ( )
 	declare sub tkrt_DevScrnInit_WriteWstr alias "fb_DevScrnInit_WriteWstr" ( )
 end extern
@@ -123,18 +123,18 @@ extern "c"   '' NON-FBCALL: the *Ex forms, the h-prefixed internals and the
 	declare function tkrt_StrAllocTempDescF alias "fb_StrAllocTempDescF" _
 		( byval s as zstring ptr, byval length as integer ) as FBSTRING ptr
 	declare function tkrt_GetDataEx alias "fb_FileGetDataEx" _
-		( byval h as FB_FILE ptr, byval pos_ as longint, byval dst as any ptr, _
+		( byval h as FB_FILE ptr, byval pos_ as int64, byval dst as any ptr, _
 		  byval length as uinteger, byval bytesread as uinteger ptr, _
-		  byval adjust as long, byval is_uni as long ) as long
+		  byval adjust as int32, byval is_uni as int32 ) as int32
 	declare function tkrt_PutDataEx alias "fb_FilePutDataEx" _
-		( byval h as FB_FILE ptr, byval pos_ as longint, byval data_ as any ptr, _
-		  byval length as uinteger, byval adjust as long, byval checkpos as long, _
-		  byval is_uni as long ) as long
+		( byval h as FB_FILE ptr, byval pos_ as int64, byval data_ as any ptr, _
+		  byval length as uinteger, byval adjust as int32, byval checkpos as int32, _
+		  byval is_uni as int32 ) as int32
 	declare function tkrt_PutBackEx alias "fb_FilePutBackEx" _
-		( byval h as FB_FILE ptr, byval src as any ptr, byval chars as uinteger ) as long
-	declare function tkrt_hFileResetEx alias "fb_hFileResetEx" ( byval streamno as long ) as long
+		( byval h as FB_FILE ptr, byval src as any ptr, byval chars as uinteger ) as int32
+	declare function tkrt_hFileResetEx alias "fb_hFileResetEx" ( byval streamno as int32 ) as int32
 	declare function tkrt_TlsGetCtx alias "fb_TlsGetCtx" _
-		( byval keyid as long, byval len_ as uinteger, byval dtor as any ptr ) as any ptr
+		( byval keyid as int32, byval len_ as uinteger, byval dtor as any ptr ) as any ptr
 
 	declare sub tkort_INPUTCTX_Destructor alias "fb_INPUTCTX_Destructor" ( byval data_ as any ptr )
 end extern
@@ -172,9 +172,9 @@ end sub
 
 '' 0 IS stdin AND 1 IS stdout, and nothing else is valid. This recovers the
 '' standard streams after a program redirected them itself.
-sub tkort_FileResetEx alias "fb_FileResetEx" ( byval streamno as long )
+sub tkort_FileResetEx alias "fb_FileResetEx" ( byval streamno as int32 )
 
-	dim as long errnum = any
+	dim as int32 errnum = any
 
 	TKORT_IOLOCK()
 
@@ -202,7 +202,7 @@ extern "c"   '' NON-FBCALL: fb_print.h declares both plainly.
 '' the shared hook table, and PRINT # to channel 0 is the only path some programs
 '' ever take.
 function tkort_hFilePrintBufferEx alias "fb_hFilePrintBufferEx" _
-	( byval h as FB_FILE ptr, byval buffer as any ptr, byval length_ as uinteger ) as long
+	( byval h as FB_FILE ptr, byval buffer as any ptr, byval length_ as uinteger ) as int32
 
 	tkrt_DevScrnInit_Write( )
 	return tkrt_PutDataEx( h, 0, buffer, length_, FB_TRUE, FB_TRUE, FB_FALSE )
@@ -211,13 +211,13 @@ end function
 '' THE LENGTH COMES FROM strlen HERE, so this spelling cannot print an embedded
 '' NUL. The *Ex form takes an explicit length and can.
 function tkort_hFilePrintBuffer alias "fb_hFilePrintBuffer" _
-	( byval fnum as long, byval buffer as zstring ptr ) as long
+	( byval fnum as int32, byval buffer as zstring ptr ) as int32
 
 	return tkort_hFilePrintBufferEx( TKORT_FILE_TO_HANDLE( fnum ), buffer, strlen( buffer ) )
 end function
 
 function tkort_hFilePrintBufferWstrEx alias "fb_hFilePrintBufferWstrEx" _
-	( byval h as FB_FILE ptr, byval buffer as wstring ptr, byval length_ as uinteger ) as long
+	( byval h as FB_FILE ptr, byval buffer as wstring ptr, byval length_ as uinteger ) as int32
 
 	tkrt_DevScrnInit_WriteWstr( )
 	return tkrt_PutDataEx( h, 0, buffer, length_, FB_TRUE, FB_TRUE, FB_TRUE )
@@ -229,7 +229,7 @@ end function
 '' EVERY test in the differential with "undefined reference to fb_wstr_Len",
 '' because diff.sh links tiko-rt's objects explicitly.
 function tkort_hFilePrintBufferWstr alias "fb_hFilePrintBufferWstr" _
-	( byval fnum as long, byval buffer as wstring ptr ) as long
+	( byval fnum as int32, byval buffer as wstring ptr ) as int32
 
 	return tkort_hFilePrintBufferWstrEx( TKORT_FILE_TO_HANDLE( fnum ), buffer, _
 	                                     wcslen( buffer ) )
@@ -242,9 +242,9 @@ end function
 '' channel stores the put-back NARROWED to one byte each while an encoded one
 '' stores whole wide characters.
 function tkort_FilePutBackWstrEx alias "fb_FilePutBackWstrEx" _
-	( byval h as FB_FILE ptr, byval src as wstring ptr, byval chars as uinteger ) as long
+	( byval h as FB_FILE ptr, byval src as wstring ptr, byval chars as uinteger ) as int32
 
-	dim as long res = any
+	dim as int32 res = any
 	dim as uinteger bytes_ = any
 
 	if( TKORT_HANDLE_USED( h ) = 0 ) then
@@ -278,10 +278,10 @@ function tkort_FilePutBackWstrEx alias "fb_FilePutBackWstrEx" _
 		else
 			'' Narrowed one byte per character, NOT converted: the high bytes
 			'' are dropped, because an ASCII channel has nowhere to put them.
-			dim as ubyte ptr dst = @h->putback_buffer(0)
+			dim as uint8 ptr dst = @h->putback_buffer(0)
 			dim as integer i = 0
 			while( chars > 0 )
-				dst[i] = cast( ubyte, src[i] )
+				dst[i] = cast( uint8, src[i] )
 				i += 1
 				chars -= 1
 			wend
@@ -298,7 +298,7 @@ end extern
 extern "rtlib"
 
 function tkort_FilePutBackWstr alias "fb_FilePutBackWstr" _
-	( byval fnum as long, byval src as wstring ptr, byval chars as uinteger ) as long
+	( byval fnum as int32, byval src as wstring ptr, byval chars as uinteger ) as int32
 
 	return tkort_FilePutBackWstrEx( TKORT_FILE_TO_HANDLE( fnum ), src, chars )
 end function
@@ -312,12 +312,12 @@ extern "rtlib"
 '' Two implementations; see the file header for which device gets which.
 private function hFileLineInputEx _
 	( byval h as FB_FILE ptr, byval dst as any ptr, byval dst_len as integer, _
-	  byval fillrem as long ) as long
+	  byval fillrem as int32 ) as int32
 
 	dim as integer length_ = any, readlen = any
 	dim as zstring * BUFFER_LEN buffer = any
-	dim as ubyte ptr b = cast( ubyte ptr, @buffer )
-	dim as long mode_ = eIM_Invalid
+	dim as uint8 ptr b = cast( uint8 ptr, @buffer )
+	dim as int32 mode_ = eIM_Invalid
 
 	if( TKORT_HANDLE_USED( h ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -336,12 +336,12 @@ private function hFileLineInputEx _
 		'' The VFS-compatible path: one byte at a time, and slow by design.
 		length_ = 0
 		readlen = 0
-		dim as long res = FB_RTERROR_OK
+		dim as int32 res = FB_RTERROR_OK
 
 		while( h->hooks->pfnEof( h ) = 0 )
-			dim as long do_add = FB_FALSE, do_break = FB_FALSE
+			dim as int32 do_add = FB_FALSE, do_break = FB_FALSE
 			dim as uinteger read_len = any
-			dim as ubyte ch = any
+			dim as uint8 ch = any
 
 			res = tkrt_GetDataEx( h, 0, b + length_, 1, @read_len, FB_FALSE, FB_FALSE )
 
@@ -394,7 +394,7 @@ private function hFileLineInputEx _
 			if( dst_len = -1 ) then
 				tkrt_StrDelete( cast( FBSTRING ptr, dst ) )
 			else
-				*cast( ubyte ptr, dst ) = 0
+				*cast( uint8 ptr, dst ) = 0
 			end if
 		end if
 
@@ -428,8 +428,8 @@ private function hFileLineInputEx _
 end function
 
 function tkort_FileLineInput alias "fb_FileLineInput" _
-	( byval fnum as long, byval dst as any ptr, byval dst_len as integer, _
-	  byval fillrem as long ) as long
+	( byval fnum as int32, byval dst as any ptr, byval dst_len as integer, _
+	  byval fillrem as int32 ) as int32
 
 	return hFileLineInputEx( TKORT_FILE_TO_HANDLE( fnum ), dst, dst_len, fillrem )
 end function
@@ -438,7 +438,7 @@ end function
 '' -- there is no byte-at-a-time reassembly for wide characters, because the
 '' decoding belongs to the device.
 function tkort_FileLineInputWstr alias "fb_FileLineInputWstr" _
-	( byval fnum as long, byval dst as wstring ptr, byval max_chars as integer ) as long
+	( byval fnum as int32, byval dst as wstring ptr, byval max_chars as integer ) as int32
 
 	dim as FB_FILE ptr h = TKORT_FILE_TO_HANDLE( fnum )
 
@@ -457,7 +457,7 @@ end function
 
 '' Records the handle for the tokens that follow. The previous line's leftover
 '' string is deleted here, not by the tokeniser.
-function tkort_FileInput alias "fb_FileInput" ( byval fnum as long ) as long
+function tkort_FileInput alias "fb_FileInput" ( byval fnum as int32 ) as int32
 
 	TKORT_IOLOCK()
 
@@ -493,25 +493,25 @@ end sub
 '' ------------------------------------------------------------ the tokeniser
 
 '' Two sources, one reader. See the file header.
-private function hReadChar( byval ctx as FB_INPUTCTX ptr ) as long
+private function hReadChar( byval ctx as FB_INPUTCTX ptr ) as int32
 	if( TKORT_HANDLE_USED( ctx->handle ) <> 0 ) then
-		dim as long c = 0
+		dim as int32 c = 0
 		dim as uinteger length_ = any
-		dim as long res = tkrt_GetDataEx( ctx->handle, 0, @c, 1, @length_, FB_FALSE, FB_FALSE )
+		dim as int32 res = tkrt_GetDataEx( ctx->handle, 0, @c, 1, @length_, FB_FALSE, FB_FALSE )
 		if( (res <> FB_RTERROR_OK) orelse (length_ = 0) ) then return TKORT_EOF
 		'' MASKED TO ONE BYTE. The four-byte read target was only zeroed
 		'' above; without the mask a high byte would leak into the value.
 		return c and &h000000FF
 	else
 		if( ctx->cursor >= FB_STRSIZE( @ctx->str_ ) ) then return TKORT_EOF
-		dim as ubyte ptr p = cast( ubyte ptr, ctx->str_.data )
-		dim as long c = p[ctx->cursor]
+		dim as uint8 ptr p = cast( uint8 ptr, ctx->str_.data )
+		dim as int32 c = p[ctx->cursor]
 		ctx->cursor += 1
 		return c
 	end if
 end function
 
-private function hUnreadChar( byval ctx as FB_INPUTCTX ptr, byval c as long ) as long
+private function hUnreadChar( byval ctx as FB_INPUTCTX ptr, byval c as int32 ) as int32
 	if( TKORT_HANDLE_USED( ctx->handle ) <> 0 ) then
 		return tkrt_PutBackEx( ctx->handle, @c, 1 )
 	else
@@ -521,8 +521,8 @@ private function hUnreadChar( byval ctx as FB_INPUTCTX ptr, byval c as long ) as
 	end if
 end function
 
-private function hSkipWhiteSpc( byval ctx as FB_INPUTCTX ptr ) as long
-	dim as long c = any
+private function hSkipWhiteSpc( byval ctx as FB_INPUTCTX ptr ) as int32
+	dim as int32 c = any
 	do
 		c = hReadChar( ctx )
 		if( c = TKORT_EOF ) then exit do
@@ -532,7 +532,7 @@ end function
 
 '' A COMMA, AN LF, A CR LF PAIR OR END OF FILE ENDS A FIELD. Anything else is
 '' pushed back, because it belongs to the next one.
-private sub hSkipDelimiter( byval ctx as FB_INPUTCTX ptr, byval c as long )
+private sub hSkipDelimiter( byval ctx as FB_INPUTCTX ptr, byval c as int32 )
 
 	while( (c = 32) orelse (c = 9) )
 		c = hReadChar( ctx )
@@ -553,13 +553,13 @@ end sub
 '' it -- so a token exactly max_chars long still gets its NUL.
 function tkort_FileInputNextToken alias "fb_FileInputNextToken" _
 	( byval buffer as zstring ptr, byval max_chars as integer, _
-	  byval is_string as long, byval isfp as long ptr ) as integer
+	  byval is_string as int32, byval isfp as int32 ptr ) as integer
 
-	dim as long c = any, isquote = FB_FALSE, hasamp = FB_FALSE, skipdelim = FB_TRUE
+	dim as int32 c = any, isquote = FB_FALSE, hasamp = FB_FALSE, skipdelim = FB_TRUE
 	dim as integer length_ = 0
-	dim as ubyte ptr b = cast( ubyte ptr, buffer )
+	dim as uint8 ptr b = cast( uint8 ptr, buffer )
 	dim as FB_INPUTCTX ptr ctx = TKORT_TLSGET_INPUT()
-	dim as long savechar = any
+	dim as int32 savechar = any
 
 	*isfp = FB_FALSE
 
@@ -636,7 +636,7 @@ function tkort_FileInputNextToken alias "fb_FileInputNextToken" _
 		end select
 
 		if( savechar <> FB_FALSE ) then
-			b[length_] = cast( ubyte, c )
+			b[length_] = cast( uint8, c )
 			length_ += 1
 		end if
 
@@ -667,11 +667,11 @@ end extern
 
 extern "c"   '' NON-FBCALL: declared plainly in fb_file.h.
 
-private function hReadCharW( byval ctx as FB_INPUTCTX ptr ) as ulong
+private function hReadCharW( byval ctx as FB_INPUTCTX ptr ) as uint32
 	if( TKORT_HANDLE_USED( ctx->handle ) <> 0 ) then
 		dim as wstring * 2 c = any
 		dim as uinteger length_ = any
-		dim as long res = tkrt_GetDataEx( ctx->handle, 0, @c, 1, @length_, FB_FALSE, FB_TRUE )
+		dim as int32 res = tkrt_GetDataEx( ctx->handle, 0, @c, 1, @length_, FB_FALSE, FB_TRUE )
 		if( (res <> FB_RTERROR_OK) orelse (length_ = 0) ) then return TKORT_WEOF
 		return asc( c, 1 )
 	else
@@ -679,14 +679,14 @@ private function hReadCharW( byval ctx as FB_INPUTCTX ptr ) as ulong
 		'' READ AS AN UNSIGNED BYTE. The console buffer is narrow, and a signed
 		'' char above 127 would widen to a negative value and then to a huge
 		'' code unit.
-		dim as ubyte ptr p = cast( ubyte ptr, ctx->str_.data )
-		dim as ulong c = p[ctx->cursor]
+		dim as uint8 ptr p = cast( uint8 ptr, ctx->str_.data )
+		dim as uint32 c = p[ctx->cursor]
 		ctx->cursor += 1
 		return c
 	end if
 end function
 
-private function hUnreadCharW( byval ctx as FB_INPUTCTX ptr, byval c as ulong ) as long
+private function hUnreadCharW( byval ctx as FB_INPUTCTX ptr, byval c as uint32 ) as int32
 	if( TKORT_HANDLE_USED( ctx->handle ) <> 0 ) then
 		dim as wstring * 2 w = any
 		w[0] = c
@@ -699,8 +699,8 @@ private function hUnreadCharW( byval ctx as FB_INPUTCTX ptr, byval c as ulong ) 
 	end if
 end function
 
-private function hSkipWhiteSpcW( byval ctx as FB_INPUTCTX ptr ) as ulong
-	dim as ulong c = any
+private function hSkipWhiteSpcW( byval ctx as FB_INPUTCTX ptr ) as uint32
+	dim as uint32 c = any
 	do
 		c = hReadCharW( ctx )
 		if( c = TKORT_WEOF ) then exit do
@@ -708,7 +708,7 @@ private function hSkipWhiteSpcW( byval ctx as FB_INPUTCTX ptr ) as ulong
 	return c
 end function
 
-private sub hSkipDelimiterW( byval ctx as FB_INPUTCTX ptr, byval c as ulong )
+private sub hSkipDelimiterW( byval ctx as FB_INPUTCTX ptr, byval c as uint32 )
 	while( (c = 32) orelse (c = 9) )
 		c = hReadCharW( ctx )
 	wend
@@ -728,13 +728,13 @@ end sub
 '' wstring LEN, so an embedded NUL truncates a wide INPUT field where it would
 '' not truncate a narrow one.
 sub tkort_FileInputNextTokenWstr alias "fb_FileInputNextTokenWstr" _
-	( byval buffer as wstring ptr, byval max_chars as integer, byval is_string as long )
+	( byval buffer as wstring ptr, byval max_chars as integer, byval is_string as int32 )
 
-	dim as ulong c = any
-	dim as long isquote = 0, skipdelim = FB_TRUE
+	dim as uint32 c = any
+	dim as int32 isquote = 0, skipdelim = FB_TRUE
 	dim as integer length_ = 0
 	dim as FB_INPUTCTX ptr ctx = TKORT_TLSGET_INPUT()
-	dim as long savechar = any
+	dim as int32 savechar = any
 
 	c = hSkipWhiteSpcW( ctx )
 

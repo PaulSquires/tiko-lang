@@ -31,12 +31,12 @@
 
 extern "rtlib"
 	declare function fb_hStrRealloc alias "fb_hStrRealloc" _
-		( byval s as FBSTRING ptr, byval length as integer, byval keepdata as long ) as FBSTRING ptr
+		( byval s as FBSTRING ptr, byval length as integer, byval keepdata as int32 ) as FBSTRING ptr
 	declare function tkrt_DelTempNoLock alias "fb_hStrDelTemp_NoLock" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 	declare function tkrt_ConcatAssign alias "fb_StrConcatAssign" _
 		( byval dst as any ptr, byval dst_size as integer, _
-		  byval src as any ptr, byval src_size as integer, byval fillrem as long ) as any ptr
+		  byval src as any ptr, byval src_size as integer, byval fillrem as int32 ) as any ptr
 	declare sub fb_StrLock alias "fb_StrLock" ( )
 	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
 end extern
@@ -54,7 +54,7 @@ extern "rtlib"
 function tkort_StrConcatByref alias "fb_StrConcatByref" _
 	( _
 		byval dst as any ptr, byval dst_size as integer, _
-		byval src as any ptr, byval src_size as integer, byval fillrem as long _
+		byval src as any ptr, byval src_size as integer, byval fillrem as int32 _
 	) as any ptr
 
 	dim as zstring ptr dst_ptr = any, src_ptr = any
@@ -78,7 +78,7 @@ function tkort_StrConcatByref alias "fb_StrConcatByref" _
 
 			'' See the note above. The source operand is `dst`, the DESCRIPTOR,
 			'' and that is fbc's behaviour rather than a transcription slip.
-			memcpy( cptr( ubyte ptr, dst_ptr ) + dst_len, dst, dst_len )
+			memcpy( cptr( uint8 ptr, dst_ptr ) + dst_len, dst, dst_len )
 
 			'' FB_STRSETLEN, not a call: fb_hStrSetLength is `static __inline__` in
 			'' fb_string.h and is therefore NOT an exported symbol -- it inlines into

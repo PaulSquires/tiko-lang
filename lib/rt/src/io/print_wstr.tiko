@@ -33,7 +33,7 @@
 
 extern "c"   '' NON-FBCALL: the wide device-layer writer and its initialiser.
 	declare function tkrt_PrintBufferWstrEx alias "fb_hFilePrintBufferWstrEx" _
-		( byval h as FB_FILE ptr, byval s as wstring ptr, byval length as uinteger ) as long
+		( byval h as FB_FILE ptr, byval s as wstring ptr, byval length as uinteger ) as int32
 	declare sub tkrt_DevScrnInitWriteWstr alias "fb_DevScrnInit_WriteWstr" ( )
 end extern
 
@@ -41,12 +41,12 @@ end extern
 extern "c"   '' NON-FBCALL: the handle-taking forms, per fb_print.h.
 
 declare sub tkort_PrintPadWstrEx alias "fb_PrintPadWstrEx" _
-	( byval h as FB_FILE ptr, byval mask as long )
+	( byval h as FB_FILE ptr, byval mask as int32 )
 declare sub tkort_PrintVoidWstrEx alias "fb_PrintVoidWstrEx" _
-	( byval h as FB_FILE ptr, byval mask as long )
+	( byval h as FB_FILE ptr, byval mask as int32 )
 
 private sub hPrintWstrEx _
-	( byval h as FB_FILE ptr, byval s as wstring ptr, byval length as uinteger, byval mask as long )
+	( byval h as FB_FILE ptr, byval s as wstring ptr, byval length as uinteger, byval mask as int32 )
 	'' One lock round both, for the reason src/io/print.tiko gives.
 	IOLOCK()
 	if( length <> 0 ) then tkrt_PrintBufferWstrEx( h, s, length )
@@ -55,7 +55,7 @@ private sub hPrintWstrEx _
 end sub
 
 sub tkort_PrintWstrEx alias "fb_PrintWstrEx" _
-	( byval h as FB_FILE ptr, byval s as wstring ptr, byval mask as long )
+	( byval h as FB_FILE ptr, byval s as wstring ptr, byval mask as int32 )
 	if( s = 0 ) then
 		tkort_PrintVoidWstrEx( h, mask )
 	else
@@ -64,7 +64,7 @@ sub tkort_PrintWstrEx alias "fb_PrintWstrEx" _
 end sub
 
 sub tkort_PrintVoidWstrEx alias "fb_PrintVoidWstrEx" _
-	( byval h as FB_FILE ptr, byval mask as long )
+	( byval h as FB_FILE ptr, byval mask as int32 )
 	if( (mask and FB_PRINT_BIN_NEWLINE) <> 0 ) then
 		tkrt_PrintBufferWstrEx( h, TKORT_WBIN_NEWLINE, TKORT_WBIN_NEWLINE_LEN )
 	elseif( (mask and FB_PRINT_NEWLINE) <> 0 ) then
@@ -75,7 +75,7 @@ sub tkort_PrintVoidWstrEx alias "fb_PrintVoidWstrEx" _
 end sub
 
 private sub hPadWstrTo _
-	( byval h as FB_FILE ptr, byval current_x as long, byval new_x as long )
+	( byval h as FB_FILE ptr, byval current_x as int32, byval new_x as int32 )
 
 	if( new_x <= current_x ) then
 		tkrt_PrintBufferWstrEx( h, TKORT_WNEWLINE, TKORT_WNEWLINE_LEN )
@@ -93,22 +93,22 @@ private sub hPadWstrTo _
 end sub
 
 sub tkort_PrintPadWstrEx alias "fb_PrintPadWstrEx" _
-	( byval h as FB_FILE ptr, byval mask as long )
+	( byval h as FB_FILE ptr, byval mask as int32 )
 
 	tkrt_DevScrnInitWriteWstr( )
 
 	dim as FB_FILE ptr t = tkort_HandleDeref( h )
 	if( t = 0 ) then exit sub
 
-	dim as long old_x = cast( long, t->line_length ) + 1
-	dim as long new_x = old_x + FB_TAB_WIDTH - 1
+	dim as int32 old_x = cast( int32, t->line_length ) + 1
+	dim as int32 new_x = old_x + FB_TAB_WIDTH - 1
 	new_x = (new_x \ FB_TAB_WIDTH) * FB_TAB_WIDTH + 1
 
 	'' THE ASYMMETRY: width - FB_TAB_WIDTH here, plain width on the narrow side.
 	'' A wstring PRINT wraps one tab stop earlier than a string PRINT on the
 	'' same handle. Reproduced, not harmonised.
 	if( t->width <> 0 ) then
-		dim as long dev_width = cast( long, t->width )
+		dim as int32 dev_width = cast( int32, t->width )
 		if( new_x > (dev_width - FB_TAB_WIDTH) ) then new_x = 1
 	end if
 
@@ -121,15 +121,15 @@ end extern
 extern "rtlib"
 
 sub tkort_PrintWstr alias "fb_PrintWstr" _
-	( byval fnum as long, byval s as wstring ptr, byval mask as long )
+	( byval fnum as int32, byval s as wstring ptr, byval mask as int32 )
 	tkort_PrintWstrEx( TKORT_FILE_TO_HANDLE( fnum ), s, mask )
 end sub
 
-sub tkort_PrintVoidWstr alias "fb_PrintVoidWstr" ( byval fnum as long, byval mask as long )
+sub tkort_PrintVoidWstr alias "fb_PrintVoidWstr" ( byval fnum as int32, byval mask as int32 )
 	tkort_PrintVoidWstrEx( TKORT_FILE_TO_HANDLE( fnum ), mask )
 end sub
 
-sub tkort_PrintPadWstr alias "fb_PrintPadWstr" ( byval fnum as long, byval mask as long )
+sub tkort_PrintPadWstr alias "fb_PrintPadWstr" ( byval fnum as int32, byval mask as int32 )
 	tkort_PrintPadWstrEx( TKORT_FILE_TO_HANDLE( fnum ), mask )
 end sub
 

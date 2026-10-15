@@ -52,9 +52,9 @@ type FB_DTORMULT as sub cdecl ( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR
 const DOCLEAR_SPACE = 32
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 	declare function tkrt_ArrayLen alias "fb_ArrayLen" ( byval a as FBARRAY ptr ) as uinteger
-	declare function tkrt_ArrayErase alias "fb_ArrayErase" ( byval a as FBARRAY ptr ) as long
+	declare function tkrt_ArrayErase alias "fb_ArrayErase" ( byval a as FBARRAY ptr ) as int32
 	declare sub tkrt_ArrayStrErase alias "fb_ArrayStrErase" ( byval a as FBARRAY ptr )
 	declare sub tkrt_ArrayDestructObj alias "fb_ArrayDestructObj" _
 		( byval a as FBARRAY ptr, byval dtor as FB_DEFCTOR )
@@ -80,19 +80,19 @@ extern "c"   '' NON-FBCALL: four are variadic (stdcall cannot be), two are
              '' declared plainly in fb_array.h.
 
 declare function tkort_ArrayAlloc alias "fb_hArrayAlloc" _
-	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as long, _
-	  byval ctor as FB_DEFCTOR, byval dimensions as uinteger, byval ap as cva_list ) as long
+	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as int32, _
+	  byval ctor as FB_DEFCTOR, byval dimensions as uinteger, byval ap as cva_list ) as int32
 
 declare function tkort_ArrayRealloc alias "fb_hArrayRealloc" _
-	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as long, _
+	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as int32, _
 	  byval ctor as FB_DEFCTOR, byval dtor_mult as FB_DTORMULT, byval dtor as FB_DEFCTOR, _
-	  byval dimensions as uinteger, byval ap as cva_list ) as long
+	  byval dimensions as uinteger, byval ap as cva_list ) as int32
 
 '' ------------------------------------------------------------------ alloc
 
 function tkort_ArrayAlloc alias "fb_hArrayAlloc" _
-	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as long, _
-	  byval ctor as FB_DEFCTOR, byval dimensions as uinteger, byval ap as cva_list ) as long
+	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as int32, _
+	  byval ctor as FB_DEFCTOR, byval dimensions as uinteger, byval ap as cva_list ) as int32
 
 	dim as uinteger i = any, elements = any, size_ = any
 	dim as integer diff = any
@@ -146,7 +146,7 @@ function tkort_ArrayAlloc alias "fb_hArrayAlloc" _
 	if( a->base_ptr = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 
 	if( ctor <> 0 ) then
-		dim as ubyte ptr this_ = cast( ubyte ptr, a->base_ptr )
+		dim as uint8 ptr this_ = cast( uint8 ptr, a->base_ptr )
 		while( elements > 0 )
 			ctor( this_ )
 			this_ += element_len
@@ -156,7 +156,7 @@ function tkort_ArrayAlloc alias "fb_hArrayAlloc" _
 
 	'' index_ptr is base_ptr biased by the lbound offset, so that a(lbound) is
 	'' index_ptr[lbound]. diff is negative when the bounds start above zero.
-	a->index_ptr   = cast( ubyte ptr, a->base_ptr ) + diff
+	a->index_ptr   = cast( uint8 ptr, a->base_ptr ) + diff
 	a->size        = size_
 	a->element_len = element_len
 	a->dimensions  = dimensions
@@ -172,16 +172,16 @@ end function
 '' still describing the OLD array, which is why the bounds are written into
 '' dimTb last rather than as they are read -- the opposite of fb_hArrayAlloc.
 function tkort_ArrayRealloc alias "fb_hArrayRealloc" _
-	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as long, _
+	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as int32, _
 	  byval ctor as FB_DEFCTOR, byval dtor_mult as FB_DTORMULT, byval dtor as FB_DEFCTOR, _
-	  byval dimensions as uinteger, byval ap as cva_list ) as long
+	  byval dimensions as uinteger, byval ap as cva_list ) as int32
 
 	dim as uinteger i = any, elements = any, size_ = any
 	dim as integer diff = any
 	dim as FBARRAYDIM ptr dim_ = any
 	dim as integer lbTB( 0 to FB_MAXDIMENSIONS - 1 ) = any
 	dim as integer ubTB( 0 to FB_MAXDIMENSIONS - 1 ) = any
-	dim as ubyte ptr this_ = any
+	dim as uint8 ptr this_ = any
 	dim as any ptr reallocTemp = any
 
 	if( (dimensions <> a->dimensions) andalso (a->dimensions <> 0) ) then
@@ -220,7 +220,7 @@ function tkort_ArrayRealloc alias "fb_hArrayRealloc" _
 	'' GROWING: only the new tail is touched. The preserved part must not be,
 	'' which is the entire point of REDIM PRESERVE.
 	if( size_ > a->size ) then
-		this_ = cast( ubyte ptr, a->base_ptr ) + a->size
+		this_ = cast( uint8 ptr, a->base_ptr ) + a->size
 		if( ctor <> 0 ) then
 			dim as uinteger objects = (size_ - a->size) \ element_len
 			while( objects > 0 )
@@ -235,7 +235,7 @@ function tkort_ArrayRealloc alias "fb_hArrayRealloc" _
 		end if
 	end if
 
-	a->index_ptr   = cast( ubyte ptr, a->base_ptr ) + diff
+	a->index_ptr   = cast( uint8 ptr, a->base_ptr ) + diff
 	a->size        = size_
 	a->element_len = element_len
 	a->dimensions  = dimensions
@@ -258,11 +258,11 @@ end function
 '' its block released. Getting this wrong leaks one allocation per element and
 '' shows up in nothing but allocation counting.
 function tkort_ArrayRedimEx alias "fb_ArrayRedimEx" _
-	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as long, _
-	  byval isvarlen as long, byval dimensions as uinteger, ... ) as long
+	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as int32, _
+	  byval isvarlen as int32, byval dimensions as uinteger, ... ) as int32
 
 	dim as cva_list ap = any
-	dim as long res = any
+	dim as int32 res = any
 
 	cva_start( ap, dimensions )
 
@@ -283,10 +283,10 @@ end function
 '' comment says "better be safe". A ctor, when present, suppresses it anyway.
 function tkort_ArrayRedimObj alias "fb_ArrayRedimObj" _
 	( byval a as FBARRAY ptr, byval element_len as uinteger, byval ctor as FB_DEFCTOR, _
-	  byval dtor as FB_DEFCTOR, byval dimensions as uinteger, ... ) as long
+	  byval dtor as FB_DEFCTOR, byval dimensions as uinteger, ... ) as int32
 
 	dim as cva_list ap = any
-	dim as long res = any
+	dim as int32 res = any
 
 	if( dtor <> 0 ) then tkrt_ArrayDestructObj( a, dtor )
 	tkrt_ArrayErase( a )
@@ -301,11 +301,11 @@ end function
 '' ------------------------------------------------------------ REDIM PRESERVE
 
 function tkort_ArrayRedimPresvEx alias "fb_ArrayRedimPresvEx" _
-	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as long, _
-	  byval isvarlen as long, byval dimensions as uinteger, ... ) as long
+	( byval a as FBARRAY ptr, byval element_len as uinteger, byval doclear as int32, _
+	  byval isvarlen as int32, byval dimensions as uinteger, ... ) as int32
 
 	dim as cva_list ap = any
-	dim as long res = any
+	dim as int32 res = any
 	dim as FB_DTORMULT dtor_mult = any
 
 	cva_start( ap, dimensions )
@@ -329,10 +329,10 @@ end function
 
 function tkort_ArrayRedimPresvObj alias "fb_ArrayRedimPresvObj" _
 	( byval a as FBARRAY ptr, byval element_len as uinteger, byval ctor as FB_DEFCTOR, _
-	  byval dtor as FB_DEFCTOR, byval dimensions as uinteger, ... ) as long
+	  byval dtor as FB_DEFCTOR, byval dimensions as uinteger, ... ) as int32
 
 	dim as cva_list ap = any
-	dim as long res = any
+	dim as int32 res = any
 	dim as FB_DTORMULT dtor_mult = any
 
 	cva_start( ap, dimensions )
@@ -358,11 +358,11 @@ extern "rtlib"
 
 '' A SHAPE COPY WITH FRESH STORAGE. See the header on why nothing is copied.
 function tkort_ArrayRedimTo alias "fb_ArrayRedimTo" _
-	( byval dest as FBARRAY ptr, byval source as FBARRAY ptr, byval isvarlen as long, _
-	  byval ctor as FB_DEFCTOR, byval dtor as FB_DEFCTOR ) as long
+	( byval dest as FBARRAY ptr, byval source as FBARRAY ptr, byval isvarlen as int32, _
+	  byval ctor as FB_DEFCTOR, byval dtor as FB_DEFCTOR ) as int32
 
 	dim as integer diff = any
-	dim as ubyte ptr this_ = any, limit_ = any
+	dim as uint8 ptr this_ = any, limit_ = any
 
 	'' REDIM a TO a is a no-op, and the test has to come first: everything
 	'' below frees dest.
@@ -412,13 +412,13 @@ function tkort_ArrayRedimTo alias "fb_ArrayRedimTo" _
 	end if
 	if( dest->base_ptr = 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 
-	dest->index_ptr = cast( ubyte ptr, dest->base_ptr ) + diff
+	dest->index_ptr = cast( uint8 ptr, dest->base_ptr ) + diff
 
 	'' THE LIMIT IS COMPUTED FROM size, NOT FROM AN ELEMENT COUNT -- so a
 	'' descriptor whose size is not a whole multiple of element_len constructs
 	'' the same number of objects fbc does rather than one more or one fewer.
 	if( ctor <> 0 ) then
-		this_ = cast( ubyte ptr, dest->base_ptr )
+		this_ = cast( uint8 ptr, dest->base_ptr )
 		limit_ = this_ + dest->size
 		while( this_ < limit_ )
 			ctor( this_ )

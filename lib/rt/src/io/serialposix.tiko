@@ -162,15 +162,15 @@ const FB_SERIAL_STOP_BITS_2_   = 2
 
 '' MEASURED: 60 bytes, and c_cc is at 17 rather than 20 -- see the file header.
 type TERMIOS_
-	as ulong c_iflag
-	as ulong c_oflag
-	as ulong c_cflag
-	as ulong c_lflag
-	as ubyte c_line
-	as ubyte c_cc( 0 to NCCS_ - 1 )
-	as ubyte pad_( 0 to 2 )
-	as ulong c_ispeed
-	as ulong c_ospeed
+	as uint32 c_iflag
+	as uint32 c_oflag
+	as uint32 c_cflag
+	as uint32 c_lflag
+	as uint8 c_line
+	as uint8 c_cc( 0 to NCCS_ - 1 )
+	as uint8 pad_( 0 to 2 )
+	as uint32 c_ispeed
+	as uint32 c_ospeed
 end type
 
 #assert sizeof( TERMIOS_ ) = 60
@@ -180,93 +180,93 @@ end type
 #assert offsetof( TERMIOS_, c_ispeed ) = 52
 
 type FB_SERIAL_OPTIONS
-	as ulong uiSpeed
-	as ulong uiDataBits
-	as long  Parity
-	as long  StopBits
-	as ulong DurationCTS
-	as ulong DurationDSR
-	as ulong DurationCD
-	as ulong OpenTimeout
-	as long  SuppressRTS
-	as long  AddLF
-	as long  CheckParity
-	as long  KeepDTREnabled
-	as long  DiscardOnError
-	as long  IgnoreAllErrors
-	as ulong IRQNumber
-	as ulong TransmitBuffer
-	as ulong ReceiveBuffer
+	as uint32 uiSpeed
+	as uint32 uiDataBits
+	as int32  Parity
+	as int32  StopBits
+	as uint32 DurationCTS
+	as uint32 DurationDSR
+	as uint32 DurationCD
+	as uint32 OpenTimeout
+	as int32  SuppressRTS
+	as int32  AddLF
+	as int32  CheckParity
+	as int32  KeepDTREnabled
+	as int32  DiscardOnError
+	as int32  IgnoreAllErrors
+	as uint32 IRQNumber
+	as uint32 TransmitBuffer
+	as uint32 ReceiveBuffer
 end type
 
 #assert sizeof( FB_SERIAL_OPTIONS ) = 68
 
 '' LINUX_SERIAL_INFO without HAS_LOCKDEV -- see the file header.
 type LINUX_SERIAL_INFO
-	as long     sfd
+	as int32     sfd
 	as TERMIOS_ oldtty
 	as TERMIOS_ newtty
-	as long     iPort
+	as int32     iPort
 	as FB_SERIAL_OPTIONS ptr pOptions
 end type
 
 '' fd_set is 1024 bits. MEASURED at 128 bytes.
 type FDSET_
-	as ulongint fds_bits( 0 to 15 )
+	as uint64 fds_bits( 0 to 15 )
 end type
 
 #assert sizeof( FDSET_ ) = 128
 
 type TIMEVAL_
-	as longint tv_sec
-	as longint tv_usec
+	as int64 tv_sec
+	as int64 tv_usec
 end type
 
 #assert sizeof( TIMEVAL_ ) = 16
 
 extern "c"   '' NON-FBCALL: libc.
-	declare function c_open alias "open" ( byval path as zstring ptr, byval flags as long, ... ) as long
-	declare function c_close alias "close" ( byval fd as long ) as long
-	declare function c_read alias "read" ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
-	declare function c_write alias "write" ( byval fd as long, byval buf as any ptr, byval n as uinteger ) as integer
-	declare function c_ioctl alias "ioctl" ( byval fd as long, byval req as ulong, ... ) as long
+	declare function c_open alias "open" ( byval path as zstring ptr, byval flags as int32, ... ) as int32
+	declare function c_close alias "close" ( byval fd as int32 ) as int32
+	declare function c_read alias "read" ( byval fd as int32, byval buf as any ptr, byval n as uinteger ) as integer
+	declare function c_write alias "write" ( byval fd as int32, byval buf as any ptr, byval n as uinteger ) as integer
+	declare function c_ioctl alias "ioctl" ( byval fd as int32, byval req as uint32, ... ) as int32
 	declare function c_select alias "select" _
-		( byval nfds as long, byval rd as FDSET_ ptr, byval wr as FDSET_ ptr, _
-		  byval ex as FDSET_ ptr, byval tv as TIMEVAL_ ptr ) as long
-	declare function c_tcgetattr alias "tcgetattr" ( byval fd as long, byval t as TERMIOS_ ptr ) as long
+		( byval nfds as int32, byval rd as FDSET_ ptr, byval wr as FDSET_ ptr, _
+		  byval ex as FDSET_ ptr, byval tv as TIMEVAL_ ptr ) as int32
+	declare function c_tcgetattr alias "tcgetattr" ( byval fd as int32, byval t as TERMIOS_ ptr ) as int32
 	declare function c_tcsetattr alias "tcsetattr" _
-		( byval fd as long, byval act as long, byval t as TERMIOS_ ptr ) as long
-	declare function c_tcflush alias "tcflush" ( byval fd as long, byval q as long ) as long
+		( byval fd as int32, byval act as int32, byval t as TERMIOS_ ptr ) as int32
+	declare function c_tcflush alias "tcflush" ( byval fd as int32, byval q as int32 ) as int32
 	declare sub c_cfmakeraw alias "cfmakeraw" ( byval t as TERMIOS_ ptr )
-	declare function c_alarm alias "alarm" ( byval secs as ulong ) as ulong
-	declare function c_signal alias "signal" ( byval sig as long, byval h as any ptr ) as any ptr
+	declare function c_alarm alias "alarm" ( byval secs as uint32 ) as uint32
+	declare function c_signal alias "signal" ( byval sig as int32, byval h as any ptr ) as any ptr
 	'' _strnicmp / _stricmp ON THE MICROSOFT ABI. The UCRT has no strncasecmp or
 	'' strcasecmp -- they are POSIX names, and MSVC spells the pair with a leading
 	'' underscore and an i. Same signature and same meaning, a different name, and
 	'' the same shape as the fseeko/ftello rename. TKORT_MSVC comes from build.sh;
 	'' see src/sys/sys.ti for why fbc cannot tell us itself.
 	#ifdef TKORT_MSVC
-	declare function c_strcasecmp alias "_stricmp" ( byval a as zstring ptr, byval b as zstring ptr ) as long
+	declare function c_strcasecmp alias "_stricmp" ( byval a as zstring ptr, byval b as zstring ptr ) as int32
 	#else
-	declare function c_strcasecmp alias "strcasecmp" ( byval a as zstring ptr, byval b as zstring ptr ) as long
+	declare function c_strcasecmp alias "strcasecmp" ( byval a as zstring ptr, byval b as zstring ptr ) as int32
 	#endif
 end extern
 
 extern "rtlib"   '' FBCALL: decorated on win32, though this file is empty there.
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 end extern
 
 '' The SIGALRM handler, which deliberately does nothing: its only job is to
 '' exist, so the signal interrupts the blocking call rather than killing the
 '' process.
-private sub tkort_alrm cdecl ( byval signal_number as long )
+private sub tkort_alrm cdecl ( byval signal_number as int32 )
 end sub
 
 '' The speed table. The sentinel row is REACHABLE AS A SPEED -- see the file
 '' header.
 type TKORT_SPEEDROW
-	as ulong speed
-	as ulong bits
+	as uint32 speed
+	as uint32 bits
 end type
 
 #define _SP( s, b ) type<TKORT_SPEEDROW>( s, b )
@@ -285,7 +285,7 @@ dim shared as TKORT_SPEEDROW tkort_speeds( 0 to 28 ) = { _
 
 '' THE SENTINEL TEST IS INSIDE THE LOOP BODY, exactly as fbc's is, which is what
 '' makes 111111 baud resolve to B0 instead of an error.
-private function tkort_get_speed( byval speed as ulong ) as ulong
+private function tkort_get_speed( byval speed as uint32 ) as uint32
 	dim as integer n = 0
 	while( tkort_speeds(n).speed <> speed )
 		if( tkort_speeds(n).speed = ENDSPD_ ) then return BADSPEED_
@@ -302,15 +302,15 @@ end function
 extern "c"   '' NON-FBCALL: fb_serial.h declares all five plainly.
 
 function tkort_SerialOpen alias "fb_SerialOpen" _
-	( byval handle as FB_FILE ptr, byval iPort as long, byval options as FB_SERIAL_OPTIONS ptr, _
-	  byval pszDevice as zstring ptr, byval ppvHandle as any ptr ptr ) as long
+	( byval handle as FB_FILE ptr, byval iPort as int32, byval options as FB_SERIAL_OPTIONS ptr, _
+	  byval pszDevice as zstring ptr, byval ppvHandle as any ptr ptr ) as int32
 
-	dim as long res = FB_RTERROR_OK
-	dim as long DesiredAccess = O_RDWR_ or O_NOCTTY_ or O_NONBLOCK_
-	dim as long SerialFD = -1
+	dim as int32 res = FB_RTERROR_OK
+	dim as int32 DesiredAccess = O_RDWR_ or O_NOCTTY_ or O_NONBLOCK_
+	dim as int32 SerialFD = -1
 	dim as zstring * 512 DeviceName
 	dim as TERMIOS_ oldserp, nwserp
-	dim as ulong TermSpeed = any
+	dim as uint32 TermSpeed = any
 
 	if( options->IRQNumber <> 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -498,10 +498,10 @@ function tkort_SerialOpen alias "fb_SerialOpen" _
 end function
 
 function tkort_SerialGetRemaining alias "fb_SerialGetRemaining" _
-	( byval handle as FB_FILE ptr, byval pvHandle as any ptr, byval pLength as longint ptr ) as long
+	( byval handle as FB_FILE ptr, byval pvHandle as any ptr, byval pLength as int64 ptr ) as int32
 
 	dim as LINUX_SERIAL_INFO ptr pInfo = cast( LINUX_SERIAL_INFO ptr, pvHandle )
-	dim as long rBytes = any
+	dim as int32 rBytes = any
 
 	if( c_ioctl( pInfo->sfd, FIONREAD_, @rBytes ) <> 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
@@ -516,7 +516,7 @@ end function
 '' blocking write recoverable and a blocking open fatal. See the file header.
 function tkort_SerialWrite alias "fb_SerialWrite" _
 	( byval handle as FB_FILE ptr, byval pvHandle as any ptr, _
-	  byval data_ as any ptr, byval length_ as uinteger ) as long
+	  byval data_ as any ptr, byval length_ as uinteger ) as int32
 
 	dim as LINUX_SERIAL_INFO ptr pInfo = cast( LINUX_SERIAL_INFO ptr, pvHandle )
 	dim as integer rlng = 0
@@ -540,7 +540,7 @@ end function
 '' NOTHING WAITING IS SUCCESS WITH ZERO LENGTH, not an error -- see the header.
 function tkort_SerialRead alias "fb_SerialRead" _
 	( byval handle as FB_FILE ptr, byval pvHandle as any ptr, _
-	  byval data_ as any ptr, byval pLength as uinteger ptr ) as long
+	  byval data_ as any ptr, byval pLength as uinteger ptr ) as int32
 
 	dim as LINUX_SERIAL_INFO ptr pInfo = cast( LINUX_SERIAL_INFO ptr, pvHandle )
 	dim as integer count_ = 0
@@ -568,7 +568,7 @@ function tkort_SerialRead alias "fb_SerialRead" _
 end function
 
 function tkort_SerialClose alias "fb_SerialClose" _
-	( byval handle as FB_FILE ptr, byval pvHandle as any ptr ) as long
+	( byval handle as FB_FILE ptr, byval pvHandle as any ptr ) as int32
 
 	dim as LINUX_SERIAL_INFO ptr pInfo = cast( LINUX_SERIAL_INFO ptr, pvHandle )
 	dim as TERMIOS_ oserp = pInfo->oldtty

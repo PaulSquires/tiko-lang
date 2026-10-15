@@ -26,7 +26,7 @@
 
 extern "rtlib"
 
-function tkort_DtIsLeapYear alias "fb_DtIsLeapYear" ( byval year as long ) as long
+function tkort_DtIsLeapYear alias "fb_DtIsLeapYear" ( byval year as int32 ) as int32
 	'' `mod 4`, not `and 3`, unlike fb_hTimeLeap in dt/serial.tiko: this
 	'' kernel's year range starts at 1, so the negative case the bitwise
 	'' test guards against cannot arise, and the two files differ on purpose.
@@ -39,23 +39,23 @@ end function
 '' Returns 0 -- not 28, not an error -- for a month outside 1..12. Callers use
 '' that as the range test.
 function tkort_DtDaysInMonth alias "fb_DtDaysInMonth" _
-	( byval year as long, byval month as long ) as long
-	static as long days(0 to 11) = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+	( byval year as int32, byval month as int32 ) as int32
+	static as int32 days(0 to 11) = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 	if( (month < 1) orelse (month > 12) ) then return 0
 	if( month = 2 ) then return 28 + tkort_DtIsLeapYear( year )
 	return days(month - 1)
 end function
 
-function tkort_DtDaysInYear alias "fb_DtDaysInYear" ( byval year as long ) as long
+function tkort_DtDaysInYear alias "fb_DtDaysInYear" ( byval year as int32 ) as int32
 	return 365 + tkort_DtIsLeapYear( year )
 end function
 
 '' Days since 0001-01-01. Day 0 IS 0001-01-01, so this is not the same origin
 '' as fb_DateSerial's 1899-12-30 and the two must never be mixed.
 function tkort_DtDaysFromCivil alias "fb_DtDaysFromCivil" _
-	( byval year as long, byval month as long, byval day_ as long ) as long
+	( byval year as int32, byval month as int32, byval day_ as int32 ) as int32
 
-	dim as long era = any, yoe = any, doy = any, doe = any
+	dim as int32 era = any, yoe = any, doy = any, doe = any
 
 	'' March-based year: the leap day becomes the LAST day of the year, so
 	'' the 4/100/400 rules need no special case below.
@@ -81,11 +81,11 @@ end function
 
 '' The exact inverse. Any of the three outputs may be NULL.
 sub tkort_DtCivilFromDays alias "fb_DtCivilFromDays" _
-	( byval days as long, byval year as long ptr, _
-	  byval month as long ptr, byval day_ as long ptr )
+	( byval days as int32, byval year as int32 ptr, _
+	  byval month as int32 ptr, byval day_ as int32 ptr )
 
-	dim as long era = any, doe = any, yoe = any, doy = any, mp = any
-	dim as long y = any, m = any, d = any
+	dim as int32 era = any, doe = any, yoe = any, doy = any, mp = any
+	dim as int32 y = any, m = any, d = any
 
 	days += DT_ERA_SHIFT
 
@@ -111,14 +111,14 @@ end sub
 
 '' 1 = Monday .. 7 = Sunday. Day 0 is 0001-01-01, a MONDAY -- so this numbering
 '' is ISO's, and it is NOT the same as fb_Weekday's 1 = Sunday.
-function tkort_DtDayOfWeek alias "fb_DtDayOfWeek" ( byval days as long ) as long
-	dim as long r = days mod 7
+function tkort_DtDayOfWeek alias "fb_DtDayOfWeek" ( byval days as int32 ) as int32
+	dim as int32 r = days mod 7
 	if( r < 0 ) then r += 7
 	return r + 1
 end function
 
 function tkort_DtDayOfYear alias "fb_DtDayOfYear" _
-	( byval year as long, byval month as long, byval day_ as long ) as long
+	( byval year as int32, byval month as int32, byval day_ as int32 ) as int32
 	return tkort_DtDaysFromCivil( year, month, day_ ) _
 	     - tkort_DtDaysFromCivil( year, 1, 1 ) + 1
 end function
@@ -127,7 +127,7 @@ end extern
 
 '' Weekday of 31 December of `year`, 0..6. The standard ISO helper. STATIC in
 '' fbc, so there is no symbol for it and none is exported here.
-private function hDtIsoP( byval year as long ) as long
+private function hDtIsoP( byval year as int32 ) as int32
 	return (year + year \ 4 - year \ 100 + year \ 400) mod 7
 end function
 
@@ -136,7 +136,7 @@ extern "rtlib"
 '' 52 or 53. A year has 53 ISO weeks when it starts on a Thursday, or when the
 '' PREVIOUS year started on a Wednesday and this one is a leap year -- the two
 '' arms of the test below, in that order.
-function tkort_DtIsoWeeksInYear alias "fb_DtIsoWeeksInYear" ( byval year as long ) as long
+function tkort_DtIsoWeeksInYear alias "fb_DtIsoWeeksInYear" ( byval year as int32 ) as int32
 	if( hDtIsoP( year ) = 4 ) then return 53
 	if( hDtIsoP( year - 1 ) = 3 ) then return 53
 	return 52
@@ -149,10 +149,10 @@ end function
 '' year it belongs to, which is why the second output exists -- and why it must
 '' be filled on the ordinary path too, not just the two boundary arms.
 function tkort_DtIsoWeek alias "fb_DtIsoWeek" _
-	( byval year as long, byval month as long, byval day_ as long, _
-	  byval out_iso_year as long ptr ) as long
+	( byval year as int32, byval month as int32, byval day_ as int32, _
+	  byval out_iso_year as int32 ptr ) as int32
 
-	dim as long doy = any, dow = any, week = any, iso_year = any
+	dim as int32 doy = any, dow = any, week = any, iso_year = any
 
 	doy = tkort_DtDayOfYear( year, month, day_ )
 	dow = tkort_DtDayOfWeek( tkort_DtDaysFromCivil( year, month, day_ ) )
@@ -176,7 +176,7 @@ function tkort_DtIsoWeek alias "fb_DtIsoWeek" _
 end function
 
 function tkort_DtIsValidDate alias "fb_DtIsValidDate" _
-	( byval year as long, byval month as long, byval day_ as long ) as long
+	( byval year as int32, byval month as int32, byval day_ as int32 ) as int32
 	if( (year < FB_DT_MIN_YEAR) orelse (year > FB_DT_MAX_YEAR) ) then return 0
 	if( (month < 1) orelse (month > 12) ) then return 0
 	if( (day_ < 1) orelse (day_ > tkort_DtDaysInMonth( year, month )) ) then return 0
@@ -186,8 +186,8 @@ end function
 '' NO LEAP SECONDS: 60 is not a valid second. That is a decision, not an
 '' oversight -- the tick representation has no room for one.
 function tkort_DtIsValidTime alias "fb_DtIsValidTime" _
-	( byval hour as long, byval minute as long, byval second as long, _
-	  byval subsecond_ticks as longint ) as long
+	( byval hour as int32, byval minute as int32, byval second as int32, _
+	  byval subsecond_ticks as int64 ) as int32
 	if( (hour < 0) orelse (hour > 23) ) then return 0
 	if( (minute < 0) orelse (minute > 59) ) then return 0
 	if( (second < 0) orelse (second > 59) ) then return 0
@@ -195,7 +195,7 @@ function tkort_DtIsValidTime alias "fb_DtIsValidTime" _
 	return 1
 end function
 
-function tkort_DtIsValidTicks alias "fb_DtIsValidTicks" ( byval ticks as longint ) as long
+function tkort_DtIsValidTicks alias "fb_DtIsValidTicks" ( byval ticks as int64 ) as int32
 	if( (ticks >= FB_DT_MIN_TICKS) andalso (ticks <= FB_DT_MAX_TICKS) ) then return 1
 	return 0
 end function
@@ -204,9 +204,9 @@ end function
 '' out_ticks is set to FB_DT_INVALID_TICKS FIRST, so a caller that ignores the
 '' return value still sees a sentinel rather than a stale or half-built value.
 function tkort_DtFromCivil alias "fb_DtFromCivil" _
-	( byval year as long, byval month as long, byval day_ as long, _
-	  byval hour as long, byval minute as long, byval second as long, _
-	  byval subsecond_ticks as longint, byval out_ticks as longint ptr ) as long
+	( byval year as int32, byval month as int32, byval day_ as int32, _
+	  byval hour as int32, byval minute as int32, byval second as int32, _
+	  byval subsecond_ticks as int64, byval out_ticks as int64 ptr ) as int32
 
 	if( out_ticks <> 0 ) then *out_ticks = FB_DT_INVALID_TICKS
 
@@ -214,10 +214,10 @@ function tkort_DtFromCivil alias "fb_DtFromCivil" _
 	if( tkort_DtIsValidTime( hour, minute, second, subsecond_ticks ) = 0 ) then return 1
 
 	if( out_ticks <> 0 ) then
-		*out_ticks = cast( longint, tkort_DtDaysFromCivil( year, month, day_ ) ) * FB_DT_TICKS_PER_DAY _
-		           + cast( longint, hour ) * FB_DT_TICKS_PER_HOUR _
-		           + cast( longint, minute ) * FB_DT_TICKS_PER_MINUTE _
-		           + cast( longint, second ) * FB_DT_TICKS_PER_SECOND _
+		*out_ticks = cast( int64, tkort_DtDaysFromCivil( year, month, day_ ) ) * FB_DT_TICKS_PER_DAY _
+		           + cast( int64, hour ) * FB_DT_TICKS_PER_HOUR _
+		           + cast( int64, minute ) * FB_DT_TICKS_PER_MINUTE _
+		           + cast( int64, second ) * FB_DT_TICKS_PER_SECOND _
 		           + subsecond_ticks
 	end if
 
@@ -225,14 +225,14 @@ function tkort_DtFromCivil alias "fb_DtFromCivil" _
 end function
 
 sub tkort_DtToCivil alias "fb_DtToCivil" _
-	( byval ticks as longint, byval year as long ptr, byval month as long ptr, _
-	  byval day_ as long ptr, byval hour as long ptr, byval minute as long ptr, _
-	  byval second as long ptr, byval subsecond_ticks as longint ptr )
+	( byval ticks as int64, byval year as int32 ptr, byval month as int32 ptr, _
+	  byval day_ as int32 ptr, byval hour as int32 ptr, byval minute as int32 ptr, _
+	  byval second as int32 ptr, byval subsecond_ticks as int64 ptr )
 
-	dim as long days = any
-	dim as longint tod = any
+	dim as int32 days = any
+	dim as int64 tod = any
 
-	days = cast( long, ticks \ FB_DT_TICKS_PER_DAY )
+	days = cast( int32, ticks \ FB_DT_TICKS_PER_DAY )
 	tod  = ticks mod FB_DT_TICKS_PER_DAY
 	if( tod < 0 ) then
 		'' Truncation gives a negative remainder; the calendar needs floor.
@@ -242,9 +242,9 @@ sub tkort_DtToCivil alias "fb_DtToCivil" _
 
 	tkort_DtCivilFromDays( days, year, month, day_ )
 
-	if( hour   <> 0 ) then *hour   = cast( long, tod \ FB_DT_TICKS_PER_HOUR )
-	if( minute <> 0 ) then *minute = cast( long, tod \ FB_DT_TICKS_PER_MINUTE mod 60 )
-	if( second <> 0 ) then *second = cast( long, tod \ FB_DT_TICKS_PER_SECOND mod 60 )
+	if( hour   <> 0 ) then *hour   = cast( int32, tod \ FB_DT_TICKS_PER_HOUR )
+	if( minute <> 0 ) then *minute = cast( int32, tod \ FB_DT_TICKS_PER_MINUTE mod 60 )
+	if( second <> 0 ) then *second = cast( int32, tod \ FB_DT_TICKS_PER_SECOND mod 60 )
 	if( subsecond_ticks <> 0 ) then *subsecond_ticks = tod mod FB_DT_TICKS_PER_SECOND
 end sub
 
@@ -261,9 +261,9 @@ end sub
 '' plausible frequency. It is the same answer as the 128-bit path, not a
 '' near-enough one.
 function tkort_DtTicksFromCounts alias "fb_DtTicksFromCounts" _
-	( byval counts as longint, byval freq as longint ) as longint
+	( byval counts as int64, byval freq as int64 ) as int64
 
-	dim as longint whole = any, rem_ = any
+	dim as int64 whole = any, rem_ = any
 
 	if( freq <= 0 ) then return 0
 	if( counts < 0 ) then return 0

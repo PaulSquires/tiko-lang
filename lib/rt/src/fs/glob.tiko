@@ -50,26 +50,26 @@ private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byv
 	end if
 end sub
 
-private function hgIsSep( byval c as FB_UCHAR, byval gram as long ) as long
+private function hgIsSep( byval c as FB_UCHAR, byval gram as int32 ) as int32
 	if( gram = FB_PATH_WIN32 ) then
 		return iif( (c = 92) orelse (c = 47), 1, 0 )
 	end if
 	return iif( c = 47, 1, 0 )
 end function
 
-private function hgFold( byval c as FB_UCHAR, byval gram as long ) as FB_UCHAR
+private function hgFold( byval c as FB_UCHAR, byval gram as int32 ) as FB_UCHAR
 	if( gram = FB_PATH_WIN32 ) then return tkrt_UStrToUpper( c )
 	return c
 end function
 
-private function hgHasEscape( byval gram as long ) as long
+private function hgHasEscape( byval gram as int32 ) as int32
 	return iif( gram <> FB_PATH_WIN32, 1, 0 )
 end function
 
 '' Length of the character class starting at p[at] (which is "["), including
 '' both brackets -- or 0 if it is malformed.
 private function hgClassLen( byval p as FB_UCHAR ptr, byval plen as integer, _
-                             byval at_ as integer, byval gram as long ) as long
+                             byval at_ as integer, byval gram as int32 ) as int32
 	dim as integer i = at_ + 1
 
 	if( i < plen ) then
@@ -97,11 +97,11 @@ end function
 
 '' Does `c` match the class occupying p[at .. at+clen-1]?
 private function hgClassMatch( byval p as FB_UCHAR ptr, byval at_ as integer, _
-                               byval clen as long, byval c as FB_UCHAR, _
-                               byval gram as long ) as long
+                               byval clen as int32, byval c as FB_UCHAR, _
+                               byval gram as int32 ) as int32
 	dim as integer i = at_ + 1
 	dim as integer end_ = at_ + clen - 1        '' index of the closing ']'
-	dim as long neg = 0, hit = 0
+	dim as int32 neg = 0, hit = 0
 	dim as FB_UCHAR fc = hgFold( c, gram )
 	dim as FB_UCHAR lo = any, hi = any, flo = any, fhi = any
 
@@ -147,12 +147,12 @@ end function
 '' components, and that is decided by the caller.
 private function hMatchComp( byval p as FB_UCHAR ptr, byval plen as integer, _
                              byval s as FB_UCHAR ptr, byval slen as integer, _
-                             byval gram as long ) as long
+                             byval gram as int32 ) as int32
 	dim as integer pi = 0, si = 0
 	dim as integer star = -1, ss = 0
-	dim as long clen = any
+	dim as int32 clen = any
 	dim as FB_UCHAR pc = any
-	dim as long matched = any
+	dim as int32 matched = any
 
 	while( si < slen )
 		clen = 0
@@ -225,11 +225,11 @@ end function
 '' Split into components. Returns the count, or -1 if there are too many.
 '' *leading receives 1 when the input starts with a separator, so an absolute
 '' pattern cannot match a relative path.
-private function hgSplit( byval s as FB_UCHAR ptr, byval slen as integer, byval gram as long, _
+private function hgSplit( byval s as FB_UCHAR ptr, byval slen as integer, byval gram as int32, _
                           byval off as integer ptr, byval len_ as integer ptr, _
-                          byval leading as long ptr ) as long
+                          byval leading as int32 ptr ) as int32
 	dim as integer i = 0, start = any
-	dim as long n = 0
+	dim as int32 n = 0
 
 	*leading = 0
 	if( slen > 0 ) then
@@ -260,7 +260,7 @@ private function hgSplit( byval s as FB_UCHAR ptr, byval slen as integer, byval 
 	return n
 end function
 
-private function hgIsDoubleStar( byval p as FB_UCHAR ptr, byval off as integer, byval len_ as integer ) as long
+private function hgIsDoubleStar( byval p as FB_UCHAR ptr, byval off as integer, byval len_ as integer ) as int32
 	if( len_ <> 2 ) then return 0
 	return iif( (p[off] = 42) andalso (p[off + 1] = 42), 1, 0 )
 end function
@@ -270,12 +270,12 @@ end function
 '' case, it is what zero means. Same one-saved-position backtracking as
 '' hMatchComp, one level up.
 private function hMatchComps( byval p as FB_UCHAR ptr, byval poff as integer ptr, _
-                              byval plen as integer ptr, byval np as long, _
+                              byval plen as integer ptr, byval np as int32, _
                               byval s as FB_UCHAR ptr, byval soff as integer ptr, _
-                              byval slen as integer ptr, byval ns as long, _
-                              byval gram as long ) as long
-	dim as long pi = 0, si = 0
-	dim as long star = -1, ss = 0
+                              byval slen as integer ptr, byval ns as int32, _
+                              byval gram as int32 ) as int32
+	dim as int32 pi = 0, si = 0
+	dim as int32 star = -1, ss = 0
 
 	while( si < ns )
 		if( pi < np ) then
@@ -318,13 +318,13 @@ extern "rtlib"
 
 '' Whole-string match: there is no implicit "*" at either end.
 function tkort_UStrFsMatchPattern alias "fb_UStrFsMatchPattern" _
-	( byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval gram as long ) as long
+	( byval s as FBUSTRING ptr, byval pat as FBUSTRING ptr, byval gram as int32 ) as int32
 
 	dim as FB_UCHAR ptr ss = any, ps = any
 	dim as integer sl = any, pl = any
 	dim as integer soff( 0 to FB_GLOB_MAXCOMP - 1 ) = any, slen( 0 to FB_GLOB_MAXCOMP - 1 ) = any
 	dim as integer poff( 0 to FB_GLOB_MAXCOMP - 1 ) = any, plen( 0 to FB_GLOB_MAXCOMP - 1 ) = any
-	dim as long ns = any, np = any, sLead = any, pLead = any
+	dim as int32 ns = any, np = any, sLead = any, pLead = any
 
 	hUArg( s, @ss, @sl )
 	hUArg( pat, @ps, @pl )
@@ -363,7 +363,7 @@ end function
 ''
 '' An escaped wildcard is NOT a wildcard, on the platform that has escapes.
 function tkort_UStrFsPatternWildcardAt alias "fb_UStrFsPatternWildcardAt" _
-	( byval pat as FBUSTRING ptr, byval gram as long ) as integer
+	( byval pat as FBUSTRING ptr, byval gram as int32 ) as integer
 
 	dim as FB_UCHAR ptr p = any
 	dim as integer len_ = any, i = any
@@ -396,12 +396,12 @@ end function
 '' recursive walk and a single ReadDir, so that a non-recursive pattern never
 '' engages the walk machinery at all.
 function tkort_UStrFsPatternIsRecursive alias "fb_UStrFsPatternIsRecursive" _
-	( byval pat as FBUSTRING ptr, byval gram as long ) as long
+	( byval pat as FBUSTRING ptr, byval gram as int32 ) as int32
 
 	dim as FB_UCHAR ptr p = any
 	dim as integer len_ = any
 	dim as integer off( 0 to FB_GLOB_MAXCOMP - 1 ) = any, clen( 0 to FB_GLOB_MAXCOMP - 1 ) = any
-	dim as long n = any, i = any, lead = any
+	dim as int32 n = any, i = any, lead = any
 
 	hUArg( pat, @p, @len_ )
 

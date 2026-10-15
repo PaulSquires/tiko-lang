@@ -38,11 +38,11 @@ extern "C"   '' NON-FBCALL: the C library, not rtlib entry points.
 	extern stdout alias "stdout" as FILE ptr
 	extern stderr alias "stderr" as FILE ptr
 
-	declare function __errno_location( ) as long ptr
+	declare function __errno_location( ) as int32 ptr
 	#define errno (*__errno_location( ))
 
 	type jmp_buf
-		__opaque( 0 to 24 ) as ulongint     '' 200 bytes
+		__opaque( 0 to 24 ) as uint64     '' 200 bytes
 	end type
 
 #else
@@ -53,7 +53,7 @@ extern "C"   '' NON-FBCALL: the C library, not rtlib entry points.
 		'' __acrt_iob_func( 1 ) -- and its FILE is not MinGW's 48 bytes, so the stream
 		'' is taken from the call and never by indexing an array. TKORT_MSVC comes from
 		'' build.sh: fbc compiles windows-x86_64 as win64, and nothing else tells them apart.
-		declare function tkrt_acrt_iob alias "__acrt_iob_func" ( byval ix as ulong ) as FILE ptr
+		declare function tkrt_acrt_iob alias "__acrt_iob_func" ( byval ix as uint32 ) as FILE ptr
 		#define stdin  tkrt_acrt_iob( 0 )
 		#define stdout tkrt_acrt_iob( 1 )
 		#define stderr tkrt_acrt_iob( 2 )
@@ -65,16 +65,16 @@ extern "C"   '' NON-FBCALL: the C library, not rtlib entry points.
 		#define stderr (@(__iob_func( ))[2])
 	#endif
 
-	declare function _errno( ) as long ptr
+	declare function _errno( ) as int32 ptr
 	#define errno (*_errno( ))
 
 	type jmp_buf
-		__opaque( 0 to 31 ) as ulongint     '' 256 bytes
+		__opaque( 0 to 31 ) as uint64     '' 256 bytes
 	end type
 
 #endif
 
-declare sub longjmp( byval env as jmp_buf ptr, byval value as long )
+declare sub longjmp( byval env as jmp_buf ptr, byval value as int32 )
 
 end extern
 

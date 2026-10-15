@@ -63,7 +63,7 @@ sub tkort_hListInit alias "fb_hListInit" _
 	'' Threaded backwards so that fhead ends up pointing at element 0 and the
 	'' pool is handed out in ascending order. Nothing depends on that; it just
 	'' makes a dump of the pool readable when something goes wrong.
-	dim as ubyte ptr p = cptr( ubyte ptr, table_ )
+	dim as uint8 ptr p = cptr( uint8 ptr, table_ )
 	dim as FB_LISTELEM ptr e = any
 	dim as FB_LISTELEM ptr nxt = 0
 	dim as integer i = any

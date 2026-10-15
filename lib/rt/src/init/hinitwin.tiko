@@ -98,16 +98,16 @@ type FBCONSOLE_
 	as any ptr  inHandle
 	as any ptr  outHandle
 	as any ptr  pgHandleTb( 0 to FB_CONSOLE_MAXPAGES_ - 1 )
-	as long     active
-	as long     visible
+	as int32     active
+	as int32     visible
 	'' SMALL_RECT, spelled out: FreeBASIC would lay a nested UDT out the same
 	'' way, but four named SHORTs make the offset asserts below direct.
-	as short    window_Left
-	as short    window_Top
-	as short    window_Right
-	as short    window_Bottom
-	as long     setByUser
-	as long     scrollWasOff
+	as int16    window_Left
+	as int16    window_Top
+	as int16    window_Right
+	as int16    window_Bottom
+	as int32     setByUser
+	as int32     scrollWasOff
 	as any ptr  mouseEventHook
 end type
 
@@ -130,17 +130,17 @@ const MCW_PC_   = &h00030000    '' precision
 
 extern "c"   '' NON-FBCALL: a CRT entry point, not an rtlib one.
 	declare function c_controlfp alias "_controlfp" _
-		( byval unNew as ulong, byval unMask as ulong ) as ulong
+		( byval unNew as uint32, byval unMask as uint32 ) as uint32
 end extern
 
 #ifdef ENABLE_MT
 	'' Raw storage; nothing here reads a field, only the address is passed on.
-	dim shared as ubyte tkort_global_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
-	dim shared as ubyte tkort_string_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
-	dim shared as ubyte tkort_mtcore_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
-	dim shared as ubyte tkort_graphics_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
-	dim shared as ubyte tkort_math_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
-	dim shared as ubyte tkort_profile_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
+	dim shared as uint8 tkort_global_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
+	dim shared as uint8 tkort_string_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
+	dim shared as uint8 tkort_mtcore_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
+	dim shared as uint8 tkort_graphics_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
+	dim shared as uint8 tkort_math_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
+	dim shared as uint8 tkort_profile_mutex( 0 to TKORT_CRITSEC_SIZE - 1 )
 #endif
 
 '' ------------------------------------------------------------------- exports
@@ -180,7 +180,7 @@ end sub
 '' The parameter is unused in fbc too, and is part of the signature rather than
 '' an oversight: fb_hEnd is called through the same shutdown path as the other
 '' hEnd hooks.
-sub tkort_hEnd alias "fb_hEnd" ( byval unused as long )
+sub tkort_hEnd alias "fb_hEnd" ( byval unused as int32 )
 
 	#ifdef ENABLE_MT
 		w_DeleteCriticalSection( @tkort_global_mutex(0) )

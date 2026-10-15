@@ -40,7 +40,7 @@ end function
 '' trade, not an oversight.
 function tkort_hUStrCompare alias "fb_hUStrCompare" _
 	( byval s1 as FB_UCHAR ptr, byval len1 as integer, _
-	  byval s2 as FB_UCHAR ptr, byval len2 as integer ) as long
+	  byval s2 as FB_UCHAR ptr, byval len2 as integer ) as int32
 
 	'' NULL is not "empty": a NULL against a non-empty operand orders below it,
 	'' and against an empty one -- or another NULL -- compares equal.

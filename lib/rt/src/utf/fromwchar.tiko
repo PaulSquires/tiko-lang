@@ -48,7 +48,7 @@ const UTF16_HALFBASE       = &h00010000u
 const UTF16_HALFMASK       = &h000003FFu
 
 type TKORT_UTF8_BMARK
-	as ubyte v( 0 to 6 )
+	as uint8 v( 0 to 6 )
 end type
 
 extern "c"   '' NON-FBCALL: the table lives in utf/core.tiko, and
@@ -88,19 +88,19 @@ extern "c"   '' NON-FBCALL: fb_file.h declares fb_WCharToUTF plainly.
 		dst += bytes
 		select case as const bytes
 		case 4
-			dst -= 1 : *dst = cast( ubyte, (c or UTF8_BYTEMARK) and UTF8_BYTEMASK ) : c shr= 6
-			dst -= 1 : *dst = cast( ubyte, (c or UTF8_BYTEMARK) and UTF8_BYTEMASK ) : c shr= 6
-			dst -= 1 : *dst = cast( ubyte, (c or UTF8_BYTEMARK) and UTF8_BYTEMASK ) : c shr= 6
-			dst -= 1 : *dst = cast( ubyte, c or __fb_utf8_bmarkTb.v( bytes ) )
+			dst -= 1 : *dst = cast( uint8, (c or UTF8_BYTEMARK) and UTF8_BYTEMASK ) : c shr= 6
+			dst -= 1 : *dst = cast( uint8, (c or UTF8_BYTEMARK) and UTF8_BYTEMASK ) : c shr= 6
+			dst -= 1 : *dst = cast( uint8, (c or UTF8_BYTEMARK) and UTF8_BYTEMASK ) : c shr= 6
+			dst -= 1 : *dst = cast( uint8, c or __fb_utf8_bmarkTb.v( bytes ) )
 		case 3
-			dst -= 1 : *dst = cast( ubyte, (c or UTF8_BYTEMARK) and UTF8_BYTEMASK ) : c shr= 6
-			dst -= 1 : *dst = cast( ubyte, (c or UTF8_BYTEMARK) and UTF8_BYTEMASK ) : c shr= 6
-			dst -= 1 : *dst = cast( ubyte, c or __fb_utf8_bmarkTb.v( bytes ) )
+			dst -= 1 : *dst = cast( uint8, (c or UTF8_BYTEMARK) and UTF8_BYTEMASK ) : c shr= 6
+			dst -= 1 : *dst = cast( uint8, (c or UTF8_BYTEMARK) and UTF8_BYTEMASK ) : c shr= 6
+			dst -= 1 : *dst = cast( uint8, c or __fb_utf8_bmarkTb.v( bytes ) )
 		case 2
-			dst -= 1 : *dst = cast( ubyte, (c or UTF8_BYTEMARK) and UTF8_BYTEMASK ) : c shr= 6
-			dst -= 1 : *dst = cast( ubyte, c or __fb_utf8_bmarkTb.v( bytes ) )
+			dst -= 1 : *dst = cast( uint8, (c or UTF8_BYTEMARK) and UTF8_BYTEMASK ) : c shr= 6
+			dst -= 1 : *dst = cast( uint8, c or __fb_utf8_bmarkTb.v( bytes ) )
 		case else
-			dst -= 1 : *dst = cast( ubyte, c or __fb_utf8_bmarkTb.v( bytes ) )
+			dst -= 1 : *dst = cast( uint8, c or __fb_utf8_bmarkTb.v( bytes ) )
 		end select
 		dst += bytes
 	end scope
@@ -112,10 +112,10 @@ extern "c"   '' NON-FBCALL: fb_file.h declares fb_WCharToUTF plainly.
 
 '' A SURROGATE PAIR CONSUMES TWO INPUT UNITS AND COUNTS AS ONE code point, which
 '' is why `chars` is decremented twice on that branch.
-private sub hUTF16ToUTF8( byval src as ushort ptr, byval chars as integer, _
-                          byval dst as ubyte ptr, byval total_bytes as integer ptr )
+private sub hUTF16ToUTF8( byval src as uint16 ptr, byval chars as integer, _
+                          byval dst as uint8 ptr, byval total_bytes as integer ptr )
 
-	dim as ulong c = any
+	dim as uint32 c = any
 	dim as integer bytes = any
 
 	*total_bytes = 0
@@ -123,7 +123,7 @@ private sub hUTF16ToUTF8( byval src as ushort ptr, byval chars as integer, _
 		c = *src : src += 1
 		if( (c >= UTF16_SUR_HIGH_START) andalso (c <= UTF16_SUR_HIGH_END) ) then
 			c = ((c - UTF16_SUR_HIGH_START) shl UTF16_HALFSHIFT) + _
-			    (cast( ulong, *src ) - UTF16_SUR_LOW_START) + UTF16_HALFBASE
+			    (cast( uint32, *src ) - UTF16_SUR_LOW_START) + UTF16_HALFBASE
 			src += 1
 			chars -= 1
 		end if
@@ -138,16 +138,16 @@ end sub
 '' UTF-16 IN, UTF-32 OUT is the reverse of the pair-splitting above: two units
 '' become one, so `bytes` is DECREMENTED by four for every pair combined and the
 '' caller's estimate is an upper bound rather than an answer.
-private sub hUTF16ToUTF32( byval src as ushort ptr, byval chars as integer, _
-                           byval dst as ulong ptr, byval bytes as integer ptr )
+private sub hUTF16ToUTF32( byval src as uint16 ptr, byval chars as integer, _
+                           byval dst as uint32 ptr, byval bytes as integer ptr )
 
-	dim as ulong c = any
+	dim as uint32 c = any
 
 	while( chars > 0 )
 		c = *src : src += 1
 		if( (c >= UTF16_SUR_HIGH_START) andalso (c <= UTF16_SUR_HIGH_END) ) then
 			c = ((c - UTF16_SUR_HIGH_START) shl UTF16_HALFSHIFT) + _
-			    (cast( ulong, *src ) - UTF16_SUR_LOW_START) + UTF16_HALFBASE
+			    (cast( uint32, *src ) - UTF16_SUR_LOW_START) + UTF16_HALFBASE
 			src += 1
 			*bytes -= 4
 			chars -= 1
@@ -165,10 +165,10 @@ end sub
 
 '' ----------------------------------------------------------- WCHAR is UTF-32
 
-private sub hUTF32ToUTF8( byval src as ulong ptr, byval chars as integer, _
-                          byval dst as ubyte ptr, byval total_bytes as integer ptr )
+private sub hUTF32ToUTF8( byval src as uint32 ptr, byval chars as integer, _
+                          byval dst as uint8 ptr, byval total_bytes as integer ptr )
 
-	dim as ulong c = any
+	dim as uint32 c = any
 	dim as integer bytes = any
 
 	*total_bytes = 0
@@ -183,19 +183,19 @@ end sub
 '' THE ONE PATH THAT GROWS -- and the one that reallocs a buffer it may not own;
 '' see the file header. `bytes` enters as the caller's estimate AND doubles as
 '' the running total, so the growth test is `*bytes = dst_size`.
-private function hUTF32ToUTF16( byval src as ulong ptr, byval chars as integer, _
-                                byval dst as ushort ptr, byval bytes as integer ptr ) as ushort ptr
+private function hUTF32ToUTF16( byval src as uint32 ptr, byval chars as integer, _
+                                byval dst as uint16 ptr, byval bytes as integer ptr ) as uint16 ptr
 
-	dim as ushort ptr buffer = dst
+	dim as uint16 ptr buffer = dst
 	dim as integer i = 0, dst_size = *bytes
-	dim as ulong c = any
+	dim as uint32 c = any
 
 	while( chars > 0 )
 		c = *src : src += 1
 		if( c > UTF16_MAX_BMP ) then
 			if( *bytes = dst_size ) then
 				dst_size += 2 * 8
-				dim as ushort ptr nb = cptr( ushort ptr, realloc( buffer, dst_size ) )
+				dim as uint16 ptr nb = cptr( uint16 ptr, realloc( buffer, dst_size ) )
 				if( nb = 0 ) then
 					free( buffer )
 					return 0
@@ -207,11 +207,11 @@ private function hUTF32ToUTF16( byval src as ulong ptr, byval chars as integer, 
 			*bytes += 2
 
 			c -= UTF16_HALFBASE
-			dst[i] = cast( ushort, (c shr UTF16_HALFSHIFT) + UTF16_SUR_HIGH_START ) : i += 1
+			dst[i] = cast( uint16, (c shr UTF16_HALFSHIFT) + UTF16_SUR_HIGH_START ) : i += 1
 			c = (c and UTF16_HALFMASK) + UTF16_SUR_LOW_START
 		end if
 
-		dst[i] = cast( ushort, c ) : i += 1
+		dst[i] = cast( uint16, c ) : i += 1
 		chars -= 1
 	wend
 
@@ -226,19 +226,19 @@ end function
 '' UTF-16 host a surrogate pair is two input units for one four-byte output, so
 '' the estimate is never exceeded.
 private function hToUTF8( byval src as any ptr, byval chars as integer, _
-                          byval dst as ubyte ptr, byval bytes as integer ptr ) as ubyte ptr
+                          byval dst as uint8 ptr, byval bytes as integer ptr ) as uint8 ptr
 
 	if( chars > 0 ) then
 		if( dst = 0 ) then
-			dst = cptr( ubyte ptr, malloc( chars * 4 ) )
+			dst = cptr( uint8 ptr, malloc( chars * 4 ) )
 			if( dst = 0 ) then return 0
 		end if
 	end if
 
 	#ifdef TKORT_WCHAR_IS_UTF16
-		hUTF16ToUTF8( cptr( ushort ptr, src ), chars, dst, bytes )
+		hUTF16ToUTF8( cptr( uint16 ptr, src ), chars, dst, bytes )
 	#else
-		hUTF32ToUTF8( cptr( ulong ptr, src ), chars, dst, bytes )
+		hUTF32ToUTF8( cptr( uint32 ptr, src ), chars, dst, bytes )
 	#endif
 
 	return dst
@@ -248,13 +248,13 @@ end function
 '' adjusts it upward -- so a caller reading it without calling is reading an
 '' estimate, not a result.
 private function hToUTF16( byval src as any ptr, byval chars as integer, _
-                           byval dst as ubyte ptr, byval bytes as integer ptr ) as ubyte ptr
+                           byval dst as uint8 ptr, byval bytes as integer ptr ) as uint8 ptr
 
 	*bytes = chars * 2
 
 	if( chars > 0 ) then
 		if( dst = 0 ) then
-			dst = cptr( ubyte ptr, malloc( chars * 2 ) )
+			dst = cptr( uint8 ptr, malloc( chars * 2 ) )
 			if( dst = 0 ) then return 0
 		end if
 	end if
@@ -263,27 +263,27 @@ private function hToUTF16( byval src as any ptr, byval chars as integer, _
 		'' SAME WIDTH: a straight copy, and the estimate is exact.
 		if( chars > 0 ) then memcpy( dst, src, chars * 2 )
 	#else
-		dst = cptr( ubyte ptr, hUTF32ToUTF16( cptr( ulong ptr, src ), chars, _
-		                                      cptr( ushort ptr, dst ), bytes ) )
+		dst = cptr( uint8 ptr, hUTF32ToUTF16( cptr( uint32 ptr, src ), chars, _
+		                                      cptr( uint16 ptr, dst ), bytes ) )
 	#endif
 
 	return dst
 end function
 
 private function hToUTF32( byval src as any ptr, byval chars as integer, _
-                           byval dst as ubyte ptr, byval bytes as integer ptr ) as ubyte ptr
+                           byval dst as uint8 ptr, byval bytes as integer ptr ) as uint8 ptr
 
 	*bytes = chars * 4
 
 	if( chars > 0 ) then
 		if( dst = 0 ) then
-			dst = cptr( ubyte ptr, malloc( chars * 4 ) )
+			dst = cptr( uint8 ptr, malloc( chars * 4 ) )
 			if( dst = 0 ) then return 0
 		end if
 	end if
 
 	#ifdef TKORT_WCHAR_IS_UTF16
-		hUTF16ToUTF32( cptr( ushort ptr, src ), chars, cptr( ulong ptr, dst ), bytes )
+		hUTF16ToUTF32( cptr( uint16 ptr, src ), chars, cptr( uint32 ptr, dst ), bytes )
 	#else
 		if( chars > 0 ) then memcpy( dst, src, chars * 4 )
 	#endif
@@ -294,16 +294,16 @@ end function
 '' ------------------------------------------------------------ the entry point
 
 function tkort_WCharToUTF alias "fb_WCharToUTF" _
-	( byval encod as long, byval src as wstring ptr, byval chars as integer, _
+	( byval encod as int32, byval src as wstring ptr, byval chars as integer, _
 	  byval dst as zstring ptr, byval bytes as integer ptr ) as zstring ptr
 
 	select case encod
 	case FB_FILE_ENCOD_UTF8
-		return cptr( zstring ptr, hToUTF8( src, chars, cptr( ubyte ptr, dst ), bytes ) )
+		return cptr( zstring ptr, hToUTF8( src, chars, cptr( uint8 ptr, dst ), bytes ) )
 	case FB_FILE_ENCOD_UTF16
-		return cptr( zstring ptr, hToUTF16( src, chars, cptr( ubyte ptr, dst ), bytes ) )
+		return cptr( zstring ptr, hToUTF16( src, chars, cptr( uint8 ptr, dst ), bytes ) )
 	case FB_FILE_ENCOD_UTF32
-		return cptr( zstring ptr, hToUTF32( src, chars, cptr( ubyte ptr, dst ), bytes ) )
+		return cptr( zstring ptr, hToUTF32( src, chars, cptr( uint8 ptr, dst ), bytes ) )
 	end select
 
 	'' AN UNKNOWN ENCODING IS NULL AND LEAVES `bytes` UNTOUCHED -- unlike the

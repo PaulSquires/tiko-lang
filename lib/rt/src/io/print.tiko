@@ -49,23 +49,23 @@
 
 extern "c"   '' NON-FBCALL: the device-layer writer and the screen initialiser.
 	declare function tkrt_PrintBufferEx alias "fb_hFilePrintBufferEx" _
-		( byval h as FB_FILE ptr, byval s as zstring ptr, byval length as uinteger ) as long
+		( byval h as FB_FILE ptr, byval s as zstring ptr, byval length as uinteger ) as int32
 	declare sub tkrt_DevScrnInitWrite alias "fb_DevScrnInit_Write" ( )
 end extern
 
 extern "rtlib"
-	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 end extern
 
 '' ======================================================= the *Ex tier: cdecl
 
 extern "c"   '' NON-FBCALL: fb_print.h declares the handle-taking forms plainly.
 
-declare sub tkort_PrintPadEx alias "fb_PrintPadEx" ( byval h as FB_FILE ptr, byval mask as long )
-declare sub tkort_PrintVoidEx alias "fb_PrintVoidEx" ( byval h as FB_FILE ptr, byval mask as long )
+declare sub tkort_PrintPadEx alias "fb_PrintPadEx" ( byval h as FB_FILE ptr, byval mask as int32 )
+declare sub tkort_PrintVoidEx alias "fb_PrintVoidEx" ( byval h as FB_FILE ptr, byval mask as int32 )
 
 private sub hPrintStrEx _
-	( byval h as FB_FILE ptr, byval s as zstring ptr, byval length as uinteger, byval mask as long )
+	( byval h as FB_FILE ptr, byval s as zstring ptr, byval length as uinteger, byval mask as int32 )
 	'' ONE LOCK ROUND BOTH, not one each -- see the header.
 	IOLOCK()
 	if( length <> 0 ) then tkrt_PrintBufferEx( h, s, length )
@@ -74,7 +74,7 @@ private sub hPrintStrEx _
 end sub
 
 sub tkort_PrintStringEx alias "fb_PrintStringEx" _
-	( byval h as FB_FILE ptr, byval s as FBSTRING ptr, byval mask as long )
+	( byval h as FB_FILE ptr, byval s as FBSTRING ptr, byval mask as int32 )
 
 	'' A NULL descriptor and a NULL data pointer are both "nothing to print",
 	'' and both still emit the newline -- which is what makes PRINT "" work.
@@ -95,7 +95,7 @@ end sub
 '' A ZSTRING * N or ZSTRING PTR: the length is walked, and there is no temporary
 '' to release because a fixed-length string is not one.
 sub tkort_PrintFixStringEx alias "fb_PrintFixStringEx" _
-	( byval h as FB_FILE ptr, byval s as zstring ptr, byval mask as long )
+	( byval h as FB_FILE ptr, byval s as zstring ptr, byval mask as int32 )
 	if( s = 0 ) then
 		tkort_PrintVoidEx( h, mask )
 	else
@@ -103,7 +103,7 @@ sub tkort_PrintFixStringEx alias "fb_PrintFixStringEx" _
 	end if
 end sub
 
-sub tkort_PrintVoidEx alias "fb_PrintVoidEx" ( byval h as FB_FILE ptr, byval mask as long )
+sub tkort_PrintVoidEx alias "fb_PrintVoidEx" ( byval h as FB_FILE ptr, byval mask as int32 )
 
 	'' THE THREE ARE EXCLUSIVE AND ORDERED. A binary newline wins over a text
 	'' one, and padding happens only when neither newline was asked for -- which
@@ -125,7 +125,7 @@ end sub
 '' is 8 -- so this space-fills, and a port that wrote a tab would be wrong on
 '' every target while looking more natural.
 private sub hPadTo _
-	( byval h as FB_FILE ptr, byval current_x as long, byval new_x as long )
+	( byval h as FB_FILE ptr, byval current_x as int32, byval new_x as int32 )
 
 	if( new_x <= current_x ) then
 		tkrt_PrintBufferEx( h, TKORT_NEWLINE, TKORT_NEWLINE_LEN )
@@ -144,7 +144,7 @@ private sub hPadTo _
 
 end sub
 
-sub tkort_PrintPadEx alias "fb_PrintPadEx" ( byval h as FB_FILE ptr, byval mask as long )
+sub tkort_PrintPadEx alias "fb_PrintPadEx" ( byval h as FB_FILE ptr, byval mask as int32 )
 
 	'' The screen handle is built lazily and the padding needs its width.
 	tkrt_DevScrnInitWrite( )
@@ -154,14 +154,14 @@ sub tkort_PrintPadEx alias "fb_PrintPadEx" ( byval h as FB_FILE ptr, byval mask 
 	dim as FB_FILE ptr t = tkort_HandleDeref( h )
 	if( t = 0 ) then exit sub
 
-	dim as long old_x = cast( long, t->line_length ) + 1
-	dim as long new_x = old_x + FB_TAB_WIDTH - 1
+	dim as int32 old_x = cast( int32, t->line_length ) + 1
+	dim as int32 new_x = old_x + FB_TAB_WIDTH - 1
 	new_x = (new_x \ FB_TAB_WIDTH) * FB_TAB_WIDTH + 1
 
 	'' AND IT WRAPS: padding that would run past the handle's width starts the
 	'' next line instead. A width of 0 means "no limit".
 	if( t->width <> 0 ) then
-		if( new_x > cast( long, t->width ) ) then new_x = 1
+		if( new_x > cast( int32, t->width ) ) then new_x = 1
 	end if
 
 	hPadTo( h, old_x, new_x )
@@ -175,20 +175,20 @@ end extern
 extern "rtlib"
 
 sub tkort_PrintString alias "fb_PrintString" _
-	( byval fnum as long, byval s as FBSTRING ptr, byval mask as long )
+	( byval fnum as int32, byval s as FBSTRING ptr, byval mask as int32 )
 	tkort_PrintStringEx( TKORT_FILE_TO_HANDLE( fnum ), s, mask )
 end sub
 
 sub tkort_PrintFixString alias "fb_PrintFixString" _
-	( byval fnum as long, byval s as zstring ptr, byval mask as long )
+	( byval fnum as int32, byval s as zstring ptr, byval mask as int32 )
 	tkort_PrintFixStringEx( TKORT_FILE_TO_HANDLE( fnum ), s, mask )
 end sub
 
-sub tkort_PrintVoid alias "fb_PrintVoid" ( byval fnum as long, byval mask as long )
+sub tkort_PrintVoid alias "fb_PrintVoid" ( byval fnum as int32, byval mask as int32 )
 	tkort_PrintVoidEx( TKORT_FILE_TO_HANDLE( fnum ), mask )
 end sub
 
-sub tkort_PrintPad alias "fb_PrintPad" ( byval fnum as long, byval mask as long )
+sub tkort_PrintPad alias "fb_PrintPad" ( byval fnum as int32, byval mask as int32 )
 	tkort_PrintPadEx( TKORT_FILE_TO_HANDLE( fnum ), mask )
 end sub
 
@@ -208,7 +208,7 @@ end sub
 #macro PRINTNUM( h, val, mask, fmt )
 	scope
 		dim as zstring * 80 buffer
-		dim as long n = any
+		dim as int32 n = any
 		dim as FB_FILE ptr __h = (h)
 		if( ((mask) and FB_PRINT_APPEND_SPACE) <> 0 ) then
 			if( ((mask) and FB_PRINT_BIN_NEWLINE) <> 0 ) then
@@ -235,35 +235,35 @@ end sub
 #endmacro
 
 sub tkort_PrintInt alias "fb_PrintInt" _
-	( byval fnum as long, byval v as long, byval mask as long )
+	( byval fnum as int32, byval v as int32, byval mask as int32 )
 	PRINTNUM( TKORT_FILE_TO_HANDLE( fnum ), v, mask, "% d" )
 end sub
 sub tkort_PrintUInt alias "fb_PrintUInt" _
-	( byval fnum as long, byval v as ulong, byval mask as long )
+	( byval fnum as int32, byval v as uint32, byval mask as int32 )
 	PRINTNUM( TKORT_FILE_TO_HANDLE( fnum ), v, mask, "%u" )
 end sub
 sub tkort_PrintShort alias "fb_PrintShort" _
-	( byval fnum as long, byval v as short, byval mask as long )
-	PRINTNUM( TKORT_FILE_TO_HANDLE( fnum ), cast( long, v ), mask, "% d" )
+	( byval fnum as int32, byval v as int16, byval mask as int32 )
+	PRINTNUM( TKORT_FILE_TO_HANDLE( fnum ), cast( int32, v ), mask, "% d" )
 end sub
 sub tkort_PrintUShort alias "fb_PrintUShort" _
-	( byval fnum as long, byval v as ushort, byval mask as long )
-	PRINTNUM( TKORT_FILE_TO_HANDLE( fnum ), cast( ulong, v ), mask, "%u" )
+	( byval fnum as int32, byval v as uint16, byval mask as int32 )
+	PRINTNUM( TKORT_FILE_TO_HANDLE( fnum ), cast( uint32, v ), mask, "%u" )
 end sub
 sub tkort_PrintByte alias "fb_PrintByte" _
-	( byval fnum as long, byval v as byte, byval mask as long )
-	PRINTNUM( TKORT_FILE_TO_HANDLE( fnum ), cast( long, v ), mask, "% d" )
+	( byval fnum as int32, byval v as int8, byval mask as int32 )
+	PRINTNUM( TKORT_FILE_TO_HANDLE( fnum ), cast( int32, v ), mask, "% d" )
 end sub
 sub tkort_PrintUByte alias "fb_PrintUByte" _
-	( byval fnum as long, byval v as ubyte, byval mask as long )
-	PRINTNUM( TKORT_FILE_TO_HANDLE( fnum ), cast( ulong, v ), mask, "%u" )
+	( byval fnum as int32, byval v as uint8, byval mask as int32 )
+	PRINTNUM( TKORT_FILE_TO_HANDLE( fnum ), cast( uint32, v ), mask, "%u" )
 end sub
 sub tkort_PrintLongint alias "fb_PrintLongint" _
-	( byval fnum as long, byval v as longint, byval mask as long )
+	( byval fnum as int32, byval v as int64, byval mask as int32 )
 	PRINTNUM( TKORT_FILE_TO_HANDLE( fnum ), v, mask, "% lld" )
 end sub
 sub tkort_PrintULongint alias "fb_PrintULongint" _
-	( byval fnum as long, byval v as ulongint, byval mask as long )
+	( byval fnum as int32, byval v as uint64, byval mask as int32 )
 	PRINTNUM( TKORT_FILE_TO_HANDLE( fnum ), v, mask, "%llu" )
 end sub
 
@@ -282,9 +282,9 @@ end extern
 
 extern "c"   '' NON-FBCALL: fb_string.h declares the formatter plainly.
 	declare function tkrt_Float2Str alias "fb_hFloat2Str" _
-		( byval v as double, byval b as zstring ptr, byval digits as long, _
-		  byval mask as long ) as zstring ptr
-	declare function tkrt_hBoolToStr alias "fb_hBoolToStr" ( byval n as byte ) as zstring ptr
+		( byval v as float64, byval b as zstring ptr, byval digits as int32, _
+		  byval mask as int32 ) as zstring ptr
+	declare function tkrt_hBoolToStr alias "fb_hBoolToStr" ( byval n as int8 ) as zstring ptr
 end extern
 
 const TKORT_F2A_ADDBLANK = 1
@@ -292,13 +292,13 @@ const TKORT_F2A_ADDBLANK = 1
 extern "rtlib"
 
 sub tkort_PrintSingle alias "fb_PrintSingle" _
-	( byval fnum as long, byval v as single, byval mask as long )
+	( byval fnum as int32, byval v as float32, byval mask as int32 )
 	dim as zstring * (8 + 1 + 9 + 1) buffer
 	tkort_PrintFixString( fnum, tkrt_Float2Str( v, @buffer, 7, TKORT_F2A_ADDBLANK ), mask )
 end sub
 
 sub tkort_PrintDouble alias "fb_PrintDouble" _
-	( byval fnum as long, byval v as double, byval mask as long )
+	( byval fnum as int32, byval v as float64, byval mask as int32 )
 	dim as zstring * (16 + 1 + 9 + 1) buffer
 	tkort_PrintFixString( fnum, tkrt_Float2Str( v, @buffer, 16, TKORT_F2A_ADDBLANK ), mask )
 end sub
@@ -307,7 +307,7 @@ end sub
 '' it goes through the same numeric macro with a "%s" format, so it picks up the
 '' newline and padding handling for free.
 sub tkort_PrintBool alias "fb_PrintBool" _
-	( byval fnum as long, byval v as byte, byval mask as long )
+	( byval fnum as int32, byval v as int8, byval mask as int32 )
 	PRINTNUM( TKORT_FILE_TO_HANDLE( fnum ), tkrt_hBoolToStr( v ), mask, "%s" )
 end sub
 

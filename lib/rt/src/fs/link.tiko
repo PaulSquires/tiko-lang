@@ -36,7 +36,7 @@
 #include once "inc/sysbind.ti"
 
 extern "rtlib"
-	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as long
+	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: the ustring temp builder, declared plain.
@@ -114,22 +114,22 @@ const RP_PATH_MOUNTPOINT_ = 16
 
 extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
 	declare function w_CreateSymbolicLinkW stdcall alias "CreateSymbolicLinkW" _
-		( byval lnk as wstring ptr, byval target as wstring ptr, byval flags as ulong ) as ubyte
+		( byval lnk as wstring ptr, byval target as wstring ptr, byval flags as uint32 ) as uint8
 	declare function w_CreateHardLinkW stdcall alias "CreateHardLinkW" _
-		( byval lnk as wstring ptr, byval target as wstring ptr, byval sa as any ptr ) as long
+		( byval lnk as wstring ptr, byval target as wstring ptr, byval sa as any ptr ) as int32
 	declare function w_CreateFileW stdcall alias "CreateFileW" _
-		( byval n as wstring ptr, byval acc as ulong, byval share as ulong, byval sa as any ptr, _
-		  byval disp as ulong, byval flags as ulong, byval templ as any ptr ) as any ptr
-	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as long
+		( byval n as wstring ptr, byval acc as uint32, byval share as uint32, byval sa as any ptr, _
+		  byval disp as uint32, byval flags as uint32, byval templ as any ptr ) as any ptr
+	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as int32
 	declare function w_DeviceIoControl stdcall alias "DeviceIoControl" _
-		( byval h as any ptr, byval code as ulong, byval inb as any ptr, byval inn as ulong, _
-		  byval outb as any ptr, byval outn as ulong, byval got as ulong ptr, byval ov as any ptr ) as long
+		( byval h as any ptr, byval code as uint32, byval inb as any ptr, byval inn as uint32, _
+		  byval outb as any ptr, byval outn as uint32, byval got as uint32 ptr, byval ov as any ptr ) as int32
 	declare function w_GetFileInformationByHandle stdcall alias "GetFileInformationByHandle" _
-		( byval h as any ptr, byval info as any ptr ) as long
-	declare function w_GetFileAttributesW stdcall alias "GetFileAttributesW" ( byval n as wstring ptr ) as ulong
+		( byval h as any ptr, byval info as any ptr ) as int32
+	declare function w_GetFileAttributesW stdcall alias "GetFileAttributesW" ( byval n as wstring ptr ) as uint32
 	declare function w_SetFileAttributesW stdcall alias "SetFileAttributesW" _
-		( byval n as wstring ptr, byval attrs as ulong ) as long
-	declare function w_GetLastError stdcall alias "GetLastError" ( ) as ulong
+		( byval n as wstring ptr, byval attrs as uint32 ) as int32
+	declare function w_GetLastError stdcall alias "GetLastError" ( ) as uint32
 end extern
 
 '' NUL-terminated wide copy of a USTRING path, heap-allocated because paths are
@@ -151,11 +151,11 @@ end function
 extern "rtlib"
 
 function tkort_UStrFsCreateSymlink alias "fb_UStrFsCreateSymlink" _
-	( byval target as FBUSTRING ptr, byval lnk as FBUSTRING ptr, byval isdir as long ) as long
+	( byval target as FBUSTRING ptr, byval lnk as FBUSTRING ptr, byval isdir as int32 ) as int32
 
 	dim as wstring ptr wt = any, wl = any
-	dim as ulong flags = any
-	dim as long r = FB_FS_OK
+	dim as uint32 flags = any
+	dim as int32 r = FB_FS_OK
 
 	'' target first -- see the file header
 	wt = hFsWide( target )
@@ -190,10 +190,10 @@ function tkort_UStrFsCreateSymlink alias "fb_UStrFsCreateSymlink" _
 end function
 
 function tkort_UStrFsCreateHardLink alias "fb_UStrFsCreateHardLink" _
-	( byval target as FBUSTRING ptr, byval lnk as FBUSTRING ptr ) as long
+	( byval target as FBUSTRING ptr, byval lnk as FBUSTRING ptr ) as int32
 
 	dim as wstring ptr wt = any, wl = any
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	wt = hFsWide( target )
 	wl = hFsWide( lnk )
@@ -212,16 +212,16 @@ end function
 '' FILE_FLAG_OPEN_REPARSE_POINT is essential: without it the open FOLLOWS the
 '' link and there is no reparse data left to read.
 function tkort_UStrFsReadLink alias "fb_UStrFsReadLink" _
-	( byval lnk as FBUSTRING ptr, byval status as long ptr ) as FBUSTRING ptr
+	( byval lnk as FBUSTRING ptr, byval status as int32 ptr ) as FBUSTRING ptr
 
 	dim as wstring ptr wl = any
 	dim as any ptr h = any
-	dim as ubyte ptr buf = any
-	dim as ulong got = 0
-	dim as long ec = any
-	dim as ulong tag = any
+	dim as uint8 ptr buf = any
+	dim as uint32 got = 0
+	dim as int32 ec = any
+	dim as uint32 tag = any
 	dim as FB_UCHAR ptr path_ = any, sub_ = any
-	dim as ushort nameoff = any, namelen = any, printoff = any, printlen = any
+	dim as uint16 nameoff = any, namelen = any, printoff = any, printlen = any
 	dim as integer sublen = any
 	dim as FBUSTRING ptr res = any
 
@@ -265,7 +265,7 @@ function tkort_UStrFsReadLink alias "fb_UStrFsReadLink" _
 
 	w_CloseHandle( h )
 
-	tag = *cptr( ulong ptr, buf )
+	tag = *cptr( uint32 ptr, buf )
 
 	if( tag = IO_REPARSE_TAG_SYMLINK_ ) then
 		path_ = cptr( FB_UCHAR ptr, buf + RP_PATH_SYMLINK_ )
@@ -279,10 +279,10 @@ function tkort_UStrFsReadLink alias "fb_UStrFsReadLink" _
 		return TKORT_UNULL_DESC()
 	end if
 
-	nameoff  = *cptr( ushort ptr, buf + RP_SUBST_OFF_ )
-	namelen  = *cptr( ushort ptr, buf + RP_SUBST_LEN_ )
-	printoff = *cptr( ushort ptr, buf + RP_PRINT_OFF_ )
-	printlen = *cptr( ushort ptr, buf + RP_PRINT_LEN_ )
+	nameoff  = *cptr( uint16 ptr, buf + RP_SUBST_OFF_ )
+	namelen  = *cptr( uint16 ptr, buf + RP_SUBST_LEN_ )
+	printoff = *cptr( uint16 ptr, buf + RP_PRINT_OFF_ )
+	printlen = *cptr( uint16 ptr, buf + RP_PRINT_LEN_ )
 
 	'' PRINT NAME FIRST. It is the form the user wrote -- a relative target
 	'' stays relative -- whereas SubstituteName is the kernel's form and carries
@@ -313,12 +313,12 @@ end function
 '' Hard links to the object. The only way to know whether deleting a file frees
 '' its data.
 function tkort_UStrFsLinkCount alias "fb_UStrFsLinkCount" _
-	( byval p as FBUSTRING ptr, byval out_ as ulong ptr ) as long
+	( byval p as FBUSTRING ptr, byval out_ as uint32 ptr ) as int32
 
 	dim as wstring ptr w = any
 	dim as any ptr h = any
-	dim as ubyte bhfi( 0 to BHFI_SIZE_ - 1 ) = any
-	dim as long r = FB_FS_OK
+	dim as uint8 bhfi( 0 to BHFI_SIZE_ - 1 ) = any
+	dim as int32 r = FB_FS_OK
 
 	*out_ = 0
 
@@ -335,7 +335,7 @@ function tkort_UStrFsLinkCount alias "fb_UStrFsLinkCount" _
 	if( w_GetFileInformationByHandle( h, @bhfi(0) ) = 0 ) then
 		r = tkrt_FsMapOsError( )
 	else
-		*out_ = *cptr( ulong ptr, @bhfi(BHFI_NUMLINKS_OFFSET_) )
+		*out_ = *cptr( uint32 ptr, @bhfi(BHFI_NUMLINKS_OFFSET_) )
 	end if
 
 	w_CloseHandle( h )
@@ -351,10 +351,10 @@ end function
 '' On Windows the value is dwFileAttributes.
 
 function tkort_UStrFsGetPerm alias "fb_UStrFsGetPerm" _
-	( byval p as FBUSTRING ptr, byval out_ as ulong ptr ) as long
+	( byval p as FBUSTRING ptr, byval out_ as uint32 ptr ) as int32
 
 	dim as wstring ptr w = hFsWide( p )
-	dim as ulong attrs = any
+	dim as uint32 attrs = any
 
 	*out_ = 0
 	if( w = 0 ) then return FB_FS_UNKNOWN
@@ -369,10 +369,10 @@ function tkort_UStrFsGetPerm alias "fb_UStrFsGetPerm" _
 end function
 
 function tkort_UStrFsSetPerm alias "fb_UStrFsSetPerm" _
-	( byval p as FBUSTRING ptr, byval v as ulong ) as long
+	( byval p as FBUSTRING ptr, byval v as uint32 ) as int32
 
 	dim as wstring ptr w = hFsWide( p )
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	if( w = 0 ) then return FB_FS_UNKNOWN
 	if( w_SetFileAttributesW( w, v ) = 0 ) then r = tkrt_FsMapOsError( )
@@ -381,11 +381,11 @@ function tkort_UStrFsSetPerm alias "fb_UStrFsSetPerm" _
 end function
 
 function tkort_UStrFsSetHidden alias "fb_UStrFsSetHidden" _
-	( byval p as FBUSTRING ptr, byval v as long ) as long
+	( byval p as FBUSTRING ptr, byval v as int32 ) as int32
 
 	dim as wstring ptr w = hFsWide( p )
-	dim as ulong attrs = any
-	dim as long r = FB_FS_OK
+	dim as uint32 attrs = any
+	dim as int32 r = FB_FS_OK
 
 	if( w = 0 ) then return FB_FS_UNKNOWN
 
@@ -422,16 +422,16 @@ const STAT_MODE_OFFSET  = 24
 const PERM_MASK         = &o7777
 
 type stat_
-	as ubyte raw( 0 to STAT_BUF_SIZE - 1 )
+	as uint8 raw( 0 to STAT_BUF_SIZE - 1 )
 end type
 
 extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
-	declare function u_symlink alias "symlink" ( byval target as zstring ptr, byval lnk as zstring ptr ) as long
-	declare function u_link alias "link" ( byval target as zstring ptr, byval lnk as zstring ptr ) as long
+	declare function u_symlink alias "symlink" ( byval target as zstring ptr, byval lnk as zstring ptr ) as int32
+	declare function u_link alias "link" ( byval target as zstring ptr, byval lnk as zstring ptr ) as int32
 	declare function u_readlink alias "readlink" ( byval p as zstring ptr, byval buf as zstring ptr, byval cap as uinteger ) as integer
-	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as stat_ ptr ) as long
-	declare function u_stat alias "stat" ( byval p as zstring ptr, byval st as stat_ ptr ) as long
-	declare function u_chmod alias "chmod" ( byval p as zstring ptr, byval mode_ as ulong ) as long
+	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as stat_ ptr ) as int32
+	declare function u_stat alias "stat" ( byval p as zstring ptr, byval st as stat_ ptr ) as int32
+	declare function u_chmod alias "chmod" ( byval p as zstring ptr, byval mode_ as uint32 ) as int32
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
 		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
 	declare function u_utf8to16 alias "fb_hUtf8ToUtf16" _
@@ -481,14 +481,14 @@ end function
 extern "rtlib"
 
 function tkort_UStrFsCreateSymlink alias "fb_UStrFsCreateSymlink" _
-	( byval target as FBUSTRING ptr, byval lnk as FBUSTRING ptr, byval isdir as long ) as long
+	( byval target as FBUSTRING ptr, byval lnk as FBUSTRING ptr, byval isdir as int32 ) as int32
 
 	dim as zstring ptr tp = any, lp = any
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	'' isdir is meaningless here; named and unused deliberately rather than
 	'' dropped from the signature, so the two platforms share one API.
-	scope : dim as long unused_ = isdir : end scope
+	scope : dim as int32 unused_ = isdir : end scope
 
 	tp = hFsNarrow( target )
 	lp = hFsNarrow( lnk )
@@ -505,10 +505,10 @@ function tkort_UStrFsCreateSymlink alias "fb_UStrFsCreateSymlink" _
 end function
 
 function tkort_UStrFsCreateHardLink alias "fb_UStrFsCreateHardLink" _
-	( byval target as FBUSTRING ptr, byval lnk as FBUSTRING ptr ) as long
+	( byval target as FBUSTRING ptr, byval lnk as FBUSTRING ptr ) as int32
 
 	dim as zstring ptr tp = any, lp = any
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	tp = hFsNarrow( target )
 	lp = hFsNarrow( lnk )
@@ -529,11 +529,11 @@ end function
 '' the reason a fixed PATH_MAX buffer here would silently truncate a long target
 '' into a valid-looking WRONG path.
 function tkort_UStrFsReadLink alias "fb_UStrFsReadLink" _
-	( byval lnk as FBUSTRING ptr, byval status as long ptr ) as FBUSTRING ptr
+	( byval lnk as FBUSTRING ptr, byval status as int32 ptr ) as FBUSTRING ptr
 
 	dim as zstring ptr lp = any, buf = any
 	dim as integer cap = 256, n = any
-	dim as long ec = any
+	dim as int32 ec = any
 	dim as FBUSTRING ptr res = any
 
 	if( status <> 0 ) then *status = FB_FS_OK
@@ -583,11 +583,11 @@ function tkort_UStrFsReadLink alias "fb_UStrFsReadLink" _
 end function
 
 function tkort_UStrFsLinkCount alias "fb_UStrFsLinkCount" _
-	( byval p as FBUSTRING ptr, byval out_ as ulong ptr ) as long
+	( byval p as FBUSTRING ptr, byval out_ as uint32 ptr ) as int32
 
 	dim as zstring ptr path_ = hFsNarrow( p )
 	dim as stat_ st = any
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	*out_ = 0
 	if( path_ = 0 ) then return FB_FS_UNKNOWN
@@ -595,7 +595,7 @@ function tkort_UStrFsLinkCount alias "fb_UStrFsLinkCount" _
 	if( u_lstat( path_, @st ) <> 0 ) then
 		r = tkrt_FsMapOsError( )
 	else
-		*out_ = cast( ulong, *cptr( ulongint ptr, @st.raw(STAT_NLINK_OFFSET) ) )
+		*out_ = cast( uint32, *cptr( uint64 ptr, @st.raw(STAT_NLINK_OFFSET) ) )
 	end if
 
 	free( path_ )
@@ -608,11 +608,11 @@ end function
 '' the sticky bit survive a get/set round trip.
 
 function tkort_UStrFsGetPerm alias "fb_UStrFsGetPerm" _
-	( byval p as FBUSTRING ptr, byval out_ as ulong ptr ) as long
+	( byval p as FBUSTRING ptr, byval out_ as uint32 ptr ) as int32
 
 	dim as zstring ptr path_ = hFsNarrow( p )
 	dim as stat_ st = any
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	*out_ = 0
 	if( path_ = 0 ) then return FB_FS_UNKNOWN
@@ -620,7 +620,7 @@ function tkort_UStrFsGetPerm alias "fb_UStrFsGetPerm" _
 	if( u_stat( path_, @st ) <> 0 ) then
 		r = tkrt_FsMapOsError( )
 	else
-		*out_ = *cptr( ulong ptr, @st.raw(STAT_MODE_OFFSET) ) and PERM_MASK
+		*out_ = *cptr( uint32 ptr, @st.raw(STAT_MODE_OFFSET) ) and PERM_MASK
 	end if
 
 	free( path_ )
@@ -628,10 +628,10 @@ function tkort_UStrFsGetPerm alias "fb_UStrFsGetPerm" _
 end function
 
 function tkort_UStrFsSetPerm alias "fb_UStrFsSetPerm" _
-	( byval p as FBUSTRING ptr, byval v as ulong ) as long
+	( byval p as FBUSTRING ptr, byval v as uint32 ) as int32
 
 	dim as zstring ptr path_ = hFsNarrow( p )
-	dim as long r = FB_FS_OK
+	dim as int32 r = FB_FS_OK
 
 	if( path_ = 0 ) then return FB_FS_UNKNOWN
 	if( u_chmod( path_, v and PERM_MASK ) <> 0 ) then r = tkrt_FsMapOsError( )
@@ -641,8 +641,8 @@ end function
 
 '' FS_UNSUPPORTED, NOT a rename -- see the file header.
 function tkort_UStrFsSetHidden alias "fb_UStrFsSetHidden" _
-	( byval p as FBUSTRING ptr, byval v as long ) as long
-	scope : dim as any ptr unused_p = p : dim as long unused_v = v : end scope
+	( byval p as FBUSTRING ptr, byval v as int32 ) as int32
+	scope : dim as any ptr unused_p = p : dim as int32 unused_v = v : end scope
 	return FB_FS_UNSUPPORTED
 end function
 

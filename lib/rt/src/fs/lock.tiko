@@ -36,7 +36,7 @@
 #include once "inc/sysbind.ti"
 
 extern "rtlib"
-	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as long
+	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as int32
 end extern
 
 private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
@@ -78,14 +78,14 @@ end type
 
 extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
 	declare function w_CreateFileW stdcall alias "CreateFileW" _
-		( byval n as wstring ptr, byval acc as ulong, byval share as ulong, byval sa as any ptr, _
-		  byval disp as ulong, byval flags as ulong, byval templ as any ptr ) as any ptr
-	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as long
+		( byval n as wstring ptr, byval acc as uint32, byval share as uint32, byval sa as any ptr, _
+		  byval disp as uint32, byval flags as uint32, byval templ as any ptr ) as any ptr
+	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as int32
 	declare function w_LockFileEx stdcall alias "LockFileEx" _
-		( byval h as any ptr, byval flags as ulong, byval reserved as ulong, _
-		  byval lo as ulong, byval hi as ulong, byval ov as any ptr ) as long
-	declare function w_GetLastError stdcall alias "GetLastError" ( ) as ulong
-	declare sub w_Sleep stdcall alias "Sleep" ( byval ms as ulong )
+		( byval h as any ptr, byval flags as uint32, byval reserved as uint32, _
+		  byval lo as uint32, byval hi as uint32, byval ov as any ptr ) as int32
+	declare function w_GetLastError stdcall alias "GetLastError" ( ) as uint32
+	declare sub w_Sleep stdcall alias "Sleep" ( byval ms as uint32 )
 end extern
 
 private function hFsWide( byval p as FBUSTRING ptr ) as wstring ptr
@@ -104,15 +104,15 @@ end function
 extern "rtlib"
 
 function tkort_UStrFsLockAcquire alias "fb_UStrFsLockAcquire" _
-	( byval p as FBUSTRING ptr, byval exclusive as long, byval timeoutms as long, _
-	  byval out_ as FB_FSLOCK ptr ptr ) as long
+	( byval p as FBUSTRING ptr, byval exclusive as int32, byval timeoutms as int32, _
+	  byval out_ as FB_FSLOCK ptr ptr ) as int32
 
 	dim as wstring ptr w = any
 	dim as FB_FSLOCK ptr l = any
 	dim as any ptr h = any
-	dim as ubyte ov( 0 to OVERLAPPED_SIZE_ - 1 ) = any
-	dim as ulong flags = LOCKFILE_FAIL_IMMEDIATELY_, e = any
-	dim as long waited = 0, r = any
+	dim as uint8 ov( 0 to OVERLAPPED_SIZE_ - 1 ) = any
+	dim as uint32 flags = LOCKFILE_FAIL_IMMEDIATELY_, e = any
+	dim as int32 waited = 0, r = any
 
 	*out_ = 0
 
@@ -199,15 +199,15 @@ const EINTR_      = 4
 const EAGAIN_     = 11          '' EWOULDBLOCK is the same value on Linux
 
 type FB_FSLOCK
-	as long fd
+	as int32 fd
 end type
 
 extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
-	declare function u_open alias "open" ( byval p as zstring ptr, byval flags as long, ... ) as long
-	declare function u_close alias "close" ( byval fd as long ) as long
-	declare function u_flock alias "flock" ( byval fd as long, byval op as long ) as long
-	declare function u_usleep alias "usleep" ( byval us as ulong ) as long
-	declare function u_errno_location alias "__errno_location" ( ) as long ptr
+	declare function u_open alias "open" ( byval p as zstring ptr, byval flags as int32, ... ) as int32
+	declare function u_close alias "close" ( byval fd as int32 ) as int32
+	declare function u_flock alias "flock" ( byval fd as int32, byval op as int32 ) as int32
+	declare function u_usleep alias "usleep" ( byval us as uint32 ) as int32
+	declare function u_errno_location alias "__errno_location" ( ) as int32 ptr
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
 		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
 end extern
@@ -232,12 +232,12 @@ end function
 extern "rtlib"
 
 function tkort_UStrFsLockAcquire alias "fb_UStrFsLockAcquire" _
-	( byval p as FBUSTRING ptr, byval exclusive as long, byval timeoutms as long, _
-	  byval out_ as FB_FSLOCK ptr ptr ) as long
+	( byval p as FBUSTRING ptr, byval exclusive as int32, byval timeoutms as int32, _
+	  byval out_ as FB_FSLOCK ptr ptr ) as int32
 
 	dim as zstring ptr path_ = any
 	dim as FB_FSLOCK ptr l = any
-	dim as long fd = any, op = any, waited = 0, r = any, e = any
+	dim as int32 fd = any, op = any, waited = 0, r = any, e = any
 
 	*out_ = 0
 

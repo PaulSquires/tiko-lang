@@ -24,11 +24,11 @@
 extern "rtlib"
 
 function tkort_hStrRadix2Int alias "fb_hStrRadix2Int" _
-	( byval src as zstring ptr, byval length as integer, byval radix as long ) as long
+	( byval src as zstring ptr, byval length as integer, byval radix as int32 ) as int32
 
-	dim as long v = 0
-	dim as long c = any
-	dim as ubyte ptr p = cptr( ubyte ptr, src )
+	dim as int32 v = 0
+	dim as int32 c = any
+	dim as uint8 ptr p = cptr( uint8 ptr, src )
 
 	select case as const radix
 	case 16
@@ -81,11 +81,11 @@ function tkort_hStrRadix2Int alias "fb_hStrRadix2Int" _
 end function
 
 function tkort_hStrRadix2Longint alias "fb_hStrRadix2Longint" _
-	( byval src as zstring ptr, byval length as integer, byval radix as long ) as longint
+	( byval src as zstring ptr, byval length as integer, byval radix as int32 ) as int64
 
-	dim as longint v = 0
-	dim as long c = any
-	dim as ubyte ptr p = cptr( ubyte ptr, src )
+	dim as int64 v = 0
+	dim as int32 c = any
+	dim as uint8 ptr p = cptr( uint8 ptr, src )
 
 	select case as const radix
 	case 16

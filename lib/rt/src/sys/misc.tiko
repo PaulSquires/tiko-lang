@@ -61,13 +61,13 @@ extern "c"   '' NON-FBCALL: the string lock, declared plain in fb_string.h, and
 	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
 	'' `system_` is already taken -- FreeBASIC provides it -- so the binding
 	'' carries a prefix like every other libc call in this tree.
-	declare function crt_system alias "system" ( byval cmd as zstring ptr ) as long
+	declare function crt_system alias "system" ( byval cmd as zstring ptr ) as int32
 end extern
 
 extern "rtlib"   '' FBCALL: fb_Inkey and fb_Sleep are both decorated, and the
                  '' win32 archive confirms the `@N`.
 	declare function tkrt_Inkey alias "fb_Inkey" ( ) as FBSTRING ptr
-	declare sub tkrt_Sleep alias "fb_Sleep" ( byval msecs as long )
+	declare sub tkrt_Sleep alias "fb_Sleep" ( byval msecs as int32 )
 end extern
 
 #ifdef ENABLE_MT
@@ -85,14 +85,14 @@ end extern
 	const ENABLE_PROCESSED_INPUT_ = &h0001
 
 	extern "c"   '' NON-FBCALL: kernel32, `stdcall` per declaration.
-		declare function w_GetStdHandle stdcall alias "GetStdHandle" ( byval n as long ) as any ptr
+		declare function w_GetStdHandle stdcall alias "GetStdHandle" ( byval n as int32 ) as any ptr
 		'' w_GetConsoleMode is NOT declared here -- inc/console.ti already
 		'' provides it, and a second declaration is error 4.
 		declare function w_SetConsoleMode stdcall alias "SetConsoleMode" _
-			( byval h as any ptr, byval m as ulong ) as long
-		declare sub w_Beep stdcall alias "Beep" ( byval freq as ulong, byval dur as ulong )
+			( byval h as any ptr, byval m as uint32 ) as int32
+		declare sub w_Beep stdcall alias "Beep" ( byval freq as uint32, byval dur as uint32 )
 		declare function w_GetShortPathNameA stdcall alias "GetShortPathNameA" _
-			( byval src as zstring ptr, byval dst as zstring ptr, byval sz as ulong ) as ulong
+			( byval src as zstring ptr, byval dst as zstring ptr, byval sz as uint32 ) as uint32
 	end extern
 
 	'' The __fb_con offsets this file needs, spelled locally in the same style
@@ -115,12 +115,12 @@ end extern
 	#define TKORT_CON_IN()        (*cptr( any ptr ptr, @__fb_con + TKORT_CON_INHANDLE ))
 	#define TKORT_CON_OUT()       (*cptr( any ptr ptr, @__fb_con + TKORT_CON_OUTHANDLE ))
 	#define TKORT_CON_PAGE( i )   (*cptr( any ptr ptr, @__fb_con + TKORT_CON_PGTB + (i) * sizeof( any ptr ) ))
-	#define TKORT_CON_ACTIVEPG()  (*cptr( long ptr, @__fb_con + TKORT_CON_ACTIVE ))
-	#define TKORT_CON_VISIBLEPG() (*cptr( long ptr, @__fb_con + TKORT_CON_VISIBLE ))
+	#define TKORT_CON_ACTIVEPG()  (*cptr( int32 ptr, @__fb_con + TKORT_CON_ACTIVE ))
+	#define TKORT_CON_VISIBLEPG() (*cptr( int32 ptr, @__fb_con + TKORT_CON_VISIBLE ))
 
 	'' FILE-STATIC AND UNGUARDED, exactly as fbc's is -- see the file header on
 	'' why it is set before the handles are read.
-	dim shared as long tkort_gethnd_inited = 0
+	dim shared as int32 tkort_gethnd_inited = 0
 
 #else
 
@@ -144,7 +144,7 @@ extern "c"   '' NON-FBCALL: both console-handle entry points are declared plain
 
 '' RETURNS THE INPUT HANDLE OR THE ACTIVE PAGE'S OUTPUT HANDLE -- not
 '' `outHandle`; see the file header on why those are different.
-function tkort_hConsoleGetHandle alias "fb_hConsoleGetHandle" ( byval is_input as long ) as any ptr
+function tkort_hConsoleGetHandle alias "fb_hConsoleGetHandle" ( byval is_input as int32 ) as any ptr
 
 	if( tkort_gethnd_inited = 0 ) then
 		'' SET FIRST, deliberately. See the file header.
@@ -156,7 +156,7 @@ function tkort_hConsoleGetHandle alias "fb_hConsoleGetHandle" ( byval is_input a
 		if( TKORT_CON_IN() <> 0 ) then
 			'' PROCESSED INPUT IS TURNED ON AS A SIDE EFFECT, which is what
 			'' makes Ctrl-C a console control event rather than a keystroke.
-			dim as ulong dwMode = any
+			dim as uint32 dwMode = any
 			if( w_GetConsoleMode( TKORT_CON_IN(), @dwMode ) <> 0 ) then
 				dwMode or= ENABLE_PROCESSED_INPUT_
 				w_SetConsoleMode( TKORT_CON_IN(), dwMode )
@@ -200,7 +200,7 @@ function tkort_hGetShortPath alias "fb_hGetShortPath" _
 		strncpy( dst, src, maxlen )
 		dst[maxlen - 1] = 0
 	else
-		w_GetShortPathNameA( src, dst, cast( ulong, maxlen ) )
+		w_GetShortPathNameA( src, dst, cast( uint32, maxlen ) )
 	end if
 
 	return dst
@@ -216,8 +216,8 @@ end function
 '' WEXITSTATUS -- and reads 127, "/bin/sh could not be executed", as -1. So does
 '' this, with the two macros spelled out: WIFEXITED is (st and &h7F) = 0, and
 '' WEXITSTATUS is (st shr 8) and &hFF. Windows' system() already returns the code.
-function tkort_hShell alias "fb_hShell" ( byval program as zstring ptr ) as long
-	dim as long errcode = crt_system( program )
+function tkort_hShell alias "fb_hShell" ( byval program as zstring ptr ) as int32
+	dim as int32 errcode = crt_system( program )
 	#ifndef __FB_WIN32__
 		if( (errcode <> -1) andalso ((errcode and &h7F) = 0) ) then
 			errcode = (errcode shr 8) and &hFF
@@ -247,7 +247,7 @@ end sub
 '' UNSCALED, because fb_Sleep reads a negative as "until a key is pressed" and
 '' multiplying it by 1000 would still be negative but would lose that meaning if
 '' the sign convention ever changed.
-sub tkort_SleepQB alias "fb_SleepQB" ( byval secs as long )
+sub tkort_SleepQB alias "fb_SleepQB" ( byval secs as int32 )
 	tkrt_Sleep( iif( secs < 0, secs, secs * 1000 ) )
 end sub
 
@@ -265,7 +265,7 @@ function tkort_InkeyQB alias "fb_InkeyQB" ( ) as FBSTRING ptr
 	'' 255. A one-byte string is an ordinary character and must not be touched.
 	if( (res <> 0) andalso (res->data <> 0) ) then
 		if( (FB_STRSIZE( res ) = 2) andalso _
-		    (cast( ubyte, res->data[0] ) = FB_EXT_CHAR_) ) then
+		    (cast( uint8, res->data[0] ) = FB_EXT_CHAR_) ) then
 			res->data[0] = 0
 		end if
 	end if

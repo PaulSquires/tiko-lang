@@ -122,27 +122,27 @@ end type
 
 type FBWORKER_
 	as any ptr        parker
-	as long           parked
+	as int32           parked
 	as FBWORKER_ ptr  nextidle
 end type
 
 '' The whole scheduler, file-local. See the file header on why one `dim shared`
 '' in a .bas is the singleton fbc's comment says a .bi cannot provide.
 type TKORT_SCHED
-	as long           inited        '' 0 not tried, 1 running, -1 failed
-	as long           shutdown_
+	as int32           inited        '' 0 not tried, 1 running, -1 failed
+	as int32           shutdown_
 	as FBMUTEX ptr    lock_
 
 	as FBWORKITEM_ ptr qhead
 	as FBWORKITEM_ ptr qtail
-	as long           qlen
+	as int32           qlen
 
 	as FBWORKER_ ptr  idle          '' LIFO -- warmest first
-	as long           idlecount
-	as long           workers
-	as long           busy
+	as int32           idlecount
+	as int32           workers
+	as int32           busy
 
-	as long           starveticks
+	as int32           starveticks
 end type
 
 dim shared as TKORT_SCHED sched_
@@ -158,10 +158,10 @@ extern "rtlib"   '' FBCALL: all of these are decorated on win32.
 	declare function tkrt_ParkerSelf alias "fb_ParkerSelf" ( ) as any ptr
 	declare sub tkrt_Park alias "fb_Park" ( byval p as any ptr )
 	declare function tkrt_ParkTimed alias "fb_ParkTimed" _
-		( byval p as any ptr, byval ms as ulong ) as long
+		( byval p as any ptr, byval ms as uint32 ) as int32
 	declare sub tkrt_Unpark alias "fb_Unpark" ( byval p as any ptr )
-	declare function tkrt_CpuCount alias "fb_CpuCount" ( ) as long
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_CpuCount alias "fb_CpuCount" ( ) as int32
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 end extern
 
 '' ---------------------------------------------------------------- one-time
@@ -171,7 +171,7 @@ end extern
 #ifdef __FB_WIN32__
 
 extern "c"   '' NON-FBCALL: kernel32 import.
-	declare sub w_Sleep stdcall alias "Sleep" ( byval ms as ulong )
+	declare sub w_Sleep stdcall alias "Sleep" ( byval ms as uint32 )
 end extern
 
 '' fb_AtomicCasLong RATHER THAN InterlockedCompareExchange -- the Interlocked
@@ -179,10 +179,10 @@ end extern
 '' importing them links with `undefined reference`. See src/thread/claimlock.tiko.
 extern "rtlib"   '' FBCALL.
 	declare function tkrt_AtomicCasLong alias "fb_AtomicCasLong" _
-		( byval p as long ptr, byval expected as long, byval desired as long ) as long
+		( byval p as int32 ptr, byval expected as int32, byval desired as int32 ) as int32
 end extern
 
-dim shared as long tkort_hOnceLock
+dim shared as int32 tkort_hOnceLock
 
 '' A PLAIN SPIN LOCK, not the three-state machine in claimlock.tiko: what this
 '' guards is an ordinary flag rather than a CRITICAL_SECTION that must not be
@@ -202,16 +202,16 @@ end sub
 '' ALL ZERO BYTES IS A VALID MUTEX on glibc -- measured. So .bss is the static
 '' initialiser and there is nothing to run.
 type TKORT_PTHREAD_MUTEX2
-	as ubyte raw( 0 to 39 )
+	as uint8 raw( 0 to 39 )
 end type
 
 #assert sizeof( TKORT_PTHREAD_MUTEX2 ) = 40
 
 extern "c"   '' NON-FBCALL: libpthread.
 	declare function c_pthread_mutex_lock2 alias "pthread_mutex_lock" _
-		( byval m as TKORT_PTHREAD_MUTEX2 ptr ) as long
+		( byval m as TKORT_PTHREAD_MUTEX2 ptr ) as int32
 	declare function c_pthread_mutex_unlock2 alias "pthread_mutex_unlock" _
-		( byval m as TKORT_PTHREAD_MUTEX2 ptr ) as long
+		( byval m as TKORT_PTHREAD_MUTEX2 ptr ) as int32
 end extern
 
 dim shared as TKORT_PTHREAD_MUTEX2 tkort_hOnceMx
@@ -352,7 +352,7 @@ end sub
 
 '' THE FIRST inited CHECK IS OUTSIDE THE LOCK and the second inside; neither is
 '' redundant. See the file header.
-private function tkort_hInit( ) as long
+private function tkort_hInit( ) as int32
 
 	if( sched_.inited <> 0 ) then return iif( sched_.inited > 0, -1, 0 )
 
@@ -367,8 +367,8 @@ private function tkort_hInit( ) as long
 		end if
 
 		'' ONE WORKER PER CPU to start; the monitor grows the pool from there.
-		dim as long n = tkrt_CpuCount( )
-		for i as long = 0 to n - 1
+		dim as int32 n = tkrt_CpuCount( )
+		for i as int32 = 0 to n - 1
 			tkort_hAddWorker( )
 		next
 
@@ -449,9 +449,9 @@ sub tkort_Spawn alias "fb_Spawn" ( byval proc_ as FB_SPAWNPROC, byval ctx as any
 end sub
 
 '' A SNAPSHOT: queued plus running, stale the instant it returns.
-function tkort_GoroutineCount alias "fb_GoroutineCount" ( ) as long
+function tkort_GoroutineCount alias "fb_GoroutineCount" ( ) as int32
 
-	dim as long n = any
+	dim as int32 n = any
 
 	if( (sched_.inited = 0) orelse (sched_.lock_ = 0) ) then return 0
 
@@ -462,9 +462,9 @@ function tkort_GoroutineCount alias "fb_GoroutineCount" ( ) as long
 	return n
 end function
 
-function tkort_SchedWorkerCount alias "fb_SchedWorkerCount" ( ) as long
+function tkort_SchedWorkerCount alias "fb_SchedWorkerCount" ( ) as int32
 
-	dim as long n = any
+	dim as int32 n = any
 
 	if( (sched_.inited = 0) orelse (sched_.lock_ = 0) ) then return 0
 

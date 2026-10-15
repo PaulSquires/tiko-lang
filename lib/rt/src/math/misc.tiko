@@ -23,32 +23,32 @@ extern "rtlib"
 
 '' ------------------------------------------------------------------- SGN
 
-function tkort_SGNb alias "fb_SGNb" ( byval x as byte ) as long
+function tkort_SGNb alias "fb_SGNb" ( byval x as int8 ) as int32
 	if( x = 0 ) then return 0
 	if( x > 0 ) then return 1
 	return -1
 end function
 
-function tkort_SGNi alias "fb_SGNi" ( byval x as long ) as long
+function tkort_SGNi alias "fb_SGNi" ( byval x as int32 ) as int32
 	if( x = 0 ) then return 0
 	if( x > 0 ) then return 1
 	return -1
 end function
 
-function tkort_SGNl alias "fb_SGNl" ( byval x as longint ) as long
+function tkort_SGNl alias "fb_SGNl" ( byval x as int64 ) as int32
 	if( x = 0 ) then return 0
 	if( x > 0 ) then return 1
 	return -1
 end function
 
 '' NaN reaches the last arm: it is neither equal to nor greater than zero.
-function tkort_SGNSingle alias "fb_SGNSingle" ( byval x as single ) as long
+function tkort_SGNSingle alias "fb_SGNSingle" ( byval x as float32 ) as int32
 	if( x = 0.0 ) then return 0
 	if( x > 0.0 ) then return 1
 	return -1
 end function
 
-function tkort_SGNDouble alias "fb_SGNDouble" ( byval x as double ) as long
+function tkort_SGNDouble alias "fb_SGNDouble" ( byval x as float64 ) as int32
 	if( x = 0.0 ) then return 0
 	if( x > 0.0 ) then return 1
 	return -1
@@ -60,19 +60,19 @@ end function
 '' floor(x) -- they differ for every negative non-integer. FRAC is then the
 '' remainder, and carries the sign of its argument.
 
-function tkort_FIXSingle alias "fb_FIXSingle" ( byval x as single ) as single
-	return cast( single, floor( abs( cast( double, x ) ) ) * tkort_SGNSingle( x ) )
+function tkort_FIXSingle alias "fb_FIXSingle" ( byval x as float32 ) as float32
+	return cast( float32, floor( abs( cast( float64, x ) ) ) * tkort_SGNSingle( x ) )
 end function
 
-function tkort_FIXDouble alias "fb_FIXDouble" ( byval x as double ) as double
+function tkort_FIXDouble alias "fb_FIXDouble" ( byval x as float64 ) as float64
 	return floor( abs( x ) ) * tkort_SGNDouble( x )
 end function
 
-function tkort_FRACf alias "fb_FRACf" ( byval x as single ) as single
+function tkort_FRACf alias "fb_FRACf" ( byval x as float32 ) as float32
 	return x - tkort_FIXSingle( x )
 end function
 
-function tkort_FRACd alias "fb_FRACd" ( byval x as double ) as double
+function tkort_FRACd alias "fb_FRACd" ( byval x as float64 ) as float64
 	return x - tkort_FIXDouble( x )
 end function
 
@@ -82,30 +82,30 @@ end function
 '' size guard is fbc's and is kept: it returns 0 if the two types are not the
 '' same width, which on these targets never happens.
 
-function tkort_CVDFROMLONGINT alias "fb_CVDFROMLONGINT" ( byval ll as longint ) as double
-	if( (sizeof( longint ) <> 8) orelse (sizeof( double ) <> 8) ) then return 0.0
-	dim as double d = any
+function tkort_CVDFROMLONGINT alias "fb_CVDFROMLONGINT" ( byval ll as int64 ) as float64
+	if( (sizeof( int64 ) <> 8) orelse (sizeof( float64 ) <> 8) ) then return 0.0
+	dim as float64 d = any
 	memcpy( @d, @ll, 8 )
 	return d
 end function
 
-function tkort_CVLONGINTFROMD alias "fb_CVLONGINTFROMD" ( byval d as double ) as longint
-	if( (sizeof( longint ) <> 8) orelse (sizeof( double ) <> 8) ) then return 0
-	dim as longint ll = any
+function tkort_CVLONGINTFROMD alias "fb_CVLONGINTFROMD" ( byval d as float64 ) as int64
+	if( (sizeof( int64 ) <> 8) orelse (sizeof( float64 ) <> 8) ) then return 0
+	dim as int64 ll = any
 	memcpy( @ll, @d, 8 )
 	return ll
 end function
 
-function tkort_CVLFROMS alias "fb_CVLFROMS" ( byval f as single ) as long
-	if( (sizeof( long ) <> 4) orelse (sizeof( single ) <> 4) ) then return 0
-	dim as long l = any
+function tkort_CVLFROMS alias "fb_CVLFROMS" ( byval f as float32 ) as int32
+	if( (sizeof( int32 ) <> 4) orelse (sizeof( float32 ) <> 4) ) then return 0
+	dim as int32 l = any
 	memcpy( @l, @f, 4 )
 	return l
 end function
 
-function tkort_CVSFROML alias "fb_CVSFROML" ( byval l as long ) as single
-	if( (sizeof( long ) <> 4) orelse (sizeof( single ) <> 4) ) then return 0.0
-	dim as single f = any
+function tkort_CVSFROML alias "fb_CVSFROML" ( byval l as int32 ) as float32
+	if( (sizeof( int32 ) <> 4) orelse (sizeof( float32 ) <> 4) ) then return 0.0
+	dim as float32 f = any
 	memcpy( @f, @l, 4 )
 	return f
 end function
@@ -117,7 +117,7 @@ end function
 ''
 '' RETURNS -1 FOR ZERO. The chain simply runs out.
 
-function tkort_IntLog10_32 alias "fb_IntLog10_32" ( byval x as ulong ) as long
+function tkort_IntLog10_32 alias "fb_IntLog10_32" ( byval x as uint32 ) as int32
 	if( x >= 1000000000ul ) then return 9
 	if( x >= 100000000ul ) then return 8
 	if( x >= 10000000ul ) then return 7
@@ -133,7 +133,7 @@ end function
 
 '' The 64-bit form checks the high half FIRST and hands anything that fits in 32
 '' bits to the routine above -- so the common case costs one test rather than ten.
-function tkort_IntLog10_64 alias "fb_IntLog10_64" ( byval x as ulongint ) as long
+function tkort_IntLog10_64 alias "fb_IntLog10_64" ( byval x as uint64 ) as int32
 	if( (x and &hffffffff00000000ull) <> 0 ) then
 		if( x >= 10000000000000000000ull ) then return 19
 		if( x >= 1000000000000000000ull ) then return 18
@@ -147,7 +147,7 @@ function tkort_IntLog10_64 alias "fb_IntLog10_64" ( byval x as ulongint ) as lon
 		if( x >= 10000000000ull ) then return 10
 		return 9
 	end if
-	return tkort_IntLog10_32( cast( ulong, x ) )
+	return tkort_IntLog10_32( cast( uint32, x ) )
 end function
 
 end extern

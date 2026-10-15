@@ -32,10 +32,10 @@ extern "rtlib"
 	'' fb_MemSwap in rtlLookupTB, so the bare name is error 4 even though
 	'' tiko-rt is the thing that defines it (mem/mem.tiko).
 	declare sub tkrt_MemSwap alias "fb_MemSwap" _
-		( byval a as ubyte ptr, byval b as ubyte ptr, byval bytes as integer )
+		( byval a as uint8 ptr, byval b as uint8 ptr, byval bytes as integer )
 	declare function tkrt_StrAssign alias "fb_StrAssign" _
 		( byval dst as any ptr, byval dst_size as integer, _
-		  byval src as any ptr, byval src_size as integer, byval fill_rem as long ) as any ptr
+		  byval src as any ptr, byval src_size as integer, byval fill_rem as int32 ) as any ptr
 	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
 end extern
 
@@ -43,8 +43,8 @@ extern "rtlib"
 
 sub tkort_StrSwap alias "fb_StrSwap" _
 	( _
-		byval str1 as any ptr, byval size1 as integer, byval fillrem1 as long, _
-		byval str2 as any ptr, byval size2 as integer, byval fillrem2 as long _
+		byval str1 as any ptr, byval size1 as integer, byval fillrem1 as int32, _
+		byval str2 as any ptr, byval size2 as integer, byval fillrem2 as int32 _
 	)
 
 	if( str1 = 0 ) then exit sub
@@ -73,7 +73,7 @@ sub tkort_StrSwap alias "fb_StrSwap" _
 	'' 2. Equal lengths: swap the bytes and leave the terminators alone.
 	if( len1 = len2 ) then
 		if( len1 > 0 ) then
-			tkrt_MemSwap( cptr( ubyte ptr, p1 ), cptr( ubyte ptr, p2 ), len1 )
+			tkrt_MemSwap( cptr( uint8 ptr, p1 ), cptr( uint8 ptr, p2 ), len1 )
 		end if
 		exit sub
 	end if
@@ -96,11 +96,11 @@ sub tkort_StrSwap alias "fb_StrSwap" _
 		dim as zstring ptr pt = p1 : p1 = p2 : p2 = pt
 		dim as integer lt = len1 : len1 = len2 : len2 = lt
 		dim as integer st = size1 : size1 = size2 : size2 = st
-		dim as long ft = fillrem1 : fillrem1 = fillrem2 : fillrem2 = ft
+		dim as int32 ft = fillrem1 : fillrem1 = fillrem2 : fillrem2 = ft
 	end if
 
 	if( len1 > 0 ) then
-		tkrt_MemSwap( cptr( ubyte ptr, p1 ), cptr( ubyte ptr, p2 ), len1 )
+		tkrt_MemSwap( cptr( uint8 ptr, p1 ), cptr( uint8 ptr, p2 ), len1 )
 	end if
 
 	if( (size1 >= 0) andalso (size2 >= 0) ) then
@@ -109,7 +109,7 @@ sub tkort_StrSwap alias "fb_StrSwap" _
 			'' Does not fit: ABANDON the copy rather than truncate it.
 			len2 = len1
 		elseif( len2 > len1 ) then
-			memcpy( cptr( ubyte ptr, p1 ) + len1, cptr( ubyte ptr, p2 ) + len1, len2 - len1 )
+			memcpy( cptr( uint8 ptr, p1 ) + len1, cptr( uint8 ptr, p2 ) + len1, len2 - len1 )
 		end if
 
 		p1[len2] = 0
@@ -118,14 +118,14 @@ sub tkort_StrSwap alias "fb_StrSwap" _
 		if( fillrem2 <> 0 ) then
 			dim as integer used2 = len1
 			if( size2 > used2 ) then
-				memset( cptr( ubyte ptr, p2 ) + used2, 0, size2 - used2 )
+				memset( cptr( uint8 ptr, p2 ) + used2, 0, size2 - used2 )
 			end if
 		end if
 
 	elseif( ((size1 and FB_STRISFIXED) <> 0) andalso ((size2 and FB_STRISFIXED) <> 0) ) then
 		'' STRING * N <-> STRING * N: space-pad the tail of the longer.
 		if( (len2 - len1) > 0 ) then
-			memset( cptr( ubyte ptr, p2 ) + len1, 32, len2 - len1 )
+			memset( cptr( uint8 ptr, p2 ) + len1, 32, len2 - len1 )
 		end if
 
 	elseif( ((size1 and FB_STRISFIXED) <> 0) andalso (size2 > 0) ) then
@@ -137,14 +137,14 @@ sub tkort_StrSwap alias "fb_StrSwap" _
 		if( (size1 > 0) andalso (len2 >= size1) ) then
 			len2 = len1
 		elseif( len2 > len1 ) then
-			memcpy( cptr( ubyte ptr, p1 ) + len1, cptr( ubyte ptr, p2 ) + len1, len2 - len1 )
+			memcpy( cptr( uint8 ptr, p1 ) + len1, cptr( uint8 ptr, p2 ) + len1, len2 - len1 )
 		end if
 
 		p1[len2] = 0
 
 		'' Note the bound: size1, not len1.
 		if( (len2 - size1) > 0 ) then
-			memset( cptr( ubyte ptr, p2 ) + len1, 32, len2 - size1 )
+			memset( cptr( uint8 ptr, p2 ) + len1, 32, len2 - size1 )
 		end if
 	end if
 

@@ -35,16 +35,16 @@
 
 extern "rtlib"
 	declare function tkrt_UAllocTempDesc alias "fb_hUStrAllocTempDesc" ( ) as FBUSTRING ptr
-	declare function tkrt_UDelTempDesc alias "fb_hUStrDelTempDesc" ( byval s as FBUSTRING ptr ) as long
+	declare function tkrt_UDelTempDesc alias "fb_hUStrDelTempDesc" ( byval s as FBUSTRING ptr ) as int32
 	declare function tkrt_UAllocTempNoLock alias "fb_hUStrAllocTemp_NoLock" _
 		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
 	declare function tkrt_UDelTempNoLock alias "fb_hUStrDelTemp_NoLock" _
-		( byval s as FBUSTRING ptr ) as long
+		( byval s as FBUSTRING ptr ) as int32
 	declare sub tkrt_UDelete alias "fb_UStrDelete" ( byval s as FBUSTRING ptr )
 	declare function tkrt_UAlloc alias "fb_hUStrAlloc" _
 		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
 	declare function tkrt_URealloc alias "fb_hUStrRealloc" _
-		( byval s as FBUSTRING ptr, byval units as integer, byval k as long ) as FBUSTRING ptr
+		( byval s as FBUSTRING ptr, byval units as integer, byval k as int32 ) as FBUSTRING ptr
 end extern
 
 '' Release a var-len operand. EVERY entry point that takes one must do this:
@@ -62,7 +62,7 @@ extern "rtlib"
 function tkort_UStrAssignEx alias "fb_UStrAssignEx" _
 	( byval dst as any ptr, byval dst_size as integer, _
 	  byval src as any ptr, byval src_size as integer, _
-	  byval fill_rem as long, byval is_init as long ) as any ptr
+	  byval fill_rem as int32, byval is_init as int32 ) as any ptr
 
 	STRLOCK()
 
@@ -187,13 +187,13 @@ end function
 
 function tkort_UStrAssign alias "fb_UStrAssign" _
 	( byval dst as any ptr, byval dst_size as integer, _
-	  byval src as any ptr, byval src_size as integer, byval fill_rem as long ) as any ptr
+	  byval src as any ptr, byval src_size as integer, byval fill_rem as int32 ) as any ptr
 	return tkort_UStrAssignEx( dst, dst_size, src, src_size, fill_rem, 0 )
 end function
 
 function tkort_UStrInit alias "fb_UStrInit" _
 	( byval dst as any ptr, byval dst_size as integer, _
-	  byval src as any ptr, byval src_size as integer, byval fill_rem as long ) as any ptr
+	  byval src as any ptr, byval src_size as integer, byval fill_rem as int32 ) as any ptr
 	return tkort_UStrAssignEx( dst, dst_size, src, src_size, fill_rem, 1 )
 end function
 

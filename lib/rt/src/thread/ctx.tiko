@@ -26,9 +26,9 @@
 '' The key table. NOT thread-local itself -- it holds the KEYS, and the keys are
 '' process-wide by construction.
 #if defined( ENABLE_MT ) and (defined( __FB_WIN32__ ) or defined( __FB_WIN64__ ))
-	type TKORT_TLSENTRY as ulong          '' a TlsAlloc index
+	type TKORT_TLSENTRY as uint32          '' a TlsAlloc index
 #elseif defined( ENABLE_MT )
-	type TKORT_TLSENTRY as ulong          '' a pthread_key_t
+	type TKORT_TLSENTRY as uint32          '' a pthread_key_t
 #else
 	type TKORT_TLSENTRY as any ptr        '' the value itself
 #endif
@@ -60,7 +60,7 @@ extern "rtlib"
 '' caller assumes its context starts zeroed, and thread/parkself.tiko depends on
 '' it for the lazily created parker.
 function tkort_TlsGetCtx alias "fb_TlsGetCtx" _
-	( byval index_ as long, byval len_ as uinteger, byval dtor as FB_TLS_DESTRUCTOR ) as any ptr
+	( byval index_ as int32, byval len_ as uinteger, byval dtor as FB_TLS_DESTRUCTOR ) as any ptr
 
 	dim as any ptr ctx = TKORT_TLSGET( tkort_tls_ctxtb(index_) )
 	dim as FB_TLS_CTX_HEADER ptr hdr = any
@@ -77,7 +77,7 @@ function tkort_TlsGetCtx alias "fb_TlsGetCtx" _
 	return ctx
 end function
 
-sub tkort_TlsDelCtx alias "fb_TlsDelCtx" ( byval index_ as long )
+sub tkort_TlsDelCtx alias "fb_TlsDelCtx" ( byval index_ as int32 )
 	dim as any ptr ctx = TKORT_TLSGET( tkort_tls_ctxtb(index_) )
 	dim as FB_TLS_CTX_HEADER ptr hdr = any
 
@@ -92,7 +92,7 @@ end sub
 '' Called from every platform's threadproc as the thread exits, and from
 '' fb_TlsExit for the main thread.
 sub tkort_TlsFreeCtxTb alias "fb_TlsFreeCtxTb" ( )
-	dim as long i = any
+	dim as int32 i = any
 	for i = 0 to FB_TLSKEYS - 1
 		tkort_TlsDelCtx( i )
 	next
@@ -107,14 +107,14 @@ end extern
 extern "c"   '' NON-FBCALL: internal, and present only in libfbmt.a.
 
 sub tkort_TlsInit alias "fb_TlsInit" ( )
-	dim as long i = any
+	dim as int32 i = any
 	for i = 0 to FB_TLSKEYS - 1
 		TKORT_TLSALLOC( tkort_tls_ctxtb(i) )
 	next
 end sub
 
 sub tkort_TlsExit alias "fb_TlsExit" ( )
-	dim as long i = any
+	dim as int32 i = any
 	for i = 0 to FB_TLSKEYS - 1
 		TKORT_TLSFREE( tkort_tls_ctxtb(i) )
 	next

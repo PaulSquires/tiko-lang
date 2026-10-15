@@ -41,7 +41,7 @@
 #endif
 
 type FB_DATADESC field = 1
-	as short    length
+	as int16    length
 	as any ptr  item      '' zstr / wstr / ofs / next, chosen by `length`
 end type
 
@@ -55,26 +55,26 @@ extern "c"   '' NON-FBCALL: the list cursor is DATA and its advance is plain.
 end extern
 
 extern "rtlib"
-	declare function tkrt_Str2Int alias "fb_hStr2Int" ( byval s as zstring ptr, byval n as integer ) as long
-	declare function tkrt_Str2UInt alias "fb_hStr2UInt" ( byval s as zstring ptr, byval n as integer ) as ulong
-	declare function tkrt_Str2Longint alias "fb_hStr2Longint" ( byval s as zstring ptr, byval n as integer ) as longint
-	declare function tkrt_Str2ULongint alias "fb_hStr2ULongint" ( byval s as zstring ptr, byval n as integer ) as ulongint
-	declare function tkrt_Str2Double alias "fb_hStr2Double" ( byval s as zstring ptr, byval n as integer ) as double
-	declare function tkrt_Str2Bool alias "fb_hStr2Bool" ( byval s as zstring ptr, byval n as integer ) as long
-	declare function tkrt_WstrToInt alias "fb_WstrToInt" ( byval s as wstring ptr, byval n as integer ) as long
-	declare function tkrt_WstrToUInt alias "fb_WstrToUInt" ( byval s as wstring ptr, byval n as integer ) as ulong
-	declare function tkrt_WstrToLongint alias "fb_WstrToLongint" ( byval s as wstring ptr, byval n as integer ) as longint
-	declare function tkrt_WstrToULongint alias "fb_WstrToULongint" ( byval s as wstring ptr, byval n as integer ) as ulongint
-	declare function tkrt_WstrToDouble alias "fb_WstrToDouble" ( byval s as wstring ptr, byval n as integer ) as double
-	declare function tkrt_WstrToBool alias "fb_WstrToBool" ( byval s as wstring ptr, byval n as integer ) as byte
+	declare function tkrt_Str2Int alias "fb_hStr2Int" ( byval s as zstring ptr, byval n as integer ) as int32
+	declare function tkrt_Str2UInt alias "fb_hStr2UInt" ( byval s as zstring ptr, byval n as integer ) as uint32
+	declare function tkrt_Str2Longint alias "fb_hStr2Longint" ( byval s as zstring ptr, byval n as integer ) as int64
+	declare function tkrt_Str2ULongint alias "fb_hStr2ULongint" ( byval s as zstring ptr, byval n as integer ) as uint64
+	declare function tkrt_Str2Double alias "fb_hStr2Double" ( byval s as zstring ptr, byval n as integer ) as float64
+	declare function tkrt_Str2Bool alias "fb_hStr2Bool" ( byval s as zstring ptr, byval n as integer ) as int32
+	declare function tkrt_WstrToInt alias "fb_WstrToInt" ( byval s as wstring ptr, byval n as integer ) as int32
+	declare function tkrt_WstrToUInt alias "fb_WstrToUInt" ( byval s as wstring ptr, byval n as integer ) as uint32
+	declare function tkrt_WstrToLongint alias "fb_WstrToLongint" ( byval s as wstring ptr, byval n as integer ) as int64
+	declare function tkrt_WstrToULongint alias "fb_WstrToULongint" ( byval s as wstring ptr, byval n as integer ) as uint64
+	declare function tkrt_WstrToDouble alias "fb_WstrToDouble" ( byval s as wstring ptr, byval n as integer ) as float64
+	declare function tkrt_WstrToBool alias "fb_WstrToBool" ( byval s as wstring ptr, byval n as integer ) as int8
 	declare function tkrt_StrAssign alias "fb_StrAssign" _
 		( byval dst as any ptr, byval dst_size as integer, byval src as any ptr, _
-		  byval src_size as integer, byval fill_rem as long ) as any ptr
+		  byval src_size as integer, byval fill_rem as int32 ) as any ptr
 	declare function tkrt_WstrAssign alias "fb_WstrAssign" _
 		( byval dst as wstring ptr, byval dst_chars as integer, byval src as wstring ptr ) as wstring ptr
 	declare function tkrt_WstrAssignToA alias "fb_WstrAssignToA" _
 		( byval dst as any ptr, byval dst_chars as integer, byval src as wstring ptr, _
-		  byval fill_rem as long ) as any ptr
+		  byval fill_rem as int32 ) as any ptr
 	declare function tkrt_WstrAssignFromA alias "fb_WstrAssignFromA" _
 		( byval dst as wstring ptr, byval dst_chars as integer, byval src as any ptr, _
 		  byval src_size as integer ) as wstring ptr
@@ -84,7 +84,7 @@ end extern
 #macro DATA_READ_NUM( dst, ty, zfn, wfn, zero )
 	IOLOCK()
 	if( __fb_data_ptr <> 0 ) then
-		dim as short ln = __fb_data_ptr->length
+		dim as int16 ln = __fb_data_ptr->length
 		if( ln = FB_DATATYPE_OFS ) then
 			*dst = cast( ty, cast( uinteger, __fb_data_ptr->item ) )
 		elseif( (ln and FB_DATATYPE_WSTR) <> 0 ) then
@@ -102,38 +102,38 @@ end extern
 
 extern "rtlib"
 
-sub tkort_DataReadByte alias "fb_DataReadByte" ( byval dst as byte ptr )
-	DATA_READ_NUM( dst, byte, tkrt_Str2Int, tkrt_WstrToInt, 0 )
+sub tkort_DataReadByte alias "fb_DataReadByte" ( byval dst as int8 ptr )
+	DATA_READ_NUM( dst, int8, tkrt_Str2Int, tkrt_WstrToInt, 0 )
 end sub
-sub tkort_DataReadUByte alias "fb_DataReadUByte" ( byval dst as ubyte ptr )
-	DATA_READ_NUM( dst, ubyte, tkrt_Str2UInt, tkrt_WstrToUInt, 0 )
+sub tkort_DataReadUByte alias "fb_DataReadUByte" ( byval dst as uint8 ptr )
+	DATA_READ_NUM( dst, uint8, tkrt_Str2UInt, tkrt_WstrToUInt, 0 )
 end sub
-sub tkort_DataReadShort alias "fb_DataReadShort" ( byval dst as short ptr )
-	DATA_READ_NUM( dst, short, tkrt_Str2Int, tkrt_WstrToInt, 0 )
+sub tkort_DataReadShort alias "fb_DataReadShort" ( byval dst as int16 ptr )
+	DATA_READ_NUM( dst, int16, tkrt_Str2Int, tkrt_WstrToInt, 0 )
 end sub
-sub tkort_DataReadUShort alias "fb_DataReadUShort" ( byval dst as ushort ptr )
-	DATA_READ_NUM( dst, ushort, tkrt_Str2UInt, tkrt_WstrToUInt, 0 )
+sub tkort_DataReadUShort alias "fb_DataReadUShort" ( byval dst as uint16 ptr )
+	DATA_READ_NUM( dst, uint16, tkrt_Str2UInt, tkrt_WstrToUInt, 0 )
 end sub
-sub tkort_DataReadInt alias "fb_DataReadInt" ( byval dst as long ptr )
-	DATA_READ_NUM( dst, long, tkrt_Str2Int, tkrt_WstrToInt, 0 )
+sub tkort_DataReadInt alias "fb_DataReadInt" ( byval dst as int32 ptr )
+	DATA_READ_NUM( dst, int32, tkrt_Str2Int, tkrt_WstrToInt, 0 )
 end sub
-sub tkort_DataReadUInt alias "fb_DataReadUInt" ( byval dst as ulong ptr )
-	DATA_READ_NUM( dst, ulong, tkrt_Str2UInt, tkrt_WstrToUInt, 0 )
+sub tkort_DataReadUInt alias "fb_DataReadUInt" ( byval dst as uint32 ptr )
+	DATA_READ_NUM( dst, uint32, tkrt_Str2UInt, tkrt_WstrToUInt, 0 )
 end sub
-sub tkort_DataReadLongint alias "fb_DataReadLongint" ( byval dst as longint ptr )
-	DATA_READ_NUM( dst, longint, tkrt_Str2Longint, tkrt_WstrToLongint, 0 )
+sub tkort_DataReadLongint alias "fb_DataReadLongint" ( byval dst as int64 ptr )
+	DATA_READ_NUM( dst, int64, tkrt_Str2Longint, tkrt_WstrToLongint, 0 )
 end sub
-sub tkort_DataReadULongint alias "fb_DataReadULongint" ( byval dst as ulongint ptr )
-	DATA_READ_NUM( dst, ulongint, tkrt_Str2ULongint, tkrt_WstrToULongint, 0 )
+sub tkort_DataReadULongint alias "fb_DataReadULongint" ( byval dst as uint64 ptr )
+	DATA_READ_NUM( dst, uint64, tkrt_Str2ULongint, tkrt_WstrToULongint, 0 )
 end sub
-sub tkort_DataReadSingle alias "fb_DataReadSingle" ( byval dst as single ptr )
-	DATA_READ_NUM( dst, single, tkrt_Str2Double, tkrt_WstrToDouble, 0.0 )
+sub tkort_DataReadSingle alias "fb_DataReadSingle" ( byval dst as float32 ptr )
+	DATA_READ_NUM( dst, float32, tkrt_Str2Double, tkrt_WstrToDouble, 0.0 )
 end sub
-sub tkort_DataReadDouble alias "fb_DataReadDouble" ( byval dst as double ptr )
-	DATA_READ_NUM( dst, double, tkrt_Str2Double, tkrt_WstrToDouble, 0.0 )
+sub tkort_DataReadDouble alias "fb_DataReadDouble" ( byval dst as float64 ptr )
+	DATA_READ_NUM( dst, float64, tkrt_Str2Double, tkrt_WstrToDouble, 0.0 )
 end sub
-sub tkort_DataReadBool alias "fb_DataReadBool" ( byval dst as byte ptr )
-	DATA_READ_NUM( dst, byte, tkrt_Str2Bool, tkrt_WstrToBool, 0 )
+sub tkort_DataReadBool alias "fb_DataReadBool" ( byval dst as int8 ptr )
+	DATA_READ_NUM( dst, int8, tkrt_Str2Bool, tkrt_WstrToBool, 0 )
 end sub
 
 end extern
@@ -150,10 +150,10 @@ end extern
 extern "rtlib"
 
 sub tkort_DataReadStr alias "fb_DataReadStr" _
-	( byval dst as any ptr, byval dst_size as integer, byval fillrem as long )
+	( byval dst as any ptr, byval dst_size as integer, byval fillrem as int32 )
 	IOLOCK()
 	if( __fb_data_ptr <> 0 ) then
-		dim as short ln = __fb_data_ptr->length
+		dim as int16 ln = __fb_data_ptr->length
 		if( ln = FB_DATATYPE_OFS ) then
 			'' !!!WRITEME!!! -- fbc's, left as fbc leaves it.
 		elseif( (ln and FB_DATATYPE_WSTR) <> 0 ) then
@@ -174,7 +174,7 @@ sub tkort_DataReadWstr alias "fb_DataReadWstr" _
 	( byval dst as wstring ptr, byval dst_size as integer )
 	IOLOCK()
 	if( __fb_data_ptr <> 0 ) then
-		dim as short ln = __fb_data_ptr->length
+		dim as int16 ln = __fb_data_ptr->length
 		if( ln = FB_DATATYPE_OFS ) then
 			'' !!!WRITEME!!! -- fbc's.
 		elseif( (ln and FB_DATATYPE_WSTR) <> 0 ) then
@@ -205,37 +205,37 @@ end extern
 '' written because the shapes should match.
 
 extern "rtlib"
-	declare function tkrt_Str2IntQB alias "fb_hStr2IntQB" ( byval s as zstring ptr, byval n as integer ) as long
-	declare function tkrt_Str2UIntQB alias "fb_hStr2UIntQB" ( byval s as zstring ptr, byval n as integer ) as ulong
-	declare function tkrt_Str2LongintQB alias "fb_hStr2LongintQB" ( byval s as zstring ptr, byval n as integer ) as longint
-	declare function tkrt_Str2ULongintQB alias "fb_hStr2ULongintQB" ( byval s as zstring ptr, byval n as integer ) as ulongint
-	declare function tkrt_Str2DoubleQB alias "fb_hStr2DoubleQB" ( byval s as zstring ptr, byval n as integer ) as double
-	declare function tkrt_WstrToIntQB alias "fb_WstrToIntQB" ( byval s as wstring ptr, byval n as integer ) as long
-	declare function tkrt_WstrToUIntQB alias "fb_WstrToUIntQB" ( byval s as wstring ptr, byval n as integer ) as ulong
-	declare function tkrt_WstrToLongintQB alias "fb_WstrToLongintQB" ( byval s as wstring ptr, byval n as integer ) as longint
-	declare function tkrt_WstrToULongintQB alias "fb_WstrToULongintQB" ( byval s as wstring ptr, byval n as integer ) as ulongint
-	declare function tkrt_WstrToDoubleQB alias "fb_WstrToDoubleQB" ( byval s as wstring ptr, byval n as integer ) as double
+	declare function tkrt_Str2IntQB alias "fb_hStr2IntQB" ( byval s as zstring ptr, byval n as integer ) as int32
+	declare function tkrt_Str2UIntQB alias "fb_hStr2UIntQB" ( byval s as zstring ptr, byval n as integer ) as uint32
+	declare function tkrt_Str2LongintQB alias "fb_hStr2LongintQB" ( byval s as zstring ptr, byval n as integer ) as int64
+	declare function tkrt_Str2ULongintQB alias "fb_hStr2ULongintQB" ( byval s as zstring ptr, byval n as integer ) as uint64
+	declare function tkrt_Str2DoubleQB alias "fb_hStr2DoubleQB" ( byval s as zstring ptr, byval n as integer ) as float64
+	declare function tkrt_WstrToIntQB alias "fb_WstrToIntQB" ( byval s as wstring ptr, byval n as integer ) as int32
+	declare function tkrt_WstrToUIntQB alias "fb_WstrToUIntQB" ( byval s as wstring ptr, byval n as integer ) as uint32
+	declare function tkrt_WstrToLongintQB alias "fb_WstrToLongintQB" ( byval s as wstring ptr, byval n as integer ) as int64
+	declare function tkrt_WstrToULongintQB alias "fb_WstrToULongintQB" ( byval s as wstring ptr, byval n as integer ) as uint64
+	declare function tkrt_WstrToDoubleQB alias "fb_WstrToDoubleQB" ( byval s as wstring ptr, byval n as integer ) as float64
 end extern
 
 extern "rtlib"
 
-sub tkort_DataReadIntQB alias "fb_DataReadIntQB" ( byval dst as long ptr )
-	DATA_READ_NUM( dst, long, tkrt_Str2IntQB, tkrt_WstrToIntQB, 0 )
+sub tkort_DataReadIntQB alias "fb_DataReadIntQB" ( byval dst as int32 ptr )
+	DATA_READ_NUM( dst, int32, tkrt_Str2IntQB, tkrt_WstrToIntQB, 0 )
 end sub
-sub tkort_DataReadUIntQB alias "fb_DataReadUIntQB" ( byval dst as ulong ptr )
-	DATA_READ_NUM( dst, ulong, tkrt_Str2UIntQB, tkrt_WstrToUIntQB, 0 )
+sub tkort_DataReadUIntQB alias "fb_DataReadUIntQB" ( byval dst as uint32 ptr )
+	DATA_READ_NUM( dst, uint32, tkrt_Str2UIntQB, tkrt_WstrToUIntQB, 0 )
 end sub
-sub tkort_DataReadLongintQB alias "fb_DataReadLongintQB" ( byval dst as longint ptr )
-	DATA_READ_NUM( dst, longint, tkrt_Str2LongintQB, tkrt_WstrToLongintQB, 0 )
+sub tkort_DataReadLongintQB alias "fb_DataReadLongintQB" ( byval dst as int64 ptr )
+	DATA_READ_NUM( dst, int64, tkrt_Str2LongintQB, tkrt_WstrToLongintQB, 0 )
 end sub
-sub tkort_DataReadULongintQB alias "fb_DataReadULongintQB" ( byval dst as ulongint ptr )
-	DATA_READ_NUM( dst, ulongint, tkrt_Str2ULongintQB, tkrt_WstrToULongintQB, 0 )
+sub tkort_DataReadULongintQB alias "fb_DataReadULongintQB" ( byval dst as uint64 ptr )
+	DATA_READ_NUM( dst, uint64, tkrt_Str2ULongintQB, tkrt_WstrToULongintQB, 0 )
 end sub
-sub tkort_DataReadSingleQB alias "fb_DataReadSingleQB" ( byval dst as single ptr )
-	DATA_READ_NUM( dst, single, tkrt_Str2DoubleQB, tkrt_WstrToDoubleQB, 0 )
+sub tkort_DataReadSingleQB alias "fb_DataReadSingleQB" ( byval dst as float32 ptr )
+	DATA_READ_NUM( dst, float32, tkrt_Str2DoubleQB, tkrt_WstrToDoubleQB, 0 )
 end sub
-sub tkort_DataReadDoubleQB alias "fb_DataReadDoubleQB" ( byval dst as double ptr )
-	DATA_READ_NUM( dst, double, tkrt_Str2DoubleQB, tkrt_WstrToDoubleQB, 0 )
+sub tkort_DataReadDoubleQB alias "fb_DataReadDoubleQB" ( byval dst as float64 ptr )
+	DATA_READ_NUM( dst, float64, tkrt_Str2DoubleQB, tkrt_WstrToDoubleQB, 0 )
 end sub
 
 end extern

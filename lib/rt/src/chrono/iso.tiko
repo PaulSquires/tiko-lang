@@ -25,27 +25,27 @@
 
 extern "rtlib"
 	declare sub tkrt_DtCivilFromDays alias "fb_DtCivilFromDays" _
-		( byval days as long, byval year as long ptr, _
-		  byval month as long ptr, byval day_ as long ptr )
-	declare function tkrt_DtIsValidTicks alias "fb_DtIsValidTicks" ( byval ticks as longint ) as long
+		( byval days as int32, byval year as int32 ptr, _
+		  byval month as int32 ptr, byval day_ as int32 ptr )
+	declare function tkrt_DtIsValidTicks alias "fb_DtIsValidTicks" ( byval ticks as int64 ) as int32
 	declare function tkrt_DtDaysFromCivil alias "fb_DtDaysFromCivil" _
-		( byval year as long, byval month as long, byval day_ as long ) as long
+		( byval year as int32, byval month as int32, byval day_ as int32 ) as int32
 	declare function tkrt_DtIsValidDate alias "fb_DtIsValidDate" _
-		( byval year as long, byval month as long, byval day_ as long ) as long
-	declare function tkrt_DtIsoWeeksInYear alias "fb_DtIsoWeeksInYear" ( byval year as long ) as long
-	declare function tkrt_DtDayOfWeek alias "fb_DtDayOfWeek" ( byval days as long ) as long
-	declare function tkrt_DtDaysInYear alias "fb_DtDaysInYear" ( byval year as long ) as long
+		( byval year as int32, byval month as int32, byval day_ as int32 ) as int32
+	declare function tkrt_DtIsoWeeksInYear alias "fb_DtIsoWeeksInYear" ( byval year as int32 ) as int32
+	declare function tkrt_DtDayOfWeek alias "fb_DtDayOfWeek" ( byval days as int32 ) as int32
+	declare function tkrt_DtDaysInYear alias "fb_DtDaysInYear" ( byval year as int32 ) as int32
 end extern
 
 '' ------------------------------------------------------------------ emit
 
-private function hPut2( byval buf as ubyte ptr, byval v as long ) as long
+private function hPut2( byval buf as uint8 ptr, byval v as int32 ) as int32
 	buf[0] = 48 + ((v \ 10) mod 10)
 	buf[1] = 48 + (v mod 10)
 	return 2
 end function
 
-private function hPut4( byval buf as ubyte ptr, byval v as long ) as long
+private function hPut4( byval buf as uint8 ptr, byval v as int32 ) as int32
 	buf[0] = 48 + ((v \ 1000) mod 10)
 	buf[1] = 48 + ((v \ 100) mod 10)
 	buf[2] = 48 + ((v \ 10) mod 10)
@@ -54,10 +54,10 @@ private function hPut4( byval buf as ubyte ptr, byval v as long ) as long
 end function
 
 '' Exactly seven digits, zero-padded, never trimmed -- see the header.
-private function hPut7( byval buf as ubyte ptr, byval v as longint ) as long
-	dim as long i = any
+private function hPut7( byval buf as uint8 ptr, byval v as int64 ) as int32
+	dim as int32 i = any
 	for i = 6 to 0 step -1
-		buf[i] = 48 + cast( long, v mod 10 )
+		buf[i] = 48 + cast( int32, v mod 10 )
 		v \= 10
 	next
 	return 7
@@ -65,8 +65,8 @@ end function
 
 '' Z for UTC, +/-HH:MM otherwise, and NOTHING AT ALL when unspecified -- the
 '' three cases are distinct and the empty one is not an error.
-private function hPutOffset( byval buf as ubyte ptr, byval offMin as long ) as long
-	dim as long n = 0, a = any
+private function hPutOffset( byval buf as uint8 ptr, byval offMin as int32 ) as int32
+	dim as int32 n = 0, a = any
 
 	if( offMin = DT_ISO_OFFSET_UNSPECIFIED ) then return 0
 	if( offMin = 0 ) then
@@ -86,9 +86,9 @@ end function
 extern "rtlib"
 
 function tkort_DtIsoFormatDate alias "fb_DtIsoFormatDate" _
-	( byval days as long, byval buf as ubyte ptr, byval buflen as long ) as long
+	( byval days as int32, byval buf as uint8 ptr, byval buflen as int32 ) as int32
 
-	dim as long y = any, mo = any, d = any, n = 0
+	dim as int32 y = any, mo = any, d = any, n = 0
 
 	'' Too short: nothing is written, not even a terminator.
 	if( buf = 0 ) then return 0
@@ -110,10 +110,10 @@ function tkort_DtIsoFormatDate alias "fb_DtIsoFormatDate" _
 end function
 
 function tkort_DtIsoFormatTime alias "fb_DtIsoFormatTime" _
-	( byval tod as longint, byval buf as ubyte ptr, byval buflen as long ) as long
+	( byval tod as int64, byval buf as uint8 ptr, byval buflen as int32 ) as int32
 
-	dim as longint sub_ = any
-	dim as long n = 0
+	dim as int64 sub_ = any
+	dim as int32 n = 0
 
 	if( buf = 0 ) then return 0
 	if( buflen < 17 ) then return 0
@@ -122,11 +122,11 @@ function tkort_DtIsoFormatTime alias "fb_DtIsoFormatTime" _
 		return 0
 	end if
 
-	n += hPut2( buf + n, cast( long, tod \ FB_DT_TICKS_PER_HOUR ) )
+	n += hPut2( buf + n, cast( int32, tod \ FB_DT_TICKS_PER_HOUR ) )
 	buf[n] = 58 : n += 1                '' ':'
-	n += hPut2( buf + n, cast( long, tod \ FB_DT_TICKS_PER_MINUTE mod 60 ) )
+	n += hPut2( buf + n, cast( int32, tod \ FB_DT_TICKS_PER_MINUTE mod 60 ) )
 	buf[n] = 58 : n += 1
-	n += hPut2( buf + n, cast( long, tod \ FB_DT_TICKS_PER_SECOND mod 60 ) )
+	n += hPut2( buf + n, cast( int32, tod \ FB_DT_TICKS_PER_SECOND mod 60 ) )
 
 	'' Omitted ENTIRELY when zero; otherwise exactly seven digits.
 	sub_ = tod mod FB_DT_TICKS_PER_SECOND
@@ -139,10 +139,10 @@ function tkort_DtIsoFormatTime alias "fb_DtIsoFormatTime" _
 end function
 
 function tkort_DtIsoFormat alias "fb_DtIsoFormat" _
-	( byval ticks as longint, byval offMin as long, _
-	  byval buf as ubyte ptr, byval buflen as long ) as long
+	( byval ticks as int64, byval offMin as int32, _
+	  byval buf as uint8 ptr, byval buflen as int32 ) as int32
 
-	dim as long n = any
+	dim as int32 n = any
 
 	if( buf = 0 ) then return 0
 	if( buflen < 34 ) then return 0
@@ -151,7 +151,7 @@ function tkort_DtIsoFormat alias "fb_DtIsoFormat" _
 		return 0
 	end if
 
-	n = tkort_DtIsoFormatDate( cast( long, ticks \ FB_DT_TICKS_PER_DAY ), buf, buflen )
+	n = tkort_DtIsoFormatDate( cast( int32, ticks \ FB_DT_TICKS_PER_DAY ), buf, buflen )
 	if( n = 0 ) then return 0
 	buf[n] = 84 : n += 1                '' 'T'
 	'' buflen - n, not buflen: the remaining room shrinks, and the time
@@ -166,12 +166,12 @@ end function
 '' forms -- see the header. Components that are zero are omitted entirely,
 '' except that a duration of zero is "PT0S" rather than a bare "P".
 function tkort_DtIsoFormatDuration alias "fb_DtIsoFormatDuration" _
-	( byval ticks as longint, byval buf as ubyte ptr, byval buflen as long ) as long
+	( byval ticks as int64, byval buf as uint8 ptr, byval buflen as int32 ) as int32
 
-	dim as longint days = any, h = any, m = any, s = any, sub_ = any, v = any
-	dim as long n = 0, i = any, k = any, j = any
-	dim as ubyte fracv(0 to 7)
-	dim as ubyte tmp(0 to 23)
+	dim as int64 days = any, h = any, m = any, s = any, sub_ = any, v = any
+	dim as int32 n = 0, i = any, k = any, j = any
+	dim as uint8 fracv(0 to 7)
+	dim as uint8 tmp(0 to 23)
 
 	if( buf = 0 ) then return 0
 	if( buflen < 40 ) then return 0
@@ -201,7 +201,7 @@ function tkort_DtIsoFormatDuration alias "fb_DtIsoFormatDuration" _
 		k = 0
 		v = days
 		while( v > 0 )
-			tmp(k) = 48 + cast( long, v mod 10 ) : k += 1
+			tmp(k) = 48 + cast( int32, v mod 10 ) : k += 1
 			v \= 10
 		wend
 		while( k > 0 )
@@ -219,7 +219,7 @@ function tkort_DtIsoFormatDuration alias "fb_DtIsoFormatDuration" _
 			k = 0
 			v = h
 			while( v > 0 )
-				tmp(k) = 48 + cast( long, v mod 10 ) : k += 1
+				tmp(k) = 48 + cast( int32, v mod 10 ) : k += 1
 				v \= 10
 			wend
 			while( k > 0 )
@@ -234,17 +234,17 @@ function tkort_DtIsoFormatDuration alias "fb_DtIsoFormatDuration" _
 		'' any width, which is why only they get the digit loop.
 		if( m <> 0 ) then
 			if( m >= 10 ) then
-				buf[n] = 48 + cast( long, m \ 10 ) : n += 1
+				buf[n] = 48 + cast( int32, m \ 10 ) : n += 1
 			end if
-			buf[n] = 48 + cast( long, m mod 10 ) : n += 1
+			buf[n] = 48 + cast( int32, m mod 10 ) : n += 1
 			buf[n] = 77 : n += 1        '' 'M'
 		end if
 
 		if( (s <> 0) orelse (sub_ <> 0) ) then
 			if( s >= 10 ) then
-				buf[n] = 48 + cast( long, s \ 10 ) : n += 1
+				buf[n] = 48 + cast( int32, s \ 10 ) : n += 1
 			end if
-			buf[n] = 48 + cast( long, s mod 10 ) : n += 1
+			buf[n] = 48 + cast( int32, s mod 10 ) : n += 1
 			if( sub_ <> 0 ) then
 				hPut7( @fracv(0), sub_ )
 				'' Trim trailing zeros, but never past the first digit.
@@ -291,17 +291,17 @@ end extern
 '' 0001-01-01, and -1 is not representable, which is what makes it usable.
 
 type FB_DTSCAN
-	as ubyte ptr p
-	as ubyte ptr end_
+	as uint8 ptr p
+	as uint8 ptr end_
 end type
 
-private function hIsDigit( byval c as ulong ) as long
+private function hIsDigit( byval c as uint32 ) as int32
 	if( (c >= 48) andalso (c <= 57) ) then return 1
 	return 0
 end function
 
-private function hRemaining( byval sc as FB_DTSCAN ptr ) as long
-	return cast( long, sc->end_ - sc->p )
+private function hRemaining( byval sc as FB_DTSCAN ptr ) as int32
+	return cast( int32, sc->end_ - sc->p )
 end function
 
 '' Counts digits at the cursor WITHOUT consuming them -- the lookahead that
@@ -315,19 +315,19 @@ end function
 '' The local holding the digit lookahead is `ndig`, not `run`: RUN is a statement,
 '' and the clash reports as "argument count mismatch" at the first USE rather
 '' than as a keyword error at the declaration.
-private function hDigitRun( byval sc as FB_DTSCAN ptr ) as long
-	dim as ubyte ptr q = sc->p
+private function hDigitRun( byval sc as FB_DTSCAN ptr ) as int32
+	dim as uint8 ptr q = sc->p
 	while( q < sc->end_ )
 		if( hIsDigit( *q ) = 0 ) then exit while
 		q += 1
 	wend
-	return cast( long, q - sc->p )
+	return cast( int32, q - sc->p )
 end function
 
 '' Exactly n digits. Fails if fewer are present, and consumes NOTHING on
 '' failure -- callers depend on the cursor being untouched.
-private function hFixed( byval sc as FB_DTSCAN ptr, byval n as long, byval out_ as long ptr ) as long
-	dim as long v = 0, i = any
+private function hFixed( byval sc as FB_DTSCAN ptr, byval n as int32, byval out_ as int32 ptr ) as int32
+	dim as int32 v = 0, i = any
 	if( hRemaining( sc ) < n ) then return 1
 	for i = 0 to n - 1
 		if( hIsDigit( sc->p[i] ) = 0 ) then return 1
@@ -340,9 +340,9 @@ end function
 
 '' ISO week date -> days. Week 1 is the week containing 4 JANUARY, by
 '' definition -- not the first Monday, and not the week containing 1 January.
-private function hDaysFromIsoWeek( byval isoYear as long, byval week as long, _
-                                   byval dow as long, byval out_ as long ptr ) as long
-	dim as long jan4 = any, week1Monday = any
+private function hDaysFromIsoWeek( byval isoYear as int32, byval week as int32, _
+                                   byval dow as int32, byval out_ as int32 ptr ) as int32
+	dim as int32 jan4 = any, week1Monday = any
 
 	if( (isoYear < FB_DT_MIN_YEAR) orelse (isoYear > FB_DT_MAX_YEAR) ) then return 1
 	if( (week < 1) orelse (week > tkrt_DtIsoWeeksInYear( isoYear )) ) then return 1
@@ -361,9 +361,9 @@ end function
 '' A date in any of the four accepted shapes: YYYY-MM-DD, YYYY-DDD (ordinal),
 '' YYYY-Www-D (week date), and the basic forms YYYYMMDD / YYYYDDD / YYYYWwwD.
 '' The shape is decided by LOOKAHEAD, not by trying and backtracking.
-private function hScanDate( byval sc as FB_DTSCAN ptr, byval out_days as long ptr ) as long
-	dim as long y = any, mo = any, d = any, ndig = any, wk = any, dow = any, doy = any
-	dim as ulong c = any
+private function hScanDate( byval sc as FB_DTSCAN ptr, byval out_days as int32 ptr ) as int32
+	dim as int32 y = any, mo = any, d = any, ndig = any, wk = any, dow = any, doy = any
+	dim as uint32 c = any
 
 	if( hFixed( sc, 4, @y ) ) then return 1
 	if( (y < FB_DT_MIN_YEAR) orelse (y > FB_DT_MAX_YEAR) ) then return 1
@@ -436,10 +436,10 @@ private function hScanDate( byval sc as FB_DTSCAN ptr, byval out_days as long pt
 end function
 
 '' A time of day, returning ticks-of-day.
-private function hScanTime( byval sc as FB_DTSCAN ptr, byval out_tod as longint ptr ) as long
-	dim as long h = any, m = 0, s = 0, extended = any, ndig = any, i = any
-	dim as longint sub_ = 0
-	dim as ulong c = any
+private function hScanTime( byval sc as FB_DTSCAN ptr, byval out_tod as int64 ptr ) as int32
+	dim as int32 h = any, m = 0, s = 0, extended = any, ndig = any, i = any
+	dim as int64 sub_ = 0
+	dim as uint32 c = any
 
 	if( hFixed( sc, 2, @h ) ) then return 1
 
@@ -506,9 +506,9 @@ private function hScanTime( byval sc as FB_DTSCAN ptr, byval out_tod as longint 
 	if( m > 59 ) then return 1
 	if( s > 59 ) then return 1
 
-	*out_tod = cast( longint, h ) * FB_DT_TICKS_PER_HOUR _
-	         + cast( longint, m ) * FB_DT_TICKS_PER_MINUTE _
-	         + cast( longint, s ) * FB_DT_TICKS_PER_SECOND _
+	*out_tod = cast( int64, h ) * FB_DT_TICKS_PER_HOUR _
+	         + cast( int64, m ) * FB_DT_TICKS_PER_MINUTE _
+	         + cast( int64, s ) * FB_DT_TICKS_PER_SECOND _
 	         + sub_
 	return 0
 end function
@@ -519,9 +519,9 @@ end function
 '' does a character that is not a sign -- the cursor is left where it was, and
 '' the caller's trailing-garbage check is what rejects it. Returning failure
 '' here would reject a bare local timestamp.
-private function hScanOffset( byval sc as FB_DTSCAN ptr, byval out_off as long ptr ) as long
-	dim as long sign_ = any, hh = any, mm = 0
-	dim as ulong c = any
+private function hScanOffset( byval sc as FB_DTSCAN ptr, byval out_off as int32 ptr ) as int32
+	dim as int32 sign_ = any, hh = any, mm = 0
+	dim as uint32 c = any
 
 	if( hRemaining( sc ) = 0 ) then
 		*out_off = DT_ISO_OFFSET_UNSPECIFIED
@@ -566,7 +566,7 @@ end function
 '' Leading and trailing ASCII whitespace only. Interior whitespace, other than
 '' the one RFC 3339 space separator, stays an error.
 private sub hTrim( byval sc as FB_DTSCAN ptr )
-	dim as ulong c = any
+	dim as uint32 c = any
 	while( sc->p < sc->end_ )
 		c = *sc->p
 		if( (c <> 32) andalso (c <> 9) andalso (c <> 13) andalso (c <> 10) ) then exit while
@@ -583,13 +583,13 @@ extern "rtlib"
 
 '' RETURNS 0 ON SUCCESS, 1 ON FAILURE -- the C convention throughout this file.
 function tkort_DtIsoParse alias "fb_DtIsoParse" _
-	( byval s as ubyte ptr, byval length as long, _
-	  byval out_ticks as longint ptr, byval out_off as long ptr ) as long
+	( byval s as uint8 ptr, byval length as int32, _
+	  byval out_ticks as int64 ptr, byval out_off as int32 ptr ) as int32
 
 	dim as FB_DTSCAN sc = any
-	dim as long days = 0, off = DT_ISO_OFFSET_UNSPECIFIED
-	dim as longint tod = 0, ticks = any
-	dim as ulong c = any
+	dim as int32 days = 0, off = DT_ISO_OFFSET_UNSPECIFIED
+	dim as int64 tod = 0, ticks = any
+	dim as uint32 c = any
 
 	if( out_ticks <> 0 ) then *out_ticks = FB_DT_INVALID_TICKS
 	if( out_off <> 0 ) then *out_off = DT_ISO_OFFSET_UNSPECIFIED
@@ -622,7 +622,7 @@ function tkort_DtIsoParse alias "fb_DtIsoParse" _
 
 	'' THE OFFSET IS REPORTED, NOT APPLIED. ticks stay as written, and the
 	'' caller decides whether to shift them.
-	ticks = cast( longint, days ) * FB_DT_TICKS_PER_DAY + tod
+	ticks = cast( int64, days ) * FB_DT_TICKS_PER_DAY + tod
 	if( tkrt_DtIsValidTicks( ticks ) = 0 ) then return 1
 
 	if( out_ticks <> 0 ) then *out_ticks = ticks
@@ -633,10 +633,10 @@ end function
 '' -1 as the sentinel, not FB_DT_INVALID_TICKS: this one outputs DAYS, and 0 is
 '' a legitimate day (0001-01-01) while -1 is not representable.
 function tkort_DtIsoParseDate alias "fb_DtIsoParseDate" _
-	( byval s as ubyte ptr, byval length as long, byval out_days as long ptr ) as long
+	( byval s as uint8 ptr, byval length as int32, byval out_days as int32 ptr ) as int32
 
 	dim as FB_DTSCAN sc = any
-	dim as long days = 0
+	dim as int32 days = 0
 
 	if( out_days <> 0 ) then *out_days = -1
 	if( s = 0 ) then return 1
@@ -654,10 +654,10 @@ function tkort_DtIsoParseDate alias "fb_DtIsoParseDate" _
 end function
 
 function tkort_DtIsoParseTime alias "fb_DtIsoParseTime" _
-	( byval s as ubyte ptr, byval length as long, byval out_tod as longint ptr ) as long
+	( byval s as uint8 ptr, byval length as int32, byval out_tod as int64 ptr ) as int32
 
 	dim as FB_DTSCAN sc = any
-	dim as longint tod = 0
+	dim as int64 tod = 0
 
 	if( out_tod <> 0 ) then *out_tod = FB_DT_INVALID_TICKS
 	if( s = 0 ) then return 1
@@ -691,12 +691,12 @@ end function
 '' A FRACTION IS LEGAL ONLY ON SECONDS, and only inside the time part. "P1.5D"
 '' is an error rather than 36 hours.
 function tkort_DtIsoParseDuration alias "fb_DtIsoParseDuration" _
-	( byval s as ubyte ptr, byval length as long, byval out_ticks as longint ptr ) as long
+	( byval s as uint8 ptr, byval length as int32, byval out_ticks as int64 ptr ) as int32
 
 	dim as FB_DTSCAN sc = any
-	dim as longint total = 0, v = any, fracv = any
-	dim as long neg = 0, inTime = 0, sawAny = 0, nd = any, hasFrac = any, i = any
-	dim as ulong c = any, unit = any
+	dim as int64 total = 0, v = any, fracv = any
+	dim as int32 neg = 0, inTime = 0, sawAny = 0, nd = any, hasFrac = any, i = any
+	dim as uint32 c = any, unit = any
 
 	if( out_ticks <> 0 ) then *out_ticks = FB_DT_INVALID_TICKS
 	if( s = 0 ) then return 1

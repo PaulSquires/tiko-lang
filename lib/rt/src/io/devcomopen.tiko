@@ -80,23 +80,23 @@ const FB_FILE_ACCESS_READWRITE_ = 3
 '' FB_SERIAL_OPTIONS, from fb_serial.h: seventeen 32-bit fields, no padding
 '' anywhere, and the two enums are C enums so they are ints too.
 type FB_SERIAL_OPTIONS
-	as ulong uiSpeed
-	as ulong uiDataBits
-	as long  Parity
-	as long  StopBits
-	as ulong DurationCTS
-	as ulong DurationDSR
-	as ulong DurationCD
-	as ulong OpenTimeout
-	as long  SuppressRTS
-	as long  AddLF
-	as long  CheckParity
-	as long  KeepDTREnabled
-	as long  DiscardOnError
-	as long  IgnoreAllErrors
-	as ulong IRQNumber
-	as ulong TransmitBuffer
-	as ulong ReceiveBuffer
+	as uint32 uiSpeed
+	as uint32 uiDataBits
+	as int32  Parity
+	as int32  StopBits
+	as uint32 DurationCTS
+	as uint32 DurationDSR
+	as uint32 DurationCD
+	as uint32 OpenTimeout
+	as int32  SuppressRTS
+	as int32  AddLF
+	as int32  CheckParity
+	as int32  KeepDTREnabled
+	as int32  DiscardOnError
+	as int32  IgnoreAllErrors
+	as uint32 IRQNumber
+	as uint32 TransmitBuffer
+	as uint32 ReceiveBuffer
 end type
 
 #assert sizeof( FB_SERIAL_OPTIONS ) = 68
@@ -107,7 +107,7 @@ end type
 type DEV_COM_INFO
 	as any ptr           hSerial
 	as zstring ptr       pszDevice
-	as long              iPort
+	as int32              iPort
 	as FB_SERIAL_OPTIONS Options
 end type
 
@@ -118,34 +118,34 @@ extern "c"   '' NON-FBCALL: fb_serial.h and fb_device.h declare every one of
              '' these plainly, and the win32 archive spells them without `@N`.
 	declare function tkrt_DevComTestProtocolEx alias "fb_DevComTestProtocolEx" _
 		( byval handle as any ptr, byval filename as zstring ptr, _
-		  byval filename_len as uinteger, byval pPort as uinteger ptr ) as long
+		  byval filename_len as uinteger, byval pPort as uinteger ptr ) as int32
 	declare function tkrt_SerialOpen alias "fb_SerialOpen" _
-		( byval handle as FB_FILE ptr, byval iPort as long, byval options as FB_SERIAL_OPTIONS ptr, _
-		  byval pszDevice as zstring ptr, byval ppvHandle as any ptr ptr ) as long
+		( byval handle as FB_FILE ptr, byval iPort as int32, byval options as FB_SERIAL_OPTIONS ptr, _
+		  byval pszDevice as zstring ptr, byval ppvHandle as any ptr ptr ) as int32
 	declare function tkrt_SerialClose alias "fb_SerialClose" _
-		( byval handle as FB_FILE ptr, byval pvHandle as any ptr ) as long
+		( byval handle as FB_FILE ptr, byval pvHandle as any ptr ) as int32
 	declare function tkrt_SerialWrite alias "fb_SerialWrite" _
 		( byval handle as FB_FILE ptr, byval pvHandle as any ptr, _
-		  byval data_ as any ptr, byval length_ as uinteger ) as long
+		  byval data_ as any ptr, byval length_ as uinteger ) as int32
 	declare function tkrt_SerialRead alias "fb_SerialRead" _
 		( byval handle as FB_FILE ptr, byval pvHandle as any ptr, _
-		  byval data_ as any ptr, byval pLength as uinteger ptr ) as long
+		  byval data_ as any ptr, byval pLength as uinteger ptr ) as int32
 	declare function tkrt_SerialGetRemaining alias "fb_SerialGetRemaining" _
-		( byval handle as FB_FILE ptr, byval pvHandle as any ptr, byval pLength as longint ptr ) as long
+		( byval handle as FB_FILE ptr, byval pvHandle as any ptr, byval pLength as int64 ptr ) as int32
 end extern
 
 extern "rtlib"   '' FBCALL: fb_ErrorSetNum is decorated on win32.
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 end extern
 
 '' ASCII case folding, over the option keywords only -- see the file header.
-private function hCaseEq( byval a as zstring ptr, byval b as zstring ptr, byval n as integer ) as long
-	dim as ubyte ptr pa = cast( ubyte ptr, a )
-	dim as ubyte ptr pb = cast( ubyte ptr, b )
+private function hCaseEq( byval a as zstring ptr, byval b as zstring ptr, byval n as integer ) as int32
+	dim as uint8 ptr pa = cast( uint8 ptr, a )
+	dim as uint8 ptr pb = cast( uint8 ptr, b )
 	dim as integer i = 0
 
 	do
-		dim as ubyte ca = pa[i], cb = pb[i]
+		dim as uint8 ca = pa[i], cb = pb[i]
 		if( (ca >= 97) andalso (ca <= 122) ) then ca -= 32
 		if( (cb >= 97) andalso (cb <= 122) ) then cb -= 32
 		if( ca <> cb ) then return 0
@@ -181,11 +181,11 @@ end function
 '' block, and hand off to the platform serial driver.
 
 private function tkort_DevComWrite cdecl _
-	( byval handle as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as long
+	( byval handle as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as int32
 
 	TKORT_IOLOCK()
 	dim as DEV_COM_INFO ptr pInfo = cptr( DEV_COM_INFO ptr, handle->opaque )
-	dim as long res = tkrt_SerialWrite( handle, pInfo->hSerial, value, valuelen )
+	dim as int32 res = tkrt_SerialWrite( handle, pInfo->hSerial, value, valuelen )
 	TKORT_IOUNLOCK()
 	return res
 end function
@@ -195,17 +195,17 @@ end function
 '' UTF-16LE on Windows and UTF-32LE on Linux, and the two platforms disagree by
 '' design rather than by oversight.
 private function tkort_DevComWriteWstr cdecl _
-	( byval handle as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as long
+	( byval handle as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as int32
 
 	return tkort_DevComWrite( handle, value, valuelen * sizeof( wstring ) )
 end function
 
 private function tkort_DevComRead cdecl _
-	( byval handle as FB_FILE ptr, byval value as any ptr, byval pValuelen as uinteger ptr ) as long
+	( byval handle as FB_FILE ptr, byval value as any ptr, byval pValuelen as uinteger ptr ) as int32
 
 	TKORT_IOLOCK()
 	dim as DEV_COM_INFO ptr pInfo = cptr( DEV_COM_INFO ptr, handle->opaque )
-	dim as long res = tkrt_SerialRead( handle, pInfo->hSerial, value, pValuelen )
+	dim as int32 res = tkrt_SerialRead( handle, pInfo->hSerial, value, pValuelen )
 	TKORT_IOUNLOCK()
 	return res
 end function
@@ -215,18 +215,18 @@ end function
 '' it is fbc's, and a caller that trusted the returned count would be reading
 '' whatever it asked for rather than whatever arrived.
 private function tkort_DevComReadWstr cdecl _
-	( byval handle as FB_FILE ptr, byval value as wstring ptr, byval pValuelen as uinteger ptr ) as long
+	( byval handle as FB_FILE ptr, byval value as wstring ptr, byval pValuelen as uinteger ptr ) as int32
 
 	dim as uinteger len_ = *pValuelen * sizeof( wstring )
 	return tkort_DevComRead( handle, value, @len_ )
 end function
 
 private function tkort_DevComTell cdecl _
-	( byval handle as FB_FILE ptr, byval pOffset as longint ptr ) as long
+	( byval handle as FB_FILE ptr, byval pOffset as int64 ptr ) as int32
 
 	TKORT_IOLOCK()
 	dim as DEV_COM_INFO ptr pInfo = cptr( DEV_COM_INFO ptr, handle->opaque )
-	dim as long res = tkrt_SerialGetRemaining( handle, pInfo->hSerial, pOffset )
+	dim as int32 res = tkrt_SerialGetRemaining( handle, pInfo->hSerial, pOffset )
 	TKORT_IOUNLOCK()
 	return res
 end function
@@ -235,13 +235,13 @@ end function
 '' returns FB_TRUE when the driver could not say -- so a port that has been
 '' unplugged reports end-of-file rather than an error, which is what lets a
 '' read loop terminate instead of spinning.
-private function tkort_DevComEof cdecl ( byval handle as FB_FILE ptr ) as long
+private function tkort_DevComEof cdecl ( byval handle as FB_FILE ptr ) as int32
 
-	dim as longint offset_ = any
+	dim as int64 offset_ = any
 
 	TKORT_IOLOCK()
 	dim as DEV_COM_INFO ptr pInfo = cptr( DEV_COM_INFO ptr, handle->opaque )
-	dim as long res = tkrt_SerialGetRemaining( handle, pInfo->hSerial, @offset_ )
+	dim as int32 res = tkrt_SerialGetRemaining( handle, pInfo->hSerial, @offset_ )
 	if( res <> FB_RTERROR_OK ) then
 		res = -1                     '' FB_TRUE
 	else
@@ -256,11 +256,11 @@ end function
 '' device name are left allocated and the handle still points at them -- so a
 '' failed close leaks rather than leaving a dangling pointer, which is the safer
 '' of the two and is fbc's choice.
-private function tkort_DevComClose cdecl ( byval handle as FB_FILE ptr ) as long
+private function tkort_DevComClose cdecl ( byval handle as FB_FILE ptr ) as int32
 
 	TKORT_IOLOCK()
 	dim as DEV_COM_INFO ptr pInfo = cptr( DEV_COM_INFO ptr, handle->opaque )
-	dim as long res = tkrt_SerialClose( handle, pInfo->hSerial )
+	dim as int32 res = tkrt_SerialClose( handle, pInfo->hSerial )
 	if( res = FB_RTERROR_OK ) then
 		free( pInfo->pszDevice )
 		free( pInfo )
@@ -293,26 +293,26 @@ extern "c"   '' NON-FBCALL: fb_device.h declares both plainly and the archive
 
 function tkort_DevComOpen alias "fb_DevComOpen" _
 	( byval handle as FB_FILE ptr, byval filename as zstring ptr, _
-	  byval filename_len as uinteger ) as long
+	  byval filename_len as uinteger ) as int32
 
 	dim as DEV_COM_INFO ptr info = any
 	dim as zstring * 128 achDev
-	dim as ubyte ptr pchPos = any, pchPosEnd = any, pchPosNext = any
+	dim as uint8 ptr pchPos = any, pchPosEnd = any, pchPosNext = any
 	dim as zstring ptr pchPosTmp = any
 	dim as uinteger i = any, port = any, uiOption = any
-	dim as long iStopBits = -1
-	dim as long res = FB_RTERROR_OK
+	dim as int32 iStopBits = -1
+	dim as int32 res = FB_RTERROR_OK
 
 	if( tkrt_DevComTestProtocolEx( handle, filename, filename_len, @port ) = 0 ) then
 		return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 	end if
 
 	if( port > 0 ) then
-		i = sprintf( @achDev, @"COM%u:", cast( long, port ) )
+		i = sprintf( @achDev, @"COM%u:", cast( int32, port ) )
 	else
 		'' PORT 0 MEANS THE NAME WAS NOT "COMn" -- a device path, which is
 		'' copied verbatim up to its colon rather than rebuilt.
-		i = cast( uinteger, cast( ubyte ptr, strchr( filename, 58 ) ) - cast( ubyte ptr, filename ) )
+		i = cast( uinteger, cast( uint8 ptr, strchr( filename, 58 ) ) - cast( uint8 ptr, filename ) )
 		strncpy( @achDev, filename, i )
 	end if
 	achDev[i] = 0
@@ -326,7 +326,7 @@ function tkort_DevComOpen alias "fb_DevComOpen" _
 	end if
 
 	info = cptr( DEV_COM_INFO ptr, calloc( 1, sizeof( DEV_COM_INFO ) ) )
-	info->iPort = cast( long, port )
+	info->iPort = cast( int32, port )
 	info->pszDevice = hStrDup( @achDev )
 
 	'' QB's DEFAULTS, not anything modern. See the file header.
@@ -336,7 +336,7 @@ function tkort_DevComOpen alias "fb_DevComOpen" _
 	info->Options.DurationCTS = 1000
 	info->Options.DurationDSR = 1000
 
-	pchPos = cast( ubyte ptr, strchr( filename, 58 ) )
+	pchPos = cast( uint8 ptr, strchr( filename, 58 ) )
 	pchPos += 1
 
 	uiOption = 0
@@ -357,9 +357,9 @@ function tkort_DevComOpen alias "fb_DevComOpen" _
 			continue while
 		end if
 
-		pchPosNext = cast( ubyte ptr, strchr( cast( zstring ptr, pchPos ), 44 ) )
+		pchPosNext = cast( uint8 ptr, strchr( cast( zstring ptr, pchPos ), 44 ) )
 		if( pchPosNext = 0 ) then
-			pchPosNext = cast( ubyte ptr, filename ) + filename_len
+			pchPosNext = cast( uint8 ptr, filename ) + filename_len
 			pchPosEnd = pchPosNext - 1
 		else
 			pchPosEnd = pchPosNext - 1
@@ -414,7 +414,7 @@ function tkort_DevComOpen alias "fb_DevComOpen" _
 			'' 2.0. Those three are all exactly representable, so the equality
 			'' is safe -- but it also means "1.0000001" is an error rather than
 			'' being rounded.
-			dim as double dblStopBits = strtod( pszOption, @pchPosTmp )
+			dim as float64 dblStopBits = strtod( pszOption, @pchPosTmp )
 			if( pchPosTmp[0] <> 0 ) then
 				res = tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 			else
@@ -524,9 +524,9 @@ end function
 '' shape, the same three parameters and different failure conventions; the
 '' asymmetry is fbc's.
 function tkort_DevSerialSetWidth alias "fb_DevSerialSetWidth" _
-	( byval pszDevice as zstring ptr, byval width_ as long, byval default_width as long ) as long
+	( byval pszDevice as zstring ptr, byval width_ as int32, byval default_width as int32 ) as int32
 
-	dim as long cur = iif( default_width = -1, 0, default_width )
+	dim as int32 cur = iif( default_width = -1, 0, default_width )
 	dim as uinteger i = any, port = any
 	dim as zstring * 128 achDev
 
@@ -537,7 +537,7 @@ function tkort_DevSerialSetWidth alias "fb_DevSerialSetWidth" _
 	'' UNCONDITIONALLY REBUILT AS "COMn:", even when the parse reported port 0 --
 	'' which then searches for the literal "COM0:" and finds nothing. The open
 	'' path above has a second branch for that case; this one does not.
-	i = sprintf( @achDev, @"COM%u:", cast( long, port ) )
+	i = sprintf( @achDev, @"COM%u:", cast( int32, port ) )
 	achDev[i] = 0
 
 	for j as integer = 0 to FB_MAX_FILES - 1

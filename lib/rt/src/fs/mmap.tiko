@@ -31,7 +31,7 @@
 #include once "inc/sysbind.ti"
 
 extern "rtlib"
-	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as long
+	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as int32
 end extern
 
 '' Unpack a USTRING argument through FB_USTRSIZE, never ->len raw: the temp
@@ -55,9 +55,9 @@ end sub
 type FB_FSMAP
 	as any ptr    hfile
 	as any ptr    hmap
-	as ubyte ptr  data_
-	as ulongint   size_
-	as long       writable
+	as uint8 ptr  data_
+	as uint64   size_
+	as int32       writable
 end type
 
 const INVALID_HANDLE_VALUE_ = -1
@@ -74,18 +74,18 @@ const FILE_MAP_READ_    = &h0004ul
 
 extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
 	declare function w_CreateFileW stdcall alias "CreateFileW" _
-		( byval n as wstring ptr, byval acc as ulong, byval share as ulong, byval sa as any ptr, _
-		  byval disp as ulong, byval flags as ulong, byval templ as any ptr ) as any ptr
-	declare function w_GetFileSizeEx stdcall alias "GetFileSizeEx" ( byval h as any ptr, byval sz as longint ptr ) as long
+		( byval n as wstring ptr, byval acc as uint32, byval share as uint32, byval sa as any ptr, _
+		  byval disp as uint32, byval flags as uint32, byval templ as any ptr ) as any ptr
+	declare function w_GetFileSizeEx stdcall alias "GetFileSizeEx" ( byval h as any ptr, byval sz as int64 ptr ) as int32
 	declare function w_CreateFileMappingW stdcall alias "CreateFileMappingW" _
-		( byval h as any ptr, byval sa as any ptr, byval prot as ulong, byval hi as ulong, _
-		  byval lo as ulong, byval n as wstring ptr ) as any ptr
+		( byval h as any ptr, byval sa as any ptr, byval prot as uint32, byval hi as uint32, _
+		  byval lo as uint32, byval n as wstring ptr ) as any ptr
 	declare function w_MapViewOfFile stdcall alias "MapViewOfFile" _
-		( byval hm as any ptr, byval acc as ulong, byval hi as ulong, byval lo as ulong, byval n as uinteger ) as any ptr
-	declare function w_UnmapViewOfFile stdcall alias "UnmapViewOfFile" ( byval p as any ptr ) as long
-	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as long
-	declare function w_FlushViewOfFile stdcall alias "FlushViewOfFile" ( byval p as any ptr, byval n as uinteger ) as long
-	declare function w_FlushFileBuffers stdcall alias "FlushFileBuffers" ( byval h as any ptr ) as long
+		( byval hm as any ptr, byval acc as uint32, byval hi as uint32, byval lo as uint32, byval n as uinteger ) as any ptr
+	declare function w_UnmapViewOfFile stdcall alias "UnmapViewOfFile" ( byval p as any ptr ) as int32
+	declare function w_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as int32
+	declare function w_FlushViewOfFile stdcall alias "FlushViewOfFile" ( byval p as any ptr, byval n as uinteger ) as int32
+	declare function w_FlushFileBuffers stdcall alias "FlushFileBuffers" ( byval h as any ptr ) as int32
 end extern
 
 '' NUL-terminated wide copy of a USTRING path, heap-allocated because paths are
@@ -107,13 +107,13 @@ end function
 extern "rtlib"
 
 function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
-	( byval p as FBUSTRING ptr, byval writable as long, byval out_ as FB_FSMAP ptr ptr ) as long
+	( byval p as FBUSTRING ptr, byval writable as int32, byval out_ as FB_FSMAP ptr ptr ) as int32
 
 	dim as wstring ptr w = any
 	dim as FB_FSMAP ptr m = any
 	dim as any ptr hf = any, hm = any, vw = any
-	dim as longint sz = any
-	dim as long r = any
+	dim as int64 sz = any
+	dim as int32 r = any
 
 	*out_ = 0
 
@@ -167,7 +167,7 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 	m->hfile = hf
 	m->hmap = hm
 	m->data_ = vw
-	m->size_ = cast( ulongint, sz )
+	m->size_ = cast( uint64, sz )
 	m->writable = writable
 
 	*out_ = m
@@ -183,12 +183,12 @@ sub tkort_FsMmapClose alias "fb_FsMmapClose" ( byval m as FB_FSMAP ptr )
 	free( m )
 end sub
 
-function tkort_FsMmapData alias "fb_FsMmapData" ( byval m as FB_FSMAP ptr ) as ubyte ptr
+function tkort_FsMmapData alias "fb_FsMmapData" ( byval m as FB_FSMAP ptr ) as uint8 ptr
 	if( m = 0 ) then return 0
 	return m->data_
 end function
 
-function tkort_FsMmapSize alias "fb_FsMmapSize" ( byval m as FB_FSMAP ptr ) as ulongint
+function tkort_FsMmapSize alias "fb_FsMmapSize" ( byval m as FB_FSMAP ptr ) as uint64
 	if( m = 0 ) then return 0
 	return m->size_
 end function
@@ -196,7 +196,7 @@ end function
 '' BOTH FLUSHES ARE REQUIRED. FlushViewOfFile only pushes the pages into the
 '' file system cache; FlushFileBuffers is what reaches the disk. One without
 '' the other makes the call mean less than the caller thinks.
-function tkort_FsMmapFlush alias "fb_FsMmapFlush" ( byval m as FB_FSMAP ptr ) as long
+function tkort_FsMmapFlush alias "fb_FsMmapFlush" ( byval m as FB_FSMAP ptr ) as int32
 	if( m = 0 ) then return FB_FS_UNKNOWN
 	'' A read-only mapping has nothing to write back, and says so rather
 	'' than failing.
@@ -213,10 +213,10 @@ end extern
 '' ------------------------------------------------------------- Unix backend
 
 type FB_FSMAP
-	as long       fd
-	as ubyte ptr  data_
-	as ulongint   size_
-	as long       writable
+	as int32       fd
+	as uint8 ptr  data_
+	as uint64   size_
+	as int32       writable
 end type
 
 const O_RDONLY_ = 0
@@ -232,21 +232,21 @@ const S_IFDIR_ = &o040000
 '' padding as far as the mapping is concerned. st_mode and st_size are at fixed
 '' offsets on x86-64 glibc.
 type stat_
-	as ubyte raw( 0 to 143 )
+	as uint8 raw( 0 to 143 )
 end type
 
 const STAT_MODE_OFFSET = 24
 const STAT_SIZE_OFFSET = 48
 
 extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
-	declare function u_open alias "open" ( byval path as zstring ptr, byval flags as long, ... ) as long
-	declare function u_close alias "close" ( byval fd as long ) as long
-	declare function u_fstat alias "fstat" ( byval fd as long, byval st as stat_ ptr ) as long
+	declare function u_open alias "open" ( byval path as zstring ptr, byval flags as int32, ... ) as int32
+	declare function u_close alias "close" ( byval fd as int32 ) as int32
+	declare function u_fstat alias "fstat" ( byval fd as int32, byval st as stat_ ptr ) as int32
 	declare function u_mmap alias "mmap" _
-		( byval addr as any ptr, byval length as uinteger, byval prot as long, _
-		  byval flags as long, byval fd as long, byval off as longint ) as any ptr
-	declare function u_munmap alias "munmap" ( byval addr as any ptr, byval length as uinteger ) as long
-	declare function u_msync alias "msync" ( byval addr as any ptr, byval length as uinteger, byval flags as long ) as long
+		( byval addr as any ptr, byval length as uinteger, byval prot as int32, _
+		  byval flags as int32, byval fd as int32, byval off as int64 ) as any ptr
+	declare function u_munmap alias "munmap" ( byval addr as any ptr, byval length as uinteger ) as int32
+	declare function u_msync alias "msync" ( byval addr as any ptr, byval length as uinteger, byval flags as int32 ) as int32
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
 		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
 end extern
@@ -272,15 +272,15 @@ end function
 extern "rtlib"
 
 function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
-	( byval p as FBUSTRING ptr, byval writable as long, byval out_ as FB_FSMAP ptr ptr ) as long
+	( byval p as FBUSTRING ptr, byval writable as int32, byval out_ as FB_FSMAP ptr ptr ) as int32
 
 	dim as zstring ptr path_ = any
 	dim as FB_FSMAP ptr m = any
 	dim as stat_ st = any
-	dim as long fd = any, r = any
+	dim as int32 fd = any, r = any
 	dim as any ptr addr = any
-	dim as ulong mode_ = any
-	dim as longint size_ = any
+	dim as uint32 mode_ = any
+	dim as int64 size_ = any
 
 	*out_ = 0
 
@@ -298,8 +298,8 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 		return r
 	end if
 
-	mode_ = *cptr( ulong ptr, @st.raw(STAT_MODE_OFFSET) )
-	size_ = *cptr( longint ptr, @st.raw(STAT_SIZE_OFFSET) )
+	mode_ = *cptr( uint32 ptr, @st.raw(STAT_MODE_OFFSET) )
+	size_ = *cptr( int64 ptr, @st.raw(STAT_SIZE_OFFSET) )
 
 	'' open( ) ON A DIRECTORY SUCCEEDS on POSIX, as everywhere; the refusal
 	'' has to be explicit so this matches what Windows does on its own.
@@ -334,7 +334,7 @@ function tkort_UStrFsMmapOpen alias "fb_UStrFsMmapOpen" _
 
 	m->fd = fd
 	m->data_ = addr
-	m->size_ = cast( ulongint, size_ )
+	m->size_ = cast( uint64, size_ )
 	m->writable = writable
 
 	*out_ = m
@@ -348,19 +348,19 @@ sub tkort_FsMmapClose alias "fb_FsMmapClose" ( byval m as FB_FSMAP ptr )
 	free( m )
 end sub
 
-function tkort_FsMmapData alias "fb_FsMmapData" ( byval m as FB_FSMAP ptr ) as ubyte ptr
+function tkort_FsMmapData alias "fb_FsMmapData" ( byval m as FB_FSMAP ptr ) as uint8 ptr
 	if( m = 0 ) then return 0
 	return m->data_
 end function
 
-function tkort_FsMmapSize alias "fb_FsMmapSize" ( byval m as FB_FSMAP ptr ) as ulongint
+function tkort_FsMmapSize alias "fb_FsMmapSize" ( byval m as FB_FSMAP ptr ) as uint64
 	if( m = 0 ) then return 0
 	return m->size_
 end function
 
 '' MS_SYNC, NOT MS_ASYNC: the caller asked to flush, and returning before the
 '' data is durable would make the call a suggestion.
-function tkort_FsMmapFlush alias "fb_FsMmapFlush" ( byval m as FB_FSMAP ptr ) as long
+function tkort_FsMmapFlush alias "fb_FsMmapFlush" ( byval m as FB_FSMAP ptr ) as int32
 	if( m = 0 ) then return FB_FS_UNKNOWN
 	if( m->writable = 0 ) then return FB_FS_OK
 	if( u_msync( m->data_, cast( uinteger, m->size_ ), MS_SYNC_ ) <> 0 ) then return tkrt_FsMapOsError( )

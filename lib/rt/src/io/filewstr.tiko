@@ -31,28 +31,28 @@ const FB_RTERROR_OK = 0
 const FB_RTERROR_ILLEGALFUNCTIONCALL = 1
 
 extern "rtlib"
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: the data-path forms.
 	declare function tkrt_PutDataEx alias "fb_FilePutDataEx" _
-		( byval h as FB_FILE ptr, byval pos_ as longint, byval data_ as any ptr, _
-		  byval length as uinteger, byval adjust as long, byval chknl as long, _
-		  byval is_uni as long ) as long
+		( byval h as FB_FILE ptr, byval pos_ as int64, byval data_ as any ptr, _
+		  byval length as uinteger, byval adjust as int32, byval chknl as int32, _
+		  byval is_uni as int32 ) as int32
 	declare function tkrt_GetDataEx alias "fb_FileGetDataEx" _
-		( byval h as FB_FILE ptr, byval pos_ as longint, byval dst as any ptr, _
+		( byval h as FB_FILE ptr, byval pos_ as int64, byval dst as any ptr, _
 		  byval length as uinteger, byval bytesread as uinteger ptr, _
-		  byval adjust as long, byval is_uni as long ) as long
+		  byval adjust as int32, byval is_uni as int32 ) as int32
 	declare function tkrt_PutData alias "fb_FilePutData" _
-		( byval fnum as long, byval pos_ as longint, byval data_ as any ptr, _
-		  byval length as uinteger, byval adjust as long, byval chknl as long ) as long
+		( byval fnum as int32, byval pos_ as int64, byval data_ as any ptr, _
+		  byval length as uinteger, byval adjust as int32, byval chknl as int32 ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: fb_file.h declares the *Ex forms plainly.
 
 function tkort_FilePutWstrEx alias "fb_FilePutWstrEx" _
-	( byval h as FB_FILE ptr, byval pos_ as longint, byval str_ as wstring ptr, _
-	  byval length as integer ) as long
+	( byval h as FB_FILE ptr, byval pos_ as int64, byval str_ as wstring ptr, _
+	  byval length as integer ) as int32
 	if( (str_ <> 0) andalso (length > 0) ) then
 		return tkrt_PutDataEx( h, pos_, str_, length, -1, -1, -1 )
 	end if
@@ -60,8 +60,8 @@ function tkort_FilePutWstrEx alias "fb_FilePutWstrEx" _
 end function
 
 function tkort_FileGetWstrEx alias "fb_FileGetWstrEx" _
-	( byval h as FB_FILE ptr, byval pos_ as longint, byval dst as wstring ptr, _
-	  byval dst_chars as integer, byval bytesread as uinteger ptr ) as long
+	( byval h as FB_FILE ptr, byval pos_ as int64, byval dst as wstring ptr, _
+	  byval dst_chars as integer, byval bytesread as uinteger ptr ) as int32
 
 	if( bytesread <> 0 ) then *bytesread = 0
 
@@ -75,7 +75,7 @@ function tkort_FileGetWstrEx alias "fb_FileGetWstrEx" _
 	if( dst_chars < 2 ) then return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
 
 	dim as uinteger rawbytesread = any
-	dim as long res = tkrt_GetDataEx( h, pos_, dst, _
+	dim as int32 res = tkrt_GetDataEx( h, pos_, dst, _
 	                                  (dst_chars - 1) * sizeof( wstring ), _
 	                                  @rawbytesread, -1, 0 )
 	if( res <> FB_RTERROR_OK ) then return res
@@ -87,7 +87,7 @@ function tkort_FileGetWstrEx alias "fb_FileGetWstrEx" _
 
 	'' Terminate through a byte pointer, so the width is the target's and the
 	'' wstring-index trap in inc/wstr.ti cannot apply.
-	dim as ubyte ptr b = cptr( ubyte ptr, dst )
+	dim as uint8 ptr b = cptr( uint8 ptr, dst )
 	for k as integer = 0 to sizeof( wstring ) - 1
 		b[rawbytesread + k] = 0
 	next
@@ -101,38 +101,38 @@ end extern
 extern "rtlib"
 
 function tkort_FilePutWstr alias "fb_FilePutWstr" _
-	( byval fnum as long, byval pos_ as long, byval str_ as wstring ptr, _
-	  byval str_len as integer ) as long
+	( byval fnum as int32, byval pos_ as int32, byval str_ as wstring ptr, _
+	  byval str_len as integer ) as int32
 	return tkort_FilePutWstrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, str_, str_len )
 end function
 
 function tkort_FilePutWstrLarge alias "fb_FilePutWstrLarge" _
-	( byval fnum as long, byval pos_ as longint, byval str_ as wstring ptr, _
-	  byval str_len as integer ) as long
+	( byval fnum as int32, byval pos_ as int64, byval str_ as wstring ptr, _
+	  byval str_len as integer ) as int32
 	return tkort_FilePutWstrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, str_, str_len )
 end function
 
 function tkort_FileGetWstr alias "fb_FileGetWstr" _
-	( byval fnum as long, byval pos_ as long, byval dst as wstring ptr, _
-	  byval dst_chars as integer ) as long
+	( byval fnum as int32, byval pos_ as int32, byval dst as wstring ptr, _
+	  byval dst_chars as integer ) as int32
 	return tkort_FileGetWstrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, dst_chars, 0 )
 end function
 
 function tkort_FileGetWstrLarge alias "fb_FileGetWstrLarge" _
-	( byval fnum as long, byval pos_ as longint, byval dst as wstring ptr, _
-	  byval dst_chars as integer ) as long
+	( byval fnum as int32, byval pos_ as int64, byval dst as wstring ptr, _
+	  byval dst_chars as integer ) as int32
 	return tkort_FileGetWstrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, dst_chars, 0 )
 end function
 
 function tkort_FileGetWstrIOB alias "fb_FileGetWstrIOB" _
-	( byval fnum as long, byval pos_ as long, byval dst as wstring ptr, _
-	  byval dst_chars as integer, byval bytesread as uinteger ptr ) as long
+	( byval fnum as int32, byval pos_ as int32, byval dst as wstring ptr, _
+	  byval dst_chars as integer, byval bytesread as uinteger ptr ) as int32
 	return tkort_FileGetWstrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, dst_chars, bytesread )
 end function
 
 function tkort_FileGetWstrLargeIOB alias "fb_FileGetWstrLargeIOB" _
-	( byval fnum as long, byval pos_ as longint, byval dst as wstring ptr, _
-	  byval dst_chars as integer, byval bytesread as uinteger ptr ) as long
+	( byval fnum as int32, byval pos_ as int64, byval dst as wstring ptr, _
+	  byval dst_chars as integer, byval bytesread as uinteger ptr ) as int32
 	return tkort_FileGetWstrEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst, dst_chars, bytesread )
 end function
 
@@ -145,36 +145,36 @@ end function
 '' shape and costs PUT one extra table lookup; kept so the two match.
 
 function tkort_FileGetArray alias "fb_FileGetArray" _
-	( byval fnum as long, byval pos_ as long, byval dst as FBARRAY ptr ) as long
+	( byval fnum as int32, byval pos_ as int32, byval dst as FBARRAY ptr ) as int32
 	return tkrt_GetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst->base_ptr, dst->size, 0, -1, 0 )
 end function
 
 function tkort_FileGetArrayLarge alias "fb_FileGetArrayLarge" _
-	( byval fnum as long, byval pos_ as longint, byval dst as FBARRAY ptr ) as long
+	( byval fnum as int32, byval pos_ as int64, byval dst as FBARRAY ptr ) as int32
 	return tkrt_GetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst->base_ptr, dst->size, 0, -1, 0 )
 end function
 
 function tkort_FileGetArrayIOB alias "fb_FileGetArrayIOB" _
-	( byval fnum as long, byval pos_ as long, byval dst as FBARRAY ptr, _
-	  byval bytesread as uinteger ptr ) as long
+	( byval fnum as int32, byval pos_ as int32, byval dst as FBARRAY ptr, _
+	  byval bytesread as uinteger ptr ) as int32
 	return tkrt_GetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst->base_ptr, dst->size, _
 	                       bytesread, -1, 0 )
 end function
 
 function tkort_FileGetArrayLargeIOB alias "fb_FileGetArrayLargeIOB" _
-	( byval fnum as long, byval pos_ as longint, byval dst as FBARRAY ptr, _
-	  byval bytesread as uinteger ptr ) as long
+	( byval fnum as int32, byval pos_ as int64, byval dst as FBARRAY ptr, _
+	  byval bytesread as uinteger ptr ) as int32
 	return tkrt_GetDataEx( TKORT_FILE_TO_HANDLE( fnum ), pos_, dst->base_ptr, dst->size, _
 	                       bytesread, -1, 0 )
 end function
 
 function tkort_FilePutArray alias "fb_FilePutArray" _
-	( byval fnum as long, byval pos_ as long, byval src as FBARRAY ptr ) as long
+	( byval fnum as int32, byval pos_ as int32, byval src as FBARRAY ptr ) as int32
 	return tkrt_PutData( fnum, pos_, src->base_ptr, src->size, -1, 0 )
 end function
 
 function tkort_FilePutArrayLarge alias "fb_FilePutArrayLarge" _
-	( byval fnum as long, byval pos_ as longint, byval src as FBARRAY ptr ) as long
+	( byval fnum as int32, byval pos_ as int64, byval src as FBARRAY ptr ) as int32
 	return tkrt_PutData( fnum, pos_, src->base_ptr, src->size, -1, 0 )
 end function
 

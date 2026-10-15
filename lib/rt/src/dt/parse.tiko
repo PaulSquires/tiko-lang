@@ -52,13 +52,13 @@
 #include once "inc/sysbind.ti"
 
 extern "c"   '' NON-FBCALL: the h-prefixed internals and the Intl lookups.
-	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 	declare function tkrt_IntlGetMonthName alias "fb_IntlGetMonthName" _
-		( byval month_ as long, byval abbrev as long, byval is_wide as long ) as FBSTRING ptr
+		( byval month_ as int32, byval abbrev as int32, byval is_wide as int32 ) as FBSTRING ptr
 	declare function tkrt_IntlGetDateFormat alias "fb_IntlGetDateFormat" _
-		( byval buffer as zstring ptr, byval maxlen as integer, byval is_long as long ) as long
+		( byval buffer as zstring ptr, byval maxlen as integer, byval is_long as int32 ) as int32
 	declare function tkrt_DaysInMonth alias "fb_hTimeDaysInMonth" _
-		( byval month_ as long, byval year_ as long ) as long
+		( byval month_ as int32, byval year_ as int32 ) as int32
 end extern
 
 '' ctype, written out. The CRT's are locale-dependent macros on some targets and
@@ -88,10 +88,10 @@ const DATEFMT_MAX = 90
 '' AM/PM, and the length it consumed. Returns 0 for neither, 1 for AM, 2 for PM.
 '' Leading and TRAILING whitespace are both counted into the length, so the
 '' caller's cursor lands past the suffix.
-private function hCheckAMPM( byval text_ as ubyte ptr, byval pLength as uinteger ptr ) as long
+private function hCheckAMPM( byval text_ as uint8 ptr, byval pLength as uinteger ptr ) as int32
 
-	dim as ubyte ptr text_start = text_
-	dim as long result_ = 0
+	dim as uint8 ptr text_start = text_
+	dim as int32 result_ = 0
 
 	while( TKORT_ISSPACE( *text_ ) )
 		text_ += 1
@@ -107,7 +107,7 @@ private function hCheckAMPM( byval text_ as ubyte ptr, byval pLength as uinteger
 	end select
 
 	if( result_ <> 0 ) then
-		dim as ubyte ch = *text_
+		dim as uint8 ch = *text_
 		if( ch = 0 ) then
 			'' A bare "a" or "p" at end of string is accepted.
 		elseif( (ch = 109) orelse (ch = 77) ) then      '' 'm', 'M'
@@ -140,25 +140,25 @@ extern "c"   '' NON-FBCALL: fb_datetime.h declares both parsers plainly.
 '' month search.
 function tkort_hTimeParse alias "fb_hTimeParse" _
 	( byval text_ as zstring ptr, byval text_len as uinteger, _
-	  byval pHour as long ptr, byval pMinute as long ptr, byval pSecond as long ptr, _
-	  byval pLength as uinteger ptr ) as long
+	  byval pHour as int32 ptr, byval pMinute as int32 ptr, byval pSecond as int32 ptr, _
+	  byval pLength as uinteger ptr ) as int32
 
 	dim as uinteger length_ = 0
-	dim as ubyte ptr t = cast( ubyte ptr, text_ )
-	dim as ubyte ptr text_start = t
-	dim as long am_pm = 0, result_ = FALSE_
-	dim as long hour_ = 0, minute_ = 0, second_ = 0
+	dim as uint8 ptr t = cast( uint8 ptr, text_ )
+	dim as uint8 ptr text_start = t
+	dim as int32 am_pm = 0, result_ = FALSE_
+	dim as int32 hour_ = 0, minute_ = 0, second_ = 0
 	dim as zstring ptr endptr = any
 
 	hour_ = strtol( cast( zstring ptr, t ), @endptr, 10 )
 
-	if( (hour_ >= 0) andalso (hour_ < 24) andalso (cast( ubyte ptr, endptr ) <> t) ) then
+	if( (hour_ >= 0) andalso (hour_ < 24) andalso (cast( uint8 ptr, endptr ) <> t) ) then
 
 		'' AM/PM IS ONLY MEANINGFUL FOR 1..12. Hour 0 and hours 13..23 skip the
 		'' suffix check entirely, so "0:30 pm" parses AND ignores the pm.
-		dim as long is_ampm_hour = iif( (hour_ >= 1) andalso (hour_ <= 12), 1, 0 )
+		dim as int32 is_ampm_hour = iif( (hour_ >= 1) andalso (hour_ <= 12), 1, 0 )
 
-		t = cast( ubyte ptr, endptr )
+		t = cast( uint8 ptr, endptr )
 		while( TKORT_ISSPACE( *t ) )
 			t += 1
 		wend
@@ -166,8 +166,8 @@ function tkort_hTimeParse alias "fb_hTimeParse" _
 		if( *t = 58 ) then                             '' ':'
 			t += 1
 			minute_ = strtol( cast( zstring ptr, t ), @endptr, 10 )
-			if( (minute_ >= 0) andalso (minute_ < 60) andalso (cast( ubyte ptr, endptr ) <> t) ) then
-				t = cast( ubyte ptr, endptr )
+			if( (minute_ >= 0) andalso (minute_ < 60) andalso (cast( uint8 ptr, endptr ) <> t) ) then
+				t = cast( uint8 ptr, endptr )
 				while( TKORT_ISSPACE( *t ) )
 					t += 1
 				wend
@@ -179,11 +179,11 @@ function tkort_hTimeParse alias "fb_hTimeParse" _
 				if( *t = 58 ) then
 					t += 1
 					second_ = strtol( cast( zstring ptr, t ), @endptr, 10 )
-					if( cast( ubyte ptr, endptr ) <> t ) then
+					if( cast( uint8 ptr, endptr ) <> t ) then
 						if( (second_ < 0) orelse (second_ > 59) ) then
 							result_ = FALSE_
 						else
-							t = cast( ubyte ptr, endptr )
+							t = cast( uint8 ptr, endptr )
 						end if
 					else
 						'' A colon with no digits after it INVALIDATES the
@@ -242,12 +242,12 @@ end extern
 '' localized picks the locale's names vs English -- and note that
 '' fb_IntlGetMonthName's third argument is the NEGATION, because it asks for
 '' "English" rather than for "localized".
-private function hIsMonth( byval text_ as ubyte ptr, byval text_len as uinteger, _
-                           byval end_text as ubyte ptr ptr, _
-                           byval short_name as long, byval localized as long ) as long
+private function hIsMonth( byval text_ as uint8 ptr, byval text_len as uinteger, _
+                           byval end_text as uint8 ptr ptr, _
+                           byval short_name as int32, byval localized as int32 ) as int32
 
-	dim as ubyte ptr txt_end = text_
-	dim as long month_ = any
+	dim as uint8 ptr txt_end = text_
+	dim as int32 month_ = any
 
 	for month_ = 1 to 12
 		dim as FBSTRING ptr sMonthName = tkrt_IntlGetMonthName( month_, short_name, _
@@ -256,7 +256,7 @@ private function hIsMonth( byval text_ as ubyte ptr, byval text_len as uinteger,
 
 		dim as uinteger month_len = FB_STRSIZE( sMonthName )
 		dim as uinteger len_ = iif( text_len < month_len, text_len, month_len )
-		dim as long is_same = iif( memcmp( text_, sMonthName->data, len_ ) = 0, 1, 0 )
+		dim as int32 is_same = iif( memcmp( text_, sMonthName->data, len_ ) = 0, 1, 0 )
 		tkrt_DelTemp( sMonthName )
 
 		if( is_same <> 0 ) then
@@ -290,12 +290,12 @@ end function
 
 '' FULL BEFORE ABBREVIATED, and within each, LOCALIZED BEFORE ENGLISH -- fbc's
 '' inner loop is `localized = 2; while( localized-- )`, which yields 1 then 0.
-private function hFindMonth( byval text_ as ubyte ptr, byval text_len as uinteger, _
-                             byval end_text as ubyte ptr ptr ) as long
+private function hFindMonth( byval text_ as uint8 ptr, byval text_len as uinteger, _
+                             byval end_text as uint8 ptr ptr ) as int32
 
-	for short_name as long = 0 to 1
-		for localized as long = 1 to 0 step -1
-			dim as long month_ = hIsMonth( text_, text_len, end_text, short_name, localized )
+	for short_name as int32 = 0 to 1
+		for localized as int32 = 1 to 0 step -1
+			dim as int32 month_ = hIsMonth( text_, text_len, end_text, short_name, localized )
 			if( month_ <> 0 ) then return month_
 		next
 	next
@@ -307,21 +307,21 @@ end function
 '' the same letter counts once; the index advances only when a separator is
 '' crossed. Returns FALSE if the format repeats a field or puts one past the
 '' third position, and the caller then falls back to US order.
-private function hDateOrder( byval pOrderDay as long ptr, byval pOrderMonth as long ptr, _
-                             byval pOrderYear as long ptr ) as long
+private function hDateOrder( byval pOrderDay as int32 ptr, byval pOrderMonth as int32 ptr, _
+                             byval pOrderYear as int32 ptr ) as int32
 
-	dim as long order_month = 0, order_day = 1, order_year = 2, order_index = 0
-	dim as long got_sep = any
+	dim as int32 order_month = 0, order_day = 1, order_year = 2, order_index = 0
+	dim as int32 got_sep = any
 	dim as zstring * DATEFMT_MAX short_format = any
 
 	if( tkrt_IntlGetDateFormat( @short_format, DATEFMT_MAX, FALSE_ ) = 0 ) then return FALSE_
 
-	dim as ubyte ptr f = cast( ubyte ptr, @short_format )
+	dim as uint8 ptr f = cast( uint8 ptr, @short_format )
 
 	got_sep = TRUE_
 	dim as integer i = 0
 	while( f[i] <> 0 )
-		dim as long ch = f[i]
+		dim as int32 ch = f[i]
 		if( TKORT_ISLOWER( ch ) ) then ch -= 32
 		select case ch
 		case 68                      '' 'D'
@@ -356,7 +356,7 @@ end function
 
 '' Picks the index-th of three, and 0 for anything else. The three numbers are
 '' held positionally and permuted by this.
-private function hSelect( byval index_ as long, byval n1 as long, byval n2 as long, byval n3 as long ) as long
+private function hSelect( byval index_ as int32, byval n1 as int32, byval n2 as int32, byval n3 as int32 ) as int32
 	if( index_ = 0 ) then return n1
 	if( index_ = 1 ) then return n2
 	if( index_ = 2 ) then return n3
@@ -367,18 +367,18 @@ extern "c"   '' NON-FBCALL, as above.
 
 function tkort_hDateParse alias "fb_hDateParse" _
 	( byval text_ as zstring ptr, byval text_len as uinteger, _
-	  byval pDay as long ptr, byval pMonth as long ptr, byval pYear as long ptr, _
-	  byval pLength as uinteger ptr ) as long
+	  byval pDay as int32 ptr, byval pMonth as int32 ptr, byval pYear as int32 ptr, _
+	  byval pLength as uinteger ptr ) as int32
 
 	dim as uinteger length_ = 0, len_ = text_len
-	dim as ubyte ptr t = cast( ubyte ptr, text_ )
-	dim as ubyte ptr text_start = t
-	dim as long result_ = FALSE_
+	dim as uint8 ptr t = cast( uint8 ptr, text_ )
+	dim as uint8 ptr text_start = t
+	dim as int32 result_ = FALSE_
 	'' THE DEFAULTS ARE THE ZERO SERIAL, 1899-12-30 -- not zeros, so a partial
 	'' parse that somehow succeeded would give a date rather than a crash.
-	dim as long year_ = 1899, month_ = 12, day_ = 30
-	dim as long order_year = any, order_month = any, order_day = any
-	dim as ubyte ptr end_month = any
+	dim as int32 year_ = 1899, month_ = 12, day_ = 30
+	dim as int32 order_year = any, order_month = any, order_day = any
+	dim as uint8 ptr end_month = any
 	dim as zstring ptr endptr = any
 
 	if( hDateOrder( @order_day, @order_month, @order_year ) = FALSE_ ) then
@@ -400,34 +400,34 @@ function tkort_hDateParse alias "fb_hDateParse" _
 		t = end_month
 		day_ = strtol( cast( zstring ptr, t ), @endptr, 10 )
 		if( day_ > 0 ) then
-			t = cast( ubyte ptr, endptr )
+			t = cast( uint8 ptr, endptr )
 			while( TKORT_ISSPACE( *t ) )
 				t += 1
 			wend
 
 			if( *t = 44 ) then                        '' ','
 				t += 1
-				dim as ubyte ptr ystart = t
+				dim as uint8 ptr ystart = t
 				year_ = strtol( cast( zstring ptr, t ), @endptr, 10 )
-				dim as uinteger year_size = cast( uinteger, cast( ubyte ptr, endptr ) - ystart )
+				dim as uinteger year_size = cast( uinteger, cast( uint8 ptr, endptr ) - ystart )
 				if( year_size > 0 ) then
 					if( year_size = 2 ) then year_ += 1900
 					result_ = iif( day_ <= tkrt_DaysInMonth( month_, year_ ), TRUE_, FALSE_ )
-					t = cast( ubyte ptr, endptr )
+					t = cast( uint8 ptr, endptr )
 				end if
 			end if
 		end if
 	else
 		dim as uinteger day_size = any, month_size = 0
-		dim as ubyte chDivider = any
-		dim as long is_short_form = any, valid_divider = any
+		dim as uint8 chDivider = any
+		dim as int32 is_short_form = any, valid_divider = any
 
-		dim as ubyte ptr dstart = t
+		dim as uint8 ptr dstart = t
 		day_ = strtol( cast( zstring ptr, t ), @endptr, 10 )
-		day_size = cast( uinteger, cast( ubyte ptr, endptr ) - dstart )
+		day_size = cast( uinteger, cast( uint8 ptr, endptr ) - dstart )
 
 		if( day_size <> 0 ) then
-			t = cast( ubyte ptr, endptr )
+			t = cast( uint8 ptr, endptr )
 			while( TKORT_ISSPACE( *t ) )
 				t += 1
 			wend
@@ -455,11 +455,11 @@ function tkort_hDateParse alias "fb_hDateParse" _
 				while( TKORT_ISSPACE( *t ) )
 					t += 1
 				wend
-				dim as ubyte ptr mstart = t
+				dim as uint8 ptr mstart = t
 				month_ = strtol( cast( zstring ptr, t ), @endptr, 10 )
-				month_size = cast( uinteger, cast( ubyte ptr, endptr ) - mstart )
+				month_size = cast( uinteger, cast( uint8 ptr, endptr ) - mstart )
 				if( month_size <> 0 ) then
-					t = cast( ubyte ptr, endptr )
+					t = cast( uint8 ptr, endptr )
 					while( TKORT_ISSPACE( *t ) )
 						t += 1
 					wend
@@ -487,18 +487,18 @@ function tkort_hDateParse alias "fb_hDateParse" _
 				while( TKORT_ISSPACE( *t ) )
 					t += 1
 				wend
-				dim as ubyte ptr ystart = t
+				dim as uint8 ptr ystart = t
 				year_ = strtol( cast( zstring ptr, t ), @endptr, 10 )
-				dim as uinteger year_size = cast( uinteger, cast( ubyte ptr, endptr ) - ystart )
+				dim as uinteger year_size = cast( uinteger, cast( uint8 ptr, endptr ) - ystart )
 
 				if( year_size > 0 ) then
 					if( is_short_form <> 0 ) then
 						'' THE PERMUTATION, and the DIGIT COUNT goes with it --
 						'' the two-digit rule applies to whichever of the three
 						'' turned out to be the year.
-						dim as long tmp_day = hSelect( order_day, day_, month_, year_ )
-						dim as long tmp_month = hSelect( order_month, day_, month_, year_ )
-						dim as long tmp_year = hSelect( order_year, day_, month_, year_ )
+						dim as int32 tmp_day = hSelect( order_day, day_, month_, year_ )
+						dim as int32 tmp_month = hSelect( order_month, day_, month_, year_ )
+						dim as int32 tmp_year = hSelect( order_year, day_, month_, year_ )
 						year_size = hSelect( order_year, day_size, month_size, year_size )
 						day_ = tmp_day
 						month_ = tmp_month
@@ -510,7 +510,7 @@ function tkort_hDateParse alias "fb_hDateParse" _
 						if( year_size = 2 ) then year_ += 1900
 						result_ = iif( day_ <= tkrt_DaysInMonth( month_, year_ ), TRUE_, FALSE_ )
 					end if
-					t = cast( ubyte ptr, endptr )
+					t = cast( uint8 ptr, endptr )
 				else
 					result_ = FALSE_
 				end if

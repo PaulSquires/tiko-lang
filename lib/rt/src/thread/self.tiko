@@ -74,9 +74,9 @@ end sub
 '' Defined even in the single-threaded archive, because thread/core.tiko's
 '' threadproc calls it there too.
 function tkort_AtomicSetThreadFlags alias "fb_AtomicSetThreadFlags" _
-	( byval threadFlags as long ptr, byval newFlag as long ) as long
+	( byval threadFlags as int32 ptr, byval newFlag as int32 ) as int32
 
-	dim as long before = any
+	dim as int32 before = any
 
 #ifdef ENABLE_MT
 	fb_MutexLock( tkort_threadFlagMutex )

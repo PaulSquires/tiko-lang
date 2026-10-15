@@ -59,7 +59,7 @@ extern "c"   '' NON-FBCALL: fb_private_console.h declares this one plainly, and
 		'' fbc's, in io_printbuff.o -- still C, and the only way to spell
 		'' FB_CON_CORRECT_POSITION.
 		declare sub tkrt_ConsolePrintBufferEx alias "fb_ConsolePrintBufferEx" _
-			( byval buffer as any ptr, byval l as uinteger, byval mask as long )
+			( byval buffer as any ptr, byval l as uinteger, byval mask as int32 )
 	end extern
 
 	#include once "inc/print.ti"
@@ -79,7 +79,7 @@ function tkort_ConsoleReadStr alias "fb_ConsoleReadStr" _
 	'' reads, or the first keystroke of the line is lost.
 	tkrt_hConsolePutBackEvents( )
 
-	dim as zstring ptr res = fgets( buffer, cast( long, len_ ), stdin )
+	dim as zstring ptr res = fgets( buffer, cast( int32, len_ ), stdin )
 
 	tkrt_hUpdateConsoleWindow( )
 
@@ -95,23 +95,23 @@ end function
 	const SEQ_DEL_CHAR_ = 14
 
 	extern "c"   '' NON-FBCALL: fbc's terminal layer and key reader, both C.
-		declare function tkrt_hGetCh alias "fb_hGetCh" ( byval blocking as long ) as long
+		declare function tkrt_hGetCh alias "fb_hGetCh" ( byval blocking as int32 ) as int32
 		declare sub tkrt_ConsolePrintBuffer alias "fb_ConsolePrintBuffer" _
-			( byval buffer as zstring ptr, byval mask as long )
+			( byval buffer as zstring ptr, byval mask as int32 )
 	end extern
 
 	extern "rtlib"   '' FBCALL: these three are decorated.
 		declare sub tkrt_ConsoleGetSize alias "fb_ConsoleGetSize" _
-			( byval cols as long ptr, byval rows as long ptr )
+			( byval cols as int32 ptr, byval rows as int32 ptr )
 		declare sub tkrt_ConsoleGetXY alias "fb_ConsoleGetXY" _
-			( byval x as long ptr, byval y as long ptr )
-		declare sub tkrt_Delay alias "fb_Delay" ( byval msecs as long )
+			( byval x as int32 ptr, byval y as int32 ptr )
+		declare sub tkrt_Delay alias "fb_Delay" ( byval msecs as int32 )
 	end extern
 
 function tkort_ConsoleReadStr alias "fb_ConsoleReadStr" _
 	( byval buffer as zstring ptr, byval len_ as integer ) as zstring ptr
 
-	dim as long k = any, x = any, y = any, cols = any
+	dim as int32 k = any, x = any, y = any, cols = any
 	dim as integer pos_ = 0
 	dim as zstring * 2 ch = any
 
@@ -119,7 +119,7 @@ function tkort_ConsoleReadStr alias "fb_ConsoleReadStr" _
 
 	'' THE FALLBACK, and the only path a harness reaches -- see the file header.
 	if( TKORT_CON_L( TKORT_CON_INITED ) = 0 ) then
-		return fgets( buffer, cast( long, len_ ), stdin )
+		return fgets( buffer, cast( int32, len_ ), stdin )
 	end if
 
 	tkrt_ConsoleGetSize( @cols, 0 )
@@ -154,7 +154,7 @@ function tkort_ConsoleReadStr alias "fb_ConsoleReadStr" _
 			end if
 		elseif( k <> 9 ) then           '' TAB IS DROPPED -- see the file header.
 			if( pos_ < len_ - 1 ) then
-				ch[0] = cast( ubyte, k )
+				ch[0] = cast( uint8, k )
 				buffer[pos_] = ch[0]
 				pos_ += 1
 				tkrt_ConsolePrintBuffer( @ch, 0 )

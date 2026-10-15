@@ -26,7 +26,7 @@
 #include once "inc/sysbind.ti"
 
 extern "rtlib"
-	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as long
+	declare function tkrt_FsMapOsError alias "fb_FsMapOsError" ( ) as int32
 end extern
 
 private sub hUArg( byval s as FBUSTRING ptr, byval ptr_ as FB_UCHAR ptr ptr, byval len_ as integer ptr )
@@ -69,30 +69,30 @@ const WFD_NAME_      = 44
 
 type FB_FSDIR
 	as any ptr  h
-	as ubyte    fd( 0 to WFD_SIZE_ - 1 )
-	as long     have          '' fd holds an entry not yet handed out
+	as uint8    fd( 0 to WFD_SIZE_ - 1 )
+	as int32     have          '' fd holds an entry not yet handed out
 end type
 
 extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
 	declare function w_FindFirstFileW stdcall alias "FindFirstFileW" _
 		( byval n as wstring ptr, byval fd as any ptr ) as any ptr
 	declare function w_FindNextFileW stdcall alias "FindNextFileW" _
-		( byval h as any ptr, byval fd as any ptr ) as long
-	declare function w_FindClose stdcall alias "FindClose" ( byval h as any ptr ) as long
+		( byval h as any ptr, byval fd as any ptr ) as int32
+	declare function w_FindClose stdcall alias "FindClose" ( byval h as any ptr ) as int32
 end extern
 
-private function hTicks( byval ft as ubyte ptr ) as longint
-	dim as ulong lo = *cptr( ulong ptr, ft )
-	dim as ulong hi = *cptr( ulong ptr, ft + 4 )
+private function hTicks( byval ft as uint8 ptr ) as int64
+	dim as uint32 lo = *cptr( uint32 ptr, ft )
+	dim as uint32 hi = *cptr( uint32 ptr, ft + 4 )
 	if( (lo = 0) andalso (hi = 0) ) then return 0
-	return cast( longint, (cast( ulongint, hi ) shl 32) or cast( ulongint, lo ) ) + FB_FS_TICKS_TO_FILETIME
+	return cast( int64, (cast( uint64, hi ) shl 32) or cast( uint64, lo ) ) + FB_FS_TICKS_TO_FILETIME
 end function
 
-private function hIsLinkTag( byval tag as ulong ) as long
+private function hIsLinkTag( byval tag as uint32 ) as int32
 	return iif( (tag = IO_REPARSE_TAG_SYMLINK_) orelse (tag = IO_REPARSE_TAG_MOUNT_POINT_), 1, 0 )
 end function
 
-private function hKindFromAttrs( byval attrs as ulong, byval tag as ulong ) as long
+private function hKindFromAttrs( byval attrs as uint32, byval tag as uint32 ) as int32
 	if( attrs = INVALID_FILE_ATTRIBUTES_ ) then return FB_FSKIND_NONE
 	if( ((attrs and FILE_ATTRIBUTE_REPARSE_POINT_) <> 0) andalso (hIsLinkTag( tag ) <> 0) ) then
 		return FB_FSKIND_LINK
@@ -106,7 +106,7 @@ private function hName( byval d as FB_FSDIR ptr ) as FB_UCHAR ptr
 	return cptr( FB_UCHAR ptr, @d->fd(WFD_NAME_) )
 end function
 
-private function hIsDotOrDotDot( byval n as FB_UCHAR ptr ) as long
+private function hIsDotOrDotDot( byval n as FB_UCHAR ptr ) as int32
 	if( n[0] <> 46 ) then return 0                      '' '.'
 	if( n[1] = 0 ) then return 1
 	return iif( (n[1] = 46) andalso (n[2] = 0), 1, 0 )
@@ -123,12 +123,12 @@ end sub
 extern "rtlib"
 
 function tkort_UStrFsDirOpen alias "fb_UStrFsDirOpen" _
-	( byval p as FBUSTRING ptr, byval out_ as FB_FSDIR ptr ptr ) as long
+	( byval p as FBUSTRING ptr, byval out_ as FB_FSDIR ptr ptr ) as int32
 
 	dim as FB_UCHAR ptr s = any, pat = any
 	dim as integer len_ = any, n = any
 	dim as FB_FSDIR ptr d = any
-	dim as long e = any
+	dim as int32 e = any
 
 	*out_ = 0
 
@@ -175,11 +175,11 @@ function tkort_UStrFsDirOpen alias "fb_UStrFsDirOpen" _
 end function
 
 function tkort_FsDirRead alias "fb_FsDirRead" _
-	( byval d as FB_FSDIR ptr, byval out_ as FB_FSDIRENT ptr ) as long
+	( byval d as FB_FSDIR ptr, byval out_ as FB_FSDIRENT ptr ) as int32
 
 	dim as integer n = any
 	dim as FB_UCHAR ptr nm = any
-	dim as ulong attrs = any
+	dim as uint32 attrs = any
 
 	if( d = 0 ) then return FB_FS_EXHAUSTED
 	if( d->have = 0 ) then return FB_FS_EXHAUSTED
@@ -195,13 +195,13 @@ function tkort_FsDirRead alias "fb_FsDirRead" _
 	out_->name(n) = 0
 	out_->namelen = n
 
-	attrs = *cptr( ulong ptr, @d->fd(WFD_ATTRS_) )
-	out_->kind = hKindFromAttrs( attrs, *cptr( ulong ptr, @d->fd(WFD_RESERVED0_) ) )
+	attrs = *cptr( uint32 ptr, @d->fd(WFD_ATTRS_) )
+	out_->kind = hKindFromAttrs( attrs, *cptr( uint32 ptr, @d->fd(WFD_RESERVED0_) ) )
 
 	'' Free on this platform -- the find record already has everything.
 	memset( @out_->info, 0, sizeof( FB_FSINFO ) )
-	out_->info.size_ = (cast( ulongint, *cptr( ulong ptr, @d->fd(WFD_SIZEHIGH_) ) ) shl 32) or _
-	                   cast( ulongint, *cptr( ulong ptr, @d->fd(WFD_SIZELOW_) ) )
+	out_->info.size_ = (cast( uint64, *cptr( uint32 ptr, @d->fd(WFD_SIZEHIGH_) ) ) shl 32) or _
+	                   cast( uint64, *cptr( uint32 ptr, @d->fd(WFD_SIZELOW_) ) )
 	out_->info.mtime = hTicks( @d->fd(WFD_MTIME_) )
 	out_->info.ctime = hTicks( @d->fd(WFD_CTIME_) )
 	out_->info.atime = hTicks( @d->fd(WFD_ATIME_) )
@@ -257,22 +257,22 @@ const S_IFREG_ = &o100000
 const S_IFLNK_ = &o120000
 
 type stat_
-	as ubyte raw( 0 to STAT_BUF_SIZE - 1 )
+	as uint8 raw( 0 to STAT_BUF_SIZE - 1 )
 end type
 
 type FB_FSDIR
 	as any ptr      d
 	as zstring ptr  path_        '' kept for the DT_UNKNOWN lstat fallback
-	as long         pathlen
+	as int32         pathlen
 end type
 
 extern "c"   '' NON-FBCALL: libc, not rtlib entry points.
 	declare function u_opendir alias "opendir" ( byval p as zstring ptr ) as any ptr
-	declare function u_readdir alias "readdir" ( byval d as any ptr ) as ubyte ptr
-	declare function u_closedir alias "closedir" ( byval d as any ptr ) as long
-	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as stat_ ptr ) as long
+	declare function u_readdir alias "readdir" ( byval d as any ptr ) as uint8 ptr
+	declare function u_closedir alias "closedir" ( byval d as any ptr ) as int32
+	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as stat_ ptr ) as int32
 	declare function u_strlen alias "strlen" ( byval s as zstring ptr ) as uinteger
-	declare function u_errno_location alias "__errno_location" ( ) as long ptr
+	declare function u_errno_location alias "__errno_location" ( ) as int32 ptr
 	declare function u_utf16to8 alias "fb_hUtf16ToUtf8" _
 		( byval src as FB_UCHAR ptr, byval units as integer, byval dst as zstring ptr, byval cap as integer ) as integer
 	declare function u_utf8to16 alias "fb_hUtf8ToUtf16" _
@@ -296,8 +296,8 @@ private function hFsNarrow( byval p as FBUSTRING ptr ) as zstring ptr
 	return b
 end function
 
-private function hKindFromMode( byval m as ulong ) as long
-	dim as ulong t = m and S_IFMT_
+private function hKindFromMode( byval m as uint32 ) as int32
+	dim as uint32 t = m and S_IFMT_
 	if( t = S_IFLNK_ ) then return FB_FSKIND_LINK
 	if( t = S_IFDIR_ ) then return FB_FSKIND_DIR
 	if( t = S_IFREG_ ) then return FB_FSKIND_FILE
@@ -305,11 +305,11 @@ private function hKindFromMode( byval m as ulong ) as long
 end function
 
 '' One lstat for a single entry whose d_type the filesystem would not tell us.
-private function hKindByLStat( byval d as FB_FSDIR ptr, byval name_ as zstring ptr ) as long
+private function hKindByLStat( byval d as FB_FSDIR ptr, byval name_ as zstring ptr ) as int32
 	dim as stat_ st = any
 	dim as zstring ptr full = any
 	dim as integer n = any, i = any, at = any
-	dim as long kind = FB_FSKIND_OTHER
+	dim as int32 kind = FB_FSKIND_OTHER
 
 	n = d->pathlen + 1 + cast( integer, u_strlen( name_ ) ) + 1
 
@@ -330,13 +330,13 @@ private function hKindByLStat( byval d as FB_FSDIR ptr, byval name_ as zstring p
 	next
 	full[at] = 0
 
-	if( u_lstat( full, @st ) = 0 ) then kind = hKindFromMode( *cptr( ulong ptr, @st.raw(STAT_MODE_) ) )
+	if( u_lstat( full, @st ) = 0 ) then kind = hKindFromMode( *cptr( uint32 ptr, @st.raw(STAT_MODE_) ) )
 
 	free( full )
 	return kind
 end function
 
-private function hIsDotOrDotDot( byval n as zstring ptr ) as long
+private function hIsDotOrDotDot( byval n as zstring ptr ) as int32
 	if( n[0] <> 46 ) then return 0
 	if( n[1] = 0 ) then return 1
 	return iif( (n[1] = 46) andalso (n[2] = 0), 1, 0 )
@@ -345,11 +345,11 @@ end function
 extern "rtlib"
 
 function tkort_UStrFsDirOpen alias "fb_UStrFsDirOpen" _
-	( byval p as FBUSTRING ptr, byval out_ as FB_FSDIR ptr ptr ) as long
+	( byval p as FBUSTRING ptr, byval out_ as FB_FSDIR ptr ptr ) as int32
 
 	dim as FB_FSDIR ptr h = any
 	dim as zstring ptr path_ = any
-	dim as long e = any
+	dim as int32 e = any
 
 	*out_ = 0
 
@@ -371,18 +371,18 @@ function tkort_UStrFsDirOpen alias "fb_UStrFsDirOpen" _
 	end if
 
 	h->path_ = path_
-	h->pathlen = cast( long, u_strlen( path_ ) )
+	h->pathlen = cast( int32, u_strlen( path_ ) )
 
 	*out_ = h
 	return FB_FS_OK
 end function
 
 function tkort_FsDirRead alias "fb_FsDirRead" _
-	( byval d as FB_FSDIR ptr, byval out_ as FB_FSDIRENT ptr ) as long
+	( byval d as FB_FSDIR ptr, byval out_ as FB_FSDIRENT ptr ) as int32
 
-	dim as ubyte ptr e = any
+	dim as uint8 ptr e = any
 	dim as zstring ptr nm = any
-	dim as ubyte dtype = any
+	dim as uint8 dtype = any
 	dim as integer n = any
 
 	if( d = 0 ) then return FB_FS_EXHAUSTED

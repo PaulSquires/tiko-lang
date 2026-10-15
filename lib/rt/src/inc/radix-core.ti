@@ -27,13 +27,13 @@
 '' The digit table is shared by both widths -- the values are ASCII either way,
 '' and the store widens on assignment.
 private function RDX(hDigits) _
-	( byval num as ulongint, byval shift as long ) as long
+	( byval num as uint64, byval shift as int32 ) as int32
 
 	'' COUNTS SIGNIFICANT CHUNKS, not bits: a 4-bit shift for hex, 3 for octal,
 	'' 1 for binary. The loop stops when the value is exhausted, which is why
 	'' HEX( 0 ) needs the special case below rather than falling out at zero.
-	dim as long digits = 0
-	dim as ulongint n = num
+	dim as int32 digits = 0
+	dim as uint64 n = num
 	while( n <> 0 )
 		digits += 1
 		n shr= shift
@@ -46,13 +46,13 @@ end function
 '' Fill `digits` positions from the LOW end upward, so the top is what gets lost
 '' when the field is too narrow.
 private sub RDX(hFill) _
-	( byval d as RDX_UNIT ptr, byval num as ulongint, _
-	  byval digits as long, byval shift as long, byval mask as ulongint, _
-	  byval ishex as long )
+	( byval d as RDX_UNIT ptr, byval num as uint64, _
+	  byval digits as int32, byval shift as int32, byval mask as uint64, _
+	  byval ishex as int32 )
 
-	dim as long i = digits - 1
+	dim as int32 i = digits - 1
 	while( i >= 0 )
-		dim as ulongint v = num and mask
+		dim as uint64 v = num and mask
 		if( ishex <> 0 ) then
 			'' 0-9 then A-F. Not a table lookup: the two ranges are contiguous
 			'' in ASCII apart from the seven characters between '9' and 'A'.

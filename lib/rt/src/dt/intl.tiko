@@ -47,18 +47,18 @@ const eFIL_NumThousandsSeparator = 3
 
 extern "c"   '' NON-FBCALL: fb_datetime.h declares all five plainly, and the
              '' drivers beneath them likewise.
-	declare function tkrt_I18nGet alias "fb_I18nGet" ( ) as long
+	declare function tkrt_I18nGet alias "fb_I18nGet" ( ) as int32
 	declare function tkrt_StrAllocTempDescZ alias "fb_StrAllocTempDescZ" _
 		( byval s as zstring ptr ) as FBSTRING ptr
-	declare function tkrt_DrvIntlGet alias "fb_DrvIntlGet" ( byval index_ as long ) as zstring ptr
+	declare function tkrt_DrvIntlGet alias "fb_DrvIntlGet" ( byval index_ as int32 ) as zstring ptr
 	declare function tkrt_DrvIntlGetDateFormat alias "fb_DrvIntlGetDateFormat" _
-		( byval buffer as zstring ptr, byval length_ as uinteger ) as long
+		( byval buffer as zstring ptr, byval length_ as uinteger ) as int32
 	declare function tkrt_DrvIntlGetTimeFormat alias "fb_DrvIntlGetTimeFormat" _
-		( byval buffer as zstring ptr, byval length_ as uinteger ) as long
+		( byval buffer as zstring ptr, byval length_ as uinteger ) as int32
 	declare function tkrt_DrvIntlGetMonthName alias "fb_DrvIntlGetMonthName" _
-		( byval month_ as long, byval short_names as long ) as FBSTRING ptr
+		( byval month_ as int32, byval short_names as int32 ) as FBSTRING ptr
 	declare function tkrt_DrvIntlGetWeekdayName alias "fb_DrvIntlGetWeekdayName" _
-		( byval weekday_ as long, byval short_names as long ) as FBSTRING ptr
+		( byval weekday_ as int32, byval short_names as int32 ) as FBSTRING ptr
 end extern
 
 '' The English defaults. Pointers to literals, exactly as fbc's static tables
@@ -86,7 +86,7 @@ extern "c"   '' NON-FBCALL, as declared above.
 '' THE ONLY ONE THAT CAN RETURN NULL FOR A WELL-FORMED CALL: an index outside the
 '' four falls off the bottom.
 function tkort_IntlGet alias "fb_IntlGet" _
-	( byval index_ as long, byval disallow_localized as long ) as zstring ptr
+	( byval index_ as int32, byval disallow_localized as int32 ) as zstring ptr
 
 	if( (tkrt_I18nGet( ) <> 0) andalso (disallow_localized = 0) ) then
 		dim as zstring ptr pszResult = tkrt_DrvIntlGet( index_ )
@@ -109,7 +109,7 @@ end function
 '' ten-byte buffer is REFUSED rather than truncated.
 function tkort_IntlGetDateFormat alias "fb_IntlGetDateFormat" _
 	( byval buffer as zstring ptr, byval length_ as uinteger, _
-	  byval disallow_localized as long ) as long
+	  byval disallow_localized as int32 ) as int32
 
 	if( (tkrt_I18nGet( ) <> 0) andalso (disallow_localized = 0) ) then
 		if( tkrt_DrvIntlGetDateFormat( buffer, length_ ) <> 0 ) then return 1
@@ -125,7 +125,7 @@ end function
 '' characters.
 function tkort_IntlGetTimeFormat alias "fb_IntlGetTimeFormat" _
 	( byval buffer as zstring ptr, byval length_ as uinteger, _
-	  byval disallow_localized as long ) as long
+	  byval disallow_localized as int32 ) as int32
 
 	if( (tkrt_I18nGet( ) <> 0) andalso (disallow_localized = 0) ) then
 		if( tkrt_DrvIntlGetTimeFormat( buffer, length_ ) <> 0 ) then return 1
@@ -141,8 +141,8 @@ end function
 '' THE RANGE CHECK COMES FIRST, before the driver -- so an out-of-range month is
 '' NULL whatever the locale says.
 function tkort_IntlGetMonthName alias "fb_IntlGetMonthName" _
-	( byval month_ as long, byval short_names as long, _
-	  byval disallow_localized as long ) as FBSTRING ptr
+	( byval month_ as int32, byval short_names as int32, _
+	  byval disallow_localized as int32 ) as FBSTRING ptr
 
 	dim as FBSTRING ptr res = any
 
@@ -166,8 +166,8 @@ function tkort_IntlGetMonthName alias "fb_IntlGetMonthName" _
 end function
 
 function tkort_IntlGetWeekdayName alias "fb_IntlGetWeekdayName" _
-	( byval weekday_ as long, byval short_names as long, _
-	  byval disallow_localized as long ) as FBSTRING ptr
+	( byval weekday_ as int32, byval short_names as int32, _
+	  byval disallow_localized as int32 ) as FBSTRING ptr
 
 	dim as FBSTRING ptr res = any
 

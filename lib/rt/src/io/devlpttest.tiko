@@ -44,7 +44,7 @@
 '' header alone and the copy lives immediately after it.
 type DEV_LPT_PROTOCOL
 	as zstring ptr proto
-	as long        iPort
+	as int32        iPort
 	as zstring ptr name_
 	as zstring ptr title_
 	as zstring ptr emu
@@ -54,7 +54,7 @@ end type
 #assert offsetof( DEV_LPT_PROTOCOL, name_ ) = 16
 
 '' The copy starts immediately after the header -- fbc's `raw` member.
-#define TKORT_LPT_RAW( pr ) cast( ubyte ptr, cast( ubyte ptr, pr ) + sizeof( DEV_LPT_PROTOCOL ) )
+#define TKORT_LPT_RAW( pr ) cast( uint8 ptr, cast( uint8 ptr, pr ) + sizeof( DEV_LPT_PROTOCOL ) )
 
 '' isspace, over the ASCII set the parser can meet.
 #define TKORT_ISSPACE( c ) ( ((c) = 32) orelse (((c) >= 9) andalso ((c) <= 13)) )
@@ -62,11 +62,11 @@ end type
 '' Case-insensitive compare of a NUL-terminated string against an ASCII literal,
 '' written out because strcasecmp is _stricmp on MinGW and binding it needs a
 '' different name per platform for four lines of code.
-private function hEqualsCI( byval s as ubyte ptr, byval lit as zstring ptr ) as long
-	dim as ubyte ptr l = cast( ubyte ptr, lit )
+private function hEqualsCI( byval s as uint8 ptr, byval lit as zstring ptr ) as int32
+	dim as uint8 ptr l = cast( uint8 ptr, lit )
 	dim as integer i = 0
 	do
-		dim as ubyte a = s[i], b = l[i]
+		dim as uint8 a = s[i], b = l[i]
 		if( (a >= 97) andalso (a <= 122) ) then a -= 32
 		if( (b >= 97) andalso (b <= 122) ) then b -= 32
 		if( a <> b ) then return 0
@@ -76,10 +76,10 @@ private function hEqualsCI( byval s as ubyte ptr, byval lit as zstring ptr ) as 
 end function
 
 '' Case-insensitive compare of the first n characters.
-private function hEqualsCIN( byval s as ubyte ptr, byval lit as zstring ptr, byval n as integer ) as long
-	dim as ubyte ptr l = cast( ubyte ptr, lit )
+private function hEqualsCIN( byval s as uint8 ptr, byval lit as zstring ptr, byval n as integer ) as int32
+	dim as uint8 ptr l = cast( uint8 ptr, lit )
 	for i as integer = 0 to n - 1
-		dim as ubyte a = s[i], b = l[i]
+		dim as uint8 a = s[i], b = l[i]
 		if( (a >= 97) andalso (a <= 122) ) then a -= 32
 		if( (b >= 97) andalso (b <= 122) ) then b -= 32
 		if( a <> b ) then return 0
@@ -89,7 +89,7 @@ private function hEqualsCIN( byval s as ubyte ptr, byval lit as zstring ptr, byv
 end function
 
 '' strchr over a ubyte ptr, returning NULL when absent.
-private function hChr( byval s as ubyte ptr, byval c as ubyte ) as ubyte ptr
+private function hChr( byval s as uint8 ptr, byval c as uint8 ) as uint8 ptr
 	dim as integer i = 0
 	do
 		if( s[i] = c ) then return s + i
@@ -102,7 +102,7 @@ extern "c"   '' NON-FBCALL: fb_printer.h declares both plainly.
 
 function tkort_DevLptParseProtocol alias "fb_DevLptParseProtocol" _
 	( byval lpt_proto_out as DEV_LPT_PROTOCOL ptr ptr, byval proto_raw as zstring ptr, _
-	  byval proto_raw_len as uinteger, byval subst_prn as long ) as long
+	  byval proto_raw_len as uinteger, byval subst_prn as int32 ) as int32
 
 	if( proto_raw = 0 ) then return 0
 	if( lpt_proto_out = 0 ) then return 0
@@ -114,12 +114,12 @@ function tkort_DevLptParseProtocol alias "fb_DevLptParseProtocol" _
 	dim as DEV_LPT_PROTOCOL ptr lpt_proto = *lpt_proto_out
 	if( lpt_proto = 0 ) then return 0
 
-	dim as ubyte ptr raw_ = TKORT_LPT_RAW( lpt_proto )
+	dim as uint8 ptr raw_ = TKORT_LPT_RAW( lpt_proto )
 	strncpy( cast( zstring ptr, raw_ ), proto_raw, proto_raw_len )
 	raw_[proto_raw_len] = 0
 
-	dim as ubyte ptr p = raw_
-	dim as ubyte ptr ptail = raw_ + strlen( cast( zstring ptr, raw_ ) )
+	dim as uint8 ptr p = raw_
+	dim as uint8 ptr ptail = raw_ + strlen( cast( zstring ptr, raw_ ) )
 
 	'' ALL FOUR AT THE TERMINATOR, so an absent field reads as "" -- see the
 	'' file header.
@@ -140,7 +140,7 @@ function tkort_DevLptParseProtocol alias "fb_DevLptParseProtocol" _
 	'' "LPTx:"
 	if( hEqualsCIN( p, @"LPT", 3 ) = 0 ) then return 0
 
-	dim as ubyte ptr pc = hChr( p, 58 )                 '' ':'
+	dim as uint8 ptr pc = hChr( p, 58 )                 '' ':'
 	if( pc = 0 ) then return 0
 
 	lpt_proto->proto = cast( zstring ptr, p )
@@ -161,8 +161,8 @@ function tkort_DevLptParseProtocol alias "fb_DevLptParseProtocol" _
 		if( TKORT_ISSPACE( *p ) orelse (*p = 44) ) then      '' ',' or space
 			p += 1
 		else
-			dim as ubyte ptr pt = any
-			dim as ubyte ptr pe = hChr( p, 61 )              '' '='
+			dim as uint8 ptr pt = any
+			dim as uint8 ptr pe = hChr( p, 61 )              '' '='
 			pc = hChr( p, 44 )                               '' ','
 
 			'' AN '=' BEYOND THE NEXT ',' BELONGS TO A LATER FIELD, so this one
@@ -223,10 +223,10 @@ end function
 '' device, only answer whether it parses.
 function tkort_DevLptTestProtocol alias "fb_DevLptTestProtocol" _
 	( byval handle as FB_FILE ptr, byval filename as zstring ptr, _
-	  byval filename_len as uinteger ) as long
+	  byval filename_len as uinteger ) as int32
 
 	dim as DEV_LPT_PROTOCOL ptr lpt_proto = any
-	dim as long ret = tkort_DevLptParseProtocol( @lpt_proto, filename, filename_len, 0 )
+	dim as int32 ret = tkort_DevLptParseProtocol( @lpt_proto, filename, filename_len, 0 )
 	'' FREED EVEN WHEN THE PARSE FAILED -- the allocation happens before any of
 	'' the failure returns, so a rejected string still has a block to release.
 	if( lpt_proto <> 0 ) then free( lpt_proto )

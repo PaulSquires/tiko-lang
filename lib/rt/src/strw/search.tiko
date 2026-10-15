@@ -113,8 +113,8 @@ function tkort_WstrInstrRev alias "fb_WstrInstrRev" _
 			'' matched anything -- every InstrRev returned 0. Third time today
 			'' that indexing a wstring ptr without a local went wrong, and the
 			'' first in a COMPARISON rather than a cast.
-			dim as ulong __a = src[start_ - i + j - 1]
-			dim as ulong __b = patt[j]
+			dim as uint32 __a = src[start_ - i + j - 1]
+			dim as uint32 __b = patt[j]
 			if( __a <> __b ) then exit while
 			j += 1
 		wend
@@ -152,9 +152,9 @@ function tkort_WstrInstrRevAny alias "fb_WstrInstrRevAny" _
 
 	while( start_ > 0 )
 		start_ -= 1
-		dim as ulong __c = src[start_]
+		dim as uint32 __c = src[start_]
 		for i as integer = 0 to size_patt - 1
-			dim as ulong __p = patt[i]
+			dim as uint32 __p = patt[i]
 			if( __c = __p ) then return start_ + 1
 		next
 	wend

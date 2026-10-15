@@ -52,16 +52,16 @@ const TKORT_EXEC_MAXPATH = 1024
 
 extern "c"   '' NON-FBCALL: the string internals and tiko-rt's own helpers.
 	declare function tkrt_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 	declare sub fb_StrLock alias "fb_StrLock" ( )
 	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
 	declare sub tkrt_hConvertPath alias "fb_hConvertPath" ( byval p as zstring ptr )
 	declare function tkrt_hParseArgs alias "fb_hParseArgs" _
-		( byval dst as zstring ptr, byval src as zstring ptr, byval l as integer ) as long
+		( byval dst as zstring ptr, byval src as zstring ptr, byval l as integer ) as int32
 end extern
 
 extern "rtlib"   '' FBCALL: fb_hStrDelTemp is decorated.
-	declare function tkrt_hStrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as long
+	declare function tkrt_hStrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 end extern
 
 #ifdef ENABLE_MT
@@ -81,7 +81,7 @@ end extern
 		'' VARIADIC, and therefore cdecl: the argument list is terminated by a
 		'' NULL, which is why these cannot be declared with a fixed arity.
 		declare function crt_spawnl alias "_spawnl" _
-			( byval mode_ as long, byval path as zstring ptr, ... ) as integer
+			( byval mode_ as int32, byval path as zstring ptr, ... ) as integer
 		declare function crt_execl alias "_execl" _
 			( byval path as zstring ptr, ... ) as integer
 		declare function tkrt_hGetShortPath alias "fb_hGetShortPath" _
@@ -89,18 +89,18 @@ end extern
 		'' fbc's, in io_printbuff.o -- still C, and the reason this file cannot
 		'' spell FB_CON_CORRECT_POSITION as anything but a call.
 		declare sub tkrt_ConsolePrintBufferEx alias "fb_ConsolePrintBufferEx" _
-			( byval buffer as any ptr, byval l as uinteger, byval mask as long )
+			( byval buffer as any ptr, byval l as uinteger, byval mask as int32 )
 	end extern
 
 #else
 
 	extern "c"   '' NON-FBCALL: libc, and fbc's console bracket.
-		declare function u_fork alias "fork" ( ) as long
+		declare function u_fork alias "fork" ( ) as int32
 		declare function u_execvp alias "execvp" _
-			( byval file_ as zstring ptr, byval argv as zstring ptr ptr ) as long
+			( byval file_ as zstring ptr, byval argv as zstring ptr ptr ) as int32
 		declare function u_waitpid alias "waitpid" _
-			( byval pid as long, byval status as long ptr, byval options as long ) as long
-		declare sub u__exit alias "_exit" ( byval code as long )
+			( byval pid as int32, byval status as int32 ptr, byval options as int32 ) as int32
+		declare sub u__exit alias "_exit" ( byval code as int32 )
 		declare sub tkrt_hExitConsole alias "fb_hExitConsole" ( )
 		declare sub tkrt_hInitConsole alias "fb_hInitConsole" ( )
 	end extern
@@ -118,12 +118,12 @@ extern "rtlib"   '' FBCALL: fb_system.h decorates fb_ExecEx, and the win32
 
 function tkort_ExecEx alias "fb_ExecEx" _
 	( byval program as FBSTRING ptr, byval args as FBSTRING ptr, _
-	  byval do_fork as long ) as long
+	  byval do_fork as int32 ) as int32
 
 	dim as zstring * TKORT_EXEC_MAXPATH buffer = any
 	dim as zstring ptr arguments = 0
 	dim as integer len_arguments = 0
-	dim as long res = -1
+	dim as int32 res = -1
 
 	'' A MISSING PROGRAM CONSUMES BOTH ARGUMENTS AND FAILS. This happens before
 	'' the lock, so it is the LOCKING delete.
@@ -169,9 +169,9 @@ function tkort_ExecEx alias "fb_ExecEx" _
 		'' THE ARGUMENT LIST IS NULL-TERMINATED, which is what makes these
 		'' variadic rather than three-argument calls.
 		if( do_fork <> 0 ) then
-			res = cast( long, crt_spawnl( TKORT_P_WAIT, @buffer, @buffer, arguments, 0 ) )
+			res = cast( int32, crt_spawnl( TKORT_P_WAIT, @buffer, @buffer, arguments, 0 ) )
 		else
-			res = cast( long, crt_execl( @buffer, @buffer, arguments, 0 ) )
+			res = cast( int32, crt_execl( @buffer, @buffer, arguments, 0 ) )
 		end if
 
 		'' Freed on every path that returns -- alloca would have done it.
@@ -184,7 +184,7 @@ function tkort_ExecEx alias "fb_ExecEx" _
 
 		tkrt_hConvertPath( @buffer )
 
-		dim as long argc = 0
+		dim as int32 argc = 0
 
 		if( args = 0 ) then
 			arguments = @""
@@ -242,7 +242,7 @@ function tkort_ExecEx alias "fb_ExecEx" _
 		STRUNLOCK()
 
 		if( do_fork <> 0 ) then
-			dim as long pid = u_fork( )
+			dim as int32 pid = u_fork( )
 			if( pid <> -1 ) then
 				if( pid = 0 ) then
 					'' THE CHILD. execvp only returns if it FAILED, and there is
@@ -254,7 +254,7 @@ function tkort_ExecEx alias "fb_ExecEx" _
 					'' fork() did not duplicate.
 					u__exit( 255 )
 				else
-					dim as long status = any
+					dim as int32 status = any
 					if( (u_waitpid( pid, @status, 0 ) > 0) andalso TKORT_WIFEXITED( status ) ) then
 						res = TKORT_WEXITSTATUS( status )
 						'' AND THE AMBIGUITY fbc ACCEPTS: a child that really

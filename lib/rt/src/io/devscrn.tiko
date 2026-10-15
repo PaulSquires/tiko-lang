@@ -26,14 +26,14 @@
 '' The SCREEN device's opaque block: a small pushback buffer for INPUT.
 type DEV_SCRN_INFO
 	as zstring * 16 buffer
-	as ulong        length_
+	as uint32        length_
 end type
 
 const FB_FILE_ACCESS_READWRITE = 3
 
 extern "rtlib"
-	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as long ptr, byval rows as long ptr )
-	declare function tkrt_GetX alias "fb_GetX" ( ) as long
+	declare sub tkrt_GetSize alias "fb_GetSize" ( byval cols as int32 ptr, byval rows as int32 ptr )
+	declare function tkrt_GetX alias "fb_GetX" ( ) as int32
 end extern
 
 '' All-NULL, and file-scope so its address is stable for the life of the
@@ -43,7 +43,7 @@ dim shared as FB_FILE_HOOKS hooks_dev_scrn_null
 extern "c"   '' NON-FBCALL: fb_device.h declares all five plain.
 
 sub tkort_DevScrnUpdateWidth alias "fb_DevScrnUpdateWidth" ( )
-	dim as long cols = any
+	dim as int32 cols = any
 	tkrt_GetSize( @cols, 0 )
 	'' The COLUMN, minus one -- not the width. See the header.
 	TKORT_HANDLE_SCREEN()->line_length = tkrt_GetX( ) - 1

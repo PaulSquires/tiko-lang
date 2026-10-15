@@ -48,10 +48,10 @@ extern "c"   '' NON-FBCALL: libc's case-insensitive compare, spelled
 	'' see src/sys/sys.ti for why fbc cannot tell us itself.
 	#ifdef TKORT_MSVC
 	declare function crt_strncasecmp alias "_strnicmp" _
-		( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as long
+		( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as int32
 	#else
 	declare function crt_strncasecmp alias "strncasecmp" _
-		( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as long
+		( byval a as zstring ptr, byval b as zstring ptr, byval n as uinteger ) as int32
 	#endif
 end extern
 
@@ -63,9 +63,9 @@ extern "c"   '' NON-FBCALL: fb_serial.h declares both plainly, and the win32
 '' a caller comparing against -1 never matches.
 function tkort_DevComTestProtocolEx alias "fb_DevComTestProtocolEx" _
 	( byval handle as any ptr, byval filename as zstring ptr, _
-	  byval filename_len as uinteger, byval pPort as uinteger ptr ) as long
+	  byval filename_len as uinteger, byval pPort as uinteger ptr ) as int32
 
-	dim as ubyte ch = any
+	dim as uint8 ch = any
 	dim as uinteger i = any, port = any
 
 	'' ZEROED BEFORE ANYTHING CAN FAIL -- see the file header.
@@ -127,7 +127,7 @@ end function
 '' The yes/no form: the same test with the port discarded.
 function tkort_DevComTestProtocol alias "fb_DevComTestProtocol" _
 	( byval handle as any ptr, byval filename as zstring ptr, _
-	  byval filename_len as uinteger ) as long
+	  byval filename_len as uinteger ) as int32
 
 	return tkort_DevComTestProtocolEx( handle, filename, filename_len, 0 )
 end function

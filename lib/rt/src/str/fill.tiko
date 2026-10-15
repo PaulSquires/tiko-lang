@@ -26,13 +26,13 @@ extern "rtlib"
 	declare function fb_hStrAllocTemp alias "fb_hStrAllocTemp" _
 		( byval s as FBSTRING ptr, byval length as integer ) as FBSTRING ptr
 	declare function tkrt_DelTemp alias "fb_hStrDelTemp" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 end extern
 
 extern "rtlib"
 
 private function hFill _
-	( byval cnt as integer, byval ch as long ) as FBSTRING ptr
+	( byval cnt as integer, byval ch as int32 ) as FBSTRING ptr
 
 	if( cnt <= 0 ) then return TKORT_NULLSTR( )
 
@@ -45,7 +45,7 @@ private function hFill _
 end function
 
 function tkort_StrFill1 alias "fb_StrFill1" _
-	( byval cnt as integer, byval fchar as long ) as FBSTRING ptr
+	( byval cnt as integer, byval fchar as int32 ) as FBSTRING ptr
 	return hFill( cnt, fchar )
 end function
 
@@ -56,13 +56,13 @@ function tkort_StrFill2 alias "fb_StrFill2" _
 	'' happens on every path including the degenerate ones -- an early return
 	'' that skipped it would strand a pool descriptor per call, which is the
 	'' shape of bugs 12 through 15.
-	dim as long ch = 0
+	dim as int32 ch = 0
 	dim as integer usable = 0
 
 	if( src <> 0 ) then
 		if( src->data <> 0 ) then
 			if( FB_STRSIZE( src ) > 0 ) then
-				ch = cast( long, cptr( ubyte ptr, src->data )[0] )
+				ch = cast( int32, cptr( uint8 ptr, src->data )[0] )
 				usable = 1
 			end if
 		end if

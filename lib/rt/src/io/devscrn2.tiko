@@ -49,8 +49,8 @@ const FB_FILE_ACCESS_READWRITE_ = 3
 const TKORT_SCRN_BUFSIZE = 16
 
 type DEV_SCRN_INFO
-	as ubyte    buffer( 0 to TKORT_SCRN_BUFSIZE - 1 )
-	as ulong    length_
+	as uint8    buffer( 0 to TKORT_SCRN_BUFSIZE - 1 )
+	as uint32    length_
 end type
 
 extern "rtlib"
@@ -58,8 +58,8 @@ extern "rtlib"
 	declare sub tkrt_DevScrnInit_NoOpen alias "fb_DevScrnInit_NoOpen" ( )
 	declare sub tkrt_DevScrnInit_Screen alias "fb_DevScrnInit_Screen" ( )
 	declare sub tkrt_DevScrnEnd alias "fb_DevScrnEnd" ( byval handle as FB_FILE ptr )
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as long ) as long
-	declare function tkrt_IsRedirected alias "fb_IsRedirected" ( byval is_input as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as int32 ) as int32
+	declare function tkrt_IsRedirected alias "fb_IsRedirected" ( byval is_input as int32 ) as int32
 	declare sub tkrt_StrDelete alias "fb_StrDelete" ( byval s as FBSTRING ptr )
 	declare sub tkrt_WstrAssignFromA alias "fb_WstrAssignFromA" _
 		( byval dst as wstring ptr, byval dst_chars as integer, byval src as any ptr, byval src_size as integer )
@@ -68,22 +68,22 @@ extern "rtlib"
 
 	'' fbc's own: the keyboard, the delay and the line editor.
 	declare function tkrt_Inkey alias "fb_Inkey" ( ) as FBSTRING ptr
-	declare function tkrt_KeyHit alias "fb_KeyHit" ( ) as long
-	declare sub tkrt_Delay alias "fb_Delay" ( byval ms as ulong )
+	declare function tkrt_KeyHit alias "fb_KeyHit" ( ) as int32
+	declare sub tkrt_Delay alias "fb_Delay" ( byval ms as uint32 )
 	declare function tkrt_LineInput alias "fb_LineInput" _
-		( byval text as FBSTRING ptr, byval dst as any ptr, byval dst_len as long, _
-		  byval fillrem as long, byval addquestion as long, byval addnewline as long ) as long
+		( byval text as FBSTRING ptr, byval dst as any ptr, byval dst_len as int32, _
+		  byval fillrem as int32, byval addquestion as int32, byval addnewline as int32 ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: internal, declared plain in fb_print.h and fb_device.h.
 	declare sub tkrt_PrintBufferEx alias "fb_PrintBufferEx" _
-		( byval s as any ptr, byval len_ as uinteger, byval mask as long )
+		( byval s as any ptr, byval len_ as uinteger, byval mask as int32 )
 	declare sub tkrt_PrintBufferWstrEx alias "fb_PrintBufferWstrEx" _
-		( byval s as any ptr, byval len_ as uinteger, byval mask as long )
+		( byval s as any ptr, byval len_ as uinteger, byval mask as int32 )
 	declare function tkrt_DevFileRead alias "fb_DevFileRead" _
-		( byval handle as FB_FILE ptr, byval dst as any ptr, byval plen as uinteger ptr ) as long
+		( byval handle as FB_FILE ptr, byval dst as any ptr, byval plen as uinteger ptr ) as int32
 	declare function tkrt_DevFileReadWstr alias "fb_DevFileReadWstr" _
-		( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as long
+		( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as int32
 	declare sub tkrt_hStrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr )
 end extern
 
@@ -106,20 +106,20 @@ extern "c"   '' NON-FBCALL, and THE FORWARD DECLARATION DECIDES: these eight
              '' definitions below were moved to extern "c". symbols.sh went
              '' 17 -> 8, not 17 -> 0.
 
-declare function tkort_DevScrnEof alias "fb_DevScrnEof" ( byval handle as FB_FILE ptr ) as long
-declare function tkort_DevScrnClose alias "fb_DevScrnClose" ( byval handle as FB_FILE ptr ) as long
+declare function tkort_DevScrnEof alias "fb_DevScrnEof" ( byval handle as FB_FILE ptr ) as int32
+declare function tkort_DevScrnClose alias "fb_DevScrnClose" ( byval handle as FB_FILE ptr ) as int32
 declare function tkort_DevScrnRead alias "fb_DevScrnRead" _
-	( byval handle as FB_FILE ptr, byval value as any ptr, byval plen as uinteger ptr ) as long
+	( byval handle as FB_FILE ptr, byval value as any ptr, byval plen as uinteger ptr ) as int32
 declare function tkort_DevScrnReadWstr alias "fb_DevScrnReadWstr" _
-	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as long
+	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as int32
 declare function tkort_DevScrnWrite alias "fb_DevScrnWrite" _
-	( byval handle as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as long
+	( byval handle as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as int32
 declare function tkort_DevScrnWriteWstr alias "fb_DevScrnWriteWstr" _
-	( byval handle as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as long
+	( byval handle as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as int32
 declare function tkort_DevScrnReadLine alias "fb_DevScrnReadLine" _
-	( byval handle as FB_FILE ptr, byval dst as FBSTRING ptr ) as long
+	( byval handle as FB_FILE ptr, byval dst as FBSTRING ptr ) as int32
 declare function tkort_DevScrnReadLineWstr alias "fb_DevScrnReadLineWstr" _
-	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval dst_chars as integer ) as long
+	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval dst_chars as integer ) as int32
 
 end extern
 
@@ -134,7 +134,7 @@ end extern
 '' of them, because the hooks are reached THROUGH the handle and the handle gets
 '' its table there.
 dim shared as FB_FILE_HOOKS tkort_hooks_dev_scrn
-dim shared as long tkort_hooks_filled
+dim shared as int32 tkort_hooks_filled
 
 private sub hFillTable( )
 	if( tkort_hooks_filled <> 0 ) then exit sub
@@ -159,7 +159,7 @@ extern "c"   '' NON-FBCALL: every dev_scrn name is UNDECORATED in fbc's win32
 '' -------------------------------------------------------------------- open
 
 function tkort_DevScrnOpen alias "fb_DevScrnOpen" _
-	( byval handle as FB_FILE ptr, byval filename as zstring ptr, byval filename_len as uinteger ) as long
+	( byval handle as FB_FILE ptr, byval filename as zstring ptr, byval filename_len as uinteger ) as int32
 
 	'' `srcinfo`, not `screeninfo`: SCREENINFO is a FreeBASIC graphics STATEMENT,
 	'' and the collision reports at the DECLARATION here rather than at a use.
@@ -223,7 +223,7 @@ end sub
 
 '' ------------------------------------------------------------------- close
 
-function tkort_DevScrnClose alias "fb_DevScrnClose" ( byval handle as FB_FILE ptr ) as long
+function tkort_DevScrnClose alias "fb_DevScrnClose" ( byval handle as FB_FILE ptr ) as int32
 	TKORT_IOLOCK()
 	tkrt_DevScrnEnd( handle )
 	TKORT_IOUNLOCK()
@@ -258,9 +258,9 @@ sub tkort_DevScrnFillInput alias "fb_DevScrnFillInput" ( byval info as DEV_SCRN_
 	info->length_ = len_
 end sub
 
-function tkort_DevScrnEof alias "fb_DevScrnEof" ( byval handle as FB_FILE ptr ) as long
+function tkort_DevScrnEof alias "fb_DevScrnEof" ( byval handle as FB_FILE ptr ) as int32
 	dim as DEV_SCRN_INFO ptr info = any
-	dim as long got_data = any
+	dim as int32 got_data = any
 
 	TKORT_IOLOCK()
 	info = cptr( DEV_SCRN_INFO ptr, hDeref( handle )->opaque )
@@ -280,7 +280,7 @@ end function
 '' ------------------------------------------------------------------- write
 
 function tkort_DevScrnWrite alias "fb_DevScrnWrite" _
-	( byval handle as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as long
+	( byval handle as FB_FILE ptr, byval value as any ptr, byval valuelen as uinteger ) as int32
 	'' fb_PrintBufferEx, the THREE-argument console one -- not the file
 	'' fb_hFilePrintBufferEx, which would recurse straight back into this device.
 	tkrt_PrintBufferEx( value, valuelen, 0 )
@@ -297,7 +297,7 @@ sub tkort_DevScrnInit_Write alias "fb_DevScrnInit_Write" ( )
 end sub
 
 function tkort_DevScrnWriteWstr alias "fb_DevScrnWriteWstr" _
-	( byval handle as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as long
+	( byval handle as FB_FILE ptr, byval value as wstring ptr, byval valuelen as uinteger ) as int32
 	tkrt_PrintBufferWstrEx( value, valuelen, 0 )
 	return tkrt_ErrorSetNum( FB_RTERROR_OK )
 end function
@@ -314,11 +314,11 @@ end sub
 '' -------------------------------------------------------------------- read
 
 function tkort_DevScrnRead alias "fb_DevScrnRead" _
-	( byval handle as FB_FILE ptr, byval value as any ptr, byval plen as uinteger ptr ) as long
+	( byval handle as FB_FILE ptr, byval value as any ptr, byval plen as uinteger ptr ) as int32
 
 	dim as uinteger length_ = any, copy_length = any
 	dim as DEV_SCRN_INFO ptr info = any
-	dim as ubyte ptr pach = value
+	dim as uint8 ptr pach = value
 
 	TKORT_IOLOCK()
 
@@ -369,12 +369,12 @@ end extern
 '' The stdin alternative, installed instead of the keyboard reader when input is
 '' redirected. Private, and it exists only to be a function POINTER.
 private function hReadFromStdin cdecl _
-	( byval handle as FB_FILE ptr, byval dst as any ptr, byval plen as uinteger ptr ) as long
+	( byval handle as FB_FILE ptr, byval dst as any ptr, byval plen as uinteger ptr ) as int32
 	return tkrt_DevFileRead( 0, dst, plen )
 end function
 
 private function hReadFromStdinWstr cdecl _
-	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as long
+	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as int32
 	return tkrt_DevFileReadWstr( 0, dst, pchars )
 end function
 
@@ -399,7 +399,7 @@ end sub
 '' WIDE INPUT IS NARROW INPUT WIDENED -- fbc's own comment says "no unicode input
 '' supported", and the byte buffer is converted on the way out.
 function tkort_DevScrnReadWstr alias "fb_DevScrnReadWstr" _
-	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as long
+	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval pchars as uinteger ptr ) as int32
 
 	dim as uinteger chars = any, copy_chars = any, len_ = any
 	dim as DEV_SCRN_INFO ptr info = any
@@ -467,7 +467,7 @@ end sub
 '' rather than through the pushback buffer the character reads use.
 
 function tkort_DevScrnReadLine alias "fb_DevScrnReadLine" _
-	( byval handle as FB_FILE ptr, byval dst as FBSTRING ptr ) as long
+	( byval handle as FB_FILE ptr, byval dst as FBSTRING ptr ) as int32
 	'' -1 length, no fill, no question mark, but DO add the newline.
 	return tkrt_LineInput( 0, dst, -1, 0, 0, 1 )
 end function
@@ -482,9 +482,9 @@ sub tkort_DevScrnInit_ReadLine alias "fb_DevScrnInit_ReadLine" ( )
 end sub
 
 function tkort_DevScrnReadLineWstr alias "fb_DevScrnReadLineWstr" _
-	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval dst_chars as integer ) as long
+	( byval handle as FB_FILE ptr, byval dst as wstring ptr, byval dst_chars as integer ) as int32
 
-	dim as long res = any
+	dim as int32 res = any
 	dim as FBSTRING temp_ = ( 0, 0, 0 )
 
 	res = tkrt_LineInput( 0, @temp_, -1, 0, 0, 1 )

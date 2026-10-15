@@ -13,8 +13,8 @@
 '' FreeBASIC's TRUE is -1, not 1. Runtime entry points that return a BASIC
 '' boolean must return this, and the ones that return a C int must not.
 
-const FB_TRUE  as long = -1
-const FB_FALSE as long =  0
+const FB_TRUE  as int32 = -1
+const FB_FALSE as int32 =  0
 
 '' ----------------------------------------------------------- the sign bit
 ''

@@ -16,7 +16,7 @@
 
 extern "rtlib"
 	declare function tkrt_DelTempNoLock alias "fb_hStrDelTemp_NoLock" _
-		( byval s as FBSTRING ptr ) as long
+		( byval s as FBSTRING ptr ) as int32
 	declare sub fb_StrLock alias "fb_StrLock" ( )
 	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
 end extern
@@ -68,14 +68,14 @@ function tkort_StrInstrAny alias "fb_StrInstrAny" _
 
 		if( usable <> 0 ) then
 			dim as integer search_len = size_src - start + 1
-			dim as ubyte ptr text_ = cptr( ubyte ptr, src->data ) + start - 1
-			dim as ubyte ptr pd = cptr( ubyte ptr, patt->data )
+			dim as uint8 ptr text_ = cptr( uint8 ptr, src->data ) + start - 1
+			dim as uint8 ptr pd = cptr( uint8 ptr, patt->data )
 
 			r = search_len
 			for i as integer = 0 to size_patt - 1
 				dim as any ptr hit = memchr( text_, pd[i], r )
 				if( hit <> 0 ) then
-					dim as integer found = cast( integer, cast( ubyte ptr, hit ) - text_ )
+					dim as integer found = cast( integer, cast( uint8 ptr, hit ) - text_ )
 					if( found < r ) then r = found
 				end if
 			next
@@ -141,8 +141,8 @@ function tkort_StrInstrRevAny alias "fb_StrInstrRevAny" _
 				start = 0
 			end if
 
-			dim as ubyte ptr sd = cptr( ubyte ptr, src->data )
-			dim as ubyte ptr pd = cptr( ubyte ptr, patt->data )
+			dim as uint8 ptr sd = cptr( uint8 ptr, src->data )
+			dim as uint8 ptr pd = cptr( uint8 ptr, patt->data )
 
 			'' C's `while( start-- && (r == 0) )`: test, then decrement, and the
 			'' body sees the DECREMENTED value.

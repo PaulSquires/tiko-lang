@@ -43,11 +43,11 @@
 #ifndef __FB_WIN32__
 
 '' Window is an XID -- `unsigned long`, eight bytes here. See the file header.
-type XWINDOW as ulongint
+type XWINDOW as uint64
 
 type XOPENDISPLAY   as function cdecl ( byval name_ as zstring ptr ) as any ptr
-type XCLOSEDISPLAY  as function cdecl ( byval d as any ptr ) as long
-type XGETINPUTFOCUS as function cdecl ( byval d as any ptr, byval w as XWINDOW ptr, byval revert as long ptr ) as long
+type XCLOSEDISPLAY  as function cdecl ( byval d as any ptr ) as int32
+type XGETINPUTFOCUS as function cdecl ( byval d as any ptr, byval w as XWINDOW ptr, byval revert as int32 ptr ) as int32
 
 '' THE FIELD ORDER IS THE NAME ORDER -- see the file header. These three are
 '' filled positionally by fb_hDynLoad.
@@ -67,7 +67,7 @@ end extern
 
 '' File-local state, all of it. FreeBASIC emits a module-level `dim shared` as a
 '' local symbol, which is what fbc's `static` gives too.
-dim shared as long    tkort_xf_refcount = 0
+dim shared as int32    tkort_xf_refcount = 0
 dim shared as any ptr tkort_xf_xlib
 dim shared as X_FUNCS tkort_xf_X
 dim shared as any ptr tkort_xf_display
@@ -81,9 +81,9 @@ dim shared as zstring ptr  tkort_xf_names( 0 to 3 )
 
 extern "c"   '' NON-FBCALL: all three are declared plain and the archive agrees.
 
-function tkort_hXTermInitFocus alias "fb_hXTermInitFocus" ( ) as long
+function tkort_hXTermInitFocus alias "fb_hXTermInitFocus" ( ) as int32
 
-	dim as long dummy = any
+	dim as int32 dummy = any
 
 	'' ABOVE ONE AFTER INCREMENTING means someone else already opened it.
 	tkort_xf_refcount += 1
@@ -131,10 +131,10 @@ sub tkort_hXTermExitFocus alias "fb_hXTermExitFocus" ( )
 
 end sub
 
-function tkort_hXTermHasFocus alias "fb_hXTermHasFocus" ( ) as long
+function tkort_hXTermHasFocus alias "fb_hXTermHasFocus" ( ) as int32
 
 	dim as XWINDOW focus_window = any
-	dim as long dummy = any
+	dim as int32 dummy = any
 
 	tkort_xf_X.GetInputFocus( tkort_xf_display, @focus_window, @dummy )
 

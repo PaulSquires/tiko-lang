@@ -70,13 +70,13 @@
 type DEV_LPT_INFO
 	as any ptr      driver_opaque
 	as zstring ptr  pszDevice
-	as long         iPort
+	as int32         iPort
 	as uinteger     uiRefCount
 end type
 
 type DEV_LPT_PROTOCOL
 	as zstring ptr proto
-	as long        iPort
+	as int32        iPort
 	as zstring ptr name_
 	as zstring ptr title_
 	as zstring ptr emu
@@ -88,22 +88,22 @@ end type
 extern "c"   '' NON-FBCALL: CRT.
 	declare function crt_popen alias "popen" _
 		( byval cmd as zstring ptr, byval mode_ as zstring ptr ) as FILE ptr
-	declare function crt_pclose alias "pclose" ( byval f as FILE ptr ) as long
+	declare function crt_pclose alias "pclose" ( byval f as FILE ptr ) as int32
 end extern
 
 extern "c"   '' NON-FBCALL: rtlib internals, declared plain in fb_printer.h and
              '' fb_unicode.h.
 	declare function tkrt_DevLptParseProtocol alias "fb_DevLptParseProtocol" _
 		( byval lpt_proto_out as DEV_LPT_PROTOCOL ptr ptr, byval proto_raw as zstring ptr, _
-		  byval proto_raw_len as uinteger, byval subst_prn as long ) as long
+		  byval proto_raw_len as uinteger, byval subst_prn as int32 ) as int32
 	declare function tkrt_WCharToUTF alias "fb_WCharToUTF" _
-		( byval encod as long, byval src as wstring ptr, byval chars as integer, _
+		( byval encod as int32, byval src as wstring ptr, byval chars as integer, _
 		  byval dst as zstring ptr, byval bytes as integer ptr ) as zstring ptr
 end extern
 
 extern "rtlib"   '' FBCALL: fb_ErrorSetNum is decorated on win32 -- and this file
                  '' is empty there, but the declaration stays correct either way.
-	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as long ) as long
+	declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval e as int32 ) as int32
 end extern
 
 '' FILE-STATIC AND SHARED BETWEEN THREADS -- see the file header.
@@ -114,10 +114,10 @@ dim shared as zstring * 256 tkort_lp_buf
 '' THE test_default BRANCH IS THE BROKEN ONE. See the file header: the "no
 '' default printer" check is inside the FAILED-read arm, so it examines the
 '' previous line rather than the current one. Reproduced exactly.
-private function tkort_exec_lp_cmd( byval cmd as zstring ptr, byval test_default as long ) as long
+private function tkort_exec_lp_cmd( byval cmd as zstring ptr, byval test_default as int32 ) as int32
 
-	dim as long have_default = -1        '' assume a default printer exists
-	dim as long result_ = -1
+	dim as int32 have_default = -1        '' assume a default printer exists
+	dim as int32 result_ = -1
 
 	dim as FILE ptr fp = crt_popen( cmd, @"r" )
 	if( fp <> 0 ) then
@@ -126,8 +126,8 @@ private function tkort_exec_lp_cmd( byval cmd as zstring ptr, byval test_default
 				'' READS THE **PREVIOUS** LINE. fbc's, kept -- see the header.
 				if( (test_default <> 0) andalso (have_default <> 0) andalso _
 				    (strlen( @tkort_lp_buf ) > 2) ) then
-					dim as ubyte c0 = cptr( ubyte ptr, @tkort_lp_buf )[0]
-					dim as ubyte c1 = cptr( ubyte ptr, @tkort_lp_buf )[1]
+					dim as uint8 c0 = cptr( uint8 ptr, @tkort_lp_buf )[0]
+					dim as uint8 c1 = cptr( uint8 ptr, @tkort_lp_buf )[1]
 					if( ((c0 = 110) orelse (c0 = 78)) andalso _
 					    ((c1 = 111) orelse (c1 = 79)) ) then      '' "no" / "NO"
 						have_default = 0
@@ -147,10 +147,10 @@ end function
 extern "c"   '' NON-FBCALL: fb_printer.h declares all four plainly.
 
 function tkort_PrinterOpen alias "fb_PrinterOpen" _
-	( byval devInfo as DEV_LPT_INFO ptr, byval iPort as long, _
-	  byval pszDeviceRaw as zstring ptr ) as long
+	( byval devInfo as DEV_LPT_INFO ptr, byval iPort as int32, _
+	  byval pszDeviceRaw as zstring ptr ) as int32
 
-	dim as long result_ = any
+	dim as int32 result_ = any
 	dim as zstring ptr filename = 0
 	dim as FILE ptr fp = any
 	dim as DEV_LPT_PROTOCOL ptr lpt_proto = 0
@@ -172,7 +172,7 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 			return tkrt_ErrorSetNum( FB_RTERROR_OUTOFMEM )
 		end if
 
-		if( (lpt_proto->name_ <> 0) andalso (cptr( ubyte ptr, lpt_proto->name_ )[0] <> 0) ) then
+		if( (lpt_proto->name_ <> 0) andalso (cptr( uint8 ptr, lpt_proto->name_ )[0] <> 0) ) then
 			'' A NAMED PRINTER MUST EXIST FIRST. `lpstat -v "name"` is asked
 			'' before anything is built, and a non-zero status is reported as
 			'' FILE NOT FOUND rather than as a printer error.
@@ -201,7 +201,7 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 			strcpy( filename, @"lp " )
 		end if
 
-		if( cptr( ubyte ptr, lpt_proto->title_ )[0] <> 0 ) then
+		if( cptr( uint8 ptr, lpt_proto->title_ )[0] <> 0 ) then
 			strcat( filename, @"-t """ )
 			strcat( filename, lpt_proto->title_ )
 			strcat( filename, @"""" )
@@ -216,10 +216,10 @@ function tkort_PrinterOpen alias "fb_PrinterOpen" _
 		'' SANITISED AFTER ASSEMBLY, NOT BEFORE -- see the file header for why
 		'' that ordering matters and what it does and does not buy.
 		scope
-			dim as ubyte ptr ptr_ = cast( ubyte ptr, strpbrk( filename, @"`&;|>^$\" ) )
+			dim as uint8 ptr ptr_ = cast( uint8 ptr, strpbrk( filename, @"`&;|>^$\" ) )
 			while( ptr_ <> 0 )
 				*ptr_ = 95                                   '' '_'
-				ptr_ = cast( ubyte ptr, strpbrk( cast( zstring ptr, ptr_ ), @"`&;|>^$\" ) )
+				ptr_ = cast( uint8 ptr, strpbrk( cast( zstring ptr, ptr_ ), @"`&;|>^$\" ) )
 			wend
 		end scope
 
@@ -271,7 +271,7 @@ end function
 '' complete ITEM of `length` bytes. A partial write returns 0 and is reported as
 '' FILEIO with no indication of how much got through.
 function tkort_PrinterWrite alias "fb_PrinterWrite" _
-	( byval devInfo as DEV_LPT_INFO ptr, byval data_ as any ptr, byval length_ as uinteger ) as long
+	( byval devInfo as DEV_LPT_INFO ptr, byval data_ as any ptr, byval length_ as uinteger ) as int32
 
 	dim as FILE ptr fp = cast( FILE ptr, devInfo->driver_opaque )
 	if( fwrite( data_, length_, 1, fp ) <> 1 ) then
@@ -284,7 +284,7 @@ end function
 '' raw code units. fbc's own comment here is "!!!FIXME!!! is this ok?", and the
 '' answer it settled on is what ships.
 function tkort_PrinterWriteWstr alias "fb_PrinterWriteWstr" _
-	( byval devInfo as DEV_LPT_INFO ptr, byval buffer as wstring ptr, byval chars as uinteger ) as long
+	( byval devInfo as DEV_LPT_INFO ptr, byval buffer as wstring ptr, byval chars as uinteger ) as int32
 
 	dim as FILE ptr fp = cast( FILE ptr, devInfo->driver_opaque )
 	dim as integer bytes_ = any
@@ -309,10 +309,10 @@ end function
 '' header. And only the SPOOLER's status is checked: a failing fclose on a
 '' device node is ignored.
 function tkort_PrinterClose alias "fb_PrinterClose" _
-	( byval devInfo as DEV_LPT_INFO ptr ) as long
+	( byval devInfo as DEV_LPT_INFO ptr ) as int32
 
 	if( devInfo->iPort = 0 ) then
-		dim as long result_ = crt_pclose( cast( FILE ptr, devInfo->driver_opaque ) ) shr 8
+		dim as int32 result_ = crt_pclose( cast( FILE ptr, devInfo->driver_opaque ) ) shr 8
 		devInfo->driver_opaque = 0
 		if( result_ <> 0 ) then return tkrt_ErrorSetNum( FB_RTERROR_FILEIO )
 	else

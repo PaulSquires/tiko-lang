@@ -18,9 +18,9 @@
 '' definition in this project to be `tkort_X alias "fb_X"`.
 extern "rtlib"
 	declare function tkrt_Ucase2 alias "fb_StrUcase2" _
-		( byval s as FBSTRING ptr, byval mode as long ) as FBSTRING ptr
+		( byval s as FBSTRING ptr, byval mode as int32 ) as FBSTRING ptr
 	declare function tkrt_Lcase2 alias "fb_StrLcase2" _
-		( byval s as FBSTRING ptr, byval mode as long ) as FBSTRING ptr
+		( byval s as FBSTRING ptr, byval mode as int32 ) as FBSTRING ptr
 end extern
 
 extern "rtlib"

@@ -22,7 +22,7 @@
 #include once "inc/sysbind.ti"
 
 extern "rtlib"
-	declare sub tkrt_End alias "fb_End" ( byval errlevel as long )
+	declare sub tkrt_End alias "fb_End" ( byval errlevel as int32 )
 end extern
 
 extern "c"   '' NON-FBCALL: fb_unicode.h declares the converter plainly.
@@ -42,7 +42,7 @@ extern "rtlib"
 
 '' ASSERT: format, publish, die.
 sub tkort_Assert alias "fb_Assert" _
-	( byval filename as zstring ptr, byval linenum as long, _
+	( byval filename as zstring ptr, byval linenum as int32, _
 	  byval funcname as zstring ptr, byval expression as zstring ptr )
 
 	'' Into fbc's OWN buffer, not one of ours -- fb_hRtExit reads that address
@@ -63,7 +63,7 @@ end sub
 '' ASSERTWARN: stderr, and carry on. It does NOT touch __fb_ctx.errmsg -- the
 '' program is still running, so there is no exit path to hand a message to.
 sub tkort_AssertWarn alias "fb_AssertWarn" _
-	( byval filename as zstring ptr, byval linenum as long, _
+	( byval filename as zstring ptr, byval linenum as int32, _
 	  byval funcname as zstring ptr, byval expression as zstring ptr )
 
 	fprintf( stderr, TKORT_ASSERT_FMT, filename, linenum, funcname, expression )
@@ -76,7 +76,7 @@ private sub hConvToA( byval buffer as zstring ptr, byval expression as wstring p
 end sub
 
 sub tkort_AssertW alias "fb_AssertW" _
-	( byval filename as zstring ptr, byval linenum as long, _
+	( byval filename as zstring ptr, byval linenum as int32, _
 	  byval funcname as zstring ptr, byval expression as wstring ptr )
 	dim as zstring * TKORT_ASSERT_BUFSIZE buffer
 	hConvToA( @buffer, expression )
@@ -84,7 +84,7 @@ sub tkort_AssertW alias "fb_AssertW" _
 end sub
 
 sub tkort_AssertWarnW alias "fb_AssertWarnW" _
-	( byval filename as zstring ptr, byval linenum as long, _
+	( byval filename as zstring ptr, byval linenum as int32, _
 	  byval funcname as zstring ptr, byval expression as wstring ptr )
 	dim as zstring * TKORT_ASSERT_BUFSIZE buffer
 	hConvToA( @buffer, expression )

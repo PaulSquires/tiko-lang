@@ -58,7 +58,7 @@ const MAIN_PROC_NAME    = "(main)"
 const THREAD_PROC_NAME  = "(thread)"
 const UNNAMED_PROC_NAME = "(unnamed)"
 
-const FB_TLSKEY_PROFILE as long = 6
+const FB_TLSKEY_PROFILE as int32 = 6
 
 const PROCINFO_FLAGS_NONE    = 0
 const PROCINFO_FLAGS_MAIN    = 1
@@ -69,29 +69,29 @@ const PROCINFO_FLAGS_FOREIGN = 8
 type FB_PROCINFO_
 	as zstring ptr      name
 	as FB_PROCINFO_ ptr parent
-	as double           start_time
-	as double           local_time
-	as longint          local_count
-	as ulong            hashkey
-	as long             proc_id
+	as float64           start_time
+	as float64           local_time
+	as int64          local_count
+	as uint32            hashkey
+	as int32             proc_id
 	as FB_PROCINFO_ ptr child( 0 to PROC_MAX_CHILDREN - 1 )
 	as FB_PROCINFO_ ptr nxt
-	as long             flags
+	as int32             flags
 end type
 
 type FB_PROCINFO_TB_
 	as FB_PROCINFO_       procinfo( 0 to PROC_INFO_TB_SIZE - 1 )
 	as FB_PROCINFO_TB_ ptr nxt
-	as long               next_free
-	as long               proc_tb_id
+	as int32               next_free
+	as int32               proc_tb_id
 end type
 
 type FB_PROCARRAY
 	as FB_PROCINFO_ ptr ptr   arr
 	as STRING_HASH_           hash_
 	as STRING_HASH_TABLE_ ptr ignores
-	as long                   nused
-	as long                   cap_
+	as int32                   nused
+	as int32                   cap_
 end type
 
 type FB_PROFILER_THREAD_
@@ -101,7 +101,7 @@ type FB_PROFILER_THREAD_
 	as STRING_HASH_TABLE_      strings_hash
 	as FB_PROCINFO_TB_ ptr     proc_tb
 	as FB_PROFILER_THREAD_ ptr nxt
-	as long                    last_proc_id
+	as int32                    last_proc_id
 end type
 
 type FB_PROFILECTX
@@ -117,10 +117,10 @@ end type
 
 extern "rtlib"
 	declare function fb_TlsGetCtx alias "fb_TlsGetCtx" _
-		( byval idx as long, byval length as uinteger, byval dtor as any ptr ) as any ptr
-	declare function tkrt_Timer alias "fb_Timer" ( ) as double
+		( byval idx as int32, byval length as uinteger, byval dtor as any ptr ) as any ptr
+	declare function tkrt_Timer alias "fb_Timer" ( ) as float64
 	declare function tkrt_ProfileGetFileName alias "fb_ProfileGetFileName" _
-		( byval f as zstring ptr, byval l as long ) as long
+		( byval f as zstring ptr, byval l as int32 ) as int32
 end extern
 
 '' The calls profiler's own global, distinct from profile/core.tiko's
@@ -142,7 +142,7 @@ private function hCtx( ) as FB_PROFILECTX ptr
 end function
 
 private function hThreadAddString( byval ctx as FB_PROFILER_THREAD_ ptr, _
-                                   byval src as zstring ptr, byval hashkey as ulong ) as zstring ptr
+                                   byval src as zstring ptr, byval hashkey as uint32 ) as zstring ptr
 	dim as STRING_INFO ptr info = STRING_HASH_TABLE_add( @ctx->strings_hash, src, hashkey )
 	return cptr( zstring ptr, info + 1 )
 end function
@@ -211,7 +211,7 @@ end sub
 '' hash, which is what makes find_unique_procs able to skip duplicates.
 private sub hArrAdd( byval lst as FB_PROCARRAY ptr, byval proc as FB_PROCINFO_ ptr )
 	dim as FB_PROCINFO_ ptr ptr new_array = 0
-	dim as long s = lst->cap_
+	dim as int32 s = lst->cap_
 
 	if( s = 0 ) then
 		s = 16
@@ -235,7 +235,7 @@ end sub
 '' ROOTS SORT FIRST, then by name -- a node with no parent is the thread entry
 '' and has to head its section. Two roots compare equal, so their relative
 '' order is whatever the sort leaves.
-private function hNameSorter cdecl( byval e1 as any ptr, byval e2 as any ptr ) as long
+private function hNameSorter cdecl( byval e1 as any ptr, byval e2 as any ptr ) as int32
 	dim as FB_PROCINFO_ ptr p1 = *cptr( FB_PROCINFO_ ptr ptr, e1 )
 	dim as FB_PROCINFO_ ptr p2 = *cptr( FB_PROCINFO_ ptr ptr, e2 )
 
@@ -254,7 +254,7 @@ private sub hArrSortByName( byval lst as FB_PROCARRAY ptr )
 end sub
 
 '' DESCENDING by time -- the slowest first.
-private function hTimeSorter cdecl( byval e1 as any ptr, byval e2 as any ptr ) as long
+private function hTimeSorter cdecl( byval e1 as any ptr, byval e2 as any ptr ) as int32
 	dim as FB_PROCINFO_ ptr p1 = *cptr( FB_PROCINFO_ ptr ptr, e1 )
 	dim as FB_PROCINFO_ ptr p2 = *cptr( FB_PROCINFO_ ptr ptr, e2 )
 	if( p1->local_time > p2->local_time ) then return -1
@@ -269,7 +269,7 @@ end sub
 private sub hFindAllProcs( byval lst as FB_PROCARRAY ptr, byval proc_tb as FB_PROCINFO_TB_ ptr )
 	dim as FB_PROCINFO_TB_ ptr tb = proc_tb
 	dim as FB_PROCINFO_ ptr proc = any
-	dim as long i = any
+	dim as int32 i = any
 	while( tb <> 0 )
 		for i = 0 to tb->next_free - 1
 			proc = @tb->procinfo(i)
@@ -286,7 +286,7 @@ end sub
 private sub hFindUniqueProcs( byval lst as FB_PROCARRAY ptr, byval proc_tb as FB_PROCINFO_TB_ ptr )
 	dim as FB_PROCINFO_TB_ ptr tb = proc_tb
 	dim as FB_PROCINFO_ ptr proc = any
-	dim as long i = any
+	dim as int32 i = any
 	while( tb <> 0 )
 		for i = 0 to tb->next_free - 1
 			proc = @tb->procinfo(i)
@@ -357,7 +357,7 @@ end extern
 private sub hMetricsProcs( byval metrics as FB_PROFILER_METRICS ptr, _
                            byval proc_tb as FB_PROCINFO_TB_ ptr )
 	dim as FB_PROCINFO_TB_ ptr tb = any
-	dim as long i = any
+	dim as int32 i = any
 	if( metrics = 0 ) then exit sub
 	if( proc_tb = 0 ) then exit sub
 	tb = proc_tb
@@ -447,7 +447,7 @@ private sub hCallsDestroy( )
 	calls_profiler = 0
 end sub
 
-private function hNewProcId( byval ctx as FB_PROFILER_THREAD_ ptr ) as long
+private function hNewProcId( byval ctx as FB_PROFILER_THREAD_ ptr ) as int32
 	ctx->last_proc_id += 1
 	return ctx->last_proc_id
 end function
@@ -460,8 +460,8 @@ end function
 '' negative len pads nothing. Computing the width from strlen instead would
 '' differ wherever fprintf's own conversion differs from the source string.
 
-private sub hPadSpaces( byval f as FILE ptr, byval length_ as long )
-	dim as long i = length_
+private sub hPadSpaces( byval f as FILE ptr, byval length_ as int32 )
+	dim as int32 i = length_
 	while( i > 0 )
 		fprintf( f, @" " )
 		i -= 1
@@ -471,7 +471,7 @@ end sub
 '' A file-scope "have we written a section yet" flag: the FIRST section gets no
 '' leading blank lines and every later one gets two. It is never reset, so a
 '' second report in one process starts glued to the first -- fbc's behaviour.
-dim shared as long hSectionStarted = 0
+dim shared as int32 hSectionStarted = 0
 
 private sub hPadSection( byval f as FILE ptr )
 	if( hSectionStarted <> 0 ) then
@@ -481,7 +481,7 @@ private sub hPadSection( byval f as FILE ptr )
 	end if
 end sub
 
-private function hProcIsRecursive( byval proc as FB_PROCINFO_ ptr ) as long
+private function hProcIsRecursive( byval proc as FB_PROCINFO_ ptr ) as int32
 	dim as FB_PROCINFO_ ptr p = proc
 	if( p = 0 ) then return 0
 	p = p->parent
@@ -497,11 +497,11 @@ end function
 '' PROFILE_OPTION_REPORT_CALLS, one parent and its children.
 private sub hReportCallsProc( byval prof as FB_PROFILER_CALLS ptr, _
                               byval ctx as FB_PROFILER_THREAD_ ptr, byval f as FILE ptr, _
-                              byval parent_proc as FB_PROCINFO_ ptr, byval col as long )
+                              byval parent_proc as FB_PROCINFO_ ptr, byval col as int32 )
 	dim as FB_PROCINFO_ ptr proc = any
 	dim as FB_PROCARRAY proc_list = any
-	dim as long j = any, length_ = any
-	dim as long opts = prof->global_->options
+	dim as int32 j = any, length_ = any
+	dim as int32 opts = prof->global_->options
 
 	hArrCtor( @proc_list, @prof->global_->strings_hash, @prof->global_->ignores_hash )
 
@@ -582,10 +582,10 @@ end sub
 private sub hReportCallsFunctions( byval prof as FB_PROFILER_CALLS ptr, _
                                    byval ctx as FB_PROFILER_THREAD_ ptr, byval f as FILE ptr )
 	dim as FB_PROCARRAY lst = any
-	dim as long i = any, length_ = any
-	dim as long max_len = STRING_TABLE_max_len( @ctx->strings )
-	dim as long col = any
-	dim as long opts = prof->global_->options
+	dim as int32 i = any, length_ = any
+	dim as int32 max_len = STRING_TABLE_max_len( @ctx->strings )
+	dim as int32 col = any
+	dim as int32 opts = prof->global_->options
 
 	'' The column is the longest name plus the 8-space indent plus one, with
 	'' a floor of 20 so a short report still lines up.
@@ -628,10 +628,10 @@ private sub hReportCallsGlobals( byval prof as FB_PROFILER_CALLS ptr, _
 	dim as FB_PROCINFO_TB_ ptr tb = 0
 	dim as FB_PROCARRAY list_all = any, lst = any
 	dim as FB_PROCINFO_ ptr last_p = 0, p = any, q = any, proc = any
-	dim as long i = any, length_ = any
-	dim as long max_len = STRING_TABLE_max_len( @ctx->strings )
-	dim as long col = any
-	dim as long opts = prof->global_->options
+	dim as int32 i = any, length_ = any
+	dim as int32 max_len = STRING_TABLE_max_len( @ctx->strings )
+	dim as int32 col = any
+	dim as int32 opts = prof->global_->options
 
 	col = max_len + 8 + 1
 	if( col < 20 ) then col = 20
@@ -705,7 +705,7 @@ end sub
 '' either "|  " or "   " depending on whether the parent was the last child, and
 '' hPopLeader removes exactly three. Pushing 0 appends nothing and only
 '' re-terminates, which is how the current level is drawn without extending it.
-private sub hPushLeader( byval prof as FB_PROFILER_CALLS ptr, byval ch as long )
+private sub hPushLeader( byval prof as FB_PROFILER_CALLS ptr, byval ch as int32 )
 	dim as integer newsize = any
 	dim as zstring ptr newbuffer = any
 
@@ -744,15 +744,15 @@ end sub
 
 private sub hReportCallTreeProc( byval prof as FB_PROFILER_CALLS ptr, _
                                  byval ctx as FB_PROFILER_THREAD_ ptr, byval f as FILE ptr, _
-                                 byval proc as FB_PROCINFO_ ptr, byval isfirst as long, _
-                                 byval islast as long )
+                                 byval proc as FB_PROCINFO_ ptr, byval isfirst as int32, _
+                                 byval islast as int32 )
 	'' ASCII by default; the graphics set is CP437 line-drawing, which is
 	'' why they are byte values rather than characters.
-	static as ubyte asc_chars(0 to 3) = { 124, 45, 124, 92 }      '' | - | \
-	static as ubyte gfx_chars(0 to 3) = { 179, 196, 195, 192 }
-	dim as ubyte ptr ch = any
+	static as uint8 asc_chars(0 to 3) = { 124, 45, 124, 92 }      '' | - | \
+	static as uint8 gfx_chars(0 to 3) = { 179, 196, 195, 192 }
+	dim as uint8 ptr ch = any
 	dim as FB_PROCINFO_ ptr p = any
-	dim as long i = any, j = any, children = 0
+	dim as int32 i = any, j = any, children = 0
 	dim as FB_PROCARRAY lst = any
 
 	if( (prof->global_->options and PROFILE_OPTION_GRAPHICS_CHARS) <> 0 ) then
@@ -828,10 +828,10 @@ end sub
 '' PROFILE_OPTION_REPORT_RAWLIST -- every (caller, callee) node, unsorted.
 private sub hReportRawList( byval prof as FB_PROFILER_CALLS ptr, _
                             byval ctx as FB_PROFILER_THREAD_ ptr, byval f as FILE ptr )
-	dim as long ncol = any, col = any, i = any, max_len = any
+	dim as int32 ncol = any, col = any, i = any, max_len = any
 	dim as FB_PROCINFO_TB_ ptr tb = any
 	dim as FB_PROCINFO_ ptr proc = any
-	dim as long opts = prof->global_->options
+	dim as int32 opts = prof->global_->options
 
 	max_len = STRING_TABLE_max_len( @ctx->strings )
 	'' NO +8 here, unlike the per-function report -- these rows are not
@@ -890,10 +890,10 @@ end sub
 '' PROFILE_OPTION_REPORT_RAWDATA -- the same rows with one level of children.
 private sub hReportRawDataProc( byval prof as FB_PROFILER_CALLS ptr, _
                                 byval ctx as FB_PROFILER_THREAD_ ptr, byval f as FILE ptr, _
-                                byval proc as FB_PROCINFO_ ptr, byval level as long, _
-                                byval max_len as long, byval recursion as long )
-	dim as long ncol = any, col = any, j = any
-	dim as long opts = prof->global_->options
+                                byval proc as FB_PROCINFO_ ptr, byval level as int32, _
+                                byval max_len as int32, byval recursion as int32 )
+	dim as int32 ncol = any, col = any, j = any
+	dim as int32 opts = prof->global_->options
 
 	col = iif( max_len >= 20, max_len, 20 )
 
@@ -941,10 +941,10 @@ end sub
 
 private sub hReportRawData( byval prof as FB_PROFILER_CALLS ptr, _
                             byval ctx as FB_PROFILER_THREAD_ ptr, byval f as FILE ptr )
-	dim as long i = any, max_len = any, ncol = any, col = any
+	dim as int32 i = any, max_len = any, ncol = any, col = any
 	dim as FB_PROCINFO_TB_ ptr tb = any
 	dim as FB_PROCINFO_ ptr proc = any
-	dim as long opts = prof->global_->options
+	dim as int32 opts = prof->global_->options
 
 	max_len = STRING_TABLE_max_len( @ctx->strings )
 	col = iif( max_len >= 20, max_len, 20 )
@@ -983,7 +983,7 @@ private sub hReportRawStrings( byval prof as FB_PROFILER_CALLS ptr, _
 	dim as STRING_INFO_TB_ ptr tb = ctx->strings.tb
 	dim as STRING_INFO ptr info = any
 	dim as integer index_ = any
-	dim as long opts = prof->global_->options
+	dim as int32 opts = prof->global_->options
 
 	if( (opts and PROFILE_OPTION_HIDE_TITLES) = 0 ) then
 		hPadSection( f )
@@ -1121,7 +1121,7 @@ end sub
 
 private sub hInitCall( byval ctx as FB_PROFILER_THREAD_ ptr, byval proc as FB_PROCINFO_ ptr, _
                        byval procname as zstring ptr )
-	dim as ulong hashkey = fb_ProfileHashName( procname )
+	dim as uint32 hashkey = fb_ProfileHashName( procname )
 
 	proc->name = hThreadAddString( ctx, procname, hashkey )
 	proc->hashkey = hashkey
@@ -1150,12 +1150,12 @@ private function hPushCall( byval ctx as FB_PROFILER_THREAD_ ptr, _
                             byval parent_proc as FB_PROCINFO_ ptr, _
                             byval procname as zstring ptr ) as FB_PROCINFO_ ptr
 	dim as FB_PROCINFO_ ptr orig_parent_proc = any, proc = any
-	dim as long j = any, hash_index = any, offset_ = any
-	dim as ulong hashkey = fb_ProfileHashName( procname )
-	dim as long found = 0
+	dim as int32 j = any, hash_index = any, offset_ = any
+	dim as uint32 hashkey = fb_ProfileHashName( procname )
+	dim as int32 found = 0
 
 	orig_parent_proc = parent_proc
-	hash_index = cast( long, hashkey mod PROC_MAX_CHILDREN )
+	hash_index = cast( int32, hashkey mod PROC_MAX_CHILDREN )
 	if( hash_index <> 0 ) then
 		offset_ = PROC_MAX_CHILDREN - hash_index
 	else
@@ -1202,7 +1202,7 @@ end function
 '' ACCUMULATES rather than assigns: a procedure called many times from one
 '' caller sums into a single node.
 private sub hPopCall( byval ctx as FB_PROFILER_THREAD_ ptr, byval proc as FB_PROCINFO_ ptr )
-	dim as double end_time = tkrt_Timer( )
+	dim as float64 end_time = tkrt_Timer( )
 	proc->local_time += (end_time - proc->start_time)
 	ctx->thread_proc = proc->parent
 end sub
@@ -1329,7 +1329,7 @@ sub tkort_InitProfile alias "fb_InitProfile" ( )
 end sub
 
 '' Returns its argument, so it can be spliced into the exit path.
-function tkort_EndProfile alias "fb_EndProfile" ( byval errorlevel as long ) as long
+function tkort_EndProfile alias "fb_EndProfile" ( byval errorlevel as int32 ) as int32
 	dim as FB_PROFILECTX ptr tls = hCtx( )
 	dim as FB_PROFILER_THREAD_ ptr ctx = tls->ctx
 	dim as FB_PROFILER_CALLS ptr prof = calls_profiler

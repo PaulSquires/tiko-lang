@@ -36,7 +36,7 @@ end function
 
 '' -1 / 0 / +1, never a raw difference (PROBE-18).
 function tkort_WstrCompare alias "fb_WstrCompare" _
-	( byval s1 as wstring ptr, byval s2 as wstring ptr ) as long
+	( byval s1 as wstring ptr, byval s2 as wstring ptr ) as int32
 
 	'' A NULL OPERAND IS AN EMPTY STRING, not "less than everything".
 	''

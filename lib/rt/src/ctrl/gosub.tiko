@@ -40,7 +40,7 @@ end type
 
 extern "rtlib"
 
-declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as long ) as long
+declare function tkrt_ErrorSetNum alias "fb_ErrorSetNum" ( byval errnum as int32 ) as int32
 
 '' Pushes a node and hands back the address of ITS jmp_buf, for the caller to
 '' setjmp into. The return value is the buffer, not the node.
@@ -53,7 +53,7 @@ end function
 
 '' Discards the top return address without jumping -- RETURN's bookkeeping when
 '' the jump is not wanted.
-function tkort_GosubPop alias "fb_GosubPop" ( byval ctx as GOSUBCTX ptr ) as long
+function tkort_GosubPop alias "fb_GosubPop" ( byval ctx as GOSUBCTX ptr ) as int32
 	if( ctx <> 0 ) then
 		if( ctx->top <> 0 ) then
 			dim as GOSUBNODE ptr node = ctx->top->nxt
@@ -66,7 +66,7 @@ function tkort_GosubPop alias "fb_GosubPop" ( byval ctx as GOSUBCTX ptr ) as lon
 end function
 
 '' Pops and jumps. DOES NOT RETURN on success.
-function tkort_GosubReturn alias "fb_GosubReturn" ( byval ctx as GOSUBCTX ptr ) as long
+function tkort_GosubReturn alias "fb_GosubReturn" ( byval ctx as GOSUBCTX ptr ) as int32
 	if( ctx <> 0 ) then
 		if( ctx->top <> 0 ) then
 			dim as GOSUBNODE ptr node = ctx->top->nxt
@@ -99,7 +99,7 @@ function tkort_GosubReturn alias "fb_GosubReturn" ( byval ctx as GOSUBCTX ptr ) 
 			''
 			'' The SOURCE needs no such care: it lives at offset 0 of a malloc'd
 			'' node, and malloc is 16-aligned on every target here.
-			dim as ubyte raw( 0 to sizeof( jmp_buf ) + 15 ) = any
+			dim as uint8 raw( 0 to sizeof( jmp_buf ) + 15 ) = any
 			dim as uinteger a = cast( uinteger, @raw(0) )
 			a = (a + 15) and (not cast( uinteger, 15 ))
 			dim as jmp_buf ptr buf = cptr( jmp_buf ptr, a )

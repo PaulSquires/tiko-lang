@@ -28,16 +28,16 @@
 
 extern "rtlib"
 	declare function tkrt_UAllocTempDesc alias "fb_hUStrAllocTempDesc" ( ) as FBUSTRING ptr
-	declare function tkrt_UDelTempDesc alias "fb_hUStrDelTempDesc" ( byval s as FBUSTRING ptr ) as long
+	declare function tkrt_UDelTempDesc alias "fb_hUStrDelTempDesc" ( byval s as FBUSTRING ptr ) as int32
 	declare function tkrt_UAllocTempNoLock alias "fb_hUStrAllocTemp_NoLock" _
 		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
 	declare function tkrt_UDelTempNoLock alias "fb_hUStrDelTemp_NoLock" _
-		( byval s as FBUSTRING ptr ) as long
+		( byval s as FBUSTRING ptr ) as int32
 	declare sub tkrt_UDelete alias "fb_UStrDelete" ( byval s as FBUSTRING ptr )
 	declare function tkrt_UAlloc alias "fb_hUStrAlloc" _
 		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
 	declare function tkrt_URealloc alias "fb_hUStrRealloc" _
-		( byval s as FBUSTRING ptr, byval units as integer, byval k as long ) as FBUSTRING ptr
+		( byval s as FBUSTRING ptr, byval units as integer, byval k as int32 ) as FBUSTRING ptr
 end extern
 
 '' Release a var-len operand. EVERY entry point that takes one must do this:

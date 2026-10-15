@@ -77,14 +77,14 @@ const FB_COLOR_BG_DEFAULT = &h2
 	const TKORT_RECT_BOTTOM = 6
 
 	extern "c"   '' NON-FBCALL: fbc's own console object, declared plain.
-		extern __fb_con alias "__fb_con" as ubyte
+		extern __fb_con alias "__fb_con" as uint8
 	end extern
 
-	#define TKORT_CON_WINDOW_LEFT()   (*cptr( short ptr, @__fb_con + TKORT_CON_WINDOW + TKORT_RECT_LEFT ))
-	#define TKORT_CON_WINDOW_TOP()    (*cptr( short ptr, @__fb_con + TKORT_CON_WINDOW + TKORT_RECT_TOP ))
-	#define TKORT_CON_WINDOW_RIGHT()  (*cptr( short ptr, @__fb_con + TKORT_CON_WINDOW + TKORT_RECT_RIGHT ))
-	#define TKORT_CON_WINDOW_BOTTOM() (*cptr( short ptr, @__fb_con + TKORT_CON_WINDOW + TKORT_RECT_BOTTOM ))
-	#define TKORT_CON_SCROLLOFF()     (*cptr( long ptr, @__fb_con + TKORT_CON_SCROLLWASOFF ))
+	#define TKORT_CON_WINDOW_LEFT()   (*cptr( int16 ptr, @__fb_con + TKORT_CON_WINDOW + TKORT_RECT_LEFT ))
+	#define TKORT_CON_WINDOW_TOP()    (*cptr( int16 ptr, @__fb_con + TKORT_CON_WINDOW + TKORT_RECT_TOP ))
+	#define TKORT_CON_WINDOW_RIGHT()  (*cptr( int16 ptr, @__fb_con + TKORT_CON_WINDOW + TKORT_RECT_RIGHT ))
+	#define TKORT_CON_WINDOW_BOTTOM() (*cptr( int16 ptr, @__fb_con + TKORT_CON_WINDOW + TKORT_RECT_BOTTOM ))
+	#define TKORT_CON_SCROLLOFF()     (*cptr( int32 ptr, @__fb_con + TKORT_CON_SCROLLWASOFF ))
 
 	'' An EMPTY rect means the window has not been read yet, which is also how a
 	'' redirected handle looks -- fb_InitConsoleWindow fills it and leaves it
@@ -112,44 +112,44 @@ const FB_COLOR_BG_DEFAULT = &h2
 	'' hand rather than as a UDT, whose by-value ABI FreeBASIC would not
 	'' necessarily match.
 	#define TKORT_COORD( x, y ) _
-		((cast( ulong, cast( ushort, y ) ) shl 16) or cast( ulong, cast( ushort, x ) ))
+		((cast( uint32, cast( uint16, y ) ) shl 16) or cast( uint32, cast( uint16, x ) ))
 
 	extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
 		declare function w_GetConsoleScreenBufferInfo stdcall alias "GetConsoleScreenBufferInfo" _
-			( byval h as any ptr, byval info as any ptr ) as long
+			( byval h as any ptr, byval info as any ptr ) as int32
 		declare function w_SetConsoleCursorPosition stdcall alias "SetConsoleCursorPosition" _
-			( byval h as any ptr, byval c as ulong ) as long
+			( byval h as any ptr, byval c as uint32 ) as int32
 		declare function w_GetConsoleCursorInfo stdcall alias "GetConsoleCursorInfo" _
-			( byval h as any ptr, byval info as any ptr ) as long
+			( byval h as any ptr, byval info as any ptr ) as int32
 		declare function w_SetConsoleCursorInfo stdcall alias "SetConsoleCursorInfo" _
-			( byval h as any ptr, byval info as any ptr ) as long
+			( byval h as any ptr, byval info as any ptr ) as int32
 		declare function w_SetConsoleTextAttribute stdcall alias "SetConsoleTextAttribute" _
-			( byval h as any ptr, byval attr as ushort ) as long
+			( byval h as any ptr, byval attr as uint16 ) as int32
 		declare function w_GetLargestConsoleWindowSize stdcall alias "GetLargestConsoleWindowSize" _
-			( byval h as any ptr ) as ulong
+			( byval h as any ptr ) as uint32
 		declare function w_GetConsoleMode stdcall alias "GetConsoleMode" _
-			( byval h as any ptr, byval mode_ as ulong ptr ) as long
+			( byval h as any ptr, byval mode_ as uint32 ptr ) as int32
 		declare function w_ReadConsoleOutputAttribute stdcall alias "ReadConsoleOutputAttribute" _
-			( byval h as any ptr, byval buf as ushort ptr, byval n as ulong, byval c as ulong, byval got as ulong ptr ) as long
+			( byval h as any ptr, byval buf as uint16 ptr, byval n as uint32, byval c as uint32, byval got as uint32 ptr ) as int32
 		declare function w_ReadConsoleOutputCharacterA stdcall alias "ReadConsoleOutputCharacterA" _
-			( byval h as any ptr, byval buf as zstring ptr, byval n as ulong, byval c as ulong, byval got as ulong ptr ) as long
+			( byval h as any ptr, byval buf as zstring ptr, byval n as uint32, byval c as uint32, byval got as uint32 ptr ) as int32
 	end extern
 
 	'' fbc's own, and they stay fbc's: the handle cache is in io_gethnd.o and the
 	'' VIEW PRINT window arithmetic in io_window.o.
 	extern "c"   '' NON-FBCALL: internal, declared plain in fb_private_console.h.
-		declare function tkrt_hConsoleGetHandle alias "fb_hConsoleGetHandle" ( byval is_input as long ) as any ptr
+		declare function tkrt_hConsoleGetHandle alias "fb_hConsoleGetHandle" ( byval is_input as int32 ) as any ptr
 		declare sub tkrt_InitConsoleWindow alias "fb_InitConsoleWindow" ( )
 		declare sub tkrt_hConsoleGetWindow alias "fb_hConsoleGetWindow" _
-			( byval l as long ptr, byval t as long ptr, byval c as long ptr, byval r as long ptr )
+			( byval l as int32 ptr, byval t as int32 ptr, byval c as int32 ptr, byval r as int32 ptr )
 	end extern
 
 	extern "rtlib"
 		declare sub tkrt_hUpdateConsoleWindow alias "fb_hUpdateConsoleWindow" ( )
 		declare sub tkrt_hConvertToConsole alias "fb_hConvertToConsole" _
-			( byval l as long ptr, byval t as long ptr, byval r as long ptr, byval b as long ptr )
+			( byval l as int32 ptr, byval t as int32 ptr, byval r as int32 ptr, byval b as int32 ptr )
 		declare sub tkrt_hConvertFromConsole alias "fb_hConvertFromConsole" _
-			( byval l as long ptr, byval t as long ptr, byval r as long ptr, byval b as long ptr )
+			( byval l as int32 ptr, byval t as int32 ptr, byval r as int32 ptr, byval b as int32 ptr )
 	end extern
 
 	#define TKORT_IN_HANDLE()  tkrt_hConsoleGetHandle( 1 )
@@ -222,22 +222,22 @@ const FB_COLOR_BG_DEFAULT = &h2
 	const SEQ_SET_COLOR_EX_ = 107
 
 	extern "c"   '' NON-FBCALL: fbc's own console object, declared plain.
-		extern __fb_con alias "__fb_con" as ubyte
+		extern __fb_con alias "__fb_con" as uint8
 	end extern
 
-	#define TKORT_CON_L( off ) (*cptr( long ptr, @__fb_con + (off) ))
-	#define TKORT_CON_U( off ) (*cptr( ulong ptr, @__fb_con + (off) ))
-	#define TKORT_CON_P( off ) (*cptr( ubyte ptr ptr, @__fb_con + (off) ))
+	#define TKORT_CON_L( off ) (*cptr( int32 ptr, @__fb_con + (off) ))
+	#define TKORT_CON_U( off ) (*cptr( uint32 ptr, @__fb_con + (off) ))
+	#define TKORT_CON_P( off ) (*cptr( uint8 ptr ptr, @__fb_con + (off) ))
 
 	'' fbc's own, all in unix/hinit.o, and they stay fbc's.
 	extern "c"   '' NON-FBCALL: internal, declared plain in fb_private_console.h.
 		declare sub tkrt_BgLock alias "fb_BgLock" ( )
 		declare sub tkrt_BgUnlock alias "fb_BgUnlock" ( )
-		declare sub tkrt_hRecheckConsoleSize alias "fb_hRecheckConsoleSize" ( byval requery as long )
+		declare sub tkrt_hRecheckConsoleSize alias "fb_hRecheckConsoleSize" ( byval requery as int32 )
 		declare sub tkrt_hRecheckCursorPos alias "fb_hRecheckCursorPos" ( )
 		declare function tkrt_hTermOut alias "fb_hTermOut" _
-			( byval code_ as long, byval p1 as long, byval p2 as long ) as long
-		declare function c_isatty alias "isatty" ( byval fd as long ) as long
+			( byval code_ as int32, byval p1 as int32, byval p2 as int32 ) as int32
+		declare function c_isatty alias "isatty" ( byval fd as int32 ) as int32
 	end extern
 
 #endif
